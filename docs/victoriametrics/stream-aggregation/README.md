@@ -11,7 +11,7 @@ can aggregate incoming [samples](https://docs.victoriametrics.com/victoriametric
 (or local storage for single-node VictoriaMetrics).
 The aggregation is applied to all the metrics received via any [supported data ingestion protocol](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data)
 and/or scraped from [Prometheus-compatible targets](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter),
-and allows building [flexible processing pipelines](#routing). 
+and allows building [flexible processing pipelines](#routing).
 
 > By default, stream aggregation ignores timestamps associated with the input [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples). It expects that the ingested samples have timestamps close to the current time. See [how to ignore old samples](#ignoring-old-samples).
 
@@ -326,10 +326,10 @@ See also [histograms over input metrics](#histograms-over-input-metrics) and [qu
 # Routing
 
 [Single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) supports relabeling,
-deduplication and stream aggregation for all the received data, scraped or pushed. 
+deduplication and stream aggregation for all the received data, scraped or pushed.
 The processed data is then stored in local storage and **can't be forwarded further**.
 
-[vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) supports relabeling, deduplication and stream aggregation for all 
+[vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) supports relabeling, deduplication and stream aggregation for all
 the received data, scraped or pushed. See the [processing order for vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/#life-of-a-sample).
 
 Typical scenarios for data routing with `vmagent`:
@@ -345,7 +345,7 @@ Typical scenarios for data routing with `vmagent`:
 [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) supports online [de-duplication](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) of samples
 before sending them to the configured `-remoteWrite.url`. The de-duplication can be enabled via the following options:
 
-- By specifying the desired de-duplication interval via `-streamAggr.dedupInterval` command-line flag for all received data 
+- By specifying the desired de-duplication interval via `-streamAggr.dedupInterval` command-line flag for all received data
   or via `-remoteWrite.streamAggr.dedupInterval` command-line flag for the particular `-remoteWrite.url` destination.
   For example, `./vmagent -remoteWrite.url=http://remote-storage/api/v1/write -remoteWrite.streamAggr.dedupInterval=30s` instructs `vmagent` to leave
   only the last sample per each seen [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) per every 30 seconds.
@@ -369,7 +369,7 @@ It is possible to drop the given labels before applying the de-duplication. See 
 
 The online de-duplication uses the same logic as [`-dedup.minScrapeInterval` command-line flag](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) at VictoriaMetrics.
 
-De-deuplication is applied before stream aggreation rules and can drop samples before they get matched for aggregation.
+De-duplication is applied before stream aggregation rules and can drop samples before they get matched for aggregation.
 
 # Relabeling
 
@@ -404,7 +404,7 @@ See also [dropping unneeded labels](#dropping-unneeded-labels).
 
 ## Ignoring old samples
 
-By default, all the input samples are taken into account during stream aggregation. If samples with old timestamps 
+By default, all the input samples are taken into account during stream aggregation. If samples with old timestamps
 outside the current [aggregation interval](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config) must be ignored, then the following options can be used:
 
 - To pass `-streamAggr.ignoreOldSamples` command-line flag to [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
@@ -519,11 +519,11 @@ See also [aggregation outputs](https://docs.victoriametrics.com/victoriametrics/
 
 ## Dropping unneeded labels
 
-To optimize performance and reduce [churn rate](https://docs.victoriametrics.com/guides/understand-your-setup-size/#churn-rate), it's important to drop unnecessary labels from incoming samples. 
-Dropping unnecessary labels can significantly enhance efficiency. 
+To optimize performance and reduce [churn rate](https://docs.victoriametrics.com/guides/understand-your-setup-size/#churn-rate), it's important to drop unnecessary labels from incoming samples.
+Dropping unnecessary labels can significantly enhance efficiency.
 There are various strategies for label dropping, which can be implemented individually or combined.
 
-**Global Label Dropping** is configured using the `-streamAggr.dropInputLabels` flag. 
+**Global Label Dropping** is configured using the `-streamAggr.dropInputLabels` flag.
 It works in conjunction with the `-streamAggr.config` flag and applies to all matching sections within it.
 The labels are dropped before [input relabeling](#relabeling), [deduplication](#deduplication), and [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-outputs) are applied.
 This flag can be used with [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), vminsert, and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/).
@@ -537,13 +537,13 @@ The following example demonstrates how to drop the `replica` and `az` labels for
   -streamAggr.dropInputLabels="replica,az"
 ```
 
-**Per Remote Write Label Drop** is configured using the `-remoteWrite.streamAggr.dropInputLabels` flag.  
-It should be defined as many times as there are `-remoteWrite.url` flags. 
-To drop multiple labels for a remote write, use `^^` to separate them.  
+**Per Remote Write Label Drop** is configured using the `-remoteWrite.streamAggr.dropInputLabels` flag.
+It should be defined as many times as there are `-remoteWrite.url` flags.
+To drop multiple labels for a remote write, use `^^` to separate them.
 The labels are dropped before [input relabeling](#relabeling), [de-duplication](#deduplication), and [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-outputs) are applied.
 This flag is available for [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) only.
 
-In the example below, `replica` and `az` are dropped for the `foo` target,  
+In the example below, `replica` and `az` are dropped for the `foo` target,
 while `instance` is dropped for the `bar` target:
 
 ```bash
@@ -663,7 +663,7 @@ When configuring the aggregation rule, make sure that `vmagent` receives all the
 If traffic to the vmagent goes through the load balancer, it could happen that vmagent will be receiving only fraction of the data
 and produce incomplete aggregations.
 
-To keep aggregation results consistent, make sure that vmagent receives all the required data for aggregation. In case if you need to 
+To keep aggregation results consistent, make sure that vmagent receives all the required data for aggregation. In case if you need to
 split the load across multiple vmagents, try sharding the traffic among them via metric names or labels.
 For example, see how vmagent could consistently [shard data across remote write destinations](https://docs.victoriametrics.com/victoriametrics/vmagent/#sharding-among-remote-storages)
 via `-remoteWrite.shardByURL.labels` or `-remoteWrite.shardByURL.ignoreLabels` cmd-line flags.
@@ -674,7 +674,7 @@ Stream aggregation can be used as alternative for [recording rules](#recording-r
 But creating an aggregation rule per each recording rule can lead to elevated resource usage on the vmagent,
 because the ingestion stream should be matched against every configured aggregation rule.
 
-To optimize this, we recommend merging together aggregations which only differ in match expressions. 
+To optimize this, we recommend merging together aggregations which only differ in match expressions.
 For example, let's see the following list of recording rules:
 
 ```yaml
@@ -694,7 +694,7 @@ These rules can be effectively converted into a single aggregation rule:
   - node_network_receive_bytes_total
   - node_network_transmit_bytes_total
   interval: 3m
-  outputs: [rate_sum]  
+  outputs: [rate_sum]
   by:
   - instance
   output_relabel_configs:
@@ -722,9 +722,9 @@ Make sure that you updated queries in your alerting rules and dashboards accordi
 
 ### Use different deduplication intervals on storage and vmagent
 
-If the storage uses `-dedup.minScrapeInterval` but `vmagent` has no deduplication configured, aggregation results may not match queries on the storage. 
+If the storage uses `-dedup.minScrapeInterval` but `vmagent` has no deduplication configured, aggregation results may not match queries on the storage.
 For example, `sum(rate(foo[1m])) by (instance)` query result can differ from the [rate_sum](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#rate_sum) aggregation result `foo:1m_by_instance_rate_sum`.
-This happens because vmagent aggregates all samples, while queries on the storage use deduplicated samples. 
+This happens because vmagent aggregates all samples, while queries on the storage use deduplicated samples.
 To avoid this, set `-streamAggr.dedupInterval` or `-remoteWrite.streamAggr.dedupInterval` on `vmagent` to match the storage interval.
 
 ---

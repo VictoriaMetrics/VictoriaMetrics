@@ -26,7 +26,14 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): show `seriesCountByMetricName` table when a label is in focus in the [Cardinality Explorer](https://docs.victoriametrics.com/victoriametrics/#cardinality-explorer). See [#10630](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10630). Thanks to @Roshan1299 for the contribution.
+* FEATURE: [dashboards/unused-metrics](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards/unused-metrics.json): add a new dashboard for exploring stored metrics based on [Caridnality Explorer](https://docs.victoriametrics.com/victoriametrics/#cardinality-explorer) and [ingested metrics usage API](https://docs.victoriametrics.com/victoriametrics/#track-ingested-metrics-usage). The dashboard requires [Infinity Grafana plugin](https://grafana.com/grafana/plugins/yesoreyeram-infinity-datasource/) to be installed. See [#10617](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10617) for details.
+* FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): add `search` parameter and pagination support in `/api/v1/rules` API. See [#10046](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10046).
+* FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): add default pagination to improve the Alerting Rules page experience when vmalert loads thousands of rules. See [#10046](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10046).
+
 * BUGFIX: all VictoriaMetrics components: log a warning when an IPv6 listen address (e.g. `[::]:6969`) is specified but `-enableTCP6` is not set. Previously, the server silently listened on IPv4 only. See [#6858](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6858).
+* BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): retry RPC by dialing a new connection instead of reusing a pooled one when the previous attempt fails with `io.EOF`, `broken pipe` or `reset by peer`. This reduces query failures caused by stale connections to restarted vmstorage nodes. See [#10314](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10314)
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): fix autocomplete dropdown not closing on the Raw Query page. See [#10665](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10665)
 
 ## [v1.138.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.138.0)
 
@@ -42,6 +49,7 @@ Released at 2026-03-13
 * FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): support negative values for the group `eval_offset` option, which allows starting group evaluation at `groupInterval-abs(eval_offset)` within `[0...groupInterval]`. See [#10424](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10424).
 * FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): Disable `/graphite/tags/tagSeries` and `/graphite/tags/tagMultiSeries` for Graphite tag registration since it is unlikely it is used in context of VictoriaMetrics. See [10544](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10544).
 * FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): rename debug tools buttons for clarity. See [#10453](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10453).
+* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): [`yandexcloud_sd_configs`](https://docs.victoriametrics.com/victoriametrics/sd_configs/#yandexcloud_sd_configs) now supports `folder_ids` for limiting discovery to specific folders. See [#10623](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10623).
 
 * BUGFIX: all VictoriaMetrics components: replace `histogram` with `untyped` metric metadata type for [VictoriaMetrics histograms](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#histogram) when `-metrics.exposeMetadata` is set. See [#82](https://github.com/VictoriaMetrics/metrics/issues/82).
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): properly route requests to `default_url`. Previously, `request_path` query arg could be set incorrectly during concurrent requests. See [#10626](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10626).
@@ -82,6 +90,27 @@ It enables back `Discovered targets` debug UI by default.
 * BUGFIX: `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly search tenants for [multitenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) query request. See [#10422](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10422).
 * BUGFIX: `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly apply `extra_filters[]` filter when querying `vm_account_id` or `vm_project_id` labels via [multitenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) request for `/api/v1/label/…/values` API. Before, `extra_filters` was ignored. See [#10503](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10503).
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): revert the use of rollup result cache for [instant queries](https://docs.victoriametrics.com/keyConcepts.html#instant-query) that contain [`rate`](https://docs.victoriametrics.com/MetricsQL.html#rate) function with a lookbehind window larger than `-search.minWindowForInstantRollupOptimization`. The cache usage was removed since [v1.132.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.132.0). See [#10098](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10098#issuecomment-3895011084) for more details.
+
+## [v1.136.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.136.2)
+
+Released at 2026-03-13
+
+**v1.136.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.136.x line will be supported for at least 12 months since [v1.136.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11360) release**
+
+* SECURITY: upgrade Go builder from Go1.26.0 to Go1.26.1. See [the list of issues addressed in Go1.26.1](https://github.com/golang/go/issues?q=milestone%3AGo1.26.1%20label%3ACherryPickApproved).
+
+FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): Disable `/graphite/tags/tagSeries` and `/graphite/tags/tagMultiSeries` for Graphite tag registration since it is unlikely it is used in context of VictoriaMetrics. See [10544](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10544).
+* FEATURE: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): add [histogram_fraction](https://docs.victoriametrics.com/victoriametrics/metricsql/#histogram_fraction) function to calculate the fraction of buckets falling between lowerLe and upperLe. See [#5346](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5346).
+
+* BUGFIX: all VictoriaMetrics components: replace `histogram` with `untyped` metric metadata type for [VictoriaMetrics histograms](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#histogram) when `-metrics.exposeMetadata` is set. See [#82](https://github.com/VictoriaMetrics/metrics/issues/82).
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): properly route requests to `default_url`. Previously, `request_path` query arg could be set incorrectly during concurrent requests. See [#10626](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10626).
+* BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup/), [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): do not enable ACL when uploading backups to S3-compatible endpoints by default. ACL is not always supported by S3-compatible endpoints and it is not recommended to use ACLs to limit access to objects. See [#10539](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10539) for more details.
+* BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): overwrite s3 object metadata while syncing latest backups with other backup types. See [#10639](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10639).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/), `vminsert` and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly attach `host` label to the time series ingested via [/datadog/api/beta/sketches](https://docs.victoriametrics.com/victoriametrics/integrations/datadog/#) API. See [#10557](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10557).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): use `increase_pure` instead of `rate` for histogram heatmaps in Explore Metrics to correctly display the first observation in each new bucket. See [#10365](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10365). Thanks to @ab0utbla-k for the contribution.
+* BUGFIX: `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix inaccurate `vm_filestream_write_duration_seconds_total` due to duplicate counting . After the fix, `vm_filestream_write_duration_seconds_total` will track the duration spent on calling the `write(2)` system call properly. See [#10564](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10564).
 
 ## [v1.136.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.136.1)
 
@@ -250,6 +279,24 @@ See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/ch
 ## [v1.123.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.123.0)
 
 See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2025/#v11230)
+
+## [v1.122.17](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.17)
+
+Released at 2026-03-13
+
+**v1.122.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.122.x line will be supported for at least 12 months since [v1.122.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11220) release**
+
+* SECURITY: upgrade Go builder from Go1.24.13 to Go1.25.8. See [the list of issues addressed in Go1.25.8](https://github.com/golang/go/issues?q=milestone%3AGo1.25.8+label%3ACherryPickApproved).
+
+* FEATURE: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): add [histogram_fraction](https://docs.victoriametrics.com/victoriametrics/metricsql/#histogram_fraction) function to calculate the fraction of buckets falling between lowerLe and upperLe. See [#5346](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5346).
+
+* BUGFIX: all VictoriaMetrics components: replace `histogram` with `untyped` metric metadata type for [VictoriaMetrics histograms](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#histogram) when `-metrics.exposeMetadata` is set. See [#82](https://github.com/VictoriaMetrics/metrics/issues/82).
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): properly route requests to `default_url`. Previously, `request_path` query arg could be set incorrectly during concurrent requests. See [#10626](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10626).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/), `vminsert` and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly attach `host` label to the time series ingested via [/datadog/api/beta/sketches](https://docs.victoriametrics.com/victoriametrics/integrations/datadog/#) API. See [#10557](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10557).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): use `increase_pure` instead of `rate` for histogram heatmaps in Explore Metrics to correctly display the first observation in each new bucket. See [#10365](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10365). Thanks to @ab0utbla-k for the contribution.
+* BUGFIX: `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix inaccurate `vm_filestream_write_duration_seconds_total` due to duplicate counting . After the fix, `vm_filestream_write_duration_seconds_total` will track the duration spent on calling the `write(2)` system call properly. See [#10564](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10564).
 
 ## [v1.122.16](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.16)
 

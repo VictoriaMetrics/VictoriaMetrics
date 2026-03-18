@@ -216,7 +216,7 @@ func mustCreatePartition(timestamp int64, smallPartitionsPath, bigPartitionsPath
 
 	// Create parts.json file. Since we are creating a new partition, there
 	// will be no parts, i.e. the smallPartsPath and bigPartPath dirs will be
-	// empty. This is guaranteed by the code above: if eirher directory exists,
+	// empty. This is guaranteed by the code above: if either directory exists,
 	// there will be panic.
 	mustWritePartNames(nil, nil, smallPartsPath)
 
@@ -803,10 +803,17 @@ func (pt *partition) mustMergeInmemoryParts(pws []*partWrapper) []*partWrapper {
 	return pwsResult
 }
 
-// mustMergeInmemoryPartsFinal merges the given in-memory part wrappers (pws) into a single new in-memory part wrapper.
-// It panics if the input slice pws is empty (though the caller should prevent this).
-// Returns nil if the merge results in an empty part (e.g., due to retention filters removing all data).
-// Otherwise, returns the wrapper for the merged part.
+// mustMergeInmemoryPartsFinal merges the given in-memory part wrappers (pws)
+// into a single new in-memory part wrapper.
+//
+// It panics if the input slice pws is empty (though the caller should prevent
+// this). If the pws contains only one element, it is returned as is. Finally,
+// when len(pws) > 1, the source pws are merged, and their ref count is
+// decremented.
+//
+// Returns nil if the merge results in an empty part (e.g., due to retention
+// filters removing all data). Otherwise, returns the wrapper for the merged
+// part.
 func (pt *partition) mustMergeInmemoryPartsFinal(pws []*partWrapper) *partWrapper {
 	if len(pws) == 0 {
 		logger.Panicf("BUG: pws must contain at least a single item")
@@ -852,6 +859,9 @@ func (pt *partition) mustMergeInmemoryPartsFinal(pws []*partWrapper) *partWrappe
 	}
 	if err != nil {
 		logger.Panicf("FATAL: cannot merge inmemoryBlocks: %s", err)
+	}
+	for _, pw := range pws {
+		pw.decRef()
 	}
 
 	// The resulting part is empty, no need to create a part wrapper
