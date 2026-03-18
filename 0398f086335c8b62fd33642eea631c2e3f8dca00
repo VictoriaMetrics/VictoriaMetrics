@@ -1,0 +1,23 @@
+lib/prompb/write_request_unmarshaler.go
+  506c14c611883f12 6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.8",
+  "base_commit_sha": "0398f086335c8b62fd33642eea631c2e3f8dca00",
+  "prompts": {
+    "506c14c611883f12": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "17a37e2c-0809-468a-a62d-69f98720f9ec",
+        "model": "unknown"
+      },
+      "human_author": "Haley Wang <haley@victoriametrics.com>",
+      "messages": [],
+      "total_additions": 25,
+      "total_deletions": 1,
+      "accepted_lines": 1,
+      "overriden_lines": 0
+    }
+  }
+}
