@@ -69,6 +69,7 @@ func MustRemoveDir(dirPath string) {
 		logger.Panicf("FATAL: cannot schedule %s for removal, since the removal queue is full (%d entries)", dirPath, cap(removeDirConcurrencyCh))
 	}
 	dirRemoverWG.Go(func() {
+		defer func() { <-removeDirConcurrencyCh }()
 		for {
 			if tryRemoveDir(dirPath) {
 				return
