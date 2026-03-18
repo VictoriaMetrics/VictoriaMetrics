@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"strconv"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -20,19 +21,14 @@ func isLonePort(s string) bool {
 		return false
 	}
 
-	var port uint32
-	for i := 1; i < n; i++ {
-		d := uint32(s[i]) - '0'
-		if d > 9 {
-			return false
-		}
-		port = port*10 + d
+	port, err := strconv.Atoi(s[1:])
+	if err != nil {
+		return false
 	}
-
-	return port <= 65535
+	return port >= 0 && port <= 65535
 }
 
-// NewTCPListener returns new TCP listener for the given addr and optional tlsConfig.
+// NewTCPListener returns a new TCP listener for the given addr and optional tlsConfig.
 //
 // name is used for metrics. Each listener in the program must have a distinct name.
 //

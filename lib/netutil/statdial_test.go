@@ -70,6 +70,8 @@ func TestIsTCPv4Addr(t *testing.T) {
 	// random strings
 	f("abc", false)
 	f("my dog got autism", false)
+	f("IDDQD", false)
+	f("Galactus", false)
 	f("hello:world", false)
 	f("12:34:56", false)
 
