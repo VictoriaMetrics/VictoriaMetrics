@@ -1180,6 +1180,8 @@ func (hctx *histogramDataPointContext) pushSamples(dctx *decoderContext) {
 
 	dctx.mp.PushSample(&dctx.mm, "_count", &dctx.ls, hctx.timestamp, float64(hctx.count), hctx.flags)
 
+	// sum is optional, it will not be filled out when negative events are recorded,
+	// see https://github.com/open-telemetry/opentelemetry-proto/blob/049d4332834935792fd4dbd392ecd31904f99ba2/opentelemetry/proto/metrics/v1/metrics.proto#L465
 	if hctx.hasSum {
 		dctx.mp.PushSample(&dctx.mm, "_sum", &dctx.ls, hctx.timestamp, float64(hctx.sum), hctx.flags)
 	}
@@ -1307,8 +1309,6 @@ func (dctx *decoderContext) decodeExponentialHistogramDataPoint(src []byte) (err
 				return fmt.Errorf("cannot read Count")
 			}
 		case 5:
-			// sum is optional because it not be filled out when negative events are recorded,
-			// see https://github.com/open-telemetry/opentelemetry-proto/blob/049d4332834935792fd4dbd392ecd31904f99ba2/opentelemetry/proto/metrics/v1/metrics.proto#L550
 			ehctx.sum, ok = fc.Double()
 			if !ok {
 				return fmt.Errorf("cannot read Sum")
@@ -1416,6 +1416,8 @@ func (b *buckets) reset() {
 
 func (ehctx *exponentialHistogramDataPointContext) pushSamples(dctx *decoderContext) {
 	dctx.mp.PushSample(&dctx.mm, "_count", &dctx.ls, ehctx.timestamp, float64(ehctx.count), ehctx.flags)
+	// sum is optional, it will not be filled out when negative events are recorded,
+	// see https://github.com/open-telemetry/opentelemetry-proto/blob/049d4332834935792fd4dbd392ecd31904f99ba2/opentelemetry/proto/metrics/v1/metrics.proto#L550
 	if ehctx.hasSum {
 		dctx.mp.PushSample(&dctx.mm, "_sum", &dctx.ls, ehctx.timestamp, float64(ehctx.sum), ehctx.flags)
 	}
