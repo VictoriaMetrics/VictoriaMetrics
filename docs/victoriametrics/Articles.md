@@ -108,6 +108,7 @@ See also [case studies](https://docs.victoriametrics.com/victoriametrics/casestu
 * [Unlocking the Power of VictoriaMetrics: A Prometheus Alternative](https://developer-friendly.blog/blog/2024/06/17/unlocking-the-power-of-victoriametrics-a-prometheus-alternative/)
 * [How to Master Kubernetes Observability: Multi-Cluster Monitoring with VictoriaMetrics, Loki, and Grafana](https://www.keyvalue.systems/blog/kubernetes-observability-with-victoriametrics-loki-grafana/)
 * [A Complete Guide to VictoriaMetrics, a Prometheus Comparison, and Kubernetes Monitoring Implementation](https://apprecode.com/blog/a-complete-guide-to-victoriametrics-a-prometheus-comparison-and-kubernetes-monitoring-implementation)
+* [Monitoring Pipeline with Prometheus and VictoriaMetrics](https://clovisc.medium.com/monitoring-pipeline-with-blackbox-exporter-prometheus-victoriametrics-and-vmalert-0ab020c7202a)
 
 ## Third-party articles and slides about VictoriaLogs
 
