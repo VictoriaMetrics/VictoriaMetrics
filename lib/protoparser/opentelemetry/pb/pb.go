@@ -1307,10 +1307,13 @@ func (dctx *decoderContext) decodeExponentialHistogramDataPoint(src []byte) (err
 				return fmt.Errorf("cannot read Count")
 			}
 		case 5:
+			// sum is optional because it not be filled out when negative events are recorded,
+			// see https://github.com/open-telemetry/opentelemetry-proto/blob/049d4332834935792fd4dbd392ecd31904f99ba2/opentelemetry/proto/metrics/v1/metrics.proto#L550
 			ehctx.sum, ok = fc.Double()
 			if !ok {
 				return fmt.Errorf("cannot read Sum")
 			}
+			ehctx.hasSum = true
 		case 6:
 			ehctx.scale, ok = fc.Sint32()
 			if !ok {
@@ -1347,11 +1350,13 @@ func (dctx *decoderContext) decodeExponentialHistogramDataPoint(src []byte) (err
 			if !ok {
 				return fmt.Errorf("cannot read Min")
 			}
+			ehctx.hasMin = true
 		case 13:
 			ehctx.max, ok = fc.Double()
 			if !ok {
 				return fmt.Errorf("cannot read Max")
 			}
+			ehctx.hasMax = true
 		case 14:
 			ehctx.zeroThreshold, ok = fc.Double()
 			if !ok {
@@ -1369,13 +1374,16 @@ type exponentialHistogramDataPointContext struct {
 	timestamp     uint64
 	count         uint64
 	sum           float64
+	hasSum        bool
 	scale         int32
 	zeroCount     uint64
 	positive      buckets
 	negative      buckets
 	flags         uint32
 	min           float64
+	hasMin        bool
 	max           float64
+	hasMax        bool
 	zeroThreshold float64
 }
 
@@ -1383,13 +1391,16 @@ func (ehctx *exponentialHistogramDataPointContext) reset() {
 	ehctx.timestamp = 0
 	ehctx.count = 0
 	ehctx.sum = 0
+	ehctx.hasSum = false
 	ehctx.scale = 0
 	ehctx.zeroCount = 0
 	ehctx.positive.reset()
 	ehctx.negative.reset()
 	ehctx.flags = 0
 	ehctx.min = 0
+	ehctx.hasMin = false
 	ehctx.max = 0
+	ehctx.hasMax = false
 	ehctx.zeroThreshold = 0
 }
 
@@ -1405,13 +1416,17 @@ func (b *buckets) reset() {
 
 func (ehctx *exponentialHistogramDataPointContext) pushSamples(dctx *decoderContext) {
 	dctx.mp.PushSample(&dctx.mm, "_count", &dctx.ls, ehctx.timestamp, float64(ehctx.count), ehctx.flags)
-	dctx.mp.PushSample(&dctx.mm, "_sum", &dctx.ls, ehctx.timestamp, float64(ehctx.sum), ehctx.flags)
+	if ehctx.hasSum {
+		dctx.mp.PushSample(&dctx.mm, "_sum", &dctx.ls, ehctx.timestamp, float64(ehctx.sum), ehctx.flags)
+	}
 
 	dctx.ls.Add("vmrange", "")
 	vmrangeValueP := &dctx.ls.Labels[len(dctx.ls.Labels)-1].Value
 
 	if ehctx.zeroCount > 0 {
-		*vmrangeValueP = dctx.fb.formatVmrange(0.0, ehctx.zeroThreshold)
+		// ZeroThreshold is optionally set to convey the width of the zero region.
+		// When ZeroThreshold is set, all observations within the closed interval [-ZeroThreshold, +ZeroThreshold] go to the zero bucket rather than a regular bucket.
+		*vmrangeValueP = dctx.fb.formatVmrange(-ehctx.zeroThreshold, ehctx.zeroThreshold)
 		dctx.mp.PushSample(&dctx.mm, "_bucket", &dctx.ls, ehctx.timestamp, float64(ehctx.zeroCount), ehctx.flags)
 	}
 
