@@ -33,6 +33,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 * BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): retry RPC by dialing a new connection instead of reusing a pooled one when the previous attempt fails with `io.EOF`, `broken pipe` or `reset by peer`. This reduces query failures caused by stale connections to restarted vmstorage nodes. See [#10314](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10314)
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): fix autocomplete dropdown not closing on the Raw Query page. See [#10665](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10665)
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): properly handle JWKS keys per [RFC 7517](https://datatracker.ietf.org/doc/html/rfc7517#section-4.2) during [OIDC discovery](https://docs.victoriametrics.com/victoriametrics/vmauth/#oidc-discovery): skip keys with `use=enc`, reject `use=sig` keys with unsupported `alg`, and warn-skip keys with empty `use` that have unsupported `alg`. See [#10663](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10663). Thanks to @andriibeee for the contribution.
 
 ## [v1.138.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.138.0)
 

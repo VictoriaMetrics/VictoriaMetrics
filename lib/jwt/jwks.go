@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"math/big"
 	"slices"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 // See https://www.rfc-editor.org/rfc/rfc7517 for details.
@@ -47,6 +49,11 @@ func ParseJWKs(rawResp []byte) (*VerifierPool, error) {
 
 	vs := make([]*verifier, 0, len(resp.Keys))
 	for _, key := range resp.Keys {
+		// Skip non-signature keys
+		// see https://datatracker.ietf.org/doc/html/rfc7517#section-4.2
+		if key.Use != "" && key.Use != "sig" {
+			continue
+		}
 		switch key.Kty {
 		case "RSA":
 			if key.E == "" || key.N == "" {
@@ -104,7 +111,11 @@ func ParseJWKs(rawResp []byte) (*VerifierPool, error) {
 			}
 
 			if key.Alg != "" {
-				return nil, fmt.Errorf("jwks key alg %s not allowed; supported %v, %v", key.Alg, rsaAlgs, psAlgs)
+				if key.Use == "sig" {
+					return nil, fmt.Errorf("jwks key with use=sig has unsupported alg %s; supported %v, %v", key.Alg, rsaAlgs, psAlgs)
+				}
+				logger.Warnf("skipping JWKS RSA key kid=%s with unsupported alg=%s", key.Kid, key.Alg)
+				continue
 			}
 
 			for _, alg := range rsaAlgs {
@@ -163,7 +174,11 @@ func ParseJWKs(rawResp []byte) (*VerifierPool, error) {
 			}
 
 			if key.Alg != "" && key.Alg != string(alg) {
-				return nil, fmt.Errorf("jwk alg: %s does not match curve: %s", key.Alg, key.Crv)
+				if key.Use == "sig" {
+					return nil, fmt.Errorf("jwk with use=sig has alg %s that does not match curve %s", key.Alg, key.Crv)
+				}
+				logger.Warnf("skipping JWKS EC key kid=%s: alg=%s does not match curve=%s", key.Kid, key.Alg, key.Crv)
+				continue
 			}
 
 			x := big.NewInt(0).SetBytes(decX)
