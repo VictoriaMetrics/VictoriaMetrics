@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -294,7 +295,7 @@ func (t *Token) matchClaim(c *Claim) bool {
 	var gotV *fastjson.Value
 	if c.nestedKeys[0] == "scope" {
 		// special case, scope could be both string and []string
-		return c.value == t.body.Scope
+		return c.valueRe.MatchString(t.body.Scope)
 	}
 	keys := c.nestedKeys
 	if keys[0] == "vm_access" && t.body.vmAccessClaimObject != nil {
@@ -314,15 +315,15 @@ func (t *Token) matchClaim(c *Claim) bool {
 		return false
 	}
 	if gotV.Type() == fastjson.TypeString {
-		return bytesutil.ToUnsafeString(gotV.GetStringBytes()) == c.value
+		return c.valueRe.Match(gotV.GetStringBytes())
 	}
 	bb := claimValuePool.Get()
 	b := bb.B[:0]
 	b = gotV.MarshalTo(b)
 	bb.B = b
-	equal := string(b) == c.value
+	match := c.valueRe.Match(b)
 	claimValuePool.Put(bb)
-	return equal
+	return match
 }
 
 var claimValuePool bytesutil.ByteBufferPool
@@ -344,27 +345,33 @@ func (t *Token) Reset() {
 
 // VMAccessClaim represent JWT claim object
 type VMAccessClaim struct {
-	// promql filters applied to each select query
-	ExtraFilters []string `json:"extra_filters,omitempty"`
-
 	MetricsExtraFilters    []string `json:"metrics_extra_filters,omitempty"`
 	MetricsExtraLabels     []string `json:"metrics_extra_labels,omitempty"`
 	LogsExtraFilters       []string `json:"logs_extra_filters,omitempty"`
 	LogsExtraStreamFilters []string `json:"logs_extra_stream_filters,omitempty"`
-
-	Labels []string `json:"extra_labels,omitempty"`
-	// labelsBuf holds allocated memory for Labels
-	labelsBuf []byte
-	Tenant    TenantID `json:"tenant_id"`
-	// role can be denied as 1 = read, 2 = write, 3 = read and write
-	// 0 = unconfigured - read and write
-	Mode int `json:"mode,omitempty"`
 
 	MetricsAccountID uint32 `json:"metrics_account_id,omitempty"`
 	MetricsProjectID uint32 `json:"metrics_project_id,omitempty"`
 
 	LogsAccountID uint32 `json:"logs_account_id,omitempty"`
 	LogsProjectID uint32 `json:"logs_project_id,omitempty"`
+
+	// Properties below are deprecated and retained only for compatibility with vmgateway, which is itself deprecated.
+
+	// promql filters applied to each select query
+	// Deprecated
+	ExtraFilters []string `json:"extra_filters,omitempty"`
+	// Deprecated
+	Tenant TenantID `json:"tenant_id"`
+	// role can be denied as 1 = read, 2 = write, 3 = read and write
+	// 0 = unconfigured - read and write
+	// Deprecated
+	Mode int `json:"mode,omitempty"`
+	// Deprecated
+	Labels []string `json:"extra_labels,omitempty"`
+	// labelsBuf holds allocated memory for Labels
+	// Deprecated
+	labelsBuf []byte
 }
 
 func (vac *VMAccessClaim) reset() {
@@ -482,6 +489,7 @@ func (vac *VMAccessClaim) parseFrom(jv *fastjson.Value) error {
 }
 
 // TenantID represents tenantID.
+// Deprecated
 type TenantID struct {
 	ProjectID int32 `json:"project_id"`
 	AccountID int32 `json:"account_id"`
@@ -736,27 +744,31 @@ var decodeb64BufferPool bytesutil.ByteBufferPool
 // It supports dot-delimited nested key lookup within the token body JSON.
 type Claim struct {
 	nestedKeys []string
-	value      string
+	valueRe    *regexp.Regexp
 }
 
-// NewClaim constructs a JWT token claim from the given key and value.
+// NewClaim constructs a JWT token claim from the given key and value regular expression.
 // The key supports dot-delimited notation as a separator for nested key lookup.
 // To include a literal dot in a key segment, escape it with a backslash (e.g. "a\.b.c").
 //
 // For example, the key "audit.permissions.0" can be used to access a nested array element in:
 //
 // {"audit": {"permissions": [0, 1, 0]}}
-func NewClaim(key, value string) *Claim {
+func NewClaim(key, value string) (*Claim, error) {
 	var nestedKeys []string
 	if idx := strings.Index(key, "."); idx > 0 {
 		nestedKeys = splitNestedClaimKey(key)
 	} else {
 		nestedKeys = []string{key}
 	}
+	valueRe, err := regexp.Compile(value)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse value match re=%q: %w", value, err)
+	}
 	return &Claim{
 		nestedKeys: nestedKeys,
-		value:      value,
-	}
+		valueRe:    valueRe,
+	}, nil
 }
 
 // splitNestedClaimKey splits a dot-delimited claim key into individual path segments.

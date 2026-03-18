@@ -80,7 +80,7 @@ export default class AppConfigurator {
 
     let keys: string[] = [];
     if (focusLabel || isMetricWithLabel) {
-      keys = keys.concat("seriesCountByFocusLabelValue");
+      keys = keys.concat("seriesCountByMetricName", "seriesCountByFocusLabelValue");
     } else if (isMetric) {
       keys = keys.concat("labelValueCountByLabelName");
     } else if (isLabel) {
