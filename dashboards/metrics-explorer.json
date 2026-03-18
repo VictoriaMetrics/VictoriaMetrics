@@ -194,7 +194,7 @@
               "columns": [],
               "datasource": {
                 "type": "yesoreyeram-infinity-datasource",
-                "uid": "${DS_VICTORIAMETRICS-INFINITY}"
+                "uid": "$ds"
               },
               "filters": [],
               "format": "table",
@@ -580,7 +580,7 @@
           "columns": [],
           "datasource": {
             "type": "yesoreyeram-infinity-datasource",
-            "uid": "${DS_VICTORIAMETRICS-INFINITY}"
+            "uid": "$ds"
           },
           "filters": [],
           "format": "table",
@@ -762,7 +762,7 @@
           "computed_columns": [],
           "datasource": {
             "type": "yesoreyeram-infinity-datasource",
-            "uid": "${DS_VICTORIAMETRICS-INFINITY}"
+            "uid": "$ds"
           },
           "filters": [],
           "format": "table",
@@ -870,7 +870,7 @@
           "computed_columns": [],
           "datasource": {
             "type": "yesoreyeram-infinity-datasource",
-            "uid": "${DS_VICTORIAMETRICS-INFINITY}"
+            "uid": "$ds"
           },
           "filters": [],
           "format": "table",
@@ -994,7 +994,7 @@
           "computed_columns": [],
           "datasource": {
             "type": "yesoreyeram-infinity-datasource",
-            "uid": "${DS_VICTORIAMETRICS-INFINITY}"
+            "uid": "$ds"
           },
           "filters": [],
           "format": "table",
