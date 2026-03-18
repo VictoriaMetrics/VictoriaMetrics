@@ -310,9 +310,11 @@ func (t *Token) matchClaim(c *Claim) bool {
 	} else {
 		gotV = t.body.allClaims.Get(keys...)
 	}
-	if gotV == nil || gotV.Type() == fastjson.TypeArray || gotV.Type() == fastjson.TypeObject {
-		// key not found or has complex structure
+	if gotV == nil || gotV.Type() == fastjson.TypeObject {
 		return false
+	}
+	if gotV.Type() == fastjson.TypeArray {
+		return matchClaimArray(c, gotV.GetArray())
 	}
 	if gotV.Type() == fastjson.TypeString {
 		return c.valueRe.Match(gotV.GetStringBytes())
@@ -324,6 +326,35 @@ func (t *Token) matchClaim(c *Claim) bool {
 	match := c.valueRe.Match(b)
 	claimValuePool.Put(bb)
 	return match
+}
+
+func matchClaimArray(c *Claim, elems []*fastjson.Value) bool {
+	var bb *bytesutil.ByteBuffer
+	for _, elem := range elems {
+		switch elem.Type() {
+		case fastjson.TypeString:
+			if c.valueRe.Match(elem.GetStringBytes()) {
+				if bb != nil {
+					claimValuePool.Put(bb)
+				}
+				return true
+			}
+		case fastjson.TypeObject, fastjson.TypeArray:
+		default:
+			if bb == nil {
+				bb = claimValuePool.Get()
+			}
+			bb.B = elem.MarshalTo(bb.B[:0])
+			if c.valueRe.Match(bb.B) {
+				claimValuePool.Put(bb)
+				return true
+			}
+		}
+	}
+	if bb != nil {
+		claimValuePool.Put(bb)
+	}
+	return false
 }
 
 var claimValuePool bytesutil.ByteBufferPool
