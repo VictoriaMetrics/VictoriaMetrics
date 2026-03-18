@@ -901,7 +901,11 @@ func TestTokenMatchClaims(t *testing.T) {
 	f := func(tkn *Token, claims map[string]string, want bool) {
 		parsedClaims := make([]*Claim, 0, len(claims))
 		for k, v := range claims {
-			parsedClaims = append(parsedClaims, NewClaim(k, v))
+			c, err := NewClaim(k, v)
+			if err != nil {
+				t.Fatalf("BUG: incorrect claim, key=%q,value_re=%q: %s", k, v, err)
+			}
+			parsedClaims = append(parsedClaims, c)
 		}
 		t.Helper()
 		got := tkn.MatchClaims(parsedClaims)
@@ -1002,4 +1006,23 @@ func TestTokenMatchClaims(t *testing.T) {
 		"dict\\.with_dot.key": "value",
 	}
 	f(&tokenObjectFields, claims, true)
+
+	// match re
+	claims = map[string]string{
+		"vm_access.tenant_id.project_id": "(1|3|5)",
+	}
+	f(&tokenObjectFields, claims, true)
+
+	// negative re
+	claims = map[string]string{
+		"vm_access.tenant_id.project_id": "[^1-5]",
+	}
+	f(&tokenObjectFields, claims, false)
+
+	// not match re
+	claims = map[string]string{
+		"vm_access.tenant_id.project_id": "(10|11)",
+	}
+	f(&tokenObjectFields, claims, false)
+
 }
