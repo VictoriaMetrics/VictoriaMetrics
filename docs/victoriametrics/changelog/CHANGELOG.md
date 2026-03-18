@@ -30,6 +30,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * FEATURE: [dashboards/unused-metrics](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards/unused-metrics.json): add a new dashboard for exploring stored metrics based on [Caridnality Explorer](https://docs.victoriametrics.com/victoriametrics/#cardinality-explorer) and [ingested metrics usage API](https://docs.victoriametrics.com/victoriametrics/#track-ingested-metrics-usage). The dashboard requires [Infinity Grafana plugin](https://grafana.com/grafana/plugins/yesoreyeram-infinity-datasource/) to be installed. See [#10617](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10617) for details.
 
 * BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): retry RPC by dialing a new connection instead of reusing a pooled one when the previous attempt fails with `io.EOF`, `broken pipe` or `reset by peer`. This reduces query failures caused by stale connections to restarted vmstorage nodes. See [#10314](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10314)
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): fix autocomplete dropdown not closing on the Raw Query page. See [#10665](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10665)
 
 ## [v1.138.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.138.0)
 
