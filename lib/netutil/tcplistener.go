@@ -17,7 +17,7 @@ var enableTCP6 = flag.Bool("enableTCP6", false, "Whether to enable IPv6 for list
 
 func isLonePort(s string) bool {
 	n := len(s)
-	if n < 2 || n > 6 || s[0] != ':' {
+	if n < 2 || s[0] != ':' {
 		return false
 	}
 
