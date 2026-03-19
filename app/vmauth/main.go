@@ -47,12 +47,13 @@ var (
 		"It is recommended setting this value to values smaller than -http.idleConnTimeout set at backend services")
 	responseTimeout = flag.Duration("responseTimeout", 5*time.Minute, "The timeout for receiving a response from backend")
 
-	requestBufferSize = flagutil.NewBytes("requestBufferSize", 32*1024, "The size of the buffer for reading the request body before proxying the request to backends. "+
+	requestBufferSize = flagutil.NewBytes("requestBufferSize", defaultBodyBufferSize, "The size of the buffer for reading the request body before proxying the request to backends. "+
 		"This allows reducing the consumption of backend resources when processing requests from clients connected via slow networks. "+
-		"Set to 0 to disable request buffering. See https://docs.victoriametrics.com/victoriametrics/vmauth/#request-body-buffering")
-	maxRequestBodySizeToRetry = flagutil.NewBytes("maxRequestBodySizeToRetry", 16*1024, "The maximum request body size to buffer in memory for potential retries at other backends. "+
+		"Set to 0 to disable request buffering. See https://docs.victoriametrics.com/victoriametrics/vmauth/#request-body-buffering"+
+		"See also '-maxRequestBodySizeToRetry' flag, which has the same meaning due to historical reasons")
+	maxRequestBodySizeToRetry = flagutil.NewBytes("maxRequestBodySizeToRetry", defaultBodyBufferSize, "The maximum request body size to buffer in memory for potential retries at other backends. "+
 		"Request bodies larger than this size cannot be retried if the backend fails. Zero or negative value disables request body buffering and retries. "+
-		"See also -requestBufferSize")
+		"See also '-requestBufferSize' flag, which has the same meaning due to historical reasons, but has higher priority")
 
 	maxConcurrentRequests = flag.Int("maxConcurrentRequests", 1000, "The maximum number of concurrent requests vmauth can process simultaneously. "+
 		"Requests exceeding this limit are queued for up to -maxQueueDuration and then rejected with '429 Too Many Requests' http status code if the limit is still reached. "+
@@ -88,6 +89,8 @@ var (
 	removeXFFHTTPHeaderValue = flag.Bool(`removeXFFHTTPHeaderValue`, false, "Whether to remove the X-Forwarded-For HTTP header value from client requests before forwarding them to the backend. "+
 		"Recommended when vmauth is exposed to the internet.")
 )
+
+const defaultBodyBufferSize = 16 * 1024
 
 func main() {
 	// Write flags and help message to stdout, since it is easier to grep or pipe.
@@ -349,13 +352,29 @@ func endConcurrencyLimit() {
 	<-concurrencyLimitCh
 }
 
+func getMaxRequestBufSize() int {
+	rbs := requestBufferSize.IntN()
+	rbstr := maxRequestBodySizeToRetry.IntN()
+	if rbs <= 0 || rbstr <= 0 {
+		// request buffering disabled
+		return 0
+	}
+	if rbstr == defaultBodyBufferSize {
+		return rbs
+	}
+	if rbs == defaultBodyBufferSize {
+		return rbstr
+	}
+	return max(rbs, rbstr)
+}
+
 func bufferRequestBody(ctx context.Context, r io.ReadCloser, userName string) (io.ReadCloser, error) {
 	if r == nil {
 		// This is a GET request with nil reader.
 		return nil, nil
 	}
 
-	maxBufSize := max(requestBufferSize.IntN(), maxRequestBodySizeToRetry.IntN())
+	maxBufSize := getMaxRequestBufSize()
 	if maxBufSize <= 0 {
 		return r, nil
 	}
