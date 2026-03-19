@@ -8,6 +8,7 @@ import (
 	"hash/fnv"
 	"maps"
 	"net/url"
+	"os"
 	"sync"
 	"time"
 
@@ -396,6 +397,29 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 		}
 		g.metrics.iterationDuration.UpdateDuration(start)
 		g.LastEvaluation = start
+		if g.EvalOffset != nil && e.Rw != nil {
+			hostname, err := os.Hostname()
+			if err != nil {
+				hostname = "unknown"
+			}
+			labels := map[string]string{
+				"__name__": "vmalert_eval_timestamp",
+				"host":     hostname,
+				"group":    g.Name,
+				"file":     g.File,
+			}
+			var ls []prompb.Label
+			for k, v := range labels {
+				ls = append(ls, prompb.Label{
+					Name:  k,
+					Value: v,
+				})
+			}
+			ts := newTimeSeries([]float64{float64(ts.Unix())}, []int64{start.Unix()}, ls)
+			if err := e.Rw.Push(ts); err != nil {
+				logger.Errorf("group %q: failed to push evaluation timestamp: %s", g.Name, err)
+			}
+		}
 		return ts
 	}
 
