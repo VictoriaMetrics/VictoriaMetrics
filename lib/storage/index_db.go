@@ -1717,7 +1717,7 @@ func (db *indexDB) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, t
 }
 
 func (db *indexDB) wrapError(op string, err error) error {
-	return fmt.Errorf("failed %s in indexDB %q: %w", op, db.name, err)
+	return fmt.Errorf("failed to %s in indexDB %q: %w", op, db.name, err)
 }
 
 // SearchTSIDs searches the TSIDs that correspond to filters within the given
