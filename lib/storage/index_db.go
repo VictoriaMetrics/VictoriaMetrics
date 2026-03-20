@@ -706,7 +706,7 @@ func (is *indexSearch) getLabelNamesForMetricIDs(qt *querytracer.Tracer, metricI
 
 // SearchLabelValues returns label values for the given labelName, tfss and tr.
 func (db *indexDB) SearchLabelValues(qt *querytracer.Tracer, labelName string, tfss []*TagFilters, tr TimeRange, maxLabelValues, maxMetrics int, deadline uint64) (map[string]struct{}, error) {
-	qt = qt.NewChild("search label values: labelName=%q, filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", labelName, tfss, &tr, maxLabelValues, maxMetrics)
+	qt = qt.NewChild("search label values: labelName=%q, filters=%s, timeRange=%s, maxLabelValues=%d, maxMetrics=%d", labelName, tfss, &tr, maxLabelValues, maxMetrics)
 	defer qt.Done()
 
 	key := labelName
@@ -1141,7 +1141,7 @@ func (db *indexDB) SearchGraphitePaths(qt *querytracer.Tracer, tr TimeRange, qHe
 	paths := make(map[string]struct{})
 	for suffix := range suffixes {
 		if len(paths) > maxPaths {
-			return nil, db.wrapError("search graphite paths", fmt.Errorf("more than maxPath=%d paths found", maxPaths))
+			return nil, db.wrapError("search graphite paths", fmt.Errorf("more than maxPaths=%d paths found", maxPaths))
 		}
 		if !re.MatchString(suffix) {
 			continue
