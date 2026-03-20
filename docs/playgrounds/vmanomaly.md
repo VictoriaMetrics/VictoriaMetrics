@@ -1,6 +1,6 @@
 ---
 weight: 5 
-title: VMAnomaly Playground
+title: Anomaly Detection Playground
 menu:
   docs:
     parent: "playgrounds"
@@ -14,7 +14,7 @@ tags:
 - Try it: <https://play-vmanomaly.victoriametrics.com/metrics/vmui/>
 - UI Guide: <https://docs.victoriametrics.com/anomaly-detection/ui/#example-usage>
 
-The playground demonstrates automatic [anomaly detection](http://localhost:1313/anomaly-detection/).
+The playground demonstrates automatic [anomaly detection](https://docs.victoriametrics.com/anomaly-detection/).
 
 ![Screenshot of VMUI](vmanomaly.webp)
 <figcaption style="text-align: center; font-style: italic;">Exploring model fit for CPU usage series</figcaption>

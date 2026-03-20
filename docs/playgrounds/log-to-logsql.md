@@ -31,7 +31,7 @@ For example, this LogQL query:
 {collector="otel-collector"} |= "POST"
 ```
 
-Translates into the equivalent [LogsQL](https://docs.victoriametrics.com/victorialogs/logsqlhttps://docs.victoriametrics.com/victorialogs/logsql//)
+Translates into the equivalent [LogsQL](https://docs.victoriametrics.com/victorialogs/logsqlhttps://docs.victoriametrics.com/victorialogs/logsql/)
 
 ```text
 {collector="otel-collector"} "POST"

@@ -25,14 +25,14 @@ The query tab provides a sandbox to experiment with [MetricsQL](https://docs.vic
 
 You can try these to get started:
 
-- Average CPU usage in per job: `sum(rate(process_cpu_seconds_total[5m])) by (job)`
+- Average CPU usage per job: `sum(rate(process_cpu_seconds_total[5m])) by (job)`
 - HTTP requests per-second rate: `sum(rate(vm_http_requests_total[5m]))`
 - Top 5 CPU intensive jobs `topk(5, sum(rate(process_cpu_seconds_total[5m])) by (job))`
 
 Below is an example of average CPU usage per job:
 
 ```text
-sum(rate(process_cpu_seconds_total)) by (job)
+sum(rate(process_cpu_seconds_total[5m])) by (job)
 ```
 
 ![Screenshot of VMUI](vm-process-cpu.webp)
