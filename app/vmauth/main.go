@@ -301,6 +301,10 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tk
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
+	if n := getBufferedBodySize(bb); n > 0 {
+		ui.requestBodyBufferedBytes.Add(int64(n))
+		defer ui.requestBodyBufferedBytes.Add(int64(-n))
+	}
 	r.Body = bb
 
 	// Disable the read deadline for the rest of the request body.
@@ -387,6 +391,14 @@ func bufferRequestBody(ctx context.Context, r io.ReadCloser, userName string) (i
 
 	bb := newBufferedBody(r, buf, maxBufSize)
 	return bb, nil
+}
+
+func getBufferedBodySize(r io.ReadCloser) int {
+	bb, ok := r.(*bufferedBody)
+	if !ok {
+		return 0
+	}
+	return len(bb.buf)
 }
 
 func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tkn *jwt.Token) {

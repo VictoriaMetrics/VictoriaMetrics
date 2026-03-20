@@ -1503,6 +1503,21 @@ cannot read request body: an error`)
 cannot read request body: an error`)
 }
 
+func TestGetBufferedBodySize(t *testing.T) {
+	f := func(body io.ReadCloser, expectedSize int) {
+		t.Helper()
+
+		n := getBufferedBodySize(body)
+		if n != expectedSize {
+			t.Fatalf("unexpected buffered size; got %d; want %d", n, expectedSize)
+		}
+	}
+
+	f(nil, 0)
+	f(io.NopCloser(bytes.NewBufferString("foo")), 0)
+	f(&bufferedBody{buf: []byte("abc")}, 3)
+}
+
 type mockBody struct {
 	head []byte
 	err  error

@@ -104,6 +104,8 @@ type UserInfo struct {
 	backendRequests  *metrics.Counter
 	backendErrors    *metrics.Counter
 	requestsDuration *metrics.Summary
+
+	requestBodyBufferedBytes atomic.Int64
 }
 
 // AccessLog represents configuration for access log settings.
@@ -952,6 +954,9 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 		ui.backendRequests = ac.ms.NewCounter(`vmauth_unauthorized_user_request_backend_requests_total` + metricLabels)
 		ui.backendErrors = ac.ms.NewCounter(`vmauth_unauthorized_user_request_backend_errors_total` + metricLabels)
 		ui.requestsDuration = ac.ms.NewSummary(`vmauth_unauthorized_user_request_duration_seconds` + metricLabels)
+		_ = ac.ms.NewGauge(`vmauth_unauthorized_user_request_body_buffered_bytes`+metricLabels, func() float64 {
+			return float64(ui.requestBodyBufferedBytes.Load())
+		})
 		ui.concurrencyLimitCh = make(chan struct{}, ui.getMaxConcurrentRequests())
 		ui.concurrencyLimitReached = ac.ms.NewCounter(`vmauth_unauthorized_user_concurrent_requests_limit_reached_total` + metricLabels)
 		_ = ac.ms.NewGauge(`vmauth_unauthorized_user_concurrent_requests_capacity`+metricLabels, func() float64 {
@@ -1013,6 +1018,9 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 		ui.backendRequests = ac.ms.GetOrCreateCounter(`vmauth_user_request_backend_requests_total` + metricLabels)
 		ui.backendErrors = ac.ms.GetOrCreateCounter(`vmauth_user_request_backend_errors_total` + metricLabels)
 		ui.requestsDuration = ac.ms.GetOrCreateSummary(`vmauth_user_request_duration_seconds` + metricLabels)
+		_ = ac.ms.GetOrCreateGauge(`vmauth_user_request_body_buffered_bytes`+metricLabels, func() float64 {
+			return float64(ui.requestBodyBufferedBytes.Load())
+		})
 		mcr := ui.getMaxConcurrentRequests()
 		ui.concurrencyLimitCh = make(chan struct{}, mcr)
 		ui.concurrencyLimitReached = ac.ms.GetOrCreateCounter(`vmauth_user_concurrent_requests_limit_reached_total` + metricLabels)
