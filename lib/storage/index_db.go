@@ -511,7 +511,7 @@ func (db *indexDB) SearchLabelNames(qt *querytracer.Tracer, tfss []*TagFilters, 
 	lns, err := is.searchLabelNamesWithFiltersOnTimeRange(qt, tfss, tr, maxLabelNames, maxMetrics)
 	db.putIndexSearch(is)
 	if err != nil {
-		return nil, db.wrapError("searching label names", err)
+		return nil, db.wrapError("search label names", err)
 	}
 
 	qt.Printf("found %d label names", len(lns))
@@ -722,7 +722,7 @@ func (db *indexDB) SearchLabelValues(qt *querytracer.Tracer, labelName string, t
 		lvs, err := is.searchLabelValuesOnTimeRange(qt, labelName, nil, tr, maxMetrics, maxMetrics)
 		db.putIndexSearch(is)
 		if err != nil {
-			return nil, db.wrapError("searching label values", err)
+			return nil, db.wrapError("search label values", err)
 		}
 
 		needSlowSearch := len(lvs) == maxMetrics
@@ -748,7 +748,7 @@ func (db *indexDB) SearchLabelValues(qt *querytracer.Tracer, labelName string, t
 	lvs, err := is.searchLabelValuesOnTimeRange(qt, labelName, tfss, tr, maxMetrics, maxMetrics)
 	db.putIndexSearch(is)
 	if err != nil {
-		return nil, db.wrapError("searching label values", err)
+		return nil, db.wrapError("search label values", err)
 	}
 
 	qt.Printf("found %d label values", len(lvs))
@@ -963,7 +963,7 @@ func (db *indexDB) SearchTagValueSuffixes(qt *querytracer.Tracer, tr TimeRange, 
 	tvss, err := is.searchTagValueSuffixesForTimeRange(tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
 	db.putIndexSearch(is)
 	if err != nil {
-		return nil, db.wrapError("searching tag value suffixes", err)
+		return nil, db.wrapError("search tag value suffixes", err)
 	}
 
 	// Do not skip empty suffixes, since they may represent leaf tag values.
@@ -1097,7 +1097,7 @@ func (db *indexDB) SearchGraphitePaths(qt *querytracer.Tracer, tr TimeRange, qHe
 		qHead = append(qHead, qTail...)
 		suffixes, err := db.SearchTagValueSuffixes(qt, tr, "", bytesutil.ToUnsafeString(qHead), '.', 1, deadline)
 		if err != nil {
-			return nil, db.wrapError("searching graphite paths", err)
+			return nil, db.wrapError("search graphite paths", err)
 		}
 		if len(suffixes) == 0 {
 			// The query doesn't match anything.
@@ -1117,13 +1117,13 @@ func (db *indexDB) SearchGraphitePaths(qt *querytracer.Tracer, tr TimeRange, qHe
 	qHead = append(qHead, qTail[:n]...)
 	suffixes, err := db.SearchTagValueSuffixes(qt, tr, "", bytesutil.ToUnsafeString(qHead), '.', maxPaths, deadline)
 	if err != nil {
-		return nil, db.wrapError("searching graphite paths", err)
+		return nil, db.wrapError("search graphite paths", err)
 	}
 	if len(suffixes) == 0 {
 		return nil, nil
 	}
 	if len(suffixes) >= maxPaths {
-		return nil, db.wrapError("searching graphite paths", fmt.Errorf("more than maxPaths=%d suffixes found", maxPaths))
+		return nil, db.wrapError("search graphite paths", fmt.Errorf("more than maxPaths=%d suffixes found", maxPaths))
 	}
 	qNode := qTail[n:]
 	qTail = nil
@@ -1141,7 +1141,7 @@ func (db *indexDB) SearchGraphitePaths(qt *querytracer.Tracer, tr TimeRange, qHe
 	paths := make(map[string]struct{})
 	for suffix := range suffixes {
 		if len(paths) > maxPaths {
-			return nil, db.wrapError("searching graphite paths", fmt.Errorf("more than maxPath=%d paths found", maxPaths))
+			return nil, db.wrapError("search graphite paths", fmt.Errorf("more than maxPath=%d paths found", maxPaths))
 		}
 		if !re.MatchString(suffix) {
 			continue
@@ -1154,7 +1154,7 @@ func (db *indexDB) SearchGraphitePaths(qt *querytracer.Tracer, tr TimeRange, qHe
 		qHead = append(qHead[:qHeadLen], suffix...)
 		ps, err := db.SearchGraphitePaths(qt, tr, qHead, qTail, maxPaths, deadline)
 		if err != nil {
-			return nil, db.wrapError("searching graphite paths", err)
+			return nil, db.wrapError("search graphite paths", err)
 		}
 		for p := range ps {
 			paths[p] = struct{}{}
@@ -1233,7 +1233,7 @@ func (db *indexDB) GetSeriesCount(deadline uint64) (uint64, error) {
 	defer db.putIndexSearch(is)
 	count, err := is.getSeriesCount()
 	if err != nil {
-		return 0, db.wrapError("getting series count", err)
+		return 0, db.wrapError("get series count", err)
 	}
 	return count, nil
 }
@@ -1288,7 +1288,7 @@ func (db *indexDB) GetTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters, dat
 	defer db.putIndexSearch(is)
 	status, err := is.getTSDBStatus(qt, tfss, date, focusLabel, topN, maxMetrics)
 	if err != nil {
-		return nil, db.wrapError("collecting TSDB status", err)
+		return nil, db.wrapError("collect TSDB status", err)
 	}
 	return status, nil
 }
@@ -1533,7 +1533,7 @@ func (db *indexDB) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxM
 	// to the tfss.
 	metricIDs, err := is.searchMetricIDs(qt, tfss, globalIndexTimeRange, maxMetrics)
 	if err != nil {
-		return nil, db.wrapError("deleting series", err)
+		return nil, db.wrapError("delete series", err)
 	}
 
 	db.saveDeletedMetricIDs(metricIDs)
@@ -1707,7 +1707,7 @@ func (db *indexDB) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, t
 	metricIDs, err := is.searchMetricIDs(qt, tfss, tr, maxMetrics)
 	db.putIndexSearch(is)
 	if err != nil {
-		return nil, fmt.Errorf("error searching metricIDs: %w", err)
+		return nil, fmt.Errorf("failed to search metricIDs: %w", err)
 	}
 
 	// Store metricIDs in the cache.
@@ -1717,7 +1717,7 @@ func (db *indexDB) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, t
 }
 
 func (db *indexDB) wrapError(op string, err error) error {
-	return fmt.Errorf("error while %s in indexDB %q: %w", op, db.name, err)
+	return fmt.Errorf("failed %s in indexDB %q: %w", op, db.name, err)
 }
 
 // SearchTSIDs searches the TSIDs that correspond to filters within the given
@@ -1733,7 +1733,7 @@ func (db *indexDB) SearchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Ti
 
 	metricIDs, err := db.searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
 	if err != nil {
-		return nil, db.wrapError("searching TSIDs", err)
+		return nil, db.wrapError("search TSIDs", err)
 	}
 	if metricIDs.Len() == 0 {
 		return nil, nil
@@ -1785,7 +1785,7 @@ func (db *indexDB) SearchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Ti
 		return true
 	})
 	if err != nil {
-		return nil, db.wrapError("searching TSIDs", err)
+		return nil, db.wrapError("search TSIDs", err)
 	}
 
 	tsids = tsids[:i]
@@ -1816,7 +1816,7 @@ func (db *indexDB) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters,
 
 	metricIDs, err := db.searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
 	if err != nil {
-		return nil, db.wrapError("searching metric names", err)
+		return nil, db.wrapError("search metric names", err)
 	}
 	if metricIDs.Len() == 0 {
 		return nil, nil
@@ -1856,7 +1856,7 @@ func (db *indexDB) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters,
 		return true
 	})
 	if err != nil {
-		return nil, db.wrapError("searching metric names", err)
+		return nil, db.wrapError("search metric names", err)
 	}
 
 	if metricIDsToDelete.Len() > 0 {
