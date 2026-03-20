@@ -76,7 +76,7 @@ There is change {{% available_from "v1.13.0" anomaly %}} of [`queries`](https://
 
 - `data_range`{{% available_from "v1.15.1" anomaly %}} (list[float | string]): It allows defining **valid** data ranges for input per individual query in `queries`, resulting in:
   - **High anomaly scores** (>1) when the *data falls outside the expected range*, indicating a data range constraint violation (e.g. improperly configured metricsQL query, sensor malfunction, overflows in underlying metrics, etc.). Anomaly scores can be set to a specific value, like `5`, to indicate a strong violation, using the `anomaly_score_outside_data_range` [arg](https://docs.victoriametrics.com/anomaly-detection/components/models/#score-outside-data-range) of a respective model this query is used in.
-  - **Lowest anomaly scores** (=0) when the *model's predictions (`yhat`) fall outside the expected range*, meaning uncertain predictions that does not really aligh with the data.
+  - **Lowest anomaly scores** (=0) when the *model's predictions (`yhat`) fall outside the expected range*, meaning uncertain predictions that does not really align with the data.
 
   Works together with `anomaly_score_outside_data_range` [arg](https://docs.victoriametrics.com/anomaly-detection/components/models/#score-outside-data-range) of a model to determine the anomaly score for such cases as well as with `clip_predictions` [arg](https://docs.victoriametrics.com/anomaly-detection/components/models/#clip-predictions) of a model to clip the predictions to the expected range.
 
@@ -95,7 +95,7 @@ There is change {{% available_from "v1.13.0" anomaly %}} of [`queries`](https://
 
   > The recommended approach for using per-query `tenant_id`s is to set both `reader.tenant_id` and `writer.tenant_id` to `multitenant`. See [this section](https://docs.victoriametrics.com/anomaly-detection/components/writer/#multitenancy-support) for more details. Configurations where `reader.tenant_id` equals `writer.tenant_id` and is not `multitenant` are also considered safe, provided there is a single, DISTINCT `tenant_id` defined in the reader (either at the reader level or the query level, if set).
 
-- `offset` {{% available_from "v1.25.3" anomaly %}} (string): this optional argument allows specifying a time offset for the query, which can be useful for adjusting the query time range to account for data collection delays or other timing issues. The offset is specified as a string (e.g., "15s", "-20s") and will be applied to the query time range. Valid resolutions are `ms`, `s`, `m`, `h`, `d` (miliseconds, seconds, minutes, hours, days). If not set, defaults to `0s` (0). See [FAQ](https://docs.victoriametrics.com/anomaly-detection/faq/#using-offsets) for more details.
+- `offset` {{% available_from "v1.25.3" anomaly %}} (string): this optional argument allows specifying a time offset for the query, which can be useful for adjusting the query time range to account for data collection delays or other timing issues. The offset is specified as a string (e.g., "15s", "-20s") and will be applied to the query time range. Valid resolutions are `ms`, `s`, `m`, `h`, `d` (milliseconds, seconds, minutes, hours, days). If not set, defaults to `0s` (0). See [FAQ](https://docs.victoriametrics.com/anomaly-detection/faq/#using-offsets) for more details.
 
 ### Per-query config example
 ```yaml
@@ -133,7 +133,7 @@ reader:
         <tr>
             <th>Parameter</th>
             <th>Example</th>
-            <th><span style="white-space: nowrap;">Description</span></th>  
+            <th><span style="white-space: nowrap;">Description</span></th>
         </tr>
     </thead>
     <tbody>
@@ -276,8 +276,8 @@ Timeout for the requests, passed as a string
 `false`
             </td>
             <td>
-Verify TLS certificate. If `False`, it will not verify the TLS certificate. 
-If `True`, it will verify the certificate using the system's CA store. 
+Verify TLS certificate. If `False`, it will not verify the TLS certificate.
+If `True`, it will verify the certificate using the system's CA store.
 If a path to a CA bundle file (like `ca.crt`), it will verify the certificate using the provided CA bundle.
             </td>
         </tr>
@@ -485,7 +485,7 @@ To experiment with MetricsQL queries for `VmReader`, you can use the [VictoriaMe
 
 `vmanomaly` supports [mutual TLS (mTLS)](https://en.wikipedia.org/wiki/Mutual_authentication){{% available_from "v1.16.3" anomaly %}} for secure communication across its components, including [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader), [VmWriter](https://docs.victoriametrics.com/anomaly-detection/components/writer/#vm-writer), and [Monitoring/Push](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#push-config-parameters). This allows for mutual authentication between the client and server when querying or writing data to [VictoriaMetrics Enterprise, configured for mTLS](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#mtls-protection).
 
-mTLS ensures that both the client and server verify each other's identity using certificates, which enhances security by preventing unauthorized access. 
+mTLS ensures that both the client and server verify each other's identity using certificates, which enhances security by preventing unauthorized access.
 
 To configure mTLS, the following parameters can be set in the [config](#config-parameters):
 - `verify_tls`: If set to a string, it functions like the `-mtlsCAFile` command-line argument of VictoriaMetrics, specifying the CA bundle to use. Set to `True` to use the system's default certificate store.
@@ -521,7 +521,7 @@ reader:
 
 ## VictoriaLogs reader
 
-{{% available_from "v1.26.0" anomaly %}} `vmanomaly` can read data from [VictoriaLogs stats queries](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-range-stats) endpoint with `VLogsReader`. This reader allows quering and analyzing log data stored in [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/), enabling anomaly detection on metrics generated from logs. **Querying [VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) is supported with the same reader, as the endpoints for both are equivalent.**
+{{% available_from "v1.26.0" anomaly %}} `vmanomaly` can read data from [VictoriaLogs stats queries](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-range-stats) endpoint with `VLogsReader`. This reader allows querying and analyzing log data stored in [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/), enabling anomaly detection on metrics generated from logs. **Querying [VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) is supported with the same reader, as the endpoints for both are equivalent.**
 
 Its queries should be expressed in [LogsQL*](https://docs.victoriametrics.com/victorialogs/logsql/) language that both VictoriaLogs and VictoriaTraces support, with the focus on using [stats pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe) functions to calculate metrics from logs.
 
@@ -658,7 +658,7 @@ You can also access **embedded version of the playground below** (VictoriaLogs d
         <tr>
             <th>Parameter</th>
             <th>Example</th>
-            <th><span style="white-space: nowrap;">Description</span></th>  
+            <th><span style="white-space: nowrap;">Description</span></th>
         </tr>
     </thead>
     <tbody>
@@ -799,8 +799,8 @@ Frequency of the points returned. Will be converted to `/select/stats_query_rang
 `false`
             </td>
             <td>
-Verify TLS certificate. If `False`, it will not verify the TLS certificate. 
-If `True`, it will verify the certificate using the system's CA store. 
+Verify TLS certificate. If `False`, it will not verify the TLS certificate.
+If `True`, it will verify the certificate using the system's CA store.
 If a path to a CA bundle file (like `ca.crt`), it will verify the certificate using the provided CA bundle.
             </td>
         </tr>
@@ -808,7 +808,7 @@ If a path to a CA bundle file (like `ca.crt`), it will verify the certificate us
             <td>
 <span style="white-space: nowrap;">`tls_cert_file`</span>
             </td>
-            <td>    
+            <td>
 
 `path/to/cert.crt`
             </td>
@@ -922,7 +922,7 @@ reader:
       step: '2m'  # overrides global `sampling_period` of 1m
       # other per-query parameters as needed
   # other reader-level parameters as needed
-    
+
 # other config sections, like models, schedulers, writer, ...
 ```
 

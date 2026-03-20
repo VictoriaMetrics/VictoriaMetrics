@@ -201,6 +201,16 @@ oauth2:
   proxy_url: ":invalid-proxy-url"
 `)
 
+	// oauth2: invalid headers (missing colon)
+	f(`
+oauth2:
+  client_id: some-id
+  client_secret: some-secret
+  token_url: http://some-url
+  headers:
+  - "InvalidHeader"
+`)
+
 	// tls_config: invalid ca
 	f(`
 tls_config:
@@ -609,6 +619,45 @@ func TestConfigHeaders(t *testing.T) {
 	f(nil, "")
 	f([]string{"foo: bar"}, "Foo: bar\r\n")
 	f([]string{"Foo-Bar: Baz s:sdf", "A:b", "X-Forwarded-For: A-B:c"}, "Foo-Bar: Baz s:sdf\r\nA: b\r\nX-Forwarded-For: A-B:c\r\n")
+}
+
+func TestOAuth2TokenURLHeaders(t *testing.T) {
+	var receivedAccept string
+	r := http.NewServeMux()
+	r.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+		receivedAccept = req.Header.Get("Accept")
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"access_token":"test-oauth2-token","token_type":"Bearer"}`))
+	})
+	mock := httptest.NewServer(r)
+	defer mock.Close()
+
+	var hcc HTTPClientConfig
+	if err := yaml.UnmarshalStrict([]byte(`
+oauth2:
+  client_id: some-id
+  client_secret: some-secret
+  token_url: replace-with-mock-url
+  headers:
+  - "Accept: application/json"
+`), &hcc); err != nil {
+		t.Fatalf("cannot unmarshal config: %s", err)
+	}
+	hcc.OAuth2.TokenURL = mock.URL
+	cfg, err := hcc.NewConfig("")
+	if err != nil {
+		t.Fatalf("cannot initialize config: %s", err)
+	}
+	ah, err := cfg.GetAuthHeader()
+	if err != nil {
+		t.Fatalf("unexpected error from GetAuthHeader(): %s", err)
+	}
+	if ah != "Bearer test-oauth2-token" {
+		t.Fatalf("unexpected auth header; got %q; want %q", ah, "Bearer test-oauth2-token")
+	}
+	if receivedAccept != "application/json" {
+		t.Fatalf("token_url did not receive expected Accept header; got %q", receivedAccept)
+	}
 }
 
 func TestTLSConfigWithCertificatesFilesUpdate(t *testing.T) {

@@ -1803,6 +1803,13 @@ scrape_configs:
     #
     # api_endpoint: "https://api.cloud.yandex.net"
 
+    # folder_ids is an optional list of folder IDs for direct discovery.
+    # If set, only the given folders are queried and the folder enumeration
+    # step is skipped.
+    #
+    # folder_ids:
+    #   - "b1gxxxxxxxxxxxxxxxxx"
+
     # yandex_passport_oauth_token is an optional OAuth token
     # for querying yandexcloud API. See https://cloud.yandex.com/en-ru/docs/iam/concepts/authorization/oauth-token
     #
@@ -2090,9 +2097,12 @@ and in the majority of [supported service discovery configs](#supported-service-
 
     # oauth2 is an optional OAuth 2.0 configuration.
     # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#oauth2
+    # Additionally, `headers` field is supported for sending custom HTTP headers to `token_url`.
     #
     # oauth2:
     #   ...
+    #   headers:
+    #   - "X-Tenant-ID: my-tenant"
 
     # tls_config is an optional TLS configuration.
     # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#tls_config

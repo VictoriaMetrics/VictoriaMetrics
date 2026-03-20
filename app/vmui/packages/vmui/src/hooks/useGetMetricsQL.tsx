@@ -72,9 +72,9 @@ const useGetMetricsQL = (includeFunctions: boolean) => {
       }
     };
     fetchMarkdown();
-  }, []);
+  }, [includeFunctions, metricsQLFunctions.length, queryDispatch]);
 
-  return includeFunctions ? metricsQLFunctions : [];
+  return metricsQLFunctions;
 };
 
 export default useGetMetricsQL;
