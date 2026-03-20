@@ -4,6 +4,8 @@ import (
 	"math"
 	"reflect"
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 func TestGetRowsDiff(t *testing.T) {
@@ -730,6 +732,39 @@ func TestParseMetadataLineSuccess(t *testing.T) {
 				Metric: "cassandra_token_ownership_ratio",
 				Type:   1,
 				Help:   "The ratio of Cassandra token ownership.",
+			},
+		},
+	})
+	// OpenMetrics types: info, gaugehistogram, stateset, unknown
+	f(`# TYPE dovecot_build info`, []Metadata{}, &MetadataRows{
+		Rows: []Metadata{
+			{
+				Metric: "dovecot_build",
+				Type:   prompb.MetricTypeInfo,
+			},
+		},
+	})
+	f(`# TYPE request_duration_seconds gaugehistogram`, []Metadata{}, &MetadataRows{
+		Rows: []Metadata{
+			{
+				Metric: "request_duration_seconds",
+				Type:   prompb.MetricTypeGaugeHistogram,
+			},
+		},
+	})
+	f(`# TYPE http_request_stateset stateset`, []Metadata{}, &MetadataRows{
+		Rows: []Metadata{
+			{
+				Metric: "http_request_stateset",
+				Type:   prompb.MetricTypeStateset,
+			},
+		},
+	})
+	f(`# TYPE some_metric unknown`, []Metadata{}, &MetadataRows{
+		Rows: []Metadata{
+			{
+				Metric: "some_metric",
+				Type:   prompb.MetricTypeUnknown,
 			},
 		},
 	})
