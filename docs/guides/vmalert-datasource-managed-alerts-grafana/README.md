@@ -12,22 +12,22 @@ sitemap:
 <!-- - Change the "see also" on the vmsingle and cluster guides and point it to this doc -->
 <!-- - Review comments in YAMLs -->
 
-Grafana offers a rich alerting UI, including rule grouping, silences, and notification history. But while Grafana-native alerts are easy to use, they scale poorly since they depend on a relational database.
+Grafana offers a rich alerting UI, including rule grouping, silences, and notification history. While Grafana-native alerts are easy to use, [they scale poorly without additional configuration since they depend on a relational database by default](https://grafana.com/blog/how-we-improved-grafanas-alert-state-history-to-provide-better-insights-into-your-alerting-data/).
 
-By moving rule evaluation to [vmalert], you can move past these limitations while retaining Grafana's unified alerting UI. This guide shows the ideal topology for scalable alerting using vmalert, Alertmanager, and Grafana datasource-managed alerts.
+By moving rule evaluation to [vmalert](https://docs.victoriametrics.com/vmalert), you can move past these limitations while retaining Grafana's unified alerting UI. This guide shows the ideal topology for scalable alerting using vmalert, Alertmanager, and Grafana datasource-managed alerts.
 
 ## Grafana Alert Modes
 
 Grafana supports two alert modes, which can run side by side:
 
-- Grafana-managed: alerts are created and evaluated entirely within Grafana itself. State is stored in a SQL database.
+- Grafana-managed: alerts are created and evaluated entirely within Grafana itself. The alert state is stored in a SQL database by default, but [Grafana can be configured to store to store this data in a prometheus compatible database like Victoriametrics as well.](https://grafana.com/docs/grafana/latest/alerting/set-up/configure-alert-state-history/#configure-prometheus-for-alert-state-grafana_alerts-metric)
 - Datasource-managed: alerts have their rules defined, stored, and evaluated in an external system like vmalert and Alertmanager, with Grafana just providing the UI. State is stored in VictoriaMetrics.
 
 The following table compares the two modes:
 
 | Aspect              | Grafana-Native              | Data Source-Managed           |
 | ------------------- | --------------------------- | ----------------------------- |
-| Where rules live    | Grafana database (SQL)      | vmalert's YAML config         |
+| Where rules live    | Grafana's SQL database or a prometheus datsource      | vmalert's YAML config         |
 | Evaluation          | Grafana's scheduler         | vmalert                       |
 | Scaling             | Vertical (Grafana limits)   | Horizontal (vmalert shards)   |
 | State storage       | SQL backend                 | VictoriaMetrics               |
@@ -105,7 +105,7 @@ datasources:
     type: alertmanager
     access: proxy
     url: http://alertmanager:9093
-    isDefault: false
+    isDefault: true
     jsonData:
       implementation: prometheus
 ```
@@ -132,7 +132,8 @@ services:
     image: prom/alertmanager:latest
     container_name: alertmanager
     command:
-      - "--config.file=/etc/alertmanager/alertmanager.yml"
+     - "--config.file=/etc/alertmanager/alertmanager.yml"
+     - "--web.external-url=http://localhost:300/alerting/list"
     ports:
       - "9093:9093"
     volumes:
