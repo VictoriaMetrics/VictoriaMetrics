@@ -7,10 +7,10 @@ sitemap:
   disable: true
 ---
 
-TODO: 
-- mention in the vmsingle and vmcluster that we should download and commit our config files
-- Change the "see also" on the vmsingle and cluster guides and point it to this doc
-- Review comments in YAMLs
+<!-- TODO:  -->
+<!-- - mention in the vmsingle and vmcluster that we should download and commit our config files -->
+<!-- - Change the "see also" on the vmsingle and cluster guides and point it to this doc -->
+<!-- - Review comments in YAMLs -->
 
 Grafana offers a rich alerting UI, including rule grouping, silences, and notification history. But while Grafana-native alerts are easy to use, they scale poorly since they depend on a relational database.
 
@@ -326,20 +326,6 @@ server:
       groups:
       - name: vm-health
         rules:
-          # TODO: remove this and the recording rule below
-          - alert: AlwaysFiring
-            expr: vector(1)
-            for: 10s
-            labels:
-              severity: warning
-            annotations:
-              summary: "Demo alert that always fires"
-              description: "This is a demo alert from vmalert using vector(1)."
-
-          # Simple recording rule you can graph in Grafana
-          - record: demo:vector_one
-            expr: vector(1)
-
           - alert: TooManyRestarts
             expr: changes(process_start_time_seconds{job=~"victoriametrics|vmagent|vmalert"}[15m]) > 2
             labels:
@@ -410,7 +396,7 @@ helm upgrade vmsingle vm/victoria-metrics-single \
 
 After this upgrade, vmsingle will start proxying `/api/v1/rules`, `/api/v1/alerts` and other vmalert endpoints to the vmalert service, enabling Grafana’s alerting UI and API to work through the VictoriaMetrics datasource. 
 
-TODO: use full URL
+<!-- TODO: use full URL -->
 To finish the set up, jump to the [Configure Grafana](#grafana) section
 
 ## vmalert and VictoriaMetrics Cluster on Kubernetes {#vmcluster}
@@ -526,20 +512,6 @@ server:
       groups:
       - name: vm-health
         rules:
-          # TODO: remove this and the recording rule below
-          - alert: AlwaysFiring
-            expr: vector(1)
-            for: 10s
-            labels:
-              severity: warning
-            annotations:
-              summary: "Demo alert that always fires"
-              description: "This is a demo alert from vmalert using vector(1)."
-
-          # Simple recording rule you can graph in Grafana
-          - record: demo:vector_one
-            expr: vector(1)
-
           - alert: TooManyRestarts
             expr: changes(process_start_time_seconds{job=~"victoriametrics|vmagent|vmalert"}[15m]) > 2
             labels:
@@ -560,7 +532,7 @@ EOF
 ```
 
 
-TODO: use full URL
+<!-- TODO: use full URL -->
 The key differences from the [single-node setup](#vmsingle):
 - `server.datasource.url` and `server.remote.read.url` point to the `vmselect` read endpoint (`/select/0/prometheus/`).
 - `server.remote.write.url` points to the `vminsert` write endpoint (`/insert/0/prometheus/`). [docs.victoriametrics](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster/)
