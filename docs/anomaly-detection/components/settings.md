@@ -69,7 +69,7 @@ reader:
   query_from_last_seen_timestamp: False
   verify_tls: False
   # other reader settings
-  
+
 writer:
   class: "vm"
   datasource_url: http://localhost:8428
@@ -128,7 +128,7 @@ reader:
   query_from_last_seen_timestamp: False
   verify_tls: False
   # other reader settings
-  
+
 writer:
   class: "vm"
   datasource_url: http://localhost:8428
@@ -157,7 +157,7 @@ By default, `restore_state` is set to `false`, meaning the service will start fr
 ### Benefits
 
 This feature improves the experience of using the anomaly detection service in several ways:
-- **Operational continuity**: Production of anomaly scores is resumed from the last known state, minimizing downtime, especially useful in conbination with [periodic schedulers](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) with `start_from` argument explicitly defined.
+- **Operational continuity**: Production of anomaly scores is resumed from the last known state, minimizing downtime, especially useful in combination with [periodic schedulers](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) with `start_from` argument explicitly defined.
 - **Resource efficiency**: Avoids unnecessary resource and time consumption by not retraining models that have already been trained and remain actual, or querying redundant data from VictoriaMetrics TSDB.
 - **Config hot-reloading**: Allows for on-the-fly configuration changes with the reuse of unchanged models/data/scheduler combinations, avoiding unnecessary retraining, additional resource utilization and manual service restarts. Please refer to the [hot-reload](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) section for more details on how to use this feature.
 
@@ -210,7 +210,7 @@ reader:
   query_from_last_seen_timestamp: False
   verify_tls: False
   # other reader settings
-  
+
 writer:
   class: "vm"
   datasource_url: http://localhost:8428
@@ -320,7 +320,7 @@ The section is **backward-compatible and disabled by default**, meaning that all
 - The service is restarted with `restore_state` set to `false`, which triggers a cleanup of all stored artifacts.
 - The models are marked as outdated once scheduled re-fitting is due, leading to retraining and replacement of previous artifacts.
 
-`ttl` argument defines the time-to-live period for model instances and their training data. It should be a valid period string (e.g., `7d` for 7 days, `30d` for 30 days, etc.). If a model instance or its training data has not been used for inference or refitting within this period, it will be considered stale and eligible for cleanup. 
+`ttl` argument defines the time-to-live period for model instances and their training data. It should be a valid period string (e.g., `7d` for 7 days, `30d` for 30 days, etc.). If a model instance or its training data has not been used for inference or refitting within this period, it will be considered stale and eligible for cleanup.
 
 > If set higher than respective scheduler's `fit_every` period, the ttl will have no effect, as models will always be refitted before they become stale.
 

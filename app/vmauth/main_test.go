@@ -103,6 +103,35 @@ User-Agent: vmauth
 X-Forwarded-For: 12.34.56.78, 42.2.3.84`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 
+	// with default_url
+	cfgStr = `
+unauthorized_user:
+  default_url: {BACKEND}/default
+  url_map:
+  - src_paths:
+    - /empty
+    url_prefix: {BACKEND}/empty`
+	requestURL = "http://some-host.com/abc/def?some_arg=some_value"
+	backendHandler = func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("Connection", "close")
+		h.Set("Foo", "bar")
+
+		var bb bytes.Buffer
+		if err := r.Header.Write(&bb); err != nil {
+			panic(fmt.Errorf("unexpected error when marshaling headers: %w", err))
+		}
+		fmt.Fprintf(w, "requested_url=http://%s%s\n%s", r.Host, r.URL, bb.String())
+	}
+	responseExpected = `
+statusCode=200
+Foo: bar
+requested_url={BACKEND}/default?request_path=http%3A%2F%2Fsome-host.com%2Fabc%2Fdef%3Fsome_arg%3Dsome_value
+Pass-Header: abc
+User-Agent: vmauth
+X-Forwarded-For: 12.34.56.78, 42.2.3.84`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
 	// routing of all failed to authorize requests to unauthorized_user (issue #7543)
 	cfgStr = `
 unauthorized_user:
