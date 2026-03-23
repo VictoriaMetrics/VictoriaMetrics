@@ -234,7 +234,7 @@ func MustStopDirRemover() {
 	case <-doneCh:
 		return
 	case <-time.After(maxWaitTime):
-		logger.Errorf("cannot stop dirRemover in %s; the remaining empty NFS directories should be automatically removed on the next startup", maxWaitTime)
+		logger.Errorf("cannot stop dirRemover in %s; the remaining partially deleted directories should be automatically removed on the next startup", maxWaitTime)
 	}
 }
 
