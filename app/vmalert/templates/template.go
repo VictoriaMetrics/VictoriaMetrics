@@ -504,7 +504,7 @@ func templateFuncs() textTpl.FuncMap {
 		/* Helpers */
 
 		// now returns the Unix timestamp in seconds at the time of the template evaluation.
-		// For example: {{ now | formatTime "2006-01-02T15:04:05Z07:00" }} will return the current time formatted.
+		// For example: {{ (now | toTime).Sub $activeAt }} will return the duration the alert has been active.
 		"now": func() float64 {
 			return float64(time.Now().Unix())
 		},
