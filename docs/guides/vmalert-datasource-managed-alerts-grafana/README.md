@@ -14,13 +14,12 @@ sitemap:
 
 Grafana offers a rich alerting UI, including rule grouping, silences, and notification history. While Grafana-native alerts are easy to use, [they scale poorly without additional configuration since they depend on a relational database by default](https://grafana.com/blog/how-we-improved-grafanas-alert-state-history-to-provide-better-insights-into-your-alerting-data/).
 
-By moving rule evaluation to [vmalert](https://docs.victoriametrics.com/vmalert), you can move past these limitations while retaining Grafana's unified alerting UI. This guide shows the ideal topology for scalable alerting using vmalert, Alertmanager, and Grafana datasource-managed alerts.
+By moving rule evaluation to [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/), you can move past these limitations while retaining Grafana's unified alerting UI. This guide shows the ideal topology for scalable alerting using vmalert, Alertmanager, and Grafana datasource-managed alerts.
 
 ## Grafana Alert Modes
 
 Grafana supports two alert modes, which can run side by side:
-
-- Grafana-managed: alerts are created and evaluated entirely within Grafana itself. The alert state is stored in a SQL database by default, but [Grafana can be configured to store to store this data in a prometheus compatible database like Victoriametrics as well.](https://grafana.com/docs/grafana/latest/alerting/set-up/configure-alert-state-history/#configure-prometheus-for-alert-state-grafana_alerts-metric)
+- Grafana-managed: alerts are created and evaluated entirely within Grafana itself. The alert state is stored in a SQL database by default, but [Grafana can be configured to store this data in a Prometheus-compatible database like VictoriaMetrics as well.](https://grafana.com/docs/grafana/latest/alerting/set-up/configure-alert-state-history/#configure-prometheus-for-alert-state-grafana_alerts-metric).
 - Datasource-managed: alerts have their rules defined, stored, and evaluated in an external system like vmalert and Alertmanager, with Grafana just providing the UI. State is stored in VictoriaMetrics.
 
 The following table compares the two modes:
@@ -133,7 +132,7 @@ services:
     container_name: alertmanager
     command:
      - "--config.file=/etc/alertmanager/alertmanager.yml"
-     - "--web.external-url=http://localhost:300/alerting/list"
+     - "--web.external-url=http://localhost:3000/alerting/list"
     ports:
       - "9093:9093"
     volumes:
@@ -346,7 +345,7 @@ server:
 EOF
 ```
 
-Install vmagent and Alertmanager with:
+Install `vmalert` and Alertmanager with:
 
 ```sh
 helm install vmalert vm/victoria-metrics-alert -f vm-alerting-values.yml
@@ -356,7 +355,7 @@ helm install vmalert vm/victoria-metrics-alert -f vm-alerting-values.yml
 
 For datasource-managed alerts, Grafana talks to VictoriaMetrics, and VictoriaMetrics proxies alerting-related API calls to vmalert via the `-vmalert.proxyURL` flag.
 
-First, check the service name for VictoriaMetrics single-node:
+First, check the service name for `vmalert`:
 
 ```sh
 kubectl get svc -l app.kubernetes.io/instance=vmalert,app=server
@@ -547,7 +546,7 @@ The `victoria-metrics-alert` chart uses the `server.datasource`, `server.remoteW
 
 ### 3. Configure VictoriaMetrics Cluster to proxy to vmalert
 
-For datasource-managed alerts, Grafana talks to VictoriaMetrics, and VictoriaMetrics proxies alerting-related API calls to vmalert via the `-vmalert.proxyURL` flag. In the cluster version, this flag must point to `vmselect`, because it exposes the Prometheus-compatible read API used by Grafana.
+For datasource-managed alerts, Grafana talks to VictoriaMetrics, and VictoriaMetrics proxies alerting-related API calls to vmalert via the `-vmalert.proxyURL` flag. In the cluster version, set this flag on `vmselect` and point it to the vmalert service so Grafana can reach alert state.
 
 First, check the service name for vmalert:
 
@@ -630,6 +629,7 @@ With vmselect’s `vmalert.proxyURL` set and Alertmanager configured as a dataso
 
 ## See also
 
+- [YouTube: Mathias Palmersheim - Who will be your Ruler](https://youtu.be/NfhVOEkznFY)
 - [Kubernetes monitoring via VictoriaMetrics Single](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-single/)
 - [Kubernetes monitoring with VictoriaMetrics Cluster](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster/)
 - Learn more about [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/)
