@@ -104,7 +104,7 @@ datasources:
       implementation: prometheus
 ```
 
-The final piece is the Docker Compose file. This ties all the services together, and sets up the required command line arguments:
+The final piece is the Docker Compose file. This ties all the services together and sets up the required command-line arguments:
 
 ```yaml
 services:
@@ -356,7 +356,7 @@ First, check the service name for `vmalert`:
 kubectl get svc -l app.kubernetes.io/instance=vmalert,app=server
 ```
 
-Get the name of the vmalert service:
+Get the name of the `vmalert` service:
 
 ```sh
 NAME                                    TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)    AGE
@@ -389,9 +389,9 @@ helm upgrade vmsingle vm/victoria-metrics-single \
   -f vm-vmalert-proxy-values.yml
 ```
 
-After this upgrade, vmsingle will start proxying `/api/v1/rules`, `/api/v1/alerts` and other vmalert endpoints to the vmalert service, enabling Grafana’s alerting UI and API to work through the VictoriaMetrics datasource. 
+After this upgrade, vmsingle will start proxying `/api/v1/rules`, `/api/v1/alerts`, and other `vmalert` endpoints to the vmalert service, enabling Grafana’s alerting UI and API to work through the VictoriaMetrics datasource. 
 
-To finish the set up, jump to the [Configure Grafana](https://docs.victoriametrics.com/guides/vmalert-datasource-managed-alerts-grafana/#grafana) section
+To finish the setup, jump to the [Configure Grafana](https://docs.victoriametrics.com/guides/vmalert-datasource-managed-alerts-grafana/#grafana) section
 
 ## vmalert and VictoriaMetrics Cluster on Kubernetes {#vmcluster}
 
@@ -402,7 +402,7 @@ This section explains how to configure datasource-managed alerts on the Victoria
 - A Kubernetes cluster  
 - VictoriaMetrics cluster
 - Grafana  
-- Helm values or config files used for installation of the cluster
+- Helm values or config files used for the installation of the cluster
 
 You can follow this guide to install the cluster and Grafana first: [Kubernetes monitoring with VictoriaMetrics Cluster](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster/).
 
@@ -421,7 +421,7 @@ Confirm that the VictoriaMetrics Cluster is installed (assuming the release name
 kubectl get pods -l app.kubernetes.io/instance=vmcluster
 ```
 
-You should see pods for `vmselect`, `vminsert` and `vmstorage`, for example:
+You should see pods for `vmselect`, `vminsert`, and `vmstorage`, for example:
 
 ```text
 NAME                                                           READY   STATUS    RESTARTS   AGE
@@ -529,7 +529,7 @@ EOF
 The key differences from the [single-node setup](https://docs.victoriametrics.com/guides/vmalert-datasource-managed-alerts-grafana/#vmsingle) section
 - `server.datasource.url` and `server.remote.read.url` point to the `vmselect` read endpoint (`/select/0/prometheus/`).
 - `server.remote.write.url` points to the `vminsert` write endpoint (`/insert/0/prometheus/`). [docs.victoriametrics](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster/)
-Install vmalert and Alertmanager with:
+Install `vmalert` and Alertmanager with:
 
 ```sh
 helm install vmalert vm/victoria-metrics-alert -f vm-alerting-values.yml
@@ -539,7 +539,7 @@ The `victoria-metrics-alert` chart uses the `server.datasource`, `server.remoteW
 
 ### 3. Configure VictoriaMetrics Cluster to proxy to vmalert
 
-For datasource-managed alerts, Grafana talks to VictoriaMetrics, and VictoriaMetrics proxies alerting-related API calls to vmalert via the `-vmalert.proxyURL` flag. In the cluster version, set this flag on `vmselect` and point it to the vmalert service so Grafana can reach alert state.
+For datasource-managed alerts, Grafana talks to VictoriaMetrics, and VictoriaMetrics proxies alerting-related API calls to vmalert via the `-vmalert.proxyURL` flag. In the cluster version, set this flag on `vmselect` and point it to the vmalert service so Grafana can reach the alert state.
 
 First, check the service name for vmalert:
 
@@ -572,7 +572,7 @@ vmselect:
 EOF
 ```
 
-Update the configuration of VictoriaMetrics cluster by applying both *your original Helm values* and this new overlay. In the example below, the original values file is called `vmcluster-values-file.yml` (this is the file you used when you first installed the cluster):
+Update the VictoriaMetrics cluster configuration by applying both your *original Helm values* and this new overlay. In the example below, the original values file is called `vmcluster-values-file.yml` (this is the file you used when you first installed the cluster):
 
 ```sh
 helm upgrade vmcluster vm/victoria-metrics-cluster \
@@ -580,9 +580,9 @@ helm upgrade vmcluster vm/victoria-metrics-cluster \
   -f vmcluster-vmalert-proxy-values.yml
 ```
 
-After this upgrade, vmselect will start proxying `/api/v1/rules`, `/api/v1/alerts` and other vmalert endpoints to the vmalert service, enabling Grafana’s alerting UI and API to work through the VictoriaMetrics datasource.
+After this upgrade, vmselect will start proxying `/api/v1/rules`, `/api/v1/alerts`, and other `vmalert` endpoints to the vmalert service, enabling Grafana’s alerting UI and API to work through the VictoriaMetrics datasource.
 
-To finalize the set up, continue on the next section, [Configure Grafana](#grafana).
+To finalize the setup, continue on the next section, [Configure Grafana](#grafana).
 
 ## Configure Grafana {#grafana}
 
