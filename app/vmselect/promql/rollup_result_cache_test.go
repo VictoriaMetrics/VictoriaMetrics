@@ -319,6 +319,69 @@ func TestRollupResultCache(t *testing.T) {
 
 }
 
+func TestRollupResultCacheInstantValuesRespectTagFiltersInKey(t *testing.T) {
+	InitRollupResultCache("")
+	defer StopRollupResultCache()
+
+	window := int64(456)
+	step := int64(200)
+	fe := &metricsql.FuncExpr{
+		Name: "foo",
+		Args: []metricsql.Expr{&metricsql.MetricExpr{}},
+	}
+
+	tssA := []*timeseries{
+		{
+			MetricName: storage.MetricName{MetricGroup: []byte("metricA")},
+			Timestamps: []int64{1000},
+			Values:     []float64{1},
+		},
+	}
+	tssB := []*timeseries{
+		{
+			MetricName: storage.MetricName{MetricGroup: []byte("metricA")},
+			Timestamps: []int64{1000},
+			Values:     []float64{2},
+		},
+	}
+
+	etfsA := [][]storage.TagFilter{{
+		{
+			Key:   []byte("team"),
+			Value: []byte("a"),
+		},
+	}}
+	etfsB := [][]storage.TagFilter{{
+		{
+			Key:   []byte("team"),
+			Value: []byte("b"),
+		},
+	}}
+
+	// Storing with etfsA must not be visible under etfsB.
+	t.Run("filter-A-isolated", func(t *testing.T) {
+		ResetRollupResultCache()
+		rollupResultCacheV.PutInstantValues(nil, fe, window, step, etfsA, tssA)
+		tssResultA := rollupResultCacheV.GetInstantValues(nil, fe, window, step, etfsA)
+		testTimeseriesEqual(t, tssResultA, tssA)
+		tssResultB := rollupResultCacheV.GetInstantValues(nil, fe, window, step, etfsB)
+		if len(tssResultB) != 0 {
+			t.Fatalf("expecting empty result for different tag filters; got %d series", len(tssResultB))
+		}
+	})
+
+	// Storing with both etfsA and etfsB must keep entries independent.
+	t.Run("filters-A-and-B-independent", func(t *testing.T) {
+		ResetRollupResultCache()
+		rollupResultCacheV.PutInstantValues(nil, fe, window, step, etfsA, tssA)
+		rollupResultCacheV.PutInstantValues(nil, fe, window, step, etfsB, tssB)
+		tssResultA := rollupResultCacheV.GetInstantValues(nil, fe, window, step, etfsA)
+		testTimeseriesEqual(t, tssResultA, tssA)
+		tssResultB := rollupResultCacheV.GetInstantValues(nil, fe, window, step, etfsB)
+		testTimeseriesEqual(t, tssResultB, tssB)
+	})
+}
+
 func TestMergeSeries(t *testing.T) {
 	ec := &EvalConfig{
 		Start:              1000,
