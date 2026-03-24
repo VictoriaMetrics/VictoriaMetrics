@@ -15,6 +15,10 @@ import (
 
 // Cache caches Entry entries.
 //
+// If the cache is full the least recently used entries are evicted to make room
+// for new entries. Additionally, entries are evicted if not retrieved within
+// the last three minutes.
+//
 // Call NewCache() for creating new Cache.
 type Cache struct {
 	resets atomic.Uint64
@@ -276,7 +280,7 @@ func (c *cache) PutEntry(k string, e Entry) {
 	}
 	heap.Push(&c.lah, ce)
 	c.m[k] = ce
-	c.updateSizeBytes(e.SizeBytes())
+	c.updateSizeBytes(uint64(len(k)) + e.SizeBytes())
 	maxSizeBytes := c.getMaxSizeBytes()
 	for c.SizeBytes() > maxSizeBytes && len(c.lah) > 0 {
 		c.removeLeastRecentlyAccessedItem()
@@ -285,7 +289,7 @@ func (c *cache) PutEntry(k string, e Entry) {
 
 func (c *cache) removeLeastRecentlyAccessedItem() {
 	ce := c.lah[0]
-	c.updateSizeBytes(-ce.e.SizeBytes())
+	c.updateSizeBytes(-(uint64(len(ce.k)) + ce.e.SizeBytes()))
 	delete(c.m, ce.k)
 	heap.Pop(&c.lah)
 }
@@ -341,7 +345,8 @@ func (lah *lastAccessHeap) Pop() any {
 	h := *lah
 	e := h[len(h)-1]
 
-	// Remove the reference to deleted entry, so Go GC could free up memory occupied by the deleted entry.
+	// Remove the reference to deleted entry, so Go GC could free up memory
+	// occupied by the deleted entry.
 	h[len(h)-1] = nil
 
 	*lah = h[:len(h)-1]
