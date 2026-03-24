@@ -8,3 +8,12 @@ These playgrounds are backed by real VictoriaMetrics components and data, making
 - Demonstrating features in talks or workshops
 
 In this section, we'll walk through each available playground, explain what it does, and link to the relevant GitHub repositories.
+
+## Docker Compose Demo
+
+We provide Docker Compose files for:
+- [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/README.md)
+- [VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaLogs/blob/master/deployment/docker/README.md)
+- [VictoriaTraces](https://github.com/VictoriaMetrics/VictoriaTraces/blob/master/deployment/docker/README.md). 
+
+The compose files are already configured, provisioned, and interconnected. They can be used to quickly set up a demo environment, suitable for a [quick start](https://docs.victoriametrics.com/victoriametrics/quick-start/).
