@@ -535,8 +535,6 @@ Install `vmalert` and Alertmanager with:
 helm install vmalert vm/victoria-metrics-alert -f vm-alerting-values.yml
 ```
 
-The `victoria-metrics-alert` chart uses the `server.datasource`, `server.remoteWrite`, and `server.remoteRead` sections to generate the respective `-datasource.url`, `-remoteWrite.url`, and `-remoteRead.url` flags for `vmalert` in the pod spec.
-
 ### 3. Configure VictoriaMetrics Cluster to proxy to vmalert
 
 For datasource-managed alerts, Grafana talks to VictoriaMetrics, and VictoriaMetrics proxies alerting-related API calls to vmalert via the `-vmalert.proxyURL` flag. In the cluster version, set this flag on `vmselect` and point it to the vmalert service so Grafana can reach the alert state.
