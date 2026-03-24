@@ -7,11 +7,6 @@ sitemap:
   disable: true
 ---
 
-<!-- TODO:  -->
-<!-- - mention in the vmsingle and vmcluster that we should download and commit our config files -->
-<!-- - Change the "see also" on the vmsingle and cluster guides and point it to this doc -->
-<!-- - Review comments in YAMLs -->
-
 Grafana offers a rich alerting UI, including rule grouping, silences, and notification history. While Grafana-native alerts are easy to use, [they scale poorly without additional configuration since they depend on a relational database by default](https://grafana.com/blog/how-we-improved-grafanas-alert-state-history-to-provide-better-insights-into-your-alerting-data/).
 
 By moving rule evaluation to [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/), you can move past these limitations while retaining Grafana's unified alerting UI. This guide shows the ideal topology for scalable alerting using vmalert, Alertmanager, and Grafana datasource-managed alerts.
@@ -396,8 +391,7 @@ helm upgrade vmsingle vm/victoria-metrics-single \
 
 After this upgrade, vmsingle will start proxying `/api/v1/rules`, `/api/v1/alerts` and other vmalert endpoints to the vmalert service, enabling Grafana’s alerting UI and API to work through the VictoriaMetrics datasource. 
 
-<!-- TODO: use full URL -->
-To finish the set up, jump to the [Configure Grafana](#grafana) section
+To finish the set up, jump to the [Configure Grafana](https://docs.victoriametrics.com/guides/vmalert-datasource-managed-alerts-grafana/#grafana) section
 
 ## vmalert and VictoriaMetrics Cluster on Kubernetes {#vmcluster}
 
@@ -532,8 +526,7 @@ EOF
 ```
 
 
-<!-- TODO: use full URL -->
-The key differences from the [single-node setup](#vmsingle):
+The key differences from the [single-node setup](https://docs.victoriametrics.com/guides/vmalert-datasource-managed-alerts-grafana/#vmsingle) section
 - `server.datasource.url` and `server.remote.read.url` point to the `vmselect` read endpoint (`/select/0/prometheus/`).
 - `server.remote.write.url` points to the `vminsert` write endpoint (`/insert/0/prometheus/`). [docs.victoriametrics](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster/)
 Install vmalert and Alertmanager with:
@@ -633,3 +626,4 @@ With vmselect’s `vmalert.proxyURL` set and Alertmanager configured as a dataso
 - [Kubernetes monitoring via VictoriaMetrics Single](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-single/)
 - [Kubernetes monitoring with VictoriaMetrics Cluster](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster/)
 - Learn more about [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/)
+
