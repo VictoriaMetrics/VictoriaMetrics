@@ -71,7 +71,7 @@ wget https://docs.victoriametrics.com/guides/examples/guide-vmsingle-values.yaml
 Run this command in your terminal to install [VictoriaMetrics single node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) to the default [namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) in your cluster:
 
 ```shell
-helm install vmsingle vm/victoria-metrics-single -f guide-vmsingle-values.yml
+helm install vmsingle vm/victoria-metrics-single -f guide-vmsingle-values.yaml
 ```
 
 Below are the key sections in the chart values file [`guide-vmsingle-values.yaml`](https://docs.victoriametrics.com/guides/examples/guide-vmsingle-values.yaml):
