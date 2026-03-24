@@ -382,7 +382,7 @@ users:
 ```
 
 The following config matches against array claim values.
-Given a token with `{"access": {"roles": ["read", "write", "admin"]}}`, the first user matches because `"admin"` is present in the `access.roles` array:
+The first user matches a token with claim `{"roles": ["admin"]}`, while the second matches a token with claim `{"roles": ["read"]}` or `{"roles": ["write"]}`.
 
 ```yaml
 users:
@@ -393,7 +393,7 @@ users:
       MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
       -----END PUBLIC KEY-----
     match_claims:
-      access.roles: admin
+      roles: admin
   url_prefix: "http://victoria-metrics-admin:8428/"
 - jwt:
     public_keys:
@@ -402,7 +402,7 @@ users:
       MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
       -----END PUBLIC KEY-----
     match_claims:
-      access.roles: "^(read|write)$"
+      roles: "^(read|write)$"
   url_prefix: "http://victoria-metrics-readonly:8428/"
 ```
 
