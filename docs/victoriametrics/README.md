@@ -229,13 +229,6 @@ See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3781)
 [Docker-compose](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#readme)
 helps to spin up VictoriaMetrics, [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and Grafana with one command.
 
-###### Playgrounds
-
-The VictoriaMetrics playgrounds have been moved to [Playgrounds](https://docs.victoriametrics.com/playgrounds/).
-
-Additionally, we provide a docker-compose environment for [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/README.md), [VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaLogs/blob/master/deployment/docker/README.md) and [VictoriaTraces](https://github.com/VictoriaMetrics/VictoriaTraces/blob/master/deployment/docker/README.md). 
-They are already configured, provisioned and interconnected. It can be used as an example for a [quick start](https://docs.victoriametrics.com/victoriametrics/quick-start/).
-
 ## How to upgrade VictoriaMetrics
 
 VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking [the CHANGELOG page](https://docs.victoriametrics.com/victoriametrics/changelog/) and performing regular upgrades.
@@ -2478,3 +2471,11 @@ Moved to [integrations/graphite/#tags-api](https://docs.victoriametrics.com/vict
 ###### Integrations
 
 Moved to [integrations](https://docs.victoriametrics.com/victoriametrics/integrations/).
+
+###### Playgrounds
+
+The VictoriaMetrics playgrounds have been moved to [Playgrounds](https://docs.victoriametrics.com/playgrounds/).
+
+Additionally, we provide a docker-compose environment for [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/README.md), [VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaLogs/blob/master/deployment/docker/README.md) and [VictoriaTraces](https://github.com/VictoriaMetrics/VictoriaTraces/blob/master/deployment/docker/README.md). 
+They are already configured, provisioned and interconnected. It can be used as an example for a [quick start](https://docs.victoriametrics.com/victoriametrics/quick-start/).
+
