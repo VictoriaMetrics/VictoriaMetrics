@@ -104,6 +104,80 @@ func TestParseJWKs_EC(t *testing.T) {
 `))
 }
 
+func TestParseJWKs_SkipNonSigKeys(t *testing.T) {
+	// JWKS response with sig, enc, and unknown use keys; only sig must be kept.
+	raw := []byte(`
+{
+    "keys": [
+        {
+            "kid": "sig-key",
+            "kty": "RSA",
+            "alg": "RS256",
+            "use": "sig",
+            "n": "0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx4cbbfAAtVT86zwu1RK7aPFFxuhDR1L6tSoc_BJECPebWKRXjBZCiFV4n3oknjhMstn64tZ_2W-5JsGY4Hc5n9yBXArwl93lqt7_RN5w6Cf0h4QyQ5v-65YGjQR0_FDW2QvzqY368QQMicAtaSqzs8KJZgnYb9c7d0zgdAZHzu6qMQvRL5hajrn1n91CbOpbISD08qNLyrdkt-bFTWhAI4vMQFh6WeZu0fM4lFd2NcRwr3XPksINHaQ-G_xBniIqbw0Ls1jF44-csFCur-kEgU8awapJzKnqDKgw",
+            "e": "AQAB"
+        },
+        {
+            "kid": "enc-key",
+            "kty": "RSA",
+            "alg": "RSA-OAEP",
+            "use": "enc",
+            "n": "0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx4cbbfAAtVT86zwu1RK7aPFFxuhDR1L6tSoc_BJECPebWKRXjBZCiFV4n3oknjhMstn64tZ_2W-5JsGY4Hc5n9yBXArwl93lqt7_RN5w6Cf0h4QyQ5v-65YGjQR0_FDW2QvzqY368QQMicAtaSqzs8KJZgnYb9c7d0zgdAZHzu6qMQvRL5hajrn1n91CbOpbISD08qNLyrdkt-bFTWhAI4vMQFh6WeZu0fM4lFd2NcRwr3XPksINHaQ-G_xBniIqbw0Ls1jF44-csFCur-kEgU8awapJzKnqDKgw",
+            "e": "AQAB"
+        },
+        {
+            "kid": "wrap-key",
+            "kty": "RSA",
+            "alg": "RSA-OAEP",
+            "use": "wrap",
+            "n": "0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx4cbbfAAtVT86zwu1RK7aPFFxuhDR1L6tSoc_BJECPebWKRXjBZCiFV4n3oknjhMstn64tZ_2W-5JsGY4Hc5n9yBXArwl93lqt7_RN5w6Cf0h4QyQ5v-65YGjQR0_FDW2QvzqY368QQMicAtaSqzs8KJZgnYb9c7d0zgdAZHzu6qMQvRL5hajrn1n91CbOpbISD08qNLyrdkt-bFTWhAI4vMQFh6WeZu0fM4lFd2NcRwr3XPksINHaQ-G_xBniIqbw0Ls1jF44-csFCur-kEgU8awapJzKnqDKgw",
+            "e": "AQAB"
+        }
+    ]
+}`)
+
+	vp, err := ParseJWKs(raw)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(vp.vs) != 1 {
+		t.Fatalf("expected 1 verifier (non-sig keys should be skipped), got %d", len(vp.vs))
+	}
+
+	if vp.vs[0].kid != "sig-key" {
+		t.Fatalf("expected kid=sig-key, got %s", vp.vs[0].kid)
+	}
+	if vp.vs[0].alg != "RS256" {
+		t.Fatalf("expected alg=RS256, got %s", vp.vs[0].alg)
+	}
+}
+
+func TestParseJWKs_SigWithUnsupportedAlg(t *testing.T) {
+	// use=sig with unsupported alg must fail fast
+	raw := []byte(`
+{
+    "keys": [
+        {
+            "kid": "bad-alg",
+            "kty": "RSA",
+            "alg": "RS1",
+            "use": "sig",
+            "n": "0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx4cbbfAAtVT86zwu1RK7aPFFxuhDR1L6tSoc_BJECPebWKRXjBZCiFV4n3oknjhMstn64tZ_2W-5JsGY4Hc5n9yBXArwl93lqt7_RN5w6Cf0h4QyQ5v-65YGjQR0_FDW2QvzqY368QQMicAtaSqzs8KJZgnYb9c7d0zgdAZHzu6qMQvRL5hajrn1n91CbOpbISD08qNLyrdkt-bFTWhAI4vMQFh6WeZu0fM4lFd2NcRwr3XPksINHaQ-G_xBniIqbw0Ls1jF44-csFCur-kEgU8awapJzKnqDKgw",
+            "e": "AQAB"
+        }
+    ]
+}`)
+
+	_, err := ParseJWKs(raw)
+	if err == nil {
+		t.Fatalf("expected error for use=sig with unsupported alg, got nil")
+	}
+	if err.Error() != "jwks key with use=sig has unsupported alg RS1; supported [RS256 RS384 RS512], [PS256 PS384 PS512]" {
+		t.Fatalf("expected error for use=sig with unsupported alg, got %v", err)
+	}
+}
+
 func TestParseMultipleKeys(t *testing.T) {
 	// Microsoft JWKS keys
 	// https://login.microsoftonline.com/common/discovery/v2.0/keys

@@ -743,6 +743,26 @@ func proxyVMAlertRequests(w http.ResponseWriter, r *http.Request, path string) {
 	req := r.Clone(r.Context())
 	req.URL.Path = strings.TrimPrefix(path, "prometheus")
 	req.Host = vmalertProxyHost
+
+	if strings.HasPrefix(r.Header.Get(`User-Agent`), `Grafana`) {
+		// Grafana currently supports only Prometheus-style alerts. If other alert types
+		// (e.g. logs or traces) are returned, it may fail with "Error loading alerts".
+		//
+		// Grafana queries the vmalert API directly, bypassing the VictoriaMetrics datasource,
+		// so query params (such as datasource_type) cannot be enforced on the Grafana side.
+		//
+		// To ensure compatibility, we detect Grafana requests via the User-Agent and enforce
+		// `datasource_type=prometheus`.
+		//
+		// See:
+		// - https://github.com/VictoriaMetrics/victoriametrics-datasource/issues/329#issuecomment-3847585443
+		// - https://github.com/VictoriaMetrics/victoriametrics-datasource/issues/59
+		q := req.URL.Query()
+		q.Set("datasource_type", "prometheus")
+		req.URL.RawQuery = q.Encode()
+		req.RequestURI = ""
+	}
+
 	vmalertProxy.ServeHTTP(w, req)
 }
 

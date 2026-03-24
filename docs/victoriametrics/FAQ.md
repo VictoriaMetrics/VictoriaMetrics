@@ -5,6 +5,7 @@ menu:
   docs:
     parent: 'victoriametrics'
     weight: 24
+    identifier: vm-faq
 tags:
   - metrics
 aliases:

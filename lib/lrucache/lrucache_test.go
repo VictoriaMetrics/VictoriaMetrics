@@ -31,14 +31,16 @@ func TestCache(t *testing.T) {
 	}
 	k := "foobar"
 	var e testEntry
+	keySize := uint64(len(k))
 	entrySize := e.SizeBytes()
+	keyEntrySize := keySize + entrySize
 	// Put a single entry into cache
 	c.PutEntry(k, &e)
 	if n := c.Len(); n != 1 {
 		t.Fatalf("unexpected number of items in the cache; got %d; want %d", n, 1)
 	}
-	if n := c.SizeBytes(); n != entrySize {
-		t.Fatalf("unexpected SizeBytes(); got %d; want %d", n, entrySize)
+	if n := c.SizeBytes(); n != keyEntrySize {
+		t.Fatalf("unexpected SizeBytes(); got %d; want %d", n, keyEntrySize)
 	}
 	if n := c.Requests(); n != 0 {
 		t.Fatalf("unexpected number of requests; got %d; want %d", n, 0)
@@ -77,8 +79,8 @@ func TestCache(t *testing.T) {
 	}
 	// Store the entry again.
 	c.PutEntry(k, &e)
-	if n := c.SizeBytes(); n != entrySize {
-		t.Fatalf("unexpected SizeBytes(); got %d; want %d", n, entrySize)
+	if n := c.SizeBytes(); n != keyEntrySize {
+		t.Fatalf("unexpected SizeBytes(); got %d; want %d", n, keyEntrySize)
 	}
 	if e1 := c.GetEntry(k); e1 != &e {
 		t.Fatalf("unexpected entry obtained; got %v; want %v", e1, &e)
@@ -95,8 +97,8 @@ func TestCache(t *testing.T) {
 
 	// Manually clean the cache. The entry shouldn't be deleted because it was recently accessed.
 	c.cleanByTimeout()
-	if n := c.SizeBytes(); n != entrySize {
-		t.Fatalf("unexpected SizeBytes(); got %d; want %d", n, entrySize)
+	if n := c.SizeBytes(); n != keyEntrySize {
+		t.Fatalf("unexpected SizeBytes(); got %d; want %d", n, keyEntrySize)
 	}
 
 	// Reset cache.
