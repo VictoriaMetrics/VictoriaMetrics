@@ -7,7 +7,7 @@ sitemap:
   disable: true
 ---
 
-Grafana offers a rich alerting UI, including rule grouping, silences, and notification history. While Grafana-native alerts are easy to use, [they scale poorly without additional configuration since they depend on a relational database by default](https://grafana.com/blog/how-we-improved-grafanas-alert-state-history-to-provide-better-insights-into-your-alerting-data/).
+Grafana offers a rich alerting UI, including rule grouping, silences, and notification history. While Grafana-managed alerts are easy to use, [they can hit performance issues without additional configuration since they depend on a relational database by default](https://grafana.com/blog/how-we-improved-grafanas-alert-state-history-to-provide-better-insights-into-your-alerting-data/).
 
 By moving rule evaluation to [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/), you can move past these limitations while retaining Grafana's unified alerting UI. This guide shows the ideal topology for scalable alerting using vmalert, Alertmanager, and Grafana datasource-managed alerts.
 
@@ -19,14 +19,14 @@ Grafana supports two alert modes, which can run side by side:
 
 The following table compares the two modes:
 
-| Aspect              | Grafana-Native              | Data Source-Managed           |
+| Aspect              | Grafana-Managed              | Data Source-Managed           |
 | ------------------- | --------------------------- | ----------------------------- |
-| Where rules live    | Grafana's SQL database or a prometheus datsource      | vmalert's YAML config         |
+| Where rules live    | Grafana's SQL database or a Prometheus datasource      | vmalert's YAML config         |
 | Evaluation          | Grafana's scheduler         | vmalert                       |
 | Scaling             | Vertical (Grafana limits)   | Horizontal (vmalert shards)   |
 | State storage       | SQL backend                 | VictoriaMetrics               |
 | UI Management       | Full create/edit in Grafana | View-only                     |
-| Dependencies        | SQL + Grafana               | Just VictoriaMetrics          |
+| Dependencies        | SQL + Grafana               | VictoriaMetrics          |
 | Rules can be <br/> version-controlled? | No             | Yes                           |
 
 ## Datasource-managed Alert Topology
@@ -44,7 +44,7 @@ The proposed alert setup relies on the following services:
 
 In this section, we'll describe how you can try datasource-managed alerts on Grafana with Docker Compose. Follow the steps in this section to see how the Grafana UI looks in datasource-managed alerts.
 
-First, create `alerts.yml`. The following config creates an always-firing alert that works well in the Grafana UI demo:
+First, create `alerts.yml`. The following configuration file creates an always-firing alert that works well in the Grafana UI demo:
 
 ```yaml
 # alerts.yml
@@ -208,7 +208,7 @@ Open the sidebar again and go to **Alerting** > **Active notifications** to see 
 
 ![Screenshot of Grafana Active notifications Page](grafana-active-notifications.webp)
 
-You can also see the alerts in VMUI by opening the browser in `http://localhost:8428/vmui/?#/rules`. This is possible only when we have configured `-proxyURL` in VictoriaMetrics.
+You can also see the alerts in VMUI by opening the browser in `http://localhost:8428/vmui/?#/rules`. This is possible only when we have configured `-vmalert.proxyURL` in VictoriaMetrics.
 
 ![Screenshot of VMUI](vmui-alerts.webp)
 <figcaption style="text-align: center; font-style: italic;">Alerts can be visualized in VMUI directly</figcaption>
@@ -231,7 +231,7 @@ This section explains how to configure datasource-managed alerts on the Victoria
 - Grafana
 - Helm values or config files used for installation
 
-You can follow this guide to install all required components: [Kubernetes monitoring via VictoriaMetrics Single](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-single/).
+You can follow this guide to install all required components: [Kubernetes monitoring via VictoriaMetrics single](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-single/).
 
 ### 1. Ensure VictoriaMetrics and Grafana are installed
 
@@ -327,8 +327,7 @@ server:
               severity: critical
             annotations:
               summary: "{{ $labels.job }} too many restarts (instance {{ $labels.instance }})"
-              description: "Job {{ $labels.job }} has restarted more than twice in the last 15 minutes.
-                It might be crashlooping."
+              description: "Job {{ $labels.job }} has restarted more than twice in the last 15 minutes. It might be crashlooping."
           - alert: ServiceDown
             expr: up{job=~"victoriametrics|vmagent|vmalert"} == 0
             for: 2m
@@ -389,7 +388,7 @@ helm upgrade vmsingle vm/victoria-metrics-single \
   -f vm-vmalert-proxy-values.yml
 ```
 
-After this upgrade, vmsingle will start proxying `/api/v1/rules`, `/api/v1/alerts`, and other `vmalert` endpoints to the vmalert service, enabling Grafana’s alerting UI and API to work through the VictoriaMetrics datasource. 
+After this upgrade, vmsingle will start proxying `/api/v1/rules`, `/api/v1/alerts`, and other `vmalert` [endpoints](https://docs.victoriametrics.com/victoriametrics/vmalert/#web) to the vmalert service, enabling Grafana’s alerting UI and API to work through the VictoriaMetrics datasource. 
 
 To finish the setup, jump to the [Configure Grafana](https://docs.victoriametrics.com/guides/vmalert-datasource-managed-alerts-grafana/#grafana) section
 
@@ -404,7 +403,7 @@ This section explains how to configure datasource-managed alerts on the Victoria
 - Grafana  
 - Helm values or config files used for the installation of the cluster
 
-You can follow this guide to install the cluster and Grafana first: [Kubernetes monitoring with VictoriaMetrics Cluster](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster/).
+You can follow this guide to install the cluster and Grafana first: [Kubernetes monitoring with VictoriaMetrics cluster](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster/).
 
 ### 1. Ensure VictoriaMetrics and Grafana are installed
 
@@ -415,7 +414,7 @@ helm repo add vm https://victoriametrics.github.io/helm-charts/
 helm repo update
 ```
 
-Confirm that the VictoriaMetrics Cluster is installed (assuming the release name `vmcluster` from the guide above):
+Confirm that the VictoriaMetrics cluster is installed (assuming the release name `vmcluster` from the guide above):
 
 ```sh
 kubectl get pods -l app.kubernetes.io/instance=vmcluster
@@ -433,7 +432,7 @@ vmcluster-victoria-metrics-cluster-vmstorage-0                 1/1     Running  
 vmcluster-victoria-metrics-cluster-vmstorage-1                 1/1     Running   0          2m48s
 ```
 
-VictoriaMetrics exposes its write API via the `vminsert` service on port 8480 and its read (Prometheus-compatible) API via the `vmselect` service on port 8481. For a default installation, these DNS names are:
+VictoriaMetrics exposes its write API via the `vminsert` service on port 8480 and its read (Prometheus-compatible) API via the `vmselect` service on port 8481 by default. For a default installation, these DNS names are:
 
 - Write: `vmcluster-victoria-metrics-cluster-vminsert.default.svc.cluster.local.:8480`  
 - Read: `vmcluster-victoria-metrics-cluster-vmselect.default.svc.cluster.local.:8481`
@@ -528,7 +527,8 @@ EOF
 
 The key differences from the [single-node setup](https://docs.victoriametrics.com/guides/vmalert-datasource-managed-alerts-grafana/#vmsingle) section
 - `server.datasource.url` and `server.remote.read.url` point to the `vmselect` read endpoint (`/select/0/prometheus/`).
-- `server.remote.write.url` points to the `vminsert` write endpoint (`/insert/0/prometheus/`). [docs.victoriametrics](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster/)
+- `server.remote.write.url` points to the `vminsert` write endpoint (`/insert/0/prometheus/`).
+
 Install `vmalert` and Alertmanager with:
 
 ```sh
@@ -582,7 +582,7 @@ helm upgrade vmcluster vm/victoria-metrics-cluster \
 
 After this upgrade, vmselect will start proxying `/api/v1/rules`, `/api/v1/alerts`, and other `vmalert` endpoints to the vmalert service, enabling Grafana’s alerting UI and API to work through the VictoriaMetrics datasource.
 
-To finalize the setup, continue on the next section, [Configure Grafana](#grafana).
+To finalize the setup, continue on to the next section, [Configure Grafana](#grafana).
 
 ## Configure Grafana {#grafana}
 
@@ -623,7 +623,7 @@ With vmselect’s `vmalert.proxyURL` set and Alertmanager configured as a dataso
 ## See also
 
 - [YouTube: Mathias Palmersheim - Who will be your Ruler](https://youtu.be/NfhVOEkznFY)
-- [Kubernetes monitoring via VictoriaMetrics Single](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-single/)
-- [Kubernetes monitoring with VictoriaMetrics Cluster](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster/)
+- [Kubernetes monitoring via VictoriaMetrics single](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-single/)
+- [Kubernetes monitoring with VictoriaMetrics cluster](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster/)
 - Learn more about [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/)
 
