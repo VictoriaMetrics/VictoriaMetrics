@@ -23,9 +23,9 @@ This playground is particularly useful if you already use Grafana and want to se
 
 ## What can you do here?
 
-- Explore real dashboards built on top of VictoriaMetrics
+- Explore [real dashboards](https://play-grafana.victoriametrics.com/dashboards) built on top of VictoriaMetrics
 - See how [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) and [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) are used in Grafana panels
-- Explore correlation with the help of the OpenTelemetry Collector dashboard
+- Explore correlation with the help of the [OpenTelemetry Collector dashboard](https://play-grafana.victoriametrics.com/d/BKf2sowmj/opentelemetry-collector)
 - Learn dashboard design and visualization best practices
 
 ![Screenshot of VMUI](grafana.webp)

@@ -229,7 +229,7 @@ See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3781)
 [Docker-compose](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#readme)
 helps to spin up VictoriaMetrics, [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and Grafana with one command.
 
-## Playgrounds
+###### Playgrounds
 
 The VictoriaMetrics playgrounds have been moved to [Playgrounds](https://docs.victoriametrics.com/playgrounds/).
 
