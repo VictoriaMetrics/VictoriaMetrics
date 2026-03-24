@@ -229,23 +229,6 @@ See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3781)
 [Docker-compose](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#readme)
 helps to spin up VictoriaMetrics, [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and Grafana with one command.
 
-## Playgrounds
-
-VictoriaMetrics has the following publicly available demo resources:
-
-1. [https://play.victoriametrics.com/](https://play.victoriametrics.com/) - [VMUI](#vmui) of VictoriaMetrics cluster installation.
-  It is available for testing the query engine, relabeling debugger, other tools and pages provided by VMUI.
-1. [https://play-grafana.victoriametrics.com/](https://play-grafana.victoriametrics.com/) - Grafana configured with many
-  typical dashboards using VictoriaMetrics and VictoriaLogs as datasource. It contains VictoriaMetrics cluster dashboard with
-  3 cluster installations for the recent OS and LTS versions running under the constant benchmark.
-1. [https://play-vmlogs.victoriametrics.com/](https://play-vmlogs.victoriametrics.com/) - [VMUI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui) of VictoriaLogs installation.
-   It is available for testing the query engine on demo logs set.
-1. [https://play-vtraces.victoriametrics.com/](https://play-vtraces.victoriametrics.com/) - [VMUI](https://docs.victoriametrics.com/victoriatraces/querying/#web-ui) of VictoriaTraces installation.
-   It is available for testing the query engine on demo traces set.
-
-Additionally, we provide a docker-compose environment for [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/README.md), [VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaLogs/blob/master/deployment/docker/README.md) and [VictoriaTraces](https://github.com/VictoriaMetrics/VictoriaTraces/blob/master/deployment/docker/README.md). 
-They are already configured, provisioned and interconnected. It can be used as an example for a [quick start](https://docs.victoriametrics.com/victoriametrics/quick-start/).
-
 ## How to upgrade VictoriaMetrics
 
 VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking [the CHANGELOG page](https://docs.victoriametrics.com/victoriametrics/changelog/) and performing regular upgrades.
@@ -2488,3 +2471,7 @@ Moved to [integrations/graphite/#tags-api](https://docs.victoriametrics.com/vict
 ###### Integrations
 
 Moved to [integrations](https://docs.victoriametrics.com/victoriametrics/integrations/).
+
+###### Playgrounds
+
+The VictoriaMetrics playgrounds have been moved to [Playgrounds](https://docs.victoriametrics.com/playgrounds/).
