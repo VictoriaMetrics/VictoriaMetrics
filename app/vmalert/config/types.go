@@ -36,6 +36,11 @@ func NewVLogsType() Type {
 		Name: "vlogs",
 	}
 }
+func NewSQLType() Type {
+	return Type{
+		Name: "sql",
+	}
+}
 
 // NewRawType returns datasource type from raw string
 // without validation.
@@ -84,6 +89,9 @@ func (t *Type) ValidateExpr(expr string) error {
 		if slices.Contains(labels, "_time") {
 			return fmt.Errorf("bad LogsQL expr: %q, err: cannot contain time buckets stats pipe `stats by (_time:step)`", expr)
 		}
+	case "sql":
+		// SQL expressions are validated server-side
+		return nil
 	default:
 		return fmt.Errorf("unknown datasource type=%q", t.Name)
 	}
@@ -92,7 +100,7 @@ func (t *Type) ValidateExpr(expr string) error {
 
 // SupportedType is true if given datasource type is supported
 func SupportedType(dsType string) bool {
-	return dsType == "graphite" || dsType == "prometheus" || dsType == "vlogs"
+	return dsType == "graphite" || dsType == "prometheus" || dsType == "vlogs" || dsType == "sql"
 }
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
@@ -102,7 +110,7 @@ func (t *Type) UnmarshalYAML(unmarshal func(any) error) error {
 		return err
 	}
 	if !SupportedType(s) {
-		return fmt.Errorf("unknown datasource type=%q, want prometheus, graphite or vlogs", s)
+		return fmt.Errorf("unknown datasource type=%q, want prometheus, graphite, vlogs or sql", s)
 	}
 	t.Name = s
 	return nil

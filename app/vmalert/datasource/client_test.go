@@ -851,3 +851,72 @@ func expectError(t *testing.T, err error, exp string) {
 		t.Fatalf("expected error %q to contain %q", err, exp)
 	}
 }
+
+func TestSQLInstantQuery(t *testing.T) {
+	query := "SELECT 'all' AS host, count() AS value FROM demo.events HAVING count() > 5 FORMAT JSONCompact"
+	ts := time.Date(2026, 3, 24, 10, 0, 0, 0, time.UTC)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/sql", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("expected POST method; got %s", r.Method)
+		}
+		if got := r.URL.Query().Get("query"); got != query {
+			t.Fatalf("unexpected query: got %q want %q", got, query)
+		}
+		if got := r.URL.Query().Get("time"); got != ts.Format(time.RFC3339) {
+			t.Fatalf("unexpected time: got %q want %q", got, ts.Format(time.RFC3339))
+		}
+		_, _ = w.Write([]byte(`{"meta":[{"name":"host","type":"String"},{"name":"value","type":"UInt64"}],"data":[["all",6]],"row":1}`))
+	})
+
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	q := (&Client{
+		c:              srv.Client(),
+		datasourceURL:  srv.URL,
+		dataSourceType: datasourceSQL,
+		extraParams:    url.Values{},
+	}).BuildWithParams(QuerierParams{DataSourceType: string(datasourceSQL)})
+
+	res, _, err := q.Query(ctx, query, ts)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	expected := []Metric{{
+		Labels:     []prompb.Label{{Name: "host", Value: "all"}},
+		Timestamps: []int64{ts.Unix()},
+		Values:     []float64{6},
+	}}
+	metricsEqual(t, res.Data, expected)
+}
+
+func TestSQLInstantQuery_MissingValueColumn(t *testing.T) {
+	query := "SELECT host, count() FROM demo.events"
+	ts := time.Date(2026, 3, 24, 10, 0, 0, 0, time.UTC)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/sql", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"meta":[{"name":"host","type":"String"},{"name":"count","type":"UInt64"}],"data":[["all",6]],"row":1}`))
+	})
+
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	q := (&Client{
+		c:              srv.Client(),
+		datasourceURL:  srv.URL,
+		dataSourceType: datasourceSQL,
+		extraParams:    url.Values{},
+	}).BuildWithParams(QuerierParams{DataSourceType: string(datasourceSQL)})
+
+	_, _, err := q.Query(ctx, query, ts)
+	if err == nil {
+		t.Fatalf("expected error")
+	}
+	if !strings.Contains(err.Error(), `named "value"`) {
+		t.Fatalf("unexpected error: %s", err)
+	}
+}

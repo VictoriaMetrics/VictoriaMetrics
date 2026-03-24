@@ -714,3 +714,24 @@ rules:
 `, url.Values{"nocache": {"1"}, "denyPartialResponse": {"true"}})
 	})
 }
+func TestGroupValidate_SQLSuccess(t *testing.T) {
+	g := &Group{
+		Name: "sql-group",
+		Type: NewSQLType(),
+		Rules: []Rule{{
+			Alert: "HighCount",
+			Expr:  "SELECT 'all' AS host, count() AS value FROM demo.events HAVING count() > 5 FORMAT JSONCompact",
+			For:   promutil.NewDuration(time.Minute),
+			Labels: map[string]string{
+				"severity": "warning",
+			},
+			Annotations: map[string]string{
+				"summary": "demo.events row count is {{ $value }}",
+			},
+		}},
+	}
+
+	if err := g.Validate(nil, true); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+}

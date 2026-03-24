@@ -56,12 +56,26 @@ var (
 		`If true, disables HTTP keep-alive and will only use the connection to the server for a single HTTP request.`)
 	roundDigits = flag.Int("datasource.roundDigits", 0, `Adds "round_digits" GET param to datasource requests which limits the number of digits after the decimal point in response values. `+
 		`Only valid for VictoriaMetrics as the datasource.`)
+	sqlAddr                  = flag.String("datasource.sql.url", "", "Optional URL for SQL datasource queries. If set, groups with type=\"sql\" will send queries to this URL instead of -datasource.url. Supports address in the form of IP address with a port (e.g., http://127.0.0.1:8428)")
+	sqlBasicAuthUsername     = flag.String("datasource.sql.basicAuth.username", "", "Optional basic auth username for -datasource.sql.url")
+	sqlBasicAuthPassword     = flag.String("datasource.sql.basicAuth.password", "", "Optional basic auth password for -datasource.sql.url")
+	sqlBasicAuthPasswordFile = flag.String("datasource.sql.basicAuth.passwordFile", "", "Optional path to basic auth password to use for -datasource.sql.url")
+
+	sqlBearerToken           = flag.String("datasource.sql.bearerToken", "", "Optional bearer auth token to use for -datasource.sql.url.")
+	sqlBearerTokenFile       = flag.String("datasource.sql.bearerTokenFile", "", "Optional path to bearer token file to use for -datasource.sql.url.")
+	sqlHeaders               = flag.String("datasource.sql.headers", "", "Optional HTTP extraHeaders to send with each request to the corresponding -datasource.sql.url. For example, -datasource.sql.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -datasource.sql.url. Multiple headers must be delimited by '^^': -datasource.sql.headers='header1:value1^^header2:value2'")
+	sqlTLSInsecureSkipVerify = flag.Bool("datasource.sql.tlsInsecureSkipVerify", false, "Whether to skip tls verification when connecting to -datasource.sql.url")
+	sqlTLSCertFile           = flag.String("datasource.sql.tlsCertFile", "", "Optional path to client-side TLS certificate file to use when connecting to -datasource.sql.url")
+	sqlTLSKeyFile            = flag.String("datasource.sql.tlsKeyFile", "", "Optional path to client-side TLS certificate key to use when connecting to -datasource.sql.url")
+	sqlTLSCAFile             = flag.String("datasource.sql.tlsCAFile", "", "Optional path to TLS CA file to use for verifying connections to -datasource.sql.url. By default, system CA is used")
+	sqlTLSServerName         = flag.String("datasource.sql.tlsServerName", "", "Optional TLS server name to use for connections to -datasource.sql.url. By default, the server name from -datasource.sql.url is used")
 )
 
 // InitSecretFlags must be called after flag.Parse and before any logging
 func InitSecretFlags() {
 	if !*showDatasourceURL {
 		flagutil.RegisterSecretFlag("datasource.url")
+		flagutil.RegisterSecretFlag("datasource.sql.url")
 	}
 }
 
@@ -117,12 +131,53 @@ func Init(extraParams url.Values) (QuerierBuilder, error) {
 		return nil, fmt.Errorf("failed to set request auth header to datasource %q: %w", *addr, err)
 	}
 
-	return &Client{
+	defaultClient := &Client{
 		c:                &http.Client{Transport: tr},
 		authCfg:          authCfg,
 		datasourceURL:    strings.TrimSuffix(*addr, "/"),
 		appendTypePrefix: *appendTypePrefix,
 		queryStep:        *queryStep,
 		extraParams:      extraParams,
+	}
+	if *sqlAddr == "" {
+		return defaultClient, nil
+	}
+	if err := httputil.CheckURL(*sqlAddr); err != nil {
+		return nil, fmt.Errorf("invalid -datasource.sql.url:%w", err)
+	}
+	sqlTR, err := promauth.NewTLSTransport(*sqlTLSCertFile, *sqlTLSKeyFile, *sqlTLSCAFile, *sqlTLSServerName, *sqlTLSInsecureSkipVerify, "vmalert_sql_datasource")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create transport for -datasource.sql.url=%q: %w", *sqlAddr, err)
+	}
+	sqlTR.DisableKeepAlives = *disableKeepAlive
+	sqlTR.MaxIdleConnsPerHost = *maxIdleConnections
+	if sqlTR.MaxIdleConns != 0 && sqlTR.MaxIdleConns < sqlTR.MaxIdleConnsPerHost {
+		sqlTR.MaxIdleConns = sqlTR.MaxIdleConnsPerHost
+	}
+	sqlTR.IdleConnTimeout = *idleConnectionTimeout
+
+	sqlAuthCfg, err := vmalertutil.AuthConfig(
+		vmalertutil.WithBasicAuth(*sqlBasicAuthUsername, *sqlBasicAuthPassword, *sqlBasicAuthPasswordFile),
+		vmalertutil.WithBearer(*sqlBearerToken, *sqlBearerTokenFile),
+		vmalertutil.WithHeaders(*sqlHeaders))
+	if err != nil {
+		return nil, fmt.Errorf("failed to configure auth for -datasource.sql.url: %w", err)
+	}
+	_, err = sqlAuthCfg.GetAuthHeader()
+	if err != nil {
+		return nil, fmt.Errorf("failed to set request auth header to sql datasource %q: %w", *sqlAddr, err)
+	}
+
+	sqlClient := &Client{
+		c:              &http.Client{Transport: sqlTR},
+		authCfg:        sqlAuthCfg,
+		datasourceURL:  strings.TrimSuffix(*sqlAddr, "/"),
+		dataSourceType: datasourceSQL,
+		extraParams:    url.Values{},
+	}
+
+	return &Router{
+		defaultClient: defaultClient,
+		sqlClient:     sqlClient,
 	}, nil
 }

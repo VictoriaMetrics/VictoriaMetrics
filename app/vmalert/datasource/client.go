@@ -22,6 +22,7 @@ const (
 	datasourcePrometheus datasourceType = "prometheus"
 	datasourceGraphite   datasourceType = "graphite"
 	datasourceVLogs      datasourceType = "vlogs"
+	datasourceSQL        datasourceType = "sql"
 )
 
 func toDatasourceType(s string) datasourceType {
@@ -32,6 +33,8 @@ func toDatasourceType(s string) datasourceType {
 		return datasourceGraphite
 	case string(datasourceVLogs):
 		return datasourceVLogs
+	case string(datasourceSQL):
+		return datasourceSQL
 	default:
 		logger.Panicf("BUG: unknown datasource type %q", s)
 	}
@@ -183,6 +186,9 @@ func (c *Client) Query(ctx context.Context, query string, ts time.Time) (Result,
 		parseFn = parseGraphiteResponse
 	case datasourceVLogs:
 		parseFn = parseVLogsInstantResponse
+	case datasourceSQL:
+		parseFn = parseSQLResponse
+
 	default:
 		logger.Panicf("BUG: unsupported datasource type %q to parse query response", c.dataSourceType)
 	}
@@ -199,6 +205,9 @@ func (c *Client) Query(ctx context.Context, query string, ts time.Time) (Result,
 // Graphite type isn't supported.
 func (c *Client) QueryRange(ctx context.Context, query string, start, end time.Time) (res Result, err error) {
 	if c.dataSourceType == datasourceGraphite {
+		return res, fmt.Errorf("%q is not supported for QueryRange", c.dataSourceType)
+	}
+	if c.dataSourceType == datasourceSQL {
 		return res, fmt.Errorf("%q is not supported for QueryRange", c.dataSourceType)
 	}
 	// TODO: disable range query LogsQL with time filter now
@@ -300,6 +309,8 @@ func (c *Client) newQueryRequest(ctx context.Context, query string, ts time.Time
 		c.setGraphiteReqParams(req, query)
 	case datasourceVLogs:
 		c.setVLogsInstantReqParams(req, query, ts)
+	case datasourceSQL:
+		c.setSQLInstantReqParams(req, query, ts)
 	default:
 		logger.Panicf("BUG: unsupported datasource type %q to create query request", c.dataSourceType)
 	}
