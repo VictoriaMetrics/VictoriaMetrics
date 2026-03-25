@@ -16,8 +16,10 @@ import (
 // for new entries. Additionally, entries are evicted if not retrieved within
 // the last three minutes.
 //
-// The cache should be used only if the rate of requests to it is less or equal
-// to 1000.
+// The cache should be used only if the rate of requests is in the range of
+// thousands. I.e. it is suitable for use in data retrieval paths and should not
+// be used in data ingestion path since its qps is often in the range of
+// millions.
 //
 // Call NewCache() for creating new Cache.
 type Cache struct {
