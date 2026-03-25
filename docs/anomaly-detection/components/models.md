@@ -232,6 +232,13 @@ models:
     queries: ['normal_behavior']  # use the default where it's not needed
 ```
 
+### Minimal relative deviation from expected
+
+{{% available_from "v1.29.1" anomaly %}} `min_rel_dev_from_expected` argument serves a similar purpose to `min_dev_from_expected` (see [section above](#minimal-deviation-from-expected)), but focuses on **relative deviations** rather than absolute ones. It is designed to reduce [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive) in scenarios where the relative deviation between the actual value (`y`) and the expected value (`yhat`) is high, but the absolute deviation is not significant enough to be considered an anomaly from a business perspective. This parameter ensures that anomaly scores for data points where `|y - yhat| / |yhat| < min_rel_dev_from_expected` are explicitly set to 0. By default, if this parameter is not set, it is set to `0` to maintain backward compatibility. 
+
+> [!HINT]
+Parameter can be a list of two float values, allowing separate thresholds for upper and lower relative deviations. If only one value is provided, it is broadcasted to both directions.
+
 ### Group by
 
 > The `groupby` argument works only in combination with [multivariate models](#multivariate-models).
