@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -137,15 +138,7 @@ func MustRemoveDirContents(dir string) {
 func tryRemoveDir(dirPath string) bool {
 	des := MustReadDir(dirPath)
 	var wg sync.WaitGroup
-	var mu sync.Mutex
-	var firstNFSErr error
-	recordNFSErr := func(err error) {
-		mu.Lock()
-		if firstNFSErr == nil {
-			firstNFSErr = err
-		}
-		mu.Unlock()
-	}
+	var mustRetry atomic.Bool
 	workerCount := max(1, min(32, len(des)))
 	concurrencyCh := make(chan struct{}, workerCount)
 	for _, de := range des {
@@ -154,7 +147,7 @@ func tryRemoveDir(dirPath string) bool {
 			continue
 		}
 		if strings.HasPrefix(name, ".nfs") {
-			recordNFSErr(fmt.Errorf("dir: %q contains stale NFS file: %q", dirPath, name))
+			mustRetry.Store(true)
 			continue
 		}
 		dirEntryPath := filepath.Join(dirPath, name)
@@ -165,17 +158,23 @@ func tryRemoveDir(dirPath string) bool {
 				wg.Done()
 				<-concurrencyCh
 			}()
+			// os.RemoveAll may create stale NFS files with .nfs prefix
+			// after dirEntry removal. So it's required to perform an
+			// additional check later with hasStaleNFSFiles.
+			// It could happen if NFS client detects multiple inodes
+			// for the same file. While it's expected for storage process
+			// to open files simultaniously and properly close it, fs caching may
+			// still confuse NFS client.
 			if err := os.RemoveAll(dirEntryPath); err != nil {
 				if !isTemporaryNFSError(err) {
 					logger.Fatalf("FATAL: cannot remove %q: %s", dirEntryPath, err)
 				}
-				recordNFSErr(fmt.Errorf("cannot remove dirEntryPath: %q: %w", dirEntryPath, err))
+				mustRetry.Store(true)
 			}
 		}(dirEntryPath)
 	}
 	wg.Wait()
-	if firstNFSErr != nil {
-		logger.Warnf("cannot removeDir due to NFS error: %s", firstNFSErr)
+	if mustRetry.Load() {
 		nfsDirRemoveFailedAttempts.Inc()
 		return false
 	}
