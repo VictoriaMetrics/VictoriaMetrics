@@ -482,6 +482,30 @@ func (ctx *vmselectRequestCtx) writeUint64(n uint64) error {
 	return nil
 }
 
+// MaskMetadata defines the control bitmask using the 64th bit (MSB).
+// When this bit is set to 1, it indicates that the following payload is Metadata
+// rather than a standard Data Block.
+const MaskMetadata = uint64(1 << 63)
+
+// See: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10678
+func (ctx *vmselectRequestCtx) writeEndOfResponse(isPartial bool) error {
+	// Initialize an empty header (length = 0).
+	var header uint64 = 0
+
+	// If the response is partial, set the MSB flag to notify the receiver
+	// that this zero-length block carries specific control state.
+	if isPartial {
+		header |= MaskMetadata
+	}
+
+	// Write the 8-byte control header to signal the end of the stream.
+	if err := ctx.writeUint64(header); err != nil {
+		return fmt.Errorf("cannot write end of response header: %w", err)
+	}
+
+	return nil
+}
+
 const maxRPCNameSize = 128
 
 func (s *Server) processRequest(ctx *vmselectRequestCtx) error {
@@ -1077,7 +1101,8 @@ func (s *Server) processSearch(ctx *vmselectRequestCtx) error {
 	ctx.qt.Printf("sent %d blocks to vmselect", blocksRead)
 
 	// Send 'end of response' marker
-	if err := ctx.writeString(""); err != nil {
+	isPartial := bi.IsPartial()
+	if err := ctx.writeEndOfResponse(isPartial); err != nil {
 		return fmt.Errorf("cannot send 'end of response' marker")
 	}
 	return nil

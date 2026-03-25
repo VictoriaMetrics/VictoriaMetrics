@@ -64,4 +64,6 @@ type BlockIterator interface {
 
 	// Error returns the last error occurred in NextBlock(), which returns false.
 	Error() error
+
+	IsPartial() bool
 }

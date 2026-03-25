@@ -133,10 +133,11 @@ func (api *vmstorageAPI) GetMetadataRecords(qt *querytracer.Tracer, tt *storage.
 
 // blockIterator implements vmselectapi.BlockIterator
 type blockIterator struct {
-	workCh chan workItem
-	wis    []workItem
-	wg     sync.WaitGroup
-	err    error
+	workCh    chan workItem
+	wis       []workItem
+	wg        sync.WaitGroup
+	err       error
+	isPartial bool
 }
 
 type workItem struct {
@@ -153,7 +154,7 @@ func newBlockIterator(qt *querytracer.Tracer, denyPartialResponse bool, sq *stor
 		bi.wis[i].doneCh = make(chan struct{})
 	}
 	bi.wg.Go(func() {
-		_, err := processBlocks(func(mb []byte, workerID uint) error {
+		isPartial, err := processBlocks(func(mb []byte, workerID uint) error {
 			wi := bi.wis[workerID]
 			wi.rawMetricBlock = mb
 			bi.workCh <- wi
@@ -162,6 +163,7 @@ func newBlockIterator(qt *querytracer.Tracer, denyPartialResponse bool, sq *stor
 		})
 		close(bi.workCh)
 		bi.err = err
+		bi.isPartial = isPartial
 	})
 	return bi
 }
@@ -201,7 +203,13 @@ func (bi *blockIterator) MustClose() {
 	}
 	bi.err = nil
 	bi.workCh = nil
+	bi.isPartial = false
 	blockIteratorsPool.Put(bi)
+}
+
+func (bi *blockIterator) IsPartial() bool {
+	bi.wg.Wait()
+	return bi.isPartial
 }
 
 var blockIteratorsPool sync.Pool

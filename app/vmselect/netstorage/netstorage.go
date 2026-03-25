@@ -2173,7 +2173,15 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 	missingGroups := 0
 	var firstErr error
 	for g, errsPartial := range errsPartialPerGroup {
-		if len(errsPartial) == g.nodesCount {
+		hasRemotePartial := false
+		for _, err := range errsPartial {
+			if errors.Is(err, ErrRemotePartialData) || strings.Contains(err.Error(), vmselectReturnedPartialErrMsg) {
+				hasRemotePartial = true
+				break
+			}
+		}
+
+		if len(errsPartial) == g.nodesCount && !hasRemotePartial {
 			missingGroups++
 			if firstErr == nil {
 				// Return only the first error, since it has no sense in returning all errors.
@@ -3026,6 +3034,10 @@ func (sn *storageNode) processSearchMetricNamesOnConn(bc *handshake.BufferedConn
 
 const maxMetricNameSize = 64 * 1024
 
+const vmselectReturnedPartialErrMsg = "remote vmselect returned partial data"
+
+var ErrRemotePartialData = errors.New(vmselectReturnedPartialErrMsg)
+
 func (sn *storageNode) processSearchQueryOnConn(bc *handshake.BufferedConn, requestData []byte,
 	processBlock func(rawBlock []byte, workerID uint) error, workerID uint,
 ) error {
@@ -3048,12 +3060,16 @@ func (sn *storageNode) processSearchQueryOnConn(bc *handshake.BufferedConn, requ
 
 	// Read response. It may consist of multiple MetricBlocks.
 	blocksRead := 0
+	var isPartialFlag bool
 	for {
-		buf, err = readBytes(buf[:0], bc, maxMetricBlockSize)
+		buf, isPartialFlag, err = readBytesWithMetadata(buf[:0], bc, maxMetricBlockSize)
 		if err != nil {
 			return fmt.Errorf("cannot read MetricBlock #%d: %w", blocksRead, err)
 		}
 		if len(buf) == 0 {
+			if isPartialFlag {
+				return ErrRemotePartialData
+			}
 			// Reached the end of the response
 			return nil
 		}
@@ -3159,6 +3175,32 @@ func readBytes(buf []byte, bc *handshake.BufferedConn, maxDataSize int) ([]byte,
 		return buf, fmt.Errorf("cannot read data with size %d: %w; read only %d bytes", dataSize, err, n)
 	}
 	return buf, nil
+}
+
+const MaskMetadata = uint64(1 << 63)
+
+func readBytesWithMetadata(buf []byte, bc *handshake.BufferedConn, maxDataSize int) ([]byte, bool, error) {
+	buf = bytesutil.ResizeNoCopyMayOverallocate(buf, 8)
+	if n, err := io.ReadFull(bc, buf); err != nil {
+		return buf, false, fmt.Errorf("cannot read %d bytes with data size: %w; read only %d bytes", len(buf), err, n)
+	}
+	rawHeader := encoding.UnmarshalUint64(buf)
+
+	// 解析 MSB 标志并还原真实长度
+	isMetadata := (rawHeader & MaskMetadata) != 0
+	dataSize := rawHeader &^ MaskMetadata
+
+	if dataSize > uint64(maxDataSize) {
+		return buf, false, fmt.Errorf("too big data size: %d; it mustn't exceed %d bytes", dataSize, maxDataSize)
+	}
+	buf = bytesutil.ResizeNoCopyMayOverallocate(buf, int(dataSize))
+	if dataSize == 0 {
+		return buf, isMetadata, nil
+	}
+	if n, err := io.ReadFull(bc, buf); err != nil {
+		return buf, isMetadata, fmt.Errorf("cannot read data with size %d: %w; read only %d bytes", dataSize, err, n)
+	}
+	return buf, isMetadata, nil
 }
 
 func readUint64(bc *handshake.BufferedConn) (uint64, error) {

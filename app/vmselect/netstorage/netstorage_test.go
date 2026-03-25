@@ -1,13 +1,17 @@
 package netstorage
 
 import (
+	"bytes"
 	"flag"
 	"math"
+	"net"
 	"reflect"
 	"runtime"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/handshake"
 )
 
 func TestInitStopNodes(t *testing.T) {
@@ -331,4 +335,92 @@ func TestEqualSamplesPrefix(t *testing.T) {
 		Timestamps: []int64{1, 2},
 		Values:     []float64{5, math.Copysign(0, -1)},
 	}, 1)
+}
+
+func TestReadBytesWithMetadata(t *testing.T) {
+	// Helper closure for test assertions
+	f := func(rawPayload []byte, maxDataSize int, expectedData []byte, expectedIsMeta bool, expectErr bool) {
+		t.Helper()
+
+		// Use net.Pipe() to simulate an in-memory full-duplex network connection
+		clientConn, serverConn := net.Pipe()
+
+		// Start a background goroutine to simulate the sender (Local vmselect / vmstorage)
+		go func() {
+			defer clientConn.Close()
+			// Must use client handshake to properly initialize BufferedConn
+			bcClient, err := handshake.VMSelectClient(clientConn, 0)
+			if err == nil {
+				// Send the constructed binary payload to the receiver
+				bcClient.Write(rawPayload)
+				bcClient.Flush()
+			}
+		}()
+
+		// Simulate the receiver (Global vmselect / Local vmselect)
+		bcServer, err := handshake.VMSelectServer(serverConn, 0)
+		if err != nil {
+			t.Fatalf("unexpected handshake error: %v", err)
+		}
+		defer serverConn.Close()
+
+		// Invoke the function under test
+		buf := make([]byte, 0)
+		resultData, isMeta, err := readBytesWithMetadata(buf, bcServer, maxDataSize)
+
+		// Validate expected error behavior
+		if expectErr {
+			if err == nil {
+				t.Fatalf("expected error but got nil")
+			}
+			return
+		}
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		// Validate metadata flag parsing
+		if isMeta != expectedIsMeta {
+			t.Fatalf("unexpected isMetadata: got %v, want %v", isMeta, expectedIsMeta)
+		}
+
+		// Validate data reconstruction
+		if !bytes.Equal(resultData, expectedData) {
+			t.Fatalf("unexpected data: got %q, want %q", resultData, expectedData)
+		}
+	}
+
+	// Helper function: pack length header and payload into protocol-compliant binary stream
+	buildPayload := func(header uint64, data []byte) []byte {
+		var p []byte
+		p = encoding.MarshalUint64(p, header)
+		p = append(p, data...)
+		return p
+	}
+
+	// Case 1: Normal data block (no metadata flag)
+	// Highest bit = 0, data = "hello"
+	f(buildPayload(5, []byte("hello")), 1024, []byte("hello"), false, false)
+
+	// Case 2: Metadata block with flag set
+	// Highest bit = 1, actual data length is still 5
+	f(buildPayload(5|MaskMetadata, []byte("world")), 1024, []byte("world"), true, false)
+
+	// Case 3: Zero-length normal data block (EOF marker)
+	f(buildPayload(0, nil), 1024, []byte{}, false, false)
+
+	// Case 4: Zero-length metadata block (EOF with metadata flag, e.g. isPartial scenario)
+	f(buildPayload(0|MaskMetadata, nil), 1024, []byte{}, true, false)
+
+	// Case 5: Data length exceeds maxDataSize, should return error
+	f(buildPayload(100, []byte("data")), 50, nil, false, true)
+
+	// Case 6: Metadata data length exceeds maxDataSize, should also return error
+	f(buildPayload(100|MaskMetadata, []byte("data")), 50, nil, false, true)
+
+	// Case 7: Incomplete length header (network truncation, less than 8 bytes)
+	f([]byte{0x01, 0x02, 0x03, 0x04}, 1024, nil, false, true)
+
+	// Case 8: Incomplete payload (declared length = 10, actual data = 5 bytes)
+	f(buildPayload(10, []byte("short")), 1024, nil, false, true)
 }
