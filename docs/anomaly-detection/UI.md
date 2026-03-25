@@ -205,23 +205,22 @@ Copilot appears as a **chat popup** anchored to the bottom-right corner of the p
 AI Assistant is disabled by default; enable it with `VMANOMALY_COPILOT_ENABLED=true`, then configure an LLM provider API key and, optionally, a model. Once enabled and configured, Copilot will appear as a chat popup in the bottom-right corner of the UI.
 
 
-
 Supported providers and model formats:
 
 - **Anthropic** - set `ANTHROPIC_API_KEY`; model format: `anthropic:<model>`
   - Examples: `claude-haiku-4-5`, `claude-sonnet-4-6`; see [full list](https://platform.claude.com/docs/en/about-claude/models/overview#latest-models-comparison)
 - **OpenAI** - set `OPENAI_API_KEY`; model format: `openai:<model>` or `openai-responses:<model>`
   - Examples: `gpt-5-mini`, `gpt-5.2`; see [full list](https://platform.openai.com/docs/models)
-  - OpenAI-compatible non-OpenAI providers are supported through `OPENAI_BASE_URL` + `OPENAI_API_KEY`
+  - {{% available_from "v1.29.1" anomaly %}} OpenAI-compatible non-OpenAI providers are supported through `OPENAI_BASE_URL` + `OPENAI_API_KEY`
   - Azure OpenAI is supported through `AZURE_OPENAI_ENDPOINT` + `OPENAI_API_VERSION` + `AZURE_OPENAI_API_KEY` (or `AZURE_OPENAI_AD_TOKEN`); do not set both `OPENAI_BASE_URL` and `AZURE_OPENAI_ENDPOINT`
-- **Google** - model format: `google-gla:<model>` or `google-vertex:<model>`
+- {{% available_from "v1.29.1" anomaly %}} **Google** - model format: `google-gla:<model>` or `google-vertex:<model>`
   - Use `GOOGLE_API_KEY` for `google-gla`; for `google-vertex`, use Application Default Credentials, a service account (`GOOGLE_APPLICATION_CREDENTIALS`), or `GOOGLE_API_KEY`
   - Example: `google-gla:gemini-2.5-pro-preview`
-- **AWS Bedrock** - use AWS credentials or an IAM role; model format: `bedrock:<model>`
+- {{% available_from "v1.29.1" anomaly %}} **AWS Bedrock** - use AWS credentials or an IAM role; model format: `bedrock:<model>`
   - Preferred: set `AWS_BEARER_TOKEN_BEDROCK` and `AWS_DEFAULT_REGION`
   - Alternative: set `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and `AWS_DEFAULT_REGION` (add `AWS_SESSION_TOKEN` if using a session token)
   - Example: `bedrock:anthropic.claude-sonnet-4-5-20250929-v1:0`
-- **OpenRouter** - set `OPENROUTER_API_KEY`; model format: `openrouter:<model>`
+- {{% available_from "v1.29.1" anomaly %}} **OpenRouter** - set `OPENROUTER_API_KEY`; model format: `openrouter:<model>`
   - Example: `openrouter:anthropic/claude-sonnet-4-5`
 
 Set the credentials matching your selected provider:
@@ -630,7 +629,7 @@ If the **results** look good and the **model configuration should be deployed in
 ## Changelog
 
 ### v1.5.1
-Released: 2026-03-23
+Released: 2026-03-25
 
 vmanomaly version: [v1.29.1](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1291)
 
@@ -638,7 +637,7 @@ vmanomaly version: [v1.29.1](https://docs.victoriametrics.com/anomaly-detection/
 
 - BUGFIX: Now Visualization Panel correctly switches in between "query" and "detect" modes when respective buttons are hit in the [Visualization Panel](#visualization-panel), without showing stale results from the previous mode, once running anomaly detection task is explicitly cancelled (regression introduced in [v1.5.0](#v150)).
 
-- BUGFIX: Fixed an issue with [crypto.randomUUID](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID) introduced in [v1.29.0](#v1290) in [UI copilot](https://docs.victoriametrics.com/anomaly-detection/ui/#ai-assistance) that led to the front app failing to blank page.
+- BUGFIX: Fixed an issue with [crypto.randomUUID](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID) introduced in [v1.29.0](#v1290) in [UI copilot](https://docs.victoriametrics.com/anomaly-detection/ui/#ai-assistance) that led to the front app showing a blank page.
 
 ### v1.5.0
 Released: 2026-03-05
