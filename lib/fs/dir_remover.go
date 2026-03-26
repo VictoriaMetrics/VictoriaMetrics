@@ -2,7 +2,6 @@ package fs
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -133,8 +132,21 @@ func MustRemoveDirContents(dir string) {
 	MustSyncPath(dir)
 }
 
-// tryRemoveDir performs removal of directory
-// it checks error for the first NFS temporary error
+// tryRemoveDir attemps to remove a directory and returns true if the removal
+// succeeded.
+//
+// The function returns false if:
+//
+//  1. it detects .nfsXXXX files in inside dirPath. Since the creation of such
+//     files is a valid NFS behavior, the function does not attempt to delete
+//     them and lets the NFS do it gracefully (i.e. remove them when they are no
+//     longer needed). See
+//     https://wiki.linux-nfs.org/wiki/index.php/Server-side_silly_rename
+//  2. OR there has been a temprorary NFS error while deleting a dir entry.
+//
+// Returning false indicates that the caller should retry.
+//
+// Finally, the function panics in case of any other fs operation failure.
 func tryRemoveDir(dirPath string) bool {
 	des := MustReadDir(dirPath)
 	var wg sync.WaitGroup
@@ -158,14 +170,14 @@ func tryRemoveDir(dirPath string) bool {
 				wg.Done()
 				<-concurrencyCh
 			}()
-			// os.RemoveAll may create stale NFS files with .nfs prefix
-			// after dirEntry removal. So it's required to perform an
-			// additional check later with hasStaleNFSFiles.
-			// It could happen if NFS client detects multiple file descriptors
-			// that point to the same inode.
-			//  While it's expected for storage process
-			// to open files simultaneously and properly close it, fs caching may
-			// still confuse NFS client.
+			// os.RemoveAll may create stale NFS files with .nfs prefix after
+			// dirEntry removal. So it's required to perform an additional check
+			// later with hasStaleNFSFiles(). It could happen if NFS client
+			// detects multiple file descriptors that point to the same inode.
+			//
+			// While it's expected for storage process to open a file multiple
+			// times simultaneously and properly close it, fs caching may still
+			// confuse NFS client.
 			if err := os.RemoveAll(dirEntryPath); err != nil {
 				if !isTemporaryNFSError(err) {
 					logger.Fatalf("FATAL: cannot remove %q: %s", dirEntryPath, err)
