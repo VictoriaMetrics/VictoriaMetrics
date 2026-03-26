@@ -161,9 +161,10 @@ func tryRemoveDir(dirPath string) bool {
 			// os.RemoveAll may create stale NFS files with .nfs prefix
 			// after dirEntry removal. So it's required to perform an
 			// additional check later with hasStaleNFSFiles.
-			// It could happen if NFS client detects multiple inodes
-			// for the same file. While it's expected for storage process
-			// to open files simultaniously and properly close it, fs caching may
+			// It could happen if NFS client detects multiple file descriptors
+			// that point to the same inode.
+			//  While it's expected for storage process
+			// to open files simultaneously and properly close it, fs caching may
 			// still confuse NFS client.
 			if err := os.RemoveAll(dirEntryPath); err != nil {
 				if !isTemporaryNFSError(err) {
