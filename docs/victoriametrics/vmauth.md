@@ -326,10 +326,9 @@ signed with the configured public key.
 Claim names support dot-notation for traversal of nested JSON objects
 (a simplified JSONPath-style approach), for example `vm_access.metrics_account_id` matches `{"vm_access": {"metrics_account_id": 1}}` and
 `security.permissions.0.read` matches `{"security": {"permissions": [{"read": 1}]}}.
-Claim names must point to a **leaf value**. The only supported leaf values are string, integer, float and boolean. Any other leaf type
-is treated as not matched.
-All configured claims must match exactly.
-Claim match values use regular expression syntax and must fully match the claim value.
+Claim names must point to a **leaf value** or an **array**. The supported leaf types are string, integer, float and boolean.
+If the claim value is an array, each scalar element is compared against the match value - the claim matches if any element matches. Objects and nested arrays inside the array are skipped.
+All configured claims must match and the values use regular expression syntax.
 
 For example, the following config routes requests based on the `role` claim in the JWT token:
 
@@ -380,6 +379,31 @@ users:
     match_claims:
       foo.bar: baz
   url_prefix: "http://victoria-metrics-tenant-2:8428/"
+```
+
+The following config matches against array claim values.
+The first user matches a token with claim `{"roles": ["admin"]}`, while the second matches a token with claim `{"roles": ["read"]}` or `{"roles": ["write"]}`.
+
+```yaml
+users:
+- jwt:
+    public_keys:
+    - |
+      -----BEGIN PUBLIC KEY-----
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+      -----END PUBLIC KEY-----
+    match_claims:
+      roles: admin
+  url_prefix: "http://victoria-metrics-admin:8428/"
+- jwt:
+    public_keys:
+    - |
+      -----BEGIN PUBLIC KEY-----
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+      -----END PUBLIC KEY-----
+    match_claims:
+      roles: "^(read|write)$"
+  url_prefix: "http://victoria-metrics-readonly:8428/"
 ```
 
 The following config matches any valid token (no claim filtering),

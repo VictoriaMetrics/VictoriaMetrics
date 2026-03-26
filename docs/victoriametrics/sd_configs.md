@@ -2080,8 +2080,8 @@ and in the majority of [supported service discovery configs](#supported-service-
     # basic_auth is an optional HTTP basic authentication configuration.
     #
     # basic_auth:
-    #   username: "..."
-    #   username_file: "..."  # is mutually-exclusive with username
+    #   username: "..."      # optional
+    #   username_file: "..."  # optional, is mutually-exclusive with username
     #   password: "..."
     #   password_file: "..."  # is mutually-exclusive with password
 
