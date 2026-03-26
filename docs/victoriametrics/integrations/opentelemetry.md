@@ -33,7 +33,7 @@ By default, VictoriaMetrics promotes all [OpenTelemetry resource](https://opente
 ## Exponential histograms
 
 OpenTelemetry [exponential histogram](https://opentelemetry.io/docs/specs/otel/metrics/data-model/#exponentialhistogram) is automatically converted
-to [VictoriaMetrics histogram format](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350) during ingestion. Since VictoriaMetrics histogram doesn't support negative observations, all buckets in the negative range are dropped.
+to [VictoriaMetrics histogram format](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350) with `vmrange` labels during ingestion.
 
 ## Delta Temporality
 
