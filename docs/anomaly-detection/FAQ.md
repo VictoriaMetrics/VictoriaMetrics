@@ -139,7 +139,7 @@ For information on migrating between different versions of `vmanomaly`, please r
 
 ## Choosing the right model for vmanomaly
 
-> {{% available_from "v1.28.3" anomaly %}} Try our [MCP Server](https://github.com/VictoriaMetrics-Community/mcp-vmanomaly) to get AI-assisted recommendations on selecting the best model and its configuration for your use case. See [installation guide](https://github.com/VictoriaMetrics-Community/mcp-vmanomaly#installation) for more details.
+> {{% available_from "v1.28.3" anomaly %}} Try our [MCP Server](https://github.com/VictoriaMetrics/mcp-vmanomaly) to get AI-assisted recommendations on selecting the best model and its configuration for your use case. See [installation guide](https://github.com/VictoriaMetrics/mcp-vmanomaly#installation) for more details.
 
 Selecting the best model for `vmanomaly` depends on the data's nature and the [types of anomalies](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-2/#categories-of-anomalies) to detect. For instance, [Z-score](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-z-score) is suitable for data without trends or seasonality, while more complex patterns might require models like [Prophet](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet).
 
@@ -151,7 +151,8 @@ Still not 100% sure what to use? We are [here to help](https://docs.victoriametr
 
 ## Incorporating domain knowledge
 
-> {{% available_from "v1.28.3" anomaly %}} Try our [MCP Server](https://github.com/VictoriaMetrics-Community/mcp-vmanomaly) to get AI-assisted recommendations on incorporating domain knowledge into your anomaly detection models. See [installation guide](https://github.com/VictoriaMetrics-Community/mcp-vmanomaly#installation) for more details.
+> [!TIP]
+> {{% available_from "v1.28.3" anomaly %}} Try our [MCP Server](https://github.com/VictoriaMetrics/mcp-vmanomaly) to get AI-assisted recommendations on incorporating domain knowledge into your anomaly detection models. See [installation guide](https://github.com/VictoriaMetrics/mcp-vmanomaly#installation) for more details. {{% available_from "v1.29.0" anomaly %}} Connect MCP server to the [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/) to benefit from better response quality and tool access in the UI Copilot, which provides AI-assisted configuration generation and debugging capabilities. See the [UI documentation](https://docs.victoriametrics.com/anomaly-detection/ui/#ai-assistance) for instructions on how to set it up.
 
 Anomaly detection models can significantly improve when incorporating business-specific assumptions about the data and what constitutes an anomaly. `vmanomaly` supports various [business-side configuration parameters](https://docs.victoriametrics.com/anomaly-detection/components/models/#common-args) across all built-in models to **reduce [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive)** and **align model behavior with business needs**, for example:
 
@@ -161,7 +162,7 @@ Anomaly detection models can significantly improve when incorporating business-s
 
 - **Defining a `data_range`** - configure [`data_range`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#config-parameters) for the model’s input query to **automatically assign anomaly scores > 1** for values (`y`) that fall outside the defined range.
 
-- **Filtering minor fluctuations with `min_dev_from_expected`** – use [`min_dev_from_expected`](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-deviation-from-expected) to **ignore insignificant deviations** and prevent small fluctuations from triggering [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive).
+- **Filtering minor fluctuations with absolute (`min_dev_from_expected`)** or **relative (`min_rel_dev_from_expected`)** thresholding – use [`min_dev_from_expected`](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-deviation-from-expected) and [`min_rel_dev_from_expected`](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-relative-deviation-from-expected) to **ignore insignificant deviations** and prevent alerting rules from triggering [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive).
 
 - **Applying `scale` for asymmetric confidence adjustments** - use [`scale`](https://docs.victoriametrics.com/anomaly-detection/components/models/#scale) to adjust confidence intervals **differently for spikes and drops**, ensuring more appropriate anomaly detection.
 
@@ -172,7 +173,7 @@ Consider a metric tracking the percentage of HTTP 4xx status codes for a specifi
 - **Expected data range**: The percentage naturally falls between `0%` and `100%` (`[0, 1]`).
 - **Threshold-based anomaly detection**: If the error rate exceeds `5%`, it should be **automatically flagged as an anomaly** ([anomaly score](#what-is-anomaly-score) > 1), encouraging an incident investigation.
 - **Regime shift detection**: A **continuous increase** in error rates (e.g., from `1.5%` to `3%`) should also be considered **anomalous**, as regime change may indicate underlying system problem, e.g. with a new release.
-- **Avoiding false positives**: **Small, infrequent deviations** (e.g., from `1%` to `1.3%`) should **not** trigger alerts to **prevent unnecessary SRE escalations**. Let it be on the level of 0.5%.
+- **Avoiding false positives**: **Small, infrequent deviations** (e.g., from `1%` to `1.3%` on a scale of 0-100%) should **not** trigger alerts to **prevent unnecessary SRE escalations**. Let it be on the level of 0.5%. Also, relative deviations of less than 10% (e.g., from `1%` to `1.1%`) should be ignored, as they may not represent significant changes in the context of the metric vs its average fluctuation.
 
 Then, the following config may be used to benefit from incorporating domain knowledge into model behavior:
 
@@ -200,7 +201,8 @@ models:
     schedulers: ['periodic_http']
     queries: ['percentage_4xx']
     detection_direction: 'above_expected'  # as interested only in spikes, drops are OK
-    min_dev_from_expected: 0.005  # <0.5% deviations vs expected values should be neglected, generating anomaly score == 0
+    min_dev_from_expected: [0, 0.005]  # <0.5% deviations vs expected values should be neglected, generating anomaly score == 0
+    min_rel_dev_from_expected: [0, 0.1]  # <10% relative deviations vs expected values should be neglected, generating anomaly score == 0
     # to align predictions to be within [0, 5%] interval, defined in reader.queries.percentage_4xx.data_range
     clip_predictions: True
     # specify output series produced by vmanomaly to be written to VictoriaMetrics in `writer`
@@ -236,7 +238,7 @@ groups:
 
 > {{% available_from "v1.27.0" anomaly %}} You can also use the [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/) to generate alerting rules automatically based on your model configurations and selected thresholds.
 
-> {{% available_from "v1.28.3" anomaly %}} Check out our [MCP Server](https://github.com/VictoriaMetrics-Community/mcp-vmanomaly) to get AI-assisted recommendations on setting up alerting rules based on produced anomaly scores. See [installation guide](https://github.com/VictoriaMetrics-Community/mcp-vmanomaly#installation) for more details.
+> {{% available_from "v1.28.3" anomaly %}} Check out our [MCP Server](https://github.com/VictoriaMetrics/mcp-vmanomaly) to get AI-assisted recommendations on setting up alerting rules based on produced anomaly scores. See [installation guide](https://github.com/VictoriaMetrics/mcp-vmanomaly#installation) for more details.
 
 ## Preventing alert fatigue
 Produced anomaly scores are designed in such a way that values from 0.0 to 1.0 indicate non-anomalous data, while a value greater than 1.0 is generally classified as an anomaly. However, there are no perfect models for anomaly detection, that's why reasonable defaults expressions like `anomaly_score > 1` may not work 100% of the time. However, anomaly scores, produced by `vmanomaly` are written back as metrics to VictoriaMetrics, where tools like [`vmalert`](https://docs.victoriametrics.com/victoriametrics/vmalert/) can use [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) expressions to fine-tune alerting thresholds and conditions, balancing between avoiding [false negatives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-negative) and reducing [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive).
@@ -419,7 +421,7 @@ services:
   # ...
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.28.7
+    image: victoriametrics/vmanomaly:v1.29.1
     # ...
     restart: always
     volumes:
@@ -637,7 +639,7 @@ options:
 Here’s an example of using the config splitter to divide configurations based on the `extra_filters` argument from the reader section:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.28.6 && docker image tag victoriametrics/vmanomaly:v1.28.7 vmanomaly
+docker pull victoriametrics/vmanomaly:v1.29.1 && docker image tag victoriametrics/vmanomaly:v1.29.1 vmanomaly
 ```
 
 ```sh

@@ -16,7 +16,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
   -blockcache.missesBeforeCaching int
      The number of cache misses before putting the block into cache. Higher values may reduce indexdb/dataBlocks cache size at the cost of higher CPU and disk read usage (default 2)
   -configCheckInterval duration
-     Interval for checking for changes in '-rule' or '-notifier.config' files. By default, the checking is disabled. Send SIGHUP signal in order to force config check for changes.
+     Interval for checking for changes in '-rule', '-rule.templates' and '-notifier.config' files. By default, the checking is disabled. Send SIGHUP signal in order to force config check for changes.
   -datasource.appendTypePrefix
      Whether to add type prefix to -datasource.url based on the query type. Set to true if sending different query types to the vmselect URL.
   -datasource.basicAuth.password string
@@ -429,9 +429,9 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
   -rule.evalDelay duration
      Adjustment of the 'time' parameter for rule evaluation requests to compensate intentional data delay from the datasource. Normally, should be equal to '-search.latencyOffset' (cmd-line flag configured for VictoriaMetrics single-node or vmselect). This doesn't apply to groups with eval_offset specified. (default 30s)
   -rule.maxResolveDuration duration
-     Limits the maxiMum duration for automatic alert expiration, which by default is 4 times evaluationInterval of the parent group
+     Limits the maximum duration for automatic alert expiration, which by default is 4 times evaluationInterval of the parent group
   -rule.resendDelay duration
-     MiniMum amount of time to wait before resending an alert to notifier.
+     Minimum amount of time to wait before resending an alert to notifier.
   -rule.resultsLimit int
      Limits the number of alerts or recording results a single rule can produce. Can be overridden by the limit option under group if specified. If exceeded, the rule will be marked with an error and all its results will be discarded. 0 means no limit.
   -rule.templates array

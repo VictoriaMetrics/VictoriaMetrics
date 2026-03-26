@@ -148,6 +148,7 @@ type OAuth2Config struct {
 	EndpointParams   map[string]string `yaml:"endpoint_params,omitempty"`
 	TLSConfig        *TLSConfig        `yaml:"tls_config,omitempty"`
 	ProxyURL         string            `yaml:"proxy_url,omitempty"`
+	Headers          []string          `yaml:"headers,omitempty"`
 }
 
 func (o *OAuth2Config) validate() error {
@@ -177,13 +178,15 @@ type oauth2ConfigInternal struct {
 	proxyURL     string
 	proxyURLFunc func(*http.Request) (*url.URL, error)
 
+	tokenURLHeaders []keyValue
+
 	ctx         context.Context
 	tokenSource oauth2.TokenSource
 }
 
 func (oi *oauth2ConfigInternal) String() string {
-	return fmt.Sprintf("clientID=%q, clientSecret=%q, clientSecretFile=%q, scopes=%q, endpointParams=%q, tokenURL=%q, proxyURL=%q, tlsConfig={%s}",
-		oi.cfg.ClientID, oi.cfg.ClientSecret, oi.clientSecretFile, oi.cfg.Scopes, oi.cfg.EndpointParams, oi.cfg.TokenURL, oi.proxyURL, oi.ac.String())
+	return fmt.Sprintf("clientID=%q, clientSecret=%q, clientSecretFile=%q, scopes=%q, endpointParams=%q, tokenURL=%q, proxyURL=%q, tokenURLHeaders=%q, tlsConfig={%s}",
+		oi.cfg.ClientID, oi.cfg.ClientSecret, oi.clientSecretFile, oi.cfg.Scopes, oi.cfg.EndpointParams, oi.cfg.TokenURL, oi.proxyURL, oi.tokenURLHeaders, oi.ac.String())
 }
 
 func newOAuth2ConfigInternal(baseDir string, o *OAuth2Config) (*oauth2ConfigInternal, error) {
@@ -221,6 +224,11 @@ func newOAuth2ConfigInternal(baseDir string, o *OAuth2Config) (*oauth2ConfigInte
 		oi.proxyURL = o.ProxyURL
 		oi.proxyURLFunc = http.ProxyURL(u)
 	}
+	tokenURLHeaders, err := parseHeaders(o.Headers)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse headers for token_url: %w", err)
+	}
+	oi.tokenURLHeaders = tokenURLHeaders
 	return oi, nil
 }
 
@@ -237,12 +245,54 @@ func (oi *oauth2ConfigInternal) initTokenSource() error {
 	if oi.proxyURLFunc != nil {
 		tr.Proxy = oi.proxyURLFunc
 	}
+	transport := oi.ac.NewRoundTripper(tr)
+	if len(oi.tokenURLHeaders) > 0 {
+		transport = newExtraHeadersTransport(oi.tokenURLHeaders, transport)
+	}
 	c := &http.Client{
-		Transport: oi.ac.NewRoundTripper(tr),
+		Transport: transport,
 	}
 	oi.ctx = context.WithValue(context.Background(), oauth2.HTTPClient, c)
 	oi.tokenSource = oi.cfg.TokenSource(oi.ctx)
 	return nil
+}
+
+// extraHeadersTransport injects a fixed set of headers into every request.
+type extraHeadersTransport struct {
+	extraHeaders http.Header
+	host         string
+	base         http.RoundTripper
+}
+
+func newExtraHeadersTransport(headers []keyValue, base http.RoundTripper) *extraHeadersTransport {
+	tr := &extraHeadersTransport{
+		base:         base,
+		extraHeaders: make(http.Header, len(headers)),
+	}
+	for _, h := range headers {
+		if h.key == "Host" {
+			tr.host = h.value
+			continue
+		}
+		tr.extraHeaders[h.key] = []string{h.value}
+	}
+	return tr
+}
+
+func (tr *extraHeadersTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	r := new(http.Request)
+	*r = *req
+	r.Header = make(http.Header, len(req.Header)+len(tr.extraHeaders))
+	for k, v := range req.Header {
+		r.Header[k] = v
+	}
+	for k, v := range tr.extraHeaders {
+		r.Header[k] = v
+	}
+	if tr.host != "" {
+		r.Host = tr.host
+	}
+	return tr.base.RoundTrip(r)
 }
 
 func (oi *oauth2ConfigInternal) getTokenSource() (oauth2.TokenSource, error) {
@@ -429,7 +479,7 @@ func newGetTLSConfigCached(getTLSConfig getTLSConfigFunc) getTLSConfigFunc {
 	}
 }
 
-type getTLSCertFunc func(cri *tls.CertificateRequestInfo) (*tls.Certificate, error)
+type getTLSCertFunc func() (*tls.Certificate, error)
 
 func newGetTLSCertCached(getTLSCert getTLSCertFunc) getTLSCertFunc {
 	if getTLSCert == nil {
@@ -439,13 +489,13 @@ func newGetTLSCertCached(getTLSCert getTLSCertFunc) getTLSCertFunc {
 	var deadline uint64
 	var cert *tls.Certificate
 	var err error
-	return func(cri *tls.CertificateRequestInfo) (*tls.Certificate, error) {
+	return func() (*tls.Certificate, error) {
 		// Cache the certificate and the error for up to a second in order to save CPU time
 		// on certificate parsing when TLS connections are frequently re-established.
 		mu.Lock()
 		defer mu.Unlock()
 		if fasttime.UnixTimestamp() > deadline {
-			cert, err = getTLSCert(cri)
+			cert, err = getTLSCert()
 			deadline = fasttime.UnixTimestamp() + 1
 		}
 		return cert, err
@@ -471,8 +521,10 @@ func (ac *Config) NewRoundTripper(trBase *http.Transport) http.RoundTripper {
 	rt := &roundTripper{
 		trBase: trBase,
 	}
+
 	if ac != nil {
 		rt.getTLSConfigCached = ac.getTLSConfigCached
+		rt.getTLSCertCached = ac.getTLSCertCached
 	}
 	return rt
 }
@@ -480,11 +532,13 @@ func (ac *Config) NewRoundTripper(trBase *http.Transport) http.RoundTripper {
 type roundTripper struct {
 	trBase             *http.Transport
 	getTLSConfigCached getTLSConfigFunc
+	getTLSCertCached   getTLSCertFunc
 
-	// mu protects access to rootCAPrev and trPrev
+	// mu protects access to rootCAPrev,certPrev and trPrev
 	mu         sync.Mutex
 	rootCAPrev *x509.CertPool
 	trPrev     *http.Transport
+	certPrev   *x509.Certificate
 }
 
 // RoundTrip implements http.RoundTripper interface.
@@ -505,11 +559,19 @@ func (rt *roundTripper) getTransport() (*http.Transport, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot initialize TLS config: %w", err)
 	}
+	var cert *x509.Certificate
+	if rt.getTLSCertCached != nil {
+		cachedCert, err := rt.getTLSCertCached()
+		if err != nil {
+			return nil, fmt.Errorf("cannot initialize TLS certificate: %w", err)
+		}
+		cert = cachedCert.Leaf
+	}
 
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
 
-	if rt.trPrev != nil && tlsCfg.RootCAs.Equal(rt.rootCAPrev) {
+	if rt.trPrev != nil && tlsCfg.RootCAs.Equal(rt.rootCAPrev) && (cert == nil || cert.Equal(rt.certPrev)) {
 		// Fast path - tlsCfg wasn't changed. Return the previously created transport.
 		return rt.trPrev, nil
 	}
@@ -525,6 +587,7 @@ func (rt *roundTripper) getTransport() (*http.Transport, error) {
 
 	rt.trPrev = tr
 	rt.rootCAPrev = tlsCfg.RootCAs
+	rt.certPrev = cert
 
 	return rt.trPrev, nil
 }
@@ -537,13 +600,17 @@ func (ac *Config) getTLSConfig() (*tls.Config, error) {
 	}
 
 	tlsCfg := &tls.Config{
-		ClientSessionCache:   tls.NewLRUClientSessionCache(0),
-		GetClientCertificate: ac.getTLSCertCached,
-		ServerName:           ac.tlsServerName,
-		InsecureSkipVerify:   ac.tlsInsecureSkipVerify,
-		MinVersion:           ac.tlsMinVersion,
+		ClientSessionCache: tls.NewLRUClientSessionCache(0),
+		ServerName:         ac.tlsServerName,
+		InsecureSkipVerify: ac.tlsInsecureSkipVerify,
+		MinVersion:         ac.tlsMinVersion,
 		// Do not set MaxVersion, since this has no sense from security PoV.
 		// This can only result in lower security level if improperly configured.
+	}
+	if ac.getTLSCertCached != nil {
+		tlsCfg.GetClientCertificate = func(cri *tls.CertificateRequestInfo) (*tls.Certificate, error) {
+			return ac.getTLSCertCached()
+		}
 	}
 	if f := ac.getTLSRootCA; f != nil {
 		rootCA, err := f()
@@ -756,9 +823,19 @@ func (actx *authContext) initFromBasicAuthConfig(baseDir string, ba *BasicAuthCo
 		password = ba.Password.S
 	}
 	passwordFile := ba.PasswordFile
-	if username == "" && usernameFile == "" {
-		return fmt.Errorf("missing `username` and `username_file` in `basic_auth` section; please specify one; " +
+	if username == "" && usernameFile == "" && password == "" && passwordFile == "" {
+		return fmt.Errorf("missing `username`, `username_file`, `password` and `password_file` in `basic_auth` section; please specify at least one; " +
 			"see https://docs.victoriametrics.com/victoriametrics/sd_configs/#http-api-client-options")
+	}
+	if username == "" && usernameFile == "" {
+		logger.Warnf("missing `username` and `username_file` in `basic_auth` section; " +
+			"see https://docs.victoriametrics.com/victoriametrics/sd_configs/#http-api-client-options")
+	}
+	if strings.TrimSpace(username) == "" && username != "" {
+		logger.Warnf("`username` in `basic_auth` section is blank; it is possible to omit the `username` value if it is not needed")
+	}
+	if usernameFile == "/dev/null" {
+		logger.Warnf("`username_file` in `basic_auth` section points to /dev/null; it is possible to omit the `username_file` value if it is not needed")
 	}
 	if username != "" && usernameFile != "" {
 		return fmt.Errorf("both `username` and `username_file` are set in `basic_auth` section; please specify only one; " +
@@ -860,7 +937,7 @@ func (tctx *tlsContext) initFromTLSConfig(baseDir string, tc *TLSConfig) error {
 		if err != nil {
 			return fmt.Errorf("cannot load TLS certificate from the provided `cert` and `key` values: %w", err)
 		}
-		tctx.getTLSCert = func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
+		tctx.getTLSCert = func() (*tls.Certificate, error) {
 			return &cert, nil
 		}
 		h := xxhash.Sum64([]byte(tc.Key)) ^ xxhash.Sum64([]byte(tc.Cert))
@@ -868,7 +945,7 @@ func (tctx *tlsContext) initFromTLSConfig(baseDir string, tc *TLSConfig) error {
 	} else if tc.CertFile != "" || tc.KeyFile != "" {
 		certPath := fscore.GetFilepath(baseDir, tc.CertFile)
 		keyPath := fscore.GetFilepath(baseDir, tc.KeyFile)
-		tctx.getTLSCert = func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
+		tctx.getTLSCert = func() (*tls.Certificate, error) {
 			// Re-read TLS certificate from disk. This is needed for https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1420
 			certData, err := fscore.ReadFileOrHTTP(certPath)
 			if err != nil {

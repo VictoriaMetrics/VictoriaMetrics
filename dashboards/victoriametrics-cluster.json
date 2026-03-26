@@ -1521,7 +1521,7 @@
             {
               "targetBlank": true,
               "title": "Drilldown",
-              "url": "/d/oS7Bi_0Wz?viewPanel=203&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+              "url": "/d/oS7Bi_0Wz?viewPanel=203&var-job=${__field.labels.job}&var-ds=$ds&${__url_time_range}"
             }
           ],
           "mappings": [],
@@ -1650,12 +1650,12 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown - RSS memory usage",
-                  "url": "/d/oS7Bi_0Wz?viewPanel=189&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "url": "/d/oS7Bi_0Wz?viewPanel=189&var-job=${__field.labels.job}&var-ds=$ds&${__url_time_range}"
                 },
                 {
                   "targetBlank": true,
                   "title": "Drilldown - Memory usage breakdown",
-                  "url": "/d/oS7Bi_0Wz?viewPanel=225&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "url": "/d/oS7Bi_0Wz?viewPanel=225&var-job=${__field.labels.job}&var-ds=$ds&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -1770,7 +1770,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/oS7Bi_0Wz?viewPanel=192&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "url": "/d/oS7Bi_0Wz?viewPanel=192&var-job=${__field.labels.job}&var-ds=$ds&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -1888,7 +1888,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/oS7Bi_0Wz?viewPanel=190&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "url": "/d/oS7Bi_0Wz?viewPanel=190&var-job=${__field.labels.job}&var-ds=$ds&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -5077,7 +5077,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/oS7Bi_0Wz?viewPanel=224&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "url": "/d/oS7Bi_0Wz?viewPanel=224&var-job=${__field.labels.job}&var-ds=$ds&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -5129,7 +5129,7 @@
                 "uid": "${ds}"
               },
               "editorMode": "code",
-              "expr": "sum(rate(process_major_pagefaults_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job)",
+              "expr": "sum(rate(process_major_pagefaults_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job) > 0",
               "legendFormat": "__auto",
               "range": true,
               "refId": "A"
@@ -6107,7 +6107,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/oS7Bi_0Wz?viewPanel=192&var-job=$job_storage&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "url": "/d/oS7Bi_0Wz?viewPanel=192&var-job=$job_storage&var-ds=$ds&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -6257,7 +6257,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/oS7Bi_0Wz?viewPanel=190&var-job=$job_storage&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "url": "/d/oS7Bi_0Wz?viewPanel=190&var-job=$job_storage&var-ds=$ds&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -6908,7 +6908,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/oS7Bi_0Wz?viewPanel=200&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "url": "/d/oS7Bi_0Wz?viewPanel=200&var-ds=$ds&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -7178,7 +7178,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/oS7Bi_0Wz?viewPanel=201&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "url": "/d/oS7Bi_0Wz?viewPanel=201&var-ds=$ds&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -8042,7 +8042,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/oS7Bi_0Wz?viewPanel=192&var-job=$job_select&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "url": "/d/oS7Bi_0Wz?viewPanel=192&var-job=$job_select&var-ds=$ds&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -8186,7 +8186,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/oS7Bi_0Wz?viewPanel=190&var-job=$job_select&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "url": "/d/oS7Bi_0Wz?viewPanel=190&var-job=$job_select&var-ds=$ds&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -9375,7 +9375,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/oS7Bi_0Wz?viewPanel=192&var-job=$job_insert&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "url": "/d/oS7Bi_0Wz?viewPanel=192&var-job=$job_insert&var-ds=$ds&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -9519,7 +9519,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/oS7Bi_0Wz?viewPanel=190&var-job=$job_insert&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "url": "/d/oS7Bi_0Wz?viewPanel=190&var-job=$job_insert&var-ds=$ds&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -11153,7 +11153,7 @@
                 "uid": "${ds}"
               },
               "editorMode": "code",
-              "expr": "sum(rate(process_major_pagefaults_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job,instance)",
+              "expr": "sum(rate(process_major_pagefaults_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job,instance) > 0",
               "legendFormat": "{{instance}} ({{job}})",
               "range": true,
               "refId": "A"

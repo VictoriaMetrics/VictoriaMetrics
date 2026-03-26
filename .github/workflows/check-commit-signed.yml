@@ -27,11 +27,21 @@ jobs:
             exit 0
           fi
           
-          unsigned=$(git log --pretty="%H %G?" $RANGE | grep -vE " (G|E)$" || true)
+          # Check raw commit objects for a "gpgsig" header as a fast early signal for
+          # contributors. Both GPG and SSH signatures use this header. 
+          # This avoids relying on %G? which returns N for SSH commits.
+          # This check is not a security enforcement — unsigned commits cannot be merged
+          # anyway due to the GitHub repository merge policy.
+          unsigned=""
+          for sha in $(git rev-list $RANGE); do
+            if ! git cat-file commit "$sha" | grep -q "^gpgsig"; then
+              unsigned="$unsigned $sha"
+            fi
+          done
           if [ -n "$unsigned" ]; then
             echo "Found unsigned commits:"
             echo "$unsigned"
             exit 1
           fi
-          
-          echo "All commits in PR are signed (G or E)"
+
+          echo "All commits in PR are signed (GPG or SSH)"

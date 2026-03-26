@@ -88,7 +88,7 @@ type ScrapeWork struct {
 	// These labels are needed for relabeling troubleshooting at /targets page.
 	//
 	// OriginalLabels are sorted by name.
-	OriginalLabels *promutil.Labels
+	OriginalLabels *compressedLabels
 
 	// Labels to add to the scraped metrics.
 	//
