@@ -221,7 +221,7 @@ reader:
 
 After saving the changes, hot reload will automatically detect the changes in `config.yaml` and attempt to reload the configuration. As the changes are valid, the service will log a success message and increment the `vmanomaly_hot_reload_events_total` metric with `status="success"` label:
 
-- All the model instances of class `zscore_online`, that were trained on `host_network_receive_errors` can be reused as they are still valid and "fresh" for making inference on new datapoints until the next `fit_every` happens (10m - 5m).
+- All the model instances of class `zscore_online`, that were trained on `host_network_receive_errors` can be reused as they are still valid and "fresh" for making inference on new datapoints until the next `fit_every` happens.
 - All the model instances of class `zscore_online`, that were trained on `cpu_seconds_total` will be re-trained with the new query expression and frequency, as old model instances are not valid anymore.
 
 
