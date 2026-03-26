@@ -15,7 +15,7 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "12.4.0"
+      "version": "12.4.1"
     },
     {
       "type": "datasource",
@@ -163,7 +163,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.4.0",
+      "pluginVersion": "12.4.1",
       "targets": [
         {
           "datasource": {
@@ -231,7 +231,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.4.0",
+      "pluginVersion": "12.4.1",
       "targets": [
         {
           "datasource": {
@@ -300,7 +300,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.4.0",
+      "pluginVersion": "12.4.1",
       "targets": [
         {
           "datasource": {
@@ -369,7 +369,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.4.0",
+      "pluginVersion": "12.4.1",
       "targets": [
         {
           "datasource": {
@@ -464,7 +464,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.4.0",
+      "pluginVersion": "12.4.1",
       "targets": [
         {
           "datasource": {
@@ -542,7 +542,7 @@
             "h": 9,
             "w": 6,
             "x": 0,
-            "y": 20
+            "y": 114
           },
           "id": 2,
           "options": {
@@ -556,7 +556,7 @@
               }
             ]
           },
-          "pluginVersion": "12.3.3",
+          "pluginVersion": "12.4.1",
           "targets": [
             {
               "datasource": {
@@ -678,7 +678,7 @@
             "h": 9,
             "w": 18,
             "x": 6,
-            "y": 20
+            "y": 114
           },
           "id": 1,
           "options": {
@@ -692,7 +692,7 @@
               }
             ]
           },
-          "pluginVersion": "12.3.3",
+          "pluginVersion": "12.4.1",
           "targets": [
             {
               "datasource": {
@@ -742,7 +742,7 @@
       "type": "row"
     },
     {
-      "collapsed": false,
+      "collapsed": true,
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -750,282 +750,318 @@
         "y": 20
       },
       "id": 12,
-      "panels": [],
+      "panels": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "footer": {
+                  "reducers": []
+                },
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Duration"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 100
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 10,
+            "w": 24,
+            "x": 0,
+            "y": 21
+          },
+          "id": 15,
+          "options": {
+            "cellHeight": "sm",
+            "enablePagination": true,
+            "frameIndex": 0,
+            "showHeader": true,
+            "sortBy": [
+              {
+                "desc": true,
+                "displayName": "Group"
+              }
+            ]
+          },
+          "pluginVersion": "12.4.1",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "vmalert_iteration_duration_seconds{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", quantile=\"\"}",
+              "format": "table",
+              "instant": true,
+              "key": "Q-3934f0fb-8ad6-4519-a98d-c26d0fc6b312-0",
+              "legendFormat": "__auto",
+              "range": false,
+              "refId": "Q05"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "vmalert_iteration_duration_seconds{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", quantile=\"0.9\"}",
+              "format": "table",
+              "instant": true,
+              "key": "Q-3934f0fb-8ad6-4519-a98d-c26d0fc6b312-0",
+              "legendFormat": "__auto",
+              "range": false,
+              "refId": "Q09"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "vmalert_iteration_duration_seconds{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", quantile=\"0.99\"}",
+              "format": "table",
+              "instant": true,
+              "key": "Q-3934f0fb-8ad6-4519-a98d-c26d0fc6b312-0",
+              "legendFormat": "__auto",
+              "range": false,
+              "refId": "Q99"
+            }
+          ],
+          "title": "Duration by group",
+          "transformations": [
+            {
+              "id": "joinByField",
+              "options": {
+                "byField": "group",
+                "mode": "inner"
+              }
+            },
+            {
+              "id": "filterFieldsByName",
+              "options": {
+                "include": {
+                  "names": [
+                    "group",
+                    "Value #Q05",
+                    "Value #Q09",
+                    "Value #Q99",
+                    "Value #AVG"
+                  ]
+                }
+              }
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": false,
+                  "alertname 2": true
+                },
+                "includeByName": {},
+                "indexByName": {
+                  "Value #AVG": 1,
+                  "Value #Q05": 2,
+                  "Value #Q09": 3,
+                  "Value #Q99": 4,
+                  "group": 0
+                },
+                "renameByName": {
+                  "Time": "",
+                  "Value": "Duration",
+                  "Value #A": "Duration [q5]",
+                  "Value #AVG": "",
+                  "Value #B": "Duration [q99]",
+                  "Value #Q05": "Quantile [0.5]",
+                  "Value #Q09": "Quantile [0.9]",
+                  "Value #Q99": "Quantile [0.99]",
+                  "alertname 1": "Rule",
+                  "group": "Group"
+                }
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "footer": {
+                  "reducers": []
+                },
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 9,
+            "w": 24,
+            "x": 0,
+            "y": 31
+          },
+          "id": 14,
+          "options": {
+            "cellHeight": "sm",
+            "enablePagination": true,
+            "frameIndex": 0,
+            "showHeader": true,
+            "sortBy": [
+              {
+                "desc": true,
+                "displayName": "Group"
+              }
+            ]
+          },
+          "pluginVersion": "12.4.1",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "sum(vmalert_alerting_rules_last_evaluation_samples{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}) by (group,alertname)",
+              "format": "table",
+              "instant": true,
+              "key": "Q-3934f0fb-8ad6-4519-a98d-c26d0fc6b312-0",
+              "legendFormat": "__auto",
+              "range": false,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "sum(vmalert_alerting_rules_last_evaluation_series_fetched{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}) by (group,alertname)",
+              "format": "table",
+              "instant": true,
+              "key": "Q-3934f0fb-8ad6-4519-a98d-c26d0fc6b312-0",
+              "legendFormat": "__auto",
+              "range": false,
+              "refId": "B"
+            }
+          ],
+          "title": "Last data by rule",
+          "transformations": [
+            {
+              "id": "joinByField",
+              "options": {
+                "byField": "group",
+                "mode": "outer"
+              }
+            },
+            {
+              "id": "filterFieldsByName",
+              "options": {
+                "include": {
+                  "names": [
+                    "group",
+                    "Value #A",
+                    "Value #B",
+                    "alertname 1"
+                  ]
+                }
+              }
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": false,
+                  "alertname 1": false,
+                  "group": false
+                },
+                "includeByName": {},
+                "indexByName": {
+                  "Value #A": 3,
+                  "Value #B": 2,
+                  "alertname 1": 1,
+                  "group": 0
+                },
+                "renameByName": {
+                  "Time": "",
+                  "Value #A": "Last samples",
+                  "Value #B": "Last series",
+                  "alertgroup": "Group",
+                  "alertname": "Rule",
+                  "alertname 1": "Rule",
+                  "group": "Group"
+                }
+              }
+            }
+          ],
+          "type": "table"
+        }
+      ],
       "title": "Troubleshooting",
       "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${ds}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "footer": {
-              "reducers": []
-            },
-            "inspect": false
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "s"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 9,
-        "w": 6,
-        "x": 0,
-        "y": 21
-      },
-      "id": 15,
-      "options": {
-        "cellHeight": "sm",
-        "enablePagination": true,
-        "frameIndex": 0,
-        "showHeader": true,
-        "sortBy": [
-          {
-            "desc": true,
-            "displayName": "Duration [q99]"
-          }
-        ]
-      },
-      "pluginVersion": "12.4.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${ds}"
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "vmalert_iteration_duration_seconds{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", quantile=\"0.5\"}",
-          "format": "table",
-          "instant": true,
-          "key": "Q-3934f0fb-8ad6-4519-a98d-c26d0fc6b312-0",
-          "legendFormat": "__auto",
-          "range": false,
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${ds}"
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "vmalert_iteration_duration_seconds{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", quantile=\"0.99\"}",
-          "format": "table",
-          "instant": true,
-          "key": "Q-3934f0fb-8ad6-4519-a98d-c26d0fc6b312-0",
-          "legendFormat": "__auto",
-          "range": false,
-          "refId": "B"
-        }
-      ],
-      "title": "Duration by group",
-      "transformations": [
-        {
-          "id": "joinByField",
-          "options": {
-            "byField": "group",
-            "mode": "inner"
-          }
-        },
-        {
-          "id": "filterFieldsByName",
-          "options": {
-            "include": {
-              "names": [
-                "group",
-                "Value #A",
-                "Value #B"
-              ]
-            }
-          }
-        },
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "Time": false,
-              "alertname 2": true
-            },
-            "includeByName": {},
-            "indexByName": {
-              "alertgroup": 0,
-              "alertname": 1,
-              "instance": 2,
-              "severity": 3
-            },
-            "renameByName": {
-              "Time": "",
-              "Value": "Duration [q99]",
-              "Value #A": "Duration [q5]",
-              "Value #B": "Duration [q99]",
-              "alertname 1": "Rule",
-              "group": "Group"
-            }
-          }
-        }
-      ],
-      "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${ds}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "footer": {
-              "reducers": []
-            },
-            "inspect": false
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 9,
-        "w": 18,
-        "x": 6,
-        "y": 21
-      },
-      "id": 14,
-      "options": {
-        "cellHeight": "sm",
-        "enablePagination": true,
-        "frameIndex": 0,
-        "showHeader": true,
-        "sortBy": [
-          {
-            "desc": true,
-            "displayName": "Rule"
-          }
-        ]
-      },
-      "pluginVersion": "12.4.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${ds}"
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "sum(vmalert_alerting_rules_last_evaluation_samples{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}) by (group,alertname)",
-          "format": "table",
-          "instant": true,
-          "key": "Q-3934f0fb-8ad6-4519-a98d-c26d0fc6b312-0",
-          "legendFormat": "__auto",
-          "range": false,
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${ds}"
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "sum(vmalert_alerting_rules_last_evaluation_series_fetched{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}) by (group,alertname)",
-          "format": "table",
-          "instant": true,
-          "key": "Q-3934f0fb-8ad6-4519-a98d-c26d0fc6b312-0",
-          "legendFormat": "__auto",
-          "range": false,
-          "refId": "B"
-        }
-      ],
-      "title": "Last data by rule",
-      "transformations": [
-        {
-          "id": "joinByField",
-          "options": {
-            "byField": "group",
-            "mode": "outer"
-          }
-        },
-        {
-          "id": "filterFieldsByName",
-          "options": {
-            "include": {
-              "names": [
-                "group",
-                "Value #A",
-                "Value #B",
-                "alertname 1"
-              ]
-            }
-          }
-        },
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "Time": false,
-              "alertname 1": false,
-              "group": false
-            },
-            "includeByName": {},
-            "indexByName": {
-              "Value #A": 3,
-              "Value #B": 2,
-              "alertname 1": 1,
-              "group": 0
-            },
-            "renameByName": {
-              "Time": "",
-              "Value #A": "Last samples",
-              "Value #B": "Last series",
-              "alertgroup": "Group",
-              "alertname": "Rule",
-              "alertname 1": "Rule",
-              "group": "Group"
-            }
-          }
-        }
-      ],
-      "type": "table"
     }
   ],
   "preload": false,
