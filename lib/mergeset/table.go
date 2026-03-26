@@ -949,6 +949,13 @@ func (tb *Table) mustMergeInmemoryParts(pws []*partWrapper) []*partWrapper {
 	return pwsResult
 }
 
+// mustMergeInmemoryPartsFinal merges the given in-memory part wrappers (pws)
+// into a single new in-memory part wrapper.
+//
+// It panics if the input slice pws is empty (though the caller should prevent
+// this). If the pws contains only one element, it is returned as is. Finally,
+// when len(pws) > 1, the source pws are merged, and their ref count is
+// decremented.
 func (tb *Table) mustMergeInmemoryPartsFinal(pws []*partWrapper) *partWrapper {
 	if len(pws) == 0 {
 		logger.Panicf("BUG: pws must contain at least a single item")
@@ -969,7 +976,11 @@ func (tb *Table) mustMergeInmemoryPartsFinal(pws []*partWrapper) *partWrapper {
 	}
 
 	flushToDiskDeadline := getFlushToDiskDeadline(pws, tb.flushInterval)
-	return tb.mustMergeIntoInmemoryPart(bsrs, flushToDiskDeadline)
+	pw := tb.mustMergeIntoInmemoryPart(bsrs, flushToDiskDeadline)
+	for _, srcPW := range pws {
+		srcPW.decRef()
+	}
+	return pw
 }
 
 func (tb *Table) createInmemoryPart(ibs []*inmemoryBlock) *partWrapper {

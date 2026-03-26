@@ -301,3 +301,56 @@ func testReopenTable(t *testing.T, path string, itemsCount int) {
 		tb.MustClose()
 	}
 }
+
+func TestTableMustMergeInmemoryPartsFinal_pwsRefCount(t *testing.T) {
+	path := t.Name()
+	fs.MustRemoveDir(path)
+	defer fs.MustRemoveDir(path)
+
+	var isReadOnly atomic.Bool
+	tb := MustOpenTable(path, 0, nil, nil, &isReadOnly)
+	defer tb.MustClose()
+
+	generatePartWrappers := func(n int) []*partWrapper {
+		pws := make([]*partWrapper, n)
+		for i := range n {
+			var ib inmemoryBlock
+			items := bytes.Repeat([]byte{byte(i)}, 1024)
+			ib.Add(items)
+			pw := tb.createInmemoryPart([]*inmemoryBlock{&ib})
+			pws[i] = pw
+		}
+		return pws
+	}
+
+	assertRefCount := func(pws []*partWrapper, want int32) {
+		t.Helper()
+		for _, pw := range pws {
+			if got := pw.refCount.Load(); got != want {
+				t.Fatalf("unexpected inmemory part wrapper ref count: got %d, want %d", got, want)
+			}
+		}
+	}
+
+	var (
+		pwsSrc  []*partWrapper
+		pwFinal *partWrapper
+	)
+
+	// single source part wrapper
+	pwsSrc = generatePartWrappers(1)
+	assertRefCount(pwsSrc, 1)
+	pwFinal = tb.mustMergeInmemoryPartsFinal(pwsSrc)
+	if pwFinal != pwsSrc[0] {
+		t.Fatalf("mustMergeInmemoryPartsFinal must return the original wrapper for a single source part")
+	}
+	assertRefCount(pwsSrc, 1)
+	assertRefCount([]*partWrapper{pwFinal}, 1)
+
+	// many source part wrappers
+	pwsSrc = generatePartWrappers(100)
+	assertRefCount(pwsSrc, 1)
+	pwFinal = tb.mustMergeInmemoryPartsFinal(pwsSrc)
+	assertRefCount(pwsSrc, 0)
+	assertRefCount([]*partWrapper{pwFinal}, 1)
+}

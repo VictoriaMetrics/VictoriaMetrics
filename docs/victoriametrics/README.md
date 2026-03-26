@@ -229,23 +229,6 @@ See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3781)
 [Docker-compose](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#readme)
 helps to spin up VictoriaMetrics, [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and Grafana with one command.
 
-## Playgrounds
-
-VictoriaMetrics has the following publicly available demo resources:
-
-1. [https://play.victoriametrics.com/](https://play.victoriametrics.com/) - [VMUI](#vmui) of VictoriaMetrics cluster installation.
-  It is available for testing the query engine, relabeling debugger, other tools and pages provided by VMUI.
-1. [https://play-grafana.victoriametrics.com/](https://play-grafana.victoriametrics.com/) - Grafana configured with many
-  typical dashboards using VictoriaMetrics and VictoriaLogs as datasource. It contains VictoriaMetrics cluster dashboard with
-  3 cluster installations for the recent OS and LTS versions running under the constant benchmark.
-1. [https://play-vmlogs.victoriametrics.com/](https://play-vmlogs.victoriametrics.com/) - [VMUI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui) of VictoriaLogs installation.
-   It is available for testing the query engine on demo logs set.
-1. [https://play-vtraces.victoriametrics.com/](https://play-vtraces.victoriametrics.com/) - [VMUI](https://docs.victoriametrics.com/victoriatraces/querying/#web-ui) of VictoriaTraces installation.
-   It is available for testing the query engine on demo traces set.
-
-Additionally, we provide a docker-compose environment for [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/README.md), [VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaLogs/blob/master/deployment/docker/README.md) and [VictoriaTraces](https://github.com/VictoriaMetrics/VictoriaTraces/blob/master/deployment/docker/README.md). 
-They are already configured, provisioned and interconnected. It can be used as an example for a [quick start](https://docs.victoriametrics.com/victoriametrics/quick-start/).
-
 ## How to upgrade VictoriaMetrics
 
 VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking [the CHANGELOG page](https://docs.victoriametrics.com/victoriametrics/changelog/) and performing regular upgrades.
@@ -708,7 +691,7 @@ Using the delete API is not recommended in the following cases, since it brings 
   time series occupy disk space until the next merge operation, which can never occur when deleting too old data.
   [Forced merge](#forced-merge) may be used for freeing up disk space occupied by old data.
   Note that VictoriaMetrics doesn't delete entries from [IndexDB](#indexdb) for the deleted time series.
-  IndexDB is cleaned up once per the configured [retention](#retention).
+  IndexDB is cleaned up along with the corresponding data partition once it becomes outside the [-retentionPeriod](#retention).
 
 It's better to use the `-retentionPeriod` command-line flag for efficient pruning of old data.
 
@@ -1390,23 +1373,26 @@ The newly added `part` is atomically registered in the `parts.json` file under t
 after it is fully written and [fsynced](https://man7.org/linux/man-pages/man2/fsync.2.html) to the storage.
 Thanks to this algorithm, storage never contains partially created parts, even if hardware power off
 occurs in the middle of writing the `part` to disk - such incompletely written `parts`
-are automatically deleted on the next VictoriaMetrics start.
-
+are automatically deleted on the next VictoriaMetrics start. 
 The same applies to merge process — `parts` are either fully merged into a new `part` or fail to merge,
-leaving the source `parts` untouched. However, due to hardware issues data on disk may be corrupted regardless of
-VictoriaMetrics process. VictoriaMetrics can detect corruption during decompressing, decoding or sanity checking
-of the data blocks. But **it cannot fix the corrupted data**. Data parts that fail to load on startup need to be deleted
-or restored from backups. This is why it is recommended performing
-[regular backups](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#backups).
+leaving the source `parts` untouched. 
+
+Hardware issues may cause data already stored on disk to become corrupted, regardless of the VictoriaMetrics process.
+VictoriaMetrics can detect corruption during reading, decompressing, decoding or sanity checking of the data blocks. 
+Process will intentionally panic when this happens, so human operator can detect corruption as fast as possible. 
+
+> VictoriaMetrics cannot fix the corrupted data parts on its own.
+> Data parts that fail to load on startup or during reads need to be deleted or restored from backups. 
+> It is recommended performing [regular backups](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#backups).
 
 VictoriaMetrics doesn't use checksums for stored data blocks. See why in this [GitHub Issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3011).
 
-VictoriaMetrics doesn't merge parts if their summary size exceeds free disk space.
-This prevents from potential out of disk space errors during merge.
-The number of parts may significantly increase over time under free disk space shortage.
-This increases overhead during data querying, since VictoriaMetrics needs to read data from
-bigger number of parts per each request. That's why it is recommended to have at least 20%
-of free disk space under directory pointed by `-storageDataPath` command-line flag.
+VictoriaMetrics does not merge parts if their combined size exceeds the available free disk space. This behavior 
+protects against potential "out of disk space" errors during merges. If there is not enough free disk space to perform merges, 
+the number of parts may increase significantly over time. This increases query overhead, because VictoriaMetrics must 
+read data from a larger number of parts for each request.
+
+> It is recommended to keep at least 20% of disk space free in the directory specified by the `-storageDataPath` command-line flag.
 
 Information about merging process is available in [the dashboard for single-node VictoriaMetrics](https://grafana.com/grafana/dashboards/10229)
 and [the dashboard for VictoriaMetrics cluster](https://grafana.com/grafana/dashboards/11176).
@@ -1419,21 +1405,22 @@ See also [how to work with snapshots](#how-to-work-with-snapshots) and [IndexDB]
 ## IndexDB
 
 VictoriaMetrics identifies
-[time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) by
-`TSID` (time series ID) and stores
-[raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) sorted
-by TSID (see [Storage](#storage)). Thus, the TSID is a primary index and could
-be used for searching and retrieving raw samples. However, the TSID is never
-exposed to the clients, i.e. it is for internal use only.
+[time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series)
+by `TSID` (time series ID) and stores
+[raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples)
+sorted by TSID (see [Storage](#storage)). Thus, the TSID is a primary index and
+could be used for searching and retrieving raw samples. However, the TSID is
+never exposed to the clients, i.e. it is for internal use only.
 
-Instead, VictoriaMetrics maintains an **inverted index** that enables searching
-the raw samples by metric name, label name, and label value by mapping these
-values to the corresponding TSIDs.
+Instead, VictoriaMetrics maintains an **inverted index** (known as `indexDB`)
+that enables searching the raw samples by metric name, label name, and label
+value by mapping these values to the corresponding TSIDs. Every data
+[partition](#storage) has its own indexDB.
 
 VictoriaMetrics uses two types of inverted indexes:
 
 * Global index. Searches using this index is performed across the entire
-  retention period.
+  partition time range.
 * Per-day index. This index stores mappings similar to ones in global index
   but also includes the date in each mapping. This speeds up data retrieval
   for queries within a shorter time range (which is often just the last day).
@@ -1441,19 +1428,18 @@ VictoriaMetrics uses two types of inverted indexes:
 When the search query is executed, VictoriaMetrics decides which index to use
 based on the time range of the query:
 
-* Per-day index is used if the search time range is 40 days or less.
-* Global index is used for search queries with a time range greater than 40
-  days.
+* Per-day index is used if the search time range is less than the partition time range.
+* Global index is used for search queries with a time range that matches exactly
+  or greater than the partition time range.
 
 Mappings are added to the indexes during the data ingestion:
 
-* In global index each mapping is created only once per retention period.
+* In global index each mapping is created only once per partition.
 * In the per-day index each mapping is created for each unique date that
   has been seen in the samples for the corresponding time series.
 
-IndexDB respects [retention period](#retention) and once it is over, the indexes
-are dropped. For the new retention period, the indexes are gradually populated
-again as the new samples arrive.
+Since indexDB is a part of a partition, it is dropped along with it as it
+becomes outside the [retention period](#retention).
 
 See also [Why IndexDB size is so large?](https://docs.victoriametrics.com/victoriametrics/faq/#why-indexdb-size-is-so-large).
 
@@ -2485,3 +2471,7 @@ Moved to [integrations/graphite/#tags-api](https://docs.victoriametrics.com/vict
 ###### Integrations
 
 Moved to [integrations](https://docs.victoriametrics.com/victoriametrics/integrations/).
+
+###### Playgrounds
+
+The VictoriaMetrics playgrounds have been moved to [Playgrounds](https://docs.victoriametrics.com/playgrounds/).

@@ -882,8 +882,18 @@ func unmarshalMetadata(dst []Metadata, s string, errLogger func(s string)) []Met
 			md.Type = prompb.MetricTypeHistogram
 		case "summary":
 			md.Type = prompb.MetricTypeSummary
-		case "untyped":
+		case "untyped", "unknown":
+			// "untyped" is the Prometheus exposition format name; "unknown" is the OpenMetrics equivalent.
 			md.Type = prompb.MetricTypeUnknown
+		case "info":
+			// OpenMetrics info type - see https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md
+			md.Type = prompb.MetricTypeInfo
+		case "gaugehistogram":
+			// OpenMetrics GaugeHistogram type
+			md.Type = prompb.MetricTypeGaugeHistogram
+		case "stateset":
+			// OpenMetrics StateSet type
+			md.Type = prompb.MetricTypeStateset
 		default:
 			if errLogger != nil {
 				errLogger(fmt.Sprintf("cannot unmarshal metadata line %q: TYPE is invalid", fullLine))
