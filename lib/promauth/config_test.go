@@ -58,10 +58,9 @@ basic_auth:
   password: pass
 `)
 
-	// basic_auth: missing username
+	// basic_auth: empty basic_auth section
 	f(`
-basic_auth:
-  password: pass
+basic_auth: {}
 `)
 
 	// basic_auth: both username and username_file are set
