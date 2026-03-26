@@ -15,7 +15,7 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "12.4.0"
+      "version": "12.4.1"
     },
     {
       "type": "datasource",
@@ -97,10 +97,10 @@
               "showLineNumbers": false,
               "showMiniMap": false
             },
-            "content": "The dashboard uses the parameters from [automatically generated metrics](https://docs.victoriametrics.com/victoriametrics/vmagent/#automatically-generated-metrics) and [cardinality limiter](https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter).\nTo display and sort data by different vmagent, you need to set a label: `-remoteWrite.label=vmagent=<label>` or use `external_labels` in the scrape config\n\nCalculating metrics:\n- `Series Add` is calculated for the last `1h`. Thresholds: 2500, 5000\n- `Series` ceiling is taken from `scrape_series_limit`. Thresholds: 50%, 80%\n- `Dropped` is calculated over the last `24h`\n- `Size` ceiling is taken from `-promscrape.maxScrapeSize` as example. Thresholds: 8mb, 16mb\n- `Duration` ceiling is taken from `scrape_timeout_seconds`. Thresholds: 50%, 80%\n",
+            "content": "The dashboard uses the parameters from [automatically generated metrics](https://docs.victoriametrics.com/victoriametrics/vmagent/#automatically-generated-metrics) and [cardinality limiter](https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter).\nTo display and sort data by different vmagent, you need to set the `vmagent` label and enable var `Agent`. To specify the label, use `-remoteWrite.label=vmagent=<label>` or `external_labels` in the parsing configuration\nCalculating metrics:\n- `Series Add` is calculated for the last `1h`. Thresholds: 2500, 5000\n- `Series` ceiling is taken from `scrape_series_limit`. Thresholds: 50%, 80%\n- `Dropped` is calculated over the last `24h`\n- `Size` ceiling is taken from `-promscrape.maxScrapeSize` as example. Thresholds: 8mb, 16mb\n- `Duration` ceiling is taken from `scrape_timeout_seconds`. Thresholds: 50%, 80%\n",
             "mode": "markdown"
           },
-          "pluginVersion": "12.4.0",
+          "pluginVersion": "12.4.1",
           "title": "",
           "transparent": true,
           "type": "text"
@@ -174,7 +174,7 @@
         "textMode": "value",
         "wideLayout": true
       },
-      "pluginVersion": "12.4.0",
+      "pluginVersion": "12.4.1",
       "targets": [
         {
           "datasource": {
@@ -183,7 +183,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "count(count by (job) (up{vmagent=~\"$vmagent\"} == 1)) / count(count by (job) (up{vmagent=~\"$vmagent\"}))",
+          "expr": "count(count by (job) (up{$agent} == 1)) / count(count by (job) (up{$agent}))",
           "instant": true,
           "legendFormat": "available",
           "range": false,
@@ -262,7 +262,7 @@
         "textMode": "value_and_name",
         "wideLayout": true
       },
-      "pluginVersion": "12.4.0",
+      "pluginVersion": "12.4.1",
       "targets": [
         {
           "datasource": {
@@ -271,7 +271,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "count(sum by (job) (up{vmagent=~\"$vmagent\"} == bool 1) > 0) or vector(0)",
+          "expr": "count(sum by (job) (up{$agent} == bool 1) > 0) or vector(0)",
           "format": "time_series",
           "instant": false,
           "legendFormat": "UP",
@@ -285,7 +285,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "count(sum by (job) (up{vmagent=~\"$vmagent\"} == bool 0) > 0) or vector(0)",
+          "expr": "count(sum by (job) (up{$agent} == bool 0) > 0) or vector(0)",
           "format": "time_series",
           "instant": false,
           "legendFormat": "DOWN",
@@ -347,7 +347,7 @@
         "textMode": "value",
         "wideLayout": true
       },
-      "pluginVersion": "12.4.0",
+      "pluginVersion": "12.4.1",
       "targets": [
         {
           "datasource": {
@@ -435,7 +435,7 @@
         "textMode": "value_and_name",
         "wideLayout": true
       },
-      "pluginVersion": "12.4.0",
+      "pluginVersion": "12.4.1",
       "targets": [
         {
           "datasource": {
@@ -444,7 +444,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(up{vmagent=~\"$vmagent\"} == bool 1) or vector(0)",
+          "expr": "sum(up{$agent} == bool 1) or vector(0)",
           "format": "time_series",
           "instant": false,
           "legendFormat": "UP",
@@ -458,7 +458,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(up{vmagent=~\"$vmagent\"} == bool 0) or vector(0)",
+          "expr": "sum(up{$agent} == bool 0) or vector(0)",
           "format": "time_series",
           "instant": false,
           "legendFormat": "DOWN",
@@ -520,7 +520,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.4.0",
+      "pluginVersion": "12.4.1",
       "targets": [
         {
           "datasource": {
@@ -529,7 +529,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(scrape_series_current{vmagent=~\"$vmagent\"})",
+          "expr": "sum(scrape_series_current{$agent})",
           "instant": true,
           "legendFormat": "__auto",
           "range": false,
@@ -591,7 +591,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.4.0",
+      "pluginVersion": "12.4.1",
       "targets": [
         {
           "datasource": {
@@ -600,7 +600,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(scrape_samples_scraped{vmagent=~\"$vmagent\"})",
+          "expr": "sum(scrape_samples_scraped{$agent})",
           "instant": true,
           "legendFormat": "__auto",
           "range": false,
@@ -911,7 +911,7 @@
           }
         ]
       },
-      "pluginVersion": "12.4.0",
+      "pluginVersion": "12.4.1",
       "targets": [
         {
           "datasource": {
@@ -920,7 +920,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(up{vmagent=~\"$vmagent\", job=~\"$job\", instance=~\"$instance\"}) by (job,instance)",
+          "expr": "sum(up{job=~\"$job\", instance=~\"$instance\", $agent}) by (job,instance)",
           "format": "table",
           "instant": true,
           "legendFormat": "__auto",
@@ -934,7 +934,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(sum_over_time(scrape_series_added{vmagent=~\"$vmagent\", job=~\"$job\", instance=~\"$instance\"}[1h])) by (job,instance)",
+          "expr": "sum(sum_over_time(scrape_series_added{job=~\"$job\", instance=~\"$instance\", $agent}[1h])) by (job,instance)",
           "format": "table",
           "instant": true,
           "legendFormat": "__auto",
@@ -948,7 +948,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(scrape_duration_seconds{vmagent=~\"$vmagent\", job=~\"$job\", instance=~\"$instance\"}) by (job,instance)",
+          "expr": "sum(scrape_duration_seconds{job=~\"$job\", instance=~\"$instance\", $agent}) by (job,instance)",
           "format": "table",
           "instant": true,
           "legendFormat": "__auto",
@@ -962,7 +962,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(scrape_samples_scraped{vmagent=~\"$vmagent\", job=~\"$job\", instance=~\"$instance\"}) by (job,instance)",
+          "expr": "sum(scrape_samples_scraped{job=~\"$job\", instance=~\"$instance\", $agent}) by (job,instance)",
           "format": "table",
           "instant": true,
           "legendFormat": "__auto",
@@ -976,7 +976,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(scrape_response_size_bytes{vmagent=~\"$vmagent\", job=~\"$job\", instance=~\"$instance\"}) by (job,instance)",
+          "expr": "sum(scrape_response_size_bytes{job=~\"$job\", instance=~\"$instance\", $agent}) by (job,instance)",
           "format": "table",
           "instant": true,
           "legendFormat": "__auto",
@@ -990,7 +990,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(scrape_series_current{vmagent=~\"$vmagent\", job=~\"$job\", instance=~\"$instance\"}) by (job,instance)",
+          "expr": "sum(scrape_series_current{job=~\"$job\", instance=~\"$instance\", $agent}) by (job,instance)",
           "format": "table",
           "instant": true,
           "legendFormat": "__auto",
@@ -1004,7 +1004,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(scrape_series_limit{vmagent=~\"$vmagent\", job=~\"$job\", instance=~\"$instance\"}) by (job,instance)",
+          "expr": "sum(scrape_series_limit{job=~\"$job\", instance=~\"$instance\", $agent}) by (job,instance)",
           "format": "table",
           "instant": true,
           "legendFormat": "__auto",
@@ -1018,7 +1018,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(sum_over_time(scrape_series_limit_samples_dropped{vmagent=~\"$vmagent\", job=~\"$job\", instance=~\"$instance\"}[24h])) by (job,instance)",
+          "expr": "sum(sum_over_time(scrape_series_limit_samples_dropped{job=~\"$job\", instance=~\"$instance\", $agent}[24h])) by (job,instance)",
           "format": "table",
           "instant": true,
           "legendFormat": "__auto",
@@ -1032,7 +1032,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(scrape_samples_scraped{vmagent=~\"$vmagent\", job=~\"$job\", instance=~\"$instance\"} - scrape_samples_post_metric_relabeling{job=~\"$job\", instance=~\"$instance\"}) by (job,instance)",
+          "expr": "sum(scrape_samples_scraped{job=~\"$job\", instance=~\"$instance\", $agent} - scrape_samples_post_metric_relabeling{job=~\"$job\", instance=~\"$instance\", $agent}) by (job,instance)",
           "format": "table",
           "instant": true,
           "legendFormat": "__auto",
@@ -1046,7 +1046,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(scrape_timeout_seconds{vmagent=~\"$vmagent\", job=~\"$job\", instance=~\"$instance\"}) by (job,instance)",
+          "expr": "sum(scrape_timeout_seconds{job=~\"$job\", instance=~\"$instance\", $agent}) by (job,instance)",
           "format": "table",
           "instant": true,
           "legendFormat": "__auto",
@@ -1254,7 +1254,7 @@
           }
         ]
       },
-      "pluginVersion": "12.4.0",
+      "pluginVersion": "12.4.1",
       "targets": [
         {
           "datasource": {
@@ -1263,7 +1263,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(up{vmagent=~\"$vmagent\"} == bool 1) by (job) / count(up{vmagent=~\"$vmagent\"}) by (job)",
+          "expr": "sum(up{$agent} == bool 1) by (job) / count(up{$agent}) by (job)",
           "format": "table",
           "instant": true,
           "legendFormat": "__auto",
@@ -1369,7 +1369,7 @@
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 54
+            "y": 25
           },
           "id": 12,
           "options": {
@@ -1391,7 +1391,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.4.0",
+          "pluginVersion": "12.4.1",
           "targets": [
             {
               "datasource": {
@@ -1400,7 +1400,7 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "topk_max($topk, sum(sum_over_time(scrape_series_added{vmagent=~\"$vmagent\", job=~\"$job\", instance=~\"$instance\"}[1h])) by (job,instance))",
+              "expr": "topk_max($topk, sum(sum_over_time(scrape_series_added{job=~\"$job\", instance=~\"$instance\", $agent}[1h])) by (job,instance))",
               "format": "time_series",
               "instant": false,
               "legendFormat": "{{job}}/{{instance}}",
@@ -1480,7 +1480,7 @@
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 63
+            "y": 34
           },
           "id": 13,
           "options": {
@@ -1511,7 +1511,7 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "topk_max($topk, sum(scrape_series_current{vmagent=~\"$vmagent\", job=~\"$job\", instance=~\"$instance\"}) by (job,instance))",
+              "expr": "topk_max($topk, sum(scrape_series_current{job=~\"$job\", instance=~\"$instance\", $agent}) by (job,instance))",
               "format": "time_series",
               "instant": false,
               "legendFormat": "{{job}}/{{instance}}",
@@ -1591,7 +1591,7 @@
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 72
+            "y": 43
           },
           "id": 14,
           "options": {
@@ -1622,7 +1622,7 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "topk_max($topk, sum(scrape_samples_scraped{vmagent=~\"$vmagent\", job=~\"$job\", instance=~\"$instance\"} - scrape_samples_post_metric_relabeling{vmagent=~\"$vmagent\", job=~\"$job\", instance=~\"$instance\"}) by (job,instance))",
+              "expr": "topk_max($topk, sum(scrape_samples_scraped{job=~\"$job\", instance=~\"$instance\", $agent} - scrape_samples_post_metric_relabeling{job=~\"$job\", instance=~\"$instance\", $agent}) by (job,instance))",
               "format": "time_series",
               "instant": false,
               "legendFormat": "{{job}}/{{instance}}",
@@ -1702,7 +1702,7 @@
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 81
+            "y": 52
           },
           "id": 15,
           "options": {
@@ -1733,7 +1733,7 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "topk_max($topk, sum(sum_over_time(scrape_series_limit_samples_dropped{vmagent=~\"$vmagent\", job=~\"$job\", instance=~\"$instance\"}[24h])) by (job,instance))",
+              "expr": "topk_max($topk, sum(sum_over_time(scrape_series_limit_samples_dropped{job=~\"$job\", instance=~\"$instance\", $agent}[24h])) by (job,instance))",
               "format": "time_series",
               "instant": false,
               "legendFormat": "{{job}}/{{instance}}",
@@ -1813,7 +1813,7 @@
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 90
+            "y": 61
           },
           "id": 16,
           "options": {
@@ -1844,7 +1844,7 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "topk_max($topk, sum(scrape_response_size_bytes{vmagent=~\"$vmagent\", job=~\"$job\", instance=~\"$instance\"}) by (job,instance))",
+              "expr": "topk_max($topk, sum(scrape_response_size_bytes{job=~\"$job\", instance=~\"$instance\", $agent}) by (job,instance))",
               "format": "time_series",
               "instant": false,
               "legendFormat": "{{job}}/{{instance}}",
@@ -1924,7 +1924,7 @@
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 99
+            "y": 70
           },
           "id": 17,
           "options": {
@@ -1955,7 +1955,7 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "topk_max($topk, sum(scrape_duration_seconds{vmagent=~\"$vmagent\", job=~\"$job\", instance=~\"$instance\"}) by (job,instance))",
+              "expr": "topk_max($topk, sum(scrape_duration_seconds{job=~\"$job\", instance=~\"$instance\", $agent}) by (job,instance))",
               "format": "time_series",
               "instant": false,
               "legendFormat": "{{job}}/{{instance}}",
@@ -2035,7 +2035,7 @@
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 108
+            "y": 79
           },
           "id": 9,
           "options": {
@@ -2066,7 +2066,7 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "topk_max($topk, sum(scrape_samples_scraped{vmagent=~\"$vmagent\", job=~\"$job\", instance=~\"$instance\"}) by (job,instance))",
+              "expr": "topk_max($topk, sum(scrape_samples_scraped{job=~\"$job\", instance=~\"$instance\", $agent}) by (job,instance))",
               "format": "time_series",
               "instant": false,
               "legendFormat": "{{job}}/{{instance}}",
@@ -2104,6 +2104,26 @@
         "refresh": 1,
         "regex": "",
         "type": "datasource"
+      },
+      {
+        "current": {
+          "text": "",
+          "value": ""
+        },
+        "description": "Enable the use of the 'vmagent' label to split jobs between agents",
+        "label": "Agent",
+        "name": "agent",
+        "options": [
+          {
+            "text": "vmagent=~\"$vmagent\"",
+            "value": "vmagent=~\"$vmagent\""
+          },
+          {
+            "text": "",
+            "value": ""
+          }
+        ],
+        "type": "switch"
       },
       {
         "allowCustomValue": true,
