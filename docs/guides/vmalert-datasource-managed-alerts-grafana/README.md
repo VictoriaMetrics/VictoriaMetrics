@@ -188,7 +188,7 @@ Let's break down the main command line arguments that connect every component:
   - `-remoteWrite.url`: defines VictoriaMetrics as the backend used to persist rule state across restarts
   - `-remoteRead.url`: defines VictoriaMetrics as the backend used to read historical state for pending alerts
   - `-notifier.url`: directs firing alerts to Alertmanager
-`-external.url`: defines the base URL for alert links so users see the public url of alertmanager, or an external alerting ui like Karma or Grafana in notifications.
+  - `-external.url`: defines the base URL for alert links so users see the public URL of Alertmanager, or an external alerting UI like Karma or Grafana in notifications.
   - `-external.alert.source`: creates a template for clickable alert links for Grafana. Allows Alertmanager UI to link directly to Grafana
 
 Now, start the demo with:
