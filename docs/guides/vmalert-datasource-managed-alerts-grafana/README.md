@@ -488,7 +488,7 @@ server:
   remote:
     write:
       # send ALERTS / recording rule series into vminsert
-      url: http://vmcluster-victoria-metrics-cluster-vminsert.default.svc.cluster.local.:8480/insert/0/prometheus/
+http://vmcluster-victoria-metrics-cluster-vminsert.default.svc.cluster.local.:8480/insert/0/prometheus/
     read:
       # read back alert state from vmselect
     url: http://vmcluster-victoria-metrics-cluster-vmselect.default.svc.cluster.local.:8481/select/0/prometheus/
