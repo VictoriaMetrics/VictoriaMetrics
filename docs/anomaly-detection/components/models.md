@@ -158,21 +158,21 @@ Config with a split example:
 ```yaml
 models:
   model_above_expected:
-    class: 'zscore' # or 'model.zscore.ZscoreModel' until v1.13.0
+    class: 'zscore_online'
     z_threshold: 3.0
     # track only cases when y > yhat, otherwise anomaly_score would be explicitly set to 0
     detection_direction: 'above_expected'
     # for this query we do not need to track lower values, thus, set anomaly detection tracking for y > yhat (above_expected)
     queries: ['query_values_the_lower_the_better']
   model_below_expected:
-    class: 'zscore' # or 'model.zscore.ZscoreModel' until v1.13.0
+    class: 'zscore_online'
     z_threshold: 3.0
     # track only cases when y < yhat, otherwise anomaly_score would be explicitly set to 0
     detection_direction: 'below_expected'
     # for this query we do not need to track higher values, thus, set anomaly detection tracking for y < yhat (above_expected)
     queries: ['query_values_the_higher_the_better']
   model_bidirectional_default:
-    class: 'zscore' # or 'model.zscore.ZscoreModel' until v1.13.0
+    class: 'zscore_online'
     z_threshold: 3.0
     # track in both direction, same backward-compatible behavior in case this arg is missing
     detection_direction: 'both'
@@ -181,9 +181,12 @@ models:
 reader:
   # ...
   queries:
-    query_values_the_lower_the_better: metricsql_expression1
-    query_values_the_higher_the_better: metricsql_expression2
-    query_values_both_direction_matters: metricsql_expression3
+    query_values_the_lower_the_better: 
+      expr: metricsql_expression1
+    query_values_the_higher_the_better: 
+      expr: metricsql_expression2
+    query_values_both_direction_matters: 
+      expr: metricsql_expression3
 # other components like writer, schedule, monitoring
 ```
 
@@ -368,7 +371,7 @@ reader:
       # if no data range defined, it will be implicitly converted to ["-inf", "inf"]
 models:
   zscore_mixed:
-    class: 'zscore' # or 'model.zscore.ZscoreModel' until v1.13.0
+    class: 'zscore_online'
     z_threshold: 3
     clip_predictions: True
     queries: [
@@ -382,7 +385,7 @@ models:
       'q2_no_clip',
     ]
   zscore_no_clip:
-    class: 'zscore' # or 'model.zscore.ZscoreModel' until v1.13.0
+    class: 'zscore_online'
     z_threshold: 3
     # if not set, by default resolved to `clip_predictions: False`
     queries: [
@@ -593,27 +596,27 @@ Tuning [hyperparameters](https://en.wikipedia.org/wiki/Hyperparameter_(machine_l
 >   # this may result in 1 model per each unique labelset with different hyperparameters, such as z_threshold
 >   autotuned_model:
 >     class: 'auto'
->     tuned_class_name: 'zscore'
+>     tuned_class_name: 'zscore_online'
 >     optimization_params:
 >       anomaly_percentage: 0.01
 >     queries: ['your_query']
 > ```
-> will produce **one model per each unique labelset** found in `your_query` results, with different hyperparameters, such as `z_threshold`, while
+> will produce **one model per each unique labelset** found in `your_query` results, with **different hyperparameters**, such as `z_threshold`, while
 > ```yaml
 > models:
 >   # this will result in 1 model per each timeseries returned by the query,
 >   # with the same hyperparameters, such as z_threshold
 >   zscore_model:
->     class: 'zscore'
+>     class: 'zscore_online'
 >     z_threshold: 3  # all models will have the same z_threshold, but different parameters, such as mean, std, etc.
 >     queries: ['your_query']
 > ```
-> will produce **one model per each timeseries** returned by `your_query`, with the same hyperparameters, such as `z_threshold`, but different parameters, such as mean, std, etc.
+> will produce **one model per each timeseries** returned by `your_query`, with **the same** hyperparameters, such as `z_threshold`, but different parameters, such as mean, std, etc.
 
 *Parameters specific for vmanomaly*:
 
 * `class` (string) - model class name `"model.auto.AutoTunedModel"` (or `auto` with class alias support{{% available_from "v1.13.0" anomaly %}})
-* `tuned_class_name` (string) - [Built-in model class](#built-in-models) to wrap, i.e. `model.zscore.ZscoreModel` (or `zscore` with class alias support{{% available_from "v1.13.0" anomaly %}}).
+* `tuned_class_name` (string) - [Built-in model class](#built-in-models) to wrap, i.e. `zscore_online`
 * `optimization_params` (dict) - Optimization parameters for *unsupervised* model tuning. Control percentage of found anomalies, as well as a tradeoff between time spent and the accuracy. The higher `timeout` and `n_trials` are, the better model configuration can be found for `tuned_class_name`, but the longer it takes and vice versa. Set `n_jobs` to `-1` to use all the CPUs available, it makes sense if only you have a big dataset to train on during `fit` calls, otherwise overhead isn't worth it.
   - `anomaly_percentage` (float) - Expected percentage of anomalies that can be seen in training data, from `[0, 0.5)` interval (i.e. 0.01 means it's expected ~ 1% of anomalies to be present in training data). This is a *required* parameter.
   - `optimized_business_params` (list[string]) - {{% available_from "v1.15.0" anomaly %}} this argument allows particular [business-specific parameters](#common-args) such as [`detection_direction`](https://docs.victoriametrics.com/anomaly-detection/components/models/#detection-direction) or [`min_dev_from_expected`](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-deviation-from-expected) to remain **unchanged during optimizations, retaining their initial values**. I.e. setting `optimized_business_params` to  `['detection_direction']` will allow to optimize only `detection_direction` business-specific arg, while `min_dev_from_expected` will retain its default value of (e.g. [1, 2] if set to that value in model config). By default and if not set, will be equal to `[]` (empty list), meaning no business params will be optimized. **A recommended option is to leave it empty** as this feature is still experimental and may lead to unexpected results.
@@ -632,7 +635,7 @@ Tuning [hyperparameters](https://en.wikipedia.org/wiki/Hyperparameter_(machine_l
 models:
   your_desired_alias_for_a_model:
     class: 'auto'  # or 'model.auto.AutoTunedModel' until v1.13.0
-    tuned_class_name: 'zscore'  # or 'model.zscore.ZscoreModel' until v1.13.0
+    tuned_class_name: 'zscore_online'
     optimization_params:
       anomaly_percentage: 0.004  # required. i.e. we expect <= 0.4% of anomalies to be present in training data
       seed: 42  # fix reproducibility & determinism
@@ -643,7 +646,7 @@ models:
       n_trials: 128  # how many configurations to sample from search space during optimization
       timeout: 10  # how many seconds to spend on optimization for each trained model during `fit` phase call
       n_jobs: 1  # how many jobs in parallel to launch. Consider making it > 1 only if you have fit window containing > 10000 datapoints for each series
-      optimized_business_params: []  # business-specific params to include in optimization, if not set is empty list
+      optimized_business_params: []  # business-specific params to include in optimization, if not set - defaults to empty list, meaning no business params will be optimized, which is a recommended option as business arguments are better set by stakeholders rather than algorithms
   # ...
 ```
 
