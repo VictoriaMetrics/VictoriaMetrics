@@ -212,7 +212,7 @@ Supported providers and model formats:
 - **OpenAI** - set `OPENAI_API_KEY`; model format: `openai:<model>` or `openai-responses:<model>`
   - Examples: `gpt-5-mini`, `gpt-5.2`; see [full list](https://platform.openai.com/docs/models)
   - {{% available_from "v1.29.1" anomaly %}} OpenAI-compatible non-OpenAI providers are supported through `OPENAI_BASE_URL` + `OPENAI_API_KEY`
-  - Azure OpenAI is supported through `AZURE_OPENAI_ENDPOINT` + `OPENAI_API_VERSION` + `AZURE_OPENAI_API_KEY` (or `AZURE_OPENAI_AD_TOKEN`); do not set both `OPENAI_BASE_URL` and `AZURE_OPENAI_ENDPOINT`
+  - {{% available_from "v1.29.1" anomaly %}} Azure OpenAI is supported through `AZURE_OPENAI_ENDPOINT` + `OPENAI_API_VERSION` + `AZURE_OPENAI_API_KEY` (or `AZURE_OPENAI_AD_TOKEN`); do not set both `OPENAI_BASE_URL` and `AZURE_OPENAI_ENDPOINT`
 - {{% available_from "v1.29.1" anomaly %}} **Google** - model format: `google-gla:<model>` or `google-vertex:<model>`
   - Use `GOOGLE_API_KEY` for `google-gla`; for `google-vertex`, use Application Default Credentials, a service account (`GOOGLE_APPLICATION_CREDENTIALS`), or `GOOGLE_API_KEY`
   - Example: `google-gla:gemini-2.5-pro-preview`

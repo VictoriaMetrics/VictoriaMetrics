@@ -191,11 +191,12 @@ reader:
 
 `min_dev_from_expected`{{% available_from "v1.13.0" anomaly %}} argument is designed to **reduce [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive)** in scenarios where deviations between the actual value (`y`) and the expected value (`yhat`) are **relatively** high. Such deviations can cause models to generate high [anomaly scores](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score). However, these deviations may not be significant enough in **absolute values** from a business perspective to be considered anomalies. This parameter ensures that anomaly scores for data points where `|y - yhat| < min_dev_from_expected` are explicitly set to 0. By default, if this parameter is not set, it is set to `0` to maintain backward compatibility.
 
-> {{% available_from "v1.23.0" anomaly %}} The `min_dev_from_expected` argument can be a list of two float values, allowing separate thresholds for upper and lower deviations. This is useful when the acceptable deviation varies in different directions (e.g., `min_dev_from_expected: [0.01, 0.02]` means that the lower bound is `0.01` when `y` is less than `yhat` and the upper bound is `0.02` when `y` is greater than `yhat`). If only one value is provided, it is broadcasted to both directions, meaning that the same threshold is applied for both upper and lower deviations (e.g., `min_dev_from_expected: 0.01` means that the lower bound is `0.01` when `y` is less than `yhat` and the upper bound is also `0.01` when `y` is greater than `yhat`).
+> [!NOTE]
+{{% available_from "v1.23.0" anomaly %}} The `min_dev_from_expected` argument can be a list of two float values, allowing separate thresholds for upper and lower deviations. This is useful when the acceptable deviation varies in different directions (e.g., `min_dev_from_expected: [0.01, 0.02]` means that the lower bound is `0.01` when `y` is less than `yhat` and the upper bound is `0.02` when `y` is greater than `yhat`). If only one value is provided, it is broadcasted to both directions, meaning that the same threshold is applied for both upper and lower deviations (e.g., `min_dev_from_expected: 0.01` means that the lower bound is `0.01` when `y` is less than `yhat` and the upper bound is also `0.01` when `y` is greater than `yhat`).
 
-> `min_dev_from_expected` must be >= 0. The higher the value of `min_dev_from_expected`, the more significant the deviation must be to generate an anomaly score > 1. This helps in filtering out small deviations that may not be meaningful in the context of the monitored metric.
+`min_dev_from_expected` must be >= 0. The higher the value of `min_dev_from_expected` is, the more significant the deviation must be to generate an anomaly score != 0. This helps in filtering out small *absolute* deviations that may not be meaningful in the context of the monitored metric.
 
-*Example*: Consider a scenario where CPU utilization is low and oscillates around 0.3% (0.003). A sudden spike to 1.3% (0.013) represents a +333% increase in **relative** terms, but only a +1 percentage point (0.01) increase in **absolute** terms, which may be negligible and not warrant an alert. Setting the `min_dev_from_expected` argument to `0.01` (1%) will ensure that all anomaly scores for deviations <= `0.01` are set to 0.
+*Example*: Consider a scenario where CPU utilization in specific mode is low and oscillates around 0.3% (0.003). A sudden spike to 1.3% (0.013) represents a +333% increase in **relative** terms, but only a +1 percentage point (0.01) increase in **absolute** terms, which may be negligible and not warrant an alert. Setting the `min_dev_from_expected` argument to `0.01` (1%) will ensure that all anomaly scores for deviations <= `0.01` are set to 0.
 
 Visualizations below demonstrate this concept; the green zone defined as the `[yhat - min_dev_from_expected, yhat + min_dev_from_expected]` range excludes actual data points (`y`) from generating anomaly scores if they fall within that range.
 
@@ -215,17 +216,19 @@ reader:
   # ...
   queries:
     # the usage of min_dev should reduce false positives here
-    need_to_include_min_dev: small_abs_values_metricsql_expression
+    need_to_include_min_dev: 
+      expr: small_abs_values_metricsql_expression
     # min_dev is not really needed here
-    normal_behavior: no_need_to_exclude_small_deviations_metricsql_expression
+    normal_behavior: 
+      expr: no_need_to_exclude_small_deviations_metricsql_expression
 models:
   zscore_with_min_dev:
-    class: 'zscore' # or 'model.zscore.ZscoreModel' until v1.13.0
+    class: 'zscore_online'
     z_threshold: 3
-    min_dev_from_expected: [5.0, 5.0]
+    min_dev_from_expected: [5.0, 5.0]  # set the same threshold for both directions, meaning that deviations less than 5.0 in absolute values won't be considered anomalous, even if they are relatively significant
     queries: ['need_to_include_min_dev']  # use such models on queries where domain experience confirm usefulness
   zscore_wo_min_dev:
-    class: 'zscore' # or 'model.zscore.ZscoreModel' until v1.13.0
+    class: 'zscore_online'
     z_threshold: 3
     # if not set, equals to setting min_dev_from_expected == 0 (meaning no filtering is applied)
     # min_dev_from_expected: [0.0, 0.0]
@@ -236,8 +239,41 @@ models:
 
 {{% available_from "v1.29.1" anomaly %}} `min_rel_dev_from_expected` argument serves a similar purpose to `min_dev_from_expected` (see [section above](#minimal-deviation-from-expected)), but focuses on **relative deviations** rather than absolute ones. It is designed to reduce [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive) in scenarios where the relative deviation between the actual value (`y`) and the expected value (`yhat`) is high, but the absolute deviation is not significant enough to be considered an anomaly from a business perspective. This parameter ensures that anomaly scores for data points where `|y - yhat| / |yhat| < min_rel_dev_from_expected` are explicitly set to 0. By default, if this parameter is not set, it is set to `0` to maintain backward compatibility. 
 
-> [!HINT]
-Parameter can be a list of two float values, allowing separate thresholds for upper and lower relative deviations. If only one value is provided, it is broadcasted to both directions.
+Parameter can be a list of two float values, *allowing separate thresholds for upper and lower relative deviations*. If only one value is provided, it is broadcasted to both directions.
+
+> [!NOTE]
+If both `min_dev_from_expected` [arg](#minimal-deviation-from-expected) and `min_rel_dev_from_expected` are set, the model will combine both filters. A data point will be considered anomalous (i.e., have an anomaly score != 0) only if it exceeds **both** the *absolute* deviation threshold defined by `min_dev_from_expected` and the *relative* deviation threshold defined by `min_rel_dev_from_expected`. This allows for more granular control over anomaly detection, ensuring that only significant deviations in both absolute and relative terms are flagged as anomalies.
+
+
+*Example*: Consider a scenario of monitoring incoming traffic to websites that typically receives *unknown in advance* requests per second (from tens to thousands). Setting absolute deviation threshold with `min_dev_from_expected` *may not be effective in reducing false positives*, as even a small increase in traffic (e.g., from 10 to 20 requests per second) can represent a 100% relative increase, which may be significant for that website. Instead, setting `min_rel_dev_from_expected` to smaller relative value - `[20, 40]` (25%) - will ensure that traffic drop from 10 to 8 requests per second (20% decrease) and traffic spike from 10 to 14 requests per second (40% increase) won't be considered anomalous, even if they exceed confidence intervals, thus, reducing false positives for small absolute deviations that are relatively significant.
+
+Example of how to use this parameter in config:
+
+```yaml
+# other components like writer, schedulers, monitoring ...
+reader:
+  # ...
+  queries:
+    # the usage of min_rel_dev should reduce false positives here
+    need_to_include_min_rel_dev: 
+      expr: small_abs_values_metricsql_expression
+    # min_rel_dev is not really needed here
+    normal_behavior: 
+      expr: no_need_to_exclude_small_deviations_metricsql_expression
+models:
+  zscore_with_min_rel_dev:
+    class: 'zscore_online'
+    z_threshold: 3
+    min_rel_dev_from_expected: [10, 20]  # set different thresholds for both directions, meaning that relative deviations less than 10% when y < yhat and less than 20% when y > yhat won't be considered anomalous, even if they exceed confidence intervals, thus, reducing false positives for small absolute deviations that are relatively significant
+    queries: ['need_to_include_min_rel_dev']  # use such models on queries where domain experience confirm usefulness
+  zscore_wo_min_rel_dev:
+    class: 'zscore_online'
+    z_threshold: 3
+    # if not set, equals to setting min_rel_dev_from_expected == 0 (meaning no filtering is applied)
+    # min_rel_dev_from_expected: [0, 0]
+    queries: ['normal_behavior']  # use the default where it's not needed
+```
+  
 
 ### Group by
 
@@ -296,14 +332,14 @@ The most common **use case** is when there is a preference to **widen one side**
 # other components like reader, writer, schedulers, monitoring ...
 models:
   zscore_no_scale:
-    class: 'zscore' # or 'model.zscore.ZscoreModel' until v1.13.0
+    class: 'zscore_online'
     z_threshold: 3
     # if not set, equals to [1.0, 1.0], meaning no scaling is applied
     # scale: [1.0, 1.0]
   zscore_scaled:
-    class: 'zscore' # or 'model.zscore.ZscoreModel' until v1.13.0
+    class: 'zscore_online'
     z_threshold: 3
-    # vs `zscore_no_scale`, increase lower confidence interval width by 1.2x, decrease upper confidence width by 25%
+    # vs `zscore_no_scale`, increase lower confidence interval width by 1.2x, decrease upper confidence width by 25% (1.0 - 0.25 = 0.75), thus, making the model more conservative in flagging anomalies when y < yhat and more aggressive when y > yhat
     scale: [1.2, 0.75]
 ```
 
