@@ -1,21 +1,12 @@
 {
-  "__inputs": [
-    {
-      "name": "DS_VMETRICS",
-      "label": "VMetrics",
-      "description": "",
-      "type": "datasource",
-      "pluginId": "prometheus",
-      "pluginName": "Prometheus"
-    }
-  ],
+  "__inputs": [],
   "__elements": {},
   "__requires": [
     {
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "12.4.1"
+      "version": "12.0.2"
     },
     {
       "type": "datasource",
@@ -68,6 +59,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
+  "id": null,
   "links": [
     {
       "icon": "doc",
@@ -100,35 +92,115 @@
   ],
   "panels": [
     {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 0
-      },
-      "id": 10,
-      "panels": [],
-      "title": "Overview",
-      "type": "row"
-    },
-    {
       "datasource": {
         "type": "prometheus",
-        "uid": "$ds"
+        "uid": "${ds}"
       },
-      "description": "Shows the total number of loaded alerting groups across selected instances and groups.",
+      "description": "Shows the state of alerts on the selected time interval.\n\n Color represents the frequency of state changes: red is frequent, green is no state changes.",
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "thresholds"
+          },
+          "custom": {
+            "axisPlacement": "auto",
+            "fillOpacity": 70,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineWidth": 0,
+            "spanNulls": false
           },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "blue",
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "orange",
+                "value": 2
+              },
+              {
+                "color": "red",
+                "value": 3
+              },
+              {
+                "color": "dark-red",
+                "value": 5
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 14,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 7,
+      "options": {
+        "alignValue": "center",
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "mergeValues": true,
+        "rowHeight": 0.9,
+        "showValue": "never",
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.0.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "sort_desc(topk_max($topk, sum(vmalert_alerts_firing{job=~\"$job\",instance=~\"$instance\",group=~\"$group\"}) by (alertname)))",
+          "format": "time_series",
+          "instant": false,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Firing state of alerting rules on timeline",
+      "type": "state-timeline"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$ds"
+      },
+      "description": "Shows the total number of loaded alerting rules across selected instances and groups.",
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
                 "value": 0
               }
             ]
@@ -140,12 +212,12 @@
         "h": 4,
         "w": 6,
         "x": 0,
-        "y": 1
+        "y": 14
       },
       "id": 5,
       "options": {
-        "colorMode": "value",
-        "graphMode": "area",
+        "colorMode": "none",
+        "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "auto",
         "percentChangeColorMode": "standard",
@@ -163,7 +235,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.4.1",
+      "pluginVersion": "12.0.2",
       "targets": [
         {
           "datasource": {
@@ -208,9 +280,9 @@
         "h": 4,
         "w": 6,
         "x": 6,
-        "y": 1
+        "y": 14
       },
-      "id": 4,
+      "id": 8,
       "options": {
         "colorMode": "value",
         "graphMode": "area",
@@ -231,7 +303,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.4.1",
+      "pluginVersion": "12.0.2",
       "targets": [
         {
           "datasource": {
@@ -277,9 +349,9 @@
         "h": 4,
         "w": 6,
         "x": 12,
-        "y": 1
+        "y": 14
       },
-      "id": 8,
+      "id": 9,
       "options": {
         "colorMode": "value",
         "graphMode": "area",
@@ -346,9 +418,9 @@
         "h": 4,
         "w": 6,
         "x": 18,
-        "y": 1
+        "y": 14
       },
-      "id": 9,
+      "id": 10,
       "options": {
         "colorMode": "value",
         "graphMode": "area",
@@ -369,7 +441,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.4.1",
+      "pluginVersion": "12.0.2",
       "targets": [
         {
           "datasource": {
@@ -394,23 +466,17 @@
         "type": "prometheus",
         "uid": "${ds}"
       },
-      "description": "Shows the state of alerts on the selected time interval.\n\n Color represents the frequency of state changes: red is frequent, green is no state changes.",
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
           "custom": {
-            "axisPlacement": "auto",
-            "fillOpacity": 70,
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
             },
-            "insertNulls": false,
-            "lineWidth": 0,
-            "spanNulls": false
+            "footer": {
+              "reducers": []
+            },
+            "inspect": false
           },
           "mappings": [],
           "thresholds": {
@@ -421,50 +487,46 @@
                 "value": 0
               },
               {
-                "color": "yellow",
-                "value": 1
-              },
-              {
-                "color": "orange",
-                "value": 2
-              },
-              {
                 "color": "red",
-                "value": 3
-              },
-              {
-                "color": "dark-red",
-                "value": 5
+                "value": 80
               }
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Count"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
-        "h": 14,
-        "w": 24,
+        "h": 13,
+        "w": 9,
         "x": 0,
-        "y": 5
+        "y": 18
       },
-      "id": 7,
+      "id": 2,
       "options": {
-        "alignValue": "center",
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": false
-        },
-        "mergeValues": true,
-        "rowHeight": 0.9,
-        "showValue": "never",
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
+        "cellHeight": "sm",
+        "frameIndex": 1,
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Count"
+          }
+        ]
       },
-      "pluginVersion": "12.4.1",
+      "pluginVersion": "12.0.2",
       "targets": [
         {
           "datasource": {
@@ -473,609 +535,185 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sort_desc(topk_max($topk, sum(vmalert_alerts_firing{job=~\"$job\",instance=~\"$instance\",group=~\"$group\"}) by (alertname)))",
-          "format": "time_series",
-          "instant": false,
+          "expr": "topk_max(100, sum(increases_over_time(vmalert_alerts_firing{job=~\"$job\",instance=~\"$instance\",group=~\"$group\"}[$__range])) by(group) > 0)",
+          "format": "table",
+          "instant": true,
+          "key": "Q-3934f0fb-8ad6-4519-a98d-c26d0fc6b312-0",
           "legendFormat": "__auto",
-          "range": true,
+          "range": false,
           "refId": "A"
         }
       ],
-      "title": "Firing state of alerting rules on timeline",
-      "type": "state-timeline"
-    },
-    {
-      "collapsed": true,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 19
-      },
-      "id": 11,
-      "panels": [
+      "title": "FIRING over time by group",
+      "transformations": [
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${ds}"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "custom": {
-                "align": "auto",
-                "cellOptions": {
-                  "type": "auto"
-                },
-                "inspect": false
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              }
-            },
-            "overrides": [
-              {
-                "matcher": {
-                  "id": "byName",
-                  "options": "Count"
-                },
-                "properties": [
-                  {
-                    "id": "custom.width",
-                    "value": 150
-                  }
-                ]
-              }
-            ]
-          },
-          "gridPos": {
-            "h": 9,
-            "w": 6,
-            "x": 0,
-            "y": 114
-          },
-          "id": 2,
+          "id": "organize",
           "options": {
-            "cellHeight": "sm",
-            "frameIndex": 1,
-            "showHeader": true,
-            "sortBy": [
-              {
-                "desc": true,
-                "displayName": "Count"
-              }
-            ]
-          },
-          "pluginVersion": "12.4.1",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${ds}"
-              },
-              "editorMode": "code",
-              "exemplar": false,
-              "expr": "topk_max(100, sum(increases_over_time(vmalert_alerts_firing{job=~\"$job\",instance=~\"$instance\",group=~\"$group\"}[$__range])) by(group) > 0)",
-              "format": "table",
-              "instant": true,
-              "key": "Q-3934f0fb-8ad6-4519-a98d-c26d0fc6b312-0",
-              "legendFormat": "__auto",
-              "range": false,
-              "refId": "A"
-            }
-          ],
-          "title": "Groups",
-          "transformations": [
-            {
-              "id": "organize",
-              "options": {
-                "excludeByName": {
-                  "Time": true,
-                  "alertname": false
-                },
-                "includeByName": {},
-                "indexByName": {
-                  "Time": 0,
-                  "Value": 3,
-                  "alertname": 2,
-                  "group": 1
-                },
-                "renameByName": {
-                  "Value": "Count",
-                  "alertname": "Alert",
-                  "group": "Group"
-                }
-              }
-            }
-          ],
-          "type": "table"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${ds}"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "custom": {
-                "align": "auto",
-                "cellOptions": {
-                  "type": "auto"
-                },
-                "inspect": false
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              }
+            "excludeByName": {
+              "Time": true,
+              "alertname": true
             },
-            "overrides": [
-              {
-                "matcher": {
-                  "id": "byName",
-                  "options": "Count"
-                },
-                "properties": [
-                  {
-                    "id": "custom.width",
-                    "value": 150
-                  }
-                ]
-              },
-              {
-                "matcher": {
-                  "id": "byName",
-                  "options": "Group"
-                },
-                "properties": [
-                  {
-                    "id": "custom.width",
-                    "value": 150
-                  }
-                ]
-              },
-              {
-                "matcher": {
-                  "id": "byName",
-                  "options": "Rule"
-                },
-                "properties": [
-                  {
-                    "id": "links",
-                    "value": [
-                      {
-                        "targetBlank": true,
-                        "title": "Alert",
-                        "url": "/alerting/${ds:text}/${__value.text}/find"
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
-          },
-          "gridPos": {
-            "h": 9,
-            "w": 18,
-            "x": 6,
-            "y": 114
-          },
-          "id": 1,
-          "options": {
-            "cellHeight": "sm",
-            "frameIndex": 0,
-            "showHeader": true,
-            "sortBy": [
-              {
-                "desc": true,
-                "displayName": "Count"
-              }
-            ]
-          },
-          "pluginVersion": "12.4.1",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${ds}"
-              },
-              "editorMode": "code",
-              "exemplar": false,
-              "expr": "topk_max($topk, sum(increases_over_time(vmalert_alerts_firing{job=~\"$job\",instance=~\"$instance\",group=~\"$group\"}[$__range])) by (group, alertname) > 0)",
-              "format": "table",
-              "instant": true,
-              "key": "Q-3934f0fb-8ad6-4519-a98d-c26d0fc6b312-0",
-              "legendFormat": "__auto",
-              "range": false,
-              "refId": "A"
+            "includeByName": {},
+            "indexByName": {
+              "Time": 0,
+              "Value": 3,
+              "alertname": 2,
+              "group": 1
+            },
+            "renameByName": {
+              "Value": "Count",
+              "alertname": "Alert",
+              "group": "Group"
             }
-          ],
-          "title": "Rules",
-          "transformations": [
-            {
-              "id": "organize",
-              "options": {
-                "excludeByName": {
-                  "Time": true
-                },
-                "includeByName": {},
-                "indexByName": {
-                  "Time": 0,
-                  "Value": 3,
-                  "alertname": 2,
-                  "group": 1
-                },
-                "renameByName": {
-                  "Time": "",
-                  "Value": "Count",
-                  "alertname": "Rule",
-                  "group": "Group",
-                  "range": ""
-                }
-              }
-            }
-          ],
-          "type": "table"
+          }
         }
       ],
-      "title": "FIRING Alerts over time",
-      "type": "row"
+      "type": "table"
     },
     {
-      "collapsed": true,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 20
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds}"
       },
-      "id": 12,
-      "panels": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${ds}"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "custom": {
-                "align": "auto",
-                "cellOptions": {
-                  "type": "auto"
-                },
-                "footer": {
-                  "reducers": []
-                },
-                "inspect": false
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              },
-              "unit": "s"
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
             },
-            "overrides": [
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
               {
-                "matcher": {
-                  "id": "byName",
-                  "options": "Duration"
-                },
-                "properties": [
-                  {
-                    "id": "custom.width",
-                    "value": 100
-                  }
-                ]
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
               }
             ]
-          },
-          "gridPos": {
-            "h": 10,
-            "w": 24,
-            "x": 0,
-            "y": 21
-          },
-          "id": 15,
-          "options": {
-            "cellHeight": "sm",
-            "enablePagination": true,
-            "frameIndex": 0,
-            "showHeader": true,
-            "sortBy": [
-              {
-                "desc": true,
-                "displayName": "Group"
-              }
-            ]
-          },
-          "pluginVersion": "12.4.1",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${ds}"
-              },
-              "editorMode": "code",
-              "exemplar": false,
-              "expr": "vmalert_iteration_duration_seconds{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", quantile=\"\"}",
-              "format": "table",
-              "instant": true,
-              "key": "Q-3934f0fb-8ad6-4519-a98d-c26d0fc6b312-0",
-              "legendFormat": "__auto",
-              "range": false,
-              "refId": "Q05"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${ds}"
-              },
-              "editorMode": "code",
-              "exemplar": false,
-              "expr": "vmalert_iteration_duration_seconds{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", quantile=\"0.9\"}",
-              "format": "table",
-              "instant": true,
-              "key": "Q-3934f0fb-8ad6-4519-a98d-c26d0fc6b312-0",
-              "legendFormat": "__auto",
-              "range": false,
-              "refId": "Q09"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${ds}"
-              },
-              "editorMode": "code",
-              "exemplar": false,
-              "expr": "vmalert_iteration_duration_seconds{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", quantile=\"0.99\"}",
-              "format": "table",
-              "instant": true,
-              "key": "Q-3934f0fb-8ad6-4519-a98d-c26d0fc6b312-0",
-              "legendFormat": "__auto",
-              "range": false,
-              "refId": "Q99"
-            }
-          ],
-          "title": "Duration by group",
-          "transformations": [
-            {
-              "id": "joinByField",
-              "options": {
-                "byField": "group",
-                "mode": "inner"
-              }
-            },
-            {
-              "id": "filterFieldsByName",
-              "options": {
-                "include": {
-                  "names": [
-                    "group",
-                    "Value #Q05",
-                    "Value #Q09",
-                    "Value #Q99",
-                    "Value #AVG"
-                  ]
-                }
-              }
-            },
-            {
-              "id": "organize",
-              "options": {
-                "excludeByName": {
-                  "Time": false,
-                  "alertname 2": true
-                },
-                "includeByName": {},
-                "indexByName": {
-                  "Value #AVG": 1,
-                  "Value #Q05": 2,
-                  "Value #Q09": 3,
-                  "Value #Q99": 4,
-                  "group": 0
-                },
-                "renameByName": {
-                  "Time": "",
-                  "Value": "Duration",
-                  "Value #A": "Duration [q5]",
-                  "Value #AVG": "",
-                  "Value #B": "Duration [q99]",
-                  "Value #Q05": "Quantile [0.5]",
-                  "Value #Q09": "Quantile [0.9]",
-                  "Value #Q99": "Quantile [0.99]",
-                  "alertname 1": "Rule",
-                  "group": "Group"
-                }
-              }
-            }
-          ],
-          "type": "table"
+          }
         },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Count"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Group"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 200
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Alert"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "targetBlank": true,
+                    "title": "Alert",
+                    "url": "/alerting/${ds:text}/${__value.text}/find"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 13,
+        "w": 15,
+        "x": 9,
+        "y": 18
+      },
+      "id": 1,
+      "options": {
+        "cellHeight": "sm",
+        "frameIndex": 1,
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Count"
+          }
+        ]
+      },
+      "pluginVersion": "12.0.2",
+      "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "${ds}"
           },
-          "fieldConfig": {
-            "defaults": {
-              "custom": {
-                "align": "auto",
-                "cellOptions": {
-                  "type": "auto"
-                },
-                "footer": {
-                  "reducers": []
-                },
-                "inspect": false
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              },
-              "unit": "short"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 9,
-            "w": 24,
-            "x": 0,
-            "y": 31
-          },
-          "id": 14,
-          "options": {
-            "cellHeight": "sm",
-            "enablePagination": true,
-            "frameIndex": 0,
-            "showHeader": true,
-            "sortBy": [
-              {
-                "desc": true,
-                "displayName": "Group"
-              }
-            ]
-          },
-          "pluginVersion": "12.4.1",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${ds}"
-              },
-              "editorMode": "code",
-              "exemplar": false,
-              "expr": "sum(vmalert_alerting_rules_last_evaluation_samples{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}) by (group,alertname)",
-              "format": "table",
-              "instant": true,
-              "key": "Q-3934f0fb-8ad6-4519-a98d-c26d0fc6b312-0",
-              "legendFormat": "__auto",
-              "range": false,
-              "refId": "A"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${ds}"
-              },
-              "editorMode": "code",
-              "exemplar": false,
-              "expr": "sum(vmalert_alerting_rules_last_evaluation_series_fetched{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}) by (group,alertname)",
-              "format": "table",
-              "instant": true,
-              "key": "Q-3934f0fb-8ad6-4519-a98d-c26d0fc6b312-0",
-              "legendFormat": "__auto",
-              "range": false,
-              "refId": "B"
-            }
-          ],
-          "title": "Last data by rule",
-          "transformations": [
-            {
-              "id": "joinByField",
-              "options": {
-                "byField": "group",
-                "mode": "outer"
-              }
-            },
-            {
-              "id": "filterFieldsByName",
-              "options": {
-                "include": {
-                  "names": [
-                    "group",
-                    "Value #A",
-                    "Value #B",
-                    "alertname 1"
-                  ]
-                }
-              }
-            },
-            {
-              "id": "organize",
-              "options": {
-                "excludeByName": {
-                  "Time": false,
-                  "alertname 1": false,
-                  "group": false
-                },
-                "includeByName": {},
-                "indexByName": {
-                  "Value #A": 3,
-                  "Value #B": 2,
-                  "alertname 1": 1,
-                  "group": 0
-                },
-                "renameByName": {
-                  "Time": "",
-                  "Value #A": "Last samples",
-                  "Value #B": "Last series",
-                  "alertgroup": "Group",
-                  "alertname": "Rule",
-                  "alertname 1": "Rule",
-                  "group": "Group"
-                }
-              }
-            }
-          ],
-          "type": "table"
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "topk_max($topk, sum(increases_over_time(vmalert_alerts_firing{job=~\"$job\",instance=~\"$instance\",group=~\"$group\"}[$__range])) by (group, alertname) > 0)",
+          "format": "table",
+          "instant": true,
+          "key": "Q-3934f0fb-8ad6-4519-a98d-c26d0fc6b312-0",
+          "legendFormat": "__auto",
+          "range": false,
+          "refId": "A"
         }
       ],
-      "title": "Troubleshooting",
-      "type": "row"
+      "title": "FIRING over time by rule",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "indexByName": {
+              "Time": 0,
+              "Value": 3,
+              "alertname": 2,
+              "group": 1
+            },
+            "renameByName": {
+              "Time": "",
+              "Value": "Count",
+              "alertname": "Alert",
+              "group": "Group",
+              "range": ""
+            }
+          }
+        }
+      ],
+      "type": "table"
     }
   ],
-  "preload": false,
   "refresh": "",
-  "schemaVersion": 42,
+  "schemaVersion": 41,
   "tags": [],
   "templating": {
     "list": [
       {
-        "current": {
-          "text": "",
-          "value": "${DS_VMETRICS}",
-          "selected": true
-        },
+        "current": {},
         "includeAll": false,
         "label": "Datasource",
         "name": "ds",
@@ -1086,6 +724,7 @@
         "type": "datasource"
       },
       {
+        "allValue": ".*",
         "current": {},
         "datasource": {
           "type": "prometheus",
@@ -1102,10 +741,10 @@
         },
         "refresh": 1,
         "regex": "",
-        "regexApplyTo": "value",
         "type": "query"
       },
       {
+        "allValue": ".*",
         "current": {},
         "datasource": {
           "type": "prometheus",
@@ -1122,10 +761,10 @@
         },
         "refresh": 1,
         "regex": "",
-        "regexApplyTo": "value",
         "type": "query"
       },
       {
+        "allValue": ".*",
         "current": {},
         "datasource": {
           "type": "prometheus",
@@ -1142,13 +781,12 @@
         },
         "refresh": 1,
         "regex": "",
-        "regexApplyTo": "value",
         "type": "query"
       },
       {
         "current": {
-          "text": "20",
-          "value": "20"
+          "text": "10",
+          "value": "10"
         },
         "includeAll": false,
         "name": "topk",
@@ -1164,12 +802,12 @@
             "value": "10"
           },
           {
-            "selected": true,
+            "selected": false,
             "text": "20",
             "value": "20"
           },
           {
-            "selected": false,
+            "selected": true,
             "text": "30",
             "value": "30"
           },
@@ -1180,8 +818,7 @@
           }
         ],
         "query": "5, 10, 20, 30, 50",
-        "type": "custom",
-        "valuesFormat": "csv"
+        "type": "custom"
       }
     ]
   },
@@ -1190,7 +827,7 @@
     "to": "now"
   },
   "timepicker": {},
-  "timezone": "browser",
+  "timezone": "",
   "title": "VictoriaMetrics - Alert statistics",
   "uid": "ehXxUsGSk",
   "version": 1,
