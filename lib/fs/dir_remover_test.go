@@ -67,7 +67,9 @@ func TestTryRemoveDir(t *testing.T) {
 	f(setup, false)
 
 	// empty dir
-	f(func(_ *testing.T, _ string) {}, true)
+	f(func(t *testing.T, wd string) {
+		writeEmptyFile(t, filepath.Join(wd, deleteDirFilename))
+	}, true)
 
 	// delete many files concurrent
 	setup = func(t *testing.T, wd string) {
