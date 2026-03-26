@@ -293,6 +293,7 @@
           "refId": "B"
         }
       ],
+      "title": "",
       "type": "stat"
     },
     {
@@ -356,7 +357,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(up == bool 1) / count(up)",
+          "expr": "sum(up{$agent} == bool 1) / count(up{$agent})",
           "instant": true,
           "legendFormat": "available",
           "range": false,
@@ -466,6 +467,7 @@
           "refId": "B"
         }
       ],
+      "title": "",
       "type": "stat"
     },
     {
@@ -1369,7 +1371,7 @@
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 25
+            "y": 19
           },
           "id": 12,
           "options": {
@@ -1480,7 +1482,7 @@
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 34
+            "y": 28
           },
           "id": 13,
           "options": {
@@ -1502,7 +1504,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.4.0",
+          "pluginVersion": "12.4.1",
           "targets": [
             {
               "datasource": {
@@ -1591,7 +1593,7 @@
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 43
+            "y": 37
           },
           "id": 14,
           "options": {
@@ -1613,7 +1615,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.4.0",
+          "pluginVersion": "12.4.1",
           "targets": [
             {
               "datasource": {
@@ -1702,7 +1704,7 @@
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 52
+            "y": 46
           },
           "id": 15,
           "options": {
@@ -1724,7 +1726,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.4.0",
+          "pluginVersion": "12.4.1",
           "targets": [
             {
               "datasource": {
@@ -1813,7 +1815,7 @@
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 61
+            "y": 55
           },
           "id": 16,
           "options": {
@@ -1835,7 +1837,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.4.0",
+          "pluginVersion": "12.4.1",
           "targets": [
             {
               "datasource": {
@@ -1924,7 +1926,7 @@
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 70
+            "y": 64
           },
           "id": 17,
           "options": {
@@ -1946,7 +1948,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.4.0",
+          "pluginVersion": "12.4.1",
           "targets": [
             {
               "datasource": {
@@ -2035,7 +2037,7 @@
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 79
+            "y": 73
           },
           "id": 9,
           "options": {
@@ -2057,7 +2059,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.4.0",
+          "pluginVersion": "12.4.1",
           "targets": [
             {
               "datasource": {
