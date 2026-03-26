@@ -948,6 +948,12 @@ func TestTokenMatchClaims(t *testing.T) {
 	}
 	f(&tokenWithStrFields, claims, false)
 
+	// string array element match via an index path
+	f(&tokenWithStrFields, map[string]string{"security.nested_array.0.values": "read"}, true)
+
+	// checking array of hashmaps against a string
+	f(&tokenWithStrFields, map[string]string{"security.permissions": "read"}, false)
+
 	// key not found
 	claims = map[string]string{
 		"name":        "Zakhar",
@@ -1025,4 +1031,50 @@ func TestTokenMatchClaims(t *testing.T) {
 	}
 	f(&tokenObjectFields, claims, false)
 
+	/*
+		{
+		  "name": "Test",
+		  "roles": ["read", "write", "admin"],
+		  "group_ids": [100, 200, 300],
+		  "mixed": ["foo", 42, true, null, {"nested": "obj"}, ["inner"]],
+		  "access": {"permissions": ["vm_read", "vm_write"]},
+		  "empty_arr": [],
+		  "vm_access": {"tenant_id": {"project_id": 1, "account_id": 1}}
+		}
+	*/
+	tokenArrayStr := "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6ImZmZi1sQjl3In0.eyJpc3MiOiJ0ZXN0IiwiaWF0IjoxNzI1NjI1MzMyLCJleHAiOjE3MjU2MjkyMzIsIm5hbWUiOiJUZXN0Iiwicm9sZXMiOlsicmVhZCIsIndyaXRlIiwiYWRtaW4iXSwiZ3JvdXBfaWRzIjpbMTAwLDIwMCwzMDBdLCJtaXhlZCI6WyJmb28iLDQyLHRydWUsbnVsbCx7Im5lc3RlZCI6Im9iaiJ9LFsiaW5uZXIiXV0sImFjY2VzcyI6eyJwZXJtaXNzaW9ucyI6WyJ2bV9yZWFkIiwidm1fd3JpdGUiXX0sImVtcHR5X2FyciI6W10sInZtX2FjY2VzcyI6eyJ0ZW5hbnRfaWQiOnsicHJvamVjdF9pZCI6MSwiYWNjb3VudF9pZCI6MX19fQ.hhI4capDL1wIfEiTP-biVzszFj55yBR_zRUcEisommXSs-whv1XvCMgUc_KGHj0pzO-YpKVooitfgA6PjNp82xFvCvlEsNI96kN-YKyn4wQShzswXJG_mQdYPhSPoD0UzdDXE6soNzgaMjGxpPA6sOhRGJtAKa0BR-eQgIS-8vcI5P4ymX-Geer1XjHM5I2rsPdKFxrwLec2l1qCTYqWuzS7gb3GH_19lBN13IJXdVmu8zXueVXOq_z9TgQVtQQtaWIW1-URmNk3tOvu78_lDjc1W0e7GtevOdkXl7a6NMtD-fl2Gh-S_shJHApqs93JIkdV6QABoH_Uvt9bTMFsmA"
+	var tokenArrayFields Token
+	if err := tokenArrayFields.Parse(tokenArrayStr, false); err != nil {
+		t.Fatalf("BUG: cannot parse JWT token: %s", err)
+	}
+
+	// string array
+	f(&tokenArrayFields, map[string]string{"roles": "^read$"}, true)
+	f(&tokenArrayFields, map[string]string{"roles": "^admin$"}, true)
+	f(&tokenArrayFields, map[string]string{"roles": "^nobody$"}, false)
+	f(&tokenArrayFields, map[string]string{"roles": "^(read|write)$"}, true)
+	f(&tokenArrayFields, map[string]string{"roles": "wr.*"}, true)
+
+	// numeric array
+	f(&tokenArrayFields, map[string]string{"group_ids": "^200$"}, true)
+	f(&tokenArrayFields, map[string]string{"group_ids": "^999$"}, false)
+
+	// nested array via a dot path
+	f(&tokenArrayFields, map[string]string{"access.permissions": "^vm_read$"}, true)
+	f(&tokenArrayFields, map[string]string{"access.permissions": "^vm_delete$"}, false)
+
+	// mixed array
+	// hashmaps and nested arrays are skipped
+	f(&tokenArrayFields, map[string]string{"mixed": "^foo$"}, true)
+	f(&tokenArrayFields, map[string]string{"mixed": "^42$"}, true)
+	f(&tokenArrayFields, map[string]string{"mixed": "^true$"}, true)
+	f(&tokenArrayFields, map[string]string{"mixed": "^obj$"}, false)
+	f(&tokenArrayFields, map[string]string{"mixed": "^inner$"}, false)
+
+	// empty array
+	f(&tokenArrayFields, map[string]string{"empty_arr": ".*"}, false)
+
+	// array claim combined with scalar claim
+	f(&tokenArrayFields, map[string]string{"name": "Test", "roles": "admin"}, true)
+	f(&tokenArrayFields, map[string]string{"name": "Test", "roles": "^nobody$"}, false)
 }
