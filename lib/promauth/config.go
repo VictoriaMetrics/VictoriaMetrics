@@ -823,9 +823,19 @@ func (actx *authContext) initFromBasicAuthConfig(baseDir string, ba *BasicAuthCo
 		password = ba.Password.S
 	}
 	passwordFile := ba.PasswordFile
-	if username == "" && usernameFile == "" {
-		return fmt.Errorf("missing `username` and `username_file` in `basic_auth` section; please specify one; " +
+	if username == "" && usernameFile == "" && password == "" && passwordFile == "" {
+		return fmt.Errorf("missing `username`, `username_file`, `password` and `password_file` in `basic_auth` section; please specify at least one; " +
 			"see https://docs.victoriametrics.com/victoriametrics/sd_configs/#http-api-client-options")
+	}
+	if username == "" && usernameFile == "" {
+		logger.Warnf("missing `username` and `username_file` in `basic_auth` section; " +
+			"see https://docs.victoriametrics.com/victoriametrics/sd_configs/#http-api-client-options")
+	}
+	if strings.TrimSpace(username) == "" && username != "" {
+		logger.Warnf("`username` in `basic_auth` section is blank; it is possible to omit the `username` value if it is not needed")
+	}
+	if usernameFile == "/dev/null" {
+		logger.Warnf("`username_file` in `basic_auth` section points to /dev/null; it is possible to omit the `username_file` value if it is not needed")
 	}
 	if username != "" && usernameFile != "" {
 		return fmt.Errorf("both `username` and `username_file` are set in `basic_auth` section; please specify only one; " +
