@@ -491,7 +491,7 @@ server:
       url: http://vmcluster-victoria-metrics-cluster-vminsert.default.svc.cluster.local.:8480/insert/0/prometheus/
     read:
       # read back alert state from vmselect
-      url: http://vmcluster-victoria-metrics-cluster-vmselect.default.svc.cluster.local.:8481/select/0/prometheus/
+    url: http://vmcluster-victoria-metrics-cluster-vmselect.default.svc.cluster.local.:8481/select/0/prometheus/
 
   # Configure Alertmanager as notifier
   notifier:
