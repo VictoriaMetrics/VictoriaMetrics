@@ -2235,7 +2235,7 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 	hmCurrDate := hmCurr.hour / 24
 	nextDayMetricIDsCache := s.nextDayMetricIDs.Load()
 	nextDayIDBID := nextDayMetricIDsCache.idbID
-	nextDayDate := nextDayMetricIDsCache.date
+	nextDayDate := nextDayMetricIDsCache.date + 1
 	nextDayMetricIDs := &nextDayMetricIDsCache.metricIDs
 	ts := fasttime.UnixTimestamp()
 	// Start pre-populating the next per-day inverted index during the last hour of the current day.
