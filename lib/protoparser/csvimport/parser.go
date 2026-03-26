@@ -71,15 +71,92 @@ type metric struct {
 // Unmarshal unmarshals csv lines from s according to the given cds.
 func (rs *Rows) Unmarshal(s string, cds []ColumnDescriptor) {
 	rs.sc.Init(s)
-	rs.Rows, rs.tagsPool, rs.metricsPool = parseRows(&rs.sc, rs.Rows[:0], rs.tagsPool[:0], rs.metricsPool[:0], cds)
+	rs.Rows, rs.tagsPool, rs.metricsPool = parseRows(&rs.sc, rs.Rows[:0], rs.tagsPool[:0], rs.metricsPool[:0], cds, false)
 }
 
-func parseRows(sc *scanner, dst []Row, tags []Tag, metrics []metric, cds []ColumnDescriptor) ([]Row, []Tag, []metric) {
+// UnmarshalDetectHeader is similar to Unmarshal, but skips the first row if it looks like CSV header
+// Must only be called for the first data block in a stream.
+func (rs *Rows) UnmarshalDetectHeader(s string, cds []ColumnDescriptor) {
+	rs.sc.Init(s)
+	rs.Rows, rs.tagsPool, rs.metricsPool = parseRows(&rs.sc, rs.Rows[:0], rs.tagsPool[:0], rs.metricsPool[:0], cds, true)
+}
+
+// isHeaderRow returns true if the current scanner line looks like a CSV header.
+func isHeaderRow(sc *scanner, cds []ColumnDescriptor) bool {
+	isHeader := false
+	col := uint(0)
+	for sc.NextColumn() {
+		if col >= uint(len(cds)) {
+			continue
+		}
+		cd := &cds[col]
+		col++
+		if cd.isEmpty() || sc.Column == "" {
+			continue
+		}
+		if cd.ParseTimestamp != nil {
+			if _, err := cd.ParseTimestamp(sc.Column); err != nil {
+				isHeader = true
+			}
+		}
+		if cd.MetricName != "" {
+			if _, err := fastfloat.Parse(sc.Column); err != nil {
+				isHeader = true
+			}
+		}
+	}
+	return isHeader
+}
+
+// warnHeaderMismatches logs warnings for header column names that don't match the expected format descriptors
+func warnHeaderMismatches(sc *scanner, cds []ColumnDescriptor) {
+	col := uint(0)
+	for sc.NextColumn() {
+		if col >= uint(len(cds)) {
+			continue
+		}
+		cd := &cds[col]
+		col++
+		if cd.isEmpty() {
+			continue
+		}
+		name := sc.Column
+		if cd.ParseTimestamp != nil {
+			if name != "timestamp" {
+				logger.Warnf("CSV header mismatch at column %d: got %q, expected %q", col, name, "timestamp")
+			}
+		} else if cd.TagName != "" {
+			if name != cd.TagName {
+				logger.Warnf("CSV header mismatch at column %d: got %q, expected %q", col, name, cd.TagName)
+			}
+		} else if cd.MetricName != "" {
+			if name != "value" && name != cd.MetricName {
+				logger.Warnf("CSV header mismatch at column %d: got %q, expected %q or %q", col, name, "value", cd.MetricName)
+			}
+		}
+	}
+}
+
+func parseRows(sc *scanner, dst []Row, tags []Tag, ms []metric, cds []ColumnDescriptor, skipHeader bool) ([]Row, []Tag, []metric) {
 	for sc.NextLine() {
+		if skipHeader {
+			skipHeader = false
+			savedLine := sc.Line
+			if isHeaderRow(sc, cds) {
+				sc.Line = savedLine
+				sc.isLastColumn = false
+				sc.Error = nil
+				warnHeaderMismatches(sc, cds)
+				continue
+			}
+			sc.Line = savedLine
+			sc.isLastColumn = false
+			sc.Error = nil
+		}
 		line := sc.Line
 		var r Row
 		col := uint(0)
-		metrics = metrics[:0]
+		ms = ms[:0]
 		tagsLen := len(tags)
 		for sc.NextColumn() {
 			if col >= uint(len(cds)) {
@@ -116,7 +193,7 @@ func parseRows(sc *scanner, dst []Row, tags []Tag, metrics []metric, cds []Colum
 			if err != nil {
 				sc.Error = fmt.Errorf("cannot parse metric value for %q from %q: %w", metricName, sc.Column, err)
 			}
-			metrics = append(metrics, metric{
+			ms = append(ms, metric{
 				Name:  metricName,
 				Value: value,
 			})
@@ -129,14 +206,14 @@ func parseRows(sc *scanner, dst []Row, tags []Tag, metrics []metric, cds []Colum
 			invalidLines.Inc()
 			continue
 		}
-		if len(metrics) == 0 {
+		if len(ms) == 0 {
 			continue
 		}
-		r.Metric = metrics[0].Name
+		r.Metric = ms[0].Name
 		r.Tags = tags[tagsLen:]
-		r.Value = metrics[0].Value
+		r.Value = ms[0].Value
 		dst = append(dst, r)
-		for _, m := range metrics[1:] {
+		for _, m := range ms[1:] {
 			dst = append(dst, Row{
 				Metric:    m.Name,
 				Tags:      r.Tags,
@@ -145,7 +222,7 @@ func parseRows(sc *scanner, dst []Row, tags []Tag, metrics []metric, cds []Colum
 			})
 		}
 	}
-	return dst, tags, metrics
+	return dst, tags, ms
 }
 
 var invalidLines = metrics.NewCounter(`vm_rows_invalid_total{type="csvimport"}`)

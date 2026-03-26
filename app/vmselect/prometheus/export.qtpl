@@ -11,6 +11,28 @@
 
 {% stripspace %}
 
+{% func ExportCSVHeader(fieldNames []string) %}
+	{% if len(fieldNames) == 0 %}{% return %}{% endif %}
+	{%s= headerColumnName(fieldNames[0]) %}
+	{% for _, fieldName := range fieldNames[1:] %}
+		,
+		{%s= headerColumnName(fieldName) %}
+	{% endfor %}
+	{% newline %}
+{% endfunc %}
+
+{% code
+func headerColumnName(fieldName string) string {
+	if fieldName == "__value__" {
+		return "value"
+	}
+	if fieldName == "__timestamp__" || strings.HasPrefix(fieldName, "__timestamp__:") {
+		return "timestamp"
+	}
+	return fieldName
+}
+%}
+
 {% func ExportCSVLine(xb *exportBlock, fieldNames []string) %}
 	{% if len(xb.timestamps) == 0 || len(fieldNames) == 0 %}{% return %}{% endif %}
 	{% for i, timestamp := range xb.timestamps %}
