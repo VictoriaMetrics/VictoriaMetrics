@@ -14,7 +14,7 @@ aliases:
 ---
 `vmrestore` restores data from backups created by [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/).
 
-Restore process can be interrupted at any time. It is automatically resumed from the interruption point when restarting `vmrestore` with the same args.
+Restore process can be interrupted at any time. It is automatically resumed when restarting `vmrestore` with the same args. If file preallocation is enabled it resumes from the last complete file, if file preallocation is disabled via `-skipFilePreallocation` then it resumes from the interruption point mid file.
 
 ## Usage
 
