@@ -188,7 +188,7 @@ Let's break down the main command line arguments that connect every component:
   - `-remoteWrite.url`: defines VictoriaMetrics as the backend used to persist rule state across restarts
   - `-remoteRead.url`: defines VictoriaMetrics as the backend used to read historical state for pending alerts
   - `-notifier.url`: directs firing alerts to Alertmanager
-  - `-external.url`: defines the base URL for alert links. Allows Alertmanager UI to link directly to Grafana
+`-external.url`: defines the base URL for alert links so users see the public url of alertmanager, or an external alerting ui like Karma or Grafana in notifications.
   - `-external.alert.source`: creates a template for clickable alert links for Grafana. Allows Alertmanager UI to link directly to Grafana
 
 Now, start the demo with:
@@ -482,7 +482,7 @@ alertmanager:
 server:
   # vmalert evaluation datasource: point at vmselect’s Prometheus-compatible API
   datasource:
-    url: http://vmcluster-victoria-metrics-cluster-vmselect.default.svc.cluster.local.:8481/select/0/prometheus/
+    url: http://vmcluster-victoria-metrics-cluster-vmselect.default.svc.cluster.local.:8481/select/multitenant/prometheus/
 
   # Where vmalert stores and reads alert state (remote write/read)
   remote:
@@ -491,7 +491,7 @@ server:
       url: http://vmcluster-victoria-metrics-cluster-vminsert.default.svc.cluster.local.:8480/insert/0/prometheus/
     read:
       # read back alert state from vmselect
-    url: http://vmcluster-victoria-metrics-cluster-vmselect.default.svc.cluster.local.:8481/select/0/prometheus/
+      url: http://vmcluster-victoria-metrics-cluster-vmselect.default.svc.cluster.local.:8481/select/0/prometheus/
 
   # Configure Alertmanager as notifier
   notifier:
@@ -526,8 +526,8 @@ EOF
 
 
 The key differences from the [single-node setup](https://docs.victoriametrics.com/guides/vmalert-datasource-managed-alerts-grafana/#vmsingle) section
-- `server.datasource.url` and `server.remote.read.url` point to the `vmselect` read endpoint (`/select/0/prometheus/`).
-- `server.remote.write.url` points to the `vminsert` write endpoint (`/insert/0/prometheus/`).
+- `server.datasource.url` and `server.remote.read.url` point to the `vmselect` read endpoint (`/select/multitenant/prometheus/`).
+- `server.remote.write.url` points to the `vminsert` write endpoint (`/insert/multitenant/prometheus/`).
 
 Install `vmalert` and Alertmanager with:
 
