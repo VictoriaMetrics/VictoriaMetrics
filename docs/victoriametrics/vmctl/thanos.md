@@ -21,11 +21,11 @@ The `thanos` mode reads Thanos snapshot blocks directly from disk, including:
 
 When importing downsampled blocks, each aggregate type is imported as a separate metric with resolution and aggregate type suffixes.
 For example, a metric `http_requests_total` from a 5-minute downsampled block will be imported as:
-- `http_requests_total:5m:count` - number of samples in the 5-minute window
+- `http_requests_total:5m:count` - number of raw samples aggregated into the 5-minute window
 - `http_requests_total:5m:sum` - sum of values in the 5-minute window
 - `http_requests_total:5m:min` - minimum value in the 5-minute window
 - `http_requests_total:5m:max` - maximum value in the 5-minute window
-- `http_requests_total:5m:counter` - counter aggregate for rate calculations
+- `http_requests_total:5m:counter` - cumulative counter value per window, intended for `rate()`/`increase()` calculations over downsampled data
 
 You can filter which aggregate types to import using the `--thanos-aggr-types` flag:
 ```sh
