@@ -287,31 +287,6 @@ func (lrc *limitedReadCloser) Close() error {
 	return nil
 }
 
-type writeCloser struct {
-	w    *filestream.Writer
-	n    uint64
-	path string
-}
-
-func (wc *writeCloser) Write(p []byte) (int, error) {
-	n, err := wc.w.Write(p)
-	if uint64(n) > wc.n {
-		return n, fmt.Errorf("too much data written; got %d bytes; want %d bytes", n, wc.n)
-	}
-	wc.n -= uint64(n)
-	return n, err
-}
-
-func (wc *writeCloser) Close() error {
-	wc.w.MustFlush(true)
-	wc.w.MustClose()
-	if wc.n != 0 {
-		return fmt.Errorf("missing data writes for %d bytes", wc.n)
-	}
-
-	return nil
-}
-
 type directWriteCloser struct {
 	f *os.File
 	n uint64
