@@ -229,6 +229,7 @@ func main() {
 	strg.MustClose()
 	logger.Infof("successfully closed the storage in %.3f seconds", time.Since(startTime).Seconds())
 
+	fs.MustStopDirRemover()
 	logger.Infof("the vmstorage has been stopped")
 }
 
