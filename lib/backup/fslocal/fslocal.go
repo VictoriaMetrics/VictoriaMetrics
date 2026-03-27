@@ -123,28 +123,6 @@ func (fs *FS) NewReadCloser(p common.Part) (io.ReadCloser, error) {
 	return blrc, nil
 }
 
-// NewWriteCloser returns io.WriteCloser for the given part p located in fs.
-func (fs *FS) NewWriteCloser(p common.Part) (io.WriteCloser, error) {
-	path := fs.path(p)
-	if err := fs.mkdirAll(path); err != nil {
-		return nil, err
-	}
-	w, err := filestream.OpenWriterAt(path, int64(p.Offset), true)
-	if err != nil {
-		return nil, fmt.Errorf("cannot open writer for %q at offset %d: %w", path, p.Offset, err)
-	}
-	wc := &writeCloser{
-		w:    w,
-		n:    p.Size,
-		path: path,
-	}
-	if fs.bl == nil {
-		return wc, nil
-	}
-	blwc := fs.bl.NewWriteCloser(wc)
-	return blwc, nil
-}
-
 // NewDirectWriteCloser returns an io.WriteCloser that writes directly to the
 // underlying file without buffering, enabling large IO sizes from the caller.
 // On platforms with preallocation, writes go to a .tmp file that must be
