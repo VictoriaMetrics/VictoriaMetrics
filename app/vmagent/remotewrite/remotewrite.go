@@ -24,6 +24,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/persistentqueue"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prommetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ratelimiter"
@@ -92,6 +93,10 @@ var (
 		"See https://docs.victoriametrics.com/victoriametrics/vmagent/#disabling-on-disk-persistence . See also -remoteWrite.dropSamplesOnOverload")
 	dropSamplesOnOverload = flag.Bool("remoteWrite.dropSamplesOnOverload", false, "Whether to drop samples when -remoteWrite.disableOnDiskQueue is set and if the samples "+
 		"cannot be pushed into the configured -remoteWrite.url systems in a timely manner. See https://docs.victoriametrics.com/victoriametrics/vmagent/#disabling-on-disk-persistence")
+	enableMetadataPerURL = flagutil.NewArrayString("remoteWrite.enableMetadata", "Whether to send metadata to the corresponding -remoteWrite.url. "+
+		"By default, metadata sending is controlled by the global -enableMetadata flag. "+
+		"Set to 'true' to explicitly enable metadata for this URL, or 'false' to disable it, "+
+		"overriding the global -enableMetadata setting")
 )
 
 var (
@@ -540,6 +545,10 @@ func tryPushMetadataToRemoteStorages(rwctxs []*remoteWriteCtx, mms []prompb.Metr
 	var wg sync.WaitGroup
 	var anyPushFailed atomic.Bool
 	for _, rwctx := range rwctxs {
+		if !rwctx.enableMetadata {
+			// Skip remote storage with disabled metadata
+			continue
+		}
 		wg.Go(func() {
 			if !rwctx.tryPushMetadataInternal(mms) {
 				rwctx.pushFailures.Inc()
@@ -811,6 +820,11 @@ type remoteWriteCtx struct {
 	streamAggrKeepInput bool
 	streamAggrDropInput bool
 
+	// enableMetadata indicates whether metadata should be sent to this remote storage.
+	// It is determined by -remoteWrite.enableMetadata per-URL flag if set,
+	// otherwise by the global -enableMetadata flag.
+	enableMetadata bool
+
 	pss        []*pendingSeries
 	pssNextIdx atomic.Uint64
 
@@ -820,6 +834,25 @@ type remoteWriteCtx struct {
 	pushFailures                 *metrics.Counter
 	metadataDroppedOnPushFailure *metrics.Counter
 	rowsDroppedOnPushFailure     *metrics.Counter
+}
+
+// isMetadataEnabledForURL returns true if metadata should be sent to the remote storage at argIdx.
+// It checks the per-URL -remoteWrite.enableMetadata flag first.
+// If not set, it falls back to the global -enableMetadata flag.
+func isMetadataEnabledForURL(argIdx int) bool {
+	v := enableMetadataPerURL.GetOptionalArg(argIdx)
+	if v == "" {
+		// Per-URL flag is not set, use global -enableMetadata value
+		return prommetadata.IsEnabled()
+	}
+	if v == "true" {
+		return true
+	}
+	if v == "false" {
+		return false
+	}
+	logger.Fatalf("invalid value %q for -remoteWrite.enableMetadata at position %d; supported values: 'true', 'false'", v, argIdx)
+	return false
 }
 
 func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, sanitizedURL string) *remoteWriteCtx {
@@ -892,10 +925,11 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, sanitizedURL string)
 	}
 
 	rwctx := &remoteWriteCtx{
-		idx: argIdx,
-		fq:  fq,
-		c:   c,
-		pss: pss,
+		idx:            argIdx,
+		fq:             fq,
+		c:              c,
+		pss:            pss,
+		enableMetadata: isMetadataEnabledForURL(argIdx),
 
 		rowsPushedAfterRelabel: metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_rows_pushed_after_relabel_total{path=%q,url=%q}`, queuePath, sanitizedURL)),
 		rowsDroppedByRelabel:   metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_relabel_metrics_dropped_total{path=%q,url=%q}`, queuePath, sanitizedURL)),
