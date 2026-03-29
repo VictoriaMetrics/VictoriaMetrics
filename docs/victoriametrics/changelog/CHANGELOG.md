@@ -26,6 +26,9 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): add per-URL -remoteWrite.enableMetadata flag in addition to global. See [#10711](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10711). Thanks to @evkuzin for the contribution.
+
+
 ## [v1.139.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.139.0)
 
 Released at 2026-03-27
