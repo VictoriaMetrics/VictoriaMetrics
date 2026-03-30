@@ -23,7 +23,7 @@ The following table compares the two modes:
 | ------------------- | -------------------------------------------------- | ----------------------------- |
 | Where rules live    | Grafana's SQL database                             | vmalert's YAML config         |
 | Evaluation          | Grafana's scheduler                                | vmalert                       |
-| Horizontal Scaling  | Complex (requires HA SQL databse)                  | Simple (add more pods)        |
+| Horizontal Scaling  | Complex (requires HA SQL database)                 | Simple (add more pods)        |
 | State storage       | SQL backend or a Prometheus datasource             | VictoriaMetrics               |
 | UI Management       | Full create/edit in Grafana                        | View-only                     |
 | Dependencies        | SQL + Grafana                                      | VictoriaMetrics               |
