@@ -4069,7 +4069,7 @@ func TestStorageMetrics_IndexDBBlockCaches(t *testing.T) {
 	assertMetrics(s)
 }
 
-func TestStorageAddRows_futureSamples(t *testing.T) {
+func TestStorageAddRows_futureTimestamps(t *testing.T) {
 	defer testRemoveAll(t)
 
 	const numMetrics = 1000
@@ -4123,6 +4123,7 @@ func TestStorageAddRows_futureSamples(t *testing.T) {
 
 	s.MustClose()
 	s = MustOpenStorage(t.Name(), OpenOptions{})
+	defer s.MustClose()
 
 	assertMetricNames(s, wantMetricNames)
 }
