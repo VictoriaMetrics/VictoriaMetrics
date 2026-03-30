@@ -26,8 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
-* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): update last scrape result only when current scrape is successful. It makes the value of `scrape_series_added` to be aligned with the same metric in Prometheus  See [#10653](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10653).
-
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): update last scrape result only when current scrape is successful. It makes the value of `scrape_series_added` to be aligned with the same metric in Prometheus. See [#10653](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10653).
 
 ## [v1.139.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.139.0)
 
