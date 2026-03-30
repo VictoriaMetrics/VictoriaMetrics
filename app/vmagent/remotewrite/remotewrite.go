@@ -93,10 +93,8 @@ var (
 		"See https://docs.victoriametrics.com/victoriametrics/vmagent/#disabling-on-disk-persistence . See also -remoteWrite.dropSamplesOnOverload")
 	dropSamplesOnOverload = flag.Bool("remoteWrite.dropSamplesOnOverload", false, "Whether to drop samples when -remoteWrite.disableOnDiskQueue is set and if the samples "+
 		"cannot be pushed into the configured -remoteWrite.url systems in a timely manner. See https://docs.victoriametrics.com/victoriametrics/vmagent/#disabling-on-disk-persistence")
-	enableMetadataPerURL = flagutil.NewArrayString("remoteWrite.enableMetadata", "Whether to send metadata to the corresponding -remoteWrite.url. "+
-		"By default, metadata sending is controlled by the global -enableMetadata flag. "+
-		"Set to 'true' to explicitly enable metadata for this URL, or 'false' to disable it, "+
-		"overriding the global -enableMetadata setting")
+	disableMetadataPerURL = flagutil.NewArrayBool("remoteWrite.disableMetadata", "Whether to disable sending metadata to the corresponding -remoteWrite.url. "+
+		"By default, metadata sending is controlled by the global -enableMetadata flag")
 )
 
 var (
@@ -837,22 +835,15 @@ type remoteWriteCtx struct {
 }
 
 // isMetadataEnabledForURL returns true if metadata should be sent to the remote storage at argIdx.
-// It checks the per-URL -remoteWrite.enableMetadata flag first.
+// It checks the per-URL -remoteWrite.disableMetadata flag first.
 // If not set, it falls back to the global -enableMetadata flag.
 func isMetadataEnabledForURL(argIdx int) bool {
-	v := enableMetadataPerURL.GetOptionalArg(argIdx)
-	if v == "" {
-		// Per-URL flag is not set, use global -enableMetadata value
-		return prommetadata.IsEnabled()
-	}
-	if v == "true" {
-		return true
-	}
-	if v == "false" {
+	if disableMetadataPerURL.GetOptionalArg(argIdx) {
+		// Metadata is explicitly disabled for this URL
 		return false
 	}
-	logger.Fatalf("invalid value %q for -remoteWrite.enableMetadata at position %d; supported values: 'true', 'false'", v, argIdx)
-	return false
+	// Use global -enableMetadata value
+	return prommetadata.IsEnabled()
 }
 
 func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, sanitizedURL string) *remoteWriteCtx {
