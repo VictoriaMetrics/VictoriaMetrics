@@ -11,6 +11,11 @@ menu:
 `vmctl` provides a dedicated `thanos` mode for migrating data from Thanos blocks to VictoriaMetrics.
 This mode supports both raw blocks (resolution=0) and downsampled blocks with all aggregate types.
 
+> **Important:** Before copying Thanos blocks from object storage to local disk, stop the **Thanos Compactor**.
+> The Compactor is [not concurrency-safe](https://thanos.io/tip/components/compact.md/) and may compact,
+> downsample, or delete blocks while you are copying, resulting in an inconsistent snapshot.
+> Thanos Sidecar does not need to be stopped — it only uploads new blocks and does not modify existing ones.
+
 ## Migration via Thanos mode
 
 The `thanos` mode reads Thanos snapshot blocks directly from disk, including:
