@@ -21,13 +21,13 @@ The following table compares the two modes:
 
 | Aspect              | Grafana-Managed                                    | Data Source-Managed           |
 | ------------------- | -------------------------------------------------- | ----------------------------- |
-| Where rules live    | Grafana's SQL database or a Prometheus datasource  | vmalert's YAML config         |
+| Where rules live    | Grafana's SQL database                             | vmalert's YAML config         |
 | Evaluation          | Grafana's scheduler                                | vmalert                       |
-| Scaling             | Vertical (Grafana limits)                          | Horizontal (vmalert shards)   |
-| State storage       | SQL backend                                        | VictoriaMetrics               |
+| Horizontal Scaling  | Complex (requires HA SQL databse)                  | Simple (add more pods)        |
+| State storage       | SQL backend or a Prometheus datasource             | VictoriaMetrics               |
 | UI Management       | Full create/edit in Grafana                        | View-only                     |
 | Dependencies        | SQL + Grafana                                      | VictoriaMetrics               |
-| Version control?    | Difficult. Rules must be exported/imported         | Easy. Rules are in YAML file  |
+| Version control     | Complex (rules must be exported/imported)          | Easy (rules are in YAML file) |
 
 ## Datasource-managed Alert Topology
 
