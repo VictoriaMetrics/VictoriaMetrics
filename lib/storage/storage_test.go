@@ -1877,7 +1877,7 @@ func TestStorageRowsNotAdded(t *testing.T) {
 	})
 
 	retention = 48 * time.Hour
-	minTimestamp = time.Now().Add(7 * 24 * time.Hour).UnixMilli()
+	minTimestamp = maxUnixMilli + 1
 	maxTimestamp = minTimestamp + 1000
 	f(&options{
 		name:      "TooBigTimestamps",
@@ -4067,4 +4067,62 @@ func TestStorageMetrics_IndexDBBlockCaches(t *testing.T) {
 		t.Fatalf("SearchMetricNames() failed unexpectedly: %v", err)
 	}
 	assertMetrics(s)
+}
+
+func TestStorageAddRows_futureSamples(t *testing.T) {
+	defer testRemoveAll(t)
+
+	const numMetrics = 1000
+	mrs := make([]MetricRow, numMetrics)
+	wantMetricNames := make([]string, numMetrics)
+	maxTime := time.UnixMilli(maxUnixMilli).UTC()
+	tr := TimeRange{
+		MinTimestamp: maxTime.Add(-24 * time.Hour).UnixMilli(),
+		MaxTimestamp: maxTime.UnixMilli(),
+	}
+	step := (tr.MaxTimestamp - tr.MinTimestamp) / numMetrics
+	for i := range numMetrics {
+		name := fmt.Sprintf("metric_%04d", i)
+		mn := MetricName{
+			MetricGroup: []byte(name),
+		}
+		mrs[i].MetricNameRaw = mn.marshalRaw(nil)
+		mrs[i].Timestamp = tr.MinTimestamp + int64(i)*step
+		mrs[i].Value = float64(i)
+		wantMetricNames[i] = name
+	}
+
+	s := MustOpenStorage(t.Name(), OpenOptions{})
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+
+	assertMetricNames := func(s *Storage, want []string) {
+		tfs := NewTagFilters()
+		if err := tfs.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
+			t.Fatalf("unexpected error in TagFilters.Add: %v", err)
+		}
+		got, err := s.SearchMetricNames(nil, []*TagFilters{tfs}, tr, 1e9, noDeadline)
+		if err != nil {
+			t.Fatalf("SearchMetricNames() failed unexpectedly: %v", err)
+		}
+		for i, name := range got {
+			var mn MetricName
+			if err := mn.UnmarshalString(name); err != nil {
+				t.Fatalf("Could not unmarshal metric name %q: %v", name, err)
+			}
+			got[i] = string(mn.MetricGroup)
+		}
+		slices.Sort(got)
+
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Fatalf("unexpected metric names (-want, +got):\n%s", diff)
+		}
+	}
+
+	assertMetricNames(s, wantMetricNames)
+
+	s.MustClose()
+	s = MustOpenStorage(t.Name(), OpenOptions{})
+
+	assertMetricNames(s, wantMetricNames)
 }
