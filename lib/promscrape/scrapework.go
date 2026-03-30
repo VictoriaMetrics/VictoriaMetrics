@@ -604,8 +604,12 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 		// Send stale markers for disappeared metrics with the real scrape timestamp
 		// in order to guarantee that query doesn't return data after this time for the disappeared metrics.
 		sw.sendStaleSeries(lastScrapeStr, bodyString, realTimestamp, false)
-		sw.storeLastScrape(bodyString)
-		sw.lastScrapeLen = len(bodyString)
+		// Only update last scrape result when the current scrape is successful.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10653.
+		if err == nil {
+			sw.storeLastScrape(bodyString)
+			sw.lastScrapeLen = len(bodyString)
+		}
 	}
 	leveledbytebufferpool.Put(bbLastScrape)
 
@@ -707,8 +711,12 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 		// Send stale markers for disappeared metrics with the real scrape timestamp
 		// in order to guarantee that query doesn't return data after this time for the disappeared metrics.
 		sw.sendStaleSeries(lastScrapeStr, bodyString, realTimestamp, false)
-		sw.storeLastScrape(bodyString)
-		sw.lastScrapeLen = len(bodyString)
+		// Only update last scrape result when the current scrape is successful.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10653.
+		if err == nil {
+			sw.storeLastScrape(bodyString)
+			sw.lastScrapeLen = len(bodyString)
+		}
 	}
 	leveledbytebufferpool.Put(bbLastScrape)
 
