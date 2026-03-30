@@ -48,14 +48,6 @@ and performing [regular upgrades](https://docs.victoriametrics.com/victoriametri
 
 ### Starting VictoriaMetrics Single Node or Cluster on VictoriaMetrics Cloud {id="starting-vm-on-cloud"}
 
-VictoriaMetrics setups are designed to be easily and efficiently managed. However, every software
-in production environments needs maintenance which involves monitoring, capacity planning, backups,
-upgrades, access control, and more.
-VictoriaMetrics Cloud handles all of these automatically, including: automatic backups, upgrades
-during maintenance windows, built-in resource alerts, audit logs, access tokens management,
-organization roles, disk resizing, and pre-built integration templates.
-See the [VictoriaMetrics Cloud documentation](https://docs.victoriametrics.com/victoriametrics-cloud/) to get started.
-
 1. Go to [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_quickstart_guide) and sign up (it's free).
 1. After signing up, you will be immediately granted $200 of trial credits you can spend on running Single node or Cluster.
 1. Navigate to the VictoriaMetrics Cloud [quick start](https://docs.victoriametrics.com/victoriametrics-cloud/get-started/quickstart/#creating-deployments) guide for detailed instructions.
