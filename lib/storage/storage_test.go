@@ -4069,34 +4069,47 @@ func TestStorageMetrics_IndexDBBlockCaches(t *testing.T) {
 	assertMetrics(s)
 }
 
-func TestStorageAddRows_futureTimestamps(t *testing.T) {
+func TestStorage_futureTimestamps(t *testing.T) {
 	defer testRemoveAll(t)
 
+	type want struct {
+		mrs         []MetricRow
+		metricNames []string
+		labelNames  []string
+		labelValues []string
+	}
+
 	const numMetrics = 1000
-	mrs := make([]MetricRow, numMetrics)
-	wantMetricNames := make([]string, numMetrics)
-	maxTime := time.UnixMilli(maxUnixMilli).UTC()
-	tr := TimeRange{
-		MinTimestamp: maxTime.Add(-24 * time.Hour).UnixMilli(),
-		MaxTimestamp: maxTime.UnixMilli(),
-	}
-	step := (tr.MaxTimestamp - tr.MinTimestamp) / numMetrics
-	for i := range numMetrics {
-		name := fmt.Sprintf("metric_%04d", i)
-		mn := MetricName{
-			MetricGroup: []byte(name),
+	genData := func(prefix string, tr TimeRange) want {
+		mrs := make([]MetricRow, numMetrics)
+		metricNames := make([]string, numMetrics)
+		labelNames := make([]string, numMetrics)
+		labelValues := make([]string, numMetrics)
+		step := (tr.MaxTimestamp - tr.MinTimestamp) / numMetrics
+		for i := range numMetrics {
+			metricName := fmt.Sprintf("metric_%s_%04d", prefix, i)
+			labelName := fmt.Sprintf("label_%s_%04d", prefix, i)
+			labelValue := fmt.Sprintf("value_%s_%04d", prefix, i)
+			mn := MetricName{
+				MetricGroup: []byte(metricName),
+				Tags: []Tag{
+					{Key: []byte(labelName), Value: []byte("value")},
+					{Key: []byte("label"), Value: []byte(labelValue)},
+				},
+			}
+			mrs[i].MetricNameRaw = mn.marshalRaw(nil)
+			mrs[i].Timestamp = tr.MinTimestamp + int64(i)*step
+			mrs[i].Value = float64(i)
+			metricNames[i] = metricName
+			labelNames[i] = labelName
+			labelValues[i] = labelValue
 		}
-		mrs[i].MetricNameRaw = mn.marshalRaw(nil)
-		mrs[i].Timestamp = tr.MinTimestamp + int64(i)*step
-		mrs[i].Value = float64(i)
-		wantMetricNames[i] = name
+		labelNames = append(labelNames, "__name__", "label")
+		return want{mrs, metricNames, labelNames, labelValues}
 	}
 
-	s := MustOpenStorage(t.Name(), OpenOptions{})
-	s.AddRows(mrs, defaultPrecisionBits)
-	s.DebugFlush()
-
-	assertMetricNames := func(s *Storage, want []string) {
+	assertMetricNames := func(t *testing.T, s *Storage, tr TimeRange, want []string) {
+		t.Helper()
 		tfs := NewTagFilters()
 		if err := tfs.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
 			t.Fatalf("unexpected error in TagFilters.Add: %v", err)
@@ -4113,17 +4126,139 @@ func TestStorageAddRows_futureTimestamps(t *testing.T) {
 			got[i] = string(mn.MetricGroup)
 		}
 		slices.Sort(got)
-
+		slices.Sort(want)
 		if diff := cmp.Diff(want, got); diff != "" {
 			t.Fatalf("unexpected metric names (-want, +got):\n%s", diff)
 		}
 	}
+	assertLabelNames := func(t *testing.T, s *Storage, tr TimeRange, want []string) {
+		t.Helper()
+		got, err := s.SearchLabelNames(nil, nil, tr, 1e9, 1e9, noDeadline)
+		if err != nil {
+			t.Fatalf("SearchLabelNames() failed unexpectedly: %s", err)
+		}
+		slices.Sort(got)
+		slices.Sort(want)
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Fatalf("unexpected label names (-want, +got):\n%s", diff)
+		}
+	}
+	assertLabelValues := func(t *testing.T, s *Storage, tr TimeRange, want []string) {
+		t.Helper()
+		got, err := s.SearchLabelValues(nil, "label", nil, tr, 1e9, 1e9, noDeadline)
+		if err != nil {
+			t.Fatalf("SearchLabelValues() failed unexpectedly: %s", err)
+		}
+		slices.Sort(got)
+		slices.Sort(want)
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Fatalf("unexpected label values (-want, +got):\n%s", diff)
+		}
+	}
+	assertData := func(t *testing.T, s *Storage, tr TimeRange, want []MetricRow) {
+		t.Helper()
+		tfs := NewTagFilters()
+		if err := tfs.Add(nil, []byte(".*"), false, true); err != nil {
+			t.Fatalf("TagFilters.Add() failed unexpectedly: %v", err)
+		}
+		if err := testAssertSearchResult(s, tr, tfs, want); err != nil {
+			t.Fatalf("search failed unexpectedly: %v", err)
+		}
+	}
+	concatUniq := func(s1, s2 []string) []string {
+		var s []string
+		seen := make(map[string]bool)
+		for _, v := range slices.Concat(s1, s2) {
+			if !seen[v] {
+				s = append(s, v)
+				seen[v] = true
+			}
+		}
+		return s
+	}
 
-	assertMetricNames(s, wantMetricNames)
+	f := func(t *testing.T, tr TimeRange) {
+		t.Helper()
 
-	s.MustClose()
-	s = MustOpenStorage(t.Name(), OpenOptions{})
-	defer s.MustClose()
+		want := genData("batch1", tr)
 
-	assertMetricNames(s, wantMetricNames)
+		s := MustOpenStorage(t.Name(), OpenOptions{})
+		s.AddRows(want.mrs, defaultPrecisionBits)
+		s.DebugFlush()
+		assertMetricNames(t, s, tr, want.metricNames)
+		assertLabelNames(t, s, tr, want.labelNames)
+		assertLabelValues(t, s, tr, want.labelValues)
+		assertData(t, s, tr, want.mrs)
+
+		// Reopen storage and repeat the queries.
+		s.MustClose()
+		s = MustOpenStorage(t.Name(), OpenOptions{})
+		assertMetricNames(t, s, tr, want.metricNames)
+		assertLabelNames(t, s, tr, want.labelNames)
+		assertLabelValues(t, s, tr, want.labelValues)
+		assertData(t, s, tr, want.mrs)
+
+		// Inject more data, force background merge tasks, and repeat the
+		// queries.
+		want2 := genData("batch2", tr)
+		s.AddRows(want2.mrs, defaultPrecisionBits)
+		s.DebugFlush()
+		if err := s.ForceMergePartitions(""); err != nil {
+			t.Fatalf("ForceMergePartitions() failed unexpectedly: %s", err)
+		}
+		assertMetricNames(t, s, tr, slices.Concat(want.metricNames, want2.metricNames))
+		assertLabelNames(t, s, tr, concatUniq(want.labelNames, want2.labelNames))
+		assertLabelValues(t, s, tr, slices.Concat(want.labelValues, want2.labelValues))
+		assertData(t, s, tr, slices.Concat(want.mrs, want2.mrs))
+
+		s.MustClose()
+	}
+
+	t.Run("next-1h", func(t *testing.T) {
+		now := time.Now().UTC()
+		f(t, TimeRange{
+			MinTimestamp: time.Date(now.Year(), now.Month(), now.Day(), now.Hour()+1, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(now.Year(), now.Month(), now.Day(), now.Hour()+2, 0, 0, 0, time.UTC).UnixMilli() - 1,
+		})
+	})
+
+	t.Run("next-1d", func(t *testing.T) {
+		now := time.Now().UTC()
+		f(t, TimeRange{
+			MinTimestamp: time.Date(now.Year(), now.Month(), now.Day()+1, 1, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(now.Year(), now.Month(), now.Day()+2, 1, 0, 0, 0, time.UTC).UnixMilli() - 1,
+		})
+	})
+
+	t.Run("next-1m", func(t *testing.T) {
+		now := time.Now().UTC()
+		f(t, TimeRange{
+			MinTimestamp: time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(now.Year(), now.Month()+2, 1, 0, 0, 0, 0, time.UTC).UnixMilli() - 1,
+		})
+	})
+
+	t.Run("next-1y", func(t *testing.T) {
+		now := time.Now().UTC()
+		f(t, TimeRange{
+			MinTimestamp: time.Date(now.Year()+1, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(now.Year()+2, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli() - 1,
+		})
+	})
+
+	t.Run("next-10y", func(t *testing.T) {
+		now := time.Now().UTC()
+		f(t, TimeRange{
+			MinTimestamp: time.Date(now.Year()+1, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(now.Year()+11, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli() - 1,
+		})
+	})
+
+	t.Run("max", func(t *testing.T) {
+		maxTime := time.UnixMilli(maxUnixMilli).UTC()
+		f(t, TimeRange{
+			MinTimestamp: maxTime.Add(-24 * time.Hour).UnixMilli(),
+			MaxTimestamp: maxTime.UnixMilli(),
+		})
+	})
 }
