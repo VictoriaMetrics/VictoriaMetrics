@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): optimize the buffer size for each vmstorage node to reduce the chance of OOM when there are too many vmstorage nodes, and high CPU-memory ratio. The buffer size is now limited by CPU, memory, and the number of vmstorage nodes.
+
 ## [v1.139.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.139.0)
 
 Released at 2026-03-27

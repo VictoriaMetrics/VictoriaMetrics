@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/consistenthash"
@@ -601,7 +602,13 @@ func initStorageNodes(unsortedAddrs []string, rpcCall vminsertapi.RPCCall, hashS
 		sns = append(sns, sn)
 	}
 
-	maxBufSizePerStorageNode = min(memory.Allowed()/8/len(sns), consts.MaxInsertPacketSizeForVMInsert)
+	// calculate maxBufSizePerStorageNode for insertCtx by:
+	// 1. 50% total available memory.
+	// 2. divided by insertCtx in the channel (there could be up to AvailableCPUs objects in the channel)
+	// 3. each object could hold `len(sns)` buffers, because each buffer will be dedicated to a netstorage.
+	// 4. in range [1MB, 30MB], usually user won't reach the min border so it should be safe enough.
+	maxBufSizePerStorageNode = memory.Allowed() / 2 / cgroup.AvailableCPUs() / len(sns)
+	maxBufSizePerStorageNode = max(consts.MinInsertPacketSizeForVMInsert, min(consts.MaxInsertPacketSizeForVMInsert, maxBufSizePerStorageNode))
 
 	metrics.RegisterSet(ms)
 
