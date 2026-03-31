@@ -2458,6 +2458,42 @@ func testStorageOpOnVariousTimeRanges(t *testing.T, op func(t *testing.T, tr Tim
 			MaxTimestamp: time.Date(2000, 12, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 		})
 	})
+
+	t.Run("future-1h", func(t *testing.T) {
+		now := time.Now().UTC()
+		op(t, TimeRange{
+			MinTimestamp: time.Date(now.Year(), now.Month(), now.Day(), now.Hour()+1, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(now.Year(), now.Month(), now.Day(), now.Hour()+2, 0, 0, 0, time.UTC).UnixMilli() - 1,
+		})
+	})
+	t.Run("future-1d", func(t *testing.T) {
+		now := time.Now().UTC()
+		op(t, TimeRange{
+			MinTimestamp: time.Date(now.Year(), now.Month(), now.Day()+1, 1, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(now.Year(), now.Month(), now.Day()+2, 1, 0, 0, 0, time.UTC).UnixMilli() - 1,
+		})
+	})
+	t.Run("future-1m", func(t *testing.T) {
+		now := time.Now().UTC()
+		op(t, TimeRange{
+			MinTimestamp: time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(now.Year(), now.Month()+2, 1, 0, 0, 0, 0, time.UTC).UnixMilli() - 1,
+		})
+	})
+	t.Run("future-1y", func(t *testing.T) {
+		now := time.Now().UTC()
+		op(t, TimeRange{
+			MinTimestamp: time.Date(now.Year()+1, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(now.Year()+2, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli() - 1,
+		})
+	})
+	t.Run("future-limit", func(t *testing.T) {
+		maxTime := time.UnixMilli(maxUnixMilli).UTC()
+		op(t, TimeRange{
+			MinTimestamp: maxTime.Add(-24 * time.Hour).UnixMilli(),
+			MaxTimestamp: maxTime.UnixMilli(),
+		})
+	})
 }
 
 func TestStorageSearchLabelValues_EmptyValuesAreNotReturned(t *testing.T) {
@@ -4069,6 +4105,8 @@ func TestStorageMetrics_IndexDBBlockCaches(t *testing.T) {
 	assertMetrics(s)
 }
 
+// TestStorage_futureTimestamps checks that samples with future timestamps can
+// be ingested, searched, and deleted.
 func TestStorage_futureTimestamps(t *testing.T) {
 	defer testRemoveAll(t)
 
@@ -4165,6 +4203,16 @@ func TestStorage_futureTimestamps(t *testing.T) {
 			t.Fatalf("search failed unexpectedly: %v", err)
 		}
 	}
+	deleteAllSeries := func(t *testing.T, s *Storage) {
+		tfs := NewTagFilters()
+		if err := tfs.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
+			t.Fatalf("unexpected error in TagFilters.Add: %v", err)
+		}
+		if _, err := s.DeleteSeries(nil, []*TagFilters{tfs}, 1e9); err != nil {
+			t.Fatalf("DeleteSeries() failed unexpectedly: %s", err)
+		}
+	}
+
 	concatUniq := func(s1, s2 []string) []string {
 		var s []string
 		seen := make(map[string]bool)
@@ -4190,7 +4238,7 @@ func TestStorage_futureTimestamps(t *testing.T) {
 		assertLabelValues(t, s, tr, want.labelValues)
 		assertData(t, s, tr, want.mrs)
 
-		// Reopen storage and repeat the queries.
+		// Reopen storage.
 		s.MustClose()
 		s = MustOpenStorage(t.Name(), OpenOptions{})
 		assertMetricNames(t, s, tr, want.metricNames)
@@ -4198,8 +4246,7 @@ func TestStorage_futureTimestamps(t *testing.T) {
 		assertLabelValues(t, s, tr, want.labelValues)
 		assertData(t, s, tr, want.mrs)
 
-		// Inject more data, force background merge tasks, and repeat the
-		// queries.
+		// Inject more data and force background merge tasks.
 		want2 := genData("batch2", tr)
 		s.AddRows(want2.mrs, defaultPrecisionBits)
 		s.DebugFlush()
@@ -4211,10 +4258,17 @@ func TestStorage_futureTimestamps(t *testing.T) {
 		assertLabelValues(t, s, tr, slices.Concat(want.labelValues, want2.labelValues))
 		assertData(t, s, tr, slices.Concat(want.mrs, want2.mrs))
 
+		// Delete all series.
+		deleteAllSeries(t, s)
+		assertMetricNames(t, s, tr, []string{})
+		assertLabelNames(t, s, tr, []string{})
+		assertLabelValues(t, s, tr, []string{})
+		assertData(t, s, tr, nil)
+
 		s.MustClose()
 	}
 
-	t.Run("next-1h", func(t *testing.T) {
+	t.Run("future-1h", func(t *testing.T) {
 		now := time.Now().UTC()
 		f(t, TimeRange{
 			MinTimestamp: time.Date(now.Year(), now.Month(), now.Day(), now.Hour()+1, 0, 0, 0, time.UTC).UnixMilli(),
@@ -4222,7 +4276,7 @@ func TestStorage_futureTimestamps(t *testing.T) {
 		})
 	})
 
-	t.Run("next-1d", func(t *testing.T) {
+	t.Run("future-1d", func(t *testing.T) {
 		now := time.Now().UTC()
 		f(t, TimeRange{
 			MinTimestamp: time.Date(now.Year(), now.Month(), now.Day()+1, 1, 0, 0, 0, time.UTC).UnixMilli(),
@@ -4230,7 +4284,7 @@ func TestStorage_futureTimestamps(t *testing.T) {
 		})
 	})
 
-	t.Run("next-1m", func(t *testing.T) {
+	t.Run("future-1m", func(t *testing.T) {
 		now := time.Now().UTC()
 		f(t, TimeRange{
 			MinTimestamp: time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
@@ -4238,7 +4292,7 @@ func TestStorage_futureTimestamps(t *testing.T) {
 		})
 	})
 
-	t.Run("next-1y", func(t *testing.T) {
+	t.Run("future-1y", func(t *testing.T) {
 		now := time.Now().UTC()
 		f(t, TimeRange{
 			MinTimestamp: time.Date(now.Year()+1, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
@@ -4246,7 +4300,7 @@ func TestStorage_futureTimestamps(t *testing.T) {
 		})
 	})
 
-	t.Run("next-10y", func(t *testing.T) {
+	t.Run("future-10y", func(t *testing.T) {
 		now := time.Now().UTC()
 		f(t, TimeRange{
 			MinTimestamp: time.Date(now.Year()+1, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
@@ -4254,7 +4308,7 @@ func TestStorage_futureTimestamps(t *testing.T) {
 		})
 	})
 
-	t.Run("max", func(t *testing.T) {
+	t.Run("future-limit", func(t *testing.T) {
 		maxTime := time.UnixMilli(maxUnixMilli).UTC()
 		f(t, TimeRange{
 			MinTimestamp: maxTime.Add(-24 * time.Hour).UnixMilli(),
