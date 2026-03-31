@@ -16,6 +16,10 @@ aliases:
 
 Restore process can be interrupted at any time. It is automatically resumed when restarting `vmrestore` with the same args. If file preallocation is enabled{{% available_from "v1.139.0" %}}, it resumes from the last complete file, if file preallocation is disabled via `-skipFilePreallocation` then it resumes from the interruption point mid file.
 
+> If you'd prefer not to manage backups/restores at all, [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_vmbackup_intro)
+> handles backups and restores automatically without the need of extra configurations.
+> See the [VictoriaMetrics Cloud documentation](https://docs.victoriametrics.com/victoriametrics-cloud/) to get started.
+
 ## Usage
 
 VictoriaMetrics must be stopped during the restore process.
