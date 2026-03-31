@@ -825,66 +825,78 @@ func TestStorageNextDayMetricIDs_update(t *testing.T) {
 	})
 }
 
+// TestStorageLastPartitionMetrics checks that "last partition" metrics
+// correspond to the current partition and not some future partition.
 func TestStorageLastPartitionMetrics(t *testing.T) {
 	defer testRemoveAll(t)
+
+	addRows := func(t *testing.T, s *Storage, prefix string, tr TimeRange) {
+		t.Helper()
+		const numSeries = 1000
+		rng := rand.New(rand.NewSource(1))
+		mrs := testGenerateMetricRowsWithPrefix(rng, numSeries, prefix, tr)
+		want := s.newTimeseriesCreated.Load() + numSeries
+		s.AddRows(mrs, defaultPrecisionBits)
+		s.DebugFlush()
+		if got := s.newTimeseriesCreated.Load(); got != want {
+			t.Errorf("unexpected number of new timeseries: got %d, want %d", got, want)
+		}
+		// wait for merged parts to be attached to the table
+		time.Sleep(time.Minute)
+	}
+	assertLastPartitionEmpty := func(t *testing.T, s *Storage) {
+		t.Helper()
+		var m Metrics
+		s.UpdateMetrics(&m)
+		lpm := m.TableMetrics.LastPartition
+		if lpm.SmallPartsCount != 0 {
+			t.Fatalf("unexpected last partition SmallPartsCount: got %d, want 0", lpm.SmallPartsCount)
+		}
+		if lpm.IndexDBMetrics.FileBlocksCount != 0 {
+			t.Fatalf("unexpected last partition IndexDBMetrics.FileBlocksCount: got %d, want 0", lpm.IndexDBMetrics.FileBlocksCount)
+		}
+	}
+	assertLastPartitionNonEmpty := func(t *testing.T, s *Storage) {
+		t.Helper()
+		var m Metrics
+		s.UpdateMetrics(&m)
+		lpm := m.TableMetrics.LastPartition
+		if lpm.SmallPartsCount == 0 {
+			t.Fatalf("unexpected last partition SmallPartsCount: got 0, want > 0")
+		}
+		if lpm.IndexDBMetrics.FileBlocksCount == 0 {
+			t.Fatalf("unexpected last partition IndexDBMetrics.FileBlocksCount: got 0, want > 0")
+		}
+	}
+
 	synctest.Test(t, func(t *testing.T) {
 		// Advance current time to 2h before the next month, 2000-01-31T22:00:00Z.
 		time.Sleep(31*24*time.Hour - 2*time.Hour)
 		ct := time.Now().UTC()
 
+		// Open the storage, make sure current partition is empty.
 		s := MustOpenStorage(t.Name(), OpenOptions{})
 		defer s.MustClose()
+		assertLastPartitionEmpty(t, s)
 
-		assertLastPartitionEmpty := func() {
-			t.Helper()
-			var m Metrics
-			s.UpdateMetrics(&m)
-			lpm := m.TableMetrics.LastPartition
-			if lpm.SmallPartsCount != 0 {
-				t.Fatalf("unexpected last partition SmallPartsCount: got %d, want 0", lpm.SmallPartsCount)
-			}
-			if lpm.IndexDBMetrics.FileBlocksCount != 0 {
-				t.Fatalf("unexpected last partition IndexDBMetrics.FileBlocksCount: got %d, want 0", lpm.IndexDBMetrics.FileBlocksCount)
-			}
-		}
-		assertLastPartitionNonEmpty := func() {
-			t.Helper()
-			var m Metrics
-			s.UpdateMetrics(&m)
-			lpm := m.TableMetrics.LastPartition
-			if lpm.SmallPartsCount == 0 {
-				t.Fatalf("unexpected last partition SmallPartsCount: got 0, want > 0")
-			}
-			if lpm.IndexDBMetrics.FileBlocksCount == 0 {
-				t.Fatalf("unexpected last partition IndexDBMetrics.FileBlocksCount: got 0, want > 0")
-			}
-		}
+		// Insert rows with future timestamps. Current partition must be empty.
+		addRows(t, s, "future", TimeRange{
+			MinTimestamp: ct.Add(365 * 24 * time.Hour).UnixMilli(),
+			MaxTimestamp: ct.Add(366 * 24 * time.Hour).UnixMilli(),
+		})
+		assertLastPartitionEmpty(t, s)
 
-		// make sure last partition is empty before ingestion
-		assertLastPartitionEmpty()
+		// Insert rows with timestamps within current partition.
+		// Current partition must be not empty.
+		addRows(t, s, "current", TimeRange{
+			MinTimestamp: ct.UnixMilli(),
+			MaxTimestamp: ct.Add(time.Hour).UnixMilli(),
+		})
+		assertLastPartitionNonEmpty(t, s)
 
-		const numSeries = 1000
-
-		rng := rand.New(rand.NewSource(1))
-		tr := TimeRange{
-			MinTimestamp: ct.Add(-time.Hour).UnixMilli(),
-			MaxTimestamp: ct.UnixMilli(),
-		}
-		mrs := testGenerateMetricRowsWithPrefix(rng, numSeries, "metric.", tr)
-		s.AddRows(mrs, 1)
-		s.DebugFlush()
-		if got, want := s.newTimeseriesCreated.Load(), uint64(numSeries); got != want {
-			t.Errorf("unexpected number of new timeseries: got %d, want %d", got, want)
-		}
-		// wait for merged parts to be attached to the table
-		time.Sleep(time.Minute)
-
-		// last created partition is empty, but we're still at current month
-		assertLastPartitionNonEmpty()
 		// Advance current time to the the next month, 2000-02-01T00:30:00Z.
-		// last partition must be 2000-02 now
+		// last partition is now 2000-02 and it must be empty.
 		time.Sleep(2*time.Hour + time.Minute*30)
-		// current month partition has no data ingested
-		assertLastPartitionEmpty()
+		assertLastPartitionEmpty(t, s)
 	})
 }

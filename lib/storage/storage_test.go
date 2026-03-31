@@ -4246,7 +4246,7 @@ func TestStorage_futureTimestamps(t *testing.T) {
 		assertLabelValues(t, s, tr, want.labelValues)
 		assertData(t, s, tr, want.mrs)
 
-		// Inject more data and force background merge tasks.
+		// Insert more data and force background merge tasks.
 		want2 := genData("batch2", tr)
 		s.AddRows(want2.mrs, defaultPrecisionBits)
 		s.DebugFlush()
