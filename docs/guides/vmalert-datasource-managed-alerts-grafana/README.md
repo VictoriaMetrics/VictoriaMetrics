@@ -14,7 +14,7 @@ By moving rule evaluation to [vmalert](https://docs.victoriametrics.com/victoria
 ## Grafana Alert Modes
 
 Grafana supports two alert modes, which can run side by side:
-- Grafana-managed: alerts are created and evaluated entirely within Grafana itself. The alert state is stored in a SQL database by default, but [Grafana can be configured to store this data in a Prometheus-compatible database like VictoriaMetrics as well.](https://grafana.com/docs/grafana/latest/alerting/set-up/configure-alert-state-history/#configure-prometheus-for-alert-state-grafana_alerts-metric).
+- Grafana-managed: alerts are created and evaluated entirely within Grafana itself. The alert state is stored in a SQL database by default, but [Grafana can be configured to store this data in a Prometheus-compatible database like VictoriaMetrics as well](https://grafana.com/docs/grafana/latest/alerting/set-up/configure-alert-state-history/#configure-prometheus-for-alert-state-grafana_alerts-metric).
 - Datasource-managed: alerts have their rules defined, stored, and evaluated in an external system like vmalert and Alertmanager, with Grafana just providing the UI. State is stored in VictoriaMetrics.
 
 The following table compares the two modes:
@@ -44,7 +44,7 @@ The proposed alert setup relies on the following services:
 
 In this section, we'll describe how you can try datasource-managed alerts on Grafana with Docker Compose. Follow the steps in this section to see how the Grafana UI looks in datasource-managed alerts.
 
-First, create `alerts.yml`. The following configuration file creates an always-firing alert that works well in the Grafana UI demo:
+First, create `alerts.yml`. The following configuration file creates an always-firing alert, which you can use to test datasource-managed alerts in Grafana.
 
 ```yaml
 # alerts.yml
@@ -78,8 +78,6 @@ route:
 
 receivers:
   - name: "log"
-    webhook_configs:
-      - url: "http://example.com"  # placeholder; replace with a real webhook later
 ```
 
 Finally, create `grafana-datasources.yml` to configure Grafana to use VictoriaMetrics and Alertmanager as datasources for alerts and notifications:
@@ -99,7 +97,6 @@ datasources:
     type: alertmanager
     access: proxy
     url: http://alertmanager:9093
-    isDefault: true
     jsonData:
       implementation: prometheus
 ```
@@ -107,13 +104,12 @@ datasources:
 The final piece is the Docker Compose file. This ties all the services together and sets up the required command-line arguments:
 
 ```yaml
+# compose.yml
 services:
   victoriametrics:
-    image: victoriametrics/victoria-metrics:latest
-    container_name: victoriametrics
+    image: victoriametrics/victoria-metrics:v1.138.0
     command:
       - "--storageDataPath=/victoria-metrics-data"
-      - "--retentionPeriod=30d"
       - "--selfScrapeInterval=10s"
       # Proxy vmalert APIs so Grafana can see rules via VictoriaMetrics
       - "--vmalert.proxyURL=http://vmalert:8880"
@@ -123,19 +119,16 @@ services:
       - vm-data:/victoria-metrics-data
 
   alertmanager:
-    image: prom/alertmanager:latest
-    container_name: alertmanager
+    image: prom/alertmanager:v0.31.1
     command:
      - "--config.file=/etc/alertmanager/alertmanager.yml"
-     - "--web.external-url=http://localhost:3000/alerting/list"
     ports:
       - "9093:9093"
     volumes:
       - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
 
   vmalert:
-    image: victoriametrics/vmalert:latest
-    container_name: vmalert
+    image: victoriametrics/vmalert:v1.138.0
     depends_on:
       - victoriametrics
       - alertmanager
@@ -158,8 +151,7 @@ services:
       - ./alerts.yml:/etc/vmalert/alerts.yml:ro
 
   grafana:
-    image: grafana/grafana:latest
-    container_name: grafana
+    image: grafana/grafana:12.4
     depends_on:
       - victoriametrics
       - alertmanager
@@ -243,7 +235,7 @@ helm repo update
 
 ```
 
-Confirm that the VictoriaMetrics single-node version is installed (assuming the release name `vmsingle` from the guide above)
+Confirm that the VictoriaMetrics single-node version is installed (assuming the release name `vmsingle` from the [installation guide](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-single/))
 
 ```sh
 kubectl get pods -l app.kubernetes.io/instance=vmsingle
@@ -288,13 +280,11 @@ alertmanager:
       group_wait: 30s
       group_interval: 5m
       repeat_interval: 12h
-      receiver: "webhook"
+      receiver: "log"
 
     receivers:
-      - name: "webhook"
-        webhook_configs:
-          - url: "http://example.com"  # placeholder; replace with a real webhook later
-            send_resolved: true
+      - name: "log"
+        # place your default route here for notifications
 
 # Configure vmalert ("server" section in this chart)
 server:
@@ -414,7 +404,7 @@ helm repo add vm https://victoriametrics.github.io/helm-charts/
 helm repo update
 ```
 
-Confirm that the VictoriaMetrics cluster is installed (assuming the release name `vmcluster` from the guide above):
+Confirm that the VictoriaMetrics cluster is installed (assuming the release name `vmcluster` from the [installation guide](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster/)):
 
 ```sh
 kubectl get pods -l app.kubernetes.io/instance=vmcluster
@@ -470,13 +460,11 @@ alertmanager:
       group_wait: 30s
       group_interval: 5m
       repeat_interval: 12h
-      receiver: "webhook"
+      receiver: "log"
 
     receivers:
-      - name: "webhook"
-        webhook_configs:
-          - url: "http://example.com"  # placeholder; replace with a real webhook later
-            send_resolved: true
+      - name: "log"
+        # place your notification route here
 
 # Configure vmalert ("server" section in this chart)
 server:

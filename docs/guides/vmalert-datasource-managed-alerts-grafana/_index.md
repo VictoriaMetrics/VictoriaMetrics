@@ -1,6 +1,6 @@
 ---
 weight: 16
-title: Set up Datasource-Managed Alerts with vmalert and Grafana
+title: Datasource-Managed Alerts with vmalert and Grafana
 menu:
   docs:
     parent: "guides"
