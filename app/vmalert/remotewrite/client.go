@@ -13,8 +13,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cespare/xxhash/v2"
 	"github.com/golang/snappy"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -115,8 +117,10 @@ func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 		input:         make(chan prompb.TimeSeries, cfg.MaxQueueSize),
 	}
 
-	for range cc {
-		c.run(ctx)
+	for i := 0; i < cc; i++ {
+		c.wg.Go(func() {
+			c.run(ctx, i)
+		})
 	}
 	return c, nil
 }
@@ -158,8 +162,7 @@ func (c *Client) Close() error {
 	return nil
 }
 
-func (c *Client) run(ctx context.Context) {
-	ticker := time.NewTicker(c.flushInterval)
+func (c *Client) run(ctx context.Context, id int) {
 	wr := &prompb.WriteRequest{}
 	shutdown := func() {
 		lastCtx, cancel := context.WithTimeout(context.Background(), defaultWriteTimeout)
@@ -176,34 +179,53 @@ func (c *Client) run(ctx context.Context) {
 		cancel()
 	}
 
-	c.wg.Go(func() {
-		defer ticker.Stop()
-		for {
+	// add jitter to spread remote write flushes over the flush interval to avoid congestion at the remote write destination
+	h := xxhash.Sum64(bytesutil.ToUnsafeBytes(fmt.Sprintf("%d", id)))
+	randJitter := uint64(float64(c.flushInterval) * (float64(h) / (1 << 64)))
+	timer := time.NewTimer(time.Duration(randJitter))
+addJitter:
+	for {
+		select {
+		case <-c.doneCh:
+			timer.Stop()
+			shutdown()
+			return
+		case <-ctx.Done():
+			timer.Stop()
+			shutdown()
+			return
+		case <-timer.C:
+			break addJitter
+		}
+	}
+
+	ticker := time.NewTicker(c.flushInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-c.doneCh:
+			shutdown()
+			return
+		case <-ctx.Done():
+			shutdown()
+			return
+		case <-ticker.C:
+			c.flush(ctx, wr)
+			// drain the potential stale tick to avoid small or empty flushes after a slow flush.
 			select {
-			case <-c.doneCh:
-				shutdown()
-				return
-			case <-ctx.Done():
-				shutdown()
-				return
 			case <-ticker.C:
+			default:
+			}
+		case ts, ok := <-c.input:
+			if !ok {
+				continue
+			}
+			wr.Timeseries = append(wr.Timeseries, ts)
+			if len(wr.Timeseries) >= c.maxBatchSize {
 				c.flush(ctx, wr)
-				// drain the potential stale tick to avoid small or empty flushes after a slow flush.
-				select {
-				case <-ticker.C:
-				default:
-				}
-			case ts, ok := <-c.input:
-				if !ok {
-					continue
-				}
-				wr.Timeseries = append(wr.Timeseries, ts)
-				if len(wr.Timeseries) >= c.maxBatchSize {
-					c.flush(ctx, wr)
-				}
 			}
 		}
-	})
+	}
 }
 
 var (
