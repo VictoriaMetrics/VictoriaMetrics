@@ -48,7 +48,7 @@ Released at 2026-03-27
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): stop logging `error`-level messages when scraping targets that expose OpenMetrics `info`, `gaugehistogram`, `stateset`, or `unknown` metric types. These are valid [OpenMetrics](https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md) types and should be parsed without error. See [#10685](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10685). Thanks to @tsarna for the contribution.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): prevent panic during directory deletion on `NFS`-based mounts. The bug was introduced in [83da33d8](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/83da33d8cfe8352fd0022d05a8b6346ebb48420d) and included in [v1.123.0](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/changelog/CHANGELOG_2025.md#v11230). See [#9842](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9842).
 
-## [v1.138.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.138.0)
+## [v1.139.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.139.0)
 
 Released at 2026-03-13
 
