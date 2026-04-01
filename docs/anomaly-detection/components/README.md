@@ -169,7 +169,7 @@ schedulers:
   periodic:
     class: 'periodic'
     infer_every: "30s"
-    fit_every: "24h"
+    fit_every: "365d"
     fit_window: "24h"
 
 reader:
@@ -189,8 +189,9 @@ reader:
   
 models:
   zscore:
-    class: 'zscore'
+    class: 'zscore_online'
     z_threshold: 3.5
+    decay: 0.99  # gives more weight to recent data points, value should be in (0, 1], 1 means to give equal weight to all data
     provide_series: ['anomaly_score']
     # if queries are not specified, all queries from reader will be used
     # if schedulers are not specified, all schedulers will be used
@@ -220,8 +221,8 @@ reader:
 
 After saving the changes, hot reload will automatically detect the changes in `config.yaml` and attempt to reload the configuration. As the changes are valid, the service will log a success message and increment the `vmanomaly_hot_reload_events_total` metric with `status="success"` label:
 
-- All the model instances of class `zscore`, that were trained on `host_network_receive_errors` can be reused as they are still valid and "fresh" for making inference on new datapoints until the next `fit_every` happens (10m - 5m).
-- All the model instances of class `zscore`, that were trained on `cpu_seconds_total` will be re-trained with the new query expression and frequency, as old model instances are not valid anymore.
+- All the model instances of class `zscore_online`, that were trained on `host_network_receive_errors` can be reused as they are still valid and "fresh" for making inference on new datapoints until the next `fit_every` happens.
+- All the model instances of class `zscore_online`, that were trained on `cpu_seconds_total` will be re-trained with the new query expression and frequency, as old model instances are not valid anymore.
 
 
 ## Environment variables

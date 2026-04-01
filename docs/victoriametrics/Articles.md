@@ -107,6 +107,10 @@ See also [case studies](https://docs.victoriametrics.com/victoriametrics/casestu
 * [Backing up VictoriaMetrics Data: A Complete Guide](https://medium.com/@kanakaraju896/backing-up-victoriametrics-data-a-complete-guide-24473c74450f)
 * [Unlocking the Power of VictoriaMetrics: A Prometheus Alternative](https://developer-friendly.blog/blog/2024/06/17/unlocking-the-power-of-victoriametrics-a-prometheus-alternative/)
 * [How to Master Kubernetes Observability: Multi-Cluster Monitoring with VictoriaMetrics, Loki, and Grafana](https://www.keyvalue.systems/blog/kubernetes-observability-with-victoriametrics-loki-grafana/)
+* [A Complete Guide to VictoriaMetrics, a Prometheus Comparison, and Kubernetes Monitoring Implementation](https://apprecode.com/blog/a-complete-guide-to-victoriametrics-a-prometheus-comparison-and-kubernetes-monitoring-implementation)
+* [Monitoring Pipeline with Prometheus and VictoriaMetrics](https://clovisc.medium.com/monitoring-pipeline-with-blackbox-exporter-prometheus-victoriametrics-and-vmalert-0ab020c7202a)
+* [FreeBSD: monitoring with VictoriaMetrics and Grafana](https://setevoy.medium.com/freebsd-monitoring-with-victoriametrics-and-grafana-f789904f2628)
+* [QCon London 2026: Wrangling Telemetry at Scale, a Guide to Self-Hosted Observability](https://www.infoq.com/news/2026/03/self-hosted-observability/)
 
 ## Third-party articles and slides about VictoriaLogs
 
