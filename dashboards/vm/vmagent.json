@@ -7670,8 +7670,8 @@
           "targets": [
             {
               "datasource": {
-                "type": "prometheus",
-                "uid": "${ds}"
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
               },
               "editorMode": "code",
               "expr": "sum(rate(vmagent_remotewrite_kafka_sent_bytes_total{job=~\"$job\"}[$__rate_interval]))",
@@ -7681,8 +7681,8 @@
             },
             {
               "datasource": {
-                "type": "prometheus",
-                "uid": "${ds}"
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
               },
               "editorMode": "code",
               "expr": "-sum(rate(vmagent_kafka_consumer_read_bytes_total{job=~\"$job\"}[$__rate_interval]))",
@@ -7792,8 +7792,8 @@
           "targets": [
             {
               "datasource": {
-                "type": "prometheus",
-                "uid": "${ds}"
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
               },
               "editorMode": "code",
               "expr": "sum(rate(vmagent_remotewrite_kafka_messages_sent_total{job=~\"$job\"}[$__rate_interval]))",
@@ -7803,8 +7803,8 @@
             },
             {
               "datasource": {
-                "type": "prometheus",
-                "uid": "${ds}"
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
               },
               "editorMode": "code",
               "expr": "-sum(rate(vmagent_kafka_messages_read_total{job=~\"$job\"}[$__rate_interval]))",
@@ -7919,8 +7919,8 @@
           "targets": [
             {
               "datasource": {
-                "type": "prometheus",
-                "uid": "${ds}"
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
               },
               "editorMode": "code",
               "expr": "sum(rate(vmagent_remotewrite_kafka_messages_send_errors_total{job=~\"$job\"}[$__rate_interval]))",
@@ -7930,8 +7930,8 @@
             },
             {
               "datasource": {
-                "type": "prometheus",
-                "uid": "${ds}"
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
               },
               "editorMode": "code",
               "expr": "sum(rate(vmagent_remotewrite_kafka_messages_delivery_errors_total{job=~\"$job\"}[$__rate_interval]))",
@@ -7941,8 +7941,8 @@
             },
             {
               "datasource": {
-                "type": "prometheus",
-                "uid": "${ds}"
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
               },
               "editorMode": "code",
               "expr": "sum(rate(vmagent_kafka_client_errors_total{job=~\"$job\"}[$__rate_interval]))",
@@ -7952,8 +7952,8 @@
             },
             {
               "datasource": {
-                "type": "prometheus",
-                "uid": "${ds}"
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
               },
               "editorMode": "code",
               "expr": "sum(rate(vmagent_kafka_ingest_errors_total{job=~\"$job\"}[$__rate_interval]))",
