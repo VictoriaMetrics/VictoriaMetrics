@@ -2723,14 +2723,8 @@ func (s *Storage) wasMetricIDMissingBefore(metricID uint64) bool {
 	return ct > deleteDeadline
 }
 
-// MetricNamesStatsResponse contains metric names usage stats API response
-type MetricNamesStatsResponse = metricnamestats.StatsResult
-
-// MetricNamesStatsRecord represents record at MetricNamesStatsResponse
-type MetricNamesStatsRecord = metricnamestats.StatRecord
-
 // GetMetricNamesStats returns metric names usage stats with give limit and lte predicate
-func (s *Storage) GetMetricNamesStats(_ *querytracer.Tracer, tt *TenantToken, limit, le int, matchPattern string) MetricNamesStatsResponse {
+func (s *Storage) GetMetricNamesStats(_ *querytracer.Tracer, tt *TenantToken, limit, le int, matchPattern string) metricnamestats.StatsResult {
 	if tt != nil {
 		return s.metricsTracker.GetStatsForTenant(tt.AccountID, tt.ProjectID, limit, le, matchPattern)
 	}
