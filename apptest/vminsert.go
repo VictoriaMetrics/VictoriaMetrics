@@ -57,7 +57,7 @@ func StartVminsert(instance string, flags []string, cli *Client, output io.Write
 		extractREs = append(extractREs, regexp.MustCompile(logRecord))
 	}
 
-	app, stderrExtracts, err := startApp(instance, "../../bin/vminsert", flags, &appOptions{
+	app, stderrExtracts, err := startApp(instance, "../../bin/vminsert-race", flags, &appOptions{
 		defaultFlags: map[string]string{
 			"-httpListenAddr":                              "127.0.0.1:0",
 			"-clusternativeListenAddr":                     "127.0.0.1:0",
