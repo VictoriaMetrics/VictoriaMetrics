@@ -306,6 +306,17 @@ See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/ch
 
 See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2025/#v11230)
 
+## [v1.122.18](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.18)
+
+Released at 2026-03-27
+
+**v1.122.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.122.x line will be supported for at least 12 months since [v1.122.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11220) release**
+
+* BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): retry RPC by dialing a new connection instead of reusing a pooled one when the previous attempt fails with `io.EOF`, `broken pipe` or `reset by peer`. This reduces query failures caused by stale connections to restarted vmstorage nodes. See [#10314](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10314)
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): enforce `datasource_type=prometheus` when [proxying](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#vmalert) Grafana requests to [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/). Grafana supports only `prometheus` and `loki` alerts. Without this fix, Grafana shows `Error loading alerts` when non-Prometheus alert types are returned. See [victoriametrics-datasource#329](https://github.com/VictoriaMetrics/victoriametrics-datasource/issues/329).
+
 ## [v1.122.17](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.17)
 
 Released at 2026-03-13
