@@ -7,32 +7,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
-func TestHeaderColumnName(t *testing.T) {
-	f := func(fieldName, expected string) {
-		t.Helper()
-		got := headerColumnName(fieldName)
-		if got != expected {
-			t.Fatalf("headerColumnName(%q): got %q; want %q", fieldName, got, expected)
-		}
-	}
-
-	f("__value__", "value")
-	f("__timestamp__", "timestamp")
-	f("__timestamp__:unix_s", "timestamp")
-	f("__timestamp__:unix_ms", "timestamp")
-	f("__timestamp__:unix_ns", "timestamp")
-	f("__timestamp__:rfc3339", "timestamp")
-	f("__timestamp__:custom:2006-01-02", "timestamp")
-	f("__timestamp__:custom:15:04:05", "timestamp")
-
-	// label names pass through
-	f("__name__", "__name__")
-	f("job", "job")
-	f("instance", "instance")
-	f("le", "le")
-	f("quantile", "quantile")
-}
-
 func TestExportCSVHeader(t *testing.T) {
 	f := func(fieldNames []string, expected string) {
 		t.Helper()
@@ -45,31 +19,24 @@ func TestExportCSVHeader(t *testing.T) {
 	f(nil, "")
 	f([]string{}, "")
 
-	f([]string{"__value__"}, "value\n")
-	f([]string{"__timestamp__"}, "timestamp\n")
-	f([]string{"__timestamp__:rfc3339"}, "timestamp\n")
+	f([]string{"__value__"}, "__value__\n")
+	f([]string{"__timestamp__"}, "__timestamp__\n")
+	f([]string{"__timestamp__:rfc3339"}, "__timestamp__:rfc3339\n")
 	f([]string{"__name__"}, "__name__\n")
 	f([]string{"job"}, "job\n")
 
-	f([]string{"__timestamp__:rfc3339", "__value__"}, "timestamp,value\n")
-	f([]string{"__value__", "__timestamp__"}, "value,timestamp\n")
+	f([]string{"__timestamp__:rfc3339", "__value__"}, "__timestamp__:rfc3339,__value__\n")
+	f([]string{"__value__", "__timestamp__"}, "__value__,__timestamp__\n")
 	f([]string{"job", "instance"}, "job,instance\n")
 
-	f([]string{"__name__", "__value__", "__timestamp__:unix_s"}, "__name__,value,timestamp\n")
-	f([]string{"job", "instance", "__value__", "__timestamp__:unix_ms"}, "job,instance,value,timestamp\n")
+	f([]string{"__name__", "__value__", "__timestamp__:unix_s"}, "__name__,__value__,__timestamp__:unix_s\n")
+	f([]string{"job", "instance", "__value__", "__timestamp__:unix_ms"}, "job,instance,__value__,__timestamp__:unix_ms\n")
 	f([]string{"__timestamp__:custom:2006-01-02", "__value__", "host", "dc", "env"},
-		"timestamp,value,host,dc,env\n")
-
-	// all timestamp formats produce the same header
-	f([]string{"__timestamp__:unix_s", "__value__"}, "timestamp,value\n")
-	f([]string{"__timestamp__:unix_ms", "__value__"}, "timestamp,value\n")
-	f([]string{"__timestamp__:unix_ns", "__value__"}, "timestamp,value\n")
-	f([]string{"__timestamp__:rfc3339", "__value__"}, "timestamp,value\n")
-	f([]string{"__timestamp__:custom:Mon Jan 2", "__value__"}, "timestamp,value\n")
+		"__timestamp__:custom:2006-01-02,__value__,host,dc,env\n")
 
 	// duplicate fields
-	f([]string{"__value__", "__value__"}, "value,value\n")
-	f([]string{"__timestamp__", "__timestamp__:rfc3339"}, "timestamp,timestamp\n")
+	f([]string{"__value__", "__value__"}, "__value__,__value__\n")
+	f([]string{"__timestamp__", "__timestamp__:rfc3339"}, "__timestamp__,__timestamp__:rfc3339\n")
 }
 
 func TestExportCSVLine(t *testing.T) {
