@@ -88,11 +88,9 @@ func TestClusterMultilevelPartialResponse(t *testing.T) {
 	vmstorage := tc.MustStartVmstorage("vmstorage", []string{
 		"-storageDataPath=" + tc.Dir() + "/vmstorage",
 	})
-	// regional-vmselect1 can return full responses.
 	regionalVmselect1 := tc.MustStartVmselect("regional-vmselect1", []string{
 		"-storageNode=" + vmstorage.VmselectAddr(),
 	})
-	// regional-vmselect1 can not return full responses.
 	regionalVmselect2 := tc.MustStartVmselect("regional-vmselect2", []string{
 		"-storageNode=" + vmstorage.VmselectAddr() + ",192.0.2.1:1111",
 	})
@@ -102,7 +100,7 @@ func TestClusterMultilevelPartialResponse(t *testing.T) {
 
 	want := &apptest.PrometheusAPIV1QueryResponse{
 		Status:    "success",
-		IsPartial: true,
+		IsPartial: false,
 		Data:      &apptest.QueryData{ResultType: "vector", Result: []*apptest.QueryResult{}},
 	}
 	want.Sort()
@@ -119,6 +117,13 @@ func TestClusterMultilevelPartialResponse(t *testing.T) {
 			Want: want,
 		})
 	}
+
+	// regional-vmselect1 should return full response.
+	assertSeries(regionalVmselect1)
+
+	want.IsPartial = true
+	// regional-vmselect2 should return partial response.
 	assertSeries(regionalVmselect2)
+	// global-vmselect should return partial response.
 	assertSeries(globalVmselect)
 }
