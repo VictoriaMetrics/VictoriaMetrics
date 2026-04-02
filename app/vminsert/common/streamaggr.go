@@ -55,7 +55,7 @@ var (
 	deduplicator *streamaggr.Deduplicator
 )
 
-// CheckStreamAggrConfig checks config pointed by -stramaggr.config
+// CheckStreamAggrConfig checks config pointed by -streamaggr.config
 func CheckStreamAggrConfig() error {
 	if *streamAggrConfig == "" {
 		return nil
@@ -111,9 +111,7 @@ func InitStreamAggr() {
 	saCfgTimestamp.Set(fasttime.UnixTimestamp())
 
 	// Start config reloader.
-	saCfgReloaderWG.Add(1)
-	go func() {
-		defer saCfgReloaderWG.Done()
+	saCfgReloaderWG.Go(func() {
 		for {
 			select {
 			case <-sighupCh:
@@ -122,7 +120,7 @@ func InitStreamAggr() {
 			}
 			reloadStreamAggrConfig()
 		}
-	}()
+	})
 }
 
 func reloadStreamAggrConfig() {

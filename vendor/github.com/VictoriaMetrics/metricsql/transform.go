@@ -35,6 +35,7 @@ var transformFuncs = map[string]bool{
 	"exp":                        true,
 	"floor":                      true,
 	"histogram_avg":              true,
+	"histogram_fraction":         true,
 	"histogram_quantile":         true,
 	"histogram_quantiles":        true,
 	"histogram_share":            true,

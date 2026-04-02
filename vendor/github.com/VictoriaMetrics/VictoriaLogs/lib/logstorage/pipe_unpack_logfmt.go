@@ -63,6 +63,10 @@ func (pu *pipeUnpackLogfmt) canReturnLastNResults() bool {
 	return true
 }
 
+func (pu *pipeUnpackLogfmt) isFixedOutputFieldsOrder() bool {
+	return false
+}
+
 func (pu *pipeUnpackLogfmt) updateNeededFields(pf *prefixfilter.Filter) {
 	updateNeededFieldsForUnpackPipe(pu.fromField, pu.resultPrefix, pu.fieldFilters, pu.keepOriginalFields, pu.skipEmptyResults, pu.iff, pf)
 }

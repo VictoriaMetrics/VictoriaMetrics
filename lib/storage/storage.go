@@ -3,6 +3,7 @@ package storage
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"path/filepath"
@@ -652,10 +653,7 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 
 	hmCurr := s.currHourMetricIDs.Load()
 	hmPrev := s.prevHourMetricIDs.Load()
-	hourMetricIDsLen := hmPrev.m.Len()
-	if hmCurr.m.Len() > hourMetricIDsLen {
-		hourMetricIDsLen = hmCurr.m.Len()
-	}
+	hourMetricIDsLen := max(hmCurr.m.Len(), hmPrev.m.Len())
 	m.HourMetricIDCacheSize += uint64(hourMetricIDsLen)
 	m.HourMetricIDCacheSizeBytes += hmCurr.m.SizeBytes()
 	m.HourMetricIDCacheSizeBytes += hmPrev.m.SizeBytes()
@@ -676,10 +674,7 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.MetadataStorageCurrentSizeBytes = mr.CurrentSizeBytes
 	m.MetadataStorageMaxSizeBytes = mr.MaxSizeBytes
 
-	d := s.legacyNextRetentionSeconds()
-	if d < 0 {
-		d = 0
-	}
+	d := max(s.legacyNextRetentionSeconds(), 0)
 	m.NextRetentionSeconds = uint64(d)
 
 	s.tb.UpdateMetrics(&m.TableMetrics)
@@ -747,9 +742,7 @@ func (s *Storage) startFreeDiskSpaceWatcher() {
 		}
 	}
 	f()
-	s.freeDiskSpaceWatcherWG.Add(1)
-	go func() {
-		defer s.freeDiskSpaceWatcherWG.Done()
+	s.freeDiskSpaceWatcherWG.Go(func() {
 		d := timeutil.AddJitterToDuration(time.Second)
 		ticker := time.NewTicker(d)
 		defer ticker.Stop()
@@ -761,7 +754,7 @@ func (s *Storage) startFreeDiskSpaceWatcher() {
 				f()
 			}
 		}
-	}()
+	})
 }
 
 func (s *Storage) notifyReadWriteMode() {
@@ -770,19 +763,11 @@ func (s *Storage) notifyReadWriteMode() {
 }
 
 func (s *Storage) startCurrHourMetricIDsUpdater() {
-	s.currHourMetricIDsUpdaterWG.Add(1)
-	go func() {
-		s.currHourMetricIDsUpdater()
-		s.currHourMetricIDsUpdaterWG.Done()
-	}()
+	s.currHourMetricIDsUpdaterWG.Go(s.currHourMetricIDsUpdater)
 }
 
 func (s *Storage) startNextDayMetricIDsUpdater() {
-	s.nextDayMetricIDsUpdaterWG.Add(1)
-	go func() {
-		s.nextDayMetricIDsUpdater()
-		s.nextDayMetricIDsUpdaterWG.Done()
-	}()
+	s.nextDayMetricIDsUpdaterWG.Go(s.nextDayMetricIDsUpdater)
 }
 
 func (s *Storage) currHourMetricIDsUpdater() {
@@ -908,7 +893,7 @@ func (s *Storage) mustLoadNextDayMetricIDs(date uint64) *nextDayMetricIDs {
 	}
 
 	// Unmarshal uint64set
-	m, tail, err := unmarshalUint64Set(src)
+	m, tail, err := uint64set.Unmarshal(src)
 	if err != nil {
 		logger.Infof("discarding %s because cannot load uint64set: %s", path, err)
 		return e
@@ -948,7 +933,7 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 	}
 
 	// Unmarshal uint64set
-	m, tail, err := unmarshalUint64Set(src)
+	m, tail, err := uint64set.Unmarshal(src)
 	if err != nil {
 		logger.Infof("discarding %s because cannot load uint64set: %s", path, err)
 		return hm
@@ -969,7 +954,7 @@ func (s *Storage) mustSaveNextDayMetricIDs(e *nextDayMetricIDs) {
 	dst = encoding.MarshalUint64(dst, e.date)
 
 	// Marshal metricIDs
-	dst = marshalUint64Set(dst, &e.metricIDs)
+	dst = e.metricIDs.Marshal(dst)
 
 	fs.MustWriteSync(path, dst)
 }
@@ -982,35 +967,9 @@ func (s *Storage) mustSaveHourMetricIDs(hm *hourMetricIDs, name string) {
 	dst = encoding.MarshalUint64(dst, hm.hour)
 
 	// Marshal hm.m
-	dst = marshalUint64Set(dst, hm.m)
+	dst = hm.m.Marshal(dst)
 
 	fs.MustWriteSync(path, dst)
-}
-
-func unmarshalUint64Set(src []byte) (*uint64set.Set, []byte, error) {
-	mLen := encoding.UnmarshalUint64(src)
-	src = src[8:]
-	if uint64(len(src)) < 8*mLen {
-		return nil, nil, fmt.Errorf("cannot unmarshal uint64set; got %d bytes; want at least %d bytes", len(src), 8*mLen)
-	}
-	m := &uint64set.Set{}
-	for i := uint64(0); i < mLen; i++ {
-		metricID := encoding.UnmarshalUint64(src)
-		src = src[8:]
-		m.Add(metricID)
-	}
-	return m, src, nil
-}
-
-func marshalUint64Set(dst []byte, m *uint64set.Set) []byte {
-	dst = encoding.MarshalUint64(dst, uint64(m.Len()))
-	m.ForEach(func(part []uint64) bool {
-		for _, metricID := range part {
-			dst = encoding.MarshalUint64(dst, metricID)
-		}
-		return true
-	})
-	return dst
 }
 
 func mustGetMinTimestampForCompositeIndex(metadataDir string, isEmptyDB bool) int64 {
@@ -1063,16 +1022,65 @@ func (s *Storage) mustSaveCache(c *workingsetcache.Cache, name string) {
 // saveCacheLock prevents from data races when multiple concurrent goroutines save the same cache.
 var saveCacheLock sync.Mutex
 
-func (s *Storage) getMetricNameFromCache(dst []byte, metricID uint64) []byte {
+func (s *Storage) getTSIDByMetricIDFromCache(dst *TSID, metricID uint64) error {
+	// There is no need in checking for deleted metricIDs here, since they
+	// must be checked by the caller.
+	buf := (*[unsafe.Sizeof(*dst)]byte)(unsafe.Pointer(dst))
+	key := (*[unsafe.Sizeof(metricID)]byte)(unsafe.Pointer(&metricID))
+	tmp := s.metricIDCache.Get(buf[:0], key[:])
+	if len(tmp) == 0 {
+		// The TSID for the given metricID wasn't found in the cache.
+		return io.EOF
+	}
+	if &tmp[0] != &buf[0] || len(tmp) != len(buf) {
+		return fmt.Errorf("corrupted MetricID->TSID cache: unexpected size for metricID=%d value; got %d bytes; want %d bytes", metricID, len(tmp), len(buf))
+	}
+	return nil
+}
+
+func (s *Storage) putTSIDByMetricIDToCache(metricID uint64, tsid *TSID) {
+	buf := (*[unsafe.Sizeof(*tsid)]byte)(unsafe.Pointer(tsid))
+	key := (*[unsafe.Sizeof(metricID)]byte)(unsafe.Pointer(&metricID))
+	s.metricIDCache.Set(key[:], buf[:])
+}
+
+func (s *Storage) getMetricNameByMetricIDFromCache(dst []byte, metricID uint64) []byte {
 	// There is no need in checking for deleted metricIDs here, since they
 	// must be checked by the caller.
 	key := (*[unsafe.Sizeof(metricID)]byte)(unsafe.Pointer(&metricID))
 	return s.metricNameCache.Get(dst, key[:])
 }
 
-func (s *Storage) putMetricNameToCache(metricID uint64, metricName []byte) {
+func (s *Storage) putMetricNameByMetricIDToCache(metricID uint64, metricName []byte) {
 	key := (*[unsafe.Sizeof(metricID)]byte)(unsafe.Pointer(&metricID))
 	s.metricNameCache.Set(key[:], metricName)
+}
+
+type indexDBType int
+
+const (
+	indexDBTypePt indexDBType = iota
+	indexDBTypeLegacyPrev
+	indexDBTypeLegacyCurr
+)
+
+func (t indexDBType) String() string {
+	return [...]string{"pt", "legacy_prev", "legacy_curr"}[t]
+}
+
+// indexDBWithType holds together the indexDB and its type.
+//
+// This type is used in searchAndMerge() to organize the code so that golang
+// profiles (cpu, mem, etc) could distinguish between searching pt-index, legacy
+// prev, and legacy curr indexDBs. Such profiles should significantly simplify
+// debugging index search performance issues.
+type indexDBWithType struct {
+	idb *indexDB
+	t   indexDBType
+}
+
+func (idbt indexDBWithType) String() string {
+	return fmt.Sprintf("%s (%s)", idbt.idb.name, idbt.t)
 }
 
 // searchAndMerge concurrently performs a search operation on all partition
@@ -1086,46 +1094,58 @@ func searchAndMerge[T any](qt *querytracer.Tracer, s *Storage, tr TimeRange, sea
 	qt = qt.NewChild("search indexDBs: timeRange=%v", &tr)
 	defer qt.Done()
 
-	var idbs []*indexDB
+	var idbts []indexDBWithType
 
 	ptws := s.tb.GetPartitions(tr)
 	defer s.tb.PutPartitions(ptws)
 	for _, ptw := range ptws {
-		idbs = append(idbs, ptw.pt.idb)
+		idbt := indexDBWithType{
+			idb: ptw.pt.idb,
+			t:   indexDBTypePt,
+		}
+		idbts = append(idbts, idbt)
 	}
 
 	legacyIDBs := s.getLegacyIndexDBs()
 	defer s.putLegacyIndexDBs(legacyIDBs)
-	idbs = legacyIDBs.appendTo(idbs)
+	idbts = legacyIDBs.appendTo(idbts)
 
-	if len(idbs) == 0 {
+	if len(idbts) == 0 {
 		qt.Printf("no indexDBs found")
 		var zeroValue T
 		return zeroValue, nil
 	}
 
-	data := make([]T, len(idbs))
-	errs := make([]error, len(idbs))
+	data := make([]T, len(idbts))
+	errs := make([]error, len(idbts))
 
-	if len(idbs) == 1 {
+	if len(idbts) == 1 {
 		// It is faster to process one indexDB without spawning goroutines.
-		idb := idbs[0]
-		searchTR := s.adjustTimeRange(tr, idb.tr)
-		qtChild := qt.NewChild("search indexDB %s: timeRange=%v", idb.name, &searchTR)
-		data[0], errs[0] = search(qtChild, idb, searchTR)
+		idbt := idbts[0]
+		searchTR := s.adjustTimeRange(tr, idbt.idb.tr)
+		qtChild := qt.NewChild("search indexDB %s: timeRange=%v", idbt, &searchTR)
+		data[0], errs[0] = search(qtChild, idbt.idb, searchTR)
 		qtChild.Done()
 	} else {
-		qtSearch := qt.NewChild("search %d indexDBs in parallel", len(idbs))
+		qtSearch := qt.NewChild("search %d indexDBs in parallel", len(idbts))
 		var wg sync.WaitGroup
-		for i, idb := range idbs {
-			searchTR := s.adjustTimeRange(tr, idb.tr)
-			qtChild := qtSearch.NewChild("search indexDB %s: timeRange=%v", idb.name, &searchTR)
-			wg.Add(1)
-			go func(qt *querytracer.Tracer, i int, idb *indexDB, tr TimeRange) {
-				defer wg.Done()
-				defer qt.Done()
-				data[i], errs[i] = search(qt, idb, tr)
-			}(qtChild, i, idb, searchTR)
+		for i, idbt := range idbts {
+			searchTR := s.adjustTimeRange(tr, idbt.idb.tr)
+			qtChild := qtSearch.NewChild("search indexDB %s: timeRange=%v", idbt, &searchTR)
+			wg.Go(func() {
+				// Intentionally repeat the same search code for each indexDB
+				// type so that profiles (cpu, mem, etc) could show how many
+				// resources have been consumed by each indexDB type.
+				switch idbt.t {
+				case indexDBTypePt:
+					data[i], errs[i] = search(qtChild, idbt.idb, searchTR)
+				case indexDBTypeLegacyPrev:
+					data[i], errs[i] = search(qtChild, idbt.idb, searchTR)
+				case indexDBTypeLegacyCurr:
+					data[i], errs[i] = search(qtChild, idbt.idb, searchTR)
+				}
+				qtChild.Done()
+			})
 		}
 		wg.Wait()
 		qtSearch.Done()
@@ -1459,28 +1479,58 @@ func (s *Storage) GetSeriesCount(deadline uint64) (uint64, error) {
 // indexDB and legacy indexDB statuses is non-trivial and not many users use
 // this status for historical data.
 func (s *Storage) GetTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
+	qt = qt.NewChild("collect TSDB status: filters=%s, date=%s, focusLabel=%q, topN=%d, maxMetrics=%d", tfss, dateToString(date), focusLabel, topN, maxMetrics)
+	defer qt.Done()
+
 	timestamp := int64(date) * msecPerDay
 	ptw := s.tb.GetPartition(timestamp)
 	if ptw == nil {
+		// If no partition is found for the given date, then both partition and
+		// legacy index do not have status for that date, therefore returning
+		// early.
+		qt.Printf("%s is outside the database retention period", dateToString(date))
 		return &TSDBStatus{}, nil
 	}
 	defer s.tb.PutPartition(ptw)
 
 	if s.disablePerDayIndex {
+		// Use special date to instruct indexDB to search global index since
+		// per-day index is disabled.
 		date = globalIndexDate
 	}
 
-	res, err := ptw.pt.idb.GetTSDBStatus(qt, tfss, date, focusLabel, topN, maxMetrics, deadline)
+	var (
+		res *TSDBStatus
+		err error
+	)
+	idbName := ptw.pt.idb.name
+	qt.Printf("collect TSDB status in indexDB %s", idbName)
+	res, err = ptw.pt.idb.GetTSDBStatus(qt, tfss, date, focusLabel, topN, maxMetrics, deadline)
 	if err != nil {
 		return nil, err
 	}
+	if res.hasEntries() {
+		qt.Printf("collected TSDB status in indexDB %s", idbName)
+	} else {
+		qt.Printf("TSDB status was not found in indexDB %s", idbName)
+		// fallback to the legacy indexDBs search
+		// since after migration monthly partition may not have stats for time range covered
+		// by partition index.
+		res, err = s.legacyGetTSDBStatus(qt, tfss, date, focusLabel, topN, maxMetrics, deadline)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	if s.metricsTracker != nil && len(res.SeriesCountByMetricName) > 0 {
 		// for performance reason always check if metricsTracker is configured
+		qt.Printf("update TSDB status with metric name usage stats")
 		names := make([]string, len(res.SeriesCountByMetricName))
 		for idx, mns := range res.SeriesCountByMetricName {
 			names[idx] = mns.Name
 		}
 		res.SeriesQueryStatsByMetricName = s.metricsTracker.GetStatRecordsForNames(0, 0, names)
+		qt.Printf("updated TSDB status with usage stats for %d metric names", len(names))
 	}
 	return res, nil
 }
@@ -1698,7 +1748,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 			deletedMetricIDs = idb.getDeletedMetricIDs()
 		}
 
-		if s.getTSIDFromCache(&lTSID, mr.MetricNameRaw) && !deletedMetricIDs.Has(lTSID.TSID.MetricID) {
+		if s.getTSIDByMetricNameFromCache(&lTSID, mr.MetricNameRaw) && !deletedMetricIDs.Has(lTSID.TSID.MetricID) {
 			// Fast path - the TSID for the given mr.MetricNameRaw has been
 			// found in cache and isn't deleted. If the TSID is deleted, we
 			// re-register time series. Eventually, the deleted TSID will be
@@ -1749,14 +1799,14 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 
 		if is.getTSIDByMetricName(&lTSID.TSID, metricNameBuf, date) {
 			// Slower path - the TSID has been found in indexdb.
-			s.storeTSIDToCache(&lTSID, mr.MetricNameRaw)
+			s.putTSIDByMetricNameToCache(&lTSID, mr.MetricNameRaw)
 			continue
 		}
 
 		// Slowest path - there is no TSID in indexdb for the given mr.MetricNameRaw. Create it.
 		generateTSID(&lTSID.TSID, mn)
 		createAllIndexesForMetricName(idb, mn, &lTSID.TSID, date)
-		s.storeTSIDToCache(&lTSID, mr.MetricNameRaw)
+		s.putTSIDByMetricNameToCache(&lTSID, mr.MetricNameRaw)
 		newSeriesCount++
 	}
 	if ptw != nil {
@@ -1900,7 +1950,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		// tsidCache may contain TSIDs that were deleted from some indexDBs but
 		// are still in use in other indexDBs. Thus, also check if a given TSID
 		// was not deleted deom the current indexDB.
-		if s.getTSIDFromCache(&lTSID, mr.MetricNameRaw) && !deletedMetricIDs.Has(lTSID.TSID.MetricID) {
+		if s.getTSIDByMetricNameFromCache(&lTSID, mr.MetricNameRaw) && !deletedMetricIDs.Has(lTSID.TSID.MetricID) {
 			// Fast path - the TSID for the given mr.MetricNameRaw has been found in cache and isn't deleted.
 
 			r.TSID = lTSID.TSID
@@ -1955,7 +2005,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		if is.getTSIDByMetricName(&lTSID.TSID, metricNameBuf, date) {
 			// Slower path - the TSID has been found in indexdb.
 
-			s.storeTSIDToCache(&lTSID, mr.MetricNameRaw)
+			s.putTSIDByMetricNameToCache(&lTSID, mr.MetricNameRaw)
 
 			r.TSID = lTSID.TSID
 			prevTSID = lTSID.TSID
@@ -1968,7 +2018,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		// Slowest path - the TSID for the given mr.MetricNameRaw isn't found in indexdb. Create it.
 		generateTSID(&lTSID.TSID, mn)
 		createAllIndexesForMetricName(idb, mn, &lTSID.TSID, date)
-		s.storeTSIDToCache(&lTSID, mr.MetricNameRaw)
+		s.putTSIDByMetricNameToCache(&lTSID, mr.MetricNameRaw)
 		newSeriesCount++
 
 		r.TSID = lTSID.TSID
@@ -2455,13 +2505,13 @@ type legacyTSID struct {
 	_ uint64
 }
 
-func (s *Storage) getTSIDFromCache(dst *legacyTSID, metricName []byte) bool {
+func (s *Storage) getTSIDByMetricNameFromCache(dst *legacyTSID, metricName []byte) bool {
 	buf := (*[unsafe.Sizeof(*dst)]byte)(unsafe.Pointer(dst))[:]
 	buf = s.tsidCache.Get(buf[:0], metricName)
 	return uintptr(len(buf)) == unsafe.Sizeof(*dst)
 }
 
-func (s *Storage) storeTSIDToCache(tsid *legacyTSID, metricName []byte) {
+func (s *Storage) putTSIDByMetricNameToCache(tsid *legacyTSID, metricName []byte) {
 	buf := (*[unsafe.Sizeof(*tsid)]byte)(unsafe.Pointer(tsid))[:]
 	s.tsidCache.Set(metricName, buf)
 }
@@ -2499,14 +2549,8 @@ func (s *Storage) wasMetricIDMissingBefore(metricID uint64) bool {
 	return ct > deleteDeadline
 }
 
-// MetricNamesStatsResponse contains metric names usage stats API response
-type MetricNamesStatsResponse = metricnamestats.StatsResult
-
-// MetricNamesStatsRecord represents record at MetricNamesStatsResponse
-type MetricNamesStatsRecord = metricnamestats.StatRecord
-
 // GetMetricNamesStats returns metric names usage stats with given limit and le predicate
-func (s *Storage) GetMetricNamesStats(_ *querytracer.Tracer, limit, le int, matchPattern string) MetricNamesStatsResponse {
+func (s *Storage) GetMetricNamesStats(_ *querytracer.Tracer, limit, le int, matchPattern string) metricnamestats.StatsResult {
 	return s.metricsTracker.GetStats(limit, le, matchPattern)
 }
 

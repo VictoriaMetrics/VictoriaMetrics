@@ -182,6 +182,7 @@ func (ctx *InsertCtx) WriteMetadata(mmpbs []prompb.MetricMetadata) error {
 		mm.Type = mmpb.Type
 		mm.Unit = bytesutil.ToUnsafeBytes(mmpb.Unit)
 	}
+	ctx.mms = mms
 
 	err := vmstorage.AddMetadataRows(mms)
 	if err != nil {
@@ -206,6 +207,7 @@ func (ctx *InsertCtx) WritePromMetadata(mmps []prometheus.Metadata) error {
 		mm.Help = bytesutil.ToUnsafeBytes(mmpb.Help)
 		mm.Type = mmpb.Type
 	}
+	ctx.mms = mms
 
 	err := vmstorage.AddMetadataRows(mms)
 	if err != nil {

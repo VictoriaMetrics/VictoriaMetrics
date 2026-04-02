@@ -38,24 +38,20 @@ func TestMetricIDCache_SetHas_Concurrent(t *testing.T) {
 	writeCh := make(chan uint64, concurrency)
 	readCh := make(chan uint64, concurrency)
 	for range concurrency {
-		writeWG.Add(1)
-		go func() {
+		writeWG.Go(func() {
 			for metricID := range writeCh {
 				c.Set(metricID)
 				readCh <- metricID
 			}
-			writeWG.Done()
-		}()
+		})
 
-		readWG.Add(1)
-		go func() {
+		readWG.Go(func() {
 			for metricID := range readCh {
 				if !c.Has(metricID) {
 					panic(fmt.Sprintf("metricID not found: %d", metricID))
 				}
 			}
-			readWG.Done()
-		}()
+		})
 	}
 
 	metricIDMin := uint64(time.Now().UnixNano())

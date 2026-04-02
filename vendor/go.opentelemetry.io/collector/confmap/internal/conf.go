@@ -182,6 +182,10 @@ func (l *Conf) ToStringMap() map[string]any {
 	return sanitize(l.toStringMapWithExpand()).(map[string]any)
 }
 
+func ToStringMapRaw(conf *Conf) map[string]any {
+	return conf.toStringMapWithExpand()
+}
+
 func (l *Conf) unsanitizedGet(key string) any {
 	return l.k.Get(key)
 }

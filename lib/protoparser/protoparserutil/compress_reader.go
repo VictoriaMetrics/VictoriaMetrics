@@ -9,6 +9,7 @@ import (
 	"github.com/klauspost/compress/zlib"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/chunkedbuffer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/snappy"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
@@ -31,15 +32,26 @@ const maxSnappyBlockSize = 56_000_000
 //
 // The callback must not hold references to the data after returning.
 func ReadUncompressedData(r io.Reader, contentType string, maxDataSize *flagutil.Bytes, callback func(data []byte) error) error {
-	wcr := writeconcurrencylimiter.GetReader(r)
-	defer writeconcurrencylimiter.PutReader(wcr)
+	fbr := ioutil.GetFirstByteReader(r)
+	defer ioutil.PutFirstByteReader(fbr)
+
+	// Wait for the first byte before obtaining the concurrency token
+	// and allocating resources needed for reading and processing the data from r.
+	// This should prevent from allocating concurrency tokens and memory
+	// for connections without incoming data.
+	fbr.WaitForData()
+
+	if err := writeconcurrencylimiter.IncConcurrency(); err != nil {
+		return err
+	}
+	defer writeconcurrencylimiter.DecConcurrency()
 
 	if contentType == "zstd" {
 		// Fast path for zstd contentType - read the data in full and then decompress it by a single call.
 		dcompress := func(dst, src []byte) ([]byte, error) {
 			return encoding.DecompressZSTDLimited(dst, src, maxDataSize.IntN())
 		}
-		return readUncompressedData(wcr, maxDataSize, dcompress, callback)
+		return readUncompressedData(fbr, maxDataSize, dcompress, callback)
 	}
 	if contentType == "snappy" {
 		// Special case for snappy. The snappy data must be read in full and then decompressed,
@@ -47,68 +59,80 @@ func ReadUncompressedData(r io.Reader, contentType string, maxDataSize *flagutil
 		decompress := func(dst, src []byte) ([]byte, error) {
 			return snappy.Decode(dst, src, maxDataSize.IntN())
 		}
-		return readUncompressedData(wcr, maxDataSize, decompress, callback)
+		return readUncompressedData(fbr, maxDataSize, decompress, callback)
 	}
 
 	// Slow path for other supported protocol encoders.
-	reader, err := GetUncompressedReader(wcr, contentType)
+	reader, err := GetUncompressedReader(fbr, contentType)
 	if err != nil {
 		return err
 	}
-	lr := ioutil.GetLimitedReader(reader, maxDataSize.N+1)
+	defer PutUncompressedReader(reader)
 
-	dbb := decompressedBufPool.Get()
-	defer func() {
-		if len(dbb.B) > 1024*1024 && cap(dbb.B) > 4*len(dbb.B) {
-			// Do not store too big ddb to the pool if only a small part of the buffer is used last time.
-			// This should reduce memory waste.
-			return
-		}
-		decompressedBufPool.Put(dbb)
-	}()
-
-	_, err = dbb.ReadFrom(lr)
-	ioutil.PutLimitedReader(lr)
-	PutUncompressedReader(reader)
-	if err != nil {
-		return err
-	}
-	if int64(len(dbb.B)) > maxDataSize.N {
-		return fmt.Errorf("too big data size exceeding -%s=%d bytes", maxDataSize.Name, maxDataSize.N)
-	}
-
-	return callback(dbb.B)
+	return readFull(reader, maxDataSize, callback)
 }
 
 func readUncompressedData(r io.Reader, maxDataSize *flagutil.Bytes, decompress func(dst, src []byte) ([]byte, error), callback func(data []byte) error) error {
-	lr := ioutil.GetLimitedReader(r, maxDataSize.N+1)
-	cbb := compressedBufPool.Get()
+	return readFull(r, maxDataSize, func(data []byte) error {
+		dbb := decompressedBufPool.Get()
+		defer func() {
+			if cap(dbb.B) > 1024*1024 && cap(dbb.B) > 4*len(dbb.B) {
+				// Do not store too big dbb to the pool if only a small part of the buffer is used last time.
+				// This should reduce memory waste.
+				return
+			}
+			decompressedBufPool.Put(dbb)
+		}()
 
-	_, err := cbb.ReadFrom(lr)
-	ioutil.PutLimitedReader(lr)
-	if err != nil {
-		compressedBufPool.Put(cbb)
-		return fmt.Errorf("cannot read request body: %w", err)
-	}
-	if int64(len(cbb.B)) > maxDataSize.N {
-		compressedBufPool.Put(cbb)
-		return fmt.Errorf("too big compressed data size exceeding -%s=%d bytes", maxDataSize.Name, maxDataSize.N)
-	}
+		var err error
+		dbb.B, err = decompress(dbb.B, data)
+		if err != nil {
+			return fmt.Errorf("cannot decompress data: %w", err)
+		}
+		if int64(len(dbb.B)) > maxDataSize.N {
+			return fmt.Errorf("too big decompressed data size exceeding -%s=%d bytes", maxDataSize.Name, maxDataSize.N)
+		}
 
-	dbb := decompressedBufPool.Get()
-	defer decompressedBufPool.Put(dbb)
-
-	dbb.B, err = decompress(dbb.B, cbb.B)
-	compressedBufPool.Put(cbb)
-	if err != nil {
-		return fmt.Errorf("cannot decompress data: %w", err)
-	}
-	if int64(len(dbb.B)) > maxDataSize.N {
-		return fmt.Errorf("too big decompressed data size exceeding -%s=%d bytes", maxDataSize.Name, maxDataSize.N)
-	}
-
-	return callback(dbb.B)
+		return callback(dbb.B)
+	})
 }
+
+func readFull(r io.Reader, maxDataSize *flagutil.Bytes, callback func(data []byte) error) error {
+	lr := ioutil.GetLimitedReader(r, maxDataSize.N+1)
+	defer ioutil.PutLimitedReader(lr)
+
+	// Use chunkedbuffer for reading the data from potentially slow lr.
+	// This should reduce memory fragmentation and memory usage when reading large amounts of data from slow lr.
+	cb := chunkedbuffer.Get()
+
+	if _, err := cb.ReadFrom(lr); err != nil {
+		chunkedbuffer.Put(cb)
+		return err
+	}
+
+	if int64(cb.Len()) > maxDataSize.N {
+		return fmt.Errorf("too big data size exceeding -%s=%d bytes", maxDataSize.Name, maxDataSize.N)
+	}
+
+	// The data is read to cb.
+	// Copy it to contiguous bb.B and pass to callback for CPU-bound processing.
+	bb := fullReaderBufPool.Get()
+	defer func() {
+		if cap(bb.B) > 1024*1024 && cap(bb.B) > 4*len(bb.B) {
+			// Do not store too big bb to the pool if only a small part of the buffer is used last time.
+			// This should reduce memory waste.
+			return
+		}
+		fullReaderBufPool.Put(bb)
+	}()
+
+	cb.MustWriteTo(bb)
+	chunkedbuffer.Put(cb)
+
+	return callback(bb.B)
+}
+
+var fullReaderBufPool bytesutil.ByteBufferPool
 
 var (
 	compressedBufPool   bytesutil.ByteBufferPool
@@ -228,14 +252,21 @@ func (sr *snappyReader) Reset(r io.Reader) error {
 	// Read the whole data in one go, since it is expected that Snappy data
 	// is compressed in block mode instead of stream mode.
 	// See https://pkg.go.dev/github.com/golang/snappy
+
+	lr := ioutil.GetLimitedReader(r, maxSnappyBlockSize+1)
+	defer ioutil.PutLimitedReader(lr)
+
 	cbb := compressedBufPool.Get()
-	_, err := cbb.ReadFrom(r)
+	defer compressedBufPool.Put(cbb)
+
+	_, err := cbb.ReadFrom(lr)
 	if err != nil {
-		compressedBufPool.Put(cbb)
 		return fmt.Errorf("cannot read snappy-encoded data block: %w", err)
 	}
+	if len(cbb.B) > maxSnappyBlockSize {
+		return fmt.Errorf("cannot read snappy-encoded data block because its' size exceeds %d bytes", maxSnappyBlockSize)
+	}
 	sr.b, err = snappy.Decode(sr.b, cbb.B, maxSnappyBlockSize)
-	compressedBufPool.Put(cbb)
 	sr.offset = 0
 	if err != nil {
 		return fmt.Errorf("cannot decode snappy-encoded data block: %w", err)

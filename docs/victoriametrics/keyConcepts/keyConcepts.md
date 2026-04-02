@@ -727,7 +727,7 @@ response, where most of them are `ephemeral`.
 
 Sometimes, the lookbehind window for locating the datapoint isn't big enough and the graph will contain a gap. For range
 queries, lookbehind window isn't equal to the `step` parameter. It is calculated as the median of the intervals between
-the first 20 raw samples in the requested time range. In this way, VictoriaMetrics automatically adjusts the lookbehind
+the last 20 raw samples in the requested time range. In this way, VictoriaMetrics automatically adjusts the lookbehind
 window to fill gaps and detect stale series at the same time.
 
 Range queries are mostly used for plotting time series data over specified time ranges. These queries are extremely

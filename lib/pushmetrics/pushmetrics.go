@@ -50,6 +50,29 @@ func Init() {
 	}
 }
 
+type Config struct {
+	URLs               []string
+	Interval           time.Duration
+	ExtraLabels        []string
+	Headers            []string
+	DisableCompression bool
+}
+
+// InitWith must be called after logger.Init
+// Supersedes command-line flags related to pushmetrics and initializes pushmetrics with the given config.
+// This is needed for vmctl integration, see: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10375
+func InitWith(c *Config) {
+	*pushURL = c.URLs
+	*pushExtraLabel = c.ExtraLabels
+	*pushHeader = c.Headers
+	*disableCompression = c.DisableCompression
+	if c.Interval > 0 {
+		*pushInterval = c.Interval
+	}
+
+	Init()
+}
+
 // Stop stops the periodic push of metrics.
 // It is important to stop the push of metrics before disposing resources
 // these metrics attached to. See related https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5548
@@ -80,20 +103,18 @@ func StopAndPush() {
 	extraLabels := strings.Join(*pushExtraLabel, ",")
 	for _, pu := range *pushURL {
 		// push to all destinations in parallel to speed up shutdown
-		wg.Add(1)
-		go func(pushURL string) {
+		wg.Go(func() {
 			ctxLocal, cancel := context.WithTimeout(context.Background(), *pushInterval)
 			opts := &metrics.PushOptions{
 				ExtraLabels:        extraLabels,
 				Headers:            *pushHeader,
 				DisableCompression: *disableCompression,
 			}
-			if err := metrics.PushMetricsExt(ctxLocal, pushURL, appmetrics.WritePrometheusMetrics, opts); err != nil {
-				logger.Errorf("failed to push metrics to %q: %s", pushURL, err)
+			if err := metrics.PushMetricsExt(ctxLocal, pu, appmetrics.WritePrometheusMetrics, opts); err != nil {
+				logger.Errorf("failed to push metrics to %q: %s", pu, err)
 			}
 			cancel()
-			wg.Done()
-		}(pu)
+		})
 	}
 	wg.Wait()
 	logger.Infof("pushing metrics on shutdown finished in %.3f seconds", time.Since(startTime).Seconds())

@@ -60,3 +60,60 @@ func TestClusterMetricsIndex(t *testing.T) {
 
 	testMetricsIndex(tc.T(), sut)
 }
+
+// testTagSeries tests the registration of new time series in index.
+//
+// See https://graphite.readthedocs.io/en/stable/tags.html#adding-series-to-the-tagdb.
+func testTagSeries(tc *apptest.TestCase, sut apptest.PrometheusWriteQuerier, getStorageMetric func(string) int) {
+	t := tc.T()
+
+	assertNewTimeseriesCreatedTotal := func(want int) {
+		tc.Assert(&apptest.AssertOptions{
+			Msg: "unexpected vm_new_timeseries_created_total",
+			Got: func() any {
+				return getStorageMetric("vm_new_timeseries_created_total")
+			},
+			Want: want,
+		})
+	}
+
+	rec := "disk.used;rack=a1;datacenter=dc1;server=web01"
+	sut.GraphiteTagsTagSeries(t, rec, apptest.QueryOpts{})
+	assertNewTimeseriesCreatedTotal(0)
+
+	recs := []string{
+		"metric.yyy;t2=a;t1=b;t3=c",
+		"metric.zzz;t5=d;t4=e;t6=f",
+		"metric.xxx;t8=g;t7=h;t9=i",
+	}
+	sut.GraphiteTagsTagMultiSeries(t, recs, apptest.QueryOpts{})
+	assertNewTimeseriesCreatedTotal(0)
+}
+
+func TestSingleTagSeries(t *testing.T) {
+	tc := apptest.NewTestCase(t)
+	defer tc.Stop()
+
+	sut := tc.MustStartDefaultVmsingle()
+	getStorageMetric := func(name string) int {
+		return sut.GetIntMetric(t, name)
+	}
+
+	testTagSeries(tc, sut, getStorageMetric)
+}
+
+func TestClusterTagSeries(t *testing.T) {
+	tc := apptest.NewTestCase(t)
+	defer tc.Stop()
+
+	sut := tc.MustStartDefaultCluster()
+	getStorageMetric := func(name string) int {
+		var v int
+		for _, s := range sut.Vmstorages {
+			v += s.GetIntMetric(t, name)
+		}
+		return v
+	}
+
+	testTagSeries(tc, sut, getStorageMetric)
+}

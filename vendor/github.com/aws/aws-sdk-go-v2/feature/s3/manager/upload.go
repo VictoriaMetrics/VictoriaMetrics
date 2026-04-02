@@ -209,6 +209,8 @@ func WithUploaderRequestOptions(opts ...func(*s3.Options)) func(*Uploader) {
 // the individual uploaded parts. The UploadOutput result from Upload will
 // include the checksum of part checksums provided by S3
 // CompleteMultipartUpload API call.
+//
+// Deprecated: superceded by feature/s3/transfermanager. See https://github.com/aws/aws-sdk-go-v2/discussions/3306
 type Uploader struct {
 	// The buffer size (in bytes) to use when buffering data into chunks and
 	// sending them as parts to S3. The minimum allowed part size is 5MB, and
@@ -269,6 +271,14 @@ type Uploader struct {
 	// Note: S3 Express buckets always require CRC32 checksums regardless of this setting.
 	RequestChecksumCalculation aws.RequestChecksumCalculation
 
+	// By default, the uploader verifies that the number of expected uploaded
+	// parts matches the actual count at the end of an upload.
+	//
+	// You can disable that with this flag, however, Amazon S3 recommends
+	// against doing so because it damages the durability posture of object
+	// uploads.
+	DisableValidateParts bool
+
 	// partPool allows for the re-usage of streaming payload part buffers between upload calls
 	partPool byteSlicePool
 }
@@ -296,6 +306,8 @@ type Uploader struct {
 //	uploader := manager.NewUploader(client, func(u *manager.Uploader) {
 //		u.PartSize = 64 * 1024 * 1024 // 64MB per part
 //	})
+//
+// Deprecated: superceded by feature/s3/transfermanager. See https://github.com/aws/aws-sdk-go-v2/discussions/3306
 func NewUploader(client UploadAPIClient, options ...func(*Uploader)) *Uploader {
 	u := &Uploader{
 		S3:                         client,
@@ -329,6 +341,8 @@ func NewUploader(client UploadAPIClient, options ...func(*Uploader)) *Uploader {
 // options that will be applied to all API operations made with this uploader.
 //
 // It is safe to call this method concurrently across goroutines.
+//
+// Deprecated: superceded by feature/s3/transfermanager. See https://github.com/aws/aws-sdk-go-v2/discussions/3306
 func (u Uploader) Upload(ctx context.Context, input *s3.PutObjectInput, opts ...func(*Uploader)) (
 	*UploadOutput, error,
 ) {
@@ -362,8 +376,9 @@ type uploader struct {
 
 	in *s3.PutObjectInput
 
-	readerPos int64 // current reader position
-	totalSize int64 // set to -1 if the size is not known
+	readerPos   int64 // current reader position
+	totalSize   int64 // set to -1 if the size is not known
+	expectParts int64
 }
 
 // internal logic for deciding whether to upload a single part or use a
@@ -446,6 +461,11 @@ func (u *uploader) initSize() error {
 			// during the size calculation. e.g odd number of bytes.
 			u.cfg.PartSize = (u.totalSize / int64(u.cfg.MaxUploadParts)) + 1
 		}
+
+		u.expectParts = u.totalSize / u.cfg.PartSize
+		if u.totalSize%u.cfg.PartSize != 0 {
+			u.expectParts++
+		}
 	}
 
 	return nil
@@ -487,6 +507,19 @@ func (u *uploader) nextReader() (io.ReadSeeker, int, func(), error) {
 		return reader, int(n), cleanup, err
 
 	default:
+		if u.readerPos == 0 {
+			r := io.LimitReader(u.in.Body, u.cfg.PartSize)
+			firstPart, err := io.ReadAll(r)
+			if err != nil {
+				return nil, 0, func() {}, err
+			}
+			n := len(firstPart)
+			u.readerPos += int64(n)
+			if int64(n) < u.cfg.PartSize {
+				return bytes.NewReader(firstPart), n, func() {}, io.EOF
+			}
+			return bytes.NewReader(firstPart), n, func() {}, nil
+		}
 		part, err := u.cfg.partPool.Get(u.ctx)
 		if err != nil {
 			return nil, 0, func() {}, err
@@ -874,6 +907,17 @@ func (u *multiuploader) complete() *s3.CompleteMultipartUploadOutput {
 	resp, err := u.cfg.S3.CompleteMultipartUpload(u.ctx, &params, u.cfg.ClientOptions...)
 	if err != nil {
 		u.seterr(err)
+		u.fail()
+	}
+
+	// expectParts == 0 means we didn't know the content length upfront and
+	// therefore we can't validate this at all
+	if u.expectParts == 0 || u.cfg.DisableValidateParts {
+		return resp
+	}
+
+	if len(u.parts) != int(u.expectParts) {
+		u.seterr(fmt.Errorf("uploaded part count mismatch: expected %d, got %d", u.expectParts, len(u.parts)))
 		u.fail()
 	}
 

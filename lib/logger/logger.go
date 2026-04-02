@@ -148,11 +148,38 @@ func logLevel(level, format string, args []any) {
 }
 
 func logLevelSkipframes(skipframes int, level, format string, args []any) {
+	location := getLogLocation(3 + skipframes)
+
 	if shouldSkipLog(level) {
+		// Increment vm_log_messages_total even if the log is suppressed.
+		// This simplified troubleshooting when logs are suppressed.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10304
+		countLogMessage(level, location, false)
 		return
 	}
+
 	msg := formatLogMessage(*maxLogArgLen, format, args)
-	logMessage(level, msg, 3+skipframes)
+	isPrinted := logMessageInternal(level, msg, location)
+	countLogMessage(level, location, isPrinted)
+}
+
+func countLogMessage(level, location string, isPrinted bool) {
+	levelLowercase := strings.ToLower(level)
+	counterName := fmt.Sprintf(`vm_log_messages_total{app_version=%q, level=%q, location=%q, is_printed="%v"}`, buildinfo.Version, levelLowercase, location, isPrinted)
+	metrics.GetOrCreateCounter(counterName).Inc()
+}
+
+func getLogLocation(skipframes int) string {
+	_, file, line, ok := runtime.Caller(skipframes)
+	if !ok {
+		file = "???"
+		line = 0
+	}
+	if n := strings.Index(file, "/VictoriaMetrics/"); n >= 0 {
+		// Strip /VictoriaMetrics/ prefix
+		file = file[n+len("/VictoriaMetrics/"):]
+	}
+	return fmt.Sprintf("%s:%d", file, line)
 }
 
 func formatLogMessage(maxArgLen int, format string, args []any) string {
@@ -235,22 +262,11 @@ func (lw *logWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func logMessage(level, msg string, skipframes int) {
+func logMessageInternal(level, msg, location string) bool {
 	timestamp := ""
 	if !*disableTimestamps {
 		timestamp = time.Now().In(timezone).Format("2006-01-02T15:04:05.000Z0700")
 	}
-	levelLowercase := strings.ToLower(level)
-	_, file, line, ok := runtime.Caller(skipframes)
-	if !ok {
-		file = "???"
-		line = 0
-	}
-	if n := strings.Index(file, "/VictoriaMetrics/"); n >= 0 {
-		// Strip /VictoriaMetrics/ prefix
-		file = file[n+len("/VictoriaMetrics/"):]
-	}
-	location := fmt.Sprintf("%s:%d", file, line)
 
 	// rate limit ERROR and WARN log messages with given limit.
 	if level == "ERROR" || level == "WARN" {
@@ -260,7 +276,7 @@ func logMessage(level, msg string, skipframes int) {
 		}
 		ok, suppressMessage := logLimiter.needSuppress(location, limit)
 		if ok {
-			return
+			return false
 		}
 		if len(suppressMessage) > 0 {
 			msg = suppressMessage + msg
@@ -270,6 +286,8 @@ func logMessage(level, msg string, skipframes int) {
 	for len(msg) > 0 && msg[len(msg)-1] == '\n' {
 		msg = msg[:len(msg)-1]
 	}
+
+	levelLowercase := strings.ToLower(level)
 	var logMsg string
 	switch *loggerFormat {
 	case "json":
@@ -302,10 +320,6 @@ func logMessage(level, msg string, skipframes int) {
 	fmt.Fprint(output, logMsg)
 	mu.Unlock()
 
-	// Increment vm_log_messages_total
-	counterName := fmt.Sprintf(`vm_log_messages_total{app_version=%q, level=%q, location=%q}`, buildinfo.Version, levelLowercase, location)
-	metrics.GetOrCreateCounter(counterName).Inc()
-
 	switch level {
 	case "PANIC":
 		if *loggerFormat == "json" {
@@ -316,6 +330,8 @@ func logMessage(level, msg string, skipframes int) {
 	case "FATAL":
 		os.Exit(-1)
 	}
+
+	return true
 }
 
 var mu sync.Mutex

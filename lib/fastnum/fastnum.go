@@ -55,10 +55,7 @@ func IsFloat64Ones(a []float64) bool {
 
 func appendInt64Data(dst []int64, items int, src []int64) []int64 {
 	for items > 0 {
-		n := len(src)
-		if n > items {
-			n = items
-		}
+		n := min(len(src), items)
 		dst = append(dst, src[:n]...)
 		items -= n
 	}
@@ -67,10 +64,7 @@ func appendInt64Data(dst []int64, items int, src []int64) []int64 {
 
 func appendFloat64Data(dst []float64, items int, src []float64) []float64 {
 	for items > 0 {
-		n := len(src)
-		if n > items {
-			n = items
-		}
+		n := min(len(src), items)
 		dst = append(dst, src[:n]...)
 		items -= n
 	}
@@ -86,10 +80,7 @@ func isInt64Data(a, data []int64) bool {
 	}
 	b := int64ToByteSlice(data)
 	for len(a) > 0 {
-		n := len(data)
-		if n > len(a) {
-			n = len(a)
-		}
+		n := min(len(data), len(a))
 		x := a[:n]
 		a = a[n:]
 		xb := int64ToByteSlice(x)
@@ -109,10 +100,7 @@ func isFloat64Data(a, data []float64) bool {
 	}
 	b := float64ToByteSlice(data)
 	for len(a) > 0 {
-		n := len(data)
-		if n > len(a) {
-			n = len(a)
-		}
+		n := min(len(data), len(a))
 		x := a[:n]
 		a = a[n:]
 		xb := float64ToByteSlice(x)
@@ -134,7 +122,7 @@ func float64ToByteSlice(a []float64) []byte {
 var (
 	int64Zeros [8 * 1024]int64
 	int64Ones  = func() (a [8 * 1024]int64) {
-		for i := 0; i < len(a); i++ {
+		for i := range len(a) {
 			a[i] = 1
 		}
 		return a
@@ -142,7 +130,7 @@ var (
 
 	float64Zeros [8 * 1024]float64
 	float64Ones  = func() (a [8 * 1024]float64) {
-		for i := 0; i < len(a); i++ {
+		for i := range len(a) {
 			a[i] = 1
 		}
 		return a

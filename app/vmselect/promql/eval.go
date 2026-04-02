@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -477,22 +478,18 @@ func execBinaryOpArgs(qt *querytracer.Tracer, ec *EvalConfig, exprFirst, exprSec
 		var tssFirst []*timeseries
 		var errFirst error
 		qtFirst := qt.NewChild("expr1")
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			tssFirst, errFirst = evalExpr(qtFirst, ec, exprFirst)
 			qtFirst.Done()
-		}()
+		})
 
 		var tssSecond []*timeseries
 		var errSecond error
 		qtSecond := qt.NewChild("expr2")
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			tssSecond, errSecond = evalExpr(qtSecond, ec, exprSecond)
 			qtSecond.Done()
-		}()
+		})
 
 		wg.Wait()
 		if errFirst != nil {
@@ -710,17 +707,13 @@ func evalExprsInParallel(qt *querytracer.Tracer, ec *EvalConfig, es []metricsql.
 	qt.Printf("eval function args in parallel")
 	var wg sync.WaitGroup
 	for i, e := range es {
-		wg.Add(1)
 		qtChild := qt.NewChild("eval arg %d", i)
-		go func(e metricsql.Expr, i int) {
-			defer func() {
-				qtChild.Done()
-				wg.Done()
-			}()
+		wg.Go(func() {
+			defer qtChild.Done()
 			rv, err := evalExpr(qtChild, ec, e)
 			rvs[i] = rv
 			errs[i] = err
-		}(e, i)
+		})
 	}
 	wg.Wait()
 	for _, err := range errs {
@@ -1019,16 +1012,14 @@ func doParallel(tss []*timeseries, f func(ts *timeseries, values []float64, time
 	}
 
 	var wg sync.WaitGroup
-	wg.Add(workers)
-	for i := 0; i < workers; i++ {
-		go func(workerID uint) {
-			defer wg.Done()
+	for workerID := range workers {
+		wg.Go(func() {
 			var tmpValues []float64
 			var tmpTimestamps []int64
 			for ts := range workChs[workerID] {
-				tmpValues, tmpTimestamps = f(ts, tmpValues, tmpTimestamps, workerID)
+				tmpValues, tmpTimestamps = f(ts, tmpValues, tmpTimestamps, uint(workerID))
 			}
-		}(uint(i))
+		})
 	}
 	wg.Wait()
 }
@@ -1172,6 +1163,61 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 				Name:            "count_over_time",
 				Args:            []metricsql.Expr{newArg},
 				KeepMetricNames: fe.KeepMetricNames,
+			},
+		}
+		return evalExpr(qt, ec, be)
+	// the cached rate result could be inaccurate in edge cases, see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10098
+	case "rate":
+		if iafc != nil {
+			if !strings.EqualFold(iafc.ae.Name, "sum") {
+				qt.Printf("do not apply instant rollup optimization for incremental aggregate %s()", iafc.ae.Name)
+				return evalAt(qt, timestamp, window)
+			}
+			qt.Printf("optimized calculation for sum(rate(m[d])) as (sum(increase(m[d])) / d)")
+			afe := expr.(*metricsql.AggrFuncExpr)
+			fe := afe.Args[0].(*metricsql.FuncExpr)
+			feIncrease := *fe
+			feIncrease.Name = "increase"
+			// copy RollupExpr to drop possible offset,
+			// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9762
+			newArg := copyRollupExpr(fe.Args[0].(*metricsql.RollupExpr))
+			newArg.Offset = nil
+			feIncrease.Args = []metricsql.Expr{newArg}
+			d := newArg.Window.Duration(ec.Step)
+			if d == 0 {
+				d = ec.Step
+			}
+			afeIncrease := *afe
+			afeIncrease.Args = []metricsql.Expr{&feIncrease}
+			be := &metricsql.BinaryOpExpr{
+				Op:              "/",
+				KeepMetricNames: true,
+				Left:            &afeIncrease,
+				Right: &metricsql.NumberExpr{
+					N: float64(d) / 1000,
+				},
+			}
+			return evalExpr(qt, ec, be)
+		}
+		qt.Printf("optimized calculation for instant rollup rate(m[d]) as (increase(m[d]) / d)")
+		fe := expr.(*metricsql.FuncExpr)
+		feIncrease := *fe
+		feIncrease.Name = "increase"
+		// copy RollupExpr to drop possible offset,
+		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9762
+		newArg := copyRollupExpr(fe.Args[0].(*metricsql.RollupExpr))
+		newArg.Offset = nil
+		feIncrease.Args = []metricsql.Expr{newArg}
+		d := newArg.Window.Duration(ec.Step)
+		if d == 0 {
+			d = ec.Step
+		}
+		be := &metricsql.BinaryOpExpr{
+			Op:              "/",
+			KeepMetricNames: fe.KeepMetricNames,
+			Left:            &feIncrease,
+			Right: &metricsql.NumberExpr{
+				N: float64(d) / 1000,
 			},
 		}
 		return evalExpr(qt, ec, be)
@@ -1723,6 +1769,7 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 		return nil, err
 	}
 	defer rml.Put(uint64(rollupMemorySize))
+	qs.addMemoryUsage(rollupMemorySize)
 	qt.Printf("the rollup evaluation needs an estimated %d bytes of RAM for %d series and %d points per series (summary %d points)",
 		rollupMemorySize, timeseriesLen, pointsPerSeries, rollupPoints)
 
@@ -1944,14 +1991,7 @@ func dropStaleNaNs(funcName string, values []float64, timestamps []int64) ([]flo
 		return values, timestamps
 	}
 	// Remove Prometheus staleness marks, so non-default rollup functions don't hit NaN values.
-	hasStaleSamples := false
-	for _, v := range values {
-		if decimal.IsStaleNaN(v) {
-			hasStaleSamples = true
-			break
-		}
-	}
-	if !hasStaleSamples {
+	if !slices.ContainsFunc(values, decimal.IsStaleNaN) {
 		// Fast path: values have no Prometheus staleness marks.
 		return values, timestamps
 	}

@@ -54,6 +54,11 @@ func (fp *filterPhrase) initTokens() {
 	fp.tokensHashes = appendTokensHashes(nil, fp.tokens)
 }
 
+func (fp *filterPhrase) matchRow(fields []Field) bool {
+	v := getFieldValueByName(fields, fp.fieldName)
+	return matchPhrase(v, fp.phrase)
+}
+
 func (fp *filterPhrase) applyToBlockResult(br *blockResult, bm *bitmap) {
 	applyToBlockResultGeneric(br, bm, fp.fieldName, fp.phrase, matchPhrase)
 }

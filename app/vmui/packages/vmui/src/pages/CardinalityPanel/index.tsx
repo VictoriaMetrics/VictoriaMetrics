@@ -18,6 +18,7 @@ import {
   TipHighNumberOfValues
 } from "./CardinalityTips";
 import useSearchParamsFromObject from "../../hooks/useSearchParamsFromObject";
+import { escapeLabelName } from "../../utils/metric";
 
 const spinnerMessage = `Please wait while cardinality stats is calculated. 
                         This may take some time if the db contains big number of time series.`;
@@ -36,12 +37,17 @@ const CardinalityPanel: FC = () => {
   const defaultState = getDefaultState(match, focusLabel);
 
   const handleFilterClick = (key: string) => (query: string) => {
+    const rawQuery = query;
+
+    const isLabelKey = ["labelValueCountByLabelName", "seriesCountByLabelName"].includes(key);
+    if (isLabelKey) query = escapeLabelName(query);
+
     const value = queryUpdater[key]({ query, focusLabel, match });
     const params: Record<string, string> = { match: value };
-    if (key === "labelValueCountByLabelName" || key == "seriesCountByLabelName") {
-      params.focusLabel = query;
+    if (isLabelKey) {
+      params.focusLabel = rawQuery;
     }
-    if (key == "seriesCountByFocusLabelValue") {
+    if (key === "seriesCountByFocusLabelValue") {
       params.focusLabel = "";
     }
     setSearchParamsFromKeys(params);

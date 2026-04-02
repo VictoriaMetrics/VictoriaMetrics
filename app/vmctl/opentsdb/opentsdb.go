@@ -109,7 +109,7 @@ func (c Client) FindMetrics(q string) ([]string, error) {
 		return nil, fmt.Errorf("failed to send GET request to %q: %s", q, err)
 	}
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("bad return from OpenTSDB: %q: %v", resp.StatusCode, resp)
+		return nil, fmt.Errorf("bad return from OpenTSDB: %d: %v", resp.StatusCode, resp)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	body, err := io.ReadAll(resp.Body)
@@ -133,7 +133,7 @@ func (c Client) FindSeries(metric string) ([]Meta, error) {
 		return nil, fmt.Errorf("failed to set GET request to %q: %s", q, err)
 	}
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("bad return from OpenTSDB: %q: %v", resp.StatusCode, resp)
+		return nil, fmt.Errorf("bad return from OpenTSDB: %d: %v", resp.StatusCode, resp)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	body, err := io.ReadAll(resp.Body)

@@ -260,14 +260,15 @@ func (tb *table) UpdateMetrics(m *TableMetrics) {
 	}
 
 	// Collect separate metrics for the last partition.
-	if len(ptws) > 0 {
-		ptwLast := ptws[0]
-		for _, ptw := range ptws[1:] {
-			if ptw.pt.tr.MinTimestamp > ptwLast.pt.tr.MinTimestamp {
-				ptwLast = ptw
-			}
+	// select current month partition as last partition
+	// because partition with biggest minTimestamp could be empty at the last day of current month
+	// when a partition for the next month is created at updateNextDayMetricIDs
+	currentMonthTimestamp := time.Now().UnixMilli()
+	for _, ptw := range ptws {
+		if ptw.pt.tr.contains(currentMonthTimestamp) {
+			ptw.pt.UpdateMetrics(&m.LastPartition)
+			break
 		}
-		ptwLast.pt.UpdateMetrics(&m.LastPartition)
 	}
 }
 
@@ -421,11 +422,7 @@ func (tb *table) getMinMaxTimestamps() (int64, int64) {
 }
 
 func (tb *table) startRetentionWatcher() {
-	tb.retentionWatcherWG.Add(1)
-	go func() {
-		tb.retentionWatcher()
-		tb.retentionWatcherWG.Done()
-	}()
+	tb.retentionWatcherWG.Go(tb.retentionWatcher)
 }
 
 func (tb *table) retentionWatcher() {
@@ -469,11 +466,7 @@ func (tb *table) retentionWatcher() {
 }
 
 func (tb *table) startHistoricalMergeWatcher() {
-	tb.historicalMergeWatcherWG.Add(1)
-	go func() {
-		tb.historicalMergeWatcher()
-		tb.historicalMergeWatcherWG.Done()
-	}()
+	tb.historicalMergeWatcherWG.Go(tb.historicalMergeWatcher)
 }
 
 func (tb *table) historicalMergeWatcher() {
@@ -655,14 +648,9 @@ func mustOpenPartitions(smallPartitionsPath, bigPartitionsPath, indexDBPath stri
 	var wg sync.WaitGroup
 	concurrencyLimiterCh := make(chan struct{}, cgroup.AvailableCPUs())
 	for ptName := range ptNames {
-		wg.Add(1)
 		concurrencyLimiterCh <- struct{}{}
-		go func(ptName string) {
-			defer func() {
-				<-concurrencyLimiterCh
-				wg.Done()
-			}()
 
+		wg.Go(func() {
 			smallPartsPath := filepath.Join(smallPartitionsPath, ptName)
 			bigPartsPath := filepath.Join(bigPartitionsPath, ptName)
 			indexDBPartsPath := filepath.Join(indexDBPath, ptName)
@@ -671,7 +659,9 @@ func mustOpenPartitions(smallPartitionsPath, bigPartitionsPath, indexDBPath stri
 			ptsLock.Lock()
 			pts = append(pts, pt)
 			ptsLock.Unlock()
-		}(ptName)
+
+			<-concurrencyLimiterCh
+		})
 	}
 	wg.Wait()
 

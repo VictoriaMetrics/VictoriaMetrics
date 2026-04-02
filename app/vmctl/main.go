@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -19,11 +20,14 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/native"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/remoteread"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/opentsdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/prometheus"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/thanos"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
@@ -41,11 +45,20 @@ func main() {
 	ctx, cancelCtx := context.WithCancel(context.Background())
 	start := time.Now()
 	beforeFn := func(c *cli.Context) error {
+		flag.Parse()
+		logger.Init()
 		isSilent = c.Bool(globalSilent)
 		if c.Bool(globalDisableProgressBar) {
 			barpool.Disable(true)
 		}
 		netutil.EnableIPv6()
+		pushmetrics.InitWith(&pushmetrics.Config{
+			URLs:               c.StringSlice(globalPushMetricsURL),
+			Interval:           c.Duration(globalPushMetricsInterval),
+			ExtraLabels:        c.StringSlice(globalPushExtraLabels),
+			DisableCompression: c.Bool(globalPushDisableCompression),
+			Headers:            c.StringSlice(globalPushHeaders),
+		})
 		return nil
 	}
 	app := &cli.App{
@@ -273,6 +286,7 @@ func main() {
 					if err != nil {
 						return fmt.Errorf("failed to create prometheus client: %s", err)
 					}
+
 					pp := prometheusProcessor{
 						cl:        cl,
 						im:        importer,
@@ -280,6 +294,59 @@ func main() {
 						isVerbose: c.Bool(globalVerbose),
 					}
 					return pp.run(ctx)
+				},
+			},
+			{
+				Name:   "thanos",
+				Usage:  "Migrate time series from Thanos blocks (supports raw and downsampled data)",
+				Flags:  mergeFlags(globalFlags, thanosFlags, vmFlags),
+				Before: beforeFn,
+				Action: func(c *cli.Context) error {
+					fmt.Println("Thanos import mode")
+
+					vmCfg, err := initConfigVM(c)
+					if err != nil {
+						return fmt.Errorf("failed to init VM configuration: %s", err)
+					}
+
+					importer, err = vm.NewImporter(ctx, vmCfg)
+					if err != nil {
+						return fmt.Errorf("failed to create VM importer: %s", err)
+					}
+
+					thanosCfg := thanos.Config{
+						Snapshot: c.String(thanosSnapshot),
+						Filter: thanos.Filter{
+							TimeMin:    c.String(thanosFilterTimeStart),
+							TimeMax:    c.String(thanosFilterTimeEnd),
+							Label:      c.String(thanosFilterLabel),
+							LabelValue: c.String(thanosFilterLabelValue),
+						},
+					}
+					cl, err := thanos.NewClient(thanosCfg)
+					if err != nil {
+						return fmt.Errorf("failed to create thanos client: %s", err)
+					}
+
+					var aggrTypes []thanos.AggrType
+					if aggrTypesStr := c.StringSlice(thanosAggrTypes); len(aggrTypesStr) > 0 {
+						for _, typeStr := range aggrTypesStr {
+							aggrType, err := thanos.ParseAggrType(typeStr)
+							if err != nil {
+								return fmt.Errorf("failed to parse aggregate type %q: %s", typeStr, err)
+							}
+							aggrTypes = append(aggrTypes, aggrType)
+						}
+					}
+
+					tp := thanosProcessor{
+						cl:        cl,
+						im:        importer,
+						cc:        c.Int(thanosConcurrency),
+						isVerbose: c.Bool(globalVerbose),
+						aggrTypes: aggrTypes,
+					}
+					return tp.run(ctx)
 				},
 			},
 			{
@@ -451,6 +518,7 @@ func main() {
 		log.Fatalln(err)
 	}
 	log.Printf("Total time: %v", time.Since(start))
+	pushmetrics.StopAndPush()
 }
 
 func initConfigVM(c *cli.Context) (vm.Config, error) {

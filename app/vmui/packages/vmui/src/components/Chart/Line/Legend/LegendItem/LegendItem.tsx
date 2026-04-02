@@ -13,11 +13,10 @@ import { getLabelAlias } from "../../../../../utils/metric";
 interface LegendItemProps {
   legend: LegendItemType;
   onChange?: (item: LegendItemType, metaKey: boolean) => void;
-  isAnomalyView?: boolean;
   duplicateFields?: string[];
 }
 
-const LegendItem: FC<LegendItemProps> = ({ legend, onChange, duplicateFields, isAnomalyView }) => {
+const LegendItem: FC<LegendItemProps> = ({ legend, onChange, duplicateFields }) => {
   const copyToClipboard = useCopyToClipboard();
   const { hideStats } = useShowStats();
 
@@ -52,12 +51,10 @@ const LegendItem: FC<LegendItemProps> = ({ legend, onChange, duplicateFields, is
       })}
       onClick={createHandlerClick(legend)}
     >
-      {!isAnomalyView && (
-        <div
-          className="vm-legend-item__marker"
-          style={{ backgroundColor: legend.color }}
-        />
-      )}
+      <div
+        className="vm-legend-item__marker"
+        style={{ backgroundColor: legend.color }}
+      />
       <div className="vm-legend-item-info">
         <span className="vm-legend-item-info__label">
           {legend.hasAlias && legend.label}

@@ -73,7 +73,7 @@ func (ppp *pipePackProcessor) writeBlock(workerID uint, br *blockResult) {
 
 	buf := shard.buf[:0]
 	fields := shard.fields
-	for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
+	for rowIdx := range br.rowsLen {
 		fields = fields[:0]
 		for _, c := range cs {
 			v := c.getValueAtRow(br, rowIdx)

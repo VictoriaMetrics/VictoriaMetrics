@@ -4,18 +4,110 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unsafe"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
+)
+
+const (
+	metricIDCacheShardCount = 16
+
+	// The number of consecutive metricIDs that will be stored in a single cache
+	// shard. This is 2^16 and corresponds to the size of a 16-bit bucket of the
+	// uint64set. That way the metricIDs end up in one uint64set bucket instead
+	// of being spread across multiple buckets. This reduces the memory size of
+	// the cache and allows for faster access.
+	metricIDCacheShardBucketSize = 65536
 )
 
 // metricIDCache stores metricIDs that have been added to the index. It is used
 // during data ingestion to decide whether a new entry needs to be added to the
 // global index.
 //
-// The cache avoids synchronization on the read path if possible to reduce
-// contention. Based on dateMetricIDCache ideas.
+// The cache consists of multiple shards and avoids synchronization on the read
+// path if possible to reduce contention.
 type metricIDCache struct {
+	shards [metricIDCacheShardCount]metricIDCacheShard
+
+	// The shards are rotated, one shard at a time. rotationPeriod defines the
+	// time interval between two successive rotations.
+	rotationPeriod time.Duration
+
+	stopCh            chan struct{}
+	rotationStoppedCh chan struct{}
+}
+
+func newMetricIDCache() *metricIDCache {
+	c := metricIDCache{
+		rotationPeriod:    timeutil.AddJitterToDuration(1 * time.Minute),
+		stopCh:            make(chan struct{}),
+		rotationStoppedCh: make(chan struct{}),
+	}
+	for i := range metricIDCacheShardCount {
+		c.shards[i].prev = &uint64set.Set{}
+		c.shards[i].next = &uint64set.Set{}
+		c.shards[i].curr.Store(&uint64set.Set{})
+	}
+	go c.startRotation()
+	return &c
+}
+
+func (c *metricIDCache) MustStop() {
+	close(c.stopCh)
+	<-c.rotationStoppedCh
+}
+
+func (c *metricIDCache) Stats() metricIDCacheStats {
+	var stats metricIDCacheStats
+	for i := range metricIDCacheShardCount {
+		s := c.shards[i].Stats()
+		stats.Size += s.Size
+		stats.SizeBytes += s.SizeBytes
+		stats.SyncsCount += s.SyncsCount
+		stats.RotationsCount += s.RotationsCount
+	}
+	return stats
+}
+
+func (c *metricIDCache) Has(metricID uint64) bool {
+	shardIdx := (metricID / metricIDCacheShardBucketSize) % metricIDCacheShardCount
+	return c.shards[shardIdx].Has(metricID)
+}
+
+func (c *metricIDCache) Set(metricID uint64) {
+	shardIdx := (metricID / metricIDCacheShardBucketSize) % metricIDCacheShardCount
+	c.shards[shardIdx].Set(metricID)
+}
+
+func (c *metricIDCache) startRotation() {
+	ticker := time.NewTicker(c.rotationPeriod)
+	defer ticker.Stop()
+	var shardIdx int
+	for {
+		select {
+		case <-c.stopCh:
+			close(c.rotationStoppedCh)
+			return
+		case <-ticker.C:
+			// Each tick rotate only one shard at a time to avoid slow access
+			// for all shards at once.
+			shardIdx %= metricIDCacheShardCount
+			c.shards[shardIdx].rotate()
+			shardIdx++
+		}
+	}
+}
+
+type metricIDCacheStats struct {
+	Size           uint64
+	SizeBytes      uint64
+	SyncsCount     uint64
+	RotationsCount uint64
+}
+
+type metricIDCacheShardNopad struct {
 	// Contains immutable set of metricIDs.
 	curr atomic.Pointer[uint64set.Set]
 
@@ -39,36 +131,16 @@ type metricIDCache struct {
 	rotationsCount uint64
 
 	mu sync.Mutex
-
-	stopCh            chan struct{}
-	rotationStoppedCh chan struct{}
 }
 
-func newMetricIDCache() *metricIDCache {
-	c := metricIDCache{
-		prev:              &uint64set.Set{},
-		next:              &uint64set.Set{},
-		stopCh:            make(chan struct{}),
-		rotationStoppedCh: make(chan struct{}),
-	}
-	c.curr.Store(&uint64set.Set{})
-	go c.startRotation()
-	return &c
+type metricIDCacheShard struct {
+	metricIDCacheShardNopad
+
+	// The padding prevents false sharing
+	_ [atomicutil.CacheLineSize - unsafe.Sizeof(metricIDCacheShardNopad{})%atomicutil.CacheLineSize]byte
 }
 
-func (c *metricIDCache) MustStop() {
-	close(c.stopCh)
-	<-c.rotationStoppedCh
-}
-
-type metricIDCacheStats struct {
-	Size           uint64
-	SizeBytes      uint64
-	SyncsCount     uint64
-	RotationsCount uint64
-}
-
-func (c *metricIDCache) Stats() metricIDCacheStats {
+func (c *metricIDCacheShard) Stats() metricIDCacheStats {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -91,7 +163,7 @@ func (c *metricIDCache) Stats() metricIDCacheStats {
 	return s
 }
 
-func (c *metricIDCache) Has(metricID uint64) bool {
+func (c *metricIDCacheShard) Has(metricID uint64) bool {
 	if c.curr.Load().Has(metricID) {
 		// Fast path. The majority of calls must go here.
 		return true
@@ -101,7 +173,7 @@ func (c *metricIDCache) Has(metricID uint64) bool {
 	return c.hasSlow(metricID)
 }
 
-func (c *metricIDCache) hasSlow(metricID uint64) bool {
+func (c *metricIDCacheShard) hasSlow(metricID uint64) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -132,7 +204,7 @@ func (c *metricIDCache) hasSlow(metricID uint64) bool {
 	return ok
 }
 
-func (c *metricIDCache) Set(metricID uint64) {
+func (c *metricIDCacheShard) Set(metricID uint64) {
 	c.mu.Lock()
 	c.next.Add(metricID)
 	c.mu.Unlock()
@@ -140,7 +212,7 @@ func (c *metricIDCache) Set(metricID uint64) {
 
 // syncLocked merges data from curr into next and atomically replaces curr with
 // next.
-func (c *metricIDCache) syncLocked() {
+func (c *metricIDCacheShard) syncLocked() {
 	curr := c.curr.Load()
 	c.next.Union(curr)
 	c.curr.Store(c.next)
@@ -148,23 +220,8 @@ func (c *metricIDCache) syncLocked() {
 	c.syncsCount++
 }
 
-func (c *metricIDCache) startRotation() {
-	d := timeutil.AddJitterToDuration(10 * time.Minute)
-	ticker := time.NewTicker(d)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-c.stopCh:
-			close(c.rotationStoppedCh)
-			return
-		case <-ticker.C:
-			c.rotate()
-		}
-	}
-}
-
 // rotate atomically rotates next, curr, and prev cache parts.
-func (c *metricIDCache) rotate() {
+func (c *metricIDCacheShard) rotate() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	curr := c.curr.Load()

@@ -17,6 +17,8 @@ func TestNewRegexFailure(t *testing.T) {
 
 	f("[foo")
 	f("(foo")
+	// Trigger syntax.ErrInvalidRepeatOp
+	f("a{0,10000}")
 }
 
 func TestRegexMatchString(t *testing.T) {
@@ -144,6 +146,10 @@ func TestRegexMatchString(t *testing.T) {
 	f("foo(bar|baz)", "a fooxfoobaz a", true)
 	f("foo(bar|baz)", "a fooxfooban a", false)
 	f("foo(bar|baz)", "a fooxfooban foobar a", true)
+
+	// Trigger syntax.ErrNestingDepth
+	// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/1112
+	f("a{0,1000}", "a", true)
 }
 
 func TestGetLiterals(t *testing.T) {

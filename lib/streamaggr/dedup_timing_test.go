@@ -30,7 +30,7 @@ func benchmarkDedupAggr(b *testing.B, samplesPerPush int) {
 	b.SetBytes(int64(samplesPerPush * loops))
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			for i := 0; i < loops; i++ {
+			for range loops {
 				da.pushSamples(benchSamples, 0, false)
 			}
 			da.flush(flushSamples, 0, false)

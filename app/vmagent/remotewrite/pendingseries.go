@@ -48,11 +48,7 @@ func newPendingSeries(fq *persistentqueue.FastQueue, isVMRemoteWrite *atomic.Boo
 	ps.wr.significantFigures = significantFigures
 	ps.wr.roundDigits = roundDigits
 	ps.stopCh = make(chan struct{})
-	ps.periodicFlusherWG.Add(1)
-	go func() {
-		defer ps.periodicFlusherWG.Done()
-		ps.periodicFlusher()
-	}()
+	ps.periodicFlusherWG.Go(ps.periodicFlusher)
 	return &ps
 }
 

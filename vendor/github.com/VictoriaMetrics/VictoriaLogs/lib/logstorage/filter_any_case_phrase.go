@@ -78,6 +78,12 @@ func (fp *filterAnyCasePhrase) initPhraseUppercase() {
 	fp.phraseUppercase = strings.ToUpper(fp.phrase)
 }
 
+func (fp *filterAnyCasePhrase) matchRow(fields []Field) bool {
+	v := getFieldValueByName(fields, fp.fieldName)
+	phraseLowercase := fp.getPhraseLowercase()
+	return matchAnyCasePhrase(v, phraseLowercase)
+}
+
 func (fp *filterAnyCasePhrase) applyToBlockResult(br *blockResult, bm *bitmap) {
 	phraseLowercase := fp.getPhraseLowercase()
 	applyToBlockResultGeneric(br, bm, fp.fieldName, phraseLowercase, matchAnyCasePhrase)
@@ -181,7 +187,7 @@ func matchAnyCasePhrase(s, phraseLowercase string) bool {
 }
 
 func isASCIILowercase(s string) bool {
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		c := s[i]
 		if c >= utf8.RuneSelf || (c >= 'A' && c <= 'Z') {
 			return false

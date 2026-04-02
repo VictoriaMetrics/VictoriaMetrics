@@ -9,6 +9,6 @@ func StartVmrestore(instance, src, storageDataPath string, output io.Writer) err
 		"-src=" + src,
 		"-storageDataPath=" + storageDataPath,
 	}
-	_, _, err := startApp(instance, "../../bin/vmrestore", flags, &appOptions{wait: true, output: output})
+	_, _, err := startApp(instance, "../../bin/vmrestore-race", flags, &appOptions{wait: true, output: output})
 	return err
 }

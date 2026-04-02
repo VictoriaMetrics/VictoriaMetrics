@@ -24,7 +24,7 @@ func TestTableOpenClose(t *testing.T) {
 	tb.MustClose()
 
 	// Re-open created table multiple times.
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		tb := mustOpenTable(path, strg)
 		tb.MustClose()
 	}
@@ -72,15 +72,13 @@ func TestGetPartition_concurrent(t *testing.T) {
 	for ts := begin; ts < limit; ts += msecPerDay {
 		var wg sync.WaitGroup
 		for range 100 {
-			wg.Add(1)
-			go func() {
+			wg.Go(func() {
 				ptw := s.tb.MustGetPartition(ts)
 				s.tb.PutPartition(ptw)
 
 				ptw = s.tb.GetPartition(ts)
 				s.tb.PutPartition(ptw)
-				wg.Done()
-			}()
+			})
 		}
 		wg.Wait()
 	}

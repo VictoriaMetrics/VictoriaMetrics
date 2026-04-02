@@ -26,7 +26,6 @@ import useSearchParamsFromObject from "../../../hooks/useSearchParamsFromObject"
 import { QueryStats } from "../../../api/types";
 import { usePrettifyQuery } from "./hooks/usePrettifyQuery";
 import QueryHistory from "../../../components/QueryHistory/QueryHistory";
-import AnomalyConfig from "../../../components/ExploreAnomaly/AnomalyConfig";
 import QueryEditorAutocomplete from "../../../components/Configurators/QueryEditor/QueryEditorAutocomplete";
 import { getUpdatedHistory } from "../../../components/QueryHistory/utils";
 
@@ -46,7 +45,6 @@ export interface QueryConfiguratorProps {
     prettify?: boolean;
     autocomplete?: boolean;
     traceQuery?: boolean;
-    anomalyConfig?: boolean;
     disableCache?: boolean;
     reduceMemUsage?: boolean;
   }
@@ -278,7 +276,6 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
           handleSelectQuery={handleSelectHistory}
           historyKey={"METRICS_QUERY_HISTORY"}
         />
-        {hideButtons?.anomalyConfig && <AnomalyConfig/>}
         {!hideButtons?.addQuery && stateQuery.length < MAX_QUERY_FIELDS && (
           <Button
             variant="outlined"

@@ -18,6 +18,8 @@ const (
 	metadataFilename = "metadata.json"
 	partsFilename    = "parts.json"
 
+	deleteTasksFilename = "delete_tasks.json"
+
 	indexdbDirname    = "indexdb"
 	datadbDirname     = "datadb"
 	partitionsDirname = "partitions"

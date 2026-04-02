@@ -1933,11 +1933,11 @@ func (be *BinaryOpExpr) appendStringNoKeepMetricNames(dst []byte) []byte {
 }
 
 func (be *BinaryOpExpr) needLeftParens() bool {
-	return needBinaryOpArgParens(be.Left)
+	return needBinaryOpArgParens(be.Left, be.Op)
 }
 
 func (be *BinaryOpExpr) needRightParens() bool {
-	if needBinaryOpArgParens(be.Right) {
+	if needBinaryOpArgParens(be.Right, be.Op) {
 		return true
 	}
 	switch t := be.Right.(type) {
@@ -1974,15 +1974,42 @@ func (be *BinaryOpExpr) appendModifiers(dst []byte) []byte {
 	return dst
 }
 
-func needBinaryOpArgParens(arg Expr) bool {
+func needBinaryOpArgParens(arg Expr, parentOp string) bool {
 	switch t := arg.(type) {
 	case *BinaryOpExpr:
-		return true
+		// Parens are required when the child op priority not equal to parent o one.
+		// For example, a + b / c - d should be a + (b / c) - d.
+		if binaryOpPriority(t.Op) != binaryOpPriority(parentOp) {
+			return true
+		}
+
+		// Same op: parens are only needed when the sub-expression is not a simple leaf chain.
+		return !isBinaryOpLeafSimple(t)
 	case *RollupExpr:
 		if be, ok := t.Expr.(*BinaryOpExpr); ok && be.KeepMetricNames {
 			return true
 		}
 		return t.Offset != nil || t.At != nil
+	default:
+		return false
+	}
+}
+
+func isBinaryOpLeafSimple(arg Expr) bool {
+	switch t := arg.(type) {
+	case *NumberExpr:
+		return true
+	case *MetricExpr:
+		metricName := t.getMetricName()
+		// Parens should be added if metric name equals to a reserved word, such as group_left
+		// For example, a + group_left should become a + (group_left). Otherwise, query won't be parsed.
+		return !isReservedBinaryOpIdent(metricName)
+	case *BinaryOpExpr:
+		if t.GroupModifier.Op != "" || t.KeepMetricNames || t.JoinModifier.Op != "" {
+			return false
+		}
+
+		return isBinaryOpLeafSimple(t.Left) && isBinaryOpLeafSimple(t.Right)
 	default:
 		return false
 	}
@@ -2390,7 +2417,7 @@ func mustGetMetricName(lfss []*labelFilterExpr) string {
 		return ""
 	}
 	lfs := lfss[0]
-	if lfs.Label != "__name__" || lfs.Value == nil || len(lfs.Value.tokens) != 1 {
+	if lfs.Label != "__name__" || lfs.Value == nil || len(lfs.Value.tokens) != 1 || lfs.IsRegexp || lfs.IsNegative {
 		if lfs.IsPossibleMetricName {
 			return lfs.Label
 		}

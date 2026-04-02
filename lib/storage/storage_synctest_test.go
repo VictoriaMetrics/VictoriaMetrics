@@ -1,4 +1,4 @@
-//go:build goexperiment.synctest
+//go:build synctest
 
 package storage
 
@@ -289,7 +289,7 @@ func TestStorageRotateIndexDBPrefill(t *testing.T) {
 	f := func(t *testing.T, opts OpenOptions, prefillStart time.Duration) {
 		t.Helper()
 
-		synctest.Run(func() {
+		synctest.Test(t, func(t *testing.T) {
 			// Prefill of the next partition indexDB happens during the
 			// (nextMonth-prefillStart, nextMonth] time interval.
 			// Advance current time right before the the beginning of that interval.
@@ -441,6 +441,7 @@ func TestStorageAddRows_nextDayIndexPrefill(t *testing.T) {
 			MaxTimestamp: time.Now().Add(+15 * time.Minute).UnixMilli(),
 		})
 		s := MustOpenStorage(t.Name(), OpenOptions{})
+		defer s.MustClose()
 		s.AddRows(mrs0, defaultPrecisionBits)
 		s.DebugFlush()
 		if got, want := countMetricIDs(t, s, "metric0", today), numSeries; got != want {
@@ -462,12 +463,6 @@ func TestStorageAddRows_nextDayIndexPrefill(t *testing.T) {
 			t.Fatalf("unexpected metric id count for next day: got %d, want %d", got, want)
 		}
 
-		// Close the storage and reopen it 15m later instead of keeping it open
-		// and waiting. This is to make the test faster. Storage has a lot of
-		// background tasks that are activated every 1-10 seconds and synctest's
-		// time.Sleep() will wake them up many times. Closing storage before
-		// sleeping seems to eliminate this.
-		//
 		// At 23:15 the prefill must work.
 		//
 		// However, the mrs1 timestamps are not within the current hour and
@@ -476,9 +471,7 @@ func TestStorageAddRows_nextDayIndexPrefill(t *testing.T) {
 		//
 		// The mrs2 timestamps are within the current hour so some next day index
 		// entries will be created.
-		s.MustClose()
 		time.Sleep(15 * time.Minute) // 2000-01-01T23:15:00Z
-		s = MustOpenStorage(t.Name(), OpenOptions{})
 		mrs1 := testGenerateMetricRowsWithPrefix(rng, numSeries, "metric1", TimeRange{
 			MinTimestamp: time.Now().Add(-30 * time.Minute).UnixMilli(),
 			MaxTimestamp: time.Now().Add(-15 * time.Minute).UnixMilli(),
@@ -504,13 +497,7 @@ func TestStorageAddRows_nextDayIndexPrefill(t *testing.T) {
 			t.Fatalf("unexpected metric id count for next day: got 0, want > 0")
 		}
 
-		// Close the storage and reopen it at 23:30.
-		//
-		// Since we are now closer to midnight than we were at 23:15, more next
-		// day entries must be created.
-		s.MustClose()
 		time.Sleep(15 * time.Minute) // 2000-01-01T23:30:00Z
-		s = MustOpenStorage(t.Name(), OpenOptions{})
 		mrs3 := testGenerateMetricRowsWithPrefix(rng, numSeries, "metric3", TimeRange{
 			MinTimestamp: time.Now().Add(-15 * time.Minute).UnixMilli(),
 			MaxTimestamp: time.Now().UnixMilli(),
@@ -525,13 +512,7 @@ func TestStorageAddRows_nextDayIndexPrefill(t *testing.T) {
 			t.Fatalf("unexpected metric id count for next day: got %d, want > %d", got30min, got15min)
 		}
 
-		// Close the storage and reopen it at 23:45.
-		//
-		// Since we are now closer to midnight than we were at 23:30, more next
-		// day entries must be created.
-		s.MustClose()
 		time.Sleep(15 * time.Minute) // 2000-01-01T23:45:00Z
-		s = MustOpenStorage(t.Name(), OpenOptions{})
 		mrs4 := testGenerateMetricRowsWithPrefix(rng, numSeries, "metric4", TimeRange{
 			MinTimestamp: time.Now().Add(-15 * time.Minute).UnixMilli(),
 			MaxTimestamp: time.Now().UnixMilli(),
@@ -543,7 +524,33 @@ func TestStorageAddRows_nextDayIndexPrefill(t *testing.T) {
 			t.Fatalf("unexpected metric id count for next day: got %d, want > %d", got45min, got30min)
 		}
 
-		s.MustClose()
+		// Sleep until the next day
+		// do not close storage, it resets dataMetricID cache and it will result into slow inserts
+		// since dateMetricID cache is not persisted on-disk
+
+		time.Sleep(35 * time.Minute) // 2000-01-02T00:20:00Z
+		synctest.Wait()
+
+		// Ingest data for the next day, it must hit dateMetricID cache and
+		// do not result into significant amount of slow inserts.
+		var m Metrics
+		s.UpdateMetrics(&m)
+		currDaySlowInserts := m.SlowPerDayIndexInserts
+		mrs3NextDay := testGenerateMetricRowsWithPrefix(rng, numSeries, "metric3", TimeRange{
+			MinTimestamp: time.Now().Add(-5 * time.Minute).UnixMilli(),
+			MaxTimestamp: time.Now().UnixMilli(),
+		})
+
+		s.AddRows(mrs3NextDay, defaultPrecisionBits)
+		s.DebugFlush()
+		m.Reset()
+		s.UpdateMetrics(&m)
+		nextDaySlowInserts := m.SlowPerDayIndexInserts
+		slowInserts := nextDaySlowInserts - currDaySlowInserts
+		if slowInserts >= numSeries {
+			t.Errorf("unexpected amount of slow inserts: got %d, want < %d", slowInserts, numSeries)
+		}
+
 	})
 }
 
@@ -628,5 +635,69 @@ func TestStorageMustLoadNextDayMetricIDs(t *testing.T) {
 		}
 		assertNextDayMetricIDs(t, s.nextDayMetricIDs.Load(), idbID, date, 0)
 		s.MustClose()
+	})
+}
+
+func TestStorageLastPartitionMetrics(t *testing.T) {
+	defer testRemoveAll(t)
+	synctest.Test(t, func(t *testing.T) {
+		// Advance current time to 2h before the next month, 2000-01-31T22:00:00Z.
+		time.Sleep(31*24*time.Hour - 2*time.Hour)
+		ct := time.Now().UTC()
+
+		s := MustOpenStorage(t.Name(), OpenOptions{})
+		defer s.MustClose()
+
+		assertLastPartitionEmpty := func() {
+			t.Helper()
+			var m Metrics
+			s.UpdateMetrics(&m)
+			lpm := m.TableMetrics.LastPartition
+			if lpm.SmallPartsCount != 0 {
+				t.Fatalf("unexpected last partition SmallPartsCount: got %d, want 0", lpm.SmallPartsCount)
+			}
+			if lpm.IndexDBMetrics.FileBlocksCount != 0 {
+				t.Fatalf("unexpected last partition IndexDBMetrics.FileBlocksCount: got %d, want 0", lpm.IndexDBMetrics.FileBlocksCount)
+			}
+		}
+		assertLastPartitionNonEmpty := func() {
+			t.Helper()
+			var m Metrics
+			s.UpdateMetrics(&m)
+			lpm := m.TableMetrics.LastPartition
+			if lpm.SmallPartsCount == 0 {
+				t.Fatalf("unexpected last partition SmallPartsCount: got 0, want > 0")
+			}
+			if lpm.IndexDBMetrics.FileBlocksCount == 0 {
+				t.Fatalf("unexpected last partition IndexDBMetrics.FileBlocksCount: got 0, want > 0")
+			}
+		}
+
+		// make sure last partition is empty before ingestion
+		assertLastPartitionEmpty()
+
+		const numSeries = 1000
+
+		rng := rand.New(rand.NewSource(1))
+		tr := TimeRange{
+			MinTimestamp: ct.Add(-time.Hour).UnixMilli(),
+			MaxTimestamp: ct.UnixMilli(),
+		}
+		mrs := testGenerateMetricRowsWithPrefix(rng, numSeries, "metric.", tr)
+		s.AddRows(mrs, 1)
+		s.DebugFlush()
+		if got, want := s.newTimeseriesCreated.Load(), uint64(numSeries); got != want {
+			t.Errorf("unexpected number of new timeseries: got %d, want %d", got, want)
+		}
+		// wait for merged parts to be attached to the table
+		time.Sleep(time.Minute)
+
+		// last created partition is empty, but we're still at current month
+		assertLastPartitionNonEmpty()
+		// Advance current time to the the next month, 2000-02-01T00:30:00Z.
+		// last partition must be 2000-02 now
+		time.Sleep(2*time.Hour + time.Minute*30)
+		// current month partition has no data ingested
+		assertLastPartitionEmpty()
 	})
 }

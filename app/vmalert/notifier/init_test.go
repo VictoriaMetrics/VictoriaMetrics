@@ -55,9 +55,9 @@ func TestInitNegative(t *testing.T) {
 		*blackHole = oldBlackHole
 	}()
 
-	f := func(path, addr string, bh bool) {
+	f := func(path string, addr []string, bh bool) {
 		*configPath = path
-		*addrs = flagutil.ArrayString{addr}
+		*addrs = flagutil.ArrayString(addr)
 		*blackHole = bh
 		if err := Init(nil, ""); err == nil {
 			t.Fatalf("expected to get error; got nil instead")
@@ -65,9 +65,12 @@ func TestInitNegative(t *testing.T) {
 	}
 
 	// *configPath, *addrs and *blackhole are mutually exclusive
-	f("/dummy/path", "127.0.0.1", false)
-	f("/dummy/path", "", true)
-	f("", "127.0.0.1", true)
+	f("/dummy/path", []string{"127.0.0.1"}, false)
+	f("/dummy/path", []string{}, true)
+	f("", []string{"127.0.0.1"}, true)
+	// addr cannot be ""
+	f("", []string{""}, false)
+	f("", []string{"127.0.0.1", ""}, false)
 }
 
 func TestBlackHole(t *testing.T) {
@@ -202,7 +205,9 @@ alert_relabel_configs:
 		},
 	}
 	errG := Send(context.Background(), firingAlerts, nil)
-	if errG.Err() != nil {
-		t.Fatalf("unexpected error when sending alerts: %s", err)
+	for err := range errG {
+		if err != nil {
+			t.Errorf("unexpected error when sending alerts: %s", err)
+		}
 	}
 }

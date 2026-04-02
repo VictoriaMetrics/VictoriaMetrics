@@ -16,7 +16,7 @@ func TestMarshalUnmarshalInt64Array(t *testing.T) {
 	// Verify nearest delta encoding.
 	va = va[:0]
 	v = 0
-	for i := 0; i < 8*1024; i++ {
+	for range 8 * 1024 {
 		v += int64(r.NormFloat64() * 1e6)
 		va = append(va, v)
 	}
@@ -30,7 +30,7 @@ func TestMarshalUnmarshalInt64Array(t *testing.T) {
 	// Verify nearest delta2 encoding.
 	va = va[:0]
 	v = 0
-	for i := 0; i < 8*1024; i++ {
+	for range 8 * 1024 {
 		v += 30e6 + int64(r.NormFloat64()*1e6)
 		va = append(va, v)
 	}
@@ -44,7 +44,7 @@ func TestMarshalUnmarshalInt64Array(t *testing.T) {
 	// Verify nearest delta encoding.
 	va = va[:0]
 	v = 1000
-	for i := 0; i < 6; i++ {
+	for range 6 {
 		v += int64(r.NormFloat64() * 100)
 		va = append(va, v)
 	}
@@ -55,7 +55,7 @@ func TestMarshalUnmarshalInt64Array(t *testing.T) {
 	// Verify nearest delta2 encoding.
 	va = va[:0]
 	v = 0
-	for i := 0; i < 6; i++ {
+	for range 6 {
 		v += 3000 + int64(r.NormFloat64()*100)
 		va = append(va, v)
 	}
@@ -69,7 +69,7 @@ func TestMarshalInt64ArraySize(t *testing.T) {
 
 	var va []int64
 	v := int64(r.Float64() * 1e9)
-	for i := 0; i < 8*1024; i++ {
+	for range 8 * 1024 {
 		va = append(va, v)
 		v += 30e3 + int64(r.NormFloat64()*1e3)
 	}

@@ -44,6 +44,18 @@
         "name": "version",
         "textFormat": "{{version}}",
         "titleFormat": "Version change"
+      },
+      {
+        "datasource": {
+          "type": "victoriametrics-metrics-datasource",
+          "uid": "$ds"
+        },
+        "enable": true,
+        "expr": "sum(changes(vm_app_start_timestamp{job=~\"$job\", instance=~\"$instance\"}[$__interval])) by(job)",
+        "hide": false,
+        "iconColor": "dark-yellow",
+        "name": "restarts",
+        "textFormat": "{{job}} restarted"
       }
     ]
   },
@@ -1509,8 +1521,8 @@
           "links": [
             {
               "targetBlank": true,
-              "title": "asd",
-              "url": "asd"
+              "title": "Drilldown",
+              "url": "/d/wNf0q_kZk_vm?viewPanel=154&var-job=${__field.labels.job}&var-ds=$ds&${__url_time_range}"
             }
           ],
           "mappings": [],
@@ -1633,12 +1645,12 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown - RSS memory usage",
-                  "url": "/d/wNf0q_kZk_vm?viewPanel=148&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "url": "/d/wNf0q_kZk_vm?viewPanel=148&var-job=${__field.labels.job}&var-ds=$ds&${__url_time_range}"
                 },
                 {
                   "targetBlank": true,
                   "title": "Drilldown - Memory usage breakdown",
-                  "url": "/d/wNf0q_kZk_vm?viewPanel=141&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "url": "/d/wNf0q_kZk_vm?viewPanel=141&var-job=${__field.labels.job}&var-ds=$ds&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -1753,7 +1765,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/wNf0q_kZk_vm?viewPanel=151&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "url": "/d/wNf0q_kZk_vm?viewPanel=151&var-job=${__field.labels.job}&var-ds=$ds&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -1871,7 +1883,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/wNf0q_kZk_vm?viewPanel=149&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "url": "/d/wNf0q_kZk_vm?viewPanel=149&var-job=${__field.labels.job}&var-ds=$ds&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -5111,7 +5123,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/wNf0q_kZk_vm?viewPanel=140&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "url": "/d/wNf0q_kZk_vm?viewPanel=140&var-job=${__field.labels.job}&var-ds=$ds&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -5163,7 +5175,7 @@
                 "uid": "${ds}"
               },
               "editorMode": "code",
-              "expr": "sum(rate(process_major_pagefaults_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job)",
+              "expr": "sum(rate(process_major_pagefaults_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job) > 0",
               "legendFormat": "__auto",
               "range": true,
               "refId": "A"
@@ -5345,7 +5357,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/wNf0q_kZk_vm?viewPanel=150&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "url": "/d/wNf0q_kZk_vm?viewPanel=150&var-job=${__field.labels.job}&var-ds=$ds&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -5962,7 +5974,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/wNf0q_kZk_vm?viewPanel=153&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "url": "/d/wNf0q_kZk_vm?viewPanel=153&var-job=${__field.labels.job}&var-ds=$ds&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -6226,7 +6238,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/wNf0q_kZk_vm?viewPanel=152&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "url": "/d/wNf0q_kZk_vm?viewPanel=152&var-job=${__field.labels.job}&var-ds=$ds&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -7656,7 +7668,7 @@
                 "uid": "${ds}"
               },
               "editorMode": "code",
-              "expr": "sum(rate(process_major_pagefaults_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job,instance)",
+              "expr": "sum(rate(process_major_pagefaults_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job,instance) > 0",
               "legendFormat": "{{instance}} ({{job}})",
               "range": true,
               "refId": "A"
@@ -8532,8 +8544,8 @@
               "links": [
                 {
                   "targetBlank": true,
-                  "title": "Drilldown",
-                  "url": "/d/wNf0q_kZk_vm?viewPanel=154&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "title": "Source Code",
+                  "url": "https://l2s.victoriametrics.com/?app_version=${__field.labels.app_version}&location=${__field.labels.location}"
                 }
               ],
               "mappings": [],
@@ -8590,11 +8602,11 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "sum(rate(vm_log_messages_total{job=~\"$job\",instance=~\"$instance\", level!=\"info\"}[$__rate_interval])) by (job, instance, level, location) > 0",
+              "expr": "sum(rate(vm_log_messages_total{job=~\"$job\",instance=~\"$instance\", level!=\"info\"}[$__rate_interval])) by (job, instance, level, app_version, location) > 0",
               "format": "time_series",
               "interval": "5m",
               "intervalFactor": 1,
-              "legendFormat": "__auto",
+              "legendFormat": "{{instance}} ({{job}}) - {{level}}: {{location}}",
               "range": true,
               "refId": "A"
             }

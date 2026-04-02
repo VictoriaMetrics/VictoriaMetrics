@@ -29,7 +29,7 @@ func StartVmagent(instance string, flags []string, cli *Client, promScrapeConfig
 		httpListenAddrRE,
 	}
 
-	app, stderrExtracts, err := startApp(instance, "../../bin/vmagent", flags, &appOptions{
+	app, stderrExtracts, err := startApp(instance, "../../bin/vmagent-race", flags, &appOptions{
 		defaultFlags: map[string]string{
 			"-httpListenAddr":          "127.0.0.1:0",
 			"-promscrape.config":       promScrapeConfigFilePath,
@@ -145,7 +145,7 @@ func (app *Vmagent) ReloadRelabelConfigs(t *testing.T) {
 	}
 
 	var currTotal float64
-	for i := 0; i < 30; i++ {
+	for range 30 {
 		currTotal = app.GetMetric(t, "vmagent_relabel_config_reloads_total")
 		if currTotal > prevTotal {
 			return

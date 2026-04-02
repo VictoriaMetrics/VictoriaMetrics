@@ -87,11 +87,11 @@ func (tc *TestCase) MustStartDefaultVmsingle() *Vmsingle {
 }
 
 // MustStartVmsingle is a test helper function that starts an instance of
-// vmsingle located at ../../bin/victoria-metrics and fails the test if the app
+// vmsingle located at ../../bin/victoria-metrics-race and fails the test if the app
 // fails to start.
 func (tc *TestCase) MustStartVmsingle(instance string, flags []string) *Vmsingle {
 	tc.t.Helper()
-	return tc.MustStartVmsingleAt(instance, "../../bin/victoria-metrics", flags)
+	return tc.MustStartVmsingleAt(instance, "../../bin/victoria-metrics-race", flags)
 }
 
 // MustStartVmsingleAt is a test helper function that starts an instance of
@@ -108,11 +108,11 @@ func (tc *TestCase) MustStartVmsingleAt(instance, binary string, flags []string)
 }
 
 // MustStartVmstorage is a test helper function that starts an instance of
-// vmstorage located at ../../bin/vmstorage and fails the test if the app fails
+// vmstorage located at ../../bin/vmstorage-race and fails the test if the app fails
 // to start.
 func (tc *TestCase) MustStartVmstorage(instance string, flags []string) *Vmstorage {
 	tc.t.Helper()
-	return tc.MustStartVmstorageAt(instance, "../../bin/vmstorage", flags)
+	return tc.MustStartVmstorageAt(instance, "../../bin/vmstorage-race", flags)
 }
 
 // MustStartVmstorageAt is a test helper function that starts an instance of
@@ -293,12 +293,12 @@ func (tc *TestCase) MustStartCluster(opts *ClusterOptions) *Vmcluster {
 	tc.t.Helper()
 
 	if opts.Vmstorage1Binary == "" {
-		opts.Vmstorage1Binary = "../../bin/vmstorage"
+		opts.Vmstorage1Binary = "../../bin/vmstorage-race"
 	}
 	vmstorage1 := tc.MustStartVmstorageAt(opts.Vmstorage1Instance, opts.Vmstorage1Binary, opts.Vmstorage1Flags)
 
 	if opts.Vmstorage2Binary == "" {
-		opts.Vmstorage2Binary = "../../bin/vmstorage"
+		opts.Vmstorage2Binary = "../../bin/vmstorage-race"
 	}
 	vmstorage2 := tc.MustStartVmstorageAt(opts.Vmstorage2Instance, opts.Vmstorage2Binary, opts.Vmstorage2Flags)
 

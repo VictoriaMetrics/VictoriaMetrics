@@ -105,14 +105,14 @@ func TestMergeTagToMetricIDsRows(t *testing.T) {
 			})
 		}
 		if !checkItemsSorted(data, itemsB) {
-			t.Fatalf("source items aren't sorted; items:\n%q", itemsB)
+			t.Fatalf("source items aren't sorted; items:\n%v", itemsB)
 		}
 		resultData, resultItemsB := mergeTagToMetricIDsRows(data, itemsB)
 		if len(resultItemsB) != len(expectedItems) {
 			t.Fatalf("unexpected len(resultItemsB); got %d; want %d", len(resultItemsB), len(expectedItems))
 		}
 		if !checkItemsSorted(resultData, resultItemsB) {
-			t.Fatalf("result items aren't sorted; items:\n%q", resultItemsB)
+			t.Fatalf("result items aren't sorted; items:\n%v", resultItemsB)
 		}
 		buf := resultData
 		for i, it := range resultItemsB {
@@ -330,7 +330,7 @@ func TestMergeTagToMetricIDsRows(t *testing.T) {
 	var metricIDs []uint64
 
 	metricIDs = metricIDs[:0]
-	for i := 0; i < maxMetricIDsPerRow-1; i++ {
+	for i := range maxMetricIDsPerRow - 1 {
 		metricIDs = append(metricIDs, uint64(i))
 	}
 	f([]string{
@@ -348,7 +348,7 @@ func TestMergeTagToMetricIDsRows(t *testing.T) {
 	})
 
 	metricIDs = metricIDs[:0]
-	for i := 0; i < maxMetricIDsPerRow; i++ {
+	for i := range maxMetricIDsPerRow {
 		metricIDs = append(metricIDs, uint64(i))
 	}
 	f([]string{
@@ -364,7 +364,7 @@ func TestMergeTagToMetricIDsRows(t *testing.T) {
 	})
 
 	metricIDs = metricIDs[:0]
-	for i := 0; i < 3*maxMetricIDsPerRow; i++ {
+	for i := range 3 * maxMetricIDsPerRow {
 		metricIDs = append(metricIDs, uint64(i))
 	}
 	f([]string{
@@ -394,7 +394,7 @@ func TestMergeTagToMetricIDsRows(t *testing.T) {
 
 	// Check for duplicate metricIDs removal
 	metricIDs = metricIDs[:0]
-	for i := 0; i < maxMetricIDsPerRow-1; i++ {
+	for range maxMetricIDsPerRow - 1 {
 		metricIDs = append(metricIDs, 123)
 	}
 	f([]string{
@@ -412,7 +412,7 @@ func TestMergeTagToMetricIDsRows(t *testing.T) {
 
 	// Check fallback to the original items after merging, which result in incorrect ordering.
 	metricIDs = metricIDs[:0]
-	for i := 0; i < maxMetricIDsPerRow-3; i++ {
+	for range maxMetricIDsPerRow - 3 {
 		metricIDs = append(metricIDs, uint64(123))
 	}
 	f([]string{
@@ -476,7 +476,7 @@ func TestIndexDBOpenClose(t *testing.T) {
 
 	var s Storage
 	path := filepath.Join(t.Name(), "2025_01")
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		var isReadOnly atomic.Bool
 		db := mustOpenIndexDB(123, TimeRange{}, "name", path, &s, &isReadOnly, false)
 		db.MustClose()
@@ -523,7 +523,7 @@ func TestIndexDB(t *testing.T) {
 		db := ptw.pt.idb
 
 		ch := make(chan error, 3)
-		for i := 0; i < cap(ch); i++ {
+		for range cap(ch) {
 			go func() {
 				mns, tsid, err := testIndexDBGetOrCreateTSIDByName(db, metricGroups, timestamp)
 				if err != nil {
@@ -538,7 +538,7 @@ func TestIndexDB(t *testing.T) {
 			}()
 		}
 		deadlineCh := time.After(30 * time.Second)
-		for i := 0; i < cap(ch); i++ {
+		for range cap(ch) {
 			select {
 			case err := <-ch:
 				if err != nil {
@@ -566,15 +566,15 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, metricGroups int, timestamp i
 	date := uint64(timestamp) / msecPerDay
 
 	var metricNameBuf []byte
-	for i := 0; i < 401; i++ {
+	for i := range 401 {
 		var mn MetricName
 
 		// Init MetricGroup.
-		mn.MetricGroup = []byte(fmt.Sprintf("metricGroup.%d\x00\x01\x02", i%metricGroups))
+		mn.MetricGroup = fmt.Appendf(nil, "metricGroup.%d\x00\x01\x02", i%metricGroups)
 
 		// Init other tags.
 		tagsCount := r.Intn(10) + 1
-		for j := 0; j < tagsCount; j++ {
+		for j := range tagsCount {
 			key := fmt.Sprintf("key\x01\x02\x00_%d_%d", i, j)
 			value := fmt.Sprintf("val\x01_%d\x00_%d\x02", i, j)
 			mn.AddTag(key, value)
@@ -712,7 +712,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, tim
 		if err := tfs.Add(nil, mn.MetricGroup, false, false); err != nil {
 			return fmt.Errorf("cannot create tag filter for MetricGroup: %w", err)
 		}
-		for j := 0; j < len(mn.Tags); j++ {
+		for j := range mn.Tags {
 			t := &mn.Tags[j]
 			if err := tfs.Add(t.Key, t.Value, false, false); err != nil {
 				return fmt.Errorf("cannot create tag filter for tag: %w", err)
@@ -813,7 +813,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, tim
 		if err := tfs.Add(nil, mn.MetricGroup, false, true); err != nil {
 			return fmt.Errorf("cannot create regexp tag filter for MetricGroup: %w", err)
 		}
-		for j := 0; j < len(mn.Tags); j++ {
+		for j := range mn.Tags {
 			t := &mn.Tags[j]
 			if err := tfs.Add(t.Key, append(t.Value, "|foo*."...), false, true); err != nil {
 				return fmt.Errorf("cannot create regexp tag filter for tag: %w", err)
@@ -922,12 +922,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, tim
 }
 
 func testHasTSID(tsids []TSID, tsid *TSID) bool {
-	for i := range tsids {
-		if tsids[i] == *tsid {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(tsids, *tsid)
 }
 
 func TestGetRegexpForGraphiteNodeQuery(t *testing.T) {
@@ -960,7 +955,7 @@ func TestGetRegexpForGraphiteNodeQuery(t *testing.T) {
 func TestMatchTagFilters(t *testing.T) {
 	var mn MetricName
 	mn.MetricGroup = append(mn.MetricGroup, "foobar_metric"...)
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		key := fmt.Sprintf("key %d", i)
 		value := fmt.Sprintf("value %d", i)
 		mn.AddTag(key, value)
@@ -1423,6 +1418,9 @@ func TestMatchTagFilters(t *testing.T) {
 }
 
 func TestSearchTSIDWithTimeRange(t *testing.T) {
+	// TODO: @f41gh7 refactor this test:
+	// create a new test for LabelNames
+	// move exist LabelVales tests into TestSearchLabelValues
 	const path = "TestSearchTSIDWithTimeRange"
 	// Create a bunch of per-day time series
 	const days = 5
@@ -1468,10 +1466,10 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	db := ptw.pt.idb
 	is := db.getIndexSearch(noDeadline)
 
-	for day := 0; day < days; day++ {
+	for day := range days {
 		date := baseDate - uint64(day)
 		var metricIDs uint64set.Set
-		for metric := 0; metric < metricsPerDay; metric++ {
+		for metric := range metricsPerDay {
 			mn := newMN("testMetric", day, metric)
 			metricNameBuf = mn.Marshal(metricNameBuf[:0])
 			var tsid TSID
@@ -1993,13 +1991,12 @@ func TestIndexSearchLegacyContainsTimeRange_Concurrent(t *testing.T) {
 	concurrency := int64(100)
 	var wg sync.WaitGroup
 	for i := range concurrency {
-		wg.Add(1)
-		go func(ts int64) {
+		ts := minTimestamp + msecPerDay*i
+		wg.Go(func() {
 			is := idb.getIndexSearch(noDeadline)
 			_ = is.legacyContainsTimeRange(TimeRange{ts, ts})
 			idb.putIndexSearch(is)
-			wg.Done()
-		}(minTimestamp + msecPerDay*i)
+		})
 	}
 	wg.Wait()
 
@@ -2007,4 +2004,140 @@ func TestIndexSearchLegacyContainsTimeRange_Concurrent(t *testing.T) {
 	if got, want := idb.legacyMinMissingTimestampByKey[string(key)], minTimestamp; got != want {
 		t.Fatalf("unexpected min timestamp: got %v, want %v", time.UnixMilli(got).UTC(), time.UnixMilli(want).UTC())
 	}
+}
+
+func TestSearchLabelValues(t *testing.T) {
+	const path = "TestSearchLabelValues"
+	// Create a bunch of per-day time series
+	const days = 5
+	const metricsPerDay = 1000
+	timestamp := time.Date(2019, time.October, 15, 5, 1, 0, 0, time.UTC).UnixMilli()
+	baseDate := uint64(timestamp) / msecPerDay
+	var metricNameBuf []byte
+	perDayMetricIDs := make(map[uint64]*uint64set.Set)
+	var allMetricIDs uint64set.Set
+	uniqLabelNames := make(map[string]struct{})
+
+	newMN := func(name string, day, metric int) MetricName {
+		var mn MetricName
+		metricName := fmt.Sprintf("%s_%d", name, metric)
+		if _, ok := uniqLabelNames[metricName]; !ok {
+			uniqLabelNames[metricName] = struct{}{}
+		}
+		mn.MetricGroup = []byte(metricName)
+		mn.AddTag(
+			"constant",
+			"const",
+		)
+		mn.AddTag(
+			"day",
+			fmt.Sprintf("%v", day),
+		)
+		mn.AddTag(
+			"UniqueId",
+			fmt.Sprintf("%v", metric),
+		)
+		mn.AddTag(
+			"some_unique_id",
+			fmt.Sprintf("%v", day),
+		)
+		mn.sortTags()
+		return mn
+	}
+
+	s := MustOpenStorage(path, OpenOptions{})
+	ptw := s.tb.MustGetPartition(timestamp)
+	db := ptw.pt.idb
+	is := db.getIndexSearch(noDeadline)
+
+	for day := range days {
+		date := baseDate - uint64(day)
+		var metricIDs uint64set.Set
+		for metric := range metricsPerDay {
+			mn := newMN("testMetric", day, metric)
+			metricNameBuf = mn.Marshal(metricNameBuf[:0])
+			var tsid TSID
+			if !is.getTSIDByMetricName(&tsid, metricNameBuf, date) {
+				generateTSID(&tsid, &mn)
+				createAllIndexesForMetricName(db, &mn, &tsid, date)
+			}
+			metricIDs.Add(tsid.MetricID)
+		}
+
+		allMetricIDs.Union(&metricIDs)
+		perDayMetricIDs[date] = &metricIDs
+	}
+	db.putIndexSearch(is)
+
+	labelValues := sortedSlice(uniqLabelNames)
+
+	// Flush index to disk, so it becomes visible for search
+	db.tb.DebugFlush()
+
+	is2 := db.getIndexSearch(noDeadline)
+
+	// Check that all the metrics are found for all the days.
+	for date := baseDate - days + 1; date <= baseDate; date++ {
+		metricIDs, err := is2.getMetricIDsForDate(date, metricsPerDay)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if !perDayMetricIDs[date].Equal(metricIDs) {
+			t.Fatalf("unexpected metricIDs found;\ngot\n%d\nwant\n%d", metricIDs.AppendTo(nil), perDayMetricIDs[date].AppendTo(nil))
+		}
+	}
+
+	// Check that all the metrics are found in global index
+	metricIDs, err := is2.getMetricIDsForDate(0, metricsPerDay*days)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	if !allMetricIDs.Equal(metricIDs) {
+		t.Fatalf("unexpected metricIDs found;\ngot\n%d\nwant\n%d", metricIDs.AppendTo(nil), allMetricIDs.AppendTo(nil))
+	}
+	db.putIndexSearch(is2)
+
+	// Check SearchLabelNames with the specified time range.
+	tr := TimeRange{
+		MinTimestamp: timestamp - msecPerDay,
+		MaxTimestamp: timestamp,
+	}
+
+	// Check SearchLabelValues with the specified time range.
+	lvs, err := db.SearchLabelValues(nil, "", nil, tr, 10000, 1e9, noDeadline)
+	if err != nil {
+		t.Fatalf("unexpected error in SearchLabelValues(timeRange=%s): %s", &tr, err)
+	}
+	got := sortedSlice(lvs)
+	if !reflect.DeepEqual(got, labelValues) {
+		t.Fatalf("unexpected labelValues; got\n%s\nwant\n%s", got, labelValues)
+	}
+
+	tfsMetricNameRe := NewTagFilters()
+	if err := tfsMetricNameRe.Add([]byte("constant"), []byte("const"), false, false); err != nil {
+		t.Fatalf("cannot add filter on label: %s", err)
+	}
+	if err := tfsMetricNameRe.Add(nil, []byte("testMetric_99.*"), false, true); err != nil {
+		t.Fatalf("cannot add filter on metric name: %s", err)
+	}
+	// Check SearchLabelValues with the specified time range and tfs matches correct results
+	// if filter result exceeds quick search limit
+	originValue := maxMetricIDsForDirectLabelsLookup
+	maxMetricIDsForDirectLabelsLookup = 10
+	defer func() {
+		maxMetricIDsForDirectLabelsLookup = originValue
+	}()
+	lvs, err = db.SearchLabelValues(nil, "__name__", []*TagFilters{tfsMetricNameRe}, tr, 10000, 1e9, noDeadline)
+	if err != nil {
+		t.Fatalf("unexpected error in SearchLabelValues(timeRange=%s): %s", &tr, err)
+	}
+	got = sortedSlice(lvs)
+	labelValuesReMatch := []string{"testMetric_99", "testMetric_990", "testMetric_991", "testMetric_992", "testMetric_993", "testMetric_994", "testMetric_995", "testMetric_996", "testMetric_997", "testMetric_998", "testMetric_999"}
+	if !reflect.DeepEqual(got, labelValuesReMatch) {
+		t.Fatalf("unexpected labelValues; got\n%s\nwant\n%s", got, labelValuesReMatch)
+	}
+
+	s.tb.PutPartition(ptw)
+	s.MustClose()
+	fs.MustRemoveDir(path)
 }

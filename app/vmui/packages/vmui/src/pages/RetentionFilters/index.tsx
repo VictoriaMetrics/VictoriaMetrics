@@ -107,16 +107,20 @@ const RetentionFilters: FC = () => {
         </div>
         <div className="vm-retention-filters-body-top">
           <a
-            className="vm-link vm-link_with-icon"
             target="_blank"
             href="https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention-filters"
             rel="help noreferrer"
           >
-            <WikiIcon/>
-            Documentation
+            <Button
+              variant="text"
+              color="gray"
+              startIcon={<WikiIcon/>}
+            >
+              Documentation
+            </Button>
           </a>
           <Button
-            variant="text"
+            variant="outlined"
             onClick={handleRunExample}
           >
             Try example
@@ -126,7 +130,7 @@ const RetentionFilters: FC = () => {
             onClick={handleApplyFilters}
             startIcon={<PlayIcon/>}
           >
-            Apply
+            Preview
           </Button>
         </div>
       </div>

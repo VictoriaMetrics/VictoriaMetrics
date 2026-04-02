@@ -34,16 +34,18 @@ func Parse(req *http.Request, callback func(rows []csvimport.Row) error) error {
 		return fmt.Errorf("cannot parse the provided csv format: %w", err)
 	}
 
+	wcr, err := writeconcurrencylimiter.GetReader(req.Body)
+	if err != nil {
+		return err
+	}
+	defer writeconcurrencylimiter.PutReader(wcr)
+
 	encoding := req.Header.Get("Content-Encoding")
-	reader, err := protoparserutil.GetUncompressedReader(req.Body, encoding)
+	reader, err := protoparserutil.GetUncompressedReader(wcr, encoding)
 	if err != nil {
 		return fmt.Errorf("cannot decode csv data: %w", err)
 	}
 	defer protoparserutil.PutUncompressedReader(reader)
-
-	wcr := writeconcurrencylimiter.GetReader(reader)
-	defer writeconcurrencylimiter.PutReader(wcr)
-	reader = wcr
 
 	ctx := getStreamContext(reader)
 	defer putStreamContext(ctx)
@@ -55,7 +57,6 @@ func Parse(req *http.Request, callback func(rows []csvimport.Row) error) error {
 		uw.reqBuf, ctx.reqBuf = ctx.reqBuf, uw.reqBuf
 		ctx.wg.Add(1)
 		protoparserutil.ScheduleUnmarshalWork(uw)
-		wcr.DecConcurrency()
 	}
 	ctx.wg.Wait()
 	if err := ctx.Error(); err != nil {

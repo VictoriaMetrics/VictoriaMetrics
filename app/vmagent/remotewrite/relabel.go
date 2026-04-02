@@ -20,8 +20,7 @@ import (
 )
 
 var (
-	unparsedLabelsGlobal = flagutil.NewArrayString("remoteWrite.label", "Optional label in the form 'name=value' to add to all the metrics before sending them to -remoteWrite.url. "+
-		"Pass multiple -remoteWrite.label flags in order to add multiple labels to metrics before sending them to remote storage")
+	unparsedLabelsGlobal    = flagutil.NewArrayString("remoteWrite.label", "Optional label in the form 'name=value' to add to all the metrics before sending them to all -remoteWrite.url.")
 	relabelConfigPathGlobal = flag.String("remoteWrite.relabelConfig", "", "Optional path to file with relabeling configs, which are applied "+
 		"to all the metrics before sending them to -remoteWrite.url. See also -remoteWrite.urlRelabelConfig. "+
 		"The path can point either to local file or to http url. "+
@@ -39,7 +38,7 @@ var (
 	labelsGlobal []prompb.Label
 
 	remoteWriteRelabelConfigData    atomic.Pointer[[]byte]
-	remoteWriteURLRelabelConfigData atomic.Pointer[[]interface{}]
+	remoteWriteURLRelabelConfigData atomic.Pointer[[]any]
 
 	relabelConfigReloads      *metrics.Counter
 	relabelConfigReloadErrors *metrics.Counter
@@ -91,8 +90,8 @@ func WriteURLRelabelConfigData(w io.Writer) {
 		return
 	}
 	type urlRelabelCfg struct {
-		Url           string      `yaml:"url"`
-		RelabelConfig interface{} `yaml:"relabel_config"`
+		Url           string `yaml:"url"`
+		RelabelConfig any    `yaml:"relabel_config"`
 	}
 	var cs []urlRelabelCfg
 	for i, url := range *remoteWriteURLs {
@@ -145,7 +144,7 @@ func loadRelabelConfigs() (*relabelConfigs, error) {
 			len(*relabelConfigPaths), (len(*remoteWriteURLs)))
 	}
 
-	var urlRelabelCfgs []interface{}
+	var urlRelabelCfgs []any
 	rcs.perURL = make([]*promrelabel.ParsedConfigs, len(*remoteWriteURLs))
 	for i, path := range *relabelConfigPaths {
 		if len(path) == 0 {
@@ -158,7 +157,7 @@ func loadRelabelConfigs() (*relabelConfigs, error) {
 		}
 		rcs.perURL[i] = prc
 
-		var parsedCfg interface{}
+		var parsedCfg any
 		_ = yaml.Unmarshal(rawCfg, &parsedCfg)
 		urlRelabelCfgs = append(urlRelabelCfgs, parsedCfg)
 	}

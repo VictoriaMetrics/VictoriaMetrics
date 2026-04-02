@@ -99,14 +99,14 @@ func testMergeBlockStreams(t *testing.T, blocksToMerge, maxItemsPerBlock int) {
 
 	const concurrency = 3
 	ch := make(chan error, concurrency)
-	for i := 0; i < concurrency; i++ {
+	for i := range concurrency {
 		go func(n int) {
 			rLocal := rand.New(rand.NewSource(int64(n)))
 			ch <- testMergeBlockStreamsSerial(rLocal, blocksToMerge, maxItemsPerBlock)
 		}(i)
 	}
 
-	for i := 0; i < concurrency; i++ {
+	for range concurrency {
 		select {
 		case err := <-ch:
 			if err != nil {
@@ -184,10 +184,10 @@ func testCheckItems(dstIP *inmemoryPart, items []string) error {
 func newTestInmemoryBlockStreamReaders(r *rand.Rand, blocksCount, maxItemsPerBlock int) ([]*blockStreamReader, []string) {
 	var items []string
 	var bsrs []*blockStreamReader
-	for i := 0; i < blocksCount; i++ {
+	for range blocksCount {
 		var ib inmemoryBlock
 		itemsPerBlock := r.Intn(maxItemsPerBlock) + 1
-		for j := 0; j < itemsPerBlock; j++ {
+		for range itemsPerBlock {
 			item := getRandomBytes(r)
 			if !ib.Add(item) {
 				break

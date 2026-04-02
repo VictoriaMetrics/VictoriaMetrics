@@ -52,6 +52,11 @@ func (fp *filterPrefix) initTokens() {
 	fp.tokensHashes = appendTokensHashes(nil, fp.tokens)
 }
 
+func (fp *filterPrefix) matchRow(fields []Field) bool {
+	v := getFieldValueByName(fields, fp.fieldName)
+	return matchPrefix(v, fp.prefix)
+}
+
 func (fp *filterPrefix) applyToBlockResult(bs *blockResult, bm *bitmap) {
 	applyToBlockResultGeneric(bs, bm, fp.fieldName, fp.prefix, matchPrefix)
 }

@@ -51,7 +51,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
-  "id": 2,
+  "id": 3,
   "links": [
     {
       "icon": "doc",
@@ -131,7 +131,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               }
             ]
           }
@@ -163,7 +163,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "11.5.0",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
@@ -197,7 +197,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               }
             ]
           }
@@ -229,7 +229,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "11.5.0",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
@@ -252,7 +252,7 @@
         "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
-      "description": "Shows number of generated  error messages in  logs over last 30m. Non-zero value may be a sign of connectivity or misconfiguration errors.",
+      "description": "Persistent queue size shows size of pending samples in bytes which hasn't been flushed to remote storage yet. \nIncreasing of value might be a sign of connectivity issues. In such cases, vmagent starts to flush pending data on disk with attempt to send it later once connection is restored.",
       "fieldConfig": {
         "defaults": {
           "mappings": [],
@@ -262,15 +262,15 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
-                "value": 1
+                "value": 10485760
               }
             ]
           },
-          "unit": "short"
+          "unit": "bytes"
         },
         "overrides": []
       },
@@ -280,14 +280,7 @@
         "x": 12,
         "y": 1
       },
-      "id": 16,
-      "links": [
-        {
-          "targetBlank": true,
-          "title": "Troubleshooting",
-          "url": "https://docs.victoriametrics.com/victoriametrics/vmagent/#troubleshooting"
-        }
-      ],
+      "id": 56,
       "options": {
         "colorMode": "value",
         "graphMode": "area",
@@ -306,20 +299,20 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "11.5.0",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "expr": "sum(increase(vm_log_messages_total{job=~\"$job\", instance=~\"$instance\", level!=\"info\"}[30m]))",
+          "expr": "sum(vmagent_remotewrite_pending_data_bytes{job=~\"$job\", instance=~\"$instance\"})",
           "interval": "",
           "legendFormat": "",
           "refId": "A"
         }
       ],
-      "title": "Log errors (30m)",
+      "title": "Persistent queue size",
       "type": "stat"
     },
     {
@@ -339,7 +332,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               }
             ]
           },
@@ -373,7 +366,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "11.5.0",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
@@ -409,7 +402,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               }
             ]
           }
@@ -441,7 +434,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "11.5.0",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
@@ -474,7 +467,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               }
             ]
           }
@@ -493,7 +486,7 @@
                   "steps": [
                     {
                       "color": "green",
-                      "value": null
+                      "value": 0
                     },
                     {
                       "color": "red",
@@ -531,7 +524,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "11.5.0",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
@@ -567,7 +560,7 @@
         "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
-      "description": "Persistent queue size shows size of pending samples in bytes which hasn't been flushed to remote storage yet. \nIncreasing of value might be a sign of connectivity issues. In such cases, vmagent starts to flush pending data on disk with attempt to send it later once connection is restored.",
+      "description": "Shows number of generated  error messages in  logs over last 30m. Non-zero value may be a sign of connectivity or misconfiguration errors.",
       "fieldConfig": {
         "defaults": {
           "mappings": [],
@@ -577,15 +570,15 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
-                "value": 10485760
+                "value": 1
               }
             ]
           },
-          "unit": "bytes"
+          "unit": "short"
         },
         "overrides": []
       },
@@ -595,7 +588,14 @@
         "x": 12,
         "y": 4
       },
-      "id": 56,
+      "id": 16,
+      "links": [
+        {
+          "targetBlank": true,
+          "title": "Troubleshooting",
+          "url": "https://docs.victoriametrics.com/victoriametrics/vmagent/#troubleshooting"
+        }
+      ],
       "options": {
         "colorMode": "value",
         "graphMode": "area",
@@ -614,20 +614,20 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "11.5.0",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "expr": "sum(vmagent_remotewrite_pending_data_bytes{job=~\"$job\", instance=~\"$instance\"})",
+          "expr": "sum(increase(vm_log_messages_total{job=~\"$job\", instance=~\"$instance\", level!=\"info\"}[30m]))",
           "interval": "",
           "legendFormat": "",
           "refId": "A"
         }
       ],
-      "title": "Persistent queue size",
+      "title": "Log messages (30m)",
       "type": "stat"
     },
     {
@@ -647,7 +647,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               }
             ]
           },
@@ -681,7 +681,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "11.5.0",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
@@ -717,6 +717,9 @@
             "cellOptions": {
               "type": "auto"
             },
+            "footer": {
+              "reducers": []
+            },
             "inspect": false,
             "minWidth": 50
           },
@@ -726,7 +729,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -743,7 +746,7 @@
             },
             "properties": [
               {
-                "id": "custom.hidden",
+                "id": "custom.hideFrom.viz",
                 "value": true
               }
             ]
@@ -771,17 +774,9 @@
       "id": 101,
       "options": {
         "cellHeight": "sm",
-        "footer": {
-          "countRows": false,
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
         "showHeader": true
       },
-      "pluginVersion": "11.5.0",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
@@ -834,6 +829,7 @@
               "type": "linear"
             },
             "showPoints": "never",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -852,7 +848,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -888,7 +884,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "11.5.0",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
@@ -955,6 +951,7 @@
               "type": "linear"
             },
             "showPoints": "never",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -967,7 +964,7 @@
           "links": [
             {
               "title": "Drilldown",
-              "url": "/d/G7Z9GzMGz_vm?viewPanel=123&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+              "url": "/d/G7Z9GzMGz_vm?viewPanel=123&var-job=${__field.labels.job}&var-ds=$ds&${__url_time_range}"
             }
           ],
           "mappings": [],
@@ -976,7 +973,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -1027,7 +1024,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.5.0",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
@@ -1093,6 +1090,7 @@
               "type": "linear"
             },
             "showPoints": "never",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -1105,8 +1103,13 @@
           "links": [
             {
               "targetBlank": true,
-              "title": "Drilldown",
+              "title": "Drilldown - Persistent queue size",
               "url": "/d/G7Z9GzMGz_vm?viewPanel=125&var-url=${__field.labels.url}&var-ds=$ds&var-instance=$instance&var-job=$job&${__url_time_range}"
+            },
+            {
+              "targetBlank": true,
+              "title": "Drilldown - Persistent queue full ETA",
+              "url": "/d/G7Z9GzMGz_vm?viewPanel=161&var-url=${__field.labels.url}&var-ds=$ds&var-instance=$instance&var-job=$job&${__url_time_range}"
             }
           ],
           "mappings": [],
@@ -1116,7 +1119,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -1160,7 +1163,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.5.0",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
@@ -1214,6 +1217,7 @@
               "type": "linear"
             },
             "showPoints": "never",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -1223,7 +1227,13 @@
               "mode": "off"
             }
           },
-          "links": [],
+          "links": [
+            {
+              "targetBlank": true,
+              "title": "Drilldown",
+              "url": "/d/G7Z9GzMGz_vm?viewPanel=162&var-job=${__field.labels.job}&var-ds=$ds&${__url_time_range}"
+            }
+          ],
           "mappings": [],
           "min": 0,
           "thresholds": {
@@ -1231,7 +1241,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -1269,7 +1279,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "11.5.0",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
@@ -1326,6 +1336,7 @@
               "type": "linear"
             },
             "showPoints": "never",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -1343,7 +1354,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -1386,7 +1397,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.5.0",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
@@ -1439,6 +1450,7 @@
               "type": "linear"
             },
             "showPoints": "never",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -1456,7 +1468,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -1492,7 +1504,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "11.5.0",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
@@ -1545,6 +1557,7 @@
               "type": "linear"
             },
             "showPoints": "never",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -1562,7 +1575,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -1605,7 +1618,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "11.5.0",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
@@ -1716,6 +1729,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -1729,7 +1743,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/G7Z9GzMGz_vm?viewPanel=117&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "url": "/d/G7Z9GzMGz_vm?viewPanel=117&var-job=${__field.labels.job}&var-ds=$ds&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -1739,7 +1753,7 @@
                 "steps": [
                   {
                     "color": "green",
-                    "value": null
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -1755,7 +1769,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 38
+            "y": 141
           },
           "id": 111,
           "options": {
@@ -1777,7 +1791,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -1830,6 +1844,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -1843,7 +1858,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/G7Z9GzMGz_vm?viewPanel=119&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "url": "/d/G7Z9GzMGz_vm?viewPanel=119&var-job=${__field.labels.job}&var-ds=$ds&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -1853,7 +1868,7 @@
                 "steps": [
                   {
                     "color": "green",
-                    "value": null
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -1869,7 +1884,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 38
+            "y": 141
           },
           "id": 157,
           "options": {
@@ -1891,7 +1906,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -1947,6 +1962,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -1964,7 +1980,7 @@
                 "steps": [
                   {
                     "color": "green",
-                    "value": null
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -1980,7 +1996,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 46
+            "y": 196
           },
           "id": 155,
           "options": {
@@ -2002,7 +2018,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -2056,6 +2072,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -2074,7 +2091,7 @@
                 "steps": [
                   {
                     "color": "green",
-                    "value": null
+                    "value": 0
                   }
                 ]
               },
@@ -2086,7 +2103,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 46
+            "y": 196
           },
           "id": 158,
           "options": {
@@ -2108,7 +2125,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -2178,6 +2195,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -2196,7 +2214,7 @@
                 "steps": [
                   {
                     "color": "green",
-                    "value": null
+                    "value": 0
                   }
                 ]
               },
@@ -2208,7 +2226,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 54
+            "y": 204
           },
           "id": 156,
           "options": {
@@ -2230,7 +2248,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -2300,6 +2318,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -2313,7 +2332,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/G7Z9GzMGz_vm?viewPanel=121&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "url": "/d/G7Z9GzMGz_vm?viewPanel=121&var-job=${__field.labels.job}&var-ds=$ds&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -2322,7 +2341,7 @@
                 "steps": [
                   {
                     "color": "green",
-                    "value": null
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -2351,7 +2370,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 54
+            "y": 204
           },
           "id": 81,
           "options": {
@@ -2373,7 +2392,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -2443,6 +2462,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -2461,7 +2481,7 @@
                 "steps": [
                   {
                     "color": "green",
-                    "value": null
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -2477,7 +2497,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 62
+            "y": 212
           },
           "id": 39,
           "options": {
@@ -2497,7 +2517,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -2552,6 +2572,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -2570,7 +2591,7 @@
                 "steps": [
                   {
                     "color": "green",
-                    "value": null
+                    "value": 0
                   }
                 ]
               },
@@ -2582,7 +2603,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 62
+            "y": 212
           },
           "id": 159,
           "options": {
@@ -2604,7 +2625,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -2673,6 +2694,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -2691,7 +2713,7 @@
                 "steps": [
                   {
                     "color": "green",
-                    "value": null
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -2707,7 +2729,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 70
+            "y": 220
           },
           "id": 41,
           "options": {
@@ -2727,7 +2749,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -2781,6 +2803,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -2797,7 +2820,7 @@
                 "steps": [
                   {
                     "color": "green",
-                    "value": null
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -2826,7 +2849,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 70
+            "y": 220
           },
           "id": 7,
           "options": {
@@ -2848,7 +2871,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -2913,6 +2936,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -2931,7 +2955,7 @@
                 "steps": [
                   {
                     "color": "green",
-                    "value": null
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -2947,7 +2971,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 78
+            "y": 228
           },
           "id": 135,
           "options": {
@@ -2967,7 +2991,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -3022,6 +3046,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -3040,7 +3065,7 @@
                 "steps": [
                   {
                     "color": "green",
-                    "value": null
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -3056,7 +3081,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 78
+            "y": 228
           },
           "id": 149,
           "options": {
@@ -3076,7 +3101,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -3131,6 +3156,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -3149,7 +3175,7 @@
                 "steps": [
                   {
                     "color": "green",
-                    "value": null
+                    "value": 0
                   }
                 ]
               },
@@ -3161,7 +3187,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 86
+            "y": 236
           },
           "id": 154,
           "options": {
@@ -3181,7 +3207,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -3236,6 +3262,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -3254,7 +3281,7 @@
                 "steps": [
                   {
                     "color": "green",
-                    "value": null
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -3270,7 +3297,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 86
+            "y": 236
           },
           "id": 83,
           "options": {
@@ -3290,7 +3317,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -3359,6 +3386,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -3373,7 +3401,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -3389,7 +3418,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1580
+            "y": 142
           },
           "id": 92,
           "options": {
@@ -3411,7 +3440,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -3427,7 +3456,7 @@
               "refId": "A"
             }
           ],
-          "title": "Top 10 jobs by unique samples",
+          "title": "Top 10 jobs by newly added series",
           "type": "timeseries"
         },
         {
@@ -3435,7 +3464,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "Shows top 10 instances by the number of new series registered by vmagent over the 5min range. These instances generate the most of the churn rate.",
+          "description": "Shows top 10 targets by the number of new series registered by vmagent over the 5min range. These instances generate the most of the churn rate.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3465,6 +3494,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -3479,7 +3509,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -3495,7 +3526,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1580
+            "y": 142
           },
           "id": 95,
           "options": {
@@ -3517,7 +3548,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -3526,14 +3557,14 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "topk(10, sum(sum_over_time(scrape_series_added[5m])) by (instance)) > 0",
+              "expr": "topk(10, sum(sum_over_time(scrape_series_added[5m])) by (job,instance)) > 0",
               "interval": "",
-              "legendFormat": "__auto",
+              "legendFormat": "{{job}}-{{instance}}",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "Top 10 instances by unique samples",
+          "title": "Top 10 targets by newly added series",
           "type": "timeseries"
         },
         {
@@ -3572,6 +3603,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -3588,7 +3620,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "transparent"
+                    "color": "transparent",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -3604,7 +3637,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1588
+            "y": 150
           },
           "id": 98,
           "options": {
@@ -3626,7 +3659,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -3681,6 +3714,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -3697,7 +3731,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "transparent"
+                    "color": "transparent",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -3713,7 +3748,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1588
+            "y": 150
           },
           "id": 99,
           "options": {
@@ -3735,7 +3770,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -3789,6 +3824,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -3805,7 +3841,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -3821,7 +3858,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1596
+            "y": 158
           },
           "id": 79,
           "options": {
@@ -3843,7 +3880,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -3897,6 +3934,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -3913,7 +3951,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -3929,7 +3968,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1596
+            "y": 158
           },
           "id": 18,
           "links": [
@@ -3958,7 +3997,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -4043,7 +4082,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1604
+            "y": 166
           },
           "id": 127,
           "options": {
@@ -4149,7 +4188,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1604
+            "y": 166
           },
           "id": 50,
           "options": {
@@ -4251,11 +4290,12 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 1612
+            "y": 174
           },
           "id": 129,
           "options": {
             "cellHeight": "sm",
+            "filterable": true,
             "footer": {
               "countRows": false,
               "fields": "",
@@ -4266,7 +4306,6 @@
             },
             "showHeader": true,
             "showSearch": true,
-            "filterable": true,
             "sortBy": [
               {
                 "desc": true,
@@ -4386,7 +4425,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 1612
+            "y": 174
           },
           "id": 150,
           "options": {
@@ -4489,7 +4528,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1619
+            "y": 181
           },
           "id": 151,
           "options": {
@@ -4610,7 +4649,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 1825
+            "y": 4209
           },
           "id": 48,
           "options": {
@@ -4718,7 +4757,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 1825
+            "y": 4209
           },
           "id": 76,
           "options": {
@@ -4824,7 +4863,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 1832
+            "y": 4216
           },
           "id": 132,
           "options": {
@@ -4932,7 +4971,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 1832
+            "y": 4216
           },
           "id": 133,
           "options": {
@@ -5039,7 +5078,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1839
+            "y": 4223
           },
           "id": 20,
           "options": {
@@ -5145,7 +5184,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1839
+            "y": 4223
           },
           "id": 126,
           "options": {
@@ -5250,7 +5289,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1847
+            "y": 4231
           },
           "id": 46,
           "options": {
@@ -5355,7 +5394,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1847
+            "y": 4231
           },
           "id": 148,
           "options": {
@@ -5460,7 +5499,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1855
+            "y": 4239
           },
           "id": 31,
           "options": {
@@ -5627,7 +5666,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1547
+            "y": 3931
           },
           "id": 73,
           "options": {
@@ -5744,7 +5783,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1547
+            "y": 3931
           },
           "id": 131,
           "options": {
@@ -5848,7 +5887,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1823
+            "y": 4207
           },
           "id": 130,
           "options": {
@@ -5965,7 +6004,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1823
+            "y": 4207
           },
           "id": 77,
           "options": {
@@ -6090,7 +6129,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1870
+            "y": 4254
           },
           "id": 146,
           "options": {
@@ -6192,7 +6231,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1870
+            "y": 4254
           },
           "id": 143,
           "options": {
@@ -6288,7 +6327,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1878
+            "y": 4262
           },
           "id": 147,
           "options": {
@@ -6391,7 +6430,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1878
+            "y": 4262
           },
           "id": 139,
           "options": {
@@ -6502,7 +6541,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1886
+            "y": 4270
           },
           "id": 142,
           "options": {
@@ -6599,7 +6638,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1886
+            "y": 4270
           },
           "id": 137,
           "options": {
@@ -6712,7 +6751,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1926
+            "y": 4310
           },
           "id": 141,
           "options": {
@@ -6807,6 +6846,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -6824,7 +6864,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -6840,7 +6881,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1828
+            "y": 2259
           },
           "id": 60,
           "options": {
@@ -6860,7 +6901,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -6914,6 +6955,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -6930,7 +6972,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -6946,7 +6989,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1828
+            "y": 2259
           },
           "id": 66,
           "options": {
@@ -6966,7 +7009,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -7020,6 +7063,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -7036,7 +7080,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -7052,7 +7097,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1836
+            "y": 2267
           },
           "id": 61,
           "options": {
@@ -7072,7 +7117,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -7126,6 +7171,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -7142,7 +7188,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -7158,7 +7205,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1836
+            "y": 2267
           },
           "id": 65,
           "options": {
@@ -7178,7 +7225,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -7232,6 +7279,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -7247,7 +7295,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "transparent"
+                    "color": "transparent",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -7263,7 +7312,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1844
+            "y": 2275
           },
           "id": 88,
           "options": {
@@ -7279,7 +7328,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -7333,6 +7382,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -7349,7 +7399,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "transparent"
+                    "color": "transparent",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -7365,7 +7416,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1844
+            "y": 2275
           },
           "id": 84,
           "options": {
@@ -7385,7 +7436,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -7439,6 +7490,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -7454,7 +7506,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "transparent"
+                    "color": "transparent",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -7470,7 +7523,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1852
+            "y": 2283
           },
           "id": 90,
           "options": {
@@ -7486,7 +7539,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -7528,7 +7581,7 @@
             "h": 2,
             "w": 24,
             "x": 0,
-            "y": 100
+            "y": 918
           },
           "id": 115,
           "options": {
@@ -7540,7 +7593,7 @@
             "content": "Drilldown row is used by other panels on the dashboard to show more detailed metrics per-instance.",
             "mode": "markdown"
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "title": "",
           "transparent": true,
           "type": "text"
@@ -7580,6 +7633,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -7597,7 +7651,7 @@
                 "steps": [
                   {
                     "color": "green",
-                    "value": null
+                    "value": 0
                   }
                 ]
               },
@@ -7609,7 +7663,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 102
+            "y": 920
           },
           "id": 119,
           "options": {
@@ -7631,7 +7685,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -7687,6 +7741,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -7704,7 +7759,7 @@
                 "steps": [
                   {
                     "color": "green",
-                    "value": null
+                    "value": 0
                   }
                 ]
               },
@@ -7716,7 +7771,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 102
+            "y": 920
           },
           "id": 117,
           "options": {
@@ -7738,7 +7793,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -7792,6 +7847,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -7809,7 +7865,7 @@
                 "steps": [
                   {
                     "color": "green",
-                    "value": null
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -7825,7 +7881,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 110
+            "y": 928
           },
           "id": 125,
           "links": [
@@ -7851,7 +7907,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -7905,6 +7961,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -7921,7 +7978,7 @@
                 "steps": [
                   {
                     "color": "green",
-                    "value": null
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -7950,7 +8007,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 110
+            "y": 928
           },
           "id": 123,
           "options": {
@@ -7972,7 +8029,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -8038,6 +8095,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -8054,7 +8112,7 @@
                 "steps": [
                   {
                     "color": "green",
-                    "value": null
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -8083,7 +8141,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 118
+            "y": 936
           },
           "id": 121,
           "options": {
@@ -8105,7 +8163,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -8140,6 +8198,240 @@
           ],
           "title": "Disk writes/reads ($instance)",
           "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "description": "Shows an estimated time until a persistent queue reaches its disk usage limit for a given instance and -remoteWrite.url.\n\nThe ETA is shown only when the pending queue size is actively growing, which typically indicates that remote write cannot keep up with ingestion (e.g. the remote endpoint is slow or unavailable).\n\nOnce the disk usage limit is reached, newly ingested metrics will be dropped.\n\nThe estimation is approximate and may fluctuate due to short-term changes in the queue growth rate.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 936
+          },
+          "id": 161,
+          "links": [
+            {
+              "title": "Troubleshooting",
+              "url": "https://docs.victoriametrics.com/victoriametrics/vmagent/#troubleshooting"
+            }
+          ],
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Last *",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "12.2.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "exemplar": true,
+              "expr": "(sum(vm_persistentqueue_free_disk_space_bytes{job=~\"$job\", instance=~\"$instance\"}) by (job, instance, path))\n/\n(sum(deriv(vm_persistentqueue_bytes_pending{job=~\"$job\", instance=~\"$instance\"}[1m])) by (job, instance, path) > 0)\n* on(job, instance, path) group_left(url)\n(vmagent_remotewrite_pending_data_bytes{job=~\"$job\", instance=~\"$instance\", url=~\"$url\"}*0 + 1)",
+              "interval": "",
+              "legendFormat": "{{instance}} => {{url}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Persistent queue Full ETA ($instance)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "description": "Shows the rate of logging the messages by their level. Unexpected spike in rate is a good reason to check logs.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "bars",
+                "fillOpacity": 100,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [
+                {
+                  "targetBlank": true,
+                  "title": "Source Code",
+                  "url": "https://l2s.victoriametrics.com/?app_version=${__field.labels.app_version}&location=${__field.labels.location}"
+                }
+              ],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 1309
+          },
+          "id": 162,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Last *",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.2.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "exemplar": true,
+              "expr": "sum(rate(vm_log_messages_total{job=~\"$job\",instance=~\"$instance\", level!=\"info\"}[$__rate_interval])) by (job, instance, level, app_version, location) > 0",
+              "format": "time_series",
+              "interval": "5m",
+              "intervalFactor": 1,
+              "legendFormat": "{{instance}} - {{level}}: {{location}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Logging rate",
+          "type": "timeseries"
         }
       ],
       "title": "Drilldown",
@@ -8148,7 +8440,7 @@
   ],
   "preload": false,
   "refresh": "",
-  "schemaVersion": 40,
+  "schemaVersion": 42,
   "tags": [
     "victoriametrics"
   ],
@@ -8256,6 +8548,5 @@
   "timezone": "",
   "title": "VictoriaMetrics - vmagent (VM)",
   "uid": "G7Z9GzMGz_vm",
-  "version": 1,
-  "weekStart": ""
+  "version": 1
 }

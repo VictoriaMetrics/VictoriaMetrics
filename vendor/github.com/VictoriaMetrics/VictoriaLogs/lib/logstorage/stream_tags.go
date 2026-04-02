@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -31,20 +32,17 @@ var streamTagsPool sync.Pool
 
 // StreamTags contains stream tags.
 type StreamTags struct {
-	// buf holds all the data backed by tags
-	buf []byte
-
 	// tags contains added tags.
 	tags []streamTag
 }
 
 // Reset resets st for reuse
 func (st *StreamTags) Reset() {
-	st.buf = st.buf[:0]
+	// Clear references to strings, which can belong to external buffers.
+	// This guarantees that these buffers can be cleared by GC.
+	clear(st.tags)
 
-	tags := st.tags
-	clear(tags)
-	st.tags = tags[:0]
+	st.tags = st.tags[:0]
 }
 
 // String returns string representation of st.
@@ -72,6 +70,8 @@ func (st *StreamTags) marshalString(dst []byte) []byte {
 }
 
 // Add adds (name:value) tag to st.
+//
+// name and value mustn't be changed while st is in use.
 func (st *StreamTags) Add(name, value string) {
 	if len(value) == 0 {
 		return
@@ -81,21 +81,9 @@ func (st *StreamTags) Add(name, value string) {
 		name = "_msg"
 	}
 
-	buf := st.buf
-
-	bufLen := len(buf)
-	buf = append(buf, name...)
-	bName := buf[bufLen:]
-
-	bufLen = len(buf)
-	buf = append(buf, value...)
-	bValue := buf[bufLen:]
-
-	st.buf = buf
-
 	st.tags = append(st.tags, streamTag{
-		Name:  bName,
-		Value: bValue,
+		Name:  name,
+		Value: value,
 	})
 }
 
@@ -107,14 +95,16 @@ func (st *StreamTags) MarshalCanonical(dst []byte) []byte {
 	dst = encoding.MarshalVarUint64(dst, uint64(len(tags)))
 	for i := range tags {
 		tag := &tags[i]
-		dst = encoding.MarshalBytes(dst, tag.Name)
-		dst = encoding.MarshalBytes(dst, tag.Value)
+		dst = encoding.MarshalBytes(dst, bytesutil.ToUnsafeBytes(tag.Name))
+		dst = encoding.MarshalBytes(dst, bytesutil.ToUnsafeBytes(tag.Value))
 	}
 	return dst
 }
 
-// UnmarshalCanonical unmarshals st from src marshaled with MarshalCanonical.
-func (st *StreamTags) UnmarshalCanonical(src []byte) ([]byte, error) {
+// UnmarshalCanonicalInplace unmarshals st from src marshaled with MarshalCanonical.
+//
+// st points to to src, so src mustn't be changed while st is in use.
+func (st *StreamTags) UnmarshalCanonicalInplace(src []byte) ([]byte, error) {
 	st.Reset()
 
 	srcOrig := src
@@ -124,7 +114,7 @@ func (st *StreamTags) UnmarshalCanonical(src []byte) ([]byte, error) {
 		return srcOrig, fmt.Errorf("cannot unmarshal tags len")
 	}
 	src = src[nSize:]
-	for i := uint64(0); i < n; i++ {
+	for range n {
 		name, nSize := encoding.UnmarshalBytes(src)
 		if nSize <= 0 {
 			return srcOrig, fmt.Errorf("cannot unmarshal tag name")
@@ -151,16 +141,16 @@ func (st *StreamTags) UnmarshalCanonical(src []byte) ([]byte, error) {
 
 func getStreamTagsString(streamTagsCanonical string) string {
 	st := GetStreamTags()
-	mustUnmarshalStreamTags(st, streamTagsCanonical)
+	mustUnmarshalStreamTagsInplace(st, streamTagsCanonical)
 	s := st.String()
 	PutStreamTags(st)
 
 	return s
 }
 
-func mustUnmarshalStreamTags(dst *StreamTags, streamTagsCanonical string) {
+func mustUnmarshalStreamTagsInplace(dst *StreamTags, streamTagsCanonical string) {
 	src := bytesutil.ToUnsafeBytes(streamTagsCanonical)
-	tail, err := dst.UnmarshalCanonical(src)
+	tail, err := dst.UnmarshalCanonicalInplace(src)
 	if err != nil {
 		logger.Panicf("FATAL: cannot unmarshal StreamTags: %s", err)
 	}
@@ -188,14 +178,14 @@ func (st *StreamTags) Swap(i, j int) {
 
 // streamTag represents a (name:value) tag for stream.
 type streamTag struct {
-	Name  []byte
-	Value []byte
+	Name  string
+	Value string
 }
 
 func (tag *streamTag) marshalString(dst []byte) []byte {
 	dst = append(dst, tag.Name...)
 	dst = append(dst, '=')
-	dst = strconv.AppendQuote(dst, bytesutil.ToUnsafeString(tag.Value))
+	dst = strconv.AppendQuote(dst, tag.Value)
 	return dst
 }
 
@@ -222,17 +212,24 @@ func (tag *streamTag) indexdbMarshal(dst []byte) []byte {
 	return dst
 }
 
-func (tag *streamTag) indexdbUnmarshal(src []byte) ([]byte, error) {
+func (tag *streamTag) indexdbUnmarshal(src, buf []byte) ([]byte, []byte, error) {
 	var err error
-	src, tag.Name, err = unmarshalTagValue(tag.Name[:0], src)
+
+	bufLen := len(buf)
+	src, buf, err = unmarshalTagValue(buf, src)
 	if err != nil {
-		return src, fmt.Errorf("cannot unmarshal key: %w", err)
+		return src, buf, fmt.Errorf("cannot unmarshal key: %w", err)
 	}
-	src, tag.Value, err = unmarshalTagValue(tag.Value[:0], src)
+	tag.Name = bytesutil.ToUnsafeString(buf[bufLen:])
+
+	bufLen = len(buf)
+	src, buf, err = unmarshalTagValue(buf, src)
 	if err != nil {
-		return src, fmt.Errorf("cannot unmarshal value: %w", err)
+		return src, buf, fmt.Errorf("cannot unmarshal value: %w", err)
 	}
-	return src, nil
+	tag.Value = bytesutil.ToUnsafeString(buf[bufLen:])
+
+	return src, buf, nil
 }
 
 const (
@@ -241,10 +238,10 @@ const (
 	kvSeparatorChar  = 2
 )
 
-func marshalTagValue(dst, src []byte) []byte {
-	n1 := bytes.IndexByte(src, escapeChar)
-	n2 := bytes.IndexByte(src, tagSeparatorChar)
-	n3 := bytes.IndexByte(src, kvSeparatorChar)
+func marshalTagValue(dst []byte, src string) []byte {
+	n1 := strings.IndexByte(src, escapeChar)
+	n2 := strings.IndexByte(src, tagSeparatorChar)
+	n3 := strings.IndexByte(src, kvSeparatorChar)
 	if n1 < 0 && n2 < 0 && n3 < 0 {
 		// Fast path.
 		dst = append(dst, src...)
@@ -253,7 +250,8 @@ func marshalTagValue(dst, src []byte) []byte {
 	}
 
 	// Slow path.
-	for _, ch := range src {
+	for i := range len(src) {
+		ch := src[i]
 		switch ch {
 		case escapeChar:
 			dst = append(dst, escapeChar, '0')

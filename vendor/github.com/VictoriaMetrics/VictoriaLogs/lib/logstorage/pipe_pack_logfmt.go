@@ -40,6 +40,10 @@ func (pp *pipePackLogfmt) canReturnLastNResults() bool {
 	return pp.resultField != "_time"
 }
 
+func (pp *pipePackLogfmt) isFixedOutputFieldsOrder() bool {
+	return false
+}
+
 func (pp *pipePackLogfmt) updateNeededFields(pf *prefixfilter.Filter) {
 	updateNeededFieldsForPipePack(pf, pp.resultField, pp.fieldFilters)
 }

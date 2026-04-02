@@ -22,6 +22,7 @@ or via [VictoriaMetrics `remote_write` protocol](#victoriametrics-remote-write-p
 See [Quick Start](#quick-start) for details.
 
 ![vmagent](vmagent.webp)
+{width="700"}
 
 ## Motivation
 
@@ -114,6 +115,8 @@ The maximum on-disk size for the buffered metrics can be limited with `-remoteWr
 
 `vmagent` can save on network bandwidth usage costs by using [VictoriaMetrics remote write protocol](#victoriametrics-remote-write-protocol).
 
+See [how to optimize index size at VictoriaMetrics for IoT and industrial monitoring](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#index-tuning-for-low-churn-rate).
+
 ### Drop-in replacement for Prometheus
 
 If you use Prometheus only for scraping metrics from various targets and forwarding these metrics to remote storage
@@ -147,7 +150,7 @@ See [these docs](https://docs.victoriametrics.com/victoriametrics/cluster-victor
 
 By default `vmagent` replicates data to remote storage systems via the `-remoteWrite.url` command-line flag.
 If the `-remoteWrite.shardByURL` command-line flag is set, then `vmagent` spreads
-the outgoing [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) evenly among all the remote storage 
+the outgoing [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) evenly among all the remote storage
 systems listed in `-remoteWrite.url`.
 
 It is possible to replicate samples among remote storage systems by passing `-remoteWrite.shardByURLReplicas=N`
@@ -284,15 +287,15 @@ flowchart TB
       %% Left branch
       G --> H1[per-url <a href="https://docs.victoriametrics.com/victoriametrics/relabeling/">relabeling</a><br><b>-remoteWrite.urlRelabelConfig</b>]
       H1 --> H2[per-url <a href="https://docs.victoriametrics.com/victoriametrics/stream-aggregation">aggregation</a><br><b>-remoteWrite.streamAggr.config</b><br><b>-remoteWrite.streamAggr.dedupInterval</b>]
-      H2 --> H3[per-url extra labels<br><b>-remoteWrite.label</b>]
-      H3 --> H4["per-url <a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#calculating-disk-space-for-persistence-queue">queue</a> (default: enabled)<br><b>-remoteWrite.disableOnDiskQueue</b>"]
+      H2 --> H3["per-url <a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#calculating-disk-space-for-persistence-queue">queue</a> (default: enabled)<br><b>-remoteWrite.disableOnDiskQueue</b>"]
+      H3 --> H4[<a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#adding-labels-to-metrics">add extra labels</a><br><b>-remoteWrite.label</b>]
       H4 --> H5[[push to <b>-remoteWrite.url</b>]]
 
       %% Right branch
       G --> R1[per-url <a href="https://docs.victoriametrics.com/victoriametrics/relabeling/">relabeling</a><br><b>-remoteWrite.urlRelabelConfig</b>]
       R1 --> R2[per-url <a href="https://docs.victoriametrics.com/victoriametrics/stream-aggregation">aggregation</a><br><b>-remoteWrite.streamAggr.config</b><br><b>-remoteWrite.streamAggr.dedupInterval</b>]
-      R2 --> R3[per-url extra labels<br><b>-remoteWrite.label</b>]
-      R3 --> R4["per-url <a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#calculating-disk-space-for-persistence-queue">queue</a> (default: enabled)<br><b>-remoteWrite.disableOnDiskQueue</b>"]
+      R2 --> R3["per-url <a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#calculating-disk-space-for-persistence-queue">queue</a> (default: enabled)<br><b>-remoteWrite.disableOnDiskQueue</b>"]
+      R3 --> R4[<a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#adding-labels-to-metrics">add extra labels</a><br><b>-remoteWrite.label</b>]
       R4 --> R5[[push to <b>-remoteWrite.url</b>]]
 ```
 
@@ -309,7 +312,7 @@ in addition to the pull-based Prometheus-compatible targets' scraping:
 * DataDog "submit metrics" API. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/datadog/).
 * InfluxDB line protocol via `http://<vmagent>:8429/write`. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb/).
 * Graphite plaintext protocol if `-graphiteListenAddr` command-line flag is set. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting).
-* OpenTelemetry http API. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#sending-data-via-opentelemetry).
+* OpenTelemetry http API. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/).
 * NewRelic API. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/newrelic/#sending-data-from-agent).
 * OpenTSDB telnet and http protocols if `-opentsdbListenAddr` command-line flag is set. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb/).
 * Zabbix Connector streaming protocol. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/zabbixconnector/#send-data-from-zabbix-connector).
@@ -458,7 +461,9 @@ VictoriaMetrics remote write protocol provides the following benefits comparing 
 
 * Reduced disk read/write IO and disk space usage at `vmagent` when the remote storage is temporarily unavailable.
   In this case `vmagent` buffers the incoming data to disk using the VictoriaMetrics remote write format.
-  This reduces disk read/write IO and disk space usage by 2x-5x comparing to Prometheus remote write format.
+  This reduces disk read/write IO and disk space usage by 2x-5x compared to Prometheus remote write format.
+
+> See blogpost [Save network costs with VictoriaMetrics remote write protocol](https://victoriametrics.com/blog/victoriametrics-remote-write/).
 
 `vmagent` uses VictoriaMetrics remote write protocol by default {{% available_from "v1.116.0" %}} when it sends data to VictoriaMetrics components such as other `vmagent` instances,
 [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
@@ -509,15 +514,20 @@ Extra labels can be added to metrics collected by `vmagent` via the following me
 
 * The `global -> external_labels` section in `-promscrape.config` file. These labels are added only to metrics scraped from targets configured
   in the `-promscrape.config` file. They aren't added to metrics collected via other [data ingestion protocols](#how-to-push-data-to-vmagent).
-* The `-remoteWrite.label` command-line flag. These labels are added to all the collected metrics before sending them to `-remoteWrite.url`.
+* The `-remoteWrite.label` command-line flag. These labels are added **to all the collected metrics** before sending them **to all configured `-remoteWrite.url`**.
   For example, the following command starts `vmagent`, which adds `{datacenter="foobar"}` label to all the metrics pushed
-  to all the configured remote storage systems (all the `-remoteWrite.url` flag values):
+  to all the configured `-remoteWrite.url` destinations:
 
   ```sh
   /path/to/vmagent -remoteWrite.label=datacenter=foobar ...
   ```
 
-* Via relabeling. See [Relabeling Cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/).
+* Via relabeling. Relabeling can be applied globally and per each configured `-remoteWrite.url` destination. See [Relabeling Cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/).
+* Add `extra_label` GET param to `-remoteWrite.url` address (only works when sending data to VictoriaMetrics components):
+
+  ```sh
+  /path/to/vmagent -remoteWrite.url=http://127.0.0.1:8428/api/v1/write?extra_label="env=prod"
+  ```
 
 ## Automatically generated metrics
 
@@ -650,12 +660,12 @@ e.g. it sets `scrape_series_added` metric to zero. See [these docs](#automatical
 
 ## Metric metadata
 
-By default, `vmagent` ignores metric metadata exposed by scrape targets in [Prometheus exposition format](https://github.com/prometheus/docs/blob/main/docs/instrumenting/exposition_formats.md), received via [Prometheus remote write v1](https://prometheus.io/docs/specs/prw/remote_write_spec/) or [OpenTelemetry protocol](https://github.com/open-telemetry/opentelemetry-proto/blob/v1.7.0/opentelemetry/proto/metrics/v1/metrics.proto). Set `-enableMetadata=true` to enable metadata processing{{% available_from "v1.125.1" %}}.
+`vmagent` accepts{{% available_from "v1.137.0" %}} metric metadata exposed by scrape targets in [Prometheus exposition format](https://github.com/prometheus/docs/blob/main/docs/instrumenting/exposition_formats.md), received via [Prometheus remote write v1](https://prometheus.io/docs/specs/prw/remote_write_spec/) or [OpenTelemetry protocol](https://github.com/open-telemetry/opentelemetry-proto/blob/v1.7.0/opentelemetry/proto/metrics/v1/metrics.proto) by default. Set `-enableMetadata=false` to disable metadata processing{{% available_from "v1.125.1" %}}.
 During processing, metadata won't be dropped or modified by [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/) or [streaming aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/).
 
 When `-enableMultitenantHandlers` is enabled, vmagent adds tenant info to metadata received via the [multitenant endpoints](https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy) (`/insert/<accountID>/<suffix>`). However, if `vm_account_id` or `vm_project_id` labels are added directly to metrics before reaching vmagent, and vmagent writes to the [vminsert multitenant endpoints](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels), the tenant info won't be attached and the metadata will be stored under the default tenant of VictoriaMetrics cluster.
 
->Enabling metadata requires extra memory, disk space, and network traffic.
+> Metadata requires extra memory, disk space, and network traffic.
 
 ## Stream parsing mode
 
@@ -960,7 +970,7 @@ See [these docs](https://cloud.google.com/stackdriver/docs/managed-prometheus/tr
 
 Use official [Grafana dashboard](https://grafana.com/grafana/dashboards/12683) for `vmagent` state overview.
 Graphs on this dashboard contain useful hints - hover the `i` icon at the top left corner of each graph in order to read it.
-If you have suggestions for improvements or have found a bug - please open an issue on [github](https://github.com/VictoriaMetrics/VictoriaMetrics/issues) 
+If you have suggestions for improvements or have found a bug - please open an issue on [github](https://github.com/VictoriaMetrics/VictoriaMetrics/issues)
 or add a review to the dashboard.
 
 `vmagent` also exports the status for various targets at the following pages:
@@ -1111,7 +1121,7 @@ Additional notes:
 
 See general recommendations regarding [security](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#security).
 
-vmagent's `/remotewrite-relabel-config` and `/remotewrite-url-relabel-config` endpoints {{% available_from "v1.129.0" %}} 
+vmagent's `/remotewrite-relabel-config` and `/remotewrite-url-relabel-config` endpoints {{% available_from "v1.129.0" %}}
 can be protected via `-configAuthKey` command-line flag.
 
 ### mTLS protection
@@ -1144,7 +1154,7 @@ For example, if `vmagent` needs to scrape thousands of targets in resource-const
   even if many clients send data to `vmagent` via many concurrent connections and the number of these connections significantly exceeds the default value
   for the `-maxConcurrentRequests` command-line flag. `vmagent` puts incoming requests into a wait queue if the number of concurrently executed requests
   exceeds `-maxConcurrentRequests`. The pending requests at the wait queue do not consume CPU and do not consume significant amounts of RAM, so it is OK to have
-  thousands of pending requests in the wait queue. Pending requests in the wait queue are canceled if they wait for their exection for longer than
+  thousands of pending requests in the wait queue. Pending requests in the wait queue are canceled if they wait for their execution for longer than
   the duration specified in the `-insert.maxQueueDuration` command-line flag. Canceled requests can be [monitored](https://docs.victoriametrics.com/victoriametrics/vmagent/#monitoring)
   via `vm_concurrent_insert_limit_timeout_total` metric.
 
@@ -1247,9 +1257,15 @@ It is safe sharing the collected profiles from security point of view, since the
 
 ## Advanced usage
 
-`vmagent` can be fine-tuned with various command-line flags. Run `./vmagent -help` in order to see the full list of these flags with their descriptions and default values:
+`vmagent` can be fine-tuned with various command-line flags. Run `./vmagent -help` in order to see the full list of these flags with their descriptions and default value.
 
-{{% content "vmagent_flags.md" %}}
+### Common flags
+These flags are available in both VictoriaMetrics OSS and VictoriaMetrics Enterprise.
+{{% content "vmagent_common_flags.md" %}}
+
+### Enterprise flags
+These flags are available only in [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+{{% content "vmagent_enterprise_flags.md" %}}
 
 ---
 

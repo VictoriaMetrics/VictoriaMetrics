@@ -5,6 +5,8 @@ menu:
   docs:
     parent: "integrations-vm"
     weight: 10
+aliases:
+  - /victoriametrics/integrations/zabbix/
 ---
 
 VictoriaMetrics components like **vmagent**, **vminsert** or **single-node** can receive data from 

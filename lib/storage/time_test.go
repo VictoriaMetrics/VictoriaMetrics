@@ -7,7 +7,7 @@ import (
 )
 
 func TestTimeRangeFromPartition(t *testing.T) {
-	for i := 0; i < 24*30*365; i++ {
+	for i := range 24 * 30 * 365 {
 		testTimeRangeFromPartition(t, time.Now().Add(time.Hour*time.Duration(i)))
 	}
 }

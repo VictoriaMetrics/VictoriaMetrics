@@ -134,7 +134,7 @@ func (ls Labels) String() string {
 func LabelCompare(a, b Labels) int {
 	l := min(len(b), len(a))
 
-	for i := 0; i < l; i++ {
+	for i := range l {
 		if a[i].Name != b[i].Name {
 			if a[i].Name < b[i].Name {
 				return -1

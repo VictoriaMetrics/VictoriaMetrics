@@ -1,3 +1,5 @@
+//go:build synctest
+
 package storage
 
 import (
@@ -5,9 +7,17 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
+
+func (c *metricIDCache) numShards() uint64 {
+	return uint64(len(c.shards))
+}
+
+func (c *metricIDCache) fullRotationPeriod() time.Duration {
+	return metricIDCacheShardCount * c.rotationPeriod
+}
 
 func TestMetricIDCache_ClearedWhenUnused(t *testing.T) {
 	// Entries that are added to the cache but then never retrieved will be
@@ -16,9 +26,10 @@ func TestMetricIDCache_ClearedWhenUnused(t *testing.T) {
 		c := newMetricIDCache()
 		defer c.MustStop()
 		c.Set(123)
-		time.Sleep(15 * time.Minute)
-		time.Sleep(15 * time.Minute)
-		time.Sleep(15 * time.Minute)
+		// It takes 3 full rotation cycles for an entry to be evicted from the
+		// cache:
+		// [in next] -rotation1-> [in curr] -rotation2-> [in prev] -rotation3-> evicted.
+		time.Sleep(3 * c.fullRotationPeriod())
 		if c.Has(123) {
 			t.Fatalf("entry is still in cache")
 		}
@@ -30,12 +41,11 @@ func TestMetricIDCache_ClearedWhenUnused(t *testing.T) {
 		c := newMetricIDCache()
 		defer c.MustStop()
 		c.Set(123)
-		time.Sleep(5 * time.Minute)
+		time.Sleep(c.fullRotationPeriod())
 		if !c.Has(123) {
 			t.Fatalf("entry not in cache")
 		}
-		time.Sleep(15 * time.Minute)
-		time.Sleep(15 * time.Minute)
+		time.Sleep(3 * c.fullRotationPeriod())
 		if c.Has(123) {
 			t.Fatalf("entry is still in cache")
 		}
@@ -48,7 +58,7 @@ func TestMetricIDCache_ClearedWhenUnused(t *testing.T) {
 		defer c.MustStop()
 		c.Set(123)
 		for range 10_000 {
-			time.Sleep(5 * time.Minute)
+			time.Sleep(c.fullRotationPeriod())
 			if !c.Has(123) {
 				t.Fatalf("entry not in cache")
 			}
@@ -58,10 +68,13 @@ func TestMetricIDCache_ClearedWhenUnused(t *testing.T) {
 
 func TestMetricIDCache_Stats(t *testing.T) {
 	assertStats := func(t *testing.T, c *metricIDCache, want metricIDCacheStats) {
-		if diff := cmp.Diff(want, c.Stats()); diff != "" {
+		t.Helper()
+		if diff := cmp.Diff(want, c.Stats(), cmpopts.IgnoreFields(metricIDCacheStats{}, "SizeBytes")); diff != "" {
 			t.Fatalf("unexpected stats (-want, +got):\n%s", diff)
 		}
 	}
+
+	const numMetricIDs = 16 * 65536
 
 	synctest.Test(t, func(t *testing.T) {
 		c := newMetricIDCache()
@@ -72,45 +85,40 @@ func TestMetricIDCache_Stats(t *testing.T) {
 
 		// Add metricIDs and check stats.
 		// At this point, all metricIDs are in next.
-		metricIDs := uint64set.Set{}
-		for metricID := range uint64(100_000) {
+		for metricID := range uint64(numMetricIDs) {
 			c.Set(metricID)
-			metricIDs.Add(metricID)
 		}
 		assertStats(t, c, metricIDCacheStats{
-			Size:      100_000,
-			SizeBytes: metricIDs.SizeBytes(),
+			Size: numMetricIDs,
 		})
 
 		// Get all metricIDs and check stats.
 		// All metricIDs will be sync'ed from next to curr.
-		for metricID := range uint64(100_000) {
+		for metricID := range uint64(numMetricIDs) {
 			if !c.Has(metricID) {
 				t.Fatalf("metricID not in cache: %d", metricID)
 			}
 		}
 		assertStats(t, c, metricIDCacheStats{
-			Size:       100_000,
-			SizeBytes:  metricIDs.SizeBytes(),
-			SyncsCount: 1,
+			Size:       numMetricIDs,
+			SyncsCount: c.numShards(),
 		})
 
-		// Wait until next rotation.
+		// Wait until all groups are rotated.
 		// curr metricIDs will be moved to prev.
-		time.Sleep(15 * time.Minute)
+		time.Sleep(c.fullRotationPeriod() + time.Second)
 		assertStats(t, c, metricIDCacheStats{
-			Size:           100_000,
-			SizeBytes:      metricIDs.SizeBytes(),
-			SyncsCount:     1,
-			RotationsCount: 1,
+			Size:           numMetricIDs,
+			SyncsCount:     c.numShards(),
+			RotationsCount: c.numShards(),
 		})
 
-		// Wait until another rotation.
+		// Wait until all groups are rotated.
 		// The cache now should be empty.
-		time.Sleep(15 * time.Minute)
+		time.Sleep(c.fullRotationPeriod())
 		assertStats(t, c, metricIDCacheStats{
-			SyncsCount:     1,
-			RotationsCount: 2,
+			SyncsCount:     c.numShards(),
+			RotationsCount: 2 * c.numShards(),
 		})
 	})
 }

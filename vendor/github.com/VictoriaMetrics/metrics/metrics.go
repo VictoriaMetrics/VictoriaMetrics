@@ -248,6 +248,23 @@ func WriteProcessMetrics(w io.Writer) {
 	writePushMetrics(w)
 }
 
+// WriteGoMetrics writes Go runtime metrics to w.
+// This includes runtime/metrics such as memory stats, GC stats, goroutine counts, etc.
+func WriteGoMetrics(w io.Writer) {
+	writeGoMetrics(w)
+}
+
+// WriteProcMetrics writes OS-level process metrics to w by reading
+// the /proc filesystem (CPU, memory, file descriptors, PSI, etc.).
+func WriteProcMetrics(w io.Writer) {
+	writeProcessMetrics(w)
+}
+
+// WritePushMetrics writes push-mode related metrics to w.
+func WritePushMetrics(w io.Writer) {
+	writePushMetrics(w)
+}
+
 // WriteFDMetrics writes `process_max_fds` and `process_open_fds` metrics to w.
 func WriteFDMetrics(w io.Writer) {
 	writeFDMetrics(w)

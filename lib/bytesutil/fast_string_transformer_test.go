@@ -9,7 +9,7 @@ func TestFastStringTransformer(t *testing.T) {
 	fst := NewFastStringTransformer(strings.ToUpper)
 	f := func(s, resultExpected string) {
 		t.Helper()
-		for i := 0; i < 10; i++ {
+		for i := range 10 {
 			result := fst.Transform(s)
 			if result != resultExpected {
 				t.Fatalf("unexpected result for Transform(%q) at iteration %d; got %q; want %q", s, i, result, resultExpected)

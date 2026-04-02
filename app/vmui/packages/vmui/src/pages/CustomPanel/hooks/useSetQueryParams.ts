@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTimeDispatch, useTimeState } from "../../../state/time/TimeStateContext";
 import { useCustomPanelDispatch, useCustomPanelState } from "../../../state/customPanel/CustomPanelStateContext";
-import { useAppDispatch, useAppState } from "../../../state/common/StateContext";
 import { useQueryDispatch, useQueryState } from "../../../state/query/QueryStateContext";
 import { displayTypeTabs } from "../DisplayTypeSwitch";
 import { useGraphDispatch, useGraphState } from "../../../state/graph/GraphStateContext";
@@ -15,14 +14,12 @@ import { arrayEquals } from "../../../utils/array";
 import { isEqualURLSearchParams } from "../../../utils/url";
 
 export const useSetQueryParams = () => {
-  const { tenantId } = useAppState();
   const { displayType } = useCustomPanelState();
   const { query } = useQueryState();
   const { duration, relativeTime, period: { date, step } } = useTimeState();
   const { customStep } = useGraphState();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const dispatch = useAppDispatch();
   const timeDispatch = useTimeDispatch();
   const graphDispatch = useGraphDispatch();
   const queryDispatch = useQueryDispatch();
@@ -72,10 +69,6 @@ export const useSetQueryParams = () => {
       if (searchParams.get(`${group}.tab`) !== displayTypeCode) {
         newSearchParams.set(`${group}.tab`, `${displayTypeCode}`);
       }
-
-      if (searchParams.get(`${group}.tenantID`) !== tenantId && tenantId) {
-        newSearchParams.set(`${group}.tenantID`, tenantId);
-      }
     });
 
     // Remove extra parameters that exceed the request size
@@ -89,7 +82,7 @@ export const useSetQueryParams = () => {
 
     if (isEqualURLSearchParams(newSearchParams, searchParams) || !newSearchParams.size) return;
     setSearchParams(newSearchParams);
-  }, [tenantId, displayType, query, duration, relativeTime, date, step, customStep]);
+  }, [displayType, query, duration, relativeTime, date, step, customStep]);
 
   useEffect(() => {
     const timer = setTimeout(setterSearchParams, 200);
@@ -112,11 +105,6 @@ export const useSetQueryParams = () => {
     const displayTypeFromUrl = getInitialDisplayType();
     if (displayTypeFromUrl !== displayType) {
       customPanelDispatch({ type: "SET_DISPLAY_TYPE", payload: displayTypeFromUrl });
-    }
-
-    const tenantIdFromUrl = searchParams.get("g0.tenantID") || "";
-    if (tenantIdFromUrl !== tenantId) {
-      dispatch({ type: "SET_TENANT_ID", payload: tenantIdFromUrl });
     }
 
     const queryFromUrl = getQueryArray();

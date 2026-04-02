@@ -53,7 +53,7 @@ func benchmarkAggregatorsPush(b *testing.B, output string) {
 	b.RunParallel(func(pb *testing.PB) {
 		var matchIdxs []uint32
 		for pb.Next() {
-			for i := 0; i < loops; i++ {
+			for range loops {
 				matchIdxs = a.Push(benchSeries, matchIdxs)
 			}
 		}
@@ -81,7 +81,7 @@ func newBenchAggregators(outputs []string, pushFunc PushFunc) *Aggregators {
 
 func newBenchSeries(seriesCount int) []prompb.TimeSeries {
 	a := make([]string, 0, seriesCount)
-	for j := 0; j < seriesCount; j++ {
+	for j := range seriesCount {
 		s := fmt.Sprintf(`http_requests_total{path="/foo/%d",job="foo_%d",instance="bar",pod="pod-123232312",namespace="kube-foo-bar",node="node-123-3434-443",`+
 			`some_other_label="foo-bar-baz",environment="prod",label1="value1",label2="value2",label3="value3"} %d`, j, j%100, j*1000)
 		a = append(a, s)
@@ -109,7 +109,7 @@ func BenchmarkConcurrentAggregatorsPush(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		var matchIdxs []uint32
 		for pb.Next() {
-			for i := 0; i < loops; i++ {
+			for range loops {
 				matchIdxs = a.Push(benchSeries, matchIdxs)
 			}
 		}

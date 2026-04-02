@@ -110,24 +110,5 @@ billions of datapoints.
 See general [vmctl migration tips](https://docs.victoriametrics.com/victoriametrics/vmctl/#migration-tips).
 
 See `./vmctl influx --help` for details and full list of flags:
-```shellhelp
-   --influx-addr value              InfluxDB server addr (default: "http://localhost:8086")
-   --influx-user value              InfluxDB user [$INFLUX_USERNAME]
-   --influx-password value          InfluxDB user password [$INFLUX_PASSWORD]
-   --influx-database value          InfluxDB database
-   --influx-retention-policy value  InfluxDB retention policy (default: "autogen")
-   --influx-chunk-size value        The chunkSize defines max amount of series to be returned in one chunk (default: 10000)
-   --influx-concurrency value       Number of concurrently running fetch queries to InfluxDB (default: 1)
-   --influx-filter-series value     InfluxDB filter expression to select series. E.g. "from cpu where arch='x86' AND hostname='host_2753'".
-      See for details https://docs.influxdata.com/influxdb/v1.7/query_language/schema_exploration#show-series
-   --influx-filter-time-start value            The time filter to select timeseries with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z'
-   --influx-filter-time-end value              The time filter to select timeseries with timestamp equal or lower than provided value. E.g. '2020-01-01T20:07:00Z'
-   --influx-measurement-field-separator value  The {separator} symbol used to concatenate {measurement} and {field} names into series name {measurement}{separator}{field}. (default: "_")
-   --influx-skip-database-label                Whether to skip adding the label 'db' to timeseries. (default: false)
-   --influx-prometheus-mode                    Whether to restore the original timeseries name previously written from Prometheus to InfluxDB v1 via remote_write. (default: false)
-   --influx-cert-file value                    Optional path to client-side TLS certificate file to use when connecting to -influx-addr
-   --influx-key-file value                     Optional path to client-side TLS key to use when connecting to -influx-addr
-   --influx-CA-file value                      Optional path to TLS CA file to use for verifying connections to -influx-addr. By default, system CA is used
-   --influx-server-name value                  Optional TLS server name to use for connections to -influx-addr. By default, the server name from -influx-addr is used
-   --influx-insecure-skip-verify               Whether to skip tls verification when connecting to -influx-addr (default: false)
-```
+
+{{% content "vmctl_influx_flags.md" %}}

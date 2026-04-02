@@ -240,7 +240,7 @@ func appendPrettifiedLabelFilters(dst []byte, indent int, lfs []*labelFilterExpr
 }
 
 func appendIndent(dst []byte, indent int) []byte {
-	for i := 0; i < indent; i++ {
+	for range indent {
 		dst = append(dst, "  "...)
 	}
 	return dst

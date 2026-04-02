@@ -65,6 +65,10 @@ func (pt *pipeTop) splitToRemoteAndLocal(timestamp int64) (pipe, []pipe) {
 	if pt.rankFieldName != "" {
 		pLocalStr += rankFieldNameString(pt.rankFieldName)
 	}
+	pLocalStr += fmt.Sprintf(` | fields %s, %s`, fieldsQuoted, hitsQuoted)
+	if pt.rankFieldName != "" {
+		pLocalStr += ", " + quoteTokenIfNeeded(pt.rankFieldName)
+	}
 
 	psLocal := mustParsePipes(pLocalStr, timestamp)
 
@@ -80,6 +84,10 @@ func (pt *pipeTop) canLiveTail() bool {
 
 func (pt *pipeTop) canReturnLastNResults() bool {
 	return false
+}
+
+func (pt *pipeTop) isFixedOutputFieldsOrder() bool {
+	return true
 }
 
 func (pt *pipeTop) updateNeededFields(pf *prefixfilter.Filter) {

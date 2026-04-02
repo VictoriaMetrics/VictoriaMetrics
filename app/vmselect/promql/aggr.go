@@ -742,7 +742,7 @@ func getRangeTopKTimeseries(tss []*timeseries, modifier *metricsql.ModifierExpr,
 
 func reverseSeries(tss []*timeseries) {
 	j := len(tss)
-	for i := 0; i < len(tss)/2; i++ {
+	for i := range len(tss) / 2 {
 		j--
 		tss[i], tss[j] = tss[j], tss[i]
 	}
@@ -983,7 +983,7 @@ func getPerPointIQRBounds(tss []*timeseries) ([]float64, []float64) {
 	var qs []float64
 	lower := make([]float64, pointsLen)
 	upper := make([]float64, pointsLen)
-	for i := 0; i < pointsLen; i++ {
+	for i := range pointsLen {
 		values = values[:0]
 		for _, ts := range tss {
 			v := ts.Values[i]

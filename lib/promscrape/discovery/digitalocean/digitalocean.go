@@ -98,11 +98,11 @@ type network struct {
 // https://developers.digitalocean.com/documentation/v2/#list-all-droplets
 type listDropletResponse struct {
 	Droplets []droplet `json:"droplets,omitempty"`
-	Links    links     `json:"links,omitempty"`
+	Links    links     `json:"links"`
 }
 
 type links struct {
-	Pages linksPages `json:"pages,omitempty"`
+	Pages linksPages `json:"pages"`
 }
 
 type linksPages struct {

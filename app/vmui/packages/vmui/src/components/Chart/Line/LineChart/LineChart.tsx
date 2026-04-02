@@ -13,7 +13,6 @@ import {
   getRangeY,
   getScales,
   handleDestroy,
-  setBand,
   setSelect
 } from "../../../../utils/uplot";
 import { MetricResult } from "../../../../api/types";
@@ -40,7 +39,6 @@ export interface LineChartProps {
   setPeriod: ({ from, to }: { from: Date, to: Date }) => void;
   layoutSize: ElementSize;
   height?: number;
-  isAnomalyView?: boolean;
   spanGaps?: boolean;
   showAllPoints?: boolean;
 }
@@ -55,7 +53,6 @@ const LineChart: FC<LineChartProps> = ({
   setPeriod,
   layoutSize,
   height,
-  isAnomalyView,
   spanGaps = false,
   showAllPoints = false,
 }) => {
@@ -75,7 +72,7 @@ const LineChart: FC<LineChartProps> = ({
     seriesFocus,
     setCursor,
     resetTooltips
-  } = useLineTooltip({ u: uPlotInst, metrics, series, unit, isAnomalyView });
+  } = useLineTooltip({ u: uPlotInst, metrics, series, unit });
 
   const options: uPlotOptions = {
     ...getDefaultOptions({ width: layoutSize.width, height }),
@@ -111,7 +108,6 @@ const LineChart: FC<LineChartProps> = ({
     if (!uPlotInst) return;
     delSeries(uPlotInst);
     addSeries(uPlotInst, series, spanGaps, showAllPoints);
-    setBand(uPlotInst, series);
     uPlotInst.redraw();
   }, [series, spanGaps, showAllPoints]);
 

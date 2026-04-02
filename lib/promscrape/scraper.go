@@ -37,7 +37,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/puppetdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/vultr"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/yandexcloud"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 var (
@@ -68,11 +67,9 @@ func CheckConfig() error {
 func Init(pushData func(at *auth.Token, wr *prompb.WriteRequest)) {
 	mustInitClusterMemberID()
 	globalStopChan = make(chan struct{})
-	scraperWG.Add(1)
-	go func() {
-		defer scraperWG.Done()
+	scraperWG.Go(func() {
 		runScraper(*promscrapeConfigFile, pushData, globalStopChan)
-	}()
+	})
 }
 
 // Stop stops Prometheus scraper.
@@ -245,11 +242,9 @@ func (scs *scrapeConfigs) add(name string, checkInterval time.Duration, getScrap
 
 		discoveryDuration: metrics.GetOrCreateHistogram(fmt.Sprintf("vm_promscrape_service_discovery_duration_seconds{type=%q}", name)),
 	}
-	scs.wg.Add(1)
-	go func() {
-		defer scs.wg.Done()
+	scs.wg.Go(func() {
 		scfg.run(scs.globalStopCh)
-	}()
+	})
 	scs.scfgs = append(scs.scfgs, scfg)
 }
 
@@ -368,7 +363,7 @@ func (sg *scraperGroup) update(sws []*ScrapeWork) {
 
 	additionsCount := 0
 	deletionsCount := 0
-	swsMap := make(map[string]*promutil.Labels, len(sws))
+	swsMap := make(map[string]*compressedLabels, len(sws))
 	var swsToStart []*ScrapeWork
 	for _, sw := range sws {
 		key := sw.key()
@@ -379,7 +374,7 @@ func (sg *scraperGroup) update(sws []*ScrapeWork) {
 					"make sure service discovery and relabeling is set up properly; "+
 					"see also https://docs.victoriametrics.com/victoriametrics/vmagent/#troubleshooting; "+
 					"original labels for target1: %s; original labels for target2: %s",
-					sw.ScrapeURL, sw.Labels.String(), originalLabels.String(), sw.OriginalLabels.String())
+					sw.ScrapeURL, sw.Labels.String(), originalLabels.labelsString(), sw.OriginalLabels.labelsString())
 			}
 			droppedTargetsMap.Register(sw.OriginalLabels, sw.RelabelConfigs, targetDropReasonDuplicate, nil)
 			continue
@@ -417,18 +412,16 @@ func (sg *scraperGroup) update(sws []*ScrapeWork) {
 		}
 		sg.activeScrapers.Inc()
 		sg.scrapersStarted.Inc()
-		sg.wg.Add(1)
 		tsmGlobal.Register(&sc.sw)
-		go func() {
+		sg.wg.Go(func() {
 			defer func() {
-				sg.wg.Done()
 				close(sc.stoppedCh)
 			}()
 			sc.sw.run(sc.ctx.Done(), sg.globalStopCh)
 			tsmGlobal.Unregister(&sc.sw)
 			sg.activeScrapers.Dec()
 			sg.scrapersStopped.Inc()
-		}()
+		})
 		key := sw.key()
 		sg.m[key] = sc
 		additionsCount++

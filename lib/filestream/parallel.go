@@ -39,16 +39,10 @@ func (pfc *ParallelFileCreator) Run() {
 	concurrencyCh := fsutil.GetConcurrencyCh()
 	for _, task := range pfc.tasks {
 		concurrencyCh <- struct{}{}
-		wg.Add(1)
-
-		go func(dstPath string, wc *WriteCloser, nocache bool) {
-			defer func() {
-				wg.Done()
-				<-concurrencyCh
-			}()
-
-			*wc = MustCreate(dstPath, nocache)
-		}(task.dstPath, task.wc, task.nocache)
+		wg.Go(func() {
+			*task.wc = MustCreate(task.dstPath, task.nocache)
+			<-concurrencyCh
+		})
 	}
 	wg.Wait()
 }
@@ -84,16 +78,10 @@ func (pfo *ParallelFileOpener) Run() {
 	concurrencyCh := fsutil.GetConcurrencyCh()
 	for _, task := range pfo.tasks {
 		concurrencyCh <- struct{}{}
-		wg.Add(1)
-
-		go func(path string, rc *ReadCloser, nocache bool) {
-			defer func() {
-				wg.Done()
-				<-concurrencyCh
-			}()
-
-			*rc = MustOpen(path, nocache)
-		}(task.path, task.rc, task.nocache)
+		wg.Go(func() {
+			*task.rc = MustOpen(task.path, task.nocache)
+			<-concurrencyCh
+		})
 	}
 	wg.Wait()
 }
@@ -127,23 +115,19 @@ func (psw *ParallelStreamWriter) Run() {
 	concurrencyCh := fsutil.GetConcurrencyCh()
 	for _, task := range psw.tasks {
 		concurrencyCh <- struct{}{}
-		wg.Add(1)
 
-		go func(dstPath string, src io.WriterTo) {
-			defer func() {
-				wg.Done()
-				<-concurrencyCh
-			}()
-
-			f := MustCreate(dstPath, false)
-			if _, err := src.WriteTo(f); err != nil {
+		wg.Go(func() {
+			f := MustCreate(task.dstPath, false)
+			if _, err := task.src.WriteTo(f); err != nil {
 				f.MustClose()
 				// Do not call MustRemovePath(path), so the user could inspect
 				// the file contents during investigation of the issue.
-				logger.Panicf("FATAL: cannot write data to %q: %s", dstPath, err)
+				logger.Panicf("FATAL: cannot write data to %q: %s", task.dstPath, err)
 			}
 			f.MustClose()
-		}(task.dstPath, task.src)
+
+			<-concurrencyCh
+		})
 	}
 	wg.Wait()
 }

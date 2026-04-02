@@ -10,7 +10,7 @@ func BenchmarkDeduplicateSamples(b *testing.B) {
 	const blockSize = 8192
 	timestamps := make([]int64, blockSize)
 	values := make([]float64, blockSize)
-	for i := 0; i < len(timestamps); i++ {
+	for i := range timestamps {
 		isDuplicate := i%2 == 1
 		ts := int64(i) * 1e3
 		if isDuplicate {
@@ -44,7 +44,7 @@ func BenchmarkDeduplicateSamplesDuringMerge(b *testing.B) {
 	const blockSize = 8192
 	timestamps := make([]int64, blockSize)
 	values := make([]int64, blockSize)
-	for i := 0; i < len(timestamps); i++ {
+	for i := range timestamps {
 		isDuplicate := i%2 == 1
 		ts := int64(i) * 1e3
 		if isDuplicate {

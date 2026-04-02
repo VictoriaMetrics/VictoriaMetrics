@@ -14,6 +14,12 @@ const (
 	globalSilent             = "s"
 	globalVerbose            = "verbose"
 	globalDisableProgressBar = "disable-progress-bar"
+
+	globalPushMetricsURL         = "pushmetrics.url"
+	globalPushMetricsInterval    = "pushmetrics.interval"
+	globalPushExtraLabels        = "pushmetrics.extraLabel"
+	globalPushHeaders            = "pushmetrics.header"
+	globalPushDisableCompression = "pushmetrics.disableCompression"
 )
 
 var (
@@ -32,6 +38,29 @@ var (
 			Name:  globalDisableProgressBar,
 			Value: false,
 			Usage: "Whether to disable progress bar during the import.",
+		},
+		&cli.StringSliceFlag{
+			Name:  globalPushMetricsURL,
+			Usage: "Optional URL to push metrics. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#push-metrics",
+		},
+		&cli.DurationFlag{
+			Name:  globalPushMetricsInterval,
+			Value: 10 * time.Second,
+			Usage: "Interval for pushing metrics to every -pushmetrics.url",
+		},
+		&cli.StringSliceFlag{
+			Name: globalPushExtraLabels,
+			Usage: "Extra labels to add to pushed metrics. In case of collision, label value defined by flag will have priority. " +
+				"Flag can be set multiple times, to add few additional labels. " +
+				"For example, -pushmetrics.extraLabel='instance=\"foo\"' adds instance=\"foo\" label to all the metrics pushed to every -pushmetrics.url",
+		},
+		&cli.StringSliceFlag{
+			Name:  globalPushHeaders,
+			Usage: "Optional HTTP headers to add to pushed metrics. Flag can be set multiple times, to add few additional headers.",
+		},
+		&cli.BoolFlag{
+			Name:  globalPushDisableCompression,
+			Usage: "Whether to disable compression when pushing metrics.",
 		},
 	}
 )
@@ -123,32 +152,32 @@ var (
 			Name:  vmExtraLabel,
 			Value: nil,
 			Usage: "Extra labels, that will be added to imported timeseries. In case of collision, label value defined by flag" +
-				"will have priority. Flag can be set multiple times, to add few additional labels.",
+				" will have priority. Flag can be set multiple times, to add few additional labels.",
 		},
 		&cli.Int64Flag{
 			Name: vmRateLimit,
 			Usage: "Optional data transfer rate limit in bytes per second.\n" +
-				"By default, the rate limit is disabled. It can be useful for limiting load on configured via '--vmAddr' destination.",
+				"By default, the rate limit is disabled. It can be useful for limiting load on configured via '--vm-addr' destination.",
 		},
 		&cli.StringFlag{
 			Name:  vmCertFile,
-			Usage: "Optional path to client-side TLS certificate file to use when connecting to '--vmAddr'",
+			Usage: "Optional path to client-side TLS certificate file to use when connecting to '--vm-addr'",
 		},
 		&cli.StringFlag{
 			Name:  vmKeyFile,
-			Usage: "Optional path to client-side TLS key to use when connecting to '--vmAddr'",
+			Usage: "Optional path to client-side TLS key to use when connecting to '--vm-addr'",
 		},
 		&cli.StringFlag{
 			Name:  vmCAFile,
-			Usage: "Optional path to TLS CA file to use for verifying connections to '--vmAddr'. By default, system CA is used",
+			Usage: "Optional path to TLS CA file to use for verifying connections to '--vm-addr'. By default, system CA is used",
 		},
 		&cli.StringFlag{
 			Name:  vmServerName,
-			Usage: "Optional TLS server name to use for connections to '--vmAddr'. By default, the server name from '--vmAddr' is used",
+			Usage: "Optional TLS server name to use for connections to '--vm-addr'. By default, the server name from '--vm-addr' is used",
 		},
 		&cli.BoolFlag{
 			Name:  vmInsecureSkipVerify,
-			Usage: "Whether to skip tls verification when connecting to '--vmAddr'",
+			Usage: "Whether to skip tls verification when connecting to '--vm-addr'",
 			Value: false,
 		},
 		&cli.IntFlag{
@@ -387,6 +416,16 @@ const (
 	promTemporaryDirPath = "prom-tmp-dir-path"
 )
 
+const (
+	thanosSnapshot         = "thanos-snapshot"
+	thanosConcurrency      = "thanos-concurrency"
+	thanosFilterTimeStart  = "thanos-filter-time-start"
+	thanosFilterTimeEnd    = "thanos-filter-time-end"
+	thanosFilterLabel      = "thanos-filter-label"
+	thanosFilterLabelValue = "thanos-filter-label-value"
+	thanosAggrTypes        = "thanos-aggr-types"
+)
+
 var (
 	promFlags = []cli.Flag{
 		&cli.StringFlag{
@@ -420,6 +459,43 @@ var (
 			Name:  promTemporaryDirPath,
 			Usage: "Path to directory to be used for temporary files.",
 			Value: os.TempDir(),
+		},
+	}
+
+	thanosFlags = []cli.Flag{
+		&cli.StringFlag{
+			Name:     thanosSnapshot,
+			Usage:    "Path to Thanos snapshot directory containing raw and/or downsampled blocks.",
+			Required: true,
+		},
+		&cli.IntFlag{
+			Name:  thanosConcurrency,
+			Usage: "Number of concurrently running snapshot readers",
+			Value: 1,
+		},
+		&cli.StringFlag{
+			Name:  thanosFilterTimeStart,
+			Usage: "The time filter in RFC3339 format to select timeseries with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z'",
+		},
+		&cli.StringFlag{
+			Name:  thanosFilterTimeEnd,
+			Usage: "The time filter in RFC3339 format to select timeseries with timestamp equal or lower than provided value. E.g. '2020-01-01T20:07:00Z'",
+		},
+		&cli.StringFlag{
+			Name:  thanosFilterLabel,
+			Usage: "Thanos label name to filter timeseries by. E.g. '__name__' will filter timeseries by name.",
+		},
+		&cli.StringFlag{
+			Name:  thanosFilterLabelValue,
+			Usage: fmt.Sprintf("Thanos regular expression to filter label from %q flag.", thanosFilterLabel),
+			Value: ".*",
+		},
+		&cli.StringSliceFlag{
+			Name: thanosAggrTypes,
+			Usage: "Aggregate types to import from Thanos downsampled blocks. Supported values: count, sum, min, max, counter. " +
+				"Each aggregate will be imported as a separate metric with the aggregate type as suffix (e.g., metric_name:5m:count). " +
+				"If not specified, all aggregate types will be imported from downsampled blocks.",
+			Value: nil,
 		},
 	}
 )
@@ -468,7 +544,7 @@ var (
 			Name: vmNativeFilterMatch,
 			Usage: "Time series selector to match series for export. For example, select {instance!=\"localhost\"} will " +
 				"match all series with \"instance\" label different to \"localhost\".\n" +
-				" See more details here https://github.com/VictoriaMetrics/VictoriaMetrics#how-to-export-data-in-native-format",
+				" See more details here https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-export-data-in-native-format",
 			Value: `{__name__!=""}`,
 		},
 		&cli.StringFlag{
@@ -598,7 +674,7 @@ var (
 			Name:  vmExtraLabel,
 			Value: nil,
 			Usage: "Extra labels, that will be added to imported timeseries. In case of collision, label value defined by flag" +
-				"will have priority. Flag can be set multiple times, to add few additional labels.",
+				" will have priority. Flag can be set multiple times, to add few additional labels.",
 		},
 		&cli.Int64Flag{
 			Name: vmRateLimit,
@@ -625,8 +701,8 @@ var (
 		&cli.BoolFlag{
 			Name: vmNativeDisableBinaryProtocol,
 			Usage: "Whether to use https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-export-data-in-json-line-format " +
-				"instead of https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-export-data-in-native-format API." +
-				"Binary export/import API protocol implies less network and resource usage, as it transfers compressed binary data blocks." +
+				"instead of https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-export-data-in-native-format API. " +
+				"Binary export/import API protocol implies less network and resource usage, as it transfers compressed binary data blocks. " +
 				"Non-binary export/import API is less efficient, but supports deduplication if it is configured on vm-native-src-addr side.",
 			Value: false,
 		},

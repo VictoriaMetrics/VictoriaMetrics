@@ -50,6 +50,10 @@ func (fi *filterContainsCommonCase) updateNeededFields(pf *prefixfilter.Filter) 
 	fi.containsAny.updateNeededFields(pf)
 }
 
+func (fi *filterContainsCommonCase) matchRow(fields []Field) bool {
+	return fi.containsAny.matchRow(fields)
+}
+
 func (fi *filterContainsCommonCase) applyToBlockResult(br *blockResult, bm *bitmap) {
 	fi.containsAny.applyToBlockResult(br, bm)
 }

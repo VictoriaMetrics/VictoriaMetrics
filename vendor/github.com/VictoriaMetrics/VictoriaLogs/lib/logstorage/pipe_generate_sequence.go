@@ -32,6 +32,10 @@ func (pg *pipeGenerateSequence) canReturnLastNResults() bool {
 	return false
 }
 
+func (pg *pipeGenerateSequence) isFixedOutputFieldsOrder() bool {
+	return true
+}
+
 func (pg *pipeGenerateSequence) updateNeededFields(pf *prefixfilter.Filter) {
 	pf.Reset()
 }
@@ -79,7 +83,7 @@ func (pgp *pipeGenerateSequenceProcessor) flush() error {
 	var br blockResult
 	var buf []byte
 
-	for i := uint64(0); i < pgp.pg.n; i++ {
+	for i := range pgp.pg.n {
 		if needStop(pgp.stopCh) {
 			return nil
 		}

@@ -58,6 +58,13 @@ func (fs *filterStreamID) initStreamIDsMap() {
 	fs.streamIDsMap = m
 }
 
+func (fs *filterStreamID) matchRow(fields []Field) bool {
+	m := fs.getStreamIDsMap()
+	v := getFieldValueByName(fields, "_stream_id")
+	_, ok := m[v]
+	return ok
+}
+
 func (fs *filterStreamID) applyToBlockResult(br *blockResult, bm *bitmap) {
 	m := fs.getStreamIDsMap()
 

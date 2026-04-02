@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"runtime/debug"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -31,7 +33,7 @@ func TestParseStream(t *testing.T) {
 				return fmt.Errorf("unexpected time series count; got: %d; want: %d\ntimeseries got:\n%s\ntimeseries want\n%s",
 					len(tss), len(tssExpected), prettifyTimeSeries(tss), prettifyTimeSeries(tssExpected))
 			}
-			for i := 0; i < len(tss); i++ {
+			for i := range tss {
 				ts := tss[i]
 				tsExpected := tssExpected[i]
 				if len(ts.Labels) != len(tsExpected.Labels) {
@@ -340,11 +342,19 @@ func TestParseStream(t *testing.T) {
 			generateExpHistogram("test-histogram", "m/s"),
 		},
 		[]prompb.TimeSeries{
-			newTimeSeries("test_histogram_meters_per_second_bucket", 15000, 5.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "1.061e+00...1.067e+00")),
-			newTimeSeries("test_histogram_meters_per_second_bucket", 15000, 10.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "1.067e+00...1.073e+00")),
-			newTimeSeries("test_histogram_meters_per_second_bucket", 15000, 1.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "1.085e+00...1.091e+00")),
-			newTimeSeries("test_histogram_meters_per_second_count", 15000, 20.0, jobLabelValue, kvLabel("label1", "value1")),
-			newTimeSeries("test_histogram_meters_per_second_sum", 15000, 4578.0, jobLabelValue, kvLabel("label1", "value1")),
+			newTimeSeries("test_histogram_meters_per_second_bucket", 15000, 5.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "6.400e+01...1.280e+02")),
+			newTimeSeries("test_histogram_meters_per_second_bucket", 15000, 1.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "4.000e+00...8.000e+00")),
+			newTimeSeries("test_histogram_meters_per_second_bucket", 15000, 2.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "8.000e+00...1.600e+01")),
+			newTimeSeries("test_histogram_meters_per_second_bucket", 15000, 3.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "1.600e+01...3.200e+01")),
+			newTimeSeries("test_histogram_meters_per_second_bucket", 15000, 4.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "3.200e+01...6.400e+01")),
+			newTimeSeries("test_histogram_meters_per_second_bucket", 15000, 1.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "5.120e+02...1.024e+03")),
+			newTimeSeries("test_histogram_meters_per_second_bucket", 15000, 1.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "-8.000e+00...-4.000e+00")),
+			newTimeSeries("test_histogram_meters_per_second_bucket", 15000, 2.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "-1.600e+01...-8.000e+00")),
+			newTimeSeries("test_histogram_meters_per_second_bucket", 15000, 3.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "-3.200e+01...-1.600e+01")),
+			newTimeSeries("test_histogram_meters_per_second_bucket", 15000, 4.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "-6.400e+01...-3.200e+01")),
+			newTimeSeries("test_histogram_meters_per_second_bucket", 15000, 5.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "-1.280e+02...-6.400e+01")),
+			newTimeSeries("test_histogram_meters_per_second_count", 15000, 31.0, jobLabelValue, kvLabel("label1", "value1")),
+			newTimeSeries("test_histogram_meters_per_second_sum", 15000, 588.0, jobLabelValue, kvLabel("label1", "value1")),
 		},
 		[]prompb.MetricMetadata{
 			{
@@ -370,7 +380,7 @@ func TestParseStream(t *testing.T) {
 								{
 									Key: "label1",
 									Value: &pb.AnyValue{
-										StringValue: ptrTo("value1"),
+										StringValue: new("value1"),
 									},
 								},
 								{
@@ -386,7 +396,7 @@ func TestParseStream(t *testing.T) {
 										ArrayValue: &pb.ArrayValue{
 											Values: []*pb.AnyValue{
 												{
-													StringValue: ptrTo("value5"),
+													StringValue: new("value5"),
 												},
 												{
 													KeyValueList: &pb.KeyValueList{},
@@ -406,7 +416,7 @@ func TestParseStream(t *testing.T) {
 												{
 													Key: "value_top_2",
 													Value: &pb.AnyValue{
-														StringValue: ptrTo("valuetop"),
+														StringValue: new("valuetop"),
 													},
 												},
 												{
@@ -416,15 +426,15 @@ func TestParseStream(t *testing.T) {
 															Values: []*pb.KeyValue{
 																{
 																	Key:   "integer",
-																	Value: &pb.AnyValue{IntValue: ptrTo(int64(15))},
+																	Value: &pb.AnyValue{IntValue: new(int64(15))},
 																},
 																{
 																	Key:   "double",
-																	Value: &pb.AnyValue{DoubleValue: ptrTo(5.1)},
+																	Value: &pb.AnyValue{DoubleValue: new(5.1)},
 																},
 																{
 																	Key:   "string",
-																	Value: &pb.AnyValue{StringValue: ptrTo("value2")},
+																	Value: &pb.AnyValue{StringValue: new("value2")},
 																},
 															},
 														},
@@ -435,7 +445,7 @@ func TestParseStream(t *testing.T) {
 									},
 								},
 							},
-							IntValue:     ptrTo(int64(15)),
+							IntValue:     new(int64(15)),
 							TimeUnixNano: uint64(15 * time.Second),
 						},
 					},
@@ -558,7 +568,7 @@ func stringAttributeFromKV(k, v string) *pb.KeyValue {
 }
 
 func generateExpHistogram(name, unit string, extraAttributes ...*pb.KeyValue) *pb.Metric {
-	sum := float64(4578)
+	sum := float64(588)
 	m := &pb.Metric{
 		Name: name,
 		Unit: unit,
@@ -567,12 +577,16 @@ func generateExpHistogram(name, unit string, extraAttributes ...*pb.KeyValue) *p
 				{
 					Attributes:   attributesFromKV("label1", "value1"),
 					TimeUnixNano: uint64(15 * time.Second),
-					Count:        20,
+					Count:        31,
 					Sum:          &sum,
-					Scale:        7,
+					Scale:        0,
 					Positive: &pb.Buckets{
-						Offset:       7,
-						BucketCounts: []uint64{0, 0, 0, 0, 5, 10, 0, 0, 1},
+						Offset:       2,
+						BucketCounts: []uint64{1, 2, 3, 4, 5, 0, 0, 1},
+					},
+					Negative: &pb.Buckets{
+						Offset:       2,
+						BucketCounts: []uint64{1, 2, 3, 4, 5},
 					},
 				},
 			},
@@ -609,7 +623,7 @@ func generateGaugeUnknown(name, unit string, extraAttributes ...*pb.KeyValue) *p
 	m.Metadata = append(m.Metadata, &pb.KeyValue{
 		Key: "prometheus.type",
 		Value: &pb.AnyValue{
-			StringValue: ptrTo("unknown"),
+			StringValue: new("unknown"),
 		},
 	})
 	return m
@@ -699,13 +713,13 @@ func generateOTLPSamples(srcs []*pb.Metric) *pb.ResourceMetrics {
 		},
 	}
 	scope := &pb.InstrumentationScope{
-		Name:    ptrTo("foo"),
-		Version: ptrTo("bar"),
+		Name:    new("foo"),
+		Version: new("bar"),
 		Attributes: []*pb.KeyValue{
 			{
 				Key: "abc",
 				Value: &pb.AnyValue{
-					StringValue: ptrTo("qwe"),
+					StringValue: new("qwe"),
 				},
 			},
 		},
@@ -817,6 +831,42 @@ func sortLabels(labels []prompb.Label) {
 	})
 }
 
-func ptrTo[T any](v T) *T {
-	return &v
+func TestPutBigWriteRequestContext(t *testing.T) {
+	f := func(l, c, expectC int) {
+		t.Helper()
+
+		// disable GC here so the items in pool won't be recycled too fast. reset it after the test.
+		prevPercent := debug.SetGCPercent(-1)
+		defer debug.SetGCPercent(prevPercent)
+
+		// let's reset the whole pool first, as different test case could interfere
+		wctxPool = sync.Pool{}
+
+		wctx := &writeRequestContext{
+			buf: make([]byte, l, c),
+		}
+		putWriteRequestContext(wctx)
+		wctx = getWriteRequestContext()
+
+		if cap(wctx.buf) != expectC {
+			t.Fatalf("unexpected labels buffer length or cap: got len=%d, cap=%d, want cap=%d",
+				len(wctx.buf), cap(wctx.buf), expectC,
+			)
+		}
+	}
+
+	// wctx but actually used the space: no reset
+	f(1, 1, 1)
+	f(1000, 1000, 1000)
+	f(4*1024*1024, 5*1024*1024, 5*1024*1024)     // not fulfilling 4x, no reset
+	f(1024*1024+5, 4*1024*1024+1, 4*1024*1024+1) // not fulfilling 4x, no reset
+
+	// wctx not using the space, but it's too small: no reset
+	f(1, 1024*1024+1, 1024*1024+1)
+	f(1, 4*1024*1024, 4*1024*1024)
+
+	// wctx not using the space, and the cap is high: reset
+	f(1, 4*1024*1024+1, 0)
+	f(1, 4*1024*1024+1, 0)
+	f(1024*1024, 4*1024*1024+1, 0) // diff > 4x
 }

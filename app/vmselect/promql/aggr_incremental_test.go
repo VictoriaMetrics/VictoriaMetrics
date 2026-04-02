@@ -53,7 +53,7 @@ func TestIncrementalAggr(t *testing.T) {
 			Values:     valuesExpected,
 		}}
 		// run the test multiple times to make sure there are no side effects on concurrency
-		for i := 0; i < 10; i++ {
+		for i := range 10 {
 			iafc := newIncrementalAggrFuncContext(ae, callbacks)
 			tssSrcCopy := copyTimeseries(tssSrc)
 			if err := testIncrementalParallelAggr(iafc, tssSrcCopy, tssExpected); err != nil {
@@ -103,15 +103,13 @@ func testIncrementalParallelAggr(iafc *incrementalAggrFuncContext, tssSrc, tssEx
 	workersCount := netstorage.MaxWorkers()
 	tsCh := make(chan *timeseries)
 	var wg sync.WaitGroup
-	wg.Add(workersCount)
-	for i := 0; i < workersCount; i++ {
-		go func(workerID uint) {
-			defer wg.Done()
+	for workerID := range workersCount {
+		wg.Go(func() {
 			for ts := range tsCh {
 				runtime.Gosched() // allow other goroutines performing the work
-				iafc.updateTimeseries(ts, workerID)
+				iafc.updateTimeseries(ts, uint(workerID))
 			}
-		}(uint(i))
+		})
 	}
 	for _, ts := range tssSrc {
 		tsCh <- ts

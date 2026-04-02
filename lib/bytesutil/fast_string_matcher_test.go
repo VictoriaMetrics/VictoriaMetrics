@@ -12,7 +12,7 @@ func TestFastStringMatcher(t *testing.T) {
 	})
 	f := func(s string, resultExpected bool) {
 		t.Helper()
-		for i := 0; i < 10; i++ {
+		for i := range 10 {
 			result := fsm.Match(s)
 			if result != resultExpected {
 				t.Fatalf("unexpected result for Match(%q) at iteration %d; got %v; want %v", s, i, result, resultExpected)

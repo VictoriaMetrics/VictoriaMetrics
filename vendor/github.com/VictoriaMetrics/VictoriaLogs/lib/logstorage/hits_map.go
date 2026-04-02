@@ -334,13 +334,10 @@ func hitsMapMergeParallel(hmas []*hitsMapAdaptive, stopCh <-chan struct{}, f fun
 		if hma.hmShards != nil {
 			continue
 		}
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
+		wg.Go(func() {
 			var a chunkedAllocator
 			hma.moveToShards(&a)
-		}()
+		})
 	}
 	wg.Wait()
 	if needStop(stopCh) {
@@ -349,11 +346,8 @@ func hitsMapMergeParallel(hmas []*hitsMapAdaptive, stopCh <-chan struct{}, f fun
 
 	cpusCount := len(hmas[0].hmShards)
 
-	for i := 0; i < cpusCount; i++ {
-		wg.Add(1)
-		go func(cpuIdx int) {
-			defer wg.Done()
-
+	for cpuIdx := range cpusCount {
+		wg.Go(func() {
 			hm := &hmas[0].hmShards[cpuIdx].hitsMap
 			for j := range hmas[1:] {
 				src := &hmas[1+j].hmShards[cpuIdx].hitsMap
@@ -361,7 +355,7 @@ func hitsMapMergeParallel(hmas []*hitsMapAdaptive, stopCh <-chan struct{}, f fun
 				src.reset()
 			}
 			f(hm)
-		}(i)
+		})
 	}
 	wg.Wait()
 }

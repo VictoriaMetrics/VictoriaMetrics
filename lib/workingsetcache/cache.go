@@ -65,7 +65,7 @@ type Cache struct {
 func newWithAutoCleanup(maxBytes int) *fastcache.Cache {
 	c := fastcache.New(maxBytes)
 
-	// Reset the cache after it is no longer reacheable since the cache
+	// Reset the cache after it is no longer reachable since the cache
 	// could remain in use at Set or Get methods after the rotation.
 	runtime.SetFinalizer(c, func(c *fastcache.Cache) {
 		c.Reset()
@@ -152,23 +152,13 @@ func newCacheInternal(curr, prev *fastcache.Cache, mode, maxBytes int, expireDur
 }
 
 func (c *Cache) runWatchers(expireDuration time.Duration) {
-	c.wg.Add(1)
-	go func() {
-		defer c.wg.Done()
+	c.wg.Go(func() {
 		c.expirationWatcher(expireDuration)
-	}()
+	})
 
-	c.wg.Add(1)
-	go func() {
-		defer c.wg.Done()
-		c.prevCacheWatcher()
-	}()
+	c.wg.Go(c.prevCacheWatcher)
 
-	c.wg.Add(1)
-	go func() {
-		defer c.wg.Done()
-		c.cacheSizeWatcher()
-	}()
+	c.wg.Go(c.cacheSizeWatcher)
 }
 
 func (c *Cache) expirationWatcher(expireDuration time.Duration) {

@@ -3,11 +3,11 @@
 DOCKER_REGISTRIES ?= docker.io quay.io
 DOCKER_NAMESPACE ?= victoriametrics
 
-ROOT_IMAGE ?= alpine:3.23.2
+ROOT_IMAGE ?= alpine:3.23.3
 ROOT_IMAGE_SCRATCH ?= scratch
-CERTS_IMAGE := alpine:3.23.2
+CERTS_IMAGE := alpine:3.23.3
 
-GO_BUILDER_IMAGE := golang:1.25.5
+GO_BUILDER_IMAGE := golang:1.26.1
 
 BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr :/ __)-1
 BASE_IMAGE := local/base:1.1.4-$(shell echo $(ROOT_IMAGE) | tr :/ __)-$(shell echo $(CERTS_IMAGE) | tr :/ __)
@@ -100,6 +100,7 @@ publish-via-docker:
 		) \
 		-o type=image \
 		--provenance=false \
+		--sbom=true \
 		-f app/$(APP_NAME)/multiarch/Dockerfile \
 		--push \
 		bin
@@ -120,6 +121,7 @@ publish-via-docker:
 		) \
 		-o type=image \
 		--provenance=false \
+		--sbom=true \
 		-f app/$(APP_NAME)/multiarch/Dockerfile \
 		--push \
 		bin
@@ -137,6 +139,11 @@ publish-via-docker-from-rc:
 	$(foreach registry,$(DOCKER_REGISTRIES),\
 		docker buildx imagetools create --tag $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)-scratch $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(EXTRA_DOCKER_TAG_SUFFIX)-scratch; \
 	)
+	@if echo "$(PKG_TAG)" | grep -q "enterprise"; then \
+		$(foreach registry,$(DOCKER_REGISTRIES),\
+			docker buildx imagetools create --tag $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)-fips $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(EXTRA_DOCKER_TAG_SUFFIX)-fips; \
+		) \
+	fi
 
 publish-via-docker-latest:
 	$(foreach registry,$(DOCKER_REGISTRIES),\

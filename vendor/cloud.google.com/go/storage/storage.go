@@ -40,7 +40,6 @@ import (
 
 	"cloud.google.com/go/auth"
 	"cloud.google.com/go/internal/optional"
-	"cloud.google.com/go/internal/trace"
 	"cloud.google.com/go/storage/internal"
 	"cloud.google.com/go/storage/internal/apiv2/storagepb"
 	"github.com/googleapis/gax-go/v2"
@@ -1120,6 +1119,13 @@ type ObjectAttrsToUpdate struct {
 	// extending the RetainUntil time on the object retention must be done
 	// on an ObjectHandle with OverrideUnlockedRetention set to true.
 	Retention *ObjectRetention
+
+	// Contexts allows adding, modifying, or deleting individual object contexts.
+	// To add or modify a context, set the value field in ObjectCustomContextPayload.
+	// To delete a context, set the Delete field in ObjectCustomContextPayload to true.
+	// To remove all contexts, pass Custom as an empty map in Contexts. Passing nil Custom
+	// map will be no-op.
+	Contexts *ObjectContexts
 }
 
 // Delete deletes the single specified object.
@@ -1204,8 +1210,6 @@ func (o *ObjectHandle) Restore(ctx context.Context, opts *RestoreOptions) (*Obje
 // Any preconditions set on the ObjectHandle will be applied for the source
 // object. Set preconditions on the destination object using
 // [MoveObjectDestination.Conditions].
-//
-// This API is in preview and is not yet publicly available.
 func (o *ObjectHandle) Move(ctx context.Context, destination MoveObjectDestination) (*ObjectAttrs, error) {
 	if err := o.validate(); err != nil {
 		return nil, err
@@ -1248,7 +1252,7 @@ type MoveObjectDestination struct {
 // It is the caller's responsibility to call Close when writing is done. To
 // stop writing without saving the data, cancel the context.
 func (o *ObjectHandle) NewWriter(ctx context.Context) *Writer {
-	ctx = trace.StartSpan(ctx, "cloud.google.com/go/storage.Object.Writer")
+	ctx, _ = startSpan(ctx, "Object.Writer")
 	return &Writer{
 		ctx:         ctx,
 		o:           o,
@@ -1284,7 +1288,7 @@ func (o *ObjectHandle) NewWriter(ctx context.Context) *Writer {
 // objects which were created append semantics and not finalized.
 // This feature is in preview and is not yet available for general use.
 func (o *ObjectHandle) NewWriterFromAppendableObject(ctx context.Context, opts *AppendableWriterOpts) (*Writer, int64, error) {
-	ctx = trace.StartSpan(ctx, "cloud.google.com/go/storage.Object.Writer")
+	ctx, _ = startSpan(ctx, "Object.WriterFromAppendableObject")
 	if o.gen < 0 {
 		return nil, 0, errors.New("storage: ObjectHandle.Generation must be set to use NewWriterFromAppendableObject")
 	}
@@ -1412,6 +1416,7 @@ func (o *ObjectAttrs) toRawObject(bucket string) *raw.Object {
 		Metadata:                o.Metadata,
 		CustomTime:              ct,
 		Retention:               o.Retention.toRawObjectRetention(),
+		Contexts:                toRawObjectContexts(o.Contexts),
 	}
 }
 
@@ -1446,6 +1451,7 @@ func (o *ObjectAttrs) toProtoObject(b string) *storagepb.Object {
 		KmsKey:              o.KMSKeyName,
 		Generation:          o.Generation,
 		Size:                o.Size,
+		Contexts:            toProtoObjectContexts(o.Contexts),
 	}
 }
 
@@ -1488,6 +1494,10 @@ func (uattrs *ObjectAttrsToUpdate) toProtoObject(bucket, object string) *storage
 	}
 
 	o.Metadata = uattrs.Metadata
+
+	if uattrs.Contexts != nil {
+		o.Contexts = toProtoObjectContexts(uattrs.Contexts)
+	}
 
 	return o
 }
@@ -1671,6 +1681,18 @@ type ObjectAttrs struct {
 	// ObjectHandle.Attrs will return ErrObjectNotExist if the object is soft-deleted.
 	// This field is read-only.
 	HardDeleteTime time.Time
+
+	// Contexts store custom key-value metadata that the user could
+	// annotate object with. These key-value pairs can be used to filter objects
+	// during list calls. See https://cloud.google.com/storage/docs/object-contexts
+	// for more details.
+	Contexts *ObjectContexts
+}
+
+// isZero reports whether the ObjectAttrs struct is empty (i.e. all the
+// fields are their zero value).
+func (o *ObjectAttrs) isZero() bool {
+	return reflect.DeepEqual(o, &ObjectAttrs{})
 }
 
 // ObjectRetention contains the retention configuration for this object.
@@ -1778,6 +1800,7 @@ func newObject(o *raw.Object) *ObjectAttrs {
 		Retention:               toObjectRetention(o.Retention),
 		SoftDeleteTime:          convertTime(o.SoftDeleteTime),
 		HardDeleteTime:          convertTime(o.HardDeleteTime),
+		Contexts:                toObjectContexts(o.Contexts),
 	}
 }
 
@@ -1816,6 +1839,7 @@ func newObjectFromProto(o *storagepb.Object) *ObjectAttrs {
 		ComponentCount:    int64(o.ComponentCount),
 		SoftDeleteTime:    convertProtoTime(o.GetSoftDeleteTime()),
 		HardDeleteTime:    convertProtoTime(o.GetHardDeleteTime()),
+		Contexts:          toObjectContextsFromProto(o.GetContexts()),
 	}
 }
 
@@ -1928,6 +1952,11 @@ type Query struct {
 	// If true, only objects that have been soft-deleted will be listed.
 	// By default, soft-deleted objects are not listed.
 	SoftDeleted bool
+
+	// Filters objects based on object attributes like custom contexts.
+	// See https://docs.cloud.google.com/storage/docs/listing-objects#filter-by-object-contexts
+	// for more details.
+	Filter string
 }
 
 // attrToFieldMap maps the field names of ObjectAttrs to the underlying field
@@ -1966,6 +1995,7 @@ var attrToFieldMap = map[string]string{
 	"Retention":               "retention",
 	"HardDeleteTime":          "hardDeleteTime",
 	"SoftDeleteTime":          "softDeleteTime",
+	"Contexts":                "contexts",
 }
 
 // attrToProtoFieldMap maps the field names of ObjectAttrs to the underlying field
@@ -2001,6 +2031,7 @@ var attrToProtoFieldMap = map[string]string{
 	"ComponentCount":          "component_count",
 	"HardDeleteTime":          "hard_delete_time",
 	"SoftDeleteTime":          "soft_delete_time",
+	"Contexts":                "contexts",
 	// MediaLink was explicitly excluded from the proto as it is an HTTP-ism.
 	// "MediaLink":               "mediaLink",
 	// TODO: add object retention - b/308194853
@@ -2466,6 +2497,33 @@ func (wb *withMaxAttempts) apply(config *retryConfig) {
 	config.maxAttempts = &wb.maxAttempts
 }
 
+// WithMaxRetryDuration configures the maximum duration for which requests can be retried.
+// Once this deadline is reached, no further retry attempts will be made, and the last
+// error will be returned.
+// For example, if you set WithMaxRetryDuration(10*time.Second), retries will stop after
+// 10 seconds even if the maximum number of attempts hasn't been reached.
+// Without this setting, operations will continue retrying until either the maximum
+// number of attempts is exhausted or the passed context is terminated by cancellation
+// or timeout.
+// A value of 0 allows infinite retries (subject to other constraints).
+//
+// Note: This does not apply to Writer operations. For Writer operations,
+// use Writer.ChunkRetryDeadline to control per-chunk retry timeouts, and use
+// context timeout or cancellation to control the overall upload timeout.
+func WithMaxRetryDuration(maxRetryDuration time.Duration) RetryOption {
+	return &withMaxRetryDuration{
+		maxRetryDuration: maxRetryDuration,
+	}
+}
+
+type withMaxRetryDuration struct {
+	maxRetryDuration time.Duration
+}
+
+func (wb *withMaxRetryDuration) apply(config *retryConfig) {
+	config.maxRetryDuration = wb.maxRetryDuration
+}
+
 // RetryPolicy describes the available policies for which operations should be
 // retried. The default is `RetryIdempotent`.
 type RetryPolicy int
@@ -2541,7 +2599,6 @@ type retryConfig struct {
 	maxAttempts *int
 	// maxRetryDuration, if set, specifies a deadline after which the request
 	// will no longer be retried. A value of 0 allows infinite retries.
-	// maxRetryDuration is currently only set by Writer.ChunkRetryDeadline.
 	maxRetryDuration time.Duration
 }
 

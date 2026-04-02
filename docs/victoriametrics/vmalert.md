@@ -38,6 +38,7 @@ please refer to the [VictoriaMetrics Cloud documentation](https://docs.victoriam
 
 * Integration with [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics) and [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/);
 * Integration with [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) and [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/). See [this doc](https://docs.victoriametrics.com/victorialogs/vmalert/);
+* Integration with [VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) which also uses [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/). See [this doc](https://docs.victoriametrics.com/victoriatraces/vmalert/);
 * Prometheus [alerting rules definition format](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/#defining-alerting-rules)
   support;
 * Integration with [Alertmanager](https://github.com/prometheus/alertmanager) starting from [Alertmanager v0.16.0-alpha](https://github.com/prometheus/alertmanager/releases/tag/v0.16.0-alpha.0);
@@ -86,7 +87,7 @@ make vmalert
 Then run `vmalert`:
 
 ```sh
-./bin/vmalert -rule=alert.rules \            # Path to the file with rules configuration. Supports wildcard
+./bin/vmalert -rule=alert.rules \            # Path to the file with rules configuration. Supports wildcard and HTTP URL (S3/GCS are available in Enterprise).
     -datasource.url=http://localhost:8428 \  # Prometheus HTTP API compatible datasource
     -notifier.url=http://localhost:9093 \    # AlertManager URL (required if alerting rules are used)
     -notifier.url=http://127.0.0.1:9093 \    # AlertManager replica URL
@@ -143,8 +144,10 @@ name: <string>
 # Optional
 # Group will be evaluated at the exact offset in the range of [0...interval].
 # E.g. for Group with `interval: 1h` and `eval_offset: 5m` the evaluation will
-# start at 5th minute of the hour. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3409
-# `interval` must be specified if `eval_offset` is used, and `eval_offset` cannot exceed `interval`.
+# start at 5th minute of the hour.
+# `eval_offset` also supports negative values, which means the evaluation will start at `interval-abs(eval_offset)` within [0...interval],
+# For example, `eval_offset: -6m` is equivalent to `eval_offset: 4m` for `interval: 10m`.
+# `interval` must be specified if `eval_offset` is used, and the `abs(eval_offset)` cannot exceed `interval`.
 # `eval_offset` cannot be used with `eval_delay`, as group will be executed at the exact offset and `eval_delay` is ignored.
 [ eval_offset: <duration> ]
 
@@ -286,7 +289,7 @@ expr: <string>
 # In case of conflicts, original labels are kept with prefix `exported_`.
 #
 # Labels only support limited templating variables in https://docs.victoriametrics.com/victoriametrics/vmalert/#templating,
-# including `$labels`, `$value` and `expr`, to avoid breaking alert states or causing cardinality issue with results.
+# including `$labels`, `$value` and `$expr`, to avoid breaking alert states or causing cardinality issue with results.
 # Note: be careful set dynamic label values like `$value`, because each time the $value changes - the new alert will be
 # generated which also break `for` condition.
 labels:
@@ -316,6 +319,7 @@ The following variables are available in templating:
 | $for or .For                       | Alert's configured for param.                                                                             | Number of connections is too high for more than {{ .For }}                                                                                                                           |
 | $externalLabels or .ExternalLabels | List of labels configured via `-external.label` command-line flag.                                        | Issues with {{ $labels.instance }} (datacenter-{{ $externalLabels.dc }})                                                                                                             |
 | $externalURL or .ExternalURL       | URL configured via `-external.url` command-line flag. Used for cases when vmalert is hidden behind proxy. | Visit {{ $externalURL }} for more details                                                                                                                                            |
+| $isPartial or .IsPartial           | Indicates whether the latest rule query response from the datasource(that supports returning `isPartial` option, such as vmcluster) could be partial.       | {{ if $isPartial }}WARNING: The latest alert state may be a false alarm due to a partial response from the datasource.{{ end }}
 
 Additionally, `vmalert` provides some extra templating functions listed in [template functions](#template-functions) and [reusable templates](#reusable-templates).
 
@@ -746,7 +750,7 @@ or time series modification via [relabeling](https://docs.victoriametrics.com/vi
 `vmalert` runs a web-server (`-httpListenAddr`) for serving metrics and alerts endpoints:
 
 * `http://<vmalert-addr>` - UI;
-* `http://<vmalert-addr>/api/v1/rules` - list of all loaded groups and rules. Supports additional [filtering](https://prometheus.io/docs/prometheus/latest/querying/api/#rules);
+* `http://<vmalert-addr>/api/v1/rules` - list of all loaded groups and rules. Supports `search`, `group_limit`, and `page_num` parameters, as well as additional [filtering](https://prometheus.io/docs/prometheus/latest/querying/api/#rules);
 * `http://<vmalert-addr>/api/v1/alerts` - list of all active alerts;
 * `http://<vmalert-addr>/api/v1/notifiers` - list all available notifiers;
 * `http://<vmalert-addr>/vmalert/api/v1/alert?group_id=<group_id>&alert_id=<alert_id>` - get alert status in JSON format.
@@ -777,6 +781,10 @@ to set `-datasource.appendTypePrefix` flag to `true`, so vmalert can adjust URL 
 ## VictoriaLogs
 
 vmalert supports [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) as a datasource for writing alerting and recording rules using [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/). See [this doc](https://docs.victoriametrics.com/victorialogs/vmalert/) for details.
+
+## VictoriaTraces
+
+vmalert supports [VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) as a (`vlogs`) datasource for writing alerting and recording rules using [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/). See [this doc](https://docs.victoriametrics.com/victoriatraces/vmalert/) for details.
 
 ## Rules backfilling
 
@@ -1171,7 +1179,13 @@ command-line flags with their descriptions.
 
 The shortlist of configuration flags is the following:
 
-{{% content "vmalert_flags.md" %}}
+#### Common flags
+These flags are available in both VictoriaMetrics OSS and VictoriaMetrics Enterprise.
+{{% content "vmalert_common_flags.md" %}}
+
+#### Enterprise flags
+These flags are available only in [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+{{% content "vmalert_enterprise_flags.md" %}}
 
 ### Hot config reload
 
@@ -1180,6 +1194,16 @@ The shortlist of configuration flags is the following:
 * send SIGHUP signal to `vmalert` process;
 * send GET request to `/-/reload` endpoint (this endpoint can be protected with `-reloadAuthKey` command-line flag);
 * configure `-configCheckInterval` flag for periodic reload on config change.
+
+On config reload, vmalert re-reads configurations specified via `-rule`, `-rule.templates` and `-notifier.config` cmd-line
+flags. 
+
+If configuration has changed, vmalert will update its internal states accordingly, log the corresponding message,
+set `vmalert_config_last_reload_successful` to `1` and `vmalert_config_last_reload_success_timestamp_seconds` to the moment
+when the update happened. If configuration hasn't changed, vmalert won't do anything.
+
+If vmalert failed to load or parse the configuration, it will log a corresponding error message and set 
+`vmalert_config_last_reload_successful` to `0`. It will keep the previous config and will continue operating as before. 
 
 ### URL params
 

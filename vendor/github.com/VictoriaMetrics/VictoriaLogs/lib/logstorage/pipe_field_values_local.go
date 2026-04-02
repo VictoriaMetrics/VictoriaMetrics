@@ -38,6 +38,10 @@ func (pf *pipeFieldValuesLocal) canReturnLastNResults() bool {
 	return false
 }
 
+func (pf *pipeFieldValuesLocal) isFixedOutputFieldsOrder() bool {
+	return true
+}
+
 func (pf *pipeFieldValuesLocal) updateNeededFields(f *prefixfilter.Filter) {
 	f.Reset()
 

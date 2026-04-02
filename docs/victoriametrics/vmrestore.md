@@ -14,7 +14,11 @@ aliases:
 ---
 `vmrestore` restores data from backups created by [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/).
 
-Restore process can be interrupted at any time. It is automatically resumed from the interruption point when restarting `vmrestore` with the same args.
+Restore process can be interrupted at any time. It is automatically resumed when restarting `vmrestore` with the same args. If file preallocation is enabled{{% available_from "v1.139.0" %}}, it resumes from the last complete file, if file preallocation is disabled via `-skipFilePreallocation` then it resumes from the interruption point mid file.
+
+> If you'd prefer not to manage backups/restores at all, [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_vmbackup_intro)
+> handles backups and restores automatically without the need of extra configurations.
+> See the [VictoriaMetrics Cloud documentation](https://docs.victoriametrics.com/victoriametrics-cloud/) to get started.
 
 ## Usage
 
@@ -82,6 +86,8 @@ Run `vmrestore -help` in order to see all the available options:
   -flagsAuthKey value
      Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -flagsAuthKey=file:///abs/path/to/file or -flagsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -flagsAuthKey=http://host/path or -flagsAuthKey=https://host/path
+  -fs.disableMincore
+     Whether to disable the mincore() syscall for checking mmap()ed files. By default, mincore() is used to detect whether mmap()ed file pages are resident in memory. Disabling mincore() may be needed on older ZFS filesystems (below 2.1.5), since it may trigger ZFS bug. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10327 for details.
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -fs.maxConcurrency int

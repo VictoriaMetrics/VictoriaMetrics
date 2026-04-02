@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"fmt"
 	"net"
+	"net/http"
 	"net/url"
+	"strings"
 	"testing"
+	"time"
 
 	"gopkg.in/yaml.v2"
 
@@ -277,6 +280,50 @@ users:
   metric_labels:
     not-prometheus-compatible: value
 `)
+	// placeholder in url_prefix
+	f(`
+users:
+- username: foo
+  password: bar
+  url_prefix: 'http://ahost/{{a_placeholder}}/foobar'
+`)
+	// placeholder in a header
+	f(`
+users:
+- username: foo
+  password: bar
+  headers:
+  - 'X-Foo: {{a_placeholder}}'
+  url_prefix: 'http://ahost'
+`)
+	// placeholder in url_prefix
+	f(`
+users:
+- username: foo
+  password: bar
+  url_prefix: 'http://ahost/{{a_placeholder}}/foobar'
+`)
+	// placeholder in a header in url_map
+	f(`
+users:
+- username: foo
+  password: bar
+  url_map:
+    - src_paths: ["/select/.*"]
+      headers:
+        - 'X-Foo: {{a_placeholder}}'
+      url_prefix: 'http://ahost'
+`)
+
+	// placeholder in a header in url_map
+	f(`
+users:
+- username: foo
+  password: bar
+  url_map:
+    - src_paths: ["/select/.*"]
+      url_prefix: 'http://ahost/{{a_placeholder}}/foobar'
+`)
 }
 
 func TestParseAuthConfigSuccess(t *testing.T) {
@@ -378,7 +425,7 @@ users:
 			RetryStatusCodes:       []int{500, 501},
 			LoadBalancingPolicy:    "first_available",
 			MergeQueryArgs:         []string{"foo", "bar"},
-			DropSrcPathPrefixParts: intp(1),
+			DropSrcPathPrefixParts: new(1),
 			DiscoverBackendIPs:     &discoverBackendIPsTrue,
 		},
 	}, nil)
@@ -621,6 +668,47 @@ unauthorized_user:
 			},
 		},
 	})
+
+	// skip user info with jwt, it is parsed by parseJWTUsers
+	f(`
+users:
+- username: foo
+  password: bar
+  url_prefix: http://aaa:343/bbb
+- jwt: {skip_verify: true}
+  url_prefix: http://aaa:343/bbb
+`, map[string]*UserInfo{
+		getHTTPAuthBasicToken("foo", "bar"): {
+			Username:  "foo",
+			Password:  "bar",
+			URLPrefix: mustParseURL("http://aaa:343/bbb"),
+		},
+	}, nil)
+
+	// Multiple users with access logs enabled
+	f(`
+users:
+- username: foo
+  url_prefix: http://foo
+  access_log: {}
+- username: bar
+  url_prefix: https://bar/x/
+  access_log:
+    filters:
+      skip_status_codes: [404]
+`, map[string]*UserInfo{
+		getHTTPAuthBasicToken("foo", ""): {
+			Username:  "foo",
+			URLPrefix: mustParseURL("http://foo"),
+			AccessLog: &AccessLog{},
+		},
+		getHTTPAuthBasicToken("bar", ""): {
+			Username:  "bar",
+			URLPrefix: mustParseURL("https://bar/x/"),
+			AccessLog: &AccessLog{Filters: &AccessLogFilters{SkipStatusCodes: []int{404}}},
+		},
+	}, nil)
+
 }
 
 func TestParseAuthConfigPassesTLSVerificationConfig(t *testing.T) {
@@ -831,7 +919,7 @@ func TestBrokenBackend(t *testing.T) {
 	bus[1].setBroken()
 
 	// broken backend should never return while there are healthy backends
-	for i := 0; i < 1e3; i++ {
+	for range int(1e3) {
 		b := up.getBackendURL()
 		if b.isBroken() {
 			t.Fatalf("unexpected broken backend %q", b.url)
@@ -908,6 +996,41 @@ func TestDiscoverBackendIPsWithIPV6(t *testing.T) {
 
 }
 
+func TestLogRequest(t *testing.T) {
+	ui := &UserInfo{AccessLog: &AccessLog{}}
+
+	testOutput := &bytes.Buffer{}
+	logger.SetOutputForTests(testOutput)
+	defer logger.ResetOutputForTest()
+
+	req, err := http.NewRequest("GET", "http://localhost:8080/select/0/prometheus", nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	f := func(user string, status int, duration time.Duration, expectedLog string) {
+		t.Helper()
+
+		testOutput.Reset()
+		ui.logRequest(req, user, status, duration)
+
+		got := testOutput.String()
+		if expectedLog == "" && got != "" {
+			t.Fatalf("expected empty log, got %q", got)
+		}
+		if !strings.Contains(got, expectedLog) {
+			t.Fatalf("output \n%q \nshould contain \n%q", testOutput.String(), expectedLog)
+		}
+	}
+
+	f("foo", 200, 10*time.Millisecond, `access_log request_host="localhost:8080" request_uri="" status_code=200 remote_addr="" user_agent="" referer="" duration_ms=10 username="foo"`)
+	f("foo", 404, time.Second, `access_log request_host="localhost:8080" request_uri="" status_code=404 remote_addr="" user_agent="" referer="" duration_ms=1000 username="foo"`)
+
+	ui.AccessLog.Filters = &AccessLogFilters{SkipStatusCodes: []int{200}}
+	f("foo", 200, 10*time.Millisecond, ``)
+	f("foo", 404, 10*time.Millisecond, `access_log request_host="localhost:8080" request_uri="" status_code=404 remote_addr="" user_agent="" referer="" duration_ms=10 username="foo"`)
+}
+
 func getRegexs(paths []string) []*Regex {
 	var sps []*Regex
 	for _, path := range paths {
@@ -961,10 +1084,6 @@ func mustParseURLs(us []string) *URLPrefix {
 	up.bus.Store(bus)
 	up.busOriginal = urls
 	return up
-}
-
-func intp(n int) *int {
-	return &n
 }
 
 func mustNewRegex(s string) *Regex {

@@ -38,6 +38,10 @@ func (pl *pipeLen) canReturnLastNResults() bool {
 	return pl.resultField != "_time"
 }
 
+func (pl *pipeLen) isFixedOutputFieldsOrder() bool {
+	return false
+}
+
 func (pl *pipeLen) updateNeededFields(pf *prefixfilter.Filter) {
 	if pf.MatchString(pl.resultField) {
 		pf.AddDenyFilter(pl.resultField)

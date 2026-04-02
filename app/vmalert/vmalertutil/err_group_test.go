@@ -30,8 +30,8 @@ func TestErrGroup(t *testing.T) {
 	}
 
 	f(nil, "")
-	f([]error{errors.New("timeout")}, "errors(1): timeout")
-	f([]error{errors.New("timeout"), errors.New("deadline")}, "errors(2): timeout\ndeadline")
+	f([]error{errors.New("timeout")}, "errors(1): \ntimeout")
+	f([]error{errors.New("timeout"), errors.New("deadline")}, "errors(2): \ntimeout\ndeadline")
 }
 
 // TestErrGroupConcurrent supposed to test concurrent
@@ -42,7 +42,7 @@ func TestErrGroupConcurrent(_ *testing.T) {
 
 	const writersN = 4
 	payload := make(chan error, writersN)
-	for i := 0; i < writersN; i++ {
+	for range writersN {
 		go func() {
 			for err := range payload {
 				eg.Add(err)
@@ -51,7 +51,7 @@ func TestErrGroupConcurrent(_ *testing.T) {
 	}
 
 	const iterations = 500
-	for i := 0; i < iterations; i++ {
+	for i := range iterations {
 		payload <- fmt.Errorf("error %d", i)
 		if i%10 == 0 {
 			_ = eg.Err()

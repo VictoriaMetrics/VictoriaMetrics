@@ -1,4 +1,4 @@
-//go:build goexperiment.synctest
+//go:build synctest
 
 package storage
 
@@ -13,7 +13,7 @@ import (
 func TestSearch_metricNamesIndifferentIndexDBs(t *testing.T) {
 	defer testRemoveAll(t)
 
-	synctest.Run(func() {
+	synctest.Test(t, func(t *testing.T) {
 		const numSeries = 10
 		tr := TimeRange{
 			MinTimestamp: time.Now().UnixMilli(),

@@ -1,0 +1,486 @@
+package main
+
+import (
+	"fmt"
+	"net/url"
+	"os"
+	"slices"
+	"sort"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/jwt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+)
+
+const (
+	metricsTenantPlaceholder       = `{{.MetricsTenant}}`
+	metricsExtraLabelsPlaceholder  = `{{.MetricsExtraLabels}}`
+	metricsExtraFiltersPlaceholder = `{{.MetricsExtraFilters}}`
+
+	logsAccountIDPlaceholder          = `{{.LogsAccountID}}`
+	logsProjectIDPlaceholder          = `{{.LogsProjectID}}`
+	logsExtraFiltersPlaceholder       = `{{.LogsExtraFilters}}`
+	logsExtraStreamFiltersPlaceholder = `{{.LogsExtraStreamFilters}}`
+
+	placeholderPrefix = `{{`
+)
+
+var allPlaceholders = []string{
+	metricsTenantPlaceholder,
+	metricsExtraLabelsPlaceholder,
+	metricsExtraFiltersPlaceholder,
+	logsAccountIDPlaceholder,
+	logsProjectIDPlaceholder,
+	logsExtraFiltersPlaceholder,
+	logsExtraStreamFiltersPlaceholder,
+}
+
+var urlPathPlaceHolders = []string{
+	metricsTenantPlaceholder,
+	logsAccountIDPlaceholder,
+	logsProjectIDPlaceholder,
+}
+
+type jwtCache struct {
+	// users contain UserInfo`s from AuthConfig with JWTConfig set
+	users []*UserInfo
+
+	oidcDP *oidcDiscovererPool
+}
+
+type JWTConfig struct {
+	PublicKeys        []string          `yaml:"public_keys,omitempty"`
+	PublicKeyFiles    []string          `yaml:"public_key_files,omitempty"`
+	SkipVerify        bool              `yaml:"skip_verify,omitempty"`
+	OIDC              *oidcConfig       `yaml:"oidc,omitempty"`
+	MatchClaims       map[string]string `yaml:"match_claims,omitempty"`
+	parsedMatchClaims []*jwt.Claim
+
+	// verifierPool is used to verify JWT tokens.
+	// It is initialized from PublicKeys and/or PublicKeyFiles.
+	// In this case, it is initialized once at config reload and never updated until next reload
+	// In case of OIDC, it is initialized on config reload and periodically updated by discovery process.
+	verifierPool atomic.Pointer[jwt.VerifierPool]
+}
+
+func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, *oidcDiscovererPool, error) {
+	jui := make([]*UserInfo, 0, len(ac.Users))
+	oidcDP := &oidcDiscovererPool{}
+
+	uniqClaims := make(map[string]*UserInfo)
+	var sortedClaims []string
+	for idx, ui := range ac.Users {
+		jwtToken := ui.JWT
+		if jwtToken == nil {
+			continue
+		}
+
+		if ui.AuthToken != "" || ui.BearerToken != "" || ui.Username != "" || ui.Password != "" {
+			return nil, nil, fmt.Errorf("auth_token, bearer_token, username and password cannot be specified if jwt is set")
+		}
+		if len(jwtToken.PublicKeys) == 0 && len(jwtToken.PublicKeyFiles) == 0 && !jwtToken.SkipVerify && jwtToken.OIDC == nil {
+			return nil, nil, fmt.Errorf("jwt must contain at least a single public key, public_key_files, oidc or have skip_verify=true")
+		}
+		var claimsString string
+		sortedClaims = sortedClaims[:0]
+		parsedClaims := make([]*jwt.Claim, 0, len(jwtToken.MatchClaims))
+		for ck, cv := range jwtToken.MatchClaims {
+			sortedClaims = append(sortedClaims, fmt.Sprintf("%s=%s", ck, cv))
+			pc, err := jwt.NewClaim(ck, cv)
+			if err != nil {
+				return nil, nil, fmt.Errorf("incorrect match claim, key=%q, value regex=%q: %w", ck, cv, err)
+			}
+			parsedClaims = append(parsedClaims, pc)
+		}
+		ui.JWT.parsedMatchClaims = parsedClaims
+		sort.Strings(sortedClaims)
+		claimsString = strings.Join(sortedClaims, ",")
+
+		if oldUI, ok := uniqClaims[claimsString]; ok {
+			return nil, nil, fmt.Errorf("duplicate match claims=%q found for name=%q at idx=%d; the previous one is set for name=%q", claimsString, ui.Name, idx, oldUI.Name)
+		}
+		uniqClaims[claimsString] = &ui
+		if len(jwtToken.PublicKeys) > 0 || len(jwtToken.PublicKeyFiles) > 0 {
+			keys := make([]any, 0, len(jwtToken.PublicKeys)+len(jwtToken.PublicKeyFiles))
+
+			for i := range jwtToken.PublicKeys {
+				k, err := jwt.ParseKey([]byte(jwtToken.PublicKeys[i]))
+				if err != nil {
+					return nil, nil, err
+				}
+				keys = append(keys, k)
+			}
+
+			for _, filePath := range jwtToken.PublicKeyFiles {
+				keyData, err := os.ReadFile(filePath)
+				if err != nil {
+					return nil, nil, fmt.Errorf("cannot read public key from file %q: %w", filePath, err)
+				}
+				k, err := jwt.ParseKey(keyData)
+				if err != nil {
+					return nil, nil, fmt.Errorf("cannot parse public key from file %q: %w", filePath, err)
+				}
+				keys = append(keys, k)
+			}
+
+			vp, err := jwt.NewVerifierPool(keys)
+			if err != nil {
+				return nil, nil, err
+			}
+
+			jwtToken.verifierPool.Store(vp)
+		}
+		if jwtToken.OIDC != nil {
+			if len(jwtToken.PublicKeys) > 0 || len(jwtToken.PublicKeyFiles) > 0 || jwtToken.SkipVerify {
+				return nil, nil, fmt.Errorf("jwt with oidc cannot contain public keys or have skip_verify=true")
+			}
+
+			if jwtToken.OIDC.Issuer == "" {
+				return nil, nil, fmt.Errorf("oidc issuer cannot be empty")
+			}
+			isserURL, err := url.Parse(jwtToken.OIDC.Issuer)
+			if err != nil {
+				return nil, nil, fmt.Errorf("oidc issuer %q must be a valid URL", jwtToken.OIDC.Issuer)
+			}
+			if isserURL.Scheme != "https" && isserURL.Scheme != "http" {
+				return nil, nil, fmt.Errorf("oidc issuer %q must have http or https scheme", jwtToken.OIDC.Issuer)
+			}
+
+			oidcDP.createOrAdd(ui.JWT.OIDC.Issuer, &ui.JWT.verifierPool)
+		}
+
+		if err := parseJWTPlaceholdersForUserInfo(&ui, true); err != nil {
+			return nil, nil, err
+		}
+
+		if err := ui.initURLs(); err != nil {
+			return nil, nil, err
+		}
+
+		metricLabels, err := ui.getMetricLabels()
+		if err != nil {
+			return nil, nil, fmt.Errorf("cannot parse metric_labels: %w", err)
+		}
+		ui.requests = ac.ms.GetOrCreateCounter(`vmauth_user_requests_total` + metricLabels)
+		ui.requestErrors = ac.ms.GetOrCreateCounter(`vmauth_user_request_errors_total` + metricLabels)
+		ui.backendRequests = ac.ms.GetOrCreateCounter(`vmauth_user_request_backend_requests_total` + metricLabels)
+		ui.backendErrors = ac.ms.GetOrCreateCounter(`vmauth_user_request_backend_errors_total` + metricLabels)
+		ui.requestsDuration = ac.ms.GetOrCreateSummary(`vmauth_user_request_duration_seconds` + metricLabels)
+		mcr := ui.getMaxConcurrentRequests()
+		ui.concurrencyLimitCh = make(chan struct{}, mcr)
+		ui.concurrencyLimitReached = ac.ms.GetOrCreateCounter(`vmauth_user_concurrent_requests_limit_reached_total` + metricLabels)
+		_ = ac.ms.GetOrCreateGauge(`vmauth_user_concurrent_requests_capacity`+metricLabels, func() float64 {
+			return float64(cap(ui.concurrencyLimitCh))
+		})
+		_ = ac.ms.GetOrCreateGauge(`vmauth_user_concurrent_requests_current`+metricLabels, func() float64 {
+			return float64(len(ui.concurrencyLimitCh))
+		})
+
+		rt, err := newRoundTripper(ui.TLSCAFile, ui.TLSCertFile, ui.TLSKeyFile, ui.TLSServerName, ui.TLSInsecureSkipVerify)
+		if err != nil {
+			return nil, nil, fmt.Errorf("cannot initialize HTTP RoundTripper: %w", err)
+		}
+		ui.rt = rt
+
+		jui = append(jui, &ui)
+	}
+
+	// sort by amount of matching claims
+	// it allows to more specific claim win in case of clash
+	sort.SliceStable(jui, func(i, j int) bool {
+		return len(jui[i].JWT.MatchClaims) > len(jui[j].JWT.MatchClaims)
+	})
+
+	return jui, oidcDP, nil
+}
+
+var tokenPool sync.Pool
+
+func getToken() *jwt.Token {
+	tkn := tokenPool.Get()
+	if tkn == nil {
+		return &jwt.Token{}
+	}
+	return tkn.(*jwt.Token)
+}
+
+func putToken(tkn *jwt.Token) {
+	tkn.Reset()
+	tokenPool.Put(tkn)
+}
+
+func getJWTUserInfo(ats []string) (*UserInfo, *jwt.Token) {
+	js := *jwtAuthCache.Load()
+	if len(js.users) == 0 {
+		return nil, nil
+	}
+
+	tkn := getToken()
+
+	for _, at := range ats {
+		if strings.Count(at, ".") != 2 {
+			continue
+		}
+
+		at, _ = strings.CutPrefix(at, `http_auth:`)
+		tkn.Reset()
+		if err := tkn.Parse(at, true); err != nil {
+			if *logInvalidAuthTokens {
+				logger.Infof("cannot parse jwt token: %s", err)
+			}
+			continue
+		}
+		if tkn.IsExpired(time.Now()) {
+			if *logInvalidAuthTokens {
+				// TODO: add more context:
+				// token claims with issuer
+				logger.Infof("jwt token is expired")
+			}
+			continue
+		}
+
+		if ui := getUserInfoByJWTToken(tkn, js.users); ui != nil {
+			return ui, tkn
+		}
+	}
+
+	putToken(tkn)
+	return nil, nil
+}
+
+func getUserInfoByJWTToken(tkn *jwt.Token, users []*UserInfo) *UserInfo {
+	for _, ui := range users {
+		if !tkn.MatchClaims(ui.JWT.parsedMatchClaims) {
+			continue
+		}
+
+		if ui.JWT.SkipVerify {
+			return ui
+		}
+
+		if ui.JWT.OIDC != nil {
+			// OIDC requires iss claim.
+			// It must match the discovery issuer URL set in OIDC config.
+			// https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderMetadata
+			if tkn.Issuer() == "" {
+				if *logInvalidAuthTokens {
+					logger.Infof("jwt token must have issuer filed")
+				}
+				return nil
+			}
+			if tkn.Issuer() != ui.JWT.OIDC.Issuer {
+				if *logInvalidAuthTokens {
+					logger.Infof("jwt token issuer: %q does not match oidc issuer: %q", tkn.Issuer(), ui.JWT.OIDC.Issuer)
+				}
+				return nil
+			}
+		}
+
+		vp := ui.JWT.verifierPool.Load()
+		if vp == nil {
+			if *logInvalidAuthTokens {
+				logger.Infof("jwt verifier not initialed")
+			}
+			return nil
+		}
+
+		if err := vp.Verify(tkn); err != nil {
+			if *logInvalidAuthTokens {
+				logger.Infof("cannot verify jwt token: %s", err)
+			}
+			return nil
+		}
+
+		return ui
+	}
+
+	if *logInvalidAuthTokens {
+		logger.Infof("no user match jwt token")
+	}
+
+	return nil
+}
+
+func replaceJWTPlaceholders(bu *backendURL, hc HeadersConf, vma *jwt.VMAccessClaim) (*url.URL, HeadersConf) {
+	if !bu.hasPlaceHolders && !hc.hasAnyPlaceHolders {
+		return bu.url, hc
+	}
+	targetURL := bu.url
+	data := jwtClaimsData(vma)
+	if bu.hasPlaceHolders {
+		// template url params and request path
+		// make a copy of url
+		uCopy := *bu.url
+		for _, uph := range urlPathPlaceHolders {
+			replacement := data[uph]
+			uCopy.Path = strings.ReplaceAll(uCopy.Path, uph, replacement[0])
+		}
+		query := uCopy.Query()
+		var foundAnyQueryPlaceholder bool
+		var templatedValues []string
+		for param, values := range query {
+			templatedValues = templatedValues[:0]
+			// filter in-place values with placeholders
+			// and accumulate replacements
+			// it will change the order of param values
+			// but it's not guaranteed
+			// and will be changed in any way with multiple arg templates
+			var cnt int
+			for _, value := range values {
+				if dv, ok := data[value]; ok {
+					foundAnyQueryPlaceholder = true
+					templatedValues = append(templatedValues, dv...)
+					continue
+				}
+				values[cnt] = value
+				cnt++
+			}
+			values = values[:cnt]
+			values = append(values, templatedValues...)
+			query[param] = values
+		}
+		if foundAnyQueryPlaceholder {
+			uCopy.RawQuery = query.Encode()
+		}
+		targetURL = &uCopy
+	}
+	if hc.hasAnyPlaceHolders {
+		// make a copy of headers and update only values with placeholder
+		rhs := make([]*Header, 0, len(hc.RequestHeaders))
+		for _, rh := range hc.RequestHeaders {
+			if dv, ok := data[rh.Value]; ok {
+				rh := &Header{
+					Name:  rh.Name,
+					Value: strings.Join(dv, ","),
+				}
+				rhs = append(rhs, rh)
+				continue
+			}
+			rhs = append(rhs, rh)
+		}
+		hc.RequestHeaders = rhs
+	}
+
+	return targetURL, hc
+}
+
+func jwtClaimsData(vma *jwt.VMAccessClaim) map[string][]string {
+	data := map[string][]string{
+		// TODO: optimize at parsing stage
+		metricsTenantPlaceholder:       {fmt.Sprintf("%d:%d", vma.MetricsAccountID, vma.MetricsProjectID)},
+		metricsExtraLabelsPlaceholder:  vma.MetricsExtraLabels,
+		metricsExtraFiltersPlaceholder: vma.MetricsExtraFilters,
+
+		// TODO: optimize at parsing stage
+		logsAccountIDPlaceholder:          {fmt.Sprintf("%d", vma.LogsAccountID)},
+		logsProjectIDPlaceholder:          {fmt.Sprintf("%d", vma.LogsProjectID)},
+		logsExtraFiltersPlaceholder:       vma.LogsExtraFilters,
+		logsExtraStreamFiltersPlaceholder: vma.LogsExtraStreamFilters,
+	}
+	return data
+}
+
+func parseJWTPlaceholdersForUserInfo(ui *UserInfo, isAllowed bool) error {
+	if ui.URLPrefix != nil {
+		if err := validateJWTPlaceholdersForURL(ui.URLPrefix, isAllowed); err != nil {
+			return err
+		}
+	}
+	if err := parsePlaceholdersForHC(&ui.HeadersConf, isAllowed); err != nil {
+		return err
+	}
+	if ui.DefaultURL != nil {
+		if err := validateJWTPlaceholdersForURL(ui.DefaultURL, isAllowed); err != nil {
+			return fmt.Errorf("invalid `default_url` placeholders: %w", err)
+		}
+	}
+	for i := range ui.URLMaps {
+		e := &ui.URLMaps[i]
+		if e.URLPrefix != nil {
+			if err := validateJWTPlaceholdersForURL(e.URLPrefix, isAllowed); err != nil {
+				return fmt.Errorf("invalid `url_map` `url_prefix` placeholders: %w", err)
+			}
+		}
+		if err := parsePlaceholdersForHC(&e.HeadersConf, isAllowed); err != nil {
+			return fmt.Errorf("invalid `url_map` headers placeholders: %w", err)
+		}
+
+	}
+	return nil
+}
+
+func validateJWTPlaceholdersForURL(up *URLPrefix, isAllowed bool) error {
+	for _, bu := range up.busOriginal {
+		ok := strings.Contains(bu.Path, placeholderPrefix)
+		if ok && !isAllowed {
+			return fmt.Errorf("placeholder: %q is only allowed at JWT token context", bu.Path)
+		}
+		if ok {
+			p := bu.Path
+			for _, ph := range allPlaceholders {
+				p = strings.ReplaceAll(p, ph, ``)
+			}
+			if strings.Contains(p, placeholderPrefix) {
+				return fmt.Errorf("invalid placeholder found in URL request path: %q, supported values are: %s", bu.Path, strings.Join(allPlaceholders, ", "))
+
+			}
+		}
+		for param, values := range bu.Query() {
+			for _, value := range values {
+				ok := strings.Contains(value, placeholderPrefix)
+				if ok && !isAllowed {
+					return fmt.Errorf("query param: %q with placeholder: %q is only allowed at JWT token context", param, value)
+				}
+				if ok {
+					// possible placeholder
+					if !slices.Contains(allPlaceholders, value) {
+						return fmt.Errorf("query param: %q has unsupported placeholder string: %q, supported values are: %s", param, value, strings.Join(allPlaceholders, ", "))
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func parsePlaceholdersForHC(hc *HeadersConf, isAllowed bool) error {
+	for _, rhs := range hc.RequestHeaders {
+		ok := strings.Contains(rhs.Value, placeholderPrefix)
+		if ok && !isAllowed {
+			return fmt.Errorf("request header: %q placeholder: %q is only supported at JWT context", rhs.Name, rhs.Value)
+		}
+		if ok {
+			if !slices.Contains(allPlaceholders, rhs.Value) {
+				return fmt.Errorf("request header: %q has unsupported placeholder: %q, supported values are: %s", rhs.Name, rhs.Value, strings.Join(allPlaceholders, ", "))
+			}
+			hc.hasAnyPlaceHolders = true
+		}
+	}
+	for _, rhs := range hc.ResponseHeaders {
+		if strings.Contains(rhs.Value, placeholderPrefix) {
+			return fmt.Errorf("response header placeholders are not supported; found placeholder prefix at header: %q with value: %q", rhs.Name, rhs.Value)
+		}
+	}
+	return nil
+}
+
+func hasAnyPlaceholders(u *url.URL) bool {
+	if strings.Contains(u.Path, placeholderPrefix) {
+		return true
+	}
+	if len(u.Query()) == 0 {
+		return false
+	}
+	for _, values := range u.Query() {
+		for _, value := range values {
+			if strings.HasPrefix(value, placeholderPrefix) {
+				return true
+			}
+		}
+
+	}
+	return false
+}

@@ -34,7 +34,7 @@ type promResponse struct {
 	// Stats supported by VictoriaMetrics since v1.90
 	Stats struct {
 		SeriesFetched *string `json:"seriesFetched,omitempty"`
-	} `json:"stats,omitempty"`
+	} `json:"stats"`
 	// IsPartial supported by VictoriaMetrics
 	IsPartial *bool `json:"isPartial,omitempty"`
 }

@@ -25,6 +25,10 @@ func (fn *filterNot) updateNeededFields(pf *prefixfilter.Filter) {
 	fn.f.updateNeededFields(pf)
 }
 
+func (fn *filterNot) matchRow(fields []Field) bool {
+	return !fn.f.matchRow(fields)
+}
+
 func (fn *filterNot) applyToBlockResult(br *blockResult, bm *bitmap) {
 	// Minimize the number of rows to check by the filter by applying it
 	// only to the rows, which match the bm, e.g. they may change the bm result.

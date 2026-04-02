@@ -29,11 +29,9 @@ var selfScraperWG sync.WaitGroup
 
 func startSelfScraper() {
 	selfScraperStopCh = make(chan struct{})
-	selfScraperWG.Add(1)
-	go func() {
-		defer selfScraperWG.Done()
+	selfScraperWG.Go(func() {
 		selfScraper(*selfScrapeInterval)
-	}()
+	})
 }
 
 func stopSelfScraper() {

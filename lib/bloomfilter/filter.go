@@ -50,7 +50,7 @@ func (f *filter) Has(h uint64) bool {
 	maxBits := uint64(len(bits)) * 64
 	bp := (*[8]byte)(unsafe.Pointer(&h))
 	b := bp[:]
-	for i := 0; i < hashesCount; i++ {
+	for range hashesCount {
 		hi := xxhash.Sum64(b)
 		h++
 		idx := hi % maxBits
@@ -77,7 +77,7 @@ func (f *filter) Add(h uint64) bool {
 	bp := (*[8]byte)(unsafe.Pointer(&h))
 	b := bp[:]
 	isNew := false
-	for i := 0; i < hashesCount; i++ {
+	for range hashesCount {
 		hi := xxhash.Sum64(b)
 		h++
 		idx := hi % maxBits
