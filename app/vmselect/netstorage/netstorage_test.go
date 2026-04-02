@@ -1,13 +1,18 @@
 package netstorage
 
 import (
+	"bytes"
 	"flag"
 	"math"
+	"net"
 	"reflect"
 	"runtime"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/handshake"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vmselectapi"
 )
 
 func TestInitStopNodes(t *testing.T) {
@@ -331,4 +336,136 @@ func TestEqualSamplesPrefix(t *testing.T) {
 		Timestamps: []int64{1, 2},
 		Values:     []float64{5, math.Copysign(0, -1)},
 	}, 1)
+}
+
+func TestReadBytesWithMetadata(t *testing.T) {
+	f := func(rawPayload []byte, maxDataSize int, expectedData []byte, expectedMeta BlockMetadata, expectErr bool) {
+		t.Helper()
+
+		// Use net.Pipe to simulate a network connection
+		clientConn, serverConn := net.Pipe()
+
+		go func() {
+			defer clientConn.Close()
+			// Must use client handshake to properly initialize BufferedConn
+			bcClient, err := handshake.VMSelectClient(clientConn, 0)
+			if err == nil {
+				// Send the constructed binary payload to the receiver
+				bcClient.Write(rawPayload)
+				bcClient.Flush()
+			}
+		}()
+
+		// Simulate the receiver side
+		bcServer, err := handshake.VMSelectServer(serverConn, 0)
+		if err != nil {
+			t.Fatalf("unexpected handshake error: %v", err)
+		}
+		defer serverConn.Close()
+
+		// Invoke the function under test
+		buf := make([]byte, 0)
+		resultData, meta, err := readBytesWithMetadata(buf, bcServer, maxDataSize)
+
+		// Validate error behavior
+		if expectErr {
+			if err == nil {
+				t.Fatal("expected error but got nil")
+			}
+			return
+		}
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		// Validate BlockMetadata parsing results
+		if meta.IsMetadata != expectedMeta.IsMetadata {
+			t.Errorf("unexpected IsMetadata: got %v, want %v", meta.IsMetadata, expectedMeta.IsMetadata)
+		}
+		if meta.Version != expectedMeta.Version {
+			t.Errorf("unexpected Version: got %d, want %d", meta.Version, expectedMeta.Version)
+		}
+		if meta.FieldIndex != expectedMeta.FieldIndex {
+			t.Errorf("unexpected FieldIndex: got %d, want %d", meta.FieldIndex, expectedMeta.FieldIndex)
+		}
+
+		// Validate data payload
+		if !bytes.Equal(resultData, expectedData) {
+			t.Errorf("unexpected data: got %q, want %q", resultData, expectedData)
+		}
+	}
+
+	// Helper function to construct the protocol header
+	// Based on logic: rawHeader = (Version << 61) | (FieldIndex << 48) | FlagMetadata | DataSize
+	buildHeader := func(isMeta bool, version uint8, fieldIndex uint16, dataSize uint64) uint64 {
+		header := dataSize
+		if isMeta {
+			header |= vmselectapi.FlagMetadata
+			header |= (uint64(version) & uint64(vmselectapi.MaskVersion)) << 61
+			header |= (uint64(fieldIndex) & uint64(vmselectapi.MaskFieldIndex)) << 48
+		}
+		return header
+	}
+
+	buildPayload := func(header uint64, data []byte) []byte {
+		p := encoding.MarshalUint64(nil, header)
+		p = append(p, data...)
+		return p
+	}
+
+	// --- Test Cases ---
+
+	// 1. Normal data block (IsMetadata = false)
+	{
+		data := []byte("plain data")
+		header := buildHeader(false, 0, 0, uint64(len(data)))
+		expectedMeta := BlockMetadata{IsMetadata: false}
+		f(buildPayload(header, data), 1024, data, expectedMeta, false)
+	}
+
+	// 2. Metadata block - contains Version and FieldIndex (e.g., isPartial flag)
+	{
+		data := []byte{1} // Assume payload is boolean true
+		version := uint8(1)
+		fieldIndex := uint16(vmselectapi.FieldIndexIsPartial)
+		header := buildHeader(true, version, fieldIndex, uint64(len(data)))
+		expectedMeta := BlockMetadata{
+			IsMetadata: true,
+			Version:    version,
+			FieldIndex: fieldIndex,
+		}
+		f(buildPayload(header, data), 1024, data, expectedMeta, false)
+	}
+
+	// 3. Boundary case: data size is exactly equal to maxDataSize
+	{
+		data := bytes.Repeat([]byte("a"), 100)
+		header := buildHeader(false, 0, 0, 100)
+		f(buildPayload(header, data), 100, data, BlockMetadata{IsMetadata: false}, false)
+	}
+
+	// 4. Error case: data size exceeds maxDataSize
+	{
+		header := buildHeader(true, 1, 2, 500)
+		f(buildPayload(header, make([]byte, 500)), 100, nil, BlockMetadata{}, true)
+	}
+
+	// 5. Error case: empty payload error (Length declared as 10, but connection closes)
+	{
+		header := buildHeader(false, 0, 0, 10)
+		f(encoding.MarshalUint64(nil, header), 1024, nil, BlockMetadata{}, true)
+	}
+
+	// 6. Bitmask validation for Version and FieldIndex (testing overflow truncation)
+	{
+		// Assume Version only has 3 bits (MaskVersion = 0x7)
+		data := []byte("meta")
+		header := buildHeader(true, 0x9, 0, uint64(len(data))) // 0x9 should be truncated to 0x1 by the mask
+		expectedMeta := BlockMetadata{
+			IsMetadata: true,
+			Version:    0x1, // 0x9 & 0x7
+			FieldIndex: 0,
+		}
+		f(buildPayload(header, data), 1024, data, expectedMeta, false)
+	}
 }

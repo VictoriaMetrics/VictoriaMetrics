@@ -65,4 +65,8 @@ type BlockIterator interface {
 
 	// Error returns the last error occurred in NextBlock(), which returns false.
 	Error() error
+
+	// Meta returns out-of-band descriptive information about the search results,
+	// such as whether the response is partial.
+	Meta() SearchMetadata
 }

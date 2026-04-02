@@ -245,8 +245,9 @@ func (api *vmstorageAPI) GetMetadataRecords(qt *querytracer.Tracer, tt *storage.
 
 // blockIterator implements vmselectapi.BlockIterator
 type blockIterator struct {
-	sr storage.Search
-	mb storage.MetricBlock
+	sr   storage.Search
+	mb   storage.MetricBlock
+	meta vmselectapi.SearchMetadata
 }
 
 var blockIteratorsPool sync.Pool
@@ -255,7 +256,12 @@ func (bi *blockIterator) MustClose() {
 	bi.sr.MustClose()
 	bi.mb.MetricName = nil
 	bi.mb.Block.Reset()
+	bi.meta = vmselectapi.SearchMetadata{}
 	blockIteratorsPool.Put(bi)
+}
+
+func (bi *blockIterator) Meta() vmselectapi.SearchMetadata {
+	return bi.meta
 }
 
 func getBlockIterator() *blockIterator {

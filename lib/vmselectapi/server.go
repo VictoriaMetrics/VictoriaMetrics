@@ -100,6 +100,23 @@ type Limits struct {
 	MaxQueueDurationFlagName string
 }
 
+// SearchMetadata contains only descriptive information about data quality.
+// It is used to signal the client about the status of the returned data stream.
+type SearchMetadata struct {
+	// HasMeta indicates whether the metadata frame is present and contains valid information.
+	// It must be set to true if any of the metadata fields (e.g., IsPartial) are set.
+	HasMeta bool
+
+	// IsPartial indicates whether the data is incomplete due to some storage nodes being unreachable.
+	// This can happen in clustered environments when one or more shards fail to respond.
+	IsPartial bool
+
+	// Future extensions:
+	// IsTruncated indicates whether a row/limit constraint was triggered,
+	// meaning more data was available but was not sent.
+	// IsTruncated bool
+}
+
 // NewServer starts new Server at the given addr, which serves the given api with the given limits.
 //
 // If disableResponseCompression is set to true, then the returned server doesn't compress responses.
@@ -449,6 +466,82 @@ func (ctx *vmselectRequestCtx) writeDataBufBytes() error {
 	if _, err := ctx.bc.Write(ctx.dataBuf); err != nil {
 		return fmt.Errorf("cannot write data with size %d: %w", len(ctx.dataBuf), err)
 	}
+	return nil
+}
+
+const (
+	// Bit masks for Header parsing (64-bit uint)
+	// The header structure is:
+	// [1 bit: FlagMetadata] [2 bits: Version] [13 bits: FieldIndex] [48 bits: DataSize]
+
+	// FlagMetadata is the Most Significant Bit (MSB).
+	// If set to 1, the frame is a metadata/control frame; if 0, it's a standard data frame.
+	FlagMetadata uint64 = 1 << 63
+
+	// MaskVersion defines a 2-bit version field (bits 61-62) for protocol evolution.
+	MaskVersion uint64 = 0x3
+
+	// MaskFieldIndex defines a 13-bit field (bits 48-60) to identify the type of metadata.
+	MaskFieldIndex uint64 = 0x1FFF
+
+	// MaskDataSize defines a 48-bit field (bits 0-47) for the payload size in bytes.
+	// This allows for a maximum frame size of 256 TiB.
+	MaskDataSize uint64 = 0xFFFFFFFFFFFF
+)
+
+const (
+	// Metadata Field Indexes
+	// These constants identify the specific metadata being carried when FlagMetadata is set.
+
+	// FieldIndexIsPartial indicates the data stream is incomplete (e.g., due to offline storage nodes).
+	FieldIndexIsPartial uint16 = 0
+
+	// FieldIndexIsTruncated indicates the result set was limited by a row/size constraint.
+	// FieldIndexIsTruncated uint16 = 1 // Future extension
+)
+
+func (ctx *vmselectRequestCtx) writeDataBufBytesWithMeta(meta SearchMetadata) error {
+	// Check and send IsPartial metadata
+	if meta.IsPartial {
+		// Convention: boolean true is stored in 1 byte with value = 1
+		payload := []byte{1}
+		if err := ctx.writeSingleMetaFrame(0, FieldIndexIsPartial, payload); err != nil {
+			return fmt.Errorf("cannot write IsPartial metadata frame: %w", err)
+		}
+	}
+
+	// Future extension
+	// if meta.IsTruncated {
+	// 	if err := ctx.writeSingleMetaFrame(0, FieldIndexIsTruncated, []byte{1}); err != nil {
+	// 		return err
+	// 	}
+	// }
+	return nil
+}
+
+// writeSingleMetaFrame encapsulates the underlying Bit-partitioned Header assembly logic
+func (ctx *vmselectRequestCtx) writeSingleMetaFrame(version uint8, fieldIndex uint16, payload []byte) error {
+	dataSize := uint64(len(payload))
+
+	// Assemble the 64-bit header
+	// Format: [1 bit Flag] [2 bits Version] [13 bits FieldIndex] [48 bits DataSize]
+	header := FlagMetadata |
+		((uint64(version) & MaskVersion) << 61) |
+		((uint64(fieldIndex) & MaskFieldIndex) << 48) |
+		(dataSize & MaskDataSize)
+
+	// Write 8-byte header
+	if err := ctx.writeUint64(header); err != nil {
+		return err
+	}
+
+	// Write actual metadata payload
+	if dataSize > 0 {
+		if _, err := ctx.bc.Write(payload); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -1069,6 +1162,12 @@ func (s *Server) processSearch(ctx *vmselectRequestCtx) error {
 		s.metricBlocksRead.Inc()
 		if err := ctx.writeDataBufBytes(); err != nil {
 			return fmt.Errorf("cannot send MetricBlock: %w", err)
+		}
+	}
+
+	if bi.Meta().HasMeta {
+		if err := ctx.writeDataBufBytesWithMeta(bi.Meta()); err != nil {
+			return fmt.Errorf("cannot send MetaBlock: %w", err)
 		}
 	}
 

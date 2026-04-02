@@ -138,11 +138,16 @@ type blockIterator struct {
 	wis    []workItem
 	wg     sync.WaitGroup
 	err    error
+	meta   vmselectapi.SearchMetadata
 }
 
 type workItem struct {
 	rawMetricBlock []byte
 	doneCh         chan struct{}
+}
+
+func (bi *blockIterator) Meta() vmselectapi.SearchMetadata {
+	return bi.meta
 }
 
 func newBlockIterator(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.SearchQuery, deadline searchutil.Deadline) *blockIterator {
@@ -154,13 +159,21 @@ func newBlockIterator(qt *querytracer.Tracer, denyPartialResponse bool, sq *stor
 		bi.wis[i].doneCh = make(chan struct{})
 	}
 	bi.wg.Go(func() {
-		_, err := processBlocks(func(mb []byte, workerID uint) error {
+		isPartial, err := processBlocks(func(mb []byte, workerID uint) error {
 			wi := bi.wis[workerID]
 			wi.rawMetricBlock = mb
 			bi.workCh <- wi
 			<-wi.doneCh
 			return nil
 		})
+
+		if isPartial {
+			bi.meta = vmselectapi.SearchMetadata{
+				HasMeta:   true,
+				IsPartial: true,
+			}
+		}
+
 		close(bi.workCh)
 		bi.err = err
 	})
@@ -202,6 +215,7 @@ func (bi *blockIterator) MustClose() {
 	}
 	bi.err = nil
 	bi.workCh = nil
+	bi.meta = vmselectapi.SearchMetadata{}
 	blockIteratorsPool.Put(bi)
 }
 

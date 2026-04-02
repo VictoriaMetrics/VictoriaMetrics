@@ -39,6 +39,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricnamestats"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vmselectapi"
 )
 
 var (
@@ -2174,7 +2175,15 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 	missingGroups := 0
 	var firstErr error
 	for g, errsPartial := range errsPartialPerGroup {
-		if len(errsPartial) == g.nodesCount {
+		hasRemotePartial := false
+		for _, err := range errsPartial {
+			if errors.Is(err, ErrRemotePartialData) {
+				hasRemotePartial = true
+				break
+			}
+		}
+
+		if len(errsPartial) == g.nodesCount && !hasRemotePartial {
 			missingGroups++
 			if firstErr == nil {
 				// Return only the first error, since it has no sense in returning all errors.
@@ -2205,6 +2214,10 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 }
 
 var partialErrorsLogger = logger.WithThrottler("partialErrors", 10*time.Second)
+
+const partialErrMsg = "remote vmselect returned partial data"
+
+var ErrRemotePartialData = errors.New(partialErrMsg)
 
 type storageNodesGroup struct {
 	// group name
@@ -3027,6 +3040,12 @@ func (sn *storageNode) processSearchMetricNamesOnConn(bc *handshake.BufferedConn
 
 const maxMetricNameSize = 64 * 1024
 
+type BlockMetadata struct {
+	IsMetadata bool
+	Version    uint8
+	FieldIndex uint16
+}
+
 func (sn *storageNode) processSearchQueryOnConn(bc *handshake.BufferedConn, requestData []byte,
 	processBlock func(rawBlock []byte, workerID uint) error, workerID uint,
 ) error {
@@ -3039,7 +3058,7 @@ func (sn *storageNode) processSearchQueryOnConn(bc *handshake.BufferedConn, requ
 	}
 
 	// Read response error.
-	buf, err := readBytes(nil, bc, maxErrorMessageSize)
+	buf, _, err := readBytesWithMetadata(nil, bc, maxErrorMessageSize)
 	if err != nil {
 		return fmt.Errorf("cannot read error message: %w", err)
 	}
@@ -3049,11 +3068,26 @@ func (sn *storageNode) processSearchQueryOnConn(bc *handshake.BufferedConn, requ
 
 	// Read response. It may consist of multiple MetricBlocks.
 	blocksRead := 0
+	//var isPartialFlag bool
+	var searchMetadata vmselectapi.SearchMetadata
 	for {
-		buf, err = readBytes(buf[:0], bc, maxMetricBlockSize)
+		var meta BlockMetadata
+		buf, meta, err = readBytesWithMetadata(buf[:0], bc, maxMetricBlockSize)
 		if err != nil {
 			return fmt.Errorf("cannot read MetricBlock #%d: %w", blocksRead, err)
 		}
+
+		if meta.IsMetadata {
+			searchMetadata.HasMeta = true
+			switch meta.FieldIndex {
+			case vmselectapi.FieldIndexIsPartial:
+				if len(buf) > 0 && buf[0] != 0 {
+					return ErrRemotePartialData
+				}
+			}
+			continue
+		}
+
 		if len(buf) == 0 {
 			// Reached the end of the response
 			return nil
@@ -3160,6 +3194,50 @@ func readBytes(buf []byte, bc *handshake.BufferedConn, maxDataSize int) ([]byte,
 		return buf, fmt.Errorf("cannot read data with size %d: %w; read only %d bytes", dataSize, err, n)
 	}
 	return buf, nil
+}
+
+// readBytesWithMetadata reads a data block and its associated metadata from the provided connection.
+// It handles the VictoriaMetrics cluster protocol where the 8-byte header can contain
+// either a simple data size or encoded metadata flags.
+func readBytesWithMetadata(buf []byte, bc *handshake.BufferedConn, maxDataSize int) ([]byte, BlockMetadata, error) {
+	var meta BlockMetadata
+
+	buf = bytesutil.ResizeNoCopyMayOverallocate(buf, 8)
+	if n, err := io.ReadFull(bc, buf); err != nil {
+		return buf, meta, fmt.Errorf("cannot read %d bytes with data size: %w; read only %d bytes", len(buf), err, n)
+	}
+	rawHeader := encoding.UnmarshalUint64(buf)
+	var dataSize uint64
+
+	// Check if the metadata flag is set in the header.
+	if (rawHeader & vmselectapi.FlagMetadata) != 0 {
+		meta.IsMetadata = true
+
+		// Extract Version from the 3 most significant bits (61-63).
+		meta.Version = uint8((rawHeader >> 61) & vmselectapi.MaskVersion)
+
+		// Extract FieldIndex from bits 48-60.
+		meta.FieldIndex = uint16((rawHeader >> 48) & vmselectapi.MaskFieldIndex)
+
+		// The remaining bits represent the actual data size.
+		dataSize = rawHeader & vmselectapi.MaskDataSize
+	} else {
+		meta.IsMetadata = false
+		dataSize = rawHeader
+	}
+
+	// Security check to prevent out-of-memory errors from maliciously large size declarations.
+	if dataSize > uint64(maxDataSize) {
+		return buf, meta, fmt.Errorf("too big data size: %d; it mustn't exceed %d bytes", dataSize, maxDataSize)
+	}
+	buf = bytesutil.ResizeNoCopyMayOverallocate(buf, int(dataSize))
+	if dataSize == 0 {
+		return buf, meta, nil
+	}
+	if n, err := io.ReadFull(bc, buf); err != nil {
+		return buf, meta, fmt.Errorf("cannot read data with size %d: %w; read only %d bytes", dataSize, err, n)
+	}
+	return buf, meta, nil
 }
 
 func readUint64(bc *handshake.BufferedConn) (uint64, error) {
