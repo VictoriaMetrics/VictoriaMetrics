@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: introduce `vm_filestream_fsync_duration_seconds_total` and `vm_filestream_fsync_calls_total` metrics, which can be used for detecting slow storage if it cannot keep up with the current data ingestion rate. See [#10432](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10432).
+
 ## [v1.139.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.139.0)
 
 Released at 2026-03-27
