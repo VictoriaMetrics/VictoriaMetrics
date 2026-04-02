@@ -3,6 +3,7 @@ package prometheus
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
@@ -40,6 +41,10 @@ func TestExportCSVHeader(t *testing.T) {
 }
 
 func TestExportCSVLine(t *testing.T) {
+	localBak := time.Local
+	time.Local = time.UTC
+	defer func() { time.Local = localBak }()
+
 	f := func(mn *storage.MetricName, timestamps []int64, values []float64, fieldNames []string, expected string) {
 		t.Helper()
 		xb := &exportBlock{
@@ -72,22 +77,7 @@ func TestExportCSVLine(t *testing.T) {
 	f(mn, []int64{1704067200000}, []float64{1}, []string{"__timestamp__:unix_s"}, "1704067200\n")
 	f(mn, []int64{1704067200000}, []float64{1}, []string{"__timestamp__:unix_ms"}, "1704067200000\n")
 	f(mn, []int64{1704067200000}, []float64{1}, []string{"__timestamp__:unix_ns"}, "1704067200000000000\n")
-
-	// rfc3339 sanity check
-	{
-		xb := &exportBlock{
-			mn:         mn,
-			timestamps: []int64{1704067200000},
-			values:     []float64{1},
-		}
-		got := ExportCSVLine(xb, []string{"__timestamp__:rfc3339"})
-		if len(got) < len("2006-01-02T15:04:05Z\n") {
-			t.Fatalf("rfc3339 output too short: %q", got)
-		}
-		if got[len(got)-1] != '\n' {
-			t.Fatalf("rfc3339 output missing trailing newline: %q", got)
-		}
-	}
+	f(mn, []int64{1704067200000}, []float64{1}, []string{"__timestamp__:rfc3339"}, "2024-01-01T00:00:00Z\n")
 
 	f(mn, []int64{1000}, []float64{1}, []string{"__name__"}, "cpu_usage\n")
 	f(mn, []int64{1000}, []float64{1}, []string{"job"}, "node\n")
