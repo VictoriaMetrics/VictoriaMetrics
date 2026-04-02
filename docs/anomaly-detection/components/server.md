@@ -32,7 +32,7 @@ Server component of VictoriaMetrics Anomaly Detection (`vmanomaly`) is responsib
 ### Example Configuration
 
 > [!TIP]
-If [hot-reloading](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#hot-reloading) is enabled in vmanomaly service, the server will automatically pick up changes made to the configuration file without requiring a restart.
+> If [hot-reloading](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#hot-reloading) is enabled in vmanomaly service, the server will automatically pick up changes made to the configuration file without requiring a restart.
 
 ```yaml
 server:
