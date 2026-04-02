@@ -21,6 +21,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
+
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -235,10 +237,8 @@ func (c *Client) flush(ctx context.Context, wr *prompb.WriteRequest) {
 	data := wr.MarshalProtobuf(nil)
 	b := snappy.Encode(nil, data)
 
-	retryInterval, maxRetryInterval := *retryMinInterval, *retryMaxTime
-	if retryInterval > maxRetryInterval {
-		retryInterval = maxRetryInterval
-	}
+	maxRetryInterval := *retryMaxTime
+	bt := timeutil.NewBackoffTimer(*retryMinInterval, maxRetryInterval)
 	timeStart := time.Now()
 	defer func() {
 		sendDuration.Add(time.Since(timeStart).Seconds())
@@ -281,12 +281,11 @@ L:
 			break
 		}
 
-		if retryInterval > timeLeftForRetries {
-			retryInterval = timeLeftForRetries
+		if bt.CurrentDelay() > timeLeftForRetries {
+			bt.SetDelay(timeLeftForRetries)
 		}
 		// sleeping to prevent remote db hammering
-		time.Sleep(retryInterval)
-		retryInterval *= 2
+		bt.Wait(ctx.Done())
 
 		attempts++
 	}
