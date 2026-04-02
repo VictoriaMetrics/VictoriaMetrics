@@ -25,6 +25,8 @@ type FS struct {
 	MaxBytesPerSecond int
 
 	bl *bandwidthLimiter
+
+	UseTmpFiles bool
 }
 
 // Init initializes fs.
@@ -121,26 +123,87 @@ func (fs *FS) NewReadCloser(p common.Part) (io.ReadCloser, error) {
 	return blrc, nil
 }
 
-// NewWriteCloser returns io.WriteCloser for the given part p located in fs.
-func (fs *FS) NewWriteCloser(p common.Part) (io.WriteCloser, error) {
-	path := fs.path(p)
+// NewDirectWriteCloser returns an io.WriteCloser that writes directly to the
+// underlying file without buffering, enabling large IO sizes from the caller.
+// On platforms with preallocation, writes go to a .tmp file that must be
+// finalized with FinalizeFile.
+func (fs *FS) NewDirectWriteCloser(p common.Part) (io.WriteCloser, error) {
+	path := fs.writePath(p)
 	if err := fs.mkdirAll(path); err != nil {
 		return nil, err
 	}
-	w, err := filestream.OpenWriterAt(path, int64(p.Offset), true)
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
-		return nil, fmt.Errorf("cannot open writer for %q at offset %d: %w", path, p.Offset, err)
+		return nil, fmt.Errorf("cannot open file %q: %w", path, err)
 	}
-	wc := &writeCloser{
-		w:    w,
-		n:    p.Size,
-		path: path,
+	if _, err := f.Seek(int64(p.Offset), io.SeekStart); err != nil {
+		_ = f.Close()
+		return nil, fmt.Errorf("cannot seek to offset %d in %q: %w", p.Offset, path, err)
+	}
+	dwc := &directWriteCloser{
+		f: f,
+		n: p.Size,
 	}
 	if fs.bl == nil {
-		return wc, nil
+		return dwc, nil
 	}
-	blwc := fs.bl.NewWriteCloser(wc)
-	return blwc, nil
+	// with a bandwidth limiter max throughput is not a concern
+	// so we fallback to the filestream backed limited writerCloser
+	return fs.bl.NewWriteCloser(dwc), nil
+}
+
+// PreallocateFile pre-allocates disk space for the file being written.
+func (fs *FS) PreallocateFile(p common.Part) error {
+	path := fs.writePath(p)
+	if err := fs.mkdirAll(path); err != nil {
+		return err
+	}
+	return preallocateFile(path, int64(p.FileSize))
+}
+
+// FinalizeFile syncs the completed file to disk. On platforms with
+// preallocation, it first renames the .tmp file to its final path.
+func (fs *FS) FinalizeFile(p common.Part) error {
+	finalPath := fs.path(p)
+	if canPreallocate && fs.UseTmpFiles {
+		tmpPath := fs.tmpPath(p)
+		if err := os.Rename(tmpPath, finalPath); err != nil {
+			return fmt.Errorf("cannot rename %q to %q: %w", tmpPath, finalPath, err)
+		}
+	}
+	f, err := os.Open(finalPath)
+	if err != nil {
+		return fmt.Errorf("cannot open %q for fsync: %w", finalPath, err)
+	}
+	if err := f.Sync(); err != nil {
+		_ = f.Close()
+		return fmt.Errorf("cannot fsync %q: %w", finalPath, err)
+	}
+	return f.Close()
+}
+
+// CleanupTmpFiles removes leftover .tmp files from interrupted restores.
+// On platforms without preallocation this is a no-op.
+func (fs *FS) CleanupTmpFiles() error {
+	if !canPreallocate {
+		return nil
+	}
+	if _, err := os.Stat(fs.Dir); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	return filepath.Walk(fs.Dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() && strings.HasSuffix(path, ".tmp") {
+			logger.Infof("removing incomplete temporary file %q", path)
+			return os.Remove(path)
+		}
+		return nil
+	})
 }
 
 // DeletePath deletes the given path from fs and returns the size for the deleted file.
@@ -188,6 +251,17 @@ func (fs *FS) path(p common.Part) string {
 	return p.LocalPath(fs.Dir)
 }
 
+func (fs *FS) tmpPath(p common.Part) string {
+	return fs.path(p) + ".tmp"
+}
+
+func (fs *FS) writePath(p common.Part) string {
+	if canPreallocate && fs.UseTmpFiles {
+		return fs.tmpPath(p)
+	}
+	return fs.path(p)
+}
+
 type limitedReadCloser struct {
 	r *filestream.Reader
 	n uint64
@@ -213,27 +287,26 @@ func (lrc *limitedReadCloser) Close() error {
 	return nil
 }
 
-type writeCloser struct {
-	w    *filestream.Writer
-	n    uint64
-	path string
+type directWriteCloser struct {
+	f *os.File
+	n uint64
 }
 
-func (wc *writeCloser) Write(p []byte) (int, error) {
-	n, err := wc.w.Write(p)
-	if uint64(n) > wc.n {
-		return n, fmt.Errorf("too much data written; got %d bytes; want %d bytes", n, wc.n)
+func (dwc *directWriteCloser) Write(p []byte) (int, error) {
+	n, err := dwc.f.Write(p)
+	if uint64(n) > dwc.n {
+		return n, fmt.Errorf("too much data written; got %d bytes; want %d bytes", n, dwc.n)
 	}
-	wc.n -= uint64(n)
+	dwc.n -= uint64(n)
 	return n, err
 }
 
-func (wc *writeCloser) Close() error {
-	wc.w.MustFlush(true)
-	wc.w.MustClose()
-	if wc.n != 0 {
-		return fmt.Errorf("missing data writes for %d bytes", wc.n)
+func (dwc *directWriteCloser) Close() error {
+	if err := dwc.f.Close(); err != nil {
+		return fmt.Errorf("cannot close file %q: %w", dwc.f.Name(), err)
 	}
-
+	if dwc.n != 0 {
+		return fmt.Errorf("missing data writes for %d bytes", dwc.n)
+	}
 	return nil
 }

@@ -32,7 +32,7 @@ func StartVmauth(instance string, flags []string, cli *Client, configFilePath st
 		httpBuilitinListenAddrRE,
 	}
 
-	app, stderrExtracts, err := startApp(instance, "../../bin/vmauth", flags, &appOptions{
+	app, stderrExtracts, err := startApp(instance, "../../bin/vmauth-race", flags, &appOptions{
 		defaultFlags: map[string]string{
 			"-httpListenAddr": "127.0.0.1:0",
 			"-auth.config":    configFilePath,

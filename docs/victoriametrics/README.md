@@ -247,6 +247,10 @@ The following steps must be performed during the upgrade / downgrade procedure:
 
 Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](https://grafana.com/blog/2019/03/25/whats-new-in-prometheus-2.8-wal-based-remote-write/) for details. The same applies also to [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/).
 
+> If you'd prefer not to manage upgrades yourself, [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_single_upgrade)
+> performs version upgrades automatically during maintenance windows with no action required on your part.
+> See the [VictoriaMetrics Cloud documentation](https://docs.victoriametrics.com/victoriametrics-cloud/) to get started.
+
 ## vmui
 
 VictoriaMetrics provides UI for query troubleshooting and exploration. The UI is available at `http://victoriametrics:8428/vmui`
@@ -1788,6 +1792,10 @@ via [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) or via 
 
 See also [VictoriaMetrics Monitoring](https://victoriametrics.com/blog/victoriametrics-monitoring/)
 and [troubleshooting docs](https://docs.victoriametrics.com/victoriametrics/troubleshooting/).
+
+> [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_single_monitoring)
+> provides built-in monitoring dashboards and automatic alerts when resource consumption is high or configured limits are approached,
+> so you get notified before issues impact your workload. See the [VictoriaMetrics Cloud documentation](https://docs.victoriametrics.com/victoriametrics-cloud/) to get started.
 
 > VictoriaMetrics components do not expose metadata `TYPE` and `HELP` fields on `/metrics` page.
 > Services like Google Cloud Managed Prometheus could require metadata to be present for scraping. In this case, pass `-metrics.exposeMetadata`

@@ -7,7 +7,7 @@ package stats
 //line app/vmselect/stats/metric_names_usage_response.qtpl:1
 import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricnamestats"
 )
 
 // MetricNamesStatsResponse generates response for /api/v1/status/metric_names_stats .
@@ -26,7 +26,7 @@ var (
 )
 
 //line app/vmselect/stats/metric_names_usage_response.qtpl:8
-func StreamMetricNamesStatsResponse(qw422016 *qt422016.Writer, stats *storage.MetricNamesStatsResponse, qt *querytracer.Tracer) {
+func StreamMetricNamesStatsResponse(qw422016 *qt422016.Writer, stats *metricnamestats.StatsResult, qt *querytracer.Tracer) {
 //line app/vmselect/stats/metric_names_usage_response.qtpl:8
 	qw422016.N().S(`{"status":"success","statsCollectedSince":`)
 //line app/vmselect/stats/metric_names_usage_response.qtpl:11
@@ -91,7 +91,7 @@ func StreamMetricNamesStatsResponse(qw422016 *qt422016.Writer, stats *storage.Me
 }
 
 //line app/vmselect/stats/metric_names_usage_response.qtpl:31
-func WriteMetricNamesStatsResponse(qq422016 qtio422016.Writer, stats *storage.MetricNamesStatsResponse, qt *querytracer.Tracer) {
+func WriteMetricNamesStatsResponse(qq422016 qtio422016.Writer, stats *metricnamestats.StatsResult, qt *querytracer.Tracer) {
 //line app/vmselect/stats/metric_names_usage_response.qtpl:31
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line app/vmselect/stats/metric_names_usage_response.qtpl:31
@@ -102,7 +102,7 @@ func WriteMetricNamesStatsResponse(qq422016 qtio422016.Writer, stats *storage.Me
 }
 
 //line app/vmselect/stats/metric_names_usage_response.qtpl:31
-func MetricNamesStatsResponse(stats *storage.MetricNamesStatsResponse, qt *querytracer.Tracer) string {
+func MetricNamesStatsResponse(stats *metricnamestats.StatsResult, qt *querytracer.Tracer) string {
 //line app/vmselect/stats/metric_names_usage_response.qtpl:31
 	qb422016 := qt422016.AcquireByteBuffer()
 //line app/vmselect/stats/metric_names_usage_response.qtpl:31

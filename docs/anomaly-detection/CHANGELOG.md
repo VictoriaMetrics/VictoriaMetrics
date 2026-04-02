@@ -17,7 +17,7 @@ Please find the changelog for VictoriaMetrics Anomaly Detection below.
 ## v1.29.1
 Released: 2026-03-25
 
-- FEATURE: Added `min_rel_dev_from_expected` [common model argument](https://docs.victoriametrics.com/anomaly-detection/components/models/#min-rel-dev-from-expected) to support relative business gating based on percentage deviation from expected values. This allows users to specify a relative threshold for ignoring small deviations that are not significant in the context of the expected value, particularly useful for heterogeneous series with varying unknown magnitudes, returned from the same query.
+- FEATURE: Added `min_rel_dev_from_expected` [common model argument](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-relative-deviation-from-expected) to support relative business gating based on percentage deviation from expected values. This allows users to specify a relative threshold for ignoring small deviations that are not significant in the context of the expected value, particularly useful for heterogeneous series with varying unknown magnitudes, returned from the same query.
 
 - UI: Updated [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/) from [v1.5.0](https://docs.victoriametrics.com/anomaly-detection/ui/#v150) to [v1.5.1](https://docs.victoriametrics.com/anomaly-detection/ui/#v151), see respective [release notes](https://docs.victoriametrics.com/anomaly-detection/ui/#v151) for details.
 

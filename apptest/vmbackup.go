@@ -10,6 +10,6 @@ func StartVmbackup(instance, storageDataPath, snapshotCreateURL, dst string, out
 		"-snapshot.createURL=" + snapshotCreateURL,
 		"-dst=" + dst,
 	}
-	_, _, err := startApp(instance, "../../bin/vmbackup", flags, &appOptions{wait: true, output: output})
+	_, _, err := startApp(instance, "../../bin/vmbackup-race", flags, &appOptions{wait: true, output: output})
 	return err
 }

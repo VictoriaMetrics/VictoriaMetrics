@@ -22,6 +22,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricnamestats"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/syncwg"
@@ -233,7 +234,7 @@ func DeleteSeries(qt *querytracer.Tracer, tfss []*storage.TagFilters, maxMetrics
 }
 
 // GetMetricNamesStats returns metric names usage stats with give limit and lte predicate
-func GetMetricNamesStats(qt *querytracer.Tracer, limit, le int, matchPattern string) (storage.MetricNamesStatsResponse, error) {
+func GetMetricNamesStats(qt *querytracer.Tracer, limit, le int, matchPattern string) (metricnamestats.StatsResult, error) {
 	WG.Add(1)
 	r := Storage.GetMetricNamesStats(qt, limit, le, matchPattern)
 	WG.Done()
@@ -319,6 +320,7 @@ func Stop() {
 	Storage.MustClose()
 	logger.Infof("successfully closed the storage in %.3f seconds", time.Since(startTime).Seconds())
 
+	fs.MustStopDirRemover()
 	logger.Infof("the storage has been stopped")
 }
 
