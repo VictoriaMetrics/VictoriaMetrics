@@ -844,7 +844,7 @@ func newBufferedBody(r io.ReadCloser, buf []byte, maxBufSize, maxBufRetrySize in
 	return &bufferedBody{
 		r:           r,
 		buf:         buf,
-		cannotRetry: len(buf) > maxBufRetrySize,
+		cannotRetry: len(buf) > maxBufRetrySize || maxBufRetrySize == 0,
 	}
 }
 
