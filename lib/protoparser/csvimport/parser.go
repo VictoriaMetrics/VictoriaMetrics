@@ -108,7 +108,7 @@ func isHeaderRow(sc *scanner, cds []ColumnDescriptor) bool {
 	return isHeader
 }
 
-func parseRows(sc *scanner, dst []Row, tags []Tag, ms []metric, cds []ColumnDescriptor, skipHeader bool) ([]Row, []Tag, []metric) {
+func parseRows(sc *scanner, dst []Row, tags []Tag, metrics []metric, cds []ColumnDescriptor, skipHeader bool) ([]Row, []Tag, []metric) {
 	for sc.NextLine() {
 		if skipHeader {
 			skipHeader = false
@@ -126,7 +126,7 @@ func parseRows(sc *scanner, dst []Row, tags []Tag, ms []metric, cds []ColumnDesc
 		line := sc.Line
 		var r Row
 		col := uint(0)
-		ms = ms[:0]
+		metrics = metrics[:0]
 		tagsLen := len(tags)
 		for sc.NextColumn() {
 			if col >= uint(len(cds)) {
@@ -163,7 +163,7 @@ func parseRows(sc *scanner, dst []Row, tags []Tag, ms []metric, cds []ColumnDesc
 			if err != nil {
 				sc.Error = fmt.Errorf("cannot parse metric value for %q from %q: %w", metricName, sc.Column, err)
 			}
-			ms = append(ms, metric{
+			metrics = append(metrics, metric{
 				Name:  metricName,
 				Value: value,
 			})
@@ -176,14 +176,14 @@ func parseRows(sc *scanner, dst []Row, tags []Tag, ms []metric, cds []ColumnDesc
 			invalidLines.Inc()
 			continue
 		}
-		if len(ms) == 0 {
+		if len(metrics) == 0 {
 			continue
 		}
-		r.Metric = ms[0].Name
+		r.Metric = metrics[0].Name
 		r.Tags = tags[tagsLen:]
-		r.Value = ms[0].Value
+		r.Value = metrics[0].Value
 		dst = append(dst, r)
-		for _, m := range ms[1:] {
+		for _, m := range metrics[1:] {
 			dst = append(dst, Row{
 				Metric:    m.Name,
 				Tags:      r.Tags,
@@ -192,7 +192,7 @@ func parseRows(sc *scanner, dst []Row, tags []Tag, ms []metric, cds []ColumnDesc
 			})
 		}
 	}
-	return dst, tags, ms
+	return dst, tags, metrics
 }
 
 var invalidLines = metrics.NewCounter(`vm_rows_invalid_total{type="csvimport"}`)
