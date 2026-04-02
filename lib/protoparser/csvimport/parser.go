@@ -108,35 +108,6 @@ func isHeaderRow(sc *scanner, cds []ColumnDescriptor) bool {
 	return isHeader
 }
 
-// warnHeaderMismatches logs warnings for header column names that don't match the expected format descriptors
-func warnHeaderMismatches(sc *scanner, cds []ColumnDescriptor) {
-	col := uint(0)
-	for sc.NextColumn() {
-		if col >= uint(len(cds)) {
-			continue
-		}
-		cd := &cds[col]
-		col++
-		if cd.isEmpty() {
-			continue
-		}
-		name := sc.Column
-		if cd.ParseTimestamp != nil {
-			if name != "timestamp" {
-				logger.Warnf("CSV header mismatch at column %d: got %q, expected %q", col, name, "timestamp")
-			}
-		} else if cd.TagName != "" {
-			if name != cd.TagName {
-				logger.Warnf("CSV header mismatch at column %d: got %q, expected %q", col, name, cd.TagName)
-			}
-		} else if cd.MetricName != "" {
-			if name != "value" && name != cd.MetricName {
-				logger.Warnf("CSV header mismatch at column %d: got %q, expected %q or %q", col, name, "value", cd.MetricName)
-			}
-		}
-	}
-}
-
 func parseRows(sc *scanner, dst []Row, tags []Tag, ms []metric, cds []ColumnDescriptor, skipHeader bool) ([]Row, []Tag, []metric) {
 	for sc.NextLine() {
 		if skipHeader {
@@ -146,7 +117,6 @@ func parseRows(sc *scanner, dst []Row, tags []Tag, ms []metric, cds []ColumnDesc
 				sc.Line = savedLine
 				sc.isLastColumn = false
 				sc.Error = nil
-				warnHeaderMismatches(sc, cds)
 				continue
 			}
 			sc.Line = savedLine
