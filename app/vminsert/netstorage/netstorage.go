@@ -23,6 +23,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vminsertapi"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 )
 
 var (
@@ -601,7 +602,7 @@ func initStorageNodes(unsortedAddrs []string, rpcCall vminsertapi.RPCCall, hashS
 		sns = append(sns, sn)
 	}
 
-	maxBufSizePerStorageNode = min(memory.Allowed()/8/len(sns), consts.MaxInsertPacketSizeForVMInsert)
+	maxBufSizePerStorageNode = getMaxBufSizePerStorageNode(memory.Allowed(), writeconcurrencylimiter.GetMaxConcurrentInserts(), len(sns))
 
 	metrics.RegisterSet(ms)
 
@@ -621,6 +622,17 @@ func initStorageNodes(unsortedAddrs []string, rpcCall vminsertapi.RPCCall, hashS
 	}
 
 	return snb
+}
+
+// calculate maxBufSizePerStorageNode for insertCtx by:
+// 1. 25% total available memory.
+// 2. divided by insertCtx concurrent insert limit.
+// 3. each object could hold `len(sns)` buffers, because each buffer will be dedicated to a netstorage.
+// 4. in range [1MB, 30MB], usually user won't reach the min border so it should be safe enough.
+func getMaxBufSizePerStorageNode(mem, concurrency, netstorageCount int) int {
+	maxBufSize := mem / 4 / concurrency / netstorageCount
+	maxBufSize = max(consts.MinInsertPacketSizeForVMInsert, min(consts.MaxInsertPacketSizeForVMInsert, maxBufSize))
+	return maxBufSize
 }
 
 func mustStopStorageNodes(snb *storageNodesBucket) {
