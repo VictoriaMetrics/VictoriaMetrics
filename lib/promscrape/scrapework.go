@@ -145,7 +145,7 @@ type ScrapeWork struct {
 	ScrapeOffset time.Duration
 
 	// Optional limit on the number of unique series the scrape target can expose.
-	SeriesLimit int32
+	SeriesLimit int
 
 	// Optional limit on the number of allowed labels per series.
 	LabelLimit int

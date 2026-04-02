@@ -8,12 +8,12 @@ import (
 )
 
 func TestLimiter(t *testing.T) {
-	for _, maxItems := range []int32{1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6} {
+	for _, maxItems := range []int{1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6} {
 		testLimiter(t, maxItems)
 	}
 }
 
-func testLimiter(t *testing.T, maxItems int32) {
+func testLimiter(t *testing.T, maxItems int) {
 	r := rand.New(rand.NewSource(int64(0)))
 	l := NewLimiter(maxItems, time.Hour)
 	if n := l.MaxItems(); n != maxItems {
@@ -55,7 +55,7 @@ func testLimiter(t *testing.T, maxItems int32) {
 
 func TestLimiterConcurrent(t *testing.T) {
 	concurrency := 3
-	maxItems := int32(10000)
+	maxItems := 10000
 	l := NewLimiter(maxItems, time.Hour)
 	doneCh := make(chan struct{}, concurrency)
 	for range concurrency {

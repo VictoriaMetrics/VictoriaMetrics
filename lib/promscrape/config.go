@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"math"
 	"net/url"
 	"path/filepath"
 	"slices"
@@ -18,7 +17,6 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
@@ -333,7 +331,7 @@ type ScrapeConfig struct {
 	StreamParse         bool                       `yaml:"stream_parse,omitempty"`
 	ScrapeAlignInterval *promutil.Duration         `yaml:"scrape_align_interval,omitempty"`
 	ScrapeOffset        *promutil.Duration         `yaml:"scrape_offset,omitempty"`
-	SeriesLimit         *int32                     `yaml:"series_limit,omitempty"`
+	SeriesLimit         *int                       `yaml:"series_limit,omitempty"`
 	NoStaleMarkers      *bool                      `yaml:"no_stale_markers,omitempty"`
 	ProxyClientConfig   promauth.ProxyClientConfig `yaml:",inline"`
 
@@ -967,7 +965,7 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 	if sc.NoStaleMarkers != nil {
 		noStaleTracking = *sc.NoStaleMarkers
 	}
-	seriesLimit := int32(*seriesLimitPerTarget)
+	seriesLimit := *seriesLimitPerTarget
 	if sc.SeriesLimit != nil {
 		seriesLimit = *sc.SeriesLimit
 	}
@@ -1033,7 +1031,7 @@ type scrapeWorkConfig struct {
 	streamParse          bool
 	scrapeAlignInterval  time.Duration
 	scrapeOffset         time.Duration
-	seriesLimit          int32
+	seriesLimit          int
 	noStaleMarkers       bool
 }
 
@@ -1250,11 +1248,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse __series_limit__=%q: %w", s, err)
 		}
-		if n > math.MaxInt32 {
-			seriesLimit = bloomfilter.MaxLimit
-		} else {
-			seriesLimit = int32(n)
-		}
+		seriesLimit = n
 	}
 	// Read sample_limit option from __sample_limit__ label.
 	// See https://docs.victoriametrics.com/victoriametrics/vmagent/#automatically-generated-metrics

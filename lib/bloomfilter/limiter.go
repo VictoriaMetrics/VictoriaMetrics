@@ -10,7 +10,7 @@ import (
 //
 // It is safe using the Limiter from concurrent goroutines.
 type Limiter struct {
-	maxItems int32
+	maxItems int
 	v        atomic.Pointer[limiter]
 
 	wg     sync.WaitGroup
@@ -18,7 +18,7 @@ type Limiter struct {
 }
 
 // NewLimiter creates new Limiter, which can hold up to maxItems unique items during the given refreshInterval.
-func NewLimiter(maxItems int32, refreshInterval time.Duration) *Limiter {
+func NewLimiter(maxItems int, refreshInterval time.Duration) *Limiter {
 	l := &Limiter{
 		maxItems: maxItems,
 		stopCh:   make(chan struct{}),
@@ -47,7 +47,7 @@ func (l *Limiter) MustStop() {
 }
 
 // MaxItems returns the maxItems passed to NewLimiter.
-func (l *Limiter) MaxItems() int32 {
+func (l *Limiter) MaxItems() int {
 	return l.maxItems
 }
 
@@ -74,7 +74,7 @@ type limiter struct {
 	f            *filter
 }
 
-func newLimiter(maxItems int32) *limiter {
+func newLimiter(maxItems int) *limiter {
 	return &limiter{
 		f: newFilter(maxItems),
 	}
@@ -89,8 +89,4 @@ func (l *limiter) Add(h uint64) bool {
 		l.currentItems.Add(1)
 	}
 	return true
-}
-
-func IsLimiterEnabled(maxItems int32) bool {
-	return maxItems > 0 || maxItems == -1
 }

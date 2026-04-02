@@ -1910,7 +1910,7 @@ func TestStorageRowsNotAdded(t *testing.T) {
 func TestStorageRowsNotAdded_SeriesLimitExceeded(t *testing.T) {
 	defer testRemoveAll(t)
 
-	f := func(t *testing.T, numRows uint64, maxHourlySeries, maxDailySeries int32) {
+	f := func(t *testing.T, numRows uint64, maxHourlySeries, maxDailySeries int) {
 		t.Helper()
 
 		rng := rand.New(rand.NewSource(1))
