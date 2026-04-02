@@ -755,6 +755,10 @@ The `minimum downtime` strategy has the following benefits comparing to `no down
 - It allows minimizing the duration of config update / version upgrade for clusters with big number of nodes
   of for clusters with big `vmstorage` nodes, which may take long time for graceful restart.
 
+> If you'd prefer to avoid managing cluster upgrades yourself, [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_cluster_upgrade)
+> handles version upgrades automatically during maintenance windows, and lets you create, resize, or delete deployments with a few clicks from the UI.
+> See the [VictoriaMetrics Cloud documentation](https://docs.victoriametrics.com/victoriametrics-cloud/) to get started.
+
 ### Improving re-routing performance during restart
 
 `vmstorage` nodes may experience increased usage for CPU, RAM and disk IO during
