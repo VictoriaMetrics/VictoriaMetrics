@@ -288,7 +288,6 @@ var (
 
 	fsyncDuration        = metrics.NewFloatCounter(`vm_filestream_fsync_duration_seconds_total`)
 	fsyncCalls           = metrics.NewCounter(`vm_filestream_fsync_calls_total`)
-	writeSyscallDuration = metrics.NewFloatCounter(`vm_filestream_write_syscall_duration_seconds_total`)
 )
 
 // Write writes p to the underlying file.
