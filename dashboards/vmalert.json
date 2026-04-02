@@ -3777,7 +3777,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(rate(vmalert_remotewrite_sent_rows_sum{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job)",
+              "expr": "sum(rate(vmalert_remotewrite_sent_rows_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job) default sum(rate(vmalert_remotewrite_sent_rows_sum{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job)",
               "legendFormat": "__auto",
               "range": true,
               "refId": "A"
