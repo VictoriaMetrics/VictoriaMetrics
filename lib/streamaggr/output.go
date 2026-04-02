@@ -12,7 +12,6 @@ import (
 type aggrOutputs struct {
 	m              sync.Map
 	useSharedState bool
-	useInputKey    bool
 	configs        []aggrConfig
 	outputSamples  *metrics.Counter
 }
@@ -25,10 +24,10 @@ func (ao *aggrOutputs) getInputOutputKey(key string) (string, string) {
 	}
 	src = src[nSize:]
 	outputKey := src[:outputKeyLen]
-	if !ao.useInputKey {
+	inputKey := src[outputKeyLen:]
+	if len(inputKey) == 0 {
 		return key, bytesutil.ToUnsafeString(outputKey)
 	}
-	inputKey := src[outputKeyLen:]
 	return bytesutil.ToUnsafeString(inputKey), bytesutil.ToUnsafeString(outputKey)
 }
 
