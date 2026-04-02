@@ -150,7 +150,7 @@ See [these docs](https://docs.victoriametrics.com/victoriametrics/cluster-victor
 
 By default `vmagent` replicates data to remote storage systems via the `-remoteWrite.url` command-line flag.
 If the `-remoteWrite.shardByURL` command-line flag is set, then `vmagent` spreads
-the outgoing [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) evenly among all the remote storage 
+the outgoing [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) evenly among all the remote storage
 systems listed in `-remoteWrite.url`.
 
 It is possible to replicate samples among remote storage systems by passing `-remoteWrite.shardByURLReplicas=N`
@@ -312,7 +312,7 @@ in addition to the pull-based Prometheus-compatible targets' scraping:
 * DataDog "submit metrics" API. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/datadog/).
 * InfluxDB line protocol via `http://<vmagent>:8429/write`. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb/).
 * Graphite plaintext protocol if `-graphiteListenAddr` command-line flag is set. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting).
-* OpenTelemetry http API. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#sending-data-via-opentelemetry).
+* OpenTelemetry http API. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/).
 * NewRelic API. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/newrelic/#sending-data-from-agent).
 * OpenTSDB telnet and http protocols if `-opentsdbListenAddr` command-line flag is set. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb/).
 * Zabbix Connector streaming protocol. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/zabbixconnector/#send-data-from-zabbix-connector).
@@ -658,12 +658,12 @@ e.g. it sets `scrape_series_added` metric to zero. See [these docs](#automatical
 
 ## Metric metadata
 
-By default, `vmagent` ignores metric metadata exposed by scrape targets in [Prometheus exposition format](https://github.com/prometheus/docs/blob/main/docs/instrumenting/exposition_formats.md), received via [Prometheus remote write v1](https://prometheus.io/docs/specs/prw/remote_write_spec/) or [OpenTelemetry protocol](https://github.com/open-telemetry/opentelemetry-proto/blob/v1.7.0/opentelemetry/proto/metrics/v1/metrics.proto). Set `-enableMetadata=true` to enable metadata processing{{% available_from "v1.125.1" %}}.
+`vmagent` accepts{{% available_from "v1.137.0" %}} metric metadata exposed by scrape targets in [Prometheus exposition format](https://github.com/prometheus/docs/blob/main/docs/instrumenting/exposition_formats.md), received via [Prometheus remote write v1](https://prometheus.io/docs/specs/prw/remote_write_spec/) or [OpenTelemetry protocol](https://github.com/open-telemetry/opentelemetry-proto/blob/v1.7.0/opentelemetry/proto/metrics/v1/metrics.proto) by default. Set `-enableMetadata=false` to disable metadata processing{{% available_from "v1.125.1" %}}.
 During processing, metadata won't be dropped or modified by [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/) or [streaming aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/).
 
 When `-enableMultitenantHandlers` is enabled, vmagent adds tenant info to metadata received via the [multitenant endpoints](https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy) (`/insert/<accountID>/<suffix>`). However, if `vm_account_id` or `vm_project_id` labels are added directly to metrics before reaching vmagent, and vmagent writes to the [vminsert multitenant endpoints](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels), the tenant info won't be attached and the metadata will be stored under the default tenant of VictoriaMetrics cluster.
 
->Enabling metadata requires extra memory, disk space, and network traffic.
+> Metadata requires extra memory, disk space, and network traffic.
 
 ## Stream parsing mode
 
@@ -965,7 +965,7 @@ See [these docs](https://cloud.google.com/stackdriver/docs/managed-prometheus/tr
 
 Use official [Grafana dashboard](https://grafana.com/grafana/dashboards/12683) for `vmagent` state overview.
 Graphs on this dashboard contain useful hints - hover the `i` icon at the top left corner of each graph in order to read it.
-If you have suggestions for improvements or have found a bug - please open an issue on [github](https://github.com/VictoriaMetrics/VictoriaMetrics/issues) 
+If you have suggestions for improvements or have found a bug - please open an issue on [github](https://github.com/VictoriaMetrics/VictoriaMetrics/issues)
 or add a review to the dashboard.
 
 `vmagent` also exports the status for various targets at the following pages:
@@ -1116,7 +1116,7 @@ Additional notes:
 
 See general recommendations regarding [security](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#security).
 
-vmagent's `/remotewrite-relabel-config` and `/remotewrite-url-relabel-config` endpoints {{% available_from "v1.129.0" %}} 
+vmagent's `/remotewrite-relabel-config` and `/remotewrite-url-relabel-config` endpoints {{% available_from "v1.129.0" %}}
 can be protected via `-configAuthKey` command-line flag.
 
 ### mTLS protection
@@ -1149,7 +1149,7 @@ For example, if `vmagent` needs to scrape thousands of targets in resource-const
   even if many clients send data to `vmagent` via many concurrent connections and the number of these connections significantly exceeds the default value
   for the `-maxConcurrentRequests` command-line flag. `vmagent` puts incoming requests into a wait queue if the number of concurrently executed requests
   exceeds `-maxConcurrentRequests`. The pending requests at the wait queue do not consume CPU and do not consume significant amounts of RAM, so it is OK to have
-  thousands of pending requests in the wait queue. Pending requests in the wait queue are canceled if they wait for their exection for longer than
+  thousands of pending requests in the wait queue. Pending requests in the wait queue are canceled if they wait for their execution for longer than
   the duration specified in the `-insert.maxQueueDuration` command-line flag. Canceled requests can be [monitored](https://docs.victoriametrics.com/victoriametrics/vmagent/#monitoring)
   via `vm_concurrent_insert_limit_timeout_total` metric.
 

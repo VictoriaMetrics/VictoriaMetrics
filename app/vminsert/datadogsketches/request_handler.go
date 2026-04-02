@@ -45,15 +45,14 @@ func insertRows(sketches []*datadogsketches.Sketch, extraLabels []prompb.Label) 
 		ms := sketch.ToSummary()
 		for _, m := range ms {
 			ctx.Labels = ctx.Labels[:0]
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10557
+			ctx.AddLabel("host", sketch.Host) // newly added
 			ctx.AddLabel("", m.Name)
 			for _, label := range m.Labels {
 				ctx.AddLabel(label.Name, label.Value)
 			}
 			for _, tag := range sketch.Tags {
 				name, value := datadogutil.SplitTag(tag)
-				if name == "host" {
-					name = "exported_host"
-				}
 				ctx.AddLabel(name, value)
 			}
 			for j := range extraLabels {

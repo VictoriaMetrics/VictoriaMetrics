@@ -17,7 +17,7 @@ import (
 
 func TestSearchQueryMarshalUnmarshal(t *testing.T) {
 	rnd := rand.New(rand.NewSource(0))
-	typ := reflect.TypeOf(&SearchQuery{})
+	typ := reflect.TypeFor[*SearchQuery]()
 	var buf []byte
 	var sq2 SearchQuery
 

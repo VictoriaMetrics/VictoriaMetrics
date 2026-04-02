@@ -51,6 +51,7 @@ var transformFuncs = map[string]transformFunc{
 	"exp":                        newTransformFuncOneArg(transformExp),
 	"floor":                      newTransformFuncOneArg(transformFloor),
 	"histogram_avg":              transformHistogramAvg,
+	"histogram_fraction":         transformHistogramFraction,
 	"histogram_quantile":         transformHistogramQuantile,
 	"histogram_quantiles":        transformHistogramQuantiles,
 	"histogram_share":            transformHistogramShare,
@@ -662,13 +663,13 @@ func transformHistogramShare(tfa *transformFuncArg) ([]*timeseries, error) {
 		if math.IsNaN(leReq) || len(xss) == 0 {
 			return nan, nan, nan
 		}
-		fixBrokenBuckets(i, xss)
 		if leReq < 0 {
 			return 0, 0, 0
 		}
 		if math.IsInf(leReq, 1) {
 			return 1, 1, 1
 		}
+		fixBrokenBuckets(i, xss)
 		var vPrev, lePrev float64
 		for _, xs := range xss {
 			v := xs.ts.Values[i]
@@ -725,6 +726,85 @@ func transformHistogramShare(tfa *transformFuncArg) ([]*timeseries, error) {
 			rvs = append(rvs, tsLower)
 			rvs = append(rvs, tsUpper)
 		}
+	}
+	return rvs, nil
+}
+
+// histogram_fraction is a shortcut for `histogram_share(upperLe, buckets) - histogram_share(lowerLe, buckets)`;
+// histogram_fraction(x, y) = histogram_fraction(-Inf, y) - histogram_fraction(-Inf, x) = histogram_share(y) - histogram_share(x).
+// This function is supported by PromQL.
+func transformHistogramFraction(tfa *transformFuncArg) ([]*timeseries, error) {
+	args := tfa.args
+	if err := expectTransformArgsNum(args, 3); err != nil {
+		return nil, err
+	}
+	lowerles, err := getScalar(args[0], 0)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse lower le: %w", err)
+	}
+	upperles, err := getScalar(args[1], 1)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse upper le: %w", err)
+	}
+	if lowerles[0] >= upperles[0] {
+		return nil, fmt.Errorf("lower le cannot be greater than upper le; got lower le: %f, upper le: %f", lowerles[0], upperles[0])
+	}
+
+	// Convert buckets with `vmrange` labels to buckets with `le` labels.
+	tss := vmrangeBucketsToLE(args[2])
+
+	// Group metrics by all tags excluding "le"
+	m := groupLeTimeseries(tss)
+
+	fraction := func(i int, lowerle, upperle float64, xss []leTimeseries) (q float64) {
+		if math.IsNaN(lowerle) || math.IsNaN(upperle) || len(xss) == 0 {
+			return nan
+		}
+		fixBrokenBuckets(i, xss)
+		share := func(leReq float64) float64 {
+			if leReq < 0 {
+				return 0
+			}
+			if math.IsInf(leReq, 1) {
+				return 1
+			}
+			var vPrev, lePrev float64
+			for _, xs := range xss {
+				v := xs.ts.Values[i]
+				le := xs.le
+				if leReq >= le {
+					vPrev = v
+					lePrev = le
+					continue
+				}
+				// precondition: lePrev <= leReq < le
+				vLast := xss[len(xss)-1].ts.Values[i]
+				lower := vPrev / vLast
+				if math.IsInf(le, 1) {
+					return lower
+				}
+				if lePrev == leReq {
+					return lower
+				}
+				q = lower + (v-vPrev)/vLast*(leReq-lePrev)/(le-lePrev)
+				return q
+			}
+			return 1
+		}
+		return share(upperle) - share(lowerle)
+	}
+	rvs := make([]*timeseries, 0, len(m))
+	for _, xss := range m {
+		sort.Slice(xss, func(i, j int) bool {
+			return xss[i].le < xss[j].le
+		})
+		xss = mergeSameLE(xss)
+		dst := xss[0].ts
+		for i := range dst.Values {
+			q := fraction(i, lowerles[i], upperles[i], xss)
+			dst.Values[i] = q
+		}
+		rvs = append(rvs, dst)
 	}
 	return rvs, nil
 }

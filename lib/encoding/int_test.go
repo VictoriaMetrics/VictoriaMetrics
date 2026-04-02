@@ -295,6 +295,14 @@ func testMarshalUnmarshalVarUint64(t *testing.T, u uint64) {
 	}
 }
 
+func TestUnmarshalBytesOverflow(t *testing.T) {
+	poisonVarint := []byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01}
+	result, nSize := UnmarshalBytes(poisonVarint)
+	if nSize > 0 || result != nil {
+		t.Fatalf("expected error from overflow input, got nSize=%d result=%x", nSize, result)
+	}
+}
+
 func TestMarshalUnmarshalBytes(t *testing.T) {
 	testMarshalUnmarshalBytes(t, "")
 	testMarshalUnmarshalBytes(t, "x")

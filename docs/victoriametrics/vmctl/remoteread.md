@@ -64,9 +64,12 @@ Migrating big volumes of data may result in remote read client reaching the time
 Flag `--remote-read-step-interval` allows splitting export data into chunks to reduce pressure on the source `--remote-read-src-addr`.
 Valid values are `month, day, hour, minute`.
 
-Flag `--remote-read-use-stream` defines whether to use `SAMPLES` or `STREAMED_XOR_CHUNKS` mode. 
-Mode `STREAMED_XOR_CHUNKS` is much less resource intensive for the source, but not many databases support it. 
-By default, is uses `SAMPLES` mode.
+Flag `--remote-read-use-stream` defines whether to use `SAMPLES` or `STREAMED_XOR_CHUNKS` mode. By default, it uses the `SAMPLES` mode.
+Mode `STREAMED_XOR_CHUNKS` is much less resource intensive for the source, but it is only supported by limited databases, such as Mimir. 
+
+> You may observe more samples being written to VictoriaMetrics with `--remote-read-use-stream=true`, particularly when using a small `--remote-read-step-interval`, such as minute. 
+This is caused by the source underlying chunk storage structure, and enabling [deduplication](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) 
+will eventually remove these duplicates for both querying and storage.
 
 See general [vmctl migration tips](https://docs.victoriametrics.com/victoriametrics/vmctl/#migration-tips).
 

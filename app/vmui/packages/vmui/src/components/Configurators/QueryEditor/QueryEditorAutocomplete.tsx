@@ -7,6 +7,7 @@ import { AUTOCOMPLETE_LIMITS } from "../../../constants/queryAutocomplete";
 import { QueryEditorAutocompleteProps } from "./QueryEditor";
 import { getExprLastPart, getValueByContext, getContext } from "./autocompleteUtils";
 import { extractCurrentLabel, extractLabelMatchers, extractMetric, splitByCursor } from "./utils/parser";
+import { escapeLabelName } from "../../../utils/metric";
 
 const QueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
   value,
@@ -59,7 +60,7 @@ const QueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
   const options = useMemo(() => {
     switch (context) {
       case QueryContextType.metricsql:
-        return [...metrics, ...metricsqlFunctions];
+        return includeFunctions ? [...metrics, ...metricsqlFunctions] : metrics;
       case QueryContextType.label:
         return labels;
       case QueryContextType.labelValue:
@@ -67,7 +68,7 @@ const QueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
       default:
         return [];
     }
-  }, [context, metrics, labels, labelValues, metricsqlFunctions]);
+  }, [context, metrics, labels, labelValues, metricsqlFunctions, includeFunctions]);
 
   const handleSelect = useCallback((insert: string) => {
     // Find the start and end of valueByContext in the query string
@@ -90,6 +91,7 @@ const QueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
     }
 
     if (context === QueryContextType.label) {
+      insert = escapeLabelName(insert);
       valueAfterCursor = valueAfterCursor.replace(/^[^\s=!,{}()"|+\-/*^]*/, "");
     }
 

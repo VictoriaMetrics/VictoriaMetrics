@@ -14,6 +14,34 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.29.1
+Released: 2026-03-25
+
+- FEATURE: Added `min_rel_dev_from_expected` [common model argument](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-relative-deviation-from-expected) to support relative business gating based on percentage deviation from expected values. This allows users to specify a relative threshold for ignoring small deviations that are not significant in the context of the expected value, particularly useful for heterogeneous series with varying unknown magnitudes, returned from the same query.
+
+- UI: Updated [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/) from [v1.5.0](https://docs.victoriametrics.com/anomaly-detection/ui/#v150) to [v1.5.1](https://docs.victoriametrics.com/anomaly-detection/ui/#v151), see respective [release notes](https://docs.victoriametrics.com/anomaly-detection/ui/#v151) for details.
+
+- IMPROVEMENT: Optimized [`VmWriter`](https://docs.victoriametrics.com/anomaly-detection/components/writer/#vm-writer) hot path by 2-3x in terms of infer-write latency
+
+- IMPROVEMENT: Optimized backbone of [t-digest](https://www.sciencedirect.com/science/article/pii/S2665963820300403) data structures to reduce the memory usage and speed up the fit/infer calls for underlying models that use it (e.g. [OnlineQuantileModel](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-seasonal-quantile) or [MAD](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-mad)).
+
+- BUGFIX: Fixed forward compatibility issues with the persisted state from [v1.28.5](#v1285) for [ProphetModel](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) and [QuantileModel](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-seasonal-quantile) models, which could lead to "util.files - ERROR - Unexpected error while loading model from ..." in [stateful mode](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration) after the upgrade to [v1.29.0](#v1290). Now the service can properly load the persisted state from [v1.28.5](#v1285) and continue functioning without requiring retraining of the affected models.
+
+## v1.29.0
+Released: 2026-03-05
+
+- UI: Updated [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/) from [v1.4.3](https://docs.victoriametrics.com/anomaly-detection/ui/#v143) to [v1.5.0](https://docs.victoriametrics.com/anomaly-detection/ui/#v150), see respective [release notes](https://docs.victoriametrics.com/anomaly-detection/ui/#v150) for details. Notable changes include [AI assistance](https://docs.victoriametrics.com/anomaly-detection/ui/#ai-assistance) support capable of applying model configuration changes, generating VMAlert rules, and providing general guidance on using the product.
+
+- IMPROVEMENT: Optimized internal data structures for readers when `query_from_last_seen_timestamp` [parameter](https://docs.victoriametrics.com/anomaly-detection/components/reader/#config-parameters) is enabled, resulting in reduced memory usage and improved performance for large datasets.
+
+- IMPROVEMENT: Hardened [hot reload](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) with staged snapshot apply and automatic rollback. Reload now validates once and applies the same snapshot, preventing re-read race conditions and avoiding same-port conflicts during restart; failures keep previous runtime and are reflected in [startup metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#startup-metrics).
+
+- BUGFIX: Config file read/parse failures are now non-fatal in [hot reload](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) mode (service keeps running), while initial startup remains fatal for invalid/broken config files.
+
+- BUGFIX: Fixed missing datapoints in [BacktestingScheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#backtesting-scheduler) windows used in [exact mode](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#defining-inference-timeframe-1), leading to "gaps" in plotted predictions and scores.
+
+- BUGFIX: Fixed a model state update issue in [BacktestingScheduler exact mode](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#defining-inference-timeframe-1) when parallelization (`settings.n_workers > 1`) was enabled, causing [online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models) to produce stale/flat `yhat`, `yhat_lower`, and `yhat_upper` lines.
+
 ## v1.28.7
 Released: 2026-02-09
 
@@ -43,7 +71,7 @@ Released: 2026-01-12
 ## v1.28.3
 Released: 2025-12-17
 
-- IMPROVEMENT: Aligned service endpoints for `vmanomaly` [MCP Server](https://github.com/VictoriaMetrics-Community/mcp-vmanomaly) integration.
+- IMPROVEMENT: Aligned service endpoints for `vmanomaly` [MCP Server](https://github.com/VictoriaMetrics/mcp-vmanomaly) integration.
 
 ## v1.28.2
 Released: 2025-12-11
@@ -103,7 +131,7 @@ Released: 2025-10-09
   ```
   This happened in scenarios with a large number of queries (e.g., in non-sharded deployments). Now the pool size is set dynamically to prevent such warnings and retain efficient connection reuse.
 
-## v1.26.1  
+## v1.26.1
 Released: 2025-10-08
 
 - IMPROVEMENT: Enriched lifecycle logs with the deterministic labelset hash for each query result (metric). This allows correlating model training, inference runs/skips, and on-disk artifacts presence or cleanup during incident triage.
@@ -113,7 +141,7 @@ Released: 2025-10-02
 
 - FEATURE: Introduced vmui-like [UI](https://docs.victoriametrics.com/anomaly-detection/ui/) for `vmanomaly` service to simplify the configuration and backtesting of anomaly detection models before it goes to production. It provides an intuitive interface to finetune model configurations, visualize its predictions and anomaly scores, and perform backtesting on historical data. The UI is accessible via a web browser and can be run as a [standalone service](https://docs.victoriametrics.com/anomaly-detection/ui/#preset-usage) or [integrated with productionalized deployments](https://docs.victoriametrics.com/anomaly-detection/ui/#mixed-usage). For more details, refer to the [documentation](https://docs.victoriametrics.com/anomaly-detection/ui/).
 
-- FEATURE: Added support for reading data from [VictoriaLogs stats queries](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-range-stats) with `VLogsReader`. This reader allows quering and analyzing log data stored in VictoriaLogs, enabling anomaly detection on metrics generated from logs. It supports similar configuration options as `VmReader`, including `datasource_url`, `tenant_id`, `queries`, etc. For more details, refer to the [documentation](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vlogs-reader). It can be also used in [UI mode](https://docs.victoriametrics.com/anomaly-detection/ui/) for backtesting log-based anomaly detection configurations.
+- FEATURE: Added support for reading data from [VictoriaLogs stats queries](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-range-stats) with `VLogsReader`. This reader allows querying and analyzing log data stored in VictoriaLogs, enabling anomaly detection on metrics generated from logs. It supports similar configuration options as `VmReader`, including `datasource_url`, `tenant_id`, `queries`, etc. For more details, refer to the [documentation](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vlogs-reader). It can be also used in [UI mode](https://docs.victoriametrics.com/anomaly-detection/ui/) for backtesting log-based anomaly detection configurations.
 
 - IMPROVEMENT: Resolved the case in the [`IsolationForestModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#isolation-forest-multivariate) with `provide_series` common model [argument](https://docs.victoriametrics.com/anomaly-detection/components/models/#provide-series) including `yhat.*` series (prediction and confidence boundaries), which are not produced by this model. Now config validation will fail with a clear error message if such series names are requested.
 
@@ -168,7 +196,7 @@ Released: 2025-07-17
 
 - FEATURE: Added an option to reference environment variables in [configuration files](https://docs.victoriametrics.com/anomaly-detection/components/) using scalar string placeholders `%{ENV_NAME}`. See the [environment variables](https://docs.victoriametrics.com/anomaly-detection/components/#environment-variables) section for more details and examples. This feature is particularly useful for managing sensitive information like API keys or database credentials while still making it accessible to the service.
 
-- IMPROVEMENT: Added `iqr_threshold` to [OnlineQuantileModel](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-seasonal-quantile) to refine the prediction boundaries without the need to manually adjusting `scale` [argument](https://docs.victoriametrics.com/anomaly-detection/components/models/#scale). Best set as >= 2 and used with smaller, robust quantiles (e.g. `(0.25, 0.5, 0.75)`) to both reduce the impact of outliers on the prediction boundaries and increase the likelyhood of having "non-anomalous" data within updated boundaries.
+- IMPROVEMENT: Added `iqr_threshold` to [OnlineQuantileModel](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-seasonal-quantile) to refine the prediction boundaries without the need to manually adjusting `scale` [argument](https://docs.victoriametrics.com/anomaly-detection/components/models/#scale). Best set as >= 2 and used with smaller, robust quantiles (e.g. `(0.25, 0.5, 0.75)`) to both reduce the impact of outliers on the prediction boundaries and increase the likelihood of having "non-anomalous" data within updated boundaries.
 
 - IMPROVEMENT: Fixed duplicated calls to VictoriaMetrics' in [reader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) for queries in `reader.queries` that are attached to multiple models in `models` [section](https://docs.victoriametrics.com/anomaly-detection/components/models/#queries) where previously, each model would independently fetch for the same query, leading to unnecessary load on the reader and VictoriaMetrics TSDB. Now, the reader will only be called once per unique (scheduler_alias, query_key) pair, and the results will be shared across all models that use the same query in the same scheduler.
 
@@ -270,7 +298,7 @@ Released: 2025-03-03
 > This release contains a bug introduced in [v1.18.7](#v1187) - [`PeriodicScheduler`](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) where configurations with `fit_every` > `fit_window` could cause inference to be skipped for |fit_every - fit_window| time, until the next `fit_every` call happens. For `fit_every` > `fit_window` configurations we recommend upgrading to [v1.20.1](#v1201), which resolves this issue.
 
 - FEATURE: The `scale` argument is now a [common argument](https://docs.victoriametrics.com/anomaly-detection/components/models/#scale), previously supported only by [`ProphetModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) and [`OnlineQuantileModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-seasonal-quantile). Additionally, `scale` is now **two-sided**, represented as `[scale_lb, scale_ub]`. The previous format (`scale: x`) remains supported and will be automatically converted to `scale: [x, x]`.
-  
+
 - FEATURE: Introduced a post-processing step to clip `yhat`, `yhat_lower`, and `yhat_upper` to the configured `data_range` [values](https://docs.victoriametrics.com/anomaly-detection/components/reader/) in `VmReader`, if defined. This feature is disabled by default for backward compatibility. It can be enabled for models that generate predictions and estimates, such as [`ProphetModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet), by setting the [common argument](https://docs.victoriametrics.com/anomaly-detection/components/models/#clip-predictions) `clip_predictions` to `True`.
 
 - IMPROVEMENT: Introduced the `anomaly_score_outside_data_range` [parameter](https://docs.victoriametrics.com/anomaly-detection/components/models/#score-outside-data-range) to allow overriding the default anomaly score (`1.01`) assigned when input values (`y`) fall outside the defined `data_range` (data domain violation). It improves flexibility for alerting rules and enables clearer visual distinction between different anomaly scenarios. Override can be configured at the **service level** (`settings`) or per **model instance** (`models.model_xxx`), with model-level values taking priority. If not explicitly set, the default anomaly score remains `1.01` for backward compatibility.
@@ -305,8 +333,8 @@ Released: 2025-01-20
 > This release contains a bug introduced in [v1.18.7](#v1187) - [`PeriodicScheduler`](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) where configurations with `fit_every` > `fit_window` could cause inference to be skipped for |fit_every - fit_window| time, until the next `fit_every` call happens. For `fit_every` > `fit_window` configurations we recommend upgrading to [v1.20.1](#v1201), which resolves this issue.
 
 - FEATURE: Added support for per-query `tenant_id` in the [`VmReader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader). This allows overriding the reader-level `tenant_id` within a single global `vmanomaly` configuration on a *per-query* basis, enabling isolation of data for different tenants in separate queries when querying the [VictoriaMetrics cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/). For details, see the [documentation](https://docs.victoriametrics.com/anomaly-detection/components/reader/#per-query-parameters).
-- IMPROVEMEMT: Speedup the model infer stage on multicore systems.
-- IMPROVEMEMT: Speedup the model fitting stage by 1.25-3x, depending on configuration complexity.
+- IMPROVEMENT: Speedup the model infer stage on multicore systems.
+- IMPROVEMENT: Speedup the model fitting stage by 1.25-3x, depending on configuration complexity.
 - IMPROVEMENT: Reduced service RAM usage by 5-10%, depending on configuration complexity.
 - BUGFIX: Now [`VmReader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) properly handles the cases where the number of queries processed in parallel (up to `reader.queries` cardinality) exceeds the default limit of 10 HTTP(S) connections, preventing potential data loss from discarded queries. The pool limit will automatically adjust to match `reader.queries` cardinality.
 - BUGFIX: Corrected the construction of write endpoints for cluster VictoriaMetrics `url`s (`tenant_id` arg is set) in `monitoring.push` [section configurations](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#push-config-parameters).
@@ -484,7 +512,7 @@ Released: 2024-08-26
 
 ## v1.15.5
 Released: 2024-08-19
-- BUGFIX: following [v1.15.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1152) online model enhancement, now `data_range` parameter is correctly initialized for online models, created (for new time series returned by particular query) during `infer` calls. 
+- BUGFIX: following [v1.15.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1152) online model enhancement, now `data_range` parameter is correctly initialized for online models, created (for new time series returned by particular query) during `infer` calls.
 
 ## v1.15.4
 Released: 2024-08-15
@@ -524,7 +552,7 @@ Released: 2024-08-06
 
 - FEATURE: Introduced the `optimized_business_params` key (list of strings) to the [`AutoTuned`](https://docs.victoriametrics.com/anomaly-detection/components/models/#autotuned) `optimization_params`. This allows particular business-specific parameters such as [`detection_direction`](https://docs.victoriametrics.com/anomaly-detection/components/models/#detection-direction) and [`min_dev_from_expected`](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-deviation-from-expected) to remain **unchanged during optimizations, retaining their default values**.
 - IMPROVEMENT: Optimized the [`AutoTuned`](https://docs.victoriametrics.com/anomaly-detection/components/models/#autotuned) model logic to minimize deviations from the expected `anomaly_percentage` specified in the configuration and the detected percentage in the data, while also reducing discrepancies between the actual values (`y`) and the predictions (`yhat`).
-- IMPROVEMENT: Allow [`ProphetModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) to fit with multiple seasonalities when used in [`AutoTuned`](https://docs.victoriametrics.com/anomaly-detection/components/models/#autotuned) mode. 
+- IMPROVEMENT: Allow [`ProphetModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) to fit with multiple seasonalities when used in [`AutoTuned`](https://docs.victoriametrics.com/anomaly-detection/components/models/#autotuned) mode.
 
 ## v1.14.2
 Released: 2024-07-26
@@ -575,10 +603,10 @@ Released: 2024-03-31
 Released: 2024-02-22
 - FEATURE: Multi-scheduler support. Now users can use multiple [model specs](https://docs.victoriametrics.com/anomaly-detection/components/models/) in a single config (via aliasing), each spec can be run with its own (even multiple) [schedulers](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/).
   - Introduction of `schedulers` arg in model spec:
-    - It allows each model to be managed by 1 (or more) schedulers, so overall resource usage is optimized and flexibility is preserved. 
+    - It allows each model to be managed by 1 (or more) schedulers, so overall resource usage is optimized and flexibility is preserved.
     - Passing an empty list or not specifying this param implies that each model is run in **all** the schedulers, which is a backward-compatible behavior.
     - Please find more details in docs on [Model section](https://docs.victoriametrics.com/anomaly-detection/components/models/#schedulers)
-- DEPRECATION: slight refactor of a scheduler config section 
+- DEPRECATION: slight refactor of a scheduler config section
   - Now schedulers are passed as a mapping of `scheduler_alias: scheduler_spec` under [scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/) sections. Using old format (< [1.11.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1110)) will produce warnings for now and will be removed in future versions.
 - DEPRECATION: The `--watch` CLI option for config file reloads is deprecated and will be ignored in the future.
 
@@ -586,11 +614,11 @@ Released: 2024-02-22
 Released: 2024-02-15
 - FEATURE: Multi-model support. Now users can specify multiple [model specs](https://docs.victoriametrics.com/anomaly-detection/components/models/) in a single config (via aliasing), as well as to reference what [queries from VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#config-parameters) it should be run on.
   - Introduction of `queries` arg in model spec:
-    - It allows the model to be executed only on a particular query subset from `reader` section. 
+    - It allows the model to be executed only on a particular query subset from `reader` section.
     - Passing an empty list or not specifying this param implies that each model is run on results from **all** queries, which is a backward-compatible behavior.
     - Please find more details in docs on [Model section](https://docs.victoriametrics.com/anomaly-detection/components/models/#queries)
 
-- DEPRECATION: slight refactor of a model config section 
+- DEPRECATION: slight refactor of a model config section
   - Now models are passed as a mapping of `model_alias: model_spec` under [model](https://docs.victoriametrics.com/anomaly-detection/components/models/) sections. Using old format (<= [1.9.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v192)) will produce warnings for now and will be removed in future versions.
   - Please find more details in docs on [Model section](https://docs.victoriametrics.com/anomaly-detection/components/models/)
 - IMPROVEMENT: now logs from [`monitoring.pull`](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#monitoring-section-config-example) GET requests to `/metrics` endpoint are shown only in DEBUG mode
@@ -641,7 +669,7 @@ Released: 2023-12-21
 
 ## v1.6.0
 Released: 2023-10-30
-- IMPROVEMENT: 
+- IMPROVEMENT:
   - now all the produced healthcheck metrics have `vmanomaly_` prefix for easier accessing.
   - updated docs for monitoring.
   > This is an backward-incompatible change, as metric names will be changed, resulting in new metrics creation, i.e. `model_datapoints_produced` will become `vmanomaly_model_datapoints_produced`
@@ -654,19 +682,19 @@ Released: 2023-10-30
 
 ## v1.5.1
 Released: 2023-09-18
-- IMPROVEMENT: Infer from the latest seen datapoint for each query. Handles the case datapoints arrive late. 
+- IMPROVEMENT: Infer from the latest seen datapoint for each query. Handles the case datapoints arrive late.
 
 
 ## v1.5.0
 Released: 2023-08-11
-- FEATURE: add `--license` and `--license-file` command-line flags for license code verification. 
+- FEATURE: add `--license` and `--license-file` command-line flags for license code verification.
 - IMPROVEMENT: Updated Python to 3.11.4 and updated dependencies.
 - IMPROVEMENT: Guide documentation for Custom Model usage.
 
 
 ## v1.4.2
 Released: 2023-06-09
-- BUGFIX: Fix case with received metric labels overriding generated.  
+- BUGFIX: Fix case with received metric labels overriding generated.
 
 
 ## v1.4.1
