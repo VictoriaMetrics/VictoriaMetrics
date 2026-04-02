@@ -3,6 +3,7 @@ package tests
 import (
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -482,7 +483,7 @@ func TestSingleVMAgentCardinalityLimiter(t *testing.T) {
 		},
 	)
 
-	if v := vmagent3.GetIntMetric(t, "vmagent_hourly_series_limit_max_series"); v == 0 {
+	if v := vmagent3.GetIntMetric(t, "vmagent_hourly_series_limit_max_series"); v != math.MaxInt32 {
 		t.Fatalf("unexpected vmagent_hourly_series_limit_max_series value: %d", v)
 	}
 
@@ -494,7 +495,7 @@ func TestSingleVMAgentCardinalityLimiter(t *testing.T) {
 		t.Fatalf("unexpected vmagent_hourly_series_limit_rows_dropped_total value: %d", v)
 	}
 
-	if v := vmagent3.GetIntMetric(t, "vmagent_daily_series_limit_max_series"); v == 0 {
+	if v := vmagent3.GetIntMetric(t, "vmagent_daily_series_limit_max_series"); v != math.MaxInt32 {
 		t.Fatalf("unexpected vmagent_daily_series_limit_max_series value: %d", v)
 	}
 
