@@ -355,10 +355,12 @@ func bufferRequestBody(ctx context.Context, r io.ReadCloser, userName string) (i
 		return nil, nil
 	}
 
-	maxBufSize := max(requestBufferSize.IntN(), maxRequestBodySizeToRetry.IntN())
-	if maxBufSize <= 0 {
+	requestBufSize := requestBufferSize.IntN()
+	retryBufSize := maxRequestBodySizeToRetry.IntN()
+	if requestBufSize <= 0 || retryBufSize <= 0 {
 		return r, nil
 	}
+	maxBufSize := max(requestBufSize, retryBufSize)
 
 	lr := ioutil.GetLimitedReader(r, int64(maxBufSize))
 	defer ioutil.PutLimitedReader(lr)
