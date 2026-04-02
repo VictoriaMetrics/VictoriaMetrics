@@ -324,7 +324,6 @@ func (sw *statWriter) Write(p []byte) (int, error) {
 	n, err := sw.File.Write(p)
 	d := time.Since(startTime).Seconds()
 	writeDuration.Add(d)
-	writeSyscallDuration.Add(d)
 	writtenBytesReal.Add(n)
 	return n, err
 }
