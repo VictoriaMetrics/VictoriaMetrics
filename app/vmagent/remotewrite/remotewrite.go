@@ -3,6 +3,7 @@ package remotewrite
 import (
 	"flag"
 	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -82,13 +83,13 @@ var (
 		`This may be needed for reducing memory usage at remote storage when the order of labels in incoming samples is random. `+
 		`For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}`+
 		`Enabled sorting for labels can slow down ingestion performance a bit`)
-	maxHourlySeries = flag.Int("remoteWrite.maxHourlySeries", 0, "The maximum number of unique series vmagent can send to remote storage systems during the last hour. "+
+	maxHourlySeries = flag.Int64("remoteWrite.maxHourlySeries", 0, "The maximum number of unique series vmagent can send to remote storage systems during the last hour. "+
 		"Excess series are logged and dropped. This can be useful for limiting series cardinality. "+
-		fmt.Sprintf("Setting this flag to '-1' sets limit to maximum possible value (%d) which is useful in order to enable series tracking without enforcing limits. ", bloomfilter.MaxLimit)+
+		fmt.Sprintf("Setting this flag to '-1' sets limit to maximum possible value (%d) which is useful in order to enable series tracking without enforcing limits. ", math.MaxInt32)+
 		"See https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter")
-	maxDailySeries = flag.Int("remoteWrite.maxDailySeries", 0, "The maximum number of unique series vmagent can send to remote storage systems during the last 24 hours. "+
+	maxDailySeries = flag.Int64("remoteWrite.maxDailySeries", 0, "The maximum number of unique series vmagent can send to remote storage systems during the last 24 hours. "+
 		"Excess series are logged and dropped. This can be useful for limiting series churn rate. "+
-		fmt.Sprintf("Setting this flag to '-1' sets limit to maximum possible value (%d) which is useful in order to enable series tracking without enforcing limits. ", bloomfilter.MaxLimit)+
+		fmt.Sprintf("Setting this flag to '-1' sets limit to maximum possible value (%d) which is useful in order to enable series tracking without enforcing limits. ", math.MaxInt32)+
 		"See https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter")
 	maxIngestionRate = flag.Int("maxIngestionRate", 0, "The maximum number of samples vmagent can receive per second. Data ingestion is paused when the limit is exceeded. "+
 		"By default there are no limits on samples ingestion rate. See also -remoteWrite.rateLimit")
@@ -163,7 +164,7 @@ func Init() {
 	if len(*remoteWriteURLs) == 0 {
 		logger.Fatalf("at least one `-remoteWrite.url` command-line flag must be set")
 	}
-	if limit := int32(*maxHourlySeries); limit > 0 || limit == -1 {
+	if limit := getMaxHourlySeries(); limit > 0 {
 		hourlySeriesLimiter = bloomfilter.NewLimiter(limit, time.Hour)
 		_ = metrics.NewGauge(`vmagent_hourly_series_limit_max_series`, func() float64 {
 			return float64(hourlySeriesLimiter.MaxItems())
@@ -172,7 +173,7 @@ func Init() {
 			return float64(hourlySeriesLimiter.CurrentItems())
 		})
 	}
-	if limit := int32(*maxDailySeries); limit > 0 || limit == -1 {
+	if limit := getMaxDailySeries(); limit > 0 {
 		dailySeriesLimiter = bloomfilter.NewLimiter(limit, 24*time.Hour)
 		_ = metrics.NewGauge(`vmagent_daily_series_limit_max_series`, func() float64 {
 			return float64(dailySeriesLimiter.MaxItems())
@@ -789,7 +790,7 @@ func getLabelsHash(labels []prompb.Label) uint64 {
 
 var labelsHashBufPool bytesutil.ByteBufferPool
 
-func logSkippedSeries(labels []prompb.Label, flagName string, flagValue int32) {
+func logSkippedSeries(labels []prompb.Label, flagName string, flagValue int) {
 	select {
 	case <-logSkippedSeriesTicker.C:
 		// Do not use logger.WithThrottler() here, since this will increase CPU usage
@@ -1121,4 +1122,22 @@ func newMapFromStrings(a []string) map[string]struct{} {
 		m[s] = struct{}{}
 	}
 	return m
+}
+
+func getMaxHourlySeries() int {
+	limit := *maxHourlySeries
+	if limit == -1 || limit > math.MaxInt32 {
+		return math.MaxInt32
+	}
+
+	return int(limit)
+}
+
+func getMaxDailySeries() int {
+	limit := *maxDailySeries
+	if limit == -1 || limit > math.MaxInt32 {
+		return math.MaxInt32
+	}
+
+	return int(limit)
 }
