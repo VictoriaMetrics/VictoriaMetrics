@@ -13,7 +13,6 @@
 package metrics
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"sort"
@@ -43,11 +42,6 @@ func init() {
 var (
 	registeredSets     = make(map[*Set]struct{})
 	registeredSetsLock sync.Mutex
-	bufPool            = sync.Pool{
-		New: func() any {
-			return bytes.NewBuffer(make([]byte, 0, 64*1024))
-		},
-	}
 )
 
 // RegisterSet registers the given set s for metrics export via global WritePrometheus() call.
