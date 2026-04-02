@@ -865,7 +865,7 @@ func (bb *bufferedBody) Read(p []byte) (int, error) {
 }
 
 func (bb *bufferedBody) canRetry() bool {
-	return len(bb.buf) < maxRequestBodySizeToRetry.IntN()
+	return !bb.cannotRetry
 }
 
 // Close implements io.Closer interface.
