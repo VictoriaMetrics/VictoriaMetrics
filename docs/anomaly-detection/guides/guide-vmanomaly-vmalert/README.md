@@ -395,7 +395,7 @@ services:
     restart: always
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.29.1
+    image: victoriametrics/vmanomaly:v1.29.2
     depends_on:
       - "victoriametrics"
     ports:
