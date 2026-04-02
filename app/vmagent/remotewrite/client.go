@@ -537,19 +537,20 @@ func logBlockRejected(block []byte, sanitizedURL string, resp *http.Response) {
 }
 
 // parseRetryAfterHeader parses `Retry-After` value retrieved from HTTP response header.
-// retryAfterString should be in either HTTP-date or a number of seconds.
-// It will return time.Duration(0) if `retryAfterString` does not follow RFC 7231.
-func parseRetryAfterHeader(retryAfterString string) (retryAfterDuration time.Duration) {
-	if retryAfterString == "" {
-		return retryAfterDuration
+//
+// s should be in either HTTP-date or a number of seconds.
+// It returns time.Duration(0) if s does not follow RFC 7231.
+func parseRetryAfterHeader(s string) time.Duration {
+	if s == "" {
+		return 0
 	}
 
 	// Retry-After could be in "Mon, 02 Jan 2006 15:04:05 GMT" format.
-	if parsedTime, err := time.Parse(http.TimeFormat, retryAfterString); err == nil {
+	if parsedTime, err := time.Parse(http.TimeFormat, s); err == nil {
 		return time.Duration(time.Until(parsedTime).Seconds()) * time.Second
 	}
 	// Retry-After could be in seconds.
-	if seconds, err := strconv.Atoi(retryAfterString); err == nil {
+	if seconds, err := strconv.Atoi(s); err == nil {
 		return time.Duration(seconds) * time.Second
 	}
 
