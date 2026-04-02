@@ -50,7 +50,7 @@ var (
 	requestBufferSize = flagutil.NewBytes("requestBufferSize", defaultBodyBufferSize, "The size of the buffer for reading the request body before proxying the request to backends. "+
 		"This allows reducing the consumption of backend resources when processing requests from clients connected via slow networks. "+
 		"Set to 0 to disable request buffering. See https://docs.victoriametrics.com/victoriametrics/vmauth/#request-body-buffering. "+
-		"Disabling request buffering also disables request retries configured with '-maxRequestBodySizeToRetry'")
+		" Disabling request buffering also disables request retries configured with '-maxRequestBodySizeToRetry'")
 	maxRequestBodySizeToRetry = flagutil.NewBytes("maxRequestBodySizeToRetry", defaultBodyBufferSize, "The maximum request body size in memory for potential retries at other backends. "+
 		"Request bodies larger than this size cannot be retried if the backend fails. Zero or negative value disables request retries. "+
 		"See also '-requestBufferSize' flag, which controlls a size of the buffer for potential retry.")
