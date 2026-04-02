@@ -286,8 +286,8 @@ var (
 	writtenBytesReal     = metrics.NewCounter(`vm_filestream_real_written_bytes_total`)
 	writersCount         = metrics.NewCounter(`vm_filestream_writers`)
 
-	fsyncDuration        = metrics.NewFloatCounter(`vm_filestream_fsync_duration_seconds_total`)
-	fsyncCalls           = metrics.NewCounter(`vm_filestream_fsync_calls_total`)
+	fsyncDuration = metrics.NewFloatCounter(`vm_filestream_fsync_duration_seconds_total`)
+	fsyncCalls    = metrics.NewCounter(`vm_filestream_fsync_calls_total`)
 )
 
 // Write writes p to the underlying file.
