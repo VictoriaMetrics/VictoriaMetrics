@@ -27,6 +27,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 ## tip
 
 * FEATURE: introduce `vm_filestream_fsync_duration_seconds_total` and `vm_filestream_fsync_calls_total` metrics, which can be used for detecting slow storage if it cannot keep up with the current data ingestion rate. See [#10432](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10432).
+* FEATURE: [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/): add dedicated `thanos` mode for [migrating data from Thanos](https://docs.victoriametrics.com/victoriametrics/vmctl/thanos/). This mode supports both raw and downsampled Thanos blocks, including all aggregate types (count, sum, min, max, counter). Each aggregate is imported as a separate metric with resolution and aggregate type suffixes (e.g., `metric_name:5m:count`). The new mode uses `--thanos-*` prefixed flags: `--thanos-snapshot`, `--thanos-concurrency`, `--thanos-filter-time-start`, `--thanos-filter-time-end`, `--thanos-filter-label`, `--thanos-filter-label-value`, and `--thanos-aggr-types`. See [#9262](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9262).
 
 ## [v1.139.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.139.0)
 
