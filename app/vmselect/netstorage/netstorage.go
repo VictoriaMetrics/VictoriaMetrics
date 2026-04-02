@@ -20,6 +20,7 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vmselectapi"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/VictoriaMetrics/metricsql"
 	"github.com/cespare/xxhash/v2"
@@ -2099,11 +2100,12 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 		if err := f(result.data); err != nil {
 			snr.finishQueryTracer(result.qt, fmt.Sprintf("error: %s", err))
 			var er *errRemote
-			if errors.As(err, &er) && !strings.Contains(er.msg, "search.maxConcurrentRequests") {
+			if errors.As(err, &er) && !strings.Contains(er.msg, "search.maxConcurrentRequests") && !strings.Contains(er.msg, vmselectapi.ErrorPrefix) {
 				// Immediately return the error reported by vmstorage to the caller,
 				// since such errors usually mean misconfiguration at vmstorage.
 				// The misconfiguration must be known by the caller, so it is fixed ASAP.
 				// Hitting maxConcurrentRequests limit is not fatal if replicationFactor > 1.
+				// Errors from vmselectapi should not immediately fail.
 				snr.finishQueryTracers("cancel request because of error in other vmstorage nodes")
 				return false, err
 			}

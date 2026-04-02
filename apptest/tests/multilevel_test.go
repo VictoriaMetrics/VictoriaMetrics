@@ -70,3 +70,55 @@ func TestClusterMultilevelSelect(t *testing.T) {
 	assertSeries(vmselectL1)
 	assertSeries(vmselectL2)
 }
+
+// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10678.
+func TestClusterMultilevelPartialResponse(t *testing.T) {
+	tc := apptest.NewTestCase(t)
+	defer tc.Stop()
+	// Set up the following multi-level cluster configuration:
+	//
+	//				  			     				|--> available vmstorage
+	//					 	  |	------> vmselect1 --|
+	//						  |	     				|--> unavailable vmstorage
+	// global-vmselect -------|
+	//				  		  |	     				|--> available vmstorage
+	// 					 	  |	------> vmselect2 --|
+	//						  	     				|--> available vmstorage
+
+	vmstorage := tc.MustStartVmstorage("vmstorage", []string{
+		"-storageDataPath=" + tc.Dir() + "/vmstorage",
+	})
+	// regional-vmselect1 can return full responses.
+	regionalVmselect1 := tc.MustStartVmselect("regional-vmselect1", []string{
+		"-storageNode=" + vmstorage.VmselectAddr(),
+	})
+	// regional-vmselect1 can not return full responses.
+	regionalVmselect2 := tc.MustStartVmselect("regional-vmselect2", []string{
+		"-storageNode=" + vmstorage.VmselectAddr() + ",192.0.2.1:1111",
+	})
+	globalVmselect := tc.MustStartVmselect("global-vmselect", []string{
+		"-storageNode=" + regionalVmselect1.ClusternativeListenAddr() + "," + regionalVmselect2.ClusternativeListenAddr(),
+	})
+
+	want := &apptest.PrometheusAPIV1QueryResponse{
+		Status:    "success",
+		IsPartial: true,
+		Data:      &apptest.QueryData{ResultType: "vector", Result: []*apptest.QueryResult{}},
+	}
+	want.Sort()
+	qopts := apptest.QueryOpts{Tenant: "0"}
+	assertSeries := func(app *apptest.Vmselect) {
+		t.Helper()
+		tc.Assert(&apptest.AssertOptions{
+			Msg: "unexpected /api/v1/query response",
+			Got: func() any {
+				res := app.PrometheusAPIV1Query(t, `{__name__=~".*"}`, qopts)
+				res.Sort()
+				return res
+			},
+			Want: want,
+		})
+	}
+	assertSeries(regionalVmselect2)
+	assertSeries(globalVmselect)
+}

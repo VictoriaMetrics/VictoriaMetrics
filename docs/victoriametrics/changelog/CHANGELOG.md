@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): `vmselect` won't return partial data blocks if the query is from upper level `vmselect` via cluster native protocol. It can prevent cache pollution in upper-level `vmselect` due to unawareness of partial data blocks. See [#10678](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10678)
+
 ## [v1.139.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.139.0)
 
 Released at 2026-03-27
