@@ -1,0 +1,28 @@
+{
+	"compaction": {
+		"level": 1,
+		"sources": [
+			"01KKS78P6B68DNJC87ZVPRGC3X"
+		]
+	},
+	"maxTime": 1735696740001,
+	"minTime": 1735689600000,
+	"stats": {
+		"numChunks": 8,
+		"numFloatSamples": 480,
+		"numSamples": 480,
+		"numSeries": 4
+	},
+	"thanos": {
+		"downsample": {
+			"resolution": 0
+		},
+		"labels": {
+			"prometheus": "test",
+			"replica": "0"
+		},
+		"source": "prometheus"
+	},
+	"ulid": "01KKS78P6B68DNJC87ZVPRGC3X",
+	"version": 1
+}

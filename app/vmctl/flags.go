@@ -416,6 +416,16 @@ const (
 	promTemporaryDirPath = "prom-tmp-dir-path"
 )
 
+const (
+	thanosSnapshot         = "thanos-snapshot"
+	thanosConcurrency      = "thanos-concurrency"
+	thanosFilterTimeStart  = "thanos-filter-time-start"
+	thanosFilterTimeEnd    = "thanos-filter-time-end"
+	thanosFilterLabel      = "thanos-filter-label"
+	thanosFilterLabelValue = "thanos-filter-label-value"
+	thanosAggrTypes        = "thanos-aggr-types"
+)
+
 var (
 	promFlags = []cli.Flag{
 		&cli.StringFlag{
@@ -449,6 +459,43 @@ var (
 			Name:  promTemporaryDirPath,
 			Usage: "Path to directory to be used for temporary files.",
 			Value: os.TempDir(),
+		},
+	}
+
+	thanosFlags = []cli.Flag{
+		&cli.StringFlag{
+			Name:     thanosSnapshot,
+			Usage:    "Path to Thanos snapshot directory containing raw and/or downsampled blocks.",
+			Required: true,
+		},
+		&cli.IntFlag{
+			Name:  thanosConcurrency,
+			Usage: "Number of concurrently running snapshot readers",
+			Value: 1,
+		},
+		&cli.StringFlag{
+			Name:  thanosFilterTimeStart,
+			Usage: "The time filter in RFC3339 format to select timeseries with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z'",
+		},
+		&cli.StringFlag{
+			Name:  thanosFilterTimeEnd,
+			Usage: "The time filter in RFC3339 format to select timeseries with timestamp equal or lower than provided value. E.g. '2020-01-01T20:07:00Z'",
+		},
+		&cli.StringFlag{
+			Name:  thanosFilterLabel,
+			Usage: "Thanos label name to filter timeseries by. E.g. '__name__' will filter timeseries by name.",
+		},
+		&cli.StringFlag{
+			Name:  thanosFilterLabelValue,
+			Usage: fmt.Sprintf("Thanos regular expression to filter label from %q flag.", thanosFilterLabel),
+			Value: ".*",
+		},
+		&cli.StringSliceFlag{
+			Name: thanosAggrTypes,
+			Usage: "Aggregate types to import from Thanos downsampled blocks. Supported values: count, sum, min, max, counter. " +
+				"Each aggregate will be imported as a separate metric with the aggregate type as suffix (e.g., metric_name:5m:count). " +
+				"If not specified, all aggregate types will be imported from downsampled blocks.",
+			Value: nil,
 		},
 	}
 )

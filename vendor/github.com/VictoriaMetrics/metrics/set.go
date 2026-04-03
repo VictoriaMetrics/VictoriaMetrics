@@ -35,10 +35,7 @@ func NewSet() *Set {
 // WritePrometheus writes all the metrics from s to w in Prometheus format.
 func (s *Set) WritePrometheus(w io.Writer) {
 	// Collect all the metrics in in-memory buffer in order to prevent from long locking due to slow w.
-	bb := bufPool.Get().(*bytes.Buffer)
-	bb.Reset()
-	defer bufPool.Put(bb)
-
+	var bb bytes.Buffer
 	lessFunc := func(i, j int) bool {
 		// the sorting must be stable.
 		// see edge cases why we can't simply do `s.a[i].name < s.a[j].name` here:
@@ -80,7 +77,7 @@ func (s *Set) WritePrometheus(w io.Writer) {
 		if !isMetadataEnabled() {
 			// Call marshalTo without the global lock, since certain metric types such as Gauge
 			// can call a callback, which, in turn, can try calling s.mu.Lock again.
-			nm.metric.marshalTo(nm.name, bb)
+			nm.metric.marshalTo(nm.name, &bb)
 			continue
 		}
 
@@ -96,7 +93,7 @@ func (s *Set) WritePrometheus(w io.Writer) {
 		if metricFamily != prevMetricFamily {
 			// write metadata only once per metric family
 			metricType := nm.metric.metricType()
-			writeMetadata(bb, metricFamily, metricType)
+			writeMetadata(&bb, metricFamily, metricType)
 			prevMetricFamily = metricFamily
 		}
 		bb.Write(metricsWithMetadataBuf.Bytes())
