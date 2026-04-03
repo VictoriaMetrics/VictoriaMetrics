@@ -763,7 +763,7 @@ var concurrentRequestsLimitReached = metrics.NewCounter("vmauth_concurrent_reque
 
 func usage() {
 	const s = `
-vmauth authenticates and authorizes incoming requests and proxies them to VictoriaMetrics.
+vmauth authenticates and authorizes incoming requests and proxies them to VictoriaMetrics components or any other HTTP backends.
 
 See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
 `
