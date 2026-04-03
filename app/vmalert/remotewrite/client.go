@@ -210,9 +210,9 @@ var (
 	rwErrors = metrics.NewCounter(`vmalert_remotewrite_errors_total`)
 	rwTotal  = metrics.NewCounter(`vmalert_remotewrite_total`)
 
+	// sentRows and sentBytes are historical counters that can now be replaced by flushedRows and flushedBytes histograms. They may be deprecated in the future after the new histograms have been adopted for some time.
 	sentRows  = metrics.NewCounter(`vmalert_remotewrite_sent_rows_total`)
 	sentBytes = metrics.NewCounter(`vmalert_remotewrite_sent_bytes_total`)
-	// below histograms can provide better visibility into remote write request sizes, the existing `vmalert_remotewrite_errors_total` and `vmalert_remotewrite_total` are insufficient for debugging underutilized requests (e.g., caused by small push interval).
 	flushedRows         = metrics.NewHistogram(`vmalert_remotewrite_sent_rows`)
 	flushedBytes        = metrics.NewHistogram(`vmalert_remotewrite_sent_bytes`)
 	droppedRows         = metrics.NewCounter(`vmalert_remotewrite_dropped_rows_total`)
