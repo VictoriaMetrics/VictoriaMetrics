@@ -31,6 +31,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * FEATURE: [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/): add dedicated `thanos` mode for [migrating data from Thanos](https://docs.victoriametrics.com/victoriametrics/vmctl/thanos/). This mode supports both raw and downsampled Thanos blocks, including all aggregate types (count, sum, min, max, counter). Each aggregate is imported as a separate metric with resolution and aggregate type suffixes (e.g., `metric_name:5m:count`). The new mode uses `--thanos-*` prefixed flags: `--thanos-snapshot`, `--thanos-concurrency`, `--thanos-filter-time-start`, `--thanos-filter-time-end`, `--thanos-filter-label`, `--thanos-filter-label-value`, and `--thanos-aggr-types`. See [#9262](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9262).
 
 * BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup/), [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): retry the requests that failed with unexpected EOF due to unstable network to S3 service. See [#10699](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10699).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): fix data race on the group's `lastEvaluation` field in the `/api/v1/rule` response.
 
 ## [v1.139.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.139.0)
 

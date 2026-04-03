@@ -381,7 +381,9 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 
 		if len(g.Rules) < 1 {
 			g.metrics.iterationDuration.UpdateDuration(start)
+			g.mu.Lock()
 			g.LastEvaluation = start
+			g.mu.Unlock()
 			return ts
 		}
 
@@ -395,7 +397,9 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 			}
 		}
 		g.metrics.iterationDuration.UpdateDuration(start)
+		g.mu.Lock()
 		g.LastEvaluation = start
+		g.mu.Unlock()
 		return ts
 	}
 
