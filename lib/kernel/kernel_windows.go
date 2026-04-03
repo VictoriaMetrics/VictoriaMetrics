@@ -3,6 +3,7 @@ package kernel
 import (
 	"fmt"
 
+	"github.com/VictoriaMetrics/metrics"
 	"golang.org/x/sys/windows"
 )
 
