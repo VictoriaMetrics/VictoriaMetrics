@@ -27,6 +27,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/opentsdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/prometheus"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/thanos"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
@@ -285,6 +286,7 @@ func main() {
 					if err != nil {
 						return fmt.Errorf("failed to create prometheus client: %s", err)
 					}
+
 					pp := prometheusProcessor{
 						cl:        cl,
 						im:        importer,
@@ -292,6 +294,59 @@ func main() {
 						isVerbose: c.Bool(globalVerbose),
 					}
 					return pp.run(ctx)
+				},
+			},
+			{
+				Name:   "thanos",
+				Usage:  "Migrate time series from Thanos blocks (supports raw and downsampled data)",
+				Flags:  mergeFlags(globalFlags, thanosFlags, vmFlags),
+				Before: beforeFn,
+				Action: func(c *cli.Context) error {
+					fmt.Println("Thanos import mode")
+
+					vmCfg, err := initConfigVM(c)
+					if err != nil {
+						return fmt.Errorf("failed to init VM configuration: %s", err)
+					}
+
+					importer, err = vm.NewImporter(ctx, vmCfg)
+					if err != nil {
+						return fmt.Errorf("failed to create VM importer: %s", err)
+					}
+
+					thanosCfg := thanos.Config{
+						Snapshot: c.String(thanosSnapshot),
+						Filter: thanos.Filter{
+							TimeMin:    c.String(thanosFilterTimeStart),
+							TimeMax:    c.String(thanosFilterTimeEnd),
+							Label:      c.String(thanosFilterLabel),
+							LabelValue: c.String(thanosFilterLabelValue),
+						},
+					}
+					cl, err := thanos.NewClient(thanosCfg)
+					if err != nil {
+						return fmt.Errorf("failed to create thanos client: %s", err)
+					}
+
+					var aggrTypes []thanos.AggrType
+					if aggrTypesStr := c.StringSlice(thanosAggrTypes); len(aggrTypesStr) > 0 {
+						for _, typeStr := range aggrTypesStr {
+							aggrType, err := thanos.ParseAggrType(typeStr)
+							if err != nil {
+								return fmt.Errorf("failed to parse aggregate type %q: %s", typeStr, err)
+							}
+							aggrTypes = append(aggrTypes, aggrType)
+						}
+					}
+
+					tp := thanosProcessor{
+						cl:        cl,
+						im:        importer,
+						cc:        c.Int(thanosConcurrency),
+						isVerbose: c.Bool(globalVerbose),
+						aggrTypes: aggrTypes,
+					}
+					return tp.run(ctx)
 				},
 			},
 			{

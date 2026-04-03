@@ -27,9 +27,11 @@ Server component of VictoriaMetrics Anomaly Detection (`vmanomaly`) is responsib
 - `ui_default_state`: Optional [UI](https://docs.victoriametrics.com/anomaly-detection/ui/) state fragment to open on `/vmui/`. Must be URL-encoded and start with `#/?` (e.g. `#/?param=value`). See [Default State](https://docs.victoriametrics.com/anomaly-detection/ui/#default-state) section for details on constructing the value from UI state.
 - `max_concurrent_tasks`: Maximum number of concurrent anomaly detection tasks processed by the backend. Positive integer. All tasks above the limit will be cancelled if the limit is exceeded. Defaults to `2`.
 - `uvicorn_config`: Uvicorn configuration dictionary. Default is `{"log_level": "warning"}`. See [Uvicorn server settings](https://www.uvicorn.org/settings/) for details.
+- {{% available_from "v1.29.2" anomaly %}} `use_reader_connection_settings`: If set to `true`, UI will use connection settings (e.g. credentials, TLS, etc.) from the [reader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#config-parameters) configuration when connecting to data sources. This allows UI to connect to data sources with the same settings without requiring having `vmauth` in front of both UI and data sources.
 
 ### Example Configuration
 
+> [!TIP]
 > If [hot-reloading](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#hot-reloading) is enabled in vmanomaly service, the server will automatically pick up changes made to the configuration file without requiring a restart.
 
 ```yaml
@@ -45,7 +47,16 @@ server:
   uvicorn_config:  # optional Uvicorn server configuration
     log_level: 'warning'
 
+  use_reader_connection_settings: true  # if set to true, UI will use connection settings from reader configuration below when connecting to data sources, allowing it to connect with the same credentials, TLS settings, etc. without requiring having vmauth in front of both UI and data sources.
+
 # other vmanomaly configuration sections, like reader, scheduler, models, etc.
+reader:
+  datasource_url: %{DS_URL}
+  user: %{DS_USER}
+  password: %{DS_PASSWORD}
+  # or
+  # bearer_token: %{DS_BEARER_TOKEN}
+  verify_tls: false
 ```
 
 ### Accessing the server
