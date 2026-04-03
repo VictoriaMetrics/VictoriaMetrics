@@ -47,12 +47,10 @@ func (s *Set) WritePrometheus(w io.Writer) {
 			return fName1 < fName2
 		}
 
-		// Only summary and quantile(s) have different metric types.
-		// Sorting by metric type will stabilize the order for summary and quantile(s).
-		mType1 := s.a[i].metric.metricType()
-		mType2 := s.a[j].metric.metricType()
-		if mType1 != mType2 {
-			return mType1 < mType2
+		// if both has same family, check the auxiliary first.
+		// only summary quantile(s) is registered as auxiliary, and quantile(s) in summary should go first.
+		if s.a[i].isAux != s.a[j].isAux {
+			return s.a[i].isAux
 		}
 
 		// lastly by metric names, which is for quantiles and histogram buckets.
