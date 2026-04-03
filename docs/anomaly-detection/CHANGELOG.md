@@ -14,10 +14,19 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.29.2
+Released: 2026-04-02
+
+- UI: Updated [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/) from [v1.5.1](https://docs.victoriametrics.com/anomaly-detection/ui/#v151) to [v1.6.0](https://docs.victoriametrics.com/anomaly-detection/ui/#v160), see respective [release notes](https://docs.victoriametrics.com/anomaly-detection/ui/#v160) for details. Notable changes include **full UI state modification** from [AI assistant](https://docs.victoriametrics.com/anomaly-detection/ui/#ai-assistance) and [showing business boundaries](https://docs.victoriametrics.com/anomaly-detection/ui/#visualization-panel) on a graph.
+
+- IMPROVEMENT: Added an option to proxy reader TLS/credential configuration from the `config.reader` to UI, allowing users to leverage the same secure connection settings for both backend and UI queries to datasource without requiring `vmauth` in front of the datasource for UI access. See [authentication section](https://docs.victoriametrics.com/anomaly-detection/ui/#authentication) for details.
+
+- IMPROVEMENT: Added configurable reconnect retry handling for [`VmWriter`](https://docs.victoriametrics.com/anomaly-detection/components/writer/#vm-writer) with `connection_retry_attempts` arg after transient connection-level write failures.
+
 ## v1.29.1
 Released: 2026-03-25
 
-- FEATURE: Added `min_rel_dev_from_expected` [common model argument](https://docs.victoriametrics.com/anomaly-detection/components/models/#min-rel-dev-from-expected) to support relative business gating based on percentage deviation from expected values. This allows users to specify a relative threshold for ignoring small deviations that are not significant in the context of the expected value, particularly useful for heterogeneous series with varying unknown magnitudes, returned from the same query.
+- FEATURE: Added `min_rel_dev_from_expected` [common model argument](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-relative-deviation-from-expected) to support relative business gating based on percentage deviation from expected values. This allows users to specify a relative threshold for ignoring small deviations that are not significant in the context of the expected value, particularly useful for heterogeneous series with varying unknown magnitudes, returned from the same query.
 
 - UI: Updated [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/) from [v1.5.0](https://docs.victoriametrics.com/anomaly-detection/ui/#v150) to [v1.5.1](https://docs.victoriametrics.com/anomaly-detection/ui/#v151), see respective [release notes](https://docs.victoriametrics.com/anomaly-detection/ui/#v151) for details.
 
