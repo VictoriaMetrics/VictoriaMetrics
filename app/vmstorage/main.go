@@ -168,6 +168,7 @@ func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 		writeStorageMetrics(w, strg)
 	})
 	metrics.RegisterSet(storageMetrics)
+	fs.RegisterStoragePath(*DataPath)
 }
 
 var storageMetrics *metrics.Set
@@ -514,7 +515,6 @@ func writeStorageMetrics(w io.Writer, strg *storage.Storage) {
 	strg.UpdateMetrics(&m)
 	tm := &m.TableMetrics
 	idbm := &m.TableMetrics.IndexDBMetrics
-	fs.RegisterStoragePath(*DataPath)
 
 	metrics.WriteGaugeUint64(w, fmt.Sprintf(`vm_free_disk_space_bytes{path=%q}`, *DataPath), fs.MustGetFreeSpace(*DataPath))
 	metrics.WriteGaugeUint64(w, fmt.Sprintf(`vm_free_disk_space_limit_bytes{path=%q}`, *DataPath), uint64(minFreeDiskSpaceBytes.N))
