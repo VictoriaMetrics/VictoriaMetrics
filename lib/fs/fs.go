@@ -13,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fsutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 var tmpFileNum atomicutil.Uint64
@@ -353,6 +354,30 @@ func IsDirOrSymlink(de os.DirEntry) bool {
 	return de.IsDir() || (de.Type()&os.ModeSymlink == os.ModeSymlink)
 }
 
+func RegisterStoragePath(path string) {
+	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vm_fs_metadata{path=%q, fs_type=%q}`, path, GetFsTypeName(path)), func() float64 { return 1 })
+}
+
+var fsTypeCacheLock sync.Mutex
+
+// Path To FsTypeName
+var fsTypeCache = map[string]string{}
+
+// GetFsTypeName returns the filesystem type name for the given path.
 func GetFsTypeName(path string) string {
-	return getFsTypeName(path)
+	// fast path: get fs name from cache
+	fsTypeCacheLock.Lock()
+	if fsName, ok := fsTypeCache[path]; ok {
+		fsTypeCacheLock.Unlock()
+		return fsName
+	}
+	fsTypeCacheLock.Unlock()
+
+	// slow path: get fs name by statfs syscall
+	fsType := getFsTypeName(path)
+
+	fsTypeCacheLock.Lock()
+	fsTypeCache[path] = fsType
+	fsTypeCacheLock.Unlock()
+	return fsType
 }

@@ -3,8 +3,6 @@
 package fs
 
 import (
-	"sync"
-
 	"golang.org/x/sys/unix"
 )
 
@@ -25,12 +23,18 @@ var fsMagicNumberToName = map[int64]string{
 	0x794c7630: "overlayfs",
 	0x65735546: "fuse",
 	0xca451a4e: "bcachefs",
+	0xadf5:     "adfs",
+	0xadff:     "affs",
+	0x5346414F: "afs",
+	0x0187:     "autofs",
+	0xf15f:     "ecryptfs",
+	0x414A53:   "efs",
+	0xE0F5E1E2: "erofs",
+	0x6969:     "nfs",
+	0xFF534D42: "cifs",
+	0x6c6f6f70: "binderfs",
+	0xBAD1DEA:  "futexfs",
 }
-
-var fsNameCacheLock sync.Mutex
-
-// Path To FsTypeName
-var fsNameCache = map[string]string{}
 
 type statfs_t = unix.Statfs_t
 
@@ -48,14 +52,6 @@ func statfs(path string, stat *statfs_t) (err error) {
 }
 
 func getFsTypeName(path string) string {
-	// fast path: get fs name from cache
-	fsNameCacheLock.Lock()
-	if fsName, ok := fsNameCache[path]; ok {
-		fsNameCacheLock.Unlock()
-		return fsName
-	}
-	fsNameCacheLock.Unlock()
-	// slow path: get fs name by statfs syscall
 	var stat statfs_t
 	fsName := "unknown"
 	err := statfs(path, &stat)
@@ -65,10 +61,5 @@ func getFsTypeName(path string) string {
 	if fsn, ok := fsMagicNumberToName[int64(stat.Type)]; ok {
 		fsName = fsn
 	}
-
-	fsNameCacheLock.Lock()
-	fsNameCache[path] = fsName
-	fsNameCacheLock.Unlock()
-
 	return fsName
 }

@@ -1,8 +1,9 @@
 package fs
 
 import (
-	"golang.org/x/sys/unix"
 	"sync"
+
+	"golang.org/x/sys/unix"
 )
 
 var fsNameCacheLock sync.Mutex
@@ -26,15 +27,6 @@ func statfs(path string, stat *statfs_t) (err error) {
 }
 
 func getFsTypeName(path string) string {
-	// fast path: get fs name from cache
-	fsNameCacheLock.Lock()
-	if fsName, ok := fsNameCache[path]; ok {
-		fsNameCacheLock.Unlock()
-		return fsName
-	}
-	fsNameCacheLock.Unlock()
-
-	// slow path: get fs name by statfs syscall
 	var stat statfs_t
 	fsName := "unknown"
 	err := statfs(path, &stat)
@@ -49,9 +41,5 @@ func getFsTypeName(path string) string {
 		fsNameBytes = append(fsNameBytes, byte(v))
 	}
 	fsName = string(fsNameBytes)
-	fsNameCacheLock.Lock()
-	fsNameCache[path] = fsName
-	fsNameCacheLock.Unlock()
-
 	return fsName
 }
