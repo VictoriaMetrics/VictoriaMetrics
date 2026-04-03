@@ -786,23 +786,7 @@ func (uw *urlWatcher) reloadObjects() string {
 func (uw *urlWatcher) watchForUpdates() {
 	gw := uw.gw
 	stopCh := gw.ctx.Done()
-	minBackoffDelay := timeutil.AddJitterToDuration(time.Second)
-	maxBackoffDelay := timeutil.AddJitterToDuration(time.Second * 30)
-	backoffDelay := minBackoffDelay
-	backoffSleep := func() {
-		t := timerpool.Get(backoffDelay)
-		select {
-		case <-stopCh:
-			timerpool.Put(t)
-			return
-		case <-t.C:
-			timerpool.Put(t)
-		}
-		backoffDelay *= 2
-		if backoffDelay > maxBackoffDelay {
-			backoffDelay = maxBackoffDelay
-		}
-	}
+	bt := timeutil.NewBackoffTimer(time.Second, time.Second*30)
 	apiURL := uw.apiURL
 	delimiter := getQueryArgsDelimiter(apiURL)
 	timeoutSeconds := time.Duration(0.9 * float64(gw.client.Timeout)).Seconds()
@@ -818,7 +802,7 @@ func (uw *urlWatcher) watchForUpdates() {
 
 		resourceVersion := uw.reloadObjects()
 		if resourceVersion == "" {
-			backoffSleep()
+			bt.Wait(stopCh)
 			continue
 		}
 		requestURL := apiURL + "&resourceVersion=" + url.QueryEscape(resourceVersion)
@@ -826,25 +810,25 @@ func (uw *urlWatcher) watchForUpdates() {
 		if err != nil {
 			if !errors.Is(err, context.Canceled) {
 				logger.Errorf("cannot perform request to %q: %s", requestURL, err)
-				backoffSleep()
+				bt.Wait(stopCh)
 			}
 			continue
 		}
 		if resp.StatusCode != http.StatusOK {
 			if resp.StatusCode == 410 {
 				// There is no need for sleep on 410 error. See https://kubernetes.io/docs/reference/using-api/api-concepts/#410-gone-responses
-				backoffDelay = minBackoffDelay
+				bt.Reset()
 				uw.staleResourceVersions.Inc()
 				uw.resourceVersion = ""
 			} else {
 				body, _ := io.ReadAll(resp.Body)
 				_ = resp.Body.Close()
 				logger.Errorf("unexpected status code for request to %q: %d; want %d; response: %q", requestURL, resp.StatusCode, http.StatusOK, body)
-				backoffSleep()
+				bt.Wait(stopCh)
 			}
 			continue
 		}
-		backoffDelay = minBackoffDelay
+		bt.Reset()
 		err = uw.readObjectUpdateStream(resp.Body)
 		_ = resp.Body.Close()
 		if err != nil {
@@ -852,7 +836,7 @@ func (uw *urlWatcher) watchForUpdates() {
 				logger.Errorf("error when reading WatchEvent stream from %q: %s", requestURL, err)
 				uw.resourceVersion = ""
 			}
-			backoffSleep()
+			bt.Wait(stopCh)
 			continue
 		}
 	}

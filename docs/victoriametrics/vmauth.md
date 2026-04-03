@@ -36,6 +36,10 @@ Pass `-help` to `vmauth` in order to see all the supported command-line flags wi
 
 Feel free to [contact us](mailto:info@victoriametrics.com) if you need a customized auth proxy for VictoriaMetrics with the support of LDAP, SSO, RBAC, SAML, accounting, and rate limiting, such as [vmgateway](https://docs.victoriametrics.com/victoriametrics/vmgateway/).
 
+> [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_vmauth_access)
+> provides built-in access control with organization-level roles, and lets you create and revoke read, write, or read/write access tokens with a couple of clicks from the UI, without the need of additional proxies.
+> See the [VictoriaMetrics Cloud documentation](https://docs.victoriametrics.com/victoriametrics-cloud/) to get started.
+
 ## Use cases
 
 * [Simple HTTP proxy](#simple-http-proxy)
