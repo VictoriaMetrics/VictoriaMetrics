@@ -185,7 +185,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.0.2",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
@@ -250,7 +250,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.0.2",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
@@ -313,7 +313,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.0.2",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
@@ -380,7 +380,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.0.2",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
@@ -460,7 +460,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.0.2",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
@@ -557,7 +557,7 @@
         },
         "showHeader": true
       },
-      "pluginVersion": "12.0.2",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
@@ -663,7 +663,7 @@
           "sort": "asc"
         }
       },
-      "pluginVersion": "12.0.2",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
@@ -783,7 +783,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.0.2",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
@@ -889,7 +889,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.0.2",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
@@ -993,7 +993,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.0.2",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
@@ -1097,7 +1097,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.0.2",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "datasource": {
@@ -1222,7 +1222,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -1337,7 +1337,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -1447,7 +1447,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -1562,7 +1562,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -1695,7 +1695,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -1800,7 +1800,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -1921,7 +1921,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -2043,7 +2043,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -2151,7 +2151,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -2260,7 +2260,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -2368,7 +2368,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -2472,7 +2472,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -2592,7 +2592,7 @@
               }
             ]
           },
-          "pluginVersion": "10.4.2",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -2722,7 +2722,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "9.2.6",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -2827,7 +2827,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "9.1.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -2942,7 +2942,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "9.2.6",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -3044,7 +3044,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "9.2.6",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -3146,7 +3146,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "9.2.6",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -3247,7 +3247,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "9.2.6",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -3346,7 +3346,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "9.2.6",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -3462,7 +3462,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "9.2.6",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -3564,7 +3564,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "8.0.3",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -3663,7 +3663,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "9.2.6",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -3695,399 +3695,521 @@
         "y": 29
       },
       "id": 55,
-      "panels": [
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "$ds"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "drawStyle": "line",
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green"
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 351
-          },
-          "id": 52,
-          "options": {
-            "legend": {
-              "calcs": [],
-              "displayMode": "list",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "mode": "single",
-              "sort": "desc"
-            }
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "victoriametrics-metrics-datasource",
-                "uid": "$ds"
-              },
-              "editorMode": "code",
-              "expr": "sum(rate(vmalert_remotewrite_sent_rows_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job) default sum(rate(vmalert_remotewrite_sent_rows_sum{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job)",
-              "legendFormat": "__auto",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "Datapoints send rate ($instance)",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "$ds"
-          },
-          "description": "Shows the number of datapoints dropped by vmalert while sending to the configured remote write URL. vmalert performs up to 5 retries before dropping the data. Check vmalert's error logs for the specific error message.",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "drawStyle": "line",
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green"
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 12,
-            "y": 351
-          },
-          "id": 53,
-          "options": {
-            "legend": {
-              "calcs": [],
-              "displayMode": "list",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "mode": "single",
-              "sort": "desc"
-            }
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "victoriametrics-metrics-datasource",
-                "uid": "$ds"
-              },
-              "editorMode": "code",
-              "expr": "sum(rate(vmalert_remotewrite_dropped_rows_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job) > 0",
-              "legendFormat": "__auto",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "Datapoints drop rate ($instance)",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "$ds"
-          },
-          "description": "Shows current number of established connections to remote write endpoints.\n\n",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "drawStyle": "line",
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "links": [],
-              "mappings": [],
-              "min": 0,
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green"
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              },
-              "unit": "short"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 378
-          },
-          "id": 54,
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "victoriametrics-metrics-datasource",
-                "uid": "$ds"
-              },
-              "editorMode": "code",
-              "exemplar": true,
-              "expr": "sum(max_over_time(vmalert_remotewrite_conns{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job)",
-              "interval": "",
-              "legendFormat": "__auto",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "Connections ($instance)",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "$ds"
-          },
-          "description": "Shows the global rate for number of written bytes via remote write connections.",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "drawStyle": "line",
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "links": [],
-              "mappings": [],
-              "min": 0,
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green"
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              },
-              "unit": "decbytes"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 12,
-            "y": 378
-          },
-          "id": 60,
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "victoriametrics-metrics-datasource",
-                "uid": "$ds"
-              },
-              "editorMode": "code",
-              "exemplar": true,
-              "expr": "sum(rate(vmalert_remotewrite_conn_bytes_written_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job) > 0",
-              "interval": "",
-              "legendFormat": "__auto",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "Bytes write rate ($instance)",
-          "type": "timeseries"
-        }
-      ],
+      "panels": [],
       "title": "Remote write",
       "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "$ds"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 30
+      },
+      "id": 52,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "12.2.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(vmalert_remotewrite_sent_rows_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job) default sum(rate(vmalert_remotewrite_sent_rows_sum{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job)",
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Datapoints send rate ($instance)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "$ds"
+      },
+      "description": "Shows the global rate for number of written bytes via remote write connections.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "links": [],
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "decbytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 30
+      },
+      "id": 60,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "12.2.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "editorMode": "code",
+          "exemplar": true,
+          "expr": "sum(rate(vmalert_remotewrite_conn_bytes_written_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job) > 0",
+          "interval": "",
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Bytes write rate ($instance)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "$ds"
+      },
+      "description": "Data could be dropped in two scenarios:\n1. The remote write queue(configured by -remoteWrite.maxQueueSize) is full:  \nThe queue can fill rapidly if heavy rules generate millions of series, or if remote write requests are unable to send data to the destination in a timely manner, resulting in data being jammed in the queue. Consider tuning -remoteWrite.maxQueueSize or -remoteWrite.concurrency.\nSee also Rows per request pannel.\n2. The request to the configured remote write URL failed(vmalert performs up to 5 retries before dropping the data).\n\nCheck vmalert's error logs for the specific error message.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 38
+      },
+      "id": 53,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "12.2.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(vmalert_remotewrite_dropped_rows_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job) > 0",
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Datapoints drop rate ($instance)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "$ds"
+      },
+      "description": "Displays the maximum 99th percentile of the number of data samples sent per request to the configured remote write URL.\nThe value is influenced by the utilization of the remote write queue. It is normal for this metric to remain low when there are no rules generating a large number of series, and to spike when heavy rules generate thousands of series.\nDuring periods of high load (when many heavy rules are generating results), the optimal value for rows per request should be high to maximize the efficiency of each push operation.\n\nIf you observe datapoint drops and consistently low values for rows per request, try checking the write latency between vmalert and the remote write destination, or increasing `-remoteWrite.flushInterval`.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 38
+      },
+      "id": 68,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "12.2.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "editorMode": "code",
+          "expr": "max(histogram_quantile(0.99, sum(increase(vmalert_remotewrite_sent_rows_bucket{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (instance, vmrange)))",
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Rows per request ($instance)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "$ds"
+      },
+      "description": "Shows current number of established connections to remote write endpoints.\n\n",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "links": [],
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 46
+      },
+      "id": 54,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "12.2.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "editorMode": "code",
+          "exemplar": true,
+          "expr": "sum(max_over_time(vmalert_remotewrite_conns{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job)",
+          "interval": "",
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Connections ($instance)",
+      "type": "timeseries"
     }
   ],
   "preload": false,
