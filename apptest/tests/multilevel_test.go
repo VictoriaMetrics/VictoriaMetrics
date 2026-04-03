@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"testing"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 )
@@ -92,20 +93,21 @@ func TestClusterMultilevelPartialResponse(t *testing.T) {
 		"-storageNode=" + vmstorage.VmselectAddr(),
 	})
 	regionalVmselect2 := tc.MustStartVmselect("regional-vmselect2", []string{
-		"-storageNode=" + vmstorage.VmselectAddr() + ",192.0.2.1:1111",
+		"-storageNode=" + vmstorage.VmselectAddr() + ",1.1.1.1:1111",
 	})
 	globalVmselect := tc.MustStartVmselect("global-vmselect", []string{
 		"-storageNode=" + regionalVmselect1.ClusternativeListenAddr() + "," + regionalVmselect2.ClusternativeListenAddr(),
 	})
 
-	want := &apptest.PrometheusAPIV1QueryResponse{
+	// 1. /api/v1/query
+	queryWant := &apptest.PrometheusAPIV1QueryResponse{
 		Status:    "success",
 		IsPartial: false,
 		Data:      &apptest.QueryData{ResultType: "vector", Result: []*apptest.QueryResult{}},
 	}
-	want.Sort()
+	queryWant.Sort()
 	qopts := apptest.QueryOpts{Tenant: "0"}
-	assertSeries := func(app *apptest.Vmselect) {
+	assertQuery := func(app *apptest.Vmselect) {
 		t.Helper()
 		tc.Assert(&apptest.AssertOptions{
 			Msg: "unexpected /api/v1/query response",
@@ -114,14 +116,73 @@ func TestClusterMultilevelPartialResponse(t *testing.T) {
 				res.Sort()
 				return res
 			},
-			Want: want,
+			Want: queryWant,
+		})
+	}
+	// regional-vmselect1 should return full response.
+	assertQuery(regionalVmselect1)
+	queryWant.IsPartial = true
+	// regional-vmselect2 should return partial response.
+	assertQuery(regionalVmselect2)
+	// global-vmselect should return partial response.
+	assertQuery(globalVmselect)
+
+	// 2. /api/v1/labels
+	labelWant := &apptest.PrometheusAPIV1LabelsResponse{
+		Status:    "success",
+		IsPartial: false,
+		Data:      make([]string, 0),
+	}
+	start := time.Now().Unix()
+	assertLabel := func(app *apptest.Vmselect) {
+		t.Helper()
+		tc.Assert(&apptest.AssertOptions{
+			Msg: "unexpected /api/v1/label response",
+
+			Got: func() any {
+				res := app.PrometheusAPIV1Labels(t, `{__name__="up"}`, apptest.QueryOpts{
+					Start: fmt.Sprintf("%d", start-100),
+					End:   fmt.Sprintf("%d", start),
+				})
+				return res
+			},
+			Want: labelWant,
+		})
+	}
+
+	// regional-vmselect1 should return full response.
+	assertLabel(regionalVmselect1)
+	labelWant.IsPartial = true
+	// regional-vmselect2 should return partial response.
+	assertLabel(regionalVmselect2)
+	// global-vmselect should return partial response.
+	assertLabel(globalVmselect)
+
+	// 3. /api/v1/label/%s/values
+	seriesWant := &apptest.PrometheusAPIV1SeriesResponse{
+		Status:    "success",
+		IsPartial: false,
+		Data:      make([]map[string]string, 0),
+	}
+	assertSeries := func(app *apptest.Vmselect) {
+		t.Helper()
+		tc.Assert(&apptest.AssertOptions{
+			Msg: "unexpected /api/v1/series response",
+
+			Got: func() any {
+				res := app.PrometheusAPIV1Series(t, `{__name__="up"}`, apptest.QueryOpts{
+					Start: fmt.Sprintf("%d", start-100),
+					End:   fmt.Sprintf("%d", start),
+				})
+				return res
+			},
+			Want: seriesWant,
 		})
 	}
 
 	// regional-vmselect1 should return full response.
 	assertSeries(regionalVmselect1)
-
-	want.IsPartial = true
+	seriesWant.IsPartial = true
 	// regional-vmselect2 should return partial response.
 	assertSeries(regionalVmselect2)
 	// global-vmselect should return partial response.
