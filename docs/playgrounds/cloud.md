@@ -1,10 +1,6 @@
 ---
 weight: 6 
 title: Cloud Playground
-menu:
-  docs:
-    parent: "playgrounds"
-    weight: 6
 tags:
 - victoriametrics
 - cloud

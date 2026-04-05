@@ -1,10 +1,6 @@
 ---
 weight: 3 
 title: VictoriaTraces Playground
-menu:
-  docs:
-    parent: "playgrounds"
-    weight: 3
 tags:
 - victoriatraces
 - playground

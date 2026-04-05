@@ -1,10 +1,6 @@
 ---
 weight: 1 
 title: VictoriaMetrics Playground
-menu:
-  docs:
-    parent: "playgrounds"
-    weight: 1
 tags:
 - victoriametrics
 ---

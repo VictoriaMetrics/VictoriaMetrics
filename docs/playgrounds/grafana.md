@@ -1,10 +1,6 @@
 ---
 weight: 4 
 title: Grafana Playground
-menu:
-  docs:
-    parent: "playgrounds"
-    weight: 4
 tags:
 - grafana
 - playground

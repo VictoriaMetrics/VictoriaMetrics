@@ -1,10 +1,6 @@
 ---
 weight: 5 
 title: Anomaly Detection Playground
-menu:
-  docs:
-    parent: "playgrounds"
-    weight: 5
 tags:
 - vmanomaly
 - playground

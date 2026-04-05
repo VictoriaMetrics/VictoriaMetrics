@@ -1,10 +1,6 @@
 ---
 weight: 2 
 title: VictoriaLogs Playground
-menu:
-  docs:
-    parent: "playgrounds"
-    weight: 2
 tags:
 - victorialogs
 - playground

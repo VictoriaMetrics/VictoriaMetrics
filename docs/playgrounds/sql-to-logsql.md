@@ -1,10 +1,6 @@
 ---
 weight: 7 
 title: SQL to LogsQL Playground
-menu:
-  docs:
-    parent: "playgrounds"
-    weight: 7
 tags:
 - logsql
 - SQL

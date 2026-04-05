@@ -1,10 +1,6 @@
 ---
 weight: 8 
 title: LogQL to LogsQL Playground
-menu:
-  docs:
-    parent: "playgrounds"
-    weight: 8
 tags:
 - logsql
 - loki
