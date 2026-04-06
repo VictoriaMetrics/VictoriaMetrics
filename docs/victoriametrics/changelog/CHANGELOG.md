@@ -38,6 +38,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): align request body buffering flags - `maxRequestBodySizeToRetry` and `requestBufferSize` to the same `16KB` value. Allow disabling request buffering by setting `requestBufferSize=0`. See [#10675](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10675)
 
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): fix `scrape_series_added` metric to update only on successful scrapes, aligning its behavior with Prometheus. See [#10653](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10653).
+
 ## [v1.139.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.139.0)
 
 Released at 2026-03-27
