@@ -285,7 +285,7 @@ See also [quantiles over input metrics](#quantiles-over-input-metrics) and [aggr
 [Histogram](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#histogram) is a set of [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter)
 metrics with different `vmrange` or `le` labels. Since typical usage of histograms is to calculate quantiles over the
 buckets change via [histogram_quantile](https://docs.victoriametrics.com/victoriametrics/metricsql/#histogram_quantile) function the
-appropriate aggregation output for this is [total](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#rate_sum):
+appropriate aggregation output for this is [rate_sum](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#rate_sum):
 
 ```yaml
 - match: 'http_request_duration_seconds_bucket'
