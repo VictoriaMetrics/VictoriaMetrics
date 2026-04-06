@@ -36,6 +36,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup/), [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): retry the requests that failed with unexpected EOF due to unstable network to S3 service. See [#10699](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10699).
 * BUGFIX: All VictoriaMetrics components: Fix an issue where `unsupported` metric metadata type was exposed for summaries and quantiles if a summary wasn't updated within a certain time window. See [metrics#120](https://github.com/VictoriaMetrics/metrics/issues/120) and [metrics#121](https://github.com/VictoriaMetrics/metrics/pull/121).
 
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): align request body buffering flags - `maxRequestBodySizeToRetry` and `requestBufferSize` to the same `16KB` value. Allow disabling request buffering by setting `requestBufferSize=0`. See [#10675](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10675)
+
 ## [v1.139.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.139.0)
 
 Released at 2026-03-27
