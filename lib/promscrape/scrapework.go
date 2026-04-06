@@ -608,7 +608,7 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 	sw.prevLabelsLen = len(wc.labels)
 	writeRequestCtxPool.Put(wc)
 
-	if !areIdenticalSeries && lastScrapeSuccess {
+	if !areIdenticalSeries && (lastScrapeSuccess || err == nil) {
 		// Send stale markers for disappeared metrics with the real scrape timestamp
 		// in order to guarantee that query doesn't return data after this time for the disappeared metrics.
 		sw.sendStaleSeries(lastScrapeStr, bodyString, realTimestamp, false)
@@ -720,7 +720,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 	}
 	sw.pushAutoMetrics(am, scrapeTimestamp)
 
-	if !areIdenticalSeries && lastScrapeSuccess {
+	if !areIdenticalSeries && (lastScrapeSuccess || err == nil) {
 		// Send stale markers for disappeared metrics with the real scrape timestamp
 		// in order to guarantee that query doesn't return data after this time for the disappeared metrics.
 		sw.sendStaleSeries(lastScrapeStr, bodyString, realTimestamp, false)
