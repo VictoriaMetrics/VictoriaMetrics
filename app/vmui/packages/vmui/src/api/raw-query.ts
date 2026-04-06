@@ -1,6 +1,6 @@
-import { getExportCSVDataUrl, getLabelsUrl } from "../../../api/query-range";
-import { TimeParams } from "../../../types";
-import { getCSVExportColumns } from "../../../utils/csv";
+import { getExportCSVDataUrl, getLabelsUrl } from "./query-range";
+import { TimeParams } from "../types";
+import { getCSVExportColumns } from "../utils/csv";
 
 interface LabelsResponse {
   data?: string[];
@@ -18,7 +18,7 @@ export const fetchRawQueryCSVExport = async (
     throw new Error(await labelsResponse.text());
   }
 
-  const { data = [] } = await labelsResponse.json() as LabelsResponse;
+  const { data = [] } = (await labelsResponse.json()) as LabelsResponse;
   const { format, header } = getCSVExportColumns(data);
 
   const response = await fetchFn(getExportCSVDataUrl(serverUrl, query, period, reduceMemUsage, format));

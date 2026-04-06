@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { fetchRawQueryCSVExport } from "./fetchRawQueryCSVExport";
+import { fetchRawQueryCSVExport } from "./raw-query";
 
 describe("fetchRawQueryCSVExport", () => {
   it("requests all label columns before exporting CSV data", async () => {

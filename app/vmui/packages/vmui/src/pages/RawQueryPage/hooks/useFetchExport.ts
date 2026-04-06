@@ -10,7 +10,7 @@ import { getExportDataUrl, getExportJSONDataUrl } from "../../../api/query-range
 import { parseLineToJSON } from "../../../utils/json";
 import { downloadCSV, downloadJSON } from "../../../utils/file";
 import { useSnack } from "../../../contexts/Snackbar";
-import { fetchRawQueryCSVExport } from "./fetchRawQueryCSVExport";
+import { fetchRawQueryCSVExport } from "../../../api/raw-query";
 
 interface FetchQueryParams {
   hideQuery?: number[];
