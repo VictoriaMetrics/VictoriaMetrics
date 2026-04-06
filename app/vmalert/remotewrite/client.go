@@ -210,8 +210,11 @@ var (
 	rwErrors = metrics.NewCounter(`vmalert_remotewrite_errors_total`)
 	rwTotal  = metrics.NewCounter(`vmalert_remotewrite_total`)
 
+	// sentRows and sentBytes are historical counters that can now be replaced by flushedRows and flushedBytes histograms. They may be deprecated in the future after the new histograms have been adopted for some time.
 	sentRows            = metrics.NewCounter(`vmalert_remotewrite_sent_rows_total`)
 	sentBytes           = metrics.NewCounter(`vmalert_remotewrite_sent_bytes_total`)
+	flushedRows         = metrics.NewHistogram(`vmalert_remotewrite_sent_rows`)
+	flushedBytes        = metrics.NewHistogram(`vmalert_remotewrite_sent_bytes`)
 	droppedRows         = metrics.NewCounter(`vmalert_remotewrite_dropped_rows_total`)
 	sendDuration        = metrics.NewFloatCounter(`vmalert_remotewrite_send_duration_seconds_total`)
 	bufferFlushDuration = metrics.NewHistogram(`vmalert_remotewrite_flush_duration_seconds`)
@@ -256,6 +259,8 @@ L:
 		if err == nil {
 			sentRows.Add(len(wr.Timeseries))
 			sentBytes.Add(len(b))
+			flushedRows.Update(float64(len(wr.Timeseries)))
+			flushedBytes.Update(float64(len(b)))
 			return
 		}
 
