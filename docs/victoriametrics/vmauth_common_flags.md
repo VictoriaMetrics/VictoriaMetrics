@@ -9,7 +9,7 @@ sitemap:
 <!-- The file should not be updated manually. Run make docs-update-flags while preparing a new release to sync flags in docs from actual binaries. -->
 ```shellhelp
 
-vmauth authenticates and authorizes incoming requests and proxies them to VictoriaMetrics.
+vmauth authenticates and authorizes incoming requests and proxies them to VictoriaMetrics components or any other HTTP backends.
 
 See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
 
