@@ -1,15 +1,8 @@
 package fs
 
 import (
-	"sync"
-
 	"golang.org/x/sys/unix"
 )
-
-var fsNameCacheLock sync.Mutex
-
-// Path To FsTypeName
-var fsNameCache = map[string]string{}
 
 type statfs_t = unix.Statfs_t
 
@@ -24,22 +17,4 @@ func totalSpace(stat statfs_t) uint64 {
 
 func statfs(path string, stat *statfs_t) (err error) {
 	return unix.Statfs(path, stat)
-}
-
-func getFsTypeName(path string) string {
-	var stat statfs_t
-	fsName := "unknown"
-	err := statfs(path, &stat)
-	if err != nil {
-		return fsName
-	}
-	fsNameBytes := make([]byte, 0, len(stat.F_fstypename))
-	for _, v := range stat.F_fstypename {
-		if v == 0 {
-			break
-		}
-		fsNameBytes = append(fsNameBytes, byte(v))
-	}
-	fsName = string(fsNameBytes)
-	return fsName
 }

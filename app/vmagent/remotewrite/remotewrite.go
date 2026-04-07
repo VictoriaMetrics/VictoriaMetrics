@@ -275,7 +275,7 @@ func initRemoteWriteCtxs(urls []string) {
 		rwctxs[i] = newRemoteWriteCtx(i, remoteWriteURL, sanitizedURL)
 		rwctxIdx[i] = i
 	}
-	fs.RegisterStoragePath(*tmpDataPath)
+	fs.ExposeFsMetadataAsMetric(*tmpDataPath)
 
 	if *shardByURL {
 		consistentHashNodes := make([]string, 0, len(urls))
