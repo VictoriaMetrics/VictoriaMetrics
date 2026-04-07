@@ -2432,6 +2432,19 @@ type nextDayMetricIDs struct {
 
 func (s *Storage) updateNextDayMetricIDs(date uint64) {
 	firstHourOfDay := (fasttime.UnixTimestamp()/3600)%24 == 0
+	if firstHourOfDay {
+		// Do not reset nextDayMetricIDs during the first hour of the day to
+		// speed up the creation of per-day indexes in updatePerDateData().
+		//
+		// updatePerDateData() relies on currHourMetricIDs and
+		// prevHourMetricIDs contents to decide whether the per-day index
+		// entries have already been created. At exactly 00:00 UTC (and some
+		// time after it) currHourMetricIDs is empty and prevHourMetricIDs
+		// cannot be used because it contains metricIDs for the previous
+		// day.
+		return
+	}
+
 	ptw := s.tb.MustGetPartition(int64(date+1) * msecPerDay)
 	nextDayIDBID := ptw.pt.idb.id
 	s.tb.PutPartition(ptw)
@@ -2460,18 +2473,6 @@ func (s *Storage) updateNextDayMetricIDs(date uint64) {
 	if e.date == date {
 		pendingMetricIDs.Union(&e.metricIDs)
 	} else {
-		if firstHourOfDay {
-			// Do not reset nextDayMetricIDs during the first hour of the day to
-			// speed up the creation of per-day indexes in updatePerDateData().
-			//
-			// updatePerDateData() relies on currHourMetricIDs and
-			// prevHourMetricIDs contents to decide whether the per-day index
-			// entries have already been created. At exactly 00:00 UTC (and some
-			// time after it) currHourMetricIDs is empty and prevHourMetricIDs
-			// cannot be used because it contains metricIDs for the previous
-			// day.
-			return
-		}
 		// Do not add pendingMetricIDs from the previous day to the current day,
 		// since this may result in missing registration of the metricIDs in the per-day inverted index.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3309
