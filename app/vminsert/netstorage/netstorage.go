@@ -602,7 +602,8 @@ func initStorageNodes(unsortedAddrs []string, rpcCall vminsertapi.RPCCall, hashS
 		sns = append(sns, sn)
 	}
 
-	maxBufSizePerStorageNode = getMaxBufSizePerStorageNode(memory.Allowed(), writeconcurrencylimiter.GetMaxConcurrentInserts(), len(sns))
+	maxBufSizePerInsertCtxStorageNode = getMaxBufSizePerInsertCtxStorageNode(memory.Allowed(), writeconcurrencylimiter.GetMaxConcurrentInserts(), len(sns))
+	maxBufSizePerStorageNode = getMaxBufSizePerStorageNode(memory.Allowed(), len(sns))
 
 	metrics.RegisterSet(ms)
 
@@ -624,13 +625,23 @@ func initStorageNodes(unsortedAddrs []string, rpcCall vminsertapi.RPCCall, hashS
 	return snb
 }
 
-// calculate maxBufSizePerStorageNode for insertCtx by:
+// calculate maxBufSizePerInsertCtxStorageNode for insertCtx by:
 // 1. 25% total available memory.
 // 2. divided by insertCtx concurrent insert limit.
 // 3. each object could hold `len(sns)` buffers, because each buffer will be dedicated to a netstorage.
 // 4. in range [1MB, 30MB], usually user won't reach the min border so it should be safe enough.
-func getMaxBufSizePerStorageNode(mem, concurrency, netstorageCount int) int {
+func getMaxBufSizePerInsertCtxStorageNode(mem, concurrency, netstorageCount int) int {
 	maxBufSize := mem / 4 / concurrency / netstorageCount
+	maxBufSize = max(consts.MinInsertPacketSizeForVMInsert, min(consts.MaxInsertPacketSizeForVMInsert, maxBufSize))
+	return maxBufSize
+}
+
+// calculate getMaxBufSizePerStorageNode for storage nodes by:
+// 1. 25% total available memory.
+// 2. count of netstorage.
+// 4. in range [1MB, 30MB], usually user won't reach the min border so it should be safe enough.
+func getMaxBufSizePerStorageNode(mem, netstorageCount int) int {
+	maxBufSize := mem / 4 / netstorageCount
 	maxBufSize = max(consts.MinInsertPacketSizeForVMInsert, min(consts.MaxInsertPacketSizeForVMInsert, maxBufSize))
 	return maxBufSize
 }
@@ -965,7 +976,8 @@ func (sn *storageNode) checkReadOnlyMode() {
 }
 
 var (
-	maxBufSizePerStorageNode int
+	maxBufSizePerInsertCtxStorageNode int
+	maxBufSizePerStorageNode          int
 
 	reroutedRowsProcessed           = metrics.NewCounter(`vm_rpc_rerouted_rows_processed_total{name="vminsert"}`)
 	reroutesTotal                   = metrics.NewCounter(`vm_rpc_reroutes_total{name="vminsert"}`)

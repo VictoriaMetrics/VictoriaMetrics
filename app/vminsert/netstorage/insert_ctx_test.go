@@ -6,7 +6,7 @@ import (
 )
 
 func TestInsertCtxResizeStorageNodeBuf(t *testing.T) {
-	maxBufSizePerStorageNode = 30 * 1024 * 1024
+	maxBufSizePerInsertCtxStorageNode = 30 * 1024 * 1024
 	t.Run("test resize and restore", func(t *testing.T) {
 		insertCtx := &InsertCtx{}
 		insertCtx.bufRowss = make([]bufRows, 1)
@@ -44,7 +44,7 @@ func TestInsertCtxResizeStorageNodeBuf(t *testing.T) {
 		insertCtx.ResizeStorageNodeBuf(0, 31*1024*1024)
 		after := insertCtx.bufRowss[0].buf
 
-		if cap(after) > maxBufSizePerStorageNode {
+		if cap(after) > maxBufSizePerInsertCtxStorageNode {
 			t.Fatalf("InsertCtx.ResizeStorageNodeBuf exceed limit")
 		}
 

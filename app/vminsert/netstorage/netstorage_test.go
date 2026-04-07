@@ -138,9 +138,9 @@ func TestAllowRerouting(t *testing.T) {
 func TestGetMaxBufSizePerStorageNode(t *testing.T) {
 	f := func(mem, concurrency, netstorageCount, threshold int) {
 		t.Helper()
-		result := getMaxBufSizePerStorageNode(mem, concurrency, netstorageCount)
+		result := getMaxBufSizePerInsertCtxStorageNode(mem, concurrency, netstorageCount)
 		if result > threshold {
-			t.Fatalf("getMaxBufSizePerStorageNode() returned %d MiB results, expected not exceeding %d MiB", result/1024/1024, threshold/1024/1024)
+			t.Fatalf("getMaxBufSizePerInsertCtxStorageNode() returned %d MiB results, expected not exceeding %d MiB", result/1024/1024, threshold/1024/1024)
 		}
 	}
 
