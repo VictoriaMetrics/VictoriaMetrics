@@ -41,7 +41,6 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): fix `scrape_series_added` metric to update only on successful scrapes, aligning its behavior with Prometheus. See [#10653](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10653).
 
-
 ## [v1.139.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.139.0)
 
 Released at 2026-03-27
