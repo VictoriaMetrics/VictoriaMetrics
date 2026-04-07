@@ -16,24 +16,23 @@ In the following sections, we’ll walk through each playground, explain its pur
 - Query language reference: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/)
 - GitHub: <https://github.com/VictoriaMetrics/VictoriaMetrics>
 
-This is the primary playground for VictoriaMetrics, powered by [VMUI](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) and backed by a VictoriaMetrics cluster installation. Turn on autocomplete and start typing to see available time series.
+This is the primary playground for VictoriaMetrics, powered by [VMUI](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) and backed by a VictoriaMetrics cluster installation. It allows querying metrics, plotting graphs, exploring cardinality, defining alerting rules, debugging relabeling rules, and viewing query traces.
 
-You can try these to get started:
+The best place to get started is with the [Cardinality Explorer](https://play.victoriametrics.com/select/0/prometheus/graph/#/cardinality?date=2026-04-07) tab, found under **Explore** > **Explore Cardinality**. This view shows overall statistics, lets you browse top metrics and labels in the dataset, and lets you drill down into them without writing a single line of MetricsQL.
 
+![Screenshot of VMUI](vmui-cardinality-explorer.webp)
+<figcaption style="text-align: center; font-style: italic;">Cardinality Explorer in VictoriaMetrics</figcaption>
+
+
+Once you are familiar with the available metrics, you can go to the **Query** tab and type a query. [The following example] shows the current version for every job in the dataset using: `count(vm_app_version) by(job, short_version)`.
+
+![Screenshot of VMUI](vmui-app-version.webp)
+<figcaption style="text-align: center; font-style: italic;">Table view of app versions per job</figcaption>
+
+Other interesting queries you may try:
 - Average CPU usage per job: `sum(rate(process_cpu_seconds_total[5m])) by (job)`
-
-    ![Screenshot of VMUI](vm-main-vmui.webp)
-    <figcaption style="text-align: center; font-style: italic;">VictoriaMetrics playground</figcaption>
-
 - HTTP requests per-second rate: `sum(rate(vm_http_requests_total[5m]))`
-
-    ![Screenshot of VMUI](vm-process-cpu.webp)
-    <figcaption style="text-align: center; font-style: italic;">Average CPU usage per job</figcaption>
-
 - Top 5 CPU intensive jobs: `topk(5, sum(rate(process_cpu_seconds_total[5m])) by (job))`
-
-    ![Screenshot of VMUI](vm-http-requests.webp)
-    <figcaption style="text-align: center; font-style: italic;">HTTP requests per second</figcaption>
 
 ## VictoriaLogs Playground
 
@@ -41,24 +40,15 @@ You can try these to get started:
 - Query language reference: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/)
 - GitHub: <https://github.com/VictoriaMetrics/VictoriaLogs>
 
-This playground lets you test VictoriaLogs with a sample log set, highlighting its ability to handle high‑volume logs with low operational overhead.
+This playground uses the [OpenTelemetry Astronomy Shop demo](https://github.com/open-telemetry/opentelemetry-demo). It is a good way to understand how VictoriaLogs handles high-volume logs with low operational overhead.
 
-You can try these to get started:
+To start exploring the data, look at the sidebar. It shows the stream fields available in the dataset, and clicking any field or value automatically applies a filter, so you can browse the logs before writing your own query.
 
-- Type `*` in the Query to show every log message
+![Screenshot of VictoriaLogs VMUI](vl-vmui.webp)
 
-    ![Screenshot of VMUI](vl-main-vmui.webp)
-    <figcaption style="text-align: center; font-style: italic;">Showing all logs entries</figcaption>
-
-- Typing `error AND _time:24h` shows entries containing the string "error" from the last 24 hours.
-
-    ![Screenshot of VMUI](vl-error.webp)
-    <figcaption style="text-align: center; font-style: italic;">Messages with string "error" in the last 24 hours</figcaption>
-
-- The Overview page gives a quick view of logs in VictoriaLogs, including volume, structure, trends, frequent fields, and unusual streams.
-
-    ![Screenshot of VMUI](vl-overview.webp)
-    <figcaption style="text-align: center; font-style: italic;">Overview page</figcaption>
+You can try these queries to get started:
+- Show every log message: `*`
+- Show messages with "error" in the last 24 hours: `error AND _time:24h`
 
 ## VictoriaTraces Playground
 
@@ -76,30 +66,20 @@ VictoriaTraces provides a UI for browsing trace data by span. This playground is
 
 ## VMAnomaly Playground
 
-- Try it: 
-  - VMAnomaly for metrics: <https://play-vmanomaly.victoriametrics.com/metrics/>
-  - VMAnomaly for logs: <https://play-vmanomaly.victoriametrics.com/logs/>
-  - VMAnomaly for traces: <https://play-vmanomaly.victoriametrics.com/traces/>
-- [UI Guide](https://docs.victoriametrics.com/anomaly-detection/ui/#example-usage)
-- [Installation guide](https://docs.victoriametrics.com/anomaly-detection/quickstart/)
-This playground demonstrates automatic [anomaly detection](https://docs.victoriametrics.com/anomaly-detection/). 
+> [!NOTE]
+> VictoriaTraces is under active development and does not yet have its own web interface.
 
 VMAnomaly analyzes metrics, logs, or traces using VictoriaMetrics’ built-in anomaly detection model to generate an [anomaly score](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score). An `anomaly_score > 1` indicates an anomalous condition that deserves attention.
 
-- The metrics anomaly playground shows anomalies in CPU utilization.
+Since there is no specialized UI for traces yet, you can visualize and track traces directly in the [Grafana playground](https://play-grafana.victoriametrics.com/explore?schemaVersion=1&panes=%7B%22w7z%22:%7B%22datasource%22:%22P14D5514F5CCC0D1C%22,%22queries%22:%5B%7B%22refId%22:%22A%22,%22datasource%22:%7B%22type%22:%22jaeger%22,%22uid%22:%22P14D5514F5CCC0D1C%22%7D,%22queryType%22:%22search%22,%22service%22:%22accounting%22%7D%5D,%22range%22:%7B%22from%22:%22now-1h%22,%22to%22:%22now%22%7D,%22compact%22:false%7D%7D&orgId=1).
 
-    ![Screenshot of VMUI](vmanomaly-metrics.webp)
-    <figcaption style="text-align: center; font-style: italic;">Exploring anomalies on metric data on CPU utilization</figcaption>
+To view trace data, follow these steps:
+1. On the [Grafana Playground](https://play-grafana.victoriametrics.com/), select **Explore** in the sidebar
+2. Select VictoriaTraces / Jaeger in the combo box near the top-left corner
+3. In **Query Type** select "Search"
+4. Select one of the services and press **Run Query** 
 
-- VMAnomaly also analyzes VictoriaLogs data. The logs playground displays anomalies in log ingestion.
-
-    ![Screenshot of VMUI](vmanomaly-logs.webp)
-    <figcaption style="text-align: center; font-style: italic;">Finding anomalies in log ingestion</figcaption>
-
-- You can run vmanomaly on VictoriaTraces. By default, the traces playground analyzes service spans with an error status.
-
-    ![Screenshot of VMUI](vmanomaly-traces.webp)
-    <figcaption style="text-align: center; font-style: italic;">Analyzing traces for service error anomalies</figcaption>
+![Screenshot of Grafana](vt-grafana.webp)
 
 ## Docker Compose Playgrounds
 
