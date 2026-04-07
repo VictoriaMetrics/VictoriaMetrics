@@ -2242,7 +2242,7 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 	// pMin linearly increases from 0 to 1 during the last hour of the day.
 	pMin := (float64(ts%(3600*24)) / 3600) - 23
 	currentHour := ts / 3600
-	firstHourOfDay := (ts/3600)%24 == 0
+	firstHourOfDay := isFirstHourOfDay(ts)
 	type pendingDateMetricID struct {
 		date uint64
 		tsid *TSID
@@ -2431,7 +2431,7 @@ type nextDayMetricIDs struct {
 }
 
 func (s *Storage) updateNextDayMetricIDs(date uint64) {
-	firstHourOfDay := (fasttime.UnixTimestamp()/3600)%24 == 0
+	firstHourOfDay := isFirstHourOfDay(fasttime.UnixTimestamp())
 	if firstHourOfDay {
 		// Do not reset nextDayMetricIDs during the first hour of the day to
 		// speed up the creation of per-day indexes in updatePerDateData().
