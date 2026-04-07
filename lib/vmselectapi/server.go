@@ -21,6 +21,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricnamestats"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 )
@@ -1150,7 +1151,7 @@ func (s *Server) processMetricNamesUsageStats(ctx *vmselectRequestCtx) error {
 	return nil
 }
 
-func writeMetricNameStatRecords(ctx *vmselectRequestCtx, records []storage.MetricNamesStatsRecord) error {
+func writeMetricNameStatRecords(ctx *vmselectRequestCtx, records []metricnamestats.StatRecord) error {
 	if err := ctx.writeUint64(uint64(len(records))); err != nil {
 		return fmt.Errorf("cannot write MetricNamesStatsRecord size: %w", err)
 	}

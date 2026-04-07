@@ -461,7 +461,9 @@ VictoriaMetrics remote write protocol provides the following benefits comparing 
 
 * Reduced disk read/write IO and disk space usage at `vmagent` when the remote storage is temporarily unavailable.
   In this case `vmagent` buffers the incoming data to disk using the VictoriaMetrics remote write format.
-  This reduces disk read/write IO and disk space usage by 2x-5x comparing to Prometheus remote write format.
+  This reduces disk read/write IO and disk space usage by 2x-5x compared to Prometheus remote write format.
+
+> See blogpost [Save network costs with VictoriaMetrics remote write protocol](https://victoriametrics.com/blog/victoriametrics-remote-write/).
 
 `vmagent` uses VictoriaMetrics remote write protocol by default {{% available_from "v1.116.0" %}} when it sends data to VictoriaMetrics components such as other `vmagent` instances,
 [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
@@ -610,6 +612,8 @@ and attaches `instance`, `job` and other target-specific labels to these metrics
 
   `vmagent` sets `scrape_series_added` to zero when it runs with `-promscrape.noStaleMarkers` command-line flag
   or when it scrapes target with `no_stale_markers: true` option, e.g. when [staleness markers](#prometheus-staleness-markers) are disabled.
+
+  Restarting `vmagent` can cause `scrape_series_added` to rise because all time series are new to a newly started `vmagent`.
 
 * `scrape_series_limit` - the limit on the number of unique [series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) the given target can expose according to [these docs](#cardinality-limiter).
   This metric is exposed only if the series limit is set.

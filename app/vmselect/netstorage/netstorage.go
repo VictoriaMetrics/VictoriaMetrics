@@ -37,6 +37,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricnamestats"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
 )
 
@@ -1325,7 +1326,7 @@ func mergeTSDBStatuses(statuses []*storage.TSDBStatus, topN int) *storage.TSDBSt
 	seriesCountByFocusLabelValue := make(map[string]uint64)
 	seriesCountByLabelValuePair := make(map[string]uint64)
 	labelValueCountByLabelName := make(map[string]uint64)
-	seriesQueryStatsByMetricNames := make(map[string]storage.MetricNamesStatsRecord)
+	seriesQueryStatsByMetricNames := make(map[string]metricnamestats.StatRecord)
 	for _, st := range statuses {
 		totalSeries += st.TotalSeries
 		totalLabelValuePairs += st.TotalLabelValuePairs
@@ -1364,7 +1365,7 @@ func mergeTSDBStatuses(statuses []*storage.TSDBStatus, topN int) *storage.TSDBSt
 	// do not apply topN limit
 	// query stats should be joined to SeriesCountByMetricName
 	// at write response
-	seriesQueryStatsTotal := make([]storage.MetricNamesStatsRecord, 0, len(seriesQueryStatsByMetricNames))
+	seriesQueryStatsTotal := make([]metricnamestats.StatRecord, 0, len(seriesQueryStatsByMetricNames))
 	for _, entry := range seriesQueryStatsByMetricNames {
 		seriesQueryStatsTotal = append(seriesQueryStatsTotal, entry)
 	}
@@ -3418,9 +3419,9 @@ func metricNameTenantToTags(mn *storage.MetricName) {
 }
 
 // GetMetricNamesStats returns metric names usage statistics for the given params
-func GetMetricNamesStats(qt *querytracer.Tracer, tt *storage.TenantToken, limit, le int, matchPattern string, deadline searchutil.Deadline) (storage.MetricNamesStatsResponse, error) {
+func GetMetricNamesStats(qt *querytracer.Tracer, tt *storage.TenantToken, limit, le int, matchPattern string, deadline searchutil.Deadline) (metricnamestats.StatsResult, error) {
 	type nodeResult struct {
-		resp storage.MetricNamesStatsResponse
+		resp metricnamestats.StatsResult
 		err  error
 	}
 	sns := getStorageNodes()
@@ -3429,7 +3430,7 @@ func GetMetricNamesStats(qt *querytracer.Tracer, tt *storage.TenantToken, limit,
 		return nodeResult{resp: resp, err: err}
 	})
 	var mu sync.Mutex
-	var mnuss storage.MetricNamesStatsResponse
+	var mnuss metricnamestats.StatsResult
 	if err := snr.collectAllResults(func(result any) error {
 		r := result.(nodeResult)
 		if r.err != nil {
@@ -3446,8 +3447,8 @@ func GetMetricNamesStats(qt *querytracer.Tracer, tt *storage.TenantToken, limit,
 	return mnuss, nil
 }
 
-func (sn *storageNode) processGetMetricNamesStats(qt *querytracer.Tracer, tt *storage.TenantToken, limit, le int, matchPattern string, deadline searchutil.Deadline) (storage.MetricNamesStatsResponse, error) {
-	var result storage.MetricNamesStatsResponse
+func (sn *storageNode) processGetMetricNamesStats(qt *querytracer.Tracer, tt *storage.TenantToken, limit, le int, matchPattern string, deadline searchutil.Deadline) (metricnamestats.StatsResult, error) {
+	var result metricnamestats.StatsResult
 	f := func(bc *handshake.BufferedConn) error {
 		bcResult, err := processGetMetricNamesUsageStatsOnConn(bc, tt, limit, le, matchPattern)
 		if err != nil {
@@ -3462,8 +3463,8 @@ func (sn *storageNode) processGetMetricNamesStats(qt *querytracer.Tracer, tt *st
 	return result, nil
 }
 
-func processGetMetricNamesUsageStatsOnConn(bc *handshake.BufferedConn, tt *storage.TenantToken, limit, le int, matchPattern string) (storage.MetricNamesStatsResponse, error) {
-	var result storage.MetricNamesStatsResponse
+func processGetMetricNamesUsageStatsOnConn(bc *handshake.BufferedConn, tt *storage.TenantToken, limit, le int, matchPattern string) (metricnamestats.StatsResult, error) {
+	var result metricnamestats.StatsResult
 	hasTenantToken := tt != nil
 	if err := writeBool(bc, hasTenantToken); err != nil {
 		return result, fmt.Errorf("cannot write hasTenantToken: %w", err)
@@ -3522,12 +3523,12 @@ func processGetMetricNamesUsageStatsOnConn(bc *handshake.BufferedConn, tt *stora
 	return result, nil
 }
 
-func readMetricNamesStatsRecords(bc *handshake.BufferedConn) ([]storage.MetricNamesStatsRecord, error) {
+func readMetricNamesStatsRecords(bc *handshake.BufferedConn) ([]metricnamestats.StatRecord, error) {
 	n, err := readUint64(bc)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read the number of MetricNamesStatsRecord: %w", err)
 	}
-	records := make([]storage.MetricNamesStatsRecord, n)
+	records := make([]metricnamestats.StatRecord, n)
 	var mnBuff []byte
 	for i := range n {
 		mnBuff, err = readBytes(mnBuff[:0], bc, maxLabelValueSize)

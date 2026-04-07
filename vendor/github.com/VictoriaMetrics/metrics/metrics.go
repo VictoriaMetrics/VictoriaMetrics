@@ -13,7 +13,6 @@
 package metrics
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"sort"
@@ -26,7 +25,11 @@ import (
 type namedMetric struct {
 	name   string
 	metric metric
-	isAux  bool
+
+	// isAux indicates whether it is an auxiliary metric.
+	// Currently only set for quantileValue, as it is part of the Summary.
+	// This field affects sorting when quantileValue and Summary are compared.
+	isAux bool
 }
 
 type metric interface {
@@ -43,11 +46,6 @@ func init() {
 var (
 	registeredSets     = make(map[*Set]struct{})
 	registeredSetsLock sync.Mutex
-	bufPool            = sync.Pool{
-		New: func() any {
-			return bytes.NewBuffer(make([]byte, 0, 64*1024))
-		},
-	}
 )
 
 // RegisterSet registers the given set s for metrics export via global WritePrometheus() call.

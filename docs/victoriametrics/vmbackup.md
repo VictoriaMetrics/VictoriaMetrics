@@ -26,6 +26,10 @@ This tool simplifies the creation of hourly, daily, weekly and monthly backups.
 Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 See how to request a [free trial license](https://victoriametrics.com/products/enterprise/trial/).
 
+> If you'd prefer not to manage backups at all, [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_vmbackup_intro)
+> handles backups and restores automatically without the need of extra configurations.
+> See the [VictoriaMetrics Cloud documentation](https://docs.victoriametrics.com/victoriametrics-cloud/) to get started.
+
 ### Single node backup
 To make a complete backup for VictoriaMetrics single node run the following command:
 ```sh
