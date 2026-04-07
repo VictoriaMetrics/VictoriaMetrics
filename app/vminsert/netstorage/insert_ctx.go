@@ -341,23 +341,6 @@ func (ctx *InsertCtx) TryPrepareLabels(hasRelabeling bool) bool {
 	return true
 }
 
-func (ctx *InsertCtx) ResizeStorageNodeBuf(storageNodeIdx, n int) {
-	br := ctx.bufRowss[storageNodeIdx]
-
-	// grow at least extra n bytes
-	before := len(br.buf)
-	after := before + n
-	if after >= maxBufSizePerInsertCtxStorageNode {
-		after = maxBufSizePerInsertCtxStorageNode
-	}
-	br.buf = bytesutil.ResizeWithCopyNoOverallocate(br.buf, after)
-
-	// restore the previous length
-	br.buf = br.buf[:before]
-
-	ctx.bufRowss[storageNodeIdx] = br
-}
-
 type rowHasher func(src []byte) (h uint64, tail []byte, err error)
 
 func getMetricRowHasher() rowHasher {

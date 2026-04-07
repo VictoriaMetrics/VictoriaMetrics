@@ -61,15 +61,13 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, mms []prompb.Met
 		}
 		atLocal := ctx.GetLocalAuthToken(at)
 		storageNodeIdx := ctx.GetStorageNodeIdx(atLocal, ctx.Labels)
-		ctx.Buf = storage.MarshalMetricNameRaw(ctx.Buf[:0], atLocal.AccountID, atLocal.ProjectID, ctx.Labels)
+		ctx.Buf = ctx.Buf[:0]
 		samples := ts.Samples
-
-		// try to allocate space in advance, by grow (metricNameRaw+uint64+uint64) bytes as cap, but do not exceed the max.
-		growSize := len(samples) * (len(ctx.Buf) + 8 + 8)
-		ctx.ResizeStorageNodeBuf(storageNodeIdx, growSize)
-
 		for i := range samples {
 			r := &samples[i]
+			if len(ctx.Buf) == 0 {
+				ctx.Buf = storage.MarshalMetricNameRaw(ctx.Buf[:0], atLocal.AccountID, atLocal.ProjectID, ctx.Labels)
+			}
 			if err := ctx.WriteDataPointExt(storageNodeIdx, ctx.Buf, r.Timestamp, r.Value); err != nil {
 				return err
 			}
