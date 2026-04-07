@@ -354,8 +354,8 @@ func IsDirOrSymlink(de os.DirEntry) bool {
 	return de.IsDir() || (de.Type()&os.ModeSymlink == os.ModeSymlink)
 }
 
-func ExposeFsMetadataAsMetric(path string) {
-	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vm_fs_metadata{path=%q, fs_type=%q}`, path, GetFsTypeName(path)), func() float64 { return 1 })
+func ExposeFsInfoAsMetric(path string) {
+	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vm_fs_info{path=%q, fs_type=%q}`, path, GetFsTypeName(path)), func() float64 { return 1 })
 }
 
 var fsTypeCacheLock sync.Mutex
