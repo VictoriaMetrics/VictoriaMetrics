@@ -25,7 +25,11 @@ import (
 type namedMetric struct {
 	name   string
 	metric metric
-	isAux  bool
+
+	// isAux indicates whether it is an auxiliary metric.
+	// Currently only set for quantileValue, as it is part of the Summary.
+	// This field affects sorting when quantileValue and Summary are compared.
+	isAux bool
 }
 
 type metric interface {

@@ -613,6 +613,8 @@ and attaches `instance`, `job` and other target-specific labels to these metrics
   `vmagent` sets `scrape_series_added` to zero when it runs with `-promscrape.noStaleMarkers` command-line flag
   or when it scrapes target with `no_stale_markers: true` option, e.g. when [staleness markers](#prometheus-staleness-markers) are disabled.
 
+  Restarting `vmagent` can cause `scrape_series_added` to rise because all time series are new to a newly started `vmagent`.
+
 * `scrape_series_limit` - the limit on the number of unique [series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) the given target can expose according to [these docs](#cardinality-limiter).
   This metric is exposed only if the series limit is set.
 
