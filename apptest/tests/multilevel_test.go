@@ -3,6 +3,7 @@ package tests
 import (
 	"fmt"
 	"math/rand/v2"
+	"net"
 	"testing"
 	"time"
 
@@ -93,7 +94,7 @@ func TestClusterMultilevelPartialResponse(t *testing.T) {
 		"-storageNode=" + vmstorage.VmselectAddr(),
 	})
 	regionalVmselect2 := tc.MustStartVmselect("regional-vmselect2", []string{
-		"-storageNode=" + vmstorage.VmselectAddr() + ",1.1.1.1:1111",
+		"-storageNode=" + vmstorage.VmselectAddr() + "," + noopTCPServerAddr(t),
 	})
 	globalVmselect := tc.MustStartVmselect("global-vmselect", []string{
 		"-storageNode=" + regionalVmselect1.ClusternativeListenAddr() + "," + regionalVmselect2.ClusternativeListenAddr(),
@@ -121,7 +122,11 @@ func TestClusterMultilevelPartialResponse(t *testing.T) {
 	}
 	// regional-vmselect1 should return full response.
 	assertQuery(regionalVmselect1)
-	queryWant.IsPartial = true
+	queryWant = &apptest.PrometheusAPIV1QueryResponse{
+		Status:    "success",
+		IsPartial: true,
+		Data:      &apptest.QueryData{ResultType: "vector", Result: []*apptest.QueryResult{}},
+	}
 	// regional-vmselect2 should return partial response.
 	assertQuery(regionalVmselect2)
 	// global-vmselect should return partial response.
@@ -152,7 +157,11 @@ func TestClusterMultilevelPartialResponse(t *testing.T) {
 
 	// regional-vmselect1 should return full response.
 	assertLabel(regionalVmselect1)
-	labelWant.IsPartial = true
+	labelWant = &apptest.PrometheusAPIV1LabelsResponse{
+		Status:    "success",
+		IsPartial: true,
+		Data:      make([]string, 0),
+	}
 	// regional-vmselect2 should return partial response.
 	assertLabel(regionalVmselect2)
 	// global-vmselect should return partial response.
@@ -182,9 +191,35 @@ func TestClusterMultilevelPartialResponse(t *testing.T) {
 
 	// regional-vmselect1 should return full response.
 	assertSeries(regionalVmselect1)
-	seriesWant.IsPartial = true
+	seriesWant = &apptest.PrometheusAPIV1SeriesResponse{
+		Status:    "success",
+		IsPartial: true,
+		Data:      make([]map[string]string, 0),
+	}
 	// regional-vmselect2 should return partial response.
 	assertSeries(regionalVmselect2)
 	// global-vmselect should return partial response.
 	assertSeries(globalVmselect)
+}
+
+// noopTCPServerAddr start local tcp server,
+// which immediately closes any incoming connections
+// and return it's address
+func noopTCPServerAddr(t *testing.T) string {
+	t.Helper()
+	ln, err := net.Listen("tcp", "localhost:0")
+	if err != nil {
+		t.Fatalf("failed to create listener: %v", err)
+	}
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			conn.Close()
+		}
+	}()
+	t.Cleanup(func() { ln.Close() })
+	return ln.Addr().String()
 }
