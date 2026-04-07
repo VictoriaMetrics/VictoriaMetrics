@@ -776,9 +776,14 @@ func TestStorageNextDayMetricIDs_update(t *testing.T) {
 		sleepUntil(t, 2000, 1, 1, 23, 59, 59, 999_999_999)
 		assertNextDayMetricIDs(t, s, idbID, date, numNextDayMetricIDs)
 
-		// Advance the time to the beginning of the first hour of the next day and
+		// Advance the time to the end of the first hour of the next day and
+		// confirm that nextDayMetricIDs are not reset during this hour.
+		sleepUntil(t, 2000, 1, 2, 0, 59, 59, 999_999_999)
+		assertNextDayMetricIDs(t, s, idbID, date, numNextDayMetricIDs)
+
+		// Advance the time to the beginning of the second hour of the next day and
 		// confirm that nextDayMetricIDs is reset.
-		sleepUntil(t, 2000, 1, 2, 0, 0, 30, 0)
+		sleepUntil(t, 2000, 1, 2, 1, 0, 30, 0)
 		assertNextDayMetricIDs(t, s, idbID, date+1, 0)
 	})
 }
