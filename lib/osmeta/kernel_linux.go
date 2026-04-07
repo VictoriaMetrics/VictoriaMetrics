@@ -1,4 +1,4 @@
-package kernel
+package osmeta
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 
 var osReleaseInfo string
 
-func init() {
+func ExposeOsInfoAsMetric() {
 	var uname syscall.Utsname
 	err := syscall.Uname(&uname)
 	if err != nil {
@@ -25,5 +25,5 @@ func init() {
 		release = append(release, byte(v))
 	}
 	osReleaseInfo = string(release)
-	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vm_os_metadata{kernel="linux", release=%q}`, osReleaseInfo), func() float64 { return 1 })
+	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vm_os_info{kernel="linux", release=%q}`, osReleaseInfo), func() float64 { return 1 })
 }

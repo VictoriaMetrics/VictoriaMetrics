@@ -14,8 +14,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
-	_ "github.com/VictoriaMetrics/VictoriaMetrics/lib/kernel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	osmeta "github.com/VictoriaMetrics/VictoriaMetrics/lib/osmeta"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 )
@@ -41,6 +41,7 @@ func main() {
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
+	osmeta.ExposeOsInfoAsMetric()
 
 	listenAddrs := []string{*httpListenAddr}
 	go httpserver.Serve(listenAddrs, nil, httpserver.ServeOptions{})

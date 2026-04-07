@@ -26,8 +26,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
-	_ "github.com/VictoriaMetrics/VictoriaMetrics/lib/kernel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	osmeta "github.com/VictoriaMetrics/VictoriaMetrics/lib/osmeta"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
@@ -70,6 +70,7 @@ func Init() {
 	concurrencyLimitCh = make(chan struct{}, *maxConcurrentRequests)
 	initVMUIConfig()
 	initVMAlertProxy()
+	osmeta.ExposeOsInfoAsMetric()
 }
 
 // Stop stops vmselect

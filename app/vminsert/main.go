@@ -37,7 +37,7 @@ import (
 	influxserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/influx"
 	opentsdbserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdb"
 	opentsdbhttpserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdbhttp"
-	_ "github.com/VictoriaMetrics/VictoriaMetrics/lib/kernel"
+	osmeta "github.com/VictoriaMetrics/VictoriaMetrics/lib/osmeta"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
@@ -107,6 +107,7 @@ func Init() {
 		prompush.Push(wr)
 	})
 	timeserieslimits.Init(*maxLabelsPerTimeseries, *maxLabelNameLen, *maxLabelValueLen)
+	osmeta.ExposeOsInfoAsMetric()
 }
 
 // Stop stops vminsert.

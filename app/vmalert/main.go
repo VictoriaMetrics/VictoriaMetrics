@@ -25,8 +25,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
-	_ "github.com/VictoriaMetrics/VictoriaMetrics/lib/kernel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	osmeta "github.com/VictoriaMetrics/VictoriaMetrics/lib/osmeta"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 )
@@ -95,6 +95,7 @@ func main() {
 	notifier.InitSecretFlags()
 	buildinfo.Init()
 	logger.Init()
+	osmeta.ExposeOsInfoAsMetric()
 
 	var err error
 	extURL, err = getExternalURL(*externalURL)
