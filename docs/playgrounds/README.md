@@ -8,7 +8,7 @@ These playgrounds are ideal for:
 - Trying out dashboards and queries interactively
 - Demonstrating features in talks or workshops
 
-In the following sections, we’ll walk through each playground, explain its purpose, and link to the corresponding GitHub repositories.
+In the following sections, we'll walk through each playground, explain its purpose, and link to the corresponding GitHub repositories.
 
 ## VictoriaMetrics Playground
 
@@ -69,7 +69,7 @@ VictoriaTraces provides a UI for browsing trace data by span. This playground is
 > [!NOTE]
 > VictoriaTraces is under active development and does not yet have its own web interface.
 
-VMAnomaly analyzes metrics, logs, or traces using VictoriaMetrics’ built-in anomaly detection model to generate an [anomaly score](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score). An `anomaly_score > 1` indicates an anomalous condition that deserves attention.
+VMAnomaly analyzes metrics, logs, or traces using VictoriaMetrics' built-in anomaly detection model to generate an [anomaly score](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score). An `anomaly_score > 1` indicates an anomalous condition that deserves attention.
 
 Since there is no specialized UI for traces yet, you can visualize and track traces directly in the [Grafana playground](https://play-grafana.victoriametrics.com/explore?schemaVersion=1&panes=%7B%22w7z%22:%7B%22datasource%22:%22P14D5514F5CCC0D1C%22,%22queries%22:%5B%7B%22refId%22:%22A%22,%22datasource%22:%7B%22type%22:%22jaeger%22,%22uid%22:%22P14D5514F5CCC0D1C%22%7D,%22queryType%22:%22search%22,%22service%22:%22accounting%22%7D%5D,%22range%22:%7B%22from%22:%22now-1h%22,%22to%22:%22now%22%7D,%22compact%22:false%7D%7D&orgId=1).
 
