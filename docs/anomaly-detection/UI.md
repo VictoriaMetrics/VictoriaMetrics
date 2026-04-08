@@ -119,6 +119,10 @@ To start exploring the UI, you can use embedded demo with preconfigured queries 
 
 ## Authentication
 
+> [!TIP]
+{{% available_from "v1.29.2" anomaly %}} You can proxy connection settings to UI, defined in [reader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#config-parameters) section of the configuration file, so that UI can connect to the data sources with the same settings (e.g. credentials, TLS, etc.). Set `server.use_reader_connection_settings` [arg](https://docs.victoriametrics.com/anomaly-detection/components/server/#parameters) to `true` in the configuration file to enable this feature, and UI will automatically use the connection settings from the reader configuration when connecting to the data sources. If `pass auth headers` option is enabled in the UI settings, it will take precedence over the reader-wise settings. See [example configuration](https://docs.victoriametrics.com/anomaly-detection/components/server/#example-configuration) for details.
+
+
 {{% available_from "v1.27.0" anomaly %}} The vmanomaly UI supports proxying authentication headers from [v1.1.0](#v110) and onwards.
 
 Consider using [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) in front of both vmanomaly (UI and API) and data sources (VictoriaMetrics / VictoriaLogs) to enforce end-to-end setup for accessing the data from the UI.
@@ -198,11 +202,11 @@ The best applications of this mode are:
 Copilot appears as a **chat popup** anchored to the bottom-right corner of the page. The panel is resizable by dragging its left edge, and can be opened or closed by clicking the respective icon.
 
 > [!TIP] Copilot is context-aware
-> It reads your active model, scheduler, and anomaly settings from the UI automatically, so you don't need to paste your config manually.
+> It reads your active model, scheduler, and anomaly settings from the UI automatically, so you don't need to paste your config manually. {{% available_from "v1.29.2" anomaly %}} It also can read and modify full UI settings, such as data source URL, query parameters, scheduler settings, and more, to provide better suggestions.
 
 ### Configuration
 
-AI Assistant is disabled by default; enable it with `VMANOMALY_COPILOT_ENABLED=true`, then configure an LLM provider API key and, optionally, a model. Once enabled and configured, Copilot will appear as a chat popup in the bottom-right corner of the UI.
+AI Assistant is disabled by default; enable it with `VMANOMALY_COPILOT_ENABLED=true`, then configure credentials for the selected LLM provider and **explicitly set** `VMANOMALY_COPILOT_MODEL` to the exact model Copilot should use. Do not rely on an implicit default model being selected. Once enabled and configured, Copilot will appear as a chat popup in the bottom-right corner of the UI.
 
 
 Supported providers and model formats:
@@ -262,10 +266,16 @@ export AWS_DEFAULT_REGION=us-east-1
 # export AWS_SESSION_TOKEN=your_session_token  # if using a session token
 ```
 
-Optionally override the default model:
+Explicitly set the model Copilot should use:
 
 ```bash
 export VMANOMALY_COPILOT_MODEL=openai:gpt-5-mini
+```
+
+For example, if a smaller OpenAI model is desired, set:
+
+```bash
+export VMANOMALY_COPILOT_MODEL=openai:gpt-5-nano
 ```
 
 ### MCP tools server
@@ -305,7 +315,7 @@ docker run -it --rm \
   -e VMANOMALY_MCP_SERVER_URL=http://mcp-vmanomaly:8081/mcp \
   -p 8080:8080 \
   -p 8490:8490 \
-  victoriametrics/vmanomaly:v1.29.0 \
+  victoriametrics/vmanomaly:v1.29.2 \
   vmanomaly_config.yaml
 ```
 
@@ -350,6 +360,8 @@ The Visualization Panel has 2 modes of displaying data - either raw queried data
 > The plot shows the queried data, **grouped by individual series**, iterated over legend, with the actual values (`y`) compared to the expected values (model predictions, `y_hat`), confidence intervals (`y_hat_lower`, `y_hat_upper`), and detected anomalies. The anomalies are marked with red circles, and hovering over them provides additional information such as the anomaly score and associated labels.
 
 Also, timeseries (such as `y`, `y_hat`, etc.) can be toggled on/off by clicking on the legend items.
+
+{{% available_from "v1.29.2" anomaly %}} Seeing model [business-boundaries](https://docs.victoriametrics.com/anomaly-detection/faq/#incorporating-domain-knowledge), such as [detection direction](https://docs.victoriametrics.com/anomaly-detection/components/models/#detection-direction) and minimal deviation from expected ([absolute](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-deviation-from-expected) and [relative](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-relative-deviation-from-expected) combined) can be turned on with "business boundaries" toggle. Showing/hiding individual bands can be done by clicking on the respective legend items, while showing/hiding all business boundaries at once can be done with "business boundaries" toggle.
 
 [Back to UI navigation](#ui-navigation)
 
@@ -627,6 +639,15 @@ If the **results** look good and the **model configuration should be deployed in
 ![vmanomaly-ui-example-alert-menu](vmanomaly-ui-example-alert-menu.webp)
 
 ## Changelog
+
+### v1.6.0
+Released: 2026-04-02
+
+vmanomaly version: [v1.29.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1292)
+
+- FEATURE: Now AI assistant can see and modify main UI components state (queries, time range, model configuration, etc.) to provide more contextual and accurate suggestions and actions.
+
+- FEATURE: Added support for UI to use reader-wise settings (credentials, TLS, etc.) for connecting to data sources, which otherwise would require having `vmauth` in front of both UI and data sources, just for the UI to be able to connect to them. See [Authentication](#authentication) section for details.
 
 ### v1.5.1
 Released: 2026-03-25
