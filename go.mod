@@ -10,7 +10,7 @@ require (
 	github.com/VictoriaMetrics/VictoriaLogs v0.0.0-20260218111324-95b48d57d032
 	github.com/VictoriaMetrics/easyproto v1.2.0
 	github.com/VictoriaMetrics/fastcache v1.13.3
-	github.com/VictoriaMetrics/metrics v1.43.0
+	github.com/VictoriaMetrics/metrics v1.43.1
 	github.com/VictoriaMetrics/metricsql v0.86.0
 	github.com/aws/aws-sdk-go-v2 v1.41.1
 	github.com/aws/aws-sdk-go-v2/config v1.32.8
