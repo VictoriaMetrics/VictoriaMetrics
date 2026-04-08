@@ -101,14 +101,8 @@ func TestClusterMultilevelPartialResponse(t *testing.T) {
 	})
 
 	// 1. /api/v1/query
-	queryWant := &apptest.PrometheusAPIV1QueryResponse{
-		Status:    "success",
-		IsPartial: false,
-		Data:      &apptest.QueryData{ResultType: "vector", Result: []*apptest.QueryResult{}},
-	}
-	queryWant.Sort()
 	qopts := apptest.QueryOpts{Tenant: "0"}
-	assertQuery := func(app *apptest.Vmselect) {
+	assertQuery := func(app *apptest.Vmselect, want *apptest.PrometheusAPIV1QueryResponse) {
 		t.Helper()
 		tc.Assert(&apptest.AssertOptions{
 			Msg: "unexpected /api/v1/query response",
@@ -117,29 +111,31 @@ func TestClusterMultilevelPartialResponse(t *testing.T) {
 				res.Sort()
 				return res
 			},
-			Want: queryWant,
+			Want: want,
 		})
 	}
 	// regional-vmselect1 should return full response.
-	assertQuery(regionalVmselect1)
-	queryWant = &apptest.PrometheusAPIV1QueryResponse{
+	assertQuery(regionalVmselect1, &apptest.PrometheusAPIV1QueryResponse{
+		Status:    "success",
+		IsPartial: false,
+		Data:      &apptest.QueryData{ResultType: "vector", Result: []*apptest.QueryResult{}},
+	})
+	// regional-vmselect2 should return partial response.
+	assertQuery(regionalVmselect2, &apptest.PrometheusAPIV1QueryResponse{
 		Status:    "success",
 		IsPartial: true,
 		Data:      &apptest.QueryData{ResultType: "vector", Result: []*apptest.QueryResult{}},
-	}
-	// regional-vmselect2 should return partial response.
-	assertQuery(regionalVmselect2)
+	})
 	// global-vmselect should return partial response.
-	assertQuery(globalVmselect)
+	assertQuery(globalVmselect, &apptest.PrometheusAPIV1QueryResponse{
+		Status:    "success",
+		IsPartial: true,
+		Data:      &apptest.QueryData{ResultType: "vector", Result: []*apptest.QueryResult{}},
+	})
 
 	// 2. /api/v1/labels
-	labelWant := &apptest.PrometheusAPIV1LabelsResponse{
-		Status:    "success",
-		IsPartial: false,
-		Data:      make([]string, 0),
-	}
 	start := time.Now().Unix()
-	assertLabel := func(app *apptest.Vmselect) {
+	assertLabel := func(app *apptest.Vmselect, want *apptest.PrometheusAPIV1LabelsResponse) {
 		t.Helper()
 		tc.Assert(&apptest.AssertOptions{
 			Msg: "unexpected /api/v1/label response",
@@ -151,29 +147,31 @@ func TestClusterMultilevelPartialResponse(t *testing.T) {
 				})
 				return res
 			},
-			Want: labelWant,
+			Want: want,
 		})
 	}
 
 	// regional-vmselect1 should return full response.
-	assertLabel(regionalVmselect1)
-	labelWant = &apptest.PrometheusAPIV1LabelsResponse{
+	assertLabel(regionalVmselect1, &apptest.PrometheusAPIV1LabelsResponse{
+		Status:    "success",
+		IsPartial: false,
+		Data:      make([]string, 0),
+	})
+	// regional-vmselect2 should return partial response.
+	assertLabel(regionalVmselect2, &apptest.PrometheusAPIV1LabelsResponse{
 		Status:    "success",
 		IsPartial: true,
 		Data:      make([]string, 0),
-	}
-	// regional-vmselect2 should return partial response.
-	assertLabel(regionalVmselect2)
+	})
 	// global-vmselect should return partial response.
-	assertLabel(globalVmselect)
+	assertLabel(globalVmselect, &apptest.PrometheusAPIV1LabelsResponse{
+		Status:    "success",
+		IsPartial: true,
+		Data:      make([]string, 0),
+	})
 
 	// 3. /api/v1/label/%s/values
-	seriesWant := &apptest.PrometheusAPIV1SeriesResponse{
-		Status:    "success",
-		IsPartial: false,
-		Data:      make([]map[string]string, 0),
-	}
-	assertSeries := func(app *apptest.Vmselect) {
+	assertSeries := func(app *apptest.Vmselect, want *apptest.PrometheusAPIV1SeriesResponse) {
 		t.Helper()
 		tc.Assert(&apptest.AssertOptions{
 			Msg: "unexpected /api/v1/series response",
@@ -185,21 +183,28 @@ func TestClusterMultilevelPartialResponse(t *testing.T) {
 				})
 				return res
 			},
-			Want: seriesWant,
+			Want: want,
 		})
 	}
 
 	// regional-vmselect1 should return full response.
-	assertSeries(regionalVmselect1)
-	seriesWant = &apptest.PrometheusAPIV1SeriesResponse{
+	assertSeries(regionalVmselect1, &apptest.PrometheusAPIV1SeriesResponse{
+		Status:    "success",
+		IsPartial: false,
+		Data:      make([]map[string]string, 0),
+	})
+	// regional-vmselect2 should return partial response.
+	assertSeries(regionalVmselect2, &apptest.PrometheusAPIV1SeriesResponse{
 		Status:    "success",
 		IsPartial: true,
 		Data:      make([]map[string]string, 0),
-	}
-	// regional-vmselect2 should return partial response.
-	assertSeries(regionalVmselect2)
+	})
 	// global-vmselect should return partial response.
-	assertSeries(globalVmselect)
+	assertSeries(globalVmselect, &apptest.PrometheusAPIV1SeriesResponse{
+		Status:    "success",
+		IsPartial: true,
+		Data:      make([]map[string]string, 0),
+	})
 }
 
 // noopTCPServerAddr start local tcp server,
