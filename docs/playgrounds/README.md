@@ -58,14 +58,15 @@ On `Query` tab, click on `Query examples` button to see examples of most common 
 
 ## VictoriaTraces Playground
 
-- Try it: <https://play-vtraces.victoriametrics.com/>
-- Query language reference: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/)
-- GitHub: <https://github.com/VictoriaMetrics/VictoriaTraces>
+VictoriaTraces is a fast and scalable database for traces, built on top of VictoriaLogs.
+
+- Try it: <https://play-grafana.victoriametrics.com/explore> (choose `Jaeger` datasource)
+- Documentation: <https://docs.victoriametrics.com/victoriatraces/>
 
 > [!NOTE]
-> This playground is a work in progress because VictoriaTraces is still under development.
+> VictoriaTraces doesn't have its own web UI. Instead, it implements Jaeger API for [integrating with Jaeger UI or Grafana](https://docs.victoriametrics.com/victoriatraces/querying/).
 
-VictoriaTraces provides a UI for browsing trace data by span. This playground is a live demo using real VictoriaTraces data. Explore how trace spans are structured, stored, and queried.
+VictoriaTraces playground stores traces from [OpenTelemetry Astronomy Shop demo](https://github.com/open-telemetry/opentelemetry-demo).
 
 ![Screenshot of VMUI](vt-vmui.webp)
 <figcaption style="text-align: center; font-style: italic;">VMUI for VictoriaTraces</figcaption>
