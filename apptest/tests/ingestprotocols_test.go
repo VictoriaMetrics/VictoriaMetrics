@@ -1,7 +1,9 @@
 package tests
 
 import (
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -297,6 +299,132 @@ func TestSingleIngestionProtocols(t *testing.T) {
 
 }
 
+func TestSingleCardinalityLimiter(t *testing.T) {
+	waitFor := func(f func() bool) {
+		const (
+			retries = 20
+			period  = 100 * time.Millisecond
+		)
+
+		t.Helper()
+
+		for i := 0; i < retries; i++ {
+			if f() {
+				return
+			}
+			time.Sleep(period)
+		}
+		t.Fatalf("timed out waiting for retry #%d", retries)
+	}
+
+	tc := apptest.NewTestCase(t)
+	defer tc.Stop()
+
+	singleHourly := tc.MustStartVmsingle("vmsingle-hourly", []string{
+		"-retentionPeriod=100y",
+		"-storage.maxHourlySeries=1",
+	})
+
+	singleHourly.PrometheusAPIV1ImportPrometheus(t, []string{
+		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
+	}, apptest.QueryOpts{})
+
+	if v := singleHourly.GetIntMetric(t, "vm_hourly_series_limit_max_series"); v != 1 {
+		t.Fatalf("unexpected vm_hourly_series_limit_max_series value: %d", v)
+	}
+
+	if v := singleHourly.GetIntMetric(t, "vm_hourly_series_limit_current_series"); v != 1 {
+		t.Fatalf("unexpected vm_hourly_series_limit_current_series value: %d", v)
+	}
+
+	if v := singleHourly.GetIntMetric(t, "vm_hourly_series_limit_rows_dropped_total"); v != 0 {
+		t.Fatalf("unexpected vm_hourly_series_limit_rows_dropped_total value: %d", v)
+	}
+
+	singleHourly.PrometheusAPIV1ImportPrometheus(t, []string{
+		"foo_bar2 1 1652169600000", // 2022-05-10T08:00:00Z
+	}, apptest.QueryOpts{})
+
+	waitFor(
+		func() bool {
+			return singleHourly.GetIntMetric(t, "vm_hourly_series_limit_rows_dropped_total") > 0
+		},
+	)
+
+	singleDaily := tc.MustStartVmsingle("vmsingle-daily", []string{
+		"-retentionPeriod=100y",
+		"-storage.maxDailySeries=1",
+	})
+
+	singleDaily.PrometheusAPIV1ImportPrometheus(t, []string{
+		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
+	}, apptest.QueryOpts{})
+
+	if v := singleDaily.GetIntMetric(t, "vm_daily_series_limit_max_series"); v != 1 {
+		t.Fatalf("unexpected vm_daily_series_limit_max_series value: %d", v)
+	}
+
+	if v := singleDaily.GetIntMetric(t, "vm_daily_series_limit_current_series"); v != 1 {
+		t.Fatalf("unexpected vm_daily_series_limit_current_series value: %d", v)
+	}
+
+	if v := singleDaily.GetIntMetric(t, "vm_daily_series_limit_rows_dropped_total"); v != 0 {
+		t.Fatalf("unexpected vm_daily_series_limit_rows_dropped_total value: %d", v)
+	}
+
+	singleDaily.PrometheusAPIV1ImportPrometheus(t, []string{
+		"foo_bar2 1 1652169600000", // 2022-05-10T08:00:00Z
+	}, apptest.QueryOpts{})
+
+	waitFor(
+		func() bool {
+			return singleDaily.GetIntMetric(t, "vm_daily_series_limit_rows_dropped_total") > 0
+		},
+	)
+
+	singleUnlimited := tc.MustStartVmsingle("vmsingle-unlimited", []string{
+		"-retentionPeriod=100y",
+		"-storage.maxHourlySeries=-1",
+		"-storage.maxDailySeries=-1",
+	})
+	metrics := make([]string, 0, 100)
+	for i := range 100 {
+		metrics = append(metrics, fmt.Sprintf("foo_bar%d 1 1652169600000", i)) // 2022-05-10T08:00:00Z
+	}
+
+	singleUnlimited.PrometheusAPIV1ImportPrometheus(t, metrics, apptest.QueryOpts{})
+
+	waitFor(
+		func() bool {
+			return singleUnlimited.GetIntMetric(t, "vm_hourly_series_limit_current_series") > 0
+		},
+	)
+
+	if v := singleUnlimited.GetIntMetric(t, "vm_hourly_series_limit_max_series"); v == 0 {
+		t.Fatalf("unexpected vm_hourly_series_limit_max_series value: %d", v)
+	}
+
+	if v := singleUnlimited.GetIntMetric(t, "vm_hourly_series_limit_current_series"); v != 100 {
+		t.Fatalf("unexpected vm_hourly_series_limit_current_series value: %d", v)
+	}
+
+	if v := singleUnlimited.GetIntMetric(t, "vm_hourly_series_limit_rows_dropped_total"); v != 0 {
+		t.Fatalf("unexpected vm_hourly_series_limit_rows_dropped_total value: %d", v)
+	}
+
+	if v := singleUnlimited.GetIntMetric(t, "vm_daily_series_limit_max_series"); v == 0 {
+		t.Fatalf("unexpected vm_daily_series_limit_max_series value: %d", v)
+	}
+
+	if v := singleUnlimited.GetIntMetric(t, "vm_daily_series_limit_current_series"); v != 100 {
+		t.Fatalf("unexpected vm_daily_series_limit_current_series value: %d", v)
+	}
+
+	if v := singleUnlimited.GetIntMetric(t, "vm_daily_series_limit_rows_dropped_total"); v != 0 {
+		t.Fatalf("unexpected vm_daily_series_limit_rows_dropped_total value: %d", v)
+	}
+}
+
 func TestClusterIngestionProtocols(t *testing.T) {
 	fs.MustRemoveDir(t.Name())
 	tc := apptest.NewTestCase(t)
@@ -590,4 +718,146 @@ func TestClusterIngestionProtocols(t *testing.T) {
 		},
 	})
 
+}
+
+func TestClusterCardinalityLimiter(t *testing.T) {
+	waitFor := func(f func() bool) {
+		const (
+			retries = 20
+			period  = 100 * time.Millisecond
+		)
+
+		t.Helper()
+
+		for i := 0; i < retries; i++ {
+			if f() {
+				return
+			}
+			time.Sleep(period)
+		}
+		t.Fatalf("timed out waiting for retry #%d", retries)
+	}
+
+	tc := apptest.NewTestCase(t)
+	defer tc.Stop()
+
+	// Test hourly series limit
+	vmstorageHourly := tc.MustStartVmstorage("vmstorage-hourly", []string{
+		"-storageDataPath=" + tc.Dir() + "/vmstorage-hourly",
+		"-retentionPeriod=100y",
+		"-storage.maxHourlySeries=1",
+	})
+	vminsertHourly := tc.MustStartVminsert("vminsert-hourly", []string{
+		"-storageNode=" + vmstorageHourly.VminsertAddr(),
+	})
+
+	vminsertHourly.PrometheusAPIV1ImportPrometheus(t, []string{
+		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
+	}, apptest.QueryOpts{})
+
+	if v := vmstorageHourly.GetIntMetric(t, "vm_hourly_series_limit_max_series"); v != 1 {
+		t.Fatalf("unexpected vm_hourly_series_limit_max_series value: %d", v)
+	}
+
+	if v := vmstorageHourly.GetIntMetric(t, "vm_hourly_series_limit_current_series"); v != 1 {
+		t.Fatalf("unexpected vm_hourly_series_limit_current_series value: %d", v)
+	}
+
+	if v := vmstorageHourly.GetIntMetric(t, "vm_hourly_series_limit_rows_dropped_total"); v != 0 {
+		t.Fatalf("unexpected vm_hourly_series_limit_rows_dropped_total value: %d", v)
+	}
+
+	vminsertHourly.PrometheusAPIV1ImportPrometheus(t, []string{
+		"foo_bar2 1 1652169600000", // 2022-05-10T08:00:00Z
+	}, apptest.QueryOpts{})
+
+	waitFor(
+		func() bool {
+			return vmstorageHourly.GetIntMetric(t, "vm_hourly_series_limit_rows_dropped_total") > 0
+		},
+	)
+
+	// Test daily series limit
+	vmstorageDaily := tc.MustStartVmstorage("vmstorage-daily", []string{
+		"-storageDataPath=" + tc.Dir() + "/vmstorage-daily",
+		"-retentionPeriod=100y",
+		"-storage.maxDailySeries=1",
+	})
+	vminsertDaily := tc.MustStartVminsert("vminsert-daily", []string{
+		"-storageNode=" + vmstorageDaily.VminsertAddr(),
+	})
+
+	vminsertDaily.PrometheusAPIV1ImportPrometheus(t, []string{
+		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
+	}, apptest.QueryOpts{})
+
+	if v := vmstorageDaily.GetIntMetric(t, "vm_daily_series_limit_max_series"); v != 1 {
+		t.Fatalf("unexpected vm_daily_series_limit_max_series value: %d", v)
+	}
+
+	if v := vmstorageDaily.GetIntMetric(t, "vm_daily_series_limit_current_series"); v != 1 {
+		t.Fatalf("unexpected vm_daily_series_limit_current_series value: %d", v)
+	}
+
+	if v := vmstorageDaily.GetIntMetric(t, "vm_daily_series_limit_rows_dropped_total"); v != 0 {
+		t.Fatalf("unexpected vm_daily_series_limit_rows_dropped_total value: %d", v)
+	}
+
+	vminsertDaily.PrometheusAPIV1ImportPrometheus(t, []string{
+		"foo_bar2 1 1652169600000", // 2022-05-10T08:00:00Z
+	}, apptest.QueryOpts{})
+
+	waitFor(
+		func() bool {
+			return vmstorageDaily.GetIntMetric(t, "vm_daily_series_limit_rows_dropped_total") > 0
+		},
+	)
+
+	// Test unlimited series
+	vmstorageUnlimited := tc.MustStartVmstorage("vmstorage-unlimited", []string{
+		"-storageDataPath=" + tc.Dir() + "/vmstorage-unlimited",
+		"-retentionPeriod=100y",
+		"-storage.maxHourlySeries=-1",
+		"-storage.maxDailySeries=-1",
+	})
+	vminsertUnlimited := tc.MustStartVminsert("vminsert-unlimited", []string{
+		"-storageNode=" + vmstorageUnlimited.VminsertAddr(),
+	})
+
+	metrics := make([]string, 0, 100)
+	for i := range 100 {
+		metrics = append(metrics, fmt.Sprintf("foo_bar%d 1 1652169600000", i)) // 2022-05-10T08:00:00Z
+	}
+
+	vminsertUnlimited.PrometheusAPIV1ImportPrometheus(t, metrics, apptest.QueryOpts{})
+
+	waitFor(
+		func() bool {
+			return vmstorageUnlimited.GetIntMetric(t, "vm_hourly_series_limit_current_series") > 0
+		},
+	)
+
+	if v := vmstorageUnlimited.GetIntMetric(t, "vm_hourly_series_limit_max_series"); v == 0 {
+		t.Fatalf("unexpected vm_hourly_series_limit_max_series value: %d", v)
+	}
+
+	if v := vmstorageUnlimited.GetIntMetric(t, "vm_hourly_series_limit_current_series"); v != 100 {
+		t.Fatalf("unexpected vm_hourly_series_limit_current_series value: %d", v)
+	}
+
+	if v := vmstorageUnlimited.GetIntMetric(t, "vm_hourly_series_limit_rows_dropped_total"); v != 0 {
+		t.Fatalf("unexpected vm_hourly_series_limit_rows_dropped_total value: %d", v)
+	}
+
+	if v := vmstorageUnlimited.GetIntMetric(t, "vm_daily_series_limit_max_series"); v == 0 {
+		t.Fatalf("unexpected vm_daily_series_limit_max_series value: %d", v)
+	}
+
+	if v := vmstorageUnlimited.GetIntMetric(t, "vm_daily_series_limit_current_series"); v != 100 {
+		t.Fatalf("unexpected vm_daily_series_limit_current_series value: %d", v)
+	}
+
+	if v := vmstorageUnlimited.GetIntMetric(t, "vm_daily_series_limit_rows_dropped_total"); v != 0 {
+		t.Fatalf("unexpected vm_daily_series_limit_rows_dropped_total value: %d", v)
+	}
 }
