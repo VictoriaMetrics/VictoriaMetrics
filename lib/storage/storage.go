@@ -793,12 +793,12 @@ func (s *Storage) nextDayMetricIDsUpdater() {
 	for {
 		select {
 		case <-s.stopCh:
-			date := fasttime.UnixDate()
-			s.updateNextDayMetricIDs(date)
+			timestamp := fasttime.UnixTimestamp()
+			s.updateNextDayMetricIDs(timestamp)
 			return
 		case <-ticker.C:
-			date := fasttime.UnixDate()
-			s.updateNextDayMetricIDs(date)
+			timestamp := fasttime.UnixTimestamp()
+			s.updateNextDayMetricIDs(timestamp)
 		}
 	}
 }
@@ -2430,11 +2430,30 @@ type nextDayMetricIDs struct {
 	metricIDs uint64set.Set
 }
 
-func (s *Storage) updateNextDayMetricIDs(date uint64) {
-	firstHourOfDay := isFirstHourOfDay(fasttime.UnixTimestamp())
-	if firstHourOfDay {
-		// Do not reset nextDayMetricIDs during the first hour of the day to
-		// speed up the creation of per-day indexes in updatePerDateData().
+// updateNextDayMetricIDs updates s.nextDayMetricIDs with the metricIDs for the
+// date that follows the timestamp date. For example, if timestamp corresponds
+// to 2000-01-01, then s.nextDayMetricIDs holds the metricIDs for 2000-01-02.
+//
+// The s.nextDayMetricIDs.date and timestamp date must match, otherwise
+// s.nextDayMetricIDs will be reset. The only exception is the first hour of the
+// next day when s.nextDayMetricIDs is neither updated with new metricIDs nor
+// reset. During this time s.nextDayMetricIDs is used in place of
+// s.currHourMetricIDs to speed up per-day index creation.
+// See updatePerDateData().
+func (s *Storage) updateNextDayMetricIDs(timestamp uint64) {
+	date := timestamp / (3600 * 24)
+	ptw := s.tb.MustGetPartition(int64(date+1) * msecPerDay)
+	nextDayIDBID := ptw.pt.idb.id
+	s.tb.PutPartition(ptw)
+	e := s.nextDayMetricIDs.Load()
+	s.pendingNextDayMetricIDsLock.Lock()
+	pendingMetricIDs := s.pendingNextDayMetricIDs
+	s.pendingNextDayMetricIDs = &uint64set.Set{}
+	s.pendingNextDayMetricIDsLock.Unlock()
+
+	if e.date+1 == date && isFirstHourOfDay(timestamp) {
+		// Do not reset nextDayMetricIDs during the first hour of the next day
+		// to speed up the creation of per-day indexes in updatePerDateData().
 		//
 		// updatePerDateData() relies on currHourMetricIDs and
 		// prevHourMetricIDs contents to decide whether the per-day index
@@ -2444,15 +2463,6 @@ func (s *Storage) updateNextDayMetricIDs(date uint64) {
 		// day.
 		return
 	}
-
-	ptw := s.tb.MustGetPartition(int64(date+1) * msecPerDay)
-	nextDayIDBID := ptw.pt.idb.id
-	s.tb.PutPartition(ptw)
-	e := s.nextDayMetricIDs.Load()
-	s.pendingNextDayMetricIDsLock.Lock()
-	pendingMetricIDs := s.pendingNextDayMetricIDs
-	s.pendingNextDayMetricIDs = &uint64set.Set{}
-	s.pendingNextDayMetricIDsLock.Unlock()
 
 	// Not comparing indexDB IDs because different idb ids imply different date.
 	if pendingMetricIDs.Len() == 0 && e.date == date {
@@ -2474,7 +2484,8 @@ func (s *Storage) updateNextDayMetricIDs(date uint64) {
 		pendingMetricIDs.Union(&e.metricIDs)
 	} else {
 		// Do not add pendingMetricIDs from the previous day to the current day,
-		// since this may result in missing registration of the metricIDs in the per-day inverted index.
+		// since this may result in missing registration of the metricIDs in the
+		// per-day inverted index.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3309
 		pendingMetricIDs = &uint64set.Set{}
 	}
