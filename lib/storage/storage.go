@@ -306,8 +306,8 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	s.pendingHourEntries = &uint64set.Set{}
 	// Load nextDayMetricIDs cache after the data table is opened since it
 	// requires the partition index to operate properly.
-	date := fasttime.UnixDate()
-	nextDayMetricIDs := s.mustLoadNextDayMetricIDs(date)
+	timestamp := fasttime.UnixTimestamp()
+	nextDayMetricIDs := s.mustLoadNextDayMetricIDs(timestamp)
 	s.nextDayMetricIDs.Store(nextDayMetricIDs)
 	s.pendingNextDayMetricIDs = &uint64set.Set{}
 
@@ -859,7 +859,15 @@ func (s *Storage) MustClose() {
 	}
 }
 
-func (s *Storage) mustLoadNextDayMetricIDs(date uint64) *nextDayMetricIDs {
+func (s *Storage) mustLoadNextDayMetricIDs(timestamp uint64) *nextDayMetricIDs {
+	date := timestamp / (24 * 3600)
+	if isFirstHourOfDay(timestamp) {
+		// If this is the first hour of the day, allow to load nextDayMetricIDs
+		// collected during the next day index prefill during the last hour of
+		// the day before to speed up data ingestion. See updatePerDateData()
+		// and updateNextDayMetricIDs().
+		date--
+	}
 	ptw := s.tb.MustGetPartition(int64(date+1) * msecPerDay)
 	nextDayIDBID := ptw.pt.idb.id
 	s.tb.PutPartition(ptw)
