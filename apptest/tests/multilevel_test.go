@@ -81,20 +81,23 @@ func TestClusterMultilevelPartialResponse(t *testing.T) {
 	//
 	//				  			     				|--> available vmstorage
 	//					 	  |	------> vmselect1 --|
-	//						  |	     				|--> unavailable vmstorage
+	//						  |	     				|--> available vmstorage
 	// global-vmselect -------|
 	//				  		  |	     				|--> available vmstorage
 	// 					 	  |	------> vmselect2 --|
-	//						  	     				|--> available vmstorage
+	//						  	     				|--> unavailable vmstorage
 
-	vmstorage := tc.MustStartVmstorage("vmstorage", []string{
-		"-storageDataPath=" + tc.Dir() + "/vmstorage",
+	vmstorage1 := tc.MustStartVmstorage("vmstorage1", []string{
+		"-storageDataPath=" + tc.Dir() + "/vmstorage1",
+	})
+	vmstorage2 := tc.MustStartVmstorage("vmstorage2", []string{
+		"-storageDataPath=" + tc.Dir() + "/vmstorage2",
 	})
 	regionalVmselect1 := tc.MustStartVmselect("regional-vmselect1", []string{
-		"-storageNode=" + vmstorage.VmselectAddr(),
+		"-storageNode=" + vmstorage1.VmselectAddr() + "," + vmstorage2.VmselectAddr(),
 	})
 	regionalVmselect2 := tc.MustStartVmselect("regional-vmselect2", []string{
-		"-storageNode=" + vmstorage.VmselectAddr() + "," + noopTCPServerAddr(t),
+		"-storageNode=" + vmstorage1.VmselectAddr() + "," + noopTCPServerAddr(t),
 	})
 	globalVmselect := tc.MustStartVmselect("global-vmselect", []string{
 		"-storageNode=" + regionalVmselect1.ClusternativeListenAddr() + "," + regionalVmselect2.ClusternativeListenAddr(),
