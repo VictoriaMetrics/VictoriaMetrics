@@ -36,19 +36,25 @@ Try plotting graphs on the **Query** tab - [`sum(rate(vm_http_requests_total[5m]
 
 ## VictoriaLogs Playground
 
+High-performance, lightweight, zero-config, schema-free database for logs that is easy to use and scales both vertically and horizontally, 
+from very small setups to large-scale deployments handling terabytes per day.
+
 - Try it: <https://play-vmlogs.victoriametrics.com/>
-- Query language reference: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/)
-- GitHub: <https://github.com/VictoriaMetrics/VictoriaLogs>
+- Documentation: <https://docs.victoriametrics.com/victorialogs/>
 
-This playground uses the [OpenTelemetry Astronomy Shop demo](https://github.com/open-telemetry/opentelemetry-demo). It is a good way to understand how VictoriaLogs handles high-volume logs with low operational overhead.
+The playground is represented by [cluster version of VictoriaLogs](https://docs.victoriametrics.com/victorialogs/cluster/).
+It stores logs from [OpenTelemetry Astronomy Shop demo](https://github.com/open-telemetry/opentelemetry-demo) and various
+other services that run in our k8s playground namespace.
 
-To start exploring the data, look at the sidebar. It shows the stream fields available in the dataset, and clicking any field or value automatically applies a filter, so you can browse the logs before writing your own query.
+VictoriaLogs [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui) allows querying log entries, plotting graphs,
+exploring stored datasets, live tailing.
+
+To start exploring the data, look at the sidebar. It shows the stream fields available in the dataset, 
+and clicking any field or value automatically applies a filter, so you can browse the logs before writing your own query.
 
 ![Screenshot of VictoriaLogs VMUI](vl-vmui.webp)
 
-You can try these queries to get started:
-- Show every log message: `*`
-- Show messages with "error" in the last 24 hours: `error AND _time:24h`
+On `Query` tab, click on `Query examples` button to see examples of most common search queries to start with.
 
 ## VictoriaTraces Playground
 
