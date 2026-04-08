@@ -214,12 +214,16 @@ func (g *Group) CreateID() uint64 {
 // restore restores alerts state for group rules
 func (g *Group) restore(ctx context.Context, qb datasource.QuerierBuilder, ts time.Time, lookback time.Duration) error {
 	for _, rule := range g.Rules {
+		// Only alerting rule with for > 0 and has active alerts from the first evaluation can be restored
 		ar, ok := rule.(*AlertingRule)
 		if !ok {
 			continue
 		}
 		if ar.For < 1 {
 			continue
+		}
+		if len(ar.alerts) < 1 {
+			return nil
 		}
 		q := qb.BuildWithParams(datasource.QuerierParams{
 			EvaluationInterval: g.Interval,
@@ -334,6 +338,11 @@ func (g *Group) Init() {
 // Start starts group's evaluation
 func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasource.QuerierBuilder) {
 	defer func() { close(g.finishedCh) }()
+	e := &executor{
+		Rw:              rw,
+		notifierHeaders: g.NotifierHeaders,
+	}
+
 	evalTS := time.Now()
 	// sleep random duration to spread group rules evaluation
 	// over maxStartDelay to reduce the load on datasource.
@@ -366,11 +375,6 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 			}
 		}
 		evalTS = evalTS.Add(sleepBeforeStart)
-	}
-
-	e := &executor{
-		Rw:              rw,
-		notifierHeaders: g.NotifierHeaders,
 	}
 
 	g.infof("started")
@@ -433,10 +437,10 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 	g.mu.Unlock()
 	defer g.evalCancel()
 
-	realEvalTS := eval(evalCtx, evalTS)
-
 	t := time.NewTicker(g.Interval)
 	defer t.Stop()
+
+	realEvalTS := eval(evalCtx, evalTS)
 
 	// restore the rules state after the first evaluation
 	// so only active alerts can be restored.

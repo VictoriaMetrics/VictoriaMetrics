@@ -789,16 +789,7 @@ func firingAlertStaleTimeSeries(ls map[string]string, timestamp int64) []prompb.
 
 // restore restores the value of ActiveAt field for active alerts,
 // based on previously written time series `alertForStateMetricName`.
-// Only rules with For > 0 can be restored.
 func (ar *AlertingRule) restore(ctx context.Context, q datasource.Querier, ts time.Time, lookback time.Duration) error {
-	if ar.For < 1 {
-		return nil
-	}
-
-	if len(ar.alerts) < 1 {
-		return nil
-	}
-
 	nameStr := fmt.Sprintf("%s=%q", alertNameLabel, ar.Name)
 	if !*disableAlertGroupLabel {
 		nameStr = fmt.Sprintf("%s=%q,%s=%q", alertGroupNameLabel, ar.GroupName, alertNameLabel, ar.Name)
