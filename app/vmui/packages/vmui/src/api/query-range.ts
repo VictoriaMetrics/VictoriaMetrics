@@ -31,8 +31,12 @@ export const getLabelsUrl = (server: string, query: string[], period: TimeParams
 };
 
 export const getExportCSVDataUrl = (server: string, query: string[], period: TimeParams, reduceMemUsage: boolean, format: string): string => {
-  const params = getBaseParams(period, query);
-  params.set("format", format);
+  const params = new URLSearchParams({
+    start: period.start.toString(),
+    end: period.end.toString(),
+    format,
+  });
+  query.forEach((q => params.append("match[]", q)));
   if (reduceMemUsage) params.set("reduce_mem_usage", "1");
   return `${server}/api/v1/export/csv?${params}`;
 };
