@@ -32,7 +32,6 @@ This view shows what's stored in database for specified day, lets you browse top
 Try plotting graphs on the **Query** tab - [`sum(rate(vm_http_requests_total[5m])) by(path) > 0`](https://play.victoriametrics.com/select/0/prometheus/graph/#/?g0.range_input=30m&g0.relative_time=last_30_minutes&g0.tab=0&g0.expr=sum%28rate%28vm_http_requests_total%5B5m%5D%29%29+by%28path%29+%3E+0):
 
 ![Screenshot of VMUI](vmui-app-version.webp)
-<figcaption style="text-align: center; font-style: italic;">Table view of app versions per job</figcaption>
 
 ## VictoriaLogs Playground
 
@@ -68,8 +67,13 @@ VictoriaTraces is a fast and scalable database for traces, built on top of Victo
 
 VictoriaTraces playground stores traces from [OpenTelemetry Astronomy Shop demo](https://github.com/open-telemetry/opentelemetry-demo).
 
-![Screenshot of VMUI](vt-vmui.webp)
-<figcaption style="text-align: center; font-style: italic;">VMUI for VictoriaTraces</figcaption>
+To view trace data, follow these steps:
+1. On the [Grafana Playground](https://play-grafana.victoriametrics.com/), select **Explore** in the sidebar
+2. Select VictoriaTraces / Jaeger in the combo box near the top-left corner
+3. In **Query Type** select "Search"
+4. Select one of the services and press **Run Query**
+
+![Screenshot of Grafana](vt-grafana.webp)
 
 ## VMAnomaly Playground
 
@@ -77,16 +81,6 @@ VictoriaTraces playground stores traces from [OpenTelemetry Astronomy Shop demo]
 > VictoriaTraces is under active development and does not yet have its own web interface.
 
 VMAnomaly analyzes metrics, logs, or traces using VictoriaMetrics' built-in anomaly detection model to generate an [anomaly score](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score). An `anomaly_score > 1` indicates an anomalous condition that deserves attention.
-
-Since there is no specialized UI for traces yet, you can visualize and track traces directly in the [Grafana playground](https://play-grafana.victoriametrics.com/explore?schemaVersion=1&panes=%7B%22w7z%22:%7B%22datasource%22:%22P14D5514F5CCC0D1C%22,%22queries%22:%5B%7B%22refId%22:%22A%22,%22datasource%22:%7B%22type%22:%22jaeger%22,%22uid%22:%22P14D5514F5CCC0D1C%22%7D,%22queryType%22:%22search%22,%22service%22:%22accounting%22%7D%5D,%22range%22:%7B%22from%22:%22now-1h%22,%22to%22:%22now%22%7D,%22compact%22:false%7D%7D&orgId=1).
-
-To view trace data, follow these steps:
-1. On the [Grafana Playground](https://play-grafana.victoriametrics.com/), select **Explore** in the sidebar
-2. Select VictoriaTraces / Jaeger in the combo box near the top-left corner
-3. In **Query Type** select "Search"
-4. Select one of the services and press **Run Query** 
-
-![Screenshot of Grafana](vt-grafana.webp)
 
 ## Docker Compose Playgrounds
 
