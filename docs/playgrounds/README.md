@@ -32,9 +32,9 @@ This view shows what's stored in database for specified day, lets you browse top
 
 Try plotting graphs on the **Query** tab - [`sum(rate(vm_http_requests_total[5m])) by(path) > 0`](https://play.victoriametrics.com/select/0/prometheus/graph/#/?g0.range_input=30m&g0.relative_time=last_30_minutes&g0.tab=0&g0.expr=sum%28rate%28vm_http_requests_total%5B5m%5D%29%29+by%28path%29+%3E+0):
 
-VictoriaMetrics is also represented as datasource in [Grafana playground](#grafana-playground).
-
 ![Screenshot of VMUI](vmui-app-version.webp)
+
+> VictoriaMetrics is also represented as datasource in [Grafana playground](#grafana-playground).
 
 ## VictoriaLogs Playground
 
@@ -58,7 +58,7 @@ and clicking any field or value automatically applies a filter, so you can brows
 
 On `Query` tab, click on `Query examples` button to see examples of most common search queries to start with.
 
-VictoriaLogs is also represented as datasource in [Grafana playground](#grafana-playground).
+> VictoriaLogs is also represented as datasource in [Grafana playground](#grafana-playground).
 
 ## VictoriaTraces Playground
 
@@ -80,7 +80,7 @@ To view trace data, follow these steps:
 
 ![Screenshot of Grafana](vt-grafana.webp)
 
-VictoriaTraces is also represented as datasource in [Grafana playground](#grafana-playground).
+> VictoriaTraces is also represented as datasource in [Grafana playground](#grafana-playground).
 
 ## Grafana Playground
 
