@@ -3,6 +3,7 @@ package osinfo
 import (
 	"fmt"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metrics"
 	"golang.org/x/sys/windows"
 )
