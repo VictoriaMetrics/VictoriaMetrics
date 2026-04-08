@@ -4843,7 +4843,7 @@ func TestExecSuccess(t *testing.T) {
 		f(q, resultExpected)
 	})
 	// buckets that are consecutively empty at left and right ends will not be preserved.
-	t.Run(`buckets_limit(trim_zero)`, func(t *testing.T) {
+	t.Run(`buckets_limit(trim_zero_preserve_empty_when_limit_not_reached)`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort(buckets_limit(3, (
 			alias(label_set(36, "le", "+Inf"), "metric"),
