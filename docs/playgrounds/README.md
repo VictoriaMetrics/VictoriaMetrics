@@ -12,27 +12,27 @@ In the following sections, we'll walk through each playground, explain its purpo
 
 ## VictoriaMetrics Playground
 
+A fast, cost-effective, and scalable monitoring solution and time series database designed for collecting, storing, querying, and alerting on metrics.
+
 - Try it: <https://play.victoriametrics.com/>
-- Query language reference: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/)
-- GitHub: <https://github.com/VictoriaMetrics/VictoriaMetrics>
+- Documentation: <https://docs.victoriametrics.com/victoriametrics/>
 
-This is the primary playground for VictoriaMetrics, powered by [VMUI](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) and backed by a VictoriaMetrics cluster installation. It allows querying metrics, plotting graphs, exploring cardinality, defining alerting rules, debugging relabeling rules, and viewing query traces.
+The playground is represented by [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/).
+It collects metrics from various services in our k8s playground namespace.
 
-The best place to get started is with the [Cardinality Explorer](https://play.victoriametrics.com/select/0/prometheus/graph/#/cardinality?date=2026-04-07) tab, found under **Explore** > **Explore Cardinality**. This view shows overall statistics, lets you browse top metrics and labels in the dataset, and lets you drill down into them without writing a single line of MetricsQL.
+VictoriaMetrics web UI is represented via [VMUI](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui).
+It allows querying metrics, plotting graphs, exploring cardinality, viewing alerting and recording rules, debugging relabeling rules, etc.
+
+The best place to get started is with the [Cardinality Explorer](https://play.victoriametrics.com/select/0/prometheus/graph/#/cardinality) page, found under **Explore** > **Explore Cardinality**.
+This view shows what's stored in database for specified day, lets you browse top metrics and labels in the dataset, and lets you drill down into them without writing a single line of MetricsQL.
 
 ![Screenshot of VMUI](vmui-cardinality-explorer.webp)
 <figcaption style="text-align: center; font-style: italic;">Cardinality Explorer in VictoriaMetrics</figcaption>
 
-
-Once you are familiar with the available metrics, you can go to the **Query** tab and type a query. [The following example] shows the current version for every job in the dataset using: `count(vm_app_version) by(job, short_version)`.
+Try plotting graphs on the **Query** tab - [`sum(rate(vm_http_requests_total[5m])) by(path) > 0`](https://play.victoriametrics.com/select/0/prometheus/graph/#/?g0.range_input=30m&g0.relative_time=last_30_minutes&g0.tab=0&g0.expr=sum%28rate%28vm_http_requests_total%5B5m%5D%29%29+by%28path%29+%3E+0):
 
 ![Screenshot of VMUI](vmui-app-version.webp)
 <figcaption style="text-align: center; font-style: italic;">Table view of app versions per job</figcaption>
-
-Other interesting queries you may try:
-- Average CPU usage per job: `sum(rate(process_cpu_seconds_total[5m])) by (job)`
-- HTTP requests per-second rate: `sum(rate(vm_http_requests_total[5m]))`
-- Top 5 CPU intensive jobs: `topk(5, sum(rate(process_cpu_seconds_total[5m])) by (job))`
 
 ## VictoriaLogs Playground
 
