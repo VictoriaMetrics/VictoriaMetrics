@@ -41,7 +41,7 @@ import (
 	opentsdbserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdb"
 	opentsdbhttpserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdbhttp"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	osmeta "github.com/VictoriaMetrics/VictoriaMetrics/lib/osmeta"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/osinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/firehose"
@@ -117,7 +117,7 @@ func main() {
 	buildinfo.Init()
 	logger.Init()
 	timeserieslimits.Init(*maxLabelsPerTimeseries, *maxLabelNameLen, *maxLabelValueLen)
-	osmeta.ExposeOsInfoAsMetric()
+	osinfo.ExposeAsMetric()
 
 	if promscrape.IsDryRun() {
 		if err := promscrape.CheckConfig(); err != nil {
