@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -57,11 +58,13 @@ var (
 	denyQueriesOutsideRetention = flag.Bool("denyQueriesOutsideRetention", false, "Whether to deny queries outside the configured -retentionPeriod. "+
 		"When set, then /api/v1/query_range would return '503 Service Unavailable' error for queries with 'from' value outside -retentionPeriod. "+
 		"This may be useful when multiple data sources with distinct retentions are hidden behind query-tee")
-	maxHourlySeries = flag.Int("storage.maxHourlySeries", 0, "The maximum number of unique series can be added to the storage during the last hour. "+
+	maxHourlySeries = flag.Int64("storage.maxHourlySeries", 0, "The maximum number of unique series can be added to the storage during the last hour. "+
 		"Excess series are logged and dropped. This can be useful for limiting series cardinality. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-limiter . "+
+		fmt.Sprintf("Setting this flag to '-1' sets limit to maximum possible value (%d) which is useful in order to enable series tracking without enforcing limits. ", math.MaxInt32)+
 		"See also -storage.maxDailySeries")
-	maxDailySeries = flag.Int("storage.maxDailySeries", 0, "The maximum number of unique series can be added to the storage during the last 24 hours. "+
+	maxDailySeries = flag.Int64("storage.maxDailySeries", 0, "The maximum number of unique series can be added to the storage during the last 24 hours. "+
 		"Excess series are logged and dropped. This can be useful for limiting series churn rate. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-limiter . "+
+		fmt.Sprintf("Setting this flag to '-1' sets limit to maximum possible value (%d) which is useful in order to enable series tracking without enforcing limits. ", math.MaxInt32)+
 		"See also -storage.maxHourlySeries")
 
 	minFreeDiskSpaceBytes = flagutil.NewBytes("storage.minFreeDiskSpaceBytes", 100e6, "The minimum free disk space at -storageDataPath after which the storage stops accepting new data")
@@ -143,8 +146,8 @@ func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	WG = syncwg.WaitGroup{}
 	opts := storage.OpenOptions{
 		Retention:             retentionPeriod.Duration(),
-		MaxHourlySeries:       *maxHourlySeries,
-		MaxDailySeries:        *maxDailySeries,
+		MaxHourlySeries:       getMaxHourlySeries(),
+		MaxDailySeries:        getMaxDailySeries(),
 		DisablePerDayIndex:    *disablePerDayIndex,
 		TrackMetricNamesStats: *trackMetricNamesStats,
 		IDBPrefillStart:       *idbPrefillStart,
@@ -605,10 +608,10 @@ func writeStorageMetrics(w io.Writer, strg *storage.Storage) {
 	metrics.WriteCounterUint64(w, `vm_rows_ignored_total{reason="big_timestamp"}`, m.TooBigTimestampRows)
 	metrics.WriteCounterUint64(w, `vm_rows_ignored_total{reason="small_timestamp"}`, m.TooSmallTimestampRows)
 	metrics.WriteCounterUint64(w, `vm_rows_ignored_total{reason="invalid_raw_metric_name"}`, m.InvalidRawMetricNames)
-	if *maxHourlySeries > 0 {
+	if getMaxHourlySeries() > 0 {
 		metrics.WriteCounterUint64(w, `vm_rows_ignored_total{reason="hourly_limit_exceeded"}`, m.HourlySeriesLimitRowsDropped)
 	}
-	if *maxDailySeries > 0 {
+	if getMaxDailySeries() > 0 {
 		metrics.WriteCounterUint64(w, `vm_rows_ignored_total{reason="daily_limit_exceeded"}`, m.DailySeriesLimitRowsDropped)
 	}
 
@@ -618,13 +621,13 @@ func writeStorageMetrics(w io.Writer, strg *storage.Storage) {
 	metrics.WriteCounterUint64(w, `vm_slow_row_inserts_total`, m.SlowRowInserts)
 	metrics.WriteCounterUint64(w, `vm_slow_per_day_index_inserts_total`, m.SlowPerDayIndexInserts)
 
-	if *maxHourlySeries > 0 {
+	if getMaxHourlySeries() > 0 {
 		metrics.WriteGaugeUint64(w, `vm_hourly_series_limit_current_series`, m.HourlySeriesLimitCurrentSeries)
 		metrics.WriteGaugeUint64(w, `vm_hourly_series_limit_max_series`, m.HourlySeriesLimitMaxSeries)
 		metrics.WriteCounterUint64(w, `vm_hourly_series_limit_rows_dropped_total`, m.HourlySeriesLimitRowsDropped)
 	}
 
-	if *maxDailySeries > 0 {
+	if getMaxDailySeries() > 0 {
 		metrics.WriteGaugeUint64(w, `vm_daily_series_limit_current_series`, m.DailySeriesLimitCurrentSeries)
 		metrics.WriteGaugeUint64(w, `vm_daily_series_limit_max_series`, m.DailySeriesLimitMaxSeries)
 		metrics.WriteCounterUint64(w, `vm_daily_series_limit_rows_dropped_total`, m.DailySeriesLimitRowsDropped)
@@ -748,4 +751,22 @@ func jsonResponseError(w http.ResponseWriter, err error) {
 	w.WriteHeader(http.StatusInternalServerError)
 	errStr := err.Error()
 	fmt.Fprintf(w, `{"status":"error","msg":%s}`, stringsutil.JSONString(errStr))
+}
+
+func getMaxHourlySeries() int {
+	limit := *maxHourlySeries
+	if limit == -1 || limit > math.MaxInt32 {
+		return math.MaxInt32
+	}
+
+	return int(limit)
+}
+
+func getMaxDailySeries() int {
+	limit := *maxDailySeries
+	if limit == -1 || limit > math.MaxInt32 {
+		return math.MaxInt32
+	}
+
+	return int(limit)
 }
