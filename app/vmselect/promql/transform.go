@@ -461,6 +461,39 @@ func transformBucketsLimit(tfa *transformFuncArg) ([]*timeseries, error) {
 				prevValue = value
 			}
 		}
+
+		// Remove buckets that are consecutively empty at left and right ends to obtain more accurate max and min values.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10417.
+		epsilon := 1e-9
+		l := 0
+		r := len(leGroup) - 1
+		trimLeft := true
+		for r-l+1 > limit {
+			leftHits := math.Abs(leGroup[l].hits)
+			rightHits := math.Abs(leGroup[r].hits)
+			if leftHits > epsilon && rightHits > epsilon {
+				break
+			}
+			if trimLeft {
+				if leftHits < epsilon {
+					l++
+				}
+				// switch the trim pointer to the right side if needed
+				if rightHits < epsilon {
+					trimLeft = false
+				}
+			} else {
+				if rightHits < epsilon {
+					r--
+				}
+				// switch the trim pointer to the left side if needed
+				if leftHits < epsilon {
+					trimLeft = true
+				}
+			}
+		}
+		leGroup = leGroup[l : r+1]
+
 		for len(leGroup) > limit {
 			// Preserve the first and the last bucket for better accuracy for min and max values
 			xxMinIdx := 1

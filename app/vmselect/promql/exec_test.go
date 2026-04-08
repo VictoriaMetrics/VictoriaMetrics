@@ -4842,6 +4842,137 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{}
 		f(q, resultExpected)
 	})
+	// buckets that are consecutively empty at left and right ends will not be preserved.
+	t.Run(`buckets_limit(trim_zero)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort(buckets_limit(3, (
+			alias(label_set(36, "le", "+Inf"), "metric"),
+			alias(label_set(36, "le", "25"), "metric"),
+			alias(label_set(36, "le", "21"), "metric"),
+			alias(label_set(36, "le", "19"), "metric"),
+			alias(label_set(36, "le", "18"), "metric"),
+			alias(label_set(36, "le", "17"), "metric"),
+			alias(label_set(36, "le", "16"), "metric"),
+			alias(label_set(27, "le", "12"), "metric"),
+			alias(label_set(14, "le", "9"), "metric"),
+			alias(label_set(0, "le", "6"), "metric"),
+			alias(label_set(0, "le", "1"), "metric"),
+			)))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{14, 14, 14, 14, 14, 14},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.MetricGroup = []byte("metric")
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("le"),
+				Value: []byte("9"),
+			},
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{27, 27, 27, 27, 27, 27},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.MetricGroup = []byte("metric")
+		r2.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("le"),
+				Value: []byte("12"),
+			},
+		}
+		r3 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{36, 36, 36, 36, 36, 36},
+			Timestamps: timestampsExpected,
+		}
+		r3.MetricName.MetricGroup = []byte("metric")
+		r3.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("le"),
+				Value: []byte("16"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1, r2, r3}
+		f(q, resultExpected)
+	})
+
+	// the number of non-empty bucket doesn't reach the given "limit", so some empty buckets will be preserved
+	t.Run(`buckets_limit(trim_zero)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort(buckets_limit(5, (
+			alias(label_set(36, "le", "18"), "metric"),
+			alias(label_set(36, "le", "17"), "metric"),
+			alias(label_set(36, "le", "16"), "metric"),
+			alias(label_set(27, "le", "12"), "metric"),
+			alias(label_set(14, "le", "9"), "metric"),
+			alias(label_set(0, "le", "6"), "metric"),
+			alias(label_set(0, "le", "1"), "metric"),
+			)))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0, 0, 0, 0, 0, 0},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.MetricGroup = []byte("metric")
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("le"),
+				Value: []byte("6"),
+			},
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{14, 14, 14, 14, 14, 14},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.MetricGroup = []byte("metric")
+		r2.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("le"),
+				Value: []byte("9"),
+			},
+		}
+		r3 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{27, 27, 27, 27, 27, 27},
+			Timestamps: timestampsExpected,
+		}
+		r3.MetricName.MetricGroup = []byte("metric")
+		r3.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("le"),
+				Value: []byte("12"),
+			},
+		}
+		r4 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{36, 36, 36, 36, 36, 36},
+			Timestamps: timestampsExpected,
+		}
+		r4.MetricName.MetricGroup = []byte("metric")
+		r4.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("le"),
+				Value: []byte("16"),
+			},
+		}
+		r5 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{36, 36, 36, 36, 36, 36},
+			Timestamps: timestampsExpected,
+		}
+		r5.MetricName.MetricGroup = []byte("metric")
+		r5.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("le"),
+				Value: []byte("17"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1, r2, r3, r4, r5}
+		f(q, resultExpected)
+	})
 	t.Run(`buckets_limit(unused)`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort(buckets_limit(5, (
