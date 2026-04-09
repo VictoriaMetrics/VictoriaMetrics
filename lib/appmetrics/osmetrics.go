@@ -9,17 +9,17 @@ import (
 )
 
 type osInfo struct {
-	os      string
+	name    string
 	release string
 }
 
-var initedOS osInfo
+var os osInfo
 var initOSOnce sync.Once
 
 func writeOSMetrics(w io.Writer) {
 	initOSOnce.Do(initOS)
 
-	if initedOS.os != "" {
-		metrics.WriteGaugeUint64(w, fmt.Sprintf(`vm_os_info{os=%q, release=%q}`, initedOS.os, initedOS.release), 1)
+	if os.name != "" {
+		metrics.WriteGaugeUint64(w, fmt.Sprintf(`vm_os_info{os=%q, release=%q}`, os.name, os.release), 1)
 	}
 }

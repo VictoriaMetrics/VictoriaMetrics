@@ -8,7 +8,7 @@ import (
 )
 
 func initOS() {
-	initedOS = osInfo{os: "darwin"}
+	os = osInfo{name: "darwin"}
 
 	out, err := exec.Command("sysctl", "-n", "kern.osrelease").Output()
 	if err != nil {
@@ -16,5 +16,5 @@ func initOS() {
 		return
 	}
 
-	initedOS.release = strings.TrimSpace(string(out))
+	os.release = strings.TrimSpace(string(out))
 }
