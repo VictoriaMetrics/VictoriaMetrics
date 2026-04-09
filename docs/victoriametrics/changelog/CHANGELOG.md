@@ -41,6 +41,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * BUGFIX: All VictoriaMetrics components: Fix an issue where `unsupported` metric metadata type was exposed for summaries and quantiles if a summary wasn't updated within a certain time window. See [metrics#120](https://github.com/VictoriaMetrics/metrics/issues/120) and [metrics#121](https://github.com/VictoriaMetrics/metrics/pull/121).
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): align request body buffering flags - `maxRequestBodySizeToRetry` and `requestBufferSize` to the same `16KB` value. Allow disabling request buffering by setting `requestBufferSize=0`. See [#10675](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10675)
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): fix `scrape_series_added` metric to update only on successful scrapes, aligning its behavior with Prometheus. See [#10653](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10653).
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): improve the selection algorithm of [buckets_limit](https://docs.victoriametrics.com/victoriametrics/metricsql/#buckets_limit) to remove consecutive empty buckets at the beginning and end to obtain more accurate min and max values. See [#10417](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10417).
 
 ## [v1.139.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.139.0)
 
