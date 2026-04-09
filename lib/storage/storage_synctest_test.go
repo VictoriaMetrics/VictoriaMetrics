@@ -720,9 +720,25 @@ func TestStorageNextDayMetricIDs_loadFromStoreToFile(t *testing.T) {
 		assertNextDayMetricIDs(t, s, idbID, date, numNextDayMetricIDs)
 
 		// Close storage and open it again at the first second of the next day.
-		// nextDayMetricIDs must be reset.
+		// nextDayMetricIDs must still be populated because nextDayMetricIDs
+		// needs to be preserved during the first hour of the day in order to
+		// speed up data ingestion.
 		s.MustClose()
 		sleepUntil(t, 2000, 1, 2, 0, 0, 0, 0)
+		s = MustOpenStorage(t.Name(), OpenOptions{})
+		assertNextDayMetricIDs(t, s, idbID, date, numNextDayMetricIDs)
+
+		// Close storage and open it again at the last moment of the first hour
+		// of the next day. nextDayMetricIDs must still be populated.
+		s.MustClose()
+		sleepUntil(t, 2000, 1, 2, 0, 59, 59, 999_999_999)
+		s = MustOpenStorage(t.Name(), OpenOptions{})
+		assertNextDayMetricIDs(t, s, idbID, date, numNextDayMetricIDs)
+
+		// Close storage and open it again at the first second of the second
+		// hour of the next day. nextDayMetricIDs must be reset.
+		s.MustClose()
+		sleepUntil(t, 2000, 1, 2, 1, 0, 0, 0)
 		s = MustOpenStorage(t.Name(), OpenOptions{})
 		assertNextDayMetricIDs(t, s, idbID, date+1, 0)
 
@@ -749,6 +765,27 @@ func TestStorageNextDayMetricIDs_loadFromStoreToFile(t *testing.T) {
 		sleepUntil(t, 2000, 1, 3, 23, 30, 0, 0)
 		s = MustOpenStorage(t.Name(), OpenOptions{})
 		assertNextDayMetricIDs(t, s, idbID, date+2, 0)
+
+		// Ingest some data and confirm nextDayMetricIDs is not empty.
+		mrs = testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, numSeries, "metric", TimeRange{
+			MinTimestamp: time.Now().Add(-15 * time.Minute).UnixMilli(),
+			MaxTimestamp: time.Now().UnixMilli(),
+		})
+		s.AddRows(mrs, defaultPrecisionBits)
+		s.DebugFlush()
+		numNextDayMetricIDs = s.pendingNextDayMetricIDs.Len()
+		time.Sleep(15 * time.Second)
+		assertNextDayMetricIDs(t, s, idbID, date+2, numNextDayMetricIDs)
+
+		// Close storage and open it again at the first hour of the day after
+		// tomorrow. While it is the last hour of the day, the metricIDs in
+		// nextDayMetricIDs is not from yesterday but the day before yesterday
+		// and therefore nextDayMetricIDs must not be populated but it's date
+		// must still be day before the current date.
+		s.MustClose()
+		sleepUntil(t, 2000, 1, 5, 0, 30, 0, 0)
+		s = MustOpenStorage(t.Name(), OpenOptions{})
+		assertNextDayMetricIDs(t, s, idbID, date+3, 0)
 
 		// Close the storage to conclude the test.
 		s.MustClose()
@@ -808,9 +845,14 @@ func TestStorageNextDayMetricIDs_update(t *testing.T) {
 		sleepUntil(t, 2000, 1, 1, 23, 59, 59, 999_999_999)
 		assertNextDayMetricIDs(t, s, idbID, date, numNextDayMetricIDs)
 
-		// Advance the time to the beginning of the first hour of the next day and
+		// Advance the time to the end of the first hour of the next day and
+		// confirm that nextDayMetricIDs are not reset during this hour.
+		sleepUntil(t, 2000, 1, 2, 0, 59, 59, 999_999_999)
+		assertNextDayMetricIDs(t, s, idbID, date, numNextDayMetricIDs)
+
+		// Advance the time to the beginning of the second hour of the next day and
 		// confirm that nextDayMetricIDs is reset.
-		sleepUntil(t, 2000, 1, 2, 0, 0, 30, 0)
+		sleepUntil(t, 2000, 1, 2, 1, 0, 30, 0)
 		assertNextDayMetricIDs(t, s, idbID, date+1, 0)
 	})
 }
