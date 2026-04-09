@@ -316,7 +316,7 @@ func TestReadSection(t *testing.T) {
 	})
 
 	// comments and blank lines are skipped
-	f("# https://www.youtube.com/watch?v=ia8Q51ouA_s\n[default]\n\npipeline = green\ntests = well written and stable", "default", map[string]string{
+	f("# some comment\n[default]\n\npipeline = green\ntests = well written and stable", "default", map[string]string{
 		"pipeline": "green",
 		"tests":    "well written and stable",
 	})
