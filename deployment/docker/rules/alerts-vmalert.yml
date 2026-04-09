@@ -91,10 +91,13 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: "vmalert instance {{ $labels.instance }} is experiencing high remote write queue usage"
-          description: "The remote write queue on vmalert instance {{ $labels.instance }} has consistently high usage.
-            The queue may reach 100% capacity and begin dropping data if some rules start to generate more series, or if the remote write destination becomes slower. 
-            Consider tuning remoteWrite.maxQueueSize or -remoteWrite.concurrency to ensure the remote write queue has sufficient buffer."
+          summary: "Remote write queue capacity on the vmalert instance {{ $labels.instance }} has exceeded 80% utilization"
+          description: "The remote write queue on vmalert instance {{ $labels.instance }} has consistently high utilization.
+            The queue acts as a buffer between rules generating series and remote-write client consuming and pushing these series. When queue overflows, vmalert will start dropping newly generated series.
+            Queue may overflow due to multiple reasons:
+             1. Some bad rules produce too many series at once. This can be limited using the global `-rule.resultsLimit` flag or `limit` param at the rule group level.
+             2. Remote write connection is slow.  Increase `-remoteWrite.concurrency`,  so vmalert could establish more concurrent connections.
+             3. The queue size is too small. Increase `-remoteWrite.maxQueueSize` to extend the buffer size. Note that a larger queue will result in higher memory consumption when the queue is full."
 
       - alert: AlertmanagerErrors
         expr: increase(vmalert_alerts_send_errors_total[5m]) > 0
