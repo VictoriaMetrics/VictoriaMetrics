@@ -257,6 +257,20 @@ Token is passed in the standard format with header: `Authorization: bearer {toke
 Path to a file, which contains token, that is passed in the standard format with header: `Authorization: bearer {token}`{{% available_from "v1.15.9" anomaly %}}
 </span>            </td>
         </tr>
+        <tr>
+            <td>
+
+<span style="white-space: nowrap;">`connection_retry_attempts`</span>
+            </td>
+            <td>
+
+`1`
+            </td>
+            <td>
+<span>
+Number of attempts to retry the connection in case of failure {{% available_from "v1.29.2" anomaly %}}.
+</span>            </td>
+        </tr>
     </tbody>
 </table>
 
@@ -276,6 +290,7 @@ writer:
   health_path: "health"
   user: "foo"
   password: "bar"
+  connection_retry_attempts: 2  # if not specified, it will be 1 by default
 ```
 
 ### Multitenancy support
