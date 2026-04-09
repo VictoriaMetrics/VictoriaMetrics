@@ -142,10 +142,10 @@ func putStreamContext(ctx *streamContext) {
 var streamContextPool sync.Pool
 
 type unmarshalWork struct {
-	rows         csvimport.Rows
-	ctx          *streamContext
-	callback     func(rows []csvimport.Row) error
-	cds          []csvimport.ColumnDescriptor
+	rows     csvimport.Rows
+	ctx      *streamContext
+	callback func(rows []csvimport.Row) error
+	cds      []csvimport.ColumnDescriptor
 	reqBuf   []byte
 	firstRow bool
 }
