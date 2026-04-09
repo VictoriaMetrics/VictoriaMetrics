@@ -305,6 +305,11 @@ func TestSingleVMAgentDropOnOverload(t *testing.T) {
 		// See initRemoteWriteCtxs function in remotewrite.go for details.
 		"-remoteWrite.maxRowsPerBlock=1000000000",
 		"-remoteWrite.tmpDataPath=" + tc.Dir() + "/vmagent",
+
+		// Delay retry logic to avoid race conditions with waitFor assertions.
+		// It improves the test stability on resource-constrained runners.
+		// Should be bigger than retries * period
+		"-remoteWrite.retryMinInterval=3s",
 	}, ``)
 
 	const (
