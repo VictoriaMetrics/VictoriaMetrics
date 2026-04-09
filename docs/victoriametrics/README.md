@@ -795,6 +795,7 @@ curl http://<victoriametrics-addr>:8428/api/v1/export/csv -d 'format=<format>' -
 ```
 
 The exported CSV data can be imported to VictoriaMetrics via [/api/v1/import/csv](#how-to-import-csv-data).
+The first line of the file is a header row derived from the `format` parameter.
 
 The [deduplication](#deduplication) is applied for the data exported in CSV by default. It is possible to export raw data without de-duplication by passing `reduce_mem_usage=1` query arg to `/api/v1/export/csv`.
 
@@ -935,6 +936,8 @@ The `format` query arg must contain comma-separated list of parsing rules for CS
     * `unix_ns` - unix timestamp in nanoseconds. Note that VictoriaMetrics rounds the timestamp to milliseconds.
     * `rfc3339` - timestamp in [RFC3339](https://tools.ietf.org/html/rfc3339) format, i.e. `2006-01-02T15:04:05Z`.
     * `custom:<layout>` - custom layout for the timestamp. The `<layout>` may contain arbitrary time layout according to [time.Parse rules in Go](https://golang.org/pkg/time/#Parse).
+
+The first row is treated as a header but can be skipped if any `time` or `metric` column contains a non-numeric value.
 
 Each request to `/api/v1/import/csv` may contain arbitrary number of CSV lines.
 
