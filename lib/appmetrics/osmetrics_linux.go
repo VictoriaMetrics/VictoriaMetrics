@@ -2,9 +2,9 @@ package appmetrics
 
 import (
 	"fmt"
+	"io"
 	"sync"
 	"syscall"
-	"io"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metrics"
