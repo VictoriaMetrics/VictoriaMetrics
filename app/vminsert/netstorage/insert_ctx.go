@@ -152,7 +152,7 @@ func (ctx *InsertCtx) WriteDataPointExt(storageNodeIdx int, metricNameRaw []byte
 	snb := ctx.snb
 	sn := snb.sns[storageNodeIdx]
 	bufNew := storage.MarshalMetricRow(br.buf, metricNameRaw, timestamp, value)
-	if len(bufNew) >= maxBufSizePerStorageNode {
+	if len(bufNew) >= maxBufSizePerInsertCtxStorageNode {
 		// Send buf to sn, since it is too big.
 		if err := br.pushTo(snb, sn, getMetricRowHasher); err != nil {
 			return err
@@ -188,7 +188,7 @@ func (ctx *InsertCtx) WriteMetadataExt(storageNodeIdx int, buf []byte) error {
 	snb := ctx.snb
 	sn := snb.sns[storageNodeIdx]
 	bufNew := append(br.buf, buf...)
-	if len(bufNew) >= maxBufSizePerStorageNode {
+	if len(bufNew) >= maxBufSizePerInsertCtxStorageNode {
 		// Send metaBuf to sn, since it is too big.
 		if err := br.pushTo(snb, sn, getMetadataRowHasher); err != nil {
 			return err

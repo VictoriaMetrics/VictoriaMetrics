@@ -134,3 +134,22 @@ func TestAllowRerouting(t *testing.T) {
 		newStorage(0, false),
 	}, 0, true)
 }
+
+func TestGetMaxBufSizePerStorageNode(t *testing.T) {
+	f := func(mem, concurrency, netstorageCount, threshold int) {
+		t.Helper()
+		result := getMaxBufSizePerInsertCtxStorageNode(mem, concurrency, netstorageCount)
+		if result > threshold {
+			t.Fatalf("getMaxBufSizePerInsertCtxStorageNode() returned %d MiB results, expected not exceeding %d MiB", result/1024/1024, threshold/1024/1024)
+		}
+	}
+
+	// 26MiB * 2 * 5 = 260 MiB, roughly 1/4 of 1 GiB.
+	f(1*1024*1024*1024, 2, 5, 26*1024*1024)
+
+	// not enough memory, high concurrency and storages
+	f(1*1024*1024*1024, 96, 50, 1*1024*1024)
+
+	// a lot of memory, a few storages & concurrency
+	f(1*1024*1024*1024, 1, 5, 30*1024*1024)
+}

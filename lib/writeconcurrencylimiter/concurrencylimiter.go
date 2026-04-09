@@ -142,3 +142,8 @@ var (
 		return float64(len(concurrencyLimitCh))
 	})
 )
+
+// GetMaxConcurrentInserts returns the max concurrent insert limit.
+func GetMaxConcurrentInserts() int {
+	return *maxConcurrentInserts
+}
