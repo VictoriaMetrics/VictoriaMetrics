@@ -29,7 +29,7 @@
     "react-input-mask": "^2.0.4",
     "react-router-dom": "^7.13.2",
     "uplot": "^1.6.32",
-    "vite": "^8.0.2",
+    "vite": "^8.0.7",
     "web-vitals": "^5.1.0"
   },
   "devDependencies": {
