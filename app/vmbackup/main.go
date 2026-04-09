@@ -19,8 +19,10 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/osinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/snapshot"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/snapshot/snapshotutil"
 )
@@ -51,6 +53,7 @@ func main() {
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
+	osinfo.ExposeAsMetric()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
