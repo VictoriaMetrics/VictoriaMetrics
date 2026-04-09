@@ -19,13 +19,13 @@ export const fetchRawQueryCSVExport = async (
   }
 
   const { data = [] } = (await labelsResponse.json()) as LabelsResponse;
-  const { format, header } = getCSVExportColumns(data);
+  const columns = getCSVExportColumns(data);
+  const format = columns.join(",");
 
   const response = await fetchFn(getExportCSVDataUrl(serverUrl, query, period, reduceMemUsage, format));
   if (!response.ok) {
     throw new Error(await response.text());
   }
 
-  const text = await response.text();
-  return `${header}\n${text}`;
+  return await response.text();
 };

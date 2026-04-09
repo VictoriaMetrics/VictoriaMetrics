@@ -36,9 +36,6 @@ describe("formatValueToCSV", () => {
 describe("getCSVExportColumns", () => {
   it("should prepend metric name and append value and timestamp columns", () => {
     const result = getCSVExportColumns(["instance", "__name__", "job", "instance"]);
-    expect(result).toEqual({
-      format: "__name__,instance,job,__value__,__timestamp__:unix_ms",
-      header: "name,instance,job,value,timestamp",
-    });
+    expect(result.join(",")).toEqual("__name__,instance,job,__value__,__timestamp__:unix_ms");
   });
 });

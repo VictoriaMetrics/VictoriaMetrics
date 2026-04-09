@@ -5,8 +5,5 @@ export const formatValueToCSV= (value: string) =>
 
 export const getCSVExportColumns = (labelNames: string[]) => {
   const labels = Array.from(new Set(labelNames.filter((label) => label && label !== "__name__"))).sort();
-  return {
-    format: ["__name__", ...labels, "__value__", "__timestamp__:unix_ms"].join(","),
-    header: ["name", ...labels, "value", "timestamp"].join(","),
-  };
+  return ["__name__", ...labels, "__value__", "__timestamp__:unix_ms"];
 };
