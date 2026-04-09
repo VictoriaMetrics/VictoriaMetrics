@@ -2,13 +2,13 @@ package clusternative
 
 import (
 	"flag"
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
@@ -51,85 +51,80 @@ func NewVMSelectServer(addr string) (*vmselectapi.Server, error) {
 type vmstorageAPI struct{}
 
 func (api *vmstorageAPI) InitSearch(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (vmselectapi.BlockIterator, error) {
-	denyPartialResponse := httputil.GetDenyPartialResponse(nil)
 	dl := searchutil.DeadlineFromTimestamp(deadline)
-	bi := newBlockIterator(qt, denyPartialResponse, sq, dl)
+	bi := newBlockIterator(qt, true, sq, dl)
 	return bi, nil
 }
 
 func (api *vmstorageAPI) Tenants(qt *querytracer.Tracer, tr storage.TimeRange, deadline uint64) ([]string, error) {
 	dl := searchutil.DeadlineFromTimestamp(deadline)
-	return netstorage.Tenants(qt, tr, dl)
+	res, err := netstorage.Tenants(qt, tr, dl)
+	return res, wrapClusterNativeError(err)
 }
 
 func (api *vmstorageAPI) SearchMetricNames(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) ([]string, error) {
-	denyPartialResponse := httputil.GetDenyPartialResponse(nil)
 	dl := searchutil.DeadlineFromTimestamp(deadline)
-	metricNames, _, err := netstorage.SearchMetricNames(qt, denyPartialResponse, sq, dl)
-	return metricNames, err
+	metricNames, _, err := netstorage.SearchMetricNames(qt, true, sq, dl)
+	return metricNames, wrapClusterNativeError(err)
 }
 
 func (api *vmstorageAPI) LabelValues(qt *querytracer.Tracer, sq *storage.SearchQuery, labelName string, maxLabelValues int, deadline uint64) ([]string, error) {
-	denyPartialResponse := httputil.GetDenyPartialResponse(nil)
 	dl := searchutil.DeadlineFromTimestamp(deadline)
-	labelValues, _, err := netstorage.LabelValues(qt, denyPartialResponse, labelName, sq, maxLabelValues, dl)
-	return labelValues, err
+	labelValues, _, err := netstorage.LabelValues(qt, true, labelName, sq, maxLabelValues, dl)
+	return labelValues, wrapClusterNativeError(err)
 }
 
 func (api *vmstorageAPI) TagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte,
 	maxSuffixes int, deadline uint64) ([]string, error) {
-	denyPartialResponse := httputil.GetDenyPartialResponse(nil)
 	dl := searchutil.DeadlineFromTimestamp(deadline)
-	suffixes, _, err := netstorage.TagValueSuffixes(qt, accountID, projectID, denyPartialResponse, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes, dl)
-	return suffixes, err
+	suffixes, _, err := netstorage.TagValueSuffixes(qt, accountID, projectID, true, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes, dl)
+	return suffixes, wrapClusterNativeError(err)
 }
 
 func (api *vmstorageAPI) LabelNames(qt *querytracer.Tracer, sq *storage.SearchQuery, maxLabelNames int, deadline uint64) ([]string, error) {
-	denyPartialResponse := httputil.GetDenyPartialResponse(nil)
 	dl := searchutil.DeadlineFromTimestamp(deadline)
-	labelNames, _, err := netstorage.LabelNames(qt, denyPartialResponse, sq, maxLabelNames, dl)
-	return labelNames, err
+	labelNames, _, err := netstorage.LabelNames(qt, true, sq, maxLabelNames, dl)
+	return labelNames, wrapClusterNativeError(err)
 }
 
 func (api *vmstorageAPI) SeriesCount(qt *querytracer.Tracer, accountID, projectID uint32, deadline uint64) (uint64, error) {
-	denyPartialResponse := httputil.GetDenyPartialResponse(nil)
 	dl := searchutil.DeadlineFromTimestamp(deadline)
-	seriesCount, _, err := netstorage.SeriesCount(qt, accountID, projectID, denyPartialResponse, dl)
-	return seriesCount, err
+	seriesCount, _, err := netstorage.SeriesCount(qt, accountID, projectID, true, dl)
+	return seriesCount, wrapClusterNativeError(err)
 }
 
 func (api *vmstorageAPI) TSDBStatus(qt *querytracer.Tracer, sq *storage.SearchQuery, focusLabel string, topN int, deadline uint64) (*storage.TSDBStatus, error) {
-	denyPartialResponse := httputil.GetDenyPartialResponse(nil)
 	dl := searchutil.DeadlineFromTimestamp(deadline)
-	tsdbStatus, _, err := netstorage.TSDBStatus(qt, denyPartialResponse, sq, focusLabel, topN, dl)
-	return tsdbStatus, err
+	tsdbStatus, _, err := netstorage.TSDBStatus(qt, true, sq, focusLabel, topN, dl)
+	return tsdbStatus, wrapClusterNativeError(err)
 }
 
 func (api *vmstorageAPI) DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (int, error) {
 	dl := searchutil.DeadlineFromTimestamp(deadline)
-	return netstorage.DeleteSeries(qt, sq, dl)
+	deletedTotal, err := netstorage.DeleteSeries(qt, sq, dl)
+	return deletedTotal, wrapClusterNativeError(err)
 }
 
 func (api *vmstorageAPI) RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, deadline uint64) error {
 	dl := searchutil.DeadlineFromTimestamp(deadline)
-	return netstorage.RegisterMetricNames(qt, mrs, dl)
+	return wrapClusterNativeError(netstorage.RegisterMetricNames(qt, mrs, dl))
 }
 
 func (api *vmstorageAPI) ResetMetricNamesUsageStats(qt *querytracer.Tracer, deadline uint64) error {
 	dl := searchutil.DeadlineFromTimestamp(deadline)
-	return netstorage.ResetMetricNamesStats(qt, dl)
+	return wrapClusterNativeError(netstorage.ResetMetricNamesStats(qt, dl))
 }
 
 func (api *vmstorageAPI) GetMetricNamesUsageStats(qt *querytracer.Tracer, tt *storage.TenantToken, le, limit int, matchPattern string, deadline uint64) (metricnamestats.StatsResult, error) {
 	dl := searchutil.DeadlineFromTimestamp(deadline)
-	return netstorage.GetMetricNamesStats(qt, tt, le, limit, matchPattern, dl)
+	statResult, err := netstorage.GetMetricNamesStats(qt, tt, le, limit, matchPattern, dl)
+	return statResult, wrapClusterNativeError(err)
 }
 
 func (api *vmstorageAPI) GetMetadataRecords(qt *querytracer.Tracer, tt *storage.TenantToken, limit int, metricName string, deadline uint64) ([]*metricsmetadata.Row, error) {
 	dl := searchutil.DeadlineFromTimestamp(deadline)
-	denyPartialResponse := httputil.GetDenyPartialResponse(nil)
-	meta, _, err := netstorage.GetMetricsMetadata(qt, tt, denyPartialResponse, limit, metricName, dl)
-	return meta, err
+	meta, _, err := netstorage.GetMetricsMetadata(qt, tt, true, limit, metricName, dl)
+	return meta, wrapClusterNativeError(err)
 }
 
 // blockIterator implements vmselectapi.BlockIterator
@@ -162,7 +157,10 @@ func newBlockIterator(qt *querytracer.Tracer, denyPartialResponse bool, sq *stor
 			return nil
 		})
 		close(bi.workCh)
-		bi.err = err
+		// iterator error cannot be forwarded to the upstream vmselect,
+		// upstream receives only unexpected EOF error.
+		// But it's better to wrap error in any way for consistency.
+		bi.err = wrapClusterNativeError(err)
 	})
 	return bi
 }
@@ -213,4 +211,14 @@ func getBlockIterator() *blockIterator {
 		v = &blockIterator{}
 	}
 	return v.(*blockIterator)
+}
+
+// wrapClusterNativeError wraps err with a "vmselectClusterNative" prefix,
+// allowing callers (e.g. netstorage.collectResults) to distinguish errors
+// originating from the cluster-native vmselect path.
+func wrapClusterNativeError(err error) error {
+	if err == nil {
+		return nil
+	}
+	return fmt.Errorf("vmselectClusterNative: %w", err)
 }
