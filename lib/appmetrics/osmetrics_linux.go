@@ -1,25 +1,14 @@
 package appmetrics
 
 import (
-	"fmt"
-	"io"
-	"sync"
 	"syscall"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/metrics"
 )
 
-var release string
-var initOnce sync.Once
+func initOS() {
+	initedOS = osInfo{os: "linux"}
 
-func writeOSMetrics(w io.Writer) {
-	initOnce.Do(initOSMetrics)
-
-	metrics.WriteGaugeUint64(w, fmt.Sprintf(`vm_os_info{os="linux", release=%q}`, release), 1)
-}
-
-func initOSMetrics() {
 	var uname syscall.Utsname
 	if err := syscall.Uname(&uname); err != nil {
 		logger.Warnf("vm_os_info metric will miss release info since syscall.Uname failed: %s", err)
@@ -33,5 +22,5 @@ func initOSMetrics() {
 		}
 		ur = append(ur, byte(v))
 	}
-	release = string(ur)
+	initedOS.release = string(ur)
 }

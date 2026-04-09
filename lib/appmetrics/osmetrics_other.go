@@ -2,9 +2,5 @@
 
 package appmetrics
 
-import (
-	"io"
-)
-
-func writeOSMetrics(w io.Writer) {
+func initOS() {
 }
