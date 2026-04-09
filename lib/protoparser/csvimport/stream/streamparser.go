@@ -49,11 +49,14 @@ func Parse(req *http.Request, callback func(rows []csvimport.Row) error) error {
 
 	ctx := getStreamContext(reader)
 	defer putStreamContext(ctx)
+	firstRow := true
 	for ctx.Read() {
 		uw := getUnmarshalWork()
 		uw.ctx = ctx
 		uw.callback = callback
 		uw.cds = cds
+		uw.firstRow = firstRow
+		firstRow = false
 		uw.reqBuf, ctx.reqBuf = ctx.reqBuf, uw.reqBuf
 		ctx.wg.Add(1)
 		protoparserutil.ScheduleUnmarshalWork(uw)
@@ -144,6 +147,7 @@ type unmarshalWork struct {
 	callback func(rows []csvimport.Row) error
 	cds      []csvimport.ColumnDescriptor
 	reqBuf   []byte
+	firstRow bool
 }
 
 func (uw *unmarshalWork) reset() {
@@ -152,6 +156,7 @@ func (uw *unmarshalWork) reset() {
 	uw.callback = nil
 	uw.cds = nil
 	uw.reqBuf = uw.reqBuf[:0]
+	uw.firstRow = false
 }
 
 func (uw *unmarshalWork) runCallback(rows []csvimport.Row) {
@@ -168,7 +173,11 @@ func (uw *unmarshalWork) runCallback(rows []csvimport.Row) {
 
 // Unmarshal implements protoparserutil.UnmarshalWork
 func (uw *unmarshalWork) Unmarshal() {
-	uw.rows.Unmarshal(bytesutil.ToUnsafeString(uw.reqBuf), uw.cds)
+	if uw.firstRow {
+		uw.rows.UnmarshalDetectHeader(bytesutil.ToUnsafeString(uw.reqBuf), uw.cds)
+	} else {
+		uw.rows.Unmarshal(bytesutil.ToUnsafeString(uw.reqBuf), uw.cds)
+	}
 	rows := uw.rows.Rows
 	rowsRead.Add(len(rows))
 
