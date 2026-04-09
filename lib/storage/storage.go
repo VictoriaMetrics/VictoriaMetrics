@@ -2298,7 +2298,7 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 			// Fast path: the metricID has already been added to the per-day
 			// index during the next day prefill.
 			//
-			// At 00:00 UTC, nextDayMetricIDs become equvalent to
+			// At 00:00 UTC, nextDayMetricIDs become equivalent to
 			// currHourMetricIDs. Use it during the first hour of the day
 			// since currHourMetricIDs is not populated yet.
 			continue
