@@ -1236,8 +1236,8 @@ For example:
 ```yaml
 groups:
   - name: BaseGroup
-    interval: 1m
-    eval_offset: 10s
+    interval: 5m
+    eval_offset: 1m
     rules:
       - record: http_server_request_duration_seconds:sum_rate:5m:http_get
         expr: |
@@ -1258,8 +1258,8 @@ groups:
             )
           )
   - name: TopGroup
-    interval: 1m
-    eval_offset: 40s
+    interval: 5m
+    eval_offset: 3m
     rules:
       - record: http_server_request_duration_seconds:sum_rate:5m:merged
         expr: |
@@ -1271,20 +1271,20 @@ groups:
 This configuration ensures that rules in `BaseGroup` are executed at(assuming vmalert starts at `12:00:00`):
 
 ```
-[12:00:10, 12:01:10, 12:02:10, 12:03:10...]
+[12:01:00, 12:06:00, 12:11:00, 12:16:00...]
 ```
 
 while rules in group `TopGroup` are executed at:
 
 ```
-[12:00:40, 12:01:40, 12:02:40, 12:03:40...]
+[12:03:00, 12:08:00, 12:13:00, 12:18:00...]
 ```
 
-As a result, `TopGroup` always gets the latest results of `BaseGroup`.
+As a result, `TopGroup` can consistently obtain the latest results from `BaseGroup` if `BaseGroup` completes its evaluation and uploads its results to the datasource within 2 minutes.
 
 By default, the `eval_offset` values should be at least 30 seconds apart to accommodate the
 `-search.latencyOffset(default 30s)` command-line flag at vmselect or VictoriaMetrics single-node.
-The minimum `eval_offset` gap can be adjusted accordingly with `-search.latencyOffset`.
+The minimum `eval_offset` gap should be adjusted according to the sum of the execution duration of `BaseGroup` and `-search.latencyOffset`.
 
 ### Notifier configuration file
 
