@@ -36,8 +36,6 @@ Try plotting graphs on the **Query** tab - [`sum(rate(vm_http_requests_total[5m]
 
 > VictoriaMetrics is also represented as a datasource in [Grafana playground](#grafana-playground).
 
-![Screenshot of Grafana Dashboard](vm-cluster-grafana.webp)
-
 ## VictoriaLogs Playground
 
 High-performance, lightweight, zero-config, schema-free database for logs that is easy to use and scales both vertically and horizontally, 
@@ -62,8 +60,6 @@ On the `Query` tab, click on the `Query examples` button to see examples of the 
 
 > VictoriaLogs is also represented as a datasource in [Grafana playground](#grafana-playground).
 
-![Screenshot of Grafana Dashboard](vl-cluster-grafana.webp)
-
 ## VictoriaTraces Playground
 
 VictoriaTraces is a fast and scalable database for traces, built on top of VictoriaLogs.
@@ -85,8 +81,6 @@ To view trace data, follow these steps:
 ![Screenshot of Grafana](vt-grafana.webp)
 
 > VictoriaTraces is also represented as a datasource in [Grafana playground](#grafana-playground).
-
-![Screenshot of Grafana Dashboard](vt-cluster-grafana.webp)
 
 ## Grafana Playground
 
