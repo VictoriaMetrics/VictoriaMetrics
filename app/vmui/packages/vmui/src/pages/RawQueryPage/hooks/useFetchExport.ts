@@ -6,10 +6,11 @@ import { useTimeState } from "../../../state/time/TimeStateContext";
 import { useAppState } from "../../../state/common/StateContext";
 import { useCustomPanelState } from "../../../state/customPanel/CustomPanelStateContext";
 import { isValidHttpUrl } from "../../../utils/url";
-import { getExportCSVDataUrl, getExportDataUrl, getExportJSONDataUrl } from "../../../api/query-range";
+import { getExportDataUrl, getExportJSONDataUrl } from "../../../api/query-range";
 import { parseLineToJSON } from "../../../utils/json";
 import { downloadCSV, downloadJSON } from "../../../utils/file";
 import { useSnack } from "../../../contexts/Snackbar";
+import { fetchRawQueryCSVExport } from "../../../api/raw-query";
 
 interface FetchQueryParams {
   hideQuery?: number[];
@@ -67,11 +68,8 @@ export const useFetchExport = ({ hideQuery, showAllSeries }: FetchQueryParams): 
     const getFilename = (format: ExportFormats) => `vmui_export_${query.join("_")}_${period.start}_${period.end}.${format}`;
     return {
       csv: async () => {
-        const url = getExportCSVDataUrl(serverUrl, query, period, reduceMemUsage);
-        const response = await fetch(url);
         try {
-          let text = await response.text();
-          text = "name,value,timestamp\n" + text;
+          const text = await fetchRawQueryCSVExport(serverUrl, query, period, reduceMemUsage);
           downloadCSV(text, getFilename("csv"));
         } catch (e) {
           console.error(e);
