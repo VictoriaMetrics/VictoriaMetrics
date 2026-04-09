@@ -36,6 +36,7 @@ func WritePrometheusMetrics(w io.Writer) {
 	if currentTime.Sub(metricsCacheLastUpdateTime) > time.Second {
 		var bb bytesutil.ByteBuffer
 		writePrometheusMetrics(&bb)
+		writeOSMetrics(&bb)
 		metricsCache.Store(&bb)
 		metricsCacheLastUpdateTime = currentTime
 	}
