@@ -1,5 +1,6 @@
 //go:build !linux && !windows && !darwin
 
-package osinfo
+package appmetrics
 
-func ExposeAsMetric() {}
+func initOS() {
+}
