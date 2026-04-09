@@ -28,6 +28,12 @@ func timestampFromTime(t time.Time) int64 {
 	return t.UnixNano() / 1e6
 }
 
+// Returns true if the timestamp (must be in seconds) is within the first hour
+// of the day.
+func isFirstHourOfDay(timestamp uint64) bool {
+	return (timestamp/3600)%24 == 0
+}
+
 // TimeRange is time range.
 type TimeRange struct {
 	MinTimestamp int64
