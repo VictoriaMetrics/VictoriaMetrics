@@ -95,9 +95,6 @@ Try viewing available dashboards or just browse via Grafana's explore page to qu
 
 ## VMAnomaly Playground
 
-> [!NOTE]
-> VictoriaTraces is under active development and does not yet have its own web interface.
-
 VMAnomaly analyzes metrics, logs, or traces using VictoriaMetrics' built-in anomaly detection model to generate an [anomaly score](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score). An `anomaly_score > 1` indicates an anomalous condition that deserves attention.
 
 The [anomaly metrics playground](https://play-vmanomaly.victoriametrics.com/metrics/) shows anomalies in CPU utilization.
