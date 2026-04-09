@@ -304,6 +304,16 @@ func TestMetricRowMarshalUnmarshal(t *testing.T) {
 	}
 }
 
+func TestStorageNotifyReadWriteModeNilTable(t *testing.T) {
+	var s Storage
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("notifyReadWriteMode panicked with nil tb: %v", r)
+		}
+	}()
+	s.notifyReadWriteMode()
+}
+
 func TestStorageOpenClose(t *testing.T) {
 	path := "TestStorageOpenClose"
 	opts := OpenOptions{
