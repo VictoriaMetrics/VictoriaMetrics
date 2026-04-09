@@ -19,7 +19,6 @@ func ExposeAsMetric() {
 	}
 
 	darwinRelease = strings.TrimSpace(string(out))
-	logger.Infof("jayice:%s", darwinRelease)
 
 	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vm_os_info{os="darwin", release=%q}`, darwinRelease), func() float64 { return 1 })
 }
