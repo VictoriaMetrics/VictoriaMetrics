@@ -233,13 +233,18 @@ var (
 	rwTotal  = metrics.NewCounter(`vmalert_remotewrite_total`)
 
 	// sentRows and sentBytes are historical counters that can now be replaced by flushedRows and flushedBytes histograms. They may be deprecated in the future after the new histograms have been adopted for some time.
-	sentRows            = metrics.NewCounter(`vmalert_remotewrite_sent_rows_total`)
-	sentBytes           = metrics.NewCounter(`vmalert_remotewrite_sent_bytes_total`)
-	flushedRows         = metrics.NewHistogram(`vmalert_remotewrite_sent_rows`)
-	flushedBytes        = metrics.NewHistogram(`vmalert_remotewrite_sent_bytes`)
-	droppedRows         = metrics.NewCounter(`vmalert_remotewrite_dropped_rows_total`)
-	sendDuration        = metrics.NewFloatCounter(`vmalert_remotewrite_send_duration_seconds_total`)
-	bufferFlushDuration = metrics.NewHistogram(`vmalert_remotewrite_flush_duration_seconds`)
+	sentRows             = metrics.NewCounter(`vmalert_remotewrite_sent_rows_total`)
+	sentBytes            = metrics.NewCounter(`vmalert_remotewrite_sent_bytes_total`)
+	flushedRows          = metrics.NewHistogram(`vmalert_remotewrite_sent_rows`)
+	flushedBytes         = metrics.NewHistogram(`vmalert_remotewrite_sent_bytes`)
+	droppedRows          = metrics.NewCounter(`vmalert_remotewrite_dropped_rows_total`)
+	sendDuration         = metrics.NewFloatCounter(`vmalert_remotewrite_send_duration_seconds_total`)
+	bufferFlushDuration  = metrics.NewHistogram(`vmalert_remotewrite_flush_duration_seconds`)
+	remoteWriteQueueSize = metrics.NewHistogram(`vmalert_remotewrite_queue_size`)
+
+	_ = metrics.NewGauge(`vmalert_remotewrite_queue_capacity`, func() float64 {
+		return float64(*maxQueueSize)
+	})
 
 	_ = metrics.NewGauge(`vmalert_remotewrite_concurrency`, func() float64 {
 		return float64(*concurrency)
@@ -253,6 +258,7 @@ func GetDroppedRows() int { return int(droppedRows.Get()) }
 // it to remote-write endpoint. Flush performs limited amount of retries
 // if request fails.
 func (c *Client) flush(ctx context.Context, wr *prompb.WriteRequest) {
+	remoteWriteQueueSize.Update(float64(len(c.input)))
 	if len(wr.Timeseries) < 1 {
 		return
 	}
