@@ -1137,7 +1137,7 @@ The following [metrics](https://docs.victoriametrics.com/victoriametrics/vmauth/
 * `vmauth_buffer_request_body_duration_seconds` - the [summary](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#summary) for the request body buffering duration.
   Use this metric to understand buffering performance and identify slow clients.
 
-See also [concurrency limits](https://docs.victoriametrics.com/victoriametrics/vmauth/#concurrency-limits).
+See also [concurrency limits](https://docs.victoriametrics.com/victoriametrics/vmauth/#concurrency-limiting).
 
 ## Backend TLS setup
 
