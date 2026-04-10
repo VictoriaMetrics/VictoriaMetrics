@@ -457,6 +457,9 @@ test:
 test-race:
 	go test -tags 'synctest' -race ./lib/... ./app/...
 
+test-386:
+	GOARCH=386 go test -tags 'synctest' ./lib/... ./app/...
+
 test-pure:
 	CGO_ENABLED=0 go test -tags 'synctest' ./lib/... ./app/...
 
