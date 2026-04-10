@@ -23,6 +23,10 @@
     &_selected {
       background-color: rgba($color-dodger-blue, 0.05);
     }
+
+    &_highlighted {
+      font-weight: bold;
+    }
   }
 
   &-cell {

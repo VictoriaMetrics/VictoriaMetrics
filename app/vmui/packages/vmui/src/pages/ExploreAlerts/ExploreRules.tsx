@@ -17,6 +17,7 @@ import { getQueryStringValue } from "../../utils/query-string";
 import { getChanges } from "./helpers";
 import debounce from "lodash.debounce";
 import { getStates } from "../../components/ExploreAlerts/helpers";
+import { useTopQueriesSet } from "./hooks/useTopQueriesSet";
 
 const defaultRuleType = getQueryStringValue("type", "") as string;
 const defaultStatesStr = getQueryStringValue("states", "") as string;
@@ -119,6 +120,8 @@ const ExploreRules: FC = () => {
     }
   }, [states, allStates]);
 
+  const topQueriesSet = useTopQueriesSet();
+
   const pageNumInt: number = Math.max(1, parseInt(pageNum, 10) || 1);
   const {
     groups,
@@ -187,6 +190,7 @@ const ExploreRules: FC = () => {
                           key={`rule-${rule.id}`}
                           rule={rule}
                           states={getStates(rule)}
+                          topQueriesSet={topQueriesSet}
                         />
                       ))}
                     </div>

@@ -15,6 +15,7 @@ import "./style.scss";
 import useDeviceDetect from "../../hooks/useDeviceDetect";
 import classNames from "classnames";
 import useStateSearchParams from "../../hooks/useStateSearchParams";
+import { getQueryStringValue } from "../../utils/query-string";
 
 const exampleDuration = "30ms, 15s, 3d4h, 1y2w";
 
@@ -23,6 +24,7 @@ const TopQueries: FC = () => {
 
   const [topN, setTopN] = useStateSearchParams(10, "topN");
   const [maxLifetime, setMaxLifetime] = useStateSearchParams("10m", "maxLifetime");
+  const highlightQuery = getQueryStringValue("query", "") as string;
 
   const { data, error, loading, fetch } = useFetchTopQueries({ topN, maxLifetime });
 
@@ -157,6 +159,7 @@ const TopQueries: FC = () => {
               { key: "count" }
             ]}
             defaultOrderBy={"sumDurationSeconds"}
+            highlightQuery={highlightQuery}
           />
           <TopQueryPanel
             rows={data.topByAvgDuration}
@@ -168,6 +171,7 @@ const TopQueries: FC = () => {
               { key: "count" }
             ]}
             defaultOrderBy={"avgDurationSeconds"}
+            highlightQuery={highlightQuery}
           />
           <TopQueryPanel
             rows={data.topByCount}
@@ -177,6 +181,7 @@ const TopQueries: FC = () => {
               { key: "timeRange", sortBy: "timeRangeSeconds", title: "query time interval" },
               { key: "count" }
             ]}
+            highlightQuery={highlightQuery}
           />
           <TopQueryPanel
             rows={data.topByAvgMemoryUsage}
@@ -188,6 +193,7 @@ const TopQueries: FC = () => {
               { key: "count" }
             ]}
             defaultOrderBy={"avgMemoryBytes"}
+            highlightQuery={highlightQuery}
           />
         </div>
       </>)}

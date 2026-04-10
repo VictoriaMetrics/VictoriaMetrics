@@ -9,11 +9,15 @@ import Tooltip from "../../../components/Main/Tooltip/Tooltip";
 import { Link } from "react-router-dom";
 import useCopyToClipboard from "../../../hooks/useCopyToClipboard";
 
-const TopQueryTable:FC<TopQueryPanelProps> = ({ rows, columns, defaultOrderBy }) => {
+const normalizeQuery = (q: string): string => q.replace(/\s+/g, " ").trim();
+
+const TopQueryTable:FC<TopQueryPanelProps> = ({ rows, columns, defaultOrderBy, highlightQuery }) => {
   const copyToClipboard = useCopyToClipboard();
 
   const [orderBy, setOrderBy] = useState<keyof TopQuery>(defaultOrderBy || "count");
   const [orderDir, setOrderDir] = useState<"asc" | "desc">("desc");
+
+  const normalizedHighlight = useMemo(() => highlightQuery ? normalizeQuery(highlightQuery) : "", [highlightQuery]);
 
   const sortedList = useMemo(() => stableSort(rows, getComparator(orderDir, orderBy)),
     [rows, orderBy, orderDir]);
@@ -59,9 +63,11 @@ const TopQueryTable:FC<TopQueryPanelProps> = ({ rows, columns, defaultOrderBy })
         </tr>
       </thead>
       <tbody className="vm-table-body">
-        {sortedList.map((row, rowIndex) => (
+        {sortedList.map((row, rowIndex) => {
+          const isHighlighted = normalizedHighlight && normalizeQuery(row.query) === normalizedHighlight;
+          return (
           <tr
-            className="vm-table__row"
+            className={classNames({ "vm-table__row": true, "vm-table__row_highlighted": !!isHighlighted })}
             key={rowIndex}
           >
             {columns.map((col) => (
@@ -103,7 +109,8 @@ const TopQueryTable:FC<TopQueryPanelProps> = ({ rows, columns, defaultOrderBy })
               </div>
             </td>
           </tr>
-        ))}
+          );
+        })}
       </tbody>
     </table>
   );

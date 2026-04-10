@@ -13,6 +13,7 @@ export interface TopQueryPanelProps {
   title?: string,
   columns: {title?: string, key: (keyof TopQuery), sortBy?: (keyof TopQuery)}[],
   defaultOrderBy?: keyof TopQuery,
+  highlightQuery?: string,
 }
 const tabs = ["table", "JSON"].map((t, i) => ({
   value: String(i),
@@ -20,7 +21,7 @@ const tabs = ["table", "JSON"].map((t, i) => ({
   icon: i === 0 ? <TableIcon /> : <CodeIcon />
 }));
 
-const TopQueryPanel: FC<TopQueryPanelProps> = ({ rows, title, columns, defaultOrderBy }) => {
+const TopQueryPanel: FC<TopQueryPanelProps> = ({ rows, title, columns, defaultOrderBy, highlightQuery }) => {
   const { isMobile } = useDeviceDetect();
   const [activeTab, setActiveTab] = useState(0);
 
@@ -69,6 +70,7 @@ const TopQueryPanel: FC<TopQueryPanelProps> = ({ rows, title, columns, defaultOr
             rows={rows}
             columns={columns}
             defaultOrderBy={defaultOrderBy}
+            highlightQuery={highlightQuery}
           />
         )}
         {activeTab === 1 && <JsonView data={rows} />}
