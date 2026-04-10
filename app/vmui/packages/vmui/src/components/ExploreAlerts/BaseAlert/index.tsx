@@ -32,13 +32,6 @@ const BaseAlert = ({ item }: BaseAlertProps) => {
     const params: Record<string, string> = {
       "g0.expr": query,
     };
-    // if (item.activeAt) {
-    //   params["g0.end_input"] = dayjs(item.activeAt).utc().format("YYYY-MM-DD[T]HH:mm:ss");
-    //   params["g0.relative_time"] = "none";
-    // }
-    if (item.group_interval) {
-      params["g0.step_input"] = formatDuration(item.group_interval);
-    }
     window.open(`#/?${createSearchParams(params).toString()}`, "_blank", "noopener noreferrer");
   };
 
