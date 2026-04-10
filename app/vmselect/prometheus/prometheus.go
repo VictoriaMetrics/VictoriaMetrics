@@ -175,6 +175,7 @@ func ExportCSVHandler(startTime time.Time, w http.ResponseWriter, r *http.Reques
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
+	WriteExportCSVHeader(bw, fieldNames)
 	sw := newScalableWriter(bw)
 	writeCSVLine := func(xb *exportBlock, workerID uint) error {
 		if len(xb.timestamps) == 0 {
