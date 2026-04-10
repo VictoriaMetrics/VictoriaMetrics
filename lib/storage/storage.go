@@ -268,7 +268,8 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 
 	// check for free disk space before opening the table
 	// to prevent unexpected part merges. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4023
-	s.startFreeDiskSpaceWatcher()
+	freeSpaceBytes := fs.MustGetFreeSpace(s.path)
+	s.isReadOnly.Store(freeSpaceBytes < freeDiskSpaceLimitBytes)
 
 	// Load data
 	tablePath := filepath.Join(path, dataDirname)
@@ -314,6 +315,7 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	s.startCurrHourMetricIDsUpdater()
 	s.startNextDayMetricIDsUpdater()
 	s.startLegacyRetentionWatcher()
+	s.startFreeDiskSpaceWatcher()
 
 	return s
 }
