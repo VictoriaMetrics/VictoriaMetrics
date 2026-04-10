@@ -759,6 +759,7 @@ func (s *Storage) startFreeDiskSpaceWatcher() {
 }
 
 func (s *Storage) notifyReadWriteMode() {
+	s.tb.NotifyReadWriteMode()
 	s.legacyNotifyReadWriteMode()
 }
 
