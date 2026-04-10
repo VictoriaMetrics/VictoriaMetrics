@@ -306,8 +306,8 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	s.pendingHourEntries = &uint64set.Set{}
 	// Load nextDayMetricIDs cache after the data table is opened since it
 	// requires the partition index to operate properly.
-	date := fasttime.UnixDate()
-	nextDayMetricIDs := s.mustLoadNextDayMetricIDs(date)
+	timestamp := fasttime.UnixTimestamp()
+	nextDayMetricIDs := s.mustLoadNextDayMetricIDs(timestamp)
 	s.nextDayMetricIDs.Store(nextDayMetricIDs)
 	s.pendingNextDayMetricIDs = &uint64set.Set{}
 
@@ -793,12 +793,12 @@ func (s *Storage) nextDayMetricIDsUpdater() {
 	for {
 		select {
 		case <-s.stopCh:
-			date := fasttime.UnixDate()
-			s.updateNextDayMetricIDs(date)
+			timestamp := fasttime.UnixTimestamp()
+			s.updateNextDayMetricIDs(timestamp)
 			return
 		case <-ticker.C:
-			date := fasttime.UnixDate()
-			s.updateNextDayMetricIDs(date)
+			timestamp := fasttime.UnixTimestamp()
+			s.updateNextDayMetricIDs(timestamp)
 		}
 	}
 }
@@ -859,7 +859,15 @@ func (s *Storage) MustClose() {
 	}
 }
 
-func (s *Storage) mustLoadNextDayMetricIDs(date uint64) *nextDayMetricIDs {
+func (s *Storage) mustLoadNextDayMetricIDs(timestamp uint64) *nextDayMetricIDs {
+	date := timestamp / (24 * 3600)
+	if isFirstHourOfDay(timestamp) {
+		// If this is the first hour of the day, allow to load nextDayMetricIDs
+		// collected during the next day index prefill during the last hour of
+		// the day before to speed up data ingestion. See updatePerDateData()
+		// and updateNextDayMetricIDs().
+		date--
+	}
 	ptw := s.tb.MustGetPartition(int64(date+1) * msecPerDay)
 	nextDayIDBID := ptw.pt.idb.id
 	s.tb.PutPartition(ptw)
@@ -1976,6 +1984,11 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 				seriesRepopulated++
 				slowInsertsCount++
 			}
+			// TODO(rtm0): Possibly a bug: pending entry is added and if
+			// 1) it happens to be sync'ed to currHourMetricIDs before
+			//    updatePerDateData() is executed AND
+			// 2) that metricID hasn't been registered for that day
+			// the metric will be lost.
 			addToPendingHourEntries(hour, lTSID.TSID.MetricID)
 			continue
 		}
@@ -2230,12 +2243,14 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 	hmCurrDate := hmCurr.hour / 24
 	nextDayMetricIDsCache := s.nextDayMetricIDs.Load()
 	nextDayIDBID := nextDayMetricIDsCache.idbID
+	nextDayDate := nextDayMetricIDsCache.date + 1
 	nextDayMetricIDs := &nextDayMetricIDsCache.metricIDs
 	ts := fasttime.UnixTimestamp()
 	// Start pre-populating the next per-day inverted index during the last hour of the current day.
 	// pMin linearly increases from 0 to 1 during the last hour of the day.
 	pMin := (float64(ts%(3600*24)) / 3600) - 23
 	currentHour := ts / 3600
+	firstHourOfDay := isFirstHourOfDay(ts)
 	type pendingDateMetricID struct {
 		date uint64
 		tsid *TSID
@@ -2279,14 +2294,26 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 			}
 		}
 
+		if firstHourOfDay && date == nextDayDate && nextDayMetricIDs.Has(metricID) {
+			// Fast path: the metricID has already been added to the per-day
+			// index during the next day prefill.
+			//
+			// At 00:00 UTC, nextDayMetricIDs become equivalent to
+			// currHourMetricIDs. Use it during the first hour of the day
+			// since currHourMetricIDs is not populated yet.
+			continue
+		}
+
 		if date == hmCurrDate && hmCurr.m.Has(metricID) {
 			// Fast path: the metricID is in the current hour cache.
-			// This means the metricID has been already added to per-day inverted index.
+			// This means the metricID has been already added to per-day
+			// inverted index.
 			continue
 		}
 
 		if date == hmPrevDate && hmPrev.m.Has(metricID) {
-			// Fast path: the metricID is already registered for its day on the previous hour.
+			// Fast path: the metricID is already registered for its day on the
+			// previous hour.
 			continue
 		}
 
@@ -2400,12 +2427,29 @@ func fastHashUint64(x uint64) uint64 {
 // the last hour of the day when the per-day index is prefilled with the next
 // day entries (see updatePerDayData()).
 type nextDayMetricIDs struct {
-	idbID     uint64
-	date      uint64
+	// idbID is the id of the indexDB that stores the next day (date+1) metrics.
+	idbID uint64
+
+	// date is the date (usually the current date) relatively to which the next
+	// day is taken. So next day is date+1.
+	date uint64
+
+	// metricIDs is the set of metricIDs for the next day.
 	metricIDs uint64set.Set
 }
 
-func (s *Storage) updateNextDayMetricIDs(date uint64) {
+// updateNextDayMetricIDs updates s.nextDayMetricIDs with the metricIDs for the
+// date that follows the timestamp date. For example, if timestamp corresponds
+// to 2000-01-01, then s.nextDayMetricIDs holds the metricIDs for 2000-01-02.
+//
+// The s.nextDayMetricIDs.date and timestamp date must match, otherwise
+// s.nextDayMetricIDs will be reset. The only exception is the first hour of the
+// next day when s.nextDayMetricIDs is neither updated with new metricIDs nor
+// reset. During this time s.nextDayMetricIDs is used in place of
+// s.currHourMetricIDs to speed up per-day index creation.
+// See updatePerDateData().
+func (s *Storage) updateNextDayMetricIDs(timestamp uint64) {
+	date := timestamp / (3600 * 24)
 	ptw := s.tb.MustGetPartition(int64(date+1) * msecPerDay)
 	nextDayIDBID := ptw.pt.idb.id
 	s.tb.PutPartition(ptw)
@@ -2414,6 +2458,20 @@ func (s *Storage) updateNextDayMetricIDs(date uint64) {
 	pendingMetricIDs := s.pendingNextDayMetricIDs
 	s.pendingNextDayMetricIDs = &uint64set.Set{}
 	s.pendingNextDayMetricIDsLock.Unlock()
+
+	if e.date+1 == date && isFirstHourOfDay(timestamp) {
+		// Do not reset nextDayMetricIDs during the first hour of the next day
+		// to speed up the creation of per-day indexes in updatePerDateData().
+		//
+		// updatePerDateData() relies on currHourMetricIDs and
+		// prevHourMetricIDs contents to decide whether the per-day index
+		// entries have already been created. At exactly 00:00 UTC (and some
+		// time after it) currHourMetricIDs is empty and prevHourMetricIDs
+		// cannot be used because it contains metricIDs for the previous
+		// day.
+		return
+	}
+
 	// Not comparing indexDB IDs because different idb ids imply different date.
 	if pendingMetricIDs.Len() == 0 && e.date == date {
 		// Fast path: nothing to update.
@@ -2434,7 +2492,8 @@ func (s *Storage) updateNextDayMetricIDs(date uint64) {
 		pendingMetricIDs.Union(&e.metricIDs)
 	} else {
 		// Do not add pendingMetricIDs from the previous day to the current day,
-		// since this may result in missing registration of the metricIDs in the per-day inverted index.
+		// since this may result in missing registration of the metricIDs in the
+		// per-day inverted index.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3309
 		pendingMetricIDs = &uint64set.Set{}
 	}
