@@ -1979,7 +1979,7 @@ By default, VictoriaMetrics doesn't limit the number of stored time series. The 
 
 Both limits can be set simultaneously. If any of these limits is reached, then incoming samples for new time series are dropped. A sample of dropped series is put in the log with `WARNING` level.
 
-It is possible to use `-1` as a value for these flags{{% available_from "#" %}} in order to enable series tracking but set limit to maximum possible value.
+It is possible to use `-1` as a value for these flags{{% available_from "v1.140.0" %}} in order to enable series tracking but set limit to maximum possible value.
 This is useful in order to estimate the number of unique series which is written to VictoriaMetrics single without enforcing limits.
 
 The exceeded limits can be [monitored](#monitoring) with the following metrics:
