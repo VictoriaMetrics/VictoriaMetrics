@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix `-maxConcurrentInserts` semaphore slots leak, which could lead to ingestion deadlock under vmstorage overload. See [#10784](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10784).
+
 ## [v1.140.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.140.0)
 
 Released at 2026-04-10
