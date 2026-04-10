@@ -140,7 +140,13 @@ func VMSelectClient(c net.Conn, compressionLevel int) (*BufferedConn, error) {
 // compressionLevel <= 0 means 'no compression'
 func VMSelectServer(c net.Conn, compressionLevel int) (*BufferedConn, error) {
 	return genericServer(c, compressionLevel, func(c net.Conn) error {
-		return readMessage(c, vmselectHello)
+		err := readMessage(c, vmselectHello)
+		if errors.Is(err, io.EOF) {
+			// This is likely a TCP healthcheck, which must be ignored in order to prevent logs pollution.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1762 and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10786
+			return errTCPHealthcheck
+		}
+		return err
 	})
 }
 
