@@ -231,7 +231,6 @@ export interface Rule {
   updates: RuleUpdate[];
   max_updates_entries: number;
   states: Record<string, number>;
-  group_interval: number;
 }
 
 interface RuleUpdate {
@@ -256,7 +255,6 @@ export interface Alert {
   source: string;
   restored: boolean;
   stabilizing: boolean;
-  group_interval: number;
 }
 
 export interface Notifier {
