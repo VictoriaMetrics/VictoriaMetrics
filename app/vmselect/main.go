@@ -70,6 +70,9 @@ var (
 
 	clusternativeListenAddr = flag.String("clusternativeListenAddr", "", "TCP address to listen for requests from other vmselect nodes in multi-level cluster setup. "+
 		"See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multi-level-cluster-setup . Usually :8401 should be set to match default vmstorage port for vmselect. Disabled work if empty")
+
+	enableMultitenancyViaHeaders = flag.Bool("enableMultitenancyViaHeaders", false, "Enables multitenancy via HTTP headers. "+
+		"See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-headers")
 )
 
 var slowQueries = metrics.NewCounter(`vm_slow_queries_total`)
@@ -280,7 +283,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.WriteHeader(http.StatusNoContent)
 		return true
 	}
-	p, err := httpserver.ParsePath(path)
+	p, err := parsePath(path, r.Header)
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot parse path %q: %s", path, err)
 		return true
@@ -306,6 +309,13 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		// This is not our link
 		return false
 	}
+}
+
+func parsePath(path string, header http.Header) (*httpserver.Path, error) {
+	if *enableMultitenancyViaHeaders {
+		return httpserver.ParsePathAndHeaders(path, header)
+	}
+	return httpserver.ParsePath(path)
 }
 
 //go:embed vmui
@@ -594,7 +604,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		promql.ActiveQueriesHandler(nil, w, r)
 		return true
 	}
-	p, err := httpserver.ParsePath(path)
+	p, err := parsePath(path, r.Header)
 	if err != nil {
 		return false
 	}
@@ -617,13 +627,13 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		return true
 	}
 	if strings.HasPrefix(p.Suffix, "static") {
-		prefix := strings.Join([]string{"", p.Prefix, p.AuthToken}, "/")
+		prefix := getStaticServerPrefix(p, path)
 		http.StripPrefix(prefix, staticServer).ServeHTTP(w, r)
 		return true
 	}
 	if strings.HasPrefix(p.Suffix, "prometheus/static") {
-		prefix := strings.Join([]string{"", p.Prefix, p.AuthToken}, "/")
 		r.URL.Path = strings.Replace(r.URL.Path, "/prometheus/static", "/static", 1)
+		prefix := getStaticServerPrefix(p, path)
 		http.StripPrefix(prefix, staticServer).ServeHTTP(w, r)
 		return true
 	}
@@ -671,8 +681,8 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 			// See https://developer.chrome.com/docs/lighthouse/performance/uses-long-cache-ttl/
 			w.Header().Set("Cache-Control", "max-age=31536000")
 		}
-		prefix := strings.Join([]string{"", p.Prefix, p.AuthToken}, "/")
 		r.URL.Path = strings.Replace(r.URL.Path, "/prometheus/vmui/", "/vmui/", 1)
+		prefix := getStaticServerPrefix(p, path)
 		http.StripPrefix(prefix, vmuiFileServer).ServeHTTP(w, r)
 		return true
 	}
@@ -825,6 +835,16 @@ func deleteHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 	default:
 		return false
 	}
+}
+
+// getStaticServerPrefix strips AuthToken from the path, if any
+func getStaticServerPrefix(p *httpserver.Path, path string) string {
+	prefix := strings.Join([]string{"", p.Prefix, p.AuthToken}, "/")
+	if !strings.HasPrefix(path, prefix) {
+		// authToken is missing in the original path, so it was fetched from headers - cut it from prefix
+		prefix, _ = strings.CutSuffix(prefix, p.AuthToken)
+	}
+	return prefix
 }
 
 func isGraphiteTagsPath(path string) bool {
