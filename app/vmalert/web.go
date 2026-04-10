@@ -52,7 +52,13 @@ var (
 		"alert":  rule.TypeAlerting,
 		"record": rule.TypeRecording,
 	}
-	ruleStates = []string{"ok", "nomatch", "inactive", "firing", "pending", "unhealthy"}
+
+	// The "recovering", "noData", "normal", "error" states are used by Grafana.
+	// Ignore "recovering" since it is not currently acknowledged by vmalert,
+	// treat "noData" as an alias for "nomatch",
+	// treat "normal" as an alias for "inactive",
+	// treat "error" as an alias for "unhealthy"
+	ruleStates = []string{"ok", "nomatch", "inactive", "firing", "pending", "unhealthy", "recovering", "noData", "normal", "error"}
 )
 
 type requestHandler struct {
@@ -362,6 +368,15 @@ func newRulesFilter(r *http.Request) (*rulesFilter, *httpserver.ErrorWithStatusC
 			}
 			if !slices.Contains(ruleStates, v) {
 				return nil, errResponse(fmt.Errorf(`invalid parameter "state": contains not supported value %q`, v), http.StatusBadRequest)
+			}
+			// Replace grafana states with supported internal states
+			switch v {
+			case "noData":
+				v = "nomatch"
+			case "normal":
+				v = "inactive"
+			case "error":
+				v = "unhealthy"
 			}
 			rf.states = append(rf.states, v)
 		}
