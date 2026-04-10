@@ -26,8 +26,6 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
-* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): prevent data ingestion from getting completely stuck when storage is under heavy load. See [#10784](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10784). Thanks to @fxrlv for the contribution.
-
 ## [v1.140.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.140.0)
 
 Released at 2026-04-10
@@ -58,6 +56,7 @@ Released at 2026-04-10
 * BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): prevent partial responses from second-level vmselect nodes in [multi-level cluster setups](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multi-level-cluster-setup). Ensures response completeness and correctness, and avoids cache pollution in top-level vmselect. See [#10678](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10678).
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): Fix storage connection saturation spikes at 00:00 UTC and improve data ingestion when the storage is restarted during the first hour of the day. See [10698](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10698).
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): prevent rare panic during storage start-up at 100% disk usage. See [#10747](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10747) Thanks to @nmn3m for the contribution.
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): prevent data ingestion from getting completely stuck when storage is under heavy load. See [#10784](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10784). Thanks to @fxrlv for the contribution.
 
 ## [v1.139.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.139.0)
 
