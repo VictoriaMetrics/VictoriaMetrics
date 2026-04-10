@@ -1,18 +1,14 @@
 import { useMemo } from "preact/compat";
-import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
 import "./style.scss";
 import { Alert as APIAlert } from "../../../types";
 import { createSearchParams } from "react-router-dom";
 import Button from "../../Main/Button/Button";
 import Badges, { BadgeColor } from "../Badges";
-import { formatDuration, formatEventTime } from "../helpers";
+import { formatEventTime } from "../helpers";
 import {
   SearchIcon,
 } from "../../Main/Icons";
 import CodeExample from "../../Main/CodeExample/CodeExample";
-
-dayjs.extend(utc);
 
 interface BaseAlertProps {
   item: APIAlert;
@@ -29,8 +25,9 @@ const BaseAlert = ({ item }: BaseAlertProps) => {
   }, [alertLabels]);
 
   const openQueryLink = () => {
-    const params: Record<string, string> = {
+    const params = {
       "g0.expr": query,
+      "g0.end_time": ""
     };
     window.open(`#/?${createSearchParams(params).toString()}`, "_blank", "noopener noreferrer");
   };

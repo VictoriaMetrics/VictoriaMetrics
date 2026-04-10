@@ -34,8 +34,9 @@ const BaseRule = ({ item }: BaseRuleProps) => {
   }, [ruleLabels]);
 
   const openQueryLink = () => {
-    const params: Record<string, string> = {
+    const params = {
       "g0.expr": query,
+      "g0.end_time": ""
     };
     window.open(`#/?${createSearchParams(params).toString()}`, "_blank", "noopener noreferrer");
   };
