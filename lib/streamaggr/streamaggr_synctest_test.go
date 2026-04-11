@@ -1,5 +1,3 @@
-//go:build synctest
-
 package streamaggr
 
 import (
@@ -347,9 +345,9 @@ foo:1m_total_prometheus 0
 	// total output for repeated series
 	f([]string{`
 foo 123
+bar{baz="qwe"} 2
 bar{baz="qwe"} 1.31
 bar{baz="qwe"} 4.34 1
-bar{baz="qwe"} 2
 foo{baz="qwe"} -5
 bar{baz="qwer"} 343
 bar{baz="qwer"} 344
@@ -366,14 +364,14 @@ foo:1m_total{baz="qwe"} 15
 	// total_prometheus output for repeated series
 	f([]string{`
 foo 123
-bar{baz="qwe"} 1.32
-bar{baz="qwe"} 4.34
+bar{baz="qwe"} 1
+bar{baz="qwe"} 4
 bar{baz="qwe"} 2
 foo{baz="qwe"} -5
 bar{baz="qwer"} 343
 bar{baz="qwer"} 344
 foo{baz="qwe"} 10
-`}, time.Minute, `bar:1m_total_prometheus{baz="qwe"} 5.02
+`}, time.Minute, `bar:1m_total_prometheus{baz="qwe"} 3
 bar:1m_total_prometheus{baz="qwer"} 1
 foo:1m_total_prometheus 0
 foo:1m_total_prometheus{baz="qwe"} 15
@@ -392,7 +390,7 @@ foo{baz="qwe"} -5
 bar{baz="qwer"} 343
 bar{baz="qwer"} 344
 foo{baz="qwe"} 10
-`}, time.Minute, `bar:1m_total 6.02
+`}, time.Minute, `bar:1m_total 4.02
 foo:1m_total 15
 `, `
 - interval: 1m
@@ -410,7 +408,7 @@ foo{baz="qwe"} -5
 bar{baz="qwer"} 343
 bar{baz="qwer"} 344
 foo{baz="qwe"} 10
-`}, time.Minute, `bar:1m_total_prometheus 6.02
+`}, time.Minute, `bar:1m_total_prometheus 4.02
 foo:1m_total_prometheus 15
 `, `
 - interval: 1m
@@ -443,14 +441,14 @@ foo:1m_increase_prometheus 0
 	// increase output for repeated series
 	f([]string{`
 foo 123
-bar{baz="qwe"} 1.32
-bar{baz="qwe"} 4.34
+bar{baz="qwe"} 1
+bar{baz="qwe"} 4
 bar{baz="qwe"} 2
 foo{baz="qwe"} -5
 bar{baz="qwer"} 343
 bar{baz="qwer"} 344
 foo{baz="qwe"} 10
-`}, time.Minute, `bar:1m_increase{baz="qwe"} 5.02
+`}, time.Minute, `bar:1m_increase{baz="qwe"} 3
 bar:1m_increase{baz="qwer"} 1
 foo:1m_increase 0
 foo:1m_increase{baz="qwe"} 15
@@ -462,14 +460,14 @@ foo:1m_increase{baz="qwe"} 15
 	// increase_prometheus output for repeated series
 	f([]string{`
 foo 123
-bar{baz="qwe"} 1.32
-bar{baz="qwe"} 4.34
+bar{baz="qwe"} 1
+bar{baz="qwe"} 4
 bar{baz="qwe"} 2
 foo{baz="qwe"} -5
 bar{baz="qwer"} 343
 bar{baz="qwer"} 344
 foo{baz="qwe"} 10
-`}, time.Minute, `bar:1m_increase_prometheus{baz="qwe"} 5.02
+`}, time.Minute, `bar:1m_increase_prometheus{baz="qwe"} 3
 bar:1m_increase_prometheus{baz="qwer"} 1
 foo:1m_increase_prometheus 0
 foo:1m_increase_prometheus{baz="qwe"} 15

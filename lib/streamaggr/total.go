@@ -35,7 +35,7 @@ func (av *totalAggrValue) pushSample(c aggrConfig, sample *pushSample, key strin
 		}
 		if sample.value >= lv.value {
 			av.total += sample.value - lv.value
-		} else {
+		} else if sample.timestamp > lv.timestamp {
 			// counter reset
 			av.total += sample.value
 		}

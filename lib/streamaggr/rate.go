@@ -103,7 +103,7 @@ func (av *rateAggrValue) pushSample(_ aggrConfig, sample *pushSample, key string
 		}
 		if sample.value >= sv.value {
 			state.increase += sample.value - sv.value
-		} else {
+		} else if sample.timestamp > state.timestamp {
 			// counter reset
 			state.increase += sample.value
 		}
