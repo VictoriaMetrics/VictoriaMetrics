@@ -25,6 +25,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ratelimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/topology"
 )
 
 var (
@@ -204,6 +205,7 @@ func (c *client) init(argIdx, concurrency int, sanitizedURL string) {
 	metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_queues{url=%q}`, c.sanitizedURL), func() float64 {
 		return float64(concurrency)
 	})
+	topology.Register(c.remoteWriteURL, c.sanitizedURL)
 	for range concurrency {
 		c.wg.Go(c.runWorker)
 	}
