@@ -1,0 +1,1 @@
+Before creating the PR, please read [VictoriaMetrics contributing guidelines](https://docs.victoriametrics.com/victoriametrics/contributing/#pull-request-checklist) and remove this line after confirming you understand and follow them.
