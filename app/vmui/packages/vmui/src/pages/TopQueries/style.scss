@@ -1,5 +1,21 @@
 @use "src/styles/variables" as *;
 
+.vm-top-queries-table {
+  &__info-icon {
+    display: inline-flex;
+    align-items: center;
+    color: $color-text-secondary;
+    cursor: default;
+
+    margin-left: 4px;
+
+    svg {
+      width: 14px;
+      height: 14px;
+    }
+  }
+}
+
 .vm-top-queries {
   display: grid;
   align-items: flex-start;
