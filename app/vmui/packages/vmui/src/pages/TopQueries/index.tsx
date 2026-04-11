@@ -159,9 +159,9 @@ const TopQueries: FC = () => {
             title={"Queries with most summary time to execute"}
             columns={[
               { key: "query" },
-              { key: "sumDurationSeconds", title: "sum duration", tooltip: `Cumulative time spent executing the query over the last ${maxLifetime}`, format: (val) => humanizeSeconds(val as number) },
-              { key: "timeRange", sortBy: "timeRangeSeconds", title: "range", tooltip: "The time range between start and end of the query request" },
-              { key: "count" }
+              { key: "sumDurationSeconds", title: "duration", tooltip: `Cumulative time spent executing the query across all its invocations over the last ${maxLifetime}`, format: (val) => humanizeSeconds(val as number) },
+              { key: "timeRange", sortBy: "timeRangeSeconds", title: "range", tooltip: "The time range between start and end of the query request. 'instant' means the query was executed at a single point in time without a time range" },
+              { key: "count", tooltip: `The number of times the query was executed over the last ${maxLifetime}` }
             ]}
             defaultOrderBy={"sumDurationSeconds"}
           />
@@ -170,9 +170,9 @@ const TopQueries: FC = () => {
             title={"Most heavy queries"}
             columns={[
               { key: "query" },
-              { key: "avgDurationSeconds", title: "avg duration", tooltip: "Average time spent executing the query", format: (val) => humanizeSeconds(val as number) },
-              { key: "timeRange", sortBy: "timeRangeSeconds", title: "range", tooltip: "The time range between start and end of the query request" },
-              { key: "count" }
+              { key: "avgDurationSeconds", title: "duration", tooltip: `Average time spent executing the query over the last ${maxLifetime}`, format: (val) => humanizeSeconds(val as number) },
+              { key: "timeRange", sortBy: "timeRangeSeconds", title: "range", tooltip: "The time range between start and end of the query request. 'instant' means the query was executed at a single point in time without a time range" },
+              { key: "count", tooltip: `The number of times the query was executed over the last ${maxLifetime}` }
             ]}
             defaultOrderBy={"avgDurationSeconds"}
           />
@@ -181,8 +181,8 @@ const TopQueries: FC = () => {
             title={"Most frequently executed queries"}
             columns={[
               { key: "query" },
-              { key: "timeRange", sortBy: "timeRangeSeconds", title: "range", tooltip: "The time range between start and end of the query request" },
-              { key: "count" }
+              { key: "timeRange", sortBy: "timeRangeSeconds", title: "range", tooltip: "The time range between start and end of the query request. 'instant' means the query was executed at a single point in time without a time range" },
+              { key: "count", tooltip: `The number of times the query was executed over the last ${maxLifetime}` }
             ]}
           />
           <TopQueryPanel
@@ -190,9 +190,9 @@ const TopQueries: FC = () => {
             title={"Queries with most memory to execute"}
             columns={[
               { key: "query" },
-              { key: "avgMemoryBytes", title: "avg memory", tooltip: "Average memory used during query execution", format: (val) => formatBytes(val as number) },
-              { key: "timeRange", sortBy: "timeRangeSeconds", title: "range", tooltip: "The time range between start and end of the query request" },
-              { key: "count" }
+              { key: "avgMemoryBytes", title: "memory", tooltip: `Average memory used during query execution over the last ${maxLifetime}`, format: (val) => formatBytes(val as number) },
+              { key: "timeRange", sortBy: "timeRangeSeconds", title: "range", tooltip: "The time range between start and end of the query request. 'instant' means the query was executed at a single point in time without a time range" },
+              { key: "count", tooltip: `The number of times the query was executed over the last ${maxLifetime}` }
             ]}
             defaultOrderBy={"avgMemoryBytes"}
           />
