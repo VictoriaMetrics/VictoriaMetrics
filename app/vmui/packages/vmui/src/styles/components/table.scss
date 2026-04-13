@@ -26,6 +26,12 @@
 
     &_highlighted {
       font-weight: bold;
+      background-color: rgba($color-dodger-blue, 0.08);
+      box-shadow: inset 3px 0 0 $color-dodger-blue;
+
+      &:hover {
+        background-color: rgba($color-dodger-blue, 0.14);
+      }
     }
   }
 
