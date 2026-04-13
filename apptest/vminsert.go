@@ -57,7 +57,7 @@ func StartVminsert(instance string, flags []string, cli *Client, output io.Write
 		extractREs = append(extractREs, regexp.MustCompile(logRecord))
 	}
 
-	app, stderrExtracts, err := startApp(instance, "../../bin/vminsert", flags, &appOptions{
+	app, stderrExtracts, err := startApp(instance, "../../bin/vminsert-race", flags, &appOptions{
 		defaultFlags: map[string]string{
 			"-httpListenAddr":                              "127.0.0.1:0",
 			"-clusternativeListenAddr":                     "127.0.0.1:0",
@@ -237,8 +237,22 @@ func (app *Vminsert) PrometheusAPIV1ImportPrometheus(t *testing.T, records []str
 	data := []byte(strings.Join(records, "\n"))
 	var recordsCount int
 	var metadataRecords int
+	uniqueMetadataMetricNames := make(map[string]struct{})
 	for _, record := range records {
-		if strings.HasPrefix(record, "#") {
+		// metric metadata has the following format:
+		//# HELP importprometheus_series
+		//# TYPE importprometheus_series
+		// it results into single metadata record
+		if strings.HasPrefix(record, "# ") {
+			metadataItems := strings.Split(record, " ")
+			if len(metadataItems) < 2 {
+				t.Fatalf("BUG: unexpected metadata format=%q", record)
+			}
+			metricName := metadataItems[2]
+			if _, ok := uniqueMetadataMetricNames[metricName]; ok {
+				continue
+			}
+			uniqueMetadataMetricNames[metricName] = struct{}{}
 			metadataRecords++
 			continue
 		}
