@@ -44,7 +44,7 @@ func NewBufferedReadSeekerWriteToPool(size int) *BufferedReadSeekerWriteToPool {
 	}
 
 	return &BufferedReadSeekerWriteToPool{
-		pool: sync.Pool{New: func() interface{} {
+		pool: sync.Pool{New: func() any {
 			return make([]byte, size)
 		}},
 	}

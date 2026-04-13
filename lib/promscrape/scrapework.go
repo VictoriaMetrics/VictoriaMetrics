@@ -244,6 +244,9 @@ type scrapeWork struct {
 
 	// successRequestsCount is the number of success requests during the last suppressScrapeErrorsDelay
 	successRequestsCount int
+
+	// lastScrapeSuccess indicates whether last scrape is success or not.
+	lastScrapeSuccess bool
 }
 
 // loadLastScrape appends last scrape response to dst and returns the result.
@@ -530,6 +533,8 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 	areIdenticalSeries := areIdenticalSeries(cfg, lastScrapeStr, bodyString)
 
 	wc := writeRequestCtxPool.Get(sw.prevLabelsLen)
+	lastScrapeSuccess := sw.lastScrapeSuccess
+
 	if err != nil {
 		up = 0
 		scrapesFailed.Inc()
@@ -571,6 +576,9 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 
 	if up == 0 {
 		bodyString = ""
+		sw.lastScrapeSuccess = false
+	} else {
+		sw.lastScrapeSuccess = true
 	}
 	seriesAdded := 0
 	if !areIdenticalSeries {
@@ -600,10 +608,15 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 	sw.prevLabelsLen = len(wc.labels)
 	writeRequestCtxPool.Put(wc)
 
-	if !areIdenticalSeries {
+	if !areIdenticalSeries && (lastScrapeSuccess || err == nil) {
 		// Send stale markers for disappeared metrics with the real scrape timestamp
 		// in order to guarantee that query doesn't return data after this time for the disappeared metrics.
 		sw.sendStaleSeries(lastScrapeStr, bodyString, realTimestamp, false)
+	}
+
+	if !areIdenticalSeries && err == nil {
+		// Only update last scrape result when the current scrape is successful.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10653.
 		sw.storeLastScrape(bodyString)
 		sw.lastScrapeLen = len(bodyString)
 	}
@@ -620,6 +633,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 	var maxLabelsLen atomic.Int64
 
 	maxLabelsLen.Store(int64(sw.prevLabelsLen))
+	lastScrapeSuccess := sw.lastScrapeSuccess
 
 	bbLastScrape := leveledbytebufferpool.Get(sw.lastScrapeLen)
 	bbLastScrape.B = sw.loadLastScrape(bbLastScrape.B)
@@ -682,6 +696,9 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 		up = 0
 		bodyString = ""
 		scrapesFailed.Inc()
+		sw.lastScrapeSuccess = false
+	} else {
+		sw.lastScrapeSuccess = true
 	}
 	seriesAdded := 0
 	if !areIdenticalSeries {
@@ -703,10 +720,15 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 	}
 	sw.pushAutoMetrics(am, scrapeTimestamp)
 
-	if !areIdenticalSeries {
+	if !areIdenticalSeries && (lastScrapeSuccess || err == nil) {
 		// Send stale markers for disappeared metrics with the real scrape timestamp
 		// in order to guarantee that query doesn't return data after this time for the disappeared metrics.
 		sw.sendStaleSeries(lastScrapeStr, bodyString, realTimestamp, false)
+	}
+
+	if !areIdenticalSeries && err == nil {
+		// Only update last scrape result when the current scrape is successful.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10653.
 		sw.storeLastScrape(bodyString)
 		sw.lastScrapeLen = len(bodyString)
 	}

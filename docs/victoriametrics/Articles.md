@@ -23,6 +23,7 @@ See also [case studies](https://docs.victoriametrics.com/victoriametrics/casestu
 * [CERN: The CMS monitoring infrastructure and applications](https://arxiv.org/pdf/2007.03630.pdf)
 * [Forbes: The (Almost) Infinitely Scalable Open Source Monitoring Dream](https://www.forbes.com/sites/adrianbridgwater/2022/08/16/the-almost-infinitely-scalable-open-source-monitoring-dream/)
 * [Forbes: The Agility In Cloud Observability](https://www.forbes.com/sites/adrianbridgwater/2023/07/05/the-agility-in-cloud-observability/)
+* [Airbnb: Building a high-volume metrics pipeline with OpenTelemetry and vmagent](https://medium.com/airbnb-engineering/building-a-high-volume-metrics-pipeline-with-opentelemetry-and-vmagent-c714d6910b45)
 * [Bedrock: Monitoring at scale with Victoria Metrics](https://tech.bedrockstreaming.com/2022/09/06/monitoring-at-scale-with-victoriametrics.html)
 * [TiDB by PingCap: Scaling Observability: Why TiDB Moved from Prometheus to VictoriaMetrics](https://www.pingcap.com/blog/tidb-observability-migrating-prometheus-victoriametrics/)
 * [TigrisData: We do our billing with Prometheus](https://www.tigrisdata.com/blog/billing-prometheus/)
@@ -111,6 +112,7 @@ See also [case studies](https://docs.victoriametrics.com/victoriametrics/casestu
 * [Monitoring Pipeline with Prometheus and VictoriaMetrics](https://clovisc.medium.com/monitoring-pipeline-with-blackbox-exporter-prometheus-victoriametrics-and-vmalert-0ab020c7202a)
 * [FreeBSD: monitoring with VictoriaMetrics and Grafana](https://setevoy.medium.com/freebsd-monitoring-with-victoriametrics-and-grafana-f789904f2628)
 * [QCon London 2026: Wrangling Telemetry at Scale, a Guide to Self-Hosted Observability](https://www.infoq.com/news/2026/03/self-hosted-observability/)
+* [How We Made Telemetry Queries 10x Faster: Chunk-Split Caching for Metrics, Logs, and Traces](https://mirastacklabs.ai/blog/chunk-split-caching/)
 
 ## Third-party articles and slides about VictoriaLogs
 

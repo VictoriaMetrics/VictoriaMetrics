@@ -27,6 +27,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricnamestats"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 )
@@ -1437,7 +1438,7 @@ type TSDBStatus struct {
 	SeriesCountByFocusLabelValue []TopHeapEntry
 	SeriesCountByLabelValuePair  []TopHeapEntry
 	LabelValueCountByLabelName   []TopHeapEntry
-	SeriesQueryStatsByMetricName []MetricNamesStatsRecord
+	SeriesQueryStatsByMetricName []metricnamestats.StatRecord
 }
 
 func (status *TSDBStatus) hasEntries() bool {

@@ -29,7 +29,7 @@ func StartVmagent(instance string, flags []string, cli *Client, promScrapeConfig
 		httpListenAddrRE,
 	}
 
-	app, stderrExtracts, err := startApp(instance, "../../bin/vmagent", flags, &appOptions{
+	app, stderrExtracts, err := startApp(instance, "../../bin/vmagent-race", flags, &appOptions{
 		defaultFlags: map[string]string{
 			"-httpListenAddr":          "127.0.0.1:0",
 			"-promscrape.config":       promScrapeConfigFilePath,
