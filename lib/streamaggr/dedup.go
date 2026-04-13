@@ -258,11 +258,11 @@ func (das *dedupAggrShard) flush(ctx *dedupFlushCtx, f aggrPushFunc) {
 
 		// Limit the number of samples per each flush in order to limit memory usage.
 		if len(dstSamples) >= 10_000 {
-			f(dstSamples, ctx.deleteDeadline, false)
+			f(dstSamples, ctx.deleteDeadline, ctx.isGreen)
 			clear(dstSamples)
 			dstSamples = dstSamples[:0]
 		}
 	}
-	f(dstSamples, ctx.deleteDeadline, false)
+	f(dstSamples, ctx.deleteDeadline, ctx.isGreen)
 	ctx.samples = dstSamples
 }
