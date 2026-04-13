@@ -420,7 +420,7 @@ Create two Prometheus datasources in Grafana with the following URLs: `http://vm
 ![Prometheus datasource](grafana-datasource-prometheus.webp)
 
 You can also use the VictoriaMetrics [Grafana datasource](https://github.com/VictoriaMetrics/victoriametrics-datasource) plugin.
-See installation instructions in [Grafana datasource - Installation](https://docs.victoriametrics.com/victoriametrics/victoriametrics-datasource/#installation).
+See installation instructions in [Grafana datasource - Installation](https://docs.victoriametrics.com/victoriametrics/integrations/grafana/#victoriametrics-datasource).
 
 Users with the `vm_access` claim will be able to query metrics from the specified tenant with extra filters applied.
 
