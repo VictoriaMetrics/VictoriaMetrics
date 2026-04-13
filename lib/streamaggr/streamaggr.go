@@ -908,7 +908,6 @@ func (a *aggregator) dedupFlush(dedupTime time.Time, cs *currentState) {
 		return
 	}
 
-	a.minDeadline.Store(cs.maxDeadline)
 	startTime := time.Now()
 	deleteDeadline := dedupTime.Add(a.stalenessInterval)
 
@@ -936,8 +935,8 @@ func (a *aggregator) flush(pushFunc PushFunc, flushTime time.Time, cs *currentSt
 	ao := a.aggrOutputs
 
 	ctx := getFlushCtx(a, ao, pushFunc, flushTime.UnixMilli(), isLast)
+	a.minDeadline.Store(flushTime.UnixMilli())
 	if a.dedupInterval <= 0 {
-		a.minDeadline.Store(cs.maxDeadline)
 		ctx.isGreen = cs.isGreen
 	}
 	ao.flushState(ctx)
