@@ -163,6 +163,7 @@ func (op *otsdbProcessor) do(s queryObj) error {
 		return fmt.Errorf("failed to collect data for %v in %v:%v :: %v", s.Series, s.Rt, s.Tr, err)
 	}
 	if len(data.Timestamps) < 1 || len(data.Values) < 1 {
+		log.Printf("no data found for %v in %v:%v...skipping", s.Series, s.Rt, s.Tr)
 		return nil
 	}
 	labels := make([]vm.LabelPair, 0, len(data.Tags))

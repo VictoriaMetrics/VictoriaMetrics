@@ -239,27 +239,20 @@ func (c Client) GetData(series Meta, rt RetentionMeta, start int64, end int64, m
 		In all "bad" cases, we don't end the migration, we just don't process that particular message
 	*/
 	if len(output) < 1 {
-		// no results returned...return an empty object without error
 		return Metric{}, nil
 	}
 	if len(output) > 1 {
-		// multiple series returned for a single query. We can't process this right, so...
-		return Metric{}, nil
+		return Metric{}, fmt.Errorf("unexpected number of series returned: %d for query %q; expected 1", len(output), q)
 	}
 	if len(output[0].AggregateTags) > 0 {
-		// This failure means we've suppressed potential series somehow...
-		return Metric{}, nil
+		return Metric{}, fmt.Errorf("aggregate tags %v present in response for query %q; series may be suppressed", output[0].AggregateTags, q)
 	}
 	data := Metric{}
 	data.Metric = output[0].Metric
 	data.Tags = output[0].Tags
-	/*
-		We evaluate data for correctness before formatting the actual values
-		to skip a little bit of time if the series has invalid formatting
-	*/
 	data, err = modifyData(data, c.Normalize)
 	if err != nil {
-		return Metric{}, nil
+		return Metric{}, fmt.Errorf("failed to convert metric data for query %q: %w", q, err)
 	}
 
 	/*
