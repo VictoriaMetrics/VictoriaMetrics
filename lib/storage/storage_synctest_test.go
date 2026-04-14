@@ -900,3 +900,70 @@ func TestStorageLastPartitionMetrics(t *testing.T) {
 		assertLastPartitionEmpty(t, s)
 	})
 }
+
+func TestStorage_futureTimestampsRetention(t *testing.T) {
+	defer testRemoveAll(t)
+
+	assertData := func(t *testing.T, s *Storage, tr TimeRange, want []MetricRow) {
+		t.Helper()
+		tfs := NewTagFilters()
+		if err := tfs.Add(nil, []byte(".*"), false, true); err != nil {
+			t.Fatalf("TagFilters.Add() failed unexpectedly: %v", err)
+		}
+		if err := testAssertSearchResult(s, tr, tfs, want); err != nil {
+			t.Fatalf("[now: %v tr: %v] search failed unexpectedly: %v", time.Now().UTC(), &tr, err)
+		}
+	}
+
+	synctest.Test(t, func(t *testing.T) {
+		// synctests start at 2000-01-01T00:00:00Z
+
+		var s *Storage
+		retention := time.Duration(180 * 24 * time.Hour)
+		s = MustOpenStorage(t.Name(), OpenOptions{Retention: retention})
+
+		// Ingest samples for previous and future year. 10 samples per day.
+		const numSeries = 10
+		start := time.Date(1999, 1, 1, 0, 0, 0, 0, time.UTC)
+		end := time.Date(2001, 1, 1, 0, 0, 0, 0, time.UTC)
+		rng := rand.New(rand.NewSource(1))
+		wantData := make(map[TimeRange][]MetricRow)
+		for day := start; day.Before(end); {
+			prefix := fmt.Sprintf("metric_%d_%d_%d", day.Year(), day.Month(), day.Day())
+			tr := TimeRange{
+				MinTimestamp: day.UnixMilli(),
+				MaxTimestamp: day.UnixMilli() + msecPerDay - 1,
+			}
+			mrs := testGenerateMetricRowsWithPrefix(rng, numSeries, prefix, tr)
+			wantData[tr] = mrs
+			s.AddRows(mrs, defaultPrecisionBits)
+
+			day = time.Date(day.Year(), day.Month(), day.Day()+1, 0, 0, 0, 0, time.UTC)
+		}
+		s.DebugFlush()
+
+		for now := time.Now().UTC(); now.Before(end.Add(retention + 24*time.Hour)); {
+			for day := start; day.Before(end); {
+				tr := TimeRange{
+					MinTimestamp: day.UnixMilli(),
+					MaxTimestamp: day.UnixMilli() + msecPerDay - 1,
+				}
+				retentionStart := time.Now().UTC().Add(-retention)
+				if day.Before(retentionStart) {
+					assertData(t, s, tr, nil)
+				} else {
+					assertData(t, s, tr, wantData[tr])
+				}
+				day = time.Date(day.Year(), day.Month(), day.Day()+1, 0, 0, 0, 0, time.UTC)
+			}
+
+			s.MustClose()
+			nextMonth := time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, time.UTC)
+			time.Sleep(nextMonth.Sub(now))
+			now = nextMonth
+			s = MustOpenStorage(t.Name(), OpenOptions{Retention: retention})
+		}
+
+		s.MustClose()
+	})
+}
