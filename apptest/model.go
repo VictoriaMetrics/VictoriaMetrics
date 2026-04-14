@@ -88,6 +88,7 @@ type QueryOpts struct {
 	MaxLookback    string
 	LatencyOffset  string
 	Format         string
+	NoCache        string
 }
 
 func (qos *QueryOpts) asURLValues() url.Values {
@@ -112,6 +113,7 @@ func (qos *QueryOpts) asURLValues() url.Values {
 	addNonEmpty("max_lookback", qos.MaxLookback)
 	addNonEmpty("latency_offset", qos.LatencyOffset)
 	addNonEmpty("format", qos.Format)
+	addNonEmpty("nocache", qos.NoCache)
 
 	return uv
 }

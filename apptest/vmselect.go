@@ -25,7 +25,7 @@ type Vmselect struct {
 // sets the default flags and populates the app instance state with runtime
 // values extracted from the application log (such as httpListenAddr)
 func StartVmselect(instance string, flags []string, cli *Client, output io.Writer) (*Vmselect, error) {
-	app, stderrExtracts, err := startApp(instance, "../../bin/vmselect", flags, &appOptions{
+	app, stderrExtracts, err := startApp(instance, "../../bin/vmselect-race", flags, &appOptions{
 		defaultFlags: map[string]string{
 			"-httpListenAddr":          "127.0.0.1:0",
 			"-clusternativeListenAddr": "127.0.0.1:0",
