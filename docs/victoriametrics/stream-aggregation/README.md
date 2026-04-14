@@ -604,7 +604,7 @@ the following settings:
 
 ## Counter resets
 
-If counter-specific outputs, such as `total*`, `rate*`, and `increase*`, exhibit values that are significantly higher than anticipated, it is advisable to examine the `vm_streamaggr_counter_resets` metric. The observation of frequent counter resets may indicate potential issues with the raw data, including possible series collisions.
+If counter-specific outputs, such as `total*`, `rate*`, and `increase*`, exhibit values that are significantly higher than anticipated, it is advisable to examine the `vm_streamaggr_counter_resets_total` metric. The observation of frequent counter resets may indicate potential issues with the raw data, including possible series collisions.
 
 ## Staleness
 
