@@ -571,6 +571,7 @@ Below is an example of an `aggr.yaml` configuration that drops the `replica` and
 # Troubleshooting
 
 - [Unexpected spikes for `total` or `increase` outputs](#staleness).
+- [Excessively large values for `total*`, `increase*`, and `rate*` outputs](#counter-resets).
 - [Lower than expected values for `total_prometheus` and `increase_prometheus` outputs](#staleness).
 - [High memory usage and CPU usage](#high-resource-usage).
 - [Unexpected results in vmagent cluster mode](#cluster-mode).
@@ -600,6 +601,10 @@ the following settings:
   `-streamAggr.dedupInterval` fixed aggregation windows are enabled on deduplicator as well.
  - `enable_windows` option in [aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#stream-aggregation-config).
   It allows enabling aggregation windows for a specific aggregator.
+
+## Counter resets
+
+If counter-specific outputs, such as `total*`, `rate*`, and `increase*`, exhibit values that are significantly higher than anticipated, it is advisable to examine the `vm_streamaggr_counter_resets` metric. The observation of frequent counter resets may indicate potential issues with the raw data, including possible series collisions.
 
 ## Staleness
 

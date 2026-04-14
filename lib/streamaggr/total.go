@@ -1,7 +1,10 @@
 package streamaggr
 
 import (
+	"fmt"
 	"math"
+
+	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -38,6 +41,7 @@ func (av *totalAggrValue) pushSample(c aggrConfig, sample *pushSample, key strin
 		} else {
 			// counter reset
 			av.total += sample.value
+			ac.counterResetsTotal.Inc()
 		}
 	}
 	lv.value = sample.value
@@ -74,13 +78,15 @@ func (av *totalAggrValue) state() any {
 	return av.shared
 }
 
-func newTotalAggrConfig(ignoreFirstSampleIntervalSecs uint64, resetTotalOnFlush, keepFirstSample bool) aggrConfig {
+func newTotalAggrConfig(ms *metrics.Set, metricLabels string, ignoreFirstSampleIntervalSecs uint64, resetTotalOnFlush, keepFirstSample bool) aggrConfig {
 	ignoreFirstSampleDeadline := fasttime.UnixTimestamp() + ignoreFirstSampleIntervalSecs
-	return &totalAggrConfig{
+	cfg := &totalAggrConfig{
 		keepFirstSample:           keepFirstSample,
 		resetTotalOnFlush:         resetTotalOnFlush,
 		ignoreFirstSampleDeadline: ignoreFirstSampleDeadline,
 	}
+	cfg.counterResetsTotal = ms.NewCounter(fmt.Sprintf(`vm_streamaggr_counter_resets_total{%s}`, metricLabels))
+	return cfg
 }
 
 type totalAggrConfig struct {
@@ -93,6 +99,7 @@ type totalAggrConfig struct {
 	// This allows avoiding an initial spike of the output values at startup when new time series
 	// cannot be distinguished from already existing series. This is tracked with ignoreFirstSampleDeadline.
 	ignoreFirstSampleDeadline uint64
+	counterResetsTotal        *metrics.Counter
 }
 
 func (*totalAggrConfig) getValue(s any) aggrValue {

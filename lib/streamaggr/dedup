@@ -1,0 +1,232 @@
+diff --git a/lib/streamaggr/dedup.go b/lib/streamaggr/dedup.go
+index ee87c7786f..e1038b2706 100644
+--- a/lib/streamaggr/dedup.go
++++ b/lib/streamaggr/dedup.go
+@@ -1,6 +1,7 @@
+ package streamaggr
+ 
+ import (
++	"math/bits"
+ 	"sync"
+ 	"sync/atomic"
+ 	"unsafe"
+@@ -11,7 +12,6 @@ import (
+ 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
+ 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+ 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
+-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
+ )
+ 
+ const dedupAggrShardsCount = 128
+@@ -30,9 +30,11 @@ type dedupAggrShard struct {
+ }
+ 
+ type dedupAggrState struct {
+-	m          map[string]*dedupAggrSample
+ 	mu         sync.Mutex
+ 	samplesBuf []dedupAggrSample
++	mask       uint64
++	keys       []string
++	count      int
+ 	sizeBytes  atomic.Uint64
+ 	itemsCount atomic.Uint64
+ }
+@@ -43,6 +45,9 @@ type dedupAggrShardNopad struct {
+ }
+ 
+ type dedupAggrSample struct {
++	hash      uint64
++	keyIdx    uint32
++	_         uint32 // padding so value stays 8-byte aligned
+ 	value     float64
+ 	timestamp int64
+ }
+@@ -55,9 +60,8 @@ func newDedupAggr() *dedupAggr {
+ 
+ func (da *dedupAggr) sizeBytes() uint64 {
+ 	n := uint64(unsafe.Sizeof(*da))
+-	var shard *dedupAggrShard
+ 	for i := range da.shards {
+-		shard = &da.shards[i]
++		shard := &da.shards[i]
+ 		n += shard.blue.sizeBytes.Load()
+ 		n += shard.green.sizeBytes.Load()
+ 	}
+@@ -66,9 +70,8 @@ func (da *dedupAggr) sizeBytes() uint64 {
+ 
+ func (da *dedupAggr) itemsCount() uint64 {
+ 	n := uint64(0)
+-	var shard *dedupAggrShard
+ 	for i := range da.shards {
+-		shard = &da.shards[i]
++		shard := &da.shards[i]
+ 		n += shard.blue.itemsCount.Load()
+ 		n += shard.green.itemsCount.Load()
+ 	}
+@@ -169,7 +172,6 @@ var perShardSamplesPool sync.Pool
+ 
+ func (das *dedupAggrShard) pushSamples(samples []pushSample, isGreen bool) {
+ 	var state *dedupAggrState
+-
+ 	if isGreen {
+ 		state = &das.green
+ 	} else {
+@@ -177,29 +179,81 @@ func (das *dedupAggrShard) pushSamples(samples []pushSample, isGreen bool) {
+ 	}
+ 
+ 	state.mu.Lock()
+-	defer state.mu.Unlock()
+-	if state.m == nil {
+-		state.m = make(map[string]*dedupAggrSample, len(samples))
++	if state.samplesBuf == nil {
++		n := nextPow2(max(16, len(samples)*2))
++		state.samplesBuf = make([]dedupAggrSample, n)
++		state.mask = uint64(n - 1)
+ 	}
+-	samplesBuf := state.samplesBuf
+-	for _, sample := range samples {
+-		s, ok := state.m[sample.key]
+-		if !ok {
+-			samplesBuf = slicesutil.SetLength(samplesBuf, len(samplesBuf)+1)
+-			s = &samplesBuf[len(samplesBuf)-1]
+-			s.value = sample.value
+-			s.timestamp = sample.timestamp
+-
+-			key := bytesutil.InternString(sample.key)
+-			state.m[key] = s
+-
+-			state.itemsCount.Add(1)
+-			state.sizeBytes.Add(uint64(len(key)) + uint64(unsafe.Sizeof(key)+unsafe.Sizeof(s)+unsafe.Sizeof(*s)))
++	for i := range samples {
++		state.push(&samples[i])
++	}
++	sz := uint64(state.count) * uint64(unsafe.Sizeof(dedupAggrSample{}))
++	cnt := uint64(state.count)
++	state.sizeBytes.Store(sz)
++	state.itemsCount.Store(cnt)
++	state.mu.Unlock()
++}
++
++// push inserts or deduplicates a single sample into the hash table.
++// Must be called with state.mu held.
++func (s *dedupAggrState) push(sample *pushSample) {
++	if s.count*4 >= len(s.samplesBuf)*3 {
++		s.grow()
++	}
++
++	key := sample.key
++	h := xxhash.Sum64(bytesutil.ToUnsafeBytes(key))
++	idx := h & s.mask
++
++	for {
++		e := &s.samplesBuf[idx]
++		if e.keyIdx == 0 {
++			s.keys = append(s.keys, key)
++			e.hash = h
++			e.keyIdx = uint32(len(s.keys)) // 1-based
++			e.value = sample.value
++			e.timestamp = sample.timestamp
++			s.count++
++			return
++		}
++		// Hash check first to skip the string comparison in the common case.
++		if e.hash == h && s.keys[e.keyIdx-1] == key {
++			e.timestamp, e.value = deduplicateSamples(e.timestamp, sample.timestamp, e.value, sample.value)
++			return
++		}
++		idx = (idx + 1) & s.mask
++	}
++}
++
++// grow doubles the hash table capacity and rehashes all existing entries.
++// Must be called with state.mu held.
++func (s *dedupAggrState) grow() {
++	newSize := len(s.samplesBuf) * 2
++	if newSize == 0 {
++		newSize = 16
++	}
++	newSamplesBuf := make([]dedupAggrSample, newSize)
++	newMask := uint64(newSize - 1)
++	for _, e := range s.samplesBuf {
++		if e.keyIdx == 0 {
+ 			continue
+ 		}
+-		s.timestamp, s.value = deduplicateSamples(s.timestamp, sample.timestamp, s.value, sample.value)
++		idx := e.hash & newMask
++		for newSamplesBuf[idx].keyIdx != 0 {
++			idx = (idx + 1) & newMask
++		}
++		newSamplesBuf[idx] = e
+ 	}
+-	state.samplesBuf = samplesBuf
++	s.samplesBuf = newSamplesBuf
++	s.mask = newMask
++}
++
++// nextPow2 returns the smallest power of two >= n.
++func nextPow2(n int) int {
++	if n <= 1 {
++		return 1
++	}
++	return 1 << bits.Len(uint(n-1))
+ }
+ 
+ // deduplicateSamples returns deduplicated timestamp and value results.
+@@ -208,8 +262,6 @@ func deduplicateSamples(oldT, newT int64, oldV, newV float64) (int64, float64) {
+ 	if newT > oldT {
+ 		return newT, newV
+ 	}
+-	// if both samples have the same timestamp, choose the maximum value, see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3333;
+-	// always prefer a non-decimal.StaleNaN value, see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10196
+ 	if newT == oldT {
+ 		if decimal.IsStaleNaN(oldV) {
+ 			return newT, newV
+@@ -222,7 +274,6 @@ func deduplicateSamples(oldT, newT int64, oldV, newV float64) (int64, float64) {
+ }
+ 
+ func (das *dedupAggrShard) flush(ctx *dedupFlushCtx, f aggrPushFunc) {
+-	var m map[string]*dedupAggrSample
+ 	var state *dedupAggrState
+ 	if ctx.isGreen {
+ 		state = &das.green
+@@ -231,23 +282,28 @@ func (das *dedupAggrShard) flush(ctx *dedupFlushCtx, f aggrPushFunc) {
+ 	}
+ 
+ 	state.mu.Lock()
+-	if len(state.m) > 0 {
+-		m = state.m
+-		state.m = make(map[string]*dedupAggrSample, len(state.m))
+-		state.samplesBuf = make([]dedupAggrSample, 0, len(state.samplesBuf))
+-		state.sizeBytes.Store(0)
+-		state.itemsCount.Store(0)
+-	}
+-	state.mu.Unlock()
+-
+-	if len(m) == 0 {
++	if state.count == 0 {
++		state.mu.Unlock()
+ 		return
+ 	}
++	samplesBuf := state.samplesBuf
++	keys := state.keys
++	n := len(samplesBuf)
++	state.samplesBuf = make([]dedupAggrSample, n)
++	state.mask = uint64(n - 1)
++	state.keys = make([]string, 0, len(keys))
++	state.count = 0
++	state.sizeBytes.Store(0)
++	state.itemsCount.Store(0)
++	state.mu.Unlock()
+ 
+ 	dstSamples := ctx.samples
+-	for key, s := range m {
++	for _, s := range samplesBuf {
++		if s.keyIdx == 0 {
++			continue
++		}
+ 		dstSamples = append(dstSamples, pushSample{
+-			key:       key,
++			key:       keys[s.keyIdx-1],
+ 			value:     s.value,
+ 			timestamp: s.timestamp,
+ 		})
