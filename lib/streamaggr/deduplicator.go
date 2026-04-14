@@ -234,6 +234,7 @@ func (d *Deduplicator) flush(pushFunc PushFunc) {
 		logger.Warnf("deduplication couldn't be finished in the configured dedupInterval=%s; it took %.03fs; "+
 			"possible solutions: increase dedupInterval; reduce samples' ingestion rate", d.interval, duration.Seconds())
 	}
+	deadlineTime = deadlineTime.Add(d.interval)
 	for time.Now().After(deadlineTime) {
 		deadlineTime = deadlineTime.Add(d.interval)
 	}
