@@ -97,10 +97,16 @@ func TestClusterBackupRestore(t *testing.T) {
 func testBackupRestore(tc *apptest.TestCase, opts testBackupRestoreOpts) {
 	t := tc.T()
 
-	genData := func(count int, prefix string, start, step int64) (recs []string, wantSeries []map[string]string, wantQueryResults []*apptest.QueryResult) {
-		recs = make([]string, count)
-		wantSeries = make([]map[string]string, count)
-		wantQueryResults = make([]*apptest.QueryResult, count)
+	type data struct {
+		samples          []string
+		wantSeries       []map[string]string
+		wantQueryResults []*apptest.QueryResult
+	}
+
+	genData := func(count int, prefix string, start, step int64) data {
+		recs := make([]string, count)
+		wantSeries := make([]map[string]string, count)
+		wantQueryResults := make([]*apptest.QueryResult, count)
 		for i := range count {
 			name := fmt.Sprintf("%s_%03d", prefix, i)
 			value := float64(i)
@@ -113,7 +119,15 @@ func testBackupRestore(tc *apptest.TestCase, opts testBackupRestoreOpts) {
 				Samples: []*apptest.Sample{{Timestamp: timestamp, Value: value}},
 			}
 		}
-		return recs, wantSeries, wantQueryResults
+		return data{recs, wantSeries, wantQueryResults}
+	}
+
+	concatData := func(d1, d2 data) data {
+		var d data
+		d.samples = slices.Concat(d1.samples, d2.samples)
+		d.wantSeries = slices.Concat(d1.wantSeries, d2.wantSeries)
+		d.wantQueryResults = slices.Concat(d1.wantQueryResults, d2.wantQueryResults)
+		return d
 	}
 
 	backupBaseDir, err := filepath.Abs(filepath.Join(tc.Dir(), "backups"))
@@ -207,24 +221,23 @@ func testBackupRestore(tc *apptest.TestCase, opts testBackupRestoreOpts) {
 	// - Start vmsingle
 	// - Ensure that the queries return batch1 data only.
 
-	batch1Data, wantBatch1Series, wantBatch1QueryResults := genData(numMetrics, "batch1", start, step)
-	batch2Data, wantBatch2Series, wantBatch2QueryResults := genData(numMetrics, "batch2", start, step)
-	wantBatch12Series := slices.Concat(wantBatch1Series, wantBatch2Series)
-	wantBatch12QueryResults := slices.Concat(wantBatch1QueryResults, wantBatch2QueryResults)
+	batch1 := genData(numMetrics, "batch1", start, step)
+	batch2 := genData(numMetrics, "batch2", start, step)
+	batches12 := concatData(batch1, batch2)
 
 	sut := opts.startSUT()
 
-	sut.PrometheusAPIV1ImportPrometheus(t, batch1Data, apptest.QueryOpts{})
+	sut.PrometheusAPIV1ImportPrometheus(t, batch1.samples, apptest.QueryOpts{})
 	sut.ForceFlush(t)
-	assertSeries(sut, `{__name__=~"batch1.*"}`, start, end, wantBatch1Series)
-	assertQueryResults(sut, `{__name__=~"batch1.*"}`, start, end, step, wantBatch1QueryResults)
+	assertSeries(sut, `{__name__=~"batch1.*"}`, start, end, batch1.wantSeries)
+	assertQueryResults(sut, `{__name__=~"batch1.*"}`, start, end, step, batch1.wantQueryResults)
 
 	createBackup(sut, "batch1")
 
-	sut.PrometheusAPIV1ImportPrometheus(t, batch2Data, apptest.QueryOpts{})
+	sut.PrometheusAPIV1ImportPrometheus(t, batch2.samples, apptest.QueryOpts{})
 	sut.ForceFlush(t)
-	assertSeries(sut, `{__name__=~"batch(1|2).*"}`, start, end, wantBatch12Series)
-	assertQueryResults(sut, `{__name__=~"batch(1|2).*"}`, start, end, step, wantBatch12QueryResults)
+	assertSeries(sut, `{__name__=~"batch(1|2).*"}`, start, end, batches12.wantSeries)
+	assertQueryResults(sut, `{__name__=~"batch(1|2).*"}`, start, end, step, batches12.wantQueryResults)
 	createBackup(sut, "batch12")
 
 	opts.stopSUT()
@@ -233,6 +246,6 @@ func testBackupRestore(tc *apptest.TestCase, opts testBackupRestoreOpts) {
 
 	sut = opts.startSUT()
 
-	assertSeries(sut, `{__name__=~"batch1.*"}`, start, end, wantBatch1Series)
-	assertQueryResults(sut, `{__name__=~"batch1.*"}`, start, end, step, wantBatch1QueryResults)
+	assertSeries(sut, `{__name__=~"batch1.*"}`, start, end, batch1.wantSeries)
+	assertQueryResults(sut, `{__name__=~"batch1.*"}`, start, end, step, batch1.wantQueryResults)
 }
