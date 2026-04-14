@@ -151,6 +151,8 @@ func InitSecretFlags() {
 		// remoteWrite.url can contain authentication codes, so hide it at `/metrics` output.
 		flagutil.RegisterSecretFlag("remoteWrite.url")
 	}
+	// remoteWrite.headers can contain auth headers such as Authorization and API keys.
+	flagutil.RegisterSecretFlag("remoteWrite.headers")
 }
 
 var (
