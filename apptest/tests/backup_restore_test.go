@@ -204,10 +204,20 @@ func testBackupRestore(tc *apptest.TestCase, opts testBackupRestoreOpts) {
 	// Use the same number of metrics and time range for all the data ingestions
 	// below.
 	const numMetrics = 1000
-	// With 1000 metrics (one per minute), the time range spans 2 months.
 	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
 	end := time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
 	step := (end - start) / numMetrics
+	batch1 := genData(numMetrics, "batch1", start, step)
+	batch2 := genData(numMetrics, "batch2", start, step)
+	batches12 := concatData(batch1, batch2)
+
+	now := time.Now().UTC()
+	startFuture := time.Date(now.Year()+1, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
+	endFuture := time.Date(now.Year()+1, 3, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
+	stepFuture := (endFuture - startFuture) / numMetrics
+	batch1Future := genData(numMetrics, "batch1", startFuture, stepFuture)
+	batch2Future := genData(numMetrics, "batch2", startFuture, stepFuture)
+	batches12Future := concatData(batch1Future, batch2Future)
 
 	// Verify backup/restore:
 	//
@@ -221,23 +231,25 @@ func testBackupRestore(tc *apptest.TestCase, opts testBackupRestoreOpts) {
 	// - Start vmsingle
 	// - Ensure that the queries return batch1 data only.
 
-	batch1 := genData(numMetrics, "batch1", start, step)
-	batch2 := genData(numMetrics, "batch2", start, step)
-	batches12 := concatData(batch1, batch2)
-
 	sut := opts.startSUT()
 
 	sut.PrometheusAPIV1ImportPrometheus(t, batch1.samples, apptest.QueryOpts{})
+	sut.PrometheusAPIV1ImportPrometheus(t, batch1Future.samples, apptest.QueryOpts{})
 	sut.ForceFlush(t)
 	assertSeries(sut, `{__name__=~"batch1.*"}`, start, end, batch1.wantSeries)
+	assertSeries(sut, `{__name__=~"batch1.*"}`, startFuture, endFuture, batch1Future.wantSeries)
 	assertQueryResults(sut, `{__name__=~"batch1.*"}`, start, end, step, batch1.wantQueryResults)
+	assertQueryResults(sut, `{__name__=~"batch1.*"}`, startFuture, endFuture, stepFuture, batch1Future.wantQueryResults)
 
 	createBackup(sut, "batch1")
 
 	sut.PrometheusAPIV1ImportPrometheus(t, batch2.samples, apptest.QueryOpts{})
+	sut.PrometheusAPIV1ImportPrometheus(t, batch2Future.samples, apptest.QueryOpts{})
 	sut.ForceFlush(t)
 	assertSeries(sut, `{__name__=~"batch(1|2).*"}`, start, end, batches12.wantSeries)
+	assertSeries(sut, `{__name__=~"batch(1|2).*"}`, startFuture, endFuture, batches12Future.wantSeries)
 	assertQueryResults(sut, `{__name__=~"batch(1|2).*"}`, start, end, step, batches12.wantQueryResults)
+	assertQueryResults(sut, `{__name__=~"batch(1|2).*"}`, startFuture, endFuture, stepFuture, batches12Future.wantQueryResults)
 	createBackup(sut, "batch12")
 
 	opts.stopSUT()
@@ -246,6 +258,8 @@ func testBackupRestore(tc *apptest.TestCase, opts testBackupRestoreOpts) {
 
 	sut = opts.startSUT()
 
-	assertSeries(sut, `{__name__=~"batch1.*"}`, start, end, batch1.wantSeries)
-	assertQueryResults(sut, `{__name__=~"batch1.*"}`, start, end, step, batch1.wantQueryResults)
+	assertSeries(sut, `{__name__=~"batch(1|2).*"}`, start, end, batch1.wantSeries)
+	assertSeries(sut, `{__name__=~"batch(1|2).*"}`, startFuture, endFuture, batch1Future.wantSeries)
+	assertQueryResults(sut, `{__name__=~"batch(1|2).*"}`, start, end, step, batch1.wantQueryResults)
+	assertQueryResults(sut, `{__name__=~"batch(1|2).*"}`, startFuture, endFuture, stepFuture, batch1Future.wantQueryResults)
 }
