@@ -858,6 +858,7 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipFlu
 			} else {
 				a.flush(pf, flushTime, cs, false)
 			}
+			flushTime = flushTime.Add(a.interval)
 			for time.Now().After(flushTime) {
 				flushTime = flushTime.Add(a.interval)
 			}
