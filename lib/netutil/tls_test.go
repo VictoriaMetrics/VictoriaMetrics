@@ -3,6 +3,7 @@ package netutil
 import (
 	"crypto/tls"
 	"errors"
+	"os"
 	"reflect"
 	"testing"
 
@@ -132,6 +133,104 @@ func TestGetServerTLSConfig(t *testing.T) {
 	f("./test.crt", "/b", true)
 	// cert file and key file all exist
 	f("./test.crt", "./test.key", false)
+}
+
+func TestGetServerTLSConfig_RealSignature(t *testing.T) {
+	// Prepare test certificate files
+	certFile := "test.crt"
+	keyFile := "test.key"
+	mustCreateFile(certFile, testCRT)
+	mustCreateFile(keyFile, testPK)
+	defer func() {
+		os.Remove(certFile)
+		os.Remove(keyFile)
+	}()
+
+	// f is the core test helper: calls GetServerTLSConfig and validates the result.
+	f := func(minVer string, ciphers []string, expectErr bool) {
+		t.Helper()
+		cfg, err := GetServerTLSConfig(certFile, keyFile, minVer, ciphers)
+		if (err != nil) != expectErr {
+			t.Fatalf("minVer=%s ciphers=%v | expectErr=%v got err=%v", minVer, ciphers, expectErr, err)
+		}
+		if err != nil {
+			return
+		}
+
+		// Assertion 1: NextProtos must contain both "h2" and "http/1.1" for ALPN negotiation.
+		// Required by RFC 7540 §3.3 so that gRPC-go 1.67+ can negotiate HTTP/2 over TLS.
+		// This guard prevents accidental removal of the NextProtos field in the future.
+		wantProtos := map[string]bool{"h2": false, "http/1.1": false}
+		for _, proto := range cfg.NextProtos {
+			if _, ok := wantProtos[proto]; ok {
+				wantProtos[proto] = true
+			}
+		}
+		for proto, found := range wantProtos {
+			if !found {
+				t.Errorf("NextProtos missing %q, got: %v", proto, cfg.NextProtos)
+			}
+		}
+
+		// Assertion 2: CipherSuites count must match the requested ciphers.
+		if len(ciphers) > 0 && len(cfg.CipherSuites) != len(ciphers) {
+			t.Errorf("CipherSuites count mismatch: want %d, got %d", len(ciphers), len(cfg.CipherSuites))
+		}
+
+		// Assertion 3: MinVersion must be set to a non-zero value.
+		if cfg.MinVersion == 0 {
+			t.Errorf("MinVersion is 0, expected a valid TLS version constant")
+		}
+	}
+
+	// --- Test cases ---
+
+	// Happy path: TLS 1.2 with a standard cipher suite.
+	t.Run("Valid_TLS12_WithCipher", func(t *testing.T) {
+		f("TLS12", []string{"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"}, false)
+	})
+
+	// Happy path: TLS 1.3 — cipher suites are ignored by Go's TLS stack for 1.3,
+	// so passing nil should succeed and fall back to Go defaults.
+	t.Run("Valid_TLS13_NilCiphers", func(t *testing.T) {
+		f("TLS13", nil, false)
+	})
+
+	// Happy path: empty cipher slice should fall back to Go's default cipher list.
+	t.Run("Valid_TLS12_EmptyCiphers", func(t *testing.T) {
+		f("TLS12", []string{}, false)
+	})
+
+	// Happy path: nil cipher slice should behave the same as empty.
+	t.Run("Valid_TLS12_NilCiphers", func(t *testing.T) {
+		f("TLS12", nil, false)
+	})
+
+	// Error path: unsupported TLS version string should return an error.
+	t.Run("Invalid_TLS_Version", func(t *testing.T) {
+		f("TLS99", nil, true)
+	})
+
+	// Error path: unrecognized cipher suite name should return an error.
+	t.Run("Invalid_CipherSuite_Name", func(t *testing.T) {
+		f("TLS12", []string{"NON_EXISTENT_CIPHER"}, true)
+	})
+
+	// Error path: non-existent certificate file should return an error.
+	t.Run("Invalid_CertFile_Path", func(t *testing.T) {
+		_, err := GetServerTLSConfig("nonexistent.crt", keyFile, "TLS12", nil)
+		if err == nil {
+			t.Fatal("expected error for missing cert file, got nil")
+		}
+	})
+
+	// Error path: non-existent key file should return an error.
+	t.Run("Invalid_KeyFile_Path", func(t *testing.T) {
+		_, err := GetServerTLSConfig(certFile, "nonexistent.key", "TLS12", nil)
+		if err == nil {
+			t.Fatal("expected error for missing key file, got nil")
+		}
+	})
 }
 
 const (

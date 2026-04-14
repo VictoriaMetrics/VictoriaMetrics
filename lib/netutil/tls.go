@@ -32,6 +32,11 @@ func GetServerTLSConfig(tlsCertFile, tlsKeyFile, tlsMinVersion string, tlsCipher
 		// This can only result in lower security level if improperly set.
 
 		CipherSuites: cipherSuites,
+
+		// Enable HTTP/2 and HTTP/1.1 support for TLS listeners via ALPN.
+		// See https://datatracker.ietf.org/doc/html/rfc7540#section-3.3
+		// See https://github.com/VictoriaMetrics/VictoriaTraces/issues/108
+		NextProtos: []string{"h2", "http/1.1"},
 	}
 
 	cfg.GetCertificate = newGetCertificateFunc(tlsCertFile, tlsKeyFile)
