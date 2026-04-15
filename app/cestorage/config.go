@@ -17,10 +17,10 @@ type Config struct {
 
 // EstimatorConfig represents a single cardinality estimator configuration.
 type EstimatorConfig struct {
-	Name     string   `yaml:"name"`     // required: identifier for this estimator
-	Filter   string   `yaml:"filter"`   // optional: MetricsQL selector like {job="foo"}
-	Group    string   `yaml:"group"`    // optional: label name to split cardinality by
-	Interval Duration `yaml:"interval"` // optional: how often to rotate (reset) counters; 0 means no rotation
+	Filter   string            `yaml:"filter"`   // optional: MetricsQL selector like {job="foo"}
+	Group    []string          `yaml:"group"`    // optional: label names to split cardinality by
+	Labels   map[string]string `yaml:"labels"`   // optional: extra labels added to output metrics
+	Interval Duration          `yaml:"interval"` // optional: how often to rotate (reset) counters; 0 means no rotation
 }
 
 // Duration is a time.Duration that unmarshals from a YAML string like "1h", "30m", "5s".
@@ -61,11 +61,6 @@ func loadConfig(path string) (*Config, error) {
 	var cfg Config
 	if err := yaml.UnmarshalStrict(data, &cfg); err != nil {
 		return nil, fmt.Errorf("cannot parse config file %q: %w", path, err)
-	}
-	for i, ec := range cfg.Streams {
-		if ec.Name == "" {
-			return nil, fmt.Errorf("estimators[%d]: stream is required", i)
-		}
 	}
 	return &cfg, nil
 }

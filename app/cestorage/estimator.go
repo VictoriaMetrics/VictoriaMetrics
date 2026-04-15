@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"io"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -13,9 +15,11 @@ import (
 
 // Estimator tracks cardinality for a single stream configuration.
 type Estimator struct {
-	stream  string
-	group   string        // label name to group by; empty means no grouping
-	filters []labelFilter // compiled from config filter
+	groupBy     []string          // label names to group by; empty means no grouping
+	extraLabels map[string]string // extra labels added to output metrics
+	filterStr   string
+	filters     []labelFilter // compiled from config filter
+	interval    time.Duration
 
 	mu         sync.Mutex
 	sketch     *hyperloglog.Sketch            // current-interval sketch; used when group == ""
@@ -26,32 +30,42 @@ type Estimator struct {
 	stopCh chan struct{} // closed by Stop to terminate the rotation goroutine
 }
 
+func (e *Estimator) String() string {
+	return fmt.Sprintf(
+		"filter: %s; interval: %s; group_by: %v; extra_labels: %v",
+		e.filterStr, e.interval, e.groupBy, e.extraLabels)
+}
+
 func newEstimator(cfg EstimatorConfig) (*Estimator, error) {
+	if cfg.Interval == 0 {
+		cfg.Interval = Duration(time.Minute * 5)
+	}
+
+	e := &Estimator{
+		groupBy:     cfg.Group,
+		extraLabels: cfg.Labels,
+		filterStr:   cfg.Filter,
+		interval:    time.Duration(cfg.Interval),
+		stopCh:      make(chan struct{}),
+	}
+
 	filters, err := compileFilters(cfg.Filter)
 	if err != nil {
-		return nil, fmt.Errorf("stream %q: %w", cfg.Name, err)
+		return nil, fmt.Errorf("stream: %s: parse filters failed: %w", e, err)
 	}
-	e := &Estimator{
-		stream:  cfg.Name,
-		group:   cfg.Group,
-		filters: filters,
-		stopCh:  make(chan struct{}),
-	}
-	if cfg.Group == "" {
+	e.filters = filters
+
+	if len(cfg.Group) == 0 {
 		sk, err := hyperloglog.NewSketch(14, true)
 		if err != nil {
-			return nil, fmt.Errorf("cannot create HLL sketch for stream %q: %w", cfg.Name, err)
+			return nil, fmt.Errorf("cannot create HLL sketch for stream %s: %w", e, err)
 		}
 		e.sketch = sk
 	} else {
 		e.groups = make(map[string]*hyperloglog.Sketch)
 	}
 
-	if cfg.Interval == 0 {
-		cfg.Interval = Duration(time.Minute * 5)
-	}
-
-	go e.runRotation(time.Duration(cfg.Interval))
+	go e.runRotation()
 
 	return e, nil
 }
@@ -62,8 +76,8 @@ func (e *Estimator) Stop() {
 }
 
 // runRotation resets the sketches on every tick until stopCh is closed.
-func (e *Estimator) runRotation(interval time.Duration) {
-	t := time.NewTicker(interval)
+func (e *Estimator) runRotation() {
+	t := time.NewTicker(e.interval)
 	defer t.Stop()
 	for {
 		select {
@@ -82,7 +96,7 @@ func (e *Estimator) rotate() {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	if e.group == "" {
+	if len(e.groupBy) == 0 {
 		sk, err := hyperloglog.NewSketch(14, true)
 		if err != nil {
 			return
@@ -105,26 +119,31 @@ func (e *Estimator) insert(labels []prompb.Label) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	if e.group == "" {
+	if len(e.groupBy) == 0 {
 		e.sketch.Insert(fp)
 		return
 	}
 
-	groupVal := ""
-	for _, l := range labels {
-		if l.Name == e.group {
-			groupVal = l.Value
-			break
+	// Build a composite group key: label values joined by \x00, one per groupBy label.
+	var key []byte
+	for _, labelName := range e.groupBy {
+		for _, l := range labels {
+			if l.Name == labelName {
+				key = append(key, l.Value...)
+				break
+			}
 		}
+		key = append(key, 0x00)
 	}
-	sk := e.groups[groupVal]
+	groupKey := string(key)
+	sk := e.groups[groupKey]
 	if sk == nil {
 		var err error
 		sk, err = hyperloglog.NewSketch(14, true)
 		if err != nil {
-			panic(fmt.Sprintf("FATAL: cannot create HLL sketch for stream %s: %s", e.stream, err))
+			panic(fmt.Sprintf("FATAL: cannot create HLL sketch for stream %s: %s", e, err))
 		}
-		e.groups[groupVal] = sk
+		e.groups[groupKey] = sk
 	}
 	sk.Insert(fp)
 }
@@ -134,10 +153,21 @@ func (e *Estimator) writeMetrics(w io.Writer) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	metricPrefix := fmt.Sprintf("cardinality_estimate{stream=%q", e.stream)
-	if e.group == "" {
+	metricPrefix := fmt.Sprintf("cardinality_estimate{interval=%q,filter=%q", e.interval, e.filterStr)
+	if len(e.extraLabels) > 0 {
+		keys := make([]string, 0, len(e.extraLabels))
+		for k := range e.extraLabels {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			metricPrefix += fmt.Sprintf(",%s=%q", k, e.extraLabels[k])
+		}
+	}
+
+	if len(e.groupBy) == 0 {
 		card := e.estimateSketch(e.sketch, e.prevSketch)
-		fmt.Fprintf(w, "%s} %d\n", metricPrefix, card)
+		fmt.Fprintf(w, "%s,group_by=\"\"} %d\n", metricPrefix, card)
 		return
 	}
 
@@ -149,9 +179,19 @@ func (e *Estimator) writeMetrics(w io.Writer) {
 	for k := range e.prevGroups {
 		keys[k] = struct{}{}
 	}
-	for groupVal := range keys {
-		card := e.estimateSketch(e.groups[groupVal], e.prevGroups[groupVal])
-		fmt.Fprintf(w, "%s,ce_%s=%q} %d\n", metricPrefix, e.group, groupVal, card)
+	for groupKey := range keys {
+		card := e.estimateSketch(e.groups[groupKey], e.prevGroups[groupKey])
+		// Decode composite key: values are separated by \x00, one per groupBy label.
+		vals := strings.Split(groupKey, "\x00")
+		var sb strings.Builder
+		for i, labelName := range e.groupBy {
+			val := ""
+			if i < len(vals) {
+				val = vals[i]
+			}
+			fmt.Fprintf(&sb, ",group_by_%s=%q", labelName, val)
+		}
+		fmt.Fprintf(w, "%s%s} %d\n", metricPrefix, sb.String(), card)
 	}
 }
 

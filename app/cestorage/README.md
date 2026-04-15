@@ -1,40 +1,48 @@
 # cestorage
 
-`cestorage` is a cardinality estimator that receives Prometheus remote write streams 
+`cestorage` is a cardinality estimator that receives Prometheus remote write streams
 and exposes approximate time series cardinality as metrics (TODO: support remote write).
 
-It is useful for tracking how many unique time series are flowing through across all metrics, metric name, or broken down by a specific label.
+It is useful for tracking how many unique time series are flowing through across all metrics, metric name, or broken down by specific labels.
 
 ## How it works
 
 Running:
 ```
-go run ./app/cestimator/... -config=./app/streams.yaml -httpListenAddr=:8490
+go run ./app/cestorage/... -config=./app/cestorage/streams.yaml -httpListenAddr=:8490
 ```
 
 Configuration:
 
 ```yaml
 streams:
-  # Track cardinality of all time series, grouped by metric name.
-  - name: 'global_by_metric_name'
-    interval: '1h'
-    group: '__name__'
-
-  # Track cardinality of all time series, grouped by instance label.
-  - name: 'global_by_instance'
-    interval: '5m'
-    group: 'instance'
-
-  # Track cardinality only for the eu-central-1 region, grouped by instance.
-  - name: 'eu_region_by_instance'
-    filter: '{region="eu-central-1"}'
-    group: 'instance'
-
   # Track total cardinality with no grouping.
-  - name: 'global_total'
-    interval: '1h'
+  - interval: '1h'
+
+  # Track cardinality grouped by metric name.
+  - interval: '1h'
+    group: ["__name__"]
+
+  # Track cardinality grouped by instance label.
+  - interval: '1m'
+    group: ["instance"]
+
+  # Track cardinality grouped by multiple labels.
+  - group: ["job", "instance"]
+
+  # Track cardinality only for eu-central-1, with extra labels on the output metrics.
+  - filter: '{region="eu-central-1"}'
+    group: ["instance"]
+    labels:
+      region: eu-central-1
+      env: production
 ```
+
+Fields:
+- `filter` (optional): MetricsQL selector to restrict which time series are counted
+- `group` (optional): list of label names to split cardinality by; each distinct combination gets its own estimate
+- `labels` (optional): extra labels attached to all output metrics for this estimator
+- `interval` (optional): how often to rotate (reset) counters; defaults to `5m`
 
 Cardinality generator:
 
@@ -47,15 +55,25 @@ go run ./app/cegen/main.go -cardI=100 -cardY=20 -template="foo{instance=\"127.0.
 
 Cardinality estimates are written to `/metrics` in Prometheus text format.
 
+All metrics include `interval` and `filter` labels. Extra labels from the `labels` config field are appended next (sorted alphabetically). Group-by dimensions follow, prefixed with `group_by_`.
+
 **Without grouping:**
 ```
-cardinality_estimate{stream="global_total"} 142300
+cardinality_estimate{interval="1h0m0s",filter="",group_by=""} 142300
 ```
 
-**With grouping** (one line per distinct label value):
+**With filter and single group:**
 ```
-cardinality_estimate{stream="global_by_metric_name",ce___name__="cpu_usage_seconds_total"} 4200
-cardinality_estimate{stream="global_by_metric_name",ce___name__="http_requests_total"} 8750
+cardinality_estimate{interval="5m0s",filter="{region=\"eu-central-1\"}",group_by_instance="host1:9090"} 312
 ```
 
-The group label is prefixed with `ce_` to avoid collisions with built-in labels.
+**With multiple group labels** (one line per distinct label value combination):
+```
+cardinality_estimate{interval="5m0s",filter="",group_by_job="prometheus",group_by_instance="host1:9090"} 312
+cardinality_estimate{interval="5m0s",filter="",group_by_job="node",group_by_instance="host2:9100"} 87
+```
+
+**With extra labels:**
+```
+cardinality_estimate{interval="5m0s",filter="{region=\"eu-central-1\"}",env="production",region="eu-central-1",group_by_instance="host1:9090"} 312
+```

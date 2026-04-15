@@ -1,12 +1,13 @@
 streams:
-  - name: 'global_by_metric_name'
-    interval: '1h'
-    group: "__name__"
+  - interval: '1h'
+    labels:
+      region: 'eu-central-1'
+      env: 'prod'
 
-  - name: 'global_by_instance'
-    interval: '1m'
-    group: "instance"
+  - interval: '1h'
+    group: ["__name__"]
 
-  - name: 'eu_region_by_instance'
-    filter: '{region="eu-central-1"}'
-    group: "instance"
+  - interval: '1m'
+    group: ["instance"]
+
+  - group: ["job", "instance"]
