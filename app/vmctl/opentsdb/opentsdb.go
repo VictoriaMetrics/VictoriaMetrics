@@ -108,10 +108,10 @@ func (c Client) FindMetrics(q string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to send GET request to %q: %s", q, err)
 	}
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("bad return from OpenTSDB: %d: %v", resp.StatusCode, resp)
 	}
-	defer func() { _ = resp.Body.Close() }()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("could not retrieve metric data from %q: %s", q, err)
@@ -130,12 +130,12 @@ func (c Client) FindSeries(metric string) ([]Meta, error) {
 	q := fmt.Sprintf("%s/api/search/lookup?m=%s&limit=%d", c.Addr, metric, c.Limit)
 	resp, err := c.c.Get(q)
 	if err != nil {
-		return nil, fmt.Errorf("failed to set GET request to %q: %s", q, err)
+		return nil, fmt.Errorf("failed to send GET request to %q: %s", q, err)
 	}
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("bad return from OpenTSDB: %d: %v", resp.StatusCode, resp)
 	}
-	defer func() { _ = resp.Body.Close() }()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("could not retrieve series data from %q: %s", q, err)
@@ -185,6 +185,7 @@ func (c Client) GetData(series Meta, rt RetentionMeta, start int64, end int64, m
 	if err != nil {
 		return Metric{}, fmt.Errorf("failed to send GET request to %q: %s", q, err)
 	}
+	defer func() { _ = resp.Body.Close() }()
 	/*
 		There are three potential failures here, none of which should kill the entire
 		migration run:
@@ -196,7 +197,6 @@ func (c Client) GetData(series Meta, rt RetentionMeta, start int64, end int64, m
 		log.Printf("bad response code from OpenTSDB query %v for %q...skipping", resp.StatusCode, q)
 		return Metric{}, nil
 	}
-	defer func() { _ = resp.Body.Close() }()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Println("couldn't read response body from OpenTSDB query...skipping")

@@ -7,11 +7,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cheggaaa/pb/v3"
 	vmetrics "github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/opentsdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
-	"github.com/cheggaaa/pb/v3"
 )
 
 type otsdbProcessor struct {
@@ -89,9 +89,6 @@ func (op *otsdbProcessor) run(ctx context.Context) error {
 		// we're going to make serieslist * queryRanges queries, so we should represent that in the progress bar
 		otsdbSeriesTotal.Add(len(serieslist) * queryRanges)
 		bar := pb.StartNew(len(serieslist) * queryRanges)
-		defer func(bar *pb.ProgressBar) {
-			bar.Finish()
-		}(bar)
 		var wg sync.WaitGroup
 		for range op.otsdbcc {
 			wg.Go(func() {
@@ -106,41 +103,22 @@ func (op *otsdbProcessor) run(ctx context.Context) error {
 				}
 			})
 		}
-		/*
-			Loop through all series for this metric, processing all retentions and time ranges
-			requested. This loop is our primary "collect data from OpenTSDB loop" and should
-			be async, sending data to VictoriaMetrics over time.
+		runErr := op.sendQueries(ctx, serieslist, seriesCh, errCh, startTime)
 
-			The idea with having the select at the inner-most loop is to ensure quick
-			short-circuiting on error.
-		*/
-		for _, series := range serieslist {
-			for _, rt := range op.oc.Retentions {
-				for _, tr := range rt.QueryRanges {
-					select {
-					case otsdbErr := <-errCh:
-						return fmt.Errorf("opentsdb error: %s", otsdbErr)
-					case vmErr := <-op.im.Errors():
-						otsdbErrorsTotal.Inc()
-						return fmt.Errorf("import process failed: %s", wrapErr(vmErr, op.isVerbose))
-					case seriesCh <- queryObj{
-						Tr: tr, StartTime: startTime,
-						Series: series, Rt: opentsdb.RetentionMeta{
-							FirstOrder: rt.FirstOrder, SecondOrder: rt.SecondOrder, AggTime: rt.AggTime}}:
-					}
-				}
-			}
-		}
-
-		// Drain channels per metric
+		// Always drain channels and wait for workers to prevent goroutine leaks
 		close(seriesCh)
 		wg.Wait()
 		close(errCh)
 		// check for any lingering errors on the query side
 		for otsdbErr := range errCh {
-			return fmt.Errorf("import process failed: \n%s", otsdbErr)
+			if runErr == nil {
+				runErr = fmt.Errorf("import process failed: \n%s", otsdbErr)
+			}
 		}
 		bar.Finish()
+		if runErr != nil {
+			return runErr
+		}
 		log.Print(op.im.Stats())
 	}
 	op.im.Close()
@@ -152,6 +130,34 @@ func (op *otsdbProcessor) run(ctx context.Context) error {
 	}
 	log.Println("Import finished!")
 	log.Print(op.im.Stats())
+	return nil
+}
+
+// sendQueries iterates over all series and retention ranges, sending queries to workers.
+// It returns early if ctx is canceled or an error is received.
+func (op *otsdbProcessor) sendQueries(ctx context.Context, serieslist []opentsdb.Meta, seriesCh chan<- queryObj, errCh <-chan error, startTime int64) error {
+	for _, series := range serieslist {
+		for _, rt := range op.oc.Retentions {
+			for _, tr := range rt.QueryRanges {
+				select {
+				case <-ctx.Done():
+					return fmt.Errorf("context canceled: %s", ctx.Err())
+				case otsdbErr := <-errCh:
+					otsdbErrorsTotal.Inc()
+					return fmt.Errorf("opentsdb error: %s", otsdbErr)
+				case vmErr := <-op.im.Errors():
+					return fmt.Errorf("import process failed: %s", wrapErr(vmErr, op.isVerbose))
+				case seriesCh <- queryObj{
+					Tr: tr, StartTime: startTime,
+					Series: series, Rt: opentsdb.RetentionMeta{
+						FirstOrder:  rt.FirstOrder,
+						SecondOrder: rt.SecondOrder,
+						AggTime:     rt.AggTime,
+					}}:
+				}
+			}
+		}
+	}
 	return nil
 }
 

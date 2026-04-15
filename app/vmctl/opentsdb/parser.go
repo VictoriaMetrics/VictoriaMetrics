@@ -32,7 +32,7 @@ func convertDuration(duration string) (time.Duration, error) {
 	var err error
 	var timeValue int
 	if strings.HasSuffix(duration, "y") {
-		timeValue, err = strconv.Atoi(strings.Trim(duration, "y"))
+		timeValue, err = strconv.Atoi(strings.TrimSuffix(duration, "y"))
 		if err != nil {
 			return 0, fmt.Errorf("invalid time range: %q", duration)
 		}
@@ -42,7 +42,7 @@ func convertDuration(duration string) (time.Duration, error) {
 			return 0, fmt.Errorf("invalid time range: %q", duration)
 		}
 	} else if strings.HasSuffix(duration, "w") {
-		timeValue, err = strconv.Atoi(strings.Trim(duration, "w"))
+		timeValue, err = strconv.Atoi(strings.TrimSuffix(duration, "w"))
 		if err != nil {
 			return 0, fmt.Errorf("invalid time range: %q", duration)
 		}
@@ -52,7 +52,7 @@ func convertDuration(duration string) (time.Duration, error) {
 			return 0, fmt.Errorf("invalid time range: %q", duration)
 		}
 	} else if strings.HasSuffix(duration, "d") {
-		timeValue, err = strconv.Atoi(strings.Trim(duration, "d"))
+		timeValue, err = strconv.Atoi(strings.TrimSuffix(duration, "d"))
 		if err != nil {
 			return 0, fmt.Errorf("invalid time range: %q", duration)
 		}
@@ -138,14 +138,24 @@ func convertRetention(retention string, offset int64, msecTime bool) (Retention,
 			2. we discover the actual size of each "chunk"
 			   This is second division step
 		*/
-		querySize = int64(queryRange / (queryRange / (rowLength * 4)))
+		divisor := queryRange / (rowLength * 4)
+		if divisor == 0 {
+			querySize = queryRange
+		} else {
+			querySize = queryRange / divisor
+		}
 	} else {
 		/*
 			Unless the aggTime (how long a range of data we're requesting per individual point)
 			is greater than the row size. Then we'll need to use that to determine
 			how big each individual query should be
 		*/
-		querySize = int64(queryRange / (queryRange / (aggTime * 4)))
+		divisor := queryRange / (aggTime * 4)
+		if divisor == 0 {
+			querySize = queryRange
+		} else {
+			querySize = queryRange / divisor
+		}
 	}
 
 	var timeChunks []TimeRange
