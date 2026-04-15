@@ -357,9 +357,6 @@ see two types of targets:
   service discovery, before any relabeling rules are applied. This includes
   targets that may later be dropped.
 
-_This option is only available when the component is started with the
-`-promscrape.dropOriginalLabels=false` flag._
-
 {{% collapse name="How to use `/targets` page?" %}}
 
 This `/targets` page helps answer the following questions:
@@ -379,17 +376,11 @@ to all metrics scraped from that target.
 You can click the label column of the target to see the original labels
 **before** any relabeling was applied.
 
-_This option is only available when the component is started with the
-`-promscrape.dropOriginalLabels=false` flag._
-
 **3. Why does a target have a certain set of labels?**
 
 Click the `target` link in the `debug relabeling` column. This opens a
 step-by-step view of how the relabeling rules were applied to the original
 labels.
-
-_This option is only available when the component is started with the
-`-promscrape.dropOriginalLabels=false` flag._
 
 **4. How are metric relabeling rules applied to scraped metrics?**
 
@@ -412,9 +403,6 @@ Each column on the page shows important details:
 
 This page shows all
 [discovered targets](https://docs.victoriametrics.com/victoriametrics/sd_configs/).
-
-_This option is only available when the component is started with the
-`-promscrape.dropOriginalLabels=false` flag._
 
 It helps answer the following questions:
 
