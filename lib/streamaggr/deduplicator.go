@@ -45,6 +45,7 @@ type Deduplicator struct {
 //
 // MustStop must be called on the returned deduplicator in order to free up occupied resources.
 func NewDeduplicator(pushFunc PushFunc, enableWindows bool, interval time.Duration, dropLabels []string, alias string) *Deduplicator {
+	lc.Register(2 * interval)
 	d := &Deduplicator{
 		da:            newDedupAggr(),
 		dropLabels:    dropLabels,
@@ -91,6 +92,8 @@ func NewDeduplicator(pushFunc PushFunc, enableWindows bool, interval time.Durati
 func (d *Deduplicator) MustStop() {
 	metrics.UnregisterSet(d.ms, true)
 	d.ms = nil
+
+	lc.Unregister(2 * d.interval)
 
 	close(d.stopCh)
 	d.wg.Wait()

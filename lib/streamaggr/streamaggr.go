@@ -53,10 +53,10 @@ var supportedOutputs = []string{
 	"unique_samples",
 }
 
-var (
-	// lc contains information about all compressed labels for streaming aggregation
-	lc promutil.LabelsCompressor
+// lc is the global rotating labels compressor shared across all aggregators.
+var lc promutil.LabelsCompressor
 
+var (
 	_ = metrics.NewGauge(`vm_streamaggr_labels_compressor_size_bytes`, func() float64 {
 		return float64(lc.SizeBytes())
 	})
@@ -310,12 +310,22 @@ func loadFromData(data []byte, filePath string, pushFunc PushFunc, opts *Options
 	}
 
 	metrics.RegisterSet(ms)
-	return &Aggregators{
+	a := &Aggregators{
 		as:         as,
 		configData: configData,
 		filePath:   filePath,
 		ms:         ms,
-	}, nil
+	}
+	lc.Register(a.maxStaleness())
+	return a, nil
+}
+
+func (a *Aggregators) maxStaleness() time.Duration {
+	maxStaleness := time.Duration(0)
+	for _, aggr := range a.as {
+		maxStaleness = max(aggr.stalenessInterval, maxStaleness)
+	}
+	return maxStaleness
 }
 
 // IsEnabled returns true if Aggregators has at least one configured aggregator
@@ -334,6 +344,8 @@ func (a *Aggregators) MustStop() {
 	if a == nil {
 		return
 	}
+
+	lc.Unregister(a.maxStaleness())
 
 	metrics.UnregisterSet(a.ms, true)
 	a.ms = nil
@@ -1078,6 +1090,9 @@ func compressLabels(dst []byte, inputLabels, outputLabels []prompb.Label) []byte
 }
 
 func decompressLabels(dst []prompb.Label, key string) []prompb.Label {
+	if len(key) == 0 {
+		logger.Panicf("BUG: unexpected empty key in decompressLabels")
+	}
 	return lc.Decompress(dst, bytesutil.ToUnsafeBytes(key))
 }
 
