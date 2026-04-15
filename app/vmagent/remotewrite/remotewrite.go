@@ -102,6 +102,9 @@ var (
 		"cannot be pushed into the configured -remoteWrite.url systems in a timely manner. See https://docs.victoriametrics.com/victoriametrics/vmagent/#disabling-on-disk-persistence")
 	disableMetadataPerURL = flagutil.NewArrayBool("remoteWrite.disableMetadata", "Whether to disable sending metadata to the corresponding -remoteWrite.url. "+
 		"By default, metadata sending is controlled by the global -enableMetadata flag")
+
+	obfuscatedLabels = flagutil.NewArrayString("remoteWrite.obfuscatedLabels", "Whether to disable sending metadata to the corresponding -remoteWrite.url. "+
+		"By default, metadata sending is controlled by the global -enableMetadata flag")
 )
 
 var (
@@ -833,6 +836,8 @@ type remoteWriteCtx struct {
 	pss        []*pendingSeries
 	pssNextIdx atomic.Uint64
 
+	obfuscatedLabels map[string]struct{}
+
 	rowsPushedAfterRelabel *metrics.Counter
 	rowsDroppedByRelabel   *metrics.Counter
 
@@ -937,6 +942,7 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, sanitizedURL string)
 		rowsDroppedOnPushFailure:     metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_samples_dropped_total{path=%q,url=%q}`, queuePath, sanitizedURL)),
 	}
 	rwctx.initStreamAggrConfig()
+	rwctx.initObfuscationConfig()
 
 	return rwctx
 }
@@ -1027,6 +1033,12 @@ func (rwctx *remoteWriteCtx) TryPushTimeSeries(tss []prompb.TimeSeries, forceDro
 		}
 
 		matchIdxsPool.Put(matchIdxs)
+	}
+	if len(rwctx.obfuscatedLabels) != 0 {
+		// Make a copy of tss
+		v = tssPool.Get().(*[]prompb.TimeSeries)
+		tss = append(*v, tss...)
+		tss = rwctx.applyObfuscation(tss)
 	}
 	if rwctx.deduplicator != nil {
 		rwctx.deduplicator.Push(tss)
