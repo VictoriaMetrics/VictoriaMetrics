@@ -1,0 +1,12 @@
+streams:
+  - name: 'global_by_metric_name'
+    interval: '1h'
+    group: "__name__"
+
+  - name: 'global_by_instance'
+    interval: '1m'
+    group: "instance"
+
+  - name: 'eu_region_by_instance'
+    filter: '{region="eu-central-1"}'
+    group: "instance"
