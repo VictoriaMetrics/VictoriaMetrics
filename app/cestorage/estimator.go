@@ -1,0 +1,218 @@
+package main
+
+import (
+	"fmt"
+	"io"
+	"sync"
+	"time"
+
+	"github.com/axiomhq/hyperloglog"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+)
+
+// Estimator tracks cardinality for a single stream configuration.
+type Estimator struct {
+	stream  string
+	group   string        // label name to group by; empty means no grouping
+	filters []labelFilter // compiled from config filter
+
+	mu         sync.Mutex
+	sketch     *hyperloglog.Sketch            // current-interval sketch; used when group == ""
+	prevSketch *hyperloglog.Sketch            // previous-interval sketch for smooth rotation
+	groups     map[string]*hyperloglog.Sketch // current-interval per-group sketches; used when group != ""
+	prevGroups map[string]*hyperloglog.Sketch // previous-interval per-group sketches for smooth rotation
+
+	stopCh chan struct{} // closed by Stop to terminate the rotation goroutine
+}
+
+func newEstimator(cfg EstimatorConfig) (*Estimator, error) {
+	filters, err := compileFilters(cfg.Filter)
+	if err != nil {
+		return nil, fmt.Errorf("stream %q: %w", cfg.Name, err)
+	}
+	e := &Estimator{
+		stream:  cfg.Name,
+		group:   cfg.Group,
+		filters: filters,
+		stopCh:  make(chan struct{}),
+	}
+	if cfg.Group == "" {
+		sk, err := hyperloglog.NewSketch(14, true)
+		if err != nil {
+			return nil, fmt.Errorf("cannot create HLL sketch for stream %q: %w", cfg.Name, err)
+		}
+		e.sketch = sk
+	} else {
+		e.groups = make(map[string]*hyperloglog.Sketch)
+	}
+
+	if cfg.Interval == 0 {
+		cfg.Interval = Duration(time.Minute * 5)
+	}
+
+	go e.runRotation(time.Duration(cfg.Interval))
+
+	return e, nil
+}
+
+// Stop stops the background rotation goroutine, if any.
+func (e *Estimator) Stop() {
+	close(e.stopCh)
+}
+
+// runRotation resets the sketches on every tick until stopCh is closed.
+func (e *Estimator) runRotation(interval time.Duration) {
+	t := time.NewTicker(interval)
+	defer t.Stop()
+	for {
+		select {
+		case <-t.C:
+			e.rotate()
+		case <-e.stopCh:
+			return
+		}
+	}
+}
+
+// rotate promotes current sketches to previous and starts fresh current sketches.
+// Estimates are computed as the union of previous and current (see estimateSketch /
+// estimateGroup), so cardinality does not drop to zero immediately after rotation.
+func (e *Estimator) rotate() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if e.group == "" {
+		sk, err := hyperloglog.NewSketch(14, true)
+		if err != nil {
+			return
+		}
+		e.prevSketch = e.sketch
+		e.sketch = sk
+		return
+	}
+	e.prevGroups = e.groups
+	e.groups = make(map[string]*hyperloglog.Sketch)
+}
+
+// insert adds a time series to the estimator if it matches the configured filter.
+func (e *Estimator) insert(labels []prompb.Label) {
+	if !matchesFilters(labels, e.filters) {
+		return
+	}
+	fp := fingerprintLabels(labels)
+
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if e.group == "" {
+		e.sketch.Insert(fp)
+		return
+	}
+
+	groupVal := ""
+	for _, l := range labels {
+		if l.Name == e.group {
+			groupVal = l.Value
+			break
+		}
+	}
+	sk := e.groups[groupVal]
+	if sk == nil {
+		var err error
+		sk, err = hyperloglog.NewSketch(14, true)
+		if err != nil {
+			panic(fmt.Sprintf("FATAL: cannot create HLL sketch for stream %s: %s", e.stream, err))
+		}
+		e.groups[groupVal] = sk
+	}
+	sk.Insert(fp)
+}
+
+// writeMetrics writes cardinality_estimate metrics to w in Prometheus text format.
+func (e *Estimator) writeMetrics(w io.Writer) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	metricPrefix := fmt.Sprintf("cardinality_estimate{stream=%q", e.stream)
+	if e.group == "" {
+		card := e.estimateSketch(e.sketch, e.prevSketch)
+		fmt.Fprintf(w, "%s} %d\n", metricPrefix, card)
+		return
+	}
+
+	// Collect all group keys from both current and previous intervals.
+	keys := make(map[string]struct{}, len(e.groups)+len(e.prevGroups))
+	for k := range e.groups {
+		keys[k] = struct{}{}
+	}
+	for k := range e.prevGroups {
+		keys[k] = struct{}{}
+	}
+	for groupVal := range keys {
+		card := e.estimateSketch(e.groups[groupVal], e.prevGroups[groupVal])
+		fmt.Fprintf(w, "%s,ce_%s=%q} %d\n", metricPrefix, e.group, groupVal, card)
+	}
+}
+
+// estimateSketch returns the cardinality estimate for the union of cur and prev.
+// If prev is nil (no rotation has happened yet, or no previous interval data),
+// only cur is used.  This prevents an abrupt drop to zero right after rotation.
+func (e *Estimator) estimateSketch(cur, prev *hyperloglog.Sketch) uint64 {
+	if cur == nil && prev == nil {
+		return 0
+	}
+	if prev == nil {
+		return cur.Estimate()
+	}
+	if cur == nil {
+		return prev.Estimate()
+	}
+	// Merge into a temporary copy so the originals are not mutated.
+	merged := cur.Clone()
+	if err := merged.Merge(prev); err != nil {
+		// Merge only fails on precision mismatch; both sketches use precision 14.
+		return cur.Estimate()
+	}
+	return merged.Estimate()
+}
+
+// fingerprintLabels returns a byte slice that uniquely identifies a label set.
+// The Prometheus remote write protocol guarantees labels are sorted by name,
+// so no additional sorting is needed.
+func fingerprintLabels(labels []prompb.Label) []byte {
+	var b []byte
+	for _, l := range labels {
+		b = append(b, l.Name...)
+		b = append(b, 0x00)
+		b = append(b, l.Value...)
+		b = append(b, 0x00)
+	}
+	return b
+}
+
+// matchesFilters returns true if all filters are satisfied by labels.
+func matchesFilters(labels []prompb.Label, filters []labelFilter) bool {
+	for _, f := range filters {
+		val := ""
+		for _, l := range labels {
+			if l.Name == f.label {
+				val = l.Value
+				break
+			}
+		}
+		var matched bool
+		if f.isRegexp {
+			matched = f.re.MatchString(val)
+		} else {
+			matched = val == f.value
+		}
+		if f.isNegative {
+			matched = !matched
+		}
+		if !matched {
+			return false
+		}
+	}
+	return true
+}
