@@ -23,19 +23,19 @@ streams:
   - interval: '1h'
     group: ["__name__"]
 
-  # Track cardinality grouped by instance label.
+  # Track cardinality grouped by job label.
   - interval: '1m'
-    group: ["instance"]
+    group: ["job"]
 
-  # Track cardinality grouped by multiple labels.
-  - group: ["job", "instance"]
+  # Track cardinality grouped by tenant info
+  - group: ["vm_account_id", "vm_project_id"]
 
-  # Track cardinality only for eu-central-1, with extra labels on the output metrics.
-  - filter: '{region="eu-central-1"}'
-    group: ["instance"]
+  # Track cardinality of tens jobs, with extra labels on the output metrics.
+  - filter: '{job=~"1\d+"}'
+    group: ["job"]
     labels:
-      region: eu-central-1
-      env: production
+      region: 'eu-central-1'
+      env: 'production'
 ```
 
 Fields:
