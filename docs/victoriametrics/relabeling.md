@@ -24,6 +24,11 @@ VictoriaMetrics and vmagent support Prometheus-style relabeling with
 The following articles contain useful information about Prometheus relabeling:
 
 - [How to use Relabeling in Prometheus and VictoriaMetrics](https://valyala.medium.com/how-to-use-relabeling-in-prometheus-and-victoriametrics-8b90fc22c4b2)
+- [Life of a label](https://www.robustperception.io/life-of-a-label)
+- [Discarding targets and timeseries with relabeling](https://www.robustperception.io/relabelling-can-discard-targets-timeseries-and-alerts)
+- [Dropping labels at scrape time](https://www.robustperception.io/dropping-metrics-at-scrape-time-with-prometheus)
+- [Extracting labels from legacy metric names](https://www.robustperception.io/extracting-labels-from-legacy-metric-names)
+- [relabel_configs vs metric_relabel_configs](https://www.robustperception.io/relabel_configs-vs-metric_relabel_configs)
 
 ## Relabeling Stages
 
