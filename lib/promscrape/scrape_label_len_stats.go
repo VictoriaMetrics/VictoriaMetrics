@@ -1,6 +1,7 @@
 package promscrape
 
 import (
+	"flag"
 	"fmt"
 	"sync"
 
@@ -8,6 +9,10 @@ import (
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 	"github.com/VictoriaMetrics/metrics"
 )
+
+var trackLabelLengths = flag.Bool("promscrape.trackLabelLengths", false,
+	"Whether to track label name and value lengths via vmagent_scrape_label_{name,value}_length_bytes histograms. "+
+		"This adds 4 histogram metrics per scrape job. 2 before relabeling and 2 after.")
 
 type labelLenHistograms struct {
 	nameLenHist  *metrics.Histogram
@@ -39,7 +44,7 @@ func getLabelLenHistograms(jobName, relabelStage string) *labelLenHistograms {
 
 // trackLabelLengthsBefore tracks label lengths from parsed rows before relabeling
 func trackLabelLengthsBefore(jobName string, rows []parser.Row) {
-	if len(rows) == 0 {
+	if !*trackLabelLengths || len(rows) == 0 {
 		return
 	}
 	h := getLabelLenHistograms(jobName, "before")
@@ -60,7 +65,7 @@ func trackLabelLengthsBefore(jobName string, rows []parser.Row) {
 
 // trackLabelLengthsAfter tracks label lengths from TimeSeries after relabeling
 func trackLabelLengthsAfter(jobName string, tss []prompb.TimeSeries) {
-	if len(tss) == 0 {
+	if !*trackLabelLengths || len(tss) == 0 {
 		return
 	}
 	h := getLabelLenHistograms(jobName, "after")
