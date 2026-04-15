@@ -75,13 +75,14 @@ func testFutureTimestamps(tc *apptest.TestCase, opts testFutureTimestampsOpts) {
 
 	// assertSeries retrieves set of all metric names from the storage and
 	// compares it with the expected set.
-	assertSeries := func(app apptest.PrometheusQuerier, start, end int64, want []map[string]string) {
+	assertSeries := func(app apptest.PrometheusQuerier, prefix string, start, end int64, want []map[string]string) {
 		t.Helper()
 
+		query := fmt.Sprintf(`{__name__=~"metric_%s.*"}`, prefix)
 		tc.Assert(&apptest.AssertOptions{
 			Msg: "unexpected /api/v1/series response",
 			Got: func() any {
-				return app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, apptest.QueryOpts{
+				return app.PrometheusAPIV1Series(t, query, apptest.QueryOpts{
 					Start: fmt.Sprintf("%d", start),
 					End:   fmt.Sprintf("%d", end),
 				}).Sort()
@@ -96,12 +97,14 @@ func testFutureTimestamps(tc *apptest.TestCase, opts testFutureTimestampsOpts) {
 
 	// assertSeries retrieves all data from the storage and compares it with the
 	// expected result.
-	assertQueryResults := func(app apptest.PrometheusQuerier, start, end, step int64, want []*apptest.QueryResult) {
+	assertQueryResults := func(app apptest.PrometheusQuerier, prefix string, start, end, step int64, want []*apptest.QueryResult) {
 		t.Helper()
+
+		query := fmt.Sprintf(`{__name__=~"metric_%s.*"}`, prefix)
 		tc.Assert(&apptest.AssertOptions{
 			Msg: "unexpected /api/v1/query_range response",
 			Got: func() any {
-				return app.PrometheusAPIV1QueryRange(t, `{__name__=~".*"}`, apptest.QueryOpts{
+				return app.PrometheusAPIV1QueryRange(t, query, apptest.QueryOpts{
 					Start:       fmt.Sprintf("%d", start),
 					End:         fmt.Sprintf("%d", end),
 					Step:        fmt.Sprintf("%dms", step),
@@ -120,50 +123,57 @@ func testFutureTimestamps(tc *apptest.TestCase, opts testFutureTimestampsOpts) {
 		})
 	}
 
-	f := func(prefix string, startTime, endTime time.Time) {
+	f := func(prefix string, startTime, endTime time.Time, wantEmpty bool) {
 		const numMetrics = 1000
 		start := startTime.UnixMilli()
 		end := endTime.UnixMilli()
 		step := (end - start) / numMetrics
 		data := genFutureTimestampsData(prefix, numMetrics, start, step)
+		if wantEmpty {
+			data.wantSeries = []map[string]string{}
+			data.wantQueryResults = []*apptest.QueryResult{}
+		}
 
 		// Ingest data and check query results.
 		sut := opts.start()
 		sut.PrometheusAPIV1ImportPrometheus(t, data.samples, apptest.QueryOpts{})
 		sut.ForceFlush(t)
-		assertSeries(sut, start, end, data.wantSeries)
-		assertQueryResults(sut, start, end, step, data.wantQueryResults)
+		assertSeries(sut, prefix, start, end, data.wantSeries)
+		assertQueryResults(sut, prefix, start, end, step, data.wantQueryResults)
 
 		// Ensure the queries work after restrart.
 		opts.stop()
 		sut = opts.start()
-		assertSeries(sut, start, end, data.wantSeries)
-		assertQueryResults(sut, start, end, step, data.wantQueryResults)
+		assertSeries(sut, prefix, start, end, data.wantSeries)
+		assertQueryResults(sut, prefix, start, end, step, data.wantQueryResults)
 
 		opts.stop()
 	}
 
 	now := time.Now().UTC()
+	retentionLimit := 100 * 365 * 24 * time.Hour
 	var start, end time.Time
 
 	start = time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, time.UTC)
 	end = time.Date(now.Year(), now.Month(), now.Day()+2, 0, 0, 0, 0, time.UTC)
-	f("future_1d", start, end)
+	f("future_1d", start, end, false)
 
 	start = time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, time.UTC)
 	end = time.Date(now.Year(), now.Month()+2, 1, 0, 0, 0, 0, time.UTC)
-	f("future_1m", start, end)
+	f("future_1m", start, end, false)
 
 	start = time.Date(now.Year()+1, 1, 1, 0, 0, 0, 0, time.UTC)
 	end = time.Date(now.Year()+2, 1, 1, 0, 0, 0, 0, time.UTC)
-	f("future_1y", start, end)
+	f("future_1y", start, end, false)
 
-	retentionLimit := 100 * 365 * 24 * time.Hour
 	start = now.Add(retentionLimit - 24*time.Hour)
 	end = now.Add(retentionLimit)
-	f("future_last_day", start, end)
+	f("future_1d_before_limit", start, end, false)
 
-	// TODO(rtm0): test after last day
+	start = now.Add(retentionLimit + time.Minute)
+	end = now.Add(retentionLimit + 24*time.Hour)
+	f("future_1d_beyond_limit", start, end, true)
+
 }
 
 type futureTimestampsData struct {
@@ -182,7 +192,7 @@ func genFutureTimestampsData(prefix string, numMetrics, start, step int64) futur
 		labelValue := fmt.Sprintf("value_%s_%04d", prefix, i)
 		value := i
 		timestamp := start + i*step
-		samples[i] = fmt.Sprintf("%s{%s=\"value\", label=\"%s\"} %d %d", metricName, labelName, labelValue, value, timestamp)
+		samples[i] = fmt.Sprintf(`%s{%s="value", label="%s"} %d %d`, metricName, labelName, labelValue, value, timestamp)
 		wantSeries[i] = map[string]string{
 			"__name__": metricName,
 			labelName:  "value",
