@@ -891,7 +891,7 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, sanitizedURL string)
 	if maxInmemoryBlocks < 2 {
 		maxInmemoryBlocks = 2
 	}
-	fq := persistentqueue.MustOpenFastQueue(queuePath, sanitizedURL, 2, 100, isPQDisabled)
+	fq := persistentqueue.MustOpenFastQueue(queuePath, sanitizedURL, maxInmemoryBlocks, maxPendingBytes, isPQDisabled)
 	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_pending_data_bytes{path=%q, url=%q}`, queuePath, sanitizedURL), func() float64 {
 		return float64(fq.GetPendingBytes())
 	})
