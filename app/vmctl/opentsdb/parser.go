@@ -95,6 +95,9 @@ func convertRetention(retention string, offset int64, msecTime bool) (Retention,
 	if !msecTime {
 		queryLength = queryLength / 1000
 	}
+	if queryLength <= 0 {
+		return Retention{}, fmt.Errorf("ttl %q resolves to non-positive query range %d; use a larger duration", chunks[2], queryLength)
+	}
 	queryRange := queryLength
 	// bump by the offset so we don't look at empty ranges any time offset > ttl
 	queryLength += offset
