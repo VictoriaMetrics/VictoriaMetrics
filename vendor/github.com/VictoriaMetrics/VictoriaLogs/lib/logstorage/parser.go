@@ -1223,6 +1223,11 @@ func (q *Query) GetStatsLabelsAddGroupingByTime(step, offset int64) ([]string, e
 			// This pipe doesn't change the set of fields.
 		case *pipeFirst, *pipeLast, *pipeSort:
 			// These pipes do not change the set of fields.
+		case *pipeLimit, *pipeOffset:
+			if step > 0 {
+				return nil, fmt.Errorf("the %s pipe isn't allowed in range queries, since it cannot be applied individualley per each step; step=%d", p, step)
+			}
+			// limit and offset pipes do not change the set of fields, so they are allowed in instant queries.
 		case *pipeRunningStats:
 			// `| running_stats ...` pipe must contain the same labelFields as the preceding `stats` pipe.
 			//
