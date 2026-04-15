@@ -469,6 +469,46 @@ func TestGetAPICredentialsWithProfile(t *testing.T) {
 	}
 }
 
+func TestGetFreshAPICredentialsFetchesWhenUnset(t *testing.T) {
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10815
+	response := `
+<AssumeRoleWithWebIdentityResponse xmlns="https://sts.amazonaws.com/doc/2011-06-15/">
+  <AssumeRoleWithWebIdentityResult>
+    <Credentials>
+      <AccessKeyId>IRSAACCESSKEYID</AccessKeyId>
+      <SecretAccessKey>IRSASECRETACCESSKEY</SecretAccessKey>
+      <SessionToken>IRSATOKEN</SessionToken>
+      <Expiration>2026-01-01T00:00:00Z</Expiration>
+    </Credentials>
+  </AssumeRoleWithWebIdentityResult>
+  <ResponseMetadata><RequestId>test</RequestId></ResponseMetadata>
+</AssumeRoleWithWebIdentityResponse>
+`
+	rt := &fakeRoundTripper{responses: make(map[string]*http.Response)}
+	recorder := httptest.NewRecorder()
+	recorder.WriteHeader(http.StatusOK)
+	_, _ = recorder.WriteString(response)
+	rt.responses["AssumeRoleWithWebIdentity"] = recorder.Result()
+
+	tempDir := t.TempDir()
+	tokenPath := filepath.Join(tempDir, "token")
+	fs.MustWriteSync(tokenPath, []byte("webtoken"))
+
+	cfg := &Config{
+		stsEndpoint:  "http://stsendpoint",
+		irsaRoleARN:  "irsarole",
+		webTokenPath: tokenPath,
+		client:       &http.Client{Transport: rt},
+	}
+	creds, err := cfg.getFreshAPICredentials()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if creds.AccessKeyID != "IRSAACCESSKEYID" {
+		t.Fatalf("unexpected AccessKeyID; got %q, want %q", creds.AccessKeyID, "IRSAACCESSKEYID")
+	}
+}
+
 func mustParseRFC3339(s string) time.Time {
 	expTime, err := time.Parse(time.RFC3339, s)
 	if err != nil {
