@@ -102,6 +102,8 @@ var (
 		"cannot be pushed into the configured -remoteWrite.url systems in a timely manner. See https://docs.victoriametrics.com/victoriametrics/vmagent/#disabling-on-disk-persistence")
 	disableMetadataPerURL = flagutil.NewArrayBool("remoteWrite.disableMetadata", "Whether to disable sending metadata to the corresponding -remoteWrite.url. "+
 		"By default, metadata sending is controlled by the global -enableMetadata flag")
+	enableRerouting = flag.Bool("remoteWrite.enableRerouting", false, "Whether to reroute samples to available remote storage systems when there's any remote storage system and its persistent queue can not "+
+		"keep up with the data ingestion rate. If this flag is not set, then it will be calculated automatically based on -remoteWrite.disableOnDiskQueue. See https://docs.victoriametrics.com/victoriametrics/vmagent/#disabling-on-disk-persistence")
 )
 
 var (
@@ -214,6 +216,10 @@ func Init() {
 	// if these samples couldn't be sent to the -remoteWrite.url with the disabled persistent queue. So it is better sending samples
 	// to the remaining -remoteWrite.url and dropping them on the blocked queue.
 	dropSamplesOnFailureGlobal = *dropSamplesOnOverload || disableOnDiskQueueAny && len(*remoteWriteURLs) > 1
+
+	if !flagutil.IsSet("remoteWrite.enableRerouting") {
+		*enableRerouting = disableOnDiskQueueAny
+	}
 
 	dropDanglingQueues()
 
@@ -498,7 +504,7 @@ func tryPush(at *auth.Token, wr *prompb.WriteRequest, forceDropSamplesOnFailure 
 //
 // calculateHealthyRwctxIdx will rely on the order of rwctx to be in ascending order.
 func getEligibleRemoteWriteCtxs(tss []prompb.TimeSeries, forceDropSamplesOnFailure bool) ([]*remoteWriteCtx, bool) {
-	if !disableOnDiskQueueAny {
+	if !*enableRerouting {
 		return rwctxsGlobal, true
 	}
 
@@ -885,7 +891,7 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, sanitizedURL string)
 	if maxInmemoryBlocks < 2 {
 		maxInmemoryBlocks = 2
 	}
-	fq := persistentqueue.MustOpenFastQueue(queuePath, sanitizedURL, maxInmemoryBlocks, maxPendingBytes, isPQDisabled)
+	fq := persistentqueue.MustOpenFastQueue(queuePath, sanitizedURL, 2, 100, isPQDisabled)
 	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_pending_data_bytes{path=%q, url=%q}`, queuePath, sanitizedURL), func() float64 {
 		return float64(fq.GetPendingBytes())
 	})

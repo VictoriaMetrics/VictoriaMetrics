@@ -900,6 +900,10 @@ When `-remoteWrite.disableOnDiskQueue` command-line flag is set, `vmagent` may s
 if it cannot keep up with the data ingestion rate. In this case [deduplication](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication)
 must be enabled on all the configured remote storage systems.
 
+If `-remoteWrite.disableOnDiskQueue` command-line flag is set for one of the `-remoteWrite.url`, then if any remote storage systems become unavailable, 
+`vmagent` will reroute samples to other available remote storage systems. If on-disk persistence are enabled for all `-remoteWrite.url`, 
+then `vmagent` will not perform rerouting. You can also control rerouting by explicitly setting `-remoteWrite.enableRerouting`.
+
 ## Cardinality limiter
 
 By default, `vmagent` doesn't limit the number of time series each scrape target can expose.
