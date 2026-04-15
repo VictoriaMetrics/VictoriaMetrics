@@ -161,6 +161,9 @@ func convertRetention(retention string, offset int64, msecTime bool) (Retention,
 		}
 	}
 
+	if querySize <= 0 {
+		return Retention{}, fmt.Errorf("computed non-positive querySize=%d for retention %q; check parameters", querySize, retention)
+	}
 	var timeChunks []TimeRange
 	var i int64
 	for i = offset; i <= queryLength; i = i + querySize {
