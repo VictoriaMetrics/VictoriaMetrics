@@ -207,6 +207,7 @@ func (pt *partition) putStreamIDToCache(sid *streamID) {
 }
 
 func (pt *partition) marshalStreamIDCacheKey(dst []byte, sid *streamID) []byte {
+	dst = encoding.MarshalUint64(dst, pt.s.partitionCacheGeneration.Load())
 	dst = encoding.MarshalBytes(dst, bytesutil.ToUnsafeBytes(pt.name))
 	dst = sid.marshal(dst)
 	return dst
