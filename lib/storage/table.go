@@ -415,6 +415,9 @@ func (tb *table) getMinMaxTimestamps() (int64, int64) {
 		minTimestamp = 0
 	}
 	maxTimestamp := int64(maxUnixMilli)
+	if maxUnixMilli-now > tb.s.futureRetentionMsecs {
+		maxTimestamp = now + tb.s.futureRetentionMsecs
+	}
 	return minTimestamp, maxTimestamp
 }
 

@@ -2,6 +2,7 @@ package tests
 
 import (
 	"fmt"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -14,11 +15,14 @@ func TestSingleFutureTimestamps(t *testing.T) {
 
 	opts := testFutureTimestampsOpts{
 		start: func() apptest.PrometheusWriteQuerier {
-			return tc.MustStartDefaultVmsingle()
+			return tc.MustStartVmsingle("vmsingle", []string{
+				"-storageDataPath=" + filepath.Join(tc.Dir(), "vmsingle"),
+				"-retentionPeriod=100y",
+				"-futureRetention=100y",
+			})
 		},
-		stop: func(sut apptest.PrometheusWriteQuerier) {
-			vmsingle := sut.(*apptest.Vmsingle)
-			tc.StopApp(vmsingle.Name())
+		stop: func() {
+			tc.StopApp("vmsingle")
 		},
 	}
 
@@ -31,15 +35,30 @@ func TestClusterFutureTimestamps(t *testing.T) {
 
 	opts := testFutureTimestampsOpts{
 		start: func() apptest.PrometheusWriteQuerier {
-			return tc.MustStartDefaultCluster()
+			return tc.MustStartCluster(&apptest.ClusterOptions{
+				Vmstorage1Instance: "vmstorage1",
+				Vmstorage1Flags: []string{
+					"-storageDataPath=" + filepath.Join(tc.Dir(), "vmstorage1"),
+					"-retentionPeriod=100y",
+					"-futureRetention=100y",
+				},
+				Vmstorage2Instance: "vmstorage2",
+				Vmstorage2Flags: []string{
+					"-storageDataPath=" + filepath.Join(tc.Dir(), "vmstorage2"),
+					"-retentionPeriod=100y",
+					"-futureRetention=100y",
+				},
+				VminsertInstance: "vminsert",
+				VminsertFlags:    []string{},
+				VmselectInstance: "vmselect",
+				VmselectFlags:    []string{},
+			})
 		},
-		stop: func(sut apptest.PrometheusWriteQuerier) {
-			vmcluster := sut.(*apptest.Vmcluster)
-			tc.StopApp(vmcluster.Vminsert.Name())
-			tc.StopApp(vmcluster.Vmselect.Name())
-			for _, vmstorage := range vmcluster.Vmstorages {
-				tc.StopApp(vmstorage.Name())
-			}
+		stop: func() {
+			tc.StopApp("vminsert")
+			tc.StopApp("vmselect")
+			tc.StopApp("vmstorage1")
+			tc.StopApp("vmstorage2")
 		},
 	}
 
@@ -48,7 +67,7 @@ func TestClusterFutureTimestamps(t *testing.T) {
 
 type testFutureTimestampsOpts struct {
 	start func() apptest.PrometheusWriteQuerier
-	stop  func(sut apptest.PrometheusWriteQuerier)
+	stop  func()
 }
 
 func testFutureTimestamps(tc *apptest.TestCase, opts testFutureTimestampsOpts) {
@@ -116,12 +135,12 @@ func testFutureTimestamps(tc *apptest.TestCase, opts testFutureTimestampsOpts) {
 		assertQueryResults(sut, start, end, step, data.wantQueryResults)
 
 		// Ensure the queries work after restrart.
-		opts.stop(sut)
+		opts.stop()
 		sut = opts.start()
 		assertSeries(sut, start, end, data.wantSeries)
 		assertQueryResults(sut, start, end, step, data.wantQueryResults)
 
-		opts.stop(sut)
+		opts.stop()
 	}
 
 	now := time.Now().UTC()
@@ -139,9 +158,12 @@ func testFutureTimestamps(tc *apptest.TestCase, opts testFutureTimestampsOpts) {
 	end = time.Date(now.Year()+2, 1, 1, 0, 0, 0, 0, time.UTC)
 	f("future_1y", start, end)
 
-	start = time.Date(2262, 3, 1, 0, 0, 0, 0, time.UTC)
-	end = time.Date(2262, 4, 1, 0, 0, 0, 0, time.UTC)
-	f("future_last_month", start, end)
+	retentionLimit := 100 * 365 * 24 * time.Hour
+	start = now.Add(retentionLimit - 24*time.Hour)
+	end = now.Add(retentionLimit)
+	f("future_last_day", start, end)
+
+	// TODO(rtm0): test after last day
 }
 
 type futureTimestampsData struct {

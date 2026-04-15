@@ -875,7 +875,9 @@ func TestStorageLastPartitionMetrics(t *testing.T) {
 		ct := time.Now().UTC()
 
 		// Open the storage, make sure current partition is empty.
-		s := MustOpenStorage(t.Name(), OpenOptions{})
+		s := MustOpenStorage(t.Name(), OpenOptions{
+			FutureRetention: 2 * 365 * 24 * time.Hour,
+		})
 		defer s.MustClose()
 		assertLastPartitionEmpty(t, s)
 
@@ -901,7 +903,7 @@ func TestStorageLastPartitionMetrics(t *testing.T) {
 	})
 }
 
-func TestStorage_futureTimestampsRetention(t *testing.T) {
+func TestStorage_futureAndHistoricalRetention(t *testing.T) {
 	defer testRemoveAll(t)
 
 	assertData := func(t *testing.T, s *Storage, tr TimeRange, want []MetricRow) {
@@ -919,8 +921,13 @@ func TestStorage_futureTimestampsRetention(t *testing.T) {
 		// synctests start at 2000-01-01T00:00:00Z
 
 		var s *Storage
-		retention := time.Duration(180 * 24 * time.Hour)
-		s = MustOpenStorage(t.Name(), OpenOptions{Retention: retention})
+		retention := 180 * 24 * time.Hour
+		futureRetention := 180 * 24 * time.Hour
+
+		s = MustOpenStorage(t.Name(), OpenOptions{
+			Retention:       retention,
+			FutureRetention: futureRetention,
+		})
 
 		// Ingest samples for previous and future year. 10 samples per day.
 		const numSeries = 10
@@ -942,14 +949,22 @@ func TestStorage_futureTimestampsRetention(t *testing.T) {
 		}
 		s.DebugFlush()
 
-		for now := time.Now().UTC(); now.Before(end.Add(retention + 24*time.Hour)); {
+		// Advance time one partition at a time. Before each time advancement,
+		// check the query results for each day between the original start and end
+		// time.
+		//
+		// This is to test how historical and future retentions affect the
+		// stored data over time.
+		now := time.Now().UTC()
+		dataEnd := now.Add(futureRetention - 24*time.Hour)
+		for now.Before(end) {
 			for day := start; day.Before(end); {
 				tr := TimeRange{
 					MinTimestamp: day.UnixMilli(),
 					MaxTimestamp: day.UnixMilli() + msecPerDay - 1,
 				}
-				retentionStart := time.Now().UTC().Add(-retention)
-				if day.Before(retentionStart) {
+				dataStart := now.Add(-retention)
+				if day.Before(dataStart) || day.After(dataEnd) {
 					assertData(t, s, tr, nil)
 				} else {
 					assertData(t, s, tr, wantData[tr])
@@ -965,5 +980,63 @@ func TestStorage_futureTimestampsRetention(t *testing.T) {
 		}
 
 		s.MustClose()
+	})
+}
+
+func TestStorage_defaultFutureRetention(t *testing.T) {
+	defer testRemoveAll(t)
+
+	assertData := func(t *testing.T, s *Storage, tr TimeRange, want []MetricRow) {
+		t.Helper()
+		tfs := NewTagFilters()
+		if err := tfs.Add(nil, []byte(".*"), false, true); err != nil {
+			t.Fatalf("TagFilters.Add() failed unexpectedly: %v", err)
+		}
+		if err := testAssertSearchResult(s, tr, tfs, want); err != nil {
+			t.Fatalf("[now: %v tr: %v] search failed unexpectedly: %v", time.Now().UTC(), &tr, err)
+		}
+	}
+
+	synctest.Test(t, func(t *testing.T) {
+		// synctests start at 2000-01-01T00:00:00Z
+
+		s := MustOpenStorage(t.Name(), OpenOptions{})
+		defer s.MustClose()
+
+		// Ingest samples for this and several days in the future. 10 samples
+		// per hour.
+		const numSeries = 10
+		start := time.Now().UTC()
+		end := start.Add(10 * 24 * time.Hour)
+		rng := rand.New(rand.NewSource(1))
+		wantData := make(map[TimeRange][]MetricRow)
+		for ts := start; ts.Before(end); {
+			prefix := fmt.Sprintf("metric_%04d_%02d_%02d_%02d", ts.Year(), ts.Month(), ts.Day(), ts.Hour())
+			tr := TimeRange{
+				MinTimestamp: ts.UnixMilli(),
+				MaxTimestamp: ts.UnixMilli() + msecPerHour - 1,
+			}
+			mrs := testGenerateMetricRowsWithPrefix(rng, numSeries, prefix, tr)
+			wantData[tr] = mrs
+			s.AddRows(mrs, defaultPrecisionBits)
+
+			ts = ts.Add(time.Hour)
+		}
+		s.DebugFlush()
+
+		dataStart := start
+		dataEnd := dataStart.Add(2*24*time.Hour - time.Hour)
+		for ts := start; ts.Before(end); ts = ts.Add(time.Hour) {
+			tr := TimeRange{
+				MinTimestamp: ts.UnixMilli(),
+				MaxTimestamp: ts.UnixMilli() + msecPerHour - 1,
+			}
+			if ts.Before(dataStart) || ts.After(dataEnd) {
+				assertData(t, s, tr, nil)
+			} else {
+				assertData(t, s, tr, wantData[tr])
+			}
+		}
+
 	})
 }

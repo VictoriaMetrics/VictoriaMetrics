@@ -28,6 +28,7 @@ func TestSingleBackupRestore(t *testing.T) {
 			return tc.MustStartVmsingle("vmsingle", []string{
 				"-storageDataPath=" + storageDataPath,
 				"-retentionPeriod=100y",
+				"-futureRetention=2y",
 			})
 		},
 		stopSUT: func() {
@@ -60,11 +61,13 @@ func TestClusterBackupRestore(t *testing.T) {
 				Vmstorage1Flags: []string{
 					"-storageDataPath=" + storage1DataPath,
 					"-retentionPeriod=100y",
+					"-futureRetention=2y",
 				},
 				Vmstorage2Instance: "vmstorage2",
 				Vmstorage2Flags: []string{
 					"-storageDataPath=" + storage2DataPath,
 					"-retentionPeriod=100y",
+					"-futureRetention=2y",
 				},
 				VminsertInstance: "vminsert",
 				VminsertFlags:    []string{},

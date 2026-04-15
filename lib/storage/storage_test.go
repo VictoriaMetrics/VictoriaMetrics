@@ -2024,7 +2024,9 @@ func TestStorageSearchMetricNames_VariousTimeRanges(t *testing.T) {
 		}
 		slices.Sort(want)
 
-		s := MustOpenStorage(t.Name(), OpenOptions{})
+		s := MustOpenStorage(t.Name(), OpenOptions{
+			FutureRetention: time.Duration(math.MaxInt64),
+		})
 		defer s.MustClose()
 		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
@@ -2282,7 +2284,9 @@ func TestStorageSearchLabelNames_VariousTimeRanges(t *testing.T) {
 		want = append(want, "__name__")
 		slices.Sort(want)
 
-		s := MustOpenStorage(t.Name(), OpenOptions{})
+		s := MustOpenStorage(t.Name(), OpenOptions{
+			FutureRetention: time.Duration(math.MaxInt64),
+		})
 		defer s.MustClose()
 		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
@@ -2331,7 +2335,9 @@ func TestStorageSearchLabelValues_VariousTimeRanges(t *testing.T) {
 		}
 		slices.Sort(want)
 
-		s := MustOpenStorage(t.Name(), OpenOptions{})
+		s := MustOpenStorage(t.Name(), OpenOptions{
+			FutureRetention: time.Duration(math.MaxInt64),
+		})
 		defer s.MustClose()
 		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
@@ -2371,7 +2377,9 @@ func TestStorageSearchTagValueSuffixes_VariousTimeRanges(t *testing.T) {
 		}
 		slices.Sort(want)
 
-		s := MustOpenStorage(t.Name(), OpenOptions{})
+		s := MustOpenStorage(t.Name(), OpenOptions{
+			FutureRetention: time.Duration(math.MaxInt64),
+		})
 		defer s.MustClose()
 		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
@@ -2410,7 +2418,9 @@ func TestStorageSearchGraphitePaths_VariousTimeRanges(t *testing.T) {
 		}
 		slices.Sort(want)
 
-		s := MustOpenStorage(t.Name(), OpenOptions{})
+		s := MustOpenStorage(t.Name(), OpenOptions{
+			FutureRetention: time.Duration(math.MaxInt64),
+		})
 		defer s.MustClose()
 		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
@@ -4225,12 +4235,16 @@ func TestStorage_futureTimestamps(t *testing.T) {
 		return s
 	}
 
+	futureRetention := time.Duration(math.MaxInt64)
+
 	f := func(t *testing.T, tr TimeRange) {
 		t.Helper()
 
 		want := genData("batch1", tr)
 
-		s := MustOpenStorage(t.Name(), OpenOptions{})
+		s := MustOpenStorage(t.Name(), OpenOptions{
+			FutureRetention: futureRetention,
+		})
 		s.AddRows(want.mrs, defaultPrecisionBits)
 		s.DebugFlush()
 		assertMetricNames(t, s, tr, want.metricNames)
@@ -4240,7 +4254,9 @@ func TestStorage_futureTimestamps(t *testing.T) {
 
 		// Reopen storage.
 		s.MustClose()
-		s = MustOpenStorage(t.Name(), OpenOptions{})
+		s = MustOpenStorage(t.Name(), OpenOptions{
+			FutureRetention: futureRetention,
+		})
 		assertMetricNames(t, s, tr, want.metricNames)
 		assertLabelNames(t, s, tr, want.labelNames)
 		assertLabelValues(t, s, tr, want.labelValues)
