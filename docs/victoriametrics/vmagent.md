@@ -190,8 +190,8 @@ See also [how to scrape large number of targets](#scraping-big-number-of-targets
 
 ### Relabeling and filtering
 
-`vmagent` can add, remove or update labels on the collected data before sending it to the remote storage. Additionally,
-it can remove unwanted samples via Prometheus-like relabeling before sending the collected data to remote storage.
+`vmagent` can add, remove or update labels on the collected data before sending it to the remote storage.
+It can filter scrape targets or remove unwanted samples via Prometheus-like relabeling.
 Please see [Relabeling cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/) for details.
 
 ### Splitting data streams among multiple systems
