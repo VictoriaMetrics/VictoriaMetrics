@@ -545,6 +545,9 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 			wc.rows.UnmarshalWithErrLogger(bodyString, sw.logError)
 		}
 	}
+	jobName := cfg.Job()
+	trackLabelLengthsBefore(jobName, wc.rows.Rows)
+
 	samplesPostRelabeling := 0
 	samplesScraped := len(wc.rows.Rows)
 	scrapedSamples.Update(float64(samplesScraped))
@@ -604,6 +607,7 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 	}
 	wc.addAutoMetrics(sw, am, scrapeTimestamp)
 
+	trackLabelLengthsAfter(jobName, wc.writeRequest.Timeseries)
 	sw.pushData(&wc.writeRequest)
 	sw.prevLabelsLen = len(wc.labels)
 	writeRequestCtxPool.Put(wc)
@@ -643,6 +647,8 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 	cfg := sw.Config
 	areIdenticalSeries := areIdenticalSeries(cfg, lastScrapeStr, bodyString)
 
+	jobName := cfg.Job()
+
 	r := body.NewReader()
 	err := stream.Parse(r, scrapeTimestamp, "", false, prommetadata.IsEnabled(), func(rows []parser.Row, mms []parser.Metadata) error {
 		labelsLen := maxLabelsLen.Load()
@@ -662,6 +668,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 		}()
 
 		samplesScraped.Add(int64(len(rows)))
+		trackLabelLengthsBefore(jobName, rows)
 		if err := wc.addRows(cfg, rows, scrapeTimestamp, true); err != nil {
 			if errors.Is(err, errLabelsLimitExceeded) {
 				scrapesSkippedByLabelLimit.Inc()
@@ -683,6 +690,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 			samplesDroppedTotal.Add(int64(samplesDropped))
 		}
 
+		trackLabelLengthsAfter(jobName, wc.writeRequest.Timeseries)
 		sw.pushData(&wc.writeRequest)
 		return nil
 	}, sw.logError)
