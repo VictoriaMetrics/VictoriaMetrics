@@ -106,7 +106,7 @@ func (ao *aggrOutputs) flushState(ctx *flushCtx) {
 			return true
 		}
 		outputKey := k.(string)
-		if ctx.isGreen {
+		if ctx.isGreen && ao.useSharedState {
 			outputs = av.green
 		} else {
 			outputs = av.blue
