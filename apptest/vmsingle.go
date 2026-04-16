@@ -98,7 +98,7 @@ func StartVmsingleAt(instance, binary string, flags []string, cli *Client, outpu
 func (app *Vmsingle) ForceFlush(t *testing.T) {
 	t.Helper()
 
-	_, statusCode := app.cli.Get(t, app.forceFlushURL)
+	_, statusCode := app.cli.Get(t, app.forceFlushURL, nil)
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
 	}
@@ -108,7 +108,7 @@ func (app *Vmsingle) ForceFlush(t *testing.T) {
 func (app *Vmsingle) ForceMerge(t *testing.T) {
 	t.Helper()
 
-	_, statusCode := app.cli.Get(t, app.forceMergeURL)
+	_, statusCode := app.cli.Get(t, app.forceMergeURL, nil)
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
 	}
@@ -130,8 +130,9 @@ func (app *Vmsingle) InfluxWrite(t *testing.T, records []string, opts QueryOpts)
 	if len(uvs) > 0 {
 		url += "?" + uvs
 	}
-
-	_, statusCode := app.cli.Post(t, url, "text/plain", data)
+	headers := opts.getHeaders()
+	headers.Set("Content-Type", "text/plain")
+	_, statusCode := app.cli.Post(t, url, data, headers)
 	if statusCode != http.StatusNoContent {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
 	}
@@ -161,7 +162,9 @@ func (app *Vmsingle) PrometheusAPIV1ImportCSV(t *testing.T, records []string, op
 		url += "?" + uvs
 	}
 	data := []byte(strings.Join(records, "\n"))
-	_, statusCode := app.cli.Post(t, url, "text/plain", data)
+	headers := opts.getHeaders()
+	headers.Set("Content-Type", "text/plain")
+	_, statusCode := app.cli.Post(t, url, data, headers)
 	if statusCode != http.StatusNoContent {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
 	}
@@ -181,7 +184,9 @@ func (app *Vmsingle) PrometheusAPIV1ImportNative(t *testing.T, data []byte, opts
 	if len(uvs) > 0 {
 		url += "?" + uvs
 	}
-	_, statusCode := app.cli.Post(t, url, "text/plain", data)
+	headers := opts.getHeaders()
+	headers.Set("Content-Type", "text/plain")
+	_, statusCode := app.cli.Post(t, url, data, headers)
 	if statusCode != http.StatusNoContent {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
 	}
@@ -203,7 +208,9 @@ func (app *Vmsingle) OpenTSDBAPIPut(t *testing.T, records []string, opts QueryOp
 		url += "?" + uvs
 	}
 	data := []byte("[" + strings.Join(records, ",") + "]")
-	_, statusCode := app.cli.Post(t, url, "text/plain", data)
+	headers := opts.getHeaders()
+	headers.Set("Content-Type", "text/plain")
+	_, statusCode := app.cli.Post(t, url, data, headers)
 	if statusCode != http.StatusNoContent {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
 	}
@@ -212,11 +219,13 @@ func (app *Vmsingle) OpenTSDBAPIPut(t *testing.T, records []string, opts QueryOp
 // PrometheusAPIV1Write is a test helper function that inserts a
 // collection of records in Prometheus remote-write format by sending a HTTP
 // POST request to /prometheus/api/v1/write vmsingle endpoint.
-func (app *Vmsingle) PrometheusAPIV1Write(t *testing.T, wr prompb.WriteRequest, _ QueryOpts) {
+func (app *Vmsingle) PrometheusAPIV1Write(t *testing.T, wr prompb.WriteRequest, opts QueryOpts) {
 	t.Helper()
 
 	data := snappy.Encode(nil, wr.MarshalProtobuf(nil))
-	_, statusCode := app.cli.Post(t, app.prometheusAPIV1WriteURL, "application/x-protobuf", data)
+	headers := opts.getHeaders()
+	headers.Set("Content-Type", "application/x-protobuf")
+	_, statusCode := app.cli.Post(t, app.prometheusAPIV1WriteURL, data, headers)
 	if statusCode != http.StatusNoContent {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
 	}
@@ -237,9 +246,10 @@ func (app *Vmsingle) PrometheusAPIV1ImportPrometheus(t *testing.T, records []str
 	if len(uvs) > 0 {
 		url += "?" + uvs
 	}
-
+	headers := opts.getHeaders()
+	headers.Set("Content-Type", "text/plain")
 	data := []byte(strings.Join(records, "\n"))
-	_, statusCode := app.cli.Post(t, url, "text/plain", data)
+	_, statusCode := app.cli.Post(t, url, data, headers)
 	if statusCode != http.StatusNoContent {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
 	}
@@ -256,7 +266,7 @@ func (app *Vmsingle) PrometheusAPIV1Export(t *testing.T, query string, opts Quer
 	values.Add("match[]", query)
 	values.Add("format", "promapi")
 
-	res, _ := app.cli.PostForm(t, app.prometheusAPIV1ExportURL, values)
+	res, _ := app.cli.PostForm(t, app.prometheusAPIV1ExportURL, values, opts.Headers)
 	return NewPrometheusAPIV1QueryResponse(t, res)
 }
 
@@ -273,7 +283,7 @@ func (app *Vmsingle) PrometheusAPIV1ExportNative(t *testing.T, query string, opt
 	values.Add("match[]", query)
 	values.Add("format", "promapi")
 
-	res, _ := app.cli.PostForm(t, app.prometheusAPIV1ExportNativeURL, values)
+	res, _ := app.cli.PostForm(t, app.prometheusAPIV1ExportNativeURL, values, opts.Headers)
 	return []byte(res)
 }
 
@@ -287,7 +297,7 @@ func (app *Vmsingle) PrometheusAPIV1Query(t *testing.T, query string, opts Query
 
 	values := opts.asURLValues()
 	values.Add("query", query)
-	res, _ := app.cli.PostForm(t, app.prometheusAPIV1QueryURL, values)
+	res, _ := app.cli.PostForm(t, app.prometheusAPIV1QueryURL, values, opts.Headers)
 	return NewPrometheusAPIV1QueryResponse(t, res)
 }
 
@@ -302,7 +312,7 @@ func (app *Vmsingle) PrometheusAPIV1QueryRange(t *testing.T, query string, opts 
 	values := opts.asURLValues()
 	values.Add("query", query)
 
-	res, _ := app.cli.PostForm(t, app.prometheusAPIV1QueryRangeURL, values)
+	res, _ := app.cli.PostForm(t, app.prometheusAPIV1QueryRangeURL, values, opts.Headers)
 	return NewPrometheusAPIV1QueryResponse(t, res)
 }
 
@@ -316,7 +326,7 @@ func (app *Vmsingle) PrometheusAPIV1Series(t *testing.T, matchQuery string, opts
 	values := opts.asURLValues()
 	values.Add("match[]", matchQuery)
 
-	res, _ := app.cli.PostForm(t, app.prometheusAPIV1SeriesURL, values)
+	res, _ := app.cli.PostForm(t, app.prometheusAPIV1SeriesURL, values, opts.Headers)
 	return NewPrometheusAPIV1SeriesResponse(t, res)
 }
 
@@ -330,7 +340,7 @@ func (app *Vmsingle) PrometheusAPIV1SeriesCount(t *testing.T, opts QueryOpts) *P
 	values := opts.asURLValues()
 
 	queryURL := fmt.Sprintf("http://%s/prometheus/api/v1/series/count", app.httpListenAddr)
-	res, _ := app.cli.PostForm(t, queryURL, values)
+	res, _ := app.cli.PostForm(t, queryURL, values, opts.Headers)
 	return NewPrometheusAPIV1SeriesCountResponse(t, res)
 }
 
@@ -345,7 +355,7 @@ func (app *Vmsingle) PrometheusAPIV1Labels(t *testing.T, matchQuery string, opts
 	values.Add("match[]", matchQuery)
 
 	queryURL := fmt.Sprintf("http://%s/prometheus/api/v1/labels", app.httpListenAddr)
-	res, _ := app.cli.PostForm(t, queryURL, values)
+	res, _ := app.cli.PostForm(t, queryURL, values, opts.Headers)
 	return NewPrometheusAPIV1LabelsResponse(t, res)
 }
 
@@ -360,7 +370,7 @@ func (app *Vmsingle) PrometheusAPIV1LabelValues(t *testing.T, labelName, matchQu
 	values.Add("match[]", matchQuery)
 
 	queryURL := fmt.Sprintf("http://%s/prometheus/api/v1/label/%s/values", app.httpListenAddr, labelName)
-	res, _ := app.cli.PostForm(t, queryURL, values)
+	res, _ := app.cli.PostForm(t, queryURL, values, opts.Headers)
 	return NewPrometheusAPIV1LabelValuesResponse(t, res)
 }
 
@@ -374,7 +384,7 @@ func (app *Vmsingle) PrometheusAPIV1Metadata(t *testing.T, metric string, limit 
 	values.Add("limit", strconv.Itoa(limit))
 	queryURL := fmt.Sprintf("http://%s/prometheus/api/v1/metadata", app.httpListenAddr)
 
-	res, _ := app.cli.PostForm(t, queryURL, values)
+	res, _ := app.cli.PostForm(t, queryURL, values, opts.Headers)
 	return NewPrometheusAPIV1Metadata(t, res)
 }
 
@@ -389,7 +399,7 @@ func (app *Vmsingle) APIV1AdminTSDBDeleteSeries(t *testing.T, matchQuery string,
 	values := opts.asURLValues()
 	values.Add("match[]", matchQuery)
 
-	res, statusCode := app.cli.PostForm(t, queryURL, values)
+	res, statusCode := app.cli.PostForm(t, queryURL, values, opts.Headers)
 	if statusCode != http.StatusNoContent {
 		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusNoContent, res)
 	}
@@ -402,7 +412,7 @@ func (app *Vmsingle) GraphiteMetricsIndex(t *testing.T, _ QueryOpts) GraphiteMet
 	t.Helper()
 
 	seriesURL := fmt.Sprintf("http://%s/metrics/index.json", app.httpListenAddr)
-	res, statusCode := app.cli.Get(t, seriesURL)
+	res, statusCode := app.cli.Get(t, seriesURL, nil)
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusOK, res)
 	}
@@ -424,7 +434,7 @@ func (app *Vmsingle) GraphiteTagsTagSeries(t *testing.T, record string, opts Que
 	values := opts.asURLValues()
 	values.Add("path", record)
 
-	_, statusCode := app.cli.PostForm(t, url, values)
+	_, statusCode := app.cli.PostForm(t, url, values, opts.Headers)
 	if got, want := statusCode, http.StatusNotImplemented; got != want {
 		t.Fatalf("unexpected status code: got %d, want %d", got, want)
 	}
@@ -439,7 +449,7 @@ func (app *Vmsingle) GraphiteTagsTagMultiSeries(t *testing.T, records []string, 
 		values.Add("path", rec)
 	}
 
-	_, statusCode := app.cli.PostForm(t, url, values)
+	_, statusCode := app.cli.PostForm(t, url, values, opts.Headers)
 	if got, want := statusCode, http.StatusNotImplemented; got != want {
 		t.Fatalf("unexpected status code: got %d, want %d", got, want)
 	}
@@ -458,7 +468,7 @@ func (app *Vmsingle) APIV1StatusMetricNamesStats(t *testing.T, limit, le, matchP
 	values.Add("match_pattern", matchPattern)
 	queryURL := fmt.Sprintf("http://%s/api/v1/status/metric_names_stats", app.httpListenAddr)
 
-	res, statusCode := app.cli.PostForm(t, queryURL, values)
+	res, statusCode := app.cli.PostForm(t, queryURL, values, opts.Headers)
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusOK, res)
 	}
@@ -478,7 +488,7 @@ func (app *Vmsingle) APIV1AdminStatusMetricNamesStatsReset(t *testing.T, opts Qu
 	values := opts.asURLValues()
 	queryURL := fmt.Sprintf("http://%s/api/v1/admin/status/metric_names_stats/reset", app.httpListenAddr)
 
-	res, statusCode := app.cli.PostForm(t, queryURL, values)
+	res, statusCode := app.cli.PostForm(t, queryURL, values, opts.Headers)
 	if statusCode != http.StatusNoContent {
 		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusNoContent, res)
 	}
@@ -491,7 +501,7 @@ func (app *Vmsingle) APIV1AdminStatusMetricNamesStatsReset(t *testing.T, opts Qu
 func (app *Vmsingle) SnapshotCreate(t *testing.T) *SnapshotCreateResponse {
 	t.Helper()
 
-	data, statusCode := app.cli.Post(t, app.SnapshotCreateURL(), "", nil)
+	data, statusCode := app.cli.Post(t, app.SnapshotCreateURL(), nil, nil)
 	if got, want := statusCode, http.StatusOK; got != want {
 		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", got, want, data)
 	}
@@ -517,7 +527,7 @@ func (app *Vmsingle) APIV1AdminTSDBSnapshot(t *testing.T) *APIV1AdminTSDBSnapsho
 	t.Helper()
 
 	queryURL := fmt.Sprintf("http://%s/api/v1/admin/tsdb/snapshot", app.httpListenAddr)
-	data, statusCode := app.cli.Post(t, queryURL, "", nil)
+	data, statusCode := app.cli.Post(t, queryURL, nil, nil)
 	if got, want := statusCode, http.StatusOK; got != want {
 		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", got, want, data)
 	}
@@ -538,7 +548,7 @@ func (app *Vmsingle) SnapshotList(t *testing.T) *SnapshotListResponse {
 	t.Helper()
 
 	queryURL := fmt.Sprintf("http://%s/snapshot/list", app.httpListenAddr)
-	data, statusCode := app.cli.Get(t, queryURL)
+	data, statusCode := app.cli.Get(t, queryURL, nil)
 	if got, want := statusCode, http.StatusOK; got != want {
 		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", got, want, data)
 	}
@@ -584,7 +594,7 @@ func (app *Vmsingle) SnapshotDeleteAll(t *testing.T) *SnapshotDeleteAllResponse 
 	t.Helper()
 
 	queryURL := fmt.Sprintf("http://%s/snapshot/delete_all", app.httpListenAddr)
-	data, statusCode := app.cli.Get(t, queryURL)
+	data, statusCode := app.cli.Get(t, queryURL, nil)
 	if got, want := statusCode, http.StatusOK; got != want {
 		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", got, want, data)
 	}
@@ -615,7 +625,7 @@ func (app *Vmsingle) APIV1StatusTSDB(t *testing.T, matchQuery string, date strin
 	addNonEmpty("topN", topN)
 	addNonEmpty("date", date)
 
-	res, statusCode := app.cli.PostForm(t, seriesURL, values)
+	res, statusCode := app.cli.PostForm(t, seriesURL, values, opts.Headers)
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusOK, res)
 	}
@@ -641,7 +651,9 @@ func (app *Vmsingle) ZabbixConnectorHistory(t *testing.T, records []string, opts
 		url += "?" + uvs
 	}
 	data := []byte(strings.Join(records, "\n"))
-	_, statusCode := app.cli.Post(t, url, "application/json", data)
+	headers := opts.getHeaders()
+	headers.Set("Content-Type", "application/json")
+	_, statusCode := app.cli.Post(t, url, data, headers)
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
 	}

@@ -40,7 +40,7 @@ func (ps *pipeBlockStats) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (ps *pipeBlockStats) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
+func (ps *pipeBlockStats) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return ps, nil
 }
 

@@ -4,35 +4,36 @@ import (
 	"fmt"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
 )
 
 // filterIPv4Range matches the given ipv4 range [minValue..maxValue].
 //
-// Example LogsQL: `fieldName:ipv4_range(127.0.0.1, 127.0.0.255)`
+// Example LogsQL: `ipv4_range(127.0.0.1, 127.0.0.255)`
 type filterIPv4Range struct {
-	fieldName string
-	minValue  uint32
-	maxValue  uint32
+	minValue uint32
+	maxValue uint32
+}
+
+func newFilterIPv4Range(fieldName string, minValue, maxValue uint32) *filterGeneric {
+	fr := &filterIPv4Range{
+		minValue: minValue,
+		maxValue: maxValue,
+	}
+	return newFilterGeneric(fieldName, fr)
 }
 
 func (fr *filterIPv4Range) String() string {
 	minValue := marshalIPv4String(nil, fr.minValue)
 	maxValue := marshalIPv4String(nil, fr.maxValue)
-	return fmt.Sprintf("%sipv4_range(%s, %s)", quoteFieldNameIfNeeded(fr.fieldName), minValue, maxValue)
+	return fmt.Sprintf("ipv4_range(%s, %s)", minValue, maxValue)
 }
 
-func (fr *filterIPv4Range) updateNeededFields(pf *prefixfilter.Filter) {
-	pf.AddAllowFilter(fr.fieldName)
-}
-
-func (fr *filterIPv4Range) matchRow(fields []Field) bool {
-	v := getFieldValueByName(fields, fr.fieldName)
+func (fr *filterIPv4Range) matchRowByField(fields []Field, fieldName string) bool {
+	v := getFieldValueByName(fields, fieldName)
 	return matchIPv4Range(v, fr.minValue, fr.maxValue)
 }
 
-func (fr *filterIPv4Range) applyToBlockResult(br *blockResult, bm *bitmap) {
+func (fr *filterIPv4Range) applyToBlockResultByField(br *blockResult, bm *bitmap, fieldName string) {
 	minValue := fr.minValue
 	maxValue := fr.maxValue
 
@@ -41,7 +42,7 @@ func (fr *filterIPv4Range) applyToBlockResult(br *blockResult, bm *bitmap) {
 		return
 	}
 
-	c := br.getColumnByName(fr.fieldName)
+	c := br.getColumnByName(fieldName)
 	if c.isConst {
 		v := c.valuesEncoded[0]
 		if !matchIPv4Range(v, minValue, maxValue) {
@@ -101,8 +102,7 @@ func (fr *filterIPv4Range) applyToBlockResult(br *blockResult, bm *bitmap) {
 	}
 }
 
-func (fr *filterIPv4Range) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
-	fieldName := fr.fieldName
+func (fr *filterIPv4Range) applyToBlockSearchByField(bs *blockSearch, bm *bitmap, fieldName string) {
 	minValue := fr.minValue
 	maxValue := fr.maxValue
 
