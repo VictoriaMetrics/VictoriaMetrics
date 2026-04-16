@@ -106,7 +106,7 @@ func (app *Vminsert) HTTPAddr() string {
 func (app *Vminsert) InfluxWrite(t *testing.T, records []string, opts QueryOpts) {
 	t.Helper()
 
-	url := fmt.Sprintf("http://%s/insert/%s/influx/write", app.httpListenAddr, opts.getTenant())
+	url := fmt.Sprintf("http://%s/insert/%s/influx/write", app.httpListenAddr, opts.Tenant)
 	uv := opts.asURLValues()
 	uvs := uv.Encode()
 	if len(uvs) > 0 {
@@ -114,8 +114,10 @@ func (app *Vminsert) InfluxWrite(t *testing.T, records []string, opts QueryOpts)
 	}
 
 	data := []byte(strings.Join(records, "\n"))
+	headers := opts.getHeaders()
+	headers.Set("Content-Type", "text/plain")
 	app.sendBlocking(t, len(records), func() {
-		_, statusCode := app.cli.Post(t, url, "text/plain", data)
+		_, statusCode := app.cli.Post(t, url, data, headers)
 		if statusCode != http.StatusNoContent {
 			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
 		}
@@ -139,15 +141,17 @@ func (app *Vminsert) GraphiteWrite(t *testing.T, records []string, _ QueryOpts) 
 func (app *Vminsert) PrometheusAPIV1ImportCSV(t *testing.T, records []string, opts QueryOpts) {
 	t.Helper()
 
-	url := fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/import/csv", app.httpListenAddr, opts.getTenant())
+	url := fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/import/csv", app.httpListenAddr, opts.Tenant)
 	uv := opts.asURLValues()
 	uvs := uv.Encode()
 	if len(uvs) > 0 {
 		url += "?" + uvs
 	}
 	data := []byte(strings.Join(records, "\n"))
+	headers := opts.getHeaders()
+	headers.Set("Content-Type", "text/plain")
 	app.sendBlocking(t, len(records), func() {
-		_, statusCode := app.cli.Post(t, url, "text/plain", data)
+		_, statusCode := app.cli.Post(t, url, data, headers)
 		if statusCode != http.StatusNoContent {
 			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
 		}
@@ -162,14 +166,16 @@ func (app *Vminsert) PrometheusAPIV1ImportCSV(t *testing.T, records []string, op
 func (app *Vminsert) PrometheusAPIV1ImportNative(t *testing.T, data []byte, opts QueryOpts) {
 	t.Helper()
 
-	url := fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/import/native", app.httpListenAddr, opts.getTenant())
+	url := fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/import/native", app.httpListenAddr, opts.Tenant)
 	uv := opts.asURLValues()
 	uvs := uv.Encode()
 	if len(uvs) > 0 {
 		url += "?" + uvs
 	}
+	headers := opts.getHeaders()
+	headers.Set("Content-Type", "text/plain")
 	app.sendBlocking(t, 1, func() {
-		_, statusCode := app.cli.Post(t, url, "text/plain", data)
+		_, statusCode := app.cli.Post(t, url, data, headers)
 		if statusCode != http.StatusNoContent {
 			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
 		}
@@ -184,15 +190,17 @@ func (app *Vminsert) PrometheusAPIV1ImportNative(t *testing.T, data []byte, opts
 func (app *Vminsert) OpenTSDBAPIPut(t *testing.T, records []string, opts QueryOpts) {
 	t.Helper()
 
-	url := fmt.Sprintf("http://%s/insert/%s/opentsdb/api/put", app.openTSDBListenAddr, opts.getTenant())
+	url := fmt.Sprintf("http://%s/insert/%s/opentsdb/api/put", app.openTSDBListenAddr, opts.Tenant)
 	uv := opts.asURLValues()
 	uvs := uv.Encode()
 	if len(uvs) > 0 {
 		url += "?" + uvs
 	}
 	data := []byte("[" + strings.Join(records, ",") + "]")
+	headers := opts.getHeaders()
+	headers.Set("Content-Type", "application/json")
 	app.sendBlocking(t, len(records), func() {
-		_, statusCode := app.cli.Post(t, url, "application/json", data)
+		_, statusCode := app.cli.Post(t, url, data, headers)
 		if statusCode != http.StatusNoContent {
 			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
 		}
@@ -205,14 +213,16 @@ func (app *Vminsert) OpenTSDBAPIPut(t *testing.T, records []string, opts QueryOp
 func (app *Vminsert) PrometheusAPIV1Write(t *testing.T, wr prompb.WriteRequest, opts QueryOpts) {
 	t.Helper()
 
-	url := fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/write", app.httpListenAddr, opts.getTenant())
+	url := fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/write", app.httpListenAddr, opts.Tenant)
 	data := snappy.Encode(nil, wr.MarshalProtobuf(nil))
 	recordsCount := len(wr.Timeseries)
 	if prommetadata.IsEnabled() {
 		recordsCount += len(wr.Metadata)
 	}
+	headers := opts.getHeaders()
+	headers.Set("Content-Type", "application/x-protobuf")
 	app.sendBlocking(t, recordsCount, func() {
-		_, statusCode := app.cli.Post(t, url, "application/x-protobuf", data)
+		_, statusCode := app.cli.Post(t, url, data, headers)
 		if statusCode != http.StatusNoContent {
 			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
 		}
@@ -228,7 +238,7 @@ func (app *Vminsert) PrometheusAPIV1Write(t *testing.T, wr prompb.WriteRequest, 
 func (app *Vminsert) PrometheusAPIV1ImportPrometheus(t *testing.T, records []string, opts QueryOpts) {
 	t.Helper()
 
-	url := fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/import/prometheus", app.httpListenAddr, opts.getTenant())
+	url := fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/import/prometheus", app.httpListenAddr, opts.Tenant)
 	uv := opts.asURLValues()
 	uvs := uv.Encode()
 	if len(uvs) > 0 {
@@ -261,8 +271,10 @@ func (app *Vminsert) PrometheusAPIV1ImportPrometheus(t *testing.T, records []str
 	if prommetadata.IsEnabled() {
 		recordsCount += metadataRecords
 	}
+	headers := opts.getHeaders()
+	headers.Set("Content-Type", "text/plain")
 	app.sendBlocking(t, recordsCount, func() {
-		_, statusCode := app.cli.Post(t, url, "text/plain", data)
+		_, statusCode := app.cli.Post(t, url, data, headers)
 		if statusCode != http.StatusNoContent {
 			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
 		}
@@ -275,15 +287,17 @@ func (app *Vminsert) PrometheusAPIV1ImportPrometheus(t *testing.T, records []str
 func (app *Vminsert) ZabbixConnectorHistory(t *testing.T, records []string, opts QueryOpts) {
 	t.Helper()
 
-	url := fmt.Sprintf("http://%s/insert/%s/zabbixconnector/api/v1/history", app.httpListenAddr, opts.getTenant())
+	url := fmt.Sprintf("http://%s/insert/%s/zabbixconnector/api/v1/history", app.httpListenAddr, opts.Tenant)
 	uv := opts.asURLValues()
 	uvs := uv.Encode()
 	if len(uvs) > 0 {
 		url += "?" + uvs
 	}
 	data := []byte(strings.Join(records, "\n"))
+	headers := opts.getHeaders()
+	headers.Set("Content-Type", "application/json")
 	app.sendBlocking(t, len(records), func() {
-		_, statusCode := app.cli.Post(t, url, "application/json", data)
+		_, statusCode := app.cli.Post(t, url, data, headers)
 		if statusCode != http.StatusOK {
 			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
 		}
