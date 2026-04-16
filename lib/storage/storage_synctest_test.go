@@ -5,11 +5,13 @@ package storage
 import (
 	"fmt"
 	"math/rand"
+	"path/filepath"
 	"testing"
 	"testing/synctest"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -1038,5 +1040,104 @@ func TestStorage_defaultFutureRetention(t *testing.T) {
 			}
 		}
 
+	})
+}
+
+func TestStorage_partitionsOutsideRetentionAreRemoved(t *testing.T) {
+	defer testRemoveAll(t)
+
+	assertPathExists := func(t *testing.T, path string, want bool) {
+		t.Helper()
+		if got := fs.IsPathExist(path); got != want {
+			t.Fatalf("unexpected path existence test result for %s: got %t, want %t", path, got, want)
+		}
+	}
+
+	assertPtExists := func(t *testing.T, pt string, want bool) {
+		t.Helper()
+		assertPathExists(t, filepath.Join(t.Name(), "data", "small", pt), want)
+		assertPathExists(t, filepath.Join(t.Name(), "data", "big", pt), want)
+		assertPathExists(t, filepath.Join(t.Name(), "data", "indexdb", pt), want)
+	}
+
+	synctest.Test(t, func(t *testing.T) {
+		// synctests start at 2000-01-01T00:00:00Z
+
+		retention := 80 * 24 * time.Hour
+		futureRetention := 180 * 24 * time.Hour
+		s := MustOpenStorage(t.Name(), OpenOptions{
+			Retention:       retention,
+			FutureRetention: futureRetention,
+		})
+
+		// Ingest samples with future timestamps that span the entire retention.
+		// This should create the corresponding partitions.
+		rng := rand.New(rand.NewSource(1))
+		mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "metric", TimeRange{
+			MinTimestamp: time.Now().Add(-retention).UnixMilli(),
+			MaxTimestamp: time.Now().Add(futureRetention - time.Second).UnixMilli(),
+		})
+		s.AddRows(mrs, defaultPrecisionBits)
+		s.DebugFlush()
+
+		assertPtExists(t, "1999_09", false)
+		assertPtExists(t, "1999_10", true)
+		assertPtExists(t, "1999_11", true)
+		assertPtExists(t, "1999_12", true)
+		assertPtExists(t, "2000_01", true)
+		assertPtExists(t, "2000_02", true)
+		assertPtExists(t, "2000_03", true)
+		assertPtExists(t, "2000_04", true)
+		assertPtExists(t, "2000_05", true)
+		assertPtExists(t, "2000_06", true)
+		assertPtExists(t, "2000_07", false)
+
+		// Reopen storage with smaller future retention. Future partitions
+		// outside the new future retention must be removed.
+		s.MustClose()
+		s = MustOpenStorage(t.Name(), OpenOptions{
+			Retention:       retention,
+			FutureRetention: 45 * 24 * time.Hour,
+		})
+
+		// Wait for background task to remove future partitions.
+		time.Sleep(2 * time.Minute)
+
+		assertPtExists(t, "1999_09", false)
+		assertPtExists(t, "1999_10", true)
+		assertPtExists(t, "1999_11", true)
+		assertPtExists(t, "1999_12", true)
+		assertPtExists(t, "2000_01", true)
+		assertPtExists(t, "2000_02", true)
+		assertPtExists(t, "2000_03", false)
+		assertPtExists(t, "2000_04", false)
+		assertPtExists(t, "2000_05", false)
+		assertPtExists(t, "2000_06", false)
+		assertPtExists(t, "2000_07", false)
+
+		// Reopen storage with smaller retention. Historical partitions
+		// outside the new future retention must be removed.
+		s.MustClose()
+		s = MustOpenStorage(t.Name(), OpenOptions{
+			Retention:       45 * 24 * time.Hour,
+			FutureRetention: 45 * 24 * time.Hour,
+		})
+
+		// Wait for background task to remove future partitions.
+		time.Sleep(2 * time.Minute)
+
+		assertPtExists(t, "1999_09", false)
+		assertPtExists(t, "1999_10", false)
+		assertPtExists(t, "1999_11", true)
+		assertPtExists(t, "1999_12", true)
+		assertPtExists(t, "2000_01", true)
+		assertPtExists(t, "2000_02", true)
+		assertPtExists(t, "2000_03", false)
+		assertPtExists(t, "2000_04", false)
+		assertPtExists(t, "2000_05", false)
+		assertPtExists(t, "2000_06", false)
+		assertPtExists(t, "2000_07", false)
+
+		s.MustClose()
 	})
 }

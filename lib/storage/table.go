@@ -436,12 +436,14 @@ func (tb *table) retentionWatcher() {
 		case <-ticker.C:
 		}
 
-		minTimestamp := int64(fasttime.UnixTimestamp()*1000) - tb.s.retentionMsecs
+		nowMsecs := int64(fasttime.UnixTimestamp() * 1000)
+		minTimestamp := nowMsecs - tb.s.retentionMsecs
+		maxTimestamp := nowMsecs + tb.s.futureRetentionMsecs
 		var ptwsDrop []*partitionWrapper
 		tb.ptwsLock.Lock()
 		dst := tb.ptws[:0]
 		for _, ptw := range tb.ptws {
-			if ptw.pt.tr.MaxTimestamp < minTimestamp {
+			if ptw.pt.tr.MaxTimestamp < minTimestamp || ptw.pt.tr.MinTimestamp > maxTimestamp {
 				ptwsDrop = append(ptwsDrop, ptw)
 			} else {
 				dst = append(dst, ptw)
