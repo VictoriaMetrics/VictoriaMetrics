@@ -26,6 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): properly apply maxScrapeSize limit to scrape error request body read.
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): fix `ec2_sd_configs` returning 401 `AuthFailure` from AWS when credentials are obtained via IRSA, instance role or `AWS_CONTAINER_CREDENTIALS_*` env vars. The regression was introduced in [v1.140.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.140.0). See [#10815](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10815).
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): properly execute graceful shutdown for vmsingle if `-maxIngestionRate` is configured.
 * BUGFIX: [vmrestore](https://docs.victoriametrics.com/victoriametrics/vmrestore/): fix an issue where vmrestore could hang indefinitely when interrupted during backup download.
