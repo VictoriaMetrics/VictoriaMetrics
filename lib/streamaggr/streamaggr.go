@@ -24,13 +24,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/metrics"
-	"github.com/valyala/histogram"
 	"gopkg.in/yaml.v2"
 )
-
-// defines ingested samples lag quantile to determine a time to wait before flush.
-// It's not configurable at the moment.
-const flushQuantile = 0.95
 
 var supportedOutputs = []string{
 	"avg",
@@ -440,9 +435,9 @@ type aggregator struct {
 	// aggrOutputs contains aggregate states for the given outputs
 	aggrOutputs *aggrOutputs
 
-	// time to wait after interval end before flush
-	flushAfter   *histogram.Fast
-	muFlushAfter sync.Mutex
+	// flushAfterMsec is the max sample lag (in milliseconds) observed in the current flush interval.
+	// It is used to properly delay the flush time while using aggregation windows.
+	flushAfterMsec atomic.Int64
 
 	// suffix contains a suffix, which should be added to aggregate metric names
 	//
@@ -704,9 +699,6 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 			minTime = minTime.Add(interval)
 		}
 	}
-	if enableWindows {
-		a.flushAfter = histogram.GetFast()
-	}
 	a.minDeadline.Store(minTime.UnixMilli())
 	cs := &currentState{}
 	if a.dedupInterval > 0 {
@@ -833,16 +825,10 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipFlu
 	t := time.NewTicker(interval)
 	defer t.Stop()
 
-	var fa *histogram.Fast
 	for tickerWait(t) {
 		pf := pushFunc
 		if a.enableWindows {
-			// Calculate delay and wait
-			a.muFlushAfter.Lock()
-			fa, a.flushAfter = a.flushAfter, histogram.GetFast()
-			a.muFlushAfter.Unlock()
-			delay := time.Duration(fa.Quantile(flushQuantile)) * time.Millisecond
-			histogram.PutFast(fa)
+			delay := time.Duration(a.flushAfterMsec.Swap(0)) * time.Millisecond
 			time.Sleep(delay)
 		}
 
@@ -1043,9 +1029,18 @@ func (a *aggregator) Push(tss []prompb.TimeSeries, matchIdxs []uint32) {
 		}
 	}
 	if enableWindows && maxLagMsec > 0 {
-		a.muFlushAfter.Lock()
-		a.flushAfter.Update(float64(maxLagMsec))
-		a.muFlushAfter.Unlock()
+		// repeating attempt to update flushAfterMsec till
+		// 1. another goroutine set this value to a bigger value
+		// 2. flushAfterMsec was not changed since last read
+		for {
+			old := a.flushAfterMsec.Load()
+			if maxLagMsec <= old {
+				break
+			}
+			if a.flushAfterMsec.CompareAndSwap(old, maxLagMsec) {
+				break
+			}
+		}
 	}
 	a.samplesLag.Update(float64(maxLagMsec) / 1_000)
 
