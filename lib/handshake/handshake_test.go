@@ -15,6 +15,28 @@ func TestVMSelectHandshake(t *testing.T) {
 	testHandshake(t, VMSelectClient, VMSelectServer)
 }
 
+func TestVMSelectServerTCPHealthcheck(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("cannot start listener: %s", err)
+	}
+
+	c, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatalf("cannot dial: %s", err)
+	}
+	if err := c.Close(); err != nil {
+		t.Fatalf("cannot close client conn: %s", err)
+	}
+	s, err := ln.Accept()
+	if err != nil {
+		t.Fatalf("cannot accept conn: %s", err)
+	}
+	if _, err := VMSelectServer(s, 0); !IsTCPHealthcheck(err) {
+		t.Fatalf("unexpected error; got %v; want TCP healthcheck error", err)
+	}
+}
+
 func testHandshake(t *testing.T, clientFunc, serverFunc Func) {
 	t.Helper()
 
