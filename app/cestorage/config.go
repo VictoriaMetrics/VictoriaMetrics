@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"sort"
 	"time"
 
 	"github.com/VictoriaMetrics/metricsql"
@@ -62,6 +63,10 @@ func loadConfig(path string) (*Config, error) {
 	if err := yaml.UnmarshalStrict(data, &cfg); err != nil {
 		return nil, fmt.Errorf("cannot parse config file %q: %w", path, err)
 	}
+	for _, stream := range cfg.Streams {
+		sort.Strings(stream.Group)
+	}
+
 	return &cfg, nil
 }
 

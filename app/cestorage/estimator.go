@@ -153,7 +153,9 @@ func (e *Estimator) writeMetrics(w io.Writer) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	metricPrefix := fmt.Sprintf("cardinality_estimate{interval=%q,filter=%q", e.interval, e.filterStr)
+	metricPrefix := fmt.Sprintf("cardinality_estimate{interval=%q,filter=%q,group_by=%q",
+		e.interval, e.filterStr, strings.Join(e.groupBy, ","))
+
 	if len(e.extraLabels) > 0 {
 		keys := make([]string, 0, len(e.extraLabels))
 		for k := range e.extraLabels {
@@ -167,7 +169,7 @@ func (e *Estimator) writeMetrics(w io.Writer) {
 
 	if len(e.groupBy) == 0 {
 		card := e.estimateSketch(e.sketch, e.prevSketch)
-		fmt.Fprintf(w, "%s,group_by=\"\"} %d\n", metricPrefix, card)
+		fmt.Fprintf(w, "%s} %d\n", metricPrefix, card)
 		return
 	}
 

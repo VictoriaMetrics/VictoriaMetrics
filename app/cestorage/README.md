@@ -64,16 +64,16 @@ cardinality_estimate{interval="1h0m0s",filter="",group_by=""} 142300
 
 **With filter and single group:**
 ```
-cardinality_estimate{interval="5m0s",filter="{region=\"eu-central-1\"}",group_by_instance="host1:9090"} 312
+cardinality_estimate{interval="5m0s",filter="{region=\"eu-central-1\"}",group_by="instance",group_by_instance="host1:9090"} 312
 ```
 
 **With multiple group labels** (one line per distinct label value combination):
 ```
-cardinality_estimate{interval="5m0s",filter="",group_by_job="prometheus",group_by_instance="host1:9090"} 312
-cardinality_estimate{interval="5m0s",filter="",group_by_job="node",group_by_instance="host2:9100"} 87
+cardinality_estimate{interval="5m0s",filter="",group_by="instance,job",group_by_job="prometheus",group_by_instance="host1:9090"} 312
+cardinality_estimate{interval="5m0s",filter="",group_by="instance,job",group_by_job="node",group_by_instance="host2:9100"} 87
 ```
 
 **With extra labels:**
 ```
-cardinality_estimate{interval="5m0s",filter="{region=\"eu-central-1\"}",env="production",region="eu-central-1",group_by_instance="host1:9090"} 312
+cardinality_estimate{interval="5m0s",filter="{region=\"eu-central-1\"}",env="production",region="eu-central-1",group_by="instance",group_by_instance="host1:9090"} 312
 ```
