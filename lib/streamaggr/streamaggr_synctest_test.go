@@ -1,5 +1,3 @@
-//go:build synctest
-
 package streamaggr
 
 import (
@@ -486,9 +484,7 @@ foo 3.3
 `, ``, ``, ``, ``}, time.Minute, `foo:1m_count_series 1
 foo:1m_count_series{bar="baz"} 1
 foo:1m_sum_samples 0
-foo:1m_sum_samples 0
 foo:1m_sum_samples 4.3
-foo:1m_sum_samples{bar="baz"} 0
 foo:1m_sum_samples{bar="baz"} 0
 foo:1m_sum_samples{bar="baz"} 2
 foo:5m_by_bar_sum_samples 4.3
@@ -682,21 +678,29 @@ foo:1m_by_cde_rate_sum{cde="1"} 0.125
 
 	// test rate_sum and rate_avg, when two aggregation intervals are empty
 	f([]string{`
-foo{abc="123", cde="1"} 2
-foo{abc="456", cde="1"} 8
-foo{abc="777", cde="1"} 9 -10
+foo{abc="123", cde="1"} 1
+foo{abc="123", cde="1"} 2 1
+foo{abc="456", cde="1"} 7
+foo{abc="456", cde="1"} 8 1
+foo{abc="777", cde="1"} 8
+foo{abc="777", cde="1"} 9 1
 `, ``, ``, `
-foo{abc="123", cde="1"} 20
+foo{abc="123", cde="1"} 19
+foo{abc="123", cde="1"} 20 1
 foo{abc="456", cde="1"} 26
-foo{abc="777", cde="1"} 27 -10
-`}, time.Minute, `foo:1m_by_cde_rate_avg{cde="1"} 0.1
-foo:1m_by_cde_rate_sum{cde="1"} 0.2
+foo{abc="456", cde="1"} 27 1
+foo{abc="777", cde="1"} 27
+foo{abc="777", cde="1"} 28 1
+`}, time.Minute, `foo:1m_by_cde_rate_avg{cde="1"} 1
+foo:1m_by_cde_rate_avg{cde="1"} 1
+foo:1m_by_cde_rate_sum{cde="1"} 3
+foo:1m_by_cde_rate_sum{cde="1"} 3
 `, `            
 - interval: 1m
   by: [cde]
   outputs: [rate_sum, rate_avg]
   enable_windows: true
-`, "111111")
+`, "111111111111")
 
 	// rate_sum and rate_avg with duplicated events
 	f([]string{`
