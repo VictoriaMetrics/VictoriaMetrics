@@ -124,16 +124,21 @@ func (e *Estimator) insert(labels []prompb.Label) {
 		return
 	}
 
-	// Build a composite group key: label values joined by \x00, one per groupBy label.
 	var key []byte
+	first := true
 	for _, labelName := range e.groupBy {
+		if !first {
+			key = append(key, ',')
+		}
+
 		for _, l := range labels {
 			if l.Name == labelName {
 				key = append(key, l.Value...)
 				break
 			}
 		}
-		key = append(key, 0x00)
+
+		first = false
 	}
 	groupKey := string(key)
 	sk := e.groups[groupKey]
@@ -153,7 +158,7 @@ func (e *Estimator) writeMetrics(w io.Writer) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	metricPrefix := fmt.Sprintf("cardinality_estimate{interval=%q,filter=%q,group_by=%q",
+	metricPrefix := fmt.Sprintf("cardinality_estimate{interval=%q,filter=%q,group_by_keys=%q",
 		e.interval, e.filterStr, strings.Join(e.groupBy, ","))
 
 	if len(e.extraLabels) > 0 {
@@ -183,17 +188,7 @@ func (e *Estimator) writeMetrics(w io.Writer) {
 	}
 	for groupKey := range keys {
 		card := e.estimateSketch(e.groups[groupKey], e.prevGroups[groupKey])
-		// Decode composite key: values are separated by \x00, one per groupBy label.
-		vals := strings.Split(groupKey, "\x00")
-		var sb strings.Builder
-		for i, labelName := range e.groupBy {
-			val := ""
-			if i < len(vals) {
-				val = vals[i]
-			}
-			fmt.Fprintf(&sb, ",group_by_%s=%q", labelName, val)
-		}
-		fmt.Fprintf(w, "%s%s} %d\n", metricPrefix, sb.String(), card)
+		fmt.Fprintf(w, "%s,group_by_values=%q} %d\n", metricPrefix, groupKey, card)
 	}
 }
 
