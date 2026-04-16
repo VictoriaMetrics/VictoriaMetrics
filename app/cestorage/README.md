@@ -55,25 +55,25 @@ go run ./app/cegen/main.go -cardI=100 -cardY=20 -template="foo{instance=\"127.0.
 
 Cardinality estimates are written to `/metrics` in Prometheus text format.
 
-All metrics include `interval` and `filter` labels. Extra labels from the `labels` config field are appended next (sorted alphabetically). Group-by dimensions follow, prefixed with `group_by_`.
+All metrics include `interval`, `filter`, and `group_by_keys` labels. Extra labels from the `labels` config field are appended next (sorted alphabetically). When grouping is configured, a `group_by_values` label holds the comma-separated values for each distinct combination.
 
 **Without grouping:**
 ```
-cardinality_estimate{interval="1h0m0s",filter="",group_by=""} 142300
+cardinality_estimate{interval="1h0m0s",filter="",group_by_keys=""} 142300
 ```
 
 **With filter and single group:**
 ```
-cardinality_estimate{interval="5m0s",filter="{region=\"eu-central-1\"}",group_by="instance",group_by_instance="host1:9090"} 312
+cardinality_estimate{interval="5m0s",filter="{region=\"eu-central-1\"}",group_by_keys="instance",group_by_values="host1:9090"} 312
 ```
 
 **With multiple group labels** (one line per distinct label value combination):
 ```
-cardinality_estimate{interval="5m0s",filter="",group_by="instance,job",group_by_job="prometheus",group_by_instance="host1:9090"} 312
-cardinality_estimate{interval="5m0s",filter="",group_by="instance,job",group_by_job="node",group_by_instance="host2:9100"} 87
+cardinality_estimate{interval="5m0s",filter="",group_by_keys="instance,job",group_by_values="host1:9090,prometheus"} 312
+cardinality_estimate{interval="5m0s",filter="",group_by_keys="instance,job",group_by_values="host2:9100,node"} 87
 ```
 
 **With extra labels:**
 ```
-cardinality_estimate{interval="5m0s",filter="{region=\"eu-central-1\"}",env="production",region="eu-central-1",group_by="instance",group_by_instance="host1:9090"} 312
+cardinality_estimate{interval="5m0s",filter="{region=\"eu-central-1\"}",group_by_keys="instance",env="production",region="eu-central-1",group_by_values="host1:9090"} 312
 ```
