@@ -77,7 +77,7 @@ func (app *Vmstorage) ForceFlush(t *testing.T) {
 	t.Helper()
 
 	forceFlushURL := fmt.Sprintf("http://%s/internal/force_flush", app.httpListenAddr)
-	_, statusCode := app.cli.Get(t, forceFlushURL)
+	_, statusCode := app.cli.Get(t, forceFlushURL, nil)
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
 	}
@@ -88,7 +88,7 @@ func (app *Vmstorage) ForceMerge(t *testing.T) {
 	t.Helper()
 
 	forceMergeURL := fmt.Sprintf("http://%s/internal/force_merge", app.httpListenAddr)
-	_, statusCode := app.cli.Get(t, forceMergeURL)
+	_, statusCode := app.cli.Get(t, forceMergeURL, nil)
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
 	}
@@ -101,7 +101,7 @@ func (app *Vmstorage) ForceMerge(t *testing.T) {
 func (app *Vmstorage) SnapshotCreate(t *testing.T) *SnapshotCreateResponse {
 	t.Helper()
 
-	data, statusCode := app.cli.Post(t, app.SnapshotCreateURL(), "", nil)
+	data, statusCode := app.cli.Post(t, app.SnapshotCreateURL(), nil, nil)
 	if got, want := statusCode, http.StatusOK; got != want {
 		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", got, want, data)
 	}
@@ -127,7 +127,7 @@ func (app *Vmstorage) SnapshotList(t *testing.T) *SnapshotListResponse {
 	t.Helper()
 
 	queryURL := fmt.Sprintf("http://%s/snapshot/list", app.httpListenAddr)
-	data, statusCode := app.cli.Get(t, queryURL)
+	data, statusCode := app.cli.Get(t, queryURL, nil)
 	if got, want := statusCode, http.StatusOK; got != want {
 		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", got, want, data)
 	}
@@ -173,7 +173,7 @@ func (app *Vmstorage) SnapshotDeleteAll(t *testing.T) *SnapshotDeleteAllResponse
 	t.Helper()
 
 	queryURL := fmt.Sprintf("http://%s/snapshot/delete_all", app.httpListenAddr)
-	data, statusCode := app.cli.Post(t, queryURL, "", nil)
+	data, statusCode := app.cli.Post(t, queryURL, nil, nil)
 	if got, want := statusCode, http.StatusOK; got != want {
 		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", got, want, data)
 	}
