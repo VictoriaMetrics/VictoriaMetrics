@@ -14,6 +14,11 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.29.3
+Released: 2026-04-16
+
+- UI: Updated [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/) from [v1.6.0](https://docs.victoriametrics.com/anomaly-detection/ui/#v160) to [v1.6.1](https://docs.victoriametrics.com/anomaly-detection/ui/#v161), see respective [release notes](https://docs.victoriametrics.com/anomaly-detection/ui/#v161) for details.
+
 ## v1.29.2
 Released: 2026-04-02
 
