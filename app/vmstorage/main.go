@@ -140,7 +140,7 @@ func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 		logger.Fatalf("-retentionPeriod cannot be smaller than a day; got %s", retentionPeriod)
 	}
 	if futureRetention.Duration() < 2*24*time.Hour {
-		logger.Fatalf("-retentionPeriod cannot be smaller than 2 days; got %s", futureRetention)
+		logger.Fatalf("-futureRetention cannot be smaller than 2 days; got %s", futureRetention)
 	}
 	if *idbPrefillStart > 23*time.Hour {
 		logger.Panicf("-storage.idbPrefillStart cannot exceed 23 hours; got %s", idbPrefillStart)
