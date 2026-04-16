@@ -25,6 +25,7 @@ import (
 
 	monitoringpb "cloud.google.com/go/monitoring/apiv3/v2/monitoringpb"
 	gax "github.com/googleapis/gax-go/v2"
+	"github.com/googleapis/gax-go/v2/callctx"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	"google.golang.org/api/option/internaloption"
@@ -144,6 +145,16 @@ type queryGRPCClient struct {
 // the time-varying values of a metric.
 func NewQueryClient(ctx context.Context, opts ...option.ClientOption) (*QueryClient, error) {
 	clientOpts := defaultQueryGRPCClientOptions()
+	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
+		clientOpts = append(clientOpts, internaloption.WithTelemetryAttributes(map[string]string{
+			"gcp.client.service":  "monitoring",
+			"gcp.client.version":  getVersionClient(),
+			"gcp.client.repo":     "googleapis/google-cloud-go",
+			"gcp.client.artifact": "cloud.google.com/go/monitoring/apiv3/v2",
+			"gcp.client.language": "go",
+			"url.domain":          "monitoring.googleapis.com",
+		}))
+	}
 	if newQueryClientHook != nil {
 		hookOpts, err := newQueryClientHook(ctx, clientHookParams{})
 		if err != nil {
@@ -165,6 +176,20 @@ func NewQueryClient(ctx context.Context, opts ...option.ClientOption) (*QueryCli
 		logger:      internaloption.GetLogger(opts),
 	}
 	c.setGoogleClientInfo()
+	if gax.IsFeatureEnabled("METRICS") {
+		metrics := gax.NewClientMetrics(
+			gax.WithTelemetryLogger(c.logger),
+			gax.WithTelemetryAttributes(map[string]string{
+				gax.ClientService:  "monitoring",
+				gax.ClientVersion:  getVersionClient(),
+				gax.ClientArtifact: "cloud.google.com/go/monitoring/apiv3/v2",
+				gax.RPCSystem:      "grpc",
+				gax.URLDomain:      "monitoring.googleapis.com",
+			}),
+		)
+
+		client.CallOptions.QueryTimeSeries = append(client.CallOptions.QueryTimeSeries, gax.WithClientMetrics(metrics))
+	}
 
 	client.internalClient = c
 
@@ -201,6 +226,9 @@ func (c *queryGRPCClient) QueryTimeSeries(ctx context.Context, req *monitoringpb
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
+		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.monitoring.v3.QueryService/QueryTimeSeries")
+	}
 	opts = append((*c.CallOptions).QueryTimeSeries[0:len((*c.CallOptions).QueryTimeSeries):len((*c.CallOptions).QueryTimeSeries)], opts...)
 	it := &TimeSeriesDataIterator{}
 	req = proto.Clone(req).(*monitoringpb.QueryTimeSeriesRequest)

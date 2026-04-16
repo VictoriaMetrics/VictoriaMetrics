@@ -91,9 +91,12 @@ func NewConfig(ec2Endpoint, stsEndpoint, region, roleARN, accessKey, secretKey, 
 	if len(secretKey) > 0 {
 		cfg.defaultSecretKey = secretKey
 	}
-	cfg.creds = &credentials{
-		AccessKeyID:     cfg.defaultAccessKey,
-		SecretAccessKey: cfg.defaultSecretKey,
+	if len(cfg.defaultAccessKey) > 0 && len(cfg.defaultSecretKey) > 0 && len(cfg.roleARN) == 0 {
+		// static credentials without roleARN never need refreshing; pre-populate them.
+		cfg.creds = &credentials{
+			AccessKeyID:     cfg.defaultAccessKey,
+			SecretAccessKey: cfg.defaultSecretKey,
+		}
 	}
 
 	return cfg, nil

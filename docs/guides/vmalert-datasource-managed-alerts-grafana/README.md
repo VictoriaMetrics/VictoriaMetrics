@@ -107,7 +107,7 @@ The final piece is the Docker Compose file. This ties all the services together 
 # compose.yml
 services:
   victoriametrics:
-    image: victoriametrics/victoria-metrics:v1.139.0
+    image: victoriametrics/victoria-metrics:v1.140.0
     command:
       - "--storageDataPath=/victoria-metrics-data"
       - "--selfScrapeInterval=10s"
@@ -128,7 +128,7 @@ services:
       - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
 
   vmalert:
-    image: victoriametrics/vmalert:v1.139.0
+    image: victoriametrics/vmalert:v1.140.0
     depends_on:
       - victoriametrics
       - alertmanager
@@ -198,7 +198,7 @@ If you open the sidebar and select **Alerting** > **Alert rules**, you should be
 
 Open the sidebar again and go to **Alerting** > **Active notifications** to see the active alert reported by Alertmanager.
 
-![Screenshot of Grafana Active notifications Page](grafana-active-notifications.webp)
+![Screenshot of Grafana Active notifications Page](grafana-notifications.webp)
 
 You can also see the alerts in VMUI by opening the browser in `http://localhost:8428/vmui/?#/rules`. This is possible only when we have configured `-vmalert.proxyURL` in VictoriaMetrics.
 

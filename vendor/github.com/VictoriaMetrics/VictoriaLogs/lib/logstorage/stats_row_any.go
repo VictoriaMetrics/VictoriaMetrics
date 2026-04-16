@@ -28,70 +28,49 @@ func (sa *statsRowAny) newStatsProcessor(a *chunkedAllocator) statsProcessor {
 }
 
 type statsRowAnyProcessor struct {
-	captured bool
-
 	fields []Field
 }
 
 func (sap *statsRowAnyProcessor) updateStatsForAllRows(sf statsFunc, br *blockResult) int {
 	sa := sf.(*statsRowAny)
-	if sap.captured {
+	if len(sap.fields) > 0 {
 		return 0
 	}
-	sap.captured = true
 
 	return sap.updateState(sa, br, 0)
 }
 
 func (sap *statsRowAnyProcessor) updateStatsForRow(sf statsFunc, br *blockResult, rowIdx int) int {
 	sa := sf.(*statsRowAny)
-	if sap.captured {
+	if len(sap.fields) > 0 {
 		return 0
 	}
-	sap.captured = true
 
 	return sap.updateState(sa, br, rowIdx)
 }
 
 func (sap *statsRowAnyProcessor) mergeState(_ *chunkedAllocator, _ statsFunc, sfp statsProcessor) {
 	src := sfp.(*statsRowAnyProcessor)
-	if !sap.captured {
-		sap.captured = src.captured
+	if len(sap.fields) == 0 {
 		sap.fields = src.fields
 	}
 }
 
 func (sap *statsRowAnyProcessor) exportState(dst []byte, _ <-chan struct{}) []byte {
-	if !sap.captured {
-		dst = append(dst, 0)
-		return dst
-	}
-
-	dst = append(dst, 1)
 	dst = marshalFields(dst, sap.fields)
 	return dst
 }
 
 func (sap *statsRowAnyProcessor) importState(src []byte, _ <-chan struct{}) (int, error) {
-	if len(src) == 0 {
-		return 0, fmt.Errorf("missing `captured` flag")
-	}
-	sap.captured = (src[0] == 1)
-	src = src[1:]
-
-	if !sap.captured {
-		sap.fields = nil
-		return 0, nil
-	}
-
 	fields, tail, err := unmarshalFields(nil, src)
 	if err != nil {
 		return 0, fmt.Errorf("cannot unmarshal fields: %w", err)
 	}
+	sap.fields = fields
+
 	if len(tail) > 0 {
 		return 0, fmt.Errorf("unexpected non-empty tail left; len(tail)=%d", len(tail))
 	}
-	sap.fields = fields
 
 	stateSize := fieldsStateSize(sap.fields)
 
@@ -145,10 +124,23 @@ func fieldsStateSize(fields []Field) int {
 }
 
 func (sap *statsRowAnyProcessor) updateState(sa *statsRowAny, br *blockResult, rowIdx int) int {
+	mc := getMatchingColumns(br, sa.fieldFilters)
+	defer putMatchingColumns(mc)
+
+	emptyRow := true
+	for _, c := range mc.cs {
+		if v := c.getValueAtRow(br, rowIdx); v != "" {
+			emptyRow = false
+			break
+		}
+	}
+
+	if emptyRow {
+		return 0
+	}
+
 	stateSizeIncrease := 0
 	sap.fields = sap.fields[:0]
-
-	mc := getMatchingColumns(br, sa.fieldFilters)
 	for _, c := range mc.cs {
 		v := c.getValueAtRow(br, rowIdx)
 		sap.fields = append(sap.fields, Field{
@@ -157,7 +149,6 @@ func (sap *statsRowAnyProcessor) updateState(sa *statsRowAny, br *blockResult, r
 		})
 		stateSizeIncrease += len(c.name) + len(v)
 	}
-	putMatchingColumns(mc)
 
 	return stateSizeIncrease
 }
