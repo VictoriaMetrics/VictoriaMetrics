@@ -33,6 +33,7 @@ type FS struct {
 //
 // The returned fs must be stopped when no long needed with MustStop call.
 func (fs *FS) Init() error {
+	fs.Dir = filepath.Clean(fs.Dir)
 	if fs.MaxBytesPerSecond > 0 {
 		fs.bl = newBandwidthLimiter(fs.MaxBytesPerSecond)
 	}
