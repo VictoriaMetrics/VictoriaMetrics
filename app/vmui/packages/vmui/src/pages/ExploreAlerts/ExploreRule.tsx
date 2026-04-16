@@ -1,8 +1,9 @@
 import Spinner from "../../components/Main/Spinner/Spinner";
 import Alert from "../../components/Main/Alert/Alert";
 import { useFetchItem } from "./hooks/useFetchItem";
+import { useFetchGroup } from "./hooks/useFetchGroup";
 import "./style.scss";
-import { Rule as APIRule } from "../../types";
+import { Rule as APIRule, Group as APIGroup } from "../../types";
 import ItemHeader from "../../components/ExploreAlerts/ItemHeader";
 import BaseRule from "../../components/ExploreAlerts/BaseRule";
 import Modal from "../../components/Main/Modal/Modal";
@@ -21,6 +22,10 @@ const ExploreRule = ({ groupId, id, mode, onClose }: ExploreRuleProps) => {
     isLoading,
     error,
   } = useFetchItem<APIRule>({ groupId, id, mode });
+
+  const { group } = useFetchGroup<APIGroup>({ id: groupId });
+  console.log(group);
+  const enrichedItem = item && group ? { ...item, group_interval: group.interval } : item;
 
   if (isLoading) return (
     <Spinner />
@@ -49,7 +54,7 @@ const ExploreRule = ({ groupId, id, mode, onClose }: ExploreRuleProps) => {
       onClose={onClose}
     >
       <div className="vm-explore-alerts">
-        {item && (<BaseRule item={item} />) || (
+        {enrichedItem && (<BaseRule item={enrichedItem} />) || (
           <Alert variant="info">{noItemFound}</Alert>
         )}
       </div>

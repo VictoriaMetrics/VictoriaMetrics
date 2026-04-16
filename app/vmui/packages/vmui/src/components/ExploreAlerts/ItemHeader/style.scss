@@ -76,4 +76,22 @@
 .vm-explore-alerts-controls {
   display: flex;
   column-gap: $padding-global;
+  align-items: center;
+}
+
+.vm-explore-alerts-item-header__top-queries-link {
+  display: flex;
+  align-items: center;
+  color: $color-text-secondary;
+  text-decoration: none;
+
+  svg {
+    width: 18px;
+    height: 18px;
+    fill: currentColor;
+  }
+
+  &:hover {
+    color: $color-primary;
+  }
 }

@@ -14,6 +14,7 @@ import {
   AlertingRuleIcon,
   RecordingRuleIcon,
   DetailsIcon,
+  ChartIcon,
 } from "../../Main/Icons";
 import Button from "../../Main/Button/Button";
 
@@ -26,9 +27,10 @@ interface ItemHeaderControlsProps {
   id?: string;
   name: string;
   onClose?: () => void;
+  topQueriesUrl?: string;
 }
 
-const ItemHeader: FC<ItemHeaderControlsProps> = ({ name, id, groupId, entity, type, states, onClose, classes }) => {
+const ItemHeader: FC<ItemHeaderControlsProps> = ({ name, id, groupId, entity, type, states, onClose, classes, topQueriesUrl }) => {
   const { isMobile } = useDeviceDetect();
   const { serverUrl } = useAppState();
   const navigate = useNavigate();
@@ -108,6 +110,19 @@ const ItemHeader: FC<ItemHeaderControlsProps> = ({ name, id, groupId, entity, ty
         <div className="vm-explore-alerts-item-header__name">{name}</div>
       </div>
       <div className="vm-explore-alerts-controls">
+        {topQueriesUrl && (
+          <Tooltip title="Top query">
+            <a
+              href={`#${topQueriesUrl}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="vm-explore-alerts-item-header__top-queries-link"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <ChartIcon />
+            </a>
+          </Tooltip>
+        )}
         <Badges
           align="end"
           items={badgesItems}

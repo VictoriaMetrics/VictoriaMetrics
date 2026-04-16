@@ -2,7 +2,7 @@ import { useTimeState } from "../../../state/time/TimeStateContext";
 import { useEffect, useMemo, useState } from "preact/compat";
 import { getGroupUrl } from "../../../api/explore-alerts";
 import { useAppState } from "../../../state/common/StateContext";
-import { ErrorTypes } from "../../../types";
+import { ErrorTypes, Group } from "../../../types";
 
 interface FetchGroupReturn<T> {
   group?: T;
@@ -38,7 +38,9 @@ export const useFetchGroup = <T>({
           case "application/json": {
             const resp = await response.json();
             if (response.ok) {
-              setGroup(resp as T);
+              const data = resp as Group;
+              data.rules?.forEach(rule => { rule.group_interval = data.interval; });
+              setGroup(data as unknown as T);
               setError(undefined);
             } else {
               setError(`${resp.errorType}\r\n${resp?.error}`);

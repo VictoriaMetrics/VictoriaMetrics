@@ -1,0 +1,15 @@
+streams:
+  - name: 'global_by_metric_name'
+    group: "__name__"
+
+  - name: 'global_by_instance'
+    group: "instance"
+
+  - name: 'eu_region_by_instance'
+    filter: '{region="eu-central-1"}'
+    group: "instance"
+
+# TODO:
+# - window duration
+# - do not expose as metric below threashold
+# -
