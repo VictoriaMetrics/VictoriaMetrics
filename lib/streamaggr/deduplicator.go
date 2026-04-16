@@ -12,7 +12,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/metrics"
-	"github.com/valyala/histogram"
 )
 
 // Deduplicator deduplicates samples per each time series.
@@ -29,9 +28,8 @@ type Deduplicator struct {
 	stopCh chan struct{}
 
 	ms *metrics.Set
-	// time to wait after interval end before flush
-	flushAfter   *histogram.Fast
-	muFlushAfter sync.Mutex
+	// flushAfterMsec is the max sample lag (in milliseconds) observed in the current flush interval.
+	flushAfterMsec atomic.Int64
 }
 
 // NewDeduplicator returns new deduplicator, which deduplicates samples per each time series.
@@ -59,7 +57,6 @@ func NewDeduplicator(pushFunc PushFunc, enableWindows bool, interval time.Durati
 	}
 	d.cs.Store(cs)
 	if enableWindows {
-		d.flushAfter = histogram.GetFast()
 		d.minDeadline.Store(startTime.UnixMilli())
 	}
 	d.cs.Store(cs)
@@ -145,9 +142,15 @@ func (d *Deduplicator) Push(tss []prompb.TimeSeries) {
 	}
 
 	if d.enableWindows && maxLagMsec > 0 {
-		d.muFlushAfter.Lock()
-		d.flushAfter.Update(float64(maxLagMsec))
-		d.muFlushAfter.Unlock()
+		for {
+			old := d.flushAfterMsec.Load()
+			if maxLagMsec <= old {
+				break
+			}
+			if d.flushAfterMsec.CompareAndSwap(old, maxLagMsec) {
+				break
+			}
+		}
 	}
 
 	if len(ctx.blue) > 0 {
@@ -172,7 +175,6 @@ func dropSeriesLabels(dst, src []prompb.Label, labelNames []string) []prompb.Lab
 
 func (d *Deduplicator) runFlusher(pushFunc PushFunc) {
 	t := time.NewTicker(d.interval)
-	var fa *histogram.Fast
 	defer t.Stop()
 	for {
 		select {
@@ -180,12 +182,7 @@ func (d *Deduplicator) runFlusher(pushFunc PushFunc) {
 			return
 		case <-t.C:
 			if d.enableWindows {
-				// Calculate delay and wait
-				d.muFlushAfter.Lock()
-				fa, d.flushAfter = d.flushAfter, histogram.GetFast()
-				d.muFlushAfter.Unlock()
-				delay := time.Duration(fa.Quantile(flushQuantile)) * time.Millisecond
-				histogram.PutFast(fa)
+				delay := time.Duration(d.flushAfterMsec.Swap(0)) * time.Millisecond
 				time.Sleep(delay)
 			}
 			d.flush(pushFunc)
