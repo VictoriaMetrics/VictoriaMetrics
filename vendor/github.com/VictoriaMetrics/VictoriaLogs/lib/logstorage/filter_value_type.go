@@ -2,8 +2,6 @@ package logstorage
 
 import (
 	"fmt"
-
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
 )
 
 // filterValueType filters field entries by value type.
@@ -12,30 +10,34 @@ import (
 //
 //	fieldName:value_type("uint64")
 type filterValueType struct {
-	fieldName string
 	valueType string
 }
 
+func newFilterValueType(fieldName, valueType string) *filterGeneric {
+	fv := &filterValueType{
+		valueType: valueType,
+	}
+	return newFilterGeneric(fieldName, fv)
+}
+
 func (fv *filterValueType) String() string {
-	return fmt.Sprintf("%svalue_type(%s)", quoteFieldNameIfNeeded(fv.fieldName), quoteTokenIfNeeded(fv.valueType))
+	return fmt.Sprintf("value_type(%s)", quoteTokenIfNeeded(fv.valueType))
 }
 
-func (fv *filterValueType) updateNeededFields(pf *prefixfilter.Filter) {
-	pf.AddAllowFilter(fv.fieldName)
-}
-
-func (fv *filterValueType) matchRow(fields []Field) bool {
-	v := getFieldValueByName(fields, fv.fieldName)
+func (fv *filterValueType) matchRowByField(fields []Field, fieldName string) bool {
+	v := getFieldValueByName(fields, fieldName)
+	if v == "" {
+		// empty values have no any type
+		return false
+	}
 
 	// Assume all the fields have string type, since we cannot determine the real type of the value at the given field.
-	vt := valueTypeString
-
-	return v == vt.String()
+	return fv.valueType == "string"
 }
 
-func (fv *filterValueType) applyToBlockResult(br *blockResult, bm *bitmap) {
+func (fv *filterValueType) applyToBlockResultByField(br *blockResult, bm *bitmap, fieldName string) {
 	var typ string
-	c := br.getColumnByName(fv.fieldName)
+	c := br.getColumnByName(fieldName)
 	if c.isConst {
 		typ = "const"
 	} else if c.isTime {
@@ -50,9 +52,7 @@ func (fv *filterValueType) applyToBlockResult(br *blockResult, bm *bitmap) {
 	}
 }
 
-func (fv *filterValueType) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
-	fieldName := fv.fieldName
-
+func (fv *filterValueType) applyToBlockSearchByField(bs *blockSearch, bm *bitmap, fieldName string) {
 	// Verify whether fp matches const column
 	v := bs.getConstColumnValue(fieldName)
 	if v != "" {

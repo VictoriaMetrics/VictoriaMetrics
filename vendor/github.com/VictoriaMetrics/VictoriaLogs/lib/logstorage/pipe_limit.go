@@ -42,7 +42,7 @@ func (pl *pipeLimit) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pl *pipeLimit) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
+func (pl *pipeLimit) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pl, nil
 }
 

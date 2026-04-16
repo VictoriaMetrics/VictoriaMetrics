@@ -76,11 +76,13 @@ func (app *Vmagent) APIV1ImportPrometheus(t *testing.T, records []string, opts Q
 // Flushing may still be in progress on the function return.
 //
 // See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1importprometheus
-func (app *Vmagent) APIV1ImportPrometheusNoWaitFlush(t *testing.T, records []string, _ QueryOpts) {
+func (app *Vmagent) APIV1ImportPrometheusNoWaitFlush(t *testing.T, records []string, opts QueryOpts) {
 	t.Helper()
 
 	data := []byte(strings.Join(records, "\n"))
-	_, statusCode := app.cli.Post(t, app.apiV1ImportPrometheusURL, "text/plain", data)
+	headers := opts.getHeaders()
+	headers.Set("Content-Type", "text/plain")
+	_, statusCode := app.cli.Post(t, app.apiV1ImportPrometheusURL, data, headers)
 	if statusCode != http.StatusNoContent {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
 	}

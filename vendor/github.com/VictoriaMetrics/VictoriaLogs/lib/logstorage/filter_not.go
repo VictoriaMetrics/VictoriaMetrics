@@ -11,6 +11,12 @@ type filterNot struct {
 	f filter
 }
 
+func newFilterNot(f filter) *filterNot {
+	return &filterNot{
+		f: f,
+	}
+}
+
 func (fn *filterNot) String() string {
 	s := fn.f.String()
 	switch fn.f.(type) {
