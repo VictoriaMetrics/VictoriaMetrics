@@ -315,7 +315,7 @@ docker run -it --rm \
   -e VMANOMALY_MCP_SERVER_URL=http://mcp-vmanomaly:8081/mcp \
   -p 8080:8080 \
   -p 8490:8490 \
-  victoriametrics/vmanomaly:v1.29.2 \
+  victoriametrics/vmanomaly:v1.29.3 \
   vmanomaly_config.yaml
 ```
 
@@ -639,6 +639,23 @@ If the **results** look good and the **model configuration should be deployed in
 ![vmanomaly-ui-example-alert-menu](vmanomaly-ui-example-alert-menu.webp)
 
 ## Changelog
+
+### v1.6.1
+Released: 2026-04-16
+
+vmanomaly version: [v1.29.3](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1293)
+
+- IMPROVEMENT: Consecutive anomalies (when "streaks" option is enabled) are now grouped in the Visualization Panel as a single anomaly line instead of multiple dots for reduced visual noise and better representation of prolonged anomalous periods, while still showing the exact anomaly score and labels on hover.
+
+- IMPROVEMENT: Raw query results now refresh automatically after time range changes; yet anomaly detection results are preserved until "Detect Anomalies" button is hit again, to avoid recalculating anomalies on the new time range without explicit user action, which could be costly if the new time range is large and the model is complex.
+
+- IMPROVEMENT: Table legend view is now enabled by default for sorting and filtering enablement.
+
+- BUGFIX: Generated config and example alert outputs now preserve configured fit/infer values correctly and avoid invalid float-based duration strings in generated YAML, which could lead to data validation errors if copied to production configuration without adjustments.
+
+- BUGFIX: Fixed multiple confusing anomaly UI behaviors around scheduler fields (fit_every, infer_every) and generated artifacts.
+
+- BUGFIX: Chart y-axis range is now updating after legend series selection (regression introduced in v1.6.0).
 
 ### v1.6.0
 Released: 2026-04-02
