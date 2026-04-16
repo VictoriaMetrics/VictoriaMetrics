@@ -978,7 +978,10 @@ func TestStorage_futureAndHistoricalRetention(t *testing.T) {
 			nextMonth := time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, time.UTC)
 			time.Sleep(nextMonth.Sub(now))
 			now = nextMonth
-			s = MustOpenStorage(t.Name(), OpenOptions{Retention: retention})
+			s = MustOpenStorage(t.Name(), OpenOptions{
+				Retention:       retention,
+				FutureRetention: futureRetention,
+			})
 		}
 
 		s.MustClose()
