@@ -1,6 +1,10 @@
 # Changes
 
 
+## [1.9.0](https://github.com/googleapis/google-cloud-go/releases/tag/iam%2Fv1.9.0) (2026-04-13)
+
+## [1.8.0](https://github.com/googleapis/google-cloud-go/releases/tag/iam%2Fv1.8.0) (2026-04-09)
+
 ## [1.7.0](https://github.com/googleapis/google-cloud-go/releases/tag/iam%2Fv1.7.0) (2026-04-02)
 
 ## [1.6.0](https://github.com/googleapis/google-cloud-go/releases/tag/iam%2Fv1.6.0) (2026-03-26)

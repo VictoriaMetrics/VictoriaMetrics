@@ -45,6 +45,8 @@ import (
 
 // httpStorageClient is the HTTP-JSON API implementation of the transport-agnostic
 // storageClient interface.
+//
+// TODO(b/498422946): Add client feature tracker in HTTP client.
 type httpStorageClient struct {
 	creds                      *auth.Credentials
 	hc                         *http.Client

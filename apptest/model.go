@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"net/http"
 	"net/url"
 	"slices"
 	"sort"
@@ -89,6 +90,14 @@ type QueryOpts struct {
 	LatencyOffset  string
 	Format         string
 	NoCache        string
+	Headers        http.Header
+}
+
+func (qos *QueryOpts) getHeaders() http.Header {
+	if qos.Headers == nil {
+		qos.Headers = make(http.Header)
+	}
+	return qos.Headers
 }
 
 func (qos *QueryOpts) asURLValues() url.Values {
@@ -116,14 +125,6 @@ func (qos *QueryOpts) asURLValues() url.Values {
 	addNonEmpty("nocache", qos.NoCache)
 
 	return uv
-}
-
-// getTenant returns tenant with optional default value
-func (qos *QueryOpts) getTenant() string {
-	if qos.Tenant == "" {
-		return "0"
-	}
-	return qos.Tenant
 }
 
 // PrometheusAPIV1QueryResponse is an inmemory representation of the

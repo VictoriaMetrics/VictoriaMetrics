@@ -2,8 +2,6 @@ package logstorage
 
 import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
 )
 
 var maxStringRangeValue = string([]byte{255, 255, 255, 255})
@@ -13,29 +11,34 @@ var maxStringRangeValue = string([]byte{255, 255, 255, 255})
 // Note that the minValue is included in the range, while the maxValue isn't included in the range.
 // This simplifies querying distinct log sets with string_range(A, B), string_range(B, C), etc.
 //
-// Example LogsQL: `fieldName:string_range(minValue, maxValue)`
+// Example LogsQL: `string_range(minValue, maxValue)`
 type filterStringRange struct {
-	fieldName string
-	minValue  string
-	maxValue  string
+	minValue string
+	maxValue string
 
 	stringRepr string
 }
 
+func newFilterStringRange(fieldName, minValue, maxValue, stringRepr string) *filterGeneric {
+	fr := &filterStringRange{
+		minValue: minValue,
+		maxValue: maxValue,
+
+		stringRepr: stringRepr,
+	}
+	return newFilterGeneric(fieldName, fr)
+}
+
 func (fr *filterStringRange) String() string {
-	return quoteFieldNameIfNeeded(fr.fieldName) + fr.stringRepr
+	return fr.stringRepr
 }
 
-func (fr *filterStringRange) updateNeededFields(pf *prefixfilter.Filter) {
-	pf.AddAllowFilter(fr.fieldName)
-}
-
-func (fr *filterStringRange) matchRow(fields []Field) bool {
-	v := getFieldValueByName(fields, fr.fieldName)
+func (fr *filterStringRange) matchRowByField(fields []Field, fieldName string) bool {
+	v := getFieldValueByName(fields, fieldName)
 	return matchStringRange(v, fr.minValue, fr.maxValue)
 }
 
-func (fr *filterStringRange) applyToBlockResult(br *blockResult, bm *bitmap) {
+func (fr *filterStringRange) applyToBlockResultByField(br *blockResult, bm *bitmap, fieldName string) {
 	minValue := fr.minValue
 	maxValue := fr.maxValue
 
@@ -44,13 +47,12 @@ func (fr *filterStringRange) applyToBlockResult(br *blockResult, bm *bitmap) {
 		return
 	}
 
-	applyToBlockResultGeneric(br, bm, fr.fieldName, "", func(v, _ string) bool {
+	applyToBlockResultGeneric(br, bm, fieldName, "", func(v, _ string) bool {
 		return matchStringRange(v, minValue, maxValue)
 	})
 }
 
-func (fr *filterStringRange) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
-	fieldName := fr.fieldName
+func (fr *filterStringRange) applyToBlockSearchByField(bs *blockSearch, bm *bitmap, fieldName string) {
 	minValue := fr.minValue
 	maxValue := fr.maxValue
 

@@ -113,6 +113,7 @@ See also [case studies](https://docs.victoriametrics.com/victoriametrics/casestu
 * [FreeBSD: monitoring with VictoriaMetrics and Grafana](https://setevoy.medium.com/freebsd-monitoring-with-victoriametrics-and-grafana-f789904f2628)
 * [QCon London 2026: Wrangling Telemetry at Scale, a Guide to Self-Hosted Observability](https://www.infoq.com/news/2026/03/self-hosted-observability/)
 * [How We Made Telemetry Queries 10x Faster: Chunk-Split Caching for Metrics, Logs, and Traces](https://mirastacklabs.ai/blog/chunk-split-caching/)
+* [Building a high-volume metrics pipeline with OpenTelemetry and vmagent](https://medium.com/airbnb-engineering/building-a-high-volume-metrics-pipeline-with-opentelemetry-and-vmagent-c714d6910b45)
 
 ## Third-party articles and slides about VictoriaLogs
 

@@ -39,6 +39,13 @@ func (pf *pipeFields) isFixedOutputFieldsOrder() bool {
 	return !hasWildcardFilters(pf.fieldFilters)
 }
 
+func (pf *pipeFields) resultFields() ([]string, bool) {
+	if hasWildcardFilters(pf.fieldFilters) {
+		return nil, false
+	}
+	return pf.fieldFilters, true
+}
+
 func (pf *pipeFields) updateNeededFields(f *prefixfilter.Filter) {
 	fOrig := f.Clone()
 	f.Reset()
@@ -54,7 +61,7 @@ func (pf *pipeFields) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pf *pipeFields) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
+func (pf *pipeFields) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pf, nil
 }
 

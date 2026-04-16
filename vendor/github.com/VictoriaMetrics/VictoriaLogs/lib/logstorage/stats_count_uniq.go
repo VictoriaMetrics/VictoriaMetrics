@@ -625,7 +625,7 @@ func (sup *statsCountUniqProcessor) importState(src []byte, stopCh <-chan struct
 	if shardsLen < 1 {
 		return 0, fmt.Errorf("the number of shards must be at least 1")
 	}
-	src = src[1:]
+	src = src[n:]
 
 	if shardsLen == 1 {
 		tail, stateSize, err := sup.uniqValues.importState(sup.a, src, stopCh)

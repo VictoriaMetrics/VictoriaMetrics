@@ -198,7 +198,7 @@ If you open the sidebar and select **Alerting** > **Alert rules**, you should be
 
 Open the sidebar again and go to **Alerting** > **Active notifications** to see the active alert reported by Alertmanager.
 
-![Screenshot of Grafana Active notifications Page](grafana-active-notifications.webp)
+![Screenshot of Grafana Active notifications Page](grafana-notifications.webp)
 
 You can also see the alerts in VMUI by opening the browser in `http://localhost:8428/vmui/?#/rules`. This is possible only when we have configured `-vmalert.proxyURL` in VictoriaMetrics.
 

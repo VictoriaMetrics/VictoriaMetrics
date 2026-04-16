@@ -26,7 +26,9 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): fix `ec2_sd_configs` returning 401 `AuthFailure` from AWS when credentials are obtained via IRSA, instance role or `AWS_CONTAINER_CREDENTIALS_*` env vars. The regression was introduced in [v1.140.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.140.0). See [#10815](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10815).
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): properly execute graceful shutdown for vmsingle if `-maxIngestionRate` is configured.
+* BUGFIX: [vmrestore](https://docs.victoriametrics.com/victoriametrics/vmrestore/): fix an issue where vmrestore could hang indefinitely when interrupted during backup download.
 
 ## [v1.140.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.140.0)
 
@@ -178,7 +180,7 @@ The v1.136.x line will be supported for at least 12 months since [v1.136.0](http
 
 * SECURITY: upgrade Go builder from Go1.26.0 to Go1.26.1. See [the list of issues addressed in Go1.26.1](https://github.com/golang/go/issues?q=milestone%3AGo1.26.1%20label%3ACherryPickApproved).
 
-FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): Disable `/graphite/tags/tagSeries` and `/graphite/tags/tagMultiSeries` for Graphite tag registration since it is unlikely it is used in context of VictoriaMetrics. See [10544](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10544).
+* FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): Disable `/graphite/tags/tagSeries` and `/graphite/tags/tagMultiSeries` for Graphite tag registration since it is unlikely it is used in context of VictoriaMetrics. See [10544](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10544).
 * FEATURE: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): add [histogram_fraction](https://docs.victoriametrics.com/victoriametrics/metricsql/#histogram_fraction) function to calculate the fraction of buckets falling between lowerLe and upperLe. See [#5346](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5346).
 
 * BUGFIX: all VictoriaMetrics components: replace `histogram` with `untyped` metric metadata type for [VictoriaMetrics histograms](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#histogram) when `-metrics.exposeMetadata` is set. See [#82](https://github.com/VictoriaMetrics/metrics/issues/82).
