@@ -132,7 +132,7 @@ const ExploreRules: FC = () => {
     newParams.set("page_num", "1");
     setSearchParams(newParams);
     const changes = getChanges(title, states);
-    setStates(changes.length == allStates.length ? [] : changes);
+    setStates(changes.length === allStates.length ? [] : changes);
   }, [states, searchParams]);
 
   const handleChangeRuleType = useCallback((title: string) => {
@@ -186,6 +186,7 @@ const ExploreRules: FC = () => {
                         <Rule
                           key={`rule-${rule.id}`}
                           rule={rule}
+                          group={group}
                           states={getStates(rule)}
                         />
                       ))}
