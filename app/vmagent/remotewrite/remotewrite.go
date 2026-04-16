@@ -103,8 +103,8 @@ var (
 	disableMetadataPerURL = flagutil.NewArrayBool("remoteWrite.disableMetadata", "Whether to disable sending metadata to the corresponding -remoteWrite.url. "+
 		"By default, metadata sending is controlled by the global -enableMetadata flag")
 
-	obfuscatedLabels = flagutil.NewArrayString("remoteWrite.obfuscatedLabels", "Whether to disable sending metadata to the corresponding -remoteWrite.url. "+
-		"By default, metadata sending is controlled by the global -enableMetadata flag")
+	obfuscationLabels = flagutil.NewArrayString("remoteWrite.obfuscationLabels", "List of label names whose values must be obfuscated before sending to the corresponding -remoteWrite.url."+
+		"By default, label obfuscation is disabled")
 )
 
 var (
@@ -836,7 +836,7 @@ type remoteWriteCtx struct {
 	pss        []*pendingSeries
 	pssNextIdx atomic.Uint64
 
-	obfuscatedLabels map[string]struct{}
+	obfuscationLabels map[string]struct{}
 
 	rowsPushedAfterRelabel *metrics.Counter
 	rowsDroppedByRelabel   *metrics.Counter
@@ -1034,10 +1034,12 @@ func (rwctx *remoteWriteCtx) TryPushTimeSeries(tss []prompb.TimeSeries, forceDro
 
 		matchIdxsPool.Put(matchIdxs)
 	}
-	if len(rwctx.obfuscatedLabels) != 0 {
-		// Make a copy of tss
-		v = tssPool.Get().(*[]prompb.TimeSeries)
-		tss = append(*v, tss...)
+	if len(rwctx.obfuscationLabels) != 0 {
+		if rctx == nil {
+			rctx = getRelabelCtx()
+			v = tssPool.Get().(*[]prompb.TimeSeries)
+			tss = append(*v, tss...)
+		}
 		tss = rwctx.applyObfuscation(tss)
 	}
 	if rwctx.deduplicator != nil {

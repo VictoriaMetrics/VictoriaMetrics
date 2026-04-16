@@ -5,29 +5,23 @@ import (
 	"encoding/hex"
 	"strings"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 func (rwctx *remoteWriteCtx) initObfuscationConfig() {
 	idx := rwctx.idx
-	if len(*obfuscatedLabels) != 0 {
-		rwctx.obfuscatedLabels = make(map[string]struct{})
-		rwObfuscatedLabels := obfuscatedLabels.GetOptionalArg(idx)
-		rwObfuscatedLabelsList := strings.Split(rwObfuscatedLabels, "^^")
-		for _, label := range rwObfuscatedLabelsList {
-			rwctx.obfuscatedLabels[label] = struct{}{}
+	if len(*obfuscationLabels) != 0 {
+		rwctx.obfuscationLabels = make(map[string]struct{})
+		rwObfuscationLabels := obfuscationLabels.GetOptionalArg(idx)
+		rwObfuscationLabelsList := strings.Split(rwObfuscationLabels, "^^")
+		for _, label := range rwObfuscationLabelsList {
+			rwctx.obfuscationLabels[label] = struct{}{}
 		}
 	}
 }
 
-var obfuscationBufPool bytesutil.ByteBufferPool
-
 func (rwctx *remoteWriteCtx) applyObfuscation(tss []prompb.TimeSeries) []prompb.TimeSeries {
-	if len(rwctx.obfuscatedLabels) == 0 {
-		return tss
-	}
-	if len(rwctx.obfuscatedLabels) == 0 {
+	if len(rwctx.obfuscationLabels) == 0 || len(tss) == 0 {
 		return tss
 	}
 	cacheObfuscatedResult := make(map[string]string)
@@ -36,18 +30,15 @@ func (rwctx *remoteWriteCtx) applyObfuscation(tss []prompb.TimeSeries) []prompb.
 		labels := ts.Labels
 		for j := range labels {
 			label := &labels[j]
-			if _, ok := rwctx.obfuscatedLabels[label.Name]; !ok {
+			if _, ok := rwctx.obfuscationLabels[label.Name]; !ok {
 				continue
 			}
-			if obfuscatedValue, ok := cacheObfuscatedResult[label.Name]; ok {
+			if obfuscatedValue, ok := cacheObfuscatedResult[label.Value]; ok {
 				label.Value = obfuscatedValue
 			} else {
-				bb := obfuscationBufPool.Get()
-				bb.Write([]byte(label.Value))
-				obfuscatedResult := sha256.Sum256(bb.B)
-				cacheObfuscatedResult[label.Name] = hex.EncodeToString(obfuscatedResult[:])
-				label.Value = cacheObfuscatedResult[label.Name]
-				obfuscationBufPool.Put(bb)
+				obfuscatedResult := sha256.Sum256([]byte(label.Value))
+				cacheObfuscatedResult[label.Value] = hex.EncodeToString(obfuscatedResult[:])
+				label.Value = cacheObfuscatedResult[label.Value]
 			}
 		}
 	}
