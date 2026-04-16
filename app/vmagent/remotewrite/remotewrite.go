@@ -504,24 +504,19 @@ func tryPush(at *auth.Token, wr *prompb.WriteRequest, forceDropSamplesOnFailure 
 //
 // calculateHealthyRwctxIdx will rely on the order of rwctx to be in ascending order.
 func getEligibleRemoteWriteCtxs(tss []prompb.TimeSeries, forceDropSamplesOnFailure bool) ([]*remoteWriteCtx, bool) {
-	if *shardByURL {
-		if !*enableRerouting {
-			return rwctxsGlobal, true
-		}
-	} else {
-		if !disableOnDiskQueueAny {
-			return rwctxsGlobal, true
-		}
+	if (*shardByURL && !*enableRerouting) || !disableOnDiskQueueAny {
+		return rwctxsGlobal, true
 	}
 
-	// This code is applicable if at least a single remote storage has -disableOnDiskQueue
+	// This code is applicable when:
+	// 1. remoteWrite.shardByUrl is disabled and at least a single remote storage has -disableOnDiskQueue.
+	// 2. remoteWrite.shardByUrl is enabled and remoteWrite.enableRerouting is set to true.
 	rwctxs := make([]*remoteWriteCtx, 0, len(rwctxsGlobal))
 	for _, rwctx := range rwctxsGlobal {
 		if !rwctx.fq.IsWriteBlocked() {
 			rwctxs = append(rwctxs, rwctx)
 		} else {
 			rwctx.pushFailures.Inc()
-			logger.Infof("jayice block")
 			if !forceDropSamplesOnFailure {
 				return nil, false
 			}
@@ -535,7 +530,6 @@ func getEligibleRemoteWriteCtxs(tss []prompb.TimeSeries, forceDropSamplesOnFailu
 			rwctx.rowsDroppedOnPushFailure.Add(rowsCount)
 		}
 	}
-	logger.Infof("jayice len:%d", len(rwctxs))
 	return rwctxs, true
 }
 
