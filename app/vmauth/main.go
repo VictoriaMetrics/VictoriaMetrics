@@ -481,6 +481,9 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 	canRetry := !bbOK || bb.canRetry()
 
 	res, err := ui.rt.RoundTrip(req)
+	if err == nil {
+		defer func() { _ = res.Body.Close() }()
+	}
 
 	if errors.Is(r.Context().Err(), context.Canceled) {
 		// Do not retry canceled requests.
@@ -550,7 +553,6 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 	w.WriteHeader(res.StatusCode)
 
 	err = copyStreamToClient(w, res.Body)
-	_ = res.Body.Close()
 
 	if errors.Is(r.Context().Err(), context.Canceled) {
 		// Do not retry canceled requests.
