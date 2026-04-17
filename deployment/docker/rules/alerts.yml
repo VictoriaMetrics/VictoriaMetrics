@@ -149,3 +149,19 @@ groups:
            When cache is overutilized, the oldest entries will be dropped out automatically. It may result into incomplete
            response for /api/v1/metadata API calls. It doesn't impact regular queries or alerts. Cache size is controlled
            via -storage.maxMetadataStorageSize cmd-line flag."
+
+      - alert: MetricNameStatsCacheUtilizationIsTooHigh
+        expr: |
+          vm_cache_size_bytes{type="storage/metricNamesStatsTracker"} / vm_cache_size_max_bytes{type="storage/metricNamesStatsTracker"} > 0.95
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Cache capacity for tracking metric names usage on {{ $labels.instance }} (job={{ $labels.job }}) is utilized for more than 95% during the last 15min"
+          description: "Metric names usage cache stores information about unique metric names and how frequently they are queried - see https://docs.victoriametrics.com/victoriametrics/#track-ingested-metrics-usage.
+           When cache is overutilized, it will stop tracking the new metric names. It has no other negative impact.
+           Usually, the number of unique metric names is very limited (thousands). The cache can be overutilized only if metric names
+           are changing too frequently or if the cache size is too low. There are following ways to mitigate cache overutilization:
+           - disable cache via `--storage.trackMetricNamesStats=false` flag, so metric names usage will stop tracking
+           - increase the cache size via `--storage.cacheSizeMetricNamesStats` flag
+           - reset the cache (see docs for details)"
