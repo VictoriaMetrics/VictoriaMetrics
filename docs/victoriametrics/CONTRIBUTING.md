@@ -66,7 +66,9 @@ Pull requests requirements:
    Pull request description should contain clear and concise description of what was done, why it is needed and for what purpose.
    Use clear language, so reviewers can quickly understand the change and its impact.
 1. A link to the issue(s) related to the change, if any. Use `Fixes [issue link]` if the PR resolves the issue, or `Related to [issue link]` for reference.
-1. Tests proving that the change is effective. See [this style guide](https://itnext.io/f-tests-as-a-replacement-for-table-driven-tests-in-go-8814a8b19e9e) for tests.
+1. Tests proving that the change is effective. Tests are expected for non-trivial new functionality or non-trivial modifications.
+   Bug fixes must include tests unless a maintainer explicitly agrees otherwise.
+   See [this style guide](https://itnext.io/f-tests-as-a-replacement-for-table-driven-tests-in-go-8814a8b19e9e) for tests.
    To run tests and code checks locally, execute commands `make test-full` and `make check-all`.
 1. Try to not extend the scope of the pull requests outside the issue, do not make unrelated changes.
 1. Update [docs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs) if needed. For example, adding a new flag or changing behavior of existing flags or features
