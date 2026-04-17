@@ -14,6 +14,7 @@ func (rwctx *remoteWriteCtx) initObfuscationConfig() {
 		rwctx.obfuscationLabels = make(map[string]struct{})
 		rwObfuscationLabels := obfuscationLabels.GetOptionalArg(idx)
 		rwObfuscationLabelsList := strings.Split(rwObfuscationLabels, "^^")
+
 		for _, label := range rwObfuscationLabelsList {
 			rwctx.obfuscationLabels[label] = struct{}{}
 		}
