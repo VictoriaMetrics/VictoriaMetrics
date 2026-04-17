@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -278,11 +279,11 @@ func (sn *storageNode) checkHealth() {
 		if sn.lastDialErr == nil {
 			// Log the error only once.
 			sn.lastDialErr = err
-			logger.Warnf("cannot dial storageNode %q: %s", sn.dialer.Addr(), err)
+			logger.Warnf("cannot dial storageNode alias=%q addr=%q: %s", sn.alias, sn.dialer.Addr(), err)
 		}
 		return
 	}
-	logger.Infof("successfully dialed -storageNode=%q", sn.dialer.Addr())
+	logger.Infof("successfully dialed -storageNode=%q (alias=%q)", sn.dialer.Addr(), sn.alias)
 	sn.lastDialErr = nil
 	sn.bc = bc
 	sn.isBroken.Store(false)
@@ -339,10 +340,10 @@ func (sn *storageNode) sendBufRowsNonblocking(br *bufRows) bool {
 		sn.rpcIsNotSupportedDeadline.Store(unsupportedRPCRetrySeconds + fasttime.UnixTimestamp())
 	}
 	// Couldn't flush buf to sn. Mark sn as broken.
-	cannotSendBufsLogger.Warnf("cannot send %d bytes with %d rows to -storageNode=%q: %s; closing the connection to storageNode and "+
-		"re-routing this data to healthy storage nodes", len(br.buf), br.rows, sn.dialer.Addr(), err)
+	cannotSendBufsLogger.Warnf("cannot send %d bytes with %d rows to -storageNode=%q (alias=%q): %s; closing the connection to storageNode and "+
+		"re-routing this data to healthy storage nodes", len(br.buf), br.rows, sn.dialer.Addr(), sn.alias, err)
 	if err = sn.bc.Close(); err != nil {
-		cannotCloseStorageNodeConnLogger.Warnf("cannot close connection to storageNode %q: %s", sn.dialer.Addr(), err)
+		cannotCloseStorageNodeConnLogger.Warnf("cannot close connection to storageNode alias=%q addr=%q: %s", sn.alias, sn.dialer.Addr(), err)
 	}
 	sn.bc = nil
 	sn.isBroken.Store(true)
@@ -383,6 +384,11 @@ func (sn *storageNode) dial() (*handshake.BufferedConn, error) {
 
 // storageNode is a client sending data to vmstorage node.
 type storageNode struct {
+
+	// alias is the stable identity used for consistent-hash sharding.
+	// When -storageNode is given as `<alias>=<addr>`, alias holds the user-provided value.
+	// Otherwise alias equals the raw address, which preserves the legacy hashing behavior.
+	alias string
 
 	// rpc defines RPC method to push data from br
 	rpc vminsertapi.RPCCall
@@ -503,15 +509,136 @@ func setStorageNodesBucket(snb *storageNodesBucket) {
 
 // Init initializes vmstorage nodes' connections to the given addrs.
 //
-// hashSeed is used for changing the distribution of input time series among addrs.
+// Each entry of addrs may be either a plain `<addr>` or `<alias>=<addr>`.
+// When an alias is provided, it is used as the stable identity for consistent-hash
+// sharding (instead of the raw address). This lets operators change the network
+// address of a vmstorage node without re-mapping the time series it owns.
+// When no alias is provided, alias defaults to the raw address, which preserves
+// the legacy hashing behavior so existing clusters do not reshuffle.
+//
+// hashSeed is used for changing the distribution of input time series among nodes.
 //
 // Call MustStop when the initialized vmstorage connections are no longer needed.
+//
+// Init is intended for callers that already hold a flat slice of strings such as
+// the `-storageNode` command-line flag. Components that build the node list
+// programmatically (for example, the Enterprise file/SRV-based vmstorage discovery)
+// may prefer InitWithStorageNodes to pass already-validated StorageNode values.
 func Init(addrs []string, hashSeed uint64) {
-	snb := initStorageNodes(addrs, vminsertapi.MetricRowsRpcCall, hashSeed)
-	setStorageNodesBucket(snb)
-	metadataSnb := initStorageNodes(addrs, vminsertapi.MetricMetadataRpcCall, hashSeed)
-	setMetadataStorageNodesBucket(metadataSnb)
+	nodes := mustParseStorageNodes(addrs)
+	InitWithStorageNodes(nodes, hashSeed)
+}
 
+// InitWithStorageNodes initializes vmstorage nodes' connections from the given
+// pre-parsed list of StorageNode values.
+//
+// Use this entry point when the alias/addr pairs are obtained from a source other
+// than the `-storageNode` command-line flag - for example, the Enterprise
+// file/HTTP/DNS SRV-based vmstorage discovery. Each StorageNode.Alias acts as the
+// stable identity for consistent-hash sharding, and StorageNode.Addr is used to
+// dial the underlying vmstorage. Producing aliases that are decoupled from the
+// network address is what allows an operator to renumber a vmstorage node without
+// reshuffling the time series it owns.
+//
+// All vminsert (and Enterprise discovery) instances in the cluster MUST observe
+// the same alias->addr mapping; otherwise they will route the same time series
+// to different storage nodes. Discovery providers should pick a stable alias
+// scheme (for example, the SRV record target hostname) and apply it consistently.
+//
+// Call MustStop when the initialized vmstorage connections are no longer needed.
+func InitWithStorageNodes(nodes []StorageNode, hashSeed uint64) {
+	specs := storageNodesToSpecs(nodes)
+	snb := initStorageNodes(specs, vminsertapi.MetricRowsRpcCall, hashSeed)
+	setStorageNodesBucket(snb)
+	metadataSnb := initStorageNodes(specs, vminsertapi.MetricMetadataRpcCall, hashSeed)
+	setMetadataStorageNodesBucket(metadataSnb)
+}
+
+// StorageNode describes a single vmstorage node configuration.
+//
+// It is the public counterpart to the internal storageNodeSpec. Discovery
+// providers (file/HTTP/DNS SRV based) outside this package should use this type
+// when calling InitWithStorageNodes.
+type StorageNode struct {
+	// Alias is the stable identifier used for consistent-hash sharding.
+	// Two StorageNode values with the same Alias are considered the same shard
+	// even if their Addr differs (for example, after a vmstorage IP change).
+	// All vminsert instances must agree on Alias for a given vmstorage.
+	Alias string
+
+	// Addr is the network address used to dial vmstorage.
+	Addr string
+}
+
+// storageNodeSpec is the internal form of StorageNode used after validation.
+type storageNodeSpec struct {
+	alias string
+	addr  string
+}
+
+func storageNodesToSpecs(nodes []StorageNode) []storageNodeSpec {
+	specs := make([]storageNodeSpec, len(nodes))
+	for i, n := range nodes {
+		alias := n.Alias
+		if alias == "" {
+			// Default alias to addr - preserves legacy hashing for callers that
+			// haven't yet adopted aliases.
+			alias = n.Addr
+		}
+		if alias == "" || n.Addr == "" {
+			logger.Fatalf("BUG: StorageNode must have non-empty Addr (got Alias=%q, Addr=%q)", n.Alias, n.Addr)
+		}
+		specs[i] = storageNodeSpec{alias: alias, addr: n.Addr}
+	}
+	return specs
+}
+
+// ParseStorageNodes parses raw `-storageNode` flag entries into StorageNode
+// values.
+//
+// Each entry may be either `<addr>` or `<alias>=<addr>`. The first `=` character
+// separates the alias from the address; subsequent `=` characters are part of
+// the address. When the alias is omitted, it defaults to the raw address, which
+// preserves the legacy hashing behavior.
+//
+// This helper is exported so that Enterprise discovery providers (file/HTTP/DNS
+// SRV based) can accept the same `<alias>=<addr>` syntax in their input format
+// without re-implementing the parser.
+func ParseStorageNodes(rawAddrs []string) ([]StorageNode, error) {
+	nodes := make([]StorageNode, 0, len(rawAddrs))
+	for _, raw := range rawAddrs {
+		alias, addr := raw, raw
+		if i := strings.Index(raw, "="); i >= 0 {
+			alias = raw[:i]
+			addr = raw[i+1:]
+		}
+		if alias == "" {
+			return nil, fmt.Errorf("empty alias in storage node entry %q; expected `<alias>=<addr>` or `<addr>`", raw)
+		}
+		if addr == "" {
+			return nil, fmt.Errorf("empty address in storage node entry %q; expected `<alias>=<addr>` or `<addr>`", raw)
+		}
+		nodes = append(nodes, StorageNode{Alias: alias, Addr: addr})
+	}
+	return nodes, nil
+}
+
+// parseStorageNodeSpecs is an internal convenience used by tests; it returns
+// the internal representation directly.
+func parseStorageNodeSpecs(rawAddrs []string) ([]storageNodeSpec, error) {
+	nodes, err := ParseStorageNodes(rawAddrs)
+	if err != nil {
+		return nil, err
+	}
+	return storageNodesToSpecs(nodes), nil
+}
+
+func mustParseStorageNodes(rawAddrs []string) []StorageNode {
+	nodes, err := ParseStorageNodes(rawAddrs)
+	if err != nil {
+		logger.Fatalf("cannot parse -storageNode flags: %s", err)
+	}
+	return nodes
 }
 
 // MustStop stops netstorage.
@@ -522,18 +649,25 @@ func MustStop() {
 	mustStopStorageNodes(metadataSnb)
 }
 
-func initStorageNodes(unsortedAddrs []string, rpcCall vminsertapi.RPCCall, hashSeed uint64) *storageNodesBucket {
-	if len(unsortedAddrs) == 0 {
-		logger.Panicf("BUG: addrs must be non-empty")
+func initStorageNodes(unsortedSpecs []storageNodeSpec, rpcCall vminsertapi.RPCCall, hashSeed uint64) *storageNodesBucket {
+	if len(unsortedSpecs) == 0 {
+		logger.Panicf("BUG: storage node specs must be non-empty")
 	}
 
-	addrs := make([]string, len(unsortedAddrs))
-	copy(addrs, unsortedAddrs)
-	sort.Strings(addrs)
+	// Sort by alias so that the consistent-hash ring and the sns slice
+	// (used for replication walk in sendBufToReplicasNonblocking) are kept in sync.
+	specs := make([]storageNodeSpec, len(unsortedSpecs))
+	copy(specs, unsortedSpecs)
+	sort.Slice(specs, func(i, j int) bool { return specs[i].alias < specs[j].alias })
+
+	aliases := make([]string, len(specs))
+	for i, s := range specs {
+		aliases[i] = s.alias
+	}
 
 	ms := metrics.NewSet()
-	nodesHash := consistenthash.NewConsistentHash(addrs, hashSeed)
-	sns := make([]*storageNode, 0, len(addrs))
+	nodesHash := consistenthash.NewConsistentHash(aliases, hashSeed)
+	sns := make([]*storageNode, 0, len(specs))
 	var dropRowsOnOverload bool
 
 	if rpcCall.Name == vminsertapi.MetricRowsRpcCall.Name {
@@ -541,14 +675,16 @@ func initStorageNodes(unsortedAddrs []string, rpcCall vminsertapi.RPCCall, hashS
 	}
 	stopCh := make(chan struct{})
 	rpcName := rpcCall.Name
-	for _, addr := range addrs {
-		normalizedAddr, err := netutil.NormalizeAddr(addr, 8400)
+	for _, spec := range specs {
+		alias := spec.alias
+		normalizedAddr, err := netutil.NormalizeAddr(spec.addr, 8400)
 		if err != nil {
-			logger.Fatalf("cannot normalize -storageNode=%q: %s", addr, err)
+			logger.Fatalf("cannot normalize -storageNode=%q (alias=%q): %s", spec.addr, alias, err)
 		}
-		addr = normalizedAddr
+		addr := normalizedAddr
 
 		sn := &storageNode{
+			alias:              alias,
 			dialer:             netutil.NewTCPDialer(ms, "vminsert_"+rpcName, addr, *vmstorageDialTimeout, *vmstorageUserTimeout),
 			rpc:                rpcCall,
 			dropRowsOnOverload: dropRowsOnOverload,
@@ -557,27 +693,27 @@ func initStorageNodes(unsortedAddrs []string, rpcCall vminsertapi.RPCCall, hashS
 
 			rpcCall: rpcCall,
 
-			dialErrors:            ms.NewCounter(fmt.Sprintf(`vm_rpc_dial_errors_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
-			handshakeErrors:       ms.NewCounter(fmt.Sprintf(`vm_rpc_handshake_errors_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
-			connectionErrors:      ms.NewCounter(fmt.Sprintf(`vm_rpc_connection_errors_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
-			rowsPushed:            ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_pushed_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
-			rowsSent:              ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_sent_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
-			rowsDroppedOnOverload: ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_dropped_on_overload_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
-			rowsReroutedFromHere:  ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_rerouted_from_here_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
-			rowsReroutedToHere:    ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_rerouted_to_here_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
-			sendDurationSeconds:   ms.NewFloatCounter(fmt.Sprintf(`vm_rpc_send_duration_seconds_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
+			dialErrors:            ms.NewCounter(fmt.Sprintf(`vm_rpc_dial_errors_total{name="vminsert", alias=%q, addr=%q, rpc_call=%q}`, alias, addr, rpcCall.Name)),
+			handshakeErrors:       ms.NewCounter(fmt.Sprintf(`vm_rpc_handshake_errors_total{name="vminsert", alias=%q, addr=%q, rpc_call=%q}`, alias, addr, rpcCall.Name)),
+			connectionErrors:      ms.NewCounter(fmt.Sprintf(`vm_rpc_connection_errors_total{name="vminsert", alias=%q, addr=%q, rpc_call=%q}`, alias, addr, rpcCall.Name)),
+			rowsPushed:            ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_pushed_total{name="vminsert", alias=%q, addr=%q, rpc_call=%q}`, alias, addr, rpcCall.Name)),
+			rowsSent:              ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_sent_total{name="vminsert", alias=%q, addr=%q, rpc_call=%q}`, alias, addr, rpcCall.Name)),
+			rowsDroppedOnOverload: ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_dropped_on_overload_total{name="vminsert", alias=%q, addr=%q, rpc_call=%q}`, alias, addr, rpcCall.Name)),
+			rowsReroutedFromHere:  ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_rerouted_from_here_total{name="vminsert", alias=%q, addr=%q, rpc_call=%q}`, alias, addr, rpcCall.Name)),
+			rowsReroutedToHere:    ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_rerouted_to_here_total{name="vminsert", alias=%q, addr=%q, rpc_call=%q}`, alias, addr, rpcCall.Name)),
+			sendDurationSeconds:   ms.NewFloatCounter(fmt.Sprintf(`vm_rpc_send_duration_seconds_total{name="vminsert", alias=%q, addr=%q, rpc_call=%q}`, alias, addr, rpcCall.Name)),
 
 			avgSaturation: newMovingAverage(180),
 			lastSendTime:  time.Now(),
 		}
 		sn.brCond = sync.NewCond(&sn.brLock)
-		_ = ms.NewGauge(fmt.Sprintf(`vm_rpc_rows_pending{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name), func() float64 {
+		_ = ms.NewGauge(fmt.Sprintf(`vm_rpc_rows_pending{name="vminsert", alias=%q, addr=%q, rpc_call=%q}`, alias, addr, rpcCall.Name), func() float64 {
 			sn.brLock.Lock()
 			n := sn.br.rows
 			sn.brLock.Unlock()
 			return float64(n)
 		})
-		_ = ms.NewGauge(fmt.Sprintf(`vm_rpc_buf_pending_bytes{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name), func() float64 {
+		_ = ms.NewGauge(fmt.Sprintf(`vm_rpc_buf_pending_bytes{name="vminsert", alias=%q, addr=%q, rpc_call=%q}`, alias, addr, rpcCall.Name), func() float64 {
 			sn.brLock.Lock()
 			n := len(sn.br.buf)
 			sn.brLock.Unlock()
@@ -585,13 +721,13 @@ func initStorageNodes(unsortedAddrs []string, rpcCall vminsertapi.RPCCall, hashS
 		})
 		// conditionally export health related metrics
 		if rpcCall == vminsertapi.MetricRowsRpcCall {
-			_ = ms.NewGauge(fmt.Sprintf(`vm_rpc_vmstorage_is_reachable{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name), func() float64 {
+			_ = ms.NewGauge(fmt.Sprintf(`vm_rpc_vmstorage_is_reachable{name="vminsert", alias=%q, addr=%q, rpc_call=%q}`, alias, addr, rpcCall.Name), func() float64 {
 				if sn.isBroken.Load() {
 					return 0
 				}
 				return 1
 			})
-			_ = ms.NewGauge(fmt.Sprintf(`vm_rpc_vmstorage_is_read_only{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name), func() float64 {
+			_ = ms.NewGauge(fmt.Sprintf(`vm_rpc_vmstorage_is_read_only{name="vminsert", alias=%q, addr=%q, rpc_call=%q}`, alias, addr, rpcCall.Name), func() float64 {
 				if sn.isReadOnly.Load() {
 					return 1
 				}
@@ -787,7 +923,8 @@ func allowRerouting(snSource *storageNode, sns []*storageNode) bool {
 		return false
 	}
 
-	reroutingLogger.Warnf("reroute metrics from the slowest storage %q with saturation %.2f, where cluster median saturation is %.2f", snSource.dialer.Addr(), snSourceSaturation, medianSaturation)
+	reroutingLogger.Warnf("reroute metrics from the slowest storage alias=%q addr=%q with saturation %.2f, where cluster median saturation is %.2f",
+		snSource.alias, snSource.dialer.Addr(), snSourceSaturation, medianSaturation)
 	return true
 }
 
@@ -963,11 +1100,11 @@ func (sn *storageNode) checkReadOnlyMode() {
 	}
 
 	// There was an error when sending nil buf to the storage.
-	logger.Errorf("cannot check storage readonly mode for -storageNode=%q: %s", sn.dialer.Addr(), err)
+	logger.Errorf("cannot check storage readonly mode for -storageNode=%q (alias=%q): %s", sn.dialer.Addr(), sn.alias, err)
 
 	// Mark the connection to the storage as broken.
 	if err = sn.bc.Close(); err != nil {
-		cannotCloseStorageNodeConnLogger.Warnf("cannot close connection to storageNode %q: %s", sn.dialer.Addr(), err)
+		cannotCloseStorageNodeConnLogger.Warnf("cannot close connection to storageNode alias=%q addr=%q: %s", sn.alias, sn.dialer.Addr(), err)
 	}
 	sn.bc = nil
 	sn.isBroken.Store(true)

@@ -76,6 +76,9 @@ var (
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
 	storageNodes = flagutil.NewArrayString("storageNode", "Comma-separated addresses of vmstorage nodes; usage: -storageNode=vmstorage-host1,...,vmstorage-hostN . "+
+		"Each entry may also be given as -storageNode=<alias>=<addr> (e.g. -storageNode=node-a=10.0.0.1:8400) to decouple the consistent-hash sharding identity (alias) from the network address. "+
+		"This lets operators change the address of a vmstorage node without remapping the time series it owns. "+
+		"All vminsert instances must use the same alias->addr mapping. When the alias is omitted it defaults to the address, preserving the legacy behavior. "+
 		"Enterprise version of VictoriaMetrics supports automatic discovery of vmstorage addresses via DNS SRV records. For example, -storageNode=srv+vmstorage.addrs . "+
 		"See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#automatic-vmstorage-discovery")
 	maxLabelsPerTimeseries = flag.Int("maxLabelsPerTimeseries", 40, "The maximum number of labels per time series to be accepted. Series with superfluous labels are ignored. In this case the vm_rows_ignored_total{reason=\"too_many_labels\"} metric at /metrics page is incremented")
@@ -109,6 +112,15 @@ func main() {
 	}
 	if duplicatedAddr := checkDuplicates(*storageNodes); duplicatedAddr != "" {
 		logger.Fatalf("found equal addresses of storage nodes in the -storageNodes flag: %q", duplicatedAddr)
+	}
+	aliases, addrs := splitStorageNodeAliases(*storageNodes)
+	if duplicatedAlias := checkDuplicates(aliases); duplicatedAlias != "" {
+		logger.Fatalf("found duplicated alias of storage nodes in the -storageNodes flag: %q; "+
+			"each `-storageNode=<alias>=<addr>` entry must use a unique alias across the cluster", duplicatedAlias)
+	}
+	if duplicatedAddr := checkDuplicates(addrs); duplicatedAddr != "" {
+		logger.Fatalf("found duplicated address of storage nodes in the -storageNodes flag: %q; "+
+			"each vmstorage address must appear at most once even when -storageNode=<alias>=<addr> is used", duplicatedAddr)
 	}
 	hashSeed := uint64(0)
 	if *clusternativeListenAddr != "" {
@@ -491,4 +503,24 @@ func checkDuplicates(arr []string) string {
 
 func hasEmptyValues(arr []string) bool {
 	return slices.Contains(arr, "")
+}
+
+// splitStorageNodeAliases splits each `-storageNode` raw entry into (alias, addr).
+//
+// Entries may be of the form `<addr>` or `<alias>=<addr>`. When the alias is
+// omitted, alias defaults to addr - this matches the legacy behavior so existing
+// duplicate detection on addresses keeps working as before.
+func splitStorageNodeAliases(rawAddrs []string) (aliases, addrs []string) {
+	aliases = make([]string, len(rawAddrs))
+	addrs = make([]string, len(rawAddrs))
+	for i, raw := range rawAddrs {
+		alias, addr := raw, raw
+		if j := strings.Index(raw, "="); j > 0 {
+			alias = raw[:j]
+			addr = raw[j+1:]
+		}
+		aliases[i] = alias
+		addrs[i] = addr
+	}
+	return aliases, addrs
 }

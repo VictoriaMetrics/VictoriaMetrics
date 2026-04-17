@@ -52,7 +52,7 @@ func (br *bufRows) pushTo(snb *storageNodesBucket, sn *storageNode, getRowHasher
 	br.reset()
 	if err != nil {
 		return &httpserver.ErrorWithStatusCode{
-			Err:        fmt.Errorf("cannot send %d bytes to storageNode %q: %w", bufLen, sn.dialer.Addr(), err),
+			Err:        fmt.Errorf("cannot send %d bytes to storageNode alias=%q addr=%q: %w", bufLen, sn.alias, sn.dialer.Addr(), err),
 			StatusCode: http.StatusServiceUnavailable,
 		}
 	}
