@@ -28,6 +28,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 * FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): add correct parameters to "Run query" link on Alerting Rules page. See [#10366](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10366).
 
+* BUGFIX: all VictoriaMetrics components: fix IPv6 source address corruption when accepting connections with proxy protocol v2 enabled. The parsed address aliased a pooled buffer and could be overwritten by subsequent connections.
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): properly apply maxScrapeSize limit to scrape error request body read.
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): fix `ec2_sd_configs` returning 401 `AuthFailure` from AWS when credentials are obtained via IRSA, instance role or `AWS_CONTAINER_CREDENTIALS_*` env vars. The regression was introduced in [v1.140.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.140.0). See [#10815](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10815).
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): fix leak of backend TCP connections, file descriptors and goroutines when the client cancels the request after the backend response has been received. See [#10833](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10833).
