@@ -9,15 +9,16 @@ import (
 )
 
 func (rwctx *remoteWriteCtx) initObfuscationConfig() {
+	if len(*obfuscationLabels) == 0 {
+		return
+	}
 	idx := rwctx.idx
-	if len(*obfuscationLabels) != 0 {
-		rwctx.obfuscationLabels = make(map[string]struct{})
-		rwObfuscationLabels := obfuscationLabels.GetOptionalArg(idx)
-		rwObfuscationLabelsList := strings.Split(rwObfuscationLabels, "^^")
+	rwctx.obfuscationLabels = make(map[string]struct{})
+	rwObfuscationLabels := obfuscationLabels.GetOptionalArg(idx)
+	rwObfuscationLabelsList := strings.Split(rwObfuscationLabels, "^^")
 
-		for _, label := range rwObfuscationLabelsList {
-			rwctx.obfuscationLabels[label] = struct{}{}
-		}
+	for _, label := range rwObfuscationLabelsList {
+		rwctx.obfuscationLabels[label] = struct{}{}
 	}
 }
 
@@ -35,6 +36,7 @@ func (rwctx *remoteWriteCtx) applyObfuscation(tss []prompb.TimeSeries) []prompb.
 				continue
 			}
 			if obfuscatedValue, ok := cacheObfuscatedResult[label.Value]; ok {
+				// fast path: the obfuscated result was calculated before
 				label.Value = obfuscatedValue
 			} else {
 				obfuscatedResult := sha256.Sum256([]byte(label.Value))
