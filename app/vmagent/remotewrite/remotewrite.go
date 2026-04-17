@@ -1034,14 +1034,6 @@ func (rwctx *remoteWriteCtx) TryPushTimeSeries(tss []prompb.TimeSeries, forceDro
 
 		matchIdxsPool.Put(matchIdxs)
 	}
-	if len(rwctx.obfuscationLabels) != 0 {
-		if rctx == nil {
-			rctx = getRelabelCtx()
-			v = tssPool.Get().(*[]prompb.TimeSeries)
-			tss = append(*v, tss...)
-		}
-		tss = rwctx.applyObfuscation(tss)
-	}
 	if rwctx.deduplicator != nil {
 		rwctx.deduplicator.Push(tss)
 		return true
@@ -1132,6 +1124,15 @@ func (rwctx *remoteWriteCtx) tryPushTimeSeriesInternal(tss []prompb.TimeSeries) 
 		v = tssPool.Get().(*[]prompb.TimeSeries)
 		tss = append(*v, tss...)
 		rctx.appendExtraLabels(tss, labelsGlobal)
+	}
+
+	if len(rwctx.obfuscationLabels) != 0 {
+		if rctx == nil {
+			rctx = getRelabelCtx()
+			v = tssPool.Get().(*[]prompb.TimeSeries)
+			tss = append(*v, tss...)
+		}
+		tss = rwctx.applyObfuscation(tss)
 	}
 
 	pss := rwctx.pss

@@ -542,9 +542,9 @@ Use `-remoteWrite.obfuscationLabels` to specify the labels that need to be obfus
 ```sh
 ./vmagent \
   -remoteWrite.url=http://<external-service> \
-  -remoteWrite.obfuscatedLabels='instance^^datacenter' \
+  -remoteWrite.obfuscationLabels='instance^^datacenter' \
   -remoteWrite.url=http://<internal-url> \
-  -remoteWrite.obfuscatedLabels='job'
+  -remoteWrite.obfuscationLabels='job'
 ```
 
 ## Automatically generated metrics

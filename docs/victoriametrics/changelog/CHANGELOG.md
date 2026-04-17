@@ -27,6 +27,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 ## tip
 
 ## [v1.140.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.140.0)
+* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): introduce obfuscation functionality for remote write. By setting `-remoteWrite.obfuscationLabels`, the values of the specific labels will be anonymized before they're sent to corresponding `-remoteWrite.url`. See [#10599](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10599).
 
 Released at 2026-04-10
 
