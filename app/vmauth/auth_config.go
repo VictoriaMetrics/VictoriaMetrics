@@ -517,6 +517,7 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 			continue
 		}
 
+		logger.Infof("try to resolve backend IPs for %s", host)
 		var resolvedAddrs []string
 		if strings.HasPrefix(host, "srv+") {
 			// The host has the format 'srv+realhost'. Strip 'srv+' prefix before performing the lookup.
@@ -544,6 +545,7 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 				resolvedAddrs = make([]string, len(addrs))
 				for i, addr := range addrs {
 					resolvedAddrs[i] = net.JoinHostPort(addr.String(), port)
+					logger.Infof("discover backend IPs for %s into %d addresses, one is %s", bu, len(resolvedAddrs), resolvedAddrs[i])
 				}
 			}
 		}
@@ -566,6 +568,7 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 
 	bus := up.bus.Load()
 	if areEqualBackendURLs(bus.bus, busNew.bus) {
+		logger.Infof("resolved addr are the same as the original one")
 		return
 	}
 
