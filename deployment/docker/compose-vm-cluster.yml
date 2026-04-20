@@ -125,7 +125,7 @@ services:
     ports:
       - 8880:8880
     volumes:
-      - ./rules/alerts-cluster.yml:/etc/alerts/alerts.yml
+      - ./rules/alerts-cluster.yml:/etc/alerts/alerts-cluster.yml
       - ./rules/alerts-health.yml:/etc/alerts/alerts-health.yml
       - ./rules/alerts-vmagent.yml:/etc/alerts/alerts-vmagent.yml
       - ./rules/alerts-vmalert.yml:/etc/alerts/alerts-vmalert.yml

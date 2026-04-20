@@ -66,7 +66,7 @@ services:
     ports:
       - 8880:8880
     volumes:
-      - ./rules/alerts.yml:/etc/alerts/alerts.yml
+      - ./rules/alerts-single-node.yml:/etc/alerts/alerts-single-node.yml
       - ./rules/alerts-health.yml:/etc/alerts/alerts-health.yml
       - ./rules/alerts-vmagent.yml:/etc/alerts/alerts-vmagent.yml
       - ./rules/alerts-vmalert.yml:/etc/alerts/alerts-vmalert.yml
