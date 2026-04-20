@@ -511,7 +511,6 @@ func Init(addrs []string, hashSeed uint64) {
 	setStorageNodesBucket(snb)
 	metadataSnb := initStorageNodes(addrs, vminsertapi.MetricMetadataRpcCall, hashSeed)
 	setMetadataStorageNodesBucket(metadataSnb)
-
 }
 
 // MustStop stops netstorage.
@@ -639,9 +638,10 @@ func getMaxBufSizePerInsertCtxStorageNode(mem, concurrency, netstorageCount int)
 // calculate getMaxBufSizePerStorageNode for storage nodes by:
 // 1. 25% total available memory.
 // 2. count of netstorage.
+// 3. count of storageNodesBucket.
 // 4. in range [1MB, 30MB], usually user won't reach the min border so it should be safe enough.
 func getMaxBufSizePerStorageNode(mem, netstorageCount int) int {
-	maxBufSize := mem / 4 / netstorageCount
+	maxBufSize := mem / 4 / netstorageCount / 2
 	maxBufSize = max(consts.MinInsertPacketSizeForVMInsert, min(consts.MaxInsertPacketSizeForVMInsert, maxBufSize))
 	return maxBufSize
 }
