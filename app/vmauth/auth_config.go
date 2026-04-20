@@ -365,6 +365,13 @@ type backendURLs struct {
 	healthChecksContext context.Context
 	healthChecksCancel  func()
 	healthChecksWG      sync.WaitGroup
+	// healthChecksStopMu serialises wg.Add in setBroken against wg.Wait
+	// in stopHealthChecks. Without it, a request that hits setBroken on
+	// the old bus right as a config reload drains the health-check wg
+	// could do wg.Add after the counter reached zero and trip
+	// "WaitGroup is reused before previous Wait has returned" (#10806).
+	healthChecksStopMu sync.Mutex
+	healthChecksStopped bool
 
 	bus []*backendURL
 }
@@ -382,12 +389,20 @@ func (bus *backendURLs) add(u *url.URL) {
 		url:                u,
 		healthCheckContext: bus.healthChecksContext,
 		healthCheckWG:      &bus.healthChecksWG,
+		healthChecksStopMu: &bus.healthChecksStopMu,
+		healthChecksStopped: &bus.healthChecksStopped,
 		hasPlaceHolders:    hasAnyPlaceholders(u),
 	})
 }
 
 func (bus *backendURLs) stopHealthChecks() {
 	bus.healthChecksCancel()
+	// Mark the bus stopped under the same mutex setBroken uses, so any
+	// in-flight setBroken either already completed its wg.Add before we
+	// Wait, or observes healthChecksStopped and skips the Add entirely.
+	bus.healthChecksStopMu.Lock()
+	bus.healthChecksStopped = true
+	bus.healthChecksStopMu.Unlock()
 	bus.healthChecksWG.Wait()
 }
 
@@ -396,6 +411,10 @@ type backendURL struct {
 
 	healthCheckContext context.Context
 	healthCheckWG      *sync.WaitGroup
+	// healthChecksStopMu/healthChecksStopped are shared with the parent
+	// backendURLs; see stopHealthChecks for the race they serialise.
+	healthChecksStopMu  *sync.Mutex
+	healthChecksStopped *bool
 
 	concurrentRequests atomic.Int32
 
@@ -410,10 +429,19 @@ func (bu *backendURL) isBroken() bool {
 
 func (bu *backendURL) setBroken() {
 	if bu.broken.CompareAndSwap(false, true) {
+		bu.healthChecksStopMu.Lock()
+		if *bu.healthChecksStopped {
+			// Parent backendURLs is being torn down; don't Add to its
+			// WaitGroup while stopHealthChecks is waiting on it.
+			bu.healthChecksStopMu.Unlock()
+			bu.broken.Store(false)
+			return
+		}
 		bu.healthCheckWG.Go(func() {
 			bu.runHealthCheck()
 			bu.broken.Store(false)
 		})
+		bu.healthChecksStopMu.Unlock()
 	}
 }
 
