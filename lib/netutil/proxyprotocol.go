@@ -128,8 +128,10 @@ func readProxyProto(r io.Reader) (net.Addr, error) {
 			if len(bb.B) < 36 {
 				return nil, fmt.Errorf("cannot read ipv6 address from proxy protocol block with the length %d bytes; expected at least 36 bytes", len(bb.B))
 			}
+			var ipv6Addr net.IP
+			ipv6Addr = append(ipv6Addr, bb.B[:16]...)
 			remoteAddr := &net.TCPAddr{
-				IP:   append(net.IP(nil), bb.B[:16]...),
+				IP:   ipv6Addr,
 				Port: int(binary.BigEndian.Uint16(bb.B[32:34])),
 			}
 			return remoteAddr, nil
