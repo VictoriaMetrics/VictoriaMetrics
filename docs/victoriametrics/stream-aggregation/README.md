@@ -604,7 +604,7 @@ the following settings:
 
 ## Counter resets
 
-If counter-specific outputs, such as `total*`, `rate*`, and `increase*`, exhibit values that are significantly higher than anticipated, it is advisable to examine the `vm_streamaggr_counter_resets_total` metric. The observation of frequent counter resets may indicate potential issues with the raw data, including possible series collisions.
+If counter-specific outputs, such as `total*`, `rate*`, and `increase*`, produce values that are significantly higher than anticipated, then check the `vm_streamaggr_counter_resets_total` metric. This metric increments each time when [counter reset event](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter) is happening and could be caused by duplication or collision of raw samples. If you observe duplication or collision - try solving this problem by either fixing the source of these metrics or by [deduplicating](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#deduplication) these samples before aggregation.
 
 ## Staleness
 
