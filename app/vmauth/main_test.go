@@ -1729,7 +1729,7 @@ func TestBufferRequestBody_Failure(t *testing.T) {
 	f := func(body *mockBody, expectedResponse string) {
 		t.Helper()
 
-		if err := maxRequestBodySizeToRetry.Set("0"); err != nil {
+		if err := maxRequestBodySizeToRetry.Set("2048"); err != nil {
 			t.Fatalf("cannot set maxRequestBodySizeToRetry: %s", err)
 		}
 		if err := requestBufferSize.Set("2048"); err != nil {
@@ -1850,7 +1850,7 @@ func TestBufferedBody_RetrySuccess(t *testing.T) {
 				t.Fatalf("cannot reset maxRequestBodySizeToRetry: %s", err)
 			}
 		}()
-		if err := maxRequestBodySizeToRetry.Set("0"); err != nil {
+		if err := maxRequestBodySizeToRetry.Set(fmt.Sprintf("%d", maxBodySize)); err != nil {
 			t.Fatalf("cannot set maxRequestBodySizeToRetry: %s", err)
 		}
 
@@ -1908,7 +1908,7 @@ func TestBufferedBody_RetrySuccessPartialRead(t *testing.T) {
 				t.Fatalf("cannot reset maxRequestBodySizeToRetry: %s", err)
 			}
 		}()
-		if err := maxRequestBodySizeToRetry.Set("0"); err != nil {
+		if err := maxRequestBodySizeToRetry.Set(fmt.Sprintf("%d", maxBodySize)); err != nil {
 			t.Fatalf("cannot set maxRequestBodySizeToRetry: %s", err)
 		}
 

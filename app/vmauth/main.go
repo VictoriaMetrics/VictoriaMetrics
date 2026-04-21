@@ -387,7 +387,7 @@ func bufferRequestBody(ctx context.Context, r io.ReadCloser, userName string) (i
 		}
 	}
 
-	bb := newBufferedBody(r, buf, maxBufSize)
+	bb := newBufferedBody(r, buf, maxBufSize, maxRequestBodySizeToRetry.IntN())
 	return bb, nil
 }
 
@@ -816,9 +816,15 @@ type bufferedBody struct {
 
 	// cannotRetry is set to true after Close() call on non-nil r.
 	cannotRetry bool
+
+	// maxRetrySize mirrors -maxRequestBodySizeToRetry at the time the body
+	// was buffered. A request is eligible for retry only when the whole
+	// body fits inside this limit; bodies buffered solely to satisfy
+	// -requestBufferSize must not be replayed.
+	maxRetrySize int
 }
 
-func newBufferedBody(r io.ReadCloser, buf []byte, maxBufSize int) *bufferedBody {
+func newBufferedBody(r io.ReadCloser, buf []byte, maxBufSize, maxRetrySize int) *bufferedBody {
 	// Do not use sync.Pool here, since http.RoundTrip may still use request body after return.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8051
 
@@ -828,8 +834,9 @@ func newBufferedBody(r io.ReadCloser, buf []byte, maxBufSize int) *bufferedBody 
 	}
 
 	return &bufferedBody{
-		r:   r,
-		buf: buf,
+		r:            r,
+		buf:          buf,
+		maxRetrySize: maxRetrySize,
 	}
 }
 
@@ -850,7 +857,11 @@ func (bb *bufferedBody) Read(p []byte) (int, error) {
 }
 
 func (bb *bufferedBody) canRetry() bool {
-	return bb.r == nil
+	// Disable retries when the user set -maxRequestBodySizeToRetry=0, even
+	// if the body fit in the -requestBufferSize buffer. Also refuse to
+	// retry bodies that were buffered only because -requestBufferSize was
+	// larger than -maxRequestBodySizeToRetry.
+	return bb.r == nil && bb.maxRetrySize > 0 && len(bb.buf) <= bb.maxRetrySize
 }
 
 // Close implements io.Closer interface.
