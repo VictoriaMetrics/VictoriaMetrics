@@ -1526,7 +1526,7 @@ It is recommended to protect the following endpoints with authKeys:
 As an alternative, you can serve internal API routes on a different listen address using the command-line flag `-httpInternalListenAddr=127.0.0.1:8426`{{% available_from "v1.111.0" %}}.
 To enable TLS on the public listener while keeping the internal listener non-TLS, configure multiple listeners like this:
 ```
-/path/to/vmauth -httpInternalListenAddr=,localhost:8426 -httpListenAddr=0.0.0.0:443, -tls=true,false
+/path/to/vmauth -httpInternalListenAddr=,localhost:8426 -httpListenAddr=0.0.0.0:443, -tls=true,false -tlsCertFile=xxx.crt -tlsKeyFile=yyy.key
 ```
 
 `vmauth` also supports restricting access by IP - see [these docs](#ip-filters). See also [concurrency limiting docs](#concurrency-limiting).
