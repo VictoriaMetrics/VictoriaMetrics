@@ -152,6 +152,8 @@ It enables back `Discovered targets` debug UI by default.
 
 ## [v1.136.4](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.136.4)
 
+**Update Note 1:** [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): Due to an ordering bug in binary operations, some queries may produce incorrect results. For example, `10 - (3 + 3 + 4)` is evaluated as `10 - 3 + 3 + 4`. The issue was introduced in versions v1.140.0, v1.136.4, v1.122.19, and is addressed in upcoming releases. It is strongly recommended to avoid these versions entirely. See [#10856](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10856).
+
 Released at 2026-04-10
 
 **v1.136.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
@@ -371,6 +373,8 @@ See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/ch
 See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2025/#v11230)
 
 ## [v1.122.19](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.19)
+
+**Update Note 1:** [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): Due to an ordering bug in binary operations, some queries may produce incorrect results. For example, `10 - (3 + 3 + 4)` is evaluated as `10 - 3 + 3 + 4`. The issue was introduced in versions v1.140.0, v1.136.4, v1.122.19, and is addressed in upcoming releases. It is strongly recommended to avoid these versions entirely. See [#10856](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10856).
 
 Released at 2026-04-10
 
