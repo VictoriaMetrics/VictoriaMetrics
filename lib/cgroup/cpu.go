@@ -109,6 +109,7 @@ func getCPUQuotaV2(sysfsPrefix, cgroupPath string) (float64, error) {
 	}
 	var minQuota float64 = -1
 	for {
+		// travers sub path hierarchy and use a minimal value for stat
 		data, err := os.ReadFile(path.Join(sysfsPrefix, subPath, "cpu.max"))
 		if err == nil {
 			quota, err := parseCPUMax(strings.TrimSpace(string(data)))

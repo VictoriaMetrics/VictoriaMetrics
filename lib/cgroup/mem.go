@@ -56,7 +56,6 @@ func getMemStatV2(statName string) (int64, error) {
 	return getMemLimitV2("/sys/fs/cgroup", "/proc/self/cgroup", statName)
 }
 
-// See https://www.freedesktop.org/software/systemd/man/latest/systemd.slice.html
 func getMemLimitV2(sysfsPrefix, cgroupPath, statName string) (int64, error) {
 	subPath, err := readCgroupV2SubPath(cgroupPath)
 	if err != nil {
@@ -64,6 +63,7 @@ func getMemLimitV2(sysfsPrefix, cgroupPath, statName string) (int64, error) {
 	}
 	var minLimit int64 = -1
 	for {
+		// travers sub path hierarchy and use a minimal value for stat
 		data, err := os.ReadFile(path.Join(sysfsPrefix, subPath, statName))
 		if err == nil {
 			s := strings.TrimSpace(string(data))
