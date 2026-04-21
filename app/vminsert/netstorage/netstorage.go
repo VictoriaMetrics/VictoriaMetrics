@@ -640,6 +640,9 @@ func getMaxBufSizePerInsertCtxStorageNode(mem, concurrency, netstorageCount int)
 // 2. count of netstorage.
 // 3. count of storageNodesBucket.
 // 4. in range [1MB, 30MB], usually user won't reach the min border so it should be safe enough.
+//
+// since each storage node has two buffers (data and metadata), the netstorageCount should be halved.
+// see: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10725#issuecomment-4282256709
 func getMaxBufSizePerStorageNode(mem, netstorageCount int) int {
 	maxBufSize := mem / 4 / netstorageCount / 2
 	maxBufSize = max(consts.MinInsertPacketSizeForVMInsert, min(consts.MaxInsertPacketSizeForVMInsert, maxBufSize))
