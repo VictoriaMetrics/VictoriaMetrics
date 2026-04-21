@@ -163,12 +163,12 @@ func TestGetMaxBufSizePerStorageNode(t *testing.T) {
 		}
 	}
 
-	// 1 GiB / 4 / 5 / 2 = ~25 MiB per node
+	// 1 GiB / 4 / 5 / 2 = ~25 MiB per node, ~5*2*25MiB = 250MiB = 1/4 of 1 GiB.
 	f(1*1024*1024*1024, 5, 26*1024*1024)
 
 	// many storages: 1 GiB / 4 / 50 / 2 = ~2.5 MiB, clamped to min 1 MiB
 	f(1*1024*1024*1024, 50, 2*1024*1024+600*1024)
 
 	// a lot of memory, few storages: clamped to max 30 MiB
-	f(100*1024*1024*1024, 2, 30*1024*1024)
+	f(1*1024*1024*1024, 1, 30*1024*1024)
 }
