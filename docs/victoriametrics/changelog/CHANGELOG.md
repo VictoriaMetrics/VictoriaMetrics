@@ -45,6 +45,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 Released at 2026-04-10
 
 **Update Note 1:** [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): [CSV export](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-export-csv-data) (`/api/v1/export/csv`) now adds a header row as the first line of the response, so existing CSV-processing scripts may need to skip this header. See [#10666](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10666).
+**Update Note 2:** [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): Due to an ordering bug in binary operations, some queries may produce incorrect results. For example, `10 - (3 + 3 + 4)` is evaluated as `10 - 3 + 3 + 4`. The issue was introduced in versions v1.140.0, v1.136.4, v1.122.19, and is addressed in upcoming releases. It is strongly recommended to avoid these versions entirely. See [#10856](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10856).
 
 * SECURITY: upgrade Go builder from Go1.26.1 to Go1.26.2. See [the list of issues addressed in Go1.26.2](https://github.com/golang/go/issues?q=milestone%3AGo1.26.2%20label%3ACherryPickApproved).
 
