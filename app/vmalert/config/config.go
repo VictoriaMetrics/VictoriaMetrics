@@ -222,6 +222,9 @@ func (r *Rule) Validate() error {
 	if r.Expr == "" {
 		return fmt.Errorf("expression can't be empty")
 	}
+	if r.Labels["__name__"] != "" {
+		return fmt.Errorf("invalid rule label __name__")
+	}
 	return checkOverflow(r.XXX, "rule")
 }
 
