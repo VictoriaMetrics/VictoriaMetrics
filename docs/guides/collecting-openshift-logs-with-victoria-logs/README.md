@@ -17,11 +17,11 @@ This guide explains how to collect and store logs from an OpenShift cluster in V
 * [Helm installed](https://helm.sh/docs/intro/install)
 
 > [!NOTE] Note
-> You can replace every `kubectl` command in this guide for `oc`. They are intercheangeable in most cases on OpenShift clusters.
+> You can replace every `kubectl` command in this guide with `oc`. They are interchangeable in most cases on OpenShift clusters.
 
 ## Overview
 
-To collect OpenShift logs we're going to:
+To collect OpenShift logs, we're going to:
 
 1. Install VictoriaLogs in the OpenShift Cluster
 2. Configure a service account to access the logs
@@ -72,9 +72,9 @@ podSecurityContext:
 EOF
 ```
 
-> Note, that depending on the OpenShift cluster configuration, additional security settings might be required.
+> Note that, depending on the OpenShift cluster configuration, additional security settings might be required.
 
-Create namespace for VictoriaLogs called `vl`:
+Create a namespace for VictoriaLogs called `vl`:
 
 ```shell
 kubectl create namespace vl
@@ -118,7 +118,7 @@ Read Data:
   See the documentation for log querying UI at https://docs.victoriametrics.com/victorialogs/querying/#web-ui or HTTP API at https://docs.victoriametrics.com/victorialogs/querying/#http-api
 ```
 
-Note the "Write URL" value as you'll need it later. In the example above the value is:
+Note the "Write URL" value as you'll need it later. In the example above, the value is:
 
 ```text
 http://vl-victoria-logs-single-server.vl.svc.cluster.local.:9428
@@ -127,7 +127,7 @@ http://vl-victoria-logs-single-server.vl.svc.cluster.local.:9428
 ## RBAC Configuration
 
 Create a service account and cluster role binding for the service account to access the logs. 
-OpenShift provides separate `ClusterRoles` for monitoring of different types of logs: `audit`, `infrastructure` and `application`. 
+OpenShift provides separate `ClusterRoles` for monitoring of different types of logs: `audit`, `infrastructure`, and `application`. 
 
 Create a file to configure the service accounts with:
 
@@ -185,7 +185,7 @@ Install the roles in OpenShift with:
 kubectl apply -f vl-rbac.yml
 ```
 
-Alternatively, you can use OpenShift web console to create the service account and cluster role binding. To do this:
+Alternatively, you can use the OpenShift web console to create the service account and cluster role binding. To do this:
 
 1. Navigate to **ServiceAccounts**.
 2. Click on **Create Service Account**.
@@ -196,7 +196,7 @@ Alternatively, you can use OpenShift web console to create the service account a
 
 ## Install Red Hat OpenShift Logging operator 
 
-The [Cluster logging operator](https://github.com/openshift/cluster-logging-operator) is a logging solution to support aggregated cluster logging. It is using [Vector](https://vector.dev/) for logs collection and shipping to remote storage.
+The [Cluster logging operator](https://github.com/openshift/cluster-logging-operator) is a logging solution to support aggregated cluster logging. It is using [Vector](https://vector.dev/) for log collection and shipping to remote storage.
 
 To install the operator:
 
@@ -295,7 +295,7 @@ First, find the service name for the VMUI with:
 kubectl get svc -n vl -l app.kubernetes.io/instance=vl
 ```
 
-You should get a result similar to this, note the name of the service
+You should get a result similar to this. Note the name of the service:
 
 ```text
 NAME                             TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)    AGE
@@ -308,7 +308,7 @@ Then, port-forward the VMUI service console with:
 kubectl -n vl port-forward svc/vl-victoria-logs-single-server 9428:9428
 ```
 
-Open your browser in `http://localhost:9428/select/vmui/#/overview` and verify that logs are being collected. This overview page the amount of log entries being consumed in real time.
+Open your browser in `http://localhost:9428/select/vmui/#/overview` and verify that logs are being collected. This overview page shows the number of log entries being consumed in real time.
 
 ![Screenshot of VMUI for VictoriaLogs](vmui-overview.webp)
 <figcaption style="text-align: center; font-style: italic;">Overview pane in VMUI</figcaption>
