@@ -39,6 +39,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * BUGFIX: [vmrestore](https://docs.victoriametrics.com/victoriametrics/vmrestore/): fix an issue where vmrestore could hang indefinitely when interrupted during backup download. See [#10794](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10794).
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): properly execute graceful shutdown for vmsingle if `-maxIngestionRate` is configured. See [#10795](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10795).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): fix time display on Alerting Rules page to use selected timezone. See [#10827](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10827).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): delete labels from rule results if they are specified with an empty string value in rule or group labels. See [#10766](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10766).
 
 ## [v1.140.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.140.0)
 
