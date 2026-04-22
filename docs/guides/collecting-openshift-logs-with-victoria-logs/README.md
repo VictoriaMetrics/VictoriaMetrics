@@ -25,7 +25,7 @@ To collect OpenShift logs, we're going to:
 
 1. Install VictoriaLogs in the OpenShift Cluster
 2. Configure a service account to access the logs
-3. Install the ClusterLogger operator
+3. Install the OpenShift Logging operator
 4. Configure a Log Forwarder
 5. Test log ingestion in VictoriaLogs
 
@@ -44,7 +44,7 @@ To verify that everything is set up correctly, you may run this command:
 helm search repo vm/
 ```
 
-You should get a list of charts similar to this:
+You should get a list similar to this:
 
 ```text
 NAME                                    CHART VERSION   APP VERSION     DESCRIPTION
@@ -102,7 +102,7 @@ The VictoriaLogs write api can be accessed via port 9428 on the following DNS na
     vl-victoria-logs-single-server-0.vl-victoria-logs-single-server.vl.svc.cluster.local.
 
 Logs Ingestion:
-  Get the Victoria Logs service URL by running these commands in the same shell:
+  Get the VictoriaLogs service URL by running these commands in the same shell:
     kubectl --namespace vl port-forward svc/vl-victoria-logs-single-server 9428:9428
     echo http://localhost:9428
 
@@ -126,10 +126,10 @@ http://vl-victoria-logs-single-server.vl.svc.cluster.local.:9428
 
 ## RBAC Configuration
 
-Create a service account and cluster role binding for the service account to access the logs. 
+Create a service account and cluster role binding for the service account to collect and forward the logs.
 OpenShift provides separate `ClusterRoles` for monitoring of different types of logs: `audit`, `infrastructure`, and `application`. 
 
-Create a file to configure the service accounts with:
+Create a file to configure the service account and cluster role bindings:
 
 ```shell
 cat <<EOF >vl-rbac.yml
@@ -252,7 +252,7 @@ spec:
         - application
       name: application
       outputRefs:
-        - victorialogs-audit
+        - victorialogs
     - inputRefs:
         - infrastructure
       name: infrastructure
@@ -262,7 +262,7 @@ spec:
         - audit
       name: audit
       outputRefs:
-        - victorialogs
+        - victorialogs-audit
   serviceAccount:
     name: victorialogs
 EOF
