@@ -1513,8 +1513,7 @@ VictoriaMetrics does not support indefinite retention, but you can specify an ar
 
 By default, VictoriaMetrics doesn't accept samples with timestamps bigger than `now+2d`, e.g. 2 days in the future.
 If you need accepting samples with bigger timestamps, then specify the desired "future retention" via `-futureRetention` command-line flag.
-This flag accepts values starting from `2d`. See [these docs](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations)
-for the supported duration formats.
+This flag accepts values starting from `2d`.
 
 For example, the following command starts VictoriaMetrics, which accepts samples with timestamps up to a year in the future:
 
