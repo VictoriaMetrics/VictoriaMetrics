@@ -137,10 +137,12 @@ func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	mergeset.SetDataBlocksSparseCacheSize(cacheSizeIndexDBDataBlocksSparse.IntN())
 
 	if retentionPeriod.Duration() < 24*time.Hour {
-		logger.Fatalf("-retentionPeriod cannot be smaller than a day; got %s", retentionPeriod)
+		logger.Fatalf("-retentionPeriod cannot be smaller than a day; got %s. "+
+			"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention", retentionPeriod)
 	}
 	if futureRetention.Duration() < 2*24*time.Hour {
-		logger.Fatalf("-futureRetention cannot be smaller than 2 days; got %s", futureRetention)
+		logger.Fatalf("-futureRetention cannot be smaller than 2 days; got %s. "+
+			"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention", futureRetention)
 	}
 	if *idbPrefillStart > 23*time.Hour {
 		logger.Panicf("-storage.idbPrefillStart cannot exceed 23 hours; got %s", idbPrefillStart)
