@@ -4238,8 +4238,6 @@ func TestStorage_futureTimestamps(t *testing.T) {
 	futureRetention := time.Duration(math.MaxInt64)
 
 	f := func(t *testing.T, tr TimeRange) {
-		t.Helper()
-
 		want := genData("batch1", tr)
 
 		s := MustOpenStorage(t.Name(), OpenOptions{
