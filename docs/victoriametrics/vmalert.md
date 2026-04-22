@@ -284,9 +284,12 @@ expr: <string>
 # Available starting from https://docs.victoriametrics.com/victoriametrics/changelog/#v1860
 [ update_entries_limit: <integer> | default 0 ]
 
-# Labels to add or overwrite for each alert.
+# Labels to add or overwrite labels from other external label sources, such as group labels, for each alert.
 # Labels are merged with labels received from `expr` evaluation and uniquely identify each generated alert.
+#
 # In case of conflicts, original labels are kept with prefix `exported_`.
+# As a special case, specifying a label with an empty string value removes the label from the result if it exists 
+# in the original query result; otherwise, it is ignored.
 #
 # Labels only support limited templating variables in https://docs.victoriametrics.com/victoriametrics/vmalert/#templating,
 # including `$labels`, `$value` and `$expr`, to avoid breaking alert states or causing cardinality issue with results.
@@ -416,8 +419,11 @@ record: <string>
 # must contain valid Graphite expression.
 expr: <string>
 
-# Labels to add or overwrite before storing the result.
+# Labels to add or overwrite labels from other external label sources, such as group labels, before storing the result.
+#
 # In case of conflicts, original labels are kept with prefix `exported_`.
+# As a special case, specifying a label with an empty string value removes the label from the result if it exists 
+# in the original query result; otherwise, it is ignored.
 #
 # Labels do not support templating in https://docs.victoriametrics.com/victoriametrics/vmalert/#templating due to cardinality concerns. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8171.
 labels:
