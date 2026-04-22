@@ -1,19 +1,21 @@
 import { useMemo } from "preact/compat";
 import "./style.scss";
-import { Rule as APIRule } from "../../../types";
-import { useNavigate, createSearchParams } from "react-router-dom";
+import { Group, Rule as APIRule } from "../../../types";
+import { useNavigate, Link } from "react-router-dom";
 import { SearchIcon, DetailsIcon } from "../../Main/Icons";
 import Button from "../../Main/Button/Button";
 import Alert from "../../Main/Alert/Alert";
 import Badges, { BadgeColor } from "../Badges";
 import { formatDuration, formatEventTime } from "../helpers";
 import CodeExample from "../../Main/CodeExample/CodeExample";
+import router from "../../../router";
 
 interface BaseRuleProps {
   item: APIRule;
+  group?: Group;
 }
 
-const BaseRule = ({ item }: BaseRuleProps) => {
+const BaseRule = ({ item, group }: BaseRuleProps) => {
   const query = item?.query;
   const navigate = useNavigate();
   const openAlertLink = (id: string) => {
@@ -33,13 +35,19 @@ const BaseRule = ({ item }: BaseRuleProps) => {
     }]));
   }, [ruleLabels]);
 
-  const openQueryLink = () => {
-    const params = {
+  const queryLink = useMemo(() => {
+    if (!group?.interval) return;
+
+    const params = new URLSearchParams({
       "g0.expr": query,
-      "g0.end_time": ""
-    };
-    window.open(`#/?${createSearchParams(params).toString()}`, "_blank", "noopener noreferrer");
-  };
+      "g0.end_time": item.lastEvaluation,
+      // Interval is the Group's evaluation interval in float seconds as present in the file. See: /app/vmalert/rule/web.go
+      "g0.step_input": `${group.interval}s`,
+      "g0.relative_time": "none",
+    });
+
+    return `${router.home}?${params.toString()}`;
+  }, [query, item.lastEvaluation, group?.interval]);
 
   return (
     <div className="vm-explore-alerts-rule-item">
@@ -54,15 +62,22 @@ const BaseRule = ({ item }: BaseRuleProps) => {
               style={{ "text-align": "end" }}
               colSpan={2}
             >
-              <Button
-                size="small"
-                variant="outlined"
-                color="gray"
-                startIcon={<SearchIcon />}
-                onClick={openQueryLink}
-              >
-                <span className="vm-button-text">Run query</span>
-              </Button>
+              {queryLink && (
+                <Link
+                  to={queryLink}
+                  target={"_blank"}
+                  rel="noreferrer"
+                >
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    color="gray"
+                    startIcon={<SearchIcon />}
+                  >
+                    <span className="vm-button-text">Run query</span>
+                  </Button>
+                </Link>
+              )}
             </td>
           </tr>
           <tr>

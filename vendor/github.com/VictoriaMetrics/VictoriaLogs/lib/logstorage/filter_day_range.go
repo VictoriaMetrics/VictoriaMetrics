@@ -23,6 +23,15 @@ type filterDayRange struct {
 	stringRepr string
 }
 
+func newFilterDayRange(start, end, offset int64, stringRepr string) *filterDayRange {
+	return &filterDayRange{
+		start:      start,
+		end:        end,
+		offset:     offset,
+		stringRepr: stringRepr,
+	}
+}
+
 func (fr *filterDayRange) String() string {
 	return "_time:day_range" + fr.stringRepr
 }

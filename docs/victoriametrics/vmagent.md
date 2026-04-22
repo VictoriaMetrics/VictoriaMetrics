@@ -146,6 +146,12 @@ and then it sends the buffered data to the remote storage in order to prevent da
 so there is no need to specify multiple `-remoteWrite.url` flags when writing data to the same cluster.
 See [these docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety).
 
+### Relabeling and filtering
+
+`vmagent` can add, remove or update labels on the collected data before sending it to the remote storage.
+It can filter scrape targets or remove unwanted samples via Prometheus-like relabeling.
+Please see [Relabeling cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/) for details.
+
 ### Sharding among remote storages
 
 By default `vmagent` replicates data to remote storage systems via the `-remoteWrite.url` command-line flag.
@@ -187,12 +193,6 @@ except for the labels `instance` and `pod` must be routed to the same backend. I
 `-remoteWrite.shardByURL.ignoreLabels` command-line flag: `-remoteWrite.shardByURL.ignoreLabels=instance,pod`.
 
 See also [how to scrape large number of targets](#scraping-big-number-of-targets).
-
-### Relabeling and filtering
-
-`vmagent` can add, remove or update labels on the collected data before sending it to the remote storage. Additionally,
-it can remove unwanted samples via Prometheus-like relabeling before sending the collected data to remote storage.
-Please see [Relabeling cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/) for details.
 
 ### Splitting data streams among multiple systems
 

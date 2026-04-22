@@ -1,6 +1,14 @@
 # Changes
 
 
+## [1.62.1](https://github.com/googleapis/google-cloud-go/releases/tag/storage%2Fv1.62.1) (2026-04-13)
+
+### Bug Fixes
+
+* Add retry logic for "http2: client connection lost" ([df22e9e](https://github.com/googleapis/google-cloud-go/commit/df22e9e38ea6de00d858ef00475ae286d3fc6834))
+
+* Remove redundant gRPC imports from grpc_dp_diag.go ([c5511e2](https://github.com/googleapis/google-cloud-go/commit/c5511e2101cefbf8b6e54193e39382e86b49d822))
+
 ## [1.62.0](https://github.com/googleapis/google-cloud-go/releases/tag/storage%2Fv1.62.0) (2026-04-06)
 
 ### Features
