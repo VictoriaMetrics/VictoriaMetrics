@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -24,6 +23,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/metrics"
+	"github.com/cespare/xxhash/v2"
 	"gopkg.in/yaml.v2"
 )
 
@@ -257,6 +257,10 @@ type Config struct {
 type Aggregators struct {
 	as []*aggregator
 
+	// workCh limits the number of concurrent aggregator.Push calls.
+	// Pre-allocated once to avoid per-Push channel allocation.
+	workCh chan struct{}
+
 	// configData contains marshaled configs.
 	// It is used in Equal() for comparing Aggregators.
 	configData []byte
@@ -287,6 +291,7 @@ func loadFromData(data []byte, filePath string, pushFunc PushFunc, opts *Options
 	}
 
 	ms := metrics.NewSet()
+
 	as := make([]*aggregator, len(cfgs))
 	for i, cfg := range cfgs {
 		a, err := newAggregator(cfg, filePath, pushFunc, ms, opts, alias, i+1)
@@ -307,6 +312,7 @@ func loadFromData(data []byte, filePath string, pushFunc PushFunc, opts *Options
 	metrics.RegisterSet(ms)
 	return &Aggregators{
 		as:         as,
+		workCh:     make(chan struct{}, cgroup.AvailableCPUs()),
 		configData: configData,
 		filePath:   filePath,
 		ms:         ms,
@@ -364,19 +370,21 @@ func (a *Aggregators) Push(tss []prompb.TimeSeries, matchIdxs []uint32) []uint32
 		return matchIdxs
 	}
 
-	// use all available CPU cores to copy time-series into aggregators
-	// See this issue https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9878
-	var wg sync.WaitGroup
-	concurrencyChan := make(chan struct{}, cgroup.AvailableCPUs())
-
-	for _, aggr := range a.as {
-		concurrencyChan <- struct{}{}
-		wg.Go(func() {
-			aggr.Push(tss, matchIdxs)
-			<-concurrencyChan
-		})
+	if len(a.as) == 1 {
+		a.as[0].Push(tss, matchIdxs)
+		return matchIdxs
 	}
 
+	// Use all available CPU cores to push time-series into aggregators in parallel.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9878
+	var wg sync.WaitGroup
+	for _, aggr := range a.as {
+		a.workCh <- struct{}{}
+		wg.Go(func() {
+			aggr.Push(tss, matchIdxs)
+			<-a.workCh
+		})
+	}
 	wg.Wait()
 
 	return matchIdxs
@@ -413,8 +421,8 @@ type aggregator struct {
 	ignoreOldSamples bool
 	enableWindows    bool
 
-	by                  []string
-	without             []string
+	bySet               map[string]struct{}
+	withoutSet          map[string]struct{}
 	aggregateOnlyByTime bool
 
 	// interval is the interval between flushes
@@ -445,6 +453,8 @@ type aggregator struct {
 	// For example, foo_bar metric name is transformed to foo_bar:1m_by_job
 	// for `interval: 1m`, `by: [job]`
 	suffix string
+
+	seriesKeyCache seriesKeyCache
 
 	wg     sync.WaitGroup
 	stopCh chan struct{}
@@ -645,8 +655,8 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 		enableWindows:     enableWindows,
 		stalenessInterval: stalenessInterval,
 
-		by:                  by,
-		without:             without,
+		bySet:               makeStringSet(by),
+		withoutSet:          makeStringSet(without),
 		aggregateOnlyByTime: aggregateOnlyByTime,
 
 		interval:      interval,
@@ -708,6 +718,8 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 		cs.maxDeadline = minTime.Add(a.interval).UnixMilli()
 	}
 	a.cs.Store(cs)
+
+	lc.Register(a.stalenessInterval)
 
 	a.wg.Go(func() {
 		a.runFlusher(pushFunc, alignFlushToInterval, skipFlushOnShutdown, ignoreFirstIntervals)
@@ -915,6 +927,7 @@ func (a *aggregator) dedupFlush(dedupTime time.Time, cs *currentState) {
 //
 // If pushFunc is nil, then the aggregator state is just reset.
 func (a *aggregator) flush(pushFunc PushFunc, flushTime time.Time, cs *currentState, isLast bool) {
+	a.seriesKeyCache.reset()
 	startTime := time.Now()
 	ao := a.aggrOutputs
 
@@ -943,6 +956,7 @@ var flushConcurrencyCh = make(chan struct{}, cgroup.AvailableCPUs())
 //
 // The aggregator stops pushing the aggregated metrics after this call.
 func (a *aggregator) MustStop() {
+	lc.Unregister(a.stalenessInterval)
 	close(a.stopCh)
 	a.wg.Wait()
 }
@@ -952,7 +966,6 @@ func (a *aggregator) Push(tss []prompb.TimeSeries, matchIdxs []uint32) {
 	ctx := getPushCtx()
 	defer putPushCtx(ctx)
 
-	buf := ctx.buf
 	labels := &ctx.labels
 	inputLabels := &ctx.inputLabels
 	outputLabels := &ctx.outputLabels
@@ -986,19 +999,22 @@ func (a *aggregator) Push(tss []prompb.TimeSeries, matchIdxs []uint32) {
 		}
 		labels.Sort()
 
-		inputLabels.Reset()
-		outputLabels.Reset()
-		if !a.aggregateOnlyByTime {
-			inputLabels.Labels, outputLabels.Labels = getInputOutputLabels(inputLabels.Labels, outputLabels.Labels, labels.Labels, a.by, a.without)
-		} else {
-			outputLabels.Labels = append(outputLabels.Labels, labels.Labels...)
+		h := computeLabelsFingerprint(labels.Labels)
+		gen := lc.Generation()
+		key, ok := a.seriesKeyCache.get(h, gen)
+		if !ok {
+			inputLabels.Reset()
+			outputLabels.Reset()
+			if !a.aggregateOnlyByTime {
+				inputLabels.Labels, outputLabels.Labels = getInputOutputLabels(inputLabels.Labels, outputLabels.Labels, labels.Labels, a.bySet, a.withoutSet)
+			} else {
+				outputLabels.Labels = append(outputLabels.Labels, labels.Labels...)
+			}
+			bufLen := len(ctx.buf)
+			ctx.compressLabels(inputLabels.Labels, outputLabels.Labels)
+			key = string(ctx.buf[bufLen:])
+			a.seriesKeyCache.set(h, gen, key)
 		}
-
-		bufLen := len(buf)
-		buf = compressLabels(buf, inputLabels.Labels, outputLabels.Labels)
-		// key remains valid only by the end of this function and can't be reused after
-		// do not intern key because number of unique keys could be too high
-		key := bytesutil.ToUnsafeString(buf[bufLen:])
 		for _, s := range ts.Samples {
 			if math.IsNaN(s.Value) {
 				// Skip NaN values
@@ -1042,8 +1058,6 @@ func (a *aggregator) Push(tss []prompb.TimeSeries, matchIdxs []uint32) {
 	}
 	a.samplesLag.Update(float64(maxLagMsec) / 1_000)
 
-	ctx.buf = buf
-
 	pushSamples := a.aggrOutputs.pushSamples
 	if a.da != nil {
 		pushSamples = a.da.pushSamples
@@ -1060,18 +1074,13 @@ func (a *aggregator) Push(tss []prompb.TimeSeries, matchIdxs []uint32) {
 	}
 }
 
-func compressLabels(dst []byte, inputLabels, outputLabels []prompb.Label) []byte {
-	bb := bbPool.Get()
-	bb.B = lc.Compress(bb.B, outputLabels)
-	dst = encoding.MarshalVarUint64(dst, uint64(len(bb.B)))
-	dst = append(dst, bb.B...)
-	bbPool.Put(bb)
-	dst = lc.Compress(dst, inputLabels)
-	return dst
-}
-
-func decompressLabels(dst []prompb.Label, key string) []prompb.Label {
-	return lc.Decompress(dst, bytesutil.ToUnsafeBytes(key))
+func (ctx *pushCtx) compressLabels(inputLabels, outputLabels []prompb.Label) {
+	ctx.keybuf = lc.Compress(ctx.keybuf[:0], outputLabels)
+	ctx.buf = encoding.MarshalVarUint64(ctx.buf, uint64(len(ctx.keybuf)))
+	ctx.buf = append(ctx.buf, ctx.keybuf...)
+	if len(inputLabels) > 0 {
+		ctx.buf = lc.Compress(ctx.buf, inputLabels)
+	}
 }
 
 type pushCtx struct {
@@ -1081,6 +1090,7 @@ type pushCtx struct {
 	inputLabels  promutil.Labels
 	outputLabels promutil.Labels
 	buf          []byte
+	keybuf       []byte
 }
 
 func (ctx *pushCtx) reset() {
@@ -1115,10 +1125,10 @@ func putPushCtx(ctx *pushCtx) {
 
 var pushCtxPool sync.Pool
 
-func getInputOutputLabels(dstInput, dstOutput, labels []prompb.Label, by, without []string) ([]prompb.Label, []prompb.Label) {
-	if len(without) > 0 {
+func getInputOutputLabels(dstInput, dstOutput, labels []prompb.Label, bySet, withoutSet map[string]struct{}) ([]prompb.Label, []prompb.Label) {
+	if len(withoutSet) > 0 {
 		for _, label := range labels {
-			if slices.Contains(without, label.Name) {
+			if _, ok := withoutSet[label.Name]; ok {
 				dstInput = append(dstInput, label)
 			} else {
 				dstOutput = append(dstOutput, label)
@@ -1126,7 +1136,7 @@ func getInputOutputLabels(dstInput, dstOutput, labels []prompb.Label, by, withou
 		}
 	} else {
 		for _, label := range labels {
-			if !slices.Contains(by, label.Name) {
+			if _, ok := bySet[label.Name]; !ok {
 				dstInput = append(dstInput, label)
 			} else {
 				dstOutput = append(dstOutput, label)
@@ -1134,6 +1144,17 @@ func getInputOutputLabels(dstInput, dstOutput, labels []prompb.Label, by, withou
 		}
 	}
 	return dstInput, dstOutput
+}
+
+func makeStringSet(keys []string) map[string]struct{} {
+	if len(keys) == 0 {
+		return nil
+	}
+	m := make(map[string]struct{}, len(keys))
+	for _, k := range keys {
+		m[k] = struct{}{}
+	}
+	return m
 }
 
 func getFlushCtx(a *aggregator, ao *aggrOutputs, pushFunc PushFunc, flushTimestamp int64, isLast bool) *flushCtx {
@@ -1235,7 +1256,7 @@ func (ctx *flushCtx) flushSeries() {
 func (ctx *flushCtx) appendSeries(key, suffix string, value float64) {
 	labelsLen := len(ctx.labels)
 	samplesLen := len(ctx.samples)
-	ctx.labels = decompressLabels(ctx.labels, key)
+	ctx.labels = lc.Decompress(ctx.labels, bytesutil.ToUnsafeBytes(key))
 	if !ctx.a.keepMetricNames {
 		ctx.labels = addMetricSuffix(ctx.labels, labelsLen, ctx.a.suffix, suffix)
 	}
@@ -1257,7 +1278,7 @@ func (ctx *flushCtx) appendSeries(key, suffix string, value float64) {
 func (ctx *flushCtx) appendSeriesWithExtraLabel(key, suffix string, value float64, extraName, extraValue string) {
 	labelsLen := len(ctx.labels)
 	samplesLen := len(ctx.samples)
-	ctx.labels = decompressLabels(ctx.labels, key)
+	ctx.labels = lc.Decompress(ctx.labels, bytesutil.ToUnsafeBytes(key))
 	if !ctx.a.keepMetricNames {
 		ctx.labels = addMetricSuffix(ctx.labels, labelsLen, ctx.a.suffix, suffix)
 	}
@@ -1345,3 +1366,74 @@ func sortAndRemoveDuplicates(a []string) []string {
 }
 
 var bbPool bytesutil.ByteBufferPool
+
+type seriesKeyCache struct {
+	shards [64]seriesKeyCacheShard
+}
+
+type seriesKeyCacheShard struct {
+	mu sync.RWMutex
+	m  map[uint64]seriesCacheEntry
+	_  [32]byte // cache-line padding
+}
+
+type seriesCacheEntry struct {
+	generation uint64
+	key        string
+}
+
+func (c *seriesKeyCache) get(h, generation uint64) (string, bool) {
+	shard := &c.shards[h>>58]
+	shard.mu.RLock()
+	e, ok := shard.m[h]
+	shard.mu.RUnlock()
+	if !ok || e.generation != generation {
+		return "", false
+	}
+	return e.key, true
+}
+
+func (c *seriesKeyCache) set(h, generation uint64, key string) {
+	shard := &c.shards[h>>58]
+	shard.mu.Lock()
+	if shard.m == nil {
+		shard.m = make(map[uint64]seriesCacheEntry)
+	}
+	shard.m[h] = seriesCacheEntry{generation: generation, key: key}
+	shard.mu.Unlock()
+}
+
+func (c *seriesKeyCache) reset() {
+	for i := range c.shards {
+		shard := &c.shards[i]
+		shard.mu.Lock()
+		shard.m = nil
+		shard.mu.Unlock()
+	}
+}
+
+func computeLabelsFingerprint(labels []prompb.Label) uint64 {
+	var buf [512]byte
+	n := 0
+	for i, l := range labels {
+		need := len(l.Name) + 1 + len(l.Value) + 1
+		if n+need > len(buf) {
+			b := make([]byte, n, n+need*2)
+			copy(b, buf[:n])
+			for _, l2 := range labels[i:] {
+				b = append(b, l2.Name...)
+				b = append(b, '\x00')
+				b = append(b, l2.Value...)
+				b = append(b, '\x00')
+			}
+			return xxhash.Sum64(b)
+		}
+		n += copy(buf[n:], l.Name)
+		buf[n] = '\x00'
+		n++
+		n += copy(buf[n:], l.Value)
+		buf[n] = '\x00'
+		n++
+	}
+	return xxhash.Sum64(buf[:n])
+}

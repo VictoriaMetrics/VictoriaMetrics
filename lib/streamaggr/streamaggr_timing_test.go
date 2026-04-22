@@ -45,13 +45,16 @@ func benchmarkAggregatorsPush(b *testing.B, output string) {
 	a := newBenchAggregators([]string{output}, pushFunc)
 	defer a.MustStop()
 
+	// Warm up the LabelsCompressor so benchmark measures steady-state performance.
+	a.Push(benchSeries, nil)
+
 	const loops = 100
 
 	b.ResetTimer()
 	b.ReportAllocs()
 	b.SetBytes(int64(len(benchSeries) * loops))
 	b.RunParallel(func(pb *testing.PB) {
-		var matchIdxs []uint32
+		matchIdxs := make([]uint32, len(benchSeries))
 		for pb.Next() {
 			for range loops {
 				matchIdxs = a.Push(benchSeries, matchIdxs)
@@ -82,8 +85,8 @@ func newBenchAggregators(outputs []string, pushFunc PushFunc) *Aggregators {
 func newBenchSeries(seriesCount int) []prompb.TimeSeries {
 	a := make([]string, 0, seriesCount)
 	for j := range seriesCount {
-		s := fmt.Sprintf(`http_requests_total{path="/foo/%d",job="foo_%d",instance="bar",pod="pod-123232312",namespace="kube-foo-bar",node="node-123-3434-443",`+
-			`some_other_label="foo-bar-baz",environment="prod",label1="value1",label2="value2",label3="value3"} %d`, j, j%100, j*1000)
+		s := fmt.Sprintf(`http_requests_total{environment="prod",instance="bar",job="foo_%d",label1="value1",label2="value2",label3="value3",`+
+			`namespace="kube-foo-bar",node="node-123-3434-443",path="/foo/%d",pod="pod-123232312",some_other_label="foo-bar-baz"} %d`, j%100, j, j*1000)
 		a = append(a, s)
 	}
 	metrics := strings.Join(a, "\n")
@@ -101,13 +104,16 @@ func BenchmarkConcurrentAggregatorsPush(b *testing.B) {
 	a := newPerOutputBenchAggregators(benchOutputs, pushFunc)
 	defer a.MustStop()
 
+	// Warm up the LabelsCompressor so benchmark measures steady-state performance.
+	a.Push(benchSeries, nil)
+
 	const loops = 100
 
 	b.ResetTimer()
 	b.ReportAllocs()
 	b.SetBytes(int64(len(benchSeries) * loops))
 	b.RunParallel(func(pb *testing.PB) {
-		var matchIdxs []uint32
+		matchIdxs := make([]uint32, len(benchSeries))
 		for pb.Next() {
 			for range loops {
 				matchIdxs = a.Push(benchSeries, matchIdxs)
@@ -117,21 +123,17 @@ func BenchmarkConcurrentAggregatorsPush(b *testing.B) {
 }
 
 func newPerOutputBenchAggregators(outputs []string, pushFunc PushFunc) *Aggregators {
-	outputsQuoted := make([]string, len(outputs))
-	var config string
-	for i := range outputs {
-		outputsQuoted[i] = stringsutil.JSONString(outputs[i])
-		cfg := fmt.Sprintf(`
+	var b strings.Builder
+	for _, output := range outputs {
+		fmt.Fprintf(&b, `
 - match: http_requests_total
   interval: 24h
   by: [job]
   outputs: [%s]
-`, stringsutil.JSONString(outputs[i]))
-		config += cfg
-
+`, stringsutil.JSONString(output))
 	}
 
-	a, err := LoadFromData([]byte(config), pushFunc, nil, "some_alias")
+	a, err := LoadFromData([]byte(b.String()), pushFunc, nil, "some_alias")
 	if err != nil {
 		panic(fmt.Errorf("unexpected error when initializing aggregators: %s", err))
 	}
