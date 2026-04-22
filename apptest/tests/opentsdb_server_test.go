@@ -11,25 +11,25 @@ import (
 	"testing"
 )
 
-// OpenTSDBPoint is a single data point served by the mock OpenTSDB server.
-type OpenTSDBPoint struct {
+// openTSDBPoint is a single data point served by the mock OpenTSDB server.
+type openTSDBPoint struct {
 	Metric    string
 	Tags      map[string]string
 	Timestamp int64
 	Value     float64
 }
 
-// OpenTSDBMockServer implements the minimal subset of the OpenTSDB HTTP API
+// openTSDBMockServer implements the minimal subset of the OpenTSDB HTTP API
 // used by vmctl opentsdb: /api/suggest, /api/search/lookup, /api/query.
-type OpenTSDBMockServer struct {
+type openTSDBMockServer struct {
 	server *httptest.Server
-	points []OpenTSDBPoint
+	points []openTSDBPoint
 }
 
-// NewOpenTSDBMockServer starts an httptest server serving the given points.
-func NewOpenTSDBMockServer(t *testing.T, points []OpenTSDBPoint) *OpenTSDBMockServer {
+// newOpenTSDBMockServer starts an httptest server serving the given points.
+func newOpenTSDBMockServer(t *testing.T, points []openTSDBPoint) *openTSDBMockServer {
 	t.Helper()
-	s := &OpenTSDBMockServer{points: points}
+	s := &openTSDBMockServer{points: points}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/suggest", s.handleSuggest)
 	mux.HandleFunc("/api/search/lookup", s.handleLookup)
@@ -38,13 +38,14 @@ func NewOpenTSDBMockServer(t *testing.T, points []OpenTSDBPoint) *OpenTSDBMockSe
 	return s
 }
 
-// Close shuts down the server.
-func (s *OpenTSDBMockServer) Close() { s.server.Close() }
+// close shuts down the server.
+func (s *openTSDBMockServer) close() { s.server.Close() }
 
-// HTTPAddr returns the server URL.
-func (s *OpenTSDBMockServer) HTTPAddr() string { return s.server.URL }
+// httpAddr returns the server URL.
+func (s *openTSDBMockServer) httpAddr() string { return s.server.URL }
 
-func (s *OpenTSDBMockServer) handleSuggest(w http.ResponseWriter, r *http.Request) {
+// handleSuggest serves https://opentsdb.net/docs/build/html/api_http/suggest.html
+func (s *openTSDBMockServer) handleSuggest(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query().Get("q")
 	seen := make(map[string]bool, len(s.points))
 	var out []string
@@ -61,7 +62,8 @@ func (s *OpenTSDBMockServer) handleSuggest(w http.ResponseWriter, r *http.Reques
 	_ = json.NewEncoder(w).Encode(out)
 }
 
-func (s *OpenTSDBMockServer) handleLookup(w http.ResponseWriter, r *http.Request) {
+// handleLookup serves https://opentsdb.net/docs/build/html/api_http/search/lookup.html
+func (s *openTSDBMockServer) handleLookup(w http.ResponseWriter, r *http.Request) {
 	metric := r.URL.Query().Get("m")
 	type meta struct {
 		Metric string            `json:"metric"`
@@ -87,7 +89,8 @@ func (s *OpenTSDBMockServer) handleLookup(w http.ResponseWriter, r *http.Request
 	})
 }
 
-func (s *OpenTSDBMockServer) handleQuery(w http.ResponseWriter, r *http.Request) {
+// handleQuery serves https://opentsdb.net/docs/build/html/api_http/query/index.html
+func (s *openTSDBMockServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 	m := r.URL.Query().Get("m")
 	metric, tagFilter, ok := parseQuery(m)
 	if !ok {

@@ -24,9 +24,9 @@ func TestSingleVmctlOpenTSDBProtocol(t *testing.T) {
 	// Generate 60 points at 1-minute intervals starting 2 hours ago.
 	// This ensures data falls within vmctl's default query window (now - retention).
 	baseTS := time.Now().Add(-2 * time.Hour).Truncate(time.Minute).Unix()
-	points := make([]OpenTSDBPoint, 0, 60)
-	for i := 0; i < 60; i++ {
-		points = append(points, OpenTSDBPoint{
+	points := make([]openTSDBPoint, 0, 60)
+	for i := range 60 {
+		points = append(points, openTSDBPoint{
 			Metric:    "test.cpu",
 			Tags:      map[string]string{"host": "h1", "env": "prod"},
 			Timestamp: baseTS + int64(i*60),
@@ -34,12 +34,12 @@ func TestSingleVmctlOpenTSDBProtocol(t *testing.T) {
 		})
 	}
 
-	otsdb := NewOpenTSDBMockServer(t, points)
-	defer otsdb.Close()
+	otsdb := newOpenTSDBMockServer(t, points)
+	defer otsdb.close()
 
 	vmctlFlags := []string{
 		`opentsdb`,
-		`--otsdb-addr=` + otsdb.HTTPAddr(),
+		`--otsdb-addr=` + otsdb.httpAddr(),
 		`--vm-addr=` + vmAddr,
 		`--otsdb-retentions=ssum-1m-avg:1d:1d`,
 		`--otsdb-filters=test`,
@@ -62,9 +62,9 @@ func TestClusterVmctlOpenTSDBProtocol(t *testing.T) {
 
 	// Generate 60 points at 1-minute intervals starting 2 hours ago.
 	baseTS := time.Now().Add(-2 * time.Hour).Truncate(time.Minute).Unix()
-	points := make([]OpenTSDBPoint, 0, 60)
-	for i := 0; i < 60; i++ {
-		points = append(points, OpenTSDBPoint{
+	points := make([]openTSDBPoint, 0, 60)
+	for i := range 60 {
+		points = append(points, openTSDBPoint{
 			Metric:    "test.mem",
 			Tags:      map[string]string{"host": "h1"},
 			Timestamp: baseTS + int64(i*60),
@@ -72,12 +72,12 @@ func TestClusterVmctlOpenTSDBProtocol(t *testing.T) {
 		})
 	}
 
-	otsdb := NewOpenTSDBMockServer(t, points)
-	defer otsdb.Close()
+	otsdb := newOpenTSDBMockServer(t, points)
+	defer otsdb.close()
 
 	vmctlFlags := []string{
 		`opentsdb`,
-		`--otsdb-addr=` + otsdb.HTTPAddr(),
+		`--otsdb-addr=` + otsdb.httpAddr(),
 		`--vm-addr=` + vmAddr,
 		`--otsdb-retentions=sum-1m-avg:1d:1d`,
 		`--otsdb-filters=test`,
@@ -94,7 +94,7 @@ func testOpenTSDBProtocol(
 	tc *apptest.TestCase,
 	queries apptest.PrometheusWriteQuerier,
 	vmctlFlags []string,
-	points []OpenTSDBPoint,
+	points []openTSDBPoint,
 	vmMetricName string,
 	baseTS int64,
 ) {
@@ -139,7 +139,7 @@ func testOpenTSDBProtocol(
 	})
 }
 
-func buildExpectedOpenTSDBResult(points []OpenTSDBPoint, vmMetricName string) []*apptest.QueryResult {
+func buildExpectedOpenTSDBResult(points []openTSDBPoint, vmMetricName string) []*apptest.QueryResult {
 	grouped := map[string]*apptest.QueryResult{}
 	for _, p := range points {
 		metric := map[string]string{"__name__": vmMetricName}
