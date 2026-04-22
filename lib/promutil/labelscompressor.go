@@ -14,21 +14,33 @@ import (
 // LabelsCompressor compresses []prompb.Label into short binary strings
 type LabelsCompressor struct {
 	labelToIdx sync.Map
-	idxToLabel labelsMap
+	idxToLabel atomic.Pointer[[]prompb.Label]
 
-	nextIdx atomic.Uint64
-
-	totalSizeBytes atomic.Uint64
+	totalSizeBytes uint64
+	mu             sync.Mutex
+	freeList       []uint32
+	pendingDelete  map[uint32]struct{}
+	pendingFree    map[uint32]struct{}
 }
 
 // SizeBytes returns the size of lc data in bytes
 func (lc *LabelsCompressor) SizeBytes() uint64 {
-	return uint64(unsafe.Sizeof(*lc)) + lc.totalSizeBytes.Load()
+	lc.mu.Lock()
+	n := uint64(unsafe.Sizeof(*lc)) + lc.totalSizeBytes
+	lc.mu.Unlock()
+	return n
 }
 
 // ItemsCount returns the number of items in lc
 func (lc *LabelsCompressor) ItemsCount() uint64 {
-	return lc.nextIdx.Load()
+	p := lc.idxToLabel.Load()
+	if p == nil {
+		return 0
+	}
+	lc.mu.Lock()
+	n := uint64(len(*p) - len(lc.freeList))
+	lc.mu.Unlock()
+	return n
 }
 
 // Compress compresses labels, appends the compressed labels to dst and returns the result.
@@ -42,43 +54,43 @@ func (lc *LabelsCompressor) Compress(dst []byte, labels []prompb.Label) []byte {
 
 	a := encoding.GetUint64s(len(labels) + 1)
 	a.A[0] = uint64(len(labels))
-	lc.compress(a.A[1:], labels)
+
+	if lc.compressFast(a.A[1:], labels) {
+		dst = encoding.MarshalVarUint64s(dst, a.A)
+		encoding.PutUint64s(a)
+		return dst
+	}
+
+	lc.mu.Lock()
+	lc.compressSlow(a.A[1:], labels)
+	lc.mu.Unlock()
+
 	dst = encoding.MarshalVarUint64s(dst, a.A)
 	encoding.PutUint64s(a)
 	return dst
 }
 
-func (lc *LabelsCompressor) compress(dst []uint64, labels []prompb.Label) {
-	if len(labels) == 0 {
-		return
-	}
-	_ = dst[len(labels)-1]
+func (lc *LabelsCompressor) compressFast(dst []uint64, labels []prompb.Label) bool {
 	for i, label := range labels {
 		v, ok := lc.labelToIdx.Load(label)
 		if !ok {
-			idx := lc.nextIdx.Add(1)
-			v = idx
-			labelCopy := cloneLabel(label)
-
-			// Must store idxToLabel entry before labelToIdx,
-			// so it can be found by possible concurrent goroutines.
-			//
-			// We might store duplicated entries for single label with different indexes,
-			// and it's fine, see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7118.
-			lc.idxToLabel.Store(idx, labelCopy)
-			vNew, loaded := lc.labelToIdx.LoadOrStore(labelCopy, v)
-			if loaded {
-				// This label has been stored by a concurrent goroutine with different index,
-				// use it for key consistency in aggrState.
-				v = vNew
-			}
-
-			// Update lc.totalSizeBytes
-			labelSizeBytes := uint64(len(label.Name) + len(label.Value))
-			entrySizeBytes := labelSizeBytes + uint64(2*(unsafe.Sizeof(label)+unsafe.Sizeof(&label))+unsafe.Sizeof(v))
-			lc.totalSizeBytes.Add(entrySizeBytes)
+			return false
 		}
-		dst[i] = v.(uint64)
+		dst[i] = uint64(v.(uint32))
+	}
+	return true
+}
+
+func (lc *LabelsCompressor) compressSlow(dst []uint64, labels []prompb.Label) {
+	for i, label := range labels {
+		v, ok := lc.labelToIdx.Load(label)
+		if !ok {
+			cloned := cloneLabel(label)
+			idx := lc.newIndex(cloned)
+			lc.labelToIdx.Store(cloned, idx)
+			v = idx
+		}
+		dst[i] = uint64(v.(uint32))
 	}
 }
 
@@ -96,6 +108,33 @@ func cloneLabel(label prompb.Label) prompb.Label {
 		Name:  labelName,
 		Value: labelValue,
 	}
+}
+
+// newIndex assigns a new index for cloned and updates idxToLabel atomically.
+// Must be called with lc.mu held.
+func (lc *LabelsCompressor) newIndex(cloned prompb.Label) uint32 {
+	var idx uint32
+	p := lc.idxToLabel.Load()
+	var newIdxToLabel []prompb.Label
+	if p != nil {
+		newIdxToLabel = *p
+	}
+
+	if len(lc.freeList) > 0 {
+		idx = lc.freeList[len(lc.freeList)-1]
+		lc.freeList = lc.freeList[:len(lc.freeList)-1]
+		next := make([]prompb.Label, len(newIdxToLabel))
+		copy(next, newIdxToLabel)
+		next[idx] = cloned
+		lc.idxToLabel.Store(&next)
+	} else {
+		idx = uint32(len(newIdxToLabel))
+		next := append(newIdxToLabel, cloned)
+		lc.idxToLabel.Store(&next)
+	}
+
+	lc.totalSizeBytes += uint64(len(cloned.Name)+len(cloned.Value)) + uint64(unsafe.Sizeof(cloned)) + 8
+	return idx
 }
 
 // Decompress decompresses src into []prompb.Label, appends it to dst and returns the result.
@@ -124,111 +163,129 @@ func (lc *LabelsCompressor) Decompress(dst []prompb.Label, src []byte) []prompb.
 	if len(tail) > 0 {
 		logger.Panicf("BUG: unexpected non-empty tail left: len(tail)=%d; tail=%X", len(tail), tail)
 	}
-	dst = lc.decompress(dst, a.A)
+
+	p := lc.idxToLabel.Load()
+	if p == nil {
+		encoding.PutUint64s(a)
+		logger.Panicf("BUG: idxToLabel is nil in Decompress")
+	}
+	labels := *p
+	for _, idx := range a.A {
+		if int(idx) >= len(labels) {
+			encoding.PutUint64s(a)
+			logger.Panicf("BUG: missing label for idx=%d; idxToLabel len=%d", idx, len(labels))
+		}
+		dst = append(dst, labels[idx])
+	}
+
 	encoding.PutUint64s(a)
 	return dst
 }
 
-func (lc *LabelsCompressor) decompress(dst []prompb.Label, src []uint64) []prompb.Label {
-	for _, idx := range src {
-		label, ok := lc.idxToLabel.Load(idx)
-		if !ok {
-			logger.Panicf("BUG: missing label for idx=%d", idx)
-		}
-		dst = append(dst, label)
-	}
-	return dst
-}
-
-// labelsMap maps uint64 key to prompb.Label
-//
-// uint64 keys must be packed close to 0. Otherwise the labelsMap structure will consume too much memory.
-type labelsMap struct {
-	readOnly atomic.Pointer[[]*prompb.Label]
-
-	mutableLock sync.Mutex
-	mutable     map[uint64]*prompb.Label
-	misses      uint64
-}
-
-// Store stores label under the given idx.
-//
-// It is safe calling Store from concurrent goroutines.
-func (lm *labelsMap) Store(idx uint64, label prompb.Label) {
-	lm.mutableLock.Lock()
-	if lm.mutable == nil {
-		lm.mutable = make(map[uint64]*prompb.Label)
-	}
-	lm.mutable[idx] = &label
-	lm.mutableLock.Unlock()
-}
-
-// Load returns the label for the given idx.
-//
-// Load returns false if lm doesn't contain label for the given idx.
-//
-// It is safe calling Load from concurrent goroutines.
-//
-// The performance of Load() scales linearly with CPU cores.
-func (lm *labelsMap) Load(idx uint64) (prompb.Label, bool) {
-	if pReadOnly := lm.readOnly.Load(); pReadOnly != nil && idx < uint64(len(*pReadOnly)) {
-		if pLabel := (*pReadOnly)[idx]; pLabel != nil {
-			// Fast path - the label for the given idx has been found in lm.readOnly.
-			return *pLabel, true
-		}
-	}
-
-	// Slow path - search in lm.mutable.
-	return lm.loadSlow(idx)
-}
-
-func (lm *labelsMap) loadSlow(idx uint64) (prompb.Label, bool) {
-	lm.mutableLock.Lock()
-
-	// Try loading label from readOnly, since it could be updated while acquiring mutableLock.
-	pReadOnly := lm.readOnly.Load()
-	if pReadOnly != nil && idx < uint64(len(*pReadOnly)) {
-		if pLabel := (*pReadOnly)[idx]; pLabel != nil {
-			lm.mutableLock.Unlock()
-			return *pLabel, true
-		}
-	}
-
-	// The label for the idx wasn't found in readOnly. Search it in mutable.
-	lm.misses++
-	pLabel := lm.mutable[idx]
-	if pReadOnly == nil || lm.misses > uint64(len(*pReadOnly)) {
-		lm.moveMutableToReadOnlyLocked(pReadOnly)
-		lm.misses = 0
-	}
-	lm.mutableLock.Unlock()
-
-	if pLabel == nil {
-		return prompb.Label{}, false
-	}
-	return *pLabel, true
-}
-
-func (lm *labelsMap) moveMutableToReadOnlyLocked(pReadOnly *[]*prompb.Label) {
-	if len(lm.mutable) == 0 {
-		// Nothing to move
+// Cleanup removes entries not referenced by any key in liveKeys.
+// Pass nil or empty liveKeys to reclaim all entries.
+func (lc *LabelsCompressor) Cleanup(liveKeys []string) {
+	if len(liveKeys) == 0 {
+		lc.labelToIdx.Range(func(k, _ any) bool {
+			lc.labelToIdx.Delete(k)
+			return true
+		})
+		lc.mu.Lock()
+		empty := make([]prompb.Label, 0)
+		lc.idxToLabel.Store(&empty)
+		lc.freeList = lc.freeList[:0]
+		lc.pendingDelete = nil
+		lc.pendingFree = nil
+		lc.totalSizeBytes = 0
+		lc.mu.Unlock()
 		return
 	}
 
-	var labels []*prompb.Label
-	if pReadOnly != nil {
-		labels = append(labels, *pReadOnly...)
-	}
-	for idx, pLabel := range lm.mutable {
-		if idx < uint64(len(labels)) {
-			labels[idx] = pLabel
-		} else {
-			for idx > uint64(len(labels)) {
-				labels = append(labels, nil)
+	usedIdxs := make(map[uint32]struct{}, len(liveKeys)*4)
+	for _, key := range liveKeys {
+		src := bytesutil.ToUnsafeBytes(key)
+		labelsLen, n := encoding.UnmarshalVarUint64(src)
+		if n <= 0 {
+			logger.Panicf("BUG: cannot unmarshal labels length in Cleanup")
+		}
+		src = src[n:]
+		for i := uint64(0); i < labelsLen; i++ {
+			idx, n := encoding.UnmarshalVarUint64(src)
+			if n <= 0 {
+				logger.Panicf("BUG: cannot unmarshal label index in Cleanup")
 			}
-			labels = append(labels, pLabel)
+			usedIdxs[uint32(idx)] = struct{}{}
+			src = src[n:]
 		}
 	}
-	clear(lm.mutable)
-	lm.readOnly.Store(&labels)
+
+	lc.mu.Lock()
+	pendingDelete := lc.pendingDelete
+	pendingFree := lc.pendingFree
+	lc.mu.Unlock()
+
+	// Phase 2→3: pendingFree entries are already deleted from labelToIdx;
+	// safe to free the slot once no live key references the index.
+	var freeIdxs []uint32
+	var newPendingFree map[uint32]struct{}
+	for idx := range pendingFree {
+		if _, used := usedIdxs[idx]; used {
+			if newPendingFree == nil {
+				newPendingFree = make(map[uint32]struct{})
+			}
+			newPendingFree[idx] = struct{}{}
+		} else {
+			freeIdxs = append(freeIdxs, idx)
+		}
+	}
+
+	// Phase 1→2 and new phase 1: iterate labelToIdx.
+	var toPromote []uint32
+	var newPendingDelete map[uint32]struct{}
+	lc.labelToIdx.Range(func(k, v any) bool {
+		idx := v.(uint32)
+		if _, used := usedIdxs[idx]; used {
+			return true
+		}
+		if _, pending := pendingDelete[idx]; pending {
+			lc.labelToIdx.Delete(k)
+			toPromote = append(toPromote, idx)
+		} else {
+			if newPendingDelete == nil {
+				newPendingDelete = make(map[uint32]struct{})
+			}
+			newPendingDelete[idx] = struct{}{}
+		}
+		return true
+	})
+
+	lc.mu.Lock()
+	if len(freeIdxs) > 0 {
+		p := lc.idxToLabel.Load()
+		var newIdxToLabel []prompb.Label
+		if p != nil {
+			newIdxToLabel = *p
+		}
+		next := make([]prompb.Label, len(newIdxToLabel))
+		copy(next, newIdxToLabel)
+		for _, idx := range freeIdxs {
+			label := next[idx]
+			entrySize := uint64(len(label.Name)+len(label.Value)) + uint64(unsafe.Sizeof(label)) + 8
+			if lc.totalSizeBytes >= entrySize {
+				lc.totalSizeBytes -= entrySize
+			}
+			next[idx] = prompb.Label{}
+			lc.freeList = append(lc.freeList, idx)
+		}
+		lc.idxToLabel.Store(&next)
+	}
+	for _, idx := range toPromote {
+		if newPendingFree == nil {
+			newPendingFree = make(map[uint32]struct{})
+		}
+		newPendingFree[idx] = struct{}{}
+	}
+	lc.pendingDelete = newPendingDelete
+	lc.pendingFree = newPendingFree
+	lc.mu.Unlock()
 }

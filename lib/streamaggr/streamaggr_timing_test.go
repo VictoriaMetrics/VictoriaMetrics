@@ -45,6 +45,10 @@ func benchmarkAggregatorsPush(b *testing.B, output string) {
 	a := newBenchAggregators([]string{output}, pushFunc)
 	defer a.MustStop()
 
+	// Warm up the LabelsCompressor so benchmark measures steady-state performance.
+	var matchIdxs []uint32
+	matchIdxs = a.Push(benchSeries, matchIdxs)
+
 	const loops = 100
 
 	b.ResetTimer()
@@ -100,6 +104,10 @@ func BenchmarkConcurrentAggregatorsPush(b *testing.B) {
 
 	a := newPerOutputBenchAggregators(benchOutputs, pushFunc)
 	defer a.MustStop()
+
+	// Warm up the LabelsCompressor so benchmark measures steady-state performance.
+	var matchIdxs []uint32
+	matchIdxs = a.Push(benchSeries, matchIdxs)
 
 	const loops = 100
 

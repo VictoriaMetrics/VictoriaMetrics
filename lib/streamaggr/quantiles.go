@@ -1,9 +1,10 @@
 package streamaggr
 
 import (
+	"strconv"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/valyala/histogram"
-	"strconv"
 )
 
 // quantilesAggrValue calculates output=quantiles, e.g. the given quantiles over the input samples.
