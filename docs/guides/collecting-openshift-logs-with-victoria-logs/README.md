@@ -17,8 +17,7 @@ This guide explains how to collect and store logs from an OpenShift cluster in V
 * [Helm installed](https://helm.sh/docs/intro/install)
 
 > [!NOTE] Note
-> You can replace every `kubectl` command in this guide for `oc`.
-> For example, instead of: `kubectl get ns` you can run `oc get ns`
+> You can replace every `kubectl` command in this guide for `oc`. They are intercheangeable in most cases on OpenShift clusters.
 
 ## Overview
 
@@ -130,7 +129,8 @@ http://vl-victoria-logs-single-server.vl.svc.cluster.local.:9428
 Create a service account and cluster role binding for the service account to access the logs. 
 OpenShift provides separate `ClusterRoles` for monitoring of different types of logs: `audit`, `infrastructure` and `application`. 
 
-The following configuration will allow the service account to collect all types of logs:
+Create a file to configure the service accounts with:
+
 ```shell
 cat <<EOF >vl-rbac.yml
 kind: ServiceAccount
@@ -194,8 +194,6 @@ Alternatively, you can use OpenShift web console to create the service account a
 5. Navigate to **RoleBindings**.
 6. Create a binding for each `ClusterRole` for subject `victorialogs` in `openshift-logging` namespace.
 
----
-
 ## Install Red Hat OpenShift Logging operator 
 
 The [Cluster logging operator](https://github.com/openshift/cluster-logging-operator) is a logging solution to support aggregated cluster logging. It is using [Vector](https://vector.dev/) for logs collection and shipping to remote storage.
@@ -213,7 +211,7 @@ To install the operator:
 
 We need to create a `ClusterLogForwarder` resource to forward logs from the OpenShift Logging operator to VictoriaLogs.
 
-Run the following command to create the resource:
+Run the following command to create the resource file:
 
 ```shell
 cat <<EOF > vl-forwarder.yml
@@ -313,11 +311,13 @@ kubectl -n vl port-forward svc/vl-victoria-logs-single-server 9428:9428
 Open your browser in `http://localhost:9428/select/vmui/#/overview` and verify that logs are being collected. This overview page the amount of log entries being consumed in real time.
 
 ![Screenshot of VMUI for VictoriaLogs](vmui-overview.webp)
+<figcaption style="text-align: center; font-style: italic;">Overview pane in VMUI</figcaption>
 
 You can query your logs in the **Query** tab, found in `http://localhost:9428/select/vmui`. 
 You can filter streams on the left side pane to filter logs and use [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) to search for entries. Note that logs will have `log_type` attached to them to distinguish between different types of logs.
 
 ![Screenshot of VMUI for VictoriaLogs](vmui-query-filters.webp)
+<figcaption style="text-align: center; font-style: italic;">Query pane in VMUI</figcaption>
 
 ## See also
 
