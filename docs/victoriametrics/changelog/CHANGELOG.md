@@ -46,6 +46,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 Released at 2026-04-10
 
 **Update Note 1:** [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): [CSV export](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-export-csv-data) (`/api/v1/export/csv`) now adds a header row as the first line of the response, so existing CSV-processing scripts may need to skip this header. See [#10666](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10666).
+**Update Note 2:** [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): Due to an ordering bug in binary operations, some queries may produce incorrect results. For example, `10 - (3 + 3 + 4)` is evaluated as `10 - 3 + 3 + 4`. The issue was introduced in versions v1.140.0, v1.136.4, v1.122.19, and is addressed in upcoming releases. It is strongly recommended to avoid these versions entirely. See [#10856](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10856).
 
 * SECURITY: upgrade Go builder from Go1.26.1 to Go1.26.2. See [the list of issues addressed in Go1.26.2](https://github.com/golang/go/issues?q=milestone%3AGo1.26.2%20label%3ACherryPickApproved).
 
@@ -151,6 +152,8 @@ It enables back `Discovered targets` debug UI by default.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): revert the use of rollup result cache for [instant queries](https://docs.victoriametrics.com/keyConcepts.html#instant-query) that contain [`rate`](https://docs.victoriametrics.com/MetricsQL.html#rate) function with a lookbehind window larger than `-search.minWindowForInstantRollupOptimization`. The cache usage was removed since [v1.132.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.132.0). See [#10098](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10098#issuecomment-3895011084) for more details.
 
 ## [v1.136.4](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.136.4)
+
+**Update Note 1:** [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): Due to an ordering bug in binary operations, some queries may produce incorrect results. For example, `10 - (3 + 3 + 4)` is evaluated as `10 - 3 + 3 + 4`. The issue was introduced in versions v1.140.0, v1.136.4, v1.122.19, and is addressed in upcoming releases. It is strongly recommended to avoid these versions entirely. See [#10856](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10856).
 
 Released at 2026-04-10
 
@@ -371,6 +374,8 @@ See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/ch
 See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2025/#v11230)
 
 ## [v1.122.19](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.19)
+
+**Update Note 1:** [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): Due to an ordering bug in binary operations, some queries may produce incorrect results. For example, `10 - (3 + 3 + 4)` is evaluated as `10 - 3 + 3 + 4`. The issue was introduced in versions v1.140.0, v1.136.4, v1.122.19, and is addressed in upcoming releases. It is strongly recommended to avoid these versions entirely. See [#10856](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10856).
 
 Released at 2026-04-10
 
