@@ -501,6 +501,22 @@ scrape_configs:
     target_label: vm_account_id
 ```
 
+ In addition vmagent could obtain tenant identifier from `__tenant_id__` label at target discovery phase.
+It implicitly converts `__tenant_id__` label into `vm_account_id` and `vm_project_id` labels and attaches
+it to the scraped time-series and time-series metadata.
+For example, the following relabeling rule instructs sending metrics to `<account_id>:10` and `<project_id>:5` [tenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy)
+defined in the `prometheus.io/tenant_id: 10:5` annotation of Kubernetes pod deployment:
+
+```yaml
+scrape_configs:
+- kubernetes_sd_configs:
+  - role: pod
+  relabel_configs:
+  - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_tenant_id]
+    target_label: __tenant_id__
+```
+
+
 `vmagent` can accept data via the same multitenant endpoints (`/insert/<accountID>/<suffix>`) as `vminsert` at [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/)
 does according to [these docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format) if `-enableMultitenantHandlers` command-line flag is set.
 In this case, vmagent automatically converts tenant identifiers from the URL to `vm_account_id` and `vm_project_id` labels.

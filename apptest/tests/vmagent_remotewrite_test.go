@@ -13,6 +13,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 // TestSingleVMAgentReloadConfigs verifies that vmagent reload new configurations on SIGHUP signal
@@ -511,4 +512,75 @@ func TestSingleVMAgentCardinalityLimiter(t *testing.T) {
 	if v := vmagent3.GetIntMetric(t, "vmagent_daily_series_limit_rows_dropped_total"); v != 0 {
 		t.Fatalf("unexpected vmagent_daily_series_limit_rows_dropped_total value: %d", v)
 	}
+}
+
+func TestClusterVMAgentForwardMetricsMetadata(t *testing.T) {
+	tc := apptest.NewTestCase(t)
+	defer tc.Stop()
+
+	sut := tc.MustStartDefaultCluster()
+
+	vmagent := tc.MustStartVmagent("vmagent", []string{
+		`-remoteWrite.flushInterval=50ms`,
+		`-remoteWrite.forcePromProto=true`,
+		`-enableMultitenantHandlers=true`,
+		"-remoteWrite.tmpDataPath=" + tc.Dir() + "/vmagent",
+		fmt.Sprintf(`-remoteWrite.url=http://%s/insert/multitenant/prometheus/api/v1/write`, sut.Vminsert.HTTPAddr()),
+	}, ``)
+
+	prometheusRemoteWriteDataSet := prompb.WriteRequest{
+		Metadata: []prompb.MetricMetadata{
+			{MetricFamilyName: "metric_name_4", Help: "some help message", Type: prompb.MetricTypeSummary, AccountID: 100},
+		},
+	}
+	vmagent.PrometheusAPIV1Write(t, prometheusRemoteWriteDataSet, apptest.QueryOpts{Tenant: "multitenant"})
+
+	tc.Assert(&apptest.AssertOptions{
+		Msg: "unexpected /api/v1/metadata response",
+		Got: func() any {
+			return sut.Vmselect.PrometheusAPIV1Metadata(t, ``, -1, apptest.QueryOpts{Tenant: "100:0"})
+		},
+		Want: &apptest.PrometheusAPIV1Metadata{
+			Status: "success",
+			Data: map[string][]apptest.MetadataEntry{
+				"metric_name_4": {{Help: "some help message", Type: "summary"}},
+			},
+		},
+	})
+
+	prometheusRemoteWriteDataSet = prompb.WriteRequest{
+		Metadata: []prompb.MetricMetadata{
+			{MetricFamilyName: "metric_name_6", Help: "some help message", Type: prompb.MetricTypeSummary, AccountID: 100},
+		},
+	}
+	// enforce tenant from request uri /insert/tenant_id/prometheus/api/v1/write
+	vmagent.PrometheusAPIV1Write(t, prometheusRemoteWriteDataSet, apptest.QueryOpts{Tenant: "500:500"})
+
+	tc.Assert(&apptest.AssertOptions{
+		Msg: "unexpected /api/v1/metadata response",
+		Got: func() any {
+			return sut.Vmselect.PrometheusAPIV1Metadata(t, ``, -1, apptest.QueryOpts{Tenant: "500:500"})
+		},
+		Want: &apptest.PrometheusAPIV1Metadata{
+			Status: "success",
+			Data: map[string][]apptest.MetadataEntry{
+				"metric_name_6": {{Help: "some help message", Type: "summary"}},
+			},
+		},
+	})
+
+	tc.Assert(&apptest.AssertOptions{
+		Msg: "unexpected /api/v1/metadata response",
+		Got: func() any {
+			return sut.Vmselect.PrometheusAPIV1Metadata(t, ``, -1, apptest.QueryOpts{Tenant: "multitenant"})
+		},
+		Want: &apptest.PrometheusAPIV1Metadata{
+			Status: "success",
+			Data: map[string][]apptest.MetadataEntry{
+				"metric_name_4": {{Help: "some help message", Type: "summary"}},
+				"metric_name_6": {{Help: "some help message", Type: "summary"}},
+			},
+		},
+	})
+
 }
