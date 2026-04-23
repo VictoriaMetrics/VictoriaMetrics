@@ -4020,7 +4020,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "Shows the rate of data rows parsed from write or scrape requests. \nThere are two kinds of rows:\n1. Raw sample: each sample consists of a value and a timestamp, see https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples \n2. Metric metadata: refers to descriptive information about metrics. It can be disabled by setting `-enableMetadata=false`, see https://docs.victoriametrics.com/victoriametrics/vmagent/#metric-metadata.",
+          "description": "Shows the rate of data rows parsed from write requests and scraping. \nThere are two kinds of rows:\n1. Raw sample: each sample consists of a value and a timestamp, see https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples \n2. Metric metadata: refers to descriptive information about metrics. It can be disabled by setting `-enableMetadata=false`, see https://docs.victoriametrics.com/victoriametrics/vmagent/#metric-metadata.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -4084,7 +4084,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 119
+            "y": 166
           },
           "id": 127,
           "options": {
