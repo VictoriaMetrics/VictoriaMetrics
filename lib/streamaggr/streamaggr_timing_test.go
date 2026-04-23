@@ -46,8 +46,7 @@ func benchmarkAggregatorsPush(b *testing.B, output string) {
 	defer a.MustStop()
 
 	// Warm up the LabelsCompressor so benchmark measures steady-state performance.
-	var matchIdxs []uint32
-	matchIdxs = a.Push(benchSeries, matchIdxs)
+	a.Push(benchSeries, nil)
 
 	const loops = 100
 
@@ -106,8 +105,7 @@ func BenchmarkConcurrentAggregatorsPush(b *testing.B) {
 	defer a.MustStop()
 
 	// Warm up the LabelsCompressor so benchmark measures steady-state performance.
-	var matchIdxs []uint32
-	matchIdxs = a.Push(benchSeries, matchIdxs)
+	a.Push(benchSeries, nil)
 
 	const loops = 100
 

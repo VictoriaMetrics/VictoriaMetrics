@@ -9,17 +9,13 @@ import (
 
 func BenchmarkLabelsCompressorCompress(b *testing.B) {
 	series := newTestSeries(100, 10)
-	run := func(b *testing.B, withCleanup bool) {
+	run := func(b *testing.B, withRotate bool) {
 		var lc LabelsCompressor
-		var buf []byte
-		liveKeys := make([]string, len(series))
-		for i, labels := range series {
-			bufLen := len(buf)
-			buf = lc.Compress(buf, labels)
-			liveKeys[i] = string(buf[bufLen:])
+		for _, labels := range series {
+			lc.Compress(nil, labels)
 		}
-		var cleanups atomic.Int64
-		if withCleanup {
+		var rotations atomic.Int64
+		if withRotate {
 			done := make(chan struct{})
 			go func() {
 				for {
@@ -27,13 +23,14 @@ func BenchmarkLabelsCompressorCompress(b *testing.B) {
 					case <-done:
 						return
 					default:
-						lc.Cleanup(liveKeys)
-						cleanups.Add(1)
+						lc.rotate()
+						rotations.Add(1)
 					}
 				}
 			}()
 			defer close(done)
 		}
+		rotations.Store(0)
 		b.ResetTimer()
 		b.ReportAllocs()
 		b.SetBytes(int64(len(series)))
@@ -47,29 +44,27 @@ func BenchmarkLabelsCompressorCompress(b *testing.B) {
 				Sink.Add(uint64(len(dst)))
 			}
 		})
-		if withCleanup {
-			b.ReportMetric(float64(cleanups.Load())/float64(b.N), "cleanups/op")
+		if withRotate {
+			b.ReportMetric(float64(rotations.Load())/float64(b.N), "rotations/op")
 		}
 	}
-	b.Run("no_cleanup", func(b *testing.B) { run(b, false) })
-	b.Run("with_cleanup", func(b *testing.B) { run(b, true) })
+	b.Run("no_rotate", func(b *testing.B) { run(b, false) })
+	b.Run("with_rotate", func(b *testing.B) { run(b, true) })
 }
 
 func BenchmarkLabelsCompressorDecompress(b *testing.B) {
 	series := newTestSeries(100, 10)
-	run := func(b *testing.B, withCleanup bool) {
+	run := func(b *testing.B, withRotate bool) {
 		var lc LabelsCompressor
 		datas := make([][]byte, len(series))
-		liveKeys := make([]string, len(series))
 		var buf []byte
 		for i, labels := range series {
 			bufLen := len(buf)
 			buf = lc.Compress(buf, labels)
 			datas[i] = buf[bufLen:]
-			liveKeys[i] = string(buf[bufLen:])
 		}
-		var cleanups atomic.Int64
-		if withCleanup {
+		var rotations atomic.Int64
+		if withRotate {
 			done := make(chan struct{})
 			go func() {
 				for {
@@ -77,13 +72,14 @@ func BenchmarkLabelsCompressorDecompress(b *testing.B) {
 					case <-done:
 						return
 					default:
-						lc.Cleanup(liveKeys)
-						cleanups.Add(1)
+						lc.rotate()
+						rotations.Add(1)
 					}
 				}
 			}()
 			defer close(done)
 		}
+		rotations.Store(0)
 		b.ResetTimer()
 		b.ReportAllocs()
 		b.SetBytes(int64(len(series)))
@@ -96,12 +92,12 @@ func BenchmarkLabelsCompressorDecompress(b *testing.B) {
 				Sink.Add(uint64(len(labels)))
 			}
 		})
-		if withCleanup {
-			b.ReportMetric(float64(cleanups.Load())/float64(b.N), "cleanups/op")
+		if withRotate {
+			b.ReportMetric(float64(rotations.Load())/float64(b.N), "rotations/op")
 		}
 	}
-	b.Run("no_cleanup", func(b *testing.B) { run(b, false) })
-	b.Run("with_cleanup", func(b *testing.B) { run(b, true) })
+	b.Run("no_rotate", func(b *testing.B) { run(b, false) })
+	b.Run("with_rotate", func(b *testing.B) { run(b, true) })
 }
 
 var Sink atomic.Uint64

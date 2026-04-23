@@ -18,7 +18,6 @@ import (
 // Deduplicator deduplicates samples per each time series.
 type Deduplicator struct {
 	da *dedupAggr
-	lc promutil.LabelsCompressor
 
 	cs            atomic.Pointer[currentState]
 	enableWindows bool
@@ -81,6 +80,8 @@ func NewDeduplicator(pushFunc PushFunc, enableWindows bool, interval time.Durati
 
 	metrics.RegisterSet(ms)
 
+	lc.Register(2 * interval)
+
 	d.wg.Go(func() {
 		d.runFlusher(pushFunc)
 	})
@@ -90,6 +91,8 @@ func NewDeduplicator(pushFunc PushFunc, enableWindows bool, interval time.Durati
 
 // MustStop stops d.
 func (d *Deduplicator) MustStop() {
+	lc.Unregister(2 * d.interval)
+
 	metrics.UnregisterSet(d.ms, true)
 	d.ms = nil
 
@@ -120,7 +123,7 @@ func (d *Deduplicator) Push(tss []prompb.TimeSeries) {
 		labels.Sort()
 
 		bufLen := len(buf)
-		buf = d.lc.Compress(buf, labels.Labels)
+		buf = lc.Compress(buf, labels.Labels)
 		key := bytesutil.ToUnsafeString(buf[bufLen:])
 		for _, s := range ts.Samples {
 			if d.enableWindows && minDeadline > s.Timestamp {
@@ -207,7 +210,7 @@ func (d *Deduplicator) flush(pushFunc PushFunc) {
 		dstSamples := ctx.samples
 		for _, ps := range samples {
 			labelsLen := len(labels)
-			labels = d.lc.Decompress(labels, bytesutil.ToUnsafeBytes(ps.key))
+			labels = lc.Decompress(labels, bytesutil.ToUnsafeBytes(ps.key))
 
 			dstSamplesLen := len(dstSamples)
 			dstSamples = append(dstSamples, prompb.Sample{
@@ -227,8 +230,6 @@ func (d *Deduplicator) flush(pushFunc PushFunc) {
 		ctx.samples = dstSamples
 		putDeduplicatorFlushCtx(ctx)
 	}, cs.maxDeadline, cs.isGreen)
-
-	d.lc.Cleanup(nil)
 
 	duration := time.Since(startTime)
 	d.da.flushDuration.Update(duration.Seconds())

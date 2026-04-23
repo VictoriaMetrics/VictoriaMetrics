@@ -53,6 +53,19 @@ var supportedOutputs = []string{
 	"unique_samples",
 }
 
+var (
+	// lc contains information about all compressed labels for streaming aggregation
+	lc promutil.LabelsCompressor
+
+	_ = metrics.NewGauge(`vm_streamaggr_labels_compressor_size_bytes`, func() float64 {
+		return float64(lc.SizeBytes())
+	})
+
+	_ = metrics.NewGauge(`vm_streamaggr_labels_compressor_items_count`, func() float64 {
+		return float64(lc.ItemsCount())
+	})
+)
+
 // LoadFromFile loads Aggregators from the given path and uses the given pushFunc for pushing the aggregated data.
 //
 // opts can contain additional options. If opts is nil, then default options are used.
@@ -249,9 +262,9 @@ type Config struct {
 type Aggregators struct {
 	as []*aggregator
 
-	// semCh limits the number of concurrent aggregator.Push calls.
+	// workCh limits the number of concurrent aggregator.Push calls.
 	// Pre-allocated once to avoid per-Push channel allocation.
-	semCh chan struct{}
+	workCh chan struct{}
 
 	// configData contains marshaled configs.
 	// It is used in Equal() for comparing Aggregators.
@@ -283,6 +296,7 @@ func loadFromData(data []byte, filePath string, pushFunc PushFunc, opts *Options
 	}
 
 	ms := metrics.NewSet()
+
 	as := make([]*aggregator, len(cfgs))
 	for i, cfg := range cfgs {
 		a, err := newAggregator(cfg, filePath, pushFunc, ms, opts, alias, i+1)
@@ -303,7 +317,7 @@ func loadFromData(data []byte, filePath string, pushFunc PushFunc, opts *Options
 	metrics.RegisterSet(ms)
 	return &Aggregators{
 		as:         as,
-		semCh:      make(chan struct{}, cgroup.AvailableCPUs()),
+		workCh:     make(chan struct{}, cgroup.AvailableCPUs()),
 		configData: configData,
 		filePath:   filePath,
 		ms:         ms,
@@ -367,12 +381,12 @@ func (a *Aggregators) Push(tss []prompb.TimeSeries, matchIdxs []uint32) []uint32
 	state := getAggrPushState()
 	state.wg.Add(len(a.as))
 	for _, aggr := range a.as {
-		a.semCh <- struct{}{}
+		a.workCh <- struct{}{}
 		w := getAggrPushWork()
 		w.aggr = aggr
 		w.tss = tss
 		w.matchIdxs = matchIdxs
-		w.semCh = a.semCh
+		w.workCh = a.workCh
 		w.state = state
 		go aggrPushWorker(w)
 	}
@@ -431,8 +445,6 @@ type aggregator struct {
 
 	// minDeadline is used for ignoring old samples when ignoreOldSamples or enableWindows is set
 	minDeadline atomic.Int64
-
-	lc promutil.LabelsCompressor
 
 	// aggrOutputs contains aggregate states for the given outputs
 	aggrOutputs *aggrOutputs
@@ -683,13 +695,6 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 		})
 	}
 
-	_ = ms.NewGauge(fmt.Sprintf(`vm_streamaggr_labels_compressor_size_bytes{%s}`, metricLabels), func() float64 {
-		return float64(a.lc.SizeBytes())
-	})
-	_ = ms.NewGauge(fmt.Sprintf(`vm_streamaggr_labels_compressor_items_count{%s}`, metricLabels), func() float64 {
-		return float64(a.lc.ItemsCount())
-	})
-
 	alignFlushToInterval := !opts.NoAlignFlushToInterval
 	if v := cfg.NoAlignFlushToInterval; v != nil {
 		alignFlushToInterval = !*v
@@ -719,6 +724,8 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 		cs.maxDeadline = minTime.Add(a.interval).UnixMilli()
 	}
 	a.cs.Store(cs)
+
+	lc.Register(a.stalenessInterval)
 
 	a.wg.Go(func() {
 		a.runFlusher(pushFunc, alignFlushToInterval, skipFlushOnShutdown, ignoreFirstIntervals)
@@ -940,8 +947,7 @@ func (a *aggregator) flush(pushFunc PushFunc, flushTime time.Time, cs *currentSt
 		a.minDeadline.Store(cs.maxDeadline)
 		ctx.isGreen = cs.isGreen
 	}
-	liveKeys := ao.flushState(ctx)
-	a.lc.Cleanup(liveKeys)
+	ao.flushState(ctx)
 	ctx.flushSeries()
 	putFlushCtx(ctx)
 
@@ -961,6 +967,7 @@ var flushConcurrencyCh = make(chan struct{}, cgroup.AvailableCPUs())
 //
 // The aggregator stops pushing the aggregated metrics after this call.
 func (a *aggregator) MustStop() {
+	lc.Unregister(a.stalenessInterval)
 	close(a.stopCh)
 	a.wg.Wait()
 }
@@ -1012,7 +1019,7 @@ func (a *aggregator) Push(tss []prompb.TimeSeries, matchIdxs []uint32) {
 		}
 
 		bufLen := len(ctx.buf)
-		ctx.compressLabels(&a.lc, inputLabels.Labels, outputLabels.Labels)
+		ctx.compressLabels(inputLabels.Labels, outputLabels.Labels)
 		// key remains valid only by the end of this function and can't be reused after
 		// do not intern key because number of unique keys could be too high
 		key := bytesutil.ToUnsafeString(ctx.buf[bufLen:])
@@ -1069,7 +1076,7 @@ func (a *aggregator) Push(tss []prompb.TimeSeries, matchIdxs []uint32) {
 	}
 }
 
-func (ctx *pushCtx) compressLabels(lc *promutil.LabelsCompressor, inputLabels, outputLabels []prompb.Label) {
+func (ctx *pushCtx) compressLabels(inputLabels, outputLabels []prompb.Label) {
 	ctx.keybuf = lc.Compress(ctx.keybuf[:0], outputLabels)
 	ctx.buf = encoding.MarshalVarUint64(ctx.buf, uint64(len(ctx.keybuf)))
 	ctx.buf = append(ctx.buf, ctx.keybuf...)
@@ -1146,13 +1153,13 @@ type aggrPushWork struct {
 	aggr      *aggregator
 	tss       []prompb.TimeSeries
 	matchIdxs []uint32
-	semCh     chan struct{}
+	workCh    chan struct{}
 	state     *aggrPushState
 }
 
 func aggrPushWorker(w *aggrPushWork) {
 	w.aggr.Push(w.tss, w.matchIdxs)
-	<-w.semCh
+	<-w.workCh
 	w.state.wg.Done()
 	putAggrPushWork(w)
 }
@@ -1169,7 +1176,7 @@ func putAggrPushWork(w *aggrPushWork) {
 	w.aggr = nil
 	w.tss = nil
 	w.matchIdxs = nil
-	w.semCh = nil
+	w.workCh = nil
 	w.state = nil
 	aggrPushWorkPool.Put(w)
 }
@@ -1296,7 +1303,7 @@ func (ctx *flushCtx) flushSeries() {
 func (ctx *flushCtx) appendSeries(key, suffix string, value float64) {
 	labelsLen := len(ctx.labels)
 	samplesLen := len(ctx.samples)
-	ctx.labels = ctx.a.lc.Decompress(ctx.labels, bytesutil.ToUnsafeBytes(key))
+	ctx.labels = lc.Decompress(ctx.labels, bytesutil.ToUnsafeBytes(key))
 	if !ctx.a.keepMetricNames {
 		ctx.labels = addMetricSuffix(ctx.labels, labelsLen, ctx.a.suffix, suffix)
 	}
@@ -1318,7 +1325,7 @@ func (ctx *flushCtx) appendSeries(key, suffix string, value float64) {
 func (ctx *flushCtx) appendSeriesWithExtraLabel(key, suffix string, value float64, extraName, extraValue string) {
 	labelsLen := len(ctx.labels)
 	samplesLen := len(ctx.samples)
-	ctx.labels = ctx.a.lc.Decompress(ctx.labels, bytesutil.ToUnsafeBytes(key))
+	ctx.labels = lc.Decompress(ctx.labels, bytesutil.ToUnsafeBytes(key))
 	if !ctx.a.keepMetricNames {
 		ctx.labels = addMetricSuffix(ctx.labels, labelsLen, ctx.a.suffix, suffix)
 	}

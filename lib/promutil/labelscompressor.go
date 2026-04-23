@@ -3,6 +3,7 @@ package promutil
 import (
 	"sync"
 	"sync/atomic"
+	"time"
 	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -11,16 +12,125 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
-// LabelsCompressor compresses []prompb.Label into short binary strings
+// LabelsCompressor compresses []prompb.Label into short binary strings.
+// Zero value is ready to use. Each Register call must be paired with Unregister.
 type LabelsCompressor struct {
 	labelToIdx sync.Map
 	idxToLabel atomic.Pointer[[]prompb.Label]
 
+	// usedBitset tracks which indices were used in the current rotation period.
+	// Bits are set atomically from compressFast without mu; grown under mu.
+	usedBitset atomic.Pointer[[]uint64]
+
 	totalSizeBytes uint64
 	mu             sync.Mutex
-	freeList       []uint32
-	pendingDelete  map[uint32]struct{}
-	pendingFree    map[uint32]struct{}
+
+	// freeIdxs holds index slots available for reuse.
+	freeIdxs []uint32
+
+	// pendingIdxs holds indices evicted from labelToIdx last rotate, not yet zeroed in idxToLabel.
+	pendingIdxs map[uint32]struct{}
+
+	// prevBitset is the usedBitset snapshot from the previous non-zero rotation.
+	// Requires absence from both prevBitset and usedBitset to evict a label,
+	// guarding against partial snapshots when rotate fires mid-compress loop.
+	// Only accessed in rotate, which runs in a single goroutine.
+	prevBitset []uint64
+
+	// registry holds staleness intervals of active callers; rotation period = max(registry).
+	registry []time.Duration
+
+	// tickerCh signals runRotate to re-evaluate the rotation period.
+	tickerCh chan struct{}
+}
+
+// idleRotationPeriod is the rotation period used when no callers are registered.
+// It must be long enough that a sleeping goroutine does not consume measurable resources.
+const idleRotationPeriod = time.Hour
+
+// Register adds stalenessInterval to the registry and starts the rotation goroutine on first call.
+// Rotation period equals max(registry). Must be paired with Unregister.
+func (lc *LabelsCompressor) Register(stalenessInterval time.Duration) {
+	lc.mu.Lock()
+	if lc.tickerCh == nil {
+		lc.tickerCh = make(chan struct{}, 1)
+		go lc.runRotate()
+	}
+	lc.registry = append(lc.registry, stalenessInterval)
+	tickerCh := lc.tickerCh
+	lc.mu.Unlock()
+	select {
+	case tickerCh <- struct{}{}:
+	default:
+	}
+}
+
+// Unregister removes stalenessInterval from the registry.
+// The rotation goroutine keeps running at idleRotationPeriod when the registry is empty.
+func (lc *LabelsCompressor) Unregister(stalenessInterval time.Duration) {
+	lc.mu.Lock()
+	for i, d := range lc.registry {
+		if d == stalenessInterval {
+			lc.registry = append(lc.registry[:i], lc.registry[i+1:]...)
+			break
+		}
+	}
+	tickerCh := lc.tickerCh
+	lc.mu.Unlock()
+	if tickerCh != nil {
+		select {
+		case tickerCh <- struct{}{}:
+		default:
+		}
+	}
+}
+
+func (lc *LabelsCompressor) maxRegisteredStaleness() time.Duration {
+	// must be called with lc.mu held
+	var max time.Duration
+	for _, d := range lc.registry {
+		if d > max {
+			max = d
+		}
+	}
+	if max == 0 {
+		return idleRotationPeriod
+	}
+	return max
+}
+
+func (lc *LabelsCompressor) runRotate() {
+	lc.mu.Lock()
+	period := lc.maxRegisteredStaleness()
+	lc.mu.Unlock()
+
+	timer := time.NewTimer(period)
+	defer timer.Stop()
+
+	for {
+		select {
+		case <-timer.C:
+			lc.rotate()
+			lc.mu.Lock()
+			period = lc.maxRegisteredStaleness()
+			lc.mu.Unlock()
+			timer.Reset(period)
+		case <-lc.tickerCh:
+			lc.mu.Lock()
+			newPeriod := lc.maxRegisteredStaleness()
+			lc.mu.Unlock()
+			if newPeriod != period {
+				period = newPeriod
+				if !timer.Stop() {
+					select {
+					case <-timer.C:
+					default:
+					}
+				}
+				timer.Reset(period)
+			}
+		}
+	}
 }
 
 // SizeBytes returns the size of lc data in bytes
@@ -33,12 +143,12 @@ func (lc *LabelsCompressor) SizeBytes() uint64 {
 
 // ItemsCount returns the number of items in lc
 func (lc *LabelsCompressor) ItemsCount() uint64 {
-	p := lc.idxToLabel.Load()
-	if p == nil {
-		return 0
-	}
 	lc.mu.Lock()
-	n := uint64(len(*p) - len(lc.freeList))
+	p := lc.idxToLabel.Load()
+	var n uint64
+	if p != nil && len(*p) > len(lc.freeIdxs)+len(lc.pendingIdxs) {
+		n = uint64(len(*p) - len(lc.freeIdxs) - len(lc.pendingIdxs))
+	}
 	lc.mu.Unlock()
 	return n
 }
@@ -71,12 +181,31 @@ func (lc *LabelsCompressor) Compress(dst []byte, labels []prompb.Label) []byte {
 }
 
 func (lc *LabelsCompressor) compressFast(dst []uint64, labels []prompb.Label) bool {
+	p := lc.usedBitset.Load()
+	var bits []uint64
+	if p != nil {
+		bits = *p
+	}
 	for i, label := range labels {
 		v, ok := lc.labelToIdx.Load(label)
 		if !ok {
 			return false
 		}
-		dst[i] = uint64(v.(uint32))
+		idx := v.(uint32)
+		dst[i] = uint64(idx)
+		word := idx >> 6
+		if int(word) < len(bits) {
+			mask := uint64(1) << (idx & 63)
+			if atomic.LoadUint64(&bits[word])&mask == 0 {
+				atomic.OrUint64(&bits[word], mask)
+			}
+		}
+	}
+	// usedBitset was swapped mid-loop; re-mark all indices in the new bitset.
+	if lc.usedBitset.Load() != p {
+		for _, idx64 := range dst {
+			lc.markUsed(uint32(idx64))
+		}
 	}
 	return true
 }
@@ -89,9 +218,43 @@ func (lc *LabelsCompressor) compressSlow(dst []uint64, labels []prompb.Label) {
 			idx := lc.newIndex(cloned)
 			lc.labelToIdx.Store(cloned, idx)
 			v = idx
+		} else {
+			lc.markUsed(v.(uint32))
 		}
 		dst[i] = uint64(v.(uint32))
 	}
+}
+
+// markUsed sets the bit for idx in usedBitset. Safe to call without mu.
+func (lc *LabelsCompressor) markUsed(idx uint32) {
+	p := lc.usedBitset.Load()
+	if p == nil {
+		return
+	}
+	bits := *p
+	word := idx >> 6
+	if int(word) < len(bits) {
+		mask := uint64(1) << (idx & 63)
+		if atomic.LoadUint64(&bits[word])&mask == 0 {
+			atomic.OrUint64(&bits[word], mask)
+		}
+	}
+}
+
+// growBitset extends usedBitset to cover idx. Must be called with lc.mu held.
+func (lc *LabelsCompressor) growBitset(idx uint32) {
+	needed := int(idx>>6) + 1
+	p := lc.usedBitset.Load()
+	var bits []uint64
+	if p != nil {
+		bits = *p
+	}
+	if needed <= len(bits) {
+		return
+	}
+	newBits := make([]uint64, needed)
+	copy(newBits, bits)
+	lc.usedBitset.Store(&newBits)
 }
 
 func cloneLabel(label prompb.Label) prompb.Label {
@@ -120,9 +283,9 @@ func (lc *LabelsCompressor) newIndex(cloned prompb.Label) uint32 {
 		newIdxToLabel = *p
 	}
 
-	if len(lc.freeList) > 0 {
-		idx = lc.freeList[len(lc.freeList)-1]
-		lc.freeList = lc.freeList[:len(lc.freeList)-1]
+	if len(lc.freeIdxs) > 0 {
+		idx = lc.freeIdxs[len(lc.freeIdxs)-1]
+		lc.freeIdxs = lc.freeIdxs[:len(lc.freeIdxs)-1]
 		next := make([]prompb.Label, len(newIdxToLabel))
 		copy(next, newIdxToLabel)
 		next[idx] = cloned
@@ -133,6 +296,8 @@ func (lc *LabelsCompressor) newIndex(cloned prompb.Label) uint32 {
 		lc.idxToLabel.Store(&next)
 	}
 
+	lc.growBitset(idx)
+	lc.markUsed(idx)
 	lc.totalSizeBytes += uint64(len(cloned.Name)+len(cloned.Value)) + uint64(unsafe.Sizeof(cloned)) + 8
 	return idx
 }
@@ -168,6 +333,7 @@ func (lc *LabelsCompressor) Decompress(dst []prompb.Label, src []byte) []prompb.
 	if p == nil {
 		encoding.PutUint64s(a)
 		logger.Panicf("BUG: idxToLabel is nil in Decompress")
+		return dst
 	}
 	labels := *p
 	for _, idx := range a.A {
@@ -182,85 +348,90 @@ func (lc *LabelsCompressor) Decompress(dst []prompb.Label, src []byte) []prompb.
 	return dst
 }
 
-// Cleanup removes entries not referenced by any key in liveKeys.
-// Pass nil or empty liveKeys to reclaim all entries.
-func (lc *LabelsCompressor) Cleanup(liveKeys []string) {
-	if len(liveKeys) == 0 {
-		lc.labelToIdx.Range(func(k, _ any) bool {
-			lc.labelToIdx.Delete(k)
-			return true
-		})
-		lc.mu.Lock()
-		empty := make([]prompb.Label, 0)
-		lc.idxToLabel.Store(&empty)
-		lc.freeList = lc.freeList[:0]
-		lc.pendingDelete = nil
-		lc.pendingFree = nil
-		lc.totalSizeBytes = 0
+// rotate evicts unused labels and recycles their slots.
+// Phase 1 removes the label from labelToIdx (preventing new keys from referencing it).
+// Phase 2, one rotation later, zeroes idxToLabel and returns the slot to freeIdxs,
+// giving in-flight keys a full rotation period to drain via Decompress.
+// Must not be called concurrently with itself.
+func (lc *LabelsCompressor) rotate() {
+	// Snapshot and reset usedBitset under mu to prevent races with growBitset/newIndex.
+	// Also snapshot idxToLabel for the phase-1 scan.
+	lc.mu.Lock()
+	var currentBits []uint64
+	if p := lc.usedBitset.Load(); p != nil {
+		currentBits = make([]uint64, len(*p))
+		copy(currentBits, *p)
+		newBits := make([]uint64, len(*p))
+		lc.usedBitset.Store(&newBits)
+	}
+
+	// Skip if nothing was used; all-zero snapshots from rapid rotation would
+	// advance pendingIdxs and reclaim slots before in-flight keys drain.
+	anyUsed := false
+	for _, w := range currentBits {
+		if w != 0 {
+			anyUsed = true
+			break
+		}
+	}
+	if !anyUsed {
 		lc.mu.Unlock()
 		return
 	}
 
-	usedIdxs := make(map[uint32]struct{}, len(liveKeys)*4)
-	for _, key := range liveKeys {
-		src := bytesutil.ToUnsafeBytes(key)
-		labelsLen, n := encoding.UnmarshalVarUint64(src)
-		if n <= 0 {
-			logger.Panicf("BUG: cannot unmarshal labels length in Cleanup")
-		}
-		src = src[n:]
-		for i := uint64(0); i < labelsLen; i++ {
-			idx, n := encoding.UnmarshalVarUint64(src)
-			if n <= 0 {
-				logger.Panicf("BUG: cannot unmarshal label index in Cleanup")
-			}
-			usedIdxs[uint32(idx)] = struct{}{}
-			src = src[n:]
-		}
-	}
-
-	lc.mu.Lock()
-	pendingDelete := lc.pendingDelete
-	pendingFree := lc.pendingFree
+	// Advance prevBitset; labels missing from a partial snapshot are still covered by it.
+	prevSnap := lc.prevBitset
+	lc.prevBitset = currentBits
+	pendingIdxs := lc.pendingIdxs
+	idxSnap := lc.idxToLabel.Load()
 	lc.mu.Unlock()
 
-	// Phase 2→3: pendingFree entries are already deleted from labelToIdx;
-	// safe to free the slot once no live key references the index.
-	var freeIdxs []uint32
-	var newPendingFree map[uint32]struct{}
-	for idx := range pendingFree {
-		if _, used := usedIdxs[idx]; used {
-			if newPendingFree == nil {
-				newPendingFree = make(map[uint32]struct{})
+	// A label is used if present in either the current or previous period snapshot.
+	isUsed := func(idx uint32) bool {
+		word := idx >> 6
+		inCurrent := int(word) < len(currentBits) && currentBits[word]>>(idx&63)&1 == 1
+		inPrev := int(word) < len(prevSnap) && prevSnap[word]>>(idx&63)&1 == 1
+		return inCurrent || inPrev
+	}
+
+	// Phase 2: reclaim slots evicted last rotation if still unused.
+	var toReclaim []uint32
+	var nextRelease map[uint32]struct{}
+	for idx := range pendingIdxs {
+		if isUsed(idx) {
+			if nextRelease == nil {
+				nextRelease = make(map[uint32]struct{})
 			}
-			newPendingFree[idx] = struct{}{}
+			nextRelease[idx] = struct{}{}
 		} else {
-			freeIdxs = append(freeIdxs, idx)
+			toReclaim = append(toReclaim, idx)
 		}
 	}
 
-	// Phase 1→2 and new phase 1: iterate labelToIdx.
-	var toPromote []uint32
-	var newPendingDelete map[uint32]struct{}
-	lc.labelToIdx.Range(func(k, v any) bool {
-		idx := v.(uint32)
-		if _, used := usedIdxs[idx]; used {
-			return true
-		}
-		if _, pending := pendingDelete[idx]; pending {
-			lc.labelToIdx.Delete(k)
-			toPromote = append(toPromote, idx)
-		} else {
-			if newPendingDelete == nil {
-				newPendingDelete = make(map[uint32]struct{})
+	// Phase 1: scan idxToLabel rather than sync.Map.Range to avoid
+	// cache-line contention with concurrent compressFast lookups.
+	if idxSnap != nil {
+		for i, label := range *idxSnap {
+			if label == (prompb.Label{}) {
+				continue // freed slot
 			}
-			newPendingDelete[idx] = struct{}{}
+			idx := uint32(i)
+			if _, inPending := pendingIdxs[idx]; inPending {
+				continue // already queued for release
+			}
+			if isUsed(idx) {
+				continue
+			}
+			lc.labelToIdx.Delete(label)
+			if nextRelease == nil {
+				nextRelease = make(map[uint32]struct{})
+			}
+			nextRelease[idx] = struct{}{}
 		}
-		return true
-	})
+	}
 
 	lc.mu.Lock()
-	if len(freeIdxs) > 0 {
+	if len(toReclaim) > 0 {
 		p := lc.idxToLabel.Load()
 		var newIdxToLabel []prompb.Label
 		if p != nil {
@@ -268,24 +439,17 @@ func (lc *LabelsCompressor) Cleanup(liveKeys []string) {
 		}
 		next := make([]prompb.Label, len(newIdxToLabel))
 		copy(next, newIdxToLabel)
-		for _, idx := range freeIdxs {
+		for _, idx := range toReclaim {
 			label := next[idx]
 			entrySize := uint64(len(label.Name)+len(label.Value)) + uint64(unsafe.Sizeof(label)) + 8
 			if lc.totalSizeBytes >= entrySize {
 				lc.totalSizeBytes -= entrySize
 			}
 			next[idx] = prompb.Label{}
-			lc.freeList = append(lc.freeList, idx)
+			lc.freeIdxs = append(lc.freeIdxs, idx)
 		}
 		lc.idxToLabel.Store(&next)
 	}
-	for _, idx := range toPromote {
-		if newPendingFree == nil {
-			newPendingFree = make(map[uint32]struct{})
-		}
-		newPendingFree[idx] = struct{}{}
-	}
-	lc.pendingDelete = newPendingDelete
-	lc.pendingFree = newPendingFree
+	lc.pendingIdxs = nextRelease
 	lc.mu.Unlock()
 }

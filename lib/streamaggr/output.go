@@ -86,10 +86,9 @@ func (ao *aggrOutputs) pushSamples(samples []pushSample, deleteDeadline int64, i
 	}
 }
 
-func (ao *aggrOutputs) flushState(ctx *flushCtx) []string {
+func (ao *aggrOutputs) flushState(ctx *flushCtx) {
 	m := &ao.m
 	var outputs []aggrValue
-	var liveKeys []string
 	m.Range(func(k, v any) bool {
 		// Atomically delete the entry from the map, so new entry is created for the next flush.
 		av := v.(*aggrValues)
@@ -105,7 +104,6 @@ func (ao *aggrOutputs) flushState(ctx *flushCtx) []string {
 			return true
 		}
 		outputKey := k.(string)
-		liveKeys = append(liveKeys, outputKey)
 		if ctx.isGreen {
 			outputs = av.green
 		} else {
@@ -120,7 +118,6 @@ func (ao *aggrOutputs) flushState(ctx *flushCtx) []string {
 		}
 		return true
 	})
-	return liveKeys
 }
 
 type aggrValues struct {
