@@ -3,6 +3,7 @@ package storage
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"math/rand"
 	"reflect"
 	"regexp"
@@ -178,7 +179,9 @@ func TestSearch_VariousTimeRanges(t *testing.T) {
 			mrs[i].Value = float64(i)
 		}
 
-		s := MustOpenStorage(t.Name(), OpenOptions{})
+		s := MustOpenStorage(t.Name(), OpenOptions{
+			FutureRetention: time.Duration(math.MaxInt64),
+		})
 		defer s.MustClose()
 		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()

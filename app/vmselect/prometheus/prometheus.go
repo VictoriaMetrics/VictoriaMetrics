@@ -1422,11 +1422,7 @@ func getCommonParamsInternal(r *http.Request, startTime time.Time, requireNonEmp
 	if err != nil {
 		return nil, err
 	}
-	// Limit the `end` arg to the current time +2 days in the same way
-	// as it is limited during data ingestion.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/blob/ea06d2fd3ccbbb6aa4480ab3b04f7b671408be2a/lib/storage/table.go#L378
-	// This should fix possible timestamp overflow - see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2669
-	maxTS := startTime.UnixNano()/1e6 + 2*24*3600*1000
+	maxTS := int64(math.MaxInt64 / 1_000_000)
 	if end > maxTS {
 		end = maxTS
 	}

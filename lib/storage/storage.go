@@ -35,6 +35,7 @@ import (
 )
 
 const (
+	retention2Days  = 2 * 24 * time.Hour
 	retention31Days = 31 * 24 * time.Hour
 	retentionMax    = 100 * 12 * retention31Days
 	idbPrefilStart  = time.Hour
@@ -66,9 +67,10 @@ type Storage struct {
 	// indexdb rotation.
 	legacyNextRotationTimestamp atomic.Int64
 
-	path           string
-	cachePath      string
-	retentionMsecs int64
+	path                 string
+	cachePath            string
+	retentionMsecs       int64
+	futureRetentionMsecs int64
 
 	// lock file for exclusive access to the storage on the given path.
 	flockF *os.File
@@ -177,6 +179,7 @@ type accountProjectKey struct {
 // OpenOptions optional args for MustOpenStorage
 type OpenOptions struct {
 	Retention             time.Duration
+	FutureRetention       time.Duration
 	MaxHourlySeries       int
 	MaxDailySeries        int
 	DisablePerDayIndex    bool
@@ -198,6 +201,7 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	if retention <= 0 || retention > retentionMax {
 		retention = retentionMax
 	}
+	futureRetention := max(opts.FutureRetention, retention2Days)
 	idbPrefillStart := opts.IDBPrefillStart
 	if idbPrefillStart <= 0 {
 		idbPrefillStart = time.Hour
@@ -206,6 +210,7 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 		path:                   path,
 		cachePath:              filepath.Join(path, cacheDirname),
 		retentionMsecs:         retention.Milliseconds(),
+		futureRetentionMsecs:   futureRetention.Milliseconds(),
 		stopCh:                 make(chan struct{}),
 		idbPrefillStartSeconds: idbPrefillStart.Milliseconds() / 1000,
 	}

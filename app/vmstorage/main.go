@@ -35,6 +35,8 @@ import (
 var (
 	retentionPeriod = flagutil.NewRetentionDuration("retentionPeriod", "1M", "Data with timestamps outside the retentionPeriod is automatically deleted. The minimum retentionPeriod is 24h or 1d. "+
 		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention. See also -retentionFilter")
+	futureRetention = flagutil.NewRetentionDuration("futureRetention", "2d", "Data with timestamps bigger than now+futureRetention is automatically deleted. "+
+		"The minimum futureRetention is 2 days. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention")
 	httpListenAddrs  = flagutil.NewArrayString("httpListenAddr", "Address to listen for incoming http requests. See also -httpListenAddr.useProxyProtocol")
 	useProxyProtocol = flagutil.NewArrayBool("httpListenAddr.useProxyProtocol", "Whether to use proxy protocol for connections accepted at the given -httpListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
@@ -148,7 +150,12 @@ func main() {
 	mergeset.SetDataBlocksSparseCacheSize(cacheSizeIndexDBDataBlocksSparse.IntN())
 
 	if retentionPeriod.Duration() < 24*time.Hour {
-		logger.Fatalf("-retentionPeriod cannot be smaller than a day; got %s", retentionPeriod)
+		logger.Fatalf("-retentionPeriod cannot be smaller than a day; got %s. "+
+			"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention", retentionPeriod)
+	}
+	if futureRetention.Duration() < 2*24*time.Hour {
+		logger.Fatalf("-futureRetention cannot be smaller than 2 days; got %s. "+
+			"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention", futureRetention)
 	}
 	if *idbPrefillStart > 23*time.Hour {
 		logger.Panicf("-storage.idbPrefillStart cannot exceed 23 hours; got %s", idbPrefillStart)
@@ -157,6 +164,7 @@ func main() {
 	startTime := time.Now()
 	opts := storage.OpenOptions{
 		Retention:             retentionPeriod.Duration(),
+		FutureRetention:       futureRetention.Duration(),
 		MaxHourlySeries:       getMaxHourlySeries(),
 		MaxDailySeries:        getMaxDailySeries(),
 		DisablePerDayIndex:    *disablePerDayIndex,
