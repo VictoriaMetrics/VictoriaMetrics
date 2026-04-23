@@ -23,17 +23,12 @@ func ParseTimeMsec(s string) (int64, error) {
 	return msecs, nil
 }
 
-const (
-	// time.UnixNano can only store maxInt64, which is 2262
-	maxValidYear = 2262
-	minValidYear = 1970
-)
-
 // ParseTimeAt parses time s in different formats, assuming the given currentTimestamp.
 //
 // See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats
 //
 // If s doesn't contain timezone information, then the local timezone is used.
+// The time must be in the range [1970-01-01T00:00:00Z, 2262-04-11T23:47:16Z].
 //
 // It returns unix timestamp in nanoseconds.
 func ParseTimeAt(s string, currentTimestamp int64) (int64, error) {
@@ -83,15 +78,7 @@ func ParseTimeAt(s string, currentTimestamp int64) (int64, error) {
 	}
 	if len(s) == 4 {
 		// Parse YYYY
-		t, err := time.Parse("2006", s)
-		if err != nil {
-			return 0, err
-		}
-		y := t.Year()
-		if y > maxValidYear || y < minValidYear {
-			return 0, fmt.Errorf("cannot parse year from %q: year must in range [%d, %d]", s, minValidYear, maxValidYear)
-		}
-		return tzOffset + t.UnixNano(), nil
+		return parseTimeAt("2006", s, tzOffset, sOrig)
 	}
 	if !strings.Contains(sOrig, "-") {
 		nsec, ok := TryParseUnixTimestamp(sOrig)
@@ -102,48 +89,42 @@ func ParseTimeAt(s string, currentTimestamp int64) (int64, error) {
 	}
 	if len(s) == 7 {
 		// Parse YYYY-MM
-		t, err := time.Parse("2006-01", s)
-		if err != nil {
-			return 0, err
-		}
-		return tzOffset + t.UnixNano(), nil
+		return parseTimeAt("2006-01", s, tzOffset, sOrig)
 	}
 	if len(s) == 10 {
 		// Parse YYYY-MM-DD
-		t, err := time.Parse("2006-01-02", s)
-		if err != nil {
-			return 0, err
-		}
-		return tzOffset + t.UnixNano(), nil
+		return parseTimeAt("2006-01-02", s, tzOffset, sOrig)
 	}
 	if len(s) == 13 {
 		// Parse YYYY-MM-DDTHH
-		t, err := time.Parse("2006-01-02T15", s)
-		if err != nil {
-			return 0, err
-		}
-		return tzOffset + t.UnixNano(), nil
+		return parseTimeAt("2006-01-02T15", s, tzOffset, sOrig)
 	}
 	if len(s) == 16 {
 		// Parse YYYY-MM-DDTHH:MM
-		t, err := time.Parse("2006-01-02T15:04", s)
-		if err != nil {
-			return 0, err
-		}
-		return tzOffset + t.UnixNano(), nil
+		return parseTimeAt("2006-01-02T15:04", s, tzOffset, sOrig)
 	}
 	if len(s) == 19 {
 		// Parse YYYY-MM-DDTHH:MM:SS
-		t, err := time.Parse("2006-01-02T15:04:05", s)
-		if err != nil {
-			return 0, err
-		}
-		return tzOffset + t.UnixNano(), nil
+		return parseTimeAt("2006-01-02T15:04:05", s, tzOffset, sOrig)
 	}
 	// Parse RFC3339
-	t, err := time.Parse(time.RFC3339, sOrig)
+	return parseTimeAt(time.RFC3339, sOrig, 0, sOrig)
+}
+
+var (
+	minTime = time.Unix(0, 0).UTC()
+	maxTime = time.Unix(0, math.MaxInt64).UTC()
+)
+
+func parseTimeAt(layout, value string, tzOffsetNanos int64, sOrig string) (int64, error) {
+	t, err := time.Parse(layout, value)
 	if err != nil {
 		return 0, err
+	}
+	tzOffset := time.Duration(tzOffsetNanos)
+	t = t.UTC().Add(tzOffset)
+	if t.Before(minTime) || t.After(maxTime) {
+		return 0, fmt.Errorf("time %s (%v) must be in the range [%v, %v]", sOrig, t, minTime, maxTime)
 	}
 	return t.UnixNano(), nil
 }
