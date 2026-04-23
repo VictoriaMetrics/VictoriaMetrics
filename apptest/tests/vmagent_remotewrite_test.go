@@ -538,7 +538,7 @@ func TestClusterVMAgentForwardMetricsMetadata(t *testing.T) {
 	tc.Assert(&apptest.AssertOptions{
 		Msg: "unexpected /api/v1/metadata response",
 		Got: func() any {
-			return sut.Vmselect.PrometheusAPIV1Metadata(t, ``, -1, apptest.QueryOpts{Tenant: "100:0"})
+			return sut.PrometheusAPIV1Metadata(t, ``, -1, apptest.QueryOpts{Tenant: "100:0"})
 		},
 		Want: &apptest.PrometheusAPIV1Metadata{
 			Status: "success",
@@ -559,7 +559,7 @@ func TestClusterVMAgentForwardMetricsMetadata(t *testing.T) {
 	tc.Assert(&apptest.AssertOptions{
 		Msg: "unexpected /api/v1/metadata response",
 		Got: func() any {
-			return sut.Vmselect.PrometheusAPIV1Metadata(t, ``, -1, apptest.QueryOpts{Tenant: "500:500"})
+			return sut.PrometheusAPIV1Metadata(t, ``, -1, apptest.QueryOpts{Tenant: "500:500"})
 		},
 		Want: &apptest.PrometheusAPIV1Metadata{
 			Status: "success",
@@ -572,7 +572,7 @@ func TestClusterVMAgentForwardMetricsMetadata(t *testing.T) {
 	tc.Assert(&apptest.AssertOptions{
 		Msg: "unexpected /api/v1/metadata response",
 		Got: func() any {
-			return sut.Vmselect.PrometheusAPIV1Metadata(t, ``, -1, apptest.QueryOpts{Tenant: "multitenant"})
+			return sut.PrometheusAPIV1Metadata(t, ``, -1, apptest.QueryOpts{Tenant: "multitenant"})
 		},
 		Want: &apptest.PrometheusAPIV1Metadata{
 			Status: "success",
