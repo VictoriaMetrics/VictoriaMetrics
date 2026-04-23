@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): add `-rule.stripFilePath` to support stripping rule file paths in logs and all API responses, including /metrics. See [#5625](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5625).
+
 ## [v1.142.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.142.0)
 
 Released at 2026-04-28
