@@ -364,7 +364,7 @@ Typical scenarios for data routing with `vmagent`:
 
 # Deduplication
 
-If `-streamAggr.dedupInterval` is enabled, out-of-order samples (older than already received) within the configured interval are treated as duplicates and ignored. See [deduplication](# deduplication).
+If `-streamAggr.dedupInterval` is enabled, out-of-order samples (older than already received) within the configured interval are treated as duplicates and ignored. See [deduplication](#deduplication).
 
 [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) supports [deduplication](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) of samples
 before sending them to the configured `-remoteWrite.url`. The deduplication can be enabled via the following options:
