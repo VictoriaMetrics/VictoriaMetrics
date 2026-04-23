@@ -28,6 +28,7 @@ func ParseTimeMsec(s string) (int64, error) {
 // See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats
 //
 // If s doesn't contain timezone information, then the local timezone is used.
+// The time must be in the range [1970-01-01T00:00:00Z, 2262-04-11T23:47:16Z].
 //
 // It returns unix timestamp in nanoseconds.
 func ParseTimeAt(s string, currentTimestamp int64) (int64, error) {
