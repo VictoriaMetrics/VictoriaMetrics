@@ -51,6 +51,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 Released at 2026-04-10
 
 **Update Note 1:** [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): [CSV export](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-export-csv-data) (`/api/v1/export/csv`) now adds a header row as the first line of the response, so existing CSV-processing scripts may need to skip this header. See [#10666](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10666).
+
 **Update Note 2:** [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): Due to an ordering bug in binary operations, some queries may produce incorrect results. For example, `10 - (3 + 3 + 4)` is evaluated as `10 - 3 + 3 + 4`. The issue was introduced in versions v1.140.0, v1.136.4, v1.122.19, and is addressed in upcoming releases. It is strongly recommended to avoid these versions entirely. See [#10856](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10856).
 
 * SECURITY: upgrade Go builder from Go1.26.1 to Go1.26.2. See [the list of issues addressed in Go1.26.2](https://github.com/golang/go/issues?q=milestone%3AGo1.26.2%20label%3ACherryPickApproved).
@@ -319,9 +320,13 @@ Released at 2026-01-16
 Released at 2026-01-02
 
 **Update Note 1:** [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): Upgrading to per-partition index requires registering all active time series. Expect slow down of data ingestion and queries during upgrade roll-out. This is a one-time operation. Additionally, for users with retention periods shorter than 1 month the disk usage may increase.
+
 **Update Note 2:** [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): Certain data and query patterns may cause high CPU utilization due to [10154](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10154). See [10297](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10297).
+
 **Update Note 3:** [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): lock contention in the ingestion path may cause frequent context switches and storage connection saturation spikes. See [10367](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10367). Addressed in `v1.135.0`.
+
 **Update Note 4:** [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): TSDB status may be empty if the partition index does not have records for the requested date. See [10315](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10315). Addressed in `v1.135.0`.
+
 **Update Note 5:** [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): `indexdb/tagFiltersToMetricIDs`, `indexdb/metricID` and `indexdb/date_metricID` cache metrics are not reported properly. See [10275](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10275). Addressed in `v1.135.0`.
 
 * SECURITY: upgrade base docker image (Alpine) from 3.22.2 to 3.23.2. See [Alpine 3.23.2 release notes](https://www.alpinelinux.org/posts/Alpine-3.23.2-released.html).
