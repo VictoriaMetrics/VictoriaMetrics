@@ -268,16 +268,25 @@ func multiplyByDecimalExp(n int64, decimalExp int64) (int64, bool) {
 
 var decimalMultipliers = [...]int64{0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10, 1e11, 1e12, 1e13, 1e14, 1e15, 1e16, 1e17, 1e18}
 
+const (
+	maxValidSecond = math.MaxInt64 / 1_000_000_000
+	maxValidMilli  = math.MaxInt64 / 1_000_000
+	maxValidMicro  = math.MaxInt64 / 1_000
+	minValidSecond = math.MinInt64 / 1_000_000_000
+	minValidMilli  = math.MinInt64 / 1_000_000
+	minValidMicro  = math.MinInt64 / 1_000
+)
+
 func getUnixTimestampNanoseconds(n int64) int64 {
-	if n < (1<<31) && n >= (-1<<31) {
+	if n <= maxValidSecond && n >= minValidSecond {
 		// The timestamp is in seconds.
 		return n * 1e9
 	}
-	if n < 1e3*(1<<31) && n >= 1e3*(-1<<31) {
+	if n <= maxValidMilli && n >= minValidMilli {
 		// The timestamp is in milliseconds.
 		return n * 1e6
 	}
-	if n < 1e6*(1<<31) && n >= 1e6*(-1<<31) {
+	if n <= maxValidMicro && n >= minValidMicro {
 		// The timestamp is in microseconds.
 		return n * 1e3
 	}
