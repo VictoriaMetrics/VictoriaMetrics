@@ -1,6 +1,7 @@
 package timeutil
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -295,6 +296,9 @@ func TestParseTimeAtOutsideLimits(t *testing.T) {
 		if err == nil {
 			t.Fatalf("expected error but got %d", got)
 		}
+		if !strings.Contains(err.Error(), "must be in the range") {
+			t.Fatalf("expected error: %v", err)
+		}
 	}
 
 	// min year
@@ -318,12 +322,12 @@ func TestParseTimeAtOutsideLimits(t *testing.T) {
 	f("1969-12-31T11-12:00")
 
 	// min minute
-	f("1969-12-311T23:59Z")
+	f("1969-12-31T23:59Z")
 	f("1970-01-01T13:59+14:00")
 	f("1969-12-31T11:59-12:00")
 
 	// min second
-	f("1969-12-311T23:59:59Z")
+	f("1969-12-31T23:59:59Z")
 	f("1970-01-01T13:59:59+14:00")
 	f("1969-12-31T11:59:59-12:00")
 
