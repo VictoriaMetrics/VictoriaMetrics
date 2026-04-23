@@ -23,11 +23,11 @@ This guide explains how to collect and store logs from an OpenShift cluster in V
 
 To collect OpenShift logs, we're going to:
 
-1. Install VictoriaLogs in the OpenShift Cluster
-2. Configure a service account to access the logs
-3. Install the OpenShift Logging operator
-4. Configure a Log Forwarder
-5. Test log ingestion in VictoriaLogs
+1. [Install VictoriaLogs](https://docs.victoriametrics.com/guides/collecting-openshift-logs-with-victoria-logs/#install-victoria-logs) in the OpenShift Cluster
+2. [Configure a service account](https://docs.victoriametrics.com/guides/collecting-openshift-logs-with-victoria-logs/#rbac-configuration) to access the logs
+3. [Install the OpenShift Logging operator](https://docs.victoriametrics.com/guides/collecting-openshift-logs-with-victoria-logs/#install-red-hat-openshift-logging-operator)
+4. [Configure a Log Forwarder](https://docs.victoriametrics.com/guides/collecting-openshift-logs-with-victoria-logs/#configure-logs-forwarding)
+5. [Test log ingestion](https://docs.victoriametrics.com/guides/collecting-openshift-logs-with-victoria-logs/#verify-logs-ingestion) in VictoriaLogs
 
 ## Install VictoriaLogs {#install-victoria-logs}
 
@@ -285,7 +285,7 @@ Alternatively, you can configure log forwarding in the OpenShift web console. To
     ![Screenshot of OpenShift web console](forwarder-form.webp)
 7. Click **Create**
 
-## Verify logs collection
+## Verify logs ingestion
 
 We can verify that logs are being collected using the VictoriaLogs VMUI.
 
