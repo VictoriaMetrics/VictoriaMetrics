@@ -112,8 +112,8 @@ func ParseTimeAt(s string, currentTimestamp int64) (int64, error) {
 }
 
 var (
-	minTime = time.UnixMicro(0).UTC()
-	maxTime = time.UnixMicro(math.MaxInt64 / 1000).UTC()
+	minTime = time.Unix(0, 0).UTC()
+	maxTime = time.Unix(0, math.MaxInt64).UTC()
 )
 
 func parseTimeAt(layout, value string, tzOffsetNanos int64, sOrig string) (int64, error) {
