@@ -278,7 +278,7 @@ test-full-386:
 	GOARCH=386 go test -tags 'synctest' -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
 
 apptest:
-	$(MAKE) vminsert-race vmselect-race vmstorage-race vmctl-race vmbackup-race vmrestore-race
+	$(MAKE) vminsert-race vmselect-race vmstorage-race vmagent-race vmctl-race vmbackup-race vmrestore-race
 	go test ./apptest/... -skip="^Test(Single|Legacy).*"
 
 apptest-legacy: vminsert-race vmselect-race vmstorage-race vmbackup-race vmrestore-race
