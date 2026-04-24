@@ -26,6 +26,10 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+## [v1.141.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.141.0)
+
+Released at 2026-04-24
+
 * SECURITY: upgrade base docker image (Alpine) from 3.23.2 to 3.23.3. See [Alpine 3.23.4 release notes](https://www.alpinelinux.org/posts/Alpine-3.20.10-3.21.7-3.22.4-3.23.4-released.html).
 
 * FEATURE: all VictoriaMetrics components: add support for reading cpu/memory limits configured via [systemd slices](https://www.freedesktop.org/software/systemd/man/latest/systemd.slice.html). Previously, only limits set directly on the process's own cgroup were detected. See [#10635](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10635). Thanks to @andriibeee for the contribution.
