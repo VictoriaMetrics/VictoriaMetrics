@@ -130,3 +130,14 @@ VictoriaMetrics UIs are also included in the [Explore](https://docs.victoriametr
 You can experiment with your own data during the month‑long trial without deploying VictoriaStack in your infrastructure. To get started, follow [this guide](https://docs.victoriametrics.com/victoriametrics-cloud/get-started/quickstart/).
 
 
+## Iximiuz Labs Playgrounds
+
+[Iximiuz Labs](https://labs.iximiuz.com/) is a learning-by-doing platform. Its [playgrounds](https://labs.iximiuz.com/docs/playgrounds/what-are-playgrounds) 
+are fast-booting Linux microVMs that run on a fleet of large bare-metal servers. You can start a playground right from your browser. 
+Once up and running, accessing a playground is no different from SSH-ing into a remote server rented from your favorite VPS or Cloud provider.
+
+Iximiuz Labs provides playgrounds for VictoriaMetrics software:
+- [VictoriaMetrics single node (on Ubuntu)](https://labs.iximiuz.com/playgrounds/victoriametrics-e2f9b613)
+- [VictoriaMetrics cluster (on Ubuntu)](https://labs.iximiuz.com/playgrounds/victoriametrics-cluster-8eacb19d)
+- [Getting Started with VictoriaMetrics on Kubernetes](https://labs.iximiuz.com/tutorials/victoriametrics-getting-started-kubernetes-0e9c0993)
+- [VictoriaMetrics Operator](https://labs.iximiuz.com/playgrounds/victoriametrics-kubernetes-9eebc258)
