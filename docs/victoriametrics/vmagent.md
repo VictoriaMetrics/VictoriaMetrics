@@ -501,9 +501,24 @@ scrape_configs:
     target_label: vm_account_id
 ```
 
+In addition, vmagent could obtain tenant identifier from `__tenant_id__` label at target discovery phase.
+It implicitly converts `__tenant_id__` label into `vm_account_id` and `vm_project_id` labels and attaches
+it to the scraped metrics and metrics metadata.
+For example, the following relabeling rule instructs sending metrics to `10:5` [tenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy)
+defined in the `prometheus.io/tenant_id: 10:5` annotation of Kubernetes pod deployment:
+
+```yaml
+scrape_configs:
+- kubernetes_sd_configs:
+  - role: pod
+  relabel_configs:
+  - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_tenant_id]
+    target_label: __tenant_id__
+```
+
 `vmagent` can accept data via the same multitenant endpoints (`/insert/<accountID>/<suffix>`) as `vminsert` at [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/)
 does according to [these docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format) if `-enableMultitenantHandlers` command-line flag is set.
-In this case, vmagent automatically converts tenant identifiers from the URL to `vm_account_id` and `vm_project_id` labels.
+In this case, vmagent automatically converts tenant identifiers from the URL to `vm_account_id` and `vm_project_id` labels and sets tenant info in metadata.
 These tenant labels are added before applying [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/) specified via `-remoteWrite.relabelConfig`
 and `-remoteWrite.urlRelabelConfig` command-line flags. Metrics with `vm_account_id` and `vm_project_id` labels can be routed to the corresponding tenants
 when specifying `-remoteWrite.url` to [multitenant url at VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels).
@@ -665,9 +680,13 @@ e.g. it sets `scrape_series_added` metric to zero. See [these docs](#automatical
 `vmagent` accepts{{% available_from "v1.137.0" %}} metric metadata exposed by scrape targets in [Prometheus exposition format](https://github.com/prometheus/docs/blob/main/docs/instrumenting/exposition_formats.md), received via [Prometheus remote write v1](https://prometheus.io/docs/specs/prw/remote_write_spec/) or [OpenTelemetry protocol](https://github.com/open-telemetry/opentelemetry-proto/blob/v1.7.0/opentelemetry/proto/metrics/v1/metrics.proto) by default. Set `-enableMetadata=false` to disable metadata processing{{% available_from "v1.125.1" %}}.
 During processing, metadata won't be dropped or modified by [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/) or [streaming aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/).
 
-When `-enableMultitenantHandlers` is enabled, vmagent adds tenant info to metadata received via the [multitenant endpoints](https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy) (`/insert/<accountID>/<suffix>`). However, if `vm_account_id` or `vm_project_id` labels are added directly to metrics before reaching vmagent, and vmagent writes to the [vminsert multitenant endpoints](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels), the tenant info won't be attached and the metadata will be stored under the default tenant of VictoriaMetrics cluster.
+When `-enableMultitenantHandlers` is enabled, vmagent adds tenant info to metadata specified in [multitenant endpoint](https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy) (`/insert/<accountID>/<suffix>`).
+However, if the `/insert/multitenant/<suffix>` endpoint is used, vmagent preserves the tenant information provided in the metadata by the sender. If the sender does not specify tenant information, the default tenant `0:0` is used.
 
 > Metadata requires extra memory, disk space, and network traffic.
+
+Use `-remoteWrite.disableMetadata`{{% available_from "v1.140.0" %}} to fully disable sending metadata from vmagent.
+This reduces network traffic and resource usage when metadata is not required.
 
 ## Stream parsing mode
 

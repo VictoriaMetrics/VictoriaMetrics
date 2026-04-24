@@ -10,6 +10,10 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prommetadata"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	"github.com/golang/snappy"
 )
 
 // Vmagent holds the state of a vmagent app and provides vmagent-specific functions
@@ -158,6 +162,31 @@ func (app *Vmagent) ReloadRelabelConfigs(t *testing.T) {
 	t.Fatalf("relabel configs were not reloaded after SIGHUP signal; previous total: %f, current total: %f", prevTotal, currTotal)
 }
 
+// PrometheusAPIV1Write is a test helper function that inserts a
+// collection of records in Prometheus remote-write format by sending a HTTP
+// POST request to /prometheus/api/v1/write vmagent endpoint.
+func (app *Vmagent) PrometheusAPIV1Write(t *testing.T, wr prompb.WriteRequest, opts QueryOpts) {
+	t.Helper()
+
+	url := fmt.Sprintf("http://%s/prometheus/api/v1/write", app.httpListenAddr)
+	if opts.Tenant != "" {
+		url = fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/write", app.httpListenAddr, opts.Tenant)
+	}
+	data := snappy.Encode(nil, wr.MarshalProtobuf(nil))
+	recordsCount := len(wr.Timeseries)
+	if prommetadata.IsEnabled() {
+		recordsCount += len(wr.Metadata)
+	}
+	headers := opts.getHeaders()
+	headers.Set("Content-Type", "application/x-protobuf")
+	app.sendBlocking(t, recordsCount, func() {
+		_, statusCode := app.cli.Post(t, url, data, headers)
+		if statusCode != http.StatusNoContent {
+			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
+		}
+	})
+}
+
 // HTTPAddr returns the address at which the vmagent process is listening
 // for http connections.
 func (app *Vmagent) HTTPAddr() string {
@@ -176,8 +205,10 @@ func (app *Vmagent) HTTPAddr() string {
 // If it is, then the data has been sent to vmstorage.
 //
 // Unreliable if the records are inserted concurrently.
-func (app *Vmagent) sendBlocking(t *testing.T, numRecordsToSend int, send func()) {
+func (app *Vmagent) sendBlocking(t *testing.T, _ int, send func()) {
 	t.Helper()
+
+	currRowsSentCount := app.remoteWriteRequestsTotal(t)
 
 	send()
 
@@ -185,7 +216,11 @@ func (app *Vmagent) sendBlocking(t *testing.T, numRecordsToSend int, send func()
 		retries = 20
 		period  = 100 * time.Millisecond
 	)
-	wantRowsSentCount := app.remoteWriteRequestsTotal(t) + numRecordsToSend
+	// TODO: properly account wantRowsSentCount
+	// currently vmagent doesn't expose per time-series write information
+	// so we can only account number of blocks sent via remote write protocol
+	// it should be suitable for tests purpose
+	wantRowsSentCount := currRowsSentCount + 1
 	for range retries {
 		if app.remoteWriteRequestsTotal(t) >= wantRowsSentCount {
 			return
