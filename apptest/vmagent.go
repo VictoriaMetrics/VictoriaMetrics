@@ -208,6 +208,8 @@ func (app *Vmagent) HTTPAddr() string {
 func (app *Vmagent) sendBlocking(t *testing.T, _ int, send func()) {
 	t.Helper()
 
+	currRowsSentCount := app.remoteWriteRequestsTotal(t)
+
 	send()
 
 	const (
@@ -218,7 +220,7 @@ func (app *Vmagent) sendBlocking(t *testing.T, _ int, send func()) {
 	// currently vmagent doesn't expose per time-series write information
 	// so we can only account number of blocks sent via remote write protocol
 	// it should be suitable for tests purpose
-	wantRowsSentCount := app.remoteWriteRequestsTotal(t) + 1
+	wantRowsSentCount := currRowsSentCount + 1
 	for range retries {
 		if app.remoteWriteRequestsTotal(t) >= wantRowsSentCount {
 			return
