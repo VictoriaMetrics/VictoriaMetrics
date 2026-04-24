@@ -76,7 +76,7 @@ It is better to substitute the slow recording rule with the following [stream ag
   outputs: [rate_sum]
 ```
 
-> Field `interval` should be set to a value at least several times higher than the matched metrics collection interval.
+> Field `interval` should be set to a value at least several times higher than the matched metrics collection interval. 
 
 This stream aggregation generates `http_request_duration_seconds_bucket:1m_without_instance_rate_sum` output series according to [output metric naming](#output-metric-names).
 Then these series can be used in [alerting rules](https://docs.victoriametrics.com/victoriametrics/vmalert/#alerting-rules):
@@ -91,7 +91,7 @@ This query executes much faster than the original one because it needs to scan f
   If the sliding window isn't important, then simply omit the `avg_over_time` aggregation in the expression. 
 
 See [the list of aggregate output](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-outputs), which can be specified at the `output` field.
-See also [aggregating by labels](#aggregating-by-labels).
+See also [aggregating by labels](#aggregating-by-labels), [aggregating histograms](#aggregating-histograms).
 
 ## Reducing the number of stored samples
 
