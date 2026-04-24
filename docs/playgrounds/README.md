@@ -93,6 +93,20 @@ Try viewing available dashboards or just browse via Grafana's explore page to qu
 
 ![Screenshot of Grafana Dashboard](grafana-node-exporter.webp)
 
+## Grafana SSO Playground
+
+- Try it: <https://play-grafana-sso.victoriametrics.com/>
+
+This playground is showcasing vmauth integration with Keycloak as SSO used to enforce visibility of data by different users.
+See this guide for details: [Setup vmauth - Multi-Tenant Access with Grafana & OIDC](https://docs.victoriametrics.com/guides/grafana-vmauth-openid-configuration/)
+
+Credentials for login:
+
+- `developer` / `developer`
+- `platform` / `platform`
+
+Both users have their access limited to show data which is necessary for their role, so you can see how vmauth and Keycloak work together to enforce multi-tenant access control.
+
 ## VMAnomaly Playground
 
 VMAnomaly analyzes metrics, logs, or traces using VictoriaMetrics' built-in anomaly detection model to generate an [anomaly score](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score). An `anomaly_score > 1` indicates an anomalous condition that deserves attention.
