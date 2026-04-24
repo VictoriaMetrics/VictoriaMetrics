@@ -339,11 +339,16 @@ Please note, histograms can be aggregated if their `le` labels are configured id
 [VictoriaMetrics histogram buckets](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350)
 have no such requirement.
 
-It's recommended to use [aggregation windows](#aggregation-windows) when aggregating histograms if you observe [accuracy issues](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4580).
+Stream aggregation of histogram buckets is very sensitive to sample delays. Histogram is logical group of independent time series (buckets) that are supposed to be updated uniformly.
+Aggregation can't guarantee that within one aggregation intervals all samples belonging to one histogram were updated. Situations like this can cause [accuracy issues](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4580).
+The recommended ways for improving accuracy are: 
+- enable [aggregation windows](#aggregation-windows);
+- increase `interval` ;
+- ensure that vmagent has no resource shortage;
+- ensure that samples delivery pipeline has no resource shortage or queue accumulation, so it can deliver samples fast.
 
 See [the list of aggregate output](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-outputs), which can be specified at the `output` field.
 See also [histograms over input metrics](#histograms-over-input-metrics) and [quantiles over input metrics](#quantiles-over-input-metrics).
-
 
 # Routing
 
