@@ -56,8 +56,8 @@ var (
 
 	logNewSeries = flag.Bool("logNewSeries", false, "Whether to log new series. This option is for debug purposes only. It can lead to performance issues "+
 		"when big number of new series are ingested into VictoriaMetrics")
-	denyQueriesOutsideRetention = flag.Bool("denyQueriesOutsideRetention", false, "Whether to deny queries outside the configured -retentionPeriod. "+
-		"When set, then /api/v1/query_range would return '503 Service Unavailable' error for queries with 'from' value outside -retentionPeriod. "+
+	denyQueriesOutsideRetention = flag.Bool("denyQueriesOutsideRetention", false, "Whether to deny queries outside the configured -retentionPeriod and -futureRetention. "+
+		"When set, then /api/v1/query_range would return '503 Service Unavailable' error for queries with 'from' value outside -retentionPeriod or 'to' value beyond -futureRetention. "+
 		"This may be useful when multiple data sources with distinct retentions are hidden behind query-tee")
 	maxHourlySeries = flag.Int64("storage.maxHourlySeries", 0, "The maximum number of unique series can be added to the storage during the last hour. "+
 		"Excess series are logged and dropped. This can be useful for limiting series cardinality. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-limiter . "+
@@ -103,21 +103,6 @@ var (
 		"If set to 0 or a negative value, defaults to 1% of allowed memory.")
 )
 
-// CheckTimeRange returns true if the given tr is denied for querying.
-func CheckTimeRange(tr storage.TimeRange) error {
-	if !*denyQueriesOutsideRetention {
-		return nil
-	}
-	minAllowedTimestamp := int64(fasttime.UnixTimestamp()*1000) - retentionPeriod.Milliseconds()
-	if tr.MinTimestamp > minAllowedTimestamp {
-		return nil
-	}
-	return &httpserver.ErrorWithStatusCode{
-		Err:        fmt.Errorf("the given time range %s is outside the allowed -retentionPeriod=%s according to -denyQueriesOutsideRetention", &tr, retentionPeriod),
-		StatusCode: http.StatusServiceUnavailable,
-	}
-}
-
 // Init initializes vmstorage.
 func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	if err := encoding.CheckPrecisionBits(uint8(*precisionBits)); err != nil {
@@ -151,14 +136,15 @@ func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	startTime := time.Now()
 	WG = syncwg.WaitGroup{}
 	opts := storage.OpenOptions{
-		Retention:             retentionPeriod.Duration(),
-		FutureRetention:       futureRetention.Duration(),
-		MaxHourlySeries:       getMaxHourlySeries(),
-		MaxDailySeries:        getMaxDailySeries(),
-		DisablePerDayIndex:    *disablePerDayIndex,
-		TrackMetricNamesStats: *trackMetricNamesStats,
-		IDBPrefillStart:       *idbPrefillStart,
-		LogNewSeries:          *logNewSeries,
+		Retention:                   retentionPeriod.Duration(),
+		FutureRetention:             futureRetention.Duration(),
+		DenyQueriesOutsideRetention: *denyQueriesOutsideRetention,
+		MaxHourlySeries:             getMaxHourlySeries(),
+		MaxDailySeries:              getMaxDailySeries(),
+		DisablePerDayIndex:          *disablePerDayIndex,
+		TrackMetricNamesStats:       *trackMetricNamesStats,
+		IDBPrefillStart:             *idbPrefillStart,
+		LogNewSeries:                *logNewSeries,
 	}
 	strg := storage.MustOpenStorage(*DataPath, opts)
 	Storage = strg
