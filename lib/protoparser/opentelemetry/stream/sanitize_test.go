@@ -24,30 +24,19 @@ func TestSanitizePrometheusLabelName(t *testing.T) {
 	f("1foo", "key_1foo")
 	f("_foo", "key_foo")
 	f("__bar", "__bar")
-}
 
-func TestSanitizePrometheusLabelNamePermissive(t *testing.T) {
-	f := func(labelName, expectedResult string) {
-		t.Helper()
-
-		prevUsePermLabelVal := *usePermissiveLabelSanitization
-		*usePermissiveLabelSanitization = true
-
-		var sctx sanitizerContext
-		result := sctx.sanitizePrometheusLabelName(labelName)
-		if result != expectedResult {
-			t.Fatalf("unexpected result; got %q; want %q", result, expectedResult)
-		}
-
-		*usePermissiveLabelSanitization = prevUsePermLabelVal
-	}
+	prev := *labelNameUnderscoreSanitization
+	*labelNameUnderscoreSanitization = false
+	defer func() {
+		*labelNameUnderscoreSanitization = prev
+	}()
 
 	f("", "")
 	f("foo", "foo")
+	f("foo_bar", "foo_bar")
+	f("1foo", "key_1foo")
 	f("_foo", "_foo")
 	f("__bar", "__bar")
-	f("1foo", "key_1foo")
-	f("foo_bar", "foo_bar")
 }
 
 func TestSanitizePrometheusMetricName(t *testing.T) {

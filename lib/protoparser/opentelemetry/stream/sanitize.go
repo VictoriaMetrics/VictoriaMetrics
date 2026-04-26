@@ -16,8 +16,8 @@ var (
 		"via OpenTelemetry protocol; see https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/")
 	convertMetricNamesToPrometheus = flag.Bool("opentelemetry.convertMetricNamesToPrometheus", false, "Whether to convert only metric names into Prometheus-compatible format for the metrics ingested "+
 		"via OpenTelemetry protocol; see https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/")
-	labelNameUnderscoreSanitization = flag.Bool("opentelemetry.labelNameUnderscoreSanitization", true, "Whether to prefix labels starting with a single underscore with 'key' "+
-		"when -opentelemetry.usePrometheusNaming is enabled. "+
+	labelNameUnderscoreSanitization = flag.Bool("opentelemetry.labelNameUnderscoreSanitization", true, "Whether to enable prepending of 'key' to labels starting with '_' "+
+		"when -opentelemetry.usePrometheusNaming is enabled. Reserved labels starting with '__' are not modified. "+
 		"See https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/")
 )
 
@@ -83,8 +83,6 @@ func (sctx *sanitizerContext) reset() {
 	sctx.labelBuf = sctx.labelBuf[:0]
 }
 
-// See https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/b8655058501bed61a06bb660869051491f46840b/pkg/translator/prometheus/normalize_label.go#L26
-//
 // The returned string is valid until the next call to sanitizeLabelName.
 func (sctx *sanitizerContext) sanitizeLabelName(labelName string) string {
 	if !*usePrometheusNaming {
@@ -93,7 +91,7 @@ func (sctx *sanitizerContext) sanitizeLabelName(labelName string) string {
 	return sctx.sanitizePrometheusLabelName(labelName)
 }
 
-// sanitizePrometheusLabelName performs convertion and normalization of OpenTelemetry Attributes to Prometheus labels
+// sanitizePrometheusLabelName performs conversion and normalization of OpenTelemetry attributes to Prometheus labels.
 // It follows the Prometheus guidelines: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/pkg/translator/prometheus#labels
 func (sctx *sanitizerContext) sanitizePrometheusLabelName(labelName string) string {
 	if len(labelName) == 0 {
