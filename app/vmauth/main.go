@@ -48,7 +48,7 @@ var (
 	responseTimeout = flag.Duration("responseTimeout", 5*time.Minute, "The timeout for receiving a response from backend")
 
 	requestBufferSize = flagutil.NewBytes("requestBufferSize", 32*1024, "The size of the buffer for reading the request body before proxying the request to backends. "+
-		"This allows reducing the comsumption of backend resources when processing requests from clients connected via slow networks. "+
+		"This allows reducing the consumption of backend resources when processing requests from clients connected via slow networks. "+
 		"Set to 0 to disable request buffering. See https://docs.victoriametrics.com/victoriametrics/vmauth/#request-body-buffering")
 	maxRequestBodySizeToRetry = flagutil.NewBytes("maxRequestBodySizeToRetry", 16*1024, "The maximum request body size to buffer in memory for potential retries at other backends. "+
 		"Request bodies larger than this size cannot be retried if the backend fails. Zero or negative value disables request body buffering and retries. "+
@@ -186,11 +186,11 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		processUserRequest(w, r, ui, nil)
 		return true
 	}
-	if ui, tkn := getUserInfoByJWTToken(ats); ui != nil {
+	if ui, tkn := getJWTUserInfo(ats); ui != nil {
 		if tkn == nil {
 			logger.Panicf("BUG: unexpected nil jwt token for user %q", ui.name())
 		}
-
+		defer putToken(tkn)
 		processUserRequest(w, r, ui, tkn)
 		return true
 	}
@@ -274,7 +274,8 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tk
 		w = &responseWriterWithStatus{ResponseWriter: w}
 		defer func() {
 			rws := w.(*responseWriterWithStatus)
-			ui.logRequest(r, userName, rws.status)
+			duration := time.Since(startTime)
+			ui.logRequest(r, userName, rws.status, duration)
 		}()
 	}
 
@@ -356,6 +357,7 @@ func bufferRequestBody(ctx context.Context, r io.ReadCloser, userName string) (i
 
 	maxBufSize := max(requestBufferSize.IntN(), maxRequestBodySizeToRetry.IntN())
 	if maxBufSize <= 0 {
+		// Request buffering is disabled.
 		return r, nil
 	}
 
@@ -427,9 +429,11 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tkn *j
 		}
 		if isDefault {
 			// Don't change path and add request_path query param for default route.
+			targetURLCopy := *targetURL
 			query := targetURL.Query()
 			query.Set("request_path", u.String())
-			targetURL.RawQuery = query.Encode()
+			targetURLCopy.RawQuery = query.Encode()
+			targetURL = &targetURLCopy
 		} else {
 			// Update path for regular routes.
 			targetURL = mergeURLs(targetURL, u, up.dropSrcPathPrefixParts, up.mergeQueryArgs)
@@ -477,6 +481,9 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 	canRetry := !bbOK || bb.canRetry()
 
 	res, err := ui.rt.RoundTrip(req)
+	if err == nil {
+		defer func() { _ = res.Body.Close() }()
+	}
 
 	if errors.Is(r.Context().Err(), context.Canceled) {
 		// Do not retry canceled requests.
@@ -546,7 +553,6 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 	w.WriteHeader(res.StatusCode)
 
 	err = copyStreamToClient(w, res.Body)
-	_ = res.Body.Close()
 
 	if errors.Is(r.Context().Err(), context.Canceled) {
 		// Do not retry canceled requests.
@@ -760,7 +766,7 @@ var concurrentRequestsLimitReached = metrics.NewCounter("vmauth_concurrent_reque
 
 func usage() {
 	const s = `
-vmauth authenticates and authorizes incoming requests and proxies them to VictoriaMetrics.
+vmauth authenticates and authorizes incoming requests and proxies them to VictoriaMetrics components or any other HTTP backends.
 
 See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
 `
@@ -789,10 +795,11 @@ func handleConcurrencyLimitError(w http.ResponseWriter, r *http.Request, err err
 }
 
 // bufferedBody serves two purposes:
-//  1. Enables request retries when the body size does not exceed maxBodySize
-//     by fully buffering the body in memory.
-//  2. Prevents slow clients from reducing effective server capacity by
-//     buffering the request body before acquiring a per-user concurrency slot.
+//
+//  1. It enables request retries when the request body size does not exceed maxBufSize
+//     by fully buffering the request body in memory.
+//  2. It prevents slow clients from reducing effective server capacity
+//     by buffering the request body before acquiring a per-user concurrency slot.
 //
 // See bufferRequestBody for details on how bufferedBody is used.
 type bufferedBody struct {
@@ -816,7 +823,7 @@ func newBufferedBody(r io.ReadCloser, buf []byte, maxBufSize int) *bufferedBody 
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8051
 
 	if len(buf) < maxBufSize {
-		// Read the full request body into buf.
+		// The full request body has been already read into buf.
 		r = nil
 	}
 
@@ -829,7 +836,7 @@ func newBufferedBody(r io.ReadCloser, buf []byte, maxBufSize int) *bufferedBody 
 // Read implements io.Reader interface.
 func (bb *bufferedBody) Read(p []byte) (int, error) {
 	if bb.cannotRetry {
-		return 0, fmt.Errorf("cannot read already closed body")
+		return 0, fmt.Errorf("cannot read already closed request body")
 	}
 	if bb.bufOffset < len(bb.buf) {
 		n := copy(p, bb.buf[bb.bufOffset:])

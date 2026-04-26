@@ -146,11 +146,17 @@ and then it sends the buffered data to the remote storage in order to prevent da
 so there is no need to specify multiple `-remoteWrite.url` flags when writing data to the same cluster.
 See [these docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety).
 
+### Relabeling and filtering
+
+`vmagent` can add, remove or update labels on the collected data before sending it to the remote storage.
+It can filter scrape targets or remove unwanted samples via Prometheus-like relabeling.
+Please see [Relabeling cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/) for details.
+
 ### Sharding among remote storages
 
 By default `vmagent` replicates data to remote storage systems via the `-remoteWrite.url` command-line flag.
 If the `-remoteWrite.shardByURL` command-line flag is set, then `vmagent` spreads
-the outgoing [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) evenly among all the remote storage 
+the outgoing [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) evenly among all the remote storage
 systems listed in `-remoteWrite.url`.
 
 It is possible to replicate samples among remote storage systems by passing `-remoteWrite.shardByURLReplicas=N`
@@ -187,12 +193,6 @@ except for the labels `instance` and `pod` must be routed to the same backend. I
 `-remoteWrite.shardByURL.ignoreLabels` command-line flag: `-remoteWrite.shardByURL.ignoreLabels=instance,pod`.
 
 See also [how to scrape large number of targets](#scraping-big-number-of-targets).
-
-### Relabeling and filtering
-
-`vmagent` can add, remove or update labels on the collected data before sending it to the remote storage. Additionally,
-it can remove unwanted samples via Prometheus-like relabeling before sending the collected data to remote storage.
-Please see [Relabeling cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/) for details.
 
 ### Splitting data streams among multiple systems
 
@@ -461,7 +461,9 @@ VictoriaMetrics remote write protocol provides the following benefits comparing 
 
 * Reduced disk read/write IO and disk space usage at `vmagent` when the remote storage is temporarily unavailable.
   In this case `vmagent` buffers the incoming data to disk using the VictoriaMetrics remote write format.
-  This reduces disk read/write IO and disk space usage by 2x-5x comparing to Prometheus remote write format.
+  This reduces disk read/write IO and disk space usage by 2x-5x compared to Prometheus remote write format.
+
+> See blogpost [Save network costs with VictoriaMetrics remote write protocol](https://victoriametrics.com/blog/victoriametrics-remote-write/).
 
 `vmagent` uses VictoriaMetrics remote write protocol by default {{% available_from "v1.116.0" %}} when it sends data to VictoriaMetrics components such as other `vmagent` instances,
 [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
@@ -499,9 +501,24 @@ scrape_configs:
     target_label: vm_account_id
 ```
 
+In addition, vmagent could obtain tenant identifier from `__tenant_id__` label at target discovery phase.
+It implicitly converts `__tenant_id__` label into `vm_account_id` and `vm_project_id` labels and attaches
+it to the scraped metrics and metrics metadata.
+For example, the following relabeling rule instructs sending metrics to `10:5` [tenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy)
+defined in the `prometheus.io/tenant_id: 10:5` annotation of Kubernetes pod deployment:
+
+```yaml
+scrape_configs:
+- kubernetes_sd_configs:
+  - role: pod
+  relabel_configs:
+  - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_tenant_id]
+    target_label: __tenant_id__
+```
+
 `vmagent` can accept data via the same multitenant endpoints (`/insert/<accountID>/<suffix>`) as `vminsert` at [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/)
 does according to [these docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format) if `-enableMultitenantHandlers` command-line flag is set.
-In this case, vmagent automatically converts tenant identifiers from the URL to `vm_account_id` and `vm_project_id` labels.
+In this case, vmagent automatically converts tenant identifiers from the URL to `vm_account_id` and `vm_project_id` labels and sets tenant info in metadata.
 These tenant labels are added before applying [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/) specified via `-remoteWrite.relabelConfig`
 and `-remoteWrite.urlRelabelConfig` command-line flags. Metrics with `vm_account_id` and `vm_project_id` labels can be routed to the corresponding tenants
 when specifying `-remoteWrite.url` to [multitenant url at VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels).
@@ -611,6 +628,8 @@ and attaches `instance`, `job` and other target-specific labels to these metrics
   `vmagent` sets `scrape_series_added` to zero when it runs with `-promscrape.noStaleMarkers` command-line flag
   or when it scrapes target with `no_stale_markers: true` option, e.g. when [staleness markers](#prometheus-staleness-markers) are disabled.
 
+  Restarting `vmagent` can cause `scrape_series_added` to rise because all time series are new to a newly started `vmagent`.
+
 * `scrape_series_limit` - the limit on the number of unique [series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) the given target can expose according to [these docs](#cardinality-limiter).
   This metric is exposed only if the series limit is set.
 
@@ -661,9 +680,13 @@ e.g. it sets `scrape_series_added` metric to zero. See [these docs](#automatical
 `vmagent` accepts{{% available_from "v1.137.0" %}} metric metadata exposed by scrape targets in [Prometheus exposition format](https://github.com/prometheus/docs/blob/main/docs/instrumenting/exposition_formats.md), received via [Prometheus remote write v1](https://prometheus.io/docs/specs/prw/remote_write_spec/) or [OpenTelemetry protocol](https://github.com/open-telemetry/opentelemetry-proto/blob/v1.7.0/opentelemetry/proto/metrics/v1/metrics.proto) by default. Set `-enableMetadata=false` to disable metadata processing{{% available_from "v1.125.1" %}}.
 During processing, metadata won't be dropped or modified by [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/) or [streaming aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/).
 
-When `-enableMultitenantHandlers` is enabled, vmagent adds tenant info to metadata received via the [multitenant endpoints](https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy) (`/insert/<accountID>/<suffix>`). However, if `vm_account_id` or `vm_project_id` labels are added directly to metrics before reaching vmagent, and vmagent writes to the [vminsert multitenant endpoints](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels), the tenant info won't be attached and the metadata will be stored under the default tenant of VictoriaMetrics cluster.
+When `-enableMultitenantHandlers` is enabled, vmagent adds tenant info to metadata specified in [multitenant endpoint](https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy) (`/insert/<accountID>/<suffix>`).
+However, if the `/insert/multitenant/<suffix>` endpoint is used, vmagent preserves the tenant information provided in the metadata by the sender. If the sender does not specify tenant information, the default tenant `0:0` is used.
 
 > Metadata requires extra memory, disk space, and network traffic.
+
+Use `-remoteWrite.disableMetadata`{{% available_from "v1.140.0" %}} to fully disable sending metadata from vmagent.
+This reduces network traffic and resource usage when metadata is not required.
 
 ## Stream parsing mode
 
@@ -937,6 +960,9 @@ The limit can be enforced by setting the following command-line flags:
 * `-remoteWrite.maxDailySeries` - limits the number of unique time series `vmagent` can write to remote storage systems during the last day.
   Useful for limiting daily churn rate.
 
+It is possible to use `-1` as a value for these flags{{% available_from "v1.140.0" %}} in order to enable series tracking but set limit to maximum possible value.
+This is useful in order to estimate the number of unique series which is written to remote storage systems without enforcing limits.
+
 Both limits can be set simultaneously. If any of these limits is reached, then samples for new time series are dropped instead of sending
 them to remote storage systems. A sample of dropped series is put in the log with `WARNING` level.
 
@@ -965,7 +991,7 @@ See [these docs](https://cloud.google.com/stackdriver/docs/managed-prometheus/tr
 
 Use official [Grafana dashboard](https://grafana.com/grafana/dashboards/12683) for `vmagent` state overview.
 Graphs on this dashboard contain useful hints - hover the `i` icon at the top left corner of each graph in order to read it.
-If you have suggestions for improvements or have found a bug - please open an issue on [github](https://github.com/VictoriaMetrics/VictoriaMetrics/issues) 
+If you have suggestions for improvements or have found a bug - please open an issue on [github](https://github.com/VictoriaMetrics/VictoriaMetrics/issues)
 or add a review to the dashboard.
 
 `vmagent` also exports the status for various targets at the following pages:
@@ -1116,7 +1142,7 @@ Additional notes:
 
 See general recommendations regarding [security](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#security).
 
-vmagent's `/remotewrite-relabel-config` and `/remotewrite-url-relabel-config` endpoints {{% available_from "v1.129.0" %}} 
+vmagent's `/remotewrite-relabel-config` and `/remotewrite-url-relabel-config` endpoints {{% available_from "v1.129.0" %}}
 can be protected via `-configAuthKey` command-line flag.
 
 ### mTLS protection
@@ -1149,7 +1175,7 @@ For example, if `vmagent` needs to scrape thousands of targets in resource-const
   even if many clients send data to `vmagent` via many concurrent connections and the number of these connections significantly exceeds the default value
   for the `-maxConcurrentRequests` command-line flag. `vmagent` puts incoming requests into a wait queue if the number of concurrently executed requests
   exceeds `-maxConcurrentRequests`. The pending requests at the wait queue do not consume CPU and do not consume significant amounts of RAM, so it is OK to have
-  thousands of pending requests in the wait queue. Pending requests in the wait queue are canceled if they wait for their exection for longer than
+  thousands of pending requests in the wait queue. Pending requests in the wait queue are canceled if they wait for their execution for longer than
   the duration specified in the `-insert.maxQueueDuration` command-line flag. Canceled requests can be [monitored](https://docs.victoriametrics.com/victoriametrics/vmagent/#monitoring)
   via `vm_concurrent_insert_limit_timeout_total` metric.
 

@@ -305,6 +305,13 @@ func TestParseJWTBody_Failure(t *testing.T) {
 		`unexpected type for key="logs_extra_stream_filters", got: string, want: array string`,
 		true,
 	)
+
+	// invalid iss claim value type
+	f(
+		`{"iss": {}, "vm_access": {}}`,
+		"cannot parse `iss` field: value doesn't contain string; it contains object",
+		true,
+	)
 }
 
 func TestParseJWTBody_Success(t *testing.T) {
@@ -325,6 +332,9 @@ func TestParseJWTBody_Success(t *testing.T) {
 		}
 		if result.Iat != resultExpected.Iat {
 			t.Fatalf("unexpected Iat; got %d; want %d", result.Iat, resultExpected.Iat)
+		}
+		if result.Iss != resultExpected.Iss {
+			t.Fatalf("unexpected Iss; got %s; want %s", result.Iss, resultExpected.Iss)
 		}
 		if result.Scope != resultExpected.Scope {
 			t.Fatalf("unexpected scope; got %q; want %q", result.Scope, resultExpected.Scope)
@@ -347,6 +357,10 @@ func TestParseJWTBody_Success(t *testing.T) {
 		vmAccessClaim: VMAccessClaim{},
 	})
 	f(`{"vm_access": {"tenant_id": {}}}`, &body{
+		vmAccessClaim: VMAccessClaim{},
+	})
+	f(`{"iss": "theIssuer", "vm_access": {"tenant_id": {}}}`, &body{
+		Iss:           "theIssuer",
 		vmAccessClaim: VMAccessClaim{},
 	})
 
@@ -849,4 +863,218 @@ func TestNewTokenFromRequest_Success(t *testing.T) {
 		},
 	}
 	f(r, resultExpected, false)
+}
+
+func TestTokenMatchClaims(t *testing.T) {
+
+	/*
+		{
+		  "iss": "https://login.microsoftonline.com/-6691-4868-a77b-1b0f9bbe5f43/v2.0",
+		  "iat": 1725625332,
+		  "exp": 1725629232,
+		  "name": "Zakhar",
+		  "key.with.dot": "issuer",
+		  "security": {
+		    "permissions": [
+		      {"read": true},
+		      {"write": true}
+		    ],
+		    "nested_array": [
+		      {"values":["read","write"]}
+		    ],
+		    "audit":{
+		      "scope": "",
+		      "score": 1.05,
+		      "user_id": 100
+		    }
+		  },
+		  "ver": 2.0,
+		  "vm_access": "{\"tenant_id\":{\"project_id\": 5, \"account_id\": 1}}",
+		  "scope": "[\"openid\",\"vm\"]"
+		}
+	*/
+	tokenStr := "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6ImZmZi1sQjl3In0.eyJpc3MiOiJodHRwczovL2xvZ2luLm1pY3Jvc29mdG9ubGluZS5jb20vLTY2OTEtNDg2OC1hNzdiLTFiMGY5YmJlNWY0My92Mi4wIiwiaWF0IjoxNzI1NjI1MzMyLCJleHAiOjE3MjU2MjkyMzIsIm5hbWUiOiJaYWtoYXIiLCJrZXkud2l0aC5kb3QiOiJpc3N1ZXIiLCJzZWN1cml0eSI6eyJwZXJtaXNzaW9ucyI6W3sicmVhZCI6dHJ1ZX0seyJ3cml0ZSI6dHJ1ZX1dLCJuZXN0ZWRfYXJyYXkiOlt7InZhbHVlcyI6WyJyZWFkIiwid3JpdGUiXX1dLCJhdWRpdCI6eyJzY29wZSI6IiIsInNjb3JlIjoxLjA1LCJ1c2VyX2lkIjoxMDB9fSwidmVyIjoyLCJ2bV9hY2Nlc3MiOiJ7XCJ0ZW5hbnRfaWRcIjp7XCJwcm9qZWN0X2lkXCI6IDUsIFwiYWNjb3VudF9pZFwiOiAxfX0iLCJzY29wZSI6WyJvcGVuaWQiLCJ2bSJdfQ.Xczc0_QUCtQtZli2cLKjraKSelCGOZaBemttVb65ekBPL1lkK813KwlGmD_LLvBTkHOumMEjFr2P8TcQeixhDC4oZ2D3yxwdsOEpnSfuWs0hw0Edqzd7D1E2DFD2ptB6X8-qAizQM_tDAhRn6U_H886EXu_ebaiGcf7k7akqv1LY6SZhGLjYKcI3HERQtqor7ZROGbckE1Swak5YoZBdBp-WI-h7CSFsWrK9E3Dcl7Sn42PzgyR5TaxQ7n4VIIUXa0VTUukL-v_g-qzBrgyrujUhtS4hnZIBBQ1qSESjWyceGW7SRtwOWCGQG8kBwUvlWgbwrz5_pp_A6trwtag2rA"
+	var tokenWithStrFields Token
+	if err := tokenWithStrFields.Parse(tokenStr, false); err != nil {
+		t.Fatalf("BUG: cannot JWT token: %s", err)
+	}
+	f := func(tkn *Token, claims map[string]string, want bool) {
+		parsedClaims := make([]*Claim, 0, len(claims))
+		for k, v := range claims {
+			c, err := NewClaim(k, v)
+			if err != nil {
+				t.Fatalf("BUG: incorrect claim, key=%q,value_re=%q: %s", k, v, err)
+			}
+			parsedClaims = append(parsedClaims, c)
+		}
+		t.Helper()
+		got := tkn.MatchClaims(parsedClaims)
+		if got != want {
+			t.Fatalf("unexpected match: (-%v;+%v)", want, got)
+		}
+	}
+	// single field match
+	claims := map[string]string{
+		"name": "Zakhar",
+	}
+	f(&tokenWithStrFields, claims, true)
+
+	// multiple fileds with array and nested maps
+	claims = map[string]string{
+		"name":                         "Zakhar",
+		"security.permissions.1.write": "true",
+	}
+	f(&tokenWithStrFields, claims, true)
+
+	// multiple fileds with float and escaped dot
+	claims = map[string]string{
+		"name":                           "Zakhar",
+		"key\\.with\\.dot":               "issuer",
+		"vm_access.tenant_id.project_id": "5",
+	}
+	f(&tokenWithStrFields, claims, true)
+
+	// with scope slice match
+	claims = map[string]string{
+		"name":  "Zakhar",
+		"scope": "openid vm",
+	}
+	f(&tokenWithStrFields, claims, true)
+
+	// complex key do not match
+	claims = map[string]string{
+		"name":                         "Zakhar",
+		"security.nested_array.values": "[\"read\",\"write\"]",
+	}
+	f(&tokenWithStrFields, claims, false)
+
+	// string array element match via an index path
+	f(&tokenWithStrFields, map[string]string{"security.nested_array.0.values": "read"}, true)
+
+	// checking array of hashmaps against a string
+	f(&tokenWithStrFields, map[string]string{"security.permissions": "read"}, false)
+
+	// key not found
+	claims = map[string]string{
+		"name":        "Zakhar",
+		"missing_key": "true",
+	}
+	f(&tokenWithStrFields, claims, false)
+
+	tokenObjectStr := "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6ImZmZi1sQjl3In0.eyJpc3MiOiJodHRwczovL2xvZ2luLm1pY3Jvc29mdG9ubGluZS5jb20vLTY2OTEtNDg2OC1hNzdiLTFiMGY5YmJlNWY0My92Mi4wIiwiaWF0IjoxNzI1NjI1MzMyLCJleHAiOjE3MjU2MjkyMzIsIm5hbWUiOiJaYWtoYXIiLCJkaWN0LndpdGhfZG90Ijp7ImtleSI6InZhbHVlIn0sInZlciI6Miwidm1fYWNjZXNzIjp7InRlbmFudF9pZCI6eyJwcm9qZWN0X2lkIjo1LCJhY2NvdW50X2lkIjoxfSwiZXh0cmFfbGFiZWxzIjp7ImtleSI6InZhbHVlIn19LCJzY29wZSI6Im9wZW5pZCB2bSJ9.CpSZbF0uzhg1vEYmMaZGAvVW2GIKTJ_BvFN6Ihfg0uQoeXYv3g8PENH3jfDAMI1m3tCoTdfY-HTrB4Nj85TlBvcpPlOYxOggW-yPK_3F8yNsP4WlIJh-FYJNM3c4eanzj37mhVRoA_v1rpDfWij2nGLR2TKo3C6CXNjOJATnuVllncJaXPHgGazP5yEFsbIeQdE1Yf8VxLNGcFAMrXADIL9Gh8kNvqp6AxHiYC5bU8AmkMHsO0YwomMFLwgB_QfJ_9O3CebVMirOMoJFRt01Mx7NbUWzciWXWtlShj_ADBL-lEpqUre2Ma6iayrXcvlYuVQYZZw8MkVEkKfq3TQA6Q"
+	/*
+		{
+		  "iss": "https://login.microsoftonline.com/-6691-4868-a77b-1b0f9bbe5f43/v2.0",
+		  "iat": 1725625332,
+		  "exp": 1725629232,
+		  "name": "Zakhar",
+		  "dict.with_dot": {
+		    "key": "value"
+		  },
+		  "ver": 2.0,
+		  "vm_access": {
+		    "tenant_id":
+		     {
+		       "project_id": 5,
+		       "account_id": 1
+		     },
+		    "extra_labels": {
+		      "key": "value"
+		    }
+		  },
+		  "scope": "openid vm"
+		}
+	*/
+	var tokenObjectFields Token
+
+	if err := tokenObjectFields.Parse(tokenObjectStr, false); err != nil {
+		t.Fatalf("BUG: cannot JWT token: %s", err)
+	}
+
+	// with scope string and tenant_id
+	claims = map[string]string{
+		"name":                           "Zakhar",
+		"scope":                          "openid vm",
+		"vm_access.tenant_id.account_id": "1",
+	}
+	f(&tokenObjectFields, claims, true)
+
+	// with extra_labels and float match
+	claims = map[string]string{
+		"ver":                        "2",
+		"vm_access.extra_labels.key": "value",
+	}
+	f(&tokenObjectFields, claims, true)
+
+	// with dot escaped
+	claims = map[string]string{
+		"name":                "Zakhar",
+		"dict\\.with_dot.key": "value",
+	}
+	f(&tokenObjectFields, claims, true)
+
+	// match re
+	claims = map[string]string{
+		"vm_access.tenant_id.project_id": "(1|3|5)",
+	}
+	f(&tokenObjectFields, claims, true)
+
+	// negative re
+	claims = map[string]string{
+		"vm_access.tenant_id.project_id": "[^1-5]",
+	}
+	f(&tokenObjectFields, claims, false)
+
+	// not match re
+	claims = map[string]string{
+		"vm_access.tenant_id.project_id": "(10|11)",
+	}
+	f(&tokenObjectFields, claims, false)
+
+	/*
+		{
+		  "name": "Test",
+		  "roles": ["read", "write", "admin"],
+		  "group_ids": [100, 200, 300],
+		  "mixed": ["foo", 42, true, null, {"nested": "obj"}, ["inner"]],
+		  "access": {"permissions": ["vm_read", "vm_write"]},
+		  "empty_arr": [],
+		  "vm_access": {"tenant_id": {"project_id": 1, "account_id": 1}}
+		}
+	*/
+	tokenArrayStr := "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6ImZmZi1sQjl3In0.eyJpc3MiOiJ0ZXN0IiwiaWF0IjoxNzI1NjI1MzMyLCJleHAiOjE3MjU2MjkyMzIsIm5hbWUiOiJUZXN0Iiwicm9sZXMiOlsicmVhZCIsIndyaXRlIiwiYWRtaW4iXSwiZ3JvdXBfaWRzIjpbMTAwLDIwMCwzMDBdLCJtaXhlZCI6WyJmb28iLDQyLHRydWUsbnVsbCx7Im5lc3RlZCI6Im9iaiJ9LFsiaW5uZXIiXV0sImFjY2VzcyI6eyJwZXJtaXNzaW9ucyI6WyJ2bV9yZWFkIiwidm1fd3JpdGUiXX0sImVtcHR5X2FyciI6W10sInZtX2FjY2VzcyI6eyJ0ZW5hbnRfaWQiOnsicHJvamVjdF9pZCI6MSwiYWNjb3VudF9pZCI6MX19fQ.hhI4capDL1wIfEiTP-biVzszFj55yBR_zRUcEisommXSs-whv1XvCMgUc_KGHj0pzO-YpKVooitfgA6PjNp82xFvCvlEsNI96kN-YKyn4wQShzswXJG_mQdYPhSPoD0UzdDXE6soNzgaMjGxpPA6sOhRGJtAKa0BR-eQgIS-8vcI5P4ymX-Geer1XjHM5I2rsPdKFxrwLec2l1qCTYqWuzS7gb3GH_19lBN13IJXdVmu8zXueVXOq_z9TgQVtQQtaWIW1-URmNk3tOvu78_lDjc1W0e7GtevOdkXl7a6NMtD-fl2Gh-S_shJHApqs93JIkdV6QABoH_Uvt9bTMFsmA"
+	var tokenArrayFields Token
+	if err := tokenArrayFields.Parse(tokenArrayStr, false); err != nil {
+		t.Fatalf("BUG: cannot parse JWT token: %s", err)
+	}
+
+	// string array
+	f(&tokenArrayFields, map[string]string{"roles": "^read$"}, true)
+	f(&tokenArrayFields, map[string]string{"roles": "^admin$"}, true)
+	f(&tokenArrayFields, map[string]string{"roles": "^nobody$"}, false)
+	f(&tokenArrayFields, map[string]string{"roles": "^(read|write)$"}, true)
+	f(&tokenArrayFields, map[string]string{"roles": "wr.*"}, true)
+
+	// numeric array
+	f(&tokenArrayFields, map[string]string{"group_ids": "^200$"}, true)
+	f(&tokenArrayFields, map[string]string{"group_ids": "^999$"}, false)
+
+	// nested array via a dot path
+	f(&tokenArrayFields, map[string]string{"access.permissions": "^vm_read$"}, true)
+	f(&tokenArrayFields, map[string]string{"access.permissions": "^vm_delete$"}, false)
+
+	// mixed array
+	// hashmaps and nested arrays are skipped
+	f(&tokenArrayFields, map[string]string{"mixed": "^foo$"}, true)
+	f(&tokenArrayFields, map[string]string{"mixed": "^42$"}, true)
+	f(&tokenArrayFields, map[string]string{"mixed": "^true$"}, true)
+	f(&tokenArrayFields, map[string]string{"mixed": "^obj$"}, false)
+	f(&tokenArrayFields, map[string]string{"mixed": "^inner$"}, false)
+
+	// empty array
+	f(&tokenArrayFields, map[string]string{"empty_arr": ".*"}, false)
+
+	// array claim combined with scalar claim
+	f(&tokenArrayFields, map[string]string{"name": "Test", "roles": "admin"}, true)
+	f(&tokenArrayFields, map[string]string{"name": "Test", "roles": "^nobody$"}, false)
 }

@@ -7,28 +7,28 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/regexutil"
-
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
 )
 
 // filterRegexp matches the given regexp
 //
-// Example LogsQL: `fieldName:re("regexp")`
+// Example LogsQL: `re("regexp")`
 type filterRegexp struct {
-	fieldName string
-	re        *regexutil.Regex
+	re *regexutil.Regex
 
 	tokensOnce   sync.Once
 	tokens       []string
 	tokensHashes []uint64
 }
 
-func (fr *filterRegexp) String() string {
-	return fmt.Sprintf("%s~%s", quoteFieldNameIfNeeded(fr.fieldName), quoteTokenIfNeeded(fr.re.String()))
+func newFilterRegexp(fieldName string, re *regexutil.Regex) *filterGeneric {
+	fp := &filterRegexp{
+		re: re,
+	}
+	return newFilterGeneric(fieldName, fp)
 }
 
-func (fr *filterRegexp) updateNeededFields(pf *prefixfilter.Filter) {
-	pf.AddAllowFilter(fr.fieldName)
+func (fr *filterRegexp) String() string {
+	return fmt.Sprintf("~%s", quoteTokenIfNeeded(fr.re.String()))
 }
 
 func (fr *filterRegexp) getTokens() []string {
@@ -76,20 +76,19 @@ func skipLastToken(s string) string {
 	}
 }
 
-func (fr *filterRegexp) matchRow(fields []Field) bool {
-	v := getFieldValueByName(fields, fr.fieldName)
+func (fr *filterRegexp) matchRowByField(fields []Field, fieldName string) bool {
+	v := getFieldValueByName(fields, fieldName)
 	return fr.re.MatchString(v)
 }
 
-func (fr *filterRegexp) applyToBlockResult(br *blockResult, bm *bitmap) {
+func (fr *filterRegexp) applyToBlockResultByField(br *blockResult, bm *bitmap, fieldName string) {
 	re := fr.re
-	applyToBlockResultGeneric(br, bm, fr.fieldName, "", func(v, _ string) bool {
+	applyToBlockResultGeneric(br, bm, fieldName, "", func(v, _ string) bool {
 		return re.MatchString(v)
 	})
 }
 
-func (fr *filterRegexp) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
-	fieldName := fr.fieldName
+func (fr *filterRegexp) applyToBlockSearchByField(bs *blockSearch, bm *bitmap, fieldName string) {
 	re := fr.re
 
 	// Verify whether filter matches const column

@@ -55,7 +55,7 @@ const ExploreMetricItem: FC<ExploreMetricItemGraphProps> = ({
 
     const base = `{${params.join(",")}}`;
     if (isBucket) {
-      return [`sum(rate(${base})) by (vmrange, le)`];
+      return [`sum(increase_pure(${base})) by (vmrange, le)`];
     }
     const queryBase = rateEnabled ? `rollup_rate(${base})` : `rollup(${base})`;
     return [`

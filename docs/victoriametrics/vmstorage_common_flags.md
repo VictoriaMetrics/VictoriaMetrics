@@ -224,15 +224,15 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/cluster-victori
   -storage.idbPrefillStart duration
      Specifies how early VictoriaMetrics starts pre-filling indexDB records before indexDB rotation. Starting the pre-fill process earlier can help reduce resource usage spikes during rotation. In most cases, this value should not be changed. The maximum allowed value is 23h. (default 1h0m0s)
   -storage.maxDailySeries int
-     The maximum number of unique series can be added to the storage during the last 24 hours. Excess series are logged and dropped. This can be useful for limiting series churn rate. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-limiter . See also -storage.maxHourlySeries
+     The maximum number of unique series can be added to the storage during the last 24 hours. Excess series are logged and dropped. This can be useful for limiting series churn rate. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-limiter . Setting this flag to '-1' sets limit to maximum possible value (2147483647) which is useful in order to enable series tracking without enforcing limits. See also -storage.maxHourlySeries
   -storage.maxHourlySeries int
-     The maximum number of unique series can be added to the storage during the last hour. Excess series are logged and dropped. This can be useful for limiting series cardinality. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-limiter . See also -storage.maxDailySeries
+     The maximum number of unique series can be added to the storage during the last hour. Excess series are logged and dropped. This can be useful for limiting series cardinality. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-limiter . Setting this flag to '-1' sets limit to maximum possible value (2147483647) which is useful in order to enable series tracking without enforcing limits. See also -storage.maxDailySeries
   -storage.maxMetadataStorageSize size
      Overrides max size for metrics metadata entries in-memory storage. If set to 0 or a negative value, defaults to 1% of allowed memory.
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -storage.minFreeDiskSpaceBytes size
      The minimum free disk space at -storageDataPath after which the storage stops accepting new data
-     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 10000000)
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 100000000)
   -storage.trackMetricNamesStats
      Whether to track ingest and query requests for timeseries metric names. This feature allows to track metric names unused at query requests. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#track-ingested-metrics-usage (default true)
   -storage.vminsertConnsShutdownDuration duration

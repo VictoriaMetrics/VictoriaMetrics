@@ -6,15 +6,12 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
 )
 
 // filterSubstring filters field entries by substring match.
 //
 // An empty substring matches any string.
 type filterSubstring struct {
-	fieldName string
 	substring string
 
 	tokensOnce   sync.Once
@@ -22,12 +19,15 @@ type filterSubstring struct {
 	tokensHashes []uint64
 }
 
-func (fs *filterSubstring) String() string {
-	return fmt.Sprintf("%s*%s*", quoteFieldNameIfNeeded(fs.fieldName), quoteTokenIfNeeded(fs.substring))
+func newFilterSubstring(fieldName, substring string) *filterGeneric {
+	fs := &filterSubstring{
+		substring: substring,
+	}
+	return newFilterGeneric(fieldName, fs)
 }
 
-func (fs *filterSubstring) updateNeededFields(pf *prefixfilter.Filter) {
-	pf.AddAllowFilter(fs.fieldName)
+func (fs *filterSubstring) String() string {
+	return fmt.Sprintf("*%s*", quoteTokenIfNeeded(fs.substring))
 }
 
 func (fs *filterSubstring) getTokens() []string {
@@ -46,17 +46,16 @@ func (fs *filterSubstring) initTokens() {
 	fs.tokensHashes = appendTokensHashes(nil, fs.tokens)
 }
 
-func (fs *filterSubstring) matchRow(fields []Field) bool {
-	v := getFieldValueByName(fields, fs.fieldName)
+func (fs *filterSubstring) matchRowByField(fields []Field, fieldName string) bool {
+	v := getFieldValueByName(fields, fieldName)
 	return matchSubstring(v, fs.substring)
 }
 
-func (fs *filterSubstring) applyToBlockResult(br *blockResult, bm *bitmap) {
-	applyToBlockResultGeneric(br, bm, fs.fieldName, fs.substring, matchSubstring)
+func (fs *filterSubstring) applyToBlockResultByField(br *blockResult, bm *bitmap, fieldName string) {
+	applyToBlockResultGeneric(br, bm, fieldName, fs.substring, matchSubstring)
 }
 
-func (fs *filterSubstring) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
-	fieldName := fs.fieldName
+func (fs *filterSubstring) applyToBlockSearchByField(bs *blockSearch, bm *bitmap, fieldName string) {
 	substring := fs.substring
 
 	// Verify whether fs matches const column

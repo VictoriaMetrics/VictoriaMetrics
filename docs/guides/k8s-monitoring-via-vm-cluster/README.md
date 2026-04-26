@@ -7,6 +7,9 @@ sitemap:
   disable: true
 ---
 
+> [!NOTE] Tip
+> Store every configuration file you use during this guide in version control. You may need them for reference or to change the configuration of your installation.
+
 This guide walks you through deploying a VictoriaMetrics cluster version on Kubernetes.
 
 By the end of this guide, you will know:
@@ -382,7 +385,7 @@ Consider reading these resources to complete your setup:
 - VictoriaMetrics
   - [Learn more about the cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/)
   - [Migrate existing metric data into VictoriaMetrics with vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/)
-  - [Setup alerts](https://docs.victoriametrics.com/victoriametrics/vmalert/)
+  - [Setup alerts](https://docs.victoriametrics.com/guides/vmalert-datasource-managed-alerts-grafana/)
 - Grafana
   - [Enable persistent storage](https://grafana.com/docs/grafana/latest/setup-grafana/installation/helm/#enable-persistent-storage-recommended)
   - [Configure private TLS authority](https://grafana.com/docs/grafana/latest/setup-grafana/installation/helm/#configure-a-private-ca-certificate-authority)

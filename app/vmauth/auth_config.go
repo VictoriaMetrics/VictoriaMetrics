@@ -117,7 +117,10 @@ type AccessLogFilters struct {
 	SkipStatusCodes []int `yaml:"skip_status_codes"`
 }
 
-func (ui *UserInfo) logRequest(r *http.Request, userName string, statusCode int) {
+func (ui *UserInfo) logRequest(r *http.Request, userName string, statusCode int, duration time.Duration) {
+	if ui.AccessLog == nil {
+		return
+	}
 	filters := ui.AccessLog.Filters
 	if filters != nil && len(filters.SkipStatusCodes) > 0 {
 		if slices.Contains(filters.SkipStatusCodes, statusCode) {
@@ -127,8 +130,8 @@ func (ui *UserInfo) logRequest(r *http.Request, userName string, statusCode int)
 
 	remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 	requestURI := httpserver.GetRequestURI(r)
-	logger.Infof("access_log request_host=%q request_uri=%q status_code=%d remote_addr=%s user_agent=%q referer=%q username=%q",
-		r.Host, requestURI, statusCode, remoteAddr, r.UserAgent(), r.Referer(), userName)
+	logger.Infof("access_log request_host=%q request_uri=%q status_code=%d remote_addr=%s user_agent=%q referer=%q duration_ms=%d username=%q",
+		r.Host, requestURI, statusCode, remoteAddr, r.UserAgent(), r.Referer(), duration.Milliseconds(), userName)
 }
 
 // HeadersConf represents config for request and response headers.
@@ -144,7 +147,7 @@ func (ui *UserInfo) beginConcurrencyLimit(ctx context.Context) error {
 	case ui.concurrencyLimitCh <- struct{}{}:
 		return nil
 	default:
-		// The number of concurrently executed requests for the given user equals the limt.
+		// The number of concurrently executed requests for the given user equals the limit.
 		// Wait until some of the currently executed requests are finished, so the current request could be executed.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10078
 		select {
@@ -359,40 +362,62 @@ func (up *URLPrefix) setLoadBalancingPolicy(loadBalancingPolicy string) error {
 }
 
 type backendURLs struct {
-	healthChecksContext context.Context
-	healthChecksCancel  func()
-	healthChecksWG      sync.WaitGroup
-
+	bhc backendHealthCheck
 	bus []*backendURL
+}
+
+type backendHealthCheck struct {
+	ctx context.Context
+	// mu protects fields below
+	cancel    func()
+	mu        sync.Mutex
+	isStopped bool
+	wg        sync.WaitGroup
+}
+
+func (bhc *backendHealthCheck) run(hc func()) {
+	bhc.mu.Lock()
+	defer bhc.mu.Unlock()
+	if bhc.isStopped {
+		return
+	}
+	bhc.wg.Go(hc)
+}
+
+func (bhc *backendHealthCheck) stop() {
+	bhc.mu.Lock()
+	bhc.cancel()
+	bhc.isStopped = true
+	bhc.mu.Unlock()
+	bhc.wg.Wait()
 }
 
 func newBackendURLs() *backendURLs {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &backendURLs{
-		healthChecksContext: ctx,
-		healthChecksCancel:  cancel,
+		bhc: backendHealthCheck{
+			ctx:    ctx,
+			cancel: cancel,
+		},
 	}
 }
 
 func (bus *backendURLs) add(u *url.URL) {
 	bus.bus = append(bus.bus, &backendURL{
-		url:                u,
-		healthCheckContext: bus.healthChecksContext,
-		healthCheckWG:      &bus.healthChecksWG,
-		hasPlaceHolders:    hasAnyPlaceholders(u),
+		url:             u,
+		bhc:             &bus.bhc,
+		hasPlaceHolders: hasAnyPlaceholders(u),
 	})
 }
 
 func (bus *backendURLs) stopHealthChecks() {
-	bus.healthChecksCancel()
-	bus.healthChecksWG.Wait()
+	bus.bhc.stop()
 }
 
 type backendURL struct {
 	broken atomic.Bool
 
-	healthCheckContext context.Context
-	healthCheckWG      *sync.WaitGroup
+	bhc *backendHealthCheck
 
 	concurrentRequests atomic.Int32
 
@@ -407,7 +432,7 @@ func (bu *backendURL) isBroken() bool {
 
 func (bu *backendURL) setBroken() {
 	if bu.broken.CompareAndSwap(false, true) {
-		bu.healthCheckWG.Go(func() {
+		bu.bhc.run(func() {
 			bu.runHealthCheck()
 			bu.broken.Store(false)
 		})
@@ -429,11 +454,11 @@ func (bu *backendURL) runHealthCheck() {
 		case <-t.C:
 			// Verify network connectivity via TCP dial before marking backend healthy.
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9997
-			ctx, cancel := context.WithTimeout(bu.healthCheckContext, time.Second)
+			ctx, cancel := context.WithTimeout(bu.bhc.ctx, time.Second)
 			c, err := netutil.Dialer.DialContext(ctx, "tcp", addr)
 			cancel()
 			if err != nil {
-				if errors.Is(bu.healthCheckContext.Err(), context.Canceled) {
+				if errors.Is(bu.bhc.ctx.Err(), context.Canceled) {
 					return
 				}
 				logger.Warnf("ignoring the backend at %s for %s because of dial error: %s", addr, *failTimeout, err)
@@ -442,7 +467,7 @@ func (bu *backendURL) runHealthCheck() {
 
 			_ = c.Close()
 			return
-		case <-bu.healthCheckContext.Done():
+		case <-bu.bhc.ctx.Done():
 			return
 		}
 	}
@@ -632,7 +657,7 @@ func getLeastLoadedBackendURL(bus []*backendURL, atomicCounter *atomic.Uint32) *
 		// The Load() in front of CompareAndSwap() avoids CAS overhead for items with values bigger than 0.
 		if bu.concurrentRequests.Load() == 0 && bu.concurrentRequests.CompareAndSwap(0, 1) {
 			atomicCounter.CompareAndSwap(n+1, idx+1)
-			// There is no need in the call bu.get(), because we already incremented bu.concrrentRequests above.
+			// There is no need in the call bu.get(), because we already incremented bu.concurrentRequests above.
 			return bu
 		}
 	}
@@ -875,12 +900,14 @@ func reloadAuthConfigData(data []byte) (bool, error) {
 		return false, fmt.Errorf("failed to parse auth config: %w", err)
 	}
 
-	jui, err := parseJWTUsers(ac)
+	jui, oidcDP, err := parseJWTUsers(ac)
 	if err != nil {
 		return false, fmt.Errorf("failed to parse JWT users from auth config: %w", err)
 	}
+	oidcDP.startDiscovery()
 	jwtc := &jwtCache{
-		users: jui,
+		users:  jui,
+		oidcDP: oidcDP,
 	}
 
 	m, err := parseAuthConfigUsers(ac)
@@ -898,6 +925,11 @@ func reloadAuthConfigData(data []byte) (bool, error) {
 		metrics.UnregisterSet(acPrev.ms, true)
 	}
 	metrics.RegisterSet(ac.ms)
+
+	jwtcPrev := jwtAuthCache.Load()
+	if jwtcPrev != nil {
+		jwtcPrev.oidcDP.stopDiscovery()
+	}
 
 	authConfig.Store(ac)
 	authConfigData.Store(&data)

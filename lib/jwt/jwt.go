@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -99,6 +100,7 @@ type body struct {
 	Exp int64 `json:"exp"`
 	// issued at time unix_ts
 	Iat           int64  `json:"iat"`
+	Iss           string `json:"iss"`
 	Jti           string `json:"jti,omitempty"`
 	Scope         string `json:"scope,omitempty"`
 	vmAccessClaim VMAccessClaim
@@ -112,6 +114,10 @@ type body struct {
 
 	// claimsParser holds optional parser for `vm_access` string representation
 	claimsParser *fastjson.Parser
+
+	// vmAccessClaimObject holds vm_access fields in case of source field
+	// was a string and it cannot be accessed directly via allClaims
+	vmAccessClaimObject *fastjson.Value
 }
 
 func (b *body) parse(src string) error {
@@ -138,6 +144,14 @@ func (b *body) parse(src string) error {
 			return fmt.Errorf("cannot parse `iat` field: %w", err)
 		}
 	}
+	if issObject := jv.Get("iss"); issObject != nil {
+		bIss, err := issObject.StringBytes()
+		if err != nil {
+			return fmt.Errorf("cannot parse `iss` field: %w", err)
+		}
+		b.Iss = bytesutil.ToUnsafeString(bIss)
+	}
+
 	vaObject := jv.Get("vm_access")
 	if vaObject == nil {
 		return ErrVMAccessFieldMissing
@@ -158,6 +172,7 @@ func (b *body) parse(src string) error {
 		if err := b.vmAccessClaim.parseFrom(va); err != nil {
 			return fmt.Errorf("cannot parse `vm_access` values from string json: %w", err)
 		}
+		b.vmAccessClaimObject = va
 	case fastjson.TypeNull:
 		return ErrVMAccessFieldMissing
 	default:
@@ -197,6 +212,7 @@ func (b *body) parse(src string) error {
 func (b *body) reset() {
 	b.Exp = 0
 	b.Iat = 0
+	b.Iss = ""
 	b.Jti = ""
 	b.Scope = ""
 	b.buf = b.buf[:0]
@@ -209,6 +225,9 @@ func (b *body) reset() {
 	if b.claimsParser != nil {
 		parserPool.Put(b.claimsParser)
 		b.claimsParser = nil
+	}
+	if b.vmAccessClaimObject != nil {
+		b.vmAccessClaimObject = nil
 	}
 
 }
@@ -249,21 +268,91 @@ func (t *Token) Parse(src string, enforceAuthPrefix bool) error {
 	return nil
 }
 
-// HasClaims checks if Token has all given claim key value pairs
-func (t *Token) HasClaims(claims map[string]string) bool {
-	for k, v := range claims {
-		gotV := t.body.allClaims.Get(k)
-		if gotV == nil || gotV.Type() != fastjson.TypeString {
-			return false
-		}
-		tcv := bytesutil.ToUnsafeString(gotV.GetStringBytes())
-		if tcv != v {
+// Issuer returns `iss` claim value from token body
+func (t *Token) Issuer() string {
+	return t.body.Iss
+}
+
+// MatchClaims checks if Token has all given claims
+//
+// An empty claims always match
+func (t *Token) MatchClaims(claims []*Claim) bool {
+	if len(claims) == 0 {
+		return true
+	}
+	for _, claim := range claims {
+		if !t.matchClaim(claim) {
 			return false
 		}
 	}
-
 	return true
 }
+
+func (t *Token) matchClaim(c *Claim) bool {
+	if len(c.nestedKeys) == 0 {
+		return true
+	}
+	var gotV *fastjson.Value
+	if c.nestedKeys[0] == "scope" {
+		// special case, scope could be both string and []string
+		return c.valueRe.MatchString(t.body.Scope)
+	}
+	keys := c.nestedKeys
+	if keys[0] == "vm_access" && t.body.vmAccessClaimObject != nil {
+		// vm_access was encoded as a string in the token body; use the
+		// separately parsed vmAccessClaimObject for nested key lookup.
+		if len(keys) == 1 {
+			// vm_access is object type, it cannot match string
+			return false
+		}
+		keys = keys[1:]
+		gotV = t.body.vmAccessClaimObject.Get(keys...)
+	} else {
+		gotV = t.body.allClaims.Get(keys...)
+	}
+	if gotV == nil {
+		// fast path
+		return false
+	}
+	switch gotV.Type() {
+	case fastjson.TypeObject, fastjson.TypeNull:
+		return false
+	case fastjson.TypeArray:
+		return matchClaimArray(c, gotV.GetArray())
+	case fastjson.TypeString:
+		return c.valueRe.Match(gotV.GetStringBytes())
+	}
+	bb := claimValuePool.Get()
+	b := bb.B[:0]
+	b = gotV.MarshalTo(b)
+	bb.B = b
+	match := c.valueRe.Match(b)
+	claimValuePool.Put(bb)
+	return match
+}
+
+func matchClaimArray(c *Claim, elems []*fastjson.Value) bool {
+	bb := claimValuePool.Get()
+	defer claimValuePool.Put(bb)
+
+	for _, elem := range elems {
+		switch elem.Type() {
+		case fastjson.TypeString:
+			if c.valueRe.Match(elem.GetStringBytes()) {
+				return true
+			}
+		case fastjson.TypeObject, fastjson.TypeArray, fastjson.TypeNull:
+		default:
+			bb.B = elem.MarshalTo(bb.B[:0])
+			if c.valueRe.Match(bb.B) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+var claimValuePool bytesutil.ByteBufferPool
 
 // VMAccess return a reference to the VMAccessClaim
 // all data are valid until Token is reachable
@@ -282,27 +371,33 @@ func (t *Token) Reset() {
 
 // VMAccessClaim represent JWT claim object
 type VMAccessClaim struct {
-	// promql filters applied to each select query
-	ExtraFilters []string `json:"extra_filters,omitempty"`
-
 	MetricsExtraFilters    []string `json:"metrics_extra_filters,omitempty"`
 	MetricsExtraLabels     []string `json:"metrics_extra_labels,omitempty"`
 	LogsExtraFilters       []string `json:"logs_extra_filters,omitempty"`
 	LogsExtraStreamFilters []string `json:"logs_extra_stream_filters,omitempty"`
-
-	Labels []string `json:"extra_labels,omitempty"`
-	// labelsBuf holds allocated memory for Labels
-	labelsBuf []byte
-	Tenant    TenantID `json:"tenant_id"`
-	// role can be denied as 1 = read, 2 = write, 3 = read and write
-	// 0 = unconfigured - read and write
-	Mode int `json:"mode,omitempty"`
 
 	MetricsAccountID uint32 `json:"metrics_account_id,omitempty"`
 	MetricsProjectID uint32 `json:"metrics_project_id,omitempty"`
 
 	LogsAccountID uint32 `json:"logs_account_id,omitempty"`
 	LogsProjectID uint32 `json:"logs_project_id,omitempty"`
+
+	// Properties below are deprecated and retained only for compatibility with vmgateway, which is itself deprecated.
+
+	// promql filters applied to each select query
+	// Deprecated
+	ExtraFilters []string `json:"extra_filters,omitempty"`
+	// Deprecated
+	Tenant TenantID `json:"tenant_id"`
+	// role can be denied as 1 = read, 2 = write, 3 = read and write
+	// 0 = unconfigured - read and write
+	// Deprecated
+	Mode int `json:"mode,omitempty"`
+	// Deprecated
+	Labels []string `json:"extra_labels,omitempty"`
+	// labelsBuf holds allocated memory for Labels
+	// Deprecated
+	labelsBuf []byte
 }
 
 func (vac *VMAccessClaim) reset() {
@@ -420,6 +515,7 @@ func (vac *VMAccessClaim) parseFrom(jv *fastjson.Value) error {
 }
 
 // TenantID represents tenantID.
+// Deprecated
 type TenantID struct {
 	ProjectID int32 `json:"project_id"`
 	AccountID int32 `json:"account_id"`
@@ -669,3 +765,69 @@ func stringSliceFromJSONValue(dst []string, jv *fastjson.Value, key string) ([]s
 var parserPool fastjson.ParserPool
 
 var decodeb64BufferPool bytesutil.ByteBufferPool
+
+// Claim represents a single JWT token claim used for matching via Token.MatchClaims.
+// It supports dot-delimited nested key lookup within the token body JSON.
+type Claim struct {
+	nestedKeys []string
+	valueRe    *regexp.Regexp
+}
+
+// NewClaim constructs a JWT token claim from the given key and value regular expression.
+// The key supports dot-delimited notation as a separator for nested key lookup.
+// To include a literal dot in a key segment, escape it with a backslash (e.g. "a\.b.c").
+//
+// For example, the key "audit.permissions.0" can be used to access a nested array element in:
+//
+// {"audit": {"permissions": [0, 1, 0]}}
+func NewClaim(key, value string) (*Claim, error) {
+	var nestedKeys []string
+	if idx := strings.Index(key, "."); idx > 0 {
+		nestedKeys = splitNestedClaimKey(key)
+	} else {
+		nestedKeys = []string{key}
+	}
+	valueRe, err := regexp.Compile(value)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse value match re=%q: %w", value, err)
+	}
+	return &Claim{
+		nestedKeys: nestedKeys,
+		valueRe:    valueRe,
+	}, nil
+}
+
+// splitNestedClaimKey splits a dot-delimited claim key into individual path segments.
+// A dot preceded by a backslash (\.) is treated as a literal dot and not a delimiter.
+//
+// For example:
+//   - "a.b.c"   ? ["a", "b", "c"]
+//   - "a\.b.c"  ? ["a.b", "c"]
+func splitNestedClaimKey(key string) []string {
+	var keys []string
+	var unescapedKey string
+	for {
+		idx := strings.IndexByte(key, '.')
+		if idx <= 0 {
+			if len(unescapedKey) > 0 {
+				key = unescapedKey + key
+			}
+			keys = append(keys, key)
+			return keys
+		}
+		if key[idx-1] == '\\' {
+			unescapedKey += key[:idx-1] + "."
+			key = key[idx+1:]
+			continue
+		}
+		if len(unescapedKey) > 0 {
+			unescapedKey += key[:idx]
+			keys = append(keys, unescapedKey)
+			key = key[idx+1:]
+			unescapedKey = ""
+			continue
+		}
+		keys = append(keys, key[:idx])
+		key = key[idx+1:]
+	}
+}

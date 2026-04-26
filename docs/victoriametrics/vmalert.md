@@ -87,7 +87,7 @@ make vmalert
 Then run `vmalert`:
 
 ```sh
-./bin/vmalert -rule=alert.rules \            # Path to the file with rules configuration. Supports wildcard
+./bin/vmalert -rule=alert.rules \            # Path to the file with rules configuration. Supports wildcard and HTTP URL (S3/GCS are available in Enterprise).
     -datasource.url=http://localhost:8428 \  # Prometheus HTTP API compatible datasource
     -notifier.url=http://localhost:9093 \    # AlertManager URL (required if alerting rules are used)
     -notifier.url=http://127.0.0.1:9093 \    # AlertManager replica URL
@@ -284,9 +284,12 @@ expr: <string>
 # Available starting from https://docs.victoriametrics.com/victoriametrics/changelog/#v1860
 [ update_entries_limit: <integer> | default 0 ]
 
-# Labels to add or overwrite for each alert.
+# Labels to add or overwrite labels from other external label sources, such as group labels, for each alert.
 # Labels are merged with labels received from `expr` evaluation and uniquely identify each generated alert.
+#
 # In case of conflicts, original labels are kept with prefix `exported_`.
+# As a special case, specifying a label with an empty string value removes the label from the result if it exists 
+# in the original query result; otherwise, it is ignored.
 #
 # Labels only support limited templating variables in https://docs.victoriametrics.com/victoriametrics/vmalert/#templating,
 # including `$labels`, `$value` and `$expr`, to avoid breaking alert states or causing cardinality issue with results.
@@ -416,8 +419,11 @@ record: <string>
 # must contain valid Graphite expression.
 expr: <string>
 
-# Labels to add or overwrite before storing the result.
+# Labels to add or overwrite labels from other external label sources, such as group labels, before storing the result.
+#
 # In case of conflicts, original labels are kept with prefix `exported_`.
+# As a special case, specifying a label with an empty string value removes the label from the result if it exists 
+# in the original query result; otherwise, it is ignored.
 #
 # Labels do not support templating in https://docs.victoriametrics.com/victoriametrics/vmalert/#templating due to cardinality concerns. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8171.
 labels:
@@ -750,7 +756,7 @@ or time series modification via [relabeling](https://docs.victoriametrics.com/vi
 `vmalert` runs a web-server (`-httpListenAddr`) for serving metrics and alerts endpoints:
 
 * `http://<vmalert-addr>` - UI;
-* `http://<vmalert-addr>/api/v1/rules` - list of all loaded groups and rules. Supports additional [filtering](https://prometheus.io/docs/prometheus/latest/querying/api/#rules);
+* `http://<vmalert-addr>/api/v1/rules` - list of all loaded groups and rules. Supports `search`, `group_limit`, and `page_num` parameters, as well as additional [filtering](https://prometheus.io/docs/prometheus/latest/querying/api/#rules);
 * `http://<vmalert-addr>/api/v1/alerts` - list of all active alerts;
 * `http://<vmalert-addr>/api/v1/notifiers` - list all available notifiers;
 * `http://<vmalert-addr>/vmalert/api/v1/alert?group_id=<group_id>&alert_id=<alert_id>` - get alert status in JSON format.
@@ -1195,6 +1201,16 @@ These flags are available only in [VictoriaMetrics enterprise](https://docs.vict
 * send GET request to `/-/reload` endpoint (this endpoint can be protected with `-reloadAuthKey` command-line flag);
 * configure `-configCheckInterval` flag for periodic reload on config change.
 
+On config reload, vmalert re-reads configurations specified via `-rule`, `-rule.templates` and `-notifier.config` cmd-line
+flags. 
+
+If configuration has changed, vmalert will update its internal states accordingly, log the corresponding message,
+set `vmalert_config_last_reload_successful` to `1` and `vmalert_config_last_reload_success_timestamp_seconds` to the moment
+when the update happened. If configuration hasn't changed, vmalert won't do anything.
+
+If vmalert failed to load or parse the configuration, it will log a corresponding error message and set 
+`vmalert_config_last_reload_successful` to `0`. It will keep the previous config and will continue operating as before. 
+
 ### URL params
 
 To set additional URL params for `datasource.url`, `remoteWrite.url` or `remoteRead.url`
@@ -1226,8 +1242,8 @@ For example:
 ```yaml
 groups:
   - name: BaseGroup
-    interval: 1m
-    eval_offset: 10s
+    interval: 5m
+    eval_offset: 1m
     rules:
       - record: http_server_request_duration_seconds:sum_rate:5m:http_get
         expr: |
@@ -1248,8 +1264,8 @@ groups:
             )
           )
   - name: TopGroup
-    interval: 1m
-    eval_offset: 40s
+    interval: 5m
+    eval_offset: 3m
     rules:
       - record: http_server_request_duration_seconds:sum_rate:5m:merged
         expr: |
@@ -1261,20 +1277,20 @@ groups:
 This configuration ensures that rules in `BaseGroup` are executed at(assuming vmalert starts at `12:00:00`):
 
 ```
-[12:00:10, 12:01:10, 12:02:10, 12:03:10...]
+[12:01:00, 12:06:00, 12:11:00, 12:16:00...]
 ```
 
 while rules in group `TopGroup` are executed at:
 
 ```
-[12:00:40, 12:01:40, 12:02:40, 12:03:40...]
+[12:03:00, 12:08:00, 12:13:00, 12:18:00...]
 ```
 
-As a result, `TopGroup` always gets the latest results of `BaseGroup`.
+As a result, `TopGroup` can consistently obtain the latest results from `BaseGroup` if `BaseGroup` completes its evaluation and uploads its results to the datasource within 2 minutes.
 
 By default, the `eval_offset` values should be at least 30 seconds apart to accommodate the
 `-search.latencyOffset(default 30s)` command-line flag at vmselect or VictoriaMetrics single-node.
-The minimum `eval_offset` gap can be adjusted accordingly with `-search.latencyOffset`.
+The minimum `eval_offset` gap should be adjusted according to the sum of the execution duration of `BaseGroup` and `-search.latencyOffset`.
 
 ### Notifier configuration file
 

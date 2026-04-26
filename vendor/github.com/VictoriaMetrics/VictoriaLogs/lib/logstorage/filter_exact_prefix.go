@@ -6,28 +6,28 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
 )
 
 // filterExactPrefix matches the exact prefix.
 //
-// Example LogsQL: `fieldName:exact("foo bar"*)
+// Example LogsQL: `="foo bar"*`
 type filterExactPrefix struct {
-	fieldName string
-	prefix    string
+	prefix string
 
 	tokensOnce   sync.Once
 	tokens       []string
 	tokensHashes []uint64
 }
 
-func (fep *filterExactPrefix) String() string {
-	return fmt.Sprintf("%s=%s*", quoteFieldNameIfNeeded(fep.fieldName), quoteTokenIfNeeded(fep.prefix))
+func newFilterExactPrefix(fieldName, prefix string) *filterGeneric {
+	fe := &filterExactPrefix{
+		prefix: prefix,
+	}
+	return newFilterGeneric(fieldName, fe)
 }
 
-func (fep *filterExactPrefix) updateNeededFields(pf *prefixfilter.Filter) {
-	pf.AddAllowFilter(fep.fieldName)
+func (fep *filterExactPrefix) String() string {
+	return fmt.Sprintf("=%s*", quoteTokenIfNeeded(fep.prefix))
 }
 
 func (fep *filterExactPrefix) getTokens() []string {
@@ -45,17 +45,16 @@ func (fep *filterExactPrefix) initTokens() {
 	fep.tokensHashes = appendTokensHashes(nil, fep.tokens)
 }
 
-func (fep *filterExactPrefix) matchRow(fields []Field) bool {
-	v := getFieldValueByName(fields, fep.fieldName)
+func (fep *filterExactPrefix) matchRowByField(fields []Field, fieldName string) bool {
+	v := getFieldValueByName(fields, fieldName)
 	return matchExactPrefix(v, fep.prefix)
 }
 
-func (fep *filterExactPrefix) applyToBlockResult(br *blockResult, bm *bitmap) {
-	applyToBlockResultGeneric(br, bm, fep.fieldName, fep.prefix, matchExactPrefix)
+func (fep *filterExactPrefix) applyToBlockResultByField(br *blockResult, bm *bitmap, fieldName string) {
+	applyToBlockResultGeneric(br, bm, fieldName, fep.prefix, matchExactPrefix)
 }
 
-func (fep *filterExactPrefix) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
-	fieldName := fep.fieldName
+func (fep *filterExactPrefix) applyToBlockSearchByField(bs *blockSearch, bm *bitmap, fieldName string) {
 	prefix := fep.prefix
 
 	v := bs.getConstColumnValue(fieldName)

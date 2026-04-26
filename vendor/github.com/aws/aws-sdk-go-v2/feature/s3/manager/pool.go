@@ -151,7 +151,7 @@ func (p *maxSlicePool) ModifyCapacity(delta int) {
 	p.allocations = make(chan struct{}, p.max)
 
 	newAllocs := len(origAllocations) + delta
-	for i := 0; i < newAllocs; i++ {
+	for range newAllocs {
 		p.allocations <- struct{}{}
 	}
 
