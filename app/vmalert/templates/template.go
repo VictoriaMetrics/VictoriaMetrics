@@ -402,13 +402,9 @@ func templateFuncs() textTpl.FuncMap {
 			return t, nil
 		},
 
-		// formatTime formats the given time with the provided layout.
-		// It accepts either a time.Time or a Unix timestamp (numeric type).
+		// formatTime formats the given Unix timestamp with the provided layout.
 		// For example: {{ now | formatTime "2006-01-02T15:04:05Z07:00" }}
 		"formatTime": func(layout string, i any) (string, error) {
-			if t, ok := i.(time.Time); ok {
-				return t.Format(layout), nil
-			}
 			v, err := toFloat64(i)
 			if err != nil {
 				return "", fmt.Errorf("formatTime: %w", err)

@@ -108,12 +108,6 @@ func TestTemplateFuncs_FormatTime(t *testing.T) {
 	funcs := templateFuncs()
 	formatTime := funcs["formatTime"].(func(layout string, i any) (string, error))
 
-	toTime := funcs["toTime"].(func(i any) (time.Time, error))
-	tm, err := toTime(float64(1679055557))
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-
 	f := func(layout string, input any, expected string) {
 		t.Helper()
 		result, err := formatTime(layout, input)
@@ -125,12 +119,6 @@ func TestTemplateFuncs_FormatTime(t *testing.T) {
 		}
 	}
 
-	// test with time.Time input
-	f(time.RFC3339, tm, "2023-03-17T12:19:17Z")
-	f("2006-01-02T15:04:05", tm, "2023-03-17T12:19:17")
-	f(time.RFC822, tm, "17 Mar 23 12:19 UTC")
-
-	// test with Unix timestamp input directly
 	f(time.RFC3339, float64(1679055557), "2023-03-17T12:19:17Z")
 	f("2006-01-02T15:04:05", int64(1679055557), "2023-03-17T12:19:17")
 	f(time.RFC822, int(1679055557), "17 Mar 23 12:19 UTC")
