@@ -51,8 +51,6 @@ func TestGetTimeSuccess(t *testing.T) {
 	f("-292273086-05-16T16:47:06Z", minTimeMsecs)
 	f("292277025-08-18T07:12:54.999999999Z", maxTimeMsecs)
 	f("1562529662.324", 1562529662324)
-	f("-9223372036.854", minTimeMsecs)
-	f("-9223372036.855", minTimeMsecs)
 	f("1223372036.855", 1223372036855)
 }
 
@@ -85,4 +83,8 @@ func TestGetTimeError(t *testing.T) {
 	f("292277025-08-18T07:12:54.999999998Z")
 	f("123md")
 	f("-12.3md")
+
+	// relative duration that resolves to a timestamp before 1970
+	f("-9223372036.854")
+	f("-9223372036.855")
 }

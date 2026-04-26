@@ -74,7 +74,11 @@ func ParseTimeAt(s string, currentTimestamp int64) (int64, error) {
 		if d > 0 {
 			d = -d
 		}
-		return currentTimestamp + int64(d), nil
+		nsec := currentTimestamp + int64(d)
+		if nsec < 0 {
+			return 0, fmt.Errorf("time %s (%v) must be in the range [%v, %v]", sOrig, time.Unix(0, nsec).UTC(), minTime, maxTime)
+		}
+		return nsec, nil
 	}
 	if len(s) == 4 {
 		// Parse YYYY

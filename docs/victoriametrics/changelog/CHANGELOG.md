@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: all VictoriaMetrics components: fix int64 overflow when parsing [timestamp parameters](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats) with relative durations. See [#10880](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10880).
+
 ## [v1.141.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.141.0)
 
 Released at 2026-04-24

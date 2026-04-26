@@ -20,6 +20,9 @@ func TestGetTime_Failure(t *testing.T) {
 
 	// negative time
 	f("-292273086-05-16T16:47:06Z")
+
+	// relative duration that resolves to a timestamp before 1970
+	f("-9223372036.855")
 }
 
 func TestGetTime_Success(t *testing.T) {
@@ -76,9 +79,6 @@ func TestGetTime_Success(t *testing.T) {
 
 	// float timestamp representation",
 	f("1562529662.324", time.Date(2019, 7, 7, 20, 01, 02, 324e6, time.UTC))
-
-	// negative timestamp
-	f("-9223372036.855", time.Date(1970, 01, 01, 00, 00, 00, 00, time.UTC))
 
 	// big timestamp
 	f("1223372036855", time.Date(2008, 10, 7, 9, 33, 56, 855e6, time.UTC))
