@@ -85,6 +85,20 @@ groups:
             to the configured remote write URL. This may result into gaps in recording rules or alerts state.
             Check vmalert's logs for detailed error message."
 
+      - alert: RemoteWriteQueueHighUsage
+        expr: histogram_quantile(0.99, sum(increase(vmalert_remotewrite_queue_size_bucket[5m])) by (job, instance, vmrange)) / vmalert_remotewrite_queue_capacity > 0.8
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Remote write queue capacity on the vmalert instance {{ $labels.instance }} has exceeded 80% utilization"
+          description: "The remote write queue on vmalert instance {{ $labels.instance }} has consistently high utilization.
+            The queue acts as a buffer between rules generating series and remote-write client consuming and pushing these series. When queue overflows, vmalert will start dropping newly generated series.
+            Queue may overflow due to multiple reasons:
+             1. Some bad rules produce too many series at once. This can be limited using the global `-rule.resultsLimit` flag or `limit` param at the rule group level.
+             2. Remote write connection is slow.  Increase `-remoteWrite.concurrency`,  so vmalert could establish more concurrent connections.
+             3. The queue size is too small. Increase `-remoteWrite.maxQueueSize` to extend the buffer size. Note that a larger queue will result in higher memory consumption when the queue is full."
+
       - alert: AlertmanagerErrors
         expr: increase(vmalert_alerts_send_errors_total[5m]) > 0
         for: 15m
@@ -94,3 +108,4 @@ groups:
           summary: "vmalert instance {{ $labels.instance }} is failing to send notifications to Alertmanager"
           description: "vmalert instance {{ $labels.instance }} is failing to send alert notifications to \"{{ $labels.addr }}\".
             Check vmalert's logs for detailed error message."
+

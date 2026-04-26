@@ -37,7 +37,7 @@ func newAPIConfig(sdc *SDConfig) (*apiConfig, error) {
 	if stsEndpoint == "" {
 		stsEndpoint = sdc.Endpoint
 	}
-	awsCfg, err := awsapi.NewConfig(sdc.Endpoint, stsEndpoint, sdc.Region, sdc.RoleARN, sdc.AccessKey, sdc.SecretKey.String(), "ec2")
+	awsCfg, err := awsapi.NewConfig(sdc.Endpoint, stsEndpoint, sdc.Region, sdc.RoleARN, sdc.AccessKey, sdc.SecretKey.String(), "ec2", sdc.Profile)
 	if err != nil {
 		return nil, err
 	}

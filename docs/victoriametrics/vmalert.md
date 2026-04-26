@@ -284,9 +284,12 @@ expr: <string>
 # Available starting from https://docs.victoriametrics.com/victoriametrics/changelog/#v1860
 [ update_entries_limit: <integer> | default 0 ]
 
-# Labels to add or overwrite for each alert.
+# Labels to add or overwrite labels from other external label sources, such as group labels, for each alert.
 # Labels are merged with labels received from `expr` evaluation and uniquely identify each generated alert.
+#
 # In case of conflicts, original labels are kept with prefix `exported_`.
+# As a special case, specifying a label with an empty string value removes the label from the result if it exists 
+# in the original query result; otherwise, it is ignored.
 #
 # Labels only support limited templating variables in https://docs.victoriametrics.com/victoriametrics/vmalert/#templating,
 # including `$labels`, `$value` and `$expr`, to avoid breaking alert states or causing cardinality issue with results.
@@ -419,8 +422,11 @@ record: <string>
 # must contain valid Graphite expression.
 expr: <string>
 
-# Labels to add or overwrite before storing the result.
+# Labels to add or overwrite labels from other external label sources, such as group labels, before storing the result.
+#
 # In case of conflicts, original labels are kept with prefix `exported_`.
+# As a special case, specifying a label with an empty string value removes the label from the result if it exists 
+# in the original query result; otherwise, it is ignored.
 #
 # Labels do not support templating in https://docs.victoriametrics.com/victoriametrics/vmalert/#templating due to cardinality concerns. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8171.
 labels:
@@ -1239,8 +1245,8 @@ For example:
 ```yaml
 groups:
   - name: BaseGroup
-    interval: 1m
-    eval_offset: 10s
+    interval: 5m
+    eval_offset: 1m
     rules:
       - record: http_server_request_duration_seconds:sum_rate:5m:http_get
         expr: |
@@ -1261,8 +1267,8 @@ groups:
             )
           )
   - name: TopGroup
-    interval: 1m
-    eval_offset: 40s
+    interval: 5m
+    eval_offset: 3m
     rules:
       - record: http_server_request_duration_seconds:sum_rate:5m:merged
         expr: |
@@ -1274,20 +1280,20 @@ groups:
 This configuration ensures that rules in `BaseGroup` are executed at(assuming vmalert starts at `12:00:00`):
 
 ```
-[12:00:10, 12:01:10, 12:02:10, 12:03:10...]
+[12:01:00, 12:06:00, 12:11:00, 12:16:00...]
 ```
 
 while rules in group `TopGroup` are executed at:
 
 ```
-[12:00:40, 12:01:40, 12:02:40, 12:03:40...]
+[12:03:00, 12:08:00, 12:13:00, 12:18:00...]
 ```
 
-As a result, `TopGroup` always gets the latest results of `BaseGroup`.
+As a result, `TopGroup` can consistently obtain the latest results from `BaseGroup` if `BaseGroup` completes its evaluation and uploads its results to the datasource within 2 minutes.
 
 By default, the `eval_offset` values should be at least 30 seconds apart to accommodate the
 `-search.latencyOffset(default 30s)` command-line flag at vmselect or VictoriaMetrics single-node.
-The minimum `eval_offset` gap can be adjusted accordingly with `-search.latencyOffset`.
+The minimum `eval_offset` gap should be adjusted according to the sum of the execution duration of `BaseGroup` and `-search.latencyOffset`.
 
 ### Notifier configuration file
 

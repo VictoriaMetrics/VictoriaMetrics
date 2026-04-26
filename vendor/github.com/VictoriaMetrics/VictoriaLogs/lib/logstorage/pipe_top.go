@@ -3,7 +3,6 @@ package logstorage
 import (
 	"container/heap"
 	"fmt"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -99,7 +98,7 @@ func (pt *pipeTop) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pt *pipeTop) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
+func (pt *pipeTop) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pt, nil
 }
 
@@ -120,7 +119,7 @@ func (pt *pipeTop) newPipeProcessor(concurrency int, stopCh <-chan struct{}, can
 	}
 	ptp.shards.Init = func(shard *pipeTopProcessorShard) {
 		shard.pt = pt
-		shard.m.init(uint(concurrency), &shard.stateSizeBudget)
+		shard.m.init(uint(concurrency), "", &shard.stateSizeBudget)
 	}
 	ptp.stateSizeBudget.Store(maxStateSize)
 
@@ -658,14 +657,9 @@ func parsePipeTop(lex *lexer) (pipe, error) {
 			if err != nil {
 				return nil, fmt.Errorf("cannot parse rank field name in [%s]: %w", pt, err)
 			}
-			pt.rankFieldName = rankFieldName
-			for slices.Contains(byFields, pt.rankFieldName) {
-				pt.rankFieldName += "s"
-			}
+			pt.rankFieldName = getUniqueResultName(rankFieldName, byFields)
 		default:
-			for slices.Contains(byFields, pt.hitsFieldName) {
-				pt.hitsFieldName += "s"
-			}
+			pt.hitsFieldName = getUniqueResultName(pt.hitsFieldName, byFields)
 			return pt, nil
 		}
 	}

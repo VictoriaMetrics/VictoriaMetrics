@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -164,7 +165,12 @@ func (fs *FS) Init(ctx context.Context) error {
 						// See: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9280
 						"ExpiredToken": {},
 					},
-				})
+				}, retry.IsErrorRetryableFunc(func(err error) aws.Ternary {
+					if errors.Is(err, io.ErrUnexpectedEOF) {
+						return aws.TrueTernary
+					}
+					return aws.UnknownTernary
+				}))
 			})
 		}),
 	}

@@ -33,37 +33,41 @@ func (c *Client) CloseConnections() {
 	c.httpCli.CloseIdleConnections()
 }
 
-// Get sends a HTTP GET request, returns
+// Get sends an HTTP GET request, returns
 // the response body and status code to the caller.
-func (c *Client) Get(t *testing.T, url string) (string, int) {
+func (c *Client) Get(t *testing.T, url string, headers http.Header) (string, int) {
 	t.Helper()
-	return c.do(t, http.MethodGet, url, "", nil)
+	return c.do(t, http.MethodGet, url, nil, headers)
 }
 
-// Post sends a HTTP POST request, returns
+// Post sends an HTTP POST request, returns
 // the response body and status code to the caller.
-func (c *Client) Post(t *testing.T, url, contentType string, data []byte) (string, int) {
+func (c *Client) Post(t *testing.T, url string, data []byte, headers http.Header) (string, int) {
 	t.Helper()
-	return c.do(t, http.MethodPost, url, contentType, data)
+	return c.do(t, http.MethodPost, url, data, headers)
 }
 
-// PostForm sends a HTTP POST request containing the POST-form data, returns
+// PostForm sends an HTTP POST request containing the POST-form data with attached getHeaders, returns
 // the response body and status code to the caller.
-func (c *Client) PostForm(t *testing.T, url string, data url.Values) (string, int) {
+func (c *Client) PostForm(t *testing.T, url string, data url.Values, headers http.Header) (string, int) {
 	t.Helper()
-	return c.Post(t, url, "application/x-www-form-urlencoded", []byte(data.Encode()))
+	if headers == nil {
+		headers = make(http.Header)
+	}
+	headers.Set("Content-Type", "application/x-www-form-urlencoded")
+	return c.Post(t, url, []byte(data.Encode()), headers)
 }
 
-// Delete sends a HTTP DELETE request and returns the response body and status code
+// Delete sends an HTTP DELETE request and returns the response body and status code
 // to the caller.
 func (c *Client) Delete(t *testing.T, url string) (string, int) {
 	t.Helper()
-	return c.do(t, http.MethodDelete, url, "", nil)
+	return c.do(t, http.MethodDelete, url, nil, nil)
 }
 
-// do prepares a HTTP request, sends it to the server, receives the response
+// do prepares an HTTP request, sends it to the server, receives the response
 // from the server, returns the response body and status code to the caller.
-func (c *Client) do(t *testing.T, method, url, contentType string, data []byte) (string, int) {
+func (c *Client) do(t *testing.T, method, url string, data []byte, headers http.Header) (string, int) {
 	t.Helper()
 
 	req, err := http.NewRequest(method, url, bytes.NewReader(data))
@@ -71,9 +75,7 @@ func (c *Client) do(t *testing.T, method, url, contentType string, data []byte) 
 		t.Fatalf("could not create a HTTP request: %v", err)
 	}
 
-	if len(contentType) > 0 {
-		req.Header.Add("Content-Type", contentType)
-	}
+	req.Header = headers
 	res, err := c.httpCli.Do(req)
 	if err != nil {
 		t.Fatalf("could not send HTTP request: %v", err)
@@ -135,7 +137,7 @@ func (app *ServesMetrics) GetIntMetric(t *testing.T, metricName string) int {
 func (app *ServesMetrics) GetMetric(t *testing.T, metricName string) float64 {
 	t.Helper()
 
-	metrics, statusCode := app.cli.Get(t, app.metricsURL)
+	metrics, statusCode := app.cli.Get(t, app.metricsURL, nil)
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
 	}
@@ -161,7 +163,7 @@ func (app *ServesMetrics) GetMetricsByPrefix(t *testing.T, prefix string) []floa
 
 	values := []float64{}
 
-	metrics, statusCode := app.cli.Get(t, app.metricsURL)
+	metrics, statusCode := app.cli.Get(t, app.metricsURL, nil)
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
 	}
@@ -190,7 +192,7 @@ func (app *ServesMetrics) GetMetricsByRegexp(t *testing.T, re *regexp.Regexp) []
 
 	values := []float64{}
 
-	metrics, statusCode := app.cli.Get(t, app.metricsURL)
+	metrics, statusCode := app.cli.Get(t, app.metricsURL, nil)
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
 	}

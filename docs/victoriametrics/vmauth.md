@@ -36,6 +36,10 @@ Pass `-help` to `vmauth` in order to see all the supported command-line flags wi
 
 Feel free to [contact us](mailto:info@victoriametrics.com) if you need a customized auth proxy for VictoriaMetrics with the support of LDAP, SSO, RBAC, SAML, accounting, and rate limiting, such as [vmgateway](https://docs.victoriametrics.com/victoriametrics/vmgateway/).
 
+> [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_vmauth_access)
+> provides built-in access control with organization-level roles, and lets you create and revoke read, write, or read/write access tokens with a couple of clicks from the UI, without the need of additional proxies.
+> See the [VictoriaMetrics Cloud documentation](https://docs.victoriametrics.com/victoriametrics-cloud/) to get started.
+
 ## Use cases
 
 * [Simple HTTP proxy](#simple-http-proxy)
@@ -326,10 +330,9 @@ signed with the configured public key.
 Claim names support dot-notation for traversal of nested JSON objects
 (a simplified JSONPath-style approach), for example `vm_access.metrics_account_id` matches `{"vm_access": {"metrics_account_id": 1}}` and
 `security.permissions.0.read` matches `{"security": {"permissions": [{"read": 1}]}}.
-Claim names must point to a **leaf value**. The only supported leaf values are string, integer, float and boolean. Any other leaf type
-is treated as not matched.
-All configured claims must match exactly.
-Claim match values use regular expression syntax and must fully match the claim value.
+Claim names must point to a **leaf value** or an **array**. The supported leaf types are string, integer, float and boolean.
+If the claim value is an array, each scalar element is compared against the match value - the claim matches if any element matches. Objects and nested arrays inside the array are skipped.
+All configured claims must match and the values use regular expression syntax.
 
 For example, the following config routes requests based on the `role` claim in the JWT token:
 
@@ -380,6 +383,31 @@ users:
     match_claims:
       foo.bar: baz
   url_prefix: "http://victoria-metrics-tenant-2:8428/"
+```
+
+The following config matches against array claim values.
+The first user matches a token with claim `{"roles": ["admin"]}`, while the second matches a token with claim `{"roles": ["read"]}` or `{"roles": ["write"]}`.
+
+```yaml
+users:
+- jwt:
+    public_keys:
+    - |
+      -----BEGIN PUBLIC KEY-----
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+      -----END PUBLIC KEY-----
+    match_claims:
+      roles: admin
+  url_prefix: "http://victoria-metrics-admin:8428/"
+- jwt:
+    public_keys:
+    - |
+      -----BEGIN PUBLIC KEY-----
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+      -----END PUBLIC KEY-----
+    match_claims:
+      roles: "^(read|write)$"
+  url_prefix: "http://victoria-metrics-readonly:8428/"
 ```
 
 The following config matches any valid token (no claim filtering),
@@ -1109,7 +1137,7 @@ The following [metrics](https://docs.victoriametrics.com/victoriametrics/vmauth/
 * `vmauth_buffer_request_body_duration_seconds` - the [summary](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#summary) for the request body buffering duration.
   Use this metric to understand buffering performance and identify slow clients.
 
-See also [concurrency limits](https://docs.victoriametrics.com/victoriametrics/vmauth/#concurrency-limits).
+See also [concurrency limits](https://docs.victoriametrics.com/victoriametrics/vmauth/#concurrency-limiting).
 
 ## Backend TLS setup
 
@@ -1495,7 +1523,11 @@ It is recommended to protect the following endpoints with authKeys:
 * `/metrics` with `-metricsAuthKey` command-line flag, so unauthorized users couldn't access [vmauth metrics](https://docs.victoriametrics.com/victoriametrics/vmauth/#monitoring).
 * `/debug/pprof` with `-pprofAuthKey` command-line flag, so unauthorized users couldn't access [profiling information](#profiling).
 
-As an alternative, you can serve internal API routes on a different listen address using the command-line flag `-httpInternalListenAddr=127.0.0.1:8426`. {{% available_from "v1.111.0" %}}
+As an alternative, you can serve internal API routes on a different listen address using the command-line flag `-httpInternalListenAddr=127.0.0.1:8426`{{% available_from "v1.111.0" %}}.
+To enable TLS on the public listener while keeping the internal listener non-TLS, configure multiple listeners like this:
+```
+/path/to/vmauth -httpInternalListenAddr=,localhost:8426 -httpListenAddr=0.0.0.0:443, -tls=true,false -tlsCertFile=a-cert.crt -tlsKeyFile=a-key.key
+```
 
 `vmauth` also supports restricting access by IP - see [these docs](#ip-filters). See also [concurrency limiting docs](#concurrency-limiting).
 

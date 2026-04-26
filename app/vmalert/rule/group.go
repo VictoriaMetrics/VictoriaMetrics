@@ -381,7 +381,9 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 
 		if len(g.Rules) < 1 {
 			g.metrics.iterationDuration.UpdateDuration(start)
+			g.mu.Lock()
 			g.LastEvaluation = start
+			g.mu.Unlock()
 			return ts
 		}
 
@@ -395,7 +397,9 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 			}
 		}
 		g.metrics.iterationDuration.UpdateDuration(start)
+		g.mu.Lock()
 		g.LastEvaluation = start
+		g.mu.Unlock()
 		return ts
 	}
 
@@ -405,10 +409,13 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 	g.mu.Unlock()
 	defer g.evalCancel()
 
-	realEvalTS := eval(evalCtx, evalTS)
-
+	// start the interval ticker before the first evaluation,
+	// so that the evaluation timestamps of groups with the `eval_offset` option are also aligned,
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10773
 	t := time.NewTicker(g.Interval)
 	defer t.Stop()
+
+	realEvalTS := eval(evalCtx, evalTS)
 
 	// restore the rules state after the first evaluation
 	// so only active alerts can be restored.
