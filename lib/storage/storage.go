@@ -1240,7 +1240,7 @@ func (s *Storage) CheckTimeRange(tr TimeRange) error {
 
 func (s *Storage) checkTimeRange(tr TimeRange) error {
 	nowMsecs := int64(fasttime.UnixTimestamp() * 1000)
-	if tr.MinTimestamp > nowMsecs-s.retentionMsecs && tr.MaxTimestamp < nowMsecs+s.futureRetentionMsecs {
+	if tr.MinTimestamp >= nowMsecs-s.retentionMsecs && tr.MaxTimestamp <= nowMsecs+s.futureRetentionMsecs {
 		return nil
 	}
 	retention := time.Duration(s.retentionMsecs) * time.Millisecond
