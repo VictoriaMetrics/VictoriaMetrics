@@ -97,7 +97,7 @@ Try viewing available dashboards or just browse via Grafana's explore page to qu
 
 - Try it: <https://play-grafana-sso.victoriametrics.com/>
 
-This playground is showcasing vmauth integration with Keycloak as SSO used to enforce visibility of data by different users.
+This playground showcases vmauth integration with Keycloak as an SSO provider to enforce data visibility for different users.
 See this guide for details: [Setup vmauth - Multi-Tenant Access with Grafana & OIDC](https://docs.victoriametrics.com/guides/grafana-vmauth-openid-configuration/)
 
 Credentials for login:
