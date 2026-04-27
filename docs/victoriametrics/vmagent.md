@@ -271,14 +271,14 @@ for the collected samples. Examples:
   
 ### Monitoring Data eXchange
 
-The MDX (Monitoring Data eXchange) Service is a monitoring of monitoring metrics collection and sharing service. 
+The MDX (Monitoring Data eXchange) is a monitoring of monitoring metrics collection and sharing service. 
 It aims to send only metrics from the VictoriaMetrics services to the corresponding `-remoteWrite.url`, discarding metrics from non-VictoriaMetrics services.
 
 When enabling MDX for the `-remoteWrite.url`, `vmagent` will only forward metrics from the instances that emit `vm_app_version`, which is a metric that all VictoriaMetrics services will emit.
 The number of dropped rows from non-VictoriaMetrics services is exposed as `vmagent_remotewrite_mdx_rows_dropped_total`.
 
 `vmagent` will maintain the information for the discovered VictoriaMetrics instances and expose the number of these instances via `vmagent_mdx_tracked_vm_instances` metric. 
-To prevent permanently offline VictoriaMetrics instances from continuously consuming `vmagent`'s memory, you also need to set `-mdx.instanceEntryTT` to indicate that if no metrics are received from a VictoriaMetrics instance for the configured period, 
+To prevent permanently offline VictoriaMetrics instances from continuously consuming `vmagent`'s memory, you also need to set `-mdx.instanceEntryTTL` to indicate that if no metrics are received from a VictoriaMetrics instance for the configured period, 
 then the information of this instance should be cleaned up from the memory. The value should be several times the scrape interval to prevent instances from being mistakenly cleaned up due to occasional network latency.
 
 To enable MDX, set `-remoteWrite.mdx.enable` for the target URL and `-mdx.instanceEntryTTL`:
