@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"math"
+	"math/rand"
 	"net"
 	"net/http"
 	"net/url"
@@ -610,6 +611,7 @@ func areEqualBackendURLs(a, b []*backendURL) bool {
 }
 
 // getFirstAvailableBackendURL returns the first available backendURL, which isn't broken.
+// If all backendURLs are broken, then returns a random backendURL.
 //
 // backendURL.put() must be called on the returned backendURL after the request is complete.
 func getFirstAvailableBackendURL(bus []*backendURL) *backendURL {
@@ -628,7 +630,12 @@ func getFirstAvailableBackendURL(bus []*backendURL) *backendURL {
 			return bu
 		}
 	}
-	return nil
+
+	// All backend urls are unavailable, returning a random one, it could help increase the success rate of the requests。
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10837.
+	bu = bus[rand.Intn(len(bus))]
+	bu.get()
+	return bu
 }
 
 // getLeastLoadedBackendURL returns a non-broken backendURL with the lowest number of concurrent requests.
