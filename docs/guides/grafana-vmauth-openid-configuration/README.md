@@ -4,6 +4,8 @@ Those tokens can include information about the user and their tenant, which vmau
 
 This guide walks through configuring Grafana with OIDC to query metrics from both single-node and cluster deployments of VictoriaMetrics.
 
+> Public playground configured by using this guide can be found here: [Grafana SSO Playground](https://docs.victoriametrics.com/playgrounds/#grafana-sso-playground)
+
 ## Prerequisites
 
 * [Docker](https://docs.docker.com/engine/install/) and [docker compose](https://docs.docker.com/compose/) must be installed.
@@ -460,7 +462,3 @@ While in VictoriaMetrics single `vmauth-single` must apply the `team=admin` labe
 ## Summary
 
 In this guide, we demonstrated how to set up vmauth with OIDC authorization using Keycloak as the identity provider. We also showed how to provide multi-tenant access to your metrics stored in VictoriaMetrics, single-node or cluster, using Grafana and vmauth with OIDC authorization enabled.
-
-## Playground
-
-Public playground configured by using this guide can be found here: [Grafana SSO Playground](https://docs.victoriametrics.com/playgrounds/#grafana-sso-playground)
