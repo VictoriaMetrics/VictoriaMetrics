@@ -45,6 +45,7 @@ type MetricMetadata struct {
 func (mm *MetricMetadata) reset() {
 	mm.Name = ""
 	mm.Unit = ""
+	mm.Description = ""
 	mm.Type = 0
 }
 
@@ -583,8 +584,12 @@ type Metric struct {
 
 func (m *Metric) marshalProtobuf(mm *easyproto.MessageMarshaler) {
 	mm.AppendString(1, m.Name)
-	mm.AppendString(2, m.Description)
-	mm.AppendString(3, m.Unit)
+	if m.Description != "" {
+		mm.AppendString(2, m.Description)
+	}
+	if m.Unit != "" {
+		mm.AppendString(3, m.Unit)
+	}
 	switch {
 	case m.Gauge != nil:
 		m.Gauge.marshalProtobuf(mm.AppendMessage(5))
@@ -618,6 +623,8 @@ func (dctx *decoderContext) decodeMetric(src []byte) error {
 	//   }
 	//   repeated opentelemetry.proto.common.v1.KeyValue metadata = 12;
 	// }
+
+	dctx.mm.reset()
 
 	metricName, ok, err := easyproto.GetString(src, 1)
 	if err != nil {

@@ -248,6 +248,30 @@ func TestParseStream(t *testing.T) {
 			},
 		},
 	)
+	gauge := generateGauge("my-gauge-without-suffix", "")
+	gauge.Description = ""
+	f(
+		[]*pb.Metric{
+			generateGauge("my-gauge-milliseconds", "ms"),
+			gauge,
+		},
+		[]prompb.TimeSeries{
+			newTimeSeries("my_gauge_milliseconds", 15000, 15.0, jobLabelValue, kvLabel("label1", "value1")),
+			newTimeSeries("my_gauge_without_suffix", 15000, 15.0, jobLabelValue, kvLabel("label1", "value1")),
+		},
+		[]prompb.MetricMetadata{
+			{
+				MetricFamilyName: "my_gauge_milliseconds",
+				Help:             "I'm a gauge",
+				Type:             prompb.MetricTypeGauge,
+				Unit:             "ms",
+			},
+			{
+				MetricFamilyName: "my_gauge_without_suffix",
+				Type:             prompb.MetricTypeGauge,
+			},
+		},
+	)
 	*usePrometheusNaming = prevPromNaming
 
 	// Test gauge with ratio suffix
