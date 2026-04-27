@@ -407,7 +407,7 @@ func tryPush(at *auth.Token, wr *prompb.WriteRequest, forceDropSamplesOnFailure 
 
 	// Push metadata separately from time series, since it doesn't need sharding,
 	// relabeling, stream aggregation, deduplication, etc.
-	if !tryPushMetadataToRemoteStorages(rwctxs, mms, forceDropSamplesOnFailure) {
+	if !tryPushMetadataToRemoteStorages(at, rwctxs, mms, forceDropSamplesOnFailure) {
 		return false
 	}
 
@@ -545,10 +545,17 @@ func pushTimeSeriesToRemoteStoragesTrackDropped(tss []prompb.TimeSeries) {
 	}
 }
 
-func tryPushMetadataToRemoteStorages(rwctxs []*remoteWriteCtx, mms []prompb.MetricMetadata, forceDropSamplesOnFailure bool) bool {
+func tryPushMetadataToRemoteStorages(at *auth.Token, rwctxs []*remoteWriteCtx, mms []prompb.MetricMetadata, forceDropSamplesOnFailure bool) bool {
 	if len(mms) == 0 {
 		// Nothing to push
 		return true
+	}
+	if at != nil {
+		for idx := range mms {
+			mm := &mms[idx]
+			mm.AccountID = at.AccountID
+			mm.ProjectID = at.ProjectID
+		}
 	}
 	// Do not shard metadata even if -remoteWrite.shardByURL is set, just replicate it among rwctxs.
 	// Since metadata is usually small and there is no guarantee that metadata can be sent to

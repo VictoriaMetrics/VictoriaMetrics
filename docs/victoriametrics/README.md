@@ -1511,6 +1511,16 @@ value than before, then data outside the configured period will be eventually de
 
 VictoriaMetrics does not support indefinite retention, but you can specify an arbitrarily high duration, e.g. `-retentionPeriod=100y`.
 
+By default, VictoriaMetrics doesn't accept samples with timestamps bigger than `now+2d`, e.g. 2 days in the future.
+If you need accepting samples with bigger timestamps, then specify the desired "future retention" via `-futureRetention` command-line flag.
+This flag accepts values starting from `2d`.
+
+For example, the following command starts VictoriaMetrics, which accepts samples with timestamps up to a year in the future:
+
+```sh
+/path/to/victoria-metrics -futureRetention=1y
+```
+
 ### Multiple retentions
 
 Distinct retentions for distinct time series can be configured via [retention filters](#retention-filters)

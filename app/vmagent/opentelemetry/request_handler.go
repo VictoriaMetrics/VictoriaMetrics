@@ -77,16 +77,6 @@ func insertRows(at *auth.Token, tss []prompb.TimeSeries, mms []prompb.MetricMeta
 
 	var metadataTotal int
 	if prommetadata.IsEnabled() {
-		var accountID, projectID uint32
-		if at != nil {
-			accountID = at.AccountID
-			projectID = at.ProjectID
-			for i := range mms {
-				mm := &mms[i]
-				mm.AccountID = accountID
-				mm.ProjectID = projectID
-			}
-		}
 		ctx.WriteRequest.Metadata = mms
 		metadataTotal = len(mms)
 	}
