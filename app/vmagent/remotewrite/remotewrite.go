@@ -104,8 +104,8 @@ var (
 	disableMetadataPerURL = flagutil.NewArrayBool("remoteWrite.disableMetadata", "Whether to disable sending metadata to the corresponding -remoteWrite.url. "+
 		"By default, metadata sending is controlled by the global -enableMetadata flag")
 
-	enableMdx = flagutil.NewArrayBool("remoteWrite.enableMdx", "Whether to disable sending metadata to the corresponding -remoteWrite.url. "+
-		"By default, metadata sending is controlled by the global -enableMetadata flag")
+	enableMdx = flagutil.NewArrayBool("remoteWrite.mdx.enable", "Whether to only retain metrics from VictoriaMetrics services before sending them to the corresponding -remoteWrite.url. "+
+		"Please see https://docs.victoriametrics.com/victoriametrics/vmagent/#monitoring-data-exchange")
 )
 
 var (
@@ -846,6 +846,7 @@ type remoteWriteCtx struct {
 
 	rowsPushedAfterRelabel *metrics.Counter
 	rowsDroppedByRelabel   *metrics.Counter
+	rowsDroppedByMdx       *metrics.Counter
 
 	pushFailures                 *metrics.Counter
 	metadataDroppedOnPushFailure *metrics.Counter
@@ -942,6 +943,7 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, sanitizedURL string)
 
 		rowsPushedAfterRelabel: metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_rows_pushed_after_relabel_total{path=%q,url=%q}`, queuePath, sanitizedURL)),
 		rowsDroppedByRelabel:   metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_relabel_metrics_dropped_total{path=%q,url=%q}`, queuePath, sanitizedURL)),
+		rowsDroppedByMdx:       metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_mdx_rows_dropped_total{path=%q,url=%q}`, queuePath, sanitizedURL)),
 
 		pushFailures:                 metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_push_failures_total{path=%q,url=%q}`, queuePath, sanitizedURL)),
 		metadataDroppedOnPushFailure: metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_metadata_dropped_total{path=%q,url=%q}`, queuePath, sanitizedURL)),
@@ -977,6 +979,7 @@ func (rwctx *remoteWriteCtx) MustStop() {
 
 	rwctx.rowsPushedAfterRelabel = nil
 	rwctx.rowsDroppedByRelabel = nil
+	rwctx.rowsDroppedByMdx = nil
 }
 
 // TryPushTimeSeries sends tss series to the configured remote write endpoint
@@ -999,7 +1002,10 @@ func (rwctx *remoteWriteCtx) TryPushTimeSeries(tss []prompb.TimeSeries, forceDro
 		// Make a copy of tss
 		v = tssPool.Get().(*[]prompb.TimeSeries)
 		tss = append(*v, tss...)
+		rowsCountBeforeMdx := getRowsCount(tss)
 		tss = mdx.GlobalVmInstanceFilter.ApplyMdxFilter(tss)
+		rowsCountAfterMdx := getRowsCount(tss)
+		rwctx.rowsDroppedByMdx.Add(rowsCountBeforeMdx - rowsCountAfterMdx)
 	}
 
 	// Apply relabeling

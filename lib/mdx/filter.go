@@ -6,27 +6,50 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	"github.com/VictoriaMetrics/metrics"
+)
+
+var (
+	mdxInstanceEntryTTL = flagutil.NewExtendedDuration("mdx.instanceEntryTTL", "0", "After not receiving metrics for the VictoriaMetrics instance for the configured time, remove this instance from the MDX instance list."+
+		"It should be several times the scrape interval for VictoriaMetrics instances. The cleanup mechanism helps release memory after a VictoriaMetrics instance is permanently taken offline, preventing the MDX instance list from growing indefinitely."+
+		"It must be explicitly set when -remoteWrite.mdx.enable is set and requires explicit unit suffixes (s, m, h, d, w, y). Please see https://docs.victoriametrics.com/victoriametrics/vmagent/#monitoring-data-exchange")
 )
 
 type VmInstanceFilter struct {
-	mu         sync.RWMutex
-	wg         sync.WaitGroup
-	stopCh     chan struct{}
-	vmInstance map[string]*atomic.Int64
+	mu                    sync.RWMutex
+	wg                    sync.WaitGroup
+	stopCh                chan struct{}
+	vmInstance            map[string]*atomic.Int64
+	mdxTrackedVmInstances *metrics.Gauge
 }
 
 var GlobalVmInstanceFilter *VmInstanceFilter
 
 func InitGlobalVmInstanceFilter() {
+	if mdxInstanceEntryTTL.Milliseconds() == 0 {
+		logger.Panicf("-mdx.instanceEntryTTL must be explicitly set when -remoteWrite.mdx.enable is set.")
+	}
 	GlobalVmInstanceFilter = &VmInstanceFilter{
 		vmInstance: make(map[string]*atomic.Int64),
 		stopCh:     make(chan struct{}),
 	}
+	GlobalVmInstanceFilter.mdxTrackedVmInstances = metrics.NewGauge("vmagent_mdx_tracked_vm_instances", func() float64 {
+		GlobalVmInstanceFilter.mu.RLock()
+		n := len(GlobalVmInstanceFilter.vmInstance)
+		GlobalVmInstanceFilter.mu.RUnlock()
+		return float64(n)
+	})
+
 	GlobalVmInstanceFilter.wg.Go(GlobalVmInstanceFilter.cleanStale)
 }
 
 func (filter *VmInstanceFilter) cleanStale() {
+	if mdxInstanceEntryTTL.Milliseconds() == 0 {
+		return
+	}
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
@@ -38,8 +61,7 @@ func (filter *VmInstanceFilter) cleanStale() {
 
 			dst := make(map[string]*atomic.Int64, len(filter.vmInstance))
 			for k, v := range filter.vmInstance {
-				// todo configurable
-				if currTs-v.Load() < 60 {
+				if currTs-v.Load() < mdxInstanceEntryTTL.Duration().Milliseconds()/1000 {
 					dst[k] = v
 				}
 			}
