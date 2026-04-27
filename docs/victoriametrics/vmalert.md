@@ -365,8 +365,7 @@ Additionally, `vmalert` provides some extra templating functions listed in [temp
 * `title` - converts the first letters of every input word to uppercase.
 * `toLower` - converts all the chars in the input string to lowercase.
 * `toTime` - converts the input unix timestamp to [time.Time](https://pkg.go.dev/time#Time).
-* `formatTime layout` - formats the input time with the given `layout` (see [Go time formatting](https://pkg.go.dev/time#Layout)).
-  Accepts either a [time.Time](https://pkg.go.dev/time#Time) or a Unix timestamp (numeric value).
+* `formatTime layout` - formats a Unix timestamp time using the given [time layout](https://pkg.go.dev/time#Layout).
   For example, `{{ now | formatTime "2006-01-02T15:04:05Z07:00" }}` returns the current time formatted as RFC3339.
 * `toUpper` - converts all the chars in the input string to uppercase.
 * `value` - returns the numeric value from the input query result.
