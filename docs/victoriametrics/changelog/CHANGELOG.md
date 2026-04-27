@@ -427,6 +427,25 @@ See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/ch
 
 See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2025/#v11230)
 
+## [v1.122.21](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.21)
+
+Released at 2026-04-24
+
+**v1.122.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.122.x line will be supported for at least 12 months since [v1.122.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11220) release**
+
+* SECURITY: upgrade Go builder from Go1.25.9 to Go1.26.2. See [the list of issues addressed in Go1.26.2](https://github.com/golang/go/issues?q=milestone%3AGo1.26.2%20label%3ACherryPickApproved).
+* SECURITY: upgrade base docker image (Alpine) from 3.23.2 to 3.23.3. See [Alpine 3.23.4 release notes](https://www.alpinelinux.org/posts/Alpine-3.20.10-3.21.7-3.22.4-3.23.4-released.html).
+
+* BUGFIX: all VictoriaMetrics components: properly parse IPv6 source address when accepting connections with proxy protocol v2 enabled. See [#10839](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10839). Thanks to @andriibeee for the contribution.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): `-maxScrapeSize` is now correctly applied when reading response bodies, including non-OK scrape error responses. See [#10804](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10804).
+* BUGFIX: `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly allocate vminsert buffer size per vmstorage node based on available CPU, memory and storage node count to reduce OOM risk. See [#10725](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10725).
+* BUGFIX: [vmrestore](https://docs.victoriametrics.com/victoriametrics/vmrestore/): fix an issue where vmrestore could hang indefinitely when interrupted during backup download. See [#10794](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10794).
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): properly execute graceful shutdown for vmsingle if `-maxIngestionRate` is configured. See [#10795](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10795).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): delete labels from rule results if they are specified with an empty string value in rule or group labels. See [#10766](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10766).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): use contrasting colors when displaying time series to improve visibility on light and dark themes. See [#10869](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10869).
+
 ## [v1.122.20](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.20)
 
 Released at 2026-04-23
