@@ -5,42 +5,40 @@ import (
 	"slices"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
 )
 
 // filterIn matches any exact value from the values map.
 //
-// Example LogsQL: `fieldName:in("foo", "bar baz")`
+// Example LogsQL: `in("foo", "bar baz")`
 type filterIn struct {
-	fieldName string
-
 	values inValues
+}
+
+func newFilterInValues(fieldName string, values []string) *filterGeneric {
+	var fi filterIn
+	fi.values.values = values
+	return newFilterGeneric(fieldName, &fi)
 }
 
 func (fi *filterIn) String() string {
 	args := fi.values.String()
-	return fmt.Sprintf("%sin(%s)", quoteFieldNameIfNeeded(fi.fieldName), args)
+	return fmt.Sprintf("in(%s)", args)
 }
 
-func (fi *filterIn) updateNeededFields(pf *prefixfilter.Filter) {
-	pf.AddAllowFilter(fi.fieldName)
-}
-
-func (fi *filterIn) matchRow(fields []Field) bool {
-	v := getFieldValueByName(fields, fi.fieldName)
+func (fi *filterIn) matchRowByField(fields []Field, fieldName string) bool {
+	v := getFieldValueByName(fields, fieldName)
 	stringValues := fi.values.getStringValues()
 	_, ok := stringValues[v]
 	return ok
 }
 
-func (fi *filterIn) applyToBlockResult(br *blockResult, bm *bitmap) {
+func (fi *filterIn) applyToBlockResultByField(br *blockResult, bm *bitmap, fieldName string) {
 	if fi.values.isEmpty() {
 		bm.resetBits()
 		return
 	}
 
-	c := br.getColumnByName(fi.fieldName)
+	c := br.getColumnByName(fieldName)
 	if c.isConst {
 		stringValues := fi.values.getStringValues()
 		v := c.valuesEncoded[0]
@@ -125,9 +123,7 @@ func matchColumnByBinValues(br *blockResult, bm *bitmap, c *blockResultColumn, b
 	})
 }
 
-func (fi *filterIn) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
-	fieldName := fi.fieldName
-
+func (fi *filterIn) applyToBlockSearchByField(bs *blockSearch, bm *bitmap, fieldName string) {
 	if fi.values.isEmpty() {
 		bm.resetBits()
 		return

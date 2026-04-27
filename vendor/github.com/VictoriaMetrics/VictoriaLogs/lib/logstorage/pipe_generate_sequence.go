@@ -44,7 +44,7 @@ func (pg *pipeGenerateSequence) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pg *pipeGenerateSequence) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
+func (pg *pipeGenerateSequence) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pg, nil
 }
 

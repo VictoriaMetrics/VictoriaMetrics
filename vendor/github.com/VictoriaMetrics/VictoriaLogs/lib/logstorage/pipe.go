@@ -54,11 +54,8 @@ type pipe interface {
 
 	// initFilterInValues must return new pipe with the initialized values for 'in(subquery)' filters (recursively).
 	//
-	// If keepSubquery is false, then the returned pipe must completely replace subquery with the subquery results,
-	// the the returned pipe is marshaled into `in(r1, ..., rN)` where r1, ..., rN are subquery results.
-	//
 	// It is OK to return the pipe itself if it doesn't contain 'in(subquery)' filters.
-	initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc, keepSubquery bool) (pipe, error)
+	initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc) (pipe, error)
 
 	// visitSubqueries must call visitFunc for all the subqueries, which exist at the pipe (recursively).
 	visitSubqueries(visitFunc func(q *Query))

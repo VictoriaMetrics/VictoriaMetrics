@@ -19,6 +19,12 @@ type filterAnd struct {
 	byFieldTokens     []fieldTokens
 }
 
+func newFilterAnd(filters []filter) *filterAnd {
+	return &filterAnd{
+		filters: filters,
+	}
+}
+
 type fieldTokens struct {
 	field        string
 	tokens       []string
@@ -146,30 +152,11 @@ func getCommonTokensForAndFilters(filters []filter) []fieldTokens {
 
 	for _, f := range filters {
 		switch t := f.(type) {
-		case *filterExact:
-			tokens := t.getTokens()
-			mergeFieldTokens(t.fieldName, tokens)
-		case *filterExactPrefix:
-			tokens := t.getTokens()
-			mergeFieldTokens(t.fieldName, tokens)
-		case *filterPatternMatch:
-			tokens := t.getTokens()
-			mergeFieldTokens(t.fieldName, tokens)
-		case *filterPhrase:
-			tokens := t.getTokens()
-			mergeFieldTokens(t.fieldName, tokens)
-		case *filterPrefix:
-			tokens := t.getTokens()
-			mergeFieldTokens(t.fieldName, tokens)
-		case *filterRegexp:
-			tokens := t.getTokens()
-			mergeFieldTokens(t.fieldName, tokens)
-		case *filterSequence:
-			tokens := t.getTokens()
-			mergeFieldTokens(t.fieldName, tokens)
-		case *filterSubstring:
-			tokens := t.getTokens()
-			mergeFieldTokens(t.fieldName, tokens)
+		case *filterGeneric:
+			if !t.isWildcard {
+				tokens := t.getTokens()
+				mergeFieldTokens(t.fieldName, tokens)
+			}
 		case *filterOr:
 			bfts := t.getByFieldTokens()
 			for _, bft := range bfts {

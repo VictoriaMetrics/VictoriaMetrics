@@ -238,23 +238,23 @@ vmagent will write data into VictoriaMetrics single-node and cluster (with tenan
 # compose.yaml
 services:
   vmsingle:
-    image: victoriametrics/victoria-metrics:v1.139.0
+    image: victoriametrics/victoria-metrics:v1.140.0
 
   vmstorage:
-    image: victoriametrics/vmstorage:v1.139.0-cluster
+    image: victoriametrics/vmstorage:v1.140.0-cluster
 
   vminsert:
-    image: victoriametrics/vminsert:v1.139.0-cluster
+    image: victoriametrics/vminsert:v1.140.0-cluster
     command:
       - -storageNode=vmstorage:8400
 
   vmselect:
-    image: victoriametrics/vmselect:v1.139.0-cluster
+    image: victoriametrics/vmselect:v1.140.0-cluster
     command:
       - -storageNode=vmstorage:8401
 
   vmagent:
-    image: victoriametrics/vmagent:v1.139.0
+    image: victoriametrics/vmagent:v1.140.0
     volumes:
       - ./scrape.yaml:/etc/vmagent/config.yaml
     command:
@@ -306,7 +306,7 @@ Now add the vmauth service to `compose.yaml`:
 # compose.yaml
 services:
   vmauth:
-    image: docker.io/victoriametrics/vmauth:v1.139.0
+    image: docker.io/victoriametrics/vmauth:v1.140.0
     ports:
       - 8427:8427
     volumes:
@@ -420,7 +420,7 @@ Create two Prometheus datasources in Grafana with the following URLs: `http://vm
 ![Prometheus datasource](grafana-datasource-prometheus.webp)
 
 You can also use the VictoriaMetrics [Grafana datasource](https://github.com/VictoriaMetrics/victoriametrics-datasource) plugin.
-See installation instructions in [Grafana datasource - Installation](https://docs.victoriametrics.com/victoriametrics/victoriametrics-datasource/#installation).
+See installation instructions in [Grafana datasource - Installation](https://docs.victoriametrics.com/victoriametrics/integrations/grafana/#victoriametrics-datasource).
 
 Users with the `vm_access` claim will be able to query metrics from the specified tenant with extra filters applied.
 
