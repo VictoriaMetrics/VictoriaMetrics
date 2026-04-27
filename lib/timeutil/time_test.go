@@ -360,6 +360,14 @@ func TestParseTimeAtOutsideLimits(t *testing.T) {
 	f("2262-04-11T23:47:17Z")
 	f("2262-04-12T13:47:17+14:00")
 	f("2262-04-11T11:47:17-12:00")
+
+	// relative duration that resolves to a timestamp before 1970
+	f("now-9223372036854ms")
+	f("-9223372036854ms")
+
+	// relative duration whose nanosecond value overflows time.Duration
+	f("-100000y")
+	f("now-100000y")
 }
 
 func TestParseTimeMsecFailure(t *testing.T) {
