@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): pick a random backend to process requests when all discovered backends are unavailable. Previously, `vmauth` returned an error without retrying in this case until a health check succeeded for one backend. This fix can increase the success rate. See [#10837](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10837).
+
 ## [v1.141.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.141.0)
 
 Released at 2026-04-24
