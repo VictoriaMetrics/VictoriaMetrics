@@ -26,7 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
-* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): introduce metric `vm_fs_info` to expose the filesystem information of the storage path. See [#10482](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10482).
+* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): introduce the `vm_fs_info` metric. It exposes the filesystem type (e.g., ext4, xfs, nfs) used for `-storageDataPath` (storage) and `-remoteWrite.tmpDataPath` (vmagent). See [#10482](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10482).
 
 ## [v1.142.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.142.0)
 
