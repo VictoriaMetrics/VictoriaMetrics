@@ -54,6 +54,6 @@ func mustGetDiskSpace(path string) (total, free uint64) {
 	return
 }
 
-func getFsTypeName(path string) string {
+func getFsType(_ string) string {
 	return "unknown"
 }

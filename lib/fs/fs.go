@@ -355,5 +355,5 @@ func IsDirOrSymlink(de os.DirEntry) bool {
 }
 
 func ExposeFsInfoAsMetric(path string) {
-	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vm_fs_info{path=%q, fs_type=%q}`, path, getFsTypeName(path)), func() float64 { return 1 })
+	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vm_fs_info{path=%q, fs_type=%q}`, path, getFsType(path)), func() float64 { return 1 })
 }

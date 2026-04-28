@@ -84,7 +84,7 @@ func mustGetDiskSpace(path string) (total, free uint64) {
 	return
 }
 
-func getFsTypeName(path string) string {
+func getFsType(path string) string {
 	var stat statfs_t
 	fsName := "unknown"
 	err := statfs(path, &stat)

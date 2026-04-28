@@ -19,6 +19,6 @@ func statfs(path string, buf *statfs_t) (err error) {
 	return unix.Statvfs(path, buf)
 }
 
-func getFsTypeName(path string) string {
+func getFsType(_ string) string {
 	return "unknown"
 }

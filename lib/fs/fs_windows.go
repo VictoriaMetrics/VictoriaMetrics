@@ -125,6 +125,6 @@ func newOverlapped() (*windows.Overlapped, error) {
 	return &windows.Overlapped{HEvent: event}, nil
 }
 
-func getFsTypeName(path string) string {
+func getFsType(_ string) string {
 	return "unknown"
 }
