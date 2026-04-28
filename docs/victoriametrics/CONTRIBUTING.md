@@ -49,8 +49,8 @@ We use [labels](https://docs.github.com/en/issues/using-labels-and-milestones-to
   For example, if we weren't able to reproduce the reported bug based on the ticket description then we ask additional
   questions which could help to reproduce the issue and add `need more info` label. This label helps other maintainers
   to understand that this issue wasn't forgotten but waits for the feedback from user.
-1. `waiting for release`, assigned to issues that required code changes and those changes were merged to upstream, but not released yet.
-  Once a release is made, maintainers go through all labeled issues, leave a comment about the new release, remove the label, and close the issue.
+1. `completed`, assigned to issues that required code changes and those changes were merged to upstream, but not released yet.
+  Once a release is made, maintainers go through all labeled issues, leave a comment about the new release, and close the issue.
 1. `vmui`, assigned to issues related to [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) or [VictoriaLogs webui](https://docs.victoriametrics.com/victorialogs/querying/#web-ui)
 
 ## Pull Request checklist
@@ -98,7 +98,7 @@ The person who merges the Pull Request is responsible for satisfying requirement
    and mention in the PR comment what was or wasn't cherry-picked.
 1. Update related issues with a meaningful message of what has changed and when it will be
    released. _This helps users to understand the change without reading PR._
-1. Add label `waiting for release` to related issues.
+1. Add label `completed` to related issues.
 1. Do not close related tickets until release is made. If ticket was auto-closed by GitHub or user - re-open it.
 
 ## KISS principle
