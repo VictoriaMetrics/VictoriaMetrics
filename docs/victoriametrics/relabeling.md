@@ -426,7 +426,7 @@ target.
 ### Service Discovery Relabeling Cheatsheet
 
 **Target-level relabeling** is applied during
-[service discovery](https://docs.victoriametrics.com/victoriametrics/sd_configs/#prometheus-service-discovery)
+[service discovery](https://docs.victoriametrics.com/victoriametrics/sd_configs/)
 and affects the targets (which will be scraped), their labels and all the
 metrics scraped from them:
 
