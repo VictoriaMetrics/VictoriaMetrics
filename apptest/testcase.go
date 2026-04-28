@@ -92,6 +92,9 @@ func (tc *TestCase) MustStartDefaultVmsingle() *Vmsingle {
 // fails to start.
 func (tc *TestCase) MustStartVmsingle(instance string, flags []string) *Vmsingle {
 	tc.t.Helper()
+	// TODO(rtm0): Move to defaultFlags in vmsingle.go. Currently does not work
+	// because legacy vmsingle does not have this flag.
+	flags = append(flags, "-vmselectAddr=127.0.0.1:0")
 	return tc.MustStartVmsingleAt(instance, "../../bin/victoria-metrics-race", flags)
 }
 
