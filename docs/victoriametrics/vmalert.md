@@ -534,9 +534,9 @@ The multitenant endpoint in vmselect is less efficient than [specifying tenants 
 
 For security considerations, it is recommended restricting access to multitenant endpoints only to trusted sources, since untrusted source may break per-tenant data by writing unwanted samples or get access to data of arbitrary tenants.
 
-* To specify `tenant` parameter per each alerting and recording group if
+* To specify the `tenant` parameter for each rule group if the
   [enterprise version of vmalert](https://docs.victoriametrics.com/victoriametrics/enterprise/) is used
-  with `-clusterMode` command-line flag. For example:
+  with the command-line flags `-clusterMode -datasource.url=http://vmselect:8481 -remoteWrite.url=http://vminsert:8480`. For example:
 
 ```yaml
 groups:
