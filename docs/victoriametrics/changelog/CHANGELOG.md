@@ -26,6 +26,10 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+## [v1.142.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.142.0)
+
+Released at 2026-04-28
+
 * BUGFIX:  [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly add [OpenTelemetry](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/) `Unit` suffix to the metric name and metadata `Help` when `-opentelemetry.usePrometheusNaming` flag is enabled. Previously, if `http_requests` has `Unit: seconds` and the next metric `cpu_usage` has no `Unit`, `cpu_usage` would be ingested as `cpu_usage_seconds`. See [#10889](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10889).
 
 ## [v1.141.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.141.0)
