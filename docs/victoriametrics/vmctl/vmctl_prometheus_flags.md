@@ -29,7 +29,7 @@ OPTIONS:
    --prom-filter-time-end value                                       The time filter in RFC3339 format to select timeseries with timestamp equal or lower than provided value. E.g. '2020-01-01T20:07:00Z'
    --prom-filter-label value                                          Prometheus label name to filter timeseries by. E.g. '__name__' will filter timeseries by name.
    --prom-filter-label-value value                                    Prometheus regular expression to filter label from "prom-filter-label" flag. (default: ".*")
-   --prom-tmp-dir-path value                                          Path to directory to be used for temporary files. (default: "/var/folders/9b/rj_f77q52w57vnxx236qh51m0000gn/T/")
+   --prom-tmp-dir-path value                                          Path to directory to be used for temporary files. (default: "/var/folders/ds/3kj5p3v17ll0hsyvq380ryvm0000gn/T/")
    --vm-addr value                                                    VictoriaMetrics address to perform import requests. 
       Should be the same as --httpListenAddr value for single-node version or vminsert component. 
       When importing into the clustered version do not forget to set additionally --vm-account-id flag. 
