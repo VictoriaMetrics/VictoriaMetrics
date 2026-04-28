@@ -65,7 +65,7 @@ func ParseTimeAt(s string, currentTimestamp int64) (int64, error) {
 	}
 	s = strings.TrimSuffix(s, "Z")
 	if len(s) > 0 && (s[len(s)-1] > '9' || s[0] == '-') || strings.HasPrefix(s, "now") {
-		// Parse duration relative to the current time
+		// Parse duration relative to the current time.
 		s = strings.TrimPrefix(s, "now")
 		d, err := ParseDuration(s)
 		if err != nil {
@@ -74,7 +74,16 @@ func ParseTimeAt(s string, currentTimestamp int64) (int64, error) {
 		if d > 0 {
 			d = -d
 		}
-		return currentTimestamp + int64(d), nil
+		// `currentTimestamp + int64(d)` can overflow when the duration
+		// is large (e.g. `now-292y`) or when the caller passed a large
+		// currentTimestamp. Reject the result outright if it falls
+		// outside the [0, MaxInt64ns] window the rest of the parser
+		// guarantees (#10880).
+		nsec, ok := addCheckedNanos(currentTimestamp, int64(d))
+		if !ok {
+			return 0, fmt.Errorf("time %s overflows int64 nanoseconds; must be in the range [%v, %v]", sOrig, minTime, maxTime)
+		}
+		return nsec, nil
 	}
 	if len(s) == 4 {
 		// Parse YYYY
@@ -84,6 +93,13 @@ func ParseTimeAt(s string, currentTimestamp int64) (int64, error) {
 		nsec, ok := TryParseUnixTimestamp(sOrig)
 		if !ok {
 			return 0, fmt.Errorf("cannot parse numeric timestamp %q", sOrig)
+		}
+		// `TryParseUnixTimestamp` itself only checks that the *parse* fits
+		// in int64; the parsed value can still be out of the allowed
+		// [1970-01-01, 2262-04-11] window the date/time formats above
+		// already guard against (#10880). Apply the same range check.
+		if nsec < minTime.UnixNano() || nsec > maxTime.UnixNano() {
+			return 0, fmt.Errorf("time %s (nsec=%d) must be in the range [%v, %v]", sOrig, nsec, minTime, maxTime)
 		}
 		return nsec, nil
 	}
@@ -115,6 +131,24 @@ var (
 	minTime = time.Unix(0, 0).UTC()
 	maxTime = time.Unix(0, math.MaxInt64).UTC()
 )
+
+// addCheckedNanos returns base+delta unless the result falls outside the
+// [0, MaxInt64] nanosecond window the rest of the parser guarantees, in
+// which case it returns ok=false. Used for the relative-duration parse
+// path (`now-30d`, `-292y`, ...) which would otherwise silently wrap.
+func addCheckedNanos(base, delta int64) (int64, bool) {
+	r := base + delta
+	if delta > 0 && r < base {
+		return 0, false
+	}
+	if delta < 0 && r > base {
+		return 0, false
+	}
+	if r < minTime.UnixNano() || r > maxTime.UnixNano() {
+		return 0, false
+	}
+	return r, true
+}
 
 func parseTimeAt(layout, value string, tzOffsetNanos int64, sOrig string) (int64, error) {
 	t, err := time.Parse(layout, value)
