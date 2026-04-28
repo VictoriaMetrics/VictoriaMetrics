@@ -248,16 +248,16 @@ func TestParseStream(t *testing.T) {
 			},
 		},
 	)
-	gauge := generateGauge("my-gauge-without-suffix", "")
-	gauge.Description = ""
+	gaugeWithoutMetadata := generateGauge("my-gauge-without-meta", "")
+	gaugeWithoutMetadata.Description = ""
 	f(
 		[]*pb.Metric{
 			generateGauge("my-gauge-milliseconds", "ms"),
-			gauge,
+			gaugeWithoutMetadata,
 		},
 		[]prompb.TimeSeries{
 			newTimeSeries("my_gauge_milliseconds", 15000, 15.0, jobLabelValue, kvLabel("label1", "value1")),
-			newTimeSeries("my_gauge_without_suffix", 15000, 15.0, jobLabelValue, kvLabel("label1", "value1")),
+			newTimeSeries("my_gauge_without_meta", 15000, 15.0, jobLabelValue, kvLabel("label1", "value1")),
 		},
 		[]prompb.MetricMetadata{
 			{
@@ -267,7 +267,7 @@ func TestParseStream(t *testing.T) {
 				Unit:             "ms",
 			},
 			{
-				MetricFamilyName: "my_gauge_without_suffix",
+				MetricFamilyName: "my_gauge_without_meta",
 				Type:             prompb.MetricTypeGauge,
 			},
 		},
