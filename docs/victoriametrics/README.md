@@ -229,23 +229,6 @@ See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3781)
 [Docker-compose](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#readme)
 helps to spin up VictoriaMetrics, [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and Grafana with one command.
 
-## Playgrounds
-
-VictoriaMetrics has the following publicly available demo resources:
-
-1. [https://play.victoriametrics.com/](https://play.victoriametrics.com/) - [VMUI](#vmui) of VictoriaMetrics cluster installation.
-  It is available for testing the query engine, relabeling debugger, other tools and pages provided by VMUI.
-1. [https://play-grafana.victoriametrics.com/](https://play-grafana.victoriametrics.com/) - Grafana configured with many
-  typical dashboards using VictoriaMetrics and VictoriaLogs as datasource. It contains VictoriaMetrics cluster dashboard with
-  3 cluster installations for the recent OS and LTS versions running under the constant benchmark.
-1. [https://play-vmlogs.victoriametrics.com/](https://play-vmlogs.victoriametrics.com/) - [VMUI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui) of VictoriaLogs installation.
-   It is available for testing the query engine on demo logs set.
-1. [https://play-vtraces.victoriametrics.com/](https://play-vtraces.victoriametrics.com/) - [VMUI](https://docs.victoriametrics.com/victoriatraces/querying/#web-ui) of VictoriaTraces installation.
-   It is available for testing the query engine on demo traces set.
-
-Additionally, we provide a docker-compose environment for [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/README.md), [VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaLogs/blob/master/deployment/docker/README.md) and [VictoriaTraces](https://github.com/VictoriaMetrics/VictoriaTraces/blob/master/deployment/docker/README.md). 
-They are already configured, provisioned and interconnected. It can be used as an example for a [quick start](https://docs.victoriametrics.com/victoriametrics/quick-start/).
-
 ## How to upgrade VictoriaMetrics
 
 VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking [the CHANGELOG page](https://docs.victoriametrics.com/victoriametrics/changelog/) and performing regular upgrades.
@@ -263,6 +246,10 @@ The following steps must be performed during the upgrade / downgrade procedure:
 * Start the upgraded VictoriaMetrics.
 
 Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](https://grafana.com/blog/2019/03/25/whats-new-in-prometheus-2.8-wal-based-remote-write/) for details. The same applies also to [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/).
+
+> If you'd prefer not to manage upgrades yourself, [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_single_upgrade)
+> performs version upgrades automatically during maintenance windows with no action required on your part.
+> See the [VictoriaMetrics Cloud documentation](https://docs.victoriametrics.com/victoriametrics-cloud/) to get started.
 
 ## vmui
 
@@ -708,7 +695,7 @@ Using the delete API is not recommended in the following cases, since it brings 
   time series occupy disk space until the next merge operation, which can never occur when deleting too old data.
   [Forced merge](#forced-merge) may be used for freeing up disk space occupied by old data.
   Note that VictoriaMetrics doesn't delete entries from [IndexDB](#indexdb) for the deleted time series.
-  IndexDB is cleaned up once per the configured [retention](#retention).
+  IndexDB is cleaned up along with the corresponding data partition once it becomes outside the [-retentionPeriod](#retention).
 
 It's better to use the `-retentionPeriod` command-line flag for efficient pruning of old data.
 
@@ -808,6 +795,7 @@ curl http://<victoriametrics-addr>:8428/api/v1/export/csv -d 'format=<format>' -
 ```
 
 The exported CSV data can be imported to VictoriaMetrics via [/api/v1/import/csv](#how-to-import-csv-data).
+The first line of the file is a header row derived from the `format` parameter.
 
 The [deduplication](#deduplication) is applied for the data exported in CSV by default. It is possible to export raw data without de-duplication by passing `reduce_mem_usage=1` query arg to `/api/v1/export/csv`.
 
@@ -948,6 +936,8 @@ The `format` query arg must contain comma-separated list of parsing rules for CS
     * `unix_ns` - unix timestamp in nanoseconds. Note that VictoriaMetrics rounds the timestamp to milliseconds.
     * `rfc3339` - timestamp in [RFC3339](https://tools.ietf.org/html/rfc3339) format, i.e. `2006-01-02T15:04:05Z`.
     * `custom:<layout>` - custom layout for the timestamp. The `<layout>` may contain arbitrary time layout according to [time.Parse rules in Go](https://golang.org/pkg/time/#Parse).
+
+The first row is treated as a header but can be skipped if any `time` or `metric` column contains a non-numeric value.
 
 Each request to `/api/v1/import/csv` may contain arbitrary number of CSV lines.
 
@@ -1331,7 +1321,7 @@ see [these docs](https://docs.victoriametrics.com/victoriametrics/stream-aggrega
 ## Metrics Metadata
 
 Single-node VictoriaMetrics can store metric metadata (`TYPE`, `HELP`, `UNIT`) {{% available_from "v1.130.0" %}}.
-Metadata ingestion and querying are enabled by default{{% available_from "#" %}}. To disable them, set `-enableMetadata=false`.
+Metadata ingestion and querying are enabled by default{{% available_from "v1.137.0" %}}. To disable them, set `-enableMetadata=false`.
 
 The metadata is cached in-memory in a ring buffer and can use up to 1% of available memory by default (see `-storage.maxMetadataStorageSize` cmd-line flag).
 When in-memory size is exceeded, the least updated entries are dropped first. Entries that weren't updated for 1h are cleaned up automatically.
@@ -1390,23 +1380,26 @@ The newly added `part` is atomically registered in the `parts.json` file under t
 after it is fully written and [fsynced](https://man7.org/linux/man-pages/man2/fsync.2.html) to the storage.
 Thanks to this algorithm, storage never contains partially created parts, even if hardware power off
 occurs in the middle of writing the `part` to disk - such incompletely written `parts`
-are automatically deleted on the next VictoriaMetrics start.
-
+are automatically deleted on the next VictoriaMetrics start. 
 The same applies to merge process — `parts` are either fully merged into a new `part` or fail to merge,
-leaving the source `parts` untouched. However, due to hardware issues data on disk may be corrupted regardless of
-VictoriaMetrics process. VictoriaMetrics can detect corruption during decompressing, decoding or sanity checking
-of the data blocks. But **it cannot fix the corrupted data**. Data parts that fail to load on startup need to be deleted
-or restored from backups. This is why it is recommended performing
-[regular backups](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#backups).
+leaving the source `parts` untouched. 
+
+Hardware issues may cause data already stored on disk to become corrupted, regardless of the VictoriaMetrics process.
+VictoriaMetrics can detect corruption during reading, decompressing, decoding or sanity checking of the data blocks. 
+Process will intentionally panic when this happens, so human operator can detect corruption as fast as possible. 
+
+> VictoriaMetrics cannot fix the corrupted data parts on its own.
+> Data parts that fail to load on startup or during reads need to be deleted or restored from backups. 
+> It is recommended performing [regular backups](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#backups).
 
 VictoriaMetrics doesn't use checksums for stored data blocks. See why in this [GitHub Issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3011).
 
-VictoriaMetrics doesn't merge parts if their summary size exceeds free disk space.
-This prevents from potential out of disk space errors during merge.
-The number of parts may significantly increase over time under free disk space shortage.
-This increases overhead during data querying, since VictoriaMetrics needs to read data from
-bigger number of parts per each request. That's why it is recommended to have at least 20%
-of free disk space under directory pointed by `-storageDataPath` command-line flag.
+VictoriaMetrics does not merge parts if their combined size exceeds the available free disk space. This behavior 
+protects against potential "out of disk space" errors during merges. If there is not enough free disk space to perform merges, 
+the number of parts may increase significantly over time. This increases query overhead, because VictoriaMetrics must 
+read data from a larger number of parts for each request.
+
+> It is recommended to keep at least 20% of disk space free in the directory specified by the `-storageDataPath` command-line flag.
 
 Information about merging process is available in [the dashboard for single-node VictoriaMetrics](https://grafana.com/grafana/dashboards/10229)
 and [the dashboard for VictoriaMetrics cluster](https://grafana.com/grafana/dashboards/11176).
@@ -1419,21 +1412,22 @@ See also [how to work with snapshots](#how-to-work-with-snapshots) and [IndexDB]
 ## IndexDB
 
 VictoriaMetrics identifies
-[time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) by
-`TSID` (time series ID) and stores
-[raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) sorted
-by TSID (see [Storage](#storage)). Thus, the TSID is a primary index and could
-be used for searching and retrieving raw samples. However, the TSID is never
-exposed to the clients, i.e. it is for internal use only.
+[time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series)
+by `TSID` (time series ID) and stores
+[raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples)
+sorted by TSID (see [Storage](#storage)). Thus, the TSID is a primary index and
+could be used for searching and retrieving raw samples. However, the TSID is
+never exposed to the clients, i.e. it is for internal use only.
 
-Instead, VictoriaMetrics maintains an **inverted index** that enables searching
-the raw samples by metric name, label name, and label value by mapping these
-values to the corresponding TSIDs.
+Instead, VictoriaMetrics maintains an **inverted index** (known as `indexDB`)
+that enables searching the raw samples by metric name, label name, and label
+value by mapping these values to the corresponding TSIDs. Every data
+[partition](#storage) has its own indexDB.
 
 VictoriaMetrics uses two types of inverted indexes:
 
 * Global index. Searches using this index is performed across the entire
-  retention period.
+  partition time range.
 * Per-day index. This index stores mappings similar to ones in global index
   but also includes the date in each mapping. This speeds up data retrieval
   for queries within a shorter time range (which is often just the last day).
@@ -1441,19 +1435,18 @@ VictoriaMetrics uses two types of inverted indexes:
 When the search query is executed, VictoriaMetrics decides which index to use
 based on the time range of the query:
 
-* Per-day index is used if the search time range is 40 days or less.
-* Global index is used for search queries with a time range greater than 40
-  days.
+* Per-day index is used if the search time range is less than the partition time range.
+* Global index is used for search queries with a time range that matches exactly
+  or greater than the partition time range.
 
 Mappings are added to the indexes during the data ingestion:
 
-* In global index each mapping is created only once per retention period.
+* In global index each mapping is created only once per partition.
 * In the per-day index each mapping is created for each unique date that
   has been seen in the samples for the corresponding time series.
 
-IndexDB respects [retention period](#retention) and once it is over, the indexes
-are dropped. For the new retention period, the indexes are gradually populated
-again as the new samples arrive.
+Since indexDB is a part of a partition, it is dropped along with it as it
+becomes outside the [retention period](#retention).
 
 See also [Why IndexDB size is so large?](https://docs.victoriametrics.com/victoriametrics/faq/#why-indexdb-size-is-so-large).
 
@@ -1517,6 +1510,16 @@ It is safe to extend `-retentionPeriod` on existing data. If `-retentionPeriod` 
 value than before, then data outside the configured period will be eventually deleted.
 
 VictoriaMetrics does not support indefinite retention, but you can specify an arbitrarily high duration, e.g. `-retentionPeriod=100y`.
+
+By default, VictoriaMetrics doesn't accept samples with timestamps bigger than `now+2d`, e.g. 2 days in the future.
+If you need accepting samples with bigger timestamps, then specify the desired "future retention" via `-futureRetention` command-line flag.
+This flag accepts values starting from `2d`.
+
+For example, the following command starts VictoriaMetrics, which accepts samples with timestamps up to a year in the future:
+
+```sh
+/path/to/victoria-metrics -futureRetention=1y
+```
 
 ### Multiple retentions
 
@@ -1678,7 +1681,41 @@ Additionally, alerting can be set up with the following tools:
 
 ## Security
 
-General security recommendations:
+### Supported Versions
+
+The following versions of VictoriaMetrics receive regular security fixes:
+
+| Version                                                                        | Supported          |
+|--------------------------------------------------------------------------------|--------------------|
+| [Latest release](https://docs.victoriametrics.com/victoriametrics/changelog/)  | ✅                 |
+| [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/) | ✅                 |
+| other releases                                                                 | ❌                 |
+
+### Software Bill of Materials (SBOM)
+
+Every VictoriaMetrics container{{% available_from "v1.137.0" %}} image published to
+[Docker Hub](https://hub.docker.com/u/victoriametrics) and [Quay.io](https://quay.io/organization/victoriametrics) include an [SPDX](https://spdx.dev/) SBOM attestation generated automatically by BuildKit during `docker buildx build`.
+
+To inspect the SBOM for an image:
+
+```sh
+docker buildx imagetools inspect \
+  docker.io/victoriametrics/victoria-metrics:latest \
+  --format "{{ json .SBOM }}"
+```
+
+To scan an image using its SBOM attestation with [Trivy](https://github.com/aquasecurity/trivy):
+
+```sh
+trivy image --sbom-sources oci \
+  docker.io/victoriametrics/victoria-metrics:latest
+```
+
+### Reporting a Vulnerability
+
+Please report any security issues to <security@victoriametrics.com>
+
+### General security recommendations:
 
 * All the VictoriaMetrics components must run in protected private networks without direct access from untrusted networks such as Internet.
   The exception is [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) and [vmgateway](https://docs.victoriametrics.com/victoriametrics/vmgateway/),
@@ -1799,6 +1836,10 @@ via [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) or via 
 
 See also [VictoriaMetrics Monitoring](https://victoriametrics.com/blog/victoriametrics-monitoring/)
 and [troubleshooting docs](https://docs.victoriametrics.com/victoriametrics/troubleshooting/).
+
+> [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_single_monitoring)
+> provides built-in monitoring dashboards and automatic alerts when resource consumption is high or configured limits are approached,
+> so you get notified before issues impact your workload. See the [VictoriaMetrics Cloud documentation](https://docs.victoriametrics.com/victoriametrics-cloud/) to get started.
 
 > VictoriaMetrics components do not expose metadata `TYPE` and `HELP` fields on `/metrics` page.
 > Services like Google Cloud Managed Prometheus could require metadata to be present for scraping. In this case, pass `-metrics.exposeMetadata`
@@ -1982,6 +2023,9 @@ By default, VictoriaMetrics doesn't limit the number of stored time series. The 
 
 Both limits can be set simultaneously. If any of these limits is reached, then incoming samples for new time series are dropped. A sample of dropped series is put in the log with `WARNING` level.
 
+It is possible to use `-1` as a value for these flags{{% available_from "v1.140.0" %}} in order to enable series tracking but set limit to maximum possible value.
+This is useful in order to estimate the number of unique series which is written to VictoriaMetrics single without enforcing limits.
+
 The exceeded limits can be [monitored](#monitoring) with the following metrics:
 
 * `vm_hourly_series_limit_rows_dropped_total` - the number of metrics dropped due to exceeded hourly limit on the number of unique time series.
@@ -2145,9 +2189,12 @@ It is also possible removing [rollup result cache](#rollup-result-cache) on star
 
 ### Rollup result cache
 
-VictoriaMetrics caches query responses by default. This allows increasing performance for repeated queries
+VictoriaMetrics caches query responses by default and utilizes the cache for future queries when possible. This improves performance for repeated queries
 to [`/api/v1/query`](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query) and [`/api/v1/query_range`](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query)
 with the increasing `time`, `start` and `end` query args.
+
+> For range query: the cache can be used for queries with the same expression and step.
+> For instant query: the cache can be used for queries with the same expression that uses a lookbehind window larger than `-search.minWindowForInstantRollupOptimization` and specific functions such as `xx_over_time`, `increase`, `rate`. (For `rate`, the cache result may be inaccurate in edge cases, see [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10098#issuecomment-3895011084) for details)
 
 This cache may work incorrectly when ingesting historical data into VictoriaMetrics. See [these docs](#backfilling) for details.
 
@@ -2482,3 +2529,7 @@ Moved to [integrations/graphite/#tags-api](https://docs.victoriametrics.com/vict
 ###### Integrations
 
 Moved to [integrations](https://docs.victoriametrics.com/victoriametrics/integrations/).
+
+###### Playgrounds
+
+The VictoriaMetrics playgrounds have been moved to [Playgrounds](https://docs.victoriametrics.com/playgrounds/).

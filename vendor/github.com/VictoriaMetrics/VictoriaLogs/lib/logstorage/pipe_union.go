@@ -12,21 +12,61 @@ import (
 //
 // See https://docs.victoriametrics.com/victorialogs/logsql/#union-pipe
 type pipeUnion struct {
-	// q is a query for obtaining results to add after all the input results
+	// q is a query for obtaining results to add after all the input results are processed.
+	//
+	// q is nil if rows is non-nil.
 	q *Query
 
-	// runUnionQuery must be initialized by the caller via initUnionQuery before query execution
-	runUnionQuery runUnionQueryFunc
+	// rows contains rows to add after processing all the input results.
+	//
+	// rows are obtained either by executing q at initUnionQuery
+	// or they can be put inline in the union pipe via the following syntax:
+	//
+	//     union rows({row1}, ... {rowN})
+	//
+	rows [][]Field
+
+	// runQuery must be initialized by the caller via initUnionQuery before query execution
+	runQuery runUnionQueryFunc
 }
 
-func (pu *pipeUnion) initUnionQuery(runUnionQuery runUnionQueryFunc) pipe {
+func (pu *pipeUnion) initUnionQuery(qctx *QueryContext, runQuery runUnionQueryFunc, eagerExecute bool) (pipe, error) {
+	rows := pu.rows
+	if eagerExecute && rows == nil {
+		qctxLocal := qctx.WithQuery(pu.q)
+
+		var err error
+		rows, err = getRows(qctxLocal, func(qctx *QueryContext, writeBlock writeBlockResultFunc) error {
+			return runQuery(qctx.Context, qctx.Query, writeBlock)
+		})
+		if err != nil {
+			return nil, fmt.Errorf("cannot execute query at pipe [%s]: %w", pu, err)
+		}
+	}
+
 	puNew := *pu
-	puNew.runUnionQuery = runUnionQuery
-	return &puNew
+	if rows != nil {
+		puNew.q = nil
+	}
+	puNew.rows = rows
+	puNew.runQuery = runQuery
+
+	return &puNew, nil
 }
 
 func (pu *pipeUnion) String() string {
-	return fmt.Sprintf("union (%s)", pu.q.String())
+	var dst []byte
+	dst = append(dst, "union "...)
+
+	if pu.rows != nil {
+		dst = marshalRows(dst, pu.rows)
+	} else {
+		dst = append(dst, '(')
+		dst = append(dst, pu.q.String()...)
+		dst = append(dst, ')')
+	}
+
+	return string(dst)
 }
 
 func (pu *pipeUnion) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
@@ -50,7 +90,7 @@ func (pu *pipeUnion) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pu *pipeUnion) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
+func (pu *pipeUnion) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	// The values for in(..) filters at pu.q query are obtained independently at pu.flush().
 	return pu, nil
 }
@@ -89,7 +129,14 @@ func (pup *pipeUnionProcessor) flush() error {
 	ctxWithCancel, cancel := contextutil.NewStopChanContext(pup.stopCh)
 	defer cancel()
 
-	return pup.pu.runUnionQuery(ctxWithCancel, pup.pu.q, pup.ppNext.writeBlock)
+	if pup.pu.rows != nil {
+		var br blockResult
+		br.mustInitFromRows(pup.pu.rows)
+		pup.ppNext.writeBlock(0, &br)
+		return nil
+	}
+
+	return pup.pu.runQuery(ctxWithCancel, pup.pu.q, pup.ppNext.writeBlock)
 }
 
 func parsePipeUnion(lex *lexer) (pipe, error) {
@@ -98,13 +145,24 @@ func parsePipeUnion(lex *lexer) (pipe, error) {
 	}
 	lex.nextToken()
 
-	q, err := parseQueryInParens(lex)
-	if err != nil {
-		return nil, err
+	var q *Query
+	var rows [][]Field
+	var err error
+	if lex.isKeyword("rows") {
+		rows, err = parseRows(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse rows inside 'union': %w", err)
+		}
+	} else {
+		q, err = parseQueryInParens(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse subquery inside 'union': %w", err)
+		}
 	}
 
 	pu := &pipeUnion{
-		q: q,
+		q:    q,
+		rows: rows,
 	}
 	return pu, nil
 }

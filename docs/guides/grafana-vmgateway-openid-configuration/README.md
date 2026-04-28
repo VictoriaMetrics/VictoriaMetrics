@@ -6,6 +6,8 @@ build:
 sitemap:
   disable: true
 ---
+> vmgateway access control feature has been deprecated. Consider following the vmauth guide [Setup vmauth - Multi-Tenant Access with Grafana & OIDC](https://docs.victoriametrics.com/guides/grafana-vmauth-openid-configuration/) instead. See [migration](https://docs.victoriametrics.com/victoriametrics/vmgateway/#access-control-migration-to-vmauth) docs.
+
 Using [Grafana](https://grafana.com/) with [vmgateway](https://docs.victoriametrics.com/victoriametrics/vmgateway/) is a great way to provide [multi-tenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) access to your metrics.
 vmgateway provides a way to authenticate users using [JWT tokens](https://en.wikipedia.org/wiki/JSON_Web_Token) issued by an external identity provider.
 Those tokens can include information about the user and the tenant they belong to, which can be used
@@ -38,7 +40,7 @@ See details about all supported options in the [vmgateway documentation](https:/
 
 ### Configuration example for Keycloak
 
-[Keycloak](https://www.keycloak.org/) is an open source identity service that can be used to issue JWT tokens.
+[Keycloak](https://www.keycloak.org/) is an open-source identity service that can issue JWT tokens.
 
 1. Log in with admin credentials to your Keycloak instance
 1. Go to `Clients` -> `Create`.<br>
@@ -83,9 +85,9 @@ See details about all supported options in the [vmgateway documentation](https:/
    ![User attributes](user-attributes.webp)
    Click `Save`.
 
-## Configure grafana
+## Configure Grafana
 
-To forward JWT tokens Grafana must be configured to use OpenID Connect authentication as follows:
+To forward JWT tokens, Grafana must be configured to use OpenID Connect authentication as follows:
 
 ```ini
 [auth.generic_oauth]
@@ -100,7 +102,7 @@ token_url = http://localhost:3001/realms/{KEYCLOAK_REALM}/protocol/openid-connec
 api_url = http://localhost:3001/realms/{KEYCLOAK_REALM}/protocol/openid-connect/userinfo
 ```
 
-After restarting Grafana with the new config you should be able to log in using your identity provider.
+After restarting Grafana with the new config, you should be able to log in using your identity provider.
 
 ## Start vmgateway
 
@@ -118,7 +120,7 @@ In order to enable multi-tenant access, you must also specify the `-clusterMode=
     -read.url=http://localhost:8481
 ```
 
-With this configuration vmgateway will use the `vm_access` claim from the JWT token to restrict access to metrics.
+With this configuration, vmgateway will use the `vm_access` claim from the JWT token to restrict access to metrics.
 For example, if the JWT token contains the following `vm_access` claim:
 
 ```json
@@ -131,21 +133,21 @@ For example, if the JWT token contains the following `vm_access` claim:
   }
 }
 ```
-> Note: in case `project_id` is not specified, default value `0` is used.
+> Note: in case `project_id` is not specified, the default value `0` is used.
 
-Then vmgateway will proxy request to an endpoint with the following path:
+Then vmgateway will proxy the request to an endpoint with the following path:
 
 ```sh
 http://localhost:8480/select/0:0/
 ```
 
-This allows to restrict access to specific tenants without having to create separate datasources in Grafana,
+This allows us to restrict access to specific tenants without having to create separate datasources in Grafana,
 or manually managing access at another proxy level. 
 
 ### Multi-tenant access for single-node VictoriaMetrics
 
-In order to use multi-tenant access with single-node VictoriaMetrics, you can use token claims such as `extra_labels`
-or `extra_filters` filled dynamically by using Identity Provider's user information.
+To use multi-tenant access with single-node VictoriaMetrics, you can use token claims such as `extra_labels`
+or `extra_filters` filled dynamically by using the Identity Provider's user information.
 vmgateway uses those claims and [enhanced Prometheus querying API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-enhancements)
 to provide additional filtering capabilities.
 
@@ -167,14 +169,14 @@ This will add the following query args to the proxied request:
 - `extra_labels=team=dev`
 - `extra_filters={env=~"aws|gcp",cluster!="production"}`
 
-With this configuration VictoriaMetrics will add the following filters to every query: `{team="dev", env=~"aws|gcp", cluster!="production"}`.
+With this configuration, VictoriaMetrics will add the following filters to every query: `{team="dev", env=~"aws|gcp", cluster!="production"}`.
 So when user will try to query `vm_http_requests_total` query will be transformed to `vm_http_requests_total{team="dev", env=~"aws|gcp", cluster!="production"}`.
 
 ### Token signature verification
 
 It is also possible to enable [JWT token signature verification](https://docs.victoriametrics.com/victoriametrics/vmgateway/#jwt-signature-verification) at
 vmgateway.
-To do this by using OpenID Connect discovery endpoint you need to specify the `-auth.oidcDiscoveryEndpoints` flag. For example:
+To do this by using the OpenID Connect discovery endpoint, you need to specify the `-auth.oidcDiscoveryEndpoints` flag. For example:
 
 ```sh
 ./bin/vmgateway \
@@ -201,7 +203,7 @@ It is also possible to provide the public keys directly via the `-auth.publicKey
 Create a new Prometheus datasource in Grafana with the following URL `http://<vmgateway>:8431`.
 URL should point to the vmgateway instance.
 
-In the "Type and version" section it is recommended to set the type to "Prometheus" and the version to at least "2.24.x":
+In the "Type and version" section, it is recommended to set the type to "Prometheus" and the version to at least "2.24.x":
 
 ![Prometheus datasource](grafana-datasource-prometheus.webp)
 
@@ -214,11 +216,11 @@ Enable `Forward OAuth identity` flag.<br>
 ![Oauth identity](grafana-ds.webp)
 
 Now you can use Grafana to query metrics from the specified tenant.
-Users with `vm_access` claim will be able to query metrics from the specified tenant.
+Users with a `vm_access` claim will be able to query metrics from the specified tenant.
 
 ## Test multi-tenant access
 
-For the test purpose we will setup the following services as [docker-compose](https://docs.docker.com/compose/) manifest:
+For the test purpose, we will set up the following services as [docker-compose](https://docs.docker.com/compose/) manifest:
 - Grafana
 - Keycloak
 - vmagent to generate test metrics
@@ -249,27 +251,27 @@ services:
       - grafana_data:/var/lib/grafana/
 
   vmsingle:
-    image: victoriametrics/victoria-metrics:v1.136.0
+    image: victoriametrics/victoria-metrics:v1.137.0
     command:
       - -httpListenAddr=0.0.0.0:8429
 
   vmstorage:
-    image: victoriametrics/vmstorage:v1.136.0-cluster
+    image: victoriametrics/vmstorage:v1.137.0-cluster
 
   vminsert:
-    image: victoriametrics/vminsert:v1.136.0-cluster
+    image: victoriametrics/vminsert:v1.137.0-cluster
     command:
       - -storageNode=vmstorage:8400
       - -httpListenAddr=0.0.0.0:8480
 
   vmselect:
-    image: victoriametrics/vmselect:v1.136.0-cluster
+    image: victoriametrics/vmselect:v1.137.0-cluster
     command:
       - -storageNode=vmstorage:8401
       - -httpListenAddr=0.0.0.0:8481
 
   vmagent:
-    image: victoriametrics/vmagent:v1.136.0
+    image: victoriametrics/vmagent:v1.137.0
     volumes:
       - ./scrape.yaml:/etc/vmagent/config.yaml
     command:
@@ -278,7 +280,7 @@ services:
       - -remoteWrite.url=http://vmsingle:8429/api/v1/write
 
   vmgateway-cluster:
-    image: victoriametrics/vmgateway:v1.136.0-enterprise
+    image: victoriametrics/vmgateway:v1.137.0-enterprise
     ports:
       - 8431:8431
     volumes:
@@ -294,7 +296,7 @@ services:
       - -auth.oidcDiscoveryEndpoints=http://keycloak:8080/realms/master/.well-known/openid-configuration
 
   vmgateway-single:
-    image: victoriametrics/vmgateway:v1.136.0-enterprise
+    image: victoriametrics/vmgateway:v1.137.0-enterprise
     ports:
       - 8432:8431
     volumes:
@@ -311,7 +313,7 @@ volumes:
   grafana_data:
 ```
 
-For the test purpose vmagent will be configured to scrape metrics from the following targets(`scrape.yaml` contents):
+For the test purpose, vmagent will be configured to scrape metrics from the following targets(`scrape.yaml` contents):
 
 ```yaml
 scrape_configs:
@@ -341,27 +343,27 @@ Grafana datasources configuration will be the following:
 
 ![Test datasources](grafana-test-datasources.webp)
 
-Let's login as user with `team=dev` labels limitation set via claims.
+Let's log in as a user with `team=dev` labels limitation set via claims.
 
-Using `vmgateway-cluster` results into `No data` response as proxied request will go to tenant `0:1`.
-Since vmagent is only configured to write to `0:0` `No data` is an expected response.
+Using `vmgateway-cluster` results in `No data` response as the proxied request will go to tenant `0:1`.
+Since vmagent is configured to write only to `0:0`, the `No data` response is expected.
 
 ![Dev cluster nodata](dev-cluster-nodata.webp)
 
-Switching to `vmgateway-single` does have data. Note that it is limited to metrics with `team=dev` label.
+Switching to `vmgateway-single` does have data. Note that it is limited to metrics with the `team=dev` label.
 
 ![Dev single data](dev-single-data.webp)
 
-Now lets login as user with `team=admin`.
+Now let's log in as a user with `team=admin`.
 
-Both cluster and single node datasources now return metrics for `team=admin`.
+Both cluster and single-node datasources now return metrics for `team=admin`.
 
 ![Admin cluster data](admin-cluster-data.webp)
 ![Admin single data](admin-single-data.webp)
 
-## Using oAuth for remote write with vmagent
+## Using OAuth for remote write with vmagent
 
-vmagent can be configured to use oAuth for remote write. This is in order to add authentication to the write requests.
+vmagent can be configured to use OAuth for remote write. This adds authentication to write requests.
 
 In order to create a client for vmagent to use, follow the steps below:
 
@@ -375,7 +377,7 @@ In order to create a client for vmagent to use, follow the steps below:
    Enable `Authorization`.<br>
    ![Create client 2](vmagent-create-client-2.webp)
    Click `Next`.<br>
-1. Leave URLs section empty as vmagent will not use any.
+1. Leave the URLs section empty, as vmagent will not use any.
    ![Create client 3](vmagent-create-client-3.webp)
    Click `Save`.<br>
 1. Go to `Clients` -> `vmagent` -> `Credentials`.<br>
@@ -396,16 +398,16 @@ In order to create a client for vmagent to use, follow the steps below:
    Click `Save`.<br>
 1. Go to `Service account roles` -> click on `service-account-vmagent`.<br>
    ![vmagent service account](vmagent-sa.webp)
-1. Go to `Attributes` tab and add an attribute.
+1. Go to the `Attributes` tab and add an attribute.
    Change `vm_access` attribute value to `{"tenant_id" : {"account_id": 0, "project_id": 0 }}`. <br>
    ![User attributes](vmagent-sa-attributes.webp)
    Click `Save`.
 
-Once iDP configuration is done, vmagent configuration needs to be updated to use oAuth for remote write:
+Once the iDP configuration is done, the vmagent configuration needs to be updated to use OAuth for remote write:
 
 ```yaml
   vmagent:
-    image: victoriametrics/vmagent:v1.136.0
+    image: victoriametrics/vmagent:v1.137.0
     volumes:
       - ./scrape.yaml:/etc/vmagent/config.yaml
       - ./vmagent-client-secret:/etc/vmagent/oauth2-client-secret
@@ -419,7 +421,8 @@ Once iDP configuration is done, vmagent configuration needs to be updated to use
       - -remoteWrite.oauth2.scopes=openid
 ```
 
-It is required to replace `{CLIENT_ID}` with the client ID and provide the client secret in `vmagent-client-secret` file.
+It is required to replace `{CLIENT_ID}` with the client ID and provide the client secret in the `vmagent-client-secret` file.
 Note that vmagent will use the same token for both single-node and cluster vmgateway. vmgateway running in cluster mode
-will use tenant information from the token to route the request to the correct tenant. vmgateway running in single-node mode
+will use the tenant information from the token to route the request to the correct tenant. vmgateway running in single-node mode
 will just verify token validity.
+

@@ -57,7 +57,7 @@ func StartVminsert(instance string, flags []string, cli *Client, output io.Write
 		extractREs = append(extractREs, regexp.MustCompile(logRecord))
 	}
 
-	app, stderrExtracts, err := startApp(instance, "../../bin/vminsert", flags, &appOptions{
+	app, stderrExtracts, err := startApp(instance, "../../bin/vminsert-race", flags, &appOptions{
 		defaultFlags: map[string]string{
 			"-httpListenAddr":                              "127.0.0.1:0",
 			"-clusternativeListenAddr":                     "127.0.0.1:0",
@@ -114,8 +114,10 @@ func (app *Vminsert) InfluxWrite(t *testing.T, records []string, opts QueryOpts)
 	}
 
 	data := []byte(strings.Join(records, "\n"))
+	headers := opts.getHeaders()
+	headers.Set("Content-Type", "text/plain")
 	app.sendBlocking(t, len(records), func() {
-		_, statusCode := app.cli.Post(t, url, "text/plain", data)
+		_, statusCode := app.cli.Post(t, url, data, headers)
 		if statusCode != http.StatusNoContent {
 			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
 		}
@@ -146,8 +148,10 @@ func (app *Vminsert) PrometheusAPIV1ImportCSV(t *testing.T, records []string, op
 		url += "?" + uvs
 	}
 	data := []byte(strings.Join(records, "\n"))
+	headers := opts.getHeaders()
+	headers.Set("Content-Type", "text/plain")
 	app.sendBlocking(t, len(records), func() {
-		_, statusCode := app.cli.Post(t, url, "text/plain", data)
+		_, statusCode := app.cli.Post(t, url, data, headers)
 		if statusCode != http.StatusNoContent {
 			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
 		}
@@ -168,8 +172,10 @@ func (app *Vminsert) PrometheusAPIV1ImportNative(t *testing.T, data []byte, opts
 	if len(uvs) > 0 {
 		url += "?" + uvs
 	}
+	headers := opts.getHeaders()
+	headers.Set("Content-Type", "text/plain")
 	app.sendBlocking(t, 1, func() {
-		_, statusCode := app.cli.Post(t, url, "text/plain", data)
+		_, statusCode := app.cli.Post(t, url, data, headers)
 		if statusCode != http.StatusNoContent {
 			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
 		}
@@ -191,8 +197,10 @@ func (app *Vminsert) OpenTSDBAPIPut(t *testing.T, records []string, opts QueryOp
 		url += "?" + uvs
 	}
 	data := []byte("[" + strings.Join(records, ",") + "]")
+	headers := opts.getHeaders()
+	headers.Set("Content-Type", "application/json")
 	app.sendBlocking(t, len(records), func() {
-		_, statusCode := app.cli.Post(t, url, "application/json", data)
+		_, statusCode := app.cli.Post(t, url, data, headers)
 		if statusCode != http.StatusNoContent {
 			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
 		}
@@ -211,8 +219,10 @@ func (app *Vminsert) PrometheusAPIV1Write(t *testing.T, wr prompb.WriteRequest, 
 	if prommetadata.IsEnabled() {
 		recordsCount += len(wr.Metadata)
 	}
+	headers := opts.getHeaders()
+	headers.Set("Content-Type", "application/x-protobuf")
 	app.sendBlocking(t, recordsCount, func() {
-		_, statusCode := app.cli.Post(t, url, "application/x-protobuf", data)
+		_, statusCode := app.cli.Post(t, url, data, headers)
 		if statusCode != http.StatusNoContent {
 			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
 		}
@@ -237,8 +247,22 @@ func (app *Vminsert) PrometheusAPIV1ImportPrometheus(t *testing.T, records []str
 	data := []byte(strings.Join(records, "\n"))
 	var recordsCount int
 	var metadataRecords int
+	uniqueMetadataMetricNames := make(map[string]struct{})
 	for _, record := range records {
-		if strings.HasPrefix(record, "#") {
+		// metric metadata has the following format:
+		//# HELP importprometheus_series
+		//# TYPE importprometheus_series
+		// it results into single metadata record
+		if strings.HasPrefix(record, "# ") {
+			metadataItems := strings.Split(record, " ")
+			if len(metadataItems) < 2 {
+				t.Fatalf("BUG: unexpected metadata format=%q", record)
+			}
+			metricName := metadataItems[2]
+			if _, ok := uniqueMetadataMetricNames[metricName]; ok {
+				continue
+			}
+			uniqueMetadataMetricNames[metricName] = struct{}{}
 			metadataRecords++
 			continue
 		}
@@ -247,8 +271,10 @@ func (app *Vminsert) PrometheusAPIV1ImportPrometheus(t *testing.T, records []str
 	if prommetadata.IsEnabled() {
 		recordsCount += metadataRecords
 	}
+	headers := opts.getHeaders()
+	headers.Set("Content-Type", "text/plain")
 	app.sendBlocking(t, recordsCount, func() {
-		_, statusCode := app.cli.Post(t, url, "text/plain", data)
+		_, statusCode := app.cli.Post(t, url, data, headers)
 		if statusCode != http.StatusNoContent {
 			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
 		}
@@ -268,8 +294,10 @@ func (app *Vminsert) ZabbixConnectorHistory(t *testing.T, records []string, opts
 		url += "?" + uvs
 	}
 	data := []byte(strings.Join(records, "\n"))
+	headers := opts.getHeaders()
+	headers.Set("Content-Type", "application/json")
 	app.sendBlocking(t, len(records), func() {
-		_, statusCode := app.cli.Post(t, url, "application/json", data)
+		_, statusCode := app.cli.Post(t, url, data, headers)
 		if statusCode != http.StatusOK {
 			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
 		}
@@ -298,13 +326,14 @@ func (app *Vminsert) String() string {
 func (app *Vminsert) sendBlocking(t *testing.T, numRecordsToSend int, send func()) {
 	t.Helper()
 
+	wantRowsSentCount := app.rpcRowsSentTotal(t) + numRecordsToSend
+
 	send()
 
 	const (
 		retries = 20
 		period  = 100 * time.Millisecond
 	)
-	wantRowsSentCount := app.rpcRowsSentTotal(t) + numRecordsToSend
 	for range retries {
 		d := app.rpcRowsSentTotal(t)
 		if d >= wantRowsSentCount {

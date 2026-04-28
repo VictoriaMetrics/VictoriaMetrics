@@ -47,7 +47,7 @@ func (pd *pipeDecolorize) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pd *pipeDecolorize) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
+func (pd *pipeDecolorize) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pd, nil
 }
 

@@ -556,6 +556,9 @@ See more details on [how to monitor VictoriaMetrics components](https://docs.vic
 - `-storage.maxHourlySeries` is the limit on the number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series) during the last hour.
 - `-storage.maxDailySeries` is the limit on the number of unique time series during the day. This limit can be used for limiting daily [time series churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate).
 
+It is possible to use `-1` as a value for these flags{{% available_from "v1.140.0" %}} in order to enable series tracking but set limit to maximum possible value.
+This is useful in order to estimate the number of unique series written to `vmstorage` without enforcing limits.
+
 Note that these limits are set and applied individually per each `vmstorage` node in the cluster. So, if the cluster has `N` `vmstorage` nodes, then the cluster-level limits will be `N` times bigger than the per-`vmstorage` limits.
 
 See more details about cardinality limiter in [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-limiter).
@@ -754,6 +757,10 @@ The `minimum downtime` strategy has the following benefits comparing to `no down
   for rolling upgrade.
 - It allows minimizing the duration of config update / version upgrade for clusters with big number of nodes
   of for clusters with big `vmstorage` nodes, which may take long time for graceful restart.
+
+> If you'd prefer to avoid managing cluster upgrades yourself, [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_cluster_upgrade)
+> handles version upgrades automatically during maintenance windows, and lets you create, resize, or delete deployments with a few clicks from the UI.
+> See the [VictoriaMetrics Cloud documentation](https://docs.victoriametrics.com/victoriametrics-cloud/) to get started.
 
 ### Improving re-routing performance during restart
 
@@ -1015,7 +1022,7 @@ to ensure query results consistency, even if storage layer didn't complete dedup
 ## Metrics Metadata
 
 Cluster version of VictoriaMetrics can store metric metadata (TYPE, HELP, UNIT) {{% available_from "v1.130.0" %}}.
-Metadata ingestion is enabled by default{{% available_from "#" %}}. To disable it, set `-enableMetadata=false` on `vminsert`, and `vmagent`.
+Metadata ingestion is enabled by default{{% available_from "v1.137.0" %}}. To disable it, set `-enableMetadata=false` on `vminsert`, and `vmagent`.
 
 The metadata is cached in-memory in a ring buffer and can use up to 1% of available memory by default (see `-storage.maxMetadataStorageSize` cmd-line flag).
 When in-memory size is exceeded, the least updated entries are dropped first. Entries that weren't updated for 1h are cleaned up automatically.

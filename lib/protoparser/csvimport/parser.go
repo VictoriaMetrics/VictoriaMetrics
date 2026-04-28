@@ -71,11 +71,58 @@ type metric struct {
 // Unmarshal unmarshals csv lines from s according to the given cds.
 func (rs *Rows) Unmarshal(s string, cds []ColumnDescriptor) {
 	rs.sc.Init(s)
-	rs.Rows, rs.tagsPool, rs.metricsPool = parseRows(&rs.sc, rs.Rows[:0], rs.tagsPool[:0], rs.metricsPool[:0], cds)
+	rs.Rows, rs.tagsPool, rs.metricsPool = parseRows(&rs.sc, rs.Rows[:0], rs.tagsPool[:0], rs.metricsPool[:0], cds, false)
 }
 
-func parseRows(sc *scanner, dst []Row, tags []Tag, metrics []metric, cds []ColumnDescriptor) ([]Row, []Tag, []metric) {
+// UnmarshalDetectHeader is similar to Unmarshal, but skips the first row if it looks like CSV header
+// Must only be called for the first data block in a stream.
+func (rs *Rows) UnmarshalDetectHeader(s string, cds []ColumnDescriptor) {
+	rs.sc.Init(s)
+	rs.Rows, rs.tagsPool, rs.metricsPool = parseRows(&rs.sc, rs.Rows[:0], rs.tagsPool[:0], rs.metricsPool[:0], cds, true)
+}
+
+// isHeaderRow returns true if the current scanner line looks like a CSV header.
+func isHeaderRow(sc *scanner, cds []ColumnDescriptor) bool {
+	isHeader := false
+	col := uint(0)
+	for sc.NextColumn() {
+		if col >= uint(len(cds)) {
+			continue
+		}
+		cd := &cds[col]
+		col++
+		if cd.isEmpty() || sc.Column == "" {
+			continue
+		}
+		if cd.ParseTimestamp != nil {
+			if _, err := cd.ParseTimestamp(sc.Column); err != nil {
+				isHeader = true
+			}
+		}
+		if cd.MetricName != "" {
+			if _, err := fastfloat.Parse(sc.Column); err != nil {
+				isHeader = true
+			}
+		}
+	}
+	return isHeader
+}
+
+func parseRows(sc *scanner, dst []Row, tags []Tag, metrics []metric, cds []ColumnDescriptor, skipHeader bool) ([]Row, []Tag, []metric) {
 	for sc.NextLine() {
+		if skipHeader {
+			skipHeader = false
+			savedLine := sc.Line
+			if isHeaderRow(sc, cds) {
+				sc.Line = savedLine
+				sc.isLastColumn = false
+				sc.Error = nil
+				continue
+			}
+			sc.Line = savedLine
+			sc.isLastColumn = false
+			sc.Error = nil
+		}
 		line := sc.Line
 		var r Row
 		col := uint(0)

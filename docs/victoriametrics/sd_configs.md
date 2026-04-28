@@ -648,6 +648,12 @@ scrape_configs:
     #
     # role_arn: "..."
 
+    # profile is an optional named AWS profile from ~/.aws/config and ~/.aws/credentials.
+    # When set, credentials and role_arn are resolved from the profile, with source_profile
+    # chaining supported. See https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html
+    #
+    # profile: "..."
+
     # port is an optional port to scrape metrics from.
     # By default, port 80 is used.
     #
@@ -1178,10 +1184,10 @@ One of the following `role` types can be configured to discover targets:
   Available meta labels for `role: endpoints` during [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
 
 * `__meta_kubernetes_namespace`: The namespace of the endpoints object.
-* `__meta_kubernetes_namespace_annotation_<annotationname>`: Each annotation from the namespace of the endpoints object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
-* `__meta_kubernetes_namespace_annotationpresent_<annotationname>`: "true" for each annotation from the namespace of the endpoints object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
-* `__meta_kubernetes_namespace_label_<labelname>`: Each label from the namespace of the endpoints object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
-* `__meta_kubernetes_namespace_labelpresent_<labelname>`: "true" for each label from the namespace of the endpoints object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
+* `__meta_kubernetes_namespace_annotation_<annotationname>`: Each annotation from the namespace of the endpoints object when `attach_metadata.namespace` is set to `true`.
+* `__meta_kubernetes_namespace_annotationpresent_<annotationname>`: "true" for each annotation from the namespace of the endpoints object when `attach_metadata.namespace` is set to `true`.
+* `__meta_kubernetes_namespace_label_<labelname>`: Each label from the namespace of the endpoints object when `attach_metadata.namespace` is set to `true`.
+* `__meta_kubernetes_namespace_labelpresent_<labelname>`: "true" for each label from the namespace of the endpoints object when `attach_metadata.namespace` is set to `true`.
 * `__meta_kubernetes_endpoints_name`: The names of the endpoints object.
 * `__meta_kubernetes_endpoints_label_<labelname>`: Each label from the endpoints object.
 * `__meta_kubernetes_endpoints_labelpresent_<labelname>`: "true" for each label from the endpoints object.
@@ -1211,10 +1217,10 @@ One of the following `role` types can be configured to discover targets:
   Available meta labels for `role: endpointslice` during [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
 
 * `__meta_kubernetes_namespace`: The namespace of the endpointslice object.
-* `__meta_kubernetes_namespace_annotation_<annotationname>`: Each annotation from the namespace of the endpointslice object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
-* `__meta_kubernetes_namespace_annotationpresent_<annotationname>`: "true" for each annotation from the namespace of the endpointslice object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
-* `__meta_kubernetes_namespace_label_<labelname>`: Each label from the namespace of the endpointslice object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
-* `__meta_kubernetes_namespace_labelpresent_<labelname>`: "true" for each label from the namespace of the endpointslice object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
+* `__meta_kubernetes_namespace_annotation_<annotationname>`: Each annotation from the namespace of the endpointslice object when `attach_metadata.namespace` is set to `true`.
+* `__meta_kubernetes_namespace_annotationpresent_<annotationname>`: "true" for each annotation from the namespace of the endpointslice object when `attach_metadata.namespace` is set to `true`.
+* `__meta_kubernetes_namespace_label_<labelname>`: Each label from the namespace of the endpointslice object when `attach_metadata.namespace` is set to `true`.
+* `__meta_kubernetes_namespace_labelpresent_<labelname>`: "true" for each label from the namespace of the endpointslice object when `attach_metadata.namespace` is set to `true`.
 * `__meta_kubernetes_endpointslice_name`: The name of endpointslice object.
 
   For all targets discovered directly from the endpointslice list (those not additionally inferred from underlying pods), the following labels are attached:
@@ -1245,10 +1251,10 @@ One of the following `role` types can be configured to discover targets:
   Available meta labels for `role: ingress` during [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
 
 * `__meta_kubernetes_namespace`: The namespace of the ingress object.
-* `__meta_kubernetes_namespace_annotation_<annotationname>`: Each annotation from the namespace of the ingress object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
-* `__meta_kubernetes_namespace_annotationpresent_<annotationname>`: "true" for each annotation from the namespace of the ingress object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
-* `__meta_kubernetes_namespace_label_<labelname>`: Each label from the namespace of the ingress object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
-* `__meta_kubernetes_namespace_labelpresent_<labelname>`: "true" for each label from the namespace of the ingress object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
+* `__meta_kubernetes_namespace_annotation_<annotationname>`: Each annotation from the namespace of the ingress object when `attach_metadata.namespace` is set to `true`.
+* `__meta_kubernetes_namespace_annotationpresent_<annotationname>`: "true" for each annotation from the namespace of the ingress object when `attach_metadata.namespace` is set to `true`.
+* `__meta_kubernetes_namespace_label_<labelname>`: Each label from the namespace of the ingress object when `attach_metadata.namespace` is set to `true`.
+* `__meta_kubernetes_namespace_labelpresent_<labelname>`: "true" for each label from the namespace of the ingress object when `attach_metadata.namespace` is set to `true`.
 * `__meta_kubernetes_ingress_name`: The name of the ingress object.
 * `__meta_kubernetes_ingress_label_<labelname>`: Each label from the ingress object.
 * `__meta_kubernetes_ingress_labelpresent_<labelname>`: "true" for each label from the ingress object.
@@ -1803,6 +1809,13 @@ scrape_configs:
     #
     # api_endpoint: "https://api.cloud.yandex.net"
 
+    # folder_ids is an optional list of folder IDs for direct discovery.
+    # If set, only the given folders are queried and the folder enumeration
+    # step is skipped.
+    #
+    # folder_ids:
+    #   - "b1gxxxxxxxxxxxxxxxxx"
+
     # yandex_passport_oauth_token is an optional OAuth token
     # for querying yandexcloud API. See https://cloud.yandex.com/en-ru/docs/iam/concepts/authorization/oauth-token
     #
@@ -2073,8 +2086,8 @@ and in the majority of [supported service discovery configs](#supported-service-
     # basic_auth is an optional HTTP basic authentication configuration.
     #
     # basic_auth:
-    #   username: "..."
-    #   username_file: "..."  # is mutually-exclusive with username
+    #   username: "..."      # optional
+    #   username_file: "..."  # optional, is mutually-exclusive with username
     #   password: "..."
     #   password_file: "..."  # is mutually-exclusive with password
 
@@ -2090,9 +2103,12 @@ and in the majority of [supported service discovery configs](#supported-service-
 
     # oauth2 is an optional OAuth 2.0 configuration.
     # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#oauth2
+    # Additionally, `headers` field is supported for sending custom HTTP headers to `token_url`.
     #
     # oauth2:
     #   ...
+    #   headers:
+    #   - "X-Tenant-ID: my-tenant"
 
     # tls_config is an optional TLS configuration.
     # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#tls_config

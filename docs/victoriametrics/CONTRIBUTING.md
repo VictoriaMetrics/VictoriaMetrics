@@ -49,8 +49,8 @@ We use [labels](https://docs.github.com/en/issues/using-labels-and-milestones-to
   For example, if we weren't able to reproduce the reported bug based on the ticket description then we ask additional
   questions which could help to reproduce the issue and add `need more info` label. This label helps other maintainers
   to understand that this issue wasn't forgotten but waits for the feedback from user.
-1. `waiting for release`, assigned to issues that required code changes and those changes were merged to upstream, but not released yet.
-  Once a release is made, maintainers go through all labeled issues, leave a comment about the new release, remove the label, and close the issue.
+1. `completed`, assigned to issues that required code changes and those changes were merged to upstream, but not released yet.
+  Once a release is made, maintainers go through all labeled issues, leave a comment about the new release, and close the issue.
 1. `vmui`, assigned to issues related to [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) or [VictoriaLogs webui](https://docs.victoriametrics.com/victorialogs/querying/#web-ui)
 
 ## Pull Request checklist
@@ -62,11 +62,13 @@ Pull requests requirements:
 1. The pull request must conform to [VictoriaMetrics development goals](https://docs.victoriametrics.com/victoriametrics/goals/).
 1. Don't use `master` branch for making PRs, as it makes it impossible for reviewers to modify the changes.
 1. All commits need to be [signed](https://docs.github.com/en/authentication/managing-commit-signature-verification/signing-commits).
-1. A commit message should contain clear and concise description of what was done and for what purpose.
-   Use the imperative, present tense: "change" not "changed" nor "changes". Read your commit message as "This commit will ..", don't capitalize the first letter.
-   Message should be prefixed with `<dir>/<component>:` to show what component has been changed, i.e. `app/vmalert: fix...`.
+1. Pull request title should be prefixed with `<dir>/<component>:` to show what component has been changed, i.e. `app/vmalert: fix...`.
+   Pull request description should contain clear and concise description of what was done, why it is needed and for what purpose.
+   Use clear language, so reviewers can quickly understand the change and its impact.
 1. A link to the issue(s) related to the change, if any. Use `Fixes [issue link]` if the PR resolves the issue, or `Related to [issue link]` for reference.
-1. Tests proving that the change is effective. See [this style guide](https://itnext.io/f-tests-as-a-replacement-for-table-driven-tests-in-go-8814a8b19e9e) for tests.
+1. Tests proving that the change is effective. Tests are expected for non-trivial new functionality or non-trivial modifications.
+   Bug fixes must include tests unless a maintainer explicitly agrees otherwise.
+   See [this style guide](https://itnext.io/f-tests-as-a-replacement-for-table-driven-tests-in-go-8814a8b19e9e) for tests.
    To run tests and code checks locally, execute commands `make test-full` and `make check-all`.
 1. Try to not extend the scope of the pull requests outside the issue, do not make unrelated changes.
 1. Update [docs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs) if needed. For example, adding a new flag or changing behavior of existing flags or features
@@ -96,7 +98,7 @@ The person who merges the Pull Request is responsible for satisfying requirement
    and mention in the PR comment what was or wasn't cherry-picked.
 1. Update related issues with a meaningful message of what has changed and when it will be
    released. _This helps users to understand the change without reading PR._
-1. Add label `waiting for release` to related issues.
+1. Add label `completed` to related issues.
 1. Do not close related tickets until release is made. If ticket was auto-closed by GitHub or user - re-open it.
 
 ## KISS principle

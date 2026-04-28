@@ -136,6 +136,9 @@ func TestRuleValidate(t *testing.T) {
 	if err := (&Rule{Alert: "alert"}).Validate(); err == nil {
 		t.Fatalf("expected empty expr error")
 	}
+	if err := (&Rule{Record: "record", Expr: "sum(test)", Labels: map[string]string{"__name__": "test"}}).Validate(); err == nil {
+		t.Fatalf("invalid rule label; got %s", err)
+	}
 	if err := (&Rule{Alert: "alert", Expr: "test>0"}).Validate(); err != nil {
 		t.Fatalf("expected valid rule; got %s", err)
 	}
@@ -176,9 +179,15 @@ func TestGroupValidate_Failure(t *testing.T) {
 	}, false, "interval shouldn't be lower than 0")
 
 	f(&Group{
-		Name:       "wrong eval_offset",
+		Name:       "too big eval_offset",
 		Interval:   promutil.NewDuration(time.Minute),
 		EvalOffset: promutil.NewDuration(2 * time.Minute),
+	}, false, "eval_offset should be smaller than interval")
+
+	f(&Group{
+		Name:       "too big negative eval_offset",
+		Interval:   promutil.NewDuration(time.Minute),
+		EvalOffset: promutil.NewDuration(-2 * time.Minute),
 	}, false, "eval_offset should be smaller than interval")
 
 	limit := -1

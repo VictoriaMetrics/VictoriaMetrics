@@ -7,17 +7,14 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
 )
 
 // filterIPv6Range matches the given ipv6 range [minValue..maxValue].
 //
-// Example LogsQL: `fieldName:ipv6_range(::1, ::2)`
+// Example LogsQL: `ipv6_range(::1, ::2)`
 type filterIPv6Range struct {
-	fieldName string
-	minValue  [16]byte
-	maxValue  [16]byte
+	minValue [16]byte
+	maxValue [16]byte
 
 	minMaxIPv4ValuesOnce sync.Once
 	minIPv4Value         uint32
@@ -25,10 +22,18 @@ type filterIPv6Range struct {
 	isIPv4               bool
 }
 
+func newFilterIPv6Range(fieldName string, minValue, maxValue [16]byte) *filterGeneric {
+	fr := &filterIPv6Range{
+		minValue: minValue,
+		maxValue: maxValue,
+	}
+	return newFilterGeneric(fieldName, fr)
+}
+
 func (fr *filterIPv6Range) String() string {
 	minValue := netip.AddrFrom16(fr.minValue).String()
 	maxValue := netip.AddrFrom16(fr.maxValue).String()
-	return fmt.Sprintf("%sipv6_range(%s, %s)", quoteFieldNameIfNeeded(fr.fieldName), minValue, maxValue)
+	return fmt.Sprintf("ipv6_range(%s, %s)", minValue, maxValue)
 }
 
 func (fr *filterIPv6Range) getMinMaxIPv4Values() (uint32, uint32, bool) {
@@ -70,16 +75,12 @@ func getIPv4ValueFrom16(a [16]byte) (uint32, bool) {
 	return encoding.UnmarshalUint32(ip4[:]), true
 }
 
-func (fr *filterIPv6Range) updateNeededFields(pf *prefixfilter.Filter) {
-	pf.AddAllowFilter(fr.fieldName)
-}
-
-func (fr *filterIPv6Range) matchRow(fields []Field) bool {
-	v := getFieldValueByName(fields, fr.fieldName)
+func (fr *filterIPv6Range) matchRowByField(fields []Field, fieldName string) bool {
+	v := getFieldValueByName(fields, fieldName)
 	return matchIPv6Range(v, fr.minValue, fr.maxValue)
 }
 
-func (fr *filterIPv6Range) applyToBlockResult(br *blockResult, bm *bitmap) {
+func (fr *filterIPv6Range) applyToBlockResultByField(br *blockResult, bm *bitmap, fieldName string) {
 	minValue := fr.minValue
 	maxValue := fr.maxValue
 
@@ -88,7 +89,7 @@ func (fr *filterIPv6Range) applyToBlockResult(br *blockResult, bm *bitmap) {
 		return
 	}
 
-	c := br.getColumnByName(fr.fieldName)
+	c := br.getColumnByName(fieldName)
 	if c.isConst {
 		v := c.valuesEncoded[0]
 		if !matchIPv6Range(v, minValue, maxValue) {
@@ -153,8 +154,7 @@ func (fr *filterIPv6Range) applyToBlockResult(br *blockResult, bm *bitmap) {
 	}
 }
 
-func (fr *filterIPv6Range) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
-	fieldName := fr.fieldName
+func (fr *filterIPv6Range) applyToBlockSearchByField(bs *blockSearch, bm *bitmap, fieldName string) {
 	minValue := fr.minValue
 	maxValue := fr.maxValue
 

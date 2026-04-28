@@ -119,6 +119,10 @@ To start exploring the UI, you can use embedded demo with preconfigured queries 
 
 ## Authentication
 
+> [!TIP]
+{{% available_from "v1.29.2" anomaly %}} You can proxy connection settings to UI, defined in [reader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#config-parameters) section of the configuration file, so that UI can connect to the data sources with the same settings (e.g. credentials, TLS, etc.). Set `server.use_reader_connection_settings` [arg](https://docs.victoriametrics.com/anomaly-detection/components/server/#parameters) to `true` in the configuration file to enable this feature, and UI will automatically use the connection settings from the reader configuration when connecting to the data sources. If `pass auth headers` option is enabled in the UI settings, it will take precedence over the reader-wise settings. See [example configuration](https://docs.victoriametrics.com/anomaly-detection/components/server/#example-configuration) for details.
+
+
 {{% available_from "v1.27.0" anomaly %}} The vmanomaly UI supports proxying authentication headers from [v1.1.0](#v110) and onwards.
 
 Consider using [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) in front of both vmanomaly (UI and API) and data sources (VictoriaMetrics / VictoriaLogs) to enforce end-to-end setup for accessing the data from the UI.
@@ -183,6 +187,139 @@ The best applications of this mode are:
 
 > However, the UI can be **combined with existing production jobs of anomaly detection, as it is available in non-blocking mode for all running vmanomaly instances** {{% available_from "v1.26.0" anomaly %}}, regardless of the preset or configuration used, just at a cost of increased resource usage.
 
+## AI Assistance
+
+{{% available_from "v1.29.0" anomaly %}} Copilot is an AI assistant built into the vmanomaly UI. It understands current anomaly detection configuration in the UI and helps iterate faster and obtain better results - without leaving the UI, searching the docs manually, or being an expert in anomaly detection.
+
+### What you can do with Copilot
+
+- **Ask questions** about any model (e.g. [Prophet](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) or [Z-score](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-z-score) - parameters, trade-offs, when to use each)
+- **Improve detection quality** - describe what's wrong ("too many false positives", "missing spikes") and Copilot reads the config, searches the docs, and proposes a validated configuration change to fix the issue.
+- **Get config suggestions inline** - suggestions appear as interactive cards with an explanation and a YAML diff; click **Apply** to write the change directly to your current settings, or **Decline** to keep the conversation going.
+
+### How it works
+
+Copilot appears as a **chat popup** anchored to the bottom-right corner of the page. The panel is resizable by dragging its left edge, and can be opened or closed by clicking the respective icon.
+
+> [!TIP] Copilot is context-aware
+> It reads your active model, scheduler, and anomaly settings from the UI automatically, so you don't need to paste your config manually. {{% available_from "v1.29.2" anomaly %}} It also can read and modify full UI settings, such as data source URL, query parameters, scheduler settings, and more, to provide better suggestions.
+
+### Configuration
+
+AI Assistant is disabled by default; enable it with `VMANOMALY_COPILOT_ENABLED=true`, then configure credentials for the selected LLM provider and **explicitly set** `VMANOMALY_COPILOT_MODEL` to the exact model Copilot should use. Do not rely on an implicit default model being selected. Once enabled and configured, Copilot will appear as a chat popup in the bottom-right corner of the UI.
+
+
+Supported providers and model formats:
+
+- **Anthropic** - set `ANTHROPIC_API_KEY`; model format: `anthropic:<model>`
+  - Examples: `claude-haiku-4-5`, `claude-sonnet-4-6`; see [full list](https://platform.claude.com/docs/en/about-claude/models/overview#latest-models-comparison)
+- **OpenAI** - set `OPENAI_API_KEY`; model format: `openai:<model>` or `openai-responses:<model>`
+  - Examples: `gpt-5-mini`, `gpt-5.2`; see [full list](https://platform.openai.com/docs/models)
+  - {{% available_from "v1.29.1" anomaly %}} OpenAI-compatible non-OpenAI providers are supported through `OPENAI_BASE_URL` + `OPENAI_API_KEY`
+  - {{% available_from "v1.29.1" anomaly %}} Azure OpenAI is supported through `AZURE_OPENAI_ENDPOINT` + `OPENAI_API_VERSION` + `AZURE_OPENAI_API_KEY` (or `AZURE_OPENAI_AD_TOKEN`); do not set both `OPENAI_BASE_URL` and `AZURE_OPENAI_ENDPOINT`
+- {{% available_from "v1.29.1" anomaly %}} **Google** - model format: `google-gla:<model>` or `google-vertex:<model>`
+  - Use `GOOGLE_API_KEY` for `google-gla`; for `google-vertex`, use Application Default Credentials, a service account (`GOOGLE_APPLICATION_CREDENTIALS`), or `GOOGLE_API_KEY`
+  - Example: `google-gla:gemini-2.5-pro-preview`
+- {{% available_from "v1.29.1" anomaly %}} **AWS Bedrock** - use AWS credentials or an IAM role; model format: `bedrock:<model>`
+  - Preferred: set `AWS_BEARER_TOKEN_BEDROCK` and `AWS_DEFAULT_REGION`
+  - Alternative: set `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and `AWS_DEFAULT_REGION` (add `AWS_SESSION_TOKEN` if using a session token)
+  - Example: `bedrock:anthropic.claude-sonnet-4-5-20250929-v1:0`
+- {{% available_from "v1.29.1" anomaly %}} **OpenRouter** - set `OPENROUTER_API_KEY`; model format: `openrouter:<model>`
+  - Example: `openrouter:anthropic/claude-sonnet-4-5`
+
+Set the credentials matching your selected provider:
+
+```bash
+# Anthropic
+export ANTHROPIC_API_KEY=your_key_here
+
+# OpenAI
+export OPENAI_API_KEY=your_key_here
+
+# OpenAI-compatible non-OpenAI providers
+export OPENAI_BASE_URL=https://api.example.com/v1
+export OPENAI_API_KEY=your_key_here
+
+# Azure OpenAI
+export AZURE_OPENAI_ENDPOINT=https://example.openai.azure.com
+export OPENAI_API_VERSION=2024-10-21
+export AZURE_OPENAI_API_KEY=your_key_here
+# or: export AZURE_OPENAI_AD_TOKEN=your_entra_token
+
+# Google Generative Language API
+export GOOGLE_API_KEY=your_key_here
+
+# Google Vertex AI service account
+export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
+# or use Application Default Credentials: gcloud auth application-default login
+
+# OpenRouter
+export OPENROUTER_API_KEY=your_key_here
+
+# AWS Bedrock (preferred: bearer token)
+export AWS_BEARER_TOKEN_BEDROCK=your_bearer_token
+export AWS_DEFAULT_REGION=us-east-1
+# AWS Bedrock (alternative: access key pair or IAM role)
+# export AWS_ACCESS_KEY_ID=your_access_key
+# export AWS_SECRET_ACCESS_KEY=your_secret_key
+# export AWS_DEFAULT_REGION=us-east-1
+# export AWS_SESSION_TOKEN=your_session_token  # if using a session token
+```
+
+Explicitly set the model Copilot should use:
+
+```bash
+export VMANOMALY_COPILOT_MODEL=openai:gpt-5-mini
+```
+
+For example, if a smaller OpenAI model is desired, set:
+
+```bash
+export VMANOMALY_COPILOT_MODEL=openai:gpt-5-nano
+```
+
+### MCP tools server
+
+Connects Copilot to [mcp-vmanomaly](https://github.com/VictoriaMetrics/mcp-vmanomaly) for full tool access (built-in docs, models configuration and validation, alerts recommendation, service healthchecks, etc.). Full [tools list](https://github.com/VictoriaMetrics/mcp-vmanomaly?tab=readme-ov-file#toolset):
+
+> [!NOTE]
+> Only `http` [mode](https://github.com/VictoriaMetrics/mcp-vmanomaly?tab=readme-ov-file#modes) is supported. Set `VMANOMALY_MCP_SERVER_URL` to the MCP server HTTP endpoint. The server must be reachable from within the vmanomaly container.
+
+For example:
+
+```bash
+export VMANOMALY_MCP_SERVER_URL=http://localhost:8081/mcp
+```
+
+Use `localhost` only when the vmanomaly process can reach the MCP server on its own loopback interface (for example, both running on the host). If vmanomaly runs in a separate Docker container, use a reachable container or host address instead.
+
+**Example**: if using Docker, run `mcp-vmanomaly` and vmanomaly UI in the same Docker network so they can reach each other by container name:
+
+```bash
+docker network create vmanomaly-network
+
+docker run -d --rm \
+  --name mcp-vmanomaly \
+  --network vmanomaly-network \
+  -e VMANOMALY_ENDPOINT=http://vmanomaly-instance:8490 \
+  -e MCP_SERVER_MODE=http \
+  -e MCP_LISTEN_ADDR=:8081 \
+  ghcr.io/victoriametrics/mcp-vmanomaly
+
+docker run -it --rm \
+  --name vmanomaly-instance \
+  --network vmanomaly-network \
+  -e VMANOMALY_COPILOT_ENABLED=true \
+  -e OPENAI_API_KEY="$OPENAI_API_KEY" \
+  -e VMANOMALY_COPILOT_MODEL=openai:gpt-5-mini \
+  -e VMANOMALY_MCP_SERVER_URL=http://mcp-vmanomaly:8081/mcp \
+  -p 8080:8080 \
+  -p 8490:8490 \
+  victoriametrics/vmanomaly:v1.29.3 \
+  vmanomaly_config.yaml
+```
+
+
 ## UI Navigation
 
 The vmanomaly UI provides a user-friendly interface for exploring and configuring anomaly detection models. The main components of the UI include:
@@ -223,6 +360,8 @@ The Visualization Panel has 2 modes of displaying data - either raw queried data
 > The plot shows the queried data, **grouped by individual series**, iterated over legend, with the actual values (`y`) compared to the expected values (model predictions, `y_hat`), confidence intervals (`y_hat_lower`, `y_hat_upper`), and detected anomalies. The anomalies are marked with red circles, and hovering over them provides additional information such as the anomaly score and associated labels.
 
 Also, timeseries (such as `y`, `y_hat`, etc.) can be toggled on/off by clicking on the legend items.
+
+{{% available_from "v1.29.2" anomaly %}} Seeing model [business-boundaries](https://docs.victoriametrics.com/anomaly-detection/faq/#incorporating-domain-knowledge), such as [detection direction](https://docs.victoriametrics.com/anomaly-detection/components/models/#detection-direction) and minimal deviation from expected ([absolute](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-deviation-from-expected) and [relative](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-relative-deviation-from-expected) combined) can be turned on with "business boundaries" toggle. Showing/hiding individual bands can be done by clicking on the respective legend items, while showing/hiding all business boundaries at once can be done with "business boundaries" toggle.
 
 [Back to UI navigation](#ui-navigation)
 
@@ -500,6 +639,52 @@ If the **results** look good and the **model configuration should be deployed in
 ![vmanomaly-ui-example-alert-menu](vmanomaly-ui-example-alert-menu.webp)
 
 ## Changelog
+
+### v1.6.1
+Released: 2026-04-16
+
+vmanomaly version: [v1.29.3](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1293)
+
+- IMPROVEMENT: Consecutive anomalies (when "streaks" option is enabled) are now grouped in the Visualization Panel as a single anomaly line instead of multiple dots for reduced visual noise and better representation of prolonged anomalous periods, while still showing the exact anomaly score and labels on hover.
+
+- IMPROVEMENT: Raw query results now refresh automatically after time range changes; yet anomaly detection results are preserved until "Detect Anomalies" button is hit again, to avoid recalculating anomalies on the new time range without explicit user action, which could be costly if the new time range is large and the model is complex.
+
+- IMPROVEMENT: Table legend view is now enabled by default for sorting and filtering enablement.
+
+- BUGFIX: Generated config and example alert outputs now preserve configured fit/infer values correctly and avoid invalid float-based duration strings in generated YAML, which could lead to data validation errors if copied to production configuration without adjustments.
+
+- BUGFIX: Fixed multiple confusing anomaly UI behaviors around scheduler fields (fit_every, infer_every) and generated artifacts.
+
+- BUGFIX: Chart y-axis range is now updating after legend series selection (regression introduced in v1.6.0).
+
+### v1.6.0
+Released: 2026-04-02
+
+vmanomaly version: [v1.29.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1292)
+
+- FEATURE: Now AI assistant can see and modify main UI components state (queries, time range, model configuration, etc.) to provide more contextual and accurate suggestions and actions.
+
+- FEATURE: Added support for UI to use reader-wise settings (credentials, TLS, etc.) for connecting to data sources, which otherwise would require having `vmauth` in front of both UI and data sources, just for the UI to be able to connect to them. See [Authentication](#authentication) section for details.
+
+### v1.5.1
+Released: 2026-03-25
+
+vmanomaly version: [v1.29.1](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1291)
+
+- FEATURE: GCP/AWS/OpenRouter Copilot LLM providers are now supported in addition to OpenAI and Anthropic, for more choice and flexibility in AI assistance. See [AI Assistance](#ai-assistance) section for details on supported providers and configuration.
+
+- BUGFIX: Now Visualization Panel correctly switches in between "query" and "detect" modes when respective buttons are hit in the [Visualization Panel](#visualization-panel), without showing stale results from the previous mode, once running anomaly detection task is explicitly cancelled (regression introduced in [v1.5.0](#v150)).
+
+- BUGFIX: Fixed an issue with [crypto.randomUUID](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID) introduced in [v1.29.0](#v1290) in [UI copilot](https://docs.victoriametrics.com/anomaly-detection/ui/#ai-assistance) that led to the front app showing a blank page.
+
+### v1.5.0
+Released: 2026-03-05
+
+vmanomaly version: [v1.29.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1290)
+
+- FEATURE: Allowed AI assistance use for documentation Q&A, model configuration suggestion and application, optionally backed by [MCP Server tools](https://github.com/VictoriaMetrics/mcp-vmanomaly/tree/main). Please refer to [AI Assistance](https://docs.victoriametrics.com/anomaly-detection/ui/#ai-assistance) section for details.
+- FEATURE: Added filtering of timeseries in the Visualization Panel by labels and statistics (e.g. anomaly count) to focus on the most relevant series when many series are returned by the query.
+- BUGFIX: Fixed missing datapoints in [BacktestingScheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#backtesting-scheduler) windows combined with [exact mode](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#defining-inference-timeframe-1), leading to "gaps" in plotted predictions and scores.
 
 ### v1.4.3
 Released: 2026-02-09
