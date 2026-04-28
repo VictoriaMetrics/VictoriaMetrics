@@ -165,7 +165,7 @@ func serveWithListener(addr string, ln net.Listener, rh RequestHandler, disableB
 		// Do not set ReadTimeout and WriteTimeout here,
 		// since these timeouts must be controlled by request handlers.
 
-		ErrorLog: logger.StdErrorLogger(),
+		ErrorLog: log.New(&filteredErrLogWriter{}, "", 0),
 	}
 	s.s.SetKeepAlivesEnabled(!*disableKeepAlive)
 	if *connTimeout > 0 {
@@ -805,4 +805,26 @@ func LogError(req *http.Request, errStr string) {
 	uri := GetRequestURI(req)
 	remoteAddr := GetQuotedRemoteAddr(req)
 	logger.Errorf("uri: %s, remote address: %q: %s", uri, remoteAddr, errStr)
+}
+
+// filteredErrLogWriter wraps net/http.Server.ErrorLog so that noisy
+// TLS-handshake-on-TCP-healthcheck lines don't spam the log at ERROR.
+// Kubernetes tcpSocket probes are the common case: they open a TCP
+// connection and close it before the TLS handshake completes, which
+// net/http then reports as `http: TLS handshake error from ...: EOF`.
+// Those events are structurally normal; everything else still flows
+// through the standard error logger unchanged.
+type filteredErrLogWriter struct{}
+
+func (filteredErrLogWriter) Write(p []byte) (int, error) {
+	s := string(p)
+	// The EOF / reset / unexpected-EOF variants are all the shapes net/http
+	// produces for a bare-TCP probe against an HTTPS listener.
+	if strings.Contains(s, "http: TLS handshake error") &&
+		(strings.Contains(s, ": EOF") ||
+			strings.Contains(s, ": connection reset by peer") ||
+			strings.Contains(s, "unexpected EOF")) {
+		return len(p), nil
+	}
+	return logger.StdErrorLogger().Writer().Write(p)
 }
