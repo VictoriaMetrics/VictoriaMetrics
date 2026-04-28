@@ -355,29 +355,5 @@ func IsDirOrSymlink(de os.DirEntry) bool {
 }
 
 func ExposeFsInfoAsMetric(path string) {
-	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vm_fs_info{path=%q, fs_type=%q}`, path, GetFsTypeName(path)), func() float64 { return 1 })
-}
-
-var fsTypeCacheLock sync.Mutex
-
-// Path To FsTypeName
-var fsTypeCache = map[string]string{}
-
-// GetFsTypeName returns the filesystem type name for the given path.
-func GetFsTypeName(path string) string {
-	// fast path: get fs name from cache
-	fsTypeCacheLock.Lock()
-	if fsName, ok := fsTypeCache[path]; ok {
-		fsTypeCacheLock.Unlock()
-		return fsName
-	}
-	fsTypeCacheLock.Unlock()
-
-	// slow path: get fs name by statfs syscall
-	fsType := getFsTypeName(path)
-
-	fsTypeCacheLock.Lock()
-	fsTypeCache[path] = fsType
-	fsTypeCacheLock.Unlock()
-	return fsType
+	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vm_fs_info{path=%q, fs_type=%q}`, path, getFsTypeName(path)), func() float64 { return 1 })
 }
