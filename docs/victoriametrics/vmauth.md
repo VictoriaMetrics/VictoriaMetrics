@@ -55,7 +55,7 @@ Feel free to [contact us](mailto:info@victoriametrics.com) if you need a customi
 * [Per-tenant authorization](#per-tenant-authorization)
 * [mTLS-based request routing](#mtls-based-request-routing)
 * [Enforcing query args](#enforcing-query-args)
-* [OIDC authorization](#oidc-authorization)
+* [OIDC discovery](#oidc-discovery)
 
 ### Simple HTTP proxy
 
