@@ -3,6 +3,7 @@ package tests
 import (
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 // TestSingleVMAgentReloadConfigs verifies that vmagent reload new configurations on SIGHUP signal
@@ -304,6 +306,11 @@ func TestSingleVMAgentDropOnOverload(t *testing.T) {
 		// See initRemoteWriteCtxs function in remotewrite.go for details.
 		"-remoteWrite.maxRowsPerBlock=1000000000",
 		"-remoteWrite.tmpDataPath=" + tc.Dir() + "/vmagent",
+
+		// Delay retry logic to avoid race conditions with waitFor assertions.
+		// It improves the test stability on resource-constrained runners.
+		// Should be bigger than retries * period
+		"-remoteWrite.retryMinInterval=3s",
 	}, ``)
 
 	const (
@@ -361,4 +368,219 @@ func TestSingleVMAgentDropOnOverload(t *testing.T) {
 			return vmagent.RemoteWriteRequests(t, url1) == 4 && vmagent.RemoteWriteSamplesDropped(t, url2) > 0
 		},
 	)
+}
+
+func TestSingleVMAgentCardinalityLimiter(t *testing.T) {
+	waitFor := func(f func() bool) {
+		const (
+			retries = 20
+			period  = 100 * time.Millisecond
+		)
+
+		t.Helper()
+
+		for i := 0; i < retries; i++ {
+			if f() {
+				return
+			}
+			time.Sleep(period)
+		}
+		t.Fatalf("timed out waiting for retry #%d", retries)
+	}
+
+	tc := apptest.NewTestCase(t)
+	defer tc.Stop()
+
+	remoteWriteSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer remoteWriteSrv.Close()
+
+	// Verify hourly limit is applied
+	vmagent := tc.MustStartVmagent("vmagent-hourly", []string{
+		`-remoteWrite.flushInterval=50ms`,
+		fmt.Sprintf(`-remoteWrite.url=%s/api/v1/write`, remoteWriteSrv.URL),
+		"-remoteWrite.maxRowsPerBlock=1",
+		"-remoteWrite.maxHourlySeries=1",
+		"-remoteWrite.tmpDataPath=" + tc.Dir() + "/vmagent-hourly",
+	}, ``)
+
+	vmagent.APIV1ImportPrometheus(t, []string{
+		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
+	}, apptest.QueryOpts{})
+
+	if v := vmagent.GetIntMetric(t, "vmagent_hourly_series_limit_max_series"); v != 1 {
+		t.Fatalf("unexpected vmagent_hourly_series_limit_max_series value: %d", v)
+	}
+
+	if v := vmagent.GetIntMetric(t, "vmagent_hourly_series_limit_current_series"); v != 1 {
+		t.Fatalf("unexpected vmagent_hourly_series_limit_current_series value: %d", v)
+	}
+
+	if v := vmagent.GetIntMetric(t, "vmagent_hourly_series_limit_rows_dropped_total"); v != 0 {
+		t.Fatalf("unexpected vmagent_hourly_series_limit_rows_dropped_total value: %d", v)
+	}
+
+	vmagent.APIV1ImportPrometheusNoWaitFlush(t, []string{
+		"foo_bar2 1 1652169600000", // 2022-05-10T08:00:00Z
+	}, apptest.QueryOpts{})
+
+	waitFor(
+		func() bool {
+			return vmagent.GetIntMetric(t, "vmagent_hourly_series_limit_rows_dropped_total") > 0
+		},
+	)
+
+	// Daily limits
+	vmagent2 := tc.MustStartVmagent("vmagent-daily", []string{
+		`-remoteWrite.flushInterval=50ms`,
+		fmt.Sprintf(`-remoteWrite.url=%s/api/v1/write`, remoteWriteSrv.URL),
+		"-remoteWrite.maxRowsPerBlock=1",
+		"-remoteWrite.maxDailySeries=1",
+		"-remoteWrite.tmpDataPath=" + tc.Dir() + "/vmagent-daily",
+	}, ``)
+
+	vmagent2.APIV1ImportPrometheus(t, []string{
+		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
+	}, apptest.QueryOpts{})
+
+	if v := vmagent2.GetIntMetric(t, "vmagent_daily_series_limit_max_series"); v != 1 {
+		t.Fatalf("unexpected vmagent_daily_series_limit_max_series value: %d", v)
+	}
+
+	if v := vmagent2.GetIntMetric(t, "vmagent_daily_series_limit_current_series"); v != 1 {
+		t.Fatalf("unexpected vmagent_daily_series_limit_current_series value: %d", v)
+	}
+
+	if v := vmagent2.GetIntMetric(t, "vmagent_daily_series_limit_rows_dropped_total"); v != 0 {
+		t.Fatalf("unexpected vmagent_daily_series_limit_rows_dropped_total value: %d", v)
+	}
+
+	vmagent2.APIV1ImportPrometheusNoWaitFlush(t, []string{
+		"foo_bar2 1 1652169600000", // 2022-05-10T08:00:00Z
+	}, apptest.QueryOpts{})
+
+	waitFor(
+		func() bool {
+			return vmagent2.GetIntMetric(t, "vmagent_daily_series_limit_rows_dropped_total") > 0
+		},
+	)
+
+	// test running with unlimited tracker
+	vmagent3 := tc.MustStartVmagent("vmagent-unlimited", []string{
+		`-remoteWrite.flushInterval=50ms`,
+		fmt.Sprintf(`-remoteWrite.url=%s/api/v1/write`, remoteWriteSrv.URL),
+		"-remoteWrite.maxRowsPerBlock=10",
+		"-remoteWrite.maxDailySeries=-1",
+		"-remoteWrite.maxHourlySeries=-1",
+		"-remoteWrite.tmpDataPath=" + tc.Dir() + "/vmagent-unlimited",
+	}, ``)
+
+	metrics := make([]string, 0, 100)
+	for i := range 100 {
+		metrics = append(metrics, fmt.Sprintf("foo_bar%d 1 1652169600000", i)) // 2022-05-10T08:00:00Z
+	}
+
+	vmagent3.APIV1ImportPrometheusNoWaitFlush(t, metrics, apptest.QueryOpts{})
+
+	waitFor(
+		func() bool {
+			return vmagent3.GetIntMetric(t, "vmagent_hourly_series_limit_current_series") > 0
+		},
+	)
+
+	if v := vmagent3.GetIntMetric(t, "vmagent_hourly_series_limit_max_series"); v != math.MaxInt32 {
+		t.Fatalf("unexpected vmagent_hourly_series_limit_max_series value: %d", v)
+	}
+
+	if v := vmagent3.GetIntMetric(t, "vmagent_hourly_series_limit_current_series"); v != 100 {
+		t.Fatalf("unexpected vmagent_hourly_series_limit_current_series value: %d", v)
+	}
+
+	if v := vmagent3.GetIntMetric(t, "vmagent_hourly_series_limit_rows_dropped_total"); v != 0 {
+		t.Fatalf("unexpected vmagent_hourly_series_limit_rows_dropped_total value: %d", v)
+	}
+
+	if v := vmagent3.GetIntMetric(t, "vmagent_daily_series_limit_max_series"); v != math.MaxInt32 {
+		t.Fatalf("unexpected vmagent_daily_series_limit_max_series value: %d", v)
+	}
+
+	if v := vmagent3.GetIntMetric(t, "vmagent_daily_series_limit_current_series"); v != 100 {
+		t.Fatalf("unexpected vmagent_daily_series_limit_current_series value: %d", v)
+	}
+
+	if v := vmagent3.GetIntMetric(t, "vmagent_daily_series_limit_rows_dropped_total"); v != 0 {
+		t.Fatalf("unexpected vmagent_daily_series_limit_rows_dropped_total value: %d", v)
+	}
+}
+
+func TestClusterVMAgentForwardMetricsMetadata(t *testing.T) {
+	tc := apptest.NewTestCase(t)
+	defer tc.Stop()
+
+	sut := tc.MustStartDefaultCluster()
+
+	vmagent := tc.MustStartVmagent("vmagent", []string{
+		`-remoteWrite.flushInterval=50ms`,
+		`-remoteWrite.forcePromProto=true`,
+		`-enableMultitenantHandlers=true`,
+		"-remoteWrite.tmpDataPath=" + tc.Dir() + "/vmagent",
+		fmt.Sprintf(`-remoteWrite.url=http://%s/insert/multitenant/prometheus/api/v1/write`, sut.Vminsert.HTTPAddr()),
+	}, ``)
+
+	prometheusRemoteWriteDataSet := prompb.WriteRequest{
+		Metadata: []prompb.MetricMetadata{
+			{MetricFamilyName: "metric_name_4", Help: "some help message", Type: prompb.MetricTypeSummary, AccountID: 100},
+		},
+	}
+	vmagent.PrometheusAPIV1Write(t, prometheusRemoteWriteDataSet, apptest.QueryOpts{Tenant: "multitenant"})
+
+	tc.Assert(&apptest.AssertOptions{
+		Msg: "unexpected /api/v1/metadata response",
+		Got: func() any {
+			return sut.PrometheusAPIV1Metadata(t, ``, -1, apptest.QueryOpts{Tenant: "100:0"})
+		},
+		Want: &apptest.PrometheusAPIV1Metadata{
+			Status: "success",
+			Data: map[string][]apptest.MetadataEntry{
+				"metric_name_4": {{Help: "some help message", Type: "summary"}},
+			},
+		},
+	})
+
+	prometheusRemoteWriteDataSet = prompb.WriteRequest{
+		Metadata: []prompb.MetricMetadata{
+			{MetricFamilyName: "metric_name_6", Help: "some help message", Type: prompb.MetricTypeSummary, AccountID: 100},
+		},
+	}
+	// enforce tenant from request uri /insert/tenant_id/prometheus/api/v1/write
+	vmagent.PrometheusAPIV1Write(t, prometheusRemoteWriteDataSet, apptest.QueryOpts{Tenant: "500:500"})
+
+	tc.Assert(&apptest.AssertOptions{
+		Msg: "unexpected /api/v1/metadata response",
+		Got: func() any {
+			return sut.PrometheusAPIV1Metadata(t, ``, -1, apptest.QueryOpts{Tenant: "500:500"})
+		},
+		Want: &apptest.PrometheusAPIV1Metadata{
+			Status: "success",
+			Data: map[string][]apptest.MetadataEntry{
+				"metric_name_6": {{Help: "some help message", Type: "summary"}},
+			},
+		},
+	})
+
+	tc.Assert(&apptest.AssertOptions{
+		Msg: "unexpected /api/v1/metadata response",
+		Got: func() any {
+			return sut.PrometheusAPIV1Metadata(t, ``, -1, apptest.QueryOpts{Tenant: "multitenant"})
+		},
+		Want: &apptest.PrometheusAPIV1Metadata{
+			Status: "success",
+			Data: map[string][]apptest.MetadataEntry{
+				"metric_name_4": {{Help: "some help message", Type: "summary"}},
+				"metric_name_6": {{Help: "some help message", Type: "summary"}},
+			},
+		},
+	})
+
 }

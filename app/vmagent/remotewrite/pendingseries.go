@@ -211,6 +211,9 @@ func (wr *writeRequest) copyMetadata(dst, src *prompb.MetricMetadata) {
 	dst.Type = src.Type
 	dst.Unit = src.Unit
 
+	dst.AccountID = src.AccountID
+	dst.ProjectID = src.ProjectID
+
 	// Pre-allocate memory for all string fields.
 	neededBufLen := len(src.MetricFamilyName) + len(src.Help)
 	bufLen := len(wr.metadatabuf)

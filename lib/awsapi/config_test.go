@@ -2,10 +2,13 @@ package awsapi
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -294,6 +297,281 @@ func TestParseARNCredentialsSuccess(t *testing.T) {
 
 	f(s, "AssumeRole", credsExpected)
 	f(s2, "AssumeRoleWithWebIdentity", credsExpected2)
+}
+
+func TestReadSection(t *testing.T) {
+	f := func(data, section string, expectedResult map[string]string) {
+		t.Helper()
+		result := readSection([]byte(data), section)
+		if !reflect.DeepEqual(result, expectedResult) {
+			t.Fatalf("unexpected result for section %q;\ngot\n%v\nwant\n%v", section, result, expectedResult)
+		}
+	}
+
+	// missing section
+	f("[foo]\nkey=val\n", "spoon", nil)
+
+	// happy path
+	f("[default]\naws_access_key_id = HESOYAM\naws_secret_access_key = BAGUVIX\n", " default ", map[string]string{
+		"aws_access_key_id":     "HESOYAM",
+		"aws_secret_access_key": "BAGUVIX",
+	})
+
+	// comments and blank lines are skipped
+	f("# some comment\n[default]\n\npipeline = green\ntests = well written and stable", "default", map[string]string{
+		"pipeline": "green",
+		"tests":    "well written and stable",
+	})
+
+	// profile prefix used in config file
+	f("[profile account-one]\nsource_profile = root\nrole_arn = arn:aws:iam::000000000001:role/prometheus\n", "profile account-one", map[string]string{
+		"source_profile": "root",
+		"role_arn":       "arn:aws:iam::000000000001:role/prometheus",
+	})
+
+	// multiple sections - only the matching one is returned
+	f("[default]\nregion=us-east-1\n[profile foo]\nrole_arn=arn:foo\n", "profile foo", map[string]string{
+		"role_arn": "arn:foo",
+	})
+
+	// quirky line endings just in case
+	f("[test]\r\nfoo=bar\r\nbeep=boop\r\n", "test", map[string]string{
+		"foo":  "bar",
+		"beep": "boop",
+	})
+}
+
+func TestReadAWSConfigFile(t *testing.T) {
+	f := func(content, profile, wantSourceProfile, wantRoleARN string) {
+		t.Helper()
+		tempDir := t.TempDir()
+		cfgPath := filepath.Join(tempDir, "config")
+		if err := os.WriteFile(cfgPath, []byte(content), 0600); err != nil {
+			t.Fatalf("cannot write config file: %v", err)
+		}
+		t.Setenv("AWS_CONFIG_FILE", cfgPath)
+		sourceProfile, roleARN, err := readAWSConfigFile(profile)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if sourceProfile != wantSourceProfile {
+			t.Fatalf("unexpected source_profile; got %q, want %q", sourceProfile, wantSourceProfile)
+		}
+		if roleARN != wantRoleARN {
+			t.Fatalf("unexpected role_arn; got %q, want %q", roleARN, wantRoleARN)
+		}
+	}
+
+	// profile with source_profile and role_arn
+	f("[profile account-one]\nsource_profile = root\nrole_arn = arn:aws:iam::111:role/r\n",
+		"account-one", "root", "arn:aws:iam::111:role/r")
+
+	// default profile
+	f("[default]\nrole_arn = arn:aws:iam::222:role/r\n",
+		"default", "", "arn:aws:iam::222:role/r")
+
+	// profile not found returns empty strings
+	f("[profile other]\nrole_arn = arn:foo\n",
+		"missing", "", "")
+}
+
+func TestReadSharedCredentials(t *testing.T) {
+	f := func(content, profile string, wantCreds *credentials) {
+		t.Helper()
+		tempDir := t.TempDir()
+		credsPath := filepath.Join(tempDir, "credentials")
+		if err := os.WriteFile(credsPath, []byte(content), 0600); err != nil {
+			t.Fatalf("cannot write credentials file: %v", err)
+		}
+		t.Setenv("AWS_SHARED_CREDENTIALS_FILE", credsPath)
+		creds, err := readSharedCredentials(profile)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !reflect.DeepEqual(creds, wantCreds) {
+			t.Fatalf("unexpected creds;\ngot\n%+v\nwant\n%+v", creds, wantCreds)
+		}
+	}
+
+	// basic credentials
+	f("[root]\naws_access_key_id = AKID\naws_secret_access_key = SECRET\n", "root", &credentials{
+		AccessKeyID:     "AKID",
+		SecretAccessKey: "SECRET",
+	})
+
+	// credentials with session token
+	f("[root]\naws_access_key_id = AKID\naws_secret_access_key = SECRET\naws_session_token = TOKEN\n", "root", &credentials{
+		AccessKeyID:     "AKID",
+		SecretAccessKey: "SECRET",
+		Token:           "TOKEN",
+	})
+
+	// profile not found
+	f("[other]\naws_access_key_id = AKID\naws_secret_access_key = SECRET\n", "missing", nil)
+}
+
+func TestGetAPICredentialsWithProfile(t *testing.T) {
+	responses := map[string]string{
+		"AssumeRole": `
+<AssumeRoleResponse xmlns="https://sts.amazonaws.com/doc/2011-06-15/">
+  <AssumeRoleResult>
+    <Credentials>
+      <AccessKeyId>PROFILEROLEID</AccessKeyId>
+      <SecretAccessKey>PROFILEROLESECRET</SecretAccessKey>
+      <SessionToken>PROFILEROLETOKEN</SessionToken>
+      <Expiration>2025-01-01T00:00:00Z</Expiration>
+    </Credentials>
+  </AssumeRoleResult>
+  <ResponseMetadata><RequestId>test</RequestId></ResponseMetadata>
+</AssumeRoleResponse>
+`,
+	}
+
+	tempDir := t.TempDir()
+
+	configContent := "[profile myprofile]\nsource_profile = root\nrole_arn = arn:aws:iam::123:role/myrole\n"
+	configPath := filepath.Join(tempDir, "config")
+	if err := os.WriteFile(configPath, []byte(configContent), 0600); err != nil {
+		t.Fatalf("cannot write config: %v", err)
+	}
+	credsContent := "[root]\naws_access_key_id = ROOTAKID\naws_secret_access_key = ROOTSECRET\n"
+	credsPath := filepath.Join(tempDir, "credentials")
+	if err := os.WriteFile(credsPath, []byte(credsContent), 0600); err != nil {
+		t.Fatalf("cannot write credentials: %v", err)
+	}
+
+	t.Setenv("AWS_CONFIG_FILE", configPath)
+	t.Setenv("AWS_SHARED_CREDENTIALS_FILE", credsPath)
+
+	rt := &fakeRoundTripper{responses: make(map[string]*http.Response)}
+	for action, value := range responses {
+		recorder := httptest.NewRecorder()
+		recorder.WriteHeader(http.StatusOK)
+		_, _ = recorder.WriteString(value)
+		rt.responses[action] = recorder.Result()
+	}
+
+	cfg := &Config{
+		profile:     "myprofile",
+		stsEndpoint: "http://sts.fake",
+		client:      &http.Client{Transport: rt},
+	}
+	creds, err := cfg.getAPICredentials()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	credsExpected := &credentials{
+		AccessKeyID:     "PROFILEROLEID",
+		SecretAccessKey: "PROFILEROLESECRET",
+		Token:           "PROFILEROLETOKEN",
+		Expiration:      mustParseRFC3339("2025-01-01T00:00:00Z"),
+	}
+	if !reflect.DeepEqual(creds, credsExpected) {
+		t.Fatalf("unexpected creds;\ngot\n%+v\nwant\n%+v", creds, credsExpected)
+	}
+}
+
+func TestGetFreshAPICredentialsFetchesWhenUnset(t *testing.T) {
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10815
+	response := `
+<AssumeRoleWithWebIdentityResponse xmlns="https://sts.amazonaws.com/doc/2011-06-15/">
+  <AssumeRoleWithWebIdentityResult>
+    <Credentials>
+      <AccessKeyId>IRSAACCESSKEYID</AccessKeyId>
+      <SecretAccessKey>IRSASECRETACCESSKEY</SecretAccessKey>
+      <SessionToken>IRSATOKEN</SessionToken>
+      <Expiration>2026-01-01T00:00:00Z</Expiration>
+    </Credentials>
+  </AssumeRoleWithWebIdentityResult>
+  <ResponseMetadata><RequestId>test</RequestId></ResponseMetadata>
+</AssumeRoleWithWebIdentityResponse>
+`
+	rt := &fakeRoundTripper{responses: make(map[string]*http.Response)}
+	recorder := httptest.NewRecorder()
+	recorder.WriteHeader(http.StatusOK)
+	_, _ = recorder.WriteString(response)
+	rt.responses["AssumeRoleWithWebIdentity"] = recorder.Result()
+
+	tempDir := t.TempDir()
+	tokenPath := filepath.Join(tempDir, "token")
+	fs.MustWriteSync(tokenPath, []byte("webtoken"))
+
+	cfg := &Config{
+		stsEndpoint:  "http://stsendpoint",
+		irsaRoleARN:  "irsarole",
+		webTokenPath: tokenPath,
+		client:       &http.Client{Transport: rt},
+	}
+	creds, err := cfg.getFreshAPICredentials()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if creds.AccessKeyID != "IRSAACCESSKEYID" {
+		t.Fatalf("unexpected AccessKeyID; got %q, want %q", creds.AccessKeyID, "IRSAACCESSKEYID")
+	}
+}
+
+func TestGetFreshAPICredentialsFetchesIMDS(t *testing.T) {
+	// verify that IMDS credentials are fetched when no static keys or IRSA config is set
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10817#issuecomment-4258125403
+	imdsRT := &imdsRoundTripper{
+		roleName: "test-role",
+		securityCredentials: `{
+			"AccessKeyId": "IMDSACCESSKEYID",
+			"SecretAccessKey": "IMDSSECRETACCESSKEY",
+			"Token": "IMDSTOKEN",
+			"Expiration": "2026-01-01T00:00:00Z"
+		}`,
+	}
+	cfg := &Config{
+		client: &http.Client{Transport: imdsRT},
+	}
+	creds, err := cfg.getFreshAPICredentials()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if creds.AccessKeyID != "IMDSACCESSKEYID" {
+		t.Fatalf("unexpected AccessKeyID; got %q, want %q", creds.AccessKeyID, "IMDSACCESSKEYID")
+	}
+	if creds.SecretAccessKey != "IMDSSECRETACCESSKEY" {
+		t.Fatalf("unexpected SecretAccessKey; got %q, want %q", creds.SecretAccessKey, "IMDSSECRETACCESSKEY")
+	}
+	if creds.Token != "IMDSTOKEN" {
+		t.Fatalf("unexpected Token; got %q, want %q", creds.Token, "IMDSTOKEN")
+	}
+}
+
+type imdsRoundTripper struct {
+	roleName            string
+	securityCredentials string
+}
+
+func (rt *imdsRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	switch {
+	case req.Method == http.MethodPut && strings.HasSuffix(req.URL.Path, "/api/token"):
+		// IMDSv2 session token request
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("fake-imds-token")),
+			Header:     http.Header{"Content-Type": []string{"text/plain"}},
+		}, nil
+	case strings.HasSuffix(req.URL.Path, "/meta-data/iam/security-credentials/"):
+		// Role name listing
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(rt.roleName)),
+			Header:     http.Header{"Content-Type": []string{"text/plain"}},
+		}, nil
+	case strings.HasSuffix(req.URL.Path, "/meta-data/iam/security-credentials/"+rt.roleName):
+		// Security credentials for the role
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(rt.securityCredentials)),
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+		}, nil
+	default:
+		return nil, fmt.Errorf("unexpected IMDS request: %s %s", req.Method, req.URL)
+	}
 }
 
 func mustParseRFC3339(s string) time.Time {

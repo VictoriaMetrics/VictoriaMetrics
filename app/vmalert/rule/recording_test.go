@@ -163,11 +163,13 @@ func TestRecordingRule_Exec(t *testing.T) {
 	f(&RecordingRule{
 		Name: "job:foo",
 		Labels: map[string]string{
-			"source": "test",
+			"source":      "test",
+			"empty_label": "", // this should be dropped
+			"pod":         "", // this should remove the pod label from query result
 		},
 	}, [][]datasource.Metric{{
-		metricWithValueAndLabels(t, 2, "__name__", "foo", "job", "foo"),
-		metricWithValueAndLabels(t, 1, "__name__", "bar", "job", "bar", "source", "origin"),
+		metricWithValueAndLabels(t, 2, "__name__", "foo", "job", "foo", "pod", "vmalert-0"),
+		metricWithValueAndLabels(t, 1, "__name__", "bar", "job", "bar", "source", "origin", "pod", "vmalert-1"),
 		metricWithValueAndLabels(t, 1, "__name__", "baz", "job", "baz", "source", "test"),
 	}}, [][]prompb.TimeSeries{{
 		newTimeSeries([]float64{2}, []int64{ts.UnixNano()}, []prompb.Label{

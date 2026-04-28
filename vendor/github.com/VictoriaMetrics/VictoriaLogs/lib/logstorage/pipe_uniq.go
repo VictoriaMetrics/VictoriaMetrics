@@ -2,7 +2,6 @@ package logstorage
 
 import (
 	"fmt"
-	"slices"
 	"sync"
 	"sync/atomic"
 
@@ -22,6 +21,9 @@ type pipeUniq struct {
 	// fields contains field names for returning unique values
 	byFields []string
 
+	// if the filter is non-empty then only the values containing the given filter substring are returned.
+	filter string
+
 	// if hitsFieldName isn't empty, then the number of hits per each unique value is stored in this field.
 	hitsFieldName string
 
@@ -32,6 +34,9 @@ type pipeUniq struct {
 
 func (pu *pipeUniq) String() string {
 	s := "uniq by (" + fieldNamesString(pu.byFields) + ")"
+	if pu.filter != "" {
+		s += " filter " + quoteTokenIfNeeded(pu.filter)
+	}
 	if pu.hitsFieldName != "" {
 		s += " with hits"
 	}
@@ -73,7 +78,7 @@ func (pu *pipeUniq) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pu *pipeUniq) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
+func (pu *pipeUniq) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pu, nil
 }
 
@@ -94,7 +99,7 @@ func (pu *pipeUniq) newPipeProcessor(concurrency int, stopCh <-chan struct{}, ca
 	}
 	pup.shards.Init = func(shard *pipeUniqProcessorShard) {
 		shard.pu = pu
-		shard.m.init(uint(concurrency), &shard.stateSizeBudget)
+		shard.m.init(uint(concurrency), pu.filter, &shard.stateSizeBudget)
 	}
 	pup.stateSizeBudget.Store(maxStateSize)
 
@@ -189,7 +194,9 @@ func (shard *pipeUniqProcessorShard) updateStatsSingleColumn(br *blockResult, co
 	}
 	switch c.valueType {
 	case valueTypeDict:
-		c.forEachDictValueWithHits(br, shard.m.updateStateGeneric)
+		c.forEachDictValueWithHits(br, func(v string, hits uint64) {
+			shard.m.updateStateGeneric(v, hits)
+		})
 	case valueTypeUint8:
 		values := c.getValuesEncoded(br)
 		for _, v := range values {
@@ -543,7 +550,7 @@ func parsePipeUniq(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'by(...)': %w", err)
 		}
 		byFields = bfs
-	} else if !lex.isKeyword("with", "hits", "limit", ")", "|", "") {
+	} else if !lex.isKeyword("filter", "with", "hits", "limit", ")", "|", "") {
 		bfs, err := parseCommaSeparatedFields(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'by ...': %w", err)
@@ -560,6 +567,18 @@ func parsePipeUniq(lex *lexer) (pipe, error) {
 		byFields: byFields,
 	}
 
+	if lex.isKeyword("filter") {
+		lex.nextToken()
+		f, err := lex.nextCompoundToken()
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse filter inside 'uniq' pipe: %w", err)
+		}
+		pu.filter = f
+		if len(byFields) != 1 && pu.filter != "" {
+			return nil, fmt.Errorf("the 'filter %s' inside 'uniq' pipe cannot be applied to multiple fields %s", quoteTokenIfNeeded(pu.filter), byFields)
+		}
+	}
+
 	if lex.isKeyword("with") {
 		lex.nextToken()
 		if !lex.isKeyword("hits") {
@@ -568,12 +587,7 @@ func parsePipeUniq(lex *lexer) (pipe, error) {
 	}
 	if lex.isKeyword("hits") {
 		lex.nextToken()
-		hitsFieldName := "hits"
-		for slices.Contains(pu.byFields, hitsFieldName) {
-			hitsFieldName += "s"
-		}
-
-		pu.hitsFieldName = hitsFieldName
+		pu.hitsFieldName = getUniqueResultName("hits", pu.byFields)
 	}
 
 	if lex.isKeyword("limit") {

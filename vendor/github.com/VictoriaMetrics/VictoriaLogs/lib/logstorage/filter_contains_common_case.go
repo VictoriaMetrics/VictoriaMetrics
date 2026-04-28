@@ -6,8 +6,6 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
-
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
 )
 
 // filterContainsCommonCase matches words and phrases where every captial letter
@@ -17,10 +15,10 @@ import (
 type filterContainsCommonCase struct {
 	phrases []string
 
-	containsAny *filterContainsAny
+	containsAny filterContainsAny
 }
 
-func newFilterContainsCommonCase(fieldName string, phrases []string) (*filterContainsCommonCase, error) {
+func newFilterContainsCommonCase(fieldName string, phrases []string) (*filterGeneric, error) {
 	commonCasePhrases, err := getCommonCasePhrases(phrases)
 	if err != nil {
 		return nil, err
@@ -28,13 +26,11 @@ func newFilterContainsCommonCase(fieldName string, phrases []string) (*filterCon
 
 	fi := &filterContainsCommonCase{
 		phrases: phrases,
-		containsAny: &filterContainsAny{
-			fieldName: fieldName,
-		},
 	}
 	fi.containsAny.values.values = commonCasePhrases
 
-	return fi, nil
+	fg := newFilterGeneric(fieldName, fi)
+	return fg, nil
 }
 
 func (fi *filterContainsCommonCase) String() string {
@@ -43,23 +39,19 @@ func (fi *filterContainsCommonCase) String() string {
 		a[i] = quoteTokenIfNeeded(phrase)
 	}
 	phrases := strings.Join(a, ",")
-	return fmt.Sprintf("%scontains_common_case(%s)", quoteFieldNameIfNeeded(fi.containsAny.fieldName), phrases)
+	return fmt.Sprintf("contains_common_case(%s)", phrases)
 }
 
-func (fi *filterContainsCommonCase) updateNeededFields(pf *prefixfilter.Filter) {
-	fi.containsAny.updateNeededFields(pf)
+func (fi *filterContainsCommonCase) matchRowByField(fields []Field, fieldName string) bool {
+	return fi.containsAny.matchRowByField(fields, fieldName)
 }
 
-func (fi *filterContainsCommonCase) matchRow(fields []Field) bool {
-	return fi.containsAny.matchRow(fields)
+func (fi *filterContainsCommonCase) applyToBlockResultByField(br *blockResult, bm *bitmap, fieldName string) {
+	fi.containsAny.applyToBlockResultByField(br, bm, fieldName)
 }
 
-func (fi *filterContainsCommonCase) applyToBlockResult(br *blockResult, bm *bitmap) {
-	fi.containsAny.applyToBlockResult(br, bm)
-}
-
-func (fi *filterContainsCommonCase) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
-	fi.containsAny.applyToBlockSearch(bs, bm)
+func (fi *filterContainsCommonCase) applyToBlockSearchByField(bs *blockSearch, bm *bitmap, fieldName string) {
+	fi.containsAny.applyToBlockSearchByField(bs, bm, fieldName)
 }
 
 func getCommonCasePhrases(phrases []string) ([]string, error) {

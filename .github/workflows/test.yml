@@ -47,7 +47,7 @@ jobs:
       - run: go version
 
       - name: Cache golangci-lint
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cache/golangci-lint
@@ -66,8 +66,8 @@ jobs:
     strategy:
       matrix:
         scenario:
-          - 'test-full'
-          - 'test-full-386'
+          - 'test'
+          - 'test-386'
           - 'test-pure'
 
     steps:
@@ -87,11 +87,6 @@ jobs:
 
       - name: Run tests
         run: make ${{ matrix.scenario}}
-
-      - name: Publish coverage
-        uses: codecov/codecov-action@v5
-        with:
-          files: ./coverage.txt
 
   apptest:
     name: apptest

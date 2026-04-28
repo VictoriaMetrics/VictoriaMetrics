@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"net/http"
 	"net/url"
 	"slices"
 	"sort"
@@ -33,6 +34,8 @@ type PrometheusQuerier interface {
 	// separate interface or rename this interface to allow for multiple querier
 	// types.
 	GraphiteMetricsIndex(t *testing.T, opts QueryOpts) GraphiteMetricsIndexResponse
+	GraphiteTagsTagSeries(t *testing.T, record string, opts QueryOpts)
+	GraphiteTagsTagMultiSeries(t *testing.T, records []string, opts QueryOpts)
 }
 
 // Writer contains methods for writing new data
@@ -86,6 +89,23 @@ type QueryOpts struct {
 	MaxLookback    string
 	LatencyOffset  string
 	Format         string
+	NoCache        string
+	Headers        http.Header
+}
+
+// getTenant returns tenant with optional default value
+func (qos *QueryOpts) getTenant() string {
+	if qos.Tenant == "" {
+		return "0"
+	}
+	return qos.Tenant
+}
+
+func (qos *QueryOpts) getHeaders() http.Header {
+	if qos.Headers == nil {
+		qos.Headers = make(http.Header)
+	}
+	return qos.Headers
 }
 
 func (qos *QueryOpts) asURLValues() url.Values {
@@ -110,16 +130,9 @@ func (qos *QueryOpts) asURLValues() url.Values {
 	addNonEmpty("max_lookback", qos.MaxLookback)
 	addNonEmpty("latency_offset", qos.LatencyOffset)
 	addNonEmpty("format", qos.Format)
+	addNonEmpty("nocache", qos.NoCache)
 
 	return uv
-}
-
-// getTenant returns tenant with optional default value
-func (qos *QueryOpts) getTenant() string {
-	if qos.Tenant == "" {
-		return "0"
-	}
-	return qos.Tenant
 }
 
 // PrometheusAPIV1QueryResponse is an inmemory representation of the
