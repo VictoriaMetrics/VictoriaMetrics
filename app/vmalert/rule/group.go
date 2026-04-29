@@ -8,6 +8,7 @@ import (
 	"hash/fnv"
 	"maps"
 	"net/url"
+	"path"
 	"sync"
 	"time"
 
@@ -42,6 +43,9 @@ var (
 		"For example, if lookback=1h then range from now() to now()-1h will be scanned.")
 	maxStartDelay = flag.Duration("group.maxStartDelay", 5*time.Minute, "Defines the max delay before starting the group evaluation. Group's start is artificially delayed for random duration on interval"+
 		" [0..min(--group.maxStartDelay, group.interval)]. This helps smoothing out the load on the configured datasource, so evaluations aren't executed too close to each other.")
+	ruleStripFilePath = flag.Bool("rule.stripFilePath", false, "Whether to strip rule file paths in logs and all API responses, including /metrics. "+
+		"For example, file path '/path/to/tenant_id/rules.yml' will be stripped to 'groupHashID/rules.yml'. "+
+		"This flag may be useful for hiding sensitive information in file paths, such as S3 bucket details.")
 )
 
 // Group is an entity for grouping rules
@@ -147,6 +151,12 @@ func NewGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval ti
 		g.EvalDelay = &cfg.EvalDelay.D
 	}
 	g.id = g.CreateID()
+	// strip file path from group.File after generated group ID when ruleStripFilePath is set,
+	// so it won't be exposed in logs and api responses
+	if *ruleStripFilePath {
+		_, filename := path.Split(g.File)
+		g.File = fmt.Sprintf("%d/%s", g.id, filename)
+	}
 	for _, h := range cfg.Headers {
 		g.Headers[h.Key] = h.Value
 	}

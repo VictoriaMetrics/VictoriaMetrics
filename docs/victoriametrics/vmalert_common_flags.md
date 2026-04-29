@@ -434,6 +434,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
      Minimum amount of time to wait before resending an alert to notifier.
   -rule.resultsLimit int
      Limits the number of alerts or recording results a single rule can produce. Can be overridden by the limit option under group if specified. If exceeded, the rule will be marked with an error and all its results will be discarded. 0 means no limit.
+  -rule.stripFilePath
+     Whether to strip rule file paths in logs and all API responses, including /metrics. For example, file path '/path/to/tenant_id/rules.yml' will be stripped to 'groupHashID/rules.yml'. This flag may be useful for hiding sensitive information in file paths, such as S3 bucket details.
   -rule.templates array
      Path or glob pattern to location with go template definitions for rules annotations templating. Flag can be specified multiple times.
      Examples:
