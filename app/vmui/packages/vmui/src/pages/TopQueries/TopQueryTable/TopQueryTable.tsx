@@ -3,7 +3,7 @@ import { TopQuery } from "../../../types";
 import { getComparator, stableSort } from "../../../components/Table/helpers";
 import { TopQueryPanelProps } from "../TopQueryPanel/TopQueryPanel";
 import classNames from "classnames";
-import { ArrowDropDownIcon, CopyIcon, PlayCircleOutlineIcon } from "../../../components/Main/Icons";
+import { ArrowDropDownIcon, CopyIcon, InfoOutlinedIcon, PlayCircleOutlineIcon } from "../../../components/Main/Icons";
 import Button from "../../../components/Main/Button/Button";
 import Tooltip from "../../../components/Main/Tooltip/Tooltip";
 import { Link } from "react-router-dom";
@@ -43,6 +43,16 @@ const TopQueryTable:FC<TopQueryPanelProps> = ({ rows, columns, defaultOrderBy })
             >
               <div className="vm-table-cell__content">
                 {col.title || col.key}
+                {col.tooltip && (
+                  <Tooltip title={col.tooltip}>
+                    <span
+                      className="vm-top-queries-table__info-icon"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <InfoOutlinedIcon/>
+                    </span>
+                  </Tooltip>
+                )}
                 <div
                   className={classNames({
                     "vm-table__sort-icon": true,
@@ -69,7 +79,7 @@ const TopQueryTable:FC<TopQueryPanelProps> = ({ rows, columns, defaultOrderBy })
                 className="vm-table-cell"
                 key={col.key}
               >
-                {row[col.key] || "-"}
+                {col.format ? col.format(row[col.key]) : (row[col.key] || "-")}
               </td>
             ))}
             <td className="vm-table-cell vm-table-cell_no-padding">
