@@ -21,8 +21,7 @@ type Vmagent struct {
 	*app
 	*ServesMetrics
 
-	httpListenAddr           string
-	apiV1ImportPrometheusURL string
+	httpListenAddr string
 }
 
 // StartVmagent starts an instance of vmagent with the given flags. It also
@@ -52,8 +51,7 @@ func StartVmagent(instance string, flags []string, cli *Client, promScrapeConfig
 			metricsURL: fmt.Sprintf("http://%s/metrics", stderrExtracts[0]),
 			cli:        cli,
 		},
-		httpListenAddr:           stderrExtracts[0],
-		apiV1ImportPrometheusURL: fmt.Sprintf("http://%s/api/v1/import/prometheus", stderrExtracts[0]),
+		httpListenAddr: stderrExtracts[0],
 	}, nil
 }
 
@@ -86,10 +84,30 @@ func (app *Vmagent) APIV1ImportPrometheusNoWaitFlush(t *testing.T, records []str
 	data := []byte(strings.Join(records, "\n"))
 	headers := opts.getHeaders()
 	headers.Set("Content-Type", "text/plain")
-	_, statusCode := app.cli.Post(t, app.apiV1ImportPrometheusURL, data, headers)
+	url := app.getApiV1ImportPrometheusURL(opts)
+	_, statusCode := app.cli.Post(t, url, data, headers)
 	if statusCode != http.StatusNoContent {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
 	}
+}
+
+// getApiV1ImportPrometheusURL returns URL path for importing data in Prometheus format.
+// If provided QueryOpts specify tenantID in params or HTTP headers then URL path will reflect this.
+func (app *Vmagent) getApiV1ImportPrometheusURL(o QueryOpts) string {
+	if o.Tenant != "" {
+		// vmagent supports tenantID in path only if -enableMultitenantHandlers is set
+		// see https://docs.victoriametrics.com/vmagent/index.html#multitenancy
+		return fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/import/prometheus", app.httpListenAddr, o.Tenant)
+	}
+
+	h := o.getHeaders()
+	if h.Get("AccountID") != "" || h.Get("ProjectID") != "" {
+		// vmagent supports tenantID in HTTP headers only if -enableMultitenantHandlers and -enableMultitenancyViaHeaders are set
+		// see https://docs.victoriametrics.com/vmagent/index.html#multitenancy
+		return fmt.Sprintf("http://%s/insert/prometheus/api/v1/import/prometheus", app.httpListenAddr)
+	}
+
+	return fmt.Sprintf("http://%s/api/v1/import/prometheus", app.httpListenAddr)
 }
 
 // RemoteWriteRequestsRetriesCountTotal sums up the total retries for remote write requests.

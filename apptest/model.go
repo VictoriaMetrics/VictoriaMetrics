@@ -93,14 +93,6 @@ type QueryOpts struct {
 	Headers        http.Header
 }
 
-// getTenant returns tenant with optional default value
-func (qos *QueryOpts) getTenant() string {
-	if qos.Tenant == "" {
-		return "0"
-	}
-	return qos.Tenant
-}
-
 func (qos *QueryOpts) getHeaders() http.Header {
 	if qos.Headers == nil {
 		qos.Headers = make(http.Header)

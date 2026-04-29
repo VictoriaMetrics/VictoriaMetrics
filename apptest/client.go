@@ -2,6 +2,7 @@ package apptest
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -103,6 +104,35 @@ func (c *Client) Write(t *testing.T, address string, data []string) {
 	if n != len(d) {
 		t.Fatalf("BUG: conn.Write() returned unexpected number of written bytes to %s; got %d; want %d", address, n, len(d))
 	}
+}
+
+// getClusterPath returns path in cluster's URL format.
+// Based on QueryOpts, it will either put tenant ID into URL
+// or will skip it if tenant is set via HTTP headers.
+func getClusterPath(addr, prefix, suffix string, o QueryOpts) string {
+	if o.Tenant != "" {
+		// QueryOpts.Tenant has priority over headers
+		return tenantViaURL(addr, prefix, o.Tenant, suffix)
+	}
+
+	h := o.getHeaders()
+	if h.Get("AccountID") != "" || h.Get("ProjectID") != "" {
+		return tenantViaHeaders(addr, prefix, suffix)
+	}
+
+	// tenant is missing in QueryOpts and in HTTP headers. Falling back to default 0:0 tenant in URL
+	return tenantViaURL(addr, prefix, "0:0", suffix)
+}
+
+// tenantViaURL returns path in cluster's URL format with tenant specified in URL
+func tenantViaURL(addr, prefix, tenant, suffix string) string {
+	return fmt.Sprintf("http://%s/%s/%s/%s", addr, prefix, tenant, suffix)
+}
+
+// tenantViaHeaders returns path in cluster's URL format where tenant is omitted in URL
+// Only supported if -enableMultitenancyViaHeaders is specified
+func tenantViaHeaders(addr, prefix, suffix string) string {
+	return fmt.Sprintf("http://%s/%s/%s", addr, prefix, suffix)
 }
 
 // readAllAndClose reads everything from the response body and then closes it.

@@ -106,7 +106,7 @@ func (app *Vminsert) HTTPAddr() string {
 func (app *Vminsert) InfluxWrite(t *testing.T, records []string, opts QueryOpts) {
 	t.Helper()
 
-	url := fmt.Sprintf("http://%s/insert/%s/influx/write", app.httpListenAddr, opts.getTenant())
+	url := getClusterPath(app.httpListenAddr, "insert", "influx/write", opts)
 	uv := opts.asURLValues()
 	uvs := uv.Encode()
 	if len(uvs) > 0 {
@@ -141,7 +141,7 @@ func (app *Vminsert) GraphiteWrite(t *testing.T, records []string, _ QueryOpts) 
 func (app *Vminsert) PrometheusAPIV1ImportCSV(t *testing.T, records []string, opts QueryOpts) {
 	t.Helper()
 
-	url := fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/import/csv", app.httpListenAddr, opts.getTenant())
+	url := getClusterPath(app.httpListenAddr, "insert", "prometheus/api/v1/import/csv", opts)
 	uv := opts.asURLValues()
 	uvs := uv.Encode()
 	if len(uvs) > 0 {
@@ -166,7 +166,7 @@ func (app *Vminsert) PrometheusAPIV1ImportCSV(t *testing.T, records []string, op
 func (app *Vminsert) PrometheusAPIV1ImportNative(t *testing.T, data []byte, opts QueryOpts) {
 	t.Helper()
 
-	url := fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/import/native", app.httpListenAddr, opts.getTenant())
+	url := getClusterPath(app.httpListenAddr, "insert", "prometheus/api/v1/import/native", opts)
 	uv := opts.asURLValues()
 	uvs := uv.Encode()
 	if len(uvs) > 0 {
@@ -190,7 +190,7 @@ func (app *Vminsert) PrometheusAPIV1ImportNative(t *testing.T, data []byte, opts
 func (app *Vminsert) OpenTSDBAPIPut(t *testing.T, records []string, opts QueryOpts) {
 	t.Helper()
 
-	url := fmt.Sprintf("http://%s/insert/%s/opentsdb/api/put", app.openTSDBListenAddr, opts.getTenant())
+	url := getClusterPath(app.openTSDBListenAddr, "insert", "opentsdb/api/put", opts)
 	uv := opts.asURLValues()
 	uvs := uv.Encode()
 	if len(uvs) > 0 {
@@ -213,7 +213,7 @@ func (app *Vminsert) OpenTSDBAPIPut(t *testing.T, records []string, opts QueryOp
 func (app *Vminsert) PrometheusAPIV1Write(t *testing.T, wr prompb.WriteRequest, opts QueryOpts) {
 	t.Helper()
 
-	url := fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/write", app.httpListenAddr, opts.getTenant())
+	url := getClusterPath(app.httpListenAddr, "insert", "prometheus/api/v1/write", opts)
 	data := snappy.Encode(nil, wr.MarshalProtobuf(nil))
 	recordsCount := len(wr.Timeseries)
 	if prommetadata.IsEnabled() {
@@ -238,7 +238,7 @@ func (app *Vminsert) PrometheusAPIV1Write(t *testing.T, wr prompb.WriteRequest, 
 func (app *Vminsert) PrometheusAPIV1ImportPrometheus(t *testing.T, records []string, opts QueryOpts) {
 	t.Helper()
 
-	url := fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/import/prometheus", app.httpListenAddr, opts.getTenant())
+	url := getClusterPath(app.httpListenAddr, "insert", "prometheus/api/v1/import/prometheus", opts)
 	uv := opts.asURLValues()
 	uvs := uv.Encode()
 	if len(uvs) > 0 {
@@ -287,7 +287,7 @@ func (app *Vminsert) PrometheusAPIV1ImportPrometheus(t *testing.T, records []str
 func (app *Vminsert) ZabbixConnectorHistory(t *testing.T, records []string, opts QueryOpts) {
 	t.Helper()
 
-	url := fmt.Sprintf("http://%s/insert/%s/zabbixconnector/api/v1/history", app.httpListenAddr, opts.getTenant())
+	url := getClusterPath(app.httpListenAddr, "insert", "zabbixconnector/api/v1/history", opts)
 	uv := opts.asURLValues()
 	uvs := uv.Encode()
 	if len(uvs) > 0 {

@@ -2,18 +2,23 @@ package httpserver
 
 import (
 	"fmt"
+	"net/http"
 	"strings"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 )
 
 // Path contains the following path structure:
-// /{prefix}/{tenantID}/{suffix}
+// - /{prefix}/{tenantID}/{suffix}
+// - /{prefix}/{suffix} -H "{tenantID}"
+// in `/{prefix}/{suffix}` format tenantID is extracted from HTTP headers
 type Path struct {
 	Prefix    string
 	AuthToken string
 	Suffix    string
 }
 
-// ParsePath parses the given path.
+// ParsePath parses the given path according to /{prefix}/{tenantID}/{suffix} format
 func ParsePath(path string) (*Path, error) {
 	// The path must have the following form:
 	// /{prefix}/{tenantID}/{suffix}
@@ -54,6 +59,91 @@ func ParsePath(path string) (*Path, error) {
 		Suffix:    suffix,
 	}
 	return p, nil
+}
+
+// ParsePathAndHeaders parses the given path and headers.
+//
+// The path may be one of the following forms:
+//
+//  1. /{prefix}/{tenantID}/{suffix} — tenantID is in the URL
+//  2. /{prefix}/{suffix} — tenantID is omitted and expected to be read from AccountID/ProjectID HTTP headers.
+//     If these headers are missing, tenantID is set to "0:0" to be consistent with VictoriaLogs behavior.
+//
+// prefix is "select", "insert", or "delete".
+// tenantID is "accountID[:projectID]" or "multitenant".
+// tenantID specified in path always takes priority over headers for backward compatibility.
+//
+// This function doesn't validate correctness of {tenantID} content.
+func ParsePathAndHeaders(path string, h http.Header) (*Path, error) {
+	s := skipPrefixSlashes(path)
+	n := strings.IndexByte(s, '/')
+	if n < 0 {
+		return nil, fmt.Errorf("cannot find {prefix} in %q; expecting /{prefix}/{suffix} or /{prefix}/{tenantID}/{suffix} format; "+
+			"see https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format", path)
+	}
+
+	prefix := s[:n]
+	tail := skipPrefixSlashes(s[n+1:])
+
+	if tail == "" {
+		return nil, fmt.Errorf("cannot find {suffix} in %q; expecting /{prefix}/{suffix} or /{prefix}/{tenantID}/{suffix} format; "+
+			"see https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format", path)
+	}
+
+	// Try to split tail into {tenantID}/{suffix} segments.
+	// If the first segment is a valid tenantID - consume it, ignore headers
+	// Otherwise, treat tail as {suffix} and read tenantID from HTTP headers.
+	tenantID := ""
+	suffix := tail
+	n = strings.IndexByte(tail, '/')
+	if n >= 0 {
+		tenantID = tail[:n]
+	}
+	if isTenantID(tenantID) {
+		// cut the tenantID from suffix
+		suffix = skipPrefixSlashes(tail[n+1:])
+	} else {
+		// tenantID is not valid - assume tail is all suffix and tenantID is in headers
+		tenantID = tenantIDFromHeaders(h)
+	}
+
+	// Substitute double slashes with single slashes in the path, since such slashes
+	// may appear due to improper copy-pasting of the url.
+	suffix = strings.ReplaceAll(suffix, "//", "/")
+
+	return &Path{
+		Prefix:    prefix,
+		AuthToken: tenantID,
+		Suffix:    suffix,
+	}, nil
+}
+
+// isTenantID reports whether s is a valid tenantID: "multitenant" or "accountID[:projectID]".
+func isTenantID(s string) bool {
+	if s == "multitenant" {
+		return true
+	}
+	_, _, err := auth.ParseToken(s)
+	return err == nil
+}
+
+// tenantIDFromHeaders reads AccountID and ProjectID header values from request.
+// If headers are missing, it assumes 0:0 as default response.
+func tenantIDFromHeaders(h http.Header) string {
+	accountID, projectID := "0", "0"
+	ah := h.Get("AccountID")
+	if len(ah) > 0 {
+		accountID = ah
+		if accountID == "multitenant" {
+			return "multitenant"
+		}
+	}
+	ph := h.Get("ProjectID")
+	if len(ph) > 0 {
+		projectID = ph
+	}
+
+	return fmt.Sprintf("%s:%s", accountID, projectID)
 }
 
 // skipPrefixSlashes remove double slashes which may appear due
