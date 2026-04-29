@@ -1184,10 +1184,10 @@ One of the following `role` types can be configured to discover targets:
   Available meta labels for `role: endpoints` during [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
 
 * `__meta_kubernetes_namespace`: The namespace of the endpoints object.
-* `__meta_kubernetes_namespace_annotation_<annotationname>`: Each annotation from the namespace of the endpoints object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
-* `__meta_kubernetes_namespace_annotationpresent_<annotationname>`: "true" for each annotation from the namespace of the endpoints object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
-* `__meta_kubernetes_namespace_label_<labelname>`: Each label from the namespace of the endpoints object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
-* `__meta_kubernetes_namespace_labelpresent_<labelname>`: "true" for each label from the namespace of the endpoints object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
+* `__meta_kubernetes_namespace_annotation_<annotationname>`: Each annotation from the namespace of the endpoints object when `attach_metadata.namespace` is set to `true`.
+* `__meta_kubernetes_namespace_annotationpresent_<annotationname>`: "true" for each annotation from the namespace of the endpoints object when `attach_metadata.namespace` is set to `true`.
+* `__meta_kubernetes_namespace_label_<labelname>`: Each label from the namespace of the endpoints object when `attach_metadata.namespace` is set to `true`.
+* `__meta_kubernetes_namespace_labelpresent_<labelname>`: "true" for each label from the namespace of the endpoints object when `attach_metadata.namespace` is set to `true`.
 * `__meta_kubernetes_endpoints_name`: The names of the endpoints object.
 * `__meta_kubernetes_endpoints_label_<labelname>`: Each label from the endpoints object.
 * `__meta_kubernetes_endpoints_labelpresent_<labelname>`: "true" for each label from the endpoints object.
@@ -1217,10 +1217,10 @@ One of the following `role` types can be configured to discover targets:
   Available meta labels for `role: endpointslice` during [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
 
 * `__meta_kubernetes_namespace`: The namespace of the endpointslice object.
-* `__meta_kubernetes_namespace_annotation_<annotationname>`: Each annotation from the namespace of the endpointslice object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
-* `__meta_kubernetes_namespace_annotationpresent_<annotationname>`: "true" for each annotation from the namespace of the endpointslice object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
-* `__meta_kubernetes_namespace_label_<labelname>`: Each label from the namespace of the endpointslice object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
-* `__meta_kubernetes_namespace_labelpresent_<labelname>`: "true" for each label from the namespace of the endpointslice object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
+* `__meta_kubernetes_namespace_annotation_<annotationname>`: Each annotation from the namespace of the endpointslice object when `attach_metadata.namespace` is set to `true`.
+* `__meta_kubernetes_namespace_annotationpresent_<annotationname>`: "true" for each annotation from the namespace of the endpointslice object when `attach_metadata.namespace` is set to `true`.
+* `__meta_kubernetes_namespace_label_<labelname>`: Each label from the namespace of the endpointslice object when `attach_metadata.namespace` is set to `true`.
+* `__meta_kubernetes_namespace_labelpresent_<labelname>`: "true" for each label from the namespace of the endpointslice object when `attach_metadata.namespace` is set to `true`.
 * `__meta_kubernetes_endpointslice_name`: The name of endpointslice object.
 
   For all targets discovered directly from the endpointslice list (those not additionally inferred from underlying pods), the following labels are attached:
@@ -1251,10 +1251,10 @@ One of the following `role` types can be configured to discover targets:
   Available meta labels for `role: ingress` during [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
 
 * `__meta_kubernetes_namespace`: The namespace of the ingress object.
-* `__meta_kubernetes_namespace_annotation_<annotationname>`: Each annotation from the namespace of the ingress object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
-* `__meta_kubernetes_namespace_annotationpresent_<annotationname>`: "true" for each annotation from the namespace of the ingress object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
-* `__meta_kubernetes_namespace_label_<labelname>`: Each label from the namespace of the ingress object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
-* `__meta_kubernetes_namespace_labelpresent_<labelname>`: "true" for each label from the namespace of the ingress object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
+* `__meta_kubernetes_namespace_annotation_<annotationname>`: Each annotation from the namespace of the ingress object when `attach_metadata.namespace` is set to `true`.
+* `__meta_kubernetes_namespace_annotationpresent_<annotationname>`: "true" for each annotation from the namespace of the ingress object when `attach_metadata.namespace` is set to `true`.
+* `__meta_kubernetes_namespace_label_<labelname>`: Each label from the namespace of the ingress object when `attach_metadata.namespace` is set to `true`.
+* `__meta_kubernetes_namespace_labelpresent_<labelname>`: "true" for each label from the namespace of the ingress object when `attach_metadata.namespace` is set to `true`.
 * `__meta_kubernetes_ingress_name`: The name of the ingress object.
 * `__meta_kubernetes_ingress_label_<labelname>`: Each label from the ingress object.
 * `__meta_kubernetes_ingress_labelpresent_<labelname>`: "true" for each label from the ingress object.

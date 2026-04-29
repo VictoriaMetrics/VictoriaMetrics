@@ -4019,7 +4019,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows the rate of parsed datapoints from write or scrape requests.",
+          "description": "Shows the rate of data rows parsed from write requests and scraping. \nThere are two kinds of rows:\n1. Raw sample: each sample consists of a value and a timestamp, see https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples \n2. Metric metadata: refers to descriptive information about metrics. It can be disabled by setting `-enableMetadata=false`, see https://docs.victoriametrics.com/victoriametrics/vmagent/#metric-metadata.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -4049,6 +4049,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -4065,7 +4066,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -4101,7 +4103,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.4.3",
           "targets": [
             {
               "datasource": {
@@ -4112,12 +4114,24 @@
               "exemplar": true,
               "expr": "sum(rate(vm_protoparser_rows_read_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job, type) > 0",
               "interval": "",
-              "legendFormat": "{{ type }} ({{job}})",
+              "legendFormat": "sample: {{ type }} ({{job}})",
               "range": true,
               "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(vm_protoparser_metadata_read_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job, type) > 0",
+              "instant": false,
+              "legendFormat": "metadata: {{ type }} ({{job}})",
+              "range": true,
+              "refId": "B"
             }
           ],
-          "title": "Datapoints rate ($instance)",
+          "title": "Rows rate ($instance)",
           "type": "timeseries"
         },
         {
@@ -5721,7 +5735,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows the rate of rows ingested in vmagent via push protocols.",
+          "description": "Shows the rate of data rows ingested from write requests. There are two kinds of rows:\n1. Raw sample: each sample consists of a value and a timestamp, see https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples. \n2. Metric metadata: refers to descriptive information about metrics. It can be disabled by setting `-enableMetadata=false`, see https://docs.victoriametrics.com/victoriametrics/vmagent/#metric-metadata.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -5734,6 +5748,7 @@
                 "axisLabel": "",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
+                "barWidthFactor": 0.6,
                 "drawStyle": "line",
                 "fillOpacity": 0,
                 "gradientMode": "none",
@@ -5750,6 +5765,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -5766,7 +5782,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -5782,7 +5799,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3931
+            "y": 41
           },
           "id": 131,
           "options": {
@@ -5797,11 +5814,12 @@
               "showLegend": true
             },
             "tooltip": {
+              "hideZeros": false,
               "mode": "multi",
               "sort": "desc"
             }
           },
-          "pluginVersion": "9.2.6",
+          "pluginVersion": "12.4.3",
           "targets": [
             {
               "datasource": {
@@ -5812,12 +5830,24 @@
               "exemplar": true,
               "expr": "sum(rate(vmagent_rows_inserted_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job, type) > 0",
               "interval": "",
-              "legendFormat": "{{ type }} ({{job}})",
+              "legendFormat": "sample: {{ type }} ({{job}})",
               "range": true,
               "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(vmagent_metadata_inserted_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job, type) > 0",
+              "instant": false,
+              "legendFormat": "metadata:{{ type }} ({{job}})",
+              "range": true,
+              "refId": "B"
             }
           ],
-          "title": "Rows rate  ($instance)",
+          "title": "Rows rate ($instance)",
           "type": "timeseries"
         },
         {

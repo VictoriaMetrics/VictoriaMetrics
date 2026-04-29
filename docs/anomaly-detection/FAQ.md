@@ -48,13 +48,15 @@ Please see example graph illustrating this logic below:
 
 ## What data does vmanomaly operate on?
 
-`vmanomaly` operates on timeseries (metrics) data, and supports both **VictoriaMetrics** and **VictoriaLogs** as data sources. Choose the source depending on the use case.
+> [!NOTE]
+> `vmanomaly` operates on timeseries (metrics) data, and supports both **VictoriaMetrics** and **VictoriaLogs/VictoriaTraces** as data sources to get metrics-compatible data. Choose the source depending on the use case. Single-node / Cluster and OpenSource / Enterprise datasources are supported as well, `vmanomaly` is compatible with both, yet itself requires an [Enterprise license](https://victoriametrics.com/products/enterprise/) to run.
 
 **VictoriaMetrics (metrics):** use full [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) for selection, sampling, and processing; [global filters](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-enhancements) are also supported. See the [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) for the details.
 
-**VictoriaLogs (logs → metrics):** {{% available_from "v1.26.0" anomaly %}} use [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) via the [`VLogsReader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vlogs-reader) to create log-derived metrics for anomaly detection (e.g., error rates, request latencies). 
+**VictoriaLogs (logs → metrics):** {{% available_from "v1.26.0" anomaly %}} use [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) via the [`VLogsReader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vlogs-reader) to create log-derived or traces-derived metrics for anomaly detection (e.g., error rates, request latencies, error spans count). 
 
-> Please note that only LogsQL queries with [stats pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe)  functions [subset](https://docs.victoriametrics.com/anomaly-detection/components/reader/#valid-stats-functions) are supported, as they produce **numeric** time series.
+> [!NOTE]
+> Please note that only LogsQL queries with [stats pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe) functions [subset](https://docs.victoriametrics.com/anomaly-detection/components/reader/#valid-stats-functions) are supported, as they produce **numeric** time series.
 
 
 ## Using offsets
@@ -421,7 +423,7 @@ services:
   # ...
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.29.2
+    image: victoriametrics/vmanomaly:v1.29.3
     # ...
     restart: always
     volumes:
@@ -639,7 +641,7 @@ options:
 Here’s an example of using the config splitter to divide configurations based on the `extra_filters` argument from the reader section:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.29.2 && docker image tag victoriametrics/vmanomaly:v1.29.2 vmanomaly
+docker pull victoriametrics/vmanomaly:v1.29.3 && docker image tag victoriametrics/vmanomaly:v1.29.3 vmanomaly
 ```
 
 ```sh

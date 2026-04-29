@@ -55,7 +55,7 @@ Feel free to [contact us](mailto:info@victoriametrics.com) if you need a customi
 * [Per-tenant authorization](#per-tenant-authorization)
 * [mTLS-based request routing](#mtls-based-request-routing)
 * [Enforcing query args](#enforcing-query-args)
-* [OIDC authorization](#oidc-authorization)
+* [OIDC discovery](#oidc-discovery)
 
 ### Simple HTTP proxy
 
@@ -1523,7 +1523,11 @@ It is recommended to protect the following endpoints with authKeys:
 * `/metrics` with `-metricsAuthKey` command-line flag, so unauthorized users couldn't access [vmauth metrics](https://docs.victoriametrics.com/victoriametrics/vmauth/#monitoring).
 * `/debug/pprof` with `-pprofAuthKey` command-line flag, so unauthorized users couldn't access [profiling information](#profiling).
 
-As an alternative, you can serve internal API routes on a different listen address using the command-line flag `-httpInternalListenAddr=127.0.0.1:8426`. {{% available_from "v1.111.0" %}}
+As an alternative, you can serve internal API routes on a different listen address using the command-line flag `-httpInternalListenAddr=127.0.0.1:8426`{{% available_from "v1.111.0" %}}.
+To enable TLS on the public listener while keeping the internal listener non-TLS, configure multiple listeners like this:
+```
+/path/to/vmauth -httpInternalListenAddr=,localhost:8426 -httpListenAddr=0.0.0.0:443, -tls=true,false -tlsCertFile=a-cert.crt -tlsKeyFile=a-key.key
+```
 
 `vmauth` also supports restricting access by IP - see [these docs](#ip-filters). See also [concurrency limiting docs](#concurrency-limiting).
 

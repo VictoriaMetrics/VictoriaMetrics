@@ -136,7 +136,8 @@ VictoriaMetrics has no limitation on backfilling of old (historical) or out-of-o
 the specified [retention period](https://docs.victoriametrics.com/victoriametrics/#retention).
 See more about [backfilling](https://docs.victoriametrics.com/victoriametrics/#backfilling).
 
-## How does VictoriaMetrics compare to other remote storage solutions for Prometheus such as [M3DB](https://github.com/m3db/m3), [Thanos](https://github.com/thanos-io/thanos), [Cortex](https://github.com/cortexproject/cortex), [Mimir](https://github.com/grafana/mimir), etc.?
+<!-- Links inside the paragraph break navigation in the right-side menu. To fix this, an explicit anchor definition has been added. -->
+## How does VictoriaMetrics compare to other remote storage solutions for Prometheus such as [M3DB](https://github.com/m3db/m3), [Thanos](https://github.com/thanos-io/thanos), [Cortex](https://github.com/cortexproject/cortex), [Mimir](https://github.com/grafana/mimir), etc.? {#how-does-victoriametrics-compare-to-other-remote-storage-solutions-for-prometheus-such-as-m3db--thanos--cortex--mimir--etc}
 
 * VictoriaMetrics is easier to configure and operate than competing solutions.
 * VictoriaMetrics is more cost-efficient, since it requires less RAM, disk space, disk IO and network IO than competing solutions.
@@ -153,7 +154,8 @@ The following articles and talks provide additional details:
 
 VictoriaMetrics also [uses less RAM than Thanos components](https://github.com/thanos-io/thanos/issues/448).
 
-## What is the difference between VictoriaMetrics and [QuestDB](https://questdb.io/)?
+<!-- Links inside the paragraph break navigation in the right-side menu. To fix this, an explicit anchor definition has been added. -->
+## What is the difference between VictoriaMetrics and [QuestDB](https://questdb.io/)? {#what-is-the-difference-between-victoriametrics-and-questdb-}
 
 * QuestDB needs 20x more storage space than VictoriaMetrics. This translates to higher storage costs and slower queries over historical data, which must be read from the disk.
 * QuestDB is significantly more difficult to set up and operate than VictoriaMetrics. Compare [setup instructions for QuestDB](https://questdb.io/docs/get-started/binaries) to [setup instructions for VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-start-victoriametrics).
@@ -164,14 +166,16 @@ VictoriaMetrics also [uses less RAM than Thanos components](https://github.com/t
 * QuestDB [supports a smaller range of popular data ingestion protocols](https://questdb.io/docs/develop/insert-data) compared to VictoriaMetrics (compare to [the list of supported data ingestion protocols for VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data)).
 * [VictoriaMetrics supports backfilling (e.g. storing historical data) out of the box](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#backfilling), while QuestDB provides [very limited support for backfilling](https://questdb.io/blog/2021/05/10/questdb-release-6-0-tsbs-benchmark#the-problem-with-out-of-order-data).
 
-## What is the difference between VictoriaMetrics and [Grafana Mimir](https://github.com/grafana/mimir)?
+<!-- Links inside the paragraph break navigation in the right-side menu. To fix this, an explicit anchor definition has been added. -->
+## What is the difference between VictoriaMetrics and [Grafana Mimir](https://github.com/grafana/mimir)? {#what-is-the-difference-between-victoriametrics-and-grafana-mimir-}
 
 Grafana Mimir is a [Cortex](https://github.com/cortexproject/cortex) fork, so it has the same differences
-as Cortex. See [what is the difference between VictoriaMetrics and Cortex](#what-is-the-difference-between-victoriametrics-and-cortex).
+as Cortex. See [what is the difference between VictoriaMetrics and Cortex](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-the-difference-between-victoriametrics-and-cortex-).
 
 See also [Grafana Mimir vs VictoriaMetrics benchmark](https://victoriametrics.com/blog/mimir-benchmark/).
 
-## What is the difference between VictoriaMetrics and [Cortex](https://github.com/cortexproject/cortex)?
+<!-- Links inside the paragraph break navigation in the right-side menu. To fix this, an explicit anchor definition has been added. -->
+## What is the difference between VictoriaMetrics and [Cortex](https://github.com/cortexproject/cortex)? {#what-is-the-difference-between-victoriametrics-and-cortex-}
 
 VictoriaMetrics is similar to Cortex in the following aspects:
 
@@ -202,7 +206,8 @@ The main differences between Cortex and VictoriaMetrics:
 * VictoriaMetrics provides the [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query language, while Cortex provides the [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/) query language.
 * VictoriaMetrics can be queried via [Graphite's API](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#graphite-api-usage).
 
-## What is the difference between VictoriaMetrics and [Thanos](https://github.com/thanos-io/thanos)?
+<!-- Links inside the paragraph break navigation in the right-side menu. To fix this, an explicit anchor definition has been added. -->
+## What is the difference between VictoriaMetrics and [Thanos](https://github.com/thanos-io/thanos)? {#what-is-the-difference-between-victoriametrics-and-thanos-}
 
 * Thanos reuses Prometheus source code, while VictoriaMetrics is written from scratch.
 * VictoriaMetrics accepts data via the [standard remote_write API for Prometheus](https://prometheus.io/docs/practices/remote_write/),
@@ -224,7 +229,8 @@ The main differences between Cortex and VictoriaMetrics:
 * VictoriaMetrics provides the [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query language, while Thanos provides the [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/) query language.
 * VictoriaMetrics can be queried via [Graphite's API](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#graphite-api-usage).
 
-## How does VictoriaMetrics compare to [InfluxDB](https://www.influxdata.com/time-series-platform/influxdb/)?
+<!-- Links inside the paragraph break navigation in the right-side menu. To fix this, an explicit anchor definition has been added. -->
+## How does VictoriaMetrics compare to [InfluxDB](https://www.influxdata.com/time-series-platform/influxdb/)? {#how-does-victoriametrics-compare-to-influxdb-}
 
 * VictoriaMetrics requires [10x less RAM](https://medium.com/@valyala/insert-benchmarks-with-inch-influxdb-vs-victoriametrics-e31a41ae2893) and it [performs faster](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae).
 * VictoriaMetrics uses less storage space than InfluxDB for production data.
@@ -235,7 +241,8 @@ The main differences between Cortex and VictoriaMetrics:
 
 See [How to migrate from InfluxDB to VictoriaMetrics](https://docs.victoriametrics.com/guides/migrate-from-influx/).
 
-## How does VictoriaMetrics compare to [TimescaleDB](https://www.timescale.com/)?
+<!-- Links inside the paragraph break navigation in the right-side menu. To fix this, an explicit anchor definition has been added. -->
+## How does VictoriaMetrics compare to [TimescaleDB](https://www.timescale.com/)? {#how-does-victoriametrics-compare-to-timescaledb-}
 
 * TimescaleDB insists on using SQL as a query language. While SQL is more powerful than PromQL, this power is rarely required during typical usages of a TSDB. Real-world queries usually [look clearer and simpler when written in PromQL than in SQL](https://medium.com/@valyala/promql-tutorial-for-beginners-9ab455142085).
 * VictoriaMetrics requires [up to 70x less storage space compared to TimescaleDB](https://medium.com/@valyala/when-size-matters-benchmarking-victoriametrics-vs-timescale-and-influxdb-6035811952d4) for storing the same amount of time series data. The gap in storage space usage can be decreased from 70x to 3x if [compression in TimescaleDB is properly configured](https://docs.timescale.com/use-timescale/latest/compression/) (it isn't an easy task in general :)).
@@ -244,7 +251,8 @@ See [How to migrate from InfluxDB to VictoriaMetrics](https://docs.victoriametri
 * VictoriaMetrics accepts data in multiple popular data ingestion protocols – InfluxDB, OpenTSDB, Graphite, CSV – while TimescaleDB supports only SQL inserts.
 * VictoriaMetrics can be queried via [Graphite's API](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#graphite-api-usage).
 
-## Does VictoriaMetrics use Prometheus technologies like other clustered TSDBs built on top of Prometheus such as [Thanos](https://github.com/thanos-io/thanos) or [Cortex](https://github.com/cortexproject/cortex)?
+<!-- Links inside the paragraph break navigation in the right-side menu. To fix this, an explicit anchor definition has been added. -->
+## Does VictoriaMetrics use Prometheus technologies like other clustered TSDBs built on top of Prometheus such as [Thanos](https://github.com/thanos-io/thanos) or [Cortex](https://github.com/cortexproject/cortex)? {#does-victoriametrics-use-prometheus-technologies-like-other-clustered-tsdbs-built-on-top-of-prometheus-such-as-thanos-or-cortex-}
 
 No. VictoriaMetrics core is written in Go from scratch by [fasthttp](https://github.com/valyala/fasthttp)'s [author](https://github.com/valyala).
 The architecture is [optimized for storing and querying large amounts of time series data with high cardinality](https://medium.com/devopslinks/victoriametrics-creating-the-best-remote-storage-for-prometheus-5d92d66787ac). VictoriaMetrics storage uses [certain ideas from ClickHouse](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282). Special thanks to [Alexey Milovidov](https://github.com/alexey-milovidov).
@@ -260,7 +268,8 @@ We provide commercial support for both versions. [Contact us](https://victoriame
 
 [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_faq) – the most cost-efficient hosted monitoring platform, operated by VictoriaMetrics core team.
 
-## Why doesn't VictoriaMetrics support the [Prometheus remote read API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#%3Cremote_read%3E)?
+<!-- Links inside the paragraph break navigation in the right-side menu. To fix this, an explicit anchor definition has been added. -->
+## Why doesn't VictoriaMetrics support the [Prometheus remote read API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#%3Cremote_read%3E)? {#why-doesnrsquot-victoriametrics-support-the-prometheus-remote-read-api-}
 
 The remote read API requires transferring all the raw data for all the requested metrics over the given time range. For instance,
 if a query covers 1000 metrics with 10K values each, then the remote read API has to return `1000*10K`=10M metric values to Prometheus.
