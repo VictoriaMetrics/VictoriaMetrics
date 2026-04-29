@@ -1,0 +1,5 @@
+ecs_task_metadata_info{availability_zone="us-east-1a",cluster="arn:aws:ecs:us-east-1:318168454351:cluster/default",desired_status="RUNNING",family="default-alpine-c2f5",known_status="RUNNING",launch_type="FARGATE",revision="1",task_arn="arn:aws:ecs:us-east-1:318168454351:task/default/0f94400c58524a8482c1bd43d3404708"} 1
+ecs_task_cpu_limit_vcpus 1
+ecs_task_memory_limit_bytes 2.147483648e+09
+ecs_task_ephemeral_storage_used_bytes 0
+ecs_task_ephemeral_storage_allocated_bytes 2.1491613696e+10
