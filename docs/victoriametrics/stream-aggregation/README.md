@@ -29,7 +29,7 @@ Stream aggregation has the following features:
 
 # Limitations
 
-- By default, stream aggregation ignores timestamps of the input [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) and processes samples based on their ingestion time. See [how to ignore old samples](#ignoring-old-samples).
+- By default, stream aggregation ignores timestamps of the input [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) and processes samples based on their ingestion time. See [how to ignore old samples](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#ignoring-old-samples).
 - Aggregation state is held in the process memory and will be lost on process restart. 
 
 # Use cases
