@@ -36,6 +36,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/streamaggr"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeserieslimits"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/topology"
 )
 
 var (
@@ -338,6 +339,8 @@ var (
 func Stop() {
 	close(configReloaderStopCh)
 	configReloaderWG.Wait()
+
+	topology.Stop()
 
 	sasGlobal.Load().MustStop()
 	if deduplicatorGlobal != nil {
