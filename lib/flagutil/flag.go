@@ -18,3 +18,17 @@ func WriteFlags(w io.Writer) {
 		fmt.Fprintf(w, "-%s=%q\n", f.Name, value)
 	})
 }
+
+func IsSet(flagName string) bool {
+	isSet := false
+	flag.Visit(func(f *flag.Flag) {
+		if isSet {
+			return
+		}
+		lname := strings.ToLower(f.Name)
+		if flagName = strings.ToLower(flagName); lname == flagName {
+			isSet = true
+		}
+	})
+	return isSet
+}
