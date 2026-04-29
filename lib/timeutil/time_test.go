@@ -362,6 +362,48 @@ func TestParseTimeAtOutsideLimits(t *testing.T) {
 	f("2262-04-11T11:47:17-12:00")
 }
 
+// Regression coverage for #10880: the relative-duration and
+// integer / scientific Unix-timestamp parse paths must also reject
+// values that fall outside the [1970-01-01, 2262-04-11] window.
+// PR #10870 covered every fixed-format date/time branch but those
+// two paths still silently returned overflowed int64 nanoseconds.
+func TestParseTimeAtRejectsOutOfRangeRelativeDuration(t *testing.T) {
+	// Make sure subtracting a multi-century duration from `now`
+	// (which would land before 1970) is rejected with the same
+	// "must be in the range" diagnostic the date-format paths use.
+	currentTimestamp := time.Now().UnixNano()
+	got, err := ParseTimeAt("now-300y", currentTimestamp)
+	if err == nil {
+		t.Fatalf("expected out-of-range error for now-300y but got %d", got)
+	}
+	if !strings.Contains(err.Error(), "range") {
+		t.Fatalf("expected range-related error, got: %v", err)
+	}
+
+	// And the bare "-300y" form (no `now` prefix) must surface the
+	// same diagnostic — the relative-duration branch handles both.
+	got, err = ParseTimeAt("-300y", currentTimestamp)
+	if err == nil {
+		t.Fatalf("expected out-of-range error for -300y but got %d", got)
+	}
+	if !strings.Contains(err.Error(), "range") {
+		t.Fatalf("expected range-related error, got: %v", err)
+	}
+
+	// Sanity: a small negative offset is still accepted.
+	if _, err := ParseTimeAt("now-1m", currentTimestamp); err != nil {
+		t.Fatalf("now-1m must still parse cleanly: %v", err)
+	}
+}
+
+func TestParseTimeAtAcceptsValidUnixTimestamp(t *testing.T) {
+	// Sanity: a normal unix-second timestamp still parses cleanly
+	// after the new range guard on the TryParseUnixTimestamp path.
+	if _, err := ParseTimeAt("1700000000", time.Now().UnixNano()); err != nil {
+		t.Fatalf("normal unix timestamp must still parse cleanly: %v", err)
+	}
+}
+
 func TestParseTimeMsecFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
