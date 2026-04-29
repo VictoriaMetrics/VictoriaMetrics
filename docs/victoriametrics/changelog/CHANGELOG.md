@@ -26,11 +26,20 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: all VictoriaMetrics components: suppress TCP health check errors when `-tls` flag is set. See [#10538](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10538).
 * FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): add `formatTime` template function for formatting a Unix timestamp using the provided layout. For example, `{{ now | formatTime "2006-01-02T15:04:05Z07:00" }}` returns the current time in RFC3339 format. See issue [#10624](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10624). Thanks to @andriibeee for the contribution.
+
+## [v1.142.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.142.0)
+
+Released at 2026-04-28
+
+* BUGFIX:  [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly add [OpenTelemetry](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/) `Unit` suffix to the metric name and metadata `Help` when `-opentelemetry.usePrometheusNaming` flag is enabled. Previously, if `http_requests` has `Unit: seconds` and the next metric `cpu_usage` has no `Unit`, `cpu_usage` would be ingested as `cpu_usage_seconds`. See [#10889](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10889).
 
 ## [v1.141.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.141.0)
 
 Released at 2026-04-24
+
+**Update Note 1:** [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): a bug in [OpenTelemetry](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/) parsing caused the `Unit` suffix of the previously parsed metric to be incorrectly applied to subsequent metrics that have no `Unit` field, when `-opentelemetry.usePrometheusNaming` is enabled. For example, if `http_requests` has `Unit: seconds` and the next metric `cpu_usage` has no `Unit`, `cpu_usage` would be ingested as `cpu_usage_seconds`. The bug was introduced in [v1.132.0](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/changelog/CHANGELOG_2025.md#v11320). See [#10889](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10889).
 
 * SECURITY: upgrade base docker image (Alpine) from 3.23.3 to 3.23.4. See [Alpine 3.23.4 release notes](https://www.alpinelinux.org/posts/Alpine-3.20.10-3.21.7-3.22.4-3.23.4-released.html).
 
@@ -66,6 +75,8 @@ Released at 2026-04-10
 
 **Update Note 2:** [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): Due to an ordering bug in binary operations, some queries may produce incorrect results. For example, `10 - (3 + 3 + 4)` is evaluated as `10 - 3 + 3 + 4`. The issue was introduced in versions v1.140.0, v1.136.4, v1.122.19, and is addressed in upcoming releases. It is strongly recommended to avoid these versions entirely. See [#10856](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10856).
 
+**Update Note 3:** [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): a bug in [OpenTelemetry](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/) parsing caused the `Unit` suffix of the previously parsed metric to be incorrectly applied to subsequent metrics that have no `Unit` field, when `-opentelemetry.usePrometheusNaming` is enabled. For example, if `http_requests` has `Unit: seconds` and the next metric `cpu_usage` has no `Unit`, `cpu_usage` would be ingested as `cpu_usage_seconds`. The bug was introduced in [v1.132.0](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/changelog/CHANGELOG_2025.md#v11320). See [#10889](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10889).
+
 * SECURITY: upgrade Go builder from Go1.26.1 to Go1.26.2. See [the list of issues addressed in Go1.26.2](https://github.com/golang/go/issues?q=milestone%3AGo1.26.2%20label%3ACherryPickApproved).
 
 * FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): add per-URL `-remoteWrite.disableMetadata` flag to disable metadata sending for specific remote storage URLs. See [#10711](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10711). Thanks to @evkuzin for the contribution.
@@ -96,6 +107,8 @@ Released at 2026-04-10
 
 Released at 2026-03-27
 
+**Update Note 1:** [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): a bug in [OpenTelemetry](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/) parsing caused the `Unit` suffix of the previously parsed metric to be incorrectly applied to subsequent metrics that have no `Unit` field, when `-opentelemetry.usePrometheusNaming` is enabled. For example, if `http_requests` has `Unit: seconds` and the next metric `cpu_usage` has no `Unit`, `cpu_usage` would be ingested as `cpu_usage_seconds`. The bug was introduced in [v1.132.0](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/changelog/CHANGELOG_2025.md#v11320). See [#10889](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10889).
+
 * FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): show `seriesCountByMetricName` table when a label is in focus in the [Cardinality Explorer](https://docs.victoriametrics.com/victoriametrics/#cardinality-explorer). See [#10630](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10630). Thanks to @Roshan1299 for the contribution.
 * FEATURE: [dashboards/unused-metrics](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards/unused-metrics.json): add a new dashboard for exploring stored metrics based on [Caridnality Explorer](https://docs.victoriametrics.com/victoriametrics/#cardinality-explorer) and [ingested metrics usage API](https://docs.victoriametrics.com/victoriametrics/#track-ingested-metrics-usage). The dashboard requires [Infinity Grafana plugin](https://grafana.com/grafana/plugins/yesoreyeram-infinity-datasource/) to be installed. See [#10617](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10617) for details.
 * FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): add `search` parameter and pagination support in `/api/v1/rules` API. See [#10046](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10046).
@@ -117,6 +130,8 @@ Released at 2026-03-27
 ## [v1.138.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.138.0)
 
 Released at 2026-03-13
+
+**Update Note 1:** [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): a bug in [OpenTelemetry](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/) parsing caused the `Unit` suffix of the previously parsed metric to be incorrectly applied to subsequent metrics that have no `Unit` field, when `-opentelemetry.usePrometheusNaming` is enabled. For example, if `http_requests` has `Unit: seconds` and the next metric `cpu_usage` has no `Unit`, `cpu_usage` would be ingested as `cpu_usage_seconds`. The bug was introduced in [v1.132.0](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/changelog/CHANGELOG_2025.md#v11320). See [#10889](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10889).
 
 * SECURITY: upgrade Go builder from Go1.26.0 to Go1.26.1. See [the list of issues addressed in Go1.26.1](https://github.com/golang/go/issues?q=milestone%3AGo1.26.1%20label%3ACherryPickApproved).
 
@@ -145,6 +160,8 @@ Released at 2026-02-27
 **Update Note 1:** [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): default value of the flag `-promscrape.dropOriginalLabels` changed from `true` to `false`.
 It enables back `Discovered targets` debug UI by default.
 
+**Update Note 2:** [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): a bug in [OpenTelemetry](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/) parsing caused the `Unit` suffix of the previously parsed metric to be incorrectly applied to subsequent metrics that have no `Unit` field, when `-opentelemetry.usePrometheusNaming` is enabled. For example, if `http_requests` has `Unit: seconds` and the next metric `cpu_usage` has no `Unit`, `cpu_usage` would be ingested as `cpu_usage_seconds`. The bug was introduced in [v1.132.0](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/changelog/CHANGELOG_2025.md#v11320). See [#10889](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10889).
+
 * FEATURE: [vmbackup](https://docs.victoriametrics.com/vmbackup/): can now copy backups between different storage backends, such as from s3 to local disk or gcs to s3. See [#10401](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10401). Thanks to @BenNF for the contribution.
 * FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): add JWT token authentication support with signature verification based on provided `public_keys`. Read more about configuration in [JWT Token auth proxy](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-token-auth-proxy) documentation. See [#10445](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10445).
 * FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): support dynamic rewriting of upstream URLs and request headers using placeholders populated from JWT `vm_access` claim fields. This allows routing requests to the correct tenant backend without maintaining a separate user config entry per tenant. Read more in [JWT claim-based request templating](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-based-request-templating) documentation. See [#10492](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10492).
@@ -159,7 +176,7 @@ It enables back `Discovered targets` debug UI by default.
 * FEATURE: [dashboards/alert-statistics](https://grafana.com/grafana/dashboards/24553): add `job` and `instance` filters to the `VictoriaMetrics - Alert statistics` dashboard. This allows users running multiple independent [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) instances to filter and analyze alerts statistics per specific instance, making it easier to identify issues in a particular vmalert deployment. See [#10549](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10549).
 * FEATURE: [dashboards/alert-statistics](https://grafana.com/grafana/dashboards/24553): add a link to a specific alerting rule on the table of firing alerts. See [#10508](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10508). Thanks to @sias32 for the contribution.
 * FEATURE: [alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules): use `$externalURL` instead of `localhost` in the alerting rules. This should improve usability of the rules if `$externalURL` is correctly configured, without need to update rules annotations. See [#10508](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10508). Thanks to @sias32 for the contribution.
-* FEATURE: all VictoriaMetrics components: publish [SPDX](https://spdx.dev/) SBOM attestations for container images on `docker.io` and `quay.io`. See [SECURITY.md](https://docs.victoriametrics.com/victoriametrics/security/) and [#10474](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10474). Thanks to @smuda for the contribution.
+* FEATURE: all VictoriaMetrics components: publish [SPDX](https://spdx.dev/) SBOM attestations for container images on `docker.io` and `quay.io`. See [security](https://docs.victoriametrics.com/victoriametrics/#security) and [#10474](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10474). Thanks to @smuda for the contribution.
 
 * BUGFIX: all VictoriaMetrics components: return gzip-compressed response instead of zstd-compressed response to the client if `Accept-Encoding` request header contains both `gzip` and `zstd`. This is needed because some clients and proxies improperly handle zstd-compressed responses. See [#10535](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10535).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): properly check expired client certificate during mTLS requests. See [#10393](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10393).
@@ -169,9 +186,47 @@ It enables back `Discovered targets` debug UI by default.
 * BUGFIX: `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly apply `extra_filters[]` filter when querying `vm_account_id` or `vm_project_id` labels via [multitenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) request for `/api/v1/label/…/values` API. Before, `extra_filters` was ignored. See [#10503](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10503).
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): revert the use of rollup result cache for [instant queries](https://docs.victoriametrics.com/keyConcepts.html#instant-query) that contain [`rate`](https://docs.victoriametrics.com/MetricsQL.html#rate) function with a lookbehind window larger than `-search.minWindowForInstantRollupOptimization`. The cache usage was removed since [v1.132.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.132.0). See [#10098](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10098#issuecomment-3895011084) for more details.
 
+## [v1.136.7](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.136.7)
+
+Released at 2026-04-28
+
+**v1.136.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.136.x line will be supported for at least 12 months since [v1.136.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11360) release**
+
+* BUGFIX:  [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly add [OpenTelemetry](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/) `Unit` suffix to the metric name and metadata `Help` when `-opentelemetry.usePrometheusNaming` flag is enabled. Previously, if `http_requests` has `Unit: seconds` and the next metric `cpu_usage` has no `Unit`, `cpu_usage` would be ingested as `cpu_usage_seconds`. See [#10889](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10889).
+
+## [v1.136.6](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.136.6)
+
+Released at 2026-04-24
+
+**Update Note 1:** [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): a bug in [OpenTelemetry](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/) parsing caused the `Unit` suffix of the previously parsed metric to be incorrectly applied to subsequent metrics that have no `Unit` field, when `-opentelemetry.usePrometheusNaming` is enabled. For example, if `http_requests` has `Unit: seconds` and the next metric `cpu_usage` has no `Unit`, `cpu_usage` would be ingested as `cpu_usage_seconds`. The bug was introduced in [v1.132.0](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/changelog/CHANGELOG_2025.md#v11320). See [#10889](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10889).
+
+**v1.136.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.136.x line will be supported for at least 12 months since [v1.136.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11360) release**
+
+* SECURITY: upgrade base docker image (Alpine) from 3.23.2 to 3.23.3. See [Alpine 3.23.4 release notes](https://www.alpinelinux.org/posts/Alpine-3.20.10-3.21.7-3.22.4-3.23.4-released.html).
+
+* BUGFIX: all VictoriaMetrics components: properly parse IPv6 source address when accepting connections with proxy protocol v2 enabled. See [#10839](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10839). Thanks to @andriibeee for the contribution.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): properly attach [tenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) from `__tenant_id__` label to the scraped metadata. See [#10828](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10828).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): keep [tenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) ingested into vmagent via [prometheus remotewrite](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus/) endpoint. See [#10828](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10828).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): `-maxScrapeSize` is now correctly applied when reading response bodies, including non-OK scrape error responses. See [#10804](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10804).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): fix `ec2_sd_configs` returning 401 `AuthFailure` from AWS when credentials are obtained via IRSA, instance role or `AWS_CONTAINER_CREDENTIALS_*` env vars. The regression was introduced in [v1.140.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.140.0). See [#10815](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10815). Thanks to @andriibeee for the contribution.
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): fix leak of backend TCP connections, file descriptors and goroutines when the client cancels the request after the backend response has been received. See [#10833](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10833). Thanks to @andriibeee for the contribution.
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): fix a rare panic during config reload when a backend is marked as broken. See [#10806](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10806).
+* BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): stop logging warnings about failed handshakes when the `clusternative` port receives TCP healthchecks from load balancers. See [#10786](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10786). Thanks to @andriibeee for the contribution.
+* BUGFIX: [vmrestore](https://docs.victoriametrics.com/victoriametrics/vmrestore/): fix an issue where vmrestore could hang indefinitely when interrupted during backup download. See [#10794](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10794).
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): properly execute graceful shutdown for vmsingle if `-maxIngestionRate` is configured. See [#10795](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10795).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): fix time display on Alerting Rules page to use selected timezone. See [#10827](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10827).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): use contrasting colors when displaying time series to improve visibility on light and dark themes. See [#10869](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10869).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): delete labels from rule results if they are specified with an empty string value in rule or group labels. See [#10766](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10766).
+
 ## [v1.136.5](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.136.5)
 
 Released at 2026-04-23
+
+**Update Note 1:** [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): a bug in [OpenTelemetry](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/) parsing caused the `Unit` suffix of the previously parsed metric to be incorrectly applied to subsequent metrics that have no `Unit` field, when `-opentelemetry.usePrometheusNaming` is enabled. For example, if `http_requests` has `Unit: seconds` and the next metric `cpu_usage` has no `Unit`, `cpu_usage` would be ingested as `cpu_usage_seconds`. The bug was introduced in [v1.132.0](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/changelog/CHANGELOG_2025.md#v11320). See [#10889](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10889).
 
 **v1.136.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
@@ -182,6 +237,8 @@ The v1.136.x line will be supported for at least 12 months since [v1.136.0](http
 ## [v1.136.4](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.136.4)
 
 **Update Note 1:** [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): Due to an ordering bug in binary operations, some queries may produce incorrect results. For example, `10 - (3 + 3 + 4)` is evaluated as `10 - 3 + 3 + 4`. The issue was introduced in versions v1.140.0, v1.136.4, v1.122.19, and is addressed in upcoming releases. It is strongly recommended to avoid these versions entirely. See [#10856](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10856).
+
+**Update Note 2:** [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): a bug in [OpenTelemetry](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/) parsing caused the `Unit` suffix of the previously parsed metric to be incorrectly applied to subsequent metrics that have no `Unit` field, when `-opentelemetry.usePrometheusNaming` is enabled. For example, if `http_requests` has `Unit: seconds` and the next metric `cpu_usage` has no `Unit`, `cpu_usage` would be ingested as `cpu_usage_seconds`. The bug was introduced in [v1.132.0](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/changelog/CHANGELOG_2025.md#v11320). See [#10889](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10889).
 
 Released at 2026-04-10
 
@@ -202,6 +259,8 @@ The v1.136.x line will be supported for at least 12 months since [v1.136.0](http
 
 Released at 2026-03-27
 
+**Update Note 1:** [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): a bug in [OpenTelemetry](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/) parsing caused the `Unit` suffix of the previously parsed metric to be incorrectly applied to subsequent metrics that have no `Unit` field, when `-opentelemetry.usePrometheusNaming` is enabled. For example, if `http_requests` has `Unit: seconds` and the next metric `cpu_usage` has no `Unit`, `cpu_usage` would be ingested as `cpu_usage_seconds`. The bug was introduced in [v1.132.0](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/changelog/CHANGELOG_2025.md#v11320). See [#10889](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10889).
+
 **v1.136.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 The v1.136.x line will be supported for at least 12 months since [v1.136.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11360) release**
@@ -215,6 +274,8 @@ The v1.136.x line will be supported for at least 12 months since [v1.136.0](http
 ## [v1.136.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.136.2)
 
 Released at 2026-03-13
+
+**Update Note 1:** [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): a bug in [OpenTelemetry](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/) parsing caused the `Unit` suffix of the previously parsed metric to be incorrectly applied to subsequent metrics that have no `Unit` field, when `-opentelemetry.usePrometheusNaming` is enabled. For example, if `http_requests` has `Unit: seconds` and the next metric `cpu_usage` has no `Unit`, `cpu_usage` would be ingested as `cpu_usage_seconds`. The bug was introduced in [v1.132.0](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/changelog/CHANGELOG_2025.md#v11320). See [#10889](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10889).
 
 **v1.136.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
@@ -237,6 +298,8 @@ The v1.136.x line will be supported for at least 12 months since [v1.136.0](http
 
 Released at 2026-03-02
 
+**Update Note 1:** [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): a bug in [OpenTelemetry](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/) parsing caused the `Unit` suffix of the previously parsed metric to be incorrectly applied to subsequent metrics that have no `Unit` field, when `-opentelemetry.usePrometheusNaming` is enabled. For example, if `http_requests` has `Unit: seconds` and the next metric `cpu_usage` has no `Unit`, `cpu_usage` would be ingested as `cpu_usage_seconds`. The bug was introduced in [v1.132.0](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/changelog/CHANGELOG_2025.md#v11320). See [#10889](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10889).
+
 **v1.136.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 The v1.136.x line will be supported for at least 12 months since [v1.136.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11360) release**
@@ -252,6 +315,8 @@ The v1.136.x line will be supported for at least 12 months since [v1.136.0](http
 ## [v1.136.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.136.0)
 
 Released at 2026-02-13
+
+**Update Note 1:** [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): a bug in [OpenTelemetry](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/) parsing caused the `Unit` suffix of the previously parsed metric to be incorrectly applied to subsequent metrics that have no `Unit` field, when `-opentelemetry.usePrometheusNaming` is enabled. For example, if `http_requests` has `Unit: seconds` and the next metric `cpu_usage` has no `Unit`, `cpu_usage` would be ingested as `cpu_usage_seconds`. The bug was introduced in [v1.132.0](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/changelog/CHANGELOG_2025.md#v11320). See [#10889](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10889).
 
 * SECURITY: upgrade Go builder from Go1.25.6 to Go1.26.0. See [Go 1.26 release notes](https://go.dev/doc/go1.26).
 * SECURITY: upgrade base docker image (Alpine) from 3.23.2 to 3.23.3. See [Alpine 3.23.3 release notes](https://www.alpinelinux.org/posts/Alpine-3.20.9-3.21.6-3.22.3-3.23.3-released.html).
@@ -277,6 +342,8 @@ Released at 2026-02-13
 Released at 2026-01-30
 
 **Update Note 1:** `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): has a bug affecting the `/select/multitenant/*` APIs. Due to an issue in the tenant search logic [#10422](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10422), these endpoints may return incorrect results. The bug has been fixed and the correction will be included in `v1.137.0`.
+
+**Update Note 2:** [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): a bug in [OpenTelemetry](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/) parsing caused the `Unit` suffix of the previously parsed metric to be incorrectly applied to subsequent metrics that have no `Unit` field, when `-opentelemetry.usePrometheusNaming` is enabled. For example, if `http_requests` has `Unit: seconds` and the next metric `cpu_usage` has no `Unit`, `cpu_usage` would be ingested as `cpu_usage_seconds`. The bug was introduced in [v1.132.0](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/changelog/CHANGELOG_2025.md#v11320). See [#10889](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10889).
 
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): improved scrape size display. Sizes below 1024 bytes are now shown in `B`, and larger sizes are shown as whole `KiB` (rounded up). This prevents confusion where values like 123.456 KiB were interpreted as 123456 KiB, while the actual size was only 123 KiB. See [#10307](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10307).
 * FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): allow buffering request bodies before proxying them to backends. This reduces load on backends when processing requests from slow clients such as IoT devices connected to `vmauth` via slow networks. See [#10309](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10309) and [request body buffering docs](https://docs.victoriametrics.com/victoriametrics/vmauth/#request-body-buffering).
@@ -304,6 +371,8 @@ Released at 2026-01-30
 ## [v1.134.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.134.0)
 
 Released at 2026-01-16
+
+**Update Note 1:** [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): a bug in [OpenTelemetry](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/) parsing caused the `Unit` suffix of the previously parsed metric to be incorrectly applied to subsequent metrics that have no `Unit` field, when `-opentelemetry.usePrometheusNaming` is enabled. For example, if `http_requests` has `Unit: seconds` and the next metric `cpu_usage` has no `Unit`, `cpu_usage` would be ingested as `cpu_usage_seconds`. The bug was introduced in [v1.132.0](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/changelog/CHANGELOG_2025.md#v11320). See [#10889](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10889).
 
 * SECURITY: upgrade Go builder from Go1.25.5 to Go1.25.6. See [the list of issues addressed in Go1.25.6](https://github.com/golang/go/issues?q=milestone%3AGo1.25.6%20label%3ACherryPickApproved).
 
@@ -340,6 +409,8 @@ Released at 2026-01-02
 **Update Note 4:** [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): TSDB status may be empty if the partition index does not have records for the requested date. See [10315](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10315). Addressed in `v1.135.0`.
 
 **Update Note 5:** [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): `indexdb/tagFiltersToMetricIDs`, `indexdb/metricID` and `indexdb/date_metricID` cache metrics are not reported properly. See [10275](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10275). Addressed in `v1.135.0`.
+
+**Update Note 6:** [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): a bug in [OpenTelemetry](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/) parsing caused the `Unit` suffix of the previously parsed metric to be incorrectly applied to subsequent metrics that have no `Unit` field, when `-opentelemetry.usePrometheusNaming` is enabled. For example, if `http_requests` has `Unit: seconds` and the next metric `cpu_usage` has no `Unit`, `cpu_usage` would be ingested as `cpu_usage_seconds`. The bug was introduced in [v1.132.0](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/changelog/CHANGELOG_2025.md#v11320). See [#10889](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10889).
 
 * SECURITY: upgrade base docker image (Alpine) from 3.22.2 to 3.23.2. See [Alpine 3.23.2 release notes](https://www.alpinelinux.org/posts/Alpine-3.23.2-released.html).
 
@@ -404,6 +475,25 @@ See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/ch
 ## [v1.123.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.123.0)
 
 See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2025/#v11230)
+
+## [v1.122.21](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.21)
+
+Released at 2026-04-24
+
+**v1.122.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.122.x line will be supported for at least 12 months since [v1.122.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11220) release**
+
+* SECURITY: upgrade Go builder from Go1.25.9 to Go1.26.2. See [the list of issues addressed in Go1.26.2](https://github.com/golang/go/issues?q=milestone%3AGo1.26.2%20label%3ACherryPickApproved).
+* SECURITY: upgrade base docker image (Alpine) from 3.23.2 to 3.23.3. See [Alpine 3.23.4 release notes](https://www.alpinelinux.org/posts/Alpine-3.20.10-3.21.7-3.22.4-3.23.4-released.html).
+
+* BUGFIX: all VictoriaMetrics components: properly parse IPv6 source address when accepting connections with proxy protocol v2 enabled. See [#10839](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10839). Thanks to @andriibeee for the contribution.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): `-maxScrapeSize` is now correctly applied when reading response bodies, including non-OK scrape error responses. See [#10804](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10804).
+* BUGFIX: `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly allocate vminsert buffer size per vmstorage node based on available CPU, memory and storage node count to reduce OOM risk. See [#10725](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10725).
+* BUGFIX: [vmrestore](https://docs.victoriametrics.com/victoriametrics/vmrestore/): fix an issue where vmrestore could hang indefinitely when interrupted during backup download. See [#10794](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10794).
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): properly execute graceful shutdown for vmsingle if `-maxIngestionRate` is configured. See [#10795](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10795).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): delete labels from rule results if they are specified with an empty string value in rule or group labels. See [#10766](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10766).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): use contrasting colors when displaying time series to improve visibility on light and dark themes. See [#10869](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10869).
 
 ## [v1.122.20](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.20)
 
