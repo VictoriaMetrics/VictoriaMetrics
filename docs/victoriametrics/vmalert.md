@@ -534,9 +534,7 @@ The multitenant endpoint in vmselect is less efficient than [specifying tenants 
 
 For security considerations, it is recommended restricting access to multitenant endpoints only to trusted sources, since untrusted source may break per-tenant data by writing unwanted samples or get access to data of arbitrary tenants.
 
-* To specify the `tenant` parameter for each rule group if the
-  [enterprise version of vmalert](https://docs.victoriametrics.com/victoriametrics/enterprise/) is used
-  with the command-line flags `-clusterMode -datasource.url=http://vmselect:8481 -remoteWrite.url=http://vminsert:8480`. For example:
+* To specify the `tenant` parameter for each rule group when `-clusterMode` is enabled in the [enterprise version of vmalert](https://docs.victoriametrics.com/victoriametrics/enterprise/). In this mode, `-datasource.url`, `-remoteRead.url` and `-remoteWrite.url` must contain only the hostname without tenant information, such as `-datasource.url=http://vmselect:8481`, and `vmalert` will automatically append the specified tenant to the URLs for querying and writing:
 
 ```yaml
 groups:
@@ -554,10 +552,6 @@ groups:
 The results of alerting and recording rules contain `vm_account_id` and `vm_project_id` labels
 if `-clusterMode` is enabled. These labels can be used during [templating](https://docs.victoriametrics.com/victoriametrics/vmalert/#templating),
 and help to identify to which account or project the triggered alert or produced recording belongs.
-
-If `-clusterMode` is enabled, then `-datasource.url`, `-remoteRead.url` and `-remoteWrite.url` must
-contain only the hostname without tenant id. For example: `-datasource.url=http://vmselect:8481`.
-`vmalert` automatically adds the specified tenant to urls per each recording rule in this case.
 
 If `-clusterMode` is enabled and the `tenant` in a particular group is missing, then the tenant value
 is obtained from `-defaultTenant.prometheus` or `-defaultTenant.graphite` depending on the `type` of the group.
