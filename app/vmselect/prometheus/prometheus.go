@@ -415,7 +415,7 @@ func exportHandler(qt *querytracer.Tracer, w http.ResponseWriter, cp *commonPara
 				}
 				xb := exportBlockPool.Get().(*exportBlock)
 				xb.mn = &rs.MetricName
-				xb.timestamps = rs.Timestamps
+				xb.timestamps = shiftTimestamps(rs.Timestamps, cp.timestampOffset)
 				xb.values = rs.Values
 				if err := writeLineFunc(xb, workerID); err != nil {
 					return err
@@ -440,6 +440,7 @@ func exportHandler(qt *querytracer.Tracer, w http.ResponseWriter, cp *commonPara
 				xb := exportBlockPool.Get().(*exportBlock)
 				xb.mn = mn
 				xb.timestamps, xb.values = b.AppendRowsWithTimeRangeFilter(xb.timestamps[:0], xb.values[:0], tr)
+				xb.timestamps = shiftTimestamps(xb.timestamps, cp.timestampOffset)
 				if len(xb.timestamps) > 0 {
 					if err := writeLineFunc(xb, workerID); err != nil {
 						return err
@@ -806,6 +807,7 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 			deadline: deadline,
 			start:    start,
 			end:      end,
+			timestampOffset: offset,
 			filterss: filterss,
 		}
 		if err := exportHandler(qt, w, cp, "promapi", 0, false); err != nil {
@@ -1164,11 +1166,23 @@ type commonParams struct {
 	start            int64
 	end              int64
 	currentTimestamp int64
+	timestampOffset  int64
 	filterss         [][]storage.TagFilter
 }
 
 func (cp *commonParams) IsDefaultTimeRange() bool {
 	return cp.start == 0 && cp.currentTimestamp-cp.end < 1000
+}
+
+func shiftTimestamps(timestamps []int64, offset int64) []int64 {
+	if offset == 0 || len(timestamps) == 0 {
+		return timestamps
+	}
+	dstTimestamps := append([]int64{}, timestamps...)
+	for i := range dstTimestamps {
+		dstTimestamps[i] += offset
+	}
+	return dstTimestamps
 }
 
 // getExportParams obtains common params from r, which are used in /api/v1/export* handlers
