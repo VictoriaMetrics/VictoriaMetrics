@@ -68,3 +68,15 @@ since previous versions may have issues with `remote_write`.
 
 Take a look at [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/),
 which can be used as faster and less resource-hungry alternative to Prometheus.
+
+## Native histograms
+
+Prometheus [native histogram](https://prometheus.io/docs/specs/native_histograms/) is automatically converted
+to [VictoriaMetrics histogram format](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350) with `vmrange` labels during ingestion.
+
+> After conversion, a native histogram is transformed into classic histograms with `_count`, `_sum`, and `_bucket` series. These series can be queried using standard histogram functions such as `histogram_quantile()`.
+
+
+## Remote Write 2.0
+
+[Prometheus Remote-Write 2.0](https://prometheus.io/docs/specs/prw/remote_write_spec_2_0/) is still marked as experimental and is not currently supported by VictoriaMetrics.
