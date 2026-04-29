@@ -24,13 +24,12 @@ Stream aggregation has the following features:
 - It can calculate [aggregates](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-outputs) on ingested samples before they're sent to remote destination;
 - It is applied to all the metric samples received via any [supported data ingestion protocol](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data)
   and/or scraped from [Prometheus-compatible targets](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
-- It can filter out raw samples matched by aggregation rules, so raw data will never reach the remote destination. See `--streamAggr.keepInput` and `-streamAggr.dropInput` in [aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/);
+- It can filter out raw samples matched by aggregation rules, so raw data will never reach the remote destination. See `-streamAggr.keepInput` and `-streamAggr.dropInput` in [aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/);
 - It allows building [flexible processing pipelines](#routing);
 
 # Limitations
 
-- Stream aggregation **ignores timestamps associated with the input [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples)**. 
-  It expects that the ingested samples have timestamps close to the current time. See [how to ignore old samples](#ignoring-old-samples).
+- By default, stream aggregation ignores timestamps of the input [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) and processes samples based on their ingestion time. See [how to ignore old samples](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#ignoring-old-samples).
 - Aggregation state is held in the process memory and will be lost on process restart. 
 
 # Use cases
@@ -340,7 +339,7 @@ Please note, histograms can be aggregated if their `le` labels are configured id
 have no such requirement.
 
 Stream aggregation of histogram buckets is very sensitive to sample delays. Histogram is logical group of independent time series (buckets) that are supposed to be updated uniformly.
-Aggregation can't guarantee that within one aggregation intervals all samples belonging to one histogram were updated. Situations like this can cause [accuracy issues](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4580).
+Aggregation cannot guarantee that all samples belonging to a single histogram are updated within the same aggregation interval. Situations like this can cause [accuracy issues](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4580).
 The recommended ways for improving accuracy are: 
 - enable [aggregation windows](#aggregation-windows);
 - increase `interval` ;
@@ -394,11 +393,9 @@ before sending them to the configured `-remoteWrite.url`. The deduplication can 
 
   - By specifying `dedup_interval` option individually per each [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config) at `-streamAggr.config`.
 
-It is possible to drop the given labels before applying the deduplication. See [these docs](#dropping-unneeded-labels).
+Labels can be dropped before deduplication is applied. See [these docs](#dropping-unneeded-labels).
 
-The online deduplication uses the same logic as [`-dedup.minScrapeInterval` command-line flag](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) at VictoriaMetrics.
-
-Deduplication is applied before stream aggregation rules and can drop samples before they get matched for aggregation.
+Stream aggregation deduplication is applied before aggregation rules, so duplicate samples are dropped before aggregation.
 
 # Relabeling
 
@@ -443,6 +440,10 @@ outside the current [aggregation interval](https://docs.victoriametrics.com/vict
 
 - To set `ignore_old_samples: true` option at the particular [aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config).
   This enables ignoring old samples for that particular aggregation config.
+
+- To enable [aggregation windows](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#aggregation-windows).
+
+The dropped old samples can be tracked with the `vm_streamaggr_ignored_samples_total{reason="too_old"}` metric.
 
 ## Ignore aggregation intervals on start
 
@@ -617,10 +618,9 @@ deduplication results, which are consistent within the margin of error. But for 
 like [histograms](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#histogram), such inaccuracy leads to invalid aggregation results.
 
 For this case, streaming aggregation and deduplication support mode with aggregation windows for the current and previous state.
-With this mode, flush doesn't happen immediately but is shifted by a calculated sample lag that improves correctness for delayed data. {{% available_from "v1.112.0" %}}
+In this mode, flush doesn't happen immediately but is delayed by a calculated sample lag, which should significantly improve the accuracy of calculations when samples arrive with a delay. {{% available_from "v1.112.0" %}}
 
-Enabling this mode has increased resource usage: memory usage is expected to double as aggregation will store two states
-instead of one. However, this significantly improves the accuracy of calculations. Aggregation windows can be enabled via
+This mode doubles the memory used for the aggregation state, since two states(for the current and previous intervals) are stored per series simultaneously. Aggregation windows can be enabled via
 the following settings:
 
 - `-streamAggr.enableWindows` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
@@ -671,7 +671,7 @@ The following solutions can help reduce memory usage and CPU usage during stream
   [raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) are aggregated.
 - To increase the aggregation interval by specifying a bigger duration for the `interval` option at [streaming aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config).
 - To generate a lower number of output time series by using less specific [`by` list](#aggregating-by-labels) or more specific [`without` list](#aggregating-by-labels).
-- To drop unneeded long labels in input samples via [input_relabel_configs](#relabeling).
+- To drop unneeded labels from input samples via [input_relabel_configs](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#relabeling) or [dropInputLabels](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#dropping-unneeded-labels).
 
 ## Cluster mode
 
