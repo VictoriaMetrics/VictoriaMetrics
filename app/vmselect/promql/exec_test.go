@@ -8441,7 +8441,7 @@ func TestExecSuccess(t *testing.T) {
 	})
 	t.Run(`aggr_over_time(multi-func)`, func(t *testing.T) {
 		t.Parallel()
-		q := `sort(aggr_over_time(("min_over_time", "median_over_time", "max_over_time"), round(rand(0),0.1)[:10s]))`
+		q := `sort(aggr_over_time(("min_over_time", "median_over_time", "quantile_over_time(0.5)", "max_over_time"), round(rand(0),0.1)[:10s]))`
 		r1 := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{0, 0, 0, 0, 0, 0},
@@ -8460,16 +8460,21 @@ func TestExecSuccess(t *testing.T) {
 			Key:   []byte("rollup"),
 			Value: []byte("median_over_time"),
 		}}
-		r3 := netstorage.Result{
+		r3 := r2
+		r3.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("rollup"),
+			Value: []byte("quantile_over_time(0.5)"),
+		}}
+		r4 := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{0.8, 0.9, 1, 0.9, 1, 0.9},
 			Timestamps: timestampsExpected,
 		}
-		r3.MetricName.Tags = []storage.Tag{{
+		r4.MetricName.Tags = []storage.Tag{{
 			Key:   []byte("rollup"),
 			Value: []byte("max_over_time"),
 		}}
-		resultExpected := []netstorage.Result{r1, r2, r3}
+		resultExpected := []netstorage.Result{r1, r2, r3, r4}
 		f(q, resultExpected)
 	})
 	t.Run(`avg(aggr_over_time(multi-func))`, func(t *testing.T) {
