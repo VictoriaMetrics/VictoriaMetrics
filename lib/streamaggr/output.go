@@ -17,29 +17,27 @@ type aggrOutputs struct {
 	outputSamples  *metrics.Counter
 }
 
-func (ao *aggrOutputs) getInputOutputKey(key string) (string, string) {
+func (ao *aggrOutputs) getInputOutputKey(key string) (outputKey, inputKey string) {
 	src := bytesutil.ToUnsafeBytes(key)
 	outputKeyLen, nSize := encoding.UnmarshalVarUint64(src)
 	if nSize <= 0 {
 		logger.Panicf("BUG: cannot unmarshal outputKeyLen from uvarint")
 	}
 	src = src[nSize:]
-	outputKey := src[:outputKeyLen]
-	if !ao.useInputKey {
-		return key, bytesutil.ToUnsafeString(outputKey)
+	outputKey = bytesutil.ToUnsafeString(src[:outputKeyLen])
+	if !ao.useInputKey || int(outputKeyLen) == len(src) {
+		return outputKey, outputKey
 	}
-	inputKey := src[outputKeyLen:]
-	return bytesutil.ToUnsafeString(inputKey), bytesutil.ToUnsafeString(outputKey)
+	inputKey = bytesutil.ToUnsafeString(src[outputKeyLen:])
+	return outputKey, inputKey
 }
 
 func (ao *aggrOutputs) pushSamples(samples []pushSample, deleteDeadline int64, isGreen bool) {
-	var inputKey, outputKey string
-	var sample *pushSample
 	var outputs []aggrValue
 	var nv *aggrValues
 	for i := range samples {
-		sample = &samples[i]
-		inputKey, outputKey = ao.getInputOutputKey(sample.key)
+		sample := &samples[i]
+		outputKey, inputKey := ao.getInputOutputKey(sample.key)
 
 	again:
 		v, ok := ao.m.Load(outputKey)
