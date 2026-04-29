@@ -780,7 +780,7 @@ func allowRerouting(snSource *storageNode, sns []*storageNode) bool {
 
 	// To ensure that we only preform slowness base rerouting from at most 10% of vmstorage nodes from cluster's view.
 	maxReroutingNodesInCluster := max(1, len(saturations)/10)
-	// The slowest 10% of vmstorage nodes should be significantly slower than other vmstorage by more than 10% before performing slowness base rerouting.
+	// The slowest 10% of vmstorage nodes should be significantly slower than other vmstorage by more than 20% before performing slowness base rerouting.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10876
 	if saturations[len(saturations)-1] < saturations[len(saturations)-maxReroutingNodesInCluster-1]*1.2 {
 		return false
