@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): Improve the trigger conditions for slowness-based rerouting to avoid potential rerouting storm. After this change, slowness-based rerouting will only trigger when the slowest 10% of `vmstorage` in cluster are significantly slower than other `vmstorage`, it avoids rerouting in unnecessary situations (e.g. most `vmstorage` nodes are saturated). See [#10876](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10876).
+
 ## [v1.142.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.142.0)
 
 Released at 2026-04-28
