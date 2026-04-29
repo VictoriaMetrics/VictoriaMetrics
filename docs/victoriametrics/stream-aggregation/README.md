@@ -441,7 +441,7 @@ outside the current [aggregation interval](https://docs.victoriametrics.com/vict
 - To set `ignore_old_samples: true` option at the particular [aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config).
   This enables ignoring old samples for that particular aggregation config.
 
-- To enable [aggregation windows](#aggregation-windows).
+- To enable [aggregation windows](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#aggregation-windows).
 
 The dropped old samples can be tracked with the `vm_streamaggr_ignored_samples_total{reason="too_old"}` metric.
 
@@ -671,7 +671,7 @@ The following solutions can help reduce memory usage and CPU usage during stream
   [raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) are aggregated.
 - To increase the aggregation interval by specifying a bigger duration for the `interval` option at [streaming aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config).
 - To generate a lower number of output time series by using less specific [`by` list](#aggregating-by-labels) or more specific [`without` list](#aggregating-by-labels).
-- To drop unneeded labels from input samples via [input_relabel_configs](#relabeling) or [dropInputLabels](#dropping-unneeded-labels).
+- To drop unneeded labels from input samples via [input_relabel_configs](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#relabeling) or [dropInputLabels](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#dropping-unneeded-labels).
 
 ## Cluster mode
 
