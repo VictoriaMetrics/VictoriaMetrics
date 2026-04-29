@@ -1140,17 +1140,20 @@ It is possible to specify custom TLS Root CA via `-mtlsCAFile` command-line flag
 
 See general recommendations regarding [security](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#security).
 
-vmalert [web UI](#web) exposes configuration details such as list of [Groups](#groups), active alerts,
-[alerts state](#alerts-state-on-restarts), [notifiers](#notifier-configuration-file). Notifier addresses (sanitized) are attached
-as labels to metrics `vmalert_alerts_sent_.*` on `http://<vmalert>/metrics` page. Consider limiting user's access
-to the web UI or `/metrics` page if this information is sensitive.
+vmalert [web UI](https://docs.victoriametrics.com/victoriametrics/vmalert/#web), logs, and exported metrics contain details such as [group](https://docs.victoriametrics.com/victoriametrics/vmalert/#groups) configurations, active alerts,
+[alerts state](https://docs.victoriametrics.com/victoriametrics/vmalert/#alerts-state-on-restarts), [notifiers configuration](https://docs.victoriametrics.com/victoriametrics/vmalert/#notifier-configuration-file). Consider limiting user's access
+to them if this information is sensitive.
+Specifically:
+* Log messages, the UI, and exported metrics contain full path to the configured rule files. These file paths can be stripped 
+  by enabling `-rule.stripFilePath` command-line flag {{% available_from "#" %}};
+* Datasource address is sanitized in log messages, UI and exported metrics, can be shown by enabling ` -datasource.showURL`;
+* Notifier addresses are sanitized in log messages, UI and exported metrics, can be shown by enabling `-notifier.showURL`;
+* Remote read address is sanitized in log messages, UI and exported metrics, can be shown by enabling ` --remoteRead.showURL`;
+* Remote write address is sanitized in log messages, UI and exported metrics, can be shown by enabling ` -remoteWrite.showURL`.
 
 [Alerts state](#alerts-state-on-restarts) page or [debug mode](#debug-mode) could emit additional information about configured
 datasource URL, GET params and headers. Sensitive information such as passwords or auth tokens is stripped by default.
 To disable stripping of such info pass `-datasource.showURL` cmd-line flag to vmalert.
-
-In logs, metrics and [web UI](https://docs.victoriametrics.com/vmalert.html#web) vmalert shows the actual path to the configured rules. If the file path contains sensitive information,
-it can be stripped by applying `-rule.stripFilePath` command-line flag {{% available_from "#" %}}.
 
 See also [mTLS protection docs](#mtls-protection).
 
