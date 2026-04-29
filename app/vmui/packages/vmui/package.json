@@ -23,7 +23,7 @@
     "classnames": "^2.5.1",
     "dayjs": "^1.11.20",
     "lodash.debounce": "^4.0.8",
-    "marked": "^18.0.0",
+    "marked": "^18.0.2",
     "preact": "^10.29.1",
     "qs": "^6.15.1",
     "react-input-mask": "^2.0.4",
