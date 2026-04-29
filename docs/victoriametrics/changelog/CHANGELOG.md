@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: all VictoriaMetrics components: suppress TCP health check errors when `-tls` flag is set. See [#10538](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10538).
+
 ## [v1.142.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.142.0)
 
 Released at 2026-04-28
