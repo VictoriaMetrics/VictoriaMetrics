@@ -1149,7 +1149,7 @@ to the web UI or `/metrics` page if this information is sensitive.
 datasource URL, GET params and headers. Sensitive information such as passwords or auth tokens is stripped by default.
 To disable stripping of such info pass `-datasource.showURL` cmd-line flag to vmalert.
 
-In logs, metrics and [web UI](#web) vmalert shows the actual path to the configured rules. If the file path contains sensitive information,
+In logs, metrics and [web UI](https://docs.victoriametrics.com/vmalert.html#web) vmalert shows the actual path to the configured rules. If the file path contains sensitive information,
 it can be stripped by applying `-rule.stripFilePath` command-line flag {{% available_from "#" %}}.
 
 See also [mTLS protection docs](#mtls-protection).
