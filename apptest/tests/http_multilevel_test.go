@@ -90,7 +90,7 @@ func TestClusterHTTPSelectMultilevelLabelNamesAndValues(t *testing.T) {
 		"-storageNode=" + vmstorage.VmselectAddr(),
 	})
 	vmselectL2 := tc.MustStartVmselect("vmselect-level2", []string{
-		"-clusterSelectNode=http://" + vmselectL1.HTTPAddr(),
+		"-clusterSelectNode=" + vmselectL1.HTTPAddr(),
 	})
 
 	records := []string{
@@ -182,7 +182,7 @@ func TestClusterHTTPSelectMultilevelSeriesCount(t *testing.T) {
 		"-storageNode=" + vmstorage.VmselectAddr(),
 	})
 	vmselectL2 := tc.MustStartVmselect("vmselect-level2", []string{
-		"-clusterSelectNode=http://" + vmselectL1.HTTPAddr(),
+		"-clusterSelectNode=" + vmselectL1.HTTPAddr(),
 	})
 
 	const numSeries = 20
@@ -228,7 +228,7 @@ func TestClusterHTTPSelectMultilevelInstantQuery(t *testing.T) {
 		"-storageNode=" + vmstorage.VmselectAddr(),
 	})
 	vmselectL2 := tc.MustStartVmselect("vmselect-level2", []string{
-		"-clusterSelectNode=http://" + vmselectL1.HTTPAddr(),
+		"-clusterSelectNode=" + vmselectL1.HTTPAddr(),
 	})
 
 	qopts := apptest.QueryOpts{Tenant: "0"}
@@ -288,8 +288,8 @@ func TestClusterHTTPSelectMultilevelPartialResponse(t *testing.T) {
 	// L2: connects to both L1 nodes via HTTP.
 	vmselectL2 := tc.MustStartVmselect("vmselect-l2", []string{
 		"-clusterSelectNode=" +
-			"http://" + vmselectL1a.HTTPAddr() + "," +
-			"http://" + vmselectL1b.HTTPAddr(),
+			vmselectL1a.HTTPAddr() + "," +
+			vmselectL1b.HTTPAddr(),
 	})
 
 	qopts := apptest.QueryOpts{Tenant: "0"}
@@ -378,10 +378,10 @@ func TestClusterHTTPSelectMultilevelThreeLevels(t *testing.T) {
 		"-storageNode=" + vmstorage.VmselectAddr(),
 	})
 	vmselectL2 := tc.MustStartVmselect("vmselect-level2", []string{
-		"-clusterSelectNode=http://" + vmselectL1.HTTPAddr(),
+		"-clusterSelectNode=" + vmselectL1.HTTPAddr(),
 	})
 	vmselectL3 := tc.MustStartVmselect("vmselect-level3", []string{
-		"-clusterSelectNode=http://" + vmselectL2.HTTPAddr(),
+		"-clusterSelectNode=" + vmselectL2.HTTPAddr(),
 	})
 
 	const numMetrics = 100
@@ -453,7 +453,7 @@ func TestClusterHTTPSelectMultilevelVsTCPMultilevel(t *testing.T) {
 	})
 	// L2 via HTTP.
 	vmselectL2http := tc.MustStartVmselect("vmselect-l2-http", []string{
-		"-clusterSelectNode=http://" + vmselectL1http.HTTPAddr(),
+		"-clusterSelectNode=" + vmselectL1http.HTTPAddr(),
 	})
 
 	const numMetrics = 200

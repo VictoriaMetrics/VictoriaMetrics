@@ -60,6 +60,9 @@ var (
 	resetCacheAuthKey            = flagutil.NewPassword("search.resetCacheAuthKey", "Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call. It could be passed via authKey query arg. It overrides -httpAuth.*")
 	metricNamesStatsResetAuthKey = flagutil.NewPassword("metricNamesStatsResetAuthKey", "authKey for resetting metric names usage cache via /api/v1/admin/status/metric_names_stats/reset. It overrides -httpAuth.*. "+
 		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#track-ingested-metrics-usage")
+	clusterSelectInternalAuthKey = flagutil.NewPassword("clusterSelectInternalAuthKey", "Optional authKey for protecting internal HTTP API endpoints at /internal/clusternative/. "+
+		"The authKey must be passed via authKey query arg in requests from upper-level vmselect nodes configured with -clusterSelectNode. "+
+		"It overrides -httpAuth.*. Recommended when -clusterSelectNode is in use to prevent unauthorized access to internal cluster endpoints.")
 
 	logSlowQueryDuration = flag.Duration("search.logSlowQueryDuration", 5*time.Second, "Log queries with execution time exceeding this value. Zero disables slow query logging. "+
 		"See also -search.logQueryMemoryUsage")
@@ -121,7 +124,7 @@ func main() {
 			logger.Fatalf("invalid -clusterSelectNode address %q: must be in 'host:port' format without scheme (e.g. vmselect-host:8481)", addr)
 		}
 		logger.Infof("starting netstorage with HTTP cluster select nodes %s", *clusterSelectNodes)
-		netstorage.InitHTTPSelectNodes(*clusterSelectNodes)
+		netstorage.InitHTTPSelectNodes(*clusterSelectNodes, clusterSelectInternalAuthKey.Get())
 	}
 	if len(*storageNodes) > 0 {
 		if hasEmptyValues(*storageNodes) {
@@ -284,6 +287,12 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 
 	// Handle internal clusternative HTTP API after concurrency and observability controls,
 	// so multi-level cluster fanout is subject to -search.maxConcurrentRequests and slow query logging.
+	// Auth is checked here with a dedicated key so the internal RPC channel is protected
+	// independently of the global -httpAuth.* credentials.
+	if strings.HasPrefix(path, clusternative.InternalHTTPPath) &&
+		!httpserver.CheckAuthFlag(w, r, clusterSelectInternalAuthKey) {
+		return true
+	}
 	if clusternative.HandleInternalRequest(w, r) {
 		return true
 	}
