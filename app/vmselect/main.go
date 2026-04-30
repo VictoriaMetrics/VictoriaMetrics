@@ -221,11 +221,6 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		path = strings.ReplaceAll(path, "//", "/")
 	}
 
-	// Handle internal clusternative HTTP API before other routes.
-	if clusternative.HandleInternalRequest(w, r) {
-		return true
-	}
-
 	if handleStaticAndSimpleRequests(w, r, path) {
 		return true
 	}
@@ -285,6 +280,12 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 				slowQueries.Inc()
 			}
 		}()
+	}
+
+	// Handle internal clusternative HTTP API after concurrency and observability controls,
+	// so multi-level cluster fanout is subject to -search.maxConcurrentRequests and slow query logging.
+	if clusternative.HandleInternalRequest(w, r) {
+		return true
 	}
 
 	if path == "/internal/resetRollupResultCache" {
