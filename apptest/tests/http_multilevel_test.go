@@ -32,7 +32,7 @@ func TestClusterHTTPSelectMultilevelBasic(t *testing.T) {
 	})
 	// L2 communicates with L1 via HTTP internal API (-clusterSelectNode), not TCP.
 	vmselectL2 := tc.MustStartVmselect("vmselect-level2", []string{
-		"-clusterSelectNode=http://" + vmselectL1.HTTPAddr(),
+		"-clusterSelectNode=" + vmselectL1.HTTPAddr(),
 	})
 
 	const numMetrics = 500

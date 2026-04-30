@@ -194,7 +194,12 @@ func handleLabelValues(w http.ResponseWriter, qt *querytracer.Tracer, body []byt
 		http.Error(w, "request body too short for labelValues", http.StatusBadRequest)
 		return
 	}
-	labelNameLen := int(encoding.UnmarshalUint64(body[:8]))
+	labelNameLenRaw := encoding.UnmarshalUint64(body[:8])
+	if labelNameLenRaw > uint64(len(body)-8) {
+		http.Error(w, "invalid labelValues body: label name length overflow", http.StatusBadRequest)
+		return
+	}
+	labelNameLen := int(labelNameLenRaw)
 	body = body[8:]
 	if len(body) < labelNameLen+4 {
 		http.Error(w, "request body too short for labelValues (label name + max)", http.StatusBadRequest)
@@ -276,7 +281,12 @@ func handleTSDBStatus(w http.ResponseWriter, qt *querytracer.Tracer, body []byte
 		http.Error(w, "request body too short for tsdbStatus", http.StatusBadRequest)
 		return
 	}
-	sqLen := int(encoding.UnmarshalUint64(body[:8]))
+	sqLenRaw := encoding.UnmarshalUint64(body[:8])
+	if sqLenRaw > uint64(len(body)-8) {
+		http.Error(w, "invalid tsdbStatus body: sqLen overflow", http.StatusBadRequest)
+		return
+	}
+	sqLen := int(sqLenRaw)
 	body = body[8:]
 	if len(body) < sqLen+8 {
 		http.Error(w, "request body too short for tsdbStatus (sqData)", http.StatusBadRequest)
@@ -285,7 +295,12 @@ func handleTSDBStatus(w http.ResponseWriter, qt *querytracer.Tracer, body []byte
 	sqData := body[:sqLen]
 	body = body[sqLen:]
 
-	focusLabelLen := int(encoding.UnmarshalUint64(body[:8]))
+	focusLabelLenRaw := encoding.UnmarshalUint64(body[:8])
+	if focusLabelLenRaw > uint64(len(body)-8) {
+		http.Error(w, "invalid tsdbStatus body: focusLabel length overflow", http.StatusBadRequest)
+		return
+	}
+	focusLabelLen := int(focusLabelLenRaw)
 	body = body[8:]
 	if len(body) < focusLabelLen+4 {
 		http.Error(w, "request body too short for tsdbStatus (focusLabel)", http.StatusBadRequest)
@@ -356,7 +371,12 @@ func handleRegisterMetricNames(w http.ResponseWriter, qt *querytracer.Tracer, bo
 		http.Error(w, "request body too short for registerMetricNames", http.StatusBadRequest)
 		return
 	}
-	count := int(encoding.UnmarshalUint64(body[:8]))
+	countRaw := encoding.UnmarshalUint64(body[:8])
+	if countRaw > uint64(len(body)-8) {
+		http.Error(w, "invalid registerMetricNames body: count overflow", http.StatusBadRequest)
+		return
+	}
+	count := int(countRaw)
 	body = body[8:]
 
 	mrs := make([]storage.MetricRow, 0, count)
@@ -365,7 +385,12 @@ func handleRegisterMetricNames(w http.ResponseWriter, qt *querytracer.Tracer, bo
 			http.Error(w, fmt.Sprintf("cannot read metricNameRaw length for entry %d", i), http.StatusBadRequest)
 			return
 		}
-		nameLen := int(encoding.UnmarshalUint64(body[:8]))
+		nameLenRaw := encoding.UnmarshalUint64(body[:8])
+		if nameLenRaw > uint64(len(body)-8) {
+			http.Error(w, fmt.Sprintf("invalid metricNameRaw length for entry %d", i), http.StatusBadRequest)
+			return
+		}
+		nameLen := int(nameLenRaw)
 		body = body[8:]
 		if len(body) < nameLen+8 {
 			http.Error(w, fmt.Sprintf("cannot read metricNameRaw data for entry %d", i), http.StatusBadRequest)
@@ -407,7 +432,12 @@ func handleTagValueSuffixes(w http.ResponseWriter, qt *querytracer.Tracer, body 
 		http.Error(w, "request body too short for tagValueSuffixes (tagKey len)", http.StatusBadRequest)
 		return
 	}
-	tagKeyLen := int(encoding.UnmarshalUint64(body[:8]))
+	tagKeyLenRaw := encoding.UnmarshalUint64(body[:8])
+	if tagKeyLenRaw > uint64(len(body)-8) {
+		http.Error(w, "invalid tagValueSuffixes body: tagKey length overflow", http.StatusBadRequest)
+		return
+	}
+	tagKeyLen := int(tagKeyLenRaw)
 	body = body[8:]
 	if len(body) < tagKeyLen+8 {
 		http.Error(w, "request body too short for tagValueSuffixes (tagKey + prefix len)", http.StatusBadRequest)
@@ -416,7 +446,12 @@ func handleTagValueSuffixes(w http.ResponseWriter, qt *querytracer.Tracer, body 
 	tagKey := string(body[:tagKeyLen])
 	body = body[tagKeyLen:]
 
-	tagValuePrefixLen := int(encoding.UnmarshalUint64(body[:8]))
+	tagValuePrefixLenRaw := encoding.UnmarshalUint64(body[:8])
+	if tagValuePrefixLenRaw > uint64(len(body)-8) {
+		http.Error(w, "invalid tagValueSuffixes body: tagValuePrefix length overflow", http.StatusBadRequest)
+		return
+	}
+	tagValuePrefixLen := int(tagValuePrefixLenRaw)
 	body = body[8:]
 	if len(body) < tagValuePrefixLen+1+4 {
 		http.Error(w, "request body too short for tagValueSuffixes (tagValuePrefix + delimiter + maxSuffixes)", http.StatusBadRequest)
@@ -486,8 +521,8 @@ func handleSearch(w http.ResponseWriter, qt *querytracer.Tracer, body []byte, de
 		}
 	}
 	// Write end-of-stream marker.
-	sizeBuf = encoding.MarshalUint64(sizeBuf[:0], 0)
-	if _, err := w.Write(sizeBuf); err != nil {
+	eosBuf := encoding.MarshalUint64(make([]byte, 0, 8), 0)
+	if _, err := w.Write(eosBuf); err != nil {
 		logger.Errorf("cannot write end-of-stream marker: %s", err)
 		return
 	}
