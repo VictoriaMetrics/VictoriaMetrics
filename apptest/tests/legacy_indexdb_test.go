@@ -31,7 +31,7 @@ func TestLegacySingleDeleteSeries(t *testing.T) {
 
 	opts := testLegacyDeleteSeriesOpts{
 		startLegacySUT: func() at.PrometheusWriteQuerier {
-			return tc.MustStartVmsingleAt("vmsingle-legacy", legacyVmsinglePath, []string{
+			return tc.MustStartLegacyVmsingleAt("vmsingle-legacy", legacyVmsinglePath, []string{
 				"-storageDataPath=" + storageDataPath,
 				"-retentionPeriod=100y",
 				"-search.maxStalenessInterval=1m",
@@ -255,7 +255,7 @@ func TestLegacySingleBackupRestore(t *testing.T) {
 
 	opts := testLegacyBackupRestoreOpts{
 		startLegacySUT: func() at.PrometheusWriteQuerier {
-			return tc.MustStartVmsingleAt("vmsingle-legacy", legacyVmsinglePath, []string{
+			return tc.MustStartLegacyVmsingleAt("vmsingle-legacy", legacyVmsinglePath, []string{
 				"-storageDataPath=" + storageDataPath,
 				"-retentionPeriod=100y",
 				"-search.disableCache=true",
@@ -583,7 +583,7 @@ func TestLegacySingleDowngrade(t *testing.T) {
 
 	opts := testLegacyDowngradeOpts{
 		startLegacySUT: func() at.PrometheusWriteQuerier {
-			return tc.MustStartVmsingleAt("vmsingle-legacy", legacyVmsinglePath, []string{
+			return tc.MustStartLegacyVmsingleAt("vmsingle-legacy", legacyVmsinglePath, []string{
 				"-storageDataPath=" + storageDataPath,
 				"-retentionPeriod=100y",
 				"-search.disableCache=true",

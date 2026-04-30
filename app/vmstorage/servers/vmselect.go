@@ -4,10 +4,12 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"slices"
 	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -89,6 +91,11 @@ func (api *vmstorageAPI) InitSearch(qt *querytracer.Tracer, sq *storage.SearchQu
 		bi.MustClose()
 		return nil, err
 	}
+	// Initialize block iterator with the tenantID which will be added to the
+	// metric name of every block. See bi.NextBlock().
+	bi.tenantID = make([]byte, 0, 8)
+	bi.tenantID = encoding.MarshalUint32(bi.tenantID, sq.AccountID)
+	bi.tenantID = encoding.MarshalUint32(bi.tenantID, sq.ProjectID)
 	return bi, nil
 }
 
@@ -110,7 +117,24 @@ func (api *vmstorageAPI) SearchMetricNames(qt *querytracer.Tracer, sq *storage.S
 	if len(tfss) == 0 {
 		return nil, fmt.Errorf("missing tag filters")
 	}
-	return api.s.SearchMetricNames(qt, tfss, tr, maxMetrics, deadline)
+
+	metricNames, err := api.s.SearchMetricNames(qt, tfss, tr, maxMetrics, deadline)
+	if err != nil {
+		return nil, err
+	}
+
+	// vmselect expects metric names to have the tenantID but vmsingle does not
+	// have it. Therefore the tenantID needs to be appended to every metric
+	// name.
+	dst := make([]byte, 0, 8)
+	dst = encoding.MarshalUint32(dst, sq.AccountID)
+	dst = encoding.MarshalUint32(dst, sq.ProjectID)
+	tenantID := string(dst)
+
+	for i, metricName := range metricNames {
+		metricNames[i] = tenantID + metricName
+	}
+	return metricNames, nil
 }
 
 func (api *vmstorageAPI) LabelValues(qt *querytracer.Tracer, sq *storage.SearchQuery, labelName string, maxLabelValues int, deadline uint64) ([]string, error) {
@@ -269,8 +293,9 @@ func (api *vmstorageAPI) GetMetadataRecords(qt *querytracer.Tracer, tt *storage.
 
 // blockIterator implements vmselectapi.BlockIterator
 type blockIterator struct {
-	sr storage.Search
-	mb storage.MetricBlock
+	sr       storage.Search
+	mb       storage.MetricBlock
+	tenantID []byte
 }
 
 var blockIteratorsPool sync.Pool
@@ -279,6 +304,7 @@ func (bi *blockIterator) MustClose() {
 	bi.sr.MustClose()
 	bi.mb.MetricName = nil
 	bi.mb.Block.Reset()
+	bi.tenantID = nil
 	blockIteratorsPool.Put(bi)
 }
 
@@ -295,9 +321,16 @@ func (bi *blockIterator) NextBlock(dst []byte) ([]byte, bool) {
 		return dst, false
 	}
 	mb := bi.mb
-	mb.MetricName = bi.sr.MetricBlockRef.MetricName
+
+	// vmselect expects metric names to have the tenantID but vmsingle does not
+	// have it. Therefore the tenantID needs to be included to every metric
+	// name and block.
+	mb.MetricName = slices.Concat(bi.tenantID, bi.sr.MetricBlockRef.MetricName)
 	bi.sr.MetricBlockRef.BlockRef.MustReadBlock(&mb.Block)
-	dst = mb.Marshal(dst[:0])
+	dst = encoding.MarshalBytes(dst, mb.MetricName)
+	dst = append(dst, bi.tenantID...)
+	dst = storage.MarshalBlock(dst, &mb.Block)
+
 	return dst, true
 }
 

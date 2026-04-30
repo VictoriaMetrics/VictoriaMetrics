@@ -92,9 +92,6 @@ func (tc *TestCase) MustStartDefaultVmsingle() *Vmsingle {
 // fails to start.
 func (tc *TestCase) MustStartVmsingle(instance string, flags []string) *Vmsingle {
 	tc.t.Helper()
-	// TODO(rtm0): Move to defaultFlags in vmsingle.go. Currently does not work
-	// because legacy vmsingle does not have this flag.
-	flags = append(flags, "-vmselectAddr=127.0.0.1:0")
 	return tc.MustStartVmsingleAt(instance, "../../bin/victoria-metrics-race", flags)
 }
 
@@ -111,9 +108,23 @@ func (tc *TestCase) MustStartVmsingleAt(instance, binary string, flags []string)
 	return app
 }
 
+// MustStartLegacyVmsingleAt is a test helper function that starts an instance
+// of vmsingle v1.132.0 (last version before pt-index) and fails the test if the
+// app fails to start.
+func (tc *TestCase) MustStartLegacyVmsingleAt(instance, binary string, flags []string) *Vmsingle {
+	tc.t.Helper()
+
+	app, err := StartLegacyVmsingleAt(instance, binary, flags, tc.cli, tc.output)
+	if err != nil {
+		tc.t.Fatalf("Could not start %s: %v", instance, err)
+	}
+	tc.addApp(instance, app)
+	return app
+}
+
 // MustStartVmstorage is a test helper function that starts an instance of
-// vmstorage located at ../../bin/vmstorage-race and fails the test if the app fails
-// to start.
+// vmstorage located at ../../bin/vmstorage-race and fails the test if the app
+// fails to start.
 func (tc *TestCase) MustStartVmstorage(instance string, flags []string) *Vmstorage {
 	tc.t.Helper()
 	return tc.MustStartVmstorageAt(instance, "../../bin/vmstorage-race", flags)
@@ -121,7 +132,7 @@ func (tc *TestCase) MustStartVmstorage(instance string, flags []string) *Vmstora
 
 // MustStartVmstorageAt is a test helper function that starts an instance of
 // vmstorage and fails the test if the app fails to start.
-func (tc *TestCase) MustStartVmstorageAt(instance string, binary string, flags []string) *Vmstorage {
+func (tc *TestCase) MustStartVmstorageAt(instance, binary string, flags []string) *Vmstorage {
 	tc.t.Helper()
 
 	app, err := StartVmstorageAt(instance, binary, flags, tc.cli, tc.output)
@@ -133,11 +144,19 @@ func (tc *TestCase) MustStartVmstorageAt(instance string, binary string, flags [
 }
 
 // MustStartVmselect is a test helper function that starts an instance of
-// vmselect and fails the test if the app fails to start.
+// vmselect located at ../../bin/vmselect-race and fails the test if the app
+// fails to start.
 func (tc *TestCase) MustStartVmselect(instance string, flags []string) *Vmselect {
 	tc.t.Helper()
+	return tc.MustStartVmselectAt(instance, "../../bin/vmselect-race", flags)
+}
 
-	app, err := StartVmselect(instance, flags, tc.cli, tc.output)
+// MustStartVmselectAt is a test helper function that starts an instance of
+// vmselect and fails the test if the app fails to start.
+func (tc *TestCase) MustStartVmselectAt(instance, binary string, flags []string) *Vmselect {
+	tc.t.Helper()
+
+	app, err := StartVmselectAt(instance, binary, flags, tc.cli, tc.output)
 	if err != nil {
 		tc.t.Fatalf("Could not start %s: %v", instance, err)
 	}
