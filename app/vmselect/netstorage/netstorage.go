@@ -800,6 +800,9 @@ func RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, deadli
 	qt = qt.NewChild("register metric names")
 	defer qt.Done()
 	sns := getStorageNodes()
+	if len(sns) == 0 {
+		return RegisterMetricNamesOnHTTPNodes(qt, mrs, deadline)
+	}
 	// Split mrs among available vmstorage nodes.
 	mrsPerNode := make([][]storage.MetricRow, len(sns))
 	for _, mr := range mrs {
@@ -849,6 +852,9 @@ func DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 		return 0, err
 	}
 	sns := getStorageNodes()
+	if len(sns) == 0 {
+		return DeleteSeriesFromHTTPNodes(qt, sq, deadline)
+	}
 	snr := startStorageNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
 		return execSearchQuery(qt, sq, func(qt *querytracer.Tracer, requestData []byte, _ storage.TenantToken) any {
 			sn.deleteSeriesRequests.Inc()
@@ -898,6 +904,9 @@ func LabelNames(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.Se
 		return nil, false, err
 	}
 	sns := getStorageNodes()
+	if len(sns) == 0 {
+		return LabelNamesFromHTTPNodes(qt, denyPartialResponse, sq, maxLabelNames, deadline)
+	}
 	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
 		return execSearchQuery(qt, sq, func(qt *querytracer.Tracer, requestData []byte, _ storage.TenantToken) any {
 			sn.labelNamesRequests.Inc()
@@ -1003,6 +1012,9 @@ func LabelValues(qt *querytracer.Tracer, denyPartialResponse bool, labelName str
 	}
 
 	if sq.IsMultiTenant && isTenancyLabel(labelName) {
+		// Tenancy labels (vm_account_id, vm_project_id) are derived locally from the
+		// request's TenantTokens. No storage or HTTP node query is needed, and this
+		// path is correct for both TCP and HTTP cluster modes.
 		labelValues := make([]string, 0, len(sq.TenantTokens))
 		for _, t := range sq.TenantTokens {
 			v := t.AccountID
@@ -1022,6 +1034,9 @@ func LabelValues(qt *querytracer.Tracer, denyPartialResponse bool, labelName str
 		err         error
 	}
 	sns := getStorageNodes()
+	if len(sns) == 0 {
+		return LabelValuesFromHTTPNodes(qt, denyPartialResponse, labelName, sq, maxLabelValues, deadline)
+	}
 	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
 		return execSearchQuery(qt, sq, func(qt *querytracer.Tracer, requestData []byte, _ storage.TenantToken) any {
 			sn.labelValuesRequests.Inc()
@@ -1085,6 +1100,9 @@ func Tenants(qt *querytracer.Tracer, tr storage.TimeRange, deadline searchutil.D
 		err     error
 	}
 	sns := getStorageNodes()
+	if len(sns) == 0 {
+		return TenantsFromHTTPNodes(qt, tr, deadline)
+	}
 	// Deny partial responses when obtaining the list of tenants, since partial tenants have little sense.
 	snr := startStorageNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
 		sn.tenantsRequests.Inc()
@@ -1135,6 +1153,9 @@ func GetMetricsMetadata(qt *querytracer.Tracer, tt *storage.TenantToken, denyPar
 		err      error
 	}
 	sns := getStorageNodes()
+	if len(sns) == 0 {
+		return GetMetadataFromHTTPNodes(qt, tt, denyPartialResponse, limit, metricName, deadline)
+	}
 	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
 		sn.metricsMetadataRequests.Inc()
 		metadata, err := sn.getMetricsMetadata(qt, tt, limit, metricName, deadline)
@@ -1215,6 +1236,9 @@ func TagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, denyP
 		err      error
 	}
 	sns := getStorageNodes()
+	if len(sns) == 0 {
+		return TagValueSuffixesFromHTTPNodes(qt, accountID, projectID, denyPartialResponse, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes, deadline)
+	}
 	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
 		sn.tagValueSuffixesRequests.Inc()
 		suffixes, err := sn.getTagValueSuffixes(qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes, deadline)
@@ -1283,6 +1307,9 @@ func TSDBStatus(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.Se
 		return nil, false, err
 	}
 	sns := getStorageNodes()
+	if len(sns) == 0 {
+		return TSDBStatusFromHTTPNodes(qt, denyPartialResponse, sq, focusLabel, topN, deadline)
+	}
 	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
 		return execSearchQuery(qt, sq, func(qt *querytracer.Tracer, requestData []byte, _ storage.TenantToken) any {
 			sn.tsdbStatusRequests.Inc()
@@ -1414,6 +1441,9 @@ func SeriesCount(qt *querytracer.Tracer, accountID, projectID uint32, denyPartia
 		err error
 	}
 	sns := getStorageNodes()
+	if len(sns) == 0 {
+		return SeriesCountFromHTTPNodes(qt, accountID, projectID, denyPartialResponse, deadline)
+	}
 	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
 		sn.seriesCountRequests.Inc()
 		n, err := sn.getSeriesCount(qt, accountID, projectID, deadline)
@@ -1538,7 +1568,13 @@ func (tbfwLocal *tmpBlocksFileWrapperShard) newBlockAddrs() int {
 }
 
 func newTmpBlocksFileWrapper(sns []*storageNode) *tmpBlocksFileWrapper {
-	n := len(sns)
+	return newTmpBlocksFileWrapperN(len(sns))
+}
+
+func newTmpBlocksFileWrapperN(n int) *tmpBlocksFileWrapper {
+	if n == 0 {
+		n = 1
+	}
 	shards := make([]tmpBlocksFileWrapperShardWithPadding, n)
 	return &tmpBlocksFileWrapper{
 		shards: shards,
@@ -1740,6 +1776,9 @@ func SearchMetricNames(qt *querytracer.Tracer, denyPartialResponse bool, sq *sto
 		return nil, false, err
 	}
 	sns := getStorageNodes()
+	if len(sns) == 0 {
+		return SearchMetricNamesFromHTTPNodes(qt, denyPartialResponse, sq, deadline)
+	}
 	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
 		return execSearchQuery(qt, sq, func(qt *querytracer.Tracer, requestData []byte, t storage.TenantToken) any {
 			sn.searchMetricNamesRequests.Inc()
@@ -1823,12 +1862,16 @@ func ProcessSearchQuery(qt *querytracer.Tracer, denyPartialResponse bool, sq *st
 		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
 
+	sns := getStorageNodes()
+	if len(sns) == 0 {
+		return processSearchQueryOnHTTPNodes(qt, denyPartialResponse, sq, deadline)
+	}
+
 	// Setup search.
 	tr := storage.TimeRange{
 		MinTimestamp: sq.MinTimestamp,
 		MaxTimestamp: sq.MaxTimestamp,
 	}
-	sns := getStorageNodes()
 	tbfw := newTmpBlocksFileWrapper(sns)
 	blocksRead := newPerNodeCounter(sns)
 	samples := newPerNodeCounter(sns)
@@ -1859,6 +1902,94 @@ func ProcessSearchQuery(qt *querytracer.Tracer, denyPartialResponse bool, sq *st
 		tbfw.closeTmpBlockFiles()
 		return nil, false, fmt.Errorf("error occured during search: %w", err)
 	}
+	return finalizeSearchResults(qt, tbfw, blocksRead, samples, tr, sq, deadline, isPartial)
+}
+
+// PrepareProcessRawBlocks prepares metric blocks processor.
+//
+// Returns workers count and processBlocks function.
+// Supports both TCP-based storage nodes and HTTP-based select nodes.
+func PrepareProcessRawBlocks(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.SearchQuery,
+	deadline searchutil.Deadline,
+) (int, func(processBlock func(mb []byte, workerID uint) error) (bool, error)) {
+	sns := getStorageNodes()
+	if len(sns) > 0 {
+		return len(sns), func(processBlock func(mb []byte, workerID uint) error) (bool, error) {
+			return processBlocksInternal(qt, sns, denyPartialResponse, sq, processBlock, deadline)
+		}
+	}
+
+	// Fall back to HTTP-based select nodes if no TCP storage nodes are configured
+	httpSelectNodes := getHTTPSelectNodes()
+	if len(httpSelectNodes) > 0 {
+		// Use a single worker for HTTP select nodes since they handle parallelization internally
+		return 1, func(processBlock func(mb []byte, workerID uint) error) (bool, error) {
+			return ProcessSearchQueryOnHTTPNodes(qt, denyPartialResponse, sq, processBlock, deadline)
+		}
+	}
+
+	// No storage nodes available
+	return 0, func(processBlock func(mb []byte, workerID uint) error) (bool, error) {
+		return false, fmt.Errorf("no storage nodes or cluster select nodes configured")
+	}
+}
+
+// processSearchQueryOnHTTPNodes handles search on HTTP-based select nodes and returns Results.
+func processSearchQueryOnHTTPNodes(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.SearchQuery, deadline searchutil.Deadline) (*Results, bool, error) {
+	nodes := getHTTPSelectNodes()
+	if len(nodes) == 0 {
+		return nil, false, fmt.Errorf("no storage nodes or cluster select nodes configured")
+	}
+
+	tr := storage.TimeRange{
+		MinTimestamp: sq.MinTimestamp,
+		MaxTimestamp: sq.MaxTimestamp,
+	}
+	numWorkers := len(nodes)
+	tbfw := newTmpBlocksFileWrapperN(numWorkers)
+	blocksRead := newPerNodeCounterN(numWorkers)
+	samples := newPerNodeCounterN(numWorkers)
+	maxSamplesPerWorker := uint64(*maxSamplesPerQuery) / uint64(numWorkers)
+
+	processBlock := func(rawBlock []byte, workerID uint) error {
+		var mb storage.MetricBlock
+		tail, err := mb.Unmarshal(rawBlock)
+		if err != nil {
+			return fmt.Errorf("cannot unmarshal MetricBlock from %d bytes: %w", len(rawBlock), err)
+		}
+		if len(tail) > 0 {
+			return fmt.Errorf("non-empty tail after unmarshaling MetricBlock: (len=%d) %q", len(tail), tail)
+		}
+
+		blocksRead.Add(workerID, 1)
+		n := samples.Add(workerID, uint64(mb.Block.RowsCount()))
+		if *maxSamplesPerQuery > 0 && n > maxSamplesPerWorker && samples.GetTotal() > uint64(*maxSamplesPerQuery) {
+			return &limitExceededErr{
+				err: fmt.Errorf("cannot select more than -search.maxSamplesPerQuery=%d samples; possible solutions: "+
+					"increase the -search.maxSamplesPerQuery; reduce time range for the query; "+
+					"use more specific label filters in order to select fewer series", *maxSamplesPerQuery),
+			}
+		}
+
+		if err := tbfw.RegisterAndWriteBlock(&mb, workerID); err != nil {
+			return fmt.Errorf("cannot write MetricBlock to temporary blocks file: %w", err)
+		}
+		return nil
+	}
+
+	isPartial, err := ProcessSearchQueryOnHTTPNodes(qt, denyPartialResponse, sq, processBlock, deadline)
+	if err != nil {
+		tbfw.closeTmpBlockFiles()
+		return nil, false, fmt.Errorf("error occurred during search on HTTP nodes: %w", err)
+	}
+	return finalizeSearchResults(qt, tbfw, blocksRead, samples, tr, sq, deadline, isPartial)
+}
+
+// finalizeSearchResults assembles Results from a completed block scan.
+// Shared by both the TCP and HTTP search paths to avoid logic duplication.
+func finalizeSearchResults(qt *querytracer.Tracer, tbfw *tmpBlocksFileWrapper, blocksRead, samples *perNodeCounter,
+	tr storage.TimeRange, sq *storage.SearchQuery, deadline searchutil.Deadline, isPartial bool,
+) (*Results, bool, error) {
 	orderedMetricNames, addrssPool, m, bytesTotal, err := tbfw.Finalize()
 	if err != nil {
 		return nil, false, fmt.Errorf("cannot finalize temporary blocks files: %w", err)
@@ -1879,18 +2010,6 @@ func ProcessSearchQuery(qt *querytracer.Tracer, denyPartialResponse bool, sq *st
 	rss.shouldConvertTenantToLabels = sq.IsMultiTenant
 	rss.packedTimeseries = pts
 	return &rss, isPartial, nil
-}
-
-// PrepareProcessRawBlocks prepares metric blocks processor.
-//
-// Returns workers count and processBlocks function
-func PrepareProcessRawBlocks(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.SearchQuery,
-	deadline searchutil.Deadline,
-) (int, func(processBlock func(mb []byte, workerID uint) error) (bool, error)) {
-	sns := getStorageNodes()
-	return len(sns), func(processBlock func(mb []byte, workerID uint) error) (bool, error) {
-		return processBlocksInternal(qt, sns, denyPartialResponse, sq, processBlock, deadline)
-	}
 }
 
 func processBlocks(qt *querytracer.Tracer, sns []*storageNode, denyPartialResponse bool, sq *storage.SearchQuery,
@@ -3189,6 +3308,9 @@ func setStorageNodesBucket(snb *storageNodesBucket) {
 
 func getStorageNodes() []*storageNode {
 	snb := getStorageNodesBucket()
+	if snb == nil {
+		return nil
+	}
 	return snb.sns
 }
 
@@ -3203,6 +3325,10 @@ func Init(addrs []string) {
 // MustStop gracefully stops netstorage.
 func MustStop() {
 	snb := getStorageNodesBucket()
+	if snb == nil {
+		// Init was never called (e.g. HTTP-only mode via -clusterSelectNode).
+		return
+	}
 	mustStopStorageNodes(snb)
 }
 
@@ -3331,8 +3457,15 @@ type perNodeCounter struct {
 }
 
 func newPerNodeCounter(sns []*storageNode) *perNodeCounter {
+	return newPerNodeCounterN(len(sns))
+}
+
+func newPerNodeCounterN(n int) *perNodeCounter {
+	if n == 0 {
+		n = 1
+	}
 	return &perNodeCounter{
-		ns: make([]uint64WithPadding, len(sns)),
+		ns: make([]uint64WithPadding, n),
 	}
 }
 
