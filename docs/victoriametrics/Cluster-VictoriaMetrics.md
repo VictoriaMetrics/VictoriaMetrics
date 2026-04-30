@@ -357,6 +357,38 @@ Data replication can be used for increasing storage durability. See [these docs]
 
 ### Multi-level cluster setup
 
+`vmselect` nodes can be chained to build multi-level cluster topologies. Two modes are supported:
+
+**HTTP-based mode (recommended)** uses the `-clusterSelectNode` flag and communicates over the standard HTTP API.
+The upper-level `vmselect` fans out queries to lower-level `vmselect` nodes and merges their responses,
+including the `isPartial` flag, so partial-response detection works correctly end-to-end.
+
+Start each lower-level `vmselect` normally (with `-storageNode` pointing to local `vmstorage` nodes):
+
+```bash
+# Lower-level vmselect in AZ-1
+/path/to/vmselect -storageNode=vmstorage-az1:8401 -httpListenAddr=:8481
+
+# Lower-level vmselect in AZ-2
+/path/to/vmselect -storageNode=vmstorage-az2:8401 -httpListenAddr=:8481
+```
+
+Then start the upper-level `vmselect` with `-clusterSelectNode` pointing to the addresses of the lower-level nodes.
+Addresses must be in `host:port` format (without scheme):
+
+```bash
+/path/to/vmselect \
+  -clusterSelectNode=vmselect-az1:8481 \
+  -clusterSelectNode=vmselect-az2:8481 \
+  -httpListenAddr=:8481
+```
+
+Multiple addresses can be supplied as a comma-separated list or by repeating the flag.
+`-clusterSelectNode` and `-storageNode` are mutually exclusive — use one or the other.
+
+**TCP-based mode (legacy)** uses the `-clusternativeListenAddr` flag on lower-level nodes and the `-storageNode` flag
+on the upper-level node to connect over a proprietary binary protocol.
+
 `vmselect` nodes can be queried by other `vmselect` nodes if they run with `-clusternativeListenAddr` command-line flag.
 For example, if `vmselect` is started with `-clusternativeListenAddr=:8401`, then it can accept queries from another `vmselect` nodes at TCP port 8401
 in the same way as `vmstorage` nodes do. This allows chaining `vmselect` nodes and building multi-level cluster topologies.

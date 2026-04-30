@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"regexp"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -23,21 +24,46 @@ type Vmselect struct {
 
 // StartVmselect starts an instance of vmselect with the given flags. It also
 // sets the default flags and populates the app instance state with runtime
-// values extracted from the application log (such as httpListenAddr)
+// values extracted from the application log (such as httpListenAddr).
+//
+// Two connectivity modes are supported:
+//   - TCP mode (default): -storageNode points to vmstorage or a lower-level
+//     vmselect's clusternative address. The clusternative TCP listener is
+//     started by default and its address is extracted from the startup log.
+//   - HTTP mode: -clusterSelectNode points to lower-level vmselect nodes via
+//     their HTTP address. In this mode the clusternative TCP listener is not
+//     required and is not started, so only the HTTP listen address is extracted.
 func StartVmselect(instance string, flags []string, cli *Client, output io.Writer) (*Vmselect, error) {
+	defaultFlags := map[string]string{
+		"-httpListenAddr":          "127.0.0.1:0",
+		"-clusternativeListenAddr": "127.0.0.1:0",
+	}
+	extractREs := []*regexp.Regexp{
+		httpListenAddrRE,
+		vmselectAddrRE,
+	}
+
+	// HTTP-based cluster select mode: the vmselect connects to lower-level nodes
+	// via HTTP instead of the clusternative TCP protocol. The clusternative
+	// listener is not needed and would produce a log line that is never matched,
+	// causing startApp to time out waiting for it.
+	if hasFlag(flags, "-clusterSelectNode") {
+		delete(defaultFlags, "-clusternativeListenAddr")
+		extractREs = extractREs[:1] // only httpListenAddrRE
+	}
+
 	app, stderrExtracts, err := startApp(instance, "../../bin/vmselect-race", flags, &appOptions{
-		defaultFlags: map[string]string{
-			"-httpListenAddr":          "127.0.0.1:0",
-			"-clusternativeListenAddr": "127.0.0.1:0",
-		},
-		extractREs: []*regexp.Regexp{
-			httpListenAddrRE,
-			vmselectAddrRE,
-		},
-		output: output,
+		defaultFlags: defaultFlags,
+		extractREs:   extractREs,
+		output:       output,
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	clusternativeListenAddr := ""
+	if len(stderrExtracts) > 1 {
+		clusternativeListenAddr = stderrExtracts[1]
 	}
 
 	return &Vmselect{
@@ -47,9 +73,20 @@ func StartVmselect(instance string, flags []string, cli *Client, output io.Write
 			cli:        cli,
 		},
 		httpListenAddr:          stderrExtracts[0],
-		clusternativeListenAddr: stderrExtracts[1],
+		clusternativeListenAddr: clusternativeListenAddr,
 		cli:                     cli,
 	}, nil
+}
+
+// hasFlag reports whether any element of flags starts with the given flagName.
+// It mirrors the prefix-matching convention used by setDefaultFlags in app.go.
+func hasFlag(flags []string, flagName string) bool {
+	for _, f := range flags {
+		if strings.HasPrefix(f, flagName) {
+			return true
+		}
+	}
+	return false
 }
 
 // ClusternativeListenAddr returns the address at which the vmselect process is
