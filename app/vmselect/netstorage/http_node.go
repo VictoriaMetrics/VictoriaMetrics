@@ -44,6 +44,10 @@ type httpSelectNode struct {
 	// e.g. "vmselect-lower:8481".
 	baseURL string
 
+	// authKey is sent as the authKey query parameter on every request.
+	// It matches -clusterSelectInternalAuthKey on the receiving vmselect.
+	authKey string
+
 	// httpClient is used for sending HTTP requests.
 	httpClient *http.Client
 
@@ -74,10 +78,11 @@ type httpSelectNode struct {
 }
 
 // newHTTPSelectNode creates a new httpSelectNode for the given URL.
-func newHTTPSelectNode(ms *metrics.Set, baseURL string) *httpSelectNode {
+func newHTTPSelectNode(ms *metrics.Set, baseURL string, authKey string) *httpSelectNode {
 	baseURL = strings.TrimRight(baseURL, "/")
 	return &httpSelectNode{
 		baseURL: baseURL,
+		authKey: authKey,
 		httpClient: &http.Client{
 			Timeout: 0, // no global timeout; per-request deadline is used
 		},
@@ -116,7 +121,7 @@ func (sn *httpSelectNode) addr() string {
 // doPost sends a POST request to the given endpoint with the given body.
 // It sets required headers and returns the response.
 func (sn *httpSelectNode) doPost(qt *querytracer.Tracer, action string, body []byte, deadline searchutil.Deadline) (*http.Response, error) {
-	url := buildInternalURL(sn.baseURL, action)
+	url := buildInternalURL(sn.baseURL, action, sn.authKey)
 
 	d := time.Unix(int64(deadline.Deadline()), 0)
 	nowSecs := fasttime.UnixTimestamp()
@@ -145,11 +150,22 @@ func (sn *httpSelectNode) doPost(qt *querytracer.Tracer, action string, body []b
 	return resp, nil
 }
 
-func buildInternalURL(baseURL, action string) string {
+func buildInternalURL(baseURL, action, authKey string) string {
+	host := baseURL
+	// baseURL may be "host:port" (production) or "scheme://host:port" (tests / pre-parsed URLs).
+	// url.URL.Host must not include the scheme, so strip it when present.
+	if strings.Contains(baseURL, "://") {
+		if parsed, err := url.Parse(baseURL); err == nil {
+			host = parsed.Host
+		}
+	}
 	u := url.URL{
 		Scheme: "http",
-		Host:   baseURL,
+		Host:   host,
 		Path:   path.Join(httpInternalPath, action),
+	}
+	if authKey != "" {
+		u.RawQuery = "authKey=" + url.QueryEscape(authKey)
 	}
 	return u.String()
 }

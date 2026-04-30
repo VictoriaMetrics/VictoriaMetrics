@@ -36,16 +36,17 @@ type httpSelectNodesBucketType struct {
 
 // InitHTTPSelectNodes initializes HTTP-based vmselect node connections.
 // addrs must be in "host:port" format pointing to lower-level vmselect instances.
+// authKey is sent as the authKey query parameter on every request; it must match
+// -clusterSelectInternalAuthKey on the receiving nodes.
 // MustStopHTTPSelectNodes must be called when these connections are no longer needed.
-func InitHTTPSelectNodes(addrs []string) {
+func InitHTTPSelectNodes(addrs []string, authKey string) {
 	if len(addrs) == 0 {
 		return
 	}
 	ms := metrics.NewSet()
 	nodes := make([]*httpSelectNode, 0, len(addrs))
 	for _, addr := range addrs {
-		u := addr
-		n := newHTTPSelectNode(ms, u)
+		n := newHTTPSelectNode(ms, addr, authKey)
 		nodes = append(nodes, n)
 	}
 	metrics.RegisterSet(ms)

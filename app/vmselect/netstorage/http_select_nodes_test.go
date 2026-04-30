@@ -18,14 +18,14 @@ import (
 // MustStopHTTPSelectNodes can be called multiple times without panicking.
 func TestInitStopHTTPSelectNodes(t *testing.T) {
 	for range 3 {
-		InitHTTPSelectNodes([]string{"localhost:8481", "localhost:8482"})
+		InitHTTPSelectNodes([]string{"localhost:8481", "localhost:8482"}, "")
 		MustStopHTTPSelectNodes()
 	}
 }
 
 // TestInitHTTPSelectNodesEmpty verifies that Init with an empty slice is a no-op.
 func TestInitHTTPSelectNodesEmpty(t *testing.T) {
-	InitHTTPSelectNodes(nil)
+	InitHTTPSelectNodes(nil, "")
 	if nodes := getHTTPSelectNodes(); len(nodes) != 0 {
 		t.Errorf("expected no nodes, got %d", len(nodes))
 	}
@@ -77,7 +77,7 @@ func TestLabelNamesFromHTTPNodesMultipleNodes(t *testing.T) {
 	defer ts2.Close()
 
 	MustStopHTTPSelectNodes()
-	InitHTTPSelectNodes([]string{ts1.URL, ts2.URL})
+	InitHTTPSelectNodes([]string{ts1.URL, ts2.URL}, "")
 	defer MustStopHTTPSelectNodes()
 
 	qt := querytracer.New(false, "test")
@@ -114,7 +114,7 @@ func TestLabelNamesFromHTTPNodesPartialResponseAllowed(t *testing.T) {
 	defer ts2.Close()
 
 	MustStopHTTPSelectNodes()
-	InitHTTPSelectNodes([]string{ts1.URL, ts2.URL})
+	InitHTTPSelectNodes([]string{ts1.URL, ts2.URL}, "")
 	defer MustStopHTTPSelectNodes()
 
 	qt := querytracer.New(false, "test")
@@ -143,7 +143,7 @@ func TestLabelNamesFromHTTPNodesDenyPartial(t *testing.T) {
 	defer ts.Close()
 
 	MustStopHTTPSelectNodes()
-	InitHTTPSelectNodes([]string{ts.URL})
+	InitHTTPSelectNodes([]string{ts.URL}, "")
 	defer MustStopHTTPSelectNodes()
 
 	qt := querytracer.New(false, "test")
@@ -163,7 +163,7 @@ func TestLabelNamesFromHTTPNodesIsPartialPropagated(t *testing.T) {
 	defer ts.Close()
 
 	MustStopHTTPSelectNodes()
-	InitHTTPSelectNodes([]string{ts.URL})
+	InitHTTPSelectNodes([]string{ts.URL}, "")
 	defer MustStopHTTPSelectNodes()
 
 	qt := querytracer.New(false, "test")
@@ -198,7 +198,7 @@ func TestTenantsFromHTTPNodesMultipleNodes(t *testing.T) {
 	defer ts2.Close()
 
 	MustStopHTTPSelectNodes()
-	InitHTTPSelectNodes([]string{ts1.URL, ts2.URL})
+	InitHTTPSelectNodes([]string{ts1.URL, ts2.URL}, "")
 	defer MustStopHTTPSelectNodes()
 
 	qt := querytracer.New(false, "test")
@@ -230,7 +230,7 @@ func TestSeriesCountFromHTTPNodesMultipleNodes(t *testing.T) {
 	defer ts2.Close()
 
 	MustStopHTTPSelectNodes()
-	InitHTTPSelectNodes([]string{ts1.URL, ts2.URL})
+	InitHTTPSelectNodes([]string{ts1.URL, ts2.URL}, "")
 	defer MustStopHTTPSelectNodes()
 
 	qt := querytracer.New(false, "test")
@@ -356,7 +356,7 @@ func TestProcessSearchQueryOnHTTPNodesMultipleNodes(t *testing.T) {
 	defer ts2.Close()
 
 	MustStopHTTPSelectNodes()
-	InitHTTPSelectNodes([]string{ts1.URL, ts2.URL})
+	InitHTTPSelectNodes([]string{ts1.URL, ts2.URL}, "")
 	defer MustStopHTTPSelectNodes()
 
 	qt := querytracer.New(false, "test")

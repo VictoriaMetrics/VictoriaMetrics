@@ -22,7 +22,7 @@ func testHTTPDeadline() searchutil.Deadline {
 }
 
 func testHTTPNode(ts *httptest.Server) *httpSelectNode {
-	return newHTTPSelectNode(metrics.NewSet(), ts.URL)
+	return newHTTPSelectNode(metrics.NewSet(), ts.URL, "")
 }
 
 func testQT() *querytracer.Tracer {
@@ -49,7 +49,7 @@ func writeStringsResponse(w http.ResponseWriter, data []string, isPartial bool) 
 // TestHTTPSelectNodeAddr verifies that addr() returns the base URL.
 func TestHTTPSelectNodeAddr(t *testing.T) {
 	ms := metrics.NewSet()
-	sn := newHTTPSelectNode(ms, "vmselect:8481")
+	sn := newHTTPSelectNode(ms, "vmselect:8481", "")
 	if sn.addr() != "vmselect:8481" {
 		t.Fatalf("unexpected addr: %q", sn.addr())
 	}
