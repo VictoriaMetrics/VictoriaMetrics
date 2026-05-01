@@ -29,6 +29,9 @@ type Restore struct {
 	// Concurrency is the number of concurrent workers to run during restore.
 	Concurrency int
 
+	// ConcurrencyPerFile is the maximum number of concurrent workers to run for a single restored file.
+	ConcurrencyPerFile int
+
 	// Src is the source containing backed up data.
 	Src common.RemoteFS
 
@@ -177,25 +180,7 @@ func (r *Restore) Run(ctx context.Context) error {
 		}
 		logger.Infof("downloading %d parts from %s to %s", len(partsToCopy), src, dst)
 		var bytesDownloaded atomic.Uint64
-		err = runParallelPerPath(ctx, concurrency, perPath, func(parts []common.Part) error {
-			// Sort partsToCopy in order to properly grow file size during downloading
-			common.SortParts(parts)
-			if !r.SkipPreallocation {
-				if err := dst.PreallocateFile(parts[0]); err != nil {
-					return fmt.Errorf("cannot preallocate %s: %w", parts[0].Path, err)
-				}
-			}
-			for _, p := range parts {
-				logger.Infof("downloading %s from %s to %s", &p, src, dst)
-				if err := pipelinedDownload(src, dst, p, &bytesDownloaded); err != nil {
-					return err
-				}
-			}
-			if err := dst.FinalizeFile(parts[0]); err != nil {
-				return fmt.Errorf("cannot finalize %s: %w", parts[0].Path, err)
-			}
-			return nil
-		}, func(elapsed time.Duration) {
+		err = r.runParallelPerPath(ctx, concurrency, perPath, &bytesDownloaded, func(elapsed time.Duration) {
 			if elapsed.Seconds() <= 0 {
 				// The only way for this to happen is when the operation is immediately canceled.
 				// There is no need to log progress in this case, and this prevents division by zero below.
@@ -219,6 +204,148 @@ func (r *Restore) Run(ctx context.Context) error {
 
 	removeRestoreLock(r.Dst.Dir)
 	return nil
+}
+
+func (r *Restore) runParallelPerPath(ctx context.Context, concurrency int, perPath map[string][]common.Part, bytesDownloaded *atomic.Uint64, progress func(elapsed time.Duration)) error {
+	var err error
+	runWithProgress(progress, func() {
+		err = r.runParallelPerPathInternal(ctx, concurrency, perPath, bytesDownloaded)
+	})
+	return err
+}
+
+func (r *Restore) runParallelPerPathInternal(ctx context.Context, concurrency int, perPath map[string][]common.Part, bytesDownloaded *atomic.Uint64) error {
+	if concurrency <= 0 {
+		concurrency = 1
+	}
+	if len(perPath) == 0 {
+		return nil
+	}
+
+	concurrencyPerFile := r.ConcurrencyPerFile
+	if concurrencyPerFile <= 0 {
+		concurrencyPerFile = 1
+	}
+	concurrencyPerFile = min(concurrencyPerFile, concurrency)
+
+	ctxLocal, cancelLocal := context.WithCancel(ctx)
+	defer cancelLocal()
+
+	globalConcurrencyCh := make(chan struct{}, concurrency)
+	pathConcurrencyCh := make(chan struct{}, concurrency)
+
+	var errMu sync.Mutex
+	var firstErr error
+	setErr := func(err error) {
+		if err == nil {
+			return
+		}
+		errMu.Lock()
+		if firstErr == nil {
+			firstErr = err
+			cancelLocal()
+		}
+		errMu.Unlock()
+	}
+
+	var wg sync.WaitGroup
+	for _, parts := range perPath {
+		parts := parts
+		if err := acquireRestoreSlot(ctxLocal, pathConcurrencyCh); err != nil {
+			setErr(err)
+			break
+		}
+		wg.Go(func() {
+			defer releaseRestoreSlot(pathConcurrencyCh)
+			if err := r.downloadPath(ctxLocal, parts, concurrencyPerFile, globalConcurrencyCh, bytesDownloaded); err != nil {
+				setErr(err)
+			}
+		})
+	}
+	wg.Wait()
+
+	errMu.Lock()
+	err := firstErr
+	errMu.Unlock()
+	return err
+}
+
+func (r *Restore) downloadPath(ctx context.Context, parts []common.Part, concurrencyPerFile int, globalConcurrencyCh chan struct{}, bytesDownloaded *atomic.Uint64) error {
+	// Sort parts in order to keep file preallocation and finalization tied to the file metadata.
+	common.SortParts(parts)
+	if !r.SkipPreallocation {
+		if err := r.Dst.PreallocateFile(parts[0]); err != nil {
+			return fmt.Errorf("cannot preallocate %s: %w", parts[0].Path, err)
+		}
+	}
+
+	if err := r.downloadPathParts(ctx, parts, concurrencyPerFile, globalConcurrencyCh, bytesDownloaded); err != nil {
+		return err
+	}
+	if err := r.Dst.FinalizeFile(parts[0]); err != nil {
+		return fmt.Errorf("cannot finalize %s: %w", parts[0].Path, err)
+	}
+	return nil
+}
+
+func (r *Restore) downloadPathParts(ctx context.Context, parts []common.Part, concurrencyPerFile int, globalConcurrencyCh chan struct{}, bytesDownloaded *atomic.Uint64) error {
+	ctxLocal, cancelLocal := context.WithCancel(ctx)
+	defer cancelLocal()
+
+	pathConcurrencyCh := make(chan struct{}, concurrencyPerFile)
+	var errMu sync.Mutex
+	var firstErr error
+	setErr := func(err error) {
+		if err == nil {
+			return
+		}
+		errMu.Lock()
+		if firstErr == nil {
+			firstErr = err
+			cancelLocal()
+		}
+		errMu.Unlock()
+	}
+
+	var wg sync.WaitGroup
+	for _, p := range parts {
+		if err := acquireRestoreSlot(ctxLocal, pathConcurrencyCh); err != nil {
+			setErr(err)
+			break
+		}
+		if err := acquireRestoreSlot(ctxLocal, globalConcurrencyCh); err != nil {
+			releaseRestoreSlot(pathConcurrencyCh)
+			setErr(err)
+			break
+		}
+		wg.Go(func() {
+			defer releaseRestoreSlot(pathConcurrencyCh)
+			defer releaseRestoreSlot(globalConcurrencyCh)
+			logger.Infof("downloading %s from %s to %s", &p, r.Src, r.Dst)
+			if err := pipelinedDownload(r.Src, r.Dst, p, bytesDownloaded); err != nil {
+				setErr(err)
+			}
+		})
+	}
+	wg.Wait()
+
+	errMu.Lock()
+	err := firstErr
+	errMu.Unlock()
+	return err
+}
+
+func acquireRestoreSlot(ctx context.Context, ch chan struct{}) error {
+	select {
+	case ch <- struct{}{}:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func releaseRestoreSlot(ch chan struct{}) {
+	<-ch
 }
 
 const writeBufSize = 2 * 1024 * 1024

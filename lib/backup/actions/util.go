@@ -50,69 +50,6 @@ func runParallel(concurrency int, parts []common.Part, f func(p common.Part) err
 	return err
 }
 
-func runParallelPerPath(ctx context.Context, concurrency int, perPath map[string][]common.Part, f func(parts []common.Part) error, progress func(elapsed time.Duration)) error {
-	var err error
-	runWithProgress(progress, func() {
-		err = runParallelPerPathInternal(ctx, concurrency, perPath, f)
-	})
-	return err
-}
-
-func runParallelPerPathInternal(ctx context.Context, concurrency int, perPath map[string][]common.Part, f func(parts []common.Part) error) error {
-	if concurrency <= 0 {
-		concurrency = 1
-	}
-	if len(perPath) == 0 {
-		return nil
-	}
-
-	// len(perPath) capacity guarantees non-blocking behavior below.
-	resultCh := make(chan error, len(perPath))
-	workCh := make(chan []common.Part, len(perPath))
-	ctxLocal, cancelLocal := context.WithCancel(ctx)
-	defer cancelLocal()
-
-	// Start workers
-	var wg sync.WaitGroup
-	for range concurrency {
-		wg.Go(func() {
-			for parts := range workCh {
-				select {
-				case <-ctxLocal.Done():
-					return
-				default:
-				}
-				resultCh <- f(parts)
-			}
-		})
-	}
-
-	// Feed workers with work.
-	for _, parts := range perPath {
-		workCh <- parts
-	}
-	close(workCh)
-
-	// Read results.
-	var err error
-	for range len(perPath) {
-		select {
-		case <-ctx.Done():
-			err = ctx.Err()
-		case err = <-resultCh:
-		}
-		if err != nil {
-			cancelLocal()
-			break
-		}
-	}
-
-	// Wait for all the workers to stop.
-	wg.Wait()
-
-	return err
-}
-
 func runParallelInternal(concurrency int, parts []common.Part, f func(p common.Part) error) error {
 	if concurrency <= 0 {
 		concurrency = 1
