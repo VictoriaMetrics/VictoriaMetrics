@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"flag"
@@ -391,6 +392,44 @@ func bufferRequestBody(ctx context.Context, r io.ReadCloser, userName string) (i
 	return bb, nil
 }
 
+// filterRequestFormBody drops form-body params that would otherwise override query args pinned by url_prefix.
+func filterRequestFormBody(r *http.Request, targetParams url.Values, mergeQueryArgs []string) {
+	ct := r.Header.Get("Content-Type")
+	if !strings.HasPrefix(ct, "application/x-www-form-urlencoded") {
+		return
+	}
+	bb, ok := r.Body.(*bufferedBody)
+	if !ok || !bb.canRetry() {
+		return
+	}
+	// skip the rewriting round-trip unless the body actually mentions a clashing key.
+	for k := range targetParams {
+		if !slices.Contains(mergeQueryArgs, k) && bytes.Contains(bb.buf, []byte(url.QueryEscape(k)+"=")) {
+			rewriteFormBody(r, bb, targetParams, mergeQueryArgs)
+			return
+		}
+	}
+}
+
+func rewriteFormBody(r *http.Request, bb *bufferedBody, targetParams url.Values, mergeQueryArgs []string) {
+	bodyParams, _ := url.ParseQuery(bytesutil.ToUnsafeString(bb.buf))
+	changed := false
+	for k := range targetParams {
+		if slices.Contains(mergeQueryArgs, k) {
+			continue
+		}
+		if _, ok := bodyParams[k]; ok {
+			delete(bodyParams, k)
+			changed = true
+		}
+	}
+	if !changed {
+		return
+	}
+	bb.buf = []byte(bodyParams.Encode())
+	r.ContentLength = int64(len(bb.buf))
+}
+
 func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tkn *jwt.Token) {
 	u := normalizeURL(r.URL)
 	up, hc := ui.getURLPrefixAndHeaders(u, r.Host, r.Header)
@@ -435,6 +474,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tkn *j
 			targetURLCopy.RawQuery = query.Encode()
 			targetURL = &targetURLCopy
 		} else {
+			filterRequestFormBody(r, targetURL.Query(), up.mergeQueryArgs)
 			// Update path for regular routes.
 			targetURL = mergeURLs(targetURL, u, up.dropSrcPathPrefixParts, up.mergeQueryArgs)
 		}

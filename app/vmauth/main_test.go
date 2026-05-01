@@ -546,6 +546,88 @@ requested_url={BACKEND}/path2/foo/?de=fg`
 	}
 }
 
+func TestRequestHandler_FormBodyClash(t *testing.T) {
+	f := func(cfgStr, body, responseExpected string) {
+		t.Helper()
+
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			b, err := io.ReadAll(r.Body)
+			if err != nil {
+				panic(fmt.Errorf("cannot read body: %w", err))
+			}
+			fmt.Fprintf(w, "url=%s\nbody=%s", r.URL, b)
+		}))
+		defer ts.Close()
+
+		cfgStr = strings.ReplaceAll(cfgStr, "{BACKEND}", ts.URL)
+
+		cfgOrigP := authConfigData.Load()
+		if _, err := reloadAuthConfigData([]byte(cfgStr)); err != nil {
+			t.Fatalf("cannot load config data: %s", err)
+		}
+		defer func() {
+			cfgOrig := []byte("unauthorized_user:\n  url_prefix: http://foo/bar")
+			if cfgOrigP != nil {
+				cfgOrig = *cfgOrigP
+			}
+			if _, err := reloadAuthConfigData(cfgOrig); err != nil {
+				t.Fatalf("cannot load the original config: %s", err)
+			}
+		}()
+
+		r, err := http.NewRequest(http.MethodPost, "http://some-host.com/api/v1/query", strings.NewReader(body))
+		if err != nil {
+			t.Fatalf("cannot initialize http request: %s", err)
+		}
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+		w := &fakeResponseWriter{}
+		if !requestHandlerWithInternalRoutes(w, r) {
+			t.Fatalf("unexpected false is returned from requestHandler")
+		}
+
+		response := strings.TrimSpace(strings.ReplaceAll(w.getResponse(), "\r\n", "\n"))
+		responseExpected = strings.TrimSpace(responseExpected)
+		if response != responseExpected {
+			t.Fatalf("unexpected response\ngot\n%s\nwant\n%s", response, responseExpected)
+		}
+	}
+
+	// clashing body param is dropped
+	cfgStr := `
+unauthorized_user:
+  url_prefix: '{BACKEND}/select/multitenant/prometheus?extra_filters={vm_account_id="2"}'`
+	body := `query=up&extra_filters={vm_account_id="3"}`
+	responseExpected := `
+statusCode=200
+url=/select/multitenant/prometheus/api/v1/query?extra_filters={vm_account_id="2"}
+body=query=up`
+	f(cfgStr, body, responseExpected)
+
+	// merge_query_args keeps the body param
+	cfgStr = `
+unauthorized_user:
+  merge_query_args: [extra_filters]
+  url_prefix: '{BACKEND}/select/multitenant/prometheus?extra_filters={vm_account_id="2"}'`
+	body = `query=up&extra_filters={vm_account_id="3"}`
+	responseExpected = `
+statusCode=200
+url=/select/multitenant/prometheus/api/v1/query?extra_filters={vm_account_id="2"}
+body=query=up&extra_filters={vm_account_id="3"}`
+	f(cfgStr, body, responseExpected)
+
+	// non-clashing body params pass thru
+	cfgStr = `
+unauthorized_user:
+  url_prefix: '{BACKEND}/select/multitenant/prometheus?extra_filters={vm_account_id="2"}'`
+	body = `query=up&time=420`
+	responseExpected = `
+statusCode=200
+url=/select/multitenant/prometheus/api/v1/query?extra_filters={vm_account_id="2"}
+body=query=up&time=420`
+	f(cfgStr, body, responseExpected)
+}
+
 func TestJWTRequestHandler(t *testing.T) {
 	// Generate RSA key pair for testing
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)

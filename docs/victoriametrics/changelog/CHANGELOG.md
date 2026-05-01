@@ -30,6 +30,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): add `-rule.stripFilePath` to support stripping rule file paths in logs and all API responses, including /metrics. See [#5625](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5625).
 * FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): add `formatTime` template function for formatting a Unix timestamp using the provided layout. For example, `{{ now | formatTime "2006-01-02T15:04:05Z07:00" }}` returns the current time in RFC3339 format. See issue [#10624](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10624). Thanks to @andriibeee for the contribution.
 
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): apply query arg clash protection to `application/x-www-form-urlencoded` request bodies. Previously, clients could override backend-configured query args (e.g. `extra_filters`) by sending them via POST body, since the backend merges URL and form-body args. See [#10908](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10908).
+
 ## [v1.142.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.142.0)
 
 Released at 2026-04-28
