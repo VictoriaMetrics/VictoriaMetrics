@@ -27,12 +27,11 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 ## tip
 
 * BUGFIX: `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly discover addresses of storage nodes with [enterprise automatic-vmstorage-discovery](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#automatic-vmstorage-discovery). Bug was introduced at [v1.141.0](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/changelog/CHANGELOG.md#v11410).
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): apply query arg clash protection to `application/x-www-form-urlencoded` request bodies. Previously, clients could override backend-configured query args (e.g. `extra_filters`) by sending them via POST body, since the backend merges URL and form-body args. See [#10908](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10908).
 
 * FEATURE: all VictoriaMetrics components: suppress TCP health check errors when `-tls` flag is set. See [#10538](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10538).
 * FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): add `-rule.stripFilePath` to support stripping rule file paths in logs and all API responses, including /metrics. See [#5625](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5625).
 * FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): add `formatTime` template function for formatting a Unix timestamp using the provided layout. For example, `{{ now | formatTime "2006-01-02T15:04:05Z07:00" }}` returns the current time in RFC3339 format. See issue [#10624](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10624). Thanks to @andriibeee for the contribution.
-
-* BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): apply query arg clash protection to `application/x-www-form-urlencoded` request bodies. Previously, clients could override backend-configured query args (e.g. `extra_filters`) by sending them via POST body, since the backend merges URL and form-body args. See [#10908](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10908).
 
 ## [v1.142.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.142.0)
 
