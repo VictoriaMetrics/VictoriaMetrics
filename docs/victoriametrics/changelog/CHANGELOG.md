@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly discover addresses of storage nodes with [enterprise automatic-vmstorage-discovery](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#automatic-vmstorage-discovery). Bug was introduced at [v1.141.0](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/changelog/CHANGELOG.md#v11410).
+
 * FEATURE: all VictoriaMetrics components: suppress TCP health check errors when `-tls` flag is set. See [#10538](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10538).
 * FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): add `-rule.stripFilePath` to support stripping rule file paths in logs and all API responses, including /metrics. See [#5625](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5625).
 * FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): add `formatTime` template function for formatting a Unix timestamp using the provided layout. For example, `{{ now | formatTime "2006-01-02T15:04:05Z07:00" }}` returns the current time in RFC3339 format. See issue [#10624](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10624). Thanks to @andriibeee for the contribution.
@@ -36,6 +38,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 Released at 2026-04-28
 
+**Update Note 1:** `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): contain a bug that can block ingestion when [enterprise automatic-vmstorage-discovery](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#automatic-vmstorage-discovery) feature is used. Bug was introduced in [v1.141.0](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/changelog/CHANGELOG.md#v11410), [v1.136.6](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/changelog/CHANGELOG.md#v11366).
+
 * BUGFIX:  [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly add [OpenTelemetry](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/) `Unit` suffix to the metric name and metadata `Help` when `-opentelemetry.usePrometheusNaming` flag is enabled. Previously, if `http_requests` has `Unit: seconds` and the next metric `cpu_usage` has no `Unit`, `cpu_usage` would be ingested as `cpu_usage_seconds`. See [#10889](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10889).
 
 ## [v1.141.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.141.0)
@@ -43,6 +47,8 @@ Released at 2026-04-28
 Released at 2026-04-24
 
 **Update Note 1:** [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): a bug in [OpenTelemetry](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/) parsing caused the `Unit` suffix of the previously parsed metric to be incorrectly applied to subsequent metrics that have no `Unit` field, when `-opentelemetry.usePrometheusNaming` is enabled. For example, if `http_requests` has `Unit: seconds` and the next metric `cpu_usage` has no `Unit`, `cpu_usage` would be ingested as `cpu_usage_seconds`. The bug was introduced in [v1.132.0](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/changelog/CHANGELOG_2025.md#v11320). See [#10889](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10889).
+
+**Update Note 2:** `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): contain a bug that can block ingestion when [enterprise automatic-vmstorage-discovery](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#automatic-vmstorage-discovery) feature is used. Bug was introduced in [v1.141.0](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/changelog/CHANGELOG.md#v11410), [v1.136.6](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/changelog/CHANGELOG.md#v11366).
 
 * SECURITY: upgrade base docker image (Alpine) from 3.23.3 to 3.23.4. See [Alpine 3.23.4 release notes](https://www.alpinelinux.org/posts/Alpine-3.20.10-3.21.7-3.22.4-3.23.4-released.html).
 
@@ -189,9 +195,21 @@ It enables back `Discovered targets` debug UI by default.
 * BUGFIX: `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly apply `extra_filters[]` filter when querying `vm_account_id` or `vm_project_id` labels via [multitenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) request for `/api/v1/label/…/values` API. Before, `extra_filters` was ignored. See [#10503](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10503).
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): revert the use of rollup result cache for [instant queries](https://docs.victoriametrics.com/keyConcepts.html#instant-query) that contain [`rate`](https://docs.victoriametrics.com/MetricsQL.html#rate) function with a lookbehind window larger than `-search.minWindowForInstantRollupOptimization`. The cache usage was removed since [v1.132.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.132.0). See [#10098](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10098#issuecomment-3895011084) for more details.
 
+## [v1.136.8](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.136.8)
+
+Released at 2026-04-30
+
+**v1.136.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.136.x line will be supported for at least 12 months since [v1.136.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11360) release**
+
+* BUGFIX: `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly discover addresses of storage nodes with [enterprise automatic-vmstorage-discovery](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#automatic-vmstorage-discovery). Bug was introduced in [v1.141.0](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/changelog/CHANGELOG.md#v11410), [v1.136.6](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/changelog/CHANGELOG.md#v11366).
+
 ## [v1.136.7](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.136.7)
 
 Released at 2026-04-28
+
+**Update Note 1:** `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): contain a bug that can block ingestion when [enterprise automatic-vmstorage-discovery](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#automatic-vmstorage-discovery) feature is used. Bug was introduced in [v1.141.0](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/changelog/CHANGELOG.md#v11410), [v1.136.6](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/changelog/CHANGELOG.md#v11366).
 
 **v1.136.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
@@ -204,6 +222,8 @@ The v1.136.x line will be supported for at least 12 months since [v1.136.0](http
 Released at 2026-04-24
 
 **Update Note 1:** [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): a bug in [OpenTelemetry](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/) parsing caused the `Unit` suffix of the previously parsed metric to be incorrectly applied to subsequent metrics that have no `Unit` field, when `-opentelemetry.usePrometheusNaming` is enabled. For example, if `http_requests` has `Unit: seconds` and the next metric `cpu_usage` has no `Unit`, `cpu_usage` would be ingested as `cpu_usage_seconds`. The bug was introduced in [v1.132.0](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/changelog/CHANGELOG_2025.md#v11320). See [#10889](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10889).
+
+**Update Note 2:** `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): contain a bug that can block ingestion when [enterprise automatic-vmstorage-discovery](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#automatic-vmstorage-discovery) feature is used. Bug was introduced in [v1.141.0](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/changelog/CHANGELOG.md#v11410), [v1.136.6](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/changelog/CHANGELOG.md#v11366).
 
 **v1.136.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
