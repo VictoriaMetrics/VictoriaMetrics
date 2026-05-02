@@ -28,6 +28,9 @@ const (
 // InternalHTTPPath is the URL path prefix for internal clusternative HTTP endpoints.
 const InternalHTTPPath = "/internal/clusternative/"
 
+// maxInternalBodySize caps the request body for all internal HTTP endpoints to prevent OOM via oversized payloads.
+const maxInternalBodySize = 64 * 1024 * 1024 // 64 MiB
+
 // HandleInternalRequest handles internal clusternative HTTP requests.
 // It returns true if the request was handled.
 func HandleInternalRequest(w http.ResponseWriter, r *http.Request) bool {
@@ -47,6 +50,7 @@ func HandleInternalRequest(w http.ResponseWriter, r *http.Request) bool {
 	}
 	defer qt.Done()
 
+	r.Body = http.MaxBytesReader(w, r.Body, maxInternalBodySize)
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("cannot read request body: %s", err), http.StatusBadRequest)
@@ -72,6 +76,8 @@ func HandleInternalRequest(w http.ResponseWriter, r *http.Request) bool {
 		handleRegisterMetricNames(w, qt, body, deadline)
 	case "tagValueSuffixes":
 		handleTagValueSuffixes(w, qt, body, deadline)
+	case "metricsMetadata":
+		handleMetricsMetadata(w, qt, body, deadline)
 	case "search":
 		handleSearch(w, qt, body, deadline)
 	default:
@@ -372,14 +378,20 @@ func handleRegisterMetricNames(w http.ResponseWriter, qt *querytracer.Tracer, bo
 		return
 	}
 	countRaw := encoding.UnmarshalUint64(body[:8])
-	if countRaw > uint64(len(body)-8) {
+	// Each entry needs at least 16 bytes (8 for nameLen + 8 for timestamp), so count cannot exceed remaining/16.
+	if countRaw > uint64(len(body)-8)/16 {
 		http.Error(w, "invalid registerMetricNames body: count overflow", http.StatusBadRequest)
 		return
 	}
 	count := int(countRaw)
 	body = body[8:]
 
-	mrs := make([]storage.MetricRow, 0, count)
+	// Cap the initial slice capacity to avoid a single large allocation driven by the count field.
+	initCap := count
+	if initCap > 4096 {
+		initCap = 4096
+	}
+	mrs := make([]storage.MetricRow, 0, initCap)
 	for i := range count {
 		if len(body) < 8 {
 			http.Error(w, fmt.Sprintf("cannot read metricNameRaw length for entry %d", i), http.StatusBadRequest)
@@ -469,6 +481,48 @@ func handleTagValueSuffixes(w http.ResponseWriter, qt *querytracer.Tracer, body 
 		return
 	}
 	writeJSONResponse(w, stringsResponse{Data: suffixes, IsPartial: isPartial})
+}
+
+func handleMetricsMetadata(w http.ResponseWriter, qt *querytracer.Tracer, body []byte, deadline searchutil.Deadline) {
+	// Body: uint32(accountID) + uint32(projectID) + uint32(limit) + uint64(len(metricName)) + metricName
+	if len(body) < 4+4+4+8 {
+		http.Error(w, "request body too short for metricsMetadata", http.StatusBadRequest)
+		return
+	}
+	accountID := encoding.UnmarshalUint32(body[:4])
+	projectID := encoding.UnmarshalUint32(body[4:8])
+	limit := int(encoding.UnmarshalUint32(body[8:12]))
+	metricNameLenRaw := encoding.UnmarshalUint64(body[12:20])
+	body = body[20:]
+	if metricNameLenRaw > uint64(len(body)) {
+		http.Error(w, "invalid metricsMetadata body: metricName length overflow", http.StatusBadRequest)
+		return
+	}
+	metricName := string(body[:metricNameLenRaw])
+
+	tt := &storage.TenantToken{AccountID: accountID, ProjectID: projectID}
+	rows, isPartial, err := netstorage.GetMetricsMetadata(qt, tt, false, limit, metricName, deadline)
+	writeTraceJSON(w, qt)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Binary response: uint8(isPartial) + uint32(rowCount) + row.MarshalTo() * rowCount
+	w.Header().Set("Content-Type", "application/octet-stream")
+	var buf []byte
+	if isPartial {
+		buf = append(buf, 1)
+	} else {
+		buf = append(buf, 0)
+	}
+	buf = encoding.MarshalUint32(buf, uint32(len(rows)))
+	for _, row := range rows {
+		buf = row.MarshalTo(buf)
+	}
+	if _, err := w.Write(buf); err != nil {
+		logger.Errorf("cannot write metricsMetadata response: %s", err)
+	}
 }
 
 // handleSearch handles the streaming search request.
