@@ -74,6 +74,8 @@ type httpSelectNode struct {
 	registerErrors      *metrics.Counter
 	tagSuffixRequests   *metrics.Counter
 	tagSuffixErrors     *metrics.Counter
+	metadataRequests    *metrics.Counter
+	metadataErrors      *metrics.Counter
 	metricBlocksRead    *metrics.Counter
 }
 
@@ -109,6 +111,8 @@ func newHTTPSelectNode(ms *metrics.Set, baseURL string, authKey string) *httpSel
 		registerErrors:      ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="registerMetricNames", type="httpClient", name="vmselect", addr=%q}`, baseURL)),
 		tagSuffixRequests:   ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="tagValueSuffixes", type="httpClient", name="vmselect", addr=%q}`, baseURL)),
 		tagSuffixErrors:     ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tagValueSuffixes", type="httpClient", name="vmselect", addr=%q}`, baseURL)),
+		metadataRequests:    ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="metricsMetadata", type="httpClient", name="vmselect", addr=%q}`, baseURL)),
+		metadataErrors:      ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="metricsMetadata", type="httpClient", name="vmselect", addr=%q}`, baseURL)),
 		metricBlocksRead:    ms.NewCounter(fmt.Sprintf(`vm_metric_blocks_read_total{name="vmselect_http", addr=%q}`, baseURL)),
 	}
 }
@@ -534,7 +538,60 @@ func readTraceFromResponse(qt *querytracer.Tracer, resp *http.Response) {
 }
 
 // getMetricsMetadata returns metrics metadata from the HTTP select node.
-// This is a stub that returns an empty result since metadata is not critical for the HTTP path.
-func (sn *httpSelectNode) getMetricsMetadata(_ *querytracer.Tracer, _ *storage.TenantToken, _ int, _ string, _ searchutil.Deadline) ([]*metricsmetadata.Row, bool, error) {
-	return nil, false, nil
+//
+// Request body: uint32(accountID) + uint32(projectID) + uint32(limit) + uint64(len(metricName)) + metricName
+//
+// Response body: uint8(isPartial) + uint32(rowCount) + row.MarshalTo() * rowCount
+func (sn *httpSelectNode) getMetricsMetadata(qt *querytracer.Tracer, tt *storage.TenantToken, limit int, metricName string, deadline searchutil.Deadline) ([]*metricsmetadata.Row, bool, error) {
+	sn.concurrentQueries.Inc()
+	defer sn.concurrentQueries.Dec()
+	sn.metadataRequests.Inc()
+
+	metricNameBytes := []byte(metricName)
+	var body []byte
+	body = encoding.MarshalUint32(body, tt.AccountID)
+	body = encoding.MarshalUint32(body, tt.ProjectID)
+	body = encoding.MarshalUint32(body, uint32(limit))
+	body = encoding.MarshalUint64(body, uint64(len(metricNameBytes)))
+	body = append(body, metricNameBytes...)
+
+	resp, err := sn.doPost(qt, "metricsMetadata", body, deadline)
+	if err != nil {
+		sn.metadataErrors.Inc()
+		return nil, false, err
+	}
+	defer resp.Body.Close()
+	readTraceFromResponse(qt, resp)
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(resp.Body)
+		sn.metadataErrors.Inc()
+		return nil, false, fmt.Errorf("unexpected HTTP status %d from metricsMetadata at vmselect %s: %s",
+			resp.StatusCode, sn.baseURL, strings.TrimSpace(string(b)))
+	}
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		sn.metadataErrors.Inc()
+		return nil, false, fmt.Errorf("cannot read metricsMetadata response from vmselect %s: %w", sn.baseURL, err)
+	}
+	if len(data) < 5 {
+		sn.metadataErrors.Inc()
+		return nil, false, fmt.Errorf("metricsMetadata response too short from vmselect %s: %d bytes", sn.baseURL, len(data))
+	}
+	isPartial := data[0] != 0
+	rowCount := int(encoding.UnmarshalUint32(data[1:5]))
+	data = data[5:]
+
+	rows := make([]*metricsmetadata.Row, 0, rowCount)
+	for i := range rowCount {
+		row := &metricsmetadata.Row{}
+		tail, err := row.Unmarshal(data)
+		if err != nil {
+			sn.metadataErrors.Inc()
+			return nil, false, fmt.Errorf("cannot unmarshal metricsMetadata row %d from vmselect %s: %w", i, sn.baseURL, err)
+		}
+		data = tail
+		rows = append(rows, row)
+	}
+	return rows, isPartial, nil
 }
