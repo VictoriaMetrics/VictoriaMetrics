@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
@@ -249,6 +250,45 @@ func TestAggregatorsEqual(t *testing.T) {
 - outputs: [total]
   interval: 5m
   ignore_first_intervals: 4`, false)
+}
+
+func TestQuantilesAggrValueDoesNotReuseQuantilesForSeriesWithoutSamples(t *testing.T) {
+	ac := newQuantilesAggrConfig([]float64{0.95})
+	ctx := &flushCtx{
+		a: &aggregator{
+			suffix: ":1m_",
+		},
+		flushTimestamp: 1234567890000,
+	}
+
+	activeKey := labelsToAggrOutputKey([]prompb.Label{
+		{Name: "__name__", Value: "request_duration_seconds"},
+		{Name: "group", Value: "active"},
+	})
+	inactiveKey := labelsToAggrOutputKey([]prompb.Label{
+		{Name: "__name__", Value: "request_duration_seconds"},
+		{Name: "group", Value: "inactive"},
+	})
+
+	active := ac.getValue(nil)
+	active.pushSample(ac, &pushSample{
+		value: 123,
+	}, "", 0)
+	active.flush(ac, ctx, activeKey, false)
+
+	inactive := ac.getValue(nil)
+	inactive.flush(ac, ctx, inactiveKey, false)
+
+	result := timeSeriessToString(ctx.tss)
+	resultExpected := `request_duration_seconds:1m_quantiles{group="active",quantile="0.95"} 123
+`
+	if result != resultExpected {
+		t.Fatalf("unexpected output metrics;\ngot\n%s\nwant\n%s", result, resultExpected)
+	}
+}
+
+func labelsToAggrOutputKey(labels []prompb.Label) string {
+	return bytesutil.ToUnsafeString(lc.Compress(nil, labels))
 }
 
 func timeSeriessToString(tss []prompb.TimeSeries) string {

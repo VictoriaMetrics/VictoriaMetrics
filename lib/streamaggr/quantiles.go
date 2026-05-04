@@ -19,12 +19,13 @@ func (av *quantilesAggrValue) pushSample(_ aggrConfig, sample *pushSample, _ str
 }
 
 func (av *quantilesAggrValue) flush(c aggrConfig, ctx *flushCtx, key string, _ bool) {
-	ac := c.(*quantilesAggrConfig)
-	if av.h != nil {
-		ac.quantiles = av.h.Quantiles(ac.quantiles[:0], ac.phis)
-		histogram.PutFast(av.h)
-		av.h = nil
+	if av.h == nil {
+		return
 	}
+	ac := c.(*quantilesAggrConfig)
+	ac.quantiles = av.h.Quantiles(ac.quantiles[:0], ac.phis)
+	histogram.PutFast(av.h)
+	av.h = nil
 	if len(ac.quantiles) > 0 {
 		for i, quantile := range ac.quantiles {
 			ac.b = strconv.AppendFloat(ac.b[:0], ac.phis[i], 'g', -1, 64)
