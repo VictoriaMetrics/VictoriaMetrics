@@ -13,6 +13,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prommetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	otlppb "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 )
 
 // Vminsert holds the state of a vminsert app and provides vminsert-specific
@@ -303,6 +304,36 @@ func (app *Vminsert) ZabbixConnectorHistory(t *testing.T, records []string, opts
 		}
 	})
 
+}
+
+// OpentelemetryV1Metrics is a test helper function that inserts a
+// collection of records in Opentelemetry protocol format by sending a HTTP
+// POST request to /opentelemetry/v1/metrics vminsert endpoint.
+func (app *Vminsert) OpentelemetryV1Metrics(t *testing.T, md otlppb.MetricsData, opts QueryOpts) {
+	t.Helper()
+
+	url := fmt.Sprintf("http://%s/insert/%s/opentelemetry/v1/metrics", app.httpListenAddr, opts.getTenant())
+	data := md.MarshalProtobuf(nil)
+
+	var recordsCount int
+	for _, rss := range md.ResourceMetrics {
+		for _, sm := range rss.ScopeMetrics {
+			recordsCount += len(sm.Metrics)
+			for _, m := range sm.Metrics {
+				if prommetadata.IsEnabled() {
+					recordsCount += len(m.Metadata)
+				}
+			}
+		}
+	}
+	headers := opts.getHeaders()
+	headers.Set("Content-Type", "application/x-protobuf")
+	app.sendBlocking(t, recordsCount, func() {
+		_, statusCode := app.cli.Post(t, url, data, headers)
+		if statusCode != http.StatusOK {
+			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
+		}
+	})
 }
 
 // String returns the string representation of the vminsert app state.
