@@ -666,10 +666,15 @@ func (app *Vmsingle) ZabbixConnectorHistory(t *testing.T, records []string, opts
 func (app *Vmsingle) OpentelemetryV1Metrics(t *testing.T, md otlppb.MetricsData, opts QueryOpts) {
 	t.Helper()
 
+	url := fmt.Sprintf("http://%s/opentelemetry/v1/metrics", app.httpListenAddr)
+	uv := opts.asURLValues()
+	uvs := uv.Encode()
+	if len(uvs) > 0 {
+		url += "?" + uvs
+	}
 	data := md.MarshalProtobuf(nil)
 	headers := opts.getHeaders()
 	headers.Set("Content-Type", "application/x-protobuf")
-	url := fmt.Sprintf("http://%s/opentelemetry/v1/metrics", app.httpListenAddr)
 	_, statusCode := app.cli.Post(t, url, data, headers)
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)

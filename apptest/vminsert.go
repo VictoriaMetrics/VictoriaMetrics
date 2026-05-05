@@ -312,9 +312,6 @@ func (app *Vminsert) ZabbixConnectorHistory(t *testing.T, records []string, opts
 func (app *Vminsert) OpentelemetryV1Metrics(t *testing.T, md otlppb.MetricsData, opts QueryOpts) {
 	t.Helper()
 
-	url := fmt.Sprintf("http://%s/insert/%s/opentelemetry/v1/metrics", app.httpListenAddr, opts.getTenant())
-	data := md.MarshalProtobuf(nil)
-
 	var recordsCount int
 	for _, rss := range md.ResourceMetrics {
 		for _, sm := range rss.ScopeMetrics {
@@ -326,6 +323,14 @@ func (app *Vminsert) OpentelemetryV1Metrics(t *testing.T, md otlppb.MetricsData,
 			}
 		}
 	}
+
+	url := fmt.Sprintf("http://%s/insert/%s/opentelemetry/v1/metrics", app.httpListenAddr, opts.getTenant())
+	uv := opts.asURLValues()
+	uvs := uv.Encode()
+	if len(uvs) > 0 {
+		url += "?" + uvs
+	}
+	data := md.MarshalProtobuf(nil)
 	headers := opts.getHeaders()
 	headers.Set("Content-Type", "application/x-protobuf")
 	app.sendBlocking(t, recordsCount, func() {
