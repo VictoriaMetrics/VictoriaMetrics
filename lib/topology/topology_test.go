@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net"
 	"reflect"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
@@ -169,12 +171,16 @@ func TestWriteMetrics(t *testing.T) {
 
 	var buf bytes.Buffer
 	st.writeMetrics(&buf)
-	const want = "" +
-		"vm_topology_discovery_targets{url=\"1:secret-url\",addr=\"vminsert:8480\",resolved_ip=\"10.20.30.40\"} 1\n" +
-		"vm_topology_discovery_targets{url=\"2:secret-url\",addr=\"srv+vmselect\",resolved_ip=\"10.20.30.50\"} 1\n" +
-		"vm_topology_discovery_targets{url=\"2:secret-url\",addr=\"srv+vmselect\",resolved_ip=\"10.20.30.51\"} 1\n"
-	if got := buf.String(); got != want {
-		t.Fatalf("unexpected metrics output\ngot:\n%s\nwant:\n%s", got, want)
+	got := strings.Split(strings.TrimSpace(buf.String()), "\n")
+	slices.Sort(got)
+	want := []string{
+		"vm_topology_discovery_targets{url=\"1:secret-url\",addr=\"vminsert:8480\",resolved_ip=\"10.20.30.40\"} 1",
+		"vm_topology_discovery_targets{url=\"2:secret-url\",addr=\"srv+vmselect\",resolved_ip=\"10.20.30.50\"} 1",
+		"vm_topology_discovery_targets{url=\"2:secret-url\",addr=\"srv+vmselect\",resolved_ip=\"10.20.30.51\"} 1",
+	}
+	slices.Sort(want)
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("unexpected metrics output\ngot:\n%v\nwant:\n%v", got, want)
 	}
 }
 

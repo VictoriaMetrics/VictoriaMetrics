@@ -52,15 +52,27 @@ type targetSample struct {
 	ip        string
 }
 
-// Register adds a remote write target for background topology discovery.
-// rawURL is used for DNS resolution, sanitizedURL is used as the metric label.
-func Register(rawURL, sanitizedURL string) {
-	t, err := newTarget(rawURL, sanitizedURL)
-	if err != nil {
-		logger.Errorf("cannot register topology target for -remoteWrite.url=%q: %s", sanitizedURL, err)
+// Init registers remote write targets for background topology discovery.
+// rawURLs are used for DNS resolution, while sanitizedURLs are used as metric labels.
+func Init(rawURLs, sanitizedURLs []string) {
+	if len(rawURLs) != len(sanitizedURLs) {
+		logger.Panicf("BUG: len(rawURLs) must match len(sanitizedURLs); got %d vs %d", len(rawURLs), len(sanitizedURLs))
+	}
+
+	targets := make([]*target, 0, len(rawURLs))
+	for i, rawURL := range rawURLs {
+		sanitizedURL := sanitizedURLs[i]
+		t, err := newTarget(rawURL, sanitizedURL)
+		if err != nil {
+			logger.Errorf("cannot register topology target for -remoteWrite.url=%q: %s", sanitizedURL, err)
+			continue
+		}
+		targets = append(targets, t)
+	}
+	if len(targets) == 0 {
 		return
 	}
-	global.register(t)
+	global.initTargets(targets)
 }
 
 // Stop stops background topology discovery and unregisters topology metrics.
@@ -68,12 +80,12 @@ func Stop() {
 	global.stop()
 }
 
-func (s *state) register(t *target) {
+func (s *state) initTargets(targets []*target) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if s.targets == nil {
-		s.targets = make(map[string]*target)
+		s.targets = make(map[string]*target, len(targets))
 	}
 	if s.ms == nil {
 		ms := metrics.NewSet()
@@ -81,7 +93,9 @@ func (s *state) register(t *target) {
 		metrics.RegisterSet(ms)
 		s.ms = ms
 	}
-	s.targets[t.urlLabel] = t
+	for _, t := range targets {
+		s.targets[t.urlLabel] = t
+	}
 	if s.stopCh != nil {
 		s.notifyRefreshLocked()
 		return
@@ -89,8 +103,9 @@ func (s *state) register(t *target) {
 
 	s.refreshCh = make(chan struct{}, 1)
 	s.stopCh = make(chan struct{})
-	s.wg.Add(1)
-	go s.run(s.stopCh, s.refreshCh)
+	s.wg.Go(func() {
+		s.run(s.stopCh, s.refreshCh)
+	})
 	s.notifyRefreshLocked()
 }
 
@@ -180,9 +195,6 @@ func (s *state) snapshots() []targetSnapshot {
 			host:     t.host,
 		})
 	}
-	sort.Slice(snapshots, func(i, j int) bool {
-		return snapshots[i].urlLabel < snapshots[j].urlLabel
-	})
 	return snapshots
 }
 
@@ -210,16 +222,6 @@ func (s *state) samples() []targetSample {
 			})
 		}
 	}
-	sort.Slice(samples, func(i, j int) bool {
-		a, b := samples[i], samples[j]
-		if a.urlLabel != b.urlLabel {
-			return a.urlLabel < b.urlLabel
-		}
-		if a.addrLabel != b.addrLabel {
-			return a.addrLabel < b.addrLabel
-		}
-		return a.ip < b.ip
-	})
 	return samples
 }
 
