@@ -26,7 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
-* BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): honor `-maxRequestBodySizeToRetry` independently of `-requestBufferSize`. Previously, requests were retried whenever the body fit into the larger of `-requestBufferSize` and `-maxRequestBodySizeToRetry`, effectively ignoring the latter when `-requestBufferSize` was larger. See [#10857](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10857).
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): now correctly respects disabling retries via `-maxRequestBodySizeToRetry=0`. Previously, disabling retries required setting both `-maxRequestBodySizeToRetry` and `-requestBufferSize` to `0`. See [#10857](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10857). Thanks to @andriibeee for the contribution.
 
 ## [v1.141.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.141.0)
 
