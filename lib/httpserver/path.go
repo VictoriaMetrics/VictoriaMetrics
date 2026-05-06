@@ -128,8 +128,8 @@ func maybeTenantID(tenantID string) bool {
 		return true
 	}
 
-	tmp := strings.Split(tenantID, ":")
-	if len(tmp) == 2 {
+	idx := strings.IndexByte(tenantID, ':')
+	if idx > 0 {
 		return true
 	}
 
