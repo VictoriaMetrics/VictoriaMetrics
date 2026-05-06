@@ -107,7 +107,7 @@ The final piece is the Docker Compose file. This ties all the services together 
 # compose.yml
 services:
   victoriametrics:
-    image: victoriametrics/victoria-metrics:v1.140.0
+    image: victoriametrics/victoria-metrics:v1.142.0
     command:
       - "--storageDataPath=/victoria-metrics-data"
       - "--selfScrapeInterval=10s"
@@ -128,7 +128,7 @@ services:
       - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
 
   vmalert:
-    image: victoriametrics/vmalert:v1.140.0
+    image: victoriametrics/vmalert:v1.142.0
     depends_on:
       - victoriametrics
       - alertmanager

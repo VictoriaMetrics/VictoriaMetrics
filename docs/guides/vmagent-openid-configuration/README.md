@@ -155,15 +155,15 @@ These services will store and query the metrics scraped by vmagent.
 # compose.yaml
 services:
   vmstorage:
-    image: victoriametrics/vmstorage:v1.140.0-cluster
+    image: victoriametrics/vmstorage:v1.142.0-cluster
 
   vminsert:
-    image: victoriametrics/vminsert:v1.140.0-cluster
+    image: victoriametrics/vminsert:v1.142.0-cluster
     command:
       - -storageNode=vmstorage:8400
 
   vmselect:
-    image: victoriametrics/vmselect:v1.140.0-cluster
+    image: victoriametrics/vmselect:v1.142.0-cluster
     command:
       - -storageNode=vmstorage:8401
     ports:
@@ -196,7 +196,7 @@ Add the vmauth service to `compose.yaml`:
 # compose.yaml
 services:
   vmauth:
-    image: victoriametrics/vmauth:v1.140.0-enterprise
+    image: victoriametrics/vmauth:v1.142.0-enterprise
     ports:
       - 8427:8427
     volumes:
@@ -251,7 +251,7 @@ Add the vmagent service to `compose.yaml` with OAuth2 configuration:
 # compose.yaml
 services:
   vmagent:
-    image: victoriametrics/vmagent:v1.140.0
+    image: victoriametrics/vmagent:v1.142.0
     volumes:
       - ./scrape.yaml:/etc/vmagent/config.yaml
     command:

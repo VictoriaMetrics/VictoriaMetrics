@@ -56,7 +56,7 @@ Let's assume vmagent is running with command line flags:
 * `-zabbixconnector.addEmptyTagsValue=exists`
 * `-zabbixconnector.addDuplicateTagsSeparator=,`
 
-Let's fetch the ingested data via [data export API](#how-to-export-data-in-json-line-format):
+Let's fetch the ingested data via [data export API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-export-data-in-json-line-format):
 
 ```sh
 curl http://localhost:8428/api/v1/export -d 'match={host="Zabbix server"}'
