@@ -854,14 +854,14 @@ func (bb *bufferedBody) canRetry() bool {
 		return false
 	}
 	maxRetrySize := maxRequestBodySizeToRetry.IntN()
-	return maxRetrySize > 0 && len(bb.buf) <= maxRetrySize
+	return len(bb.buf) == 0 || (maxRetrySize > 0 && len(bb.buf) <= maxRetrySize)
 }
 
 // Close implements io.Closer interface.
 func (bb *bufferedBody) Close() error {
 	bb.resetReader()
+	bb.cannotRetry = !bb.canRetry()
 	if bb.r != nil {
-		bb.cannotRetry = true
 		return bb.r.Close()
 	}
 	return nil
