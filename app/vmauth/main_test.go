@@ -2073,8 +2073,10 @@ func TestBufferedBody_RetryDisabledByMaxRequestBodySizeToRetry(t *testing.T) {
 			t.Fatalf("unexpected error: %s", err)
 		}
 		bb, ok := rb.(*bufferedBody)
-		if !ok || bb.canRetry() {
-			t.Fatalf("canRetry must return false")
+		canRetry := !ok || bb.canRetry()
+
+		if canRetry {
+			t.Fatalf("canRetry() must return false before reading anything")
 		}
 		data, err := io.ReadAll(rb)
 		if err != nil {
@@ -2085,6 +2087,14 @@ func TestBufferedBody_RetryDisabledByMaxRequestBodySizeToRetry(t *testing.T) {
 		}
 		if err := rb.Close(); err != nil {
 			t.Fatalf("unexpected error when closing bufferedBody: %s", err)
+		}
+
+		data, err = io.ReadAll(rb)
+		if err == nil {
+			t.Fatalf("expecting non-nil error")
+		}
+		if len(data) != 0 {
+			t.Fatalf("unexpected non-empty data read: %q", data)
 		}
 	}
 
