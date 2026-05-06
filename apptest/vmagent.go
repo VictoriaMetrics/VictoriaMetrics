@@ -103,7 +103,7 @@ func getVMAgentInsertPath(addr, suffix string, o QueryOpts) string {
 	h := o.getHeaders()
 	if h.Get("AccountID") != "" || h.Get("ProjectID") != "" {
 		// vmagent supports tenantID in HTTP headers only if -enableMultitenantHandlers and -enableMultitenancyViaHeaders are set
-		// see https://docs.victoriametrics.com/vmagent/index.html#multitenancy
+		// see https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy
 		return fmt.Sprintf("http://%s/insert/%s", addr, suffix)
 	}
 

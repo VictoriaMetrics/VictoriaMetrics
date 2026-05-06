@@ -131,11 +131,11 @@ data from multiple tenants](#multitenant-reads) via the same URL.
 
 #### Multitenant writes
 
-`vminsert` can accept data from multiple [tenants](#multitenancy) via a special `multitenant` endpoints :
+`vminsert` can accept data from multiple [tenants](#multitenancy) via special `multitenant` endpoints:
  - `http://vminsert:8480/insert/multitenant/<suffix>`
  - `http://vminsert:8480/insert/<suffix>` and HTTP header `AccountID: multitenant`. See how to enable headers [here](#multitenancy-via-headers).
 where `<suffix>` can be replaced with any supported suffix for data ingestion from [this list](#url-format).
-The `accountID` and `projectID` are obtained from optional `vm_account_id` and `vm_project_id` [labels](https://docs.victoriametrics.com/keyConcepts.html#labels) of the incoming samples.
+The `accountID` and `projectID` are obtained from optional `vm_account_id` and `vm_project_id` [labels](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#labels) of the incoming samples.
 If `vm_account_id` or `vm_project_id` labels are missing or invalid, then the corresponding `accountID` and `projectID` are set to 0.
 These labels are automatically removed from samples before forwarding them to `vmstorage`.
 For example, if the following samples are written into `http://vminsert:8480/insert/multitenant/prometheus/api/v1/write`:

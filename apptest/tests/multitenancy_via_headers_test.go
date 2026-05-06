@@ -202,8 +202,8 @@ func TestClusterMultiTenantSelectViaHeaders(t *testing.T) {
 	       "5"
 	             ]
 	   }`)
-	wantSR.Sort()
-	gotVR := vmselect.PrometheusAPIV1LabelValues(t, "vm_account_id", "foo", apptest.QueryOpts{
+	// matchQuery is ignored for /api/v1/label/<labelName>/values lookups with multitenant token
+	gotVR := vmselect.PrometheusAPIV1LabelValues(t, "vm_account_id", "xxx", apptest.QueryOpts{
 		Start:        "2022-05-10T08:00:00.000Z",
 		End:          "2022-05-10T08:30:00.000Z",
 		ExtraFilters: []string{`{vm_account_id="5"}`},

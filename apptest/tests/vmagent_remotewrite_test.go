@@ -585,7 +585,7 @@ func TestClusterVMAgentForwardMetricsMetadata(t *testing.T) {
 
 }
 
-// See https://docs.victoriametrics.com/vmagent/index.html#multitenancy
+// See https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy
 func TestSingleVMAgentMultitenancy(t *testing.T) {
 	tc := apptest.NewTestCase(t)
 	defer tc.Stop()

@@ -85,7 +85,7 @@ var (
 	maxLabelValueLen       = flag.Int("maxLabelValueLen", 0, "The maximum length of label values in the accepted time series. Series with longer label value are ignored. In this case the vm_rows_ignored_total{reason=\"too_long_label_value\"} metric at /metrics page is incremented")
 
 	enableMultitenancyViaHeaders = flag.Bool("enableMultitenancyViaHeaders", false, "Enables multitenancy via HTTP headers. "+
-		"See https://docs.victoriametrics.com/vmagent/#multitenancy")
+		"See https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy")
 )
 
 var (
