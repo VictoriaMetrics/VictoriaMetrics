@@ -637,4 +637,16 @@ func TestSingleVMAgentMultitenancy(t *testing.T) {
 	if v != 1 {
 		t.Fatalf("expected vmagent_tenant_inserted_rows_total to have value 1 for accountID=3, projectID=3")
 	}
+
+	// tenants in header and path clash - path should have higher priority on ingestion
+	opts := apptest.QueryOpts{Headers: make(http.Header)}
+	opts.Headers.Set("AccountID", "4")
+	opts.Tenant = "5"
+	vmagent.APIV1ImportPrometheus(t, []string{
+		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
+	}, opts)
+	v = vmagent.GetIntMetric(t, `vmagent_tenant_inserted_rows_total{type="prometheus",accountID="5",projectID="0"}`)
+	if v != 1 {
+		t.Fatalf("expected vmagent_tenant_inserted_rows_total to have value 1 for accountID=5, projectID=0")
+	}
 }

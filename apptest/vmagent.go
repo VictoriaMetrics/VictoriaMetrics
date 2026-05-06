@@ -84,30 +84,31 @@ func (app *Vmagent) APIV1ImportPrometheusNoWaitFlush(t *testing.T, records []str
 	data := []byte(strings.Join(records, "\n"))
 	headers := opts.getHeaders()
 	headers.Set("Content-Type", "text/plain")
-	url := app.getApiV1ImportPrometheusURL(opts)
+	url := getVMAgentInsertPath(app.httpListenAddr, "prometheus/api/v1/import/prometheus", opts)
 	_, statusCode := app.cli.Post(t, url, data, headers)
 	if statusCode != http.StatusNoContent {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
 	}
 }
 
-// getApiV1ImportPrometheusURL returns URL path for importing data in Prometheus format.
-// If provided QueryOpts specify tenantID in params or HTTP headers then URL path will reflect this.
-func (app *Vmagent) getApiV1ImportPrometheusURL(o QueryOpts) string {
+// getVMAgentInsertPath returns URL path for writes.
+// If tenant is set in QueryOpts, it will return cluster-like path for ingestion.
+// If tenant is empty, it will return single-node (no tenants) path.
+func getVMAgentInsertPath(addr, suffix string, o QueryOpts) string {
 	if o.Tenant != "" {
-		// vmagent supports tenantID in path only if -enableMultitenantHandlers is set
-		// see https://docs.victoriametrics.com/vmagent/index.html#multitenancy
-		return fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/import/prometheus", app.httpListenAddr, o.Tenant)
+		// QueryOpts.Tenant has priority over headers
+		return fmt.Sprintf("http://%s/insert/%s/%s", addr, o.Tenant, suffix)
 	}
 
 	h := o.getHeaders()
 	if h.Get("AccountID") != "" || h.Get("ProjectID") != "" {
 		// vmagent supports tenantID in HTTP headers only if -enableMultitenantHandlers and -enableMultitenancyViaHeaders are set
 		// see https://docs.victoriametrics.com/vmagent/index.html#multitenancy
-		return fmt.Sprintf("http://%s/insert/prometheus/api/v1/import/prometheus", app.httpListenAddr)
+		return fmt.Sprintf("http://%s/insert/%s", addr, suffix)
 	}
 
-	return fmt.Sprintf("http://%s/api/v1/import/prometheus", app.httpListenAddr)
+	// tenant is missing in QueryOpts and in HTTP headers. Use single-node (no tenants) path
+	return fmt.Sprintf("http://%s/%s", addr, suffix)
 }
 
 // RemoteWriteRequestsRetriesCountTotal sums up the total retries for remote write requests.
@@ -186,10 +187,7 @@ func (app *Vmagent) ReloadRelabelConfigs(t *testing.T) {
 func (app *Vmagent) PrometheusAPIV1Write(t *testing.T, wr prompb.WriteRequest, opts QueryOpts) {
 	t.Helper()
 
-	url := fmt.Sprintf("http://%s/prometheus/api/v1/write", app.httpListenAddr)
-	if opts.Tenant != "" {
-		url = fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/write", app.httpListenAddr, opts.Tenant)
-	}
+	url := getVMAgentInsertPath(app.httpListenAddr, "prometheus/api/v1/write", opts)
 	data := snappy.Encode(nil, wr.MarshalProtobuf(nil))
 	recordsCount := len(wr.Timeseries)
 	if prommetadata.IsEnabled() {

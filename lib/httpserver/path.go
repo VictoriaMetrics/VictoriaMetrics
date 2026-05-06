@@ -3,9 +3,8 @@ package httpserver
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 )
 
 // Path contains the following path structure:
@@ -93,18 +92,18 @@ func ParsePathAndHeaders(path string, h http.Header) (*Path, error) {
 	// Try to split tail into {tenantID}/{suffix} segments.
 	// If the first segment is a valid tenantID - consume it, ignore headers
 	// Otherwise, treat tail as {suffix} and read tenantID from HTTP headers.
-	tenantID := ""
+	var tenantID string
 	suffix := tail
 	n = strings.IndexByte(tail, '/')
 	if n >= 0 {
 		tenantID = tail[:n]
 	}
-	if isTenantID(tenantID) {
+	if maybeTenantID(tenantID) {
 		// cut the tenantID from suffix
 		suffix = skipPrefixSlashes(tail[n+1:])
 	} else {
 		// tenantID is not valid - assume tail is all suffix and tenantID is in headers
-		tenantID = tenantIDFromHeaders(h)
+		tenantID = tenantIDFromHeadersOrDefault(h, "0:0")
 	}
 
 	// Substitute double slashes with single slashes in the path, since such slashes
@@ -118,31 +117,50 @@ func ParsePathAndHeaders(path string, h http.Header) (*Path, error) {
 	}, nil
 }
 
-// isTenantID reports whether s is a valid tenantID: "multitenant" or "accountID[:projectID]".
-func isTenantID(s string) bool {
-	if s == "multitenant" {
+// maybeTenantID returns true if s is "multitenant", "<uint>" or contains ":" char.
+// It doesn't validate correctness of tenantID and is only used for quick routing.
+// It is expected that tenantID will be correctly validated later.
+func maybeTenantID(tenantID string) bool {
+	if tenantID == "" {
+		return false
+	}
+	if tenantID == "multitenant" {
 		return true
 	}
-	_, _, err := auth.ParseToken(s)
-	return err == nil
+
+	tmp := strings.Split(tenantID, ":")
+	if len(tmp) == 2 {
+		return true
+	}
+
+	_, err := strconv.ParseUint(tenantID, 10, 32)
+	if err == nil {
+		return true
+	}
+	return false
 }
 
 // tenantIDFromHeaders reads AccountID and ProjectID header values from request.
-// If headers are missing, it assumes 0:0 as default response.
-func tenantIDFromHeaders(h http.Header) string {
-	accountID, projectID := "0", "0"
-	ah := h.Get("AccountID")
-	if len(ah) > 0 {
-		accountID = ah
-		if accountID == "multitenant" {
-			return "multitenant"
-		}
-	}
-	ph := h.Get("ProjectID")
-	if len(ph) > 0 {
-		projectID = ph
+// If headers are missing, it returns defaultTenantID.
+func tenantIDFromHeadersOrDefault(h http.Header, defaultTenantID string) string {
+	aID := h.Get("AccountID")
+	pID := h.Get("ProjectID")
+	if len(aID) == 0 && len(pID) == 0 {
+		return defaultTenantID
 	}
 
+	if aID == "multitenant" {
+		// special case for multitenant
+		return "multitenant"
+	}
+
+	accountID, projectID := "0", "0"
+	if len(aID) > 0 {
+		accountID = aID
+	}
+	if len(pID) > 0 {
+		projectID = pID
+	}
 	return fmt.Sprintf("%s:%s", accountID, projectID)
 }
 

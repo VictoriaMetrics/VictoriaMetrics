@@ -278,4 +278,36 @@ func TestClusterMultiTenantSelectViaHeaders(t *testing.T) {
 	if got := vmselect.GetIntMetric(t, `vm_cache_entries{type="multitenancy/tenants"}`); got != 0 {
 		t.Errorf("unexpected multitenancy tenants cache entries; got %d; want 0", got)
 	}
+
+	// verify that tenant in path has priority over tenant specified in headers
+
+	// /api/v1/import/prometheus
+
+	tenantInHeader := make(http.Header)
+	tenantInHeader.Set("AccountID", "42")
+	tenantInPath := "112"
+	vminsert.PrometheusAPIV1ImportPrometheus(t, samples, apptest.QueryOpts{
+		// tenants in header and path clash - path should have higher priority on ingestion
+		Headers: tenantInHeader,
+		Tenant:  "112",
+	})
+	vmstorage.ForceFlush(t)
+
+	want = apptest.NewPrometheusAPIV1QueryResponse(t,
+		`{"data":
+       {"result":[
+          {"metric":{"__name__":"foo_bar"},"value":[1652169900,"3"]}
+                 ]
+       }
+     }`,
+	)
+	got = vmselect.PrometheusAPIV1Query(t, "foo_bar", apptest.QueryOpts{
+		// tenants in header and path clash - path should have higher priority on ingestion
+		Headers: multitenant,
+		Tenant:  tenantInPath,
+		Time:    instantCT,
+	})
+	if diff := cmp.Diff(want, got, cmpOpt); diff != "" {
+		t.Errorf("unexpected response (-want, +got):\n%s", diff)
+	}
 }
