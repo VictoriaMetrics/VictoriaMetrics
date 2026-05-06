@@ -365,6 +365,8 @@ Additionally, `vmalert` provides some extra templating functions listed in [temp
 * `title` - converts the first letters of every input word to uppercase.
 * `toLower` - converts all the chars in the input string to lowercase.
 * `toTime` - converts the input unix timestamp to [time.Time](https://pkg.go.dev/time#Time).
+* `formatTime layout` - formats a Unix timestamp time using the given [time layout](https://pkg.go.dev/time#Layout).
+  For example, `{{ now | formatTime "2006-01-02T15:04:05Z07:00" }}` returns the current time formatted as RFC3339.
 * `toUpper` - converts all the chars in the input string to uppercase.
 * `value` - returns the numeric value from the input query result.
 
@@ -532,9 +534,7 @@ The multitenant endpoint in vmselect is less efficient than [specifying tenants 
 
 For security considerations, it is recommended restricting access to multitenant endpoints only to trusted sources, since untrusted source may break per-tenant data by writing unwanted samples or get access to data of arbitrary tenants.
 
-* To specify `tenant` parameter per each alerting and recording group if
-  [enterprise version of vmalert](https://docs.victoriametrics.com/victoriametrics/enterprise/) is used
-  with `-clusterMode` command-line flag. For example:
+* To specify the `tenant` parameter for each rule group when `-clusterMode` is enabled in the [enterprise version of vmalert](https://docs.victoriametrics.com/victoriametrics/enterprise/). In this mode, `-datasource.url`, `-remoteRead.url` and `-remoteWrite.url` must contain only the hostname without tenant information, such as `-datasource.url=http://vmselect:8481`, and `vmalert` will automatically append the specified tenant to the URLs for querying and writing:
 
 ```yaml
 groups:
@@ -552,10 +552,6 @@ groups:
 The results of alerting and recording rules contain `vm_account_id` and `vm_project_id` labels
 if `-clusterMode` is enabled. These labels can be used during [templating](https://docs.victoriametrics.com/victoriametrics/vmalert/#templating),
 and help to identify to which account or project the triggered alert or produced recording belongs.
-
-If `-clusterMode` is enabled, then `-datasource.url`, `-remoteRead.url` and `-remoteWrite.url` must
-contain only the hostname without tenant id. For example: `-datasource.url=http://vmselect:8481`.
-`vmalert` automatically adds the specified tenant to urls per each recording rule in this case.
 
 If `-clusterMode` is enabled and the `tenant` in a particular group is missing, then the tenant value
 is obtained from `-defaultTenant.prometheus` or `-defaultTenant.graphite` depending on the `type` of the group.
@@ -1144,10 +1140,16 @@ It is possible to specify custom TLS Root CA via `-mtlsCAFile` command-line flag
 
 See general recommendations regarding [security](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#security).
 
-vmalert [web UI](#web) exposes configuration details such as list of [Groups](#groups), active alerts,
-[alerts state](#alerts-state-on-restarts), [notifiers](#notifier-configuration-file). Notifier addresses (sanitized) are attached
-as labels to metrics `vmalert_alerts_sent_.*` on `http://<vmalert>/metrics` page. Consider limiting user's access
-to the web UI or `/metrics` page if this information is sensitive.
+vmalert [web UI](https://docs.victoriametrics.com/victoriametrics/vmalert/#web), logs, and exported metrics contain details such as [group](https://docs.victoriametrics.com/victoriametrics/vmalert/#groups) configurations, active alerts,
+[alerts state](https://docs.victoriametrics.com/victoriametrics/vmalert/#alerts-state-on-restarts), [notifiers configuration](https://docs.victoriametrics.com/victoriametrics/vmalert/#notifier-configuration-file). Consider limiting user's access
+to them if this information is sensitive.
+Specifically:
+* Log messages, the UI, and exported metrics contain full path to the configured rule files. These file paths can be stripped 
+  by enabling `-rule.stripFilePath` command-line flag {{% available_from "#" %}};
+* Datasource address is sanitized in log messages, UI and exported metrics, can be shown by enabling ` -datasource.showURL`;
+* Notifier addresses are sanitized in log messages, UI and exported metrics, can be shown by enabling `-notifier.showURL`;
+* Remote read address is sanitized in log messages, UI and exported metrics, can be shown by enabling ` --remoteRead.showURL`;
+* Remote write address is sanitized in log messages, UI and exported metrics, can be shown by enabling ` -remoteWrite.showURL`.
 
 [Alerts state](#alerts-state-on-restarts) page or [debug mode](#debug-mode) could emit additional information about configured
 datasource URL, GET params and headers. Sensitive information such as passwords or auth tokens is stripped by default.
