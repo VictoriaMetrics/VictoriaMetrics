@@ -323,8 +323,7 @@ func (app *Vminsert) OpentelemetryV1Metrics(t *testing.T, md otlppb.MetricsData,
 			}
 		}
 	}
-
-	url := fmt.Sprintf("http://%s/insert/%s/opentelemetry/v1/metrics", app.httpListenAddr, opts.getTenant())
+	url := getClusterPath(app.httpListenAddr, "insert", "opentelemetry/v1/metrics", opts)
 	uv := opts.asURLValues()
 	uvs := uv.Encode()
 	if len(uvs) > 0 {
