@@ -134,10 +134,7 @@ func maybeTenantID(tenantID string) bool {
 	}
 
 	_, err := strconv.ParseUint(tenantID, 10, 32)
-	if err == nil {
-		return true
-	}
-	return false
+	return err == nil
 }
 
 // tenantIDFromHeaders reads AccountID and ProjectID header values from request.
