@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -167,6 +168,18 @@ func (tc *TestCase) MustStartVmagent(instance string, flags []string, promScrape
 	}
 	tc.addApp(instance, app)
 	return app
+}
+
+// MustStartDefaultRWVmagent is a test helper function that starts an instance of
+// vmagent with defaults suitable for remote-write tests.
+func (tc *TestCase) MustStartDefaultRWVmagent(instance string, flags []string) *Vmagent {
+	tc.t.Helper()
+
+	defaultFlags := []string{
+		"-remoteWrite.flushInterval=50ms",
+	}
+	defaultFlags = slices.Concat(defaultFlags, flags)
+	return tc.MustStartVmagent(instance, defaultFlags, ``)
 }
 
 // Vmcluster represents a typical cluster setup: several vmstorage replicas, one
