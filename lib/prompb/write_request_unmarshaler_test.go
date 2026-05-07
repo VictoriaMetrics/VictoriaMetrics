@@ -14,7 +14,7 @@ func TestUnmarshalTimeSeries(t *testing.T) {
 		var tss []TimeSeries
 		var err error
 
-		tss, _, _, _, err = unmarshalTimeSeries(src, tss, nil, nil, nil)
+		tss, _, _, err = unmarshalTimeSeries(src, tss, nil, nil, &fmtBuffer{})
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -343,7 +343,6 @@ func appendProtoVarint(dst []byte, v uint64) []byte {
 }
 
 func appendVmrangeHelper(lower float64, upper float64) string {
-	var vmrange string
-	_, vmrange = appendVmrange(nil, lower, upper)
-	return vmrange
+	var fb fmtBuffer
+	return fb.formatVmrange(lower, upper)
 }

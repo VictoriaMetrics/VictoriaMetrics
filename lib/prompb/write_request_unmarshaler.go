@@ -3,12 +3,9 @@ package prompb
 import (
 	"fmt"
 	"math"
-	"strconv"
 	"sync"
 
 	"github.com/VictoriaMetrics/easyproto"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
 // GetWriteRequestUnmarshaler returns WriteRequestUnmarshaler from the pool.
@@ -41,7 +38,7 @@ type WriteRequestUnmarshaler struct {
 
 	labelsPool  []Label
 	samplesPool []Sample
-	bytesPool   []byte
+	fb          fmtBuffer
 }
 
 // Reset resets wru, so it could be re-used.
@@ -54,7 +51,7 @@ func (wru *WriteRequestUnmarshaler) Reset() {
 	clear(wru.samplesPool)
 	wru.samplesPool = wru.samplesPool[:0]
 
-	wru.bytesPool = wru.bytesPool[:0]
+	wru.fb.reset()
 }
 
 // UnmarshalProtobuf parses the given Protobuf-encoded `src` into an internal WriteRequest instance and returns a pointer to it.
@@ -80,7 +77,7 @@ func (wru *WriteRequestUnmarshaler) UnmarshalProtobuf(src []byte) (*WriteRequest
 	mds := wru.wr.Metadata
 	labelsPool := wru.labelsPool
 	samplesPool := wru.samplesPool
-	bytesPool := wru.bytesPool
+	fb := wru.fb
 	var fc easyproto.FieldContext
 	for len(src) > 0 {
 		src, err = fc.NextField(src)
@@ -93,7 +90,7 @@ func (wru *WriteRequestUnmarshaler) UnmarshalProtobuf(src []byte) (*WriteRequest
 			if !ok {
 				return nil, fmt.Errorf("cannot read timeseries data")
 			}
-			tss, labelsPool, samplesPool, bytesPool, err = unmarshalTimeSeries(data, tss, labelsPool, samplesPool, bytesPool)
+			tss, labelsPool, samplesPool, err = unmarshalTimeSeries(data, tss, labelsPool, samplesPool, &fb)
 			if err != nil {
 				return nil, fmt.Errorf("cannot unmarshal timeseries: %w", err)
 			}
@@ -118,13 +115,13 @@ func (wru *WriteRequestUnmarshaler) UnmarshalProtobuf(src []byte) (*WriteRequest
 	wru.wr.Metadata = mds
 	wru.labelsPool = labelsPool
 	wru.samplesPool = samplesPool
-	wru.bytesPool = bytesPool
+	wru.fb = fb
 	return &wru.wr, nil
 }
 
 // unmarshalTimeSeries unmarshals TimeSeries messages, which can specify either samples or native histogram samples, but not both.
 // See https://github.com/prometheus/prometheus/blob/9a3ac8910b0476d0d73a5c36a54c55baec5829b6/prompb/types.proto#L133
-func unmarshalTimeSeries(src []byte, tss []TimeSeries, labelsPool []Label, samplesPool []Sample, bytesPool []byte) ([]TimeSeries, []Label, []Sample, []byte, error) {
+func unmarshalTimeSeries(src []byte, tss []TimeSeries, labelsPool []Label, samplesPool []Sample, fb *fmtBuffer) ([]TimeSeries, []Label, []Sample, error) {
 	labelsPoolLen := len(labelsPool)
 	samplesPoolLen := len(samplesPool)
 
@@ -140,13 +137,13 @@ func unmarshalTimeSeries(src []byte, tss []TimeSeries, labelsPool []Label, sampl
 	for len(src) > 0 {
 		src, err = fc.NextField(src)
 		if err != nil {
-			return tss, labelsPool, samplesPool, bytesPool, fmt.Errorf("cannot read the next field: %w", err)
+			return tss, labelsPool, samplesPool, fmt.Errorf("cannot read the next field: %w", err)
 		}
 		switch fc.FieldNum {
 		case 1:
 			data, ok := fc.MessageData()
 			if !ok {
-				return tss, labelsPool, samplesPool, bytesPool, fmt.Errorf("cannot read label data")
+				return tss, labelsPool, samplesPool, fmt.Errorf("cannot read label data")
 			}
 			if len(labelsPool) < cap(labelsPool) {
 				labelsPool = labelsPool[:len(labelsPool)+1]
@@ -155,12 +152,12 @@ func unmarshalTimeSeries(src []byte, tss []TimeSeries, labelsPool []Label, sampl
 			}
 			label := &labelsPool[len(labelsPool)-1]
 			if err := label.unmarshalProtobuf(data); err != nil {
-				return tss, labelsPool, samplesPool, bytesPool, fmt.Errorf("cannot unmarshal label: %w", err)
+				return tss, labelsPool, samplesPool, fmt.Errorf("cannot unmarshal label: %w", err)
 			}
 		case 2:
 			data, ok := fc.MessageData()
 			if !ok {
-				return tss, labelsPool, samplesPool, bytesPool, fmt.Errorf("cannot read sample data")
+				return tss, labelsPool, samplesPool, fmt.Errorf("cannot read sample data")
 			}
 			if len(samplesPool) < cap(samplesPool) {
 				samplesPool = samplesPool[:len(samplesPool)+1]
@@ -169,12 +166,12 @@ func unmarshalTimeSeries(src []byte, tss []TimeSeries, labelsPool []Label, sampl
 			}
 			sample := &samplesPool[len(samplesPool)-1]
 			if err := sample.unmarshalProtobuf(data); err != nil {
-				return tss, labelsPool, samplesPool, bytesPool, fmt.Errorf("cannot unmarshal sample: %w", err)
+				return tss, labelsPool, samplesPool, fmt.Errorf("cannot unmarshal sample: %w", err)
 			}
 		case 4:
 			data, ok := fc.MessageData()
 			if !ok {
-				return tss, labelsPool, samplesPool, bytesPool, fmt.Errorf("cannot read native histogram data")
+				return tss, labelsPool, samplesPool, fmt.Errorf("cannot read native histogram data")
 			}
 			histograms = append(histograms, data)
 		}
@@ -186,17 +183,17 @@ func unmarshalTimeSeries(src []byte, tss []TimeSeries, labelsPool []Label, sampl
 	// classic series with normal samples
 	if len(samples) > 0 {
 		tss = appendTimeSeries(tss, baseLabels, samples)
-		return tss, labelsPool, samplesPool, bytesPool, nil
+		return tss, labelsPool, samplesPool, nil
 	}
 
 	for _, hdata := range histograms {
-		tss, labelsPool, samplesPool, bytesPool, err = unmarshalHistogram(hdata, tss, labelsPool, samplesPool, baseLabels, bytesPool)
+		tss, labelsPool, samplesPool, err = unmarshalHistogram(hdata, tss, labelsPool, samplesPool, baseLabels, fb)
 		if err != nil {
-			return tss, labelsPool, samplesPool, bytesPool, fmt.Errorf("failed to unmarshal native histogram: %w", err)
+			return tss, labelsPool, samplesPool, fmt.Errorf("failed to unmarshal native histogram: %w", err)
 		}
 	}
 
-	return tss, labelsPool, samplesPool, bytesPool, nil
+	return tss, labelsPool, samplesPool, nil
 }
 
 func appendTimeSeries(tss []TimeSeries, labels []Label, samples []Sample) []TimeSeries {
@@ -211,7 +208,7 @@ func appendTimeSeries(tss []TimeSeries, labels []Label, samples []Sample) []Time
 	return tss
 }
 
-func unmarshalHistogram(src []byte, tss []TimeSeries, labelsPool []Label, samplesPool []Sample, baseLabels []Label, bytesPool []byte) ([]TimeSeries, []Label, []Sample, []byte, error) {
+func unmarshalHistogram(src []byte, tss []TimeSeries, labelsPool []Label, samplesPool []Sample, baseLabels []Label, fb *fmtBuffer) ([]TimeSeries, []Label, []Sample, error) {
 	// see https://github.com/prometheus/prometheus/blob/9a3ac8910b0476d0d73a5c36a54c55baec5829b6/prompb/types.proto#L57
 	// message Histogram {
 	//   oneof count { // Count of observations in the histogram.
@@ -247,97 +244,97 @@ func unmarshalHistogram(src []byte, tss []TimeSeries, labelsPool []Label, sample
 	for len(src) > 0 {
 		src, err = fc.NextField(src)
 		if err != nil {
-			return tss, labelsPool, samplesPool, bytesPool, fmt.Errorf("cannot read next field: %w", err)
+			return tss, labelsPool, samplesPool, fmt.Errorf("cannot read next field: %w", err)
 		}
 		var ok bool
 		switch fc.FieldNum {
 		case 1:
 			nhctx.countInt, ok = fc.Uint64()
 			if !ok {
-				return tss, labelsPool, samplesPool, bytesPool, fmt.Errorf("cannot read count_int")
+				return tss, labelsPool, samplesPool, fmt.Errorf("cannot read count_int")
 			}
 		case 2:
 			nhctx.countFloat, ok = fc.Double()
 			if !ok {
-				return tss, labelsPool, samplesPool, bytesPool, fmt.Errorf("cannot read count_float")
+				return tss, labelsPool, samplesPool, fmt.Errorf("cannot read count_float")
 			}
 			nhctx.isCountFloat = true
 		case 3:
 			nhctx.sum, ok = fc.Double()
 			if !ok {
-				return tss, labelsPool, samplesPool, bytesPool, fmt.Errorf("cannot read sum")
+				return tss, labelsPool, samplesPool, fmt.Errorf("cannot read sum")
 			}
 		case 4:
 			nhctx.schema, ok = fc.Sint32()
 			if !ok {
-				return tss, labelsPool, samplesPool, bytesPool, fmt.Errorf("cannot read schema")
+				return tss, labelsPool, samplesPool, fmt.Errorf("cannot read schema")
 			}
 		case 5:
 			nhctx.zeroThreshold, ok = fc.Double()
 			if !ok {
-				return tss, labelsPool, samplesPool, bytesPool, fmt.Errorf("cannot read zero_threshold")
+				return tss, labelsPool, samplesPool, fmt.Errorf("cannot read zero_threshold")
 			}
 		case 6:
 			nhctx.zeroCountInt, ok = fc.Uint64()
 			if !ok {
-				return tss, labelsPool, samplesPool, bytesPool, fmt.Errorf("cannot read zero_count_int")
+				return tss, labelsPool, samplesPool, fmt.Errorf("cannot read zero_count_int")
 			}
 		case 7:
 			nhctx.zeroCountFloat, ok = fc.Double()
 			if !ok {
-				return tss, labelsPool, samplesPool, bytesPool, fmt.Errorf("cannot read zero_count_float")
+				return tss, labelsPool, samplesPool, fmt.Errorf("cannot read zero_count_float")
 			}
 			nhctx.isZeroCountFloat = true
 		case 8:
 			data, ok := fc.MessageData()
 			if !ok {
-				return tss, labelsPool, samplesPool, bytesPool, fmt.Errorf("cannot read negative_spans")
+				return tss, labelsPool, samplesPool, fmt.Errorf("cannot read negative_spans")
 			}
 			nhctx.negativeSpans, err = appendBucketSpan(nhctx.negativeSpans, data)
 			if err != nil {
-				return tss, labelsPool, samplesPool, bytesPool, fmt.Errorf("cannot decode negative_spans: %w", err)
+				return tss, labelsPool, samplesPool, fmt.Errorf("cannot decode negative_spans: %w", err)
 			}
 		case 9:
 			nhctx.negativeDeltas, ok = fc.UnpackSint64s(nhctx.negativeDeltas)
 			if !ok {
-				return tss, labelsPool, samplesPool, bytesPool, fmt.Errorf("cannot read negative_deltas")
+				return tss, labelsPool, samplesPool, fmt.Errorf("cannot read negative_deltas")
 			}
 		case 10:
 			nhctx.negativeCounts, ok = fc.UnpackDoubles(nhctx.negativeCounts)
 			if !ok {
-				return tss, labelsPool, samplesPool, bytesPool, fmt.Errorf("cannot read negative_counts")
+				return tss, labelsPool, samplesPool, fmt.Errorf("cannot read negative_counts")
 			}
 		case 11:
 			data, ok := fc.MessageData()
 			if !ok {
-				return tss, labelsPool, samplesPool, bytesPool, fmt.Errorf("cannot read positive_spans")
+				return tss, labelsPool, samplesPool, fmt.Errorf("cannot read positive_spans")
 			}
 			nhctx.positiveSpans, err = appendBucketSpan(nhctx.positiveSpans, data)
 			if err != nil {
-				return tss, labelsPool, samplesPool, bytesPool, fmt.Errorf("cannot decode positive_spans: %w", err)
+				return tss, labelsPool, samplesPool, fmt.Errorf("cannot decode positive_spans: %w", err)
 			}
 		case 12:
 			nhctx.positiveDeltas, ok = fc.UnpackSint64s(nhctx.positiveDeltas)
 			if !ok {
-				return tss, labelsPool, samplesPool, bytesPool, fmt.Errorf("cannot read positive_deltas")
+				return tss, labelsPool, samplesPool, fmt.Errorf("cannot read positive_deltas")
 			}
 		case 13:
 			nhctx.positiveCounts, ok = fc.UnpackDoubles(nhctx.positiveCounts)
 			if !ok {
-				return tss, labelsPool, samplesPool, bytesPool, fmt.Errorf("cannot read positive_counts")
+				return tss, labelsPool, samplesPool, fmt.Errorf("cannot read positive_counts")
 			}
 		// case 14: reset_hint exposes extra reset info for query
 		case 15:
 			nhctx.timestamp, ok = fc.Int64()
 			if !ok {
-				return tss, labelsPool, samplesPool, bytesPool, fmt.Errorf("cannot read timestamp")
+				return tss, labelsPool, samplesPool, fmt.Errorf("cannot read timestamp")
 			}
 			// case 16: custom_values — internal OTel→Prom only, skip
 		}
 	}
-	tss, labelsPool, samplesPool, bytesPool = nhctx.appendTimeSeries(tss, baseLabels, labelsPool, samplesPool, bytesPool)
+	tss, labelsPool, samplesPool = nhctx.appendTimeSeries(tss, baseLabels, labelsPool, samplesPool, fb)
 
-	return tss, labelsPool, samplesPool, bytesPool, nil
+	return tss, labelsPool, samplesPool, nil
 }
 
 func appendBucketSpan(spans []bucketSpan, src []byte) ([]bucketSpan, error) {
@@ -378,7 +375,7 @@ func appendBucketSpan(spans []bucketSpan, src []byte) ([]bucketSpan, error) {
 // appendTimeSeries converts the parsed native histogram into _count, _sum and _bucket
 // TimeSeries and appends them to tss.
 // See https://prometheus.io/docs/specs/native_histograms/#data-model
-func (nhctx *nativeHistogramContext) appendTimeSeries(tss []TimeSeries, baseLabels []Label, labelsPool []Label, samplesPool []Sample, bytesPool []byte) ([]TimeSeries, []Label, []Sample, []byte) {
+func (nhctx *nativeHistogramContext) appendTimeSeries(tss []TimeSeries, baseLabels []Label, labelsPool []Label, samplesPool []Sample, fb *fmtBuffer) ([]TimeSeries, []Label, []Sample) {
 	tsMillis := nhctx.timestamp
 
 	count := float64(nhctx.countInt)
@@ -387,37 +384,41 @@ func (nhctx *nativeHistogramContext) appendTimeSeries(tss []TimeSeries, baseLabe
 	}
 
 	var baseName string
-	for _, l := range baseLabels {
-		if l.Name == "__name__" {
-			baseName = l.Value
+	var nameValueP *string
+	for i := range baseLabels {
+		if baseLabels[i].Name == "__name__" {
+			baseName = baseLabels[i].Value
+			nameValueP = &baseLabels[i].Value
 			break
 		}
 	}
+	// metric have no name, skip it
+	if baseName == "" {
+		return tss, labelsPool, samplesPool
+	}
 
-	bytesPool, countSeriesName := appendNameWithSuffix(bytesPool, baseName, "_count")
-	bytesPool, sumSeriesName := appendNameWithSuffix(bytesPool, baseName, "_sum")
-	bytesPool, bucketSeriesName := appendNameWithSuffix(bytesPool, baseName, "_bucket")
+	*nameValueP = fb.formatName(baseName, "_count")
+	tss, labelsPool, samplesPool = appendHistogramSeries(tss, labelsPool, samplesPool, baseLabels, "", tsMillis, count)
+	*nameValueP = fb.formatName(baseName, "_sum")
+	tss, labelsPool, samplesPool = appendHistogramSeries(tss, labelsPool, samplesPool, baseLabels, "", tsMillis, nhctx.sum)
 
-	tss, labelsPool, samplesPool = appendHistogramSeries(tss, labelsPool, samplesPool, baseLabels, countSeriesName, "", tsMillis, count)
-	tss, labelsPool, samplesPool = appendHistogramSeries(tss, labelsPool, samplesPool, baseLabels, sumSeriesName, "", tsMillis, nhctx.sum)
-
+	*nameValueP = fb.formatName(baseName, "_bucket")
 	zeroCount := float64(nhctx.zeroCountInt)
 	if nhctx.isZeroCountFloat {
 		zeroCount = nhctx.zeroCountFloat
 	}
 	if zeroCount > 0 {
-		var vmrange string
-		bytesPool, vmrange = appendVmrange(bytesPool, -nhctx.zeroThreshold, nhctx.zeroThreshold)
-		tss, labelsPool, samplesPool = appendHistogramSeries(tss, labelsPool, samplesPool, baseLabels, bucketSeriesName, vmrange, tsMillis, zeroCount)
+		vmrange := fb.formatVmrange(-nhctx.zeroThreshold, nhctx.zeroThreshold)
+		tss, labelsPool, samplesPool = appendHistogramSeries(tss, labelsPool, samplesPool, baseLabels, vmrange, tsMillis, zeroCount)
 	}
 
 	ratio := math.Pow(2, -float64(nhctx.schema))
 	base := math.Pow(2, ratio)
 
-	tss, labelsPool, samplesPool, bytesPool = appendSpanBuckets(tss, labelsPool, samplesPool, baseLabels, bytesPool, bucketSeriesName, nhctx.positiveSpans, nhctx.positiveDeltas, nhctx.positiveCounts, base, false, tsMillis)
-	tss, labelsPool, samplesPool, bytesPool = appendSpanBuckets(tss, labelsPool, samplesPool, baseLabels, bytesPool, bucketSeriesName, nhctx.negativeSpans, nhctx.negativeDeltas, nhctx.negativeCounts, base, true, tsMillis)
+	tss, labelsPool, samplesPool = appendSpanBuckets(tss, labelsPool, samplesPool, baseLabels, fb, nhctx.positiveSpans, nhctx.positiveDeltas, nhctx.positiveCounts, base, false, tsMillis)
+	tss, labelsPool, samplesPool = appendSpanBuckets(tss, labelsPool, samplesPool, baseLabels, fb, nhctx.negativeSpans, nhctx.negativeDeltas, nhctx.negativeCounts, base, true, tsMillis)
 
-	return tss, labelsPool, samplesPool, bytesPool
+	return tss, labelsPool, samplesPool
 }
 
 // Bucket counts are stored either in deltas or floatCounts.
@@ -428,15 +429,14 @@ func appendSpanBuckets(
 	labelsPool []Label,
 	samplesPool []Sample,
 	baseLabels []Label,
-	bytesPool []byte,
-	name string,
+	fb *fmtBuffer,
 	spans []bucketSpan,
 	deltas []int64,
 	floatCounts []float64,
 	base float64,
 	negative bool,
 	tsMillis int64,
-) ([]TimeSeries, []Label, []Sample, []byte) {
+) ([]TimeSeries, []Label, []Sample) {
 	useFloatCounts := len(floatCounts) > 0
 	var bucketIdx int32
 	var deltaIdx, floatIdx int
@@ -448,13 +448,13 @@ func appendSpanBuckets(
 			var bucketCount float64
 			if useFloatCounts {
 				if floatIdx >= len(floatCounts) {
-					return tss, labelsPool, samplesPool, bytesPool
+					return tss, labelsPool, samplesPool
 				}
 				bucketCount = floatCounts[floatIdx]
 				floatIdx++
 			} else {
 				if deltaIdx >= len(deltas) {
-					return tss, labelsPool, samplesPool, bytesPool
+					return tss, labelsPool, samplesPool
 				}
 				cumDelta += deltas[deltaIdx]
 				deltaIdx++
@@ -467,24 +467,20 @@ func appendSpanBuckets(
 				if negative {
 					lower, upper = -upper, -lower
 				}
-				var vmrange string
-				bytesPool, vmrange = appendVmrange(bytesPool, lower, upper)
-				tss, labelsPool, samplesPool = appendHistogramSeries(tss, labelsPool, samplesPool, baseLabels, name, vmrange, tsMillis, bucketCount)
+				vmrange := fb.formatVmrange(lower, upper)
+				tss, labelsPool, samplesPool = appendHistogramSeries(tss, labelsPool, samplesPool, baseLabels, vmrange, tsMillis, bucketCount)
 			}
 			bucketIdx++
 		}
 	}
-	return tss, labelsPool, samplesPool, bytesPool
+	return tss, labelsPool, samplesPool
 }
 
-func appendHistogramSeries(tss []TimeSeries, labelsPool []Label, samplesPool []Sample, baseLabels []Label, name, vmrange string,
+func appendHistogramSeries(tss []TimeSeries, labelsPool []Label, samplesPool []Sample, baseLabels []Label, vmrange string,
 	tsMillis int64, value float64,
 ) ([]TimeSeries, []Label, []Sample) {
 	labelsStart := len(labelsPool)
 	for _, l := range baseLabels {
-		if l.Name == "__name__" {
-			l.Value = name
-		}
 		if len(labelsPool) < cap(labelsPool) {
 			labelsPool = labelsPool[:len(labelsPool)+1]
 		} else {
@@ -511,21 +507,6 @@ func appendHistogramSeries(tss []TimeSeries, labelsPool []Label, samplesPool []S
 	samples := samplesPool[len(samplesPool)-1 : len(samplesPool) : len(samplesPool)]
 
 	return appendTimeSeries(tss, labels, samples), labelsPool, samplesPool
-}
-
-func appendVmrange(pool []byte, lower, upper float64) ([]byte, string) {
-	n := len(pool)
-	pool = strconv.AppendFloat(pool, lower, 'e', 3, 64)
-	pool = append(pool, "..."...)
-	pool = strconv.AppendFloat(pool, upper, 'e', 3, 64)
-	return pool, bytesutil.ToUnsafeString(pool[n:])
-}
-
-func appendNameWithSuffix(pool []byte, base, suffix string) ([]byte, string) {
-	n := len(pool)
-	pool = append(pool, base...)
-	pool = append(pool, suffix...)
-	return pool, bytesutil.ToUnsafeString(pool[n:])
 }
 
 type bucketSpan struct {
