@@ -21,8 +21,7 @@ type Vmagent struct {
 	*app
 	*ServesMetrics
 
-	httpListenAddr           string
-	apiV1ImportPrometheusURL string
+	httpListenAddr string
 }
 
 // StartVmagent starts an instance of vmagent with the given flags. It also
@@ -52,8 +51,7 @@ func StartVmagent(instance string, flags []string, cli *Client, promScrapeConfig
 			metricsURL: fmt.Sprintf("http://%s/metrics", stderrExtracts[0]),
 			cli:        cli,
 		},
-		httpListenAddr:           stderrExtracts[0],
-		apiV1ImportPrometheusURL: fmt.Sprintf("http://%s/api/v1/import/prometheus", stderrExtracts[0]),
+		httpListenAddr: stderrExtracts[0],
 	}, nil
 }
 
@@ -86,10 +84,31 @@ func (app *Vmagent) APIV1ImportPrometheusNoWaitFlush(t *testing.T, records []str
 	data := []byte(strings.Join(records, "\n"))
 	headers := opts.getHeaders()
 	headers.Set("Content-Type", "text/plain")
-	_, statusCode := app.cli.Post(t, app.apiV1ImportPrometheusURL, data, headers)
+	url := getVMAgentInsertPath(app.httpListenAddr, "prometheus/api/v1/import/prometheus", opts)
+	_, statusCode := app.cli.Post(t, url, data, headers)
 	if statusCode != http.StatusNoContent {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
 	}
+}
+
+// getVMAgentInsertPath returns URL path for writes.
+// If tenant is set in QueryOpts, it will return cluster-like path for ingestion.
+// If tenant is empty, it will return single-node (no tenants) path.
+func getVMAgentInsertPath(addr, suffix string, o QueryOpts) string {
+	if o.Tenant != "" {
+		// QueryOpts.Tenant has priority over headers
+		return fmt.Sprintf("http://%s/insert/%s/%s", addr, o.Tenant, suffix)
+	}
+
+	h := o.getHeaders()
+	if h.Get("AccountID") != "" || h.Get("ProjectID") != "" {
+		// vmagent supports tenantID in HTTP headers only if -enableMultitenantHandlers and -enableMultitenancyViaHeaders are set
+		// see https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy
+		return fmt.Sprintf("http://%s/insert/%s", addr, suffix)
+	}
+
+	// tenant is missing in QueryOpts and in HTTP headers. Use single-node (no tenants) path
+	return fmt.Sprintf("http://%s/%s", addr, suffix)
 }
 
 // RemoteWriteRequestsRetriesCountTotal sums up the total retries for remote write requests.
@@ -168,10 +187,7 @@ func (app *Vmagent) ReloadRelabelConfigs(t *testing.T) {
 func (app *Vmagent) PrometheusAPIV1Write(t *testing.T, wr prompb.WriteRequest, opts QueryOpts) {
 	t.Helper()
 
-	url := fmt.Sprintf("http://%s/prometheus/api/v1/write", app.httpListenAddr)
-	if opts.Tenant != "" {
-		url = fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/write", app.httpListenAddr, opts.Tenant)
-	}
+	url := getVMAgentInsertPath(app.httpListenAddr, "prometheus/api/v1/write", opts)
 	data := snappy.Encode(nil, wr.MarshalProtobuf(nil))
 	recordsCount := len(wr.Timeseries)
 	if prommetadata.IsEnabled() {
