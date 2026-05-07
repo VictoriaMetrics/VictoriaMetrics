@@ -77,7 +77,6 @@ func (wru *WriteRequestUnmarshaler) UnmarshalProtobuf(src []byte) (*WriteRequest
 	mds := wru.wr.Metadata
 	labelsPool := wru.labelsPool
 	samplesPool := wru.samplesPool
-	fb := wru.fb
 	var fc easyproto.FieldContext
 	for len(src) > 0 {
 		src, err = fc.NextField(src)
@@ -90,7 +89,7 @@ func (wru *WriteRequestUnmarshaler) UnmarshalProtobuf(src []byte) (*WriteRequest
 			if !ok {
 				return nil, fmt.Errorf("cannot read timeseries data")
 			}
-			tss, labelsPool, samplesPool, err = unmarshalTimeSeries(data, tss, labelsPool, samplesPool, &fb)
+			tss, labelsPool, samplesPool, err = unmarshalTimeSeries(data, tss, labelsPool, samplesPool, &wru.fb)
 			if err != nil {
 				return nil, fmt.Errorf("cannot unmarshal timeseries: %w", err)
 			}
@@ -115,7 +114,6 @@ func (wru *WriteRequestUnmarshaler) UnmarshalProtobuf(src []byte) (*WriteRequest
 	wru.wr.Metadata = mds
 	wru.labelsPool = labelsPool
 	wru.samplesPool = samplesPool
-	wru.fb = fb
 	return &wru.wr, nil
 }
 
@@ -498,7 +496,9 @@ func appendHistogramSeries(tss []TimeSeries, labelsPool []Label, samplesPool []S
 		} else {
 			labelsPool = append(labelsPool, Label{})
 		}
-		labelsPool[len(labelsPool)-1] = Label{Name: "vmrange", Value: vmrange}
+		l := &labelsPool[len(labelsPool)-1]
+		l.Name = "vmrange"
+		l.Value = vmrange
 	}
 	labels := labelsPool[labelsStart:len(labelsPool):len(labelsPool)]
 
@@ -507,7 +507,9 @@ func appendHistogramSeries(tss []TimeSeries, labelsPool []Label, samplesPool []S
 	} else {
 		samplesPool = append(samplesPool, Sample{})
 	}
-	samplesPool[len(samplesPool)-1] = Sample{Value: value, Timestamp: tsMillis}
+	s := &samplesPool[len(samplesPool)-1]
+	s.Value = value
+	s.Timestamp = tsMillis
 	samples := samplesPool[len(samplesPool)-1 : len(samplesPool) : len(samplesPool)]
 
 	return appendTimeSeries(tss, labels, samples), labelsPool, samplesPool
