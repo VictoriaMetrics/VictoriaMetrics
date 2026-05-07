@@ -30,13 +30,12 @@ func TestSingleVMAgentReloadConfigs(t *testing.T) {
 	relabelFilePath := fmt.Sprintf("%s/%s", t.TempDir(), "relabel_config.yaml")
 	fs.MustWriteSync(relabelFilePath, []byte(relabelingRules))
 
-	vmagent := tc.MustStartVmagent("vmagent", []string{
-		`-remoteWrite.flushInterval=50ms`,
+	vmagent := tc.MustStartDefaultRWVmagent("vmagent", []string{
 		`-remoteWrite.forcePromProto=true`,
 		"-remoteWrite.tmpDataPath=" + tc.Dir() + "/vmagent",
 		fmt.Sprintf(`-remoteWrite.url=http://%s/api/v1/write`, vmsingle.HTTPAddr()),
 		fmt.Sprintf(`-remoteWrite.urlRelabelConfig=%s`, relabelFilePath),
-	}, ``)
+	})
 
 	checkResponse := func(query, expResponse string) {
 		t.Helper()
@@ -132,12 +131,11 @@ func testSingleVMAgentRemoteWrite(t *testing.T, forcePromProto bool) {
 
 	vmsingle := tc.MustStartDefaultVmsingle()
 
-	vmagent := tc.MustStartVmagent("vmagent", []string{
-		`-remoteWrite.flushInterval=50ms`,
+	vmagent := tc.MustStartDefaultRWVmagent("vmagent", []string{
 		fmt.Sprintf(`-remoteWrite.forcePromProto=%v`, forcePromProto),
 		fmt.Sprintf(`-remoteWrite.url=http://%s/api/v1/write`, vmsingle.HTTPAddr()),
 		"-remoteWrite.tmpDataPath=" + tc.Dir() + "/vmagent",
-	}, ``)
+	})
 
 	vmagent.APIV1ImportPrometheus(t, []string{
 		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
@@ -181,12 +179,11 @@ func TestSingleVMAgentUnsupportedMediaTypeDropIfSnappy(t *testing.T) {
 	}))
 	defer remoteWriteSrv.Close()
 
-	vmagent := tc.MustStartVmagent("vmagent", []string{
-		`-remoteWrite.flushInterval=50ms`,
+	vmagent := tc.MustStartDefaultRWVmagent("vmagent", []string{
 		`-remoteWrite.forcePromProto=true`,
 		fmt.Sprintf(`-remoteWrite.url=%s/api/v1/write`, remoteWriteSrv.URL),
 		"-remoteWrite.tmpDataPath=" + tc.Dir() + "/vmagent",
-	}, ``)
+	})
 
 	vmagent.APIV1ImportPrometheusNoWaitFlush(t, []string{
 		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
@@ -245,11 +242,10 @@ func TestSingleVMAgentDowngradeRemoteWriteProtocol(t *testing.T) {
 	}))
 	defer remoteWriteSrv.Close()
 
-	vmagent := tc.MustStartVmagent("vmagent", []string{
-		`-remoteWrite.flushInterval=50ms`,
+	vmagent := tc.MustStartDefaultRWVmagent("vmagent", []string{
 		fmt.Sprintf(`-remoteWrite.url=%s/api/v1/write`, remoteWriteSrv.URL),
 		"-remoteWrite.tmpDataPath=" + tc.Dir() + "/vmagent",
-	}, ``)
+	})
 
 	// Send request encoded with `zstd`; it fails, gets repacked as `snappy`, and retries successfully.
 	vmagent.APIV1ImportPrometheus(t, []string{
@@ -294,8 +290,7 @@ func TestSingleVMAgentDropOnOverload(t *testing.T) {
 	}))
 	defer remoteWriteSrv2.Close()
 
-	vmagent := tc.MustStartVmagent("vmagent", []string{
-		`-remoteWrite.flushInterval=50ms`,
+	vmagent := tc.MustStartDefaultRWVmagent("vmagent", []string{
 		fmt.Sprintf(`-remoteWrite.url=%s/api/v1/write`, remoteWriteSrv.URL),
 		fmt.Sprintf(`-remoteWrite.url=%s/api/v1/write`, remoteWriteSrv2.URL),
 		"-remoteWrite.disableOnDiskQueue=true",
@@ -311,7 +306,7 @@ func TestSingleVMAgentDropOnOverload(t *testing.T) {
 		// It improves the test stability on resource-constrained runners.
 		// Should be bigger than retries * period
 		"-remoteWrite.retryMinInterval=3s",
-	}, ``)
+	})
 
 	const (
 		retries = 20
@@ -397,13 +392,12 @@ func TestSingleVMAgentCardinalityLimiter(t *testing.T) {
 	defer remoteWriteSrv.Close()
 
 	// Verify hourly limit is applied
-	vmagent := tc.MustStartVmagent("vmagent-hourly", []string{
-		`-remoteWrite.flushInterval=50ms`,
+	vmagent := tc.MustStartDefaultRWVmagent("vmagent-hourly", []string{
 		fmt.Sprintf(`-remoteWrite.url=%s/api/v1/write`, remoteWriteSrv.URL),
 		"-remoteWrite.maxRowsPerBlock=1",
 		"-remoteWrite.maxHourlySeries=1",
 		"-remoteWrite.tmpDataPath=" + tc.Dir() + "/vmagent-hourly",
-	}, ``)
+	})
 
 	vmagent.APIV1ImportPrometheus(t, []string{
 		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
@@ -432,13 +426,12 @@ func TestSingleVMAgentCardinalityLimiter(t *testing.T) {
 	)
 
 	// Daily limits
-	vmagent2 := tc.MustStartVmagent("vmagent-daily", []string{
-		`-remoteWrite.flushInterval=50ms`,
+	vmagent2 := tc.MustStartDefaultRWVmagent("vmagent-daily", []string{
 		fmt.Sprintf(`-remoteWrite.url=%s/api/v1/write`, remoteWriteSrv.URL),
 		"-remoteWrite.maxRowsPerBlock=1",
 		"-remoteWrite.maxDailySeries=1",
 		"-remoteWrite.tmpDataPath=" + tc.Dir() + "/vmagent-daily",
-	}, ``)
+	})
 
 	vmagent2.APIV1ImportPrometheus(t, []string{
 		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
@@ -467,14 +460,13 @@ func TestSingleVMAgentCardinalityLimiter(t *testing.T) {
 	)
 
 	// test running with unlimited tracker
-	vmagent3 := tc.MustStartVmagent("vmagent-unlimited", []string{
-		`-remoteWrite.flushInterval=50ms`,
+	vmagent3 := tc.MustStartDefaultRWVmagent("vmagent-unlimited", []string{
 		fmt.Sprintf(`-remoteWrite.url=%s/api/v1/write`, remoteWriteSrv.URL),
 		"-remoteWrite.maxRowsPerBlock=10",
 		"-remoteWrite.maxDailySeries=-1",
 		"-remoteWrite.maxHourlySeries=-1",
 		"-remoteWrite.tmpDataPath=" + tc.Dir() + "/vmagent-unlimited",
-	}, ``)
+	})
 
 	metrics := make([]string, 0, 100)
 	for i := range 100 {
@@ -520,13 +512,12 @@ func TestClusterVMAgentForwardMetricsMetadata(t *testing.T) {
 
 	sut := tc.MustStartDefaultCluster()
 
-	vmagent := tc.MustStartVmagent("vmagent", []string{
-		`-remoteWrite.flushInterval=50ms`,
+	vmagent := tc.MustStartDefaultRWVmagent("vmagent", []string{
 		`-remoteWrite.forcePromProto=true`,
 		`-enableMultitenantHandlers=true`,
 		"-remoteWrite.tmpDataPath=" + tc.Dir() + "/vmagent",
 		fmt.Sprintf(`-remoteWrite.url=http://%s/insert/multitenant/prometheus/api/v1/write`, sut.Vminsert.HTTPAddr()),
-	}, ``)
+	})
 
 	prometheusRemoteWriteDataSet := prompb.WriteRequest{
 		Metadata: []prompb.MetricMetadata{
@@ -595,12 +586,12 @@ func TestSingleVMAgentMultitenancy(t *testing.T) {
 	}))
 	defer remoteWriteSrv.Close()
 
-	vmagent := tc.MustStartVmagent("vmagent-multitenancy", []string{
+	vmagent := tc.MustStartDefaultRWVmagent("vmagent-multitenancy", []string{
 		fmt.Sprintf(`-remoteWrite.url=%s/api/v1/write`, remoteWriteSrv.URL),
 		"-remoteWrite.tmpDataPath=" + tc.Dir() + "/vmagent-multitenancy",
 		"-enableMultitenantHandlers",
 		"-enableMultitenancyViaHeaders",
-	}, ``)
+	})
 
 	vmagent.APIV1ImportPrometheus(t, []string{
 		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
