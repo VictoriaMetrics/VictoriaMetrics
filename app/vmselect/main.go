@@ -415,6 +415,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		return true
 	case "prometheus/api/v1/export":
 		exportRequests.Inc()
+		httpserver.EnableCORS(w, r)
 		if err := prometheus.ExportHandler(startTime, at, w, r); err != nil {
 			exportErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
@@ -423,6 +424,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		return true
 	case "prometheus/api/v1/export/csv":
 		exportCSVRequests.Inc()
+		httpserver.EnableCORS(w, r)
 		if err := prometheus.ExportCSVHandler(startTime, at, w, r); err != nil {
 			exportCSVErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
@@ -431,6 +433,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		return true
 	case "prometheus/api/v1/export/native":
 		exportNativeRequests.Inc()
+		httpserver.EnableCORS(w, r)
 		if err := prometheus.ExportNativeHandler(startTime, at, w, r); err != nil {
 			exportNativeErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
