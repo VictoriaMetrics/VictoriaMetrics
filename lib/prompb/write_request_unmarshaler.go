@@ -180,6 +180,10 @@ func unmarshalTimeSeries(src []byte, tss []TimeSeries, labelsPool []Label, sampl
 	baseLabels := labelsPool[labelsPoolLen:len(labelsPool):len(labelsPool)]
 	samples := samplesPool[samplesPoolLen:len(samplesPool):len(samplesPool)]
 
+	if len(samples) > 0 && len(histograms) > 0 {
+		return tss, labelsPool, samplesPool, fmt.Errorf("cannot have both samples and native histograms in the same TimeSeries")
+	}
+
 	// classic series with normal samples
 	if len(samples) > 0 {
 		tss = appendTimeSeries(tss, baseLabels, samples)
