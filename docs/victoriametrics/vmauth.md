@@ -891,9 +891,9 @@ Each `url_prefix` in the [-auth.config](#auth-config) can be specified in the fo
   This guarantees that incoming load is shared uniformly among the specified backends.
   See also [discovering backend IPs](#discovering-backend-ips).
 
-  `vmauth` automatically detects temporarily unavailable backends and spreads incoming queries among the remaining available backends.
+  `vmauth` automatically detects temporarily unavailable backends and spreads incoming requests among the remaining available backends.
   This allows restarting and performing maintenance on backends without removing them from the `url_prefix` list.
-  If all backends are marked as broken, vmauth still forwards the request to the first backend in the list instead of returning an error immediately.
+  If all backends are marked as unavailable, requests are proxied to the first configured backend in the list instead of failing immediately.
 
   By default, `vmauth` returns backend responses with all the HTTP status codes to the client. It is possible to configure automatic retry of requests at other backends if the backend responds with a status code specified in the `-retryStatusCodes` command-line flag.
   It is possible to customize the list of HTTP response status codes to retry via the `retry_status_codes` list at the `user` and `url_map` level of [`-auth.config`](#auth-config).
