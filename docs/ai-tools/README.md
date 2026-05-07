@@ -1,6 +1,11 @@
-VictoriaMetrics Observability Stack integrates with AI assistants through MCP servers and agent skills.
-These integrations allow AI agents and automation tools to query metrics, logs, and traces, analyze telemetry data, 
-and assist engineers with debugging and observability tasks.
+VictoriaMetrics Observability Stack integrates with AI assistants through [MCP servers](https://docs.victoriametrics.com/ai-tools/#mcp-servers)
+and [agent skills](https://docs.victoriametrics.com/ai-tools/#agent-skills).
+The integrations allow AI agents and automation tools to query Metrics, Logs, and Traces, analyze telemetry data, 
+and assist engineers with debugging, observability tasks, root cause analysis, anomaly detection, etc.
+
+Support of [OpenTelemetry](https://docs.victoriametrics.com/opentelemetry/) for Metrics, Logs, and Traces
+makes VictoriaMetrics Observability Stack optimal for [AI observability](https://docs.victoriametrics.com/ai-tools/#ai-observability).
+Any SDK or AI assistant that can emit telemetry signals in OpenTelemetry format can be integrated with VictoriaMetrics.
 
 # MCP Servers
 
@@ -72,7 +77,6 @@ Capabilities include:
 
 See more details at [VictoriaMetrics/mcp-vmanomaly](https://github.com/VictoriaMetrics/mcp-vmanomaly).
 
-
 # Agent Skills
 
 [Agent skills](https://github.com/VictoriaMetrics/skills) help AI agents and automation tools understand, operate, 
@@ -91,3 +95,16 @@ npx skills add VictoriaMetrics/skills
 ```
 
 See more details at [VictoriaMetrics/skills](https://github.com/VictoriaMetrics/skills).
+
+# AI observability
+
+VictoriaMetrics Observability Stack is optimal for monitoring AI agents using auto-instrumentation libraries
+like [OpenLLMetry](https://github.com/traceloop/openllmetry), [OpenInference](https://github.com/Arize-ai/openinference),
+[OpenLIT](https://victoriametrics.com/blog/ai-agents-observability/#using-openlit).
+Please see more details in [AI Agents Observability with OpenTelemetry and the VictoriaMetrics Stack](https://victoriametrics.com/blog/ai-agents-observability).
+
+AI code assistants like Claude Code, OpenAI Codex, Gemini CLI, Qwen Code, and OpenCode expose internal telemetry that
+helps to monitor cost usage, analytics, performance, compliance and improves troubleshooting experience. All major
+AI coding tools support OpenTelemetry and can be easily integrated into VictoriaMetrics Observability Stack.
+Please see more details in [Vibe coding tools observability with VictoriaMetrics Stack and OpenTelemetry
+](https://victoriametrics.com/blog/vibe-coding-observability/).

@@ -2357,9 +2357,12 @@ Feel free asking any questions regarding VictoriaMetrics:
 * [X (Twitter)](https://x.com/VictoriaMetrics/)
 * [Linkedin](https://www.linkedin.com/company/victoriametrics/)
 * [Reddit](https://www.reddit.com/r/VictoriaMetrics/)
-* [Telegram-en](https://t.me/VictoriaMetrics_en)
-* [Telegram-ru](https://t.me/VictoriaMetrics_ru1)
 * [Mastodon](https://mastodon.social/@victoriametrics/)
+* Telegram:
+  * [VictoriaMetrics_en](https://t.me/VictoriaMetrics_en) 
+  * [VictoriaMetrics_ru](https://t.me/VictoriaMetrics_ru1)
+  * [VictoriaLogs_ru](https://t.me/victorialogs_ru)
+  * [VictoriaTraces_en](https://t.me/VictoriaTraces)
 
 If you like VictoriaMetrics and want to contribute, then please [read these docs](https://docs.victoriametrics.com/victoriametrics/contributing/).
 
