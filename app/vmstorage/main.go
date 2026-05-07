@@ -180,7 +180,7 @@ func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 		writeStorageMetrics(w, strg)
 	})
 	metrics.RegisterSet(storageMetrics)
-	fs.ExposeFsInfoAsMetric(*DataPath)
+	fs.RegisterPathFsMetrics(*DataPath)
 }
 
 var storageMetrics *metrics.Set
