@@ -48,9 +48,11 @@ var (
 )
 
 // NewVMSelectServer starts new server at the given addr, which serves vmselect requests from the given s.
-func NewVMSelectServer(addr string, s *storage.Storage) (*vmselectapi.Server, error) {
+func NewVMSelectServer(addr string, s *storage.Storage, accountID, projectID uint32) (*vmselectapi.Server, error) {
 	api := &vmstorageAPI{
-		s: s,
+		s:         s,
+		accountID: accountID,
+		projectID: projectID,
 	}
 	limits := vmselectapi.Limits{
 		MaxLabelNames:                 *maxTagKeys,
@@ -66,17 +68,22 @@ func NewVMSelectServer(addr string, s *storage.Storage) (*vmselectapi.Server, er
 
 // vmstorageAPI impelements vmselectapi.API
 type vmstorageAPI struct {
-	s *storage.Storage
+	s         *storage.Storage
+	accountID uint32
+	projectID uint32
 }
 
 func (api *vmstorageAPI) InitSearch(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (vmselectapi.BlockIterator, error) {
-	// TODO(rtm0): Return empty result if sq.AccountID, sq.ProjectID do not
-	// match tenantID from flag and sq is not multitenant.
+	// TODO(rtm0): Support multitenant queries.
+	if sq.AccountID != api.accountID || sq.ProjectID != api.projectID {
+		return emptyBI, nil
+	}
 
 	tr := sq.GetTimeRange()
 	if err := checkTimeRange(api.s, tr); err != nil {
 		return nil, err
 	}
+
 	maxMetrics := getMaxMetrics(sq.MaxMetrics)
 	tfss, err := api.setupTfss(qt, sq, tr, maxMetrics, deadline)
 	if err != nil {
@@ -100,8 +107,10 @@ func (api *vmstorageAPI) InitSearch(qt *querytracer.Tracer, sq *storage.SearchQu
 }
 
 func (api *vmstorageAPI) SearchMetricNames(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) ([]string, error) {
-	// TODO(rtm0): Return empty result if sq.AccountID, sq.ProjectID do not
-	// match tenantID from flag and sq is not multitenant.
+	// TODO(@rtm0): Support multitenant queries.
+	if sq.AccountID != api.accountID || sq.ProjectID != api.projectID {
+		return nil, nil
+	}
 
 	tr := sq.GetTimeRange()
 	maxMetrics := sq.MaxMetrics
@@ -138,8 +147,10 @@ func (api *vmstorageAPI) SearchMetricNames(qt *querytracer.Tracer, sq *storage.S
 }
 
 func (api *vmstorageAPI) LabelValues(qt *querytracer.Tracer, sq *storage.SearchQuery, labelName string, maxLabelValues int, deadline uint64) ([]string, error) {
-	// TODO(rtm0): Return empty result if sq.AccountID, sq.ProjectID do not
-	// match tenantID from flag and sq is not multitenant.
+	// TODO(@rtm0): Support multitenant queries.
+	if sq.AccountID != api.accountID || sq.ProjectID != api.projectID {
+		return nil, nil
+	}
 
 	tr := sq.GetTimeRange()
 	maxMetrics := sq.MaxMetrics
@@ -157,8 +168,10 @@ func (api *vmstorageAPI) LabelValues(qt *querytracer.Tracer, sq *storage.SearchQ
 
 func (api *vmstorageAPI) TagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte,
 	maxSuffixes int, deadline uint64) ([]string, error) {
-	// TODO(rtm0): Return empty result if accountID, projectID do not match
-	// tenantID from flag.
+	// TODO(@rtm0): Support multitenant queries?
+	if accountID != api.accountID || projectID != api.projectID {
+		return nil, nil
+	}
 
 	suffixes, err := api.s.SearchTagValueSuffixes(qt, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes, deadline)
 	if err != nil {
@@ -172,8 +185,10 @@ func (api *vmstorageAPI) TagValueSuffixes(qt *querytracer.Tracer, accountID, pro
 }
 
 func (api *vmstorageAPI) LabelNames(qt *querytracer.Tracer, sq *storage.SearchQuery, maxLabelNames int, deadline uint64) ([]string, error) {
-	// TODO(rtm0): Return empty result if sq.AccountID, sq.ProjectID do not
-	// match tenantID from flag and sq is not multitenant.
+	// TODO(@rtm0): Support multitenant queries.
+	if sq.AccountID != api.accountID || sq.ProjectID != api.projectID {
+		return nil, nil
+	}
 
 	tr := sq.GetTimeRange()
 	maxMetrics := sq.MaxMetrics
@@ -190,20 +205,23 @@ func (api *vmstorageAPI) LabelNames(qt *querytracer.Tracer, sq *storage.SearchQu
 }
 
 func (api *vmstorageAPI) SeriesCount(_ *querytracer.Tracer, accountID, projectID uint32, deadline uint64) (uint64, error) {
-	// TODO(rtm0): Return 0 if accountID, projectID do not match tenantID from
-	// flag.
+	// TODO(@rtm0): Support multitenant queries?
+	if accountID != api.accountID || projectID != api.projectID {
+		return 0, nil
+	}
 	return api.s.GetSeriesCount(deadline)
 }
 
-func (api *vmstorageAPI) Tenants(qt *querytracer.Tracer, tr storage.TimeRange, deadline uint64) ([]string, error) {
-	// TODO(rtm0): Return the tenantID from flag.
-	return []string{"0:0"}, nil
-	// return api.s.SearchTenants(qt, tr, deadline)
+func (api *vmstorageAPI) Tenants(_ *querytracer.Tracer, _ storage.TimeRange, _ uint64) ([]string, error) {
+	tenantID := fmt.Sprintf("%d:%d", api.accountID, api.projectID)
+	return []string{tenantID}, nil
 }
 
 func (api *vmstorageAPI) TSDBStatus(qt *querytracer.Tracer, sq *storage.SearchQuery, focusLabel string, topN int, deadline uint64) (*storage.TSDBStatus, error) {
-	// TODO(rtm0): Return empty result if sq.AccountID, sq.ProjectID do not
-	// match tenantID from flag and sq is not multitenant.
+	// TODO(@rtm0): Support multitenant queries.
+	if sq.AccountID != api.accountID || sq.ProjectID != api.projectID {
+		return &storage.TSDBStatus{}, nil
+	}
 
 	tr := sq.GetTimeRange()
 	maxMetrics := sq.MaxMetrics
@@ -221,8 +239,10 @@ func (api *vmstorageAPI) TSDBStatus(qt *querytracer.Tracer, sq *storage.SearchQu
 }
 
 func (api *vmstorageAPI) DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (int, error) {
-	// TODO(rtm0): Return empty result if sq.AccountID, sq.ProjectID do not
-	// match tenantID from flag and sq is not multitenant.
+	// TODO(@rtm0): Support multitenant queries.
+	if sq.AccountID != api.accountID || sq.ProjectID != api.projectID {
+		return 0, nil
+	}
 
 	tr := sq.GetTimeRange()
 	maxMetrics := sq.MaxMetrics
@@ -246,7 +266,10 @@ func (api *vmstorageAPI) RegisterMetricNames(qt *querytracer.Tracer, mrs []stora
 }
 
 func (api *vmstorageAPI) GetMetricNamesUsageStats(qt *querytracer.Tracer, tt *storage.TenantToken, limit, le int, matchPattern string, _ uint64) (metricnamestats.StatsResult, error) {
-	// TODO(rtm0): Return empty result if tt do not match tenantID from flag.
+	// TODO(@rtm0): Support multitenant queries?
+	if tt.AccountID != api.accountID || tt.ProjectID != api.projectID {
+		return metricnamestats.StatsResult{}, nil
+	}
 	return api.s.GetMetricNamesStats(qt, limit, le, matchPattern), nil
 }
 
@@ -287,7 +310,10 @@ func (api *vmstorageAPI) setupTfss(qt *querytracer.Tracer, sq *storage.SearchQue
 }
 
 func (api *vmstorageAPI) GetMetadataRecords(qt *querytracer.Tracer, tt *storage.TenantToken, limit int, metricName string, deadline uint64) ([]*metricsmetadata.Row, error) {
-	// TODO(rtm0): Return empty result if tt do not match tenantID from flag.
+	// TODO(@rtm0): Support multitenant queries?
+	if tt.AccountID != api.accountID || tt.ProjectID != api.projectID {
+		return nil, nil
+	}
 	return api.s.GetMetadataRows(qt, limit, metricName), nil
 }
 
@@ -336,6 +362,20 @@ func (bi *blockIterator) NextBlock(dst []byte) ([]byte, bool) {
 
 func (bi *blockIterator) Error() error {
 	return bi.sr.Error()
+}
+
+var emptyBI = &emptyBlockIterator{}
+
+type emptyBlockIterator struct{}
+
+func (bi *emptyBlockIterator) MustClose() {}
+
+func (bi *emptyBlockIterator) NextBlock(dst []byte) ([]byte, bool) {
+	return dst, false
+}
+
+func (bi *emptyBlockIterator) Error() error {
+	return nil
 }
 
 // checkTimeRange returns true if the given tr is denied for querying.
