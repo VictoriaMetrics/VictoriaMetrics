@@ -15,6 +15,7 @@ import (
 	"github.com/golang/snappy"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	otlppb "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 )
 
 // Vmsingle holds the state of a vmsingle app and provides vmsingle-specific
@@ -653,6 +654,27 @@ func (app *Vmsingle) ZabbixConnectorHistory(t *testing.T, records []string, opts
 	data := []byte(strings.Join(records, "\n"))
 	headers := opts.getHeaders()
 	headers.Set("Content-Type", "application/json")
+	_, statusCode := app.cli.Post(t, url, data, headers)
+	if statusCode != http.StatusOK {
+		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
+	}
+}
+
+// OpentelemetryV1Metrics is a test helper function that inserts a
+// collection of records in Opentelemetry protocol format by sending a HTTP
+// POST request to /opentelemetry/v1/metrics vmsingle endpoint.
+func (app *Vmsingle) OpentelemetryV1Metrics(t *testing.T, md otlppb.MetricsData, opts QueryOpts) {
+	t.Helper()
+
+	url := fmt.Sprintf("http://%s/opentelemetry/v1/metrics", app.httpListenAddr)
+	uv := opts.asURLValues()
+	uvs := uv.Encode()
+	if len(uvs) > 0 {
+		url += "?" + uvs
+	}
+	data := md.MarshalProtobuf(nil)
+	headers := opts.getHeaders()
+	headers.Set("Content-Type", "application/x-protobuf")
 	_, statusCode := app.cli.Post(t, url, data, headers)
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)

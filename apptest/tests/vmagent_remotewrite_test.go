@@ -584,3 +584,69 @@ func TestClusterVMAgentForwardMetricsMetadata(t *testing.T) {
 	})
 
 }
+
+// See https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy
+func TestSingleVMAgentMultitenancy(t *testing.T) {
+	tc := apptest.NewTestCase(t)
+	defer tc.Stop()
+
+	remoteWriteSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer remoteWriteSrv.Close()
+
+	vmagent := tc.MustStartVmagent("vmagent-multitenancy", []string{
+		fmt.Sprintf(`-remoteWrite.url=%s/api/v1/write`, remoteWriteSrv.URL),
+		"-remoteWrite.tmpDataPath=" + tc.Dir() + "/vmagent-multitenancy",
+		"-enableMultitenantHandlers",
+		"-enableMultitenancyViaHeaders",
+	}, ``)
+
+	vmagent.APIV1ImportPrometheus(t, []string{
+		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
+	}, apptest.QueryOpts{Tenant: "2"})
+	v := vmagent.GetIntMetric(t, `vmagent_tenant_inserted_rows_total{type="prometheus",accountID="2",projectID="0"}`)
+	if v != 1 {
+		t.Fatalf("expected vmagent_tenant_inserted_rows_total to have value 1 for accountID=2")
+	}
+
+	vmagent.APIV1ImportPrometheus(t, []string{
+		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
+	}, apptest.QueryOpts{Tenant: "2:2"})
+	v = vmagent.GetIntMetric(t, `vmagent_tenant_inserted_rows_total{type="prometheus",accountID="2",projectID="2"}`)
+	if v != 1 {
+		t.Fatalf("expected vmagent_tenant_inserted_rows_total to have value 1 for accountID=2, projectID=2")
+	}
+
+	headers := make(http.Header)
+	headers.Set("AccountID", "3")
+	vmagent.APIV1ImportPrometheus(t, []string{
+		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
+	}, apptest.QueryOpts{Headers: headers})
+	v = vmagent.GetIntMetric(t, `vmagent_tenant_inserted_rows_total{type="prometheus",accountID="3",projectID="0"}`)
+	if v != 1 {
+		t.Fatalf("expected vmagent_tenant_inserted_rows_total to have value 1 for accountID=3, projectID=0")
+	}
+
+	headers.Set("AccountID", "3")
+	headers.Set("ProjectID", "3")
+	vmagent.APIV1ImportPrometheus(t, []string{
+		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
+	}, apptest.QueryOpts{Headers: headers})
+	v = vmagent.GetIntMetric(t, `vmagent_tenant_inserted_rows_total{type="prometheus",accountID="3",projectID="3"}`)
+	if v != 1 {
+		t.Fatalf("expected vmagent_tenant_inserted_rows_total to have value 1 for accountID=3, projectID=3")
+	}
+
+	// tenants in header and path clash - path should have higher priority on ingestion
+	opts := apptest.QueryOpts{Headers: make(http.Header)}
+	opts.Headers.Set("AccountID", "4")
+	opts.Tenant = "5"
+	vmagent.APIV1ImportPrometheus(t, []string{
+		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
+	}, opts)
+	v = vmagent.GetIntMetric(t, `vmagent_tenant_inserted_rows_total{type="prometheus",accountID="5",projectID="0"}`)
+	if v != 1 {
+		t.Fatalf("expected vmagent_tenant_inserted_rows_total to have value 1 for accountID=5, projectID=0")
+	}
+}
