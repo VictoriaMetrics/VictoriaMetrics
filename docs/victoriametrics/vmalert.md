@@ -1145,7 +1145,7 @@ vmalert [web UI](https://docs.victoriametrics.com/victoriametrics/vmalert/#web),
 to them if this information is sensitive.
 Specifically:
 * Log messages, the UI, and exported metrics contain full path to the configured rule files. These file paths can be stripped 
-  by enabling `-rule.stripFilePath` command-line flag {{% available_from "#" %}};
+  by enabling `-rule.stripFilePath` command-line flag {{% available_from "v1.143.0" %}};
 * Datasource address is sanitized in log messages, UI and exported metrics, can be shown by enabling ` -datasource.showURL`;
 * Notifier addresses are sanitized in log messages, UI and exported metrics, can be shown by enabling `-notifier.showURL`;
 * Remote read address is sanitized in log messages, UI and exported metrics, can be shown by enabling ` --remoteRead.showURL`;

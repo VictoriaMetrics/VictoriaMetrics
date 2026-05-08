@@ -68,7 +68,7 @@ The UI allows exploring query results via graphs and tables. See more details ab
 ## Multitenancy
 
 VictoriaMetrics cluster supports multiple isolated tenants (aka namespaces).
-Tenants are identified by `accountID` or `accountID:projectID` inside request URLs or HTTP headers{{% available_from "#" %}}
+Tenants are identified by `accountID` or `accountID:projectID` inside request URLs or HTTP headers{{% available_from "v1.143.0" %}}
 for writes and reads. See [these docs](#url-format) for details.
 
 Some facts about tenants in VictoriaMetrics:
@@ -97,7 +97,7 @@ See also multitenancy [via headers](#multitenancy-via-headers) and [via labels](
 
 By default, VictoriaMetrics allows specifying `accountID` and `projectID` only in the request URL.
 
-Set `--enableMultitenancyViaHeaders` {{% available_from "#" %}} command-line flag to support 
+Set `--enableMultitenancyViaHeaders` {{% available_from "v1.143.0" %}} command-line flag to support 
 specifying `accountID` and `projectID` via HTTP headers `AccountID` and `ProjectID` respectively.
 This flag needs to be specified separately for vminserts and vmselects.
 
