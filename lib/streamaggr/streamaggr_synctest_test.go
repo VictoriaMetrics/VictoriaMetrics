@@ -40,6 +40,7 @@ func TestAggregatorsSuccess(t *testing.T) {
 				time.Sleep(interval)
 			}
 
+			time.Sleep(time.Millisecond * 500)
 			a.MustStop()
 
 			// Verify matchIdxs equals to matchIdxsExpected
