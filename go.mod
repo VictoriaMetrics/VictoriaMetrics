@@ -25,7 +25,7 @@ require (
 	github.com/googleapis/gax-go/v2 v2.22.0
 	github.com/influxdata/influxdb v1.12.4
 	github.com/klauspost/compress v1.18.5
-	github.com/prometheus/prometheus v0.311.2
+	github.com/prometheus/prometheus v0.311.3
 	github.com/urfave/cli/v2 v2.27.7
 	github.com/valyala/fastjson v1.6.10
 	github.com/valyala/fastrand v1.1.0
