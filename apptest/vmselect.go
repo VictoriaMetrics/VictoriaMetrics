@@ -65,165 +65,158 @@ func (app *Vmselect) HTTPAddr() string {
 }
 
 // PrometheusAPIV1Export is a test helper function that performs the export of
-// raw samples in JSON line format by sending a HTTP POST request to
-// /prometheus/api/v1/export vmselect endpoint.
+// raw samples in JSON line format by sending a request to
+// /prometheus/api/v1/export endpoint.
 //
 // See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1export
 func (app *Vmselect) PrometheusAPIV1Export(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse {
 	t.Helper()
 
-	exportURL := getClusterPath(app.httpListenAddr, "select", "prometheus/api/v1/export", opts)
+	url := getClusterPath(app.httpListenAddr, "select", "prometheus/api/v1/export", opts)
 	values := opts.asURLValues()
 	values.Add("match[]", query)
 	values.Add("format", "promapi")
-	res, _ := app.cli.PostForm(t, exportURL, values, opts.Headers)
+	res, _ := app.cli.PostForm(t, url, values, opts.Headers)
 	return NewPrometheusAPIV1QueryResponse(t, res)
 }
 
 // PrometheusAPIV1ExportNative is a test helper function that performs the export of
-// raw samples in native binary format by sending an HTTP POST request to
-// /prometheus/api/v1/export/native vmselect endpoint.
+// raw samples in native binary format by sending a request to
+// /prometheus/api/v1/export/native endpoint.
 //
 // See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1exportnative
 func (app *Vmselect) PrometheusAPIV1ExportNative(t *testing.T, query string, opts QueryOpts) []byte {
 	t.Helper()
 
-	exportURL := getClusterPath(app.httpListenAddr, "select", "prometheus/api/v1/export/native", opts)
+	url := getClusterPath(app.httpListenAddr, "select", "prometheus/api/v1/export/native", opts)
 	values := opts.asURLValues()
 	values.Add("match[]", query)
 	values.Add("format", "promapi")
-	res, _ := app.cli.PostForm(t, exportURL, values, opts.Headers)
+	res, _ := app.cli.PostForm(t, url, values, opts.Headers)
 	return []byte(res)
 }
 
 // PrometheusAPIV1Query is a test helper function that performs PromQL/MetricsQL
-// instant query by sending a HTTP POST request to /prometheus/api/v1/query
-// vmselect endpoint.
+// instant query by sending a request to /prometheus/api/v1/query endpoint.
 //
 // See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1query
 func (app *Vmselect) PrometheusAPIV1Query(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse {
 	t.Helper()
 
-	queryURL := getClusterPath(app.httpListenAddr, "select", "prometheus/api/v1/query", opts)
+	url := getClusterPath(app.httpListenAddr, "select", "prometheus/api/v1/query", opts)
 	values := opts.asURLValues()
 	values.Add("query", query)
-
-	res, _ := app.cli.PostForm(t, queryURL, values, opts.Headers)
+	res, _ := app.cli.PostForm(t, url, values, opts.Headers)
 	return NewPrometheusAPIV1QueryResponse(t, res)
 }
 
 // PrometheusAPIV1QueryRange is a test helper function that performs
-// PromQL/MetricsQL range query by sending a HTTP POST request to
-// /prometheus/api/v1/query_range vmselect endpoint.
+// PromQL/MetricsQL range query by sending a request to
+// /prometheus/api/v1/query_range endpoint.
 //
 // See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1query_range
 func (app *Vmselect) PrometheusAPIV1QueryRange(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse {
 	t.Helper()
 
-	queryURL := getClusterPath(app.httpListenAddr, "select", "prometheus/api/v1/query_range", opts)
+	url := getClusterPath(app.httpListenAddr, "select", "prometheus/api/v1/query_range", opts)
 	values := opts.asURLValues()
 	values.Add("query", query)
-
-	res, _ := app.cli.PostForm(t, queryURL, values, opts.Headers)
+	res, _ := app.cli.PostForm(t, url, values, opts.Headers)
 	return NewPrometheusAPIV1QueryResponse(t, res)
 }
 
-// PrometheusAPIV1Series sends a query to a /prometheus/api/v1/series endpoint
-// and returns the list of time series that match the query.
+// PrometheusAPIV1Series retrieves list of time series that match the query by
+// sending a request to /prometheus/api/v1/series endpoint.
 //
 // See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1series
 func (app *Vmselect) PrometheusAPIV1Series(t *testing.T, matchQuery string, opts QueryOpts) *PrometheusAPIV1SeriesResponse {
 	t.Helper()
 
-	seriesURL := getClusterPath(app.httpListenAddr, "select", "prometheus/api/v1/series", opts)
+	url := getClusterPath(app.httpListenAddr, "select", "prometheus/api/v1/series", opts)
 	values := opts.asURLValues()
 	values.Add("match[]", matchQuery)
-
-	res, _ := app.cli.PostForm(t, seriesURL, values, opts.Headers)
+	res, _ := app.cli.PostForm(t, url, values, opts.Headers)
 	return NewPrometheusAPIV1SeriesResponse(t, res)
 }
 
-// PrometheusAPIV1SeriesCount sends a query to a /prometheus/api/v1/series/count endpoint
-// and returns the total number of time series.
+// PrometheusAPIV1SeriesCount retrieves the total number of time series by
+// sending a request to /prometheus/api/v1/series/count endpoint.
 //
 // See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1series
 func (app *Vmselect) PrometheusAPIV1SeriesCount(t *testing.T, opts QueryOpts) *PrometheusAPIV1SeriesCountResponse {
 	t.Helper()
 
-	seriesURL := getClusterPath(app.httpListenAddr, "select", "prometheus/api/v1/series/count", opts)
+	url := getClusterPath(app.httpListenAddr, "select", "prometheus/api/v1/series/count", opts)
 	values := opts.asURLValues()
-
-	res, _ := app.cli.PostForm(t, seriesURL, values, opts.Headers)
+	res, _ := app.cli.PostForm(t, url, values, opts.Headers)
 	return NewPrometheusAPIV1SeriesCountResponse(t, res)
 }
 
-// PrometheusAPIV1Labels sends a query to a /prometheus/api/v1/labels endpoint
-// and returns the label names list of time series that match the query.
+// PrometheusAPIV1Labels retrieves the label names for time series that match a
+// query by sending a request to /prometheus/api/v1/labels endpoint.
 //
 // See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labels
 func (app *Vmselect) PrometheusAPIV1Labels(t *testing.T, matchQuery string, opts QueryOpts) *PrometheusAPIV1LabelsResponse {
 	t.Helper()
 
+	url := getClusterPath(app.httpListenAddr, "select", "prometheus/api/v1/labels", opts)
 	values := opts.asURLValues()
 	values.Add("match[]", matchQuery)
-	queryURL := getClusterPath(app.httpListenAddr, "select", "prometheus/api/v1/labels", opts)
-
-	res, _ := app.cli.PostForm(t, queryURL, values, opts.Headers)
+	res, _ := app.cli.PostForm(t, url, values, opts.Headers)
 	return NewPrometheusAPIV1LabelsResponse(t, res)
 }
 
-// PrometheusAPIV1LabelValues sends a query to a /prometheus/api/v1/label/.../values endpoint
-// and returns the label names list of time series that match the query.
+// PrometheusAPIV1LabelValues retrieves the labels values for the metrics that
+// match the query by sending a request to /prometheus/api/v1/label/.../values
+// endpoint.
 //
 // See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labelvalues
 func (app *Vmselect) PrometheusAPIV1LabelValues(t *testing.T, labelName, matchQuery string, opts QueryOpts) *PrometheusAPIV1LabelValuesResponse {
 	t.Helper()
 
+	suffix := fmt.Sprintf("prometheus/api/v1/label/%s/values", labelName)
+	url := getClusterPath(app.httpListenAddr, "select", suffix, opts)
 	values := opts.asURLValues()
 	values.Add("match[]", matchQuery)
-	suffix := fmt.Sprintf("prometheus/api/v1/label/%s/values", labelName)
-	queryURL := getClusterPath(app.httpListenAddr, "select", suffix, opts)
-
-	res, _ := app.cli.PostForm(t, queryURL, values, opts.Headers)
+	res, _ := app.cli.PostForm(t, url, values, opts.Headers)
 	return NewPrometheusAPIV1LabelValuesResponse(t, res)
 }
 
-// PrometheusAPIV1Metadata sends a query to a /prometheus/api/v1/metadata endpoint
-// and returns the results.
+// PrometheusAPIV1Metadata retrieves metadata for the given metric by sending a
+// request to /prometheus/api/v1/metadata endpoint.
 func (app *Vmselect) PrometheusAPIV1Metadata(t *testing.T, metric string, limit int, opts QueryOpts) *PrometheusAPIV1Metadata {
 	t.Helper()
 
+	url := getClusterPath(app.httpListenAddr, "select", "prometheus/api/v1/metadata", opts)
 	values := opts.asURLValues()
 	values.Add("metric", metric)
 	values.Add("limit", strconv.Itoa(limit))
-	queryURL := getClusterPath(app.httpListenAddr, "select", "prometheus/api/v1/metadata", opts)
-
-	res, _ := app.cli.PostForm(t, queryURL, values, opts.Headers)
+	res, _ := app.cli.PostForm(t, url, values, opts.Headers)
 	return NewPrometheusAPIV1Metadata(t, res)
 }
 
-// APIV1AdminTSDBDeleteSeries deletes the series that match the query by sending
-// a request to /api/v1/admin/tsdb/delete_series.
+// PrometheusAPIV1AdminTSDBDeleteSeries deletes the series that match the query
+// by sending a request to /prometheus/api/v1/admin/tsdb/delete_series.
 //
 // See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1admintsdbdelete_series
-func (app *Vmselect) APIV1AdminTSDBDeleteSeries(t *testing.T, matchQuery string, opts QueryOpts) {
+func (app *Vmselect) PrometheusAPIV1AdminTSDBDeleteSeries(t *testing.T, matchQuery string, opts QueryOpts) {
 	t.Helper()
 
 	queryURL := getClusterPath(app.httpListenAddr, "delete", "prometheus/api/v1/admin/tsdb/delete_series", opts)
 	values := opts.asURLValues()
 	values.Add("match[]", matchQuery)
-
 	res, statusCode := app.cli.PostForm(t, queryURL, values, opts.Headers)
 	if statusCode != http.StatusNoContent {
 		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusNoContent, res)
 	}
 }
 
-// MetricNamesStats sends a query to a /select/tenant/prometheus/api/v1/status/metric_names_stats endpoint
-// and returns the statistics response for given params.
+// PrometheusAPIV1StatusMetricNamesStats sends a query to
+// /prometheus/api/v1/status/metric_names_stats endpoint and returns the metric
+// usage stats response for given params.
 //
 // See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#track-ingested-metrics-usage
-func (app *Vmselect) MetricNamesStats(t *testing.T, limit, le, matchPattern string, opts QueryOpts) MetricNamesStatsResponse {
+func (app *Vmselect) PrometheusAPIV1StatusMetricNamesStats(t *testing.T, limit, le, matchPattern string, opts QueryOpts) MetricNamesStatsResponse {
 	t.Helper()
 
 	values := opts.asURLValues()
@@ -238,30 +231,34 @@ func (app *Vmselect) MetricNamesStats(t *testing.T, limit, le, matchPattern stri
 	}
 	var resp MetricNamesStatsResponse
 	if err := json.Unmarshal([]byte(res), &resp); err != nil {
-		t.Fatalf("could not unmarshal series response data:\n%s\n err: %v", res, err)
+		t.Fatalf("could not unmarshal metric names stats response data:\n%s\n err: %v", res, err)
 	}
 	return resp
 }
 
-// MetricNamesStatsReset sends a query to a /admin/api/v1/status/metric_names_stats/reset endpoint
+// PrometheusAPIV1AdminStatusMetricNamesStatsReset resets the metric name usage
+// stats by sending a request to
+// /prometheus/api/v1/admin/status/metric_names_stats/reset endpoint
 //
 // See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#track-ingested-metrics-usage
-func (app *Vmselect) MetricNamesStatsReset(t *testing.T, opts QueryOpts) {
+func (app *Vmselect) PrometheusAPIV1AdminStatusMetricNamesStatsReset(t *testing.T, opts QueryOpts) {
 	t.Helper()
 
+	url := fmt.Sprintf("http://%s/admin/api/v1/admin/status/metric_names_stats/reset", app.httpListenAddr)
 	values := opts.asURLValues()
-	queryURL := fmt.Sprintf("http://%s/admin/api/v1/admin/status/metric_names_stats/reset", app.httpListenAddr)
 
-	res, statusCode := app.cli.PostForm(t, queryURL, values, opts.Headers)
+	res, statusCode := app.cli.PostForm(t, url, values, opts.Headers)
 	if statusCode != http.StatusNoContent {
 		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusNoContent, res)
 	}
 }
 
-// APIV1StatusTSDB sends a query to a /prometheus/api/v1/status/tsdb
-// //
+// PrometheusAPIV1StatusTSDB retrieves the TSDB status for the time series that
+// match the query on the given date by sending a request to
+// /prometheus/api/v1/status/tsdb endpoint.
+//
 // See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#tsdb-stats
-func (app *Vmselect) APIV1StatusTSDB(t *testing.T, matchQuery string, date string, topN string, opts QueryOpts) TSDBStatusResponse {
+func (app *Vmselect) PrometheusAPIV1StatusTSDB(t *testing.T, matchQuery string, date string, topN string, opts QueryOpts) TSDBStatusResponse {
 	t.Helper()
 
 	url := getClusterPath(app.httpListenAddr, "select", "prometheus/api/v1/status/tsdb", opts)
@@ -289,7 +286,8 @@ func (app *Vmselect) APIV1StatusTSDB(t *testing.T, matchQuery string, date strin
 	return status
 }
 
-// GraphiteMetricsIndex sends a query to a /graphite/metrics/index.json
+// GraphiteMetricsIndex retrieves the list of all metrics by sending a request
+// to /graphite/metrics/index.json endpoint.
 //
 // See https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#metrics-api
 func (app *Vmselect) GraphiteMetricsIndex(t *testing.T, opts QueryOpts) GraphiteMetricsIndexResponse {
@@ -308,22 +306,94 @@ func (app *Vmselect) GraphiteMetricsIndex(t *testing.T, opts QueryOpts) Graphite
 	return index
 }
 
+// GraphiteMetricsFind finds metrics under a given path by sending a request
+// to /metrics/find endpoint.
+//
+// See https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#metrics-api
+// and https://graphite.readthedocs.io/en/latest/metrics_api.html#metrics-find
+func (app *Vmselect) GraphiteMetricsFind(t *testing.T, query string, opts QueryOpts) GraphiteMetricsFindResponse {
+	t.Helper()
+
+	url := getClusterPath(app.httpListenAddr, "select", "graphite/metrics/find", opts)
+	values := opts.asURLValues()
+	values.Add("query", query)
+	resText, statusCode := app.cli.PostForm(t, url, values, opts.Headers)
+	if statusCode != http.StatusOK {
+		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusOK, resText)
+	}
+
+	var res GraphiteMetricsFindResponse
+	if err := json.Unmarshal([]byte(resText), &res); err != nil {
+		t.Fatalf("could not unmarshal response data:\n%s\n err: %v", resText, err)
+	}
+	return res
+}
+
+// GraphiteMetricsExpand expands the given query with matching paths by sending
+// a request to /graphite/metrics/expand endpoint.
+//
+// See https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#metrics-api
+// and https://graphite.readthedocs.io/en/latest/metrics_api.html#metrics-expand
+func (app *Vmselect) GraphiteMetricsExpand(t *testing.T, query string, opts QueryOpts) GraphiteMetricsExpandResponse {
+	t.Helper()
+
+	url := getClusterPath(app.httpListenAddr, "select", "graphite/metrics/expand", opts)
+	values := opts.asURLValues()
+	values.Add("query", query)
+	resText, statusCode := app.cli.PostForm(t, url, values, opts.Headers)
+	if statusCode != http.StatusOK {
+		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusOK, resText)
+	}
+
+	var res GraphiteMetricsExpandResponse
+	if err := json.Unmarshal([]byte(resText), &res); err != nil {
+		t.Fatalf("could not unmarshal response data:\n%s\n err: %v", resText, err)
+	}
+	return res
+}
+
+// GraphiteRender retrieves the raw metric data by sending a request to
+// /graphite/render endpoint.
+//
+// See https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#render-api
+// and https://graphite-api.readthedocs.io/en/latest/api.html#the-render-api-render
+func (app *Vmselect) GraphiteRender(t *testing.T, target string, opts QueryOpts) GraphiteRenderResponse {
+	t.Helper()
+
+	url := getClusterPath(app.httpListenAddr, "select", "graphite/render", opts)
+	values := opts.asURLValues()
+	values.Add("format", "json")
+	values.Add("target", target)
+	resText, statusCode := app.cli.PostForm(t, url, values, opts.Headers)
+	if statusCode != http.StatusOK {
+		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusOK, resText)
+	}
+
+	var res GraphiteRenderResponse
+	if err := json.Unmarshal([]byte(resText), &res); err != nil {
+		t.Fatalf("could not unmarshal response data:\n%s\n err: %v", resText, err)
+	}
+	return res
+}
+
 // GraphiteTagsTagSeries is a test helper function that registers Graphite tags
-// for a single time series by sending a HTTP POST request to
-// /graphite/tags/tagSeries vmsingle endpoint.
+// for a single time series by sending a request to /graphite/tags/tagSeries
+// endpoint.
 func (app *Vmselect) GraphiteTagsTagSeries(t *testing.T, record string, opts QueryOpts) {
 	t.Helper()
 
 	url := getClusterPath(app.httpListenAddr, "select", "graphite/tags/tagSeries", opts)
 	values := opts.asURLValues()
 	values.Add("path", record)
-
 	_, statusCode := app.cli.PostForm(t, url, values, opts.Headers)
 	if got, want := statusCode, http.StatusNotImplemented; got != want {
 		t.Fatalf("unexpected status code: got %d, want %d", got, want)
 	}
 }
 
+// GraphiteTagsTagMultiSeries is a test helper function that registers Graphite
+// tags for a multiple time series by sending a request to
+// /graphite/tags/tagSeries endpoint.
 func (app *Vmselect) GraphiteTagsTagMultiSeries(t *testing.T, records []string, opts QueryOpts) {
 	t.Helper()
 
@@ -332,7 +402,6 @@ func (app *Vmselect) GraphiteTagsTagMultiSeries(t *testing.T, records []string, 
 	for _, rec := range records {
 		values.Add("path", rec)
 	}
-
 	_, statusCode := app.cli.PostForm(t, url, values, opts.Headers)
 	if got, want := statusCode, http.StatusNotImplemented; got != want {
 		t.Fatalf("unexpected status code: got %d, want %d", got, want)
@@ -349,7 +418,7 @@ func (app *Vmselect) APIV1AdminTenants(t *testing.T) *AdminTenantsResponse {
 		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusOK, res)
 	}
 
-	var tenants *AdminTenantsResponse
+	tenants := &AdminTenantsResponse{}
 	if err := json.Unmarshal([]byte(res), tenants); err != nil {
 		t.Fatalf("could not unmarshal tenants response data:\n%s\n err: %v", res, err)
 	}
