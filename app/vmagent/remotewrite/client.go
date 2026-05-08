@@ -2,6 +2,7 @@ package remotewrite
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -327,17 +328,20 @@ func (c *client) runWorker() {
 			return
 		case <-c.stopCh:
 			// c must be stopped. Wait for a while in the hope the block will be sent.
-			graceDuration := 5 * time.Second
+			stopCtx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+			defer cancel()
+
 			select {
 			case ok := <-ch:
 				if !ok {
 					// Return unsent block to the queue.
 					c.fq.MustWriteBlockIgnoreDisabledPQ(block)
 				}
-			case <-time.After(graceDuration):
+			case <-stopCtx.Done():
 				// Return unsent block to the queue.
 				c.fq.MustWriteBlockIgnoreDisabledPQ(block)
 			}
+			c.drainInMemoryQueue(stopCtx, block[:0])
 			return
 		}
 	}
@@ -502,6 +506,32 @@ again:
 	}
 	c.retriesCount.Inc()
 	goto again
+}
+
+func (c *client) drainInMemoryQueue(stopCtx context.Context, block []byte) {
+	var ok bool
+	for {
+		select {
+		case <-stopCtx.Done():
+			return
+		default:
+		}
+
+		block, ok = c.fq.MustReadInMemoryBlock(block[:0])
+		if !ok {
+			// The in memory queue has already been drained,
+			// or persisted queue is being used.
+			// In this case it is guaranteed that fq will be empty
+			return
+		}
+
+		// at this stage c.stopCh should be closed
+		// so sendBlock function should not perform retries
+		if ok := c.sendBlock(block); !ok {
+			c.fq.MustWriteBlockIgnoreDisabledPQ(block)
+			return
+		}
+	}
 }
 
 var remoteWriteRejectedLogger = logger.WithThrottler("remoteWriteRejected", 5*time.Second)
