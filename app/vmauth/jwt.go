@@ -17,6 +17,8 @@ import (
 
 const (
 	metricsTenantPlaceholder       = `{{.MetricsTenant}}`
+	metricsAccountIDPlaceholder    = `{{.MetricsAccountID}}`
+	metricsProjectIDPlaceholder    = `{{.MetricsProjectID}}`
 	metricsExtraLabelsPlaceholder  = `{{.MetricsExtraLabels}}`
 	metricsExtraFiltersPlaceholder = `{{.MetricsExtraFilters}}`
 
@@ -30,6 +32,8 @@ const (
 
 var allPlaceholders = []string{
 	metricsTenantPlaceholder,
+	metricsAccountIDPlaceholder,
+	metricsProjectIDPlaceholder,
 	metricsExtraLabelsPlaceholder,
 	metricsExtraFiltersPlaceholder,
 	logsAccountIDPlaceholder,
@@ -40,6 +44,8 @@ var allPlaceholders = []string{
 
 var urlPathPlaceHolders = []string{
 	metricsTenantPlaceholder,
+	metricsAccountIDPlaceholder,
+	metricsProjectIDPlaceholder,
 	logsAccountIDPlaceholder,
 	logsProjectIDPlaceholder,
 }
@@ -351,15 +357,20 @@ func replaceJWTPlaceholders(bu *backendURL, hc HeadersConf, vma *jwt.VMAccessCla
 		// make a copy of headers and update only values with placeholder
 		rhs := make([]*Header, 0, len(hc.RequestHeaders))
 		for _, rh := range hc.RequestHeaders {
-			if dv, ok := data[rh.Value]; ok {
-				rh := &Header{
-					Name:  rh.Name,
-					Value: strings.Join(dv, ","),
+			newValue := rh.Value
+			for ph, dv := range data {
+				if strings.Contains(newValue, ph) {
+					newValue = strings.ReplaceAll(newValue, ph, strings.Join(dv, ","))
 				}
-				rhs = append(rhs, rh)
-				continue
 			}
-			rhs = append(rhs, rh)
+			if newValue != rh.Value {
+				rhs = append(rhs, &Header{
+					Name:  rh.Name,
+					Value: newValue,
+				})
+			} else {
+				rhs = append(rhs, rh)
+			}
 		}
 		hc.RequestHeaders = rhs
 	}
@@ -371,6 +382,8 @@ func jwtClaimsData(vma *jwt.VMAccessClaim) map[string][]string {
 	data := map[string][]string{
 		// TODO: optimize at parsing stage
 		metricsTenantPlaceholder:       {fmt.Sprintf("%d:%d", vma.MetricsAccountID, vma.MetricsProjectID)},
+		metricsAccountIDPlaceholder:    {fmt.Sprintf("%d", vma.MetricsAccountID)},
+		metricsProjectIDPlaceholder:    {fmt.Sprintf("%d", vma.MetricsProjectID)},
 		metricsExtraLabelsPlaceholder:  vma.MetricsExtraLabels,
 		metricsExtraFiltersPlaceholder: vma.MetricsExtraFilters,
 
@@ -448,16 +461,27 @@ func validateJWTPlaceholdersForURL(up *URLPrefix, isAllowed bool) error {
 
 func parsePlaceholdersForHC(hc *HeadersConf, isAllowed bool) error {
 	for _, rhs := range hc.RequestHeaders {
-		ok := strings.Contains(rhs.Value, placeholderPrefix)
-		if ok && !isAllowed {
+		if !strings.Contains(rhs.Value, placeholderPrefix) {
+			continue
+		}
+		if !isAllowed {
 			return fmt.Errorf("request header: %q placeholder: %q is only supported at JWT context", rhs.Name, rhs.Value)
 		}
-		if ok {
-			if !slices.Contains(allPlaceholders, rhs.Value) {
-				return fmt.Errorf("request header: %q has unsupported placeholder: %q, supported values are: %s", rhs.Name, rhs.Value, strings.Join(allPlaceholders, ", "))
+
+		val := rhs.Value
+		for strings.Contains(val, placeholderPrefix) {
+			start := strings.Index(val, placeholderPrefix)
+			end := strings.Index(val[start:], "}}")
+			if end < 0 {
+				return fmt.Errorf("unclosed placeholder in header %q value %q", rhs.Name, rhs.Value)
 			}
-			hc.hasAnyPlaceHolders = true
+			token := val[start : start+end+2]
+			if !slices.Contains(allPlaceholders, token) {
+				return fmt.Errorf("request header: %q has unsupported placeholder: %q, supported values are: %s", rhs.Name, token, strings.Join(allPlaceholders, ", "))
+			}
+			val = val[start+end+2:]
 		}
+		hc.hasAnyPlaceHolders = true
 	}
 	for _, rhs := range hc.ResponseHeaders {
 		if strings.Contains(rhs.Value, placeholderPrefix) {

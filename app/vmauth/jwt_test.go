@@ -176,7 +176,7 @@ users:
 - jwt: 
     skip_verify: true
   url_prefix: http://foo.bar/{{.UnsupportedPlaceholder}}/foo`,
-		"invalid placeholder found in URL request path: \"/{{.UnsupportedPlaceholder}}/foo\", supported values are: {{.MetricsTenant}}, {{.MetricsExtraLabels}}, {{.MetricsExtraFilters}}, {{.LogsAccountID}}, {{.LogsProjectID}}, {{.LogsExtraFilters}}, {{.LogsExtraStreamFilters}}",
+		"invalid placeholder found in URL request path: \"/{{.UnsupportedPlaceholder}}/foo\", supported values are: {{.MetricsTenant}}, {{.MetricsAccountID}}, {{.MetricsProjectID}}, {{.MetricsExtraLabels}}, {{.MetricsExtraFilters}}, {{.LogsAccountID}}, {{.LogsProjectID}}, {{.LogsExtraFilters}}, {{.LogsExtraStreamFilters}}",
 	)
 	// unsupported placeholder in a header
 	f(`
@@ -187,7 +187,7 @@ users:
     - "AccountID: {{.UnsupportedPlaceholder}}"
   url_prefix: http://foo.bar
 `,
-		"request header: \"AccountID\" has unsupported placeholder: \"{{.UnsupportedPlaceholder}}\", supported values are: {{.MetricsTenant}}, {{.MetricsExtraLabels}}, {{.MetricsExtraFilters}}, {{.LogsAccountID}}, {{.LogsProjectID}}, {{.LogsExtraFilters}}, {{.LogsExtraStreamFilters}}",
+		"request header: \"AccountID\" has unsupported placeholder: \"{{.UnsupportedPlaceholder}}\", supported values are: {{.MetricsTenant}}, {{.MetricsAccountID}}, {{.MetricsProjectID}}, {{.MetricsExtraLabels}}, {{.MetricsExtraFilters}}, {{.LogsAccountID}}, {{.LogsProjectID}}, {{.LogsExtraFilters}}, {{.LogsExtraStreamFilters}}",
 	)
 
 	// spaces in templating not allowed
@@ -199,7 +199,19 @@ users:
     - "AccountID: {{ .LogsAccountID }}"
   url_prefix: http://foo.bar
 `,
-		"request header: \"AccountID\" has unsupported placeholder: \"{{ .LogsAccountID }}\", supported values are: {{.MetricsTenant}}, {{.MetricsExtraLabels}}, {{.MetricsExtraFilters}}, {{.LogsAccountID}}, {{.LogsProjectID}}, {{.LogsExtraFilters}}, {{.LogsExtraStreamFilters}}",
+		"request header: \"AccountID\" has unsupported placeholder: \"{{ .LogsAccountID }}\", supported values are: {{.MetricsTenant}}, {{.MetricsAccountID}}, {{.MetricsProjectID}}, {{.MetricsExtraLabels}}, {{.MetricsExtraFilters}}, {{.LogsAccountID}}, {{.LogsProjectID}}, {{.LogsExtraFilters}}, {{.LogsExtraStreamFilters}}",
+	)
+
+	// unclosed placeholder in a header
+	f(`
+users:
+- jwt: 
+    skip_verify: true
+  headers:
+    - "AccountID: {{.MetricsAccountID"
+  url_prefix: http://foo.bar
+`,
+		"unclosed placeholder in header \"AccountID\" value \"{{.MetricsAccountID\"",
 	)
 
 	// oidc is not an object
@@ -368,6 +380,12 @@ users:
 users:
 - jwt:
     skip_verify: true
+  headers:
+  - "AccountID: {{.MetricsAccountID}}"
+  - "ProjectID: {{.MetricsProjectID}}"
+  - "X-Tenant: tenant-{{.MetricsAccountID}}-{{.MetricsProjectID}}"
+  - "X-Logs-AccountID: {{.LogsAccountID}}"
+  - "X-Test: stale}} {{.MetricsAccountID}}"
   url_prefix: http://foo.bar
 `)
 
