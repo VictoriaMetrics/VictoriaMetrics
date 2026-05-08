@@ -71,7 +71,7 @@ which can be used as faster and less resource-hungry alternative to Prometheus.
 
 ## Native histograms
 
-Prometheus [native histogram](https://prometheus.io/docs/specs/native_histograms/) is automatically converted
+Prometheus [native histogram](https://prometheus.io/docs/specs/native_histograms/) is automatically converted{{% available_from "#" %}}
 to [VictoriaMetrics histogram format](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350) with `vmrange` labels during ingestion.
 
 > After conversion, a native histogram is transformed into classic histograms with `_count`, `_sum`, and `_bucket` series. These series can be queried using standard histogram functions such as `histogram_quantile()`.
