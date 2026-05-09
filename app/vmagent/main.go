@@ -83,6 +83,9 @@ var (
 	maxLabelsPerTimeseries = flag.Int("maxLabelsPerTimeseries", 0, "The maximum number of labels per time series to be accepted. Series with superfluous labels are ignored. In this case the vm_rows_ignored_total{reason=\"too_many_labels\"} metric at /metrics page is incremented")
 	maxLabelNameLen        = flag.Int("maxLabelNameLen", 0, "The maximum length of label names in the accepted time series. Series with longer label name are ignored. In this case the vm_rows_ignored_total{reason=\"too_long_label_name\"} metric at /metrics page is incremented")
 	maxLabelValueLen       = flag.Int("maxLabelValueLen", 0, "The maximum length of label values in the accepted time series. Series with longer label value are ignored. In this case the vm_rows_ignored_total{reason=\"too_long_label_value\"} metric at /metrics page is incremented")
+
+	enableMultitenancyViaHeaders = flag.Bool("enableMultitenancyViaHeaders", false, "Enables multitenancy via HTTP headers. "+
+		"See https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy")
 )
 
 var (
@@ -216,7 +219,7 @@ func getOpenTSDBHTTPInsertHandler() func(req *http.Request) error {
 	}
 	return func(req *http.Request) error {
 		path := strings.ReplaceAll(req.URL.Path, "//", "/")
-		at, err := getAuthTokenFromPath(path)
+		at, err := getAuthTokenFromPath(path, req.Header)
 		if err != nil {
 			return fmt.Errorf("cannot obtain auth token from path %q: %w", path, err)
 		}
@@ -224,8 +227,15 @@ func getOpenTSDBHTTPInsertHandler() func(req *http.Request) error {
 	}
 }
 
-func getAuthTokenFromPath(path string) (*auth.Token, error) {
-	p, err := httpserver.ParsePath(path)
+func parsePath(path string, header http.Header) (*httpserver.Path, error) {
+	if *enableMultitenancyViaHeaders {
+		return httpserver.ParsePathAndHeaders(path, header)
+	}
+	return httpserver.ParsePath(path)
+}
+
+func getAuthTokenFromPath(path string, header http.Header) (*auth.Token, error) {
+	p, err := parsePath(path, header)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse multitenant path: %w", err)
 	}
@@ -559,14 +569,15 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 }
 
 func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path string) bool {
-	p, err := httpserver.ParsePath(path)
+	p, err := parsePath(path, r.Header)
 	if err != nil {
 		// Cannot parse multitenant path. Skip it - probably it will be parsed later.
 		return false
 	}
 	if p.Prefix != "insert" {
-		httpserver.Errorf(w, r, `unsupported multitenant prefix: %q; expected "insert"`, p.Prefix)
-		return true
+		// processMultitenantRequest is called for all unmatched path variants,
+		// but we should try parsing only /insert prefixed to avoid catching all possible paths.
+		return false
 	}
 	at, err := auth.NewTokenPossibleMultitenant(p.AuthToken)
 	if err != nil {

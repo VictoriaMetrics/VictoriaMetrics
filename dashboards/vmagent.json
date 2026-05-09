@@ -7599,6 +7599,514 @@
         "x": 0,
         "y": 43
       },
+      "id": 163,
+      "panels": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Positive series show bytes written by vmagent producers into Kafka. Negative series show bytes read by vmagent consumers from Kafka. Read this together with Messages in / out: a stable byte rate with rising message rate usually means smaller Kafka payloads and higher per-message overhead. Producer Kafka metrics aggregate at job level because they do not expose the full remoteWrite URL label.\n\nDocs: <a href=\"https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#estimating-message-size-and-rate\" target=\"_blank\">estimating message size and rate</a>. Kafka read docs: <a href=\"https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#reading-metrics\" target=\"_blank\">reading metrics</a>.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": true,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "Bps"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 44
+          },
+          "id": 164,
+          "links": [
+            {
+              "title": "Docs: estimating size/rate",
+              "url": "https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#estimating-message-size-and-rate"
+            },
+            {
+              "title": "Docs: reading metrics",
+              "url": "https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#reading-metrics"
+            }
+          ],
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "12.2.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(vmagent_remotewrite_kafka_sent_bytes_total{job=~\"$job\"}[$__rate_interval])) by (job)",
+              "legendFormat": "Produced to Kafka",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "expr": "-sum(rate(vmagent_kafka_consumer_read_bytes_total{job=~\"$job\"}[$__rate_interval])) by (job)",
+              "legendFormat": "Consumed from Kafka",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "Traffic (bytes)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Positive series show Kafka messages produced by vmagent. Negative series show Kafka messages consumed by vmagent. Read this together with Traffic (bytes), because a stable byte rate with rising message rate usually means smaller Kafka messages and higher per-message overhead. Producer Kafka metrics aggregate at job level because they do not expose the full remoteWrite URL label.\n\nDocs: <a href=\"https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#estimating-message-size-and-rate\" target=\"_blank\">estimating message size and rate</a>. Kafka read docs: <a href=\"https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#reading-metrics\" target=\"_blank\">reading metrics</a>.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": true,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "ops"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 44
+          },
+          "id": 165,
+          "links": [
+            {
+              "title": "Docs: estimating size/rate",
+              "url": "https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#estimating-message-size-and-rate"
+            },
+            {
+              "title": "Docs: reading metrics",
+              "url": "https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#reading-metrics"
+            }
+          ],
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "12.2.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(vmagent_remotewrite_kafka_messages_sent_total{job=~\"$job\"}[$__rate_interval])) by (job)",
+              "legendFormat": "Produced to Kafka",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "expr": "-sum(rate(vmagent_kafka_messages_read_total{job=~\"$job\"}[$__rate_interval])) by (job)",
+              "legendFormat": "Consumed from Kafka",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "Messages in / out",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Kafka producer-side errors from vmagent remote write. This panel shows send errors and delivery errors reported by Kafka producers.\n\nKafka write docs: <a href=\"https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#writing-metrics\" target=\"_blank\">writing metrics</a>.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "ops"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 52
+          },
+          "id": 167,
+          "links": [
+            {
+              "title": "Docs: writing metrics",
+              "url": "https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#writing-metrics"
+            },
+            {
+              "title": "Docs: reading metrics",
+              "url": "https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#reading-metrics"
+            }
+          ],
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "12.2.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(vmagent_remotewrite_kafka_messages_send_errors_total{job=~\"$job\"}[$__rate_interval])) by (job)",
+              "legendFormat": "Producer send errors",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(vmagent_remotewrite_kafka_messages_delivery_errors_total{job=~\"$job\"}[$__rate_interval])) by (job)",
+              "legendFormat": "Producer delivery errors",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "Producer errors",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Kafka consumer-side errors from vmagent. This panel shows client errors and ingest errors reported while reading from Kafka and passing data further downstream.\n\nKafka read docs: <a href=\"https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#reading-metrics\" target=\"_blank\">reading metrics</a>.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "ops"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 52
+          },
+          "id": 168,
+          "links": [
+            {
+              "title": "Docs: reading metrics",
+              "url": "https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#reading-metrics"
+            }
+          ],
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "12.2.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(vmagent_kafka_client_errors_total{job=~\"$job\"}[$__rate_interval])) by (job)",
+              "legendFormat": "Consumer client errors",
+              "range": true,
+              "refId": "C"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(vmagent_kafka_ingest_errors_total{job=~\"$job\"}[$__rate_interval])) by (job)",
+              "legendFormat": "Consumer ingest errors",
+              "range": true,
+              "refId": "D"
+            }
+          ],
+          "title": "Consumer errors",
+          "type": "timeseries"
+        }
+      ],
+      "title": "Kafka (Enterprise)",
+      "type": "row"
+    },
+    {
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 60
+      },
       "id": 113,
       "panels": [
         {

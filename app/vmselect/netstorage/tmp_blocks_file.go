@@ -27,6 +27,7 @@ func InitTmpBlocksDir(tmpDirPath string) {
 		tmpDirPath = os.TempDir()
 	}
 	tmpBlocksDir = filepath.Join(tmpDirPath, "searchResults")
+	fs.RegisterPathFsMetrics(tmpDirPath)
 	fs.MustRemoveDirContents(tmpBlocksDir)
 	fs.MustMkdirIfNotExist(tmpBlocksDir)
 }

@@ -109,7 +109,7 @@ func (app *Vmselect) HTTPAddr() string {
 func (app *Vmselect) PrometheusAPIV1Export(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse {
 	t.Helper()
 
-	exportURL := fmt.Sprintf("http://%s/select/%s/prometheus/api/v1/export", app.httpListenAddr, opts.getTenant())
+	exportURL := getClusterPath(app.httpListenAddr, "select", "prometheus/api/v1/export", opts)
 	values := opts.asURLValues()
 	values.Add("match[]", query)
 	values.Add("format", "promapi")
@@ -125,7 +125,7 @@ func (app *Vmselect) PrometheusAPIV1Export(t *testing.T, query string, opts Quer
 func (app *Vmselect) PrometheusAPIV1ExportNative(t *testing.T, query string, opts QueryOpts) []byte {
 	t.Helper()
 
-	exportURL := fmt.Sprintf("http://%s/select/%s/prometheus/api/v1/export/native", app.httpListenAddr, opts.getTenant())
+	exportURL := getClusterPath(app.httpListenAddr, "select", "prometheus/api/v1/export/native", opts)
 	values := opts.asURLValues()
 	values.Add("match[]", query)
 	values.Add("format", "promapi")
@@ -141,7 +141,7 @@ func (app *Vmselect) PrometheusAPIV1ExportNative(t *testing.T, query string, opt
 func (app *Vmselect) PrometheusAPIV1Query(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse {
 	t.Helper()
 
-	queryURL := fmt.Sprintf("http://%s/select/%s/prometheus/api/v1/query", app.httpListenAddr, opts.getTenant())
+	queryURL := getClusterPath(app.httpListenAddr, "select", "prometheus/api/v1/query", opts)
 	values := opts.asURLValues()
 	values.Add("query", query)
 
@@ -157,7 +157,7 @@ func (app *Vmselect) PrometheusAPIV1Query(t *testing.T, query string, opts Query
 func (app *Vmselect) PrometheusAPIV1QueryRange(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse {
 	t.Helper()
 
-	queryURL := fmt.Sprintf("http://%s/select/%s/prometheus/api/v1/query_range", app.httpListenAddr, opts.getTenant())
+	queryURL := getClusterPath(app.httpListenAddr, "select", "prometheus/api/v1/query_range", opts)
 	values := opts.asURLValues()
 	values.Add("query", query)
 
@@ -172,7 +172,7 @@ func (app *Vmselect) PrometheusAPIV1QueryRange(t *testing.T, query string, opts 
 func (app *Vmselect) PrometheusAPIV1Series(t *testing.T, matchQuery string, opts QueryOpts) *PrometheusAPIV1SeriesResponse {
 	t.Helper()
 
-	seriesURL := fmt.Sprintf("http://%s/select/%s/prometheus/api/v1/series", app.httpListenAddr, opts.getTenant())
+	seriesURL := getClusterPath(app.httpListenAddr, "select", "prometheus/api/v1/series", opts)
 	values := opts.asURLValues()
 	values.Add("match[]", matchQuery)
 
@@ -187,7 +187,7 @@ func (app *Vmselect) PrometheusAPIV1Series(t *testing.T, matchQuery string, opts
 func (app *Vmselect) PrometheusAPIV1SeriesCount(t *testing.T, opts QueryOpts) *PrometheusAPIV1SeriesCountResponse {
 	t.Helper()
 
-	seriesURL := fmt.Sprintf("http://%s/select/%s/prometheus/api/v1/series/count", app.httpListenAddr, opts.getTenant())
+	seriesURL := getClusterPath(app.httpListenAddr, "select", "prometheus/api/v1/series/count", opts)
 	values := opts.asURLValues()
 
 	res, _ := app.cli.PostForm(t, seriesURL, values, opts.Headers)
@@ -203,8 +203,8 @@ func (app *Vmselect) PrometheusAPIV1Labels(t *testing.T, matchQuery string, opts
 
 	values := opts.asURLValues()
 	values.Add("match[]", matchQuery)
+	queryURL := getClusterPath(app.httpListenAddr, "select", "prometheus/api/v1/labels", opts)
 
-	queryURL := fmt.Sprintf("http://%s/select/%s/prometheus/api/v1/labels", app.httpListenAddr, opts.getTenant())
 	res, _ := app.cli.PostForm(t, queryURL, values, opts.Headers)
 	return NewPrometheusAPIV1LabelsResponse(t, res)
 }
@@ -218,7 +218,8 @@ func (app *Vmselect) PrometheusAPIV1LabelValues(t *testing.T, labelName, matchQu
 
 	values := opts.asURLValues()
 	values.Add("match[]", matchQuery)
-	queryURL := fmt.Sprintf("http://%s/select/%s/prometheus/api/v1/label/%s/values", app.httpListenAddr, opts.getTenant(), labelName)
+	suffix := fmt.Sprintf("prometheus/api/v1/label/%s/values", labelName)
+	queryURL := getClusterPath(app.httpListenAddr, "select", suffix, opts)
 
 	res, _ := app.cli.PostForm(t, queryURL, values, opts.Headers)
 	return NewPrometheusAPIV1LabelValuesResponse(t, res)
@@ -232,7 +233,7 @@ func (app *Vmselect) PrometheusAPIV1Metadata(t *testing.T, metric string, limit 
 	values := opts.asURLValues()
 	values.Add("metric", metric)
 	values.Add("limit", strconv.Itoa(limit))
-	queryURL := fmt.Sprintf("http://%s/select/%s/prometheus/api/v1/metadata", app.httpListenAddr, opts.getTenant())
+	queryURL := getClusterPath(app.httpListenAddr, "select", "prometheus/api/v1/metadata", opts)
 
 	res, _ := app.cli.PostForm(t, queryURL, values, opts.Headers)
 	return NewPrometheusAPIV1Metadata(t, res)
@@ -245,7 +246,7 @@ func (app *Vmselect) PrometheusAPIV1Metadata(t *testing.T, metric string, limit 
 func (app *Vmselect) APIV1AdminTSDBDeleteSeries(t *testing.T, matchQuery string, opts QueryOpts) {
 	t.Helper()
 
-	queryURL := fmt.Sprintf("http://%s/delete/%s/prometheus/api/v1/admin/tsdb/delete_series", app.httpListenAddr, opts.getTenant())
+	queryURL := getClusterPath(app.httpListenAddr, "delete", "prometheus/api/v1/admin/tsdb/delete_series", opts)
 	values := opts.asURLValues()
 	values.Add("match[]", matchQuery)
 
@@ -266,7 +267,7 @@ func (app *Vmselect) MetricNamesStats(t *testing.T, limit, le, matchPattern stri
 	values.Add("limit", limit)
 	values.Add("le", le)
 	values.Add("match_pattern", matchPattern)
-	queryURL := fmt.Sprintf("http://%s/select/%s/prometheus/api/v1/status/metric_names_stats", app.httpListenAddr, opts.getTenant())
+	queryURL := getClusterPath(app.httpListenAddr, "select", "prometheus/api/v1/status/metric_names_stats", opts)
 
 	res, statusCode := app.cli.PostForm(t, queryURL, values, opts.Headers)
 	if statusCode != http.StatusOK {
@@ -300,7 +301,7 @@ func (app *Vmselect) MetricNamesStatsReset(t *testing.T, opts QueryOpts) {
 func (app *Vmselect) APIV1StatusTSDB(t *testing.T, matchQuery string, date string, topN string, opts QueryOpts) TSDBStatusResponse {
 	t.Helper()
 
-	seriesURL := fmt.Sprintf("http://%s/select/%s/prometheus/api/v1/status/tsdb", app.httpListenAddr, opts.getTenant())
+	url := getClusterPath(app.httpListenAddr, "select", "prometheus/api/v1/status/tsdb", opts)
 	values := opts.asURLValues()
 	addNonEmpty := func(name, value string) {
 		if len(value) == 0 {
@@ -312,7 +313,7 @@ func (app *Vmselect) APIV1StatusTSDB(t *testing.T, matchQuery string, date strin
 	addNonEmpty("topN", topN)
 	addNonEmpty("date", date)
 
-	res, statusCode := app.cli.PostForm(t, seriesURL, values, opts.Headers)
+	res, statusCode := app.cli.PostForm(t, url, values, opts.Headers)
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusOK, res)
 	}
@@ -331,8 +332,8 @@ func (app *Vmselect) APIV1StatusTSDB(t *testing.T, matchQuery string, date strin
 func (app *Vmselect) GraphiteMetricsIndex(t *testing.T, opts QueryOpts) GraphiteMetricsIndexResponse {
 	t.Helper()
 
-	seriesURL := fmt.Sprintf("http://%s/select/%s/graphite/metrics/index.json", app.httpListenAddr, opts.getTenant())
-	res, statusCode := app.cli.Get(t, seriesURL, opts.Headers)
+	url := getClusterPath(app.httpListenAddr, "select", "graphite/metrics/index.json", opts)
+	res, statusCode := app.cli.Get(t, url, opts.Headers)
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusOK, res)
 	}
@@ -350,7 +351,7 @@ func (app *Vmselect) GraphiteMetricsIndex(t *testing.T, opts QueryOpts) Graphite
 func (app *Vmselect) GraphiteTagsTagSeries(t *testing.T, record string, opts QueryOpts) {
 	t.Helper()
 
-	url := fmt.Sprintf("http://%s/select/%s/graphite/tags/tagSeries", app.httpListenAddr, opts.getTenant())
+	url := getClusterPath(app.httpListenAddr, "select", "graphite/tags/tagSeries", opts)
 	values := opts.asURLValues()
 	values.Add("path", record)
 
@@ -363,7 +364,7 @@ func (app *Vmselect) GraphiteTagsTagSeries(t *testing.T, record string, opts Que
 func (app *Vmselect) GraphiteTagsTagMultiSeries(t *testing.T, records []string, opts QueryOpts) {
 	t.Helper()
 
-	url := fmt.Sprintf("http://%s/select/%s/graphite/tags/tagMultiSeries", app.httpListenAddr, opts.getTenant())
+	url := getClusterPath(app.httpListenAddr, "select", "graphite/tags/tagMultiSeries", opts)
 	values := opts.asURLValues()
 	for _, rec := range records {
 		values.Add("path", rec)
