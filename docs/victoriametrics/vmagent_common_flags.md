@@ -383,6 +383,10 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
      Optional basic auth username to use for the corresponding -remoteWrite.url
      Supports an array of values separated by comma or specified via multiple flags.
      Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -remoteWrite.basicAuth.usernameFile array
+     Optional path to basic auth username to use for the corresponding -remoteWrite.url. The file is re-read every second
+     Supports an array of values separated by comma or specified via multiple flags.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -remoteWrite.bearerToken array
      Optional bearer auth token to use for the corresponding -remoteWrite.url
      Supports an array of values separated by comma or specified via multiple flags.

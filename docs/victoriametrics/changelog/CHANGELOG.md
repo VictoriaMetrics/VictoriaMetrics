@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): add `basicAuth.usernameFile` command-line flags for reading basic auth username from a file, similar to the existing `basicAuth.passwordFile`. The file is re-read every second. See [#9436](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9436).
+
 ## [v1.143.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.143.0)
 
 Released at 2026-05-08
