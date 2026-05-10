@@ -582,6 +582,15 @@ func (sn *httpSelectNode) getMetricsMetadata(qt *querytracer.Tracer, tt *storage
 	rowCount := int(encoding.UnmarshalUint32(data[1:5]))
 	data = data[5:]
 
+	// minMetadataRowSize is the minimum wire size of a metricsmetadata.Row
+	// (4+4+4+2+2+2 = 18 bytes: AccountID + ProjectID + Type + 3 uint16-length-prefixed strings).
+	const minMetadataRowSize = 18
+	if rowCount > len(data)/minMetadataRowSize {
+		sn.metadataErrors.Inc()
+		return nil, false, fmt.Errorf("metricsMetadata rowCount=%d exceeds remaining data size %d from vmselect %s",
+			rowCount, len(data), sn.baseURL)
+	}
+
 	rows := make([]*metricsmetadata.Row, 0, rowCount)
 	for i := range rowCount {
 		row := &metricsmetadata.Row{}

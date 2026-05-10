@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
 )
 
 func testHTTPDeadline() searchutil.Deadline {
@@ -507,5 +508,42 @@ func TestHTTPSelectNodeDeadlineExceeded(t *testing.T) {
 	_, _, err := sn.getLabelNames(testQT(), makeSearchQueryData(1, 0), 10, pastDeadline)
 	if err == nil {
 		t.Fatal("expected error for exceeded deadline, got nil")
+	}
+}
+
+// marshalMetadataResponse builds a binary metricsMetadata response:
+// uint8(isPartial) + uint32(rowCount) + row.MarshalTo() * rowCount
+func marshalMetadataResponse(isPartial bool, rows []*metricsmetadata.Row) []byte {
+	var buf []byte
+	if isPartial {
+		buf = append(buf, 1)
+	} else {
+		buf = append(buf, 0)
+	}
+	buf = encoding.MarshalUint32(buf, uint32(len(rows)))
+	for _, row := range rows {
+		buf = row.MarshalTo(buf)
+	}
+	return buf
+}
+
+// TestHTTPSelectNodeGetMetricsMetadataRowCountOverflow verifies that a malicious rowCount
+// that exceeds the remaining data does not cause an OOM allocation.
+func TestHTTPSelectNodeGetMetricsMetadataRowCountOverflow(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/octet-stream")
+		// isPartial=0, rowCount=uint32_max, but no row data follows
+		var buf []byte
+		buf = append(buf, 0)
+		buf = encoding.MarshalUint32(buf, ^uint32(0)) // max uint32
+		w.Write(buf)                                  //nolint:errcheck
+	}))
+	defer ts.Close()
+
+	sn := testHTTPNode(ts)
+	tt := &storage.TenantToken{AccountID: 1, ProjectID: 0}
+	_, _, err := sn.getMetricsMetadata(testQT(), tt, 10, "", testHTTPDeadline())
+	if err == nil {
+		t.Fatal("expected error for rowCount overflow, got nil")
 	}
 }

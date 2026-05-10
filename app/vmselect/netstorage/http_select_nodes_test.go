@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"reflect"
 	"sort"
+	"sync"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -362,9 +363,15 @@ func TestProcessSearchQueryOnHTTPNodesMultipleNodes(t *testing.T) {
 	qt := querytracer.New(false, "test")
 	sq := storage.NewSearchQuery(1, 0, 0, 1000, nil, 0)
 
-	var gotBlocks [][]byte
+	var (
+		gotBlocksMu sync.Mutex
+		gotBlocks   [][]byte
+	)
 	isPartial, err := ProcessSearchQueryOnHTTPNodes(qt, false, sq, func(rawBlock []byte, _ uint) error {
-		gotBlocks = append(gotBlocks, append([]byte{}, rawBlock...))
+		cp := append([]byte{}, rawBlock...)
+		gotBlocksMu.Lock()
+		gotBlocks = append(gotBlocks, cp)
+		gotBlocksMu.Unlock()
 		return nil
 	}, testHTTPDeadline())
 	if err != nil {

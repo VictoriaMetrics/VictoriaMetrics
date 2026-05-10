@@ -1922,6 +1922,11 @@ func PrepareProcessRawBlocks(qt *querytracer.Tracer, denyPartialResponse bool, s
 	// Fall back to HTTP-based select nodes if no TCP storage nodes are configured
 	httpSelectNodes := getHTTPSelectNodes()
 	if len(httpSelectNodes) > 0 {
+		if err := populateSqTenantTokensIfNeeded(sq); err != nil {
+			return 0, func(processBlock func(mb []byte, workerID uint) error) (bool, error) {
+				return false, err
+			}
+		}
 		// Use a single worker for HTTP select nodes since they handle parallelization internally
 		return 1, func(processBlock func(mb []byte, workerID uint) error) (bool, error) {
 			return ProcessSearchQueryOnHTTPNodes(qt, denyPartialResponse, sq, processBlock, deadline)
@@ -1939,6 +1944,10 @@ func processSearchQueryOnHTTPNodes(qt *querytracer.Tracer, denyPartialResponse b
 	nodes := getHTTPSelectNodes()
 	if len(nodes) == 0 {
 		return nil, false, fmt.Errorf("no storage nodes or cluster select nodes configured")
+	}
+
+	if err := populateSqTenantTokensIfNeeded(sq); err != nil {
+		return nil, false, err
 	}
 
 	tr := storage.TimeRange{
