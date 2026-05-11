@@ -530,6 +530,20 @@ See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/ch
 
 See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2025/#v11230)
 
+## [v1.122.22](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.22)
+
+Released at 2026-05-08
+
+**v1.122.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.122.x line will be supported for at least 12 months since [v1.122.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11220) release**
+
+* SECURITY: upgrade Go builder from Go1.26.2 to Go1.26.3. See [the list of issues addressed in Go1.26.3](https://github.com/golang/go/issues?q=milestone%3AGo1.26.3%20label%3ACherryPickApproved).
+
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): properly obtain `__meta_hetzner_hcloud_location` and `__meta_hetzner_hcloud_location_network_zone` labels for [hetzner_sd_configs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#hetzner_sd_configs). Hetzner changed discovery [API response](https://docs.hetzner.cloud/changelog#2025-12-16-phasing-out-datacenters) and returns `location` information from different field. See [#10909](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10909). Thanks to @juliusrickert for contribution.
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): give priority to `extra_label` and `extra_filters[]` params defined in URL query string over those defined in request body form, to properly respect constraints imposed by `vmauth`. See [#10908](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10908).
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): set CORS headers on `/api/v1/export`, `/api/v1/export/csv` and `/api/v1/export/native`. See [#10899](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10899). Thanks to @andriibeee for the contribution.
+
 ## [v1.122.21](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.21)
 
 Released at 2026-04-24
