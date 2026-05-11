@@ -17,11 +17,10 @@ func TestAggregatorsSuccess(t *testing.T) {
 	f := func(inputMetrics []string, interval time.Duration, outputMetricsExpected, config, matchIdxsStrExpected string) {
 		t.Helper()
 
+		var matchIdxs []uint32
+		var tssOutput []prompb.TimeSeries
 		synctest.Test(t, func(t *testing.T) {
-			var matchIdxs []uint32
-			var tssOutput []prompb.TimeSeries
 			var tssOutputLock sync.Mutex
-
 			// Initialize Aggregators
 			pushFunc := func(tss []prompb.TimeSeries) {
 				tssOutputLock.Lock()
@@ -40,24 +39,23 @@ func TestAggregatorsSuccess(t *testing.T) {
 				time.Sleep(interval + time.Millisecond) // shift by 1ms from flush border to avoid flaky tests
 				offsetMsecs += interval.Milliseconds()
 			}
-
 			a.MustStop()
-
-			// Verify matchIdxs equals to matchIdxsExpected
-			matchIdxsStr := ""
-			for _, v := range matchIdxs {
-				matchIdxsStr += strconv.Itoa(int(v))
-			}
-			if matchIdxsStr != matchIdxsStrExpected {
-				t.Fatalf("unexpected matchIdxs;\ngot\n%s\nwant\n%s", matchIdxsStr, matchIdxsStrExpected)
-			}
-
-			// Verify the tssOutput contains the expected metrics
-			outputMetrics := timeSeriessToString(tssOutput)
-			if outputMetrics != outputMetricsExpected {
-				t.Fatalf("unexpected output metrics;\ngot\n%s\nwant\n%s", outputMetrics, outputMetricsExpected)
-			}
 		})
+
+		// Verify matchIdxs equals to matchIdxsExpected
+		matchIdxsStr := ""
+		for _, v := range matchIdxs {
+			matchIdxsStr += strconv.Itoa(int(v))
+		}
+		if matchIdxsStr != matchIdxsStrExpected {
+			t.Fatalf("unexpected matchIdxs;\ngot\n%s\nwant\n%s", matchIdxsStr, matchIdxsStrExpected)
+		}
+
+		// Verify the tssOutput contains the expected metrics
+		outputMetrics := timeSeriessToString(tssOutput)
+		if outputMetrics != outputMetricsExpected {
+			t.Fatalf("unexpected output metrics;\ngot\n%s\nwant\n%s", outputMetrics, outputMetricsExpected)
+		}
 	}
 
 	// Empty config
