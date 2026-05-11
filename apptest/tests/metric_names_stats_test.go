@@ -90,7 +90,7 @@ func TestSingleMetricNamesStats(t *testing.T) {
 		},
 	}
 	expectedStatsResponse.Sort()
-	gotStatus := sut.APIV1StatusTSDB(t, "", date, "", apptest.QueryOpts{})
+	gotStatus := sut.PrometheusAPIV1StatusTSDB(t, "", date, "", apptest.QueryOpts{})
 	if diff := cmp.Diff(expectedStatsResponse, gotStatus, tsdbMetricNameEntryCmpOpts); diff != "" {
 		t.Errorf("unexpected APIV1StatusTSDB response (-want, +got):\n%s", diff)
 	}

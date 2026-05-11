@@ -7,14 +7,8 @@ import (
 	"net/http"
 	"os"
 	"regexp"
-	"strings"
 	"testing"
 	"time"
-
-	"github.com/golang/snappy"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
-	otlppb "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 )
 
 // Vmsingle holds the state of a vmsingle app and provides vmsingle-specific
@@ -23,6 +17,7 @@ type Vmsingle struct {
 	*app
 	*ServesMetrics
 	*vmselectClient
+	*vminsertClient
 
 	storageDataPath string
 	httpListenAddr  string
@@ -30,13 +25,6 @@ type Vmsingle struct {
 	// vmstorage URLs.
 	forceFlushURL string
 	forceMergeURL string
-
-	// vminsert URLs.
-	influxLineWriteURL                 string
-	graphiteWriteAddr                  string
-	openTSDBHTTPURL                    string
-	prometheusAPIV1ImportPrometheusURL string
-	prometheusAPIV1WriteURL            string
 }
 
 // StartVmsingleAt starts an instance of vmsingle with the given flags. It also
@@ -70,23 +58,31 @@ func StartVmsingleAt(instance, binary string, flags []string, cli *Client, outpu
 		},
 		vmselectClient: &vmselectClient{
 			vmselectCli: cli,
-			url: func(_, path string, _ QueryOpts) string {
+			url: func(op, path string, opts QueryOpts) string {
 				return fmt.Sprintf("http://%s/%s", stderrExtracts[1], path)
 			},
 			metricNamesStatsResetURL: fmt.Sprintf("http://%s/api/v1/admin/status/metric_names_stats/reset", stderrExtracts[1]),
 			tenantsURL:               "vmsingle-does-not-serve-tenants",
+		},
+		vminsertClient: &vminsertClient{
+			vminsertCli: cli,
+			url: func(_, path string, _ QueryOpts) string {
+				return fmt.Sprintf("http://%s/%s", stderrExtracts[1], path)
+			},
+			openTSDBURL: func(_, path string, _ QueryOpts) string {
+				return fmt.Sprintf("http://%s/%s", stderrExtracts[3], path)
+			},
+			graphiteListenAddr: stderrExtracts[2],
+			sendBlocking: func(t *testing.T, _ int, send func()) {
+				t.Helper()
+				send()
+			},
 		},
 		storageDataPath: stderrExtracts[0],
 		httpListenAddr:  stderrExtracts[1],
 
 		forceFlushURL: fmt.Sprintf("http://%s/internal/force_flush", stderrExtracts[1]),
 		forceMergeURL: fmt.Sprintf("http://%s/internal/force_merge", stderrExtracts[1]),
-
-		prometheusAPIV1ImportPrometheusURL: fmt.Sprintf("http://%s/prometheus/api/v1/import/prometheus", stderrExtracts[1]),
-		prometheusAPIV1WriteURL:            fmt.Sprintf("http://%s/prometheus/api/v1/write", stderrExtracts[1]),
-		influxLineWriteURL:                 fmt.Sprintf("http://%s/influx/write", stderrExtracts[1]),
-		graphiteWriteAddr:                  stderrExtracts[2],
-		openTSDBHTTPURL:                    fmt.Sprintf("http://%s", stderrExtracts[3]),
 	}, nil
 }
 
@@ -108,147 +104,6 @@ func (app *Vmsingle) ForceMerge(t *testing.T) {
 	_, statusCode := app.cli.Get(t, app.forceMergeURL, nil)
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
-	}
-}
-
-// InfluxWrite is a test helper function that inserts a
-// collection of records in Influx line format by sending a HTTP
-// POST request to /influx/write vmsingle endpoint.
-//
-// See https://docs.victoriametrics.com/victoriametrics/url-examples/#influxwrite
-func (app *Vmsingle) InfluxWrite(t *testing.T, records []string, opts QueryOpts) {
-	t.Helper()
-
-	data := []byte(strings.Join(records, "\n"))
-
-	url := app.influxLineWriteURL
-	uv := opts.asURLValues()
-	uvs := uv.Encode()
-	if len(uvs) > 0 {
-		url += "?" + uvs
-	}
-	headers := opts.getHeaders()
-	headers.Set("Content-Type", "text/plain")
-	_, statusCode := app.cli.Post(t, url, data, headers)
-	if statusCode != http.StatusNoContent {
-		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
-	}
-}
-
-// GraphiteWrite is a test helper function that sends a collection of records
-// to graphiteListenAddr port.
-//
-// See https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting
-func (app *Vmsingle) GraphiteWrite(t *testing.T, records []string, _ QueryOpts) {
-	t.Helper()
-	app.cli.Write(t, app.graphiteWriteAddr, records)
-}
-
-// PrometheusAPIV1ImportCSV is a test helper function that inserts a collection
-// of records in CSV format for the given tenant by sending an HTTP POST
-// request to /api/v1/import/csv vmsingle endpoint.
-//
-// See https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-import-csv-data
-func (app *Vmsingle) PrometheusAPIV1ImportCSV(t *testing.T, records []string, opts QueryOpts) {
-	t.Helper()
-
-	url := fmt.Sprintf("http://%s/api/v1/import/csv", app.httpListenAddr)
-	uv := opts.asURLValues()
-	uvs := uv.Encode()
-	if len(uvs) > 0 {
-		url += "?" + uvs
-	}
-	data := []byte(strings.Join(records, "\n"))
-	headers := opts.getHeaders()
-	headers.Set("Content-Type", "text/plain")
-	_, statusCode := app.cli.Post(t, url, data, headers)
-	if statusCode != http.StatusNoContent {
-		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
-	}
-}
-
-// PrometheusAPIV1ImportNative is a test helper function that inserts a collection
-// of records in native format for the given tenant by sending an HTTP POST
-// request to /api/v1/import/native vmsingle endpoint.
-//
-// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-native-format
-func (app *Vmsingle) PrometheusAPIV1ImportNative(t *testing.T, data []byte, opts QueryOpts) {
-	t.Helper()
-
-	url := fmt.Sprintf("http://%s/api/v1/import/native", app.httpListenAddr)
-	uv := opts.asURLValues()
-	uvs := uv.Encode()
-	if len(uvs) > 0 {
-		url += "?" + uvs
-	}
-	headers := opts.getHeaders()
-	headers.Set("Content-Type", "text/plain")
-	_, statusCode := app.cli.Post(t, url, data, headers)
-	if statusCode != http.StatusNoContent {
-		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
-	}
-}
-
-// OpenTSDBAPIPut is a test helper function that inserts a collection of
-// records in OpenTSDB format for the given tenant by sending an HTTP POST
-// request to /api/put vmsingle endpoint.
-//
-// See https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb/#sending-data-via-http
-func (app *Vmsingle) OpenTSDBAPIPut(t *testing.T, records []string, opts QueryOpts) {
-	t.Helper()
-
-	// add extra label
-	url := app.openTSDBHTTPURL + "/api/put"
-	uv := opts.asURLValues()
-	uvs := uv.Encode()
-	if len(uvs) > 0 {
-		url += "?" + uvs
-	}
-	data := []byte("[" + strings.Join(records, ",") + "]")
-	headers := opts.getHeaders()
-	headers.Set("Content-Type", "text/plain")
-	_, statusCode := app.cli.Post(t, url, data, headers)
-	if statusCode != http.StatusNoContent {
-		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
-	}
-}
-
-// PrometheusAPIV1Write is a test helper function that inserts a
-// collection of records in Prometheus remote-write format by sending a HTTP
-// POST request to /prometheus/api/v1/write vmsingle endpoint.
-func (app *Vmsingle) PrometheusAPIV1Write(t *testing.T, wr prompb.WriteRequest, opts QueryOpts) {
-	t.Helper()
-
-	data := snappy.Encode(nil, wr.MarshalProtobuf(nil))
-	headers := opts.getHeaders()
-	headers.Set("Content-Type", "application/x-protobuf")
-	_, statusCode := app.cli.Post(t, app.prometheusAPIV1WriteURL, data, headers)
-	if statusCode != http.StatusNoContent {
-		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
-	}
-}
-
-// PrometheusAPIV1ImportPrometheus is a test helper function that inserts a
-// collection of records in Prometheus text exposition format by sending a HTTP
-// POST request to /prometheus/api/v1/import/prometheus vmsingle endpoint.
-//
-// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1importprometheus
-func (app *Vmsingle) PrometheusAPIV1ImportPrometheus(t *testing.T, records []string, opts QueryOpts) {
-	t.Helper()
-
-	// add extra label
-	url := app.prometheusAPIV1ImportPrometheusURL
-	uv := opts.asURLValues()
-	uvs := uv.Encode()
-	if len(uvs) > 0 {
-		url += "?" + uvs
-	}
-	headers := opts.getHeaders()
-	headers.Set("Content-Type", "text/plain")
-	data := []byte(strings.Join(records, "\n"))
-	_, statusCode := app.cli.Post(t, url, data, headers)
-	if statusCode != http.StatusNoContent {
-		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
 	}
 }
 
@@ -363,79 +218,6 @@ func (app *Vmsingle) SnapshotDeleteAll(t *testing.T) *SnapshotDeleteAllResponse 
 	}
 
 	return &res
-}
-
-// APIV1StatusTSDB sends a query to a /prometheus/api/v1/status/tsdb
-// //
-// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#tsdb-stats
-func (app *Vmsingle) APIV1StatusTSDB(t *testing.T, matchQuery string, date string, topN string, opts QueryOpts) TSDBStatusResponse {
-	t.Helper()
-
-	seriesURL := fmt.Sprintf("http://%s/prometheus/api/v1/status/tsdb", app.httpListenAddr)
-	values := opts.asURLValues()
-	addNonEmpty := func(name, value string) {
-		if len(value) == 0 {
-			return
-		}
-		values.Add(name, value)
-	}
-	addNonEmpty("match[]", matchQuery)
-	addNonEmpty("topN", topN)
-	addNonEmpty("date", date)
-
-	res, statusCode := app.cli.PostForm(t, seriesURL, values, opts.Headers)
-	if statusCode != http.StatusOK {
-		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusOK, res)
-	}
-
-	var status TSDBStatusResponse
-	if err := json.Unmarshal([]byte(res), &status); err != nil {
-		t.Fatalf("could not unmarshal tsdb status response data:\n%s\n err: %v", res, err)
-	}
-	status.Sort()
-	return status
-}
-
-// ZabbixConnectorHistory is a test helper function that inserts a
-// collection of records in zabbixconnector  format by sending a HTTP
-// POST request to /zabbixconnector/api/v1/history vmsingle endpoint.
-func (app *Vmsingle) ZabbixConnectorHistory(t *testing.T, records []string, opts QueryOpts) {
-	t.Helper()
-
-	url := fmt.Sprintf("http://%s/zabbixconnector/api/v1/history", app.httpListenAddr)
-	uv := opts.asURLValues()
-	uvs := uv.Encode()
-	if len(uvs) > 0 {
-		url += "?" + uvs
-	}
-	data := []byte(strings.Join(records, "\n"))
-	headers := opts.getHeaders()
-	headers.Set("Content-Type", "application/json")
-	_, statusCode := app.cli.Post(t, url, data, headers)
-	if statusCode != http.StatusOK {
-		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
-	}
-}
-
-// OpentelemetryV1Metrics is a test helper function that inserts a
-// collection of records in Opentelemetry protocol format by sending a HTTP
-// POST request to /opentelemetry/v1/metrics vmsingle endpoint.
-func (app *Vmsingle) OpentelemetryV1Metrics(t *testing.T, md otlppb.MetricsData, opts QueryOpts) {
-	t.Helper()
-
-	url := fmt.Sprintf("http://%s/opentelemetry/v1/metrics", app.httpListenAddr)
-	uv := opts.asURLValues()
-	uvs := uv.Encode()
-	if len(uvs) > 0 {
-		url += "?" + uvs
-	}
-	data := md.MarshalProtobuf(nil)
-	headers := opts.getHeaders()
-	headers.Set("Content-Type", "application/x-protobuf")
-	_, statusCode := app.cli.Post(t, url, data, headers)
-	if statusCode != http.StatusOK {
-		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
-	}
 }
 
 // HTTPAddr returns the address at which the vminsert process is

@@ -14,6 +14,10 @@ import (
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prommetadata"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	otlppb "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
+	"github.com/golang/snappy"
 )
 
 // Client is used for interacting with the apps over the network.
@@ -245,6 +249,17 @@ func (app *ServesMetrics) GetMetricsByRegexp(t *testing.T, re *regexp.Regexp) []
 		values = append(values, value)
 	}
 	return values
+}
+
+// rpcRowsSentTotal retrieves the values of all vminsert
+// `vm_rpc_rows_sent_total` metrics (there will be one for each vmstorage) and
+// returns their integer sum.
+func (app *ServesMetrics) rpcRowsSentTotal(t *testing.T) int {
+	total := 0.0
+	for _, v := range app.GetMetricsByPrefix(t, "vm_rpc_rows_sent_total") {
+		total += v
+	}
+	return int(total)
 }
 
 type vmselectClient struct {
@@ -597,4 +612,253 @@ func (c *vmselectClient) APIV1AdminTenants(t *testing.T, opts QueryOpts) *AdminT
 	}
 
 	return tenants
+}
+
+type vminsertClient struct {
+	vminsertCli        *Client
+	url                func(op, path string, opts QueryOpts) string
+	openTSDBURL        func(op, path string, opts QueryOpts) string
+	graphiteListenAddr string
+	sendBlocking       func(t *testing.T, numRecordsToSend int, send func())
+}
+
+// PrometheusAPIV1ImportCSV is a test helper function that inserts a collection
+// of records in CSV format for the given tenant by sending an HTTP POST
+// request to prometheus/api/v1/import/csv vminsert endpoint.
+//
+// See https://docs.victoriametrics.com/cluster-victoriametrics/#url-format
+func (c *vminsertClient) PrometheusAPIV1ImportCSV(t *testing.T, records []string, opts QueryOpts) {
+	t.Helper()
+
+	url := c.url("insert", "prometheus/api/v1/import/csv", opts)
+	uv := opts.asURLValues()
+	uvs := uv.Encode()
+	if len(uvs) > 0 {
+		url += "?" + uvs
+	}
+	data := []byte(strings.Join(records, "\n"))
+	headers := opts.getHeaders()
+	headers.Set("Content-Type", "text/plain")
+	c.sendBlocking(t, len(records), func() {
+		_, statusCode := c.vminsertCli.Post(t, url, data, headers)
+		if statusCode != http.StatusNoContent {
+			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
+		}
+	})
+}
+
+// PrometheusAPIV1ImportNative is a test helper function that inserts a collection
+// of records in Native format for the given tenant by sending an HTTP POST
+// request to prometheus/api/v1/import/native vminsert endpoint.
+//
+// See https://docs.victoriametrics.com/cluster-victoriametrics/#url-format
+func (c *vminsertClient) PrometheusAPIV1ImportNative(t *testing.T, data []byte, opts QueryOpts) {
+	t.Helper()
+
+	url := c.url("insert", "prometheus/api/v1/import/native", opts)
+	uv := opts.asURLValues()
+	uvs := uv.Encode()
+	if len(uvs) > 0 {
+		url += "?" + uvs
+	}
+	headers := opts.getHeaders()
+	headers.Set("Content-Type", "text/plain")
+	c.sendBlocking(t, 1, func() {
+		_, statusCode := c.vminsertCli.Post(t, url, data, headers)
+		if statusCode != http.StatusNoContent {
+			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
+		}
+	})
+}
+
+// PrometheusAPIV1Write is a test helper function that inserts a
+// collection of records in Prometheus remote-write format by sending a HTTP
+// POST request to /prometheus/api/v1/write vminsert endpoint.
+func (c *vminsertClient) PrometheusAPIV1Write(t *testing.T, wr prompb.WriteRequest, opts QueryOpts) {
+	t.Helper()
+
+	url := c.url("insert", "prometheus/api/v1/write", opts)
+	data := snappy.Encode(nil, wr.MarshalProtobuf(nil))
+	recordsCount := len(wr.Timeseries)
+	if prommetadata.IsEnabled() {
+		recordsCount += len(wr.Metadata)
+	}
+	headers := opts.getHeaders()
+	headers.Set("Content-Type", "application/x-protobuf")
+	c.sendBlocking(t, recordsCount, func() {
+		_, statusCode := c.vminsertCli.Post(t, url, data, headers)
+		if statusCode != http.StatusNoContent {
+			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
+		}
+	})
+}
+
+// PrometheusAPIV1ImportPrometheus is a test helper function that inserts a
+// collection of records in Prometheus text exposition format for the given
+// tenant by sending a HTTP POST request to
+// /prometheus/api/v1/import/prometheus vminsert endpoint.
+//
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1importprometheus
+func (c *vminsertClient) PrometheusAPIV1ImportPrometheus(t *testing.T, records []string, opts QueryOpts) {
+	t.Helper()
+
+	url := c.url("insert", "prometheus/api/v1/import/prometheus", opts)
+	uv := opts.asURLValues()
+	uvs := uv.Encode()
+	if len(uvs) > 0 {
+		url += "?" + uvs
+	}
+	data := []byte(strings.Join(records, "\n"))
+	var recordsCount int
+	var metadataRecords int
+	uniqueMetadataMetricNames := make(map[string]struct{})
+	for _, record := range records {
+		// metric metadata has the following format:
+		//# HELP importprometheus_series
+		//# TYPE importprometheus_series
+		// it results into single metadata record
+		if strings.HasPrefix(record, "# ") {
+			metadataItems := strings.Split(record, " ")
+			if len(metadataItems) < 2 {
+				t.Fatalf("BUG: unexpected metadata format=%q", record)
+			}
+			metricName := metadataItems[2]
+			if _, ok := uniqueMetadataMetricNames[metricName]; ok {
+				continue
+			}
+			uniqueMetadataMetricNames[metricName] = struct{}{}
+			metadataRecords++
+			continue
+		}
+		recordsCount++
+	}
+	if prommetadata.IsEnabled() {
+		recordsCount += metadataRecords
+	}
+	headers := opts.getHeaders()
+	headers.Set("Content-Type", "text/plain")
+	c.sendBlocking(t, recordsCount, func() {
+		_, statusCode := c.vminsertCli.Post(t, url, data, headers)
+		if statusCode != http.StatusNoContent {
+			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
+		}
+	})
+}
+
+// InfluxWrite is a test helper function that inserts a collection of records in
+// Influx line format by sending a HTTP POST request to /influx/write endpoint.
+//
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#influxwrite
+func (c *vminsertClient) InfluxWrite(t *testing.T, records []string, opts QueryOpts) {
+	t.Helper()
+
+	url := c.url("insert", "influx/write", opts)
+	uv := opts.asURLValues()
+	uvs := uv.Encode()
+	if len(uvs) > 0 {
+		url += "?" + uvs
+	}
+
+	data := []byte(strings.Join(records, "\n"))
+	headers := opts.getHeaders()
+	headers.Set("Content-Type", "text/plain")
+	c.sendBlocking(t, len(records), func() {
+		t.Helper()
+		_, statusCode := c.vminsertCli.Post(t, url, data, headers)
+		if statusCode != http.StatusNoContent {
+			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
+		}
+	})
+}
+
+// OpentelemetryV1Metrics is a test helper function that inserts a
+// collection of records in Opentelemetry protocol format by sending a HTTP
+// POST request to /opentelemetry/v1/metrics vminsert endpoint.
+func (c *vminsertClient) OpentelemetryV1Metrics(t *testing.T, md otlppb.MetricsData, opts QueryOpts) {
+	t.Helper()
+
+	var recordsCount int
+	for _, rss := range md.ResourceMetrics {
+		for _, sm := range rss.ScopeMetrics {
+			recordsCount += len(sm.Metrics)
+			for _, m := range sm.Metrics {
+				if prommetadata.IsEnabled() {
+					recordsCount += len(m.Metadata)
+				}
+			}
+		}
+	}
+	url := c.url("insert", "opentelemetry/v1/metrics", opts)
+	uv := opts.asURLValues()
+	uvs := uv.Encode()
+	if len(uvs) > 0 {
+		url += "?" + uvs
+	}
+	data := md.MarshalProtobuf(nil)
+	headers := opts.getHeaders()
+	headers.Set("Content-Type", "application/x-protobuf")
+	c.sendBlocking(t, recordsCount, func() {
+		_, statusCode := c.vminsertCli.Post(t, url, data, headers)
+		if statusCode != http.StatusOK {
+			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
+		}
+	})
+}
+
+// OpenTSDBAPIPut is a test helper function that inserts a collection of
+// records in OpenTSDB format for the given tenant by sending an HTTP POST
+// request to /opentsdb/api/put vminsert endpoint.
+//
+// See https://docs.victoriametrics.com/cluster-victoriametrics/#url-format
+func (c *vminsertClient) OpenTSDBAPIPut(t *testing.T, records []string, opts QueryOpts) {
+	t.Helper()
+
+	url := c.openTSDBURL("insert", "opentsdb/api/put", opts)
+	uv := opts.asURLValues()
+	uvs := uv.Encode()
+	if len(uvs) > 0 {
+		url += "?" + uvs
+	}
+	data := []byte("[" + strings.Join(records, ",") + "]")
+	headers := opts.getHeaders()
+	headers.Set("Content-Type", "application/json")
+	c.sendBlocking(t, len(records), func() {
+		_, statusCode := c.vminsertCli.Post(t, url, data, headers)
+		if statusCode != http.StatusNoContent {
+			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
+		}
+	})
+}
+
+// ZabbixConnectorHistory is a test helper function that inserts a
+// collection of records in zabbixconnector  format by sending a HTTP
+// POST request to /zabbixconnector/api/v1/history vmsingle endpoint.
+func (c *vminsertClient) ZabbixConnectorHistory(t *testing.T, records []string, opts QueryOpts) {
+	t.Helper()
+
+	url := c.url("insert", "zabbixconnector/api/v1/history", opts)
+	uv := opts.asURLValues()
+	uvs := uv.Encode()
+	if len(uvs) > 0 {
+		url += "?" + uvs
+	}
+	data := []byte(strings.Join(records, "\n"))
+	headers := opts.getHeaders()
+	headers.Set("Content-Type", "application/json")
+	c.sendBlocking(t, len(records), func() {
+		_, statusCode := c.vminsertCli.Post(t, url, data, headers)
+		if statusCode != http.StatusOK {
+			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
+		}
+	})
+
+}
+
+// GraphiteWrite is a test helper function that sends a
+// collection of records to graphiteListenAddr port.
+//
+// See https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting
+func (c *vminsertClient) GraphiteWrite(t *testing.T, records []string, _ QueryOpts) {
+	t.Helper()
+	c.vminsertCli.Write(t, c.graphiteListenAddr, records)
 }
