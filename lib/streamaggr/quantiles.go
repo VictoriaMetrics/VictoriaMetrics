@@ -28,12 +28,11 @@ func (av *quantilesAggrValue) flush(c aggrConfig, ctx *flushCtx, key string, _ b
 	histogram.PutFast(av.h)
 	// reset h to avoid producing stale results on the next flush if av didn't get new pushSample() calls
 	av.h = nil
-	if len(ac.quantiles) > 0 {
-		for i, quantile := range ac.quantiles {
-			ac.b = strconv.AppendFloat(ac.b[:0], ac.phis[i], 'g', -1, 64)
-			phiStr := bytesutil.InternBytes(ac.b)
-			ctx.appendSeriesWithExtraLabel(key, "quantiles", quantile, "quantile", phiStr)
-		}
+
+	for i, quantile := range ac.quantiles {
+		ac.b = strconv.AppendFloat(ac.b[:0], ac.phis[i], 'g', -1, 64)
+		phiStr := bytesutil.InternBytes(ac.b)
+		ctx.appendSeriesWithExtraLabel(key, "quantiles", quantile, "quantile", phiStr)
 	}
 }
 
