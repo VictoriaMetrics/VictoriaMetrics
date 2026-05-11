@@ -862,3 +862,144 @@ func (c *vminsertClient) GraphiteWrite(t *testing.T, records []string, _ QueryOp
 	t.Helper()
 	c.vminsertCli.Write(t, c.graphiteListenAddr, records)
 }
+
+type vmstorageClient struct {
+	vmstorageCli   *Client
+	httpListenAddr string
+}
+
+// ForceFlush is a test helper function that forces the flushing of inserted
+// data, so it becomes available for searching immediately.
+func (c *vmstorageClient) ForceFlush(t *testing.T) {
+	t.Helper()
+
+	url := fmt.Sprintf("http://%s/internal/force_flush", c.httpListenAddr)
+	_, statusCode := c.vmstorageCli.Get(t, url, nil)
+	if statusCode != http.StatusOK {
+		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
+	}
+}
+
+// ForceMerge is a test helper function that forces the merging of parts.
+func (c *vmstorageClient) ForceMerge(t *testing.T) {
+	t.Helper()
+
+	url := fmt.Sprintf("http://%s/internal/force_merge", c.httpListenAddr)
+	_, statusCode := c.vmstorageCli.Get(t, url, nil)
+	if statusCode != http.StatusOK {
+		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
+	}
+}
+
+// SnapshotCreate creates a database snapshot by sending a query to the
+// /snapshot/create endpoint.
+//
+// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots
+func (c *vmstorageClient) SnapshotCreate(t *testing.T) *SnapshotCreateResponse {
+	t.Helper()
+
+	data, statusCode := c.vmstorageCli.Post(t, c.SnapshotCreateURL(), nil, nil)
+	if got, want := statusCode, http.StatusOK; got != want {
+		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", got, want, data)
+	}
+
+	var res SnapshotCreateResponse
+	if err := json.Unmarshal([]byte(data), &res); err != nil {
+		t.Fatalf("could not unmarshal snapshot create response: data=%q, err: %v", data, err)
+	}
+
+	return &res
+}
+
+// SnapshotCreateURL returns the URL for creating snapshots.
+func (c *vmstorageClient) SnapshotCreateURL() string {
+	return fmt.Sprintf("http://%s/snapshot/create", c.httpListenAddr)
+}
+
+// APIV1AdminTSDBSnapshot creates a database snapshot by sending a query to the
+// /api/v1/admin/tsdb/snapshot endpoint.
+//
+// See https://prometheus.io/docs/prometheus/latest/querying/api/#snapshot.
+func (c *vmstorageClient) APIV1AdminTSDBSnapshot(t *testing.T) *APIV1AdminTSDBSnapshotResponse {
+	t.Helper()
+
+	url := fmt.Sprintf("http://%s/api/v1/admin/tsdb/snapshot", c.httpListenAddr)
+	data, statusCode := c.vmstorageCli.Post(t, url, nil, nil)
+	if got, want := statusCode, http.StatusOK; got != want {
+		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", got, want, data)
+	}
+
+	var res APIV1AdminTSDBSnapshotResponse
+	if err := json.Unmarshal([]byte(data), &res); err != nil {
+		t.Fatalf("could not unmarshal prometheus snapshot create response: data=%q, err: %v", data, err)
+	}
+
+	return &res
+}
+
+// SnapshotList lists existing database snapshots by sending a query to the
+// /snapshot/list endpoint.
+//
+// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots
+func (c *vmstorageClient) SnapshotList(t *testing.T) *SnapshotListResponse {
+	t.Helper()
+
+	url := fmt.Sprintf("http://%s/snapshot/list", c.httpListenAddr)
+	data, statusCode := c.vmstorageCli.Get(t, url, nil)
+	if got, want := statusCode, http.StatusOK; got != want {
+		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", got, want, data)
+	}
+
+	var res SnapshotListResponse
+	if err := json.Unmarshal([]byte(data), &res); err != nil {
+		t.Fatalf("could not unmarshal snapshot list response: data=%q, err: %v", data, err)
+	}
+
+	return &res
+}
+
+// SnapshotDelete deletes a snapshot by sending a query to the
+// /snapshot/delete endpoint.
+//
+// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots
+func (c *vmstorageClient) SnapshotDelete(t *testing.T, snapshotName string) *SnapshotDeleteResponse {
+	t.Helper()
+
+	url := fmt.Sprintf("http://%s/snapshot/delete?snapshot=%s", c.httpListenAddr, snapshotName)
+	data, statusCode := c.vmstorageCli.Delete(t, url)
+	wantStatusCodes := map[int]bool{
+		http.StatusOK:                  true,
+		http.StatusInternalServerError: true,
+	}
+	if !wantStatusCodes[statusCode] {
+		t.Fatalf("unexpected status code: got %d, want %v, resp text=%q", statusCode, wantStatusCodes, data)
+	}
+
+	var res SnapshotDeleteResponse
+	if err := json.Unmarshal([]byte(data), &res); err != nil {
+		t.Fatalf("could not unmarshal snapshot delete response: data=%q, err: %v", data, err)
+	}
+
+	return &res
+}
+
+// SnapshotDeleteAll deletes all snapshots by sending a query to the
+// /snapshot/delete_all endpoint.
+//
+// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots
+func (c *vmstorageClient) SnapshotDeleteAll(t *testing.T) *SnapshotDeleteAllResponse {
+	t.Helper()
+
+	url := fmt.Sprintf("http://%s/snapshot/delete_all", c.httpListenAddr)
+	data, statusCode := c.vmstorageCli.Post(t, url, nil, nil)
+	if got, want := statusCode, http.StatusOK; got != want {
+		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", got, want, data)
+	}
+
+	var res SnapshotDeleteAllResponse
+	if err := json.Unmarshal([]byte(data), &res); err != nil {
+		t.Fatalf("could not unmarshal snapshot delete all response: data=%q, err: %v", data, err)
+	}
+
+	return &res
+}
