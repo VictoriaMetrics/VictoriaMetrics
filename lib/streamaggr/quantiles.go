@@ -1,9 +1,10 @@
 package streamaggr
 
 import (
+	"strconv"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/valyala/histogram"
-	"strconv"
 )
 
 // quantilesAggrValue calculates output=quantiles, e.g. the given quantiles over the input samples.
@@ -25,6 +26,7 @@ func (av *quantilesAggrValue) flush(c aggrConfig, ctx *flushCtx, key string, _ b
 	ac := c.(*quantilesAggrConfig)
 	ac.quantiles = av.h.Quantiles(ac.quantiles[:0], ac.phis)
 	histogram.PutFast(av.h)
+	// reset h to avoid producing stale results on the next flush if av didn't get new pushSample() calls
 	av.h = nil
 	if len(ac.quantiles) > 0 {
 		for i, quantile := range ac.quantiles {
