@@ -103,7 +103,10 @@ func TestClient_run_maxBatchSizeDuringShutdown(t *testing.T) {
 
 		// push time series to the client.
 		for range pushCnt {
-			if err = rwClient.Push(prompb.TimeSeries{}); err != nil {
+			if err = rwClient.Push(prompb.TimeSeries{
+				Labels:  []prompb.Label{{Name: "__name__", Value: "m"}},
+				Samples: []prompb.Sample{{Value: 1, Timestamp: 1000}},
+			}); err != nil {
 				t.Fatalf("cannot time series to the client: %s", err)
 			}
 		}

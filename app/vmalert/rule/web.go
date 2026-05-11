@@ -252,6 +252,9 @@ func (r *ApiRule) ExtendState() {
 
 // ToAPI returns ApiGroup representation of g
 func (g *Group) ToAPI() *ApiGroup {
+	if g == nil {
+		return &ApiGroup{}
+	}
 	g.mu.RLock()
 	defer g.mu.RUnlock()
 	ag := ApiGroup{

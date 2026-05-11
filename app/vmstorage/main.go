@@ -183,6 +183,7 @@ func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	metrics.RegisterSet(storageMetrics)
 
 	promdb.Init(retentionPeriod.Milliseconds())
+	fs.RegisterPathFsMetrics(*DataPath)
 }
 
 var storageMetrics *metrics.Set

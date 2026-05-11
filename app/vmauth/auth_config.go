@@ -610,6 +610,7 @@ func areEqualBackendURLs(a, b []*backendURL) bool {
 }
 
 // getFirstAvailableBackendURL returns the first available backendURL, which isn't broken.
+// If all backendURLs are broken, then returns the first backendURL.
 //
 // backendURL.put() must be called on the returned backendURL after the request is complete.
 func getFirstAvailableBackendURL(bus []*backendURL) *backendURL {
@@ -628,21 +629,22 @@ func getFirstAvailableBackendURL(bus []*backendURL) *backendURL {
 			return bu
 		}
 	}
-	return nil
+
+	// All backend urls are unavailable, then returning a first one, it could help increase the success rate of the requests。
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10837#issuecomment-4307050980.
+	bu.get()
+	return bu
 }
 
 // getLeastLoadedBackendURL returns a non-broken backendURL with the lowest number of concurrent requests.
+// If all backendURLs are broken, then returns the first backendURL.
 //
 // backendURL.put() must be called on the returned backendURL after the request is complete.
 func getLeastLoadedBackendURL(bus []*backendURL, atomicCounter *atomic.Uint32) *backendURL {
+	firstBu := bus[0]
 	if len(bus) == 1 {
-		// Fast path - return the only backend url.
-		bu := bus[0]
-		if bu.isBroken() {
-			return nil
-		}
-		bu.get()
-		return bu
+		firstBu.get()
+		return firstBu
 	}
 
 	// Slow path - select other backend urls.
@@ -680,7 +682,10 @@ func getLeastLoadedBackendURL(bus []*backendURL, atomicCounter *atomic.Uint32) *
 	}
 	buMin := bus[buMinIdx]
 	if buMin.isBroken() {
-		return nil
+		// If all backendURLs are broken, then returns the first backendURL.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10837#issuecomment-4307050980.
+		firstBu.get()
+		return firstBu
 	}
 	buMin.get()
 	atomicCounter.CompareAndSwap(n+1, buMinIdx+1)
