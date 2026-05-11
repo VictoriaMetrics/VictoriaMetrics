@@ -608,7 +608,7 @@ func (c *vmselectClient) PrometheusAPIV1AdminStatusMetricNamesStatsReset(t *test
 // /admin/tenants endpoint.
 func (c *vmselectClient) APIV1AdminTenants(t *testing.T, opts QueryOpts) *AdminTenantsResponse {
 	t.Helper()
-	res, statusCode := c.vmselectCli.Get(t, c.tenantsURL, nil)
+	res, statusCode := c.vmselectCli.Get(t, c.tenantsURL, opts.Headers)
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusOK, res)
 	}
@@ -726,7 +726,7 @@ func (c *vminsertClient) PrometheusAPIV1ImportPrometheus(t *testing.T, records [
 		// it results into single metadata record
 		if strings.HasPrefix(record, "# ") {
 			metadataItems := strings.Split(record, " ")
-			if len(metadataItems) < 2 {
+			if len(metadataItems) < 3 {
 				t.Fatalf("BUG: unexpected metadata format=%q", record)
 			}
 			metricName := metadataItems[2]
