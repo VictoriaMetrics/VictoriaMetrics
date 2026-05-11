@@ -47,7 +47,7 @@ func initOnce() {
 		allowedMemory = allowedBytes.IntN()
 		// It's fair to safeguard and print a hint if the allowedBytes is set to too small. Users may not check the doc of the flag carefully.
 		if allowedMemory < 256 {
-			logger.Fatalf("FATAL: allowed memory %d bytes is too low. This may prevent the app from starting. Please increase it by setting the -memory.allowedBytes flag to a value higher than 256 bytes.", allowedMemory)
+			logger.Fatalf("FATAL: allowed memory %d bytes is too low. This may prevent the app from starting. Please increase it by setting the -memory.allowedBytes flag to at least 256 bytes.", allowedMemory)
 		}
 		remainingMemory = memoryLimit - allowedMemory
 		if remainingMemory <= 0 {
