@@ -57,6 +57,8 @@ jobs:
             arch: amd64
           - os: openbsd
             arch: amd64
+          - os: netbsd
+            arch: amd64
           - os: windows
             arch: amd64
     steps:
