@@ -634,6 +634,19 @@ cpu_usage:1m_without_cpu_quantiles{quantile="1"} 90
   outputs: ["quantiles(0, 0.5, 1)"]
 `, "1111111")
 
+	// no stale quantiles should be produced
+	f([]string{`
+cpu_usage{cpu="1"} 3
+cpu_usage{cpu="2"} 3`,
+		`cpu_usage{cpu="2"} 4`,
+	}, time.Minute, `cpu_usage:1m_quantiles{cpu="1",quantile="1"} 3
+cpu_usage:1m_quantiles{cpu="2",quantile="1"} 3
+cpu_usage:1m_quantiles{cpu="2",quantile="1"} 4
+`, `
+- interval: 1m
+  outputs: ["quantiles(1)"]
+`, "111")
+
 	// append additional label
 	f([]string{`
 foo{abc="123"} 4
