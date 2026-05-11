@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: all VictoriaMetrics components: enforce value checks and improve logging for the `-memory.allowedBytes` flag to prevent setting an excessively low value (less than 256 bytes) from blocking application startup. See issue [#10935](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10935).
+
 ## [v1.143.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.143.0)
 
 Released at 2026-05-08

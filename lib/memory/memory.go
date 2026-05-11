@@ -12,7 +12,7 @@ import (
 
 var (
 	allowedPercent = flag.Float64("memory.allowedPercent", 60, `Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache which will result in higher disk IO usage`)
-	allowedBytes   = flagutil.NewBytes("memory.allowedBytes", 0, `Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache resulting in higher disk IO usage`)
+	allowedBytes   = flagutil.NewBytes("memory.allowedBytes", 0, `Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache resulting in higher disk IO usage. Setting it too small (e.g., below 256 bytes) may prevent the app from starting.`)
 )
 
 var _ = metrics.NewGauge("process_memory_limit_bytes", func() float64 {
@@ -45,6 +45,10 @@ func initOnce() {
 		logger.Infof("limiting caches to %d bytes, leaving %d bytes to the OS according to -memory.allowedPercent=%g, system memory limit %d bytes", allowedMemory, remainingMemory, *allowedPercent, memoryLimit)
 	} else {
 		allowedMemory = allowedBytes.IntN()
+		// It's fair to safeguard and print a hint if the allowedBytes is set to too small. Users may not check the doc of the flag carefully.
+		if allowedMemory < 256 {
+			logger.Fatalf("FATAL: allowed memory %d bytes is too low. This may prevent the app from starting. Please increase it by setting the -memory.allowedBytes flag to a value higher than 256 bytes.", allowedMemory)
+		}
 		remainingMemory = memoryLimit - allowedMemory
 		if remainingMemory <= 0 {
 			logger.Fatalf("FATAL: remaining memory %d bytes cannot be less than or equal to zero, detected system memory limit %d bytes, -memory.allowedBytes=%s", remainingMemory, memoryLimit, allowedBytes.String())
