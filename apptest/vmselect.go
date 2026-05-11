@@ -10,7 +10,7 @@ import (
 // functions.
 type Vmselect struct {
 	*app
-	*ServesMetrics
+	*metricsClient
 	*vmselectClient
 
 	httpListenAddr          string
@@ -38,11 +38,8 @@ func StartVmselect(instance string, flags []string, cli *Client, output io.Write
 	}
 
 	return &Vmselect{
-		app: app,
-		ServesMetrics: &ServesMetrics{
-			metricsURL: fmt.Sprintf("http://%s/metrics", stderrExtracts[0]),
-			cli:        cli,
-		},
+		app:           app,
+		metricsClient: newMetricsClient(cli, stderrExtracts[0]),
 		vmselectClient: &vmselectClient{
 			vmselectCli: cli,
 			url: func(op, path string, opts QueryOpts) string {

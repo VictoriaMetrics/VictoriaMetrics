@@ -13,7 +13,7 @@ import (
 // functions.
 type Vmsingle struct {
 	*app
-	*ServesMetrics
+	*metricsClient
 	*vmstorageClient
 	*vmselectClient
 	*vminsertClient
@@ -46,11 +46,8 @@ func StartVmsingleAt(instance, binary string, flags []string, cli *Client, outpu
 	}
 
 	return &Vmsingle{
-		app: app,
-		ServesMetrics: &ServesMetrics{
-			metricsURL: fmt.Sprintf("http://%s/metrics", stderrExtracts[1]),
-			cli:        cli,
-		},
+		app:           app,
+		metricsClient: newMetricsClient(cli, stderrExtracts[1]),
 		vmstorageClient: &vmstorageClient{
 			vmstorageCli:   cli,
 			httpListenAddr: stderrExtracts[1],

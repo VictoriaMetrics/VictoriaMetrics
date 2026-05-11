@@ -152,27 +152,34 @@ func readAllAndClose(t *testing.T, responseBody io.ReadCloser) string {
 	return string(b)
 }
 
-// ServesMetrics is used to retrieve the app's metrics.
+// metricsClient is used to retrieve the app's metrics.
 //
 // This type is expected to be embedded by the apps that serve metrics.
-type ServesMetrics struct {
-	metricsURL string
-	cli        *Client
+type metricsClient struct {
+	metricsCli *Client
+	url        string
+}
+
+func newMetricsClient(cli *Client, addr string) *metricsClient {
+	return &metricsClient{
+		metricsCli: cli,
+		url:        fmt.Sprintf("http://%s/metrics", addr),
+	}
 }
 
 // GetIntMetric retrieves the value of a metric served by an app at /metrics URL.
 // The value is then converted to int.
-func (app *ServesMetrics) GetIntMetric(t *testing.T, metricName string) int {
+func (c *metricsClient) GetIntMetric(t *testing.T, metricName string) int {
 	t.Helper()
 
-	return int(app.GetMetric(t, metricName))
+	return int(c.GetMetric(t, metricName))
 }
 
 // GetMetric retrieves the value of a metric served by an app at /metrics URL.
-func (app *ServesMetrics) GetMetric(t *testing.T, metricName string) float64 {
+func (c *metricsClient) GetMetric(t *testing.T, metricName string) float64 {
 	t.Helper()
 
-	metrics, statusCode := app.cli.Get(t, app.metricsURL, nil)
+	metrics, statusCode := c.metricsCli.Get(t, c.url, nil)
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
 	}
@@ -193,12 +200,12 @@ func (app *ServesMetrics) GetMetric(t *testing.T, metricName string) float64 {
 
 // GetMetricsByPrefix retrieves the values of all metrics that start with given
 // prefix.
-func (app *ServesMetrics) GetMetricsByPrefix(t *testing.T, prefix string) []float64 {
+func (c *metricsClient) GetMetricsByPrefix(t *testing.T, prefix string) []float64 {
 	t.Helper()
 
 	values := []float64{}
 
-	metrics, statusCode := app.cli.Get(t, app.metricsURL, nil)
+	metrics, statusCode := c.metricsCli.Get(t, c.url, nil)
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
 	}
@@ -222,12 +229,12 @@ func (app *ServesMetrics) GetMetricsByPrefix(t *testing.T, prefix string) []floa
 	return values
 }
 
-func (app *ServesMetrics) GetMetricsByRegexp(t *testing.T, re *regexp.Regexp) []float64 {
+func (c *metricsClient) GetMetricsByRegexp(t *testing.T, re *regexp.Regexp) []float64 {
 	t.Helper()
 
 	values := []float64{}
 
-	metrics, statusCode := app.cli.Get(t, app.metricsURL, nil)
+	metrics, statusCode := c.metricsCli.Get(t, c.url, nil)
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
 	}
@@ -254,9 +261,9 @@ func (app *ServesMetrics) GetMetricsByRegexp(t *testing.T, re *regexp.Regexp) []
 // rpcRowsSentTotal retrieves the values of all vminsert
 // `vm_rpc_rows_sent_total` metrics (there will be one for each vmstorage) and
 // returns their integer sum.
-func (app *ServesMetrics) rpcRowsSentTotal(t *testing.T) int {
+func (c *metricsClient) rpcRowsSentTotal(t *testing.T) int {
 	total := 0.0
-	for _, v := range app.GetMetricsByPrefix(t, "vm_rpc_rows_sent_total") {
+	for _, v := range c.GetMetricsByPrefix(t, "vm_rpc_rows_sent_total") {
 		total += v
 	}
 	return int(total)

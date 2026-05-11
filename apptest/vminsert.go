@@ -13,13 +13,11 @@ import (
 // functions.
 type Vminsert struct {
 	*app
-	*ServesMetrics
+	*metricsClient
 	*vminsertClient
 
 	httpListenAddr          string
 	clusternativeListenAddr string
-
-	cli *Client
 }
 
 // storageNodes returns the storage node addresses passed to vminsert via
@@ -65,14 +63,10 @@ func StartVminsert(instance string, flags []string, cli *Client, output io.Write
 		return nil, err
 	}
 
-	metricsClient := &ServesMetrics{
-		metricsURL: fmt.Sprintf("http://%s/metrics", stderrExtracts[0]),
-		cli:        cli,
-	}
-
+	metricsClient := newMetricsClient(cli, stderrExtracts[0])
 	return &Vminsert{
 		app:           app,
-		ServesMetrics: metricsClient,
+		metricsClient: metricsClient,
 		vminsertClient: &vminsertClient{
 			vminsertCli: cli,
 			url: func(op, path string, opts QueryOpts) string {
@@ -89,7 +83,6 @@ func StartVminsert(instance string, flags []string, cli *Client, output io.Write
 		},
 		httpListenAddr:          stderrExtracts[0],
 		clusternativeListenAddr: stderrExtracts[1],
-		cli:                     cli,
 	}, nil
 }
 
@@ -120,10 +113,10 @@ func (app *Vminsert) String() string {
 // Waiting is implemented a retrieving the value of `vm_rpc_rows_sent_total`
 // metric and checking whether it is equal or greater than the wanted value.
 // If it is, then the data has been sent to vmstorage.
-func sendBlocking(t *testing.T, app *ServesMetrics, numRecordsToSend int, send func()) {
+func sendBlocking(t *testing.T, c *metricsClient, numRecordsToSend int, send func()) {
 	t.Helper()
 
-	wantRowsSentCount := app.rpcRowsSentTotal(t) + numRecordsToSend
+	wantRowsSentCount := c.rpcRowsSentTotal(t) + numRecordsToSend
 
 	send()
 
@@ -132,7 +125,7 @@ func sendBlocking(t *testing.T, app *ServesMetrics, numRecordsToSend int, send f
 		period  = 100 * time.Millisecond
 	)
 	for range retries {
-		d := app.rpcRowsSentTotal(t)
+		d := c.rpcRowsSentTotal(t)
 		if d >= wantRowsSentCount {
 			return
 		}

@@ -12,7 +12,7 @@ import (
 // functions.
 type Vmstorage struct {
 	*app
-	*ServesMetrics
+	*metricsClient
 	*vmstorageClient
 
 	storageDataPath string
@@ -45,11 +45,8 @@ func StartVmstorageAt(instance, binary string, flags []string, cli *Client, outp
 	}
 
 	return &Vmstorage{
-		app: app,
-		ServesMetrics: &ServesMetrics{
-			metricsURL: fmt.Sprintf("http://%s/metrics", stderrExtracts[1]),
-			cli:        cli,
-		},
+		app:           app,
+		metricsClient: newMetricsClient(cli, stderrExtracts[1]),
 		vmstorageClient: &vmstorageClient{
 			vmstorageCli:   cli,
 			httpListenAddr: stderrExtracts[1],
