@@ -132,7 +132,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
   -maxQueueDuration duration
      The maximum duration to wait before rejecting incoming requests if concurrency limit specified via -maxConcurrentRequests or -maxConcurrentPerUserRequests command-line flags is reached. Requests are rejected with '429 Too Many Requests' http status code if the limit is still reached after the -maxQueueDuration duration. This allows graceful handling of short spikes in concurrent requests. See https://docs.victoriametrics.com/victoriametrics/vmauth/#concurrency-limiting (default 10s)
   -maxRequestBodySizeToRetry size
-     The maximum request body size to buffer in memory for potential retries at other backends. Request bodies larger than this size cannot be retried if the backend fails. Zero or negative value disables request body buffering and retries. See also -requestBufferSize
+     The maximum request body size to buffer in memory for potential retries at other backends. Request bodies larger than this size cannot be retried if the backend fails. Zero or negative value disables retries. See also -requestBufferSize
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 16384)
   -memory.allowedBytes size
      Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache resulting in higher disk IO usage
