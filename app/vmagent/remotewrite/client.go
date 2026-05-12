@@ -470,7 +470,7 @@ again:
 				goto again
 			}
 
-			logger.Warnf("failed to repack zstd block (%s bytes) to snappy: %s; The block will be rejected. "+
+			logger.Warnf("failed to repack zstd block (%d bytes) to snappy: %s; The block will be rejected. "+
 				"Possible cause: ungraceful shutdown leading to persisted queue corruption.",
 				zstdBlockLen, err)
 		}

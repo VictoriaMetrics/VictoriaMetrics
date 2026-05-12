@@ -13,8 +13,8 @@ import (
 )
 
 var (
-	addr = flag.String("remoteWrite.url", "", "Optional URL to VictoriaMetrics or vminsert where to persist alerts state "+
-		"and recording rules results in form of timeseries. "+
+	addr = flag.String("remoteWrite.url", "", "Optional URL to persist alerts state and recording rules results in form of timeseries. "+
+		"It must support either VictoriaMetrics remote write protocol or Prometheus remote_write protocol. "+
 		"Supports address in the form of IP address with a port (e.g., http://127.0.0.1:8428) or DNS SRV record. "+
 		"For example, if -remoteWrite.url=http://127.0.0.1:8428 is specified, "+
 		"then the alerts state will be written to http://127.0.0.1:8428/api/v1/write . See also -remoteWrite.disablePathAppend, '-remoteWrite.showURL'.")
