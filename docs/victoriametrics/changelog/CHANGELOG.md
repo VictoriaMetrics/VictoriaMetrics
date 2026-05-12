@@ -26,6 +26,11 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): add `-opentelemetry.labelNameUnderscoreSanitization` command-line flag to control whether to enable prepending of `key` to labels starting with `_` when `-opentelemetry.usePrometheusNaming` is enabled. See [OpenTelemetry](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/) docs and [#9663](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9663). Thanks to @andriibeee for the contribution.
+
+* BUGFIX: [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/): stop emitting stale values for `quantiles(...)` outputs when a time series has no samples during the current aggregation interval. Thanks to @alexei38 for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10918).
+* BUGFIX: [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/): extend delay on aggregation windows flush by the biggest lag among pushed samples. Before, the delay was calculated as 95th percentile across samples, which could underrepresent outliers and reject them from aggregation as "too old". See [#10402](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10402).
+
 ## [v1.143.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.143.0)
 
 Released at 2026-05-08
@@ -208,6 +213,23 @@ It enables back `Discovered targets` debug UI by default.
 * BUGFIX: `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly search tenants for [multitenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) query request. See [#10422](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10422).
 * BUGFIX: `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly apply `extra_filters[]` filter when querying `vm_account_id` or `vm_project_id` labels via [multitenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) request for `/api/v1/label/…/values` API. Before, `extra_filters` was ignored. See [#10503](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10503).
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): revert the use of rollup result cache for [instant queries](https://docs.victoriametrics.com/keyConcepts.html#instant-query) that contain [`rate`](https://docs.victoriametrics.com/MetricsQL.html#rate) function with a lookbehind window larger than `-search.minWindowForInstantRollupOptimization`. The cache usage was removed since [v1.132.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.132.0). See [#10098](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10098#issuecomment-3895011084) for more details.
+
+## [v1.136.9](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.136.9)
+
+Released at 2026-05-08
+
+**v1.136.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.136.x line will be supported for at least 12 months since [v1.136.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11360) release**
+
+* SECURITY: upgrade Go builder from Go1.26.2 to Go1.26.3. See [the list of issues addressed in Go1.26.3](https://github.com/golang/go/issues?q=milestone%3AGo1.26.3%20label%3ACherryPickApproved).
+
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): properly obtain `__meta_hetzner_hcloud_location` and `__meta_hetzner_hcloud_location_network_zone` labels for [hetzner_sd_configs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#hetzner_sd_configs). Hetzner changed discovery [API response](https://docs.hetzner.cloud/changelog#2025-12-16-phasing-out-datacenters) and returns `location` information from different field. See [#10909](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10909). Thanks to @juliusrickert for contribution.
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): now correctly respects disabling retries via `-maxRequestBodySizeToRetry=0`. Previously, disabling retries required setting both `-maxRequestBodySizeToRetry` and `-requestBufferSize` to `0`. See [#10857](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10857). Thanks to @andriibeee for the contribution.
+* BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): explicitly set the MD5 checksum for `DeleteObjects` requests. Starting with [aws-sdk-go-v2/service/s3 v1.73.0](https://github.com/aws/aws-sdk-go-v2/blob/release-2025-01-15/service/s3/CHANGELOG.md#v1730-2025-01-15), the SDK switched the checksum algorithm from MD5 to CRC32, which [can break compatibility](https://github.com/aws/aws-sdk-go-v2/discussions/2960) with some third-party S3 implementations, including [Dell ECS](https://www.dell.com/en-us/lp/dt/elastic-cloud-storage). See [#10907](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10907).
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): attempt to route requests to the first backend when all backends are marked as broken. Previously, `vmauth` returned an error immediately without attempting any backend. This change may improve success rate in rare edge cases. See [#10837](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10837).
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): give priority to `extra_label` and `extra_filters[]` params defined in URL query string over those defined in request body form, to properly respect constraints imposed by `vmauth`. See [#10908](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10908).
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): set CORS headers on `/api/v1/export`, `/api/v1/export/csv` and `/api/v1/export/native`. See [#10899](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10899). Thanks to @andriibeee for the contribution.
 
 ## [v1.136.8](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.136.8)
 
@@ -512,6 +534,20 @@ See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/ch
 ## [v1.123.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.123.0)
 
 See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2025/#v11230)
+
+## [v1.122.22](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.22)
+
+Released at 2026-05-08
+
+**v1.122.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.122.x line will be supported for at least 12 months since [v1.122.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11220) release**
+
+* SECURITY: upgrade Go builder from Go1.26.2 to Go1.26.3. See [the list of issues addressed in Go1.26.3](https://github.com/golang/go/issues?q=milestone%3AGo1.26.3%20label%3ACherryPickApproved).
+
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): properly obtain `__meta_hetzner_hcloud_location` and `__meta_hetzner_hcloud_location_network_zone` labels for [hetzner_sd_configs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#hetzner_sd_configs). Hetzner changed discovery [API response](https://docs.hetzner.cloud/changelog#2025-12-16-phasing-out-datacenters) and returns `location` information from different field. See [#10909](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10909). Thanks to @juliusrickert for contribution.
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): give priority to `extra_label` and `extra_filters[]` params defined in URL query string over those defined in request body form, to properly respect constraints imposed by `vmauth`. See [#10908](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10908).
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): set CORS headers on `/api/v1/export`, `/api/v1/export/csv` and `/api/v1/export/native`. See [#10899](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10899). Thanks to @andriibeee for the contribution.
 
 ## [v1.122.21](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.21)
 
