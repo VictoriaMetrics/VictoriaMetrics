@@ -187,11 +187,15 @@ func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	fs.RegisterPathFsMetrics(*DataPath)
 
 	var err error
-	if *accountID > math.MaxUint32 {
-		logger.Fatalf("-accountID must to be in the range [0, %d], got %d", math.MaxUint32, *accountID)
+	const (
+		maxAccountID = uint64(math.MaxUint32)
+		maxProjectID = uint64(math.MaxUint32)
+	)
+	if *accountID > maxAccountID {
+		logger.Fatalf("-accountID must to be in the range [0, %d], got %d", maxAccountID, *accountID)
 	}
-	if *projectID > math.MaxUint32 {
-		logger.Fatalf("-projectID must to be in the range [0, %d], got %d", math.MaxUint32, *projectID)
+	if *projectID > maxProjectID {
+		logger.Fatalf("-projectID must to be in the range [0, %d], got %d", maxProjectID, *projectID)
 	}
 	vmselectSrv, err = servers.NewVMSelectServer(*vmselectAddr, strg, uint32(*accountID), uint32(*projectID))
 	if err != nil {
