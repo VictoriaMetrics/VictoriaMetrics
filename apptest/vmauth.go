@@ -1,7 +1,6 @@
 package apptest
 
 import (
-	"fmt"
 	"io"
 	"regexp"
 	"syscall"
@@ -17,7 +16,7 @@ var httpBuilitinListenAddrRE = regexp.MustCompile(`pprof handlers are exposed at
 // functions.
 type Vmauth struct {
 	*app
-	*ServesMetrics
+	*metricsClient
 
 	httpListenAddr string
 	configFilePath string
@@ -45,11 +44,8 @@ func StartVmauth(instance string, flags []string, cli *Client, configFilePath st
 	}
 
 	return &Vmauth{
-		app: app,
-		ServesMetrics: &ServesMetrics{
-			metricsURL: fmt.Sprintf("http://%s/metrics", stderrExtracts[0]),
-			cli:        cli,
-		},
+		app:            app,
+		metricsClient:  newMetricsClient(cli, stderrExtracts[0]),
 		httpListenAddr: stderrExtracts[0],
 		configFilePath: configFilePath,
 		cli:            cli,
