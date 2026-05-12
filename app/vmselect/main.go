@@ -60,6 +60,9 @@ var (
 	resetCacheAuthKey            = flagutil.NewPassword("search.resetCacheAuthKey", "Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call. It could be passed via authKey query arg. It overrides -httpAuth.*")
 	metricNamesStatsResetAuthKey = flagutil.NewPassword("metricNamesStatsResetAuthKey", "authKey for resetting metric names usage cache via /api/v1/admin/status/metric_names_stats/reset. It overrides -httpAuth.*. "+
 		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#track-ingested-metrics-usage")
+	clusterSelectInternalAuthKey = flagutil.NewPassword("clusterSelectInternalAuthKey", "Optional authKey for protecting internal HTTP API endpoints at /internal/clusternative/. "+
+		"The authKey must be passed via authKey query arg in requests from upper-level vmselect nodes configured with -clusterSelectNode. "+
+		"It overrides -httpAuth.*. Recommended when -clusterSelectNode is in use to prevent unauthorized access to internal cluster endpoints.")
 
 	logSlowQueryDuration = flag.Duration("search.logSlowQueryDuration", 5*time.Second, "Log queries with execution time exceeding this value. Zero disables slow query logging. "+
 		"See also -search.logQueryMemoryUsage")
@@ -67,6 +70,13 @@ var (
 	storageNodes    = flagutil.NewArrayString("storageNode", "Comma-separated addresses of vmstorage nodes; usage: -storageNode=vmstorage-host1,...,vmstorage-hostN . "+
 		"Enterprise version of VictoriaMetrics supports automatic discovery of vmstorage addresses via DNS SRV records. For example, -storageNode=srv+vmstorage.addrs . "+
 		"See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#automatic-vmstorage-discovery")
+
+	clusterSelectNodes = flagutil.NewArrayString("clusterSelectNode", "Comma-separated addresses of lower-level vmselect nodes for multi-level cluster setup. "+
+		"Use this flag instead of -storageNode when the lower-level nodes are vmselect instances that expose HTTP-based internal API. "+
+		"Addresses must be in 'host:port' format. For example: -clusterSelectNode=vmselect-lower1:8481,vmselect-lower2:8481 . "+
+		"This flag is mutually exclusive with -storageNode. "+
+		"It replaces the legacy TCP-based RPC communication (-clusternativeListenAddr) with HTTP for improved flexibility and isPartial propagation. "+
+		"See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multi-level-cluster-setup")
 
 	clusternativeListenAddr = flag.String("clusternativeListenAddr", "", "TCP address to listen for requests from other vmselect nodes in multi-level cluster setup. "+
 		"See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multi-level-cluster-setup . Usually :8401 should be set to match default vmstorage port for vmselect. Disabled work if empty")
@@ -98,21 +108,41 @@ func main() {
 	buildinfo.Init()
 	logger.Init()
 
-	logger.Infof("starting netstorage at storageNodes %s", *storageNodes)
 	startTime := time.Now()
 	storage.SetDedupInterval(*minScrapeInterval)
-	if len(*storageNodes) == 0 {
-		logger.Fatalf("missing -storageNode arg")
+	if len(*storageNodes) == 0 && len(*clusterSelectNodes) == 0 {
+		logger.Fatalf("missing -storageNode or -clusterSelectNode arg")
 	}
-	if hasEmptyValues(*storageNodes) {
-		logger.Fatalf("found empty address of storage node in the -storageNodes flag, please make sure that all -storageNode args are non-empty")
+	if len(*storageNodes) > 0 && len(*clusterSelectNodes) > 0 {
+		logger.Fatalf("-storageNode and -clusterSelectNode are mutually exclusive; use one or the other")
 	}
-	if duplicatedAddr := checkDuplicates(*storageNodes); duplicatedAddr != "" {
-		logger.Fatalf("found equal addresses of storage nodes in the -storageNodes flag: %q", duplicatedAddr)
+	if len(*clusterSelectNodes) > 0 {
+		if hasEmptyValues(*clusterSelectNodes) {
+			logger.Fatalf("found empty address in -clusterSelectNode flag; make sure all -clusterSelectNode args are non-empty")
+		}
+		if dup := checkDuplicates(*clusterSelectNodes); dup != "" {
+			logger.Fatalf("found duplicate address in -clusterSelectNode flag: %q", dup)
+		}
+		if addr := hasSchemePrefix(*clusterSelectNodes); addr != "" {
+			logger.Fatalf("invalid -clusterSelectNode address %q: must be in 'host:port' format without scheme (e.g. vmselect-host:8481)", addr)
+		}
+		logger.Infof("starting netstorage with HTTP cluster select nodes %s", *clusterSelectNodes)
+		netstorage.InitHTTPSelectNodes(*clusterSelectNodes, clusterSelectInternalAuthKey.Get())
+	}
+	if len(*storageNodes) > 0 {
+		if hasEmptyValues(*storageNodes) {
+			logger.Fatalf("found empty address of storage node in the -storageNodes flag, please make sure that all -storageNode args are non-empty")
+		}
+		if duplicatedAddr := checkDuplicates(*storageNodes); duplicatedAddr != "" {
+			logger.Fatalf("found equal addresses of storage nodes in the -storageNodes flag: %q", duplicatedAddr)
+		}
+		logger.Infof("starting netstorage at storageNodes %s", *storageNodes)
 	}
 
 	netutil.InitConcurrentDialLimit(*maxConcurrentRequests)
-	netstorage.Init(*storageNodes)
+	if len(*storageNodes) > 0 {
+		netstorage.Init(*storageNodes)
+	}
 	logger.Infof("started netstorage in %.3f seconds", time.Since(startTime).Seconds())
 
 	if len(*cacheDataPath) > 0 {
@@ -167,6 +197,7 @@ func main() {
 	logger.Infof("shutting down neststorage...")
 	startTime = time.Now()
 	netstorage.MustStop()
+	netstorage.MustStopHTTPSelectNodes()
 	if len(*cacheDataPath) > 0 {
 		promql.StopRollupResultCache()
 	}
@@ -190,7 +221,11 @@ var (
 )
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
-	path := strings.ReplaceAll(r.URL.Path, "//", "/")
+	path := r.URL.Path
+	if strings.Contains(path, "//") {
+		// low-frequency operation
+		path = strings.ReplaceAll(path, "//", "/")
+	}
 
 	if handleStaticAndSimpleRequests(w, r, path) {
 		return true
@@ -251,6 +286,18 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 				slowQueries.Inc()
 			}
 		}()
+	}
+
+	// Handle internal clusternative HTTP API after concurrency and observability controls,
+	// so multi-level cluster fanout is subject to -search.maxConcurrentRequests and slow query logging.
+	// Auth is checked here with a dedicated key so the internal RPC channel is protected
+	// independently of the global -httpAuth.* credentials.
+	if strings.HasPrefix(path, clusternative.InternalHTTPPath) &&
+		!httpserver.CheckAuthFlag(w, r, clusterSelectInternalAuthKey) {
+		return true
+	}
+	if clusternative.HandleInternalRequest(w, r) {
+		return true
 	}
 
 	if path == "/internal/resetRollupResultCache" {
@@ -984,7 +1031,9 @@ var (
 
 func usage() {
 	const s = `
-vmselect processes incoming queries by fetching the requested data from vmstorage nodes configured via -storageNode.
+vmselect processes incoming queries by fetching the requested data from vmstorage nodes configured via -storageNode,
+or from lower-level vmselect nodes in a multi-level cluster setup configured via -clusterSelectNode.
+The two flags are mutually exclusive.
 
 See the docs at https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/ .
 `
@@ -1091,4 +1140,15 @@ func checkDuplicates(arr []string) string {
 
 func hasEmptyValues(arr []string) bool {
 	return slices.Contains(arr, "")
+}
+
+// hasSchemePrefix returns the first address that contains a URL scheme (e.g. "http://").
+// clusterSelectNode addresses must be in plain "host:port" format.
+func hasSchemePrefix(arr []string) string {
+	for _, s := range arr {
+		if strings.Contains(s, "://") {
+			return s
+		}
+	}
+	return ""
 }
