@@ -16,8 +16,8 @@ aliases:
 `vmagent` is a tiny agent that helps you collect metrics from various sources,
 [relabel and filter the collected metrics](https://docs.victoriametrics.com/victoriametrics/relabeling/)
 and store them in [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics)
-or any other storage systems via Prometheus `remote_write` protocol
-or via [VictoriaMetrics `remote_write` protocol](#victoriametrics-remote-write-protocol).
+or any other storage systems via the Prometheus `remote_write` protocol
+or via the [VictoriaMetrics `remote_write` protocol](#victoriametrics-remote-write-protocol).
 
 See [Quick Start](#quick-start) for details.
 
@@ -38,9 +38,9 @@ and to [discover Prometheus-compatible targets and scrape metrics from them](#ho
   Note that single-node VictoriaMetrics can also discover and scrape Prometheus-compatible targets in the same way `vmagent` does -
   see [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter).
 * Can add, remove, and modify labels (aka tags) via Prometheus relabeling and filter data before sending it to remote storage. See [these docs](https://docs.victoriametrics.com/victoriametrics/relabeling/) for details.
-* Can accept data via all the ingestion protocols supported by VictoriaMetrics - see [these docs](#how-to-push-data-to-vmagent).
-* Can aggregate incoming samples by time and by labels before sending them to remote storage - see [these docs](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/).
-* Can replicate collected metrics simultaneously to multiple Prometheus-compatible remote storage systems - see [these docs](#replication-and-high-availability).
+* Can accept data via all the ingestion protocols supported by VictoriaMetrics. See [these docs](#how-to-push-data-to-vmagent).
+* Can aggregate incoming samples by time and by labels before sending them to remote storage. See [these docs](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/).
+* Can replicate collected metrics simultaneously to multiple Prometheus-compatible remote storage systems . See [these docs](#replication-and-high-availability).
 * Can save egress network bandwidth usage costs when [VictoriaMetrics remote write protocol](#victoriametrics-remote-write-protocol)
   is used to send data to VictoriaMetrics.
 * Works smoothly in environments with unstable connections to remote storage. If the remote storage is unavailable, the collected metrics
@@ -61,9 +61,9 @@ and to [discover Prometheus-compatible targets and scrape metrics from them](#ho
 
 ## Quick Start
 
-Please download `vmutils-*` archive from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) (
+Download `vmutils-*` archive from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) (
 `vmagent` is also available in Docker images [Docker Hub](https://hub.docker.com/r/victoriametrics/vmagent/tags) and [Quay](https://quay.io/repository/victoriametrics/vmagent?tab=tags)),
-unpack it and pass the following flags to the `vmagent` binary in order to start scraping Prometheus-compatible targets
+unpack it, and pass the following flags to the `vmagent` binary in order to start scraping Prometheus-compatible targets
 and sending the data to the Prometheus-compatible remote storage:
 
 * `-promscrape.config` with the path to the [Prometheus config file](https://docs.victoriametrics.com/victoriametrics/sd_configs/) (usually located at `/etc/prometheus/prometheus.yml`).
@@ -92,7 +92,7 @@ Example command for scraping Prometheus targets and writing the data to single-n
 See [how to scrape Prometheus-compatible targets](#how-to-collect-metrics-in-prometheus-format) for more details.
 
 If you use single-node VictoriaMetrics, then you can discover and scrape Prometheus-compatible targets directly from VictoriaMetrics
-without the need to use `vmagent` - see [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter).
+without the need to use `vmagent` . See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter).
 
 `vmagent` can reduce network bandwidth costs under high load when the [VictoriaMetrics remote write protocol is used](#victoriametrics-remote-write-protocol).
 
@@ -443,7 +443,7 @@ SRV URLs are supported in the following places:
   `-remoteWrite.url=http://victoria-metrics-host:8428/api/v1/write`. If the DNS SRV record is resolved into multiple TCP addresses, then `vmagent`
   uses a randomly chosen address for each connection it establishes to the remote storage.
 
-* In scrape target addresses aka `__address__` label - see [these docs](https://docs.victoriametrics.com/victoriametrics/relabeling/#how-to-modify-scrape-urls-in-targets) for details.
+* In scrape target addresses aka `__address__` label. See [these docs](https://docs.victoriametrics.com/victoriametrics/relabeling/#how-to-modify-scrape-urls-in-targets) for details.
 
 * In URLs used for [service discovery](https://docs.victoriametrics.com/victoriametrics/sd_configs/).
 
@@ -493,7 +493,7 @@ In this case, all the metrics written to `/insert/tenant_id/prometheus/api/v1/wr
 
 ### Multitenancy via labels
 
-vmagent can write data to multiple distinct tenants if `-remoteWrite.url` points to [multitenant url at VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels)
+vmagent can write data to multiple distinct tenants if `-remoteWrite.url` points to [multitenant URL at VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels)
 and tenant is specified via [multitenancy labels](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels):
 ```mermaid
 flowchart LR
@@ -532,7 +532,7 @@ or forwarded metrics.
 
 ### Multitenancy via path
 
-vmagent can write data to multiple distinct tenants if `-remoteWrite.url` points to [multitenant url at VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels),
+vmagent can write data to multiple distinct tenants if `-remoteWrite.url` points to [multitenant URL at VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels),
 tenant is specified in the [write path](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format) and `-enableMultitenantHandlers` command-line flag is set:
 ```mermaid
 flowchart LR
@@ -548,7 +548,7 @@ and `-remoteWrite.urlRelabelConfig` command-line flags.
 
 ### Multitenancy via headers
 
-vmagent can write data to multiple distinct tenants if `-remoteWrite.url` points to [multitenant url at VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels),
+vmagent can write data to multiple distinct tenants if `-remoteWrite.url` points to [multitenant URL at VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels),
 tenant is specified [via headers](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-headers) {{% available_from "v1.143.0" %}}, both `-enableMultitenantHandlers` and `-enableMultitenancyViaHeaders` command-line flags are set:
 ```mermaid
 flowchart LR
@@ -809,7 +809,7 @@ If the target is dropped because of sharding to other `vmagent` instances in the
 The `/service-discovery` page provides links to the corresponding `vmagent` instances if the `-promscrape.cluster.memberURLTemplate` command-line flag is set.
 Every occurrence of `%d` inside the `-promscrape.cluster.memberURLTemplate` is substituted with the `-promscrape.cluster.memberNum`
 for the corresponding `vmagent` instance. For example, `-promscrape.cluster.memberURLTemplate='http://vmagent-instance-%d:8429/targets'`
-generates `http://vmagent-instance-42:8429/targets` url for `vmagent` instance, which runs with `-promscrape.cluster.memberNum=42`.
+generates `http://vmagent-instance-42:8429/targets` URL for `vmagent` instance, which runs with `-promscrape.cluster.memberNum=42`.
 
 Note that `vmagent` shows up to `-promscrape.maxDroppedTargets` dropped targets on the `/service-discovery` page.
 Increase the `-promscrape.maxDroppedTargets` command-line flag value if the `/service-discovery` page misses some dropped targets.
@@ -903,7 +903,7 @@ Each remote write URL corresponds to a folder similar to `1_B9EB7BE220B91E9D`.
 
 It's generated based on the following information:
 
-1. The **sequence order** of the remote write URL cmd-line flags, starting from **1**.
+1. The **sequence order** of the remote write URL command-line flags, starting from **1**.
 2. The **hash result** of the remote write URL itself, excluding query parameters and fragments.
 
 For example, for the remote write configs:
