@@ -1,4 +1,4 @@
-import { FC, useState } from "react";
+import { FC, ReactNode, useState } from "react";
 import { TopQuery } from "../../../types";
 import JsonView from "../../../components/Views/JsonView/JsonView";
 import { CodeIcon, TableIcon } from "../../../components/Main/Icons";
@@ -8,10 +8,18 @@ import "./style.scss";
 import classNames from "classnames";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 
+export interface TopQueryColumn {
+  title?: string;
+  tooltip?: string;
+  key: keyof TopQuery;
+  sortBy?: keyof TopQuery;
+  format?: (row: TopQuery) => ReactNode;
+}
+
 export interface TopQueryPanelProps {
   rows: TopQuery[],
   title?: string,
-  columns: {title?: string, tooltip?: string, key: (keyof TopQuery), sortBy?: (keyof TopQuery), format?: (val: TopQuery[keyof TopQuery]) => string}[],
+  columns: TopQueryColumn[],
   defaultOrderBy?: keyof TopQuery,
 }
 const tabs = ["table", "JSON"].map((t, i) => ({

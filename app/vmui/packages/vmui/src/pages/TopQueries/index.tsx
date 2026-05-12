@@ -3,7 +3,7 @@ import { useFetchTopQueries } from "./hooks/useFetchTopQueries";
 import Spinner from "../../components/Main/Spinner/Spinner";
 import TopQueryPanel from "./TopQueryPanel/TopQueryPanel";
 import { formatPrettyNumber } from "../../utils/uplot";
-import { humanizeSeconds, parseSupportedDuration } from "../../utils/time";
+import { parseSupportedDuration } from "../../utils/time";
 import dayjs from "dayjs";
 import { TopQueryStats } from "../../types";
 import Button from "../../components/Main/Button/Button";
@@ -15,21 +15,16 @@ import "./style.scss";
 import useDeviceDetect from "../../hooks/useDeviceDetect";
 import classNames from "classnames";
 import useStateSearchParams from "../../hooks/useStateSearchParams";
+import { useTopQueriesColumns } from "./hooks/useTopQueriesColumns";
 
 const exampleDuration = "30ms, 15s, 3d4h, 1y2w";
-
-const formatBytes = (bytes: number): string => {
-  if (bytes === 0) return "0 B";
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(1024));
-  return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${units[i]}`;
-};
 
 const TopQueries: FC = () => {
   const { isMobile } = useDeviceDetect();
 
   const [topN, setTopN] = useStateSearchParams(10, "topN");
   const [maxLifetime, setMaxLifetime] = useStateSearchParams("10m", "maxLifetime");
+  const columns = useTopQueriesColumns({ maxLifetime });
 
   const { data, error, loading, fetch } = useFetchTopQueries({ topN, maxLifetime });
 
@@ -152,52 +147,33 @@ const TopQueries: FC = () => {
 
       {error && <Alert variant="error">{error}</Alert>}
 
-      {data && (<>
+      {data && (
         <div className="vm-top-queries-panels">
           <TopQueryPanel
+            title="Queries with most summary time to execute"
             rows={data.topBySumDuration}
-            title={"Queries with most summary time to execute"}
-            columns={[
-              { key: "query" },
-              { key: "sumDurationSeconds", title: "duration", tooltip: `Cumulative time spent executing the query across all its invocations over the last ${maxLifetime}`, format: (val) => humanizeSeconds(val as number) },
-              { key: "timeRange", sortBy: "timeRangeSeconds", title: "range", tooltip: "The time range between start and end of the query request. 'instant' means the query was executed at a single point in time without a time range" },
-              { key: "count", tooltip: `The number of times the query was executed over the last ${maxLifetime}` }
-            ]}
-            defaultOrderBy={"sumDurationSeconds"}
+            columns={columns.topBySumDuration}
+            defaultOrderBy="sumDurationSeconds"
           />
           <TopQueryPanel
+            title="Most heavy queries"
             rows={data.topByAvgDuration}
-            title={"Most heavy queries"}
-            columns={[
-              { key: "query" },
-              { key: "avgDurationSeconds", title: "duration", tooltip: `Average time spent executing the query over the last ${maxLifetime}`, format: (val) => humanizeSeconds(val as number) },
-              { key: "timeRange", sortBy: "timeRangeSeconds", title: "range", tooltip: "The time range between start and end of the query request. 'instant' means the query was executed at a single point in time without a time range" },
-              { key: "count", tooltip: `The number of times the query was executed over the last ${maxLifetime}` }
-            ]}
-            defaultOrderBy={"avgDurationSeconds"}
+            columns={columns.topByAvgDuration}
+            defaultOrderBy="avgDurationSeconds"
           />
           <TopQueryPanel
+            title="Most frequently executed queries"
             rows={data.topByCount}
-            title={"Most frequently executed queries"}
-            columns={[
-              { key: "query" },
-              { key: "timeRange", sortBy: "timeRangeSeconds", title: "range", tooltip: "The time range between start and end of the query request. 'instant' means the query was executed at a single point in time without a time range" },
-              { key: "count", tooltip: `The number of times the query was executed over the last ${maxLifetime}` }
-            ]}
+            columns={columns.topByCount}
           />
           <TopQueryPanel
+            title="Queries with most memory to execute"
             rows={data.topByAvgMemoryUsage}
-            title={"Queries with most memory to execute"}
-            columns={[
-              { key: "query" },
-              { key: "avgMemoryBytes", title: "memory", tooltip: `Average memory used during query execution over the last ${maxLifetime}`, format: (val) => formatBytes(val as number) },
-              { key: "timeRange", sortBy: "timeRangeSeconds", title: "range", tooltip: "The time range between start and end of the query request. 'instant' means the query was executed at a single point in time without a time range" },
-              { key: "count", tooltip: `The number of times the query was executed over the last ${maxLifetime}` }
-            ]}
-            defaultOrderBy={"avgMemoryBytes"}
+            columns={columns.topByAvgMemoryUsage}
+            defaultOrderBy="avgMemoryBytes"
           />
         </div>
-      </>)}
+      )}
     </div>
   );
 };
