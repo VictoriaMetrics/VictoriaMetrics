@@ -528,7 +528,7 @@ scrape_configs:
     target_label: __tenant_id__
 ```
 
-vmagent can [enforce adding labels](https://docs.victoriametrics.com/vmagent/index.html#adding-labels-to-metrics) to all scraped
+vmagent can [enforce adding labels](https://docs.victoriametrics.com/victoriametrics/vmagent/#adding-labels-to-metrics) to all scraped
 or forwarded metrics. 
 
 ### Multitenancy via path
@@ -566,7 +566,7 @@ These tenant labels are added before applying [relabeling](https://docs.victoria
 and `-remoteWrite.urlRelabelConfig` command-line flags.
 
 vmauth can [enforce adding headers](https://docs.victoriametrics.com/victoriametrics/vmauth/#modifying-http-headers) to all
-forwared requests via `headers` param in the config file.
+forwarded requests via `headers` param in the config file.
 
 ## Adding labels to metrics
 
