@@ -526,6 +526,10 @@ func (c *client) drainInMemoryQueue(stopCtx context.Context, block []byte) {
 			// In this case it is guaranteed that fq will be empty
 			return
 		}
+		if len(block) == 0 {
+			// skip empty data blocks from sending
+			continue
+		}
 
 		// at this stage c.stopCh should be closed
 		// so sendBlock function should not perform retries
