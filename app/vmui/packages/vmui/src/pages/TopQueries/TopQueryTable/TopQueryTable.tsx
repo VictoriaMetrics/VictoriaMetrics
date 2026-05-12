@@ -44,11 +44,11 @@ const TopQueryTable:FC<TopQueryPanelProps> = ({ rows, columns, defaultOrderBy })
               <div className="vm-table-cell__content">
                 {col.title || col.key}
                 {col.tooltip && (
-                  <Tooltip title={col.tooltip}>
-                    <span
-                      className="vm-top-queries-table__info-icon"
-                      onClick={(e) => e.stopPropagation()}
-                    >
+                  <Tooltip
+                    placement="top-center"
+                    title={col.tooltip}
+                  >
+                    <span className="vm-top-queries-table__info-icon">
                       <InfoOutlinedIcon/>
                     </span>
                   </Tooltip>
@@ -79,7 +79,7 @@ const TopQueryTable:FC<TopQueryPanelProps> = ({ rows, columns, defaultOrderBy })
                 className="vm-table-cell"
                 key={col.key}
               >
-                {col.format ? col.format(row[col.key]) : (row[col.key] || "-")}
+                {col.format?.(row) ?? row[col.key] ?? "-"}
               </td>
             ))}
             <td className="vm-table-cell vm-table-cell_no-padding">
