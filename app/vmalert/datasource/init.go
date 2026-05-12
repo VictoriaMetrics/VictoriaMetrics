@@ -27,6 +27,7 @@ var (
 		"Multiple headers must be delimited by '^^': -datasource.headers='header1:value1^^header2:value2'")
 
 	basicAuthUsername     = flag.String("datasource.basicAuth.username", "", "Optional basic auth username for -datasource.url")
+	basicAuthUsernameFile = flag.String("datasource.basicAuth.usernameFile", "", "Optional path to basic auth username to use for -datasource.url")
 	basicAuthPassword     = flag.String("datasource.basicAuth.password", "", "Optional basic auth password for -datasource.url")
 	basicAuthPasswordFile = flag.String("datasource.basicAuth.passwordFile", "", "Optional path to basic auth password to use for -datasource.url")
 
@@ -105,7 +106,7 @@ func Init(extraParams url.Values) (QuerierBuilder, error) {
 		return nil, fmt.Errorf("cannot parse JSON for -datasource.oauth2.endpointParams=%s: %w", *oauth2EndpointParams, err)
 	}
 	authCfg, err := vmalertutil.AuthConfig(
-		vmalertutil.WithBasicAuth(*basicAuthUsername, *basicAuthPassword, *basicAuthPasswordFile),
+		vmalertutil.WithBasicAuth(*basicAuthUsername, *basicAuthUsernameFile, *basicAuthPassword, *basicAuthPasswordFile),
 		vmalertutil.WithBearer(*bearerToken, *bearerTokenFile),
 		vmalertutil.WithOAuth(*oauth2ClientID, *oauth2ClientSecret, *oauth2ClientSecretFile, *oauth2TokenURL, *oauth2Scopes, endpointParams),
 		vmalertutil.WithHeaders(*headers))
