@@ -17,8 +17,7 @@ aliases:
 or [recording](https://docs.victoriametrics.com/victoriametrics/vmalert/#recording-rules)
 rules against configured `-datasource.url`. For sending alerting notifications
 `vmalert` relies on [Alertmanager](https://github.com/prometheus/alertmanager) configured via `-notifier.url` flag.
-Recording rules results are persisted via [remote write](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations)
-protocol and require `-remoteWrite.url` to be configured.
+Recording rules results are persisted via remote write protocols and require `-remoteWrite.url` to be configured.
 `vmalert` is heavily inspired by [Prometheus](https://prometheus.io/docs/alerting/latest/overview/)
 implementation and aims to be compatible with its syntax.
 
@@ -68,7 +67,7 @@ To start using `vmalert` you will need the following things:
 * notifier address [optional] - reachable [Alert Manager](https://github.com/prometheus/alertmanager) instance for processing,
   aggregating alerts, and sending notifications. Please note, notifier address also supports Consul and DNS Service Discovery via
   [config file](https://docs.victoriametrics.com/victoriametrics/vmalert/#notifier-configuration-file).
-* remote write address [optional] - [remote write](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations)
+* remote write address [optional] - [remote write](https://docs.victoriametrics.com/victoriametrics/vmagent/#victoriametrics-remote-write-protocol)
   compatible storage to persist rules and alerts state info. To persist results to multiple destinations use vmagent
   configured with multiple remote writes as a proxy;
 * remote read address [optional] - MetricsQL compatible datasource to restore alerts state from.
@@ -848,7 +847,7 @@ If you want rules to run concurrently based on the `concurrency` setting, set `-
 
 vmalert sends rule's expression to [/query_range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query) endpoint
 of the configured `-datasource.url`. Returned data is then processed according to the rule type and
-backfilled to `-remoteWrite.url` via [remote Write protocol](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations).
+backfilled to `-remoteWrite.url` via [remote Write protocol](https://docs.victoriametrics.com/victoriametrics/vmagent/#victoriametrics-remote-write-protocol).
 vmalert respects `evaluationInterval` value set by flag or per-group during the replay.
 vmalert automatically disables caching on VictoriaMetrics side by sending `nocache=1` param. It allows
 to prevent cache pollution and unwanted time range boundaries adjustment during backfilling.
