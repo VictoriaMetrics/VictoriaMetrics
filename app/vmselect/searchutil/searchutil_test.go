@@ -20,6 +20,7 @@ func TestGetExtraTagFilters(t *testing.T) {
 		}
 		return &http.Request{
 			Form: q,
+			URL:  &url.URL{RawQuery: q.Encode()},
 		}
 	}
 	f := func(t *testing.T, r *http.Request, want []string, wantErr bool) {
@@ -79,6 +80,24 @@ func TestGetExtraTagFilters(t *testing.T) {
 		nil,
 		false,
 	)
+
+	formValues, err := url.ParseQuery(`extra_label=env=prod&extra_label=job=vmsingle&extra_label=tenant=prod&extra_filters[]={foo="bar"}&extra_filters[]={tenant="prod"}`)
+	if err != nil {
+		t.Fatalf("BUG: cannot parse query: %s", err)
+	}
+	urlValues, err := url.ParseQuery(`extra_label=job=vmagent&extra_label=env=dev&extra_filters[]={tenant="dev"}`)
+	if err != nil {
+		t.Fatalf("BUG: cannot parse query: %s", err)
+	}
+	httpReqWithBothFormAndURLParams := &http.Request{
+		Form: formValues,
+		URL: &url.URL{
+			RawQuery: urlValues.Encode(),
+		},
+	}
+	f(t, httpReqWithBothFormAndURLParams,
+		[]string{`{tenant="dev",job="vmagent",env="dev"}`},
+		false)
 }
 
 func TestParseMetricSelectorSuccess(t *testing.T) {
