@@ -97,7 +97,6 @@ func main() {
 	buildinfo.Init()
 	logger.Init()
 
-	// TODO: remove before merge
 	if *dryRun {
 		if len(*authConfigPath) == 0 {
 			logger.Fatalf("missing required `-auth.config` command-line flag")
