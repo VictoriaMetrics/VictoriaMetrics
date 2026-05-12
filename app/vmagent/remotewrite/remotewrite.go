@@ -167,6 +167,14 @@ func Init() {
 	if len(*remoteWriteURLs) == 0 {
 		logger.Fatalf("at least one `-remoteWrite.url` command-line flag must be set")
 	}
+	if *shardByURL {
+		copyDisableOnDiskQueue := append([]bool{}, *disableOnDiskQueue...)
+		if len(slices.Compact(copyDisableOnDiskQueue)) != 1 {
+			logger.Fatalf("all -remoteWrite.url targets must have the same -remoteWrite.disableOnDiskQueue setting when -remoteWrite.shardByURL is enabled; " +
+				"either enable or disable -remoteWrite.disableOnDiskQueue for all targets")
+		}
+	}
+
 	if limit := getMaxHourlySeries(); limit > 0 {
 		hourlySeriesLimiter = bloomfilter.NewLimiter(limit, time.Hour)
 		_ = metrics.NewGauge(`vmagent_hourly_series_limit_max_series`, func() float64 {
@@ -499,6 +507,9 @@ func tryPush(at *auth.Token, wr *prompb.WriteRequest, forceDropSamplesOnFailure 
 //
 // calculateHealthyRwctxIdx will rely on the order of rwctx to be in ascending order.
 func getEligibleRemoteWriteCtxs(tss []prompb.TimeSeries, forceDropSamplesOnFailure bool) ([]*remoteWriteCtx, bool) {
+	if *shardByURL {
+		return rwctxsGlobal, true
+	}
 	if !disableOnDiskQueueAny {
 		return rwctxsGlobal, true
 	}
@@ -514,12 +525,6 @@ func getEligibleRemoteWriteCtxs(tss []prompb.TimeSeries, forceDropSamplesOnFailu
 				return nil, false
 			}
 			rowsCount := getRowsCount(tss)
-			if *shardByURL {
-				// Todo: When shardByURL is enabled, the following metrics won't be 100% accurate. Because vmagent don't know
-				// which rwctx should data be pushed to yet. Let's consider the hashing algorithm fair and will distribute
-				// data to all rwctxs evenly.
-				rowsCount = rowsCount / len(rwctxsGlobal)
-			}
 			rwctx.rowsDroppedOnPushFailure.Add(rowsCount)
 		}
 	}
