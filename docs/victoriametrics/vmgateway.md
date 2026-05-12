@@ -419,6 +419,8 @@ Below is the list of configuration flags (it can be viewed by running `./vmgatew
      Optional path to basic auth password to use for -datasource.url
   -datasource.basicAuth.username string
      Optional basic auth username for -datasource.url
+  -datasource.basicAuth.usernameFile string
+     Optional path to basic auth username to use for -datasource.url
   -datasource.bearerToken string
      Optional bearer auth token to use for -datasource.url.
   -datasource.bearerTokenFile string

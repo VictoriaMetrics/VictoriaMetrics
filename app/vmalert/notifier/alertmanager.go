@@ -191,7 +191,7 @@ func NewAlertManager(alertManagerURL string, fn AlertURLGenerator, authCfg proma
 	}
 
 	aCfg, err := vmalertutil.AuthConfig(
-		vmalertutil.WithBasicAuth(ba.Username, ba.Password.String(), ba.PasswordFile),
+		vmalertutil.WithBasicAuth(ba.Username, ba.UsernameFile, ba.Password.String(), ba.PasswordFile),
 		vmalertutil.WithBearer(authCfg.BearerToken.String(), authCfg.BearerTokenFile),
 		vmalertutil.WithOAuth(oauth.ClientID, oauth.ClientSecret.String(), oauth.ClientSecretFile, oauth.TokenURL, strings.Join(oauth.Scopes, ";"), oauth.EndpointParams),
 		vmalertutil.WithHeaders(strings.Join(authCfg.Headers, "^^")),

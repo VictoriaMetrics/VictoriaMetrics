@@ -25,6 +25,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
      Optional path to basic auth password to use for -datasource.url
   -datasource.basicAuth.username string
      Optional basic auth username for -datasource.url
+  -datasource.basicAuth.usernameFile string
+     Optional path to basic auth username to use for -datasource.url
   -datasource.bearerToken string
      Optional bearer auth token to use for -datasource.url.
   -datasource.bearerTokenFile string
@@ -186,6 +188,10 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
      Optional basic auth username for -notifier.url
      Supports an array of values separated by comma or specified via multiple flags.
      Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -notifier.basicAuth.usernameFile array
+     Optional path to basic auth username file for -notifier.url
+     Supports an array of values separated by comma or specified via multiple flags.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -notifier.bearerToken array
      Optional bearer token for -notifier.url
      Supports an array of values separated by comma or specified via multiple flags.
@@ -298,6 +304,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
      Optional path to basic auth password to use for -remoteRead.url
   -remoteRead.basicAuth.username string
      Optional basic auth username for -remoteRead.url
+  -remoteRead.basicAuth.usernameFile string
+     Optional path to basic auth username to use for -remoteRead.url
   -remoteRead.bearerToken string
      Optional bearer auth token to use for -remoteRead.url.
   -remoteRead.bearerTokenFile string
@@ -342,6 +350,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
      Optional path to basic auth password to use for -remoteWrite.url
   -remoteWrite.basicAuth.username string
      Optional basic auth username for -remoteWrite.url
+  -remoteWrite.basicAuth.usernameFile string
+     Optional path to basic auth username to use for -remoteWrite.url
   -remoteWrite.bearerToken string
      Optional bearer auth token to use for -remoteWrite.url.
   -remoteWrite.bearerTokenFile string
