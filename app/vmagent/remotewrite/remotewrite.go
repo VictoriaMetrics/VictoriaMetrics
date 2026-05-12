@@ -699,7 +699,7 @@ func shardAmountRemoteWriteCtx(tssBlock []prompb.TimeSeries, shards [][]prompb.T
 			}
 			tmpLabels.Labels = hashLabels
 		}
-		h := getLabelsHash(hashLabels)
+		h := getLabelsHashForShard(hashLabels)
 
 		// Get the rwctxIdx through consistent hashing and then map it to the index in shards.
 		// The rwctxIdx is not always equal to the shardIdx, for example, when some rwctx are not available.
@@ -790,11 +790,28 @@ var (
 	dailySeriesLimitRowsDropped  = metrics.NewCounter(`vmagent_daily_series_limit_rows_dropped_total`)
 )
 
+// getLabelsHashForShard is a separate function from getLabelsHash because
+// it omits the '=' separator between label name and value for backward compatibility.
+// Changing it would re-shard all series across remoteWrite targets.
+func getLabelsHashForShard(labels []prompb.Label) uint64 {
+	bb := labelsHashBufPool.Get()
+	b := bb.B[:0]
+	for _, label := range labels {
+		b = append(b, label.Name...)
+		b = append(b, label.Value...)
+	}
+	h := xxhash.Sum64(b)
+	bb.B = b
+	labelsHashBufPool.Put(bb)
+	return h
+}
+
 func getLabelsHash(labels []prompb.Label) uint64 {
 	bb := labelsHashBufPool.Get()
 	b := bb.B[:0]
 	for _, label := range labels {
 		b = append(b, label.Name...)
+		b = append(b, '=')
 		b = append(b, label.Value...)
 	}
 	h := xxhash.Sum64(b)
