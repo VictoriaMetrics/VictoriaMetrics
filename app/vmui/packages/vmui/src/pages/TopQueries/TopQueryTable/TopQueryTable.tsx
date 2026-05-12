@@ -35,36 +35,40 @@ const TopQueryTable:FC<TopQueryPanelProps> = ({ rows, columns, defaultOrderBy })
     <table className="vm-table">
       <thead className="vm-table-header">
         <tr className="vm-table__row vm-table__row_header">
-          {columns.map((col) => (
-            <th
-              className="vm-table-cell vm-table-cell_header vm-table-cell_sort"
-              onClick={createSortHandler(col.sortBy || col.key)}
-              key={col.key}
-            >
-              <div className="vm-table-cell__content">
-                {col.title || col.key}
-                {col.tooltip && (
-                  <Tooltip
-                    placement="top-center"
-                    title={col.tooltip}
+          {columns.map((col) => {
+            const sortKey = col.sortBy || col.key;
+
+            return (
+              <th
+                className="vm-table-cell vm-table-cell_header vm-table-cell_sort"
+                onClick={createSortHandler(sortKey)}
+                key={col.key}
+              >
+                <div className="vm-table-cell__content">
+                  {col.title || col.key}
+                  {col.tooltip && (
+                    <Tooltip
+                      placement="top-center"
+                      title={col.tooltip}
+                    >
+                      <span className="vm-top-queries-table__info-icon">
+                        <InfoOutlinedIcon/>
+                      </span>
+                    </Tooltip>
+                  )}
+                  <div
+                    className={classNames({
+                      "vm-table__sort-icon": true,
+                      "vm-table__sort-icon_active": orderBy === sortKey,
+                      "vm-table__sort-icon_desc": orderDir === "desc" && orderBy === sortKey
+                    })}
                   >
-                    <span className="vm-top-queries-table__info-icon">
-                      <InfoOutlinedIcon/>
-                    </span>
-                  </Tooltip>
-                )}
-                <div
-                  className={classNames({
-                    "vm-table__sort-icon": true,
-                    "vm-table__sort-icon_active": orderBy === col.key,
-                    "vm-table__sort-icon_desc": orderDir === "desc" && orderBy === col.key
-                  })}
-                >
-                  <ArrowDropDownIcon/>
+                    <ArrowDropDownIcon/>
+                  </div>
                 </div>
-              </div>
-            </th>
-          ))}
+              </th>
+            );
+          })}
           <th className="vm-table-cell vm-table-cell_header"/> {/* empty cell for actions */}
         </tr>
       </thead>
