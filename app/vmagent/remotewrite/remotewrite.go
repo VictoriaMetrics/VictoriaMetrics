@@ -507,12 +507,9 @@ func tryPush(at *auth.Token, wr *prompb.WriteRequest, forceDropSamplesOnFailure 
 //
 // calculateHealthyRwctxIdx will rely on the order of rwctx to be in ascending order.
 func getEligibleRemoteWriteCtxs(tss []prompb.TimeSeries, forceDropSamplesOnFailure bool) ([]*remoteWriteCtx, bool) {
-	// Always use all configured remote writes in order to preserve stable metrics distribution across shards.
+	// When -remoteWrite.shardByURL=true always use all configured remote writes to preserve stable metrics distribution across shards.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10507
-	if *shardByURL {
-		return rwctxsGlobal, true
-	}
-	if !disableOnDiskQueueAny {
+	if !disableOnDiskQueueAny || *shardByURL {
 		return rwctxsGlobal, true
 	}
 
