@@ -70,6 +70,7 @@ func AssertSeries(tc *TestCase, app PrometheusQuerier, metricNameRE, tenantID st
 	tc.Assert(&AssertOptions{
 		Msg: "unexpected /prometheus/api/v1/series response",
 		Got: func() any {
+			tc.T().Helper()
 			return app.PrometheusAPIV1Series(tc.T(), query, QueryOpts{
 				Tenant: tenantID,
 				Start:  fmt.Sprintf("%d", start),
@@ -92,6 +93,7 @@ func AssertSeriesCount(tc *TestCase, app PrometheusQuerier, tenantID string, sta
 	tc.Assert(&AssertOptions{
 		Msg: "unexpected /prometheus/api/v1/series/count response",
 		Got: func() any {
+			tc.T().Helper()
 			return app.PrometheusAPIV1SeriesCount(tc.T(), QueryOpts{
 				Tenant: tenantID,
 				Start:  fmt.Sprintf("%d", start),
@@ -115,6 +117,7 @@ func AssertLabels(tc *TestCase, app PrometheusQuerier, metricNameRE, tenantID st
 	tc.Assert(&AssertOptions{
 		Msg: "unexpected /prometheus/api/v1/labels response",
 		Got: func() any {
+			tc.T().Helper()
 			res := app.PrometheusAPIV1Labels(tc.T(), query, QueryOpts{
 				Tenant: tenantID,
 				Start:  fmt.Sprintf("%d", start),
@@ -141,6 +144,7 @@ func AssertLabelValues(tc *TestCase, app PrometheusQuerier, metricNameRE, labelN
 	tc.Assert(&AssertOptions{
 		Msg: "unexpected /prometheus/api/v1/labels/.../values response",
 		Got: func() any {
+			tc.T().Helper()
 			res := app.PrometheusAPIV1LabelValues(tc.T(), labelName, query, QueryOpts{
 				Tenant: tenantID,
 				Start:  fmt.Sprintf("%d", start),
@@ -166,6 +170,7 @@ func AssertQueryResults(tc *TestCase, app PrometheusQuerier, metricNameRE, tenan
 	tc.Assert(&AssertOptions{
 		Msg: "unexpected /prometheus/api/v1/query_range response",
 		Got: func() any {
+			tc.T().Helper()
 			return app.PrometheusAPIV1QueryRange(tc.T(), query, QueryOpts{
 				Tenant:      tenantID,
 				Start:       fmt.Sprintf("%d", start),
@@ -192,6 +197,7 @@ func AssertMetadata(tc *TestCase, app PrometheusQuerier, metricName, tenantID st
 	tc.Assert(&AssertOptions{
 		Msg: "unexpected /prometheus/api/v1/metadata response",
 		Got: func() any {
+			tc.T().Helper()
 			return app.PrometheusAPIV1Metadata(tc.T(), metricName, 0, QueryOpts{
 				Tenant: tenantID,
 			})
@@ -210,6 +216,7 @@ func AssertMetricNamesStats(tc *TestCase, app PrometheusQuerier, metricNameRE, t
 	tc.Assert(&AssertOptions{
 		Msg: "unexpected /prometheus/api/v1/status/metric_names_stats response",
 		Got: func() any {
+			tc.T().Helper()
 			return app.PrometheusAPIV1StatusMetricNamesStats(tc.T(), "", "", metricNameRE, QueryOpts{
 				Tenant: tenantID,
 			})
@@ -279,6 +286,7 @@ func AssertGraphiteMetricsIndex(tc *TestCase, app PrometheusQuerier, tenantID st
 	tc.Assert(&AssertOptions{
 		Msg: "unexpected /graphite/metrics/index.json response",
 		Got: func() any {
+			tc.T().Helper()
 			return app.GraphiteMetricsIndex(tc.T(), QueryOpts{
 				Tenant: tenantID,
 			})
@@ -298,6 +306,7 @@ func AssertGraphiteMetricsFind(tc *TestCase, app PrometheusQuerier, query, tenan
 	tc.Assert(&AssertOptions{
 		Msg: "unexpected /graphite/metrics/find response",
 		Got: func() any {
+			tc.T().Helper()
 			return app.GraphiteMetricsFind(tc.T(), query, QueryOpts{
 				Tenant: tenantID,
 			})
@@ -316,6 +325,7 @@ func AssertGraphiteMetricsExpand(tc *TestCase, app PrometheusQuerier, query, ten
 	tc.Assert(&AssertOptions{
 		Msg: "unexpected /graphite/metrics/expand response",
 		Got: func() any {
+			tc.T().Helper()
 			return app.GraphiteMetricsExpand(tc.T(), query, QueryOpts{
 				Tenant: tenantID,
 			})
@@ -334,6 +344,7 @@ func AssertGraphiteRender(tc *TestCase, app PrometheusQuerier, target, tenantID 
 	tc.Assert(&AssertOptions{
 		Msg: "unexpected /graphite/render response",
 		Got: func() any {
+			tc.T().Helper()
 			return app.GraphiteRender(tc.T(), target, QueryOpts{
 				Tenant:      tenantID,
 				From:        fmt.Sprintf("%d", from/1000),

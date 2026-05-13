@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"testing"
 	"time"
 
@@ -52,6 +53,7 @@ func TestMixedPrometheusQueries(t *testing.T) {
 	vmsingle.PrometheusAPIV1ImportPrometheus(tc.T(), data.Samples, apptest.QueryOpts{})
 	vmsingle.ForceFlush(t)
 
+	// Ensure vmsingle returns data.
 	apptest.AssertSeries(tc, vmsingle, "metric.*", "", start, end, data.WantSeries)
 	apptest.AssertSeriesCount(tc, vmsingle, "", start, end, numMetrics)
 	apptest.AssertLabels(tc, vmsingle, "metric.*", "", start, end, data.WantLabels)
@@ -63,6 +65,17 @@ func TestMixedPrometheusQueries(t *testing.T) {
 	}
 	apptest.AssertMetricNamesStats(tc, vmsingle, "", "", data.WantMetricNamesStats)
 
+	// Check that current vmsingle tenant (configured via flags) is tenant1.
+	gotAdminTenantsResponse := vmselect.APIV1AdminTenants(t, apptest.QueryOpts{})
+	wantAdminTenantsResponse := &apptest.AdminTenantsResponse{
+		Status: "success",
+		Data:   []string{tenantID1},
+	}
+	if diff := cmp.Diff(wantAdminTenantsResponse, gotAdminTenantsResponse); diff != "" {
+		t.Fatalf("unexpected tenants (-want, +got):\n%s", diff)
+	}
+
+	// Ensure vmselect returns data for tenant1.
 	apptest.AssertSeries(tc, vmselect, "metric.*", tenantID1, start, end, data.WantSeries)
 	apptest.AssertSeriesCount(tc, vmselect, tenantID1, start, end, numMetrics)
 	apptest.AssertLabels(tc, vmselect, "metric.*", tenantID1, start, end, data.WantLabels)
@@ -74,6 +87,7 @@ func TestMixedPrometheusQueries(t *testing.T) {
 	}
 	apptest.AssertMetricNamesStats(tc, vmselect, "", tenantID1, data.WantMetricNamesStats)
 
+	// Ensure vmselect does not return any data for tenant2.
 	apptest.AssertSeries(tc, vmselect, "metric.*", tenantID2, start, end, emptySeries)
 	apptest.AssertSeriesCount(tc, vmselect, tenantID2, start, end, 0)
 	apptest.AssertLabels(tc, vmselect, "metric.*", tenantID2, start, end, emptyLabels)
@@ -82,14 +96,25 @@ func TestMixedPrometheusQueries(t *testing.T) {
 	apptest.AssertMetadata(tc, vmselect, "", tenantID2, emptyMetadata)
 	apptest.AssertMetricNamesStats(tc, vmselect, "", tenantID2, emptyMetricNamesStats)
 
-	gotAdminTenantsResponse := vmselect.APIV1AdminTenants(t, apptest.QueryOpts{})
-	wantAdminTenantsResponse := &apptest.AdminTenantsResponse{
-		Status: "success",
-		Data:   []string{tenantID1},
+	// Ensure vmselect returns data for multitenant.
+	for _, v := range data.WantSeries {
+		v["vm_account_id"] = strconv.Itoa(accountID1)
+		v["vm_project_id"] = strconv.Itoa(projectID1)
 	}
-	if diff := cmp.Diff(wantAdminTenantsResponse, gotAdminTenantsResponse); diff != "" {
-		t.Fatalf("unexpected tenants (-want, +got):\n%s", diff)
+	apptest.AssertSeries(tc, vmselect, "metric.*", "multitenant", start, end, data.WantSeries)
+	data.WantLabels = append(data.WantLabels, "vm_account_id", "vm_project_id")
+	apptest.AssertLabels(tc, vmselect, "metric.*", "multitenant", start, end, data.WantLabels)
+	apptest.AssertLabelValues(tc, vmselect, "metric.*", "label", "multitenant", start, end, data.WantLabelValues)
+	for _, v := range data.WantQueryResults {
+		v.Metric["vm_account_id"] = strconv.Itoa(accountID1)
+		v.Metric["vm_project_id"] = strconv.Itoa(projectID1)
 	}
+	apptest.AssertQueryResults(tc, vmselect, "metric.*", "multitenant", start, end, data.Step, data.WantQueryResults)
+	apptest.AssertMetadata(tc, vmselect, "", "multitenant", data.WantMetadata)
+	for i := range data.WantMetricNamesStats {
+		data.WantMetricNamesStats[i].QueryRequestsCount = 3
+	}
+	apptest.AssertMetricNamesStats(tc, vmselect, "", "multitenant", data.WantMetricNamesStats)
 }
 
 func TestMixedDeleteSeries(t *testing.T) {
@@ -137,7 +162,7 @@ func TestMixedDeleteSeries(t *testing.T) {
 	})
 	apptest.AssertSeries(tc, vmsingle, "metric.*", "", start, end, data2.WantSeries)
 	vmselect.PrometheusAPIV1AdminTSDBDeleteSeries(tc.T(), `{__name__=~"metric2.*"}`, apptest.QueryOpts{
-		Tenant: tenantID1,
+		Tenant: "multitenant",
 	})
 	apptest.AssertSeries(tc, vmsingle, "metric.*", "", start, end, emptySeries)
 }
@@ -176,16 +201,19 @@ func TestMixedGraphiteQueries(t *testing.T) {
 	vmsingle.GraphiteWrite(tc.T(), data.Samples, apptest.QueryOpts{})
 	vmsingle.ForceFlush(t)
 
+	// Ensure vmsingle returns data.
 	apptest.AssertGraphiteMetricsIndex(tc, vmsingle, "", data.WantMetricsIndex)
 	apptest.AssertGraphiteMetricsFind(tc, vmsingle, "metric.*", "", data.WantMetricsFind)
 	apptest.AssertGraphiteMetricsExpand(tc, vmsingle, "metric.*", "", data.WantMetricsExpand)
 	apptest.AssertGraphiteRender(tc, vmsingle, "metric.*", "", start, end, data.Step, data.WantRenderedTargets)
 
+	// Ensure vmselect returns data for tenant1.
 	apptest.AssertGraphiteMetricsIndex(tc, vmselect, tenantID1, data.WantMetricsIndex)
 	apptest.AssertGraphiteMetricsFind(tc, vmselect, "metric.*", tenantID1, data.WantMetricsFind)
 	apptest.AssertGraphiteMetricsExpand(tc, vmselect, "metric.*", tenantID1, data.WantMetricsExpand)
 	apptest.AssertGraphiteRender(tc, vmselect, "metric.*", tenantID1, start, end, data.Step, data.WantRenderedTargets)
 
+	// Ensure vmselect does not return any data for tenant2.
 	apptest.AssertGraphiteMetricsIndex(tc, vmselect, tenantID2, emptyMetricsIndex)
 	apptest.AssertGraphiteMetricsFind(tc, vmselect, "metric.*", tenantID2, emptyMetricsFind)
 	apptest.AssertGraphiteMetricsExpand(tc, vmselect, "metric.*", tenantID2, emptyMetricsExpand)
