@@ -19,9 +19,11 @@ import (
 // Vmagent holds the state of a vmagent app and provides vmagent-specific functions
 type Vmagent struct {
 	*app
-	*ServesMetrics
+	*metricsClient
 
 	httpListenAddr string
+
+	cli *Client
 }
 
 // StartVmagent starts an instance of vmagent with the given flags. It also
@@ -46,12 +48,10 @@ func StartVmagent(instance string, flags []string, cli *Client, promScrapeConfig
 	}
 
 	return &Vmagent{
-		app: app,
-		ServesMetrics: &ServesMetrics{
-			metricsURL: fmt.Sprintf("http://%s/metrics", stderrExtracts[0]),
-			cli:        cli,
-		},
+		app:            app,
+		metricsClient:  newMetricsClient(cli, stderrExtracts[0]),
 		httpListenAddr: stderrExtracts[0],
+		cli:            cli,
 	}, nil
 }
 

@@ -60,6 +60,8 @@ var (
 		"Multiple headers must be delimited by '^^': -remoteWrite.headers='header1:value1^^header2:value2'")
 
 	basicAuthUsername     = flagutil.NewArrayString("remoteWrite.basicAuth.username", "Optional basic auth username to use for the corresponding -remoteWrite.url")
+	basicAuthUsernameFile = flagutil.NewArrayString("remoteWrite.basicAuth.usernameFile", "Optional path to basic auth username to use for the corresponding -remoteWrite.url. "+
+		"The file is re-read every second")
 	basicAuthPassword     = flagutil.NewArrayString("remoteWrite.basicAuth.password", "Optional basic auth password to use for the corresponding -remoteWrite.url")
 	basicAuthPasswordFile = flagutil.NewArrayString("remoteWrite.basicAuth.passwordFile", "Optional path to basic auth password to use for the corresponding -remoteWrite.url. "+
 		"The file is re-read every second")
@@ -224,12 +226,14 @@ func getAuthConfig(argIdx int) (*promauth.Config, error) {
 		hdrs = strings.Split(headersValue, "^^")
 	}
 	username := basicAuthUsername.GetOptionalArg(argIdx)
+	usernameFile := basicAuthUsernameFile.GetOptionalArg(argIdx)
 	password := basicAuthPassword.GetOptionalArg(argIdx)
 	passwordFile := basicAuthPasswordFile.GetOptionalArg(argIdx)
 	var basicAuthCfg *promauth.BasicAuthConfig
-	if username != "" || password != "" || passwordFile != "" {
+	if username != "" || usernameFile != "" || password != "" || passwordFile != "" {
 		basicAuthCfg = &promauth.BasicAuthConfig{
 			Username:     username,
+			UsernameFile: usernameFile,
 			Password:     promauth.NewSecret(password),
 			PasswordFile: passwordFile,
 		}
@@ -472,7 +476,7 @@ again:
 				goto again
 			}
 
-			logger.Warnf("failed to repack zstd block (%s bytes) to snappy: %s; The block will be rejected. "+
+			logger.Warnf("failed to repack zstd block (%d bytes) to snappy: %s; The block will be rejected. "+
 				"Possible cause: ungraceful shutdown leading to persisted queue corruption.",
 				zstdBlockLen, err)
 		}
