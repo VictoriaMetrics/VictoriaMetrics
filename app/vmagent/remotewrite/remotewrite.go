@@ -167,11 +167,15 @@ func Init() {
 	if len(*remoteWriteURLs) == 0 {
 		logger.Fatalf("at least one `-remoteWrite.url` command-line flag must be set")
 	}
-	if *shardByURL {
-		copyDisableOnDiskQueue := append([]bool{}, *disableOnDiskQueue...)
-		if len(slices.Compact(copyDisableOnDiskQueue)) != 1 {
-			logger.Fatalf("all -remoteWrite.url targets must have the same -remoteWrite.disableOnDiskQueue setting when -remoteWrite.shardByURL is enabled; " +
-				"either enable or disable -remoteWrite.disableOnDiskQueue for all targets")
+	if *shardByURL && len(*disableOnDiskQueue) > 1 {
+		disableOnDiskQueues := *disableOnDiskQueue
+
+		firstValue := disableOnDiskQueues[0]
+		for _, v := range disableOnDiskQueues[1:] {
+			if firstValue != v {
+				logger.Fatalf("all -remoteWrite.url targets must have the same -remoteWrite.disableOnDiskQueue setting when -remoteWrite.shardByURL is enabled; " +
+					"either enable or disable -remoteWrite.disableOnDiskQueue for all targets")
+			}
 		}
 	}
 
