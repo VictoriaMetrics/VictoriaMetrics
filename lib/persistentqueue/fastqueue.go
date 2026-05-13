@@ -228,7 +228,9 @@ func (fq *FastQueue) tryWriteBlock(block []byte, ignoreDisabledPQ bool) bool {
 	return true
 }
 
-// MustReadBlock reads the next block from fq to dst and returns it.
+// MustReadBlock reads the next block from fq into dst and returns it.
+// It first reads from the in-memory queue, then checks file-based queue.
+// It blocks until a block is available or the stop deadline is exceeded, in which case it returns (dst, false).
 func (fq *FastQueue) MustReadBlock(dst []byte) ([]byte, bool) {
 	fq.mu.Lock()
 	defer fq.mu.Unlock()
@@ -257,6 +259,9 @@ func (fq *FastQueue) MustReadBlock(dst []byte) ([]byte, bool) {
 	}
 }
 
+// MustReadInMemoryBlock reads the next block from the in-memory queue into dst and returns it.
+// It returns (dst, true) if a block was available, or (nil, false) if the in-memory queue is empty.
+// It does not block waiting for new blocks.
 func (fq *FastQueue) MustReadInMemoryBlock(dst []byte) ([]byte, bool) {
 	fq.mu.Lock()
 	defer fq.mu.Unlock()
