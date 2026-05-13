@@ -489,12 +489,14 @@ flowchart LR
     B["requests_total{instance=bar}"] <--> |scrape| V
     V --> |"/insert/#60;tenant_id#62;/#60;suffix#62;"| C[vminsert]
 ```
+
 In this case, all the metrics written to `/insert/tenant_id/prometheus/api/v1/write` will belong to the specified `<tenant_id>` tenant.
 
 ### Multitenancy via labels
 
 vmagent can write data to multiple distinct tenants if `-remoteWrite.url` points to [multitenant URL at VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels)
 and tenant is specified via [multitenancy labels](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels):
+
 ```mermaid
 flowchart LR
     A["requests_total{instance=foo, vm_account_id=0}"] --> |/api/v1/write| V[vmagent]
@@ -517,7 +519,9 @@ scrape_configs:
 vmagent can get tenant identifier from `__tenant_id__` label at target discovery phase.
 It implicitly converts `__tenant_id__` label into `vm_account_id` and `vm_project_id` labels and attaches
 it to the scraped metrics and metrics metadata.
+
 For example, the following relabeling rule instructs sending metrics to the `10:5` tenant defined in the `prometheus.io/tenant_id: 10:5` annotation of the Kubernetes pod deployment:
+
 ```yaml
 scrape_configs:
 - kubernetes_sd_configs:
@@ -533,7 +537,8 @@ or forwarded metrics.
 ### Multitenancy via path
 
 vmagent can write data to multiple distinct tenants if `-remoteWrite.url` points to [multitenant URL at VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels),
-tenant is specified in the [write path](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format) and `-enableMultitenantHandlers` command-line flag is set:
+tenant is specified in the [write path](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format), and `-enableMultitenantHandlers` command-line flag is set:
+
 ```mermaid
 flowchart LR
     A["requests_total{instance=foo}"] --> |/insert/0/#60;suffix#62;| V[vmagent]
@@ -543,6 +548,7 @@ flowchart LR
 
 In this configuration, vmagent accepts writes via the same multitenant endpoints (`/insert/<accountID>/<suffix>`) [as vminsert does](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format).
 For all received data, vmagent will automatically convert tenant identifiers from the URL to `vm_account_id` and `vm_project_id` labels and set tenant info in metadata.
+
 These tenant labels are added before applying [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/) specified via `-remoteWrite.relabelConfig`
 and `-remoteWrite.urlRelabelConfig` command-line flags. 
 

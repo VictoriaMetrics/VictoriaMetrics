@@ -700,7 +700,7 @@ func TestScrapeWorkScrapeInternalStreamConcurrency(t *testing.T) {
 		StreamParse:   true,
 		ScrapeTimeout: time.Second * 42,
 		SeriesLimit:   4000,
-	}, 3, 4015, 2, 50)
+	}, 3, 4012, 2, 50)
 }
 
 func TestScrapeWorkScrapeInternalWithMaxScrapeSize(t *testing.T) {

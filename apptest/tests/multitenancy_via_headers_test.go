@@ -219,7 +219,7 @@ func TestClusterMultiTenantSelectViaHeaders(t *testing.T) {
 	tenantID := make(http.Header)
 	tenantID.Set("AccountID", "5")
 	tenantID.Set("ProjectID", "15")
-	vmselect.APIV1AdminTSDBDeleteSeries(t, "foo_bar", apptest.QueryOpts{
+	vmselect.PrometheusAPIV1AdminTSDBDeleteSeries(t, "foo_bar", apptest.QueryOpts{
 		Headers: tenantID,
 	})
 	wantSR = apptest.NewPrometheusAPIV1SeriesResponse(t,
@@ -244,7 +244,7 @@ func TestClusterMultiTenantSelectViaHeaders(t *testing.T) {
 	}
 
 	// Delete series for multitenant with tenant filter
-	vmselect.APIV1AdminTSDBDeleteSeries(t, `foo_bar{vm_account_id="1"}`, apptest.QueryOpts{
+	vmselect.PrometheusAPIV1AdminTSDBDeleteSeries(t, `foo_bar{vm_account_id="1"}`, apptest.QueryOpts{
 		Headers: multitenant,
 	})
 
