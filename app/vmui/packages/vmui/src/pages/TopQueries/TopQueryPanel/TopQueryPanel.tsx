@@ -10,7 +10,7 @@ import useDeviceDetect from "../../../hooks/useDeviceDetect";
 
 export interface TopQueryColumn {
   title?: string;
-  tooltip?: string;
+  tooltip?: ReactNode;
   key: keyof TopQuery;
   sortBy?: keyof TopQuery;
   format?: (row: TopQuery) => ReactNode;
