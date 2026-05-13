@@ -629,7 +629,7 @@ func (is *indexSearch) searchLabelNamesWithFiltersOnDate(qt *querytracer.Tracer,
 		if len(labelName) == 0 || hasCompositeLabelName {
 			underscoreNameSeen = true
 		}
-		if (!hasCompositeLabelName && isArtificialTagKey(labelName)) || string(labelName) == string(prevLabelName) {
+		if (!hasCompositeLabelName && isArtificialTagKey(labelName)) || bytes.Equal(labelName, prevLabelName) {
 			// Search for the next tag key.
 			// The last char in kb.B must be tagSeparatorChar.
 			// Just increment it in order to jump to the next tag key.
@@ -889,7 +889,7 @@ func (is *indexSearch) searchLabelValuesOnDate(qt *querytracer.Tracer, labelName
 			continue
 		}
 		labelValue := mp.Tag.Value
-		if string(labelValue) == string(prevLabelValue) {
+		if bytes.Equal(labelValue, prevLabelValue) {
 			// Search for the next tag value.
 			// The last char in kb.B must be tagSeparatorChar.
 			// Just increment it in order to jump to the next tag value.
@@ -1374,7 +1374,7 @@ func (is *indexSearch) getTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters,
 		if len(prevLabelName) == 0 {
 			prevLabelName = append(prevLabelName[:0], labelName...)
 		}
-		if string(labelName) != string(prevLabelName) {
+		if !bytes.Equal(labelName, prevLabelName) {
 			thLabelValueCountByLabelName.push(prevLabelName, labelValueCountByLabelName)
 			thSeriesCountByLabelName.push(prevLabelName, labelSeries)
 			labelSeries = 0
@@ -1385,7 +1385,7 @@ func (is *indexSearch) getTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters,
 			prevLabelValuePair = append(prevLabelValuePair[:0], labelValuePair...)
 			labelValueCountByLabelName++
 		}
-		if string(labelValuePair) != string(prevLabelValuePair) {
+		if !bytes.Equal(labelValuePair, prevLabelValuePair) {
 			thSeriesCountByLabelValuePair.push(prevLabelValuePair, seriesCountByLabelValuePair)
 			if bytes.HasPrefix(prevLabelValuePair, nameEqualBytes) {
 				thSeriesCountByMetricName.push(prevLabelValuePair[len(nameEqualBytes):], seriesCountByLabelValuePair)
@@ -2119,7 +2119,7 @@ func matchTagFilters(mn *MetricName, tfs []*tagFilter, kb *bytesutil.ByteBuffer)
 		tagMatched := false
 		tagSeen := false
 		for _, tag := range mn.Tags {
-			if string(tag.Key) != string(tf.key) {
+			if !bytes.Equal(tag.Key, tf.key) {
 				continue
 			}
 
@@ -2353,7 +2353,7 @@ func (is *indexSearch) getMetricIDsForTagFilterSlow(tf *tagFilter, f func(metric
 		if loopsCount > maxLoopsCount {
 			return loopsCount, errTooManyLoops
 		}
-		if prevMatch && string(suffix) == string(prevMatchingSuffix) {
+		if prevMatch && bytes.Equal(suffix, prevMatchingSuffix) {
 			// Fast path: the same tag value found.
 			// There is no need in checking it again with potentially
 			// slow tf.matchSuffix, which may call regexp.
@@ -2887,7 +2887,7 @@ func (is *indexSearch) hasDateMetricIDSlow(date, metricID uint64) bool {
 	kb.B = encoding.MarshalUint64(kb.B, metricID)
 	err := ts.FirstItemWithPrefix(kb.B)
 	if err == nil {
-		if string(ts.Item) != string(kb.B) {
+		if !bytes.Equal(ts.Item, kb.B) {
 			logger.Panicf("FATAL: unexpected entry for (date=%s, metricID=%d); got %q; want %q", dateToString(date), metricID, ts.Item, kb.B)
 		}
 		// Fast path - the (date, metricID) entry is found in the current indexdb.

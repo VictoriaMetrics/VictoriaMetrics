@@ -1932,7 +1932,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		}
 
 		// Search for TSID for the given mr.MetricNameRaw and store it at r.TSID.
-		if string(mr.MetricNameRaw) == string(prevMetricNameRaw) {
+		if bytes.Equal(mr.MetricNameRaw, prevMetricNameRaw) {
 			// Fast path - the current mr contains the same metric name as the previous mr, so it contains the same TSID.
 			// This path should trigger on bulk imports when many rows contain the same MetricNameRaw.
 
