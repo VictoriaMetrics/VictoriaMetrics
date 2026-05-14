@@ -802,10 +802,12 @@ func newCompressedLabels(src *promutil.Labels) *compressedLabels {
 // but with zero allocations
 func appendHex16(dst []byte, v uint64) []byte {
 	const hexChars = "0123456789abcdef"
+	var buf [16]byte
 	for i := 15; i >= 0; i-- {
-		dst = append(dst, hexChars[v&0xf])
+		buf[i] = hexChars[v&0xf]
 		v >>= 4
 	}
+	dst = append(dst, buf[:]...)
 	return dst
 }
 

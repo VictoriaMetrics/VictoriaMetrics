@@ -30,6 +30,7 @@ func BenchmarkNewCompressedLabels(b *testing.B) {
 	for i := range labelss {
 		labelss[i] = labelSet(i)
 	}
+	b.ResetTimer()
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
 		var i int
