@@ -15,25 +15,28 @@ aliases:
 - /enterprise/
 ---
 
-VictoriaMetrics and [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) components are provided
+VictoriaMetrics, [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) and [VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) components are provided
 in two kinds - [Community edition](https://victoriametrics.com/products/open-source/) and [Enterprise edition](https://victoriametrics.com/products/enterprise/).
 
-VictoriaMetrics and VictoriaLogs community components are open source and are free to use:
+The community components are open source and are free to use:
 
 - See [VictoriaMetrics source code](https://github.com/VictoriaMetrics/VictoriaMetrics/) and [VictoriaMetrics license](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/LICENSE).
 - See [VictoriaLogs source code](https://github.com/VictoriaMetrics/VictoriaLogs/) and [VictoriaLogs license](https://github.com/VictoriaMetrics/VictoriaLogs/blob/master/LICENSE).
+- See [VictoriaTraces source code](https://github.com/VictoriaMetrics/VictoriaTraces/) and [VictoriaLogs license](https://github.com/VictoriaMetrics/VictoriaTraces/blob/master/LICENSE).
 
-Enterprise components of VictoriaMetrics and VictoriaLogs are available at the following places:
+Both open-source and enterprise components are available at the following places:
 
-- Binary executables are available at [the releases page for VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
-  and [the release page for VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaLogs/releases/latest).
+- Binary executables are available at the corresponding releases pages:
+  - [releases page for VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
+  - [releases page for VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaLogs/releases/latest)
+  - [releases page for VictoriaTraces](https://github.com/VictoriaMetrics/VictoriaTraces/releases/latest)
 - Docker images are available at [Docker Hub](https://hub.docker.com/u/victoriametrics) and [Quay](https://quay.io/organization/victoriametrics).
 
 Enterprise executables and Docker images have `enterprise` suffix in their names and tags.
 
 ## Valid cases for VictoriaMetrics Enterprise
 
-The use of Enterprise components of VictoriaMetrics and VictoriaLogs is permitted in the following cases:
+The use of Enterprise components is permitted in the following cases:
 
 - Evaluation use in non-production setups. Please, request a [trial license](https://victoriametrics.com/products/enterprise/trial/)
   and then pass it via `-license` or `-licenseFile` command-line flags as described [in these docs](#running-victoriametrics-enterprise).
@@ -104,25 +107,26 @@ Contact us via [this page](https://victoriametrics.com/products/enterprise/) if 
 
 ## Running VictoriaMetrics Enterprise
 
-Enterprise components of VictoriaMetrics and VictoriaLogs are available in the following forms:
+Enterprise components are available in the following forms:
 
-- [Binary releases](#binary-releases)
-- [Docker images](#docker-images)
-- [Helm charts](#helm-charts)
-- [Kubernetes operator](#kubernetes-operator)
+- [Binary releases](https://docs.victoriametrics.com/victoriametrics/enterprise/#binary-releases)
+- [Docker images](https://docs.victoriametrics.com/victoriametrics/enterprise/#docker-images)
+- [Helm charts](https://docs.victoriametrics.com/victoriametrics/enterprise/#helm-charts)
+- [Kubernetes operator](https://docs.victoriametrics.com/victoriametrics/enterprise/#kubernetes-operator)
 
 ### Binary releases
 
-It is allowed to run VictoriaMetrics and VictoriaLogs Enterprise components in [cases listed here](#valid-cases-for-victoriametrics-enterprise).
+It is allowed to run Enterprise components in [cases listed here](https://docs.victoriametrics.com/victoriametrics/enterprise/#valid-cases-for-victoriametrics-enterprise).
 
-Binary releases of Enterprise components are available at [the releases page for VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
-and [the releases page for VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaLogs/releases/latest).
+Binary releases of Enterprise components are available at [the releases page for VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest),
+[the releases page for VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaLogs/releases/latest)
+and [the releases page for VictoriaTraces](https://github.com/VictoriaMetrics/VictoriaTraces/releases/latest).
 Enterprise binaries and packages have `enterprise` suffix in their names. For example, `victoria-metrics-linux-amd64-v1.143.0-enterprise.tar.gz`.
 
 In order to run binary release of Enterprise component, please download the `*-enterprise.tar.gz` archive for your OS and architecture
 from the corresponding releases page and unpack it. Then run the unpacked binary.
 
-All the Enterprise components of VictoriaMetrics and VictoriaLogs require specifying the following command-line flags:
+All the Enterprise components require specifying the following command-line flags:
 
 - `-license` - this flag accepts VictoriaMetrics Enterprise license key, which can be obtained at [this page](https://victoriametrics.com/products/enterprise/trial/)
 - `-licenseFile` - this flag accepts a path to file with VictoriaMetrics Enterprise license key,
@@ -148,13 +152,13 @@ Alternatively, VictoriaMetrics Enterprise license can be stored in the file and 
 
 ### Docker images
 
-It is allowed to run VictoriaMetrics and VictoriaLogs Enterprise components in [cases listed here](#valid-cases-for-victoriametrics-enterprise).
+It is allowed to run Enterprise components in [cases listed here](https://docs.victoriametrics.com/victoriametrics/enterprise/#valid-cases-for-victoriametrics-enterprise).
 
 Docker images for Enterprise components are available at [VictoriaMetrics Docker Hub](https://hub.docker.com/u/victoriametrics) and [VictoriaMetrics Quay](https://quay.io/organization/victoriametrics).
 Enterprise docker images have `enterprise` suffix in their names. For example, `victoriametrics/victoria-metrics:v1.143.0-enterprise`.
 
 In order to run Docker image of VictoriaMetrics Enterprise component, it is required to provide the license key via the command-line
-flag as described in the [binary-releases](#binary-releases) section.
+flag as described in the [binary-releases](https://docs.victoriametrics.com/victoriametrics/enterprise/#binary-releases) section.
 
 Enterprise license key can be obtained at [this page](https://victoriametrics.com/products/enterprise/trial/).
 
@@ -194,12 +198,12 @@ The example assumes that the license file is stored at `/vm-license` on the host
 
 ### Helm charts
 
-It is allowed to run VictoriaMetrics and VictoriaLogs Enterprise components in [cases listed here](#valid-cases-for-victoriametrics-enterprise).
+It is allowed to run Enterprise components in cases [listed here](https://docs.victoriametrics.com/victoriametrics/enterprise/#valid-cases-for-victoriametrics-enterprise).
 
 Helm charts for Enterprise components are available in our VictoriaMetrics [Helm repository](https://github.com/VictoriaMetrics/helm-charts).
 
 In order to run Enterprise helm chart it is required to provide the license key via `license` value in `values.yaml` file
-and adjust the image tag to the Enterprise one as described in the [docker-images](#docker-images) section.
+and adjust the image tag to the Enterprise one as described in the [docker-images](https://docs.victoriametrics.com/victoriametrics/enterprise/#docker-images) section.
 
 Enterprise license key can be obtained at [this page](https://victoriametrics.com/products/enterprise/trial/).
 
@@ -250,7 +254,7 @@ Note that the license key provided by using secret is mounted in a file. This al
 
 ### Kubernetes operator
 
-It is allowed to run VictoriaMetrics and VictoriaLogs Enterprise components in [cases listed here](#valid-cases-for-victoriametrics-enterprise).
+It is allowed to run Enterprise components in [cases listed here](https://docs.victoriametrics.com/victoriametrics/enterprise/#valid-cases-for-victoriametrics-enterprise).
 
 Enterprise components can be deployed via [VictoriaMetrics operator](https://docs.victoriametrics.com/operator/).
 In order to use Enterprise components it is required to provide the license key via `license` field and adjust the image tag to the enterprise one.
@@ -313,7 +317,7 @@ See the full list of the CRD specifications in the [Operator API](https://docs.v
 
 ### Updating the license key
 
-Updating the license key for VictoriaMetrics and VictoriaLogs Enterprise components depends on the way
+Updating the license key for Enterprise components depends on the way
 the license key is provided to the component:
 - If the license key is provided via `-license` command-line flag, then the component should be restarted
   with the new license key.
@@ -351,7 +355,7 @@ Example Docker image:
 
 ## Monitoring license expiration
 
-All the VictoriaMetrics and VictoriaLogs Enterprise components expose the following metrics at the `/metrics` page:
+All the Enterprise components expose the following metrics at the `/metrics` page:
 
 - `vm_license_expires_at` - license expiration date in unix timestamp format
 - `vm_license_expires_in_seconds` - the number of seconds left until the license expires
