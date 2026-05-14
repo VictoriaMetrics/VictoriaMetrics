@@ -33,6 +33,7 @@ See also [case studies](https://docs.victoriametrics.com/victoriametrics/casestu
 * [Percona: How do We Keep Metrics for a Long Time in VictoriaMetrics](https://www.youtube.com/watch?v=SGZjY7xgDwE)
 * [Miro: Prometheus High Availability and Fault Tolerance strategy, long term storage with VictoriaMetrics](https://medium.com/miro-engineering/prometheus-high-availability-and-fault-tolerance-strategy-long-term-storage-with-victoriametrics-82f6f3f0409e)
 * [ZERODHA: Infrastructure monitoring with Prometheus at Zerodha](https://zerodha.tech/blog/infra-monitoring-at-zerodha/)
+* [ZERODHA: Monitoring K8s with Victoriametrics](https://www.youtube.com/watch?v=ZJQYW-cFOms)
 * [Criteo: VictoriaMetrics, a stress-free Prometheus Remote Storage for 1 Billion metrics](https://medium.com/criteo-engineering/victoriametrics-a-prometheus-remote-storage-solution-57081a3d8e61)
 * [Abios Gaming: Choosing a Time Series Database for High Cardinality Aggregations](https://abiosgaming.com/press/high-cardinality-aggregations/)
 * [Cybozu: Monitoring Kubernetes clusters with VictoriaMetrics and Grafana](https://blog.cybozu.io/entry/2021/03/18/115743)
