@@ -355,13 +355,15 @@ Example Docker image:
 
 ## When Enterprise License Expires
 
-All components will continue to function until a restart occures.
+When a license expires, all licensed components continue to function normally until a restart occurs.
 
-License checks happen only at startup, if the license expires while the component is running, nothing will happen; everything will continue to function as expected.
-License updates generally do not require a restart because the component will simply pick up the new license next time it does restart. See [Updating the license key](#updating-the-license-key).
-The only case this doesn't apply to is with the `-license` flag.
+License checks happen only at startup. If a license expires while the component is running, nothing changes; the component continues to run until the next restart. 
 
-VictoriaMetrics Open Source and VictoriaMetrics Enterprise share the same data model; you can switch between versions and retain your data. No need to export and import data.
+This means you don't need to restart components to install a new license. The component simply picks up the new license the next time it restarts. The exception is when the `-license` flag is used.
+
+See [updating the license key](#updating-the-license-key) for more details.
+
+VictoriaMetrics Open Source and VictoriaMetrics Enterprise share the same data model; you can switch between versions and retain your data. There is no need to export and import data when migrating between versions.
 
 ## Monitoring license expiration
 
