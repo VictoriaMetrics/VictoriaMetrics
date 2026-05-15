@@ -224,10 +224,10 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/
   -opentelemetry.maxRequestSize size
      The maximum size in bytes of a single OpenTelemetry request
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
-  -opentelemetry.promoteAllResourceAttributes array
-     Promote specific list of resource attributes to labels.
-  -opentelemetry.promoteResourceAttributes
+  -opentelemetry.promoteAllResourceAttributes
      Whether to promote all resource attributes to labels, except for the ones configured with 'opentelemetry.ignoreResourceAttributes'.
+  -opentelemetry.promoteResourceAttributes array
+     Promote specific list of resource attributes to labels.
   -opentelemetry.promoteScopeMetadata
      Whether to promote OTel scope metadata (i.e. name, version, schema URL, and attributes) to metric labels.
   -opentelemetry.usePrometheusNaming
