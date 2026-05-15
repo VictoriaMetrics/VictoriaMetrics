@@ -650,7 +650,7 @@ vmanomaly version: [v1.29.4](https://docs.victoriametrics.com/anomaly-detection/
   - operate with current time when suggesting time range changes, e.g. "current month" or "from the beginning of the last month until now"
 - FEATURE: improve infer jobs scheduled from UI to
   - run 2-100x faster for [online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models) depending on a configuration vs [1.6.1](#v161) timings
-  - show stage-aware progress bar, e.g. "getting data", "fitting model", "infering on chunk".
+  - show stage-aware progress bar, e.g. "getting data", "fitting model", "inferring on chunk".
 - IMPROVEMENT: "Advanced Options" design is improved, section is collapsed by default to save vertical space, yet can be encoded as always open in UI state URL.
 - IMPROVEMENT: dropdowns in UI are now searcheable and constrained in size for better UX, especially when many options are available (e.g. models list, tenants list, etc.).
 - BUGFIX: in generated config ("Show Config" menu)
