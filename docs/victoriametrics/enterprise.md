@@ -359,7 +359,7 @@ When a license expires, all licensed components continue to function normally un
 
 License checks happen only at startup. If a license expires while the component is running, nothing changes; the component continues to run until the next restart. 
 
-This means you don't need to restart components to install a new license. The component automatically picks up the new license the next time it restarts. The exception is when the `-license` flag is used, because the license is provided through the env directly it cannot be modified while VictoriaMetrics is running and requires a restart to apply the new license. 
+This means you don't need to restart components to install a new license. The component automatically picks up the new license the next time it restarts. The exception is when the `-license` flag is used, because the license is supplied at startup and changing it requires restarting VictoriaMetrics with the updated flag value.
 
 See [updating the license key](#updating-the-license-key) for more details.
 
