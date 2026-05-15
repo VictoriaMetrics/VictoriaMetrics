@@ -315,7 +315,7 @@ docker run -it --rm \
   -e VMANOMALY_MCP_SERVER_URL=http://mcp-vmanomaly:8081/mcp \
   -p 8080:8080 \
   -p 8490:8490 \
-  victoriametrics/vmanomaly:v1.29.3 \
+  victoriametrics/vmanomaly:v1.29.4 \
   vmanomaly_config.yaml
 ```
 
@@ -639,6 +639,26 @@ If the **results** look good and the **model configuration should be deployed in
 ![vmanomaly-ui-example-alert-menu](vmanomaly-ui-example-alert-menu.webp)
 
 ## Changelog
+
+### v1.7.0
+Released: 2026-05-15
+
+vmanomaly version: [v1.29.4](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1294)
+
+- FEATURE: Improved [AI Copilot](#ai-assistance) to 
+  - support textual attachments, such as configuration files, query examples, model outputs, etc.
+  - operate with current time when suggesting time range changes, e.g. "current month" or "from the beginning of the last month until now"
+- FEATURE: improve infer jobs scheduled from UI to
+  - run 2-100x faster for [online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models) depending on a configuration vs [1.6.1](#v161) timings
+  - show stage-aware progress bar, e.g. "getting data", "fitting model", "infering on chunk".
+- IMPROVEMENT: "Advanced Options" design is improved, section is collapsed by default to save vertical space, yet can be encoded as always open in UI state URL.
+- IMPROVEMENT: dropdowns in UI are now searcheable and constrained in size for better UX, especially when many options are available (e.g. models list, tenants list, etc.).
+- BUGFIX: in generated config ("Show Config" menu)
+  - special YAML values (like `-.inf`, `.inf`, `.nan`) are now properly quoted and formatted to avoid JSON converting issues when copied to Kubernetes CRs, which previously lead to rejection of the manifest before vmanomaly can consume it.
+  - with Data Source selected as "Logs/Traces" `reader.class` is now correctly set to `vlogs` (previously `vm`) in generated config, when "model only" toggle is turned off.
+- BUGFIX: now "Hide Common Labels" toggle in "Table View" works correctly and does not show common labels in the legend columns when turned on.
+- BUGFIX: improved dropdowns for better accessibility to be searcheable and constrained in size.
+- BUGFIX: "Prettify query" now works correctly for "Metrics" datasources.
 
 ### v1.6.1
 Released: 2026-04-16
