@@ -9,6 +9,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prommetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/firehose"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/metrics"
@@ -19,6 +20,10 @@ var (
 	rowsPerInsert    = metrics.NewHistogram(`vm_rows_per_insert{type="opentelemetry"}`)
 	metadataInserted = metrics.NewCounter(`vm_metadata_rows_inserted_total{type="opentelemetry"}`)
 )
+
+func Init() {
+	pb.ValidateFlags()
+}
 
 // InsertHandler processes opentelemetry metrics.
 func InsertHandler(req *http.Request) error {

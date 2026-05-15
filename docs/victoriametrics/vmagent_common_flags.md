@@ -184,9 +184,17 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
   -opentelemetry.convertMetricNamesToPrometheus
      Whether to convert only metric names into Prometheus-compatible format for the metrics ingested via OpenTelemetry protocol; see https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/
+  -opentelemetry.ignoreResourceAttributes array
+     Control which resource attributes to ignore, can only be set when 'opentelemetry.promoteAllResourceAttributes' is true.
   -opentelemetry.maxRequestSize size
      The maximum size in bytes of a single OpenTelemetry request
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
+  -opentelemetry.promoteAllResourceAttributes array
+     Promote specific list of resource attributes to labels.
+  -opentelemetry.promoteResourceAttributes
+     Whether to promote all resource attributes to labels, except for the ones configured with 'opentelemetry.ignoreResourceAttributes'.
+  -opentelemetry.promoteScopeMetadata
+     Whether to promote OTel scope metadata (i.e. name, version, schema URL, and attributes) to metric labels.
   -opentelemetry.usePrometheusNaming
      Whether to convert metric names and labels into Prometheus-compatible format for the metrics ingested via OpenTelemetry protocol; see https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/
   -opentsdbHTTPListenAddr string

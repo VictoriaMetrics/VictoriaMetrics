@@ -11,6 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prommetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/firehose"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
@@ -24,6 +25,10 @@ var (
 	metadataTenantInserted = tenantmetrics.NewCounterMap(`vmagent_tenant_inserted_metadata_total{type="opentelemetry"}`)
 	rowsPerInsert          = metrics.NewHistogram(`vmagent_rows_per_insert{type="opentelemetry"}`)
 )
+
+func Init() {
+	pb.ValidateFlags()
+}
 
 // InsertHandlerForReader processes metrics from given reader.
 func InsertHandlerForReader(at *auth.Token, r io.Reader, encoding string) error {

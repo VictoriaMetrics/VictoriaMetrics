@@ -1,6 +1,7 @@
 package pb
 
 import (
+	"flag"
 	"fmt"
 	"math"
 	"strconv"
@@ -9,10 +10,27 @@ import (
 
 	"github.com/VictoriaMetrics/easyproto"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
+
+var (
+	promoteScopeMetadata         = flag.Bool("opentelemetry.promoteScopeMetadata", true, "Whether to promote OTel scope metadata (i.e. name, version, schema URL, and attributes) to metric labels.")
+	promoteAllResourceAttributes = flag.Bool("opentelemetry.promoteAllResourceAttributes", true, "Whether to promote all resource attributes to labels, except for the ones configured with 'opentelemetry.ignoreResourceAttributes'.")
+	promoteResourceAttributes    = flagutil.NewArrayString("opentelemetry.promoteResourceAttributes", "Promote specific list of resource attributes to labels.")
+	ignoreResourceAttributes     = flagutil.NewArrayString("opentelemetry.ignoreResourceAttributes", "Control which resource attributes to ignore, can only be set when 'opentelemetry.promoteAllResourceAttributes' is true.")
+)
+
+func ValidateFlags() {
+	if *promoteAllResourceAttributes && len(*promoteResourceAttributes) > 0 {
+		logger.Fatalf("cannot set both '-opentelemetry.promoteAllResourceAttributes' and '-opentelemetry.promoteResourceAttributes'")
+	}
+	if !*promoteAllResourceAttributes && len(*ignoreResourceAttributes) > 0 {
+		logger.Fatalf("'-opentelemetry.ignoreResourceAttributes' can only be set when '-opentelemetry.promoteAllResourceAttributes' is true.")
+	}
+}
 
 // MetricPusher must push the parsed samples and metric metadata to the underlying storage.
 type MetricPusher interface {
@@ -132,12 +150,20 @@ func (dctx *decoderContext) decodeResourceMetrics(src []byte) error {
 	dctx.ls.Reset()
 	dctx.fb.reset()
 
+	attributes := *ignoreResourceAttributes
+	if !*promoteAllResourceAttributes {
+		attributes = *promoteResourceAttributes
+	}
+	attributeKeys := make(map[string]struct{}, len(attributes))
+	for _, a := range attributes {
+		attributeKeys[a] = struct{}{}
+	}
 	resourceData, ok, err := easyproto.GetMessageData(src, 1)
 	if err != nil {
 		return fmt.Errorf("cannot read Resource data: %w", err)
 	}
 	if ok {
-		if err := dctx.decodeResource(resourceData); err != nil {
+		if err := dctx.decodeResource(resourceData, *promoteAllResourceAttributes, attributeKeys); err != nil {
 			return fmt.Errorf("cannot decode Resource: %w", err)
 		}
 	}
@@ -180,7 +206,7 @@ func (r *Resource) marshalProtobuf(mm *easyproto.MessageMarshaler) {
 	}
 }
 
-func (dctx *decoderContext) decodeResource(src []byte) (err error) {
+func (dctx *decoderContext) decodeResource(src []byte, promoteAllResourceAttributes bool, attributeKeys map[string]struct{}) (err error) {
 	// See https://github.com/open-telemetry/opentelemetry-proto/blob/049d4332834935792fd4dbd392ecd31904f99ba2/opentelemetry/proto/resource/v1/resource.proto#L28
 	//
 	// message Resource {
@@ -199,7 +225,34 @@ func (dctx *decoderContext) decodeResource(src []byte) (err error) {
 			if !ok {
 				return fmt.Errorf("cannot read Attributes")
 			}
-			if err := decodeKeyValue(data, &dctx.ls, &dctx.fb, ""); err != nil {
+			keySuffix, ok, err := easyproto.GetString(data, 1)
+			if err != nil {
+				return fmt.Errorf("cannot find Key in KeyValue: %w", err)
+			}
+			if !ok {
+				// Key is missing, skip it.
+				// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/869#issuecomment-3631307996
+				continue
+			}
+			if _, ok := attributeKeys[keySuffix]; ok == promoteAllResourceAttributes {
+				// Skip the attribute if:
+				// 1. it is in the list of ignore attributes when promoteAllResourceAttributes is true,
+				// 2. it isn't in the list of promote attributes when promoteAllResourceAttributes is false
+				continue
+			}
+			key := dctx.fb.formatSubFieldName("", keySuffix)
+
+			// Decode value
+			value, ok, err := easyproto.GetMessageData(data, 2)
+			if err != nil {
+				return fmt.Errorf("cannot find Value in KeyValue: %w", err)
+			}
+			if !ok {
+				// Value is null, skip it.
+				continue
+			}
+
+			if err := decodeAnyValue(value, &dctx.ls, &dctx.fb, key); err != nil {
 				return fmt.Errorf("cannot unmarshal Attributes: %w", err)
 			}
 		}
@@ -257,7 +310,6 @@ func decodeKeyValue(src []byte, ls *promutil.Labels, fb *fmtBuffer, keyPrefix st
 	if err := decodeAnyValue(valueData, ls, fb, key); err != nil {
 		return fmt.Errorf("cannot decode AnyValue: %w", err)
 	}
-
 	return nil
 }
 
@@ -460,19 +512,23 @@ func (dctx *decoderContext) decodeScopeMetrics(src []byte) error {
 	//   repeated Metric metrics = 2;
 	// }
 
-	scopeData, ok, err := easyproto.GetMessageData(src, 1)
-	if err != nil {
-		return fmt.Errorf("cannot read InstrumentationScope: %w", err)
-	}
-	if ok {
-		if err := dctx.decodeInstrumentationScope(scopeData); err != nil {
-			return fmt.Errorf("cannot decode InstrumentationScope: %w", err)
+	if *promoteScopeMetadata {
+
+		scopeData, ok, err := easyproto.GetMessageData(src, 1)
+		if err != nil {
+			return fmt.Errorf("cannot read InstrumentationScope: %w", err)
+		}
+		if ok {
+			if err := dctx.decodeInstrumentationScope(scopeData); err != nil {
+				return fmt.Errorf("cannot decode InstrumentationScope: %w", err)
+			}
 		}
 	}
 
 	dctxSnapshot := dctx.getSnapshot()
 
 	var fc easyproto.FieldContext
+	var err error
 	for len(src) > 0 {
 		src, err = fc.NextField(src)
 		if err != nil {
