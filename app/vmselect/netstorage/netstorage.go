@@ -20,6 +20,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/limits"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricnamestats"
@@ -27,10 +28,6 @@ import (
 )
 
 var (
-	maxTagKeysPerSearch = flag.Int("search.maxTagKeys", 100e3, "The maximum number of tag keys returned from /api/v1/labels . "+
-		"See also -search.maxLabelsAPISeries and -search.maxLabelsAPIDuration")
-	maxTagValuesPerSearch = flag.Int("search.maxTagValues", 100e3, "The maximum number of tag values returned from /api/v1/label/<label_name>/values . "+
-		"See also -search.maxLabelsAPISeries and -search.maxLabelsAPIDuration")
 	maxSamplesPerSeries = flag.Int("search.maxSamplesPerSeries", 30e6, "The maximum number of raw samples a single query can scan per each time series. This option allows limiting memory usage")
 	maxSamplesPerQuery  = flag.Int("search.maxSamplesPerQuery", 1e9, "The maximum number of raw samples a single query can process across all time series. "+
 		"This protects from heavy queries, which select unexpectedly high number of raw samples. See also -search.maxSamplesPerSeries")
@@ -773,9 +770,8 @@ func LabelNames(qt *querytracer.Tracer, sq *storage.SearchQuery, maxLabelNames i
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
-	if maxLabelNames > *maxTagKeysPerSearch || maxLabelNames <= 0 {
-		maxLabelNames = *maxTagKeysPerSearch
-	}
+
+	maxLabelNames = limits.MaxLabelNames(maxLabelNames)
 	tr := sq.GetTimeRange()
 	tfss, err := setupTfss(qt, tr, sq.TagFilterss, sq.MaxMetrics, deadline)
 	if err != nil {
@@ -841,9 +837,7 @@ func LabelValues(qt *querytracer.Tracer, labelName string, sq *storage.SearchQue
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
-	if maxLabelValues > *maxTagValuesPerSearch || maxLabelValues <= 0 {
-		maxLabelValues = *maxTagValuesPerSearch
-	}
+	maxLabelValues = limits.MaxLabelValues(maxLabelValues)
 	tr := sq.GetTimeRange()
 	tfss, err := setupTfss(qt, tr, sq.TagFilterss, sq.MaxMetrics, deadline)
 	if err != nil {
