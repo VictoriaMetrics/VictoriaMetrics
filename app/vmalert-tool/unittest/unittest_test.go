@@ -1,10 +1,6 @@
 package unittest
 
 import (
-	"bytes"
-	"os"
-	"os/exec"
-	"strings"
 	"testing"
 )
 
