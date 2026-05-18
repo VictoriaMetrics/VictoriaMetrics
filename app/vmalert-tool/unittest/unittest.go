@@ -61,7 +61,7 @@ func UnitTest(files []string, disableGroupLabel bool, externalLabels []string, e
 	}
 	eu, err := url.Parse(externalURL)
 	if err != nil {
-		logger.Fatalf("failed to parse external URL: %w", err)
+		logger.Fatalf("failed to parse external URL: %s", err)
 	}
 	if err := templates.Load([]string{}, *eu); err != nil {
 		logger.Fatalf("failed to load template: %v", err)
