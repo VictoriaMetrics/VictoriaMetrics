@@ -778,28 +778,21 @@ func allowRerouting(snSource *storageNode, sns []*storageNode) bool {
 	// Calculate median saturation
 	sort.Float64s(saturations)
 
-	// To ensure that we only preform slowness base rerouting from at most 10% of vmstorage nodes from cluster's view.
-	maxReroutingNodesInCluster := max(1, len(saturations)/10)
-	// The slowest 10% of vmstorage nodes should be significantly slower than other vmstorage by more than 20% before performing slowness base rerouting.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10876
-	if saturations[len(saturations)-1] < saturations[len(saturations)-maxReroutingNodesInCluster-1]*1.2 {
-		return false
-	}
-
-	var medianSaturation float64
-	n := len(saturations)
-	if n%2 == 0 {
-		medianSaturation = (saturations[n/2-1] + saturations[n/2]) / 2
-	} else {
-		medianSaturation = saturations[n/2]
-	}
+	// Try to get p90 saturation. If there's less than 10 nodes, then pick the second-slowest one.
+	slowestNStorageNode := max(1, len(saturations)/10)
 
 	// Do not allow rerouting if the cluster is significantly overloaded.
-	if medianSaturation > 0.80 {
+	if saturations[len(saturations)-slowestNStorageNode-1] > 0.6 {
 		return false
 	}
 
-	reroutingLogger.Warnf("reroute metrics from the slowest storage %q with saturation %.2f, where cluster median saturation is %.2f", snSource.dialer.Addr(), snSourceSaturation, medianSaturation)
+	// Perform rerouting only if snSource is slower than the p90 saturation by 20%.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10876
+	if snSourceSaturation < 1.2*saturations[len(saturations)-slowestNStorageNode-1] {
+		return false
+	}
+
+	reroutingLogger.Warnf("reroute metrics from the slowest storage %q with saturation %.2f, where cluster p90 saturation is %.2f", snSource.dialer.Addr(), snSourceSaturation, saturations[len(saturations)-slowestNStorageNode-1])
 	return true
 }
 
