@@ -214,7 +214,7 @@ func testLegacyDeleteSeries(tc *at.TestCase, opts testLegacyDeleteSeriesOpts) {
 	newSUT := opts.startNewSUT()
 	assertSearchResults(newSUT, `{__name__=~".*"}`, start1, end1, "1d", want1)
 
-	newSUT.APIV1AdminTSDBDeleteSeries(t, `{__name__=~".*"}`, at.QueryOpts{})
+	newSUT.PrometheusAPIV1AdminTSDBDeleteSeries(t, `{__name__=~".*"}`, at.QueryOpts{})
 	wantNoResults := &want{
 		series:       []map[string]string{},
 		queryResults: []*at.QueryResult{},
@@ -877,7 +877,7 @@ func testLegacyDowngrade(tc *at.TestCase, opts testLegacyDowngradeOpts) {
 	// Ingest legacy2 records, ensure the queries return only legacy2.
 	legacySUT = opts.startLegacySUT()
 	assertQueries(legacySUT, `{__name__=~".*"}`, wantLegacy1, numMetrics)
-	legacySUT.APIV1AdminTSDBDeleteSeries(t, `{__name__=~".*"}`, at.QueryOpts{})
+	legacySUT.PrometheusAPIV1AdminTSDBDeleteSeries(t, `{__name__=~".*"}`, at.QueryOpts{})
 	assertQueries(legacySUT, `{__name__=~".*"}`, wantEmpty, numMetrics)
 	legacySUT.PrometheusAPIV1ImportPrometheus(t, legacy2Data, at.QueryOpts{})
 	legacySUT.ForceFlush(t)
@@ -891,7 +891,7 @@ func testLegacyDowngrade(tc *at.TestCase, opts testLegacyDowngradeOpts) {
 	newSUT = opts.startNewSUT()
 	// series count includes deleted metrics
 	assertQueries(newSUT, `{__name__=~".*"}`, wantLegacy2New1, 3*numMetrics)
-	newSUT.APIV1AdminTSDBDeleteSeries(t, `{__name__=~".*"}`, at.QueryOpts{})
+	newSUT.PrometheusAPIV1AdminTSDBDeleteSeries(t, `{__name__=~".*"}`, at.QueryOpts{})
 	// series count includes deleted metrics
 	assertQueries(newSUT, `{__name__=~".*"}`, wantEmpty, 3*numMetrics)
 	opts.stopNewSUT()

@@ -27,7 +27,7 @@ func getHCloudServerLabels(cfg *apiConfig) ([]*promutil.Labels, error) {
 }
 
 func appendHCloudTargetLabels(ms []*promutil.Labels, server *HCloudServer, networks []HCloudNetwork, port int) []*promutil.Labels {
-	m := promutil.NewLabels(24)
+	m := promutil.NewLabels(26)
 
 	addr := discoveryutil.JoinHostPort(server.PublicNet.IPv4.IP, port)
 	m.Add("__address__", addr)
@@ -35,6 +35,8 @@ func appendHCloudTargetLabels(ms []*promutil.Labels, server *HCloudServer, netwo
 	m.Add("__meta_hetzner_role", "hcloud")
 	m.Add("__meta_hetzner_server_id", fmt.Sprintf("%d", server.ID))
 	m.Add("__meta_hetzner_server_name", server.Name)
+	// Note: Hetzner is removing the datacenter field from the Hetzner Cloud API after 2026-07-01.
+	// This label will return an empty value after that date.
 	m.Add("__meta_hetzner_datacenter", server.Datacenter.Name)
 	m.Add("__meta_hetzner_public_ipv4", server.PublicNet.IPv4.IP)
 	if _, n, _ := net.ParseCIDR(server.PublicNet.IPv6.IP); n != nil {
@@ -42,8 +44,11 @@ func appendHCloudTargetLabels(ms []*promutil.Labels, server *HCloudServer, netwo
 	}
 	m.Add("__meta_hetzner_server_status", server.Status)
 
-	m.Add("__meta_hetzner_hcloud_datacenter_location", server.Datacenter.Location.Name)
-	m.Add("__meta_hetzner_hcloud_datacenter_location_network_zone", server.Datacenter.Location.NetworkZone)
+	m.Add("__meta_hetzner_hcloud_location", server.Location.Name)
+	m.Add("__meta_hetzner_hcloud_location_network_zone", server.Location.NetworkZone)
+	// Deprecated: use __meta_hetzner_hcloud_location and __meta_hetzner_hcloud_location_network_zone instead.
+	m.Add("__meta_hetzner_hcloud_datacenter_location", server.Location.Name)
+	m.Add("__meta_hetzner_hcloud_datacenter_location_network_zone", server.Location.NetworkZone)
 	m.Add("__meta_hetzner_hcloud_server_type", server.ServerType.Name)
 	m.Add("__meta_hetzner_hcloud_cpu_cores", fmt.Sprintf("%d", server.ServerType.Cores))
 	m.Add("__meta_hetzner_hcloud_cpu_type", server.ServerType.CPUType)
@@ -178,6 +183,7 @@ type HCloudServer struct {
 	PrivateNet []HCloudPrivateNet `json:"private_net"`
 	ServerType HCloudServerType   `json:"server_type"`
 	Datacenter HCloudDatacenter   `json:"datacenter"`
+	Location   HCloudLocation     `json:"location"`
 	Image      *HCloudImage       `json:"image"`
 	Labels     map[string]string  `json:"labels"`
 }
@@ -197,14 +203,13 @@ type HCloudServerType struct {
 //
 // See https://docs.hetzner.cloud/#servers-get-all-servers
 type HCloudDatacenter struct {
-	Name     string                   `json:"name"`
-	Location HCloudDatacenterLocation `json:"location"`
+	Name string `json:"name"`
 }
 
-// HCloudDatacenterLocation represents the datacenter information.
+// HCloudLocation represents the top-level location of a Hetzner Cloud server.
 //
 // See https://docs.hetzner.cloud/#servers-get-all-servers
-type HCloudDatacenterLocation struct {
+type HCloudLocation struct {
 	Name        string `json:"name"`
 	NetworkZone string `json:"network_zone"`
 }

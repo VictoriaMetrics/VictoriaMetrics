@@ -1,9 +1,10 @@
 package streamaggr
 
 import (
+	"strconv"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/valyala/histogram"
-	"strconv"
 )
 
 // quantilesAggrValue calculates output=quantiles, e.g. the given quantiles over the input samples.
@@ -19,18 +20,19 @@ func (av *quantilesAggrValue) pushSample(_ aggrConfig, sample *pushSample, _ str
 }
 
 func (av *quantilesAggrValue) flush(c aggrConfig, ctx *flushCtx, key string, _ bool) {
-	ac := c.(*quantilesAggrConfig)
-	if av.h != nil {
-		ac.quantiles = av.h.Quantiles(ac.quantiles[:0], ac.phis)
-		histogram.PutFast(av.h)
-		av.h = nil
+	if av.h == nil {
+		return
 	}
-	if len(ac.quantiles) > 0 {
-		for i, quantile := range ac.quantiles {
-			ac.b = strconv.AppendFloat(ac.b[:0], ac.phis[i], 'g', -1, 64)
-			phiStr := bytesutil.InternBytes(ac.b)
-			ctx.appendSeriesWithExtraLabel(key, "quantiles", quantile, "quantile", phiStr)
-		}
+	ac := c.(*quantilesAggrConfig)
+	ac.quantiles = av.h.Quantiles(ac.quantiles[:0], ac.phis)
+	histogram.PutFast(av.h)
+	// reset h to avoid producing stale results on the next flush if av didn't get new pushSample() calls
+	av.h = nil
+
+	for i, quantile := range ac.quantiles {
+		ac.b = strconv.AppendFloat(ac.b[:0], ac.phis[i], 'g', -1, 64)
+		phiStr := bytesutil.InternBytes(ac.b)
+		ctx.appendSeriesWithExtraLabel(key, "quantiles", quantile, "quantile", phiStr)
 	}
 }
 
