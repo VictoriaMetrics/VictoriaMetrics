@@ -118,8 +118,8 @@ func main() {
 		logger.Fatalf("cannot stop the webservice: %s", err)
 	}
 	logger.Infof("successfully shut down the webservice in %.3f seconds", time.Since(startTime).Seconds())
-	vminsert.Stop()
 	vminsertcommon.StopIngestionRateLimiter()
+	vminsert.Stop()
 
 	vmstorage.Stop()
 	vmselect.Stop()

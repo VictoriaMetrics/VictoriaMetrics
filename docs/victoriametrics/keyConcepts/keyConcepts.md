@@ -338,7 +338,7 @@ Following convention is a good practice.
 
 Every measurement can contain an arbitrary number of `key="value"` labels. The good practice is to keep this number limited.
 Otherwise, it would be difficult to deal with measurements containing a big number of labels.
-By default, VictoriaMetrics limits the number of labels per measurement to `30` and drops other labels.
+By default, VictoriaMetrics limits the number of labels per measurement to `40` and drops other labels.
 This limit can be changed via `-maxLabelsPerTimeseries` command-line flag if necessary (but this isn't recommended).
 
 Every label value can contain an arbitrary string value. The good practice is to use short and meaningful label values to

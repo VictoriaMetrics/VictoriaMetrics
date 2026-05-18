@@ -17,6 +17,12 @@ type filterOr struct {
 	byFieldTokens     []fieldTokens
 }
 
+func newFilterOr(filters []filter) *filterOr {
+	return &filterOr{
+		filters: filters,
+	}
+}
+
 func (fo *filterOr) String() string {
 	filters := fo.filters
 	a := make([]string, len(filters))
@@ -45,20 +51,19 @@ func (fo *filterOr) matchRow(fields []Field) bool {
 func (fo *filterOr) applyToBlockResult(br *blockResult, bm *bitmap) {
 	bmResult := getBitmap(bm.bitsLen)
 	bmTmp := getBitmap(bm.bitsLen)
+	defer putBitmap(bmTmp)
+	defer putBitmap(bmResult)
+
 	bmResult.copyFrom(bm)
 	for _, f := range fo.filters {
 		bmTmp.copyFrom(bmResult)
 		f.applyToBlockResult(br, bmTmp)
 		bmResult.andNot(bmTmp)
 		if bmResult.isZero() {
-			putBitmap(bmTmp)
-			putBitmap(bmResult)
 			return
 		}
 	}
 	bm.andNot(bmResult)
-	putBitmap(bmTmp)
-	putBitmap(bmResult)
 }
 
 func (fo *filterOr) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
@@ -70,20 +75,19 @@ func (fo *filterOr) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 
 	bmResult := getBitmap(bm.bitsLen)
 	bmTmp := getBitmap(bm.bitsLen)
+	defer putBitmap(bmTmp)
+	defer putBitmap(bmResult)
+
 	bmResult.copyFrom(bm)
 	for _, f := range fo.filters {
 		bmTmp.copyFrom(bmResult)
 		f.applyToBlockSearch(bs, bmTmp)
 		bmResult.andNot(bmTmp)
 		if bmResult.isZero() {
-			putBitmap(bmTmp)
-			putBitmap(bmResult)
 			return
 		}
 	}
 	bm.andNot(bmResult)
-	putBitmap(bmTmp)
-	putBitmap(bmResult)
 }
 
 func (fo *filterOr) matchBloomFilters(bs *blockSearch) bool {
@@ -150,30 +154,11 @@ func getCommonTokensForOrFilters(filters []filter) []fieldTokens {
 
 	for _, f := range filters {
 		switch t := f.(type) {
-		case *filterExact:
-			tokens := t.getTokens()
-			mergeFieldTokens(t.fieldName, tokens)
-		case *filterExactPrefix:
-			tokens := t.getTokens()
-			mergeFieldTokens(t.fieldName, tokens)
-		case *filterPatternMatch:
-			tokens := t.getTokens()
-			mergeFieldTokens(t.fieldName, tokens)
-		case *filterPhrase:
-			tokens := t.getTokens()
-			mergeFieldTokens(t.fieldName, tokens)
-		case *filterPrefix:
-			tokens := t.getTokens()
-			mergeFieldTokens(t.fieldName, tokens)
-		case *filterRegexp:
-			tokens := t.getTokens()
-			mergeFieldTokens(t.fieldName, tokens)
-		case *filterSequence:
-			tokens := t.getTokens()
-			mergeFieldTokens(t.fieldName, tokens)
-		case *filterSubstring:
-			tokens := t.getTokens()
-			mergeFieldTokens(t.fieldName, tokens)
+		case *filterGeneric:
+			if !t.isWildcard {
+				tokens := t.getTokens()
+				mergeFieldTokens(t.fieldName, tokens)
+			}
 		case *filterAnd:
 			bfts := t.getByFieldTokens()
 			for _, bft := range bfts {

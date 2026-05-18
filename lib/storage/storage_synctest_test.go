@@ -5,11 +5,13 @@ package storage
 import (
 	"fmt"
 	"math/rand"
+	"path/filepath"
 	"testing"
 	"testing/synctest"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -825,66 +827,320 @@ func TestStorageNextDayMetricIDs_update(t *testing.T) {
 	})
 }
 
+// TestStorageLastPartitionMetrics checks that "last partition" metrics
+// correspond to the current partition and not some future partition.
 func TestStorageLastPartitionMetrics(t *testing.T) {
 	defer testRemoveAll(t)
+
+	addRows := func(t *testing.T, s *Storage, prefix string, tr TimeRange) {
+		t.Helper()
+		const numSeries = 1000
+		rng := rand.New(rand.NewSource(1))
+		mrs := testGenerateMetricRowsWithPrefix(rng, numSeries, prefix, tr)
+		want := s.newTimeseriesCreated.Load() + numSeries
+		s.AddRows(mrs, defaultPrecisionBits)
+		s.DebugFlush()
+		if got := s.newTimeseriesCreated.Load(); got != want {
+			t.Errorf("unexpected number of new timeseries: got %d, want %d", got, want)
+		}
+		// wait for merged parts to be attached to the table
+		time.Sleep(time.Minute)
+	}
+	assertLastPartitionEmpty := func(t *testing.T, s *Storage) {
+		t.Helper()
+		var m Metrics
+		s.UpdateMetrics(&m)
+		lpm := m.TableMetrics.LastPartition
+		if lpm.SmallPartsCount != 0 {
+			t.Fatalf("unexpected last partition SmallPartsCount: got %d, want 0", lpm.SmallPartsCount)
+		}
+		if lpm.IndexDBMetrics.FileBlocksCount != 0 {
+			t.Fatalf("unexpected last partition IndexDBMetrics.FileBlocksCount: got %d, want 0", lpm.IndexDBMetrics.FileBlocksCount)
+		}
+	}
+	assertLastPartitionNonEmpty := func(t *testing.T, s *Storage) {
+		t.Helper()
+		var m Metrics
+		s.UpdateMetrics(&m)
+		lpm := m.TableMetrics.LastPartition
+		if lpm.SmallPartsCount == 0 {
+			t.Fatalf("unexpected last partition SmallPartsCount: got 0, want > 0")
+		}
+		if lpm.IndexDBMetrics.FileBlocksCount == 0 {
+			t.Fatalf("unexpected last partition IndexDBMetrics.FileBlocksCount: got 0, want > 0")
+		}
+	}
+
 	synctest.Test(t, func(t *testing.T) {
 		// Advance current time to 2h before the next month, 2000-01-31T22:00:00Z.
 		time.Sleep(31*24*time.Hour - 2*time.Hour)
 		ct := time.Now().UTC()
 
+		// Open the storage, make sure current partition is empty.
+		s := MustOpenStorage(t.Name(), OpenOptions{
+			FutureRetention: 2 * 365 * 24 * time.Hour,
+		})
+		defer s.MustClose()
+		assertLastPartitionEmpty(t, s)
+
+		// Insert rows with future timestamps. Current partition must be empty.
+		addRows(t, s, "future", TimeRange{
+			MinTimestamp: ct.Add(365 * 24 * time.Hour).UnixMilli(),
+			MaxTimestamp: ct.Add(366 * 24 * time.Hour).UnixMilli(),
+		})
+		assertLastPartitionEmpty(t, s)
+
+		// Insert rows with timestamps within current partition.
+		// Current partition must be not empty.
+		addRows(t, s, "current", TimeRange{
+			MinTimestamp: ct.UnixMilli(),
+			MaxTimestamp: ct.Add(time.Hour).UnixMilli(),
+		})
+		assertLastPartitionNonEmpty(t, s)
+
+		// Advance current time to the the next month, 2000-02-01T00:30:00Z.
+		// last partition is now 2000-02 and it must be empty.
+		time.Sleep(2*time.Hour + time.Minute*30)
+		assertLastPartitionEmpty(t, s)
+	})
+}
+
+func TestStorage_futureAndHistoricalRetention(t *testing.T) {
+	defer testRemoveAll(t)
+
+	assertData := func(t *testing.T, s *Storage, tr TimeRange, want []MetricRow) {
+		t.Helper()
+		tfs := NewTagFilters()
+		if err := tfs.Add(nil, []byte(".*"), false, true); err != nil {
+			t.Fatalf("TagFilters.Add() failed unexpectedly: %v", err)
+		}
+		if err := testAssertSearchResult(s, tr, tfs, want); err != nil {
+			t.Fatalf("[now: %v tr: %v] search failed unexpectedly: %v", time.Now().UTC(), &tr, err)
+		}
+	}
+
+	synctest.Test(t, func(t *testing.T) {
+		// synctests start at 2000-01-01T00:00:00Z
+
+		var s *Storage
+		retention := 180 * 24 * time.Hour
+		futureRetention := 180 * 24 * time.Hour
+
+		s = MustOpenStorage(t.Name(), OpenOptions{
+			Retention:       retention,
+			FutureRetention: futureRetention,
+		})
+
+		// Ingest samples for previous and future year. 10 samples per day.
+		const numSeries = 10
+		start := time.Date(1999, 1, 1, 0, 0, 0, 0, time.UTC)
+		end := time.Date(2001, 1, 1, 0, 0, 0, 0, time.UTC)
+		rng := rand.New(rand.NewSource(1))
+		wantData := make(map[TimeRange][]MetricRow)
+		for day := start; day.Before(end); {
+			prefix := fmt.Sprintf("metric_%d_%d_%d", day.Year(), day.Month(), day.Day())
+			tr := TimeRange{
+				MinTimestamp: day.UnixMilli(),
+				MaxTimestamp: day.UnixMilli() + msecPerDay - 1,
+			}
+			mrs := testGenerateMetricRowsWithPrefix(rng, numSeries, prefix, tr)
+			wantData[tr] = mrs
+			s.AddRows(mrs, defaultPrecisionBits)
+
+			day = time.Date(day.Year(), day.Month(), day.Day()+1, 0, 0, 0, 0, time.UTC)
+		}
+		s.DebugFlush()
+
+		// Advance time one partition at a time. Before each time advancement,
+		// check the query results for each day between the original start and end
+		// time.
+		//
+		// This is to test how historical and future retentions affect the
+		// stored data over time.
+		now := time.Now().UTC()
+		dataEnd := now.Add(futureRetention - 24*time.Hour)
+		for now.Before(end) {
+			for day := start; day.Before(end); {
+				tr := TimeRange{
+					MinTimestamp: day.UnixMilli(),
+					MaxTimestamp: day.UnixMilli() + msecPerDay - 1,
+				}
+				dataStart := now.Add(-retention)
+				if day.Before(dataStart) || day.After(dataEnd) {
+					assertData(t, s, tr, nil)
+				} else {
+					assertData(t, s, tr, wantData[tr])
+				}
+				day = time.Date(day.Year(), day.Month(), day.Day()+1, 0, 0, 0, 0, time.UTC)
+			}
+
+			s.MustClose()
+			nextMonth := time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, time.UTC)
+			time.Sleep(nextMonth.Sub(now))
+			now = nextMonth
+			s = MustOpenStorage(t.Name(), OpenOptions{
+				Retention:       retention,
+				FutureRetention: futureRetention,
+			})
+		}
+
+		s.MustClose()
+	})
+}
+
+func TestStorage_defaultFutureRetention(t *testing.T) {
+	defer testRemoveAll(t)
+
+	assertData := func(t *testing.T, s *Storage, tr TimeRange, want []MetricRow) {
+		t.Helper()
+		tfs := NewTagFilters()
+		if err := tfs.Add(nil, []byte(".*"), false, true); err != nil {
+			t.Fatalf("TagFilters.Add() failed unexpectedly: %v", err)
+		}
+		if err := testAssertSearchResult(s, tr, tfs, want); err != nil {
+			t.Fatalf("[now: %v tr: %v] search failed unexpectedly: %v", time.Now().UTC(), &tr, err)
+		}
+	}
+
+	synctest.Test(t, func(t *testing.T) {
+		// synctests start at 2000-01-01T00:00:00Z
+
 		s := MustOpenStorage(t.Name(), OpenOptions{})
 		defer s.MustClose()
 
-		assertLastPartitionEmpty := func() {
-			t.Helper()
-			var m Metrics
-			s.UpdateMetrics(&m)
-			lpm := m.TableMetrics.LastPartition
-			if lpm.SmallPartsCount != 0 {
-				t.Fatalf("unexpected last partition SmallPartsCount: got %d, want 0", lpm.SmallPartsCount)
-			}
-			if lpm.IndexDBMetrics.FileBlocksCount != 0 {
-				t.Fatalf("unexpected last partition IndexDBMetrics.FileBlocksCount: got %d, want 0", lpm.IndexDBMetrics.FileBlocksCount)
-			}
-		}
-		assertLastPartitionNonEmpty := func() {
-			t.Helper()
-			var m Metrics
-			s.UpdateMetrics(&m)
-			lpm := m.TableMetrics.LastPartition
-			if lpm.SmallPartsCount == 0 {
-				t.Fatalf("unexpected last partition SmallPartsCount: got 0, want > 0")
-			}
-			if lpm.IndexDBMetrics.FileBlocksCount == 0 {
-				t.Fatalf("unexpected last partition IndexDBMetrics.FileBlocksCount: got 0, want > 0")
-			}
-		}
-
-		// make sure last partition is empty before ingestion
-		assertLastPartitionEmpty()
-
-		const numSeries = 1000
-
+		// Ingest samples for this and several days in the future. 10 samples
+		// per hour.
+		const numSeries = 10
+		start := time.Now().UTC()
+		end := start.Add(10 * 24 * time.Hour)
 		rng := rand.New(rand.NewSource(1))
-		tr := TimeRange{
-			MinTimestamp: ct.Add(-time.Hour).UnixMilli(),
-			MaxTimestamp: ct.UnixMilli(),
-		}
-		mrs := testGenerateMetricRowsWithPrefix(rng, numSeries, "metric.", tr)
-		s.AddRows(mrs, 1)
-		s.DebugFlush()
-		if got, want := s.newTimeseriesCreated.Load(), uint64(numSeries); got != want {
-			t.Errorf("unexpected number of new timeseries: got %d, want %d", got, want)
-		}
-		// wait for merged parts to be attached to the table
-		time.Sleep(time.Minute)
+		wantData := make(map[TimeRange][]MetricRow)
+		for ts := start; ts.Before(end); {
+			prefix := fmt.Sprintf("metric_%04d_%02d_%02d_%02d", ts.Year(), ts.Month(), ts.Day(), ts.Hour())
+			tr := TimeRange{
+				MinTimestamp: ts.UnixMilli(),
+				MaxTimestamp: ts.UnixMilli() + msecPerHour - 1,
+			}
+			mrs := testGenerateMetricRowsWithPrefix(rng, numSeries, prefix, tr)
+			wantData[tr] = mrs
+			s.AddRows(mrs, defaultPrecisionBits)
 
-		// last created partition is empty, but we're still at current month
-		assertLastPartitionNonEmpty()
-		// Advance current time to the the next month, 2000-02-01T00:30:00Z.
-		// last partition must be 2000-02 now
-		time.Sleep(2*time.Hour + time.Minute*30)
-		// current month partition has no data ingested
-		assertLastPartitionEmpty()
+			ts = ts.Add(time.Hour)
+		}
+		s.DebugFlush()
+
+		dataStart := start
+		dataEnd := dataStart.Add(2*24*time.Hour - time.Hour)
+		for ts := start; ts.Before(end); ts = ts.Add(time.Hour) {
+			tr := TimeRange{
+				MinTimestamp: ts.UnixMilli(),
+				MaxTimestamp: ts.UnixMilli() + msecPerHour - 1,
+			}
+			if ts.Before(dataStart) || ts.After(dataEnd) {
+				assertData(t, s, tr, nil)
+			} else {
+				assertData(t, s, tr, wantData[tr])
+			}
+		}
+
+	})
+}
+
+func TestStorage_partitionsOutsideRetentionAreRemoved(t *testing.T) {
+	defer testRemoveAll(t)
+
+	assertPathExists := func(t *testing.T, path string, want bool) {
+		t.Helper()
+		if got := fs.IsPathExist(path); got != want {
+			t.Fatalf("unexpected path existence test result for %s: got %t, want %t", path, got, want)
+		}
+	}
+
+	assertPtExists := func(t *testing.T, pt string, want bool) {
+		t.Helper()
+		assertPathExists(t, filepath.Join(t.Name(), "data", "small", pt), want)
+		assertPathExists(t, filepath.Join(t.Name(), "data", "big", pt), want)
+		assertPathExists(t, filepath.Join(t.Name(), "data", "indexdb", pt), want)
+	}
+
+	synctest.Test(t, func(t *testing.T) {
+		// synctests start at 2000-01-01T00:00:00Z
+
+		retention := 80 * 24 * time.Hour
+		futureRetention := 180 * 24 * time.Hour
+		s := MustOpenStorage(t.Name(), OpenOptions{
+			Retention:       retention,
+			FutureRetention: futureRetention,
+		})
+
+		// Ingest samples with future timestamps that span the entire retention.
+		// This should create the corresponding partitions.
+		rng := rand.New(rand.NewSource(1))
+		mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "metric", TimeRange{
+			MinTimestamp: time.Now().Add(-retention).UnixMilli(),
+			MaxTimestamp: time.Now().Add(futureRetention - time.Second).UnixMilli(),
+		})
+		s.AddRows(mrs, defaultPrecisionBits)
+		s.DebugFlush()
+
+		assertPtExists(t, "1999_09", false)
+		assertPtExists(t, "1999_10", true)
+		assertPtExists(t, "1999_11", true)
+		assertPtExists(t, "1999_12", true)
+		assertPtExists(t, "2000_01", true)
+		assertPtExists(t, "2000_02", true)
+		assertPtExists(t, "2000_03", true)
+		assertPtExists(t, "2000_04", true)
+		assertPtExists(t, "2000_05", true)
+		assertPtExists(t, "2000_06", true)
+		assertPtExists(t, "2000_07", false)
+
+		// Reopen storage with smaller future retention. Future partitions
+		// outside the new future retention must be removed.
+		s.MustClose()
+		s = MustOpenStorage(t.Name(), OpenOptions{
+			Retention:       retention,
+			FutureRetention: 45 * 24 * time.Hour,
+		})
+
+		// Wait for background task to remove future partitions.
+		time.Sleep(2 * time.Minute)
+
+		assertPtExists(t, "1999_09", false)
+		assertPtExists(t, "1999_10", true)
+		assertPtExists(t, "1999_11", true)
+		assertPtExists(t, "1999_12", true)
+		assertPtExists(t, "2000_01", true)
+		assertPtExists(t, "2000_02", true)
+		assertPtExists(t, "2000_03", false)
+		assertPtExists(t, "2000_04", false)
+		assertPtExists(t, "2000_05", false)
+		assertPtExists(t, "2000_06", false)
+		assertPtExists(t, "2000_07", false)
+
+		// Reopen storage with smaller retention. Historical partitions
+		// outside the new future retention must be removed.
+		s.MustClose()
+		s = MustOpenStorage(t.Name(), OpenOptions{
+			Retention:       45 * 24 * time.Hour,
+			FutureRetention: 45 * 24 * time.Hour,
+		})
+
+		// Wait for background task to remove future partitions.
+		time.Sleep(2 * time.Minute)
+
+		assertPtExists(t, "1999_09", false)
+		assertPtExists(t, "1999_10", false)
+		assertPtExists(t, "1999_11", true)
+		assertPtExists(t, "1999_12", true)
+		assertPtExists(t, "2000_01", true)
+		assertPtExists(t, "2000_02", true)
+		assertPtExists(t, "2000_03", false)
+		assertPtExists(t, "2000_04", false)
+		assertPtExists(t, "2000_05", false)
+		assertPtExists(t, "2000_06", false)
+		assertPtExists(t, "2000_07", false)
+
+		s.MustClose()
 	})
 }

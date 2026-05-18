@@ -58,7 +58,7 @@ func (pu *pipeUniqLocal) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pu *pipeUniqLocal) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
+func (pu *pipeUniqLocal) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pu, nil
 }
 

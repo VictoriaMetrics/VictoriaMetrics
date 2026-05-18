@@ -287,6 +287,7 @@ func initRemoteWriteCtxs(urls []string) {
 		rwctxs[i] = newRemoteWriteCtx(i, remoteWriteURL, sanitizedURL)
 		rwctxIdx[i] = i
 	}
+	fs.RegisterPathFsMetrics(*tmpDataPath)
 
 	if *shardByURL {
 		consistentHashNodes := make([]string, 0, len(urls))
@@ -400,7 +401,7 @@ func tryPush(at *auth.Token, wr *prompb.WriteRequest, forceDropSamplesOnFailure 
 
 	// Push metadata separately from time series, since it doesn't need sharding,
 	// relabeling, stream aggregation, deduplication, etc.
-	if !tryPushMetadataToRemoteStorages(rwctxs, mms, forceDropSamplesOnFailure) {
+	if !tryPushMetadataToRemoteStorages(at, rwctxs, mms, forceDropSamplesOnFailure) {
 		return false
 	}
 
@@ -538,10 +539,17 @@ func pushTimeSeriesToRemoteStoragesTrackDropped(tss []prompb.TimeSeries) {
 	}
 }
 
-func tryPushMetadataToRemoteStorages(rwctxs []*remoteWriteCtx, mms []prompb.MetricMetadata, forceDropSamplesOnFailure bool) bool {
+func tryPushMetadataToRemoteStorages(at *auth.Token, rwctxs []*remoteWriteCtx, mms []prompb.MetricMetadata, forceDropSamplesOnFailure bool) bool {
 	if len(mms) == 0 {
 		// Nothing to push
 		return true
+	}
+	if at != nil {
+		for idx := range mms {
+			mm := &mms[idx]
+			mm.AccountID = at.AccountID
+			mm.ProjectID = at.ProjectID
+		}
 	}
 	// Do not shard metadata even if -remoteWrite.shardByURL is set, just replicate it among rwctxs.
 	// Since metadata is usually small and there is no guarantee that metadata can be sent to
@@ -693,7 +701,7 @@ func shardAmountRemoteWriteCtx(tssBlock []prompb.TimeSeries, shards [][]prompb.T
 			}
 			tmpLabels.Labels = hashLabels
 		}
-		h := getLabelsHash(hashLabels)
+		h := getLabelsHashForShard(hashLabels)
 
 		// Get the rwctxIdx through consistent hashing and then map it to the index in shards.
 		// The rwctxIdx is not always equal to the shardIdx, for example, when some rwctx are not available.
@@ -784,11 +792,28 @@ var (
 	dailySeriesLimitRowsDropped  = metrics.NewCounter(`vmagent_daily_series_limit_rows_dropped_total`)
 )
 
+// getLabelsHashForShard is a separate function from getLabelsHash because
+// it omits the '=' separator between label name and value for backward compatibility.
+// Changing it would re-shard all series across remoteWrite targets.
+func getLabelsHashForShard(labels []prompb.Label) uint64 {
+	bb := labelsHashBufPool.Get()
+	b := bb.B[:0]
+	for _, label := range labels {
+		b = append(b, label.Name...)
+		b = append(b, label.Value...)
+	}
+	h := xxhash.Sum64(b)
+	bb.B = b
+	labelsHashBufPool.Put(bb)
+	return h
+}
+
 func getLabelsHash(labels []prompb.Label) uint64 {
 	bb := labelsHashBufPool.Get()
 	b := bb.B[:0]
 	for _, label := range labels {
 		b = append(b, label.Name...)
+		b = append(b, '=')
 		b = append(b, label.Value...)
 	}
 	h := xxhash.Sum64(b)

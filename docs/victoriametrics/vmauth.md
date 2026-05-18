@@ -55,7 +55,7 @@ Feel free to [contact us](mailto:info@victoriametrics.com) if you need a customi
 * [Per-tenant authorization](#per-tenant-authorization)
 * [mTLS-based request routing](#mtls-based-request-routing)
 * [Enforcing query args](#enforcing-query-args)
-* [OIDC authorization](#oidc-authorization)
+* [OIDC discovery](#oidc-discovery)
 
 ### Simple HTTP proxy
 
@@ -189,10 +189,12 @@ See also [authorization](#authorization) and [routing](#routing) docs.
 ### High availability
 
 `vmauth` automatically switches from a temporarily unavailable backend to other hot standby backends listed in `url_prefix`
-if it runs with the `-loadBalancingPolicy=first_available` command-line flag. The load balancing policy can be overridden at `user` and `url_map` sections of [`-auth.config`](#auth-config) via `load_balancing_policy` option. For example, the following config instructs `vmauth` to proxy requests to `http://victoria-metrics-main:8428/` backend.
+if it runs with the `-loadBalancingPolicy=first_available` command-line flag. The load balancing policy can be overridden at `user` and `url_map` sections of [`-auth.config`](#auth-config) via `load_balancing_policy` option.
+For example, the following config instructs `vmauth` to proxy requests to `http://victoria-metrics-main:8428/` backend.
 If this backend becomes unavailable, then `vmauth` starts proxying requests to `http://victoria-metrics-standby1:8428/`.
 If this backend also becomes unavailable, then requests are proxied to the last specified backend - `http://victoria-metrics-standby2:8428/`:
 
+If all backends are marked as unavailable, requests are proxied to the first configured backend `http://victoria-metrics-main:8428/` instead of failing immediately.
 ```yaml
 unauthorized_user:
   url_prefix:
@@ -889,8 +891,9 @@ Each `url_prefix` in the [-auth.config](#auth-config) can be specified in the fo
   This guarantees that incoming load is shared uniformly among the specified backends.
   See also [discovering backend IPs](#discovering-backend-ips).
 
-  `vmauth` automatically detects temporarily unavailable backends and spreads incoming queries among the remaining available backends.
+  `vmauth` automatically detects temporarily unavailable backends and spreads incoming requests among the remaining available backends.
   This allows restarting and performing maintenance on backends without removing them from the `url_prefix` list.
+  If all backends are marked as unavailable, requests are proxied to the first configured backend in the list instead of failing immediately.
 
   By default, `vmauth` returns backend responses with all the HTTP status codes to the client. It is possible to configure automatic retry of requests at other backends if the backend responds with a status code specified in the `-retryStatusCodes` command-line flag.
   It is possible to customize the list of HTTP response status codes to retry via the `retry_status_codes` list at the `user` and `url_map` level of [`-auth.config`](#auth-config).
@@ -1308,7 +1311,7 @@ Access logs contain limited information to prevent exposing sensitive data. See 
 
 The printed log starts with `access_log` prefix and is followed with `request_host`, `request_uri`, `status_code`, `remote_addr`,
 `user_agent`, `referer`, `duration_ms` and `username` fields in [logfmt](https://brandur.org/logfmt) format. Such logs can be later
-analyzed in [VictoriaLogs](https://docs.victoriametrics.com/victorialogs):
+analyzed in [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/):
 ```logsql
 access_log | extract 'access_log <access_log>' | unpack_logfmt from access_log
 | stats by(username, request_host, status_code) count()
@@ -1523,7 +1526,11 @@ It is recommended to protect the following endpoints with authKeys:
 * `/metrics` with `-metricsAuthKey` command-line flag, so unauthorized users couldn't access [vmauth metrics](https://docs.victoriametrics.com/victoriametrics/vmauth/#monitoring).
 * `/debug/pprof` with `-pprofAuthKey` command-line flag, so unauthorized users couldn't access [profiling information](#profiling).
 
-As an alternative, you can serve internal API routes on a different listen address using the command-line flag `-httpInternalListenAddr=127.0.0.1:8426`. {{% available_from "v1.111.0" %}}
+As an alternative, you can serve internal API routes on a different listen address using the command-line flag `-httpInternalListenAddr=127.0.0.1:8426`{{% available_from "v1.111.0" %}}.
+To enable TLS on the public listener while keeping the internal listener non-TLS, configure multiple listeners like this:
+```
+/path/to/vmauth -httpInternalListenAddr=,localhost:8426 -httpListenAddr=0.0.0.0:443, -tls=true,false -tlsCertFile=a-cert.crt -tlsKeyFile=a-key.key
+```
 
 `vmauth` also supports restricting access by IP - see [these docs](#ip-filters). See also [concurrency limiting docs](#concurrency-limiting).
 

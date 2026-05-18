@@ -2,7 +2,7 @@ import { MetricBase, MetricResult } from "../../api/types";
 import uPlot, { Series as uPlotSeries } from "uplot";
 import { getNameForMetric, promValueToNumber } from "../metric";
 import { HideSeriesArgs, LegendItemType, SeriesItem } from "../../types";
-import { baseContrastColors, getColorFromString } from "../color";
+import { getSeriesColor } from "../color";
 import { getMathStats } from "../math";
 import { formatPrettyNumber } from "./helpers";
 import { drawPoints } from "./scatter";
@@ -17,11 +17,10 @@ export const extractFields = (metric: MetricBase["metric"]): string => {
 
 export const getSeriesItemContext = (data: MetricResult[], hideSeries: string[], alias: string[], showPoints?: boolean, isRawQuery?: boolean) => {
   const colorState: {[key: string]: string} = {};
-  const maxColors = Math.min(data.length, baseContrastColors.length);
 
-  for (let i = 0; i < maxColors; i++) {
+  for (let i = 0; i < data.length; i++) {
     const label = getNameForMetric(data[i], alias[data[i].group - 1]);
-    colorState[label] = baseContrastColors[i];
+    colorState[label] = getSeriesColor(i);
   }
 
   return (d: MetricResult): SeriesItem => {
@@ -32,7 +31,7 @@ export const getSeriesItemContext = (data: MetricResult[], hideSeries: string[],
       label,
       hasAlias: Boolean(aliasValue),
       width: 1.4,
-      stroke: colorState[label] || getColorFromString(label),
+      stroke: colorState[label],
       points: getPointsSeries(showPoints, isRawQuery),
       spanGaps: false,
       freeFormFields: d.metric,

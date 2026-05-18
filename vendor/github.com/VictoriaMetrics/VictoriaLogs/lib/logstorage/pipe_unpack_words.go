@@ -57,7 +57,7 @@ func (pu *pipeUnpackWords) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pu *pipeUnpackWords) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
+func (pu *pipeUnpackWords) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pu, nil
 }
 

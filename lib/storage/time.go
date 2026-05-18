@@ -120,4 +120,16 @@ func (tr *TimeRange) contains(timestamp int64) bool {
 const (
 	msecPerDay  = 24 * 3600 * 1000
 	msecPerHour = 3600 * 1000
+
+	// maxUnixMilli is the max millisecond that is allowed to be used as the
+	// sample timestamp.
+	//
+	// Go's Duration is an int64 and is in nanoseconds. In order for time.Time
+	// math operations and conversion to millis/micros/nanos to work correctly,
+	// the max datetime must be limited to math.MaxInt64 nanoseconds, Which is
+	// time.UnixMicro(math.MaxInt64/1000) == 2262-04-11 23:47:16.854775 UTC.
+	//
+	// Round it to the last millisecond of the last complete partition:
+	// 2262-03-31 23:59:59.999 UTC.
+	maxUnixMilli = 9222422399999
 )

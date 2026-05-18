@@ -235,7 +235,7 @@ func (pm *pipeMath) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pm *pipeMath) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
+func (pm *pipeMath) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pm, nil
 }
 

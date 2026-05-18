@@ -2,11 +2,13 @@ package awsapi
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -466,6 +468,109 @@ func TestGetAPICredentialsWithProfile(t *testing.T) {
 	}
 	if !reflect.DeepEqual(creds, credsExpected) {
 		t.Fatalf("unexpected creds;\ngot\n%+v\nwant\n%+v", creds, credsExpected)
+	}
+}
+
+func TestGetFreshAPICredentialsFetchesWhenUnset(t *testing.T) {
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10815
+	response := `
+<AssumeRoleWithWebIdentityResponse xmlns="https://sts.amazonaws.com/doc/2011-06-15/">
+  <AssumeRoleWithWebIdentityResult>
+    <Credentials>
+      <AccessKeyId>IRSAACCESSKEYID</AccessKeyId>
+      <SecretAccessKey>IRSASECRETACCESSKEY</SecretAccessKey>
+      <SessionToken>IRSATOKEN</SessionToken>
+      <Expiration>2026-01-01T00:00:00Z</Expiration>
+    </Credentials>
+  </AssumeRoleWithWebIdentityResult>
+  <ResponseMetadata><RequestId>test</RequestId></ResponseMetadata>
+</AssumeRoleWithWebIdentityResponse>
+`
+	rt := &fakeRoundTripper{responses: make(map[string]*http.Response)}
+	recorder := httptest.NewRecorder()
+	recorder.WriteHeader(http.StatusOK)
+	_, _ = recorder.WriteString(response)
+	rt.responses["AssumeRoleWithWebIdentity"] = recorder.Result()
+
+	tempDir := t.TempDir()
+	tokenPath := filepath.Join(tempDir, "token")
+	fs.MustWriteSync(tokenPath, []byte("webtoken"))
+
+	cfg := &Config{
+		stsEndpoint:  "http://stsendpoint",
+		irsaRoleARN:  "irsarole",
+		webTokenPath: tokenPath,
+		client:       &http.Client{Transport: rt},
+	}
+	creds, err := cfg.getFreshAPICredentials()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if creds.AccessKeyID != "IRSAACCESSKEYID" {
+		t.Fatalf("unexpected AccessKeyID; got %q, want %q", creds.AccessKeyID, "IRSAACCESSKEYID")
+	}
+}
+
+func TestGetFreshAPICredentialsFetchesIMDS(t *testing.T) {
+	// verify that IMDS credentials are fetched when no static keys or IRSA config is set
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10817#issuecomment-4258125403
+	imdsRT := &imdsRoundTripper{
+		roleName: "test-role",
+		securityCredentials: `{
+			"AccessKeyId": "IMDSACCESSKEYID",
+			"SecretAccessKey": "IMDSSECRETACCESSKEY",
+			"Token": "IMDSTOKEN",
+			"Expiration": "2026-01-01T00:00:00Z"
+		}`,
+	}
+	cfg := &Config{
+		client: &http.Client{Transport: imdsRT},
+	}
+	creds, err := cfg.getFreshAPICredentials()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if creds.AccessKeyID != "IMDSACCESSKEYID" {
+		t.Fatalf("unexpected AccessKeyID; got %q, want %q", creds.AccessKeyID, "IMDSACCESSKEYID")
+	}
+	if creds.SecretAccessKey != "IMDSSECRETACCESSKEY" {
+		t.Fatalf("unexpected SecretAccessKey; got %q, want %q", creds.SecretAccessKey, "IMDSSECRETACCESSKEY")
+	}
+	if creds.Token != "IMDSTOKEN" {
+		t.Fatalf("unexpected Token; got %q, want %q", creds.Token, "IMDSTOKEN")
+	}
+}
+
+type imdsRoundTripper struct {
+	roleName            string
+	securityCredentials string
+}
+
+func (rt *imdsRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	switch {
+	case req.Method == http.MethodPut && strings.HasSuffix(req.URL.Path, "/api/token"):
+		// IMDSv2 session token request
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("fake-imds-token")),
+			Header:     http.Header{"Content-Type": []string{"text/plain"}},
+		}, nil
+	case strings.HasSuffix(req.URL.Path, "/meta-data/iam/security-credentials/"):
+		// Role name listing
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(rt.roleName)),
+			Header:     http.Header{"Content-Type": []string{"text/plain"}},
+		}, nil
+	case strings.HasSuffix(req.URL.Path, "/meta-data/iam/security-credentials/"+rt.roleName):
+		// Security credentials for the role
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(rt.securityCredentials)),
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+		}, nil
+	default:
+		return nil, fmt.Errorf("unexpected IMDS request: %s %s", req.Method, req.URL)
 	}
 }
 

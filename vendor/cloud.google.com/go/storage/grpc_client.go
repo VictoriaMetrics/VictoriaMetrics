@@ -124,6 +124,10 @@ type grpcStorageClient struct {
 	settings *settings
 	config   *storageConfig
 	dpDiag   string
+
+	// configFeatureAttributes tracks client-level features that are enabled for this
+	// client instance.
+	configFeatureAttributes uint32
 }
 
 func enableClientMetrics(ctx context.Context, s *settings, config storageConfig) (*metricsContext, error) {
@@ -240,6 +244,17 @@ func (c *grpcStorageClient) prepareDirectPathMetadata(ctx context.Context, targe
 			md.Set(requestParamsHeaderKey, reason)
 		}
 	}
+
+	// Client level feature tracking.
+	features := featureAttributes(ctx)
+	features |= c.configFeatureAttributes
+	// Merge all existing headers for this key from metadata.
+	features |= mergeFeatureAttributes(md[featureTrackerHeaderName])
+
+	if features > 0 {
+		md.Set(featureTrackerHeaderName, encodeUint32(features))
+	}
+
 	return metadata.NewOutgoingContext(ctx, md), nil
 }
 

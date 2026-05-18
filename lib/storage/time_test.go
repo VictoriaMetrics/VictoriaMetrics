@@ -229,3 +229,10 @@ func TestIsFirstHourOfDay(t *testing.T) {
 	lastHourOfDay := time.Date(2000, 1, 1, 23, 59, 59, 999_999_999, time.UTC)
 	f(lastHourOfDay, false)
 }
+
+func TestMaxUnixMilli(t *testing.T) {
+	lastFuturePtMaxTime := time.Date(2262, 3, 31, 23, 59, 59, 999_000_000, time.UTC)
+	if got, want := lastFuturePtMaxTime.UnixMilli(), int64(maxUnixMilli); got != want {
+		t.Fatalf("unexpected maxUnixMilli: got %d, want %d", got, want)
+	}
+}

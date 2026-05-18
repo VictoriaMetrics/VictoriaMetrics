@@ -53,7 +53,7 @@ func (pl *pipeJSONArrayLen) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pl *pipeJSONArrayLen) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
+func (pl *pipeJSONArrayLen) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pl, nil
 }
 

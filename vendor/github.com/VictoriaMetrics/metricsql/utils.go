@@ -27,6 +27,9 @@ func VisitAll(e Expr, f func(expr Expr)) {
 		VisitAll(expr.Right, f)
 		VisitAll(&expr.GroupModifier, f)
 		VisitAll(&expr.JoinModifier, f)
+		if expr.JoinModifierPrefix != nil {
+			VisitAll(expr.JoinModifierPrefix, f)
+		}
 	case *FuncExpr:
 		for _, arg := range expr.Args {
 			VisitAll(arg, f)

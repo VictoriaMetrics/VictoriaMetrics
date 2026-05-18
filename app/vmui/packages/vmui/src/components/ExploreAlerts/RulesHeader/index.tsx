@@ -50,7 +50,6 @@ const RulesHeader = ({
             label="Rule type"
             placeholder="Please select rule type"
             onChange={onChangeRuleType}
-            autofocus={!!types.length && !isMobile}
             includeAll
             searchable
           />

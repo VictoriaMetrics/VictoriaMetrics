@@ -136,6 +136,9 @@ func TestRuleValidate(t *testing.T) {
 	if err := (&Rule{Alert: "alert"}).Validate(); err == nil {
 		t.Fatalf("expected empty expr error")
 	}
+	if err := (&Rule{Record: "record", Expr: "sum(test)", Labels: map[string]string{"__name__": "test"}}).Validate(); err == nil {
+		t.Fatalf("invalid rule label; got %s", err)
+	}
 	if err := (&Rule{Alert: "alert", Expr: "test>0"}).Validate(); err != nil {
 		t.Fatalf("expected valid rule; got %s", err)
 	}

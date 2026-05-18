@@ -179,6 +179,9 @@ func (w *Writer) initPCU(ctx context.Context) error {
 
 	s := newPCUSettings(cfg.MaxConcurrency)
 
+	// Track PCU operations using client feature tracking header.
+	ctx = addFeatureAttributes(ctx, featurePCU)
+
 	pCtx, cancel := context.WithCancel(ctx)
 
 	state := &pcuState{

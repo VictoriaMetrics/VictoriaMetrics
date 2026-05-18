@@ -84,8 +84,8 @@ func (pu *pipeUnpackJSON) hasFilterInWithQuery() bool {
 	return pu.iff.hasFilterInWithQuery()
 }
 
-func (pu *pipeUnpackJSON) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc, keepSubquery bool) (pipe, error) {
-	iffNew, err := pu.iff.initFilterInValues(cache, getFieldValuesFunc, keepSubquery)
+func (pu *pipeUnpackJSON) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+	iffNew, err := pu.iff.initFilterInValues(cache, getFieldValuesFunc)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +105,7 @@ func (pu *pipeUnpackJSON) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), p
 			return
 		}
 		p := GetJSONParser()
-		err := p.parseLogMessage(bytesutil.ToUnsafeBytes(s), pu.preserveKeys, math.MaxInt)
+		err := p.parseLogMessage(bytesutil.ToUnsafeBytes(s), pu.preserveKeys, "", math.MaxInt)
 		if err != nil {
 			for _, filter := range pu.fieldFilters {
 				if !prefixfilter.IsWildcardFilter(filter) {

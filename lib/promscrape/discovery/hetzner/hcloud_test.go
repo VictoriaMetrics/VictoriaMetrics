@@ -245,7 +245,11 @@ func TestParseHCloudServerListResponse(t *testing.T) {
 			  "storage_type": "local"
 			},
 			"status": "running",
-			"volumes": []
+			"volumes": [],
+			"location": {
+			  "name": "fsn1",
+			  "network_zone": "eu-central"
+			}
 		  }
 		]
 	  }
@@ -282,10 +286,10 @@ func TestParseHCloudServerListResponse(t *testing.T) {
 			},
 			Datacenter: HCloudDatacenter{
 				Name: "fsn1-dc8",
-				Location: HCloudDatacenterLocation{
-					Name:        "fsn1",
-					NetworkZone: "eu-central",
-				},
+			},
+			Location: HCloudLocation{
+				Name:        "fsn1",
+				NetworkZone: "eu-central",
 			},
 			Image: &HCloudImage{
 				Name:        "ubuntu-20.04",
@@ -326,6 +330,8 @@ func TestParseHCloudServerListResponse(t *testing.T) {
 			"__meta_hetzner_hcloud_image_description":                "Ubuntu 20.04 Standard 64 bit",
 			"__meta_hetzner_hcloud_image_os_flavor":                  "ubuntu",
 			"__meta_hetzner_hcloud_image_os_version":                 "20.04",
+			"__meta_hetzner_hcloud_location":                         "fsn1",
+			"__meta_hetzner_hcloud_location_network_zone":            "eu-central",
 			"__meta_hetzner_hcloud_datacenter_location":              "fsn1",
 			"__meta_hetzner_hcloud_datacenter_location_network_zone": "eu-central",
 			"__meta_hetzner_hcloud_server_type":                      "cx11",

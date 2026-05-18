@@ -410,13 +410,13 @@ func (tb *table) MustGetIndexDBIDByHour(hour uint64) uint64 {
 func (tb *table) getMinMaxTimestamps() (int64, int64) {
 	now := int64(fasttime.UnixTimestamp() * 1000)
 	minTimestamp := now - tb.s.retentionMsecs
-	maxTimestamp := now + 2*24*3600*1000 // allow max +2 days from now due to timezones shit :)
 	if minTimestamp < 0 {
 		// Negative timestamps aren't supported by the storage.
 		minTimestamp = 0
 	}
-	if maxTimestamp < 0 {
-		maxTimestamp = (1 << 63) - 1
+	maxTimestamp := int64(maxUnixMilli)
+	if maxUnixMilli-now > tb.s.futureRetentionMsecs {
+		maxTimestamp = now + tb.s.futureRetentionMsecs
 	}
 	return minTimestamp, maxTimestamp
 }
@@ -436,12 +436,14 @@ func (tb *table) retentionWatcher() {
 		case <-ticker.C:
 		}
 
-		minTimestamp := int64(fasttime.UnixTimestamp()*1000) - tb.s.retentionMsecs
+		nowMsecs := int64(fasttime.UnixTimestamp() * 1000)
+		minTimestamp := nowMsecs - tb.s.retentionMsecs
+		maxTimestamp := nowMsecs + tb.s.futureRetentionMsecs
 		var ptwsDrop []*partitionWrapper
 		tb.ptwsLock.Lock()
 		dst := tb.ptws[:0]
 		for _, ptw := range tb.ptws {
-			if ptw.pt.tr.MaxTimestamp < minTimestamp {
+			if ptw.pt.tr.MaxTimestamp < minTimestamp || ptw.pt.tr.MinTimestamp > maxTimestamp {
 				ptwsDrop = append(ptwsDrop, ptw)
 			} else {
 				dst = append(dst, ptw)

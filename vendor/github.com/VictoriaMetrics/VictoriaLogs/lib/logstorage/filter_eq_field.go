@@ -20,6 +20,13 @@ type filterEqField struct {
 	prefixFilterOnce sync.Once
 }
 
+func newFilterEqField(fieldName, otherFieldName string) *filterEqField {
+	return &filterEqField{
+		fieldName:      getCanonicalColumnName(fieldName),
+		otherFieldName: getCanonicalColumnName(otherFieldName),
+	}
+}
+
 func (fe *filterEqField) String() string {
 	return fmt.Sprintf("%seq_field(%s)", quoteFieldNameIfNeeded(fe.fieldName), quoteTokenIfNeeded(fe.otherFieldName))
 }

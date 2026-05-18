@@ -25,6 +25,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
      Optional path to basic auth password to use for -datasource.url
   -datasource.basicAuth.username string
      Optional basic auth username for -datasource.url
+  -datasource.basicAuth.usernameFile string
+     Optional path to basic auth username to use for -datasource.url
   -datasource.bearerToken string
      Optional bearer auth token to use for -datasource.url.
   -datasource.bearerTokenFile string
@@ -186,6 +188,10 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
      Optional basic auth username for -notifier.url
      Supports an array of values separated by comma or specified via multiple flags.
      Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -notifier.basicAuth.usernameFile array
+     Optional path to basic auth username file for -notifier.url
+     Supports an array of values separated by comma or specified via multiple flags.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -notifier.bearerToken array
      Optional bearer token for -notifier.url
      Supports an array of values separated by comma or specified via multiple flags.
@@ -298,6 +304,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
      Optional path to basic auth password to use for -remoteRead.url
   -remoteRead.basicAuth.username string
      Optional basic auth username for -remoteRead.url
+  -remoteRead.basicAuth.usernameFile string
+     Optional path to basic auth username to use for -remoteRead.url
   -remoteRead.bearerToken string
      Optional bearer auth token to use for -remoteRead.url.
   -remoteRead.bearerTokenFile string
@@ -342,6 +350,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
      Optional path to basic auth password to use for -remoteWrite.url
   -remoteWrite.basicAuth.username string
      Optional basic auth username for -remoteWrite.url
+  -remoteWrite.basicAuth.usernameFile string
+     Optional path to basic auth username to use for -remoteWrite.url
   -remoteWrite.bearerToken string
      Optional bearer auth token to use for -remoteWrite.url.
   -remoteWrite.bearerTokenFile string
@@ -391,7 +401,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
   -remoteWrite.tlsServerName string
      Optional TLS server name to use for connections to -remoteWrite.url. By default, the server name from -remoteWrite.url is used
   -remoteWrite.url string
-     Optional URL to VictoriaMetrics or vminsert where to persist alerts state and recording rules results in form of timeseries. Supports address in the form of IP address with a port (e.g., http://127.0.0.1:8428) or DNS SRV record. For example, if -remoteWrite.url=http://127.0.0.1:8428 is specified, then the alerts state will be written to http://127.0.0.1:8428/api/v1/write . See also -remoteWrite.disablePathAppend, '-remoteWrite.showURL'.
+     Optional URL to persist alerts state and recording rules results in form of timeseries. It must support either VictoriaMetrics remote write protocol or Prometheus remote_write protocol. Supports address in the form of IP address with a port (e.g., http://127.0.0.1:8428) or DNS SRV record. For example, if -remoteWrite.url=http://127.0.0.1:8428 is specified, then the alerts state will be written to http://127.0.0.1:8428/api/v1/write . See also -remoteWrite.disablePathAppend, '-remoteWrite.showURL'.
   -replay.disableProgressBar
      Whether to disable rendering progress bars during the replay. Progress bar rendering might be verbose or break the logs parsing, so it is recommended to be disabled when not used in interactive mode.
   -replay.maxDatapointsPerQuery int
@@ -434,6 +444,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
      Minimum amount of time to wait before resending an alert to notifier.
   -rule.resultsLimit int
      Limits the number of alerts or recording results a single rule can produce. Can be overridden by the limit option under group if specified. If exceeded, the rule will be marked with an error and all its results will be discarded. 0 means no limit.
+  -rule.stripFilePath
+     Whether to strip rule file paths in logs and all API responses, including /metrics. For example, file path '/path/to/tenant_id/rules.yml' will be stripped to 'groupHashID/rules.yml'. This flag may be useful for hiding sensitive information in file paths, such as S3 bucket details.
   -rule.templates array
      Path or glob pattern to location with go template definitions for rules annotations templating. Flag can be specified multiple times.
      Examples:
