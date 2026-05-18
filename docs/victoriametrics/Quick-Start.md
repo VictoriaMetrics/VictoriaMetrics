@@ -63,6 +63,10 @@ docker run -it --rm -v `pwd`/victoria-metrics-data:/victoria-metrics-data -p 842
  victoriametrics/victoria-metrics:v1.143.0 --selfScrapeInterval=5s -storageDataPath=victoria-metrics-data
 ```
 
+> **Note:** The default retention period is **1 month**. Data older than the retention period will be automatically deleted.
+> To change the retention period, use the `-retentionPeriod` flag (e.g. `-retentionPeriod=90d`).
+> See [retention documentation](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention) for more details.
+
 _For Enterprise images see [this link](https://docs.victoriametrics.com/victoriametrics/enterprise/#docker-images)._
 
 You should see:
@@ -90,6 +94,10 @@ via `make docker-vm-cluster-up` command:
 git clone https://github.com/VictoriaMetrics/VictoriaMetrics && cd VictoriaMetrics
 make docker-vm-cluster-up
 ```
+
+> **Note:** The default retention period is **1 month**. Data older than the retention period will be automatically deleted.
+> To change the retention period, use the `-retentionPeriod` flag (e.g. `-retentionPeriod=90d`).
+> See [retention documentation](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention) for more details.
 
 You should see:
 
@@ -135,6 +143,10 @@ sudo useradd -s /usr/sbin/nologin victoriametrics
 sudo mkdir -p /var/lib/victoria-metrics && sudo chown -R victoriametrics:victoriametrics /var/lib/victoria-metrics
 ```
 
+> **Note:** The default retention period is **1 month**. Data older than the retention period will be automatically deleted.
+> To change the retention period, use the `-retentionPeriod` flag (e.g. `-retentionPeriod=90d`).
+> See [retention documentation](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention) for more details.
+
 5. Create a Linux Service by running the following:
 
 ```sh
@@ -147,7 +159,7 @@ After=network.target
 Type=simple
 User=victoriametrics
 Group=victoriametrics
-ExecStart=/usr/local/bin/victoria-metrics-prod -storageDataPath=/var/lib/victoria-metrics -retentionPeriod=90d -selfScrapeInterval=10s
+ExecStart=/usr/local/bin/victoria-metrics-prod -storageDataPath=/var/lib/victoria-metrics -selfScrapeInterval=10s
 SyslogIdentifier=victoriametrics
 Restart=always
 
@@ -173,6 +185,10 @@ If you want to deploy VictoriaMetrics Single Node as a Windows Service review th
 ```sh
 sudo systemctl daemon-reload && sudo systemctl enable --now victoriametrics.service
 ```
+
+> **Note:** The default retention period is **1 month**. Data older than the retention period will be automatically deleted.
+> To change the retention period, use the `-retentionPeriod` flag (e.g. `-retentionPeriod=90d`).
+> See [retention documentation](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention) for more details.
 
 7. Check that service started successfully:
 
@@ -218,6 +234,10 @@ See recommendations for installing each type of [cluster component](https://docs
 sudo mkdir -p /var/lib/vmstorage && sudo chown -R victoriametrics:victoriametrics /var/lib/vmstorage
 ```
 
+> **Note:** The default retention period is **1 month**. Data older than the retention period will be automatically deleted.
+> To change the retention period, use the `-retentionPeriod` flag (e.g. `-retentionPeriod=90d`).
+> See [retention documentation](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention) for more details.
+
 2. Create a Linux Service for `vmstorage` service by running the following command:
 
 ```sh
@@ -253,6 +273,10 @@ for vmstorage can be added to `ExecStart` line.
 ```sh
 sudo systemctl daemon-reload && sudo systemctl enable --now vmstorage
 ```
+
+> **Note:** The default retention period is **1 month**. Data older than the retention period will be automatically deleted.
+> To change the retention period, use the `-retentionPeriod` flag (e.g. `-retentionPeriod=90d`).
+> See [retention documentation](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention) for more details.
 
 4. Check that service started successfully:
 
