@@ -787,7 +787,7 @@ func newCompressedLabels(src *promutil.Labels) *compressedLabels {
 	packedBuf := make([]byte, 0, jobLen+addressLen+16)
 
 	packedBuf = append(packedBuf, addressLabelValue...)
-	cls.addressLabel = bytesutil.ToUnsafeString(packedBuf)
+	cls.addressLabel = bytesutil.ToUnsafeString(packedBuf[:addressLen])
 
 	packedBuf = append(packedBuf, jobLabelValue...)
 	cls.jobLabel = bytesutil.ToUnsafeString(packedBuf[addressLen:])
