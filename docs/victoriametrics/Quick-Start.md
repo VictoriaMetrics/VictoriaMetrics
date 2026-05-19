@@ -434,11 +434,14 @@ the main monitoring installation.
 
 See more details in the article [VictoriaMetrics Monitoring](https://victoriametrics.com/blog/victoriametrics-monitoring/).
 
-### Capacity planning
+### Retention
 
-It should be noted that VictoriaMetrics Single-node and vmstorage in VictoriaMetrics Cluster retain data for one month (`1M`) by default via the `--retentionPeriod` flag.
-Refer to the [Retention](https://docs.victoriametrics.com/victoriametrics/#retention) section for further details.
-You may adjust this value based on your actual needs after completing reasonable capacity planning.
+VictoriaMetrics single-node and vmstorage in VictoriaMetrics Cluster retain data for 1 month (`1M`) by default via the `--retentionPeriod` flag.
+See the [Retention](https://docs.victoriametrics.com/victoriametrics/#retention) section in the documentation for more details.
+
+This flag's value affects [capacity planning](#capacity-planning).
+
+### Capacity planning
 
 See capacity planning sections in [docs](https://docs.victoriametrics.com) for
 [Single-server-VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#capacity-planning)
