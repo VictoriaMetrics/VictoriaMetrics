@@ -59,6 +59,7 @@ func InitSecretFlags() {
 	if !*showRemoteReadURL {
 		flagutil.RegisterSecretFlag("remoteRead.url")
 	}
+	flagutil.RegisterSecretFlag("remoteRead.headers")
 }
 
 // Init creates a Querier from provided flag values.
