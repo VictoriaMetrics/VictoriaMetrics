@@ -730,7 +730,7 @@ the recently ingested data.
 > VictoriaMetrics may intentionally hide samples with timestamps close to the current time during querying.
 > This behavior is controlled via `-search.latencyOffset` command-line flag. See more details in [Query latency](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#query-latency) documentation.
 
-The `/internal/force_flush` endpoint can be protected from unauthorized access via `-forceFlushAuthKey`[command-line flag.
+The `/internal/force_flush` endpoint can be protected from unauthorized access via `-forceFlushAuthKey` command-line flag.
 See [General security recommendations](https://docs.victoriametrics.com/victoriametrics/#general-security-recommendations) for more details.
 
 ## How to export time series
