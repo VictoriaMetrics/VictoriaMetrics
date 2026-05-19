@@ -779,20 +779,20 @@ func allowRerouting(snSource *storageNode, sns []*storageNode) bool {
 	sort.Float64s(saturations)
 
 	// Try to get p90 saturation. If there's less than 10 nodes, then pick the second-slowest one.
-	slowestNStorageNode := max(1, len(saturations)/10)
+	p90SaturationIdx := len(saturations) - 1 - max(1, len(saturations)/10)
 
 	// Do not allow rerouting if the cluster is significantly overloaded.
-	if saturations[len(saturations)-slowestNStorageNode-1] > 0.6 {
+	if saturations[p90SaturationIdx] > 0.6 {
 		return false
 	}
 
 	// Perform rerouting only if snSource is slower than the p90 saturation by 20%.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10876
-	if snSourceSaturation < 1.2*saturations[len(saturations)-slowestNStorageNode-1] {
+	if snSourceSaturation < 1.2*saturations[p90SaturationIdx] {
 		return false
 	}
 
-	reroutingLogger.Warnf("reroute metrics from the slowest storage %q with saturation %.2f, where cluster p90 saturation is %.2f", snSource.dialer.Addr(), snSourceSaturation, saturations[len(saturations)-slowestNStorageNode-1])
+	reroutingLogger.Warnf("reroute metrics from the slowest storage %q with saturation %.2f, where cluster p90 saturation is %.2f", snSource.dialer.Addr(), snSourceSaturation, saturations[p90SaturationIdx])
 	return true
 }
 
