@@ -764,7 +764,7 @@ func filterLabelValues(lvs map[string]struct{}, tf *tagFilter, key string) {
 		b = marshalTagValue(b, bytesutil.ToUnsafeBytes(lv))
 		ok, err := tf.match(b)
 		if err != nil {
-			logger.Panicf("BUG: cannot match label %q=%q with tagFilter %s: %w", key, lv, tf.String(), err)
+			logger.Panicf("BUG: cannot match label %q=%q with tagFilter %s: %s", key, lv, tf.String(), err)
 		}
 		if !ok {
 			delete(lvs, lv)
