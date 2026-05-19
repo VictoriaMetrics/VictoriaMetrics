@@ -441,8 +441,8 @@ See the [Retention](https://docs.victoriametrics.com/victoriametrics/#retention)
 
 This flag's value affects [capacity planning](#capacity-planning).
 
-If `vmstorage` nodes in a VictoriaMetrics cluster run out of disk space (via `-minFreeDiskSpaceBytes`) before data retention expires, they will enter [read-only mode](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#readonly-mode).
-`vminsert` nodes stop sending data to such nodes and start re-routing the data to the remaining `vmstorage` nodes.
+If VictoriaMetrics single-node or `vmstorage` run out of disk space (defined by `-minFreeDiskSpaceBytes`) before data retention expires, they will stop accepting new data.
+`vmstorage` will enter [read-only mode](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#readonly-mode). `vminsert` nodes cease sending data to these nodes and reroute traffic to other available `vmstorage` nodes instead.
 
 ### Capacity planning
 
