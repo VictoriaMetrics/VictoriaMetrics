@@ -701,17 +701,37 @@ It's better to use the `-retentionPeriod` command-line flag for efficient prunin
 
 ## Forced merge
 
-VictoriaMetrics performs [data compactions in background](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
-in order to keep good performance characteristics when accepting new data. These compactions (merges) are performed independently on per-month partitions.
-This means that compactions are stopped for per-month partitions if no new data is ingested into these partitions.
-Sometimes it is necessary to trigger compactions for old partitions. For instance, in order to free up disk space occupied by [deleted time series](#how-to-delete-time-series).
-In this case forced compaction may be initiated on the specified per-month partition by sending request to `/internal/force_merge?partition_prefix=YYYY_MM`,
+VictoriaMetrics performs [data compaction in background](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
+to keep high performance during ingestion. These compactions (merges) are performed independently on per-month partitions.
+Partitions that don't receive new data will eventually stop merging parts, as they reach an optimal state.
+Sometimes it is necessary to trigger merges for old partitions. For example, to free up disk space occupied by [deleted time series](https://docs.victoriametrics.com/victoriametrics/#how-to-delete-time-series).
+User can **force** compaction on the specified per-month partition by sending request to `/internal/force_merge?partition_prefix=YYYY_MM`,
 where `YYYY_MM` is per-month partition name. For example, `http://victoriametrics:8428/internal/force_merge?partition_prefix=2020_08` would initiate forced
 merge for August 2020 partition. The call to `/internal/force_merge` returns immediately, while the corresponding forced merge continues running in background.
 
 Forced merges may require additional CPU, disk IO and storage space resources. It is unnecessary to run forced merge under normal conditions,
 since VictoriaMetrics automatically performs [optimal merges in background](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
 when new data is ingested into it.
+
+The `/internal/force_merge` endpoint can be protected from unauthorized access via `--forceMergeAuthKey` command-line flag.
+See [General security recommendations](https://docs.victoriametrics.com/victoriametrics/#general-security-recommendations) for more details.
+
+## Forced flush
+
+VictoriaMetrics puts the recently [ingested samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#write-data) into in-memory buffers,
+which aren't available for [querying](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#query-data) for up to a few seconds.
+If you need querying samples immediately after their ingestion, then call `/internal/force_flush` HTTP endpoint before querying.
+This endpoint converts in-memory buffers with the recently ingested samples into searchable data blocks.
+
+It isn't recommended requesting the `/internal/force_flush` HTTP endpoint on a regular basis, since this increases CPU usage
+and slows down data ingestion. It is expected that the `/internal/force_flush` is requested in automated tests, which need querying
+the recently ingested data.
+
+> VictoriaMetrics may intentionally hide samples with timestamps close to the current time during querying.
+> This behavior is controlled via `-search.latencyOffset` command-line flag. See more details in [Query latency](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#query-latency) documentation.
+
+The `/internal/force_flush` endpoint can be protected from unauthorized access via `-forceFlushAuthKey`[command-line flag.
+See [General security recommendations](https://docs.victoriametrics.com/victoriametrics/#general-security-recommendations) for more details.
 
 ## How to export time series
 
@@ -1738,8 +1758,8 @@ VictoriaMetrics provides the following security-related command-line flags:
   with [HTTP Basic Authentication](https://en.wikipedia.org/wiki/Basic_access_authentication).
 * `-deleteAuthKey` for protecting `/api/v1/admin/tsdb/delete_series` endpoint. See [how to delete time series](#how-to-delete-time-series).
 * `-snapshotAuthKey` for protecting `/snapshot*` endpoints. See [how to work with snapshots](#how-to-work-with-snapshots).
-* `-forceFlushAuthKey` for protecting `/internal/force_flush` endpoint. See [these docs](#troubleshooting).
-* `-forceMergeAuthKey` for protecting `/internal/force_merge` endpoint. See [force merge docs](#forced-merge).
+* `-forceFlushAuthKey` for protecting `/internal/force_flush` endpoint. See [force flush docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#forced-flush).
+* `-forceMergeAuthKey` for protecting `/internal/force_merge` endpoint. See [force merge docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#forced-merge).
 * `-search.resetCacheAuthKey` for protecting `/internal/resetRollupResultCache` endpoint. See [backfilling](#backfilling) for more details.
 * `-reloadAuthKey` for protecting `/-/reload` endpoint, which is used for force reloading of [`-promscrape.config`](#how-to-scrape-prometheus-exporters-such-as-node-exporter).
 * `-configAuthKey` for protecting `/config` endpoint, since it may contain sensitive information such as passwords.
