@@ -147,7 +147,7 @@ After=network.target
 Type=simple
 User=victoriametrics
 Group=victoriametrics
-ExecStart=/usr/local/bin/victoria-metrics-prod -storageDataPath=/var/lib/victoria-metrics -retentionPeriod=90d -selfScrapeInterval=10s
+ExecStart=/usr/local/bin/victoria-metrics-prod -storageDataPath=/var/lib/victoria-metrics -selfScrapeInterval=10s
 SyslogIdentifier=victoriametrics
 Restart=always
 
@@ -231,7 +231,7 @@ Type=simple
 User=victoriametrics
 Group=victoriametrics
 Restart=always
-ExecStart=/usr/local/bin/vmstorage-prod -retentionPeriod=90d -storageDataPath=/var/lib/vmstorage
+ExecStart=/usr/local/bin/vmstorage-prod -storageDataPath=/var/lib/vmstorage
 
 PrivateTmp=yes
 NoNewPrivileges=yes
@@ -435,6 +435,10 @@ the main monitoring installation.
 See more details in the article [VictoriaMetrics Monitoring](https://victoriametrics.com/blog/victoriametrics-monitoring/).
 
 ### Capacity planning
+
+It should be noted that VictoriaMetrics Single-node and vmstorage in VictoriaMetrics Cluster retain data for one month (`1M`) by default via the `--retentionPeriod` flag.
+Refer to the [Retention](https://docs.victoriametrics.com/victoriametrics/#retention) section for further details.
+You may adjust this value based on your actual needs after completing reasonable capacity planning.
 
 See capacity planning sections in [docs](https://docs.victoriametrics.com) for
 [Single-server-VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#capacity-planning)
