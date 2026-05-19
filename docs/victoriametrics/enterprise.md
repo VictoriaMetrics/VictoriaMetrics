@@ -363,7 +363,7 @@ This means you don't need to restart components to install a new license. The co
 
 If your license has expired and you decide to not renew it, you can switch to the VictoriaMetrics Open Source version without data loss, as both versions share the same data model. In doing so, however, you will lose access to the [VictoriaMetrics Enterprise features](https://docs.victoriametrics.com/victoriametrics/enterprise/#victoriametrics-enterprise-features).
 
-See [updating the license key](#updating-the-license-key) for more details.
+See [updating the license key](https://docs.victoriametrics.com/victoriametrics/enterprise/#updating-the-license-key) for more details.
 
 ## Monitoring license expiration
 
