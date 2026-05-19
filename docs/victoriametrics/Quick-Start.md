@@ -436,10 +436,13 @@ See more details in the article [VictoriaMetrics Monitoring](https://victoriamet
 
 ### Retention
 
-VictoriaMetrics single-node and vmstorage in VictoriaMetrics Cluster retain data for 1 month (`1M`) by default via the `--retentionPeriod` flag.
+VictoriaMetrics single-node and `vmstorage` in VictoriaMetrics Cluster retain data for 1 month (`1M`) by default via the `--retentionPeriod` flag.
 See the [Retention](https://docs.victoriametrics.com/victoriametrics/#retention) section in the documentation for more details.
 
 This flag's value affects [capacity planning](#capacity-planning).
+
+If `vmstorage` nodes in a VictoriaMetrics cluster run out of disk space (via `-minFreeDiskSpaceBytes`) before data retention expires, they will enter [read-only mode](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#readonly-mode).
+`vminsert` nodes stop sending data to such nodes and start re-routing the data to the remaining `vmstorage` nodes.
 
 ### Capacity planning
 
