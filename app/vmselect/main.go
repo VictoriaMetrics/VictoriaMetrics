@@ -69,6 +69,8 @@ func Init() {
 	concurrencyLimitCh = make(chan struct{}, *maxConcurrentRequests)
 	initVMUIConfig()
 	initVMAlertProxy()
+
+	flagutil.RegisterSecretFlag("vmalert.proxyURL")
 }
 
 // Stop stops vmselect
