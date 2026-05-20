@@ -353,6 +353,18 @@ Example Docker image:
 
 `victoriametrics/victoria-metrics:v1.143.0-enterprise-fips` – uses the FIPS-compatible binary and based on `scratch` image.
 
+## What Happens to Licensed Components When a License Expires
+
+When a license expires, all licensed components continue to function normally until a restart occurs.
+
+License checks happen only at startup. If a license expires while the component is running, nothing changes; the component continues to run until the next restart. 
+
+This means you don't need to restart components to install a new license. The component automatically picks up the new license the next time it restarts. The exception is when the `-license` flag is used, because the license is supplied at startup and changing it requires restarting VictoriaMetrics with the updated flag value.
+
+If your license has expired and you decide to not renew it, you can switch to the VictoriaMetrics Open Source version without data loss, as both versions share the same data model. In doing so, however, you will lose access to the [VictoriaMetrics Enterprise features](https://docs.victoriametrics.com/victoriametrics/enterprise/#victoriametrics-enterprise-features).
+
+See [updating the license key](https://docs.victoriametrics.com/victoriametrics/enterprise/#updating-the-license-key) for more details.
+
 ## Monitoring license expiration
 
 All the Enterprise components expose the following metrics at the `/metrics` page:
