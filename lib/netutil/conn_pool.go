@@ -264,10 +264,10 @@ func (cp *ConnPool) closeIdleConns() {
 		}
 	}
 	for _, c := range closeConns {
-		if len(activeConns) < 3 {
-			activeConns = append(activeConns, c)
-			continue
-		}
+		//if len(activeConns) < 3 {
+		//	activeConns = append(activeConns, c)
+		//	continue
+		//}
 
 		_ = c.bc.Close()
 		c.bc = nil
