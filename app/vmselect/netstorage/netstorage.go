@@ -1992,7 +1992,7 @@ func populateSqTenantTokensIfNeeded(sq *storage.SearchQuery) error {
 		return nil
 	}
 
-	tts, tfss := ApplyTenantFiltersToTagFilters(sq.TenantTokens, sq.TagFilterss)
+	tts, tfss := applyTenantFiltersToTagFilters(sq.TenantTokens, sq.TagFilterss)
 	sq.TenantTokens = tts
 	sq.TagFilterss = tfss
 	return nil
