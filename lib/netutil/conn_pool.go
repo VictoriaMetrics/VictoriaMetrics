@@ -250,10 +250,10 @@ func (cp *ConnPool) closeIdleConns() {
 	cp.mu.Lock()
 
 	// fast path, if there are less than 3 connections in the pool.
-	if len(cp.conns) < 3 {
-		cp.mu.Unlock()
-		return
-	}
+	//if len(cp.conns) < 3 {
+	//	cp.mu.Unlock()
+	//	return
+	//}
 
 	conns := cp.conns
 	for _, c := range conns {
