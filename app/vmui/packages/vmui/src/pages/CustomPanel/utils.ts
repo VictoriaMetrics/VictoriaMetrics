@@ -4,6 +4,9 @@ import { formatValueToCSV } from "../../utils/csv";
 
 const getHeaders = (data: InstantMetricResult[]): string => {
   const metricHeaders = getColumns(data).map(({ key }) => key).join(",");
+  if (!metricHeaders) {
+    return metricHeaders;
+  }
   return `${metricHeaders},__timestamp__,__value__`;
 };
 
