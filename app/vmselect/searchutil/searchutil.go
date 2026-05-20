@@ -117,6 +117,10 @@ func (d *Deadline) Deadline() uint64 {
 	return d.deadline
 }
 
+func (d *Deadline) Timeout() time.Duration {
+	return d.timeout
+}
+
 // String returns human-readable string representation for d.
 func (d *Deadline) String() string {
 	startTime := time.Unix(int64(d.deadline), 0).Add(-d.timeout)

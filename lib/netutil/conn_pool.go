@@ -162,6 +162,9 @@ func (cp *ConnPool) getConnSlow() (*handshake.BufferedConn, error) {
 			// Create new connection.
 			conn, err := cp.dialAndHandshake()
 			<-cp.concurrentDialsCh
+			if conn != nil {
+				conn.New = true
+			}
 			return conn, err
 		default:
 			// Make attempt to get already established connections from the pool.
@@ -214,6 +217,7 @@ func (cp *ConnPool) tryGetConn() (*handshake.BufferedConn, error) {
 	c := cp.conns[len(cp.conns)-1]
 	bc := c.bc
 	c.bc = nil
+	bc.LastActiveTime = time.Unix(int64(c.lastActiveTime), 0)
 	cp.conns = cp.conns[:len(cp.conns)-1]
 	return bc, nil
 }
@@ -228,6 +232,12 @@ func (cp *ConnPool) Put(bc *handshake.BufferedConn) {
 		_ = bc.Close()
 		return
 	}
+
+	bc.DeadlineTime = 0
+	bc.Timeout = 0
+	bc.New = false
+	bc.LastActiveTime = time.Time{}
+
 	cp.mu.Lock()
 	if cp.isStopped {
 		_ = bc.Close()

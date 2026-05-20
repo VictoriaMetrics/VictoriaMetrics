@@ -30,6 +30,12 @@ type BufferedConn struct {
 
 	readDeadline  time.Time
 	writeDeadline time.Time
+
+	// DEBUG INFO
+	New            bool
+	DeadlineTime   uint64
+	Timeout        time.Duration
+	LastActiveTime time.Time
 }
 
 const bufferSize = 64 * 1024
