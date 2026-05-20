@@ -321,38 +321,71 @@ func TestStorageOpenClose(t *testing.T) {
 func TestStorageCheckTimeRange(t *testing.T) {
 	defer testRemoveAll(t)
 
-	const day = int64(24 * 3600 * 1000)
-	now := int64(fasttime.UnixTimestamp() * 1000)
+	f := func(s *Storage, name string, tr TimeRange, want bool) {
+		t.Helper()
+		err := s.checkTimeRange(tr)
+		got := err != nil
+		if got != want {
+			t.Fatalf("%s: got %t, want %t", name, got, want)
+		}
+	}
 
-	s := MustOpenStorage(t.Name(), OpenOptions{
+	var (
+		s   *Storage
+		now = time.Now().UnixMilli()
+		tr  TimeRange
+	)
+
+	s = MustOpenStorage(t.Name(), OpenOptions{
 		Retention:                   7 * 24 * time.Hour,
 		FutureRetention:             2 * 24 * time.Hour,
 		DenyQueriesOutsideRetention: true,
 	})
-	defer s.MustClose()
 
-	f := func(name string, tr TimeRange, wantErr bool) {
-		t.Helper()
-		err := s.CheckTimeRange(tr)
-		if (err != nil) != wantErr {
-			t.Fatalf("%s: got err=%v, wantErr=%v", name, err, wantErr)
-		}
+	tr = TimeRange{
+		MinTimestamp: now - msecPerDay,
+		MaxTimestamp: now + msecPerDay,
 	}
+	f(s, "within retention and future retention", tr, false)
 
-	f("within retention and future retention",
-		TimeRange{MinTimestamp: now - day, MaxTimestamp: now + day}, false)
-	f("min timestamp before retention",
-		TimeRange{MinTimestamp: now - 30*day, MaxTimestamp: now}, true)
-	f("max timestamp beyond future retention",
-		TimeRange{MinTimestamp: now, MaxTimestamp: now + 30*day}, true)
-	f("entirely in the past",
-		TimeRange{MinTimestamp: now - 30*day, MaxTimestamp: now - 14*day}, true)
-	f("entirely in the future",
-		TimeRange{MinTimestamp: now + 14*day, MaxTimestamp: now + 30*day}, true)
+	tr = TimeRange{
+		MinTimestamp: now - 30*msecPerDay,
+		MaxTimestamp: now,
+	}
+	f(s, "min timestamp before retention", tr, true)
 
-	s.denyQueriesOutsideRetention = false
-	f("disabled with out-of-window range",
-		TimeRange{MinTimestamp: now - 30*day, MaxTimestamp: now + 30*day}, false)
+	tr = TimeRange{
+		MinTimestamp: now,
+		MaxTimestamp: now + 30*msecPerDay,
+	}
+	f(s, "max timestamp beyond future retention", tr, true)
+
+	tr = TimeRange{
+		MinTimestamp: now - 30*msecPerDay,
+		MaxTimestamp: now - 14*msecPerDay,
+	}
+	f(s, "entirely in the past", tr, true)
+
+	tr = TimeRange{
+		MinTimestamp: now + 14*msecPerDay,
+		MaxTimestamp: now + 30*msecPerDay,
+	}
+	f(s, "entirely in the future", tr, true)
+
+	// Re-open with disabled check.
+	s.MustClose()
+	s = MustOpenStorage(t.Name(), OpenOptions{
+		Retention:       7 * 24 * time.Hour,
+		FutureRetention: 2 * 24 * time.Hour,
+	})
+
+	tr = TimeRange{
+		MinTimestamp: now - 30*msecPerDay,
+		MaxTimestamp: now + 30*msecPerDay,
+	}
+	f(s, "disabled with out-of-window range", tr, false)
+
+	s.MustClose()
 }
 
 func TestStorageRandTimestamps(t *testing.T) {

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
@@ -20,7 +19,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
@@ -1230,26 +1228,23 @@ func searchAndMergeUniq(qt *querytracer.Tracer, s *Storage, tr TimeRange, search
 	return res, nil
 }
 
-// CheckTimeRange returns an error if timerange is outside the allowed -retentionPeriod or -futureRetention window when -denyQueriesOutsideRetention flag is set
-func (s *Storage) CheckTimeRange(tr TimeRange) error {
+// checkTimeRange returns an error if time range is outside the allowed
+// -retentionPeriod or -futureRetention window when
+// -denyQueriesOutsideRetention flag is set
+func (s *Storage) checkTimeRange(tr TimeRange) error {
 	if !s.denyQueriesOutsideRetention {
 		return nil
 	}
-	return s.checkTimeRange(tr)
-}
 
-func (s *Storage) checkTimeRange(tr TimeRange) error {
-	nowMsecs := int64(fasttime.UnixTimestamp() * 1000)
-	if tr.MinTimestamp >= nowMsecs-s.retentionMsecs && tr.MaxTimestamp <= nowMsecs+s.futureRetentionMsecs {
+	minTimestamp, maxTimestamp := s.tb.getMinMaxTimestamps()
+	if minTimestamp <= tr.MinTimestamp && tr.MaxTimestamp <= maxTimestamp {
 		return nil
 	}
+
 	retention := time.Duration(s.retentionMsecs) * time.Millisecond
 	futureRetention := time.Duration(s.futureRetentionMsecs) * time.Millisecond
-	return &httpserver.ErrorWithStatusCode{
-		Err: fmt.Errorf("the given time range %s is outside the allowed -retentionPeriod=%s, -futureRetention=%s "+
-			"according to -denyQueriesOutsideRetention", &tr, retention, futureRetention),
-		StatusCode: http.StatusServiceUnavailable,
-	}
+	return fmt.Errorf("the given time range %s is outside the allowed -retentionPeriod=%s, -futureRetention=%s "+
+		"according to -denyQueriesOutsideRetention", &tr, retention, futureRetention)
 }
 
 // SearchTSIDs searches the TSIDs that correspond to filters within the given
@@ -1263,7 +1258,7 @@ func (s *Storage) SearchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Tim
 	qt = qt.NewChild("search TSIDs: filters=%s, timeRange=%s, maxMetrics=%d", tfss, &tr, maxMetrics)
 	defer qt.Done()
 
-	if err := s.CheckTimeRange(tr); err != nil {
+	if err := s.checkTimeRange(tr); err != nil {
 		return nil, err
 	}
 
@@ -1302,7 +1297,7 @@ func (s *Storage) SearchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Tim
 // MetricName.UnmarshalString().
 func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]string, error) {
 	qt = qt.NewChild("search metric names: filters=%s, timeRange=%s, maxMetrics: %d", tfss, &tr, maxMetrics)
-	if err := s.CheckTimeRange(tr); err != nil {
+	if err := s.checkTimeRange(tr); err != nil {
 		return nil, err
 	}
 	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) ([]string, error) {
