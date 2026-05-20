@@ -47,6 +47,10 @@ func TenantsCached(qt *querytracer.Tracer, tr storage.TimeRange, deadline search
 	}
 
 	qtL.Printf("fetched %d tenants from storage", len(tenants))
+	if len(tenants) == 0 {
+		qtL.Printf("no tenants found - don't cache this fetch")
+		return nil, nil
+	}
 
 	tt := make([]storage.TenantToken, len(tenants))
 	for i, t := range tenants {
