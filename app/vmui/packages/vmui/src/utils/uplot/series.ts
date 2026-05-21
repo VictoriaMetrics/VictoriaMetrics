@@ -38,6 +38,7 @@ export const getSeriesItemContext = (data: MetricResult[], hideSeries: string[],
       show: !includesHideSeries(label, hideSeries),
       scale: "1",
       paths: isRawQuery ? drawPoints : undefined,
+      nullTimestamps: d.nullTimestamps,
       ...getSeriesStatistics(d),
     };
   };
