@@ -476,7 +476,12 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 				// which can result in time.Since(evalTS) < g.Interval;
 				// or the system wall clock was changed backward
 				missed = 0
-				evalTS = time.Now()
+				// Resync evalTS to the current wall clock. The shared advance
+				// below adds one interval, so step back one interval here;
+				// otherwise evalTS lands a full interval in the future and
+				// the rule is evaluated at a future, possibly incomplete,
+				// time point. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10985
+				evalTS = time.Now().Add(-g.Interval)
 			}
 			if missed > 0 {
 				g.metrics.iterationMissed.Inc()
