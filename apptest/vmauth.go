@@ -1,8 +1,11 @@
 package apptest
 
 import (
+	"fmt"
 	"io"
+	"net"
 	"regexp"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -41,6 +44,20 @@ func StartVmauth(instance string, flags []string, cli *Client, configFilePath st
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	// The harness only confirms readiness of the builtin-routes server via the
+	// pprof log line. When -httpInternalListenAddr is set, the builtin routes
+	// are served on the internal address while the public -httpListenAddr is a
+	// separate server started in its own goroutine. That public server may not
+	// be accepting connections yet when startApp returns, which makes tests
+	// that immediately query it flaky (connection refused) and can even trip a
+	// shutdown panic in vmauth. Wait until the public address is reachable.
+	if publicAddr := explicitListenAddr(flags, "-httpListenAddr"); publicAddr != "" && publicAddr != stderrExtracts[0] {
+		if err := waitForTCPListener(publicAddr, 5*time.Second); err != nil {
+			app.Stop()
+			return nil, err
+		}
 	}
 
 	return &Vmauth{
@@ -83,4 +100,40 @@ func (app *Vmauth) UpdateConfiguration(t *testing.T, configFileYAML string) {
 // GetHTTPListenAddr returns listen http addr
 func (app *Vmauth) GetHTTPListenAddr() string {
 	return app.httpListenAddr
+}
+
+// explicitListenAddr returns the value of the given listen-addr flag (e.g.
+// -httpListenAddr) if it is set to a concrete address. It returns an empty
+// string when the flag is absent or bound to a random port (host:0), since
+// such addresses cannot be dialed before the app reports them.
+func explicitListenAddr(flags []string, name string) string {
+	prefix := name + "="
+	for _, f := range flags {
+		if !strings.HasPrefix(f, prefix) {
+			continue
+		}
+		addr := strings.TrimPrefix(f, prefix)
+		if addr == "" || strings.HasSuffix(addr, ":0") {
+			return ""
+		}
+		return addr
+	}
+	return ""
+}
+
+// waitForTCPListener waits until addr accepts a TCP connection or the timeout
+// elapses, in which case it returns an error.
+func waitForTCPListener(addr string, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for {
+		conn, err := net.DialTimeout("tcp", addr, 200*time.Millisecond)
+		if err == nil {
+			conn.Close()
+			return nil
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("timed out after %s waiting for TCP listener at %q: %w", timeout, addr, err)
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
 }
