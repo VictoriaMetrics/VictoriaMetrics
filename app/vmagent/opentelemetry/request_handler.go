@@ -25,6 +25,10 @@ var (
 	rowsPerInsert          = metrics.NewHistogram(`vmagent_rows_per_insert{type="opentelemetry"}`)
 )
 
+func Init() {
+	stream.InitDecodeOptions()
+}
+
 // InsertHandlerForReader processes metrics from given reader.
 func InsertHandlerForReader(at *auth.Token, r io.Reader, encoding string) error {
 	return stream.ParseStream(r, encoding, nil, func(tss []prompb.TimeSeries, mms []prompb.MetricMetadata) error {

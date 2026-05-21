@@ -1,6 +1,7 @@
 package stream
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"sync"
@@ -10,13 +11,42 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 )
 
-var maxRequestSize = flagutil.NewBytes("opentelemetry.maxRequestSize", 64*1024*1024, "The maximum size in bytes of a single OpenTelemetry request")
+var (
+	maxRequestSize = flagutil.NewBytes("opentelemetry.maxRequestSize", 64*1024*1024, "The maximum size in bytes of a single OpenTelemetry request")
+
+	promoteScopeMetadata         = flag.Bool("opentelemetry.promoteScopeMetadata", true, "Whether to promote OTel scope metadata (i.e. name, version, schema URL, and attributes) to metric labels.")
+	promoteAllResourceAttributes = flag.Bool("opentelemetry.promoteAllResourceAttributes", true, "Whether to promote all resource attributes to labels, except for the ones configured with 'opentelemetry.ignoreResourceAttributes'.")
+	promoteResourceAttributes    = flagutil.NewArrayString("opentelemetry.promoteResourceAttributes", "Promote specific list of resource attributes to labels.")
+	ignoreResourceAttributes     = flagutil.NewArrayString("opentelemetry.ignoreResourceAttributes", "Control which resource attributes to ignore, can only be set when 'opentelemetry.promoteAllResourceAttributes' is true.")
+)
+
+func InitDecodeOptions() {
+	if *promoteAllResourceAttributes && len(*promoteResourceAttributes) > 0 {
+		logger.Fatalf("cannot set both '-opentelemetry.promoteAllResourceAttributes' and '-opentelemetry.promoteResourceAttributes'")
+	}
+	if !*promoteAllResourceAttributes && len(*ignoreResourceAttributes) > 0 {
+		logger.Fatalf("'-opentelemetry.ignoreResourceAttributes' can only be set when '-opentelemetry.promoteAllResourceAttributes' is true.")
+	}
+	defaultDecodeMetricsOptions.DisableScopeMetadata = !*promoteScopeMetadata
+	defaultDecodeMetricsOptions.DisableResourceAttributes = !*promoteAllResourceAttributes
+	attributes := *ignoreResourceAttributes
+	if !*promoteAllResourceAttributes {
+		attributes = *promoteResourceAttributes
+	}
+	defaultDecodeMetricsOptions.ResourceAttributesList = make(map[string]struct{}, len(attributes))
+	for _, a := range attributes {
+		defaultDecodeMetricsOptions.ResourceAttributesList[a] = struct{}{}
+	}
+}
+
+var defaultDecodeMetricsOptions = pb.DecodeMetricsOptions{}
 
 // ParseStream parses OpenTelemetry protobuf or json data from r and calls callback for the parsed rows.
 //
@@ -47,7 +77,7 @@ func parseData(data []byte, callback func(tss []prompb.TimeSeries, mms []prompb.
 	// the flushFunc will be called multiple time if the request is big, to avoid over allocating memory for such request.
 	wctx.flushFunc = callback
 
-	if err := pb.DecodeMetricsData(data, wctx); err != nil {
+	if err := pb.DecodeMetricsData(data, wctx, defaultDecodeMetricsOptions); err != nil {
 		return fmt.Errorf("cannot unmarshal request from %d bytes: %w", len(data), err)
 	}
 

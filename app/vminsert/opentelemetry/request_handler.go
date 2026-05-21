@@ -20,6 +20,10 @@ var (
 	metadataInserted = metrics.NewCounter(`vm_metadata_rows_inserted_total{type="opentelemetry"}`)
 )
 
+func Init() {
+	stream.InitDecodeOptions()
+}
+
 // InsertHandler processes opentelemetry metrics.
 func InsertHandler(req *http.Request) error {
 	extraLabels, err := protoparserutil.GetExtraLabels(req)
