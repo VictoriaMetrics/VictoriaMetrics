@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unsafe"
 
@@ -21,6 +22,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
@@ -728,26 +730,22 @@ type compressedLabels struct {
 }
 
 func newCompressedLabels(src *promutil.Labels) *compressedLabels {
+	srcLabels := src.GetLabels()
+
+	// Cache key includes annotations so their changes don't return a stale entry.
+	cacheKey := hashLabels(srcLabels, false)
+	if v, ok := compressedLabelsCache.Load(cacheKey); ok {
+		return v.(*compressedLabels)
+	}
+
 	src.Sort()
+	srcLabels = src.GetLabels()
 
 	sizeNeeded := 2
-	d := xxhashPool.Get().(*xxhash.Digest)
-	srcLabels := src.GetLabels()
 	for _, label := range srcLabels {
 		// account size for 4 quoutes + : and ,
 		sizeNeeded += len(label.Name) + len(label.Value) + 6
-		// exclude annotations from hash generation
-		// annotations are mutable and should not be used for objects identification
-		// See this issue: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8626
-		if strings.HasPrefix(label.Name, "__meta_kubernetes_") && strings.Contains(label.Name, "_annotation_") {
-			continue
-		}
-		_, _ = d.WriteString(label.Name)
-		_, _ = d.WriteString(label.Value)
 	}
-	h := d.Sum64()
-	d.Reset()
-	xxhashPool.Put(d)
 
 	bb := compressedLabelsBufPool.Get()
 	bb.Grow(sizeNeeded)
@@ -769,14 +767,56 @@ func newCompressedLabels(src *promutil.Labels) *compressedLabels {
 
 	compressedLabelsBufPool.Put(bb)
 	cls := &compressedLabels{
-		hashKey:      h,
+		hashKey:      hashLabels(srcLabels, true),
 		addressLabel: strings.Clone(src.Get("__address__")),
 		jobLabel:     strings.Clone(src.Get("job")),
 		data:         dst,
 	}
 	cls.targetID = fmt.Sprintf("%016x", uintptr(unsafe.Pointer(cls)))
+
+	v, loaded := compressedLabelsCache.LoadOrStore(cacheKey, cls)
+	if loaded {
+		return v.(*compressedLabels)
+	}
+	if compressedLabelsCacheSize.Add(1) > compressedLabelsCacheSizeLimit {
+		compressedLabelsCacheResetMu.Lock()
+		if compressedLabelsCacheSize.Load() > compressedLabelsCacheSizeLimit {
+			compressedLabelsCache.Range(func(k, _ any) bool {
+				compressedLabelsCache.Delete(k)
+				return true
+			})
+			compressedLabelsCacheSize.Store(0)
+		}
+		compressedLabelsCacheResetMu.Unlock()
+	}
 	return cls
 }
+
+func hashLabels(labels []prompb.Label, excludeAnnotations bool) uint64 {
+	d := xxhashPool.Get().(*xxhash.Digest)
+	for _, label := range labels {
+		// annotations are mutable and should not be used for objects identification.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8626
+		if excludeAnnotations && strings.HasPrefix(label.Name, "__meta_kubernetes_") && strings.Contains(label.Name, "_annotation_") {
+			continue
+		}
+		_, _ = d.WriteString(label.Name)
+		_, _ = d.WriteString(label.Value)
+	}
+	h := d.Sum64()
+	d.Reset()
+	xxhashPool.Put(d)
+	return h
+}
+
+// compressedLabelsCache is reset once it grows past the limit, to bound memory usage on clusters with high target churn (e.g. pod_uid changes on restart)
+var (
+	compressedLabelsCache        sync.Map
+	compressedLabelsCacheSize    atomic.Int64
+	compressedLabelsCacheResetMu sync.Mutex
+)
+
+const compressedLabelsCacheSizeLimit = 1 << 17
 
 func (cls *compressedLabels) getTargetID() string {
 	if cls == nil {
