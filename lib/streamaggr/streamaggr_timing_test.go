@@ -27,6 +27,7 @@ var benchOutputs = []string{
 	"stddev",
 	"stdvar",
 	"sum_samples",
+	"sum_series",
 	"total",
 	"total_prometheus",
 	"unique_samples",
