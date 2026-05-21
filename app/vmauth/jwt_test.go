@@ -202,16 +202,16 @@ users:
 		"request header: \"AccountID\" has unsupported placeholder: \"{{ .LogsAccountID }}\", supported values are: {{.MetricsTenant}}, {{.MetricsAccountID}}, {{.MetricsProjectID}}, {{.MetricsExtraLabels}}, {{.MetricsExtraFilters}}, {{.LogsAccountID}}, {{.LogsProjectID}}, {{.LogsExtraFilters}}, {{.LogsExtraStreamFilters}}",
 	)
 
-	// unclosed placeholder in a header
+	// placeholder must match the entire header value
 	f(`
 users:
 - jwt: 
     skip_verify: true
   headers:
-    - "AccountID: {{.MetricsAccountID"
+    - "AccountID: foo {{.MetricsAccountID}}"
   url_prefix: http://foo.bar
 `,
-		"unclosed placeholder in header \"AccountID\" value \"{{.MetricsAccountID\"",
+		"request header: \"AccountID\" has unsupported placeholder: \"foo {{.MetricsAccountID}}\", supported values are: {{.MetricsTenant}}, {{.MetricsAccountID}}, {{.MetricsProjectID}}, {{.MetricsExtraLabels}}, {{.MetricsExtraFilters}}, {{.LogsAccountID}}, {{.LogsProjectID}}, {{.LogsExtraFilters}}, {{.LogsExtraStreamFilters}}",
 	)
 
 	// oidc is not an object
@@ -383,9 +383,7 @@ users:
   headers:
   - "AccountID: {{.MetricsAccountID}}"
   - "ProjectID: {{.MetricsProjectID}}"
-  - "X-Tenant: tenant-{{.MetricsAccountID}}-{{.MetricsProjectID}}"
   - "X-Logs-AccountID: {{.LogsAccountID}}"
-  - "X-Test: stale}} {{.MetricsAccountID}}"
   url_prefix: http://foo.bar
 `)
 
