@@ -170,7 +170,7 @@ users:
   url_prefix: http://foo.bar
 `, "cannot parse public key from file \""+publicKeyFile+"\": failed to parse key \"invalidPEM\": failed to decode PEM block containing public key")
 
-	// unsupported placeholder in a header
+	// unsupported placeholder in a URL path
 	f(`
 users:
 - jwt: 
@@ -376,14 +376,25 @@ users:
   url_prefix: http://foo.bar
 `, validRSAPublicKey, validECDSAPublicKey))
 
+	// metrics header placeholders
 	f(`
 users:
 - jwt:
     skip_verify: true
   headers:
-  - "AccountID: {{.MetricsAccountID}}"
-  - "ProjectID: {{.MetricsProjectID}}"
-  - "X-Logs-AccountID: {{.LogsAccountID}}"
+  - "MetricsAccountID: {{.MetricsAccountID}}"
+  - "MetricsProjectID: {{.MetricsProjectID}}"
+  url_prefix: http://foo.bar
+`)
+
+	// logs header placeholders
+	f(`
+users:
+- jwt:
+    skip_verify: true
+  headers:
+  - "LogsAccountID: {{.LogsAccountID}}"
+  - "LogsProjectID: {{.LogsProjectID}}"
   url_prefix: http://foo.bar
 `)
 
