@@ -113,10 +113,10 @@ func TestParseDurationLimits(t *testing.T) {
 func TestParseDurationOutsideLimits(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
-		gotMilli, err := ParseDuration(s)
-		gotDuration := time.Duration(gotMilli) * time.Millisecond
+		got, err := ParseDuration(s)
+		gotDuration := time.Duration(got) * time.Millisecond
 		if err == nil {
-			t.Fatalf("ParseDuration(%s) unexpected result: got %d (%s), want error", s, gotMilli, gotDuration)
+			t.Fatalf("ParseDuration(%s) unexpected result: got %d (%s), want error", s, got, gotDuration)
 		}
 	}
 
