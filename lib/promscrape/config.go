@@ -33,6 +33,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/docker"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/dockerswarm"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/ec2"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/ecs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/eureka"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/gce"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/hetzner"
@@ -309,6 +310,7 @@ type ScrapeConfig struct {
 	DockerSDConfigs       []docker.SDConfig       `yaml:"docker_sd_configs,omitempty"`
 	DockerSwarmSDConfigs  []dockerswarm.SDConfig  `yaml:"dockerswarm_sd_configs,omitempty"`
 	EC2SDConfigs          []ec2.SDConfig          `yaml:"ec2_sd_configs,omitempty"`
+	ECSSDConfigs          []ecs.SDConfig          `yaml:"ecs_sd_configs,omitempty"`
 	EurekaSDConfigs       []eureka.SDConfig       `yaml:"eureka_sd_configs,omitempty"`
 	FileSDConfigs         []FileSDConfig          `yaml:"file_sd_configs,omitempty"`
 	GCESDConfigs          []gce.SDConfig          `yaml:"gce_sd_configs,omitempty"`
@@ -378,6 +380,9 @@ func (sc *ScrapeConfig) mustStop() {
 	}
 	for i := range sc.EC2SDConfigs {
 		sc.EC2SDConfigs[i].MustStop()
+	}
+	for i := range sc.ECSSDConfigs {
+		sc.ECSSDConfigs[i].MustStop()
 	}
 	for i := range sc.EurekaSDConfigs {
 		sc.EurekaSDConfigs[i].MustStop()
@@ -653,6 +658,16 @@ func (cfg *Config) getEC2SDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 		}
 	}
 	return cfg.getScrapeWorkGeneric(visitConfigs, "ec2_sd_config", prev)
+}
+
+// getECSSDScrapeWork returns `ecs_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getECSSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
+	visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
+		for i := range sc.ECSSDConfigs {
+			visitor(&sc.ECSSDConfigs[i])
+		}
+	}
+	return cfg.getScrapeWorkGeneric(visitConfigs, "ecs_sd_config", prev)
 }
 
 // getEurekaSDScrapeWork returns `eureka_sd_configs` ScrapeWork from cfg.
