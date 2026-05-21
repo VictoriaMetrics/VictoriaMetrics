@@ -311,11 +311,6 @@ func (c *client) runWorker() {
 		if !ok {
 			return
 		}
-		if len(block) == 0 {
-			// skip empty data blocks from sending
-			// see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6241
-			continue
-		}
 		go func() {
 			startTime := time.Now()
 			ch <- c.sendBlock(block)
@@ -529,10 +524,6 @@ func (c *client) drainInMemoryQueue(stopCtx context.Context, block []byte) {
 			// or persisted queue is being used.
 			// In this case it is guaranteed that fq will be empty
 			return
-		}
-		if len(block) == 0 {
-			// skip empty data blocks from sending
-			continue
 		}
 
 		// at this stage c.stopCh should be closed
