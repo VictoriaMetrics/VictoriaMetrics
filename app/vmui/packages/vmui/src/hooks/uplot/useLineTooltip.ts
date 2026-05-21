@@ -4,7 +4,7 @@ import { ChartTooltipProps } from "../../components/Chart/ChartTooltip/ChartTool
 import { SeriesItem } from "../../types";
 import dayjs from "dayjs";
 import { DATE_FULL_TIMEZONE_FORMAT } from "../../constants/date";
-import { formatPrettyNumber, getMetricName } from "../../utils/uplot";
+import { getMetricName } from "../../utils/uplot";
 import { MetricResult } from "../../api/types";
 import useEventListener from "../useEventListener";
 
@@ -44,8 +44,6 @@ const useLineTooltip = ({ u, metrics, series, unit }: LineTooltipHook) => {
     const group = metricItem?.group || 0;
 
     const value = u?.data?.[seriesIdx]?.[dataIdx] || 0;
-    const min = u?.scales?.[1]?.min || 0;
-    const max = u?.scales?.[1]?.max || 1;
     const date = u?.data?.[0]?.[dataIdx] || 0;
 
     let duplicateCount = 1;
@@ -80,7 +78,7 @@ const useLineTooltip = ({ u, metrics, series, unit }: LineTooltipHook) => {
       id: `${seriesIdx}_${dataIdx}`,
       title: groups.size > 1 ? `Query ${group}` : "",
       dates: [date ? dayjs(date * 1000).tz().format(DATE_FULL_TIMEZONE_FORMAT) : "-"],
-      value: formatPrettyNumber(value, min, max),
+      value: value.toLocaleString("en-US", { maximumFractionDigits: 20 }),
       info: getMetricName(metricItem, seriesItem),
       statsFormatted: seriesItem?.statsFormatted,
       marker: `${seriesItem?.stroke}`,
