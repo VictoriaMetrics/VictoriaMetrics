@@ -62,6 +62,7 @@ func InitSecretFlags() {
 	if !*showRemoteWriteURL {
 		flagutil.RegisterSecretFlag("remoteWrite.url")
 	}
+	flagutil.RegisterSecretFlag("remoteWrite.headers")
 }
 
 // Init creates Client object from given flags.

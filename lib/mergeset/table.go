@@ -1538,11 +1538,11 @@ func (tb *Table) MustCreateSnapshotAt(dstDir string) {
 	srcDir := tb.path
 	srcDir, err = filepath.Abs(srcDir)
 	if err != nil {
-		logger.Panicf("FATAL: cannot obtain absolute dir for %q: %w", srcDir, err)
+		logger.Panicf("FATAL: cannot obtain absolute dir for %q: %s", srcDir, err)
 	}
 	dstDir, err = filepath.Abs(dstDir)
 	if err != nil {
-		logger.Panicf("FATAL: cannot obtain absolute dir for %q: %w", dstDir, err)
+		logger.Panicf("FATAL: cannot obtain absolute dir for %q: %s", dstDir, err)
 	}
 	prefix := srcDir + string(filepath.Separator)
 	if strings.HasPrefix(dstDir, prefix) {

@@ -2,6 +2,7 @@ package remotewrite
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -330,15 +331,20 @@ func (c *client) runWorker() {
 			c.fq.MustWriteBlockIgnoreDisabledPQ(block)
 			return
 		case <-c.stopCh:
-			// c must be stopped. Wait for a while in the hope the block will be sent.
-			graceDuration := 5 * time.Second
+			// c must be stopped. Wait up to 5 seconds for the in-flight request to complete.
+			// If it succeeds, drain the remaining in-memory queue before returning.
+			stopCtx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+			defer cancel()
+
 			select {
 			case ok := <-ch:
 				if !ok {
 					// Return unsent block to the queue.
 					c.fq.MustWriteBlockIgnoreDisabledPQ(block)
+				} else {
+					c.drainInMemoryQueue(stopCtx, block[:0])
 				}
-			case <-time.After(graceDuration):
+			case <-stopCtx.Done():
 				// Return unsent block to the queue.
 				c.fq.MustWriteBlockIgnoreDisabledPQ(block)
 			}
@@ -506,6 +512,36 @@ again:
 	}
 	c.retriesCount.Inc()
 	goto again
+}
+
+func (c *client) drainInMemoryQueue(stopCtx context.Context, block []byte) {
+	var ok bool
+	for {
+		select {
+		case <-stopCtx.Done():
+			return
+		default:
+		}
+
+		block, ok = c.fq.MustReadInMemoryBlock(block[:0])
+		if !ok {
+			// The in memory queue has already been drained,
+			// or persisted queue is being used.
+			// In this case it is guaranteed that fq will be empty
+			return
+		}
+		if len(block) == 0 {
+			// skip empty data blocks from sending
+			continue
+		}
+
+		// at this stage c.stopCh should be closed
+		// so sendBlock function should not perform retries
+		if ok := c.sendBlock(block); !ok {
+			c.fq.MustWriteBlockIgnoreDisabledPQ(block)
+			return
+		}
+	}
 }
 
 var remoteWriteRejectedLogger = logger.WithThrottler("remoteWriteRejected", 5*time.Second)
