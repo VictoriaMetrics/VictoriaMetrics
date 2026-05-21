@@ -1,24 +1,48 @@
 package promutil
 
 import (
+	"encoding/binary"
+	"math"
 	"sync"
 	"sync/atomic"
+	"time"
 	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	"github.com/cespare/xxhash/v2"
 )
 
-// LabelsCompressor compresses []prompb.Label into short binary strings
-type LabelsCompressor struct {
-	labelToIdx sync.Map
-	idxToLabel labelsMap
+var hashBBP = bytesutil.ByteBufferPool{}
 
-	nextIdx atomic.Uint64
+type storedLabel struct {
+	prompb.Label
+	used atomic.Bool
+}
+
+type state struct {
+	inUse   *sync.Map // map[uint64]*storedLabel
+	deleted *sync.Map // map[uint64]*storedLabel
+}
+
+type LabelsCompressor struct {
+	state atomic.Pointer[state]
 
 	totalSizeBytes atomic.Uint64
+	totalItems     atomic.Uint64
+}
+
+func NewLabelsCompressor() *LabelsCompressor {
+	lc := &LabelsCompressor{}
+	lc.state.Store(&state{
+		inUse:   &sync.Map{},
+		deleted: &sync.Map{},
+	})
+
+	go lc.cleanupLoop()
+	return lc
 }
 
 // SizeBytes returns the size of lc data in bytes
@@ -28,21 +52,28 @@ func (lc *LabelsCompressor) SizeBytes() uint64 {
 
 // ItemsCount returns the number of items in lc
 func (lc *LabelsCompressor) ItemsCount() uint64 {
-	return lc.nextIdx.Load()
+	return lc.totalItems.Load()
 }
 
-// Compress compresses labels, appends the compressed labels to dst and returns the result.
-//
-// It is safe calling Compress from concurrent goroutines.
 func (lc *LabelsCompressor) Compress(dst []byte, labels []prompb.Label) []byte {
 	if len(labels) == 0 {
 		// Fast path
 		return append(dst, 0)
 	}
 
-	a := encoding.GetUint64s(len(labels) + 1)
+	a := encoding.GetUint64s(len(labels) + 2)
 	a.A[0] = uint64(len(labels))
-	lc.compress(a.A[1:], labels)
+	lc.compress(a.A[2:], labels)
+
+	minA := uint64(math.MaxUint64)
+	for _, v := range a.A[2:] {
+		minA = min(minA, v)
+	}
+	a.A[1] = minA
+	for i := range a.A[2:] {
+		a.A[i+2] -= minA
+	}
+
 	dst = encoding.MarshalVarUint64s(dst, a.A)
 	encoding.PutUint64s(a)
 	return dst
@@ -52,34 +83,106 @@ func (lc *LabelsCompressor) compress(dst []uint64, labels []prompb.Label) {
 	if len(labels) == 0 {
 		return
 	}
+
+	var maxSize int
+	for i := range labels {
+		maxSize = max(maxSize, len(labels[i].Name)+len(labels[i].Value))
+	}
+	maxSize += 3 // for 2x'=' and collisionIdx
+
+	bb := hashBBP.Get()
+	defer hashBBP.Put(bb)
+	bb.Grow(maxSize)
+
+	state := lc.state.Load()
+
 	_ = dst[len(labels)-1]
+
+	var totalSizeBytes, totalItems uint64
 	for i, label := range labels {
-		v, ok := lc.labelToIdx.Load(label)
-		if !ok {
-			idx := lc.nextIdx.Add(1)
-			v = idx
-			labelCopy := cloneLabel(label)
-
-			// Must store idxToLabel entry before labelToIdx,
-			// so it can be found by possible concurrent goroutines.
-			//
-			// We might store duplicated entries for single label with different indexes,
-			// and it's fine, see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7118.
-			lc.idxToLabel.Store(idx, labelCopy)
-			vNew, loaded := lc.labelToIdx.LoadOrStore(labelCopy, v)
-			if loaded {
-				// This label has been stored by a concurrent goroutine with different index,
-				// use it for key consistency in aggrState.
-				v = vNew
-			}
-
+		var loaded bool
+		dst[i], loaded = lc.compressLabel(label, state, bb)
+		if !loaded {
 			// Update lc.totalSizeBytes
 			labelSizeBytes := uint64(len(label.Name) + len(label.Value))
-			entrySizeBytes := labelSizeBytes + uint64(2*(unsafe.Sizeof(label)+unsafe.Sizeof(&label))+unsafe.Sizeof(v))
-			lc.totalSizeBytes.Add(entrySizeBytes)
+			entrySizeBytes := labelSizeBytes + uint64(2*(unsafe.Sizeof(label)+unsafe.Sizeof(&label))+unsafe.Sizeof(label))
+			totalSizeBytes += entrySizeBytes
+
+			totalItems += 1
 		}
-		dst[i] = v.(uint64)
 	}
+
+	if totalItems > 0 {
+		lc.totalSizeBytes.Add(totalSizeBytes)
+		lc.totalItems.Add(totalItems)
+	}
+}
+
+func (lc *LabelsCompressor) compressLabel(label prompb.Label, state *state, bb *bytesutil.ByteBuffer) (uint64, bool) {
+	var collisionIdx int64
+	for i := 0; i < 5; i++ {
+		bb.Reset()
+		bb.Write(bytesutil.ToUnsafeBytes(label.Name))
+		bb.Write([]byte(`=`))
+		bb.B = binary.AppendVarint(bb.B, collisionIdx)
+		bb.Write([]byte(`=`))
+		bb.Write(bytesutil.ToUnsafeBytes(label.Value))
+
+		idx := xxhash.Sum64(bb.B)
+
+		sl0, loaded := state.inUse.Load(idx)
+		//fast path
+		if loaded {
+			sl := sl0.(*storedLabel)
+			// hash collision detected
+			if sl.Name != label.Name || sl.Value != label.Value {
+				collisionIdx++
+				continue
+			}
+
+			return ptrToUint64(unsafe.Pointer(sl)), true
+		}
+
+		sl0, loaded = state.deleted.Load(idx)
+		if loaded {
+			sl := sl0.(*storedLabel)
+			if sl.Name != label.Name || sl.Value != label.Value {
+				collisionIdx++
+				continue
+			}
+			sl.used.Store(true)
+		} else {
+			sl := &storedLabel{
+				Label: cloneLabel(label),
+			}
+			sl.used.Store(true)
+			sl0 = sl
+		}
+
+		sl0, loaded = state.inUse.LoadOrStore(idx, sl0)
+		sl := sl0.(*storedLabel)
+		if loaded {
+			if sl.Name != label.Name || sl.Value != label.Value {
+				collisionIdx++
+				continue
+			}
+		}
+
+		return ptrToUint64(unsafe.Pointer(sl)), loaded
+	}
+
+	panic("FATAL: too many hash collisions detected")
+}
+
+//go:unsafe
+func ptrToUint64(p unsafe.Pointer) uint64 {
+	return uint64(uintptr(p))
+}
+
+//go:unsafe
+//go:nocheckptr
+func uint64ToPtr(u uint64) unsafe.Pointer {
+	return unsafe.Pointer(uintptr(u))
 }
 
 func cloneLabel(label prompb.Label) prompb.Label {
@@ -98,9 +201,6 @@ func cloneLabel(label prompb.Label) prompb.Label {
 	}
 }
 
-// Decompress decompresses src into []prompb.Label, appends it to dst and returns the result.
-//
-// It is safe calling Decompress from concurrent goroutines.
 func (lc *LabelsCompressor) Decompress(dst []prompb.Label, src []byte) []prompb.Label {
 	labelsLen, nSize := encoding.UnmarshalVarUint64(src)
 	if nSize <= 0 {
@@ -114,6 +214,11 @@ func (lc *LabelsCompressor) Decompress(dst []prompb.Label, src []byte) []prompb.
 		}
 		return dst
 	}
+	minA, nSize := encoding.UnmarshalVarUint64(tail)
+	if nSize <= 0 {
+		logger.Panicf("BUG: cannot unmarshal minA from uvarint")
+	}
+	tail = tail[nSize:]
 
 	a := encoding.GetUint64s(int(labelsLen))
 	var err error
@@ -124,111 +229,80 @@ func (lc *LabelsCompressor) Decompress(dst []prompb.Label, src []byte) []prompb.
 	if len(tail) > 0 {
 		logger.Panicf("BUG: unexpected non-empty tail left: len(tail)=%d; tail=%X", len(tail), tail)
 	}
+
+	for i := range a.A {
+		a.A[i] += minA
+	}
+
 	dst = lc.decompress(dst, a.A)
 	encoding.PutUint64s(a)
 	return dst
 }
 
 func (lc *LabelsCompressor) decompress(dst []prompb.Label, src []uint64) []prompb.Label {
-	for _, idx := range src {
-		label, ok := lc.idxToLabel.Load(idx)
-		if !ok {
-			logger.Panicf("BUG: missing label for idx=%d", idx)
+	for _, ref := range src {
+		sl := (*storedLabel)(uint64ToPtr(ref))
+		if !sl.used.Load() {
+			sl.used.Store(true)
 		}
-		dst = append(dst, label)
+		dst = append(dst, sl.Label)
 	}
 	return dst
 }
 
-// labelsMap maps uint64 key to prompb.Label
-//
-// uint64 keys must be packed close to 0. Otherwise the labelsMap structure will consume too much memory.
-type labelsMap struct {
-	readOnly atomic.Pointer[[]*prompb.Label]
-
-	mutableLock sync.Mutex
-	mutable     map[uint64]*prompb.Label
-	misses      uint64
-}
-
-// Store stores label under the given idx.
-//
-// It is safe calling Store from concurrent goroutines.
-func (lm *labelsMap) Store(idx uint64, label prompb.Label) {
-	lm.mutableLock.Lock()
-	if lm.mutable == nil {
-		lm.mutable = make(map[uint64]*prompb.Label)
-	}
-	lm.mutable[idx] = &label
-	lm.mutableLock.Unlock()
-}
-
-// Load returns the label for the given idx.
-//
-// Load returns false if lm doesn't contain label for the given idx.
-//
-// It is safe calling Load from concurrent goroutines.
-//
-// The performance of Load() scales linearly with CPU cores.
-func (lm *labelsMap) Load(idx uint64) (prompb.Label, bool) {
-	if pReadOnly := lm.readOnly.Load(); pReadOnly != nil && idx < uint64(len(*pReadOnly)) {
-		if pLabel := (*pReadOnly)[idx]; pLabel != nil {
-			// Fast path - the label for the given idx has been found in lm.readOnly.
-			return *pLabel, true
-		}
-	}
-
-	// Slow path - search in lm.mutable.
-	return lm.loadSlow(idx)
-}
-
-func (lm *labelsMap) loadSlow(idx uint64) (prompb.Label, bool) {
-	lm.mutableLock.Lock()
-
-	// Try loading label from readOnly, since it could be updated while acquiring mutableLock.
-	pReadOnly := lm.readOnly.Load()
-	if pReadOnly != nil && idx < uint64(len(*pReadOnly)) {
-		if pLabel := (*pReadOnly)[idx]; pLabel != nil {
-			lm.mutableLock.Unlock()
-			return *pLabel, true
-		}
-	}
-
-	// The label for the idx wasn't found in readOnly. Search it in mutable.
-	lm.misses++
-	pLabel := lm.mutable[idx]
-	if pReadOnly == nil || lm.misses > uint64(len(*pReadOnly)) {
-		lm.moveMutableToReadOnlyLocked(pReadOnly)
-		lm.misses = 0
-	}
-	lm.mutableLock.Unlock()
-
-	if pLabel == nil {
-		return prompb.Label{}, false
-	}
-	return *pLabel, true
-}
-
-func (lm *labelsMap) moveMutableToReadOnlyLocked(pReadOnly *[]*prompb.Label) {
-	if len(lm.mutable) == 0 {
-		// Nothing to move
-		return
-	}
-
-	var labels []*prompb.Label
-	if pReadOnly != nil {
-		labels = append(labels, *pReadOnly...)
-	}
-	for idx, pLabel := range lm.mutable {
-		if idx < uint64(len(labels)) {
-			labels[idx] = pLabel
-		} else {
-			for idx > uint64(len(labels)) {
-				labels = append(labels, nil)
+func (lc *LabelsCompressor) cleanupLoop() {
+	// ticker should be 3x bigger than any aggr interval
+	t := time.NewTicker(time.Minute)
+	mark := true
+	defer t.Stop()
+	for {
+		select {
+		case <-t.C:
+			if mark {
+				lc.markUnused()
+				mark = false
+			} else {
+				lc.moveUnused()
+				mark = true
 			}
-			labels = append(labels, pLabel)
 		}
 	}
-	clear(lm.mutable)
-	lm.readOnly.Store(&labels)
+}
+
+func (lc *LabelsCompressor) markUnused() {
+	start := time.Now()
+	lcState := lc.state.Load()
+	var marked int
+	lcState.inUse.Range(func(_, label0 interface{}) bool {
+		label0.(*storedLabel).used.Store(false)
+		marked++
+		return true
+	})
+
+	lc.state.Store(&state{
+		inUse:   lcState.inUse,
+		deleted: &sync.Map{},
+	})
+
+	logger.Infof("marked %d in %s", marked, time.Since(start))
+}
+
+func (lc *LabelsCompressor) moveUnused() {
+	start := time.Now()
+	state := lc.state.Load()
+	var moved int
+	state.inUse.Range(func(key0, label0 interface{}) bool {
+		sl := label0.(*storedLabel)
+		if !sl.used.Load() {
+			// move unused label to deleted
+			state.deleted.Store(key0, sl)
+			state.inUse.Delete(key0)
+			moved++
+			return true
+		}
+
+		return true
+	})
+
+	logger.Infof("moved %d in %s", moved, time.Since(start))
 }
