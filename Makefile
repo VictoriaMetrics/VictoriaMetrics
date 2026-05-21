@@ -536,7 +536,13 @@ govulncheck: install-govulncheck
 	govulncheck ./...
 
 govulncheck-docker:
-	docker run -w $(PWD) -v $(PWD):$(PWD) "$(GO_BUILDER_IMAGE)" /bin/sh -c "go install golang.org/x/vuln/cmd/govulncheck@latest && govulncheck ./..."
+	docker run -w $(PWD) -v $(PWD):$(PWD) \
+		-v govulncheck-gomod-cache:/root/go/pkg/mod \
+		-v govulncheck-gobuild-cache:/root/.cache/go-build \
+		-v govulncheck-go-bin:/root/go/bin \
+		--env="GOCACHE=/root/.cache/go-build" \
+		--env="GOMODCACHE=/root/go/pkg/mod" \
+		"$(GO_BUILDER_IMAGE)" /bin/sh -c "which govulncheck || go install golang.org/x/vuln/cmd/govulncheck@latest && govulncheck ./..."
 
 install-govulncheck:
 	which govulncheck || go install golang.org/x/vuln/cmd/govulncheck@latest
