@@ -1,0 +1,31 @@
+name: sign
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'PKG_TAG to sign'
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+      - name: Extract Cosign version
+        id: cosign-version
+        run: echo "version=$(grep 'COSIGN_VERSION ?=' deployment/docker/Makefile | awk '{print $3}')" >> $GITHUB_OUTPUT
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
+        with:
+          cosign-release: ${{ steps.cosign-version.outputs.version }}
+
+      - name: Sign images
+        run: PKG_TAG=${{ inputs.tag }} make sign

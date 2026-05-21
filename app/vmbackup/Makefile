@@ -73,6 +73,9 @@ package-vmbackup-386:
 publish-vmbackup:
 	APP_NAME=vmbackup EXTRA_GO_BUILD_TAGS=$(VMBACKUP_GO_BUILD_TAGS) $(MAKE) publish-via-docker
 
+sign-vmbackup:
+	APP_NAME=vmbackup $(MAKE) sign-via-docker
+
 vmbackup-linux-amd64:
 	APP_NAME=vmbackup EXTRA_GO_BUILD_TAGS=$(VMBACKUP_GO_BUILD_TAGS) CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(MAKE) app-local-goos-goarch
 

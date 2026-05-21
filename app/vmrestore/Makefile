@@ -73,6 +73,9 @@ package-vmrestore-386:
 publish-vmrestore:
 	APP_NAME=vmrestore EXTRA_GO_BUILD_TAGS=$(VMRESTORE_GO_BUILD_TAGS) $(MAKE) publish-via-docker
 
+sign-vmrestore:
+	APP_NAME=vmrestore $(MAKE) sign-via-docker
+
 vmrestore-linux-amd64:
 	APP_NAME=vmrestore EXTRA_GO_BUILD_TAGS=$(VMRESTORE_GO_BUILD_TAGS) CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(MAKE) app-local-goos-goarch
 

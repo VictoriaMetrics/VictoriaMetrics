@@ -69,6 +69,9 @@ package-vmalert-tool-386:
 publish-vmalert-tool:
 	APP_NAME=vmalert-tool $(MAKE) publish-via-docker
 
+sign-vmalert-tool:
+	APP_NAME=vmalert-tool $(MAKE) sign-via-docker
+
 vmalert-tool-linux-amd64:
 	APP_NAME=vmalert-tool CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(MAKE) app-local-goos-goarch
 

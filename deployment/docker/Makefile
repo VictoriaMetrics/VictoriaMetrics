@@ -3,6 +3,15 @@
 DOCKER_REGISTRIES ?= docker.io quay.io
 DOCKER_NAMESPACE ?= victoriametrics
 
+## Location to install dependencies to
+LOCALBIN ?= $(shell pwd)/bin
+$(LOCALBIN):
+	mkdir -p $(LOCALBIN)
+
+COSIGN_VERSION ?= v3.0.6
+COSIGN_BIN ?= $(LOCALBIN)/cosign-$(COSIGN_VERSION)
+COSIGN ?= $(shell which cosign 2>/dev/null || echo $(COSIGN_BIN))
+
 ROOT_IMAGE ?= alpine:3.23.4
 ROOT_IMAGE_SCRATCH ?= scratch
 CERTS_IMAGE := alpine:3.23.4
@@ -150,6 +159,13 @@ publish-via-docker-latest:
 		docker buildx imagetools create --tag $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):latest $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG); \
 	)
 
+.PHONY: sign-via-docker
+sign-via-docker: $(COSIGN)
+	for registry in $(DOCKER_REGISTRIES); do \
+		$(COSIGN) sign --yes $${registry}/$(DOCKER_NAMESPACE)/$(APP_NAME)@$(call digest,$(PKG_TAG)$(RACE)$(EXTRA_DOCKER_TAG_SUFFIX)) && \
+		$(COSIGN) sign --yes $${registry}/$(DOCKER_NAMESPACE)/$(APP_NAME)@$(call digest,$(PKG_TAG)$(RACE)$(EXTRA_DOCKER_TAG_SUFFIX)-scratch) ; \
+	done
+
 run-via-docker: package-via-docker
 	$(DOCKER_RUN) -it --rm \
 		--user $(shell id -u):$(shell id -g) \
@@ -252,3 +268,43 @@ docker-single-down: docker-vm-single-down
 
 docker-cluster-up: docker-vm-cluster-up
 docker-cluster-down: docker-vm-cluster-down
+
+UNAME_S=$(shell uname -s 2>/dev/null)
+OS=$(shell echo $(UNAME_S) | tr A-Z a-z)
+ARCH=$(if $(filter x86_64,$(shell uname -m 2>/dev/null)),amd64,arm64)
+
+digest = $(shell $(DOCKER) buildx imagetools inspect docker.io/$(DOCKER_NAMESPACE)/$(APP_NAME):$(1) --format "{{print .Manifest.Digest}}")
+
+.PHONY: cosign
+cosign: $(COSIGN_BIN)
+$(COSIGN_BIN): $(LOCALBIN)
+	$(call download-github-release,$(COSIGN_BIN),sigstore/cosign,$(COSIGN_VERSION),cosign-$(OS)-$(ARCH),cosign-$(OS)-$(ARCH))
+
+# download-github-release will download a binary from github releases
+# $1 - target path with name of binary
+# $2 - repo url
+# $3 - specific version of package
+# $4 - artifact name
+# $5 - binary name
+define download-github-release
+@[ -f $(1) ] || { \
+set -e; \
+url="https://github.com/$(2)/releases/download/$(3)/$(4)"; \
+echo "Downloading $(1) from $${url}" ;\
+if echo "$(4)" | grep -q ".tar.gz$$"; then \
+curl -sL $${url} -o $(LOCALBIN)/$(4); \
+tar -xzf $(LOCALBIN)/$(4) -C $(LOCALBIN); \
+mv $(LOCALBIN)/$(5) $(1); \
+rm $(LOCALBIN)/$(4); \
+elif echo "$(4)" | grep -q ".zip$$"; then \
+curl -sL $${url} -o $(LOCALBIN)/$(4); \
+unzip -o $(LOCALBIN)/$(4) $(5) -d $(LOCALBIN); \
+mv $(LOCALBIN)/$(5) $(1); \
+chmod +x $(1); \
+rm $(LOCALBIN)/$(4); \
+else \
+curl -sL $${url} -o $(1); \
+chmod +x $(1); \
+fi; \
+}
+endef

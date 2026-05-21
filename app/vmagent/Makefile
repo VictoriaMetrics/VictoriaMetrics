@@ -69,6 +69,9 @@ package-vmagent-386:
 publish-vmagent:
 	APP_NAME=vmagent $(MAKE) publish-via-docker
 
+sign-vmagent:
+	APP_NAME=vmagent $(MAKE) sign-via-docker
+
 run-vmagent:
 	mkdir -p vmagent-remotewrite-data
 	DOCKER_OPTS='-v $(shell pwd)/vmagent-remotewrite-data:/vmagent-remotewrite-data' \
