@@ -11,16 +11,27 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
-// GetTenantTokensFromFilters returns the list of tenant tokens and the list of filters without tenant filters.
-func GetTenantTokensFromFilters(qt *querytracer.Tracer, tr storage.TimeRange, tfs [][]storage.TagFilter, deadline searchutil.Deadline, mayCache bool) ([]storage.TenantToken, [][]storage.TagFilter, error) {
+// GetTenantTokensFromFilters returns the list of tenant tokens and the list of filters without tenant filters
+func GetTenantTokensFromFilters(qt *querytracer.Tracer, tr storage.TimeRange, tfss [][]storage.TagFilter, deadline searchutil.Deadline, mayCache bool) ([]storage.TenantToken, [][]storage.TagFilter, error) {
 	tenants, err := TenantsCached(qt, tr, deadline, mayCache)
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot obtain tenants: %w", err)
 	}
 
-	tenantFilters, otherFilters := splitFiltersByType(tfs)
+	tenantFilters, otherFilters := splitFiltersByType(tfss)
 
+	// combine all tenant filters into single one
+	// it allows to enforce security restrictions
+	// when access to tenants is restricted with extra_filters or extra_label
+	var combinedTenantFilters []storage.TagFilter
+	for _, tfs := range tenantFilters {
+		combinedTenantFilters = append(combinedTenantFilters, tfs...)
+	}
+	if len(combinedTenantFilters) > 0 {
+		tenantFilters = [][]storage.TagFilter{combinedTenantFilters}
+	}
 	tts, err := applyFiltersToTenants(tenants, tenantFilters)
+
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot apply filters to tenants: %w", err)
 	}
@@ -56,8 +67,8 @@ func splitFiltersByType(tfs [][]storage.TagFilter) ([][]storage.TagFilter, [][]s
 	return tenantFilters, otherFilters
 }
 
-// ApplyTenantFiltersToTagFilters applies the given tenant filters to the given tag filters.
-func ApplyTenantFiltersToTagFilters(tts []storage.TenantToken, tfs [][]storage.TagFilter) ([]storage.TenantToken, [][]storage.TagFilter) {
+// applyTenantFiltersToTagFilters applies the given tenant filters to the given tag filters.
+func applyTenantFiltersToTagFilters(tts []storage.TenantToken, tfs [][]storage.TagFilter) ([]storage.TenantToken, [][]storage.TagFilter) {
 	tenantFilters, otherFilters := splitFiltersByType(tfs)
 	if len(tenantFilters) == 0 {
 		return tts, otherFilters
