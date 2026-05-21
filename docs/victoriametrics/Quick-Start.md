@@ -440,7 +440,7 @@ VictoriaMetrics Single-node and `vmstorage` in VictoriaMetrics Cluster retain da
 Data older than the retention period will be automatically deleted. To change the retention period, use the `-retentionPeriod` flag (e.g. `-retentionPeriod=90d`).
 See the [retention](https://docs.victoriametrics.com/victoriametrics/#retention) documentation for more details. 
 
-If free disk space falls below `-storage.minFreeDiskSpaceBytes` (default `100000000` bytes), VictoriaMetrics Single-node or `vmstorage` switches to read-only mode and stops accepting new data. To prevent this, ensure proper [capacity planning](#capacity-planning) and set up monitoring and alerting for disk usage.
+If free disk space falls below `-storage.minFreeDiskSpaceBytes`, VictoriaMetrics Single-node or `vmstorage` switches to read-only mode and stops accepting new data. To prevent this, ensure proper [capacity planning](#capacity-planning) and set up monitoring and alerting for disk usage.
 
 ### Capacity planning
 
