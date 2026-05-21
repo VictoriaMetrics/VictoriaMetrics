@@ -343,6 +343,9 @@ remove-golangci-lint:
 govulncheck: install-govulncheck
 	govulncheck ./...
 
+govulncheck-docker:
+	docker run -w $(PWD) -v $(PWD):$(PWD) "$(GO_BUILDER_IMAGE)" /bin/sh -c "go install golang.org/x/vuln/cmd/govulncheck@latest && govulncheck ./..."
+
 install-govulncheck:
 	which govulncheck || go install golang.org/x/vuln/cmd/govulncheck@latest
 
