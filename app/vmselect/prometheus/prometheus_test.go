@@ -231,6 +231,31 @@ func TestGetLatencyOffsetMillisecondsFailure(t *testing.T) {
 	f("http://localhost?latency_offset=foobar")
 }
 
+func TestShiftTimestamps(t *testing.T) {
+	f := func(timestamps []int64, offset int64, expected []int64) {
+		t.Helper()
+		result := shiftTimestamps(timestamps, offset)
+		if !reflect.DeepEqual(result, expected) {
+			t.Fatalf("unexpected result; got %v; want %v", result, expected)
+		}
+	}
+
+	f(nil, 123, nil)
+	f([]int64{100, 200, 300}, 0, []int64{100, 200, 300})
+	f([]int64{100, 200, 300}, 50, []int64{150, 250, 350})
+}
+
+func TestShiftTimestampsDoesNotMutateInput(t *testing.T) {
+	src := []int64{100, 200, 300}
+	result := shiftTimestamps(src, 50)
+	if !reflect.DeepEqual(src, []int64{100, 200, 300}) {
+		t.Fatalf("unexpected source timestamps mutation; got %v", src)
+	}
+	if len(result) > 0 && len(src) > 0 && &result[0] == &src[0] {
+		t.Fatalf("shiftTimestamps must return a copy for non-zero offset")
+	}
+}
+
 func TestCalculateMaxMetricsLimitByResource(t *testing.T) {
 	f := func(maxConcurrentRequest, remainingMemory, expect int) {
 		t.Helper()
