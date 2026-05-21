@@ -12,8 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/VictoriaMetrics/metrics"
-
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage/servers"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
@@ -28,6 +27,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/syncwg"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vmselectapi"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -35,6 +36,9 @@ var (
 		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention. See also -retentionFilter")
 	futureRetention = flagutil.NewRetentionDuration("futureRetention", "2d", "Data with timestamps bigger than now+futureRetention is automatically deleted. "+
 		"The minimum futureRetention is 2 days. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention")
+	vmselectAddr      = flag.String("vmselectAddr", ":8401", "TCP address to accept connections from vmselect services")
+	accountID         = flag.Uint64("accountID", 0, "The accountID of the stored data")
+	projectID         = flag.Uint64("projectID", 0, "The projectID of the stored data")
 	snapshotAuthKey   = flagutil.NewPassword("snapshotAuthKey", "authKey, which must be passed in query string to /snapshot* pages. It overrides -httpAuth.*")
 	forceMergeAuthKey = flagutil.NewPassword("forceMergeAuthKey", "authKey, which must be passed in query string to /internal/force_merge pages. It overrides -httpAuth.*")
 	forceFlushAuthKey = flagutil.NewPassword("forceFlushAuthKey", "authKey, which must be passed in query string to /internal/force_flush pages. It overrides -httpAuth.*")
@@ -181,6 +185,22 @@ func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	})
 	metrics.RegisterSet(storageMetrics)
 	fs.RegisterPathFsMetrics(*DataPath)
+
+	var err error
+	const (
+		maxAccountID = uint64(math.MaxUint32)
+		maxProjectID = uint64(math.MaxUint32)
+	)
+	if *accountID > maxAccountID {
+		logger.Fatalf("-accountID must to be in the range [0, %d], got %d", maxAccountID, *accountID)
+	}
+	if *projectID > maxProjectID {
+		logger.Fatalf("-projectID must to be in the range [0, %d], got %d", maxProjectID, *projectID)
+	}
+	vmselectSrv, err = servers.NewVMSelectServer(*vmselectAddr, strg, uint32(*accountID), uint32(*projectID))
+	if err != nil {
+		logger.Fatalf("cannot create a server with -vmselectAddr=%s: %s", *vmselectAddr, err)
+	}
 }
 
 var storageMetrics *metrics.Set
@@ -190,6 +210,8 @@ var storageMetrics *metrics.Set
 // Every storage call must be wrapped into WG.Add(1) ... WG.Done()
 // for proper graceful shutdown when Stop is called.
 var Storage *storage.Storage
+
+var vmselectSrv *vmselectapi.Server
 
 // WG must be incremented before Storage call.
 //
@@ -329,6 +351,7 @@ func Stop() {
 	startTime := time.Now()
 	WG.WaitAndBlock()
 	stopStaleSnapshotsRemover()
+	vmselectSrv.MustStop()
 	Storage.MustClose()
 	logger.Infof("successfully closed the storage in %.3f seconds", time.Since(startTime).Seconds())
 
