@@ -299,28 +299,28 @@ func TestParseTimeAtLimits(t *testing.T) {
 	f("2262-04-11T11:47:16-12:00", time.Date(2262, 4, 11, 11, 47, 16, 0, west))
 
 	// max timestamp
-	s = fmt.Sprintf("%d", maxValidSecond)
+	s = fmt.Sprintf("%d", int64(maxValidSecond))
 	f(s, time.Date(2262, 4, 11, 23, 47, 16, 0, time.UTC))
-	s = fmt.Sprintf("%d", maxValidMilli)
+	s = fmt.Sprintf("%d", int64(maxValidMilli))
 	f(s, time.Date(2262, 4, 11, 23, 47, 16, 854_000_000, time.UTC))
-	s = fmt.Sprintf("%d", maxValidMicro)
+	s = fmt.Sprintf("%d", int64(maxValidMicro))
 	f(s, time.Date(2262, 4, 11, 23, 47, 16, 854_775_000, time.UTC))
-	s = fmt.Sprintf("%d", math.MaxInt64)
+	s = fmt.Sprintf("%d", int64(math.MaxInt64))
 	f(s, time.Date(2262, 4, 11, 23, 47, 16, 854_775_807, time.UTC))
 
 	// timestamps beyond max valid second are still valid but are treated as
 	// milliseconds.
-	s = fmt.Sprintf("%d", maxValidSecond+1)
+	s = fmt.Sprintf("%d", int64(maxValidSecond)+1)
 	f(s, time.Date(1970, 4, 17, 18, 2, 52, 37_000_000, time.UTC))
 
 	// timestamps beyond max valid millisecond are still valid but are treated
 	// as microseconds.
-	s = fmt.Sprintf("%d", maxValidMilli+1)
+	s = fmt.Sprintf("%d", int64(maxValidMilli)+1)
 	f(s, time.Date(1970, 4, 17, 18, 2, 52, 36_855_000, time.UTC))
 
 	// timestamps beyond max valid microsecond are still valid but are treated
 	// as nanoseconds.
-	s = fmt.Sprintf("%d", maxValidMicro+1)
+	s = fmt.Sprintf("%d", int64(maxValidMicro)+1)
 	f(s, time.Date(1970, 4, 17, 18, 2, 52, 36_854_776, time.UTC))
 }
 
