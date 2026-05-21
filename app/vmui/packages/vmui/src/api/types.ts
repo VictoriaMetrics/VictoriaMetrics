@@ -3,6 +3,7 @@ export interface MetricBase {
   metric: {
     [key: string]: string;
   };
+  nullTimestamps?: number[];
 }
 
 export interface MetricResult extends MetricBase {
