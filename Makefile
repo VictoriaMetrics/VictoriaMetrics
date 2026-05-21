@@ -18,8 +18,6 @@ GO_BUILDINFO = -X '$(PKG_PREFIX)/lib/buildinfo.Version=$(APP_NAME)-$(DATEINFO_TA
 TAR_OWNERSHIP ?= --owner=1000 --group=1000
 
 GOLANGCI_LINT_VERSION := 2.9.0
-# keep in sync with GO_BUILDER_IMAGE from deployment/docker/Makefile
-GOVULNCHECK_IMAGE := golang:1.26.3
 
 .PHONY: $(MAKECMDGOALS)
 
@@ -538,7 +536,7 @@ govulncheck: install-govulncheck
 	govulncheck ./...
 
 govulncheck-docker:
-	docker run -w $(PWD) -v $(PWD):$(PWD) "$(GOVULNCHECK_IMAGE)" /bin/sh -c "go install golang.org/x/vuln/cmd/govulncheck@latest && govulncheck ./..."
+	docker run -w $(PWD) -v $(PWD):$(PWD) "$(GO_BUILDER_IMAGE)" /bin/sh -c "go install golang.org/x/vuln/cmd/govulncheck@latest && govulncheck ./..."
 
 install-govulncheck:
 	which govulncheck || go install golang.org/x/vuln/cmd/govulncheck@latest
