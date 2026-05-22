@@ -23,7 +23,7 @@ implementation and aims to be compatible with its syntax.
 
 ## Features
 
-* Integration with VictoriaMetrics, VictoriaLogs, VictoriaTaces, Graphite and Prometheus compatible storages. See [Integrations](https://docs.victoriametrics.com/victoriametrics/vmalert/#integrations) for details;
+* Integration with VictoriaMetrics, VictoriaLogs, VictoriaTraces, Graphite and Prometheus compatible storages. See [Integrations](https://docs.victoriametrics.com/victoriametrics/vmalert/#integrations) for details;
 * Prometheus [alerting rules definition format](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/#defining-alerting-rules)
   support;
 * Integration with [Alertmanager](https://github.com/prometheus/alertmanager) starting from [Alertmanager v0.16.0-alpha](https://github.com/prometheus/alertmanager/releases/tag/v0.16.0-alpha.0);
@@ -59,7 +59,7 @@ To start using `vmalert` you will need the following things:
 * remote read address [optional] - MetricsQL compatible datasource to restore alerts state from.
 
 You can use the existing [docker-compose environment](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#victoriametrics-single-server)
-as anexample. It already contains vmalert configured with the list of alerting rules and integrated with Alert Manager and VictoriaMetrics.
+as an example. It already contains vmalert configured with the list of alerting rules and integrated with Alert Manager and VictoriaMetrics.
 
 Alternatively, build `vmalert` from sources:
 
@@ -212,7 +212,7 @@ rules:
 ### Rules
 
 Every rule contains `expr` field for the expression to evaluate against configured datasource.
-Depending on `group.type` value or `-rule.defaultRuleType` cmd-line flag expression can be on of the following types:
+Depending on `group.type` value or `-rule.defaultRuleType` cmd-line flag expression can be one of the following types:
 - `prometheus` (default) - [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/) or [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) expression.
 - `vlogs` - [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/vmalert/) expression.
 - `graphite` - [Graphite](https://graphite.readthedocs.io/en/stable/render_api.html) expression.
@@ -337,7 +337,7 @@ recording rules.
 
 vmalert integrates with [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) and allows configuring alerting and recording rules using [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/).
 Results of recording rules and alerting state should be persisted to the remote-write compatible storage, such as VictoriaMetrics.
-To enable VictoriaLogs compatibility set `-rule.defaultRuleType=vlogs` commmandd-line flag.
+To enable VictoriaLogs compatibility set `-rule.defaultRuleType=vlogs` commmand-line flag.
 
 See [this doc](https://docs.victoriametrics.com/victorialogs/vmalert/) for details.
 
@@ -350,7 +350,7 @@ with [VictoriaLogs](https://docs.victoriametrics.com/victoriametrics/vmalert/#vi
 
 vmalert integrates with [Graphite Render API](https://graphite.readthedocs.io/en/stable/render_api.html) and allows configuring alerting and recording rules.
 During evaluation, vmalert will send requests to `<-datasource.url>/render?format=json`.
-To enable Graphite compatibility set `-rule.defaultRuleType=graphite` commmandd-line flag.
+To enable Graphite compatibility set `-rule.defaultRuleType=graphite` commmand-line flag.
 
 Since VictoriaMetrics supports both Graphite and Prometheus APIs, it is possible to mix Graphite and VictoriaMetrics rules.
 On the group level, set `type` field to specify to which datasource type it should belong: `prometheus` (MetricsQL) or `graphite` (GraphiteQL).
@@ -381,7 +381,7 @@ or [vmselect in cluster version](https://docs.victoriametrics.com/victoriametric
 See how to integrate vmalert with [VictoriaMetrics Anomaly Detection](https://docs.victoriametrics.com/anomaly-detection/)
 in the following [guide](https://docs.victoriametrics.com/anomaly-detection/guides/guide-vmanomaly-vmalert/).
 
-### VictoraMetrics Cloud
+### VictoriaMetrics Cloud
 
 For users of [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_vmalert_config),
 many of the configuration steps (including highly available setup of `vmalert` for cluster deployments) are handled automatically.
@@ -824,7 +824,7 @@ This may be used for better integration with Grafana unified alerting system. Se
 
 vmalert supports alerting and recording rules backfilling (aka `replay`). In replay mode vmalert
 can read the same rules configuration as normal, evaluate them on the given time range and backfill
-results via remote write to the configured storage. vmalert supports only `prometheus` dataasource type for backfilling.
+results via remote write to the configured storage. vmalert supports only `prometheus` datasource type for backfilling.
 
 Please note, that response caching may lead to unexpected results during and after backfilling process.
 In order to avoid this you need to reset cache contents or disable caching when using backfilling
