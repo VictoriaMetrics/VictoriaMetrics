@@ -54,6 +54,10 @@ func TestFederate(t *testing.T) {
 					Value: []byte("\\"),
 				},
 				{
+					Key:   []byte("!key"),
+					Value: []byte("value"),
+				},
+				{
 					Key: []byte("abc"),
 					// Verify that < isn't encoded. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5431
 					Value: []byte("a<b\"\\c"),
@@ -62,7 +66,7 @@ func TestFederate(t *testing.T) {
 		},
 		Values:     []float64{1.23},
 		Timestamps: []int64{123},
-	}, federateEscapeSchemeUnderscore, `foo_bar{some__other="value.unchanged!.",qqq="\\",abc="a<b\"\\c"} 1.23 123`+"\n")
+	}, federateEscapeSchemeUnderscore, `foo_bar{some__other="value.unchanged!.",qqq="\\",_key="value",abc="a<b\"\\c"} 1.23 123`+"\n")
 
 	f(&netstorage.Result{
 		MetricName: storage.MetricName{
@@ -77,6 +81,10 @@ func TestFederate(t *testing.T) {
 					Value: []byte("\\"),
 				},
 				{
+					Key:   []byte("!key"),
+					Value: []byte("value"),
+				},
+				{
 					Key: []byte("abc"),
 					// Verify that < isn't encoded. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5431
 					Value: []byte("a<b\"\\c"),
@@ -85,6 +93,6 @@ func TestFederate(t *testing.T) {
 		},
 		Values:     []float64{1.23},
 		Timestamps: []int64{123},
-	}, federateEscapeSchemeUTF8, `{"foo.bar","some.!other"="value.unchanged!.",qqq="\\",abc="a<b\"\\c"} 1.23 123`+"\n")
+	}, federateEscapeSchemeUTF8, `{"foo.bar","some.!other"="value.unchanged!.","qqq"="\\","!key"="value","abc"="a<b\"\\c"} 1.23 123`+"\n")
 
 }

@@ -2,6 +2,7 @@
 	"math"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
     "github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
     "github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 ) %}
@@ -44,15 +45,15 @@
 {% endfunc %}
 
 {% func prometheusFederateMetricNameEscapeUnderscore(mn *storage.MetricName) %}
-	{%s= promrelabel.SanitizeMetricName(string(mn.MetricGroup)) %}
+	{%s= promrelabel.SanitizeMetricName(bytesutil.ToUnsafeString(mn.MetricGroup)) %}
 	{% if len(mn.Tags) > 0 %}
 	{
 		{% code tags := mn.Tags %}
-		{%s= promrelabel.SanitizeLabelName(string(tags[0].Key)) %}={%= escapePrometheusLabel(tags[0].Value) %}
+		{%s= promrelabel.SanitizeLabelName(bytesutil.ToUnsafeString(tags[0].Key)) %}={%= escapePrometheusLabel(tags[0].Value) %}
 		{% code tags = tags[1:] %}
 		{% for i := range tags %}
 			{% code tag := &tags[i] %}
-			,{%z= tag.Key %}={%= escapePrometheusLabel(tag.Value) %}
+			,{%s= promrelabel.SanitizeLabelName(bytesutil.ToUnsafeString(tag.Key)) %}={%= escapePrometheusLabel(tag.Value) %}
 		{% endfor %}
 	}
 	{% endif %}
@@ -68,7 +69,7 @@
 		{% code tags = tags[1:] %}
 		{% for i := range tags %}
 			{% code tag := &tags[i] %}
-			,{%z= tag.Key %}={%= escapePrometheusLabel(tag.Value) %}
+			,"{%z= tag.Key %}"={%= escapePrometheusLabel(tag.Value) %}
 		{% endfor %}
         {% endif %}
 	}
