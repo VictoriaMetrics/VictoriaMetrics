@@ -194,6 +194,7 @@ func InitSecretFlags() {
 	if !*showNotifierURL {
 		flagutil.RegisterSecretFlag("notifier.url")
 	}
+	flagutil.RegisterSecretFlag("notifier.headers")
 }
 
 func notifiersFromFlags(gen AlertURLGenerator) ([]Notifier, error) {

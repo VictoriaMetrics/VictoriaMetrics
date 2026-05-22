@@ -64,6 +64,7 @@ func InitSecretFlags() {
 	if !*showDatasourceURL {
 		flagutil.RegisterSecretFlag("datasource.url")
 	}
+	flagutil.RegisterSecretFlag("datasource.headers")
 }
 
 // ShowDatasourceURL whether to show -datasource.url with sensitive information
