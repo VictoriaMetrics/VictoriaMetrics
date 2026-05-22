@@ -3,11 +3,8 @@ import { getColumns, MetricCategory } from "../../hooks/useSortedCategories";
 import { formatValueToCSV } from "../../utils/csv";
 
 const getHeaders = (data: InstantMetricResult[]): string => {
-  const metricHeaders = getColumns(data).map(({ key }) => key).join(",");
-  if (!metricHeaders) {
-    return metricHeaders;
-  }
-  return `${metricHeaders},__timestamp__,__value__`;
+  const metricHeaders = getColumns(data).map(({ key }) => key);
+  return [...metricHeaders, "__timestamp__", "__value__"].join(",");
 };
 
 const getRows = (data: InstantMetricResult[], headers: MetricCategory[]) => {
@@ -20,8 +17,8 @@ const getRows = (data: InstantMetricResult[], headers: MetricCategory[]) => {
 };
 
 export const convertMetricsDataToCSV = (data: InstantMetricResult[]): string => {
+  if (!data.length) return "";
   const headers = getHeaders(data);
-  if (!headers.length) return "";
   const rows = getRows(data, getColumns(data));
   return [headers, ...rows].join("\n");
 };
