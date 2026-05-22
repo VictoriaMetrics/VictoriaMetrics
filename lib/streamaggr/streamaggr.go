@@ -709,6 +709,8 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 	}
 	a.cs.Store(cs)
 
+	lc.Register(a.stalenessInterval)
+
 	a.wg.Go(func() {
 		a.runFlusher(pushFunc, alignFlushToInterval, skipFlushOnShutdown, ignoreFirstIntervals)
 	})
@@ -943,6 +945,7 @@ var flushConcurrencyCh = make(chan struct{}, cgroup.AvailableCPUs())
 //
 // The aggregator stops pushing the aggregated metrics after this call.
 func (a *aggregator) MustStop() {
+	lc.Unregister(a.stalenessInterval)
 	close(a.stopCh)
 	a.wg.Wait()
 }

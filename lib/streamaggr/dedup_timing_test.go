@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func BenchmarkDedupAggr(b *testing.B) {
@@ -63,14 +64,15 @@ func newBenchSamples(count int) []pushSample {
 	}
 	labelsLen := len(labels)
 	samples := make([]pushSample, count)
+	var lc promutil.LabelsCompressor
 	var keyBuf []byte
 	for i := range samples {
 		sample := &samples[i]
-		labels = append(labels[:labelsLen], prompb.Label{
+		labels := append(labels[:labelsLen:labelsLen], prompb.Label{
 			Name:  "app",
 			Value: fmt.Sprintf("instance-%d", i),
 		})
-		keyBuf = compressLabels(keyBuf[:0], labels[:labelsLen], labels[labelsLen:])
+		keyBuf = lc.Compress(keyBuf[:0], labels)
 		sample.key = string(keyBuf)
 		sample.value = float64(i)
 	}
