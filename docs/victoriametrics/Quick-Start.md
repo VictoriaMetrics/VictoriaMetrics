@@ -147,7 +147,7 @@ After=network.target
 Type=simple
 User=victoriametrics
 Group=victoriametrics
-ExecStart=/usr/local/bin/victoria-metrics-prod -storageDataPath=/var/lib/victoria-metrics -retentionPeriod=90d -selfScrapeInterval=10s
+ExecStart=/usr/local/bin/victoria-metrics-prod -storageDataPath=/var/lib/victoria-metrics -selfScrapeInterval=10s
 SyslogIdentifier=victoriametrics
 Restart=always
 
@@ -231,7 +231,7 @@ Type=simple
 User=victoriametrics
 Group=victoriametrics
 Restart=always
-ExecStart=/usr/local/bin/vmstorage-prod -retentionPeriod=90d -storageDataPath=/var/lib/vmstorage
+ExecStart=/usr/local/bin/vmstorage-prod -storageDataPath=/var/lib/vmstorage
 
 PrivateTmp=yes
 NoNewPrivileges=yes
@@ -433,6 +433,14 @@ production installation of VictoriaMetrics. This would make monitoring independe
 the main monitoring installation.
 
 See more details in the article [VictoriaMetrics Monitoring](https://victoriametrics.com/blog/victoriametrics-monitoring/).
+
+### Retention
+
+VictoriaMetrics Single-node and `vmstorage` in VictoriaMetrics Cluster retain data for 1 month by default.
+Data older than the retention period will be automatically deleted. To change the retention period, use the `-retentionPeriod` flag (e.g. `-retentionPeriod=90d`).
+See the [retention](https://docs.victoriametrics.com/victoriametrics/#retention) documentation for more details. 
+
+If free disk space falls below `-storage.minFreeDiskSpaceBytes`, VictoriaMetrics Single-node or `vmstorage` switches to read-only mode and stops accepting new data. To prevent this, ensure proper [capacity planning](#capacity-planning) and set up monitoring and alerting for disk usage.
 
 ### Capacity planning
 
