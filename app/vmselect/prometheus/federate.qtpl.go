@@ -9,82 +9,244 @@ import (
 	"math"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
 // Federate writes rs in /federate format.// See https://prometheus.io/docs/prometheus/latest/federation/
 
-//line app/vmselect/prometheus/federate.qtpl:11
+//line app/vmselect/prometheus/federate.qtpl:13
 import (
 	qtio422016 "io"
 
 	qt422016 "github.com/valyala/quicktemplate"
 )
 
-//line app/vmselect/prometheus/federate.qtpl:11
+//line app/vmselect/prometheus/federate.qtpl:13
 var (
 	_ = qtio422016.Copy
 	_ = qt422016.AcquireByteBuffer
 )
 
-//line app/vmselect/prometheus/federate.qtpl:11
-func StreamFederate(qw422016 *qt422016.Writer, rs *netstorage.Result) {
 //line app/vmselect/prometheus/federate.qtpl:13
+func StreamFederate(qw422016 *qt422016.Writer, rs *netstorage.Result, escapeScheme string) {
+//line app/vmselect/prometheus/federate.qtpl:15
 	values := rs.Values
 	timestamps := rs.Timestamps
 
-//line app/vmselect/prometheus/federate.qtpl:16
-	if len(timestamps) == 0 || len(values) == 0 {
-//line app/vmselect/prometheus/federate.qtpl:16
-		return
-//line app/vmselect/prometheus/federate.qtpl:16
-	}
 //line app/vmselect/prometheus/federate.qtpl:18
+	if len(timestamps) == 0 || len(values) == 0 {
+//line app/vmselect/prometheus/federate.qtpl:18
+		return
+//line app/vmselect/prometheus/federate.qtpl:18
+	}
+//line app/vmselect/prometheus/federate.qtpl:20
 	lastValue := values[len(values)-1]
 
-//line app/vmselect/prometheus/federate.qtpl:20
+//line app/vmselect/prometheus/federate.qtpl:22
 	if math.IsNaN(lastValue) {
-//line app/vmselect/prometheus/federate.qtpl:26
+//line app/vmselect/prometheus/federate.qtpl:28
 		return
-//line app/vmselect/prometheus/federate.qtpl:27
+//line app/vmselect/prometheus/federate.qtpl:29
 	}
-//line app/vmselect/prometheus/federate.qtpl:28
-	streamprometheusMetricName(qw422016, &rs.MetricName)
-//line app/vmselect/prometheus/federate.qtpl:28
-	qw422016.N().S(` `)
-//line app/vmselect/prometheus/federate.qtpl:29
+//line app/vmselect/prometheus/federate.qtpl:30
+	switch escapeScheme {
+//line app/vmselect/prometheus/federate.qtpl:31
+	case federateEscapeSchemeUTF8:
+//line app/vmselect/prometheus/federate.qtpl:32
+		streamprometheusFederateMetricNameUTF8(qw422016, &rs.MetricName)
+//line app/vmselect/prometheus/federate.qtpl:32
+		qw422016.N().S(` `)
+//line app/vmselect/prometheus/federate.qtpl:33
+	case federateEscapeSchemeUnderscore:
+//line app/vmselect/prometheus/federate.qtpl:34
+		streamprometheusFederateMetricNameEscapeUnderscore(qw422016, &rs.MetricName)
+//line app/vmselect/prometheus/federate.qtpl:34
+		qw422016.N().S(` `)
+//line app/vmselect/prometheus/federate.qtpl:35
+	case "":
+//line app/vmselect/prometheus/federate.qtpl:36
+		streamprometheusMetricName(qw422016, &rs.MetricName)
+//line app/vmselect/prometheus/federate.qtpl:36
+		qw422016.N().S(` `)
+//line app/vmselect/prometheus/federate.qtpl:37
+	}
+//line app/vmselect/prometheus/federate.qtpl:38
 	qw422016.N().F(lastValue)
-//line app/vmselect/prometheus/federate.qtpl:29
+//line app/vmselect/prometheus/federate.qtpl:38
 	qw422016.N().S(` `)
-//line app/vmselect/prometheus/federate.qtpl:30
+//line app/vmselect/prometheus/federate.qtpl:39
 	qw422016.N().DL(timestamps[len(timestamps)-1])
-//line app/vmselect/prometheus/federate.qtpl:30
+//line app/vmselect/prometheus/federate.qtpl:39
 	qw422016.N().S(`
 `)
-//line app/vmselect/prometheus/federate.qtpl:31
+//line app/vmselect/prometheus/federate.qtpl:40
 }
 
-//line app/vmselect/prometheus/federate.qtpl:31
-func WriteFederate(qq422016 qtio422016.Writer, rs *netstorage.Result) {
-//line app/vmselect/prometheus/federate.qtpl:31
+//line app/vmselect/prometheus/federate.qtpl:40
+func WriteFederate(qq422016 qtio422016.Writer, rs *netstorage.Result, escapeScheme string) {
+//line app/vmselect/prometheus/federate.qtpl:40
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmselect/prometheus/federate.qtpl:31
-	StreamFederate(qw422016, rs)
-//line app/vmselect/prometheus/federate.qtpl:31
+//line app/vmselect/prometheus/federate.qtpl:40
+	StreamFederate(qw422016, rs, escapeScheme)
+//line app/vmselect/prometheus/federate.qtpl:40
 	qt422016.ReleaseWriter(qw422016)
-//line app/vmselect/prometheus/federate.qtpl:31
+//line app/vmselect/prometheus/federate.qtpl:40
 }
 
-//line app/vmselect/prometheus/federate.qtpl:31
-func Federate(rs *netstorage.Result) string {
-//line app/vmselect/prometheus/federate.qtpl:31
+//line app/vmselect/prometheus/federate.qtpl:40
+func Federate(rs *netstorage.Result, escapeScheme string) string {
+//line app/vmselect/prometheus/federate.qtpl:40
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmselect/prometheus/federate.qtpl:31
-	WriteFederate(qb422016, rs)
-//line app/vmselect/prometheus/federate.qtpl:31
+//line app/vmselect/prometheus/federate.qtpl:40
+	WriteFederate(qb422016, rs, escapeScheme)
+//line app/vmselect/prometheus/federate.qtpl:40
 	qs422016 := string(qb422016.B)
-//line app/vmselect/prometheus/federate.qtpl:31
+//line app/vmselect/prometheus/federate.qtpl:40
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmselect/prometheus/federate.qtpl:31
+//line app/vmselect/prometheus/federate.qtpl:40
 	return qs422016
-//line app/vmselect/prometheus/federate.qtpl:31
+//line app/vmselect/prometheus/federate.qtpl:40
+}
+
+//line app/vmselect/prometheus/federate.qtpl:42
+func streamprometheusFederateMetricNameEscapeUnderscore(qw422016 *qt422016.Writer, mn *storage.MetricName) {
+//line app/vmselect/prometheus/federate.qtpl:43
+	qw422016.N().S(promrelabel.SanitizeMetricName(string(mn.MetricGroup)))
+//line app/vmselect/prometheus/federate.qtpl:44
+	if len(mn.Tags) > 0 {
+//line app/vmselect/prometheus/federate.qtpl:44
+		qw422016.N().S(`{`)
+//line app/vmselect/prometheus/federate.qtpl:46
+		tags := mn.Tags
+
+//line app/vmselect/prometheus/federate.qtpl:47
+		qw422016.N().S(promrelabel.SanitizeLabelName(string(tags[0].Key)))
+//line app/vmselect/prometheus/federate.qtpl:47
+		qw422016.N().S(`=`)
+//line app/vmselect/prometheus/federate.qtpl:47
+		streamescapePrometheusLabel(qw422016, tags[0].Value)
+//line app/vmselect/prometheus/federate.qtpl:48
+		tags = tags[1:]
+
+//line app/vmselect/prometheus/federate.qtpl:49
+		for i := range tags {
+//line app/vmselect/prometheus/federate.qtpl:50
+			tag := &tags[i]
+
+//line app/vmselect/prometheus/federate.qtpl:50
+			qw422016.N().S(`,`)
+//line app/vmselect/prometheus/federate.qtpl:51
+			qw422016.N().Z(tag.Key)
+//line app/vmselect/prometheus/federate.qtpl:51
+			qw422016.N().S(`=`)
+//line app/vmselect/prometheus/federate.qtpl:51
+			streamescapePrometheusLabel(qw422016, tag.Value)
+//line app/vmselect/prometheus/federate.qtpl:52
+		}
+//line app/vmselect/prometheus/federate.qtpl:52
+		qw422016.N().S(`}`)
+//line app/vmselect/prometheus/federate.qtpl:54
+	}
+//line app/vmselect/prometheus/federate.qtpl:55
+}
+
+//line app/vmselect/prometheus/federate.qtpl:55
+func writeprometheusFederateMetricNameEscapeUnderscore(qq422016 qtio422016.Writer, mn *storage.MetricName) {
+//line app/vmselect/prometheus/federate.qtpl:55
+	qw422016 := qt422016.AcquireWriter(qq422016)
+//line app/vmselect/prometheus/federate.qtpl:55
+	streamprometheusFederateMetricNameEscapeUnderscore(qw422016, mn)
+//line app/vmselect/prometheus/federate.qtpl:55
+	qt422016.ReleaseWriter(qw422016)
+//line app/vmselect/prometheus/federate.qtpl:55
+}
+
+//line app/vmselect/prometheus/federate.qtpl:55
+func prometheusFederateMetricNameEscapeUnderscore(mn *storage.MetricName) string {
+//line app/vmselect/prometheus/federate.qtpl:55
+	qb422016 := qt422016.AcquireByteBuffer()
+//line app/vmselect/prometheus/federate.qtpl:55
+	writeprometheusFederateMetricNameEscapeUnderscore(qb422016, mn)
+//line app/vmselect/prometheus/federate.qtpl:55
+	qs422016 := string(qb422016.B)
+//line app/vmselect/prometheus/federate.qtpl:55
+	qt422016.ReleaseByteBuffer(qb422016)
+//line app/vmselect/prometheus/federate.qtpl:55
+	return qs422016
+//line app/vmselect/prometheus/federate.qtpl:55
+}
+
+//line app/vmselect/prometheus/federate.qtpl:57
+func streamprometheusFederateMetricNameUTF8(qw422016 *qt422016.Writer, mn *storage.MetricName) {
+//line app/vmselect/prometheus/federate.qtpl:57
+	qw422016.N().S(`{"`)
+//line app/vmselect/prometheus/federate.qtpl:59
+	qw422016.E().Z(mn.MetricGroup)
+//line app/vmselect/prometheus/federate.qtpl:59
+	qw422016.N().S(`"`)
+//line app/vmselect/prometheus/federate.qtpl:60
+	if len(mn.Tags) > 0 {
+//line app/vmselect/prometheus/federate.qtpl:60
+		qw422016.N().S(`,`)
+//line app/vmselect/prometheus/federate.qtpl:62
+		tags := mn.Tags
+
+//line app/vmselect/prometheus/federate.qtpl:62
+		qw422016.N().S(`"`)
+//line app/vmselect/prometheus/federate.qtpl:63
+		qw422016.N().Z(tags[0].Key)
+//line app/vmselect/prometheus/federate.qtpl:63
+		qw422016.N().S(`"=`)
+//line app/vmselect/prometheus/federate.qtpl:63
+		streamescapePrometheusLabel(qw422016, tags[0].Value)
+//line app/vmselect/prometheus/federate.qtpl:64
+		tags = tags[1:]
+
+//line app/vmselect/prometheus/federate.qtpl:65
+		for i := range tags {
+//line app/vmselect/prometheus/federate.qtpl:66
+			tag := &tags[i]
+
+//line app/vmselect/prometheus/federate.qtpl:66
+			qw422016.N().S(`,`)
+//line app/vmselect/prometheus/federate.qtpl:67
+			qw422016.N().Z(tag.Key)
+//line app/vmselect/prometheus/federate.qtpl:67
+			qw422016.N().S(`=`)
+//line app/vmselect/prometheus/federate.qtpl:67
+			streamescapePrometheusLabel(qw422016, tag.Value)
+//line app/vmselect/prometheus/federate.qtpl:68
+		}
+//line app/vmselect/prometheus/federate.qtpl:69
+	}
+//line app/vmselect/prometheus/federate.qtpl:69
+	qw422016.N().S(`}`)
+//line app/vmselect/prometheus/federate.qtpl:71
+}
+
+//line app/vmselect/prometheus/federate.qtpl:71
+func writeprometheusFederateMetricNameUTF8(qq422016 qtio422016.Writer, mn *storage.MetricName) {
+//line app/vmselect/prometheus/federate.qtpl:71
+	qw422016 := qt422016.AcquireWriter(qq422016)
+//line app/vmselect/prometheus/federate.qtpl:71
+	streamprometheusFederateMetricNameUTF8(qw422016, mn)
+//line app/vmselect/prometheus/federate.qtpl:71
+	qt422016.ReleaseWriter(qw422016)
+//line app/vmselect/prometheus/federate.qtpl:71
+}
+
+//line app/vmselect/prometheus/federate.qtpl:71
+func prometheusFederateMetricNameUTF8(mn *storage.MetricName) string {
+//line app/vmselect/prometheus/federate.qtpl:71
+	qb422016 := qt422016.AcquireByteBuffer()
+//line app/vmselect/prometheus/federate.qtpl:71
+	writeprometheusFederateMetricNameUTF8(qb422016, mn)
+//line app/vmselect/prometheus/federate.qtpl:71
+	qs422016 := string(qb422016.B)
+//line app/vmselect/prometheus/federate.qtpl:71
+	qt422016.ReleaseByteBuffer(qb422016)
+//line app/vmselect/prometheus/federate.qtpl:71
+	return qs422016
+//line app/vmselect/prometheus/federate.qtpl:71
 }

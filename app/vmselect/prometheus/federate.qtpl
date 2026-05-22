@@ -2,13 +2,15 @@
 	"math"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
+    "github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+    "github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 ) %}
 
 {% stripspace %}
 
 // Federate writes rs in /federate format.
 // See https://prometheus.io/docs/prometheus/latest/federation/
-{% func Federate(rs *netstorage.Result) %}
+{% func Federate(rs *netstorage.Result, escapeScheme string) %}
 	{% code
 		values := rs.Values
 		timestamps := rs.Timestamps
@@ -24,10 +26,54 @@
 			See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3185
 		{% endcomment %}
 		{% return %}
-	{% endif %}
-	{%= prometheusMetricName(&rs.MetricName) %}{% space %}
+    {% endif %}
+
+    {% switch escapeScheme %}
+       {% case federateEscapeSchemeUTF8 %}
+          {%= prometheusFederateMetricNameUTF8(&rs.MetricName) %}{% space %}
+
+       {% case federateEscapeSchemeUnderscore %}
+         {%= prometheusFederateMetricNameEscapeUnderscore(&rs.MetricName) %}{% space %}
+
+       {% case "" %}
+         {%= prometheusMetricName(&rs.MetricName) %}{% space %}
+    {% endswitch %}
+
 	{%f= lastValue %}{% space %}
 	{%dl= timestamps[len(timestamps)-1] %}{% newline %}
 {% endfunc %}
+
+{% func prometheusFederateMetricNameEscapeUnderscore(mn *storage.MetricName) %}
+	{%s= promrelabel.SanitizeMetricName(string(mn.MetricGroup)) %}
+	{% if len(mn.Tags) > 0 %}
+	{
+		{% code tags := mn.Tags %}
+		{%s= promrelabel.SanitizeLabelName(string(tags[0].Key)) %}={%= escapePrometheusLabel(tags[0].Value) %}
+		{% code tags = tags[1:] %}
+		{% for i := range tags %}
+			{% code tag := &tags[i] %}
+			,{%z= tag.Key %}={%= escapePrometheusLabel(tag.Value) %}
+		{% endfor %}
+	}
+	{% endif %}
+{% endfunc %}
+
+{% func prometheusFederateMetricNameUTF8(mn *storage.MetricName) %}
+	{
+        "{%z mn.MetricGroup %}"
+        {% if len(mn.Tags) > 0 %}
+        ,
+		{% code tags := mn.Tags %}
+		"{%z= tags[0].Key %}"={%= escapePrometheusLabel(tags[0].Value) %}
+		{% code tags = tags[1:] %}
+		{% for i := range tags %}
+			{% code tag := &tags[i] %}
+			,{%z= tag.Key %}={%= escapePrometheusLabel(tag.Value) %}
+		{% endfor %}
+        {% endif %}
+	}
+{% endfunc %}
+
+
 
 {% endstripspace %}
