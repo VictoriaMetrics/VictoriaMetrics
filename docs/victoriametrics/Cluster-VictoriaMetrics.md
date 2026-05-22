@@ -199,7 +199,7 @@ query args to apply additional filters for the query:
 ```bash
 curl 'http://vmselect:8481/select/multitenant/prometheus/api/v1/query' \
   -d 'query=up' \
-  -d 'extra_filters[]={vm_account_id=~"7|42",vm_project_id="9|0"}'
+  -d 'extra_filters[]={vm_account_id=~"7|42",vm_project_id=~"9|0"}'
 ```
 
 The precedence for applying filters for tenants follows this order:
