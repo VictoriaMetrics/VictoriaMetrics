@@ -83,4 +83,17 @@ describe("convertMetricsDataToCSV", () => {
     const result = convertMetricsDataToCSV(data);
     expect(result).toBe("header1,header2,__timestamp__,__value__\n123,first,1623945600,123\n456-789,second,-,-");
   });
+
+  it("should handle a combination of metric entries with value and values", () => {
+    const data: InstantMetricResult[] = [
+      {
+        value: [1623945600, "123"],
+        group: 0,
+        metric: {}
+      },
+    ];
+    const result = convertMetricsDataToCSV(data);
+    expect(result).toBe("__timestamp__,__value__\n1623945600,123");
+  });
+
 });

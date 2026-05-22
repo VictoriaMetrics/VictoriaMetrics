@@ -9,10 +9,10 @@ const getHeaders = (data: InstantMetricResult[]): string => {
 
 const getRows = (data: InstantMetricResult[], headers: MetricCategory[]) => {
   return data?.map(d => {
-    const metricPart = headers.map(c => formatValueToCSV(d.metric[c.key] || "-")).join(",");
+    const metricPart = headers.map(c => formatValueToCSV(d.metric[c.key] || "-"));
     const timestamp = d.value ? formatValueToCSV(String(d.value[0])) : "-";
     const value = d.value ? formatValueToCSV(d.value[1]) : "-";
-    return `${metricPart},${timestamp},${value}`;
+    return [...metricPart, timestamp, value].join(",");
   });
 };
 
