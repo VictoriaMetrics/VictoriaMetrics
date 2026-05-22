@@ -170,13 +170,13 @@ users:
   url_prefix: http://foo.bar
 `, "cannot parse public key from file \""+publicKeyFile+"\": failed to parse key \"invalidPEM\": failed to decode PEM block containing public key")
 
-	// unsupported placeholder in a header
+	// unsupported placeholder in a URL path
 	f(`
 users:
 - jwt: 
     skip_verify: true
   url_prefix: http://foo.bar/{{.UnsupportedPlaceholder}}/foo`,
-		"invalid placeholder found in URL request path: \"/{{.UnsupportedPlaceholder}}/foo\", supported values are: {{.MetricsTenant}}, {{.MetricsExtraLabels}}, {{.MetricsExtraFilters}}, {{.LogsAccountID}}, {{.LogsProjectID}}, {{.LogsExtraFilters}}, {{.LogsExtraStreamFilters}}",
+		"invalid placeholder found in URL request path: \"/{{.UnsupportedPlaceholder}}/foo\", supported values are: {{.MetricsTenant}}, {{.MetricsAccountID}}, {{.MetricsProjectID}}, {{.MetricsExtraLabels}}, {{.MetricsExtraFilters}}, {{.LogsAccountID}}, {{.LogsProjectID}}, {{.LogsExtraFilters}}, {{.LogsExtraStreamFilters}}",
 	)
 	// unsupported placeholder in a header
 	f(`
@@ -187,7 +187,7 @@ users:
     - "AccountID: {{.UnsupportedPlaceholder}}"
   url_prefix: http://foo.bar
 `,
-		"request header: \"AccountID\" has unsupported placeholder: \"{{.UnsupportedPlaceholder}}\", supported values are: {{.MetricsTenant}}, {{.MetricsExtraLabels}}, {{.MetricsExtraFilters}}, {{.LogsAccountID}}, {{.LogsProjectID}}, {{.LogsExtraFilters}}, {{.LogsExtraStreamFilters}}",
+		"request header: \"AccountID\" has unsupported placeholder: \"{{.UnsupportedPlaceholder}}\", supported values are: {{.MetricsTenant}}, {{.MetricsAccountID}}, {{.MetricsProjectID}}, {{.MetricsExtraLabels}}, {{.MetricsExtraFilters}}, {{.LogsAccountID}}, {{.LogsProjectID}}, {{.LogsExtraFilters}}, {{.LogsExtraStreamFilters}}",
 	)
 
 	// spaces in templating not allowed
@@ -199,7 +199,19 @@ users:
     - "AccountID: {{ .LogsAccountID }}"
   url_prefix: http://foo.bar
 `,
-		"request header: \"AccountID\" has unsupported placeholder: \"{{ .LogsAccountID }}\", supported values are: {{.MetricsTenant}}, {{.MetricsExtraLabels}}, {{.MetricsExtraFilters}}, {{.LogsAccountID}}, {{.LogsProjectID}}, {{.LogsExtraFilters}}, {{.LogsExtraStreamFilters}}",
+		"request header: \"AccountID\" has unsupported placeholder: \"{{ .LogsAccountID }}\", supported values are: {{.MetricsTenant}}, {{.MetricsAccountID}}, {{.MetricsProjectID}}, {{.MetricsExtraLabels}}, {{.MetricsExtraFilters}}, {{.LogsAccountID}}, {{.LogsProjectID}}, {{.LogsExtraFilters}}, {{.LogsExtraStreamFilters}}",
+	)
+
+	// placeholder must match the entire header value
+	f(`
+users:
+- jwt: 
+    skip_verify: true
+  headers:
+    - "AccountID: foo {{.MetricsAccountID}}"
+  url_prefix: http://foo.bar
+`,
+		"request header: \"AccountID\" has unsupported placeholder: \"foo {{.MetricsAccountID}}\", supported values are: {{.MetricsTenant}}, {{.MetricsAccountID}}, {{.MetricsProjectID}}, {{.MetricsExtraLabels}}, {{.MetricsExtraFilters}}, {{.LogsAccountID}}, {{.LogsProjectID}}, {{.LogsExtraFilters}}, {{.LogsExtraStreamFilters}}",
 	)
 
 	// oidc is not an object
@@ -364,10 +376,25 @@ users:
   url_prefix: http://foo.bar
 `, validRSAPublicKey, validECDSAPublicKey))
 
+	// metrics header placeholders
 	f(`
 users:
 - jwt:
     skip_verify: true
+  headers:
+  - "MetricsAccountID: {{.MetricsAccountID}}"
+  - "MetricsProjectID: {{.MetricsProjectID}}"
+  url_prefix: http://foo.bar
+`)
+
+	// logs header placeholders
+	f(`
+users:
+- jwt:
+    skip_verify: true
+  headers:
+  - "LogsAccountID: {{.LogsAccountID}}"
+  - "LogsProjectID: {{.LogsProjectID}}"
   url_prefix: http://foo.bar
 `)
 
