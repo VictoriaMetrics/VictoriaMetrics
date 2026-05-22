@@ -66,11 +66,11 @@ func (t *Type) ValidateExpr(expr string) error {
 	switch t.String() {
 	case "graphite":
 		if _, err := graphiteql.Parse(expr); err != nil {
-			return fmt.Errorf("bad graphite expr: %q, err: %w", expr, err)
+			return fmt.Errorf("bad GraphiteQL expr: %q, err: %w", expr, err)
 		}
 	case "prometheus":
 		if _, err := metricsql.Parse(expr); err != nil {
-			return fmt.Errorf("bad prometheus expr: %q, err: %w", expr, err)
+			return fmt.Errorf("bad MetricsQL expr: %q, err: %w", expr, err)
 		}
 	case "vlogs":
 		q, err := logstorage.ParseStatsQuery(expr, 0)
