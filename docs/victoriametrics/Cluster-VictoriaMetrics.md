@@ -199,14 +199,14 @@ query args to apply additional filters for the query:
 ```bash
 curl 'http://vmselect:8481/select/multitenant/prometheus/api/v1/query' \
   -d 'query=up' \
-  -d 'extra_filters[]={vm_account_id="7",vm_project_id="9"}' \
-  -d 'extra_filters[]={vm_account_id="42"}'
+  -d 'extra_filters[]={vm_account_id=~"7|42",vm_project_id="9|0"}'
 ```
 
 The precedence for applying filters for tenants follows this order:
 
 1. Filter tenants by `extra_label` and `extra_filters` filters.
  These filters have the highest priority and are applied first when provided through the query arguments.
+ If multiple filters provided, they combined into a single filter. So it's recommended to use either `extra_label` or `extra_filters[]`.
 2. Filter tenants from labels selectors defined at metricsQL query expression.
 
 > **Security considerations**
