@@ -50,6 +50,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): preserve exact series values in graph tooltips instead of rounding them by significant digits. See [#10952](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10952).
 * BUGFIX: all VictoriaMetrics components: fix int64 overflow when parsing [timestamp parameters](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats) with relative durations. See [#10880](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10880).
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): `-denyQueriesOutsideRetention` now also rejects queries whose end time is beyond `-futureRetention`. See [#10879](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10879).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): add missing `__timestamp__` and `__value__` columns to CSV exported from the table view on the Query tab. See [#10975](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10975).
 
 ## [v1.143.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.143.0)
 
