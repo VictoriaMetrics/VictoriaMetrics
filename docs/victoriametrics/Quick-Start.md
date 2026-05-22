@@ -43,6 +43,9 @@ Just download VictoriaMetrics and follow [these instructions](https://docs.victo
 See [available integrations](https://docs.victoriametrics.com/victoriametrics/integrations/) with other systems like
 [Prometheus](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus/) or [Grafana](https://docs.victoriametrics.com/victoriametrics/integrations/grafana/).
 
+> Want to see VictoriaMetrics in action, but without installing anything?
+> Try [Playgrounds](https://docs.victoriametrics.com/playgrounds/) - a list of publicly available playgrounds for VictoriaMetrics software.
+
 VictoriaMetrics is developed at a fast pace, so it is recommended to periodically check the [CHANGELOG](https://docs.victoriametrics.com/victoriametrics/changelog/)
 and perform [regular upgrades](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-upgrade-victoriametrics).
 
