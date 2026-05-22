@@ -1,10 +1,11 @@
 ---
 weight: 500
-title: Development goals
+title: Development Goals
 menu:
   docs:
-    parent: 'victoriametrics'
     weight: 500
+    identifier: goals
+    pageRef: "/victoriametrics/goals/"
 tags: []
 aliases:
   - /goals/index.html

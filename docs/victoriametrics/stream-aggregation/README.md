@@ -360,9 +360,9 @@ the received data, scraped or pushed. See the [processing order for vmagent](htt
 
 Typical scenarios for data routing with `vmagent`:
 
-1. **Aggregate incoming data and replicate to N destinations**. Specify [`-streamAggr.config`](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#configuration) command-line flag
+1. **Aggregate incoming data and replicate to N destinations**. Specify [`-streamAggr.config`](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/) command-line flag
    to aggregate the incoming data before replicating it to all the configured `-remoteWrite.url` destinations.
-2. **Individually aggregate incoming data for each destination**. Specify [`-remoteWrite.streamAggr.config`](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#configuration)
+2. **Individually aggregate incoming data for each destination**. Specify [`-remoteWrite.streamAggr.config`](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/)
    command-line flag for each `-remoteWrite.url` destination. [Relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/) via `-remoteWrite.urlRelabelConfig`
    can be used for routing only the selected metrics to each `-remoteWrite.url` destination.
 
@@ -628,7 +628,7 @@ the following settings:
   `-remoteWrite.streamAggr.enableWindows` flag can be specified individually for each `-remoteWrite.url`.
   If one of these flags is set, all aggregators will use fixed windows. In conjunction with `-remoteWrite.streamAggr.dedupInterval` or
   `-streamAggr.dedupInterval` fixed aggregation windows are enabled on the deduplicator as well.
- - `enable_windows` option in [aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#stream-aggregation-config).
+ - `enable_windows` option in [aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config).
   It allows enabling aggregation windows for a specific aggregator.
 
 ## Counter resets
