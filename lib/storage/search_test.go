@@ -242,6 +242,7 @@ func testAssertSearchResult(st *Storage, tr TimeRange, tfs *TagFilters, want []M
 
 	var s Search
 	s.Init(nil, st, []*TagFilters{tfs}, tr, 1e5, noDeadline)
+	defer s.MustClose()
 	var mbs []metricBlock
 	for s.NextMetricBlock() {
 		var b Block
@@ -255,7 +256,6 @@ func testAssertSearchResult(st *Storage, tr TimeRange, tfs *TagFilters, want []M
 	if err := s.Error(); err != nil {
 		return fmt.Errorf("search error: %w", err)
 	}
-	s.MustClose()
 
 	var got []MetricRow
 	var mn MetricName

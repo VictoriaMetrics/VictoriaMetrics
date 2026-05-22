@@ -48,6 +48,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): hide values passed to `vmalert.proxyURL` in startup logs, `/metrics`, and `/flags`, since they can contain sensitive HTTP headers such as `Authorization` and API keys.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): preserve exact series values in graph tooltips instead of rounding them by significant digits. See [#10952](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10952).
 * BUGFIX: all VictoriaMetrics components: fix int64 overflow when parsing [timestamp parameters](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats) with relative durations. See [#10880](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10880).
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): `-denyQueriesOutsideRetention` now also rejects queries whose end time is beyond `-futureRetention`. See [#10879](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10879).
 
 ## [v1.143.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.143.0)
 
