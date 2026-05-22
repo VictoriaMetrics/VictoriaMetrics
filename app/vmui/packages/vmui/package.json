@@ -25,7 +25,7 @@
     "lodash.debounce": "^4.0.8",
     "marked": "^18.0.2",
     "preact": "^10.29.1",
-    "qs": "^6.15.1",
+    "qs": "^6.15.2",
     "react-input-mask": "^2.0.4",
     "react-router-dom": "^7.14.1",
     "uplot": "^1.6.32",
