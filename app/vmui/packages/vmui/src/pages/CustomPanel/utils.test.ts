@@ -84,7 +84,7 @@ describe("convertMetricsDataToCSV", () => {
     expect(result).toBe("header1,header2,__timestamp__,__value__\n123,first,1623945600,123\n456-789,second,-,-");
   });
 
-  it("should handle a combination of metric entries with value and values", () => {
+  it("should return value and timestamp if metric field is empty", () => {
     const data: InstantMetricResult[] = [
       {
         value: [1623945600, "123"],
