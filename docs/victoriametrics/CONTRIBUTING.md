@@ -4,8 +4,8 @@ title: Contributing
 menu:
   docs:
     identifier: vm-contributing
-    parent: victoriametrics
     weight: 400
+    pageRef: "/victoriametrics/contributing/"
 tags: []
 aliases:
 - /CONTRIBUTING.html

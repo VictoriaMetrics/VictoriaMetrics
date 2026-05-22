@@ -851,6 +851,30 @@ users:
 		responseExpected,
 	)
 
+	// test header injection and URL templating with individual placeholders
+	request = httptest.NewRequest(`GET`, "http://some-host.com/api/v1/query", nil)
+	request.Header.Set(`Authorization`, `Bearer `+fullToken)
+	responseExpected = `
+statusCode=200
+path: /select/123/234/api/v1/query
+query:
+headers:
+    AccountID=123
+    ProjectID=234`
+	f(fmt.Sprintf(
+		`
+users:
+- jwt:
+    public_keys:
+    - %q
+  url_prefix: {BACKEND}/select/{{.MetricsAccountID}}/{{.MetricsProjectID}}
+  headers:
+  - "AccountID: {{.MetricsAccountID}}"
+  - "ProjectID: {{.MetricsProjectID}}"`, string(publicKeyPEM)),
+		request,
+		responseExpected,
+	)
+
 	// extra_label and extra_filters from vm_access claim merged with statically defined
 	request = httptest.NewRequest(`GET`, "http://some-host.com/api/v1/query", nil)
 	request.Header.Set(`Authorization`, `Bearer `+fullToken)

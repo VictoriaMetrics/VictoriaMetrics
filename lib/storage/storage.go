@@ -61,10 +61,11 @@ type Storage struct {
 	// indexdb rotation.
 	legacyNextRotationTimestamp atomic.Int64
 
-	path                 string
-	cachePath            string
-	retentionMsecs       int64
-	futureRetentionMsecs int64
+	path                        string
+	cachePath                   string
+	retentionMsecs              int64
+	futureRetentionMsecs        int64
+	denyQueriesOutsideRetention bool
 
 	// lock file for exclusive access to the storage on the given path.
 	flockF *os.File
@@ -161,14 +162,15 @@ type Storage struct {
 
 // OpenOptions optional args for MustOpenStorage
 type OpenOptions struct {
-	Retention             time.Duration
-	FutureRetention       time.Duration
-	MaxHourlySeries       int
-	MaxDailySeries        int
-	DisablePerDayIndex    bool
-	TrackMetricNamesStats bool
-	IDBPrefillStart       time.Duration
-	LogNewSeries          bool
+	Retention                   time.Duration
+	FutureRetention             time.Duration
+	DenyQueriesOutsideRetention bool
+	MaxHourlySeries             int
+	MaxDailySeries              int
+	DisablePerDayIndex          bool
+	TrackMetricNamesStats       bool
+	IDBPrefillStart             time.Duration
+	LogNewSeries                bool
 }
 
 // MustOpenStorage opens storage on the given path with the given retentionMsecs.
@@ -190,12 +192,13 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 		idbPrefillStart = time.Hour
 	}
 	s := &Storage{
-		path:                   path,
-		cachePath:              filepath.Join(path, cacheDirname),
-		retentionMsecs:         retention.Milliseconds(),
-		futureRetentionMsecs:   futureRetention.Milliseconds(),
-		stopCh:                 make(chan struct{}),
-		idbPrefillStartSeconds: idbPrefillStart.Milliseconds() / 1000,
+		path:                        path,
+		cachePath:                   filepath.Join(path, cacheDirname),
+		retentionMsecs:              retention.Milliseconds(),
+		futureRetentionMsecs:        futureRetention.Milliseconds(),
+		denyQueriesOutsideRetention: opts.DenyQueriesOutsideRetention,
+		stopCh:                      make(chan struct{}),
+		idbPrefillStartSeconds:      idbPrefillStart.Milliseconds() / 1000,
 	}
 	s.logNewSeries.Store(opts.LogNewSeries)
 
@@ -1225,6 +1228,25 @@ func searchAndMergeUniq(qt *querytracer.Tracer, s *Storage, tr TimeRange, search
 	return res, nil
 }
 
+// checkTimeRange returns an error if time range is outside the allowed
+// -retentionPeriod or -futureRetention window when
+// -denyQueriesOutsideRetention flag is set
+func (s *Storage) checkTimeRange(tr TimeRange) error {
+	if !s.denyQueriesOutsideRetention {
+		return nil
+	}
+
+	minTimestamp, maxTimestamp := s.tb.getMinMaxTimestamps()
+	if minTimestamp <= tr.MinTimestamp && tr.MaxTimestamp <= maxTimestamp {
+		return nil
+	}
+
+	retention := time.Duration(s.retentionMsecs) * time.Millisecond
+	futureRetention := time.Duration(s.futureRetentionMsecs) * time.Millisecond
+	return fmt.Errorf("the given time range %s is outside the allowed -retentionPeriod=%s, -futureRetention=%s "+
+		"according to -denyQueriesOutsideRetention", &tr, retention, futureRetention)
+}
+
 // SearchTSIDs searches the TSIDs that correspond to filters within the given
 // time range.
 //
@@ -1235,6 +1257,10 @@ func searchAndMergeUniq(qt *querytracer.Tracer, s *Storage, tr TimeRange, search
 func (s *Storage) SearchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]TSID, error) {
 	qt = qt.NewChild("search TSIDs: filters=%s, timeRange=%s, maxMetrics=%d", tfss, &tr, maxMetrics)
 	defer qt.Done()
+
+	if err := s.checkTimeRange(tr); err != nil {
+		return nil, err
+	}
 
 	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) ([]TSID, error) {
 		return idb.SearchTSIDs(qt, tfss, tr, maxMetrics, deadline)
@@ -1271,6 +1297,9 @@ func (s *Storage) SearchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Tim
 // MetricName.UnmarshalString().
 func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]string, error) {
 	qt = qt.NewChild("search metric names: filters=%s, timeRange=%s, maxMetrics: %d", tfss, &tr, maxMetrics)
+	if err := s.checkTimeRange(tr); err != nil {
+		return nil, err
+	}
 	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) ([]string, error) {
 		return idb.SearchMetricNames(qt, tfss, tr, maxMetrics, deadline)
 	}
