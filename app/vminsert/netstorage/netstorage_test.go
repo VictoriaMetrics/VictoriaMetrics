@@ -140,7 +140,7 @@ func TestAllowRerouting(t *testing.T) {
 	// rerouting not triggered because rerouting disabled by flag
 	*disableRerouting = true
 	f([]*storageNode{
-		newStorage(0.51, true),
+		newStorage(0.49*1.2, true),
 		newStorage(0.49, true),
 		newStorage(0.49, true),
 	}, 0, false)
