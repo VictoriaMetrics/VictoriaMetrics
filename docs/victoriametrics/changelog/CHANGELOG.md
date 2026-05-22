@@ -26,6 +26,10 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+## [v1.144.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.144.0)
+
+Released at 2026-05-22
+
 * FEATURE: all VictoriaMetrics components: improve logging for the `-memory.allowedBytes` flag to warn about excessively low value (less than 1MB). See issue [#10935](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10935).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): add `basicAuth.usernameFile` command-line flags for reading basic auth username from a file, similar to the existing `basicAuth.passwordFile`. The file is re-read every second. See [#9436](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9436). Thanks to @kimjune01 for the contribution.
 * FEATURE: `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): add `clusternative.tls` `vminsert` configuration flags for [multi-level cluster setups](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multi-level-cluster-setup). See [#10958](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10958).
