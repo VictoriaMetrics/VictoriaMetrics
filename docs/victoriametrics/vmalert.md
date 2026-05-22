@@ -884,13 +884,9 @@ vmalert respects `evaluationInterval` value set by flag or per-group during the 
 vmalert automatically disables caching on VictoriaMetrics side by sending `nocache=1` param. It allows
 to prevent cache pollution and unwanted time range boundaries adjustment during backfilling.
 
-### Recording rules
+Results of recording rules `replay` should match with results of normal rules evaluation.
 
-The result of recording rules `replay` should match with results of normal rules evaluation.
-
-#### Alerting rules
-
-The result of alerting rules `replay` is time series reflecting [alert's state](#alerts-state-on-restarts).
+Results of alerting rules `replay` are time series reflecting [alert's state](#alerts-state-on-restarts).
 To see if `replayed` alert has fired in the past use the following PromQL/MetricsQL expression:
 
 ```
