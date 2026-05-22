@@ -752,7 +752,7 @@ func newCompressedLabels(src *promutil.Labels) *compressedLabels {
 	bb := compressedLabelsBufPool.Get()
 	bb.Grow(sizeNeeded)
 	// manually craft json in order to reduce memory allocations
-	fmt.Fprintf(bb, `{`) //nolint:errcheck
+	bb.B = append(bb.B, '{')
 
 	escapeBB := compressedLabelsEscapePool.Get()
 	escapeBuf := escapeBB.B
