@@ -24,6 +24,7 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/googleapis/gax-go/v2 v2.22.0
 	github.com/influxdata/influxdb v1.12.4
+	github.com/influxdata/influxdb-client-go/v2 v2.14.0
 	github.com/klauspost/compress v1.18.5
 	github.com/prometheus/prometheus v0.311.3
 	github.com/urfave/cli/v2 v2.27.7
@@ -55,6 +56,7 @@ require (
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.56.0 // indirect
 	github.com/VividCortex/ewma v1.2.0 // indirect
 	github.com/alecthomas/units v0.0.0-20240927000941-0f3dac36c52b // indirect
+	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.8 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.14 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.21 // indirect
@@ -94,6 +96,7 @@ require (
 	github.com/googleapis/enterprise-certificate-proxy v0.3.14 // indirect
 	github.com/grafana/regexp v0.0.0-20250905093917-f7b3be9d1853 // indirect
 	github.com/hashicorp/go-version v1.9.0 // indirect
+	github.com/influxdata/line-protocol v0.0.0-20200327222509-2487e7298839 // indirect
 	github.com/jpillora/backoff v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/knadh/koanf/maps v0.1.2 // indirect
@@ -109,6 +112,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f // indirect
+	github.com/oapi-codegen/runtime v1.0.0 // indirect
 	github.com/oklog/ulid/v2 v2.1.1 // indirect
 	github.com/open-telemetry/opentelemetry-collector-contrib/internal/exp/metrics v0.150.0 // indirect
 	github.com/open-telemetry/opentelemetry-collector-contrib/pkg/pdatautil v0.150.0 // indirect

@@ -481,6 +481,8 @@ github.com/hashicorp/go-version
 github.com/influxdata/influxdb/client/v2
 github.com/influxdata/influxdb/models
 github.com/influxdata/influxdb/pkg/escape
+# github.com/influxdata/influxdb-client-go/v2 v2.14.0
+## explicit; go 1.17
 # github.com/jpillora/backoff v1.0.0
 ## explicit; go 1.13
 github.com/jpillora/backoff

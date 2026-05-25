@@ -25,6 +25,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/influx"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/influx2"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/opentsdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/thanos"
@@ -177,6 +178,68 @@ func main() {
 						c.Bool(influxSkipDatabaseLabel),
 						c.Bool(influxPrometheusMode),
 						c.Bool(globalVerbose))
+					return processor.run(ctx)
+				},
+			},
+			{
+				Name:   "influx2",
+				Usage:  "Migrate time series from InfluxDB v2",
+				Flags:  mergeFlags(globalFlags, influx2Flags, vmFlags),
+				Before: beforeFn,
+				Action: func(c *cli.Context) error {
+					fmt.Println("InfluxDB v2 import mode")
+
+					tc, err := promauth.NewTLSConfig(
+						c.String(influx2CertFile),
+						c.String(influx2KeyFile),
+						c.String(influx2CAFile),
+						c.String(influx2ServerName),
+						c.Bool(influx2InsecureSkipVerify),
+					)
+					if err != nil {
+						return fmt.Errorf("failed to create TLS config: %s", err)
+					}
+
+					// Build the influx2.Config from CLI flags.
+					// Notice what's absent compared to the v1 block above:
+					// no Username, no Password, no Database, no Retention, no FilterSeries.
+					// v2 replaced all of those with Token, Org, and Bucket.
+					i2Cfg := influx2.Config{
+						Addr:   c.String(influx2Addr),
+						Token:  c.String(influx2Token),
+						Org:    c.String(influx2Org),
+						Bucket: c.String(influx2Bucket),
+						Filter: influx2.Filter{
+							TimeStart: c.String(influx2FilterTimeStart),
+							TimeEnd:   c.String(influx2FilterTimeEnd),
+						},
+						ChunkSize: c.Int(influx2ChunkSize),
+						TLSConfig: tc,
+					}
+
+					i2Client, err := influx2.NewClient(i2Cfg)
+					if err != nil {
+						return fmt.Errorf("failed to create InfluxDB v2 client: %s", err)
+					}
+
+					vmCfg, err := initConfigVM(c)
+					if err != nil {
+						return fmt.Errorf("failed to init VM configuration: %s", err)
+					}
+
+					importer, err = vm.NewImporter(ctx, vmCfg)
+					if err != nil {
+						return fmt.Errorf("failed to create VM importer: %s", err)
+					}
+
+					processor := newInflux2Processor(
+						i2Client,
+						importer,
+						c.Int(influx2Concurrency),
+						c.String(influx2MeasurementFieldSeparator),
+						c.Bool(influx2SkipBucketLabel),
+						c.Bool(globalVerbose),
+					)
 					return processor.run(ctx)
 				},
 			},
