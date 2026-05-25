@@ -182,15 +182,15 @@ among remote storage systems specified in `-remoteWrite.url`.
 > For example, if you set `-remoteWrite.url=srv+foo` and it's resolved to three addresses (`192.168.1.1`, `192.168.1.2`, `192.168.1.3`),
 > vmagent will only choose **one** randomly every time it (re-)creates the connection. In contrast, specifying the addresses manually (`-remoteWrite.url=192.168.1.1 -remoteWrite.url=192.168.1.2 -remoteWrite.url=192.168.1.3`) will shard samples across all three URLs.
 
-Sometimes, it may be necessary to use only a particular set of labels for sharding. For example, it may be necessary to route all the metrics with the same `instance` label
-to the same `-remoteWrite.url`. In this case, you can specify a comma-separated list of these labels in the `-remoteWrite.shardByURL.labels`
-command-line flag. For example, `-remoteWrite.shardByURL.labels=instance,__name__` would shard metrics with the same name and `instance`
-label to the same `-remoteWrite.url`.
+Use `-remoteWrite.shardByURL.labels` to route metrics among `-remoteWrite.url` based on their label values. 
+For example, `-remoteWrite.shardByURL.labels=instance,__name__` would shard metrics with the same name and `instance`
+label to the same `-remoteWrite.url`. This command-line flag allows specifying a comma-separated list of labels.
 
-Sometimes, it may be necessary to ignore some labels when sharding samples across multiple `-remoteWrite.url` backends.
-For example, if all the [raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) with the same set of labels
-except for the labels `instance` and `pod` must be routed to the same backend. In this case the list of ignored labels must be passed to
-`-remoteWrite.shardByURL.ignoreLabels` command-line flag: `-remoteWrite.shardByURL.ignoreLabels=instance,pod`.
+Use `-remoteWrite.shardByURL.ignoreLabels` to route metrics among `-remoteWrite.url` based on their label values, excluding the specified labels.
+For example, `-remoteWrite.shardByURL.ignoreLabels=pod` would shard metrics `metric{pod="foo"}` and `metric{pod="bar"}` to the same `-remoteWrite.url`
+by ignoring the `pod` label. This command-line flag allows specifying a comma-separated list of labels.
+
+Command-line flags `-remoteWrite.shardByURL.labels` and `-remoteWrite.shardByURL.ignoreLabels` are mutually exclusive.
 
 See also [how to scrape a large number of targets](#scraping-big-number-of-targets).
 
