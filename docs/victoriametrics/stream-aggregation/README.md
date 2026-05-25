@@ -608,7 +608,7 @@ building a two layer topology of vmagents where the first layer is responsible f
 ```mermaid
 flowchart LR
     V1[vmagent-shard-1] -- requests_total{env=test, pod=foo} --> SV1[vmagent-aggr-1]
-    V1[vmagent-shard-1] -- requests_total{env=test, pod=bar} --> SV2[vmagent-aggr-1]
+    V1[vmagent-shard-1] -- requests_total{env=prod, pod=bar} --> SV2[vmagent-aggr-1]
     V2[vmagent-shard-2] -- requests_total{env=prod, pod=baz} --> SV2[vmagent-aggr-2]
     SV1 -- requests_total:5m_without_pod_total{env=test} --> x(( ))
     SV2 -- requests_total:5m_without_pod_total{env=prod} --> y(( ))
