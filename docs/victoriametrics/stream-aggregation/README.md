@@ -622,9 +622,9 @@ command line flags. See how to [shard data across remote write destinations](htt
 The following requirements must be met for sharded aggregation to work correctly:
 - All sharding vmagents should have the same deterministic sharding configuration.
 - The sharding configuration must align with the `by` and `without` lists:
-  - If you aggregate `by: env` - make sure sharding agents are configured with `-remoteWrite.shardByURL.labels=env`. 
+  - If you aggregate `by: env` - make sure that `env` label is listed in the routing key of sharding agents: `-remoteWrite.shardByURL.labels=env`. 
     This makes sure that all the samples for the same `env` are aggregated together and produce the complete output.
-  - If you aggregate `without: pod` - make sure sharding agents are configured with `-remoteWrite.shardByURL.ignoreLabels=pod`.
+  - If you aggregate `without: pod` - make sure that `pod` label is excluded from the routing key of sharding agents: `-remoteWrite.shardByURL.ignoreLabels=pod`.
     This makes sure that `requests_total{env=test, pod=foo}` and `requests_total{env=test, pod=bar}` are routed to the same aggregator
     and are aggregated together. See also [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5938#issuecomment-2018470324).
 - Aggregating vmagents should not produce collisions: the aggregation output should be unique across all the sharded agents.
@@ -632,7 +632,7 @@ The following requirements must be met for sharded aggregation to work correctly
   unless they have labels uniquely identifying them. These labels should be either preserved during sharding and aggregation config,
   or enforced on the output via `-remoteWrite.label` - see [these docs](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#cluster-mode) for more details.
 
-> Never shard histograms by `le` label. A histogram is a logical group of series differing
+> Never shard histograms by `le` (or `vmrange` in case of VM histograms) label. A histogram is a logical group of series differing
 only in the bucket label. All of those buckets must land on the same aggregator at the same time so it can produce a
 coherent bucket set. See more about [aggregating histograms](https://docs.victoriametrics.com/stream-aggregation/#aggregating-histograms).
 
