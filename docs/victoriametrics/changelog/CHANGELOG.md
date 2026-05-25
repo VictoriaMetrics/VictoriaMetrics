@@ -56,7 +56,7 @@ Released at 2026-05-22
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): `-denyQueriesOutsideRetention` now also rejects queries whose end time is beyond `-futureRetention`. See [#10879](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10879).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): add missing `__timestamp__` and `__value__` columns to CSV exported from the table view on the Query tab. See [#10975](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10975).
 
-## [v1.143.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.143.0)
+## [v1.144.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.144.0)
 
 Released at 2026-05-08
 
