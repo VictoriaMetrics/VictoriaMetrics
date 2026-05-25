@@ -763,7 +763,7 @@ To enable Graphite compatibility set the `-rule.defaultRuleType=graphite` comman
 
 Since VictoriaMetrics supports both Graphite and Prometheus APIs, it is possible to mix Graphite and VictoriaMetrics rules.
 On the group level, set the `type` field to specify to which datasource type it should belong: `prometheus` (MetricsQL) or `graphite` (GraphiteQL).
-When using vmalert with both `graphite` and `prometheus` rules configured against the cluster version of VictoriaMetrics. Don't forget
+When using vmalert with both `graphite` and `prometheus` rules configured against the cluster version of VictoriaMetrics, don't forget
 to set the `-datasource.appendTypePrefix` flag to `true`, so vmalert can adjust URL prefix automatically based on the query type.
 
 ###### Prometheus
