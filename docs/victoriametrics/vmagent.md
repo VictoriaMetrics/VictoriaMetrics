@@ -186,7 +186,7 @@ Use `-remoteWrite.shardByURL.labels` to route metrics among `-remoteWrite.url` b
 For example, `-remoteWrite.shardByURL.labels=instance,__name__` would shard metrics with the same name and `instance`
 label to the same `-remoteWrite.url`. This command-line flag allows specifying a comma-separated list of labels.
 
-Use `-remoteWrite.shardByURL.ignoreLabels` to route metrics among `-remoteWrite.url` based on their label values, excluding the specified labels.
+Alternatively, you can use `-remoteWrite.shardByURL.ignoreLabels` to route metrics among `-remoteWrite.url` based on their label values, excluding the specified labels.
 For example, `-remoteWrite.shardByURL.ignoreLabels=pod` would shard metrics `metric{pod="foo"}` and `metric{pod="bar"}` to the same `-remoteWrite.url`
 by ignoring the `pod` label. This command-line flag allows specifying a comma-separated list of labels.
 
