@@ -601,10 +601,10 @@ Below is an example of an `aggr.yaml` configuration that drops the `replica` and
 
 ## Scaling aggregation horizontally
 
-The aggregation output is only correct when every input sample contributing to it lands on the same aggregator process.
+Aggregation output is only correct when all contributing samples are processed by the same aggregator instance.
 
-To scale the aggregation horizontally always shard the input samples in a deterministic way. This can be achieved by
-buidling two layer topology of vmagents where the first layer is responsible for sharding, and the second layer is responsible for aggregating:
+To scale the aggregation horizontally, always shard the input samples in a deterministic way. This can be achieved by
+building a two layer topology of vmagents where the first layer is responsible for sharding, and the second layer is responsible for aggregating:
 ```mermaid
 flowchart LR
     V1[vmagent-shard-1] -- requests_total{env=test, pod=foo} --> SV1[vmagent-aggr-1]
@@ -619,24 +619,24 @@ style y fill:none,stroke:none
 The sharding layer of vmagents can be configured via the `-remoteWrite.shardByURL.labels` or `-remoteWrite.shardByURL.ignoreLabels`
 command line flags. See how to [shard data across remote write destinations](https://docs.victoriametrics.com/victoriametrics/vmagent/#sharding-among-remote-storages) for more details.
 
-There are the following requirements for sharded aggregation to be correct:
-- All sharding vmagents should have the same deterministic sharding configuraton.
-- Sharding configuration should be accounted for in the `by` and `without` lists:
+The following requirements must be met for sharded aggregation to work correctly:
+- All sharding vmagents should have the same deterministic sharding configuration.
+- The sharding configuration must align with the `by` and `without` lists:
   - If you aggregate `by: env` - make sure sharding agents are configured with `-remoteWrite.shardByURL.labels=env`. 
     This makes sure that all the samples for the same `env` are aggregated together and produce the complete output.
   - If you aggregate `without: pod` - make sure sharding agents are configured with `-remoteWrite.shardByURL.ignoreLabels=pod`.
-    This makes sure that `requests_total{env=test, pod=foo}` and `requests_total{env=test, pod=bar}` will be routed to the same aggregator
-    and will be aggregated together. See also [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5938#issuecomment-2018470324).
+    This makes sure that `requests_total{env=test, pod=foo}` and `requests_total{env=test, pod=bar}` are routed to the same aggregator
+    and are aggregated together. See also [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5938#issuecomment-2018470324).
 - Aggregating vmagents should not produce collisions: the aggregation output should be unique across all the sharded agents.
   For example, `requests_total:5m_without_env_pod_total` produced by both `vmagent-aggr-1` and `vmagent-aggr-2` will collide
-  unless they have labels uniquley identifying them. These labels should be either preserved during sharding and aggregation config,
-  or enforced on the output via `-remoetWrite.label` - see [these docs](https://docs.victoriametrics.com/stream-aggregation/#cluster-mode) for more details.
+  unless they have labels uniquely identifying them. These labels should be either preserved during sharding and aggregation config,
+  or enforced on the output via `-remoteWrite.label` - see [these docs](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#cluster-mode) for more details.
 
 > Never shard histograms by `le` label. A histogram is a logical group of series differing
 only in the bucket label. All of those buckets must land on the same aggregator at the same time so it can produce a
 coherent bucket set. See more about [aggregating histograms](https://docs.victoriametrics.com/stream-aggregation/#aggregating-histograms).
 
-See also [why you shouldn't put aggregator behind load balancer](https://docs.victoriametrics.com/stream-aggregation/#put-aggregator-behind-load-balancer).
+See also [why you shouldn't put an aggregator behind a load balancer](https://docs.victoriametrics.com/stream-aggregation/#put-aggregator-behind-load-balancer).
 
 # Troubleshooting
 
