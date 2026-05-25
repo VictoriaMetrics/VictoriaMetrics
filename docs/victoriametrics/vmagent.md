@@ -190,7 +190,7 @@ Alternatively, you can use `-remoteWrite.shardByURL.ignoreLabels` to route metri
 For example, `-remoteWrite.shardByURL.ignoreLabels=pod` would shard metrics `metric{pod="foo"}` and `metric{pod="bar"}` to the same `-remoteWrite.url`
 by ignoring the `pod` label. This command-line flag allows specifying a comma-separated list of labels.
 
-Command-line flags `-remoteWrite.shardByURL.labels` and `-remoteWrite.shardByURL.ignoreLabels` are mutually exclusive.
+> Command-line flags `-remoteWrite.shardByURL.labels` and `-remoteWrite.shardByURL.ignoreLabels` are mutually exclusive.
 
 See also [how to scrape a large number of targets](#scraping-big-number-of-targets).
 
