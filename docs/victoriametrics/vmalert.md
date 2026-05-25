@@ -110,7 +110,7 @@ groups:
   [ - <rule_group> ]
 ```
 
-### Groups
+## Groups
 
 Each group has the following attributes:
 
@@ -485,6 +485,8 @@ field. See [how we use them](https://github.com/VictoriaMetrics/VictoriaMetrics/
 to link alerting rule and the corresponding panel on Grafana dashboard.
 
 ## Multitenancy
+
+> See how to use [multitenancy in rules for VictoriaLogs](https://docs.victoriametrics.com/victorialogs/vmalert/#how-to-use-multitenancy-in-rules).
 
 There are the following approaches exist for alerting and recording rules across
 [multiple tenants](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy):
