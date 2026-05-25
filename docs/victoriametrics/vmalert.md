@@ -322,72 +322,6 @@ labels:
 
 For recording rules to work `-remoteWrite.url` must be specified.
 
-## Integrations
-
-vmalert can be integrated with different data sources for alerting and recording rules. But it deliberately allows
-configuring only one `datasource.url`. We recommend running separate instances of vmalert for each datasource type
-with specified `-rule.defaultRuleType=<datasource_type>` command-line flag.
-
-### VictoriaMetrics
-
-vmalert natively integrates with [VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/) for alerting and
-recording rules.
-
-### VictoriaLogs
-
-vmalert integrates with [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) and allows configuring alerting and recording rules using [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/).
-Results of recording rules and alerting state should be persisted to the remote-write compatible storage, such as VictoriaMetrics.
-To enable VictoriaLogs compatibility set `-rule.defaultRuleType=vlogs` commmand-line flag.
-
-See [this doc](https://docs.victoriametrics.com/victorialogs/vmalert/) for details.
-
-### VictoriaTraces
-
-vmalert integrates with [VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) in exactly the same way as
-with [VictoriaLogs](https://docs.victoriametrics.com/victoriametrics/vmalert/#victorialogs).
-
-### Graphite
-
-vmalert integrates with [Graphite Render API](https://graphite.readthedocs.io/en/stable/render_api.html) and allows configuring alerting and recording rules.
-During evaluation, vmalert will send requests to `<-datasource.url>/render?format=json`.
-To enable Graphite compatibility set `-rule.defaultRuleType=graphite` commmand-line flag.
-
-Since VictoriaMetrics supports both Graphite and Prometheus APIs, it is possible to mix Graphite and VictoriaMetrics rules.
-On the group level, set `type` field to specify to which datasource type it should belong: `prometheus` (MetricsQL) or `graphite` (GraphiteQL).
-When using vmalert with both `graphite` and `prometheus` rules configured against cluster version of VictoriaMetrics dont forget
-to set `-datasource.appendTypePrefix` flag to `true`, so vmalert can adjust URL prefix automatically based on the query type.
-
-### Prometheus
-
-vmalert uses [Prometheus HTTP API](https://prometheus.io/docs/prometheus/latest/querying/api/#http-api) for querying
-and [Prometheus Remote Write v1 protocol](https://prometheus.io/docs/specs/prw/remote_write_spec/) for persisting
-recording rules results and alerting state. Hence, it can be integrated with any Prometheus compatible storage
-that supports these protocols.
-
-### Grafana
-
-To proxy requests from [Grafana Alerting UI](https://grafana.com/docs/grafana/latest/alerting/) configure `-vmalert.proxyURL`
-on VictoriaMetrics [single-node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmalert)
-or [vmselect in cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#vmalert).
-
-### vmui
-
-To access rules UI through [vmui](https://docs.victoriametrics.com/victoriametrics/#vmui) configure `-vmalert.proxyURL`
-on VictoriaMetrics [single-node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmalert)
-or [vmselect in cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#vmalert).
-
-### vmanomaly
-
-See how to integrate vmalert with [VictoriaMetrics Anomaly Detection](https://docs.victoriametrics.com/anomaly-detection/)
-in the following [guide](https://docs.victoriametrics.com/anomaly-detection/guides/guide-vmanomaly-vmalert/).
-
-### VictoriaMetrics Cloud
-
-For users of [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_vmalert_config),
-many of the configuration steps (including highly available setup of `vmalert` for cluster deployments) are handled automatically.
-Please refer to the [VictoriaMetrics Cloud documentation](https://docs.victoriametrics.com/victoriametrics-cloud/alertmanager-setup-for-deployment/) for more details.
-
-
 ## Templating
 
 It is allowed to use [Go templating](https://golang.org/pkg/text/template/) in annotations and labels(with limited support) to format data, iterate over
@@ -794,6 +728,71 @@ is configured to fan-out received data to two or more destinations.
 Using `vmagent` as a proxy provides additional benefits such as
 [data persisting when storage is unreachable](https://docs.victoriametrics.com/victoriametrics/vmagent/#replication-and-high-availability),
 or time series modification via [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/).
+
+## Integrations
+
+vmalert can be integrated with different data sources for alerting and recording rules. But it deliberately allows
+configuring only one `datasource.url`. We recommend running separate instances of vmalert for each datasource type
+with specified `-rule.defaultRuleType=<datasource_type>` command-line flag.
+
+###### VictoriaMetrics
+
+vmalert natively integrates with [VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/) for alerting and
+recording rules.
+
+###### VictoriaLogs
+
+vmalert integrates with [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) and allows configuring alerting and recording rules using [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/).
+Results of recording rules and alerting state should be persisted to the remote-write compatible storage, such as VictoriaMetrics.
+To enable VictoriaLogs compatibility set `-rule.defaultRuleType=vlogs` commmand-line flag.
+
+See [this doc](https://docs.victoriametrics.com/victorialogs/vmalert/) for details.
+
+###### VictoriaTraces
+
+vmalert integrates with [VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) in exactly the same way as
+with [VictoriaLogs](https://docs.victoriametrics.com/victoriametrics/vmalert/#victorialogs).
+
+###### Graphite
+
+vmalert integrates with [Graphite Render API](https://graphite.readthedocs.io/en/stable/render_api.html) and allows configuring alerting and recording rules.
+During evaluation, vmalert will send requests to `<-datasource.url>/render?format=json`.
+To enable Graphite compatibility set `-rule.defaultRuleType=graphite` commmand-line flag.
+
+Since VictoriaMetrics supports both Graphite and Prometheus APIs, it is possible to mix Graphite and VictoriaMetrics rules.
+On the group level, set `type` field to specify to which datasource type it should belong: `prometheus` (MetricsQL) or `graphite` (GraphiteQL).
+When using vmalert with both `graphite` and `prometheus` rules configured against cluster version of VictoriaMetrics dont forget
+to set `-datasource.appendTypePrefix` flag to `true`, so vmalert can adjust URL prefix automatically based on the query type.
+
+###### Prometheus
+
+vmalert uses [Prometheus HTTP API](https://prometheus.io/docs/prometheus/latest/querying/api/#http-api) for querying
+and [Prometheus Remote Write v1 protocol](https://prometheus.io/docs/specs/prw/remote_write_spec/) for persisting
+recording rules results and alerting state. Hence, it can be integrated with any Prometheus compatible storage
+that supports these protocols.
+
+###### Grafana
+
+To proxy requests from [Grafana Alerting UI](https://grafana.com/docs/grafana/latest/alerting/) configure `-vmalert.proxyURL`
+on VictoriaMetrics [single-node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmalert)
+or [vmselect in cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#vmalert).
+
+###### vmui
+
+To access rules UI through [vmui](https://docs.victoriametrics.com/victoriametrics/#vmui) configure `-vmalert.proxyURL`
+on VictoriaMetrics [single-node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmalert)
+or [vmselect in cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#vmalert).
+
+###### vmanomaly
+
+See how to integrate vmalert with [VictoriaMetrics Anomaly Detection](https://docs.victoriametrics.com/anomaly-detection/)
+in the following [guide](https://docs.victoriametrics.com/anomaly-detection/guides/guide-vmanomaly-vmalert/).
+
+###### VictoriaMetrics Cloud
+
+For users of [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_vmalert_config),
+many of the configuration steps (including highly available setup of `vmalert` for cluster deployments) are handled automatically.
+Please refer to the [VictoriaMetrics Cloud documentation](https://docs.victoriametrics.com/victoriametrics-cloud/alertmanager-setup-for-deployment/) for more details.
 
 ## Web
 
