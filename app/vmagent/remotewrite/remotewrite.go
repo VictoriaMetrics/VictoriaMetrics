@@ -299,7 +299,7 @@ func initRemoteWriteCtxs(urls []string) {
 	}
 
 	if slices.Contains(*enableMdx, true) {
-		mdx.InitGlobalVmInstanceFilter()
+		mdx.InitGlobalFilter()
 	}
 
 	rwctxsGlobal = rwctxs
@@ -364,7 +364,7 @@ func Stop() {
 	if sl := dailySeriesLimiter; sl != nil {
 		sl.MustStop()
 	}
-	mdx.GlobalVmInstanceFilter.MustStop()
+	mdx.GlobalFilter.MustStop()
 }
 
 // PushDropSamplesOnFailure pushes wr to the configured remote storage systems set via -remoteWrite.url
@@ -1004,15 +1004,20 @@ func (rwctx *remoteWriteCtx) TryPushTimeSeries(tss []prompb.TimeSeries, forceDro
 		putRelabelCtx(rctx)
 	}()
 
-	if rwctx.enableMdx && mdx.GlobalVmInstanceFilter != nil {
+	if rwctx.enableMdx && mdx.GlobalFilter != nil {
 		rctx = getRelabelCtx()
 		// Make a copy of tss
 		v = tssPool.Get().(*[]prompb.TimeSeries)
 		tss = append(*v, tss...)
 		rowsCountBeforeMdx := getRowsCount(tss)
-		tss = mdx.GlobalVmInstanceFilter.ApplyMdxFilter(tss)
-		rowsCountAfterMdx := getRowsCount(tss)
+		resTss := tssPool.Get().(*[]prompb.TimeSeries)
+		*resTss = mdx.GlobalFilter.Filter(tss, *resTss)
+		rowsCountAfterMdx := getRowsCount(*resTss)
 		rwctx.rowsDroppedByMdx.Add(rowsCountBeforeMdx - rowsCountAfterMdx)
+		if len(*resTss) == 0 {
+			return true
+		}
+		tss = *resTss
 	}
 
 	// Apply relabeling

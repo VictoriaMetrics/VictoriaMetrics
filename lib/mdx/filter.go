@@ -18,7 +18,8 @@ var (
 		"It must be explicitly set when -remoteWrite.mdx.enable is set and requires explicit unit suffixes (s, m, h, d, w, y). Please see https://docs.victoriametrics.com/victoriametrics/vmagent/#monitoring-data-exchange")
 )
 
-type VmInstanceFilter struct {
+// Filter manages the list of VictoriaMetrics instances discovered from previous data flow, and uses it to filter out metrics that are not from VictoriaMetrics instances.
+type Filter struct {
 	mu                    sync.RWMutex
 	wg                    sync.WaitGroup
 	stopCh                chan struct{}
@@ -26,30 +27,29 @@ type VmInstanceFilter struct {
 	mdxTrackedVmInstances *metrics.Gauge
 }
 
-var GlobalVmInstanceFilter *VmInstanceFilter
+var GlobalFilter *Filter
 
-func InitGlobalVmInstanceFilter() {
+func InitGlobalFilter() {
 	if mdxInstanceEntryTTL.Milliseconds() == 0 {
-		logger.Panicf("-mdx.instanceEntryTTL must be explicitly set when -remoteWrite.mdx.enable is set.")
+		logger.Warnf("MDX instance entry cleanup mechanism will be disabled without explicilty setting -mdx.instanceEntryTTL.")
+		return
 	}
-	GlobalVmInstanceFilter = &VmInstanceFilter{
+	GlobalFilter = &Filter{
 		vmInstance: make(map[string]*atomic.Int64),
 		stopCh:     make(chan struct{}),
 	}
-	GlobalVmInstanceFilter.mdxTrackedVmInstances = metrics.NewGauge("vmagent_mdx_tracked_vm_instances", func() float64 {
-		GlobalVmInstanceFilter.mu.RLock()
-		n := len(GlobalVmInstanceFilter.vmInstance)
-		GlobalVmInstanceFilter.mu.RUnlock()
+	GlobalFilter.mdxTrackedVmInstances = metrics.NewGauge("vmagent_mdx_tracked_vm_instances", func() float64 {
+		GlobalFilter.mu.RLock()
+		n := len(GlobalFilter.vmInstance)
+		GlobalFilter.mu.RUnlock()
 		return float64(n)
 	})
 
-	GlobalVmInstanceFilter.wg.Go(GlobalVmInstanceFilter.cleanStale)
+	GlobalFilter.wg.Go(GlobalFilter.cleanStale)
 }
 
-func (filter *VmInstanceFilter) cleanStale() {
-	if mdxInstanceEntryTTL.Milliseconds() == 0 {
-		return
-	}
+func (filter *Filter) cleanStale() {
+	ttlSec := int64(mdxInstanceEntryTTL.Duration().Seconds())
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
@@ -61,7 +61,7 @@ func (filter *VmInstanceFilter) cleanStale() {
 
 			dst := make(map[string]*atomic.Int64, len(filter.vmInstance))
 			for k, v := range filter.vmInstance {
-				if currTs-v.Load() < mdxInstanceEntryTTL.Duration().Milliseconds()/1000 {
+				if currTs-v.Load() < ttlSec {
 					dst[k] = v
 				}
 			}
@@ -75,7 +75,7 @@ func (filter *VmInstanceFilter) cleanStale() {
 	}
 }
 
-func (filter *VmInstanceFilter) MustStop() {
+func (filter *Filter) MustStop() {
 	if filter == nil {
 		return
 	}
@@ -83,8 +83,7 @@ func (filter *VmInstanceFilter) MustStop() {
 	filter.wg.Wait()
 }
 
-func (filter *VmInstanceFilter) ApplyMdxFilter(tss []prompb.TimeSeries) []prompb.TimeSeries {
-	tssDst := tss[:0]
+func (filter *Filter) Filter(tss []prompb.TimeSeries, resTss []prompb.TimeSeries) []prompb.TimeSeries {
 	for _, ts := range tss {
 		isVmInstance := false
 		var instance string
@@ -100,7 +99,10 @@ func (filter *VmInstanceFilter) ApplyMdxFilter(tss []prompb.TimeSeries) []prompb
 				job = label.Value
 			}
 		}
-		identicalKey := fmt.Sprintf("%s:%s", job, instance)
+		if len(job) == 0 || len(instance) == 0 {
+			continue
+		}
+		identicalKey := fmt.Sprintf("%q:%q", job, instance)
 		currTs := time.Now().Unix()
 
 		//fast path
@@ -109,7 +111,7 @@ func (filter *VmInstanceFilter) ApplyMdxFilter(tss []prompb.TimeSeries) []prompb
 		filter.mu.RUnlock()
 		if ok {
 			ptr.Store(currTs)
-			tssDst = append(tssDst, ts)
+			resTss = append(resTss, ts)
 			continue
 		}
 		if !isVmInstance {
@@ -117,7 +119,7 @@ func (filter *VmInstanceFilter) ApplyMdxFilter(tss []prompb.TimeSeries) []prompb
 		}
 
 		// slow path
-		tssDst = append(tssDst, ts)
+		resTss = append(resTss, ts)
 		filter.mu.Lock()
 		if ptr, ok = filter.vmInstance[identicalKey]; ok {
 			ptr.Store(currTs)
@@ -129,5 +131,5 @@ func (filter *VmInstanceFilter) ApplyMdxFilter(tss []prompb.TimeSeries) []prompb
 		filter.mu.Unlock()
 	}
 
-	return tssDst
+	return resTss
 }
