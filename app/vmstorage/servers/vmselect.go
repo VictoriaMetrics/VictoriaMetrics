@@ -3,13 +3,10 @@ package servers
 import (
 	"flag"
 	"fmt"
-	"net/http"
 	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
@@ -35,9 +32,6 @@ var (
 
 	disableRPCCompression = flag.Bool("rpc.disableCompression", false, "Whether to disable compression of the data sent from vmstorage to vmselect. "+
 		"This reduces CPU usage at the cost of higher network bandwidth usage")
-	denyQueriesOutsideRetention = flag.Bool("denyQueriesOutsideRetention", false, "Whether to deny queries outside of the configured -retentionPeriod. "+
-		"When set, then /api/v1/query_range would return '503 Service Unavailable' error for queries with 'from' value outside -retentionPeriod. "+
-		"This may be useful when multiple data sources with distinct retentions are hidden behind query-tee")
 )
 
 var (
@@ -69,9 +63,6 @@ type vmstorageAPI struct {
 
 func (api *vmstorageAPI) InitSearch(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (vmselectapi.BlockIterator, error) {
 	tr := sq.GetTimeRange()
-	if err := checkTimeRange(api.s, tr); err != nil {
-		return nil, err
-	}
 	maxMetrics := getMaxMetrics(sq.MaxMetrics)
 	tfss, err := api.setupTfss(qt, sq, tr, maxMetrics, deadline)
 	if err != nil {
@@ -279,23 +270,6 @@ func (bi *blockIterator) NextBlock(dst []byte) ([]byte, bool) {
 
 func (bi *blockIterator) Error() error {
 	return bi.sr.Error()
-}
-
-// checkTimeRange returns true if the given tr is denied for querying.
-func checkTimeRange(s *storage.Storage, tr storage.TimeRange) error {
-	if !*denyQueriesOutsideRetention {
-		return nil
-	}
-	retentionMsecs := s.RetentionMsecs()
-	minAllowedTimestamp := int64(fasttime.UnixTimestamp()*1000) - retentionMsecs
-	if tr.MinTimestamp > minAllowedTimestamp {
-		return nil
-	}
-	return &httpserver.ErrorWithStatusCode{
-		Err: fmt.Errorf("the given time range %s is outside the allowed retention %.3f days according to -denyQueriesOutsideRetention",
-			&tr, float64(retentionMsecs)/(24*3600*1000)),
-		StatusCode: http.StatusServiceUnavailable,
-	}
 }
 
 func getMaxMetrics(searchQueryLimit int) int {

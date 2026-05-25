@@ -66,7 +66,10 @@ var (
 
 	logNewSeries = flag.Bool("logNewSeries", false, "Whether to log new series. This option is for debug purposes only. It can lead to performance issues "+
 		"when big number of new series are ingested into VictoriaMetrics")
-	maxHourlySeries = flag.Int("storage.maxHourlySeries", 0, "The maximum number of unique series can be added to the storage during the last hour. "+
+	denyQueriesOutsideRetention = flag.Bool("denyQueriesOutsideRetention", false, "Whether to deny queries outside the configured -retentionPeriod and -futureRetention. "+
+		"When set, then /api/v1/query_range will return an error for queries with 'from' value outside -retentionPeriod or 'to' value beyond -futureRetention. "+
+		"This may be useful when multiple data sources with distinct retentions are hidden behind query-tee")
+	maxHourlySeries = flag.Int64("storage.maxHourlySeries", 0, "The maximum number of unique series can be added to the storage during the last hour. "+
 		"Excess series are logged and dropped. This can be useful for limiting series cardinality. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-limiter . "+
 		fmt.Sprintf("Setting this flag to '-1' sets limit to maximum possible value (%d) which is useful in order to enable series tracking without enforcing limits. ", math.MaxInt32)+
 		"See also -storage.maxDailySeries")
@@ -164,14 +167,15 @@ func main() {
 	logger.Infof("opening storage at %q with -retentionPeriod=%s", *storageDataPath, retentionPeriod)
 	startTime := time.Now()
 	opts := storage.OpenOptions{
-		Retention:             retentionPeriod.Duration(),
-		FutureRetention:       futureRetention.Duration(),
-		MaxHourlySeries:       getMaxHourlySeries(),
-		MaxDailySeries:        getMaxDailySeries(),
-		DisablePerDayIndex:    *disablePerDayIndex,
-		TrackMetricNamesStats: *trackMetricNamesStats,
-		IDBPrefillStart:       *idbPrefillStart,
-		LogNewSeries:          *logNewSeries,
+		Retention:                   retentionPeriod.Duration(),
+		FutureRetention:             futureRetention.Duration(),
+		DenyQueriesOutsideRetention: *denyQueriesOutsideRetention,
+		MaxHourlySeries:             getMaxHourlySeries(),
+		MaxDailySeries:              getMaxDailySeries(),
+		DisablePerDayIndex:          *disablePerDayIndex,
+		TrackMetricNamesStats:       *trackMetricNamesStats,
+		IDBPrefillStart:             *idbPrefillStart,
+		LogNewSeries:                *logNewSeries,
 	}
 	strg := storage.MustOpenStorage(*storageDataPath, opts)
 	initStaleSnapshotsRemover(strg)

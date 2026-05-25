@@ -151,6 +151,10 @@ func InitSecretFlags() {
 		// remoteWrite.url can contain authentication codes, so hide it at `/metrics` output.
 		flagutil.RegisterSecretFlag("remoteWrite.url")
 	}
+	// remoteWrite.proxyURL can contain authentication codes.
+	flagutil.RegisterSecretFlag("remoteWrite.proxyURL")
+	// remoteWrite.headers can contain auth headers such as Authorization and API keys.
+	flagutil.RegisterSecretFlag("remoteWrite.headers")
 }
 
 var (
@@ -167,6 +171,18 @@ func Init() {
 	if len(*remoteWriteURLs) == 0 {
 		logger.Fatalf("at least one `-remoteWrite.url` command-line flag must be set")
 	}
+	if *shardByURL && len(*disableOnDiskQueue) > 1 {
+		disableOnDiskQueues := *disableOnDiskQueue
+
+		firstValue := disableOnDiskQueues[0]
+		for _, v := range disableOnDiskQueues[1:] {
+			if firstValue != v {
+				logger.Fatalf("all -remoteWrite.url targets must have the same -remoteWrite.disableOnDiskQueue setting when -remoteWrite.shardByURL is enabled; " +
+					"either enable or disable -remoteWrite.disableOnDiskQueue for all targets")
+			}
+		}
+	}
+
 	if limit := getMaxHourlySeries(); limit > 0 {
 		hourlySeriesLimiter = bloomfilter.NewLimiter(limit, time.Hour)
 		_ = metrics.NewGauge(`vmagent_hourly_series_limit_max_series`, func() float64 {
@@ -499,7 +515,9 @@ func tryPush(at *auth.Token, wr *prompb.WriteRequest, forceDropSamplesOnFailure 
 //
 // calculateHealthyRwctxIdx will rely on the order of rwctx to be in ascending order.
 func getEligibleRemoteWriteCtxs(tss []prompb.TimeSeries, forceDropSamplesOnFailure bool) ([]*remoteWriteCtx, bool) {
-	if !disableOnDiskQueueAny {
+	// When -remoteWrite.shardByURL=true always use all configured remote writes to preserve stable metrics distribution across shards.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10507
+	if !disableOnDiskQueueAny || *shardByURL {
 		return rwctxsGlobal, true
 	}
 
@@ -514,12 +532,6 @@ func getEligibleRemoteWriteCtxs(tss []prompb.TimeSeries, forceDropSamplesOnFailu
 				return nil, false
 			}
 			rowsCount := getRowsCount(tss)
-			if *shardByURL {
-				// Todo: When shardByURL is enabled, the following metrics won't be 100% accurate. Because vmagent don't know
-				// which rwctx should data be pushed to yet. Let's consider the hashing algorithm fair and will distribute
-				// data to all rwctxs evenly.
-				rowsCount = rowsCount / len(rwctxsGlobal)
-			}
 			rwctx.rowsDroppedOnPushFailure.Add(rowsCount)
 		}
 	}
@@ -699,7 +711,7 @@ func shardAmountRemoteWriteCtx(tssBlock []prompb.TimeSeries, shards [][]prompb.T
 			}
 			tmpLabels.Labels = hashLabels
 		}
-		h := getLabelsHash(hashLabels)
+		h := getLabelsHashForShard(hashLabels)
 
 		// Get the rwctxIdx through consistent hashing and then map it to the index in shards.
 		// The rwctxIdx is not always equal to the shardIdx, for example, when some rwctx are not available.
@@ -790,11 +802,28 @@ var (
 	dailySeriesLimitRowsDropped  = metrics.NewCounter(`vmagent_daily_series_limit_rows_dropped_total`)
 )
 
+// getLabelsHashForShard is a separate function from getLabelsHash because
+// it omits the '=' separator between label name and value for backward compatibility.
+// Changing it would re-shard all series across remoteWrite targets.
+func getLabelsHashForShard(labels []prompb.Label) uint64 {
+	bb := labelsHashBufPool.Get()
+	b := bb.B[:0]
+	for _, label := range labels {
+		b = append(b, label.Name...)
+		b = append(b, label.Value...)
+	}
+	h := xxhash.Sum64(b)
+	bb.B = b
+	labelsHashBufPool.Put(bb)
+	return h
+}
+
 func getLabelsHash(labels []prompb.Label) uint64 {
 	bb := labelsHashBufPool.Get()
 	b := bb.B[:0]
 	for _, label := range labels {
 		b = append(b, label.Name...)
+		b = append(b, '=')
 		b = append(b, label.Value...)
 	}
 	h := xxhash.Sum64(b)

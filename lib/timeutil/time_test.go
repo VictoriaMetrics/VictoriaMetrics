@@ -1,6 +1,8 @@
 package timeutil
 
 import (
+	"fmt"
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -204,10 +206,11 @@ func TestParseTimeAtSuccess(t *testing.T) {
 }
 
 func TestParseTimeAtLimits(t *testing.T) {
+	now := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+
 	f := func(s string, wantTime time.Time) {
 		t.Helper()
-		currentTimestamp := time.Now().UnixNano()
-		got, err := ParseTimeAt(s, currentTimestamp)
+		got, err := ParseTimeAt(s, now.UnixNano())
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -226,6 +229,14 @@ func TestParseTimeAtLimits(t *testing.T) {
 	}
 	east := location(t, "Etc/GMT-14") // UTC+14:00
 	west := location(t, "Etc/GMT+12") // UTC-12:00
+	var s string
+
+	// min timestamp
+	f("0", time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC))
+	s = fmt.Sprintf("-%d", now.Unix())
+	f(s, time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC))
+	s = fmt.Sprintf("now-%d", now.Unix())
+	f(s, time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC))
 
 	// min year
 	f("1970Z", time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC))
@@ -286,13 +297,39 @@ func TestParseTimeAtLimits(t *testing.T) {
 	f("2262-04-11T23:47:16Z", time.Date(2262, 4, 11, 23, 47, 16, 0, time.UTC))
 	f("2262-04-12T13:47:16+14:00", time.Date(2262, 4, 12, 13, 47, 16, 0, east))
 	f("2262-04-11T11:47:16-12:00", time.Date(2262, 4, 11, 11, 47, 16, 0, west))
+
+	// max timestamp
+	s = fmt.Sprintf("%d", int64(maxValidSecond))
+	f(s, time.Date(2262, 4, 11, 23, 47, 16, 0, time.UTC))
+	s = fmt.Sprintf("%d", int64(maxValidMilli))
+	f(s, time.Date(2262, 4, 11, 23, 47, 16, 854_000_000, time.UTC))
+	s = fmt.Sprintf("%d", int64(maxValidMicro))
+	f(s, time.Date(2262, 4, 11, 23, 47, 16, 854_775_000, time.UTC))
+	s = fmt.Sprintf("%d", int64(math.MaxInt64))
+	f(s, time.Date(2262, 4, 11, 23, 47, 16, 854_775_807, time.UTC))
+
+	// timestamps beyond max valid second are still valid but are treated as
+	// milliseconds.
+	s = fmt.Sprintf("%d", int64(maxValidSecond)+1)
+	f(s, time.Date(1970, 4, 17, 18, 2, 52, 37_000_000, time.UTC))
+
+	// timestamps beyond max valid millisecond are still valid but are treated
+	// as microseconds.
+	s = fmt.Sprintf("%d", int64(maxValidMilli)+1)
+	f(s, time.Date(1970, 4, 17, 18, 2, 52, 36_855_000, time.UTC))
+
+	// timestamps beyond max valid microsecond are still valid but are treated
+	// as nanoseconds.
+	s = fmt.Sprintf("%d", int64(maxValidMicro)+1)
+	f(s, time.Date(1970, 4, 17, 18, 2, 52, 36_854_776, time.UTC))
 }
 
 func TestParseTimeAtOutsideLimits(t *testing.T) {
+	now := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+
 	f := func(s string) {
 		t.Helper()
-		currentTimestamp := time.Now().UnixNano()
-		got, err := ParseTimeAt(s, currentTimestamp)
+		got, err := ParseTimeAt(s, now.UnixNano())
 		if err == nil {
 			t.Fatalf("expected error but got %d", got)
 		}
@@ -300,6 +337,10 @@ func TestParseTimeAtOutsideLimits(t *testing.T) {
 			t.Fatalf("expected error: %v", err)
 		}
 	}
+
+	// min timestamp
+	f(fmt.Sprintf("-%d", now.Unix()+1))
+	f(fmt.Sprintf("now-%d", now.Unix()+1))
 
 	// min year
 	f("1969Z")
@@ -360,6 +401,24 @@ func TestParseTimeAtOutsideLimits(t *testing.T) {
 	f("2262-04-11T23:47:17Z")
 	f("2262-04-12T13:47:17+14:00")
 	f("2262-04-11T11:47:17-12:00")
+}
+
+func TestParseTimeAtOutsideLimits_Nanos(t *testing.T) {
+	now := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	f := func(s string) {
+		t.Helper()
+		got, err := ParseTimeAt(s, now.UnixNano())
+		if err == nil {
+			t.Fatalf("expected error but got %d", got)
+		}
+		if !strings.Contains(err.Error(), "cannot parse numeric timestamp") {
+			t.Fatalf("expected error: %v", err)
+		}
+	}
+
+	// max unix nano
+	f(fmt.Sprintf("%d", uint64(math.MaxInt64+1)))
 }
 
 func TestParseTimeMsecFailure(t *testing.T) {

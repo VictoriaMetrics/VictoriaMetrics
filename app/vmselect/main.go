@@ -127,6 +127,7 @@ func main() {
 	concurrencyLimitCh = make(chan struct{}, *maxConcurrentRequests)
 	initVMUIConfig()
 	initVMAlertProxy()
+
 	var vmselectapiServer *vmselectapi.Server
 	if *clusternativeListenAddr != "" {
 		logger.Infof("starting vmselectapi server at %q", *clusternativeListenAddr)
@@ -1067,9 +1068,12 @@ func initVMUIConfig() {
 
 // initVMAlertProxy must be called after flag.Parse(), since it uses command-line flags.
 func initVMAlertProxy() {
+
+	flagutil.RegisterSecretFlag("vmalert.proxyURL")
 	if len(*vmalertProxyURL) == 0 {
 		return
 	}
+
 	proxyURL, err := url.Parse(*vmalertProxyURL)
 	if err != nil {
 		logger.Fatalf("cannot parse -vmalert.proxyURL=%q: %s", *vmalertProxyURL, err)
