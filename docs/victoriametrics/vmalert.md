@@ -211,7 +211,7 @@ rules:
 
 ### Rules
 
-Every rule contains `expr` field for the expression to evaluate against configured datasource.
+Every rule contains an `expr` field for the expression to evaluate against the configured datasource.
 Depending on `group.type` value or `-rule.defaultRuleType` cmd-line flag expression can be one of the following types:
 - `prometheus` (default) - [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/) or [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) expression.
 - `vlogs` - [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/vmalert/) expression.
@@ -314,8 +314,8 @@ labels:
 # Logs are printed with INFO level, so make sure that -loggerLevel=INFO to see the output.
 [ debug: <bool> | default = false ]
 
-# Defines the number of rule's updates entries stored in memory
-# and available for view on rule's Details page.
+# Defines the number of rule updates entries stored in memory
+# and available for view on rule Details page.
 # Overrides `rule.updateEntriesLimit` value for this specific rule.
 [ update_entries_limit: <integer> | default 0 ]
 ```
@@ -735,7 +735,7 @@ or time series modification via [relabeling](https://docs.victoriametrics.com/vi
 
 vmalert can be integrated with different data sources for alerting and recording rules. But it deliberately allows
 configuring only one `datasource.url`. We recommend running separate instances of vmalert for each datasource type
-with specified `-rule.defaultRuleType=<datasource_type>` command-line flag.
+with the specified `-rule.defaultRuleType=<datasource_type>` command-line flag.
 
 ###### VictoriaMetrics
 
@@ -746,7 +746,7 @@ recording rules.
 
 vmalert integrates with [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) and allows configuring alerting and recording rules using [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/).
 Results of recording rules and alerting state should be persisted to the remote-write compatible storage, such as VictoriaMetrics.
-To enable VictoriaLogs compatibility set `-rule.defaultRuleType=vlogs` commmand-line flag.
+To enable VictoriaLogs compatibility set the `-rule.defaultRuleType=vlogs` command-line flag.
 
 See [this doc](https://docs.victoriametrics.com/victorialogs/vmalert/) for details.
 
@@ -759,18 +759,18 @@ with [VictoriaLogs](https://docs.victoriametrics.com/victoriametrics/vmalert/#vi
 
 vmalert integrates with [Graphite Render API](https://graphite.readthedocs.io/en/stable/render_api.html) and allows configuring alerting and recording rules.
 During evaluation, vmalert will send requests to `<-datasource.url>/render?format=json`.
-To enable Graphite compatibility set `-rule.defaultRuleType=graphite` commmand-line flag.
+To enable Graphite compatibility set the `-rule.defaultRuleType=graphite` command-line flag.
 
 Since VictoriaMetrics supports both Graphite and Prometheus APIs, it is possible to mix Graphite and VictoriaMetrics rules.
-On the group level, set `type` field to specify to which datasource type it should belong: `prometheus` (MetricsQL) or `graphite` (GraphiteQL).
-When using vmalert with both `graphite` and `prometheus` rules configured against cluster version of VictoriaMetrics dont forget
-to set `-datasource.appendTypePrefix` flag to `true`, so vmalert can adjust URL prefix automatically based on the query type.
+On the group level, set the `type` field to specify to which datasource type it should belong: `prometheus` (MetricsQL) or `graphite` (GraphiteQL).
+When using vmalert with both `graphite` and `prometheus` rules configured against the cluster version of VictoriaMetrics. Don't forget
+to set the `-datasource.appendTypePrefix` flag to `true`, so vmalert can adjust URL prefix automatically based on the query type.
 
 ###### Prometheus
 
 vmalert uses [Prometheus HTTP API](https://prometheus.io/docs/prometheus/latest/querying/api/#http-api) for querying
 and [Prometheus Remote Write v1 protocol](https://prometheus.io/docs/specs/prw/remote_write_spec/) for persisting
-recording rules results and alerting state. Hence, it can be integrated with any Prometheus compatible storage
+recording rules results and alerting state. Hence, it can be integrated with any Prometheus-compatible storage
 that supports these protocols.
 
 ###### Grafana
@@ -825,7 +825,7 @@ This may be used for better integration with Grafana unified alerting system. Se
 
 vmalert supports alerting and recording rules backfilling (aka `replay`). In replay mode vmalert
 can read the same rules configuration as normal, evaluate them on the given time range and backfill
-results via remote write to the configured storage. vmalert supports only `prometheus` datasource type for backfilling.
+results via remote write to the configured storage. vmalert supports only the `prometheus` datasource type for backfilling.
 
 Please note, that response caching may lead to unexpected results during and after backfilling process.
 In order to avoid this you need to reset cache contents or disable caching when using backfilling
@@ -885,9 +885,9 @@ vmalert respects `evaluationInterval` value set by flag or per-group during the 
 vmalert automatically disables caching on VictoriaMetrics side by sending `nocache=1` param. It allows
 to prevent cache pollution and unwanted time range boundaries adjustment during backfilling.
 
-Results of recording rules `replay` should match with results of normal rules evaluation.
+Results of recording rules `replay` should match the results of normal rules evaluation.
 
-Results of alerting rules `replay` are time series reflecting [alert's state](#alerts-state-on-restarts).
+Results of alerting rules `replay` are the time series reflecting the [state of the alert](#alerts-state-on-restarts).
 To see if `replayed` alert has fired in the past use the following PromQL/MetricsQL expression:
 
 ```
