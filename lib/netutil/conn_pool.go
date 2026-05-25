@@ -1,7 +1,9 @@
 package netutil
 
 import (
+	"errors"
 	"fmt"
+	"net"
 	"sync"
 	"time"
 
@@ -211,15 +213,18 @@ func (cp *ConnPool) tryGetConn() (*handshake.BufferedConn, error) {
 	if cp.isStopped {
 		return nil, fmt.Errorf("conn pool to %s cannot be used, since it is stopped", cp.d.addr)
 	}
-	if len(cp.conns) == 0 {
-		return nil, cp.lastDialError
+	for len(cp.conns) > 0 {
+		c := cp.conns[len(cp.conns)-1]
+		bc := c.bc
+		bc.LastActiveTime = time.Unix(int64(c.lastActiveTime), 0)
+		cp.conns = cp.conns[:len(cp.conns)-1]
+		if !isConnAlive(bc.Conn) {
+			_ = bc.Close()
+			continue
+		}
+		return bc, nil
 	}
-	c := cp.conns[len(cp.conns)-1]
-	bc := c.bc
-	c.bc = nil
-	bc.LastActiveTime = time.Unix(int64(c.lastActiveTime), 0)
-	cp.conns = cp.conns[:len(cp.conns)-1]
-	return bc, nil
+	return nil, cp.lastDialError
 }
 
 // Put puts bc back to the pool.
@@ -334,4 +339,22 @@ func forEachConnPool(f func(cp *ConnPool)) {
 	}
 	wg.Wait()
 	connPoolsMu.Unlock()
+}
+
+// isConnAlive checks whether the connection is still alive by attempting a non-blocking read.
+// Returns true if the connection is alive, false if it is in an error state (e.g. ETIMEDOUT, EOF).
+func isConnAlive(c net.Conn) bool {
+	if err := c.SetReadDeadline(time.Now()); err != nil {
+		return false
+	}
+	defer c.SetReadDeadline(time.Time{}) //nolint:errcheck
+
+	var buf [1]byte
+	_, err := c.Read(buf[:])
+	if err == nil {
+		// Unexpected data on an idle connection - treat as broken.
+		return false
+	}
+	var ne net.Error
+	return errors.As(err, &ne) && ne.Timeout()
 }
