@@ -50,3 +50,24 @@ func toFloat64(v any) (float64, error) {
 func fluxTimeToMillis(t interface{ UnixNano() int64 }) int64 {
 	return t.UnixNano() / 1e6
 }
+
+// escapeFlux escapes a string so it's safe to embed inside a Flux double-quoted
+// string literal. We escape backslash first (before quote) to avoid double-escaping.
+// This is needed for tag keys and tag values in FetchDataPoints, where we can't use
+// QueryWithParams because the number of tag conditions is dynamic and Flux has no
+// "spread a variable number of params into a filter" mechanism.
+func escapeFlux(s string) string {
+	// Replace \ before " to avoid turning \" into \\"
+	out := make([]byte, 0, len(s)+4)
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case '\\':
+			out = append(out, '\\', '\\')
+		case '"':
+			out = append(out, '\\', '"')
+		default:
+			out = append(out, s[i])
+		}
+	}
+	return string(out)
+}

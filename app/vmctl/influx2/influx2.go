@@ -159,22 +159,28 @@ func (c *Client) Explore() ([]*Series, error) {
 //
 // Flux:
 //
-//	from(bucket: "mybucket")
-//	  |> range(start: <min>)
+//	from(bucket: params.Bucket)
+//	  |> range(start: time(v: params.Start))
 //	  |> keep(columns: ["_measurement", "_field"])
 //	  |> distinct(column: "_field")
 //
 // Each row has _measurement, _field, and _value (which equals the field name).
 func (c *Client) fieldsByMeasurement() (map[string][]string, error) {
 	start, _ := c.timeRange()
-	query := fmt.Sprintf(`
-from(bucket: "%s")
-  |> range(start: %s)
+
+	// QueryWithParams sends params as a JSON object; Flux reads them via params.Field.
+	// Using params.Bucket avoids any escaping issues with unusual bucket names.
+	// Start is a time string, so we wrap it with time(v:) to get a Flux time value.
+	query := `
+from(bucket: params.Bucket)
+  |> range(start: time(v: params.Start))
   |> keep(columns: ["_measurement", "_field"])
   |> distinct(column: "_field")
-`, c.bucket, start)
-
-	result, err := c.queryAPI.Query(context.Background(), query)
+`
+	result, err := c.queryAPI.QueryWithParams(context.Background(), query, struct {
+		Bucket string
+		Start  string
+	}{c.bucket, start})
 	if err != nil {
 		return nil, fmt.Errorf("fieldKeys query error: %w", err)
 	}
@@ -213,21 +219,33 @@ from(bucket: "%s")
 //
 // Flux:
 //
-//	from(bucket: "mybucket")
-//	  |> range(start: ..., stop: ...)
-//	  |> filter(fn: (r) => r._measurement == "cpu" and r._field == "usage_idle")
+//	from(bucket: params.Bucket)
+//	  |> range(start: time(v: params.Start), stop: time(v: params.Stop))
+//	  |> filter(fn: (r) => r._measurement == params.Measurement and r._field == params.Field)
 //	  |> first()
 func (c *Client) getTagSets(measurement, field string) ([][]LabelPair, error) {
-	start, stop := c.timeRange()
+	start, _ := c.timeRange()
 
-	query := fmt.Sprintf(`
-from(bucket: "%s")
-  |> range(start: %s, stop: %s)
-  |> filter(fn: (r) => r._measurement == "%s" and r._field == "%s")
+	// All five values come from internal config, not user-supplied series names,
+	// but we still parameterize them. If someone names their bucket `"; drop everything //`,
+	// query injection would silently corrupt the Flux syntax.
+	//
+	// Stop needs special handling: the default is "now()" which is a Flux function call,
+	// not a timestamp string. We can't pass it through time(v:) — so we use a conditional
+	// in the query to fall back to now() when the caller left Stop empty.
+	query := `
+from(bucket: params.Bucket)
+  |> range(start: time(v: params.Start), stop: if params.Stop == "" then now() else time(v: params.Stop))
+  |> filter(fn: (r) => r._measurement == params.Measurement and r._field == params.Field)
   |> first()
-`, c.bucket, start, stop, measurement, field)
-
-	result, err := c.queryAPI.Query(context.Background(), query)
+`
+	result, err := c.queryAPI.QueryWithParams(context.Background(), query, struct {
+		Bucket      string
+		Start       string
+		Stop        string
+		Measurement string
+		Field       string
+	}{c.bucket, start, c.filter.TimeEnd, measurement, field})
 	if err != nil {
 		return nil, fmt.Errorf("tag set query failed for %q.%q: %w", measurement, field, err)
 	}
@@ -351,26 +369,40 @@ func (cr *ChunkedResponse) Next() ([]int64, []float64, error) {
 //
 //	SELECT "usage_idle" FROM "cpu" WHERE "host"='server01' AND time >= ...
 func (c *Client) FetchDataPoints(s *Series) (*ChunkedResponse, error) {
-	start, stop := c.timeRange()
+	start, _ := c.timeRange()
 
 	// Build the per-tag filter conditions. We use r["tagname"] bracket syntax
 	// instead of r.tagname because tag names can contain hyphens, dots, or
 	// other characters that aren't valid Flux identifiers.
+	//
+	// Tag keys and values can't go through QueryWithParams here because the number
+	// of conditions is variable — Flux has no "apply this map as a filter" primitive.
+	// We escape both the key and value with escapeFlux() so a tag like host=`a"b`
+	// doesn't break the string literal and corrupt the whole query.
 	tagFilter := ""
 	for _, lp := range s.LabelPairs {
-		tagFilter += fmt.Sprintf(` and r["%s"] == "%s"`, lp.Name, lp.Value)
+		tagFilter += fmt.Sprintf(` and r["%s"] == "%s"`, escapeFlux(lp.Name), escapeFlux(lp.Value))
 	}
 
 	// sort by _time so timestamps arrive in ascending order.
 	// VictoriaMetrics handles out-of-order points but it's cheaper to sort here.
+	//
+	// Bucket, measurement, field, start and stop are parameterized.
+	// The tag filter is string-interpolated but escaped above.
 	query := fmt.Sprintf(`
-from(bucket: "%s")
-  |> range(start: %s, stop: %s)
-  |> filter(fn: (r) => r._measurement == "%s" and r._field == "%s"%s)
+from(bucket: params.Bucket)
+  |> range(start: time(v: params.Start), stop: if params.Stop == "" then now() else time(v: params.Stop))
+  |> filter(fn: (r) => r._measurement == params.Measurement and r._field == params.Field%s)
   |> sort(columns: ["_time"])
-`, c.bucket, start, stop, s.Measurement, s.Field, tagFilter)
+`, tagFilter)
 
-	result, err := c.queryAPI.Query(context.Background(), query)
+	result, err := c.queryAPI.QueryWithParams(context.Background(), query, struct {
+		Bucket      string
+		Start       string
+		Stop        string
+		Measurement string
+		Field       string
+	}{c.bucket, start, c.filter.TimeEnd, s.Measurement, s.Field})
 	if err != nil {
 		return nil, fmt.Errorf("data fetch failed for %q.%q: %w", s.Measurement, s.Field, err)
 	}
