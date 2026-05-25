@@ -43,8 +43,8 @@ Just download VictoriaMetrics and follow [these instructions](https://docs.victo
 See [available integrations](https://docs.victoriametrics.com/victoriametrics/integrations/) with other systems like
 [Prometheus](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus/) or [Grafana](https://docs.victoriametrics.com/victoriametrics/integrations/grafana/).
 
-VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking the [CHANGELOG](https://docs.victoriametrics.com/victoriametrics/changelog/)
-and performing [regular upgrades](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-upgrade-victoriametrics).
+VictoriaMetrics is developed at a fast pace, so it is recommended to periodically check the [CHANGELOG](https://docs.victoriametrics.com/victoriametrics/changelog/)
+and perform [regular upgrades](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-upgrade-victoriametrics).
 
 ### Starting VictoriaMetrics Single Node or Cluster on VictoriaMetrics Cloud {id="starting-vm-on-cloud"}
 
@@ -58,12 +58,12 @@ Download the newest available [VictoriaMetrics release](https://docs.victoriamet
 from [DockerHub](https://hub.docker.com/r/victoriametrics/victoria-metrics) or [Quay](https://quay.io/repository/victoriametrics/victoria-metrics?tab=tags):
 
 ```sh
-docker pull victoriametrics/victoria-metrics:v1.142.0
+docker pull victoriametrics/victoria-metrics:v1.143.0
 docker run -it --rm -v `pwd`/victoria-metrics-data:/victoria-metrics-data -p 8428:8428 \
- victoriametrics/victoria-metrics:v1.142.0 --selfScrapeInterval=5s -storageDataPath=victoria-metrics-data
+ victoriametrics/victoria-metrics:v1.143.0 --selfScrapeInterval=5s -storageDataPath=victoria-metrics-data
 ```
 
-_For Enterprise images see [this link](https://docs.victoriametrics.com/victoriametrics/enterprise/#docker-images)._
+_For Enterprise images, see [this link](https://docs.victoriametrics.com/victoriametrics/enterprise/#docker-images)._
 
 You should see:
 
@@ -113,7 +113,7 @@ See more details about [cluster architecture](https://docs.victoriametrics.com/v
 ### Starting VictoriaMetrics Single Node from a Binary {id="starting-vm-single-from-a-binary"}
 
 1. Download the correct binary for your OS and architecture from [GitHub](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
-For Enterprise binaries see [this link](https://docs.victoriametrics.com/victoriametrics/enterprise/#binary-releases).
+For Enterprise binaries, see [this link](https://docs.victoriametrics.com/victoriametrics/enterprise/#binary-releases).
 
 2. Extract the archive to /usr/local/bin by running:
 
@@ -147,7 +147,7 @@ After=network.target
 Type=simple
 User=victoriametrics
 Group=victoriametrics
-ExecStart=/usr/local/bin/victoria-metrics-prod -storageDataPath=/var/lib/victoria-metrics -retentionPeriod=90d -selfScrapeInterval=10s
+ExecStart=/usr/local/bin/victoria-metrics-prod -storageDataPath=/var/lib/victoria-metrics -selfScrapeInterval=10s
 SyslogIdentifier=victoriametrics
 Restart=always
 
@@ -164,7 +164,7 @@ END'
 
 Extra [command-line flags](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#list-of-command-line-flags) can be added to `ExecStart` line.
 
-If you want to deploy VictoriaMetrics Single Node as a Windows Service review the [running as a Windows service docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#running-as-windows-service).
+If you want to deploy VictoriaMetrics Single Node as a Windows Service, review the [running as a Windows service docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#running-as-windows-service).
 
 > Please note, `victoriametrics` service is listening on `:8428` for HTTP connections (see `-httpListenAddr` flag).
 
@@ -174,7 +174,7 @@ If you want to deploy VictoriaMetrics Single Node as a Windows Service review th
 sudo systemctl daemon-reload && sudo systemctl enable --now victoriametrics.service
 ```
 
-7. Check that service started successfully:
+7. Check that the service started successfully:
 
 ```sh
 sudo systemctl status victoriametrics.service
@@ -187,12 +187,12 @@ by going to `http://<ip_or_hostname>:8428/vmui`.
 
 VictoriaMetrics cluster consists of [3 components](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#architecture-overview).
 It is recommended to run these components in the same private network (for [security reasons](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#security)),
-but on the separate physical nodes for the best performance.
+but on separate physical nodes for the best performance.
 
-On all nodes you will need to do the following:
+On all nodes, you will need to do the following:
 
 1. Download the correct binary for your OS and architecture with `-cluster` suffix from [GitHub](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
-For Enterprise binaries see [this link](https://docs.victoriametrics.com/victoriametrics/enterprise/#binary-releases).
+For Enterprise binaries, see [this link](https://docs.victoriametrics.com/victoriametrics/enterprise/#binary-releases).
 
 2. Extract the archive to /usr/local/bin by running:
 
@@ -231,7 +231,7 @@ Type=simple
 User=victoriametrics
 Group=victoriametrics
 Restart=always
-ExecStart=/usr/local/bin/vmstorage-prod -retentionPeriod=90d -storageDataPath=/var/lib/vmstorage
+ExecStart=/usr/local/bin/vmstorage-prod -storageDataPath=/var/lib/vmstorage
 
 PrivateTmp=yes
 NoNewPrivileges=yes
@@ -254,7 +254,7 @@ for vmstorage can be added to `ExecStart` line.
 sudo systemctl daemon-reload && sudo systemctl enable --now vmstorage
 ```
 
-4. Check that service started successfully:
+4. Check that the service started successfully:
 
 ```sh
 sudo systemctl status vmstorage
@@ -301,14 +301,14 @@ in one flag. See more details in `-storageNode` flag description in [vminsert fl
 sudo systemctl daemon-reload && sudo systemctl enable --now vminsert.service
 ```
 
-3. Check that service started successfully:
+3. Check that the service started successfully:
 
 ```sh
 sudo systemctl status vminsert.service
 ```
 
 4. After `vminsert` is in `Running` state, confirm the service is healthy by visiting `http://<ip_or_hostname>:8480/-/healthy` link.
-It should say "VictoriaMetrics is Healthy"
+It should say "VictoriaMetrics is Healthy."
 
 #### Installing vmselect
 
@@ -344,7 +344,7 @@ END'
 ```
 
 Replace `<list of vmstorages>` with addresses of previously configured `vmstorage` services.
-To specify multiple addresses you can repeat the flag multiple times, or separate addresses with commas
+To specify multiple addresses, you can repeat the flag multiple times or separate addresses with commas
 in one flag. See more details in `-storageNode` flag description [vminsert flags](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#list-of-command-line-flags-for-vminsert).
 
 > Please note, `vmselect` service is listening on `:8481` for HTTP connections (see `-httpListenAddr` flag).
@@ -362,12 +362,12 @@ sudo systemctl status vmselect.service
 ```
 
 5. After `vmselect` is in `Running` state, confirm the service is healthy by visiting `http://<ip_or_hostname>:8481/select/0/vmui` link.
-It should open [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) page.
+It should open the [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) page.
 
 ## Write data
 
 There are two main models in monitoring for data collection: [push](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#push-model)
-and [pull](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#pull-model). Both are used in modern monitoring and both are
+and [pull](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#pull-model). Both are used in modern monitoring, and both are
 supported by VictoriaMetrics.
 
 See more details on [key concepts of writing data here](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#write-data).
@@ -389,7 +389,7 @@ and [other integrations](https://docs.victoriametrics.com/victoriametrics/integr
 ## Alerting
 
 To run periodic conditions checks use [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/).
-It allows creating set of conditions using MetricsQL expressions and send notifications to [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/)
+It allows creating a set of conditions using MetricsQL expressions and sending notifications to [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/)
 when such conditions are met.
 
 See [vmalert quick start](https://docs.victoriametrics.com/victoriametrics/vmalert/#quickstart).
@@ -413,7 +413,7 @@ command line tool. It supports the following databases for migration to Victoria
 
 ## Productionization
 
-When going to production with VictoriaMetrics we recommend following the recommendations below.
+When moving to production with VictoriaMetrics, we recommend following these best practices.
 
 ### Monitoring
 
@@ -429,10 +429,18 @@ Using the [recommended alerting rules](https://github.com/VictoriaMetrics/Victor
 will help to identify unwanted issues.
 
 The rule of thumb is to have a separate installation of VictoriaMetrics or any other monitoring system to monitor the
-production installation of VictoriaMetrics. This would make monitoring independent and will help identify problems with
+production installation of VictoriaMetrics. This would make monitoring independent and help identify problems with
 the main monitoring installation.
 
 See more details in the article [VictoriaMetrics Monitoring](https://victoriametrics.com/blog/victoriametrics-monitoring/).
+
+### Retention
+
+VictoriaMetrics Single-node and `vmstorage` in VictoriaMetrics Cluster retain data for 1 month by default.
+Data older than the retention period will be automatically deleted. To change the retention period, use the `-retentionPeriod` flag (e.g. `-retentionPeriod=90d`).
+See the [retention](https://docs.victoriametrics.com/victoriametrics/#retention) documentation for more details. 
+
+If free disk space falls below `-storage.minFreeDiskSpaceBytes`, VictoriaMetrics Single-node or `vmstorage` switches to read-only mode and stops accepting new data. To prevent this, ensure proper [capacity planning](#capacity-planning) and set up monitoring and alerting for disk usage.
 
 ### Capacity planning
 
@@ -457,7 +465,7 @@ For backup configuration, please refer to [vmbackup documentation](https://docs.
 
 ### Configuring limits
 
-To avoid excessive resource usage or performance degradation limits must be in place:
+To avoid excessive resource usage or performance degradation, limits must be in place:
 
 * [Resource usage limits](https://docs.victoriametrics.com/victoriametrics/faq/#how-to-set-a-memory-limit-for-victoriametrics-components);
 * [Cardinality limiter](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-limiter).

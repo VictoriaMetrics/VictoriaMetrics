@@ -75,7 +75,7 @@ Full backups can be accelerated with `-origin` pointing to an already existing b
 data between the existing backup and new backup. It saves time and costs on data transfer.
 
 All commands below are provided for a single node version.
-For a cluster version `vmbackup` should be executed on each vmstorage node and `-snapshot.createUrl` should point to vmstorage:
+For a cluster version `vmbackup` should be executed on each vmstorage node and `-snapshot.createURL` should point to vmstorage:
 ```sh
 ./vmbackup -storageDataPath=</path/to/vmstorage-data> -snapshot.createURL=http://vmstorage1:8482/snapshot/create -dst=gs://<bucket>/vmstorage-1
 ```

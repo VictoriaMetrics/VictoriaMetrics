@@ -191,7 +191,7 @@ func testLegacyDeleteSeries(tc *at.TestCase, opts testLegacyDeleteSeriesOpts) {
 
 	// - start legacy vmsingle
 	// - insert data1
-	// - confirm that metric names and samples are searcheable
+	// - confirm that metric names and samples are searchable
 	// - stop legacy vmsingle
 	const step = 24 * 3600 * 1000 // 24h
 	start1 := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
@@ -204,17 +204,17 @@ func testLegacyDeleteSeries(tc *at.TestCase, opts testLegacyDeleteSeriesOpts) {
 	opts.stopLegacySUT()
 
 	// - start new vmsingle
-	// - confirm that data1 metric names and samples are searcheable
+	// - confirm that data1 metric names and samples are searchable
 	// - delete data1
-	// - confirm that data1 metric names and samples are not searcheable anymore
+	// - confirm that data1 metric names and samples are not searchable anymore
 	// - insert data2 (same metric names, different dates)
-	// - confirm that metric names become searcheable again
-	// - confirm that data1 samples are not searchable and data2 samples are searcheable
+	// - confirm that metric names become searchable again
+	// - confirm that data1 samples are not searchable and data2 samples are searchable
 
 	newSUT := opts.startNewSUT()
 	assertSearchResults(newSUT, `{__name__=~".*"}`, start1, end1, "1d", want1)
 
-	newSUT.APIV1AdminTSDBDeleteSeries(t, `{__name__=~".*"}`, at.QueryOpts{})
+	newSUT.PrometheusAPIV1AdminTSDBDeleteSeries(t, `{__name__=~".*"}`, at.QueryOpts{})
 	wantNoResults := &want{
 		series:       []map[string]string{},
 		queryResults: []*at.QueryResult{},
@@ -230,7 +230,7 @@ func testLegacyDeleteSeries(tc *at.TestCase, opts testLegacyDeleteSeriesOpts) {
 
 	// - restart new vmsingle
 	// - confirm that metric names still searchable, data1 samples are not
-	//   searchable, and data2 samples are searcheable
+	//   searchable, and data2 samples are searchable
 
 	opts.stopNewSUT()
 	newSUT = opts.startNewSUT()
@@ -877,7 +877,7 @@ func testLegacyDowngrade(tc *at.TestCase, opts testLegacyDowngradeOpts) {
 	// Ingest legacy2 records, ensure the queries return only legacy2.
 	legacySUT = opts.startLegacySUT()
 	assertQueries(legacySUT, `{__name__=~".*"}`, wantLegacy1, numMetrics)
-	legacySUT.APIV1AdminTSDBDeleteSeries(t, `{__name__=~".*"}`, at.QueryOpts{})
+	legacySUT.PrometheusAPIV1AdminTSDBDeleteSeries(t, `{__name__=~".*"}`, at.QueryOpts{})
 	assertQueries(legacySUT, `{__name__=~".*"}`, wantEmpty, numMetrics)
 	legacySUT.PrometheusAPIV1ImportPrometheus(t, legacy2Data, at.QueryOpts{})
 	legacySUT.ForceFlush(t)
@@ -891,7 +891,7 @@ func testLegacyDowngrade(tc *at.TestCase, opts testLegacyDowngradeOpts) {
 	newSUT = opts.startNewSUT()
 	// series count includes deleted metrics
 	assertQueries(newSUT, `{__name__=~".*"}`, wantLegacy2New1, 3*numMetrics)
-	newSUT.APIV1AdminTSDBDeleteSeries(t, `{__name__=~".*"}`, at.QueryOpts{})
+	newSUT.PrometheusAPIV1AdminTSDBDeleteSeries(t, `{__name__=~".*"}`, at.QueryOpts{})
 	// series count includes deleted metrics
 	assertQueries(newSUT, `{__name__=~".*"}`, wantEmpty, 3*numMetrics)
 	opts.stopNewSUT()

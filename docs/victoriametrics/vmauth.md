@@ -554,15 +554,17 @@ At request time each placeholder is replaced with the corresponding value from t
 
 The following placeholders are supported:
 
-| Placeholder                   | JWT claim field                                                             |
-|-------------------------------|-----------------------------------------------------------------------------|
+| Placeholder                   | JWT claim field                                         |
+|-------------------------------|---------------------------------------------------------|
+| `{{.MetricsAccountID}}`       | `metrics_account_id` int                                |
+| `{{.MetricsProjectID}}`       | `metrics_project_id` int                                |
 | `{{.MetricsTenant}}` -> `0:0` | `metrics_account_id` int, <br/>`metrics_project_id` int |
-| `{{.MetricsExtraLabels}}`     | `metrics_extra_labels` string array                               |
-| `{{.MetricsExtraFilters}}`    | `metrics_extra_filters` string array                              |
-| `{{.LogsAccountID}}`          | `logs_account_id` int                                             |
-| `{{.LogsProjectID}}`          | `logs_project_id` int                                             |
-| `{{.LogsExtraFilters}}`       | `logs_extra_filters` string array                                 |
-| `{{.LogsExtraStreamFilters}}` | `logs_extra_stream_filters` string array                          |
+| `{{.MetricsExtraLabels}}`     | `metrics_extra_labels` string array                     |
+| `{{.MetricsExtraFilters}}`    | `metrics_extra_filters` string array                    |
+| `{{.LogsAccountID}}`          | `logs_account_id` int                                   |
+| `{{.LogsProjectID}}`          | `logs_project_id` int                                   |
+| `{{.LogsExtraFilters}}`       | `logs_extra_filters` string array                       |
+| `{{.LogsExtraStreamFilters}}` | `logs_extra_stream_filters` string array                |
 
 Placeholders are supported in the following locations:
 
@@ -1311,7 +1313,7 @@ Access logs contain limited information to prevent exposing sensitive data. See 
 
 The printed log starts with `access_log` prefix and is followed with `request_host`, `request_uri`, `status_code`, `remote_addr`,
 `user_agent`, `referer`, `duration_ms` and `username` fields in [logfmt](https://brandur.org/logfmt) format. Such logs can be later
-analyzed in [VictoriaLogs](https://docs.victoriametrics.com/victorialogs):
+analyzed in [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/):
 ```logsql
 access_log | extract 'access_log <access_log>' | unpack_logfmt from access_log
 | stats by(username, request_host, status_code) count()

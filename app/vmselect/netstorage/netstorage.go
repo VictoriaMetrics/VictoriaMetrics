@@ -1070,9 +1070,6 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 		return fmt.Errorf("timeout exceeded before starting data export: %s", deadline.String())
 	}
 	tr := sq.GetTimeRange()
-	if err := vmstorage.CheckTimeRange(tr); err != nil {
-		return err
-	}
 	tfss, err := setupTfss(qt, tr, sq.TagFilterss, sq.MaxMetrics, deadline)
 	if err != nil {
 		return err
@@ -1178,9 +1175,6 @@ func SearchMetricNames(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline
 
 	// Setup search.
 	tr := sq.GetTimeRange()
-	if err := vmstorage.CheckTimeRange(tr); err != nil {
-		return nil, err
-	}
 	tfss, err := setupTfss(qt, tr, sq.TagFilterss, sq.MaxMetrics, deadline)
 	if err != nil {
 		return nil, err
@@ -1207,9 +1201,6 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 
 	// Setup search.
 	tr := sq.GetTimeRange()
-	if err := vmstorage.CheckTimeRange(tr); err != nil {
-		return nil, err
-	}
 	tfss, err := setupTfss(qt, tr, sq.TagFilterss, sq.MaxMetrics, deadline)
 	if err != nil {
 		return nil, err
