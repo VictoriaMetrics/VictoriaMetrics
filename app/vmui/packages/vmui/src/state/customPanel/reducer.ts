@@ -35,7 +35,7 @@ export const initialCustomPanelState: CustomPanelState = {
   isTracingEnabled: false,
   seriesLimits: limitsStorage ? JSON.parse(limitsStorage) : DEFAULT_MAX_SERIES,
   tableCompact: getFromStorage("TABLE_COMPACT") as boolean || false,
-  reduceMemUsage: false
+  reduceMemUsage: getFromStorage("REDUCE_MEM_USAGE") as boolean || false
 };
 
 export function reducer(state: CustomPanelState, action: CustomPanelAction): CustomPanelState {
@@ -69,7 +69,7 @@ export function reducer(state: CustomPanelState, action: CustomPanelAction): Cus
         tableCompact: !state.tableCompact
       };
     case "TOGGLE_REDUCE_MEM_USAGE":
-      saveToStorage("TABLE_COMPACT", !state.reduceMemUsage);
+      saveToStorage("REDUCE_MEM_USAGE", !state.reduceMemUsage);
       return {
         ...state,
         reduceMemUsage: !state.reduceMemUsage

@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): persist the `Disable deduplication` toggle under its own local storage key. Before this fix, the toggle state was lost after reload and could overwrite the `Compact view` table setting.
+
 ## [v1.144.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.144.0)
 
 Released at 2026-05-22
