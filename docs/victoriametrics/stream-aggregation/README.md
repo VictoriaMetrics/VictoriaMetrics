@@ -26,7 +26,7 @@ Stream aggregation has the following features:
   and/or scraped from [Prometheus-compatible targets](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
 - It can filter out raw samples matched by aggregation rules, so raw data will never reach the remote destination. See `-streamAggr.keepInput` and `-streamAggr.dropInput` in [aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/);
 - It allows building [flexible processing pipelines](#routing);
-- It is [scalable horizontally](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#scaling-aggregation-horizontally).
+- It is [horizontally scalable](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#scaling-aggregation-horizontally).
 
 # Limitations
 
