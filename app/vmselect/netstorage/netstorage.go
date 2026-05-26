@@ -2529,7 +2529,6 @@ func (sn *storageNode) execOnConn(qt *querytracer.Tracer, funcName string, f fun
 	if err != nil {
 		return fmt.Errorf("%w: %w", errCannotObtainConn, err)
 	}
-
 	// Extend the connection deadline by 2 seconds, so the remote storage could return `timeout` error
 	// without the need to break the connection.
 	connDeadline := d.Add(2 * time.Second)
@@ -3036,7 +3035,6 @@ func (sn *storageNode) processSearchQueryOnConn(bc *handshake.BufferedConn, requ
 	if err := writeBytes(bc, requestData); err != nil {
 		return fmt.Errorf("cannot write requestData: %w", err)
 	}
-
 	if err := bc.Flush(); err != nil {
 		return fmt.Errorf("cannot flush requestData to conn: %w", err)
 	}

@@ -234,7 +234,6 @@ func (cp *ConnPool) Put(bc *handshake.BufferedConn) {
 		_ = bc.Close()
 		return
 	}
-
 	cp.mu.Lock()
 	if cp.isStopped {
 		_ = bc.Close()
