@@ -64,6 +64,18 @@ groups:
             group \"{{ $labels.group }}\". See https://docs.victoriametrics.com/victoriametrics/vmalert/#groups. 
             If rule expressions are taking longer than expected, please see https://docs.victoriametrics.com/victoriametrics/troubleshooting/#slow-queries."
 
+      - alert: GroupIterationReset
+        expr: increase(vmalert_iteration_reset_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Evaluation iteration for group {{ $labels.group }} in file {{ $labels.file }} is reset"
+          description: "Evaluation iteration for group \"{{ $labels.group }}\" in file \"{{ $labels.file }}\" is reset on vmalert instance {{ $labels.instance }}.
+            This can be caused by irregular delays during evaluation or by the system wall clock being moved backward. If it is caused by host clock changes, vmalert could
+            generate duplicate results for the group rules since some evaluations could be repeated. Check host clock time synchronization configurations if this happens frequently."
+
+
       - alert: RemoteWriteErrors
         expr: increase(vmalert_remotewrite_errors_total[5m]) > 0
         for: 15m
@@ -108,4 +120,3 @@ groups:
           summary: "vmalert instance {{ $labels.instance }} is failing to send notifications to Alertmanager"
           description: "vmalert instance {{ $labels.instance }} is failing to send alert notifications to \"{{ $labels.addr }}\".
             Check vmalert's logs for detailed error message."
-
