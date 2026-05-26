@@ -31,6 +31,7 @@ import (
 )
 
 var (
+	storageDataPath = flag.String("storageDataPath", "victoria-metrics-data", "Path to storage data")
 	retentionPeriod = flagutil.NewRetentionDuration("retentionPeriod", "1M", "Data with timestamps outside the retentionPeriod is automatically deleted. The minimum retentionPeriod is 24h or 1d. "+
 		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention. See also -retentionFilter")
 	futureRetention = flagutil.NewRetentionDuration("futureRetention", "2d", "Data with timestamps bigger than now+futureRetention is automatically deleted. "+
@@ -42,9 +43,6 @@ var (
 	_                 = flag.Duration("snapshotCreateTimeout", 0, "Deprecated: this flag does nothing")
 
 	precisionBits = flag.Int("precisionBits", 64, "The number of precision bits to store per each value. Lower precision bits improves data compression at the cost of precision loss")
-
-	// DataPath is a path to storage data.
-	DataPath = flag.String("storageDataPath", "victoria-metrics-data", "Path to storage data")
 
 	_ = flag.Duration("finalMergeDelay", 0, "Deprecated: this flag does nothing")
 	_ = flag.Int("bigMergeConcurrency", 0, "Deprecated: this flag does nothing")
@@ -103,6 +101,10 @@ var (
 		"If set to 0 or a negative value, defaults to 1% of allowed memory.")
 )
 
+func DataPath() string {
+	return *storageDataPath
+}
+
 // Init initializes vmstorage.
 func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	if err := encoding.CheckPrecisionBits(uint8(*precisionBits)); err != nil {
@@ -132,7 +134,7 @@ func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	if *idbPrefillStart > 23*time.Hour {
 		logger.Panicf("-storage.idbPrefillStart cannot exceed 23 hours; got %s", idbPrefillStart)
 	}
-	logger.Infof("opening storage at %q with -retentionPeriod=%s", *DataPath, retentionPeriod)
+	logger.Infof("opening storage at %q with -retentionPeriod=%s", *storageDataPath, retentionPeriod)
 	startTime := time.Now()
 	WG = syncwg.WaitGroup{}
 	opts := storage.OpenOptions{
@@ -146,7 +148,7 @@ func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 		IDBPrefillStart:             *idbPrefillStart,
 		LogNewSeries:                *logNewSeries,
 	}
-	strg := storage.MustOpenStorage(*DataPath, opts)
+	strg := storage.MustOpenStorage(*storageDataPath, opts)
 	Storage = strg
 	initStaleSnapshotsRemover(strg)
 
@@ -158,7 +160,7 @@ func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	rowsCount := tm.SmallRowsCount + tm.BigRowsCount
 	sizeBytes := tm.SmallSizeBytes + tm.BigSizeBytes
 	logger.Infof("successfully opened storage %q in %.3f seconds; partsCount: %d; blocksCount: %d; rowsCount: %d; sizeBytes: %d",
-		*DataPath, time.Since(startTime).Seconds(), partsCount, blocksCount, rowsCount, sizeBytes)
+		*storageDataPath, time.Since(startTime).Seconds(), partsCount, blocksCount, rowsCount, sizeBytes)
 
 	// register storage metrics
 	storageMetrics = metrics.NewSet()
@@ -166,7 +168,7 @@ func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 		writeStorageMetrics(w, strg)
 	})
 	metrics.RegisterSet(storageMetrics)
-	fs.RegisterPathFsMetrics(*DataPath)
+	fs.RegisterPathFsMetrics(*storageDataPath)
 }
 
 var storageMetrics *metrics.Set
@@ -311,7 +313,7 @@ func Stop() {
 	metrics.UnregisterSet(storageMetrics, true)
 	storageMetrics = nil
 
-	logger.Infof("gracefully closing the storage at %s", *DataPath)
+	logger.Infof("gracefully closing the storage at %s", *storageDataPath)
 	startTime := time.Now()
 	WG.WaitAndBlock()
 	stopStaleSnapshotsRemover()
@@ -515,15 +517,15 @@ func writeStorageMetrics(w io.Writer, strg *storage.Storage) {
 	tm := &m.TableMetrics
 	idbm := &m.TableMetrics.IndexDBMetrics
 
-	metrics.WriteGaugeUint64(w, fmt.Sprintf(`vm_free_disk_space_bytes{path=%q}`, *DataPath), fs.MustGetFreeSpace(*DataPath))
-	metrics.WriteGaugeUint64(w, fmt.Sprintf(`vm_free_disk_space_limit_bytes{path=%q}`, *DataPath), uint64(minFreeDiskSpaceBytes.N))
-	metrics.WriteGaugeUint64(w, fmt.Sprintf(`vm_total_disk_space_bytes{path=%q}`, *DataPath), fs.MustGetTotalSpace(*DataPath))
+	metrics.WriteGaugeUint64(w, fmt.Sprintf(`vm_free_disk_space_bytes{path=%q}`, *storageDataPath), fs.MustGetFreeSpace(*storageDataPath))
+	metrics.WriteGaugeUint64(w, fmt.Sprintf(`vm_free_disk_space_limit_bytes{path=%q}`, *storageDataPath), uint64(minFreeDiskSpaceBytes.N))
+	metrics.WriteGaugeUint64(w, fmt.Sprintf(`vm_total_disk_space_bytes{path=%q}`, *storageDataPath), fs.MustGetTotalSpace(*storageDataPath))
 
 	isReadOnly := 0
 	if strg.IsReadOnly() {
 		isReadOnly = 1
 	}
-	metrics.WriteGaugeUint64(w, fmt.Sprintf(`vm_storage_is_read_only{path=%q}`, *DataPath), uint64(isReadOnly))
+	metrics.WriteGaugeUint64(w, fmt.Sprintf(`vm_storage_is_read_only{path=%q}`, *storageDataPath), uint64(isReadOnly))
 
 	metrics.WriteGaugeUint64(w, `vm_active_merges{type="storage/inmemory"}`, tm.ActiveInmemoryMerges)
 	metrics.WriteGaugeUint64(w, `vm_active_merges{type="storage/small"}`, tm.ActiveSmallMerges)
