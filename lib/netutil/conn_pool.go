@@ -164,9 +164,6 @@ func (cp *ConnPool) getConnSlow() (*handshake.BufferedConn, error) {
 			// Create new connection.
 			conn, err := cp.dialAndHandshake()
 			<-cp.concurrentDialsCh
-			if conn != nil {
-				conn.New = true
-			}
 			return conn, err
 		default:
 			// Make attempt to get already established connections from the pool.
@@ -238,11 +235,6 @@ func (cp *ConnPool) Put(bc *handshake.BufferedConn) {
 		return
 	}
 
-	bc.DeadlineTime = 0
-	bc.Timeout = 0
-	bc.New = false
-	bc.LastActiveTime = time.Time{}
-
 	cp.mu.Lock()
 	if cp.isStopped {
 		_ = bc.Close()
@@ -265,10 +257,10 @@ func (cp *ConnPool) closeIdleConns() {
 	cp.mu.Lock()
 
 	// fast path, if there are less than 3 connections in the pool.
-	//if len(cp.conns) < 3 {
-	//	cp.mu.Unlock()
-	//	return
-	//}
+	if len(cp.conns) < 3 {
+		cp.mu.Unlock()
+		return
+	}
 
 	conns := cp.conns
 	for _, c := range conns {
@@ -279,10 +271,10 @@ func (cp *ConnPool) closeIdleConns() {
 		}
 	}
 	for _, c := range closeConns {
-		//if len(activeConns) < 3 {
-		//	activeConns = append(activeConns, c)
-		//	continue
-		//}
+		if len(activeConns) < 3 {
+			activeConns = append(activeConns, c)
+			continue
+		}
 
 		_ = c.bc.Close()
 		c.bc = nil
