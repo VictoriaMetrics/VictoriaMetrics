@@ -213,7 +213,6 @@ func (cp *ConnPool) tryGetConn() (*handshake.BufferedConn, error) {
 	for len(cp.conns) > 0 {
 		c := cp.conns[len(cp.conns)-1]
 		bc := c.bc
-		bc.LastActiveTime = time.Unix(int64(c.lastActiveTime), 0)
 		cp.conns = cp.conns[:len(cp.conns)-1]
 		if !isConnAlive(bc.Conn) {
 			_ = bc.Close()
