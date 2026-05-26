@@ -125,6 +125,7 @@ func main() {
 
 	relabel.Init()
 	timeserieslimits.Init(*maxLabelsPerTimeseries, *maxLabelNameLen, *maxLabelValueLen)
+	opentelemetry.Init()
 	protoparserutil.StartUnmarshalWorkers()
 	if len(*clusternativeListenAddr) > 0 {
 		s, err := clusternative.NewVMinsertServer(*clusternativeListenAddr, nil)
