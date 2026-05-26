@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"sync"
 	"time"
 
@@ -345,6 +346,5 @@ func isConnAlive(c net.Conn) bool {
 		// Unexpected data on an idle connection - treat as broken.
 		return false
 	}
-	var ne net.Error
-	return errors.As(err, &ne) && ne.Timeout()
+	return errors.Is(err, os.ErrDeadlineExceeded)
 }
