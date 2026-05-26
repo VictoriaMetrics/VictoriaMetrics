@@ -3,7 +3,6 @@ package netutil
 import (
 	"errors"
 	"fmt"
-	"net"
 	"os"
 	"sync"
 	"time"
@@ -43,6 +42,7 @@ type ConnPool struct {
 type connWithTimestamp struct {
 	bc             *handshake.BufferedConn
 	lastActiveTime uint64
+	watchCh        chan bool
 }
 
 var (
@@ -205,23 +205,27 @@ func (cp *ConnPool) dialAndHandshake() (*handshake.BufferedConn, error) {
 }
 
 func (cp *ConnPool) tryGetConn() (*handshake.BufferedConn, error) {
-	cp.mu.Lock()
-	defer cp.mu.Unlock()
-
-	if cp.isStopped {
-		return nil, fmt.Errorf("conn pool to %s cannot be used, since it is stopped", cp.d.addr)
-	}
-	for len(cp.conns) > 0 {
+	for {
+		cp.mu.Lock()
+		if cp.isStopped {
+			cp.mu.Unlock()
+			return nil, fmt.Errorf("conn pool to %s cannot be used, since it is stopped", cp.d.addr)
+		}
+		if len(cp.conns) == 0 {
+			err := cp.lastDialError
+			cp.mu.Unlock()
+			return nil, err
+		}
 		c := cp.conns[len(cp.conns)-1]
-		bc := c.bc
 		cp.conns = cp.conns[:len(cp.conns)-1]
-		if !isConnAlive(bc.Conn) {
-			_ = bc.Close()
+		cp.mu.Unlock()
+
+		bc := c.stopWatcher()
+		if bc == nil {
 			continue
 		}
 		return bc, nil
 	}
-	return nil, cp.lastDialError
 }
 
 // Put puts bc back to the pool.
@@ -234,6 +238,8 @@ func (cp *ConnPool) Put(bc *handshake.BufferedConn) {
 		_ = bc.Close()
 		return
 	}
+	watchCh := make(chan bool, 1)
+	go watchConn(bc, watchCh)
 	cp.mu.Lock()
 	if cp.isStopped {
 		_ = bc.Close()
@@ -241,6 +247,7 @@ func (cp *ConnPool) Put(bc *handshake.BufferedConn) {
 		cp.conns = append(cp.conns, connWithTimestamp{
 			bc:             bc,
 			lastActiveTime: fasttime.UnixTimestamp(),
+			watchCh:        watchCh,
 		})
 	}
 	cp.mu.Unlock()
@@ -332,19 +339,40 @@ func forEachConnPool(f func(cp *ConnPool)) {
 	connPoolsMu.Unlock()
 }
 
-// isConnAlive checks whether the connection is still alive by attempting a non-blocking read.
-// Returns true if the connection is alive, false if it is in an error state (e.g. ETIMEDOUT, EOF).
-func isConnAlive(c net.Conn) bool {
-	if err := c.SetReadDeadline(time.Now()); err != nil {
-		return false
-	}
-	defer c.SetReadDeadline(time.Time{}) //nolint:errcheck
-
+// watchConn blocks on Read until the connection is closed or enters an error state.
+// It sends true to watchCh if the connection is dead, false if it was stopped by a deadline.
+func watchConn(bc *handshake.BufferedConn, watchCh chan<- bool) {
 	var buf [1]byte
-	_, err := c.Read(buf[:])
-	if err == nil {
-		// Unexpected data on an idle connection - treat as broken.
-		return false
+	_, err := bc.Conn.Read(buf[:])
+	watchCh <- !errors.Is(err, os.ErrDeadlineExceeded)
+}
+
+// stopWatcher stops the watchConn goroutine and returns the connection if it is still alive.
+// Returns nil if the connection is dead.
+func (c *connWithTimestamp) stopWatcher() *handshake.BufferedConn {
+	// Fast path: goroutine already reported the connection state.
+	select {
+	case dead := <-c.watchCh:
+		if dead {
+			_ = c.bc.Close()
+			return nil
+		}
+	default:
 	}
-	return errors.Is(err, os.ErrDeadlineExceeded)
+
+	// Stop the goroutine by setting a deadline in the past, then wait for its response.
+	if err := c.bc.Conn.SetReadDeadline(time.Now()); err != nil {
+		_ = c.bc.Close()
+		return nil
+	}
+	dead := <-c.watchCh
+	if err := c.bc.Conn.SetReadDeadline(time.Time{}); err != nil {
+		_ = c.bc.Close()
+		return nil
+	}
+	if dead {
+		_ = c.bc.Close()
+		return nil
+	}
+	return c.bc
 }
