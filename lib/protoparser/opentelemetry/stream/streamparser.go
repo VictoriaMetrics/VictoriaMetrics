@@ -27,6 +27,7 @@ var (
 	ignoreResourceAttributes     = flagutil.NewArrayString("opentelemetry.ignoreResourceAttributes", "Control which resource attributes to ignore, can only be set when 'opentelemetry.promoteAllResourceAttributes' is true.")
 )
 
+// InitDecodeOptions configures decoding settings for the parser
 func InitDecodeOptions() {
 	if *promoteAllResourceAttributes && len(*promoteResourceAttributes) > 0 {
 		logger.Fatalf("cannot set both '-opentelemetry.promoteAllResourceAttributes' and '-opentelemetry.promoteResourceAttributes'")

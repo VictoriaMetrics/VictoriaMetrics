@@ -14,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
+// DecodeMetricsOptions defines options for DecodeMetricsData
 type DecodeMetricsOptions struct {
 	DisableScopeMetadata      bool
 	DisableResourceAttributes bool
@@ -80,7 +81,7 @@ func (r *MetricsData) marshalProtobuf(mm *easyproto.MessageMarshaler) {
 	}
 }
 
-// DecodeMetricsData decodes metricsData from src and sends the decoded data to mp.
+// DecodeMetricsData decodes metricsData with given options from src and sends the decoded data to mp.
 func DecodeMetricsData(src []byte, mp MetricPusher, options DecodeMetricsOptions) (err error) {
 	// See https://github.com/open-telemetry/opentelemetry-proto/blob/049d4332834935792fd4dbd392ecd31904f99ba2/opentelemetry/proto/metrics/v1/metrics.proto#L56
 	//

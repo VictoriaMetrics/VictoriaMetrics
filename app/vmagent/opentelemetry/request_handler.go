@@ -25,6 +25,7 @@ var (
 	rowsPerInsert          = metrics.NewHistogram(`vmagent_rows_per_insert{type="opentelemetry"}`)
 )
 
+// Init must be called after flag.Parse and before using the opentelemetry package.
 func Init() {
 	stream.InitDecodeOptions()
 }
