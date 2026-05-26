@@ -465,6 +465,19 @@ in configured `-remoteRead.url`, weren't updated in the last `1h` (controlled by
 or received state doesn't match current `vmalert` rules configuration. `vmalert` marks successfully restored rules
 with `restored` label in [web UI](#web).
 
+Two auto-generated time series are written on each evaluation:
+
+* `ALERTS` – active alerts in `pending` or `firing` state with `alertstate` label; value is always `1`.
+  Use for retrospective overview and debugging. Not used for restore. When an alert becomes inactive,
+  `vmalert` writes a [staleness marker](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#staleness-markers).
+* `ALERTS_FOR_STATE` – service series; value is Unix timestamp (seconds) when the alert became active
+  (the sample timestamp is the evaluation time). Used for restore via `-remoteRead.url` at startup
+  (rules with `for > 0` only). Also written for `for: 0` rules since v1.103.0
+  ([#5648](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5648)); such rules fire immediately
+  after restart and do not need state recovery. No `alertstate` label.
+
+Both series include the alert's label set plus `alertname` (and `alertgroup` unless `-disableAlertgroupLabel`).
+
 ### Link to alert source
 
 Alerting notifications sent by vmalert always contain a `source` link. By default, the link format
@@ -1013,10 +1026,10 @@ If at least one evaluation returns no data, then alert's `for` state resets.
 > Note: The alert state is tracked separately for each time series returned during evaluation.
 > For example, if the 1st evaluation returns series A and B, and the 2nd evaluation returns only B – the alert will remain active **only for B**.
 
-If `-remoteWrite.url` command-line flag is configured, vmalert will [persist alert's state](http://docs.victoriametrics.com/victoriametrics/vmalert/#alerts-state-on-restarts)
-in form of time series `ALERTS` and `ALERTS_FOR_STATE` to the specified destination. Such time series can be then queried via
+If `-remoteWrite.url` command-line flag is configured, vmalert will [persist alert's state](https://docs.victoriametrics.com/victoriametrics/vmalert/#alerts-state-on-restarts)
+as time series `ALERTS` and `ALERTS_FOR_STATE`. Such time series can be queried via
 [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) or Grafana to track how
-alerts state changed in time. See [query statistics dashboard](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards/alert-statistics.json) as example for tracking historical alerts state.
+alerts state changed in time. See [alert statistics dashboard](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards/alert-statistics.json) as an example.
 
 ### Data delay
 
