@@ -61,15 +61,15 @@
 
 {% func prometheusFederateMetricNameUTF8(mn *storage.MetricName) %}
 	{
-        "{%z mn.MetricGroup %}"
+        {%= escapePrometheusLabel(mn.MetricGroup) %}
         {% if len(mn.Tags) > 0 %}
         ,
 		{% code tags := mn.Tags %}
-		"{%z= tags[0].Key %}"={%= escapePrometheusLabel(tags[0].Value) %}
+		{%= escapePrometheusLabel(tags[0].Key) %}={%= escapePrometheusLabel(tags[0].Value) %}
 		{% code tags = tags[1:] %}
 		{% for i := range tags %}
 			{% code tag := &tags[i] %}
-			,"{%z= tag.Key %}"={%= escapePrometheusLabel(tag.Value) %}
+			,{%= escapePrometheusLabel(tag.Key) %}={%= escapePrometheusLabel(tag.Value) %}
 		{% endfor %}
         {% endif %}
 	}

@@ -85,7 +85,7 @@ func TestFederate(t *testing.T) {
 					Value: []byte("value"),
 				},
 				{
-					Key: []byte("abc"),
+					Key: []byte(`ab"c`),
 					// Verify that < isn't encoded. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5431
 					Value: []byte("a<b\"\\c"),
 				},
@@ -93,6 +93,6 @@ func TestFederate(t *testing.T) {
 		},
 		Values:     []float64{1.23},
 		Timestamps: []int64{123},
-	}, federateEscapeSchemeUTF8, `{"foo.bar","some.!other"="value.unchanged!.","qqq"="\\","!key"="value","abc"="a<b\"\\c"} 1.23 123`+"\n")
+	}, federateEscapeSchemeUTF8, `{"foo.bar","some.!other"="value.unchanged!.","qqq"="\\","!key"="value","ab\"c"="a<b\"\\c"} 1.23 123`+"\n")
 
 }
