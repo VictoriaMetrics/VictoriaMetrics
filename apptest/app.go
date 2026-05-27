@@ -113,15 +113,23 @@ func startApp(instance string, binary string, flags []string, opts *appOptions) 
 // setDefaultFlags adds flags with default values to `flags` if it does not
 // initially contain them.
 func setDefaultFlags(flags []string, defaultFlags map[string]string) []string {
+	// Make a copy to avoid mutating the caller's map, which could cause
+	// unexpected side effects when the same appOptions are reused across
+	// multiple test apps (e.g. in CI pipelines).
+	remaining := make(map[string]string, len(defaultFlags))
+	for k, v := range defaultFlags {
+		remaining[k] = v
+	}
+
 	for _, flag := range flags {
-		for name := range defaultFlags {
+		for name := range remaining {
 			if strings.HasPrefix(flag, name) {
-				delete(defaultFlags, name)
+				delete(remaining, name)
 				continue
 			}
 		}
 	}
-	for name, value := range defaultFlags {
+	for name, value := range remaining {
 		flags = append(flags, name+"="+value)
 	}
 	return flags
