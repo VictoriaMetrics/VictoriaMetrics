@@ -470,13 +470,15 @@ Two auto-generated time series are written on each evaluation:
 * `ALERTS` – active alerts in `pending` or `firing` state with `alertstate` label; value is always `1`.
   Use for retrospective overview and debugging. Not used for restore. When an alert becomes inactive,
   `vmalert` writes a [staleness marker](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#staleness-markers).
-* `ALERTS_FOR_STATE` – service series; value is Unix timestamp (seconds) when the alert became active
-  (the sample timestamp is the evaluation time). Used for restore via `-remoteRead.url` at startup
-  (rules with `for > 0` only). Also written for `for: 0` rules since v1.103.0
+* `ALERTS_FOR_STATE` – service series without `alertstate` label; value is a single number: Unix timestamp
+  (seconds) when the alert became active (sample timestamp is the evaluation time). Used for restore via
+  `-remoteRead.url` at startup for rules with `for > 0` only (see restore requirements above).
+  Also written for `for: 0` rules since [v1.97.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.0)
   ([#5648](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5648)); such rules fire immediately
-  after restart and do not need state recovery. No `alertstate` label.
+  after restart and do not need state recovery.
 
 Both series include the alert's label set plus `alertname` (and `alertgroup` unless `-disableAlertgroupLabel`).
+For more technical details on restore behavior, see [#4717](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4717).
 
 ### Link to alert source
 
