@@ -3,26 +3,21 @@ package apptest
 import (
 	"fmt"
 	"io"
+	"os"
 	"regexp"
 )
 
-// Vmselect holds the state of a vmselect app and provides vmselect-specific
-// functions.
-type Vmselect struct {
-	*app
-	*metricsClient
-	*vmselectClient
-
-	httpListenAddr          string
-	clusternativeListenAddr string
-	cli                     *Client
-}
-
-// StartVmselect starts an instance of vmselect with the given flags. It also
-// sets the default flags and populates the app instance state with runtime
-// values extracted from the application log (such as httpListenAddr)
+// StartVmselect starts the latest version of vmselect.
+//
+// The path to the binary can be provided via VMSELECT_PATH environment
+// variable. If the variable is not set, ../../bin/vmselect-race will be
+// used.
 func StartVmselect(instance string, flags []string, cli *Client, output io.Writer) (*Vmselect, error) {
-	app, stderrExtracts, err := startApp(instance, "../../bin/vmselect-race", flags, &appOptions{
+	binary := os.Getenv("VMSELECT_PATH")
+	if binary == "" {
+		binary = "../../bin/vmselect-race"
+	}
+	app, stderrExtracts, err := startApp(instance, binary, flags, &appOptions{
 		defaultFlags: map[string]string{
 			"-httpListenAddr":          "127.0.0.1:0",
 			"-clusternativeListenAddr": "127.0.0.1:0",
@@ -37,21 +32,43 @@ func StartVmselect(instance string, flags []string, cli *Client, output io.Write
 		return nil, err
 	}
 
+	return newVmselect(app, cli, vmselectRuntimeValues{
+		httpListenAddr:          stderrExtracts[0],
+		clusternativeListenAddr: stderrExtracts[1],
+	}), nil
+}
+
+type vmselectRuntimeValues struct {
+	httpListenAddr          string
+	clusternativeListenAddr string
+}
+
+func newVmselect(app *app, cli *Client, rt vmselectRuntimeValues) *Vmselect {
 	return &Vmselect{
 		app:           app,
-		metricsClient: newMetricsClient(cli, stderrExtracts[0]),
+		metricsClient: newMetricsClient(cli, rt.httpListenAddr),
 		vmselectClient: &vmselectClient{
 			vmselectCli: cli,
 			url: func(op, path string, opts QueryOpts) string {
-				return getClusterPath(stderrExtracts[0], op, path, opts)
+				return getClusterPath(rt.httpListenAddr, op, path, opts)
 			},
-			metricNamesStatsResetURL: fmt.Sprintf("http://%s/admin/api/v1/admin/status/metric_names_stats/reset", stderrExtracts[0]),
-			tenantsURL:               fmt.Sprintf("http://%s/admin/tenants", stderrExtracts[0]),
+			metricNamesStatsResetURL: fmt.Sprintf("http://%s/admin/api/v1/admin/status/metric_names_stats/reset", rt.httpListenAddr),
+			tenantsURL:               fmt.Sprintf("http://%s/admin/tenants", rt.httpListenAddr),
 		},
-		httpListenAddr:          stderrExtracts[0],
-		clusternativeListenAddr: stderrExtracts[1],
-		cli:                     cli,
-	}, nil
+		httpListenAddr:          rt.httpListenAddr,
+		clusternativeListenAddr: rt.clusternativeListenAddr,
+	}
+}
+
+// Vmselect holds the state of a vmselect app and provides vmselect-specific
+// functions.
+type Vmselect struct {
+	*app
+	*metricsClient
+	*vmselectClient
+
+	httpListenAddr          string
+	clusternativeListenAddr string
 }
 
 // ClusternativeListenAddr returns the address at which the vmselect process is

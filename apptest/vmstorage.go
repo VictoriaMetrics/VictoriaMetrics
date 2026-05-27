@@ -8,23 +8,22 @@ import (
 	"time"
 )
 
-// Vmstorage holds the state of a vmstorage app and provides vmstorage-specific
-// functions.
-type Vmstorage struct {
-	*app
-	*metricsClient
-	*vmstorageClient
-
-	storageDataPath string
-	httpListenAddr  string
-	vminsertAddr    string
-	vmselectAddr    string
+// StartVmstorage starts the latest version of vmstorage.
+//
+// The path to the binary can be provided via VMSTORAGE_PATH environment
+// variable. If the variable is not set, ../../bin/vmstorage-race will be used.
+func StartVmstorage(instance string, flags []string, cli *Client, output io.Writer) (*Vmstorage, error) {
+	binary := os.Getenv("VMSTORAGE_PATH")
+	if binary == "" {
+		binary = "../../bin/vmstorage-race"
+	}
+	return startVmstorage(instance, binary, flags, cli, output)
 }
 
-// StartVmstorageAt starts an instance of vmstorage with the given flags. It also
+// startVmstorage starts an instance of vmstorage with the given flags. It also
 // sets the default flags and populates the app instance state with runtime
 // values extracted from the application log (such as httpListenAddr)
-func StartVmstorageAt(instance, binary string, flags []string, cli *Client, output io.Writer) (*Vmstorage, error) {
+func startVmstorage(instance, binary string, flags []string, cli *Client, output io.Writer) (*Vmstorage, error) {
 	app, stderrExtracts, err := startApp(instance, binary, flags, &appOptions{
 		defaultFlags: map[string]string{
 			"-storageDataPath": fmt.Sprintf("%s/%s-%d", os.TempDir(), instance, time.Now().UnixNano()),
@@ -44,18 +43,47 @@ func StartVmstorageAt(instance, binary string, flags []string, cli *Client, outp
 		return nil, err
 	}
 
-	return &Vmstorage{
-		app:           app,
-		metricsClient: newMetricsClient(cli, stderrExtracts[1]),
-		vmstorageClient: &vmstorageClient{
-			vmstorageCli:   cli,
-			httpListenAddr: stderrExtracts[1],
-		},
+	return newVmstorage(app, cli, vmstorageRuntimeValues{
 		storageDataPath: stderrExtracts[0],
 		httpListenAddr:  stderrExtracts[1],
 		vminsertAddr:    stderrExtracts[2],
 		vmselectAddr:    stderrExtracts[3],
-	}, nil
+	}), nil
+}
+
+type vmstorageRuntimeValues struct {
+	storageDataPath string
+	httpListenAddr  string
+	vminsertAddr    string
+	vmselectAddr    string
+}
+
+func newVmstorage(app *app, cli *Client, rt vmstorageRuntimeValues) *Vmstorage {
+	return &Vmstorage{
+		app:           app,
+		metricsClient: newMetricsClient(cli, rt.httpListenAddr),
+		vmstorageClient: &vmstorageClient{
+			vmstorageCli:   cli,
+			httpListenAddr: rt.httpListenAddr,
+		},
+		storageDataPath: rt.storageDataPath,
+		httpListenAddr:  rt.httpListenAddr,
+		vminsertAddr:    rt.vminsertAddr,
+		vmselectAddr:    rt.vmselectAddr,
+	}
+}
+
+// Vmstorage holds the state of a vmstorage app and provides vmstorage-specific
+// functions.
+type Vmstorage struct {
+	*app
+	*metricsClient
+	*vmstorageClient
+
+	storageDataPath string
+	httpListenAddr  string
+	vminsertAddr    string
+	vmselectAddr    string
 }
 
 // VminsertAddr returns the address at which the vmstorage process is listening
