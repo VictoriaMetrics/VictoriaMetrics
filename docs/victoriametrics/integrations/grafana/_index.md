@@ -59,6 +59,10 @@ Once connected, you can build graphs and dashboards using [PromQL](https://prome
 _Creating a datasource may require [specific permissions](https://grafana.com/docs/grafana/latest/administration/data-source-management/).
 If you don't see an option to create a data source - try contacting system administrator._
 
+If you run [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) and want to see its rules in [Grafana Alerting UI](https://grafana.com/docs/grafana/latest/alerting/),
+then set configure `-vmalert.proxyURL` on VictoriaMetrics [single-node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmalert)
+or [vmselect in cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#vmalert).
+
 ## Multi-tenant access with vmauth and OIDC
 
 [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) can proxy Grafana datasource requests and enforce
