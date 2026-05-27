@@ -40,7 +40,7 @@ func StartVminsert(instance string, flags []string, cli *Client, output io.Write
 		extractREs = append(extractREs, regexp.MustCompile(logRecord))
 	}
 
-	binary := os.Getenv("VMSINSERT_PATH")
+	binary := os.Getenv("VMINSERT_PATH")
 	if binary == "" {
 		binary = "../../bin/vminsert-race"
 	}
