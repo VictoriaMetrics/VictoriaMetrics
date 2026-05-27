@@ -407,9 +407,10 @@ func transformBucketsLimit(tfa *transformFuncArg) ([]*timeseries, error) {
 
 	// Group timeseries by all MetricGroup+tags excluding `le` tag.
 	type x struct {
-		le   float64
-		hits float64
-		ts   *timeseries
+		le        float64
+		hits      float64
+		hasValues bool
+		ts        *timeseries
 	}
 	m := make(map[string][]x)
 	var b []byte
@@ -446,20 +447,52 @@ func transformBucketsLimit(tfa *transformFuncArg) ([]*timeseries, error) {
 			}
 			continue
 		}
-		// Slow path - remove buckets with the smallest number of hits until their count reaches the limit.
 
-		// Calculate per-bucket hits.
 		sort.Slice(leGroup, func(i, j int) bool {
 			return leGroup[i].le < leGroup[j].le
 		})
+
+		// Slow path - remove buckets with the smallest number of hits until their count reaches the limit.
+		// Calculate per-bucket hits.
 		for n := range pointsCount {
-			prevValue := float64(0)
-			for i := range leGroup {
+			fixedValue := leGroup[0].ts.Values[n]
+			if !math.IsNaN(fixedValue) {
+				leGroup[0].hasValues = true
+			} else {
+				fixedValue = 0
+			}
+			leGroup[0].hits += fixedValue
+			prevValue := fixedValue
+			for i := 1; i < len(leGroup); i++ {
 				xx := &leGroup[i]
 				value := xx.ts.Values[n]
+				isNaN := math.IsNaN(value)
+				if !isNaN {
+					xx.hasValues = true
+				}
+				if isNaN || prevValue > value {
+					value = prevValue
+				}
 				xx.hits += value - prevValue
 				prevValue = value
 			}
+		}
+		leGroupFiltered := leGroup[:0]
+		for i := range leGroup {
+			if !leGroup[i].hasValues {
+				continue
+			}
+			leGroupFiltered = append(leGroupFiltered, leGroup[i])
+		}
+		leGroup = leGroupFiltered
+		if len(leGroup) == 0 {
+			continue
+		}
+		if len(leGroup) <= limit {
+			for _, xx := range leGroup {
+				rvs = append(rvs, xx.ts)
+			}
+			continue
 		}
 		for len(leGroup) > limit {
 			// Preserve the first and the last bucket for better accuracy for min and max values

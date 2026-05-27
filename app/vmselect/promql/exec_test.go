@@ -4883,6 +4883,28 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r1, r2}
 		f(q, resultExpected)
 	})
+	t.Run(`buckets_limit(default for nan series)`, func(t *testing.T) {
+		t.Parallel()
+		q := `buckets_limit(5, alias(label_set(nan, "le", "200", "x", "y"), "metric")) default 7`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{7, 7, 7, 7, 7, 7},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.MetricGroup = []byte("metric")
+		r.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("le"),
+				Value: []byte("200"),
+			},
+			{
+				Key:   []byte("x"),
+				Value: []byte("y"),
+			},
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`buckets_limit(used)`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort(buckets_limit(2, (
