@@ -622,10 +622,12 @@ command line flags. See how to [shard data across remote write destinations](htt
 The following requirements must be met for sharded aggregation to work correctly:
 - All sharding vmagents should have the same deterministic sharding configuration.
 - The sharding configuration must align with the `by` and `without` lists:
-  - If you aggregate `by: env` - make sure that `env` label is listed in the routing key of sharding agents: `-remoteWrite.shardByURL.labels=env`. 
-    This makes sure that all the samples for the same `env` are aggregated together and produce the complete output.
-  - If you aggregate `without: pod` - make sure that `pod` label is excluded from the routing key of sharding agents: `-remoteWrite.shardByURL.ignoreLabels=pod`.
-    This makes sure that `requests_total{env=test, pod=foo}` and `requests_total{env=test, pod=bar}` are routed to the same aggregator
+  - Labels listed in `by` setting should be a subset of shard's routing key `-remoteWrite.shardByURL.labels`. 
+    With `-remoteWrite.shardByURL.labels=env,job` aggregator's `by` should include `by: env`, `by: job` or both: `by: [env, job]`.
+    This makes sure that all the samples for the same `env` and `job` are aggregated together and produce the complete output.
+  - Labels listed in `without` setting should be a superset of shard's routing key `--remoteWrite.shardByURL.ignoreLabels`.
+    With `-remoteWrite.shardByURL.ignoreLabels=env,job` aggegator's `without` should include at least both labels `without: [env,job]`.
+    This makes sure that `requests_total{env=test, job=foo}` and `requests_total{env=prod, job=foo}` are routed to the same aggregator
     and are aggregated together. See also [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5938#issuecomment-2018470324).
 - Aggregating vmagents should not produce collisions: the aggregation output should be unique across all the sharded agents.
   For example, `requests_total:5m_without_env_pod_total` produced by both `vmagent-aggr-1` and `vmagent-aggr-2` will collide
