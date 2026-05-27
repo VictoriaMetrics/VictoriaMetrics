@@ -150,8 +150,12 @@ You can experiment with your own data during the month‑long trial without depl
 are fast-booting Linux microVMs that run on a fleet of large bare-metal servers. You can start a playground right from your browser. 
 Once up and running, accessing a playground is no different from SSH-ing into a remote server rented from your favorite VPS or Cloud provider.
 
-Iximiuz Labs provides playgrounds for VictoriaMetrics software:
-- [VictoriaMetrics single node (on Ubuntu)](https://labs.iximiuz.com/playgrounds/victoriametrics-e2f9b613)
-- [VictoriaMetrics cluster (on Ubuntu)](https://labs.iximiuz.com/playgrounds/victoriametrics-cluster-8eacb19d)
-- [Getting Started with VictoriaMetrics on Kubernetes](https://labs.iximiuz.com/tutorials/victoriametrics-getting-started-kubernetes-0e9c0993)
-- [VictoriaMetrics Operator](https://labs.iximiuz.com/playgrounds/victoriametrics-kubernetes-9eebc258)
+Iximiuz Labs provides various [learning-by-doing resources for VictoriaMetrics](https://labs.iximiuz.com/v/victoriametrics-bb1fdaa1):
+- Tutorial:
+  - [Getting Started with VictoriaMetrics on Kubernetes](https://labs.iximiuz.com/tutorials/victoriametrics-getting-started-kubernetes-0e9c0993)
+- Playgrounds:
+  - [VictoriaMetrics single node](https://labs.iximiuz.com/playgrounds/victoriametrics-e2f9b613)
+  - [VictoriaMetrics cluster](https://labs.iximiuz.com/playgrounds/victoriametrics-cluster-8eacb19d)
+  - [VictoriaMetrics on Kubernetes](https://labs.iximiuz.com/playgrounds/victoriametrics-kubernetes-9eebc258)
+
+Iximiuz Labs requires a [free account](https://labs.iximiuz.com/signup) to access the materials.
