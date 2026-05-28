@@ -43,6 +43,9 @@ Just download VictoriaMetrics and follow [these instructions](https://docs.victo
 See [available integrations](https://docs.victoriametrics.com/victoriametrics/integrations/) with other systems like
 [Prometheus](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus/) or [Grafana](https://docs.victoriametrics.com/victoriametrics/integrations/grafana/).
 
+> Want to see VictoriaMetrics in action, but without installing anything?
+> Try [Playgrounds](https://docs.victoriametrics.com/playgrounds/) - a list of publicly available playgrounds for VictoriaMetrics software.
+
 VictoriaMetrics is developed at a fast pace, so it is recommended to periodically check the [CHANGELOG](https://docs.victoriametrics.com/victoriametrics/changelog/)
 and perform [regular upgrades](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-upgrade-victoriametrics).
 
@@ -58,9 +61,9 @@ Download the newest available [VictoriaMetrics release](https://docs.victoriamet
 from [DockerHub](https://hub.docker.com/r/victoriametrics/victoria-metrics) or [Quay](https://quay.io/repository/victoriametrics/victoria-metrics?tab=tags):
 
 ```sh
-docker pull victoriametrics/victoria-metrics:v1.143.0
+docker pull victoriametrics/victoria-metrics:v1.144.0
 docker run -it --rm -v `pwd`/victoria-metrics-data:/victoria-metrics-data -p 8428:8428 \
- victoriametrics/victoria-metrics:v1.143.0 --selfScrapeInterval=5s -storageDataPath=victoria-metrics-data
+ victoriametrics/victoria-metrics:v1.144.0 --selfScrapeInterval=5s -storageDataPath=victoria-metrics-data
 ```
 
 _For Enterprise images, see [this link](https://docs.victoriametrics.com/victoriametrics/enterprise/#docker-images)._

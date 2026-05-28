@@ -89,6 +89,7 @@ var staticServer = http.FileServer(http.FS(staticFiles))
 func Init() {
 	relabel.Init()
 	common.InitStreamAggr()
+	opentelemetry.Init()
 	protoparserutil.StartUnmarshalWorkers()
 	if len(*graphiteListenAddr) > 0 {
 		graphiteServer = graphiteserver.MustStart(*graphiteListenAddr, *graphiteUseProxyProtocol, graphite.InsertHandler)

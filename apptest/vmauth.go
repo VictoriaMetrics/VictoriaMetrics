@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"regexp"
 	"strings"
 	"syscall"
@@ -13,34 +14,25 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
-var httpBuilitinListenAddrRE = regexp.MustCompile(`pprof handlers are exposed at http://(.*:\d{1,5})/debug/pprof/`)
-
-// Vmauth holds the state of a vmauth app and provides vmauth-specific
-// functions.
-type Vmauth struct {
-	*app
-	*metricsClient
-
-	httpListenAddr string
-	configFilePath string
-	cli            *Client
-}
-
-// StartVmauth starts an instance of vmauth with the given flags. It also
-// sets the default flags and populates the app instance state with runtime
-// values extracted from the application log (such as httpListenAddr)
+// StartVmauth starts the latest version of vmauth.
+//
+// The path to the binary can be provided via VMAUTH_PATH environment
+// variable. If the variable is not set, ../../bin/vmauth-race will be
+// used.
 func StartVmauth(instance string, flags []string, cli *Client, configFilePath string, output io.Writer) (*Vmauth, error) {
-	extractREs := []*regexp.Regexp{
-		httpBuilitinListenAddrRE,
+	binary := os.Getenv("VMAUTH_PATH")
+	if binary == "" {
+		binary = "../../bin/vmauth-race"
 	}
-
-	app, stderrExtracts, err := startApp(instance, "../../bin/vmauth-race", flags, &appOptions{
+	app, stderrExtracts, err := startApp(instance, binary, flags, &appOptions{
 		defaultFlags: map[string]string{
 			"-httpListenAddr": "127.0.0.1:0",
 			"-auth.config":    configFilePath,
 		},
-		extractREs: extractREs,
-		output:     output,
+		extractREs: []*regexp.Regexp{
+			vmauthHttpListenAddrRE,
+		},
+		output: output,
 	})
 	if err != nil {
 		return nil, err
@@ -60,13 +52,39 @@ func StartVmauth(instance string, flags []string, cli *Client, configFilePath st
 		}
 	}
 
+	return newVmauth(app, cli, configFilePath, vmauthRuntimeValues{
+		httpListenAddr: stderrExtracts[0],
+	}), nil
+}
+
+type vmauthRuntimeValues struct {
+	httpListenAddr string
+}
+
+func newVmauth(app *app, cli *Client, configFilePath string, rt vmauthRuntimeValues) *Vmauth {
 	return &Vmauth{
 		app:            app,
-		metricsClient:  newMetricsClient(cli, stderrExtracts[0]),
-		httpListenAddr: stderrExtracts[0],
+		metricsClient:  newMetricsClient(cli, rt.httpListenAddr),
+		httpListenAddr: rt.httpListenAddr,
 		configFilePath: configFilePath,
 		cli:            cli,
-	}, nil
+	}
+}
+
+// Vmauth holds the state of a vmauth app and provides vmauth-specific
+// functions.
+type Vmauth struct {
+	*app
+	*metricsClient
+
+	cli            *Client
+	httpListenAddr string
+	configFilePath string
+}
+
+// GetHTTPListenAddr returns listen http addr
+func (app *Vmauth) GetHTTPListenAddr() string {
+	return app.httpListenAddr
 }
 
 // UpdateConfiguration updates the vmauth configuration file with the provided YAML content,
@@ -95,11 +113,6 @@ func (app *Vmauth) UpdateConfiguration(t *testing.T, configFileYAML string) {
 	}
 
 	t.Fatalf("config were not reloaded after SIGHUP signal; previous total: %d, current total: %d", prevTotal, currTotal)
-}
-
-// GetHTTPListenAddr returns listen http addr
-func (app *Vmauth) GetHTTPListenAddr() string {
-	return app.httpListenAddr
 }
 
 // explicitListenAddr returns the value of the given listen-addr flag (e.g.
