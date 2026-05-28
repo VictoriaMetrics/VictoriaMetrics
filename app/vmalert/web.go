@@ -333,6 +333,9 @@ type alertsFilter struct {
 }
 
 func getMatchFilters(matches []string) ([][]metricsql.LabelFilter, *httpserver.ErrorWithStatusCode) {
+	if len(matches) == 0 {
+		return nil, nil
+	}
 	tfss := make([][]metricsql.LabelFilter, 0, len(matches))
 	for _, s := range matches {
 		expr, err := metricsql.Parse(s)
