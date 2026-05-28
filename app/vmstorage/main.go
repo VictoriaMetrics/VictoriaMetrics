@@ -51,6 +51,12 @@ var (
 	retentionTimezoneOffset = flag.Duration("retentionTimezoneOffset", 0, "The offset for performing indexdb rotation. "+
 		"If set to 0, then the indexdb rotation is performed at 4am UTC time per each -retentionPeriod. "+
 		"If set to 2h, then the indexdb rotation is performed at 4am EET time (the timezone with +2h offset)")
+	minScrapeInterval = flag.Duration("dedup.minScrapeInterval", 0, "Leave only the last sample in every time series per each discrete interval "+
+		"equal to -dedup.minScrapeInterval > 0. See also -streamAggr.dedupInterval and https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication")
+	inmemoryDataFlushInterval = flag.Duration("inmemoryDataFlushInterval", 5*time.Second, "The interval for guaranteed saving of in-memory data to disk. "+
+		"The saved data survives unclean shutdowns such as OOM crash, hardware reset, SIGKILL, etc. "+
+		"Bigger intervals may help increase the lifetime of flash storage with limited write cycles (e.g. Raspberry PI). "+
+		"Smaller intervals increase disk IO load. Minimum supported value is 1s")
 
 	logNewSeries = flag.Bool("logNewSeries", false, "Whether to log new series. This option is for debug purposes only. It can lead to performance issues "+
 		"when big number of new series are ingested into VictoriaMetrics")
@@ -67,6 +73,11 @@ var (
 		"See also -storage.maxHourlySeries")
 
 	minFreeDiskSpaceBytes = flagutil.NewBytes("storage.minFreeDiskSpaceBytes", 100e6, "The minimum free disk space at -storageDataPath after which the storage stops accepting new data")
+
+	finalDedupScheduleInterval = flag.Duration("storage.finalDedupScheduleCheckInterval", time.Hour, "The interval for checking when final deduplication process should be started."+
+		"Storage unconditionally adds 25% jitter to the interval value on each check evaluation."+
+		" Changing the interval to the bigger values may delay downsampling, deduplication for historical data."+
+		" See also https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication")
 
 	cacheSizeStorageTSID = flagutil.NewBytes("storage.cacheSizeStorageTSID", 0, "Overrides max size for storage/tsid cache. "+
 		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning")
@@ -111,11 +122,16 @@ func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 		logger.Fatalf("invalid `-precisionBits`: %s", err)
 	}
 
-	resetResponseCacheIfNeeded = resetCacheIfNeeded
+	storage.SetDedupInterval(*minScrapeInterval)
+	storage.SetDataFlushInterval(*inmemoryDataFlushInterval)
 	storage.LegacySetRetentionTimezoneOffset(*retentionTimezoneOffset)
 	storage.SetFreeDiskSpaceLimit(minFreeDiskSpaceBytes.N)
 	storage.SetTSIDCacheSize(cacheSizeStorageTSID.IntN())
 	storage.SetTagFiltersCacheSize(cacheSizeIndexDBTagFilters.IntN())
+	if *finalDedupScheduleInterval < time.Hour {
+		logger.Fatalf("-storage.finalDedupScheduleCheckInterval cannot be smaller than 1 hour; got %s", *finalDedupScheduleInterval)
+	}
+	storage.SetFinalDedupScheduleInterval(*finalDedupScheduleInterval)
 	storage.SetMetricNamesStatsCacheSize(cacheSizeMetricNamesStats.IntN())
 	storage.SetMetricNameCacheSize(cacheSizeStorageMetricName.IntN())
 	storage.SetMetadataStorageSize(metadataStorageSize.IntN())
@@ -134,9 +150,9 @@ func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	if *idbPrefillStart > 23*time.Hour {
 		logger.Panicf("-storage.idbPrefillStart cannot exceed 23 hours; got %s", idbPrefillStart)
 	}
+	fs.RegisterPathFsMetrics(*storageDataPath)
 	logger.Infof("opening storage at %q with -retentionPeriod=%s", *storageDataPath, retentionPeriod)
 	startTime := time.Now()
-	WG = syncwg.WaitGroup{}
 	opts := storage.OpenOptions{
 		Retention:                   retentionPeriod.Duration(),
 		FutureRetention:             futureRetention.Duration(),
@@ -149,7 +165,6 @@ func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 		LogNewSeries:                *logNewSeries,
 	}
 	strg := storage.MustOpenStorage(*storageDataPath, opts)
-	Storage = strg
 	initStaleSnapshotsRemover(strg)
 
 	var m storage.Metrics
@@ -168,7 +183,10 @@ func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 		writeStorageMetrics(w, strg)
 	})
 	metrics.RegisterSet(storageMetrics)
-	fs.RegisterPathFsMetrics(*storageDataPath)
+
+	WG = syncwg.WaitGroup{}
+	resetResponseCacheIfNeeded = resetCacheIfNeeded
+	Storage = strg
 }
 
 var storageMetrics *metrics.Set
@@ -340,6 +358,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			startTime := time.Now()
 			if err := Storage.ForceMergePartitions(partitionNamePrefix); err != nil {
 				logger.Errorf("error in forced merge for partition_prefix=%q: %s", partitionNamePrefix, err)
+				return
 			}
 			logger.Infof("forced merge for partition_prefix=%q has been successfully finished in %.3f seconds", partitionNamePrefix, time.Since(startTime).Seconds())
 		}()
@@ -353,6 +372,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		Storage.DebugFlush()
 		return true
 	}
+
 	if path == "/internal/log_new_series" {
 		if !httpserver.CheckAuthFlag(w, r, logNewSeriesAuthKey) {
 			return true
