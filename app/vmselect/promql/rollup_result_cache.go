@@ -184,7 +184,7 @@ func InitRollupResultCache(cachePath string) {
 		rollupResultCacheRequests:    metrics.GetOrCreateCounter(`vm_rollup_result_cache_requests_total`),
 		rollupResultCacheFullHits:    metrics.GetOrCreateCounter(`vm_rollup_result_cache_full_hits_total`),
 		rollupResultCachePartialHits: metrics.GetOrCreateCounter(`vm_rollup_result_cache_partial_hits_total`),
-		rollupResultCacheMisses:      metrics.GetOrCreateCounter(`vm_rollup_result_cache_miss_total`),
+		rollupResultCacheMisses:      metrics.GetOrCreateCounter(`vm_rollup_result_cache_misses_total`),
 		rollupResultCacheResets:      metrics.GetOrCreateCounter(`vm_rollup_result_cache_resets_total`),
 	}
 }
