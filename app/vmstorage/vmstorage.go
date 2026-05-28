@@ -1,12 +1,11 @@
-package servers
+package main
 
 import (
 	"flag"
 	"fmt"
 	"sync"
-	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
@@ -19,19 +18,8 @@ import (
 var (
 	maxUniqueTimeseries = flag.Int("search.maxUniqueTimeseries", 0, "The maximum number of unique time series, which can be scanned during every query. "+
 		"This allows protecting against heavy queries, which select unexpectedly high number of series. When set to zero, the limit is automatically calculated based on -search.maxConcurrentRequests (inversely proportional) and memory available to the process (proportional). See also -search.max* command-line flags at vmselect")
-	maxTagKeys = flag.Int("search.maxTagKeys", 100e3, "The maximum number of tag keys returned per search. "+
-		"See also -search.maxLabelsAPISeries and -search.maxLabelsAPIDuration")
-	maxTagValues = flag.Int("search.maxTagValues", 100e3, "The maximum number of tag values returned per search. "+
-		"See also -search.maxLabelsAPISeries and -search.maxLabelsAPIDuration")
-	maxTagValueSuffixesPerSearch = flag.Int("search.maxTagValueSuffixesPerSearch", 100e3, "The maximum number of tag value suffixes returned from /metrics/find")
-	maxConcurrentRequests        = flag.Int("search.maxConcurrentRequests", 2*cgroup.AvailableCPUs(), "The maximum number of concurrent vmselect requests "+
-		"the vmstorage can process at -vmselectAddr. It shouldn't be high, since a single request usually saturates a CPU core, and many concurrently executed requests "+
-		"may require high amounts of memory. See also -search.maxQueueDuration")
-	maxQueueDuration = flag.Duration("search.maxQueueDuration", 10*time.Second, "The maximum time the incoming vmselect request waits for execution "+
-		"when -search.maxConcurrentRequests limit is reached")
-
-	disableRPCCompression = flag.Bool("rpc.disableCompression", false, "Whether to disable compression of the data sent from vmstorage to vmselect. "+
-		"This reduces CPU usage at the cost of higher network bandwidth usage")
+	precisionBits = flag.Int("precisionBits", 64, "The number of precision bits to store per each value. Lower precision bits improves data compression "+
+		"at the cost of precision loss")
 )
 
 var (
@@ -39,29 +27,39 @@ var (
 	maxUniqueTimeseriesValueOnce sync.Once
 )
 
-// NewVMSelectServer starts new server at the given addr, which serves vmselect requests from the given s.
-func NewVMSelectServer(addr string, s *storage.Storage) (*vmselectapi.Server, error) {
-	api := &vmstorageAPI{
-		s: s,
+func newVMStorage(s *storage.Storage) *VMStorage {
+	if err := encoding.CheckPrecisionBits(uint8(*precisionBits)); err != nil {
+		logger.Fatalf("invalid -precisionBits: %d", err)
 	}
-	limits := vmselectapi.Limits{
-		MaxLabelNames:                 *maxTagKeys,
-		MaxLabelValues:                *maxTagValues,
-		MaxTagValueSuffixes:           *maxTagValueSuffixesPerSearch,
-		MaxConcurrentRequests:         *maxConcurrentRequests,
-		MaxConcurrentRequestsFlagName: "search.maxConcurrentRequests",
-		MaxQueueDuration:              *maxQueueDuration,
-		MaxQueueDurationFlagName:      "search.maxQueueDuration",
-	}
-	return vmselectapi.NewServer(addr, api, limits, *disableRPCCompression)
+
+	GetMaxUniqueTimeSeries() // for init and logging only.
+
+	return &VMStorage{s: s}
 }
 
-// vmstorageAPI impelements vmselectapi.API
-type vmstorageAPI struct {
+// VMStorage impelements vmselectapi.API and vminsertapi.API.
+type VMStorage struct {
 	s *storage.Storage
 }
 
-func (api *vmstorageAPI) InitSearch(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (vmselectapi.BlockIterator, error) {
+// WriteRows implements lib/vminsertapi.API interface
+func (api *VMStorage) WriteRows(rows []storage.MetricRow) error {
+	api.s.AddRows(rows, uint8(*precisionBits))
+	return nil
+}
+
+// WriteMetadata implements lib/vminsertapi.API interface
+func (api *VMStorage) WriteMetadata(rows []metricsmetadata.Row) error {
+	api.s.AddMetadataRows(rows)
+	return nil
+}
+
+// IsReadOnly implements lib/vminsertapi.API interface
+func (api *VMStorage) IsReadOnly() bool {
+	return api.s.IsReadOnly()
+}
+
+func (api *VMStorage) InitSearch(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (vmselectapi.BlockIterator, error) {
 	tr := sq.GetTimeRange()
 	maxMetrics := getMaxMetrics(sq.MaxMetrics)
 	tfss, err := api.setupTfss(qt, sq, tr, maxMetrics, deadline)
@@ -80,7 +78,7 @@ func (api *vmstorageAPI) InitSearch(qt *querytracer.Tracer, sq *storage.SearchQu
 	return bi, nil
 }
 
-func (api *vmstorageAPI) SearchMetricNames(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) ([]string, error) {
+func (api *VMStorage) SearchMetricNames(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) ([]string, error) {
 	tr := sq.GetTimeRange()
 	maxMetrics := sq.MaxMetrics
 	if maxMetrics <= 0 {
@@ -98,7 +96,7 @@ func (api *vmstorageAPI) SearchMetricNames(qt *querytracer.Tracer, sq *storage.S
 	return api.s.SearchMetricNames(qt, tfss, tr, maxMetrics, deadline)
 }
 
-func (api *vmstorageAPI) LabelValues(qt *querytracer.Tracer, sq *storage.SearchQuery, labelName string, maxLabelValues int, deadline uint64) ([]string, error) {
+func (api *VMStorage) LabelValues(qt *querytracer.Tracer, sq *storage.SearchQuery, labelName string, maxLabelValues int, deadline uint64) ([]string, error) {
 	tr := sq.GetTimeRange()
 	maxMetrics := sq.MaxMetrics
 	if maxMetrics <= 0 {
@@ -113,7 +111,7 @@ func (api *vmstorageAPI) LabelValues(qt *querytracer.Tracer, sq *storage.SearchQ
 	return api.s.SearchLabelValues(qt, sq.AccountID, sq.ProjectID, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline)
 }
 
-func (api *vmstorageAPI) TagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte,
+func (api *VMStorage) TagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte,
 	maxSuffixes int, deadline uint64) ([]string, error) {
 	suffixes, err := api.s.SearchTagValueSuffixes(qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes, deadline)
 	if err != nil {
@@ -126,7 +124,7 @@ func (api *vmstorageAPI) TagValueSuffixes(qt *querytracer.Tracer, accountID, pro
 	return suffixes, nil
 }
 
-func (api *vmstorageAPI) LabelNames(qt *querytracer.Tracer, sq *storage.SearchQuery, maxLabelNames int, deadline uint64) ([]string, error) {
+func (api *VMStorage) LabelNames(qt *querytracer.Tracer, sq *storage.SearchQuery, maxLabelNames int, deadline uint64) ([]string, error) {
 	tr := sq.GetTimeRange()
 	maxMetrics := sq.MaxMetrics
 	if maxMetrics <= 0 {
@@ -141,15 +139,15 @@ func (api *vmstorageAPI) LabelNames(qt *querytracer.Tracer, sq *storage.SearchQu
 	return api.s.SearchLabelNames(qt, sq.AccountID, sq.ProjectID, tfss, tr, maxLabelNames, maxMetrics, deadline)
 }
 
-func (api *vmstorageAPI) SeriesCount(_ *querytracer.Tracer, accountID, projectID uint32, deadline uint64) (uint64, error) {
+func (api *VMStorage) SeriesCount(_ *querytracer.Tracer, accountID, projectID uint32, deadline uint64) (uint64, error) {
 	return api.s.GetSeriesCount(accountID, projectID, deadline)
 }
 
-func (api *vmstorageAPI) Tenants(qt *querytracer.Tracer, tr storage.TimeRange, deadline uint64) ([]string, error) {
+func (api *VMStorage) Tenants(qt *querytracer.Tracer, tr storage.TimeRange, deadline uint64) ([]string, error) {
 	return api.s.SearchTenants(qt, tr, deadline)
 }
 
-func (api *vmstorageAPI) TSDBStatus(qt *querytracer.Tracer, sq *storage.SearchQuery, focusLabel string, topN int, deadline uint64) (*storage.TSDBStatus, error) {
+func (api *VMStorage) TSDBStatus(qt *querytracer.Tracer, sq *storage.SearchQuery, focusLabel string, topN int, deadline uint64) (*storage.TSDBStatus, error) {
 	tr := sq.GetTimeRange()
 	maxMetrics := sq.MaxMetrics
 	if maxMetrics <= 0 {
@@ -165,7 +163,7 @@ func (api *vmstorageAPI) TSDBStatus(qt *querytracer.Tracer, sq *storage.SearchQu
 	return api.s.GetTSDBStatus(qt, sq.AccountID, sq.ProjectID, tfss, date, focusLabel, topN, maxMetrics, deadline)
 }
 
-func (api *vmstorageAPI) DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (int, error) {
+func (api *VMStorage) DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (int, error) {
 	tr := sq.GetTimeRange()
 	maxMetrics := sq.MaxMetrics
 	if maxMetrics <= 0 {
@@ -183,21 +181,21 @@ func (api *vmstorageAPI) DeleteSeries(qt *querytracer.Tracer, sq *storage.Search
 	return api.s.DeleteSeries(qt, tfss, maxMetrics)
 }
 
-func (api *vmstorageAPI) RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, _ uint64) error {
+func (api *VMStorage) RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, _ uint64) error {
 	api.s.RegisterMetricNames(qt, mrs)
 	return nil
 }
 
-func (api *vmstorageAPI) GetMetricNamesUsageStats(qt *querytracer.Tracer, tt *storage.TenantToken, limit, le int, matchPattern string, _ uint64) (metricnamestats.StatsResult, error) {
+func (api *VMStorage) GetMetricNamesUsageStats(qt *querytracer.Tracer, tt *storage.TenantToken, limit, le int, matchPattern string, _ uint64) (metricnamestats.StatsResult, error) {
 	return api.s.GetMetricNamesStats(qt, tt, limit, le, matchPattern), nil
 }
 
-func (api *vmstorageAPI) ResetMetricNamesUsageStats(qt *querytracer.Tracer, _ uint64) error {
+func (api *VMStorage) ResetMetricNamesUsageStats(qt *querytracer.Tracer, _ uint64) error {
 	api.s.ResetMetricNamesStats(qt)
 	return nil
 }
 
-func (api *vmstorageAPI) setupTfss(qt *querytracer.Tracer, sq *storage.SearchQuery, tr storage.TimeRange, maxMetrics int, deadline uint64) ([]*storage.TagFilters, error) {
+func (api *VMStorage) setupTfss(qt *querytracer.Tracer, sq *storage.SearchQuery, tr storage.TimeRange, maxMetrics int, deadline uint64) ([]*storage.TagFilters, error) {
 	tfss := make([]*storage.TagFilters, 0, len(sq.TagFilterss))
 	accountID := sq.AccountID
 	projectID := sq.ProjectID
@@ -230,7 +228,7 @@ func (api *vmstorageAPI) setupTfss(qt *querytracer.Tracer, sq *storage.SearchQue
 	return tfss, nil
 }
 
-func (api *vmstorageAPI) GetMetadataRecords(qt *querytracer.Tracer, tt *storage.TenantToken, limit int, metricName string, deadline uint64) ([]*metricsmetadata.Row, error) {
+func (api *VMStorage) GetMetadataRecords(qt *querytracer.Tracer, tt *storage.TenantToken, limit int, metricName string, deadline uint64) ([]*metricsmetadata.Row, error) {
 	return api.s.GetMetadataRows(qt, tt, limit, metricName, deadline)
 }
 

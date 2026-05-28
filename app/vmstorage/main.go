@@ -14,7 +14,6 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage/servers"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
@@ -199,12 +198,12 @@ func main() {
 
 	protoparserutil.StartUnmarshalWorkers()
 
-	servers.GetMaxUniqueTimeSeries() // for init and logging only.
-	vminsertSrv, err := servers.NewVMInsertServer(*vminsertAddr, strg)
+	vmstorage := newVMStorage(strg)
+	vminsertSrv, err := newVMInsertServer(*vminsertAddr, vmstorage)
 	if err != nil {
 		logger.Fatalf("cannot create a server with -vminsertAddr=%s: %s", *vminsertAddr, err)
 	}
-	vmselectSrv, err := servers.NewVMSelectServer(*vmselectAddr, strg)
+	vmselectSrv, err := newVMSelectServer(*vmselectAddr, vmstorage)
 	if err != nil {
 		logger.Fatalf("cannot create a server with -vmselectAddr=%s: %s", *vmselectAddr, err)
 	}
@@ -667,7 +666,7 @@ func writeStorageMetrics(w io.Writer, strg *storage.Storage) {
 	metrics.WriteGaugeUint64(w, `vm_downsampling_partitions_scheduled`, tm.ScheduledDownsamplingPartitions)
 	metrics.WriteGaugeUint64(w, `vm_downsampling_partitions_scheduled_size_bytes`, tm.ScheduledDownsamplingPartitionsSize)
 
-	metrics.WriteGaugeUint64(w, `vm_search_max_unique_timeseries`, uint64(servers.GetMaxUniqueTimeSeries()))
+	metrics.WriteGaugeUint64(w, `vm_search_max_unique_timeseries`, uint64(GetMaxUniqueTimeSeries()))
 
 	metrics.WriteGaugeUint64(w, `vm_metrics_metadata_storage_items`, m.MetadataStorageItemsCurrent)
 	metrics.WriteCounterUint64(w, `vm_metrics_metadata_storage_size_bytes`, m.MetadataStorageCurrentSizeBytes)
