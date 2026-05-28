@@ -134,7 +134,7 @@ func NewServer(addr string, api API, limits Limits, disableResponseCompression b
 		labelNamesRequests:          metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="labelNames",addr=%q}`, addr)),
 		labelValuesRequests:         metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="labelValues",addr=%q}`, addr)),
 		tagValueSuffixesRequests:    metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="tagValueSuffixes",addr=%q}`, addr)),
-		seriesCountRequests:         metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="seriesSount",addr=%q}`, addr)),
+		seriesCountRequests:         metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="seriesCount",addr=%q}`, addr)),
 		tsdbStatusRequests:          metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="tsdbStatus",addr=%q}`, addr)),
 		searchMetricNamesRequests:   metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="searchMetricNames",addr=%q}`, addr)),
 		searchRequests:              metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="search",addr=%q}`, addr)),
@@ -800,7 +800,7 @@ func (s *Server) processTagValueSuffixes(ctx *vmselectRequestCtx) error {
 	}
 	maxSuffixes, err := ctx.readLimit()
 	if err != nil {
-		return fmt.Errorf("cannot read maxTagValueSuffixes: %d", err)
+		return fmt.Errorf("cannot read maxTagValueSuffixes: %w", err)
 	}
 	if maxSuffixes <= 0 || maxSuffixes > s.limits.MaxTagValueSuffixes {
 		maxSuffixes = s.limits.MaxTagValueSuffixes
