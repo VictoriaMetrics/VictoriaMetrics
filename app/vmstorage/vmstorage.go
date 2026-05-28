@@ -16,10 +16,15 @@ import (
 )
 
 var (
-	maxUniqueTimeseries = flag.Int("search.maxUniqueTimeseries", 0, "The maximum number of unique time series, which can be scanned during every query. "+
-		"This allows protecting against heavy queries, which select unexpectedly high number of series. When set to zero, the limit is automatically calculated based on -search.maxConcurrentRequests (inversely proportional) and memory available to the process (proportional). See also -search.max* command-line flags at vmselect")
 	precisionBits = flag.Int("precisionBits", 64, "The number of precision bits to store per each value. Lower precision bits improves data compression "+
 		"at the cost of precision loss")
+	maxUniqueTimeseries = flag.Int("search.maxUniqueTimeseries", 0, "The maximum number of unique time series, which can be scanned during every query. "+
+		"This allows protecting against heavy queries, which select unexpectedly high number of series. When set to zero, the limit is automatically calculated based on -search.maxConcurrentRequests (inversely proportional) and memory available to the process (proportional). See also -search.max* command-line flags at vmselect")
+	maxTagKeys = flag.Int("search.maxTagKeys", 100e3, "The maximum number of tag keys returned per search. "+
+		"See also -search.maxLabelsAPISeries and -search.maxLabelsAPIDuration")
+	maxTagValues = flag.Int("search.maxTagValues", 100e3, "The maximum number of tag values returned per search. "+
+		"See also -search.maxLabelsAPISeries and -search.maxLabelsAPIDuration")
+	maxTagValueSuffixesPerSearch = flag.Int("search.maxTagValueSuffixesPerSearch", 100e3, "The maximum number of tag value suffixes returned from /metrics/find")
 )
 
 var (
@@ -98,6 +103,9 @@ func (api *VMStorage) SearchMetricNames(qt *querytracer.Tracer, sq *storage.Sear
 
 func (api *VMStorage) LabelValues(qt *querytracer.Tracer, sq *storage.SearchQuery, labelName string, maxLabelValues int, deadline uint64) ([]string, error) {
 	tr := sq.GetTimeRange()
+	if maxLabelValues <= 0 || maxLabelValues > *maxTagValues {
+		maxLabelValues = *maxTagValues
+	}
 	maxMetrics := sq.MaxMetrics
 	if maxMetrics <= 0 {
 		// fallback to maxUniqueTimeSeries if no limit is provided,
@@ -113,6 +121,9 @@ func (api *VMStorage) LabelValues(qt *querytracer.Tracer, sq *storage.SearchQuer
 
 func (api *VMStorage) TagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte,
 	maxSuffixes int, deadline uint64) ([]string, error) {
+	if maxSuffixes <= 0 || maxSuffixes > *maxTagValueSuffixesPerSearch {
+		maxSuffixes = *maxTagValueSuffixesPerSearch
+	}
 	suffixes, err := api.s.SearchTagValueSuffixes(qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes, deadline)
 	if err != nil {
 		return nil, err
@@ -126,6 +137,9 @@ func (api *VMStorage) TagValueSuffixes(qt *querytracer.Tracer, accountID, projec
 
 func (api *VMStorage) LabelNames(qt *querytracer.Tracer, sq *storage.SearchQuery, maxLabelNames int, deadline uint64) ([]string, error) {
 	tr := sq.GetTimeRange()
+	if maxLabelNames <= 0 || maxLabelNames > *maxTagKeys {
+		maxLabelNames = *maxTagKeys
+	}
 	maxMetrics := sq.MaxMetrics
 	if maxMetrics <= 0 {
 		// fallback to maxUniqueTimeSeries if no limit is provided,

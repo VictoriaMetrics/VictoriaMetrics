@@ -10,12 +10,7 @@ import (
 )
 
 var (
-	maxTagKeys = flag.Int("search.maxTagKeys", 100e3, "The maximum number of tag keys returned per search. "+
-		"See also -search.maxLabelsAPISeries and -search.maxLabelsAPIDuration")
-	maxTagValues = flag.Int("search.maxTagValues", 100e3, "The maximum number of tag values returned per search. "+
-		"See also -search.maxLabelsAPISeries and -search.maxLabelsAPIDuration")
-	maxTagValueSuffixesPerSearch = flag.Int("search.maxTagValueSuffixesPerSearch", 100e3, "The maximum number of tag value suffixes returned from /metrics/find")
-	maxConcurrentRequests        = flag.Int("search.maxConcurrentRequests", 2*cgroup.AvailableCPUs(), "The maximum number of concurrent vmselect requests "+
+	maxConcurrentRequests = flag.Int("search.maxConcurrentRequests", 2*cgroup.AvailableCPUs(), "The maximum number of concurrent vmselect requests "+
 		"the vmstorage can process at -vmselectAddr. It shouldn't be high, since a single request usually saturates a CPU core, and many concurrently executed requests "+
 		"may require high amounts of memory. See also -search.maxQueueDuration")
 	maxQueueDuration = flag.Duration("search.maxQueueDuration", 10*time.Second, "The maximum time the incoming vmselect request waits for execution "+
@@ -32,9 +27,6 @@ var (
 // newVMSelectServer starts new server at the given addr, which serves vmselect requests from the given s.
 func newVMSelectServer(addr string, api vmselectapi.API) (*vmselectapi.Server, error) {
 	limits := vmselectapi.Limits{
-		MaxLabelNames:                 *maxTagKeys,
-		MaxLabelValues:                *maxTagValues,
-		MaxTagValueSuffixes:           *maxTagValueSuffixesPerSearch,
 		MaxConcurrentRequests:         *maxConcurrentRequests,
 		MaxConcurrentRequestsFlagName: "search.maxConcurrentRequests",
 		MaxQueueDuration:              *maxQueueDuration,

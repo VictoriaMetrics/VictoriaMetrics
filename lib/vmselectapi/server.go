@@ -76,15 +76,6 @@ type Server struct {
 
 // Limits contains various limits for Server.
 type Limits struct {
-	// MaxLabelNames is the maximum label names, which may be returned from labelNames request.
-	MaxLabelNames int
-
-	// MaxLabelValues is the maximum label values, which may be returned from labelValues request.
-	MaxLabelValues int
-
-	// MaxTagValueSuffixes is the maximum number of entries, which can be returned from tagValueSuffixes request.
-	MaxTagValueSuffixes int
-
 	// MaxConcurrentRequests is the maximum number of concurrent requests a server can process.
 	//
 	// The remaining requests wait for up to MaxQueueDuration for their execution.
@@ -683,9 +674,6 @@ func (s *Server) processLabelNames(ctx *vmselectRequestCtx) error {
 	if err != nil {
 		return fmt.Errorf("cannot read maxLabelNames: %w", err)
 	}
-	if maxLabelNames <= 0 || maxLabelNames > s.limits.MaxLabelNames {
-		maxLabelNames = s.limits.MaxLabelNames
-	}
 
 	if err := s.beginConcurrentRequest(ctx); err != nil {
 		return ctx.writeErrorMessage(err)
@@ -736,9 +724,6 @@ func (s *Server) processLabelValues(ctx *vmselectRequestCtx) error {
 	maxLabelValues, err := ctx.readLimit()
 	if err != nil {
 		return fmt.Errorf("cannot read maxLabelValues: %w", err)
-	}
-	if maxLabelValues <= 0 || maxLabelValues > s.limits.MaxLabelValues {
-		maxLabelValues = s.limits.MaxLabelValues
 	}
 
 	if err := s.beginConcurrentRequest(ctx); err != nil {
@@ -802,9 +787,6 @@ func (s *Server) processTagValueSuffixes(ctx *vmselectRequestCtx) error {
 	if err != nil {
 		return fmt.Errorf("cannot read maxTagValueSuffixes: %w", err)
 	}
-	if maxSuffixes <= 0 || maxSuffixes > s.limits.MaxTagValueSuffixes {
-		maxSuffixes = s.limits.MaxTagValueSuffixes
-	}
 
 	if err := s.beginConcurrentRequest(ctx); err != nil {
 		return ctx.writeErrorMessage(err)
@@ -814,14 +796,6 @@ func (s *Server) processTagValueSuffixes(ctx *vmselectRequestCtx) error {
 	// Execute the request
 	suffixes, err := s.api.TagValueSuffixes(ctx.qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes, ctx.deadline)
 	if err != nil {
-		return ctx.writeErrorMessage(err)
-	}
-
-	if len(suffixes) >= s.limits.MaxTagValueSuffixes {
-		err := fmt.Errorf("more than %d tag value suffixes found "+
-			"for tagKey=%q, tagValuePrefix=%q, delimiter=%c on time range %s; "+
-			"either narrow down the query or increase -search.max* command-line flag value; see https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#resource-usage-limits",
-			s.limits.MaxTagValueSuffixes, tagKey, tagValuePrefix, delimiter, tr.String())
 		return ctx.writeErrorMessage(err)
 	}
 
