@@ -346,6 +346,7 @@ func appendBucketSpan(spans []bucketSpan, src []byte) ([]bucketSpan, error) {
 	//	}
 	if len(spans) < cap(spans) {
 		spans = spans[:len(spans)+1]
+		spans[len(spans)-1] = bucketSpan{}
 	} else {
 		spans = append(spans, bucketSpan{})
 	}

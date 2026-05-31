@@ -197,6 +197,38 @@ func TestUnmarshalTimeSeries(t *testing.T) {
 			},
 		})
 	}
+
+}
+
+// TestAppendBucketSpanZeroesReusedSlot is a regression test for the
+// stale-offset bug: a span's offset field is omitted from the wire when its
+// value is the proto3 default 0 (Prometheus's gogo-protobuf encoder does this
+// for prompb.BucketSpan). appendBucketSpan re-uses pooled slice memory for
+// nhctx.positiveSpans/negativeSpans without zeroing the entry, so a
+// subsequent histogram whose first span has offset=0 would inherit a stale
+// non-zero offset from whichever histogram previously occupied that pool
+// slot, producing wildly wrong vmrange labels.
+func TestAppendBucketSpanZeroesReusedSlot(t *testing.T) {
+	// Pre-populate the slot with a stale span that has offset=5.
+	spans := []bucketSpan{{offset: 5, length: 1}}
+	// Reset to len=0 but keep cap=1, as nhctx.reset() does.
+	spans = spans[:0]
+	// Parse a wire-encoded span where offset is omitted (proto3 default 0)
+	// and only length=1 is present. Without the fix, span.offset stays at 5.
+	wire := pbAppendVarint(nil, 2, 1)
+	got, err := appendBucketSpan(spans, wire)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("expected 1 span, got %d", len(got))
+	}
+	if got[0].offset != 0 {
+		t.Fatalf("expected offset=0 (proto3 default), got offset=%d (stale value bled through from pool)", got[0].offset)
+	}
+	if got[0].length != 1 {
+		t.Fatalf("expected length=1, got length=%d", got[0].length)
+	}
 }
 
 func encodeTimeSeries(labels []Label, samples []Sample, histograms [][]byte) []byte {
