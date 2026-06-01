@@ -27,24 +27,45 @@ var (
 	maxTagValueSuffixesPerSearch = flag.Int("search.maxTagValueSuffixesPerSearch", 100e3, "The maximum number of tag value suffixes returned from /metrics/find")
 )
 
-var (
-	maxUniqueTimeseriesValue     int
-	maxUniqueTimeseriesValueOnce sync.Once
-)
-
-func newVMStorage(s *storage.Storage) *VMStorage {
+func newVMStorage(s *storage.Storage, maxConcurrentRequests int) *VMStorage {
 	if err := encoding.CheckPrecisionBits(uint8(*precisionBits)); err != nil {
 		logger.Fatalf("invalid -precisionBits: %d", err)
 	}
 
-	GetMaxUniqueTimeSeries() // for init and logging only.
+	maxUniqueTimeseriesCalculated := *maxUniqueTimeseries
+	if maxUniqueTimeseriesCalculated <= 0 {
+		maxUniqueTimeseriesCalculated = calculateMaxUniqueTimeseries(maxConcurrentRequests, memory.Remaining())
+	}
 
-	return &VMStorage{s: s}
+	return &VMStorage{
+		s:                             s,
+		maxUniqueTimeseries:           *maxUniqueTimeseries,
+		maxUniqueTimeSeriesCalculated: maxUniqueTimeseriesCalculated,
+	}
+}
+
+// calculateMaxUniqueTimeseries calculates the maxUniqueTimeseries based on the
+// available system resources.
+func calculateMaxUniqueTimeseries(maxConcurrentRequests, remainingMemory int) int {
+	if maxConcurrentRequests <= 0 {
+		// This line should NOT be reached unless the user has set an incorrect `search.maxConcurrentRequests`.
+		// In such cases, fallback to unlimited.
+		logger.Warnf("limiting -search.maxUniqueTimeseries to %v because -search.maxConcurrentRequests=%d.", 2e9, maxConcurrentRequests)
+		return 2e9
+	}
+
+	// Calculate the max metrics limit for a single request in the worst-case concurrent scenario.
+	// The approximate size of 1 unique series that could occupy in the vmstorage is 200 bytes.
+	mts := remainingMemory / 200 / maxConcurrentRequests
+	logger.Infof("limiting -search.maxUniqueTimeseries to %d according to -search.maxConcurrentRequests=%d and remaining memory=%d bytes. To increase the limit, reduce -search.maxConcurrentRequests or increase memory available to the process.", mts, maxConcurrentRequests, remainingMemory)
+	return mts
 }
 
 // VMStorage impelements vmselectapi.API and vminsertapi.API.
 type VMStorage struct {
-	s *storage.Storage
+	s                             *storage.Storage
+	maxUniqueTimeseries           int
+	maxUniqueTimeSeriesCalculated int
 }
 
 // WriteRows implements lib/vminsertapi.API interface
@@ -66,7 +87,7 @@ func (api *VMStorage) IsReadOnly() bool {
 
 func (api *VMStorage) InitSearch(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (vmselectapi.BlockIterator, error) {
 	tr := sq.GetTimeRange()
-	maxMetrics := getMaxMetrics(sq.MaxMetrics)
+	maxMetrics := api.getMaxMetrics(sq.MaxMetrics)
 	tfss, err := api.setupTfss(qt, sq, tr, maxMetrics, deadline)
 	if err != nil {
 		return nil, err
@@ -83,13 +104,62 @@ func (api *VMStorage) InitSearch(qt *querytracer.Tracer, sq *storage.SearchQuery
 	return bi, nil
 }
 
+func (api *VMStorage) getMaxMetrics(searchQueryLimit int) int {
+	if searchQueryLimit <= 0 {
+		return api.maxUniqueTimeSeriesCalculated
+	}
+	// searchQueryLimit cannot exceed `-search.maxUniqueTimeseries`
+	if api.maxUniqueTimeseries != 0 && searchQueryLimit > api.maxUniqueTimeseries {
+		searchQueryLimit = api.maxUniqueTimeseries
+	}
+	return searchQueryLimit
+}
+
+// blockIterator implements vmselectapi.BlockIterator
+type blockIterator struct {
+	sr storage.Search
+	mb storage.MetricBlock
+}
+
+var blockIteratorsPool sync.Pool
+
+func (bi *blockIterator) MustClose() {
+	bi.sr.MustClose()
+	bi.mb.MetricName = nil
+	bi.mb.Block.Reset()
+	blockIteratorsPool.Put(bi)
+}
+
+func getBlockIterator() *blockIterator {
+	v := blockIteratorsPool.Get()
+	if v == nil {
+		v = &blockIterator{}
+	}
+	return v.(*blockIterator)
+}
+
+func (bi *blockIterator) NextBlock(dst []byte) ([]byte, bool) {
+	if !bi.sr.NextMetricBlock() {
+		return dst, false
+	}
+	mb := bi.mb
+	mb.MetricName = bi.sr.MetricBlockRef.MetricName
+	bi.sr.MetricBlockRef.BlockRef.MustReadBlock(&mb.Block)
+	dst = mb.Marshal(dst[:0])
+	return dst, true
+}
+
+func (bi *blockIterator) Error() error {
+	return bi.sr.Error()
+}
+
 func (api *VMStorage) SearchMetricNames(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) ([]string, error) {
 	tr := sq.GetTimeRange()
 	maxMetrics := sq.MaxMetrics
 	if maxMetrics <= 0 {
 		// fallback to maxUniqueTimeSeries if no limit is provided,
 		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7857
-		maxMetrics = GetMaxUniqueTimeSeries()
+		maxMetrics = api.maxUniqueTimeSeriesCalculated
 	}
 	tfss, err := api.setupTfss(qt, sq, tr, maxMetrics, deadline)
 	if err != nil {
@@ -110,7 +180,7 @@ func (api *VMStorage) LabelValues(qt *querytracer.Tracer, sq *storage.SearchQuer
 	if maxMetrics <= 0 {
 		// fallback to maxUniqueTimeSeries if no limit is provided,
 		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7857
-		maxMetrics = GetMaxUniqueTimeSeries()
+		maxMetrics = api.maxUniqueTimeSeriesCalculated
 	}
 	tfss, err := api.setupTfss(qt, sq, tr, maxMetrics, deadline)
 	if err != nil {
@@ -144,7 +214,7 @@ func (api *VMStorage) LabelNames(qt *querytracer.Tracer, sq *storage.SearchQuery
 	if maxMetrics <= 0 {
 		// fallback to maxUniqueTimeSeries if no limit is provided,
 		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7857
-		maxMetrics = GetMaxUniqueTimeSeries()
+		maxMetrics = api.maxUniqueTimeSeriesCalculated
 	}
 	tfss, err := api.setupTfss(qt, sq, tr, maxMetrics, deadline)
 	if err != nil {
@@ -167,7 +237,7 @@ func (api *VMStorage) TSDBStatus(qt *querytracer.Tracer, sq *storage.SearchQuery
 	if maxMetrics <= 0 {
 		// fallback to maxUniqueTimeSeries if no limit is provided,
 		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7857
-		maxMetrics = GetMaxUniqueTimeSeries()
+		maxMetrics = api.maxUniqueTimeSeriesCalculated
 	}
 	tfss, err := api.setupTfss(qt, sq, tr, maxMetrics, deadline)
 	if err != nil {
@@ -183,7 +253,7 @@ func (api *VMStorage) DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQue
 	if maxMetrics <= 0 {
 		// fallback to maxUniqueTimeSeries if no limit is provided,
 		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7857
-		maxMetrics = GetMaxUniqueTimeSeries()
+		maxMetrics = api.maxUniqueTimeSeriesCalculated
 	}
 	tfss, err := api.setupTfss(qt, sq, tr, maxMetrics, deadline)
 	if err != nil {
@@ -244,81 +314,4 @@ func (api *VMStorage) setupTfss(qt *querytracer.Tracer, sq *storage.SearchQuery,
 
 func (api *VMStorage) GetMetadataRecords(qt *querytracer.Tracer, tt *storage.TenantToken, limit int, metricName string, deadline uint64) ([]*metricsmetadata.Row, error) {
 	return api.s.GetMetadataRows(qt, tt, limit, metricName, deadline)
-}
-
-// blockIterator implements vmselectapi.BlockIterator
-type blockIterator struct {
-	sr storage.Search
-	mb storage.MetricBlock
-}
-
-var blockIteratorsPool sync.Pool
-
-func (bi *blockIterator) MustClose() {
-	bi.sr.MustClose()
-	bi.mb.MetricName = nil
-	bi.mb.Block.Reset()
-	blockIteratorsPool.Put(bi)
-}
-
-func getBlockIterator() *blockIterator {
-	v := blockIteratorsPool.Get()
-	if v == nil {
-		v = &blockIterator{}
-	}
-	return v.(*blockIterator)
-}
-
-func (bi *blockIterator) NextBlock(dst []byte) ([]byte, bool) {
-	if !bi.sr.NextMetricBlock() {
-		return dst, false
-	}
-	mb := bi.mb
-	mb.MetricName = bi.sr.MetricBlockRef.MetricName
-	bi.sr.MetricBlockRef.BlockRef.MustReadBlock(&mb.Block)
-	dst = mb.Marshal(dst[:0])
-	return dst, true
-}
-
-func (bi *blockIterator) Error() error {
-	return bi.sr.Error()
-}
-
-func getMaxMetrics(searchQueryLimit int) int {
-	if searchQueryLimit <= 0 {
-		return GetMaxUniqueTimeSeries()
-	}
-	// searchQueryLimit cannot exceed `-search.maxUniqueTimeseries`
-	if *maxUniqueTimeseries != 0 && searchQueryLimit > *maxUniqueTimeseries {
-		searchQueryLimit = *maxUniqueTimeseries
-	}
-	return searchQueryLimit
-}
-
-// GetMaxUniqueTimeSeries returns `-search.maxUniqueTimeseries` or the auto-calculated value based on available resources.
-// The calculation is split into calculateMaxUniqueTimeSeriesForResource for unit testing.
-func GetMaxUniqueTimeSeries() int {
-	maxUniqueTimeseriesValueOnce.Do(func() {
-		maxUniqueTimeseriesValue = *maxUniqueTimeseries
-		if maxUniqueTimeseriesValue <= 0 {
-			maxUniqueTimeseriesValue = calculateMaxUniqueTimeSeriesForResource(*maxConcurrentRequests, memory.Remaining())
-		}
-	})
-	return maxUniqueTimeseriesValue
-}
-
-// calculateMaxUniqueTimeSeriesForResource calculate the max metrics limit calculated by available resources.
-func calculateMaxUniqueTimeSeriesForResource(maxConcurrentRequests, remainingMemory int) int {
-	if maxConcurrentRequests <= 0 {
-		// This line should NOT be reached unless the user has set an incorrect `search.maxConcurrentRequests`.
-		// In such cases, fallback to unlimited.
-		logger.Warnf("limiting -search.maxUniqueTimeseries to %v because -search.maxConcurrentRequests=%d.", 2e9, maxConcurrentRequests)
-		return 2e9
-	}
-
-	// Calculate the max metrics limit for a single request in the worst-case concurrent scenario.
-	// The approximate size of 1 unique series that could occupy in the vmstorage is 200 bytes.
-	mts := remainingMemory / 200 / maxConcurrentRequests
-	logger.Infof("limiting -search.maxUniqueTimeseries to %d according to -search.maxConcurrentRequests=%d and remaining memory=%d bytes. To increase the limit, reduce -search.maxConcurrentRequests or increase memory available to the process.", mts, maxConcurrentRequests, remainingMemory)
-	return mts
 }
