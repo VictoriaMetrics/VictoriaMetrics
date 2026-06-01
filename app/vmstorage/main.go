@@ -192,7 +192,7 @@ func main() {
 	}
 	strg := storage.MustOpenStorage(*storageDataPath, opts)
 	initStaleSnapshotsRemover(strg)
-	vmstorage := newVMStorage(strg, *maxConcurrentRequests)
+	vmStorage := newVMStorage(strg, *maxConcurrentRequests)
 
 	var m storage.Metrics
 	strg.UpdateMetrics(&m)
@@ -207,13 +207,13 @@ func main() {
 	// register storage metrics
 	storageMetrics := metrics.NewSet()
 	storageMetrics.RegisterMetricsWriter(func(w io.Writer) {
-		writeStorageMetrics(w, vmstorage)
+		writeStorageMetrics(w, vmStorage)
 	})
 	metrics.RegisterSet(storageMetrics)
 
 	protoparserutil.StartUnmarshalWorkers()
 
-	vminsertSrv, err := vminsertapi.NewVMInsertServer(*vminsertAddr, *vminsertConnsShutdownDuration, "vminsert", vmstorage, nil)
+	vminsertSrv, err := vminsertapi.NewVMInsertServer(*vminsertAddr, *vminsertConnsShutdownDuration, "vminsert", vmStorage, nil)
 	if err != nil {
 		logger.Fatalf("cannot create a server with -vminsertAddr=%s: %s", *vminsertAddr, err)
 
@@ -224,7 +224,7 @@ func main() {
 		MaxQueueDuration:              *maxQueueDuration,
 		MaxQueueDurationFlagName:      "search.maxQueueDuration",
 	}
-	vmselectSrv, err := vmselectapi.NewServer(*vmselectAddr, vmstorage, limits, *disableRPCCompression)
+	vmselectSrv, err := vmselectapi.NewServer(*vmselectAddr, vmStorage, limits, *disableRPCCompression)
 	if err != nil {
 		logger.Fatalf("cannot create a server with -vmselectAddr=%s: %s", *vmselectAddr, err)
 	}
