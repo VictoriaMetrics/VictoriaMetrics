@@ -130,7 +130,7 @@
           "calcs": [
             "lastNotNull"
           ],
-          "fields": "/^short_version$/",
+          "fields": "/^version$/",
           "values": false
         },
         "showPercentChange": false,
