@@ -1008,13 +1008,10 @@ func (rwctx *remoteWriteCtx) TryPushTimeSeries(tss []prompb.TimeSeries, forceDro
 		rctx = getRelabelCtx()
 		// Make a copy of tss
 		rowsCountBeforeMdx := getRowsCount(tss)
-		resTss := tssPool.Get().(*[]prompb.TimeSeries)
-		tss = mdx.GlobalFilter.Filter(tss, *resTss)
-		rowsCountAfterMdx := getRowsCount(*resTss)
+		v = tssPool.Get().(*[]prompb.TimeSeries)
+		tss = mdx.GlobalFilter.Filter(tss, *v)
+		rowsCountAfterMdx := getRowsCount(tss)
 		rwctx.rowsDroppedByMdx.Add(rowsCountBeforeMdx - rowsCountAfterMdx)
-		if len(tss) == 0 {
-			return true
-		}
 	}
 
 	// Apply relabeling
