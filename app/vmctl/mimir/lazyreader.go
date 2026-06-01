@@ -58,7 +58,7 @@ func (lbr *lazyBlockReader) initialize() error {
 
 	defer func() {
 		if err := os.RemoveAll(temp); err != nil {
-			log.Panicf("failed to remove temp dir: %s", err)
+			log.Printf("failed to remove temp dir: %s", err)
 		}
 	}()
 
