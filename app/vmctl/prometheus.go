@@ -8,20 +8,27 @@ import (
 	"sync"
 
 	"github.com/prometheus/prometheus/model/labels"
+	"github.com/prometheus/prometheus/storage"
 	"github.com/prometheus/prometheus/tsdb"
 	"github.com/prometheus/prometheus/tsdb/chunkenc"
 
 	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 )
 
+// Runner is an interface for fetching and reading
+// snapshot blocks
+type Runner interface {
+	Explore() ([]tsdb.BlockReader, error)
+	Read(context.Context, tsdb.BlockReader) (storage.SeriesSet, error)
+}
+
 type prometheusProcessor struct {
-	// prometheus client fetches and reads
+	// Runner fetches and reads
 	// snapshot blocks
-	cl *prometheus.Client
+	cl Runner
 	// importer performs import requests
 	// for timeseries data returned from
 	// snapshot blocks
@@ -48,7 +55,7 @@ func (pp *prometheusProcessor) run(ctx context.Context) error {
 		return nil
 	}
 
-	if err := pp.processBlocks(blocks); err != nil {
+	if err := pp.processBlocks(ctx, blocks); err != nil {
 		return fmt.Errorf("migration failed: %s", err)
 	}
 
@@ -57,8 +64,8 @@ func (pp *prometheusProcessor) run(ctx context.Context) error {
 	return nil
 }
 
-func (pp *prometheusProcessor) do(b tsdb.BlockReader) error {
-	ss, err := pp.cl.Read(b)
+func (pp *prometheusProcessor) do(ctx context.Context, b tsdb.BlockReader) error {
+	ss, err := pp.cl.Read(ctx, b)
 	if err != nil {
 		return fmt.Errorf("failed to read block: %s", err)
 	}
@@ -114,7 +121,7 @@ func (pp *prometheusProcessor) do(b tsdb.BlockReader) error {
 	return ss.Err()
 }
 
-func (pp *prometheusProcessor) processBlocks(blocks []tsdb.BlockReader) error {
+func (pp *prometheusProcessor) processBlocks(ctx context.Context, blocks []tsdb.BlockReader) error {
 	promBlocksTotal.Add(len(blocks))
 	bar := barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing blocks"), len(blocks))
 	if err := barpool.Start(); err != nil {
@@ -130,8 +137,7 @@ func (pp *prometheusProcessor) processBlocks(blocks []tsdb.BlockReader) error {
 	for range pp.cc {
 		wg.Go(func() {
 			for br := range blockReadersCh {
-				if err := pp.do(br); err != nil {
-					promErrorsTotal.Inc()
+				if err := pp.do(ctx, br); err != nil {
 					errCh <- fmt.Errorf("read failed for block %q: %s", br.Meta().ULID, err)
 					return
 				}
