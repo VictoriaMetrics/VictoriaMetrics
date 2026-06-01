@@ -868,6 +868,7 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 		End:                 start,
 		Step:                step,
 		MaxPointsPerSeries:  *maxPointsPerTimeseries,
+		MaxSeries:           0, // let vmstorage use maxUniqueTimeseries by default
 		QuotedRemoteAddr:    httpserver.GetQuotedRemoteAddr(r),
 		Deadline:            deadline,
 		MayCache:            mayCache,
@@ -978,6 +979,7 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 		End:                 end,
 		Step:                step,
 		MaxPointsPerSeries:  *maxPointsPerTimeseries,
+		MaxSeries:           0, // let vmstorage use maxUniqueTimeseries by default
 		QuotedRemoteAddr:    httpserver.GetQuotedRemoteAddr(r),
 		Deadline:            deadline,
 		MayCache:            mayCache,

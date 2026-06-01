@@ -839,7 +839,10 @@ func GetMetricsMetadata(qt *querytracer.Tracer, limit int, metricName string) ([
 	qt = qt.NewChild("get metrics metadata: limit=%d, metric_name=%q", limit, metricName)
 	defer qt.Done()
 
-	metadata, _ := vmstorage.VMSelectAPI.GetMetadataRecords(qt, nil, limit, metricName, 0)
+	metadata, err := vmstorage.VMSelectAPI.GetMetadataRecords(qt, nil, limit, metricName, 0)
+	if err != nil {
+		return nil, err
+	}
 
 	sort.Slice(metadata, func(i, j int) bool {
 		return string(metadata[i].MetricFamilyName) < string(metadata[j].MetricFamilyName)
