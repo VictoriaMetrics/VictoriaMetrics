@@ -22,8 +22,7 @@ on:
       - '!app/vmui/**'
       - '.github/workflows/build.yml'
 
-permissions:
-  contents: read
+permissions: {}
 
 concurrency:
   cancel-in-progress: true
@@ -32,6 +31,8 @@ concurrency:
 jobs:
   build:
     name: ${{ matrix.os }}-${{ matrix.arch }}
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
