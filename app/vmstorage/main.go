@@ -153,7 +153,7 @@ func Init(maxConcurrentRequests int, resetCacheIfNeeded func(mrs []storage.Metri
 		LogNewSeries:                *logNewSeries,
 	}
 	strg := storage.MustOpenStorage(*storageDataPath, opts)
-	vmStorage = newVMStorage(strg, maxConcurrentRequests, resetCacheIfNeeded)
+	vmStorage = newVMStorageSingleNode(strg, maxConcurrentRequests, resetCacheIfNeeded)
 
 	var m storage.Metrics
 	strg.UpdateMetrics(&m)
@@ -168,7 +168,7 @@ func Init(maxConcurrentRequests int, resetCacheIfNeeded func(mrs []storage.Metri
 	// register storage metrics
 	storageMetrics = metrics.NewSet()
 	storageMetrics.RegisterMetricsWriter(func(w io.Writer) {
-		writeStorageMetrics(w, vmStorage)
+		vmStorage.writeStorageMetrics(w)
 	})
 	metrics.RegisterSet(storageMetrics)
 
@@ -191,9 +191,9 @@ func Init(maxConcurrentRequests int, resetCacheIfNeeded func(mrs []storage.Metri
 var storageMetrics *metrics.Set
 
 var (
-	// vmStorage is an instance of vmstorage used by vminsert and vmselect for
-	// writing and reading data.
-	vmStorage      *VMStorage
+	// vmStorageSingleNode is an instance of vmstorage used by vminsert and
+	// vmselect for writing and reading data.
+	vmStorage      *VMStorageSingleNode
 	VMInsertAPI    vminsertapi.API
 	VMSelectAPI    vmselectapi.API
 	GetSearch      func(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (*storage.Search, int, error)
@@ -219,12 +219,15 @@ func Stop() {
 	logger.Infof("the vmstorage has been stopped")
 }
 
+func (api *VMStorageSingleNode) requestHandler(w http.ResponseWriter, r *http.Request) bool {
+	api.wg.Add(1)
+	defer api.wg.Done()
+	return api.VMStorage.requestHandler(w, r)
+}
+
 // requestHandler is a storage request handler.
 // TODO(@rtm0): Move to a separate file, request_handler.go
 func (api *VMStorage) requestHandler(w http.ResponseWriter, r *http.Request) bool {
-	api.wg.Add(1)
-	defer api.wg.Done()
-
 	path := r.URL.Path
 	if path == "/internal/force_merge" {
 		if !httpserver.CheckAuthFlag(w, r, forceMergeAuthKey) {
@@ -369,8 +372,9 @@ var (
 	snapshotsDeleteAllErrorsTotal = metrics.NewCounter(`vm_http_request_errors_total{path="/snapshot/delete_all"}`)
 )
 
-func writeStorageMetrics(w io.Writer, vms *VMStorage) {
-	strg := vms.s
+// TODO(@rtm0): Move to metrics.go.
+func (api *VMStorage) writeStorageMetrics(w io.Writer) {
+	strg := api.s
 	var m storage.Metrics
 	strg.UpdateMetrics(&m)
 	tm := &m.TableMetrics
@@ -594,7 +598,7 @@ func writeStorageMetrics(w io.Writer, vms *VMStorage) {
 	metrics.WriteGaugeUint64(w, `vm_downsampling_partitions_scheduled`, tm.ScheduledDownsamplingPartitions)
 	metrics.WriteGaugeUint64(w, `vm_downsampling_partitions_scheduled_size_bytes`, tm.ScheduledDownsamplingPartitionsSize)
 
-	metrics.WriteGaugeUint64(w, `vm_search_max_unique_timeseries`, uint64(vms.maxUniqueTimeSeriesCalculated))
+	metrics.WriteGaugeUint64(w, `vm_search_max_unique_timeseries`, uint64(api.maxUniqueTimeSeriesCalculated))
 
 	metrics.WriteGaugeUint64(w, `vm_metrics_metadata_storage_items`, m.MetadataStorageItemsCurrent)
 	metrics.WriteCounterUint64(w, `vm_metrics_metadata_storage_size_bytes`, m.MetadataStorageCurrentSizeBytes)

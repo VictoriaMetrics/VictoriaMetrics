@@ -1,7 +1,6 @@
 package vmstorage
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"sync"
@@ -15,7 +14,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricnamestats"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/syncwg"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vmselectapi"
 )
@@ -36,7 +34,7 @@ var (
 // newVMStorage creates a new instance of of VMStorage.
 //
 // The created VMStorage instance takes ownership of s.
-func newVMStorage(s *storage.Storage, maxConcurrentRequests int, resetCacheIfNeeded func(mrs []storage.MetricRow)) *VMStorage {
+func newVMStorage(s *storage.Storage, maxConcurrentRequests int) *VMStorage {
 	if err := encoding.CheckPrecisionBits(uint8(*precisionBits)); err != nil {
 		logger.Fatalf("invalid -precisionBits: %d", err)
 	}
@@ -50,8 +48,6 @@ func newVMStorage(s *storage.Storage, maxConcurrentRequests int, resetCacheIfNee
 		s:                             s,
 		maxUniqueTimeseries:           *maxUniqueTimeseries,
 		maxUniqueTimeSeriesCalculated: maxUniqueTimeseriesCalculated,
-		wg:                            syncwg.WaitGroup{},
-		resetCacheIfNeeded:            resetCacheIfNeeded,
 		staleSnapshotsRemoverCh:       make(chan struct{}),
 	}
 	vms.initStaleSnapshotsRemover()
@@ -80,20 +76,8 @@ type VMStorage struct {
 	s                             *storage.Storage
 	maxUniqueTimeseries           int
 	maxUniqueTimeSeriesCalculated int
-
-	// wg is used to wrap every storage call into wg.Add(1) ... wg.Done()
-	// for proper graceful shutdown when Stop is called.
-	//
-	// Use syncwg instead of sync, since Add is called from concurrent
-	// goroutines.
-	wg syncwg.WaitGroup
-
-	// resetCacheIfNeeded is a callback for automatic resetting of response
-	// cache if needed.
-	resetCacheIfNeeded func(mrs []storage.MetricRow)
-
-	staleSnapshotsRemoverCh chan struct{}
-	staleSnapshotsRemoverWG sync.WaitGroup
+	staleSnapshotsRemoverCh       chan struct{}
+	staleSnapshotsRemoverWG       sync.WaitGroup
 }
 
 func (api *VMStorage) initStaleSnapshotsRemover() {
@@ -119,105 +103,31 @@ func (api *VMStorage) initStaleSnapshotsRemover() {
 func (api *VMStorage) Stop() {
 	close(api.staleSnapshotsRemoverCh)
 	api.staleSnapshotsRemoverWG.Wait()
-	api.wg.WaitAndBlock()
 	api.s.MustClose()
 }
 
 // WriteRows writes metric rows to the storage.
 //
-// Returns an error if the storage is in read-only mode.
-//
 // The caller should limit the number of concurrent calls to WriteRows() in
 // order to limit memory usage.
 func (api *VMStorage) WriteRows(rows []storage.MetricRow) error {
-	api.wg.Add(1)
-	defer api.wg.Done()
-
-	if api.s.IsReadOnly() {
-		return errReadOnly
-	}
-	api.resetCacheIfNeeded(rows)
 	api.s.AddRows(rows, uint8(*precisionBits))
 	return nil
 }
 
 // WriteMetadata writes metrics metadata to storage.
 //
-// Returns an error if the storage is in read-only mode.
-//
 // The caller should limit the number of concurrent calls to WriteMetadata() in
 // order to limit memory usage.
 func (api *VMStorage) WriteMetadata(rows []metricsmetadata.Row) error {
-	api.wg.Add(1)
-	defer api.wg.Done()
-
-	if api.s.IsReadOnly() {
-		return errReadOnly
-	}
 	api.s.AddMetadataRows(rows)
 	return nil
 }
 
-var errReadOnly = errors.New("the storage is in read-only mode; check -storage.minFreeDiskSpaceBytes command-line flag value")
-
 // IsReadOnly returns true is the storage is in read-only mode.
 func (api *VMStorage) IsReadOnly() bool {
-	api.wg.Add(1)
-	defer api.wg.Done()
-
 	return api.s.IsReadOnly()
 }
-
-// GetSearch sets up an instance of storage search and returns it to the caller
-// along with the max series count that the search can return.
-//
-// This method is not part of the vmselectapi.API and must only be used by
-// vmsingle HTTP handlers.
-//
-// Callers of this method must call PutSearch() once the search instance is not
-// needed anymore.
-func (api *VMStorage) GetSearch(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (*storage.Search, int, error) {
-	api.wg.Add(1)
-
-	tr := sq.GetTimeRange()
-	maxMetrics := api.getMaxMetrics(sq.MaxMetrics)
-	tfss, err := api.setupTfss(qt, sq, tr, maxMetrics, deadline)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	sr := getSearch()
-	maxSeriesCount := sr.Init(qt, api.s, tfss, tr, sq.MaxMetrics, deadline)
-	return sr, maxSeriesCount, nil
-}
-
-// PutSearch resets the search once it is not needed anymore and puts it aside
-// for future reuse.
-//
-// This method is not part of the vmselectapi.API and must only be used by
-// vmsingle HTTP handlers.
-//
-// The method must only be used on search instances that have been created with
-// GetSearch().
-func (api *VMStorage) PutSearch(sr *storage.Search) {
-	api.wg.Done()
-	putSearch(sr)
-}
-
-func getSearch() *storage.Search {
-	v := ssPool.Get()
-	if v == nil {
-		return &storage.Search{}
-	}
-	return v.(*storage.Search)
-}
-
-func putSearch(sr *storage.Search) {
-	sr.MustClose()
-	ssPool.Put(sr)
-}
-
-var ssPool sync.Pool
 
 func (api *VMStorage) InitSearch(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (vmselectapi.BlockIterator, error) {
 	tr := sq.GetTimeRange()
@@ -289,9 +199,6 @@ func (bi *blockIterator) Error() error {
 
 // SearchMetricNames returns metric names for the given tfss on the given tr.
 func (api *VMStorage) SearchMetricNames(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) ([]string, error) {
-	api.wg.Add(1)
-	defer api.wg.Done()
-
 	tr := sq.GetTimeRange()
 	maxMetrics := sq.MaxMetrics
 	if maxMetrics <= 0 {
@@ -312,9 +219,6 @@ func (api *VMStorage) SearchMetricNames(qt *querytracer.Tracer, sq *storage.Sear
 // SearchLabelValues searches for label values for the given labelName, tfss and
 // tr.
 func (api *VMStorage) LabelValues(qt *querytracer.Tracer, sq *storage.SearchQuery, labelName string, maxLabelValues int, deadline uint64) ([]string, error) {
-	api.wg.Add(1)
-	defer api.wg.Done()
-
 	tr := sq.GetTimeRange()
 	if maxLabelValues <= 0 || maxLabelValues > *maxTagValues {
 		maxLabelValues = *maxTagValues
@@ -340,9 +244,6 @@ func (api *VMStorage) LabelValues(qt *querytracer.Tracer, sq *storage.SearchQuer
 // similar APIs.
 func (api *VMStorage) TagValueSuffixes(qt *querytracer.Tracer, _, _ uint32, tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte,
 	maxSuffixes int, deadline uint64) ([]string, error) {
-	api.wg.Add(1)
-	defer api.wg.Done()
-
 	if maxSuffixes <= 0 || maxSuffixes > *maxTagValueSuffixesPerSearch {
 		maxSuffixes = *maxTagValueSuffixesPerSearch
 	}
@@ -359,9 +260,6 @@ func (api *VMStorage) TagValueSuffixes(qt *querytracer.Tracer, _, _ uint32, tr s
 
 // SearchLabelNames searches for tag keys matching the given tfss on tr.
 func (api *VMStorage) LabelNames(qt *querytracer.Tracer, sq *storage.SearchQuery, maxLabelNames int, deadline uint64) ([]string, error) {
-	api.wg.Add(1)
-	defer api.wg.Done()
-
 	tr := sq.GetTimeRange()
 	if maxLabelNames <= 0 || maxLabelNames > *maxTagKeys {
 		maxLabelNames = *maxTagKeys
@@ -380,21 +278,15 @@ func (api *VMStorage) LabelNames(qt *querytracer.Tracer, sq *storage.SearchQuery
 }
 
 func (api *VMStorage) SeriesCount(_ *querytracer.Tracer, _, _ uint32, deadline uint64) (uint64, error) {
-	api.wg.Add(1)
-	defer api.wg.Done()
-
 	return api.s.GetSeriesCount(deadline)
 }
 
-func (api *VMStorage) Tenants(qt *querytracer.Tracer, tr storage.TimeRange, deadline uint64) ([]string, error) {
+func (api *VMStorage) Tenants(_ *querytracer.Tracer, _ storage.TimeRange, _ uint64) ([]string, error) {
 	return nil, nil
 }
 
 // GetTSDBStatus returns TSDB status for given filters on the given date.
 func (api *VMStorage) TSDBStatus(qt *querytracer.Tracer, sq *storage.SearchQuery, focusLabel string, topN int, deadline uint64) (*storage.TSDBStatus, error) {
-	api.wg.Add(1)
-	defer api.wg.Done()
-
 	tr := sq.GetTimeRange()
 	maxMetrics := sq.MaxMetrics
 	if maxMetrics <= 0 {
@@ -414,8 +306,6 @@ func (api *VMStorage) TSDBStatus(qt *querytracer.Tracer, sq *storage.SearchQuery
 //
 // Returns the number of deleted series.
 func (api *VMStorage) DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (int, error) {
-	api.wg.Add(1)
-	defer api.wg.Done()
 	// TODO(@rtm0): Return an error if the storage is in read-only mode?
 
 	tr := sq.GetTimeRange()
@@ -436,8 +326,6 @@ func (api *VMStorage) DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQue
 }
 
 func (api *VMStorage) RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, _ uint64) error {
-	api.wg.Add(1)
-	defer api.wg.Done()
 	// TODO(@rtm0): Return an error if the storage is in read-only mode?
 
 	api.s.RegisterMetricNames(qt, mrs)
@@ -446,17 +334,12 @@ func (api *VMStorage) RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.
 
 // GetMetricNamesUsageStats returns metric name usage stats.
 func (api *VMStorage) GetMetricNamesUsageStats(qt *querytracer.Tracer, _ *storage.TenantToken, limit, le int, matchPattern string, _ uint64) (metricnamestats.StatsResult, error) {
-	api.wg.Add(1)
-	defer api.wg.Done()
 
 	return api.s.GetMetricNamesStats(qt, limit, le, matchPattern), nil
 }
 
 // ResetMetricNamesStats resets state for metric names usage tracker
 func (api *VMStorage) ResetMetricNamesUsageStats(qt *querytracer.Tracer, _ uint64) error {
-	api.wg.Add(1)
-	defer api.wg.Done()
-
 	api.s.ResetMetricNamesStats(qt)
 	return nil
 }
@@ -492,10 +375,7 @@ func (api *VMStorage) setupTfss(qt *querytracer.Tracer, sq *storage.SearchQuery,
 	return tfss, nil
 }
 
-func (api *VMStorage) GetMetadataRecords(qt *querytracer.Tracer, tt *storage.TenantToken, limit int, metricName string, deadline uint64) ([]*metricsmetadata.Row, error) {
-	api.wg.Add(1)
-	defer api.wg.Done()
-
+func (api *VMStorage) GetMetadataRecords(qt *querytracer.Tracer, _ *storage.TenantToken, limit int, metricName string, _ uint64) ([]*metricsmetadata.Row, error) {
 	return api.s.GetMetadataRows(qt, limit, metricName), nil
 }
 
