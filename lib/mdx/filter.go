@@ -25,12 +25,11 @@ var (
 
 // Filter manages the list of VictoriaMetrics instances discovered from previous data flow, and uses it to filter out metrics that are not from VictoriaMetrics instances.
 type Filter struct {
-	mu                    sync.RWMutex
-	wg                    sync.WaitGroup
-	stopCh                chan struct{}
-	vmInstance            map[string]*atomic.Int64
-	mdxTrackedVmInstances *metrics.Gauge
-	filterByLabel         bool
+	mu            sync.RWMutex
+	wg            sync.WaitGroup
+	stopCh        chan struct{}
+	vmInstance    map[string]*atomic.Int64
+	filterByLabel bool
 }
 
 var GlobalFilter *Filter
