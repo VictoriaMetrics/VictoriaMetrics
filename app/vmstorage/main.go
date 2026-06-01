@@ -9,7 +9,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
@@ -28,7 +27,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vminsertapi"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vmselectapi"
 )
@@ -60,7 +58,6 @@ var (
 	snapshotAuthKey   = flagutil.NewPassword("snapshotAuthKey", "authKey, which must be passed in query string to /snapshot* pages. It overrides -httpAuth.*")
 	forceMergeAuthKey = flagutil.NewPassword("forceMergeAuthKey", "authKey, which must be passed in query string to /internal/force_merge pages. It overrides -httpAuth.*")
 	forceFlushAuthKey = flagutil.NewPassword("forceFlushAuthKey", "authKey, which must be passed in query string to /internal/force_flush pages. It overrides -httpAuth.*")
-	snapshotsMaxAge   = flagutil.NewRetentionDuration("snapshotsMaxAge", "3d", "Automatically delete snapshots older than -snapshotsMaxAge if it is set to non-zero duration. Make sure that backup process has enough time to finish the backup before the corresponding snapshot is automatically deleted")
 	_                 = flag.Duration("snapshotCreateTimeout", 0, "Deprecated: this flag does nothing")
 
 	_ = flag.Duration("finalMergeDelay", 0, "Deprecated: this flag does nothing")
@@ -191,7 +188,6 @@ func main() {
 		LogNewSeries:                *logNewSeries,
 	}
 	strg := storage.MustOpenStorage(*storageDataPath, opts)
-	initStaleSnapshotsRemover(strg)
 	vmStorage := newVMStorage(strg, *maxConcurrentRequests)
 
 	var m storage.Metrics
@@ -233,8 +229,7 @@ func main() {
 	if len(listenAddrs) == 0 {
 		listenAddrs = []string{":8482"}
 	}
-	requestHandler := newRequestHandler(strg)
-	go httpserver.Serve(listenAddrs, requestHandler, httpserver.ServeOptions{UseProxyProtocol: useProxyProtocol})
+	go httpserver.Serve(listenAddrs, vmStorage.requestHandler, httpserver.ServeOptions{UseProxyProtocol: useProxyProtocol})
 
 	pushmetrics.Init()
 	sig := procutil.WaitForSigterm()
@@ -254,7 +249,6 @@ func main() {
 	metrics.UnregisterSet(storageMetrics, true)
 	storageMetrics = nil
 
-	stopStaleSnapshotsRemover()
 	vmselectSrv.MustStop()
 	vminsertSrv.MustStop()
 	protoparserutil.StopUnmarshalWorkers()
@@ -262,31 +256,29 @@ func main() {
 
 	logger.Infof("gracefully closing the storage at %s", *storageDataPath)
 	startTime = time.Now()
-	strg.MustClose()
+	vmStorage.Stop()
 	logger.Infof("successfully closed the storage in %.3f seconds", time.Since(startTime).Seconds())
 
 	fs.MustStopDirRemover()
 	logger.Infof("the vmstorage has been stopped")
 }
 
-func newRequestHandler(strg *storage.Storage) httpserver.RequestHandler {
-	return func(w http.ResponseWriter, r *http.Request) bool {
-		if r.URL.Path == "/" {
-			if r.Method != http.MethodGet {
-				return false
-			}
-			w.Header().Add("Content-Type", "text/html; charset=utf-8")
-			fmt.Fprintf(w, `vmstorage - a component of VictoriaMetrics cluster<br/>
+// requestHandler is a storage request handler.
+// TODO(@rtm0): Move to a separate file, request_handler.go
+func (api *VMStorage) requestHandler(w http.ResponseWriter, r *http.Request) bool {
+	path := r.URL.Path
+
+	if path == "/" {
+		if r.Method != http.MethodGet {
+			return false
+		}
+		w.Header().Add("Content-Type", "text/html; charset=utf-8")
+		fmt.Fprintf(w, `vmstorage - a component of VictoriaMetrics cluster<br/>
 			<a href="https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/">docs</a><br>
 `)
-			return true
-		}
-		return requestHandler(w, r, strg)
+		return true
 	}
-}
 
-func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storage) bool {
-	path := r.URL.Path
 	if path == "/internal/force_merge" {
 		if !httpserver.CheckAuthFlag(w, r, forceMergeAuthKey) {
 			return true
@@ -298,7 +290,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 			defer activeForceMerges.Dec()
 			logger.Infof("forced merge for partition_prefix=%q has been started", partitionNamePrefix)
 			startTime := time.Now()
-			if err := strg.ForceMergePartitions(partitionNamePrefix); err != nil {
+			if err := api.s.ForceMergePartitions(partitionNamePrefix); err != nil {
 				logger.Errorf("error in forced merge for partition_prefix=%q: %s", partitionNamePrefix, err)
 				return
 			}
@@ -311,7 +303,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 			return true
 		}
 		logger.Infof("flushing storage to make pending data available for reading")
-		strg.DebugFlush()
+		api.s.DebugFlush()
 		return true
 	}
 
@@ -331,7 +323,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 		}
 		logger.Infof("enabling logging of new series for the next %s. This may increase resource usage during this period.", time.Duration(dealine)*time.Second)
 		endTime := fasttime.UnixTimestamp() + uint64(dealine)
-		strg.SetLogNewSeriesUntil(endTime)
+		api.s.SetLogNewSeriesUntil(endTime)
 		fmt.Fprintf(w, `{"status":"success","data":{"logEndTime":%q}}`, time.Unix(int64(endTime), 0))
 		return true
 	}
@@ -347,13 +339,13 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 	case "/create":
 		snapshotsCreateTotal.Inc()
 		w.Header().Set("Content-Type", "application/json")
-		snapshotName := strg.MustCreateSnapshot()
+		snapshotName := api.s.MustCreateSnapshot()
 
 		// Verify whether the client already closed the connection.
 		// In this case it is better to drop the created snapshot, since the client isn't interested in it.
 		if err := r.Context().Err(); err != nil {
 			logger.Infof("deleting already created snapshot at %s because the client canceled the request", snapshotName)
-			if err := deleteSnapshot(strg, snapshotName); err != nil {
+			if err := api.deleteSnapshot(snapshotName); err != nil {
 				logger.Infof("cannot delete just created snapshot: %s", err)
 				return true
 			}
@@ -365,7 +357,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 	case "/list":
 		snapshotsListTotal.Inc()
 		w.Header().Set("Content-Type", "application/json")
-		snapshots := strg.MustListSnapshots()
+		snapshots := api.s.MustListSnapshots()
 		fmt.Fprintf(w, `{"status":"ok","snapshots":[`)
 		if len(snapshots) > 0 {
 			for _, snapshot := range snapshots[:len(snapshots)-1] {
@@ -379,7 +371,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 		snapshotsDeleteTotal.Inc()
 		w.Header().Set("Content-Type", "application/json")
 		snapshotName := r.FormValue("snapshot")
-		if err := deleteSnapshot(strg, snapshotName); err != nil {
+		if err := api.deleteSnapshot(snapshotName); err != nil {
 			jsonResponseError(w, err)
 			snapshotsDeleteErrorsTotal.Inc()
 			return true
@@ -389,9 +381,10 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 	case "/delete_all":
 		snapshotsDeleteAllTotal.Inc()
 		w.Header().Set("Content-Type", "application/json")
-		snapshots := strg.MustListSnapshots()
+		snapshots := api.s.MustListSnapshots()
 		for _, snapshotName := range snapshots {
-			if err := strg.DeleteSnapshot(snapshotName); err != nil {
+			// TODO(@rtm0): Use VMStorage.deleteSnapshot()?
+			if err := api.s.DeleteSnapshot(snapshotName); err != nil {
 				err = fmt.Errorf("cannot delete snapshot %q: %w", snapshotName, err)
 				jsonResponseError(w, err)
 				snapshotsDeleteAllErrorsTotal.Inc()
@@ -404,50 +397,6 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 		return false
 	}
 }
-
-func deleteSnapshot(strg *storage.Storage, snapshotName string) error {
-	snapshots := strg.MustListSnapshots()
-	for _, snName := range snapshots {
-		if snName == snapshotName {
-			if err := strg.DeleteSnapshot(snName); err != nil {
-				return fmt.Errorf("cannot delete snapshot %q: %w", snName, err)
-			}
-			return nil
-		}
-	}
-	return fmt.Errorf("cannot find snapshot %q", snapshotName)
-}
-
-func initStaleSnapshotsRemover(strg *storage.Storage) {
-	staleSnapshotsRemoverCh = make(chan struct{})
-	if snapshotsMaxAge.Duration() <= 0 {
-		return
-	}
-	snapshotsMaxAgeDur := snapshotsMaxAge.Duration()
-	staleSnapshotsRemoverWG.Go(func() {
-		d := timeutil.AddJitterToDuration(time.Second * 11)
-		t := time.NewTicker(d)
-		defer t.Stop()
-		for {
-			select {
-			case <-staleSnapshotsRemoverCh:
-				return
-			case <-t.C:
-			}
-			strg.MustDeleteStaleSnapshots(snapshotsMaxAgeDur)
-		}
-	})
-}
-
-func stopStaleSnapshotsRemover() {
-	close(staleSnapshotsRemoverCh)
-	staleSnapshotsRemoverWG.Wait()
-}
-
-var (
-	staleSnapshotsRemoverCh chan struct{}
-	staleSnapshotsRemoverWG sync.WaitGroup
-)
 
 var (
 	activeForceMerges = metrics.NewCounter("vm_active_force_merges")
