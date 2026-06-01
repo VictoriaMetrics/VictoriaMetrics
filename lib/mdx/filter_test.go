@@ -46,7 +46,7 @@ func TestMdxInstanceFilter(t *testing.T) {
 		if len(filter.vmInstance) != len(expectedInstanceMap) {
 			t.Fatalf("unexpected instance map length; got %d; want %d", len(filter.vmInstance), len(expectedInstanceMap))
 		}
-		for k, _ := range expectedInstanceMap {
+		for k := range expectedInstanceMap {
 			if filter.vmInstance[k] == nil {
 				t.Fatalf("missing instance in filter.vmInstance: %q", k)
 			}
@@ -192,7 +192,7 @@ func TestMdxInstanceCleanup(t *testing.T) {
 			if len(GlobalFilter.vmInstance) != len(expectedInstanceMap) {
 				t.Fatalf("unexpected instance map length; got %d; want %d", len(GlobalFilter.vmInstance), len(expectedInstanceMap))
 			}
-			for k, _ := range expectedInstanceMap {
+			for k := range expectedInstanceMap {
 				if GlobalFilter.vmInstance[k] == nil {
 					t.Fatalf("missing instance in filter.vmInstance: %q", k)
 				}
