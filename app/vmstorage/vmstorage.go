@@ -76,9 +76,8 @@ type VMStorage struct {
 	s                             *storage.Storage
 	maxUniqueTimeseries           int
 	maxUniqueTimeSeriesCalculated int
-
-	staleSnapshotsRemoverCh chan struct{}
-	staleSnapshotsRemoverWG sync.WaitGroup
+	staleSnapshotsRemoverCh       chan struct{}
+	staleSnapshotsRemoverWG       sync.WaitGroup
 }
 
 func (api *VMStorage) initStaleSnapshotsRemover() {

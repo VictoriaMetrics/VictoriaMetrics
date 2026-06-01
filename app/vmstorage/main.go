@@ -203,7 +203,7 @@ func main() {
 	// register storage metrics
 	storageMetrics := metrics.NewSet()
 	storageMetrics.RegisterMetricsWriter(func(w io.Writer) {
-		writeStorageMetrics(w, vmStorage)
+		vmStorage.writeStorageMetrics(w)
 	})
 	metrics.RegisterSet(storageMetrics)
 
@@ -412,8 +412,9 @@ var (
 	snapshotsDeleteAllErrorsTotal = metrics.NewCounter(`vm_http_request_errors_total{path="/snapshot/delete_all"}`)
 )
 
-func writeStorageMetrics(w io.Writer, vms *VMStorage) {
-	strg := vms.s
+// TODO(@rtm0): Move to metrics.go.
+func (api *VMStorage) writeStorageMetrics(w io.Writer) {
+	strg := api.s
 	var m storage.Metrics
 	strg.UpdateMetrics(&m)
 	tm := &m.TableMetrics
@@ -637,7 +638,7 @@ func writeStorageMetrics(w io.Writer, vms *VMStorage) {
 	metrics.WriteGaugeUint64(w, `vm_downsampling_partitions_scheduled`, tm.ScheduledDownsamplingPartitions)
 	metrics.WriteGaugeUint64(w, `vm_downsampling_partitions_scheduled_size_bytes`, tm.ScheduledDownsamplingPartitionsSize)
 
-	metrics.WriteGaugeUint64(w, `vm_search_max_unique_timeseries`, uint64(vms.maxUniqueTimeSeriesCalculated))
+	metrics.WriteGaugeUint64(w, `vm_search_max_unique_timeseries`, uint64(api.maxUniqueTimeSeriesCalculated))
 
 	metrics.WriteGaugeUint64(w, `vm_metrics_metadata_storage_items`, m.MetadataStorageItemsCurrent)
 	metrics.WriteCounterUint64(w, `vm_metrics_metadata_storage_size_bytes`, m.MetadataStorageCurrentSizeBytes)
