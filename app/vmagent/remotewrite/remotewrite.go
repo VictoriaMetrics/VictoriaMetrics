@@ -290,6 +290,10 @@ func initRemoteWriteCtxs(urls []string) {
 		rwctxIdx[i] = i
 	}
 
+	if slices.Contains(*enableMdx, true) && *shardByURL {
+		logger.Fatalf("-remoteWrite.mdx.enable and -remoteWrite.shardByURL cannot be set to true simultaneously.")
+	}
+
 	if *shardByURL {
 		consistentHashNodes := make([]string, 0, len(urls))
 		for i, url := range urls {

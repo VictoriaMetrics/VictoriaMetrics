@@ -9,7 +9,6 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
@@ -29,7 +28,7 @@ func timeSeriesToString(ts prompb.TimeSeries) string {
 	return fmt.Sprintf("%s\n", labelsString)
 }
 
-func TestMdxFilter(t *testing.T) {
+func TestMdxInstanceFilter(t *testing.T) {
 	filter := Filter{
 		vmInstance: make(map[string]*atomic.Int64),
 	}
@@ -44,7 +43,6 @@ func TestMdxFilter(t *testing.T) {
 		if timeSeriessToString(output) != timeSeriessToString(expectedOutput) {
 			t.Fatalf("unexpected output; got %s; want %s", timeSeriessToString(output), timeSeriessToString(expectedOutput))
 		}
-		logger.Infof(timeSeriessToString(output))
 		if len(filter.vmInstance) != len(expectedInstanceMap) {
 			t.Fatalf("unexpected instance map length; got %d; want %d", len(filter.vmInstance), len(expectedInstanceMap))
 		}
@@ -100,6 +98,52 @@ func TestMdxFilter(t *testing.T) {
 		}, map[string]int64{
 			fmt.Sprintf("%q:%q", "test", "victoria-metrics1:8428"): 0,
 			fmt.Sprintf("%q:%q", "test", "vmagent1:8429"):          0,
+		})
+
+}
+
+func TestMdxFilterByLabel(t *testing.T) {
+	filter := Filter{
+		vmInstance:    make(map[string]*atomic.Int64),
+		filterByLabel: true,
+	}
+	*keepMetricsWithLabelName = "service"
+	*keepMetricsWithLabelValue = "victoriametrics"
+
+	f := func(input []prompb.TimeSeries, expectedOutput []prompb.TimeSeries) {
+		t.Helper()
+		output := filter.Filter(input, []prompb.TimeSeries{})
+		if len(output) != len(expectedOutput) {
+			t.Fatalf("unexpected output length; got %d; want %d", len(output), len(expectedOutput))
+		}
+		if timeSeriessToString(output) != timeSeriessToString(expectedOutput) {
+			t.Fatalf("unexpected output; got %s; want %s", timeSeriessToString(output), timeSeriessToString(expectedOutput))
+		}
+	}
+	f([]prompb.TimeSeries{{
+		Labels: []prompb.Label{
+			{Name: "__name__", Value: "up"},
+			{Name: "instance", Value: "victoria-metrics1:8428"},
+			{Name: "job", Value: "test"},
+			{Name: "service", Value: "victoriametrics"},
+		},
+	},
+		{
+			Labels: []prompb.Label{
+				{Name: "__name__", Value: "go_gc_duration_seconds"},
+				{Name: "instance", Value: "node-exporter1"},
+				{Name: "job", Value: "test"},
+			},
+		}},
+		[]prompb.TimeSeries{
+			{
+				Labels: []prompb.Label{
+					{Name: "__name__", Value: "up"},
+					{Name: "instance", Value: "victoria-metrics1:8428"},
+					{Name: "job", Value: "test"},
+					{Name: "service", Value: "victoriametrics"},
+				},
+			},
 		})
 
 }
