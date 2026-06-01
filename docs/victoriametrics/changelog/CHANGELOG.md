@@ -27,8 +27,9 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 ## tip
 
 * FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): add `-opentelemetry.promoteAllResourceAttributes` and `-opentelemetry.promoteScopeMetadata` command-line flags to allow managing label promotion for resource attributes and OTel scope metadata. See [OpenTelemetry](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/) docs and [#10931](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10931).
-  
+
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): `integrate()` no longer extrapolates the last sample's value past the end of the time series. Previously, querying `integrate(metric[1h])` at a timestamp where the series had already ended would keep accruing area as if the last value continued indefinitely, producing values much larger than the true integral. See [#9474](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9474). Thanks to @wtfashwin for contribution.
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): persist the `Disable deduplication` toggle under its own local storage key. Before this fix, the toggle state was lost after reload and could overwrite the `Compact view` table setting. See [#11004](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11004). Thanks to @immanuwell for the contribution.
 
 ## [v1.144.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.144.0)
 
