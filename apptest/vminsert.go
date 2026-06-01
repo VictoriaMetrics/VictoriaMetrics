@@ -3,22 +3,12 @@ package apptest
 import (
 	"fmt"
 	"io"
+	"os"
 	"regexp"
 	"strings"
 	"testing"
 	"time"
 )
-
-// Vminsert holds the state of a vminsert app and provides vminsert-specific
-// functions.
-type Vminsert struct {
-	*app
-	*metricsClient
-	*vminsertClient
-
-	httpListenAddr          string
-	clusternativeListenAddr string
-}
 
 // storageNodes returns the storage node addresses passed to vminsert via
 // -storageNode command line flag.
@@ -31,9 +21,11 @@ func storageNodes(flags []string) []string {
 	return nil
 }
 
-// StartVminsert starts an instance of vminsert with the given flags. It also
-// sets the default flags and populates the app instance state with runtime
-// values extracted from the application log (such as httpListenAddr)
+// StartVminsert starts the latest version of vminsert.
+//
+// The path to the binary can be provided via VMINSERT_PATH environment
+// variable. If the variable is not set, ../../bin/vminsert-race will be
+// used.
 func StartVminsert(instance string, flags []string, cli *Client, output io.Writer) (*Vminsert, error) {
 	extractREs := []*regexp.Regexp{
 		httpListenAddrRE,
@@ -48,11 +40,15 @@ func StartVminsert(instance string, flags []string, cli *Client, output io.Write
 		extractREs = append(extractREs, regexp.MustCompile(logRecord))
 	}
 
-	app, stderrExtracts, err := startApp(instance, "../../bin/vminsert-race", flags, &appOptions{
+	binary := os.Getenv("VMINSERT_PATH")
+	if binary == "" {
+		binary = "../../bin/vminsert-race"
+	}
+	app, stderrExtracts, err := startApp(instance, binary, flags, &appOptions{
 		defaultFlags: map[string]string{
 			"-httpListenAddr":                              "127.0.0.1:0",
 			"-clusternativeListenAddr":                     "127.0.0.1:0",
-			"-graphiteListenAddr":                          ":0",
+			"-graphiteListenAddr":                          "127.0.0.1:0",
 			"-opentsdbListenAddr":                          "127.0.0.1:0",
 			"-clusternative.vminsertConnsShutdownDuration": "1ms",
 		},
@@ -63,27 +59,56 @@ func StartVminsert(instance string, flags []string, cli *Client, output io.Write
 		return nil, err
 	}
 
-	metricsClient := newMetricsClient(cli, stderrExtracts[0])
-	return &Vminsert{
-		app:           app,
-		metricsClient: metricsClient,
-		vminsertClient: &vminsertClient{
-			vminsertCli: cli,
-			url: func(op, path string, opts QueryOpts) string {
-				return getClusterPath(stderrExtracts[0], op, path, opts)
-			},
-			openTSDBURL: func(op, path string, opts QueryOpts) string {
-				return getClusterPath(stderrExtracts[3], op, path, opts)
-			},
-			graphiteListenAddr: stderrExtracts[2],
-			sendBlocking: func(t *testing.T, numRecordsToSend int, send func()) {
-				t.Helper()
-				sendBlocking(t, metricsClient, numRecordsToSend, send)
-			},
-		},
+	return newVminsert(app, cli, vminsertRuntimeValues{
 		httpListenAddr:          stderrExtracts[0],
 		clusternativeListenAddr: stderrExtracts[1],
-	}, nil
+		graphiteListenAddr:      stderrExtracts[2],
+		openTSDBListenAddr:      stderrExtracts[3],
+	}), nil
+}
+
+type vminsertRuntimeValues struct {
+	httpListenAddr          string
+	clusternativeListenAddr string
+	graphiteListenAddr      string
+	openTSDBListenAddr      string
+}
+
+func newVminsert(app *app, cli *Client, rt vminsertRuntimeValues) *Vminsert {
+	metricsClient := newMetricsClient(cli, rt.httpListenAddr)
+	vminsertClient := &vminsertClient{
+		vminsertCli: cli,
+		url: func(op, path string, opts QueryOpts) string {
+			return getClusterPath(rt.httpListenAddr, op, path, opts)
+		},
+		openTSDBURL: func(op, path string, opts QueryOpts) string {
+			return getClusterPath(rt.openTSDBListenAddr, op, path, opts)
+		},
+		graphiteListenAddr: rt.graphiteListenAddr,
+		sendBlocking: func(t *testing.T, numRecordsToSend int, send func()) {
+			t.Helper()
+			sendBlocking(t, metricsClient, numRecordsToSend, send)
+		},
+	}
+
+	return &Vminsert{
+		app:                     app,
+		metricsClient:           metricsClient,
+		vminsertClient:          vminsertClient,
+		httpListenAddr:          rt.httpListenAddr,
+		clusternativeListenAddr: rt.clusternativeListenAddr,
+	}
+}
+
+// Vminsert holds the state of a vminsert app and provides vminsert-specific
+// functions.
+type Vminsert struct {
+	*app
+	*metricsClient
+	*vminsertClient
+
+	httpListenAddr          string
+	clusternativeListenAddr string
 }
 
 // ClusternativeListenAddr returns the address at which the vminsert process is
