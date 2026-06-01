@@ -52,7 +52,7 @@ func writeInputSeries(input []series, interval *promutil.Duration, startStamp ti
 	data := testutil.Compress(r)
 	// write input series to vm
 	httpWrite(dst, bytes.NewBuffer(data))
-	vmstorage.Storage.DebugFlush()
+	vmstorage.DebugFlush()
 	return nil
 }
 
