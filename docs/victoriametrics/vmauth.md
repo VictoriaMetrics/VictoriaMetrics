@@ -1541,7 +1541,7 @@ When `vmauth` performs tenant routing for [multitenant](https://docs.victoriamet
 
 ```yaml
 unauthorized_user:
-    url_prefix: http://vmselect/select/multitenant/extra_filters[]=&extra_filters=&extra_label=vm_account_id=10&vm_project_id=100
+    url_prefix: http://vmselect/select/multitenant?extra_filters[]=&extra_filters=&extra_label=vm_account_id=10&vm_project_id=100
 ```
 
 This is required because `vmselect` uses `OR` logic for tenant filtering. If a client sets `extra_filters[]` or `extra_filters`, it could bypass the tenant restriction configured via `extra_label`.
