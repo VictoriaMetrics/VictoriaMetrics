@@ -145,7 +145,8 @@ func TestMdxFilterByLabel(t *testing.T) {
 				},
 			},
 		})
-
+	*keepMetricsWithLabelName = ""
+	*keepMetricsWithLabelValue = ""
 }
 
 func TestMdxInstanceCleanup(t *testing.T) {

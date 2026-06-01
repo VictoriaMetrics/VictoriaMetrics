@@ -290,10 +290,11 @@ To enable MDX, set `-remoteWrite.mdx.enable=true` for the target URL and `-remot
 `vmagent` relies on the `vm_app_version` metric to identify the VictoriaMetrics instance. `vmagent` will not recognize an instance as a VictoriaMetrics instance and retain the instance's metrics until it receives the `vm_app_version` metric from this instance.
 
 If the metrics from the VictoriaMetrics instances have specific label and value in your setup(e.g. service,app label), you can also specify the label name in `-mdx.keepMetricsWithLabel.name` and its value in `-mdx.keepMetricsWithLabel.value`. `vmagent` will retain metrics with the specified label and value to the MDX URL:
+
 ```sh
 ./vmagent \
   -remoteWrite.url=http://service-to-keep-only-vm-metrics:8428/api/v1/write \
-  -remoteWrite.mdx.enable=true \ 
+  -remoteWrite.mdx.enable=true \
   -mdx.keepMetricsWithLabel.name=service \
   -mdx.keepMetricsWithLabel.value=victoriametrics
 ```
