@@ -10,9 +10,9 @@ import (
 
 	"github.com/oklog/ulid/v2"
 	"github.com/prometheus/prometheus/model/labels"
-	"github.com/prometheus/prometheus/storage"
 	"github.com/prometheus/prometheus/tsdb"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/prometheus"
 	utils "github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vmctlutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
 )
@@ -182,7 +182,7 @@ func (c *Client) Explore() ([]tsdb.BlockReader, error) {
 
 // Read reads the given BlockReader according to configured
 // time and label filters.
-func (c *Client) Read(ctx context.Context, block tsdb.BlockReader) (storage.SeriesSet, error) {
+func (c *Client) Read(ctx context.Context, block tsdb.BlockReader) (*prometheus.CloseableSeriesSet, error) {
 	meta := block.Meta()
 	if b, ok := block.(*lazyBlockReader); ok && b.Err() != nil {
 		return nil, fmt.Errorf("failed to read block: %s", b.Err())
@@ -204,7 +204,7 @@ func (c *Client) Read(ctx context.Context, block tsdb.BlockReader) (storage.Seri
 		return nil, err
 	}
 	ss := q.Select(ctx, false, nil, labels.MustNewMatcher(labels.MatchRegexp, c.filter.label, c.filter.labelValue))
-	return ss, nil
+	return &prometheus.CloseableSeriesSet{SeriesSet: ss, Close: q.Close}, nil
 }
 
 func (c *Client) fetchIndexFile() (*Index, error) {

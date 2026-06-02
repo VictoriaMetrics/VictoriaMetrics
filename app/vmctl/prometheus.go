@@ -3,18 +3,19 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"strings"
 	"sync"
 
 	"github.com/prometheus/prometheus/model/labels"
-	"github.com/prometheus/prometheus/storage"
 	"github.com/prometheus/prometheus/tsdb"
 	"github.com/prometheus/prometheus/tsdb/chunkenc"
 
 	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 )
 
@@ -22,7 +23,7 @@ import (
 // snapshot blocks
 type Runner interface {
 	Explore() ([]tsdb.BlockReader, error)
-	Read(context.Context, tsdb.BlockReader) (storage.SeriesSet, error)
+	Read(context.Context, tsdb.BlockReader) (*prometheus.CloseableSeriesSet, error)
 }
 
 type prometheusProcessor struct {
@@ -65,10 +66,16 @@ func (pp *prometheusProcessor) run(ctx context.Context) error {
 }
 
 func (pp *prometheusProcessor) do(ctx context.Context, b tsdb.BlockReader) error {
-	ss, err := pp.cl.Read(ctx, b)
+	css, err := pp.cl.Read(ctx, b)
 	if err != nil {
 		return fmt.Errorf("failed to read block: %s", err)
 	}
+	defer func() {
+		if err := css.Close(); err != nil {
+			log.Printf("cannot close SeriesSet for block: %q : %s\n", b.Meta().ULID, err)
+		}
+	}()
+	ss := css.SeriesSet
 	var it chunkenc.Iterator
 	for ss.Next() {
 		var name string
@@ -138,8 +145,14 @@ func (pp *prometheusProcessor) processBlocks(ctx context.Context, blocks []tsdb.
 		wg.Go(func() {
 			for br := range blockReadersCh {
 				if err := pp.do(ctx, br); err != nil {
-					errCh <- fmt.Errorf("read failed for block %q: %s", br.Meta().ULID, err)
+					promErrorsTotal.Inc()
+					errCh <- fmt.Errorf("cannot read block %q: %s", br.Meta().ULID, err)
 					return
+				}
+				if cb, ok := br.(io.Closer); ok {
+					if err := cb.Close(); err != nil {
+						errCh <- fmt.Errorf("cannot close block: %q: %w", br.Meta().ULID, err)
+					}
 				}
 				promBlocksProcessed.Inc()
 				bar.Increment()

@@ -110,9 +110,15 @@ func (c *Client) Explore() ([]tsdb.BlockReader, error) {
 	return blocksToImport, nil
 }
 
+// CloseableSeriesSet defines a SeriesSet with Close method
+type CloseableSeriesSet struct {
+	SeriesSet storage.SeriesSet
+	Close     func() error
+}
+
 // Read reads the given BlockReader according to configured
 // time and label filters.
-func (c *Client) Read(ctx context.Context, block tsdb.BlockReader) (storage.SeriesSet, error) {
+func (c *Client) Read(ctx context.Context, block tsdb.BlockReader) (*CloseableSeriesSet, error) {
 	minTime, maxTime := block.Meta().MinTime, block.Meta().MaxTime
 	if c.filter.min != 0 {
 		minTime = c.filter.min
@@ -125,7 +131,7 @@ func (c *Client) Read(ctx context.Context, block tsdb.BlockReader) (storage.Seri
 		return nil, err
 	}
 	ss := q.Select(ctx, false, nil, labels.MustNewMatcher(labels.MatchRegexp, c.filter.label, c.filter.labelValue))
-	return ss, nil
+	return &CloseableSeriesSet{ss, q.Close}, nil
 }
 
 func parseTime(start, end string) (int64, int64, error) {

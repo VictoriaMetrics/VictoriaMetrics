@@ -25,10 +25,11 @@ type lazyBlockReader struct {
 	// SegmentsNum stores the number of chunks segments in the block.
 	SegmentsNum int
 
-	mu     sync.Mutex
-	reader tsdb.BlockReader
-	fs     common.RemoteFS
-	err    error
+	mu          sync.Mutex
+	reader      *tsdb.Block
+	tempDirPath string
+	fs          common.RemoteFS
+	err         error
 }
 
 // newLazyBlockReader returns a new LazyBlockReader for the given block.
@@ -56,12 +57,9 @@ func (lbr *lazyBlockReader) initialize() error {
 		return fmt.Errorf("failed to create temp dir: %s", err)
 	}
 
-	defer func() {
-		if err := os.RemoveAll(temp); err != nil {
-			log.Printf("failed to remove temp dir: %s", err)
-		}
-	}()
+	lbr.tempDirPath = temp
 
+	// TODO: replace fetchFile and writeFile with buffered IO if needed
 	meta, err := lbr.fetchFile(metaFilename)
 	if err != nil {
 		return err
@@ -148,12 +146,27 @@ func (lbr *lazyBlockReader) Err() error {
 	return lbr.err
 }
 
+// Close closes block and releases all resources
+func (lbr *lazyBlockReader) Close() error {
+	lbr.mu.Lock()
+	defer lbr.mu.Unlock()
+
+	err := lbr.reader.Close()
+	lbr.reader = nil
+	lbr.tempDirPath = ""
+
+	if err := os.RemoveAll(lbr.tempDirPath); err != nil {
+		log.Printf("failed to remove temp dir: %s", err)
+	}
+	return err
+}
+
 func (lbr *lazyBlockReader) mkTempDir() (string, error) {
 	temp, err := os.MkdirTemp("", lbr.ID.String())
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp dir: %s", err)
 	}
-	err = os.Mkdir(filepath.Join(temp, "chunks"), 0755)
+	err = os.Mkdir(filepath.Join(temp, "chunks"), os.ModePerm)
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp dir: %s", err)
 	}
@@ -175,5 +188,5 @@ func (lbr *lazyBlockReader) fetchFile(filePath string) ([]byte, error) {
 
 func (lbr *lazyBlockReader) writeFile(folder string, filename string, file []byte) error {
 	fileName := filepath.Join(folder, filename)
-	return os.WriteFile(fileName, file, 0644)
+	return os.WriteFile(fileName, file, os.ModePerm)
 }

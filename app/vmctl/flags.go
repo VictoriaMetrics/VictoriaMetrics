@@ -533,6 +533,7 @@ var (
 		&cli.IntFlag{
 			Name:  mimirConcurrency,
 			Usage: "Number of concurrently running block readers",
+			Value: 1,
 		},
 		&cli.StringFlag{
 			Name:     mimirFilterTimeStart,
@@ -546,11 +547,11 @@ var (
 		},
 		&cli.StringFlag{
 			Name:  mimirFilterLabel,
-			Usage: "Prometheus label name to filter timeseries by. E.g. '__name__' will filter timeseries by name.",
+			Usage: "Mimir label name to filter timeseries by. E.g. '__name__' will filter timeseries by name.",
 		},
 		&cli.StringFlag{
 			Name:  mimirFilterLabelValue,
-			Usage: fmt.Sprintf("Prometheus regular expression to filter label from %q flag.", promFilterLabel),
+			Usage: fmt.Sprintf("Regular expression to filter label from %q flag.", mimirFilterLabel),
 			Value: ".*",
 		},
 		&cli.StringFlag{
@@ -572,6 +573,7 @@ var (
 		&cli.BoolFlag{
 			Name:  mimirS3ForcePathStyle,
 			Usage: "Prefixing endpoint with bucket name when set false, true by default.",
+			Value: true,
 		},
 		&cli.BoolFlag{
 			Name:  mimirS3TLSInsecureSkipVerify,
@@ -583,7 +585,7 @@ var (
 		},
 		&cli.StringFlag{
 			Name:  mimirSSEAlgorithm,
-			Usage: "SSE KMS Key Algorithm for use with S3-compatible storages.",
+			Usage: "SSE algorithm for use with S3-compatible storages.",
 		},
 	}
 )
