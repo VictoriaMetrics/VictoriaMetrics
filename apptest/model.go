@@ -79,24 +79,25 @@ type PrometheusWriteQuerier interface {
 
 // QueryOpts contains various params used for querying or ingesting data
 type QueryOpts struct {
-	Tenant         string
-	Timeout        string
-	Start          string
-	End            string
-	Time           string
-	Step           string
-	ExtraFilters   []string
-	ExtraLabels    []string
-	Trace          string
-	ReduceMemUsage string
-	MaxLookback    string
-	LatencyOffset  string
-	Format         string
-	NoCache        string
-	Headers        http.Header
-	From           string
-	Until          string
-	StorageStep    string
+	Tenant              string
+	Timeout             string
+	Start               string
+	End                 string
+	Time                string
+	Step                string
+	ExtraFilters        []string
+	ExtraLabels         []string
+	Trace               string
+	ReduceMemUsage      string
+	MaxLookback         string
+	LatencyOffset       string
+	Format              string
+	NoCache             string
+	Headers             http.Header
+	From                string
+	Until               string
+	StorageStep         string
+	DenyPartialResponse string
 }
 
 func (qos *QueryOpts) getHeaders() http.Header {
@@ -132,6 +133,7 @@ func (qos *QueryOpts) asURLValues() url.Values {
 	addNonEmpty("from", qos.From)
 	addNonEmpty("until", qos.Until)
 	addNonEmpty("storage_step", qos.StorageStep)
+	addNonEmpty("deny_partial_response", qos.DenyPartialResponse)
 
 	return uv
 }
