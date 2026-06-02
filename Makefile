@@ -485,8 +485,8 @@ apptest-legacy: victoria-metrics-race vmbackup-race vmrestore-race
 		curl --output-dir /tmp -LO $${URL}/$${VMSINGLE} && tar xzf /tmp/$${VMSINGLE} -C $${DIR} && \
 		curl --output-dir /tmp -LO $${URL}/$${VMCLUSTER} && tar xzf /tmp/$${VMCLUSTER} -C $${DIR} \
 	); \
-	VM_LEGACY_VMSINGLE_PATH=$${DIR}/victoria-metrics-prod \
-	VM_LEGACY_VMSTORAGE_PATH=$${DIR}/vmstorage-prod \
+	VMSINGLE_V1_132_0_PATH=$${DIR}/victoria-metrics-prod \
+	VMSTORAGE_V1_132_0_PATH=$${DIR}/vmstorage-prod \
 	go test ./apptest/tests -run="^TestLegacySingle.*"
 
 benchmark:
