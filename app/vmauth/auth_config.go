@@ -889,7 +889,8 @@ func reloadAuthConfig() (bool, error) {
 	}
 
 	mp := authUsers.Load()
-	logger.Infof("loaded information about %d users from -auth.config=%q", len(*mp), *authConfigPath)
+	jwtc := jwtAuthCache.Load()
+	logger.Infof("loaded information about %d users from -auth.config=%q", len(*mp)+len(jwtc.users), *authConfigPath)
 	return true, nil
 }
 
