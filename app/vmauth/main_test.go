@@ -549,8 +549,8 @@ requested_url={BACKEND}/path2/foo/?de=fg`
 	// make sure that empty config value erases client extra filters and extra labels
 	cfgStr = `
 unauthorized_user:
-  url_prefix: {BACKEND}/foo?bar=baz&extra_filters[]=&extra_label=`
-	requestURL = "http://some-host.com/abc/def?some_arg=some_value&extra_filters[]=baz&extra_label=tenant=admin"
+  url_prefix: {BACKEND}/foo?bar=baz&extra_filters[]=&extra_label=&extra_filters=`
+	requestURL = "http://some-host.com/abc/def?some_arg=some_value&extra_filters[]=baz&extra_label=tenant=admin&extra_filters=bar"
 	backendHandler = func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
 		h.Set("Connection", "close")
@@ -565,7 +565,7 @@ unauthorized_user:
 	responseExpected = `
 statusCode=200
 Foo: bar
-requested_url={BACKEND}/foo/abc/def?bar=baz&extra_filters%5B%5D=&extra_label=&some_arg=some_value
+requested_url={BACKEND}/foo/abc/def?bar=baz&extra_filters=&extra_filters%5B%5D=&extra_label=&some_arg=some_value
 Pass-Header: abc
 User-Agent: vmauth
 X-Forwarded-For: 12.34.56.78, 42.2.3.84`
