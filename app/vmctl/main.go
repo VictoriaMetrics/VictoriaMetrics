@@ -18,6 +18,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/backoff"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/mimir"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/native"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/remoteread"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -297,12 +298,12 @@ func main() {
 				},
 			},
 			{
-				Name:   "thanos",
-				Usage:  "Migrate time series from Thanos blocks (supports raw and downsampled data)",
-				Flags:  mergeFlags(globalFlags, thanosFlags, vmFlags),
+				Name:   "mimir",
+				Usage:  "Migrate time series from Mimir object storage or local filesystem",
+				Flags:  mergeFlags(globalFlags, mimirFlags, vmFlags),
 				Before: beforeFn,
 				Action: func(c *cli.Context) error {
-					fmt.Println("Thanos import mode")
+					fmt.Println("Mimir import mode")
 
 					vmCfg, err := initConfigVM(c)
 					if err != nil {
@@ -314,6 +315,54 @@ func main() {
 						return fmt.Errorf("failed to create VM importer: %s", err)
 					}
 
+					mCfg := mimir.Config{
+						Filter: mimir.Filter{
+							TimeMin:    c.String(mimirFilterTimeStart),
+							TimeMax:    c.String(mimirFilterTimeEnd),
+							Label:      c.String(mimirFilterLabel),
+							LabelValue: c.String(mimirFilterLabelValue),
+						},
+						Path:                    c.String(mimirPath),
+						TenantID:                c.String(mimirTenantID),
+						CredsFilePath:           c.String(mimirCredsFilePath),
+						ConfigFilePath:          c.String(mimirConfigFilePath),
+						ConfigProfile:           c.String(mimirConfigProfile),
+						CustomS3Endpoint:        c.String(mimirCustomS3Endpoint),
+						S3ForcePathStyle:        c.Bool(mimirS3ForcePathStyle),
+						S3TLSInsecureSkipVerify: c.Bool(mimirS3TLSInsecureSkipVerify),
+						SSEKMSKeyID:             c.String(mimirSSEKMSKeyID),
+						SSEAlgorithm:            c.String(mimirSSEAlgorithm),
+					}
+					cl, err := mimir.NewClient(ctx, mCfg)
+					if err != nil {
+						return fmt.Errorf("failed to create mimir client: %s", err)
+					}
+
+					pp := prometheusProcessor{
+						cl:        cl,
+						im:        importer,
+						cc:        c.Int(mimirConcurrency),
+						isVerbose: c.Bool(globalVerbose),
+					}
+					return pp.run(ctx)
+				},
+			},
+			{
+				Name:   "thanos",
+				Usage:  "Migrate time series from Thanos blocks (supports raw and downsampled data)",
+				Flags:  mergeFlags(globalFlags, thanosFlags, vmFlags),
+				Before: beforeFn,
+				Action: func(c *cli.Context) error {
+					fmt.Println("Thanos import mode")
+					vmCfg, err := initConfigVM(c)
+					if err != nil {
+						return fmt.Errorf("failed to init VM configuration: %s", err)
+					}
+
+					importer, err = vm.NewImporter(ctx, vmCfg)
+					if err != nil {
+						return fmt.Errorf("failed to create VM importer: %s", err)
+					}
 					thanosCfg := thanos.Config{
 						Snapshot: c.String(thanosSnapshot),
 						Filter: thanos.Filter{
