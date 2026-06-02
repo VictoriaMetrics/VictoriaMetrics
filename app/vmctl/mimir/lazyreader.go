@@ -150,14 +150,17 @@ func (lbr *lazyBlockReader) Err() error {
 func (lbr *lazyBlockReader) Close() error {
 	lbr.mu.Lock()
 	defer lbr.mu.Unlock()
+	if lbr.reader == nil {
+		return nil
+	}
 
 	err := lbr.reader.Close()
-	lbr.reader = nil
-	lbr.tempDirPath = ""
-
 	if err := os.RemoveAll(lbr.tempDirPath); err != nil {
 		log.Printf("failed to remove temp dir: %s", err)
 	}
+	lbr.reader = nil
+	lbr.tempDirPath = ""
+
 	return err
 }
 
