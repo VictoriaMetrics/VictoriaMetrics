@@ -205,13 +205,15 @@ curl 'http://vmselect:8481/select/multitenant/prometheus/api/v1/query' \
 
 The precedence for applying filters for tenants follows this order:
 
-1. Filter tenants by `extra_label` and `extra_filters` filters.
+1. Filter tenants by `extra_label`, `extra_filters` and `extra_filters[]` filters.
  These filters have the highest priority and are applied first when provided through the query arguments.
+ Filters use `OR` logic - a tenant is selected if it matches any of the filters.
 2. Filter tenants from labels selectors defined at metricsQL query expression.
 
 > **Security considerations**
 It is recommended restricting access to `multitenant` endpoints only to trusted sources,
 since untrusted source may break per-tenant data by writing unwanted samples or get access to data of arbitrary tenants.
+See also [vmauth security doc](https://docs.victoriametrics.com/victoriametrics/vmauth/#security).
 
 ## Binaries
 
