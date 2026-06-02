@@ -16,11 +16,7 @@ on:
       - 'app/vmui/packages/vmui/**'
       - '.github/workflows/vmui.yml'
 
-permissions:
-  contents: read
-  packages: read
-  pull-requests: read
-  checks: write
+permissions: {}
 
 concurrency:
   cancel-in-progress: true
@@ -29,6 +25,10 @@ concurrency:
 jobs:
   vmui-checks:
     name: VMUI Checks (lint, test, typecheck)
+    permissions:
+      checks: write
+      contents: read
+      pull-requests: read
     runs-on: ubuntu-latest
     steps:
       - name: Code checkout

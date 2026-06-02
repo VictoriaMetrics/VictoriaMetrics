@@ -6,12 +6,14 @@ on:
   pull_request:
     paths:
       - 'vendor'
-permissions:
-  contents: read
+
+permissions: {}
 
 jobs:
   build:
     name: Build
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - name: Code checkout
