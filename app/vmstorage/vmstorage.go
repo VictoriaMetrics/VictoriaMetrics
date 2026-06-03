@@ -306,8 +306,6 @@ func (api *VMStorage) TSDBStatus(qt *querytracer.Tracer, sq *storage.SearchQuery
 //
 // Returns the number of deleted series.
 func (api *VMStorage) DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (int, error) {
-	// TODO(@rtm0): Return an error if the storage is in read-only mode?
-
 	tr := sq.GetTimeRange()
 	maxMetrics := sq.MaxMetrics
 	if maxMetrics <= 0 {
@@ -326,8 +324,6 @@ func (api *VMStorage) DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQue
 }
 
 func (api *VMStorage) RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, _ uint64) error {
-	// TODO(@rtm0): Return an error if the storage is in read-only mode?
-
 	api.s.RegisterMetricNames(qt, mrs)
 	return nil
 }

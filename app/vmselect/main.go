@@ -44,21 +44,20 @@ var (
 var slowQueries = metrics.NewCounter(`vm_slow_queries_total`)
 
 // Init initializes vmselect
-func Init(maxConcurrentRequests int, maxQueueDuration time.Duration) {
+func Init(maxConcurrentRequestsFlag int, maxQueueDurationFlag time.Duration) {
 	tmpDirPath := vmstorage.DataPath() + "/tmp"
 	fs.MustRemoveDirContents(tmpDirPath)
 	netstorage.InitTmpBlocksDir(tmpDirPath)
 	promql.InitRollupResultCache(vmstorage.DataPath() + "/cache/rollupResult")
 
+	maxConcurrentRequests = maxConcurrentRequestsFlag
+	maxQueueDuration = maxQueueDurationFlag
 	concurrencyLimitCh = make(chan struct{}, maxConcurrentRequests)
+
 	initVMUIConfig()
 	initVMAlertProxy()
 
 	flagutil.RegisterSecretFlag("vmalert.proxyURL")
-
-	RequestHandler = func(w http.ResponseWriter, r *http.Request) bool {
-		return requestHandler(w, r, maxConcurrentRequests, maxQueueDuration)
-	}
 }
 
 // Stop stops vmselect
@@ -66,7 +65,11 @@ func Stop() {
 	promql.StopRollupResultCache()
 }
 
-var concurrencyLimitCh chan struct{}
+var (
+	maxConcurrentRequests int
+	maxQueueDuration      time.Duration
+	concurrencyLimitCh    chan struct{}
+)
 
 var (
 	concurrencyLimitReached = metrics.NewCounter(`vm_concurrent_select_limit_reached_total`)
@@ -85,10 +88,8 @@ var vmuiFiles embed.FS
 
 var vmuiFileServer = http.FileServer(http.FS(vmuiFiles))
 
-var RequestHandler func(w http.ResponseWriter, r *http.Request) bool
-
-// requestHandler handles remote read API requests
-func requestHandler(w http.ResponseWriter, r *http.Request, maxConcurrentRequests int, maxQueueDuration time.Duration) bool {
+// RequestHandler handles remote read API requests
+func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	path := strings.ReplaceAll(r.URL.Path, "//", "/")
 
 	// Strip /prometheus and /graphite prefixes in order to provide path compatibility with cluster version

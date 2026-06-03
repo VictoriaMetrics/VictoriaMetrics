@@ -174,18 +174,10 @@ func Init(maxConcurrentRequests int, resetCacheIfNeeded func(mrs []storage.Metri
 
 	VMInsertAPI = vmStorage
 	VMSelectAPI = vmStorage
-	GetSearch = func(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (*storage.Search, int, error) {
-		return vmStorage.GetSearch(qt, sq, deadline)
-	}
-	PutSearch = func(sr *storage.Search) {
-		vmStorage.PutSearch(sr)
-	}
-	RequestHandler = func(w http.ResponseWriter, r *http.Request) bool {
-		return vmStorage.requestHandler(w, r)
-	}
-	DebugFlush = func() {
-		vmStorage.s.DebugFlush()
-	}
+	GetSearch = vmStorage.GetSearch
+	PutSearch = vmStorage.PutSearch
+	RequestHandler = vmStorage.requestHandler
+	DebugFlush = vmStorage.vms.s.DebugFlush
 }
 
 var storageMetrics *metrics.Set
@@ -222,7 +214,7 @@ func Stop() {
 func (api *VMStorageSingleNode) requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	api.wg.Add(1)
 	defer api.wg.Done()
-	return api.VMStorage.requestHandler(w, r)
+	return api.vms.requestHandler(w, r)
 }
 
 // requestHandler is a storage request handler.
@@ -371,6 +363,13 @@ var (
 	snapshotsDeleteAllTotal       = metrics.NewCounter(`vm_http_requests_total{path="/snapshot/delete_all"}`)
 	snapshotsDeleteAllErrorsTotal = metrics.NewCounter(`vm_http_request_errors_total{path="/snapshot/delete_all"}`)
 )
+
+// TODO(@rtm0): Move to metrics.go.
+func (api *VMStorageSingleNode) writeStorageMetrics(w io.Writer) {
+	api.wg.Add(1)
+	defer api.wg.Done()
+	api.vms.writeStorageMetrics(w)
+}
 
 // TODO(@rtm0): Move to metrics.go.
 func (api *VMStorage) writeStorageMetrics(w io.Writer) {

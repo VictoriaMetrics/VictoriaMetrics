@@ -942,6 +942,7 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 		return fmt.Errorf("timeout exceeded before starting data export: %s", deadline.String())
 	}
 
+	tr := sq.GetTimeRange()
 	sr, _, err := vmstorage.GetSearch(qt, sq, deadline.Deadline())
 	if err != nil {
 		return err
@@ -956,7 +957,6 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 		mustStop      atomic.Bool
 	)
 	var wg sync.WaitGroup
-	tr := sq.GetTimeRange()
 	for workerID := range gomaxprocs {
 		wg.Go(func() {
 			for xw := range workCh {

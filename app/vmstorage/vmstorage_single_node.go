@@ -2,6 +2,7 @@ package vmstorage
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
@@ -9,20 +10,21 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricnamestats"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/syncwg"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vmselectapi"
 )
 
 // newVMStorageSingleNode creates a new instance of of VMStorage for vmsingle.
 func newVMStorageSingleNode(s *storage.Storage, maxConcurrentRequests int, resetCacheIfNeeded func(mrs []storage.MetricRow)) *VMStorageSingleNode {
 	vms := newVMStorage(s, maxConcurrentRequests)
 	return &VMStorageSingleNode{
-		VMStorage:          vms,
+		vms:                vms,
 		wg:                 syncwg.WaitGroup{},
 		resetCacheIfNeeded: resetCacheIfNeeded,
 	}
 }
 
 type VMStorageSingleNode struct {
-	*VMStorage
+	vms *VMStorage
 
 	// wg is used to wrap every storage call into wg.Add(1) ... wg.Done()
 	// for proper graceful shutdown when Stop is called.
@@ -38,7 +40,7 @@ type VMStorageSingleNode struct {
 
 func (api *VMStorageSingleNode) Stop() {
 	api.wg.WaitAndBlock()
-	api.VMStorage.Stop()
+	api.vms.Stop()
 }
 
 // WriteRows writes metric rows to the storage.
@@ -51,11 +53,11 @@ func (api *VMStorageSingleNode) WriteRows(rows []storage.MetricRow) error {
 	api.wg.Add(1)
 	defer api.wg.Done()
 
-	if api.s.IsReadOnly() {
+	if api.vms.IsReadOnly() {
 		return errReadOnly
 	}
 	api.resetCacheIfNeeded(rows)
-	return api.VMStorage.WriteRows(rows)
+	return api.vms.WriteRows(rows)
 }
 
 // WriteMetadata writes metrics metadata to storage.
@@ -68,10 +70,10 @@ func (api *VMStorageSingleNode) WriteMetadata(rows []metricsmetadata.Row) error 
 	api.wg.Add(1)
 	defer api.wg.Done()
 
-	if api.s.IsReadOnly() {
+	if api.vms.IsReadOnly() {
 		return errReadOnly
 	}
-	return api.VMStorage.WriteMetadata(rows)
+	return api.vms.WriteMetadata(rows)
 }
 
 var errReadOnly = errors.New("the storage is in read-only mode; check -storage.minFreeDiskSpaceBytes command-line flag value")
@@ -79,7 +81,11 @@ var errReadOnly = errors.New("the storage is in read-only mode; check -storage.m
 func (api *VMStorageSingleNode) IsReadOnly() bool {
 	api.wg.Add(1)
 	defer api.wg.Done()
-	return api.VMStorage.IsReadOnly()
+	return api.vms.IsReadOnly()
+}
+
+func (api *VMStorageSingleNode) InitSearch(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (vmselectapi.BlockIterator, error) {
+	return nil, fmt.Errorf("not implemented in vmsingle")
 }
 
 // GetSearch sets up an instance of storage search and returns it to the caller
@@ -89,19 +95,19 @@ func (api *VMStorageSingleNode) IsReadOnly() bool {
 // vmsingle HTTP handlers.
 //
 // Callers of this method must call PutSearch() once the search instance is not
-// needed anymore.
+// needed anymore. Callers also must not call PutSearch() if the method returns an
+// error.
 func (api *VMStorageSingleNode) GetSearch(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (*storage.Search, int, error) {
-	api.wg.Add(1)
-
 	tr := sq.GetTimeRange()
-	maxMetrics := api.getMaxMetrics(sq.MaxMetrics)
-	tfss, err := api.setupTfss(qt, sq, tr, maxMetrics, deadline)
+	maxMetrics := api.vms.getMaxMetrics(sq.MaxMetrics)
+	tfss, err := api.vms.setupTfss(qt, sq, tr, maxMetrics, deadline)
 	if err != nil {
 		return nil, 0, err
 	}
 
 	sr := getSearch()
-	maxSeriesCount := sr.Init(qt, api.s, tfss, tr, sq.MaxMetrics, deadline)
+	api.wg.Add(1)
+	maxSeriesCount := sr.Init(qt, api.vms.s, tfss, tr, sq.MaxMetrics, deadline)
 	return sr, maxSeriesCount, nil
 }
 
@@ -114,8 +120,8 @@ func (api *VMStorageSingleNode) GetSearch(qt *querytracer.Tracer, sq *storage.Se
 // The method must only be used on search instances that have been created with
 // GetSearch().
 func (api *VMStorageSingleNode) PutSearch(sr *storage.Search) {
-	api.wg.Done()
 	putSearch(sr)
+	api.wg.Done()
 }
 
 func getSearch() *storage.Search {
@@ -136,67 +142,71 @@ var ssPool sync.Pool
 func (api *VMStorageSingleNode) SearchMetricNames(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) ([]string, error) {
 	api.wg.Add(1)
 	defer api.wg.Done()
-	return api.VMStorage.SearchMetricNames(qt, sq, deadline)
+	return api.vms.SearchMetricNames(qt, sq, deadline)
 }
 
 func (api *VMStorageSingleNode) LabelValues(qt *querytracer.Tracer, sq *storage.SearchQuery, labelName string, maxLabelValues int, deadline uint64) ([]string, error) {
 	api.wg.Add(1)
 	defer api.wg.Done()
-	return api.VMStorage.LabelValues(qt, sq, labelName, maxLabelValues, deadline)
+	return api.vms.LabelValues(qt, sq, labelName, maxLabelValues, deadline)
 }
 
 func (api *VMStorageSingleNode) TagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxSuffixes int, deadline uint64) ([]string, error) {
 	api.wg.Add(1)
 	defer api.wg.Done()
-	return api.VMStorage.TagValueSuffixes(qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes, deadline)
+	return api.vms.TagValueSuffixes(qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes, deadline)
 }
 
 func (api *VMStorageSingleNode) LabelNames(qt *querytracer.Tracer, sq *storage.SearchQuery, maxLabelNames int, deadline uint64) ([]string, error) {
 	api.wg.Add(1)
 	defer api.wg.Done()
-	return api.VMStorage.LabelNames(qt, sq, maxLabelNames, deadline)
+	return api.vms.LabelNames(qt, sq, maxLabelNames, deadline)
 }
 
 func (api *VMStorageSingleNode) SeriesCount(qt *querytracer.Tracer, accountID, projectID uint32, deadline uint64) (uint64, error) {
 	api.wg.Add(1)
 	defer api.wg.Done()
-	return api.VMStorage.SeriesCount(qt, accountID, projectID, deadline)
+	return api.vms.SeriesCount(qt, accountID, projectID, deadline)
+}
+
+func (api *VMStorageSingleNode) Tenants(qt *querytracer.Tracer, tr storage.TimeRange, deadline uint64) ([]string, error) {
+	api.wg.Add(1)
+	defer api.wg.Done()
+	return api.vms.Tenants(qt, tr, deadline)
 }
 
 func (api *VMStorageSingleNode) TSDBStatus(qt *querytracer.Tracer, sq *storage.SearchQuery, focusLabel string, topN int, deadline uint64) (*storage.TSDBStatus, error) {
 	api.wg.Add(1)
 	defer api.wg.Done()
-	return api.VMStorage.TSDBStatus(qt, sq, focusLabel, topN, deadline)
+	return api.vms.TSDBStatus(qt, sq, focusLabel, topN, deadline)
 }
 
 func (api *VMStorageSingleNode) DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (int, error) {
 	api.wg.Add(1)
 	defer api.wg.Done()
-	// TODO(@rtm0): Return an error if the storage is in read-only mode?
-	return api.VMStorage.DeleteSeries(qt, sq, deadline)
+	return api.vms.DeleteSeries(qt, sq, deadline)
 }
 
 func (api *VMStorageSingleNode) RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, deadline uint64) error {
 	api.wg.Add(1)
 	defer api.wg.Done()
-	// TODO(@rtm0): Return an error if the storage is in read-only mode?
-	return api.VMStorage.RegisterMetricNames(qt, mrs, deadline)
+	return api.vms.RegisterMetricNames(qt, mrs, deadline)
 }
 
 func (api *VMStorageSingleNode) GetMetricNamesUsageStats(qt *querytracer.Tracer, tt *storage.TenantToken, limit, le int, matchPattern string, deadline uint64) (metricnamestats.StatsResult, error) {
 	api.wg.Add(1)
 	defer api.wg.Done()
-	return api.VMStorage.GetMetricNamesUsageStats(qt, tt, limit, le, matchPattern, deadline)
+	return api.vms.GetMetricNamesUsageStats(qt, tt, limit, le, matchPattern, deadline)
 }
 
 func (api *VMStorageSingleNode) ResetMetricNamesUsageStats(qt *querytracer.Tracer, deadline uint64) error {
 	api.wg.Add(1)
 	defer api.wg.Done()
-	return api.VMStorage.ResetMetricNamesUsageStats(qt, deadline)
+	return api.vms.ResetMetricNamesUsageStats(qt, deadline)
 }
 
 func (api *VMStorageSingleNode) GetMetadataRecords(qt *querytracer.Tracer, tt *storage.TenantToken, limit int, metricName string, deadline uint64) ([]*metricsmetadata.Row, error) {
 	api.wg.Add(1)
 	defer api.wg.Done()
-	return api.VMStorage.GetMetadataRecords(qt, tt, limit, metricName, deadline)
+	return api.vms.GetMetadataRecords(qt, tt, limit, metricName, deadline)
 }
