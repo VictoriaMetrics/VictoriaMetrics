@@ -307,6 +307,24 @@ statusCode=200
 requested_url={BACKEND}/bar/a/b`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 
+	// correct authorization but unexisted path, hence missing route error.
+	cfgStr = `
+users:
+- username: foo
+  password: secret
+  url_map:
+  - src_paths:
+    - "/api/v1/write"
+    url_prefix: "{BACKEND}/bar"`
+	requestURL = "http://foo:secret@some-host.com/a/b"
+	backendHandler = func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "requested_url=http://%s%s", r.Host, r.URL)
+	}
+	responseExpected = `
+statusCode=400
+user foo missing route for "http://foo:secret@some-host.com/a/b"`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
 	// verify how path cleanup works
 	cfgStr = `
 unauthorized_user:
