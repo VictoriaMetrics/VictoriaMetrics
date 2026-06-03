@@ -227,7 +227,7 @@ EOF
 ```
 
 > Two important notes on scraping:
-> - Metrics without a matching `retention` label are silently dropped by the `keep` rules. You must ensure every metric gets the label or use a different routing configuration.
+> - Metrics without a matching `retention` label are silently dropped by the `keep` rules. You must ensure that every metric receives a label, or use a different routing configuration.
 > - The [scrape interval](https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs) should match the `dedup.minScrapeInterval` defined in the vmstorage nodes.
 `
 
@@ -245,7 +245,7 @@ kubectl rollout status deploy/vmagent-victoria-metrics-agent
 
 ### Step 4: Verification
 
-We can send test data to verify data is flowing to the correct storage group.
+We can send test data to verify that data is flowing to the correct storage group.
 
 First, port-forward vmagent and vmselect:
 
@@ -318,7 +318,7 @@ remoteWrite:
         regex: "infra|sre"
 ```
 
-> Metrics that match none of the `keep` rules are dropped in the configuration above.
+> Metrics that do not match any of the `keep` rules are dropped in the configuration above.
 
 ## Alternative Multi-Tenant Routing
 
