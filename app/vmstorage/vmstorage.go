@@ -377,8 +377,6 @@ func (api *VMStorage) GetMetadataRecords(qt *querytracer.Tracer, tt *storage.Ten
 }
 
 // deleteSnapshot deletes a snapshot by its name.
-//
-// Callers must wrap the call with wg.Add(1)...wg.Done().
 func (api *VMStorage) deleteSnapshot(snapshotName string) error {
 	snapshots := api.s.MustListSnapshots()
 	for _, snName := range snapshots {

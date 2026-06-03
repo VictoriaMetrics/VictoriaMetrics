@@ -383,7 +383,6 @@ func (api *VMStorage) requestHandler(w http.ResponseWriter, r *http.Request) boo
 		w.Header().Set("Content-Type", "application/json")
 		snapshots := api.s.MustListSnapshots()
 		for _, snapshotName := range snapshots {
-			// TODO(@rtm0): Use VMStorage.deleteSnapshot()?
 			if err := api.s.DeleteSnapshot(snapshotName); err != nil {
 				err = fmt.Errorf("cannot delete snapshot %q: %w", snapshotName, err)
 				jsonResponseError(w, err)
