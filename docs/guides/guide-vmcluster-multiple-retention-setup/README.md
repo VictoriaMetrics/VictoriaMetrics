@@ -299,19 +299,19 @@ The following example configures `vmagent` to route metrics based on the `enviro
 # vmagent.yaml
 remoteWrite:
   # send dev and staging data to Group A
-  - url: "http://vmcluster-a-victoria-metrics-cluster-vminsert:8480/insert/0/prometheus"
+  - url: "http://vmcluster-a-victoria-metrics-cluster-vminsert:8480/insert/0/prometheus/api/v1/write"
     urlRelabelConfig:
       - action: keep
         source_labels: [environment]
         regex: "dev|staging"
   # send prod data to Group B
-  - url: "http://vmcluster-b-victoria-metrics-cluster-vminsert:8480/insert/0/prometheus"
+  - url: "http://vmcluster-b-victoria-metrics-cluster-vminsert:8480/insert/0/prometheus/api/v1/write"
     urlRelabelConfig:
       - action: keep
         source_labels: [environment]
         regex: "prod|production"
   # send data from Infra and SRE teams to Group B
-  - url: "http://vmcluster-b-victoria-metrics-cluster-vminsert:8480/insert/0/prometheus"
+  - url: "http://vmcluster-b-victoria-metrics-cluster-vminsert:8480/insert/0/prometheus/api/v1/write"
     urlRelabelConfig:
       - action: keep
         source_labels: [team]
