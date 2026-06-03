@@ -90,6 +90,7 @@ var transformFuncs = map[string]transformFunc{
 	"rand":                       newTransformRand(newRandFloat64),
 	"rand_exponential":           newTransformRand(newRandExpFloat64),
 	"rand_normal":                newTransformRand(newRandNormFloat64),
+	"range":                      newTransformFuncZeroArgs(transformRange),
 	"range_avg":                  newTransformFuncRange(runningAvg),
 	"range_first":                transformRangeFirst,
 	"range_last":                 transformRangeLast,
@@ -2806,6 +2807,10 @@ func transformStart(tfa *transformFuncArg) float64 {
 
 func transformEnd(tfa *transformFuncArg) float64 {
 	return float64(tfa.ec.End) / 1e3
+}
+
+func transformRange(tfa *transformFuncArg) float64 {
+	return float64(tfa.ec.End-tfa.ec.Start) / 1e3
 }
 
 // copyTimeseries returns a copy of tss.
