@@ -498,13 +498,6 @@ func (s *Server) processRequest(ctx *vmselectRequestCtx) error {
 	}
 	rpcName := string(ctx.dataBuf)
 
-	// Initialize query tracing.
-	traceEnabled, err := ctx.readBool()
-	if err != nil {
-		return fmt.Errorf("cannot read traceEnabled: %w", err)
-	}
-	ctx.qt = querytracer.New(traceEnabled, "rpc call %s() at vmstorage", rpcName)
-
 	// Limit the time required for reading request args.
 	if err := ctx.bc.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
 		return fmt.Errorf("cannot set read deadline for reading request args: %w", err)
@@ -512,6 +505,13 @@ func (s *Server) processRequest(ctx *vmselectRequestCtx) error {
 	defer func() {
 		_ = ctx.bc.SetReadDeadline(time.Time{})
 	}()
+
+	// Initialize query tracing.
+	traceEnabled, err := ctx.readBool()
+	if err != nil {
+		return fmt.Errorf("cannot read traceEnabled: %w", err)
+	}
+	ctx.qt = querytracer.New(traceEnabled, "rpc call %s() at vmstorage", rpcName)
 
 	// Read the timeout for request execution.
 	timeout, err := ctx.readUint32()
