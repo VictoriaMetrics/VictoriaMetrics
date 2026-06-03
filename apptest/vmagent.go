@@ -10,47 +10,69 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prommetadata"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	"github.com/golang/snappy"
 )
 
-// Vmagent holds the state of a vmagent app and provides vmagent-specific functions
-type Vmagent struct {
-	*app
-	*ServesMetrics
-
-	httpListenAddr           string
-	apiV1ImportPrometheusURL string
-}
-
-// StartVmagent starts an instance of vmagent with the given flags. It also
-// sets the default flags and populates the app instance state with runtime
-// values extracted from the application log (such as httpListenAddr)
+// StartVmagent starts the latest version of vmagent.
+//
+// The path to the binary can be provided via VMAGENT_PATH environment
+// variable. If the variable is not set, ../../bin/vmagent-race will be
+// used.
 func StartVmagent(instance string, flags []string, cli *Client, promScrapeConfigFilePath string, output io.Writer) (*Vmagent, error) {
-	extractREs := []*regexp.Regexp{
-		httpListenAddrRE,
+	binary := os.Getenv("VMAGENT_PATH")
+	if binary == "" {
+		binary = "../../bin/vmagent-race"
 	}
-
-	app, stderrExtracts, err := startApp(instance, "../../bin/vmagent-race", flags, &appOptions{
+	app, stderrExtracts, err := startApp(instance, binary, flags, &appOptions{
 		defaultFlags: map[string]string{
 			"-httpListenAddr":          "127.0.0.1:0",
 			"-promscrape.config":       promScrapeConfigFilePath,
 			"-remoteWrite.tmpDataPath": fmt.Sprintf("%s/%s-%d", os.TempDir(), instance, time.Now().UnixNano()),
 		},
-		extractREs: extractREs,
-		output:     output,
+		extractREs: []*regexp.Regexp{
+			httpListenAddrRE,
+		},
+		output: output,
 	})
 	if err != nil {
 		return nil, err
 	}
 
+	return newVmagent(app, cli, vmagentRuntimeValues{
+		httpListenAddr: stderrExtracts[0],
+	}), nil
+}
+
+type vmagentRuntimeValues struct {
+	httpListenAddr string
+}
+
+func newVmagent(app *app, cli *Client, rt vmagentRuntimeValues) *Vmagent {
 	return &Vmagent{
-		app: app,
-		ServesMetrics: &ServesMetrics{
-			metricsURL: fmt.Sprintf("http://%s/metrics", stderrExtracts[0]),
-			cli:        cli,
-		},
-		httpListenAddr:           stderrExtracts[0],
-		apiV1ImportPrometheusURL: fmt.Sprintf("http://%s/api/v1/import/prometheus", stderrExtracts[0]),
-	}, nil
+		app:            app,
+		cli:            cli,
+		metricsClient:  newMetricsClient(cli, rt.httpListenAddr),
+		httpListenAddr: rt.httpListenAddr,
+	}
+}
+
+// Vmagent holds the state of a vmagent app and provides vmagent-specific
+// functions.
+type Vmagent struct {
+	*app
+	*metricsClient
+
+	cli            *Client
+	httpListenAddr string
+}
+
+// HTTPAddr returns the address at which the vmagent process is listening
+// for http connections.
+func (app *Vmagent) HTTPAddr() string {
+	return app.httpListenAddr
 }
 
 // APIV1ImportPrometheus is a test helper function that inserts a
@@ -76,14 +98,37 @@ func (app *Vmagent) APIV1ImportPrometheus(t *testing.T, records []string, opts Q
 // Flushing may still be in progress on the function return.
 //
 // See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1importprometheus
-func (app *Vmagent) APIV1ImportPrometheusNoWaitFlush(t *testing.T, records []string, _ QueryOpts) {
+func (app *Vmagent) APIV1ImportPrometheusNoWaitFlush(t *testing.T, records []string, opts QueryOpts) {
 	t.Helper()
 
 	data := []byte(strings.Join(records, "\n"))
-	_, statusCode := app.cli.Post(t, app.apiV1ImportPrometheusURL, "text/plain", data)
+	headers := opts.getHeaders()
+	headers.Set("Content-Type", "text/plain")
+	url := getVMAgentInsertPath(app.httpListenAddr, "prometheus/api/v1/import/prometheus", opts)
+	_, statusCode := app.cli.Post(t, url, data, headers)
 	if statusCode != http.StatusNoContent {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
 	}
+}
+
+// getVMAgentInsertPath returns URL path for writes.
+// If tenant is set in QueryOpts, it will return cluster-like path for ingestion.
+// If tenant is empty, it will return single-node (no tenants) path.
+func getVMAgentInsertPath(addr, suffix string, o QueryOpts) string {
+	if o.Tenant != "" {
+		// QueryOpts.Tenant has priority over headers
+		return fmt.Sprintf("http://%s/insert/%s/%s", addr, o.Tenant, suffix)
+	}
+
+	h := o.getHeaders()
+	if h.Get("AccountID") != "" || h.Get("ProjectID") != "" {
+		// vmagent supports tenantID in HTTP headers only if -enableMultitenantHandlers and -enableMultitenancyViaHeaders are set
+		// see https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy
+		return fmt.Sprintf("http://%s/insert/%s", addr, suffix)
+	}
+
+	// tenant is missing in QueryOpts and in HTTP headers. Use single-node (no tenants) path
+	return fmt.Sprintf("http://%s/%s", addr, suffix)
 }
 
 // RemoteWriteRequestsRetriesCountTotal sums up the total retries for remote write requests.
@@ -156,10 +201,26 @@ func (app *Vmagent) ReloadRelabelConfigs(t *testing.T) {
 	t.Fatalf("relabel configs were not reloaded after SIGHUP signal; previous total: %f, current total: %f", prevTotal, currTotal)
 }
 
-// HTTPAddr returns the address at which the vmagent process is listening
-// for http connections.
-func (app *Vmagent) HTTPAddr() string {
-	return app.httpListenAddr
+// PrometheusAPIV1Write is a test helper function that inserts a
+// collection of records in Prometheus remote-write format by sending a HTTP
+// POST request to /prometheus/api/v1/write vmagent endpoint.
+func (app *Vmagent) PrometheusAPIV1Write(t *testing.T, wr prompb.WriteRequest, opts QueryOpts) {
+	t.Helper()
+
+	url := getVMAgentInsertPath(app.httpListenAddr, "prometheus/api/v1/write", opts)
+	data := snappy.Encode(nil, wr.MarshalProtobuf(nil))
+	recordsCount := len(wr.Timeseries)
+	if prommetadata.IsEnabled() {
+		recordsCount += len(wr.Metadata)
+	}
+	headers := opts.getHeaders()
+	headers.Set("Content-Type", "application/x-protobuf")
+	app.sendBlocking(t, recordsCount, func() {
+		_, statusCode := app.cli.Post(t, url, data, headers)
+		if statusCode != http.StatusNoContent {
+			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
+		}
+	})
 }
 
 // sendBlocking sends the data to vmstorage by executing `send` function and
@@ -174,8 +235,10 @@ func (app *Vmagent) HTTPAddr() string {
 // If it is, then the data has been sent to vmstorage.
 //
 // Unreliable if the records are inserted concurrently.
-func (app *Vmagent) sendBlocking(t *testing.T, numRecordsToSend int, send func()) {
+func (app *Vmagent) sendBlocking(t *testing.T, _ int, send func()) {
 	t.Helper()
+
+	currRowsSentCount := app.remoteWriteRequestsTotal(t)
 
 	send()
 
@@ -183,7 +246,11 @@ func (app *Vmagent) sendBlocking(t *testing.T, numRecordsToSend int, send func()
 		retries = 20
 		period  = 100 * time.Millisecond
 	)
-	wantRowsSentCount := app.remoteWriteRequestsTotal(t) + numRecordsToSend
+	// TODO: properly account wantRowsSentCount
+	// currently vmagent doesn't expose per time-series write information
+	// so we can only account number of blocks sent via remote write protocol
+	// it should be suitable for tests purpose
+	wantRowsSentCount := currRowsSentCount + 1
 	for range retries {
 		if app.remoteWriteRequestsTotal(t) >= wantRowsSentCount {
 			return

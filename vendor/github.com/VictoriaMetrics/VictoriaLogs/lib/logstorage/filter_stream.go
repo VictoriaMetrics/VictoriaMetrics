@@ -27,6 +27,12 @@ type filterStream struct {
 	streamIDs     map[streamID]struct{}
 }
 
+func newFilterStream(f *StreamFilter) *filterStream {
+	return &filterStream{
+		f: f,
+	}
+}
+
 func (fs *filterStream) String() string {
 	return fs.f.String()
 }

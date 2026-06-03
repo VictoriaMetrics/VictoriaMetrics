@@ -2,18 +2,12 @@ package tests
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"slices"
 	"testing"
 	"time"
 
 	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
-)
-
-var (
-	legacyVmsinglePath  = os.Getenv("VM_LEGACY_VMSINGLE_PATH")
-	legacyVmstoragePath = os.Getenv("VM_LEGACY_VMSTORAGE_PATH")
 )
 
 type testLegacyDeleteSeriesOpts struct {
@@ -31,7 +25,7 @@ func TestLegacySingleDeleteSeries(t *testing.T) {
 
 	opts := testLegacyDeleteSeriesOpts{
 		startLegacySUT: func() at.PrometheusWriteQuerier {
-			return tc.MustStartVmsingleAt("vmsingle-legacy", legacyVmsinglePath, []string{
+			return tc.MustStartVmsingle_v1_132_0("vmsingle-legacy", []string{
 				"-storageDataPath=" + storageDataPath,
 				"-retentionPeriod=100y",
 				"-search.maxStalenessInterval=1m",
@@ -64,15 +58,13 @@ func TestLegacyClusterDeleteSeries(t *testing.T) {
 
 	opts := testLegacyDeleteSeriesOpts{
 		startLegacySUT: func() at.PrometheusWriteQuerier {
-			return tc.MustStartCluster(&at.ClusterOptions{
+			return tc.MustStartCluster_v1_132_0(&at.ClusterOptions{
 				Vmstorage1Instance: "vmstorage1-legacy",
-				Vmstorage1Binary:   legacyVmstoragePath,
 				Vmstorage1Flags: []string{
 					"-storageDataPath=" + storage1DataPath,
 					"-retentionPeriod=100y",
 				},
 				Vmstorage2Instance: "vmstorage2-legacy",
-				Vmstorage2Binary:   legacyVmstoragePath,
 				Vmstorage2Flags: []string{
 					"-storageDataPath=" + storage2DataPath,
 					"-retentionPeriod=100y",
@@ -191,7 +183,7 @@ func testLegacyDeleteSeries(tc *at.TestCase, opts testLegacyDeleteSeriesOpts) {
 
 	// - start legacy vmsingle
 	// - insert data1
-	// - confirm that metric names and samples are searcheable
+	// - confirm that metric names and samples are searchable
 	// - stop legacy vmsingle
 	const step = 24 * 3600 * 1000 // 24h
 	start1 := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
@@ -204,17 +196,17 @@ func testLegacyDeleteSeries(tc *at.TestCase, opts testLegacyDeleteSeriesOpts) {
 	opts.stopLegacySUT()
 
 	// - start new vmsingle
-	// - confirm that data1 metric names and samples are searcheable
+	// - confirm that data1 metric names and samples are searchable
 	// - delete data1
-	// - confirm that data1 metric names and samples are not searcheable anymore
+	// - confirm that data1 metric names and samples are not searchable anymore
 	// - insert data2 (same metric names, different dates)
-	// - confirm that metric names become searcheable again
-	// - confirm that data1 samples are not searchable and data2 samples are searcheable
+	// - confirm that metric names become searchable again
+	// - confirm that data1 samples are not searchable and data2 samples are searchable
 
 	newSUT := opts.startNewSUT()
 	assertSearchResults(newSUT, `{__name__=~".*"}`, start1, end1, "1d", want1)
 
-	newSUT.APIV1AdminTSDBDeleteSeries(t, `{__name__=~".*"}`, at.QueryOpts{})
+	newSUT.PrometheusAPIV1AdminTSDBDeleteSeries(t, `{__name__=~".*"}`, at.QueryOpts{})
 	wantNoResults := &want{
 		series:       []map[string]string{},
 		queryResults: []*at.QueryResult{},
@@ -230,7 +222,7 @@ func testLegacyDeleteSeries(tc *at.TestCase, opts testLegacyDeleteSeriesOpts) {
 
 	// - restart new vmsingle
 	// - confirm that metric names still searchable, data1 samples are not
-	//   searchable, and data2 samples are searcheable
+	//   searchable, and data2 samples are searchable
 
 	opts.stopNewSUT()
 	newSUT = opts.startNewSUT()
@@ -255,7 +247,7 @@ func TestLegacySingleBackupRestore(t *testing.T) {
 
 	opts := testLegacyBackupRestoreOpts{
 		startLegacySUT: func() at.PrometheusWriteQuerier {
-			return tc.MustStartVmsingleAt("vmsingle-legacy", legacyVmsinglePath, []string{
+			return tc.MustStartVmsingle_v1_132_0("vmsingle-legacy", []string{
 				"-storageDataPath=" + storageDataPath,
 				"-retentionPeriod=100y",
 				"-search.disableCache=true",
@@ -298,15 +290,13 @@ func TestLegacyClusterBackupRestore(t *testing.T) {
 
 	opts := testLegacyBackupRestoreOpts{
 		startLegacySUT: func() at.PrometheusWriteQuerier {
-			return tc.MustStartCluster(&at.ClusterOptions{
+			return tc.MustStartCluster_v1_132_0(&at.ClusterOptions{
 				Vmstorage1Instance: "vmstorage1-legacy",
-				Vmstorage1Binary:   legacyVmstoragePath,
 				Vmstorage1Flags: []string{
 					"-storageDataPath=" + storage1DataPath,
 					"-retentionPeriod=100y",
 				},
 				Vmstorage2Instance: "vmstorage2-legacy",
-				Vmstorage2Binary:   legacyVmstoragePath,
 				Vmstorage2Flags: []string{
 					"-storageDataPath=" + storage2DataPath,
 					"-retentionPeriod=100y",
@@ -583,7 +573,7 @@ func TestLegacySingleDowngrade(t *testing.T) {
 
 	opts := testLegacyDowngradeOpts{
 		startLegacySUT: func() at.PrometheusWriteQuerier {
-			return tc.MustStartVmsingleAt("vmsingle-legacy", legacyVmsinglePath, []string{
+			return tc.MustStartVmsingle_v1_132_0("vmsingle-legacy", []string{
 				"-storageDataPath=" + storageDataPath,
 				"-retentionPeriod=100y",
 				"-search.disableCache=true",
@@ -618,15 +608,13 @@ func TestLegacyClusterDowngrade(t *testing.T) {
 
 	opts := testLegacyDowngradeOpts{
 		startLegacySUT: func() at.PrometheusWriteQuerier {
-			return tc.MustStartCluster(&at.ClusterOptions{
+			return tc.MustStartCluster_v1_132_0(&at.ClusterOptions{
 				Vmstorage1Instance: "vmstorage1-legacy",
-				Vmstorage1Binary:   legacyVmstoragePath,
 				Vmstorage1Flags: []string{
 					"-storageDataPath=" + storage1DataPath,
 					"-retentionPeriod=100y",
 				},
 				Vmstorage2Instance: "vmstorage2-legacy",
-				Vmstorage2Binary:   legacyVmstoragePath,
 				Vmstorage2Flags: []string{
 					"-storageDataPath=" + storage2DataPath,
 					"-retentionPeriod=100y",
@@ -877,7 +865,7 @@ func testLegacyDowngrade(tc *at.TestCase, opts testLegacyDowngradeOpts) {
 	// Ingest legacy2 records, ensure the queries return only legacy2.
 	legacySUT = opts.startLegacySUT()
 	assertQueries(legacySUT, `{__name__=~".*"}`, wantLegacy1, numMetrics)
-	legacySUT.APIV1AdminTSDBDeleteSeries(t, `{__name__=~".*"}`, at.QueryOpts{})
+	legacySUT.PrometheusAPIV1AdminTSDBDeleteSeries(t, `{__name__=~".*"}`, at.QueryOpts{})
 	assertQueries(legacySUT, `{__name__=~".*"}`, wantEmpty, numMetrics)
 	legacySUT.PrometheusAPIV1ImportPrometheus(t, legacy2Data, at.QueryOpts{})
 	legacySUT.ForceFlush(t)
@@ -891,7 +879,7 @@ func testLegacyDowngrade(tc *at.TestCase, opts testLegacyDowngradeOpts) {
 	newSUT = opts.startNewSUT()
 	// series count includes deleted metrics
 	assertQueries(newSUT, `{__name__=~".*"}`, wantLegacy2New1, 3*numMetrics)
-	newSUT.APIV1AdminTSDBDeleteSeries(t, `{__name__=~".*"}`, at.QueryOpts{})
+	newSUT.PrometheusAPIV1AdminTSDBDeleteSeries(t, `{__name__=~".*"}`, at.QueryOpts{})
 	// series count includes deleted metrics
 	assertQueries(newSUT, `{__name__=~".*"}`, wantEmpty, 3*numMetrics)
 	opts.stopNewSUT()

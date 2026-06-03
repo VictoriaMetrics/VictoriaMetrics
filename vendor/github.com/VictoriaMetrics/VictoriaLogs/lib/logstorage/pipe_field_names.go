@@ -2,6 +2,7 @@ package logstorage
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 
@@ -16,12 +17,18 @@ type pipeFieldNames struct {
 	// By default results are written into 'name' column.
 	resultName string
 
+	// if the filter is non-empty then only the field names containing the given filter substring are returned.
+	filter string
+
 	// if isFirstPipe is set, then there is no need in loading columnsHeader in writeBlock().
 	isFirstPipe bool
 }
 
 func (pf *pipeFieldNames) String() string {
 	s := "field_names"
+	if pf.filter != "" {
+		s += " filter " + quoteTokenIfNeeded(pf.filter)
+	}
 	if pf.resultName != "name" {
 		s += " as " + quoteTokenIfNeeded(pf.resultName)
 	}
@@ -29,10 +36,16 @@ func (pf *pipeFieldNames) String() string {
 }
 
 func (pf *pipeFieldNames) splitToRemoteAndLocal(timestamp int64) (pipe, []pipe) {
-	pStr := fmt.Sprintf("stats by (%s) sum(hits) hits", quoteTokenIfNeeded(pf.resultName))
-	pLocal := mustParsePipe(pStr, timestamp)
+	resultNameLocal := getUniqueResultName(pf.resultName, []string{"hits"})
+	pStr := fmt.Sprintf("stats by (%s) sum(hits) as hits", quoteTokenIfNeeded(resultNameLocal))
+	if resultNameLocal != pf.resultName {
+		pStr += fmt.Sprintf(" | rename %s as %s", quoteTokenIfNeeded(resultNameLocal), quoteTokenIfNeeded(pf.resultName))
+	}
+	psLocal := mustParsePipes(pStr, timestamp)
 
-	return pf, []pipe{pLocal}
+	pRemote := *pf
+	pRemote.resultName = resultNameLocal
+	return &pRemote, psLocal
 }
 
 func (pf *pipeFieldNames) canLiveTail() bool {
@@ -59,7 +72,7 @@ func (pf *pipeFieldNames) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pf *pipeFieldNames) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
+func (pf *pipeFieldNames) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pf, nil
 }
 
@@ -108,33 +121,39 @@ func (pfp *pipeFieldNamesProcessor) writeBlock(workerID uint, br *blockResult) {
 	// This is much faster than reading all the column values and counting non-empty rows.
 	hits := uint64(br.rowsLen)
 
+	filter := pfp.pf.filter
+
 	shard := pfp.shards.Get(workerID)
 	if !pfp.pf.isFirstPipe || br.bs == nil || br.bs.partFormatVersion() < 1 {
 		cs := br.getColumns()
 		for _, c := range cs {
-			shard.updateColumnHits(c.name, hits)
+			shard.updateColumnHits(c.name, filter, hits)
 		}
 	} else {
 		cshIndex := br.bs.getColumnsHeaderIndex()
-		shard.updateHits(cshIndex.columnHeadersRefs, br, hits)
-		shard.updateHits(cshIndex.constColumnsRefs, br, hits)
-		shard.updateColumnHits("_time", hits)
-		shard.updateColumnHits("_stream", hits)
-		shard.updateColumnHits("_stream_id", hits)
+		shard.updateHits(cshIndex.columnHeadersRefs, br, filter, hits)
+		shard.updateHits(cshIndex.constColumnsRefs, br, filter, hits)
+		shard.updateColumnHits("_time", filter, hits)
+		shard.updateColumnHits("_stream", filter, hits)
+		shard.updateColumnHits("_stream_id", filter, hits)
 	}
 }
 
-func (shard *pipeFieldNamesProcessorShard) updateHits(refs []columnHeaderRef, br *blockResult, hits uint64) {
+func (shard *pipeFieldNamesProcessorShard) updateHits(refs []columnHeaderRef, br *blockResult, filter string, hits uint64) {
 	for _, cr := range refs {
 		columnName := br.bs.getColumnNameByID(cr.columnNameID)
-		shard.updateColumnHits(columnName, hits)
+		shard.updateColumnHits(columnName, filter, hits)
 	}
 }
 
-func (shard *pipeFieldNamesProcessorShard) updateColumnHits(columnName string, hits uint64) {
+func (shard *pipeFieldNamesProcessorShard) updateColumnHits(columnName, filter string, hits uint64) {
 	if columnName == "" {
 		columnName = "_msg"
 	}
+	if filter != "" && !strings.Contains(columnName, filter) {
+		return
+	}
+
 	m := shard.getM()
 	pHits := m[columnName]
 	if pHits == nil {
@@ -227,6 +246,16 @@ func parsePipeFieldNames(lex *lexer) (pipe, error) {
 	}
 	lex.nextToken()
 
+	filter := ""
+	if lex.isKeyword("filter") {
+		lex.nextToken()
+		f, err := lex.nextCompoundToken()
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse filter inside 'field_names' pipe: %w", err)
+		}
+		filter = f
+	}
+
 	resultName := "name"
 	if lex.isKeyword("as") {
 		lex.nextToken()
@@ -245,6 +274,7 @@ func parsePipeFieldNames(lex *lexer) (pipe, error) {
 
 	pf := &pipeFieldNames{
 		resultName: resultName,
+		filter:     filter,
 	}
 	return pf, nil
 }

@@ -122,7 +122,7 @@ func (ps *pipeRunningStats) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (ps *pipeRunningStats) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
+func (ps *pipeRunningStats) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return ps, nil
 }
 
@@ -474,6 +474,8 @@ func getRunningStatsFuncParsers() map[string]runningStatsFuncParser {
 func initRunningStatsFuncParsers() {
 	runningStatsFuncParsers = map[string]runningStatsFuncParser{
 		"count": parseRunningStatsCount,
+		"first": parseRunningStatsFirst,
+		"last":  parseRunningStatsLast,
 		"max":   parseRunningStatsMax,
 		"min":   parseRunningStatsMin,
 		"sum":   parseRunningStatsSum,

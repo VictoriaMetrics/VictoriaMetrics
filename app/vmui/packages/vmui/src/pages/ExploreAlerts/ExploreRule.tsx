@@ -2,11 +2,12 @@ import Spinner from "../../components/Main/Spinner/Spinner";
 import Alert from "../../components/Main/Alert/Alert";
 import { useFetchItem } from "./hooks/useFetchItem";
 import "./style.scss";
-import { Rule as APIRule } from "../../types";
+import { Group as APIGroup, Rule as APIRule } from "../../types";
 import ItemHeader from "../../components/ExploreAlerts/ItemHeader";
 import BaseRule from "../../components/ExploreAlerts/BaseRule";
 import Modal from "../../components/Main/Modal/Modal";
 import { getStates } from "../../components/ExploreAlerts/helpers";
+import { useFetchGroup } from "./hooks/useFetchGroup";
 
 interface ExploreRuleProps {
   groupId: string;
@@ -18,9 +19,18 @@ interface ExploreRuleProps {
 const ExploreRule = ({ groupId, id, mode, onClose }: ExploreRuleProps) => {
   const {
     item,
-    isLoading,
-    error,
+    isLoading: isLoadingItem,
+    error: errorItem,
   } = useFetchItem<APIRule>({ groupId, id, mode });
+
+  const {
+    group,
+    isLoading: isLoadingGroup,
+    error: errorGroup,
+  } = useFetchGroup<APIGroup>({ id: groupId });
+
+  const error =  errorItem || errorGroup;
+  const isLoading = isLoadingItem || isLoadingGroup;
 
   if (isLoading) return (
     <Spinner />
@@ -49,7 +59,12 @@ const ExploreRule = ({ groupId, id, mode, onClose }: ExploreRuleProps) => {
       onClose={onClose}
     >
       <div className="vm-explore-alerts">
-        {item && (<BaseRule item={item} />) || (
+        {item ? (
+          <BaseRule
+            item={item}
+            group={group}
+          />
+        ) : (
           <Alert variant="info">{noItemFound}</Alert>
         )}
       </div>

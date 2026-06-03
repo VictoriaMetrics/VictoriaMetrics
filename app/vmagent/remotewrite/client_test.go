@@ -9,6 +9,7 @@ import (
 	"github.com/golang/snappy"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 )
 
 func TestParseRetryAfterHeader(t *testing.T) {
@@ -34,6 +35,40 @@ func TestParseRetryAfterHeader(t *testing.T) {
 	f("invalid-retry-after", 0)
 	// retry after header not in GMT
 	f(time.Now().Add(10*time.Second).Format("Mon, 02 Jan 2006 15:04:05 FAKETZ"), 0)
+}
+
+func TestInitSecretFlags(t *testing.T) {
+	showRemoteWriteURLOrig := *showRemoteWriteURL
+	defer func() {
+		*showRemoteWriteURL = showRemoteWriteURLOrig
+		flagutil.UnregisterAllSecretFlags()
+	}()
+
+	flagutil.UnregisterAllSecretFlags()
+	*showRemoteWriteURL = false
+	InitSecretFlags()
+	if !flagutil.IsSecretFlag("remotewrite.url") {
+		t.Fatalf("expecting remoteWrite.url to be secret")
+	}
+	if !flagutil.IsSecretFlag("remotewrite.headers") {
+		t.Fatalf("expecting remoteWrite.headers to be secret")
+	}
+	if !flagutil.IsSecretFlag("remotewrite.proxyurl") {
+		t.Fatalf("expecting remoteWrite.proxyURL to be secret")
+	}
+
+	flagutil.UnregisterAllSecretFlags()
+	*showRemoteWriteURL = true
+	InitSecretFlags()
+	if flagutil.IsSecretFlag("remotewrite.url") {
+		t.Fatalf("remoteWrite.url must remain visible when -remoteWrite.showURL is set")
+	}
+	if !flagutil.IsSecretFlag("remotewrite.headers") {
+		t.Fatalf("expecting remoteWrite.headers to remain secret")
+	}
+	if !flagutil.IsSecretFlag("remotewrite.proxyurl") {
+		t.Fatalf("expecting remoteWrite.proxyURL to remain secret")
+	}
 }
 
 func TestRepackBlockFromZstdToSnappy(t *testing.T) {

@@ -34,20 +34,37 @@ func NewNetQueryRunner(qctx *QueryContext, runNetQuery RunNetQueryFunc, writeNet
 		return runNetQuery(qctx, writeNetBlock)
 	}
 
-	qNew, err := initSubqueries(qctx, runQuery, false)
+	qRemote, pipesLocal := splitQueryToRemoteAndLocal(qctx.Query)
+
+	// Eagerly execute all the subqueries for the remote query
+	// and replace them with the query results directly in qRemote.
+	// This is needed for proper propagation subquery results to remote storage nodes.
+	qctxRemote := qctx.WithQuery(qRemote)
+	qRemote, err := initSubqueries(qctxRemote, runQuery, true)
 	if err != nil {
 		return nil, err
 	}
-	q := qNew
 
-	qRemote, pipesLocal := splitQueryToRemoteAndLocal(q)
+	// Initialize subqueries inside local parts.
+	// There is no need in eager execution of all the subqueries such as union (...)
+	// since it is OK to execute them lazily.
+	qLocal, err := ParseQuery("*")
+	if err != nil {
+		logger.Panicf("BUG: cannot parse '*' query: %s", err)
+	}
+	qLocal.pipes = pipesLocal
+	qctxLocal := qctx.WithQuery(qLocal)
+	qLocal, err = initSubqueries(qctxLocal, runQuery, false)
+	if err != nil {
+		return nil, err
+	}
 
 	writeBlock := writeNetBlock.newBlockResultWriter()
 
 	nqr := &NetQueryRunner{
 		qctx:       qctx,
 		qRemote:    qRemote,
-		pipesLocal: pipesLocal,
+		pipesLocal: qLocal.pipes,
 		writeBlock: writeBlock,
 	}
 	return nqr, nil
@@ -72,9 +89,10 @@ func (nqr *NetQueryRunner) Run(ctx context.Context, concurrency int, netSearch f
 func splitQueryToRemoteAndLocal(q *Query) (*Query, []pipe) {
 	timestamp := q.GetTimestamp()
 	qRemote := q.Clone(timestamp)
-	qRemote.DropAllPipes()
+	qRemote.enablePrintOptions()
 
-	pipesRemote, pipesLocal := getRemoteAndLocalPipes(q)
+	pipesRemote, pipesLocal := getRemoteAndLocalPipes(qRemote)
+	qRemote.DropAllPipes()
 	qRemote.pipes = pipesRemote
 
 	if !qRemote.IsFixedOutputFieldsOrder() {

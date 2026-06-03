@@ -73,7 +73,7 @@ func (pf *pipeFormat) updateNeededFields(f *prefixfilter.Filter) {
 
 	if pf.iff != nil {
 		f.AddAllowFilters(pf.iff.allowFilters)
-	} else if !pf.keepOriginalFields && !pf.skipEmptyResults {
+	} else if shouldDenyOverwrittenField(pf.iff, pf.keepOriginalFields, pf.skipEmptyResults) {
 		f.AddDenyFilter(pf.resultField)
 	}
 	for _, step := range pf.steps {
@@ -87,8 +87,8 @@ func (pf *pipeFormat) hasFilterInWithQuery() bool {
 	return pf.iff.hasFilterInWithQuery()
 }
 
-func (pf *pipeFormat) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc, keepSubquery bool) (pipe, error) {
-	iffNew, err := pf.iff.initFilterInValues(cache, getFieldValuesFunc, keepSubquery)
+func (pf *pipeFormat) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+	iffNew, err := pf.iff.initFilterInValues(cache, getFieldValuesFunc)
 	if err != nil {
 		return nil, err
 	}

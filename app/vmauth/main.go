@@ -47,13 +47,12 @@ var (
 		"It is recommended setting this value to values smaller than -http.idleConnTimeout set at backend services")
 	responseTimeout = flag.Duration("responseTimeout", 5*time.Minute, "The timeout for receiving a response from backend")
 
-	requestBufferSize = flagutil.NewBytes("requestBufferSize", defaultBodyBufferSize, "The size of the buffer for reading the request body before proxying the request to backends. "+
+	requestBufferSize = flagutil.NewBytes("requestBufferSize", 32*1024, "The size of the buffer for reading the request body before proxying the request to backends. "+
 		"This allows reducing the consumption of backend resources when processing requests from clients connected via slow networks. "+
-		"Set to 0 to disable request buffering. See https://docs.victoriametrics.com/victoriametrics/vmauth/#request-body-buffering. "+
-		" Disabling request buffering also disables request retries configured with '-maxRequestBodySizeToRetry'")
-	maxRequestBodySizeToRetry = flagutil.NewBytes("maxRequestBodySizeToRetry", defaultBodyBufferSize, "The maximum request body size in memory for potential retries at other backends. "+
-		"Request bodies larger than this size cannot be retried if the backend fails. Zero or negative value disables request retries. "+
-		"See also '-requestBufferSize' flag, which controlls a size of the buffer for potential retry.")
+		"Set to 0 to disable request buffering. See https://docs.victoriametrics.com/victoriametrics/vmauth/#request-body-buffering")
+	maxRequestBodySizeToRetry = flagutil.NewBytes("maxRequestBodySizeToRetry", 16*1024, "The maximum request body size to buffer in memory for potential retries at other backends. "+
+		"Request bodies larger than this size cannot be retried if the backend fails. Zero or negative value disables retries. "+
+		"See also -requestBufferSize")
 
 	maxConcurrentRequests = flag.Int("maxConcurrentRequests", 1000, "The maximum number of concurrent requests vmauth can process simultaneously. "+
 		"Requests exceeding this limit are queued for up to -maxQueueDuration and then rejected with '429 Too Many Requests' http status code if the limit is still reached. "+
@@ -89,8 +88,6 @@ var (
 	removeXFFHTTPHeaderValue = flag.Bool(`removeXFFHTTPHeaderValue`, false, "Whether to remove the X-Forwarded-For HTTP header value from client requests before forwarding them to the backend. "+
 		"Recommended when vmauth is exposed to the internet.")
 )
-
-const defaultBodyBufferSize = 16 * 1024
 
 func main() {
 	// Write flags and help message to stdout, since it is easier to grep or pipe.
@@ -352,26 +349,15 @@ func endConcurrencyLimit() {
 	<-concurrencyLimitCh
 }
 
-func getMaxRequestBufSize() int {
-	rbs := requestBufferSize.IntN()
-	rbstr := maxRequestBodySizeToRetry.IntN()
-	if rbs <= 0 {
-		// request buffering disabled
-		// it also disables request retries as a side effect
-		return 0
-	}
-	// for backward compatibility we must use max value for both flags
-	return max(rbs, rbstr)
-}
-
 func bufferRequestBody(ctx context.Context, r io.ReadCloser, userName string) (io.ReadCloser, error) {
 	if r == nil {
 		// This is a GET request with nil reader.
 		return nil, nil
 	}
 
-	maxBufSize := getMaxRequestBufSize()
+	maxBufSize := max(requestBufferSize.IntN(), maxRequestBodySizeToRetry.IntN())
 	if maxBufSize <= 0 {
+		// Request buffering is disabled.
 		return r, nil
 	}
 
@@ -401,7 +387,7 @@ func bufferRequestBody(ctx context.Context, r io.ReadCloser, userName string) (i
 		}
 	}
 
-	bb := newBufferedBody(r, buf, maxBufSize, maxRequestBodySizeToRetry.IntN())
+	bb := newBufferedBody(r, buf, maxBufSize)
 	return bb, nil
 }
 
@@ -495,6 +481,9 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 	canRetry := !bbOK || bb.canRetry()
 
 	res, err := ui.rt.RoundTrip(req)
+	if err == nil {
+		defer func() { _ = res.Body.Close() }()
+	}
 
 	if errors.Is(r.Context().Err(), context.Canceled) {
 		// Do not retry canceled requests.
@@ -564,7 +553,6 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 	w.WriteHeader(res.StatusCode)
 
 	err = copyStreamToClient(w, res.Body)
-	_ = res.Body.Close()
 
 	if errors.Is(r.Context().Err(), context.Canceled) {
 		// Do not retry canceled requests.
@@ -807,10 +795,11 @@ func handleConcurrencyLimitError(w http.ResponseWriter, r *http.Request, err err
 }
 
 // bufferedBody serves two purposes:
-//  1. Enables request retries when the body size does not exceed maxBodySize
-//     by fully buffering the body in memory.
-//  2. Prevents slow clients from reducing effective server capacity by
-//     buffering the request body before acquiring a per-user concurrency slot.
+//
+//  1. It enables request retries when the request body size does not exceed maxBufSize
+//     by fully buffering the request body in memory.
+//  2. It prevents slow clients from reducing effective server capacity
+//     by buffering the request body before acquiring a per-user concurrency slot.
 //
 // See bufferRequestBody for details on how bufferedBody is used.
 type bufferedBody struct {
@@ -825,33 +814,29 @@ type bufferedBody struct {
 	// bufOffset is the offset at buf for already read bytes.
 	bufOffset int
 
-	// cannotRetry is set to true if buf size exceeds max retry body size
+	// cannotRetry is set to true after Close() call on non-nil r.
 	cannotRetry bool
-
-	// bodyWasClosed is set to true at Close if request retry is not possible
-	bodyWasClosed bool
 }
 
-func newBufferedBody(r io.ReadCloser, buf []byte, maxBufSize, maxBufRetrySize int) *bufferedBody {
+func newBufferedBody(r io.ReadCloser, buf []byte, maxBufSize int) *bufferedBody {
 	// Do not use sync.Pool here, since http.RoundTrip may still use request body after return.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8051
 
 	if len(buf) < maxBufSize {
-		// Read the full request body into buf.
+		// The full request body has been already read into buf.
 		r = nil
 	}
 
 	return &bufferedBody{
-		r:           r,
-		buf:         buf,
-		cannotRetry: len(buf) > maxBufRetrySize || maxBufRetrySize == 0,
+		r:   r,
+		buf: buf,
 	}
 }
 
 // Read implements io.Reader interface.
 func (bb *bufferedBody) Read(p []byte) (int, error) {
-	if bb.bodyWasClosed {
-		return 0, fmt.Errorf("cannot read already closed body")
+	if bb.cannotRetry {
+		return 0, fmt.Errorf("cannot read already closed request body")
 	}
 	if bb.bufOffset < len(bb.buf) {
 		n := copy(p, bb.buf[bb.bufOffset:])
@@ -865,15 +850,17 @@ func (bb *bufferedBody) Read(p []byte) (int, error) {
 }
 
 func (bb *bufferedBody) canRetry() bool {
-	return !bb.cannotRetry
+	if bb.r != nil {
+		return false
+	}
+	maxRetrySize := maxRequestBodySizeToRetry.IntN()
+	return len(bb.buf) == 0 || (maxRetrySize > 0 && len(bb.buf) <= maxRetrySize)
 }
 
 // Close implements io.Closer interface.
 func (bb *bufferedBody) Close() error {
 	bb.resetReader()
-	if bb.cannotRetry {
-		bb.bodyWasClosed = true
-	}
+	bb.cannotRetry = !bb.canRetry()
 	if bb.r != nil {
 		return bb.r.Close()
 	}

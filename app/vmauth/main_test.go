@@ -19,6 +19,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -544,6 +545,31 @@ requested_url={BACKEND}/path2/foo/?de=fg`
 	if n := retries.Load(); n != 2 {
 		t.Fatalf("unexpected number of retries; got %d; want 2", n)
 	}
+
+	// make sure that empty config value erases client extra filters and extra labels
+	cfgStr = `
+unauthorized_user:
+  url_prefix: {BACKEND}/foo?bar=baz&extra_filters[]=&extra_label=&extra_filters=`
+	requestURL = "http://some-host.com/abc/def?some_arg=some_value&extra_filters[]=baz&extra_label=tenant=admin&extra_filters=bar"
+	backendHandler = func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("Connection", "close")
+		h.Set("Foo", "bar")
+
+		var bb bytes.Buffer
+		if err := r.Header.Write(&bb); err != nil {
+			panic(fmt.Errorf("unexpected error when marshaling headers: %w", err))
+		}
+		fmt.Fprintf(w, "requested_url=http://%s%s\n%s", r.Host, r.URL, bb.String())
+	}
+	responseExpected = `
+statusCode=200
+Foo: bar
+requested_url={BACKEND}/foo/abc/def?bar=baz&extra_filters=&extra_filters%5B%5D=&extra_label=&some_arg=some_value
+Pass-Header: abc
+User-Agent: vmauth
+X-Forwarded-For: 12.34.56.78, 42.2.3.84`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
 }
 
 func TestJWTRequestHandler(t *testing.T) {
@@ -846,6 +872,30 @@ users:
     public_keys:
     - %q
   url_prefix: {BACKEND}/select/{{.MetricsTenant}}/?extra_label={{.MetricsExtraLabels}}&extra_filters={{.MetricsExtraFilters}}`, string(publicKeyPEM)),
+		request,
+		responseExpected,
+	)
+
+	// test header injection and URL templating with individual placeholders
+	request = httptest.NewRequest(`GET`, "http://some-host.com/api/v1/query", nil)
+	request.Header.Set(`Authorization`, `Bearer `+fullToken)
+	responseExpected = `
+statusCode=200
+path: /select/123/234/api/v1/query
+query:
+headers:
+    AccountID=123
+    ProjectID=234`
+	f(fmt.Sprintf(
+		`
+users:
+- jwt:
+    public_keys:
+    - %q
+  url_prefix: {BACKEND}/select/{{.MetricsAccountID}}/{{.MetricsProjectID}}
+  headers:
+  - "AccountID: {{.MetricsAccountID}}"
+  - "ProjectID: {{.MetricsProjectID}}"`, string(publicKeyPEM)),
 		request,
 		responseExpected,
 	)
@@ -1714,6 +1764,13 @@ func TestBufferRequestBody_Failure(t *testing.T) {
 		}
 	}()
 
+	defaultMaxRequestBodySizeToRetry := maxRequestBodySizeToRetry.String()
+	defer func() {
+		if err := maxRequestBodySizeToRetry.Set(defaultMaxRequestBodySizeToRetry); err != nil {
+			t.Fatalf("cannot reset maxRequestBodySizeToRetry: %s", err)
+		}
+	}()
+
 	defaultMaxQueueDuration := *maxQueueDuration
 	defer func() {
 		*maxQueueDuration = defaultMaxQueueDuration
@@ -1722,6 +1779,9 @@ func TestBufferRequestBody_Failure(t *testing.T) {
 	f := func(body *mockBody, expectedResponse string) {
 		t.Helper()
 
+		if err := maxRequestBodySizeToRetry.Set("0"); err != nil {
+			t.Fatalf("cannot set maxRequestBodySizeToRetry: %s", err)
+		}
 		if err := requestBufferSize.Set("2048"); err != nil {
 			t.Fatalf("cannot set requestBufferSize: %s", err)
 		}
@@ -1821,7 +1881,7 @@ func (r *mockBody) Read(p []byte) (n int, err error) {
 }
 
 func TestBufferedBody_RetrySuccess(t *testing.T) {
-	f := func(s string, maxBodySize int) {
+	f := func(s string, maxSizeToRetry, bufferSize int) {
 		t.Helper()
 
 		defaultRequestBufferSize := requestBufferSize.String()
@@ -1830,8 +1890,18 @@ func TestBufferedBody_RetrySuccess(t *testing.T) {
 				t.Fatalf("cannot reset requestBufferSize: %s", err)
 			}
 		}()
-		if err := requestBufferSize.Set(fmt.Sprintf("%d", maxBodySize)); err != nil {
+		if err := requestBufferSize.Set(strconv.Itoa(bufferSize)); err != nil {
 			t.Fatalf("cannot set requestBufferSize: %s", err)
+		}
+
+		defaultMaxRequestBodySizeToRetry := maxRequestBodySizeToRetry.String()
+		defer func() {
+			if err := maxRequestBodySizeToRetry.Set(defaultMaxRequestBodySizeToRetry); err != nil {
+				t.Fatalf("cannot reset maxRequestBodySizeToRetry: %s", err)
+			}
+		}()
+		if err := maxRequestBodySizeToRetry.Set(strconv.Itoa(maxSizeToRetry)); err != nil {
+			t.Fatalf("cannot set maxRequestBodySizeToRetry: %s", err)
 		}
 
 		ctx := context.Background()
@@ -1859,16 +1929,20 @@ func TestBufferedBody_RetrySuccess(t *testing.T) {
 		}
 	}
 
-	f("", 0)
-	f("", -1)
-	f("", 100)
-	f("foo", 100)
-	f("foobar", 100)
-	f(newTestString(1000), 1001)
+	f("", 0, 2000)
+	f("", 0, 0)
+	f("", -1, 2000)
+	f("", 100, 2000)
+	f("foo", 100, 2000)
+	f("foobar", 100, 2000)
+	f("foobar", 100, 0)
+	f("foobar", 100, -1)
+	f(newTestString(1000), 1001, 2000)
+	f(newTestString(1000), 1001, 500)
 }
 
 func TestBufferedBody_RetrySuccessPartialRead(t *testing.T) {
-	f := func(s string, maxBodySize int) {
+	f := func(s string, maxSizeToRetry, bufferSize int) {
 		t.Helper()
 
 		// Check the case with partial read
@@ -1878,8 +1952,18 @@ func TestBufferedBody_RetrySuccessPartialRead(t *testing.T) {
 				t.Fatalf("cannot reset requestBufferSize: %s", err)
 			}
 		}()
-		if err := requestBufferSize.Set(fmt.Sprintf("%d", maxBodySize)); err != nil {
+		if err := requestBufferSize.Set(strconv.Itoa(bufferSize)); err != nil {
 			t.Fatalf("cannot set requestBufferSize: %s", err)
+		}
+
+		defaultMaxRequestBodySizeToRetry := maxRequestBodySizeToRetry.String()
+		defer func() {
+			if err := maxRequestBodySizeToRetry.Set(defaultMaxRequestBodySizeToRetry); err != nil {
+				t.Fatalf("cannot reset maxRequestBodySizeToRetry: %s", err)
+			}
+		}()
+		if err := maxRequestBodySizeToRetry.Set(strconv.Itoa(maxSizeToRetry)); err != nil {
+			t.Fatalf("cannot set maxRequestBodySizeToRetry: %s", err)
 		}
 
 		ctx := context.Background()
@@ -1922,17 +2006,31 @@ func TestBufferedBody_RetrySuccessPartialRead(t *testing.T) {
 		}
 	}
 
-	f("", 0)
-	f("", -1)
-	f("", 100)
-	f("foo", 100)
-	f("foobar", 100)
-	f(newTestString(1000), 1001)
+	f("", 0, 2000)
+	f("", 0, 0)
+	f("", -1, 2000)
+	f("", 100, 2000)
+	f("foo", 100, 2000)
+	f("foobar", 100, 2000)
+	f("foobar", 100, 0)
+	f("foobar", 100, -1)
+	f(newTestString(1000), 1001, 2000)
+	f(newTestString(1000), 1001, 500)
 }
 
 func TestBufferedBody_RetryFailureTooBigBody(t *testing.T) {
-	f := func(s string, maxBodySize int) {
+	f := func(s string, maxSizeToRetry, bufferSize int) {
 		t.Helper()
+
+		defaultRequestBufferSize := requestBufferSize.String()
+		defer func() {
+			if err := requestBufferSize.Set(defaultRequestBufferSize); err != nil {
+				t.Fatalf("cannot reset requestBufferSize: %s", err)
+			}
+		}()
+		if err := requestBufferSize.Set(strconv.Itoa(bufferSize)); err != nil {
+			t.Fatalf("cannot set requestBufferSize: %s", err)
+		}
 
 		defaultMaxRequestBodySizeToRetry := maxRequestBodySizeToRetry.String()
 		defer func() {
@@ -1940,7 +2038,7 @@ func TestBufferedBody_RetryFailureTooBigBody(t *testing.T) {
 				t.Fatalf("cannot reset maxRequestBodySizeToRetry: %s", err)
 			}
 		}()
-		if err := maxRequestBodySizeToRetry.Set(fmt.Sprintf("%d", maxBodySize)); err != nil {
+		if err := maxRequestBodySizeToRetry.Set(strconv.Itoa(maxSizeToRetry)); err != nil {
 			t.Fatalf("cannot set maxRequestBodySizeToRetry: %s", err)
 		}
 
@@ -1985,12 +2083,17 @@ func TestBufferedBody_RetryFailureTooBigBody(t *testing.T) {
 	}
 
 	const maxBodySize = 1000
-	f(newTestString(maxBodySize+1), maxBodySize)
-	f(newTestString(2*maxBodySize), maxBodySize)
+	f(newTestString(maxBodySize+1), 0, 2*maxBodySize)
+	f(newTestString(maxBodySize+1), -1, 2*maxBodySize)
+	f(newTestString(maxBodySize+1), maxBodySize, 0)
+	f(newTestString(maxBodySize+1), maxBodySize, -1)
+	f(newTestString(maxBodySize+1), maxBodySize, maxBodySize)
+	f(newTestString(maxBodySize+1), maxBodySize, 2*maxBodySize)
+	f(newTestString(2*maxBodySize), maxBodySize, 0)
 }
 
-func TestBufferedBody_RetryFailureZeroOrNegativeMaxBodySize(t *testing.T) {
-	f := func(s string, maxBodySize int) {
+func TestBufferedBody_RetryDisabledByMaxRequestBodySizeToRetry(t *testing.T) {
+	f := func(s string, maxSizeToRetry, bufferSize int) {
 		t.Helper()
 
 		defaultRequestBufferSize := requestBufferSize.String()
@@ -1999,8 +2102,18 @@ func TestBufferedBody_RetryFailureZeroOrNegativeMaxBodySize(t *testing.T) {
 				t.Fatalf("cannot reset requestBufferSize: %s", err)
 			}
 		}()
-		if err := requestBufferSize.Set(fmt.Sprintf("%d", maxBodySize)); err != nil {
+		if err := requestBufferSize.Set(strconv.Itoa(bufferSize)); err != nil {
 			t.Fatalf("cannot set requestBufferSize: %s", err)
+		}
+
+		defaultMaxRequestBodySizeToRetry := maxRequestBodySizeToRetry.String()
+		defer func() {
+			if err := maxRequestBodySizeToRetry.Set(defaultMaxRequestBodySizeToRetry); err != nil {
+				t.Fatalf("cannot reset maxRequestBodySizeToRetry: %s", err)
+			}
+		}()
+		if err := maxRequestBodySizeToRetry.Set(strconv.Itoa(maxSizeToRetry)); err != nil {
+			t.Fatalf("cannot set maxRequestBodySizeToRetry: %s", err)
 		}
 
 		ctx := context.Background()
@@ -2009,7 +2122,8 @@ func TestBufferedBody_RetryFailureZeroOrNegativeMaxBodySize(t *testing.T) {
 			t.Fatalf("unexpected error: %s", err)
 		}
 		bb, ok := rb.(*bufferedBody)
-		canRetry := ok && bb.canRetry()
+		canRetry := !ok || bb.canRetry()
+
 		if canRetry {
 			t.Fatalf("canRetry() must return false before reading anything")
 		}
@@ -2025,19 +2139,19 @@ func TestBufferedBody_RetryFailureZeroOrNegativeMaxBodySize(t *testing.T) {
 		}
 
 		data, err = io.ReadAll(rb)
-		if err != nil {
-			t.Fatalf("unexpected error in io.ReadAll: %s", err)
+		if err == nil {
+			t.Fatalf("expecting non-nil error")
 		}
-		if len(data) > 0 {
-			t.Fatalf("unexpected non-empty data read\ngot\n%s", data)
+		if len(data) != 0 {
+			t.Fatalf("unexpected non-empty data read: %q", data)
 		}
 	}
 
-	f("foobar", 0)
-	f(newTestString(1000), 0)
+	f("foobar", 0, 2048)
+	f(newTestString(1000), 0, 2048)
 
-	f("foobar", -1)
-	f(newTestString(1000), -1)
+	f("foobar", -1, 2048)
+	f(newTestString(1000), -1, 2048)
 }
 
 func newTestString(sLen int) string {

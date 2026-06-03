@@ -1,6 +1,7 @@
 package logstorage
 
 import (
+	"strings"
 	"sync"
 	"unsafe"
 
@@ -48,15 +49,16 @@ func (hma *hitsMapAdaptive) reset() {
 	*hma = hitsMapAdaptive{}
 }
 
-func (hma *hitsMapAdaptive) init(concurrency uint, stateSizeBudget *int) {
+func (hma *hitsMapAdaptive) init(concurrency uint, filter string, stateSizeBudget *int) {
 	hma.reset()
 	hma.stateSizeBudget = stateSizeBudget
 	hma.concurrency = concurrency
+	hma.hm.filter = filter
 }
 
 func (hma *hitsMapAdaptive) clear() {
 	*hma.stateSizeBudget += hma.stateSize()
-	hma.init(hma.concurrency, hma.stateSizeBudget)
+	hma.init(hma.concurrency, hma.hm.filter, hma.stateSizeBudget)
 }
 
 func (hma *hitsMapAdaptive) stateSize() int {
@@ -151,7 +153,12 @@ func (hma *hitsMapAdaptive) probablyMoveToShards(a *chunkedAllocator) {
 }
 
 func (hma *hitsMapAdaptive) moveToShards(a *chunkedAllocator) {
-	hma.hmShards = a.newHitsMapShards(hma.concurrency)
+	shards := a.newHitsMapShards(hma.concurrency)
+	for i := range shards {
+		shards[i].filter = hma.hm.filter
+	}
+
+	hma.hmShards = shards
 
 	for n, pHits := range hma.hm.u64 {
 		hm := hma.getShardByUint64(n)
@@ -182,6 +189,12 @@ func (hma *hitsMapAdaptive) getShardByString(v []byte) *hitsMap {
 }
 
 type hitsMap struct {
+	// if the filter is non-empty then only the values containing the given filter substring are taken into account.
+	filter string
+
+	// tmpBuf is used in needSkipKey*()
+	tmpBuf []byte
+
 	u64        map[uint64]*uint64
 	negative64 map[uint64]*uint64
 	strings    map[string]*uint64
@@ -212,7 +225,39 @@ func (hm *hitsMap) stateSize() int {
 	return size
 }
 
+func (hm *hitsMap) needSkipKeyInt64(n int64) bool {
+	if hm.filter == "" {
+		return false
+	}
+
+	hm.tmpBuf = marshalInt64String(hm.tmpBuf[:0], n)
+	key := bytesutil.ToUnsafeString(hm.tmpBuf)
+	return !strings.Contains(key, hm.filter)
+}
+
+func (hm *hitsMap) needSkipKeyUint64(n uint64) bool {
+	if hm.filter == "" {
+		return false
+	}
+
+	hm.tmpBuf = marshalUint64String(hm.tmpBuf[:0], n)
+	key := bytesutil.ToUnsafeString(hm.tmpBuf)
+	return hm.needSkipKeyString(key)
+}
+
+func (hm *hitsMap) needSkipKeyString(key string) bool {
+	if hm.filter == "" {
+		return false
+	}
+
+	return !strings.Contains(key, hm.filter)
+}
+
 func (hm *hitsMap) updateStateUint64(a *chunkedAllocator, n, hits uint64) int {
+	if hm.needSkipKeyUint64(n) {
+		return 0
+	}
+
 	pHits := hm.u64[n]
 	if pHits != nil {
 		*pHits += hits
@@ -236,6 +281,10 @@ func (hm *hitsMap) setStateUint64(n uint64, pHits *uint64) int {
 }
 
 func (hm *hitsMap) updateStateNegativeInt64(a *chunkedAllocator, n int64, hits uint64) int {
+	if hm.needSkipKeyInt64(n) {
+		return 0
+	}
+
 	pHits := hm.negative64[uint64(n)]
 	if pHits != nil {
 		*pHits += hits
@@ -259,7 +308,12 @@ func (hm *hitsMap) setStateNegativeInt64(n int64, pHits *uint64) int {
 }
 
 func (hm *hitsMap) updateStateString(a *chunkedAllocator, key []byte, hits uint64) int {
-	pHits := hm.strings[string(key)]
+	keyStr := bytesutil.ToUnsafeString(key)
+	if hm.needSkipKeyString(keyStr) {
+		return 0
+	}
+
+	pHits := hm.strings[keyStr]
 	if pHits != nil {
 		*pHits += hits
 		return 0

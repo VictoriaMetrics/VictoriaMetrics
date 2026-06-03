@@ -96,8 +96,8 @@ func ParseTenantID(s string) (TenantID, error) {
 		return tenantID, nil
 	}
 
-	n := strings.IndexByte(s, ':')
-	if n < 0 {
+	before, after, ok := strings.Cut(s, ":")
+	if !ok {
 		account, err := getUint32FromString(s)
 		if err != nil {
 			return tenantID, fmt.Errorf("cannot parse accountID from %q: %w", s, err)
@@ -107,13 +107,13 @@ func ParseTenantID(s string) (TenantID, error) {
 		return tenantID, nil
 	}
 
-	account, err := getUint32FromString(s[:n])
+	account, err := getUint32FromString(before)
 	if err != nil {
 		return tenantID, fmt.Errorf("cannot parse accountID part from %q: %w", s, err)
 	}
 	tenantID.AccountID = account
 
-	project, err := getUint32FromString(s[n+1:])
+	project, err := getUint32FromString(after)
 	if err != nil {
 		return tenantID, fmt.Errorf("cannot parse projectID part from %q: %w", s, err)
 	}

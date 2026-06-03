@@ -3,8 +3,6 @@ package logstorage
 import (
 	"fmt"
 	"strings"
-
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
 )
 
 // filterEqualsCommonCase matches words and phrases where every captial letter
@@ -14,10 +12,10 @@ import (
 type filterEqualsCommonCase struct {
 	phrases []string
 
-	equalsAny *filterIn
+	equalsAny filterIn
 }
 
-func newFilterEqualsCommonCase(fieldName string, phrases []string) (*filterEqualsCommonCase, error) {
+func newFilterEqualsCommonCase(fieldName string, phrases []string) (*filterGeneric, error) {
 	commonCasePhrases, err := getCommonCasePhrases(phrases)
 	if err != nil {
 		return nil, err
@@ -25,13 +23,11 @@ func newFilterEqualsCommonCase(fieldName string, phrases []string) (*filterEqual
 
 	fi := &filterEqualsCommonCase{
 		phrases: phrases,
-		equalsAny: &filterIn{
-			fieldName: fieldName,
-		},
 	}
 	fi.equalsAny.values.values = commonCasePhrases
 
-	return fi, nil
+	fg := newFilterGeneric(fieldName, fi)
+	return fg, nil
 }
 
 func (fi *filterEqualsCommonCase) String() string {
@@ -40,21 +36,17 @@ func (fi *filterEqualsCommonCase) String() string {
 		a[i] = quoteTokenIfNeeded(phrase)
 	}
 	phrases := strings.Join(a, ",")
-	return fmt.Sprintf("%sequals_common_case(%s)", quoteFieldNameIfNeeded(fi.equalsAny.fieldName), phrases)
+	return fmt.Sprintf("equals_common_case(%s)", phrases)
 }
 
-func (fi *filterEqualsCommonCase) updateNeededFields(pf *prefixfilter.Filter) {
-	fi.equalsAny.updateNeededFields(pf)
+func (fi *filterEqualsCommonCase) matchRowByField(fields []Field, fieldName string) bool {
+	return fi.equalsAny.matchRowByField(fields, fieldName)
 }
 
-func (fi *filterEqualsCommonCase) matchRow(fields []Field) bool {
-	return fi.equalsAny.matchRow(fields)
+func (fi *filterEqualsCommonCase) applyToBlockResultByField(br *blockResult, bm *bitmap, fieldName string) {
+	fi.equalsAny.applyToBlockResultByField(br, bm, fieldName)
 }
 
-func (fi *filterEqualsCommonCase) applyToBlockResult(br *blockResult, bm *bitmap) {
-	fi.equalsAny.applyToBlockResult(br, bm)
-}
-
-func (fi *filterEqualsCommonCase) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
-	fi.equalsAny.applyToBlockSearch(bs, bm)
+func (fi *filterEqualsCommonCase) applyToBlockSearchByField(bs *blockSearch, bm *bitmap, fieldName string) {
+	fi.equalsAny.applyToBlockSearchByField(bs, bm, fieldName)
 }

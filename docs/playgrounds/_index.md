@@ -10,5 +10,11 @@ tags:
   - logs
   - traces
   - playground
+aliases:
+  - /playgrounds/victoriametrics/
+  - /playgrounds/victorialogs/
+  - /playgrounds/victoriatraces/
+  - /playgrounds/cloud/
+  - /playgrounds/vmanomaly/
 ---
 {{% content "README.md" %}}

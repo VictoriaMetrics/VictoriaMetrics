@@ -29,7 +29,7 @@ OPTIONS:
    --prom-filter-time-end value                                       The time filter in RFC3339 format to select timeseries with timestamp equal or lower than provided value. E.g. '2020-01-01T20:07:00Z'
    --prom-filter-label value                                          Prometheus label name to filter timeseries by. E.g. '__name__' will filter timeseries by name.
    --prom-filter-label-value value                                    Prometheus regular expression to filter label from "prom-filter-label" flag. (default: ".*")
-   --prom-tmp-dir-path value                                          Path to directory to be used for temporary files. (default: "/tmp")
+   --prom-tmp-dir-path value                                          Path to directory to be used for temporary files. (default: os.TempDir())
    --vm-addr value                                                    VictoriaMetrics address to perform import requests. 
       Should be the same as --httpListenAddr value for single-node version or vminsert component. 
       When importing into the clustered version do not forget to set additionally --vm-account-id flag. 
@@ -44,7 +44,7 @@ OPTIONS:
    --vm-compress                                      Whether to apply gzip compression to import requests (default: true)
    --vm-batch-size value                              How many samples importer collects before sending the import request to VM (default: 200000)
    --vm-significant-figures value                     The number of significant figures to leave in metric values before importing. See https://en.wikipedia.org/wiki/Significant_figures. Zero value saves all the significant figures. This option may be used for increasing on-disk compression level for the stored metrics. See also --vm-round-digits option (default: 0)
-   --vm-round-digits value                            Round metric values to the given number of decimal digits after the point. This option may be used for increasing on-disk compression level for the stored metrics (default: 100)
+   --vm-round-digits value                            Round metric values to the given number of decimal digits after the point. This option may be used for increasing on-disk compression level for the stored metrics. See also --vm-significant-figures option (default: 100)
    --vm-extra-label value [ --vm-extra-label value ]  Extra labels, that will be added to imported timeseries. In case of collision, label value defined by flag will have priority. Flag can be set multiple times, to add few additional labels.
    --vm-rate-limit value                              Optional data transfer rate limit in bytes per second.
       By default, the rate limit is disabled. It can be useful for limiting load on configured via '--vm-addr' destination. (default: 0)

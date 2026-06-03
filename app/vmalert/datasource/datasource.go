@@ -87,6 +87,7 @@ func (m *Metric) DelLabel(key string) {
 	for i, l := range m.Labels {
 		if l.Name == key {
 			m.Labels = append(m.Labels[:i], m.Labels[i+1:]...)
+			break
 		}
 	}
 }

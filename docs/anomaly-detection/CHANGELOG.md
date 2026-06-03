@@ -14,6 +14,20 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.29.4
+Released: 2026-05-15
+
+- IMPROVEMENT: Optimized [BacktestingScheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#backtesting-scheduler) exact mode for [online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models) (which are also used in [UI](https://docs.victoriametrics.com/anomaly-detection/ui/)-triggered tasks), leading to 2-200x faster results and more responsive UI interactions.
+
+- UI: Updated [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/) from [v1.6.1](https://docs.victoriametrics.com/anomaly-detection/ui/#v161) to [v1.7.0](https://docs.victoriametrics.com/anomaly-detection/ui/#v170), see respective [release notes](https://docs.victoriametrics.com/anomaly-detection/ui/#v170) for details. Notable changes include iterative anomaly detection with progress bar, model inference speedups, improved AI Copilot UX and various bug fixes.
+
+- BUGFIX: Made model-level `queries` and `schedulers` attachment semantics explicit and safer. Omitting these args still keeps the legacy default of attaching a model to all queries or schedulers with a warning, while `queries: null`, `queries: []`, `schedulers: null`, and `schedulers: []` now mean the model is intentionally unattached and will be dropped from active execution. Use `queries: all` or `schedulers: all` to request all attachments explicitly. Orphan models, queries, and schedulers are logged and removed during config validation, including hot reload.
+
+## v1.29.3
+Released: 2026-04-16
+
+- UI: Updated [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/) from [v1.6.0](https://docs.victoriametrics.com/anomaly-detection/ui/#v160) to [v1.6.1](https://docs.victoriametrics.com/anomaly-detection/ui/#v161), see respective [release notes](https://docs.victoriametrics.com/anomaly-detection/ui/#v161) for details.
+
 ## v1.29.2
 Released: 2026-04-02
 

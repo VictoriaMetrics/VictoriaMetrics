@@ -48,7 +48,7 @@ func TestSingleMetricNamesStats(t *testing.T) {
 			{MetricName: "metric_name_3"},
 		},
 	}
-	got := sut.APIV1StatusMetricNamesStats(t, "", "", "", apptest.QueryOpts{})
+	got := sut.PrometheusAPIV1StatusMetricNamesStats(t, "", "", "", apptest.QueryOpts{})
 	if diff := cmp.Diff(expected, got); diff != "" {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
@@ -63,7 +63,7 @@ func TestSingleMetricNamesStats(t *testing.T) {
 			{MetricName: "metric_name_3", QueryRequestsCount: 1},
 		},
 	}
-	got = sut.APIV1StatusMetricNamesStats(t, "", "", "", apptest.QueryOpts{})
+	got = sut.PrometheusAPIV1StatusMetricNamesStats(t, "", "", "", apptest.QueryOpts{})
 	if diff := cmp.Diff(expected, got); diff != "" {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
@@ -90,7 +90,7 @@ func TestSingleMetricNamesStats(t *testing.T) {
 		},
 	}
 	expectedStatsResponse.Sort()
-	gotStatus := sut.APIV1StatusTSDB(t, "", date, "", apptest.QueryOpts{})
+	gotStatus := sut.PrometheusAPIV1StatusTSDB(t, "", date, "", apptest.QueryOpts{})
 	if diff := cmp.Diff(expectedStatsResponse, gotStatus, tsdbMetricNameEntryCmpOpts); diff != "" {
 		t.Errorf("unexpected APIV1StatusTSDB response (-want, +got):\n%s", diff)
 	}
@@ -105,7 +105,7 @@ func TestSingleMetricNamesStats(t *testing.T) {
 			{MetricName: "metric_name_3", QueryRequestsCount: 1},
 		},
 	}
-	got = sut.APIV1StatusMetricNamesStats(t, "", "", "", apptest.QueryOpts{})
+	got = sut.PrometheusAPIV1StatusMetricNamesStats(t, "", "", "", apptest.QueryOpts{})
 	if diff := cmp.Diff(expected, got); diff != "" {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
@@ -118,17 +118,17 @@ func TestSingleMetricNamesStats(t *testing.T) {
 			{MetricName: "metric_name_3", QueryRequestsCount: 1},
 		},
 	}
-	got = sut.APIV1StatusMetricNamesStats(t, "", "2", "", apptest.QueryOpts{})
+	got = sut.PrometheusAPIV1StatusMetricNamesStats(t, "", "2", "", apptest.QueryOpts{})
 	if diff := cmp.Diff(expected, got); diff != "" {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
 
 	// reset state and check empty request response
-	sut.APIV1AdminStatusMetricNamesStatsReset(t, apptest.QueryOpts{})
+	sut.PrometheusAPIV1AdminStatusMetricNamesStatsReset(t, apptest.QueryOpts{})
 	expected = apptest.MetricNamesStatsResponse{
 		Records: []apptest.MetricNamesStatsRecord{},
 	}
-	got = sut.APIV1StatusMetricNamesStats(t, "", "", "", apptest.QueryOpts{})
+	got = sut.PrometheusAPIV1StatusMetricNamesStats(t, "", "", "", apptest.QueryOpts{})
 	if diff := cmp.Diff(expected, got); diff != "" {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
@@ -158,7 +158,7 @@ func TestClusterMetricNamesStats(t *testing.T) {
 		fmt.Sprintf("-storageNode=%s,%s", vmstorage1.VmselectAddr(), vmstorage2.VmselectAddr()),
 	})
 	// verify empty stats
-	resp := vmselect.MetricNamesStats(t, "", "", "", apptest.QueryOpts{Tenant: "0:0"})
+	resp := vmselect.PrometheusAPIV1StatusMetricNamesStats(t, "", "", "", apptest.QueryOpts{Tenant: "0:0"})
 	if len(resp.Records) != 0 {
 		t.Fatalf("unexpected resp Records: %d, want: %d", len(resp.Records), 0)
 	}
@@ -198,7 +198,7 @@ func TestClusterMetricNamesStats(t *testing.T) {
 				{MetricName: "metric_name_3"},
 			},
 		}
-		gotStats := vmselect.MetricNamesStats(t, "", "", "", apptest.QueryOpts{Tenant: tenantID})
+		gotStats := vmselect.PrometheusAPIV1StatusMetricNamesStats(t, "", "", "", apptest.QueryOpts{Tenant: tenantID})
 		if diff := cmp.Diff(expected, gotStats); diff != "" {
 			t.Errorf("unexpected response (-want, +got):\n%s", diff)
 		}
@@ -216,7 +216,7 @@ func TestClusterMetricNamesStats(t *testing.T) {
 				{MetricName: "metric_name_1", QueryRequestsCount: 3},
 			},
 		}
-		gotStats = vmselect.MetricNamesStats(t, "", "", "", apptest.QueryOpts{Tenant: tenantID})
+		gotStats = vmselect.PrometheusAPIV1StatusMetricNamesStats(t, "", "", "", apptest.QueryOpts{Tenant: tenantID})
 		if diff := cmp.Diff(expected, gotStats); diff != "" {
 			t.Errorf("unexpected response tenant: %s (-want, +got):\n%s", tenantID, diff)
 		}
@@ -243,9 +243,9 @@ func TestClusterMetricNamesStats(t *testing.T) {
 			},
 		}
 		expectedStatsResponse.Sort()
-		gotStatus := vmselect.APIV1StatusTSDB(t, "", date, "", apptest.QueryOpts{Tenant: tenantID})
+		gotStatus := vmselect.PrometheusAPIV1StatusTSDB(t, "", date, "", apptest.QueryOpts{Tenant: tenantID})
 		if diff := cmp.Diff(expectedStatsResponse, gotStatus, tsdbMetricNameEntryCmpOpts); diff != "" {
-			t.Errorf("unexpected APIV1StatusTSDB response tenant: %s (-want, +got):\n%s", tenantID, diff)
+			t.Errorf("unexpected TSDB status for tenant %s (-want, +got):\n%s", tenantID, diff)
 		}
 	}
 
@@ -258,14 +258,14 @@ func TestClusterMetricNamesStats(t *testing.T) {
 			{MetricName: "metric_name_1", QueryRequestsCount: 9},
 		},
 	}
-	gotStats := vmselect.MetricNamesStats(t, "", "", "", apptest.QueryOpts{Tenant: "multitenant"})
+	gotStats := vmselect.PrometheusAPIV1StatusMetricNamesStats(t, "", "", "", apptest.QueryOpts{Tenant: "multitenant"})
 	if diff := cmp.Diff(expected, gotStats); diff != "" {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
 
 	// reset cache and check empty state
-	vmselect.MetricNamesStatsReset(t, apptest.QueryOpts{})
-	resp = vmselect.MetricNamesStats(t, "", "", "", apptest.QueryOpts{Tenant: "multitenant"})
+	vmselect.PrometheusAPIV1AdminStatusMetricNamesStatsReset(t, apptest.QueryOpts{})
+	resp = vmselect.PrometheusAPIV1StatusMetricNamesStats(t, "", "", "", apptest.QueryOpts{Tenant: "multitenant"})
 	if len(resp.Records) != 0 {
 		t.Fatalf("want 0 records, got: %d", len(resp.Records))
 	}

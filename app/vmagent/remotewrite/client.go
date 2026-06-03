@@ -2,6 +2,7 @@ package remotewrite
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -59,6 +60,8 @@ var (
 		"Multiple headers must be delimited by '^^': -remoteWrite.headers='header1:value1^^header2:value2'")
 
 	basicAuthUsername     = flagutil.NewArrayString("remoteWrite.basicAuth.username", "Optional basic auth username to use for the corresponding -remoteWrite.url")
+	basicAuthUsernameFile = flagutil.NewArrayString("remoteWrite.basicAuth.usernameFile", "Optional path to basic auth username to use for the corresponding -remoteWrite.url. "+
+		"The file is re-read every second")
 	basicAuthPassword     = flagutil.NewArrayString("remoteWrite.basicAuth.password", "Optional basic auth password to use for the corresponding -remoteWrite.url")
 	basicAuthPasswordFile = flagutil.NewArrayString("remoteWrite.basicAuth.passwordFile", "Optional path to basic auth password to use for the corresponding -remoteWrite.url. "+
 		"The file is re-read every second")
@@ -223,12 +226,14 @@ func getAuthConfig(argIdx int) (*promauth.Config, error) {
 		hdrs = strings.Split(headersValue, "^^")
 	}
 	username := basicAuthUsername.GetOptionalArg(argIdx)
+	usernameFile := basicAuthUsernameFile.GetOptionalArg(argIdx)
 	password := basicAuthPassword.GetOptionalArg(argIdx)
 	passwordFile := basicAuthPasswordFile.GetOptionalArg(argIdx)
 	var basicAuthCfg *promauth.BasicAuthConfig
-	if username != "" || password != "" || passwordFile != "" {
+	if username != "" || usernameFile != "" || password != "" || passwordFile != "" {
 		basicAuthCfg = &promauth.BasicAuthConfig{
 			Username:     username,
+			UsernameFile: usernameFile,
 			Password:     promauth.NewSecret(password),
 			PasswordFile: passwordFile,
 		}
@@ -290,7 +295,7 @@ func getAWSAPIConfig(argIdx int) (*awsapi.Config, error) {
 	accessKey := awsAccessKey.GetOptionalArg(argIdx)
 	secretKey := awsSecretKey.GetOptionalArg(argIdx)
 	service := awsService.GetOptionalArg(argIdx)
-	cfg, err := awsapi.NewConfig(ec2Endpoint, stsEndpoint, region, roleARN, accessKey, secretKey, service)
+	cfg, err := awsapi.NewConfig(ec2Endpoint, stsEndpoint, region, roleARN, accessKey, secretKey, service, "")
 	if err != nil {
 		return nil, err
 	}
@@ -305,11 +310,6 @@ func (c *client) runWorker() {
 		block, ok = c.fq.MustReadBlock(block[:0])
 		if !ok {
 			return
-		}
-		if len(block) == 0 {
-			// skip empty data blocks from sending
-			// see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6241
-			continue
 		}
 		go func() {
 			startTime := time.Now()
@@ -326,15 +326,20 @@ func (c *client) runWorker() {
 			c.fq.MustWriteBlockIgnoreDisabledPQ(block)
 			return
 		case <-c.stopCh:
-			// c must be stopped. Wait for a while in the hope the block will be sent.
-			graceDuration := 5 * time.Second
+			// c must be stopped. Wait up to 5 seconds for the in-flight request to complete.
+			// If it succeeds, drain the remaining in-memory queue before returning.
+			stopCtx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+			defer cancel()
+
 			select {
 			case ok := <-ch:
 				if !ok {
 					// Return unsent block to the queue.
 					c.fq.MustWriteBlockIgnoreDisabledPQ(block)
+				} else {
+					c.drainInMemoryQueue(stopCtx, block[:0])
 				}
-			case <-time.After(graceDuration):
+			case <-stopCtx.Done():
 				// Return unsent block to the queue.
 				c.fq.MustWriteBlockIgnoreDisabledPQ(block)
 			}
@@ -466,7 +471,7 @@ again:
 				goto again
 			}
 
-			logger.Warnf("failed to repack zstd block (%s bytes) to snappy: %s; The block will be rejected. "+
+			logger.Warnf("failed to repack zstd block (%d bytes) to snappy: %s; The block will be rejected. "+
 				"Possible cause: ungraceful shutdown leading to persisted queue corruption.",
 				zstdBlockLen, err)
 		}
@@ -502,6 +507,32 @@ again:
 	}
 	c.retriesCount.Inc()
 	goto again
+}
+
+func (c *client) drainInMemoryQueue(stopCtx context.Context, block []byte) {
+	var ok bool
+	for {
+		select {
+		case <-stopCtx.Done():
+			return
+		default:
+		}
+
+		block, ok = c.fq.MustReadInMemoryBlock(block[:0])
+		if !ok {
+			// The in memory queue has already been drained,
+			// or persisted queue is being used.
+			// In this case it is guaranteed that fq will be empty
+			return
+		}
+
+		// at this stage c.stopCh should be closed
+		// so sendBlock function should not perform retries
+		if ok := c.sendBlock(block); !ok {
+			c.fq.MustWriteBlockIgnoreDisabledPQ(block)
+			return
+		}
+	}
 }
 
 var remoteWriteRejectedLogger = logger.WithThrottler("remoteWriteRejected", 5*time.Second)

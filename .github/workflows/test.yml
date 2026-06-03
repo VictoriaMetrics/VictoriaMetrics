@@ -18,8 +18,7 @@ on:
       - 'go.*'
       - '.github/workflows/main.yml'
 
-permissions:
-  contents: read
+permissions: {}
 
 concurrency:
   cancel-in-progress: true
@@ -29,14 +28,16 @@ concurrency:
 jobs:
   lint:
     name: lint
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - name: Code checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
       - name: Setup Go
         id: go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c  # v6.4.0
         with:
           cache-dependency-path: |
             go.sum
@@ -47,7 +48,7 @@ jobs:
       - run: go version
 
       - name: Cache golangci-lint
-        uses: actions/cache@v4
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
         with:
           path: |
             ~/.cache/golangci-lint
@@ -61,22 +62,24 @@ jobs:
 
   unit:
     name: unit
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
         scenario:
-          - 'test-full'
-          - 'test-full-386'
+          - 'test'
+          - 'test-386'
           - 'test-pure'
 
     steps:
       - name: Code checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
       - name: Setup Go
         id: go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c  # v6.4.0
         with:
           cache-dependency-path: |
             go.sum
@@ -88,22 +91,19 @@ jobs:
       - name: Run tests
         run: make ${{ matrix.scenario}}
 
-      - name: Publish coverage
-        uses: codecov/codecov-action@v6
-        with:
-          files: ./coverage.txt
-
   apptest:
     name: apptest
+    permissions:
+      contents: read
     runs-on: apptest
 
     steps:
       - name: Code checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
       - name: Setup Go
         id: go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c  # v6.4.0
         with:
           cache-dependency-path: |
             go.sum

@@ -9,16 +9,17 @@ import (
 )
 
 func BenchmarkFederate(b *testing.B) {
+
 	rs := &netstorage.Result{
 		MetricName: storage.MetricName{
-			MetricGroup: []byte("foo_bar_bazaaaa_total"),
+			MetricGroup: []byte("foo_bar_?_._bazaaaa_total"),
 			Tags: []storage.Tag{
 				{
-					Key:   []byte("instance"),
+					Key:   []byte("instance:job"),
 					Value: []byte("foobarbaz:2344"),
 				},
 				{
-					Key:   []byte("job"),
+					Key:   []byte("job.name"),
 					Value: []byte("aaabbbccc"),
 				},
 			},
@@ -27,12 +28,22 @@ func BenchmarkFederate(b *testing.B) {
 		Timestamps: []int64{1234567890},
 	}
 
-	b.ReportAllocs()
-	b.RunParallel(func(pb *testing.PB) {
-		var bb bytes.Buffer
-		for pb.Next() {
-			bb.Reset()
-			WriteFederate(&bb, rs)
-		}
-	})
+	f := func(name, escapeScheme string) {
+		b.Helper()
+
+		b.Run(name, func(b *testing.B) {
+			b.ReportAllocs()
+			b.RunParallel(func(pb *testing.PB) {
+				var bb bytes.Buffer
+				for pb.Next() {
+					bb.Reset()
+					WriteFederate(&bb, rs, escapeScheme)
+				}
+			})
+		})
+	}
+
+	f("without escape", "")
+	f("allow-utf-8", federateEscapeSchemeUTF8)
+	f("legacy-underscore", federateEscapeSchemeUnderscore)
 }

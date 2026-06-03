@@ -3,6 +3,7 @@ package logstorage
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -32,6 +33,17 @@ func (f *Field) Reset() {
 func (f *Field) String() string {
 	x := f.marshalToJSON(nil)
 	return string(x)
+}
+
+func (f *Field) equal(other *Field) bool {
+	return f.Name == other.Name && f.Value == other.Value
+}
+
+func (f *Field) less(other *Field) bool {
+	if f.Name != other.Name {
+		return f.Name < other.Name
+	}
+	return f.Value < other.Value
 }
 
 func (f *Field) marshal(dst []byte, marshalFieldName bool) []byte {
@@ -93,6 +105,39 @@ func (f *Field) marshalToLogfmt(dst []byte) []byte {
 		dst = append(dst, f.Value...)
 	}
 	return dst
+}
+
+func (f *Field) marshalToStreamTag(dst []byte) []byte {
+	dst = append(dst, f.Name...)
+	dst = append(dst, '=')
+	dst = strconv.AppendQuote(dst, f.Value)
+	return dst
+}
+
+func (f *Field) indexdbMarshal(dst []byte) []byte {
+	dst = marshalTagValue(dst, f.Name)
+	dst = marshalTagValue(dst, f.Value)
+	return dst
+}
+
+func (f *Field) indexdbUnmarshal(src, buf []byte) ([]byte, []byte, error) {
+	var err error
+
+	bufLen := len(buf)
+	src, buf, err = unmarshalTagValue(buf, src)
+	if err != nil {
+		return src, buf, fmt.Errorf("cannot unmarshal key: %w", err)
+	}
+	f.Name = bytesutil.ToUnsafeString(buf[bufLen:])
+
+	bufLen = len(buf)
+	src, buf, err = unmarshalTagValue(buf, src)
+	if err != nil {
+		return src, buf, fmt.Errorf("cannot unmarshal value: %w", err)
+	}
+	f.Value = bytesutil.ToUnsafeString(buf[bufLen:])
+
+	return src, buf, nil
 }
 
 func getFieldValueByName(fields []Field, name string) string {
@@ -302,7 +347,7 @@ func (rs *rows) skipRowsByDropFilter(dropFilter *partitionSearchOptions, dropFil
 		}
 
 		if dropFilterFields.MatchString("_time") {
-			bb.B = marshalTimestampISO8601String(bb.B[:0], srcTimestamp)
+			bb.B = marshalTimestampRFC3339NanoString(bb.B[:0], srcTimestamp)
 			tmpFields.Add("_time", bytesutil.ToUnsafeString(bb.B))
 		}
 
