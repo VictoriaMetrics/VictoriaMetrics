@@ -403,7 +403,7 @@ unauthorized_user:
 	}
 	responseExpected = `
 statusCode=400
-missing route for "http://some-host.com/abc?de=fg"`
+user unauthorized missing route for "http://some-host.com/abc?de=fg"`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 
 	// missing default_url and default url_prefix for unauthorized user with dump_request_on_errors enabled
@@ -419,7 +419,7 @@ unauthorized_user:
 	}
 	responseExpected = `
 statusCode=400
-missing route for "http://some-host.com/abc?de=fg" (host: "some-host.com"; path: "/abc"; args: "de=fg"; headers:Connection: Some-Header,Other-Header
+user unauthorized missing route for "http://some-host.com/abc?de=fg" (host: "some-host.com"; path: "/abc"; args: "de=fg"; headers:Connection: Some-Header,Other-Header
 Pass-Header: abc
 Some-Header: foobar
 X-Forwarded-For: 12.34.56.78

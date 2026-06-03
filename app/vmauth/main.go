@@ -317,7 +317,7 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tk
 	defer ui.endConcurrencyLimit()
 
 	// Process the request.
-	processRequest(w, r, ui, tkn)
+	processRequest(w, r, ui, tkn, userName)
 }
 
 func beginConcurrencyLimit(ctx context.Context) error {
@@ -391,7 +391,7 @@ func bufferRequestBody(ctx context.Context, r io.ReadCloser, userName string) (i
 	return bb, nil
 }
 
-func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tkn *jwt.Token) {
+func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tkn *jwt.Token, userName string) {
 	u := normalizeURL(r.URL)
 	up, hc := ui.getURLPrefixAndHeaders(u, r.Host, r.Header)
 	isDefault := false
@@ -409,7 +409,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tkn *j
 			if ui.DumpRequestOnErrors {
 				di = debugInfo(u, r)
 			}
-			httpserver.Errorf(w, r, "user %s missing route for %q%s", ui.name(), u.String(), di)
+			httpserver.Errorf(w, r, "user %s missing route for %q%s", userName, u.String(), di)
 			return
 		}
 		up, hc = ui.DefaultURL, ui.HeadersConf
