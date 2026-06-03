@@ -409,7 +409,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tkn *j
 			if ui.DumpRequestOnErrors {
 				di = debugInfo(u, r)
 			}
-			httpserver.Errorf(w, r, "missing route for %q%s", u.String(), di)
+			httpserver.Errorf(w, r, "user %s missing route for %q%s", ui.name(), u.String(), di)
 			return
 		}
 		up, hc = ui.DefaultURL, ui.HeadersConf
