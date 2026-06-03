@@ -193,10 +193,10 @@ We'll use `vmagent` to route incoming metrics to the correct retention group. Fo
 
 | `retention` label | Storage Group |
 | ----------------| --------------|
-| "3mo"           | `vmcluster-a`   | 
-| "1yr"           | `vmcluster-b`   | 
-| "3yr"           | `vmcluster-c`   | 
-| (not set)       | `vmcluster-c`   | 
+| `"3mo"`         | `vmcluster-a`   | 
+| `"1yr"`         | `vmcluster-b`   | 
+| `"3yr"`         | `vmcluster-c`   | 
+
 
 Create the values file for vmagent:
 
@@ -205,40 +205,93 @@ cat <<EOF >vmagent.yaml
 service:
   enabled: true
 remoteWrite:
-  # Group A
+  # Group A: receives metrics with retention="3mo"
   - url: http://vmcluster-a-victoria-metrics-cluster-vminsert:8480/insert/0/prometheus/api/v1/write
     urlRelabelConfig:
       - action: keep
         source_labels: [retention]
         regex: "3mo"
-  # Group B
+  # Group B: receives metrics with retention="1yr"
   - url: http://vmcluster-b-victoria-metrics-cluster-vminsert:8480/insert/0/prometheus/api/v1/write
     urlRelabelConfig:
       - action: keep
         source_labels: [retention]
         regex: "1yr"
-  # Group C
+  # Group C: receives metrics with retention="3yr"
   - url: http://vmcluster-c-victoria-metrics-cluster-vminsert:8480/insert/0/prometheus/api/v1/write
     urlRelabelConfig:
       - action: keep
         source_labels: [retention]
         regex: "3yr"
-  # fallback route: catch anything that didn't match so far (send to group C)
-  - url: http://vmcluster-c-victoria-metrics-cluster-vminsert:8480/insert/0/prometheus/api/v1/write
 EOF
 ```
 
-And install the release with:
+> Two important notes on scraping:
+> - Metrics without a matching `retention` label are silently dropped by the `keep` rules. You must ensure every metric gets the label or use a different routing configuration.
+> - The [scrape interval](https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs) should match the `dedup.minScrapeInterval` defined in the vmstorage nodes.
+`
+
+Now deploy the vmagent release:
 
 ```shell
 helm upgrade --install vmagent vm/victoria-metrics-agent -f vmagent.yaml
 ```
 
+Wait for vmagent to become ready:
+
+```shell
+kubectl rollout status deploy/vmagent-victoria-metrics-agent
+```
+
+### Step 4: Verification
+
+We can send test data to verify data is flowing to the correct storage group.
+
+First, port-forward vmagent and vmselect:
+
+```shell
+VMAGENT_SVC=$(kubectl get svc -l app.kubernetes.io/instance=vmagent -o jsonpath='{.items[0].metadata.name}')
+kubectl port-forward "svc/$VMAGENT_SVC" 8429 &
+
+VMSELECT_SVC=$(kubectl get svc -l app.kubernetes.io/instance=vmselect -o jsonpath='{.items[0].metadata.name}')
+kubectl port-forward "svc/$VMSELECT_SVC" 8481 &
+```
+
+Send test metrics directly to vmagent's HTTP endpoint to exercise all three retention labels:
+
+```shell
+POD=$(kubectl get pod -l app.kubernetes.io/instance=vmagent -o jsonpath='{.items[0].metadata.name}')
+
+for retention in 3mo 1yr 3yr; do
+  kubectl exec "$POD" -- wget -qO- --post-data="test_routing{retention=\"${retention}\"} 1.0" \
+    "http://127.0.0.1:8429/api/v1/import/prometheus"
+done
+```
+
+Query the data back from vmselect (it may take around 30-60 seconds for new data to be available for queries):
+
+```shell
+for retention in 3mo 1yr 3yr; do
+  echo "-> retention=${retention}"
+  curl -s "http://localhost:8481/select/0/prometheus/api/v1/query" \
+    --data-urlencode "query=test_routing{retention=\"${retention}\"}"
+  echo
+done
+```
+
+You can also check that vmagent is forwarding data to all three groups:
+
+```shell
+curl -s http://localhost:8429/metrics | grep vmagent_remotewrite_blocks_sent_total
+```
+
+Each `url="N:secret-url"` corresponds to one `remoteWrite` entry (N=1 for Group A, N=2 for Group B, N=3 for Group C). Non-zero values confirm data is flowing.
+
 ## Alternative Routing by Existing Labels
 
 The example setup above relies on a synthetic `retention` label to exist in every incoming metric.
 
-If having a `retention` label in every metric isn't practical, you can, as an alternative, rely on existing labels to map data to the correct storage group. 
+If having a `retention` label in every metric isn't practical, you can, as an alternative, rely on existing labels to map data to the correct storage group.
 
 The following example configures `vmagent` to route metrics based on the `environment` and `team` labels:
 
@@ -246,26 +299,26 @@ The following example configures `vmagent` to route metrics based on the `enviro
 # vmagent.yaml
 remoteWrite:
   # send dev and staging data to Group A
-  - url: "http://vmcluster-a-vminsert:8480/insert/0/prometheus"
+  - url: "http://vmcluster-a-victoria-metrics-cluster-vminsert:8480/insert/0/prometheus"
     urlRelabelConfig:
       - action: keep
         source_labels: [environment]
         regex: "dev|staging"
   # send prod data to Group B
-  - url: "http://vmcluster-b-vminsert:8480/insert/0/prometheus"
+  - url: "http://vmcluster-b-victoria-metrics-cluster-vminsert:8480/insert/0/prometheus"
     urlRelabelConfig:
       - action: keep
         source_labels: [environment]
         regex: "prod|production"
   # send data from Infra and SRE teams to Group B
-  - url: "http://vmcluster-b-vminsert:8480/insert/0/prometheus"
+  - url: "http://vmcluster-b-victoria-metrics-cluster-vminsert:8480/insert/0/prometheus"
     urlRelabelConfig:
       - action: keep
         source_labels: [team]
         regex: "infra|sre"
-  # fallback route: catch anything that didn't match so far (send to Group C)
-  - url: "http://vmcluster-c-vminsert:8480/insert/0/prometheus"
 ```
+
+> Metrics that match none of the `keep` rules are dropped in the configuration above.
 
 ## Alternative Multi-Tenant Routing
 
