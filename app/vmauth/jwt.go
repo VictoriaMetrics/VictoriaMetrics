@@ -432,7 +432,6 @@ func validateJWTPlaceholdersForURL(up *URLPrefix, isAllowed bool) error {
 			}
 			if strings.Contains(p, placeholderPrefix) {
 				return fmt.Errorf("invalid placeholder found in URL request path: %q, supported values are: %s", bu.Path, strings.Join(allPlaceholders, ", "))
-
 			}
 		}
 		for param, values := range bu.Query() {
@@ -487,7 +486,6 @@ func hasAnyPlaceholders(u *url.URL) bool {
 				return true
 			}
 		}
-
 	}
 	return false
 }

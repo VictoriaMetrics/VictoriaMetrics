@@ -270,7 +270,7 @@ users:
   url_prefix: "http://victoria-metrics:8428/"
 ```
 
-JWT tokens must contain a `"vm_access": {}` claim, more on that in [JWT claim-based request templating](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-based-request-templating)
+The `vm_access` claim is optional starting from {{% available_from "#" %}}: when present it is used for [request templating](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-based-request-templating), and when absent the default tenant `0:0` is assumed for any `vm_access`-based placeholders. Routing can rely solely on other token claims via [JWT claim matching](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-matching).
 
 For testing, skip signature verification with `skip_verify: true` (not recommended for production).
 
