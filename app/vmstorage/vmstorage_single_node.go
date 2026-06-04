@@ -38,9 +38,9 @@ type VMStorageSingleNode struct {
 	resetCacheIfNeeded func(mrs []storage.MetricRow)
 }
 
-func (api *VMStorageSingleNode) Stop() {
-	api.wg.WaitAndBlock()
-	api.vms.Stop()
+func (vmssn *VMStorageSingleNode) Stop() {
+	vmssn.wg.WaitAndBlock()
+	vmssn.vms.Stop()
 }
 
 // WriteRows writes metric rows to the storage.
@@ -49,15 +49,15 @@ func (api *VMStorageSingleNode) Stop() {
 //
 // The caller should limit the number of concurrent calls to WriteRows() in
 // order to limit memory usage.
-func (api *VMStorageSingleNode) WriteRows(rows []storage.MetricRow) error {
-	api.wg.Add(1)
-	defer api.wg.Done()
+func (vmssn *VMStorageSingleNode) WriteRows(rows []storage.MetricRow) error {
+	vmssn.wg.Add(1)
+	defer vmssn.wg.Done()
 
-	if api.vms.IsReadOnly() {
+	if vmssn.vms.IsReadOnly() {
 		return errReadOnly
 	}
-	api.resetCacheIfNeeded(rows)
-	return api.vms.WriteRows(rows)
+	vmssn.resetCacheIfNeeded(rows)
+	return vmssn.vms.WriteRows(rows)
 }
 
 // WriteMetadata writes metrics metadata to storage.
@@ -66,25 +66,25 @@ func (api *VMStorageSingleNode) WriteRows(rows []storage.MetricRow) error {
 //
 // The caller should limit the number of concurrent calls to WriteMetadata() in
 // order to limit memory usage.
-func (api *VMStorageSingleNode) WriteMetadata(rows []metricsmetadata.Row) error {
-	api.wg.Add(1)
-	defer api.wg.Done()
+func (vmssn *VMStorageSingleNode) WriteMetadata(rows []metricsmetadata.Row) error {
+	vmssn.wg.Add(1)
+	defer vmssn.wg.Done()
 
-	if api.vms.IsReadOnly() {
+	if vmssn.vms.IsReadOnly() {
 		return errReadOnly
 	}
-	return api.vms.WriteMetadata(rows)
+	return vmssn.vms.WriteMetadata(rows)
 }
 
 var errReadOnly = errors.New("the storage is in read-only mode; check -storage.minFreeDiskSpaceBytes command-line flag value")
 
-func (api *VMStorageSingleNode) IsReadOnly() bool {
-	api.wg.Add(1)
-	defer api.wg.Done()
-	return api.vms.IsReadOnly()
+func (vmssn *VMStorageSingleNode) IsReadOnly() bool {
+	vmssn.wg.Add(1)
+	defer vmssn.wg.Done()
+	return vmssn.vms.IsReadOnly()
 }
 
-func (api *VMStorageSingleNode) InitSearch(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (vmselectapi.BlockIterator, error) {
+func (vmssn *VMStorageSingleNode) InitSearch(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (vmselectapi.BlockIterator, error) {
 	return nil, fmt.Errorf("not implemented in vmsingle")
 }
 
@@ -95,21 +95,20 @@ func (api *VMStorageSingleNode) InitSearch(qt *querytracer.Tracer, sq *storage.S
 // vmsingle HTTP handlers.
 //
 // Callers of this method must call PutSearch() once the search instance is not
-// needed anymore. Callers also must not call PutSearch() if the method returns an
-// error.
-func (api *VMStorageSingleNode) GetSearch(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (*storage.Search, int, error) {
-	api.wg.Add(1)
+// needed anymore.
+func (vmssn *VMStorageSingleNode) GetSearch(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (*storage.Search, int, error) {
+	vmssn.wg.Add(1)
 
 	tr := sq.GetTimeRange()
-	maxMetrics := api.vms.getMaxMetrics(sq.MaxMetrics)
-	tfss, err := api.vms.setupTfss(qt, sq, tr, maxMetrics, deadline)
+	maxMetrics := vmssn.vms.getMaxMetrics(sq.MaxMetrics)
+	tfss, err := vmssn.vms.setupTfss(qt, sq, tr, maxMetrics, deadline)
 	if err != nil {
-		api.wg.Done()
+		vmssn.wg.Done()
 		return nil, 0, err
 	}
 
 	sr := getSearch()
-	maxSeriesCount := sr.Init(qt, api.vms.s, tfss, tr, sq.MaxMetrics, deadline)
+	maxSeriesCount := sr.Init(qt, vmssn.vms.s, tfss, tr, sq.MaxMetrics, deadline)
 	return sr, maxSeriesCount, nil
 }
 
@@ -121,9 +120,9 @@ func (api *VMStorageSingleNode) GetSearch(qt *querytracer.Tracer, sq *storage.Se
 //
 // The method must only be used on search instances that have been created with
 // GetSearch().
-func (api *VMStorageSingleNode) PutSearch(sr *storage.Search) {
+func (vmssn *VMStorageSingleNode) PutSearch(sr *storage.Search) {
 	putSearch(sr)
-	api.wg.Done()
+	vmssn.wg.Done()
 }
 
 func getSearch() *storage.Search {
@@ -141,74 +140,74 @@ func putSearch(sr *storage.Search) {
 
 var ssPool sync.Pool
 
-func (api *VMStorageSingleNode) SearchMetricNames(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) ([]string, error) {
-	api.wg.Add(1)
-	defer api.wg.Done()
-	return api.vms.SearchMetricNames(qt, sq, deadline)
+func (vmssn *VMStorageSingleNode) SearchMetricNames(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) ([]string, error) {
+	vmssn.wg.Add(1)
+	defer vmssn.wg.Done()
+	return vmssn.vms.SearchMetricNames(qt, sq, deadline)
 }
 
-func (api *VMStorageSingleNode) LabelValues(qt *querytracer.Tracer, sq *storage.SearchQuery, labelName string, maxLabelValues int, deadline uint64) ([]string, error) {
-	api.wg.Add(1)
-	defer api.wg.Done()
-	return api.vms.LabelValues(qt, sq, labelName, maxLabelValues, deadline)
+func (vmssn *VMStorageSingleNode) LabelValues(qt *querytracer.Tracer, sq *storage.SearchQuery, labelName string, maxLabelValues int, deadline uint64) ([]string, error) {
+	vmssn.wg.Add(1)
+	defer vmssn.wg.Done()
+	return vmssn.vms.LabelValues(qt, sq, labelName, maxLabelValues, deadline)
 }
 
-func (api *VMStorageSingleNode) TagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxSuffixes int, deadline uint64) ([]string, error) {
-	api.wg.Add(1)
-	defer api.wg.Done()
-	return api.vms.TagValueSuffixes(qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes, deadline)
+func (vmssn *VMStorageSingleNode) TagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxSuffixes int, deadline uint64) ([]string, error) {
+	vmssn.wg.Add(1)
+	defer vmssn.wg.Done()
+	return vmssn.vms.TagValueSuffixes(qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes, deadline)
 }
 
-func (api *VMStorageSingleNode) LabelNames(qt *querytracer.Tracer, sq *storage.SearchQuery, maxLabelNames int, deadline uint64) ([]string, error) {
-	api.wg.Add(1)
-	defer api.wg.Done()
-	return api.vms.LabelNames(qt, sq, maxLabelNames, deadline)
+func (vmssn *VMStorageSingleNode) LabelNames(qt *querytracer.Tracer, sq *storage.SearchQuery, maxLabelNames int, deadline uint64) ([]string, error) {
+	vmssn.wg.Add(1)
+	defer vmssn.wg.Done()
+	return vmssn.vms.LabelNames(qt, sq, maxLabelNames, deadline)
 }
 
-func (api *VMStorageSingleNode) SeriesCount(qt *querytracer.Tracer, accountID, projectID uint32, deadline uint64) (uint64, error) {
-	api.wg.Add(1)
-	defer api.wg.Done()
-	return api.vms.SeriesCount(qt, accountID, projectID, deadline)
+func (vmssn *VMStorageSingleNode) SeriesCount(qt *querytracer.Tracer, accountID, projectID uint32, deadline uint64) (uint64, error) {
+	vmssn.wg.Add(1)
+	defer vmssn.wg.Done()
+	return vmssn.vms.SeriesCount(qt, accountID, projectID, deadline)
 }
 
-func (api *VMStorageSingleNode) Tenants(qt *querytracer.Tracer, tr storage.TimeRange, deadline uint64) ([]string, error) {
-	api.wg.Add(1)
-	defer api.wg.Done()
-	return api.vms.Tenants(qt, tr, deadline)
+func (vmssn *VMStorageSingleNode) Tenants(qt *querytracer.Tracer, tr storage.TimeRange, deadline uint64) ([]string, error) {
+	vmssn.wg.Add(1)
+	defer vmssn.wg.Done()
+	return vmssn.vms.Tenants(qt, tr, deadline)
 }
 
-func (api *VMStorageSingleNode) TSDBStatus(qt *querytracer.Tracer, sq *storage.SearchQuery, focusLabel string, topN int, deadline uint64) (*storage.TSDBStatus, error) {
-	api.wg.Add(1)
-	defer api.wg.Done()
-	return api.vms.TSDBStatus(qt, sq, focusLabel, topN, deadline)
+func (vmssn *VMStorageSingleNode) TSDBStatus(qt *querytracer.Tracer, sq *storage.SearchQuery, focusLabel string, topN int, deadline uint64) (*storage.TSDBStatus, error) {
+	vmssn.wg.Add(1)
+	defer vmssn.wg.Done()
+	return vmssn.vms.TSDBStatus(qt, sq, focusLabel, topN, deadline)
 }
 
-func (api *VMStorageSingleNode) DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (int, error) {
-	api.wg.Add(1)
-	defer api.wg.Done()
-	return api.vms.DeleteSeries(qt, sq, deadline)
+func (vmssn *VMStorageSingleNode) DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (int, error) {
+	vmssn.wg.Add(1)
+	defer vmssn.wg.Done()
+	return vmssn.vms.DeleteSeries(qt, sq, deadline)
 }
 
-func (api *VMStorageSingleNode) RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, deadline uint64) error {
-	api.wg.Add(1)
-	defer api.wg.Done()
-	return api.vms.RegisterMetricNames(qt, mrs, deadline)
+func (vmssn *VMStorageSingleNode) RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, deadline uint64) error {
+	vmssn.wg.Add(1)
+	defer vmssn.wg.Done()
+	return vmssn.vms.RegisterMetricNames(qt, mrs, deadline)
 }
 
-func (api *VMStorageSingleNode) GetMetricNamesUsageStats(qt *querytracer.Tracer, tt *storage.TenantToken, limit, le int, matchPattern string, deadline uint64) (metricnamestats.StatsResult, error) {
-	api.wg.Add(1)
-	defer api.wg.Done()
-	return api.vms.GetMetricNamesUsageStats(qt, tt, limit, le, matchPattern, deadline)
+func (vmssn *VMStorageSingleNode) GetMetricNamesUsageStats(qt *querytracer.Tracer, tt *storage.TenantToken, limit, le int, matchPattern string, deadline uint64) (metricnamestats.StatsResult, error) {
+	vmssn.wg.Add(1)
+	defer vmssn.wg.Done()
+	return vmssn.vms.GetMetricNamesUsageStats(qt, tt, limit, le, matchPattern, deadline)
 }
 
-func (api *VMStorageSingleNode) ResetMetricNamesUsageStats(qt *querytracer.Tracer, deadline uint64) error {
-	api.wg.Add(1)
-	defer api.wg.Done()
-	return api.vms.ResetMetricNamesUsageStats(qt, deadline)
+func (vmssn *VMStorageSingleNode) ResetMetricNamesUsageStats(qt *querytracer.Tracer, deadline uint64) error {
+	vmssn.wg.Add(1)
+	defer vmssn.wg.Done()
+	return vmssn.vms.ResetMetricNamesUsageStats(qt, deadline)
 }
 
-func (api *VMStorageSingleNode) GetMetadataRecords(qt *querytracer.Tracer, tt *storage.TenantToken, limit int, metricName string, deadline uint64) ([]*metricsmetadata.Row, error) {
-	api.wg.Add(1)
-	defer api.wg.Done()
-	return api.vms.GetMetadataRecords(qt, tt, limit, metricName, deadline)
+func (vmssn *VMStorageSingleNode) GetMetadataRecords(qt *querytracer.Tracer, tt *storage.TenantToken, limit int, metricName string, deadline uint64) ([]*metricsmetadata.Row, error) {
+	vmssn.wg.Add(1)
+	defer vmssn.wg.Done()
+	return vmssn.vms.GetMetadataRecords(qt, tt, limit, metricName, deadline)
 }

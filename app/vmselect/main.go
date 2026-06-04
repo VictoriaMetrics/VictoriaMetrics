@@ -44,14 +44,14 @@ var (
 var slowQueries = metrics.NewCounter(`vm_slow_queries_total`)
 
 // Init initializes vmselect
-func Init(maxConcurrentRequestsFlag int, maxQueueDurationFlag time.Duration) {
+func Init(vmselectMaxConcurrentRequests int, vmselectMaxQueueDuration time.Duration) {
 	tmpDirPath := vmstorage.DataPath() + "/tmp"
 	fs.MustRemoveDirContents(tmpDirPath)
 	netstorage.InitTmpBlocksDir(tmpDirPath)
 	promql.InitRollupResultCache(vmstorage.DataPath() + "/cache/rollupResult")
 
-	maxConcurrentRequests = maxConcurrentRequestsFlag
-	maxQueueDuration = maxQueueDurationFlag
+	maxConcurrentRequests = vmselectMaxConcurrentRequests
+	maxQueueDuration = vmselectMaxQueueDuration
 	concurrencyLimitCh = make(chan struct{}, maxConcurrentRequests)
 
 	initVMUIConfig()

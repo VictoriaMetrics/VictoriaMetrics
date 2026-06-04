@@ -109,7 +109,7 @@ func DataPath() string {
 }
 
 // Init initializes vmstorage.
-func Init(maxConcurrentRequests int, resetCacheIfNeeded func(mrs []storage.MetricRow)) {
+func Init(vmselectMaxConcurrentRequests int, resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	storage.SetDedupInterval(*minScrapeInterval)
 	storage.SetDataFlushInterval(*inmemoryDataFlushInterval)
 	storage.LegacySetRetentionTimezoneOffset(*retentionTimezoneOffset)
@@ -153,7 +153,7 @@ func Init(maxConcurrentRequests int, resetCacheIfNeeded func(mrs []storage.Metri
 		LogNewSeries:                *logNewSeries,
 	}
 	strg := storage.MustOpenStorage(*storageDataPath, opts)
-	vmStorage = newVMStorageSingleNode(strg, maxConcurrentRequests, resetCacheIfNeeded)
+	vmStorage = newVMStorageSingleNode(strg, vmselectMaxConcurrentRequests, resetCacheIfNeeded)
 
 	var m storage.Metrics
 	strg.UpdateMetrics(&m)
@@ -167,9 +167,7 @@ func Init(maxConcurrentRequests int, resetCacheIfNeeded func(mrs []storage.Metri
 
 	// register storage metrics
 	storageMetrics = metrics.NewSet()
-	storageMetrics.RegisterMetricsWriter(func(w io.Writer) {
-		vmStorage.writeStorageMetrics(w)
-	})
+	storageMetrics.RegisterMetricsWriter(vmStorage.writeStorageMetrics)
 	metrics.RegisterSet(storageMetrics)
 
 	VMInsertAPI = vmStorage
@@ -211,15 +209,15 @@ func Stop() {
 	logger.Infof("the vmstorage has been stopped")
 }
 
-func (api *VMStorageSingleNode) requestHandler(w http.ResponseWriter, r *http.Request) bool {
-	api.wg.Add(1)
-	defer api.wg.Done()
-	return api.vms.requestHandler(w, r)
+func (vmssn *VMStorageSingleNode) requestHandler(w http.ResponseWriter, r *http.Request) bool {
+	vmssn.wg.Add(1)
+	defer vmssn.wg.Done()
+	return vmssn.vms.requestHandler(w, r)
 }
 
 // requestHandler is a storage request handler.
 // TODO(@rtm0): Move to a separate file, request_handler.go
-func (api *VMStorage) requestHandler(w http.ResponseWriter, r *http.Request) bool {
+func (vms *VMStorage) requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	path := r.URL.Path
 	if path == "/internal/force_merge" {
 		if !httpserver.CheckAuthFlag(w, r, forceMergeAuthKey) {
@@ -232,7 +230,7 @@ func (api *VMStorage) requestHandler(w http.ResponseWriter, r *http.Request) boo
 			defer activeForceMerges.Dec()
 			logger.Infof("forced merge for partition_prefix=%q has been started", partitionNamePrefix)
 			startTime := time.Now()
-			if err := api.s.ForceMergePartitions(partitionNamePrefix); err != nil {
+			if err := vms.s.ForceMergePartitions(partitionNamePrefix); err != nil {
 				logger.Errorf("error in forced merge for partition_prefix=%q: %s", partitionNamePrefix, err)
 				return
 			}
@@ -245,7 +243,7 @@ func (api *VMStorage) requestHandler(w http.ResponseWriter, r *http.Request) boo
 			return true
 		}
 		logger.Infof("flushing storage to make pending data available for reading")
-		api.s.DebugFlush()
+		vms.s.DebugFlush()
 		return true
 	}
 
@@ -265,7 +263,7 @@ func (api *VMStorage) requestHandler(w http.ResponseWriter, r *http.Request) boo
 		}
 		logger.Infof("enabling logging of new series for the next %s. This may increase resource usage during this period.", time.Duration(dealine)*time.Second)
 		endTime := fasttime.UnixTimestamp() + uint64(dealine)
-		api.s.SetLogNewSeriesUntil(endTime)
+		vms.s.SetLogNewSeriesUntil(endTime)
 		fmt.Fprintf(w, `{"status":"success","data":{"logEndTime":%q}}`, time.Unix(int64(endTime), 0))
 		return true
 	}
@@ -287,13 +285,13 @@ func (api *VMStorage) requestHandler(w http.ResponseWriter, r *http.Request) boo
 	case "/create":
 		snapshotsCreateTotal.Inc()
 		w.Header().Set("Content-Type", "application/json")
-		snapshotName := api.s.MustCreateSnapshot()
+		snapshotName := vms.s.MustCreateSnapshot()
 
 		// Verify whether the client already closed the connection.
 		// In this case it is better to drop the created snapshot, since the client isn't interested in it.
 		if err := r.Context().Err(); err != nil {
 			logger.Infof("deleting already created snapshot at %s because the client canceled the request", snapshotName)
-			if err := api.deleteSnapshot(snapshotName); err != nil {
+			if err := vms.deleteSnapshot(snapshotName); err != nil {
 				logger.Infof("cannot delete just created snapshot: %s", err)
 				return true
 			}
@@ -309,7 +307,7 @@ func (api *VMStorage) requestHandler(w http.ResponseWriter, r *http.Request) boo
 	case "/list":
 		snapshotsListTotal.Inc()
 		w.Header().Set("Content-Type", "application/json")
-		snapshots := api.s.MustListSnapshots()
+		snapshots := vms.s.MustListSnapshots()
 		fmt.Fprintf(w, `{"status":"ok","snapshots":[`)
 		if len(snapshots) > 0 {
 			for _, snapshot := range snapshots[:len(snapshots)-1] {
@@ -323,7 +321,7 @@ func (api *VMStorage) requestHandler(w http.ResponseWriter, r *http.Request) boo
 		snapshotsDeleteTotal.Inc()
 		w.Header().Set("Content-Type", "application/json")
 		snapshotName := r.FormValue("snapshot")
-		if err := api.deleteSnapshot(snapshotName); err != nil {
+		if err := vms.deleteSnapshot(snapshotName); err != nil {
 			jsonResponseError(w, err)
 			snapshotsDeleteErrorsTotal.Inc()
 			return true
@@ -333,9 +331,9 @@ func (api *VMStorage) requestHandler(w http.ResponseWriter, r *http.Request) boo
 	case "/delete_all":
 		snapshotsDeleteAllTotal.Inc()
 		w.Header().Set("Content-Type", "application/json")
-		snapshots := api.s.MustListSnapshots()
+		snapshots := vms.s.MustListSnapshots()
 		for _, snapshotName := range snapshots {
-			if err := api.s.DeleteSnapshot(snapshotName); err != nil {
+			if err := vms.s.DeleteSnapshot(snapshotName); err != nil {
 				err = fmt.Errorf("cannot delete snapshot %q: %w", snapshotName, err)
 				jsonResponseError(w, err)
 				snapshotsDeleteAllErrorsTotal.Inc()
@@ -364,15 +362,15 @@ var (
 )
 
 // TODO(@rtm0): Move to metrics.go.
-func (api *VMStorageSingleNode) writeStorageMetrics(w io.Writer) {
-	api.wg.Add(1)
-	defer api.wg.Done()
-	api.vms.writeStorageMetrics(w)
+func (vmssn *VMStorageSingleNode) writeStorageMetrics(w io.Writer) {
+	vmssn.wg.Add(1)
+	defer vmssn.wg.Done()
+	vmssn.vms.writeStorageMetrics(w)
 }
 
 // TODO(@rtm0): Move to metrics.go.
-func (api *VMStorage) writeStorageMetrics(w io.Writer) {
-	strg := api.s
+func (vms *VMStorage) writeStorageMetrics(w io.Writer) {
+	strg := vms.s
 	var m storage.Metrics
 	strg.UpdateMetrics(&m)
 	tm := &m.TableMetrics
@@ -596,7 +594,7 @@ func (api *VMStorage) writeStorageMetrics(w io.Writer) {
 	metrics.WriteGaugeUint64(w, `vm_downsampling_partitions_scheduled`, tm.ScheduledDownsamplingPartitions)
 	metrics.WriteGaugeUint64(w, `vm_downsampling_partitions_scheduled_size_bytes`, tm.ScheduledDownsamplingPartitionsSize)
 
-	metrics.WriteGaugeUint64(w, `vm_search_max_unique_timeseries`, uint64(api.maxUniqueTimeSeriesCalculated))
+	metrics.WriteGaugeUint64(w, `vm_search_max_unique_timeseries`, uint64(vms.maxUniqueTimeSeriesCalculated))
 
 	metrics.WriteGaugeUint64(w, `vm_metrics_metadata_storage_items`, m.MetadataStorageItemsCurrent)
 	metrics.WriteCounterUint64(w, `vm_metrics_metadata_storage_size_bytes`, m.MetadataStorageCurrentSizeBytes)
