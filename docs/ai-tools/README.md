@@ -88,6 +88,7 @@ These skills provide predefined workflows and capabilities such as:
 * Multi-signal investigations 
 * Cardinality optimization 
 * Unused metric detection
+* Stream aggregation configuration
 
 To install the available skills for AI agents, run:
 ```sh

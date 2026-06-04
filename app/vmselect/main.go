@@ -60,10 +60,10 @@ func getDefaultMaxConcurrentRequests() int {
 
 // Init initializes vmselect
 func Init() {
-	tmpDirPath := *vmstorage.DataPath + "/tmp"
+	tmpDirPath := vmstorage.DataPath() + "/tmp"
 	fs.MustRemoveDirContents(tmpDirPath)
 	netstorage.InitTmpBlocksDir(tmpDirPath)
-	promql.InitRollupResultCache(*vmstorage.DataPath + "/cache/rollupResult")
+	promql.InitRollupResultCache(vmstorage.DataPath() + "/cache/rollupResult")
 	prometheus.InitMaxUniqueTimeseries(*maxConcurrentRequests)
 
 	concurrencyLimitCh = make(chan struct{}, *maxConcurrentRequests)

@@ -2,18 +2,12 @@ package tests
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"slices"
 	"testing"
 	"time"
 
 	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
-)
-
-var (
-	legacyVmsinglePath  = os.Getenv("VM_LEGACY_VMSINGLE_PATH")
-	legacyVmstoragePath = os.Getenv("VM_LEGACY_VMSTORAGE_PATH")
 )
 
 type testLegacyDeleteSeriesOpts struct {
@@ -31,7 +25,7 @@ func TestLegacySingleDeleteSeries(t *testing.T) {
 
 	opts := testLegacyDeleteSeriesOpts{
 		startLegacySUT: func() at.PrometheusWriteQuerier {
-			return tc.MustStartVmsingleAt("vmsingle-legacy", legacyVmsinglePath, []string{
+			return tc.MustStartVmsingle_v1_132_0("vmsingle-legacy", []string{
 				"-storageDataPath=" + storageDataPath,
 				"-retentionPeriod=100y",
 				"-search.maxStalenessInterval=1m",
@@ -64,15 +58,13 @@ func TestLegacyClusterDeleteSeries(t *testing.T) {
 
 	opts := testLegacyDeleteSeriesOpts{
 		startLegacySUT: func() at.PrometheusWriteQuerier {
-			return tc.MustStartCluster(&at.ClusterOptions{
+			return tc.MustStartCluster_v1_132_0(&at.ClusterOptions{
 				Vmstorage1Instance: "vmstorage1-legacy",
-				Vmstorage1Binary:   legacyVmstoragePath,
 				Vmstorage1Flags: []string{
 					"-storageDataPath=" + storage1DataPath,
 					"-retentionPeriod=100y",
 				},
 				Vmstorage2Instance: "vmstorage2-legacy",
-				Vmstorage2Binary:   legacyVmstoragePath,
 				Vmstorage2Flags: []string{
 					"-storageDataPath=" + storage2DataPath,
 					"-retentionPeriod=100y",
@@ -255,7 +247,7 @@ func TestLegacySingleBackupRestore(t *testing.T) {
 
 	opts := testLegacyBackupRestoreOpts{
 		startLegacySUT: func() at.PrometheusWriteQuerier {
-			return tc.MustStartVmsingleAt("vmsingle-legacy", legacyVmsinglePath, []string{
+			return tc.MustStartVmsingle_v1_132_0("vmsingle-legacy", []string{
 				"-storageDataPath=" + storageDataPath,
 				"-retentionPeriod=100y",
 				"-search.disableCache=true",
@@ -298,15 +290,13 @@ func TestLegacyClusterBackupRestore(t *testing.T) {
 
 	opts := testLegacyBackupRestoreOpts{
 		startLegacySUT: func() at.PrometheusWriteQuerier {
-			return tc.MustStartCluster(&at.ClusterOptions{
+			return tc.MustStartCluster_v1_132_0(&at.ClusterOptions{
 				Vmstorage1Instance: "vmstorage1-legacy",
-				Vmstorage1Binary:   legacyVmstoragePath,
 				Vmstorage1Flags: []string{
 					"-storageDataPath=" + storage1DataPath,
 					"-retentionPeriod=100y",
 				},
 				Vmstorage2Instance: "vmstorage2-legacy",
-				Vmstorage2Binary:   legacyVmstoragePath,
 				Vmstorage2Flags: []string{
 					"-storageDataPath=" + storage2DataPath,
 					"-retentionPeriod=100y",
@@ -583,7 +573,7 @@ func TestLegacySingleDowngrade(t *testing.T) {
 
 	opts := testLegacyDowngradeOpts{
 		startLegacySUT: func() at.PrometheusWriteQuerier {
-			return tc.MustStartVmsingleAt("vmsingle-legacy", legacyVmsinglePath, []string{
+			return tc.MustStartVmsingle_v1_132_0("vmsingle-legacy", []string{
 				"-storageDataPath=" + storageDataPath,
 				"-retentionPeriod=100y",
 				"-search.disableCache=true",
@@ -618,15 +608,13 @@ func TestLegacyClusterDowngrade(t *testing.T) {
 
 	opts := testLegacyDowngradeOpts{
 		startLegacySUT: func() at.PrometheusWriteQuerier {
-			return tc.MustStartCluster(&at.ClusterOptions{
+			return tc.MustStartCluster_v1_132_0(&at.ClusterOptions{
 				Vmstorage1Instance: "vmstorage1-legacy",
-				Vmstorage1Binary:   legacyVmstoragePath,
 				Vmstorage1Flags: []string{
 					"-storageDataPath=" + storage1DataPath,
 					"-retentionPeriod=100y",
 				},
 				Vmstorage2Instance: "vmstorage2-legacy",
-				Vmstorage2Binary:   legacyVmstoragePath,
 				Vmstorage2Flags: []string{
 					"-storageDataPath=" + storage2DataPath,
 					"-retentionPeriod=100y",

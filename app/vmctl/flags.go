@@ -146,7 +146,8 @@ var (
 			Name:  vmRoundDigits,
 			Value: 100,
 			Usage: "Round metric values to the given number of decimal digits after the point. " +
-				"This option may be used for increasing on-disk compression level for the stored metrics",
+				"This option may be used for increasing on-disk compression level for the stored metrics. " +
+				"See also --vm-significant-figures option",
 		},
 		&cli.StringSliceFlag{
 			Name:  vmExtraLabel,
