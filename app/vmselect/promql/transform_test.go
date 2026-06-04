@@ -2,7 +2,9 @@ package promql
 
 import (
 	"fmt"
+	"math"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -385,4 +387,91 @@ func TestNumericLess(t *testing.T) {
 	f("12.9", "12.56", false)
 	f("12.56", "12.9", true)
 	f("12.9", "12.9", false)
+}
+
+func TestTransformBucketsLimitSkipsLeadingNaNsInHitsCalculation(t *testing.T) {
+	type bucket struct {
+		le     string
+		values []float64
+	}
+	f := func(limit int, buckets []bucket, wantLEs []string) {
+		t.Helper()
+
+		timestamps := []int64{1000, 2000}
+		limitTS := &timeseries{
+			Values:     []float64{float64(limit)},
+			Timestamps: []int64{1000},
+		}
+		tss := make([]*timeseries, 0, len(buckets))
+		for _, bucket := range buckets {
+			ts := &timeseries{
+				Values:     append([]float64(nil), bucket.values...),
+				Timestamps: timestamps,
+			}
+			ts.MetricName.MetricGroup = []byte("metric")
+			ts.MetricName.Tags = []storage.Tag{
+				{
+					Key:   []byte("le"),
+					Value: []byte(bucket.le),
+				},
+				{
+					Key:   []byte("x"),
+					Value: []byte("y"),
+				},
+			}
+			tss = append(tss, ts)
+		}
+
+		rvs, err := transformBucketsLimit(&transformFuncArg{
+			args: [][]*timeseries{
+				{limitTS},
+				tss,
+			},
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		gotLEs := make([]string, 0, len(rvs))
+		for _, ts := range rvs {
+			gotLEs = append(gotLEs, string(ts.MetricName.GetTagValue("le")))
+		}
+		slices.Sort(gotLEs)
+		if !slices.Equal(gotLEs, wantLEs) {
+			t.Fatalf("unexpected buckets after buckets_limit; got %v; want %v", gotLEs, wantLEs)
+		}
+	}
+
+	f(4, []bucket{
+		{le: "10", values: []float64{math.NaN(), 10}},
+		{le: "20", values: []float64{math.NaN(), 50}},
+		{le: "30", values: []float64{math.NaN(), 50}},
+		{le: "40", values: []float64{math.NaN(), 55}},
+		{le: "+Inf", values: []float64{math.NaN(), 100}},
+	}, []string{"+Inf", "10", "20", "40"})
+
+	f(4, []bucket{
+		{le: "10", values: []float64{9, 9}},
+		{le: "30", values: []float64{10, 10}},
+		{le: "70", values: []float64{20, 20}},
+		{le: "120", values: []float64{50, 50}},
+		{le: "200", values: []float64{math.NaN(), math.NaN()}},
+		{le: "300", values: []float64{98, 98}},
+		{le: "+Inf", values: []float64{100, 100}},
+	}, []string{"+Inf", "10", "120", "300"})
+
+	f(4, []bucket{
+		{le: "10", values: []float64{9, 9}},
+		{le: "30", values: []float64{10, 10}},
+		{le: "70", values: []float64{math.NaN(), math.NaN()}},
+		{le: "120", values: []float64{50, 50}},
+		{le: "200", values: []float64{math.NaN(), math.NaN()}},
+	}, []string{"10", "120", "30"})
+
+	f(3, []bucket{
+		{le: "10", values: []float64{math.NaN(), math.NaN()}},
+		{le: "30", values: []float64{math.NaN(), math.NaN()}},
+		{le: "+Inf", values: []float64{math.NaN(), math.NaN()}},
+		{le: "120", values: []float64{math.NaN(), math.NaN()}},
+	}, []string{})
 }
