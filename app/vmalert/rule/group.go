@@ -95,6 +95,7 @@ type groupMetrics struct {
 	iterationTotal    *metrics.Counter
 	iterationDuration *metrics.Summary
 	iterationMissed   *metrics.Counter
+	iterationReset    *metrics.Counter
 	iterationInterval *metrics.Gauge
 }
 
@@ -330,6 +331,7 @@ func (g *Group) Init() {
 	g.metrics.iterationTotal = g.metrics.set.NewCounter(fmt.Sprintf(`vmalert_iteration_total{%s}`, labels))
 	g.metrics.iterationDuration = g.metrics.set.NewSummary(fmt.Sprintf(`vmalert_iteration_duration_seconds{%s}`, labels))
 	g.metrics.iterationMissed = g.metrics.set.NewCounter(fmt.Sprintf(`vmalert_iteration_missed_total{%s}`, labels))
+	g.metrics.iterationReset = g.metrics.set.NewCounter(fmt.Sprintf(`vmalert_iteration_reset_total{%s}`, labels))
 	g.metrics.iterationInterval = g.metrics.set.NewGauge(fmt.Sprintf(`vmalert_iteration_interval_seconds{%s}`, labels), func() float64 {
 		i := g.Interval.Seconds()
 		return i
@@ -474,14 +476,16 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 			if missed < 0 {
 				// missed can become < 0 due to irregular delays during evaluation
 				// which can result in time.Since(evalTS) < g.Interval;
-				// or the system wall clock was changed backward
-				missed = 0
+				// or the system wall clock was changed backward,
+				// Reset the evalTS to the current time.
 				evalTS = time.Now()
+				g.metrics.iterationReset.Inc()
+			} else {
+				evalTS = evalTS.Add((missed + 1) * g.Interval)
 			}
 			if missed > 0 {
 				g.metrics.iterationMissed.Inc()
 			}
-			evalTS = evalTS.Add((missed + 1) * g.Interval)
 
 			eval(evalCtx, evalTS)
 		}
