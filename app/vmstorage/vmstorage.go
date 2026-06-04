@@ -36,7 +36,7 @@ var (
 // The created VMStorage instance takes ownership of s.
 func newVMStorage(s *storage.Storage, maxConcurrentRequests int) *VMStorage {
 	if err := encoding.CheckPrecisionBits(uint8(*precisionBits)); err != nil {
-		logger.Fatalf("invalid -precisionBits: %d", err)
+		logger.Fatalf("invalid -precisionBits=%d, %v", *precisionBits, err)
 	}
 
 	maxUniqueTimeseriesCalculated := *maxUniqueTimeseries
