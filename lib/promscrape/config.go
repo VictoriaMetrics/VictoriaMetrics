@@ -1139,6 +1139,9 @@ func (stc *StaticConfig) appendScrapeWork(dst []*ScrapeWork, swc *scrapeWorkConf
 
 func appendScrapeWorkKey(dst []byte, labels *promutil.Labels) []byte {
 	for _, label := range labels.GetLabels() {
+		//if label.Name != "service" {
+		//	continue
+		//}
 		// Do not use strconv.AppendQuote, since it is slow according to CPU profile.
 		dst = append(dst, label.Name...)
 		dst = append(dst, '=')
@@ -1197,6 +1200,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		bb := scrapeWorkKeyBufPool.Get()
 		bb.B = appendScrapeWorkKey(bb.B[:0], labels)
 		memberNums := getClusterMemberNumsForScrapeWork(bytesutil.ToUnsafeString(bb.B), *clusterMembersCount, *clusterReplicationFactor)
+		logger.Infof("jayice:%s", memberNums)
 		scrapeWorkKeyBufPool.Put(bb)
 		if !slices.Contains(memberNums, clusterMemberID) {
 			droppedTargetsMap.Register(originalLabels, swc.relabelConfigs, targetDropReasonSharding, memberNums)

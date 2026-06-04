@@ -29,10 +29,8 @@ func timeSeriesToString(ts prompb.TimeSeries) string {
 }
 
 func TestMdxInstanceFilter(t *testing.T) {
-	filter := Filter{
-		vmInstance: make(map[string]*atomic.Int64),
-	}
-	_ = mdxInstanceEntryTTL.Set("120s")
+
+	filter := NewFilter()
 
 	f := func(input []prompb.TimeSeries, expectedOutput []prompb.TimeSeries, expectedInstanceMap map[string]int64) {
 		t.Helper()
@@ -153,11 +151,10 @@ func TestMdxInstanceCleanup(t *testing.T) {
 	t.Helper()
 
 	synctest.Test(t, func(t *testing.T) {
-		_ = mdxInstanceEntryTTL.Set("10s")
-		InitGlobalFilter()
+		filter := NewFilter()
 
 		//  init instance list
-		GlobalFilter.Filter([]prompb.TimeSeries{
+		filter.Filter([]prompb.TimeSeries{
 			{
 				Labels: []prompb.Label{
 					{Name: "__name__", Value: "vm_app_version"},
@@ -189,11 +186,11 @@ func TestMdxInstanceCleanup(t *testing.T) {
 		)
 		f := func(expectedInstanceMap map[string]int64) {
 			t.Helper()
-			if len(GlobalFilter.vmInstance) != len(expectedInstanceMap) {
-				t.Fatalf("unexpected instance map length; got %d; want %d", len(GlobalFilter.vmInstance), len(expectedInstanceMap))
+			if len(filter.vmInstance) != len(expectedInstanceMap) {
+				t.Fatalf("unexpected instance map length; got %d; want %d", len(filter.vmInstance), len(expectedInstanceMap))
 			}
 			for k := range expectedInstanceMap {
-				if GlobalFilter.vmInstance[k] == nil {
+				if filter.vmInstance[k] == nil {
 					t.Fatalf("missing instance in filter.vmInstance: %q", k)
 				}
 			}
@@ -204,8 +201,8 @@ func TestMdxInstanceCleanup(t *testing.T) {
 		})
 
 		// receive samples from victoria-metrics1:8428 after 9 seconds.
-		time.Sleep(9 * time.Second)
-		GlobalFilter.Filter([]prompb.TimeSeries{
+		time.Sleep(59 * time.Minute)
+		filter.Filter([]prompb.TimeSeries{
 			{
 				Labels: []prompb.Label{
 					{Name: "__name__", Value: "vm_app_version"},
@@ -216,11 +213,11 @@ func TestMdxInstanceCleanup(t *testing.T) {
 		)
 
 		// no samples from vmagent1:8429 in the last 10 seconds, so it should be removed from the mdx instance list.
-		time.Sleep(9 * time.Second)
+		time.Sleep(2 * time.Minute)
 		f(map[string]int64{
 			fmt.Sprintf("%q:%q", "test", "victoria-metrics1:8428"): 0,
 		})
-		GlobalFilter.MustStop()
+		filter.MustStop()
 	})
 
 }

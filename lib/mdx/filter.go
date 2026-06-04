@@ -2,21 +2,17 @@ package mdx
 
 import (
 	"flag"
-	"fmt"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
-	mdxInstanceEntryTTL = flagutil.NewExtendedDuration("mdx.instanceEntryTTL", "1h", "After not receiving metrics for the VictoriaMetrics instance for the configured time, remove this instance from the MDX instance list."+
-		"It should be several times the scrape interval for VictoriaMetrics instances. The cleanup mechanism helps release memory after a VictoriaMetrics instance is permanently taken offline, preventing the MDX instance list from growing indefinitely."+
-		"It must be explicitly set when -remoteWrite.mdx.enable is set and requires explicit unit suffixes (s, m, h, d, w, y). Please see https://docs.victoriametrics.com/victoriametrics/vmagent/#monitoring-data-exchange")
 	keepMetricsWithLabelName = flag.String("mdx.keepMetricsWithLabel.name", "", "Keep metrics containing specific label and label value to the `-remoteWrite.url` that configured with `-remoteWrite.mdx.enable=true`. "+
 		"See also -mdx.keepMetricsWithLabel.value.")
 	keepMetricsWithLabelValue = flag.String("mdx.keepMetricsWithLabel.value", "", "Keep metrics containing specific label and label value to the `-remoteWrite.url` that configured with `-remoteWrite.mdx.enable=true`. "+
@@ -32,32 +28,30 @@ type Filter struct {
 	filterByLabel bool
 }
 
-var GlobalFilter *Filter
-
-func InitGlobalFilter() {
-	GlobalFilter = &Filter{
+func NewFilter() *Filter {
+	filter := &Filter{
 		vmInstance: make(map[string]*atomic.Int64),
 		stopCh:     make(chan struct{}),
 	}
 	if len(*keepMetricsWithLabelName) > 0 && len(*keepMetricsWithLabelValue) > 0 {
-		GlobalFilter.filterByLabel = true
+		filter.filterByLabel = true
 	} else if len(*keepMetricsWithLabelName) > 0 || len(*keepMetricsWithLabelValue) > 0 {
 		logger.Fatalf("Both -mdx.keepMetricsWithLabel.name and -mdx.keepMetricsWithLabel.value must be set if one of them is set.")
 	}
+	filter.wg.Go(filter.cleanStale)
+	return filter
+}
 
-	_ = metrics.NewGauge("vmagent_mdx_tracked_vm_instances", func() float64 {
-		GlobalFilter.mu.RLock()
-		n := len(GlobalFilter.vmInstance)
-		GlobalFilter.mu.RUnlock()
-		return float64(n)
-	})
-	if mdxInstanceEntryTTL.Milliseconds() != 0 {
-		GlobalFilter.wg.Go(GlobalFilter.cleanStale)
-	}
+func (filter *Filter) VmInstancesCount() int {
+	filter.mu.RLock()
+	defer filter.mu.RUnlock()
+	return len(filter.vmInstance)
+
 }
 
 func (filter *Filter) cleanStale() {
-	ttlSec := int64(mdxInstanceEntryTTL.Duration().Seconds())
+	entryTTL := time.Hour * 1
+	ttlSec := int64(entryTTL.Seconds())
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
@@ -92,65 +86,69 @@ func (filter *Filter) MustStop() {
 }
 
 func (filter *Filter) Filter(tss []prompb.TimeSeries, resTss []prompb.TimeSeries) []prompb.TimeSeries {
+	currTs := time.Now().Unix()
+	var identicalKey []byte
+
+nextTss:
 	for _, ts := range tss {
-		isVmInstance := false
-		var instance string
-		var job string
-		isStored := false
+		var hasVersionLabel, triedJobInstance bool
+		var job, instance string
 		for _, label := range ts.Labels {
-			if label.Name == "__name__" && label.Value == "vm_app_version" {
-				isVmInstance = true
+			if filter.filterByLabel && label.Name == *keepMetricsWithLabelName && label.Value == *keepMetricsWithLabelValue {
+				resTss = append(resTss, ts)
+				continue nextTss
 			}
-			if label.Name == "instance" {
+
+			if label.Name == "__name__" && label.Value == "vm_app_version" {
+				hasVersionLabel = true
+			}
+			if instance == "" && label.Name == "instance" {
+				if label.Value == "" {
+					continue
+				}
+
 				instance = label.Value
 			}
-			if label.Name == "job" {
+			if job == "" && label.Name == "job" {
+				if label.Value == "" {
+					continue
+				}
+
 				job = label.Value
 			}
-			if filter.filterByLabel {
-				if label.Name == *keepMetricsWithLabelName && label.Value == *keepMetricsWithLabelValue {
+			if !triedJobInstance && job != "" && instance != "" {
+				identicalKey = identicalKey[:0]
+				identicalKey = strconv.AppendQuote(identicalKey, job)
+				identicalKey = append(identicalKey, ':')
+				identicalKey = strconv.AppendQuote(identicalKey, instance)
+				filter.mu.RLock()
+				ptr, found := filter.vmInstance[bytesutil.ToUnsafeString(identicalKey)]
+				filter.mu.RUnlock()
+				if found {
+					ptr.Store(currTs)
 					resTss = append(resTss, ts)
-					isStored = true
+					continue nextTss
 				}
+				triedJobInstance = true
+			}
+
+			if hasVersionLabel && job != "" && instance != "" {
+				identicalKey = identicalKey[:0]
+				identicalKey = strconv.AppendQuote(identicalKey, job)
+				identicalKey = append(identicalKey, ':')
+				identicalKey = strconv.AppendQuote(identicalKey, instance)
+
+				v := &atomic.Int64{}
+				v.Store(currTs)
+
+				filter.mu.Lock()
+				filter.vmInstance[string(identicalKey)] = v
+				filter.mu.Unlock()
+
+				continue nextTss
 			}
 		}
-		if len(job) == 0 || len(instance) == 0 {
-			continue
-		}
-		identicalKey := fmt.Sprintf("%q:%q", job, instance)
-		currTs := time.Now().Unix()
-
-		//fast path
-		filter.mu.RLock()
-		ptr, ok := filter.vmInstance[identicalKey]
-		filter.mu.RUnlock()
-		if ok {
-			ptr.Store(currTs)
-			if !isStored {
-				resTss = append(resTss, ts)
-				isStored = true
-			}
-			continue
-		}
-		if !isVmInstance {
-			continue
-		}
-
-		// slow path
-		if !isStored {
-			resTss = append(resTss, ts)
-			isStored = true
-		}
-		filter.mu.Lock()
-		if ptr, ok = filter.vmInstance[identicalKey]; ok {
-			ptr.Store(currTs)
-		} else {
-			v := atomic.Int64{}
-			v.Store(currTs)
-			filter.vmInstance[identicalKey] = &v
-		}
-		filter.mu.Unlock()
 	}
-
+	logger.Infof("jayice:%d", len(resTss))
 	return resTss
 }

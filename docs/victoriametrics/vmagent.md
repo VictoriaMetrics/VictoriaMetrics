@@ -271,8 +271,7 @@ for the collected samples. Examples:
   
 ### Monitoring Data eXchange
 
-The MDX (Monitoring Data eXchange) is a monitoring of monitoring metrics collection and sharing feature. 
-It aims to send only metrics from the VictoriaMetrics services to the corresponding `-remoteWrite.url`, discarding metrics from non-VictoriaMetrics services.
+The MDX (Monitoring Data eXchange) feature aims to send only metrics from the VictoriaMetrics services to the corresponding `-remoteWrite.url`, discarding metrics from non-VictoriaMetrics services.
 
 When enabling MDX for the `-remoteWrite.url`, `vmagent` will only forward metrics from the instances that emit `vm_app_version`, which is a metric that all VictoriaMetrics services will emit.
 The number of dropped rows from non-VictoriaMetrics services is exposed as `vmagent_remotewrite_mdx_rows_dropped_total`.
