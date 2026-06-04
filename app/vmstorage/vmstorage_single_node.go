@@ -98,15 +98,17 @@ func (api *VMStorageSingleNode) InitSearch(qt *querytracer.Tracer, sq *storage.S
 // needed anymore. Callers also must not call PutSearch() if the method returns an
 // error.
 func (api *VMStorageSingleNode) GetSearch(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (*storage.Search, int, error) {
+	api.wg.Add(1)
+
 	tr := sq.GetTimeRange()
 	maxMetrics := api.vms.getMaxMetrics(sq.MaxMetrics)
 	tfss, err := api.vms.setupTfss(qt, sq, tr, maxMetrics, deadline)
 	if err != nil {
+		api.wg.Done()
 		return nil, 0, err
 	}
 
 	sr := getSearch()
-	api.wg.Add(1)
 	maxSeriesCount := sr.Init(qt, api.vms.s, tfss, tr, sq.MaxMetrics, deadline)
 	return sr, maxSeriesCount, nil
 }
