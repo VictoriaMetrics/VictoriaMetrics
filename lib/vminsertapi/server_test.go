@@ -43,7 +43,7 @@ func TestProtocolMigration(t *testing.T) {
 	// test old storage and new client
 	{
 		protoparserutil.StartUnmarshalWorkers()
-		ts, err := NewVMInsertServer("localhost:0", time.Second, "vminsert-old", &testStorage, nil)
+		ts, err := NewServer("localhost:0", time.Second, "vminsert-old", &testStorage, nil)
 		if err != nil {
 			t.Fatalf("cannot create server: %s", err)
 		}
@@ -68,7 +68,7 @@ func TestProtocolMigration(t *testing.T) {
 	// test old client and new storage
 	{
 		protoparserutil.StartUnmarshalWorkers()
-		ts, err := NewVMInsertServer("localhost:0", time.Second, "vminsert-new", &testStorage, nil)
+		ts, err := NewServer("localhost:0", time.Second, "vminsert-new", &testStorage, nil)
 		if err != nil {
 			t.Fatalf("cannot create server: %s", err)
 		}
@@ -94,7 +94,7 @@ func TestProtocolMigration(t *testing.T) {
 	// new client and new storage
 	{
 		protoparserutil.StartUnmarshalWorkers()
-		ts, err := NewVMInsertServer("localhost:0", time.Second, "vminsert-both-new", &testStorage, nil)
+		ts, err := NewServer("localhost:0", time.Second, "vminsert-both-new", &testStorage, nil)
 		if err != nil {
 			t.Fatalf("cannot create server: %s", err)
 		}
@@ -118,7 +118,7 @@ func TestProtocolMigration(t *testing.T) {
 		testStorage.isReadOnly.Store(true)
 		defer testStorage.isReadOnly.Store(false)
 		protoparserutil.StartUnmarshalWorkers()
-		ts, err := NewVMInsertServer("localhost:0", time.Second, "vminsert-read-only", &testStorage, nil)
+		ts, err := NewServer("localhost:0", time.Second, "vminsert-read-only", &testStorage, nil)
 		if err != nil {
 			t.Fatalf("cannot create server: %s", err)
 		}

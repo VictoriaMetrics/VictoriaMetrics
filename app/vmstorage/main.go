@@ -41,20 +41,20 @@ var (
 	useProxyProtocol = flagutil.NewArrayBool("httpListenAddr.useProxyProtocol", "Whether to use proxy protocol for connections accepted at the given -httpListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
-	vminsertAddr          = flag.String("vminsertAddr", ":8400", "TCP address to accept connections from vminsert services")
-	vmselectAddr          = flag.String("vmselectAddr", ":8401", "TCP address to accept connections from vmselect services")
-	maxConcurrentRequests = flag.Int("search.maxConcurrentRequests", 2*cgroup.AvailableCPUs(), "The maximum number of concurrent vmselect requests "+
-		"the vmstorage can process at -vmselectAddr. It shouldn't be high, since a single request usually saturates a CPU core, and many concurrently executed requests "+
-		"may require high amounts of memory. See also -search.maxQueueDuration")
-	maxQueueDuration = flag.Duration("search.maxQueueDuration", 10*time.Second, "The maximum time the incoming vmselect request waits for execution "+
-		"when -search.maxConcurrentRequests limit is reached")
-	disableRPCCompression = flag.Bool("rpc.disableCompression", false, "Whether to disable compression of the data sent from vmstorage to vmselect. "+
-		"This reduces CPU usage at the cost of higher network bandwidth usage")
+	vminsertAddr                  = flag.String("vminsertAddr", ":8400", "TCP address to accept connections from vminsert services")
 	vminsertConnsShutdownDuration = flag.Duration("storage.vminsertConnsShutdownDuration", 10*time.Second, "The time needed for gradual closing of vminsert connections during "+
 		"graceful shutdown. Bigger duration reduces spikes in CPU, RAM and disk IO load on the remaining vmstorage nodes during rolling restart. "+
 		"Smaller duration reduces the time needed to close all the vminsert connections, thus reducing the time for graceful shutdown. "+
 		"Configured value must always be lower than the graceful shutdown period configured by the orchestration platform (terminationGracePeriodSeconds for Kubernetes). "+
 		"See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#improving-re-routing-performance-during-restart")
+	vmselectAddr                  = flag.String("vmselectAddr", ":8401", "TCP address to accept connections from vmselect services")
+	vmselectMaxConcurrentRequests = flag.Int("search.maxConcurrentRequests", 2*cgroup.AvailableCPUs(), "The maximum number of concurrent vmselect requests "+
+		"the vmstorage can process at -vmselectAddr. It shouldn't be high, since a single request usually saturates a CPU core, and many concurrently executed requests "+
+		"may require high amounts of memory. See also -search.maxQueueDuration")
+	vmselectMaxQueueDuration = flag.Duration("search.maxQueueDuration", 10*time.Second, "The maximum time the incoming vmselect request waits for execution "+
+		"when -search.maxConcurrentRequests limit is reached")
+	vmselectDisableRPCCompression = flag.Bool("rpc.disableCompression", false, "Whether to disable compression of the data sent from vmstorage to vmselect. "+
+		"This reduces CPU usage at the cost of higher network bandwidth usage")
 	snapshotAuthKey   = flagutil.NewPassword("snapshotAuthKey", "authKey, which must be passed in query string to /snapshot* pages. It overrides -httpAuth.*")
 	forceMergeAuthKey = flagutil.NewPassword("forceMergeAuthKey", "authKey, which must be passed in query string to /internal/force_merge pages. It overrides -httpAuth.*")
 	forceFlushAuthKey = flagutil.NewPassword("forceFlushAuthKey", "authKey, which must be passed in query string to /internal/force_flush pages. It overrides -httpAuth.*")
@@ -188,7 +188,7 @@ func main() {
 		LogNewSeries:                *logNewSeries,
 	}
 	strg := storage.MustOpenStorage(*storageDataPath, opts)
-	vmStorage := newVMStorage(strg, *maxConcurrentRequests)
+	vmStorage := newVMStorage(strg, *vmselectMaxConcurrentRequests)
 
 	var m storage.Metrics
 	strg.UpdateMetrics(&m)
@@ -202,25 +202,23 @@ func main() {
 
 	// register storage metrics
 	storageMetrics := metrics.NewSet()
-	storageMetrics.RegisterMetricsWriter(func(w io.Writer) {
-		vmStorage.writeStorageMetrics(w)
-	})
+	storageMetrics.RegisterMetricsWriter(vmStorage.writeStorageMetrics)
 	metrics.RegisterSet(storageMetrics)
 
 	protoparserutil.StartUnmarshalWorkers()
 
-	vminsertSrv, err := vminsertapi.NewVMInsertServer(*vminsertAddr, *vminsertConnsShutdownDuration, "vminsert", vmStorage, nil)
+	vminsertSrv, err := vminsertapi.NewServer(*vminsertAddr, *vminsertConnsShutdownDuration, "vminsert", vmStorage, nil)
 	if err != nil {
 		logger.Fatalf("cannot create a server with -vminsertAddr=%s: %s", *vminsertAddr, err)
 
 	}
 	limits := vmselectapi.Limits{
-		MaxConcurrentRequests:         *maxConcurrentRequests,
+		MaxConcurrentRequests:         *vmselectMaxConcurrentRequests,
 		MaxConcurrentRequestsFlagName: "search.maxConcurrentRequests",
-		MaxQueueDuration:              *maxQueueDuration,
+		MaxQueueDuration:              *vmselectMaxQueueDuration,
 		MaxQueueDurationFlagName:      "search.maxQueueDuration",
 	}
-	vmselectSrv, err := vmselectapi.NewServer(*vmselectAddr, vmStorage, limits, *disableRPCCompression)
+	vmselectSrv, err := vmselectapi.NewServer(*vmselectAddr, vmStorage, limits, *vmselectDisableRPCCompression)
 	if err != nil {
 		logger.Fatalf("cannot create a server with -vmselectAddr=%s: %s", *vmselectAddr, err)
 	}
@@ -265,7 +263,7 @@ func main() {
 
 // requestHandler is a storage request handler.
 // TODO(@rtm0): Move to a separate file, request_handler.go
-func (api *VMStorage) requestHandler(w http.ResponseWriter, r *http.Request) bool {
+func (vms *VMStorage) requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	path := r.URL.Path
 
 	if path == "/" {
@@ -290,7 +288,7 @@ func (api *VMStorage) requestHandler(w http.ResponseWriter, r *http.Request) boo
 			defer activeForceMerges.Dec()
 			logger.Infof("forced merge for partition_prefix=%q has been started", partitionNamePrefix)
 			startTime := time.Now()
-			if err := api.s.ForceMergePartitions(partitionNamePrefix); err != nil {
+			if err := vms.s.ForceMergePartitions(partitionNamePrefix); err != nil {
 				logger.Errorf("error in forced merge for partition_prefix=%q: %s", partitionNamePrefix, err)
 				return
 			}
@@ -303,7 +301,7 @@ func (api *VMStorage) requestHandler(w http.ResponseWriter, r *http.Request) boo
 			return true
 		}
 		logger.Infof("flushing storage to make pending data available for reading")
-		api.s.DebugFlush()
+		vms.s.DebugFlush()
 		return true
 	}
 
@@ -323,7 +321,7 @@ func (api *VMStorage) requestHandler(w http.ResponseWriter, r *http.Request) boo
 		}
 		logger.Infof("enabling logging of new series for the next %s. This may increase resource usage during this period.", time.Duration(dealine)*time.Second)
 		endTime := fasttime.UnixTimestamp() + uint64(dealine)
-		api.s.SetLogNewSeriesUntil(endTime)
+		vms.s.SetLogNewSeriesUntil(endTime)
 		fmt.Fprintf(w, `{"status":"success","data":{"logEndTime":%q}}`, time.Unix(int64(endTime), 0))
 		return true
 	}
@@ -339,13 +337,13 @@ func (api *VMStorage) requestHandler(w http.ResponseWriter, r *http.Request) boo
 	case "/create":
 		snapshotsCreateTotal.Inc()
 		w.Header().Set("Content-Type", "application/json")
-		snapshotName := api.s.MustCreateSnapshot()
+		snapshotName := vms.s.MustCreateSnapshot()
 
 		// Verify whether the client already closed the connection.
 		// In this case it is better to drop the created snapshot, since the client isn't interested in it.
 		if err := r.Context().Err(); err != nil {
 			logger.Infof("deleting already created snapshot at %s because the client canceled the request", snapshotName)
-			if err := api.deleteSnapshot(snapshotName); err != nil {
+			if err := vms.deleteSnapshot(snapshotName); err != nil {
 				logger.Infof("cannot delete just created snapshot: %s", err)
 				return true
 			}
@@ -357,7 +355,7 @@ func (api *VMStorage) requestHandler(w http.ResponseWriter, r *http.Request) boo
 	case "/list":
 		snapshotsListTotal.Inc()
 		w.Header().Set("Content-Type", "application/json")
-		snapshots := api.s.MustListSnapshots()
+		snapshots := vms.s.MustListSnapshots()
 		fmt.Fprintf(w, `{"status":"ok","snapshots":[`)
 		if len(snapshots) > 0 {
 			for _, snapshot := range snapshots[:len(snapshots)-1] {
@@ -371,7 +369,7 @@ func (api *VMStorage) requestHandler(w http.ResponseWriter, r *http.Request) boo
 		snapshotsDeleteTotal.Inc()
 		w.Header().Set("Content-Type", "application/json")
 		snapshotName := r.FormValue("snapshot")
-		if err := api.deleteSnapshot(snapshotName); err != nil {
+		if err := vms.deleteSnapshot(snapshotName); err != nil {
 			jsonResponseError(w, err)
 			snapshotsDeleteErrorsTotal.Inc()
 			return true
@@ -381,9 +379,9 @@ func (api *VMStorage) requestHandler(w http.ResponseWriter, r *http.Request) boo
 	case "/delete_all":
 		snapshotsDeleteAllTotal.Inc()
 		w.Header().Set("Content-Type", "application/json")
-		snapshots := api.s.MustListSnapshots()
+		snapshots := vms.s.MustListSnapshots()
 		for _, snapshotName := range snapshots {
-			if err := api.s.DeleteSnapshot(snapshotName); err != nil {
+			if err := vms.s.DeleteSnapshot(snapshotName); err != nil {
 				err = fmt.Errorf("cannot delete snapshot %q: %w", snapshotName, err)
 				jsonResponseError(w, err)
 				snapshotsDeleteAllErrorsTotal.Inc()
@@ -412,8 +410,8 @@ var (
 )
 
 // TODO(@rtm0): Move to metrics.go.
-func (api *VMStorage) writeStorageMetrics(w io.Writer) {
-	strg := api.s
+func (vms *VMStorage) writeStorageMetrics(w io.Writer) {
+	strg := vms.s
 	var m storage.Metrics
 	strg.UpdateMetrics(&m)
 	tm := &m.TableMetrics
@@ -637,7 +635,7 @@ func (api *VMStorage) writeStorageMetrics(w io.Writer) {
 	metrics.WriteGaugeUint64(w, `vm_downsampling_partitions_scheduled`, tm.ScheduledDownsamplingPartitions)
 	metrics.WriteGaugeUint64(w, `vm_downsampling_partitions_scheduled_size_bytes`, tm.ScheduledDownsamplingPartitionsSize)
 
-	metrics.WriteGaugeUint64(w, `vm_search_max_unique_timeseries`, uint64(api.maxUniqueTimeSeriesCalculated))
+	metrics.WriteGaugeUint64(w, `vm_search_max_unique_timeseries`, uint64(vms.maxUniqueTimeSeriesCalculated))
 
 	metrics.WriteGaugeUint64(w, `vm_metrics_metadata_storage_items`, m.MetadataStorageItemsCurrent)
 	metrics.WriteCounterUint64(w, `vm_metrics_metadata_storage_size_bytes`, m.MetadataStorageCurrentSizeBytes)

@@ -51,8 +51,8 @@ type VMInsertServer struct {
 	vminsertMetadataRead *metrics.Counter
 }
 
-// NewVMInsertServer starts VMInsertServer at the given addr serving the given storage.
-func NewVMInsertServer(addr string, connectionTimeout time.Duration, listenerName string, api API, tc *tls.Config) (*VMInsertServer, error) {
+// NewServer starts a VMInsert server at the given addr serving the given storage.
+func NewServer(addr string, connectionTimeout time.Duration, listenerName string, api API, tc *tls.Config) (*VMInsertServer, error) {
 	ln, err := netutil.NewTCPListener(listenerName, addr, false, tc)
 	if err != nil {
 		return nil, fmt.Errorf("unable to listen vminsertAddr %s: %w", addr, err)

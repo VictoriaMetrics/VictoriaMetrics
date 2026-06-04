@@ -26,7 +26,7 @@ var (
 // NewVMinsertServer creates and start vminsert server at the given addr
 func NewVMinsertServer(addr string, tc *tls.Config) (*vminsertapi.VMInsertServer, error) {
 	api := &vminsertAPI{}
-	return vminsertapi.NewVMInsertServer(addr, *vminsertConnsShutdownDuration, "clusternative", api, tc)
+	return vminsertapi.NewServer(addr, *vminsertConnsShutdownDuration, "clusternative", api, tc)
 }
 
 type vminsertAPI struct {
