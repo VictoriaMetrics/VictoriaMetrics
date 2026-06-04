@@ -79,7 +79,8 @@ var (
 		"writing them to remote storage. "+
 		"Examples: -remoteWrite.roundDigits=2 would round 1.236 to 1.24, while -remoteWrite.roundDigits=-1 would round 126.78 to 130. "+
 		"By default, digits rounding is disabled. Set it to 100 for disabling it for a particular remote storage. "+
-		"This option may be used for improving data compression for the stored metrics")
+		"This option may be used for improving data compression for the stored metrics. "+
+		"See also -remoteWrite.significantFigures")
 	sortLabels = flag.Bool("sortLabels", false, `Whether to sort labels for incoming samples before writing them to all the configured remote storage systems. `+
 		`This may be needed for reducing memory usage at remote storage when the order of labels in incoming samples is random. `+
 		`For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}`+

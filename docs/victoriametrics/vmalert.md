@@ -801,17 +801,15 @@ Please refer to the [VictoriaMetrics Cloud documentation](https://docs.victoriam
 `vmalert` runs a web-server (`-httpListenAddr`) for serving metrics and alerts endpoints:
 
 * `http://<vmalert-addr>` - UI;
-* `http://<vmalert-addr>/api/v1/rules` - list of all loaded groups and rules. Supports `search`, `group_limit`, and `page_num` parameters, as well as additional [filtering](https://prometheus.io/docs/prometheus/latest/querying/api/#rules);
-* `http://<vmalert-addr>/api/v1/alerts` - list of all active alerts;
-* `http://<vmalert-addr>/api/v1/notifiers` - list all available notifiers;
-* `http://<vmalert-addr>/vmalert/api/v1/alert?group_id=<group_id>&alert_id=<alert_id>` - get alert status in JSON format.
-* `http://<vmalert-addr>/vmalert/api/v1/rule?group_id=<group_id>&rule_id=<rule_id>` - get rule status in JSON format.
-* `http://<vmalert-addr>/vmalert/api/v1/group?group_id=<group_id>` - get group status in JSON format.
-Used as alert source in AlertManager.
-* `http://<vmalert-addr>/vmalert/alert?group_id=<group_id>&alert_id=<alert_id>` - get alert status in web UI.
-* `http://<vmalert-addr>/vmalert/rule?group_id=<group_id>&rule_id=<rule_id>` - get rule status in web UI.
-* `http://<vmalert-addr>/vmalert/api/v1/rule?group_id=<group_id>&alert_id=<alert_id>` - get rule status in JSON format.
-* `http://<vmalert-addr>/metrics` - application metrics.
+* `http://<vmalert-addr>/api/v1/rules` - returns a list of all loaded groups and rules. Supports the `datasource_type`, `search`, `group_limit`, and `page_num` parameters, as well as additional [filtering](https://prometheus.io/docs/prometheus/latest/querying/api/#rules);
+* `http://<vmalert-addr>/api/v1/alerts` - returns a list of all active alerts. Supports the `datasource_type`, `rule_group[]`, `file[]` and `match[]`(applied on templated alert labels) query parameters;
+* `http://<vmalert-addr>/api/v1/notifiers` - returns a list of all available notifiers;
+* `http://<vmalert-addr>/vmalert/api/v1/alert?group_id=<group_id>&alert_id=<alert_id>` - returns the alert status in JSON format;
+* `http://<vmalert-addr>/vmalert/api/v1/rule?group_id=<group_id>&rule_id=<rule_id>` - returns the rule status in JSON format;
+* `http://<vmalert-addr>/vmalert/api/v1/group?group_id=<group_id>` - returns the group status in JSON format. Used as the alert source in AlertManager;
+* `http://<vmalert-addr>/vmalert/alert?group_id=<group_id>&alert_id=<alert_id>` - displays the alert status in the web UI;
+* `http://<vmalert-addr>/vmalert/rule?group_id=<group_id>&rule_id=<rule_id>` - displays the rule status in the web UI;
+* `http://<vmalert-addr>/metrics` - application metrics endpoint;
 * `http://<vmalert-addr>/-/reload` - hot configuration reload.
 
 `vmalert` web UI can be accessed from [single-node version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
