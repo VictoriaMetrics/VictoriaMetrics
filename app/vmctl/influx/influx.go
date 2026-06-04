@@ -11,35 +11,28 @@ import (
 	influx "github.com/influxdata/influxdb/client/v2"
 )
 
-// Client represents a wrapper over
-// influx HTTP client
-type Client struct {
-	influx.Client
-
-	database  string
-	retention string
-	chunkSize int
-
-	filterSeries string
-	filterTime   string
+// Source is implemented by both the InfluxDB v1 and v2 clients.
+// The processor layer talks only to this interface so a single migration
+// loop handles both protocol versions without any version-specific branching.
+type Source interface {
+	// Explore discovers all time series available in the source.
+	Explore() ([]*Series, error)
+	// FetchDataPoints streams all data points for one Series.
+	FetchDataPoints(s *Series) (ChunkedResponse, error)
+	// Label returns the label name and value that identifies the data source
+	// in VictoriaMetrics after migration ("db"/database for v1, "bucket"/bucket for v2).
+	Label() (name, value string)
 }
 
-// Config contains fields required
-// for Client configuration
-type Config struct {
-	Addr      string
-	Username  string
-	Password  string
-	Database  string
-	Retention string
-	ChunkSize int
-
-	Filter    Filter
-	TLSConfig *tls.Config
+// ChunkedResponse is the common streaming interface returned by FetchDataPoints.
+// Each call to Next returns one batch of (timestamps, values); empty slices signal
+// that the stream is fully consumed. Close must always be deferred by the caller.
+type ChunkedResponse interface {
+	Next() ([]int64, []float64, error)
+	Close() error
 }
 
-// Filter contains configuration for filtering
-// the timeseries
+// Filter contains configuration for filtering the timeseries
 type Filter struct {
 	Series    string
 	TimeStart string
@@ -78,15 +71,38 @@ func (s Series) fetchQuery(timeFilter string) string {
 	return q
 }
 
-// LabelPair is the key-value record
-// of time series label
+// LabelPair is the key-value record of time series label
 type LabelPair struct {
 	Name  string
 	Value string
 }
 
-// NewClient creates and returns influx client
-// configured with passed Config
+// Client represents a wrapper over influx HTTP client
+type Client struct {
+	influx.Client
+
+	database  string
+	retention string
+	chunkSize int
+
+	filterSeries string
+	filterTime   string
+}
+
+// Config contains fields required for Client configuration
+type Config struct {
+	Addr      string
+	Username  string
+	Password  string
+	Database  string
+	Retention string
+	ChunkSize int
+
+	Filter    Filter
+	TLSConfig *tls.Config
+}
+
+// NewClient creates and returns influx client configured with passed Config
 func NewClient(cfg Config) (*Client, error) {
 	c := influx.HTTPConfig{
 		Addr:      cfg.Addr,
@@ -118,9 +134,15 @@ func NewClient(cfg Config) (*Client, error) {
 	return client, nil
 }
 
-// Database returns database name
+// Database returns the database name.
 func (c *Client) Database() string {
 	return c.database
+}
+
+// Label implements Source: attaches a "db" label to every migrated series so
+// you can tell which InfluxDB database the data came from in VictoriaMetrics.
+func (c *Client) Label() (name, value string) {
+	return "db", c.database
 }
 
 func timeFilter(start, end string) string {
@@ -215,25 +237,26 @@ func getEmptyTags(tags map[string]struct{}, LabelPairs []LabelPair) []string {
 	return result
 }
 
-// ChunkedResponse is a wrapper over influx.ChunkedResponse.
-// Used for better memory usage control while iterating
-// over huge time series.
-type ChunkedResponse struct {
+// v1ChunkedResponse wraps influx.ChunkedResponse for the v1 HTTP chunked query API.
+type v1ChunkedResponse struct {
 	cr    *influx.ChunkedResponse
 	iq    influx.Query
 	field string
 }
 
-// Close closes cr.
-func (cr *ChunkedResponse) Close() error {
+// Close closes the underlying response.
+func (cr *v1ChunkedResponse) Close() error {
 	return cr.cr.Close()
 }
 
-// Next reads the next part/chunk of time series.
-// Returns io.EOF when time series was read entirely.
-func (cr *ChunkedResponse) Next() ([]int64, []float64, error) {
+// Next reads the next chunk of time series data.
+// Returns empty slices and nil error when the stream is fully consumed.
+func (cr *v1ChunkedResponse) Next() ([]int64, []float64, error) {
 	resp, err := cr.cr.NextResponse()
 	if err != nil {
+		if err == io.EOF {
+			return nil, nil, nil
+		}
 		return nil, nil, err
 	}
 	if resp.Error() != nil {
@@ -282,9 +305,8 @@ func (cr *ChunkedResponse) Next() ([]int64, []float64, error) {
 	return ts, values, nil
 }
 
-// FetchDataPoints performs SELECT request to fetch
-// datapoints for particular field.
-func (c *Client) FetchDataPoints(s *Series) (*ChunkedResponse, error) {
+// FetchDataPoints performs SELECT request to fetch datapoints for particular field.
+func (c *Client) FetchDataPoints(s *Series) (ChunkedResponse, error) {
 	iq := influx.Query{
 		Command:         s.fetchQuery(c.filterTime),
 		Database:        c.database,
@@ -296,7 +318,7 @@ func (c *Client) FetchDataPoints(s *Series) (*ChunkedResponse, error) {
 	if err != nil {
 		return nil, fmt.Errorf("query %q err: %s", iq.Command, err)
 	}
-	return &ChunkedResponse{cr, iq, s.Field}, nil
+	return &v1ChunkedResponse{cr, iq, s.Field}, nil
 }
 
 func (c *Client) fieldsByMeasurement() (map[string][]string, error) {

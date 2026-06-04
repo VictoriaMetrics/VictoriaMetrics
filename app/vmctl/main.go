@@ -25,7 +25,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/influx"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/influx2"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/opentsdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/thanos"
@@ -177,7 +176,9 @@ func main() {
 						c.String(influxMeasurementFieldSeparator),
 						c.Bool(influxSkipDatabaseLabel),
 						c.Bool(influxPrometheusMode),
-						c.Bool(globalVerbose))
+						c.Bool(globalVerbose),
+						influxSeriesTotal, influxSeriesProcessed, influxErrorsTotal,
+					)
 					return processor.run(ctx)
 				},
 			},
@@ -200,16 +201,12 @@ func main() {
 						return fmt.Errorf("failed to create TLS config: %s", err)
 					}
 
-					// Build the influx2.Config from CLI flags.
-					// Notice what's absent compared to the v1 block above:
-					// no Username, no Password, no Database, no Retention, no FilterSeries.
-					// v2 replaced all of those with Token, Org, and Bucket.
-					i2Cfg := influx2.Config{
+					i2Cfg := influx.V2Config{
 						Addr:   c.String(influx2Addr),
 						Token:  c.String(influx2Token),
 						Org:    c.String(influx2Org),
 						Bucket: c.String(influx2Bucket),
-						Filter: influx2.Filter{
+						Filter: influx.Filter{
 							TimeStart: c.String(influx2FilterTimeStart),
 							TimeEnd:   c.String(influx2FilterTimeEnd),
 						},
@@ -217,7 +214,7 @@ func main() {
 						TLSConfig: tc,
 					}
 
-					i2Client, err := influx2.NewClient(i2Cfg)
+					i2Client, err := influx.NewV2Client(i2Cfg)
 					if err != nil {
 						return fmt.Errorf("failed to create InfluxDB v2 client: %s", err)
 					}
@@ -232,13 +229,15 @@ func main() {
 						return fmt.Errorf("failed to create VM importer: %s", err)
 					}
 
-					processor := newInflux2Processor(
+					processor := newInfluxProcessor(
 						i2Client,
 						importer,
 						c.Int(influx2Concurrency),
 						c.String(influx2MeasurementFieldSeparator),
 						c.Bool(influx2SkipBucketLabel),
+						false, // promMode is v1-only
 						c.Bool(globalVerbose),
+						influx2SeriesTotal, influx2SeriesProcessed, influx2ErrorsTotal,
 					)
 					return processor.run(ctx)
 				},
