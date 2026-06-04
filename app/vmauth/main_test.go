@@ -479,7 +479,7 @@ unauthorized_user:
 	}
 	responseExpected = `
 statusCode=502
-all the 2 backends for the user "" are unavailable for proxying the request - check previous WARN logs to see the exact error for each failed backend`
+all the 2 backends for the user "unauthorized" are unavailable for proxying the request - check previous WARN logs to see the exact error for each failed backend`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 
 	// all the backend_urls are unavailable for authorized user
@@ -519,7 +519,7 @@ unauthorized_user:
 	}
 	responseExpected = `
 statusCode=502
-all the 0 backends for the user "" are unavailable for proxying the request - check previous WARN logs to see the exact error for each failed backend`
+all the 0 backends for the user "unauthorized" are unavailable for proxying the request - check previous WARN logs to see the exact error for each failed backend`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 	netutil.Resolver = origResolver
 
@@ -536,7 +536,7 @@ unauthorized_user:
 	}
 	responseExpected = `
 statusCode=502
-all the 2 backends for the user "" are unavailable for proxying the request - check previous WARN logs to see the exact error for each failed backend`
+all the 2 backends for the user "unauthorized" are unavailable for proxying the request - check previous WARN logs to see the exact error for each failed backend`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 	if n := retries.Load(); n != 2 {
 		t.Fatalf("unexpected number of retries; got %d; want 2", n)
