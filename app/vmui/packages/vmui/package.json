@@ -27,7 +27,7 @@
     "preact": "^10.29.1",
     "qs": "^6.15.1",
     "react-input-mask": "^2.0.4",
-    "react-router-dom": "^7.14.1",
+    "react-router-dom": "^7.16.0",
     "uplot": "^1.6.32",
     "vite": "^8.0.8",
     "web-vitals": "^5.2.0"
