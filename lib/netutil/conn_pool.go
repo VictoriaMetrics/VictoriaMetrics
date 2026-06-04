@@ -1,7 +1,10 @@
 package netutil
 
 import (
+	"errors"
 	"fmt"
+	"net"
+	"os"
 	"sync"
 	"time"
 
@@ -202,20 +205,34 @@ func (cp *ConnPool) dialAndHandshake() (*handshake.BufferedConn, error) {
 }
 
 func (cp *ConnPool) tryGetConn() (*handshake.BufferedConn, error) {
-	cp.mu.Lock()
-	defer cp.mu.Unlock()
+	for {
+		cp.mu.Lock()
+		if cp.isStopped {
+			cp.mu.Unlock()
+			return nil, fmt.Errorf("conn pool to %s cannot be used, since it is stopped", cp.d.addr)
+		}
+		if len(cp.conns) == 0 {
+			err := cp.lastDialError
+			cp.mu.Unlock()
+			return nil, err
+		}
+		c := cp.conns[len(cp.conns)-1]
+		cp.conns = cp.conns[:len(cp.conns)-1]
+		cp.mu.Unlock()
 
-	if cp.isStopped {
-		return nil, fmt.Errorf("conn pool to %s cannot be used, since it is stopped", cp.d.addr)
+		now := fasttime.UnixTimestamp()
+		if now-c.lastActiveTime < 5 {
+			// the conn is fresh enough, let's reuse without alive check
+			return c.bc, nil
+		}
+
+		if !isConnAlive(c.bc.Conn) {
+			_ = c.bc.Close()
+			continue
+		}
+
+		return c.bc, nil
 	}
-	if len(cp.conns) == 0 {
-		return nil, cp.lastDialError
-	}
-	c := cp.conns[len(cp.conns)-1]
-	bc := c.bc
-	c.bc = nil
-	cp.conns = cp.conns[:len(cp.conns)-1]
-	return bc, nil
 }
 
 // Put puts bc back to the pool.
@@ -324,4 +341,19 @@ func forEachConnPool(f func(cp *ConnPool)) {
 	}
 	wg.Wait()
 	connPoolsMu.Unlock()
+}
+
+func isConnAlive(c net.Conn) bool {
+	if err := c.SetReadDeadline(time.Now().Add(time.Millisecond * 5)); err != nil {
+		return false
+	}
+	defer c.SetReadDeadline(time.Time{}) //nolint:errcheck
+
+	var buf [1]byte
+	_, err := c.Read(buf[:])
+	if err == nil {
+		// Unexpected data on an idle connection - treat as broken.
+		return false
+	}
+	return errors.Is(err, os.ErrDeadlineExceeded)
 }
