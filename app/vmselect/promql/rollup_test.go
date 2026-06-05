@@ -1385,9 +1385,64 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		if samplesScanned != 24 {
 			t.Fatalf("expecting 24 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
-		valuesExpected := []float64{nan, 2.148, 1.593, 1.156, 1.36}
+		// At tEnd=160 the series has no samples past the window (last sample is at
+		// ts=130), so integrate() must not extrapolate prevValue through tEnd.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9474
+		valuesExpected := []float64{nan, 2.148, 1.593, 1.156, 0.34}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
+	})
+	t.Run("integrate_past_series_end", func(t *testing.T) {
+		// Constant series of value 1.0 from t=0..3600s (1h) at 60s step.
+		// Query integrate(metric[1h]) across t=0..10800s with 600s step.
+		// For t=0..3600s the window overlap with the data is [0,t], so the integral grows from 0 to 3600 (seconds).
+		// After the series ends, integrate must NOT keep accruing 3600 — it
+		// should taper to 0 once the lookbehind window is entirely past the
+		// last sample.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9474
+		var testValues []int64
+		var testTimestamps []float64
+		for t := int64(0); t <= 3600_000; t += 60_000 {
+			testValues = append(testValues, t)
+			testTimestamps = append(testTimestamps, 1.0)
+		}
+		rc := rollupConfig{
+			Func:               rollupIntegrate,
+			Start:              0,
+			End:                10800_000,
+			Step:               600_000,
+			Window:             3600_000,
+			MaxPointsPerSeries: 1e4,
+		}
+		rc.Timestamps = rc.getTimestamps()
+		values, _ := rc.Do(nil, testTimestamps, testValues)
+		for i, ti := range rc.Timestamps {
+			v := values[i]
+
+			// For t<=3600s: window overlap is [0,ti], integral equals ti in seconds.
+			if ti <= 3600_000 {
+				expV := float64(ti / 1e3)
+				if v != expV {
+					t.Fatalf("unexpected integrate result at t=%ds, want=%.3f got=%.3f", ti/1e3, expV, v)
+				}
+				continue
+			}
+			// For 3600s<t<7200s: data is partially outside the window, so the
+			// integral shrinks linearly from 3600 to 0 as t approaches 7200s.
+			if ti > 3600_000 && ti < 7200_000 {
+				expV := float64((7200_000 - ti) / 1e3)
+				if v != expV {
+					t.Fatalf("unexpected integrate result at t=%ds, want=%.3f got=%.3f", ti/1e3, expV, v)
+				}
+				continue
+			}
+			if ti >= 7200_000 {
+				// Window entirely past data end: must be NaN.
+				if !math.IsNaN(v) {
+					t.Fatalf("unexpected integrate result at t=%ds, want=NaN got=%.3f", ti/1e3, v)
+				}
+			}
+		}
 	})
 	t.Run("distinct_over_time_1", func(t *testing.T) {
 		rc := rollupConfig{

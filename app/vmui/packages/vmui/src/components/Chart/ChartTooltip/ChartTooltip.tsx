@@ -16,6 +16,7 @@ export interface ChartTooltipProps {
   point: { top: number, left: number };
   unit?: string;
   statsFormatted?: SeriesItemStatsFormatted;
+  description?: ReactNode;
   isSticky?: boolean;
   info?: ReactNode;
   marker?: string;
@@ -34,6 +35,7 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
   unit = "",
   info,
   statsFormatted,
+  description,
   isSticky,
   marker,
   duplicateCount = 0,
@@ -173,6 +175,7 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
           ))}
         </table>
       )}
+      {description && <p className="vm-chart-tooltip__description">{description}</p>}
       {info && <p className="vm-chart-tooltip__info">{info}</p>}
     </div>
   ), u.root);

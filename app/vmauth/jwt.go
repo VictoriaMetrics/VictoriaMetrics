@@ -17,6 +17,8 @@ import (
 
 const (
 	metricsTenantPlaceholder       = `{{.MetricsTenant}}`
+	metricsAccountIDPlaceholder    = `{{.MetricsAccountID}}`
+	metricsProjectIDPlaceholder    = `{{.MetricsProjectID}}`
 	metricsExtraLabelsPlaceholder  = `{{.MetricsExtraLabels}}`
 	metricsExtraFiltersPlaceholder = `{{.MetricsExtraFilters}}`
 
@@ -30,6 +32,8 @@ const (
 
 var allPlaceholders = []string{
 	metricsTenantPlaceholder,
+	metricsAccountIDPlaceholder,
+	metricsProjectIDPlaceholder,
 	metricsExtraLabelsPlaceholder,
 	metricsExtraFiltersPlaceholder,
 	logsAccountIDPlaceholder,
@@ -40,6 +44,8 @@ var allPlaceholders = []string{
 
 var urlPathPlaceHolders = []string{
 	metricsTenantPlaceholder,
+	metricsAccountIDPlaceholder,
+	metricsProjectIDPlaceholder,
 	logsAccountIDPlaceholder,
 	logsProjectIDPlaceholder,
 }
@@ -371,6 +377,8 @@ func jwtClaimsData(vma *jwt.VMAccessClaim) map[string][]string {
 	data := map[string][]string{
 		// TODO: optimize at parsing stage
 		metricsTenantPlaceholder:       {fmt.Sprintf("%d:%d", vma.MetricsAccountID, vma.MetricsProjectID)},
+		metricsAccountIDPlaceholder:    {fmt.Sprintf("%d", vma.MetricsAccountID)},
+		metricsProjectIDPlaceholder:    {fmt.Sprintf("%d", vma.MetricsProjectID)},
 		metricsExtraLabelsPlaceholder:  vma.MetricsExtraLabels,
 		metricsExtraFiltersPlaceholder: vma.MetricsExtraFilters,
 

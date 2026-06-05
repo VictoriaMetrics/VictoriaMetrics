@@ -71,7 +71,7 @@ const RulesHeader = ({
           <TextField
             label="Search"
             value={search}
-            placeholder="Filter by rule, name or labels"
+            placeholder="Filter by group or rule name"
             startIcon={<SearchIcon />}
             onChange={onChangeSearch}
           />

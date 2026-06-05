@@ -961,6 +961,7 @@ func getLabelsHash(labels []prompb.Label) uint64 {
 
 	for _, label := range labels {
 		b = append(b, label.Name...)
+		b = append(b, '=')
 		b = append(b, label.Value...)
 	}
 	h := xxhash.Sum64(b)
