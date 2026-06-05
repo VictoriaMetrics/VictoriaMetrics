@@ -113,15 +113,15 @@ func (g *Group) Validate(validateTplFn ValidateTplFn, validateExpressions bool) 
 			// because correct types must be inherited after unmarshalling.
 			exprValidator := g.Type.ValidateExpr
 			if err := exprValidator(r.Expr); err != nil {
-				return fmt.Errorf("invalid expression for rule  %q: %w", ruleName, err)
+				return fmt.Errorf("invalid expression for rule %q: %w", ruleName, err)
 			}
 		}
 		if validateTplFn != nil {
 			if err := validateTplFn(r.Annotations); err != nil {
-				return fmt.Errorf("invalid annotations for rule  %q: %w", ruleName, err)
+				return fmt.Errorf("invalid annotations for rule %q: %w", ruleName, err)
 			}
 			if err := validateTplFn(r.Labels); err != nil {
-				return fmt.Errorf("invalid labels for rule  %q: %w", ruleName, err)
+				return fmt.Errorf("invalid labels for rule %q: %w", ruleName, err)
 			}
 		}
 	}

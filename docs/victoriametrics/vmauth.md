@@ -55,7 +55,7 @@ Feel free to [contact us](mailto:info@victoriametrics.com) if you need a customi
 * [Per-tenant authorization](#per-tenant-authorization)
 * [mTLS-based request routing](#mtls-based-request-routing)
 * [Enforcing query args](#enforcing-query-args)
-* [OIDC authorization](#oidc-authorization)
+* [OIDC discovery](#oidc-discovery)
 
 ### Simple HTTP proxy
 
@@ -189,10 +189,12 @@ See also [authorization](#authorization) and [routing](#routing) docs.
 ### High availability
 
 `vmauth` automatically switches from a temporarily unavailable backend to other hot standby backends listed in `url_prefix`
-if it runs with the `-loadBalancingPolicy=first_available` command-line flag. The load balancing policy can be overridden at `user` and `url_map` sections of [`-auth.config`](#auth-config) via `load_balancing_policy` option. For example, the following config instructs `vmauth` to proxy requests to `http://victoria-metrics-main:8428/` backend.
+if it runs with the `-loadBalancingPolicy=first_available` command-line flag. The load balancing policy can be overridden at `user` and `url_map` sections of [`-auth.config`](#auth-config) via `load_balancing_policy` option.
+For example, the following config instructs `vmauth` to proxy requests to `http://victoria-metrics-main:8428/` backend.
 If this backend becomes unavailable, then `vmauth` starts proxying requests to `http://victoria-metrics-standby1:8428/`.
 If this backend also becomes unavailable, then requests are proxied to the last specified backend - `http://victoria-metrics-standby2:8428/`:
 
+If all backends are marked as unavailable, requests are proxied to the first configured backend `http://victoria-metrics-main:8428/` instead of failing immediately.
 ```yaml
 unauthorized_user:
   url_prefix:
@@ -552,15 +554,17 @@ At request time each placeholder is replaced with the corresponding value from t
 
 The following placeholders are supported:
 
-| Placeholder                   | JWT claim field                                                             |
-|-------------------------------|-----------------------------------------------------------------------------|
+| Placeholder                   | JWT claim field                                         |
+|-------------------------------|---------------------------------------------------------|
+| `{{.MetricsAccountID}}`       | `metrics_account_id` int                                |
+| `{{.MetricsProjectID}}`       | `metrics_project_id` int                                |
 | `{{.MetricsTenant}}` -> `0:0` | `metrics_account_id` int, <br/>`metrics_project_id` int |
-| `{{.MetricsExtraLabels}}`     | `metrics_extra_labels` string array                               |
-| `{{.MetricsExtraFilters}}`    | `metrics_extra_filters` string array                              |
-| `{{.LogsAccountID}}`          | `logs_account_id` int                                             |
-| `{{.LogsProjectID}}`          | `logs_project_id` int                                             |
-| `{{.LogsExtraFilters}}`       | `logs_extra_filters` string array                                 |
-| `{{.LogsExtraStreamFilters}}` | `logs_extra_stream_filters` string array                          |
+| `{{.MetricsExtraLabels}}`     | `metrics_extra_labels` string array                     |
+| `{{.MetricsExtraFilters}}`    | `metrics_extra_filters` string array                    |
+| `{{.LogsAccountID}}`          | `logs_account_id` int                                   |
+| `{{.LogsProjectID}}`          | `logs_project_id` int                                   |
+| `{{.LogsExtraFilters}}`       | `logs_extra_filters` string array                       |
+| `{{.LogsExtraStreamFilters}}` | `logs_extra_stream_filters` string array                |
 
 Placeholders are supported in the following locations:
 
@@ -889,8 +893,9 @@ Each `url_prefix` in the [-auth.config](#auth-config) can be specified in the fo
   This guarantees that incoming load is shared uniformly among the specified backends.
   See also [discovering backend IPs](#discovering-backend-ips).
 
-  `vmauth` automatically detects temporarily unavailable backends and spreads incoming queries among the remaining available backends.
+  `vmauth` automatically detects temporarily unavailable backends and spreads incoming requests among the remaining available backends.
   This allows restarting and performing maintenance on backends without removing them from the `url_prefix` list.
+  If all backends are marked as unavailable, requests are proxied to the first configured backend in the list instead of failing immediately.
 
   By default, `vmauth` returns backend responses with all the HTTP status codes to the client. It is possible to configure automatic retry of requests at other backends if the backend responds with a status code specified in the `-retryStatusCodes` command-line flag.
   It is possible to customize the list of HTTP response status codes to retry via the `retry_status_codes` list at the `user` and `url_map` level of [`-auth.config`](#auth-config).
@@ -1308,7 +1313,7 @@ Access logs contain limited information to prevent exposing sensitive data. See 
 
 The printed log starts with `access_log` prefix and is followed with `request_host`, `request_uri`, `status_code`, `remote_addr`,
 `user_agent`, `referer`, `duration_ms` and `username` fields in [logfmt](https://brandur.org/logfmt) format. Such logs can be later
-analyzed in [VictoriaLogs](https://docs.victoriametrics.com/victorialogs):
+analyzed in [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/):
 ```logsql
 access_log | extract 'access_log <access_log>' | unpack_logfmt from access_log
 | stats by(username, request_host, status_code) count()
@@ -1530,6 +1535,16 @@ To enable TLS on the public listener while keeping the internal listener non-TLS
 ```
 
 `vmauth` also supports restricting access by IP - see [these docs](#ip-filters). See also [concurrency limiting docs](#concurrency-limiting).
+
+
+When `vmauth` performs tenant routing for [multitenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenant-reads) requests, it is crucial to explicitly set `extra_label`, `extra_filters` and `extra_filters[]` in the url_prefix configuration:
+
+```yaml
+unauthorized_user:
+    url_prefix: http://vmselect/select/multitenant?extra_filters[]=&extra_filters=&extra_label=vm_account_id=10&extra_label=vm_project_id=100
+```
+
+This is required because `vmselect` uses `OR` logic for tenant filtering. If a client sets `extra_filters[]` or `extra_filters`, it could bypass the tenant restriction configured via `extra_label`.
 
 ## Automatic issuing of TLS certificates
 

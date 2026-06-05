@@ -932,7 +932,7 @@ The following meta labels are available on discovered targets during [relabeling
 
 Common labels for both `hcloud` and `robot` roles:
 
-* `__meta_hetzner_datacenter`: the datacenter of the server
+* `__meta_hetzner_datacenter`: the datacenter of the server. **Deprecated for the `robot` role** — use `__meta_hetzner_robot_datacenter` instead. **Deprecated for the `hcloud` role** — use `__meta_hetzner_hcloud_location` and `__meta_hetzner_hcloud_location_network_zone` instead; the upstream Hetzner Cloud API `datacenter` field is being removed after 2026-07-01 (see [Hetzner changelog](https://docs.hetzner.cloud/changelog#2025-12-16-phasing-out-datacenters))
 * `__meta_hetzner_public_ipv4`: the public IPv4 address of the server
 * `__meta_hetzner_public_ipv6_network`: the public IPv6 network (/64) of the server
 * `__meta_hetzner_role`: the current role `hcloud` or `robot`
@@ -942,8 +942,10 @@ Common labels for both `hcloud` and `robot` roles:
 
 Additional labels for `role: hcloud`:
 
-* `__meta_hetzner_hcloud_datacenter_location`: the location of the server
-* `__meta_hetzner_hcloud_datacenter_location_network_zone`: the network zone of the server
+* `__meta_hetzner_hcloud_location`: the location name of the server
+* `__meta_hetzner_hcloud_location_network_zone`: the network zone of the server
+* `__meta_hetzner_hcloud_datacenter_location`: **deprecated**, use `__meta_hetzner_hcloud_location` instead (still emitted for backward compatibility)
+* `__meta_hetzner_hcloud_datacenter_location_network_zone`: **deprecated**, use `__meta_hetzner_hcloud_location_network_zone` instead (still emitted for backward compatibility)
 * `__meta_hetzner_hcloud_cpu_cores`: the CPU cores count of the server
 * `__meta_hetzner_hcloud_cpu_type`: the CPU type of the server (shared or dedicated)
 * `__meta_hetzner_hcloud_disk_size_gb`: the disk size of the server (in GB)
@@ -959,6 +961,7 @@ Additional labels for `role: hcloud`:
 
 Additional labels for `role: robot`:
 
+* `__meta_hetzner_robot_datacenter`: the datacenter name of the server
 * `__meta_hetzner_robot_cancelled`: the server cancellation status
 * `__meta_hetzner_robot_product`: the product of the server
 
@@ -1184,10 +1187,10 @@ One of the following `role` types can be configured to discover targets:
   Available meta labels for `role: endpoints` during [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
 
 * `__meta_kubernetes_namespace`: The namespace of the endpoints object.
-* `__meta_kubernetes_namespace_annotation_<annotationname>`: Each annotation from the namespace of the endpoints object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
-* `__meta_kubernetes_namespace_annotationpresent_<annotationname>`: "true" for each annotation from the namespace of the endpoints object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
-* `__meta_kubernetes_namespace_label_<labelname>`: Each label from the namespace of the endpoints object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
-* `__meta_kubernetes_namespace_labelpresent_<labelname>`: "true" for each label from the namespace of the endpoints object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
+* `__meta_kubernetes_namespace_annotation_<annotationname>`: Each annotation from the namespace of the endpoints object when `attach_metadata.namespace` is set to `true`.
+* `__meta_kubernetes_namespace_annotationpresent_<annotationname>`: "true" for each annotation from the namespace of the endpoints object when `attach_metadata.namespace` is set to `true`.
+* `__meta_kubernetes_namespace_label_<labelname>`: Each label from the namespace of the endpoints object when `attach_metadata.namespace` is set to `true`.
+* `__meta_kubernetes_namespace_labelpresent_<labelname>`: "true" for each label from the namespace of the endpoints object when `attach_metadata.namespace` is set to `true`.
 * `__meta_kubernetes_endpoints_name`: The names of the endpoints object.
 * `__meta_kubernetes_endpoints_label_<labelname>`: Each label from the endpoints object.
 * `__meta_kubernetes_endpoints_labelpresent_<labelname>`: "true" for each label from the endpoints object.
@@ -1217,10 +1220,10 @@ One of the following `role` types can be configured to discover targets:
   Available meta labels for `role: endpointslice` during [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
 
 * `__meta_kubernetes_namespace`: The namespace of the endpointslice object.
-* `__meta_kubernetes_namespace_annotation_<annotationname>`: Each annotation from the namespace of the endpointslice object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
-* `__meta_kubernetes_namespace_annotationpresent_<annotationname>`: "true" for each annotation from the namespace of the endpointslice object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
-* `__meta_kubernetes_namespace_label_<labelname>`: Each label from the namespace of the endpointslice object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
-* `__meta_kubernetes_namespace_labelpresent_<labelname>`: "true" for each label from the namespace of the endpointslice object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
+* `__meta_kubernetes_namespace_annotation_<annotationname>`: Each annotation from the namespace of the endpointslice object when `attach_metadata.namespace` is set to `true`.
+* `__meta_kubernetes_namespace_annotationpresent_<annotationname>`: "true" for each annotation from the namespace of the endpointslice object when `attach_metadata.namespace` is set to `true`.
+* `__meta_kubernetes_namespace_label_<labelname>`: Each label from the namespace of the endpointslice object when `attach_metadata.namespace` is set to `true`.
+* `__meta_kubernetes_namespace_labelpresent_<labelname>`: "true" for each label from the namespace of the endpointslice object when `attach_metadata.namespace` is set to `true`.
 * `__meta_kubernetes_endpointslice_name`: The name of endpointslice object.
 
   For all targets discovered directly from the endpointslice list (those not additionally inferred from underlying pods), the following labels are attached:
@@ -1251,10 +1254,10 @@ One of the following `role` types can be configured to discover targets:
   Available meta labels for `role: ingress` during [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
 
 * `__meta_kubernetes_namespace`: The namespace of the ingress object.
-* `__meta_kubernetes_namespace_annotation_<annotationname>`: Each annotation from the namespace of the ingress object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
-* `__meta_kubernetes_namespace_annotationpresent_<annotationname>`: "true" for each annotation from the namespace of the ingress object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
-* `__meta_kubernetes_namespace_label_<labelname>`: Each label from the namespace of the ingress object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
-* `__meta_kubernetes_namespace_labelpresent_<labelname>`: "true" for each label from the namespace of the ingress object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
+* `__meta_kubernetes_namespace_annotation_<annotationname>`: Each annotation from the namespace of the ingress object when `attach_metadata.namespace` is set to `true`.
+* `__meta_kubernetes_namespace_annotationpresent_<annotationname>`: "true" for each annotation from the namespace of the ingress object when `attach_metadata.namespace` is set to `true`.
+* `__meta_kubernetes_namespace_label_<labelname>`: Each label from the namespace of the ingress object when `attach_metadata.namespace` is set to `true`.
+* `__meta_kubernetes_namespace_labelpresent_<labelname>`: "true" for each label from the namespace of the ingress object when `attach_metadata.namespace` is set to `true`.
 * `__meta_kubernetes_ingress_name`: The name of the ingress object.
 * `__meta_kubernetes_ingress_label_<labelname>`: Each label from the ingress object.
 * `__meta_kubernetes_ingress_labelpresent_<labelname>`: "true" for each label from the ingress object.

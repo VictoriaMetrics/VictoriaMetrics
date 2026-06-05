@@ -485,8 +485,8 @@ apptest-legacy: victoria-metrics-race vmbackup-race vmrestore-race
 		curl --output-dir /tmp -LO $${URL}/$${VMSINGLE} && tar xzf /tmp/$${VMSINGLE} -C $${DIR} && \
 		curl --output-dir /tmp -LO $${URL}/$${VMCLUSTER} && tar xzf /tmp/$${VMCLUSTER} -C $${DIR} \
 	); \
-	VM_LEGACY_VMSINGLE_PATH=$${DIR}/victoria-metrics-prod \
-	VM_LEGACY_VMSTORAGE_PATH=$${DIR}/vmstorage-prod \
+	VMSINGLE_V1_132_0_PATH=$${DIR}/victoria-metrics-prod \
+	VMSTORAGE_V1_132_0_PATH=$${DIR}/vmstorage-prod \
 	go test ./apptest/tests -run="^TestLegacySingle.*"
 
 benchmark:
@@ -534,6 +534,15 @@ remove-golangci-lint:
 
 govulncheck: install-govulncheck
 	govulncheck ./...
+
+govulncheck-docker:
+	docker run -w $(PWD) -v $(PWD):$(PWD) \
+		-v govulncheck-gomod-cache:/root/go/pkg/mod \
+		-v govulncheck-gobuild-cache:/root/.cache/go-build \
+		-v govulncheck-go-bin:/root/go/bin \
+		--env="GOCACHE=/root/.cache/go-build" \
+		--env="GOMODCACHE=/root/go/pkg/mod" \
+		"$(GO_BUILDER_IMAGE)" /bin/sh -c "which govulncheck || go install golang.org/x/vuln/cmd/govulncheck@latest && govulncheck ./..."
 
 install-govulncheck:
 	which govulncheck || go install golang.org/x/vuln/cmd/govulncheck@latest

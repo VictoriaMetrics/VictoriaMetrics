@@ -68,8 +68,8 @@ The UI allows exploring query results via graphs and tables. See more details ab
 ## Multitenancy
 
 VictoriaMetrics cluster supports multiple isolated tenants (aka namespaces).
-Tenants are identified by `accountID` or `accountID:projectID`, which are put inside request URLs for writes and reads.
-See [these docs](#url-format) for details.
+Tenants are identified by `accountID` or `accountID:projectID` inside request URLs or HTTP headers{{% available_from "v1.143.0" %}}
+for writes and reads. See [these docs](#url-format) for details.
 
 Some facts about tenants in VictoriaMetrics:
 
@@ -84,22 +84,59 @@ or [vmgateway](https://docs.victoriametrics.com/victoriametrics/vmgateway/). [Co
 - Data for all the tenants is evenly spread among available `vmstorage` nodes. This guarantees even load among `vmstorage` nodes
 when different tenants have different amounts of data and different query load.
 
-- The database performance and resource usage doesn't depend on the number of tenants. It depends mostly on the total number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series) in all the tenants. A time series is considered active if it received at least a single sample during the last hour.
+- The database performance and resource usage do not depend on the number of tenants. It depends mostly on the total number of 
+  [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series) in all the tenants. 
 
 - The list of registered tenants can be obtained via `http://<vmselect>:8481/admin/tenants` url. See [these docs](#url-format).
 
 - VictoriaMetrics exposes various per-tenant statistics via metrics - see [these docs](https://docs.victoriametrics.com/victoriametrics/pertenantstatistic/).
 
-See also [multitenancy via labels](#multitenancy-via-labels).
+See also multitenancy [via headers](#multitenancy-via-headers) and [via labels](#multitenancy-via-labels).
+
+### Multitenancy via headers
+
+By default, VictoriaMetrics allows specifying `accountID` and `projectID` only in the request URL.
+
+Set `--enableMultitenancyViaHeaders` {{% available_from "v1.143.0" %}} command-line flag to support 
+specifying `accountID` and `projectID` via HTTP headers `AccountID` and `ProjectID` respectively.
+This flag needs to be specified separately for vminserts and vmselects.
+
+When `--enableMultitenancyViaHeaders` is enabled, [URL format](#url-format) can be simplified to the following:
+- `http://<vminsert>:8480/insert/<suffix>` for writes
+- `http://<vmselect>:8481/select/prometheus/<suffix>` for reads
+
+For example, the following query will only select metric `up` from `accountID=2` and `projectID=3`:
+```
+curl 'https://<vmselect>:8481/select/prometheus/api/v1/query' \
+  -d 'query=up' \
+  --header "AccountID: 2" \
+  --header "ProjectID: 3"
+```
+
+The following example will ingest metric `up{instance="foo"}` to `accountID=2` and `projectID=0`:
+```
+curl --header "AccountID: 2" -d 'up{instance="foo"} 123' -X POST https://<vminsert>:8480/insert/prometheus/api/v1/import/prometheus
+```
+
+> When simplified path `/(insert|select)/<suffix>` is used and headers `AccountID`, `ProjectID` are missing, then IDs are set to `0:0` as default.
+> If tenant IDs are specified in URL, then headers are ignored.
+
+The `AccountID` header can be set to `multitenant` string: `AccountID: multitenant`. See more in [multitenancy via labels](#multitenancy-via-labels).
 
 ### Multitenancy via labels
 
-**Writes:**
+Multitenancy via labels allows specifying [tenants](#multitenancy) as labels `vm_account_id` and `vm_project_id` during
+ingestion or querying. This feature allows [ingesting workload with mixed tenants](#multitenant-writes) and [querying
+data from multiple tenants](#multitenant-reads) via the same URL.
 
-`vminsert` can accept data from multiple [tenants](#multitenancy) via a special `multitenant` endpoints `http://vminsert:8480/insert/multitenant/<suffix>`,
+#### Multitenant writes
+
+`vminsert` can accept data from multiple [tenants](#multitenancy) via special `multitenant` endpoints:
+ - `http://vminsert:8480/insert/multitenant/<suffix>`
+ - `http://vminsert:8480/insert/<suffix>` and HTTP header `AccountID: multitenant`. See how to enable headers [here](#multitenancy-via-headers).
 where `<suffix>` can be replaced with any supported suffix for data ingestion from [this list](#url-format).
-In this case the account ID and project ID are obtained from optional `vm_account_id` and `vm_project_id` labels of the incoming samples.
-If `vm_account_id` or `vm_project_id` labels are missing or invalid, then the corresponding account ID and project ID are set to 0.
+The `accountID` and `projectID` are obtained from optional `vm_account_id` and `vm_project_id` [labels](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#labels) of the incoming samples.
+If `vm_account_id` or `vm_project_id` labels are missing or invalid, then the corresponding `accountID` and `projectID` are set to 0.
 These labels are automatically removed from samples before forwarding them to `vmstorage`.
 For example, if the following samples are written into `http://vminsert:8480/insert/multitenant/prometheus/api/v1/write`:
 
@@ -119,11 +156,14 @@ such as [Graphite](https://docs.victoriametrics.com/victoriametrics/integrations
 [InfluxDB line protocol via TCP and UDP](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb/) and
 [OpenTSDB telnet put protocol](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb/#sending-data-via-telnet).
 
-**Reads:**
+#### Multitenant reads
 
 _For better performance prefer specifying [tenants in read URL](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format)._
 
-`vmselect` can execute {{% available_from "v1.104.0" %}} queries over multiple [tenants](#multitenancy) via special `multitenant` endpoints `http://vmselect:8481/select/multitenant/<suffix>`.
+`vmselect` can execute {{% available_from "v1.104.0" %}} queries over multiple [tenants](#multitenancy) via special `multitenant` endpoints:
+ - `http://vmselect:8481/select/multitenant/<suffix>`
+ - `http://vmselect:8481/select/<suffix>` and HTTP header `AccountID: multitenant`. See how to enable headers [here](#multitenancy-via-headers).
+
 Currently supported endpoints for `<suffix>` are:
 
 - `/prometheus/api/v1/query`
@@ -165,13 +205,15 @@ curl 'http://vmselect:8481/select/multitenant/prometheus/api/v1/query' \
 
 The precedence for applying filters for tenants follows this order:
 
-1. Filter tenants by `extra_label` and `extra_filters` filters.
+1. Filter tenants by `extra_label`, `extra_filters` and `extra_filters[]` filters.
  These filters have the highest priority and are applied first when provided through the query arguments.
+ Filters use `OR` logic - a tenant is selected if it matches any of the filters.
 2. Filter tenants from labels selectors defined at metricsQL query expression.
 
-**Security considerations**
+> **Security considerations**
 It is recommended restricting access to `multitenant` endpoints only to trusted sources,
 since untrusted source may break per-tenant data by writing unwanted samples or get access to data of arbitrary tenants.
+See also [vmauth security doc](https://docs.victoriametrics.com/victoriametrics/vmauth/#security).
 
 ## Binaries
 
@@ -526,7 +568,7 @@ The following optional command-line flags related to mTLS are supported:
 - `-cluster.tlsCAFile` can be set at `vminsert`, `vmselect` and `vmstorage` for verifying peer certificates issued with custom [certificate authority](https://en.wikipedia.org/wiki/Certificate_authority). By default, system-wide certificate authority is used for peer certificate verification.
 - `-cluster.tlsCipherSuites` can be set to the list of supported TLS cipher suites at `vmstorage`. See [the list of supported TLS cipher suites](https://pkg.go.dev/crypto/tls#pkg-constants).
 
-When `vmselect` runs with `-clusternativeListenAddr` command-line option, then it can be configured with `-clusternative.tls*` options similar to `-cluster.tls*` for accepting `mTLS` connections from top-level `vmselect` nodes in [multi-level cluster setup](#multi-level-cluster-setup).
+When `vmselect` or `vminsert` runs with `-clusternativeListenAddr` command-line option, then it can be configured with `-clusternative.tls*` options similar to `-cluster.tls*` for accepting `mTLS` connections from top-level `vmselect` or `vminsert` nodes in [multi-level cluster setup](#multi-level-cluster-setup).
 
 See [these docs](https://gist.github.com/f41gh7/76ed8e5fb1ebb9737fe746bae9175ee6) on how to set up mTLS in VictoriaMetrics cluster.
 
@@ -585,13 +627,13 @@ The metric is set to `0` when the `vmstorage` isn't in read-only mode.
 The main differences between URL formats of cluster and [Single server](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
 versions are that cluster has separate components for read and ingestion path, and because of multi-tenancy support.
 Also in the cluster version the `/prometheus/api/v1` endpoint ingests  `jsonl`, `csv`, `native` and `prometheus` data formats **not** only `prometheus` data.
-Check practical examples of [VictoriaMetrics API](https://docs.victoriametrics.com/victoriametrics/url-examples/).
+
+> Check practical examples of [VictoriaMetrics API](https://docs.victoriametrics.com/victoriametrics/url-examples/).
 
 - URLs for data ingestion: `http://<vminsert>:8480/insert/<accountID>/<suffix>`, where:
   - `<accountID>` is an arbitrary 32-bit integer identifying namespace for data ingestion (aka tenant). It is possible to set it as `accountID:projectID`,
-    where `projectID` is also arbitrary 32-bit integer. If `projectID` isn't set, then it equals to `0`. See [multitenancy docs](#multitenancy) for more details.
-    The `<accountID>` can be set to `multitenant` string, e.g. `http://<vminsert>:8480/insert/multitenant/<suffix>`. Such urls accept data from multiple tenants
-    specified via `vm_account_id` and `vm_project_id` labels. See [multitenancy via labels](#multitenancy-via-labels) for more details.
+    where `projectID` is also arbitrary 32-bit integer. If `projectID` isn't set, then it equals to `0`. See [multitenancy docs](#multitenancy) for more details 
+    about managing tenants, specifying tenant IDs via HTTP headers or labels.
   - `<suffix>` may have the following values:
     - `prometheus` and `prometheus/api/v1/write` - for ingesting data with [Prometheus remote write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write).
     - `prometheus/api/v1/import` - for importing data obtained via `api/v1/export` at `vmselect` (see below), JSON line format.
@@ -607,9 +649,8 @@ Check practical examples of [VictoriaMetrics API](https://docs.victoriametrics.c
     - `opentsdb/api/put` - for accepting [OpenTSDB HTTP /api/put requests](http://opentsdb.net/docs/build/html/api_http/put.html). This handler is disabled by default. It is exposed on a distinct TCP address set via `-opentsdbHTTPListenAddr` command-line flag. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb/#sending-data-via-http) for details.
 
 - URLs for [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/): `http://<vmselect>:8481/select/<accountID>/prometheus/<suffix>`, where:
-  - `<accountID>` is an arbitrary number identifying data namespace for the query (aka tenant). It is possible to set it as `accountID:projectID`,
-  where `projectID` is also arbitrary 32-bit integer. If `projectID` isn't set, then it equals to `0`. See [multitenancy docs](#multitenancy) for more details.
-  The `<accountID>` can be set to `multitenant` string, e.g. `http://<vmselect>:8481/select/multitenant/<suffix>` for querying over multiple tenants (see the full list of [supported multitenant read endpoints](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels)).
+  - `<accountID>` is an arbitrary number identifying data namespace for the query (aka tenant). See [multitenancy docs](#multitenancy) for more details
+    about managing tenants, specifying tenant IDs via HTTP headers or labels.
   - `<suffix>` may have the following values:
     - `api/v1/query` - performs [PromQL instant query](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query).
     - `api/v1/query_range` - performs [PromQL range query](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query).
@@ -629,7 +670,8 @@ Check practical examples of [VictoriaMetrics API](https://docs.victoriametrics.c
     - `metric-relabel-debug` - for debugging [relabeling rules](https://docs.victoriametrics.com/victoriametrics/relabeling/).
 
 - URLs for [Graphite Metrics API](https://graphite-api.readthedocs.io/en/latest/api.html#the-metrics-api): `http://<vmselect>:8481/select/<accountID>/graphite/<suffix>`, where:
-  - `<accountID>` is an arbitrary number identifying data namespace for query (aka tenant)
+  - `<accountID>` is an arbitrary number identifying data namespace for query (aka tenant).
+    See [multitenancy docs](#multitenancy) for more details about managing tenants, specifying tenant IDs via HTTP headers or labels.
   - `<suffix>` may have the following values:
     - `render` - implements Graphite Render API. See [these docs](https://graphite.readthedocs.io/en/stable/render_api.html).
     - `metrics/find` - searches Graphite metrics. See [these docs](https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find).
@@ -660,6 +702,7 @@ Check practical examples of [VictoriaMetrics API](https://docs.victoriametrics.c
 
 - `vmstorage` nodes provide the following HTTP endpoints on `8482` port:
   - `/internal/force_merge` - initiate [forced compactions](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#forced-merge) on the given `vmstorage` node.
+  - `/internal/force_flush` - [flush in-memory buffers](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#forced-flush) for recently ingested samples into searchable parts on the given `vmstorage` node.
   - `/snapshot/create` - create [instant snapshot](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282),
     which can be used for backups in background. Snapshots are created in `<storageDataPath>/snapshots` folder, where `<storageDataPath>` is the corresponding
     command-line flag value.

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/rand"
 	"path/filepath"
+	"slices"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -1142,5 +1143,270 @@ func TestStorage_partitionsOutsideRetentionAreRemoved(t *testing.T) {
 		assertPtExists(t, "2000_07", false)
 
 		s.MustClose()
+	})
+}
+
+func TestStorage_denyQueriesOutsideRetention(t *testing.T) {
+	defer testRemoveAll(t)
+
+	tfsAll := NewTagFilters()
+	if err := tfsAll.Add(nil, []byte(".*"), false, true); err != nil {
+		t.Fatalf("TagFilters.Add() failed unexpectedly: %v", err)
+	}
+	tfssAll := []*TagFilters{tfsAll}
+
+	assertData := func(t *testing.T, s *Storage, tr TimeRange, wantData []MetricRow, wantErr bool) {
+		t.Helper()
+		err := testAssertSearchResult(s, tr, tfsAll, wantData)
+		gotErr := err != nil
+		if gotErr != wantErr {
+			t.Fatalf("Search: unmet error expectation for timeRange=%v: got %t, want %t (err: %v)", &tr, gotErr, wantErr, err)
+		}
+	}
+	assertMetricNames := func(t *testing.T, s *Storage, tr TimeRange, wantData []string, wantErr bool) {
+		t.Helper()
+		metricNames, err := s.SearchMetricNames(nil, tfssAll, tr, 1e9, noDeadline)
+		gotErr := err != nil
+		if gotErr != wantErr {
+			t.Fatalf("SearchMetricNames(): unmet error expectation for timeRange=%v: got %t, want %t (err: %v)", &tr, gotErr, wantErr, err)
+		}
+		var gotData []string
+		for _, name := range metricNames {
+			var mn MetricName
+			if err := mn.UnmarshalString(name); err != nil {
+				t.Fatalf("Could not unmarshal metric name %q: %v", name, err)
+			}
+			gotData = append(gotData, string(mn.MetricGroup))
+		}
+		if diff := cmp.Diff(wantData, gotData); diff != "" {
+			t.Fatalf("unexpected metric names (-want, +got):\n%s", diff)
+		}
+	}
+	assertLabelNames := func(t *testing.T, s *Storage, tr TimeRange, wantData []string, wantErr bool) {
+		t.Helper()
+		gotData, err := s.SearchLabelNames(nil, nil, tr, 1e9, 1e9, noDeadline)
+		gotErr := err != nil
+		if gotErr != wantErr {
+			t.Fatalf("SearchLabelNames(): unmet error expectation for timeRange=%v: got %t, want %t (err: %v)", &tr, gotErr, wantErr, err)
+		}
+		slices.Sort(gotData)
+		slices.Sort(wantData)
+		if diff := cmp.Diff(wantData, gotData); diff != "" {
+			t.Fatalf("unexpected label names (-want, +got):\n%s", diff)
+		}
+	}
+	assertLabelValues := func(t *testing.T, s *Storage, tr TimeRange, wantData []string, wantErr bool) {
+		t.Helper()
+		gotData, err := s.SearchLabelValues(nil, "__name__", nil, tr, 1e9, 1e9, noDeadline)
+		gotErr := err != nil
+		if gotErr != wantErr {
+			t.Fatalf("SearchLabelValues(): unmet error expectation for timeRange=%v: got %t, want %t (err: %v)", &tr, gotErr, wantErr, err)
+		}
+		slices.Sort(gotData)
+		slices.Sort(wantData)
+		if diff := cmp.Diff(wantData, gotData); diff != "" {
+			t.Fatalf("unexpected label values (-want, +got):\n%s", diff)
+		}
+	}
+	assertTagValueSuffixes := func(t *testing.T, s *Storage, tr TimeRange, wantData []string, wantErr bool) {
+		t.Helper()
+		gotData, err := s.SearchTagValueSuffixes(nil, tr, "", "", '.', 1e9, noDeadline)
+		gotErr := err != nil
+		if gotErr != wantErr {
+			t.Fatalf("SearchTagValueSuffixes(): unmet error expectation for timeRange=%v: got %t, want %t (err: %v)", &tr, gotErr, wantErr, err)
+		}
+		slices.Sort(gotData)
+
+		if diff := cmp.Diff(wantData, gotData); diff != "" {
+			t.Errorf("unexpected tag value suffixes (-want, +got):\n%s", diff)
+		}
+	}
+
+	assertGraphitePaths := func(t *testing.T, s *Storage, tr TimeRange, wantData []string, wantErr bool) {
+		t.Helper()
+		gotData, err := s.SearchGraphitePaths(nil, tr, []byte("*"), 1e9, noDeadline)
+		gotErr := err != nil
+		if gotErr != wantErr {
+			t.Fatalf("SearchTagValueSuffixes(): unmet error expectation for timeRange=%v: got %t, want %t (err: %v)", &tr, gotErr, wantErr, err)
+		}
+		slices.Sort(gotData)
+
+		if diff := cmp.Diff(wantData, gotData); diff != "" {
+			t.Errorf("unexpected graphite paths (-want, +got):\n%s", diff)
+		}
+	}
+
+	synctest.Test(t, func(t *testing.T) {
+		// synctests start at 2000-01-01T00:00:00Z
+		now := time.Now().UTC()
+		retention := 30 * 24 * time.Hour
+		futureRetention := 30 * 24 * time.Hour
+		day := 24 * time.Hour
+		trMatches := TimeRange{
+			MinTimestamp: now.Add(-retention).UnixMilli(),
+			MaxTimestamp: now.Add(futureRetention).UnixMilli(),
+		}
+		trContains := TimeRange{
+			MinTimestamp: now.Add(-(retention + day)).UnixMilli(),
+			MaxTimestamp: now.Add(futureRetention + day).UnixMilli(),
+		}
+		trInside := TimeRange{
+			MinTimestamp: now.Add(-(retention - day)).UnixMilli(),
+			MaxTimestamp: now.Add(futureRetention - day).UnixMilli(),
+		}
+		trOverlapsLeft := TimeRange{
+			MinTimestamp: now.Add(-(retention + day)).UnixMilli(),
+			MaxTimestamp: now.Add(futureRetention - day).UnixMilli(),
+		}
+		trOverlapsRight := TimeRange{
+			MinTimestamp: now.Add(-(retention - day)).UnixMilli(),
+			MaxTimestamp: now.Add(futureRetention + day).UnixMilli(),
+		}
+		trOutsideLeft := TimeRange{
+			MinTimestamp: now.Add(-(retention + 2*day)).UnixMilli(),
+			MaxTimestamp: now.Add(-(retention + day)).UnixMilli(),
+		}
+		trOutsideRight := TimeRange{
+			MinTimestamp: now.Add(futureRetention + day).UnixMilli(),
+			MaxTimestamp: now.Add(futureRetention + 2*day).UnixMilli(),
+		}
+
+		mn := MetricName{
+			MetricGroup: []byte("metric"),
+		}
+		metricNameRaw := mn.marshalRaw(nil)
+		mr := MetricRow{
+			MetricNameRaw: metricNameRaw,
+			Timestamp:     now.UnixMilli(),
+			Value:         123,
+		}
+		wantMRs := []MetricRow{mr}
+		wantMetricNames := []string{"metric"}
+		wantLabelNames := []string{"__name__"}
+		emptyLabelNames := []string{}
+		wantLabelValues := []string{"metric"}
+		emptyLabelValues := []string{}
+		wantTagValueSuffixes := []string{"metric"}
+		emptyTagValueSuffixes := []string{}
+		wantGraphitePaths := []string{"metric"}
+		emptyGraphitePaths := []string{}
+
+		s := MustOpenStorage(t.Name(), OpenOptions{
+			Retention:       retention,
+			FutureRetention: futureRetention,
+		})
+
+		s.AddRows([]MetricRow{mr}, defaultPrecisionBits)
+		s.DebugFlush()
+
+		assertData(t, s, trInside, wantMRs, false)
+		assertData(t, s, trMatches, wantMRs, false)
+		assertData(t, s, trContains, wantMRs, false)
+		assertData(t, s, trOverlapsLeft, wantMRs, false)
+		assertData(t, s, trOverlapsRight, wantMRs, false)
+		assertData(t, s, trOutsideLeft, nil, false)
+		assertData(t, s, trOutsideRight, nil, false)
+
+		assertMetricNames(t, s, trInside, wantMetricNames, false)
+		assertMetricNames(t, s, trMatches, wantMetricNames, false)
+		assertMetricNames(t, s, trContains, wantMetricNames, false)
+		assertMetricNames(t, s, trOverlapsLeft, wantMetricNames, false)
+		assertMetricNames(t, s, trOverlapsRight, wantMetricNames, false)
+		assertMetricNames(t, s, trOutsideLeft, nil, false)
+		assertMetricNames(t, s, trOutsideRight, nil, false)
+
+		assertLabelNames(t, s, trInside, wantLabelNames, false)
+		assertLabelNames(t, s, trMatches, wantLabelNames, false)
+		assertLabelNames(t, s, trContains, wantLabelNames, false)
+		assertLabelNames(t, s, trOverlapsLeft, wantLabelNames, false)
+		assertLabelNames(t, s, trOverlapsRight, wantLabelNames, false)
+		assertLabelNames(t, s, trOutsideLeft, emptyLabelNames, false)
+		assertLabelNames(t, s, trOutsideRight, emptyLabelNames, false)
+
+		assertLabelValues(t, s, trInside, wantLabelValues, false)
+		assertLabelValues(t, s, trMatches, wantLabelValues, false)
+		assertLabelValues(t, s, trContains, wantLabelValues, false)
+		assertLabelValues(t, s, trOverlapsLeft, wantLabelValues, false)
+		assertLabelValues(t, s, trOverlapsRight, wantLabelValues, false)
+		assertLabelValues(t, s, trOutsideLeft, emptyLabelValues, false)
+		assertLabelValues(t, s, trOutsideRight, emptyLabelValues, false)
+
+		assertTagValueSuffixes(t, s, trInside, wantTagValueSuffixes, false)
+		assertTagValueSuffixes(t, s, trMatches, wantTagValueSuffixes, false)
+		assertTagValueSuffixes(t, s, trContains, wantTagValueSuffixes, false)
+		assertTagValueSuffixes(t, s, trOverlapsLeft, wantTagValueSuffixes, false)
+		assertTagValueSuffixes(t, s, trOverlapsRight, wantTagValueSuffixes, false)
+		assertTagValueSuffixes(t, s, trOutsideLeft, emptyTagValueSuffixes, false)
+		assertTagValueSuffixes(t, s, trOutsideRight, emptyTagValueSuffixes, false)
+
+		assertGraphitePaths(t, s, trInside, wantGraphitePaths, false)
+		assertGraphitePaths(t, s, trMatches, wantGraphitePaths, false)
+		assertGraphitePaths(t, s, trContains, wantGraphitePaths, false)
+		assertGraphitePaths(t, s, trOverlapsLeft, wantGraphitePaths, false)
+		assertGraphitePaths(t, s, trOverlapsRight, wantGraphitePaths, false)
+		assertGraphitePaths(t, s, trOutsideLeft, emptyGraphitePaths, false)
+		assertGraphitePaths(t, s, trOutsideRight, emptyGraphitePaths, false)
+
+		// Restart storage with DenyQueriesOutsideRetention on.
+		s.MustClose()
+		s = MustOpenStorage(t.Name(), OpenOptions{
+			Retention:                   retention,
+			FutureRetention:             futureRetention,
+			DenyQueriesOutsideRetention: true,
+		})
+		defer s.MustClose()
+
+		assertData(t, s, trInside, wantMRs, false)
+		assertData(t, s, trMatches, wantMRs, false)
+		assertData(t, s, trContains, nil, true)
+		assertData(t, s, trOverlapsLeft, nil, true)
+		assertData(t, s, trOverlapsRight, nil, true)
+		assertData(t, s, trOutsideLeft, nil, true)
+		assertData(t, s, trOutsideRight, nil, true)
+
+		assertMetricNames(t, s, trInside, wantMetricNames, false)
+		assertMetricNames(t, s, trMatches, wantMetricNames, false)
+		assertMetricNames(t, s, trContains, nil, true)
+		assertMetricNames(t, s, trOverlapsLeft, nil, true)
+		assertMetricNames(t, s, trOverlapsRight, nil, true)
+		assertMetricNames(t, s, trOutsideLeft, nil, true)
+		assertMetricNames(t, s, trOutsideRight, nil, true)
+
+		// DenyQueriesOutsideRetention does not apply to searching label names.
+		assertLabelNames(t, s, trInside, wantLabelNames, false)
+		assertLabelNames(t, s, trMatches, wantLabelNames, false)
+		assertLabelNames(t, s, trContains, wantLabelNames, false)
+		assertLabelNames(t, s, trOverlapsLeft, wantLabelNames, false)
+		assertLabelNames(t, s, trOverlapsRight, wantLabelNames, false)
+		assertLabelNames(t, s, trOutsideLeft, emptyLabelNames, false)
+		assertLabelNames(t, s, trOutsideRight, emptyLabelNames, false)
+
+		// DenyQueriesOutsideRetention does not apply to searching label values.
+		assertLabelValues(t, s, trInside, wantLabelValues, false)
+		assertLabelValues(t, s, trMatches, wantLabelValues, false)
+		assertLabelValues(t, s, trContains, wantLabelValues, false)
+		assertLabelValues(t, s, trOverlapsLeft, wantLabelValues, false)
+		assertLabelValues(t, s, trOverlapsRight, wantLabelValues, false)
+		assertLabelValues(t, s, trOutsideLeft, emptyLabelValues, false)
+		assertLabelValues(t, s, trOutsideRight, emptyLabelValues, false)
+
+		// DenyQueriesOutsideRetention does not apply to searching tag value suffixes.
+		assertTagValueSuffixes(t, s, trInside, wantTagValueSuffixes, false)
+		assertTagValueSuffixes(t, s, trMatches, wantTagValueSuffixes, false)
+		assertTagValueSuffixes(t, s, trContains, wantTagValueSuffixes, false)
+		assertTagValueSuffixes(t, s, trOverlapsLeft, wantTagValueSuffixes, false)
+		assertTagValueSuffixes(t, s, trOverlapsRight, wantTagValueSuffixes, false)
+		assertTagValueSuffixes(t, s, trOutsideLeft, emptyTagValueSuffixes, false)
+		assertTagValueSuffixes(t, s, trOutsideRight, emptyTagValueSuffixes, false)
+
+		// DenyQueriesOutsideRetention does not apply to searching graphite paths.
+		assertGraphitePaths(t, s, trInside, wantGraphitePaths, false)
+		assertGraphitePaths(t, s, trMatches, wantGraphitePaths, false)
+		assertGraphitePaths(t, s, trContains, wantGraphitePaths, false)
+		assertGraphitePaths(t, s, trOverlapsLeft, wantGraphitePaths, false)
+		assertGraphitePaths(t, s, trOverlapsRight, wantGraphitePaths, false)
+		assertGraphitePaths(t, s, trOutsideLeft, emptyGraphitePaths, false)
+		assertGraphitePaths(t, s, trOutsideRight, emptyGraphitePaths, false)
+
 	})
 }

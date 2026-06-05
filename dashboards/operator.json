@@ -130,7 +130,7 @@
           "calcs": [
             "lastNotNull"
           ],
-          "fields": "/^short_version$/",
+          "fields": "/^version$/",
           "values": false
         },
         "showPercentChange": false,
@@ -146,11 +146,10 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "vm_app_version{job=~\"$job\",instance=~\"$instance\"}",
+          "expr": "sum by(job, version) (label_replace(vm_app_version{job=~\"$job\", instance=~\"$instance\", short_version!=\"\"}, \"version\", \"$1\", \"short_version\", \"(.*)\") or vm_app_version{job=~\"$job\", instance=~\"$instance\", short_version=\"\"})",
           "format": "table",
           "instant": true,
           "interval": "",
-          "legendFormat": "{{short_version}}",
           "range": false,
           "refId": "A"
         }

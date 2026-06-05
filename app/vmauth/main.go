@@ -51,7 +51,7 @@ var (
 		"This allows reducing the consumption of backend resources when processing requests from clients connected via slow networks. "+
 		"Set to 0 to disable request buffering. See https://docs.victoriametrics.com/victoriametrics/vmauth/#request-body-buffering")
 	maxRequestBodySizeToRetry = flagutil.NewBytes("maxRequestBodySizeToRetry", 16*1024, "The maximum request body size to buffer in memory for potential retries at other backends. "+
-		"Request bodies larger than this size cannot be retried if the backend fails. Zero or negative value disables request body buffering and retries. "+
+		"Request bodies larger than this size cannot be retried if the backend fails. Zero or negative value disables retries. "+
 		"See also -requestBufferSize")
 
 	maxConcurrentRequests = flag.Int("maxConcurrentRequests", 1000, "The maximum number of concurrent requests vmauth can process simultaneously. "+
@@ -317,7 +317,7 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tk
 	defer ui.endConcurrencyLimit()
 
 	// Process the request.
-	processRequest(w, r, ui, tkn)
+	processRequest(w, r, ui, tkn, userName)
 }
 
 func beginConcurrencyLimit(ctx context.Context) error {
@@ -391,7 +391,7 @@ func bufferRequestBody(ctx context.Context, r io.ReadCloser, userName string) (i
 	return bb, nil
 }
 
-func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tkn *jwt.Token) {
+func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tkn *jwt.Token, userName string) {
 	u := normalizeURL(r.URL)
 	up, hc := ui.getURLPrefixAndHeaders(u, r.Host, r.Header)
 	isDefault := false
@@ -409,7 +409,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tkn *j
 			if ui.DumpRequestOnErrors {
 				di = debugInfo(u, r)
 			}
-			httpserver.Errorf(w, r, "missing route for %q%s", u.String(), di)
+			httpserver.Errorf(w, r, "user %s missing route for %q%s", userName, u.String(), di)
 			return
 		}
 		up, hc = ui.DefaultURL, ui.HeadersConf
@@ -455,7 +455,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tkn *j
 		ui.backendErrors.Inc()
 	}
 	err := &httpserver.ErrorWithStatusCode{
-		Err:        fmt.Errorf("all the %d backends for the user %q are unavailable for proxying the request - check previous WARN logs to see the exact error for each failed backend", up.getBackendsCount(), ui.name()),
+		Err:        fmt.Errorf("all the %d backends for the user %q are unavailable for proxying the request - check previous WARN logs to see the exact error for each failed backend", up.getBackendsCount(), userName),
 		StatusCode: http.StatusBadGateway,
 	}
 	httpserver.Errorf(w, r, "%s", err)
@@ -850,14 +850,18 @@ func (bb *bufferedBody) Read(p []byte) (int, error) {
 }
 
 func (bb *bufferedBody) canRetry() bool {
-	return bb.r == nil
+	if bb.r != nil {
+		return false
+	}
+	maxRetrySize := maxRequestBodySizeToRetry.IntN()
+	return len(bb.buf) == 0 || (maxRetrySize > 0 && len(bb.buf) <= maxRetrySize)
 }
 
 // Close implements io.Closer interface.
 func (bb *bufferedBody) Close() error {
 	bb.resetReader()
+	bb.cannotRetry = !bb.canRetry()
 	if bb.r != nil {
-		bb.cannotRetry = true
 		return bb.r.Close()
 	}
 	return nil
