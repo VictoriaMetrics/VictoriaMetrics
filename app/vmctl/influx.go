@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
 	"log"
 	"sync"
 
@@ -14,36 +13,54 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 )
 
+// influxProcessor drives migration from any Source (InfluxDB v1 or v2) into VictoriaMetrics.
+// All protocol-specific knowledge lives in the Source implementation; this file
+// only orchestrates: discover → fan-out workers → fetch → convert → push.
 type influxProcessor struct {
-	ic          *influx.Client
-	im          *vm.Importer
-	cc          int
-	separator   string
-	skipDbLabel bool
-	promMode    bool
-	isVerbose   bool
+	src       influx.Source
+	im        *vm.Importer
+	cc        int
+	separator string
+	skipLabel bool // skip attaching the source label ("db" for v1, "bucket" for v2)
+	promMode  bool // v1 only: rewrite metric name from __name__ label when field == "value"
+	isVerbose bool
+
+	seriesTotal     *metrics.Counter
+	seriesProcessed *metrics.Counter
+	errorsTotal     *metrics.Counter
 }
 
-func newInfluxProcessor(ic *influx.Client, im *vm.Importer, cc int, separator string, skipDbLabel, promMode, verbose bool) *influxProcessor {
+func newInfluxProcessor(
+	src influx.Source,
+	im *vm.Importer,
+	cc int,
+	separator string,
+	skipLabel bool,
+	promMode bool,
+	verbose bool,
+	seriesTotal, seriesProcessed, errorsTotal *metrics.Counter,
+) *influxProcessor {
 	if cc < 1 {
 		cc = 1
 	}
-
 	return &influxProcessor{
-		ic:          ic,
-		im:          im,
-		cc:          cc,
-		separator:   separator,
-		skipDbLabel: skipDbLabel,
-		promMode:    promMode,
-		isVerbose:   verbose,
+		src:             src,
+		im:              im,
+		cc:              cc,
+		separator:       separator,
+		skipLabel:       skipLabel,
+		promMode:        promMode,
+		isVerbose:       verbose,
+		seriesTotal:     seriesTotal,
+		seriesProcessed: seriesProcessed,
+		errorsTotal:     errorsTotal,
 	}
 }
 
 func (ip *influxProcessor) run(ctx context.Context) error {
-	series, err := ip.ic.Explore()
+	series, err := ip.src.Explore()
 	if err != nil {
-		return fmt.Errorf("explore query failed: %s", err)
+		return fmt.Errorf("explore failed: %s", err)
 	}
 	if len(series) < 1 {
 		return fmt.Errorf("found no timeseries to import")
@@ -54,7 +71,7 @@ func (ip *influxProcessor) run(ctx context.Context) error {
 		return nil
 	}
 
-	influxSeriesTotal.Add(len(series))
+	ip.seriesTotal.Add(len(series))
 	bar := barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing series"), len(series))
 	if err := barpool.Start(); err != nil {
 		return err
@@ -70,23 +87,22 @@ func (ip *influxProcessor) run(ctx context.Context) error {
 		wg.Go(func() {
 			for s := range seriesCh {
 				if err := ip.do(s); err != nil {
-					influxErrorsTotal.Inc()
+					ip.errorsTotal.Inc()
 					errCh <- fmt.Errorf("request failed for %q.%q: %s", s.Measurement, s.Field, err)
 					return
 				}
-				influxSeriesProcessed.Inc()
+				ip.seriesProcessed.Inc()
 				bar.Increment()
 			}
 		})
 	}
 
-	// any error breaks the import
 	for _, s := range series {
 		select {
 		case infErr := <-errCh:
 			return fmt.Errorf("influx error: %s", infErr)
 		case vmErr := <-ip.im.Errors():
-			influxErrorsTotal.Inc()
+			ip.errorsTotal.Inc()
 			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, ip.isVerbose))
 		case seriesCh <- s:
 		}
@@ -96,10 +112,10 @@ func (ip *influxProcessor) run(ctx context.Context) error {
 	wg.Wait()
 	ip.im.Close()
 	close(errCh)
-	// drain import errors channel
+
 	for vmErr := range ip.im.Errors() {
 		if vmErr.Err != nil {
-			influxErrorsTotal.Inc()
+			ip.errorsTotal.Inc()
 			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, ip.isVerbose))
 		}
 	}
@@ -112,18 +128,19 @@ func (ip *influxProcessor) run(ctx context.Context) error {
 	return nil
 }
 
-const dbLabel = "db"
-const nameLabel = "__name__"
-const valueField = "value"
+const (
+	dbLabel    = "db"
+	nameLabel  = "__name__"
+	valueField = "value"
+)
 
 func (ip *influxProcessor) do(s *influx.Series) error {
-	cr, err := ip.ic.FetchDataPoints(s)
+	cr, err := ip.src.FetchDataPoints(s)
 	if err != nil {
 		return fmt.Errorf("failed to fetch datapoints: %s", err)
 	}
-	defer func() {
-		_ = cr.Close()
-	}()
+	defer func() { _ = cr.Close() }()
+
 	var name string
 	if s.Measurement != "" {
 		name = fmt.Sprintf("%s%s%s", s.Measurement, ip.separator, s.Field)
@@ -131,42 +148,33 @@ func (ip *influxProcessor) do(s *influx.Series) error {
 		name = s.Field
 	}
 
+	labelName, labelValue := ip.src.Label()
 	labels := make([]vm.LabelPair, len(s.LabelPairs))
-	var containsDBLabel bool
+	var containsLabel bool
 	for i, lp := range s.LabelPairs {
-		if lp.Name == dbLabel {
-			containsDBLabel = true
-		} else if lp.Name == nameLabel && s.Field == valueField && ip.promMode {
+		if lp.Name == labelName {
+			containsLabel = true
+		} else if ip.promMode && lp.Name == nameLabel && s.Field == valueField {
 			name = lp.Value
 		}
-		labels[i] = vm.LabelPair{
-			Name:  lp.Name,
-			Value: lp.Value,
-		}
+		labels[i] = vm.LabelPair{Name: lp.Name, Value: lp.Value}
 	}
-	if !containsDBLabel && !ip.skipDbLabel {
-		labels = append(labels, vm.LabelPair{
-			Name:  dbLabel,
-			Value: ip.ic.Database(),
-		})
+	if !containsLabel && !ip.skipLabel {
+		labels = append(labels, vm.LabelPair{Name: labelName, Value: labelValue})
 	}
 
 	for {
-		time, values, err := cr.Next()
+		timestamps, values, err := cr.Next()
 		if err != nil {
-			if err == io.EOF {
-				return nil
-			}
 			return err
 		}
-		// skip empty results
-		if len(time) < 1 {
-			continue
+		if len(timestamps) == 0 {
+			return nil
 		}
 		ts := vm.TimeSeries{
 			Name:       name,
 			LabelPairs: labels,
-			Timestamps: time,
+			Timestamps: timestamps,
 			Values:     values,
 		}
 		if err := ip.im.Input(&ts); err != nil {
@@ -175,8 +183,15 @@ func (ip *influxProcessor) do(s *influx.Series) error {
 	}
 }
 
+// Per-source Prometheus-style counters exposed at /metrics.
+// v1 keeps vmctl_influx_* names; v2 keeps vmctl_influx2_* names so existing
+// dashboards that watch either counter set are unaffected by this refactor.
 var (
 	influxSeriesTotal     = metrics.NewCounter(`vmctl_influx_migration_series_total`)
 	influxSeriesProcessed = metrics.NewCounter(`vmctl_influx_migration_series_processed`)
 	influxErrorsTotal     = metrics.NewCounter(`vmctl_influx_migration_errors_total`)
+
+	influx2SeriesTotal     = metrics.NewCounter(`vmctl_influx2_migration_series_total`)
+	influx2SeriesProcessed = metrics.NewCounter(`vmctl_influx2_migration_series_processed`)
+	influx2ErrorsTotal     = metrics.NewCounter(`vmctl_influx2_migration_errors_total`)
 )

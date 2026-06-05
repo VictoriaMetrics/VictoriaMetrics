@@ -177,7 +177,69 @@ func main() {
 						c.String(influxMeasurementFieldSeparator),
 						c.Bool(influxSkipDatabaseLabel),
 						c.Bool(influxPrometheusMode),
-						c.Bool(globalVerbose))
+						c.Bool(globalVerbose),
+						influxSeriesTotal, influxSeriesProcessed, influxErrorsTotal,
+					)
+					return processor.run(ctx)
+				},
+			},
+			{
+				Name:   "influx2",
+				Usage:  "Migrate time series from InfluxDB v2",
+				Flags:  mergeFlags(globalFlags, influx2Flags, vmFlags),
+				Before: beforeFn,
+				Action: func(c *cli.Context) error {
+					fmt.Println("InfluxDB v2 import mode")
+
+					tc, err := promauth.NewTLSConfig(
+						c.String(influx2CertFile),
+						c.String(influx2KeyFile),
+						c.String(influx2CAFile),
+						c.String(influx2ServerName),
+						c.Bool(influx2InsecureSkipVerify),
+					)
+					if err != nil {
+						return fmt.Errorf("failed to create TLS config: %s", err)
+					}
+
+					i2Cfg := influx.V2Config{
+						Addr:   c.String(influx2Addr),
+						Token:  c.String(influx2Token),
+						Org:    c.String(influx2Org),
+						Bucket: c.String(influx2Bucket),
+						Filter: influx.Filter{
+							TimeStart: c.String(influx2FilterTimeStart),
+							TimeEnd:   c.String(influx2FilterTimeEnd),
+						},
+						ChunkSize: c.Int(influx2ChunkSize),
+						TLSConfig: tc,
+					}
+
+					i2Client, err := influx.NewV2Client(i2Cfg)
+					if err != nil {
+						return fmt.Errorf("failed to create InfluxDB v2 client: %s", err)
+					}
+
+					vmCfg, err := initConfigVM(c)
+					if err != nil {
+						return fmt.Errorf("failed to init VM configuration: %s", err)
+					}
+
+					importer, err = vm.NewImporter(ctx, vmCfg)
+					if err != nil {
+						return fmt.Errorf("failed to create VM importer: %s", err)
+					}
+
+					processor := newInfluxProcessor(
+						i2Client,
+						importer,
+						c.Int(influx2Concurrency),
+						c.String(influx2MeasurementFieldSeparator),
+						c.Bool(influx2SkipBucketLabel),
+						false, // promMode is v1-only
+						c.Bool(globalVerbose),
+						influx2SeriesTotal, influx2SeriesProcessed, influx2ErrorsTotal,
+					)
 					return processor.run(ctx)
 				},
 			},

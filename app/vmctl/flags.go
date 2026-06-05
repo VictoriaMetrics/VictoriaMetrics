@@ -408,6 +408,109 @@ var (
 )
 
 const (
+	// influx2 flag names. Prefixed with "influx2-" to avoid collisions
+	// with the existing "influx-" flags for the v1 subcommand.
+	influx2Addr                      = "influx2-addr"
+	influx2Token                     = "influx2-token"
+	influx2Org                       = "influx2-org"
+	influx2Bucket                    = "influx2-bucket"
+	influx2ChunkSize                 = "influx2-chunk-size"
+	influx2Concurrency               = "influx2-concurrency"
+	influx2FilterTimeStart           = "influx2-filter-time-start"
+	influx2FilterTimeEnd             = "influx2-filter-time-end"
+	influx2MeasurementFieldSeparator = "influx2-measurement-field-separator"
+	influx2SkipBucketLabel           = "influx2-skip-bucket-label"
+	influx2CertFile                  = "influx2-cert-file"
+	influx2KeyFile                   = "influx2-key-file"
+	influx2CAFile                    = "influx2-CA-file"
+	influx2ServerName                = "influx2-server-name"
+	influx2InsecureSkipVerify        = "influx2-insecure-skip-verify"
+)
+
+var (
+	influx2Flags = []cli.Flag{
+		&cli.StringFlag{
+			Name:  influx2Addr,
+			Value: "http://localhost:8086",
+			Usage: "InfluxDB v2 server addr",
+		},
+		&cli.StringFlag{
+			// Token is required — there's no other auth method in v2.
+			// EnvVars lets users set it via environment variable instead of
+			// passing it on the command line (safer for CI/CD pipelines).
+			Name:     influx2Token,
+			Usage:    "InfluxDB v2 API token",
+			EnvVars:  []string{"INFLUX_TOKEN"},
+			Required: true,
+		},
+		&cli.StringFlag{
+			Name:     influx2Org,
+			Usage:    "InfluxDB v2 organization name",
+			Required: true,
+		},
+		&cli.StringFlag{
+			// Bucket replaces v1's --influx-database + --influx-retention-policy.
+			// In v2 a bucket handles both concerns.
+			Name:     influx2Bucket,
+			Usage:    "InfluxDB v2 bucket to migrate from",
+			Required: true,
+		},
+		&cli.IntFlag{
+			Name:  influx2ChunkSize,
+			Usage: "Max number of rows to fetch per request to InfluxDB v2",
+			Value: 10_000,
+		},
+		&cli.IntFlag{
+			Name:  influx2Concurrency,
+			Usage: "Number of concurrent fetch queries to run against InfluxDB v2",
+			Value: 1,
+		},
+		&cli.StringFlag{
+			Name:  influx2FilterTimeStart,
+			Usage: "Only migrate data with timestamps at or after this value. RFC3339 format, e.g. '2020-01-01T00:00:00Z'",
+		},
+		&cli.StringFlag{
+			Name:  influx2FilterTimeEnd,
+			Usage: "Only migrate data with timestamps at or before this value. RFC3339 format, e.g. '2021-01-01T00:00:00Z'",
+		},
+		&cli.StringFlag{
+			// The separator joins measurement and field into a metric name.
+			// Default "_" gives: cpu + usage_idle → cpu_usage_idle.
+			// Some users prefer "." for cpu.usage_idle — they can override this.
+			Name:  influx2MeasurementFieldSeparator,
+			Usage: "Separator used to join measurement and field names into a metric name: {measurement}{sep}{field}",
+			Value: "_",
+		},
+		&cli.BoolFlag{
+			Name:  influx2SkipBucketLabel,
+			Usage: "Skip adding a 'bucket' label to migrated series. By default the bucket name is added so you can tell where the data came from.",
+			Value: false,
+		},
+		&cli.StringFlag{
+			Name:  influx2CertFile,
+			Usage: "Path to client-side TLS certificate for connecting to -influx2-addr",
+		},
+		&cli.StringFlag{
+			Name:  influx2KeyFile,
+			Usage: "Path to client-side TLS key for connecting to -influx2-addr",
+		},
+		&cli.StringFlag{
+			Name:  influx2CAFile,
+			Usage: "Path to a CA certificate to verify the InfluxDB v2 server. Uses system CA pool by default.",
+		},
+		&cli.StringFlag{
+			Name:  influx2ServerName,
+			Usage: "TLS server name override for connections to -influx2-addr. Defaults to the hostname in the addr.",
+		},
+		&cli.BoolFlag{
+			Name:  influx2InsecureSkipVerify,
+			Usage: "Skip TLS certificate verification when connecting to -influx2-addr. Don't use this in production.",
+			Value: false,
+		},
+	}
+)
+
+const (
 	promSnapshot         = "prom-snapshot"
 	promConcurrency      = "prom-concurrency"
 	promFilterTimeStart  = "prom-filter-time-start"
