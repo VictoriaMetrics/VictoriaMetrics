@@ -204,9 +204,13 @@ func (c *client) init(argIdx, concurrency int, sanitizedURL string) {
 	c.packetsDropped = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_packets_dropped_total{url=%q}`, c.sanitizedURL))
 	c.retriesCount = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_retries_count_total{url=%q}`, c.sanitizedURL))
 	c.sendDuration = metrics.GetOrCreateFloatCounter(fmt.Sprintf(`vmagent_remotewrite_send_duration_seconds_total{url=%q}`, c.sanitizedURL))
+	inmemoryWorkers := inmemoryQueueWorkers.GetOptionalArg(argIdx)
 	metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_queues{url=%q}`, c.sanitizedURL), func() float64 {
-		return float64(concurrency)
+		return float64(concurrency + inmemoryWorkers)
 	})
+	for range inmemoryWorkers {
+		c.wg.Go(c.runWorkerForInmemoryQueue)
+	}
 	for range concurrency {
 		c.wg.Go(c.runWorker)
 	}
@@ -308,6 +312,52 @@ func (c *client) runWorker() {
 	ch := make(chan bool, 1)
 	for {
 		block, ok = c.fq.MustReadBlock(block[:0])
+		if !ok {
+			return
+		}
+		go func() {
+			startTime := time.Now()
+			ch <- c.sendBlock(block)
+			c.sendDuration.Add(time.Since(startTime).Seconds())
+		}()
+		select {
+		case ok := <-ch:
+			if ok {
+				// The block has been sent successfully
+				continue
+			}
+			// Return unsent block to the queue.
+			c.fq.MustWriteBlockIgnoreDisabledPQ(block)
+			return
+		case <-c.stopCh:
+			// c must be stopped. Wait up to 5 seconds for the in-flight request to complete.
+			// If it succeeds, drain the remaining in-memory queue before returning.
+			stopCtx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+			defer cancel()
+
+			select {
+			case ok := <-ch:
+				if !ok {
+					// Return unsent block to the queue.
+					c.fq.MustWriteBlockIgnoreDisabledPQ(block)
+				} else {
+					c.drainInMemoryQueue(stopCtx, block[:0])
+				}
+			case <-stopCtx.Done():
+				// Return unsent block to the queue.
+				c.fq.MustWriteBlockIgnoreDisabledPQ(block)
+			}
+			return
+		}
+	}
+}
+
+func (c *client) runWorkerForInmemoryQueue() {
+	var ok bool
+	var block []byte
+	ch := make(chan bool, 1)
+	for {
+		block, ok = c.fq.MustReadInMemoryBlockBlocking(block[:0])
 		if !ok {
 			return
 		}

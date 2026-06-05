@@ -26,6 +26,8 @@ type FastQueue struct {
 	// isPQDisabled is set to true when pq is disabled.
 	isPQDisabled bool
 
+	prioritizeInMemoryData bool
+
 	// pq is file-based queue
 	pq *queue
 
@@ -48,12 +50,13 @@ type FastQueue struct {
 // reaches maxPendingSize.
 // if isPQDisabled is set to true, then write requests that exceed in-memory buffer capacity are rejected.
 // in-memory queue part can be stored on disk during graceful shutdown.
-func MustOpenFastQueue(path, name string, maxInmemoryBlocks int, maxPendingBytes int64, isPQDisabled bool) *FastQueue {
+func MustOpenFastQueue(path, name string, maxInmemoryBlocks int, maxPendingBytes int64, isPQDisabled bool, prioritizeInMemoryData bool) *FastQueue {
 	pq := mustOpen(path, name, maxPendingBytes)
 	fq := &FastQueue{
-		pq:           pq,
-		isPQDisabled: isPQDisabled,
-		ch:           make(chan *bytesutil.ByteBuffer, maxInmemoryBlocks),
+		pq:                     pq,
+		isPQDisabled:           isPQDisabled,
+		prioritizeInMemoryData: prioritizeInMemoryData,
+		ch:                     make(chan *bytesutil.ByteBuffer, maxInmemoryBlocks),
 	}
 	fq.cond.L = &fq.mu
 	fq.lastInmemoryBlockReadTime = fasttime.UnixTimestamp()
@@ -97,7 +100,7 @@ func (fq *FastQueue) IsWriteBlocked() bool {
 	}
 	fq.mu.Lock()
 	defer fq.mu.Unlock()
-	return len(fq.ch) == cap(fq.ch) || fq.pq.GetPendingBytes() > 0
+	return len(fq.ch) == cap(fq.ch) || (fq.pq.GetPendingBytes() > 0 && !fq.prioritizeInMemoryData)
 }
 
 // UnblockAllReaders unblocks all the readers.
@@ -194,18 +197,25 @@ func (fq *FastQueue) tryWriteBlock(block []byte, ignoreDisabledPQ bool) bool {
 
 	isPQWriteAllowed := !fq.isPQDisabled || ignoreDisabledPQ
 
-	fq.flushInmemoryBlocksToFileIfNeededLocked()
-	if n := fq.pq.GetPendingBytes(); n > 0 {
-		// The file-based queue isn't drained yet. This means that in-memory queue cannot be used yet.
-		// So put the block to file-based queue.
-		if len(fq.ch) > 0 {
-			logger.Panicf("BUG: the in-memory queue must be empty when the file-based queue is non-empty; it contains %d pending bytes", n)
+	if !isPQWriteAllowed && fq.pq.GetPendingBytes() > 0 {
+		// fast path: there is pending data at file-based queue,
+		// it must be drained before in-memory queue could be used.
+		// File-based queue could be non-empty after vmagent restart
+		// and vmagent couldn't flush in-memory queue during shutdown.
+		return false
+	}
+	if !fq.prioritizeInMemoryData {
+		fq.flushInmemoryBlocksToFileIfNeededLocked()
+		if fq.pq.GetPendingBytes() > 0 {
+			// The file-based queue isn't drained yet. This means that in-memory queue cannot be used yet.
+			// So put the block to file-based queue.
+
+			if !isPQWriteAllowed {
+				return false
+			}
+			fq.pq.MustWriteBlock(block)
+			return true
 		}
-		if !isPQWriteAllowed {
-			return false
-		}
-		fq.pq.MustWriteBlock(block)
-		return true
 	}
 	if len(fq.ch) == cap(fq.ch) {
 		// There is no space left in the in-memory queue. Put the data to file-based queue.
@@ -216,7 +226,7 @@ func (fq *FastQueue) tryWriteBlock(block []byte, ignoreDisabledPQ bool) bool {
 		fq.pq.MustWriteBlock(block)
 		return true
 	}
-	// Fast path - put the block to in-memory queue.
+
 	bb := blockBufPool.Get()
 	bb.B = append(bb.B[:0], block...)
 	fq.ch <- bb
@@ -239,22 +249,42 @@ func (fq *FastQueue) MustReadBlock(dst []byte) ([]byte, bool) {
 		if fq.stopDeadline > 0 && fasttime.UnixTimestamp() > fq.stopDeadline {
 			return dst, false
 		}
-		if len(fq.ch) > 0 {
-			return fq.mustReadInMemoryBlockLocked(dst), true
-		}
 		if n := fq.pq.GetPendingBytes(); n > 0 {
 			data, ok := fq.pq.MustReadBlockNonblocking(dst)
 			if ok {
 				return data, true
 			}
 			dst = data
-			continue
+		}
+		if len(fq.ch) > 0 {
+			return fq.mustReadInMemoryBlockLocked(dst), true
 		}
 		if fq.stopDeadline > 0 {
 			return dst, false
 		}
 		// There are no blocks. Wait for new block.
 		fq.pq.ResetIfEmpty()
+		fq.cond.Wait()
+	}
+}
+
+// MustReadInMemoryBlockBlocking reads the next block from the in-memory queue into dst and returns it.
+// It blocks until a block is available or the stop deadline is exceeded, in which case it returns (dst, false).
+func (fq *FastQueue) MustReadInMemoryBlockBlocking(dst []byte) ([]byte, bool) {
+	fq.mu.Lock()
+	defer fq.mu.Unlock()
+
+	for {
+		if fq.stopDeadline > 0 && fasttime.UnixTimestamp() > fq.stopDeadline {
+			return dst, false
+		}
+		if len(fq.ch) > 0 {
+			return fq.mustReadInMemoryBlockLocked(dst), true
+		}
+		if fq.stopDeadline > 0 {
+			return dst, false
+		}
+		// There are no blocks. Wait for new block.
 		fq.cond.Wait()
 	}
 }
@@ -276,9 +306,6 @@ func (fq *FastQueue) MustReadInMemoryBlock(dst []byte) ([]byte, bool) {
 func (fq *FastQueue) mustReadInMemoryBlockLocked(dst []byte) []byte {
 	if len(fq.ch) == 0 {
 		logger.Panicf("BUG: the function must not be called when in-memory queue is empty. Caller should verify the queue len upfront")
-	}
-	if n := fq.pq.GetPendingBytes(); n > 0 {
-		logger.Panicf("BUG: the file-based queue must be empty when the in-memory queue is non-empty; it contains %d pending bytes", n)
 	}
 	bb := <-fq.ch
 	fq.pendingInmemoryBytes -= uint64(len(bb.B))

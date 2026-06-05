@@ -332,13 +332,11 @@ func TestSingleVMAgentDropOnOverload(t *testing.T) {
 	vmagent.APIV1ImportPrometheusNoWaitFlush(t, []string{
 		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
 	}, apptest.QueryOpts{})
-
 	waitFor(
 		func() bool {
 			return vmagent.RemoteWriteRequests(t, url1) == 1 && vmagent.RemoteWriteRequests(t, url2) == 1
 		},
 	)
-
 	// Send 2 more requests, the first RW endpoint should receive everything, the second should add them to the queue
 	// since worker is busy with the first request.
 	for i := range 2 {
@@ -640,4 +638,103 @@ func TestSingleVMAgentMultitenancy(t *testing.T) {
 	if v != 1 {
 		t.Fatalf("expected vmagent_tenant_inserted_rows_total to have value 1 for accountID=5, projectID=0")
 	}
+}
+
+func TestSingleVMAgentPriorizeRecentData(t *testing.T) {
+	tc := apptest.NewTestCase(t)
+	defer tc.Stop()
+
+	remoteWriteSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer remoteWriteSrv.Close()
+
+	remoteWriteSrv2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	defer remoteWriteSrv2.Close()
+
+	vmagent := tc.MustStartDefaultRWVmagent("vmagent", []string{
+		fmt.Sprintf(`-remoteWrite.url=%s/api/v1/write`, remoteWriteSrv.URL),
+		fmt.Sprintf(`-remoteWrite.url=%s/api/v1/write`, remoteWriteSrv2.URL),
+		"-remoteWrite.disableOnDiskQueue=true",
+		// use only 1 worker to get a full queue faster
+		"-remoteWrite.queues=1",
+		"-remoteWrite.flushInterval=1ms",
+		"-remoteWrite.inmemoryQueueWorkers=1",
+		// fastqueue size is roughly memory.Allowed() / len(urls) / *maxRowsPerBlock / 100
+		// Use very large maxRowsPerBlock to get fastqueue of minimal length(2).
+		// See initRemoteWriteCtxs function in remotewrite.go for details.
+		"-remoteWrite.maxRowsPerBlock=1000000000",
+		"-remoteWrite.tmpDataPath=" + tc.Dir() + "/vmagent",
+
+		// Delay retry logic to avoid race conditions with waitFor assertions.
+		// It improves the test stability on resource-constrained runners.
+		// Should be bigger than retries * period
+		"-remoteWrite.retryMinInterval=3s",
+	})
+
+	const (
+		retries = 20
+		period  = 100 * time.Millisecond
+	)
+
+	waitFor := func(f func() bool) {
+		t.Helper()
+		for range retries {
+			if f() {
+				return
+			}
+			time.Sleep(period)
+		}
+		t.Fatalf("timed out waiting for retry #%d", retries)
+	}
+
+	// Real remote write URLs are hidden in metrics
+	url1 := "1:secret-url"
+	url2 := "2:secret-url"
+
+	// Wait until first request got flushed to remote write server
+	vmagent.APIV1ImportPrometheusNoWaitFlush(t, []string{
+		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
+	}, apptest.QueryOpts{})
+	waitFor(
+		func() bool {
+			return vmagent.RemoteWriteRequests(t, url1) == 1 && vmagent.RemoteWriteRequests(t, url2) == 1
+		},
+	)
+	// Wait until second request got flushed to remote write server
+	// since there are 2 independent queues (general and in-memory) with minimal capacity of 1
+	vmagent.APIV1ImportPrometheusNoWaitFlush(t, []string{
+		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
+	}, apptest.QueryOpts{})
+	waitFor(
+		func() bool {
+			return vmagent.RemoteWriteRequests(t, url1) == 2 && vmagent.RemoteWriteRequests(t, url2) == 2
+		},
+	)
+	// Send 2 more requests, the first RW endpoint should receive everything, the second should add them to the queue
+	// since worker is busy with the first request.
+	for i := range 2 {
+		vmagent.APIV1ImportPrometheusNoWaitFlush(t, []string{
+			"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
+		}, apptest.QueryOpts{})
+
+		waitFor(
+			func() bool {
+				return vmagent.RemoteWriteRequests(t, url1) == 3+i && vmagent.RemoteWritePendingInmemoryBlocks(t, url2) == 1+i
+			},
+		)
+	}
+
+	// Send one more request.
+	vmagent.APIV1ImportPrometheusNoWaitFlush(t, []string{
+		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
+	}, apptest.QueryOpts{})
+
+	waitFor(
+		func() bool {
+			return vmagent.RemoteWriteRequests(t, url1) == 5 && vmagent.RemoteWriteSamplesDropped(t, url2) > 0
+		},
+	)
 }
