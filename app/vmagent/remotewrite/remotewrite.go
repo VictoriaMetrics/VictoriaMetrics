@@ -877,8 +877,6 @@ type remoteWriteCtx struct {
 	// otherwise by the global -enableMetadata flag.
 	enableMetadata bool
 
-	enableMdx bool
-
 	pss        []*pendingSeries
 	pssNextIdx atomic.Uint64
 
@@ -977,7 +975,6 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, sanitizedURL string)
 		c:              c,
 		pss:            pss,
 		enableMetadata: isMetadataEnabledForURL(argIdx),
-		enableMdx:      enableMdx.GetOptionalArg(argIdx),
 
 		rowsPushedAfterRelabel: metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_rows_pushed_after_relabel_total{path=%q,url=%q}`, queuePath, sanitizedURL)),
 		rowsDroppedByRelabel:   metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_relabel_metrics_dropped_total{path=%q,url=%q}`, queuePath, sanitizedURL)),
@@ -988,7 +985,7 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, sanitizedURL string)
 	}
 	rwctx.initStreamAggrConfig()
 
-	if rwctx.enableMdx {
+	if enableMdx.GetOptionalArg(argIdx) {
 		rwctx.mdxFilter = mdx.NewFilter()
 		rwctx.rowsPreservedByMdx = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_mdx_rows_preserved_total{path=%q,url=%q}`, queuePath, sanitizedURL))
 		_ = metrics.NewGauge(fmt.Sprintf(`vmagent_mdx_tracked_vm_instances{path=%q,url=%q}`, queuePath, sanitizedURL), func() float64 {
@@ -1012,6 +1009,7 @@ func (rwctx *remoteWriteCtx) MustStop() {
 	}
 	if rwctx.mdxFilter != nil {
 		rwctx.mdxFilter.MustStop()
+		rwctx.mdxFilter = nil
 	}
 
 	for _, ps := range rwctx.pss {
