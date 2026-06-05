@@ -262,6 +262,13 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		return true
+	case "/api/v1/config":
+		httpserver.EnableCORS(w, r)
+		if err := prometheus.ConfigHandler(qt, startTime, w, r); err != nil {
+			httpserver.SendPrometheusError(w, r, err)
+			return true
+		}
+		return true
 	case "/api/v1/export":
 		exportRequests.Inc()
 		httpserver.EnableCORS(w, r)
@@ -559,6 +566,13 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 	case "/expand-with-exprs":
 		expandWithExprsRequests.Inc()
 		prometheus.ExpandWithExprs(w, r)
+		return true
+	case "/extract-metric-exprs":
+		startTime := time.Now()
+		if err := prometheus.ExtractMetricExprsHandler(startTime, w, r); err != nil {
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
 		return true
 	case "/prettify-query":
 		prettifyQueryRequests.Inc()
