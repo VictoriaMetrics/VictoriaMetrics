@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"sync/atomic"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -101,13 +100,8 @@ func TestMdxInstanceFilter(t *testing.T) {
 }
 
 func TestMdxFilterByLabel(t *testing.T) {
-	filter := Filter{
-		vmInstance:    make(map[string]*atomic.Int64),
-		filterByLabel: true,
-	}
-	*keepMetricsWithLabelName = "service"
-	*keepMetricsWithLabelValue = "victoriametrics"
-
+	*vmLabel = "service=victoriametrics"
+	filter := NewFilter()
 	f := func(input []prompb.TimeSeries, expectedOutput []prompb.TimeSeries) {
 		t.Helper()
 		output := filter.Filter(input, []prompb.TimeSeries{})
@@ -143,8 +137,7 @@ func TestMdxFilterByLabel(t *testing.T) {
 				},
 			},
 		})
-	*keepMetricsWithLabelName = ""
-	*keepMetricsWithLabelValue = ""
+	*vmLabel = ""
 }
 
 func TestMdxInstanceCleanup(t *testing.T) {

@@ -273,9 +273,6 @@ for the collected samples. Examples:
 
 The MDX (Monitoring Data eXchange) feature aims to send only metrics from the VictoriaMetrics services to the corresponding `-remoteWrite.url`, discarding metrics from non-VictoriaMetrics services.
 
-When enabling MDX for the `-remoteWrite.url`, `vmagent` will only forward metrics from the instances that emit `vm_app_version`, which is a metric that all VictoriaMetrics services will emit.
-The number of dropped rows from non-VictoriaMetrics services is exposed as `vmagent_remotewrite_mdx_rows_dropped_total`.
-
 To enable MDX, set `-remoteWrite.mdx.enable=true` for the target URL and `-remoteWrite.mdx.enable=false` for other URLs:
 
 ```sh
@@ -285,22 +282,17 @@ To enable MDX, set `-remoteWrite.mdx.enable=true` for the target URL and `-remot
   -remoteWrite.url=http://service-to-keep-only-vm-metrics:8428/api/v1/write \
   -remoteWrite.mdx.enable=true 
 ```
-
-`vmagent` relies on the `vm_app_version` metric to identify the VictoriaMetrics instance. `vmagent` will not recognize an instance as a VictoriaMetrics instance and retain the instance's metrics until it receives the `vm_app_version` metric from this instance.
-
-If the metrics from the VictoriaMetrics instances have specific label and value in your setup(e.g. service,app label), you can also specify the label name in `-mdx.keepMetricsWithLabel.name` and its value in `-mdx.keepMetricsWithLabel.value`. `vmagent` will retain metrics with the specified label and value to the MDX URL:
+When enabling MDX for the `-remoteWrite.url`, `vmagent` will only forward the metrics from the instances that emit `vm_app_version`, which is a metric that all VictoriaMetrics services will emit,
+or the metrics contain the label specified by `mdx.label`:
 
 ```sh
 ./vmagent \
   -remoteWrite.url=http://service-to-keep-only-vm-metrics:8428/api/v1/write \
   -remoteWrite.mdx.enable=true \
-  -mdx.keepMetricsWithLabel.name=service \
-  -mdx.keepMetricsWithLabel.value=victoriametrics
+  -mdx.label="service=victoriametrics"
 ```
-Otherwise, `vmagent` will rely on the `vm_app_version` metric mechanism to automatically determine which metrics should be retained.
 
-If `vmagent` does not receive metrics from a Victoriametrics instance for a period, it will remove that instance from the discovered VictoriaMetrics instances list to reduce memory usage. 
-The TTL period can be configured by `-mdx.instanceEntryTTL` and defaults to 1 hour, it should work well in most scenarios. If you want to release memory more promptly, you can reduce the value, but note that the minimum recommended value is 5 times scrape interval.
+The number of preserved rows from non-VictoriaMetrics services is exposed as `vmagent_remotewrite_mdx_rows_preserved_total`.
 
 ### Life of a sample
 

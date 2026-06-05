@@ -3,6 +3,7 @@ package mdx
 import (
 	"flag"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -13,19 +14,18 @@ import (
 )
 
 var (
-	keepMetricsWithLabelName = flag.String("mdx.keepMetricsWithLabel.name", "", "Keep metrics containing specific label and label value to the `-remoteWrite.url` that configured with `-remoteWrite.mdx.enable=true`. "+
-		"See also -mdx.keepMetricsWithLabel.value.")
-	keepMetricsWithLabelValue = flag.String("mdx.keepMetricsWithLabel.value", "", "Keep metrics containing specific label and label value to the `-remoteWrite.url` that configured with `-remoteWrite.mdx.enable=true`. "+
-		"See also -mdx.keepMetricsWithLabel.name")
+	vmLabel = flag.String("mdx.label", "", "Optional label in the form 'name=value' to identify metrics from VictoriaMetrics. The metrics contain this label will be kept and sent to the `-remoteWrite.url` that configured with `-remoteWrite.mdx.enable=true`.")
 )
 
 // Filter manages the list of VictoriaMetrics instances discovered from previous data flow, and uses it to filter out metrics that are not from VictoriaMetrics instances.
 type Filter struct {
-	mu            sync.RWMutex
-	wg            sync.WaitGroup
-	stopCh        chan struct{}
-	vmInstance    map[string]*atomic.Int64
-	filterByLabel bool
+	mu                       sync.RWMutex
+	wg                       sync.WaitGroup
+	stopCh                   chan struct{}
+	vmInstance               map[string]*atomic.Int64
+	filterByLabel            bool
+	filterByCustomLabelName  string
+	filterByCustomLabelValue string
 }
 
 func NewFilter() *Filter {
@@ -33,11 +33,17 @@ func NewFilter() *Filter {
 		vmInstance: make(map[string]*atomic.Int64),
 		stopCh:     make(chan struct{}),
 	}
-	if len(*keepMetricsWithLabelName) > 0 && len(*keepMetricsWithLabelValue) > 0 {
+
+	if len(*vmLabel) != 0 {
+		n := strings.IndexByte(*vmLabel, '=')
+		if n < 0 {
+			logger.Fatalf("missing '=' in `-mdx.label`. It must contain label in the form `name=value`; got %q", *vmLabel)
+		}
+		filter.filterByCustomLabelName = (*vmLabel)[:n]
+		filter.filterByCustomLabelValue = (*vmLabel)[n+1:]
 		filter.filterByLabel = true
-	} else if len(*keepMetricsWithLabelName) > 0 || len(*keepMetricsWithLabelValue) > 0 {
-		logger.Fatalf("Both -mdx.keepMetricsWithLabel.name and -mdx.keepMetricsWithLabel.value must be set if one of them is set.")
 	}
+
 	filter.wg.Go(filter.cleanStale)
 	return filter
 }
@@ -94,7 +100,7 @@ nextTss:
 		var hasVersionLabel, triedJobInstance bool
 		var job, instance string
 		for _, label := range ts.Labels {
-			if filter.filterByLabel && label.Name == *keepMetricsWithLabelName && label.Value == *keepMetricsWithLabelValue {
+			if filter.filterByLabel && label.Name == filter.filterByCustomLabelName && label.Value == filter.filterByCustomLabelValue {
 				resTss = append(resTss, ts)
 				continue nextTss
 			}
@@ -144,11 +150,10 @@ nextTss:
 				filter.mu.Lock()
 				filter.vmInstance[string(identicalKey)] = v
 				filter.mu.Unlock()
-
+				resTss = append(resTss, ts)
 				continue nextTss
 			}
 		}
 	}
-	logger.Infof("jayice:%d", len(resTss))
 	return resTss
 }
