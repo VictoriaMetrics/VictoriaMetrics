@@ -281,7 +281,7 @@ reader:
   datasource_url: 'some_url_to_read_data_from'
   queries:
     query_alias1: 'some_metricsql_query'
-  sampling_frequency: '1m'  # change to whatever you need in data granularity
+  sampling_period: '1m'  # change to whatever you need in data granularity
   # other params if needed
   # https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader
 
@@ -294,7 +294,7 @@ writer:
 # https://docs.victoriametrics.com/anomaly-detection/components/monitoring/
 ```
 
-Configuration above will produce N intervals of full length (`fit_window`=14d + `fit_every`=1h) until `to_iso` timestamp is reached to run N consecutive `fit` calls to train models; Then these models will be used to produce `M = [fit_every / sampling_frequency]` infer datapoints for `fit_every` range at the end of each such interval, imitating M consecutive calls of `infer_every` in `PeriodicScheduler` [config](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler). These datapoints then will be written back to VictoriaMetrics TSDB, defined in `writer` [section](https://docs.victoriametrics.com/anomaly-detection/components/writer/#vm-writer) for further visualization (i.e. in VMUI or Grafana)
+Configuration above will produce N intervals of full length (`fit_window`=14d + `fit_every`=1h) until `to_iso` timestamp is reached to run N consecutive `fit` calls to train models; Then these models will be used to produce `M = [fit_every / sampling_period]` infer datapoints for `fit_every` range at the end of each such interval, imitating M consecutive calls of `infer_every` in `PeriodicScheduler` [config](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler). These datapoints then will be written back to VictoriaMetrics TSDB, defined in `writer` [section](https://docs.victoriametrics.com/anomaly-detection/components/writer/#vm-writer) for further visualization (i.e. in VMUI or Grafana)
 
 ## Forecasting
 
@@ -499,7 +499,7 @@ schedulers:
 models:
   zscore_example:
     class: 'zscore_online'
-    min_n_samples_seen: 120  # i.e. minimal relevant seasonality or (initial) fit_window / sampling_frequency
+    min_n_samples_seen: 120  # i.e. minimal relevant seasonality or (initial) fit_window / sampling_period
     decay: 0.999  # decay factor to control how fast the model adapts to new data, the lower, the faster it adapts
     schedulers: ['periodic']
     # other model params ...
