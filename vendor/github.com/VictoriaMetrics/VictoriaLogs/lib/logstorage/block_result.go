@@ -2,6 +2,7 @@ package logstorage
 
 import (
 	"math"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -205,7 +206,7 @@ func (br *blockResult) addValues(values []string) {
 	}
 }
 
-func (br *blockResult) addValue(v string) {
+func (br *blockResult) addValue(v string) string {
 	valuesBuf := br.valuesBuf
 	if len(valuesBuf) > 0 && v == valuesBuf[len(valuesBuf)-1] {
 		v = valuesBuf[len(valuesBuf)-1]
@@ -213,6 +214,7 @@ func (br *blockResult) addValue(v string) {
 		v = br.a.copyString(v)
 	}
 	br.valuesBuf = append(br.valuesBuf, v)
+	return v
 }
 
 // sizeBytes returns the size of br in bytes.
@@ -228,13 +230,14 @@ func (br *blockResult) sizeBytes() int {
 	return n
 }
 
-func (br *blockResult) initFromDataBlock(db *DataBlock) {
+func (br *blockResult) mustInitFromDataBlock(db *DataBlock) {
 	br.reset()
 
 	br.rowsLen = db.RowsCount()
 
-	for i := range db.Columns {
-		c := &db.Columns[i]
+	columns := db.columns
+	for i := range columns {
+		c := &columns[i]
 		if c.Name == "_time" {
 			var ok bool
 			br.timestampsBuf, ok = tryParseTimestamps(br.timestampsBuf[:0], c.Values)
@@ -249,6 +252,75 @@ func (br *blockResult) initFromDataBlock(db *DataBlock) {
 			values: c.Values,
 		})
 	}
+}
+
+func (br *blockResult) mustInitFromRows(rows [][]Field) {
+	br.reset()
+
+	br.rowsLen = len(rows)
+
+	if len(rows) == 0 {
+		// Nothing to do.
+		return
+	}
+
+	if areSameFieldsInRows(rows) {
+		// Fast path - all the rows have the same fields
+		fields := rows[0]
+		for i := range fields {
+			name := br.addValue(fields[i].Name)
+
+			valuesBufLen := len(br.valuesBuf)
+			for _, row := range rows {
+				br.addValue(row[i].Value)
+			}
+			values := br.valuesBuf[valuesBufLen:]
+
+			br.addResultColumn(resultColumn{
+				name:   name,
+				values: values,
+			})
+		}
+		return
+	}
+
+	// Slow path - rows have different fields.
+	// Create common columns across all the fields seen in the rows.
+	columnIdxs := getColumnIdxs()
+	for _, fields := range rows {
+		for j := range fields {
+			name := br.addValue(fields[j].Name)
+			if _, ok := columnIdxs[name]; !ok {
+				columnIdxs[name] = len(columnIdxs)
+			}
+		}
+	}
+
+	// Initialize columns
+	csBufLen := len(br.csBuf)
+	br.csBuf = slicesutil.SetLength(br.csBuf, csBufLen+len(columnIdxs))
+	cs := br.csBuf[csBufLen:]
+
+	for name, idx := range columnIdxs {
+		valuesBufLen := len(br.valuesBuf)
+		br.valuesBuf = slicesutil.SetLength(br.valuesBuf, valuesBufLen+len(rows))
+		values := br.valuesBuf[valuesBufLen:]
+
+		c := &cs[idx]
+		c.name = name
+		c.valueType = valueTypeString
+		c.valuesEncoded = values
+	}
+
+	// Add values to columns
+	for i := range rows {
+		for _, f := range rows[i] {
+			idx := columnIdxs[f.Name]
+			value := br.addValue(f.Value)
+			cs[idx].valuesEncoded[i] = value
+		}
+	}
+	putColumnIdxs(columnIdxs)
 }
 
 // setResultColumns sets the given rcs as br columns.
@@ -372,13 +444,14 @@ func (br *blockResult) initColumnsByFilter(pf *prefixfilter.Filter) {
 	}
 
 	// Add other const columns
-	csh := br.bs.getColumnsHeader()
+	bs := br.bs
+	csh := bs.getColumnsHeader()
 	for _, cc := range csh.constColumns {
-		if cc.Name == "" {
-			// We already added _msg column above
+		if isSpecialColumn(cc.Name) {
+			// Special columns have been added above.
 			continue
 		}
-		if pf.MatchString(cc.Name) {
+		if pf.MatchString(cc.Name) && !bs.isHiddenField(cc.Name) {
 			br.addConstColumn(cc.Name, cc.Value)
 		}
 	}
@@ -387,15 +460,28 @@ func (br *blockResult) initColumnsByFilter(pf *prefixfilter.Filter) {
 	chs := csh.columnHeaders
 	for i := range chs {
 		ch := &chs[i]
-		if ch.name == "" {
-			// We already added _msg column above
+		if isSpecialColumn(ch.name) {
+			// Special columns have been added above.
 			continue
 		}
-		if pf.MatchString(ch.name) {
+		if pf.MatchString(ch.name) && !bs.isHiddenField(ch.name) {
 			br.addColumn(ch)
 		}
 	}
 }
+
+func isSpecialColumn(c string) bool {
+	if len(c) == 0 {
+		// This is a _msg column.
+		return true
+	}
+	if c[0] != '_' {
+		return false
+	}
+	return c == "_time" || c == "_stream" || c == "_stream_id"
+}
+
+var specialColumns = []string{"_msg", "_time", "_stream", "_stream_id"}
 
 // mustInit initializes br with the given bs and bm.
 //
@@ -421,6 +507,8 @@ func (br *blockResult) getMinTimestamp(minTimestamp int64) int64 {
 	if br.bs != nil {
 		th := &br.bs.bsw.bh.timestampsHeader
 		if br.isFull() {
+			// Fast path - all the rows in the br are present, so return the minTimestamp
+			// from blockHeader without the need to read the actual timestamps.
 			return min(minTimestamp, th.minTimestamp)
 		}
 		if minTimestamp <= th.minTimestamp {
@@ -428,8 +516,18 @@ func (br *blockResult) getMinTimestamp(minTimestamp int64) int64 {
 		}
 	}
 
-	// Slow path - need to scan timestamps
 	timestamps := br.getTimestamps()
+	c := br.getColumnByName("_time")
+	if c.isTime {
+		// Slower path - some of the rows in the br are filtered out,
+		// so try obtaining the _time column and return the first timestamp from there.
+		if len(timestamps) > 0 {
+			return min(minTimestamp, timestamps[0])
+		}
+		return minTimestamp
+	}
+
+	// Slow path - need to scan timestamps, since they may be not sorted.
 	for _, timestamp := range timestamps {
 		if timestamp < minTimestamp {
 			minTimestamp = timestamp
@@ -442,6 +540,8 @@ func (br *blockResult) getMaxTimestamp(maxTimestamp int64) int64 {
 	if br.bs != nil {
 		th := &br.bs.bsw.bh.timestampsHeader
 		if br.isFull() {
+			// Fast path - all the rows in the br are present, so return the maxTimestamp
+			// from blockHeader without the need to read the actual timestamps.
 			return max(maxTimestamp, th.maxTimestamp)
 		}
 		if maxTimestamp >= th.maxTimestamp {
@@ -449,8 +549,18 @@ func (br *blockResult) getMaxTimestamp(maxTimestamp int64) int64 {
 		}
 	}
 
-	// Slow path - need to scan timestamps
 	timestamps := br.getTimestamps()
+	c := br.getColumnByName("_time")
+	if c.isTime {
+		// Slower path - some of the rows in the br are filtered out,
+		// so try obtaining the _time column and return the last timestamp from there.
+		if len(timestamps) > 0 {
+			return max(maxTimestamp, timestamps[len(timestamps)-1])
+		}
+		return maxTimestamp
+	}
+
+	// Slow path - need to scan timestamps, since they may be not sorted.
 	for i := len(timestamps) - 1; i >= 0; i-- {
 		if timestamps[i] > maxTimestamp {
 			maxTimestamp = timestamps[i]
@@ -818,7 +928,7 @@ func (br *blockResult) getBucketedTimestampValues(bf *byStatsField) []string {
 func truncateTimestamp(ts, bucketSizeInt, bucketOffsetInt int64, bucketSizeStr string) int64 {
 	if bucketSizeStr == "week" {
 		// Adjust the week to be started from Monday.
-		bucketOffsetInt += 4 * nsecsPerDay
+		bucketOffsetInt += 3 * nsecsPerDay
 	}
 	if bucketOffsetInt == 0 && bucketSizeStr != "month" && bucketSizeStr != "year" {
 		// Fast path for timestamps without offsets
@@ -829,7 +939,7 @@ func truncateTimestamp(ts, bucketSizeInt, bucketOffsetInt int64, bucketSizeStr s
 		return ts - r
 	}
 
-	ts -= bucketOffsetInt
+	ts += bucketOffsetInt
 	switch bucketSizeStr {
 	case "month":
 		ts = truncateTimestampToMonth(ts)
@@ -842,7 +952,7 @@ func truncateTimestamp(ts, bucketSizeInt, bucketOffsetInt int64, bucketSizeStr s
 		}
 		ts -= r
 	}
-	ts += bucketOffsetInt
+	ts -= bucketOffsetInt
 
 	return ts
 }
@@ -1242,9 +1352,9 @@ func truncateUint64(n, bucketSizeInt, bucketOffsetInt uint64) uint64 {
 		return 0
 	}
 
-	n -= bucketOffsetInt
-	n -= n % bucketSizeInt
 	n += bucketOffsetInt
+	n -= n % bucketSizeInt
+	n -= bucketOffsetInt
 	return n
 }
 
@@ -1339,13 +1449,13 @@ func truncateInt64(n, bucketSizeInt, bucketOffsetInt int64) int64 {
 		return n - r
 	}
 
-	n -= bucketOffsetInt
+	n += bucketOffsetInt
 	r := n % bucketSizeInt
 	if r < 0 {
 		r += bucketSizeInt
 	}
 	n -= r
-	n += bucketOffsetInt
+	n -= bucketOffsetInt
 
 	return n
 }
@@ -1443,14 +1553,14 @@ func truncateFloat64(f float64, p10 float64, bucketSizeP10 int64, bucketOffset f
 		return float64(fP10) / p10
 	}
 
-	f -= bucketOffset
+	f += bucketOffset
 
 	fP10 := int64(math.Floor(f * p10))
 	r := fP10 % bucketSizeP10
 	fP10 -= r
 	f = float64(fP10) / p10
 
-	f += bucketOffset
+	f -= bucketOffset
 
 	return f
 }
@@ -1545,9 +1655,9 @@ func truncateUint32(n, bucketSizeInt, bucketOffsetInt uint32) uint32 {
 		return 0
 	}
 
-	n -= bucketOffsetInt
-	n -= n % bucketSizeInt
 	n += bucketOffsetInt
+	n -= n % bucketSizeInt
+	n -= bucketOffsetInt
 
 	return n
 }
@@ -1868,14 +1978,35 @@ func (br *blockResult) deleteColumnsByFilters(columnFilters []string) {
 
 // setColumnFilters sets the resulting columns according to the given columnFilters.
 func (br *blockResult) setColumnFilters(columnFilters []string) {
-	if br.areSameColumns(columnFilters) {
+	cs := br.getColumns()
+
+	if !hasWildcardFilters(columnFilters) {
+		if areSameColumns(cs, columnFilters) {
+			// Fast path - nothing to change.
+			return
+		}
+
+		// Slow path - construct the requested columns in the requested order.
+		br.csInitialized = false
+		csBufLen := len(br.csBuf)
+		for _, field := range columnFilters {
+			idx := getBlockResultColumnIdxByName(cs, field)
+			if idx >= 0 {
+				br.csBuf = append(br.csBuf, *cs[idx])
+			} else {
+				br.addConstColumn(field, "")
+			}
+		}
+		br.csBuf = append(br.csBuf[:0], br.csBuf[csBufLen:]...)
+		return
+	}
+
+	if areSameWildcardColumns(cs, columnFilters) {
 		// Fast path - nothing to change.
 		return
 	}
 
 	// Slow path - construct the requested columns
-	cs := br.getColumns()
-
 	br.csInitialized = false
 	csBuf := br.csBuf
 	csBufLen := len(csBuf)
@@ -1899,8 +2030,19 @@ func (br *blockResult) setColumnFilters(columnFilters []string) {
 	}
 }
 
-func (br *blockResult) areSameColumns(columnFilters []string) bool {
-	cs := br.getColumns()
+func areSameColumns(cs []*blockResultColumn, columnFilters []string) bool {
+	if len(cs) != len(columnFilters) {
+		return false
+	}
+	for i, c := range cs {
+		if columnFilters[i] != c.name {
+			return false
+		}
+	}
+	return true
+}
+
+func areSameWildcardColumns(cs []*blockResultColumn, columnFilters []string) bool {
 	for _, c := range cs {
 		if !prefixfilter.MatchFilters(columnFilters, c.name) {
 			return false
@@ -1915,8 +2057,11 @@ func (br *blockResult) areSameColumns(columnFilters []string) bool {
 			return false
 		}
 	}
-
 	return true
+}
+
+func hasWildcardFilters(columnFilters []string) bool {
+	return slices.ContainsFunc(columnFilters, prefixfilter.IsWildcardFilter)
 }
 
 func getMatchingColumns(br *blockResult, filters []string) *matchingColumns {

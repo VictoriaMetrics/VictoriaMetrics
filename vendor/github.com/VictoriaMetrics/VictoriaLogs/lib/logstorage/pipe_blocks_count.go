@@ -42,6 +42,10 @@ func (pc *pipeBlocksCount) canReturnLastNResults() bool {
 	return false
 }
 
+func (pc *pipeBlocksCount) isFixedOutputFieldsOrder() bool {
+	return true
+}
+
 func (pc *pipeBlocksCount) updateNeededFields(pf *prefixfilter.Filter) {
 	pf.Reset()
 }
@@ -50,7 +54,7 @@ func (pc *pipeBlocksCount) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pc *pipeBlocksCount) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
+func (pc *pipeBlocksCount) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pc, nil
 }
 

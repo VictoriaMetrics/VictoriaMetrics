@@ -49,11 +49,15 @@ func (pu *pipeUnpackWords) canReturnLastNResults() bool {
 	return pu.dstField != "_time"
 }
 
+func (pu *pipeUnpackWords) isFixedOutputFieldsOrder() bool {
+	return false
+}
+
 func (pu *pipeUnpackWords) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pu *pipeUnpackWords) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
+func (pu *pipeUnpackWords) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pu, nil
 }
 

@@ -53,7 +53,7 @@ func parseEnvVars(envs []string) map[string]string {
 }
 
 func expandTemplates(m map[string]string) map[string]string {
-	for i := 0; i < len(m); i++ {
+	for range len(m) {
 		mExpanded := make(map[string]string, len(m))
 		expands := 0
 		for name, value := range m {

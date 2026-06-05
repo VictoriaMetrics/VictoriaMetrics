@@ -6,10 +6,11 @@ import { useTimeState } from "../../../state/time/TimeStateContext";
 import { useAppState } from "../../../state/common/StateContext";
 import { useCustomPanelState } from "../../../state/customPanel/CustomPanelStateContext";
 import { isValidHttpUrl } from "../../../utils/url";
-import { getExportCSVDataUrl, getExportDataUrl, getExportJSONDataUrl } from "../../../api/query-range";
+import { getExportDataUrl, getExportJSONDataUrl } from "../../../api/query-range";
 import { parseLineToJSON } from "../../../utils/json";
 import { downloadCSV, downloadJSON } from "../../../utils/file";
 import { useSnack } from "../../../contexts/Snackbar";
+import { fetchRawQueryCSVExport } from "../../../api/raw-query";
 
 interface FetchQueryParams {
   hideQuery?: number[];
@@ -67,11 +68,8 @@ export const useFetchExport = ({ hideQuery, showAllSeries }: FetchQueryParams): 
     const getFilename = (format: ExportFormats) => `vmui_export_${query.join("_")}_${period.start}_${period.end}.${format}`;
     return {
       csv: async () => {
-        const url = getExportCSVDataUrl(serverUrl, query, period, reduceMemUsage);
-        const response = await fetch(url);
         try {
-          let text = await response.text();
-          text = "name,value,timestamp\n" + text;
+          const text = await fetchRawQueryCSVExport(serverUrl, query, period, reduceMemUsage);
           downloadCSV(text, getFilename("csv"));
         } catch (e) {
           console.error(e);
@@ -151,15 +149,21 @@ export const useFetchExport = ({ hideQuery, showAllSeries }: FetchQueryParams): 
             const pointsToTake = shouldDownsample ? maxPointsPerSeries : totalPoints;
             const step = shouldDownsample ? totalPoints / maxPointsPerSeries : 1;
 
-            const values: [number, number][] = Array.from({ length: pointsToTake }, (_, i) => {
+            const values: [number, number][] = new Array(pointsToTake);
+            const nullTimestamps: number[] = [];
+            for (let i = 0; i < pointsToTake; i++) {
               const idx = shouldDownsample ? Math.floor(i * step) : i;
-              return [rawTimestamps[idx] / 1000, rawValues[idx]];
-            });
+              const ts = rawTimestamps[idx] / 1000;
+              const raw = rawValues[idx];
+              if (raw === null) nullTimestamps.push(ts);
+              values[i] = [ts, raw as number];
+            }
 
             tempData.push({
               group: counter,
               metric: jsonLine.metric,
               values,
+              nullTimestamps,
             } as MetricBase);
           }
 

@@ -668,7 +668,7 @@ func TestScrapeWorkScrapeInternalStreamConcurrency(t *testing.T) {
 
 	generateScrape := func(n int) string {
 		w := strings.Builder{}
-		for i := 0; i < n; i++ {
+		for i := range n {
 			w.WriteString(fmt.Sprintf("fooooo_%d 1\n", i))
 			if i%100 == 0 {
 				w.WriteString(fmt.Sprintf("# HELP fooooo_%d This is a test\n", i))
@@ -700,7 +700,7 @@ func TestScrapeWorkScrapeInternalStreamConcurrency(t *testing.T) {
 		StreamParse:   true,
 		ScrapeTimeout: time.Second * 42,
 		SeriesLimit:   4000,
-	}, 3, 4015, 2, 50)
+	}, 3, 4012, 2, 50)
 }
 
 func TestScrapeWorkScrapeInternalWithMaxScrapeSize(t *testing.T) {
@@ -1006,7 +1006,7 @@ func TestSendStaleSeries(t *testing.T) {
 	}
 	generateScrape := func(n int) string {
 		w := strings.Builder{}
-		for i := 0; i < n; i++ {
+		for i := range n {
 			w.WriteString(fmt.Sprintf("foo_%d 1\n", i))
 		}
 		return w.String()

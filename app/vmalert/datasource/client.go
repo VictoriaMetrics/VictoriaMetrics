@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/url"
 	"strings"
@@ -91,9 +92,7 @@ func (c *Client) Clone() *Client {
 		ns.extraHeaders = make([]keyValue, len(c.extraHeaders))
 		copy(ns.extraHeaders, c.extraHeaders)
 	}
-	for k, v := range c.extraParams {
-		ns.extraParams[k] = v
-	}
+	maps.Copy(ns.extraParams, c.extraParams)
 
 	return ns
 }

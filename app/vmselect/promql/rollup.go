@@ -2439,8 +2439,15 @@ func rollupIntegrate(rfa *rollupFuncArg) float64 {
 		prevTimestamp = timestamp
 		prevValue = v
 	}
-	dt := float64(rfa.currTimestamp-prevTimestamp) / 1e3
-	sum += prevValue * dt
+	// Only extrapolate the last value through to currTimestamp when the time
+	// series has any sample after the lookbehind window. When realNextValue is
+	// NaN the series has effectively ended at prevTimestamp, so accruing area
+	// past it would overcount the integral.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9474
+	if !math.IsNaN(rfa.realNextValue) {
+		dt := float64(rfa.currTimestamp-prevTimestamp) / 1e3
+		sum += prevValue * dt
+	}
 	return sum
 }
 

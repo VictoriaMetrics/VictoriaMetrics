@@ -28,6 +28,12 @@ func timestampFromTime(t time.Time) int64 {
 	return t.UnixNano() / 1e6
 }
 
+// Returns true if the timestamp (must be in seconds) is within the first hour
+// of the day.
+func isFirstHourOfDay(timestamp uint64) bool {
+	return (timestamp/3600)%24 == 0
+}
+
 // TimeRange is time range.
 type TimeRange struct {
 	MinTimestamp int64
@@ -43,16 +49,13 @@ var (
 // DateRange returns the date range for the given time range.
 func (tr *TimeRange) DateRange() (uint64, uint64) {
 	minDate := uint64(tr.MinTimestamp) / msecPerDay
+
 	// Sample at Max timestamp should be included because `End` is inclusive.
 	// According to https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries
-	maxDate := uint64(tr.MaxTimestamp) / msecPerDay
-
 	// However, if both timestamps are the same and point to the beginning of
 	// the day, then maxDate will be smaller that the minDate. In this case
 	// maxDate is set to minDate.
-	if maxDate < minDate {
-		maxDate = minDate
-	}
+	maxDate := max(uint64(tr.MaxTimestamp)/msecPerDay, minDate)
 
 	return minDate, maxDate
 }
@@ -117,4 +120,16 @@ func (tr *TimeRange) contains(timestamp int64) bool {
 const (
 	msecPerDay  = 24 * 3600 * 1000
 	msecPerHour = 3600 * 1000
+
+	// maxUnixMilli is the max millisecond that is allowed to be used as the
+	// sample timestamp.
+	//
+	// Go's Duration is an int64 and is in nanoseconds. In order for time.Time
+	// math operations and conversion to millis/micros/nanos to work correctly,
+	// the max datetime must be limited to math.MaxInt64 nanoseconds, Which is
+	// time.UnixMicro(math.MaxInt64/1000) == 2262-04-11 23:47:16.854775 UTC.
+	//
+	// Round it to the last millisecond of the last complete partition:
+	// 2262-03-31 23:59:59.999 UTC.
+	maxUnixMilli = 9222422399999
 )

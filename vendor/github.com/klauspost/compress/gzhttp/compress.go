@@ -1,3 +1,29 @@
+// Package gzhttp provides HTTP middleware for compressing response bodies
+// using gzip or zstd (RFC 8878). It wraps http.Handler to transparently
+// compress responses based on the client's Accept-Encoding header.
+//
+// The package supports content negotiation, preferring zstd when both
+// encodings are accepted with equal quality values. Both encodings are
+// enabled by default with conservative settings for broad compatibility.
+//
+// Basic usage:
+//
+//	wrapper, _ := gzhttp.NewWrapper()
+//	http.Handle("/", wrapper(myHandler))
+//
+// Or use the convenience function:
+//
+//	http.Handle("/", gzhttp.GzipHandler(myHandler))
+//
+// Custom compression implementations can be provided via GzipImplementation
+// and ZstdImplementation options.
+//
+// For HTTP clients, the Transport function wraps an http.RoundTripper to
+// automatically request and decompress gzip/zstd responses:
+//
+//	client := http.Client{
+//		Transport: gzhttp.Transport(http.DefaultTransport),
+//	}
 package gzhttp
 
 import (
@@ -20,7 +46,9 @@ import (
 
 	"github.com/klauspost/compress/gzhttp/writer"
 	"github.com/klauspost/compress/gzhttp/writer/gzkp"
+	"github.com/klauspost/compress/gzhttp/writer/zstdkp"
 	"github.com/klauspost/compress/gzip"
+	"github.com/klauspost/compress/zstd"
 )
 
 const (
@@ -55,6 +83,15 @@ const (
 	DefaultMinSize = 1024
 )
 
+// encoding represents the compression encoding to use.
+type encoding int
+
+const (
+	encodingNone encoding = iota
+	encodingGzip
+	encodingZstd
+)
+
 // GzipResponseWriter provides an http.ResponseWriter interface, which gzips
 // bytes before writing them to the underlying response. This doesn't close the
 // writers, so don't forget to do that.
@@ -64,6 +101,13 @@ type GzipResponseWriter struct {
 	level     int
 	gwFactory writer.GzipWriterFactory
 	gw        writer.GzipWriter
+
+	// Zstd support
+	enc         encoding
+	zstdLevel   int
+	zstdFactory writer.ZstdWriterFactory
+	zw          writer.ZstdWriter
+	zstdJitter  []byte // Jitter to write as skippable frame on Close
 
 	code int // Saves the WriteHeader value.
 
@@ -91,17 +135,20 @@ func (w GzipResponseWriterWithCloseNotify) CloseNotify() <-chan bool {
 
 // Write appends data to the gzip writer.
 func (w *GzipResponseWriter) Write(b []byte) (int, error) {
-	// GZIP responseWriter is initialized. Use the GZIP responseWriter.
+	// Compression writer is initialized. Use it.
 	if w.gw != nil {
 		return w.gw.Write(b)
 	}
+	if w.zw != nil {
+		return w.zw.Write(b)
+	}
 
-	// If we have already decided not to use GZIP, immediately passthrough.
+	// If we have already decided not to compress, immediately passthrough.
 	if w.ignore {
 		return w.ResponseWriter.Write(b)
 	}
 
-	// Save the write into a buffer for later use in GZIP responseWriter
+	// Save the write into a buffer for later use in compression responseWriter
 	// (if content is long enough) or at close with regular responseWriter.
 	wantBuf := max(w.minSize, 512)
 	if w.jitterBuffer > 0 && w.jitterBuffer > wantBuf {
@@ -139,14 +186,20 @@ func (w *GzipResponseWriter) Write(b []byte) (int, error) {
 					}
 				}
 
-				// If the Content-Type is acceptable to GZIP, initialize the GZIP writer.
+				// If the Content-Type is acceptable, initialize the compression writer.
 				if w.contentTypeFilter(ct) {
-					if err := w.startGzip(remain); err != nil {
+					if err := w.startCompression(remain); err != nil {
 						return 0, err
 					}
 					if len(remain) > 0 {
-						if _, err := w.gw.Write(remain); err != nil {
-							return 0, err
+						if w.gw != nil {
+							if _, err := w.gw.Write(remain); err != nil {
+								return 0, err
+							}
+						} else if w.zw != nil {
+							if _, err := w.zw.Write(remain); err != nil {
+								return 0, err
+							}
 						}
 					}
 					return len(b), nil
@@ -172,12 +225,19 @@ func (w *GzipResponseWriter) Unwrap() http.ResponseWriter {
 
 var castagnoliTable = crc32.MakeTable(crc32.Castagnoli)
 
-// startGzip initializes a GZIP writer and writes the buffer.
-func (w *GzipResponseWriter) startGzip(remain []byte) error {
-	// Set the GZIP header.
-	w.Header().Set(contentEncoding, "gzip")
+// startCompression initializes the compression writer and writes the buffer.
+func (w *GzipResponseWriter) startCompression(remain []byte) error {
+	// Set the Content-Encoding header based on encoding type.
+	switch w.enc {
+	case encodingGzip:
+		w.Header().Set(contentEncoding, "gzip")
+	case encodingZstd:
+		w.Header().Set(contentEncoding, "zstd")
+	default:
+		return w.startPlain()
+	}
 
-	// if the Content-Length is already set, then calls to Write on gzip
+	// if the Content-Length is already set, then calls to Write on compression
 	// will fail to set the Content-Length header since its already set
 	// See: https://github.com/golang/go/issues/14975.
 	w.Header().Del(contentLength)
@@ -187,14 +247,27 @@ func (w *GzipResponseWriter) startGzip(remain []byte) error {
 		w.Header().Del(acceptRanges)
 	}
 
-	// Suffix ETag.
+	// Suffix ETag with encoding-specific value to avoid cache conflicts.
 	if w.suffixETag != "" && !w.dropETag && w.Header().Get(eTag) != "" {
 		orig := w.Header().Get(eTag)
 		insertPoint := strings.LastIndex(orig, `"`)
 		if insertPoint == -1 {
 			insertPoint = len(orig)
 		}
-		w.Header().Set(eTag, orig[:insertPoint]+w.suffixETag+orig[insertPoint:])
+		suffix := w.suffixETag
+		switch w.enc {
+		case encodingGzip:
+			if !strings.Contains(suffix, "gzip") {
+				suffix += "-gzip"
+			}
+		case encodingZstd:
+			if strings.Contains(suffix, "gzip") {
+				suffix = strings.Replace(suffix, "gzip", "zstd", 1)
+			} else {
+				suffix += "-zstd"
+			}
+		}
+		w.Header().Set(eTag, orig[:insertPoint]+suffix+orig[insertPoint:])
 	}
 
 	// Delete ETag.
@@ -202,22 +275,21 @@ func (w *GzipResponseWriter) startGzip(remain []byte) error {
 		w.Header().Del(eTag)
 	}
 
-	// Write the header to gzip response.
+	// Write the header to response.
 	if w.code != 0 {
 		w.ResponseWriter.WriteHeader(w.code)
 		// Ensure that no other WriteHeader's happen
 		w.code = 0
 	}
 
-	// Initialize and flush the buffer into the gzip response if there are any bytes.
+	// Initialize and flush the buffer into the compressed response if there are any bytes.
 	// If there aren't any, we shouldn't initialize it yet because on Close it will
-	// write the gzip header even if nothing was ever written.
+	// write the compression header even if nothing was ever written.
 	if len(w.buf) > 0 {
-		// Initialize the GZIP response.
+		// Initialize the compression response.
 		w.init()
 
 		// Set random jitter based on CRC or SHA-256 of current buffer.
-		// Before first write.
 		if len(w.randomJitter) > 0 {
 			var jitRNG uint32
 			if w.jitterBuffer > 0 {
@@ -256,9 +328,21 @@ func (w *GzipResponseWriter) startGzip(remain []byte) error {
 				jitRNG = binary.LittleEndian.Uint32(tmp[:])
 			}
 			jit := w.randomJitter[:1+jitRNG%uint32(len(w.randomJitter)-1)]
-			w.gw.(writer.GzipWriterExt).SetHeader(writer.Header{Comment: jit})
+			if w.enc == encodingGzip {
+				w.gw.(writer.GzipWriterExt).SetHeader(writer.Header{Comment: jit})
+			} else if w.enc == encodingZstd {
+				// Store jitter for zstd to write as skippable frame on Close
+				w.zstdJitter = []byte(jit)
+			}
 		}
-		n, err := w.gw.Write(w.buf)
+
+		var n int
+		var err error
+		if w.gw != nil {
+			n, err = w.gw.Write(w.buf)
+		} else if w.zw != nil {
+			n, err = w.zw.Write(w.buf)
+		}
 
 		// This should never happen (per io.Writer docs), but if the write didn't
 		// accept the entire buffer but returned no specific error, we have no clue
@@ -313,12 +397,14 @@ func (w *GzipResponseWriter) WriteHeader(code int) {
 	}
 }
 
-// init graps a new gzip writer from the gzipWriterPool and writes the correct
-// content encoding header.
+// init grabs a new compression writer from the appropriate pool.
 func (w *GzipResponseWriter) init() {
-	// Bytes written during ServeHTTP are redirected to this gzip writer
-	// before being written to the underlying response.
-	w.gw = w.gwFactory.New(w.ResponseWriter, w.level)
+	switch w.enc {
+	case encodingGzip:
+		w.gw = w.gwFactory.New(w.ResponseWriter, w.level)
+	case encodingZstd:
+		w.zw = w.zstdFactory.New(w.ResponseWriter, w.zstdLevel)
+	}
 }
 
 // bodyAllowedForStatus reports whether a given response status code
@@ -335,12 +421,12 @@ func bodyAllowedForStatus(status int) bool {
 	return true
 }
 
-// Close will close the gzip.Writer and will put it back in the gzipWriterPool.
+// Close will close the compression writer and return it to the pool.
 func (w *GzipResponseWriter) Close() error {
 	if w.ignore {
 		return nil
 	}
-	if w.gw == nil {
+	if w.gw == nil && w.zw == nil {
 		var (
 			ct = w.Header().Get(contentType)
 			ce = w.Header().Get(contentEncoding)
@@ -359,28 +445,61 @@ func (w *GzipResponseWriter) Close() error {
 		}
 
 		if len(w.buf) == 0 || len(w.buf) < w.minSize || len(w.Header()[HeaderNoCompression]) != 0 || ce != "" || cr != "" || !w.contentTypeFilter(ct) {
-			// GZIP not triggered, write out regular response.
+			// Compression not triggered, write out regular response.
 			return w.startPlain()
 		}
-		err := w.startGzip(nil)
+		err := w.startCompression(nil)
 		if err != nil {
 			return err
 		}
 	}
 
-	err := w.gw.Close()
-	w.gw = nil
+	if w.gw != nil {
+		err := w.gw.Close()
+		w.gw = nil
+		return err
+	}
+	if w.zw != nil {
+		err := w.zw.Close()
+		w.zw = nil
+		if err != nil {
+			return err
+		}
+		// Write zstd jitter as skippable frame (RFC 8878 Section 3.1.2)
+		if len(w.zstdJitter) > 0 {
+			err = w.writeZstdSkippableFrame(w.zstdJitter)
+			w.zstdJitter = nil
+		}
+		return err
+	}
+	return nil
+}
+
+// writeZstdSkippableFrame writes a zstd skippable frame containing the given data.
+// Skippable frames are ignored by zstd decoders per RFC 8878.
+func (w *GzipResponseWriter) writeZstdSkippableFrame(data []byte) error {
+	// Skippable frame format:
+	// Magic_Number: 4 bytes, little-endian, 0x184D2A5? (we use 0x184D2A50)
+	// Frame_Size: 4 bytes, little-endian
+	// User_Data: Frame_Size bytes
+	var header [8]byte
+	binary.LittleEndian.PutUint32(header[0:4], 0x184D2A50)
+	binary.LittleEndian.PutUint32(header[4:8], uint32(len(data)))
+	if _, err := w.ResponseWriter.Write(header[:]); err != nil {
+		return err
+	}
+	_, err := w.ResponseWriter.Write(data)
 	return err
 }
 
-// Flush flushes the underlying *gzip.Writer and then the underlying
+// Flush flushes the underlying compression writer and then the underlying
 // http.ResponseWriter if it is an http.Flusher. This makes GzipResponseWriter
 // an http.Flusher.
 // If not enough bytes has been written to determine if we have reached minimum size,
 // this will be ignored.
 // If nothing has been written yet, nothing will be flushed.
 func (w *GzipResponseWriter) Flush() {
-	if w.gw == nil && !w.ignore {
+	if w.gw == nil && w.zw == nil && !w.ignore {
 		if len(w.buf) == 0 {
 			// Nothing written yet.
 			return
@@ -409,7 +528,7 @@ func (w *GzipResponseWriter) Flush() {
 
 		// See if we should compress...
 		if len(w.Header()[HeaderNoCompression]) == 0 && ce == "" && cr == "" && cl >= w.minSize && w.contentTypeFilter(ct) {
-			w.startGzip(nil)
+			w.startCompression(nil)
 		} else {
 			w.startPlain()
 		}
@@ -417,6 +536,9 @@ func (w *GzipResponseWriter) Flush() {
 
 	if w.gw != nil {
 		w.gw.Flush()
+	}
+	if w.zw != nil {
+		w.zw.Flush()
 	}
 
 	if fw, ok := w.ResponseWriter.(http.Flusher); ok {
@@ -465,6 +587,16 @@ func NewWrapper(opts ...option) (func(http.Handler) http.HandlerFunc, error) {
 		},
 		contentTypes:   DefaultContentTypeFilter,
 		setContentType: true,
+
+		// Zstd defaults
+		zstdEnabled: true,
+		zstdLevel:   int(zstd.SpeedFastest),
+		zstdWriter: writer.ZstdWriterFactory{
+			Levels: zstdkp.Levels,
+			New:    zstdkp.NewWriter,
+		},
+		preferZstd:  true,
+		gzipEnabled: true,
 	}
 
 	for _, o := range opts {
@@ -483,12 +615,16 @@ func NewWrapper(opts ...option) (func(http.Handler) http.HandlerFunc, error) {
 				r.Body = &gzipReader{body: r.Body}
 			}
 
-			if acceptsGzip(r) {
+			enc := selectEncoding(r, c.gzipEnabled, c.zstdEnabled, c.preferZstd)
+			if enc != encodingNone {
 				gw := grwPool.Get().(*GzipResponseWriter)
 				*gw = GzipResponseWriter{
 					ResponseWriter:    w,
 					gwFactory:         c.writer,
 					level:             c.level,
+					enc:               enc,
+					zstdLevel:         c.zstdLevel,
+					zstdFactory:       c.zstdWriter,
 					minSize:           c.minSize,
 					contentTypeFilter: c.contentTypes,
 					keepAcceptRanges:  c.keepAcceptRanges,
@@ -567,12 +703,35 @@ type config struct {
 	randomJitter            string
 	sha256Jitter            bool
 	allowCompressedRequests bool
+
+	// Zstd support
+	zstdEnabled bool
+	zstdLevel   int
+	zstdWriter  writer.ZstdWriterFactory
+	preferZstd  bool
+	gzipEnabled bool
 }
 
 func (c *config) validate() error {
-	min, max := c.writer.Levels()
-	if c.level < min || c.level > max {
-		return fmt.Errorf("invalid compression level requested: %d, valid range %d -> %d", c.level, min, max)
+	// Validate gzip level if enabled
+	if c.gzipEnabled {
+		gzMin, gzMax := c.writer.Levels()
+		if c.level < gzMin || c.level > gzMax {
+			return fmt.Errorf("invalid gzip compression level requested: %d, valid range %d -> %d", c.level, gzMin, gzMax)
+		}
+	}
+
+	// Validate zstd level if enabled
+	if c.zstdEnabled {
+		zMin, zMax := c.zstdWriter.Levels()
+		if c.zstdLevel < zMin || c.zstdLevel > zMax {
+			return fmt.Errorf("invalid zstd compression level requested: %d, valid range %d -> %d", c.zstdLevel, zMin, zMax)
+		}
+	}
+
+	// At least one encoding must be enabled
+	if !c.gzipEnabled && !c.zstdEnabled {
+		return errors.New("at least one compression encoding (gzip or zstd) must be enabled")
 	}
 
 	if c.minSize < 0 {
@@ -581,7 +740,9 @@ func (c *config) validate() error {
 	if len(c.randomJitter) >= math.MaxUint16 {
 		return fmt.Errorf("random jitter size exceeded")
 	}
-	if len(c.randomJitter) > 0 {
+	if len(c.randomJitter) > 0 && c.gzipEnabled {
+		// Validate gzip writer supports headers (required for gzip jitter).
+		// Zstd uses skippable frames and doesn't need this check.
 		gzw, ok := c.writer.New(io.Discard, c.level).(writer.GzipWriterExt)
 		if !ok {
 			return errors.New("the custom compressor does not allow setting headers for random jitter")
@@ -632,6 +793,48 @@ func SetContentType(b bool) option {
 func Implementation(writer writer.GzipWriterFactory) option {
 	return func(c *config) {
 		c.writer = writer
+	}
+}
+
+// EnableZstd enables or disables zstd compression.
+// Enabled by default.
+func EnableZstd(enable bool) option {
+	return func(c *config) {
+		c.zstdEnabled = enable
+	}
+}
+
+// ZstdCompressionLevel sets the zstd compression level.
+// Levels are: 1=SpeedFastest, 2=SpeedDefault, 3=SpeedBetterCompression, 4=SpeedBestCompression
+// Default is SpeedFastest (1).
+func ZstdCompressionLevel(level int) option {
+	return func(c *config) {
+		c.zstdLevel = level
+	}
+}
+
+// ZstdImplementation changes the implementation of ZstdWriter.
+// The default implementation is backed by github.com/klauspost/compress/zstd
+func ZstdImplementation(zw writer.ZstdWriterFactory) option {
+	return func(c *config) {
+		c.zstdWriter = zw
+	}
+}
+
+// PreferZstd sets whether zstd is preferred when both gzip and zstd
+// have equal qvalues in Accept-Encoding.
+// Default is true (prefer zstd).
+func PreferZstd(prefer bool) option {
+	return func(c *config) {
+		c.preferZstd = prefer
+	}
+}
+
+// EnableGzip enables or disables gzip compression.
+// Enabled by default.
+func EnableGzip(enable bool) option {
+	return func(c *config) {
+		c.gzipEnabled = enable
 	}
 }
 
@@ -797,6 +1000,74 @@ func acceptsGzip(r *http.Request) bool {
 	return r.Method != http.MethodHead && parseEncodingGzip(r.Header.Get(acceptEncoding)) > 0
 }
 
+// selectEncoding determines the best encoding based on Accept-Encoding header.
+func selectEncoding(r *http.Request, gzipEnabled, zstdEnabled, preferZstd bool) encoding {
+	// Don't compress HEAD requests due to nginx bug.
+	if r.Method == http.MethodHead {
+		return encodingNone
+	}
+
+	ae := r.Header.Get(acceptEncoding)
+	if ae == "" {
+		return encodingNone
+	}
+
+	gzipQ := parseEncodingQValue(ae, "gzip")
+	zstdQ := parseEncodingQValue(ae, "zstd")
+
+	// Neither accepted
+	if (!gzipEnabled || gzipQ <= 0) && (!zstdEnabled || zstdQ <= 0) {
+		return encodingNone
+	}
+
+	// Only one available
+	if !zstdEnabled || zstdQ <= 0 {
+		if gzipEnabled && gzipQ > 0 {
+			return encodingGzip
+		}
+		return encodingNone
+	}
+	if !gzipEnabled || gzipQ <= 0 {
+		if zstdEnabled && zstdQ > 0 {
+			return encodingZstd
+		}
+		return encodingNone
+	}
+
+	// Both available - compare qvalues
+	if zstdQ > gzipQ {
+		return encodingZstd
+	}
+	if gzipQ > zstdQ {
+		return encodingGzip
+	}
+	// Equal qvalues - use preference
+	if preferZstd {
+		return encodingZstd
+	}
+	return encodingGzip
+}
+
+// parseEncodingQValue returns the qvalue for a specific encoding.
+func parseEncodingQValue(header, enc string) float64 {
+	header = strings.TrimSpace(header)
+	for len(header) > 0 {
+		stop := strings.IndexByte(header, ',')
+		if stop < 0 {
+			stop = len(header)
+		}
+		coding, qvalue, _ := parseCoding(header[:stop])
+		if coding == enc {
+			return qvalue
+		}
+		if stop == len(header) {
+			break
+		}
+		header = header[stop+1:]
+	}
+	return 0
+}
+
 // returns true if we've been configured to compress the specific content type.
 func handleContentType(contentTypes []parsedContentType, ct string) bool {
 	// If contentTypes is empty we handle all content types.
@@ -881,9 +1152,9 @@ func parseCoding(s string) (coding string, qvalue float64, err error) {
 		}
 		return coding, DefaultQValue, err
 	}
+	qvalue = DefaultQValue
 	for n, part := range strings.Split(s, ";") {
 		part = strings.TrimSpace(part)
-		qvalue = DefaultQValue
 
 		if n == 0 {
 			coding = strings.ToLower(part)

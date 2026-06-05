@@ -25,15 +25,15 @@ func TestGetLabelsHash_Distribution(t *testing.T) {
 		t.Helper()
 
 		// Distribute itemsCount hashes returned by getLabelsHash() across bucketsCount buckets.
-		itemsCount := 1_000 * bucketsCount
+		itemsCount := 10_000 * bucketsCount
 		m := make([]int, bucketsCount)
 		var labels []prompb.Label
-		for i := 0; i < itemsCount; i++ {
+		for i := range itemsCount {
 			labels = append(labels[:0], prompb.Label{
 				Name:  "__name__",
 				Value: fmt.Sprintf("some_name_%d", i),
 			})
-			for j := 0; j < 10; j++ {
+			for j := range 10 {
 				labels = append(labels, prompb.Label{
 					Name:  fmt.Sprintf("label_%d", j),
 					Value: fmt.Sprintf("value_%d_%d", i, j),
@@ -44,10 +44,12 @@ func TestGetLabelsHash_Distribution(t *testing.T) {
 		}
 
 		// Verify that the distribution is even
-		expectedItemsPerBucket := itemsCount / bucketsCount
+		expectedItemsPerBucket := float64(itemsCount / bucketsCount)
+		allowedDeviation := math.Round(float64(expectedItemsPerBucket) * 0.04)
 		for _, n := range m {
-			if math.Abs(1-float64(n)/float64(expectedItemsPerBucket)) > 0.04 {
-				t.Fatalf("unexpected items in the bucket for %d buckets; got %d; want around %d", bucketsCount, n, expectedItemsPerBucket)
+			if math.Abs(expectedItemsPerBucket-float64(n)) > allowedDeviation {
+				t.Fatalf("unexpected items in the bucket for %d buckets; got %d; want in range [%.0f, %.0f]",
+					bucketsCount, n, expectedItemsPerBucket-allowedDeviation, expectedItemsPerBucket+allowedDeviation)
 			}
 		}
 	}
@@ -248,7 +250,7 @@ func TestShardAmountRemoteWriteCtx(t *testing.T) {
 		seriesCount := 100000
 		// build 1000000 series
 		tssBlock := make([]prompb.TimeSeries, 0, seriesCount)
-		for i := 0; i < seriesCount; i++ {
+		for i := range seriesCount {
 			tssBlock = append(tssBlock, prompb.TimeSeries{
 				Labels: []prompb.Label{
 					{
@@ -269,7 +271,7 @@ func TestShardAmountRemoteWriteCtx(t *testing.T) {
 		// build active time series set
 		nodes := make([]string, 0, remoteWriteCount)
 		activeTimeSeriesByNodes := make([]map[string]struct{}, remoteWriteCount)
-		for i := 0; i < remoteWriteCount; i++ {
+		for i := range remoteWriteCount {
 			nodes = append(nodes, fmt.Sprintf("node%d", i))
 			activeTimeSeriesByNodes[i] = make(map[string]struct{})
 		}

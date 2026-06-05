@@ -32,7 +32,8 @@ var (
 //
 // The Reader must be obtained via GetReader() call.
 type Reader struct {
-	r io.Reader
+	r                    io.Reader
+	increasedConcurrency bool
 }
 
 // GetReader returns the Reader for r.
@@ -49,6 +50,7 @@ func GetReader(r io.Reader) (*Reader, error) {
 	}
 	rr := v.(*Reader)
 	rr.r = r
+	rr.increasedConcurrency = true
 
 	return rr, nil
 }
@@ -58,9 +60,11 @@ func GetReader(r io.Reader) (*Reader, error) {
 // It decreases the concurrency.
 func PutReader(r *Reader) {
 	r.r = nil
+	if r.increasedConcurrency {
+		DecConcurrency()
+		r.increasedConcurrency = false
+	}
 	readerPool.Put(r)
-
-	DecConcurrency()
 }
 
 var readerPool sync.Pool
@@ -68,12 +72,14 @@ var readerPool sync.Pool
 // Read implements io.Reader.
 func (r *Reader) Read(p []byte) (int, error) {
 	DecConcurrency()
+	r.increasedConcurrency = false
 
 	n, err := r.r.Read(p)
 
 	if errC := IncConcurrency(); errC != nil {
 		return n, errC
 	}
+	r.increasedConcurrency = true
 
 	if errors.Is(err, io.ErrUnexpectedEOF) {
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8704

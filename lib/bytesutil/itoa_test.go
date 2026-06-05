@@ -7,7 +7,7 @@ import (
 func TestItoa(t *testing.T) {
 	f := func(n int, resultExpected string) {
 		t.Helper()
-		for i := 0; i < 5; i++ {
+		for range 5 {
 			result := Itoa(n)
 			if result != resultExpected {
 				t.Fatalf("unexpected result for Itoa(%d); got %q; want %q", n, result, resultExpected)

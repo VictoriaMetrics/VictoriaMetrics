@@ -5,6 +5,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"math"
+	"slices"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -20,6 +22,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricnamestats"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
 )
 
@@ -490,10 +493,7 @@ func (pts *packedTimeseries) unpackTo(dst []*sortBlock, tbf *tmpBlocksFile, tr s
 	}
 
 	// Prepare worker channels.
-	workers := min(len(upws), gomaxprocs)
-	if workers < 1 {
-		workers = 1
-	}
+	workers := max(min(len(upws), gomaxprocs), 1)
 	itemsPerWorker := (len(upws) + workers - 1) / workers
 	workChs := make([]chan *unpackWork, workers)
 	for i := range workChs {
@@ -578,6 +578,7 @@ func mergeSortBlocks(dst *Result, sbh *sortBlocksHeap, dedupInterval int64) {
 		return
 	}
 	heap.Init(sbh)
+	var dedupSamples int
 	for {
 		sbs := sbh.sbs
 		top := sbs[0]
@@ -593,6 +594,7 @@ func mergeSortBlocks(dst *Result, sbh *sortBlocksHeap, dedupInterval int64) {
 		if n := equalSamplesPrefix(top, sbNext); n > 0 && dedupInterval > 0 {
 			// Skip n replicated samples at top if deduplication is enabled.
 			top.NextIdx = topNextIdx + n
+			dedupSamples += n
 		} else {
 			// Copy samples from top to dst with timestamps not exceeding tsNext.
 			top.NextIdx = topNextIdx + binarySearchTimestamps(top.Timestamps[topNextIdx:], tsNext)
@@ -607,8 +609,8 @@ func mergeSortBlocks(dst *Result, sbh *sortBlocksHeap, dedupInterval int64) {
 		}
 	}
 	timestamps, values := storage.DeduplicateSamples(dst.Timestamps, dst.Values, dedupInterval)
-	dedups := len(dst.Timestamps) - len(timestamps)
-	dedupsDuringSelect.Add(dedups)
+	dedupSamples += len(dst.Timestamps) - len(timestamps)
+	dedupsDuringSelect.Add(dedupSamples)
 	dst.Timestamps = timestamps
 	dst.Values = values
 }
@@ -634,7 +636,7 @@ func equalTimestampsPrefix(a, b []int64) int {
 
 func equalValuesPrefix(a, b []float64) int {
 	for i, v := range a {
-		if i >= len(b) || v != b[i] {
+		if i >= len(b) || math.Float64bits(v) != math.Float64bits(b[i]) {
 			return i
 		}
 	}
@@ -829,12 +831,7 @@ func GraphiteTags(qt *querytracer.Tracer, filter string, limit int, deadline sea
 }
 
 func hasString(a []string, s string) bool {
-	for _, x := range a {
-		if x == s {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(a, s)
 }
 
 // LabelValues returns label values matching the given labelName and sq until the given deadline.
@@ -993,9 +990,6 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 		return fmt.Errorf("timeout exceeded before starting data export: %s", deadline.String())
 	}
 	tr := sq.GetTimeRange()
-	if err := vmstorage.CheckTimeRange(tr); err != nil {
-		return err
-	}
 	tfss, err := setupTfss(qt, tr, sq.TagFilterss, sq.MaxMetrics, deadline)
 	if err != nil {
 		return err
@@ -1101,9 +1095,6 @@ func SearchMetricNames(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline
 
 	// Setup search.
 	tr := sq.GetTimeRange()
-	if err := vmstorage.CheckTimeRange(tr); err != nil {
-		return nil, err
-	}
 	tfss, err := setupTfss(qt, tr, sq.TagFilterss, sq.MaxMetrics, deadline)
 	if err != nil {
 		return nil, err
@@ -1130,9 +1121,6 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 
 	// Setup search.
 	tr := sq.GetTimeRange()
-	if err := vmstorage.CheckTimeRange(tr); err != nil {
-		return nil, err
-	}
 	tfss, err := setupTfss(qt, tr, sq.TagFilterss, sq.MaxMetrics, deadline)
 	if err != nil {
 		return nil, err
@@ -1366,7 +1354,7 @@ func applyGraphiteRegexpFilter(filter string, ss []string) ([]string, error) {
 const maxFastAllocBlockSize = 32 * 1024
 
 // GetMetricNamesStats returns statistic for timeseries metric names usage.
-func GetMetricNamesStats(qt *querytracer.Tracer, limit, le int, matchPattern string) (storage.MetricNamesStatsResponse, error) {
+func GetMetricNamesStats(qt *querytracer.Tracer, limit, le int, matchPattern string) (metricnamestats.StatsResult, error) {
 	qt = qt.NewChild("get metric names usage statistics with limit: %d, less or equal to: %d, match pattern=%q", limit, le, matchPattern)
 	defer qt.Done()
 	return vmstorage.GetMetricNamesStats(qt, limit, le, matchPattern)

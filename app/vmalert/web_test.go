@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/VictoriaMetrics/metricsql"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
@@ -37,12 +39,14 @@ func TestHandler(t *testing.T) {
 			Concurrency: 1,
 			Rules: []config.Rule{
 				{
-					ID:    0,
-					Alert: "alert",
+					ID:     0,
+					Alert:  "alert",
+					Labels: map[string]string{"job": "foo"},
 				},
 				{
 					ID:     1,
 					Record: "record",
+					Labels: map[string]string{"job": "bar"},
 				},
 			},
 		}, fq, 1*time.Minute, nil)
@@ -128,6 +132,18 @@ func TestHandler(t *testing.T) {
 		if length := len(lr.Data.Alerts); length != 2 {
 			t.Fatalf("expected 2 alert got %d", length)
 		}
+
+		lr = listAlertsResponse{}
+		getResp(t, ts.URL+`/api/v1/alerts?match[]={job="foo"}`, &lr, 200)
+		if length := len(lr.Data.Alerts); length != 3 {
+			t.Fatalf("expected 3 alerts got %d", length)
+		}
+
+		lr = listAlertsResponse{}
+		getResp(t, ts.URL+`/api/v1/alerts?match[]={job="bar"}`, &lr, 200)
+		if length := len(lr.Data.Alerts); length != 0 {
+			t.Fatalf("expected 0 alerts got %d", length)
+		}
 	})
 	t.Run("/api/v1/alert?alertID&groupID", func(t *testing.T) {
 		expAlert := rule.NewAlertAPI(ar, ar.GetAlerts()[0])
@@ -210,7 +226,7 @@ func TestHandler(t *testing.T) {
 		}
 	})
 
-	t.Run("/api/v1/rules&filters", func(t *testing.T) {
+	t.Run("/api/v1/rules&states", func(t *testing.T) {
 		check := func(url string, statusCode, expGroups, expRules int) {
 			t.Helper()
 			lr := listGroupsResponse{}
@@ -242,6 +258,13 @@ func TestHandler(t *testing.T) {
 		check("/vmalert/api/v1/rules?datasource_type=graphite", 200, 1, 2)
 		check("/vmalert/api/v1/rules?datasource_type=graphiti", 400, 0, 0)
 
+		// invalid match[] params
+		check(`/vmalert/api/v1/rules?match[]={job=!"foo"}`, 400, 0, 0)
+		check(`/vmalert/api/v1/rules?match[]={job="foo"}`, 200, 3, 3)
+		check(`/vmalert/api/v1/rules?match[]={job="bar"}`, 200, 3, 3)
+		check(`/vmalert/api/v1/rules?match[]={job="bar"}&match[]={job="foo"}`, 200, 3, 6)
+		check(`/vmalert/api/v1/rules?match[]={job="barzz"}`, 200, 0, 0)
+
 		// no filtering expected due to bad params
 		check("/api/v1/rules?type=badParam", 400, 0, 0)
 		check("/api/v1/rules?foo=bar", 200, 3, 6)
@@ -252,9 +275,15 @@ func TestHandler(t *testing.T) {
 		check("/api/v1/rules?rule_group[]=group&file[]=foo", 200, 0, 0)
 		check("/api/v1/rules?rule_group[]=group&file[]=rules.yaml", 200, 3, 6)
 
-		check("/api/v1/rules?rule_group[]=group&file[]=rules.yaml&rule_name[]=foo", 200, 3, 0)
+		check("/api/v1/rules?rule_group[]=group&file[]=rules.yaml&rule_name[]=foo", 200, 0, 0)
 		check("/api/v1/rules?rule_group[]=group&file[]=rules.yaml&rule_name[]=alert", 200, 3, 3)
 		check("/api/v1/rules?rule_group[]=group&file[]=rules.yaml&rule_name[]=alert&rule_name[]=record", 200, 3, 6)
+
+		check("/api/v1/rules?group_limit=1", 200, 1, 2)
+		check("/api/v1/rules?group_limit=1&type=alert", 200, 1, 1)
+		check("/api/v1/rules?group_limit=1&type=record", 200, 1, 1)
+		check("/api/v1/rules?group_limit=2", 200, 2, 4)
+		check(fmt.Sprintf("/api/v1/rules?group_limit=1&page_num=%d", 1), 200, 1, 2)
 	})
 	t.Run("/api/v1/rules&exclude_alerts=true", func(t *testing.T) {
 		// check if response returns active alerts by default
@@ -360,4 +389,117 @@ func TestEmptyResponse(t *testing.T) {
 			t.Fatalf("expected /api/v1/rules response to have non-nil rules for group")
 		}
 	})
+}
+
+func TestMatchesRule(t *testing.T) {
+	parseMatch := func(t *testing.T, selectors []string) [][]metricsql.LabelFilter {
+		t.Helper()
+		var match [][]metricsql.LabelFilter
+		for _, s := range selectors {
+			expr, err := metricsql.Parse(s)
+			if err != nil {
+				t.Fatalf("failed to parse selector %q: %v", s, err)
+			}
+			me, ok := expr.(*metricsql.MetricExpr)
+			if !ok {
+				t.Fatalf("expected MetricExpr for %q, got %T", s, expr)
+			}
+			match = append(match, me.LabelFilterss...)
+		}
+		return match
+	}
+
+	f := func(t *testing.T, selectors []string, labels map[string]string, wantMatch bool) {
+		t.Helper()
+		rf := &rulesFilter{
+			gf:    &groupsFilter{},
+			match: parseMatch(t, selectors),
+		}
+		r := &rule.ApiRule{Labels: labels}
+		got := rf.matchesRule(r)
+		if got != wantMatch {
+			t.Fatalf("matchesRule(%v) with selectors %v: got %v, want %v",
+				labels, selectors, got, wantMatch)
+		}
+	}
+
+	f(t, nil, map[string]string{"foo": "bar"}, true)
+
+	f(t, []string{`{foo="bar"}`}, map[string]string{"foo": "bar"}, true)
+	f(t, []string{`{foo="bar"}`}, map[string]string{"foo": "baz"}, false)
+
+	f(t, []string{`{foo="bar"}`}, map[string]string{"bar": "baz"}, false)
+	f(t, []string{`{foo=""}`}, map[string]string{"bar": "baz"}, true)
+
+	f(t, []string{`{foo!="bar"}`}, map[string]string{"foo": "baz"}, true)
+	f(t, []string{`{foo!="bar"}`}, map[string]string{"foo": "bar"}, false)
+
+	f(t, []string{`{foo=~"bar.*"}`}, map[string]string{"foo": "bar"}, true)
+	f(t, []string{`{foo=~"bar.*"}`}, map[string]string{"foo": "baz"}, false)
+	f(t, []string{`{bar=~"baz|bar"}`}, map[string]string{"bar": "baz"}, true)
+	f(t, []string{`{bar=~"baz|bar"}`}, map[string]string{"bar": "bar"}, true)
+	f(t, []string{`{bar=~"baz|bar"}`}, map[string]string{"bar": "foo"}, false)
+
+	f(t, []string{`{foo!~"bar.*"}`}, map[string]string{"foo": "baz"}, true)
+	f(t, []string{`{foo!~"bar.*"}`}, map[string]string{"foo": "bar"}, false)
+
+	// single match[] with multiple filters
+	f(t,
+		[]string{`{job="foo",instance="bar"}`},
+		map[string]string{"job": "foo", "instance": "bar"},
+		true,
+	)
+	f(t,
+		[]string{`{job="foo",instance="bar"}`},
+		map[string]string{"job": "other", "instance": "bar"},
+		false,
+	)
+
+	f(t,
+		[]string{`{foo="bar",baz=~"b.*"}`},
+		map[string]string{"foo": "bar", "baz": "bazinga"},
+		true,
+	)
+	f(t,
+		[]string{`{foo="bar",baz=~"b.*"}`},
+		map[string]string{"foo": "other", "baz": "bazinga"},
+		false,
+	)
+
+	// multiple matches[]
+	f(t,
+		[]string{`{foo="bar"}`, `{foo="baz"}`},
+		map[string]string{"foo": "baz"},
+		true,
+	)
+	f(t,
+		[]string{`{foo="bar"}`, `{foo="baz"}`},
+		map[string]string{"foo": "unknown"},
+		false,
+	)
+	f(t,
+		[]string{`{foo=~"bar.*"}`, `{bar=~"baz.*"}`},
+		map[string]string{"bar": "bazinga"},
+		true,
+	)
+	f(t,
+		[]string{`{foo=~"bar.*"}`, `{bar=~"baz.*"}`},
+		map[string]string{"foo": "bartender"},
+		true,
+	)
+	f(t,
+		[]string{`{foo=~"bar.*"}`, `{bar=~"baz.*"}`},
+		map[string]string{"foo": "other", "bar": "other"},
+		false,
+	)
+	f(t,
+		[]string{`{job="foo",instance="bar"}`, `{foo="bar"}`},
+		map[string]string{"foo": "bar"},
+		true,
+	)
+	f(t,
+		[]string{`{job="foo", instance="bar"}`, `{foo="bar"}`},
+		map[string]string{"instance": "barr", "job": "foo"},
+		false,
+	)
 }

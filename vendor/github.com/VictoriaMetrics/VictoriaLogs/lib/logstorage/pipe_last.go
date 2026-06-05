@@ -54,6 +54,10 @@ func (pl *pipeLast) canReturnLastNResults() bool {
 	return false
 }
 
+func (pl *pipeLast) isFixedOutputFieldsOrder() bool {
+	return false
+}
+
 func (pl *pipeLast) updateNeededFields(pf *prefixfilter.Filter) {
 	pl.ps.updateNeededFields(pf)
 }
@@ -62,7 +66,7 @@ func (pl *pipeLast) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pl *pipeLast) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
+func (pl *pipeLast) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pl, nil
 }
 

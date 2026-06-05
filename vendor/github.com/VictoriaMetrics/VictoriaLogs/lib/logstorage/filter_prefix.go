@@ -8,33 +8,33 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
 )
 
 // filterPrefix matches the given prefix.
 //
-// Example LogsQL: `fieldName:prefix*` or `fieldName:"some prefix"*`
+// Example LogsQL: `prefix*` or `"some prefix"*`
 //
-// A special case `fieldName:*` matches non-empty value for the given `fieldName` field
+// A special case `*` matches non-empty value for the given `fieldName` field
 type filterPrefix struct {
-	fieldName string
-	prefix    string
+	prefix string
 
 	tokensOnce   sync.Once
 	tokens       []string
 	tokensHashes []uint64
 }
 
-func (fp *filterPrefix) String() string {
-	if fp.prefix == "" {
-		return quoteFieldNameIfNeeded(fp.fieldName) + "*"
+func newFilterPrefix(fieldName, prefix string) *filterGeneric {
+	fp := &filterPrefix{
+		prefix: prefix,
 	}
-	return fmt.Sprintf("%s%s*", quoteFieldNameIfNeeded(fp.fieldName), quoteTokenIfNeeded(fp.prefix))
+	return newFilterGeneric(fieldName, fp)
 }
 
-func (fp *filterPrefix) updateNeededFields(pf *prefixfilter.Filter) {
-	pf.AddAllowFilter(fp.fieldName)
+func (fp *filterPrefix) String() string {
+	if fp.prefix == "" {
+		return "*"
+	}
+	return fmt.Sprintf("%s*", quoteTokenIfNeeded(fp.prefix))
 }
 
 func (fp *filterPrefix) getTokens() []string {
@@ -52,17 +52,16 @@ func (fp *filterPrefix) initTokens() {
 	fp.tokensHashes = appendTokensHashes(nil, fp.tokens)
 }
 
-func (fp *filterPrefix) matchRow(fields []Field) bool {
-	v := getFieldValueByName(fields, fp.fieldName)
+func (fp *filterPrefix) matchRowByField(fields []Field, fieldName string) bool {
+	v := getFieldValueByName(fields, fieldName)
 	return matchPrefix(v, fp.prefix)
 }
 
-func (fp *filterPrefix) applyToBlockResult(bs *blockResult, bm *bitmap) {
-	applyToBlockResultGeneric(bs, bm, fp.fieldName, fp.prefix, matchPrefix)
+func (fp *filterPrefix) applyToBlockResultByField(bs *blockResult, bm *bitmap, fieldName string) {
+	applyToBlockResultGeneric(bs, bm, fieldName, fp.prefix, matchPrefix)
 }
 
-func (fp *filterPrefix) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
-	fieldName := fp.fieldName
+func (fp *filterPrefix) applyToBlockSearchByField(bs *blockSearch, bm *bitmap, fieldName string) {
 	prefix := fp.prefix
 
 	// Verify whether fp matches const column

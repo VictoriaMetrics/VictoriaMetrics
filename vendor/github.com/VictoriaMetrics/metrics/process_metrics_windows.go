@@ -57,7 +57,7 @@ func writeProcessMetrics(w io.Writer) {
 	utimeSeconds := float64(uint64(utime.HighDateTime)<<32+uint64(utime.LowDateTime)) / 1e7
 	WriteCounterFloat64(w, "process_cpu_seconds_system_total", stimeSeconds)
 	WriteCounterFloat64(w, "process_cpu_seconds_total", stimeSeconds+utimeSeconds)
-	WriteCounterFloat64(w, "process_cpu_seconds_user_total", stimeSeconds)
+	WriteCounterFloat64(w, "process_cpu_seconds_user_total", utimeSeconds)
 	WriteCounterUint64(w, "process_pagefaults_total", uint64(mc.PageFaultCount))
 	WriteGaugeUint64(w, "process_start_time_seconds", uint64(startTime.Nanoseconds())/1e9)
 	WriteGaugeUint64(w, "process_virtual_memory_bytes", uint64(mc.PrivateUsage))

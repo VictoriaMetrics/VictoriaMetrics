@@ -38,14 +38,14 @@ type patternMatcherPlaceholder int
 
 // See appendPrettifyCollapsedNums()
 const (
-	patternMatcherPlaceholderUnknown  = 0
-	patternMatcherPlaceholderNum      = 1
-	patternMatcherPlaceholderUUID     = 2
-	patternMatcherPlaceholderIP4      = 3
-	patternMatcherPlaceholderTime     = 4
-	patternMatcherPlaceholderDate     = 5
-	patternMatcherPlaceholderDateTime = 6
-	patternMatcherPlaceholderWord     = 7
+	patternMatcherPlaceholderUnknown  = patternMatcherPlaceholder(0)
+	patternMatcherPlaceholderNum      = patternMatcherPlaceholder(1)
+	patternMatcherPlaceholderUUID     = patternMatcherPlaceholder(2)
+	patternMatcherPlaceholderIP4      = patternMatcherPlaceholder(3)
+	patternMatcherPlaceholderTime     = patternMatcherPlaceholder(4)
+	patternMatcherPlaceholderDate     = patternMatcherPlaceholder(5)
+	patternMatcherPlaceholderDateTime = patternMatcherPlaceholder(6)
+	patternMatcherPlaceholderWord     = patternMatcherPlaceholder(7)
 )
 
 func getPatternMatcherPlaceholder(s string) patternMatcherPlaceholder {
@@ -399,7 +399,7 @@ func indexGenericPlaceholderEnd(s string, start int, nums int, separator byte) i
 	if end < 0 {
 		return -1
 	}
-	for i := 0; i < nums-1; i++ {
+	for range nums - 1 {
 		if end >= len(s) || s[end] != separator {
 			return -1
 		}

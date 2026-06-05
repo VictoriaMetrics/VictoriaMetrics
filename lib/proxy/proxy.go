@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
@@ -14,12 +15,7 @@ import (
 var validURLSchemes = []string{"http", "https", "socks5", "tls+socks5"}
 
 func isURLSchemeValid(scheme string) bool {
-	for _, vs := range validURLSchemes {
-		if scheme == vs {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(validURLSchemes, scheme)
 }
 
 // URL implements YAML.Marshaler and yaml.Unmarshaler interfaces for url.URL.

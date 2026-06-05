@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -28,6 +29,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fscore"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
@@ -65,10 +67,11 @@ type AuthConfig struct {
 type UserInfo struct {
 	Name string `yaml:"name,omitempty"`
 
-	BearerToken string `yaml:"bearer_token,omitempty"`
-	AuthToken   string `yaml:"auth_token,omitempty"`
-	Username    string `yaml:"username,omitempty"`
-	Password    string `yaml:"password,omitempty"`
+	BearerToken string     `yaml:"bearer_token,omitempty"`
+	JWT         *JWTConfig `yaml:"jwt,omitempty"`
+	AuthToken   string     `yaml:"auth_token,omitempty"`
+	Username    string     `yaml:"username,omitempty"`
+	Password    string     `yaml:"password,omitempty"`
 
 	URLPrefix              *URLPrefix  `yaml:"url_prefix,omitempty"`
 	DiscoverBackendIPs     *bool       `yaml:"discover_backend_ips,omitempty"`
@@ -89,6 +92,8 @@ type UserInfo struct {
 
 	MetricLabels map[string]string `yaml:"metric_labels,omitempty"`
 
+	AccessLog *AccessLog `yaml:"access_log,omitempty"`
+
 	concurrencyLimitCh      chan struct{}
 	concurrencyLimitReached *metrics.Counter
 
@@ -101,11 +106,40 @@ type UserInfo struct {
 	requestsDuration *metrics.Summary
 }
 
+// AccessLog represents configuration for access log settings.
+type AccessLog struct {
+	Filters *AccessLogFilters `yaml:"filters"`
+}
+
+// AccessLogFilters represents list of filters for access logs printing
+type AccessLogFilters struct {
+	// SkipStatusCodes is a list of HTTP status codes for which access logs will be skipped
+	SkipStatusCodes []int `yaml:"skip_status_codes"`
+}
+
+func (ui *UserInfo) logRequest(r *http.Request, userName string, statusCode int, duration time.Duration) {
+	if ui.AccessLog == nil {
+		return
+	}
+	filters := ui.AccessLog.Filters
+	if filters != nil && len(filters.SkipStatusCodes) > 0 {
+		if slices.Contains(filters.SkipStatusCodes, statusCode) {
+			return
+		}
+	}
+
+	remoteAddr := httpserver.GetQuotedRemoteAddr(r)
+	requestURI := httpserver.GetRequestURI(r)
+	logger.Infof("access_log request_host=%q request_uri=%q status_code=%d remote_addr=%s user_agent=%q referer=%q duration_ms=%d username=%q",
+		r.Host, requestURI, statusCode, remoteAddr, r.UserAgent(), r.Referer(), duration.Milliseconds(), userName)
+}
+
 // HeadersConf represents config for request and response headers.
 type HeadersConf struct {
-	RequestHeaders   []*Header `yaml:"headers,omitempty"`
-	ResponseHeaders  []*Header `yaml:"response_headers,omitempty"`
-	KeepOriginalHost *bool     `yaml:"keep_original_host,omitempty"`
+	RequestHeaders     []*Header `yaml:"headers,omitempty"`
+	ResponseHeaders    []*Header `yaml:"response_headers,omitempty"`
+	KeepOriginalHost   *bool     `yaml:"keep_original_host,omitempty"`
+	hasAnyPlaceHolders bool
 }
 
 func (ui *UserInfo) beginConcurrencyLimit(ctx context.Context) error {
@@ -113,7 +147,7 @@ func (ui *UserInfo) beginConcurrencyLimit(ctx context.Context) error {
 	case ui.concurrencyLimitCh <- struct{}{}:
 		return nil
 	default:
-		// The number of concurrently executed requests for the given user equals the limt.
+		// The number of concurrently executed requests for the given user equals the limit.
 		// Wait until some of the currently executed requests are finished, so the current request could be executed.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10078
 		select {
@@ -328,43 +362,68 @@ func (up *URLPrefix) setLoadBalancingPolicy(loadBalancingPolicy string) error {
 }
 
 type backendURLs struct {
-	healthChecksContext context.Context
-	healthChecksCancel  func()
-	healthChecksWG      sync.WaitGroup
-
+	bhc backendHealthCheck
 	bus []*backendURL
+}
+
+type backendHealthCheck struct {
+	ctx context.Context
+	// mu protects fields below
+	cancel    func()
+	mu        sync.Mutex
+	isStopped bool
+	wg        sync.WaitGroup
+}
+
+func (bhc *backendHealthCheck) run(hc func()) {
+	bhc.mu.Lock()
+	defer bhc.mu.Unlock()
+	if bhc.isStopped {
+		return
+	}
+	bhc.wg.Go(hc)
+}
+
+func (bhc *backendHealthCheck) stop() {
+	bhc.mu.Lock()
+	bhc.cancel()
+	bhc.isStopped = true
+	bhc.mu.Unlock()
+	bhc.wg.Wait()
 }
 
 func newBackendURLs() *backendURLs {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &backendURLs{
-		healthChecksContext: ctx,
-		healthChecksCancel:  cancel,
+		bhc: backendHealthCheck{
+			ctx:    ctx,
+			cancel: cancel,
+		},
 	}
 }
 
 func (bus *backendURLs) add(u *url.URL) {
 	bus.bus = append(bus.bus, &backendURL{
-		url:                u,
-		healthCheckContext: bus.healthChecksContext,
-		healthCheckWG:      &bus.healthChecksWG,
+		url:             u,
+		bhc:             &bus.bhc,
+		hasPlaceHolders: hasAnyPlaceholders(u),
 	})
 }
 
 func (bus *backendURLs) stopHealthChecks() {
-	bus.healthChecksCancel()
-	bus.healthChecksWG.Wait()
+	bus.bhc.stop()
 }
 
 type backendURL struct {
 	broken atomic.Bool
 
-	healthCheckContext context.Context
-	healthCheckWG      *sync.WaitGroup
+	bhc *backendHealthCheck
 
 	concurrentRequests atomic.Int32
 
 	url *url.URL
+
+	hasPlaceHolders bool
 }
 
 func (bu *backendURL) isBroken() bool {
@@ -373,7 +432,7 @@ func (bu *backendURL) isBroken() bool {
 
 func (bu *backendURL) setBroken() {
 	if bu.broken.CompareAndSwap(false, true) {
-		bu.healthCheckWG.Go(func() {
+		bu.bhc.run(func() {
 			bu.runHealthCheck()
 			bu.broken.Store(false)
 		})
@@ -395,11 +454,11 @@ func (bu *backendURL) runHealthCheck() {
 		case <-t.C:
 			// Verify network connectivity via TCP dial before marking backend healthy.
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9997
-			ctx, cancel := context.WithTimeout(bu.healthCheckContext, time.Second)
+			ctx, cancel := context.WithTimeout(bu.bhc.ctx, time.Second)
 			c, err := netutil.Dialer.DialContext(ctx, "tcp", addr)
 			cancel()
 			if err != nil {
-				if errors.Is(bu.healthCheckContext.Err(), context.Canceled) {
+				if errors.Is(bu.bhc.ctx.Err(), context.Canceled) {
 					return
 				}
 				logger.Warnf("ignoring the backend at %s for %s because of dial error: %s", addr, *failTimeout, err)
@@ -408,7 +467,7 @@ func (bu *backendURL) runHealthCheck() {
 
 			_ = c.Close()
 			return
-		case <-bu.healthCheckContext.Done():
+		case <-bu.bhc.ctx.Done():
 			return
 		}
 	}
@@ -551,6 +610,7 @@ func areEqualBackendURLs(a, b []*backendURL) bool {
 }
 
 // getFirstAvailableBackendURL returns the first available backendURL, which isn't broken.
+// If all backendURLs are broken, then returns the first backendURL.
 //
 // backendURL.put() must be called on the returned backendURL after the request is complete.
 func getFirstAvailableBackendURL(bus []*backendURL) *backendURL {
@@ -569,26 +629,27 @@ func getFirstAvailableBackendURL(bus []*backendURL) *backendURL {
 			return bu
 		}
 	}
-	return nil
+
+	// All backend urls are unavailable, then returning a first one, it could help increase the success rate of the requests。
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10837#issuecomment-4307050980.
+	bu.get()
+	return bu
 }
 
 // getLeastLoadedBackendURL returns a non-broken backendURL with the lowest number of concurrent requests.
+// If all backendURLs are broken, then returns the first backendURL.
 //
 // backendURL.put() must be called on the returned backendURL after the request is complete.
 func getLeastLoadedBackendURL(bus []*backendURL, atomicCounter *atomic.Uint32) *backendURL {
+	firstBu := bus[0]
 	if len(bus) == 1 {
-		// Fast path - return the only backend url.
-		bu := bus[0]
-		if bu.isBroken() {
-			return nil
-		}
-		bu.get()
-		return bu
+		firstBu.get()
+		return firstBu
 	}
 
 	// Slow path - select other backend urls.
 	n := atomicCounter.Add(1) - 1
-	for i := uint32(0); i < uint32(len(bus)); i++ {
+	for i := range uint32(len(bus)) {
 		idx := (n + i) % uint32(len(bus))
 		bu := bus[idx]
 		if bu.isBroken() {
@@ -598,7 +659,7 @@ func getLeastLoadedBackendURL(bus []*backendURL, atomicCounter *atomic.Uint32) *
 		// The Load() in front of CompareAndSwap() avoids CAS overhead for items with values bigger than 0.
 		if bu.concurrentRequests.Load() == 0 && bu.concurrentRequests.CompareAndSwap(0, 1) {
 			atomicCounter.CompareAndSwap(n+1, idx+1)
-			// There is no need in the call bu.get(), because we already incremented bu.concrrentRequests above.
+			// There is no need in the call bu.get(), because we already incremented bu.concurrentRequests above.
 			return bu
 		}
 	}
@@ -621,7 +682,10 @@ func getLeastLoadedBackendURL(bus []*backendURL, atomicCounter *atomic.Uint32) *
 	}
 	buMin := bus[buMinIdx]
 	if buMin.isBroken() {
-		return nil
+		// If all backendURLs are broken, then returns the first backendURL.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10837#issuecomment-4307050980.
+		firstBu.get()
+		return firstBu
 	}
 	buMin.get()
 	atomicCounter.CompareAndSwap(n+1, buMinIdx+1)
@@ -799,6 +863,9 @@ var (
 	// authUsers contains the currently loaded auth users
 	authUsers atomic.Pointer[map[string]*UserInfo]
 
+	// jwt authentication cache
+	jwtAuthCache atomic.Pointer[jwtCache]
+
 	authConfigWG sync.WaitGroup
 	stopCh       chan struct{}
 )
@@ -822,7 +889,8 @@ func reloadAuthConfig() (bool, error) {
 	}
 
 	mp := authUsers.Load()
-	logger.Infof("loaded information about %d users from -auth.config=%q", len(*mp), *authConfigPath)
+	jwtc := jwtAuthCache.Load()
+	logger.Infof("loaded information about %d users from -auth.config=%q", len(*mp)+len(jwtc.users), *authConfigPath)
 	return true, nil
 }
 
@@ -836,6 +904,16 @@ func reloadAuthConfigData(data []byte) (bool, error) {
 	ac, err := parseAuthConfig(data)
 	if err != nil {
 		return false, fmt.Errorf("failed to parse auth config: %w", err)
+	}
+
+	jui, oidcDP, err := parseJWTUsers(ac)
+	if err != nil {
+		return false, fmt.Errorf("failed to parse JWT users from auth config: %w", err)
+	}
+	oidcDP.startDiscovery()
+	jwtc := &jwtCache{
+		users:  jui,
+		oidcDP: oidcDP,
 	}
 
 	m, err := parseAuthConfigUsers(ac)
@@ -854,9 +932,15 @@ func reloadAuthConfigData(data []byte) (bool, error) {
 	}
 	metrics.RegisterSet(ac.ms)
 
+	jwtcPrev := jwtAuthCache.Load()
+	if jwtcPrev != nil {
+		jwtcPrev.oidcDP.stopDiscovery()
+	}
+
 	authConfig.Store(ac)
 	authConfigData.Store(&data)
 	authUsers.Store(&m)
+	jwtAuthCache.Store(jwtc)
 
 	return true, nil
 }
@@ -881,11 +965,17 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 		if ui.BearerToken != "" {
 			return nil, fmt.Errorf("field bearer_token can't be specified for unauthorized_user section")
 		}
+		if ui.JWT != nil {
+			return nil, fmt.Errorf("field jwt can't be specified for unauthorized_user section")
+		}
 		if ui.AuthToken != "" {
 			return nil, fmt.Errorf("field auth_token can't be specified for unauthorized_user section")
 		}
 		if ui.Name != "" {
 			return nil, fmt.Errorf("field name can't be specified for unauthorized_user section")
+		}
+		if err := parseJWTPlaceholdersForUserInfo(ui, false); err != nil {
+			return nil, err
 		}
 		if err := ui.initURLs(); err != nil {
 			return nil, err
@@ -927,15 +1017,26 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 	}
 	for i := range uis {
 		ui := &uis[i]
+		// users with jwt tokens are parsed by parseJWTUsers function.
+		// the function also checks that users with jwt tokens do not have auth tokens, bearer tokens, usernames and passwords.
+		if ui.JWT != nil {
+			continue
+		}
+
 		ats, err := getAuthTokens(ui.AuthToken, ui.BearerToken, ui.Username, ui.Password)
 		if err != nil {
 			return nil, err
 		}
+
 		for _, at := range ats {
 			if uiOld := byAuthToken[at]; uiOld != nil {
 				return nil, fmt.Errorf("duplicate auth token=%q found for username=%q, name=%q; the previous one is set for username=%q, name=%q",
 					at, ui.Username, ui.Name, uiOld.Username, uiOld.Name)
 			}
+		}
+
+		if err := parseJWTPlaceholdersForUserInfo(ui, false); err != nil {
+			return nil, err
 		}
 		if err := ui.initURLs(); err != nil {
 			return nil, err
@@ -1036,6 +1137,7 @@ func (ui *UserInfo) initURLs() error {
 			return err
 		}
 	}
+
 	for _, e := range ui.URLMaps {
 		if len(e.SrcPaths) == 0 && len(e.SrcHosts) == 0 && len(e.SrcQueryArgs) == 0 && len(e.SrcHeaders) == 0 {
 			return fmt.Errorf("missing `src_paths`, `src_hosts`, `src_query_args` and `src_headers` in `url_map`")
@@ -1094,6 +1196,9 @@ func (ui *UserInfo) name() string {
 	if ui.AuthToken != "" {
 		h := xxhash.Sum64([]byte(ui.AuthToken))
 		return fmt.Sprintf("auth_token:hash:%016X", h)
+	}
+	if ui.JWT != nil {
+		return `jwt`
 	}
 	return ""
 }

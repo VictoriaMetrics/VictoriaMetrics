@@ -220,7 +220,7 @@ func getVMRange(bucketIdx int) string {
 func initBucketRanges() {
 	v := math.Pow10(e10Min)
 	start := fmt.Sprintf("%.3e", v)
-	for i := 0; i < bucketsCount; i++ {
+	for i := range bucketsCount {
 		v *= bucketMultiplier
 		end := fmt.Sprintf("%.3e", v)
 		bucketRanges[i] = start + "..." + end
@@ -266,5 +266,13 @@ func (h *Histogram) getSum() float64 {
 }
 
 func (h *Histogram) metricType() string {
-	return "histogram"
+	// The Prometheus data model requires histogram metrics to expose "le" labels.
+	// Some collectors, such as the OpenTelemetry (OTEL) Collector, strictly enforce
+	// this data model and apply transformations based on the metric type.
+	//
+	// Because Prometheus metric types are strongly typed and we don't have control over it,
+	// introducing a custom "vm_histogram" type is not possible.
+	//
+	// So it's better to use untyped metric type.
+	return "untyped"
 }

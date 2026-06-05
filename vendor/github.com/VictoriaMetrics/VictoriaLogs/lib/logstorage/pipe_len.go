@@ -38,6 +38,10 @@ func (pl *pipeLen) canReturnLastNResults() bool {
 	return pl.resultField != "_time"
 }
 
+func (pl *pipeLen) isFixedOutputFieldsOrder() bool {
+	return false
+}
+
 func (pl *pipeLen) updateNeededFields(pf *prefixfilter.Filter) {
 	if pf.MatchString(pl.resultField) {
 		pf.AddDenyFilter(pl.resultField)
@@ -49,7 +53,7 @@ func (pl *pipeLen) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pl *pipeLen) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
+func (pl *pipeLen) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pl, nil
 }
 

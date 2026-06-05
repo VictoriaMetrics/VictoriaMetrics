@@ -169,7 +169,7 @@ func TestByteBufferRead(t *testing.T) {
 	}
 	r := bb.NewReader().(*reader)
 	if r.readOffset != 0 {
-		t.Fatalf("unexpected r.readOffset; got %d; want %q", r.readOffset, 0)
+		t.Fatalf("unexpected r.readOffset; got %d; want %d", r.readOffset, 0)
 	}
 
 	rCopy := bb.NewReader().(*reader)

@@ -58,7 +58,7 @@ var benchTwoSourcesWorstCaseMPS = func() []*inmemoryPart {
 	var rows []rawRow
 	var r rawRow
 	r.PrecisionBits = defaultPrecisionBits
-	for i := 0; i < maxRowsPerBlock/2-1; i++ {
+	for range maxRowsPerBlock/2 - 1 {
 		r.Value = rng.NormFloat64()
 		r.Timestamp = rng.Int63n(1e12)
 		rows = append(rows, r)
@@ -72,11 +72,11 @@ const benchTwoSourcesWorstCaseMPSRowsPerLoop = (maxRowsPerBlock - 2)
 var benchTwoSourcesBestCaseMPS = func() []*inmemoryPart {
 	var r rawRow
 	var mps []*inmemoryPart
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		var rows []rawRow
 		r.PrecisionBits = defaultPrecisionBits
 		r.TSID.MetricID = uint64(i)
-		for j := 0; j < maxRowsPerBlock; j++ {
+		for range maxRowsPerBlock {
 			rows = append(rows, r)
 		}
 		mp := newTestInmemoryPart(rows)
@@ -92,7 +92,7 @@ var benchFourSourcesWorstCaseMPS = func() []*inmemoryPart {
 	var rows []rawRow
 	var r rawRow
 	r.PrecisionBits = defaultPrecisionBits
-	for i := 0; i < maxRowsPerBlock/2-1; i++ {
+	for range maxRowsPerBlock/2 - 1 {
 		r.Value = rng.NormFloat64()
 		r.Timestamp = rng.Int63n(1e12)
 		rows = append(rows, r)
@@ -106,11 +106,11 @@ const benchFourSourcesWorstCaseMPSRowsPerLoop = 2 * (maxRowsPerBlock - 2)
 var benchFourSourcesBestCaseMPS = func() []*inmemoryPart {
 	var r rawRow
 	var mps []*inmemoryPart
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		var rows []rawRow
 		r.PrecisionBits = defaultPrecisionBits
 		r.TSID.MetricID = uint64(i)
-		for j := 0; j < maxRowsPerBlock; j++ {
+		for range maxRowsPerBlock {
 			rows = append(rows, r)
 		}
 		mp := newTestInmemoryPart(rows)

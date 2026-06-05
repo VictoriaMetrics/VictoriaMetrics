@@ -31,6 +31,10 @@ func (ps *pipeQueryStats) canReturnLastNResults() bool {
 	return false
 }
 
+func (ps *pipeQueryStats) isFixedOutputFieldsOrder() bool {
+	return true
+}
+
 func (ps *pipeQueryStats) updateNeededFields(pf *prefixfilter.Filter) {
 	pf.AddAllowFilter("*")
 }
@@ -39,7 +43,7 @@ func (ps *pipeQueryStats) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (ps *pipeQueryStats) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
+func (ps *pipeQueryStats) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return ps, nil
 }
 

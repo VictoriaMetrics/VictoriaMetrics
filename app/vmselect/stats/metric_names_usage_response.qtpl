@@ -1,11 +1,11 @@
 {% import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricnamestats"
 ) %}
 
 {% stripspace %}
 MetricNamesStatsResponse generates response for /api/v1/status/metric_names_stats .
-{% func MetricNamesStatsResponse(stats *storage.MetricNamesStatsResponse, qt *querytracer.Tracer) %}
+{% func MetricNamesStatsResponse(stats *metricnamestats.StatsResult, qt *querytracer.Tracer) %}
 {
 	"status":"success",
   "statsCollectedSince": {%dul= stats.CollectedSinceTs %},

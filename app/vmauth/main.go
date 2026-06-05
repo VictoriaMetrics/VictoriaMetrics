@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/jwt"
 	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
@@ -47,10 +48,10 @@ var (
 	responseTimeout = flag.Duration("responseTimeout", 5*time.Minute, "The timeout for receiving a response from backend")
 
 	requestBufferSize = flagutil.NewBytes("requestBufferSize", 32*1024, "The size of the buffer for reading the request body before proxying the request to backends. "+
-		"This allows reducing the comsumption of backend resources when processing requests from clients connected via slow networks. "+
+		"This allows reducing the consumption of backend resources when processing requests from clients connected via slow networks. "+
 		"Set to 0 to disable request buffering. See https://docs.victoriametrics.com/victoriametrics/vmauth/#request-body-buffering")
 	maxRequestBodySizeToRetry = flagutil.NewBytes("maxRequestBodySizeToRetry", 16*1024, "The maximum request body size to buffer in memory for potential retries at other backends. "+
-		"Request bodies larger than this size cannot be retried if the backend fails. Zero or negative value disables request body buffering and retries. "+
+		"Request bodies larger than this size cannot be retried if the backend fails. Zero or negative value disables retries. "+
 		"See also -requestBufferSize")
 
 	maxConcurrentRequests = flag.Int("maxConcurrentRequests", 1000, "The maximum number of concurrent requests vmauth can process simultaneously. "+
@@ -173,7 +174,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		// Process requests for unauthorized users
 		ui := authConfig.Load().UnauthorizedUser
 		if ui != nil {
-			processUserRequest(w, r, ui)
+			processUserRequest(w, r, ui, nil)
 			return true
 		}
 
@@ -181,29 +182,36 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 
-	ui := getUserInfoByAuthTokens(ats)
-	if ui == nil {
-		uu := authConfig.Load().UnauthorizedUser
-		if uu != nil {
-			processUserRequest(w, r, uu)
-			return true
+	if ui := getUserInfoByAuthTokens(ats); ui != nil {
+		processUserRequest(w, r, ui, nil)
+		return true
+	}
+	if ui, tkn := getJWTUserInfo(ats); ui != nil {
+		if tkn == nil {
+			logger.Panicf("BUG: unexpected nil jwt token for user %q", ui.name())
 		}
-
-		invalidAuthTokenRequests.Inc()
-		if *logInvalidAuthTokens {
-			err := fmt.Errorf("cannot authorize request with auth tokens %q", ats)
-			err = &httpserver.ErrorWithStatusCode{
-				Err:        err,
-				StatusCode: http.StatusUnauthorized,
-			}
-			httpserver.Errorf(w, r, "%s", err)
-		} else {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		}
+		defer putToken(tkn)
+		processUserRequest(w, r, ui, tkn)
 		return true
 	}
 
-	processUserRequest(w, r, ui)
+	uu := authConfig.Load().UnauthorizedUser
+	if uu != nil {
+		processUserRequest(w, r, uu, nil)
+		return true
+	}
+
+	invalidAuthTokenRequests.Inc()
+	if *logInvalidAuthTokens {
+		err := fmt.Errorf("cannot authorize request with auth tokens %q", ats)
+		err = &httpserver.ErrorWithStatusCode{
+			Err:        err,
+			StatusCode: http.StatusUnauthorized,
+		}
+		httpserver.Errorf(w, r, "%s", err)
+	} else {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	}
 	return true
 }
 
@@ -218,7 +226,37 @@ func getUserInfoByAuthTokens(ats []string) *UserInfo {
 	return nil
 }
 
-func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
+// responseWriterWithStatus is a wrapper around http.ResponseWriter that captures the status code written to the response.
+type responseWriterWithStatus struct {
+	http.ResponseWriter
+	status int
+}
+
+// WriteHeader records the status so it can be easily retrieved later
+func (rws *responseWriterWithStatus) WriteHeader(status int) {
+	rws.status = status
+	rws.ResponseWriter.WriteHeader(status)
+}
+
+// Flush implements net/http.Flusher interface
+//
+// This is needed for the copyStreamToClient()
+func (rws *responseWriterWithStatus) Flush() {
+	flusher, ok := rws.ResponseWriter.(http.Flusher)
+	if !ok {
+		logger.Panicf("BUG: it is expected http.ResponseWriter (%T) supports http.Flusher interface", rws.ResponseWriter)
+	}
+	flusher.Flush()
+}
+
+// Unwrap returns the original ResponseWriter wrapped by rws.
+//
+// This is needed for the net/http.ResponseController - see https://pkg.go.dev/net/http#NewResponseController
+func (rws *responseWriterWithStatus) Unwrap() http.ResponseWriter {
+	return rws.ResponseWriter
+}
+
+func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tkn *jwt.Token) {
 	startTime := time.Now()
 	defer ui.requestsDuration.UpdateDuration(startTime)
 
@@ -226,6 +264,20 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), *maxQueueDuration)
 	defer cancel()
+
+	userName := ui.name()
+	if userName == "" {
+		userName = "unauthorized"
+	}
+
+	if ui.AccessLog != nil {
+		w = &responseWriterWithStatus{ResponseWriter: w}
+		defer func() {
+			rws := w.(*responseWriterWithStatus)
+			duration := time.Since(startTime)
+			ui.logRequest(r, userName, rws.status, duration)
+		}()
+	}
 
 	// Acquire global concurrency limit.
 	if err := beginConcurrencyLimit(ctx); err != nil {
@@ -245,10 +297,6 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	}
 
 	// Read the initial chunk for the request body.
-	userName := ui.name()
-	if userName == "" {
-		userName = "unauthorized"
-	}
 	bb, err := bufferRequestBody(ctx, r.Body, userName)
 	if err != nil {
 		httpserver.Errorf(w, r, "%s", err)
@@ -269,7 +317,7 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	defer ui.endConcurrencyLimit()
 
 	// Process the request.
-	processRequest(w, r, ui)
+	processRequest(w, r, ui, tkn, userName)
 }
 
 func beginConcurrencyLimit(ctx context.Context) error {
@@ -309,6 +357,7 @@ func bufferRequestBody(ctx context.Context, r io.ReadCloser, userName string) (i
 
 	maxBufSize := max(requestBufferSize.IntN(), maxRequestBodySizeToRetry.IntN())
 	if maxBufSize <= 0 {
+		// Request buffering is disabled.
 		return r, nil
 	}
 
@@ -342,7 +391,7 @@ func bufferRequestBody(ctx context.Context, r io.ReadCloser, userName string) (i
 	return bb, nil
 }
 
-func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
+func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tkn *jwt.Token, userName string) {
 	u := normalizeURL(r.URL)
 	up, hc := ui.getURLPrefixAndHeaders(u, r.Host, r.Header)
 	isDefault := false
@@ -360,7 +409,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 			if ui.DumpRequestOnErrors {
 				di = debugInfo(u, r)
 			}
-			httpserver.Errorf(w, r, "missing route for %q%s", u.String(), di)
+			httpserver.Errorf(w, r, "user %s missing route for %q%s", userName, u.String(), di)
 			return
 		}
 		up, hc = ui.DefaultURL, ui.HeadersConf
@@ -368,22 +417,27 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	}
 
 	maxAttempts := up.getBackendsCount()
-	for i := 0; i < maxAttempts; i++ {
+	for range maxAttempts {
 		bu := up.getBackendURL()
 		if bu == nil {
 			break
 		}
 		targetURL := bu.url
+		if tkn != nil {
+			// for security reasons allow templating only for configured url values and headers
+			targetURL, hc = replaceJWTPlaceholders(bu, hc, tkn.VMAccess())
+		}
 		if isDefault {
 			// Don't change path and add request_path query param for default route.
+			targetURLCopy := *targetURL
 			query := targetURL.Query()
 			query.Set("request_path", u.String())
-			targetURL.RawQuery = query.Encode()
+			targetURLCopy.RawQuery = query.Encode()
+			targetURL = &targetURLCopy
 		} else {
 			// Update path for regular routes.
 			targetURL = mergeURLs(targetURL, u, up.dropSrcPathPrefixParts, up.mergeQueryArgs)
 		}
-
 		wasLocalRetry := false
 	again:
 		ok, needLocalRetry := tryProcessingRequest(w, r, targetURL, hc, up.retryStatusCodes, ui, bu)
@@ -401,7 +455,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 		ui.backendErrors.Inc()
 	}
 	err := &httpserver.ErrorWithStatusCode{
-		Err:        fmt.Errorf("all the %d backends for the user %q are unavailable", up.getBackendsCount(), ui.name()),
+		Err:        fmt.Errorf("all the %d backends for the user %q are unavailable for proxying the request - check previous WARN logs to see the exact error for each failed backend", up.getBackendsCount(), userName),
 		StatusCode: http.StatusBadGateway,
 	}
 	httpserver.Errorf(w, r, "%s", err)
@@ -427,6 +481,9 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 	canRetry := !bbOK || bb.canRetry()
 
 	res, err := ui.rt.RoundTrip(req)
+	if err == nil {
+		defer func() { _ = res.Body.Close() }()
+	}
 
 	if errors.Is(r.Context().Err(), context.Canceled) {
 		// Do not retry canceled requests.
@@ -496,7 +553,6 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 	w.WriteHeader(res.StatusCode)
 
 	err = copyStreamToClient(w, res.Body)
-	_ = res.Body.Close()
 
 	if errors.Is(r.Context().Err(), context.Canceled) {
 		// Do not retry canceled requests.
@@ -710,7 +766,7 @@ var concurrentRequestsLimitReached = metrics.NewCounter("vmauth_concurrent_reque
 
 func usage() {
 	const s = `
-vmauth authenticates and authorizes incoming requests and proxies them to VictoriaMetrics.
+vmauth authenticates and authorizes incoming requests and proxies them to VictoriaMetrics components or any other HTTP backends.
 
 See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
 `
@@ -739,10 +795,11 @@ func handleConcurrencyLimitError(w http.ResponseWriter, r *http.Request, err err
 }
 
 // bufferedBody serves two purposes:
-//  1. Enables request retries when the body size does not exceed maxBodySize
-//     by fully buffering the body in memory.
-//  2. Prevents slow clients from reducing effective server capacity by
-//     buffering the request body before acquiring a per-user concurrency slot.
+//
+//  1. It enables request retries when the request body size does not exceed maxBufSize
+//     by fully buffering the request body in memory.
+//  2. It prevents slow clients from reducing effective server capacity
+//     by buffering the request body before acquiring a per-user concurrency slot.
 //
 // See bufferRequestBody for details on how bufferedBody is used.
 type bufferedBody struct {
@@ -766,7 +823,7 @@ func newBufferedBody(r io.ReadCloser, buf []byte, maxBufSize int) *bufferedBody 
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8051
 
 	if len(buf) < maxBufSize {
-		// Read the full request body into buf.
+		// The full request body has been already read into buf.
 		r = nil
 	}
 
@@ -779,7 +836,7 @@ func newBufferedBody(r io.ReadCloser, buf []byte, maxBufSize int) *bufferedBody 
 // Read implements io.Reader interface.
 func (bb *bufferedBody) Read(p []byte) (int, error) {
 	if bb.cannotRetry {
-		return 0, fmt.Errorf("cannot read already closed body")
+		return 0, fmt.Errorf("cannot read already closed request body")
 	}
 	if bb.bufOffset < len(bb.buf) {
 		n := copy(p, bb.buf[bb.bufOffset:])
@@ -793,14 +850,18 @@ func (bb *bufferedBody) Read(p []byte) (int, error) {
 }
 
 func (bb *bufferedBody) canRetry() bool {
-	return bb.r == nil
+	if bb.r != nil {
+		return false
+	}
+	maxRetrySize := maxRequestBodySizeToRetry.IntN()
+	return len(bb.buf) == 0 || (maxRetrySize > 0 && len(bb.buf) <= maxRetrySize)
 }
 
 // Close implements io.Closer interface.
 func (bb *bufferedBody) Close() error {
 	bb.resetReader()
+	bb.cannotRetry = !bb.canRetry()
 	if bb.r != nil {
-		bb.cannotRetry = true
 		return bb.r.Close()
 	}
 	return nil

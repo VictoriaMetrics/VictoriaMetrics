@@ -1,4 +1,4 @@
-//go:build !linux && !windows && !solaris
+//go:build !linux && !windows && !solaris && !darwin
 
 package metrics
 

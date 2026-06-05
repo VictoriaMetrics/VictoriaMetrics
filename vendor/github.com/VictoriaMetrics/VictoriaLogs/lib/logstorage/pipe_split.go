@@ -47,11 +47,15 @@ func (ps *pipeSplit) canReturnLastNResults() bool {
 	return ps.dstField != "_time"
 }
 
+func (ps *pipeSplit) isFixedOutputFieldsOrder() bool {
+	return false
+}
+
 func (ps *pipeSplit) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (ps *pipeSplit) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
+func (ps *pipeSplit) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return ps, nil
 }
 

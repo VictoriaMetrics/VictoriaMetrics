@@ -13,8 +13,8 @@ import (
 )
 
 var (
-	addr = flag.String("remoteWrite.url", "", "Optional URL to VictoriaMetrics or vminsert where to persist alerts state "+
-		"and recording rules results in form of timeseries. "+
+	addr = flag.String("remoteWrite.url", "", "Optional URL to persist alerts state and recording rules results in form of timeseries. "+
+		"It must support either VictoriaMetrics remote write protocol or Prometheus remote_write protocol. "+
 		"Supports address in the form of IP address with a port (e.g., http://127.0.0.1:8428) or DNS SRV record. "+
 		"For example, if -remoteWrite.url=http://127.0.0.1:8428 is specified, "+
 		"then the alerts state will be written to http://127.0.0.1:8428/api/v1/write . See also -remoteWrite.disablePathAppend, '-remoteWrite.showURL'.")
@@ -26,6 +26,7 @@ var (
 		"Multiple headers must be delimited by '^^': -remoteWrite.headers='header1:value1^^header2:value2'")
 
 	basicAuthUsername     = flag.String("remoteWrite.basicAuth.username", "", "Optional basic auth username for -remoteWrite.url")
+	basicAuthUsernameFile = flag.String("remoteWrite.basicAuth.usernameFile", "", "Optional path to basic auth username to use for -remoteWrite.url")
 	basicAuthPassword     = flag.String("remoteWrite.basicAuth.password", "", "Optional basic auth password for -remoteWrite.url")
 	basicAuthPasswordFile = flag.String("remoteWrite.basicAuth.passwordFile", "", "Optional path to basic auth password to use for -remoteWrite.url")
 
@@ -61,6 +62,7 @@ func InitSecretFlags() {
 	if !*showRemoteWriteURL {
 		flagutil.RegisterSecretFlag("remoteWrite.url")
 	}
+	flagutil.RegisterSecretFlag("remoteWrite.headers")
 }
 
 // Init creates Client object from given flags.
@@ -83,7 +85,7 @@ func Init(ctx context.Context) (*Client, error) {
 		return nil, fmt.Errorf("cannot parse JSON for -remoteWrite.oauth2.endpointParams=%s: %w", *oauth2EndpointParams, err)
 	}
 	authCfg, err := vmalertutil.AuthConfig(
-		vmalertutil.WithBasicAuth(*basicAuthUsername, *basicAuthPassword, *basicAuthPasswordFile),
+		vmalertutil.WithBasicAuth(*basicAuthUsername, *basicAuthUsernameFile, *basicAuthPassword, *basicAuthPasswordFile),
 		vmalertutil.WithBearer(*bearerToken, *bearerTokenFile),
 		vmalertutil.WithOAuth(*oauth2ClientID, *oauth2ClientSecret, *oauth2ClientSecretFile, *oauth2TokenURL, *oauth2Scopes, endpointParams),
 		vmalertutil.WithHeaders(*headers))

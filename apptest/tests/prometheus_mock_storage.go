@@ -22,7 +22,7 @@ func NewPrometheusMockStorage(series []*prompb.TimeSeries) *PrometheusMockStorag
 	return &PrometheusMockStorage{store: series}
 }
 
-// ReadMultiple implemnets the storage.ReadClient interface for reading time series data.
+// ReadMultiple implements the storage.ReadClient interface for reading time series data.
 func (ms *PrometheusMockStorage) ReadMultiple(ctx context.Context, queries []*prompb.Query, sortSeries bool) (storage.SeriesSet, error) {
 	if len(queries) != 1 {
 		panic(fmt.Errorf("reading multiple queries isn't implemented"))

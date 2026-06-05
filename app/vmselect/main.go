@@ -60,15 +60,17 @@ func getDefaultMaxConcurrentRequests() int {
 
 // Init initializes vmselect
 func Init() {
-	tmpDirPath := *vmstorage.DataPath + "/tmp"
+	tmpDirPath := vmstorage.DataPath() + "/tmp"
 	fs.MustRemoveDirContents(tmpDirPath)
 	netstorage.InitTmpBlocksDir(tmpDirPath)
-	promql.InitRollupResultCache(*vmstorage.DataPath + "/cache/rollupResult")
+	promql.InitRollupResultCache(vmstorage.DataPath() + "/cache/rollupResult")
 	prometheus.InitMaxUniqueTimeseries(*maxConcurrentRequests)
 
 	concurrencyLimitCh = make(chan struct{}, *maxConcurrentRequests)
 	initVMUIConfig()
 	initVMAlertProxy()
+
+	flagutil.RegisterSecretFlag("vmalert.proxyURL")
 }
 
 // Stop stops vmselect
@@ -262,6 +264,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/api/v1/export":
 		exportRequests.Inc()
+		httpserver.EnableCORS(w, r)
 		if err := prometheus.ExportHandler(startTime, w, r); err != nil {
 			exportErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
@@ -270,6 +273,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/api/v1/export/csv":
 		exportCSVRequests.Inc()
+		httpserver.EnableCORS(w, r)
 		if err := prometheus.ExportCSVHandler(startTime, w, r); err != nil {
 			exportCSVErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
@@ -278,6 +282,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/api/v1/export/native":
 		exportNativeRequests.Inc()
+		httpserver.EnableCORS(w, r)
 		if err := prometheus.ExportNativeHandler(startTime, w, r); err != nil {
 			exportNativeErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
@@ -321,19 +326,23 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/tags/tagSeries":
 		graphiteTagsTagSeriesRequests.Inc()
-		if err := graphite.TagsTagSeriesHandler(startTime, w, r); err != nil {
-			graphiteTagsTagSeriesErrors.Inc()
-			httpserver.Errorf(w, r, "%s", err)
-			return true
+		err := &httpserver.ErrorWithStatusCode{
+			Err: fmt.Errorf("graphite tag registration has been disabled and is planned to be removed in future. " +
+				"See: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10544"),
+			StatusCode: http.StatusNotImplemented,
 		}
+		graphiteTagsTagSeriesErrors.Inc()
+		httpserver.Errorf(w, r, "%s", err)
 		return true
 	case "/tags/tagMultiSeries":
 		graphiteTagsTagMultiSeriesRequests.Inc()
-		if err := graphite.TagsTagMultiSeriesHandler(startTime, w, r); err != nil {
-			graphiteTagsTagMultiSeriesErrors.Inc()
-			httpserver.Errorf(w, r, "%s", err)
-			return true
+		err := &httpserver.ErrorWithStatusCode{
+			Err: fmt.Errorf("graphite tag registration has been disabled and is planned to be removed in future. " +
+				"See: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10544"),
+			StatusCode: http.StatusNotImplemented,
 		}
+		graphiteTagsTagMultiSeriesErrors.Inc()
+		httpserver.Errorf(w, r, "%s", err)
 		return true
 	case "/tags":
 		graphiteTagsRequests.Inc()
@@ -739,6 +748,26 @@ func proxyVMAlertRequests(w http.ResponseWriter, r *http.Request, path string) {
 	req := r.Clone(r.Context())
 	req.URL.Path = strings.TrimPrefix(path, "prometheus")
 	req.Host = vmalertProxyHost
+
+	if strings.HasPrefix(r.Header.Get(`User-Agent`), `Grafana`) {
+		// Grafana currently supports only Prometheus-style alerts. If other alert types
+		// (e.g. logs or traces) are returned, it may fail with "Error loading alerts".
+		//
+		// Grafana queries the vmalert API directly, bypassing the VictoriaMetrics datasource,
+		// so query params (such as datasource_type) cannot be enforced on the Grafana side.
+		//
+		// To ensure compatibility, we detect Grafana requests via the User-Agent and enforce
+		// `datasource_type=prometheus`.
+		//
+		// See:
+		// - https://github.com/VictoriaMetrics/victoriametrics-datasource/issues/329#issuecomment-3847585443
+		// - https://github.com/VictoriaMetrics/victoriametrics-datasource/issues/59
+		q := req.URL.Query()
+		q.Set("datasource_type", "prometheus")
+		req.URL.RawQuery = q.Encode()
+		req.RequestURI = ""
+	}
+
 	vmalertProxy.ServeHTTP(w, req)
 }
 

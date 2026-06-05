@@ -81,7 +81,7 @@ func (r *ReaderAt) MustReadAt(p []byte, off int64) {
 			copy(p, src)
 		} else {
 			// Fall back for reading the data via syscall in order to avoid thread stalls
-			// descirbed at https://valyala.medium.com/mmap-in-go-considered-harmful-d92a25cb161d
+			// described at https://valyala.medium.com/mmap-in-go-considered-harmful-d92a25cb161d
 			mr.mustReadAtViaSyscall(p, off)
 		}
 	}

@@ -40,7 +40,7 @@ func BenchmarkStorageAddRows(b *testing.B) {
 			}
 			for pb.Next() {
 				offset := int(globalOffset.Add(uint64(numRows)))
-				for i := 0; i < numRows; i++ {
+				for i := range numRows {
 					mr := &mrs[i]
 					mr.MetricNameRaw = mn.marshalRaw(mr.MetricNameRaw[:0])
 					mr.Timestamp = int64(offset + i)
@@ -81,7 +81,7 @@ func BenchmarkStorageAddRows_VariousTimeRanges(b *testing.B) {
 			// Stop timer to exclude expensive initialization from measurement.
 			b.StopTimer()
 			for i := range numRows {
-				mn.MetricGroup = []byte(fmt.Sprintf("metric_%d_%d", n, i))
+				mn.MetricGroup = fmt.Appendf(nil, "metric_%d_%d", n, i)
 				mrs[i].MetricNameRaw = mn.marshalRaw(nil)
 				mrs[i].Timestamp = tr.MinTimestamp + int64(i)*step
 				mrs[i].Value = float64(i)

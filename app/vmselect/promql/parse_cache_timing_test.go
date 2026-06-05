@@ -15,7 +15,7 @@ func BenchmarkCachePutNoOverFlow(b *testing.B) {
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			for i := 0; i < items; i++ {
+			for i := range items {
 				pc.put(queries[i], v)
 			}
 		}
@@ -32,14 +32,14 @@ func BenchmarkCacheGetNoOverflow(b *testing.B) {
 	queries := testGenerateQueries(items)
 	v := testGetParseCacheValue(queries[0])
 
-	for i := 0; i < len(queries); i++ {
+	for i := range queries {
 		pc.put(queries[i], v)
 	}
 	b.ResetTimer()
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			for i := 0; i < items; i++ {
+			for i := range items {
 				if v := pc.get(queries[i]); v == nil {
 					b.Errorf("unexpected nil value obtained from cache for query: %s ", queries[i])
 				}
@@ -59,7 +59,7 @@ func BenchmarkCachePutGetNoOverflow(b *testing.B) {
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			for i := 0; i < items; i++ {
+			for i := range items {
 				pc.put(queries[i], v)
 				if res := pc.get(queries[i]); res == nil {
 					b.Errorf("unexpected nil value obtained from cache for query: %s ", queries[i])
@@ -79,7 +79,7 @@ func BenchmarkCachePutOverflow(b *testing.B) {
 	queries := testGenerateQueries(items)
 	v := testGetParseCacheValue(queries[0])
 
-	for i := 0; i < parseCacheMaxLen; i++ {
+	for i := range parseCacheMaxLen {
 		c.put(queries[i], v)
 	}
 
@@ -105,7 +105,7 @@ func BenchmarkCachePutGetOverflow(b *testing.B) {
 	queries := testGenerateQueries(items)
 	v := testGetParseCacheValue(queries[0])
 
-	for i := 0; i < parseCacheMaxLen; i++ {
+	for i := range parseCacheMaxLen {
 		c.put(queries[i], v)
 	}
 
@@ -141,8 +141,8 @@ var testSimpleQueries = []string{
 
 func BenchmarkParsePromQLWithCacheSimple(b *testing.B) {
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		for j := 0; j < len(testSimpleQueries); j++ {
+	for range b.N {
+		for j := range testSimpleQueries {
 			_, err := parsePromQLWithCache(testSimpleQueries[j])
 			if err != nil {
 				b.Errorf("unexpected error: %s", err)
@@ -155,7 +155,7 @@ func BenchmarkParsePromQLWithCacheSimpleParallel(b *testing.B) {
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			for i := 0; i < len(testSimpleQueries); i++ {
+			for i := range testSimpleQueries {
 				_, err := parsePromQLWithCache(testSimpleQueries[i])
 				if err != nil {
 					b.Errorf("unexpected error: %s", err)
@@ -210,8 +210,8 @@ var testComplexQueries = []string{
 
 func BenchmarkParsePromQLWithCacheComplex(b *testing.B) {
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		for j := 0; j < len(testComplexQueries); j++ {
+	for range b.N {
+		for j := range testComplexQueries {
 			_, err := parsePromQLWithCache(testComplexQueries[j])
 			if err != nil {
 				b.Errorf("unexpected error: %s", err)
@@ -224,7 +224,7 @@ func BenchmarkParsePromQLWithCacheComplexParallel(b *testing.B) {
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			for i := 0; i < len(testComplexQueries); i++ {
+			for i := range testComplexQueries {
 				_, err := parsePromQLWithCache(testComplexQueries[i])
 				if err != nil {
 					b.Errorf("unexpected error: %s", err)

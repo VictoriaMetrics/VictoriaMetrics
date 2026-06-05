@@ -1,6 +1,7 @@
 package promscrape
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -15,7 +16,10 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/cespare/xxhash/v2"
+	"github.com/valyala/quicktemplate"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
@@ -212,15 +216,11 @@ func (tsm *targetStatusMap) getScrapeWorkByTargetID(targetID string) *scrapeWork
 	defer tsm.mu.Unlock()
 	for sw := range tsm.m {
 		// The target is uniquely identified by a pointer to its original labels.
-		if getLabelsID(sw.Config.OriginalLabels) == targetID {
+		if sw.Config.OriginalLabels.getTargetID() == targetID {
 			return sw
 		}
 	}
 	return nil
-}
-
-func getLabelsID(labels *promutil.Labels) string {
-	return fmt.Sprintf("%016x", uintptr(unsafe.Pointer(labels)))
 }
 
 // StatusByGroup returns the number of targets with status==up
@@ -246,8 +246,8 @@ func (tsm *targetStatusMap) getActiveTargetStatuses() []targetStatus {
 	tsm.mu.Unlock()
 	// Sort discovered targets by __address__ label, so they stay in consistent order across calls
 	sort.Slice(tss, func(i, j int) bool {
-		addr1 := tss[i].sw.Config.OriginalLabels.Get("__address__")
-		addr2 := tss[j].sw.Config.OriginalLabels.Get("__address__")
+		addr1 := tss[i].sw.Config.OriginalLabels.getAddress()
+		addr2 := tss[j].sw.Config.OriginalLabels.getAddress()
 		return addr1 < addr2
 	})
 	return tss
@@ -267,7 +267,7 @@ func (tsm *targetStatusMap) WriteActiveTargetsJSON(w io.Writer, scrapePoolFilter
 			fmt.Fprintf(w, `,`)
 		}
 		fmt.Fprintf(w, `{"discoveredLabels":`)
-		writeLabelsJSON(w, ts.sw.Config.OriginalLabels)
+		ts.sw.Config.OriginalLabels.writeJSON(w)
 		fmt.Fprintf(w, `,"labels":`)
 		writeLabelsJSON(w, ts.sw.Config.Labels)
 		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5343
@@ -342,7 +342,7 @@ type droppedTargets struct {
 }
 
 type droppedTarget struct {
-	originalLabels    *promutil.Labels
+	originalLabels    *compressedLabels
 	relabelConfigs    *promrelabel.ParsedConfigs
 	dropReason        targetDropReason
 	clusterMemberNums []int
@@ -366,8 +366,8 @@ func (dt *droppedTargets) getTargetsList() []droppedTarget {
 	dt.mu.Unlock()
 	// Sort discovered targets by __address__ label, so they stay in consistent order across calls
 	sort.Slice(dts, func(i, j int) bool {
-		addr1 := dts[i].originalLabels.Get("__address__")
-		addr2 := dts[j].originalLabels.Get("__address__")
+		addr1 := dts[i].originalLabels.getAddress()
+		addr2 := dts[j].originalLabels.getAddress()
 		return addr1 < addr2
 	})
 	return dts
@@ -377,13 +377,13 @@ func (dt *droppedTargets) getTargetsList() []droppedTarget {
 //
 // The relabelConfigs must contain relabel configs, which were applied to originalLabels.
 // The reason must contain the reason why the target has been dropped.
-func (dt *droppedTargets) Register(originalLabels *promutil.Labels, relabelConfigs *promrelabel.ParsedConfigs, reason targetDropReason, clusterMemberNums []int) {
+func (dt *droppedTargets) Register(originalLabels *compressedLabels, relabelConfigs *promrelabel.ParsedConfigs, reason targetDropReason, clusterMemberNums []int) {
 	if originalLabels == nil {
 		// Do not register target without originalLabels. This is the case when *dropOriginalLabels is set to true.
 		return
 	}
 	// It is better to have hash collisions instead of spending additional CPU on originalLabels.String() call.
-	key := labelsHash(originalLabels)
+	key := originalLabels.getHashKey()
 	dt.mu.Lock()
 	if _, ok := dt.m[key]; !ok {
 		dt.totalTargets++
@@ -412,37 +412,13 @@ func (dt *droppedTargets) getTotalTargets() int {
 	return n
 }
 
-func labelsHash(labels *promutil.Labels) uint64 {
-	d := xxhashPool.Get().(*xxhash.Digest)
-	for _, label := range labels.GetLabels() {
-		// exclude annotations from hash generation
-		// annotations are mutable and should not be used for objects identification
-		// See this issue: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8626
-		if strings.HasPrefix(label.Name, "__meta_kubernetes_") && strings.Contains(label.Name, "_annotation_") {
-			continue
-		}
-		_, _ = d.WriteString(label.Name)
-		_, _ = d.WriteString(label.Value)
-	}
-	h := d.Sum64()
-	d.Reset()
-	xxhashPool.Put(d)
-	return h
-}
-
-var xxhashPool = &sync.Pool{
-	New: func() any {
-		return xxhash.New()
-	},
-}
-
 // WriteDroppedTargetsJSON writes `droppedTargets` contents to w according to https://prometheus.io/docs/prometheus/latest/querying/api/#targets
 func (dt *droppedTargets) WriteDroppedTargetsJSON(w io.Writer) {
 	dts := dt.getTargetsList()
 	fmt.Fprintf(w, `[`)
 	for i, dt := range dts {
 		fmt.Fprintf(w, `{"discoveredLabels":`)
-		writeLabelsJSON(w, dt.originalLabels)
+		dt.originalLabels.writeJSON(w)
 		fmt.Fprintf(w, `}`)
 		if i+1 < len(dts) {
 			fmt.Fprintf(w, `,`)
@@ -634,7 +610,7 @@ type targetsStatusResult struct {
 
 type targetLabels struct {
 	up                bool
-	originalLabels    *promutil.Labels
+	originalLabels    *compressedLabels
 	labels            *promutil.Labels
 	dropReason        targetDropReason
 	clusterMemberNums []int
@@ -652,23 +628,23 @@ func getMetricRelabelContextByTargetID(targetID string) (*promrelabel.ParsedConf
 
 	for sw := range tsmGlobal.m {
 		// The target is uniquely identified by a pointer to its original labels.
-		if getLabelsID(sw.Config.OriginalLabels) == targetID {
+		if sw.Config.OriginalLabels.getTargetID() == targetID {
 			return sw.Config.MetricRelabelConfigs, sw.Config.Labels, true
 		}
 	}
 	return nil, nil, false
 }
 
-func getTargetRelabelContextByTargetID(targetID string) (*promrelabel.ParsedConfigs, *promutil.Labels, bool) {
+func getTargetRelabelContextByTargetID(targetID string) (*promrelabel.ParsedConfigs, *compressedLabels, bool) {
 	var relabelConfigs *promrelabel.ParsedConfigs
-	var labels *promutil.Labels
+	var labels *compressedLabels
 	found := false
 
 	// Search for relabel context in tsmGlobal (aka active targets)
 	tsmGlobal.mu.Lock()
 	for sw := range tsmGlobal.m {
 		// The target is uniquely identified by a pointer to its original labels.
-		if getLabelsID(sw.Config.OriginalLabels) == targetID {
+		if sw.Config.OriginalLabels.getTargetID() == targetID {
 			relabelConfigs = sw.Config.RelabelConfigs
 			labels = sw.Config.OriginalLabels
 			found = true
@@ -684,7 +660,7 @@ func getTargetRelabelContextByTargetID(targetID string) (*promrelabel.ParsedConf
 	// Search for relabel context in droppedTargetsMap (aka deleted targets)
 	droppedTargetsMap.mu.Lock()
 	for _, dt := range droppedTargetsMap.m {
-		if getLabelsID(dt.originalLabels) == targetID {
+		if dt.originalLabels.getTargetID() == targetID {
 			relabelConfigs = dt.relabelConfigs
 			labels = dt.originalLabels
 			found = true
@@ -717,7 +693,7 @@ func (tsr *targetsStatusResult) getTargetLabelsByJob() []*targetLabelsByJob {
 		}
 	}
 	for _, dt := range tsr.droppedTargets {
-		jobName := dt.originalLabels.Get("job")
+		jobName := dt.originalLabels.getJob()
 		m := byJob[jobName]
 		if m == nil {
 			m = &targetLabelsByJob{
@@ -740,4 +716,155 @@ func (tsr *targetsStatusResult) getTargetLabelsByJob() []*targetLabelsByJob {
 		return a[i].jobName < a[j].jobName
 	})
 	return a
+}
+
+type compressedLabels struct {
+	hashKey      uint64
+	targetID     string
+	addressLabel string
+	jobLabel     string
+	// zstd compressed promutil.Labels in JSON form
+	data []byte
+}
+
+func newCompressedLabels(src *promutil.Labels) *compressedLabels {
+	src.Sort()
+
+	sizeNeeded := 2
+	d := xxhashPool.Get().(*xxhash.Digest)
+	srcLabels := src.GetLabels()
+	for _, label := range srcLabels {
+		// account size for 4 quoutes + : and ,
+		sizeNeeded += len(label.Name) + len(label.Value) + 6
+		// exclude annotations from hash generation
+		// annotations are mutable and should not be used for objects identification
+		// See this issue: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8626
+		if strings.HasPrefix(label.Name, "__meta_kubernetes_") && strings.Contains(label.Name, "_annotation_") {
+			continue
+		}
+		_, _ = d.WriteString(label.Name)
+		_, _ = d.WriteString(label.Value)
+	}
+	h := d.Sum64()
+	d.Reset()
+	xxhashPool.Put(d)
+
+	bb := compressedLabelsBufPool.Get()
+	bb.Grow(sizeNeeded)
+	// manually craft json in order to reduce memory allocations
+	fmt.Fprintf(bb, `{`) //nolint:errcheck
+	var tmpBuf []byte
+	for i, label := range srcLabels {
+		tmpBuf = quicktemplate.AppendJSONString(tmpBuf[:0], label.Name, true)
+		bb.Write(tmpBuf)      //nolint:errcheck
+		bb.Write([]byte(`:`)) //nolint:errcheck
+		tmpBuf = quicktemplate.AppendJSONString(tmpBuf[:0], label.Value, true)
+		bb.Write(tmpBuf) //nolint:errcheck
+		if i+1 < len(srcLabels) {
+			bb.Write([]byte(`,`)) //nolint:errcheck
+		}
+	}
+	fmt.Fprint(bb, `}`) //nolint:errcheck
+	dst := zstd.CompressLevel(nil, bb.B, 1)
+
+	compressedLabelsBufPool.Put(bb)
+	cls := &compressedLabels{
+		hashKey:      h,
+		addressLabel: strings.Clone(src.Get("__address__")),
+		jobLabel:     strings.Clone(src.Get("job")),
+		data:         dst,
+	}
+	cls.targetID = fmt.Sprintf("%016x", uintptr(unsafe.Pointer(cls)))
+	return cls
+}
+
+func (cls *compressedLabels) getTargetID() string {
+	if cls == nil {
+		return ""
+	}
+	return cls.targetID
+}
+
+func (cls *compressedLabels) getJob() string {
+	if cls == nil {
+		return ""
+	}
+	return cls.jobLabel
+}
+
+func (cls *compressedLabels) getAddress() string {
+	if cls == nil {
+		return ""
+	}
+	return cls.addressLabel
+}
+
+func (cls *compressedLabels) getHashKey() uint64 {
+	if cls == nil {
+		return 0
+	}
+	return cls.hashKey
+}
+
+func (cls *compressedLabels) writeJSON(w io.Writer) {
+	if cls == nil {
+		fmt.Fprint(w, `{}`)
+		return
+	}
+	bb := compressedLabelsBufPool.Get()
+	b := bb.B[:0]
+	var err error
+	b, err = zstd.Decompress(b, cls.data)
+	if err != nil {
+		logger.Fatalf("BUG: cannot Decompress labels: %s", err)
+	}
+	fmt.Fprint(w, string(b))
+	bb.B = b
+	compressedLabelsBufPool.Put(bb)
+}
+
+func (cls *compressedLabels) labelsString() string {
+	if cls == nil {
+		return ""
+	}
+	bb := labelsHashBufferPool.Get()
+	b := bb.B[:0]
+	b, err := zstd.Decompress(b, cls.data)
+	if err != nil {
+		logger.Fatalf("BUG: cannot Decompress labels: %s", err)
+	}
+	var labels promutil.Labels
+	if err := json.Unmarshal(b, &labels); err != nil {
+		logger.Fatalf("BUG: cannot parse decompressed labels: %s", err)
+	}
+	labelsString := labels.String()
+	bb.B = b
+	labelsHashBufferPool.Put(bb)
+
+	return labelsString
+}
+
+func (cls *compressedLabels) getLabels() *promutil.Labels {
+	var labels promutil.Labels
+	if cls == nil {
+		return &labels
+	}
+
+	// it's unsafe to use pool in this case
+	b, err := zstd.Decompress(nil, cls.data)
+	if err != nil {
+		logger.Fatalf("BUG: cannot Decompress labels: %s", err)
+	}
+	if err := json.Unmarshal(b, &labels); err != nil {
+		logger.Fatalf("BUG: cannot parse decompressed labels: %s", err)
+	}
+	return &labels
+}
+
+var compressedLabelsBufPool = &bytesutil.ByteBufferPool{}
+
+var xxhashPool = &sync.Pool{
+	New: func() any {
+		return xxhash.New()
+	},
 }

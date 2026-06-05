@@ -78,7 +78,7 @@ func benchmarkMarshalVarUint64s(b *testing.B, maxValue uint64) {
 	const numsCount = 8000
 	var data []uint64
 	n := maxValue
-	for i := 0; i < numsCount; i++ {
+	for range numsCount {
 		if n > maxValue {
 			n = maxValue
 		}
@@ -118,7 +118,7 @@ func benchmarkMarshalVarInt64s(b *testing.B, maxValue int64) {
 	const numsCount = 8000
 	var data []int64
 	n := maxValue
-	for i := 0; i < numsCount; i++ {
+	for range numsCount {
 		if n < -maxValue {
 			n = maxValue
 		}
@@ -158,7 +158,7 @@ func benchmarkUnmarshalVarUint64(b *testing.B, maxValue uint64) {
 	const numsCount = 8000
 	var data []byte
 	n := maxValue
-	for i := 0; i < numsCount; i++ {
+	for range numsCount {
 		if n > maxValue {
 			n = maxValue
 		}
@@ -204,7 +204,7 @@ func benchmarkUnmarshalVarUint64s(b *testing.B, maxValue uint64) {
 	const numsCount = 8000
 	var data []byte
 	n := maxValue
-	for i := 0; i < numsCount; i++ {
+	for range numsCount {
 		if n > maxValue {
 			n = maxValue
 		}
@@ -250,7 +250,7 @@ func benchmarkUnmarshalVarInt64(b *testing.B, maxValue int64) {
 	const numsCount = 8000
 	var data []byte
 	n := maxValue
-	for i := 0; i < numsCount; i++ {
+	for range numsCount {
 		if n < -maxValue {
 			n = maxValue
 		}
@@ -296,7 +296,7 @@ func benchmarkUnmarshalVarInt64s(b *testing.B, maxValue int64) {
 	const numsCount = 8000
 	var data []byte
 	n := maxValue
-	for i := 0; i < numsCount; i++ {
+	for range numsCount {
 		if n < -maxValue {
 			n = maxValue
 		}

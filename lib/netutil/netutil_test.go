@@ -26,6 +26,78 @@ func TestIsErrMissingPort(t *testing.T) {
 	f("http://vmstorage-0.svc.cluster.local.:8080", false)
 }
 
+func TestIsLonePort(t *testing.T) {
+	f := func(s string, expected bool) {
+		t.Helper()
+		if isLonePort(s) != expected {
+			t.Fatalf("unexpected result for %q; got %v; want %v", s, !expected, expected)
+		}
+	}
+
+	f(":0", true)
+	f(":1", true)
+	f(":80", true)
+	f(":443", true)
+	f(":666", true)
+	f(":6969", true)
+	f(":8080", true)
+	f(":65535", true)
+
+	f(":65536", false)
+	f(":99999", false)
+
+	f("80", false)
+	f("8080", false)
+
+	f("", false)
+	f(":", false)
+
+	f(":123456", false)
+
+	f(":abc", false)
+	f(":80a", false)
+	f(":12.3", false)
+	f(":-1", false)
+
+	f("127.0.0.1:80", false)
+	f("[::1]:80", false)
+
+	// IPv6 addresses
+	f("[::1]:80", false)
+	f("[::]:443", false)
+	f("[fe80::1]:8080", false)
+	f("[fe80::1]:8080", false)
+	f("[2001:db8::1]:9090", false)
+	f("2606:4700:4700::1111:80", false)
+	f("[fd00::1:2:3]:8428", false)
+
+	// domain names
+	f("localhost:80", false)
+	f("example.com:443", false)
+	f("victoriametrics.com", false)
+	f("zombo.com", false)
+	f("theonion.com", false)
+	f("vmstorage-0:8401", false)
+	f("vmstorage-0.svc.cluster.local.:8401", false)
+	f("pee-poo.internal:9090", false)
+
+	// full URL
+	f("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Space+Grotesk:wght@400;600;700&display=swap", false)
+
+	// random strings
+	f("abc", false)
+	f("my dog got autism", false)
+	f("IDDQD", false)
+	f("Galactus", false)
+	f("hello:world", false)
+	f("12:34:56", false)
+
+	// normal TCPv4 addr
+	f("1.2.3.4:5", false)
+	f("0.0.0.0:80", false)
+	f("1.2.3.4:65535", false)
+}
+
 func TestNormalizeAddrSuccess(t *testing.T) {
 	f := func(addr string, defaultPort int, expected string) {
 		t.Helper()

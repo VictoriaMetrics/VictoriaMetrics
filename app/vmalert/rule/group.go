@@ -6,7 +6,9 @@ import (
 	"flag"
 	"fmt"
 	"hash/fnv"
+	"maps"
 	"net/url"
+	"path"
 	"sync"
 	"time"
 
@@ -30,8 +32,8 @@ var (
 		"0 means no limit.")
 	ruleUpdateEntriesLimit = flag.Int("rule.updateEntriesLimit", 20, "Defines the max number of rule's state updates stored in-memory. "+
 		"Rule's updates are available on rule's Details page and are used for debugging purposes. The number of stored updates can be overridden per rule via update_entries_limit param.")
-	resendDelay        = flag.Duration("rule.resendDelay", 0, "MiniMum amount of time to wait before resending an alert to notifier.")
-	maxResolveDuration = flag.Duration("rule.maxResolveDuration", 0, "Limits the maxiMum duration for automatic alert expiration, "+
+	resendDelay        = flag.Duration("rule.resendDelay", 0, "Minimum amount of time to wait before resending an alert to notifier.")
+	maxResolveDuration = flag.Duration("rule.maxResolveDuration", 0, "Limits the maximum duration for automatic alert expiration, "+
 		"which by default is 4 times evaluationInterval of the parent group")
 	evalDelay = flag.Duration("rule.evalDelay", 30*time.Second, "Adjustment of the 'time' parameter for rule evaluation requests to compensate intentional data delay from the datasource. "+
 		"Normally, should be equal to '-search.latencyOffset' (cmd-line flag configured for VictoriaMetrics single-node or vmselect). "+
@@ -41,6 +43,9 @@ var (
 		"For example, if lookback=1h then range from now() to now()-1h will be scanned.")
 	maxStartDelay = flag.Duration("group.maxStartDelay", 5*time.Minute, "Defines the max delay before starting the group evaluation. Group's start is artificially delayed for random duration on interval"+
 		" [0..min(--group.maxStartDelay, group.interval)]. This helps smoothing out the load on the configured datasource, so evaluations aren't executed too close to each other.")
+	ruleStripFilePath = flag.Bool("rule.stripFilePath", false, "Whether to strip rule file paths in logs and all API responses, including /metrics. "+
+		"For example, file path '/path/to/tenant_id/rules.yml' will be stripped to 'groupHashID/rules.yml'. "+
+		"This flag may be useful for hiding sensitive information in file paths, such as S3 bucket details.")
 )
 
 // Group is an entity for grouping rules
@@ -90,6 +95,7 @@ type groupMetrics struct {
 	iterationTotal    *metrics.Counter
 	iterationDuration *metrics.Summary
 	iterationMissed   *metrics.Counter
+	iterationReset    *metrics.Counter
 	iterationInterval *metrics.Gauge
 }
 
@@ -97,9 +103,7 @@ type groupMetrics struct {
 // set2 has priority over set1.
 func mergeLabels(groupName, ruleName string, set1, set2 map[string]string) map[string]string {
 	r := map[string]string{}
-	for k, v := range set1 {
-		r[k] = v
-	}
+	maps.Copy(r, set1)
 	for k, v := range set2 {
 		if prevV, ok := r[k]; ok {
 			logger.Infof("label %q=%q for rule %q.%q overwritten with external label %q=%q",
@@ -148,6 +152,12 @@ func NewGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval ti
 		g.EvalDelay = &cfg.EvalDelay.D
 	}
 	g.id = g.CreateID()
+	// strip file path from group.File after generated group ID when ruleStripFilePath is set,
+	// so it won't be exposed in logs and api responses
+	if *ruleStripFilePath {
+		_, filename := path.Split(g.File)
+		g.File = fmt.Sprintf("%d/%s", g.id, filename)
+	}
 	for _, h := range cfg.Headers {
 		g.Headers[h.Key] = h.Value
 	}
@@ -321,6 +331,7 @@ func (g *Group) Init() {
 	g.metrics.iterationTotal = g.metrics.set.NewCounter(fmt.Sprintf(`vmalert_iteration_total{%s}`, labels))
 	g.metrics.iterationDuration = g.metrics.set.NewSummary(fmt.Sprintf(`vmalert_iteration_duration_seconds{%s}`, labels))
 	g.metrics.iterationMissed = g.metrics.set.NewCounter(fmt.Sprintf(`vmalert_iteration_missed_total{%s}`, labels))
+	g.metrics.iterationReset = g.metrics.set.NewCounter(fmt.Sprintf(`vmalert_iteration_reset_total{%s}`, labels))
 	g.metrics.iterationInterval = g.metrics.set.NewGauge(fmt.Sprintf(`vmalert_iteration_interval_seconds{%s}`, labels), func() float64 {
 		i := g.Interval.Seconds()
 		return i
@@ -382,7 +393,9 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 
 		if len(g.Rules) < 1 {
 			g.metrics.iterationDuration.UpdateDuration(start)
+			g.mu.Lock()
 			g.LastEvaluation = start
+			g.mu.Unlock()
 			return ts
 		}
 
@@ -396,7 +409,9 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 			}
 		}
 		g.metrics.iterationDuration.UpdateDuration(start)
+		g.mu.Lock()
 		g.LastEvaluation = start
+		g.mu.Unlock()
 		return ts
 	}
 
@@ -406,10 +421,13 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 	g.mu.Unlock()
 	defer g.evalCancel()
 
-	realEvalTS := eval(evalCtx, evalTS)
-
+	// start the interval ticker before the first evaluation,
+	// so that the evaluation timestamps of groups with the `eval_offset` option are also aligned,
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10773
 	t := time.NewTicker(g.Interval)
 	defer t.Stop()
+
+	realEvalTS := eval(evalCtx, evalTS)
 
 	// restore the rules state after the first evaluation
 	// so only active alerts can be restored.
@@ -458,14 +476,16 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 			if missed < 0 {
 				// missed can become < 0 due to irregular delays during evaluation
 				// which can result in time.Since(evalTS) < g.Interval;
-				// or the system wall clock was changed backward
-				missed = 0
+				// or the system wall clock was changed backward,
+				// Reset the evalTS to the current time.
 				evalTS = time.Now()
+				g.metrics.iterationReset.Inc()
+			} else {
+				evalTS = evalTS.Add((missed + 1) * g.Interval)
 			}
 			if missed > 0 {
 				g.metrics.iterationMissed.Inc()
 			}
-			evalTS = evalTS.Add((missed + 1) * g.Interval)
 
 			eval(evalCtx, evalTS)
 		}
@@ -485,8 +505,15 @@ func (g *Group) UpdateWith(newGroup *Group) {
 // delayBeforeStart calculates delay based on Group ID, so all groups will start at different moments of time.
 func (g *Group) delayBeforeStart(ts time.Time, maxDelay time.Duration) time.Duration {
 	if g.EvalOffset != nil {
+		offset := *g.EvalOffset
+		// adjust the offset for negative evalOffset, the rule is:
+		// `eval_offset: -x` is equivalent to `eval_offset: y` for `interval: x+y`.
+		// For example, `eval_offset: -6m` is equivalent to `eval_offset: 4m` for `interval: 10m`.
+		if offset < 0 {
+			offset += g.Interval
+		}
 		// if offset is specified, ignore the maxDelay and return a duration aligned with offset
-		currentOffsetPoint := ts.Truncate(g.Interval).Add(*g.EvalOffset)
+		currentOffsetPoint := ts.Truncate(g.Interval).Add(offset)
 		if currentOffsetPoint.Before(ts) {
 			// wait until the next offset point
 			return currentOffsetPoint.Add(g.Interval).Sub(ts)
@@ -495,11 +522,8 @@ func (g *Group) delayBeforeStart(ts time.Time, maxDelay time.Duration) time.Dura
 	}
 
 	// otherwise, return a random duration between [0..min(interval, maxDelay)] based on group ID
-	interval := g.Interval
-	if interval > maxDelay {
-		// artificially limit interval, so groups with big intervals could start sooner.
-		interval = maxDelay
-	}
+	// artificially limit interval, so groups with big intervals could start sooner.
+	interval := min(g.Interval, maxDelay)
 	var randSleep time.Duration
 	randSleep = time.Duration(float64(interval) * (float64(g.GetID()) / (1 << 64)))
 	sleepOffset := time.Duration(ts.UnixNano() % interval.Nanoseconds())

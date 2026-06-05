@@ -2,6 +2,7 @@ package bytesutil
 
 import (
 	"flag"
+	"maps"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -96,9 +97,7 @@ func (m *internStringMap) intern(s string) string {
 func (m *internStringMap) migrateMutableToReadonlyLocked() {
 	readonly := m.getReadonly()
 	readonlyCopy := make(map[string]internStringMapEntry, len(readonly)+len(m.mutable))
-	for k, e := range readonly {
-		readonlyCopy[k] = e
-	}
+	maps.Copy(readonlyCopy, readonly)
 	deadline := fasttime.UnixTimestamp() + uint64(cacheExpireDuration.Seconds()+0.5)
 	for k, s := range m.mutable {
 		readonlyCopy[k] = internStringMapEntry{

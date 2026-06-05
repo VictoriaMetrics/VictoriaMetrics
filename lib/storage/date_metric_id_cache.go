@@ -1,13 +1,26 @@
 package storage
 
 import (
-	"sort"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
+	"unsafe"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
+)
+
+const (
+	dateMetricIDCacheShardCount = 16
+
+	// The number of consecutive metricIDs that will be stored in one shard.
+	// This is 2^16 and corresponds to the size of a 16-bit bucket of the
+	// uint64set. That way the metricIDs end up in one uint64set bucket instead
+	// of being spread across multiple buckets. This reduces the memory size of
+	// the cache and allows for faster access.
+	dateMetricIDCacheShardBucketSize = 65536
 )
 
 // dateMetricIDCache stores (date, metricIDs) entries that have been added to
@@ -16,6 +29,85 @@ import (
 //
 // It should be faster than map[date]*uint64set.Set on multicore systems.
 type dateMetricIDCache struct {
+	shards [dateMetricIDCacheShardCount]dateMetricIDCacheShard
+
+	// The shards are rotated, one shard at a time. rotationPeriod defines the
+	// time interval between two successive rotations.
+	rotationPeriod time.Duration
+
+	stopCh            chan struct{}
+	rotationStoppedCh chan struct{}
+}
+
+func newDateMetricIDCache() *dateMetricIDCache {
+	c := dateMetricIDCache{
+		rotationPeriod:    timeutil.AddJitterToDuration(1 * time.Hour),
+		stopCh:            make(chan struct{}),
+		rotationStoppedCh: make(chan struct{}),
+	}
+	for i := range dateMetricIDCacheShardCount {
+		c.shards[i].prev = newByDateMetricIDMap()
+		c.shards[i].next = newByDateMetricIDMap()
+		c.shards[i].curr.Store(newByDateMetricIDMap())
+	}
+	go c.startRotation()
+	return &c
+}
+
+func (dmc *dateMetricIDCache) MustStop() {
+	close(dmc.stopCh)
+	<-dmc.rotationStoppedCh
+}
+
+func (c *dateMetricIDCache) Stats() dateMetricIDCacheStats {
+	var stats dateMetricIDCacheStats
+	for i := range dateMetricIDCacheShardCount {
+		s := c.shards[i].Stats()
+		stats.Size += s.Size
+		stats.SizeBytes += s.SizeBytes
+		stats.SyncsCount += s.SyncsCount
+		stats.RotationsCount += s.RotationsCount
+	}
+	return stats
+}
+
+func (c *dateMetricIDCache) Has(date, metricID uint64) bool {
+	shardIdx := (metricID / dateMetricIDCacheShardBucketSize) % dateMetricIDCacheShardCount
+	return c.shards[shardIdx].Has(date, metricID)
+}
+
+func (c *dateMetricIDCache) Set(date, metricID uint64) {
+	shardIdx := (metricID / dateMetricIDCacheShardBucketSize) % dateMetricIDCacheShardCount
+	c.shards[shardIdx].Set(date, metricID)
+}
+
+func (c *dateMetricIDCache) startRotation() {
+	ticker := time.NewTicker(c.rotationPeriod)
+	defer ticker.Stop()
+	var shardIdx int
+	for {
+		select {
+		case <-c.stopCh:
+			close(c.rotationStoppedCh)
+			return
+		case <-ticker.C:
+			// Each tick rotate only one shard at a time to avoid slow access
+			// for all shards at once.
+			shardIdx %= dateMetricIDCacheShardCount
+			c.shards[shardIdx].rotate()
+			shardIdx++
+		}
+	}
+}
+
+type dateMetricIDCacheStats struct {
+	Size           uint64
+	SizeBytes      uint64
+	SyncsCount     uint64
+	RotationsCount uint64
+}
+
+type dateMetricIDCacheShardNopad struct {
 	// Contains immutable (date, metricIDs) entries.
 	curr atomic.Pointer[byDateMetricIDMap]
 
@@ -39,36 +131,16 @@ type dateMetricIDCache struct {
 	rotationsCount uint64
 
 	mu sync.Mutex
-
-	stopCh            chan struct{}
-	rotationStoppedCh chan struct{}
 }
 
-func newDateMetricIDCache() *dateMetricIDCache {
-	dmc := dateMetricIDCache{
-		prev:              newByDateMetricIDMap(),
-		next:              newByDateMetricIDMap(),
-		stopCh:            make(chan struct{}),
-		rotationStoppedCh: make(chan struct{}),
-	}
-	dmc.curr.Store(newByDateMetricIDMap())
-	go dmc.startRotation()
-	return &dmc
+type dateMetricIDCacheShard struct {
+	dateMetricIDCacheShardNopad
+
+	// The padding prevents false sharing
+	_ [atomicutil.CacheLineSize - unsafe.Sizeof(dateMetricIDCacheShardNopad{})%atomicutil.CacheLineSize]byte
 }
 
-func (dmc *dateMetricIDCache) MustStop() {
-	close(dmc.stopCh)
-	<-dmc.rotationStoppedCh
-}
-
-type dateMetricIDCacheStats struct {
-	Size           uint64
-	SizeBytes      uint64
-	SyncsCount     uint64
-	RotationsCount uint64
-}
-
-func (dmc *dateMetricIDCache) Stats() dateMetricIDCacheStats {
+func (dmc *dateMetricIDCacheShard) Stats() dateMetricIDCacheStats {
 	dmc.mu.Lock()
 	defer dmc.mu.Unlock()
 
@@ -98,7 +170,7 @@ func (dmc *dateMetricIDCache) Stats() dateMetricIDCacheStats {
 	return s
 }
 
-func (dmc *dateMetricIDCache) Has(date, metricID uint64) bool {
+func (dmc *dateMetricIDCacheShard) Has(date, metricID uint64) bool {
 	curr := dmc.curr.Load()
 	vCurr := curr.get(date)
 	if vCurr.Has(metricID) {
@@ -110,7 +182,7 @@ func (dmc *dateMetricIDCache) Has(date, metricID uint64) bool {
 	return dmc.hasSlow(date, metricID)
 }
 
-func (dmc *dateMetricIDCache) hasSlow(date, metricID uint64) bool {
+func (dmc *dateMetricIDCacheShard) hasSlow(date, metricID uint64) bool {
 	dmc.mu.Lock()
 	defer dmc.mu.Unlock()
 
@@ -146,14 +218,14 @@ func (dmc *dateMetricIDCache) hasSlow(date, metricID uint64) bool {
 	return ok
 }
 
-func (dmc *dateMetricIDCache) Set(date, metricID uint64) {
+func (dmc *dateMetricIDCacheShard) Set(date, metricID uint64) {
 	dmc.mu.Lock()
 	v := dmc.next.getOrCreate(date)
 	v.Add(metricID)
 	dmc.mu.Unlock()
 }
 
-func (dmc *dateMetricIDCache) syncLocked() {
+func (dmc *dateMetricIDCacheShard) syncLocked() {
 	if len(dmc.next.m) == 0 {
 		// Nothing to sync.
 		return
@@ -196,9 +268,7 @@ func (dmc *dateMetricIDCache) syncLocked() {
 		for date := range allDatesMap {
 			dates = append(dates, date)
 		}
-		sort.Slice(dates, func(i, j int) bool {
-			return dates[i] < dates[j]
-		})
+		slices.Sort(dates)
 		if len(dates) > 2 {
 			dates = dates[len(dates)-2:]
 		}
@@ -219,24 +289,8 @@ func (dmc *dateMetricIDCache) syncLocked() {
 	dmc.syncsCount++
 }
 
-func (dmc *dateMetricIDCache) startRotation() {
-	// 1 hour was chosen based on https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10064#issuecomment-3749046726
-	d := timeutil.AddJitterToDuration(time.Hour)
-	ticker := time.NewTicker(d)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-dmc.stopCh:
-			close(dmc.rotationStoppedCh)
-			return
-		case <-ticker.C:
-			dmc.rotate()
-		}
-	}
-}
-
 // rotate atomically rotates next, curr, and prev cache parts.
-func (dmc *dateMetricIDCache) rotate() {
+func (dmc *dateMetricIDCacheShard) rotate() {
 	dmc.mu.Lock()
 	defer dmc.mu.Unlock()
 	curr := dmc.curr.Load()

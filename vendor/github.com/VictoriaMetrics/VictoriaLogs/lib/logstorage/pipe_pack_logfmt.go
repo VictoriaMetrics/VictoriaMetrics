@@ -40,6 +40,10 @@ func (pp *pipePackLogfmt) canReturnLastNResults() bool {
 	return pp.resultField != "_time"
 }
 
+func (pp *pipePackLogfmt) isFixedOutputFieldsOrder() bool {
+	return false
+}
+
 func (pp *pipePackLogfmt) updateNeededFields(pf *prefixfilter.Filter) {
 	updateNeededFieldsForPipePack(pf, pp.resultField, pp.fieldFilters)
 }
@@ -48,7 +52,7 @@ func (pp *pipePackLogfmt) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pp *pipePackLogfmt) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
+func (pp *pipePackLogfmt) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pp, nil
 }
 

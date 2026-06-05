@@ -1228,7 +1228,7 @@ func transformDelay(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFunc, er
 				stepsLocal = len(values)
 			}
 			copy(values[stepsLocal:], values[:len(values)-stepsLocal])
-			for i := 0; i < stepsLocal; i++ {
+			for i := range stepsLocal {
 				values[i] = nan
 			}
 		}
@@ -1740,7 +1740,7 @@ func transformGroup(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFunc, er
 
 func groupSeriesLists(ec *evalConfig, args []*graphiteql.ArgExpr, expr graphiteql.Expr) (nextSeriesFunc, error) {
 	var nextSeriess []nextSeriesFunc
-	for i := 0; i < len(args); i++ {
+	for i := range args {
 		nextSeries, err := evalSeriesList(ec, args, "seriesList", i)
 		if err != nil {
 			for _, f := range nextSeriess {
@@ -3233,7 +3233,7 @@ func transformSeriesByTag(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFu
 		return nil, fmt.Errorf("at least one tagExpression must be passed to seriesByTag")
 	}
 	var tagExpressions []string
-	for i := 0; i < len(args); i++ {
+	for i := range args {
 		te, err := getString(args, "tagExpressions", i)
 		if err != nil {
 			return nil, err
@@ -3633,7 +3633,7 @@ var graphiteToGolangRe = regexp.MustCompile(`\\(\d+)`)
 
 func getNodes(args []*graphiteql.ArgExpr) ([]graphiteql.Expr, error) {
 	var nodes []graphiteql.Expr
-	for i := 0; i < len(args); i++ {
+	for i := range args {
 		expr := args[i].Expr
 		switch expr.(type) {
 		case *graphiteql.NumberExpr, *graphiteql.StringExpr:
@@ -4052,7 +4052,7 @@ func formatPathsFromSeriesExpressions(seriesExpressions []string, sortPaths bool
 
 func newNaNSeries(ec *evalConfig, step int64) *series {
 	values := make([]float64, ec.pointsLen(step))
-	for i := 0; i < len(values); i++ {
+	for i := range values {
 		values[i] = nan
 	}
 	return &series{
@@ -5244,7 +5244,7 @@ func transformLinearRegression(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSer
 
 func linearRegressionForSeries(ec *evalConfig, fe *graphiteql.FuncExpr, ss, sourceSeries []*series) (nextSeriesFunc, error) {
 	var resp []*series
-	for i := 0; i < len(ss); i++ {
+	for i := range ss {
 		source := sourceSeries[i]
 		s := ss[i]
 		s.Tags["linearRegressions"] = fmt.Sprintf("%d, %d", ec.startTime/1e3, ec.endTime/1e3)
@@ -5258,7 +5258,7 @@ func linearRegressionForSeries(ec *evalConfig, fe *graphiteql.FuncExpr, ss, sour
 			continue
 		}
 		values := s.Values
-		for j := 0; j < len(values); j++ {
+		for j := range values {
 			values[j] = offset + (float64(int(s.Timestamps[0])+j*int(s.step)))*factor
 		}
 		resp = append(resp, s)
@@ -5370,7 +5370,7 @@ func holtWinterConfidenceBands(ec *evalConfig, fe *graphiteql.FuncExpr, args []*
 		valuesLen := len(forecastValues)
 		upperBand := make([]float64, 0, valuesLen)
 		lowerBand := make([]float64, 0, valuesLen)
-		for i := 0; i < valuesLen; i++ {
+		for i := range valuesLen {
 			forecastItem := forecastValues[i]
 			deviationItem := deviationValues[i]
 			if math.IsNaN(forecastItem) || math.IsNaN(deviationItem) {
@@ -5464,7 +5464,7 @@ func transformHoltWintersAberration(ec *evalConfig, fe *graphiteql.FuncExpr) (ne
 			return nil, fmt.Errorf("bug, len mismatch for series: %d and upperBand values: %d or lowerBand values: %d", len(values), len(upperBand), len(lowerBand))
 		}
 		aberration := make([]float64, 0, len(values))
-		for i := 0; i < len(values); i++ {
+		for i := range values {
 			v := values[i]
 			upperValue := upperBand[i]
 			lowerValue := lowerBand[i]

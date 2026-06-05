@@ -169,7 +169,13 @@ func appendPrettifiedExpr(dst []byte, e Expr, indent int, needParens bool) []byt
 		if !metricNamehasEscapedChars {
 			dst = appendEscapedIdent(dst, metricName)
 		}
-		if !isOnlyMetricNameInLabelFilterss(lfss) {
+		if isOnlyMetricNameInLabelFilterss(lfss) {
+			if metricNamehasEscapedChars {
+				dst = append(dst, '{')
+				dst = appendQuotedIdent(dst, metricName)
+				dst = append(dst, '}')
+			}
+		} else {
 			dst = append(dst, "{\n"...)
 			if metricNamehasEscapedChars {
 				dst = ifEscapedCharsAppendQuotedIdent(dst, metricName)
@@ -240,7 +246,7 @@ func appendPrettifiedLabelFilters(dst []byte, indent int, lfs []*labelFilterExpr
 }
 
 func appendIndent(dst []byte, indent int) []byte {
-	for i := 0; i < indent; i++ {
+	for range indent {
 		dst = append(dst, "  "...)
 	}
 	return dst

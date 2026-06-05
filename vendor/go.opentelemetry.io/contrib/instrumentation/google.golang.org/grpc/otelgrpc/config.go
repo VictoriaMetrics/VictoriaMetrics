@@ -5,6 +5,8 @@ package otelgrpc // import "go.opentelemetry.io/contrib/instrumentation/google.g
 
 import (
 	"context"
+	"os"
+	"strings"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -29,22 +31,34 @@ type InterceptorFilter func(*InterceptorInfo) bool
 // A Filter must return true if the request should be instrumented.
 type Filter func(*stats.RPCTagInfo) bool
 
+type semconvMode int
+
+const (
+	semconvModeNew semconvMode = iota // Default
+	semconvModeOld
+	semconvModeDup
+)
+
 // config is a group of options for this instrumentation.
 type config struct {
-	Filter            Filter
-	InterceptorFilter InterceptorFilter
-	Propagators       propagation.TextMapPropagator
-	TracerProvider    trace.TracerProvider
-	MeterProvider     metric.MeterProvider
-	SpanStartOptions  []trace.SpanStartOption
-	SpanAttributes    []attribute.KeyValue
-	MetricAttributes  []attribute.KeyValue
+	Filter             Filter
+	InterceptorFilter  InterceptorFilter
+	Propagators        propagation.TextMapPropagator
+	TracerProvider     trace.TracerProvider
+	MeterProvider      metric.MeterProvider
+	SpanKind           trace.SpanKind
+	SpanStartOptions   []trace.SpanStartOption
+	SpanAttributes     []attribute.KeyValue
+	MetricAttributes   []attribute.KeyValue
+	MetricAttributesFn func(ctx context.Context) []attribute.KeyValue
 
 	PublicEndpoint   bool
 	PublicEndpointFn func(ctx context.Context, info *stats.RPCTagInfo) bool
 
 	ReceivedEvent bool
 	SentEvent     bool
+
+	semconvMode semconvMode
 }
 
 // Option applies an option value for a config.
@@ -64,11 +78,31 @@ func newConfig(opts []Option) *config {
 		Propagators:    otel.GetTextMapPropagator(),
 		TracerProvider: otel.GetTracerProvider(),
 		MeterProvider:  otel.GetMeterProvider(),
+		semconvMode:    parseSemconvMode(),
 	}
 	for _, o := range opts {
 		o.apply(c)
 	}
+
 	return c
+}
+
+func parseSemconvMode() semconvMode {
+	val := os.Getenv("OTEL_SEMCONV_STABILITY_OPT_IN")
+	if val == "" {
+		return semconvModeNew
+	}
+	parts := strings.SplitSeq(val, ",")
+	for p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "rpc/dup" {
+			return semconvModeDup
+		}
+		if p == "rpc/old" {
+			return semconvModeOld
+		}
+	}
+	return semconvModeNew
 }
 
 // WithPublicEndpoint configures the Handler to link the span with an incoming
@@ -125,7 +159,9 @@ func WithFilter(f Filter) Option {
 // creating a Tracer.
 func WithTracerProvider(tp trace.TracerProvider) Option {
 	return optionFunc(func(c *config) {
-		c.TracerProvider = tp
+		if tp != nil {
+			c.TracerProvider = tp
+		}
 	})
 }
 
@@ -133,7 +169,9 @@ func WithTracerProvider(tp trace.TracerProvider) Option {
 // creating a Meter. If this option is not provide the global MeterProvider will be used.
 func WithMeterProvider(mp metric.MeterProvider) Option {
 	return optionFunc(func(c *config) {
-		c.MeterProvider = mp
+		if mp != nil {
+			c.MeterProvider = mp
+		}
 	})
 }
 
@@ -176,6 +214,18 @@ func WithSpanOptions(opts ...trace.SpanStartOption) Option {
 	})
 }
 
+// WithSpanKind returns an Option to set the span kind for spans created by
+// the handler.
+//
+// By default, [NewServerHandler] creates spans with
+// [trace.SpanKindServer] and [NewClientHandler] creates spans with
+// [trace.SpanKindClient].
+func WithSpanKind(sk trace.SpanKind) Option {
+	return optionFunc(func(c *config) {
+		c.SpanKind = sk
+	})
+}
+
 // WithSpanAttributes returns an Option to add custom attributes to the spans.
 func WithSpanAttributes(a ...attribute.KeyValue) Option {
 	return optionFunc(func(c *config) {
@@ -190,6 +240,18 @@ func WithMetricAttributes(a ...attribute.KeyValue) Option {
 	return optionFunc(func(c *config) {
 		if a != nil {
 			c.MetricAttributes = append(c.MetricAttributes, a...)
+		}
+	})
+}
+
+// WithMetricAttributesFn returns an Option to add dynamic custom attributes to the handler's metrics.
+// The function is called once per RPC and the returned attributes are applied to all metrics recorded by this handler.
+//
+// The context parameter is the standard gRPC request context and provides access to request-scoped data.
+func WithMetricAttributesFn(fn func(ctx context.Context) []attribute.KeyValue) Option {
+	return optionFunc(func(c *config) {
+		if fn != nil {
+			c.MetricAttributesFn = fn
 		}
 	})
 }

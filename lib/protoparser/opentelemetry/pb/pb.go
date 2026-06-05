@@ -14,6 +14,14 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
+// DecodeMetricsOptions defines options for DecodeMetricsData
+type DecodeMetricsOptions struct {
+	DisableScopeMetadata      bool
+	DisableResourceAttributes bool
+	// ResourceAttributesList stored a list of resource attributes to ignore or promote based on the value of DisableResourceAttributes.
+	ResourceAttributesList map[string]struct{}
+}
+
 // MetricPusher must push the parsed samples and metric metadata to the underlying storage.
 type MetricPusher interface {
 	// PushSample must store a sample with the given args.
@@ -45,6 +53,7 @@ type MetricMetadata struct {
 func (mm *MetricMetadata) reset() {
 	mm.Name = ""
 	mm.Unit = ""
+	mm.Description = ""
 	mm.Type = 0
 }
 
@@ -72,8 +81,8 @@ func (r *MetricsData) marshalProtobuf(mm *easyproto.MessageMarshaler) {
 	}
 }
 
-// DecodeMetricsData decodes metricsData from src and sends the decoded data to mp.
-func DecodeMetricsData(src []byte, mp MetricPusher) (err error) {
+// DecodeMetricsData decodes metricsData with given options from src and sends the decoded data to mp.
+func DecodeMetricsData(src []byte, mp MetricPusher, options DecodeMetricsOptions) (err error) {
 	// See https://github.com/open-telemetry/opentelemetry-proto/blob/049d4332834935792fd4dbd392ecd31904f99ba2/opentelemetry/proto/metrics/v1/metrics.proto#L56
 	//
 	// message MetricsData {
@@ -95,7 +104,7 @@ func DecodeMetricsData(src []byte, mp MetricPusher) (err error) {
 			if !ok {
 				return fmt.Errorf("cannot read ResourceMetrics data")
 			}
-			if err := dctx.decodeResourceMetrics(data); err != nil {
+			if err := dctx.decodeResourceMetrics(data, options); err != nil {
 				return fmt.Errorf("cannot unmarshal ResourceMetrics: %w", err)
 			}
 		}
@@ -120,7 +129,7 @@ func (rm *ResourceMetrics) marshalProtobuf(mm *easyproto.MessageMarshaler) {
 	}
 }
 
-func (dctx *decoderContext) decodeResourceMetrics(src []byte) error {
+func (dctx *decoderContext) decodeResourceMetrics(src []byte, options DecodeMetricsOptions) error {
 	// See https://github.com/open-telemetry/opentelemetry-proto/blob/049d4332834935792fd4dbd392ecd31904f99ba2/opentelemetry/proto/metrics/v1/metrics.proto#L66
 	//
 	// message ResourceMetrics {
@@ -136,7 +145,7 @@ func (dctx *decoderContext) decodeResourceMetrics(src []byte) error {
 		return fmt.Errorf("cannot read Resource data: %w", err)
 	}
 	if ok {
-		if err := dctx.decodeResource(resourceData); err != nil {
+		if err := dctx.decodeResource(resourceData, options.DisableResourceAttributes, options.ResourceAttributesList); err != nil {
 			return fmt.Errorf("cannot decode Resource: %w", err)
 		}
 	}
@@ -156,7 +165,7 @@ func (dctx *decoderContext) decodeResourceMetrics(src []byte) error {
 				return fmt.Errorf("cannot read ScopeMetrics data")
 			}
 
-			if err := dctx.decodeScopeMetrics(data); err != nil {
+			if err := dctx.decodeScopeMetrics(data, options.DisableScopeMetadata); err != nil {
 				return fmt.Errorf("cannot unmarshal ScopeMetrics: %w", err)
 			}
 
@@ -179,7 +188,7 @@ func (r *Resource) marshalProtobuf(mm *easyproto.MessageMarshaler) {
 	}
 }
 
-func (dctx *decoderContext) decodeResource(src []byte) (err error) {
+func (dctx *decoderContext) decodeResource(src []byte, disableResourceAttributes bool, attributeKeys map[string]struct{}) (err error) {
 	// See https://github.com/open-telemetry/opentelemetry-proto/blob/049d4332834935792fd4dbd392ecd31904f99ba2/opentelemetry/proto/resource/v1/resource.proto#L28
 	//
 	// message Resource {
@@ -198,7 +207,34 @@ func (dctx *decoderContext) decodeResource(src []byte) (err error) {
 			if !ok {
 				return fmt.Errorf("cannot read Attributes")
 			}
-			if err := decodeKeyValue(data, &dctx.ls, &dctx.fb, ""); err != nil {
+			keySuffix, ok, err := easyproto.GetString(data, 1)
+			if err != nil {
+				return fmt.Errorf("cannot find Key in KeyValue: %w", err)
+			}
+			if !ok {
+				// Key is missing, skip it.
+				// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/869#issuecomment-3631307996
+				continue
+			}
+			if _, ok := attributeKeys[keySuffix]; ok != disableResourceAttributes {
+				// Skip the attribute if:
+				// 1. it is in the list of ignore attributes when disableResourceAttributes is false,
+				// 2. it isn't in the list of promote attributes when disableResourceAttributes is true.
+				continue
+			}
+			key := dctx.fb.formatSubFieldName("", keySuffix)
+
+			// Decode value
+			value, ok, err := easyproto.GetMessageData(data, 2)
+			if err != nil {
+				return fmt.Errorf("cannot find Value in KeyValue: %w", err)
+			}
+			if !ok {
+				// Value is null, skip it.
+				continue
+			}
+
+			if err := decodeAnyValue(value, &dctx.ls, &dctx.fb, key); err != nil {
 				return fmt.Errorf("cannot unmarshal Attributes: %w", err)
 			}
 		}
@@ -256,7 +292,6 @@ func decodeKeyValue(src []byte, ls *promutil.Labels, fb *fmtBuffer, keyPrefix st
 	if err := decodeAnyValue(valueData, ls, fb, key); err != nil {
 		return fmt.Errorf("cannot decode AnyValue: %w", err)
 	}
-
 	return nil
 }
 
@@ -451,7 +486,7 @@ func (sm *ScopeMetrics) marshalProtobuf(mm *easyproto.MessageMarshaler) {
 	}
 }
 
-func (dctx *decoderContext) decodeScopeMetrics(src []byte) error {
+func (dctx *decoderContext) decodeScopeMetrics(src []byte, disableScopeMetadata bool) error {
 	// See https://github.com/open-telemetry/opentelemetry-proto/blob/049d4332834935792fd4dbd392ecd31904f99ba2/opentelemetry/proto/metrics/v1/metrics.proto#L86
 	//
 	// message ScopeMetrics {
@@ -459,19 +494,22 @@ func (dctx *decoderContext) decodeScopeMetrics(src []byte) error {
 	//   repeated Metric metrics = 2;
 	// }
 
-	scopeData, ok, err := easyproto.GetMessageData(src, 1)
-	if err != nil {
-		return fmt.Errorf("cannot read InstrumentationScope: %w", err)
-	}
-	if ok {
-		if err := dctx.decodeInstrumentationScope(scopeData); err != nil {
-			return fmt.Errorf("cannot decode InstrumentationScope: %w", err)
+	if !disableScopeMetadata {
+		scopeData, ok, err := easyproto.GetMessageData(src, 1)
+		if err != nil {
+			return fmt.Errorf("cannot read InstrumentationScope: %w", err)
+		}
+		if ok {
+			if err := dctx.decodeInstrumentationScope(scopeData); err != nil {
+				return fmt.Errorf("cannot decode InstrumentationScope: %w", err)
+			}
 		}
 	}
 
 	dctxSnapshot := dctx.getSnapshot()
 
 	var fc easyproto.FieldContext
+	var err error
 	for len(src) > 0 {
 		src, err = fc.NextField(src)
 		if err != nil {
@@ -583,8 +621,12 @@ type Metric struct {
 
 func (m *Metric) marshalProtobuf(mm *easyproto.MessageMarshaler) {
 	mm.AppendString(1, m.Name)
-	mm.AppendString(2, m.Description)
-	mm.AppendString(3, m.Unit)
+	if m.Description != "" {
+		mm.AppendString(2, m.Description)
+	}
+	if m.Unit != "" {
+		mm.AppendString(3, m.Unit)
+	}
 	switch {
 	case m.Gauge != nil:
 		m.Gauge.marshalProtobuf(mm.AppendMessage(5))
@@ -618,6 +660,8 @@ func (dctx *decoderContext) decodeMetric(src []byte) error {
 	//   }
 	//   repeated opentelemetry.proto.common.v1.KeyValue metadata = 12;
 	// }
+
+	dctx.mm.reset()
 
 	metricName, ok, err := easyproto.GetString(src, 1)
 	if err != nil {
@@ -1180,6 +1224,8 @@ func (hctx *histogramDataPointContext) pushSamples(dctx *decoderContext) {
 
 	dctx.mp.PushSample(&dctx.mm, "_count", &dctx.ls, hctx.timestamp, float64(hctx.count), hctx.flags)
 
+	// sum is optional, it will not be filled out when negative events are recorded,
+	// see https://github.com/open-telemetry/opentelemetry-proto/blob/049d4332834935792fd4dbd392ecd31904f99ba2/opentelemetry/proto/metrics/v1/metrics.proto#L465
 	if hctx.hasSum {
 		dctx.mp.PushSample(&dctx.mm, "_sum", &dctx.ls, hctx.timestamp, float64(hctx.sum), hctx.flags)
 	}
@@ -1226,6 +1272,7 @@ type ExponentialHistogramDataPoint struct {
 	Scale         int32
 	ZeroCount     uint64
 	Positive      *Buckets
+	Negative      *Buckets
 	Flags         uint32
 	Min           *float64
 	Max           *float64
@@ -1245,6 +1292,9 @@ func (dp *ExponentialHistogramDataPoint) marshalProtobuf(mm *easyproto.MessageMa
 	mm.AppendFixed64(7, dp.ZeroCount)
 	if dp.Positive != nil {
 		dp.Positive.marshalProtobuf(mm.AppendMessage(8))
+	}
+	if dp.Negative != nil {
+		dp.Negative.marshalProtobuf(mm.AppendMessage(9))
 	}
 	mm.AppendUint32(10, dp.Flags)
 	if dp.Min != nil {
@@ -1307,6 +1357,7 @@ func (dctx *decoderContext) decodeExponentialHistogramDataPoint(src []byte) (err
 			if !ok {
 				return fmt.Errorf("cannot read Sum")
 			}
+			ehctx.hasSum = true
 		case 6:
 			ehctx.scale, ok = fc.Sint32()
 			if !ok {
@@ -1325,6 +1376,14 @@ func (dctx *decoderContext) decodeExponentialHistogramDataPoint(src []byte) (err
 			if err := ehctx.positive.decodeBuckets(data); err != nil {
 				return fmt.Errorf("cannot unmarshal Positive: %w", err)
 			}
+		case 9:
+			data, ok := fc.MessageData()
+			if !ok {
+				return fmt.Errorf("cannot read Negative buckets")
+			}
+			if err := ehctx.negative.decodeBuckets(data); err != nil {
+				return fmt.Errorf("cannot unmarshal Negative: %w", err)
+			}
 		case 10:
 			ehctx.flags, ok = fc.Uint32()
 			if !ok {
@@ -1335,11 +1394,13 @@ func (dctx *decoderContext) decodeExponentialHistogramDataPoint(src []byte) (err
 			if !ok {
 				return fmt.Errorf("cannot read Min")
 			}
+			ehctx.hasMin = true
 		case 13:
 			ehctx.max, ok = fc.Double()
 			if !ok {
 				return fmt.Errorf("cannot read Max")
 			}
+			ehctx.hasMax = true
 		case 14:
 			ehctx.zeroThreshold, ok = fc.Double()
 			if !ok {
@@ -1357,12 +1418,16 @@ type exponentialHistogramDataPointContext struct {
 	timestamp     uint64
 	count         uint64
 	sum           float64
+	hasSum        bool
 	scale         int32
 	zeroCount     uint64
 	positive      buckets
+	negative      buckets
 	flags         uint32
 	min           float64
+	hasMin        bool
 	max           float64
+	hasMax        bool
 	zeroThreshold float64
 }
 
@@ -1370,12 +1435,16 @@ func (ehctx *exponentialHistogramDataPointContext) reset() {
 	ehctx.timestamp = 0
 	ehctx.count = 0
 	ehctx.sum = 0
+	ehctx.hasSum = false
 	ehctx.scale = 0
 	ehctx.zeroCount = 0
 	ehctx.positive.reset()
+	ehctx.negative.reset()
 	ehctx.flags = 0
 	ehctx.min = 0
+	ehctx.hasMin = false
 	ehctx.max = 0
+	ehctx.hasMax = false
 	ehctx.zeroThreshold = 0
 }
 
@@ -1391,27 +1460,44 @@ func (b *buckets) reset() {
 
 func (ehctx *exponentialHistogramDataPointContext) pushSamples(dctx *decoderContext) {
 	dctx.mp.PushSample(&dctx.mm, "_count", &dctx.ls, ehctx.timestamp, float64(ehctx.count), ehctx.flags)
-	dctx.mp.PushSample(&dctx.mm, "_sum", &dctx.ls, ehctx.timestamp, float64(ehctx.sum), ehctx.flags)
+	// sum is optional, it will not be filled out when negative events are recorded,
+	// see https://github.com/open-telemetry/opentelemetry-proto/blob/049d4332834935792fd4dbd392ecd31904f99ba2/opentelemetry/proto/metrics/v1/metrics.proto#L550
+	if ehctx.hasSum {
+		dctx.mp.PushSample(&dctx.mm, "_sum", &dctx.ls, ehctx.timestamp, float64(ehctx.sum), ehctx.flags)
+	}
 
 	dctx.ls.Add("vmrange", "")
 	vmrangeValueP := &dctx.ls.Labels[len(dctx.ls.Labels)-1].Value
 
 	if ehctx.zeroCount > 0 {
-		*vmrangeValueP = dctx.fb.formatVmrange(0.0, ehctx.zeroThreshold)
+		// ZeroThreshold is optionally set to convey the width of the zero region.
+		// When ZeroThreshold is set, all observations within the closed interval [-ZeroThreshold, +ZeroThreshold] go to the zero bucket rather than a regular bucket.
+		*vmrangeValueP = dctx.fb.formatVmrange(-ehctx.zeroThreshold, ehctx.zeroThreshold)
 		dctx.mp.PushSample(&dctx.mm, "_bucket", &dctx.ls, ehctx.timestamp, float64(ehctx.zeroCount), ehctx.flags)
 	}
 
 	ratio := math.Pow(2, -float64(ehctx.scale))
 	base := math.Pow(2, ratio)
-	bound := math.Pow(2, float64(ehctx.positive.offset)*ratio)
+	positiveBound := math.Pow(2, float64(ehctx.positive.offset)*ratio)
 	for i, count := range ehctx.positive.bucketCounts {
 		if count <= 0 {
 			continue
 		}
 
-		lowerBound := bound * math.Pow(base, float64(i))
+		lowerBound := positiveBound * math.Pow(base, float64(i))
 		upperBound := lowerBound * base
 		*vmrangeValueP = dctx.fb.formatVmrange(lowerBound, upperBound)
+		dctx.mp.PushSample(&dctx.mm, "_bucket", &dctx.ls, ehctx.timestamp, float64(count), ehctx.flags)
+	}
+	negativeBound := math.Pow(2, float64(ehctx.negative.offset)*ratio)
+	for i, count := range ehctx.negative.bucketCounts {
+		if count <= 0 {
+			continue
+		}
+
+		lowerBound := negativeBound * math.Pow(base, float64(i))
+		upperBound := lowerBound * base
+		*vmrangeValueP = dctx.fb.formatVmrange(-upperBound, -lowerBound)
 		dctx.mp.PushSample(&dctx.mm, "_bucket", &dctx.ls, ehctx.timestamp, float64(count), ehctx.flags)
 	}
 }

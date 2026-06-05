@@ -11,7 +11,7 @@ import (
 func TestGetPutConcurrent(t *testing.T) {
 	const concurrency = 10
 	doneCh := make(chan struct{}, concurrency)
-	for i := 0; i < concurrency; i++ {
+	for range concurrency {
 		go func() {
 			for capacity := -1; capacity < 100; capacity++ {
 				bb := Get(capacity)
@@ -28,7 +28,7 @@ func TestGetPutConcurrent(t *testing.T) {
 		}()
 	}
 	tc := time.After(10 * time.Second)
-	for i := 0; i < concurrency; i++ {
+	for range concurrency {
 		select {
 		case <-tc:
 			t.Fatalf("timeout")

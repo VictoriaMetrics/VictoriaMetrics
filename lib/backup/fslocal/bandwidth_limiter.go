@@ -117,10 +117,7 @@ func (bl *bandwidthLimiter) GetQuota(n int) int {
 	for bl.quota <= 0 {
 		c.Wait()
 	}
-	quota := bl.quota
-	if quota > n {
-		quota = n
-	}
+	quota := min(bl.quota, n)
 	bl.quota -= quota
 	if bl.quota > 0 {
 		c.Signal()

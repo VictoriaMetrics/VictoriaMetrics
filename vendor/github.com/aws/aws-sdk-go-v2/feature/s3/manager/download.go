@@ -45,6 +45,8 @@ func (e *errReadingBody) Unwrap() error {
 // The Downloader structure that calls Download(). It is safe to call Download()
 // on this structure for multiple objects and across concurrent goroutines.
 // Mutating the Downloader's properties is not safe to be done concurrently.
+//
+// Deprecated: superceded by feature/s3/transfermanager. See https://github.com/aws/aws-sdk-go-v2/discussions/3306
 type Downloader struct {
 	// The size (in bytes) to request from S3 for each part.
 	// The minimum allowed part size is 5MB, and  if this value is set to zero,
@@ -125,6 +127,8 @@ func WithDownloaderClientOptions(opts ...func(*s3.Options)) func(*Downloader) {
 //	downloader := manager.NewDownloader(client, func(d *manager.Downloader) {
 //		d.PartSize = 64 * 1024 * 1024 // 64MB per part
 //	})
+//
+// Deprecated: superceded by feature/s3/transfermanager. See https://github.com/aws/aws-sdk-go-v2/discussions/3306
 func NewDownloader(c DownloadAPIClient, options ...func(*Downloader)) *Downloader {
 	d := &Downloader{
 		S3:                 c,
@@ -181,6 +185,8 @@ func NewDownloader(c DownloadAPIClient, options ...func(*Downloader)) *Downloade
 // If the GetObjectInput's Range value is provided that will cause the downloader
 // to perform a single GetObjectInput request for that object's range. This will
 // caused the part size, and concurrency configurations to be ignored.
+//
+// Deprecated: superceded by feature/s3/transfermanager. See https://github.com/aws/aws-sdk-go-v2/discussions/3306
 func (d Downloader) Download(ctx context.Context, w io.WriterAt, input *s3.GetObjectInput, options ...func(*Downloader)) (n int64, err error) {
 	if err := validateSupportedARNType(aws.ToString(input.Bucket)); err != nil {
 		return 0, err

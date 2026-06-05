@@ -20,7 +20,7 @@ func testFilter(t *testing.T, maxItems int) {
 
 	// Populate f with maxItems
 	collisions := 0
-	for i := 0; i < maxItems; i++ {
+	for i := range maxItems {
 		h := r.Uint64()
 		items[h] = struct{}{}
 		if !f.Add(h) {
@@ -64,7 +64,7 @@ func testFilter(t *testing.T, maxItems int) {
 
 	// Check filter reset
 	f.Reset()
-	for i := 0; i < maxItems; i++ {
+	for range maxItems {
 		h := r.Uint64()
 		if f.Has(h) {
 			t.Fatalf("unexpected item found in empty filter: %d", h)
@@ -77,10 +77,10 @@ func TestFilterConcurrent(t *testing.T) {
 	maxItems := 10000
 	doneCh := make(chan struct{}, concurrency)
 	f := newFilter(maxItems)
-	for i := 0; i < concurrency; i++ {
+	for i := range concurrency {
 		go func(randSeed int) {
 			r := rand.New(rand.NewSource(int64(randSeed)))
-			for i := 0; i < maxItems; i++ {
+			for range maxItems {
 				h := r.Uint64()
 				f.Add(h)
 				if !f.Has(h) {
@@ -91,7 +91,7 @@ func TestFilterConcurrent(t *testing.T) {
 		}(i)
 	}
 	tC := time.After(time.Second * 5)
-	for i := 0; i < concurrency; i++ {
+	for range concurrency {
 		select {
 		case <-doneCh:
 		case <-tC:

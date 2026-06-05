@@ -40,6 +40,10 @@ func (pp *pipePackJSON) canReturnLastNResults() bool {
 	return pp.resultField != "_time"
 }
 
+func (pp *pipePackJSON) isFixedOutputFieldsOrder() bool {
+	return false
+}
+
 func (pp *pipePackJSON) updateNeededFields(pf *prefixfilter.Filter) {
 	updateNeededFieldsForPipePack(pf, pp.resultField, pp.fieldFilters)
 }
@@ -48,7 +52,7 @@ func (pp *pipePackJSON) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pp *pipePackJSON) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
+func (pp *pipePackJSON) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pp, nil
 }
 

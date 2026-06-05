@@ -1,5 +1,5 @@
-export const getGroupsUrl = (server: string): string => {
-  return `${server}/vmalert/api/v1/rules?datasource_type=prometheus`;
+export const getGroupsUrl = (server: string, search: string, type: string, states: string[], maxGroups: number): string => {
+  return `${server}/vmalert/api/v1/rules?datasource_type=prometheus&search=${encodeURIComponent(search)}&type=${encodeURIComponent(type)}&state=${states.map(encodeURIComponent).join(",")}&group_limit=${maxGroups}&extended_states=true`;
 };
 
 export const getItemUrl = (

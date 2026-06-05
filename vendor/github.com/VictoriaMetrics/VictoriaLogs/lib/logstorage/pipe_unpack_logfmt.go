@@ -63,6 +63,10 @@ func (pu *pipeUnpackLogfmt) canReturnLastNResults() bool {
 	return true
 }
 
+func (pu *pipeUnpackLogfmt) isFixedOutputFieldsOrder() bool {
+	return false
+}
+
 func (pu *pipeUnpackLogfmt) updateNeededFields(pf *prefixfilter.Filter) {
 	updateNeededFieldsForUnpackPipe(pu.fromField, pu.resultPrefix, pu.fieldFilters, pu.keepOriginalFields, pu.skipEmptyResults, pu.iff, pf)
 }
@@ -71,8 +75,8 @@ func (pu *pipeUnpackLogfmt) hasFilterInWithQuery() bool {
 	return pu.iff.hasFilterInWithQuery()
 }
 
-func (pu *pipeUnpackLogfmt) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc, keepSubquery bool) (pipe, error) {
-	iffNew, err := pu.iff.initFilterInValues(cache, getFieldValuesFunc, keepSubquery)
+func (pu *pipeUnpackLogfmt) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+	iffNew, err := pu.iff.initFilterInValues(cache, getFieldValuesFunc)
 	if err != nil {
 		return nil, err
 	}

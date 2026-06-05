@@ -11,6 +11,7 @@ export interface SeriesItem extends Series {
     statsFormatted: SeriesItemStatsFormatted;
     median: number;
     hasAlias?: boolean;
+    nullTimestamps?: number[];
 }
 
 export interface HideSeriesArgs {

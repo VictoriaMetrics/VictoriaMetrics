@@ -87,6 +87,7 @@ func (m *Metric) DelLabel(key string) {
 	for i, l := range m.Labels {
 		if l.Name == key {
 			m.Labels = append(m.Labels[:i], m.Labels[i+1:]...)
+			break
 		}
 	}
 }
@@ -134,7 +135,7 @@ func (ls Labels) String() string {
 func LabelCompare(a, b Labels) int {
 	l := min(len(b), len(a))
 
-	for i := 0; i < l; i++ {
+	for i := range l {
 		if a[i].Name != b[i].Name {
 			if a[i].Name < b[i].Name {
 				return -1

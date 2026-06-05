@@ -9,6 +9,7 @@ import (
 	"github.com/klauspost/compress/zlib"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/chunkedbuffer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/snappy"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
@@ -25,7 +26,7 @@ import (
 // Later we could consider to make this limit configurable
 const maxSnappyBlockSize = 56_000_000
 
-// ReadUncompressedData reads uncompressed data from r using the given encoding and then passes it to the callback.
+// ReadUncompressedData reads uncompressed data from r using the given contentType and then passes it to the callback.
 //
 // The maxDataSize limits the maximum data size, which can be read from r.
 //
@@ -75,7 +76,7 @@ func readUncompressedData(r io.Reader, maxDataSize *flagutil.Bytes, decompress f
 	return readFull(r, maxDataSize, func(data []byte) error {
 		dbb := decompressedBufPool.Get()
 		defer func() {
-			if cap(dbb.B) > 64*1024 && cap(dbb.B) > 4*len(dbb.B) {
+			if cap(dbb.B) > 1024*1024 && cap(dbb.B) > 4*len(dbb.B) {
 				// Do not store too big dbb to the pool if only a small part of the buffer is used last time.
 				// This should reduce memory waste.
 				return
@@ -100,9 +101,24 @@ func readFull(r io.Reader, maxDataSize *flagutil.Bytes, callback func(data []byt
 	lr := ioutil.GetLimitedReader(r, maxDataSize.N+1)
 	defer ioutil.PutLimitedReader(lr)
 
+	// Use chunkedbuffer for reading the data from potentially slow lr.
+	// This should reduce memory fragmentation and memory usage when reading large amounts of data from slow lr.
+	cb := chunkedbuffer.Get()
+
+	if _, err := cb.ReadFrom(lr); err != nil {
+		chunkedbuffer.Put(cb)
+		return err
+	}
+
+	if int64(cb.Len()) > maxDataSize.N {
+		return fmt.Errorf("too big data size exceeding -%s=%d bytes", maxDataSize.Name, maxDataSize.N)
+	}
+
+	// The data is read to cb.
+	// Copy it to contiguous bb.B and pass to callback for CPU-bound processing.
 	bb := fullReaderBufPool.Get()
 	defer func() {
-		if cap(bb.B) > 64*1024 && cap(bb.B) > 4*len(bb.B) {
+		if cap(bb.B) > 1024*1024 && cap(bb.B) > 4*len(bb.B) {
 			// Do not store too big bb to the pool if only a small part of the buffer is used last time.
 			// This should reduce memory waste.
 			return
@@ -110,13 +126,8 @@ func readFull(r io.Reader, maxDataSize *flagutil.Bytes, callback func(data []byt
 		fullReaderBufPool.Put(bb)
 	}()
 
-	if _, err := bb.ReadFrom(lr); err != nil {
-		return err
-	}
-
-	if int64(len(bb.B)) > maxDataSize.N {
-		return fmt.Errorf("too big data size exceeding -%s=%d bytes", maxDataSize.Name, maxDataSize.N)
-	}
+	cb.MustWriteTo(bb)
+	chunkedbuffer.Put(cb)
 
 	return callback(bb.B)
 }
@@ -241,14 +252,21 @@ func (sr *snappyReader) Reset(r io.Reader) error {
 	// Read the whole data in one go, since it is expected that Snappy data
 	// is compressed in block mode instead of stream mode.
 	// See https://pkg.go.dev/github.com/golang/snappy
+
+	lr := ioutil.GetLimitedReader(r, maxSnappyBlockSize+1)
+	defer ioutil.PutLimitedReader(lr)
+
 	cbb := compressedBufPool.Get()
-	_, err := cbb.ReadFrom(r)
+	defer compressedBufPool.Put(cbb)
+
+	_, err := cbb.ReadFrom(lr)
 	if err != nil {
-		compressedBufPool.Put(cbb)
 		return fmt.Errorf("cannot read snappy-encoded data block: %w", err)
 	}
+	if len(cbb.B) > maxSnappyBlockSize {
+		return fmt.Errorf("cannot read snappy-encoded data block because its' size exceeds %d bytes", maxSnappyBlockSize)
+	}
 	sr.b, err = snappy.Decode(sr.b, cbb.B, maxSnappyBlockSize)
-	compressedBufPool.Put(cbb)
 	sr.offset = 0
 	if err != nil {
 		return fmt.Errorf("cannot decode snappy-encoded data block: %w", err)

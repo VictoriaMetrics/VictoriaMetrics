@@ -115,16 +115,20 @@ const DownsamplingFilters: FC = () => {
         </div>
         <div className="vm-downsampling-filters-body-top">
           <a
-            className="vm-link vm-link_with-icon"
             target="_blank"
             href="https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#downsampling"
             rel="help noreferrer"
           >
-            <WikiIcon/>
-            Documentation
+            <Button
+              variant="text"
+              color="gray"
+              startIcon={<WikiIcon/>}
+            >
+              Documentation
+            </Button>
           </a>
           <Button
-            variant="text"
+            variant="outlined"
             onClick={handleRunExample}
           >
             Try example
@@ -134,7 +138,7 @@ const DownsamplingFilters: FC = () => {
             onClick={handleApplyFilters}
             startIcon={<PlayIcon/>}
           >
-            Apply
+            Preview
           </Button>
         </div>
       </div>

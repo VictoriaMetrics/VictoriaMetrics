@@ -27,6 +27,10 @@ func (ps *pipeQueryStatsLocal) canReturnLastNResults() bool {
 	return false
 }
 
+func (ps *pipeQueryStatsLocal) isFixedOutputFieldsOrder() bool {
+	return true
+}
+
 func (ps *pipeQueryStatsLocal) updateNeededFields(_ *prefixfilter.Filter) {
 	// Nothing to do
 }
@@ -35,7 +39,7 @@ func (ps *pipeQueryStatsLocal) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (ps *pipeQueryStatsLocal) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
+func (ps *pipeQueryStatsLocal) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return ps, nil
 }
 

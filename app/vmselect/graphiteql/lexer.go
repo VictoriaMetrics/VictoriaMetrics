@@ -280,7 +280,7 @@ func isMetricExprChar(ch byte) bool {
 }
 
 func appendEscapedIdent(dst []byte, s string) []byte {
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		ch := s[i]
 		if isIdentChar(ch) || isMetricExprChar(ch) {
 			if i == 0 && !isFirstIdentChar(ch) {

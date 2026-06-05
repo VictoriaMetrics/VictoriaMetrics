@@ -9,7 +9,7 @@ sitemap:
 <!-- The file should not be updated manually. Run make docs-update-flags while preparing a new release to sync flags in docs from actual binaries. -->
 ```shellhelp
 
-vmauth authenticates and authorizes incoming requests and proxies them to VictoriaMetrics.
+vmauth authenticates and authorizes incoming requests and proxies them to VictoriaMetrics components or any other HTTP backends.
 
 See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
 
@@ -132,10 +132,10 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
   -maxQueueDuration duration
      The maximum duration to wait before rejecting incoming requests if concurrency limit specified via -maxConcurrentRequests or -maxConcurrentPerUserRequests command-line flags is reached. Requests are rejected with '429 Too Many Requests' http status code if the limit is still reached after the -maxQueueDuration duration. This allows graceful handling of short spikes in concurrent requests. See https://docs.victoriametrics.com/victoriametrics/vmauth/#concurrency-limiting (default 10s)
   -maxRequestBodySizeToRetry size
-     The maximum request body size to buffer in memory for potential retries at other backends. Request bodies larger than this size cannot be retried if the backend fails. Zero or negative value disables request body buffering and retries. See also -requestBufferSize
+     The maximum request body size to buffer in memory for potential retries at other backends. Request bodies larger than this size cannot be retried if the backend fails. Zero or negative value disables retries. See also -requestBufferSize
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 16384)
   -memory.allowedBytes size
-     Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache resulting in higher disk IO usage
+     Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache resulting in higher disk IO usage. The process may behave unexpectedly if this flag is set too small (e.g., 1 byte).
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -memory.allowedPercent float
      Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache which will result in higher disk IO usage (default 60)
@@ -176,7 +176,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
   -removeXFFHTTPHeaderValue
      Whether to remove the X-Forwarded-For HTTP header value from client requests before forwarding them to the backend. Recommended when vmauth is exposed to the internet.
   -requestBufferSize size
-     The size of the buffer for reading the request body before proxying the request to backends. This allows reducing the comsumption of backend resources when processing requests from clients connected via slow networks. Set to 0 to disable request buffering. See https://docs.victoriametrics.com/victoriametrics/vmauth/#request-body-buffering
+     The size of the buffer for reading the request body before proxying the request to backends. This allows reducing the consumption of backend resources when processing requests from clients connected via slow networks. Set to 0 to disable request buffering. See https://docs.victoriametrics.com/victoriametrics/vmauth/#request-body-buffering
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 32768)
   -responseTimeout duration
      The timeout for receiving a response from backend (default 5m0s)

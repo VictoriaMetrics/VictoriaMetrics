@@ -3,6 +3,7 @@ package storage
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"math/rand"
 	"reflect"
 	"regexp"
@@ -17,11 +18,11 @@ import (
 
 func TestSearchQueryMarshalUnmarshal(t *testing.T) {
 	rnd := rand.New(rand.NewSource(0))
-	typ := reflect.TypeOf(&SearchQuery{})
+	typ := reflect.TypeFor[*SearchQuery]()
 	var buf []byte
 	var sq2 SearchQuery
 
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		v, ok := quick.Value(typ, rnd)
 		if !ok {
 			t.Fatalf("cannot create random SearchQuery via testing/quick.Value")
@@ -92,8 +93,8 @@ func TestSearch(t *testing.T) {
 	startTimestamp := timestampFromTime(time.Now())
 	startTimestamp -= startTimestamp % (1e3 * 60 * 30)
 	blockRowsCount := 0
-	for i := 0; i < rowsCount; i++ {
-		mn.MetricGroup = []byte(fmt.Sprintf("metric_%d", i%metricGroupsCount))
+	for i := range int(rowsCount) {
+		mn.MetricGroup = fmt.Appendf(nil, "metric_%d", i%metricGroupsCount)
 
 		mr := &mrs[i]
 		mr.MetricNameRaw = mn.marshalRaw(nil)
@@ -124,13 +125,13 @@ func TestSearch(t *testing.T) {
 
 	t.Run("concurrent", func(t *testing.T) {
 		ch := make(chan error, 3)
-		for i := 0; i < cap(ch); i++ {
+		for range cap(ch) {
 			go func() {
 				ch <- testSearchInternal(st, tr, mrs)
 			}()
 		}
 		var firstError error
-		for i := 0; i < cap(ch); i++ {
+		for range cap(ch) {
 			select {
 			case err := <-ch:
 				if err != nil && firstError == nil {
@@ -164,7 +165,9 @@ func TestSearch_VariousTimeRanges(t *testing.T) {
 			mrs[i].Value = float64(i)
 		}
 
-		s := MustOpenStorage(t.Name(), OpenOptions{})
+		s := MustOpenStorage(t.Name(), OpenOptions{
+			FutureRetention: time.Duration(math.MaxInt64),
+		})
 		defer s.MustClose()
 		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
@@ -178,7 +181,7 @@ func TestSearch_VariousTimeRanges(t *testing.T) {
 }
 
 func testSearchInternal(s *Storage, tr TimeRange, mrs []MetricRow) error {
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		// Prepare TagFilters for search.
 		tfs := NewTagFilters()
 		metricGroupRe := fmt.Sprintf(`metric_\d*%d%d`, i, i)
@@ -225,6 +228,7 @@ func testAssertSearchResult(st *Storage, tr TimeRange, tfs *TagFilters, want []M
 
 	var s Search
 	s.Init(nil, st, []*TagFilters{tfs}, tr, 1e5, noDeadline)
+	defer s.MustClose()
 	var mbs []metricBlock
 	for s.NextMetricBlock() {
 		var b Block
@@ -238,7 +242,6 @@ func testAssertSearchResult(st *Storage, tr TimeRange, tfs *TagFilters, want []M
 	if err := s.Error(); err != nil {
 		return fmt.Errorf("search error: %w", err)
 	}
-	s.MustClose()
 
 	var got []MetricRow
 	var mn MetricName

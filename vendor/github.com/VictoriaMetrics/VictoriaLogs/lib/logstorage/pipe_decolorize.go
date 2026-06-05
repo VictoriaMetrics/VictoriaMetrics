@@ -35,6 +35,10 @@ func (pd *pipeDecolorize) canReturnLastNResults() bool {
 	return true
 }
 
+func (pd *pipeDecolorize) isFixedOutputFieldsOrder() bool {
+	return false
+}
+
 func (pd *pipeDecolorize) updateNeededFields(_ *prefixfilter.Filter) {
 	// nothing to do
 }
@@ -43,7 +47,7 @@ func (pd *pipeDecolorize) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pd *pipeDecolorize) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
+func (pd *pipeDecolorize) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pd, nil
 }
 

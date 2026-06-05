@@ -159,7 +159,9 @@ func (c *client) ReadData(dst *chunkedbuffer.Buffer) (bool, error) {
 
 	if resp.StatusCode != http.StatusOK {
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_scrapes_total{status_code="%d"}`, resp.StatusCode)).Inc()
-		respBody, err := io.ReadAll(resp.Body)
+		lr := ioutil.GetLimitedReader(resp.Body, c.maxScrapeSize+1)
+		respBody, err := io.ReadAll(lr)
+		ioutil.PutLimitedReader(lr)
 		if err != nil {
 			respBody = []byte(err.Error())
 		}
@@ -177,6 +179,12 @@ func (c *client) ReadData(dst *chunkedbuffer.Buffer) (bool, error) {
 			scrapesTimedout.Inc()
 		}
 		return false, fmt.Errorf("cannot read data from %s: %w", c.scrapeURL, err)
+	}
+	if int64(dst.Len()) > c.maxScrapeSize {
+		maxScrapeSizeExceeded.Inc()
+		return false, fmt.Errorf("the response from %q exceeds -promscrape.maxScrapeSize or max_scrape_size in the scrape config (%d bytes). "+
+			"Possible solutions are: reduce the response size for the target, increase -promscrape.maxScrapeSize command-line flag, "+
+			"increase max_scrape_size value in scrape config for the given target", c.scrapeURL, c.maxScrapeSize)
 	}
 
 	isGzipped := resp.Header.Get("Content-Encoding") == "gzip"

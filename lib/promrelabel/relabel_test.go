@@ -12,7 +12,7 @@ import (
 func TestSanitizeMetricName(t *testing.T) {
 	f := func(s, resultExpected string) {
 		t.Helper()
-		for i := 0; i < 5; i++ {
+		for i := range 5 {
 			result := SanitizeMetricName(s)
 			if result != resultExpected {
 				t.Fatalf("unexpected result for SanitizeMetricName(%q) at iteration %d; got %q; want %q", s, i, result, resultExpected)
@@ -28,7 +28,7 @@ func TestSanitizeMetricName(t *testing.T) {
 func TestSanitizeLabelName(t *testing.T) {
 	f := func(s, resultExpected string) {
 		t.Helper()
-		for i := 0; i < 5; i++ {
+		for i := range 5 {
 			result := SanitizeLabelName(s)
 			if result != resultExpected {
 				t.Fatalf("unexpected result for SanitizeLabelName(%q) at iteration %d; got %q; want %q", s, i, result, resultExpected)

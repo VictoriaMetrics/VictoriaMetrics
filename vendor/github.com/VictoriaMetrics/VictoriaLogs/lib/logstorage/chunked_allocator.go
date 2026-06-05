@@ -12,11 +12,14 @@ import (
 //
 // chunkedAllocator cannot be used from concurrently running goroutines.
 type chunkedAllocator struct {
+	anyProcessors              []statsAnyProcessor
 	avgProcessors              []statsAvgProcessor
 	countProcessors            []statsCountProcessor
 	countEmptyProcessors       []statsCountEmptyProcessor
 	countUniqProcessors        []statsCountUniqProcessor
 	countUniqHashProcessors    []statsCountUniqHashProcessor
+	fieldMaxProcessors         []statsFieldMaxProcessor
+	fieldMinProcessors         []statsFieldMinProcessor
 	histogramProcessors        []statsHistogramProcessor
 	jsonValuesProcessors       []statsJSONValuesProcessor
 	jsonValuesSortedProcessors []statsJSONValuesSortedProcessor
@@ -31,6 +34,7 @@ type chunkedAllocator struct {
 	rowMaxProcessors           []statsRowMaxProcessor
 	rowMinProcessors           []statsRowMinProcessor
 	sumProcessors              []statsSumProcessor
+	stddevProcessors           []statsStddevProcessor
 	sumLenProcessors           []statsSumLenProcessor
 	uniqValuesProcessors       []statsUniqValuesProcessor
 	valuesProcessors           []statsValuesProcessor
@@ -52,6 +56,10 @@ type chunkedAllocator struct {
 	bytesAllocated int
 }
 
+func (a *chunkedAllocator) newStatsAnyProcessor() (p *statsAnyProcessor) {
+	return addNewItem(&a.anyProcessors, a)
+}
+
 func (a *chunkedAllocator) newStatsAvgProcessor() (p *statsAvgProcessor) {
 	return addNewItem(&a.avgProcessors, a)
 }
@@ -70,6 +78,14 @@ func (a *chunkedAllocator) newStatsCountUniqProcessor() (p *statsCountUniqProces
 
 func (a *chunkedAllocator) newStatsCountUniqHashProcessor() (p *statsCountUniqHashProcessor) {
 	return addNewItem(&a.countUniqHashProcessors, a)
+}
+
+func (a *chunkedAllocator) newStatsFieldMaxProcessor() (p *statsFieldMaxProcessor) {
+	return addNewItem(&a.fieldMaxProcessors, a)
+}
+
+func (a *chunkedAllocator) newStatsFieldMinProcessor() (p *statsFieldMinProcessor) {
+	return addNewItem(&a.fieldMinProcessors, a)
 }
 
 func (a *chunkedAllocator) newStatsHistogramProcessor() (p *statsHistogramProcessor) {
@@ -122,6 +138,10 @@ func (a *chunkedAllocator) newStatsRowMaxProcessor() (p *statsRowMaxProcessor) {
 
 func (a *chunkedAllocator) newStatsRowMinProcessor() (p *statsRowMinProcessor) {
 	return addNewItem(&a.rowMinProcessors, a)
+}
+
+func (a *chunkedAllocator) newStatsStddevProcessor() (p *statsStddevProcessor) {
+	return addNewItem(&a.stddevProcessors, a)
 }
 
 func (a *chunkedAllocator) newStatsSumProcessor() (p *statsSumProcessor) {

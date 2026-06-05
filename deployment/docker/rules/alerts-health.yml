@@ -82,19 +82,6 @@ groups:
             Check the logs for the given target. Check also the \"location\" label at the vm_log_messages_total metric if -loggerLevel command-line flag is set to value other than INFO.
             This label contains code locations responsible for generating log messages suppressed by -loggerLevel.
 
-      - alert: TooManyTSIDMisses
-        expr: increase(vm_missing_tsids_for_metric_id_total[5m]) > 0
-        for: 15m
-        labels:
-          severity: critical
-        annotations:
-          summary: "Unexpected TSID misses for job \"{{ $labels.job }}\" ({{ $labels.instance }}) for the last 15 minutes"
-          description: |
-            Unexpected TSID misses for \"{{ $labels.job }}\" ({{ $labels.instance }}) for the last 15 minutes.
-            If this happens after unclean shutdown of VictoriaMetrics process (via \"kill -9\", OOM or power off),
-            then this is OK - the alert must go away in a few minutes after the restart.
-            Otherwise this may point to the corruption of index data.
-
       - alert: ConcurrentInsertsHitTheLimit
         expr: avg_over_time(vm_concurrent_insert_current[1m]) >= vm_concurrent_insert_capacity
         for: 15m
@@ -108,28 +95,6 @@ groups:
             In some cases for components like vmagent or vminsert the alert might trigger if there are too many clients
             making write attempts. If vmagent's or vminsert's CPU usage and network saturation are at normal level, then 
             it might be worth adjusting `-maxConcurrentInserts` cmd-line flag.
-
-      - alert: IndexDBRecordsDrop
-        expr: increase(vm_indexdb_items_dropped_total[5m]) > 0
-        labels:
-          severity: critical
-        annotations:
-          summary: "IndexDB skipped registering items during data ingestion with reason={{ $labels.reason }}."
-          description: | 
-            VictoriaMetrics could skip registering new timeseries during ingestion if they fail the validation process. 
-            For example, `reason=too_long_item` means that time series cannot exceed 64KB. Please, reduce the number 
-            of labels or label values for such series. Or enforce these limits via `-maxLabelsPerTimeseries` and 
-            `-maxLabelValueLen` command-line flags.
-
-      - alert: RowsRejectedOnIngestion
-        expr: rate(vm_rows_ignored_total[5m]) > 0
-        for: 15m
-        labels:
-          severity: warning
-        annotations:
-          summary: "Some rows are rejected on \"{{ $labels.instance }}\" on ingestion attempt"
-          description: "Ingested rows on instance \"{{ $labels.instance }}\" are rejected due to the
-            following reason: \"{{ $labels.reason }}\""
 
       - alert: TooHighQueryLoad
         expr: increase(vm_concurrent_select_limit_timeout_total[5m]) > 0
@@ -148,3 +113,14 @@ groups:
             * increase compute resources or number of replicas;
             * adjust limits `-search.maxConcurrentRequests` and `-search.maxQueueDuration`.
             See more at https://docs.victoriametrics.com/victoriametrics/troubleshooting/#slow-queries.
+
+      - alert: RowsRejectedOnIngestion
+        expr: rate(vm_rows_ignored_total[5m]) > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Some rows are rejected on \"{{ $labels.instance }}\" on ingestion attempt"
+          description: "Ingested rows on instance \"{{ $labels.instance }}\" are rejected due to the
+            following reason: \"{{ $labels.reason }}\""
+

@@ -1,6 +1,7 @@
 {% import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricnamestats"
 ) %}
 
 {% stripspace %}
@@ -34,9 +35,9 @@ TSDBStatusResponse generates response for /api/v1/status/tsdb .
 ]
 {% endfunc %}
 
-{% func tsdbStatusMetricNameEntries(a []storage.TopHeapEntry, queryStats []storage.MetricNamesStatsRecord) %}
+{% func tsdbStatusMetricNameEntries(a []storage.TopHeapEntry, queryStats []metricnamestats.StatRecord) %}
 {% code
-  queryStatsByMetricName := make(map[string]storage.MetricNamesStatsRecord,len(queryStats))
+  queryStatsByMetricName := make(map[string]metricnamestats.StatRecord,len(queryStats))
   for _, record := range queryStats{
       queryStatsByMetricName[record.MetricName] = record
     }

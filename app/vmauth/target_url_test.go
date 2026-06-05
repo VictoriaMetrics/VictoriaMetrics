@@ -174,7 +174,7 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 		},
 		RetryStatusCodes:       []int{503, 501},
 		LoadBalancingPolicy:    "first_available",
-		DropSrcPathPrefixParts: intp(2),
+		DropSrcPathPrefixParts: new(2),
 	}, "/a/b/c", "http://foo.bar/c", `bb: aaa`, `x: y`, []int{503, 501}, "first_available", 2)
 	f(&UserInfo{
 		URLPrefix: mustParseURL("http://foo.bar/federate"),
@@ -219,13 +219,13 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 				},
 				RetryStatusCodes:       []int{503, 500, 501},
 				LoadBalancingPolicy:    "first_available",
-				DropSrcPathPrefixParts: intp(1),
+				DropSrcPathPrefixParts: new(1),
 			},
 			{
 				SrcPaths:               getRegexs([]string{"/api/v1/write"}),
 				URLPrefix:              mustParseURL("http://vminsert/0/prometheus"),
 				RetryStatusCodes:       []int{},
-				DropSrcPathPrefixParts: intp(0),
+				DropSrcPathPrefixParts: new(0),
 			},
 			{
 				SrcPaths:  getRegexs([]string{"/metrics"}),
@@ -242,7 +242,7 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 			},
 		},
 		RetryStatusCodes:       []int{502},
-		DropSrcPathPrefixParts: intp(2),
+		DropSrcPathPrefixParts: new(2),
 	}
 	f(ui, "http://host42/vmsingle/api/v1/query?query=up&db=foo", "http://vmselect/0/prometheus/api/v1/query?db=foo&query=up",
 		"xx: aa\nyy: asdf", "qwe: rty", []int{503, 500, 501}, "first_available", 1)
@@ -259,7 +259,7 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 				SrcPaths:               getRegexs([]string{"/api/v1/write"}),
 				URLPrefix:              mustParseURL("http://vminsert/0/prometheus"),
 				RetryStatusCodes:       []int{},
-				DropSrcPathPrefixParts: intp(0),
+				DropSrcPathPrefixParts: new(0),
 			},
 			{
 				SrcPaths:  getRegexs([]string{"/metrics/a/b"}),
@@ -275,7 +275,7 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 			},
 		},
 		RetryStatusCodes:       []int{502},
-		DropSrcPathPrefixParts: intp(2),
+		DropSrcPathPrefixParts: new(2),
 	}
 	f(ui, "https://foo-host/api/v1/write", "http://vminsert/0/prometheus/api/v1/write", "", "", []int{}, "least_loaded", 0)
 	f(ui, "https://foo-host/metrics/a/b", "http://metrics-server/b", "", "", []int{502}, "least_loaded", 2)

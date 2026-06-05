@@ -278,7 +278,7 @@ func validateStreamReadHeaders(t *testing.T, r *http.Request) bool {
 func GenerateRemoteReadSeries(start, end, numOfSeries, numOfSamples int64) []*prompb.TimeSeries {
 	var ts []*prompb.TimeSeries
 	j := 0
-	for i := 0; i < int(numOfSeries); i++ {
+	for i := range int(numOfSeries) {
 		if i%3 == 0 {
 			j++
 		}

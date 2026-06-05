@@ -50,7 +50,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
-  "id": 2,
+  "id": 3,
   "links": [
     {
       "icon": "doc",
@@ -784,7 +784,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"}) by(job, short_version)",
+          "expr": "sum by(job, version) (label_replace(vm_app_version{job=~\"$job\", instance=~\"$instance\", short_version!=\"\"}, \"version\", \"$1\", \"short_version\", \"(.*)\") or vm_app_version{job=~\"$job\", instance=~\"$instance\", short_version=\"\"})",
           "format": "table",
           "instant": true,
           "range": false,
@@ -963,7 +963,7 @@
           "links": [
             {
               "title": "Drilldown",
-              "url": "/d/G7Z9GzMGz?viewPanel=123&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+              "url": "/d/G7Z9GzMGz?viewPanel=123&var-job=${__field.labels.job}&var-ds=$ds&${__url_time_range}"
             }
           ],
           "mappings": [],
@@ -1226,7 +1226,13 @@
               "mode": "off"
             }
           },
-          "links": [],
+          "links": [
+            {
+              "targetBlank": true,
+              "title": "Drilldown",
+              "url": "/d/G7Z9GzMGz?viewPanel=162&var-job=${__field.labels.job}&var-ds=$ds&${__url_time_range}"
+            }
+          ],
           "mappings": [],
           "min": 0,
           "thresholds": {
@@ -1736,7 +1742,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/G7Z9GzMGz?viewPanel=117&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "url": "/d/G7Z9GzMGz?viewPanel=117&var-job=${__field.labels.job}&var-ds=$ds&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -1762,7 +1768,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 698
+            "y": 141
           },
           "id": 111,
           "options": {
@@ -1851,7 +1857,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/G7Z9GzMGz?viewPanel=119&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "url": "/d/G7Z9GzMGz?viewPanel=119&var-job=${__field.labels.job}&var-ds=$ds&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -1877,7 +1883,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 698
+            "y": 141
           },
           "id": 157,
           "options": {
@@ -1989,7 +1995,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 758
+            "y": 196
           },
           "id": 155,
           "options": {
@@ -2096,7 +2102,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 758
+            "y": 196
           },
           "id": 158,
           "options": {
@@ -2219,7 +2225,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 766
+            "y": 204
           },
           "id": 156,
           "options": {
@@ -2325,7 +2331,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/G7Z9GzMGz?viewPanel=121&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "url": "/d/G7Z9GzMGz?viewPanel=121&var-job=${__field.labels.job}&var-ds=$ds&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -2363,7 +2369,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 766
+            "y": 204
           },
           "id": 81,
           "options": {
@@ -2490,7 +2496,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 774
+            "y": 212
           },
           "id": 39,
           "options": {
@@ -2596,7 +2602,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 774
+            "y": 212
           },
           "id": 159,
           "options": {
@@ -2722,7 +2728,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 782
+            "y": 220
           },
           "id": 41,
           "options": {
@@ -2842,7 +2848,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 782
+            "y": 220
           },
           "id": 7,
           "options": {
@@ -2939,7 +2945,6 @@
                   "mode": "off"
                 }
               },
-              "decimals": 0,
               "links": [],
               "mappings": [],
               "min": 0,
@@ -2964,7 +2969,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 790
+            "y": 228
           },
           "id": 135,
           "options": {
@@ -3074,7 +3079,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 790
+            "y": 228
           },
           "id": 149,
           "options": {
@@ -3180,7 +3185,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 798
+            "y": 236
           },
           "id": 154,
           "options": {
@@ -3290,7 +3295,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 798
+            "y": 236
           },
           "id": 83,
           "options": {
@@ -3379,6 +3384,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -3393,7 +3399,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -3409,7 +3416,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3116
+            "y": 142
           },
           "id": 92,
           "options": {
@@ -3431,7 +3438,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -3447,7 +3454,7 @@
               "refId": "A"
             }
           ],
-          "title": "Top 10 jobs by unique samples",
+          "title": "Top 10 jobs by newly added series",
           "type": "timeseries"
         },
         {
@@ -3455,7 +3462,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows top 10 instances by the number of new series registered by vmagent over the 5min range. These instances generate the most of the churn rate.",
+          "description": "Shows top 10 targets by the number of new series registered by vmagent over the 5min range. These instances generate the most of the churn rate.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3485,6 +3492,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -3499,7 +3507,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -3515,7 +3524,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3116
+            "y": 142
           },
           "id": 95,
           "options": {
@@ -3537,7 +3546,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -3546,14 +3555,14 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "topk(10, sum(sum_over_time(scrape_series_added[5m])) by (instance)) > 0",
+              "expr": "topk(10, sum(sum_over_time(scrape_series_added[5m])) by (job,instance)) > 0",
               "interval": "",
-              "legendFormat": "__auto",
+              "legendFormat": "{{job}}-{{instance}}",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "Top 10 instances by unique samples",
+          "title": "Top 10 targets by newly added series",
           "type": "timeseries"
         },
         {
@@ -3592,6 +3601,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -3608,7 +3618,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "transparent"
+                    "color": "transparent",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -3624,7 +3635,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3124
+            "y": 150
           },
           "id": 98,
           "options": {
@@ -3646,7 +3657,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -3701,6 +3712,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -3717,7 +3729,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "transparent"
+                    "color": "transparent",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -3733,7 +3746,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3124
+            "y": 150
           },
           "id": 99,
           "options": {
@@ -3755,7 +3768,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -3809,6 +3822,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -3825,7 +3839,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -3841,7 +3856,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3132
+            "y": 158
           },
           "id": 79,
           "options": {
@@ -3863,7 +3878,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -3917,6 +3932,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -3933,7 +3949,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -3949,7 +3966,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3132
+            "y": 158
           },
           "id": 18,
           "links": [
@@ -3978,7 +3995,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -4001,7 +4018,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows the rate of parsed datapoints from write or scrape requests.",
+          "description": "Shows the rate of data rows parsed from write requests and scraping. \nThere are two kinds of rows:\n1. Raw sample: each sample consists of a value and a timestamp, see https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples \n2. Metric metadata: refers to descriptive information about metrics. It can be disabled by setting `-enableMetadata=false`, see https://docs.victoriametrics.com/victoriametrics/vmagent/#metric-metadata.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -4031,6 +4048,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -4047,7 +4065,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -4063,7 +4082,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3140
+            "y": 166
           },
           "id": 127,
           "options": {
@@ -4083,7 +4102,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "11.5.0",
+          "pluginVersion": "12.4.3",
           "targets": [
             {
               "datasource": {
@@ -4094,12 +4113,24 @@
               "exemplar": true,
               "expr": "sum(rate(vm_protoparser_rows_read_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job, type) > 0",
               "interval": "",
-              "legendFormat": "{{ type }} ({{job}})",
+              "legendFormat": "sample: {{ type }} ({{job}})",
               "range": true,
               "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(vm_protoparser_metadata_read_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job, type) > 0",
+              "instant": false,
+              "legendFormat": "metadata: {{ type }} ({{job}})",
+              "range": true,
+              "refId": "B"
             }
           ],
-          "title": "Datapoints rate ($instance)",
+          "title": "Rows rate ($instance)",
           "type": "timeseries"
         },
         {
@@ -4169,7 +4200,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3140
+            "y": 166
           },
           "id": 50,
           "options": {
@@ -4271,7 +4302,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 3148
+            "y": 174
           },
           "id": 129,
           "options": {
@@ -4406,7 +4437,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 3148
+            "y": 174
           },
           "id": 150,
           "options": {
@@ -4509,7 +4540,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3155
+            "y": 181
           },
           "id": 151,
           "options": {
@@ -4630,7 +4661,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 3361
+            "y": 4209
           },
           "id": 48,
           "options": {
@@ -4738,7 +4769,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 3361
+            "y": 4209
           },
           "id": 76,
           "options": {
@@ -4844,7 +4875,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 3368
+            "y": 4216
           },
           "id": 132,
           "options": {
@@ -4952,7 +4983,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 3368
+            "y": 4216
           },
           "id": 133,
           "options": {
@@ -5059,7 +5090,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3375
+            "y": 4223
           },
           "id": 20,
           "options": {
@@ -5165,7 +5196,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3375
+            "y": 4223
           },
           "id": 126,
           "options": {
@@ -5270,7 +5301,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3383
+            "y": 4231
           },
           "id": 46,
           "options": {
@@ -5375,7 +5406,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3383
+            "y": 4231
           },
           "id": 148,
           "options": {
@@ -5480,7 +5511,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3391
+            "y": 4239
           },
           "id": 31,
           "options": {
@@ -5647,7 +5678,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3083
+            "y": 3931
           },
           "id": 73,
           "options": {
@@ -5703,7 +5734,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows the rate of rows ingested in vmagent via push protocols.",
+          "description": "Shows the rate of data rows ingested from write requests. There are two kinds of rows:\n1. Raw sample: each sample consists of a value and a timestamp, see https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples. \n2. Metric metadata: refers to descriptive information about metrics. It can be disabled by setting `-enableMetadata=false`, see https://docs.victoriametrics.com/victoriametrics/vmagent/#metric-metadata.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -5716,6 +5747,7 @@
                 "axisLabel": "",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
+                "barWidthFactor": 0.6,
                 "drawStyle": "line",
                 "fillOpacity": 0,
                 "gradientMode": "none",
@@ -5732,6 +5764,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -5748,7 +5781,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -5764,7 +5798,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3083
+            "y": 41
           },
           "id": 131,
           "options": {
@@ -5779,11 +5813,12 @@
               "showLegend": true
             },
             "tooltip": {
+              "hideZeros": false,
               "mode": "multi",
               "sort": "desc"
             }
           },
-          "pluginVersion": "9.2.6",
+          "pluginVersion": "12.4.3",
           "targets": [
             {
               "datasource": {
@@ -5794,12 +5829,24 @@
               "exemplar": true,
               "expr": "sum(rate(vmagent_rows_inserted_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job, type) > 0",
               "interval": "",
-              "legendFormat": "{{ type }} ({{job}})",
+              "legendFormat": "sample: {{ type }} ({{job}})",
               "range": true,
               "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(vmagent_metadata_inserted_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job, type) > 0",
+              "instant": false,
+              "legendFormat": "metadata:{{ type }} ({{job}})",
+              "range": true,
+              "refId": "B"
             }
           ],
-          "title": "Rows rate  ($instance)",
+          "title": "Rows rate ($instance)",
           "type": "timeseries"
         },
         {
@@ -5868,7 +5915,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3359
+            "y": 4207
           },
           "id": 130,
           "options": {
@@ -5985,7 +6032,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3359
+            "y": 4207
           },
           "id": 77,
           "options": {
@@ -6110,7 +6157,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3406
+            "y": 4254
           },
           "id": 146,
           "options": {
@@ -6212,7 +6259,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3406
+            "y": 4254
           },
           "id": 143,
           "options": {
@@ -6308,7 +6355,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3414
+            "y": 4262
           },
           "id": 147,
           "options": {
@@ -6411,7 +6458,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3414
+            "y": 4262
           },
           "id": 139,
           "options": {
@@ -6522,7 +6569,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3422
+            "y": 4270
           },
           "id": 142,
           "options": {
@@ -6619,7 +6666,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3422
+            "y": 4270
           },
           "id": 137,
           "options": {
@@ -6732,7 +6779,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3462
+            "y": 4310
           },
           "id": 141,
           "options": {
@@ -6862,7 +6909,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1411
+            "y": 2259
           },
           "id": 60,
           "options": {
@@ -6970,7 +7017,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1411
+            "y": 2259
           },
           "id": 66,
           "options": {
@@ -7078,7 +7125,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1419
+            "y": 2267
           },
           "id": 61,
           "options": {
@@ -7186,7 +7233,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1419
+            "y": 2267
           },
           "id": 65,
           "options": {
@@ -7293,7 +7340,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1427
+            "y": 2275
           },
           "id": 88,
           "options": {
@@ -7397,7 +7444,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1427
+            "y": 2275
           },
           "id": 84,
           "options": {
@@ -7504,7 +7551,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1435
+            "y": 2283
           },
           "id": 90,
           "options": {
@@ -7551,6 +7598,514 @@
         "x": 0,
         "y": 43
       },
+      "id": 163,
+      "panels": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Positive series show bytes written by vmagent producers into Kafka. Negative series show bytes read by vmagent consumers from Kafka. Read this together with Messages in / out: a stable byte rate with rising message rate usually means smaller Kafka payloads and higher per-message overhead. Producer Kafka metrics aggregate at job level because they do not expose the full remoteWrite URL label.\n\nDocs: <a href=\"https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#estimating-message-size-and-rate\" target=\"_blank\">estimating message size and rate</a>. Kafka read docs: <a href=\"https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#reading-metrics\" target=\"_blank\">reading metrics</a>.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": true,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "Bps"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 44
+          },
+          "id": 164,
+          "links": [
+            {
+              "title": "Docs: estimating size/rate",
+              "url": "https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#estimating-message-size-and-rate"
+            },
+            {
+              "title": "Docs: reading metrics",
+              "url": "https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#reading-metrics"
+            }
+          ],
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "12.2.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(vmagent_remotewrite_kafka_sent_bytes_total{job=~\"$job\"}[$__rate_interval])) by (job)",
+              "legendFormat": "Produced to Kafka",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "expr": "-sum(rate(vmagent_kafka_consumer_read_bytes_total{job=~\"$job\"}[$__rate_interval])) by (job)",
+              "legendFormat": "Consumed from Kafka",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "Traffic (bytes)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Positive series show Kafka messages produced by vmagent. Negative series show Kafka messages consumed by vmagent. Read this together with Traffic (bytes), because a stable byte rate with rising message rate usually means smaller Kafka messages and higher per-message overhead. Producer Kafka metrics aggregate at job level because they do not expose the full remoteWrite URL label.\n\nDocs: <a href=\"https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#estimating-message-size-and-rate\" target=\"_blank\">estimating message size and rate</a>. Kafka read docs: <a href=\"https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#reading-metrics\" target=\"_blank\">reading metrics</a>.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": true,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "ops"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 44
+          },
+          "id": 165,
+          "links": [
+            {
+              "title": "Docs: estimating size/rate",
+              "url": "https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#estimating-message-size-and-rate"
+            },
+            {
+              "title": "Docs: reading metrics",
+              "url": "https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#reading-metrics"
+            }
+          ],
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "12.2.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(vmagent_remotewrite_kafka_messages_sent_total{job=~\"$job\"}[$__rate_interval])) by (job)",
+              "legendFormat": "Produced to Kafka",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "expr": "-sum(rate(vmagent_kafka_messages_read_total{job=~\"$job\"}[$__rate_interval])) by (job)",
+              "legendFormat": "Consumed from Kafka",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "Messages in / out",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Kafka producer-side errors from vmagent remote write. This panel shows send errors and delivery errors reported by Kafka producers.\n\nKafka write docs: <a href=\"https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#writing-metrics\" target=\"_blank\">writing metrics</a>.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "ops"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 52
+          },
+          "id": 167,
+          "links": [
+            {
+              "title": "Docs: writing metrics",
+              "url": "https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#writing-metrics"
+            },
+            {
+              "title": "Docs: reading metrics",
+              "url": "https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#reading-metrics"
+            }
+          ],
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "12.2.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(vmagent_remotewrite_kafka_messages_send_errors_total{job=~\"$job\"}[$__rate_interval])) by (job)",
+              "legendFormat": "Producer send errors",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(vmagent_remotewrite_kafka_messages_delivery_errors_total{job=~\"$job\"}[$__rate_interval])) by (job)",
+              "legendFormat": "Producer delivery errors",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "Producer errors",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Kafka consumer-side errors from vmagent. This panel shows client errors and ingest errors reported while reading from Kafka and passing data further downstream.\n\nKafka read docs: <a href=\"https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#reading-metrics\" target=\"_blank\">reading metrics</a>.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "ops"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 52
+          },
+          "id": 168,
+          "links": [
+            {
+              "title": "Docs: reading metrics",
+              "url": "https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#reading-metrics"
+            }
+          ],
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "12.2.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(vmagent_kafka_client_errors_total{job=~\"$job\"}[$__rate_interval])) by (job)",
+              "legendFormat": "Consumer client errors",
+              "range": true,
+              "refId": "C"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(vmagent_kafka_ingest_errors_total{job=~\"$job\"}[$__rate_interval])) by (job)",
+              "legendFormat": "Consumer ingest errors",
+              "range": true,
+              "refId": "D"
+            }
+          ],
+          "title": "Consumer errors",
+          "type": "timeseries"
+        }
+      ],
+      "title": "Kafka (Enterprise)",
+      "type": "row"
+    },
+    {
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 60
+      },
       "id": 113,
       "panels": [
         {
@@ -7562,7 +8117,7 @@
             "h": 2,
             "w": 24,
             "x": 0,
-            "y": 70
+            "y": 918
           },
           "id": 115,
           "options": {
@@ -7644,7 +8199,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 72
+            "y": 920
           },
           "id": 119,
           "options": {
@@ -7752,7 +8307,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 72
+            "y": 920
           },
           "id": 117,
           "options": {
@@ -7862,7 +8417,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 80
+            "y": 928
           },
           "id": 125,
           "links": [
@@ -7988,7 +8543,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 80
+            "y": 928
           },
           "id": 123,
           "options": {
@@ -8122,7 +8677,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 88
+            "y": 936
           },
           "id": 121,
           "options": {
@@ -8249,7 +8804,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 88
+            "y": 936
           },
           "id": 161,
           "links": [
@@ -8294,6 +8849,124 @@
             }
           ],
           "title": "Persistent queue Full ETA ($instance)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Shows the rate of logging the messages by their level. Unexpected spike in rate is a good reason to check logs.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "bars",
+                "fillOpacity": 100,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [
+                {
+                  "targetBlank": true,
+                  "title": "Source Code",
+                  "url": "https://l2s.victoriametrics.com/?app_version=${__field.labels.app_version}&location=${__field.labels.location}"
+                }
+              ],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 1309
+          },
+          "id": 162,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Last *",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.2.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "exemplar": true,
+              "expr": "sum(rate(vm_log_messages_total{job=~\"$job\",instance=~\"$instance\", level!=\"info\"}[$__rate_interval])) by (job, instance, level, app_version, location) > 0",
+              "format": "time_series",
+              "interval": "5m",
+              "intervalFactor": 1,
+              "legendFormat": "{{instance}} - {{level}}: {{location}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Logging rate",
           "type": "timeseries"
         }
       ],

@@ -57,12 +57,16 @@ func (pe *pipeExtract) canReturnLastNResults() bool {
 	return true
 }
 
+func (pe *pipeExtract) isFixedOutputFieldsOrder() bool {
+	return false
+}
+
 func (pe *pipeExtract) hasFilterInWithQuery() bool {
 	return pe.iff.hasFilterInWithQuery()
 }
 
-func (pe *pipeExtract) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc, keepSubquery bool) (pipe, error) {
-	iffNew, err := pe.iff.initFilterInValues(cache, getFieldValuesFunc, keepSubquery)
+func (pe *pipeExtract) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+	iffNew, err := pe.iff.initFilterInValues(cache, getFieldValuesFunc)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +88,7 @@ func (pe *pipeExtract) updateNeededFields(pf *prefixfilter.Filter) {
 		}
 		if pfOrig.MatchString(step.field) {
 			needFromField = true
-			if !pe.keepOriginalFields && !pe.skipEmptyResults {
+			if shouldDenyOverwrittenField(pe.iff, pe.keepOriginalFields, pe.skipEmptyResults) {
 				pf.AddDenyFilter(step.field)
 			}
 		}

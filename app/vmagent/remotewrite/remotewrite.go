@@ -3,6 +3,7 @@ package remotewrite
 import (
 	"flag"
 	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -10,6 +11,10 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/cespare/xxhash/v2"
+
+	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
@@ -23,6 +28,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/persistentqueue"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prommetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
@@ -30,8 +36,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/streamaggr"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeserieslimits"
-	"github.com/VictoriaMetrics/metrics"
-	"github.com/cespare/xxhash/v2"
 )
 
 var (
@@ -75,15 +79,20 @@ var (
 		"writing them to remote storage. "+
 		"Examples: -remoteWrite.roundDigits=2 would round 1.236 to 1.24, while -remoteWrite.roundDigits=-1 would round 126.78 to 130. "+
 		"By default, digits rounding is disabled. Set it to 100 for disabling it for a particular remote storage. "+
-		"This option may be used for improving data compression for the stored metrics")
+		"This option may be used for improving data compression for the stored metrics. "+
+		"See also -remoteWrite.significantFigures")
 	sortLabels = flag.Bool("sortLabels", false, `Whether to sort labels for incoming samples before writing them to all the configured remote storage systems. `+
 		`This may be needed for reducing memory usage at remote storage when the order of labels in incoming samples is random. `+
 		`For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}`+
 		`Enabled sorting for labels can slow down ingestion performance a bit`)
-	maxHourlySeries = flag.Int("remoteWrite.maxHourlySeries", 0, "The maximum number of unique series vmagent can send to remote storage systems during the last hour. "+
-		"Excess series are logged and dropped. This can be useful for limiting series cardinality. See https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter")
-	maxDailySeries = flag.Int("remoteWrite.maxDailySeries", 0, "The maximum number of unique series vmagent can send to remote storage systems during the last 24 hours. "+
-		"Excess series are logged and dropped. This can be useful for limiting series churn rate. See https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter")
+	maxHourlySeries = flag.Int64("remoteWrite.maxHourlySeries", 0, "The maximum number of unique series vmagent can send to remote storage systems during the last hour. "+
+		"Excess series are logged and dropped. This can be useful for limiting series cardinality. "+
+		fmt.Sprintf("Setting this flag to '-1' sets limit to maximum possible value (%d) which is useful in order to enable series tracking without enforcing limits. ", math.MaxInt32)+
+		"See https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter")
+	maxDailySeries = flag.Int64("remoteWrite.maxDailySeries", 0, "The maximum number of unique series vmagent can send to remote storage systems during the last 24 hours. "+
+		"Excess series are logged and dropped. This can be useful for limiting series churn rate. "+
+		fmt.Sprintf("Setting this flag to '-1' sets limit to maximum possible value (%d) which is useful in order to enable series tracking without enforcing limits. ", math.MaxInt32)+
+		"See https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter")
 	maxIngestionRate = flag.Int("maxIngestionRate", 0, "The maximum number of samples vmagent can receive per second. Data ingestion is paused when the limit is exceeded. "+
 		"By default there are no limits on samples ingestion rate. See also -remoteWrite.rateLimit")
 
@@ -92,6 +101,8 @@ var (
 		"See https://docs.victoriametrics.com/victoriametrics/vmagent/#disabling-on-disk-persistence . See also -remoteWrite.dropSamplesOnOverload")
 	dropSamplesOnOverload = flag.Bool("remoteWrite.dropSamplesOnOverload", false, "Whether to drop samples when -remoteWrite.disableOnDiskQueue is set and if the samples "+
 		"cannot be pushed into the configured -remoteWrite.url systems in a timely manner. See https://docs.victoriametrics.com/victoriametrics/vmagent/#disabling-on-disk-persistence")
+	disableMetadataPerURL = flagutil.NewArrayBool("remoteWrite.disableMetadata", "Whether to disable sending metadata to the corresponding -remoteWrite.url. "+
+		"By default, metadata sending is controlled by the global -enableMetadata flag")
 )
 
 var (
@@ -141,6 +152,10 @@ func InitSecretFlags() {
 		// remoteWrite.url can contain authentication codes, so hide it at `/metrics` output.
 		flagutil.RegisterSecretFlag("remoteWrite.url")
 	}
+	// remoteWrite.proxyURL can contain authentication codes.
+	flagutil.RegisterSecretFlag("remoteWrite.proxyURL")
+	// remoteWrite.headers can contain auth headers such as Authorization and API keys.
+	flagutil.RegisterSecretFlag("remoteWrite.headers")
 }
 
 var (
@@ -157,8 +172,20 @@ func Init() {
 	if len(*remoteWriteURLs) == 0 {
 		logger.Fatalf("at least one `-remoteWrite.url` command-line flag must be set")
 	}
-	if *maxHourlySeries > 0 {
-		hourlySeriesLimiter = bloomfilter.NewLimiter(*maxHourlySeries, time.Hour)
+	if *shardByURL && len(*disableOnDiskQueue) > 1 {
+		disableOnDiskQueues := *disableOnDiskQueue
+
+		firstValue := disableOnDiskQueues[0]
+		for _, v := range disableOnDiskQueues[1:] {
+			if firstValue != v {
+				logger.Fatalf("all -remoteWrite.url targets must have the same -remoteWrite.disableOnDiskQueue setting when -remoteWrite.shardByURL is enabled; " +
+					"either enable or disable -remoteWrite.disableOnDiskQueue for all targets")
+			}
+		}
+	}
+
+	if limit := getMaxHourlySeries(); limit > 0 {
+		hourlySeriesLimiter = bloomfilter.NewLimiter(limit, time.Hour)
 		_ = metrics.NewGauge(`vmagent_hourly_series_limit_max_series`, func() float64 {
 			return float64(hourlySeriesLimiter.MaxItems())
 		})
@@ -166,8 +193,8 @@ func Init() {
 			return float64(hourlySeriesLimiter.CurrentItems())
 		})
 	}
-	if *maxDailySeries > 0 {
-		dailySeriesLimiter = bloomfilter.NewLimiter(*maxDailySeries, 24*time.Hour)
+	if limit := getMaxDailySeries(); limit > 0 {
+		dailySeriesLimiter = bloomfilter.NewLimiter(limit, 24*time.Hour)
 		_ = metrics.NewGauge(`vmagent_daily_series_limit_max_series`, func() float64 {
 			return float64(dailySeriesLimiter.MaxItems())
 		})
@@ -275,6 +302,7 @@ func initRemoteWriteCtxs(urls []string) {
 		rwctxs[i] = newRemoteWriteCtx(i, remoteWriteURL, sanitizedURL)
 		rwctxIdx[i] = i
 	}
+	fs.RegisterPathFsMetrics(*tmpDataPath)
 
 	if *shardByURL {
 		consistentHashNodes := make([]string, 0, len(urls))
@@ -388,7 +416,7 @@ func tryPush(at *auth.Token, wr *prompb.WriteRequest, forceDropSamplesOnFailure 
 
 	// Push metadata separately from time series, since it doesn't need sharding,
 	// relabeling, stream aggregation, deduplication, etc.
-	if !tryPushMetadataToRemoteStorages(rwctxs, mms, forceDropSamplesOnFailure) {
+	if !tryPushMetadataToRemoteStorages(at, rwctxs, mms, forceDropSamplesOnFailure) {
 		return false
 	}
 
@@ -488,7 +516,9 @@ func tryPush(at *auth.Token, wr *prompb.WriteRequest, forceDropSamplesOnFailure 
 //
 // calculateHealthyRwctxIdx will rely on the order of rwctx to be in ascending order.
 func getEligibleRemoteWriteCtxs(tss []prompb.TimeSeries, forceDropSamplesOnFailure bool) ([]*remoteWriteCtx, bool) {
-	if !disableOnDiskQueueAny {
+	// When -remoteWrite.shardByURL=true always use all configured remote writes to preserve stable metrics distribution across shards.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10507
+	if !disableOnDiskQueueAny || *shardByURL {
 		return rwctxsGlobal, true
 	}
 
@@ -503,12 +533,6 @@ func getEligibleRemoteWriteCtxs(tss []prompb.TimeSeries, forceDropSamplesOnFailu
 				return nil, false
 			}
 			rowsCount := getRowsCount(tss)
-			if *shardByURL {
-				// Todo: When shardByURL is enabled, the following metrics won't be 100% accurate. Because vmagent don't know
-				// which rwctx should data be pushed to yet. Let's consider the hashing algorithm fair and will distribute
-				// data to all rwctxs evenly.
-				rowsCount = rowsCount / len(rwctxsGlobal)
-			}
 			rwctx.rowsDroppedOnPushFailure.Add(rowsCount)
 		}
 	}
@@ -526,10 +550,17 @@ func pushTimeSeriesToRemoteStoragesTrackDropped(tss []prompb.TimeSeries) {
 	}
 }
 
-func tryPushMetadataToRemoteStorages(rwctxs []*remoteWriteCtx, mms []prompb.MetricMetadata, forceDropSamplesOnFailure bool) bool {
+func tryPushMetadataToRemoteStorages(at *auth.Token, rwctxs []*remoteWriteCtx, mms []prompb.MetricMetadata, forceDropSamplesOnFailure bool) bool {
 	if len(mms) == 0 {
 		// Nothing to push
 		return true
+	}
+	if at != nil {
+		for idx := range mms {
+			mm := &mms[idx]
+			mm.AccountID = at.AccountID
+			mm.ProjectID = at.ProjectID
+		}
 	}
 	// Do not shard metadata even if -remoteWrite.shardByURL is set, just replicate it among rwctxs.
 	// Since metadata is usually small and there is no guarantee that metadata can be sent to
@@ -540,6 +571,10 @@ func tryPushMetadataToRemoteStorages(rwctxs []*remoteWriteCtx, mms []prompb.Metr
 	var wg sync.WaitGroup
 	var anyPushFailed atomic.Bool
 	for _, rwctx := range rwctxs {
+		if !rwctx.enableMetadata {
+			// Skip remote storage with disabled metadata
+			continue
+		}
 		wg.Go(func() {
 			if !rwctx.tryPushMetadataInternal(mms) {
 				rwctx.pushFailures.Inc()
@@ -677,7 +712,7 @@ func shardAmountRemoteWriteCtx(tssBlock []prompb.TimeSeries, shards [][]prompb.T
 			}
 			tmpLabels.Labels = hashLabels
 		}
-		h := getLabelsHash(hashLabels)
+		h := getLabelsHashForShard(hashLabels)
 
 		// Get the rwctxIdx through consistent hashing and then map it to the index in shards.
 		// The rwctxIdx is not always equal to the shardIdx, for example, when some rwctx are not available.
@@ -768,11 +803,28 @@ var (
 	dailySeriesLimitRowsDropped  = metrics.NewCounter(`vmagent_daily_series_limit_rows_dropped_total`)
 )
 
+// getLabelsHashForShard is a separate function from getLabelsHash because
+// it omits the '=' separator between label name and value for backward compatibility.
+// Changing it would re-shard all series across remoteWrite targets.
+func getLabelsHashForShard(labels []prompb.Label) uint64 {
+	bb := labelsHashBufPool.Get()
+	b := bb.B[:0]
+	for _, label := range labels {
+		b = append(b, label.Name...)
+		b = append(b, label.Value...)
+	}
+	h := xxhash.Sum64(b)
+	bb.B = b
+	labelsHashBufPool.Put(bb)
+	return h
+}
+
 func getLabelsHash(labels []prompb.Label) uint64 {
 	bb := labelsHashBufPool.Get()
 	b := bb.B[:0]
 	for _, label := range labels {
 		b = append(b, label.Name...)
+		b = append(b, '=')
 		b = append(b, label.Value...)
 	}
 	h := xxhash.Sum64(b)
@@ -811,6 +863,11 @@ type remoteWriteCtx struct {
 	streamAggrKeepInput bool
 	streamAggrDropInput bool
 
+	// enableMetadata indicates whether metadata should be sent to this remote storage.
+	// It is determined by -remoteWrite.enableMetadata per-URL flag if set,
+	// otherwise by the global -enableMetadata flag.
+	enableMetadata bool
+
 	pss        []*pendingSeries
 	pssNextIdx atomic.Uint64
 
@@ -820,6 +877,18 @@ type remoteWriteCtx struct {
 	pushFailures                 *metrics.Counter
 	metadataDroppedOnPushFailure *metrics.Counter
 	rowsDroppedOnPushFailure     *metrics.Counter
+}
+
+// isMetadataEnabledForURL returns true if metadata should be sent to the remote storage at argIdx.
+// It checks the per-URL -remoteWrite.disableMetadata flag first.
+// If not set, it falls back to the global -enableMetadata flag.
+func isMetadataEnabledForURL(argIdx int) bool {
+	if disableMetadataPerURL.GetOptionalArg(argIdx) {
+		// Metadata is explicitly disabled for this URL
+		return false
+	}
+	// Use global -enableMetadata value
+	return prommetadata.IsEnabled()
 }
 
 func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, sanitizedURL string) *remoteWriteCtx {
@@ -892,10 +961,11 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, sanitizedURL string)
 	}
 
 	rwctx := &remoteWriteCtx{
-		idx: argIdx,
-		fq:  fq,
-		c:   c,
-		pss: pss,
+		idx:            argIdx,
+		fq:             fq,
+		c:              c,
+		pss:            pss,
+		enableMetadata: isMetadataEnabledForURL(argIdx),
 
 		rowsPushedAfterRelabel: metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_rows_pushed_after_relabel_total{path=%q,url=%q}`, queuePath, sanitizedURL)),
 		rowsDroppedByRelabel:   metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_relabel_metrics_dropped_total{path=%q,url=%q}`, queuePath, sanitizedURL)),
@@ -1080,7 +1150,7 @@ func (rwctx *remoteWriteCtx) tryPushTimeSeriesInternal(tss []prompb.TimeSeries) 
 	}()
 
 	if len(labelsGlobal) > 0 {
-		// Make a copy of tss before adding extra labels in order to prevent
+		// Make a copy of tss before adding extra labels to prevent
 		// from affecting time series for other remoteWrite.url configs.
 		rctx = getRelabelCtx()
 		v = tssPool.Get().(*[]prompb.TimeSeries)
@@ -1115,4 +1185,22 @@ func newMapFromStrings(a []string) map[string]struct{} {
 		m[s] = struct{}{}
 	}
 	return m
+}
+
+func getMaxHourlySeries() int {
+	limit := *maxHourlySeries
+	if limit == -1 || limit > math.MaxInt32 {
+		return math.MaxInt32
+	}
+
+	return int(limit)
+}
+
+func getMaxDailySeries() int {
+	limit := *maxDailySeries
+	if limit == -1 || limit > math.MaxInt32 {
+		return math.MaxInt32
+	}
+
+	return int(limit)
 }

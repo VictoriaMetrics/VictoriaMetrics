@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatValueToCSV } from "./csv";
+import { formatValueToCSV, getCSVExportColumns } from "./csv";
 
 describe("formatValueToCSV", () => {
   it("should wrap value in quotes if it contains a comma", () => {
@@ -30,5 +30,12 @@ describe("formatValueToCSV", () => {
     const value = "";
     const result = formatValueToCSV(value);
     expect(result).toBe("");
+  });
+});
+
+describe("getCSVExportColumns", () => {
+  it("should prepend metric name and append value and timestamp columns", () => {
+    const result = getCSVExportColumns(["instance", "__name__", "job", "instance"]);
+    expect(result.join(",")).toEqual("__name__,instance,job,__value__,__timestamp__:unix_ms");
   });
 });

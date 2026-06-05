@@ -7,7 +7,7 @@ import (
 )
 
 func TestTimeRangeFromPartition(t *testing.T) {
-	for i := 0; i < 24*30*365; i++ {
+	for i := range 24 * 30 * 365 {
 		testTimeRangeFromPartition(t, time.Now().Add(time.Hour*time.Duration(i)))
 	}
 }
@@ -202,4 +202,37 @@ func TestTimeRange_fromPartitionTimestamp(t *testing.T) {
 		MinTimestamp: time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		MaxTimestamp: time.Date(2025, 3, 31, 23, 59, 59, 999_000_000, time.UTC).UnixMilli(),
 	})
+}
+
+func TestIsFirstHourOfDay(t *testing.T) {
+	f := func(tt time.Time, want bool) {
+		got := isFirstHourOfDay(uint64(tt.Unix()))
+		if got != want {
+			t.Fatalf("isFirstHourOfDay(%v) unexpected result: got %t, want %t", tt, got, want)
+		}
+
+	}
+
+	firstHourOfDay := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	f(firstHourOfDay, true)
+	firstHourOfDay = time.Date(2000, 1, 1, 0, 12, 34, 56789, time.UTC)
+	f(firstHourOfDay, true)
+	firstHourOfDay = time.Date(2000, 1, 1, 0, 59, 59, 999_999_999, time.UTC)
+	f(firstHourOfDay, true)
+
+	secondHourOfDay := time.Date(2000, 1, 1, 1, 0, 0, 0, time.UTC)
+	f(secondHourOfDay, false)
+
+	sixthHourOfDay := time.Date(2000, 1, 1, 5, 0, 0, 0, time.UTC)
+	f(sixthHourOfDay, false)
+
+	lastHourOfDay := time.Date(2000, 1, 1, 23, 59, 59, 999_999_999, time.UTC)
+	f(lastHourOfDay, false)
+}
+
+func TestMaxUnixMilli(t *testing.T) {
+	lastFuturePtMaxTime := time.Date(2262, 3, 31, 23, 59, 59, 999_000_000, time.UTC)
+	if got, want := lastFuturePtMaxTime.UnixMilli(), int64(maxUnixMilli); got != want {
+		t.Fatalf("unexpected maxUnixMilli: got %d, want %d", got, want)
+	}
 }

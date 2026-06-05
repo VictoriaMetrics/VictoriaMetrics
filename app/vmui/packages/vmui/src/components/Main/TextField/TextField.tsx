@@ -27,6 +27,7 @@ interface TextFieldProps {
   endIcon?: ReactNode
   startIcon?: ReactNode
   disabled?: boolean
+  readonly?: boolean
   autofocus?: boolean
   helperText?: string
   inputmode?: "search" | "text" | "email" | "tel" | "url" | "none" | "numeric" | "decimal"
@@ -50,6 +51,7 @@ const TextField: FC<TextFieldProps> = ({
   endIcon,
   startIcon,
   disabled = false,
+  readonly = false,
   autofocus = false,
   inputmode = "text",
   caretPosition,
@@ -148,6 +150,7 @@ const TextField: FC<TextFieldProps> = ({
         <textarea
           className={inputClasses}
           disabled={disabled}
+          readOnly={readonly}
           ref={textareaRef}
           value={value}
           rows={1}
@@ -166,6 +169,7 @@ const TextField: FC<TextFieldProps> = ({
         <input
           className={inputClasses}
           disabled={disabled}
+          readOnly={readonly}
           ref={inputRef}
           value={value}
           type={type}

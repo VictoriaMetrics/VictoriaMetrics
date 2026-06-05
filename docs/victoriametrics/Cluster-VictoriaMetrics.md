@@ -15,29 +15,21 @@ aliases:
   - /Cluster-VictoriaMetrics/
 ---
 
-VictoriaMetrics is a fast, cost-effective and scalable time series database. It can be used as a long-term remote storage for Prometheus.
+VictoriaMetrics is a fast, cost-effective, and scalable solution for monitoring and managing time series data. It delivers high performance and reliability, making it an ideal choice for businesses of all sizes.
 
-It is recommended to use the [single-node version](https://github.com/VictoriaMetrics/VictoriaMetrics) instead of the cluster version
-for ingestion rates lower than a million data points per second.
-The single-node version [scales perfectly](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae)
-with the number of CPU cores, RAM and available storage space and can be set up in [High Availability](https://docs.victoriametrics.com/victoriametrics/#high-availability) mode.
-The single-node version is easier to configure and operate compared to the cluster version, so think twice before choosing the cluster version.
-See [this question](https://docs.victoriametrics.com/victoriametrics/faq/#which-victoriametrics-type-is-recommended-for-use-in-production---single-node-or-cluster) for more details.
+- **Case studies**: [Grammarly, Roblox, Wix, Spotify,...](https://docs.victoriametrics.com/victoriametrics/casestudies/).
+- **Available**: [Binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest), Docker images on [Docker Hub](https://hub.docker.com/r/victoriametrics/victoria-metrics/) and [Quay](https://quay.io/repository/victoriametrics/victoria-metrics), [Source code](https://github.com/VictoriaMetrics/VictoriaMetrics).
+- **Deployment types**: [Single-node version](https://docs.victoriametrics.com/) and [Cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) under [Apache License 2.0](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/LICENSE).
+- **Getting started:** Read [key concepts](https://docs.victoriametrics.com/victoriametrics/keyconcepts/) and follow the
+  [quick start guide](https://docs.victoriametrics.com/victoriametrics/quick-start/).
+- **Community**: [Slack](https://slack.victoriametrics.com/)(join via [Slack Inviter](https://slack.victoriametrics.com/)), [X (Twitter)](https://x.com/VictoriaMetrics), [YouTube](https://www.youtube.com/@VictoriaMetrics). See full list [here](https://docs.victoriametrics.com/victoriametrics/#community-and-contributions).
+- **Changelog**: Project evolves fast - check the [CHANGELOG](https://docs.victoriametrics.com/victoriametrics/changelog/), and [How to upgrade](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-upgrade-victoriametrics).
+- **Enterprise support:** [Contact us](mailto:info@victoriametrics.com) for commercial support with additional [enterprise features](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+- **Enterprise releases:** Enterprise and [long-term support releases (LTS)](https://docs.victoriametrics.com/victoriametrics/lts-releases/) are publicly available and can be evaluated for free
+  using a [free trial license](https://victoriametrics.com/products/enterprise/trial/).
+- **Security:** we achieved [security certifications](https://victoriametrics.com/security/) for Database Software Development and Software-Based Monitoring Services.
 
 There is also user-friendly database for logs - [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/).
-
-If you have questions about VictoriaMetrics, then feel free asking them at [VictoriaMetrics community Slack chat](https://victoriametrics.slack.com/),
-you can join it via [Slack Inviter](https://slack.victoriametrics.com/).
-
-[Contact us](mailto:info@victoriametrics.com) if you need enterprise support for VictoriaMetrics.
-See [features available in enterprise package](https://docs.victoriametrics.com/victoriametrics/enterprise/).
-Enterprise binaries can be downloaded and evaluated for free
-from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-See how to request a free [trial license](https://victoriametrics.com/products/enterprise/trial/).
-
-VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking the [CHANGELOG](https://docs.victoriametrics.com/victoriametrics/changelog/) and performing [regular upgrades](https://docs.victoriametrics.com/victoriametrics/#how-to-upgrade-victoriametrics).
-
-VictoriaMetrics has achieved security certifications for Database Software Development and Software-Based Monitoring Services. We apply strict security measures in everything we do. See our [Security page](https://victoriametrics.com/security/) for more details.
 
 ## Prominent features
 
@@ -45,6 +37,12 @@ VictoriaMetrics has achieved security certifications for Database Software Devel
 - Performance and capacity scale horizontally. See [these docs for details](#cluster-resizing-and-scalability).
 - Supports multiple independent namespaces for time series data (aka multi-tenancy). See [these docs for details](#multitenancy).
 - Supports replication. See [these docs for details](#replication-and-data-safety).
+
+> It is recommended to use the [single-node version](https://github.com/VictoriaMetrics/VictoriaMetrics) for ingestion rates
+> lower than a million data points per second. The single-node version [scales perfectly](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae)
+> with the number of CPU cores, RAM and available storage space and can be set up in [High Availability](https://docs.victoriametrics.com/victoriametrics/#high-availability) mode.
+> The single-node version is easier to configure and operate compared to the cluster version, so think twice before choosing the cluster version.
+> See [this question](https://docs.victoriametrics.com/victoriametrics/faq/#which-victoriametrics-type-is-recommended-for-use-in-production---single-node-or-cluster) for more details.
 
 ## Architecture overview
 
@@ -59,9 +57,7 @@ Each service may scale independently and may run on the most suitable hardware.
 This is a [shared nothing architecture](https://en.wikipedia.org/wiki/Shared-nothing_architecture).
 It increases cluster availability, and simplifies cluster maintenance as well as cluster scaling.
 
-![Cluster Scheme](Cluster-VictoriaMetrics_cluster-scheme.webp)
-
-> Note that `vmselect` despite being stateless still requires some disk space (a few GBs) for temporary caches. Refer to the `-cacheDataPath` command-line flag for more details.
+![Cluster Scheme](Cluster-VictoriaMetrics-components.webp)
 
 ## vmui
 
@@ -72,8 +68,8 @@ The UI allows exploring query results via graphs and tables. See more details ab
 ## Multitenancy
 
 VictoriaMetrics cluster supports multiple isolated tenants (aka namespaces).
-Tenants are identified by `accountID` or `accountID:projectID`, which are put inside request URLs for writes and reads.
-See [these docs](#url-format) for details.
+Tenants are identified by `accountID` or `accountID:projectID` inside request URLs or HTTP headers{{% available_from "v1.143.0" %}}
+for writes and reads. See [these docs](#url-format) for details.
 
 Some facts about tenants in VictoriaMetrics:
 
@@ -88,22 +84,59 @@ or [vmgateway](https://docs.victoriametrics.com/victoriametrics/vmgateway/). [Co
 - Data for all the tenants is evenly spread among available `vmstorage` nodes. This guarantees even load among `vmstorage` nodes
 when different tenants have different amounts of data and different query load.
 
-- The database performance and resource usage doesn't depend on the number of tenants. It depends mostly on the total number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series) in all the tenants. A time series is considered active if it received at least a single sample during the last hour.
+- The database performance and resource usage do not depend on the number of tenants. It depends mostly on the total number of 
+  [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series) in all the tenants. 
 
 - The list of registered tenants can be obtained via `http://<vmselect>:8481/admin/tenants` url. See [these docs](#url-format).
 
 - VictoriaMetrics exposes various per-tenant statistics via metrics - see [these docs](https://docs.victoriametrics.com/victoriametrics/pertenantstatistic/).
 
-See also [multitenancy via labels](#multitenancy-via-labels).
+See also multitenancy [via headers](#multitenancy-via-headers) and [via labels](#multitenancy-via-labels).
+
+### Multitenancy via headers
+
+By default, VictoriaMetrics allows specifying `accountID` and `projectID` only in the request URL.
+
+Set `--enableMultitenancyViaHeaders` {{% available_from "v1.143.0" %}} command-line flag to support 
+specifying `accountID` and `projectID` via HTTP headers `AccountID` and `ProjectID` respectively.
+This flag needs to be specified separately for vminserts and vmselects.
+
+When `--enableMultitenancyViaHeaders` is enabled, [URL format](#url-format) can be simplified to the following:
+- `http://<vminsert>:8480/insert/<suffix>` for writes
+- `http://<vmselect>:8481/select/prometheus/<suffix>` for reads
+
+For example, the following query will only select metric `up` from `accountID=2` and `projectID=3`:
+```
+curl 'https://<vmselect>:8481/select/prometheus/api/v1/query' \
+  -d 'query=up' \
+  --header "AccountID: 2" \
+  --header "ProjectID: 3"
+```
+
+The following example will ingest metric `up{instance="foo"}` to `accountID=2` and `projectID=0`:
+```
+curl --header "AccountID: 2" -d 'up{instance="foo"} 123' -X POST https://<vminsert>:8480/insert/prometheus/api/v1/import/prometheus
+```
+
+> When simplified path `/(insert|select)/<suffix>` is used and headers `AccountID`, `ProjectID` are missing, then IDs are set to `0:0` as default.
+> If tenant IDs are specified in URL, then headers are ignored.
+
+The `AccountID` header can be set to `multitenant` string: `AccountID: multitenant`. See more in [multitenancy via labels](#multitenancy-via-labels).
 
 ### Multitenancy via labels
 
-**Writes:**
+Multitenancy via labels allows specifying [tenants](#multitenancy) as labels `vm_account_id` and `vm_project_id` during
+ingestion or querying. This feature allows [ingesting workload with mixed tenants](#multitenant-writes) and [querying
+data from multiple tenants](#multitenant-reads) via the same URL.
 
-`vminsert` can accept data from multiple [tenants](#multitenancy) via a special `multitenant` endpoints `http://vminsert:8480/insert/multitenant/<suffix>`,
+#### Multitenant writes
+
+`vminsert` can accept data from multiple [tenants](#multitenancy) via special `multitenant` endpoints:
+ - `http://vminsert:8480/insert/multitenant/<suffix>`
+ - `http://vminsert:8480/insert/<suffix>` and HTTP header `AccountID: multitenant`. See how to enable headers [here](#multitenancy-via-headers).
 where `<suffix>` can be replaced with any supported suffix for data ingestion from [this list](#url-format).
-In this case the account ID and project ID are obtained from optional `vm_account_id` and `vm_project_id` labels of the incoming samples.
-If `vm_account_id` or `vm_project_id` labels are missing or invalid, then the corresponding account ID and project ID are set to 0.
+The `accountID` and `projectID` are obtained from optional `vm_account_id` and `vm_project_id` [labels](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#labels) of the incoming samples.
+If `vm_account_id` or `vm_project_id` labels are missing or invalid, then the corresponding `accountID` and `projectID` are set to 0.
 These labels are automatically removed from samples before forwarding them to `vmstorage`.
 For example, if the following samples are written into `http://vminsert:8480/insert/multitenant/prometheus/api/v1/write`:
 
@@ -123,11 +156,14 @@ such as [Graphite](https://docs.victoriametrics.com/victoriametrics/integrations
 [InfluxDB line protocol via TCP and UDP](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb/) and
 [OpenTSDB telnet put protocol](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb/#sending-data-via-telnet).
 
-**Reads:**
+#### Multitenant reads
 
 _For better performance prefer specifying [tenants in read URL](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format)._
 
-`vmselect` can execute {{% available_from "v1.104.0" %}} queries over multiple [tenants](#multitenancy) via special `multitenant` endpoints `http://vmselect:8481/select/multitenant/<suffix>`.
+`vmselect` can execute {{% available_from "v1.104.0" %}} queries over multiple [tenants](#multitenancy) via special `multitenant` endpoints:
+ - `http://vmselect:8481/select/multitenant/<suffix>`
+ - `http://vmselect:8481/select/<suffix>` and HTTP header `AccountID: multitenant`. See how to enable headers [here](#multitenancy-via-headers).
+
 Currently supported endpoints for `<suffix>` are:
 
 - `/prometheus/api/v1/query`
@@ -140,6 +176,7 @@ Currently supported endpoints for `<suffix>` are:
 - `/prometheus/api/v1/status/tsdb`
 - `/prometheus/api/v1/export`
 - `/prometheus/api/v1/export/csv`
+- `/prometheus/api/v1/metadata`
 - `/vmui`
 
 It is allowed to explicitly specify tenant IDs via `vm_account_id` and `vm_project_id` labels in the query.
@@ -168,13 +205,15 @@ curl 'http://vmselect:8481/select/multitenant/prometheus/api/v1/query' \
 
 The precedence for applying filters for tenants follows this order:
 
-1. Filter tenants by `extra_label` and `extra_filters` filters.
+1. Filter tenants by `extra_label`, `extra_filters` and `extra_filters[]` filters.
  These filters have the highest priority and are applied first when provided through the query arguments.
+ Filters use `OR` logic - a tenant is selected if it matches any of the filters.
 2. Filter tenants from labels selectors defined at metricsQL query expression.
 
-**Security considerations**
+> **Security considerations**
 It is recommended restricting access to `multitenant` endpoints only to trusted sources,
 since untrusted source may break per-tenant data by writing unwanted samples or get access to data of arbitrary tenants.
+See also [vmauth security doc](https://docs.victoriametrics.com/victoriametrics/vmauth/#security).
 
 ## Binaries
 
@@ -529,7 +568,7 @@ The following optional command-line flags related to mTLS are supported:
 - `-cluster.tlsCAFile` can be set at `vminsert`, `vmselect` and `vmstorage` for verifying peer certificates issued with custom [certificate authority](https://en.wikipedia.org/wiki/Certificate_authority). By default, system-wide certificate authority is used for peer certificate verification.
 - `-cluster.tlsCipherSuites` can be set to the list of supported TLS cipher suites at `vmstorage`. See [the list of supported TLS cipher suites](https://pkg.go.dev/crypto/tls#pkg-constants).
 
-When `vmselect` runs with `-clusternativeListenAddr` command-line option, then it can be configured with `-clusternative.tls*` options similar to `-cluster.tls*` for accepting `mTLS` connections from top-level `vmselect` nodes in [multi-level cluster setup](#multi-level-cluster-setup).
+When `vmselect` or `vminsert` runs with `-clusternativeListenAddr` command-line option, then it can be configured with `-clusternative.tls*` options similar to `-cluster.tls*` for accepting `mTLS` connections from top-level `vmselect` or `vminsert` nodes in [multi-level cluster setup](#multi-level-cluster-setup).
 
 See [these docs](https://gist.github.com/f41gh7/76ed8e5fb1ebb9737fe746bae9175ee6) on how to set up mTLS in VictoriaMetrics cluster.
 
@@ -559,6 +598,9 @@ See more details on [how to monitor VictoriaMetrics components](https://docs.vic
 - `-storage.maxHourlySeries` is the limit on the number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series) during the last hour.
 - `-storage.maxDailySeries` is the limit on the number of unique time series during the day. This limit can be used for limiting daily [time series churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate).
 
+It is possible to use `-1` as a value for these flags{{% available_from "v1.140.0" %}} in order to enable series tracking but set limit to maximum possible value.
+This is useful in order to estimate the number of unique series written to `vmstorage` without enforcing limits.
+
 Note that these limits are set and applied individually per each `vmstorage` node in the cluster. So, if the cluster has `N` `vmstorage` nodes, then the cluster-level limits will be `N` times bigger than the per-`vmstorage` limits.
 
 See more details about cardinality limiter in [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-limiter).
@@ -585,20 +627,20 @@ The metric is set to `0` when the `vmstorage` isn't in read-only mode.
 The main differences between URL formats of cluster and [Single server](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
 versions are that cluster has separate components for read and ingestion path, and because of multi-tenancy support.
 Also in the cluster version the `/prometheus/api/v1` endpoint ingests  `jsonl`, `csv`, `native` and `prometheus` data formats **not** only `prometheus` data.
-Check practical examples of [VictoriaMetrics API](https://docs.victoriametrics.com/victoriametrics/url-examples/).
+
+> Check practical examples of [VictoriaMetrics API](https://docs.victoriametrics.com/victoriametrics/url-examples/).
 
 - URLs for data ingestion: `http://<vminsert>:8480/insert/<accountID>/<suffix>`, where:
   - `<accountID>` is an arbitrary 32-bit integer identifying namespace for data ingestion (aka tenant). It is possible to set it as `accountID:projectID`,
-    where `projectID` is also arbitrary 32-bit integer. If `projectID` isn't set, then it equals to `0`. See [multitenancy docs](#multitenancy) for more details.
-    The `<accountID>` can be set to `multitenant` string, e.g. `http://<vminsert>:8480/insert/multitenant/<suffix>`. Such urls accept data from multiple tenants
-    specified via `vm_account_id` and `vm_project_id` labels. See [multitenancy via labels](#multitenancy-via-labels) for more details.
+    where `projectID` is also arbitrary 32-bit integer. If `projectID` isn't set, then it equals to `0`. See [multitenancy docs](#multitenancy) for more details 
+    about managing tenants, specifying tenant IDs via HTTP headers or labels.
   - `<suffix>` may have the following values:
     - `prometheus` and `prometheus/api/v1/write` - for ingesting data with [Prometheus remote write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write).
     - `prometheus/api/v1/import` - for importing data obtained via `api/v1/export` at `vmselect` (see below), JSON line format.
     - `prometheus/api/v1/import/native` - for importing data obtained via `api/v1/export/native` on `vmselect` (see below).
     - `prometheus/api/v1/import/csv` - for importing arbitrary CSV data. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-csv-data) for details.
     - `prometheus/api/v1/import/prometheus` - for importing data in [Prometheus text exposition format](https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-based-format) and in [OpenMetrics format](https://github.com/OpenObservability/OpenMetrics/blob/master/specification/OpenMetrics.md). This endpoint also supports [Pushgateway protocol](https://github.com/prometheus/pushgateway#url). See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-prometheus-exposition-format) for details.
-    - `opentelemetry/v1/metrics` - for ingesting data via [OpenTelemetry protocol for metrics](https://github.com/open-telemetry/opentelemetry-specification/blob/ffddc289462dfe0c2041e3ca42a7b1df805706de/specification/metrics/data-model.md). See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#sending-data-via-opentelemetry).
+    - `opentelemetry/v1/metrics` - for ingesting data via [OpenTelemetry protocol for metrics](https://github.com/open-telemetry/opentelemetry-specification/blob/97c826b70e2f89cfdf655d5150791f3f0c2bae19/specification/metrics/data-model.md). See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/).
     - `datadog/api/v1/series` - for ingesting data with DataDog submit metrics API v1. See [these docs](https://docs.victoriametrics.com/victoriametrics/url-examples/#datadogapiv1series) for details.
     - `datadog/api/v2/series` - for ingesting data with [DataDog submit metrics API](https://docs.datadoghq.com/api/latest/metrics/#submit-metrics). See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/datadog/) for details.
     - `datadog/api/beta/sketches` - for ingesting data with [DataDog lambda extension](https://docs.datadoghq.com/serverless/libraries_integrations/extension/).
@@ -607,7 +649,8 @@ Check practical examples of [VictoriaMetrics API](https://docs.victoriametrics.c
     - `opentsdb/api/put` - for accepting [OpenTSDB HTTP /api/put requests](http://opentsdb.net/docs/build/html/api_http/put.html). This handler is disabled by default. It is exposed on a distinct TCP address set via `-opentsdbHTTPListenAddr` command-line flag. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb/#sending-data-via-http) for details.
 
 - URLs for [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/): `http://<vmselect>:8481/select/<accountID>/prometheus/<suffix>`, where:
-  - `<accountID>` is an arbitrary number identifying data namespace for the query (aka tenant)
+  - `<accountID>` is an arbitrary number identifying data namespace for the query (aka tenant). See [multitenancy docs](#multitenancy) for more details
+    about managing tenants, specifying tenant IDs via HTTP headers or labels.
   - `<suffix>` may have the following values:
     - `api/v1/query` - performs [PromQL instant query](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query).
     - `api/v1/query_range` - performs [PromQL range query](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query).
@@ -623,10 +666,12 @@ Check practical examples of [VictoriaMetrics API](https://docs.victoriametrics.c
     - `api/v1/status/active_queries` - for currently executed active queries. Note that every `vmselect` maintains an independent list of active queries,
       which is returned in the response.
     - `api/v1/status/top_queries` - for listing the most frequently executed queries and queries taking the most duration.
+    - `api/v1/metadata` - for fetching [metrics metadata](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-metric-metadata). See [these docs](#metrics-metadata) for more details.
     - `metric-relabel-debug` - for debugging [relabeling rules](https://docs.victoriametrics.com/victoriametrics/relabeling/).
 
 - URLs for [Graphite Metrics API](https://graphite-api.readthedocs.io/en/latest/api.html#the-metrics-api): `http://<vmselect>:8481/select/<accountID>/graphite/<suffix>`, where:
-  - `<accountID>` is an arbitrary number identifying data namespace for query (aka tenant)
+  - `<accountID>` is an arbitrary number identifying data namespace for query (aka tenant).
+    See [multitenancy docs](#multitenancy) for more details about managing tenants, specifying tenant IDs via HTTP headers or labels.
   - `<suffix>` may have the following values:
     - `render` - implements Graphite Render API. See [these docs](https://graphite.readthedocs.io/en/stable/render_api.html).
     - `metrics/find` - searches Graphite metrics. See [these docs](https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find).
@@ -657,6 +702,7 @@ Check practical examples of [VictoriaMetrics API](https://docs.victoriametrics.c
 
 - `vmstorage` nodes provide the following HTTP endpoints on `8482` port:
   - `/internal/force_merge` - initiate [forced compactions](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#forced-merge) on the given `vmstorage` node.
+  - `/internal/force_flush` - [flush in-memory buffers](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#forced-flush) for recently ingested samples into searchable parts on the given `vmstorage` node.
   - `/snapshot/create` - create [instant snapshot](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282),
     which can be used for backups in background. Snapshots are created in `<storageDataPath>/snapshots` folder, where `<storageDataPath>` is the corresponding
     command-line flag value.
@@ -754,6 +800,10 @@ The `minimum downtime` strategy has the following benefits comparing to `no down
   for rolling upgrade.
 - It allows minimizing the duration of config update / version upgrade for clusters with big number of nodes
   of for clusters with big `vmstorage` nodes, which may take long time for graceful restart.
+
+> If you'd prefer to avoid managing cluster upgrades yourself, [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_cluster_upgrade)
+> handles version upgrades automatically during maintenance windows, and lets you create, resize, or delete deployments with a few clicks from the UI.
+> See the [VictoriaMetrics Cloud documentation](https://docs.victoriametrics.com/victoriametrics-cloud/) to get started.
 
 ### Improving re-routing performance during restart
 
@@ -1015,12 +1065,20 @@ to ensure query results consistency, even if storage layer didn't complete dedup
 ## Metrics Metadata
 
 Cluster version of VictoriaMetrics can store metric metadata (TYPE, HELP, UNIT) {{% available_from "v1.130.0" %}}.
-Metadata ingestion is disabled by default. To enable it, set `-enableMetadata=true` on `vminsert` and `vmagent`.
+Metadata ingestion is enabled by default{{% available_from "v1.137.0" %}}. To disable it, set `-enableMetadata=false` on `vminsert`, and `vmagent`.
 
-The metadata is stored in memory and can use up to 1% of available memory by default. The size could be adjusted by `-storage.maxMetadataStorageSize` flag.
-Please note that metadata is lost after `vmstorage` restarts. It is ingested independently from metrics, so a metric may exist without metadata, and vice versa.
+The metadata is cached in-memory in a ring buffer and can use up to 1% of available memory by default (see `-storage.maxMetadataStorageSize` cmd-line flag).
+When in-memory size is exceeded, the least updated entries are dropped first. Entries that weren't updated for 1h are cleaned up automatically.
 
-Metadata can be queried via the `/select/0/prometheus/api/v1/metadata` endpoint, which provides a response compatible with the Prometheus [metadata API](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-metric-metadata).
+> The following expression helps to understand if metadata cache capacity is utilized for more than 90%: `vm_metrics_metadata_storage_size_bytes / vm_metrics_metadata_storage_max_size_bytes > 0.9`.
+Setup [monitoring](https://docs.victoriametrics.com/victoriametrics/quick-start/#monitoring) and recommended alerting rules
+to get notified about cache capacity issues.
+
+Metadata is ingested independently from metrics, so a metric can exist without metadata, and vice versa.
+Metadata is expected to be ephemeral and constantly updated on ingestion. For this reason, metadata cache isn't
+persisted during storage restarts.
+
+Metadata supports [multitenancy](#multitenancy) and can be queried via the `/select/<accountID>/prometheus/api/v1/metadata` endpoint, which provides a response compatible with the Prometheus [metadata API](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-metric-metadata).
 If multiple vmstorage nodes return metadata for the same metric family name, or if multiple tenants have metadata for the same metric family name, vmselect returns only the first matching result. 
 Duplicate metadata entries are not merged or deduplicated across storages or tenants. See [/api/v1/metadata](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1metadata) example.
 

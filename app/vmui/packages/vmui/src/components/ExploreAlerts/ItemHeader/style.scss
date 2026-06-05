@@ -6,6 +6,10 @@
   justify-content: space-between;
   gap: $padding-global;
 
+  &:is(.vm-badge-item) {
+    padding: 6px 0 6px 6px;
+  }
+
   .vm-button_small {
     padding: 4px;
   }

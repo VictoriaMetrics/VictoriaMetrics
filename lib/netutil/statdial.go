@@ -98,7 +98,7 @@ func (sc *statDialConn) Close() error {
 
 func isTCPv4Addr(addr string) bool {
 	s := addr
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		n := strings.IndexByte(s, '.')
 		if n < 0 {
 			return false

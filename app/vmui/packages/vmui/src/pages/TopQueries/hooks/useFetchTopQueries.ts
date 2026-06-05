@@ -26,8 +26,7 @@ const getQueryUrl = (row: TopQuery, timeRange: string) => {
 };
 
 const processResponse = (data: TopQueriesData) => {
-  const list = ["topByAvgDuration", "topByCount", "topBySumDuration"] as (keyof TopQueriesData)[];
-
+  const list = ["topByAvgDuration", "topByCount", "topBySumDuration", "topByAvgMemoryUsage"] as (keyof TopQueriesData)[];
   list.forEach(key => {
     const target = data[key] as TopQuery[];
     if (!Array.isArray(target)) return;
@@ -35,7 +34,7 @@ const processResponse = (data: TopQueriesData) => {
     target.forEach(t => {
       const timeRange = getDurationFromMilliseconds(t.timeRangeSeconds*1000);
       t.url = getQueryUrl(t, timeRange);
-      t.timeRange = timeRange;
+      t.timeRange = timeRange || "instant";
     });
   });
 

@@ -405,7 +405,8 @@ func TestGroupStart(t *testing.T) {
 
 		var cur uint64
 		prev := g.metrics.iterationTotal.Get()
-		for i := 0; ; i++ {
+		i := 0
+		for {
 			if i > 40 {
 				t.Fatalf("group wasn't able to perform %d evaluations during %d eval intervals", n, i)
 			}
@@ -414,6 +415,7 @@ func TestGroupStart(t *testing.T) {
 				return
 			}
 			time.Sleep(interval)
+			i++
 		}
 	}
 
@@ -604,6 +606,15 @@ func TestGroupStartDelay(t *testing.T) {
 	f("2023-01-01T00:03:30.000+00:00", "2023-01-01T00:08:00.000+00:00")
 	f("2023-01-01T00:08:00.000+00:00", "2023-01-01T00:08:00.000+00:00")
 
+	// test group with negative offset -2min, which is equivalent to 3min offset for 5min interval
+	offset = -2 * time.Minute
+	g.EvalOffset = &offset
+
+	f("2023-01-01T00:00:15.000+00:00", "2023-01-01T00:03:00.000+00:00")
+	f("2023-01-01T00:01:00.000+00:00", "2023-01-01T00:03:00.000+00:00")
+	f("2023-01-01T00:03:30.000+00:00", "2023-01-01T00:08:00.000+00:00")
+	f("2023-01-01T00:08:00.000+00:00", "2023-01-01T00:08:00.000+00:00")
+
 	maxDelay = time.Minute * 1
 	g.EvalOffset = nil
 
@@ -730,4 +741,65 @@ func parseTime(t *testing.T, s string) time.Time {
 		t.Fatal(err)
 	}
 	return tt
+}
+
+func TestRuleStripFilePath(t *testing.T) {
+	configG := config.Group{
+		Name:        "group",
+		File:        "/var/local/test/rules.yaml",
+		Type:        config.NewRawType("prometheus"),
+		Concurrency: 1,
+		Rules: []config.Rule{
+			{
+				ID:    0,
+				Alert: "alert",
+			},
+			{
+				ID:     1,
+				Record: "record",
+			},
+		}}
+	qb := &datasource.FakeQuerier{}
+	g := NewGroup(configG, qb, 1*time.Minute, nil)
+
+	gID := g.id
+	if g.File != "/var/local/test/rules.yaml" {
+		t.Fatalf("expected file path to be unchanged; got %q instead", g.File)
+	}
+
+	for _, r := range g.Rules {
+		if ar, ok := r.(*AlertingRule); ok {
+			if ar.File != "/var/local/test/rules.yaml" {
+				t.Fatalf("expected rule file path to be unchanged; got %q instead", ar.File)
+			}
+		}
+		if rr, ok := r.(*RecordingRule); ok {
+			if rr.File != "/var/local/test/rules.yaml" {
+				t.Fatalf("expected rule file path to be unchanged; got %q instead", rr.File)
+			}
+		}
+	}
+
+	oldRuleStripFilePath := *ruleStripFilePath
+	*ruleStripFilePath = true
+	defer func() {
+		*ruleStripFilePath = oldRuleStripFilePath
+	}()
+	g = NewGroup(configG, qb, 1*time.Minute, nil)
+
+	if g.File != fmt.Sprintf("%d/rules.yaml", gID) {
+		t.Fatalf("expected file path to be stripped to %q; got %q instead", fmt.Sprintf("%d/rules.yaml", gID), g.File)
+	}
+	for _, r := range g.Rules {
+		if ar, ok := r.(*AlertingRule); ok {
+			if ar.File != fmt.Sprintf("%d/rules.yaml", gID) {
+				t.Fatalf("expected rule file path to be unchanged; got %q instead", ar.File)
+			}
+		}
+		if rr, ok := r.(*RecordingRule); ok {
+			if rr.File != fmt.Sprintf("%d/rules.yaml", gID) {
+				t.Fatalf("expected rule file path to be unchanged; got %q instead", rr.File)
+			}
+		}
+	}
 }

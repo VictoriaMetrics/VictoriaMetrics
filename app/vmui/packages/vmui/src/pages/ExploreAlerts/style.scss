@@ -17,6 +17,19 @@
   }
 }
 
+.vm-explore-alerts-load {
+  text-align: center;
+  color: var(--color-text-disabled);
+  button {
+    border: none;
+  }
+  &-before {
+    svg {
+      transform: rotate(180deg);
+    }
+  }
+}
+
 .vm-list-item-inner {
   display: flex;
   align-items: center;

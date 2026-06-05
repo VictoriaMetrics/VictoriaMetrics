@@ -48,7 +48,7 @@ const WithTemplate: FC = () => {
             type="textarea"
             label="MetricsQL query after expanding WITH expressions and applying other optimizations"
             value={data}
-            disabled
+            readonly
           />
         </div>
         <div className="vm-with-template-body-top">

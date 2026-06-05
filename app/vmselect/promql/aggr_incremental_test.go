@@ -53,7 +53,7 @@ func TestIncrementalAggr(t *testing.T) {
 			Values:     valuesExpected,
 		}}
 		// run the test multiple times to make sure there are no side effects on concurrency
-		for i := 0; i < 10; i++ {
+		for i := range 10 {
 			iafc := newIncrementalAggrFuncContext(ae, callbacks)
 			tssSrcCopy := copyTimeseries(tssSrc)
 			if err := testIncrementalParallelAggr(iafc, tssSrcCopy, tssExpected); err != nil {

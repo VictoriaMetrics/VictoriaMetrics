@@ -12,7 +12,7 @@ func TestBlockStreamReaderReadFromInmemoryPart(t *testing.T) {
 	r := rand.New(rand.NewSource(1))
 	var items []string
 	var ib inmemoryBlock
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		item := getRandomBytes(r)
 		if !ib.Add(item) {
 			break
@@ -25,12 +25,12 @@ func TestBlockStreamReaderReadFromInmemoryPart(t *testing.T) {
 
 	// Make sure items may be read concurrently from the same inmemoryPart.
 	ch := make(chan error, 5)
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		go func() {
 			ch <- testBlockStreamReaderRead(&ip, items)
 		}()
 	}
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		select {
 		case err := <-ch:
 			if err != nil {

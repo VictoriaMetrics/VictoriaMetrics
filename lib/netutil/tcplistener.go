@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"strconv"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -14,7 +15,20 @@ import (
 
 var enableTCP6 = flag.Bool("enableTCP6", false, "Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used")
 
-// NewTCPListener returns new TCP listener for the given addr and optional tlsConfig.
+func isLonePort(s string) bool {
+	n := len(s)
+	if n < 2 || s[0] != ':' {
+		return false
+	}
+
+	port, err := strconv.Atoi(s[1:])
+	if err != nil {
+		return false
+	}
+	return port >= 0 && port <= 65535
+}
+
+// NewTCPListener returns a new TCP listener for the given addr and optional tlsConfig.
 //
 // name is used for metrics. Each listener in the program must have a distinct name.
 //
@@ -22,6 +36,10 @@ var enableTCP6 = flag.Bool("enableTCP6", false, "Whether to enable IPv6 for list
 // See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
 func NewTCPListener(name, addr string, useProxyProtocol bool, tlsConfig *tls.Config) (*TCPListener, error) {
 	network := GetTCPNetwork()
+	if network == "tcp4" && !isLonePort(addr) && !isTCPv4Addr(addr) {
+		logger.Warnf("listening address %q looks like IPv6, but IPv6 is disabled; the server will listen on IPv4 only. "+
+			"Pass -enableTCP6 command-line flag to enable IPv6 support", addr)
+	}
 	ln, err := net.Listen(network, addr)
 	if err != nil {
 		return nil, err

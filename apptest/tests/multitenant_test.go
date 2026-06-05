@@ -171,8 +171,28 @@ func TestClusterMultiTenantSelect(t *testing.T) {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
 
+	// /api/v1/label/../value with extra_filters
+
+	wantVR := apptest.NewPrometheusAPIV1LabelValuesResponse(t,
+		`{"data": [
+	       "5"
+	             ]
+	   }`)
+	wantSR.Sort()
+	gotVR := vmselect.PrometheusAPIV1LabelValues(t, "vm_account_id", "foo", apptest.QueryOpts{
+		Start:        "2022-05-10T08:00:00.000Z",
+		End:          "2022-05-10T08:30:00.000Z",
+		ExtraFilters: []string{`{vm_account_id="5"}`},
+		Tenant:       "multitenant",
+	})
+	gotSR.Sort()
+
+	if diff := cmp.Diff(wantVR, gotVR, cmpopts.IgnoreFields(apptest.PrometheusAPIV1LabelValuesResponse{}, "Status", "IsPartial")); diff != "" {
+		t.Errorf("unexpected response (-want, +got):\n%s", diff)
+	}
+
 	// Delete series from specific tenant
-	vmselect.APIV1AdminTSDBDeleteSeries(t, "foo_bar", apptest.QueryOpts{
+	vmselect.PrometheusAPIV1AdminTSDBDeleteSeries(t, "foo_bar", apptest.QueryOpts{
 		Tenant: "5:15",
 	})
 	wantSR = apptest.NewPrometheusAPIV1SeriesResponse(t,
@@ -195,7 +215,7 @@ func TestClusterMultiTenantSelect(t *testing.T) {
 	}
 
 	// Delete series for multitenant with tenant filter
-	vmselect.APIV1AdminTSDBDeleteSeries(t, `foo_bar{vm_account_id="1"}`, apptest.QueryOpts{
+	vmselect.PrometheusAPIV1AdminTSDBDeleteSeries(t, `foo_bar{vm_account_id="1"}`, apptest.QueryOpts{
 		Tenant: "multitenant",
 	})
 

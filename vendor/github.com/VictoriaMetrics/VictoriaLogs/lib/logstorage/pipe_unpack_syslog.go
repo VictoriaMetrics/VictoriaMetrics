@@ -60,6 +60,10 @@ func (pu *pipeUnpackSyslog) canReturnLastNResults() bool {
 	return true
 }
 
+func (pu *pipeUnpackSyslog) isFixedOutputFieldsOrder() bool {
+	return false
+}
+
 func (pu *pipeUnpackSyslog) updateNeededFields(pf *prefixfilter.Filter) {
 	updateNeededFieldsForUnpackPipe(pu.fromField, pu.resultPrefix, nil, pu.keepOriginalFields, false, pu.iff, pf)
 }
@@ -68,8 +72,8 @@ func (pu *pipeUnpackSyslog) hasFilterInWithQuery() bool {
 	return pu.iff.hasFilterInWithQuery()
 }
 
-func (pu *pipeUnpackSyslog) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc, keepSubquery bool) (pipe, error) {
-	iffNew, err := pu.iff.initFilterInValues(cache, getFieldValuesFunc, keepSubquery)
+func (pu *pipeUnpackSyslog) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+	iffNew, err := pu.iff.initFilterInValues(cache, getFieldValuesFunc)
 	if err != nil {
 		return nil, err
 	}

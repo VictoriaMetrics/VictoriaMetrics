@@ -18,7 +18,7 @@ type authResponse struct {
 }
 
 type authToken struct {
-	ExpiresAt time.Time     `json:"expires_at,omitempty"`
+	ExpiresAt time.Time     `json:"expires_at"`
 	Catalog   []catalogItem `json:"catalog,omitempty"`
 }
 

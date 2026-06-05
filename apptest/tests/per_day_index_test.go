@@ -61,8 +61,8 @@ func TestClusterSearchWithDisabledPerDayIndex(t *testing.T) {
 
 type startSUTFunc func(name string, disablePerDayIndex bool) apptest.PrometheusWriteQuerier
 
-// testDisablePerDayIndex_Search shows what search results to expect when data
-// is first inserted with per-day index enabled and then with per-day index
+// testSearchWithDisabledPerDayIndex shows what search results to expect when
+// data is first inserted with per-day index enabled and then with per-day index
 // disabled.
 //
 // The data inserted with enabled per-day index must be searchable with disabled
@@ -112,8 +112,8 @@ func testSearchWithDisabledPerDayIndex(tc *apptest.TestCase, start startSUTFunc)
 		})
 	}
 
-	// Start vmsingle with enabled per-day index, insert sample1, and confirm it
-	// is searchable.
+	// Start SUT with enabled per-day index, insert sample1, and confirm it is
+	// searchable.
 	sut := start("with-per-day-index", false)
 	sample1 := []string{"metric1 111 1704067200000"} // 2024-01-01T00:00:00Z
 	sut.PrometheusAPIV1ImportPrometheus(t, sample1, apptest.QueryOpts{})
@@ -130,8 +130,8 @@ func testSearchWithDisabledPerDayIndex(tc *apptest.TestCase, start startSUTFunc)
 		},
 	})
 
-	// Restart vmsingle with disabled per-day index, insert sample2, and confirm
-	// that both sample1 and sample2 is searchable.
+	// Restart SUT with disabled per-day index, insert sample2, and confirm that
+	// both sample1 and sample2 is searchable.
 	tc.StopPrometheusWriteQuerier(sut)
 	sut = start("without-per-day-index", true)
 	sample2 := []string{"metric2 222 1704067200000"} // 2024-01-01T00:00:00Z
@@ -156,8 +156,8 @@ func testSearchWithDisabledPerDayIndex(tc *apptest.TestCase, start startSUTFunc)
 		},
 	})
 
-	// Insert sample1 but for a different date, restart vmsingle with enabled
-	// per-day index and confirm that:
+	// Insert sample1 but for a different date, restart SUT with enabled per-day
+	// index and confirm that:
 	// - sample1 is searchable within the time range of Jan 1st
 	// - sample1 is not searchable within the time range of Jan 20th
 	// - sample1 is searchable within the time range of Jan 1st-20th (because

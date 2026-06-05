@@ -8,7 +8,7 @@ import (
 
 // networkInterface a network interface in a resource group.
 type networkInterface struct {
-	Properties networkProperties `json:"properties,omitempty"`
+	Properties networkProperties `json:"properties"`
 }
 
 type networkProperties struct {
@@ -18,16 +18,16 @@ type networkProperties struct {
 }
 
 type ipConfiguration struct {
-	Properties ipProperties `json:"properties,omitempty"`
+	Properties ipProperties `json:"properties"`
 }
 
 type ipProperties struct {
-	PublicIPAddress  publicIPAddress `json:"publicIPAddress,omitempty"`
+	PublicIPAddress  publicIPAddress `json:"publicIPAddress"`
 	PrivateIPAddress string          `json:"privateIPAddress,omitempty"`
 }
 
 type publicIPAddress struct {
-	Properties publicIPProperties `json:"properties,omitempty"`
+	Properties publicIPProperties `json:"properties"`
 }
 
 type publicIPProperties struct {

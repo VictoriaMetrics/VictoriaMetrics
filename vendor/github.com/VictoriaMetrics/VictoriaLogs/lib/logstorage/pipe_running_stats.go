@@ -98,6 +98,10 @@ func (ps *pipeRunningStats) canReturnLastNResults() bool {
 	return false
 }
 
+func (ps *pipeRunningStats) isFixedOutputFieldsOrder() bool {
+	return false
+}
+
 func (ps *pipeRunningStats) updateNeededFields(pf *prefixfilter.Filter) {
 	pfOrig := pf.Clone()
 
@@ -118,7 +122,7 @@ func (ps *pipeRunningStats) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (ps *pipeRunningStats) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
+func (ps *pipeRunningStats) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return ps, nil
 }
 
@@ -173,7 +177,7 @@ func (shard *pipeRunningStatsProcessorShard) writeBlock(br *blockResult) {
 	}
 	shard.columnValues = columnValues
 
-	for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
+	for rowIdx := range br.rowsLen {
 		fields := make([]Field, len(cs))
 		shard.stateSizeBudget -= int(unsafe.Sizeof(fields[0])) * len(fields)
 
@@ -470,6 +474,8 @@ func getRunningStatsFuncParsers() map[string]runningStatsFuncParser {
 func initRunningStatsFuncParsers() {
 	runningStatsFuncParsers = map[string]runningStatsFuncParser{
 		"count": parseRunningStatsCount,
+		"first": parseRunningStatsFirst,
+		"last":  parseRunningStatsLast,
 		"max":   parseRunningStatsMax,
 		"min":   parseRunningStatsMin,
 		"sum":   parseRunningStatsSum,

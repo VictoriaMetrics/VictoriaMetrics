@@ -12,8 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/snappy"
-
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
@@ -44,7 +43,7 @@ func TestClient_Push(t *testing.T) {
 
 	r := rand.New(rand.NewSource(1))
 	const rowsN = int(1e4)
-	for i := 0; i < rowsN; i++ {
+	for range rowsN {
 		s := prompb.TimeSeries{
 			Samples: []prompb.Sample{{
 				Value:     r.Float64(),
@@ -102,8 +101,11 @@ func TestClient_run_maxBatchSizeDuringShutdown(t *testing.T) {
 		}
 
 		// push time series to the client.
-		for i := 0; i < pushCnt; i++ {
-			if err = rwClient.Push(prompb.TimeSeries{}); err != nil {
+		for range pushCnt {
+			if err = rwClient.Push(prompb.TimeSeries{
+				Labels:  []prompb.Label{{Name: "__name__", Value: "m"}},
+				Samples: []prompb.Sample{{Value: 1, Timestamp: 1000}},
+			}); err != nil {
 				t.Fatalf("cannot time series to the client: %s", err)
 			}
 		}
@@ -156,8 +158,8 @@ func (rw *rwServer) handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h := r.Header.Get("Content-Encoding")
-	if h != "snappy" {
-		rw.err(w, fmt.Errorf("header read error: Content-Encoding is not snappy (%q)", h))
+	if h != "zstd" {
+		rw.err(w, fmt.Errorf("header read error: Content-Encoding is not zstd (%q)", h))
 	}
 
 	h = r.Header.Get("Content-Type")
@@ -165,9 +167,9 @@ func (rw *rwServer) handler(w http.ResponseWriter, r *http.Request) {
 		rw.err(w, fmt.Errorf("header read error: Content-Type is not x-protobuf (%q)", h))
 	}
 
-	h = r.Header.Get("X-Prometheus-Remote-Write-Version")
-	if h != "0.1.0" {
-		rw.err(w, fmt.Errorf("header read error: X-Prometheus-Remote-Write-Version is not 0.1.0 (%q)", h))
+	h = r.Header.Get("X-VictoriaMetrics-Remote-Write-Version")
+	if h != "1" {
+		rw.err(w, fmt.Errorf("header read error: X-VictoriaMetrics-Remote-Write-Version is not 1 (%q)", h))
 	}
 
 	data, err := io.ReadAll(r.Body)
@@ -177,7 +179,7 @@ func (rw *rwServer) handler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer func() { _ = r.Body.Close() }()
 
-	b, err := snappy.Decode(nil, data)
+	b, err := zstd.Decompress(nil, data)
 	if err != nil {
 		rw.err(w, fmt.Errorf("decode err: %w", err))
 		return

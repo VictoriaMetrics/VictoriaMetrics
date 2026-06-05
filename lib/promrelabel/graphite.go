@@ -86,7 +86,9 @@ func (gmt *graphiteMatchTemplate) Match(dst []string, s string) ([]string, bool)
 			return dst, false
 		}
 	}
-	for i := 0; i < len(parts); i++ {
+
+	i := 0
+	for i < len(parts) {
 		p := parts[i]
 		if p != "*" {
 			if !strings.HasPrefix(s, p) {
@@ -94,6 +96,7 @@ func (gmt *graphiteMatchTemplate) Match(dst []string, s string) ([]string, bool)
 				return dst, false
 			}
 			s = s[len(p):]
+			i++
 			continue
 		}
 		// Search for the matching substring for '*' part.
@@ -108,7 +111,7 @@ func (gmt *graphiteMatchTemplate) Match(dst []string, s string) ([]string, bool)
 		}
 		// Search for the start of the next part.
 		p = parts[i+1]
-		i++
+		i += 2
 		n := strings.Index(s, p)
 		if n < 0 {
 			// Cannot match the next part

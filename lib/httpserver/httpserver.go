@@ -1,12 +1,14 @@
 package httpserver
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	_ "embed"
 	"errors"
 	"flag"
 	"fmt"
+	"html"
 	"io"
 	"log"
 	"net"
@@ -164,7 +166,7 @@ func serveWithListener(addr string, ln net.Listener, rh RequestHandler, disableB
 		// Do not set ReadTimeout and WriteTimeout here,
 		// since these timeouts must be controlled by request handlers.
 
-		ErrorLog: logger.StdErrorLogger(),
+		ErrorLog: log.New(&tlsErrorSkipLogger{}, "", 0),
 	}
 	s.s.SetKeepAlivesEnabled(!*disableKeepAlive)
 	if *connTimeout > 0 {
@@ -272,7 +274,14 @@ func stop(addr string) error {
 }
 
 var gzipHandlerWrapper = func() func(http.Handler) http.HandlerFunc {
-	hw, err := gzhttp.NewWrapper(gzhttp.CompressionLevel(1))
+	hw, err := gzhttp.NewWrapper(
+		gzhttp.CompressionLevel(1),
+
+		// Prefer gzip over zstd compression if the client supports both methods
+		// because some intermediate proxies improperly handle zstd-compressed responses.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10535
+		gzhttp.PreferZstd(false),
+	)
 	if err != nil {
 		panic(fmt.Errorf("BUG: cannot initialize gzip http wrapper: %w", err))
 	}
@@ -349,6 +358,12 @@ func handlerWrapper(w http.ResponseWriter, r *http.Request, rh RequestHandler) {
 		r.URL.Path = path
 	}
 
+	if r.Method == http.MethodOptions {
+		EnableCORS(w, r)
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
 	w = &responseWriterWithAbort{
 		ResponseWriter: w,
 	}
@@ -383,10 +398,7 @@ func builtinRoutesHandler(s *server, r *http.Request, w http.ResponseWriter, rh 
 		// Return non-OK response during grace period before shutting down the server.
 		// Load balancers must notify these responses and re-route new requests to other servers.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/463 .
-		d := time.Until(time.Unix(0, deadline))
-		if d < 0 {
-			d = 0
-		}
+		d := max(time.Until(time.Unix(0, deadline)), 0)
 		errMsg := fmt.Sprintf("The server is in delayed shutdown mode, which will end in %.3fs", d.Seconds())
 		http.Error(w, errMsg, http.StatusServiceUnavailable)
 		return true
@@ -506,6 +518,8 @@ func EnableCORS(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "*")
+	w.Header().Set("Access-Control-Allow-Headers", "*")
 }
 
 func pprofHandler(profileName string, w http.ResponseWriter, r *http.Request) {
@@ -673,7 +687,11 @@ func Errorf(w http.ResponseWriter, r *http.Request, format string, args ...any) 
 	if rwa, ok := w.(*responseWriterWithAbort); ok && rwa.sentHeaders {
 		// HTTP status code has been already sent to client, so it cannot be sent again.
 		// Just write errStr to the response and abort the client connection, so the client could notice the error.
-		fmt.Fprintf(w, "\n%s\n", errStr)
+		//
+		// HTML-escape the errStr in order to protect from possible XSS, since the errStr may contain user input.
+		errStrEscaped := html.EscapeString(errStr)
+
+		fmt.Fprintf(w, "\n%s\n", errStrEscaped)
 		rwa.abort()
 		return
 	}
@@ -788,4 +806,15 @@ func LogError(req *http.Request, errStr string) {
 	uri := GetRequestURI(req)
 	remoteAddr := GetQuotedRemoteAddr(req)
 	logger.Errorf("uri: %s, remote address: %q: %s", uri, remoteAddr, errStr)
+}
+
+type tlsErrorSkipLogger struct{}
+
+func (*tlsErrorSkipLogger) Write(p []byte) (int, error) {
+	// skip common health check errors produced by Kubernetes and other tools
+	if bytes.Contains(p, []byte("TLS handshake error")) &&
+		(bytes.Contains(p, []byte("EOF")) || bytes.Contains(p, []byte("connection reset by peer"))) {
+		return len(p), nil
+	}
+	return logger.StdErrorLogger().Writer().Write(p)
 }

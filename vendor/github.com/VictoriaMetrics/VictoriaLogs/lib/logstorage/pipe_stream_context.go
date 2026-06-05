@@ -4,6 +4,7 @@ import (
 	"container/heap"
 	"fmt"
 	"math"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -69,6 +70,10 @@ func (pc *pipeStreamContext) canReturnLastNResults() bool {
 	return false
 }
 
+func (ps *pipeStreamContext) isFixedOutputFieldsOrder() bool {
+	return false
+}
+
 func (pc *pipeStreamContext) withRunQuery(qctx *QueryContext, runQuery runQueryFunc, fieldsFilter *prefixfilter.Filter) pipe {
 	pcNew := *pc
 	pcNew.qctx = qctx
@@ -86,7 +91,7 @@ func (pc *pipeStreamContext) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pc *pipeStreamContext) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
+func (pc *pipeStreamContext) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pc, nil
 }
 
@@ -136,9 +141,7 @@ func (pcp *pipeStreamContextProcessor) getStreamRowss(streamID string, neededRow
 	for i := range neededRows {
 		neededTimestamps[i] = neededRows[i].timestamp
 	}
-	sort.Slice(neededTimestamps, func(i, j int) bool {
-		return neededTimestamps[i] < neededTimestamps[j]
-	})
+	slices.Sort(neededTimestamps)
 
 	trs, stateSize, err := pcp.getTimeRangesForStreamRowss(streamID, neededTimestamps, stateSizeBudget)
 	if err != nil {

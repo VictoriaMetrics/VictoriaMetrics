@@ -25,7 +25,7 @@ func naturalLess(a, b string) bool {
 }
 
 func getNonNumPrefix(s string) (prefix string, tail string) {
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		ch := s[i]
 		if ch >= '0' && ch <= '9' {
 			return s[:i], s[i:]

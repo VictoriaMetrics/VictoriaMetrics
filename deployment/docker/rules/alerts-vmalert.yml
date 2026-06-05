@@ -23,7 +23,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          dashboard: "http://localhost:3000/d/LzldHAVnz?viewPanel=13&var-instance={{ $labels.instance }}&var-file={{ $labels.file }}&var-group={{ $labels.group }}"
+          dashboard: "{{ $externalURL }}/d/LzldHAVnz?viewPanel=13&var-instance={{ $labels.instance }}&var-file={{ $labels.file }}&var-group={{ $labels.group }}"
           summary: "Alerting rules are failing for vmalert instance {{ $labels.instance }}"
           description: "Alerting rules execution is failing for \"{{ $labels.alertname }}\" from group \"{{ $labels.group }}\" in file \"{{ $labels.file }}\".
             Check vmalert's logs for detailed error message."
@@ -34,7 +34,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          dashboard: "http://localhost:3000/d/LzldHAVnz?viewPanel=30&var-instance={{ $labels.instance }}&var-file={{ $labels.file }}&var-group={{ $labels.group }}"
+          dashboard: "{{ $externalURL }}/d/LzldHAVnz?viewPanel=30&var-instance={{ $labels.instance }}&var-file={{ $labels.file }}&var-group={{ $labels.group }}"
           summary: "Recording rules are failing for vmalert instance {{ $labels.instance }}"
           description: "Recording rules execution is failing for \"{{ $labels.recording }}\" from group \"{{ $labels.group }}\" in file \"{{ $labels.file }}\".
             Check vmalert's logs for detailed error message."
@@ -45,7 +45,7 @@ groups:
         labels:
           severity: info
         annotations:
-          dashboard: "http://localhost:3000/d/LzldHAVnz?viewPanel=33&var-file={{ $labels.file }}&var-group={{ $labels.group }}"
+          dashboard: "{{ $externalURL }}/d/LzldHAVnz?viewPanel=33&var-file={{ $labels.file }}&var-group={{ $labels.group }}"
           summary: "Recording rule {{ $labels.recording }} ({{ $labels.group }}) produces no data"
           description: "Recording rule \"{{ $labels.recording }}\" from group \"{{ $labels.group }}\ in file \"{{ $labels.file }}\" 
             produces 0 samples over the last 30min. It might be caused by a misconfiguration 
@@ -63,6 +63,18 @@ groups:
             alerting notifications or recording rules samples. Try increasing evaluation interval or concurrency of
             group \"{{ $labels.group }}\". See https://docs.victoriametrics.com/victoriametrics/vmalert/#groups. 
             If rule expressions are taking longer than expected, please see https://docs.victoriametrics.com/victoriametrics/troubleshooting/#slow-queries."
+
+      - alert: GroupIterationReset
+        expr: increase(vmalert_iteration_reset_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Evaluation iteration for group {{ $labels.group }} in file {{ $labels.file }} is reset"
+          description: "Evaluation iteration for group \"{{ $labels.group }}\" in file \"{{ $labels.file }}\" is reset on vmalert instance {{ $labels.instance }}.
+            This can be caused by irregular delays during evaluation or by the system wall clock being moved backward. If it is caused by host clock changes, vmalert could
+            generate duplicate results for the group rules since some evaluations could be repeated. Check host clock time synchronization configurations if this happens frequently."
+
 
       - alert: RemoteWriteErrors
         expr: increase(vmalert_remotewrite_errors_total[5m]) > 0
@@ -84,6 +96,20 @@ groups:
           description: "vmalert instance {{ $labels.instance }} is failing to send results of alerting or recording rules 
             to the configured remote write URL. This may result into gaps in recording rules or alerts state.
             Check vmalert's logs for detailed error message."
+
+      - alert: RemoteWriteQueueHighUsage
+        expr: histogram_quantile(0.99, sum(increase(vmalert_remotewrite_queue_size_bucket[5m])) by (job, instance, vmrange)) / vmalert_remotewrite_queue_capacity > 0.8
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Remote write queue capacity on the vmalert instance {{ $labels.instance }} has exceeded 80% utilization"
+          description: "The remote write queue on vmalert instance {{ $labels.instance }} has consistently high utilization.
+            The queue acts as a buffer between rules generating series and remote-write client consuming and pushing these series. When queue overflows, vmalert will start dropping newly generated series.
+            Queue may overflow due to multiple reasons:
+             1. Some bad rules produce too many series at once. This can be limited using the global `-rule.resultsLimit` flag or `limit` param at the rule group level.
+             2. Remote write connection is slow.  Increase `-remoteWrite.concurrency`,  so vmalert could establish more concurrent connections.
+             3. The queue size is too small. Increase `-remoteWrite.maxQueueSize` to extend the buffer size. Note that a larger queue will result in higher memory consumption when the queue is full."
 
       - alert: AlertmanagerErrors
         expr: increase(vmalert_alerts_send_errors_total[5m]) > 0

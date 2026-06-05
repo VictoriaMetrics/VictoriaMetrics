@@ -11,7 +11,7 @@ import (
 func BenchmarkIfExpression(b *testing.B) {
 	const maxLabels = 100
 	labels := make([]prompb.Label, maxLabels)
-	for i := 0; i < maxLabels; i++ {
+	for i := range maxLabels {
 		label := prompb.Label{
 			Name:  fmt.Sprintf("foo%d", i),
 			Value: fmt.Sprintf("bar%d", i),

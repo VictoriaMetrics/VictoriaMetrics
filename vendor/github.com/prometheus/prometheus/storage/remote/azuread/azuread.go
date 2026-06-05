@@ -1,4 +1,4 @@
-// Copyright 2023 The Prometheus Authors
+// Copyright The Prometheus Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -27,6 +27,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/google/uuid"
 	"github.com/grafana/regexp"
+	config_util "github.com/prometheus/common/config"
 )
 
 // Clouds.
@@ -75,7 +76,7 @@ type OAuthConfig struct {
 	ClientID string `yaml:"client_id,omitempty"`
 
 	// ClientSecret is the clientSecret of the azure active directory application that is being used to authenticate.
-	ClientSecret string `yaml:"client_secret,omitempty"`
+	ClientSecret config_util.Secret `yaml:"client_secret,omitempty"`
 
 	// TenantID is the tenantId of the azure active directory application that is being used to authenticate.
 	TenantID string `yaml:"tenant_id,omitempty"`
@@ -357,7 +358,7 @@ func newWorkloadIdentityTokenCredential(clientOpts *azcore.ClientOptions, worklo
 // newOAuthTokenCredential returns new OAuth token credential.
 func newOAuthTokenCredential(clientOpts *azcore.ClientOptions, oAuthConfig *OAuthConfig) (azcore.TokenCredential, error) {
 	opts := &azidentity.ClientSecretCredentialOptions{ClientOptions: *clientOpts}
-	return azidentity.NewClientSecretCredential(oAuthConfig.TenantID, oAuthConfig.ClientID, oAuthConfig.ClientSecret, opts)
+	return azidentity.NewClientSecretCredential(oAuthConfig.TenantID, oAuthConfig.ClientID, string(oAuthConfig.ClientSecret), opts)
 }
 
 // newSDKTokenCredential returns new SDK token credential.
@@ -406,7 +407,7 @@ func (tokenProvider *tokenProvider) getAccessToken(ctx context.Context) (string,
 
 // valid checks if the token in the token provider is valid and not expired.
 func (tokenProvider *tokenProvider) valid() bool {
-	if len(tokenProvider.token) == 0 {
+	if tokenProvider.token == "" {
 		return false
 	}
 	if tokenProvider.refreshTime.After(time.Now().UTC()) {
@@ -421,7 +422,7 @@ func (tokenProvider *tokenProvider) getToken(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if len(accessToken.Token) == 0 {
+	if accessToken.Token == "" {
 		return errors.New("access token is empty")
 	}
 

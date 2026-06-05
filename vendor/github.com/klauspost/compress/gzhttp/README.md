@@ -1,10 +1,13 @@
-Gzip Middleware
-===============
+Gzip/Zstd HTTP Middleware
+====================
 
-This Go package which wraps HTTP *server* handlers to transparently gzip the
-response body, for clients which support it. 
+This Go package wraps HTTP *server* handlers to transparently compress the
+response body using gzip or zstd, for clients which support it.
 
-For HTTP *clients* we provide a transport wrapper that will do gzip decompression 
+Both gzip and zstd compression are enabled by default. When a client supports both,
+zstd is preferred due to its better compression ratio and speed.
+
+For HTTP *clients* we provide a transport wrapper that will do gzip/zstd decompression
 faster than what the standard library offers.
 
 Both the client and server wrappers are fully compatible with other servers and clients.
@@ -134,10 +137,72 @@ func main() {
 
 ```
 
+### Zstd Compression
+
+Zstd compression is enabled by default alongside gzip. When the client supports both,
+zstd is preferred because it typically offers better compression ratios and faster decompression.
+
+The server uses `Accept-Encoding` header negotiation to select the best encoding:
+- If client only accepts `gzip` → response is gzip compressed
+- If client only accepts `zstd` → response is zstd compressed
+- If client accepts both with equal qvalues → zstd is used (configurable)
+- If client specifies qvalues (e.g., `gzip;q=1.0, zstd;q=0.5`) → higher qvalue wins
+
+#### Zstd Options
+
+```Go
+// Disable zstd, only use gzip
+wrapper, _ := gzhttp.NewWrapper(gzhttp.EnableZstd(false))
+
+// Disable gzip, only use zstd
+wrapper, _ := gzhttp.NewWrapper(gzhttp.EnableGzip(false))
+
+// Prefer gzip when client accepts both with equal qvalues
+wrapper, _ := gzhttp.NewWrapper(gzhttp.PreferZstd(false))
+
+// Set zstd compression level (1=fastest, 2=default, 3=better, 4=best)
+wrapper, _ := gzhttp.NewWrapper(gzhttp.ZstdCompressionLevel(int(zstd.SpeedDefault)))
+
+// Use custom zstd writer implementation
+wrapper, _ := gzhttp.NewWrapper(gzhttp.ZstdImplementation(myZstdFactory))
+```
+
+Default zstd settings are conservative for broad compatibility:
+- Level: `SpeedFastest` (1) - maximum speed
+- Window size: 128KB - minimal memory usage
+- Concurrency: 1 - single-threaded per request
 
 ### Performance
 
-Speed compared to  [nytimes/gziphandler](https://github.com/nytimes/gziphandler) with default settings, 2KB, 20KB and 100KB:
+#### Gzip vs Zstd
+
+Zstd is significantly faster than gzip at default settings while providing similar or better compression:
+
+```
+Single-threaded performance (2KB, 20KB, 100KB payload):
+BenchmarkGzipHandler_S2k       137.22 MB/s    3532 B/op    15 allocs/op
+BenchmarkZstdHandler_S2k       219.21 MB/s    1936 B/op    12 allocs/op  (1.6x faster, 45% less memory)
+
+BenchmarkGzipHandler_S20k      306.91 MB/s   18616 B/op    18 allocs/op
+BenchmarkZstdHandler_S20k      434.05 MB/s    7595 B/op    12 allocs/op  (1.4x faster, 59% less memory)
+
+BenchmarkGzipHandler_S100k     198.96 MB/s   66937 B/op    20 allocs/op
+BenchmarkZstdHandler_S100k     368.70 MB/s   63021 B/op    16 allocs/op  (1.9x faster)
+
+Parallel performance:
+BenchmarkGzipHandler_P2k       997.01 MB/s    3148 B/op    15 allocs/op
+BenchmarkZstdHandler_P2k      1440.12 MB/s    1985 B/op    12 allocs/op  (1.4x faster)
+
+BenchmarkGzipHandler_P20k     2129.70 MB/s   17572 B/op    18 allocs/op
+BenchmarkZstdHandler_P20k     2928.82 MB/s    7498 B/op    12 allocs/op  (1.4x faster)
+
+BenchmarkGzipHandler_P100k    1678.72 MB/s   67316 B/op    20 allocs/op
+BenchmarkZstdHandler_P100k    2392.23 MB/s   61122 B/op    16 allocs/op  (1.4x faster)
+```
+
+#### Comparison to nytimes/gziphandler
+
+Speed compared to [nytimes/gziphandler](https://github.com/nytimes/gziphandler) with default settings, 2KB, 20KB and 100KB:
 
 ```
 λ benchcmp before.txt after.txt
@@ -223,11 +288,15 @@ size can reveal if there are overlaps between the secret data and the injected d
 
 For more information see https://breachattack.com/
 
-It can be hard to judge if you are vulnerable to BREACH. 
+It can be hard to judge if you are vulnerable to BREACH.
 In general, if you do not include any user provided content in the response body you are safe,
 but if you do, or you are in doubt, you can apply mitigations.
 
 `gzhttp` can apply [Heal the Breach](https://ieeexplore.ieee.org/document/9754554), or improved content aware padding.
+
+RandomJitter works with both gzip and zstd compression:
+- **gzip**: Jitter is added as a Comment field in the gzip header
+- **zstd**: Jitter is added as a skippable frame (RFC 8878 Section 3.1.2) after the compressed data
 
 ```Go
 // RandomJitter adds 1->n random bytes to output based on checksum of payload.
@@ -235,20 +304,21 @@ but if you do, or you are in doubt, you can apply mitigations.
 // This should cover the sensitive part of your response.
 // This can be used to obfuscate the exact compressed size.
 // Specifying 0 will use a buffer size of 64KB.
-// 'paranoid' will use a slower hashing function, that MAY provide more safety. 
+// 'paranoid' will use a slower hashing function, that MAY provide more safety.
 // If a negative buffer is given, the amount of jitter will not be content dependent.
 // This provides *less* security than applying content based jitter.
 func RandomJitter(n, buffer int, paranoid bool) option
-...	
+...
 ```
 
-The jitter is added as a "Comment" field. This field has a 1 byte overhead, so actual extra size will be 2 -> n+1 (inclusive).
+For gzip, the jitter is added as a "Comment" field with 1 byte overhead (actual extra size: 2 -> n+1 inclusive).
+For zstd, the jitter is added as a skippable frame with 8 byte overhead (actual extra size: 9 -> n+8 inclusive).
 
 A good option would be to apply 32 random bytes, with default 64KB buffer: `gzhttp.RandomJitter(32, 0, false)`.
 
 Note that flushing the data forces the padding to be applied, which means that only data before the flush is considered for content aware padding.
 
-The *padding* in the comment is the text `Padding-Padding-Padding-Padding-Pad....`
+The *padding* content is the text `Padding-Padding-Padding-Padding-Pad....`
 
 The *length* is `1 + crc32c(payload) MOD n` or `1 + sha256(payload) MOD n` (paranoid), or just random from `crypto/rand` if buffer < 0.
 

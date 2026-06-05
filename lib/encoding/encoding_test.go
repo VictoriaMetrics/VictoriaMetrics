@@ -160,7 +160,7 @@ func TestMarshalUnmarshalTimestamps(t *testing.T) {
 
 	var timestamps []int64
 	v := int64(0)
-	for i := 0; i < 8*1024; i++ {
+	for range 8 * 1024 {
 		v += 30e3 * int64(r.NormFloat64()*5e2)
 		timestamps = append(timestamps, v)
 	}
@@ -180,7 +180,7 @@ func TestMarshalUnmarshalValues(t *testing.T) {
 
 	var values []int64
 	v := int64(0)
-	for i := 0; i < 8*1024; i++ {
+	for range 8 * 1024 {
 		v += int64(r.NormFloat64() * 1e2)
 		values = append(values, v)
 	}

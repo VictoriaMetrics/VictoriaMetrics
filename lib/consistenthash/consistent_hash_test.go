@@ -18,7 +18,7 @@ func TestConsistentHash(t *testing.T) {
 	rh := NewConsistentHash(nodes, 0)
 
 	keys := make([]uint64, 100000)
-	for i := 0; i < len(keys); i++ {
+	for i := range keys {
 		keys[i] = r.Uint64()
 	}
 	perIdxCounts := make([]int, len(nodes))

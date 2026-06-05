@@ -11,16 +11,23 @@ import (
 	"path"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
+	"github.com/cespare/xxhash/v2"
 	"github.com/golang/snappy"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
+
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -53,6 +60,11 @@ type Client struct {
 
 	wg     sync.WaitGroup
 	doneCh chan struct{}
+
+	// Whether to encode the write request with VictoriaMetrics remote write protocol.
+	// It is set to true by default, and will be switched to false if the client
+	// receives specific errors indicating that the remote storage doesn't support VictoriaMetrics remote write protocol.
+	isVMRemoteWrite atomic.Bool
 }
 
 // Config is config for remote write client.
@@ -112,9 +124,12 @@ func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 		doneCh:        make(chan struct{}),
 		input:         make(chan prompb.TimeSeries, cfg.MaxQueueSize),
 	}
+	c.isVMRemoteWrite.Store(true)
 
 	for i := 0; i < cc; i++ {
-		c.run(ctx)
+		c.wg.Go(func() {
+			c.run(ctx, i)
+		})
 	}
 	return c, nil
 }
@@ -156,8 +171,7 @@ func (c *Client) Close() error {
 	return nil
 }
 
-func (c *Client) run(ctx context.Context) {
-	ticker := time.NewTicker(c.flushInterval)
+func (c *Client) run(ctx context.Context, id int) {
 	wr := &prompb.WriteRequest{}
 	shutdown := func() {
 		lastCtx, cancel := context.WithTimeout(context.Background(), defaultWriteTimeout)
@@ -174,40 +188,72 @@ func (c *Client) run(ctx context.Context) {
 		cancel()
 	}
 
-	c.wg.Go(func() {
-		defer ticker.Stop()
-		for {
+	// add jitter to spread remote write flushes over the flush interval to avoid congestion at the remote write destination
+	h := xxhash.Sum64(bytesutil.ToUnsafeBytes(fmt.Sprintf("%d", id)))
+	randJitter := uint64(float64(c.flushInterval) * (float64(h) / (1 << 64)))
+	timer := time.NewTimer(time.Duration(randJitter))
+addJitter:
+	for {
+		select {
+		case <-c.doneCh:
+			timer.Stop()
+			shutdown()
+			return
+		case <-ctx.Done():
+			timer.Stop()
+			shutdown()
+			return
+		case <-timer.C:
+			break addJitter
+		}
+	}
+
+	ticker := time.NewTicker(c.flushInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-c.doneCh:
+			shutdown()
+			return
+		case <-ctx.Done():
+			shutdown()
+			return
+		case <-ticker.C:
+			c.flush(ctx, wr)
+			// drain the potential stale tick to avoid small or empty flushes after a slow flush.
 			select {
-			case <-c.doneCh:
-				shutdown()
-				return
-			case <-ctx.Done():
-				shutdown()
-				return
 			case <-ticker.C:
+			default:
+			}
+		case ts, ok := <-c.input:
+			if !ok {
+				continue
+			}
+			wr.Timeseries = append(wr.Timeseries, ts)
+			if len(wr.Timeseries) >= c.maxBatchSize {
 				c.flush(ctx, wr)
-			case ts, ok := <-c.input:
-				if !ok {
-					continue
-				}
-				wr.Timeseries = append(wr.Timeseries, ts)
-				if len(wr.Timeseries) >= c.maxBatchSize {
-					c.flush(ctx, wr)
-				}
 			}
 		}
-	})
+	}
 }
 
 var (
 	rwErrors = metrics.NewCounter(`vmalert_remotewrite_errors_total`)
 	rwTotal  = metrics.NewCounter(`vmalert_remotewrite_total`)
 
-	sentRows            = metrics.NewCounter(`vmalert_remotewrite_sent_rows_total`)
-	sentBytes           = metrics.NewCounter(`vmalert_remotewrite_sent_bytes_total`)
-	droppedRows         = metrics.NewCounter(`vmalert_remotewrite_dropped_rows_total`)
-	sendDuration        = metrics.NewFloatCounter(`vmalert_remotewrite_send_duration_seconds_total`)
-	bufferFlushDuration = metrics.NewHistogram(`vmalert_remotewrite_flush_duration_seconds`)
+	// sentRows and sentBytes are historical counters that can now be replaced by flushedRows and flushedBytes histograms. They may be deprecated in the future after the new histograms have been adopted for some time.
+	sentRows             = metrics.NewCounter(`vmalert_remotewrite_sent_rows_total`)
+	sentBytes            = metrics.NewCounter(`vmalert_remotewrite_sent_bytes_total`)
+	flushedRows          = metrics.NewHistogram(`vmalert_remotewrite_sent_rows`)
+	flushedBytes         = metrics.NewHistogram(`vmalert_remotewrite_sent_bytes`)
+	droppedRows          = metrics.NewCounter(`vmalert_remotewrite_dropped_rows_total`)
+	sendDuration         = metrics.NewFloatCounter(`vmalert_remotewrite_send_duration_seconds_total`)
+	bufferFlushDuration  = metrics.NewHistogram(`vmalert_remotewrite_flush_duration_seconds`)
+	remoteWriteQueueSize = metrics.NewHistogram(`vmalert_remotewrite_queue_size`)
+
+	_ = metrics.NewGauge(`vmalert_remotewrite_queue_capacity`, func() float64 {
+		return float64(*maxQueueSize)
+	})
 
 	_ = metrics.NewGauge(`vmalert_remotewrite_concurrency`, func() float64 {
 		return float64(*concurrency)
@@ -221,34 +267,45 @@ func GetDroppedRows() int { return int(droppedRows.Get()) }
 // it to remote-write endpoint. Flush performs limited amount of retries
 // if request fails.
 func (c *Client) flush(ctx context.Context, wr *prompb.WriteRequest) {
+	remoteWriteQueueSize.Update(float64(len(c.input)))
 	if len(wr.Timeseries) < 1 {
 		return
 	}
 	defer wr.Reset()
 	defer bufferFlushDuration.UpdateDuration(time.Now())
 
-	data := wr.MarshalProtobuf(nil)
-	b := snappy.Encode(nil, data)
-
-	retryInterval, maxRetryInterval := *retryMinInterval, *retryMaxTime
-	if retryInterval > maxRetryInterval {
-		retryInterval = maxRetryInterval
+	bb := writeRequestBufPool.Get()
+	bb.B = wr.MarshalProtobuf(bb.B[:0])
+	zb := compressBufPool.Get()
+	defer compressBufPool.Put(zb)
+	if c.isVMRemoteWrite.Load() {
+		zb.B = zstd.CompressLevel(zb.B[:0], bb.B, 0)
+	} else {
+		zb.B = snappy.Encode(zb.B[:cap(zb.B)], bb.B)
 	}
+	writeRequestBufPool.Put(bb)
+
+	maxRetryInterval := *retryMaxTime
+	bt := timeutil.NewBackoffTimer(*retryMinInterval, maxRetryInterval)
 	timeStart := time.Now()
 	defer func() {
 		sendDuration.Add(time.Since(timeStart).Seconds())
 	}()
+
+	attempts := 0
 L:
-	for attempts := 0; ; attempts++ {
-		err := c.send(ctx, b)
+	for {
+		err := c.send(ctx, zb.B)
 		if err != nil && (errors.Is(err, io.EOF) || netutil.IsTrivialNetworkError(err)) {
 			// Something in the middle between client and destination might be closing
 			// the connection. So we do a one more attempt in hope request will succeed.
-			err = c.send(ctx, b)
+			err = c.send(ctx, zb.B)
 		}
 		if err == nil {
 			sentRows.Add(len(wr.Timeseries))
-			sentBytes.Add(len(b))
+			sentBytes.Add(len(zb.B))
+			flushedRows.Update(float64(len(wr.Timeseries)))
+			flushedBytes.Update(float64(len(zb.B)))
 			return
 		}
 
@@ -274,13 +331,13 @@ L:
 			break
 		}
 
-		if retryInterval > timeLeftForRetries {
-			retryInterval = timeLeftForRetries
+		if bt.CurrentDelay() > timeLeftForRetries {
+			bt.SetDelay(timeLeftForRetries)
 		}
 		// sleeping to prevent remote db hammering
-		time.Sleep(retryInterval)
-		retryInterval *= 2
+		bt.Wait(ctx.Done())
 
+		attempts++
 	}
 
 	rwErrors.Inc()
@@ -300,12 +357,16 @@ func (c *Client) send(ctx context.Context, data []byte) error {
 		return fmt.Errorf("failed to create new HTTP request: %w", err)
 	}
 
-	// RFC standard compliant headers
-	req.Header.Set("Content-Encoding", "snappy")
+	req.Header.Set("User-Agent", "vmalert")
 	req.Header.Set("Content-Type", "application/x-protobuf")
 
-	// Prometheus compliant headers
-	req.Header.Set("X-Prometheus-Remote-Write-Version", "0.1.0")
+	if encoding.IsZstd(data) {
+		req.Header.Set("Content-Encoding", "zstd")
+		req.Header.Set("X-VictoriaMetrics-Remote-Write-Version", "1")
+	} else {
+		req.Header.Set("Content-Encoding", "snappy")
+		req.Header.Set("X-Prometheus-Remote-Write-Version", "0.1.0")
+	}
 
 	if c.authCfg != nil {
 		err = c.authCfg.SetHeaders(req, true)
@@ -334,6 +395,29 @@ func (c *Client) send(ctx context.Context, data []byte) error {
 		// respond with HTTP 2xx status code when write is successful.
 		return nil
 	case 4:
+		// - Remote Write v1 specification implicitly expects a `400 Bad Request` when the encoding is not supported.
+		// - Remote Write v2 specification explicitly specifies a `415 Unsupported Media Type` for unsupported encodings.
+		// - Real-world implementations of v1 use both 400 and 415 status codes.
+		// See more in research: https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8462#issuecomment-2786918054
+		if resp.StatusCode == http.StatusUnsupportedMediaType || resp.StatusCode == http.StatusBadRequest {
+			if encoding.IsZstd(data) {
+				logger.Infof("received unsupported media type or bad request from remote storage at %q. Re-packing the block to Prometheus remote write and retrying."+
+					"See https://docs.victoriametrics.com/victoriametrics/vmagent/#victoriametrics-remote-write-protocol", req.URL.Redacted())
+				zstdBlockLen := len(data)
+				data, err = repackBlockFromZstdToSnappy(data)
+				if err == nil {
+					logger.Infof("received unsupported media type or bad request from remote storage at %q. Downgrading protocol from VictoriaMetrics to Prometheus remote write for all future requests. "+
+						"See https://docs.victoriametrics.com/victoriametrics/vmagent/#victoriametrics-remote-write-protocol", req.URL.Redacted())
+					c.isVMRemoteWrite.Store(false)
+					return c.send(ctx, data)
+				}
+
+				logger.Warnf("failed to repack zstd block (%d bytes) to snappy: %s; The block will be rejected. "+
+					"Possible cause: ungraceful shutdown leading to persisted queue corruption.",
+					zstdBlockLen, err)
+			}
+		}
+
 		if resp.StatusCode != http.StatusTooManyRequests {
 			// MUST NOT retry write requests on HTTP 4xx responses other than 429
 			return &nonRetriableError{
@@ -353,4 +437,20 @@ type nonRetriableError struct {
 
 func (e *nonRetriableError) Error() string {
 	return e.err.Error()
+}
+
+var (
+	writeRequestBufPool bytesutil.ByteBufferPool
+	compressBufPool     bytesutil.ByteBufferPool
+)
+
+// repackBlockFromZstdToSnappy repacks the given zstd-compressed block to snappy-compressed block.
+func repackBlockFromZstdToSnappy(zstdBlock []byte) ([]byte, error) {
+	plainBlock := make([]byte, 0, len(zstdBlock)*2)
+	plainBlock, err := encoding.DecompressZSTD(plainBlock, zstdBlock)
+	if err != nil {
+		return nil, err
+	}
+
+	return snappy.Encode(nil, plainBlock), nil
 }

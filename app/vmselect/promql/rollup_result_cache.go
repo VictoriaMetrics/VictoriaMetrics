@@ -739,7 +739,7 @@ func (mi *rollupResultCacheMetainfo) Unmarshal(src []byte) error {
 	entriesLen := int(encoding.UnmarshalUint32(src))
 	src = src[4:]
 	mi.entries = slicesutil.SetLength(mi.entries, entriesLen)
-	for i := 0; i < entriesLen; i++ {
+	for i := range entriesLen {
 		tail, err := mi.entries[i].Unmarshal(src)
 		if err != nil {
 			return fmt.Errorf("cannot unmarshal entry #%d: %w", i, err)

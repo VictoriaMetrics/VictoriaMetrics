@@ -2390,7 +2390,7 @@ func mustGetMetricName(lfss []*labelFilterExpr) string {
 		return ""
 	}
 	lfs := lfss[0]
-	if lfs.Label != "__name__" || lfs.Value == nil || len(lfs.Value.tokens) != 1 {
+	if lfs.Label != "__name__" || lfs.Value == nil || len(lfs.Value.tokens) != 1 || lfs.IsRegexp || lfs.IsNegative {
 		if lfs.IsPossibleMetricName {
 			return lfs.Label
 		}

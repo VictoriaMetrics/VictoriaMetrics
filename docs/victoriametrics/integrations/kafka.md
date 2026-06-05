@@ -23,12 +23,16 @@ Use `-kafka.consumer.topic.defaultFormat` or `-kafka.consumer.topic.format` comm
   and [OpenMetrics format](https://github.com/OpenObservability/OpenMetrics/blob/master/specification/OpenMetrics.md).
 * `graphite` - [Graphite plaintext format](https://graphite.readthedocs.io/en/latest/feeding-carbon.html#the-plaintext-protocol).
 * `jsonline` - [JSON line format](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-json-line-format).
-* `opentelemetry`{{% available_from "v1.128.0" %}}  - [Opentelemetry format](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#sending-data-via-opentelemetry)
+* `opentelemetry`{{% available_from "v1.128.0" %}}  - [Opentelemetry format](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/)
 
 For Kafka messages in the `promremotewrite` format, `vmagent` will automatically detect whether they are using [the Prometheus remote write protocol](https://prometheus.io/docs/specs/remote_write_spec/#protocol)
 or [the VictoriaMetrics remote write protocol](https://docs.victoriametrics.com/victoriametrics/vmagent/#victoriametrics-remote-write-protocol), and handle them accordingly.
 
- vmagent performs manual commit for each processed kafka message in order to guarantee message delivery. This behavior could be changed with flag `-kafka.consumer.topic.options='enable.auto.commit'`, in this scenario
+By default, `vmagent` will perform time-based manual commit, which manually commits kafka messages in batches at one-second intervals.
+Unlike Kafka's auto commit, which updates the ready-to-commit offset upon receiving the message, time-based manual commit will update the ready-to-commit offset after the message has been delivered to `vmagent`'s send buffer.
+This provides stronger guarantees than auto commit, and reduces the risk of data loss during crashes/restarts.
+
+We recommend using the default time-based manual commit. However, if you strongly desire to use kafka's auto commit for some reason, you can pass flag `-kafka.consumer.topic.options='enable.auto.commit'` to `vmagent`, in this scenario
 kafka client will automatically commit offset based on value of `auto.commit.interval.ms=5000` (5s by default).
 
 Every Kafka message may contain multiple lines in `influx`, `prometheus`, `graphite` and `jsonline` format delimited by `\n`.

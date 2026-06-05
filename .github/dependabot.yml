@@ -4,6 +4,8 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+    cooldown:
+      default-days: 21
   - package-ecosystem: "gomod"
     directory: "/"
     schedule:
@@ -23,6 +25,8 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+    cooldown:
+      default-days: 21
   - package-ecosystem: "npm"
     directory: "/app/vmui/packages/vmui"
     schedule:

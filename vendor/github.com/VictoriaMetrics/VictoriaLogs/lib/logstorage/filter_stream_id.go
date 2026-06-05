@@ -23,6 +23,19 @@ type filterStreamID struct {
 	streamIDsMapOnce sync.Once
 }
 
+func newFilterStreamID(streamIDs []streamID) *filterStreamID {
+	return &filterStreamID{
+		streamIDs: streamIDs,
+	}
+}
+
+func newFilterStreamIDFromQuery(q *Query, qFieldName string) *filterStreamID {
+	return &filterStreamID{
+		q:          q,
+		qFieldName: qFieldName,
+	}
+}
+
 func (fs *filterStreamID) String() string {
 	if fs.q != nil {
 		return "_stream_id:in(" + fs.q.String() + ")"

@@ -39,6 +39,10 @@ func (pa *pipeTimeAdd) canReturnLastNResults() bool {
 	return true
 }
 
+func (pa *pipeTimeAdd) isFixedOutputFieldsOrder() bool {
+	return false
+}
+
 func (pa *pipeTimeAdd) updateNeededFields(_ *prefixfilter.Filter) {
 	// do nothing
 }
@@ -47,7 +51,7 @@ func (pa *pipeTimeAdd) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pa *pipeTimeAdd) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
+func (pa *pipeTimeAdd) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pa, nil
 }
 
@@ -85,11 +89,11 @@ func (pap *pipeTimeAddProcessor) writeBlock(workerID uint, br *blockResult) {
 	shard.rc.name = pa.field
 
 	c := br.getColumnByName(pa.field)
-	for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
+	for rowIdx := range br.rowsLen {
 		v := c.getValueAtRow(br, rowIdx)
 		ts, ok := TryParseTimestampRFC3339Nano(v)
 		if ok {
-			ts = subNoOverflowInt64(ts, pa.offset)
+			ts = SubInt64NoOverflow(ts, pa.offset)
 			bufLen := len(shard.buf)
 			shard.buf = marshalTimestampRFC3339NanoString(shard.buf, ts)
 			v = bytesutil.ToUnsafeString(shard.buf[bufLen:])

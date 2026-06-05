@@ -23,6 +23,15 @@ type filterLeField struct {
 	prefixFilterOnce sync.Once
 }
 
+func newFilterLeField(fieldName, otherFieldName string, excludeEqualValues bool) *filterLeField {
+	return &filterLeField{
+		fieldName:      getCanonicalColumnName(fieldName),
+		otherFieldName: getCanonicalColumnName(otherFieldName),
+
+		excludeEqualValues: excludeEqualValues,
+	}
+}
+
 func (fe *filterLeField) String() string {
 	funcName := "le_field"
 	if fe.excludeEqualValues {

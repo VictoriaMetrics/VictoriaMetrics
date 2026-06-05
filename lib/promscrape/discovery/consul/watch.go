@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"net/url"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -327,14 +328,7 @@ func shouldCollectServiceByTags(filterTags, tags []string) bool {
 		return true
 	}
 	for _, filterTag := range filterTags {
-		hasTag := false
-		for _, tag := range tags {
-			if tag == filterTag {
-				hasTag = true
-				break
-			}
-		}
-		if !hasTag {
+		if !slices.Contains(tags, filterTag) {
 			return false
 		}
 	}

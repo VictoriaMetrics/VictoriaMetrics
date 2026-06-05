@@ -23,7 +23,7 @@ func BenchmarkQueueThroughputSerial(b *testing.B) {
 				q.MustClose()
 				fs.MustRemoveDir(path)
 			}()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				writeReadIteration(q, block, iterationsCount)
 			}
 		})
@@ -57,12 +57,12 @@ func BenchmarkQueueThroughputConcurrent(b *testing.B) {
 }
 
 func writeReadIteration(q *queue, block []byte, iterationsCount int) {
-	for i := 0; i < iterationsCount; i++ {
+	for range iterationsCount {
 		q.MustWriteBlock(block)
 	}
 	var ok bool
 	bb := bbPool.Get()
-	for i := 0; i < iterationsCount; i++ {
+	for range iterationsCount {
 		bb.B, ok = q.MustReadBlockNonblocking(bb.B[:0])
 		if !ok {
 			panic(fmt.Errorf("unexpected ok=false"))
