@@ -1,15 +1,19 @@
-package servers
+package main
 
 import (
 	"math"
 	"strconv"
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
 func TestCalculateMaxMetricsLimitByResource(t *testing.T) {
 	f := func(maxConcurrentRequest, remainingMemory, expect int) {
 		t.Helper()
-		maxMetricsLimit := calculateMaxUniqueTimeSeriesForResource(maxConcurrentRequest, remainingMemory)
+		maxMetricsLimit := calculateMaxUniqueTimeseries(maxConcurrentRequest, remainingMemory)
 		if maxMetricsLimit != expect {
 			t.Fatalf("unexpected max metrics limit: got %d, want %d", maxMetricsLimit, expect)
 		}
@@ -36,11 +40,17 @@ func TestGetMaxMetrics(t *testing.T) {
 	originalMaxUniqueTimeSeries := *maxUniqueTimeseries
 	defer func() {
 		*maxUniqueTimeseries = originalMaxUniqueTimeSeries
+		fs.MustRemoveDir(t.Name())
 	}()
+
+	maxConcurrentRequests := 2 * cgroup.AvailableCPUs()
 	f := func(searchQueryLimit, storageMaxUniqueTimeseries, expect int) {
 		t.Helper()
 		*maxUniqueTimeseries = storageMaxUniqueTimeseries
-		maxMetrics := getMaxMetrics(searchQueryLimit)
+		s := storage.MustOpenStorage(t.Name(), storage.OpenOptions{})
+		vms := newVMStorage(s, maxConcurrentRequests)
+		defer vms.Stop()
+		maxMetrics := vms.getMaxMetrics(searchQueryLimit)
 		if maxMetrics != expect {
 			t.Fatalf("unexpected max metrics: got %d, want %d", maxMetrics, expect)
 		}

@@ -9,12 +9,10 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage/servers"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
@@ -29,7 +27,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vminsertapi"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vmselectapi"
 )
 
 var (
@@ -42,12 +41,23 @@ var (
 	useProxyProtocol = flagutil.NewArrayBool("httpListenAddr.useProxyProtocol", "Whether to use proxy protocol for connections accepted at the given -httpListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
-	vminsertAddr      = flag.String("vminsertAddr", ":8400", "TCP address to accept connections from vminsert services")
-	vmselectAddr      = flag.String("vmselectAddr", ":8401", "TCP address to accept connections from vmselect services")
+	vminsertAddr                  = flag.String("vminsertAddr", ":8400", "TCP address to accept connections from vminsert services")
+	vminsertConnsShutdownDuration = flag.Duration("storage.vminsertConnsShutdownDuration", 10*time.Second, "The time needed for gradual closing of vminsert connections during "+
+		"graceful shutdown. Bigger duration reduces spikes in CPU, RAM and disk IO load on the remaining vmstorage nodes during rolling restart. "+
+		"Smaller duration reduces the time needed to close all the vminsert connections, thus reducing the time for graceful shutdown. "+
+		"Configured value must always be lower than the graceful shutdown period configured by the orchestration platform (terminationGracePeriodSeconds for Kubernetes). "+
+		"See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#improving-re-routing-performance-during-restart")
+	vmselectAddr                  = flag.String("vmselectAddr", ":8401", "TCP address to accept connections from vmselect services")
+	vmselectMaxConcurrentRequests = flag.Int("search.maxConcurrentRequests", 2*cgroup.AvailableCPUs(), "The maximum number of concurrent vmselect requests "+
+		"the vmstorage can process at -vmselectAddr. It shouldn't be high, since a single request usually saturates a CPU core, and many concurrently executed requests "+
+		"may require high amounts of memory. See also -search.maxQueueDuration")
+	vmselectMaxQueueDuration = flag.Duration("search.maxQueueDuration", 10*time.Second, "The maximum time the incoming vmselect request waits for execution "+
+		"when -search.maxConcurrentRequests limit is reached")
+	vmselectDisableRPCCompression = flag.Bool("rpc.disableCompression", false, "Whether to disable compression of the data sent from vmstorage to vmselect. "+
+		"This reduces CPU usage at the cost of higher network bandwidth usage")
 	snapshotAuthKey   = flagutil.NewPassword("snapshotAuthKey", "authKey, which must be passed in query string to /snapshot* pages. It overrides -httpAuth.*")
 	forceMergeAuthKey = flagutil.NewPassword("forceMergeAuthKey", "authKey, which must be passed in query string to /internal/force_merge pages. It overrides -httpAuth.*")
 	forceFlushAuthKey = flagutil.NewPassword("forceFlushAuthKey", "authKey, which must be passed in query string to /internal/force_flush pages. It overrides -httpAuth.*")
-	snapshotsMaxAge   = flagutil.NewRetentionDuration("snapshotsMaxAge", "3d", "Automatically delete snapshots older than -snapshotsMaxAge if it is set to non-zero duration. Make sure that backup process has enough time to finish the backup before the corresponding snapshot is automatically deleted")
 	_                 = flag.Duration("snapshotCreateTimeout", 0, "Deprecated: this flag does nothing")
 
 	_ = flag.Duration("finalMergeDelay", 0, "Deprecated: this flag does nothing")
@@ -119,7 +129,7 @@ var (
 )
 
 func main() {
-	// vmstoage is optimized for reduced memory allocations,
+	// vmstorage is optimized for reduced memory allocations,
 	// so it can run with the reduced GOGC in order to reduce the used memory,
 	// while keeping CPU usage spent in GC at low levels.
 	//
@@ -178,7 +188,7 @@ func main() {
 		LogNewSeries:                *logNewSeries,
 	}
 	strg := storage.MustOpenStorage(*storageDataPath, opts)
-	initStaleSnapshotsRemover(strg)
+	vmStorage := newVMStorage(strg, *vmselectMaxConcurrentRequests)
 
 	var m storage.Metrics
 	strg.UpdateMetrics(&m)
@@ -192,19 +202,23 @@ func main() {
 
 	// register storage metrics
 	storageMetrics := metrics.NewSet()
-	storageMetrics.RegisterMetricsWriter(func(w io.Writer) {
-		writeStorageMetrics(w, strg)
-	})
+	storageMetrics.RegisterMetricsWriter(vmStorage.writeStorageMetrics)
 	metrics.RegisterSet(storageMetrics)
 
 	protoparserutil.StartUnmarshalWorkers()
 
-	servers.GetMaxUniqueTimeSeries() // for init and logging only.
-	vminsertSrv, err := servers.NewVMInsertServer(*vminsertAddr, strg)
+	vminsertSrv, err := vminsertapi.NewServer(*vminsertAddr, *vminsertConnsShutdownDuration, "vminsert", vmStorage, nil)
 	if err != nil {
 		logger.Fatalf("cannot create a server with -vminsertAddr=%s: %s", *vminsertAddr, err)
+
 	}
-	vmselectSrv, err := servers.NewVMSelectServer(*vmselectAddr, strg)
+	limits := vmselectapi.Limits{
+		MaxConcurrentRequests:         *vmselectMaxConcurrentRequests,
+		MaxConcurrentRequestsFlagName: "search.maxConcurrentRequests",
+		MaxQueueDuration:              *vmselectMaxQueueDuration,
+		MaxQueueDurationFlagName:      "search.maxQueueDuration",
+	}
+	vmselectSrv, err := vmselectapi.NewServer(*vmselectAddr, vmStorage, limits, *vmselectDisableRPCCompression)
 	if err != nil {
 		logger.Fatalf("cannot create a server with -vmselectAddr=%s: %s", *vmselectAddr, err)
 	}
@@ -213,8 +227,7 @@ func main() {
 	if len(listenAddrs) == 0 {
 		listenAddrs = []string{":8482"}
 	}
-	requestHandler := newRequestHandler(strg)
-	go httpserver.Serve(listenAddrs, requestHandler, httpserver.ServeOptions{UseProxyProtocol: useProxyProtocol})
+	go httpserver.Serve(listenAddrs, vmStorage.requestHandler, httpserver.ServeOptions{UseProxyProtocol: useProxyProtocol})
 
 	pushmetrics.Init()
 	sig := procutil.WaitForSigterm()
@@ -234,7 +247,6 @@ func main() {
 	metrics.UnregisterSet(storageMetrics, true)
 	storageMetrics = nil
 
-	stopStaleSnapshotsRemover()
 	vmselectSrv.MustStop()
 	vminsertSrv.MustStop()
 	protoparserutil.StopUnmarshalWorkers()
@@ -242,31 +254,29 @@ func main() {
 
 	logger.Infof("gracefully closing the storage at %s", *storageDataPath)
 	startTime = time.Now()
-	strg.MustClose()
+	vmStorage.Stop()
 	logger.Infof("successfully closed the storage in %.3f seconds", time.Since(startTime).Seconds())
 
 	fs.MustStopDirRemover()
 	logger.Infof("the vmstorage has been stopped")
 }
 
-func newRequestHandler(strg *storage.Storage) httpserver.RequestHandler {
-	return func(w http.ResponseWriter, r *http.Request) bool {
-		if r.URL.Path == "/" {
-			if r.Method != http.MethodGet {
-				return false
-			}
-			w.Header().Add("Content-Type", "text/html; charset=utf-8")
-			fmt.Fprintf(w, `vmstorage - a component of VictoriaMetrics cluster<br/>
+// requestHandler is a storage request handler.
+// TODO(@rtm0): Move to a separate file, request_handler.go
+func (vms *VMStorage) requestHandler(w http.ResponseWriter, r *http.Request) bool {
+	path := r.URL.Path
+
+	if path == "/" {
+		if r.Method != http.MethodGet {
+			return false
+		}
+		w.Header().Add("Content-Type", "text/html; charset=utf-8")
+		fmt.Fprintf(w, `vmstorage - a component of VictoriaMetrics cluster<br/>
 			<a href="https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/">docs</a><br>
 `)
-			return true
-		}
-		return requestHandler(w, r, strg)
+		return true
 	}
-}
 
-func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storage) bool {
-	path := r.URL.Path
 	if path == "/internal/force_merge" {
 		if !httpserver.CheckAuthFlag(w, r, forceMergeAuthKey) {
 			return true
@@ -278,7 +288,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 			defer activeForceMerges.Dec()
 			logger.Infof("forced merge for partition_prefix=%q has been started", partitionNamePrefix)
 			startTime := time.Now()
-			if err := strg.ForceMergePartitions(partitionNamePrefix); err != nil {
+			if err := vms.s.ForceMergePartitions(partitionNamePrefix); err != nil {
 				logger.Errorf("error in forced merge for partition_prefix=%q: %s", partitionNamePrefix, err)
 				return
 			}
@@ -291,7 +301,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 			return true
 		}
 		logger.Infof("flushing storage to make pending data available for reading")
-		strg.DebugFlush()
+		vms.s.DebugFlush()
 		return true
 	}
 
@@ -311,7 +321,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 		}
 		logger.Infof("enabling logging of new series for the next %s. This may increase resource usage during this period.", time.Duration(dealine)*time.Second)
 		endTime := fasttime.UnixTimestamp() + uint64(dealine)
-		strg.SetLogNewSeriesUntil(endTime)
+		vms.s.SetLogNewSeriesUntil(endTime)
 		fmt.Fprintf(w, `{"status":"success","data":{"logEndTime":%q}}`, time.Unix(int64(endTime), 0))
 		return true
 	}
@@ -327,13 +337,13 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 	case "/create":
 		snapshotsCreateTotal.Inc()
 		w.Header().Set("Content-Type", "application/json")
-		snapshotName := strg.MustCreateSnapshot()
+		snapshotName := vms.s.MustCreateSnapshot()
 
 		// Verify whether the client already closed the connection.
 		// In this case it is better to drop the created snapshot, since the client isn't interested in it.
 		if err := r.Context().Err(); err != nil {
 			logger.Infof("deleting already created snapshot at %s because the client canceled the request", snapshotName)
-			if err := deleteSnapshot(strg, snapshotName); err != nil {
+			if err := vms.deleteSnapshot(snapshotName); err != nil {
 				logger.Infof("cannot delete just created snapshot: %s", err)
 				return true
 			}
@@ -345,7 +355,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 	case "/list":
 		snapshotsListTotal.Inc()
 		w.Header().Set("Content-Type", "application/json")
-		snapshots := strg.MustListSnapshots()
+		snapshots := vms.s.MustListSnapshots()
 		fmt.Fprintf(w, `{"status":"ok","snapshots":[`)
 		if len(snapshots) > 0 {
 			for _, snapshot := range snapshots[:len(snapshots)-1] {
@@ -359,7 +369,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 		snapshotsDeleteTotal.Inc()
 		w.Header().Set("Content-Type", "application/json")
 		snapshotName := r.FormValue("snapshot")
-		if err := deleteSnapshot(strg, snapshotName); err != nil {
+		if err := vms.deleteSnapshot(snapshotName); err != nil {
 			jsonResponseError(w, err)
 			snapshotsDeleteErrorsTotal.Inc()
 			return true
@@ -369,9 +379,9 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 	case "/delete_all":
 		snapshotsDeleteAllTotal.Inc()
 		w.Header().Set("Content-Type", "application/json")
-		snapshots := strg.MustListSnapshots()
+		snapshots := vms.s.MustListSnapshots()
 		for _, snapshotName := range snapshots {
-			if err := strg.DeleteSnapshot(snapshotName); err != nil {
+			if err := vms.s.DeleteSnapshot(snapshotName); err != nil {
 				err = fmt.Errorf("cannot delete snapshot %q: %w", snapshotName, err)
 				jsonResponseError(w, err)
 				snapshotsDeleteAllErrorsTotal.Inc()
@@ -384,50 +394,6 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 		return false
 	}
 }
-
-func deleteSnapshot(strg *storage.Storage, snapshotName string) error {
-	snapshots := strg.MustListSnapshots()
-	for _, snName := range snapshots {
-		if snName == snapshotName {
-			if err := strg.DeleteSnapshot(snName); err != nil {
-				return fmt.Errorf("cannot delete snapshot %q: %w", snName, err)
-			}
-			return nil
-		}
-	}
-	return fmt.Errorf("cannot find snapshot %q", snapshotName)
-}
-
-func initStaleSnapshotsRemover(strg *storage.Storage) {
-	staleSnapshotsRemoverCh = make(chan struct{})
-	if snapshotsMaxAge.Duration() <= 0 {
-		return
-	}
-	snapshotsMaxAgeDur := snapshotsMaxAge.Duration()
-	staleSnapshotsRemoverWG.Go(func() {
-		d := timeutil.AddJitterToDuration(time.Second * 11)
-		t := time.NewTicker(d)
-		defer t.Stop()
-		for {
-			select {
-			case <-staleSnapshotsRemoverCh:
-				return
-			case <-t.C:
-			}
-			strg.MustDeleteStaleSnapshots(snapshotsMaxAgeDur)
-		}
-	})
-}
-
-func stopStaleSnapshotsRemover() {
-	close(staleSnapshotsRemoverCh)
-	staleSnapshotsRemoverWG.Wait()
-}
-
-var (
-	staleSnapshotsRemoverCh chan struct{}
-	staleSnapshotsRemoverWG sync.WaitGroup
-)
 
 var (
 	activeForceMerges = metrics.NewCounter("vm_active_force_merges")
@@ -443,7 +409,9 @@ var (
 	snapshotsDeleteAllErrorsTotal = metrics.NewCounter(`vm_http_request_errors_total{path="/snapshot/delete_all"}`)
 )
 
-func writeStorageMetrics(w io.Writer, strg *storage.Storage) {
+// TODO(@rtm0): Move to metrics.go.
+func (vms *VMStorage) writeStorageMetrics(w io.Writer) {
+	strg := vms.s
 	var m storage.Metrics
 	strg.UpdateMetrics(&m)
 	tm := &m.TableMetrics
@@ -667,7 +635,7 @@ func writeStorageMetrics(w io.Writer, strg *storage.Storage) {
 	metrics.WriteGaugeUint64(w, `vm_downsampling_partitions_scheduled`, tm.ScheduledDownsamplingPartitions)
 	metrics.WriteGaugeUint64(w, `vm_downsampling_partitions_scheduled_size_bytes`, tm.ScheduledDownsamplingPartitionsSize)
 
-	metrics.WriteGaugeUint64(w, `vm_search_max_unique_timeseries`, uint64(servers.GetMaxUniqueTimeSeries()))
+	metrics.WriteGaugeUint64(w, `vm_search_max_unique_timeseries`, uint64(vms.maxUniqueTimeSeriesCalculated))
 
 	metrics.WriteGaugeUint64(w, `vm_metrics_metadata_storage_items`, m.MetadataStorageItemsCurrent)
 	metrics.WriteCounterUint64(w, `vm_metrics_metadata_storage_size_bytes`, m.MetadataStorageCurrentSizeBytes)
