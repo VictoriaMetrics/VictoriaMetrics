@@ -108,7 +108,9 @@ func UnitTest(files []string, disableGroupLabel bool, externalLabels []string, e
 	storagePath = tmpFolder
 	processFlags()
 	vminsert.Init()
-	vmselect.Init()
+	const maxConcurrentRequests = 4
+	maxQueueDuration := 5 * time.Second
+	vmselect.Init(maxConcurrentRequests, maxQueueDuration)
 	// storagePath will be created again when closing vmselect, so remove it again.
 	defer fs.MustRemoveDir(storagePath)
 	defer vminsert.Stop()
@@ -279,7 +281,8 @@ func processFlags() {
 }
 
 func setUp() {
-	vmstorage.Init(promql.ResetRollupResultCacheIfNeeded)
+	const maxConcurrentRequests = 4
+	vmstorage.Init(maxConcurrentRequests, promql.ResetRollupResultCacheIfNeeded)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	readyCheckFunc := func() bool {
@@ -384,7 +387,7 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 				}
 			}
 			// flush series after each group evaluation
-			vmstorage.Storage.DebugFlush()
+			vmstorage.DebugFlush()
 		}
 
 		// check alert_rule_test case at every eval time

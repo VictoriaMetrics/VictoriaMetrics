@@ -184,7 +184,7 @@ func (ctx *InsertCtx) WriteMetadata(mmpbs []prompb.MetricMetadata) error {
 	}
 	ctx.mms = mms
 
-	err := vmstorage.AddMetadataRows(mms)
+	err := vmstorage.VMInsertAPI.WriteMetadata(mms)
 	if err != nil {
 		return &httpserver.ErrorWithStatusCode{
 			Err:        fmt.Errorf("cannot store metrics metadata: %w", err),
@@ -209,7 +209,7 @@ func (ctx *InsertCtx) WritePromMetadata(mmps []prometheus.Metadata) error {
 	}
 	ctx.mms = mms
 
-	err := vmstorage.AddMetadataRows(mms)
+	err := vmstorage.VMInsertAPI.WriteMetadata(mms)
 	if err != nil {
 		return &httpserver.ErrorWithStatusCode{
 			Err:        fmt.Errorf("cannot store prometheus metrics metadata: %w", err),
@@ -278,7 +278,7 @@ func (ctx *InsertCtx) FlushBufs() error {
 	// since the number of concurrent FlushBufs() calls should be already limited via writeconcurrencylimiter
 	// used at every stream.Parse() call under lib/protoparser/*
 
-	err := vmstorage.AddRows(ctx.mrs)
+	err := vmstorage.VMInsertAPI.WriteRows(ctx.mrs)
 	ctx.Reset(0)
 	if err == nil {
 		return nil
