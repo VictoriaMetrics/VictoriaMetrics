@@ -2094,7 +2094,7 @@
                   }
                 ]
               },
-              "unit": "s"
+              "unit": "percentunit"
             },
             "overrides": []
           },
@@ -2217,7 +2217,7 @@
                   }
                 ]
               },
-              "unit": "s"
+              "unit": "percentunit"
             },
             "overrides": []
           },
@@ -2594,7 +2594,7 @@
                   }
                 ]
               },
-              "unit": "s"
+              "unit": "percentunit"
             },
             "overrides": []
           },

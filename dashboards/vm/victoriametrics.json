@@ -2008,7 +2008,7 @@
                   }
                 ]
               },
-              "unit": "s"
+              "unit": "percentunit"
             },
             "overrides": []
           },
@@ -2064,7 +2064,7 @@
               "format": "time_series",
               "interval": "",
               "intervalFactor": 2,
-              "legendFormat": "{{job}}-{{instance}} - waiting",
+              "legendFormat": "{{job}}-{{instance}} - stalled",
               "range": true,
               "refId": "B"
             }
@@ -2442,7 +2442,7 @@
                   }
                 ]
               },
-              "unit": "s"
+              "unit": "percentunit"
             },
             "overrides": []
           },
@@ -3077,7 +3077,7 @@
                   }
                 ]
               },
-              "unit": "s"
+              "unit": "percentunit"
             },
             "overrides": []
           },
