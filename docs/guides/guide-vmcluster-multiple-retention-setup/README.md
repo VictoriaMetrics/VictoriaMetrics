@@ -75,7 +75,8 @@ vmstorage:
 
 vminsert:
   enabled: true
-  replicationFactor: 2
+  extraArgs:
+    replicationFactor: 2
   podLabels:
     retention-group: a
 
@@ -84,7 +85,7 @@ vmselect:
 EOF
 ```
 
-The values file above creates vminsert and vmstorage services while turning off vmselect, which we'll deploy separately. With `replicaCount: 2`, the storage group runs two vmstorage instances, and vminsert sends incoming data to both of them. The 30-second [deduplication](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#deduplication) setting tells vmselect how to collapse duplicate samples with identical labels and timestamps into one. This value should match the scrape interval and the `dedup.minScrapeInterval` value configured for vmselect later on.
+The values file above creates vminsert and vmstorage services while turning off vmselect, which we'll deploy separately. With `replicaCount: 2`, each group runs 2 vmstorage pods. Setting `vminsert.extraArgs.replicationFactor: 2` sets the [replication factor](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#list-of-command-line-flags-for-vminsert) to vminsert, instructing it to store every ingested sample on 2 distinct vmstorage nodes. Together with the 2 pods, this ensures each sample exists on both pods for high availability. vmselect uses the 30-second [deduplication](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#deduplication) window to handle duplicate samples at query time. The deduplication value should match `dedup.minScrapeInterval` in vmselect and the [scrape interval](https://docs.victoriametrics.com/victoriametrics/scrape_config_examples/).
 
 > The disk size in `vmcluster-a.yaml` is per replica, so total storage for Group A is `size * replicaCount` (i.e., 40Gi x 2 = 80Gi).
 
@@ -107,7 +108,8 @@ vmstorage:
 
 vminsert:
   enabled: true
-  replicationFactor: 2
+  extraArgs:
+    replicationFactor: 2
   podLabels:
     retention-group: b
 
@@ -132,7 +134,8 @@ vmstorage:
 
 vminsert:
   enabled: true
-  replicationFactor: 2
+  extraArgs:
+    replicationFactor: 2
   podLabels:
     retention-group: c
 
