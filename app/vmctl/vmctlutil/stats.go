@@ -1,4 +1,4 @@
-package prometheus
+package vmctlutil
 
 import (
 	"fmt"
@@ -18,7 +18,7 @@ type Stats struct {
 
 // String returns string representation for s.
 func (s Stats) String() string {
-	str := fmt.Sprintf("Prometheus snapshot stats:\n"+
+	str := fmt.Sprintf("Snapshot stats:\n"+
 		"  blocks found: %d;\n"+
 		"  blocks skipped by time filter: %d;\n"+
 		"  min time: %d (%v);\n"+

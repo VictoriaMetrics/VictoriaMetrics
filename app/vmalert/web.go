@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/VictoriaMetrics/metricsql"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/rule"
@@ -160,12 +162,12 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 
 	case "/vmalert/api/v1/alerts", "/api/v1/alerts":
 		// path used by Grafana for ng alerting
-		gf, err := newGroupsFilter(r)
+		af, err := newAlertsFilter(r)
 		if err != nil {
 			errJson(w, r, err)
 			return true
 		}
-		data, err := rh.listAlerts(gf)
+		data, err := rh.listAlerts(af)
 		if err != nil {
 			errJson(w, r, err)
 			return true
@@ -325,6 +327,48 @@ func (gf *groupsFilter) matches(group *rule.Group) bool {
 	return true
 }
 
+type alertsFilter struct {
+	gf    *groupsFilter
+	match [][]metricsql.LabelFilter
+}
+
+func getMatchFilters(matches []string) ([][]metricsql.LabelFilter, *httpserver.ErrorWithStatusCode) {
+	if len(matches) == 0 {
+		return nil, nil
+	}
+	tfss := make([][]metricsql.LabelFilter, 0, len(matches))
+	for _, s := range matches {
+		expr, err := metricsql.Parse(s)
+		if err != nil {
+			return nil, errResponse(fmt.Errorf(`invalid parameter "match[]": failed to parse %q: %w`, s, err), http.StatusBadRequest)
+		}
+		me, ok := expr.(*metricsql.MetricExpr)
+		if !ok {
+			return nil, errResponse(fmt.Errorf(`invalid parameter "match[]": expecting metricSelector; got %q`, expr.AppendString(nil)), http.StatusBadRequest)
+		}
+		if len(me.LabelFilterss) == 0 {
+			return nil, errResponse(fmt.Errorf(`invalid parameter "match[]": labelFilterss cannot be empty`), http.StatusBadRequest)
+		}
+		tfss = append(tfss, me.LabelFilterss...)
+	}
+	return tfss, nil
+}
+
+func newAlertsFilter(r *http.Request) (*alertsFilter, *httpserver.ErrorWithStatusCode) {
+	gf, err := newGroupsFilter(r)
+	if err != nil {
+		return nil, err
+	}
+
+	var af alertsFilter
+	af.gf = gf
+	af.match, err = getMatchFilters(r.Form["match[]"])
+	if err != nil {
+		return nil, err
+	}
+	return &af, nil
+}
+
 // see https://prometheus.io/docs/prometheus/latest/querying/api/#rules
 type rulesFilter struct {
 	gf             *groupsFilter
@@ -335,6 +379,7 @@ type rulesFilter struct {
 	maxGroups      int
 	pageNum        int
 	search         string
+	match          [][]metricsql.LabelFilter
 	extendedStates bool
 }
 
@@ -355,7 +400,10 @@ func newRulesFilter(r *http.Request) (*rulesFilter, *httpserver.ErrorWithStatusC
 			return nil, errResponse(fmt.Errorf(`invalid parameter "type": not supported value %q`, ruleTypeParam), http.StatusBadRequest)
 		}
 	}
-
+	rf.match, err = getMatchFilters(r.Form["match[]"])
+	if err != nil {
+		return nil, err
+	}
 	states := vs["state"]
 	if len(states) == 0 {
 		states = vs["filter"]
@@ -416,10 +464,45 @@ func (rf *rulesFilter) matchesRule(r *rule.ApiRule) bool {
 	if len(rf.ruleNames) > 0 && !slices.Contains(rf.ruleNames, r.Name) {
 		return false
 	}
+	if !areLabelsMatch(r.Labels, rf.match) {
+		return false
+	}
 	if len(rf.states) == 0 {
 		return true
 	}
 	return slices.Contains(rf.states, r.State)
+}
+
+func areLabelsMatch(labels map[string]string, matches [][]metricsql.LabelFilter) bool {
+	if len(matches) == 0 {
+		return true
+	}
+	// labels need to match at least one of the provided match[] arg
+	return slices.ContainsFunc(matches, func(filters []metricsql.LabelFilter) bool {
+		for _, mf := range filters {
+			if !isLabelFilterMatch(labels[mf.Label], mf) {
+				return false
+			}
+		}
+		return true
+	})
+}
+
+func isLabelFilterMatch(s string, match metricsql.LabelFilter) bool {
+	if !match.IsRegexp {
+		if match.IsNegative {
+			return s != match.Value
+		}
+		return s == match.Value
+	}
+	re, err := metricsql.CompileRegexpAnchored(match.Value)
+	if err != nil {
+		return false
+	}
+	if match.IsNegative {
+		return !re.MatchString(s)
+	}
+	return re.MatchString(s)
 }
 
 func (rh *requestHandler) groups(rf *rulesFilter) *listGroupsResponse {
@@ -543,14 +626,14 @@ func (rh *requestHandler) groupAlerts() []rule.GroupAlerts {
 	return gAlerts
 }
 
-func (rh *requestHandler) listAlerts(gf *groupsFilter) ([]byte, *httpserver.ErrorWithStatusCode) {
+func (rh *requestHandler) listAlerts(af *alertsFilter) ([]byte, *httpserver.ErrorWithStatusCode) {
 	rh.m.groupsMu.RLock()
 	defer rh.m.groupsMu.RUnlock()
 
 	lr := listAlertsResponse{Status: "success"}
 	lr.Data.Alerts = make([]*rule.ApiAlert, 0)
 	for _, group := range rh.m.groups {
-		if !gf.matches(group) {
+		if !af.gf.matches(group) {
 			continue
 		}
 		g := group.ToAPI()
@@ -558,7 +641,11 @@ func (rh *requestHandler) listAlerts(gf *groupsFilter) ([]byte, *httpserver.Erro
 			if r.Type != rule.TypeAlerting {
 				continue
 			}
-			lr.Data.Alerts = append(lr.Data.Alerts, r.Alerts...)
+			for _, alert := range r.Alerts {
+				if areLabelsMatch(alert.Labels, af.match) {
+					lr.Data.Alerts = append(lr.Data.Alerts, alert)
+				}
+			}
 		}
 	}
 

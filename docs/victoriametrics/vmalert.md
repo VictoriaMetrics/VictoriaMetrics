@@ -21,23 +21,9 @@ Recording rules results are persisted via remote write protocols and require `-r
 `vmalert` is heavily inspired by [Prometheus](https://prometheus.io/docs/alerting/latest/overview/)
 implementation and aims to be compatible with its syntax.
 
-Configure `-vmalert.proxyURL` on VictoriaMetrics [single-node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmalert)
-or [vmselect in cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#vmalert)
-to proxy requests to `vmalert`. Proxying is needed for the following cases:
-
-* to proxy requests from [Grafana Alerting UI](https://grafana.com/docs/grafana/latest/alerting/);
-* to access `vmalert`'s UI through [vmui](https://docs.victoriametrics.com/victoriametrics/#vmui).
-
-[VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_vmalert_intro)
-provides out-of-the-box alerting functionality based on `vmalert`. This service simplifies the setup
-and management of alerting and recording rules as well as the integration with Alertmanager. For more details,
-please refer to the [VictoriaMetrics Cloud documentation](https://docs.victoriametrics.com/victoriametrics-cloud/alertmanager-setup-for-deployment/).
-
 ## Features
 
-* Integration with [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics) and [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/);
-* Integration with [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) and [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/). See [this doc](https://docs.victoriametrics.com/victorialogs/vmalert/);
-* Integration with [VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) which also uses [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/). See [this doc](https://docs.victoriametrics.com/victoriatraces/vmalert/);
+* Integration with VictoriaMetrics, VictoriaLogs, VictoriaTraces, Graphite and Prometheus compatible storages. See [Integrations](https://docs.victoriametrics.com/victoriametrics/vmalert/#integrations) for details;
 * Prometheus [alerting rules definition format](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/#defining-alerting-rules)
   support;
 * Integration with [Alertmanager](https://github.com/prometheus/alertmanager) starting from [Alertmanager v0.16.0-alpha](https://github.com/prometheus/alertmanager/releases/tag/v0.16.0-alpha.0);
@@ -62,8 +48,8 @@ please refer to the [VictoriaMetrics Cloud documentation](https://docs.victoriam
 
 To start using `vmalert` you will need the following things:
 
-* list of rules - PromQL/MetricsQL expressions to execute;
-* datasource address - reachable endpoint with [Prometheus HTTP API](https://prometheus.io/docs/prometheus/latest/querying/api/#http-api) support for running queries against;
+* list of rules - PromQL/MetricsQL/LogsQL/GraphiteQL expressions to execute;
+* datasource address - a storage that [vmalert integrates with](https://docs.victoriametrics.com/victoriametrics/vmalert/#integrations) for executing queries;
 * notifier address [optional] - reachable [Alert Manager](https://github.com/prometheus/alertmanager) instance for processing,
   aggregating alerts, and sending notifications. Please note, notifier address also supports Consul and DNS Service Discovery via
   [config file](https://docs.victoriametrics.com/victoriametrics/vmalert/#notifier-configuration-file).
@@ -73,7 +59,7 @@ To start using `vmalert` you will need the following things:
 * remote read address [optional] - MetricsQL compatible datasource to restore alerts state from.
 
 You can use the existing [docker-compose environment](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#victoriametrics-single-server)
-as example. It already contains vmalert configured with list of alerting rules and integrated with Alert Manager and VictoriaMetrics.
+as an example. It already contains vmalert configured with the list of alerting rules and integrated with Alert Manager and VictoriaMetrics.
 
 Alternatively, build `vmalert` from sources:
 
@@ -87,7 +73,7 @@ Then run `vmalert`:
 
 ```sh
 ./bin/vmalert -rule=alert.rules \            # Path to the file with rules configuration. Supports wildcard and HTTP URL (S3/GCS are available in Enterprise).
-    -datasource.url=http://localhost:8428 \  # Prometheus HTTP API compatible datasource
+    -datasource.url=http://localhost:8428 \  # VictoriaMetrics URL to query for rules evaluation. See other available Integrations above.
     -notifier.url=http://localhost:9093 \    # AlertManager URL (required if alerting rules are used)
     -notifier.url=http://127.0.0.1:9093 \    # AlertManager replica URL
     -remoteWrite.url=http://localhost:8428 \ # Remote write compatible storage to persist rules and alerts state info (required if recording rules are used)
@@ -107,7 +93,7 @@ See also [stream aggregation](https://docs.victoriametrics.com/victoriametrics/s
 
 See the full list of configuration flags in [configuration](#configuration) section.
 
-If you run multiple `vmalert` services on the same datastore or AlertManager and need to distinguish the results or alerts, 
+If you run multiple `vmalert` services for the same datasource or AlertManager and need to distinguish the results or alerts, 
 specify different `-external.label` command-line flags to indicate which `vmalert` generated them. 
 If rule result metrics have label that conflict with `-external.label`, `vmalert` will automatically rename
 it with prefix `exported_`.
@@ -116,6 +102,7 @@ Configuration for [recording](https://prometheus.io/docs/prometheus/latest/confi
 and [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/) rules is very
 similar to Prometheus rules and configured using YAML. Configuration examples may be found
 in [testdata](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/config/testdata) folder.
+
 Every `rule` belongs to a `group` and every configuration file may contain arbitrary number of groups:
 
 ```yaml
@@ -123,13 +110,7 @@ groups:
   [ - <rule_group> ]
 ```
 
-> Explore how to integrate `vmalert` with [VictoriaMetrics Anomaly Detection](https://docs.victoriametrics.com/anomaly-detection/) in the following [guide](https://docs.victoriametrics.com/anomaly-detection/guides/guide-vmanomaly-vmalert/).
-
-> For users of [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_vmalert_config),
-> many of the configuration steps (including highly available setup of `vmalert` for cluster deployments) are handled automatically.
-> Please, refer to the [VictoriaMetrics Cloud documentation](https://docs.victoriametrics.com/victoriametrics-cloud/alertmanager-setup-for-deployment/) for more details.
-
-### Groups
+## Groups
 
 Each group has the following attributes:
 
@@ -230,9 +211,11 @@ rules:
 
 ### Rules
 
-Every rule contains `expr` field for [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/)
-or [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) expression. `vmalert` will execute the configured
-expression and then act according to the Rule type.
+Every rule contains an `expr` field for the expression to evaluate against the configured datasource.
+Depending on `group.type` value or `-rule.defaultRuleType` cmd-line flag expression can be one of the following types:
+- `prometheus` (default) - [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/) or [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) expression.
+- `vlogs` - [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/vmalert/) expression.
+- `graphite` - [Graphite](https://graphite.readthedocs.io/en/stable/render_api.html) expression.
 
 There are two types of Rules:
 
@@ -244,8 +227,7 @@ There are two types of Rules:
   `-remoteWrite.url`. Recording rules are used to precompute frequently needed or computationally
   expensive expressions and save their result as a new set of time series ([Prometheus recording rules docs](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/)).
 
-`vmalert` forbids defining duplicates - rules with the same combination of name, expression, and labels
-within one group.
+> `vmalert` forbids defining duplicates - rules with the same combination of name, expression and labels within one group.
 
 #### Alerting rules
 
@@ -256,8 +238,8 @@ The syntax for alerting rule is the following:
 alert: <string>
 
 # The expression to evaluate. The expression language depends on the type value.
-# By default, PromQL/MetricsQL expression is used. If group.type="graphite", then the expression
-# must contain valid Graphite expression.
+# By default, PromQL/MetricsQL expression is used. Other available types are "graphite" and "vlogs".
+# See https://docs.victoriametrics.com/victoriametrics/vmalert/#integrations
 expr: <string>
 
 # Alerts are considered firing once they have been returned for this long.
@@ -303,7 +285,44 @@ annotations:
   [ <labelname>: <tmpl_string> ]
 ```
 
-#### Templating
+#### Recording rules
+
+The syntax for recording rules is the following:
+
+```yaml
+# The name of the time series to output to. Must be a valid metric name.
+record: <string>
+
+# The expression to evaluate. The expression language depends on the type value.
+# By default, PromQL/MetricsQL expression is used. Other available types are "graphite" and "vlogs".
+# See https://docs.victoriametrics.com/victoriametrics/vmalert/#integrations
+expr: <string>
+
+# Labels to add or overwrite labels from other external label sources, such as group labels, before storing the result.
+#
+# In case of conflicts, original labels are kept with prefix `exported_`.
+# As a special case, specifying a label with an empty string value removes the label from the result if it exists 
+# in the original query result; otherwise, it is ignored.
+#
+# Labels do not support templating in https://docs.victoriametrics.com/victoriametrics/vmalert/#templating due to cardinality concerns. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8171.
+labels:
+  [ <labelname>: <labelvalue> ]
+
+# Whether to print debug information into logs.
+# Information includes requests sent to the datasource.
+# information - it will be printed to logs.
+# Logs are printed with INFO level, so make sure that -loggerLevel=INFO to see the output.
+[ debug: <bool> | default = false ]
+
+# Defines the number of rule updates entries stored in memory
+# and available for view on rule Details page.
+# Overrides `rule.updateEntriesLimit` value for this specific rule.
+[ update_entries_limit: <integer> | default 0 ]
+```
+
+For recording rules to work `-remoteWrite.url` must be specified.
+
+## Templating
 
 It is allowed to use [Go templating](https://golang.org/pkg/text/template/) in annotations and labels(with limited support) to format data, iterate over
 or execute expressions.
@@ -325,7 +344,7 @@ The following variables are available in templating:
 
 Additionally, `vmalert` provides some extra templating functions listed in [template functions](#template-functions) and [reusable templates](#reusable-templates).
 
-#### Template functions
+### Template functions
 
 `vmalert` provides the following template functions, which can be used during [templating](#templating):
 
@@ -349,7 +368,7 @@ Additionally, `vmalert` provides some extra templating functions listed in [temp
 * `parseDurationTime` - parses the input string into [time.Duration](https://pkg.go.dev/time#Duration).
 * `pathEscape` - escapes the input string, so it can be safely put inside path part of URL.
 * `pathPrefix` - returns the path part of the `-external.url` command-line flag.
-* `query` - executes the [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query against `-datasource.url` and returns the query result.
+* `query` - executes query against `-datasource.url` and returns the query result.
   For example, `{{ query "sort_desc(process_resident_memory_bytes)" | first | value }}` executes the `sort_desc(process_resident_memory_bytes)`
   query at `-datasource.url` and returns the first result.
 * `queryEscape` - escapes the input string, so it can be safely put inside [query arg](https://en.wikipedia.org/wiki/Percent-encoding) part of URL.
@@ -369,7 +388,7 @@ Additionally, `vmalert` provides some extra templating functions listed in [temp
 * `toUpper` - converts all the chars in the input string to uppercase.
 * `value` - returns the numeric value from the input query result.
 
-#### Reusable templates
+### Reusable templates
 
 Like in Alertmanager you can define [reusable templates](https://prometheus.io/docs/prometheus/latest/configuration/template_examples/#defining-reusable-templates)
 to share same templates across annotations. Just define the templates in a file and
@@ -407,44 +426,8 @@ groups:
 The `-rule.templates` flag supports wildcards so multiple files with templates can be loaded.
 The content of `-rule.templates` can be also [hot reloaded](#hot-config-reload).
 
-#### Recording rules
 
-The syntax for recording rules is following:
-
-```yaml
-# The name of the time series to output to. Must be a valid metric name.
-record: <string>
-
-# The expression to evaluate. The expression language depends on the type value.
-# By default, MetricsQL expression is used. If group.type="graphite", then the expression
-# must contain valid Graphite expression.
-expr: <string>
-
-# Labels to add or overwrite labels from other external label sources, such as group labels, before storing the result.
-#
-# In case of conflicts, original labels are kept with prefix `exported_`.
-# As a special case, specifying a label with an empty string value removes the label from the result if it exists 
-# in the original query result; otherwise, it is ignored.
-#
-# Labels do not support templating in https://docs.victoriametrics.com/victoriametrics/vmalert/#templating due to cardinality concerns. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8171.
-labels:
-  [ <labelname>: <labelvalue> ]
-
-# Whether to print debug information into logs.
-# Information includes requests sent to the datasource.
-# information - it will be printed to logs.
-# Logs are printed with INFO level, so make sure that -loggerLevel=INFO to see the output.
-[ debug: <bool> | default = false ]
-
-# Defines the number of rule's updates entries stored in memory
-# and available for view on rule's Details page.
-# Overrides `rule.updateEntriesLimit` value for this specific rule.
-[ update_entries_limit: <integer> | default 0 ]
-```
-
-For recording rules to work `-remoteWrite.url` must be specified.
-
-### Alerts state on restarts
+## Alerts state on restarts
 
 `vmalert` holds alerts state in the memory. Restart of the `vmalert` process will reset the state of all active alerts
 in the memory. To prevent `vmalert` from losing the state on restarts configure it to persist the state
@@ -465,7 +448,7 @@ in configured `-remoteRead.url`, weren't updated in the last `1h` (controlled by
 or received state doesn't match current `vmalert` rules configuration. `vmalert` marks successfully restored rules
 with `restored` label in [web UI](#web).
 
-### Link to alert source
+## Link to alert source
 
 Alerting notifications sent by vmalert always contain a `source` link. By default, the link format
 is the following `http://<vmalert-addr>/vmalert/alert?group_id=<group_id>&alert_id=<alert_id>`. On click, it opens
@@ -501,7 +484,9 @@ In addition to `source` link, some extra links could be added to alert's [annota
 field. See [how we use them](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/9751ea10983d42068487624849cac7ad6fd7e1d8/deployment/docker/rules/alerts-cluster.yml#L44)
 to link alerting rule and the corresponding panel on Grafana dashboard.
 
-### Multitenancy
+## Multitenancy
+
+> See how to use [multitenancy in rules for VictoriaLogs](https://docs.victoriametrics.com/victorialogs/vmalert/#how-to-use-multitenancy-in-rules).
 
 There are the following approaches exist for alerting and recording rules across
 [multiple tenants](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy):
@@ -559,7 +544,7 @@ The enterprise version of vmalert is available in `vmutils-*-enterprise.tar.gz` 
 at [release page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) and in `*-enterprise`
 tags at [Docker Hub](https://hub.docker.com/r/victoriametrics/vmalert/tags) and [Quay](https://quay.io/repository/victoriametrics/vmalert?tab=tags).
 
-### Reading rules from object storage
+## Reading rules from object storage
 
 [Enterprise version](https://docs.victoriametrics.com/victoriametrics/enterprise/) of `vmalert` may read alerting and recording rules
 from object storage:
@@ -578,7 +563,7 @@ The following [command-line flags](#flags) can be used for fine-tuning access to
 * `-s3.customEndpoint` - custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set.
 * `-s3.forcePathStyle` - prefixing endpoint with bucket name when set false, true by default.
 
-### Topology examples
+## Topology examples
 
 The following sections are showing how `vmalert` may be used and configured
 for different scenarios.
@@ -589,7 +574,7 @@ Please note, not all flags in examples are required:
   you have recording rules or want to store [alerts state](#alerts-state-on-restarts) on `vmalert` restarts;
 * `-notifier.url` is optional and is needed only if you have alerting rules.
 
-#### Single-node VictoriaMetrics
+### Single-node VictoriaMetrics
 
 The simplest configuration where one single-node VM server is used for
 rules execution, storing recording rules results and alerts state.
@@ -607,7 +592,7 @@ rules execution, storing recording rules results and alerts state.
 ![vmalert single](vmalert_single.webp)
 {width="500"}
 
-#### Cluster VictoriaMetrics
+### Cluster VictoriaMetrics
 
 In [cluster mode](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/)
 VictoriaMetrics has separate components for writing and reading path:
@@ -630,7 +615,7 @@ Cluster mode could have multiple `vminsert` and `vmselect` components.
 In case when you want to spread the load on these components - add balancers before them and configure
 `vmalert` with balancer addresses. Please, see more about [VictoriaMetrics cluster architecture](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#architecture-overview).
 
-#### HA vmalert
+### HA vmalert
 
 For High Availability(HA) user can run multiple identically configured `vmalert` instances.
 It means all of them will execute the same rules, write state and results to
@@ -674,12 +659,12 @@ to ensure [high availability](https://github.com/prometheus/alertmanager#high-av
 This example uses single-node VM server for the sake of simplicity.
 Check how to replace it with [cluster VictoriaMetrics](#cluster-victoriametrics) if needed.
 
-#### Downsampling and aggregation via vmalert
+### Downsampling and aggregation via vmalert
 
 _Please note, [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/) might be more efficient
 for cases when downsampling or aggregation need to be applied **before data gets into the TSDB.**_
 
-`vmalert` can't modify existing data. But it can run arbitrary PromQL/MetricsQL queries
+`vmalert` can't modify existing data. But it can run arbitrary queries
 via [recording rules](#recording-rules) and backfill results to the configured `-remoteWrite.url`.
 This ability allows to aggregate data. For example, the following rule will calculate the average value for
 metric `http_requests` on the `5m` interval:
@@ -732,7 +717,7 @@ Flags `-remoteRead.url` and `-notifier.url` are omitted since we assume only rec
 
 See also [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/) and [downsampling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#downsampling).
 
-#### Multiple remote writes
+### Multiple remote writes
 
 For persisting recording or alerting rule results `vmalert` requires `-remoteWrite.url` to be set.
 But this flag supports only one destination. To persist rule results to multiple destinations
@@ -746,22 +731,85 @@ Using `vmagent` as a proxy provides additional benefits such as
 [data persisting when storage is unreachable](https://docs.victoriametrics.com/victoriametrics/vmagent/#replication-and-high-availability),
 or time series modification via [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/).
 
-### Web
+## Integrations
+
+vmalert can be integrated with different data sources for alerting and recording rules. But it deliberately allows
+configuring only one `datasource.url`. We recommend running separate instances of vmalert for each datasource type
+with the specified `-rule.defaultRuleType=<datasource_type>` command-line flag.
+
+###### VictoriaMetrics
+
+vmalert natively integrates with [VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/) for alerting and
+recording rules.
+
+###### VictoriaLogs
+
+vmalert integrates with [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) and allows configuring alerting and recording rules using [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/).
+Results of recording rules and alerting state should be persisted to the remote-write compatible storage, such as VictoriaMetrics.
+To enable VictoriaLogs compatibility set the `-rule.defaultRuleType=vlogs` command-line flag.
+
+See [this doc](https://docs.victoriametrics.com/victorialogs/vmalert/) for details.
+
+###### VictoriaTraces
+
+vmalert integrates with [VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) in exactly the same way as
+with [VictoriaLogs](https://docs.victoriametrics.com/victoriametrics/vmalert/#victorialogs).
+
+###### Graphite
+
+vmalert integrates with [Graphite Render API](https://graphite.readthedocs.io/en/stable/render_api.html) and allows configuring alerting and recording rules.
+During evaluation, vmalert will send requests to `<-datasource.url>/render?format=json`.
+To enable Graphite compatibility set the `-rule.defaultRuleType=graphite` command-line flag.
+
+Since VictoriaMetrics supports both Graphite and Prometheus APIs, it is possible to mix Graphite and VictoriaMetrics rules.
+On the group level, set the `type` field to specify to which datasource type it should belong: `prometheus` (MetricsQL) or `graphite` (GraphiteQL).
+When using vmalert with both `graphite` and `prometheus` rules configured against the cluster version of VictoriaMetrics, don't forget
+to set the `-datasource.appendTypePrefix` flag to `true`, so vmalert can adjust URL prefix automatically based on the query type.
+
+###### Prometheus
+
+vmalert uses [Prometheus HTTP API](https://prometheus.io/docs/prometheus/latest/querying/api/#http-api) for querying
+and [Prometheus Remote Write v1 protocol](https://prometheus.io/docs/specs/prw/remote_write_spec/) for persisting
+recording rules results and alerting state. Hence, it can be integrated with any Prometheus-compatible storage
+that supports these protocols.
+
+###### Grafana
+
+To proxy requests from [Grafana Alerting UI](https://grafana.com/docs/grafana/latest/alerting/) configure `-vmalert.proxyURL`
+on VictoriaMetrics [single-node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmalert)
+or [vmselect in cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#vmalert).
+
+###### vmui
+
+To access rules UI through [vmui](https://docs.victoriametrics.com/victoriametrics/#vmui) configure `-vmalert.proxyURL`
+on VictoriaMetrics [single-node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmalert)
+or [vmselect in cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#vmalert).
+
+###### vmanomaly
+
+See how to integrate vmalert with [VictoriaMetrics Anomaly Detection](https://docs.victoriametrics.com/anomaly-detection/)
+in the following [guide](https://docs.victoriametrics.com/anomaly-detection/guides/guide-vmanomaly-vmalert/).
+
+###### VictoriaMetrics Cloud
+
+For users of [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_vmalert_config),
+many of the configuration steps (including highly available setup of `vmalert` for cluster deployments) are handled automatically.
+Please refer to the [VictoriaMetrics Cloud documentation](https://docs.victoriametrics.com/victoriametrics-cloud/alertmanager-setup-for-deployment/) for more details.
+
+## Web
 
 `vmalert` runs a web-server (`-httpListenAddr`) for serving metrics and alerts endpoints:
 
 * `http://<vmalert-addr>` - UI;
-* `http://<vmalert-addr>/api/v1/rules` - list of all loaded groups and rules. Supports `search`, `group_limit`, and `page_num` parameters, as well as additional [filtering](https://prometheus.io/docs/prometheus/latest/querying/api/#rules);
-* `http://<vmalert-addr>/api/v1/alerts` - list of all active alerts;
-* `http://<vmalert-addr>/api/v1/notifiers` - list all available notifiers;
-* `http://<vmalert-addr>/vmalert/api/v1/alert?group_id=<group_id>&alert_id=<alert_id>` - get alert status in JSON format.
-* `http://<vmalert-addr>/vmalert/api/v1/rule?group_id=<group_id>&rule_id=<rule_id>` - get rule status in JSON format.
-* `http://<vmalert-addr>/vmalert/api/v1/group?group_id=<group_id>` - get group status in JSON format.
-Used as alert source in AlertManager.
-* `http://<vmalert-addr>/vmalert/alert?group_id=<group_id>&alert_id=<alert_id>` - get alert status in web UI.
-* `http://<vmalert-addr>/vmalert/rule?group_id=<group_id>&rule_id=<rule_id>` - get rule status in web UI.
-* `http://<vmalert-addr>/vmalert/api/v1/rule?group_id=<group_id>&alert_id=<alert_id>` - get rule status in JSON format.
-* `http://<vmalert-addr>/metrics` - application metrics.
+* `http://<vmalert-addr>/api/v1/rules` - returns a list of all loaded groups and rules. Supports the `datasource_type`, `search`, `group_limit`, and `page_num` parameters, as well as additional [filtering](https://prometheus.io/docs/prometheus/latest/querying/api/#rules);
+* `http://<vmalert-addr>/api/v1/alerts` - returns a list of all active alerts. Supports the `datasource_type`, `rule_group[]`, `file[]` and `match[]`(applied on templated alert labels) query parameters;
+* `http://<vmalert-addr>/api/v1/notifiers` - returns a list of all available notifiers;
+* `http://<vmalert-addr>/vmalert/api/v1/alert?group_id=<group_id>&alert_id=<alert_id>` - returns the alert status in JSON format;
+* `http://<vmalert-addr>/vmalert/api/v1/rule?group_id=<group_id>&rule_id=<rule_id>` - returns the rule status in JSON format;
+* `http://<vmalert-addr>/vmalert/api/v1/group?group_id=<group_id>` - returns the group status in JSON format. Used as the alert source in AlertManager;
+* `http://<vmalert-addr>/vmalert/alert?group_id=<group_id>&alert_id=<alert_id>` - displays the alert status in the web UI;
+* `http://<vmalert-addr>/vmalert/rule?group_id=<group_id>&rule_id=<rule_id>` - displays the rule status in the web UI;
+* `http://<vmalert-addr>/metrics` - application metrics endpoint;
 * `http://<vmalert-addr>/-/reload` - hot configuration reload.
 
 `vmalert` web UI can be accessed from [single-node version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
@@ -771,28 +819,11 @@ This may be used for better integration with Grafana unified alerting system. Se
 * [How to query vmalert from single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmalert)
 * [How to query vmalert from VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#vmalert)
 
-## Graphite
-
-vmalert sends requests to `<-datasource.url>/render?format=json` during evaluation of alerting and recording rules
-if the corresponding group or rule contains `type: "graphite"` config option. It is expected that the `<-datasource.url>/render`
-implements [Graphite Render API](https://graphite.readthedocs.io/en/stable/render_api.html) for `format=json`.
-When using vmalert with both `graphite` and `prometheus` rules configured against cluster version of VM do not forget
-to set `-datasource.appendTypePrefix` flag to `true`, so vmalert can adjust URL prefix automatically based on the query type.
-
-## VictoriaLogs
-
-vmalert supports [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) as a datasource for writing alerting and recording rules using [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/). See [this doc](https://docs.victoriametrics.com/victorialogs/vmalert/) for details.
-
-## VictoriaTraces
-
-vmalert supports [VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) as a (`vlogs`) datasource for writing alerting and recording rules using [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/). See [this doc](https://docs.victoriametrics.com/victoriatraces/vmalert/) for details.
-
 ## Rules backfilling
 
 vmalert supports alerting and recording rules backfilling (aka `replay`). In replay mode vmalert
 can read the same rules configuration as normal, evaluate them on the given time range and backfill
-results via remote write to the configured storage. vmalert supports any PromQL/MetricsQL compatible
-data source for backfilling.
+results via remote write to the configured storage. vmalert supports only the `prometheus` datasource type for backfilling.
 
 Please note, that response caching may lead to unexpected results during and after backfilling process.
 In order to avoid this you need to reset cache contents or disable caching when using backfilling
@@ -852,13 +883,9 @@ vmalert respects `evaluationInterval` value set by flag or per-group during the 
 vmalert automatically disables caching on VictoriaMetrics side by sending `nocache=1` param. It allows
 to prevent cache pollution and unwanted time range boundaries adjustment during backfilling.
 
-#### Recording rules
+Results of recording rules `replay` should match the results of normal rules evaluation.
 
-The result of recording rules `replay` should match with results of normal rules evaluation.
-
-#### Alerting rules
-
-The result of alerting rules `replay` is time series reflecting [alert's state](#alerts-state-on-restarts).
+Results of alerting rules `replay` are the time series reflecting the [state of the alert](#alerts-state-on-restarts).
 To see if `replayed` alert has fired in the past use the following PromQL/MetricsQL expression:
 
 ```
