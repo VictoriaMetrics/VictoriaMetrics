@@ -15,11 +15,13 @@ This guide explains how to set up multiple retentions using an [open-source Vict
 
 VictoriaMetrics retains metrics by default for 1 month. You can change data retention with the [`-retentionPeriod` command-line flag](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention), but this value applies to all time series stored on a given `vmstorage` node and cannot be customized per tenant or per metric in the open source version. 
 
+The core idea of multi-tenant architecture is to run separate storage logic groups (or even clusters) with individual `-retentionPeriod` settings, while still providing a single unified write and read path via vmagent and vmselect.
+
 ## Multi-Retention Architecture
 
-To support multiple retentions with the open source version of VictoriaMetrics cluster, you can split the cluster into several logical groups of `vmstorage` nodes, where each group is configured with a different `-retentionPeriod` and receives only the data that must follow that retention. 
+To support multiple retentions with the open source version of VictoriaMetrics cluster, you can split the cluster into several logical groups of storage nodes, where each group is configured with a different `-retentionPeriod` and receives only the data that must follow that retention. 
 
-Each storage group is connected to a separate `vminsert`, while a shared `vmselect` layer queries across all storage groups so that dashboards and alerts continue to see a single logical VictoriaMetrics backend.
+Each storage group is connected to a separate vminsert, while a shared vmselect layer queries across all storage groups so that dashboards and alerts continue to see a single logical VictoriaMetrics backend.
 
 ![Setup](setup.webp)
 
@@ -29,7 +31,7 @@ In the example used throughout this guide, the cluster is divided into three gro
 - Group B: 1-year retention.
 - Group C: 3-year retention. 
 
-Metrics are routed to the appropriate `vminsert` group by [splitting data streams](https://docs.victoriametrics.com/victoriametrics/vmagent/#splitting-data-streams-among-multiple-systems) in `vmagent`. An optional [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) rule can be added on top to enforce per-tenant routing or API access policies.
+Metrics are routed to the appropriate vminsert group by [splitting data streams](https://docs.victoriametrics.com/victoriametrics/vmagent/#splitting-data-streams-among-multiple-systems) in vmagent. An optional [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) rule can be added on top to enforce per-tenant routing or API access policies.
 
 ## Implementing Multi-Retention on Kubernetes
 
@@ -44,13 +46,15 @@ helm repo update
 
 ### Step 1: Deploying storage groups
 
-We'll create three retention groups. Each has a different retention period and disk size. Read [Understand Your Setup Size](https://docs.victoriametrics.com/guides/understand-your-setup-size/) to estimate how much space you will need for each group. The following table is shown as an example.
+We'll create three storage groups. Each has a different retention period and disk size. Read [Understand Your Setup Size](https://docs.victoriametrics.com/guides/understand-your-setup-size/) to estimate how much space you will need for each group. The following table is shown as an example.
 
-| Group       | Retention Period | Disk Size |
-|-------------|------------------|-----------|
-| `vmcluster-a` | 3 months (`3M`)    | 80GB      |
-| `vmcluster-b` | 1 year (`1Y`)      | 300 GB    |
-| `vmcluster-c` | 3 years (`3Y`)     | 900 GB    |
+> Note: disk sizes below are per `vmstorage` replica. The manifests in this guide use 2 replicas per group, so total cluster storage per group = size × 2.
+
+| Group       | Retention Period | Total disk size       |
+|-------------|------------------|-----------------------|
+| `vmcluster-a` | 3 months (`3M`)    | 80 Gi                 |
+| `vmcluster-b` | 1 year (`1Y`)      | 300 Gi                |
+| `vmcluster-c` | 3 years (`3Y`)     | 900 Gi                |
 
 Create a Helm values file for Group A.
 
@@ -58,8 +62,9 @@ Create a Helm values file for Group A.
 cat <<EOF > vmcluster-a.yaml
 vmstorage:
   enabled: true
+  replicaCount: 2
   persistence:
-    size: 80Gi
+    size: 40Gi
   extraArgs:
     retentionPeriod: 3M
     storageDataPath: /vmstorage-data
@@ -78,7 +83,9 @@ vmselect:
 EOF
 ```
 
-The values file above creates `vminsert` and `vmstorage` services while turning off `vmselect`, which we'll deploy separately. It also defines a 30-second [deduplication](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#deduplication) window to handle possible duplicate metrics. The deduplication window must match the `vmagent` service scrape window (which we'll define later in the guide).
+The values file above creates vminsert and vmstorage services while turning off vmselect, which we'll deploy separately. With `replicaCount: 2`, the storage group runs two vmstorage instances, and vminsert sends incoming data to both of them. The 30-second [deduplication](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#deduplication) setting tells vmselect how to collapse duplicate samples with identical labels and timestamps into one. This value should match the scrape interval and the `dedup.minScrapeInterval` value configured for vmselect later on.
+
+> The disk size in `values-a.yaml` is per replica, so total storage for Group A is `size * replicaCount` (i.e., 40Gi x 2 = 80Gi).
 
 Create the values files for Group B and Group C:
 
@@ -86,8 +93,9 @@ Create the values files for Group B and Group C:
 cat <<EOF > vmcluster-b.yaml
 vmstorage:
   enabled: true
+  replicaCount: 2
   persistence:
-    size: 300Gi
+    size: 150Gi
   extraArgs:
     retentionPeriod: 1Y
     storageDataPath: /vmstorage-data
@@ -109,8 +117,9 @@ EOF
 cat <<EOF > vmcluster-c.yaml
 vmstorage:
   enabled: true
+  replicaCount: 2
   persistence:
-    size: 900Gi
+    size: 450Gi
   extraArgs:
     retentionPeriod: 3Y
     storageDataPath: /vmstorage-data
@@ -144,7 +153,7 @@ kubectl rollout status statefulset -l app.kubernetes.io/instance=vmcluster-c
 
 ### Step 2: Deploying vmselect
 
-Next, we'll deploy a `vmselect` service to route queries to the storage groups.
+Next, we'll deploy a vmselect service to route queries to the storage groups.
 
 Create a Helm values file with:
 
@@ -176,10 +185,10 @@ EOF
 
 Let's break down the file above:
 
-- Deploys `vmselect` as a separate Helm release 
-- Disables `vminsert` and `vmstorage` as these services were already deployed in Step 1.
-- `supressStorageFQDNsRender: true` turns off automatic FQDN generation for storage nodes. By default, the Helm chart auto-generates `-storageNodes` flags, but since `vmstorage` has been disabled, we need to supply them manually in `extraArgs`.
-- In `extraArgs.storageNode:` we define the list of `vmstorage` services to reach for queries. The `storageNode` flags tell vmselect to query all 6 storage pods, which are organized into three groups: `a`, `b`, and `c`.
+- Deploys vmselect as a separate Helm release 
+- Disables vminsert and vmstorage as these services were already deployed in Step 1.
+- `suppressStorageFQDNsRender: true` turns off automatic FQDN generation for storage nodes. By default, the Helm chart auto-generates `-storageNodes` flags, but since `vmstorage` has been disabled, we need to supply them manually in `extraArgs`.
+- In `extraArgs.storageNode:` we define the vmstorage endpoints for queries. Each entry uses the `<group>/<host>` format. The group prefix tells vmselect which pods are replicas of each other. Groups `a`, `b`, and `c` correspond to the three retention periods. Within each group, the 2 pods are replicas, so vmselect deduplicates within each retention group and unions across groups, providing a unified view of all 6 storage pods.
 
 Deploy the `vmselect` release with:
 
@@ -227,7 +236,7 @@ EOF
 ```
 
 > Two important notes on scraping:
-> - Metrics without a matching `retention` label are silently dropped by the `keep` rules. You must ensure that every metric receives a label, or use a different routing configuration.
+> - Metrics without a matching `retention` label are silently dropped by the `keep` rules. You must ensure that every metric is labeled, or use a different routing configuration.
 > - The [scrape interval](https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs) should match the `dedup.minScrapeInterval` defined in the vmstorage nodes.
 `
 
@@ -245,7 +254,7 @@ kubectl rollout status deploy/vmagent-victoria-metrics-agent
 
 ### Step 4: Verification
 
-We can send test data to verify that data is flowing to the correct storage group.
+We can send test data to verify that the data is flowing to the correct storage group.
 
 First, port-forward vmagent and vmselect:
 
@@ -293,7 +302,7 @@ The example setup above relies on a synthetic `retention` label to exist in ever
 
 If having a `retention` label in every metric isn't practical, you can, as an alternative, rely on existing labels to map data to the correct storage group.
 
-The following example configures `vmagent` to route metrics based on the `environment` and `team` labels:
+The following example configures vmagent to route metrics based on the `environment` and `team` labels:
 
 ```yaml
 # vmagent.yaml
@@ -324,7 +333,7 @@ remoteWrite:
 
 VictoriaMetrics Cluster supports [multiple isolated tenants](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) identified by `accountID` (and optionally `projectID`) in the URL path, e.g., `/insert/0/prometheus/...`. 
 
-In a standard deployment, a single `vminsert` handles all tenants and distributes data across a shared pool of `vmstorage` nodes. In our current setup, each retention group deploys its own `vminsert`. This means tenant IDs are not required for routing, since data is already isolated by the URL that receives the write. 
+In a standard deployment, a single vminsert handles all tenants and distributes data across a shared pool of vmstorage nodes. In our current setup, each retention group deploys its own vminsert. This means tenant IDs are not required for routing, since data is already isolated by the URL that receives the write. 
 
 You can safely use a single tenant (`/insert/0/prometheus`) for all groups and rely on the `retention` label or label-based routing to separate data at query time.
 
@@ -336,9 +345,9 @@ If, however, you prefer tenant-level separation for the query layer, you can ass
 | B (1yr) | `/insert/1/prometheus` | `/select/1/prometheus` |
 | C (3yr) | `/insert/2/prometheus` | `/select/2/prometheus` |
 
-This lets you query a single retention group directly, e.g., `/select/1/prometheus/api/v1/query?query=up` returns only data written to group B's `vminsert`. Queries to vmselect without a tenant prefix aggregate across all groups, preserving the unified view for dashboards.
+This lets you query a single retention group directly, e.g., `/select/1/prometheus/api/v1/query?query=up` returns only data written to group B's vminsert. Queries to vmselect without a tenant prefix aggregate across all groups, preserving the unified view for dashboards.
 
-The tenant path does not affect where data is stored (routing is always determined by which `vminsert` receives the data). The tenant ID is purely a query-scoping convenience in this architecture.
+The tenant path does not affect where data is stored (routing is always determined by which vminsert receives the data). The tenant ID is purely a query-scoping convenience in this architecture.
 
 ## Additional Enhancements
 
