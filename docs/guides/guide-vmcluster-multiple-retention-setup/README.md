@@ -13,6 +13,8 @@ This guide explains how to set up multiple retentions using an [open-source Vict
 
 ## Overview
 
+**Open Source Solution**
+
 VictoriaMetrics retains metrics by default for 1 month. You can change data retention with the [`-retentionPeriod` command-line flag](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention), but this value applies to all time series stored on a given `vmstorage` node and cannot be customized per tenant or per metric in the open source version. 
 
 The core idea of multi-tenant architecture is to run separate storage logic groups (or even clusters) with individual `-retentionPeriod` settings, while still providing a single unified write and read path via vmagent and vmselect.
