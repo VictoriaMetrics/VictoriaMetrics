@@ -760,7 +760,7 @@ Frequency of the points returned. Will be converted to `/select/stats_query_rang
 `10000`
             </td>
             <td>
-(Optional) For splitting long `fit_window` [queries](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vlogs-reader) into smaller sub-intervals. This helps users avoid hitting the timeout limits for individual queries by distributing initial query across multiple subquery requests with minimal overhead. Can be also set on [per-query](#per-query-parameters-1) basis to override reader-level settings.
+(Optional) For splitting long `fit_window` [queries](https://docs.victoriametrics.com/anomaly-detection/components/reader/#victorialogs-reader) into smaller sub-intervals. This helps users avoid hitting the timeout limits for individual queries by distributing initial query across multiple subquery requests with minimal overhead. Can be also set on [per-query](#per-query-parameters-1) basis to override reader-level settings.
             </td>
         </tr>
         <tr>
