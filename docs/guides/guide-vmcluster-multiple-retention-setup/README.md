@@ -75,6 +75,7 @@ vmstorage:
 
 vminsert:
   enabled: true
+  replicationFactor: 2
   podLabels:
     retention-group: a
 
@@ -85,7 +86,7 @@ EOF
 
 The values file above creates vminsert and vmstorage services while turning off vmselect, which we'll deploy separately. With `replicaCount: 2`, the storage group runs two vmstorage instances, and vminsert sends incoming data to both of them. The 30-second [deduplication](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#deduplication) setting tells vmselect how to collapse duplicate samples with identical labels and timestamps into one. This value should match the scrape interval and the `dedup.minScrapeInterval` value configured for vmselect later on.
 
-> The disk size in `values-a.yaml` is per replica, so total storage for Group A is `size * replicaCount` (i.e., 40Gi x 2 = 80Gi).
+> The disk size in `vmcluster-a.yaml` is per replica, so total storage for Group A is `size * replicaCount` (i.e., 40Gi x 2 = 80Gi).
 
 Create the values files for Group B and Group C:
 
@@ -106,6 +107,7 @@ vmstorage:
 
 vminsert:
   enabled: true
+  replicationFactor: 2
   podLabels:
     retention-group: b
 
@@ -130,6 +132,7 @@ vmstorage:
 
 vminsert:
   enabled: true
+  replicationFactor: 2
   podLabels:
     retention-group: c
 
