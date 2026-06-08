@@ -41,7 +41,7 @@ models:
 # ...
 ```  
 
-Old-style configs (< [1.10.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#1100))
+Old-style configs (< [1.10.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1100))
 
 ```yaml
 model:
@@ -66,7 +66,7 @@ models:
 
 ## Common args
 
-From [1.10.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#1100), **common args**, supported by *every model (and model type)* were introduced.
+From [1.10.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1100), **common args**, supported by *every model (and model type)* were introduced.
 
 ### Queries
 
