@@ -396,7 +396,7 @@ before sending them to the configured `-remoteWrite.url`. The deduplication can 
 
 Labels can be dropped before deduplication is applied. See [these docs](#dropping-unneeded-labels).
 
-Stream aggregation deduplication is applied before aggregation rules, so duplicate samples are dropped before aggregation.
+Stream aggregation deduplication is applied before aggregation rules, so duplicate samples are dropped before aggregation. The dropped old samples can be tracked with the `vm_streamaggr_dedup_dropped_samples_total` metric.
 
 # Relabeling
 
@@ -444,7 +444,9 @@ outside the current [aggregation interval](https://docs.victoriametrics.com/vict
 
 - To enable [aggregation windows](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#aggregation-windows).
 
-The dropped old samples can be tracked with the `vm_streamaggr_ignored_samples_total{reason="too_old"}` metric.
+- To enable [deduplication](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#deduplication).
+
+The dropped old samples can be tracked with the `vm_streamaggr_ignored_samples_total{reason="too_old"}` and `vm_streamaggr_dedup_dropped_samples_total` metrics.
 
 ## Ignore aggregation intervals on start
 
