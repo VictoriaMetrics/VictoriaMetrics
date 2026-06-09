@@ -1960,7 +1960,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "CPU pressure based on [Pressure Stall Information](https://docs.kernel.org/accounting/psi.html).\n\n**Lower is better.**\n\nPressure is measured as amount of time within 1sec time window the process was:\n- waiting: at least one task in the process was ready to run (runnable) but couldn't get scheduled on the CPU.\n- stalled: all tasks in the process (except idle ones) were unable to get CPU time — a full CPU stall.\n\nIf there's a CPU burst, it's normal to see waiting or stalled > 100ms. It only becomes a concern if it consistently climbs above 50-100ms and aligns with latency spikes or GC slowdowns.",
+          "description": "CPU pressure based on [Pressure Stall Information](https://docs.kernel.org/accounting/psi.html).\n\n**Lower is better.**\n\nPressure is measured as amount of time within 1sec time window the process was:\n- waiting: at least one task in the process was ready to run (runnable) but couldn't get scheduled on the CPU.\n- stalled: all tasks in the process (except idle ones) were unable to get CPU time \u2014 a full CPU stall.\n\nIf there's a CPU burst, it's normal to see waiting or stalled > 100ms. It only becomes a concern if it consistently climbs above 50-100ms and aligns with latency spikes or GC slowdowns.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2083,7 +2083,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows memory pressure based on [Pressure Stall Information](https://docs.kernel.org/accounting/psi.html).\n\n**Lower is better.**\n\nPressure is measured as amount of time within 1sec time window the process was:\n- waiting: at least one thread was blocked on memory.\n- stalled: every thread was blocked on memory (severe pressure).\n\nElevated memory pressure can slowdown the process performance by utilizing more disk IO. Consider increasing amount of available RAM limit or decreasing the load on the process.\n\nSeу major page faults rate panel in Troubleshooting section if this metric continued to be high.",
+          "description": "Shows memory pressure based on [Pressure Stall Information](https://docs.kernel.org/accounting/psi.html).\n\n**Lower is better.**\n\nPressure is measured as amount of time within 1sec time window the process was:\n- waiting: at least one thread was blocked on memory.\n- stalled: every thread was blocked on memory (severe pressure).\n\nElevated memory pressure can slowdown the process performance by utilizing more disk IO. Consider increasing amount of available RAM limit or decreasing the load on the process.\n\nSe\u0443 major page faults rate panel in Troubleshooting section if this metric continued to be high.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -5135,6 +5135,320 @@
             }
           ],
           "title": "Major page faults rate  ($instance)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Shows the operating system name and kernel release version for each instance. Use this to quickly correlate incidents with known OS or kernel-specific regressions. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10481",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "filterable": true,
+                "footer": {
+                  "reducers": []
+                },
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Time"
+                },
+                "properties": [
+                  {
+                    "id": "custom.hideFrom.viz",
+                    "value": true
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Value"
+                },
+                "properties": [
+                  {
+                    "id": "custom.hideFrom.viz",
+                    "value": true
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "job"
+                },
+                "properties": [
+                  {
+                    "id": "custom.hideFrom.viz",
+                    "value": true
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 297
+          },
+          "id": 228,
+          "options": {
+            "cellHeight": "sm",
+            "filterable": true,
+            "showHeader": true,
+            "showSearch": true
+          },
+          "pluginVersion": "12.2.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "sum(vm_os_info{job=~\"$job\", instance=~\"$instance\"}) by(job, instance, os, release)",
+              "format": "table",
+              "instant": true,
+              "legendFormat": "__auto",
+              "range": false,
+              "refId": "A"
+            }
+          ],
+          "title": "OS info",
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Shows the filesystem type for each storage data path. Use this to quickly identify filesystem-related issues (e.g., NFS, XFS bugs) during incident triage. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10482",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "filterable": true,
+                "footer": {
+                  "reducers": []
+                },
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Time"
+                },
+                "properties": [
+                  {
+                    "id": "custom.hideFrom.viz",
+                    "value": true
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Value"
+                },
+                "properties": [
+                  {
+                    "id": "custom.hideFrom.viz",
+                    "value": true
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "job"
+                },
+                "properties": [
+                  {
+                    "id": "custom.hideFrom.viz",
+                    "value": true
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 297
+          },
+          "id": 229,
+          "options": {
+            "cellHeight": "sm",
+            "filterable": true,
+            "showHeader": true,
+            "showSearch": true
+          },
+          "pluginVersion": "12.2.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "sum(vm_fs_info{job=~\"$job_storage\", instance=~\"$instance\"}) by(job, instance, path, fs_type)",
+              "format": "table",
+              "instant": true,
+              "legendFormat": "__auto",
+              "range": false,
+              "refId": "A"
+            }
+          ],
+          "title": "Filesystem info",
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Average duration of fsync system calls. High latency indicates storage I/O that cannot keep up with the write rate. This metric measures only the persistence path (fsyncing to disk), not the page-cache write phase, making it a direct signal for disk performance. Computed as rate(vm_filestream_fsync_duration_seconds_total) / rate(vm_filestream_fsync_calls_total). See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10432",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "axisSoftMin": 0,
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 305
+          },
+          "id": 230,
+          "options": {
+            "legend": {
+              "calcs": [
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Last *",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": true,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.2.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "rate(vm_filestream_fsync_duration_seconds_total{job=~\"$job_storage\", instance=~\"$instance\"}[$__rate_interval]) / rate(vm_filestream_fsync_calls_total{job=~\"$job_storage\", instance=~\"$instance\"}[$__rate_interval])",
+              "format": "time_series",
+              "instant": false,
+              "legendFormat": "{{instance}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Fsync avg duration ($instance)",
           "type": "timeseries"
         }
       ],
@@ -10520,7 +10834,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "This panel breaks down memory usage by type. It’s intended for inspecting a single instance.\n\nHow to use:\n- Start from the high-level RSS panel.\n- Identify an instance with unexpected or abnormal memory growth.\n- Filter to that instance to inspect the detailed breakdown.\n\nInterpretation\n- A steadily rising Go Heap usually indicates a memory leak. Collect pprof memory profile.\n- A growing Go Stack commonly points to a goroutine leak.",
+          "description": "This panel breaks down memory usage by type. It\u2019s intended for inspecting a single instance.\n\nHow to use:\n- Start from the high-level RSS panel.\n- Identify an instance with unexpected or abnormal memory growth.\n- Filter to that instance to inspect the detailed breakdown.\n\nInterpretation\n- A steadily rising Go Heap usually indicates a memory leak. Collect pprof memory profile.\n- A growing Go Stack commonly points to a goroutine leak.",
           "fieldConfig": {
             "defaults": {
               "color": {
