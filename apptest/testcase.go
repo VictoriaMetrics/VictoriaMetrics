@@ -228,10 +228,12 @@ func (tc *TestCase) MustStartVmbackup(instance, storageDataPath, snapshotCreateU
 // MustStartVmrestore is a test helper that starts an instance of vmrestore
 // and waits until the app exits. It fails the test if the app fails to start or
 // exits with non zero code.
-func (tc *TestCase) MustStartVmrestore(instance, src, storageDataPath string) {
+//
+// Additional command-line flags may be passed via extraFlags, e.g. -restorePartitions.
+func (tc *TestCase) MustStartVmrestore(instance, src, storageDataPath string, extraFlags ...string) {
 	tc.t.Helper()
 
-	if err := StartVmrestore(instance, src, storageDataPath, tc.output); err != nil {
+	if err := StartVmrestore(instance, src, storageDataPath, tc.output, extraFlags...); err != nil {
 		tc.t.Fatalf("vmrestore %q failed to start or exited with non-zero code: %v", instance, err)
 	}
 

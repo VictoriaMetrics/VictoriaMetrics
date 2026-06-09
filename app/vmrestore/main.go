@@ -138,4 +138,3 @@ func parseRestorePartitions(s string) (*regexp.Regexp, error) {
 	}
 	return re, nil
 }
-
