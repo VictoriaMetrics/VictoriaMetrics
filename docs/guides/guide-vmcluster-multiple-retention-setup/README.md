@@ -343,7 +343,7 @@ The tenant path does not affect where data is stored (routing is always determin
 
 You can set up [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) to route data to the specified vminsert group based on the required retention or to restrict which data different users can query.
 
-The following [`-auth.config`](https://docs.victoriametrics.com/vmauth.html#quick-start) example exposes the same vmselect backend via vmauth with two users using basic auth:
++The following [`-auth.config`](https://docs.victoriametrics.com/victoriametrics/vmauth/#quick-start) example exposes the same vmselect backend via vmauth with two users using basic auth:
 
 - `admin`: can query **all** data across all retention groups.
 - `dev`: can query **only** time series that have `team="dev"` label, enforced via the `extra_label` query argument.
