@@ -165,15 +165,16 @@ func (vms *VMStorage) IsReadOnly() bool {
 
 func (vms *VMStorage) InitSearch(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (vmselectapi.BlockIterator, error) {
 	vms.wg.Add(1)
-	// wg.Done() is called in bi.MustClose
 
 	tr := sq.GetTimeRange()
 	maxMetrics := vms.getMaxMetrics(sq.MaxMetrics)
 	tfss, err := vms.setupTfss(qt, sq, tr, maxMetrics, deadline)
 	if err != nil {
+		vms.wg.Done()
 		return nil, err
 	}
 	if len(tfss) == 0 {
+		vms.wg.Done()
 		return nil, fmt.Errorf("missing tag filters")
 	}
 	bi := getBlockIterator()
@@ -210,9 +211,9 @@ func (bi *blockIterator) MustClose() {
 	bi.sr.MustClose()
 	bi.mb.MetricName = nil
 	bi.mb.Block.Reset()
-	blockIteratorsPool.Put(bi)
 	bi.wgDone()
 	bi.wgDone = nil
+	blockIteratorsPool.Put(bi)
 }
 
 func getBlockIterator() *blockIterator {
