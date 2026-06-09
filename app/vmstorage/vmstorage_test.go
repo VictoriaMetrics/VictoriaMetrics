@@ -48,7 +48,7 @@ func TestGetMaxMetrics(t *testing.T) {
 		t.Helper()
 		*maxUniqueTimeseries = storageMaxUniqueTimeseries
 		s := storage.MustOpenStorage(t.Name(), storage.OpenOptions{})
-		vms := newVMStorage(s, maxConcurrentRequests)
+		vms := newVMStorage(s, maxConcurrentRequests, func(mrs []storage.MetricRow) {})
 		defer vms.Stop()
 		maxMetrics := vms.getMaxMetrics(searchQueryLimit)
 		if maxMetrics != expect {

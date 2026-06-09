@@ -1,6 +1,7 @@
 package vmstorage
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"sync"
@@ -14,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricnamestats"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/syncwg"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vmselectapi"
 )
@@ -34,7 +36,7 @@ var (
 // newVMStorage creates a new instance of of VMStorage.
 //
 // The created VMStorage instance takes ownership of s.
-func newVMStorage(s *storage.Storage, vmselectMaxConcurrentRequests int) *VMStorage {
+func newVMStorage(s *storage.Storage, vmselectMaxConcurrentRequests int, resetCacheIfNeeded func(mrs []storage.MetricRow)) *VMStorage {
 	if err := encoding.CheckPrecisionBits(uint8(*precisionBits)); err != nil {
 		logger.Fatalf("invalid -precisionBits=%d: %s", *precisionBits, err)
 	}
@@ -49,6 +51,8 @@ func newVMStorage(s *storage.Storage, vmselectMaxConcurrentRequests int) *VMStor
 		maxUniqueTimeseries:           *maxUniqueTimeseries,
 		maxUniqueTimeSeriesCalculated: maxUniqueTimeseriesCalculated,
 		staleSnapshotsRemoverCh:       make(chan struct{}),
+		wg:                            syncwg.WaitGroup{},
+		resetCacheIfNeeded:            resetCacheIfNeeded,
 	}
 	vms.initStaleSnapshotsRemover()
 	return vms
@@ -78,6 +82,17 @@ type VMStorage struct {
 	maxUniqueTimeSeriesCalculated int
 	staleSnapshotsRemoverCh       chan struct{}
 	staleSnapshotsRemoverWG       sync.WaitGroup
+
+	// wg is used to wrap every storage call into wg.Add(1) ... wg.Done()
+	// for proper graceful shutdown when Stop is called.
+	//
+	// Use syncwg instead of sync, since Add is called from concurrent
+	// goroutines.
+	wg syncwg.WaitGroup
+
+	// resetCacheIfNeeded is a callback for automatic resetting of response
+	// cache if needed.
+	resetCacheIfNeeded func(mrs []storage.MetricRow)
 }
 
 func (vms *VMStorage) initStaleSnapshotsRemover() {
@@ -103,6 +118,7 @@ func (vms *VMStorage) initStaleSnapshotsRemover() {
 func (vms *VMStorage) Stop() {
 	close(vms.staleSnapshotsRemoverCh)
 	vms.staleSnapshotsRemoverWG.Wait()
+	vms.wg.WaitAndBlock()
 	vms.s.MustClose()
 }
 
@@ -111,6 +127,14 @@ func (vms *VMStorage) Stop() {
 // The caller should limit the number of concurrent calls to WriteRows() in
 // order to limit memory usage.
 func (vms *VMStorage) WriteRows(rows []storage.MetricRow) error {
+	vms.wg.Add(1)
+	defer vms.wg.Done()
+
+	if vms.s.IsReadOnly() {
+		return errReadOnly
+	}
+	vms.resetCacheIfNeeded(rows)
+
 	vms.s.AddRows(rows, uint8(*precisionBits))
 	return nil
 }
@@ -120,16 +144,29 @@ func (vms *VMStorage) WriteRows(rows []storage.MetricRow) error {
 // The caller should limit the number of concurrent calls to WriteMetadata() in
 // order to limit memory usage.
 func (vms *VMStorage) WriteMetadata(rows []metricsmetadata.Row) error {
+	vms.wg.Add(1)
+	defer vms.wg.Done()
+
+	if vms.s.IsReadOnly() {
+		return errReadOnly
+	}
 	vms.s.AddMetadataRows(rows)
 	return nil
 }
 
+var errReadOnly = errors.New("the storage is in read-only mode; check -storage.minFreeDiskSpaceBytes command-line flag value")
+
 // IsReadOnly returns true is the storage is in read-only mode.
 func (vms *VMStorage) IsReadOnly() bool {
+	vms.wg.Add(1)
+	defer vms.wg.Done()
 	return vms.s.IsReadOnly()
 }
 
 func (vms *VMStorage) InitSearch(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (vmselectapi.BlockIterator, error) {
+	vms.wg.Add(1)
+	// wg.Done() is called in bi.MustClose
+
 	tr := sq.GetTimeRange()
 	maxMetrics := vms.getMaxMetrics(sq.MaxMetrics)
 	tfss, err := vms.setupTfss(qt, sq, tr, maxMetrics, deadline)
@@ -140,6 +177,7 @@ func (vms *VMStorage) InitSearch(qt *querytracer.Tracer, sq *storage.SearchQuery
 		return nil, fmt.Errorf("missing tag filters")
 	}
 	bi := getBlockIterator()
+	bi.wgDone = vms.wg.Done
 	bi.sr.Init(qt, vms.s, tfss, tr, maxMetrics, deadline)
 	if err := bi.sr.Error(); err != nil {
 		bi.MustClose()
@@ -161,8 +199,9 @@ func (vms *VMStorage) getMaxMetrics(searchQueryLimit int) int {
 
 // blockIterator implements vmselectapi.BlockIterator
 type blockIterator struct {
-	sr storage.Search
-	mb storage.MetricBlock
+	sr     storage.Search
+	mb     storage.MetricBlock
+	wgDone func()
 }
 
 var blockIteratorsPool sync.Pool
@@ -172,6 +211,8 @@ func (bi *blockIterator) MustClose() {
 	bi.mb.MetricName = nil
 	bi.mb.Block.Reset()
 	blockIteratorsPool.Put(bi)
+	bi.wgDone()
+	bi.wgDone = nil
 }
 
 func getBlockIterator() *blockIterator {
@@ -197,8 +238,63 @@ func (bi *blockIterator) Error() error {
 	return bi.sr.Error()
 }
 
+// GetSearch sets up an instance of storage search and returns it to the caller
+// along with the max series count that the search can return.
+//
+// This method is not part of the vmselectapi.API and must only be used by
+// vmsingle HTTP handlers.
+//
+// Callers of this method must call PutSearch() once the search instance is not
+// needed anymore.
+func (vms *VMStorage) GetSearch(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (*storage.Search, int, error) {
+	vms.wg.Add(1)
+
+	tr := sq.GetTimeRange()
+	maxMetrics := vms.getMaxMetrics(sq.MaxMetrics)
+	tfss, err := vms.setupTfss(qt, sq, tr, maxMetrics, deadline)
+	if err != nil {
+		vms.wg.Done()
+		return nil, 0, err
+	}
+
+	sr := getSearch()
+	maxSeriesCount := sr.Init(qt, vms.s, tfss, tr, sq.MaxMetrics, deadline)
+	return sr, maxSeriesCount, nil
+}
+
+// PutSearch resets the search once it is not needed anymore and puts it aside
+// for future reuse.
+//
+// This method is not part of the vmselectapi.API and must only be used by
+// vmsingle HTTP handlers.
+//
+// The method must only be used on search instances that have been created with
+// GetSearch().
+func (vms *VMStorage) PutSearch(sr *storage.Search) {
+	putSearch(sr)
+	vms.wg.Done()
+}
+
+func getSearch() *storage.Search {
+	v := ssPool.Get()
+	if v == nil {
+		return &storage.Search{}
+	}
+	return v.(*storage.Search)
+}
+
+func putSearch(sr *storage.Search) {
+	sr.MustClose()
+	ssPool.Put(sr)
+}
+
+var ssPool sync.Pool
+
 // SearchMetricNames returns metric names for the given tfss on the given tr.
 func (vms *VMStorage) SearchMetricNames(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) ([]string, error) {
+	vms.wg.Add(1)
+	defer vms.wg.Done()
+
 	tr := sq.GetTimeRange()
 	maxMetrics := sq.MaxMetrics
 	if maxMetrics <= 0 {
@@ -219,6 +315,9 @@ func (vms *VMStorage) SearchMetricNames(qt *querytracer.Tracer, sq *storage.Sear
 // SearchLabelValues searches for label values for the given labelName, tfss and
 // tr.
 func (vms *VMStorage) LabelValues(qt *querytracer.Tracer, sq *storage.SearchQuery, labelName string, maxLabelValues int, deadline uint64) ([]string, error) {
+	vms.wg.Add(1)
+	defer vms.wg.Done()
+
 	tr := sq.GetTimeRange()
 	if maxLabelValues <= 0 || maxLabelValues > *maxTagValues {
 		maxLabelValues = *maxTagValues
@@ -244,6 +343,9 @@ func (vms *VMStorage) LabelValues(qt *querytracer.Tracer, sq *storage.SearchQuer
 // similar APIs.
 func (vms *VMStorage) TagValueSuffixes(qt *querytracer.Tracer, _, _ uint32, tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte,
 	maxSuffixes int, deadline uint64) ([]string, error) {
+	vms.wg.Add(1)
+	defer vms.wg.Done()
+
 	if maxSuffixes <= 0 || maxSuffixes > *maxTagValueSuffixesPerSearch {
 		maxSuffixes = *maxTagValueSuffixesPerSearch
 	}
@@ -260,6 +362,9 @@ func (vms *VMStorage) TagValueSuffixes(qt *querytracer.Tracer, _, _ uint32, tr s
 
 // SearchLabelNames searches for tag keys matching the given tfss on tr.
 func (vms *VMStorage) LabelNames(qt *querytracer.Tracer, sq *storage.SearchQuery, maxLabelNames int, deadline uint64) ([]string, error) {
+	vms.wg.Add(1)
+	defer vms.wg.Done()
+
 	tr := sq.GetTimeRange()
 	if maxLabelNames <= 0 || maxLabelNames > *maxTagKeys {
 		maxLabelNames = *maxTagKeys
@@ -278,6 +383,8 @@ func (vms *VMStorage) LabelNames(qt *querytracer.Tracer, sq *storage.SearchQuery
 }
 
 func (vms *VMStorage) SeriesCount(_ *querytracer.Tracer, _, _ uint32, deadline uint64) (uint64, error) {
+	vms.wg.Add(1)
+	defer vms.wg.Done()
 	return vms.s.GetSeriesCount(deadline)
 }
 
@@ -287,6 +394,9 @@ func (vms *VMStorage) Tenants(_ *querytracer.Tracer, _ storage.TimeRange, _ uint
 
 // GetTSDBStatus returns TSDB status for given filters on the given date.
 func (vms *VMStorage) TSDBStatus(qt *querytracer.Tracer, sq *storage.SearchQuery, focusLabel string, topN int, deadline uint64) (*storage.TSDBStatus, error) {
+	vms.wg.Add(1)
+	defer vms.wg.Done()
+
 	tr := sq.GetTimeRange()
 	maxMetrics := sq.MaxMetrics
 	if maxMetrics <= 0 {
@@ -306,6 +416,9 @@ func (vms *VMStorage) TSDBStatus(qt *querytracer.Tracer, sq *storage.SearchQuery
 //
 // Returns the number of deleted series.
 func (vms *VMStorage) DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (int, error) {
+	vms.wg.Add(1)
+	defer vms.wg.Done()
+
 	tr := sq.GetTimeRange()
 	maxMetrics := sq.MaxMetrics
 	if maxMetrics <= 0 {
@@ -324,17 +437,26 @@ func (vms *VMStorage) DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQue
 }
 
 func (vms *VMStorage) RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, _ uint64) error {
+	vms.wg.Add(1)
+	defer vms.wg.Done()
+
 	vms.s.RegisterMetricNames(qt, mrs)
 	return nil
 }
 
 // GetMetricNamesUsageStats returns metric name usage stats.
 func (vms *VMStorage) GetMetricNamesUsageStats(qt *querytracer.Tracer, _ *storage.TenantToken, limit, le int, matchPattern string, _ uint64) (metricnamestats.StatsResult, error) {
+	vms.wg.Add(1)
+	defer vms.wg.Done()
+
 	return vms.s.GetMetricNamesStats(qt, limit, le, matchPattern), nil
 }
 
 // ResetMetricNamesStats resets state for metric names usage tracker
 func (vms *VMStorage) ResetMetricNamesUsageStats(qt *querytracer.Tracer, _ uint64) error {
+	vms.wg.Add(1)
+	defer vms.wg.Done()
+
 	vms.s.ResetMetricNamesStats(qt)
 	return nil
 }
@@ -371,6 +493,8 @@ func (vms *VMStorage) setupTfss(qt *querytracer.Tracer, sq *storage.SearchQuery,
 }
 
 func (vms *VMStorage) GetMetadataRecords(qt *querytracer.Tracer, _ *storage.TenantToken, limit int, metricName string, _ uint64) ([]*metricsmetadata.Row, error) {
+	vms.wg.Add(1)
+	defer vms.wg.Done()
 	return vms.s.GetMetadataRows(qt, limit, metricName), nil
 }
 
