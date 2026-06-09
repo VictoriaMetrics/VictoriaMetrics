@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [dashboards](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/dashboards): add `OS info`, `Filesystem info`, and `Fsync avg duration` panels to the Troubleshooting section of the single-node, cluster, and vmagent dashboards. These panels surface `vm_os_info`, `vm_fs_info`, and the `vm_filestream_fsync_*` metrics for faster incident triage. See [#10481](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10481), [#10482](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10482) and [#10432](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10432).
+
 ## [v1.145.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.145.0)
 
 Released at 2026-06-08
