@@ -34,7 +34,7 @@ jobs:
     permissions:
       contents: read
     # Runs on dedicated runner with extra resources to increase build speed.
-    runs-on: 'vm-builder'
+    runs-on: 'vm-runner'
     strategy:
       fail-fast: false
       matrix:
