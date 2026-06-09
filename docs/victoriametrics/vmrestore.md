@@ -45,6 +45,41 @@ Run the following command to restore backup from the given `-src` into the given
 The original `-storageDataPath` directory may contain old files. They will be substituted by the files from backup,
 i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/questions/476041/how-do-i-make-rsync-delete-files-that-have-been-deleted-from-the-source-folder).
 
+## Restoring a subset of partitions
+
+By default `vmrestore` restores the whole backup. The `-restorePartitions`{{% available_from "v1.146.0" %}} command-line flag
+allows restoring only a subset of [partitions](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#storage),
+which is useful for large backups, when downloading the whole dataset takes too long, or when the destination disk is smaller than the full backup.
+
+Partition names use the `YYYY_MM` form (one partition per month). The `-restorePartitions` flag accepts a regexp, which must fully match the partition name:
+
+```sh
+# restore a single partition
+./vmrestore -src=s3://<bucket>/<path/to/backup> -storageDataPath=<local/path/to/restore> -restorePartitions='2026_01'
+
+# restore a few partitions
+./vmrestore -src=s3://<bucket>/<path/to/backup> -storageDataPath=<local/path/to/restore> -restorePartitions='2026_(01|02)'
+
+# restore all the partitions for the year 2026
+./vmrestore -src=s3://<bucket>/<path/to/backup> -storageDataPath=<local/path/to/restore> -restorePartitions='2026_.*'
+```
+
+Notes and limitations:
+
+* `-restorePartitions` only works for backups with per-partition `indexdb`. If at least one of the selected partitions does not contain
+  per-partition `indexdb` (for example, the backup was made by an older VictoriaMetrics version, which stored `indexdb` globally),
+  the restore is aborted. Such backups can only be restored in full, i.e. without `-restorePartitions`.
+* `vmrestore` synchronizes the contents of `-storageDataPath` with the selected subset of the backup, similar to `rsync --delete`.
+  This means that once a storage is partially restored, it is unsafe to restore additional partitions into the **same** storage later,
+  because the partitions that aren't selected by `-restorePartitions` (and any newly ingested data) will be removed.
+
+  The recommended workflow for a quick partial restore is:
+  1. Restore only the required partitions into a **temporary** cluster to recover observability quickly.
+  2. Switch traffic to the temporary cluster.
+  3. Restore the full backup into a separate **permanent** cluster.
+  4. Switch traffic to the permanent cluster.
+  5. Use [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/) to migrate data ingested into the temporary cluster.
+
 ## Troubleshooting
 
 * See [how to setup credentials via environment variables](https://docs.victoriametrics.com/victoriametrics/vmbackup/#providing-credentials-via-env-variables).
@@ -193,6 +228,8 @@ Run `vmrestore -help` in order to see all the available options:
      Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
      Supports an array of values separated by comma or specified via multiple flags.
      Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -restorePartitions string
+     Optional regexp for selecting a subset of partitions to restore instead of the whole backup. Partition names are in the YYYY_MM form, e.g. -restorePartitions='2026_01' restores a single partition, while -restorePartitions='2026_(01|02)' or -restorePartitions='2026_.*' restore multiple partitions. The regexp must fully match the partition name. This option only works for backups with per-partition indexdb; restore is aborted if at least one selected partition has no per-partition indexdb. See https://docs.victoriametrics.com/victoriametrics/vmrestore/#restoring-a-subset-of-partitions
   -s3ForcePathStyle
      Prefixing endpoint with bucket name when set false, true by default. (default true)
   -s3SSEKMSKeyId string

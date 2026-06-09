@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"regexp"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/actions"
@@ -31,6 +32,11 @@ var (
 	maxBytesPerSecond       = flagutil.NewBytes("maxBytesPerSecond", 0, "The maximum download speed. There is no limit if it is set to 0")
 	skipBackupCompleteCheck = flag.Bool("skipBackupCompleteCheck", false, "Whether to skip checking for 'backup complete' file in -src. This may be useful for restoring from old backups, which were created without 'backup complete' file")
 	SkipPreallocation       = flag.Bool("skipFilePreallocation", false, "Whether to skip pre-allocated files. This will likely be slower in most cases, but allows restores to resume mid file on failure")
+	restorePartitions       = flag.String("restorePartitions", "", "Optional regexp for selecting a subset of partitions to restore instead of the whole backup. "+
+		"Partition names are in the YYYY_MM form, e.g. -restorePartitions='2026_01' restores a single partition, while -restorePartitions='2026_(01|02)' or "+
+		"-restorePartitions='2026_.*' restore multiple partitions. The regexp must fully match the partition name. "+
+		"This option only works for backups with per-partition indexdb; restore is aborted if at least one selected partition has no per-partition indexdb. "+
+		"See https://docs.victoriametrics.com/victoriametrics/vmrestore/#restoring-a-subset-of-partitions")
 )
 
 func main() {
@@ -59,12 +65,17 @@ func main() {
 	if err != nil {
 		logger.Fatalf("%s", err)
 	}
+	restorePartitionsRE, err := parseRestorePartitions(*restorePartitions)
+	if err != nil {
+		logger.Fatalf("%s", err)
+	}
 	a := &actions.Restore{
 		Concurrency:             *concurrency,
 		Src:                     srcFS,
 		Dst:                     dstFS,
 		SkipBackupCompleteCheck: *skipBackupCompleteCheck,
 		SkipPreallocation:       *SkipPreallocation,
+		RestorePartitions:       restorePartitionsRE,
 	}
 	pushmetrics.Init()
 	if err := a.Run(ctx); err != nil {
@@ -112,3 +123,19 @@ func newSrcFS(ctx context.Context) (common.RemoteFS, error) {
 	}
 	return fs, nil
 }
+
+// parseRestorePartitions compiles the -restorePartitions value into a regexp,
+// which fully matches partition names in the YYYY_MM form.
+//
+// It returns nil regexp when s is empty, which means that the whole backup must be restored.
+func parseRestorePartitions(s string) (*regexp.Regexp, error) {
+	if s == "" {
+		return nil, nil
+	}
+	re, err := regexp.Compile("^(?:" + s + ")$")
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse `-restorePartitions`=%q: %w", s, err)
+	}
+	return re, nil
+}
+

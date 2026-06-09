@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"regexp"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -47,6 +48,15 @@ type Restore struct {
 	//
 	// This will likely be slower in most cases, but allows restores to resume mid file
 	SkipPreallocation bool
+
+	// RestorePartitions is an optional regexp for selecting a subset of partitions to restore.
+	//
+	// When set, only partitions (in the YYYY_MM form) whose name fully matches the regexp are restored.
+	// All the non-partition data (metadata, etc.) is always restored.
+	//
+	// Restoring a subset of partitions is only supported for backups with per-partition indexdb.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7599 .
+	RestorePartitions *regexp.Regexp
 }
 
 // Run runs r with the provided settings.
@@ -90,6 +100,14 @@ func (r *Restore) Run(ctx context.Context) error {
 	srcParts, err := src.ListParts()
 	if err != nil {
 		return fmt.Errorf("cannot list src parts: %w", err)
+	}
+	if r.RestorePartitions != nil {
+		filtered, err := filterPartsByPartitions(srcParts, r.RestorePartitions)
+		if err != nil {
+			return err
+		}
+		logger.Infof("-restorePartitions=%q selected %d parts out of %d at %s", r.RestorePartitions.String(), len(filtered), len(srcParts), src)
+		srcParts = filtered
 	}
 	logger.Infof("obtaining list of parts at %s", dst)
 	dstParts, err := dst.ListParts()

@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmrestore](https://docs.victoriametrics.com/victoriametrics/vmrestore/): add `-restorePartitions` command-line flag for restoring only a subset of [partitions](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#storage) instead of the whole backup. The flag accepts a regexp, which must fully match partition names in the `YYYY_MM` form, e.g. `-restorePartitions='2026_(01|02)'`. This is useful for large backups, when downloading the whole dataset takes too long, or when the destination disk is smaller than the full backup. The option only works for backups with per-partition `indexdb`. See [these docs](https://docs.victoriametrics.com/victoriametrics/vmrestore/#restoring-a-subset-of-partitions) and [#10916](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10916).
+
 ## [v1.145.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.145.0)
 
 Released at 2026-06-08
