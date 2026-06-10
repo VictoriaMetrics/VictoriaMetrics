@@ -128,24 +128,14 @@ Due to `KISS`, [cluster version of VictoriaMetrics](https://docs.victoriametrics
 
 ## Testing
 
-There are two categories of tests within VictoriaMetrics projects: unit tests and integration tests.
-
-Since different tests impose distinct requirements on the environment and pre-built binaries,
-we recommend checking the test-related commands defined in the [`Makefile`](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/Makefile) to understand how each test suite is executed.
-
-For example, unit tests should be executed via `make test-full`. And the integration tests should be executed using `make apptest`.
-
-You can check the Makefile for the step-by-step binary build process and run these tests via the `go test` command.
-However, since the build and execution commands are subject to change, it is recommended that you run the tests using the commands mentioned above.
-
 We recommend running the following sequence of checks and tests before submitting a pull request:
 ```sh
-# static checks
+# run static checks
 make check-all
 
-# unit test
+# run unit test
 make test-full
 
-# integration test
+# run integration tests
 make apptest
 ```
