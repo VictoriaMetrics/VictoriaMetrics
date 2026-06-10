@@ -1,9 +1,15 @@
 version: "2"
 linters:
+  enable:
+    - errorlint
   settings:
     errcheck:
       exclude-functions:
         - (net/http.ResponseWriter).Write
+    errorlint:
+      errorf: true
+      comparison: false
+      asserts: false
   exclusions:
     generated: lax
     presets:
