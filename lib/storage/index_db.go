@@ -1244,7 +1244,6 @@ func (is *indexSearch) getSeriesCount() (uint64, error) {
 	kb := &is.kb
 	loopsPaceLimiter := 0
 	var metricIDsLen uint64
-
 	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixMetricIDToTSID)
 	ts.Seek(kb.B)
 	for ts.NextItem() {
