@@ -208,18 +208,18 @@ remoteWrite:
   # Group A: receives metrics with retention="3mo"
   - url: http://vmcluster-a-victoria-metrics-cluster-vminsert:8480/insert/0/prometheus/api/v1/write
     urlRelabelConfig:
-      - action: keep
-        if: '{retention="3mo"}'
+      - if: '{retention="3mo"}'
+        action: keep
   # Group B: receives metrics with retention="1yr"
   - url: http://vmcluster-b-victoria-metrics-cluster-vminsert:8480/insert/0/prometheus/api/v1/write
     urlRelabelConfig:
-      - action: keep
-        if: '{retention="1yr"}'
+      - if: '{retention="1yr"}'
+        action: keep
   # Group C: receives metrics with retention="3yr"
   - url: http://vmcluster-c-victoria-metrics-cluster-vminsert:8480/insert/0/prometheus/api/v1/write
     urlRelabelConfig:
-      - action: keep
-        if: '{retention="3yr"}'
+      - if: '{retention="3yr"}'
+        action: keep
 EOF
 ```
 
@@ -295,19 +295,18 @@ remoteWrite:
   # send dev and staging data to Group A
   - url: "http://vmcluster-a-victoria-metrics-cluster-vminsert:8480/insert/0/prometheus/api/v1/write"
     urlRelabelConfig:
-      - action: keep
-        if: {environment=~"dev|staging"}
+      - if: {environment=~"dev|staging"}
+        action: keep
   # send prod data to Group B
   - url: "http://vmcluster-b-victoria-metrics-cluster-vminsert:8480/insert/0/prometheus/api/v1/write"
     urlRelabelConfig:
-      - action: keep
-        if: {environment=~"prod|production"}
-        regex: "prod|production"
+      - if: {environment=~"prod|production"}
+        action: keep
   # send data from Infra and SRE teams to Group C
   - url: "http://vmcluster-c-victoria-metrics-cluster-vminsert:8480/insert/0/prometheus/api/v1/write"
     urlRelabelConfig:
-      - action: keep
-        if: {environment=~"infra|sre"}
+      - if: {team=~"infra|sre"}
+        action: keep
 ```
 
 > Metrics that do not match any of the `keep` rules are dropped in the configuration above.
