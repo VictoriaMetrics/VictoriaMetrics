@@ -1589,7 +1589,14 @@ func assertInstantValues(tss []*timeseries) {
 	}
 }
 
-var memoryIntensiveQueries = metrics.NewCounter(`vm_memory_intensive_queries_total`)
+var (
+	memoryIntensiveQueries = metrics.NewCounter(`vm_memory_intensive_queries_total`)
+
+	rollupMemoryPerQuery = metrics.NewHistogram(`vm_rollup_memory_bytes_per_query`)
+
+	rollupMemoryLimitRejects       = metrics.NewCounter(`vm_rollup_memory_limit_rejects_total{limit="search.maxMemoryPerQuery"}`)
+	rollupMemoryLimitRejectsGlobal = metrics.NewCounter(`vm_rollup_memory_limit_rejects_total{limit="memory.allowedPercent"}`)
+)
 
 func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf rollupFunc,
 	expr metricsql.Expr, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, windowExpr *metricsql.DurationExpr,
@@ -1741,6 +1748,7 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 	}
 	rollupPoints := mulNoOverflow(pointsPerSeries, int64(timeseriesLen*len(rcs)))
 	rollupMemorySize := sumNoOverflow(mulNoOverflow(int64(timeseriesLen), 1000), mulNoOverflow(rollupPoints, 16))
+	rollupMemoryPerQuery.Update(float64(rollupMemorySize))
 	if maxMemory := int64(logQueryMemoryUsage.N); maxMemory > 0 && rollupMemorySize > maxMemory {
 		memoryIntensiveQueries.Inc()
 		requestURI := ec.GetRequestURI()
@@ -1750,6 +1758,7 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 			ec.QuotedRemoteAddr, requestURI, expr.AppendString(nil), rollupMemorySize, maxMemory, timeseriesLen*len(rcs), rollupPoints)
 	}
 	if maxMemory := int64(maxMemoryPerQuery.N); maxMemory > 0 && rollupMemorySize > maxMemory {
+		rollupMemoryLimitRejects.Inc()
 		rss.Cancel()
 		err := fmt.Errorf("not enough memory for processing %s, which returns %d data points across %d time series with %d points in each time series "+
 			"according to -search.maxMemoryPerQuery=%d; requested memory: %d bytes; "+
@@ -1760,6 +1769,7 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 	}
 	rml := getRollupMemoryLimiter()
 	if !rml.Get(uint64(rollupMemorySize)) {
+		rollupMemoryLimitRejectsGlobal.Inc()
 		rss.Cancel()
 		err := fmt.Errorf("not enough memory for processing %s, which returns %d data points across %d time series with %d points in each time series; "+
 			"total available memory for concurrent requests: %d bytes; requested memory: %d bytes; "+

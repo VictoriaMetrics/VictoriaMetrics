@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): add `vm_rollup_memory_bytes_per_query` histogram with the estimated memory needed for query evaluation, and `vm_rollup_memory_limit_rejects_total` counters with the number of queries rejected by `-search.maxMemoryPerQuery` and by the total memory limit for concurrent queries. These metrics help identify memory-intensive queries before they cause out of memory crashes and simplify tuning `-search.maxMemoryPerQuery`. See [#9593](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9593) and [#3926](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3926).
+
 * BUGFIX: [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/): fix issue with producing aggregated samples with identical timestamps between flushes. See PR [#10808](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10808) for details.
 
 ## [v1.145.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.145.0)
