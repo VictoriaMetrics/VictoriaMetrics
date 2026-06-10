@@ -1,6 +1,7 @@
 package graphite
 
 import (
+	"encoding/json"
 	"reflect"
 	"testing"
 )
@@ -64,6 +65,38 @@ func TestFilterLeaves(t *testing.T) {
 	f([]string{"a.", ".", "bc"}, "_", []string{"a.", ".", "bc"})
 	f([]string{"a_", "_", "bc"}, "_", []string{"bc"})
 	f([]string{"foo.", "bar."}, ".", []string{})
+}
+
+func TestMetricsFindResponseDataModel(t *testing.T) {
+	f := func(format string) {
+		t.Helper()
+
+		responseText := MetricsFindResponse([]string{"collectd.db01.", "collectd.foo"}, ".", format, false, "")
+		var response struct {
+			Metrics []map[string]any `json:"metrics"`
+		}
+		if err := json.Unmarshal([]byte(responseText), &response); err != nil {
+			t.Fatalf("cannot unmarshal MetricsFindResponse(format=%q): %s; response: %s", format, err, responseText)
+		}
+		expected := []map[string]any{
+			{
+				"path":    "collectd.db01.",
+				"name":    "db01",
+				"is_leaf": float64(0),
+			},
+			{
+				"path":    "collectd.foo",
+				"name":    "foo",
+				"is_leaf": float64(1),
+			},
+		}
+		if !reflect.DeepEqual(response.Metrics, expected) {
+			t.Fatalf("unexpected MetricsFindResponse(format=%q);\ngot\n%v\nwant\n%v", format, response.Metrics, expected)
+		}
+	}
+
+	f("treejson")
+	f("completer")
 }
 
 func TestAddAutomaticVariants(t *testing.T) {

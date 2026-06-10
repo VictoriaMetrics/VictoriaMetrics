@@ -546,16 +546,16 @@ func sortTSDBStatusResponseEntries(entries []TSDBStatusResponseEntry) {
 type GraphiteMetricsIndexResponse = []string
 
 type GraphiteMetric struct {
-	Id            string
-	Text          string
-	AllowChildren int
-	Expandable    int
-	Leaf          int
+	Path   string `json:"path"`
+	Name   string `json:"name"`
+	IsLeaf int    `json:"is_leaf"`
 }
 
-// GraphiteMetricsIndexResponse is an in-memory representation of the json response
+// GraphiteMetricsFindResponse is an in-memory representation of the json response
 // returned by the /graphite/metrics/find endpoint.
-type GraphiteMetricsFindResponse = []GraphiteMetric
+type GraphiteMetricsFindResponse struct {
+	Metrics []GraphiteMetric `json:"metrics"`
+}
 
 // GraphiteMetricsExpandResponse is an in-memory representation of the json response
 // returned by the /graphite/metrics/expand endpoint.

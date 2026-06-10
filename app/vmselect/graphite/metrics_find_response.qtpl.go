@@ -6,7 +6,6 @@ package graphite
 
 //line app/vmselect/graphite/metrics_find_response.qtpl:1
 import (
-	"sort"
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -14,306 +13,157 @@ import (
 
 // MetricsFindResponse generates response for /metrics/find .See https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find
 
-//line app/vmselect/graphite/metrics_find_response.qtpl:12
+//line app/vmselect/graphite/metrics_find_response.qtpl:11
 import (
 	qtio422016 "io"
 
 	qt422016 "github.com/valyala/quicktemplate"
 )
 
-//line app/vmselect/graphite/metrics_find_response.qtpl:12
+//line app/vmselect/graphite/metrics_find_response.qtpl:11
 var (
 	_ = qtio422016.Copy
 	_ = qt422016.AcquireByteBuffer
 )
 
-//line app/vmselect/graphite/metrics_find_response.qtpl:12
+//line app/vmselect/graphite/metrics_find_response.qtpl:11
 func StreamMetricsFindResponse(qw422016 *qt422016.Writer, paths []string, delimiter, format string, addWildcards bool, jsonp string) {
-//line app/vmselect/graphite/metrics_find_response.qtpl:13
+//line app/vmselect/graphite/metrics_find_response.qtpl:12
 	if jsonp != "" {
-//line app/vmselect/graphite/metrics_find_response.qtpl:13
+//line app/vmselect/graphite/metrics_find_response.qtpl:12
 		qw422016.N().S(jsonp)
-//line app/vmselect/graphite/metrics_find_response.qtpl:13
+//line app/vmselect/graphite/metrics_find_response.qtpl:12
 		qw422016.N().S(`(`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:13
+//line app/vmselect/graphite/metrics_find_response.qtpl:12
 	}
-//line app/vmselect/graphite/metrics_find_response.qtpl:14
+//line app/vmselect/graphite/metrics_find_response.qtpl:13
 	switch format {
-//line app/vmselect/graphite/metrics_find_response.qtpl:15
+//line app/vmselect/graphite/metrics_find_response.qtpl:14
 	case "completer":
+//line app/vmselect/graphite/metrics_find_response.qtpl:15
+		streammetricsFindResponse(qw422016, paths, delimiter, addWildcards)
 //line app/vmselect/graphite/metrics_find_response.qtpl:16
-		streammetricsFindResponseCompleter(qw422016, paths, delimiter, addWildcards)
-//line app/vmselect/graphite/metrics_find_response.qtpl:17
 	case "treejson":
+//line app/vmselect/graphite/metrics_find_response.qtpl:17
+		streammetricsFindResponse(qw422016, paths, delimiter, addWildcards)
 //line app/vmselect/graphite/metrics_find_response.qtpl:18
-		streammetricsFindResponseTreeJSON(qw422016, paths, delimiter, addWildcards)
-//line app/vmselect/graphite/metrics_find_response.qtpl:19
 	default:
-//line app/vmselect/graphite/metrics_find_response.qtpl:20
+//line app/vmselect/graphite/metrics_find_response.qtpl:19
 		logger.Panicf("BUG: unexpected format=%q", format)
 
+//line app/vmselect/graphite/metrics_find_response.qtpl:20
+	}
+//line app/vmselect/graphite/metrics_find_response.qtpl:21
+	if jsonp != "" {
+//line app/vmselect/graphite/metrics_find_response.qtpl:21
+		qw422016.N().S(`)`)
 //line app/vmselect/graphite/metrics_find_response.qtpl:21
 	}
 //line app/vmselect/graphite/metrics_find_response.qtpl:22
-	if jsonp != "" {
-//line app/vmselect/graphite/metrics_find_response.qtpl:22
-		qw422016.N().S(`)`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:22
-	}
-//line app/vmselect/graphite/metrics_find_response.qtpl:23
 }
 
-//line app/vmselect/graphite/metrics_find_response.qtpl:23
+//line app/vmselect/graphite/metrics_find_response.qtpl:22
 func WriteMetricsFindResponse(qq422016 qtio422016.Writer, paths []string, delimiter, format string, addWildcards bool, jsonp string) {
-//line app/vmselect/graphite/metrics_find_response.qtpl:23
+//line app/vmselect/graphite/metrics_find_response.qtpl:22
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmselect/graphite/metrics_find_response.qtpl:23
+//line app/vmselect/graphite/metrics_find_response.qtpl:22
 	StreamMetricsFindResponse(qw422016, paths, delimiter, format, addWildcards, jsonp)
-//line app/vmselect/graphite/metrics_find_response.qtpl:23
+//line app/vmselect/graphite/metrics_find_response.qtpl:22
 	qt422016.ReleaseWriter(qw422016)
-//line app/vmselect/graphite/metrics_find_response.qtpl:23
+//line app/vmselect/graphite/metrics_find_response.qtpl:22
 }
 
-//line app/vmselect/graphite/metrics_find_response.qtpl:23
+//line app/vmselect/graphite/metrics_find_response.qtpl:22
 func MetricsFindResponse(paths []string, delimiter, format string, addWildcards bool, jsonp string) string {
-//line app/vmselect/graphite/metrics_find_response.qtpl:23
+//line app/vmselect/graphite/metrics_find_response.qtpl:22
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmselect/graphite/metrics_find_response.qtpl:23
+//line app/vmselect/graphite/metrics_find_response.qtpl:22
 	WriteMetricsFindResponse(qb422016, paths, delimiter, format, addWildcards, jsonp)
-//line app/vmselect/graphite/metrics_find_response.qtpl:23
+//line app/vmselect/graphite/metrics_find_response.qtpl:22
 	qs422016 := string(qb422016.B)
-//line app/vmselect/graphite/metrics_find_response.qtpl:23
+//line app/vmselect/graphite/metrics_find_response.qtpl:22
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmselect/graphite/metrics_find_response.qtpl:23
+//line app/vmselect/graphite/metrics_find_response.qtpl:22
 	return qs422016
-//line app/vmselect/graphite/metrics_find_response.qtpl:23
+//line app/vmselect/graphite/metrics_find_response.qtpl:22
 }
 
-//line app/vmselect/graphite/metrics_find_response.qtpl:25
-func streammetricsFindResponseCompleter(qw422016 *qt422016.Writer, paths []string, delimiter string, addWildcards bool) {
-//line app/vmselect/graphite/metrics_find_response.qtpl:25
+//line app/vmselect/graphite/metrics_find_response.qtpl:24
+func streammetricsFindResponse(qw422016 *qt422016.Writer, paths []string, delimiter string, addWildcards bool) {
+//line app/vmselect/graphite/metrics_find_response.qtpl:24
 	qw422016.N().S(`{"metrics":[`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:28
+//line app/vmselect/graphite/metrics_find_response.qtpl:27
 	for i, path := range paths {
-//line app/vmselect/graphite/metrics_find_response.qtpl:28
+//line app/vmselect/graphite/metrics_find_response.qtpl:27
 		qw422016.N().S(`{"path":`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:30
+//line app/vmselect/graphite/metrics_find_response.qtpl:29
 		qw422016.N().Q(path)
-//line app/vmselect/graphite/metrics_find_response.qtpl:30
+//line app/vmselect/graphite/metrics_find_response.qtpl:29
 		qw422016.N().S(`,"name":`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:31
+//line app/vmselect/graphite/metrics_find_response.qtpl:30
 		streammetricPathName(qw422016, path, delimiter)
-//line app/vmselect/graphite/metrics_find_response.qtpl:31
+//line app/vmselect/graphite/metrics_find_response.qtpl:30
 		qw422016.N().S(`,"is_leaf":`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:32
+//line app/vmselect/graphite/metrics_find_response.qtpl:31
 		if strings.HasSuffix(path, delimiter) {
-//line app/vmselect/graphite/metrics_find_response.qtpl:32
+//line app/vmselect/graphite/metrics_find_response.qtpl:31
 			qw422016.N().S(`0`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:32
+//line app/vmselect/graphite/metrics_find_response.qtpl:31
 		} else {
-//line app/vmselect/graphite/metrics_find_response.qtpl:32
+//line app/vmselect/graphite/metrics_find_response.qtpl:31
 			qw422016.N().S(`1`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:32
+//line app/vmselect/graphite/metrics_find_response.qtpl:31
 		}
-//line app/vmselect/graphite/metrics_find_response.qtpl:32
+//line app/vmselect/graphite/metrics_find_response.qtpl:31
 		qw422016.N().S(`}`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:34
+//line app/vmselect/graphite/metrics_find_response.qtpl:33
 		if i+1 < len(paths) {
-//line app/vmselect/graphite/metrics_find_response.qtpl:34
+//line app/vmselect/graphite/metrics_find_response.qtpl:33
 			qw422016.N().S(`,`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:34
+//line app/vmselect/graphite/metrics_find_response.qtpl:33
 		}
+//line app/vmselect/graphite/metrics_find_response.qtpl:34
+	}
 //line app/vmselect/graphite/metrics_find_response.qtpl:35
-	}
-//line app/vmselect/graphite/metrics_find_response.qtpl:36
 	if addWildcards && len(paths) > 1 {
-//line app/vmselect/graphite/metrics_find_response.qtpl:36
+//line app/vmselect/graphite/metrics_find_response.qtpl:35
 		qw422016.N().S(`,{"name": "*"}`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:40
+//line app/vmselect/graphite/metrics_find_response.qtpl:39
 	}
-//line app/vmselect/graphite/metrics_find_response.qtpl:40
+//line app/vmselect/graphite/metrics_find_response.qtpl:39
 	qw422016.N().S(`]}`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:43
+//line app/vmselect/graphite/metrics_find_response.qtpl:42
 }
 
-//line app/vmselect/graphite/metrics_find_response.qtpl:43
-func writemetricsFindResponseCompleter(qq422016 qtio422016.Writer, paths []string, delimiter string, addWildcards bool) {
-//line app/vmselect/graphite/metrics_find_response.qtpl:43
+//line app/vmselect/graphite/metrics_find_response.qtpl:42
+func writemetricsFindResponse(qq422016 qtio422016.Writer, paths []string, delimiter string, addWildcards bool) {
+//line app/vmselect/graphite/metrics_find_response.qtpl:42
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmselect/graphite/metrics_find_response.qtpl:43
-	streammetricsFindResponseCompleter(qw422016, paths, delimiter, addWildcards)
-//line app/vmselect/graphite/metrics_find_response.qtpl:43
+//line app/vmselect/graphite/metrics_find_response.qtpl:42
+	streammetricsFindResponse(qw422016, paths, delimiter, addWildcards)
+//line app/vmselect/graphite/metrics_find_response.qtpl:42
 	qt422016.ReleaseWriter(qw422016)
-//line app/vmselect/graphite/metrics_find_response.qtpl:43
+//line app/vmselect/graphite/metrics_find_response.qtpl:42
 }
 
-//line app/vmselect/graphite/metrics_find_response.qtpl:43
-func metricsFindResponseCompleter(paths []string, delimiter string, addWildcards bool) string {
-//line app/vmselect/graphite/metrics_find_response.qtpl:43
+//line app/vmselect/graphite/metrics_find_response.qtpl:42
+func metricsFindResponse(paths []string, delimiter string, addWildcards bool) string {
+//line app/vmselect/graphite/metrics_find_response.qtpl:42
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmselect/graphite/metrics_find_response.qtpl:43
-	writemetricsFindResponseCompleter(qb422016, paths, delimiter, addWildcards)
-//line app/vmselect/graphite/metrics_find_response.qtpl:43
+//line app/vmselect/graphite/metrics_find_response.qtpl:42
+	writemetricsFindResponse(qb422016, paths, delimiter, addWildcards)
+//line app/vmselect/graphite/metrics_find_response.qtpl:42
 	qs422016 := string(qb422016.B)
-//line app/vmselect/graphite/metrics_find_response.qtpl:43
+//line app/vmselect/graphite/metrics_find_response.qtpl:42
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmselect/graphite/metrics_find_response.qtpl:43
+//line app/vmselect/graphite/metrics_find_response.qtpl:42
 	return qs422016
-//line app/vmselect/graphite/metrics_find_response.qtpl:43
+//line app/vmselect/graphite/metrics_find_response.qtpl:42
 }
 
-//line app/vmselect/graphite/metrics_find_response.qtpl:45
-func streammetricsFindResponseTreeJSON(qw422016 *qt422016.Writer, paths []string, delimiter string, addWildcards bool) {
-//line app/vmselect/graphite/metrics_find_response.qtpl:45
-	qw422016.N().S(`[`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:48
-	if len(paths) > 1 {
-		sort.Strings(paths)
-		// Substitute `path` and `path<delimiter>` with `path<delimiter><delimiter>`.
-		// Such path is treated specially during rendering - see code below for details.
-		dst := paths[:1]
-		for _, path := range paths[1:] {
-			prevPath := dst[len(dst)-1]
-			if len(path) == len(prevPath)+1 && strings.HasSuffix(path, delimiter) && strings.HasPrefix(path, prevPath) {
-				// The path is equivalent to <prevPath> + <delimiter>
-				// Overwrite the prevPath with <path> + <delimiter> as carbonapi does.
-				// I.e. the resulting path ends with double delimiter.
-				// Such path is treated specially during rendering - see metrics_find_response.qtpl for details.
-				dst[len(dst)-1] = path + delimiter
-				continue
-			}
-			dst = append(dst, path)
-		}
-		paths = dst
-	}
-
-//line app/vmselect/graphite/metrics_find_response.qtpl:68
-	for i, path := range paths {
-//line app/vmselect/graphite/metrics_find_response.qtpl:68
-		qw422016.N().S(`{`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:71
-		id := path
-		allowChildren := "0"
-		isLeaf := "1"
-		if strings.HasSuffix(id, delimiter) {
-			if strings.HasSuffix(id[:len(id)-1], delimiter) {
-				// Special case when id ends with double delimiter.
-				// See the code above for details.
-				id = id[:len(id)-2]
-			}
-			allowChildren = "1"
-			isLeaf = "0"
-		}
-
-//line app/vmselect/graphite/metrics_find_response.qtpl:83
-		qw422016.N().S(`"id":`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:84
-		qw422016.N().Q(id)
-//line app/vmselect/graphite/metrics_find_response.qtpl:84
-		qw422016.N().S(`,"text":`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:85
-		streammetricPathName(qw422016, path, delimiter)
-//line app/vmselect/graphite/metrics_find_response.qtpl:85
-		qw422016.N().S(`,"allowChildren":`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:86
-		qw422016.N().S(allowChildren)
-//line app/vmselect/graphite/metrics_find_response.qtpl:86
-		qw422016.N().S(`,"expandable":`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:87
-		qw422016.N().S(allowChildren)
-//line app/vmselect/graphite/metrics_find_response.qtpl:87
-		qw422016.N().S(`,"leaf":`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:88
-		qw422016.N().S(isLeaf)
-//line app/vmselect/graphite/metrics_find_response.qtpl:88
-		qw422016.N().S(`}`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:90
-		if i+1 < len(paths) {
-//line app/vmselect/graphite/metrics_find_response.qtpl:90
-			qw422016.N().S(`,`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:90
-		}
-//line app/vmselect/graphite/metrics_find_response.qtpl:91
-	}
-//line app/vmselect/graphite/metrics_find_response.qtpl:92
-	if addWildcards && len(paths) > 1 {
-//line app/vmselect/graphite/metrics_find_response.qtpl:92
-		qw422016.N().S(`,{`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:95
-		path := paths[0]
-		for strings.HasSuffix(path, delimiter) {
-			path = path[:len(path)-1]
-		}
-		id := ""
-		if n := strings.LastIndexByte(path, delimiter[0]); n >= 0 {
-			id = path[:n+1]
-		}
-		id += "*"
-
-		allowChildren := "0"
-		isLeaf := "1"
-		for _, path := range paths {
-			if strings.HasSuffix(path, delimiter) {
-				allowChildren = "1"
-				isLeaf = "0"
-				break
-			}
-		}
-
-//line app/vmselect/graphite/metrics_find_response.qtpl:114
-		qw422016.N().S(`"id":`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:115
-		qw422016.N().Q(id)
-//line app/vmselect/graphite/metrics_find_response.qtpl:115
-		qw422016.N().S(`,"text": "*","allowChildren":`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:117
-		qw422016.N().S(allowChildren)
-//line app/vmselect/graphite/metrics_find_response.qtpl:117
-		qw422016.N().S(`,"expandable":`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:118
-		qw422016.N().S(allowChildren)
-//line app/vmselect/graphite/metrics_find_response.qtpl:118
-		qw422016.N().S(`,"leaf":`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:119
-		qw422016.N().S(isLeaf)
-//line app/vmselect/graphite/metrics_find_response.qtpl:119
-		qw422016.N().S(`}`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:121
-	}
-//line app/vmselect/graphite/metrics_find_response.qtpl:121
-	qw422016.N().S(`]`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:123
-}
-
-//line app/vmselect/graphite/metrics_find_response.qtpl:123
-func writemetricsFindResponseTreeJSON(qq422016 qtio422016.Writer, paths []string, delimiter string, addWildcards bool) {
-//line app/vmselect/graphite/metrics_find_response.qtpl:123
-	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmselect/graphite/metrics_find_response.qtpl:123
-	streammetricsFindResponseTreeJSON(qw422016, paths, delimiter, addWildcards)
-//line app/vmselect/graphite/metrics_find_response.qtpl:123
-	qt422016.ReleaseWriter(qw422016)
-//line app/vmselect/graphite/metrics_find_response.qtpl:123
-}
-
-//line app/vmselect/graphite/metrics_find_response.qtpl:123
-func metricsFindResponseTreeJSON(paths []string, delimiter string, addWildcards bool) string {
-//line app/vmselect/graphite/metrics_find_response.qtpl:123
-	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmselect/graphite/metrics_find_response.qtpl:123
-	writemetricsFindResponseTreeJSON(qb422016, paths, delimiter, addWildcards)
-//line app/vmselect/graphite/metrics_find_response.qtpl:123
-	qs422016 := string(qb422016.B)
-//line app/vmselect/graphite/metrics_find_response.qtpl:123
-	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmselect/graphite/metrics_find_response.qtpl:123
-	return qs422016
-//line app/vmselect/graphite/metrics_find_response.qtpl:123
-}
-
-//line app/vmselect/graphite/metrics_find_response.qtpl:125
+//line app/vmselect/graphite/metrics_find_response.qtpl:44
 func streammetricPathName(qw422016 *qt422016.Writer, path, delimiter string) {
-//line app/vmselect/graphite/metrics_find_response.qtpl:127
+//line app/vmselect/graphite/metrics_find_response.qtpl:46
 	name := path
 	for strings.HasSuffix(name, delimiter) {
 		name = name[:len(name)-1]
@@ -322,33 +172,33 @@ func streammetricPathName(qw422016 *qt422016.Writer, path, delimiter string) {
 		name = name[n+1:]
 	}
 
-//line app/vmselect/graphite/metrics_find_response.qtpl:135
+//line app/vmselect/graphite/metrics_find_response.qtpl:54
 	qw422016.N().Q(name)
-//line app/vmselect/graphite/metrics_find_response.qtpl:136
+//line app/vmselect/graphite/metrics_find_response.qtpl:55
 }
 
-//line app/vmselect/graphite/metrics_find_response.qtpl:136
+//line app/vmselect/graphite/metrics_find_response.qtpl:55
 func writemetricPathName(qq422016 qtio422016.Writer, path, delimiter string) {
-//line app/vmselect/graphite/metrics_find_response.qtpl:136
+//line app/vmselect/graphite/metrics_find_response.qtpl:55
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmselect/graphite/metrics_find_response.qtpl:136
+//line app/vmselect/graphite/metrics_find_response.qtpl:55
 	streammetricPathName(qw422016, path, delimiter)
-//line app/vmselect/graphite/metrics_find_response.qtpl:136
+//line app/vmselect/graphite/metrics_find_response.qtpl:55
 	qt422016.ReleaseWriter(qw422016)
-//line app/vmselect/graphite/metrics_find_response.qtpl:136
+//line app/vmselect/graphite/metrics_find_response.qtpl:55
 }
 
-//line app/vmselect/graphite/metrics_find_response.qtpl:136
+//line app/vmselect/graphite/metrics_find_response.qtpl:55
 func metricPathName(path, delimiter string) string {
-//line app/vmselect/graphite/metrics_find_response.qtpl:136
+//line app/vmselect/graphite/metrics_find_response.qtpl:55
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmselect/graphite/metrics_find_response.qtpl:136
+//line app/vmselect/graphite/metrics_find_response.qtpl:55
 	writemetricPathName(qb422016, path, delimiter)
-//line app/vmselect/graphite/metrics_find_response.qtpl:136
+//line app/vmselect/graphite/metrics_find_response.qtpl:55
 	qs422016 := string(qb422016.B)
-//line app/vmselect/graphite/metrics_find_response.qtpl:136
+//line app/vmselect/graphite/metrics_find_response.qtpl:55
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmselect/graphite/metrics_find_response.qtpl:136
+//line app/vmselect/graphite/metrics_find_response.qtpl:55
 	return qs422016
-//line app/vmselect/graphite/metrics_find_response.qtpl:136
+//line app/vmselect/graphite/metrics_find_response.qtpl:55
 }

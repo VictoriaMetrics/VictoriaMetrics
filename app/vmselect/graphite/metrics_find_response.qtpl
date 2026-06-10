@@ -1,5 +1,4 @@
 {% import (
-	"sort"
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -13,16 +12,16 @@ See https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find
 	{% if jsonp != "" %}{%s= jsonp %}({% endif %}
 	{% switch format %}
 	{% case "completer" %}
-		{%= metricsFindResponseCompleter(paths, delimiter, addWildcards) %}
+		{%= metricsFindResponse(paths, delimiter, addWildcards) %}
 	{% case "treejson" %}
-		{%= metricsFindResponseTreeJSON(paths, delimiter, addWildcards) %}
+		{%= metricsFindResponse(paths, delimiter, addWildcards) %}
 	{% default %}
 		{% code logger.Panicf("BUG: unexpected format=%q", format) %}
 	{% endswitch %}
 	{% if jsonp != "" %}){% endif %}
 {% endfunc %}
 
-{% func metricsFindResponseCompleter(paths []string, delimiter string, addWildcards bool) %}
+{% func metricsFindResponse(paths []string, delimiter string, addWildcards bool) %}
 {
 	"metrics":[
 		{% for i, path := range paths %}
@@ -40,86 +39,6 @@ See https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find
 		{% endif %}
 	]
 }
-{% endfunc %}
-
-{% func metricsFindResponseTreeJSON(paths []string, delimiter string, addWildcards bool) %}
-[
-{% code
-	if len(paths) > 1 {
-		sort.Strings(paths)
-		// Substitute `path` and `path<delimiter>` with `path<delimiter><delimiter>`.
-		// Such path is treated specially during rendering - see code below for details.
-		dst := paths[:1]
-		for _, path := range paths[1:] {
-			prevPath := dst[len(dst)-1]
-			if len(path) == len(prevPath)+1 && strings.HasSuffix(path, delimiter) && strings.HasPrefix(path, prevPath) {
-				// The path is equivalent to <prevPath> + <delimiter>
-				// Overwrite the prevPath with <path> + <delimiter> as carbonapi does.
-				// I.e. the resulting path ends with double delimiter.
-				// Such path is treated specially during rendering - see metrics_find_response.qtpl for details.
-				dst[len(dst)-1] = path + delimiter
-				continue
-			}
-			dst = append(dst, path)
-		}
-		paths = dst
-	}
-%}
-	{% for i, path := range paths %}
-	{
-		{% code
-			id := path
-			allowChildren := "0"
-			isLeaf := "1"
-			if strings.HasSuffix(id, delimiter) {
-				if strings.HasSuffix(id[:len(id)-1], delimiter) {
-					// Special case when id ends with double delimiter.
-					// See the code above for details.
-					id = id[:len(id)-2]
-				}
-				allowChildren = "1"
-				isLeaf = "0"
-			}
-		%}
-		"id": {%q= id %},
-		"text": {%= metricPathName(path, delimiter) %},
-		"allowChildren": {%s= allowChildren %},
-		"expandable": {%s= allowChildren %},
-		"leaf": {%s= isLeaf %}
-	}
-	{% if i+1 < len(paths) %},{% endif %}
-	{% endfor %}
-	{% if addWildcards && len(paths) > 1 %}
-	,{
-		{% code
-			path := paths[0]
-			for strings.HasSuffix(path, delimiter) {
-				path = path[:len(path)-1]
-			}
-			id := ""
-			if n := strings.LastIndexByte(path, delimiter[0]); n >= 0 {
-				id = path[:n+1]
-			}
-			id += "*"
-
-			allowChildren := "0"
-			isLeaf := "1"
-			for _, path := range paths {
-				if strings.HasSuffix(path, delimiter) {
-					allowChildren = "1"
-					isLeaf = "0"
-					break
-				}
-			}
-		%}
-		"id": {%q= id %},
-		"text": "*",
-		"allowChildren": {%s= allowChildren %},
-		"expandable": {%s= allowChildren %},
-		"leaf": {%s= isLeaf %}
-	}
-	{% endif %}
-]
 {% endfunc %}
 
 {% func metricPathName(path, delimiter string) %}
