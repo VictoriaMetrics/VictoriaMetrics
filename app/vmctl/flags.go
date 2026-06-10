@@ -69,6 +69,8 @@ const (
 	vmAddr               = "vm-addr"
 	vmUser               = "vm-user"
 	vmPassword           = "vm-password"
+	vmHeaders            = "vm-headers"
+	vmBearerToken        = "vm-bearer-token"
 	vmAccountID          = "vm-account-id"
 	vmConcurrency        = "vm-concurrency"
 	vmCompress           = "vm-compress"
@@ -111,6 +113,16 @@ var (
 			Name:    vmPassword,
 			Usage:   "VictoriaMetrics password for basic auth",
 			EnvVars: []string{"VM_PASSWORD"},
+		},
+		&cli.StringFlag{
+			Name: vmHeaders,
+			Usage: "Optional HTTP headers to send with each request to the corresponding destination address. \n" +
+				"For example, --vm-headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding destination address. \n" +
+				"Multiple headers must be delimited by '^^': --vm-headers='header1:value1^^header2:value2'",
+		},
+		&cli.StringFlag{
+			Name:  vmBearerToken,
+			Usage: "Optional bearer auth token to use for the corresponding --vm-addr",
 		},
 		&cli.StringFlag{
 			Name: vmAccountID,
