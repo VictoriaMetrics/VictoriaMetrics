@@ -7,23 +7,21 @@ sitemap:
   disable: true
 ---
 
-[VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/) supports specifying multiple retentions for distinct sets of time series and tenants. If you are an Enterprise user, [configure multiple retentions directly through retention filters](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#retention-filters) instead of following this guide.
+> [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/) supports specifying multiple retentions for distinct sets of time series and tenants. If you are an Enterprise user, [configure multiple retentions directly through retention filters](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#retention-filters) instead of following this guide.
 
 This guide explains how to set up multiple retentions using an [open-source VictoriaMetrics Cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/).
 
 ## Overview
 
-**Open Source Solution**
+VictoriaMetrics retains metrics by default for **1 month**. You can change data retention with the [`-retentionPeriod` command-line flag](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention), but this value applies to **all time series stored** on a given `vmstorage` node and cannot be customized per tenant or per metric in the open source version. 
 
-VictoriaMetrics retains metrics by default for 1 month. You can change data retention with the [`-retentionPeriod` command-line flag](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention), but this value applies to all time series stored on a given `vmstorage` node and cannot be customized per tenant or per metric in the open source version. 
-
-The core idea of multi-tenant architecture is to run separate storage logic groups (or even clusters) with individual `-retentionPeriod` settings, while still providing a single unified write and read path via vmagent and vmselect.
+The core idea of this guide is to run **separate logic groups of storages** (or even clusters) with individual `-retentionPeriod` settings, while still providing a single unified write and read path via vmagent and vmselect.
 
 ## Multi-Retention Architecture
 
-To support multiple retentions with the open source version of VictoriaMetrics cluster, you can split the cluster into several logical groups of storage nodes, where each group is configured with a different `-retentionPeriod` and receives only the data that must follow that retention. 
+To support multiple retentions with the open source version of VictoriaMetrics cluster, you can split the cluster into several logical groups of storage nodes. Each group is configured with a different `-retentionPeriod` and receives only the data that must follow that retention. 
 
-Each storage group is connected to a separate vminsert, while a shared vmselect layer queries across all storage groups so that dashboards and alerts continue to see a single logical VictoriaMetrics backend.
+Each storage group is connected to a separate vminsert, while a shared vmselect layer queries across all storage groups so that dashboards and alerts continue to see a single unified VictoriaMetrics backend.
 
 ![Setup](setup.webp)
 
@@ -48,7 +46,7 @@ helm repo update
 
 ### Step 1: Deploying storage groups {#step1}
 
-We'll create three storage groups. Each has a different retention period and disk size. Read [Understand Your Setup Size](https://docs.victoriametrics.com/guides/understand-your-setup-size/) to estimate how much space you will need for each group. The following table is shown as an example.
+We'll create three storage groups. Each has a different retention period and disk size. Read [Understand Your Setup Size](https://docs.victoriametrics.com/guides/understand-your-setup-size/) to estimate how much space you will need for each group. The following table is shown as an example:
 
 
 | Group        | Retention Period | Total disk size       |
@@ -170,9 +168,9 @@ vmselect:
     # where pod = <release>-victoria-metrics-cluster-vmstorage-<N>
     # and   svc = <release>-victoria-metrics-cluster-vmstorage
     storageNode:
-      - "a/vmcluster-a-victoria-metrics-cluster-vmstorage-0.vmcluster-a-victoria-metrics-cluster-vmstorage.default.svc:8401"
-      - "b/vmcluster-b-victoria-metrics-cluster-vmstorage-0.vmcluster-b-victoria-metrics-cluster-vmstorage.default.svc:8401"
-      - "c/vmcluster-c-victoria-metrics-cluster-vmstorage-0.vmcluster-c-victoria-metrics-cluster-vmstorage.default.svc:8401"
+      - "vmcluster-a-victoria-metrics-cluster-vmstorage-0.vmcluster-a-victoria-metrics-cluster-vmstorage.default.svc:8401"
+      - "vmcluster-b-victoria-metrics-cluster-vmstorage-0.vmcluster-b-victoria-metrics-cluster-vmstorage.default.svc:8401"
+      - "vmcluster-c-victoria-metrics-cluster-vmstorage-0.vmcluster-c-victoria-metrics-cluster-vmstorage.default.svc:8401"
 EOF
 ```
 
@@ -181,7 +179,7 @@ Let's break down the file above:
 - Deploys vmselect as a separate Helm release. 
 - Disables vminsert and vmstorage as these services were already deployed in Step 1.
 - `suppressStorageFQDNsRender: true` turns off automatic FQDN generation for storage nodes. By default, the Helm chart auto-generates `-storageNodes` flags, but since `vmstorage` has been disabled, we need to supply them manually in `extraArgs`.
-- In `extraArgs.storageNode:` we define the vmstorage endpoints for queries. Each entry uses the `<group>/<host>` format, where groups `a`, `b`, and `c` correspond to the three retention periods. Each group has a single `vmstorage` pod in this example, and vmselect unions results across the three groups to provide a unified view of the data.
+- In `extraArgs.storageNode:` we define the vmstorage endpoints for queries. On querying, vmselect merges results across all the specified vmstorages to provide a unified view of the data.
 
 Deploy the `vmselect` release with:
 
@@ -211,20 +209,17 @@ remoteWrite:
   - url: http://vmcluster-a-victoria-metrics-cluster-vminsert:8480/insert/0/prometheus/api/v1/write
     urlRelabelConfig:
       - action: keep
-        source_labels: [retention]
-        regex: "3mo"
+        if: '{retention="3mo"}'
   # Group B: receives metrics with retention="1yr"
   - url: http://vmcluster-b-victoria-metrics-cluster-vminsert:8480/insert/0/prometheus/api/v1/write
     urlRelabelConfig:
       - action: keep
-        source_labels: [retention]
-        regex: "1yr"
+        if: '{retention="1yr"}'
   # Group C: receives metrics with retention="3yr"
   - url: http://vmcluster-c-victoria-metrics-cluster-vminsert:8480/insert/0/prometheus/api/v1/write
     urlRelabelConfig:
       - action: keep
-        source_labels: [retention]
-        regex: "3yr"
+        if: '{retention="3yr"}'
 EOF
 ```
 
@@ -301,49 +296,27 @@ remoteWrite:
   - url: "http://vmcluster-a-victoria-metrics-cluster-vminsert:8480/insert/0/prometheus/api/v1/write"
     urlRelabelConfig:
       - action: keep
-        source_labels: [environment]
-        regex: "dev|staging"
+        if: {environment=~"dev|staging"}
   # send prod data to Group B
   - url: "http://vmcluster-b-victoria-metrics-cluster-vminsert:8480/insert/0/prometheus/api/v1/write"
     urlRelabelConfig:
       - action: keep
-        source_labels: [environment]
+        if: {environment=~"prod|production"}
         regex: "prod|production"
-  # send data from Infra and SRE teams to Group B
-  - url: "http://vmcluster-b-victoria-metrics-cluster-vminsert:8480/insert/0/prometheus/api/v1/write"
+  # send data from Infra and SRE teams to Group C
+  - url: "http://vmcluster-c-victoria-metrics-cluster-vminsert:8480/insert/0/prometheus/api/v1/write"
     urlRelabelConfig:
       - action: keep
-        source_labels: [team]
-        regex: "infra|sre"
+        if: {environment=~"infra|sre"}
 ```
 
 > Metrics that do not match any of the `keep` rules are dropped in the configuration above.
-
-## Alternative Multi-Tenant Routing
-
-VictoriaMetrics Cluster supports [multiple isolated tenants](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) identified by `accountID` (and optionally `projectID`) in the URL path, e.g., `/insert/0/prometheus/...`. 
-
-In a standard deployment, a single vminsert handles all tenants and distributes data across a shared pool of vmstorage nodes. In our current setup, each retention group deploys its own vminsert. This means tenant IDs are not required for routing, since data is already isolated by the URL that receives the write. 
-
-You can safely use a single tenant (`/insert/0/prometheus`) for all groups and rely on the `retention` label or label-based routing to separate data at query time.
-
-If, however, you prefer tenant-level separation for the query layer, you can assign each group a distinct tenant ID, for instance:
-
-| Group | Insert URL | Query URL |
-|-------|------------|-----------|
-| A (`"3mo"`) | `/insert/0/prometheus` | `/select/0/prometheus` |
-| B (`"1yr"`) | `/insert/1/prometheus` | `/select/1/prometheus` |
-| C (`"3yr"`) | `/insert/2/prometheus` | `/select/2/prometheus` |
-
-This lets you query a single retention group directly, e.g., `/select/1/prometheus/api/v1/query?query=up` returns only data written to group B's vminsert. Queries to vmselect without a tenant prefix aggregate across all groups, preserving the unified view for dashboards.
-
-The tenant path does not affect where data is stored (routing is always determined by which vminsert receives the data). The tenant ID is purely a query-scoping convenience in this architecture.
 
 ## Additional Enhancements
 
 You can set up [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) to route data to the specified vminsert group based on the required retention or to restrict which data different users can query.
 
-+The following [`-auth.config`](https://docs.victoriametrics.com/victoriametrics/vmauth/#quick-start) example exposes the same vmselect backend via vmauth with two users using basic auth:
+The following [`-auth.config`](https://docs.victoriametrics.com/victoriametrics/vmauth/#quick-start) example exposes the same vmselect backend via vmauth with two users using basic auth:
 
 - `admin`: can query **all** data across all retention groups.
 - `dev`: can query **only** time series that have `team="dev"` label, enforced via the `extra_label` query argument.
