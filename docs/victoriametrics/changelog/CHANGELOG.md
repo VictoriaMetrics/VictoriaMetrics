@@ -28,6 +28,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 * SECURITY: upgrade Go builder from Go1.26.6 to Go1.27.1. See [Go 1.27 release notes](https://go.dev/doc/go1.27).
 
+* FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): add `vm_rollup_memory_bytes_per_query` histogram with the estimated memory needed for query evaluation, and `vm_rollup_memory_limit_rejects_total` counters with the number of queries rejected by `-search.maxMemoryPerQuery` and by the total memory limit for concurrent queries. These metrics help identify memory-intensive queries before they cause out of memory crashes and simplify tuning `-search.maxMemoryPerQuery`. See [#9593](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9593) and [#3926](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3926).
+
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/), [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix insert requests getting stuck after another insert request times out, causing clients to time out while waiting for a response. See [VictoriaLogs#1743](https://github.com/VictoriaMetrics/VictoriaLogs/issues/1743).
 
 ## [v1.151.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.151.0)
