@@ -68,8 +68,7 @@ Pull requests requirements:
 1. A link to the issue(s) related to the change, if any. Use `Fixes [issue link]` if the PR resolves the issue, or `Related to [issue link]` for reference.
 1. Tests proving that the change is effective. Tests are expected for non-trivial new functionality or non-trivial modifications.
    Bug fixes must include tests unless a maintainer explicitly agrees otherwise.
-   See [this style guide](https://itnext.io/f-tests-as-a-replacement-for-table-driven-tests-in-go-8814a8b19e9e) for tests.
-   To run tests and code checks locally, execute commands `make test-full` and `make check-all`.
+   See [this style guide](https://itnext.io/f-tests-as-a-replacement-for-table-driven-tests-in-go-8814a8b19e9e) for tests. See [this section](#testing) for how to run tests.
 1. Try to not extend the scope of the pull requests outside the issue, do not make unrelated changes.
 1. Update [docs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs) if needed. For example, adding a new flag or changing behavior of existing flags or features
    requires reflecting these changes in the documentation. For new features add `{{%/* available_from "#" */%}}` shortcode to the documentation.
@@ -126,3 +125,33 @@ Due to `KISS`, [cluster version of VictoriaMetrics](https://docs.victoriametrics
 - Automatic cluster resizing, which may cost you a lot of money if improperly configured.
 - Automatic discovering and addition of new nodes in the cluster, which may mix data between dev and prod clusters :)
 - Automatic leader election, which may result in split brain disaster on network errors.
+
+## Testing
+
+There are two categories of tests within VictoriaMetrics projects: unit tests and integration tests.
+
+Since different tests impose distinct requirements on the environment and pre-built binaries,
+we recommend checking the test-related commands defined in the [`Makefile`](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/Makefile) to understand how each test suite is executed.
+
+For example, unit tests can be run via `make test-full`, or with the following raw command:
+```sh
+go test -tags 'synctest' -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
+```
+
+Integration tests are executed using `make integration-test`.
+Alternatively, build the required binaries first with `make <app-name>-race`, then run the tests with this command:
+```sh
+go test ./apptest/... -skip="^Test(Cluster|Legacy).*"
+```
+
+We recommend running the following sequence of checks and tests before submitting a pull request:
+```sh
+# static checks
+make check-all
+
+# unit test
+make test-full
+
+# integration test
+make integration-test
+```
