@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"html"
 	"io"
 	"log"
 	"math/rand"
@@ -23,6 +24,7 @@ import (
 	"os"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -85,6 +87,34 @@ type vmImportLine struct {
 	Timestamps []int64           `json:"timestamps"`
 }
 
+// --- report data types -------------------------------------------------------
+
+// sentDataPoint is one data point in the sent-series chart.
+type sentDataPoint struct {
+	TsSec    float64 `json:"x"`      // sample unix timestamp in seconds
+	Value    float64 `json:"y"`
+	SentAtSec float64 `json:"sentAt"` // wall-clock send time in seconds; equals TsSec if not delayed
+	Delayed  bool    `json:"delayed"`
+}
+
+// sentSeriesData holds all sent data points for one configured input series.
+type sentSeriesData struct {
+	Name   string          `json:"name"`
+	Points []sentDataPoint `json:"points"`
+}
+
+// recvDataPoint is one sample received on /api/v1/write.
+type recvDataPoint struct {
+	TsSec float64 `json:"x"` // sample unix timestamp in seconds
+	Value float64 `json:"y"`
+}
+
+// recvSeriesData holds all received samples for one metric series.
+type recvSeriesData struct {
+	Name   string          `json:"name"`
+	Points []recvDataPoint `json:"points"`
+}
+
 var (
 	cfg        *AppConfig
 	configPath string // path of the config file, stored at startup for hot-reload
@@ -92,6 +122,12 @@ var (
 
 	mu      sync.Mutex
 	started bool
+
+	reportMu     sync.RWMutex
+	reportT      time.Time
+	reportJitter time.Duration
+	reportSent   []sentSeriesData
+	reportRecv   = make(map[string]*recvSeriesData)
 )
 
 func main() {
@@ -108,13 +144,15 @@ func main() {
 	mux.HandleFunc("/start", handleStart)
 	mux.HandleFunc("/reset", handleReset)
 	mux.HandleFunc("/api/v1/write", handleRemoteWrite)
+	mux.HandleFunc("/report", handleReport)
 
 	log.Printf("HTTP server listening on %s", cfg.ListenAddress)
 	log.Printf("Endpoints:")
 	log.Printf("  GET  /sa-config       — serve SA rules YAML for vmagent")
 	log.Printf("  POST /start           — call vmagent /-/reload then write samples")
-	log.Printf("  POST /reset           — clear 'started' flag to allow re-running")
+	log.Printf("  POST /reset           — reload config, clear 'started' flag")
 	log.Printf("  POST /api/v1/write    — receive Prometheus remote-write from vmagent SA output")
+	log.Printf("  GET  /report          — HTML report with sent/received series charts")
 	log.Fatalf("server stopped: %v", http.ListenAndServe(cfg.ListenAddress, mux))
 }
 
@@ -168,6 +206,13 @@ func handleStart(w http.ResponseWriter, r *http.Request) {
 	log.Printf("[start] T=%s  jitter=%v  first-sample-at T+%v",
 		T.Format(time.RFC3339Nano), jitter, jitter)
 
+	reportMu.Lock()
+	reportT = T
+	reportJitter = jitter
+	reportSent = nil
+	reportRecv = make(map[string]*recvSeriesData)
+	reportMu.Unlock()
+
 	go runTest(T, interval, jitter)
 
 	fmt.Fprintf(w, "test started\nT=%s\njitter=%v\n", T.Format(time.RFC3339Nano), jitter)
@@ -214,6 +259,24 @@ func handleRemoteWrite(w http.ResponseWriter, r *http.Request) {
 				log.Printf("[recv] %-60s  value=%-12g  ts= %v, ts_human=%s",
 					metricStr, s.Value, t.UnixMilli(), t.UTC().Format(time.RFC3339Nano))
 			}
+
+			// Record for /report.
+			reportMu.Lock()
+			if reportRecv == nil {
+				reportRecv = make(map[string]*recvSeriesData)
+			}
+			rd := reportRecv[metricStr]
+			if rd == nil {
+				rd = &recvSeriesData{Name: metricStr}
+				reportRecv[metricStr] = rd
+			}
+			for _, s := range ts.Samples {
+				rd.Points = append(rd.Points, recvDataPoint{
+					TsSec: float64(s.Timestamp) / 1000.0,
+					Value: s.Value,
+				})
+			}
+			reportMu.Unlock()
 		}
 		return nil
 	})
@@ -229,14 +292,21 @@ func handleRemoteWrite(w http.ResponseWriter, r *http.Request) {
 // input_series, and clears the started flag so the test can be triggered again.
 func handleReset(w http.ResponseWriter, r *http.Request) {
 	mu.Lock()
-	defer mu.Unlock()
-
 	if err := loadConfig(); err != nil {
+		mu.Unlock()
 		log.Printf("[reset] failed to reload config: %v", err)
 		http.Error(w, fmt.Sprintf("config reload failed: %v", err), http.StatusInternalServerError)
 		return
 	}
 	started = false
+	mu.Unlock()
+
+	reportMu.Lock()
+	reportSent = nil
+	reportRecv = make(map[string]*recvSeriesData)
+	reportT = time.Time{}
+	reportMu.Unlock()
+
 	log.Printf("[reset] config reloaded, started flag cleared")
 	fmt.Fprintln(w, "reset ok")
 }
@@ -361,8 +431,9 @@ func buildSchedule(is InputSeries, T time.Time, interval, jitter time.Duration) 
 // --- test runner -------------------------------------------------------------
 
 type seriesEvent struct {
-	labels  map[string]string
-	samples []scheduledSample
+	seriesName string // original series selector string from config
+	labels     map[string]string
+	samples    []scheduledSample
 }
 
 func runTest(T time.Time, interval, jitter time.Duration) {
@@ -370,7 +441,7 @@ func runTest(T time.Time, interval, jitter time.Duration) {
 		mu.Lock()
 		started = false
 		mu.Unlock()
-		log.Printf("[test] finished")
+		log.Printf("[write] finished")
 	}()
 
 	// Collect all send events across every configured series.
@@ -390,8 +461,9 @@ func runTest(T time.Time, interval, jitter time.Duration) {
 		log.Printf("[test] series %q: %d distinct send-time slots", is.Series, len(schedule))
 		for sendAtMs, samples := range schedule {
 			allEvents[sendAtMs] = append(allEvents[sendAtMs], seriesEvent{
-				labels:  labels,
-				samples: samples,
+				seriesName: is.Series,
+				labels:     labels,
+				samples:    samples,
 			})
 		}
 	}
@@ -414,6 +486,7 @@ func runTest(T time.Time, interval, jitter time.Duration) {
 		}
 
 		for _, ev := range allEvents[sendAtMs] {
+			recordSent(ev.seriesName, ev.samples, sendAtMs)
 			if err := writeSamples(cfg.VmagentAddress, ev.labels, ev.samples); err != nil {
 				log.Printf("[test] write error for %v: %v", ev.labels, err)
 			}
@@ -460,3 +533,269 @@ func writeSamples(addr string, labels map[string]string, samples []scheduledSamp
 	}
 	return nil
 }
+
+// --- report ------------------------------------------------------------------
+
+// reportPageTemplate is the HTML skeleton for GET /report.
+// All __TOKEN__ placeholders are replaced at render time by handleReport.
+var reportPageTemplate = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8">
+<title>SA Tester Report</title>
+<style>
+body{font-family:'Segoe UI',Arial,sans-serif;margin:0;padding:20px;background:#f0f2f5;color:#333}
+h1{margin-bottom:4px}
+.subtitle{color:#666;font-size:14px;margin-bottom:24px}
+.card{background:#fff;padding:20px;margin:16px 0;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.12)}
+h2{margin:0 0 12px;color:#444;font-size:18px;border-bottom:1px solid #eee;padding-bottom:8px}
+h3{margin:4px 0 8px;font-size:13px;font-family:monospace;color:#555;word-break:break-all}
+pre{background:#f7f7f7;padding:12px;border-radius:4px;overflow-x:auto;font-size:13px;margin:0}
+.chart-wrap{position:relative;height:340px;margin-bottom:24px}
+.no-data{color:#aaa;font-style:italic;font-size:14px}
+a{color:#1a73e8}
+</style>
+</head>
+<body>
+<h1>SA Tester Report</h1>
+<p class="subtitle">Generated: __GENERATED_AT__ &nbsp;|&nbsp; <a href="/report">Refresh</a></p>
+<div class="card">
+  <h2>SA Config</h2>
+  <pre>__SA_YAML__</pre>
+</div>
+<div class="card">
+  <h2>Sent Series (__SENT_COUNT__ series)</h2>
+  __SENT_CANVAS__
+</div>
+<div class="card">
+  <h2>Received Series / SA Output (__RECV_COUNT__ series)</h2>
+  __RECV_CHARTS__
+</div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+(function(){
+  var SENT = __SENT_JSON__;
+  var RECV = __RECV_JSON__;
+
+  var PALETTE = [
+    'rgba(54,162,235,0.85)',
+    'rgba(255,99,132,0.85)',
+    'rgba(153,102,255,0.85)',
+    'rgba(255,205,86,0.9)',
+    'rgba(75,192,192,0.85)',
+  ];
+
+  function fmtDate(d) {
+    return d.getUTCFullYear() + '-' +
+           (d.getUTCMonth()+1).toString().padStart(2,'0') + '-' +
+           d.getUTCDate().toString().padStart(2,'0');
+  }
+  function fmtTime(d) {
+    return d.getUTCHours().toString().padStart(2,'0') + ':' +
+           d.getUTCMinutes().toString().padStart(2,'0') + ':' +
+           d.getUTCSeconds().toString().padStart(2,'0');
+  }
+  // Tooltip: full datetime with milliseconds.
+  function fmtTs(sec) {
+    var d = new Date(sec * 1000);
+    return fmtDate(d) + ' ' + fmtTime(d) + '.' +
+           d.getUTCMilliseconds().toString().padStart(3,'0');
+  }
+  // Tick label: show date only when it changes (or on the first tick).
+  function fmtTick(v, idx, ticks) {
+    var d = new Date(v * 1000);
+    var dateStr = fmtDate(d);
+    var timeStr = fmtTime(d);
+    if (idx === 0) { return timeStr + ' ' + dateStr; }
+    var prev = new Date(ticks[idx - 1].value * 1000);
+    if (fmtDate(prev) !== dateStr) { return timeStr + ' ' + dateStr; }
+    return timeStr;
+  }
+
+  var sentEl = document.getElementById('sent-all');
+  if (sentEl && SENT.length > 0) {
+    var datasets = [];
+    SENT.forEach(function(s, si) {
+      var col = PALETTE[si % PALETTE.length];
+      var normal  = s.points.filter(function(p){ return p !== null && !p.delayed; });
+      var delayed = s.points.filter(function(p){ return p !== null &&  p.delayed; });
+      if (normal.length > 0) {
+        datasets.push({
+          type: 'scatter', label: s.name,
+          data: normal.map(function(p){ return {x: p.x, y: p.y}; }),
+          backgroundColor: col, pointRadius: 7, pointStyle: 'circle',
+        });
+      }
+      if (delayed.length > 0) {
+        var delayCol = 'rgba(255,159,64,0.9)';
+        datasets.push({
+          type: 'scatter', label: s.name + ' (delayed \u2014 data ts)',
+          data: delayed.map(function(p){ return {x: p.x, y: p.y}; }),
+          backgroundColor: delayCol, pointRadius: 9, pointStyle: 'triangle',
+        });
+        datasets.push({
+          type: 'scatter', label: s.name + ' (delayed \u2014 sent at)',
+          data: delayed.map(function(p){ return {x: p.sentAt, y: p.y}; }),
+          backgroundColor: 'rgba(255,159,64,0.25)', borderColor: delayCol,
+          pointRadius: 7, pointStyle: 'circle', borderWidth: 2,
+        });
+        // One line dataset per delay span — avoids null-in-array crash.
+        delayed.forEach(function(p, di) {
+          datasets.push({
+            type: 'line',
+            label: si === 0 && di === 0 ? 'Delay span' : '',
+            data: [{x: p.x, y: p.y}, {x: p.sentAt, y: p.y}],
+            borderColor: 'rgba(255,159,64,0.55)',
+            borderDash: [5, 5], borderWidth: 2, pointRadius: 0, fill: false,
+          });
+        });
+      }
+    });
+    new Chart(sentEl, {
+      type: 'scatter',
+      data: { datasets: datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { filter: function(item) { return item.text !== ''; } },
+          },
+          tooltip: { callbacks: { label: function(ctx){
+            var p = ctx.raw;
+            if (p === null || p === undefined) return '';
+            return 'value=' + p.y + '  ts=' + fmtTs(p.x);
+          }}},
+        },
+        scales: {
+          x: { type: 'linear',
+               title: { display: true, text: 'Unix timestamp (seconds UTC)' },
+               ticks: { callback: function(v, idx, ticks) { return fmtTick(v, idx, ticks); }, maxRotation: 35, minRotation: 35 } },
+          y: { title: { display: true, text: 'value' } },
+        },
+      },
+    });
+  }
+
+  RECV.forEach(function(s, i) {
+    var el = document.getElementById('recv-' + i);
+    if (!el) return;
+    var pts = s.points
+      .filter(function(p){ return p !== null && p !== undefined && typeof p.x === 'number'; })
+      .sort(function(a, b){ return a.x - b.x; });
+    new Chart(el, {
+      type: 'line',
+      data: { datasets: [{
+        label: s.name, data: pts,
+        borderColor: 'rgba(75,192,75,0.9)', backgroundColor: 'rgba(75,192,75,0.15)',
+        pointRadius: 6, tension: 0, fill: false,
+      }]},
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: function(ctx){
+            var p = ctx.raw;
+            if (p === null || p === undefined) return '';
+            return 'value=' + p.y + '  ts=' + fmtTs(p.x);
+          }}},
+        },
+        scales: {
+          x: { type: 'linear',
+               title: { display: true, text: 'Unix timestamp (seconds UTC)' },
+               ticks: { callback: function(v, idx, ticks) { return fmtTick(v, idx, ticks); }, maxRotation: 35, minRotation: 35 } },
+          y: { title: { display: true, text: 'value' } },
+        },
+      },
+    });
+  });
+})();
+</script>
+</body>
+</html>`
+
+// recordSent stores sent samples into the report data store.
+// It must be called without holding reportMu.
+func recordSent(seriesName string, samples []scheduledSample, sendAtMs int64) {
+	reportMu.Lock()
+	defer reportMu.Unlock()
+
+	var sd *sentSeriesData
+	for i := range reportSent {
+		if reportSent[i].Name == seriesName {
+			sd = &reportSent[i]
+			break
+		}
+	}
+	if sd == nil {
+		reportSent = append(reportSent, sentSeriesData{Name: seriesName})
+		sd = &reportSent[len(reportSent)-1]
+	}
+
+	for _, s := range samples {
+		sd.Points = append(sd.Points, sentDataPoint{
+			TsSec:     float64(s.timestamp) / 1000.0,
+			Value:     s.value,
+			SentAtSec: float64(sendAtMs) / 1000.0,
+			Delayed:   sendAtMs != s.timestamp,
+		})
+	}
+}
+
+// handleReport renders and serves the HTML report page with sent/received charts.
+func handleReport(w http.ResponseWriter, r *http.Request) {
+	// saYAML is read without mu, consistent with handleSAConfig.
+	saYAMLStr := string(saYAML)
+
+	reportMu.RLock()
+	sentSnap := make([]sentSeriesData, len(reportSent))
+	for i, sd := range reportSent {
+		pts := make([]sentDataPoint, len(sd.Points))
+		copy(pts, sd.Points)
+		sentSnap[i] = sentSeriesData{Name: sd.Name, Points: pts}
+	}
+	recvSnap := make([]recvSeriesData, 0, len(reportRecv))
+	for _, rd := range reportRecv {
+		pts := make([]recvDataPoint, len(rd.Points))
+		copy(pts, rd.Points)
+		recvSnap = append(recvSnap, recvSeriesData{Name: rd.Name, Points: pts})
+	}
+	reportMu.RUnlock()
+
+	sort.Slice(recvSnap, func(i, j int) bool { return recvSnap[i].Name < recvSnap[j].Name })
+
+	sentJSON, _ := json.Marshal(sentSnap)
+	recvJSON, _ := json.Marshal(recvSnap)
+
+	// Single canvas for all sent series combined.
+	var sentCanvas string
+	if len(sentSnap) == 0 {
+		sentCanvas = `<p class="no-data">No data yet — POST /start to run the test.</p>`
+	} else {
+		sentCanvas = `<div class="chart-wrap"><canvas id="sent-all"></canvas></div>`
+	}
+
+	var recvCharts strings.Builder
+	if len(recvSnap) == 0 {
+		recvCharts.WriteString(`<p class="no-data">No data received yet.</p>`)
+	} else {
+		for i, rd := range recvSnap {
+			fmt.Fprintf(&recvCharts,
+				"<h3>%s</h3><div class=\"chart-wrap\"><canvas id=\"recv-%d\"></canvas></div>\n",
+				html.EscapeString(rd.Name), i)
+		}
+	}
+
+	page := reportPageTemplate
+	page = strings.ReplaceAll(page, "__GENERATED_AT__", time.Now().UTC().Format(time.RFC3339))
+	page = strings.ReplaceAll(page, "__SA_YAML__", html.EscapeString(saYAMLStr))
+	page = strings.ReplaceAll(page, "__SENT_COUNT__", strconv.Itoa(len(sentSnap)))
+	page = strings.ReplaceAll(page, "__SENT_CANVAS__", sentCanvas)
+	page = strings.ReplaceAll(page, "__RECV_COUNT__", strconv.Itoa(len(recvSnap)))
+	page = strings.ReplaceAll(page, "__RECV_CHARTS__", recvCharts.String())
+	page = strings.ReplaceAll(page, "__SENT_JSON__", string(sentJSON))
+	page = strings.ReplaceAll(page, "__RECV_JSON__", string(recvJSON))
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	fmt.Fprint(w, page)
+}
+
