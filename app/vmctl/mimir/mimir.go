@@ -133,11 +133,11 @@ func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 	c.RemoteFS = rfs
 	timeMin, err := utils.ParseTime(cfg.Filter.TimeMin)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse min time in filter: %s", err)
+		return nil, fmt.Errorf("failed to parse min time in filter: %w", err)
 	}
 	timeMax, err := utils.ParseTime(cfg.Filter.TimeMax)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse max time in filter: %s", err)
+		return nil, fmt.Errorf("failed to parse max time in filter: %w", err)
 	}
 	c.filter = filter{
 		min:        timeMin.UnixMilli(),
@@ -156,7 +156,7 @@ func (c *Client) Explore() ([]tsdb.BlockReader, error) {
 
 	indexFile, err := c.fetchIndexFile()
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch index file: %s", err)
+		return nil, fmt.Errorf("failed to fetch index file: %w", err)
 	}
 
 	var blocksToImport []tsdb.BlockReader
@@ -172,7 +172,7 @@ func (c *Client) Explore() ([]tsdb.BlockReader, error) {
 
 		lazyBlockReader, err := newLazyBlockReader(block, c.RemoteFS)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create lazy block reader: %s", err)
+			return nil, fmt.Errorf("failed to create lazy block reader: %w", err)
 		}
 		blocksToImport = append(blocksToImport, lazyBlockReader)
 	}
@@ -185,7 +185,7 @@ func (c *Client) Explore() ([]tsdb.BlockReader, error) {
 func (c *Client) Read(ctx context.Context, block tsdb.BlockReader) (*prometheus.CloseableSeriesSet, error) {
 	meta := block.Meta()
 	if b, ok := block.(*lazyBlockReader); ok && b.Err() != nil {
-		return nil, fmt.Errorf("failed to read block: %s", b.Err())
+		return nil, fmt.Errorf("failed to read block: %w", b.Err())
 	}
 
 	if meta.ULID.String() == "" {
@@ -218,20 +218,20 @@ func (c *Client) fetchIndexFile() (*Index, error) {
 
 	file, err := c.ReadFile(bucketIndexCompressedFilename)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read bucket index: %s", err)
+		return nil, fmt.Errorf("failed to read bucket index: %w", err)
 	}
 
 	r := bytes.NewReader(file)
 	// Read all the content.
 	gzipReader, err := gzip.NewReader(r)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create gzip reader: %s", err)
+		return nil, fmt.Errorf("failed to create gzip reader: %w", err)
 	}
 
 	var indexFile Index
 	err = json.NewDecoder(gzipReader).Decode(&indexFile)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode bucket index: %s", err)
+		return nil, fmt.Errorf("failed to decode bucket index: %w", err)
 	}
 
 	return &indexFile, nil

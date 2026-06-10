@@ -106,7 +106,7 @@ func (c Client) FindMetrics(q string) ([]string, error) {
 
 	resp, err := c.c.Get(q)
 	if err != nil {
-		return nil, fmt.Errorf("failed to send GET request to %q: %s", q, err)
+		return nil, fmt.Errorf("failed to send GET request to %q: %w", q, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != 200 {
@@ -114,12 +114,12 @@ func (c Client) FindMetrics(q string) ([]string, error) {
 	}
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("could not retrieve metric data from %q: %s", q, err)
+		return nil, fmt.Errorf("could not retrieve metric data from %q: %w", q, err)
 	}
 	var metriclist []string
 	err = json.Unmarshal(body, &metriclist)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read response from %q: %s", q, err)
+		return nil, fmt.Errorf("failed to read response from %q: %w", q, err)
 	}
 	return metriclist, nil
 }
@@ -130,7 +130,7 @@ func (c Client) FindSeries(metric string) ([]Meta, error) {
 	q := fmt.Sprintf("%s/api/search/lookup?m=%s&limit=%d", c.Addr, metric, c.Limit)
 	resp, err := c.c.Get(q)
 	if err != nil {
-		return nil, fmt.Errorf("failed to send GET request to %q: %s", q, err)
+		return nil, fmt.Errorf("failed to send GET request to %q: %w", q, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != 200 {
@@ -138,12 +138,12 @@ func (c Client) FindSeries(metric string) ([]Meta, error) {
 	}
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("could not retrieve series data from %q: %s", q, err)
+		return nil, fmt.Errorf("could not retrieve series data from %q: %w", q, err)
 	}
 	var results MetaResults
 	err = json.Unmarshal(body, &results)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read response from %q: %s", q, err)
+		return nil, fmt.Errorf("failed to read response from %q: %w", q, err)
 	}
 	return results.Results, nil
 }
@@ -183,7 +183,7 @@ func (c Client) GetData(series Meta, rt RetentionMeta, start int64, end int64, m
 	q := fmt.Sprintf("%s/api/query?%s", c.Addr, queryStr)
 	resp, err := c.c.Get(q)
 	if err != nil {
-		return Metric{}, fmt.Errorf("failed to send GET request to %q: %s", q, err)
+		return Metric{}, fmt.Errorf("failed to send GET request to %q: %w", q, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	/*
@@ -303,7 +303,7 @@ func NewClient(cfg Config) (*Client, error) {
 	for _, r := range cfg.Retentions {
 		ret, err := convertRetention(r, offsetSecs, cfg.MsecsTime)
 		if err != nil {
-			return &Client{}, fmt.Errorf("couldn't parse retention %q :: %v", r, err)
+			return &Client{}, fmt.Errorf("couldn't parse retention %q :: %w", r, err)
 		}
 		retentions = append(retentions, ret)
 	}

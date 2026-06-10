@@ -54,7 +54,7 @@ func (lbr *lazyBlockReader) initialize() error {
 	// fetching block and parse it and store it in lbr.reader
 	temp, err := lbr.mkTempDir()
 	if err != nil {
-		return fmt.Errorf("failed to create temp dir: %s", err)
+		return fmt.Errorf("failed to create temp dir: %w", err)
 	}
 
 	lbr.tempDirPath = temp
@@ -85,7 +85,7 @@ func (lbr *lazyBlockReader) initialize() error {
 			return fmt.Errorf("failed to fetch chunk file: %q: %w", chunkName, err)
 		}
 		if err := lbr.writeFile(temp, blockChunkPath, chunk); err != nil {
-			return fmt.Errorf("failed to write chunk file: %q: %s", chunkName, err)
+			return fmt.Errorf("failed to write chunk file: %q: %w", chunkName, err)
 		}
 	}
 
@@ -135,7 +135,7 @@ func (lbr *lazyBlockReader) Meta() tsdb.BlockMeta {
 // Size returns the number of bytes that the block takes up on disk.
 func (lbr *lazyBlockReader) Size() int64 {
 	if err := lbr.initialize(); err != nil {
-		lbr.err = fmt.Errorf("error get Size of the block: %s, return zero size", err)
+		lbr.err = fmt.Errorf("error get Size of the block: %w, return zero size", err)
 		return 0
 	}
 	return lbr.reader.Size()
@@ -167,11 +167,11 @@ func (lbr *lazyBlockReader) Close() error {
 func (lbr *lazyBlockReader) mkTempDir() (string, error) {
 	temp, err := os.MkdirTemp("", lbr.ID.String())
 	if err != nil {
-		return "", fmt.Errorf("failed to create temp dir: %s", err)
+		return "", fmt.Errorf("failed to create temp dir: %w", err)
 	}
 	err = os.Mkdir(filepath.Join(temp, "chunks"), os.ModePerm)
 	if err != nil {
-		return "", fmt.Errorf("failed to create temp dir: %s", err)
+		return "", fmt.Errorf("failed to create temp dir: %w", err)
 	}
 	return temp, nil
 }

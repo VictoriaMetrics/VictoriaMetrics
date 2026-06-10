@@ -47,7 +47,7 @@ func (op *otsdbProcessor) run(ctx context.Context) error {
 		q := fmt.Sprintf("%s/api/suggest?type=metrics&q=%s&max=%d", op.oc.Addr, filter, op.oc.Limit)
 		m, err := op.oc.FindMetrics(q)
 		if err != nil {
-			return fmt.Errorf("metric discovery failed for %q: %s", q, err)
+			return fmt.Errorf("metric discovery failed for %q: %w", q, err)
 		}
 		metrics = append(metrics, m...)
 	}
@@ -76,7 +76,7 @@ func (op *otsdbProcessor) run(ctx context.Context) error {
 		log.Printf("Starting work on %s", metric)
 		serieslist, err := op.oc.FindSeries(metric)
 		if err != nil {
-			return fmt.Errorf("couldn't retrieve series list for %s : %s", metric, err)
+			return fmt.Errorf("couldn't retrieve series list for %s: %w", metric, err)
 		}
 		/*
 			Create channels for collecting/processing series and errors
@@ -95,7 +95,7 @@ func (op *otsdbProcessor) run(ctx context.Context) error {
 				for s := range seriesCh {
 					if err := op.do(s); err != nil {
 						otsdbErrorsTotal.Inc()
-						errCh <- fmt.Errorf("couldn't retrieve series for %s : %s", metric, err)
+						errCh <- fmt.Errorf("couldn't retrieve series for %s: %w", metric, err)
 						return
 					}
 					otsdbSeriesProcessed.Inc()
@@ -112,7 +112,7 @@ func (op *otsdbProcessor) run(ctx context.Context) error {
 		// check for any lingering errors on the query side
 		for otsdbErr := range errCh {
 			if runErr == nil {
-				runErr = fmt.Errorf("import process failed: \n%s", otsdbErr)
+				runErr = fmt.Errorf("import process failed:\n%w", otsdbErr)
 			}
 		}
 		bar.Finish()
@@ -125,7 +125,7 @@ func (op *otsdbProcessor) run(ctx context.Context) error {
 	for vmErr := range op.im.Errors() {
 		if vmErr.Err != nil {
 			otsdbErrorsTotal.Inc()
-			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, op.isVerbose))
+			return fmt.Errorf("import process failed: %w", wrapErr(vmErr, op.isVerbose))
 		}
 	}
 	log.Println("Import finished!")
@@ -141,12 +141,12 @@ func (op *otsdbProcessor) sendQueries(ctx context.Context, serieslist []opentsdb
 			for _, tr := range rt.QueryRanges {
 				select {
 				case <-ctx.Done():
-					return fmt.Errorf("context canceled: %s", ctx.Err())
+					return fmt.Errorf("context canceled: %w", ctx.Err())
 				case otsdbErr := <-errCh:
 					otsdbErrorsTotal.Inc()
-					return fmt.Errorf("opentsdb error: %s", otsdbErr)
+					return fmt.Errorf("opentsdb error: %w", otsdbErr)
 				case vmErr := <-op.im.Errors():
-					return fmt.Errorf("import process failed: %s", wrapErr(vmErr, op.isVerbose))
+					return fmt.Errorf("import process failed: %w", wrapErr(vmErr, op.isVerbose))
 				case seriesCh <- queryObj{
 					Tr: tr, StartTime: startTime,
 					Series: series, Rt: opentsdb.RetentionMeta{
@@ -166,7 +166,7 @@ func (op *otsdbProcessor) do(s queryObj) error {
 	end := s.StartTime - s.Tr.End
 	data, err := op.oc.GetData(s.Series, s.Rt, start, end, op.oc.MsecsTime)
 	if err != nil {
-		return fmt.Errorf("failed to collect data for %v in %v:%v :: %v", s.Series, s.Rt, s.Tr, err)
+		return fmt.Errorf("failed to collect data for %v in %v:%v :: %w", s.Series, s.Rt, s.Tr, err)
 	}
 	if len(data.Timestamps) < 1 || len(data.Values) < 1 {
 		log.Printf("no data found for %v in %v:%v...skipping", s.Series, s.Rt, s.Tr)

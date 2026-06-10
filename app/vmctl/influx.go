@@ -43,7 +43,7 @@ func newInfluxProcessor(ic *influx.Client, im *vm.Importer, cc int, separator st
 func (ip *influxProcessor) run(ctx context.Context) error {
 	series, err := ip.ic.Explore()
 	if err != nil {
-		return fmt.Errorf("explore query failed: %s", err)
+		return fmt.Errorf("explore query failed: %w", err)
 	}
 	if len(series) < 1 {
 		return fmt.Errorf("found no timeseries to import")
@@ -71,7 +71,7 @@ func (ip *influxProcessor) run(ctx context.Context) error {
 			for s := range seriesCh {
 				if err := ip.do(s); err != nil {
 					influxErrorsTotal.Inc()
-					errCh <- fmt.Errorf("request failed for %q.%q: %s", s.Measurement, s.Field, err)
+					errCh <- fmt.Errorf("request failed for %q.%q: %w", s.Measurement, s.Field, err)
 					return
 				}
 				influxSeriesProcessed.Inc()
@@ -84,10 +84,10 @@ func (ip *influxProcessor) run(ctx context.Context) error {
 	for _, s := range series {
 		select {
 		case infErr := <-errCh:
-			return fmt.Errorf("influx error: %s", infErr)
+			return fmt.Errorf("influx error: %w", infErr)
 		case vmErr := <-ip.im.Errors():
 			influxErrorsTotal.Inc()
-			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, ip.isVerbose))
+			return fmt.Errorf("import process failed: %w", wrapErr(vmErr, ip.isVerbose))
 		case seriesCh <- s:
 		}
 	}
@@ -100,11 +100,11 @@ func (ip *influxProcessor) run(ctx context.Context) error {
 	for vmErr := range ip.im.Errors() {
 		if vmErr.Err != nil {
 			influxErrorsTotal.Inc()
-			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, ip.isVerbose))
+			return fmt.Errorf("import process failed: %w", wrapErr(vmErr, ip.isVerbose))
 		}
 	}
 	for err := range errCh {
-		return fmt.Errorf("import process failed: %s", err)
+		return fmt.Errorf("import process failed: %w", err)
 	}
 
 	log.Println("Import finished!")
@@ -119,7 +119,7 @@ const valueField = "value"
 func (ip *influxProcessor) do(s *influx.Series) error {
 	cr, err := ip.ic.FetchDataPoints(s)
 	if err != nil {
-		return fmt.Errorf("failed to fetch datapoints: %s", err)
+		return fmt.Errorf("failed to fetch datapoints: %w", err)
 	}
 	defer func() {
 		_ = cr.Close()
