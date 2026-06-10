@@ -173,9 +173,9 @@ func (r *Rule) String() string {
 	if r.Alert != "" {
 		ruleType = "alerting"
 	}
-	b := strings.Builder{}
-	b.WriteString(fmt.Sprintf("%s rule %q", ruleType, r.Name()))
-	b.WriteString(fmt.Sprintf("; expr: %q", r.Expr))
+	var b strings.Builder
+	fmt.Fprintf(&b, "%s rule %q", ruleType, r.Name())
+	fmt.Fprintf(&b, "; expr: %q", r.Expr)
 
 	kv := sortMap(r.Labels)
 	for i := range kv {
