@@ -257,7 +257,7 @@ func (vms *VMStorage) requestHandler(w http.ResponseWriter, r *http.Request) boo
 			dealine, err = strconv.Atoi(deadlineStr)
 			if err != nil {
 				logger.Errorf("cannot parse `seconds` arg %q: %s", deadlineStr, err)
-				jsonResponseError(w, fmt.Errorf("cannot parse `seconds` arg %q: %s", deadlineStr, err))
+				jsonResponseError(w, fmt.Errorf("cannot parse `seconds` arg %q: %w", deadlineStr, err))
 				return true
 			}
 		}

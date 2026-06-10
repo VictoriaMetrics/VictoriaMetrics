@@ -61,15 +61,15 @@ func parseInputSeries(input []series, interval *promutil.Duration, startStamp ti
 	for _, data := range input {
 		expr, err := metricsql.Parse(data.Series)
 		if err != nil {
-			return res, fmt.Errorf("failed to parse series %s: %v", data.Series, err)
+			return res, fmt.Errorf("failed to parse series %s: %w", data.Series, err)
 		}
 		promvals, err := parseInputValue(data.Values, true)
 		if err != nil {
-			return res, fmt.Errorf("failed to parse input series value %s: %v", data.Values, err)
+			return res, fmt.Errorf("failed to parse input series value %s: %w", data.Values, err)
 		}
 		metricExpr, ok := expr.(*metricsql.MetricExpr)
 		if !ok || len(metricExpr.LabelFilterss) != 1 {
-			return res, fmt.Errorf("got invalid input series %s: %v", data.Series, err)
+			return res, fmt.Errorf("got invalid input series %s: %w", data.Series, err)
 		}
 		samples := make([]testutil.Sample, 0, len(promvals))
 		ts := startStamp
