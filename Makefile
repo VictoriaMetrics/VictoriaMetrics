@@ -473,7 +473,9 @@ integration-test:
 	$(MAKE) apptest
 
 apptest:
-c
+	$(MAKE) victoria-metrics-race vmagent-race vmalert-race vmauth-race vmctl-race vmbackup-race vmrestore-race
+	go test ./apptest/... -skip="^Test(Cluster|Legacy).*"
+
 apptest-legacy: victoria-metrics-race vmbackup-race vmrestore-race
 	OS=$$(uname | tr '[:upper:]' '[:lower:]'); \
 	ARCH=$$(uname -m | tr '[:upper:]' '[:lower:]' | sed 's/x86_64/amd64/'); \
