@@ -33,6 +33,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/promremotewrite/stream"
 	"gopkg.in/yaml.v2"
 )
+
 type AppConfig struct {
 	// SARules holds the stream aggregation rules.  It is marshalled back to
 	// YAML and served verbatim on GET /sa-config.
@@ -89,10 +90,10 @@ type vmImportLine struct {
 
 // sentDataPoint is one data point in the sent-series chart.
 type sentDataPoint struct {
-	TsSec    float64 `json:"x"`      // sample unix timestamp in seconds
-	Value    float64 `json:"y"`
+	TsSec     float64 `json:"x"` // sample unix timestamp in seconds
+	Value     float64 `json:"y"`
 	SentAtSec float64 `json:"sentAt"` // wall-clock send time in seconds; equals TsSec if not delayed
-	Delayed  bool    `json:"delayed"`
+	Delayed   bool    `json:"delayed"`
 }
 
 // sentSeriesData holds all sent data points for one configured input series.
@@ -619,4 +620,3 @@ func handleReport(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	fmt.Fprint(w, page)
 }
-

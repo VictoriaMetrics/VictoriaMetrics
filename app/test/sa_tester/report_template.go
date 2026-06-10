@@ -75,55 +75,89 @@ a{color:#1a73e8}
     return timeStr;
   }
 
+  // Plugin: draw dashed delay-span lines directly on the canvas so they are
+  // owned by their series dataset and toggle with it.
+  var delaySpanPlugin = {
+    id: 'delaySpan',
+    afterDatasetsDraw: function(chart) {
+      var ctx2 = chart.ctx;
+      chart.data.datasets.forEach(function(ds, dsi) {
+        if (!chart.isDatasetVisible(dsi)) return;
+        var meta = chart.getDatasetMeta(dsi);
+        ds.data.forEach(function(pt, pi) {
+          if (!pt || !pt.delayed) return;
+          var el = meta.data[pi];
+          if (!el) return;
+          var xScale = chart.scales.x;
+          var yScale = chart.scales.y;
+          var x1 = el.x;
+          var x2 = xScale.getPixelForValue(pt.sentAt);
+          var y  = el.y;
+          ctx2.save();
+          ctx2.beginPath();
+          ctx2.setLineDash([5, 4]);
+          ctx2.strokeStyle = 'rgba(255,159,64,0.7)';
+          ctx2.lineWidth = 2;
+          ctx2.moveTo(x1, y);
+          ctx2.lineTo(x2, y);
+          ctx2.stroke();
+          // Arrow head at sent-at end.
+          var dir = x2 > x1 ? 1 : -1;
+          ctx2.setLineDash([]);
+          ctx2.beginPath();
+          ctx2.moveTo(x2, y);
+          ctx2.lineTo(x2 - dir * 8, y - 5);
+          ctx2.lineTo(x2 - dir * 8, y + 5);
+          ctx2.closePath();
+          ctx2.fillStyle = 'rgba(255,159,64,0.7)';
+          ctx2.fill();
+          ctx2.restore();
+        });
+      });
+    },
+  };
+
   var sentEl = document.getElementById('sent-all');
   if (sentEl && SENT.length > 0) {
     var datasets = [];
-    var delaySpanAdded = false;
     SENT.forEach(function(s, si) {
       var col = PALETTE[si % PALETTE.length];
       var delayCol = 'rgba(255,159,64,0.9)';
       var pts = s.points.filter(function(p){ return p !== null; });
       if (pts.length === 0) return;
-      // One dataset per series — per-point styling marks delayed points as triangles.
+      // Attach full metadata (delayed, sentAt) to each chart point so the
+      // plugin and tooltip can read it without separate datasets.
       datasets.push({
         type: 'scatter', label: s.name,
-        data: pts.map(function(p){ return {x: p.x, y: p.y}; }),
+        data: pts.map(function(p){
+          return {x: p.x, y: p.y, delayed: p.delayed, sentAt: p.sentAt};
+        }),
         backgroundColor: pts.map(function(p){ return p.delayed ? delayCol : col; }),
         pointStyle:      pts.map(function(p){ return p.delayed ? 'triangle' : 'circle'; }),
         pointRadius:     pts.map(function(p){ return p.delayed ? 9 : 7; }),
-      });
-      // One line dataset per delay span (dashed arrow from data-ts to sent-at).
-      pts.filter(function(p){ return p.delayed; }).forEach(function(p) {
-        datasets.push({
-          type: 'line',
-          label: !delaySpanAdded ? 'Delay span (data\u2192sent)' : '',
-          data: [{x: p.x, y: p.y}, {x: p.sentAt, y: p.y}],
-          borderColor: 'rgba(255,159,64,0.6)',
-          borderDash: [5, 5], borderWidth: 2, pointRadius: 0, fill: false,
-        });
-        delaySpanAdded = true;
       });
     });
     new Chart(sentEl, {
       type: 'scatter',
       data: { datasets: datasets },
+      plugins: [delaySpanPlugin],
       options: {
         responsive: true, maintainAspectRatio: false,
         plugins: {
           legend: {
             position: 'bottom',
-            labels: { filter: function(item) { return item.text !== ''; } },
             onClick: function(e, legendItem, legend) {
               var chart = legend.chart;
               var idx = legendItem.datasetIndex;
-              var allHidden = chart.data.datasets.every(function(ds, i) {
+              var meta = chart.getDatasetMeta(idx);
+              var allOthersHidden = chart.data.datasets.every(function(_, i) {
                 return i === idx || !chart.isDatasetVisible(i);
               });
-              // If clicking the one already-solo item, show everything again.
-              if (allHidden) {
+              if (allOthersHidden && !meta.hidden) {
+                // Already solo — restore all.
                 chart.data.datasets.forEach(function(_, i) { chart.show(i); });
               } else {
-                // Hide all, then show only the selected dataset.
+                // Solo this series.
                 chart.data.datasets.forEach(function(_, i) { chart.hide(i); });
                 chart.show(idx);
               }
@@ -131,8 +165,13 @@ a{color:#1a73e8}
           },
           tooltip: { callbacks: { label: function(ctx){
             var p = ctx.raw;
-            if (p === null || p === undefined) return '';
-            return 'value=' + p.y + '  ts=' + fmtTs(p.x);
+            if (!p) return '';
+            var msg = 'value=' + p.y + '  ts=' + fmtTs(p.x);
+            if (p.delayed) {
+              var delaySec = Math.round((p.sentAt - p.x) * 10) / 10;
+              msg += '  \u2192 sent at ' + fmtTs(p.sentAt) + ' (+' + delaySec + 's)';
+            }
+            return msg;
           }}},
         },
         scales: {

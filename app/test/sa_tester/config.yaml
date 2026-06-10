@@ -2,16 +2,28 @@
 # Configure vmagent with:
 #   -streamAggr.config=http://localhost:8080/sa-config
 saRules:
-  - name: 'foobar'
+  - name: 'increase'
     match: 'test'
     interval: 10s
     without: [instance]
-    outputs: [total]
-  - name: 'foobar'
+    outputs: [increase]
+  - name: 'increase-ignore-old'
+    match: 'test'
+    interval: 10s
+    ignore_old_samples: true
+    without: [env]
+    outputs: [increase]
+  - name: 'increase-prometheus'
     match: 'test'
     interval: 10s
     without: [instance]
-    outputs: [total_prometheus]
+    outputs: [increase_prometheus]
+  - name: 'increase-prometheus-ignore-old'
+    match: 'test'
+    interval: 10s
+    ignore_old_samples: true
+    without: [env]
+    outputs: [increase_prometheus]
 
 # Address of the vmagent that loads SA rules and accepts raw samples.
 # POST /start calls <vmagent_address>/-/reload then writes samples to it.
@@ -28,13 +40,11 @@ interval: 10s
 input_series:
   - series: 'test{env="prod", instance="a"}'
     # One value per slot (1-indexed). null means slot is skipped but could be compensated by delays.
-    values: [null, null, 1, 2, 3, null, null, 6, 7, 8]
+    values: [null, null, 1001, 1002, 1003, null, null, null, 1026, 1027, 1028]
     # delays can be used to mock delayed or out of order sample cases.
     # delays: [originalSlot, sendAtSlot, value]  (slots are 1-indexed)
     # Sample is timestamped at T+(originalSlot-1)*interval, but delivered to vmagent at T+(sendAtSlot-1)*interval.
     delays:
-      - [6, 8, 4]   # slot-6 sample (value=4) sent together at slot 8
-      - [7, 8, 5]   # slot-7 sample (value=5) sent together at slot 8
+      - [6, 9, 1004]   # slot-6 sample (value=1004) sent together at slot 9
+      - [7, 9, 1005]   # slot-7 sample (value=1005) sent together at slot 9
 
-  - series: 'test{env="prod", instance="b"}'
-    values: [null, null, 1, 2, 3, 4, 5, 6, 7, 8]
