@@ -59,12 +59,12 @@ func (f filter) inRange(minV, maxV int64) bool {
 func NewClient(cfg Config) (*Client, error) {
 	db, err := tsdb.OpenDBReadOnly(cfg.Snapshot, cfg.TemporaryDir, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open snapshot %q: %s", cfg.Snapshot, err)
+		return nil, fmt.Errorf("failed to open snapshot %q: %w", cfg.Snapshot, err)
 	}
 	c := &Client{DBReadOnly: db}
 	timeMin, timeMax, err := parseTime(cfg.Filter.TimeMin, cfg.Filter.TimeMax)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse time in filter: %s", err)
+		return nil, fmt.Errorf("failed to parse time in filter: %w", err)
 	}
 	c.filter = filter{
 		min:        timeMin,
@@ -83,7 +83,7 @@ func NewClient(cfg Config) (*Client, error) {
 func (c *Client) Explore() ([]tsdb.BlockReader, error) {
 	blocks, err := c.Blocks()
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch blocks: %s", err)
+		return nil, fmt.Errorf("failed to fetch blocks: %w", err)
 	}
 	s := &vmctlutil.Stats{
 		Filtered: c.filter.min != 0 || c.filter.max != 0 || c.filter.label != "",
@@ -142,14 +142,14 @@ func parseTime(start, end string) (int64, int64, error) {
 	if start != "" {
 		v, err := time.Parse(time.RFC3339, start)
 		if err != nil {
-			return 0, 0, fmt.Errorf("failed to parse %q: %s", start, err)
+			return 0, 0, fmt.Errorf("failed to parse %q: %w", start, err)
 		}
 		s = v.UnixNano() / int64(time.Millisecond)
 	}
 	if end != "" {
 		v, err := time.Parse(time.RFC3339, end)
 		if err != nil {
-			return 0, 0, fmt.Errorf("failed to parse %q: %s", end, err)
+			return 0, 0, fmt.Errorf("failed to parse %q: %w", end, err)
 		}
 		e = v.UnixNano() / int64(time.Millisecond)
 	}

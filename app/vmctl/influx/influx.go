@@ -96,10 +96,10 @@ func NewClient(cfg Config) (*Client, error) {
 	}
 	hc, err := influx.NewHTTPClient(c)
 	if err != nil {
-		return nil, fmt.Errorf("failed to establish conn: %s", err)
+		return nil, fmt.Errorf("failed to establish conn: %w", err)
 	}
 	if _, _, err := hc.Ping(time.Second); err != nil {
-		return nil, fmt.Errorf("ping failed: %s", err)
+		return nil, fmt.Errorf("ping failed: %w", err)
 	}
 
 	chunkSize := cfg.ChunkSize
@@ -155,7 +155,7 @@ func (c *Client) Explore() ([]*Series, error) {
 	// {"measurement1": ["value1", "value2"]}
 	mFields, err := c.fieldsByMeasurement()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get field keys: %s", err)
+		return nil, fmt.Errorf("failed to get field keys: %w", err)
 	}
 
 	if len(mFields) < 1 {
@@ -165,12 +165,12 @@ func (c *Client) Explore() ([]*Series, error) {
 	// {"measurement1": {"tag1", "tag2"}}
 	measurementTags, err := c.getMeasurementTags()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get tags of measurements: %s", err)
+		return nil, fmt.Errorf("failed to get tags of measurements: %w", err)
 	}
 
 	series, err := c.getSeries()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get series: %s", err)
+		return nil, fmt.Errorf("failed to get series: %w", err)
 	}
 
 	var iSeries []*Series
@@ -237,7 +237,7 @@ func (cr *ChunkedResponse) Next() ([]int64, []float64, error) {
 		return nil, nil, err
 	}
 	if resp.Error() != nil {
-		return nil, nil, fmt.Errorf("response error for %s: %s", cr.iq.Command, resp.Error())
+		return nil, nil, fmt.Errorf("response error for %s: %w", cr.iq.Command, resp.Error())
 	}
 	if len(resp.Results) != 1 {
 		return nil, nil, fmt.Errorf("unexpected number of results in response: %d", len(resp.Results))
@@ -265,8 +265,7 @@ func (cr *ChunkedResponse) Next() ([]int64, []float64, error) {
 	for i, fv := range fieldValues {
 		v, err := toFloat64(fv)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to convert value %q.%v to float64: %s",
-				cr.field, v, err)
+			return nil, nil, fmt.Errorf("failed to convert value %q.%v to float64: %w", cr.field, v, err)
 		}
 		values[i] = v
 	}
@@ -294,7 +293,7 @@ func (c *Client) FetchDataPoints(s *Series) (*ChunkedResponse, error) {
 	}
 	cr, err := c.QueryAsChunk(iq)
 	if err != nil {
-		return nil, fmt.Errorf("query %q err: %s", iq.Command, err)
+		return nil, fmt.Errorf("query %q err: %w", iq.Command, err)
 	}
 	return &ChunkedResponse{cr, iq, s.Field}, nil
 }
@@ -308,7 +307,7 @@ func (c *Client) fieldsByMeasurement() (map[string][]string, error) {
 	log.Printf("fetching fields: %s", stringify(q))
 	qValues, err := c.do(q)
 	if err != nil {
-		return nil, fmt.Errorf("error while executing query %q: %s", q.Command, err)
+		return nil, fmt.Errorf("error while executing query %q: %w", q.Command, err)
 	}
 
 	var total int
@@ -352,7 +351,7 @@ func (c *Client) getSeries() ([]*Series, error) {
 	log.Printf("fetching series: %s", stringify(q))
 	cr, err := c.QueryAsChunk(q)
 	if err != nil {
-		return nil, fmt.Errorf("error while executing query %q: %s", q.Command, err)
+		return nil, fmt.Errorf("error while executing query %q: %w", q.Command, err)
 	}
 
 	const key = "key"
@@ -366,7 +365,7 @@ func (c *Client) getSeries() ([]*Series, error) {
 			return nil, err
 		}
 		if resp.Error() != nil {
-			return nil, fmt.Errorf("response error for query %q: %s", q.Command, resp.Error())
+			return nil, fmt.Errorf("response error for query %q: %w", q.Command, resp.Error())
 		}
 		qValues, err := parseResult(resp.Results[0])
 		if err != nil {
@@ -417,7 +416,7 @@ func (c *Client) getMeasurementTags() (map[string]map[string]struct{}, error) {
 	log.Printf("fetching tag keys: %s", stringify(q))
 	cr, err := c.QueryAsChunk(q)
 	if err != nil {
-		return nil, fmt.Errorf("error while executing query %q: %s", q.Command, err)
+		return nil, fmt.Errorf("error while executing query %q: %w", q.Command, err)
 	}
 
 	const tagKey = "tagKey"
@@ -432,7 +431,7 @@ func (c *Client) getMeasurementTags() (map[string]map[string]struct{}, error) {
 			return nil, err
 		}
 		if resp.Error() != nil {
-			return nil, fmt.Errorf("response error for query %q: %s", q.Command, resp.Error())
+			return nil, fmt.Errorf("response error for query %q: %w", q.Command, resp.Error())
 		}
 		qValues, err := parseResult(resp.Results[0])
 		if err != nil {
@@ -455,10 +454,10 @@ func (c *Client) getMeasurementTags() (map[string]map[string]struct{}, error) {
 func (c *Client) do(q influx.Query) ([]queryValues, error) {
 	res, err := c.Query(q)
 	if err != nil {
-		return nil, fmt.Errorf("query error: %s", err)
+		return nil, fmt.Errorf("query error: %w", err)
 	}
 	if res.Error() != nil {
-		return nil, fmt.Errorf("response error: %s", res.Error())
+		return nil, fmt.Errorf("response error: %w", res.Error())
 	}
 	if len(res.Results) < 1 {
 		return nil, fmt.Errorf("query returned 0 results")
