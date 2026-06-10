@@ -77,7 +77,7 @@ type vminsertRuntimeValues struct {
 func newVminsert(app *app, cli *Client, rt vminsertRuntimeValues) *Vminsert {
 	metricsClient := newMetricsClient(cli, rt.httpListenAddr)
 	vminsertClient := &vminsertClient{
-		vminsertCli: cli,
+		cli: cli,
 		url: func(op, path string, opts QueryOpts) string {
 			return getClusterPath(rt.httpListenAddr, op, path, opts)
 		},
