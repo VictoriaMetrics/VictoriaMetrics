@@ -33,7 +33,8 @@ jobs:
     name: ${{ matrix.os }}-${{ matrix.arch }}
     permissions:
       contents: read
-    runs-on: ubuntu-latest
+    # Runs on dedicated runner with extra resources to increase build speed.
+    runs-on: 'vm-runner'
     strategy:
       fail-fast: false
       matrix:
