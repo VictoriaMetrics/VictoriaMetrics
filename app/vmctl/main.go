@@ -457,7 +457,7 @@ func main() {
 						auth.WithBearer(c.String(vmNativeDstBearerToken)),
 						auth.WithHeaders(c.String(vmNativeDstHeaders)))
 					if err != nil {
-						return fmt.Errorf("error initialize auth config for destination: %s", dstAddr)
+						return fmt.Errorf("error initialize auth config for destination: %s: %s", dstAddr, err)
 					}
 
 					// create TLS config
@@ -601,7 +601,7 @@ func initConfigVM(c *cli.Context) (vm.Config, error) {
 		auth.WithBearer(c.String(vmBearerToken)),
 		auth.WithHeaders(c.String(vmHeaders)))
 	if err != nil {
-		return vm.Config{}, fmt.Errorf("error initialize auth config for destination: %s", addr)
+		return vm.Config{}, fmt.Errorf("error initialize auth config for destination: %s: %s", addr, err)
 	}
 
 	return vm.Config{
