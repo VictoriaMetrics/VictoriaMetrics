@@ -33,8 +33,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/promremotewrite/stream"
 	"gopkg.in/yaml.v2"
 )
-
-// AppConfig is the top-level configuration structure.
 type AppConfig struct {
 	// SARules holds the stream aggregation rules.  It is marshalled back to
 	// YAML and served verbatim on GET /sa-config.
@@ -66,8 +64,8 @@ type InputSeries struct {
 	Values []*float64 `yaml:"values"`
 
 	// Delays is a list of [originalSlot, sendAtSlot, value] triples (1-indexed).
-	// The sample is timestamped at T+jitter+(originalSlot-1)*interval
-	// but sent to vmagent at T+jitter+(sendAtSlot-1)*interval.
+	// The sample is timestamped at T+(originalSlot-1)*interval
+	// but sent to vmagent at T+(sendAtSlot-1)*interval.
 	//
 	// Example: [4, 6, 4] means a sample with value=4 whose logical timestamp
 	// is slot 4 is actually delivered at slot 6 together with the slot-6 sample.
@@ -535,183 +533,6 @@ func writeSamples(addr string, labels map[string]string, samples []scheduledSamp
 }
 
 // --- report ------------------------------------------------------------------
-
-// reportPageTemplate is the HTML skeleton for GET /report.
-// All __TOKEN__ placeholders are replaced at render time by handleReport.
-var reportPageTemplate = `<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="UTF-8">
-<title>SA Tester Report</title>
-<style>
-body{font-family:'Segoe UI',Arial,sans-serif;margin:0;padding:20px;background:#f0f2f5;color:#333}
-h1{margin-bottom:4px}
-.subtitle{color:#666;font-size:14px;margin-bottom:24px}
-.card{background:#fff;padding:20px;margin:16px 0;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.12)}
-h2{margin:0 0 12px;color:#444;font-size:18px;border-bottom:1px solid #eee;padding-bottom:8px}
-h3{margin:4px 0 8px;font-size:13px;font-family:monospace;color:#555;word-break:break-all}
-pre{background:#f7f7f7;padding:12px;border-radius:4px;overflow-x:auto;font-size:13px;margin:0}
-.chart-wrap{position:relative;height:340px;margin-bottom:24px}
-.no-data{color:#aaa;font-style:italic;font-size:14px}
-a{color:#1a73e8}
-</style>
-</head>
-<body>
-<h1>SA Tester Report</h1>
-<p class="subtitle">Generated: __GENERATED_AT__ &nbsp;|&nbsp; <a href="/report">Refresh</a></p>
-<div class="card">
-  <h2>SA Config</h2>
-  <pre>__SA_YAML__</pre>
-</div>
-<div class="card">
-  <h2>Sent Series (__SENT_COUNT__ series)</h2>
-  __SENT_CANVAS__
-</div>
-<div class="card">
-  <h2>Received Series / SA Output (__RECV_COUNT__ series)</h2>
-  __RECV_CHARTS__
-</div>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script>
-(function(){
-  var SENT = __SENT_JSON__;
-  var RECV = __RECV_JSON__;
-
-  var PALETTE = [
-    'rgba(54,162,235,0.85)',
-    'rgba(255,99,132,0.85)',
-    'rgba(153,102,255,0.85)',
-    'rgba(255,205,86,0.9)',
-    'rgba(75,192,192,0.85)',
-  ];
-
-  function fmtDate(d) {
-    return d.getUTCFullYear() + '-' +
-           (d.getUTCMonth()+1).toString().padStart(2,'0') + '-' +
-           d.getUTCDate().toString().padStart(2,'0');
-  }
-  function fmtTime(d) {
-    return d.getUTCHours().toString().padStart(2,'0') + ':' +
-           d.getUTCMinutes().toString().padStart(2,'0') + ':' +
-           d.getUTCSeconds().toString().padStart(2,'0');
-  }
-  // Tooltip: full datetime with milliseconds.
-  function fmtTs(sec) {
-    var d = new Date(sec * 1000);
-    return fmtDate(d) + ' ' + fmtTime(d) + '.' +
-           d.getUTCMilliseconds().toString().padStart(3,'0');
-  }
-  // Tick label: show date only when it changes (or on the first tick).
-  function fmtTick(v, idx, ticks) {
-    var d = new Date(v * 1000);
-    var dateStr = fmtDate(d);
-    var timeStr = fmtTime(d);
-    if (idx === 0) { return timeStr + ' ' + dateStr; }
-    var prev = new Date(ticks[idx - 1].value * 1000);
-    if (fmtDate(prev) !== dateStr) { return timeStr + ' ' + dateStr; }
-    return timeStr;
-  }
-
-  var sentEl = document.getElementById('sent-all');
-  if (sentEl && SENT.length > 0) {
-    var datasets = [];
-    SENT.forEach(function(s, si) {
-      var col = PALETTE[si % PALETTE.length];
-      var normal  = s.points.filter(function(p){ return p !== null && !p.delayed; });
-      var delayed = s.points.filter(function(p){ return p !== null &&  p.delayed; });
-      if (normal.length > 0) {
-        datasets.push({
-          type: 'scatter', label: s.name,
-          data: normal.map(function(p){ return {x: p.x, y: p.y}; }),
-          backgroundColor: col, pointRadius: 7, pointStyle: 'circle',
-        });
-      }
-      if (delayed.length > 0) {
-        var delayCol = 'rgba(255,159,64,0.9)';
-        datasets.push({
-          type: 'scatter', label: s.name + ' (delayed \u2014 data ts)',
-          data: delayed.map(function(p){ return {x: p.x, y: p.y}; }),
-          backgroundColor: delayCol, pointRadius: 9, pointStyle: 'triangle',
-        });
-        datasets.push({
-          type: 'scatter', label: s.name + ' (delayed \u2014 sent at)',
-          data: delayed.map(function(p){ return {x: p.sentAt, y: p.y}; }),
-          backgroundColor: 'rgba(255,159,64,0.25)', borderColor: delayCol,
-          pointRadius: 7, pointStyle: 'circle', borderWidth: 2,
-        });
-        // One line dataset per delay span — avoids null-in-array crash.
-        delayed.forEach(function(p, di) {
-          datasets.push({
-            type: 'line',
-            label: si === 0 && di === 0 ? 'Delay span' : '',
-            data: [{x: p.x, y: p.y}, {x: p.sentAt, y: p.y}],
-            borderColor: 'rgba(255,159,64,0.55)',
-            borderDash: [5, 5], borderWidth: 2, pointRadius: 0, fill: false,
-          });
-        });
-      }
-    });
-    new Chart(sentEl, {
-      type: 'scatter',
-      data: { datasets: datasets },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: 'bottom',
-            labels: { filter: function(item) { return item.text !== ''; } },
-          },
-          tooltip: { callbacks: { label: function(ctx){
-            var p = ctx.raw;
-            if (p === null || p === undefined) return '';
-            return 'value=' + p.y + '  ts=' + fmtTs(p.x);
-          }}},
-        },
-        scales: {
-          x: { type: 'linear',
-               title: { display: true, text: 'Unix timestamp (seconds UTC)' },
-               ticks: { callback: function(v, idx, ticks) { return fmtTick(v, idx, ticks); }, maxRotation: 35, minRotation: 35 } },
-          y: { title: { display: true, text: 'value' } },
-        },
-      },
-    });
-  }
-
-  RECV.forEach(function(s, i) {
-    var el = document.getElementById('recv-' + i);
-    if (!el) return;
-    var pts = s.points
-      .filter(function(p){ return p !== null && p !== undefined && typeof p.x === 'number'; })
-      .sort(function(a, b){ return a.x - b.x; });
-    new Chart(el, {
-      type: 'line',
-      data: { datasets: [{
-        label: s.name, data: pts,
-        borderColor: 'rgba(75,192,75,0.9)', backgroundColor: 'rgba(75,192,75,0.15)',
-        pointRadius: 6, tension: 0, fill: false,
-      }]},
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: { callbacks: { label: function(ctx){
-            var p = ctx.raw;
-            if (p === null || p === undefined) return '';
-            return 'value=' + p.y + '  ts=' + fmtTs(p.x);
-          }}},
-        },
-        scales: {
-          x: { type: 'linear',
-               title: { display: true, text: 'Unix timestamp (seconds UTC)' },
-               ticks: { callback: function(v, idx, ticks) { return fmtTick(v, idx, ticks); }, maxRotation: 35, minRotation: 35 } },
-          y: { title: { display: true, text: 'value' } },
-        },
-      },
-    });
-  });
-})();
-</script>
-</body>
-</html>`
 
 // recordSent stores sent samples into the report data store.
 // It must be called without holding reportMu.

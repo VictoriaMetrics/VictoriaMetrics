@@ -1,6 +1,6 @@
-The `sa-tester` provides a stream aggregation config on the `/sa-config` endpoint for an external `vmagent` to read, writes raw series to `vmagent` for aggregation, and receives the output aggregation results from `vmagent`. It will print all the input and output samples in its logs.
+The `sa-tester` provides a stream aggregation config on the `/sa-config` endpoint for an external `vmagent` to read, writes configured mock series to `vmagent` for aggregation, and receives the output aggregation results from `vmagent`. It will print all the input and output samples in its logs, and generate a report with them.
 
-See app/test/sa_tester/config.yaml for the supported configs.
+See `app/test/sa_tester/config.yaml` for all supported options.
 
 **Test steps:**
 

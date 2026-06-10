@@ -13,10 +13,6 @@ saRules:
     without: [instance]
     outputs: [total_prometheus]
 
-# Time between consecutive sample slots.
-# Currently, interval is global, you can have different intervals for different input series by insert null between values.
-interval: 10s
-
 # Address of the vmagent that loads SA rules and accepts raw samples.
 # POST /start calls <vmagent_address>/-/reload then writes samples to it.
 vmagent_address: "http://192.168.0.102:8420"
@@ -24,14 +20,18 @@ vmagent_address: "http://192.168.0.102:8420"
 # Listen address for this tester's HTTP server.
 listen_address: ":8880"
 
-# Input time series to generate.
+# --- Below are for generating input samples for testing. ---
+# Time between consecutive sample slots.
+# Currently, interval is global, you can have different intervals for different input series by insert null between values.
+interval: 10s
+
 input_series:
   - series: 'test{env="prod", instance="a"}'
-    # One value per slot (1-indexed). null = slot skipped or handled by delays.
+    # One value per slot (1-indexed). null means slot is skipped but could be compensated by delays.
     values: [null, null, 1, 2, 3, null, null, 6, 7, 8]
+    # delays can be used to mock delayed or out of order sample cases.
     # delays: [originalSlot, sendAtSlot, value]  (slots are 1-indexed)
-    # Sample is timestamped at T+(originalSlot-1)*interval
-    # but delivered to vmagent at T+(sendAtSlot-1)*interval.
+    # Sample is timestamped at T+(originalSlot-1)*interval, but delivered to vmagent at T+(sendAtSlot-1)*interval.
     delays:
       - [6, 8, 4]   # slot-6 sample (value=4) sent together at slot 8
       - [7, 8, 5]   # slot-7 sample (value=5) sent together at slot 8
