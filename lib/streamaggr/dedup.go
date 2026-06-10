@@ -45,6 +45,7 @@ type dedupAggrShardNopad struct {
 type dedupAggrSample struct {
 	value     float64
 	timestamp int64
+	stateOnly bool
 }
 
 func newDedupAggr() *dedupAggr {
@@ -189,6 +190,7 @@ func (das *dedupAggrShard) pushSamples(samples []pushSample, isGreen bool) {
 			s = &samplesBuf[len(samplesBuf)-1]
 			s.value = sample.value
 			s.timestamp = sample.timestamp
+			s.stateOnly = sample.stateOnly
 
 			key := bytesutil.InternString(sample.key)
 			state.m[key] = s
@@ -197,28 +199,33 @@ func (das *dedupAggrShard) pushSamples(samples []pushSample, isGreen bool) {
 			state.sizeBytes.Add(uint64(len(key)) + uint64(unsafe.Sizeof(key)+unsafe.Sizeof(s)+unsafe.Sizeof(*s)))
 			continue
 		}
-		s.timestamp, s.value = deduplicateSamples(s.timestamp, sample.timestamp, s.value, sample.value)
+		var newWins bool
+		s.timestamp, s.value, newWins = deduplicateSamples(s.timestamp, sample.timestamp, s.value, sample.value)
+		if newWins {
+			s.stateOnly = sample.stateOnly
+		}
 	}
 	state.samplesBuf = samplesBuf
 }
 
-// deduplicateSamples returns deduplicated timestamp and value results.
+// deduplicateSamples returns deduplicated timestamp and value results,
+// along with a boolean indicating whether the new sample won.
 // See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication
-func deduplicateSamples(oldT, newT int64, oldV, newV float64) (int64, float64) {
+func deduplicateSamples(oldT, newT int64, oldV, newV float64) (int64, float64, bool) {
 	if newT > oldT {
-		return newT, newV
+		return newT, newV, true
 	}
 	// if both samples have the same timestamp, choose the maximum value, see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3333;
 	// always prefer a non-decimal.StaleNaN value, see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10196
 	if newT == oldT {
 		if decimal.IsStaleNaN(oldV) {
-			return newT, newV
+			return newT, newV, true
 		}
 		if newV > oldV {
-			return newT, newV
+			return newT, newV, true
 		}
 	}
-	return oldT, oldV
+	return oldT, oldV, false
 }
 
 func (das *dedupAggrShard) flush(ctx *dedupFlushCtx, f aggrPushFunc) {
@@ -250,6 +257,7 @@ func (das *dedupAggrShard) flush(ctx *dedupFlushCtx, f aggrPushFunc) {
 			key:       key,
 			value:     s.value,
 			timestamp: s.timestamp,
+			stateOnly: s.stateOnly,
 		})
 
 		// Limit the number of samples per each flush in order to limit memory usage.

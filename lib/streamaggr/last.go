@@ -6,6 +6,9 @@ type lastAggrValue struct {
 }
 
 func (av *lastAggrValue) pushSample(_ aggrConfig, sample *pushSample, _ string, _ int64) {
+	if sample.stateOnly {
+		return
+	}
 	if sample.timestamp >= av.timestamp {
 		av.last = sample.value
 		av.timestamp = sample.timestamp

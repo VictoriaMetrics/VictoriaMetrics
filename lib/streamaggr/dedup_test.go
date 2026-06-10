@@ -24,8 +24,8 @@ func TestDedupAggrSerial(t *testing.T) {
 	}
 	da.pushSamples(samples, 0, false)
 
-	if n := da.sizeBytes(); n > 5_000_000 {
-		t.Fatalf("too big dedupAggr state before flush: %d bytes; it shouldn't exceed 5_000_000 bytes", n)
+	if n := da.sizeBytes(); n > 6_000_000 {
+		t.Fatalf("too big dedupAggr state before flush: %d bytes; it shouldn't exceed 6_000_000 bytes", n)
 	}
 	if n := da.itemsCount(); n != seriesCount {
 		t.Fatalf("unexpected itemsCount; got %d; want %d", n, seriesCount)
@@ -81,7 +81,7 @@ func TestDedupAggrConcurrent(_ *testing.T) {
 func TestDeduplicateSamples(t *testing.T) {
 	f := func(oldT, newT int64, oldV, newV float64, expectedT int64, expectedV float64) {
 		t.Helper()
-		dedupT, dedupV := deduplicateSamples(oldT, newT, oldV, newV)
+		dedupT, dedupV, _ := deduplicateSamples(oldT, newT, oldV, newV)
 		if dedupT != expectedT || dedupV != expectedV {
 			t.Fatalf("unexpected deduplicated result for oldT=%d, newT=%d, oldV=%f, newV=%f; got dedupT=%d, dedupV=%f; want dedupT=%d, dedupV=%f",
 				oldT, newT, oldV, newV, dedupT, dedupV, expectedT, expectedV)

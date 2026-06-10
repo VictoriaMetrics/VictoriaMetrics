@@ -11,6 +11,9 @@ type histogramBucketAggrValue struct {
 }
 
 func (av *histogramBucketAggrValue) pushSample(_ aggrConfig, sample *pushSample, _ string, _ int64) {
+	if sample.stateOnly {
+		return
+	}
 	av.h.Update(sample.value)
 }
 

@@ -9,7 +9,10 @@ type countSeriesAggrValue struct {
 	samples map[uint64]struct{}
 }
 
-func (av *countSeriesAggrValue) pushSample(_ aggrConfig, _ *pushSample, key string, _ int64) {
+func (av *countSeriesAggrValue) pushSample(_ aggrConfig, sample *pushSample, key string, _ int64) {
+	if sample.stateOnly {
+		return
+	}
 	// Count unique hashes over the keys instead of unique key values.
 	// This reduces memory usage at the cost of possible hash collisions for distinct key values.
 	h := xxhash.Sum64(bytesutil.ToUnsafeBytes(key))

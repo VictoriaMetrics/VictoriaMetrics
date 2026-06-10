@@ -13,6 +13,9 @@ type quantilesAggrValue struct {
 }
 
 func (av *quantilesAggrValue) pushSample(_ aggrConfig, sample *pushSample, _ string, _ int64) {
+	if sample.stateOnly {
+		return
+	}
 	if av.h == nil {
 		av.h = histogram.GetFast()
 	}

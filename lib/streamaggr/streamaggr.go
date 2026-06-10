@@ -762,9 +762,9 @@ func newOutputConfig(ms *metrics.Set, metricLabels, output string, outputsSeen m
 	case "histogram_bucket":
 		return newHistogramBucketAggrConfig(useSharedState), nil
 	case "increase":
-		return newTotalAggrConfig(ms, metricLabels, ignoreFirstSampleIntervalSecs, true, true), nil
+		return newIncreaseAggrConfig(ms, metricLabels, ignoreFirstSampleIntervalSecs, true), nil
 	case "increase_prometheus":
-		return newTotalAggrConfig(ms, metricLabels, ignoreFirstSampleIntervalSecs, true, false), nil
+		return newIncreaseAggrConfig(ms, metricLabels, ignoreFirstSampleIntervalSecs, false), nil
 	case "last":
 		return newLastAggrConfig(), nil
 	case "max":
@@ -782,9 +782,9 @@ func newOutputConfig(ms *metrics.Set, metricLabels, output string, outputsSeen m
 	case "sum_samples":
 		return newSumSamplesAggrConfig(), nil
 	case "total":
-		return newTotalAggrConfig(ms, metricLabels, ignoreFirstSampleIntervalSecs, false, true), nil
+		return newTotalAggrConfig(ms, metricLabels, ignoreFirstSampleIntervalSecs, true), nil
 	case "total_prometheus":
-		return newTotalAggrConfig(ms, metricLabels, ignoreFirstSampleIntervalSecs, false, false), nil
+		return newTotalAggrConfig(ms, metricLabels, ignoreFirstSampleIntervalSecs, false), nil
 	case "unique_samples":
 		return newUniqueSamplesAggrConfig(), nil
 	default:
@@ -1006,26 +1006,28 @@ func (a *aggregator) Push(tss []prompb.TimeSeries, matchIdxs []uint32) {
 				a.ignoredNaNSamples.Inc()
 				continue
 			}
-			if (ignoreOldSamples || enableWindows) && s.Timestamp < minDeadline {
-				// Skip old samples outside the current aggregation interval
+			stateOnly := (ignoreOldSamples || enableWindows) && s.Timestamp < minDeadline
+			if stateOnly {
 				a.ignoredOldSamples.Inc()
-				continue
-			}
-			lagMsec := nowMsec - s.Timestamp
-			if lagMsec > maxLagMsec {
-				maxLagMsec = lagMsec
+			} else {
+				lagMsec := nowMsec - s.Timestamp
+				if lagMsec > maxLagMsec {
+					maxLagMsec = lagMsec
+				}
 			}
 			if enableWindows && s.Timestamp <= cs.maxDeadline == cs.isGreen {
 				ctx.green = append(ctx.green, pushSample{
 					key:       key,
 					value:     s.Value,
 					timestamp: s.Timestamp,
+					stateOnly: stateOnly,
 				})
 			} else {
 				ctx.blue = append(ctx.blue, pushSample{
 					key:       key,
 					value:     s.Value,
 					timestamp: s.Timestamp,
+					stateOnly: stateOnly,
 				})
 			}
 		}
@@ -1099,6 +1101,10 @@ type pushSample struct {
 	key       string
 	value     float64
 	timestamp int64
+
+	// stateOnly marks samples older than minDeadline: update tracking state in stateful outputs
+	// (total, rate, increase) but do not contribute to the aggregation output.
+	stateOnly bool
 }
 
 func getPushCtx() *pushCtx {

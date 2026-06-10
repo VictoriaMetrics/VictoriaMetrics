@@ -12,6 +12,9 @@ type stdAggrValue struct {
 }
 
 func (av *stdAggrValue) pushSample(_ aggrConfig, sample *pushSample, _ string, _ int64) {
+	if sample.stateOnly {
+		return
+	}
 	av.count++
 	avg := av.avg + (sample.value-av.avg)/av.count
 	av.q += (sample.value - av.avg) * (sample.value - avg)

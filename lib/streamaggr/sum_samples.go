@@ -5,6 +5,9 @@ type sumSamplesAggrValue struct {
 }
 
 func (av *sumSamplesAggrValue) pushSample(_ aggrConfig, sample *pushSample, _ string, _ int64) {
+	if sample.stateOnly {
+		return
+	}
 	av.sum += sample.value
 }
 

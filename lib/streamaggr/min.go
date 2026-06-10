@@ -6,6 +6,9 @@ type minAggrValue struct {
 }
 
 func (av *minAggrValue) pushSample(_ aggrConfig, sample *pushSample, _ string, _ int64) {
+	if sample.stateOnly {
+		return
+	}
 	if sample.value < av.min || !av.defined {
 		av.min = sample.value
 	}

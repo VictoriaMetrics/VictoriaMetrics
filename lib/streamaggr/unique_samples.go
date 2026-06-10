@@ -5,6 +5,9 @@ type uniqueSamplesAggrValue struct {
 }
 
 func (av *uniqueSamplesAggrValue) pushSample(_ aggrConfig, sample *pushSample, _ string, _ int64) {
+	if sample.stateOnly {
+		return
+	}
 	if _, ok := av.samples[sample.value]; !ok {
 		av.samples[sample.value] = struct{}{}
 	}

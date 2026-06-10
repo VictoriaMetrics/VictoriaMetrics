@@ -688,7 +688,9 @@ foo:1m_by_cde_rate_sum{cde="1"} 0.125
   outputs: [rate_sum, rate_avg]
 `, "11111")
 
-	// test rate_sum and rate_avg, when two aggregation intervals are empty
+	// test rate_sum and rate_avg, when two aggregation intervals are empty.
+	// abc=777 arrives slightly before the start of each interval (-10ms) but still
+	// updates prevTimestamp, so it contributes to rate_sum alongside abc=123 and abc=456.
 	f([]string{`
 foo{abc="123", cde="1"} 1
 foo{abc="123", cde="1"} 2 1
@@ -807,4 +809,55 @@ foo:1m_sum_samples{baz="qwe"} 10
   dedup_interval: 30s
   outputs: [sum_samples]
 `, "11111111")
+
+	// total with ignore_old_samples: an old sample (30s before the interval boundary) must
+	// update the state reference without contributing to the interval total, so the subsequent
+	// current-interval sample (250) computes increase 250-150=100 instead of 250-100=150.
+	// Cumulative total: 100 (interval1) + 100 (interval2) = 200.
+	f([]string{`
+foo 100
+`, `
+foo 150 -30
+foo 250
+`}, time.Minute, `foo:1m_total 100
+foo:1m_total 200
+`, `
+- interval: 1m
+  outputs: [total]
+  ignore_old_samples: true
+  ignore_first_sample_interval: 0s
+`, "111")
+
+	// increase with ignore_old_samples: same correctness check for increase output.
+	// Per-interval: 100 (first sample from 0) and 100 (250-150=100 thanks to stateOnly update).
+	f([]string{`
+foo 100
+`, `
+foo 150 -30
+foo 250
+`}, time.Minute, `foo:1m_increase 100
+foo:1m_increase 100
+`, `
+- interval: 1m
+  outputs: [increase]
+  ignore_old_samples: true
+  ignore_first_sample_interval: 0s
+`, "111")
+
+	// rate with ignore_old_samples: out-of-order stateOnly samples must not overwrite sv.value,
+	// and the winning stateOnly sample's timestamp is used as the denominator start.
+	// foo 120 -40 (ts=T0+20s) is rejected as OOO after foo 150 -30 (ts=T0+30s),
+	// so the baseline is 150 at T0+30s, giving rate=(200-150)/30 ≈ 1.667.
+	f([]string{`
+foo 100
+`, `
+foo 150 -30
+foo 120 -40
+foo 200
+`}, time.Minute, `foo:1m_rate_sum 1.6666666666666667
+`, `
+- interval: 1m
+  outputs: [rate_sum]
+  ignore_old_samples: true
+`, "1111")
 }

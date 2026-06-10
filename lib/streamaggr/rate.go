@@ -34,6 +34,7 @@ var rateAggrStateValuePool sync.Pool
 
 func putRateAggrStateValue(v *rateAggrStateValue) {
 	v.timestamp = 0
+	v.lastTimestamp = 0
 	v.increase = 0
 	rateAggrStateValuePool.Put(v)
 }
@@ -88,6 +89,10 @@ type rateAggrStateValue struct {
 	// increase stores cumulative increase for the current time series on the current aggregation interval
 	increase  float64
 	timestamp int64
+	// lastTimestamp is the latest timestamp seen for this series including state-only samples.
+	// It is used for out-of-order detection, while timestamp (above) is only updated by
+	// non-state-only samples and is used for rate calculation.
+	lastTimestamp int64
 }
 
 type rateAggrValue struct {
@@ -101,16 +106,20 @@ func (av *rateAggrValue) pushSample(c aggrConfig, sample *pushSample, key string
 	sv, ok := av.shared[key]
 	if ok {
 		state = sv.getState(av.isGreen)
-		if sample.timestamp < state.timestamp {
+		if sample.timestamp < state.lastTimestamp {
 			// Skip out of order sample
 			return
 		}
-		if sample.value >= sv.value {
-			state.increase += sample.value - sv.value
+		if !sample.stateOnly {
+			if sample.value >= sv.value {
+				state.increase += sample.value - sv.value
+			} else {
+				// counter reset
+				state.increase += sample.value
+				ac.counterResetsTotal.Inc()
+			}
 		} else {
-			// counter reset
-			state.increase += sample.value
-			ac.counterResetsTotal.Inc()
+			sv.prevTimestamp = sample.timestamp
 		}
 	} else {
 		sv = getRateAggrSharedValue(av.isGreen)
@@ -121,7 +130,10 @@ func (av *rateAggrValue) pushSample(c aggrConfig, sample *pushSample, key string
 	}
 	sv.value = sample.value
 	sv.deleteDeadline = deleteDeadline
-	state.timestamp = sample.timestamp
+	state.lastTimestamp = sample.timestamp
+	if !sample.stateOnly {
+		state.timestamp = sample.timestamp
+	}
 }
 
 func (av *rateAggrValue) flush(c aggrConfig, ctx *flushCtx, key string, isLast bool) {

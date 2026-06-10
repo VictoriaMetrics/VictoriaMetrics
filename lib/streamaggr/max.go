@@ -6,6 +6,9 @@ type maxAggrValue struct {
 }
 
 func (av *maxAggrValue) pushSample(_ aggrConfig, sample *pushSample, _ string, _ int64) {
+	if sample.stateOnly {
+		return
+	}
 	if sample.value > av.max || !av.defined {
 		av.max = sample.value
 	}
