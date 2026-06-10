@@ -678,7 +678,7 @@ func testStorageDeleteSeries(s *Storage, workerNum int) error {
 	// Verify no label names exist
 	lns, err := s.SearchLabelNames(nil, accountID, projectID, nil, TimeRange{}, 1e5, 1e9, noDeadline)
 	if err != nil {
-		return fmt.Errorf("error in SearchLabelNames() at the start: %s", err)
+		return fmt.Errorf("error in SearchLabelNames() at the start: %w", err)
 	}
 	if len(lns) != 0 {
 		return fmt.Errorf("found non-empty tag keys at the start: %q", lns)

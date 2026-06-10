@@ -77,7 +77,7 @@ var (
 func marshalJson(v any, kind string) ([]byte, *httpserver.ErrorWithStatusCode) {
 	data, err := json.Marshal(v)
 	if err != nil {
-		return nil, errResponse(fmt.Errorf("failed to marshal %s: %s", kind, err), http.StatusInternalServerError)
+		return nil, errResponse(fmt.Errorf("failed to marshal %s: %w", kind, err), http.StatusInternalServerError)
 	}
 	return data, nil
 }
