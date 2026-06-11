@@ -5194,18 +5194,6 @@
                     "value": true
                   }
                 ]
-              },
-              {
-                "matcher": {
-                  "id": "byName",
-                  "options": "job"
-                },
-                "properties": [
-                  {
-                    "id": "custom.hideFrom.viz",
-                    "value": true
-                  }
-                ]
               }
             ]
           },
@@ -5240,7 +5228,34 @@
             }
           ],
           "title": "OS info",
-          "type": "table"
+          "type": "table",
+          "transformations": [
+            {
+              "id": "groupBy",
+              "options": {
+                "fields": {
+                  "job": {
+                    "aggregations": [],
+                    "operation": "groupby"
+                  },
+                  "os": {
+                    "aggregations": [],
+                    "operation": "groupby"
+                  },
+                  "release": {
+                    "aggregations": [],
+                    "operation": "groupby"
+                  },
+                  "instance": {
+                    "aggregations": [
+                      "uniqueValues"
+                    ],
+                    "operation": "aggregate"
+                  }
+                }
+              }
+            }
+          ]
         },
         {
           "datasource": {
@@ -5299,18 +5314,6 @@
                     "value": true
                   }
                 ]
-              },
-              {
-                "matcher": {
-                  "id": "byName",
-                  "options": "job"
-                },
-                "properties": [
-                  {
-                    "id": "custom.hideFrom.viz",
-                    "value": true
-                  }
-                ]
               }
             ]
           },
@@ -5345,7 +5348,34 @@
             }
           ],
           "title": "Filesystem info",
-          "type": "table"
+          "type": "table",
+          "transformations": [
+            {
+              "id": "groupBy",
+              "options": {
+                "fields": {
+                  "job": {
+                    "aggregations": [],
+                    "operation": "groupby"
+                  },
+                  "path": {
+                    "aggregations": [],
+                    "operation": "groupby"
+                  },
+                  "fs_type": {
+                    "aggregations": [],
+                    "operation": "groupby"
+                  },
+                  "instance": {
+                    "aggregations": [
+                      "uniqueValues"
+                    ],
+                    "operation": "aggregate"
+                  }
+                }
+              }
+            }
+          ]
         },
         {
           "datasource": {
