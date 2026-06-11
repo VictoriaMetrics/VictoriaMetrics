@@ -28,7 +28,7 @@ If you like VictoriaMetrics and want to contribute, then it would be great:
 ## Issues
 
 When making a new issue, make sure to create no duplicates. Use GitHub search to find whether similar issues exist already.
-The new issue should be written in English and a contain concise description of the problem and the environment where it exists.
+The new issue should be written in English and contain a concise description of the problem and the environment where it exists.
 We'd very much prefer to have a specific use-case included in the description, since it could have workaround or alternative solutions.
 
 When looking for an issue to contribute, always prefer working on [bugs](https://github.com/VictoriaMetrics/VictoriaMetrics/issues?q=is%3Aopen+is%3Aissue+label%3Abug)
