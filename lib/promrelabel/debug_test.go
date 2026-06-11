@@ -13,7 +13,7 @@ func TestWriteRelabelDebugSupportFormats(t *testing.T) {
 	f := func(input, rule, expect string) {
 		// execute
 		outputWriter := bytes.NewBuffer(nil)
-		writeRelabelDebug(outputWriter, false, "", input, rule, "json", nil)
+		writeRelabelDebug(outputWriter, false, "", input, rule, "", 0, "json", nil)
 
 		// the response is in JSON with HTML content, extract the `resultingLabels` in JSON and unescape it.
 		resultingLabels := fastjson.GetString(outputWriter.Bytes(), `resultingLabels`)

@@ -6,15 +6,15 @@
 
 {% stripspace %}
 
-{% func RelabelDebugSteps(targetURL, targetID, format string, dss []DebugStep, metric, relabelConfigs  string, err error) %}
+{% func RelabelDebugSteps(targetURL, targetID, format string, dss []DebugStep, metric, relabelConfigs, rwRelabelConfigs string, rwURLRelabelConfigLength int, err error) %}
   {% if format == "json" %}
-      {%= RelabelDebugStepsJSON(targetURL, targetID, dss, metric, relabelConfigs, err) %}
+      {%= RelabelDebugStepsJSON(targetURL, targetID, dss, metric, relabelConfigs, rwRelabelConfigs, rwURLRelabelConfigLength, err) %}
   {% else %}
-      {%= RelabelDebugStepsHTML(targetURL, targetID, dss, metric, relabelConfigs, err) %}
+      {%= RelabelDebugStepsHTML(targetURL, targetID, dss, metric, relabelConfigs, rwRelabelConfigs, rwURLRelabelConfigLength, err) %}
   {% endif %}
 {% endfunc %}
 
-{% func RelabelDebugStepsHTML(targetURL, targetID string, dss []DebugStep, metric, relabelConfigs string, err error) %}
+{% func RelabelDebugStepsHTML(targetURL, targetID string, dss []DebugStep, metric, relabelConfigs, rwRelabelConfigs string, rwURLRelabelConfigLength int, err error) %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -49,7 +49,7 @@ function submitRelabelDebugForm(e) {
 
         <div class="m-3">
         <form method="POST" onsubmit="submitRelabelDebugForm(event)">
-            {%= relabelDebugFormInputs(metric, relabelConfigs) %}
+            {%= relabelDebugFormInputs(metric, relabelConfigs, rwRelabelConfigs, rwURLRelabelConfigLength) %}
             {% if targetID != "" %}
               <input type="hidden" name="id" value="{%s targetID %}" />
             {% endif %}
@@ -70,11 +70,26 @@ function submitRelabelDebugForm(e) {
 </html>
 {% endfunc %}
 
-{% func relabelDebugFormInputs(metric, relabelConfigs string) %}
+{% func relabelDebugFormInputs(metric, relabelConfigs string, rwRelabelConfigs string, rwURLRelabelConfigLength int) %}
     <div>
         Relabel configs:<br/>
         <textarea name="relabel_configs" style="width: 100%; height: 15em; font-family: monospace" class="m-1">{%s relabelConfigs %}</textarea>
     </div>
+
+    <div>
+        Remote write relabel configs:<br/>
+        <textarea name="remote_write_relabel_configs" style="width: 100%; height: 15em; font-family: monospace" class="m-1">{%s rwRelabelConfigs %}</textarea>
+    </div>
+
+    <select name="url_relabel_configs_index">
+        <option value="">--select remote write url--</option>
+        {% if rwURLRelabelConfigLength > 0 %}
+            {% for i := range rwURLRelabelConfigLength %}
+            <option value="{%d i %}">remote-write-url-{%d i %}</option>
+            {% endfor %}
+        {% endif %}
+    </select>
+    <input type="submit" name="reload_url_relabel_configs" value="Load" class="btn btn-secondary m-1" />
 
     <div>
         Labels:<br/>
@@ -151,7 +166,7 @@ function submitRelabelDebugForm(e) {
 {% endif %}
 {% endfunc %}
 
-{% func RelabelDebugStepsJSON(targetURL, targetID string, dss []DebugStep, metric, relabelConfigs string, err error) %}
+{% func RelabelDebugStepsJSON(targetURL, targetID string, dss []DebugStep, metric, relabelConfigs, rwRelabelConfigs string, rwURLRelabelConfigLength int, err error) %}
 {
     {% if err != nil %}
         "status": "error",

@@ -3,58 +3,72 @@ package promscrape
 import (
 	"fmt"
 	"net/http"
-	"strings"
+	"strconv"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
 
-// WriteMetricRelabelDebug serves requests to /metric-relabel-debug page
-func WriteMetricRelabelDebug(w http.ResponseWriter, r *http.Request) {
+// WriteMetricRelabelDebug serves requests to /metric-relabel-debug page.
+// remotewrite-related relabel configs could be empty as vmsingle doesn't provide remote write feature.
+func WriteMetricRelabelDebug(w http.ResponseWriter, r *http.Request, rwGlobalRelabelConfigs string, rwURLRelabelConfigss []string) {
 	targetID := r.FormValue("id")
 	metric := r.FormValue("metric")
 	relabelConfigs := r.FormValue("relabel_configs")
+	rwRelabelConfigs := r.FormValue("remote_write_relabel_configs") // global + per-URL configs.
+
+	rwURLRelabelConfigsIdx := r.FormValue("url_relabel_configs_index")     // only for per-URL configs and has to be set with reload_url_relabel_configs.
+	reloadRWURLRelabelConfigs := r.FormValue("reload_url_relabel_configs") // if set, it will reset the whole remote_write_relabel_configs.
+
 	format := r.FormValue("format")
 	var err error
 
-	if metric == "" && relabelConfigs == "" && targetID != "" {
+	rwURLRelabelConfigsLength := len(rwURLRelabelConfigss)
+
+	// if everything is not set, we should load the initial data for user.
+	if metric == "" && relabelConfigs == "" && rwRelabelConfigs == "" && rwURLRelabelConfigsIdx == "" && reloadRWURLRelabelConfigs == "" && targetID != "" {
 		pcs, labels, ok := getMetricRelabelContextByTargetID(targetID)
 		if !ok {
 			err = fmt.Errorf("cannot find target for id=%s", targetID)
 			targetID = ""
 		} else {
 			metric = labels.String()
-			relabelConfigs += "# metrics_relabel_configs\n"
 			relabelConfigs += pcs.String()
 
-			rwRelabelConfigs := remotewrite.GetRemoteWriteRelabelConfigString()
-			rwURLRelabelConfigs := remotewrite.GetURLRelabelConfigData()
-
-			relabelConfigs += "\n# -remoteWrite.relabelConfig"
-			relabelConfigs += "\n" + rwRelabelConfigs
-
-			// we could have different relabel config for different remote write URL, but there's no way to know which one the user wants to debug.
-			// so we append the 1st one here, and comment out the rest. user can see them on the page and edit to activate them.
-			for i := range rwURLRelabelConfigs {
-				if i == 0 {
-					relabelConfigs += "\n# -remoteWrite.urlRelabelConfig"
-
-					// append the URL info
-					relabelConfigs += "\n# " + rwURLRelabelConfigs[i].Url
-
-					// append the relabeling config string
-					relabelConfigs += "\n" + rwURLRelabelConfigs[i].RelabelConfigStr
-					continue
-				}
-
-				// for the rest URLs add comment # before every line.
-				relabelConfigs += "\n# " + rwURLRelabelConfigs[i].Url
-				lines := strings.Split(rwURLRelabelConfigs[i].RelabelConfigStr, "\n")
-				for _, line := range lines {
-					relabelConfigs += "\n#" + line
-				}
+			// by default use the first per-URL remote write relabel config, if exists.
+			rwURLRelabelConfigs := ""
+			if len(rwURLRelabelConfigss) > 0 {
+				rwURLRelabelConfigs = rwURLRelabelConfigss[0]
 			}
+
+			rwRelabelConfigs += "\n# -remoteWrite.relabelConfig"
+			rwRelabelConfigs += "\n" + rwGlobalRelabelConfigs
+			if rwURLRelabelConfigs != "" {
+				rwRelabelConfigs += "\n# -remoteWrite.urlRelabelConfig"
+				rwRelabelConfigs += "\n" + rwURLRelabelConfigs
+			}
+		}
+	}
+
+	// if reloadRWURLRelabelConfigs is set, it means user clicked the button and want to reload the rwRelabelConfigs by rwURLRelabelConfigsIdx
+	if reloadRWURLRelabelConfigs != "" {
+		// set the per-URL remote write relabel according to index, any error will fall back the index to 0.
+		rwURLRelabelConfigs := ""
+		if len(rwURLRelabelConfigss) > 0 {
+			// ignore the error if the input is invalid or exceed the length, and fallback to 0.
+			idx, _ := strconv.Atoi(rwURLRelabelConfigsIdx)
+			if idx >= len(rwURLRelabelConfigss) {
+				idx = 0
+			}
+			rwURLRelabelConfigs = rwURLRelabelConfigss[idx]
+		}
+
+		// reload will remove the existing content
+		rwRelabelConfigs = "\n# -remoteWrite.relabelConfig"
+		rwRelabelConfigs += "\n" + rwGlobalRelabelConfigs
+		if rwURLRelabelConfigs != "" {
+			rwRelabelConfigs += "\n# -remoteWrite.urlRelabelConfig"
+			rwRelabelConfigs += "\n" + rwURLRelabelConfigs
 		}
 	}
 
@@ -62,7 +76,7 @@ func WriteMetricRelabelDebug(w http.ResponseWriter, r *http.Request) {
 		httpserver.EnableCORS(w, r)
 		w.Header().Set("Content-Type", "application/json")
 	}
-	promrelabel.WriteMetricRelabelDebug(w, targetID, metric, relabelConfigs, format, err)
+	promrelabel.WriteMetricRelabelDebug(w, targetID, metric, relabelConfigs, rwRelabelConfigs, rwURLRelabelConfigsLength, format, err)
 }
 
 // WriteTargetRelabelDebug generates response for /target-relabel-debug page

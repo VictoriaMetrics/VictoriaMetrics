@@ -137,6 +137,24 @@ func GetURLRelabelConfigData() []UrlRelabelCfg {
 	return cs
 }
 
+// GetURLRelabelConfigString returns -remoteWrite.urlRelabelConfig contents in []string
+func GetURLRelabelConfigString() []string {
+	p := remoteWriteURLRelabelConfigData.Load()
+	if p == nil {
+		return nil
+	}
+	var ss []string
+	for i := range *remoteWriteURLs {
+		cfgData := (*p)[i]
+		var cfgDataBytes []byte
+		if cfgData != nil {
+			cfgDataBytes, _ = yaml.Marshal(cfgData)
+		}
+		ss = append(ss, string(cfgDataBytes))
+	}
+	return ss
+}
+
 func reloadRelabelConfigs() {
 	rcs := allRelabelConfigs.Load()
 	if !rcs.isSet() {
