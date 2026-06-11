@@ -471,7 +471,7 @@ test-full-386:
 
 apptest:
 	$(MAKE) victoria-metrics-race vmagent-race vmalert-race vmauth-race vmctl-race vmbackup-race vmrestore-race
-	VM_APPTEST=1 go test ./apptest/... -skip="^Test(Cluster|Legacy).*"
+	go test ./apptest/... -skip="^Test(Cluster|Legacy).*"
 
 apptest-legacy: victoria-metrics-race vmbackup-race vmrestore-race
 	OS=$$(uname | tr '[:upper:]' '[:lower:]'); \
