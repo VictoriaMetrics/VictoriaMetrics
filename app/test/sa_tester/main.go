@@ -616,6 +616,11 @@ func handleReport(w http.ResponseWriter, r *http.Request) {
 	page = strings.ReplaceAll(page, "__RECV_CHARTS__", recvCharts.String())
 	page = strings.ReplaceAll(page, "__SENT_JSON__", string(sentJSON))
 	page = strings.ReplaceAll(page, "__RECV_JSON__", string(recvJSON))
+	startTs := "0"
+	if !reportT.IsZero() {
+		startTs = fmt.Sprintf("%f", float64(reportT.UnixMilli())/1000.0)
+	}
+	page = strings.ReplaceAll(page, "__START_TS__", startTs)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	fmt.Fprint(w, page)

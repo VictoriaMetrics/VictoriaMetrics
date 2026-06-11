@@ -117,6 +117,28 @@ a{color:#1a73e8}
     },
   };
 
+  // x-axis always starts from when /start was called.
+  var START_TS = __START_TS__; // unix seconds, injected by Go
+
+  // Compute global x range: min is pinned to START_TS; max comes from data.
+  var xMax = -Infinity;
+  SENT.forEach(function(s) {
+    s.points.forEach(function(p) {
+      if (!p) return;
+      if (p.x    > xMax) xMax = p.x;
+      if (p.sentAt !== undefined && p.sentAt > xMax) xMax = p.sentAt;
+    });
+  });
+  RECV.forEach(function(s) {
+    s.points.forEach(function(p) {
+      if (!p) return;
+      if (p.x > xMax) xMax = p.x;
+    });
+  });
+  // Add a 5 % right-side margin; left side is pinned exactly to START_TS.
+  var xPad = xMax === -Infinity ? 1 : (xMax - START_TS) * 0.05 || 1;
+  var xRange = { min: START_TS, max: (xMax === -Infinity ? START_TS + 60 : xMax + xPad) };
+
   var sentEl = document.getElementById('sent-all');
   if (sentEl && SENT.length > 0) {
     var datasets = [];
@@ -175,14 +197,40 @@ a{color:#1a73e8}
           }}},
         },
         scales: {
-          x: { type: 'linear',
+          x: Object.assign({ type: 'linear',
                title: { display: true, text: 'Unix timestamp (seconds UTC)' },
                ticks: { callback: function(v, idx, ticks) { return fmtTick(v, idx, ticks); }, maxRotation: 35, minRotation: 35 } },
+            xRange),
           y: { title: { display: true, text: 'value' } },
         },
       },
     });
   }
+
+  // Plugin: highlight all received points that share the hovered timestamp.
+  var sameTimestampPlugin = {
+    id: 'sameTimestamp',
+    afterDraw: function(chart) {
+      if (!chart._hoveredTs) return;
+      var ctx2 = chart.ctx;
+      var ts = chart._hoveredTs;
+      chart.data.datasets.forEach(function(ds, dsi) {
+        var meta = chart.getDatasetMeta(dsi);
+        ds.data.forEach(function(pt, pi) {
+          if (!pt || pt.x !== ts) return;
+          var el = meta.data[pi];
+          if (!el) return;
+          ctx2.save();
+          ctx2.beginPath();
+          ctx2.arc(el.x, el.y, (el.options.radius || 6) + 5, 0, 2 * Math.PI);
+          ctx2.strokeStyle = 'rgba(75,192,75,0.9)';
+          ctx2.lineWidth = 2;
+          ctx2.stroke();
+          ctx2.restore();
+        });
+      });
+    },
+  };
 
   RECV.forEach(function(s, i) {
     var el = document.getElementById('recv-' + i);
@@ -190,13 +238,14 @@ a{color:#1a73e8}
     var pts = s.points
       .filter(function(p){ return p !== null && p !== undefined && typeof p.x === 'number'; })
       .sort(function(a, b){ return a.x - b.x; });
-    new Chart(el, {
+    var recvChart = new Chart(el, {
       type: 'scatter',
       data: { datasets: [{
         label: s.name, data: pts,
         backgroundColor: 'rgba(75,192,75,0.85)',
         pointRadius: 6, pointStyle: 'circle',
       }]},
+      plugins: [sameTimestampPlugin],
       options: {
         responsive: true, maintainAspectRatio: false,
         plugins: {
@@ -208,10 +257,20 @@ a{color:#1a73e8}
           }}},
         },
         scales: {
-          x: { type: 'linear',
+          x: Object.assign({ type: 'linear',
                title: { display: true, text: 'Unix timestamp (seconds UTC)' },
                ticks: { callback: function(v, idx, ticks) { return fmtTick(v, idx, ticks); }, maxRotation: 35, minRotation: 35 } },
+            xRange),
           y: { title: { display: true, text: 'value' } },
+        },
+        onHover: function(evt, active) {
+          var ts = (active && active.length > 0)
+            ? recvChart.data.datasets[active[0].datasetIndex].data[active[0].index].x
+            : null;
+          if (recvChart._hoveredTs !== ts) {
+            recvChart._hoveredTs = ts;
+            recvChart.draw();
+          }
         },
       },
     });
