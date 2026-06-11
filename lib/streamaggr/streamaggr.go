@@ -609,7 +609,7 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 	outputsSeen := make(map[string]struct{}, len(cfg.Outputs))
 	for i, output := range cfg.Outputs {
 		outputMetricLabels := fmt.Sprintf(`output=%q,name=%q,path=%q,url=%q,position="%d"`, output, name, path, alias, aggrID)
-		ac, err := newOutputConfig(ms, outputMetricLabels, output, outputsSeen, useSharedState, ignoreFirstSampleInterval)
+		ac, err := newOutputConfig(ms, outputMetricLabels, output, outputsSeen, ignoreFirstSampleInterval)
 		if err != nil {
 			return nil, err
 		}
@@ -716,7 +716,7 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 	return a, nil
 }
 
-func newOutputConfig(ms *metrics.Set, metricLabels, output string, outputsSeen map[string]struct{}, useSharedState bool, ignoreFirstSampleInterval time.Duration) (aggrConfig, error) {
+func newOutputConfig(ms *metrics.Set, metricLabels, output string, outputsSeen map[string]struct{}, ignoreFirstSampleInterval time.Duration) (aggrConfig, error) {
 	// check for duplicated output
 	if _, ok := outputsSeen[output]; ok {
 		return nil, fmt.Errorf("`outputs` list contains duplicate aggregation function: %s", output)
@@ -760,11 +760,11 @@ func newOutputConfig(ms *metrics.Set, metricLabels, output string, outputsSeen m
 	case "count_series":
 		return newCountSeriesAggrConfig(), nil
 	case "histogram_bucket":
-		return newHistogramBucketAggrConfig(useSharedState), nil
+		return newHistogramBucketAggrConfig(), nil
 	case "increase":
-		return newTotalAggrConfig(ms, metricLabels, ignoreFirstSampleIntervalSecs, true, true), nil
+		return newIncreaseAggrConfig(ms, metricLabels, ignoreFirstSampleIntervalSecs, true), nil
 	case "increase_prometheus":
-		return newTotalAggrConfig(ms, metricLabels, ignoreFirstSampleIntervalSecs, true, false), nil
+		return newIncreaseAggrConfig(ms, metricLabels, ignoreFirstSampleIntervalSecs, false), nil
 	case "last":
 		return newLastAggrConfig(), nil
 	case "max":
@@ -782,9 +782,9 @@ func newOutputConfig(ms *metrics.Set, metricLabels, output string, outputsSeen m
 	case "sum_samples":
 		return newSumSamplesAggrConfig(), nil
 	case "total":
-		return newTotalAggrConfig(ms, metricLabels, ignoreFirstSampleIntervalSecs, false, true), nil
+		return newTotalAggrConfig(ms, metricLabels, ignoreFirstSampleIntervalSecs, true), nil
 	case "total_prometheus":
-		return newTotalAggrConfig(ms, metricLabels, ignoreFirstSampleIntervalSecs, false, false), nil
+		return newTotalAggrConfig(ms, metricLabels, ignoreFirstSampleIntervalSecs, false), nil
 	case "unique_samples":
 		return newUniqueSamplesAggrConfig(), nil
 	default:
