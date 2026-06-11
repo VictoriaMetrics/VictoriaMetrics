@@ -10,8 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/VictoriaMetrics/metrics"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
@@ -23,6 +21,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vminsertapi"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vmselectapi"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -153,7 +152,7 @@ func Init(vmselectMaxConcurrentRequests int, resetCacheIfNeeded func(mrs []stora
 		LogNewSeries:                *logNewSeries,
 	}
 	strg := storage.MustOpenStorage(*storageDataPath, opts)
-	vmStorage = newVMStorageSingleNode(strg, vmselectMaxConcurrentRequests, resetCacheIfNeeded)
+	vmStorage = newVMStorage(strg, vmselectMaxConcurrentRequests, resetCacheIfNeeded)
 
 	var m storage.Metrics
 	strg.UpdateMetrics(&m)
@@ -175,15 +174,15 @@ func Init(vmselectMaxConcurrentRequests int, resetCacheIfNeeded func(mrs []stora
 	GetSearch = vmStorage.GetSearch
 	PutSearch = vmStorage.PutSearch
 	RequestHandler = vmStorage.requestHandler
-	DebugFlush = vmStorage.vms.s.DebugFlush
+	DebugFlush = vmStorage.s.DebugFlush
 }
 
 var storageMetrics *metrics.Set
 
 var (
-	// vmStorageSingleNode is an instance of vmstorage used by vminsert and
+	// vmStorage is an instance of vmstorage used by vminsert and
 	// vmselect for writing and reading data.
-	vmStorage      *VMStorageSingleNode
+	vmStorage      *VMStorage
 	VMInsertAPI    vminsertapi.API
 	VMSelectAPI    vmselectapi.API
 	GetSearch      func(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (*storage.Search, int, error)
@@ -209,15 +208,12 @@ func Stop() {
 	logger.Infof("the vmstorage has been stopped")
 }
 
-func (vmssn *VMStorageSingleNode) requestHandler(w http.ResponseWriter, r *http.Request) bool {
-	vmssn.wg.Add(1)
-	defer vmssn.wg.Done()
-	return vmssn.vms.requestHandler(w, r)
-}
-
 // requestHandler is a storage request handler.
 // TODO(@rtm0): Move to a separate file, request_handler.go
 func (vms *VMStorage) requestHandler(w http.ResponseWriter, r *http.Request) bool {
+	vms.wg.Add(1)
+	defer vms.wg.Done()
+
 	path := r.URL.Path
 	if path == "/internal/force_merge" {
 		if !httpserver.CheckAuthFlag(w, r, forceMergeAuthKey) {
@@ -362,14 +358,10 @@ var (
 )
 
 // TODO(@rtm0): Move to metrics.go.
-func (vmssn *VMStorageSingleNode) writeStorageMetrics(w io.Writer) {
-	vmssn.wg.Add(1)
-	defer vmssn.wg.Done()
-	vmssn.vms.writeStorageMetrics(w)
-}
-
-// TODO(@rtm0): Move to metrics.go.
 func (vms *VMStorage) writeStorageMetrics(w io.Writer) {
+	vms.wg.Add(1)
+	defer vms.wg.Done()
+
 	strg := vms.s
 	var m storage.Metrics
 	strg.UpdateMetrics(&m)
