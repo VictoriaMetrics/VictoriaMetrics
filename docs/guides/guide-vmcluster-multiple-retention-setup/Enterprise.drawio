@@ -1,0 +1,57 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/26.1.1 Chrome/132.0.6834.210 Electron/34.3.3 Safari/537.36" version="26.1.1">
+  <diagram name="Page-1" id="S_qiAT9sGsSY6wdhSkRL">
+    <mxGraphModel dx="805" dy="590" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="dQbCoe4mV6pn9j3412-R-2" value="" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="107.5" y="400" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="dQbCoe4mV6pn9j3412-R-1" value="vma&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;gent&lt;/span&gt;" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="122.5" y="410" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="dQbCoe4mV6pn9j3412-R-4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;curved=0;endArrow=open;endFill=0;strokeWidth=2;" edge="1" parent="1" source="dQbCoe4mV6pn9j3412-R-3">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="175" y="410.0000000000001" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dQbCoe4mV6pn9j3412-R-3" value="Write Flow" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="135" y="320" width="80" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="dQbCoe4mV6pn9j3412-R-6" value="" style="rounded=0;whiteSpace=wrap;html=1;dashed=1;dashPattern=8 8;" vertex="1" parent="1">
+          <mxGeometry x="310" y="380" width="390" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="dQbCoe4mV6pn9j3412-R-7" value="" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="347.5" y="400" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="dQbCoe4mV6pn9j3412-R-8" value="vminsert" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="362.5" y="410" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="dQbCoe4mV6pn9j3412-R-10" value="" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="540" y="400" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="dQbCoe4mV6pn9j3412-R-11" value="vmstorage" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="555" y="410" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="dQbCoe4mV6pn9j3412-R-12" value="" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="750" y="400" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="dQbCoe4mV6pn9j3412-R-13" value="vmselect" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="765" y="410" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="dQbCoe4mV6pn9j3412-R-14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="dQbCoe4mV6pn9j3412-R-1" target="dQbCoe4mV6pn9j3412-R-8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dQbCoe4mV6pn9j3412-R-16" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="dQbCoe4mV6pn9j3412-R-8" target="dQbCoe4mV6pn9j3412-R-11">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dQbCoe4mV6pn9j3412-R-17" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;startArrow=classic;startFill=1;endArrow=none;" edge="1" parent="1" source="dQbCoe4mV6pn9j3412-R-11" target="dQbCoe4mV6pn9j3412-R-13">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dQbCoe4mV6pn9j3412-R-19" value="Retention filters for junior team: 3d, dev or staging: 30d&#39;, everything else is 1y" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="320" y="470" width="370" height="30" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
