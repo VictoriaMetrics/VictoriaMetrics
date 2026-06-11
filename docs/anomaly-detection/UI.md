@@ -315,7 +315,7 @@ docker run -it --rm \
   -e VMANOMALY_MCP_SERVER_URL=http://mcp-vmanomaly:8081/mcp \
   -p 8080:8080 \
   -p 8490:8490 \
-  victoriametrics/vmanomaly:v1.29.4 \
+  victoriametrics/vmanomaly:v1.29.5 \
   vmanomaly_config.yaml
 ```
 
@@ -639,6 +639,17 @@ If the **results** look good and the **model configuration should be deployed in
 ![vmanomaly-ui-example-alert-menu](vmanomaly-ui-example-alert-menu.webp)
 
 ## Changelog
+
+### v1.7.1
+Released: 2026-06-11
+
+vmanomaly version: [v1.29.5](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1295)
+
+- FEATURE: Added bulk Apply/Decline actions for [Copilot](#ai-assistance) chat suggestions.
+
+- BUGFIX: Fixed modal windows closing when the mouse is released outside the window during text selection.
+
+- BUGFIX: Fixed tooltip hover behavior so tooltips do not disappear while the cursor moves into the hover content.
 
 ### v1.7.0
 Released: 2026-05-15

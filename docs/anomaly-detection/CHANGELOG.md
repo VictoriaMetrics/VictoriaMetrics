@@ -14,6 +14,21 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.29.5
+Released: 2026-06-11
+
+- UI: Updated [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/) from [v1.7.0](https://docs.victoriametrics.com/anomaly-detection/ui/#v170) to [v1.7.1](https://docs.victoriametrics.com/anomaly-detection/ui/#v171), see respective [release notes](https://docs.victoriametrics.com/anomaly-detection/ui/#v171) for details.
+
+- IMPROVEMENT: Redesigned [hot reload](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) config change detection to content-based polling with configurable `-configCheckInterval`, improving reliability for Kubernetes ConfigMap symlink rotations and other filesystems where event delivery can be inconsistent.
+
+- IMPROVEMENT: Refined config validation errors for broken or invalid config sections, so startup and reload failures point to the affected section more clearly (e.g. YAML indentation typos).
+
+- IMPROVEMENT: Tightened config validation for [`PeriodicScheduler`](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) `infer_every` and [`IsolationForestModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#isolation-forest-multivariate) `contamination`, including clearer handling of missing scheduler intervals, numeric contamination strings, and invalid non-finite values.
+
+- BUGFIX: Fixed a multiprocessing startup issue with `settings.n_workers > 1` that could leave scheduled data fetch or successive inference jobs stuck and repeatedly skipped by internal scheduler.
+
+- BUGFIX: Bounded [`VmReader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) and [`VLogsReader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#victorialogs-reader) data fetch and post-fetch processing waits so stalled datasource reads or multiprocessing dataframe creation no longer keep [`PeriodicScheduler`](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) `data_fetch` jobs running indefinitely. Previously, such stuck jobs could keep internal scheduler's `max_instances=1` slot per (scheduler, query) pair occupied, causing future data fetch, fit, or infer runs to be skipped until vmanomaly was restarted. The config validator now also warns when the configured reader timeout budget can exceed the connected scheduler interval.
+
 ## v1.29.4
 Released: 2026-05-15
 
