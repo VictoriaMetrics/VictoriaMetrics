@@ -14,7 +14,7 @@ func BenchmarkWriteRequestUnmarshalProtobuf(b *testing.B) {
 		wru := &WriteRequestUnmarshaler{}
 		for pb.Next() {
 			if _, err := wru.UnmarshalProtobuf(data); err != nil {
-				panic(fmt.Errorf("unexpected error: %s", err))
+				panic(fmt.Errorf("unexpected error: %w", err))
 			}
 		}
 	})

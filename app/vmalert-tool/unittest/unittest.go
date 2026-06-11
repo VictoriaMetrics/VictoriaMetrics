@@ -329,11 +329,11 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 
 	q, err := datasource.Init(nil)
 	if err != nil {
-		return []error{fmt.Errorf("failed to init datasource: %v", err)}
+		return []error{fmt.Errorf("failed to init datasource: %w", err)}
 	}
 	rw, err := remotewrite.NewDebugClient()
 	if err != nil {
-		return []error{fmt.Errorf("failed to init wr: %v", err)}
+		return []error{fmt.Errorf("failed to init wr: %w", err)}
 	}
 
 	alertEvalTimesMap := map[time.Duration]struct{}{}

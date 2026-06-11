@@ -36,7 +36,7 @@ func (tp *thanosProcessor) run(ctx context.Context) error {
 	// Use the first aggregate type to explore blocks (block list is the same for all types)
 	blocks, err := tp.cl.Explore(tp.aggrTypes[0])
 	if err != nil {
-		return fmt.Errorf("explore failed: %s", err)
+		return fmt.Errorf("explore failed: %w", err)
 	}
 	if len(blocks) < 1 {
 		return fmt.Errorf("found no blocks to import")
@@ -84,7 +84,7 @@ func (tp *thanosProcessor) run(ctx context.Context) error {
 		log.Println("Processing raw blocks (resolution=0)...")
 		stats, err := tp.processBlocks(rawBlocks, thanos.AggrTypeNone, bar)
 		if err != nil {
-			return fmt.Errorf("migration failed for raw blocks: %s", err)
+			return fmt.Errorf("migration failed for raw blocks: %w", err)
 		}
 		phases = append(phases, phaseStats{
 			name:    "raw",
@@ -108,7 +108,7 @@ func (tp *thanosProcessor) run(ctx context.Context) error {
 
 		aggrBlocks, err := tp.cl.Explore(aggrType)
 		if err != nil {
-			return fmt.Errorf("explore failed for aggr type %s: %s", aggrType, err)
+			return fmt.Errorf("explore failed for aggr type %s: %w", aggrType, err)
 		}
 
 		var downsampledOnly []thanos.BlockInfo
@@ -128,7 +128,7 @@ func (tp *thanosProcessor) run(ctx context.Context) error {
 		stats, err := tp.processBlocks(downsampledOnly, aggrType, bar)
 		thanos.CloseBlocks(aggrBlocks)
 		if err != nil {
-			return fmt.Errorf("migration failed for aggr type %s: %s", aggrType, err)
+			return fmt.Errorf("migration failed for aggr type %s: %w", aggrType, err)
 		}
 		phases = append(phases, phaseStats{
 			name:    aggrType.String(),
@@ -153,7 +153,7 @@ func (tp *thanosProcessor) run(ctx context.Context) error {
 	for vmErr := range tp.im.Errors() {
 		if vmErr.Err != nil {
 			thanosErrorsTotal.Inc()
-			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, tp.isVerbose))
+			return fmt.Errorf("import process failed: %w", wrapErr(vmErr, tp.isVerbose))
 		}
 	}
 
@@ -184,7 +184,7 @@ func (tp *thanosProcessor) processBlocks(blocks []thanos.BlockInfo, aggrType tha
 				seriesCount, samplesCount, err := tp.do(bi, aggrType)
 				if err != nil {
 					thanosErrorsTotal.Inc()
-					errCh <- fmt.Errorf("read failed for block %q with aggr %s: %s", bi.Block.Meta().ULID, aggrType, err)
+					errCh <- fmt.Errorf("read failed for block %q with aggr %s: %w", bi.Block.Meta().ULID, aggrType, err)
 					return
 				}
 
@@ -209,12 +209,12 @@ func (tp *thanosProcessor) processBlocks(blocks []thanos.BlockInfo, aggrType tha
 		case thanosErr := <-errCh:
 			close(blockReadersCh)
 			wg.Wait()
-			return processBlocksStats{}, fmt.Errorf("thanos error: %s", thanosErr)
+			return processBlocksStats{}, fmt.Errorf("thanos error: %w", thanosErr)
 		case vmErr := <-tp.im.Errors():
 			close(blockReadersCh)
 			wg.Wait()
 			thanosErrorsTotal.Inc()
-			return processBlocksStats{}, fmt.Errorf("import process failed: %s", wrapErr(vmErr, tp.isVerbose))
+			return processBlocksStats{}, fmt.Errorf("import process failed: %w", wrapErr(vmErr, tp.isVerbose))
 		case blockReadersCh <- bi:
 		}
 	}
@@ -223,7 +223,7 @@ func (tp *thanosProcessor) processBlocks(blocks []thanos.BlockInfo, aggrType tha
 	wg.Wait()
 	close(errCh)
 	for err := range errCh {
-		return processBlocksStats{}, fmt.Errorf("import process failed: %s", err)
+		return processBlocksStats{}, fmt.Errorf("import process failed: %w", err)
 	}
 
 	return processBlocksStats{
@@ -236,7 +236,7 @@ func (tp *thanosProcessor) processBlocks(blocks []thanos.BlockInfo, aggrType tha
 func (tp *thanosProcessor) do(bi thanos.BlockInfo, aggrType thanos.AggrType) (uint64, uint64, error) {
 	ss, err := tp.cl.Read(bi)
 	if err != nil {
-		return 0, 0, fmt.Errorf("failed to read block: %s", err)
+		return 0, 0, fmt.Errorf("failed to read block: %w", err)
 	}
 	defer ss.Close() // Ensure querier is closed even on early returns
 
