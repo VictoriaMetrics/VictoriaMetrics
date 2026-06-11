@@ -2,6 +2,7 @@ package remotewrite
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -13,6 +14,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+	"github.com/golang/snappy"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/awsapi"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
@@ -21,10 +25,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/persistentqueue"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ratelimiter"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
-	"github.com/VictoriaMetrics/metrics"
-	"github.com/golang/snappy"
 )
 
 var (
@@ -59,6 +60,8 @@ var (
 		"Multiple headers must be delimited by '^^': -remoteWrite.headers='header1:value1^^header2:value2'")
 
 	basicAuthUsername     = flagutil.NewArrayString("remoteWrite.basicAuth.username", "Optional basic auth username to use for the corresponding -remoteWrite.url")
+	basicAuthUsernameFile = flagutil.NewArrayString("remoteWrite.basicAuth.usernameFile", "Optional path to basic auth username to use for the corresponding -remoteWrite.url. "+
+		"The file is re-read every second")
 	basicAuthPassword     = flagutil.NewArrayString("remoteWrite.basicAuth.password", "Optional basic auth password to use for the corresponding -remoteWrite.url")
 	basicAuthPasswordFile = flagutil.NewArrayString("remoteWrite.basicAuth.passwordFile", "Optional path to basic auth password to use for the corresponding -remoteWrite.url. "+
 		"The file is re-read every second")
@@ -223,12 +226,14 @@ func getAuthConfig(argIdx int) (*promauth.Config, error) {
 		hdrs = strings.Split(headersValue, "^^")
 	}
 	username := basicAuthUsername.GetOptionalArg(argIdx)
+	usernameFile := basicAuthUsernameFile.GetOptionalArg(argIdx)
 	password := basicAuthPassword.GetOptionalArg(argIdx)
 	passwordFile := basicAuthPasswordFile.GetOptionalArg(argIdx)
 	var basicAuthCfg *promauth.BasicAuthConfig
-	if username != "" || password != "" || passwordFile != "" {
+	if username != "" || usernameFile != "" || password != "" || passwordFile != "" {
 		basicAuthCfg = &promauth.BasicAuthConfig{
 			Username:     username,
+			UsernameFile: usernameFile,
 			Password:     promauth.NewSecret(password),
 			PasswordFile: passwordFile,
 		}
@@ -290,7 +295,7 @@ func getAWSAPIConfig(argIdx int) (*awsapi.Config, error) {
 	accessKey := awsAccessKey.GetOptionalArg(argIdx)
 	secretKey := awsSecretKey.GetOptionalArg(argIdx)
 	service := awsService.GetOptionalArg(argIdx)
-	cfg, err := awsapi.NewConfig(ec2Endpoint, stsEndpoint, region, roleARN, accessKey, secretKey, service)
+	cfg, err := awsapi.NewConfig(ec2Endpoint, stsEndpoint, region, roleARN, accessKey, secretKey, service, "")
 	if err != nil {
 		return nil, err
 	}
@@ -305,11 +310,6 @@ func (c *client) runWorker() {
 		block, ok = c.fq.MustReadBlock(block[:0])
 		if !ok {
 			return
-		}
-		if len(block) == 0 {
-			// skip empty data blocks from sending
-			// see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6241
-			continue
 		}
 		go func() {
 			startTime := time.Now()
@@ -326,15 +326,20 @@ func (c *client) runWorker() {
 			c.fq.MustWriteBlockIgnoreDisabledPQ(block)
 			return
 		case <-c.stopCh:
-			// c must be stopped. Wait for a while in the hope the block will be sent.
-			graceDuration := 5 * time.Second
+			// c must be stopped. Wait up to 5 seconds for the in-flight request to complete.
+			// If it succeeds, drain the remaining in-memory queue before returning.
+			stopCtx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+			defer cancel()
+
 			select {
 			case ok := <-ch:
 				if !ok {
 					// Return unsent block to the queue.
 					c.fq.MustWriteBlockIgnoreDisabledPQ(block)
+				} else {
+					c.drainInMemoryQueue(stopCtx, block[:0])
 				}
-			case <-time.After(graceDuration):
+			case <-stopCtx.Done():
 				// Return unsent block to the queue.
 				c.fq.MustWriteBlockIgnoreDisabledPQ(block)
 			}
@@ -405,8 +410,7 @@ func (c *client) newRequest(url string, body []byte) (*http.Request, error) {
 // Otherwise, it tries sending the block to remote storage indefinitely.
 func (c *client) sendBlockHTTP(block []byte) bool {
 	c.rl.Register(len(block))
-	maxRetryDuration := timeutil.AddJitterToDuration(c.retryMaxInterval)
-	retryDuration := timeutil.AddJitterToDuration(c.retryMinInterval)
+	bt := timeutil.NewBackoffTimer(c.retryMinInterval, c.retryMaxInterval)
 	retriesCount := 0
 
 again:
@@ -415,19 +419,10 @@ again:
 	c.requestDuration.UpdateDuration(startTime)
 	if err != nil {
 		c.errorsCount.Inc()
-		retryDuration *= 2
-		if retryDuration > maxRetryDuration {
-			retryDuration = maxRetryDuration
-		}
-		remoteWriteRetryLogger.Warnf("couldn't send a block with size %d bytes to %q: %s; re-sending the block in %.3f seconds",
-			len(block), c.sanitizedURL, err, retryDuration.Seconds())
-		t := timerpool.Get(retryDuration)
-		select {
-		case <-c.stopCh:
-			timerpool.Put(t)
+		remoteWriteRetryLogger.Warnf("couldn't send a block with size %d bytes to %q: %s; re-sending the block in %s",
+			len(block), c.sanitizedURL, err, bt.CurrentDelay())
+		if !bt.Wait(c.stopCh) {
 			return false
-		case <-t.C:
-			timerpool.Put(t)
 		}
 		c.retriesCount.Inc()
 		goto again
@@ -476,7 +471,7 @@ again:
 				goto again
 			}
 
-			logger.Warnf("failed to repack zstd block (%s bytes) to snappy: %s; The block will be rejected. "+
+			logger.Warnf("failed to repack zstd block (%d bytes) to snappy: %s; The block will be rejected. "+
 				"Possible cause: ungraceful shutdown leading to persisted queue corruption.",
 				zstdBlockLen, err)
 		}
@@ -493,7 +488,10 @@ again:
 	// Unexpected status code returned
 	retriesCount++
 	retryAfterHeader := parseRetryAfterHeader(resp.Header.Get("Retry-After"))
-	retryDuration = getRetryDuration(retryAfterHeader, retryDuration, maxRetryDuration)
+	// retryAfterDuration has the highest priority duration
+	if retryAfterHeader > 0 {
+		bt.SetDelay(retryAfterHeader)
+	}
 
 	// Handle response
 	body, err := io.ReadAll(resp.Body)
@@ -502,43 +500,43 @@ again:
 		logger.Errorf("cannot read response body from %q during retry #%d: %s", c.sanitizedURL, retriesCount, err)
 	} else {
 		logger.Errorf("unexpected status code received after sending a block with size %d bytes to %q during retry #%d: %d; response body=%q; "+
-			"re-sending the block in %.3f seconds", len(block), c.sanitizedURL, retriesCount, statusCode, body, retryDuration.Seconds())
+			"re-sending the block in %s", len(block), c.sanitizedURL, retriesCount, statusCode, body, bt.CurrentDelay())
 	}
-	t := timerpool.Get(retryDuration)
-	select {
-	case <-c.stopCh:
-		timerpool.Put(t)
+	if !bt.Wait(c.stopCh) {
 		return false
-	case <-t.C:
-		timerpool.Put(t)
 	}
 	c.retriesCount.Inc()
 	goto again
 }
 
+func (c *client) drainInMemoryQueue(stopCtx context.Context, block []byte) {
+	var ok bool
+	for {
+		select {
+		case <-stopCtx.Done():
+			return
+		default:
+		}
+
+		block, ok = c.fq.MustReadInMemoryBlock(block[:0])
+		if !ok {
+			// The in memory queue has already been drained,
+			// or persisted queue is being used.
+			// In this case it is guaranteed that fq will be empty
+			return
+		}
+
+		// at this stage c.stopCh should be closed
+		// so sendBlock function should not perform retries
+		if ok := c.sendBlock(block); !ok {
+			c.fq.MustWriteBlockIgnoreDisabledPQ(block)
+			return
+		}
+	}
+}
+
 var remoteWriteRejectedLogger = logger.WithThrottler("remoteWriteRejected", 5*time.Second)
 var remoteWriteRetryLogger = logger.WithThrottler("remoteWriteRetry", 5*time.Second)
-
-// getRetryDuration returns retry duration.
-// retryAfterDuration has the highest priority.
-// If retryAfterDuration is not specified, retryDuration gets doubled.
-// retryDuration can't exceed maxRetryDuration.
-//
-// Also see: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6097
-func getRetryDuration(retryAfterDuration, retryDuration, maxRetryDuration time.Duration) time.Duration {
-	// retryAfterDuration has the highest priority duration
-	if retryAfterDuration > 0 {
-		return timeutil.AddJitterToDuration(retryAfterDuration)
-	}
-
-	// default backoff retry policy
-	retryDuration *= 2
-	if retryDuration > maxRetryDuration {
-		retryDuration = maxRetryDuration
-	}
-
-	return retryDuration
-}
 
 // repackBlockFromZstdToSnappy repacks the given zstd-compressed block to snappy-compressed block.
 //
@@ -570,24 +568,20 @@ func logBlockRejected(block []byte, sanitizedURL string, resp *http.Response) {
 }
 
 // parseRetryAfterHeader parses `Retry-After` value retrieved from HTTP response header.
-// retryAfterString should be in either HTTP-date or a number of seconds.
-// It will return time.Duration(0) if `retryAfterString` does not follow RFC 7231.
-func parseRetryAfterHeader(retryAfterString string) (retryAfterDuration time.Duration) {
-	if retryAfterString == "" {
-		return retryAfterDuration
+//
+// s should be in either HTTP-date or a number of seconds.
+// It returns time.Duration(0) if s does not follow RFC 7231.
+func parseRetryAfterHeader(s string) time.Duration {
+	if s == "" {
+		return 0
 	}
 
-	defer func() {
-		v := retryAfterDuration.Seconds()
-		logger.Infof("'Retry-After: %s' parsed into %.2f second(s)", retryAfterString, v)
-	}()
-
 	// Retry-After could be in "Mon, 02 Jan 2006 15:04:05 GMT" format.
-	if parsedTime, err := time.Parse(http.TimeFormat, retryAfterString); err == nil {
+	if parsedTime, err := time.Parse(http.TimeFormat, s); err == nil {
 		return time.Duration(time.Until(parsedTime).Seconds()) * time.Second
 	}
 	// Retry-After could be in seconds.
-	if seconds, err := strconv.Atoi(retryAfterString); err == nil {
+	if seconds, err := strconv.Atoi(s); err == nil {
 		return time.Duration(seconds) * time.Second
 	}
 

@@ -37,4 +37,7 @@ func TestGetCPUQuotaV2(t *testing.T) {
 	f("testdata/cgroup", "testdata/self/cgroupv2", 2)
 	f("testdata/cgroup/cpu_unset", "", -1)
 	f("testdata/cgroup/cpu_onlymax", "", 2)
+
+	// systemd slice
+	f("testdata/v2slice", "testdata/self/cgroupv2_slice", 2)
 }

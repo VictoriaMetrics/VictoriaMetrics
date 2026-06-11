@@ -8,6 +8,12 @@ import (
 type filterNoop struct {
 }
 
+func newFilterNoop() *filterNoop {
+	return &noopFilter
+}
+
+var noopFilter filterNoop
+
 func (fn *filterNoop) String() string {
 	return "*"
 }

@@ -539,9 +539,12 @@ func (ddb *datadb) mustMergePartsInternal(pws []*partWrapper, isFinal bool, drop
 		// Fast path: flush a single in-memory part to disk.
 		mp := pws[0].mp
 		mp.MustStoreToDisk(dstPartPath)
+		srcRowsCount := mp.ph.RowsCount
+		dstSize := mp.ph.CompressedSizeBytes
+
 		pwNew := ddb.openCreatedPart(&mp.ph, pws, nil, dstPartPath)
 		ddb.swapSrcWithDstParts(pws, pwNew, dstPartType)
-		ddb.updateMergeMetrics(dstPartType, mp.ph.RowsCount, startTime, mp.ph.CompressedSizeBytes)
+		ddb.updateMergeMetrics(dstPartType, srcRowsCount, startTime, dstSize)
 		return true
 	}
 
@@ -1355,8 +1358,7 @@ func mustRemoveUnusedDirs(path string, partNames []string) {
 	}
 }
 
-// appendPartsToMerge finds optimal parts to merge from src,
-// appends them to dst and returns the result.
+// appendPartsToMerge finds optimal parts to merge from src, appends them to dst and returns the result.
 func appendPartsToMerge(dst, src []*partWrapper, maxOutBytes uint64) []*partWrapper {
 	if len(src) < 2 {
 		// There is no need in merging zero or one part :)
@@ -1501,27 +1503,28 @@ func (ddb *datadb) deleteRows(pso *partitionSearchOptions, stopCh <-chan struct{
 
 	// Search for parts, which contain logs matching pso for the deletion and which aren't in merge at the moment.
 	var pwsToMerge []*partWrapper
+	needRepeat := false
 	for _, pw := range pws {
 		if !pw.p.hasMatchingRows(pso, stopCh) {
 			continue
 		}
 
 		ddb.partsLock.Lock()
-		ok := !pw.isInMerge
-		if ok {
+		if !pw.isInMerge {
 			pw.isInMerge = true
 			pwsToMerge = append(pwsToMerge, pw)
+		} else {
+			// The pw is in merge now, so it must be processed again for the rows' deletion in the future.
+			needRepeat = true
 		}
 		ddb.partsLock.Unlock()
-
-		if !ok {
-			ddb.releasePartsToMerge(pwsToMerge)
-			return false
-		}
 	}
 
 	// merge pwsToMerge while dropping logs matching pso.
-	return ddb.mustMergePartsInternal(pwsToMerge, false, pso, stopCh)
+	if !ddb.mustMergePartsInternal(pwsToMerge, false, pso, stopCh) {
+		return false
+	}
+	return !needRepeat
 }
 
 func appendAllPartsForMergeLocked(dst, src []*partWrapper) []*partWrapper {

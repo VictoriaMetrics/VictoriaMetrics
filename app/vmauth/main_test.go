@@ -12,12 +12,14 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
+	"math/big"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -97,6 +99,35 @@ unauthorized_user:
 statusCode=200
 Foo: bar
 requested_url={BACKEND}/foo/abc/def?bar=baz&some_arg=some_value
+Pass-Header: abc
+User-Agent: vmauth
+X-Forwarded-For: 12.34.56.78, 42.2.3.84`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
+	// with default_url
+	cfgStr = `
+unauthorized_user:
+  default_url: {BACKEND}/default
+  url_map:
+  - src_paths:
+    - /empty
+    url_prefix: {BACKEND}/empty`
+	requestURL = "http://some-host.com/abc/def?some_arg=some_value"
+	backendHandler = func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("Connection", "close")
+		h.Set("Foo", "bar")
+
+		var bb bytes.Buffer
+		if err := r.Header.Write(&bb); err != nil {
+			panic(fmt.Errorf("unexpected error when marshaling headers: %w", err))
+		}
+		fmt.Fprintf(w, "requested_url=http://%s%s\n%s", r.Host, r.URL, bb.String())
+	}
+	responseExpected = `
+statusCode=200
+Foo: bar
+requested_url={BACKEND}/default?request_path=http%3A%2F%2Fsome-host.com%2Fabc%2Fdef%3Fsome_arg%3Dsome_value
 Pass-Header: abc
 User-Agent: vmauth
 X-Forwarded-For: 12.34.56.78, 42.2.3.84`
@@ -276,6 +307,24 @@ statusCode=200
 requested_url={BACKEND}/bar/a/b`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 
+	// correct authorization but unexisted path, hence missing route error.
+	cfgStr = `
+users:
+- username: foo
+  password: secret
+  url_map:
+  - src_paths:
+    - "/api/v1/write"
+    url_prefix: "{BACKEND}/bar"`
+	requestURL = "http://foo:secret@some-host.com/a/b"
+	backendHandler = func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "requested_url=http://%s%s", r.Host, r.URL)
+	}
+	responseExpected = `
+statusCode=400
+user foo missing route for "http://foo:secret@some-host.com/a/b"`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
 	// verify how path cleanup works
 	cfgStr = `
 unauthorized_user:
@@ -372,7 +421,7 @@ unauthorized_user:
 	}
 	responseExpected = `
 statusCode=400
-missing route for "http://some-host.com/abc?de=fg"`
+user unauthorized missing route for "http://some-host.com/abc?de=fg"`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 
 	// missing default_url and default url_prefix for unauthorized user with dump_request_on_errors enabled
@@ -388,7 +437,7 @@ unauthorized_user:
 	}
 	responseExpected = `
 statusCode=400
-missing route for "http://some-host.com/abc?de=fg" (host: "some-host.com"; path: "/abc"; args: "de=fg"; headers:Connection: Some-Header,Other-Header
+user unauthorized missing route for "http://some-host.com/abc?de=fg" (host: "some-host.com"; path: "/abc"; args: "de=fg"; headers:Connection: Some-Header,Other-Header
 Pass-Header: abc
 Some-Header: foobar
 X-Forwarded-For: 12.34.56.78
@@ -430,7 +479,7 @@ unauthorized_user:
 	}
 	responseExpected = `
 statusCode=502
-all the 2 backends for the user "" are unavailable for proxying the request - check previous WARN logs to see the exact error for each failed backend`
+all the 2 backends for the user "unauthorized" are unavailable for proxying the request - check previous WARN logs to see the exact error for each failed backend`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 
 	// all the backend_urls are unavailable for authorized user
@@ -470,7 +519,7 @@ unauthorized_user:
 	}
 	responseExpected = `
 statusCode=502
-all the 0 backends for the user "" are unavailable for proxying the request - check previous WARN logs to see the exact error for each failed backend`
+all the 0 backends for the user "unauthorized" are unavailable for proxying the request - check previous WARN logs to see the exact error for each failed backend`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 	netutil.Resolver = origResolver
 
@@ -487,7 +536,7 @@ unauthorized_user:
 	}
 	responseExpected = `
 statusCode=502
-all the 2 backends for the user "" are unavailable for proxying the request - check previous WARN logs to see the exact error for each failed backend`
+all the 2 backends for the user "unauthorized" are unavailable for proxying the request - check previous WARN logs to see the exact error for each failed backend`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 	if n := retries.Load(); n != 2 {
 		t.Fatalf("unexpected number of retries; got %d; want 2", n)
@@ -514,6 +563,31 @@ requested_url={BACKEND}/path2/foo/?de=fg`
 	if n := retries.Load(); n != 2 {
 		t.Fatalf("unexpected number of retries; got %d; want 2", n)
 	}
+
+	// make sure that empty config value erases client extra filters and extra labels
+	cfgStr = `
+unauthorized_user:
+  url_prefix: {BACKEND}/foo?bar=baz&extra_filters[]=&extra_label=&extra_filters=`
+	requestURL = "http://some-host.com/abc/def?some_arg=some_value&extra_filters[]=baz&extra_label=tenant=admin&extra_filters=bar"
+	backendHandler = func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("Connection", "close")
+		h.Set("Foo", "bar")
+
+		var bb bytes.Buffer
+		if err := r.Header.Write(&bb); err != nil {
+			panic(fmt.Errorf("unexpected error when marshaling headers: %w", err))
+		}
+		fmt.Fprintf(w, "requested_url=http://%s%s\n%s", r.Host, r.URL, bb.String())
+	}
+	responseExpected = `
+statusCode=200
+Foo: bar
+requested_url={BACKEND}/foo/abc/def?bar=baz&extra_filters=&extra_filters%5B%5D=&extra_label=&some_arg=some_value
+Pass-Header: abc
+User-Agent: vmauth
+X-Forwarded-For: 12.34.56.78, 42.2.3.84`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
 }
 
 func TestJWTRequestHandler(t *testing.T) {
@@ -816,6 +890,30 @@ users:
     public_keys:
     - %q
   url_prefix: {BACKEND}/select/{{.MetricsTenant}}/?extra_label={{.MetricsExtraLabels}}&extra_filters={{.MetricsExtraFilters}}`, string(publicKeyPEM)),
+		request,
+		responseExpected,
+	)
+
+	// test header injection and URL templating with individual placeholders
+	request = httptest.NewRequest(`GET`, "http://some-host.com/api/v1/query", nil)
+	request.Header.Set(`Authorization`, `Bearer `+fullToken)
+	responseExpected = `
+statusCode=200
+path: /select/123/234/api/v1/query
+query:
+headers:
+    AccountID=123
+    ProjectID=234`
+	f(fmt.Sprintf(
+		`
+users:
+- jwt:
+    public_keys:
+    - %q
+  url_prefix: {BACKEND}/select/{{.MetricsAccountID}}/{{.MetricsProjectID}}
+  headers:
+  - "AccountID: {{.MetricsAccountID}}"
+  - "ProjectID: {{.MetricsProjectID}}"`, string(publicKeyPEM)),
 		request,
 		responseExpected,
 	)
@@ -1235,11 +1333,275 @@ users:
 		request,
 		responseExpected,
 	)
+	nestedToken := genToken(t, map[string]any{
+		"exp":  time.Now().Add(10 * time.Minute).Unix(),
+		"team": "dev",
+		"nested": map[string]any{
+			"department_id": 0,
+			"scopes":        []string{"metrics", "logs"},
+			"team_permissions": map[string]any{
+				"read":  0,
+				"write": 1,
+			},
+		},
+		"vm_access": map[string]any{
+			"metrics_account_id": 123,
+			"metrics_project_id": 234,
+			"metrics_extra_labels": []string{
+				"label1=value1",
+				"label2=value2",
+			},
+			"metrics_extra_filters": []string{
+				`{label3="value3"}`,
+				`{label4="value4"}`,
+			},
+			"logs_account_id": 345,
+			"logs_project_id": 456,
+			"logs_extra_filters": []string{
+				`{"namespace":"my-app","env":"prod"}`,
+			},
+			"logs_extra_stream_filters": []string{
+				`{"team":"dev"}`,
+			},
+		},
+	}, true)
+
+	// use claim for routing, must specific match wins
+	request = httptest.NewRequest(`GET`, "http://some-host.com/route", nil)
+	request.Header.Set(`Authorization`, `Bearer `+nestedToken)
+	responseExpected = `
+statusCode=200
+path: /dev/route
+query:
+headers:
+`
+	f(`
+users:
+- jwt:
+    skip_verify: true
+    match_claims:
+     team: dev
+     nested.scopes.1: "logs"
+     nested.department_id: "0"
+  url_map:
+    - src_paths: ["/route"]
+      url_prefix: {BACKEND}/dev
+- jwt:
+    skip_verify: true
+    match_claims:
+     team: dev
+     nested.scopes.1: "logs"
+  url_map:
+    - src_paths: ["/route"]
+      url_prefix: {BACKEND}/ops
+`,
+		request,
+		responseExpected,
+	)
+
+	// use claim for routing, most specific not matching
+	request = httptest.NewRequest(`GET`, "http://some-host.com/route", nil)
+	request.Header.Set(`Authorization`, `Bearer `+nestedToken)
+	responseExpected = `
+statusCode=200
+path: /less_claims/route
+query:
+headers:
+`
+	f(`
+users:
+- jwt:
+    skip_verify: true
+    match_claims:
+     team: ops
+     nested.scopes.1: "logs"
+     nested.department_id: "0"
+  url_map:
+    - src_paths: ["/route"]
+      url_prefix: {BACKEND}/more_claims
+- jwt:
+    skip_verify: true
+    match_claims:
+     team: dev
+     nested.team_permissions.write: "1"
+  url_map:
+    - src_paths: ["/route"]
+      url_prefix: {BACKEND}/less_claims
+`,
+		request,
+		responseExpected,
+	)
+
+	// use claim for routing, empty claim match
+	request = httptest.NewRequest(`GET`, "http://some-host.com/route", nil)
+	request.Header.Set(`Authorization`, `Bearer `+nestedToken)
+	responseExpected = `
+statusCode=200
+path: /empty/route
+query:
+headers:
+`
+	f(`
+users:
+- jwt:
+    skip_verify: true
+  url_map:
+    - src_paths: ["/route"]
+      url_prefix: {BACKEND}/empty
+- jwt:
+    skip_verify: true
+    match_claims:
+     team: ops
+     nested.team_permissions.write: "1"
+  url_map:
+    - src_paths: ["/route"]
+      url_prefix: {BACKEND}/ops
+`,
+		request,
+		responseExpected,
+	)
 
 }
 
+func TestOIDCRequestHandler(t *testing.T) {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("cannot generate RSA key: %s", err)
+	}
+
+	var oidcSrv *httptest.Server
+	oidcRespOK := atomic.Bool{}
+	oidcRespOK.Store(true)
+
+	oidcSrv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/.well-known/openid-configuration":
+			w.Header().Set("Content-Type", "application/json")
+			if err := json.NewEncoder(w).Encode(map[string]string{
+				"issuer":   oidcSrv.URL,
+				"jwks_uri": oidcSrv.URL + "/jwks",
+			}); err != nil {
+				panic(fmt.Errorf("cannot write openid-configuration response: %w", err))
+			}
+		case "/jwks":
+			if !oidcRespOK.Load() {
+				http.Error(w, "internal server error", http.StatusInternalServerError)
+				return
+			}
+
+			// Encode the RSA public key in JWK format (base64url, no padding)
+			nBytes := privateKey.N.Bytes()
+			eBytes := big.NewInt(int64(privateKey.E)).Bytes()
+			jwksBody := fmt.Sprintf(`{"keys":[{"kty":"RSA","kid":%q,"n":%q,"e":%q}]}`,
+				`test-key-id`,
+				base64.RawURLEncoding.EncodeToString(nBytes),
+				base64.RawURLEncoding.EncodeToString(eBytes),
+			)
+
+			w.Header().Set("Content-Type", "application/json")
+			if _, err := w.Write([]byte(jwksBody)); err != nil {
+				panic(fmt.Errorf("cannot write jwks response: %w", err))
+			}
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer oidcSrv.Close()
+
+	headerJSON, err := json.Marshal(map[string]any{
+		"alg": "RS256",
+		"typ": "JWT",
+		"iss": oidcSrv.URL,
+		"kid": `test-key-id`,
+	})
+	if err != nil {
+		t.Fatalf("cannot marshal JWT header: %s", err)
+	}
+	headerB64 := base64.RawURLEncoding.EncodeToString(headerJSON)
+
+	bodyJSON, err := json.Marshal(map[string]any{
+		"exp":       time.Now().Add(time.Minute).Unix(),
+		"iss":       oidcSrv.URL,
+		"vm_access": map[string]any{},
+	})
+	if err != nil {
+		t.Fatalf("cannot marshal JWT body: %s", err)
+	}
+	bodyB64 := base64.RawURLEncoding.EncodeToString(bodyJSON)
+
+	payload := headerB64 + "." + bodyB64
+
+	var signatureB64 string
+	hash := crypto.SHA256
+	h := hash.New()
+	h.Write([]byte(payload))
+	digest := h.Sum(nil)
+
+	signature, err := rsa.SignPKCS1v15(rand.Reader, privateKey, hash, digest)
+	if err != nil {
+		t.Fatalf("cannot sign JWT token: %s", err)
+	}
+	signatureB64 = base64.RawURLEncoding.EncodeToString(signature)
+
+	tkn := payload + "." + signatureB64
+
+	backSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer backSrv.Close()
+
+	f := func(responseExpected string) {
+		t.Helper()
+
+		cfgStr := `
+users:
+- jwt:
+    oidc:
+      issuer: ` + oidcSrv.URL + `
+  url_prefix: ` + backSrv.URL + `/
+`
+
+		cfgOrigP := authConfigData.Load()
+		if _, err := reloadAuthConfigData([]byte(cfgStr)); err != nil {
+			t.Fatalf("cannot load config data: %s", err)
+		}
+		defer func() {
+			cfgOrig := []byte("unauthorized_user:\n  url_prefix: http://foo/bar")
+			if cfgOrigP != nil {
+				cfgOrig = *cfgOrigP
+			}
+			if _, err := reloadAuthConfigData(cfgOrig); err != nil {
+				t.Fatalf("cannot restore original config: %s", err)
+			}
+		}()
+
+		r := httptest.NewRequest("GET", "http://some-host.com/api/v1/query", nil)
+		r.Header.Set("Authorization", "Bearer "+tkn)
+
+		w := &fakeResponseWriter{}
+		if !requestHandlerWithInternalRoutes(w, r) {
+			t.Fatalf("unexpected false returned from requestHandler")
+		}
+
+		if response := w.getResponse(); response != responseExpected {
+			t.Fatalf("unexpected response\ngot\n%s\nwant\n%s", response, responseExpected)
+		}
+	}
+
+	// successful
+	f(`statusCode=200
+`)
+
+	oidcRespOK.Store(false)
+	// OIDC server error
+	f(`statusCode=401
+Unauthorized
+`)
+}
+
 type fakeResponseWriter struct {
-	h http.Header
+	statusCode int
+	h          http.Header
 
 	bb bytes.Buffer
 }
@@ -1265,6 +1627,7 @@ func (w *fakeResponseWriter) Write(p []byte) (int, error) {
 }
 
 func (w *fakeResponseWriter) WriteHeader(statusCode int) {
+	w.statusCode = statusCode
 	fmt.Fprintf(&w.bb, "statusCode=%d\n", statusCode)
 	if w.h == nil {
 		return
@@ -1276,13 +1639,19 @@ func (w *fakeResponseWriter) WriteHeader(statusCode int) {
 		"X-Content-Type-Options": true,
 	})
 	if err != nil {
-		panic(fmt.Errorf("cannot marshal headers: %s", err))
+		panic(fmt.Errorf("cannot marshal headers: %w", err))
 	}
 }
 
 // This is needed for net/http.ResponseController
 func (w *fakeResponseWriter) SetReadDeadline(deadline time.Time) error {
 	return nil
+}
+
+func (w *fakeResponseWriter) reset() {
+	w.bb.Reset()
+	w.statusCode = 0
+	clear(w.h)
 }
 
 func TestBufferRequestBody_Success(t *testing.T) {
@@ -1530,7 +1899,7 @@ func (r *mockBody) Read(p []byte) (n int, err error) {
 }
 
 func TestBufferedBody_RetrySuccess(t *testing.T) {
-	f := func(s string, maxBodySize int) {
+	f := func(s string, maxSizeToRetry, bufferSize int) {
 		t.Helper()
 
 		defaultRequestBufferSize := requestBufferSize.String()
@@ -1539,7 +1908,7 @@ func TestBufferedBody_RetrySuccess(t *testing.T) {
 				t.Fatalf("cannot reset requestBufferSize: %s", err)
 			}
 		}()
-		if err := requestBufferSize.Set(fmt.Sprintf("%d", maxBodySize)); err != nil {
+		if err := requestBufferSize.Set(strconv.Itoa(bufferSize)); err != nil {
 			t.Fatalf("cannot set requestBufferSize: %s", err)
 		}
 
@@ -1549,7 +1918,7 @@ func TestBufferedBody_RetrySuccess(t *testing.T) {
 				t.Fatalf("cannot reset maxRequestBodySizeToRetry: %s", err)
 			}
 		}()
-		if err := maxRequestBodySizeToRetry.Set("0"); err != nil {
+		if err := maxRequestBodySizeToRetry.Set(strconv.Itoa(maxSizeToRetry)); err != nil {
 			t.Fatalf("cannot set maxRequestBodySizeToRetry: %s", err)
 		}
 
@@ -1578,16 +1947,20 @@ func TestBufferedBody_RetrySuccess(t *testing.T) {
 		}
 	}
 
-	f("", 0)
-	f("", -1)
-	f("", 100)
-	f("foo", 100)
-	f("foobar", 100)
-	f(newTestString(1000), 1001)
+	f("", 0, 2000)
+	f("", 0, 0)
+	f("", -1, 2000)
+	f("", 100, 2000)
+	f("foo", 100, 2000)
+	f("foobar", 100, 2000)
+	f("foobar", 100, 0)
+	f("foobar", 100, -1)
+	f(newTestString(1000), 1001, 2000)
+	f(newTestString(1000), 1001, 500)
 }
 
 func TestBufferedBody_RetrySuccessPartialRead(t *testing.T) {
-	f := func(s string, maxBodySize int) {
+	f := func(s string, maxSizeToRetry, bufferSize int) {
 		t.Helper()
 
 		// Check the case with partial read
@@ -1597,7 +1970,7 @@ func TestBufferedBody_RetrySuccessPartialRead(t *testing.T) {
 				t.Fatalf("cannot reset requestBufferSize: %s", err)
 			}
 		}()
-		if err := requestBufferSize.Set(fmt.Sprintf("%d", maxBodySize)); err != nil {
+		if err := requestBufferSize.Set(strconv.Itoa(bufferSize)); err != nil {
 			t.Fatalf("cannot set requestBufferSize: %s", err)
 		}
 
@@ -1607,7 +1980,7 @@ func TestBufferedBody_RetrySuccessPartialRead(t *testing.T) {
 				t.Fatalf("cannot reset maxRequestBodySizeToRetry: %s", err)
 			}
 		}()
-		if err := maxRequestBodySizeToRetry.Set("0"); err != nil {
+		if err := maxRequestBodySizeToRetry.Set(strconv.Itoa(maxSizeToRetry)); err != nil {
 			t.Fatalf("cannot set maxRequestBodySizeToRetry: %s", err)
 		}
 
@@ -1651,16 +2024,20 @@ func TestBufferedBody_RetrySuccessPartialRead(t *testing.T) {
 		}
 	}
 
-	f("", 0)
-	f("", -1)
-	f("", 100)
-	f("foo", 100)
-	f("foobar", 100)
-	f(newTestString(1000), 1001)
+	f("", 0, 2000)
+	f("", 0, 0)
+	f("", -1, 2000)
+	f("", 100, 2000)
+	f("foo", 100, 2000)
+	f("foobar", 100, 2000)
+	f("foobar", 100, 0)
+	f("foobar", 100, -1)
+	f(newTestString(1000), 1001, 2000)
+	f(newTestString(1000), 1001, 500)
 }
 
 func TestBufferedBody_RetryFailureTooBigBody(t *testing.T) {
-	f := func(s string, maxBodySize int) {
+	f := func(s string, maxSizeToRetry, bufferSize int) {
 		t.Helper()
 
 		defaultRequestBufferSize := requestBufferSize.String()
@@ -1669,7 +2046,7 @@ func TestBufferedBody_RetryFailureTooBigBody(t *testing.T) {
 				t.Fatalf("cannot reset requestBufferSize: %s", err)
 			}
 		}()
-		if err := requestBufferSize.Set("0"); err != nil {
+		if err := requestBufferSize.Set(strconv.Itoa(bufferSize)); err != nil {
 			t.Fatalf("cannot set requestBufferSize: %s", err)
 		}
 
@@ -1679,7 +2056,7 @@ func TestBufferedBody_RetryFailureTooBigBody(t *testing.T) {
 				t.Fatalf("cannot reset maxRequestBodySizeToRetry: %s", err)
 			}
 		}()
-		if err := maxRequestBodySizeToRetry.Set(fmt.Sprintf("%d", maxBodySize)); err != nil {
+		if err := maxRequestBodySizeToRetry.Set(strconv.Itoa(maxSizeToRetry)); err != nil {
 			t.Fatalf("cannot set maxRequestBodySizeToRetry: %s", err)
 		}
 
@@ -1724,12 +2101,17 @@ func TestBufferedBody_RetryFailureTooBigBody(t *testing.T) {
 	}
 
 	const maxBodySize = 1000
-	f(newTestString(maxBodySize+1), maxBodySize)
-	f(newTestString(2*maxBodySize), maxBodySize)
+	f(newTestString(maxBodySize+1), 0, 2*maxBodySize)
+	f(newTestString(maxBodySize+1), -1, 2*maxBodySize)
+	f(newTestString(maxBodySize+1), maxBodySize, 0)
+	f(newTestString(maxBodySize+1), maxBodySize, -1)
+	f(newTestString(maxBodySize+1), maxBodySize, maxBodySize)
+	f(newTestString(maxBodySize+1), maxBodySize, 2*maxBodySize)
+	f(newTestString(2*maxBodySize), maxBodySize, 0)
 }
 
-func TestBufferedBody_RetryFailureZeroOrNegativeMaxBodySize(t *testing.T) {
-	f := func(s string, maxBodySize int) {
+func TestBufferedBody_RetryDisabledByMaxRequestBodySizeToRetry(t *testing.T) {
+	f := func(s string, maxSizeToRetry, bufferSize int) {
 		t.Helper()
 
 		defaultRequestBufferSize := requestBufferSize.String()
@@ -1738,8 +2120,18 @@ func TestBufferedBody_RetryFailureZeroOrNegativeMaxBodySize(t *testing.T) {
 				t.Fatalf("cannot reset requestBufferSize: %s", err)
 			}
 		}()
-		if err := requestBufferSize.Set(fmt.Sprintf("%d", maxBodySize)); err != nil {
+		if err := requestBufferSize.Set(strconv.Itoa(bufferSize)); err != nil {
 			t.Fatalf("cannot set requestBufferSize: %s", err)
+		}
+
+		defaultMaxRequestBodySizeToRetry := maxRequestBodySizeToRetry.String()
+		defer func() {
+			if err := maxRequestBodySizeToRetry.Set(defaultMaxRequestBodySizeToRetry); err != nil {
+				t.Fatalf("cannot reset maxRequestBodySizeToRetry: %s", err)
+			}
+		}()
+		if err := maxRequestBodySizeToRetry.Set(strconv.Itoa(maxSizeToRetry)); err != nil {
+			t.Fatalf("cannot set maxRequestBodySizeToRetry: %s", err)
 		}
 
 		ctx := context.Background()
@@ -1750,8 +2142,8 @@ func TestBufferedBody_RetryFailureZeroOrNegativeMaxBodySize(t *testing.T) {
 		bb, ok := rb.(*bufferedBody)
 		canRetry := !ok || bb.canRetry()
 
-		if !canRetry {
-			t.Fatalf("canRetry() must return true before reading anything")
+		if canRetry {
+			t.Fatalf("canRetry() must return false before reading anything")
 		}
 		data, err := io.ReadAll(rb)
 		if err != nil {
@@ -1765,19 +2157,19 @@ func TestBufferedBody_RetryFailureZeroOrNegativeMaxBodySize(t *testing.T) {
 		}
 
 		data, err = io.ReadAll(rb)
-		if err != nil {
-			t.Fatalf("unexpected error in io.ReadAll: %s", err)
+		if err == nil {
+			t.Fatalf("expecting non-nil error")
 		}
-		if string(data) != s {
-			t.Fatalf("unexpected data read\ngot\n%s\nwant\n%s", data, s)
+		if len(data) != 0 {
+			t.Fatalf("unexpected non-empty data read: %q", data)
 		}
 	}
 
-	f("foobar", 0)
-	f(newTestString(1000), 0)
+	f("foobar", 0, 2048)
+	f(newTestString(1000), 0, 2048)
 
-	f("foobar", -1)
-	f(newTestString(1000), -1)
+	f("foobar", -1, 2048)
+	f(newTestString(1000), -1, 2048)
 }
 
 func newTestString(sLen int) string {

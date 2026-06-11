@@ -132,7 +132,7 @@ specified individually per each `-remoteWrite.url`:
   # by: [job, vmrange]
 
   # outputs is the list of unique aggregations to perform on the input data.
-  # See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#aggregation-outputs
+  # See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-outputs
   #
   outputs: [total]
 

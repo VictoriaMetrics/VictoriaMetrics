@@ -8,8 +8,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
 )
 
 // filterPhrase filters field entries by phrase match (aka full text search).
@@ -17,26 +15,28 @@ import (
 // A phrase consists of any number of words with delimiters between them.
 //
 // An empty phrase matches only an empty string.
-// A single-word phrase is the simplest LogsQL query: `fieldName:word`
+// A single-word phrase is the simplest LogsQL query: `word`
 //
-// Multi-word phrase is expressed as `fieldName:"word1 ... wordN"` in LogsQL.
+// Multi-word phrase is expressed as `"word1 ... wordN"` in LogsQL.
 //
-// A special case `fieldName:""` matches any value without `fieldName` field.
+// A special case `""` matches any log entry without the given `fieldName` field.
 type filterPhrase struct {
-	fieldName string
-	phrase    string
+	phrase string
 
 	tokensOnce   sync.Once
 	tokens       []string
 	tokensHashes []uint64
 }
 
-func (fp *filterPhrase) String() string {
-	return quoteFieldNameIfNeeded(fp.fieldName) + quoteTokenIfNeeded(fp.phrase)
+func newFilterPhrase(fieldName, phrase string) *filterGeneric {
+	fp := &filterPhrase{
+		phrase: phrase,
+	}
+	return newFilterGeneric(fieldName, fp)
 }
 
-func (fp *filterPhrase) updateNeededFields(pf *prefixfilter.Filter) {
-	pf.AddAllowFilter(fp.fieldName)
+func (fp *filterPhrase) String() string {
+	return quoteTokenIfNeeded(fp.phrase)
 }
 
 func (fp *filterPhrase) getTokens() []string {
@@ -54,17 +54,16 @@ func (fp *filterPhrase) initTokens() {
 	fp.tokensHashes = appendTokensHashes(nil, fp.tokens)
 }
 
-func (fp *filterPhrase) matchRow(fields []Field) bool {
-	v := getFieldValueByName(fields, fp.fieldName)
+func (fp *filterPhrase) matchRowByField(fields []Field, fieldName string) bool {
+	v := getFieldValueByName(fields, fieldName)
 	return matchPhrase(v, fp.phrase)
 }
 
-func (fp *filterPhrase) applyToBlockResult(br *blockResult, bm *bitmap) {
-	applyToBlockResultGeneric(br, bm, fp.fieldName, fp.phrase, matchPhrase)
+func (fp *filterPhrase) applyToBlockResultByField(br *blockResult, bm *bitmap, fieldName string) {
+	applyToBlockResultGeneric(br, bm, fieldName, fp.phrase, matchPhrase)
 }
 
-func (fp *filterPhrase) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
-	fieldName := fp.fieldName
+func (fp *filterPhrase) applyToBlockSearchByField(bs *blockSearch, bm *bitmap, fieldName string) {
 	phrase := fp.phrase
 
 	// Verify whether fp matches const column
@@ -310,17 +309,6 @@ func matchBloomFilterAllTokens(bs *blockSearch, ch *columnHeader, tokens []uint6
 	}
 	bf := bs.getBloomFilterForColumn(ch)
 	return bf.containsAll(tokens)
-}
-
-func quoteFieldNameIfNeeded(s string) string {
-	if isMsgFieldName(s) {
-		return ""
-	}
-	return quoteTokenIfNeeded(s) + ":"
-}
-
-func isMsgFieldName(fieldName string) bool {
-	return fieldName == "" || fieldName == "_msg"
 }
 
 func toFloat64String(bs *blockSearch, bb *bytesutil.ByteBuffer, v string) string {

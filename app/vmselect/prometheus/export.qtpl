@@ -11,6 +11,16 @@
 
 {% stripspace %}
 
+{% func ExportCSVHeader(fieldNames []string) %}
+	{% if len(fieldNames) == 0 %}{% return %}{% endif %}
+	{%s= fieldNames[0] %}
+	{% for _, fieldName := range fieldNames[1:] %}
+		,
+		{%s= fieldName %}
+	{% endfor %}
+	{% newline %}
+{% endfunc %}
+
 {% func ExportCSVLine(xb *exportBlock, fieldNames []string) %}
 	{% if len(xb.timestamps) == 0 || len(fieldNames) == 0 %}{% return %}{% endif %}
 	{% for i, timestamp := range xb.timestamps %}

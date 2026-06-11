@@ -113,15 +113,15 @@ func (g *Group) Validate(validateTplFn ValidateTplFn, validateExpressions bool) 
 			// because correct types must be inherited after unmarshalling.
 			exprValidator := g.Type.ValidateExpr
 			if err := exprValidator(r.Expr); err != nil {
-				return fmt.Errorf("invalid expression for rule  %q: %w", ruleName, err)
+				return fmt.Errorf("invalid expression for rule %q: %w", ruleName, err)
 			}
 		}
 		if validateTplFn != nil {
 			if err := validateTplFn(r.Annotations); err != nil {
-				return fmt.Errorf("invalid annotations for rule  %q: %w", ruleName, err)
+				return fmt.Errorf("invalid annotations for rule %q: %w", ruleName, err)
 			}
 			if err := validateTplFn(r.Labels); err != nil {
-				return fmt.Errorf("invalid labels for rule  %q: %w", ruleName, err)
+				return fmt.Errorf("invalid labels for rule %q: %w", ruleName, err)
 			}
 		}
 	}
@@ -173,9 +173,9 @@ func (r *Rule) String() string {
 	if r.Alert != "" {
 		ruleType = "alerting"
 	}
-	b := strings.Builder{}
-	b.WriteString(fmt.Sprintf("%s rule %q", ruleType, r.Name()))
-	b.WriteString(fmt.Sprintf("; expr: %q", r.Expr))
+	var b strings.Builder
+	fmt.Fprintf(&b, "%s rule %q", ruleType, r.Name())
+	fmt.Fprintf(&b, "; expr: %q", r.Expr)
 
 	kv := sortMap(r.Labels)
 	for i := range kv {
@@ -221,6 +221,9 @@ func (r *Rule) Validate() error {
 	}
 	if r.Expr == "" {
 		return fmt.Errorf("expression can't be empty")
+	}
+	if _, ok := r.Labels["__name__"]; ok {
+		return fmt.Errorf("invalid rule label __name__")
 	}
 	return checkOverflow(r.XXX, "rule")
 }

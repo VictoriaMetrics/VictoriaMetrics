@@ -24,8 +24,8 @@ type SDConfig struct {
 	STSEndpoint string           `yaml:"sts_endpoint,omitempty"`
 	AccessKey   string           `yaml:"access_key,omitempty"`
 	SecretKey   *promauth.Secret `yaml:"secret_key,omitempty"`
-	// TODO add support for Profile, not working atm
-	// Profile string `yaml:"profile,omitempty"`
+	// Profile is the named AWS profile from ~/.aws/config and ~/.aws/credentials.
+	Profile string `yaml:"profile,omitempty"`
 	RoleARN string `yaml:"role_arn,omitempty"`
 	// RefreshInterval time.Duration `yaml:"refresh_interval"`
 	// refresh_interval is obtained from `-promscrape.ec2SDCheckInterval` command-line option.

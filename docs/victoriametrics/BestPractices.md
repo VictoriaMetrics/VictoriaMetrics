@@ -100,6 +100,10 @@ The following steps must be performed during the upgrade / downgrade procedure:
 * Wait until the process stops. This can take a few seconds.
 * Start the upgraded VictoriaMetrics.
 
+> If you'd prefer not to manage upgrades yourself, [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_bestpractices_upgrade)
+> performs version upgrades automatically during scheduled maintenance windows with no action required on your part.
+> See the [VictoriaMetrics Cloud documentation](https://docs.victoriametrics.com/victoriametrics-cloud/) to get started.
+
 ## Backup Recommendations
 
 VictoriaMetrics supports backups via [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/) and [vmrestore](https://docs.victoriametrics.com/victoriametrics/vmrestore/) tools. There is also [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/), which simplifies backup automation.

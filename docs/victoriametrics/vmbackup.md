@@ -26,6 +26,10 @@ This tool simplifies the creation of hourly, daily, weekly and monthly backups.
 Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 See how to request a [free trial license](https://victoriametrics.com/products/enterprise/trial/).
 
+> If you'd prefer not to manage backups at all, [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_vmbackup_intro)
+> handles backups and restores automatically without the need of extra configurations.
+> See the [VictoriaMetrics Cloud documentation](https://docs.victoriametrics.com/victoriametrics-cloud/) to get started.
+
 ### Single node backup
 To make a complete backup for VictoriaMetrics single node run the following command:
 ```sh
@@ -71,7 +75,7 @@ Full backups can be accelerated with `-origin` pointing to an already existing b
 data between the existing backup and new backup. It saves time and costs on data transfer.
 
 All commands below are provided for a single node version.
-For a cluster version `vmbackup` should be executed on each vmstorage node and `-snapshot.createUrl` should point to vmstorage:
+For a cluster version `vmbackup` should be executed on each vmstorage node and `-snapshot.createURL` should point to vmstorage:
 ```sh
 ./vmbackup -storageDataPath=</path/to/vmstorage-data> -snapshot.createURL=http://vmstorage1:8482/snapshot/create -dst=gs://<bucket>/vmstorage-1
 ```

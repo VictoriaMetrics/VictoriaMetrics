@@ -18,6 +18,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/backoff"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/mimir"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/native"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/remoteread"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -27,6 +28,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/opentsdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/prometheus"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/thanos"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
@@ -86,7 +88,7 @@ func main() {
 
 					tr, err := promauth.NewTLSTransport(certFile, keyFile, caFile, serverName, insecureSkipVerify, "vmctl_opentsdb")
 					if err != nil {
-						return fmt.Errorf("failed to create transport for -%s=%q: %s", otsdbAddr, addr, err)
+						return fmt.Errorf("failed to create transport for -%s=%q: %w", otsdbAddr, addr, err)
 					}
 					oCfg := opentsdb.Config{
 						Addr:       addr,
@@ -101,17 +103,17 @@ func main() {
 					}
 					otsdbClient, err := opentsdb.NewClient(oCfg)
 					if err != nil {
-						return fmt.Errorf("failed to create opentsdb client: %s", err)
+						return fmt.Errorf("failed to create opentsdb client: %w", err)
 					}
 
 					vmCfg, err := initConfigVM(c)
 					if err != nil {
-						return fmt.Errorf("failed to init VM configuration: %s", err)
+						return fmt.Errorf("failed to init VM configuration: %w", err)
 					}
 
 					importer, err := vm.NewImporter(ctx, vmCfg)
 					if err != nil {
-						return fmt.Errorf("failed to create VM importer: %s", err)
+						return fmt.Errorf("failed to create VM importer: %w", err)
 					}
 
 					otsdbProcessor := newOtsdbProcessor(otsdbClient, importer, c.Int(otsdbConcurrency), c.Bool(globalVerbose))
@@ -135,7 +137,7 @@ func main() {
 
 					tc, err := promauth.NewTLSConfig(certFile, keyFile, caFile, serverName, insecureSkipVerify)
 					if err != nil {
-						return fmt.Errorf("failed to create TLS Config: %s", err)
+						return fmt.Errorf("failed to create TLS Config: %w", err)
 					}
 
 					iCfg := influx.Config{
@@ -155,17 +157,17 @@ func main() {
 
 					influxClient, err := influx.NewClient(iCfg)
 					if err != nil {
-						return fmt.Errorf("failed to create influx client: %s", err)
+						return fmt.Errorf("failed to create influx client: %w", err)
 					}
 
 					vmCfg, err := initConfigVM(c)
 					if err != nil {
-						return fmt.Errorf("failed to init VM configuration: %s", err)
+						return fmt.Errorf("failed to init VM configuration: %w", err)
 					}
 
 					importer, err = vm.NewImporter(ctx, vmCfg)
 					if err != nil {
-						return fmt.Errorf("failed to create VM importer: %s", err)
+						return fmt.Errorf("failed to create VM importer: %w", err)
 					}
 
 					processor := newInfluxProcessor(
@@ -201,7 +203,7 @@ func main() {
 
 					tr, err := promauth.NewTLSTransport(certFile, keyFile, caFile, serverName, insecureSkipVerify, "vmctl_remoteread")
 					if err != nil {
-						return fmt.Errorf("failed to create transport for -%s=%q: %s", remoteReadSrcAddr, addr, err)
+						return fmt.Errorf("failed to create transport for -%s=%q: %w", remoteReadSrcAddr, addr, err)
 					}
 
 					// Backwards compatible default values if none provided by user
@@ -225,17 +227,17 @@ func main() {
 						DisablePathAppend: c.Bool(remoteReadDisablePathAppend),
 					})
 					if err != nil {
-						return fmt.Errorf("error create remote read client: %s", err)
+						return fmt.Errorf("error create remote read client: %w", err)
 					}
 
 					vmCfg, err := initConfigVM(c)
 					if err != nil {
-						return fmt.Errorf("failed to init VM configuration: %s", err)
+						return fmt.Errorf("failed to init VM configuration: %w", err)
 					}
 
 					importer, err := vm.NewImporter(ctx, vmCfg)
 					if err != nil {
-						return fmt.Errorf("failed to create VM importer: %s", err)
+						return fmt.Errorf("failed to create VM importer: %w", err)
 					}
 
 					rmp := remoteReadProcessor{
@@ -263,12 +265,12 @@ func main() {
 
 					vmCfg, err := initConfigVM(c)
 					if err != nil {
-						return fmt.Errorf("failed to init VM configuration: %s", err)
+						return fmt.Errorf("failed to init VM configuration: %w", err)
 					}
 
 					importer, err = vm.NewImporter(ctx, vmCfg)
 					if err != nil {
-						return fmt.Errorf("failed to create VM importer: %s", err)
+						return fmt.Errorf("failed to create VM importer: %w", err)
 					}
 
 					promCfg := prometheus.Config{
@@ -283,8 +285,9 @@ func main() {
 					}
 					cl, err := prometheus.NewClient(promCfg)
 					if err != nil {
-						return fmt.Errorf("failed to create prometheus client: %s", err)
+						return fmt.Errorf("failed to create prometheus client: %w", err)
 					}
+
 					pp := prometheusProcessor{
 						cl:        cl,
 						im:        importer,
@@ -292,6 +295,107 @@ func main() {
 						isVerbose: c.Bool(globalVerbose),
 					}
 					return pp.run(ctx)
+				},
+			},
+			{
+				Name:   "mimir",
+				Usage:  "Migrate time series from Mimir object storage or local filesystem",
+				Flags:  mergeFlags(globalFlags, mimirFlags, vmFlags),
+				Before: beforeFn,
+				Action: func(c *cli.Context) error {
+					fmt.Println("Mimir import mode")
+
+					vmCfg, err := initConfigVM(c)
+					if err != nil {
+						return fmt.Errorf("failed to init VM configuration: %w", err)
+					}
+
+					importer, err = vm.NewImporter(ctx, vmCfg)
+					if err != nil {
+						return fmt.Errorf("failed to create VM importer: %w", err)
+					}
+
+					mCfg := mimir.Config{
+						Filter: mimir.Filter{
+							TimeMin:    c.String(mimirFilterTimeStart),
+							TimeMax:    c.String(mimirFilterTimeEnd),
+							Label:      c.String(mimirFilterLabel),
+							LabelValue: c.String(mimirFilterLabelValue),
+						},
+						Path:                    c.String(mimirPath),
+						TenantID:                c.String(mimirTenantID),
+						CredsFilePath:           c.String(mimirCredsFilePath),
+						ConfigFilePath:          c.String(mimirConfigFilePath),
+						ConfigProfile:           c.String(mimirConfigProfile),
+						CustomS3Endpoint:        c.String(mimirCustomS3Endpoint),
+						S3ForcePathStyle:        c.Bool(mimirS3ForcePathStyle),
+						S3TLSInsecureSkipVerify: c.Bool(mimirS3TLSInsecureSkipVerify),
+						SSEKMSKeyID:             c.String(mimirSSEKMSKeyID),
+						SSEAlgorithm:            c.String(mimirSSEAlgorithm),
+					}
+					cl, err := mimir.NewClient(ctx, mCfg)
+					if err != nil {
+						return fmt.Errorf("failed to create mimir client: %w", err)
+					}
+
+					pp := prometheusProcessor{
+						cl:        cl,
+						im:        importer,
+						cc:        c.Int(mimirConcurrency),
+						isVerbose: c.Bool(globalVerbose),
+					}
+					return pp.run(ctx)
+				},
+			},
+			{
+				Name:   "thanos",
+				Usage:  "Migrate time series from Thanos blocks (supports raw and downsampled data)",
+				Flags:  mergeFlags(globalFlags, thanosFlags, vmFlags),
+				Before: beforeFn,
+				Action: func(c *cli.Context) error {
+					fmt.Println("Thanos import mode")
+					vmCfg, err := initConfigVM(c)
+					if err != nil {
+						return fmt.Errorf("failed to init VM configuration: %w", err)
+					}
+
+					importer, err = vm.NewImporter(ctx, vmCfg)
+					if err != nil {
+						return fmt.Errorf("failed to create VM importer: %w", err)
+					}
+					thanosCfg := thanos.Config{
+						Snapshot: c.String(thanosSnapshot),
+						Filter: thanos.Filter{
+							TimeMin:    c.String(thanosFilterTimeStart),
+							TimeMax:    c.String(thanosFilterTimeEnd),
+							Label:      c.String(thanosFilterLabel),
+							LabelValue: c.String(thanosFilterLabelValue),
+						},
+					}
+					cl, err := thanos.NewClient(thanosCfg)
+					if err != nil {
+						return fmt.Errorf("failed to create thanos client: %w", err)
+					}
+
+					var aggrTypes []thanos.AggrType
+					if aggrTypesStr := c.StringSlice(thanosAggrTypes); len(aggrTypesStr) > 0 {
+						for _, typeStr := range aggrTypesStr {
+							aggrType, err := thanos.ParseAggrType(typeStr)
+							if err != nil {
+								return fmt.Errorf("failed to parse aggregate type %q: %w", typeStr, err)
+							}
+							aggrTypes = append(aggrTypes, aggrType)
+						}
+					}
+
+					tp := thanosProcessor{
+						cl:        cl,
+						im:        importer,
+						cc:        c.Int(thanosConcurrency),
+						isVerbose: c.Bool(globalVerbose),
+						aggrTypes: aggrTypes,
+					}
+					return tp.run(ctx)
 				},
 			},
 			{
@@ -311,7 +415,7 @@ func main() {
 					bfMinDuration := c.Duration(vmNativeBackoffMinDuration)
 					bf, err := backoff.New(bfRetries, bfFactor, bfMinDuration)
 					if err != nil {
-						return fmt.Errorf("failed to create backoff object: %s", err)
+						return fmt.Errorf("failed to create backoff object: %w", err)
 					}
 
 					disableKeepAlive := c.Bool(vmNativeDisableHTTPKeepAlive)
@@ -335,7 +439,7 @@ func main() {
 
 					srcTC, err := promauth.NewTLSConfig(srcCertFile, srcKeyFile, srcCAFile, srcServerName, srcInsecureSkipVerify)
 					if err != nil {
-						return fmt.Errorf("failed to create TLS Config: %s", err)
+						return fmt.Errorf("failed to create TLS Config: %w", err)
 					}
 
 					trSrc := httputil.NewTransport(false, "vmctl_src")
@@ -365,7 +469,7 @@ func main() {
 
 					dstTC, err := promauth.NewTLSConfig(dstCertFile, dstKeyFile, dstCAFile, dstServerName, dstInsecureSkipVerify)
 					if err != nil {
-						return fmt.Errorf("failed to create TLS Config: %s", err)
+						return fmt.Errorf("failed to create TLS Config: %w", err)
 					}
 
 					trDst := httputil.NewTransport(false, "vmctl_dst")
@@ -430,7 +534,7 @@ func main() {
 					log.Printf("verifying block at path=%q", blockPath)
 					f, err := os.OpenFile(blockPath, os.O_RDONLY, 0600)
 					if err != nil {
-						return cli.Exit(fmt.Errorf("cannot open exported block at path=%q err=%w", blockPath, err), 1)
+						return cli.Exit(fmt.Errorf("cannot open exported block at path=%q: %w", blockPath, err), 1)
 					}
 					defer f.Close()
 					var blocksCount atomic.Uint64
@@ -438,7 +542,7 @@ func main() {
 						blocksCount.Add(1)
 						return nil
 					}); err != nil {
-						return cli.Exit(fmt.Errorf("cannot parse block at path=%q, blocksCount=%d, err=%w", blockPath, blocksCount.Load(), err), 1)
+						return cli.Exit(fmt.Errorf("cannot parse block at path=%q, blocksCount=%d: %w", blockPath, blocksCount.Load(), err), 1)
 					}
 					log.Printf("successfully verified block at path=%q, blockCount=%d", blockPath, blocksCount.Load())
 					return nil
@@ -481,7 +585,7 @@ func initConfigVM(c *cli.Context) (vm.Config, error) {
 
 	tr, err := promauth.NewTLSTransport(certFile, keyFile, caFile, serverName, insecureSkipVerify, "vmctl_client")
 	if err != nil {
-		return vm.Config{}, fmt.Errorf("failed to create transport for -%s=%q: %s", vmAddr, addr, err)
+		return vm.Config{}, fmt.Errorf("failed to create transport for -%s=%q: %w", vmAddr, addr, err)
 	}
 
 	bfRetries := c.Int(vmBackoffRetries)
@@ -489,7 +593,7 @@ func initConfigVM(c *cli.Context) (vm.Config, error) {
 	bfMinDuration := c.Duration(vmBackoffMinDuration)
 	bf, err := backoff.New(bfRetries, bfFactor, bfMinDuration)
 	if err != nil {
-		return vm.Config{}, fmt.Errorf("failed to create backoff object: %s", err)
+		return vm.Config{}, fmt.Errorf("failed to create backoff object: %w", err)
 	}
 
 	return vm.Config{

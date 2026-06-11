@@ -22,7 +22,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
 var (
@@ -30,22 +29,25 @@ var (
 	useProxyProtocol = flagutil.NewArrayBool("httpListenAddr.useProxyProtocol", "Whether to use proxy protocol for connections accepted at the corresponding -httpListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
-	minScrapeInterval = flag.Duration("dedup.minScrapeInterval", 0, "Leave only the last sample in every time series per each discrete interval "+
-		"equal to -dedup.minScrapeInterval > 0. See also -streamAggr.dedupInterval and https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication")
 	dryRun = flag.Bool("dryRun", false, "Whether to check config files without running VictoriaMetrics. The following config files are checked: "+
 		"-promscrape.config, -relabelConfig and -streamAggr.config. Unknown config entries aren't allowed in -promscrape.config by default. "+
 		"This can be changed with -promscrape.config.strictParse=false command-line flag")
-	inmemoryDataFlushInterval = flag.Duration("inmemoryDataFlushInterval", 5*time.Second, "The interval for guaranteed saving of in-memory data to disk. "+
-		"The saved data survives unclean shutdowns such as OOM crash, hardware reset, SIGKILL, etc. "+
-		"Bigger intervals may help increase the lifetime of flash storage with limited write cycles (e.g. Raspberry PI). "+
-		"Smaller intervals increase disk IO load. Minimum supported value is 1s")
 	maxIngestionRate = flag.Int("maxIngestionRate", 0, "The maximum number of samples vmsingle can receive per second. Data ingestion is paused when the limit is exceeded. "+
 		"By default there are no limits on samples ingestion rate.")
-	finalDedupScheduleInterval = flag.Duration("storage.finalDedupScheduleCheckInterval", time.Hour, "The interval for checking when final deduplication process should be started."+
-		"Storage unconditionally adds 25% jitter to the interval value on each check evaluation."+
-		" Changing the interval to the bigger values may delay downsampling, deduplication for historical data."+
-		" See also https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication")
+	vmselectMaxConcurrentRequests = flag.Int("search.maxConcurrentRequests", getDefaultMaxConcurrentRequests(), "The maximum number of concurrent search requests. "+
+		"It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. "+
+		"See also -search.maxQueueDuration and -search.maxMemoryPerQuery")
+	vmselectMaxQueueDuration = flag.Duration("search.maxQueueDuration", 10*time.Second, "The maximum time the request waits for execution when -search.maxConcurrentRequests "+
+		"limit is reached; see also -search.maxQueryDuration")
 )
+
+func getDefaultMaxConcurrentRequests() int {
+	// A single request can saturate all the CPU cores, so there is no sense
+	// in allowing higher number of concurrent requests - they will just contend
+	// for unavailable CPU time.
+	n := min(cgroup.AvailableCPUs()*2, 16)
+	return n
+}
 
 func main() {
 	// VictoriaMetrics is optimized for reduced memory allocations,
@@ -87,14 +89,8 @@ func main() {
 	}
 	logger.Infof("starting VictoriaMetrics at %q...", listenAddrs)
 	startTime := time.Now()
-	storage.SetDedupInterval(*minScrapeInterval)
-	storage.SetDataFlushInterval(*inmemoryDataFlushInterval)
-	if *finalDedupScheduleInterval < time.Hour {
-		logger.Fatalf("-dedup.finalDedupScheduleCheckInterval cannot be smaller than 1 hour; got %s", *finalDedupScheduleInterval)
-	}
-	storage.SetFinalDedupScheduleInterval(*finalDedupScheduleInterval)
-	vmstorage.Init(promql.ResetRollupResultCacheIfNeeded)
-	vmselect.Init()
+	vmstorage.Init(*vmselectMaxConcurrentRequests, promql.ResetRollupResultCacheIfNeeded)
+	vmselect.Init(*vmselectMaxConcurrentRequests, *vmselectMaxQueueDuration)
 	vminsertcommon.StartIngestionRateLimiter(*maxIngestionRate)
 	vminsert.Init()
 
@@ -118,8 +114,8 @@ func main() {
 		logger.Fatalf("cannot stop the webservice: %s", err)
 	}
 	logger.Infof("successfully shut down the webservice in %.3f seconds", time.Since(startTime).Seconds())
-	vminsert.Stop()
 	vminsertcommon.StopIngestionRateLimiter()
+	vminsert.Stop()
 
 	vmstorage.Stop()
 	vmselect.Stop()

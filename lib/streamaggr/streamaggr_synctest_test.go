@@ -1,5 +1,3 @@
-//go:build synctest
-
 package streamaggr
 
 import (
@@ -17,11 +15,10 @@ func TestAggregatorsSuccess(t *testing.T) {
 	f := func(inputMetrics []string, interval time.Duration, outputMetricsExpected, config, matchIdxsStrExpected string) {
 		t.Helper()
 
+		var matchIdxs []uint32
+		var tssOutput []prompb.TimeSeries
 		synctest.Test(t, func(t *testing.T) {
-			var matchIdxs []uint32
-			var tssOutput []prompb.TimeSeries
 			var tssOutputLock sync.Mutex
-
 			// Initialize Aggregators
 			pushFunc := func(tss []prompb.TimeSeries) {
 				tssOutputLock.Lock()
@@ -32,31 +29,31 @@ func TestAggregatorsSuccess(t *testing.T) {
 			if err != nil {
 				t.Fatalf("cannot initialize aggregators: %s", err)
 			}
+			offsetMsecs := time.Now().UnixMilli()
 			for _, metrics := range inputMetrics {
 				// Push the inputMetrics to Aggregators
-				offsetMsecs := time.Now().UnixMilli()
 				tssInput := prometheus.MustParsePromMetrics(metrics, offsetMsecs)
 				matchIdxs = append(matchIdxs, a.Push(tssInput, nil)...)
-				time.Sleep(interval)
+				time.Sleep(interval + time.Millisecond) // shift by 1ms from flush border to avoid flaky tests
+				offsetMsecs += interval.Milliseconds()
 			}
-
 			a.MustStop()
-
-			// Verify matchIdxs equals to matchIdxsExpected
-			matchIdxsStr := ""
-			for _, v := range matchIdxs {
-				matchIdxsStr += strconv.Itoa(int(v))
-			}
-			if matchIdxsStr != matchIdxsStrExpected {
-				t.Fatalf("unexpected matchIdxs;\ngot\n%s\nwant\n%s", matchIdxsStr, matchIdxsStrExpected)
-			}
-
-			// Verify the tssOutput contains the expected metrics
-			outputMetrics := timeSeriessToString(tssOutput)
-			if outputMetrics != outputMetricsExpected {
-				t.Fatalf("unexpected output metrics;\ngot\n%s\nwant\n%s", outputMetrics, outputMetricsExpected)
-			}
 		})
+
+		// Verify matchIdxs equals to matchIdxsExpected
+		matchIdxsStr := ""
+		for _, v := range matchIdxs {
+			matchIdxsStr += strconv.Itoa(int(v))
+		}
+		if matchIdxsStr != matchIdxsStrExpected {
+			t.Fatalf("unexpected matchIdxs;\ngot\n%s\nwant\n%s", matchIdxsStr, matchIdxsStrExpected)
+		}
+
+		// Verify the tssOutput contains the expected metrics
+		outputMetrics := timeSeriessToString(tssOutput)
+		if outputMetrics != outputMetricsExpected {
+			t.Fatalf("unexpected output metrics;\ngot\n%s\nwant\n%s", outputMetrics, outputMetricsExpected)
+		}
 	}
 
 	// Empty config
@@ -486,9 +483,7 @@ foo 3.3
 `, ``, ``, ``, ``}, time.Minute, `foo:1m_count_series 1
 foo:1m_count_series{bar="baz"} 1
 foo:1m_sum_samples 0
-foo:1m_sum_samples 0
 foo:1m_sum_samples 4.3
-foo:1m_sum_samples{bar="baz"} 0
 foo:1m_sum_samples{bar="baz"} 0
 foo:1m_sum_samples{bar="baz"} 2
 foo:5m_by_bar_sum_samples 4.3
@@ -635,6 +630,19 @@ cpu_usage:1m_without_cpu_quantiles{quantile="1"} 90
   outputs: ["quantiles(0, 0.5, 1)"]
 `, "1111111")
 
+	// no stale quantiles should be produced
+	f([]string{`
+cpu_usage{cpu="1"} 3
+cpu_usage{cpu="2"} 3`,
+		`cpu_usage{cpu="2"} 4`,
+	}, time.Minute, `cpu_usage:1m_quantiles{cpu="1",quantile="1"} 3
+cpu_usage:1m_quantiles{cpu="2",quantile="1"} 3
+cpu_usage:1m_quantiles{cpu="2",quantile="1"} 4
+`, `
+- interval: 1m
+  outputs: ["quantiles(1)"]
+`, "111")
+
 	// append additional label
 	f([]string{`
 foo{abc="123"} 4
@@ -682,21 +690,29 @@ foo:1m_by_cde_rate_sum{cde="1"} 0.125
 
 	// test rate_sum and rate_avg, when two aggregation intervals are empty
 	f([]string{`
-foo{abc="123", cde="1"} 2
-foo{abc="456", cde="1"} 8
-foo{abc="777", cde="1"} 9 -10
+foo{abc="123", cde="1"} 1
+foo{abc="123", cde="1"} 2 1
+foo{abc="456", cde="1"} 7
+foo{abc="456", cde="1"} 8 1
+foo{abc="777", cde="1"} 8
+foo{abc="777", cde="1"} 9 1
 `, ``, ``, `
-foo{abc="123", cde="1"} 20
+foo{abc="123", cde="1"} 19
+foo{abc="123", cde="1"} 20 1
 foo{abc="456", cde="1"} 26
-foo{abc="777", cde="1"} 27 -10
-`}, time.Minute, `foo:1m_by_cde_rate_avg{cde="1"} 0.1
-foo:1m_by_cde_rate_sum{cde="1"} 0.2
+foo{abc="456", cde="1"} 27 1
+foo{abc="777", cde="1"} 27
+foo{abc="777", cde="1"} 28 1
+`}, time.Minute, `foo:1m_by_cde_rate_avg{cde="1"} 1
+foo:1m_by_cde_rate_avg{cde="1"} 1
+foo:1m_by_cde_rate_sum{cde="1"} 3
+foo:1m_by_cde_rate_sum{cde="1"} 3
 `, `            
 - interval: 1m
   by: [cde]
   outputs: [rate_sum, rate_avg]
   enable_windows: true
-`, "111111")
+`, "111111111111")
 
 	// rate_sum and rate_avg with duplicated events
 	f([]string{`

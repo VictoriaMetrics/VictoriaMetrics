@@ -121,7 +121,7 @@ func TestParse_Failure(t *testing.T) {
 	f([]string{"testdata/dir/rules2-bad.rules"}, "function \"unknown\" not defined")
 	f([]string{"testdata/dir/rules3-bad.rules"}, "either `record` or `alert` must be set")
 	f([]string{"testdata/dir/rules4-bad.rules"}, "either `record` or `alert` must be set")
-	f([]string{"testdata/rules/rules1-bad.rules"}, "bad graphite expr")
+	f([]string{"testdata/rules/rules1-bad.rules"}, "bad GraphiteQL expr")
 	f([]string{"testdata/rules/vlog-rules0-bad.rules"}, "bad LogsQL expr")
 	f([]string{"testdata/dir/rules6-bad.rules"}, "missing ':' in header")
 	f([]string{"testdata/rules/rules-multi-doc-bad.rules"}, "unknown fields")
@@ -135,6 +135,9 @@ func TestRuleValidate(t *testing.T) {
 	}
 	if err := (&Rule{Alert: "alert"}).Validate(); err == nil {
 		t.Fatalf("expected empty expr error")
+	}
+	if err := (&Rule{Record: "record", Expr: "sum(test)", Labels: map[string]string{"__name__": "test"}}).Validate(); err == nil {
+		t.Fatalf("invalid rule label; got %s", err)
 	}
 	if err := (&Rule{Alert: "alert", Expr: "test>0"}).Validate(); err != nil {
 		t.Fatalf("expected valid rule; got %s", err)
@@ -280,7 +283,7 @@ func TestGroupValidate_Failure(t *testing.T) {
 				Expr:   "up | 0",
 			},
 		},
-	}, true, "bad prometheus expr")
+	}, true, "bad MetricsQL expr")
 
 	f(&Group{
 		Name: "test graphite expr",
@@ -290,7 +293,7 @@ func TestGroupValidate_Failure(t *testing.T) {
 				"description": "some-description",
 			}},
 		},
-	}, true, "bad graphite expr")
+	}, true, "bad GraphiteQL expr")
 
 	f(&Group{
 		Name: "test vlogs expr",
@@ -324,7 +327,7 @@ func TestGroupValidate_Failure(t *testing.T) {
 				Expr:   "sum(up == 0 ) by (host)",
 			},
 		},
-	}, true, "bad graphite expr")
+	}, true, "bad GraphiteQL expr")
 
 	f(&Group{
 		Name: "test vlogs with prometheus exp",
@@ -348,7 +351,7 @@ func TestGroupValidate_Failure(t *testing.T) {
 				For:    promutil.NewDuration(10 * time.Millisecond),
 			},
 		},
-	}, true, "bad prometheus expr")
+	}, true, "bad MetricsQL expr")
 }
 
 func TestGroupValidate_Success(t *testing.T) {

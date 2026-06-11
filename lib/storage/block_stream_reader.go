@@ -310,7 +310,7 @@ func (bsr *blockStreamReader) readIndexBlock() error {
 		return fmt.Errorf("invalid IndexBlockOffset in metaindex row; got %d; want %d", bsr.mr.IndexBlockOffset, bsr.indexBlockOffset)
 	}
 	if bsr.mr.MinTimestamp < bsr.ph.MinTimestamp {
-		return fmt.Errorf("invalid MinTimesamp in metaindex row; got %d; cannot be smaller than %d", bsr.mr.MinTimestamp, bsr.ph.MinTimestamp)
+		return fmt.Errorf("invalid MinTimestamp in metaindex row; got %d; cannot be smaller than %d", bsr.mr.MinTimestamp, bsr.ph.MinTimestamp)
 	}
 	if bsr.mr.MaxTimestamp > bsr.ph.MaxTimestamp {
 		return fmt.Errorf("invalid MaxTimestamp in metaindex row; got %d; cannot be bigger than %d", bsr.mr.MaxTimestamp, bsr.ph.MaxTimestamp)

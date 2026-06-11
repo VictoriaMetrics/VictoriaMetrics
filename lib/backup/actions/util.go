@@ -96,9 +96,12 @@ func runParallelPerPathInternal(ctx context.Context, concurrency int, perPath ma
 	// Read results.
 	var err error
 	for range len(perPath) {
-		err = <-resultCh
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+		case err = <-resultCh:
+		}
 		if err != nil {
-			// Stop the work.
 			cancelLocal()
 			break
 		}

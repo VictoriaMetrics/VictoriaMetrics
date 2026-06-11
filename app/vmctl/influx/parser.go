@@ -71,7 +71,7 @@ func toFloat64(v any) (float64, error) {
 func parseDate(dateStr string) (int64, error) {
 	startTime, err := time.Parse(time.RFC3339, dateStr)
 	if err != nil {
-		return 0, fmt.Errorf("cannot parse %q: %s", dateStr, err)
+		return 0, fmt.Errorf("cannot parse %q: %w", dateStr, err)
 	}
 	return startTime.UnixNano() / 1e6, nil
 }
@@ -92,7 +92,7 @@ func (s *Series) unmarshal(v string) error {
 	var err error
 	s.LabelPairs, err = unmarshalTags(v[n+1:], noEscapeChars)
 	if err != nil {
-		return fmt.Errorf("failed to unmarhsal tags: %s", err)
+		return fmt.Errorf("failed to unmarhsal tags: %w", err)
 	}
 	return nil
 }

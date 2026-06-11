@@ -33,6 +33,7 @@ type apiConfig struct {
 	client              *http.Client
 	yandexPassportOAuth *yandexPassportOAuth
 	serviceEndpoints    map[string]string
+	folderIDs           []string
 
 	// credsLock protects the refresh of creds
 	credsLock sync.Mutex
@@ -67,6 +68,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		client: &http.Client{
 			Transport: rt,
 		},
+		folderIDs: sdc.FolderIDs,
 	}
 	apiEndpoint := sdc.APIEndpoint
 	if apiEndpoint == "" {
@@ -219,7 +221,7 @@ func getIAMToken(cfg *apiConfig) (*iamToken, error) {
 	body := bytes.NewBuffer(passport)
 	resp, err := cfg.client.Post(iamURL, "application/json", body)
 	if err != nil {
-		return nil, fmt.Errorf("cannot send request to yandex cloud iam api %q: %s", iamURL, err)
+		return nil, fmt.Errorf("cannot send request to yandex cloud iam api %q: %w", iamURL, err)
 	}
 	data, err := readResponseBody(resp, iamURL)
 	if err != nil {

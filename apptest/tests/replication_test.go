@@ -1015,35 +1015,42 @@ func testGroupSkipSlowReplicas(tc *apptest.TestCase, opts *testGroupReplicationO
 func testGroupPartialResponse(tc *apptest.TestCase, opts *testGroupReplicationOpts) {
 	t := tc.T()
 
-	assertSeries := func(app *apptest.Vmselect, wantPartial bool) {
+	assertSeries := func(app *apptest.Vmselect, denyPartialResponse string, want *apptest.PrometheusAPIV1SeriesResponse) {
 		t.Helper()
 		tc.Assert(&apptest.AssertOptions{
 			Msg: "unexpected /api/v1/series response",
 			Got: func() any {
 				return app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, apptest.QueryOpts{
-					Start: "2024-01-01T00:00:00Z",
-					End:   "2024-01-31T00:00:00Z",
+					Start:               "2024-01-01T00:00:00Z",
+					End:                 "2024-01-31T00:00:00Z",
+					DenyPartialResponse: denyPartialResponse,
 				}).Sort()
 			},
-			Want: &apptest.PrometheusAPIV1SeriesResponse{
-				Status:    "success",
-				IsPartial: wantPartial,
-			},
+			Want: want,
 			CmpOpts: []cmp.Option{
-				cmpopts.IgnoreFields(apptest.PrometheusAPIV1SeriesResponse{}, "Data"),
+				cmpopts.IgnoreFields(apptest.PrometheusAPIV1SeriesResponse{}, "Data", "Error"),
 			},
 		})
 	}
 
-	mustReturnPartialResponse := true
-	mustReturnFullResponse := false
+	allowPartialResponse := ""
+	denyPartialResponse := "1"
+
+	mustReturnPartialResponse := &apptest.PrometheusAPIV1SeriesResponse{
+		Status:    "success",
+		IsPartial: true,
+	}
+	mustReturnFullResponse := &apptest.PrometheusAPIV1SeriesResponse{
+		Status:    "success",
+		IsPartial: false,
+	}
 
 	// All vmstorage replicas are available so both vmselects must return full
 	// response.
-	assertSeries(opts.c.vmselect, mustReturnFullResponse)
-	assertSeries(opts.c.vmselectGroupRF, mustReturnFullResponse)
-	assertSeries(opts.c.vmselectGlobalRF, mustReturnFullResponse)
-	assertSeries(opts.c.vmselectGroupGlobalRF, mustReturnFullResponse)
+	assertSeries(opts.c.vmselect, allowPartialResponse, mustReturnFullResponse)
+	assertSeries(opts.c.vmselectGroupRF, allowPartialResponse, mustReturnFullResponse)
+	assertSeries(opts.c.vmselectGlobalRF, allowPartialResponse, mustReturnFullResponse)
+	assertSeries(opts.c.vmselectGroupGlobalRF, allowPartialResponse, mustReturnFullResponse)
 
 	// Stop groupRF-1 vmstorage nodes in first group.
 	//
@@ -1053,10 +1060,10 @@ func testGroupPartialResponse(tc *apptest.TestCase, opts *testGroupReplicationOp
 	// about the replication factor and therefore they must still be able to
 	// return full dataset.
 	opts.c.storageGroups[0].stopNodes(tc, opts.groupRF-1)
-	assertSeries(opts.c.vmselect, mustReturnPartialResponse)
-	assertSeries(opts.c.vmselectGroupRF, mustReturnFullResponse)
-	assertSeries(opts.c.vmselectGlobalRF, mustReturnFullResponse)
-	assertSeries(opts.c.vmselectGroupGlobalRF, mustReturnFullResponse)
+	assertSeries(opts.c.vmselect, allowPartialResponse, mustReturnPartialResponse)
+	assertSeries(opts.c.vmselectGroupRF, allowPartialResponse, mustReturnFullResponse)
+	assertSeries(opts.c.vmselectGlobalRF, allowPartialResponse, mustReturnFullResponse)
+	assertSeries(opts.c.vmselectGroupGlobalRF, allowPartialResponse, mustReturnFullResponse)
 
 	// Stop groupRF-1 vmstorages in the remaining groups.
 	//
@@ -1066,10 +1073,10 @@ func testGroupPartialResponse(tc *apptest.TestCase, opts *testGroupReplicationOp
 	for g := 1; g < len(opts.c.storageGroups); g++ {
 		opts.c.storageGroups[g].stopNodes(tc, opts.groupRF-1)
 	}
-	assertSeries(opts.c.vmselect, mustReturnPartialResponse)
-	assertSeries(opts.c.vmselectGroupRF, mustReturnFullResponse)
-	assertSeries(opts.c.vmselectGlobalRF, mustReturnPartialResponse)
-	assertSeries(opts.c.vmselectGroupGlobalRF, mustReturnFullResponse)
+	assertSeries(opts.c.vmselect, allowPartialResponse, mustReturnPartialResponse)
+	assertSeries(opts.c.vmselectGroupRF, allowPartialResponse, mustReturnFullResponse)
+	assertSeries(opts.c.vmselectGlobalRF, allowPartialResponse, mustReturnPartialResponse)
+	assertSeries(opts.c.vmselectGroupGlobalRF, allowPartialResponse, mustReturnFullResponse)
 
 	// Stop one more vmstorage in the first group.
 	//
@@ -1077,10 +1084,10 @@ func testGroupPartialResponse(tc *apptest.TestCase, opts *testGroupReplicationOp
 	// because it is unaware of replication across groups. vmselectGroupGlobalRF
 	// will continue retuning full dataset.
 	opts.c.storageGroups[0].stopNodes(tc, 1)
-	assertSeries(opts.c.vmselect, mustReturnPartialResponse)
-	assertSeries(opts.c.vmselectGroupRF, mustReturnPartialResponse)
-	assertSeries(opts.c.vmselectGlobalRF, mustReturnPartialResponse)
-	assertSeries(opts.c.vmselectGroupGlobalRF, mustReturnFullResponse)
+	assertSeries(opts.c.vmselect, allowPartialResponse, mustReturnPartialResponse)
+	assertSeries(opts.c.vmselectGroupRF, allowPartialResponse, mustReturnPartialResponse)
+	assertSeries(opts.c.vmselectGlobalRF, allowPartialResponse, mustReturnPartialResponse)
+	assertSeries(opts.c.vmselectGroupGlobalRF, allowPartialResponse, mustReturnFullResponse)
 
 	// Stop one more vmstoarge in remaining globarRF-1 groups.
 	//
@@ -1089,19 +1096,56 @@ func testGroupPartialResponse(tc *apptest.TestCase, opts *testGroupReplicationOp
 	for g := 1; g < opts.globalRF-1; g++ {
 		opts.c.storageGroups[g].stopNodes(tc, 1)
 	}
-	assertSeries(opts.c.vmselect, mustReturnPartialResponse)
-	assertSeries(opts.c.vmselectGroupRF, mustReturnPartialResponse)
-	assertSeries(opts.c.vmselectGlobalRF, mustReturnPartialResponse)
-	assertSeries(opts.c.vmselectGroupGlobalRF, mustReturnFullResponse)
+	assertSeries(opts.c.vmselect, allowPartialResponse, mustReturnPartialResponse)
+	assertSeries(opts.c.vmselectGroupRF, allowPartialResponse, mustReturnPartialResponse)
+	assertSeries(opts.c.vmselectGlobalRF, allowPartialResponse, mustReturnPartialResponse)
+	assertSeries(opts.c.vmselectGroupGlobalRF, allowPartialResponse, mustReturnFullResponse)
 
 	// Stop one more vmstoarge in one more group.
 	//
 	// vmselectGroupGlobalRF must now return partial dataset.
 	opts.c.storageGroups[opts.globalRF].stopNodes(tc, 1)
-	assertSeries(opts.c.vmselect, mustReturnPartialResponse)
-	assertSeries(opts.c.vmselectGroupRF, mustReturnPartialResponse)
-	assertSeries(opts.c.vmselectGlobalRF, mustReturnPartialResponse)
-	assertSeries(opts.c.vmselectGroupGlobalRF, mustReturnPartialResponse)
+	assertSeries(opts.c.vmselect, allowPartialResponse, mustReturnPartialResponse)
+	assertSeries(opts.c.vmselectGroupRF, allowPartialResponse, mustReturnPartialResponse)
+	assertSeries(opts.c.vmselectGlobalRF, allowPartialResponse, mustReturnPartialResponse)
+	assertSeries(opts.c.vmselectGroupGlobalRF, allowPartialResponse, mustReturnPartialResponse)
+
+	// Stop all the remaining vmstorage nodes except a single node.
+	//
+	// At this point vmselects still must be able to return partial response
+	// because at least one vmstorage node has successfully returned results.
+	n := len(opts.c.storageGroups[0].vmstorages)
+	opts.c.storageGroups[0].stopNodes(tc, n-1)
+	for g := 1; g < len(opts.c.storageGroups); g++ {
+		n := len(opts.c.storageGroups[g].vmstorages)
+		opts.c.storageGroups[g].stopNodes(tc, n)
+	}
+	assertSeries(opts.c.vmselect, allowPartialResponse, mustReturnPartialResponse)
+	assertSeries(opts.c.vmselectGroupRF, allowPartialResponse, mustReturnPartialResponse)
+	assertSeries(opts.c.vmselectGlobalRF, allowPartialResponse, mustReturnPartialResponse)
+	assertSeries(opts.c.vmselectGroupGlobalRF, allowPartialResponse, mustReturnPartialResponse)
+
+	mustReturnUnavailableError := &apptest.PrometheusAPIV1SeriesResponse{
+		Status:    "error",
+		ErrorType: "503",
+	}
+
+	// vmselects must return an error for the same request when partial
+	// responses are denied explicitly.
+	assertSeries(opts.c.vmselect, denyPartialResponse, mustReturnUnavailableError)
+	assertSeries(opts.c.vmselectGroupRF, denyPartialResponse, mustReturnUnavailableError)
+	assertSeries(opts.c.vmselectGlobalRF, denyPartialResponse, mustReturnUnavailableError)
+	assertSeries(opts.c.vmselectGroupGlobalRF, denyPartialResponse, mustReturnUnavailableError)
+
+	// Stop the last remaining vmstorage node.
+	//
+	// vmselects must return an error when there are no successful vmstorage
+	// responses.
+	opts.c.storageGroups[0].stopNodes(tc, 1)
+	assertSeries(opts.c.vmselect, allowPartialResponse, mustReturnUnavailableError)
+	assertSeries(opts.c.vmselectGroupRF, allowPartialResponse, mustReturnUnavailableError)
+	assertSeries(opts.c.vmselectGlobalRF, allowPartialResponse, mustReturnUnavailableError)
+	assertSeries(opts.c.vmselectGroupGlobalRF, allowPartialResponse, mustReturnUnavailableError)
 }
 
 // TestClusterReplication_PartialResponseMultitenant checks how vmselect handles some

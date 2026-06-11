@@ -6,65 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/golang/snappy"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 )
-
-func TestCalculateRetryDuration(t *testing.T) {
-	// `testFunc` call `calculateRetryDuration` for `n` times
-	// and evaluate if the result of `calculateRetryDuration` is
-	// 1. >= expectMinDuration
-	// 2. <= expectMinDuration + 10% (see timeutil.AddJitterToDuration)
-	f := func(retryAfterDuration, retryDuration time.Duration, n int, expectMinDuration time.Duration) {
-		t.Helper()
-
-		for range n {
-			retryDuration = getRetryDuration(retryAfterDuration, retryDuration, time.Minute)
-		}
-
-		expectMaxDuration := helper(expectMinDuration)
-		expectMinDuration = expectMinDuration - (1000 * time.Millisecond) // Avoid edge case when calculating time.Until(now)
-
-		if retryDuration < expectMinDuration || retryDuration > expectMaxDuration {
-			t.Fatalf(
-				"incorrect retry duration, want (ms): [%d, %d], got (ms): %d",
-				expectMinDuration.Milliseconds(), expectMaxDuration.Milliseconds(),
-				retryDuration.Milliseconds(),
-			)
-		}
-	}
-
-	// Call calculateRetryDuration for 1 time.
-	{
-		// default backoff policy
-		f(0, time.Second, 1, 2*time.Second)
-		// default backoff policy exceed max limit"
-		f(0, 10*time.Minute, 1, time.Minute)
-
-		// retry after > default backoff policy
-		f(10*time.Second, 1*time.Second, 1, 10*time.Second)
-		// retry after < default backoff policy
-		f(1*time.Second, 10*time.Second, 1, 1*time.Second)
-		// retry after invalid and < default backoff policy
-		f(0, time.Second, 1, 2*time.Second)
-
-	}
-
-	// Call calculateRetryDuration for multiple times.
-	{
-		// default backoff policy 2 times
-		f(0, time.Second, 2, 4*time.Second)
-		// default backoff policy 3 times
-		f(0, time.Second, 3, 8*time.Second)
-		// default backoff policy N times exceed max limit
-		f(0, time.Second, 10, time.Minute)
-
-		// retry after 120s 1 times
-		f(120*time.Second, time.Second, 1, 120*time.Second)
-		// retry after 120s 2 times
-		f(120*time.Second, time.Second, 2, 120*time.Second)
-	}
-}
 
 func TestParseRetryAfterHeader(t *testing.T) {
 	f := func(retryAfterString string, expectResult time.Duration) {
@@ -91,11 +37,38 @@ func TestParseRetryAfterHeader(t *testing.T) {
 	f(time.Now().Add(10*time.Second).Format("Mon, 02 Jan 2006 15:04:05 FAKETZ"), 0)
 }
 
-// helper calculate the max possible time duration calculated by timeutil.AddJitterToDuration.
-func helper(d time.Duration) time.Duration {
-	dv := min(d/10, 10*time.Second)
+func TestInitSecretFlags(t *testing.T) {
+	showRemoteWriteURLOrig := *showRemoteWriteURL
+	defer func() {
+		*showRemoteWriteURL = showRemoteWriteURLOrig
+		flagutil.UnregisterAllSecretFlags()
+	}()
 
-	return d + dv
+	flagutil.UnregisterAllSecretFlags()
+	*showRemoteWriteURL = false
+	InitSecretFlags()
+	if !flagutil.IsSecretFlag("remotewrite.url") {
+		t.Fatalf("expecting remoteWrite.url to be secret")
+	}
+	if !flagutil.IsSecretFlag("remotewrite.headers") {
+		t.Fatalf("expecting remoteWrite.headers to be secret")
+	}
+	if !flagutil.IsSecretFlag("remotewrite.proxyurl") {
+		t.Fatalf("expecting remoteWrite.proxyURL to be secret")
+	}
+
+	flagutil.UnregisterAllSecretFlags()
+	*showRemoteWriteURL = true
+	InitSecretFlags()
+	if flagutil.IsSecretFlag("remotewrite.url") {
+		t.Fatalf("remoteWrite.url must remain visible when -remoteWrite.showURL is set")
+	}
+	if !flagutil.IsSecretFlag("remotewrite.headers") {
+		t.Fatalf("expecting remoteWrite.headers to remain secret")
+	}
+	if !flagutil.IsSecretFlag("remotewrite.proxyurl") {
+		t.Fatalf("expecting remoteWrite.proxyURL to remain secret")
+	}
 }
 
 func TestRepackBlockFromZstdToSnappy(t *testing.T) {

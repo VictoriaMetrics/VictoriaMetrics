@@ -21,7 +21,7 @@ exporters:
   otlphttp/victoriametrics:
     compression: gzip
     encoding: proto
-    metrics_endpoint: http://<vmsinle>:8428/opentelemetry/v1/metrics
+    metrics_endpoint: http://<vmsingle>:8428/opentelemetry/v1/metrics
 ```
 
 > For the [cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format) specify the tenant ID:

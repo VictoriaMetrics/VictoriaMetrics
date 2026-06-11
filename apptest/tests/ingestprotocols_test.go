@@ -1,7 +1,9 @@
 package tests
 
 import (
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -9,6 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	otlppb "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 )
 
 func TestSingleIngestionProtocols(t *testing.T) {
@@ -295,6 +298,357 @@ func TestSingleIngestionProtocols(t *testing.T) {
 		},
 	})
 
+	// opentelemetry metrics protocol
+	tsNano := uint64(1707123456700 * 1e6) // 2024-02-05T08:57:36.700Z
+	otlpData := otlppb.MetricsData{
+		ResourceMetrics: []*otlppb.ResourceMetrics{
+			{
+				Resource: &otlppb.Resource{
+					Attributes: []*otlppb.KeyValue{
+						{
+							Key:   "foo",
+							Value: &otlppb.AnyValue{StringValue: new("bar")},
+						},
+					},
+				},
+				ScopeMetrics: []*otlppb.ScopeMetrics{
+					{
+						Scope: &otlppb.InstrumentationScope{
+							Name:    new("otlp"),
+							Version: new("v1"),
+							Attributes: []*otlppb.KeyValue{
+								{
+									Key:   "scope_attribute",
+									Value: &otlppb.AnyValue{IntValue: new(int64(100))},
+								},
+							},
+						},
+						Metrics: []*otlppb.Metric{
+							{
+								Name: "otlp_series_gauge",
+								Gauge: &otlppb.Gauge{
+									DataPoints: []*otlppb.NumberDataPoint{
+										{IntValue: new(int64(10)), TimeUnixNano: tsNano},
+										{IntValue: new(int64(5)), TimeUnixNano: tsNano, Attributes: []*otlppb.KeyValue{{Key: "bar", Value: &otlppb.AnyValue{StringValue: new("foo")}}}},
+									},
+								},
+							},
+							{
+								Name: "otlp_series_counter",
+								Sum: &otlppb.Sum{
+									DataPoints: []*otlppb.NumberDataPoint{
+										{IntValue: new(int64(30)), TimeUnixNano: tsNano, Attributes: []*otlppb.KeyValue{{Key: "bar", Value: &otlppb.AnyValue{StringValue: new("foo")}}}},
+									},
+								},
+							},
+						},
+					},
+					{
+						Scope: &otlppb.InstrumentationScope{
+							Name:    new("otlp2"),
+							Version: new("v2"),
+						},
+						Metrics: []*otlppb.Metric{
+							{
+								Name: "otlp_series_histogram",
+								Histogram: &otlppb.Histogram{
+									DataPoints: []*otlppb.HistogramDataPoint{
+										{
+											Count:          15,
+											Sum:            new(float64(100)),
+											ExplicitBounds: []float64{0.1, 0.5, 1.0, 5.0},
+											BucketCounts:   []uint64{0, 5, 10, 0, 0},
+											TimeUnixNano:   tsNano,
+											Attributes: []*otlppb.KeyValue{
+												{Key: "baz", Value: &otlppb.AnyValue{ArrayValue: &otlppb.ArrayValue{Values: []*otlppb.AnyValue{
+													{StringValue: new("foo")},
+													{IntValue: new(int64(100))},
+												}}}},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			{
+				ScopeMetrics: []*otlppb.ScopeMetrics{
+					{
+						Metrics: []*otlppb.Metric{
+							{
+								Name: "otlp_series_summary",
+								Summary: &otlppb.Summary{
+									DataPoints: []*otlppb.SummaryDataPoint{
+										{
+											Attributes:   []*otlppb.KeyValue{},
+											TimeUnixNano: tsNano,
+											Sum:          17.5,
+											Count:        2,
+											QuantileValues: []*otlppb.ValueAtQuantile{
+												{
+													Quantile: 0.1,
+													Value:    7.5,
+												},
+												{
+													Quantile: 0.5,
+													Value:    10.0,
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	sut.OpentelemetryV1Metrics(t, otlpData, apptest.QueryOpts{})
+	sut.ForceFlush(t)
+	f(sut, &opts{
+		query: `{__name__=~"otlp.+"}`,
+		wantMetrics: []map[string]string{
+			{
+				"__name__":                         "otlp_series_counter",
+				"foo":                              "bar",
+				"bar":                              "foo",
+				"scope.attributes.scope_attribute": "100",
+				"scope.name":                       "otlp",
+				"scope.version":                    "v1",
+			},
+			{
+				"__name__":                         "otlp_series_gauge",
+				"foo":                              "bar",
+				"bar":                              "foo",
+				"scope.attributes.scope_attribute": "100",
+				"scope.name":                       "otlp",
+				"scope.version":                    "v1",
+			},
+			{
+				"__name__":                         "otlp_series_gauge",
+				"foo":                              "bar",
+				"scope.attributes.scope_attribute": "100",
+				"scope.name":                       "otlp",
+				"scope.version":                    "v1",
+			},
+
+			{
+				"__name__":      "otlp_series_histogram_bucket",
+				"baz":           `["foo",100]`,
+				"foo":           "bar",
+				"scope.name":    "otlp2",
+				"scope.version": "v2",
+				"le":            "+Inf",
+			},
+			{
+				"__name__":      "otlp_series_histogram_bucket",
+				"baz":           `["foo",100]`,
+				"foo":           "bar",
+				"scope.name":    "otlp2",
+				"scope.version": "v2",
+				"le":            "0.1",
+			},
+			{
+				"__name__":      "otlp_series_histogram_bucket",
+				"baz":           `["foo",100]`,
+				"foo":           "bar",
+				"scope.name":    "otlp2",
+				"scope.version": "v2",
+				"le":            "0.5",
+			},
+			{
+				"__name__":      "otlp_series_histogram_bucket",
+				"baz":           `["foo",100]`,
+				"foo":           "bar",
+				"scope.name":    "otlp2",
+				"scope.version": "v2",
+				"le":            "1",
+			},
+			{
+				"__name__":      "otlp_series_histogram_bucket",
+				"baz":           `["foo",100]`,
+				"foo":           "bar",
+				"scope.name":    "otlp2",
+				"scope.version": "v2",
+				"le":            "5",
+			},
+			{
+				"__name__":      "otlp_series_histogram_count",
+				"baz":           `["foo",100]`,
+				"foo":           "bar",
+				"scope.name":    "otlp2",
+				"scope.version": "v2",
+			},
+			{
+				"__name__":      "otlp_series_histogram_sum",
+				"baz":           `["foo",100]`,
+				"foo":           "bar",
+				"scope.name":    "otlp2",
+				"scope.version": "v2",
+			},
+			{
+				"__name__": "otlp_series_summary",
+				"quantile": "0.1",
+			},
+			{
+				"__name__": "otlp_series_summary",
+				"quantile": "0.5",
+			},
+			{
+				"__name__": "otlp_series_summary_count",
+			},
+			{
+				"__name__": "otlp_series_summary_sum",
+			},
+		},
+		wantSamples: []*apptest.Sample{
+			{Timestamp: 1707123456700, Value: 30},   // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 5},    // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 10},   // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 15},   // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 0},    // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 5},    // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 15},   // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 15},   // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 15},   // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 100},  // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 7.5},  // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 10},   // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 2},    // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 17.5}, // 2024-02-05T08:57:36.700Z
+
+		},
+	})
+
+}
+
+func TestSingleCardinalityLimiter(t *testing.T) {
+	waitFor := func(f func() bool) {
+		const (
+			retries = 20
+			period  = 100 * time.Millisecond
+		)
+
+		t.Helper()
+
+		for i := 0; i < retries; i++ {
+			if f() {
+				return
+			}
+			time.Sleep(period)
+		}
+		t.Fatalf("timed out waiting for retry #%d", retries)
+	}
+
+	tc := apptest.NewTestCase(t)
+	defer tc.Stop()
+
+	singleHourly := tc.MustStartVmsingle("vmsingle-hourly", []string{
+		"-retentionPeriod=100y",
+		"-storage.maxHourlySeries=1",
+	})
+
+	singleHourly.PrometheusAPIV1ImportPrometheus(t, []string{
+		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
+	}, apptest.QueryOpts{})
+
+	if v := singleHourly.GetIntMetric(t, "vm_hourly_series_limit_max_series"); v != 1 {
+		t.Fatalf("unexpected vm_hourly_series_limit_max_series value: %d", v)
+	}
+
+	if v := singleHourly.GetIntMetric(t, "vm_hourly_series_limit_current_series"); v != 1 {
+		t.Fatalf("unexpected vm_hourly_series_limit_current_series value: %d", v)
+	}
+
+	if v := singleHourly.GetIntMetric(t, "vm_hourly_series_limit_rows_dropped_total"); v != 0 {
+		t.Fatalf("unexpected vm_hourly_series_limit_rows_dropped_total value: %d", v)
+	}
+
+	singleHourly.PrometheusAPIV1ImportPrometheus(t, []string{
+		"foo_bar2 1 1652169600000", // 2022-05-10T08:00:00Z
+	}, apptest.QueryOpts{})
+
+	waitFor(
+		func() bool {
+			return singleHourly.GetIntMetric(t, "vm_hourly_series_limit_rows_dropped_total") > 0
+		},
+	)
+
+	singleDaily := tc.MustStartVmsingle("vmsingle-daily", []string{
+		"-retentionPeriod=100y",
+		"-storage.maxDailySeries=1",
+	})
+
+	singleDaily.PrometheusAPIV1ImportPrometheus(t, []string{
+		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
+	}, apptest.QueryOpts{})
+
+	if v := singleDaily.GetIntMetric(t, "vm_daily_series_limit_max_series"); v != 1 {
+		t.Fatalf("unexpected vm_daily_series_limit_max_series value: %d", v)
+	}
+
+	if v := singleDaily.GetIntMetric(t, "vm_daily_series_limit_current_series"); v != 1 {
+		t.Fatalf("unexpected vm_daily_series_limit_current_series value: %d", v)
+	}
+
+	if v := singleDaily.GetIntMetric(t, "vm_daily_series_limit_rows_dropped_total"); v != 0 {
+		t.Fatalf("unexpected vm_daily_series_limit_rows_dropped_total value: %d", v)
+	}
+
+	singleDaily.PrometheusAPIV1ImportPrometheus(t, []string{
+		"foo_bar2 1 1652169600000", // 2022-05-10T08:00:00Z
+	}, apptest.QueryOpts{})
+
+	waitFor(
+		func() bool {
+			return singleDaily.GetIntMetric(t, "vm_daily_series_limit_rows_dropped_total") > 0
+		},
+	)
+
+	singleUnlimited := tc.MustStartVmsingle("vmsingle-unlimited", []string{
+		"-retentionPeriod=100y",
+		"-storage.maxHourlySeries=-1",
+		"-storage.maxDailySeries=-1",
+	})
+	metrics := make([]string, 0, 100)
+	for i := range 100 {
+		metrics = append(metrics, fmt.Sprintf("foo_bar%d 1 1652169600000", i)) // 2022-05-10T08:00:00Z
+	}
+
+	singleUnlimited.PrometheusAPIV1ImportPrometheus(t, metrics, apptest.QueryOpts{})
+
+	waitFor(
+		func() bool {
+			return singleUnlimited.GetIntMetric(t, "vm_hourly_series_limit_current_series") > 0
+		},
+	)
+
+	if v := singleUnlimited.GetIntMetric(t, "vm_hourly_series_limit_max_series"); v == 0 {
+		t.Fatalf("unexpected vm_hourly_series_limit_max_series value: %d", v)
+	}
+
+	if v := singleUnlimited.GetIntMetric(t, "vm_hourly_series_limit_current_series"); v != 100 {
+		t.Fatalf("unexpected vm_hourly_series_limit_current_series value: %d", v)
+	}
+
+	if v := singleUnlimited.GetIntMetric(t, "vm_hourly_series_limit_rows_dropped_total"); v != 0 {
+		t.Fatalf("unexpected vm_hourly_series_limit_rows_dropped_total value: %d", v)
+	}
+
+	if v := singleUnlimited.GetIntMetric(t, "vm_daily_series_limit_max_series"); v == 0 {
+		t.Fatalf("unexpected vm_daily_series_limit_max_series value: %d", v)
+	}
+
+	if v := singleUnlimited.GetIntMetric(t, "vm_daily_series_limit_current_series"); v != 100 {
+		t.Fatalf("unexpected vm_daily_series_limit_current_series value: %d", v)
+	}
+
+	if v := singleUnlimited.GetIntMetric(t, "vm_daily_series_limit_rows_dropped_total"); v != 0 {
+		t.Fatalf("unexpected vm_daily_series_limit_rows_dropped_total value: %d", v)
+	}
 }
 
 func TestClusterIngestionProtocols(t *testing.T) {
@@ -590,4 +944,371 @@ func TestClusterIngestionProtocols(t *testing.T) {
 		},
 	})
 
+	// opentelemetry metrics protocol
+	tsNano := uint64(1707123456700 * 1e6) // 2024-02-05T08:57:36.700Z
+	otlpData := otlppb.MetricsData{
+		ResourceMetrics: []*otlppb.ResourceMetrics{
+			{
+				Resource: &otlppb.Resource{
+					Attributes: []*otlppb.KeyValue{
+						{
+							Key:   "foo",
+							Value: &otlppb.AnyValue{StringValue: new("bar")},
+						},
+					},
+				},
+				ScopeMetrics: []*otlppb.ScopeMetrics{
+					{
+						Scope: &otlppb.InstrumentationScope{
+							Name:    new("otlp"),
+							Version: new("v1"),
+							Attributes: []*otlppb.KeyValue{
+								{
+									Key:   "scope_attribute",
+									Value: &otlppb.AnyValue{IntValue: new(int64(100))},
+								},
+							},
+						},
+						Metrics: []*otlppb.Metric{
+							{
+								Name: "otlp_series_gauge",
+								Gauge: &otlppb.Gauge{
+									DataPoints: []*otlppb.NumberDataPoint{
+										{IntValue: new(int64(10)), TimeUnixNano: tsNano},
+										{IntValue: new(int64(5)), TimeUnixNano: tsNano, Attributes: []*otlppb.KeyValue{{Key: "bar", Value: &otlppb.AnyValue{StringValue: new("foo")}}}},
+									},
+								},
+							},
+							{
+								Name: "otlp_series_counter",
+								Sum: &otlppb.Sum{
+									DataPoints: []*otlppb.NumberDataPoint{
+										{IntValue: new(int64(30)), TimeUnixNano: tsNano, Attributes: []*otlppb.KeyValue{{Key: "bar", Value: &otlppb.AnyValue{StringValue: new("foo")}}}},
+									},
+								},
+							},
+						},
+					},
+					{
+						Scope: &otlppb.InstrumentationScope{
+							Name:    new("otlp2"),
+							Version: new("v2"),
+						},
+						Metrics: []*otlppb.Metric{
+							{
+								Name: "otlp_series_histogram",
+								Histogram: &otlppb.Histogram{
+									DataPoints: []*otlppb.HistogramDataPoint{
+										{
+											Count:          15,
+											Sum:            new(float64(100)),
+											ExplicitBounds: []float64{0.1, 0.5, 1.0, 5.0},
+											BucketCounts:   []uint64{0, 5, 10, 0, 0},
+											TimeUnixNano:   tsNano,
+											Attributes: []*otlppb.KeyValue{
+												{Key: "baz", Value: &otlppb.AnyValue{ArrayValue: &otlppb.ArrayValue{Values: []*otlppb.AnyValue{
+													{StringValue: new("foo")},
+													{IntValue: new(int64(100))},
+												}}}},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			{
+				ScopeMetrics: []*otlppb.ScopeMetrics{
+					{
+						Metrics: []*otlppb.Metric{
+							{
+								Name: "otlp_series_summary",
+								Summary: &otlppb.Summary{
+									DataPoints: []*otlppb.SummaryDataPoint{
+										{
+											Attributes:   []*otlppb.KeyValue{},
+											TimeUnixNano: tsNano,
+											Sum:          17.5,
+											Count:        2,
+											QuantileValues: []*otlppb.ValueAtQuantile{
+												{
+													Quantile: 0.1,
+													Value:    7.5,
+												},
+												{
+													Quantile: 0.5,
+													Value:    10.0,
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	vminsert.OpentelemetryV1Metrics(t, otlpData, apptest.QueryOpts{})
+	vmstorage.ForceFlush(t)
+	f(&opts{
+		query: `{__name__=~"otlp.+"}`,
+		wantMetrics: []map[string]string{
+			{
+				"__name__":                         "otlp_series_counter",
+				"foo":                              "bar",
+				"bar":                              "foo",
+				"scope.attributes.scope_attribute": "100",
+				"scope.name":                       "otlp",
+				"scope.version":                    "v1",
+			},
+			{
+				"__name__":                         "otlp_series_gauge",
+				"foo":                              "bar",
+				"bar":                              "foo",
+				"scope.attributes.scope_attribute": "100",
+				"scope.name":                       "otlp",
+				"scope.version":                    "v1",
+			},
+			{
+				"__name__":                         "otlp_series_gauge",
+				"foo":                              "bar",
+				"scope.attributes.scope_attribute": "100",
+				"scope.name":                       "otlp",
+				"scope.version":                    "v1",
+			},
+
+			{
+				"__name__":      "otlp_series_histogram_bucket",
+				"baz":           `["foo",100]`,
+				"foo":           "bar",
+				"scope.name":    "otlp2",
+				"scope.version": "v2",
+				"le":            "+Inf",
+			},
+			{
+				"__name__":      "otlp_series_histogram_bucket",
+				"baz":           `["foo",100]`,
+				"foo":           "bar",
+				"scope.name":    "otlp2",
+				"scope.version": "v2",
+				"le":            "0.1",
+			},
+			{
+				"__name__":      "otlp_series_histogram_bucket",
+				"baz":           `["foo",100]`,
+				"foo":           "bar",
+				"scope.name":    "otlp2",
+				"scope.version": "v2",
+				"le":            "0.5",
+			},
+			{
+				"__name__":      "otlp_series_histogram_bucket",
+				"baz":           `["foo",100]`,
+				"foo":           "bar",
+				"scope.name":    "otlp2",
+				"scope.version": "v2",
+				"le":            "1",
+			},
+			{
+				"__name__":      "otlp_series_histogram_bucket",
+				"baz":           `["foo",100]`,
+				"foo":           "bar",
+				"scope.name":    "otlp2",
+				"scope.version": "v2",
+				"le":            "5",
+			},
+			{
+				"__name__":      "otlp_series_histogram_count",
+				"baz":           `["foo",100]`,
+				"foo":           "bar",
+				"scope.name":    "otlp2",
+				"scope.version": "v2",
+			},
+			{
+				"__name__":      "otlp_series_histogram_sum",
+				"baz":           `["foo",100]`,
+				"foo":           "bar",
+				"scope.name":    "otlp2",
+				"scope.version": "v2",
+			},
+			{
+				"__name__": "otlp_series_summary",
+				"quantile": "0.1",
+			},
+			{
+				"__name__": "otlp_series_summary",
+				"quantile": "0.5",
+			},
+			{
+				"__name__": "otlp_series_summary_count",
+			},
+			{
+				"__name__": "otlp_series_summary_sum",
+			},
+		},
+		wantSamples: []*apptest.Sample{
+			{Timestamp: 1707123456700, Value: 30},   // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 5},    // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 10},   // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 15},   // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 0},    // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 5},    // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 15},   // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 15},   // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 15},   // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 100},  // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 7.5},  // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 10},   // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 2},    // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 17.5}, // 2024-02-05T08:57:36.700Z
+
+		},
+	})
+
+}
+
+func TestClusterCardinalityLimiter(t *testing.T) {
+	waitFor := func(f func() bool) {
+		const (
+			retries = 20
+			period  = 100 * time.Millisecond
+		)
+
+		t.Helper()
+
+		for i := 0; i < retries; i++ {
+			if f() {
+				return
+			}
+			time.Sleep(period)
+		}
+		t.Fatalf("timed out waiting for retry #%d", retries)
+	}
+
+	tc := apptest.NewTestCase(t)
+	defer tc.Stop()
+
+	// Test hourly series limit
+	vmstorageHourly := tc.MustStartVmstorage("vmstorage-hourly", []string{
+		"-storageDataPath=" + tc.Dir() + "/vmstorage-hourly",
+		"-retentionPeriod=100y",
+		"-storage.maxHourlySeries=1",
+	})
+	vminsertHourly := tc.MustStartVminsert("vminsert-hourly", []string{
+		"-storageNode=" + vmstorageHourly.VminsertAddr(),
+	})
+
+	vminsertHourly.PrometheusAPIV1ImportPrometheus(t, []string{
+		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
+	}, apptest.QueryOpts{})
+
+	if v := vmstorageHourly.GetIntMetric(t, "vm_hourly_series_limit_max_series"); v != 1 {
+		t.Fatalf("unexpected vm_hourly_series_limit_max_series value: %d", v)
+	}
+
+	if v := vmstorageHourly.GetIntMetric(t, "vm_hourly_series_limit_current_series"); v != 1 {
+		t.Fatalf("unexpected vm_hourly_series_limit_current_series value: %d", v)
+	}
+
+	if v := vmstorageHourly.GetIntMetric(t, "vm_hourly_series_limit_rows_dropped_total"); v != 0 {
+		t.Fatalf("unexpected vm_hourly_series_limit_rows_dropped_total value: %d", v)
+	}
+
+	vminsertHourly.PrometheusAPIV1ImportPrometheus(t, []string{
+		"foo_bar2 1 1652169600000", // 2022-05-10T08:00:00Z
+	}, apptest.QueryOpts{})
+
+	waitFor(
+		func() bool {
+			return vmstorageHourly.GetIntMetric(t, "vm_hourly_series_limit_rows_dropped_total") > 0
+		},
+	)
+
+	// Test daily series limit
+	vmstorageDaily := tc.MustStartVmstorage("vmstorage-daily", []string{
+		"-storageDataPath=" + tc.Dir() + "/vmstorage-daily",
+		"-retentionPeriod=100y",
+		"-storage.maxDailySeries=1",
+	})
+	vminsertDaily := tc.MustStartVminsert("vminsert-daily", []string{
+		"-storageNode=" + vmstorageDaily.VminsertAddr(),
+	})
+
+	vminsertDaily.PrometheusAPIV1ImportPrometheus(t, []string{
+		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
+	}, apptest.QueryOpts{})
+
+	if v := vmstorageDaily.GetIntMetric(t, "vm_daily_series_limit_max_series"); v != 1 {
+		t.Fatalf("unexpected vm_daily_series_limit_max_series value: %d", v)
+	}
+
+	if v := vmstorageDaily.GetIntMetric(t, "vm_daily_series_limit_current_series"); v != 1 {
+		t.Fatalf("unexpected vm_daily_series_limit_current_series value: %d", v)
+	}
+
+	if v := vmstorageDaily.GetIntMetric(t, "vm_daily_series_limit_rows_dropped_total"); v != 0 {
+		t.Fatalf("unexpected vm_daily_series_limit_rows_dropped_total value: %d", v)
+	}
+
+	vminsertDaily.PrometheusAPIV1ImportPrometheus(t, []string{
+		"foo_bar2 1 1652169600000", // 2022-05-10T08:00:00Z
+	}, apptest.QueryOpts{})
+
+	waitFor(
+		func() bool {
+			return vmstorageDaily.GetIntMetric(t, "vm_daily_series_limit_rows_dropped_total") > 0
+		},
+	)
+
+	// Test unlimited series
+	vmstorageUnlimited := tc.MustStartVmstorage("vmstorage-unlimited", []string{
+		"-storageDataPath=" + tc.Dir() + "/vmstorage-unlimited",
+		"-retentionPeriod=100y",
+		"-storage.maxHourlySeries=-1",
+		"-storage.maxDailySeries=-1",
+	})
+	vminsertUnlimited := tc.MustStartVminsert("vminsert-unlimited", []string{
+		"-storageNode=" + vmstorageUnlimited.VminsertAddr(),
+	})
+
+	metrics := make([]string, 0, 100)
+	for i := range 100 {
+		metrics = append(metrics, fmt.Sprintf("foo_bar%d 1 1652169600000", i)) // 2022-05-10T08:00:00Z
+	}
+
+	vminsertUnlimited.PrometheusAPIV1ImportPrometheus(t, metrics, apptest.QueryOpts{})
+
+	waitFor(
+		func() bool {
+			return vmstorageUnlimited.GetIntMetric(t, "vm_hourly_series_limit_current_series") > 0
+		},
+	)
+
+	if v := vmstorageUnlimited.GetIntMetric(t, "vm_hourly_series_limit_max_series"); v == 0 {
+		t.Fatalf("unexpected vm_hourly_series_limit_max_series value: %d", v)
+	}
+
+	if v := vmstorageUnlimited.GetIntMetric(t, "vm_hourly_series_limit_current_series"); v != 100 {
+		t.Fatalf("unexpected vm_hourly_series_limit_current_series value: %d", v)
+	}
+
+	if v := vmstorageUnlimited.GetIntMetric(t, "vm_hourly_series_limit_rows_dropped_total"); v != 0 {
+		t.Fatalf("unexpected vm_hourly_series_limit_rows_dropped_total value: %d", v)
+	}
+
+	if v := vmstorageUnlimited.GetIntMetric(t, "vm_daily_series_limit_max_series"); v == 0 {
+		t.Fatalf("unexpected vm_daily_series_limit_max_series value: %d", v)
+	}
+
+	if v := vmstorageUnlimited.GetIntMetric(t, "vm_daily_series_limit_current_series"); v != 100 {
+		t.Fatalf("unexpected vm_daily_series_limit_current_series value: %d", v)
+	}
+
+	if v := vmstorageUnlimited.GetIntMetric(t, "vm_daily_series_limit_rows_dropped_total"); v != 0 {
+		t.Fatalf("unexpected vm_daily_series_limit_rows_dropped_total value: %d", v)
+	}
 }

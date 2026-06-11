@@ -25,7 +25,7 @@ func TestGetLabelsHash_Distribution(t *testing.T) {
 		t.Helper()
 
 		// Distribute itemsCount hashes returned by getLabelsHash() across bucketsCount buckets.
-		itemsCount := 1_000 * bucketsCount
+		itemsCount := 10_000 * bucketsCount
 		m := make([]int, bucketsCount)
 		var labels []prompb.Label
 		for i := range itemsCount {
@@ -44,10 +44,12 @@ func TestGetLabelsHash_Distribution(t *testing.T) {
 		}
 
 		// Verify that the distribution is even
-		expectedItemsPerBucket := itemsCount / bucketsCount
+		expectedItemsPerBucket := float64(itemsCount / bucketsCount)
+		allowedDeviation := math.Round(float64(expectedItemsPerBucket) * 0.04)
 		for _, n := range m {
-			if math.Abs(1-float64(n)/float64(expectedItemsPerBucket)) > 0.04 {
-				t.Fatalf("unexpected items in the bucket for %d buckets; got %d; want around %d", bucketsCount, n, expectedItemsPerBucket)
+			if math.Abs(expectedItemsPerBucket-float64(n)) > allowedDeviation {
+				t.Fatalf("unexpected items in the bucket for %d buckets; got %d; want in range [%.0f, %.0f]",
+					bucketsCount, n, expectedItemsPerBucket-allowedDeviation, expectedItemsPerBucket+allowedDeviation)
 			}
 		}
 	}

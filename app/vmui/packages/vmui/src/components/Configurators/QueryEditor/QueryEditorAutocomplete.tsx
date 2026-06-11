@@ -60,7 +60,7 @@ const QueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
   const options = useMemo(() => {
     switch (context) {
       case QueryContextType.metricsql:
-        return [...metrics, ...metricsqlFunctions];
+        return includeFunctions ? [...metrics, ...metricsqlFunctions] : metrics;
       case QueryContextType.label:
         return labels;
       case QueryContextType.labelValue:
@@ -68,7 +68,7 @@ const QueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
       default:
         return [];
     }
-  }, [context, metrics, labels, labelValues, metricsqlFunctions]);
+  }, [context, metrics, labels, labelValues, metricsqlFunctions, includeFunctions]);
 
   const handleSelect = useCallback((insert: string) => {
     // Find the start and end of valueByContext in the query string

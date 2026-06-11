@@ -7,6 +7,9 @@ sitemap:
   disable: true
 ---
 
+> [!NOTE] Tip
+> Store every configuration file you use during this guide in version control. You may need them for reference or to change the configuration of your installation.
+
 This guide walks you through deploying a [single-node version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) on Kubernetes using Helm.
 
 At the end of this guide, you will know:
@@ -56,10 +59,19 @@ vm/victoria-metrics-anomaly             1.12.9          v1.28.2         Victoria
 
 ## 2. Install [VictoriaMetrics single](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) from Helm Chart
 
+Download the Helm value files with the example configuration for VictoriaMetrics single-node:
+
+```sh
+wget https://docs.victoriametrics.com/guides/examples/guide-vmsingle-values.yaml
+```
+
+> [!NOTE] Tip
+> Keep this file in version control. You may need it to update the configuration of your VictoriaMetrics service
+
 Run this command in your terminal to install [VictoriaMetrics single node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) to the default [namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) in your cluster:
 
 ```shell
-helm install vmsingle vm/victoria-metrics-single -f https://docs.victoriametrics.com/guides/examples/guide-vmsingle-values.yaml
+helm install vmsingle vm/victoria-metrics-single -f guide-vmsingle-values.yaml
 ```
 
 Below are the key sections in the chart values file [`guide-vmsingle-values.yaml`](https://docs.victoriametrics.com/guides/examples/guide-vmsingle-values.yaml):
@@ -315,7 +327,7 @@ Consider reading these resources to complete your setup:
 - VictoriaMetrics
   - [Learn more about the single-node version](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
   - [Migrate existing metric data into VictoriaMetrics with vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/)
-  - [Setup alerts](https://docs.victoriametrics.com/victoriametrics/vmalert/)
+  - [Setup alerts](https://docs.victoriametrics.com/guides/vmalert-datasource-managed-alerts-grafana/)
 - Grafana
   - [Enable persistent storage](https://grafana.com/docs/grafana/latest/setup-grafana/installation/helm/#enable-persistent-storage-recommended)
   - [Configure private TLS authority](https://grafana.com/docs/grafana/latest/setup-grafana/installation/helm/#configure-a-private-ca-certificate-authority)

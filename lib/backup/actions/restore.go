@@ -1,11 +1,13 @@
 package actions
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"io"
 	"os"
 	"path"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -40,6 +42,11 @@ type Restore struct {
 	//
 	// This may be needed for restoring from old backups with missing `backup complete` file.
 	SkipBackupCompleteCheck bool
+
+	// SkipPreallocation may be set in order to skip preallocation of files during restore.
+	//
+	// This will likely be slower in most cases, but allows restores to resume mid file
+	SkipPreallocation bool
 }
 
 // Run runs r with the provided settings.
@@ -58,6 +65,10 @@ func (r *Restore) Run(ctx context.Context) error {
 	src := r.Src
 	dst := r.Dst
 
+	if !r.SkipPreallocation {
+		dst.UseTmpFiles = true
+	}
+
 	if !r.SkipBackupCompleteCheck {
 		ok, err := src.HasFile(backupnames.BackupCompleteFilename)
 		if err != nil {
@@ -70,6 +81,10 @@ func (r *Restore) Run(ctx context.Context) error {
 	}
 
 	logger.Infof("starting restore from %s to %s", src, dst)
+
+	if err := dst.CleanupTmpFiles(); err != nil {
+		return fmt.Errorf("cannot cleanup temporary files at %s: %w", dst, err)
+	}
 
 	logger.Infof("obtaining list of parts at %s", src)
 	srcParts, err := src.ListParts()
@@ -164,24 +179,20 @@ func (r *Restore) Run(ctx context.Context) error {
 		var bytesDownloaded atomic.Uint64
 		err = runParallelPerPath(ctx, concurrency, perPath, func(parts []common.Part) error {
 			// Sort partsToCopy in order to properly grow file size during downloading
-			// and to properly resume downloading of incomplete files on the next Restore.Run call.
 			common.SortParts(parts)
+			if !r.SkipPreallocation {
+				if err := dst.PreallocateFile(parts[0]); err != nil {
+					return fmt.Errorf("cannot preallocate %s: %w", parts[0].Path, err)
+				}
+			}
 			for _, p := range parts {
 				logger.Infof("downloading %s from %s to %s", &p, src, dst)
-				wc, err := dst.NewWriteCloser(p)
-				if err != nil {
-					return fmt.Errorf("cannot create writer for %q to %s: %w", &p, dst, err)
+				if err := pipelinedDownload(src, dst, p, &bytesDownloaded); err != nil {
+					return err
 				}
-				sw := &statWriter{
-					w:            wc,
-					bytesWritten: &bytesDownloaded,
-				}
-				if err := src.DownloadPart(p, sw); err != nil {
-					return fmt.Errorf("cannot download %s to %s: %w", &p, dst, err)
-				}
-				if err := wc.Close(); err != nil {
-					return fmt.Errorf("cannot close reader from %s from %s: %w", &p, src, err)
-				}
+			}
+			if err := dst.FinalizeFile(parts[0]); err != nil {
+				return fmt.Errorf("cannot finalize %s: %w", parts[0].Path, err)
 			}
 			return nil
 		}, func(elapsed time.Duration) {
@@ -207,6 +218,69 @@ func (r *Restore) Run(ctx context.Context) error {
 		backupSize, time.Since(startTime).Seconds(), deleteSize, downloadSize)
 
 	removeRestoreLock(r.Dst.Dir)
+	return nil
+}
+
+const writeBufSize = 2 * 1024 * 1024
+
+var writeBufPool = sync.Pool{
+	New: func() any {
+		buf := make([]byte, writeBufSize)
+		return &buf
+	},
+}
+
+const readBufSize = 8 * 1024 * 1024
+
+var readBufPool = sync.Pool{
+	New: func() any {
+		return bufio.NewWriterSize(nil, readBufSize)
+	},
+}
+
+func pipelinedDownload(src common.RemoteFS, dst *fslocal.FS, p common.Part, bytesDownloaded *atomic.Uint64) error {
+	wc, err := dst.NewDirectWriteCloser(p)
+	if err != nil {
+		return fmt.Errorf("cannot create writer for %q to %s: %w", &p, dst, err)
+	}
+
+	pr, pw := io.Pipe()
+	errCh := make(chan error, 1)
+
+	go func() {
+		buf := readBufPool.Get().(*bufio.Writer)
+		buf.Reset(pw)
+		err := src.DownloadPart(p, buf)
+		if err == nil {
+			err = buf.Flush()
+		}
+		readBufPool.Put(buf)
+		pw.CloseWithError(err)
+		errCh <- err
+	}()
+
+	sw := &statWriter{
+		w:            wc,
+		bytesWritten: bytesDownloaded,
+	}
+	bufp := writeBufPool.Get().(*[]byte)
+	_, writeErr := io.CopyBuffer(sw, pr, *bufp)
+	writeBufPool.Put(bufp)
+	pr.Close()
+
+	downloadErr := <-errCh
+
+	closeErr := wc.Close()
+
+	if writeErr != nil {
+		return fmt.Errorf("cannot write %s to %s: %w", &p, dst, writeErr)
+	}
+	if downloadErr != nil {
+		return fmt.Errorf("cannot download %s from %s: %w", &p, src, downloadErr)
+	}
+	if closeErr != nil {
+		return fmt.Errorf("cannot close writer for %s at %s: %w", &p, dst, closeErr)
+	}
 	return nil
 }
 

@@ -18,6 +18,7 @@ import {
 import Button from "../../Main/Button/Button";
 
 interface ItemHeaderControlsProps {
+  classes?: string[];
   entity: string;
   type?: string;
   groupId: string;
@@ -27,11 +28,18 @@ interface ItemHeaderControlsProps {
   onClose?: () => void;
 }
 
-const ItemHeader: FC<ItemHeaderControlsProps> = ({ name, id, groupId, entity, type, states, onClose }) => {
+const ItemHeader: FC<ItemHeaderControlsProps> = ({ name, id, groupId, entity, type, states, onClose, classes }) => {
   const { isMobile } = useDeviceDetect();
   const { serverUrl } = useAppState();
   const navigate = useNavigate();
   const copyToClipboard = useCopyToClipboard();
+
+  const openGroupLink = () => {
+    navigate({
+      pathname: "/rules",
+      search:   `group_id=${groupId}`,
+    });
+  };
 
   const openItemLink = () => {
     navigate({
@@ -49,7 +57,7 @@ const ItemHeader: FC<ItemHeaderControlsProps> = ({ name, id, groupId, entity, ty
   const headerClasses = classNames({
     "vm-explore-alerts-item-header": true,
     "vm-explore-alerts-item-header_mobile": isMobile,
-  });
+  }, classes);
 
   const renderIcon = () => {
     switch(entity) {
@@ -105,16 +113,30 @@ const ItemHeader: FC<ItemHeaderControlsProps> = ({ name, id, groupId, entity, ty
           items={badgesItems}
         />
         {onClose ? (
-          <Button
-            className="vm-back-button"
-            size="small"
-            variant="outlined"
-            color="gray"
-            startIcon={<LinkIcon />}
-            onClick={copyLink}
-          >
-            <span className="vm-button-text">Copy Link</span>
-          </Button>
+          <>
+            {id && (
+              <Button
+                className="vm-back-button"
+                size="small"
+                variant="outlined"
+                color="gray"
+                startIcon={<GroupIcon />}
+                onClick={openGroupLink}
+              >
+                <span className="vm-button-text">Open Group</span>
+              </Button>
+            )}
+            <Button
+              className="vm-back-button"
+              size="small"
+              variant="outlined"
+              color="gray"
+              startIcon={<LinkIcon />}
+              onClick={copyLink}
+            >
+              <span className="vm-button-text">Copy Link</span>
+            </Button>
+          </>
         ) : (
           <Button
             className="vm-button-borderless"

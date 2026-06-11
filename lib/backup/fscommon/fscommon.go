@@ -107,7 +107,7 @@ func appendFilesInternal(dst []string, d *os.File) ([]string, error) {
 }
 
 func isSpecialFile(name string) bool {
-	return name == "flock.lock" || name == backupnames.RestoreInProgressFilename || name == backupnames.RestoreMarkFileName
+	return name == "flock.lock" || name == backupnames.RestoreInProgressFilename || name == backupnames.RestoreMarkFileName || strings.HasSuffix(name, ".tmp")
 }
 
 // RemoveEmptyDirs recursively removes empty directories under the given dir.

@@ -1,0 +1,10 @@
+apiVersion: 1
+
+datasources:
+  - name: VictoriaMetrics-Infinity
+    type: yesoreyeram-infinity-datasource
+    url: "http://vmauth:8427/select/0/prometheus"
+    basicAuth: true
+    basicAuthUser: foo
+    secureJsonData:
+      basicAuthPassword: bar

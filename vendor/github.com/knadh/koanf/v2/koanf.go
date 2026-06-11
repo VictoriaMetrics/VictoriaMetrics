@@ -334,13 +334,13 @@ func (ko *Koanf) Get(path string) any {
 
 	// Does the path exist?
 	ko.mu.RLock()
+	defer ko.mu.RUnlock()
+
 	p, ok := ko.keyMap[path]
 	if !ok {
-		ko.mu.RUnlock()
 		return nil
 	}
 	res := maps.Search(ko.confMap, p)
-	ko.mu.RUnlock()
 
 	// Non-reference types are okay to return directly.
 	// Other types are "copied" with maps.Copy or json.Marshal
@@ -355,7 +355,7 @@ func (ko *Koanf) Get(path string) any {
 		return nil
 	}
 
-	// Skil nil pointers before copying.
+	// Skip nil pointers before copying.
 	if rv := reflect.ValueOf(res); rv.Kind() == reflect.Ptr && rv.IsNil() {
 		return res
 	}
@@ -434,15 +434,25 @@ func (ko *Koanf) Delim() string {
 
 func (ko *Koanf) merge(c map[string]any, opts *options) error {
 	ko.mu.Lock()
-	defer ko.mu.Unlock()
 
 	maps.IntfaceKeysToStrings(c)
 	if opts.merge != nil {
-		if err := opts.merge(c, ko.confMap); err != nil {
+		// Deep-copy confMap so the custom merge function can safely call
+		// ko.Get*() methods (which acquire a read lock) without deadlocking.
+		dest := maps.Copy(ko.confMap)
+
+		ko.mu.Unlock()
+		err := opts.merge(c, dest)
+		ko.mu.Lock()
+
+		if err != nil {
+			ko.mu.Unlock()
 			return err
 		}
+		ko.confMap = dest
 	} else if ko.conf.StrictMerge {
 		if err := maps.MergeStrict(c, ko.confMap); err != nil {
+			ko.mu.Unlock()
 			return err
 		}
 	} else {
@@ -453,6 +463,7 @@ func (ko *Koanf) merge(c map[string]any, opts *options) error {
 	ko.confMapFlat, ko.keyMap = maps.Flatten(ko.confMap, nil, ko.conf.Delim)
 	ko.keyMap = populateKeyParts(ko.keyMap, ko.conf.Delim)
 
+	ko.mu.Unlock()
 	return nil
 }
 

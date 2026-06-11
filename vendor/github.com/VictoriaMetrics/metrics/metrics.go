@@ -25,7 +25,11 @@ import (
 type namedMetric struct {
 	name   string
 	metric metric
-	isAux  bool
+
+	// isAux indicates whether it is an auxiliary metric.
+	// Currently only set for quantileValue, as it is part of the Summary.
+	// This field affects sorting when quantileValue and Summary are compared.
+	isAux bool
 }
 
 type metric interface {
@@ -245,6 +249,23 @@ func WritePrometheus(w io.Writer, exposeProcessMetrics bool) {
 func WriteProcessMetrics(w io.Writer) {
 	writeGoMetrics(w)
 	writeProcessMetrics(w)
+	writePushMetrics(w)
+}
+
+// WriteGoMetrics writes Go runtime metrics to w.
+// This includes runtime/metrics such as memory stats, GC stats, goroutine counts, etc.
+func WriteGoMetrics(w io.Writer) {
+	writeGoMetrics(w)
+}
+
+// WriteProcMetrics writes OS-level process metrics to w by reading
+// the /proc filesystem (CPU, memory, file descriptors, PSI, etc.).
+func WriteProcMetrics(w io.Writer) {
+	writeProcessMetrics(w)
+}
+
+// WritePushMetrics writes push-mode related metrics to w.
+func WritePushMetrics(w io.Writer) {
 	writePushMetrics(w)
 }
 

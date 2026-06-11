@@ -41,7 +41,7 @@ settings:
   restore_state: True  # restore state from previous run, if available
   retention:  # how long to keep stale models on disk/in memory
     ttl: "1d"  # time-to-live duration, if the model was not used for inference within this duration, it will be considered stale
-    check_every: "1h"  # how often to check for stale models and remove them
+    check_interval: "1h"  # how often to check for stale models and remove them
 
 # how and when to run the models is defined by schedulers
 # https://docs.victoriametrics.com/anomaly-detection/components/scheduler/
@@ -143,15 +143,15 @@ server:
 
 > This feature is better used in conjunction with [stateful service](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration) to preserve the state of the models and schedulers between restarts and reuse what can be reused, thus avoiding unnecessary re-training of models, re-initialization of schedulers and re-reading of data.
 
-{{% available_from "v1.25.0" anomaly %}} Service supports hot reload of configuration files, which allows for automatic reloading of configurations on config files change filesystem events without the need of explicit service restart. This can be enabled via the `--watch` [CLI argument](https://docs.victoriametrics.com/anomaly-detection/quickstart/#command-line-arguments). `vmanomaly_hot_reload_enabled` flag in [self-monitoring metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#startup-metrics) will be set to 1 (if enabled) or 0 (if disabled).
+{{% available_from "v1.25.0" anomaly %}} Service supports hot reload of configuration files, which allows for automatic reloading of configurations on config files change filesystem events without the need of explicit service restart. This can be enabled via the `--watch` [CLI argument](https://docs.victoriametrics.com/anomaly-detection/quickstart/#command-line-arguments). `vmanomaly_config_reload_enabled` flag in [self-monitoring metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#startup-metrics) will be set to 1 (if enabled) or 0 (if disabled).
 
 ### How it works
 
-It works by watching for file system events, such as modifications, creations, or deletions of `.yml|.yaml` files in the specified directories. When a change is detected, the service will attempt to reload the configuration files, rebuild the [global config](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#global-config) and reinitialize the components. If the reload is successful, the `vmanomaly_hot_reload_events_total` metric will be incremented for `status="success"` label, otherwise it will be incremented with `status="failure"` label and a respective error message on config validation failure(s) will be logged.
+It works by watching for file system events, such as modifications, creations, or deletions of `.yml|.yaml` files in the specified directories. When a change is detected, the service will attempt to reload the configuration files, rebuild the [global config](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#global-configuration) and reinitialize the components. If the reload is successful, the `vmanomaly_config_reloads_total` metric will be incremented for `status="success"` label, otherwise it will be incremented with `status="failure"` label and a respective error message on config validation failure(s) will be logged.
 
 > If the reload fails, the service will log an error message indicating the reason for the failure, and the **previous configuration will remain active until a successful reload occurs** to preserve the service's stability. This means that if there are errors in the new configuration, the service will continue to operate with the last valid configuration until the issues are resolved.
 
-If used on [sharded setup](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#horizontal-scalability), upon [global config](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#global-config) change, all shards will be reinitialized with the new configurations.
+If used on [sharded setup](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#horizontal-scalability), upon [global config](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#global-configuration) change, all shards will be reinitialized with the new configurations.
 
 > Please note, that even if [state restoration](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration) is enabled, the models, queries and schedulers might "migrate" to new shards if the order or the amount of [sub-configs](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#sub-configuration) changes after new config is hot-reloaded, so the state restoration won't be **fully** efficient in this case.
 
@@ -169,7 +169,7 @@ schedulers:
   periodic:
     class: 'periodic'
     infer_every: "30s"
-    fit_every: "24h"
+    fit_every: "365d"
     fit_window: "24h"
 
 reader:
@@ -189,8 +189,9 @@ reader:
   
 models:
   zscore:
-    class: 'zscore'
+    class: 'zscore_online'
     z_threshold: 3.5
+    decay: 0.99  # gives more weight to recent data points, value should be in (0, 1], 1 means to give equal weight to all data
     provide_series: ['anomaly_score']
     # if queries are not specified, all queries from reader will be used
     # if schedulers are not specified, all schedulers will be used
@@ -218,10 +219,10 @@ reader:
 # ... (rest of the config remains unchanged)
 ```
 
-After saving the changes, hot reload will automatically detect the changes in `config.yaml` and attempt to reload the configuration. As the changes are valid, the service will log a success message and increment the `vmanomaly_hot_reload_events_total` metric with `status="success"` label:
+After saving the changes, hot reload will automatically detect the changes in `config.yaml` and attempt to reload the configuration. As the changes are valid, the service will log a success message and increment the `vmanomaly_config_reloads_total` metric with `status="success"` label:
 
-- All the model instances of class `zscore`, that were trained on `host_network_receive_errors` can be reused as they are still valid and "fresh" for making inference on new datapoints until the next `fit_every` happens (10m - 5m).
-- All the model instances of class `zscore`, that were trained on `cpu_seconds_total` will be re-trained with the new query expression and frequency, as old model instances are not valid anymore.
+- All the model instances of class `zscore_online`, that were trained on `host_network_receive_errors` can be reused as they are still valid and "fresh" for making inference on new datapoints until the next `fit_every` happens.
+- All the model instances of class `zscore_online`, that were trained on `cpu_seconds_total` will be re-trained with the new query expression and frequency, as old model instances are not valid anymore.
 
 
 ## Environment variables

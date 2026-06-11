@@ -485,6 +485,14 @@ again:
 		}
 		goto again
 	}
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6241
+	if blockLen == 0 {
+		logger.Errorf("skipping corrupted %q, since zero block size is read from it", q.readerPath)
+		if err := q.skipBrokenChunkFile(); err != nil {
+			return dst, err
+		}
+		goto again
+	}
 	if blockLen > q.maxBlockSize {
 		logger.Errorf("skipping corrupted %q, since too big block size is read from it: %d bytes; cannot exceed %d bytes", q.readerPath, blockLen, q.maxBlockSize)
 		if err := q.skipBrokenChunkFile(); err != nil {

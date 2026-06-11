@@ -6,16 +6,13 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
 )
 
 // filterSequence matches an ordered sequence of phrases
 //
-// Example LogsQL: `fieldName:seq(foo, "bar baz")`
+// Example LogsQL: `seq(foo, "bar baz")`
 type filterSequence struct {
-	fieldName string
-	phrases   []string
+	phrases []string
 
 	tokensOnce   sync.Once
 	tokens       []string
@@ -25,17 +22,20 @@ type filterSequence struct {
 	nonEmptyPhrases     []string
 }
 
+func newFilterSequence(fieldName string, phrases []string) *filterGeneric {
+	fs := &filterSequence{
+		phrases: phrases,
+	}
+	return newFilterGeneric(fieldName, fs)
+}
+
 func (fs *filterSequence) String() string {
 	phrases := fs.phrases
 	a := make([]string, len(phrases))
 	for i, phrase := range phrases {
 		a[i] = quoteTokenIfNeeded(phrase)
 	}
-	return fmt.Sprintf("%sseq(%s)", quoteFieldNameIfNeeded(fs.fieldName), strings.Join(a, ","))
-}
-
-func (fs *filterSequence) updateNeededFields(pf *prefixfilter.Filter) {
-	pf.AddAllowFilter(fs.fieldName)
+	return fmt.Sprintf("seq(%s)", strings.Join(a, ","))
 }
 
 func (fs *filterSequence) getTokens() []string {
@@ -70,25 +70,24 @@ func (fs *filterSequence) initNonEmptyPhrases() {
 	fs.nonEmptyPhrases = result
 }
 
-func (fs *filterSequence) matchRow(fields []Field) bool {
+func (fs *filterSequence) matchRowByField(fields []Field, fieldName string) bool {
 	phrases := fs.getNonEmptyPhrases()
-	v := getFieldValueByName(fields, fs.fieldName)
+	v := getFieldValueByName(fields, fieldName)
 	return matchSequence(v, phrases)
 }
 
-func (fs *filterSequence) applyToBlockResult(br *blockResult, bm *bitmap) {
+func (fs *filterSequence) applyToBlockResultByField(br *blockResult, bm *bitmap, fieldName string) {
 	phrases := fs.getNonEmptyPhrases()
 	if len(phrases) == 0 {
 		return
 	}
 
-	applyToBlockResultGeneric(br, bm, fs.fieldName, "", func(v, _ string) bool {
+	applyToBlockResultGeneric(br, bm, fieldName, "", func(v, _ string) bool {
 		return matchSequence(v, phrases)
 	})
 }
 
-func (fs *filterSequence) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
-	fieldName := fs.fieldName
+func (fs *filterSequence) applyToBlockSearchByField(bs *blockSearch, bm *bitmap, fieldName string) {
 	phrases := fs.getNonEmptyPhrases()
 
 	if len(phrases) == 0 {

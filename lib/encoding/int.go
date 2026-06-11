@@ -517,7 +517,7 @@ func UnmarshalBytes(src []byte) ([]byte, int) {
 	if nSize <= 0 {
 		return nil, 0
 	}
-	if uint64(nSize)+n > uint64(len(src)) {
+	if n > uint64(len(src)-nSize) {
 		return nil, 0
 	}
 	start := nSize

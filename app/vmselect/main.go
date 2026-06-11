@@ -21,7 +21,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/stats"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
@@ -36,12 +35,6 @@ var (
 	deleteAuthKey                = flagutil.NewPassword("deleteAuthKey", "authKey for metrics' deletion via /api/v1/admin/tsdb/delete_series and /tags/delSeries. It could be passed via authKey query arg. It overrides -httpAuth.*")
 	metricNamesStatsResetAuthKey = flagutil.NewPassword("metricNamesStatsResetAuthKey", "authKey for resetting metric names usage cache via /api/v1/admin/status/metric_names_stats/reset. It overrides -httpAuth.*. "+
 		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#track-ingested-metrics-usage")
-
-	maxConcurrentRequests = flag.Int("search.maxConcurrentRequests", getDefaultMaxConcurrentRequests(), "The maximum number of concurrent search requests. "+
-		"It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. "+
-		"See also -search.maxQueueDuration and -search.maxMemoryPerQuery")
-	maxQueueDuration = flag.Duration("search.maxQueueDuration", 10*time.Second, "The maximum time the request waits for execution when -search.maxConcurrentRequests "+
-		"limit is reached; see also -search.maxQueryDuration")
 	resetCacheAuthKey    = flagutil.NewPassword("search.resetCacheAuthKey", "Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call. It could be passed via authKey query arg. It overrides -httpAuth.*")
 	logSlowQueryDuration = flag.Duration("search.logSlowQueryDuration", 5*time.Second, "Log queries with execution time exceeding this value. Zero disables slow query logging. "+
 		"See also -search.logQueryMemoryUsage")
@@ -50,25 +43,21 @@ var (
 
 var slowQueries = metrics.NewCounter(`vm_slow_queries_total`)
 
-func getDefaultMaxConcurrentRequests() int {
-	// A single request can saturate all the CPU cores, so there is no sense
-	// in allowing higher number of concurrent requests - they will just contend
-	// for unavailable CPU time.
-	n := min(cgroup.AvailableCPUs()*2, 16)
-	return n
-}
-
 // Init initializes vmselect
-func Init() {
-	tmpDirPath := *vmstorage.DataPath + "/tmp"
+func Init(vmselectMaxConcurrentRequests int, vmselectMaxQueueDuration time.Duration) {
+	tmpDirPath := vmstorage.DataPath() + "/tmp"
 	fs.MustRemoveDirContents(tmpDirPath)
 	netstorage.InitTmpBlocksDir(tmpDirPath)
-	promql.InitRollupResultCache(*vmstorage.DataPath + "/cache/rollupResult")
-	prometheus.InitMaxUniqueTimeseries(*maxConcurrentRequests)
+	promql.InitRollupResultCache(vmstorage.DataPath() + "/cache/rollupResult")
 
-	concurrencyLimitCh = make(chan struct{}, *maxConcurrentRequests)
+	maxConcurrentRequests = vmselectMaxConcurrentRequests
+	maxQueueDuration = vmselectMaxQueueDuration
+	concurrencyLimitCh = make(chan struct{}, maxConcurrentRequests)
+
 	initVMUIConfig()
 	initVMAlertProxy()
+
+	flagutil.RegisterSecretFlag("vmalert.proxyURL")
 }
 
 // Stop stops vmselect
@@ -76,7 +65,11 @@ func Stop() {
 	promql.StopRollupResultCache()
 }
 
-var concurrencyLimitCh chan struct{}
+var (
+	maxConcurrentRequests int
+	maxQueueDuration      time.Duration
+	concurrencyLimitCh    chan struct{}
+)
 
 var (
 	concurrencyLimitReached = metrics.NewCounter(`vm_concurrent_select_limit_reached_total`)
@@ -87,9 +80,6 @@ var (
 	})
 	_ = metrics.NewGauge(`vm_concurrent_select_current`, func() float64 {
 		return float64(len(concurrencyLimitCh))
-	})
-	_ = metrics.NewGauge(`vm_search_max_unique_timeseries`, func() float64 {
-		return float64(prometheus.GetMaxUniqueTimeSeries())
 	})
 )
 
@@ -129,12 +119,12 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	default:
 		// Sleep for a while until giving up. This should resolve short bursts in requests.
 		concurrencyLimitReached.Inc()
-		d := min(searchutil.GetMaxQueryDuration(r), *maxQueueDuration)
+		d := min(searchutil.GetMaxQueryDuration(r), maxQueueDuration)
 		t := timerpool.Get(d)
 		select {
 		case concurrencyLimitCh <- struct{}{}:
 			timerpool.Put(t)
-			qt.Printf("wait in queue because -search.maxConcurrentRequests=%d concurrent requests are executed", *maxConcurrentRequests)
+			qt.Printf("wait in queue because -search.maxConcurrentRequests=%d concurrent requests are executed", maxConcurrentRequests)
 			defer func() { <-concurrencyLimitCh }()
 		case <-r.Context().Done():
 			timerpool.Put(t)
@@ -150,7 +140,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 				Err: fmt.Errorf("couldn't start executing the request in %.3f seconds, since -search.maxConcurrentRequests=%d concurrent requests "+
 					"are executed. Possible solutions: to reduce query load; to add more compute resources to the server; "+
 					"to increase -search.maxQueueDuration=%s; to increase -search.maxQueryDuration; to increase -search.maxConcurrentRequests",
-					d.Seconds(), *maxConcurrentRequests, maxQueueDuration),
+					d.Seconds(), maxConcurrentRequests, maxQueueDuration),
 				StatusCode: http.StatusTooManyRequests,
 			}
 			w.Header().Add("Retry-After", "10")
@@ -262,6 +252,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/api/v1/export":
 		exportRequests.Inc()
+		httpserver.EnableCORS(w, r)
 		if err := prometheus.ExportHandler(startTime, w, r); err != nil {
 			exportErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
@@ -270,6 +261,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/api/v1/export/csv":
 		exportCSVRequests.Inc()
+		httpserver.EnableCORS(w, r)
 		if err := prometheus.ExportCSVHandler(startTime, w, r); err != nil {
 			exportCSVErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
@@ -278,6 +270,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/api/v1/export/native":
 		exportNativeRequests.Inc()
+		httpserver.EnableCORS(w, r)
 		if err := prometheus.ExportNativeHandler(startTime, w, r); err != nil {
 			exportNativeErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
@@ -743,6 +736,26 @@ func proxyVMAlertRequests(w http.ResponseWriter, r *http.Request, path string) {
 	req := r.Clone(r.Context())
 	req.URL.Path = strings.TrimPrefix(path, "prometheus")
 	req.Host = vmalertProxyHost
+
+	if strings.HasPrefix(r.Header.Get(`User-Agent`), `Grafana`) {
+		// Grafana currently supports only Prometheus-style alerts. If other alert types
+		// (e.g. logs or traces) are returned, it may fail with "Error loading alerts".
+		//
+		// Grafana queries the vmalert API directly, bypassing the VictoriaMetrics datasource,
+		// so query params (such as datasource_type) cannot be enforced on the Grafana side.
+		//
+		// To ensure compatibility, we detect Grafana requests via the User-Agent and enforce
+		// `datasource_type=prometheus`.
+		//
+		// See:
+		// - https://github.com/VictoriaMetrics/victoriametrics-datasource/issues/329#issuecomment-3847585443
+		// - https://github.com/VictoriaMetrics/victoriametrics-datasource/issues/59
+		q := req.URL.Query()
+		q.Set("datasource_type", "prometheus")
+		req.URL.RawQuery = q.Encode()
+		req.RequestURI = ""
+	}
+
 	vmalertProxy.ServeHTTP(w, req)
 }
 

@@ -26,7 +26,7 @@ import (
 // Later we could consider to make this limit configurable
 const maxSnappyBlockSize = 56_000_000
 
-// ReadUncompressedData reads uncompressed data from r using the given encoding and then passes it to the callback.
+// ReadUncompressedData reads uncompressed data from r using the given contentType and then passes it to the callback.
 //
 // The maxDataSize limits the maximum data size, which can be read from r.
 //

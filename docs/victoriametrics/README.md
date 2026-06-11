@@ -229,23 +229,6 @@ See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3781)
 [Docker-compose](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#readme)
 helps to spin up VictoriaMetrics, [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and Grafana with one command.
 
-## Playgrounds
-
-VictoriaMetrics has the following publicly available demo resources:
-
-1. [https://play.victoriametrics.com/](https://play.victoriametrics.com/) - [VMUI](#vmui) of VictoriaMetrics cluster installation.
-  It is available for testing the query engine, relabeling debugger, other tools and pages provided by VMUI.
-1. [https://play-grafana.victoriametrics.com/](https://play-grafana.victoriametrics.com/) - Grafana configured with many
-  typical dashboards using VictoriaMetrics and VictoriaLogs as datasource. It contains VictoriaMetrics cluster dashboard with
-  3 cluster installations for the recent OS and LTS versions running under the constant benchmark.
-1. [https://play-vmlogs.victoriametrics.com/](https://play-vmlogs.victoriametrics.com/) - [VMUI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui) of VictoriaLogs installation.
-   It is available for testing the query engine on demo logs set.
-1. [https://play-vtraces.victoriametrics.com/](https://play-vtraces.victoriametrics.com/) - [VMUI](https://docs.victoriametrics.com/victoriatraces/querying/#web-ui) of VictoriaTraces installation.
-   It is available for testing the query engine on demo traces set.
-
-Additionally, we provide a docker-compose environment for [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/README.md), [VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaLogs/blob/master/deployment/docker/README.md) and [VictoriaTraces](https://github.com/VictoriaMetrics/VictoriaTraces/blob/master/deployment/docker/README.md). 
-They are already configured, provisioned and interconnected. It can be used as an example for a [quick start](https://docs.victoriametrics.com/victoriametrics/quick-start/).
-
 ## How to upgrade VictoriaMetrics
 
 VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking [the CHANGELOG page](https://docs.victoriametrics.com/victoriametrics/changelog/) and performing regular upgrades.
@@ -263,6 +246,10 @@ The following steps must be performed during the upgrade / downgrade procedure:
 * Start the upgraded VictoriaMetrics.
 
 Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](https://grafana.com/blog/2019/03/25/whats-new-in-prometheus-2.8-wal-based-remote-write/) for details. The same applies also to [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/).
+
+> If you'd prefer not to manage upgrades yourself, [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_single_upgrade)
+> performs version upgrades automatically during maintenance windows with no action required on your part.
+> See the [VictoriaMetrics Cloud documentation](https://docs.victoriametrics.com/victoriametrics-cloud/) to get started.
 
 ## vmui
 
@@ -714,17 +701,36 @@ It's better to use the `-retentionPeriod` command-line flag for efficient prunin
 
 ## Forced merge
 
-VictoriaMetrics performs [data compactions in background](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
-in order to keep good performance characteristics when accepting new data. These compactions (merges) are performed independently on per-month partitions.
-This means that compactions are stopped for per-month partitions if no new data is ingested into these partitions.
-Sometimes it is necessary to trigger compactions for old partitions. For instance, in order to free up disk space occupied by [deleted time series](#how-to-delete-time-series).
-In this case forced compaction may be initiated on the specified per-month partition by sending request to `/internal/force_merge?partition_prefix=YYYY_MM`,
-where `YYYY_MM` is per-month partition name. For example, `http://victoriametrics:8428/internal/force_merge?partition_prefix=2020_08` would initiate forced
-merge for August 2020 partition. The call to `/internal/force_merge` returns immediately, while the corresponding forced merge continues running in background.
+VictoriaMetrics performs [data compaction in background](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
+to keep high performance during ingestion. These compactions (merges) are performed independently on per-month partitions.
+Partitions that don't receive new data will eventually stop being merged, as they reach an optimal state.
+Sometimes it is necessary to trigger merges for old partitions. For example, to free up disk space occupied by [deleted time series](https://docs.victoriametrics.com/victoriametrics/#how-to-delete-time-series).
+The user can **force** compaction on the specified per-month partition by sending a request to `/internal/force_merge?partition_prefix=YYYY_MM`,
+where `YYYY_MM` is the per-month partition name. For example, `http://victoriametrics:8428/internal/force_merge?partition_prefix=2020_08` would initiate a forced
+merge for the August 2020 partition. The call to `/internal/force_merge` returns immediately, while the corresponding forced merge continues running in the background.
 
-Forced merges may require additional CPU, disk IO and storage space resources. It is unnecessary to run forced merge under normal conditions,
+Forced merges may require additional CPU, disk I/O, and storage space. It is unnecessary to run a forced merge under normal conditions,
 since VictoriaMetrics automatically performs [optimal merges in background](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
 when new data is ingested into it.
+
+The `/internal/force_merge` endpoint can be protected from unauthorized access via the `--forceMergeAuthKey` command-line flag.
+See [General security recommendations](https://docs.victoriametrics.com/victoriametrics/#general-security-recommendations) for more details.
+
+## Forced flush
+
+VictoriaMetrics puts the recently [ingested samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#write-data) into in-memory buffers,
+which aren't available for [querying](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#query-data) for up to a few seconds.
+If you need to query the samples immediately after they are ingested, then call the `/internal/force_flush` HTTP endpoint before running your query.
+This endpoint converts in-memory buffers containing recently ingested samples into searchable data blocks.
+
+It isn't recommended to force flush on a regular basis, as this increases CPU usage and slows data ingestion.
+The `/internal/force_flush` endpoint exists for debug and test purposes (for instance, for automated tests) and should be avoided in production.
+
+> VictoriaMetrics may intentionally hide samples with timestamps close to the current time during querying.
+> This behavior is controlled via `-search.latencyOffset` command-line flag. See more details in [Query latency](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#query-latency) documentation.
+
+The `/internal/force_flush` endpoint can be protected from unauthorized access via `-forceFlushAuthKey` command-line flag.
+See [General security recommendations](https://docs.victoriametrics.com/victoriametrics/#general-security-recommendations) for more details.
 
 ## How to export time series
 
@@ -808,6 +814,7 @@ curl http://<victoriametrics-addr>:8428/api/v1/export/csv -d 'format=<format>' -
 ```
 
 The exported CSV data can be imported to VictoriaMetrics via [/api/v1/import/csv](#how-to-import-csv-data).
+The first line of the file is a header row derived from the `format` parameter.
 
 The [deduplication](#deduplication) is applied for the data exported in CSV by default. It is possible to export raw data without de-duplication by passing `reduce_mem_usage=1` query arg to `/api/v1/export/csv`.
 
@@ -948,6 +955,8 @@ The `format` query arg must contain comma-separated list of parsing rules for CS
     * `unix_ns` - unix timestamp in nanoseconds. Note that VictoriaMetrics rounds the timestamp to milliseconds.
     * `rfc3339` - timestamp in [RFC3339](https://tools.ietf.org/html/rfc3339) format, i.e. `2006-01-02T15:04:05Z`.
     * `custom:<layout>` - custom layout for the timestamp. The `<layout>` may contain arbitrary time layout according to [time.Parse rules in Go](https://golang.org/pkg/time/#Parse).
+
+The first row is treated as a header but can be skipped if any `time` or `metric` column contains a non-numeric value.
 
 Each request to `/api/v1/import/csv` may contain arbitrary number of CSV lines.
 
@@ -1126,6 +1135,8 @@ curl http://<victoriametrics-addr>:8428/federate -d 'match[]=<timeseries_selecto
 By default, the last point on the interval `[now - max_lookback ... now]` is scraped for each time series. The default value for `max_lookback` is `5m` (5 minutes), but it can be overridden with `max_lookback` query arg.
 For instance, `/federate?match[]=up&max_lookback=1h` would return last points on the `[now - 1h ... now]` interval. This may be useful for time series federation
 with scrape intervals exceeding `5m`.
+
+ VictoriaMetrics supports Prometheus v3.0 utf-8 content encoding with `Accept` header. If `Accept: allow-utf-8` HTTP header provided, `/federate` API response changes according to [Prometheus utf-8](https://prometheus.io/docs/guides/utf8/#querying) specification - `metric_name{tag="value"}` transforms into `{"metric_name","tag"="value"}`.
 
 ## Capacity planning
 
@@ -1390,23 +1401,26 @@ The newly added `part` is atomically registered in the `parts.json` file under t
 after it is fully written and [fsynced](https://man7.org/linux/man-pages/man2/fsync.2.html) to the storage.
 Thanks to this algorithm, storage never contains partially created parts, even if hardware power off
 occurs in the middle of writing the `part` to disk - such incompletely written `parts`
-are automatically deleted on the next VictoriaMetrics start.
-
+are automatically deleted on the next VictoriaMetrics start. 
 The same applies to merge process — `parts` are either fully merged into a new `part` or fail to merge,
-leaving the source `parts` untouched. However, due to hardware issues data on disk may be corrupted regardless of
-VictoriaMetrics process. VictoriaMetrics can detect corruption during decompressing, decoding or sanity checking
-of the data blocks. But **it cannot fix the corrupted data**. Data parts that fail to load on startup need to be deleted
-or restored from backups. This is why it is recommended performing
-[regular backups](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#backups).
+leaving the source `parts` untouched. 
+
+Hardware issues may cause data already stored on disk to become corrupted, regardless of the VictoriaMetrics process.
+VictoriaMetrics can detect corruption during reading, decompressing, decoding or sanity checking of the data blocks. 
+Process will intentionally panic when this happens, so human operator can detect corruption as fast as possible. 
+
+> VictoriaMetrics cannot fix the corrupted data parts on its own.
+> Data parts that fail to load on startup or during reads need to be deleted or restored from backups. 
+> It is recommended performing [regular backups](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#backups).
 
 VictoriaMetrics doesn't use checksums for stored data blocks. See why in this [GitHub Issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3011).
 
-VictoriaMetrics doesn't merge parts if their summary size exceeds free disk space.
-This prevents from potential out of disk space errors during merge.
-The number of parts may significantly increase over time under free disk space shortage.
-This increases overhead during data querying, since VictoriaMetrics needs to read data from
-bigger number of parts per each request. That's why it is recommended to have at least 20%
-of free disk space under directory pointed by `-storageDataPath` command-line flag.
+VictoriaMetrics does not merge parts if their combined size exceeds the available free disk space. This behavior 
+protects against potential "out of disk space" errors during merges. If there is not enough free disk space to perform merges, 
+the number of parts may increase significantly over time. This increases query overhead, because VictoriaMetrics must 
+read data from a larger number of parts for each request.
+
+> It is recommended to keep at least 20% of disk space free in the directory specified by the `-storageDataPath` command-line flag.
 
 Information about merging process is available in [the dashboard for single-node VictoriaMetrics](https://grafana.com/grafana/dashboards/10229)
 and [the dashboard for VictoriaMetrics cluster](https://grafana.com/grafana/dashboards/11176).
@@ -1517,6 +1531,16 @@ It is safe to extend `-retentionPeriod` on existing data. If `-retentionPeriod` 
 value than before, then data outside the configured period will be eventually deleted.
 
 VictoriaMetrics does not support indefinite retention, but you can specify an arbitrarily high duration, e.g. `-retentionPeriod=100y`.
+
+By default, VictoriaMetrics doesn't accept samples with timestamps bigger than `now+2d`, e.g. 2 days in the future.
+If you need accepting samples with bigger timestamps, then specify the desired "future retention" via `-futureRetention` command-line flag.
+This flag accepts values starting from `2d`.
+
+For example, the following command starts VictoriaMetrics, which accepts samples with timestamps up to a year in the future:
+
+```sh
+/path/to/victoria-metrics -futureRetention=1y
+```
 
 ### Multiple retentions
 
@@ -1678,7 +1702,41 @@ Additionally, alerting can be set up with the following tools:
 
 ## Security
 
-General security recommendations:
+### Supported Versions
+
+The following versions of VictoriaMetrics receive regular security fixes:
+
+| Version                                                                        | Supported          |
+|--------------------------------------------------------------------------------|--------------------|
+| [Latest release](https://docs.victoriametrics.com/victoriametrics/changelog/)  | ✅                 |
+| [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/) | ✅                 |
+| other releases                                                                 | ❌                 |
+
+### Software Bill of Materials (SBOM)
+
+Every VictoriaMetrics container{{% available_from "v1.137.0" %}} image published to
+[Docker Hub](https://hub.docker.com/u/victoriametrics) and [Quay.io](https://quay.io/organization/victoriametrics) include an [SPDX](https://spdx.dev/) SBOM attestation generated automatically by BuildKit during `docker buildx build`.
+
+To inspect the SBOM for an image:
+
+```sh
+docker buildx imagetools inspect \
+  docker.io/victoriametrics/victoria-metrics:latest \
+  --format "{{ json .SBOM }}"
+```
+
+To scan an image using its SBOM attestation with [Trivy](https://github.com/aquasecurity/trivy):
+
+```sh
+trivy image --sbom-sources oci \
+  docker.io/victoriametrics/victoria-metrics:latest
+```
+
+### Reporting a Vulnerability
+
+Please report any security issues to <security@victoriametrics.com>
+
+### General security recommendations:
 
 * All the VictoriaMetrics components must run in protected private networks without direct access from untrusted networks such as Internet.
   The exception is [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) and [vmgateway](https://docs.victoriametrics.com/victoriametrics/vmgateway/),
@@ -1699,16 +1757,16 @@ VictoriaMetrics provides the following security-related command-line flags:
 * `-mtls` and `-mtlsCAFile` for enabling [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication) for requests to `-httpListenAddr`. See [these docs](#mtls-protection).
 * `-httpAuth.username` and `-httpAuth.password` for protecting all the HTTP endpoints
   with [HTTP Basic Authentication](https://en.wikipedia.org/wiki/Basic_access_authentication).
-* `-deleteAuthKey` for protecting `/api/v1/admin/tsdb/delete_series` endpoint. See [how to delete time series](#how-to-delete-time-series).
-* `-snapshotAuthKey` for protecting `/snapshot*` endpoints. See [how to work with snapshots](#how-to-work-with-snapshots).
-* `-forceFlushAuthKey` for protecting `/internal/force_flush` endpoint. See [these docs](#troubleshooting).
-* `-forceMergeAuthKey` for protecting `/internal/force_merge` endpoint. See [force merge docs](#forced-merge).
-* `-search.resetCacheAuthKey` for protecting `/internal/resetRollupResultCache` endpoint. See [backfilling](#backfilling) for more details.
-* `-reloadAuthKey` for protecting `/-/reload` endpoint, which is used for force reloading of [`-promscrape.config`](#how-to-scrape-prometheus-exporters-such-as-node-exporter).
-* `-configAuthKey` for protecting `/config` endpoint, since it may contain sensitive information such as passwords.
-* `-flagsAuthKey` for protecting `/flags` endpoint.
-* `-pprofAuthKey` for protecting `/debug/pprof/*` endpoints, which can be used for [profiling](#profiling).
-* `-metricNamesStatsResetAuthKey` for protecting `/api/v1/admin/status/metric_names_stats/reset` endpoint, used for [Metric Names Tracker](#track-ingested-metrics-usage).
+* `-deleteAuthKey` for protecting the `/api/v1/admin/tsdb/delete_series` endpoint. See [how to delete time series](#how-to-delete-time-series).
+* `-snapshotAuthKey` for protecting the `/snapshot*` endpoints. See [how to work with snapshots](#how-to-work-with-snapshots).
+* `-forceFlushAuthKey` for protecting the `/internal/force_flush` endpoint. See [force flush docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#forced-flush).
+* `-forceMergeAuthKey` for protecting the `/internal/force_merge` endpoint. See [force merge docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#forced-merge).
+* `-search.resetCacheAuthKey` for protecting the `/internal/resetRollupResultCache` endpoint. See [backfilling](#backfilling) for more details.
+* `-reloadAuthKey` for protecting the `/-/reload` endpoint, which is used for force reloading of [`-promscrape.config`](#how-to-scrape-prometheus-exporters-such-as-node-exporter).
+* `-configAuthKey` for protecting the `/config` endpoint, since it may contain sensitive information such as passwords.
+* `-flagsAuthKey` for protecting the `/flags` endpoint.
+* `-pprofAuthKey` for protecting the `/debug/pprof/*` endpoints, which can be used for [profiling](#profiling).
+* `-metricNamesStatsResetAuthKey` for protecting the `/api/v1/admin/status/metric_names_stats/reset` endpoint, used for [Metric Names Tracker](#track-ingested-metrics-usage).
 * `-denyQueryTracing` for disallowing [query tracing](#query-tracing).
 * `-http.header.hsts`, `-http.header.csp`, and `-http.header.frameOptions` for serving `Strict-Transport-Security`, `Content-Security-Policy`
   and `X-Frame-Options` HTTP response headers.
@@ -1799,6 +1857,10 @@ via [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) or via 
 
 See also [VictoriaMetrics Monitoring](https://victoriametrics.com/blog/victoriametrics-monitoring/)
 and [troubleshooting docs](https://docs.victoriametrics.com/victoriametrics/troubleshooting/).
+
+> [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_single_monitoring)
+> provides built-in monitoring dashboards and automatic alerts when resource consumption is high or configured limits are approached,
+> so you get notified before issues impact your workload. See the [VictoriaMetrics Cloud documentation](https://docs.victoriametrics.com/victoriametrics-cloud/) to get started.
 
 > VictoriaMetrics components do not expose metadata `TYPE` and `HELP` fields on `/metrics` page.
 > Services like Google Cloud Managed Prometheus could require metadata to be present for scraping. In this case, pass `-metrics.exposeMetadata`
@@ -1981,6 +2043,9 @@ By default, VictoriaMetrics doesn't limit the number of stored time series. The 
 * `-storage.maxDailySeries` - limits the number of time series that can be added during the last day. Useful for limiting daily [churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate).
 
 Both limits can be set simultaneously. If any of these limits is reached, then incoming samples for new time series are dropped. A sample of dropped series is put in the log with `WARNING` level.
+
+It is possible to use `-1` as a value for these flags{{% available_from "v1.140.0" %}} in order to enable series tracking but set limit to maximum possible value.
+This is useful in order to estimate the number of unique series which is written to VictoriaMetrics single without enforcing limits.
 
 The exceeded limits can be [monitored](#monitoring) with the following metrics:
 
@@ -2313,9 +2378,12 @@ Feel free asking any questions regarding VictoriaMetrics:
 * [X (Twitter)](https://x.com/VictoriaMetrics/)
 * [Linkedin](https://www.linkedin.com/company/victoriametrics/)
 * [Reddit](https://www.reddit.com/r/VictoriaMetrics/)
-* [Telegram-en](https://t.me/VictoriaMetrics_en)
-* [Telegram-ru](https://t.me/VictoriaMetrics_ru1)
 * [Mastodon](https://mastodon.social/@victoriametrics/)
+* Telegram:
+  * [VictoriaMetrics_en](https://t.me/VictoriaMetrics_en) 
+  * [VictoriaMetrics_ru](https://t.me/VictoriaMetrics_ru1)
+  * [VictoriaLogs_ru](https://t.me/victorialogs_ru)
+  * [VictoriaTraces_en](https://t.me/VictoriaTraces)
 
 If you like VictoriaMetrics and want to contribute, then please [read these docs](https://docs.victoriametrics.com/victoriametrics/contributing/).
 
@@ -2485,3 +2553,7 @@ Moved to [integrations/graphite/#tags-api](https://docs.victoriametrics.com/vict
 ###### Integrations
 
 Moved to [integrations](https://docs.victoriametrics.com/victoriametrics/integrations/).
+
+###### Playgrounds
+
+The VictoriaMetrics playgrounds have been moved to [Playgrounds](https://docs.victoriametrics.com/playgrounds/).

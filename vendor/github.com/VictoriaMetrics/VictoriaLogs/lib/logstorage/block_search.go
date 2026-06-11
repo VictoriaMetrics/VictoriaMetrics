@@ -99,7 +99,7 @@ type blockSearch struct {
 	// qs is updated by the blockSearch.search with various search stats
 	qs *QueryStats
 
-	// bsw is the actual work to perform on the given block pointed by bsw.ph
+	// bsw is the actual work to perform on the given block pointed by bsw.bh
 	bsw *blockSearchWork
 
 	// br contains result for the search in the block after search() call

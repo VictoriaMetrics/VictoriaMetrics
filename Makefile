@@ -17,7 +17,7 @@ EXTRA_GO_BUILD_TAGS ?=
 GO_BUILDINFO = -X '$(PKG_PREFIX)/lib/buildinfo.Version=$(APP_NAME)-$(DATEINFO_TAG)-$(BUILDINFO_TAG)'
 TAR_OWNERSHIP ?= --owner=1000 --group=1000
 
-GOLANGCI_LINT_VERSION := 2.9.0
+GOLANGCI_LINT_VERSION := 2.12.2
 
 .PHONY: $(MAKECMDGOALS)
 
@@ -457,6 +457,9 @@ test:
 test-race:
 	go test -tags 'synctest' -race ./lib/... ./app/...
 
+test-386:
+	GOARCH=386 go test -tags 'synctest' ./lib/... ./app/...
+
 test-pure:
 	CGO_ENABLED=0 go test -tags 'synctest' ./lib/... ./app/...
 
@@ -467,10 +470,10 @@ test-full-386:
 	GOARCH=386 go test -tags 'synctest' -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
 
 apptest:
-	$(MAKE) victoria-metrics vmagent vmalert vmauth vmctl vmbackup vmrestore
+	$(MAKE) victoria-metrics-race vmagent-race vmalert-race vmauth-race vmctl-race vmbackup-race vmrestore-race
 	go test ./apptest/... -skip="^Test(Cluster|Legacy).*"
 
-apptest-legacy: victoria-metrics vmbackup vmrestore
+apptest-legacy: victoria-metrics-race vmbackup-race vmrestore-race
 	OS=$$(uname | tr '[:upper:]' '[:lower:]'); \
 	ARCH=$$(uname -m | tr '[:upper:]' '[:lower:]' | sed 's/x86_64/amd64/'); \
 	VERSION=v1.132.0; \
@@ -482,8 +485,8 @@ apptest-legacy: victoria-metrics vmbackup vmrestore
 		curl --output-dir /tmp -LO $${URL}/$${VMSINGLE} && tar xzf /tmp/$${VMSINGLE} -C $${DIR} && \
 		curl --output-dir /tmp -LO $${URL}/$${VMCLUSTER} && tar xzf /tmp/$${VMCLUSTER} -C $${DIR} \
 	); \
-	VM_LEGACY_VMSINGLE_PATH=$${DIR}/victoria-metrics-prod \
-	VM_LEGACY_VMSTORAGE_PATH=$${DIR}/vmstorage-prod \
+	VMSINGLE_V1_132_0_PATH=$${DIR}/victoria-metrics-prod \
+	VMSTORAGE_V1_132_0_PATH=$${DIR}/vmstorage-prod \
 	go test ./apptest/tests -run="^TestLegacySingle.*"
 
 benchmark:
@@ -524,13 +527,22 @@ golangci-lint: install-golangci-lint
 	golangci-lint run --build-tags 'synctest'
 
 install-golangci-lint:
-	which golangci-lint && (golangci-lint --version | grep -q $(GOLANGCI_LINT_VERSION)) || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v$(GOLANGCI_LINT_VERSION)
+	which golangci-lint && (golangci-lint --version | grep -q $(GOLANGCI_LINT_VERSION)) || curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v$(GOLANGCI_LINT_VERSION)
 
 remove-golangci-lint:
 	rm -rf `which golangci-lint`
 
 govulncheck: install-govulncheck
 	govulncheck ./...
+
+govulncheck-docker:
+	docker run -w $(PWD) -v $(PWD):$(PWD) \
+		-v govulncheck-gomod-cache:/root/go/pkg/mod \
+		-v govulncheck-gobuild-cache:/root/.cache/go-build \
+		-v govulncheck-go-bin:/root/go/bin \
+		--env="GOCACHE=/root/.cache/go-build" \
+		--env="GOMODCACHE=/root/go/pkg/mod" \
+		"$(GO_BUILDER_IMAGE)" /bin/sh -c "which govulncheck || go install golang.org/x/vuln/cmd/govulncheck@latest && govulncheck ./..."
 
 install-govulncheck:
 	which govulncheck || go install golang.org/x/vuln/cmd/govulncheck@latest

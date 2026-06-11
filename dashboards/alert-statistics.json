@@ -119,7 +119,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "yellow",
@@ -199,7 +200,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               }
             ]
           }
@@ -208,14 +210,14 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 9,
+        "w": 6,
         "x": 0,
         "y": 14
       },
       "id": 5,
       "options": {
-        "colorMode": "value",
-        "graphMode": "area",
+        "colorMode": "none",
+        "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "auto",
         "percentChangeColorMode": "standard",
@@ -257,7 +259,7 @@
         "type": "prometheus",
         "uid": "$ds"
       },
-      "description": "",
+      "description": "Shows the total number of loaded alerting rules across selected instances and groups.",
       "fieldConfig": {
         "defaults": {
           "mappings": [],
@@ -266,7 +268,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               }
             ]
           }
@@ -275,11 +278,11 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 7,
-        "x": 9,
+        "w": 6,
+        "x": 6,
         "y": 14
       },
-      "id": 4,
+      "id": 8,
       "options": {
         "colorMode": "value",
         "graphMode": "area",
@@ -323,6 +326,144 @@
     {
       "datasource": {
         "type": "prometheus",
+        "uid": "$ds"
+      },
+      "description": "Shows the total number of pendings alerts in selected instances and grouping groups.",
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "yellow",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 14
+      },
+      "id": 9,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "last"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "text": {
+          "valueSize": 80
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.0.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "sum(vmalert_alerts_pending{job=~\"$job\",instance=~\"$instance\",group=~\"$group\"})",
+          "instant": false,
+          "interval": "",
+          "legendFormat": "",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Alerting pending",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$ds"
+      },
+      "description": "Shows the total number of firing alerts in selected instances and grouping groups.",
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 14
+      },
+      "id": 10,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "last"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "text": {
+          "valueSize": 80
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.0.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "sum(vmalert_alerts_firing{job=~\"$job\",instance=~\"$instance\",group=~\"$group\"})",
+          "instant": false,
+          "interval": "",
+          "legendFormat": "",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Alerting firing",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
         "uid": "${ds}"
       },
       "fieldConfig": {
@@ -332,6 +473,9 @@
             "cellOptions": {
               "type": "auto"
             },
+            "footer": {
+              "reducers": []
+            },
             "inspect": false
           },
           "mappings": [],
@@ -339,7 +483,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "red",
@@ -352,7 +497,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Count (sum)"
+              "options": "Count"
             },
             "properties": [
               {
@@ -372,20 +517,12 @@
       "id": 2,
       "options": {
         "cellHeight": "sm",
-        "footer": {
-          "countRows": false,
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
         "frameIndex": 1,
         "showHeader": true,
         "sortBy": [
           {
             "desc": true,
-            "displayName": "Count (sum)"
+            "displayName": "Count"
           }
         ]
       },
@@ -398,7 +535,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "topk_max(100, sum(increases_over_time(vmalert_alerts_firing{job=~\"$job\",instance=~\"$instance\",group=~\"$group\"}[$__range])) by(group, alertname) > 0)",
+          "expr": "topk_max(100, sum(increases_over_time(vmalert_alerts_firing{job=~\"$job\",instance=~\"$instance\",group=~\"$group\"}[$__range])) by(group) > 0)",
           "format": "table",
           "instant": true,
           "key": "Q-3934f0fb-8ad6-4519-a98d-c26d0fc6b312-0",
@@ -414,8 +551,9 @@
           "options": {
             "excludeByName": {
               "Time": true,
-              "alertname": false
+              "alertname": true
             },
+            "includeByName": {},
             "indexByName": {
               "Time": 0,
               "Value": 3,
@@ -426,23 +564,6 @@
               "Value": "Count",
               "alertname": "Alert",
               "group": "Group"
-            }
-          }
-        },
-        {
-          "id": "groupBy",
-          "options": {
-            "fields": {
-              "Count": {
-                "aggregations": [
-                  "sum"
-                ],
-                "operation": "aggregate"
-              },
-              "Group": {
-                "aggregations": [],
-                "operation": "groupby"
-              }
             }
           }
         }
@@ -468,7 +589,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "red",
@@ -531,16 +653,14 @@
       "id": 1,
       "options": {
         "cellHeight": "sm",
-        "footer": {
-          "countRows": false,
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
         "frameIndex": 1,
-        "showHeader": true
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Count"
+          }
+        ]
       },
       "pluginVersion": "12.0.2",
       "targets": [

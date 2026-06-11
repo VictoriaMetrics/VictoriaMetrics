@@ -8,6 +8,7 @@ import (
 	"hash/fnv"
 	"maps"
 	"net/url"
+	"path"
 	"sync"
 	"time"
 
@@ -42,6 +43,9 @@ var (
 		"For example, if lookback=1h then range from now() to now()-1h will be scanned.")
 	maxStartDelay = flag.Duration("group.maxStartDelay", 5*time.Minute, "Defines the max delay before starting the group evaluation. Group's start is artificially delayed for random duration on interval"+
 		" [0..min(--group.maxStartDelay, group.interval)]. This helps smoothing out the load on the configured datasource, so evaluations aren't executed too close to each other.")
+	ruleStripFilePath = flag.Bool("rule.stripFilePath", false, "Whether to strip rule file paths in logs and all API responses, including /metrics. "+
+		"For example, file path '/path/to/tenant_id/rules.yml' will be stripped to 'groupHashID/rules.yml'. "+
+		"This flag may be useful for hiding sensitive information in file paths, such as S3 bucket details.")
 )
 
 // Group is an entity for grouping rules
@@ -91,6 +95,7 @@ type groupMetrics struct {
 	iterationTotal    *metrics.Counter
 	iterationDuration *metrics.Summary
 	iterationMissed   *metrics.Counter
+	iterationReset    *metrics.Counter
 	iterationInterval *metrics.Gauge
 }
 
@@ -147,6 +152,12 @@ func NewGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval ti
 		g.EvalDelay = &cfg.EvalDelay.D
 	}
 	g.id = g.CreateID()
+	// strip file path from group.File after generated group ID when ruleStripFilePath is set,
+	// so it won't be exposed in logs and api responses
+	if *ruleStripFilePath {
+		_, filename := path.Split(g.File)
+		g.File = fmt.Sprintf("%d/%s", g.id, filename)
+	}
 	for _, h := range cfg.Headers {
 		g.Headers[h.Key] = h.Value
 	}
@@ -320,6 +331,7 @@ func (g *Group) Init() {
 	g.metrics.iterationTotal = g.metrics.set.NewCounter(fmt.Sprintf(`vmalert_iteration_total{%s}`, labels))
 	g.metrics.iterationDuration = g.metrics.set.NewSummary(fmt.Sprintf(`vmalert_iteration_duration_seconds{%s}`, labels))
 	g.metrics.iterationMissed = g.metrics.set.NewCounter(fmt.Sprintf(`vmalert_iteration_missed_total{%s}`, labels))
+	g.metrics.iterationReset = g.metrics.set.NewCounter(fmt.Sprintf(`vmalert_iteration_reset_total{%s}`, labels))
 	g.metrics.iterationInterval = g.metrics.set.NewGauge(fmt.Sprintf(`vmalert_iteration_interval_seconds{%s}`, labels), func() float64 {
 		i := g.Interval.Seconds()
 		return i
@@ -381,7 +393,9 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 
 		if len(g.Rules) < 1 {
 			g.metrics.iterationDuration.UpdateDuration(start)
+			g.mu.Lock()
 			g.LastEvaluation = start
+			g.mu.Unlock()
 			return ts
 		}
 
@@ -395,7 +409,9 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 			}
 		}
 		g.metrics.iterationDuration.UpdateDuration(start)
+		g.mu.Lock()
 		g.LastEvaluation = start
+		g.mu.Unlock()
 		return ts
 	}
 
@@ -405,10 +421,13 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 	g.mu.Unlock()
 	defer g.evalCancel()
 
-	realEvalTS := eval(evalCtx, evalTS)
-
+	// start the interval ticker before the first evaluation,
+	// so that the evaluation timestamps of groups with the `eval_offset` option are also aligned,
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10773
 	t := time.NewTicker(g.Interval)
 	defer t.Stop()
+
+	realEvalTS := eval(evalCtx, evalTS)
 
 	// restore the rules state after the first evaluation
 	// so only active alerts can be restored.
@@ -457,14 +476,16 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 			if missed < 0 {
 				// missed can become < 0 due to irregular delays during evaluation
 				// which can result in time.Since(evalTS) < g.Interval;
-				// or the system wall clock was changed backward
-				missed = 0
+				// or the system wall clock was changed backward,
+				// Reset the evalTS to the current time.
 				evalTS = time.Now()
+				g.metrics.iterationReset.Inc()
+			} else {
+				evalTS = evalTS.Add((missed + 1) * g.Interval)
 			}
 			if missed > 0 {
 				g.metrics.iterationMissed.Inc()
 			}
-			evalTS = evalTS.Add((missed + 1) * g.Interval)
 
 			eval(evalCtx, evalTS)
 		}

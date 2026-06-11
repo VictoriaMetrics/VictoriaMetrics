@@ -103,6 +103,7 @@ func TestParseRobotServerListResponse(t *testing.T) {
 			"__meta_hetzner_public_ipv4":         "123.123.123.123",
 			"__meta_hetzner_public_ipv6_network": "2a01:4f8:111:4221::/64",
 			"__meta_hetzner_datacenter":          "nbg1-dc1",
+			"__meta_hetzner_robot_datacenter":    "nbg1-dc1",
 			"__meta_hetzner_robot_product":       "DS 3000",
 			"__meta_hetzner_robot_cancelled":     "false",
 		}),

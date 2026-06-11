@@ -670,12 +670,12 @@ scrape_configs:
   - targets: ["foo"]
 `, []*ScrapeWork{})
 
-	// Scrape config with missing username in `basic_auth` must be skipped
+	// Scrape configs that omit the password in basic_auth must be skipped.
 	f(`
 scrape_configs:
 - job_name: x
   basic_auth:
-    password: sss
+    password: ""
   static_configs:
   - targets: ["a"]
 `, []*ScrapeWork{})
@@ -777,6 +777,28 @@ scrape_configs:
 				"job":      "aa",
 			}),
 			jobNameOriginal: "aa",
+		},
+	})
+
+	// Scrape configs that include a password but omit the username should still be parsed correctly
+	f(`
+scrape_configs:
+- job_name: x
+  basic_auth:
+    password: sss
+  static_configs:
+  - targets: ["a"]
+`, []*ScrapeWork{
+		{
+			ScrapeURL:      "http://a/metrics",
+			ScrapeInterval: defaultScrapeInterval,
+			ScrapeTimeout:  defaultScrapeTimeout,
+			MaxScrapeSize:  maxScrapeSize.N,
+			Labels: promutil.NewLabelsFromMap(map[string]string{
+				"instance": "a:80",
+				"job":      "x",
+			}),
+			jobNameOriginal: "x",
 		},
 	})
 
