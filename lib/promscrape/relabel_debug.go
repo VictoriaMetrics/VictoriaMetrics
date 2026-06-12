@@ -59,7 +59,7 @@ func WriteMetricRelabelDebug(w http.ResponseWriter, r *http.Request, rwGlobalRel
 		if len(rwURLRelabelConfigss) > 0 {
 			// ignore the error if the input is invalid or exceed the length, and fallback to 0.
 			idx, _ := strconv.Atoi(rwURLRelabelConfigsIdx)
-			if idx >= len(rwURLRelabelConfigss) {
+			if idx < 0 || idx >= len(rwURLRelabelConfigss) {
 				idx = 0
 			}
 			rwURLRelabelConfigs = rwURLRelabelConfigss[idx]
