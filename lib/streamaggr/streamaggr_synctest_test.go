@@ -477,7 +477,7 @@ foo:1m_increase_prometheus{baz="qwe"} 15
   outputs: [increase_prometheus]
 `, "11111111")
 
-	// increase and increase_prometheus output with different staleness interval
+	// increase, increase_prometheus, total, total_prometheus outputs with different staleness intervals
 	f([]string{`
 foo 5
 bar 200
@@ -760,28 +760,37 @@ foo:1m_by_cde_rate_sum{cde="1"} 0.125
   outputs: [rate_sum, rate_avg]
 `, "11111")
 
-	// test rate_sum and rate_avg, when two aggregation intervals are empty
+	// test rate_sum and rate_avg with different staleness intervals
 	f([]string{`
 foo{abc="123", cde="1"} 1
 foo{abc="123", cde="1"} 2 1
-foo{abc="456", cde="1"} 7
-foo{abc="456", cde="1"} 8 1
-foo{abc="777", cde="1"} 8
-foo{abc="777", cde="1"} 9 1
-`, ``, ``, `
-foo{abc="123", cde="1"} 19
-foo{abc="123", cde="1"} 20 1
-foo{abc="456", cde="1"} 26
-foo{abc="456", cde="1"} 27 1
-foo{abc="777", cde="1"} 27
-foo{abc="777", cde="1"} 28 1
+foo{abc="456", cde="1"} 3
+foo{abc="456", cde="1"} 4 1
+foo{abc="777", cde="1"} 5
+foo{abc="777", cde="1"} 6 1
+`, ``, `
+foo{abc="123", cde="1"} 121
+foo{abc="123", cde="1"} 122 1
+foo{abc="456", cde="1"} 123
+foo{abc="456", cde="1"} 124 1
+foo{abc="777", cde="1"} 125
+foo{abc="777", cde="1"} 126 1
 `}, time.Minute, `foo:1m_by_cde_rate_avg{cde="1"} 1
 foo:1m_by_cde_rate_avg{cde="1"} 1
 foo:1m_by_cde_rate_sum{cde="1"} 3
 foo:1m_by_cde_rate_sum{cde="1"} 3
+foo:1m_without_abc_rate_avg{cde="1"} 1
+foo:1m_without_abc_rate_avg{cde="1"} 1
+foo:1m_without_abc_rate_sum{cde="1"} 3
+foo:1m_without_abc_rate_sum{cde="1"} 3
 `, `            
 - interval: 1m
   by: [cde]
+  outputs: [rate_sum, rate_avg]
+  enable_windows: true
+- interval: 1m
+  staleness_interval: 2m
+  without: [abc]
   outputs: [rate_sum, rate_avg]
   enable_windows: true
 `, "111111111111")

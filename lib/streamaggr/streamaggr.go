@@ -172,7 +172,7 @@ type Config struct {
 	DedupInterval string `yaml:"dedup_interval,omitempty"`
 
 	// Staleness interval is interval after which the series state will be reset if no samples have been sent during it.
-	// The parameter is only relevant for outputs: total, total_prometheus, increase and increase_prometheus.
+	// The parameter is only relevant for outputs: total, total_prometheus, increase, increase_prometheus, rate_avg and rate_sum.
 	StalenessInterval string `yaml:"staleness_interval,omitempty"`
 
 	// IgnoreFirstSampleInterval specifies the interval after which the agent begins sending samples.
