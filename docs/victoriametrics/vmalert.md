@@ -546,7 +546,7 @@ tags at [Docker Hub](https://hub.docker.com/r/victoriametrics/vmalert/tags) and 
 
 ## Reading rules from object storage
 
-[Enterprise version](https://docs.victoriametrics.com/victoriametrics/enterprise/) of `vmalert` may read alerting and recording rules
+The [Enterprise version](https://docs.victoriametrics.com/victoriametrics/enterprise/) of `vmalert` may read alerting and recording rules
 from object storage:
 
 * `./bin/vmalert -rule=s3://bucket/dir/alert.rules` would read rules from the given path at S3 bucket
@@ -562,6 +562,8 @@ The following [command-line flags](#flags) can be used for fine-tuning access to
 * `-s3.configProfile` - profile name for S3 configs. If no set, the value of the environment variable will be loaded (`AWS_PROFILE` or `AWS_DEFAULT_PROFILE`).
 * `-s3.customEndpoint` - custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set.
 * `-s3.forcePathStyle` - prefixing endpoint with bucket name when set false, true by default.
+
+See [providing credentials as a file](https://docs.victoriametrics.com/victoriametrics/vmbackup/#providing-credentials-as-a-file) for details on how to create and use credentials to access S3-compatible buckets and Google Cloud Storage.
 
 ## Topology examples
 
