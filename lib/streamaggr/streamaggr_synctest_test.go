@@ -475,6 +475,78 @@ foo:1m_increase_prometheus{baz="qwe"} 15
   outputs: [increase_prometheus]
 `, "11111111")
 
+	// increase and increase_prometheus output with different staleness interval
+	f([]string{`
+foo 5
+bar 200
+`, `
+foo 10
+bar 201
+`, ``, `
+foo 7
+bar 205
+`}, time.Minute, `bar:1m_increase 200
+bar:1m_increase 1
+bar:1m_increase 205
+bar:1m_increase_prometheus 0
+bar:1m_increase_prometheus 1
+bar:1m_increase_prometheus 0
+bar:1m_total 200
+bar:1m_total 201
+bar:1m_total 205
+bar:1m_total_prometheus 0
+bar:1m_total_prometheus 1
+bar:1m_total_prometheus 0
+bar:1m_without_non_existing_label_increase 0
+bar:1m_without_non_existing_label_increase 1
+bar:1m_without_non_existing_label_increase 4
+bar:1m_without_non_existing_label_increase_prometheus 0
+bar:1m_without_non_existing_label_increase_prometheus 1
+bar:1m_without_non_existing_label_increase_prometheus 4
+bar:1m_without_non_existing_label_total 0
+bar:1m_without_non_existing_label_total 1
+bar:1m_without_non_existing_label_total 1
+bar:1m_without_non_existing_label_total 5
+bar:1m_without_non_existing_label_total_prometheus 0
+bar:1m_without_non_existing_label_total_prometheus 1
+bar:1m_without_non_existing_label_total_prometheus 1
+bar:1m_without_non_existing_label_total_prometheus 5
+foo:1m_increase 5
+foo:1m_increase 5
+foo:1m_increase 7
+foo:1m_increase_prometheus 0
+foo:1m_increase_prometheus 5
+foo:1m_increase_prometheus 0
+foo:1m_total 5
+foo:1m_total 10
+foo:1m_total 7
+foo:1m_total_prometheus 0
+foo:1m_total_prometheus 5
+foo:1m_total_prometheus 0
+foo:1m_without_non_existing_label_increase 0
+foo:1m_without_non_existing_label_increase 5
+foo:1m_without_non_existing_label_increase 7
+foo:1m_without_non_existing_label_increase_prometheus 0
+foo:1m_without_non_existing_label_increase_prometheus 5
+foo:1m_without_non_existing_label_increase_prometheus 7
+foo:1m_without_non_existing_label_total 0
+foo:1m_without_non_existing_label_total 5
+foo:1m_without_non_existing_label_total 5
+foo:1m_without_non_existing_label_total 12
+foo:1m_without_non_existing_label_total_prometheus 0
+foo:1m_without_non_existing_label_total_prometheus 5
+foo:1m_without_non_existing_label_total_prometheus 5
+foo:1m_without_non_existing_label_total_prometheus 12
+`, `
+- interval: 1m
+  ignore_first_sample_interval: 0s
+  outputs: [increase, increase_prometheus, total, total_prometheus]
+- interval: 1m
+  staleness_interval: 2m
+  without: [non_existing_label]
+  outputs: [increase, increase_prometheus, total, total_prometheus]
+`, "111111")
+
 	// multiple aggregate configs
 	f([]string{`
 foo 1
@@ -482,9 +554,7 @@ foo{bar="baz"} 2
 foo 3.3
 `, ``, ``, ``, ``}, time.Minute, `foo:1m_count_series 1
 foo:1m_count_series{bar="baz"} 1
-foo:1m_sum_samples 0
 foo:1m_sum_samples 4.3
-foo:1m_sum_samples{bar="baz"} 0
 foo:1m_sum_samples{bar="baz"} 2
 foo:5m_by_bar_sum_samples 4.3
 foo:5m_by_bar_sum_samples{bar="baz"} 2

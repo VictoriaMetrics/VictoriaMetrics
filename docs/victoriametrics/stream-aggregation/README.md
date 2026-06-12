@@ -681,7 +681,6 @@ If counter-specific outputs, such as `total*`, `rate*`, and `increase*`, produce
 
 The following outputs track the last seen per-series values in order to properly calculate output values:
 
-- [histogram_bucket](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#histogram_bucket)
 - [increase](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#increase)
 - [increase_prometheus](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#increase_prometheus)
 - [rate_avg](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#rate_avg)
@@ -703,7 +702,7 @@ These issues can be fixed in the following ways:
 - By increasing the `interval` option at [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config), so it covers the expected
   delays in data ingestion pipelines.
 - By specifying the `staleness_interval` option at [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config), so it covers the expected
-  delays in data ingestion pipelines. By default, the `staleness_interval` is equal to `2 x interval`.
+  delays in data ingestion pipelines. By default, the `staleness_interval` is equal to `interval`.
 
 ## High resource usage
 
