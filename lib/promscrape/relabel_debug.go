@@ -41,8 +41,10 @@ func WriteMetricRelabelDebug(w http.ResponseWriter, r *http.Request, rwGlobalRel
 				rwURLRelabelConfigs = rwURLRelabelConfigss[0]
 			}
 
-			rwRelabelConfigs += "\n# -remoteWrite.relabelConfig"
-			rwRelabelConfigs += "\n" + rwGlobalRelabelConfigs
+			if rwGlobalRelabelConfigs != "" {
+				rwRelabelConfigs += "\n# -remoteWrite.relabelConfig"
+				rwRelabelConfigs += "\n" + rwGlobalRelabelConfigs
+			}
 			if rwURLRelabelConfigs != "" {
 				rwRelabelConfigs += "\n# -remoteWrite.urlRelabelConfig"
 				rwRelabelConfigs += "\n" + rwURLRelabelConfigs
@@ -64,8 +66,10 @@ func WriteMetricRelabelDebug(w http.ResponseWriter, r *http.Request, rwGlobalRel
 		}
 
 		// reload will remove the existing content
-		rwRelabelConfigs = "\n# -remoteWrite.relabelConfig"
-		rwRelabelConfigs += "\n" + rwGlobalRelabelConfigs
+		if rwGlobalRelabelConfigs != "" {
+			rwRelabelConfigs = "\n# -remoteWrite.relabelConfig"
+			rwRelabelConfigs += "\n" + rwGlobalRelabelConfigs
+		}
 		if rwURLRelabelConfigs != "" {
 			rwRelabelConfigs += "\n# -remoteWrite.urlRelabelConfig"
 			rwRelabelConfigs += "\n" + rwURLRelabelConfigs
