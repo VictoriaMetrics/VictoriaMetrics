@@ -1,3 +1,5 @@
+//go:build synctest
+
 package streamaggr
 
 import (
