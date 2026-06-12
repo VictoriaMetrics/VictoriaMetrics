@@ -27,6 +27,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 ## tip
 
 * BUGFIX: [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/): fix issue with producing aggregated samples with identical timestamps between flushes. See PR [#10808](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10808) for details.
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): properly drop data points with missing samples on the right side of [comparison operations](https://prometheus.io/docs/prometheus/latest/querying/operators/#comparison-binary-operators) between series, in the same way as Prometheus does. Previously, queries like `foo != (bar > 100)` could return unexpected results when the right side contained `NaN` values, since `value != NaN` evaluates to `true`. Comparisons to scalars such as `foo != nan` keep the previous behavior. See [#10018](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10018).
 
 ## [v1.145.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.145.0)
 
