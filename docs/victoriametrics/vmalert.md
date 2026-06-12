@@ -1470,6 +1470,59 @@ alert_relabel_configs:
 
 The configuration file can be [hot-reloaded](#hot-config-reload).
 
+## DNS URLs
+
+If `vmalert` encounters URLs with the `dns+` prefix in the hostname (such as `http://dns+some-addr:8428/some/path`), it resolves `some-addr` into IP addresses
+via [DNS A records](https://datatracker.ietf.org/doc/html/rfc1035#section-3.4.1). The port from the original URL is appended to each discovered IP address.
+Each discovered IP address is used for round-robin balancing of write requests.
+
+DNS URLs are supported in the following places:
+
+* In `-remoteWrite.url`, `-remoteRead.url` and `-datasource.url` command-line flags. For example, if `victoria-metrics` [DNS A Record](https://datatracker.ietf.org/doc/html/rfc1035#section-3.4.1) record contains
+  `192.168.1.15` IP address, then `-remoteWrite.url=http://dns+victoria-metrics:8428` is automatically resolved into
+  `-remoteWrite.url=http://192.168.1.15:8428`.
+
+DNS URLs are useful when client-side HTTP load balancing is needed. A good example
+is a [Kubernetes headless Service](https://kubernetes.io/docs/concepts/services-networking/service/#headless-services),
+which returns multiple IP addresses for a single hostname.
+
+### DNS URLs and HTTPS
+
+When a `dns+` URL uses the `https` scheme, `vmalert` connects to the discovered
+IP addresses directly. No [SNI](https://en.wikipedia.org/wiki/Server_Name_Indication)
+is sent in the TLS handshake, and the server certificate is verified against the IP address,
+which fails unless the certificate contains the corresponding
+[IP SAN](https://en.wikipedia.org/wiki/Subject_Alternative_Name) entries.
+
+To use `dns+` URLs with HTTPS, pass the original hostname via the corresponding
+`tlsServerName` command-line flag - `-datasource.tlsServerName`, `-remoteRead.tlsServerName`
+or `-remoteWrite.tlsServerName`. It is used both as SNI and as the name the server
+certificate is verified against:
+
+```sh
+-datasource.url=https://dns+victoria-metrics:8428
+-datasource.tlsServerName=victoria-metrics
+```
+
+Alternatively, issue server certificates with IP SAN entries for every backend IP address.
+Avoid `tlsInsecureSkipVerify` flags for working around this, since they disable
+server certificate verification completely.
+
+## SRV URLs
+
+If `vmalert` encounters URLs with `srv+` prefix in hostname (such as `http://srv+some-addr/some/path`), then it resolves `some-addr` [DNS SRV](https://en.wikipedia.org/wiki/SRV_record)
+record into TCP address with hostname and TCP port, and then use the resulting URL when it needs to connect to it.
+
+SRV URLs are supported in the following places:
+
+* In `-remoteWrite.url`, `-remoteRead.url` and `-datasource.url` command-line flags. For example, if `victoria-metrics` [DNS SRV](https://en.wikipedia.org/wiki/SRV_record) record contains
+  `victoria-metrics-host:8085`, then `-remoteWrite.url=http://srv+victoria-metrics:8428` is automatically resolved into
+  `-remoteWrite.url=http://victoria-metrics-host:8085`. If the DNS SRV record is resolved into multiple TCP addresses, then `vmalert`
+   performs per request round-robin load-balancing.
+
+SRV URLs are useful when HTTP services run on different TCP ports or when their TCP ports can change over time (for instance, after a restart).
+
+
 ## Contributing
 
 `vmalert` is mostly designed and built by VictoriaMetrics community.

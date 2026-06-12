@@ -151,17 +151,23 @@ func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persiste
 		}
 		tr.Proxy = http.ProxyURL(pu)
 	}
+
 	hc := &http.Client{
 		Transport: authCfg.NewRoundTripper(tr),
 		Timeout:   sendTimeout.GetOptionalArg(argIdx),
 	}
+	rwURL, err := url.Parse(remoteWriteURL)
+	if err != nil {
+		logger.Fatalf("BUG: cannot parse already parsed -remoteWrite.url=%q: %s", remoteWriteURL, err)
+	}
+	hc.Transport, rwURL = httputil.NewLoadBalancerTransport(hc.Transport, rwURL)
 	retryMaxIntervalFlag := retryMaxTime
 	if retryMaxInterval.String() != "" {
 		retryMaxIntervalFlag = retryMaxInterval
 	}
 	c := &client{
 		sanitizedURL:     sanitizedURL,
-		remoteWriteURL:   remoteWriteURL,
+		remoteWriteURL:   rwURL.String(),
 		authCfg:          authCfg,
 		awsCfg:           awsCfg,
 		fq:               fq,
