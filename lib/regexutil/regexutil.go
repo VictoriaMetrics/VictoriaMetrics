@@ -5,6 +5,7 @@ import (
 	"regexp/syntax"
 	"sort"
 	"strings"
+	"sync"
 )
 
 // RemoveStartEndAnchors removes '^' at the start of expr and '$' at the end of the expr.
@@ -184,6 +185,8 @@ func SimplifyRegex(expr string) (string, string) {
 	return prefix, suffix
 }
 
+var promRegexCache sync.Map
+
 // SimplifyPromRegex simplifies the given Prometheus-like expr.
 //
 // It returns plaintext prefix and the remaining regular expression
@@ -193,7 +196,13 @@ func SimplifyRegex(expr string) (string, string) {
 // The function removes capturing parens from the expr,
 // so it cannot be used when capturing parens are necessary.
 func SimplifyPromRegex(expr string) (string, string) {
-	return simplifyRegex(expr, false)
+	if v, ok := promRegexCache.Load(expr); ok {
+		r := v.([2]string)
+		return r[0], r[1]
+	}
+	prefix, regex := simplifyRegex(expr, false)
+	promRegexCache.Store(expr, [2]string{prefix, regex})
+	return prefix, regex
 }
 
 func simplifyRegex(expr string, keepAnchors bool) (string, string) {
