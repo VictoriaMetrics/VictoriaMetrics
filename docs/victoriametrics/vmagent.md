@@ -271,7 +271,7 @@ for the collected samples. Examples:
   
 ### Monitoring Data eXchange
 
-The MDX (Monitoring Data eXchange) feature aims to send only metrics from the VictoriaMetrics services to the corresponding `-remoteWrite.url`, discarding metrics from non-VictoriaMetrics services.
+The Monitoring Data eXchange (MDX) feature allows `vmagent` to forward only VictoriaMetrics metrics to selected `-remoteWrite.url` destinations while dropping metrics from non-VictoriaMetrics services.
 
 To enable MDX, set `-remoteWrite.mdx.enable=true` for the target URL and `-remoteWrite.mdx.enable=false` for other URLs:
 
@@ -282,8 +282,13 @@ To enable MDX, set `-remoteWrite.mdx.enable=true` for the target URL and `-remot
   -remoteWrite.url=http://service-to-keep-only-vm-metrics:8428/api/v1/write \
   -remoteWrite.mdx.enable=true 
 ```
-When enabling MDX for the `-remoteWrite.url`, `vmagent` will only forward the metrics from the instances that emit `vm_app_version`, which is a metric that all VictoriaMetrics services will emit,
-or the metrics contain the label specified by `mdx.label`:
+When MDX is enabled for a `-remoteWrite.url`, `vmagent` forwards only metrics that:
+- come from the target that exposes the `vm_app_version` metric (emitted by all VictoriaMetrics components)
+- contain the `victoriametrics_app=true` label, which will be added automatically to the metrics if the instance was deployed via [VictoriaMetrics Operator](https://docs.victoriametrics.com/operator/).
+
+`victoriametrics_app=true` label will be added to all metrics that are preserved by MDX if it's absent.
+
+- contain the label specified via `-mdx.label`.
 
 ```sh
 ./vmagent \
@@ -291,8 +296,9 @@ or the metrics contain the label specified by `mdx.label`:
   -remoteWrite.mdx.enable=true \
   -mdx.label="service=victoriametrics"
 ```
+In this configuration, metrics with the label `service=victoriametrics` are preserved even if their scrape targets do not expose `vm_app_version` metric.
 
-The number of preserved rows from non-VictoriaMetrics services is exposed as `vmagent_remotewrite_mdx_rows_preserved_total`.
+The number of VictoriaMetrics metrics preserved by MDX is exposed as `vmagent_remotewrite_mdx_rows_preserved_total`.
 
 ### Life of a sample
 

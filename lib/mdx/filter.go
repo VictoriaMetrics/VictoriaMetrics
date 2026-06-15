@@ -14,7 +14,9 @@ import (
 )
 
 var (
-	vmLabel = flag.String("mdx.label", "", "Optional label in the form 'name=value' to identify metrics from VictoriaMetrics. The metrics contain this label will be kept and sent to the `-remoteWrite.url` that configured with `-remoteWrite.mdx.enable=true`.")
+	vmLabel = flag.String("mdx.label", "", "Optional label in the form 'name=value' used to identify VictoriaMetrics metrics for MDX. Metrics containing the specified label are forwarded to `-remoteWrite.url` endpoints configured with `-remoteWrite.mdx.enable=true`.")
+
+	vmAppLabelName = "victoriametrics_app"
 )
 
 // Filter manages the list of VictoriaMetrics instances discovered from previous data flow, and uses it to filter out metrics that are not from VictoriaMetrics instances.
@@ -23,7 +25,6 @@ type Filter struct {
 	wg                       sync.WaitGroup
 	stopCh                   chan struct{}
 	vmInstance               map[string]*atomic.Int64
-	filterByLabel            bool
 	filterByCustomLabelName  string
 	filterByCustomLabelValue string
 }
@@ -41,7 +42,6 @@ func NewFilter() *Filter {
 		}
 		filter.filterByCustomLabelName = (*vmLabel)[:n]
 		filter.filterByCustomLabelValue = (*vmLabel)[n+1:]
-		filter.filterByLabel = true
 	}
 
 	filter.wg.Go(filter.cleanStale)
@@ -58,7 +58,7 @@ func (filter *Filter) VmInstancesCount() int {
 func (filter *Filter) cleanStale() {
 	entryTTL := time.Hour * 1
 	ttlSec := int64(entryTTL.Seconds())
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
 
 	for {
@@ -99,8 +99,23 @@ nextTss:
 	for _, ts := range tss {
 		var hasVersionLabel, triedJobInstance bool
 		var job, instance string
-		for _, label := range ts.Labels {
-			if filter.filterByLabel && label.Name == filter.filterByCustomLabelName && label.Value == filter.filterByCustomLabelValue {
+		for i, label := range ts.Labels {
+			if label.Name == vmAppLabelName && label.Value == "true" {
+				resTss = append(resTss, ts)
+				continue nextTss
+			}
+			if filter.filterByCustomLabelName != "" && label.Name == filter.filterByCustomLabelName && label.Value == filter.filterByCustomLabelValue {
+				// add victoriametrics_app=true label if absent.
+				hasVmAppLabel := false
+				for j := i + 1; j < len(ts.Labels); j++ {
+					if ts.Labels[j].Name == vmAppLabelName {
+						hasVmAppLabel = true
+						break
+					}
+				}
+				if !hasVmAppLabel {
+					ts.Labels = append(ts.Labels, prompb.Label{Name: vmAppLabelName, Value: "true"})
+				}
 				resTss = append(resTss, ts)
 				continue nextTss
 			}
@@ -132,6 +147,17 @@ nextTss:
 				filter.mu.RUnlock()
 				if found {
 					ptr.Store(currTs)
+					// add victoriametrics_app=true label if absent.
+					hasVmAppLabel := false
+					for j := i + 1; j < len(ts.Labels); j++ {
+						if ts.Labels[j].Name == vmAppLabelName {
+							hasVmAppLabel = true
+							break
+						}
+					}
+					if !hasVmAppLabel {
+						ts.Labels = append(ts.Labels, prompb.Label{Name: vmAppLabelName, Value: "true"})
+					}
 					resTss = append(resTss, ts)
 					continue nextTss
 				}
@@ -150,6 +176,17 @@ nextTss:
 				filter.mu.Lock()
 				filter.vmInstance[string(identicalKey)] = v
 				filter.mu.Unlock()
+				// add victoriametrics_app=true label if absent.
+				hasVmAppLabel := false
+				for j := i + 1; j < len(ts.Labels); j++ {
+					if ts.Labels[j].Name == vmAppLabelName {
+						hasVmAppLabel = true
+						break
+					}
+				}
+				if !hasVmAppLabel {
+					ts.Labels = append(ts.Labels, prompb.Label{Name: vmAppLabelName, Value: "true"})
+				}
 				resTss = append(resTss, ts)
 				continue nextTss
 			}

@@ -1035,24 +1035,24 @@ func (rwctx *remoteWriteCtx) MustStop() {
 func (rwctx *remoteWriteCtx) TryPushTimeSeries(tss []prompb.TimeSeries, forceDropSamplesOnFailure bool) bool {
 	var rctx *relabelCtx
 	var v *[]prompb.TimeSeries
-	acquiredTssFromPool := false
 	defer func() {
-		if acquiredTssFromPool {
-			*v = prompb.ResetTimeSeries(tss)
-			tssPool.Put(v)
+		if rctx == nil {
+			return
 		}
-		if rctx != nil {
-			putRelabelCtx(rctx)
-		}
+		putRelabelCtx(rctx)
+		*v = prompb.ResetTimeSeries(tss)
+		tssPool.Put(v)
 	}()
 
 	if rwctx.mdxFilter != nil {
-		acquiredTssFromPool = true
-		v = tssPool.Get().(*[]prompb.TimeSeries)
-		tss = rwctx.mdxFilter.Filter(tss, *v)
-		rowsCountAfterMdx := getRowsCount(tss)
-		rwctx.rowsPreservedByMdx.Add(rowsCountAfterMdx)
-		if len(tss) == 0 {
+		tssResP := tssPool.Get().(*[]prompb.TimeSeries)
+		tssRes := rwctx.mdxFilter.Filter(tss, *tssResP)
+		defer func() {
+			*tssResP = prompb.ResetTimeSeries(tssRes)
+			tssPool.Put(tssResP)
+		}()
+
+		if len(tssRes) == 0 {
 			return true
 		}
 	}
@@ -1066,7 +1066,6 @@ func (rwctx *remoteWriteCtx) TryPushTimeSeries(tss []prompb.TimeSeries, forceDro
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/467
 		// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/599
 		rctx = getRelabelCtx()
-		acquiredTssFromPool = true
 		v = tssPool.Get().(*[]prompb.TimeSeries)
 		tss = append(*v, tss...)
 		rowsCountBeforeRelabel := getRowsCount(tss)
@@ -1086,7 +1085,6 @@ func (rwctx *remoteWriteCtx) TryPushTimeSeries(tss []prompb.TimeSeries, forceDro
 			if rctx == nil {
 				rctx = getRelabelCtx()
 				// Make a copy of tss before dropping aggregated series
-				acquiredTssFromPool = true
 				v = tssPool.Get().(*[]prompb.TimeSeries)
 				tss = append(*v, tss...)
 			}
@@ -1096,7 +1094,6 @@ func (rwctx *remoteWriteCtx) TryPushTimeSeries(tss []prompb.TimeSeries, forceDro
 			if rctx == nil {
 				rctx = getRelabelCtx()
 				// Make a copy of tss before dropping aggregated series
-				acquiredTssFromPool = true
 				v = tssPool.Get().(*[]prompb.TimeSeries)
 				tss = append(*v, tss...)
 			}
