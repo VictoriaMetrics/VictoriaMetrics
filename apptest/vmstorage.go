@@ -63,7 +63,7 @@ func newVmstorage(app *app, cli *Client, rt vmstorageRuntimeValues) *Vmstorage {
 		app:           app,
 		metricsClient: newMetricsClient(cli, rt.httpListenAddr),
 		vmstorageClient: &vmstorageClient{
-			vmstorageCli:   cli,
+			cli:            cli,
 			httpListenAddr: rt.httpListenAddr,
 		},
 		storageDataPath: rt.storageDataPath,
