@@ -17,7 +17,7 @@ EXTRA_GO_BUILD_TAGS ?=
 GO_BUILDINFO = -X '$(PKG_PREFIX)/lib/buildinfo.Version=$(APP_NAME)-$(DATEINFO_TAG)-$(BUILDINFO_TAG)'
 TAR_OWNERSHIP ?= --owner=1000 --group=1000
 
-GOLANGCI_LINT_VERSION := 2.9.0
+GOLANGCI_LINT_VERSION := 2.12.2
 
 .PHONY: $(MAKECMDGOALS)
 
@@ -527,7 +527,7 @@ golangci-lint: install-golangci-lint
 	golangci-lint run --build-tags 'synctest'
 
 install-golangci-lint:
-	which golangci-lint && (golangci-lint --version | grep -q $(GOLANGCI_LINT_VERSION)) || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v$(GOLANGCI_LINT_VERSION)
+	which golangci-lint && (golangci-lint --version | grep -q $(GOLANGCI_LINT_VERSION)) || curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v$(GOLANGCI_LINT_VERSION)
 
 remove-golangci-lint:
 	rm -rf `which golangci-lint`

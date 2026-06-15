@@ -41,7 +41,7 @@ models:
 # ...
 ```  
 
-Old-style configs (< [1.10.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#1100))
+Old-style configs (< [1.10.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1100))
 
 ```yaml
 model:
@@ -66,7 +66,7 @@ models:
 
 ## Common args
 
-From [1.10.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#1100), **common args**, supported by *every model (and model type)* were introduced.
+From [1.10.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1100), **common args**, supported by *every model (and model type)* were introduced.
 
 ### Queries
 
@@ -449,9 +449,9 @@ models:
 
 > The `decay` argument works only in combination with [online models](#online-models) like [`ZScoreOnlineModel`](#online-z-score) or [`OnlineQuantileModel`](#online-seasonal-quantile).
 
-The `decay` {{% available_from "v1.23.0" anomaly %}} argument is used to control the (exponential) **decay factor** for online models, which determines how quickly the model adapts to new data. It is a float value between `0.0` and `1.0`, where:
-- `1.0` means no decay (the model treats all data equally, without giving more weight to recent data). This is the default value for backward compatibility.
-- Less than `1.0` means that the model will give more weight to recent data, effectively "forgetting" older data over time.
+The `decay` {{% available_from "v1.23.0" anomaly %}} argument is used to control the (exponential) **decay factor** for online models, which determines how quickly the model adapts to new data. It is a positive float value from `(0.0, 1.0]` interval, where:
+- Value `1.0` means no decay (the model treats all data points equally, without giving more weight to recent ones). This is the default value for backward compatibility.
+- Values less than `1.0` mean that the model will give more weight to recent data, effectively "forgetting" older data over time.
 
 Roughly speaking, for the recent N datapoints model processes `decay` = `d` means that these datapoints will contribute to the model as [1 - d^X] percent of total importance, for example decay of
 - `0.99` means that 100 recent datapoints will contribute as [1 - 0.99^100] = 63.23% of total importance
@@ -998,7 +998,7 @@ Here we use Isolation Forest implementation from `scikit-learn` [library](https:
 
 * `class` (string) - model class name `"model.isolation_forest.IsolationForestMultivariateModel"` (or `isolation_forest_multivariate` with class alias support {{% available_from "v1.13.0" anomaly %}})
 
-* `contamination` (float or string, optional) - The amount of contamination of the data set, i.e. the proportion of outliers in the data set. Used when fitting to define the threshold on the scores of the samples. Default value - "auto". Should be either `"auto"` or be in the range (0.0, 0.5].
+* `contamination` (float or string, optional) - The amount of contamination of the data set, i.e. the proportion of outliers in the data set. Used when fitting to define the threshold on the scores of the samples. Default value - "auto". Should be either `"auto"` or be in the range (0.0, 0.5]. {{% available_from "v1.29.5" anomaly %}} Numeric strings, such as `"0.01"`, are accepted, while invalid non-finite values, such as `nan`, `inf`, and `-inf`, are rejected during config validation.
 
 * `seasonal_features` (list of string) - List of seasonality to encode through [cyclical encoding](https://towardsdatascience.com/cyclical-features-encoding-its-about-time-ce23581845ca), i.e. `dow` (day of week). **Introduced in [1.12.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1120)**. 
   - Empty by default for backward compatibility.
@@ -1265,7 +1265,7 @@ monitoring:
 Let's pull the docker image for `vmanomaly`:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.29.4
+docker pull victoriametrics/vmanomaly:v1.29.5
 ```
 
 Now we can run the docker container putting as volumes both config and model file:
@@ -1279,7 +1279,7 @@ docker run -it \
 -v $(PWD)/license:/license \
 -v $(PWD)/custom_model.py:/vmanomaly/model/custom.py \
 -v $(PWD)/custom.yaml:/config.yaml \
-victoriametrics/vmanomaly:v1.29.4 /config.yaml \
+victoriametrics/vmanomaly:v1.29.5 /config.yaml \
 --licenseFile=/license
 --watch
 ```

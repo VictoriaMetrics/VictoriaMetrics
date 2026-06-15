@@ -89,7 +89,7 @@ func (pi *promInstant) Unmarshal(b []byte) error {
 		labels.Visit(func(key []byte, v *fastjson.Value) {
 			lv, errLocal := v.StringBytes()
 			if errLocal != nil {
-				err = fmt.Errorf("error when parsing label value %q: %s", v, errLocal)
+				err = fmt.Errorf("error when parsing label value %q: %w", v, errLocal)
 				return
 			}
 			r.Labels = append(r.Labels, prompb.Label{
@@ -112,7 +112,7 @@ func (pi *promInstant) Unmarshal(b []byte) error {
 		r.Timestamps = []int64{sample[0].GetInt64()}
 		val, err := sample[1].StringBytes()
 		if err != nil {
-			return fmt.Errorf("error when parsing `value` object %q: %s", sample[1], err)
+			return fmt.Errorf("error when parsing `value` object %q: %w", sample[1], err)
 		}
 		f, err := strconv.ParseFloat(bytesutil.ToUnsafeString(val), 64)
 		if err != nil {

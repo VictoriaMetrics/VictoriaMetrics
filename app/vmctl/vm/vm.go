@@ -163,7 +163,7 @@ func NewImporter(ctx context.Context, cfg Config) (*Importer, error) {
 		importDuration:            metrics.GetOrCreateHistogram(`vmctl_importer_request_duration_seconds`),
 	}
 	if err := im.Ping(); err != nil {
-		return nil, fmt.Errorf("ping to %q failed: %s", addr, err)
+		return nil, fmt.Errorf("ping to %q failed: %w", addr, err)
 	}
 
 	if cfg.BatchSize < 1 {
@@ -289,7 +289,7 @@ func (im *Importer) flush(ctx context.Context, b []*TimeSeries) error {
 	retryableFunc := func() error { return im.Import(b) }
 	attempts, err := im.backoff.Retry(ctx, retryableFunc)
 	if err != nil {
-		return fmt.Errorf("import failed with %d retries: %s", attempts, err)
+		return fmt.Errorf("import failed with %d retries: %w", attempts, err)
 	}
 	im.s.Lock()
 	im.s.retries = attempts
@@ -302,7 +302,7 @@ func (im *Importer) Ping() error {
 	url := fmt.Sprintf("%s/health", im.addr)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		return fmt.Errorf("cannot create request to %q: %s", im.addr, err)
+		return fmt.Errorf("cannot create request to %q: %w", im.addr, err)
 	}
 	if im.user != "" {
 		req.SetBasicAuth(im.user, im.password)
@@ -332,7 +332,7 @@ func (im *Importer) Import(tsBatch []*TimeSeries) error {
 	req, err := http.NewRequest(http.MethodPost, im.importPath, pr)
 	if err != nil {
 		im.importRequestsErrorsTotal.Inc()
-		return fmt.Errorf("cannot create request to %q: %s", im.addr, err)
+		return fmt.Errorf("cannot create request to %q: %w", im.addr, err)
 	}
 	if im.user != "" {
 		req.SetBasicAuth(im.user, im.password)
@@ -352,7 +352,7 @@ func (im *Importer) Import(tsBatch []*TimeSeries) error {
 		zw, err := gzip.NewWriterLevel(w, 1)
 		if err != nil {
 			im.importRequestsErrorsTotal.Inc()
-			return fmt.Errorf("unexpected error when creating gzip writer: %s", err)
+			return fmt.Errorf("unexpected error when creating gzip writer: %w", err)
 		}
 		w = zw
 	}
@@ -411,7 +411,7 @@ var ErrBadRequest = errors.New("bad request")
 func (im *Importer) do(req *http.Request) error {
 	resp, err := im.client.Do(req)
 	if err != nil {
-		return fmt.Errorf("unexpected error when performing request: %s", err)
+		return fmt.Errorf("unexpected error when performing request: %w", err)
 	}
 	defer func() {
 		_ = resp.Body.Close()
@@ -419,7 +419,7 @@ func (im *Importer) do(req *http.Request) error {
 	if resp.StatusCode != http.StatusNoContent {
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return fmt.Errorf("failed to read response body for status code %d: %s", resp.StatusCode, err)
+			return fmt.Errorf("failed to read response body for status code %d: %w", resp.StatusCode, err)
 		}
 		if resp.StatusCode == http.StatusBadRequest {
 			return fmt.Errorf("%w: unexpected response code %d: %s", ErrBadRequest, resp.StatusCode, string(body))

@@ -75,6 +75,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/cluster-victori
      Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
   -http.header.csp string
      Value for 'Content-Security-Policy' header, recommended: "default-src 'self'"
+  -http.header.disableServerHostname
+     Whether to disable 'X-Server-Hostname' header in HTTP responses
   -http.header.frameOptions string
      Value for 'X-Frame-Options' header
   -http.header.hsts string
