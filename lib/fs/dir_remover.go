@@ -203,7 +203,12 @@ func tryRemoveDir(dirPath string) bool {
 
 	deleteFilePath := filepath.Join(dirPath, deleteDirFilename)
 	// Remove the deleteDirFilename file, since there are no other entries left in the directory.
-	MustRemovePath(deleteFilePath)
+	if err := os.Remove(deleteFilePath); err != nil {
+		if !isTemporaryNFSError(err) {
+			logger.Fatalf("FATAL: cannot remove %q: %s", deleteFilePath, err)
+		}
+		return false
+	}
 
 	// Sync the directory after the removing deletDirFilename file in order to make sure
 	// all the metadata files are removed at some exotic filesystems such as OSSFS2.
@@ -212,7 +217,12 @@ func tryRemoveDir(dirPath string) bool {
 	MustSyncPath(dirPath)
 
 	// Remove the dirPath itself
-	MustRemovePath(dirPath)
+	if err := os.Remove(dirPath); err != nil {
+		if !isTemporaryNFSError(err) {
+			logger.Fatalf("FATAL: cannot remove %q: %s", dirPath, err)
+		}
+		return false
+	}
 
 	// Do not sync the parent directory for the dirPath - the caller can do this if needed.
 	// It is OK if the dirPath will remain undeleted after unclean shutdown - it will be deleted
