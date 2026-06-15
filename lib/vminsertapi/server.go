@@ -215,7 +215,7 @@ func (s *VMInsertServer) processRPC(ctx *RequestCtx, rpcName string) error {
 	case MetricRowsRpcCall.VersionedName:
 		if err := s.processWriteRows(ctx); err != nil {
 			if writeErr := ctx.WriteErrorMessage(err); writeErr != nil {
-				return fmt.Errorf("cannot write error message: %s: %w", err, writeErr)
+				return fmt.Errorf("cannot write error message: %w: %w", err, writeErr)
 			}
 			if errors.Is(err, storage.ErrReadOnly) {
 				return nil
@@ -227,7 +227,7 @@ func (s *VMInsertServer) processRPC(ctx *RequestCtx, rpcName string) error {
 	case MetricMetadataRpcCall.VersionedName:
 		if err := s.processWriteMetadata(ctx); err != nil {
 			if writeErr := ctx.WriteErrorMessage(err); writeErr != nil {
-				return fmt.Errorf("cannot write error message: %s: %w", err, writeErr)
+				return fmt.Errorf("cannot write error message: %w: %w", err, writeErr)
 			}
 			if errors.Is(err, storage.ErrReadOnly) {
 				return nil
