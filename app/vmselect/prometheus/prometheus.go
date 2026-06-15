@@ -564,6 +564,7 @@ func DeleteHandler(startTime time.Time, at *auth.Token, r *http.Request) error {
 		// TODO: reset only cache for (account, project)
 		resetRollupResultCaches()
 	}
+	logger.Infof("/api/v1/admin/tsdb/delete_series has been called for %q. Deleted %d series.", sq.FiltersString(), deletedCount)
 	return nil
 }
 
