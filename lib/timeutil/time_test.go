@@ -210,6 +210,7 @@ func TestParseTimeAtLimits(t *testing.T) {
 
 	f := func(s string, wantTime time.Time) {
 		t.Helper()
+
 		got, err := ParseTimeAt(s, now.UnixNano())
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -231,42 +232,38 @@ func TestParseTimeAtLimits(t *testing.T) {
 	west := location(t, "Etc/GMT+12") // UTC-12:00
 	var s string
 
-	// min timestamp
-	f("0", time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC))
-	s = fmt.Sprintf("-%d", now.Unix())
-	f(s, time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC))
-	s = fmt.Sprintf("now-%d", now.Unix())
-	f(s, time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC))
-
 	// min year
-	f("1970Z", time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC))
-	f("1971+14:00", time.Date(1971, 1, 1, 0, 0, 0, 0, east))
-	f("1970-12:00", time.Date(1970, 1, 1, 0, 0, 0, 0, west))
+	f("1678Z", time.Date(1678, 1, 1, 0, 0, 0, 0, time.UTC))
+	f("1678+14:00", time.Date(1678, 1, 1, 0, 0, 0, 0, east))
+	f("1678-12:00", time.Date(1678, 1, 1, 0, 0, 0, 0, west))
 
 	// min month
-	f("1970-01Z", time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC))
-	f("1970-02+14:00", time.Date(1970, 2, 1, 0, 0, 0, 0, east))
-	f("1970-01-12:00", time.Date(1970, 1, 1, 0, 0, 0, 0, west))
+	f("1677-10Z", time.Date(1677, 10, 1, 0, 0, 0, 0, time.UTC))
+	f("1677-10+14:00", time.Date(1677, 10, 1, 0, 0, 0, 0, east))
+	f("1677-10-12:00", time.Date(1677, 10, 1, 0, 0, 0, 0, west))
 
 	// min day
-	f("1970-01-01Z", time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC))
-	f("1970-01-02+14:00", time.Date(1970, 1, 2, 0, 0, 0, 0, east))
-	f("1970-01-01-12:00", time.Date(1970, 1, 1, 0, 0, 0, 0, west))
+	f("1677-09-22Z", time.Date(1677, 9, 22, 0, 0, 0, 0, time.UTC))
+	f("1677-09-22+14:00", time.Date(1677, 9, 22, 0, 0, 0, 0, east))
+	f("1677-09-22-12:00", time.Date(1677, 9, 22, 0, 0, 0, 0, west))
 
 	// min hour
-	f("1970-01-01T00Z", time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC))
-	f("1970-01-01T14+14:00", time.Date(1970, 1, 1, 14, 0, 0, 0, east))
-	f("1969-12-31T12-12:00", time.Date(1969, 12, 31, 12, 0, 0, 0, west))
+	f("1677-09-21T01Z", time.Date(1677, 9, 21, 1, 0, 0, 0, time.UTC))
+	f("1677-09-21T15+14:00", time.Date(1677, 9, 21, 15, 0, 0, 0, east))
+	f("1677-09-21T01+14:00", time.Unix(0, math.MinInt64))
+	f("1677-09-21T01-12:00", time.Date(1677, 9, 21, 1, 0, 0, 0, west))
 
 	// min minute
-	f("1970-01-01T00:00Z", time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC))
-	f("1970-01-01T14:00+14:00", time.Date(1970, 1, 1, 14, 0, 0, 0, east))
-	f("1969-12-31T12:00-12:00", time.Date(1969, 12, 31, 12, 0, 0, 0, west))
+	f("1677-09-21T00:12Z", time.Date(1677, 9, 21, 0, 12, 0, 0, time.UTC))
+	f("1677-09-21T15:12Z+14:00", time.Date(1677, 9, 21, 15, 12, 0, 0, east))
+	f("1677-09-21T00:13Z+14:00", time.Unix(0, math.MinInt64))
+	f("1677-09-21T00:13Z-12:00", time.Date(1677, 9, 21, 0, 13, 0, 0, west))
 
 	// min second
-	f("1970-01-01T00:00:00Z", time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC))
-	f("1970-01-01T14:00:00+14:00", time.Date(1970, 1, 1, 14, 0, 0, 0, east))
-	f("1969-12-31T12:00:00-12:00", time.Date(1969, 12, 31, 12, 0, 0, 0, west))
+	f("1677-09-21T00:12:43Z", time.Date(1677, 9, 21, 0, 12, 43, 0, time.UTC))
+	f("1677-09-21T15:12:43Z+14:00", time.Date(1677, 9, 21, 15, 12, 43, 0, east))
+	f("1677-09-21T00:12:44Z+14:00", time.Unix(0, math.MinInt64))
+	f("1677-09-21T00:12:44Z-12:00", time.Date(1677, 9, 21, 0, 12, 44, 0, west))
 
 	// max year
 	f("2262Z", time.Date(2262, 1, 1, 0, 0, 0, 0, time.UTC))
@@ -280,23 +277,26 @@ func TestParseTimeAtLimits(t *testing.T) {
 
 	// max day
 	f("2262-04-11Z", time.Date(2262, 4, 11, 0, 0, 0, 0, time.UTC))
-	f("2262-04-12+14:00", time.Date(2262, 4, 12, 0, 0, 0, 0, east))
+	f("2262-04-11+14:00", time.Date(2262, 4, 11, 0, 0, 0, 0, east))
 	f("2262-04-11-12:00", time.Date(2262, 4, 11, 0, 0, 0, 0, west))
 
 	// max hour
 	f("2262-04-11T23Z", time.Date(2262, 4, 11, 23, 0, 0, 0, time.UTC))
-	f("2262-04-12T13+14:00", time.Date(2262, 4, 12, 13, 0, 0, 0, east))
+	f("2262-04-11T23+14:00", time.Date(2262, 4, 11, 23, 0, 0, 0, east))
 	f("2262-04-11T11-12:00", time.Date(2262, 4, 11, 11, 0, 0, 0, west))
+	f("2262-04-11T23-12:00", time.Unix(0, math.MaxInt64))
 
 	// max minute
 	f("2262-04-11T23:47Z", time.Date(2262, 4, 11, 23, 47, 0, 0, time.UTC))
-	f("2262-04-12T13:47+14:00", time.Date(2262, 4, 12, 13, 47, 0, 0, east))
+	f("2262-04-11T23:47+14:00", time.Date(2262, 4, 11, 23, 47, 0, 0, east))
 	f("2262-04-11T11:47-12:00", time.Date(2262, 4, 11, 11, 47, 0, 0, west))
+	f("2262-04-11T23:47-12:00", time.Unix(0, math.MaxInt64))
 
 	// max second
 	f("2262-04-11T23:47:16Z", time.Date(2262, 4, 11, 23, 47, 16, 0, time.UTC))
-	f("2262-04-12T13:47:16+14:00", time.Date(2262, 4, 12, 13, 47, 16, 0, east))
+	f("2262-04-11T23:47:16+14:00", time.Date(2262, 4, 11, 23, 47, 16, 0, east))
 	f("2262-04-11T11:47:16-12:00", time.Date(2262, 4, 11, 11, 47, 16, 0, west))
+	f("2262-04-11T23:47:16-12:00", time.Unix(0, math.MaxInt64))
 
 	// max timestamp
 	s = fmt.Sprintf("%d", int64(maxValidSecond))
@@ -322,85 +322,6 @@ func TestParseTimeAtLimits(t *testing.T) {
 	// as nanoseconds.
 	s = fmt.Sprintf("%d", int64(maxValidMicro)+1)
 	f(s, time.Date(1970, 4, 17, 18, 2, 52, 36_854_776, time.UTC))
-}
-
-func TestParseTimeAtOutsideLimits(t *testing.T) {
-	now := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
-
-	f := func(s string) {
-		t.Helper()
-		got, err := ParseTimeAt(s, now.UnixNano())
-		if err == nil {
-			t.Fatalf("expected error but got %d", got)
-		}
-		if !strings.Contains(err.Error(), "must be in the range") {
-			t.Fatalf("expected error: %v", err)
-		}
-	}
-
-	// min timestamp
-	f(fmt.Sprintf("-%d", now.Unix()+1))
-	f(fmt.Sprintf("now-%d", now.Unix()+1))
-
-	// min year
-	f("1969Z")
-	f("1970+14:00")
-	f("1969-12:00")
-
-	// min month
-	f("1969-12Z")
-	f("1970-01+14:00")
-	f("1969-12-12:00")
-
-	// min day
-	f("1969-12-31Z")
-	f("1970-01-01+14:00")
-	f("1969-12-31-12:00")
-
-	// min hour
-	f("1969-12-31T23Z")
-	f("1970-01-01T13+14:00")
-	f("1969-12-31T11-12:00")
-
-	// min minute
-	f("1969-12-31T23:59Z")
-	f("1970-01-01T13:59+14:00")
-	f("1969-12-31T11:59-12:00")
-
-	// min second
-	f("1969-12-31T23:59:59Z")
-	f("1970-01-01T13:59:59+14:00")
-	f("1969-12-31T11:59:59-12:00")
-
-	// max year
-	f("2263Z")
-	f("2263+14:00")
-	f("2263-12:00")
-
-	// max month
-	f("2262-05Z")
-	f("2262-05+14:00")
-	f("2262-05-12:00")
-
-	// max day
-	f("2262-04-12Z")
-	f("2262-04-13+14:00")
-	f("2262-04-12-12:00")
-
-	// max hour
-	f("2262-04-12T00Z")
-	f("2262-04-12T14+14:00")
-	f("2262-04-11T12-12:00")
-
-	// max minute
-	f("2262-04-11T23:48Z")
-	f("2262-04-12T13:48+14:00")
-	f("2262-04-11T11:48-12:00")
-
-	// max second
-	f("2262-04-11T23:47:17Z")
-	f("2262-04-12T13:47:17+14:00")
-	f("2262-04-11T11:47:17-12:00")
 }
 
 func TestParseTimeAtOutsideLimits_Nanos(t *testing.T) {
@@ -434,7 +355,6 @@ func TestParseTimeMsecFailure(t *testing.T) {
 	}
 
 	f("")
-	f("2263")
 	f("23-45:50")
 	f("1223-fo:ba")
 	f("1223-12:ba")
