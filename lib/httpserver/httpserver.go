@@ -64,9 +64,10 @@ var (
 	connTimeout                 = flag.Duration("http.connTimeout", 2*time.Minute, "Incoming connections to -httpListenAddr are closed after the configured timeout. "+
 		"This may help evenly spreading load among a cluster of services behind TCP-level load balancer. Zero value disables closing of incoming connections")
 
-	headerHSTS         = flag.String("http.header.hsts", "", "Value for 'Strict-Transport-Security' header, recommended: 'max-age=31536000; includeSubDomains'")
-	headerFrameOptions = flag.String("http.header.frameOptions", "", "Value for 'X-Frame-Options' header")
-	headerCSP          = flag.String("http.header.csp", "", `Value for 'Content-Security-Policy' header, recommended: "default-src 'self'"`)
+	headerHSTS                  = flag.String("http.header.hsts", "", "Value for 'Strict-Transport-Security' header, recommended: 'max-age=31536000; includeSubDomains'")
+	headerFrameOptions          = flag.String("http.header.frameOptions", "", "Value for 'X-Frame-Options' header")
+	headerCSP                   = flag.String("http.header.csp", "", `Value for 'Content-Security-Policy' header, recommended: "default-src 'self'"`)
+	headerDisableServerHostname = flag.Bool("http.header.disableServerHostname", false, "Whether to disable 'X-Server-Hostname' header in HTTP responses")
 
 	disableCORS = flag.Bool("http.disableCORS", false, `Disable CORS for all origins (*)`)
 )
@@ -329,7 +330,9 @@ func handlerWrapper(w http.ResponseWriter, r *http.Request, rh RequestHandler) {
 	if *headerCSP != "" {
 		h.Add("Content-Security-Policy", *headerCSP)
 	}
-	h.Add("X-Server-Hostname", hostname)
+	if !*headerDisableServerHostname {
+		h.Add("X-Server-Hostname", hostname)
+	}
 	requestsTotal.Inc()
 	if whetherToCloseConn(r) {
 		connTimeoutClosedConns.Inc()
