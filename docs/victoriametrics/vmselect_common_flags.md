@@ -325,7 +325,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/cluster-victori
   -version
      Show VictoriaMetrics version
   -vmalert.proxyURL string
-     Optional URL for proxying requests to vmalert. For example, if -vmalert.proxyURL=http://vmalert:8880 , then alerting API requests such as /api/v1/rules from Grafana will be proxied to http://vmalert:8880/api/v1/rules
+     Optional URL for proxying requests to vmalert. For example, if -vmalert.proxyURL=http://vmalert:8880 , then alerting API requests such as /api/v1/rules from Grafana will be proxied to http://vmalert:8880/api/v1/rules . See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#vmalert
   -vmstorageDialTimeout duration
      Timeout for establishing RPC connections from vmselect to vmstorage. See also -vmstorageUserTimeout (default 3s)
   -vmstorageUserTimeout duration
