@@ -23,7 +23,16 @@ func WriteMetricRelabelDebug(w http.ResponseWriter, r *http.Request, rwGlobalRel
 	format := r.FormValue("format")
 	var err error
 
-	rwURLRelabelConfigsLength := len(rwURLRelabelConfigss)
+	// if all per-URL config is empty, it means no per-URL rule is configured.
+	// set it to 0 so the user do not see the options in debug page.
+	rwURLRelabelConfigsLength := 0
+	for _, urlRelabelConfig := range rwURLRelabelConfigss {
+		if urlRelabelConfig != "" {
+			rwURLRelabelConfigsLength = len(rwURLRelabelConfigss)
+			break
+		}
+	}
+
 	rwURLRelabelConfigsIdx, idxErr := strconv.Atoi(rwURLRelabelConfigsIdxStr)
 	if idxErr != nil {
 		rwURLRelabelConfigsIdx = -1

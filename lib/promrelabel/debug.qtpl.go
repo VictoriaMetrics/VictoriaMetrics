@@ -189,364 +189,368 @@ func streamrelabelDebugFormInputs(qw422016 *qt422016.Writer, metric, relabelConf
 //line lib/promrelabel/debug.qtpl:80
 	if !isTargetRelabel {
 //line lib/promrelabel/debug.qtpl:80
-		qw422016.N().S(`<div><div class="m-1">Remote write relabel configs:<div class="d-flex align-items-center gap-2 mt-1"><select name="url_relabel_configs_index" class="form-select form-select-sm w-auto"><option value="">-- select remote write url --</option>`)
-//line lib/promrelabel/debug.qtpl:87
+		qw422016.N().S(`<div><div class="m-1">Remote write relabel configs:<div class="d-flex align-items-center gap-2 mt-1">`)
+//line lib/promrelabel/debug.qtpl:85
 		if urlRelabelIndexLength > 0 {
-//line lib/promrelabel/debug.qtpl:88
+//line lib/promrelabel/debug.qtpl:85
+			qw422016.N().S(`<select name="url_relabel_configs_index" class="form-select form-select-sm w-auto">`)
+//line lib/promrelabel/debug.qtpl:87
 			for i := range urlRelabelIndexLength {
-//line lib/promrelabel/debug.qtpl:89
+//line lib/promrelabel/debug.qtpl:88
 				if urlRelabelIndexCurrent == i {
+//line lib/promrelabel/debug.qtpl:88
+					qw422016.N().S(`<option value="`)
 //line lib/promrelabel/debug.qtpl:89
-					qw422016.N().S(`<option value="`)
-//line lib/promrelabel/debug.qtpl:90
 					qw422016.N().D(i)
-//line lib/promrelabel/debug.qtpl:90
+//line lib/promrelabel/debug.qtpl:89
 					qw422016.N().S(`" selected="selected">remote-write-url-`)
-//line lib/promrelabel/debug.qtpl:90
+//line lib/promrelabel/debug.qtpl:89
 					qw422016.N().D(i)
-//line lib/promrelabel/debug.qtpl:90
+//line lib/promrelabel/debug.qtpl:89
 					qw422016.N().S(`</option>`)
-//line lib/promrelabel/debug.qtpl:91
+//line lib/promrelabel/debug.qtpl:90
 				} else {
-//line lib/promrelabel/debug.qtpl:91
+//line lib/promrelabel/debug.qtpl:90
 					qw422016.N().S(`<option value="`)
-//line lib/promrelabel/debug.qtpl:92
+//line lib/promrelabel/debug.qtpl:91
 					qw422016.N().D(i)
-//line lib/promrelabel/debug.qtpl:92
+//line lib/promrelabel/debug.qtpl:91
 					qw422016.N().S(`">remote-write-url-`)
-//line lib/promrelabel/debug.qtpl:92
+//line lib/promrelabel/debug.qtpl:91
 					qw422016.N().D(i)
-//line lib/promrelabel/debug.qtpl:92
+//line lib/promrelabel/debug.qtpl:91
 					qw422016.N().S(`</option>`)
-//line lib/promrelabel/debug.qtpl:93
+//line lib/promrelabel/debug.qtpl:92
 				}
-//line lib/promrelabel/debug.qtpl:94
+//line lib/promrelabel/debug.qtpl:93
 			}
-//line lib/promrelabel/debug.qtpl:95
+//line lib/promrelabel/debug.qtpl:93
+			qw422016.N().S(`</select><input type="submit" name="reload_url_relabel_configs" value="Reload" class="btn btn-secondary btn-sm" />`)
+//line lib/promrelabel/debug.qtpl:96
 		}
-//line lib/promrelabel/debug.qtpl:95
-		qw422016.N().S(`</select><input type="submit" name="reload_url_relabel_configs" value="Reload" class="btn btn-secondary btn-sm" /></div></div><textarea name="remote_write_relabel_configs" style="width: 100%; height: 15em; font-family: monospace" class="m-1">`)
-//line lib/promrelabel/debug.qtpl:100
+//line lib/promrelabel/debug.qtpl:96
+		qw422016.N().S(`</div></div><textarea name="remote_write_relabel_configs" style="width: 100%; height: 15em; font-family: monospace" class="m-1">`)
+//line lib/promrelabel/debug.qtpl:99
 		qw422016.E().S(rwRelabelConfigs)
-//line lib/promrelabel/debug.qtpl:100
+//line lib/promrelabel/debug.qtpl:99
 		qw422016.N().S(`</textarea></div>`)
-//line lib/promrelabel/debug.qtpl:102
+//line lib/promrelabel/debug.qtpl:101
 	}
-//line lib/promrelabel/debug.qtpl:102
+//line lib/promrelabel/debug.qtpl:101
 	qw422016.N().S(`<div>Labels:<br/><textarea name="metric" style="width: 100%; height: 5em; font-family: monospace" class="m-1">`)
-//line lib/promrelabel/debug.qtpl:107
+//line lib/promrelabel/debug.qtpl:106
 	qw422016.E().S(metric)
-//line lib/promrelabel/debug.qtpl:107
+//line lib/promrelabel/debug.qtpl:106
 	qw422016.N().S(`</textarea></div>`)
-//line lib/promrelabel/debug.qtpl:109
+//line lib/promrelabel/debug.qtpl:108
 }
 
-//line lib/promrelabel/debug.qtpl:109
+//line lib/promrelabel/debug.qtpl:108
 func writerelabelDebugFormInputs(qq422016 qtio422016.Writer, metric, relabelConfigs string, rwRelabelConfigs string, urlRelabelIndexLength, urlRelabelIndexCurrent int, isTargetRelabel bool) {
-//line lib/promrelabel/debug.qtpl:109
+//line lib/promrelabel/debug.qtpl:108
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line lib/promrelabel/debug.qtpl:109
+//line lib/promrelabel/debug.qtpl:108
 	streamrelabelDebugFormInputs(qw422016, metric, relabelConfigs, rwRelabelConfigs, urlRelabelIndexLength, urlRelabelIndexCurrent, isTargetRelabel)
-//line lib/promrelabel/debug.qtpl:109
+//line lib/promrelabel/debug.qtpl:108
 	qt422016.ReleaseWriter(qw422016)
-//line lib/promrelabel/debug.qtpl:109
+//line lib/promrelabel/debug.qtpl:108
 }
 
-//line lib/promrelabel/debug.qtpl:109
+//line lib/promrelabel/debug.qtpl:108
 func relabelDebugFormInputs(metric, relabelConfigs string, rwRelabelConfigs string, urlRelabelIndexLength, urlRelabelIndexCurrent int, isTargetRelabel bool) string {
-//line lib/promrelabel/debug.qtpl:109
+//line lib/promrelabel/debug.qtpl:108
 	qb422016 := qt422016.AcquireByteBuffer()
-//line lib/promrelabel/debug.qtpl:109
+//line lib/promrelabel/debug.qtpl:108
 	writerelabelDebugFormInputs(qb422016, metric, relabelConfigs, rwRelabelConfigs, urlRelabelIndexLength, urlRelabelIndexCurrent, isTargetRelabel)
-//line lib/promrelabel/debug.qtpl:109
+//line lib/promrelabel/debug.qtpl:108
 	qs422016 := string(qb422016.B)
-//line lib/promrelabel/debug.qtpl:109
+//line lib/promrelabel/debug.qtpl:108
 	qt422016.ReleaseByteBuffer(qb422016)
-//line lib/promrelabel/debug.qtpl:109
+//line lib/promrelabel/debug.qtpl:108
 	return qs422016
-//line lib/promrelabel/debug.qtpl:109
+//line lib/promrelabel/debug.qtpl:108
 }
 
-//line lib/promrelabel/debug.qtpl:111
+//line lib/promrelabel/debug.qtpl:110
 func streamrelabelDebugSteps(qw422016 *qt422016.Writer, dss []DebugStep, targetURL, targetID string) {
-//line lib/promrelabel/debug.qtpl:112
+//line lib/promrelabel/debug.qtpl:111
 	if len(dss) > 0 {
-//line lib/promrelabel/debug.qtpl:112
+//line lib/promrelabel/debug.qtpl:111
 		qw422016.N().S(`<div class="m-3"><b>Original labels:</b> <samp>`)
-//line lib/promrelabel/debug.qtpl:114
+//line lib/promrelabel/debug.qtpl:113
 		streammustFormatLabels(qw422016, dss[0].In)
-//line lib/promrelabel/debug.qtpl:114
+//line lib/promrelabel/debug.qtpl:113
 		qw422016.N().S(`</samp></div>`)
-//line lib/promrelabel/debug.qtpl:116
+//line lib/promrelabel/debug.qtpl:115
 	}
-//line lib/promrelabel/debug.qtpl:116
+//line lib/promrelabel/debug.qtpl:115
 	qw422016.N().S(`<table class="table table-striped table-hover table-bordered table-sm"><thead><tr><th scope="col" style="width: 5%">Step</th><th scope="col" style="width: 25%">Relabeling Rule</th><th scope="col" style="width: 35%">Input Labels</th><th scope="col" stile="width: 35%">Output labels</a></tr></thead><tbody>`)
-//line lib/promrelabel/debug.qtpl:127
+//line lib/promrelabel/debug.qtpl:126
 	for i, ds := range dss {
-//line lib/promrelabel/debug.qtpl:129
+//line lib/promrelabel/debug.qtpl:128
 		inLabels, inErr := promutil.NewLabelsFromString(ds.In)
 		outLabels, outErr := promutil.NewLabelsFromString(ds.Out)
 		changedLabels := getChangedLabelNames(inLabels, outLabels)
 
-//line lib/promrelabel/debug.qtpl:132
+//line lib/promrelabel/debug.qtpl:131
 		qw422016.N().S(`<tr><td>`)
-//line lib/promrelabel/debug.qtpl:134
+//line lib/promrelabel/debug.qtpl:133
 		qw422016.N().D(i)
-//line lib/promrelabel/debug.qtpl:134
+//line lib/promrelabel/debug.qtpl:133
 		qw422016.N().S(`</td><td><b><pre class="m-2">`)
-//line lib/promrelabel/debug.qtpl:135
+//line lib/promrelabel/debug.qtpl:134
 		qw422016.E().S(ds.Rule)
-//line lib/promrelabel/debug.qtpl:135
+//line lib/promrelabel/debug.qtpl:134
 		qw422016.N().S(`</pre></b></td><td>`)
-//line lib/promrelabel/debug.qtpl:137
+//line lib/promrelabel/debug.qtpl:136
 		if inErr == nil {
-//line lib/promrelabel/debug.qtpl:137
+//line lib/promrelabel/debug.qtpl:136
 			qw422016.N().S(`<div class="m-2" style="font-size: 0.9em" title="deleted and updated labels highlighted in red">`)
-//line lib/promrelabel/debug.qtpl:139
+//line lib/promrelabel/debug.qtpl:138
 			streamlabelsWithHighlight(qw422016, inLabels, changedLabels, "#D15757")
-//line lib/promrelabel/debug.qtpl:139
+//line lib/promrelabel/debug.qtpl:138
 			qw422016.N().S(`</div>`)
-//line lib/promrelabel/debug.qtpl:141
+//line lib/promrelabel/debug.qtpl:140
 		} else {
-//line lib/promrelabel/debug.qtpl:141
+//line lib/promrelabel/debug.qtpl:140
 			qw422016.N().S(`<div class="m-2" style="font-size: 0.9em; color: red" title="error parsing input labels"><pre>`)
-//line lib/promrelabel/debug.qtpl:143
+//line lib/promrelabel/debug.qtpl:142
 			qw422016.E().S(inErr.Error())
-//line lib/promrelabel/debug.qtpl:143
+//line lib/promrelabel/debug.qtpl:142
 			qw422016.N().S(`</pre></div>`)
+//line lib/promrelabel/debug.qtpl:144
+			break
 //line lib/promrelabel/debug.qtpl:145
-			break
-//line lib/promrelabel/debug.qtpl:146
 		}
-//line lib/promrelabel/debug.qtpl:146
+//line lib/promrelabel/debug.qtpl:145
 		qw422016.N().S(`</td><td>`)
-//line lib/promrelabel/debug.qtpl:149
+//line lib/promrelabel/debug.qtpl:148
 		if outErr == nil {
-//line lib/promrelabel/debug.qtpl:149
+//line lib/promrelabel/debug.qtpl:148
 			qw422016.N().S(`<div class="m-2" style="font-size: 0.9em" title="added and updated labels highlighted in blue">`)
-//line lib/promrelabel/debug.qtpl:151
+//line lib/promrelabel/debug.qtpl:150
 			streamlabelsWithHighlight(qw422016, outLabels, changedLabels, "#4495e0")
-//line lib/promrelabel/debug.qtpl:151
+//line lib/promrelabel/debug.qtpl:150
 			qw422016.N().S(`</div>`)
-//line lib/promrelabel/debug.qtpl:153
+//line lib/promrelabel/debug.qtpl:152
 		} else {
-//line lib/promrelabel/debug.qtpl:153
+//line lib/promrelabel/debug.qtpl:152
 			qw422016.N().S(`<div class="m-2" style="font-size: 0.9em; color: red" title="error parsing output labels"><pre>`)
-//line lib/promrelabel/debug.qtpl:155
+//line lib/promrelabel/debug.qtpl:154
 			qw422016.E().S(outErr.Error())
-//line lib/promrelabel/debug.qtpl:155
+//line lib/promrelabel/debug.qtpl:154
 			qw422016.N().S(`</pre></div>`)
-//line lib/promrelabel/debug.qtpl:157
+//line lib/promrelabel/debug.qtpl:156
 			break
-//line lib/promrelabel/debug.qtpl:158
+//line lib/promrelabel/debug.qtpl:157
 		}
-//line lib/promrelabel/debug.qtpl:158
+//line lib/promrelabel/debug.qtpl:157
 		qw422016.N().S(`</td></tr>`)
-//line lib/promrelabel/debug.qtpl:161
+//line lib/promrelabel/debug.qtpl:160
 	}
-//line lib/promrelabel/debug.qtpl:161
+//line lib/promrelabel/debug.qtpl:160
 	qw422016.N().S(`</tbody></table>`)
-//line lib/promrelabel/debug.qtpl:164
+//line lib/promrelabel/debug.qtpl:163
 	if len(dss) > 0 {
-//line lib/promrelabel/debug.qtpl:164
+//line lib/promrelabel/debug.qtpl:163
 		qw422016.N().S(`<div class="m-3"><b>Resulting labels:</b> <samp>`)
-//line lib/promrelabel/debug.qtpl:166
+//line lib/promrelabel/debug.qtpl:165
 		streammustFormatLabels(qw422016, dss[len(dss)-1].Out)
-//line lib/promrelabel/debug.qtpl:166
+//line lib/promrelabel/debug.qtpl:165
 		qw422016.N().S(`</samp>`)
-//line lib/promrelabel/debug.qtpl:167
+//line lib/promrelabel/debug.qtpl:166
 		if targetURL != "" {
-//line lib/promrelabel/debug.qtpl:167
+//line lib/promrelabel/debug.qtpl:166
 			qw422016.N().S(`<div><b>Target URL:</b>`)
-//line lib/promrelabel/debug.qtpl:169
+//line lib/promrelabel/debug.qtpl:168
 			qw422016.N().S(` `)
-//line lib/promrelabel/debug.qtpl:169
+//line lib/promrelabel/debug.qtpl:168
 			qw422016.N().S(`<a href="`)
-//line lib/promrelabel/debug.qtpl:169
+//line lib/promrelabel/debug.qtpl:168
 			qw422016.E().S(targetURL)
-//line lib/promrelabel/debug.qtpl:169
+//line lib/promrelabel/debug.qtpl:168
 			qw422016.N().S(`" target="_blank">`)
-//line lib/promrelabel/debug.qtpl:169
+//line lib/promrelabel/debug.qtpl:168
 			qw422016.E().S(targetURL)
-//line lib/promrelabel/debug.qtpl:169
+//line lib/promrelabel/debug.qtpl:168
 			qw422016.N().S(`</a>`)
-//line lib/promrelabel/debug.qtpl:170
+//line lib/promrelabel/debug.qtpl:169
 			if targetID != "" {
-//line lib/promrelabel/debug.qtpl:171
+//line lib/promrelabel/debug.qtpl:170
 				qw422016.N().S(` `)
-//line lib/promrelabel/debug.qtpl:171
+//line lib/promrelabel/debug.qtpl:170
 				qw422016.N().S(`(<a href="target_response?id=`)
-//line lib/promrelabel/debug.qtpl:172
+//line lib/promrelabel/debug.qtpl:171
 				qw422016.E().S(targetID)
-//line lib/promrelabel/debug.qtpl:172
+//line lib/promrelabel/debug.qtpl:171
 				qw422016.N().S(`" target="_blank" title="click to fetch target response on behalf of the scraper">response</a>)`)
-//line lib/promrelabel/debug.qtpl:173
+//line lib/promrelabel/debug.qtpl:172
 			}
-//line lib/promrelabel/debug.qtpl:173
+//line lib/promrelabel/debug.qtpl:172
 			qw422016.N().S(`</div>`)
-//line lib/promrelabel/debug.qtpl:175
+//line lib/promrelabel/debug.qtpl:174
 		}
-//line lib/promrelabel/debug.qtpl:175
+//line lib/promrelabel/debug.qtpl:174
 		qw422016.N().S(`</div>`)
-//line lib/promrelabel/debug.qtpl:177
+//line lib/promrelabel/debug.qtpl:176
 	}
-//line lib/promrelabel/debug.qtpl:178
+//line lib/promrelabel/debug.qtpl:177
 }
 
-//line lib/promrelabel/debug.qtpl:178
+//line lib/promrelabel/debug.qtpl:177
 func writerelabelDebugSteps(qq422016 qtio422016.Writer, dss []DebugStep, targetURL, targetID string) {
-//line lib/promrelabel/debug.qtpl:178
+//line lib/promrelabel/debug.qtpl:177
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line lib/promrelabel/debug.qtpl:178
+//line lib/promrelabel/debug.qtpl:177
 	streamrelabelDebugSteps(qw422016, dss, targetURL, targetID)
-//line lib/promrelabel/debug.qtpl:178
+//line lib/promrelabel/debug.qtpl:177
 	qt422016.ReleaseWriter(qw422016)
-//line lib/promrelabel/debug.qtpl:178
+//line lib/promrelabel/debug.qtpl:177
 }
 
-//line lib/promrelabel/debug.qtpl:178
+//line lib/promrelabel/debug.qtpl:177
 func relabelDebugSteps(dss []DebugStep, targetURL, targetID string) string {
-//line lib/promrelabel/debug.qtpl:178
+//line lib/promrelabel/debug.qtpl:177
 	qb422016 := qt422016.AcquireByteBuffer()
-//line lib/promrelabel/debug.qtpl:178
+//line lib/promrelabel/debug.qtpl:177
 	writerelabelDebugSteps(qb422016, dss, targetURL, targetID)
-//line lib/promrelabel/debug.qtpl:178
+//line lib/promrelabel/debug.qtpl:177
 	qs422016 := string(qb422016.B)
-//line lib/promrelabel/debug.qtpl:178
+//line lib/promrelabel/debug.qtpl:177
 	qt422016.ReleaseByteBuffer(qb422016)
-//line lib/promrelabel/debug.qtpl:178
+//line lib/promrelabel/debug.qtpl:177
 	return qs422016
-//line lib/promrelabel/debug.qtpl:178
+//line lib/promrelabel/debug.qtpl:177
 }
 
-//line lib/promrelabel/debug.qtpl:180
+//line lib/promrelabel/debug.qtpl:179
 func StreamRelabelDebugStepsJSON(qw422016 *qt422016.Writer, targetURL, targetID string, dss []DebugStep, metric, relabelConfigs, rwRelabelConfigs string, urlRelabelIndexLength, urlRelabelIndexCurrent int, isTargetRelabel bool, err error) {
-//line lib/promrelabel/debug.qtpl:180
+//line lib/promrelabel/debug.qtpl:179
 	qw422016.N().S(`{`)
-//line lib/promrelabel/debug.qtpl:182
+//line lib/promrelabel/debug.qtpl:181
 	if err != nil {
-//line lib/promrelabel/debug.qtpl:182
+//line lib/promrelabel/debug.qtpl:181
 		qw422016.N().S(`"status": "error","error":`)
-//line lib/promrelabel/debug.qtpl:184
+//line lib/promrelabel/debug.qtpl:183
 		qw422016.N().Q(fmt.Sprintf("Error: %s", err))
-//line lib/promrelabel/debug.qtpl:185
+//line lib/promrelabel/debug.qtpl:184
 	} else {
-//line lib/promrelabel/debug.qtpl:186
+//line lib/promrelabel/debug.qtpl:185
 		var hasError bool
 
-//line lib/promrelabel/debug.qtpl:186
+//line lib/promrelabel/debug.qtpl:185
 		qw422016.N().S(`"status": "success","steps": [`)
-//line lib/promrelabel/debug.qtpl:189
+//line lib/promrelabel/debug.qtpl:188
 		for i, ds := range dss {
-//line lib/promrelabel/debug.qtpl:191
+//line lib/promrelabel/debug.qtpl:190
 			inLabels, inErr := promutil.NewLabelsFromString(ds.In)
 			outLabels, outErr := promutil.NewLabelsFromString(ds.Out)
 			changedLabels := getChangedLabelNames(inLabels, outLabels)
 
-//line lib/promrelabel/debug.qtpl:194
+//line lib/promrelabel/debug.qtpl:193
 			qw422016.N().S(`{"inLabels":`)
-//line lib/promrelabel/debug.qtpl:196
+//line lib/promrelabel/debug.qtpl:195
 			qw422016.N().Q(labelsWithHighlight(inLabels, changedLabels, "#D15757"))
-//line lib/promrelabel/debug.qtpl:196
+//line lib/promrelabel/debug.qtpl:195
 			qw422016.N().S(`,"outLabels":`)
-//line lib/promrelabel/debug.qtpl:197
+//line lib/promrelabel/debug.qtpl:196
 			qw422016.N().Q(labelsWithHighlight(outLabels, changedLabels, "#4495e0"))
-//line lib/promrelabel/debug.qtpl:197
+//line lib/promrelabel/debug.qtpl:196
 			qw422016.N().S(`,"rule":`)
-//line lib/promrelabel/debug.qtpl:198
+//line lib/promrelabel/debug.qtpl:197
 			qw422016.N().Q(ds.Rule)
-//line lib/promrelabel/debug.qtpl:198
+//line lib/promrelabel/debug.qtpl:197
 			qw422016.N().S(`,"errors": {`)
-//line lib/promrelabel/debug.qtpl:200
+//line lib/promrelabel/debug.qtpl:199
 			if inErr != nil {
-//line lib/promrelabel/debug.qtpl:200
+//line lib/promrelabel/debug.qtpl:199
 				qw422016.N().S(`"inLabels":`)
-//line lib/promrelabel/debug.qtpl:201
+//line lib/promrelabel/debug.qtpl:200
 				qw422016.N().Q(`<span style="color: #D15757">` + inErr.Error() + `</span>`)
-//line lib/promrelabel/debug.qtpl:201
+//line lib/promrelabel/debug.qtpl:200
 				if outErr != nil {
-//line lib/promrelabel/debug.qtpl:201
+//line lib/promrelabel/debug.qtpl:200
 					qw422016.N().S(`,`)
-//line lib/promrelabel/debug.qtpl:201
+//line lib/promrelabel/debug.qtpl:200
 				}
+//line lib/promrelabel/debug.qtpl:201
+				hasError = true
+
 //line lib/promrelabel/debug.qtpl:202
-				hasError = true
-
-//line lib/promrelabel/debug.qtpl:203
 			} else {
-//line lib/promrelabel/debug.qtpl:204
+//line lib/promrelabel/debug.qtpl:203
 			}
-//line lib/promrelabel/debug.qtpl:205
+//line lib/promrelabel/debug.qtpl:204
 			if outErr != nil {
-//line lib/promrelabel/debug.qtpl:205
+//line lib/promrelabel/debug.qtpl:204
 				qw422016.N().S(`"outLabels":`)
-//line lib/promrelabel/debug.qtpl:206
+//line lib/promrelabel/debug.qtpl:205
 				qw422016.N().Q(`<span style="color: #D15757">` + outErr.Error() + `</span>`)
-//line lib/promrelabel/debug.qtpl:207
+//line lib/promrelabel/debug.qtpl:206
 				hasError = true
 
-//line lib/promrelabel/debug.qtpl:208
+//line lib/promrelabel/debug.qtpl:207
 			}
-//line lib/promrelabel/debug.qtpl:208
+//line lib/promrelabel/debug.qtpl:207
 			qw422016.N().S(`}}`)
-//line lib/promrelabel/debug.qtpl:211
+//line lib/promrelabel/debug.qtpl:210
 			if i != len(dss)-1 {
-//line lib/promrelabel/debug.qtpl:211
+//line lib/promrelabel/debug.qtpl:210
 				qw422016.N().S(`,`)
-//line lib/promrelabel/debug.qtpl:211
+//line lib/promrelabel/debug.qtpl:210
 			}
-//line lib/promrelabel/debug.qtpl:212
+//line lib/promrelabel/debug.qtpl:211
 		}
-//line lib/promrelabel/debug.qtpl:212
+//line lib/promrelabel/debug.qtpl:211
 		qw422016.N().S(`]`)
-//line lib/promrelabel/debug.qtpl:214
+//line lib/promrelabel/debug.qtpl:213
 		if len(dss) > 0 && !hasError {
-//line lib/promrelabel/debug.qtpl:214
+//line lib/promrelabel/debug.qtpl:213
 			qw422016.N().S(`,"originalLabels":`)
-//line lib/promrelabel/debug.qtpl:216
+//line lib/promrelabel/debug.qtpl:215
 			qw422016.N().Q(mustFormatLabels(dss[0].In))
-//line lib/promrelabel/debug.qtpl:216
+//line lib/promrelabel/debug.qtpl:215
 			qw422016.N().S(`,"resultingLabels":`)
-//line lib/promrelabel/debug.qtpl:217
+//line lib/promrelabel/debug.qtpl:216
 			qw422016.N().Q(mustFormatLabels(dss[len(dss)-1].Out))
-//line lib/promrelabel/debug.qtpl:218
+//line lib/promrelabel/debug.qtpl:217
 		}
-//line lib/promrelabel/debug.qtpl:219
+//line lib/promrelabel/debug.qtpl:218
 	}
-//line lib/promrelabel/debug.qtpl:219
+//line lib/promrelabel/debug.qtpl:218
 	qw422016.N().S(`}`)
-//line lib/promrelabel/debug.qtpl:221
+//line lib/promrelabel/debug.qtpl:220
 }
 
-//line lib/promrelabel/debug.qtpl:221
+//line lib/promrelabel/debug.qtpl:220
 func WriteRelabelDebugStepsJSON(qq422016 qtio422016.Writer, targetURL, targetID string, dss []DebugStep, metric, relabelConfigs, rwRelabelConfigs string, urlRelabelIndexLength, urlRelabelIndexCurrent int, isTargetRelabel bool, err error) {
-//line lib/promrelabel/debug.qtpl:221
+//line lib/promrelabel/debug.qtpl:220
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line lib/promrelabel/debug.qtpl:221
+//line lib/promrelabel/debug.qtpl:220
 	StreamRelabelDebugStepsJSON(qw422016, targetURL, targetID, dss, metric, relabelConfigs, rwRelabelConfigs, urlRelabelIndexLength, urlRelabelIndexCurrent, isTargetRelabel, err)
-//line lib/promrelabel/debug.qtpl:221
+//line lib/promrelabel/debug.qtpl:220
 	qt422016.ReleaseWriter(qw422016)
-//line lib/promrelabel/debug.qtpl:221
+//line lib/promrelabel/debug.qtpl:220
 }
 
-//line lib/promrelabel/debug.qtpl:221
+//line lib/promrelabel/debug.qtpl:220
 func RelabelDebugStepsJSON(targetURL, targetID string, dss []DebugStep, metric, relabelConfigs, rwRelabelConfigs string, urlRelabelIndexLength, urlRelabelIndexCurrent int, isTargetRelabel bool, err error) string {
-//line lib/promrelabel/debug.qtpl:221
+//line lib/promrelabel/debug.qtpl:220
 	qb422016 := qt422016.AcquireByteBuffer()
-//line lib/promrelabel/debug.qtpl:221
+//line lib/promrelabel/debug.qtpl:220
 	WriteRelabelDebugStepsJSON(qb422016, targetURL, targetID, dss, metric, relabelConfigs, rwRelabelConfigs, urlRelabelIndexLength, urlRelabelIndexCurrent, isTargetRelabel, err)
-//line lib/promrelabel/debug.qtpl:221
+//line lib/promrelabel/debug.qtpl:220
 	qs422016 := string(qb422016.B)
-//line lib/promrelabel/debug.qtpl:221
+//line lib/promrelabel/debug.qtpl:220
 	qt422016.ReleaseByteBuffer(qb422016)
-//line lib/promrelabel/debug.qtpl:221
+//line lib/promrelabel/debug.qtpl:220
 	return qs422016
-//line lib/promrelabel/debug.qtpl:221
+//line lib/promrelabel/debug.qtpl:220
 }
 
-//line lib/promrelabel/debug.qtpl:223
+//line lib/promrelabel/debug.qtpl:222
 func streamlabelsWithHighlight(qw422016 *qt422016.Writer, labels *promutil.Labels, highlight map[string]struct{}, color string) {
-//line lib/promrelabel/debug.qtpl:225
+//line lib/promrelabel/debug.qtpl:224
 	labelsList := labels.GetLabels()
 	metricName := ""
 	for i, label := range labelsList {
@@ -557,153 +561,153 @@ func streamlabelsWithHighlight(qw422016 *qt422016.Writer, labels *promutil.Label
 		}
 	}
 
-//line lib/promrelabel/debug.qtpl:235
+//line lib/promrelabel/debug.qtpl:234
 	if metricName != "" {
-//line lib/promrelabel/debug.qtpl:236
+//line lib/promrelabel/debug.qtpl:235
 		if _, ok := highlight["__name__"]; ok {
-//line lib/promrelabel/debug.qtpl:236
+//line lib/promrelabel/debug.qtpl:235
 			qw422016.N().S(`<span style="font-weight:bold;color:`)
-//line lib/promrelabel/debug.qtpl:237
+//line lib/promrelabel/debug.qtpl:236
 			qw422016.E().S(color)
-//line lib/promrelabel/debug.qtpl:237
+//line lib/promrelabel/debug.qtpl:236
 			qw422016.N().S(`">`)
-//line lib/promrelabel/debug.qtpl:237
+//line lib/promrelabel/debug.qtpl:236
 			qw422016.E().S(metricName)
-//line lib/promrelabel/debug.qtpl:237
+//line lib/promrelabel/debug.qtpl:236
 			qw422016.N().S(`</span>`)
-//line lib/promrelabel/debug.qtpl:238
+//line lib/promrelabel/debug.qtpl:237
 		} else {
-//line lib/promrelabel/debug.qtpl:239
+//line lib/promrelabel/debug.qtpl:238
 			qw422016.E().S(metricName)
+//line lib/promrelabel/debug.qtpl:239
+		}
+//line lib/promrelabel/debug.qtpl:240
+		if len(labelsList) == 0 {
+//line lib/promrelabel/debug.qtpl:240
+			return
 //line lib/promrelabel/debug.qtpl:240
 		}
 //line lib/promrelabel/debug.qtpl:241
-		if len(labelsList) == 0 {
-//line lib/promrelabel/debug.qtpl:241
-			return
-//line lib/promrelabel/debug.qtpl:241
-		}
-//line lib/promrelabel/debug.qtpl:242
 	}
-//line lib/promrelabel/debug.qtpl:242
+//line lib/promrelabel/debug.qtpl:241
 	qw422016.N().S(`{`)
-//line lib/promrelabel/debug.qtpl:244
+//line lib/promrelabel/debug.qtpl:243
 	for i, label := range labelsList {
-//line lib/promrelabel/debug.qtpl:245
+//line lib/promrelabel/debug.qtpl:244
 		if _, ok := highlight[label.Name]; ok {
-//line lib/promrelabel/debug.qtpl:245
+//line lib/promrelabel/debug.qtpl:244
 			qw422016.N().S(`<span style="font-weight:bold;color:`)
-//line lib/promrelabel/debug.qtpl:246
+//line lib/promrelabel/debug.qtpl:245
 			qw422016.E().S(color)
-//line lib/promrelabel/debug.qtpl:246
+//line lib/promrelabel/debug.qtpl:245
 			qw422016.N().S(`">`)
-//line lib/promrelabel/debug.qtpl:246
+//line lib/promrelabel/debug.qtpl:245
 			qw422016.E().S(label.Name)
-//line lib/promrelabel/debug.qtpl:246
+//line lib/promrelabel/debug.qtpl:245
 			qw422016.N().S(`=`)
-//line lib/promrelabel/debug.qtpl:246
+//line lib/promrelabel/debug.qtpl:245
 			qw422016.E().Q(label.Value)
-//line lib/promrelabel/debug.qtpl:246
+//line lib/promrelabel/debug.qtpl:245
 			qw422016.N().S(`</span>`)
-//line lib/promrelabel/debug.qtpl:247
+//line lib/promrelabel/debug.qtpl:246
 		} else {
-//line lib/promrelabel/debug.qtpl:248
+//line lib/promrelabel/debug.qtpl:247
 			qw422016.E().S(label.Name)
-//line lib/promrelabel/debug.qtpl:248
+//line lib/promrelabel/debug.qtpl:247
 			qw422016.N().S(`=`)
-//line lib/promrelabel/debug.qtpl:248
+//line lib/promrelabel/debug.qtpl:247
 			qw422016.E().Q(label.Value)
+//line lib/promrelabel/debug.qtpl:248
+		}
+//line lib/promrelabel/debug.qtpl:249
+		if i < len(labelsList)-1 {
+//line lib/promrelabel/debug.qtpl:249
+			qw422016.N().S(`,`)
+//line lib/promrelabel/debug.qtpl:249
+			qw422016.N().S(` `)
 //line lib/promrelabel/debug.qtpl:249
 		}
 //line lib/promrelabel/debug.qtpl:250
-		if i < len(labelsList)-1 {
-//line lib/promrelabel/debug.qtpl:250
-			qw422016.N().S(`,`)
-//line lib/promrelabel/debug.qtpl:250
-			qw422016.N().S(` `)
-//line lib/promrelabel/debug.qtpl:250
-		}
-//line lib/promrelabel/debug.qtpl:251
 	}
-//line lib/promrelabel/debug.qtpl:251
+//line lib/promrelabel/debug.qtpl:250
 	qw422016.N().S(`}`)
-//line lib/promrelabel/debug.qtpl:253
+//line lib/promrelabel/debug.qtpl:252
 }
 
-//line lib/promrelabel/debug.qtpl:253
+//line lib/promrelabel/debug.qtpl:252
 func writelabelsWithHighlight(qq422016 qtio422016.Writer, labels *promutil.Labels, highlight map[string]struct{}, color string) {
-//line lib/promrelabel/debug.qtpl:253
+//line lib/promrelabel/debug.qtpl:252
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line lib/promrelabel/debug.qtpl:253
+//line lib/promrelabel/debug.qtpl:252
 	streamlabelsWithHighlight(qw422016, labels, highlight, color)
-//line lib/promrelabel/debug.qtpl:253
+//line lib/promrelabel/debug.qtpl:252
 	qt422016.ReleaseWriter(qw422016)
-//line lib/promrelabel/debug.qtpl:253
+//line lib/promrelabel/debug.qtpl:252
 }
 
-//line lib/promrelabel/debug.qtpl:253
+//line lib/promrelabel/debug.qtpl:252
 func labelsWithHighlight(labels *promutil.Labels, highlight map[string]struct{}, color string) string {
-//line lib/promrelabel/debug.qtpl:253
+//line lib/promrelabel/debug.qtpl:252
 	qb422016 := qt422016.AcquireByteBuffer()
-//line lib/promrelabel/debug.qtpl:253
+//line lib/promrelabel/debug.qtpl:252
 	writelabelsWithHighlight(qb422016, labels, highlight, color)
-//line lib/promrelabel/debug.qtpl:253
+//line lib/promrelabel/debug.qtpl:252
 	qs422016 := string(qb422016.B)
-//line lib/promrelabel/debug.qtpl:253
+//line lib/promrelabel/debug.qtpl:252
 	qt422016.ReleaseByteBuffer(qb422016)
-//line lib/promrelabel/debug.qtpl:253
+//line lib/promrelabel/debug.qtpl:252
 	return qs422016
-//line lib/promrelabel/debug.qtpl:253
+//line lib/promrelabel/debug.qtpl:252
 }
 
-//line lib/promrelabel/debug.qtpl:255
+//line lib/promrelabel/debug.qtpl:254
 func streammustFormatLabels(qw422016 *qt422016.Writer, s string) {
-//line lib/promrelabel/debug.qtpl:256
+//line lib/promrelabel/debug.qtpl:255
 	labels, err := promutil.NewLabelsFromString(s)
 
-//line lib/promrelabel/debug.qtpl:257
+//line lib/promrelabel/debug.qtpl:256
 	if err != nil {
-//line lib/promrelabel/debug.qtpl:257
+//line lib/promrelabel/debug.qtpl:256
 		qw422016.N().S(`<span style="color: red" title="error parsing labels:`)
-//line lib/promrelabel/debug.qtpl:258
+//line lib/promrelabel/debug.qtpl:257
 		qw422016.E().S(err.Error())
-//line lib/promrelabel/debug.qtpl:258
+//line lib/promrelabel/debug.qtpl:257
 		qw422016.N().S(`">`)
-//line lib/promrelabel/debug.qtpl:258
+//line lib/promrelabel/debug.qtpl:257
 		qw422016.E().S("error parsing labels: " + err.Error())
-//line lib/promrelabel/debug.qtpl:258
+//line lib/promrelabel/debug.qtpl:257
 		qw422016.N().S(`</span>`)
-//line lib/promrelabel/debug.qtpl:259
+//line lib/promrelabel/debug.qtpl:258
 	} else {
-//line lib/promrelabel/debug.qtpl:260
+//line lib/promrelabel/debug.qtpl:259
 		streamlabelsWithHighlight(qw422016, labels, nil, "")
-//line lib/promrelabel/debug.qtpl:261
+//line lib/promrelabel/debug.qtpl:260
 	}
-//line lib/promrelabel/debug.qtpl:262
+//line lib/promrelabel/debug.qtpl:261
 }
 
-//line lib/promrelabel/debug.qtpl:262
+//line lib/promrelabel/debug.qtpl:261
 func writemustFormatLabels(qq422016 qtio422016.Writer, s string) {
-//line lib/promrelabel/debug.qtpl:262
+//line lib/promrelabel/debug.qtpl:261
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line lib/promrelabel/debug.qtpl:262
+//line lib/promrelabel/debug.qtpl:261
 	streammustFormatLabels(qw422016, s)
-//line lib/promrelabel/debug.qtpl:262
+//line lib/promrelabel/debug.qtpl:261
 	qt422016.ReleaseWriter(qw422016)
-//line lib/promrelabel/debug.qtpl:262
+//line lib/promrelabel/debug.qtpl:261
 }
 
-//line lib/promrelabel/debug.qtpl:262
+//line lib/promrelabel/debug.qtpl:261
 func mustFormatLabels(s string) string {
-//line lib/promrelabel/debug.qtpl:262
+//line lib/promrelabel/debug.qtpl:261
 	qb422016 := qt422016.AcquireByteBuffer()
-//line lib/promrelabel/debug.qtpl:262
+//line lib/promrelabel/debug.qtpl:261
 	writemustFormatLabels(qb422016, s)
-//line lib/promrelabel/debug.qtpl:262
+//line lib/promrelabel/debug.qtpl:261
 	qs422016 := string(qb422016.B)
-//line lib/promrelabel/debug.qtpl:262
+//line lib/promrelabel/debug.qtpl:261
 	qt422016.ReleaseByteBuffer(qb422016)
-//line lib/promrelabel/debug.qtpl:262
+//line lib/promrelabel/debug.qtpl:261
 	return qs422016
-//line lib/promrelabel/debug.qtpl:262
+//line lib/promrelabel/debug.qtpl:261
 }

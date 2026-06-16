@@ -82,9 +82,8 @@ function submitRelabelDebugForm(e) {
         <div class="m-1">
             Remote write relabel configs:
             <div class="d-flex align-items-center gap-2 mt-1">
-                <select name="url_relabel_configs_index" class="form-select form-select-sm w-auto">
-                    <option value="">-- select remote write url --</option>
-                    {% if urlRelabelIndexLength > 0 %}
+                {% if urlRelabelIndexLength > 0 %}
+                    <select name="url_relabel_configs_index" class="form-select form-select-sm w-auto">
                         {% for i := range urlRelabelIndexLength %}
                             {% if urlRelabelIndexCurrent == i %}
                                 <option value="{%d i %}" selected="selected">remote-write-url-{%d i %}</option>
@@ -92,9 +91,9 @@ function submitRelabelDebugForm(e) {
                                 <option value="{%d i %}">remote-write-url-{%d i %}</option>
                             {% endif %}
                         {% endfor %}
-                    {% endif %}
-                </select>
-                <input type="submit" name="reload_url_relabel_configs" value="Reload" class="btn btn-secondary btn-sm" />
+                    </select>
+                    <input type="submit" name="reload_url_relabel_configs" value="Reload" class="btn btn-secondary btn-sm" />
+                {% endif %}
             </div>
         </div>
         <textarea name="remote_write_relabel_configs" style="width: 100%; height: 15em; font-family: monospace" class="m-1">{%s rwRelabelConfigs %}</textarea>
