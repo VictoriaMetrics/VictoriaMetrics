@@ -550,7 +550,7 @@ func parsePipeUniq(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'by(...)': %w", err)
 		}
 		byFields = bfs
-	} else if !lex.isKeyword("filter", "with", "hits", "limit", ")", "|", "") {
+	} else if !lex.isKeyword("filter", "with", "hits", "limit") && !lex.isQueryPartTrailer() {
 		bfs, err := parseCommaSeparatedFields(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'by ...': %w", err)
