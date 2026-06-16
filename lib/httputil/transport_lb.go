@@ -89,7 +89,7 @@ func (lb *loadbalancerTransport) RoundTrip(r *http.Request) (*http.Response, err
 	if err != nil {
 		var dnsErr *net.DNSError
 		// perform a single retry for in case of trivial error or dns lookup error
-		if !netutil.IsTrivialNetworkError(err) && !(errors.As(err, &dnsErr) && dnsErr.IsNotFound) {
+		if !netutil.IsTrivialNetworkError(err) && (errors.As(err, &dnsErr) && !dnsErr.IsNotFound) {
 			return nil, err
 		}
 		backend := lb.pickBackend(r.Context(), true)
