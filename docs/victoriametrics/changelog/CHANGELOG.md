@@ -26,7 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
-* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): enhance metrics relabel debug by adding remote write relabel configs to the relabel configs input. See [#9918](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9918).
+* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): add support for selecting relabel configurations from `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig` in the [metrics relabel debug UI](https://docs.victoriametrics.com/victoriametrics/relabeling/#relabel-debugging). See [#9918](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9918).
 
 * BUGFIX: [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/): fix issue with producing aggregated samples with identical timestamps between flushes. See PR [#10808](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10808) for details.
 
