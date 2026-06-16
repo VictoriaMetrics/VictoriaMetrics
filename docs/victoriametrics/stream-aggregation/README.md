@@ -679,11 +679,11 @@ If counter-specific outputs, such as `total*`, `rate*`, and `increase*`, produce
 
 ## Data delay and staleness
 
-Since stream aggregation processes input samples in a streaming manner and flushes results when a specific aggregation window closes, aggregation results can be heavily affected by data delay(it can be observed via the `vm_streamaggr_samples_lag_seconds_bucket` metric).
+Stream aggregation processes input samples in a streaming manner and flushes results once per specified `interval`. Because of this, aggregation results can be heavily affected by data delays (see `vm_streamaggr_samples_lag_seconds_bucket` metric).
 
 In particular:
-1. If input samples are delayed for multiple intervals, stream aggregation will not see any input samples during that period and will not generate any results for that time, which causes gaps in the output.
-2. If delayed samples are delivered later, the aggregation result for the next aggregation window can be affected by those delayed samples, depending on their arrival order and how long the delay is compared to the interval.
+1. Stream aggregation won't produce results if input samples are delayed for multiple aggregation intervals, causing gaps in the output.
+2. Delayed and out-of-order samples can inflate or skew correctness of aggregation resuts.
 
 If you prefer consistency in aggregation results and do not want delayed data to affect the next aggregation window, drop all potentially delayed samples via [ignore_old_samples](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#ignoring-old-samples).
 
