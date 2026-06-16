@@ -231,11 +231,11 @@ func tryRemoveDir(dirPath string) bool {
 // or false if error is temporary NFS error
 func tryRemovePath(path string) bool {
 	if err := os.Remove(path); err != nil {
-		if !isTemporaryNFSError(err) {
-			logger.Fatalf("FATAL: cannot remove %q: %s", path, err)
-		}
 		if os.IsNotExist(err) {
 			return true
+		}
+		if !isTemporaryNFSError(err) {
+			logger.Fatalf("FATAL: cannot remove %q: %s", path, err)
 		}
 		nfsDirRemoveFailedAttempts.Inc()
 		return false
