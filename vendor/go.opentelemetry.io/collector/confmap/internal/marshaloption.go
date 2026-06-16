@@ -19,3 +19,13 @@ type MarshalOptionFunc func(*MarshalOptions)
 func (fn MarshalOptionFunc) apply(set *MarshalOptions) {
 	fn(set)
 }
+
+func ApplyMarshalOptions(set *MarshalOptions, opts []MarshalOption) *MarshalOptions {
+	if set == nil {
+		set = &MarshalOptions{}
+	}
+	for _, opt := range opts {
+		opt.apply(set)
+	}
+	return set
+}

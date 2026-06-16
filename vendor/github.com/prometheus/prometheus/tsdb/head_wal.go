@@ -206,7 +206,7 @@ func (h *Head) loadWAL(r *wlog.Reader, syms *labels.SymbolTable, multiRef map[ch
 					return
 				}
 				decoded <- exemplars
-			case record.HistogramSamples, record.CustomBucketsHistogramSamples:
+			case record.HistogramSamples, record.CustomBucketsHistogramSamples, record.HistogramSamplesV2:
 				hists := h.wlReplayHistogramsPool.Get()[:0]
 				hists, err = dec.HistogramSamples(r.Record(), hists)
 				if err != nil {
@@ -218,7 +218,7 @@ func (h *Head) loadWAL(r *wlog.Reader, syms *labels.SymbolTable, multiRef map[ch
 					return
 				}
 				decoded <- hists
-			case record.FloatHistogramSamples, record.CustomBucketsFloatHistogramSamples:
+			case record.FloatHistogramSamples, record.CustomBucketsFloatHistogramSamples, record.FloatHistogramSamplesV2:
 				hists := h.wlReplayFloatHistogramsPool.Get()[:0]
 				hists, err = dec.FloatHistogramSamples(r.Record(), hists)
 				if err != nil {
@@ -578,7 +578,11 @@ func (h *Head) resetSeriesWithMMappedChunks(mSeries *memSeries, mmc, oooMmc []*m
 
 	// Any samples replayed till now would already be compacted. Resetting the head chunk.
 	mSeries.nextAt = 0
+	if mSeries.headChunkCount.Load() >= 2 {
+		h.series.decMmapReady(mSeries.ref)
+	}
 	mSeries.headChunks = nil
+	mSeries.headChunkCount.Store(0)
 	mSeries.app = nil
 	return overlapped
 }
@@ -631,6 +635,29 @@ func (wp *walSubsetProcessor) reuseHistogramBuf() []histogramRecord {
 	return nil
 }
 
+// appendChunkAndMmap appends a sample to ms via appendFn and, if a new head
+// chunk was created, immediately mmaps the now-completed predecessors. Used
+// by WAL replay paths to keep memory bounded by mmapping eagerly rather than
+// waiting for the periodic mmapHeadChunks pass.
+//
+// If the chunk cut + mmap reduces headChunkCount from >= 2 to < 2 (which
+// happens whenever prev >= 2, since mmapChunks always sets the count to 1
+// when it does work), the per-stripe mmap-ready counter is decremented to
+// maintain its invariant.
+func (h *Head) appendChunkAndMmap(ms *memSeries, appendFn func() bool) bool {
+	prev := ms.headChunkCount.Load()
+	chunkCreated := appendFn()
+	if chunkCreated {
+		h.metrics.chunksCreated.Inc()
+		h.metrics.chunks.Inc()
+		_ = ms.mmapChunks(h.chunkDiskMapper)
+		if prev >= 2 {
+			h.series.decMmapReady(ms.ref)
+		}
+	}
+	return chunkCreated
+}
+
 // processWALSamples adds the samples it receives to the head and passes
 // the buffer received to an output channel for reuse.
 // Samples before the minValidTime timestamp are discarded.
@@ -678,11 +705,10 @@ func (wp *walSubsetProcessor) processWALSamples(h *Head, mmappedChunks, oooMmapp
 				h.numStaleSeries.Dec()
 			}
 
-			if _, chunkCreated := ms.append(s.ST, s.T, s.V, 0, appendChunkOpts); chunkCreated {
-				h.metrics.chunksCreated.Inc()
-				h.metrics.chunks.Inc()
-				_ = ms.mmapChunks(h.chunkDiskMapper)
-			}
+			h.appendChunkAndMmap(ms, func() bool {
+				_, chunkCreated := ms.append(s.ST, s.T, s.V, 0, appendChunkOpts)
+				return chunkCreated
+			})
 			if s.T > maxt {
 				maxt = s.T
 			}
@@ -708,7 +734,7 @@ func (wp *walSubsetProcessor) processWALSamples(h *Head, mmappedChunks, oooMmapp
 			if s.t <= ms.mmMaxTime {
 				continue
 			}
-			var chunkCreated, newlyStale, staleToNonStale bool
+			var newlyStale, staleToNonStale bool
 			if s.h != nil {
 				newlyStale = value.IsStaleNaN(s.h.Sum)
 				if ms.lastHistogramValue != nil {
@@ -716,7 +742,10 @@ func (wp *walSubsetProcessor) processWALSamples(h *Head, mmappedChunks, oooMmapp
 					staleToNonStale = value.IsStaleNaN(ms.lastHistogramValue.Sum) && !value.IsStaleNaN(s.h.Sum)
 				}
 				// TODO(krajorama,ywwg): Pass ST when available in WBL.
-				_, chunkCreated = ms.appendHistogram(0, s.t, s.h, 0, appendChunkOpts)
+				h.appendChunkAndMmap(ms, func() bool {
+					_, chunkCreated := ms.appendHistogram(0, s.t, s.h, 0, appendChunkOpts)
+					return chunkCreated
+				})
 			} else {
 				newlyStale = value.IsStaleNaN(s.fh.Sum)
 				if ms.lastFloatHistogramValue != nil {
@@ -724,18 +753,16 @@ func (wp *walSubsetProcessor) processWALSamples(h *Head, mmappedChunks, oooMmapp
 					staleToNonStale = value.IsStaleNaN(ms.lastFloatHistogramValue.Sum) && !value.IsStaleNaN(s.fh.Sum)
 				}
 				// TODO(krajorama,ywwg): Pass ST when available in WBL.
-				_, chunkCreated = ms.appendFloatHistogram(0, s.t, s.fh, 0, appendChunkOpts)
+				h.appendChunkAndMmap(ms, func() bool {
+					_, chunkCreated := ms.appendFloatHistogram(0, s.t, s.fh, 0, appendChunkOpts)
+					return chunkCreated
+				})
 			}
 			if newlyStale {
 				h.numStaleSeries.Inc()
 			}
 			if staleToNonStale {
 				h.numStaleSeries.Dec()
-			}
-			if chunkCreated {
-				h.metrics.chunksCreated.Inc()
-				h.metrics.chunks.Inc()
-				_ = ms.mmapChunks(h.chunkDiskMapper)
 			}
 			if s.t > maxt {
 				maxt = s.t
@@ -837,7 +864,7 @@ func (h *Head) loadWBL(r *wlog.Reader, syms *labels.SymbolTable, multiRef map[ch
 					return
 				}
 				decodedCh <- markers
-			case record.HistogramSamples, record.CustomBucketsHistogramSamples:
+			case record.HistogramSamples, record.CustomBucketsHistogramSamples, record.HistogramSamplesV2:
 				hists := h.wlReplayHistogramsPool.Get()[:0]
 				hists, err = dec.HistogramSamples(rec, hists)
 				if err != nil {
@@ -849,7 +876,7 @@ func (h *Head) loadWBL(r *wlog.Reader, syms *labels.SymbolTable, multiRef map[ch
 					return
 				}
 				decodedCh <- hists
-			case record.FloatHistogramSamples, record.CustomBucketsFloatHistogramSamples:
+			case record.FloatHistogramSamples, record.CustomBucketsFloatHistogramSamples, record.FloatHistogramSamplesV2:
 				hists := h.wlReplayFloatHistogramsPool.Get()[:0]
 				hists, err = dec.FloatHistogramSamples(rec, hists)
 				if err != nil {
@@ -1660,6 +1687,11 @@ func (h *Head) loadChunkSnapshot() (int, int, map[chunks.HeadSeriesRef]*memSerie
 				}
 				series.nextAt = csr.mc.maxTime // This will create a new chunk on append.
 				series.headChunks = csr.mc
+				chunkCount := uint32(csr.mc.len())
+				series.headChunkCount.Store(chunkCount)
+				if chunkCount >= 2 {
+					h.series.incMmapReady(series.ref)
+				}
 				series.lastValue = csr.lastValue
 				series.lastHistogramValue = csr.lastHistogramValue
 				series.lastFloatHistogramValue = csr.lastFloatHistogramValue
@@ -1817,6 +1849,27 @@ type SeriesLifecycleState struct {
 	CleanShutdown  bool   `json:"clean_shutdown"`
 }
 
+// readSeriesStateFile reads the series lifecycle state from disk.
+func (h *Head) readSeriesStateFile() (SeriesLifecycleState, error) {
+	if h.wal == nil {
+		return SeriesLifecycleState{}, os.ErrNotExist
+	}
+
+	path := filepath.Join(h.wal.Dir(), seriesStateFilename)
+	f, err := os.Open(path)
+	if err != nil {
+		return SeriesLifecycleState{}, err
+	}
+	defer f.Close()
+
+	var state SeriesLifecycleState
+	if err := json.NewDecoder(f).Decode(&state); err != nil {
+		return SeriesLifecycleState{}, fmt.Errorf("decode series state: %w", err)
+	}
+
+	return state, nil
+}
+
 // Atomically writes the current series state to disk.
 func (h *Head) writeSeriesState(cleanShutdown bool) {
 	if h.wal == nil {
@@ -1872,4 +1925,63 @@ func (h *Head) runSeriesStateTicker() {
 			return
 		}
 	}
+}
+
+// findLastSeriesID performs a bounded reverse scan of WAL segments to find the highest series ID.
+func (h *Head) findLastSeriesID(state SeriesLifecycleState, endSegment int) (uint64, error) {
+	startSegment := state.LastWALSegment
+	startSegment = max(0, startSegment)
+
+	syms := labels.NewSymbolTable()
+
+	// Iterate backwards from the newest segment to the oldest allowed segment.
+	for i := endSegment; i >= startSegment; i-- {
+		s, err := wlog.OpenReadSegment(wlog.SegmentName(h.wal.Dir(), i))
+		if os.IsNotExist(err) {
+			continue // Segment might have been deleted, we skip it.
+		}
+		if err != nil {
+			return 0, fmt.Errorf("open WAL segment %d: %w", i, err)
+		}
+
+		sr := wlog.NewSegmentBufReader(s)
+		r := wlog.NewReader(sr)
+		dec := record.NewDecoder(syms, h.logger)
+
+		var highestID chunks.HeadSeriesRef
+		var found bool
+
+		// Read the segment forwards.
+		for r.Next() {
+			rec := r.Record()
+			// We only care about Series records.
+			if dec.Type(rec) != record.Series {
+				continue
+			}
+
+			series, err := dec.Series(rec, nil)
+			if err != nil {
+				s.Close()
+				return 0, fmt.Errorf("decode series in segment %d: %w", i, err)
+			}
+			for _, ws := range series {
+				highestID = max(highestID, ws.Ref)
+				found = true
+			}
+		}
+
+		err = r.Err()
+		s.Close()
+		if err != nil {
+			return 0, fmt.Errorf("read WAL segment %d: %w", i, err)
+		}
+
+		if found {
+			return uint64(highestID), nil
+		}
+	}
+
+	// If we scanned the segments and found no series records,
+	// the ID from our state file has to be used.
+	return state.LastSeriesID, nil
 }
