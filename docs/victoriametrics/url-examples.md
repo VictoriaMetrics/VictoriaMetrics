@@ -26,7 +26,7 @@ The examples below use these placeholders:
 - `http://<vmalert-addr>:8880` for vmalert APIs
 - `http://<vmauth-addr>:8427` for vmauth APIs
 
-Every section includes a `Supported by:` line so it is easier to see where the endpoint is available.
+Every section includes a `Supported by:` line, so it is easier to see where the endpoint is available.
 
 ### /api/v1/admin/tsdb/delete_series
 
@@ -34,7 +34,7 @@ Every section includes a `Supported by:` line so it is easier to see where the e
 
 Supported by: `single-node`, `cluster`
 
-Note that handler accepts any HTTP method, so sending a `GET` request to `/api/v1/admin/tsdb/delete_series` will result in deletion of time series.
+Note that the handler accepts any HTTP method, so sending a `GET` request to `/api/v1/admin/tsdb/delete_series` will delete the time series.
 
 Single-node VictoriaMetrics:
 
@@ -88,7 +88,7 @@ Supported by: `single-node`, `cluster`
 
 You must specify the desired `format` and optionally `match[]` selectors.
 Suppose you have a `demo` metric with `job` and `instance` labels.
-The following command exports all time series of the `demo` metric in CSV format including the `job` and `instance` labels.
+The following command exports all time series of the `demo` metric in CSV format, including the `job` and `instance` labels.
 
 Single-node VictoriaMetrics:
 ```sh
@@ -169,7 +169,7 @@ More information:
 Supported by: `single-node`, `cluster`, `vmagent`
 
 You must specify the desired `format`. Suppose you want to import `demo` metric exported with [/api/v1/export/csv](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1exportcsv).
-The following command imports all time series of the `demo` metric in CSV format including the `job` and `instance` labels.
+The following command imports all time series of the `demo` metric in CSV format, including the `job` and `instance` labels.
 
 Single-node VictoriaMetrics:
 ```sh
@@ -313,9 +313,9 @@ Cluster version of VictoriaMetrics:
 curl http://<vmselect>:8481/select/0/prometheus/api/v1/labels
 ```
 
-By default, VictoriaMetrics returns labels seen during the last day starting at 00:00 UTC because of performance reasons.
+By default, VictoriaMetrics returns labels from the last day, starting at 00:00 UTC, for performance reasons.
 An arbitrary time range can be set via [`start` and `end` query args](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats).
-The specified `start..end` time range is rounded to UTC day granularity because of performance reasons.
+The specified `start..end` time range is rounded to UTC day granularity for performance reasons.
 
 Additional information:
 
@@ -341,9 +341,9 @@ Cluster version of VictoriaMetrics:
 curl http://<vmselect>:8481/select/0/prometheus/api/v1/label/job/values
 ```
 
-By default, VictoriaMetrics returns labels values seen during the last day starting at 00:00 UTC because of performance reasons.
+By default, VictoriaMetrics returns label values seen during the last day, starting at 00:00 UTC, for performance reasons.
 An arbitrary time range can be set via `start` and `end` query args.
-The specified `start..end` time range is rounded to UTC day granularity because of performance reasons.
+The specified `start..end` time range is rounded to UTC day granularity for performance reasons.
 
 Additional information:
 
@@ -443,9 +443,9 @@ Cluster version of VictoriaMetrics:
 curl http://<vmselect>:8481/select/0/prometheus/api/v1/series -d 'match[]=vm_http_request_errors_total'
 ```
 
-By default, VictoriaMetrics returns time series seen during the last day starting at 00:00 UTC because of performance reasons.
+By default, VictoriaMetrics returns time series from the last day, starting at 00:00 UTC, for performance reasons.
 An arbitrary time range can be set via `start` and `end` query args.
-The specified `start..end` time range is rounded to UTC day granularity because of performance reasons.
+The specified `start..end` time range is rounded to UTC day granularity for performance reasons.
 VictoriaMetrics accepts `limit` query arg for `/api/v1/series` handlers for limiting the number of returned entries. For example, the query to `/api/v1/series?limit=5` returns a sample of up to 5 series, while ignoring the rest. If the provided `limit` value exceeds the corresponding `-search.maxSeries` command-line flag values, then limits specified in the command-line flags are used.
 
 Additional information:
@@ -763,7 +763,7 @@ vmagent:
 curl -X POST -H 'Content-Type: application/x-protobuf' --data-binary @metrics.pb http://<vmagent>:8429/opentelemetry/v1/metrics
 ```
 
-If request body is gzip-compressed, add `Content-Encoding: gzip`.
+If the request body is gzip-compressed, add `Content-Encoding: gzip`.
 
 Additional information:
 
@@ -826,7 +826,7 @@ Additional information:
 
 Supported by: `single-node`, `cluster`, `vmagent`
 
-VictoriaMetrics also accepts `/write`, `/influx/api/v2/write` and `/api/v2/write` paths. The examples below use the shortest path for each component.
+VictoriaMetrics also accepts `/write`, `/influx/api/v2/write`, and `/api/v2/write` paths. The examples below use the shortest path for each component.
 
 Single-node VictoriaMetrics:
 
@@ -1071,7 +1071,7 @@ Additional information:
 
 **Returns loaded groups and rules from vmalert**
 
-Supported by: `vmalert`; also reachable via `single-node` and `cluster` when `-vmalert.proxyURL` is configured
+Supported by: `vmalert`; also reachable via `single-node` and `cluster` when `-vmalert.proxyURL` is configured.
 
 ```sh
 curl http://<vmalert-addr>:8880/api/v1/rules
@@ -1086,7 +1086,7 @@ Additional information:
 
 **Returns active alerts from vmalert**
 
-Supported by: `vmalert`; also reachable via `single-node` and `cluster` when `-vmalert.proxyURL` is configured
+Supported by: `vmalert`; also reachable via `single-node` and `cluster` when `-vmalert.proxyURL` is configured.
 
 ```sh
 curl http://<vmalert-addr>:8880/api/v1/alerts
@@ -1143,7 +1143,7 @@ Additional information:
 
 **Returns configured vmalert notifiers**
 
-Supported by: `vmalert`; also reachable via `single-node` and `cluster` when `-vmalert.proxyURL` is configured
+Supported by: `vmalert`; also reachable via `single-node` and `cluster` when `-vmalert.proxyURL` is configured.
 
 ```sh
 curl http://<vmalert-addr>:8880/api/v1/notifiers
@@ -1249,7 +1249,7 @@ Additional information:
 #### How to send data from OpenTSDB-compatible agents to VictoriaMetrics
 
 Turned off by default. Enable OpenTSDB receiver in VictoriaMetrics by setting `-opentsdbListenAddr` command-line flag.
-*If run from docker, '-opentsdbListenAddr' port should be exposed*
+*If run from Docker, '-opentsdbListenAddr' port should be exposed*
 
 Supported by: `single-node`, `cluster`
 
@@ -1282,7 +1282,7 @@ curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"m
 Additional information:
 
 * [OpenTSDB http put API](http://opentsdb.net/docs/build/html/api_http/put.html)
-* [How to send data OpenTSDB data to VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb/)
+* [How to send OpenTSDB data to VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb/)
 
 #### How to send Graphite data to VictoriaMetrics
 
@@ -1306,3 +1306,4 @@ Additional information:
 
 * [How to send Graphite data to VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting)
 * [Multitenancy in cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy)
+
