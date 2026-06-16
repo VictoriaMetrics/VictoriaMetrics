@@ -1357,7 +1357,7 @@ by replacing all the values bigger or equal to 30 with 40.
 `end()` is a [transform function](#transform-functions), which returns the unix timestamp in seconds for the last point.
 It is known as `end` query arg passed to [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query).
 
-See also [start](#start), [time](#time) and [now](#now).
+See also [start](#start), [time](#time), [now](#now) and [range](#range).
 
 #### exp
 
@@ -1575,6 +1575,12 @@ with [normal distribution](https://en.wikipedia.org/wiki/Normal_distribution). O
 
 See also [rand](#rand) and [rand_exponential](#rand_exponential).
 
+#### range
+
+`range()` is a [transform function](#transform-functions), which returns the range duration of the current query range evaluation in seconds and is equivalent to `end() - start()`.
+
+See also [start](#start) and [end](#end).
+
 #### range_avg
 
 `range_avg(q)` is a [transform function](#transform-functions), which calculates the avg value across points per each time series returned by `q`.
@@ -1789,7 +1795,7 @@ This function is supported by PromQL.
 
 It is known as `start` query arg passed to [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query).
 
-See also [end](#end), [time](#time) and [now](#now).
+See also [end](#end), [time](#time), [now](#now) and [range](#range).
 
 #### step
 

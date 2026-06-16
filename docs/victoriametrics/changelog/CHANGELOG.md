@@ -47,6 +47,8 @@ Released at 2026-06-08
 * FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): properly log user information when a missing route error occurs. See [#11052](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11052).
 * FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl/): add the ability to migrate data from [Mimir](https://docs.victoriametrics.com/victoriametrics/vmctl/mimir/#) object storage to VictoriaMetrics. See [#7717](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7717). 
 * FEATURE: [dashboards](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/dashboards): show the full `version` label in the `Version` panel when `short_version` label is empty (e.g. custom builds from feature branch). Previously, the panel could appear empty. See [#11047](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11047).
+* FEATURE: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): support `range()` function, which returns the range duration of the current query range evaluation in seconds. See [#11028](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11028).
+
 
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): fix the `Notifiers` page in web UI appearing blank despite the API returning notifier data correctly. See [#11035](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11035).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): reset the group evaluation timestamp if it exceeds the current host time. Previously, vmalert could use future timestamps for evaluations if the system clock was shifted backward. See [#10985](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10985).
