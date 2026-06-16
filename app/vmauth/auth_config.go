@@ -843,6 +843,11 @@ func authConfigReloader(sighupCh <-chan os.Signal) {
 		select {
 		case <-stopCh:
 			return
+		default:
+		}
+		select {
+		case <-stopCh:
+			return
 		case <-refreshCh:
 			updateFn()
 		case <-sighupCh:
