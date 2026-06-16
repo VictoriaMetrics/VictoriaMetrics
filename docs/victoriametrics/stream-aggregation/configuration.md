@@ -66,6 +66,8 @@ specified individually per each `-remoteWrite.url`:
 
   # interval is the interval for the aggregation.
   # The aggregated stats is sent to remote storage once per interval.
+  # It is recommended to set `interval` to at least 2× the scrape or push interval of the input.
+  # Set it to a higher value if the input pipeline is prone to large delays.
   #
   interval: 1m
 

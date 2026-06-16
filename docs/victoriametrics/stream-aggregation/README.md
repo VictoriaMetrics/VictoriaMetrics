@@ -76,7 +76,7 @@ It is better to substitute the slow recording rule with the following [stream ag
   outputs: [rate_sum]
 ```
 
-> Field `interval` should be set to a value at least several times higher than the matched metrics collection interval. 
+> It is recommended to set the `interval` field to a value at least 2 times the matched metrics collection interval.
 
 This stream aggregation generates `http_request_duration_seconds_bucket:1m_without_instance_rate_sum` output series according to [output metric naming](#output-metric-names).
 Then these series can be used in [alerting rules](https://docs.victoriametrics.com/victoriametrics/vmalert/#alerting-rules):
@@ -642,9 +642,9 @@ See also [why you shouldn't put an aggregator behind a load balancer](https://do
 
 # Troubleshooting
 
-- [Unexpected spikes for `total` or `increase` outputs](#staleness).
+- [Unexpected spikes for `total` or `increase` outputs](#data-delay-and-staleness).
 - [Excessively large values for `total*`, `increase*`, and `rate*` outputs](#counter-resets).
-- [Lower than expected values for `total_prometheus` and `increase_prometheus` outputs](#staleness).
+- [Lower than expected values for `total_prometheus` and `increase_prometheus` outputs](#data-delay-and-staleness).
 - [High memory usage and CPU usage](#high-resource-usage).
 - [Unexpected results in vmagent cluster mode](#cluster-mode).
 - [Inaccurate aggregation results for histograms](#aggregation-windows)
@@ -677,9 +677,18 @@ the following settings:
 
 If counter-specific outputs, such as `total*`, `rate*`, and `increase*`, produce values that are significantly higher than anticipated, then check the `vm_streamaggr_counter_resets_total` metric. This metric increments each time when [counter reset event](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter) happens and could be caused by duplication or collision of raw samples. If you observe duplication or collision, try solving this problem by either fixing the source of these metrics or by [deduplicating](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#deduplication) these samples before aggregation.
 
-## Staleness
+## Data delay and staleness
 
-The following outputs track the last seen per-series values in order to properly calculate output values:
+Since stream aggregation processes input samples in a streaming manner and flushes results when a specific aggregation window closes, aggregation results can be heavily affected by data delay(it can be observed via the `vm_streamaggr_samples_lag_seconds_bucket` metric).
+
+In particular:
+1. If input samples are delayed for multiple intervals, stream aggregation will not see any input samples during that period and will not generate any results for that time, which causes gaps in the output.
+2. If delayed samples are delivered later, the aggregation result for the next aggregation window can be affected by those delayed samples, depending on their arrival order and how long the delay is compared to the interval.
+
+If you prefer consistency in aggregation results and do not want delayed data to affect the next aggregation window, drop all potentially delayed samples via [ignore_old_samples](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#ignoring-old-samples).
+
+If you prefer to have the accumulated changes from delayed data reflected in aggregation windows after the delay, increase `staleness_interval` in the [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config).
+This is especially important for outputs that track the last seen per-series values in order to properly calculate output values:
 
 - [increase](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#increase)
 - [increase_prometheus](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#increase_prometheus)
@@ -688,20 +697,18 @@ The following outputs track the last seen per-series values in order to properly
 - [total](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#total)
 - [total_prometheus](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#total_prometheus)
 
-The last seen per-series value is dropped if no new samples are received for the given time series during two consecutive aggregations
-intervals specified in [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config) via `interval` option.
+For these outputs, the last seen per-series value is dropped if no new samples are received for the given time series during consecutive aggregation intervals specified in the [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config) via `interval` option.
 If a new sample for the existing time series is received after that, then it is treated as the first sample for a new time series.
-This may lead to the following issues:
+This may lead to the following issues when data is delayed:
 
-- Lower than expected results for [total_prometheus](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#total_prometheus) and [increase_prometheus](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#increase_prometheus) outputs,
-  since they ignore the first sample in a new time series.
-- Unexpected spikes for [total](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#total) and [increase](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#increase) outputs, since they assume that new time series start from 0.
+- [total](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#total) and [increase](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#increase) may produce unexpected spikes, since they assume that a new time series starts from `0`.
+- [total_prometheus](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#total_prometheus) and [increase_prometheus](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#increase_prometheus) may produce lower than expected results, if you expect to see the accumulated changes reflected after the delay, since they ignore the first sample in a new time series.
 
-These issues can be fixed in the following ways:
+These issues can be improved in the following ways:
 
 - By increasing the `interval` option at [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config), so it covers the expected
-  delays in data ingestion pipelines.
-- By specifying the `staleness_interval` option at [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config), so it covers the expected
+  delays in data ingestion pipelines. It is recommended to set `interval` to at least 2× the scrape or push interval of the input. Set it to a higher value if the input pipeline is prone to large delays.
+- By increasing the `staleness_interval` option in the [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config), so it covers the expected
   delays in data ingestion pipelines. By default, the `staleness_interval` is equal to `interval`.
 
 ## High resource usage
