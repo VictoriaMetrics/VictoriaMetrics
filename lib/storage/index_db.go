@@ -172,7 +172,7 @@ func mustOpenIndexDB(id uint64, tr TimeRange, name, path string, s *Storage, isR
 	}
 
 	tfssCache := lrucache.NewCache(getTagFiltersCacheSize)
-	tb := mergeset.MustOpenTable(path, dataFlushInterval, tfssCache.Reset, mergeTagToMetricIDsRows, isReadOnly)
+	tb := mergeset.MustOpenTable(path, dataFlushInterval, tfssCache.Reset, 0, mergeTagToMetricIDsRows, isReadOnly)
 	db := &indexDB{
 		legacyMinMissingTimestampByKey: make(map[string]int64),
 		id:                             id,
