@@ -1,0 +1,34 @@
+services:
+  keycloak:
+    image: docker.io/keycloak/keycloak:26.1
+    command:
+      - start-dev
+      - --import-realm
+    ports:
+      - "8080:8080"
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      # Fix the frontend URL so the issuer in JWTs is always http://keycloak:8080
+      # regardless of how Keycloak is accessed internally vs externally.
+      KC_HOSTNAME_URL: http://keycloak:8080
+    volumes:
+      - ./keycloak-realm.json:/opt/keycloak/data/import/realm.json
+
+  victoria-metrics:
+    image: docker.io/victoriametrics/victoria-metrics:v1.145.0
+    command:
+      - -httpListenAddr=0.0.0.0:8429
+    ports:
+      - "8429:8429"
+
+  vmauth:
+    image: docker.io/victoriametrics/vmauth:heads-master-0-ged795a8443-dirty-5bb2c38b
+    ports:
+      - "8427:8427"
+    volumes:
+      - ./vmauth.yaml:/etc/vmauth/config.yaml
+    command:
+      - -auth.config=/etc/vmauth/config.yaml
+      - -httpListenAddr=0.0.0.0:8427
+      - -logInvalidAuthTokens=true
