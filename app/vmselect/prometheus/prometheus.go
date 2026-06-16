@@ -577,10 +577,7 @@ func ResetRollupResultCacheHandler(w http.ResponseWriter, r *http.Request) bool 
 	// - if yes: simply execute and return.
 	propagate := httputil.GetBool(r, "propagate")
 	if !propagate {
-		resetRollupResultCacheCalls.Inc()
-		// Reset local cache before checking whether selectNodes list is empty.
-		// This guarantees that at least local cache is reset if selectNodes list is empty.
-		promql.ResetRollupResultCache()
+		resetRollupResultCaches()
 		return true
 	}
 	// - if no: it's manual request and need to propagate to other vmselect(s).
@@ -588,11 +585,15 @@ func ResetRollupResultCacheHandler(w http.ResponseWriter, r *http.Request) bool 
 	return true
 }
 
-func resetRollupResultCachesAndPropagate() {
+func resetRollupResultCaches() {
 	resetRollupResultCacheCalls.Inc()
 	// Reset local cache before checking whether selectNodes list is empty.
 	// This guarantees that at least local cache is reset if selectNodes list is empty.
 	promql.ResetRollupResultCache()
+}
+
+func resetRollupResultCachesAndPropagate() {
+	resetRollupResultCaches()
 	if len(*selectNodes) == 0 {
 		logger.Warnf("missing -selectNode flag, cache reset request wont be propagated to the other vmselect nodes." +
 			"This can be fixed by enumerating all the vmselect node addresses in `-selectNode` command line flag. " +
