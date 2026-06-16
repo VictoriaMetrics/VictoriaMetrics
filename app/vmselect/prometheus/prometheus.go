@@ -51,8 +51,8 @@ var (
 		"If set to true, the query model becomes closer to InfluxDB data model. If set to true, then -search.maxLookback and -search.maxStalenessInterval are ignored")
 	maxStepForPointsAdjustment = flag.Duration("search.maxStepForPointsAdjustment", time.Minute, "The maximum step when /api/v1/query_range handler adjusts "+
 		"points with timestamps closer than -search.latencyOffset to the current time. The adjustment is needed because such points may contain incomplete data")
-	selectNodes = flagutil.NewArrayString("selectNode", "A list of vmselect node addresses to propagate the '/internal/resetRollupResultCache' call. "+
-		"If this flag isn't set, then cache need to be purged from each vmselect individually. "+
+	selectNodes = flagutil.NewArrayString("selectNode", "A list of vmselect node addresses to propagate the '/internal/resetRollupResultCache' call with 'propagate=1' argument. "+
+		"If this flag or the 'propagate' argument isn't set, then cache need to be purged from each vmselect individually. "+
 		"Comma-separated addresses of vmselect nodes; usage: -selectNode=vmselect-host1,...,vmselect-hostN")
 
 	maxUniqueTimeseries = flag.Int("search.maxUniqueTimeseries", 0, "The maximum number of unique time series, which can be selected during /api/v1/query and /api/v1/query_range queries. This option allows limiting memory usage. "+
@@ -562,7 +562,7 @@ func DeleteHandler(startTime time.Time, at *auth.Token, r *http.Request) error {
 		// Reset rollup result cache on all the vmselect nodes,
 		// since the cache may contain deleted data.
 		// TODO: reset only cache for (account, project)
-		ResetRollupResultCaches()
+		resetRollupResultCachesAndPropagate()
 	}
 	logger.Infof("/api/v1/admin/tsdb/delete_series has been called for %q. Deleted %d series.", sq.FiltersString(), deletedCount)
 	return nil
@@ -570,7 +570,25 @@ func DeleteHandler(startTime time.Time, at *auth.Token, r *http.Request) error {
 
 var deleteDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/admin/tsdb/delete_series"}`)
 
-func ResetRollupResultCaches() {
+// ResetRollupResultCacheHandler handle request for `/internal/resetRollupResultCache` API.
+// It propagates the request if `propagate` argument is set.
+func ResetRollupResultCacheHandler(w http.ResponseWriter, r *http.Request) bool {
+	// check if this is a propagated request from another vmselect, by propagate argument.
+	// - if yes: simply execute and return.
+	propagate := httputil.GetBool(r, "propagate")
+	if !propagate {
+		resetRollupResultCacheCalls.Inc()
+		// Reset local cache before checking whether selectNodes list is empty.
+		// This guarantees that at least local cache is reset if selectNodes list is empty.
+		promql.ResetRollupResultCache()
+		return true
+	}
+	// - if no: it's manual request and need to propagate to other vmselect(s).
+	resetRollupResultCachesAndPropagate()
+	return true
+}
+
+func resetRollupResultCachesAndPropagate() {
 	resetRollupResultCacheCalls.Inc()
 	// Reset local cache before checking whether selectNodes list is empty.
 	// This guarantees that at least local cache is reset if selectNodes list is empty.

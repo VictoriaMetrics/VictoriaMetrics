@@ -263,8 +263,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		if !httpserver.CheckAuthFlag(w, r, resetCacheAuthKey) {
 			return true
 		}
-		prometheus.ResetRollupResultCaches()
-		return true
+		return prometheus.ResetRollupResultCacheHandler(w, r)
 	}
 	if path == "/admin/tenants" {
 		tenantsRequests.Inc()
