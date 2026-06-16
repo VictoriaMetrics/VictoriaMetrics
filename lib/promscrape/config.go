@@ -76,6 +76,9 @@ var (
 		"Every %d occurrence in the template is substituted with -promscrape.cluster.memberNum at urls to vmagent instances responsible for scraping the given target "+
 		"at /service-discovery page. For example -promscrape.cluster.memberURLTemplate='http://vmagent-%d:8429/targets'. "+
 		"See https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets for more details")
+	clusterShardByLabels = flagutil.NewArrayString("promscrape.cluster.shardByLabels", "Optional list of target labels, which will be used for sharding targets among cluster members "+
+		"if -promscrape.cluster.membersCount is greater than 1. If none of the specified labels are found in a target, then all the target labels will be used for sharding. "+
+		"See https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets for more info")
 	clusterReplicationFactor = flag.Int("promscrape.cluster.replicationFactor", 1, "The number of members in the cluster, which scrape the same targets. "+
 		"If the replication factor is greater than 1, then the deduplication must be enabled at remote storage side. "+
 		"See https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets for more info")
@@ -86,7 +89,10 @@ var (
 		"Bigger uncompressed responses are rejected. See also max_scrape_size option at https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs")
 )
 
-var clusterMemberID int
+var (
+	clusterMemberID            int
+	clusterShardByLabelsSorted []string
+)
 
 func mustInitClusterMemberID() {
 	s := *clusterMemberNum
@@ -108,6 +114,14 @@ func mustInitClusterMemberID() {
 			*clusterMembersCount, *clusterMembersCount)
 	}
 	clusterMemberID = n
+}
+
+func initClusterShardByLabels() {
+	if len(*clusterShardByLabels) == 0 {
+		return
+	}
+	clusterShardByLabelsSorted = slices.Clone(*clusterShardByLabels)
+	slices.Sort(clusterShardByLabelsSorted)
 }
 
 // Config represents essential parts from Prometheus config defined at https://prometheus.io/docs/prometheus/latest/configuration/configuration/
@@ -1137,13 +1151,29 @@ func (stc *StaticConfig) appendScrapeWork(dst []*ScrapeWork, swc *scrapeWorkConf
 	return dst
 }
 
-func appendScrapeWorkKey(dst []byte, labels *promutil.Labels) []byte {
-	for _, label := range labels.GetLabels() {
-		// Do not use strconv.AppendQuote, since it is slow according to CPU profile.
-		dst = append(dst, label.Name...)
-		dst = append(dst, '=')
-		dst = append(dst, label.Value...)
-		dst = append(dst, ',')
+func appendScrapeWorkKey(dst []byte, labels *promutil.Labels, shardByLabels []string) []byte {
+	originalDstLen := len(dst)
+	for _, targetLabelName := range shardByLabels {
+		for _, label := range labels.GetLabels() {
+			if label.Name == targetLabelName {
+				// Do not use strconv.AppendQuote, since it is slow according to CPU profile.
+				dst = append(dst, label.Name...)
+				dst = append(dst, '=')
+				dst = append(dst, label.Value...)
+				dst = append(dst, ',')
+				break
+			}
+		}
+	}
+	// none of the labels specified in -promscrape.cluster.shardByLabels is present, use all labels for backward compatibility.
+	if len(dst) == originalDstLen {
+		for _, label := range labels.GetLabels() {
+			dst = append(dst, label.Name...)
+			dst = append(dst, '=')
+			dst = append(dst, label.Value...)
+			dst = append(dst, ',')
+		}
+		return dst
 	}
 	return dst
 }
@@ -1195,7 +1225,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1687#issuecomment-940629495
 	if *clusterMembersCount > 1 {
 		bb := scrapeWorkKeyBufPool.Get()
-		bb.B = appendScrapeWorkKey(bb.B[:0], labels)
+		bb.B = appendScrapeWorkKey(bb.B[:0], labels, clusterShardByLabelsSorted)
 		memberNums := getClusterMemberNumsForScrapeWork(bytesutil.ToUnsafeString(bb.B), *clusterMembersCount, *clusterReplicationFactor)
 		scrapeWorkKeyBufPool.Put(bb)
 		if !slices.Contains(memberNums, clusterMemberID) {

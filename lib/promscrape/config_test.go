@@ -148,6 +148,112 @@ func TestGetClusterMemberNumsForScrapeWork(t *testing.T) {
 	f("foo", 3, 2, []int{2, 0})
 }
 
+func TestAppendScrapeWorkKeyShardByLabels(t *testing.T) {
+	f := func(labelsA, labelsB map[string]string, shardByLabels []string, equal bool) {
+		t.Helper()
+		originValue := *clusterShardByLabels
+		*clusterShardByLabels = shardByLabels
+		initClusterShardByLabels()
+		keyA := string(appendScrapeWorkKey(nil, promutil.NewLabelsFromMap(labelsA), clusterShardByLabelsSorted))
+		keyB := string(appendScrapeWorkKey(nil, promutil.NewLabelsFromMap(labelsB), clusterShardByLabelsSorted))
+		if equal && keyA != keyB {
+			t.Fatalf("unexpected different scrape work keys for shardByLabels=%q;\nlabelsA=%v\nlabelsB=%v\nkeyA=%q\nkeyB=%q",
+				shardByLabels, labelsA, labelsB, keyA, keyB)
+		} else if !equal && keyA == keyB {
+			t.Fatalf("unexpected equal scrape work keys for shardByLabels=%q;\nlabelsA=%v\nlabelsB=%v\nkeyA=%q\nkeyB=%q",
+				shardByLabels, labelsA, labelsB, keyA, keyB)
+		}
+		*clusterShardByLabels = originValue
+	}
+
+	// didn't specify -promscrape.cluster.shardByLabels, and all labels are the same
+	f(
+		map[string]string{
+			"a": "aa",
+			"b": "bb",
+			"c": "cc",
+			"d": "dd"},
+		map[string]string{
+			"a": "aa",
+			"b": "bb",
+			"c": "cc",
+			"d": "dd"},
+		[]string{},
+		true,
+	)
+	// match all labels in -promscrape.cluster.shardByLabels, and they're the same
+	f(
+		map[string]string{
+			"a": "aa",
+			"b": "bb",
+			"c": "cc",
+			"d": "dd"},
+		map[string]string{
+			"c": "cc",
+			"a": "aa",
+			"b": "other",
+			"d": "other"},
+		[]string{"c", "a"},
+		true,
+	)
+
+	// match all labels in -promscrape.cluster.shardByLabels, and they're different
+	f(
+		map[string]string{
+			"a": "aa",
+			"b": "bb",
+			"c": "cc",
+			"d": "dd"},
+		map[string]string{
+			"a": "aa",
+			"b": "other",
+			"c": "cc-------",
+			"d": "other"},
+		[]string{"a", "c"},
+		false,
+	)
+
+	// match part of labels in -promscrape.cluster.shardByLabels, and they're the same
+	f(
+		map[string]string{
+			"a": "aa",
+			"c": "cc",
+			"d": "dd"},
+		map[string]string{
+			"a": "aa",
+			"c": "cc",
+			"e": "ee"},
+		[]string{"a", "b", "c"},
+		true,
+	)
+
+	// match part of labels in -promscrape.cluster.shardByLabels, and they're different
+	f(
+		map[string]string{
+			"a": "aa",
+			"c": "cc",
+			"d": "dd"},
+		map[string]string{
+			"a": "aa-------",
+			"c": "cc",
+			"e": "ee"},
+		[]string{"a", "b", "c"},
+		false,
+	)
+	// none of labels in -promscrape.cluster.shardByLabels is matched, so all labels will be used to sharding
+	f(
+		map[string]string{
+			"d": "dd",
+			"e": "ee"},
+		map[string]string{
+			"d": "dd",
+			"e": "ee"},
+		[]string{"a", "b", "c"},
+		true,
+	)
+
+}
+
 func TestLoadStaticConfigs(t *testing.T) {
 	scs, err := loadStaticConfigs("testdata/file_sd.json")
 	if err != nil {
