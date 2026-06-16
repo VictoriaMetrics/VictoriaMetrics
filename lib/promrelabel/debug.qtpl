@@ -6,15 +6,15 @@
 
 {% stripspace %}
 
-{% func RelabelDebugSteps(targetURL, targetID, format string, dss []DebugStep, metric, relabelConfigs, rwRelabelConfigs string, rwURLRelabelConfigLength int, isTargetRelabel bool, err error) %}
+{% func RelabelDebugSteps(targetURL, targetID, format string, dss []DebugStep, metric, relabelConfigs, rwRelabelConfigs string, urlRelabelIndexLength, urlRelabelIndexCurrent int, isTargetRelabel bool, err error) %}
   {% if format == "json" %}
-      {%= RelabelDebugStepsJSON(targetURL, targetID, dss, metric, relabelConfigs, rwRelabelConfigs, rwURLRelabelConfigLength, isTargetRelabel, err) %}
+      {%= RelabelDebugStepsJSON(targetURL, targetID, dss, metric, relabelConfigs, rwRelabelConfigs, urlRelabelIndexLength, urlRelabelIndexCurrent, isTargetRelabel, err) %}
   {% else %}
-      {%= RelabelDebugStepsHTML(targetURL, targetID, dss, metric, relabelConfigs, rwRelabelConfigs, rwURLRelabelConfigLength, isTargetRelabel, err) %}
+      {%= RelabelDebugStepsHTML(targetURL, targetID, dss, metric, relabelConfigs, rwRelabelConfigs, urlRelabelIndexLength, urlRelabelIndexCurrent, isTargetRelabel, err) %}
   {% endif %}
 {% endfunc %}
 
-{% func RelabelDebugStepsHTML(targetURL, targetID string, dss []DebugStep, metric, relabelConfigs, rwRelabelConfigs string, rwURLRelabelConfigLength int, isTargetRelabel bool, err error) %}
+{% func RelabelDebugStepsHTML(targetURL, targetID string, dss []DebugStep, metric, relabelConfigs, rwRelabelConfigs string, urlRelabelIndexLength, urlRelabelIndexCurrent int, isTargetRelabel bool, err error) %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -49,7 +49,7 @@ function submitRelabelDebugForm(e) {
 
         <div class="m-3">
         <form method="POST" onsubmit="submitRelabelDebugForm(event)">
-            {%= relabelDebugFormInputs(metric, relabelConfigs, rwRelabelConfigs, rwURLRelabelConfigLength, isTargetRelabel) %}
+            {%= relabelDebugFormInputs(metric, relabelConfigs, rwRelabelConfigs, urlRelabelIndexLength, urlRelabelIndexCurrent, isTargetRelabel) %}
             {% if targetID != "" %}
               <input type="hidden" name="id" value="{%s targetID %}" />
             {% endif %}
@@ -70,7 +70,7 @@ function submitRelabelDebugForm(e) {
 </html>
 {% endfunc %}
 
-{% func relabelDebugFormInputs(metric, relabelConfigs string, rwRelabelConfigs string, rwURLRelabelConfigLength int, isTargetRelabel bool) %}
+{% func relabelDebugFormInputs(metric, relabelConfigs string, rwRelabelConfigs string, urlRelabelIndexLength, urlRelabelIndexCurrent int, isTargetRelabel bool) %}
     <div>
         Relabel configs:<br/>
         <textarea name="relabel_configs" style="width: 100%; height: 15em; font-family: monospace" class="m-1">{%s relabelConfigs %}</textarea>
@@ -84,9 +84,13 @@ function submitRelabelDebugForm(e) {
             <div class="d-flex align-items-center gap-2 mt-1">
                 <select name="url_relabel_configs_index" class="form-select form-select-sm w-auto">
                     <option value="">-- select remote write url --</option>
-                    {% if rwURLRelabelConfigLength > 0 %}
-                        {% for i := range rwURLRelabelConfigLength %}
-                        <option value="{%d i %}">remote-write-url-{%d i %}</option>
+                    {% if urlRelabelIndexLength > 0 %}
+                        {% for i := range urlRelabelIndexLength %}
+                            {% if urlRelabelIndexCurrent == i %}
+                                <option value="{%d i %}" selected="selected">remote-write-url-{%d i %}</option>
+                            {% else %}
+                                <option value="{%d i %}">remote-write-url-{%d i %}</option>
+                            {% endif %}
                         {% endfor %}
                     {% endif %}
                 </select>
@@ -173,7 +177,7 @@ function submitRelabelDebugForm(e) {
 {% endif %}
 {% endfunc %}
 
-{% func RelabelDebugStepsJSON(targetURL, targetID string, dss []DebugStep, metric, relabelConfigs, rwRelabelConfigs string, rwURLRelabelConfigLength int, isTargetRelabel bool, err error) %}
+{% func RelabelDebugStepsJSON(targetURL, targetID string, dss []DebugStep, metric, relabelConfigs, rwRelabelConfigs string,  urlRelabelIndexLength, urlRelabelIndexCurrent int, isTargetRelabel bool, err error) %}
 {
     {% if err != nil %}
         "status": "error",
