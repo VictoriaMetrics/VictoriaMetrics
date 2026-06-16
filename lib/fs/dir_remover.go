@@ -182,6 +182,9 @@ func tryRemoveDir(dirPath string) bool {
 				if !isTemporaryNFSError(err) {
 					logger.Fatalf("FATAL: cannot remove %q: %s", dirEntryPath, err)
 				}
+				if os.IsNotExist(err) {
+					return
+				}
 				mustRetry.Store(true)
 			}
 		}(dirEntryPath)
@@ -203,13 +206,9 @@ func tryRemoveDir(dirPath string) bool {
 
 	deleteFilePath := filepath.Join(dirPath, deleteDirFilename)
 	// Remove the deleteDirFilename file, since there are no other entries left in the directory.
-	if err := os.Remove(deleteFilePath); err != nil {
-		if !isTemporaryNFSError(err) {
-			logger.Fatalf("FATAL: cannot remove %q: %s", deleteFilePath, err)
-		}
+	if !tryRemovePath(deleteFilePath) {
 		return false
 	}
-
 	// Sync the directory after the removing deletDirFilename file in order to make sure
 	// all the metadata files are removed at some exotic filesystems such as OSSFS2.
 	// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/649
@@ -217,16 +216,30 @@ func tryRemoveDir(dirPath string) bool {
 	MustSyncPath(dirPath)
 
 	// Remove the dirPath itself
-	if err := os.Remove(dirPath); err != nil {
-		if !isTemporaryNFSError(err) {
-			logger.Fatalf("FATAL: cannot remove %q: %s", dirPath, err)
-		}
+	if !tryRemovePath(dirPath) {
 		return false
 	}
 
 	// Do not sync the parent directory for the dirPath - the caller can do this if needed.
 	// It is OK if the dirPath will remain undeleted after unclean shutdown - it will be deleted
 	// on the next startup.
+
+	return true
+}
+
+// tryRemovePath removes given path and returns true on success
+// or false if error is temporary NFS error
+func tryRemovePath(path string) bool {
+	if err := os.Remove(path); err != nil {
+		if !isTemporaryNFSError(err) {
+			logger.Fatalf("FATAL: cannot remove %q: %s", path, err)
+		}
+		if os.IsNotExist(err) {
+			return true
+		}
+		nfsDirRemoveFailedAttempts.Inc()
+		return false
+	}
 
 	return true
 }
