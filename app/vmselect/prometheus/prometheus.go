@@ -562,7 +562,7 @@ func DeleteHandler(startTime time.Time, at *auth.Token, r *http.Request) error {
 		// Reset rollup result cache on all the vmselect nodes,
 		// since the cache may contain deleted data.
 		// TODO: reset only cache for (account, project)
-		resetRollupResultCaches()
+		ResetRollupResultCaches()
 	}
 	logger.Infof("/api/v1/admin/tsdb/delete_series has been called for %q. Deleted %d series.", sq.FiltersString(), deletedCount)
 	return nil
@@ -570,7 +570,7 @@ func DeleteHandler(startTime time.Time, at *auth.Token, r *http.Request) error {
 
 var deleteDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/admin/tsdb/delete_series"}`)
 
-func resetRollupResultCaches() {
+func ResetRollupResultCaches() {
 	resetRollupResultCacheCalls.Inc()
 	// Reset local cache before checking whether selectNodes list is empty.
 	// This guarantees that at least local cache is reset if selectNodes list is empty.
