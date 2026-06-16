@@ -3619,9 +3619,8 @@ func readMetadataRows(bc *handshake.BufferedConn) ([]*metricsmetadata.Row, error
 		return nil, fmt.Errorf("cannot read the number of metadata records: %w", err)
 	}
 	records := make([]*metricsmetadata.Row, 0, n)
-	var dataBuf []byte
 	for i := range n {
-		dataBuf, err = readBytes(dataBuf[:0], bc, maxLabelValueSize)
+		dataBuf, err := readBytes(nil, bc, maxLabelValueSize)
 		if err != nil {
 			return records, fmt.Errorf("cannot read record metricName: %w", err)
 		}
