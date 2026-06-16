@@ -799,7 +799,7 @@ The pod name must end with a number in the range `0 ... promscrape.cluster.membe
 
 By default, targets are sharded among `vmagent` instances by all target labels after relabeling.
 Use `-promscrape.cluster.shardByLabels` to shard targets by specified labels instead.
-For example, `-promscrape.cluster.shardByLabels=service,pod` keeps targets with the same `service` and `pod` label on the same `vmagent` instance.
+For example, `-promscrape.cluster.shardByLabels=service,pod` keeps targets with the same `service` and `pod` label value on the same `vmagent` instance.
 
 If some of the specified labels are present on a target, then only the present labels are used for sharding.
 If none of the specified labels are present, then all target labels are used for sharding.
