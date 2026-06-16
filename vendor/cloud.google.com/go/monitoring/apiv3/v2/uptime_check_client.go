@@ -340,7 +340,7 @@ func (c *uptimeCheckGRPCClient) ListUptimeCheckConfigs(ctx context.Context, req 
 	}
 	opts = append((*c.CallOptions).ListUptimeCheckConfigs[0:len((*c.CallOptions).ListUptimeCheckConfigs):len((*c.CallOptions).ListUptimeCheckConfigs)], opts...)
 	it := &UptimeCheckConfigIterator{}
-	req = proto.Clone(req).(*monitoringpb.ListUptimeCheckConfigsRequest)
+	req = proto.CloneOf(req)
 	it.InternalFetch = func(pageSize int, pageToken string) ([]*monitoringpb.UptimeCheckConfig, string, error) {
 		resp := &monitoringpb.ListUptimeCheckConfigsResponse{}
 		if pageToken != "" {
@@ -475,7 +475,7 @@ func (c *uptimeCheckGRPCClient) ListUptimeCheckIps(ctx context.Context, req *mon
 	}
 	opts = append((*c.CallOptions).ListUptimeCheckIps[0:len((*c.CallOptions).ListUptimeCheckIps):len((*c.CallOptions).ListUptimeCheckIps)], opts...)
 	it := &UptimeCheckIpIterator{}
-	req = proto.Clone(req).(*monitoringpb.ListUptimeCheckIpsRequest)
+	req = proto.CloneOf(req)
 	it.InternalFetch = func(pageSize int, pageToken string) ([]*monitoringpb.UptimeCheckIp, string, error) {
 		resp := &monitoringpb.ListUptimeCheckIpsResponse{}
 		if pageToken != "" {
