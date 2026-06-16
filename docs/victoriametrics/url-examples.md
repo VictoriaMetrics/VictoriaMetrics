@@ -601,6 +601,29 @@ Additional information:
 * [Cluster - Metrics Metadata](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#metric-metadata)
 * [VMAgent - Metrics Metadata](https://docs.victoriametrics.com/victoriametrics/vmagent/#metric-metadata)
 
+### /admin/tenants
+
+**Lists registered tenants in a VictoriaMetrics cluster**
+
+Supported by: `cluster`
+
+Cluster version of VictoriaMetrics:
+
+```sh
+curl http://<vmselect>:8481/admin/tenants
+```
+
+The optional `start` and `end` query args can be used to return only tenants with ingested data in the given time range:
+
+```sh
+curl 'http://<vmselect>:8481/admin/tenants?start=-1d&end=now'
+```
+
+Additional information:
+
+* [Multitenancy in cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy)
+* [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format)
+
 ### /datadog
 
 **DataDog URL for Single-node VictoriaMetrics**
@@ -984,18 +1007,12 @@ curl 'http://<vmstorage>:8482/snapshot/delete_all?authKey=<snapshot-auth-key>'
 
 **Shows the current status of active scrape targets**
 
-Supported by: `single-node`, `cluster via vminsert`, `vmagent`
+Supported by: `single-node`, `vmagent`
 
 Single-node VictoriaMetrics:
 
 ```sh
 curl http://localhost:8428/targets
-```
-
-Cluster version of VictoriaMetrics:
-
-```sh
-curl http://<vminsert>:8480/targets
 ```
 
 vmagent:
@@ -1008,18 +1025,12 @@ curl http://<vmagent>:8429/targets
 
 **Shows discovered targets together with labels before and after relabeling**
 
-Supported by: `single-node`, `cluster via vminsert`, `vmagent`
+Supported by: `single-node`, `vmagent`
 
 Single-node VictoriaMetrics:
 
 ```sh
 curl http://localhost:8428/service-discovery
-```
-
-Cluster version of VictoriaMetrics:
-
-```sh
-curl http://<vminsert>:8480/service-discovery
 ```
 
 vmagent:
@@ -1037,18 +1048,12 @@ Additional information:
 
 **Returns scrape target status in Prometheus-compatible JSON format**
 
-Supported by: `single-node`, `cluster via vminsert`, `vmagent`
+Supported by: `single-node`, `vmagent`
 
 Single-node VictoriaMetrics:
 
 ```sh
 curl http://localhost:8428/api/v1/targets
-```
-
-Cluster version of VictoriaMetrics:
-
-```sh
-curl http://<vminsert>:8480/api/v1/targets
 ```
 
 vmagent:
@@ -1092,6 +1097,48 @@ Additional information:
 * [vmalert web API](https://docs.victoriametrics.com/victoriametrics/vmalert/#web)
 * [vmalert proxying through cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#vmalert)
 
+### /vmalert/api/v1/alert
+
+**Returns alert status in JSON format**
+
+Supported by: `vmalert`
+
+```sh
+curl 'http://<vmalert-addr>:8880/vmalert/api/v1/alert?group_id=<group_id>&alert_id=<alert_id>'
+```
+
+Additional information:
+
+* [vmalert web API](https://docs.victoriametrics.com/victoriametrics/vmalert/#web)
+
+### /vmalert/api/v1/rule
+
+**Returns rule status in JSON format**
+
+Supported by: `vmalert`
+
+```sh
+curl 'http://<vmalert-addr>:8880/vmalert/api/v1/rule?group_id=<group_id>&rule_id=<rule_id>'
+```
+
+Additional information:
+
+* [vmalert web API](https://docs.victoriametrics.com/victoriametrics/vmalert/#web)
+
+### /vmalert/api/v1/group
+
+**Returns group status in JSON format**
+
+Supported by: `vmalert`
+
+```sh
+curl 'http://<vmalert-addr>:8880/vmalert/api/v1/group?group_id=<group_id>'
+```
+
+Additional information:
+
+* [vmalert web API](https://docs.victoriametrics.com/victoriametrics/vmalert/#web)
+
 ### /api/v1/notifiers
 
 **Returns configured vmalert notifiers**
@@ -1106,6 +1153,40 @@ Additional information:
 
 * [vmalert web API](https://docs.victoriametrics.com/victoriametrics/vmalert/#web)
 * [vmalert proxying through cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#vmalert)
+
+### /ready
+
+**Returns readiness status for vmagent scrape initialization**
+
+Supported by: `vmagent`
+
+vmagent:
+
+```sh
+curl http://<vmagent>:8429/ready
+```
+
+Additional information:
+
+* [vmagent monitoring](https://docs.victoriametrics.com/victoriametrics/vmagent/#monitoring)
+
+### /-/ready
+
+**Returns Prometheus-compatible readiness status**
+
+Supported by: `single-node`, `cluster via vmselect`
+
+Single-node VictoriaMetrics:
+
+```sh
+curl http://localhost:8428/-/ready
+```
+
+Cluster version of VictoriaMetrics:
+
+```sh
+curl http://<vmselect>:8481/-/ready
+```
 
 ### /-/reload
 
