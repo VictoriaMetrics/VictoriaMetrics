@@ -44,7 +44,19 @@ func (dp *oidcDiscovererPool) createOrAdd(issuer string, vp *atomic.Pointer[jwt.
 		dp.ds[issuer] = ds
 	}
 
-	ds.vps = append(ds.vps, vp)
+	if vp != nil {
+		ds.vps = append(ds.vps, vp)
+	}
+}
+
+// openIDConfig returns the most recently discovered openidConfig for the given issuer,
+// or nil if the issuer is not registered or discovery has not completed yet.
+func (dp *oidcDiscovererPool) openIDConfig(issuer string) *openidConfig {
+	d := dp.ds[issuer]
+	if d == nil {
+		return nil
+	}
+	return d.cfg.Load()
 }
 
 func (dp *oidcDiscovererPool) startDiscovery() {
@@ -80,6 +92,7 @@ func (dp *oidcDiscovererPool) stopDiscovery() {
 type oidcDiscoverer struct {
 	issuer string
 	vps    []*atomic.Pointer[jwt.VerifierPool]
+	cfg    atomic.Pointer[openidConfig]
 }
 
 func (d *oidcDiscoverer) run(ctx context.Context) {
@@ -117,21 +130,26 @@ func (d *oidcDiscoverer) refreshVerifierPools(ctx context.Context) error {
 		return fmt.Errorf("openid configuration issuer %q does not match expected issuer %q", cfg.Issuer, d.issuer)
 	}
 
-	verifierPool, err := fetchAndParseJWKs(ctx, cfg.JWKsURI)
-	if err != nil {
-		return err
-	}
+	d.cfg.Store(&cfg)
 
-	for _, vp := range d.vps {
-		vp.Store(verifierPool)
+	if len(d.vps) > 0 {
+		verifierPool, err := fetchAndParseJWKs(ctx, cfg.JWKsURI)
+		if err != nil {
+			return err
+		}
+		for _, vp := range d.vps {
+			vp.Store(verifierPool)
+		}
 	}
 	return nil
 }
 
 // See https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderMetadata for details.
 type openidConfig struct {
-	Issuer  string `json:"issuer"`
-	JWKsURI string `json:"jwks_uri"`
+	Issuer                string `json:"issuer"`
+	JWKsURI               string `json:"jwks_uri"`
+	AuthorizationEndpoint string `json:"authorization_endpoint"`
+	TokenEndpoint         string `json:"token_endpoint"`
 }
 
 var oidcHTTPClient = &http.Client{

@@ -1,0 +1,21 @@
+sso:
+  localhost:
+    openid_connect:
+      # Keycloak is accessed by vmauth via Docker DNS ("keycloak:8080").
+      # KC_HOSTNAME_URL is set to this same value so the issuer in JWTs is
+      # always http://keycloak:8080 regardless of how Keycloak is accessed.
+      issuer: http://keycloak:8080/realms/testrealm
+      client_id: vmauth
+      client_secret: vmauth-client-secret
+      redirect_url: http://localhost:8427/_vmauth/sso/callback
+      scopes: [openid, profile, email]
+
+users:
+  # Matches id_tokens issued by Keycloak for the testrealm.
+  # Any user that logs in via SSO and has a valid token will be proxied
+  # to VictoriaMetrics.
+  - name: keycloak-users
+    jwt:
+      oidc:
+        issuer: http://keycloak:8080/realms/testrealm
+    url_prefix: http://victoria-metrics:8429

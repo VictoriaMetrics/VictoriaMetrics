@@ -58,9 +58,12 @@ var (
 type AuthConfig struct {
 	Users            []UserInfo `yaml:"users,omitempty"`
 	UnauthorizedUser *UserInfo  `yaml:"unauthorized_user,omitempty"`
+	SSO              SSOConfig  `yaml:"sso,omitempty"`
 
 	// ms holds all the metrics for the given AuthConfig
 	ms *metrics.Set
+
+	oidcDP *oidcDiscovererPool
 }
 
 // UserInfo is user information read from authConfigPath
@@ -911,11 +914,25 @@ func reloadAuthConfigData(data []byte) (bool, error) {
 		return false, fmt.Errorf("failed to parse auth config: %w", err)
 	}
 
+	if err := validateSSOConfigs(ac.SSO); err != nil {
+		return false, fmt.Errorf("invalid SSO config: %w", err)
+	}
+
 	jui, oidcDP, err := parseJWTUsers(ac)
 	if err != nil {
 		return false, fmt.Errorf("failed to parse JWT users from auth config: %w", err)
 	}
+
+	ac.oidcDP = oidcDP
+
+	// Register SSO issuers with the OIDC discoverer pool so their discovery
+	// runs together with JWT users during startDiscovery below.
+	for _, cfg := range ac.SSO {
+		oidcDP.createOrAdd(cfg.OpenIDConnect.Issuer, nil)
+	}
+
 	oidcDP.startDiscovery()
+
 	jwtc := &jwtCache{
 		users:  jui,
 		oidcDP: oidcDP,

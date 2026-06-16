@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"net/textproto"
@@ -169,7 +170,22 @@ func requestHandlerWithInternalRoutes(w http.ResponseWriter, r *http.Request) bo
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
+	// Handle SSO callback before any auth checks.
+	if r.URL.Path == "/_vmauth/sso/callback" {
+		handleSSOCallback(w, r)
+		return true
+	}
+
 	ats := getAuthTokensFromRequest(r)
+
+	log.Println(51)
+	// Inject the SSO session cookie as a Bearer token so that the existing
+	// JWT pipeline can validate it and match it to a configured user.
+	if tok := ssoAuthTokenFromRequest(r); tok != "" {
+		log.Println(52, tok)
+		ats = append(ats, tok)
+	}
+
 	if len(ats) == 0 {
 		// Process requests for unauthorized users
 		ui := authConfig.Load().UnauthorizedUser
@@ -177,7 +193,13 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			processUserRequest(w, r, ui, nil)
 			return true
 		}
-
+		log.Println(1)
+		if cfg := ssoConfigForHost(r.Host); cfg != nil {
+			log.Println(2)
+			showSSOLoginPage(w, r, cfg)
+			return true
+		}
+		log.Println(3)
 		handleMissingAuthorizationError(w)
 		return true
 	}
@@ -198,6 +220,11 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	uu := authConfig.Load().UnauthorizedUser
 	if uu != nil {
 		processUserRequest(w, r, uu, nil)
+		return true
+	}
+
+	if cfg := ssoConfigForHost(r.Host); cfg != nil {
+		showSSOLoginPage(w, r, cfg)
 		return true
 	}
 

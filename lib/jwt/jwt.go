@@ -154,29 +154,33 @@ func (b *body) parse(src string) error {
 
 	vaObject := jv.Get("vm_access")
 	if vaObject == nil {
-		return ErrVMAccessFieldMissing
-	}
-	// some IDPs encode custom claims as a string
-	// try parsing as an object and fallback to a string
-	switch vaObject.Type() {
-	case fastjson.TypeObject:
-		if err := b.vmAccessClaim.parseFrom(vaObject); err != nil {
-			return err
+		b.vmAccessClaim = VMAccessClaim{}
+		//return ErrVMAccessFieldMissing
+	} else {
+		// some IDPs encode custom claims as a string
+		// try parsing as an object and fallback to a string
+		switch vaObject.Type() {
+		case fastjson.TypeObject:
+			if err := b.vmAccessClaim.parseFrom(vaObject); err != nil {
+				return err
+			}
+		case fastjson.TypeString:
+			b.claimsParser = parserPool.Get()
+			va, err := b.claimsParser.ParseBytes(vaObject.GetStringBytes())
+			if err != nil {
+				return fmt.Errorf("cannot parse `vm_access` string json: %w", err)
+			}
+			if err := b.vmAccessClaim.parseFrom(va); err != nil {
+				return fmt.Errorf("cannot parse `vm_access` values from string json: %w", err)
+			}
+			b.vmAccessClaimObject = va
+		case fastjson.TypeNull:
+			b.vmAccessClaim = VMAccessClaim{}
+			//return ErrVMAccessFieldMissing
+		default:
+			b.vmAccessClaim = VMAccessClaim{}
+			//return fmt.Errorf("unexpected type for `vm_access` field; got: %q, want object {}", vaObject.Type())
 		}
-	case fastjson.TypeString:
-		b.claimsParser = parserPool.Get()
-		va, err := b.claimsParser.ParseBytes(vaObject.GetStringBytes())
-		if err != nil {
-			return fmt.Errorf("cannot parse `vm_access` string json: %w", err)
-		}
-		if err := b.vmAccessClaim.parseFrom(va); err != nil {
-			return fmt.Errorf("cannot parse `vm_access` values from string json: %w", err)
-		}
-		b.vmAccessClaimObject = va
-	case fastjson.TypeNull:
-		return ErrVMAccessFieldMissing
-	default:
-		return fmt.Errorf("unexpected type for `vm_access` field; got: %q, want object {}", vaObject.Type())
 	}
 	b.Jti = bytesutil.ToUnsafeString(jv.GetStringBytes("jti"))
 
