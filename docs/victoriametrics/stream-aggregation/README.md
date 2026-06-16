@@ -677,17 +677,17 @@ the following settings:
 
 If counter-specific outputs, such as `total*`, `rate*`, and `increase*`, produce values that are significantly higher than anticipated, then check the `vm_streamaggr_counter_resets_total` metric. This metric increments each time when [counter reset event](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter) happens and could be caused by duplication or collision of raw samples. If you observe duplication or collision, try solving this problem by either fixing the source of these metrics or by [deduplicating](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#deduplication) these samples before aggregation.
 
-## Data delay and staleness
+## Data delay and staleness {#staleness}
 
 Stream aggregation processes input samples in a streaming manner and flushes results once per specified `interval`. Because of this, aggregation results can be heavily affected by data delays (see `vm_streamaggr_samples_lag_seconds_bucket` metric).
 
 In particular:
 1. Stream aggregation won't produce results if input samples are delayed for multiple aggregation intervals, causing gaps in the output.
-2. Delayed and out-of-order samples can inflate or skew correctness of aggregation resuts.
+2. Delayed and out-of-order samples can inflate or skew correctness of aggregation results.
 
-If you prefer consistency in aggregation results and do not want delayed data to affect the next aggregation window, drop all potentially delayed samples via [ignore_old_samples](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#ignoring-old-samples).
-
-If you prefer to have the accumulated changes from delayed data reflected in aggregation windows after the delay, increase `staleness_interval` in the [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config).
+Dropping delayed samples can result in missed observations in the results, while keeping delayed samples may inflate the results. It is up to the user to decide what they prefer in the produced results:
+1. If you prefer consistency in aggregation results and do not want delayed data to affect the next aggregation window, drop all potentially delayed samples via [ignore_old_samples](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#ignoring-old-samples).
+2. If you prefer to have the accumulated changes from delayed data reflected in aggregation windows after the delay, increase `staleness_interval` in the [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config).
 This is especially important for outputs that track the last seen per-series values in order to properly calculate output values:
 
 - [increase](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#increase)
