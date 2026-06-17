@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math"
 	"net/http"
-	"net/url"
 	"runtime"
 	"slices"
 	"strconv"
@@ -614,19 +613,27 @@ func resetRollupResultCachesAndPropagate() {
 			logger.Fatalf("cannot normalize -selectNode=%q: %s", selectNode, err)
 		}
 		selectNode = normalizedAddr
-		callURL := fmt.Sprintf("http://%s/internal/resetRollupResultCache", selectNode)
-		if rcAuthKey != "" {
-			callURL += fmt.Sprintf("?authKey=%s", url.QueryEscape(rcAuthKey))
-		}
-		resp, err := httpClient.Get(callURL)
+		req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://%s/internal/resetRollupResultCache", selectNode), nil)
 		if err != nil {
-			logger.Errorf("error when accessing %q: %s", callURL, err)
+			logger.Errorf("cannot create cache reset request for %q: %s", selectNode, err)
+			resetRollupResultCacheErrors.Inc()
+			continue
+		}
+		// usually `-search.resetCacheAuthKey` is set to the same on each vmselect. it's good to propagate with this argument.
+		if rcAuthKey != "" {
+			q := req.URL.Query()
+			q.Add("authKey", rcAuthKey)
+			req.URL.RawQuery = q.Encode()
+		}
+		resp, err := httpClient.Do(req)
+		if err != nil {
+			logger.Errorf("error when accessing %q: %s", req.URL.String(), err)
 			resetRollupResultCacheErrors.Inc()
 			continue
 		}
 		if resp.StatusCode != http.StatusOK {
 			_ = resp.Body.Close()
-			logger.Errorf("unexpected status code at %q; got %d; want %d", callURL, resp.StatusCode, http.StatusOK)
+			logger.Errorf("unexpected status code at %q; got %d; want %d", req.URL.String(), resp.StatusCode, http.StatusOK)
 			resetRollupResultCacheErrors.Inc()
 			continue
 		}
