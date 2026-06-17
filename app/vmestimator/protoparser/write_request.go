@@ -118,7 +118,6 @@ func (ts *TimeSerie) unmarshalProtobuf(src []byte, groupLabels []string, labelsP
 
 	labelsPoolLen := len(labelsPool)
 	var fc easyproto.FieldContext
-	var nameBytes, valueBytes []byte
 	var lfc easyproto.FieldContext
 	for len(src) > 0 {
 		var err error
@@ -133,6 +132,7 @@ func (ts *TimeSerie) unmarshalProtobuf(src []byte, groupLabels []string, labelsP
 				return labelsPool, fmt.Errorf("cannot read label data")
 			}
 
+			var nameBytes, valueBytes []byte
 			ldata := data
 			for len(ldata) > 0 {
 				ldata, err = lfc.NextField(ldata)
