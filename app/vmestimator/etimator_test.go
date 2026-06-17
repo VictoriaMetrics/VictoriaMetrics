@@ -539,7 +539,7 @@ cardinality_estimate{interval="10m0s",group_by_keys="foo",group_by_values="c",by
 	f(2, func(e *estimator) {
 		e.insertMany([]protoparser.TimeSerie{makeTS("a"), makeTS("b"), makeTS("c")})
 	}, 1, `
-cardinality_estimate{interval="10m0s",group_by_keys="__group__",group_by_values="foo"} 2
+cardinality_estimate{interval="10m0s",group_by_keys="__group__",group_by_values="foo"} 3
 cardinality_estimate{interval="10m0s",group_by_keys="foo",group_by_values="a",by_foo="a"} 1
 cardinality_estimate{interval="10m0s",group_by_keys="foo",group_by_values="b",by_foo="b"} 1`,
 	)
@@ -548,7 +548,7 @@ cardinality_estimate{interval="10m0s",group_by_keys="foo",group_by_values="b",by
 	f(1, func(e *estimator) {
 		e.insertMany([]protoparser.TimeSerie{makeTS("a"), makeTS("b"), makeTS("c")})
 	}, 2, `
-cardinality_estimate{interval="10m0s",group_by_keys="__group__",group_by_values="foo"} 1
+cardinality_estimate{interval="10m0s",group_by_keys="__group__",group_by_values="foo"} 3
 cardinality_estimate{interval="10m0s",group_by_keys="foo",group_by_values="a",by_foo="a"} 1`,
 	)
 
@@ -560,7 +560,7 @@ cardinality_estimate{interval="10m0s",group_by_keys="foo",group_by_values="a",by
 		// "a" bypasses, "c" rejected
 		e.insertMany([]protoparser.TimeSerie{makeTS("a"), makeTS("c")})
 	}, 1, `
-cardinality_estimate{interval="10m0s",group_by_keys="__group__",group_by_values="foo"} 2
+cardinality_estimate{interval="10m0s",group_by_keys="__group__",group_by_values="foo"} 3
 cardinality_estimate{interval="10m0s",group_by_keys="foo",group_by_values="a",by_foo="a"} 1
 cardinality_estimate{interval="10m0s",group_by_keys="foo",group_by_values="b",by_foo="b"} 1`,
 	)
@@ -587,7 +587,7 @@ cardinality_estimate{interval="10m0s",group_by_keys="foo",group_by_values="c",by
 		}
 		e.insertMany(tss)
 	}, 100, `
-cardinality_estimate{interval="10m0s",group_by_keys="__group__",group_by_values="foo"} 3
+cardinality_estimate{interval="10m0s",group_by_keys="__group__",group_by_values="foo"} 103
 cardinality_estimate{interval="10m0s",group_by_keys="foo",group_by_values="a0",by_foo="a0"} 1
 cardinality_estimate{interval="10m0s",group_by_keys="foo",group_by_values="a1",by_foo="a1"} 1
 cardinality_estimate{interval="10m0s",group_by_keys="foo",group_by_values="a2",by_foo="a2"} 1`,

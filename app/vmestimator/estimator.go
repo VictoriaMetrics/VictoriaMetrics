@@ -12,6 +12,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/axiomhq/hyperloglog"
 	"github.com/dgryski/go-metro"
@@ -138,25 +139,34 @@ func (e *estimator) stop() {
 
 var groupValuesPool = sync.Pool{}
 
-func getGroupValuesKeySlice() []byte {
+func getGroupValuesKeySlice() *[]byte {
 	v0 := groupValuesPool.Get()
 	if v0 == nil {
-		return nil
+		v := make([]byte, 128)
+		return &v
 	}
 
-	return v0.([]byte)
+	return v0.(*[]byte)
 }
 
-func putGroupValuesSlice(key []byte) {
-	key = key[:0]
+func putGroupValuesSlice(key *[]byte) {
+	if key == nil {
+		return
+	}
+
+	*key = (*key)[:0]
 	groupValuesPool.Put(key)
 }
 
 func (e *estimator) insertMany(tss []protoparser.TimeSerie) {
 	bucketsNum := uint64(len(e.buckets))
 
-	groupValuesKey := getGroupValuesKeySlice()
-	defer putGroupValuesSlice(groupValuesKey)
+	groupValuesKeyP := getGroupValuesKeySlice()
+	groupValuesKey := *groupValuesKeyP
+	defer func() {
+		*groupValuesKeyP = groupValuesKey
+		putGroupValuesSlice(groupValuesKeyP)
+	}()
 
 	groupValues := make([]string, len(e.groupBy))
 
@@ -225,7 +235,9 @@ func (e *estimator) writeMetrics(w io.Writer) {
 		formatBuf = append(formatBuf, `,group_by_keys="__global__"} `...)
 		formatBuf = strconv.AppendUint(formatBuf, resSK.Estimate(), 10)
 		formatBuf = append(formatBuf, "\n"...)
-		w.Write(formatBuf)
+		if _, err := w.Write(formatBuf); err != nil {
+			logger.Errorf("writing metrics failed: %s; written cardinality metrics might be incomplete or invalid", err)
+		}
 		return
 	}
 
@@ -245,8 +257,12 @@ func (e *estimator) writeMetrics(w io.Writer) {
 	if groupSize >= int64(float64(e.groupLimit)*0.8) {
 		e.groupRejectedMu.Lock()
 		res := mustNewGroupRejectSketch()
-		e.groupRejectedSketch.Merge(res)
-		e.groupRejectedSketchPrev.Merge(res)
+		if err := res.Merge(e.groupRejectedSketch); err != nil {
+			logger.Fatalf("BUG: groupRejectedSketch merge failed: %s", err)
+		}
+		if err := res.Merge(e.groupRejectedSketchPrev); err != nil {
+			logger.Fatalf("BUG: groupRejectedSketchPrev merge failed: %s", err)
+		}
 		e.groupRejectedMu.Unlock()
 
 		groupSize += int64(res.Estimate())
@@ -259,7 +275,9 @@ func (e *estimator) writeMetrics(w io.Writer) {
 	formatBuf = append(formatBuf, `"} `...)
 	formatBuf = strconv.AppendInt(formatBuf, groupSize, 10)
 	formatBuf = append(formatBuf, "\n"...)
-	w.Write(formatBuf)
+	if _, err := w.Write(formatBuf); err != nil {
+		logger.Errorf("writing metrics failed: %s; written cardinality metrics might be incomplete or invalid", err)
+	}
 }
 
 func (e *estimator) runRotation(interval time.Duration) {
@@ -405,7 +423,6 @@ func (eb *estimatorBucket) writeNoGroupMetric(res *hyperloglog.Sketch) {
 	defer eb.mu.Unlock()
 
 	eb.mergeSketches(eb.sketch, eb.prevSketch, res)
-	return
 }
 
 func (eb *estimatorBucket) writeGroupMetrics(w io.Writer, res *hyperloglog.Sketch, formatBuf []byte) []byte {
@@ -423,10 +440,12 @@ func (eb *estimatorBucket) writeGroupMetrics(w io.Writer, res *hyperloglog.Sketc
 		eb.mergeSketches(gsk.Sketch, eb.prevGroups[valuesKey].Sketch, res)
 		formatBuf = strconv.AppendUint(formatBuf, res.Estimate(), 10)
 		formatBuf = append(formatBuf, "\n"...)
-		w.Write(formatBuf)
+		if _, err := w.Write(formatBuf); err != nil {
+			logger.Errorf("writing metrics failed: %s; written cardinality metrics might be incomplete or invalid", err)
+		}
 	}
 
-	for valuesKey, _ := range eb.prevGroups {
+	for valuesKey := range eb.prevGroups {
 		if _, ok := eb.groups[valuesKey]; ok {
 
 			continue
@@ -441,16 +460,12 @@ func (eb *estimatorBucket) writeGroupMetrics(w io.Writer, res *hyperloglog.Sketc
 		eb.mergeSketches(nil, eb.prevGroups[valuesKey].Sketch, res)
 		formatBuf = strconv.AppendUint(formatBuf, res.Estimate(), 10)
 		formatBuf = append(formatBuf, "\n"...)
-		w.Write(formatBuf)
+		if _, err := w.Write(formatBuf); err != nil {
+			logger.Errorf("writing metrics failed: %s; written cardinality metrics might be incomplete or invalid", err)
+		}
 	}
 
 	return formatBuf[:prefixLen]
-}
-
-func (eb *estimatorBucket) ensureKeySet(res map[string]*hyperloglog.Sketch, key string) {
-	if _, ok := res[key]; !ok {
-		res[key] = eb.newSketch()
-	}
 }
 
 func (eb *estimatorBucket) mergeSketches(cur, prev, res *hyperloglog.Sketch) {
