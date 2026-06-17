@@ -394,7 +394,7 @@ func (c *metricGRPCClient) ListMonitoredResourceDescriptors(ctx context.Context,
 	}
 	opts = append((*c.CallOptions).ListMonitoredResourceDescriptors[0:len((*c.CallOptions).ListMonitoredResourceDescriptors):len((*c.CallOptions).ListMonitoredResourceDescriptors)], opts...)
 	it := &MonitoredResourceDescriptorIterator{}
-	req = proto.Clone(req).(*monitoringpb.ListMonitoredResourceDescriptorsRequest)
+	req = proto.CloneOf(req)
 	it.InternalFetch = func(pageSize int, pageToken string) ([]*monitoredrespb.MonitoredResourceDescriptor, string, error) {
 		resp := &monitoringpb.ListMonitoredResourceDescriptorsResponse{}
 		if pageToken != "" {
@@ -470,7 +470,7 @@ func (c *metricGRPCClient) ListMetricDescriptors(ctx context.Context, req *monit
 	}
 	opts = append((*c.CallOptions).ListMetricDescriptors[0:len((*c.CallOptions).ListMetricDescriptors):len((*c.CallOptions).ListMetricDescriptors)], opts...)
 	it := &MetricDescriptorIterator{}
-	req = proto.Clone(req).(*monitoringpb.ListMetricDescriptorsRequest)
+	req = proto.CloneOf(req)
 	it.InternalFetch = func(pageSize int, pageToken string) ([]*metricpb.MetricDescriptor, string, error) {
 		resp := &monitoringpb.ListMetricDescriptorsResponse{}
 		if pageToken != "" {
@@ -590,7 +590,7 @@ func (c *metricGRPCClient) ListTimeSeries(ctx context.Context, req *monitoringpb
 	}
 	opts = append((*c.CallOptions).ListTimeSeries[0:len((*c.CallOptions).ListTimeSeries):len((*c.CallOptions).ListTimeSeries)], opts...)
 	it := &TimeSeriesIterator{}
-	req = proto.Clone(req).(*monitoringpb.ListTimeSeriesRequest)
+	req = proto.CloneOf(req)
 	it.InternalFetch = func(pageSize int, pageToken string) ([]*monitoringpb.TimeSeries, string, error) {
 		resp := &monitoringpb.ListTimeSeriesResponse{}
 		if pageToken != "" {

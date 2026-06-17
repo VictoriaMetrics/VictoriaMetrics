@@ -1,3 +1,63 @@
+# v1.22.27 (2026-06-10)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.22.26 (2026-06-08)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.22.25 (2026-06-04)
+
+* **Dependency Update**: Update to smithy-go v1.27.1 to fix several union-related deserialization bugs in schema-serde-enabled services.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.22.24 (2026-06-03)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.22.23 (2026-06-02)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.22.22 (2026-05-29)
+
+* **Dependency Update**: Update to smithy-go v1.26.0.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.22.21 (2026-05-28)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.22.20 (2026-05-27)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.22.19 (2026-05-22)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.22.18 (2026-05-06)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.22.17 (2026-04-29)
+
+* **Dependency Update**: Update to smithy-go v1.25.1.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.22.16 (2026-04-22)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.22.15 (2026-04-17)
+
+* **Dependency Update**: Bump smithy-go to 1.25.0 to support endpointBdd trait
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.22.14 (2026-04-16)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.22.13 (2026-04-07)
 
 * **Dependency Update**: Updated to the latest SDK module versions
