@@ -175,6 +175,7 @@ func (e *estimator) insertMany(tss []protoparser.TimeSerie) {
 		if len(e.groupBy) == 0 {
 			i := int(ts.Fingerprint % bucketsNum)
 			e.buckets[i].insert(ts, "", nil)
+			cnt++
 			continue
 		}
 
