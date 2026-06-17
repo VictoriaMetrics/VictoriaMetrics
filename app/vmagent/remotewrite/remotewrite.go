@@ -1065,11 +1065,11 @@ func (rwctx *remoteWriteCtx) TryPushTimeSeries(tss []prompb.TimeSeries, forceDro
 	rcs := allRelabelConfigs.Load()
 	pcs := rcs.perURL[rwctx.idx]
 	if pcs.Len() > 0 {
+		rctx = getRelabelCtx()
 		// Make a copy of tss before applying relabeling in order to prevent
 		// from affecting time series for other remoteWrite.url configs.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/467
 		// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/599
-		rctx = getRelabelCtx()
 		v = tssPool.Get().(*[]prompb.TimeSeries)
 		tss = append(*v, tss...)
 		rowsCountBeforeRelabel := getRowsCount(tss)

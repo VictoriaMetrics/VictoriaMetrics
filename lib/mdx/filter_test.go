@@ -40,7 +40,7 @@ func TestMdxInstanceFilter(t *testing.T) {
 		if outputString != expectedOutputString {
 			t.Fatalf("unexpected output; got %s; want %s", outputString, expectedOutputString)
 		}
-		if len(filter.vmInstance) != len(expectedInstanceMap) {
+		if filter.VmInstancesCount() != len(expectedInstanceMap) {
 			t.Fatalf("unexpected instance map length; got %d; want %d", len(filter.vmInstance), len(expectedInstanceMap))
 		}
 		for k := range expectedInstanceMap {
