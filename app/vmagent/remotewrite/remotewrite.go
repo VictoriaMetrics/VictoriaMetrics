@@ -882,7 +882,7 @@ type remoteWriteCtx struct {
 
 	rowsPushedAfterRelabel *metrics.Counter
 	rowsDroppedByRelabel   *metrics.Counter
-	rowsPreservedByMdx     *metrics.Counter
+	mdxRowsPreserved       *metrics.Counter
 
 	pushFailures                 *metrics.Counter
 	metadataDroppedOnPushFailure *metrics.Counter
@@ -987,7 +987,7 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, sanitizedURL string)
 
 	if enableMdx.GetOptionalArg(argIdx) {
 		rwctx.mdxFilter = mdx.NewFilter()
-		rwctx.rowsPreservedByMdx = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_mdx_rows_preserved_total{path=%q,url=%q}`, queuePath, sanitizedURL))
+		rwctx.mdxRowsPreserved = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_mdx_rows_preserved_total{path=%q,url=%q}`, queuePath, sanitizedURL))
 		_ = metrics.NewGauge(fmt.Sprintf(`vmagent_mdx_tracked_vm_instances{path=%q,url=%q}`, queuePath, sanitizedURL), func() float64 {
 			return float64(rwctx.mdxFilter.VmInstancesCount())
 		})
@@ -1026,7 +1026,10 @@ func (rwctx *remoteWriteCtx) MustStop() {
 
 	rwctx.rowsPushedAfterRelabel = nil
 	rwctx.rowsDroppedByRelabel = nil
-	rwctx.rowsPreservedByMdx = nil
+
+	if rwctx.mdxFilter != nil {
+		rwctx.mdxRowsPreserved = nil
+	}
 }
 
 // TryPushTimeSeries sends tss series to the configured remote write endpoint
@@ -1039,9 +1042,9 @@ func (rwctx *remoteWriteCtx) TryPushTimeSeries(tss []prompb.TimeSeries, forceDro
 		if rctx == nil {
 			return
 		}
-		putRelabelCtx(rctx)
 		*v = prompb.ResetTimeSeries(tss)
 		tssPool.Put(v)
+		putRelabelCtx(rctx)
 	}()
 
 	if rwctx.mdxFilter != nil {
@@ -1055,6 +1058,7 @@ func (rwctx *remoteWriteCtx) TryPushTimeSeries(tss []prompb.TimeSeries, forceDro
 		if len(tssRes) == 0 {
 			return true
 		}
+		tss = tssRes
 	}
 
 	// Apply relabeling

@@ -31,10 +31,10 @@ func TestMdxInstanceFilter(t *testing.T) {
 	originalVmLabel := *vmLabel
 	*vmLabel = "service=victoriametrics"
 	filter := NewFilter()
-
+	defer filter.MustStop()
 	f := func(input []prompb.TimeSeries, expectedOutput []prompb.TimeSeries, expectedInstanceMap map[string]int64) {
 		t.Helper()
-		output := filter.Filter(input, []prompb.TimeSeries{})
+		output := filter.Filter(input, nil)
 		outputString := timeSeriessToString(output)
 		expectedOutputString := timeSeriessToString(expectedOutput)
 		if outputString != expectedOutputString {
@@ -119,6 +119,34 @@ func TestMdxInstanceFilter(t *testing.T) {
 				{Name: "job", Value: "test"},
 			},
 		},
+
+		// 6. metrics with vm_app_version but job or instance is empty (or missing), they should be dropped.
+		{
+			Labels: []prompb.Label{
+				{Name: "__name__", Value: "vm_app_version"},
+				{Name: "instance", Value: ""},
+				{Name: "job", Value: "test"},
+			},
+		},
+		{
+			Labels: []prompb.Label{
+				{Name: "__name__", Value: "vm_app_version"},
+				{Name: "job", Value: "test"},
+			},
+		},
+		{
+			Labels: []prompb.Label{
+				{Name: "__name__", Value: "vm_app_version"},
+				{Name: "instance", Value: "vmagent2:8429"},
+				{Name: "job", Value: ""},
+			},
+		},
+		{
+			Labels: []prompb.Label{
+				{Name: "__name__", Value: "vm_app_version"},
+				{Name: "instance", Value: "vmagent2:8429"},
+			},
+		},
 	},
 		// `victoriametrics_app=true` should be added to all preserved metrics if absent.
 		[]prompb.TimeSeries{
@@ -175,9 +203,9 @@ func TestMdxInstanceFilter(t *testing.T) {
 		},
 		// only instances that are discovered via `vm_app_version` will be registered in instance map in MDX.
 		map[string]int64{
-			fmt.Sprintf("%q:%q", "test", "victoria-metrics1:8428"): 0,
-			fmt.Sprintf("%q:%q", "test", "victoria-metrics2:8428"): 0,
-			fmt.Sprintf("%q:%q", "test", "victoria-metrics3:8428"): 0,
+			"\"test\":\"victoria-metrics1:8428\"": 0,
+			"\"test\":\"victoria-metrics2:8428\"": 0,
+			"\"test\":\"victoria-metrics3:8428\"": 0,
 		})
 
 	// the second call
@@ -242,9 +270,9 @@ func TestMdxInstanceFilter(t *testing.T) {
 		},
 		// only instances that are discovered via `vm_app_version` will be registered in instance map in MDX.
 		map[string]int64{
-			fmt.Sprintf("%q:%q", "test", "victoria-metrics1:8428"): 0,
-			fmt.Sprintf("%q:%q", "test", "victoria-metrics2:8428"): 0,
-			fmt.Sprintf("%q:%q", "test", "victoria-metrics3:8428"): 0,
+			"\"test\":\"victoria-metrics1:8428\"": 0,
+			"\"test\":\"victoria-metrics2:8428\"": 0,
+			"\"test\":\"victoria-metrics3:8428\"": 0,
 		})
 
 	*vmLabel = originalVmLabel
@@ -255,7 +283,7 @@ func TestMdxInstanceCleanup(t *testing.T) {
 
 	synctest.Test(t, func(t *testing.T) {
 		filter := NewFilter()
-
+		defer filter.MustStop()
 		filter.Filter([]prompb.TimeSeries{
 			{
 				Labels: []prompb.Label{
@@ -288,7 +316,7 @@ func TestMdxInstanceCleanup(t *testing.T) {
 		)
 		f := func(expectedInstanceMap map[string]int64) {
 			t.Helper()
-			if len(filter.vmInstance) != len(expectedInstanceMap) {
+			if filter.VmInstancesCount() != len(expectedInstanceMap) {
 				t.Fatalf("unexpected instance map length; got %d; want %d", len(filter.vmInstance), len(expectedInstanceMap))
 			}
 			for k := range expectedInstanceMap {
@@ -301,8 +329,8 @@ func TestMdxInstanceCleanup(t *testing.T) {
 		time.Sleep(59 * time.Minute)
 		// the entries should not be cleaned.
 		f(map[string]int64{
-			fmt.Sprintf("%q:%q", "test", "victoria-metrics1:8428"): 0,
-			fmt.Sprintf("%q:%q", "test", "vmagent1:8429"):          0,
+			"\"test\":\"victoria-metrics1:8428\"": 0,
+			"\"test\":\"vmagent1:8429\"":          0,
 		})
 
 		// receive samples from victoria-metrics1:8428 after 59 minutes.
@@ -321,9 +349,8 @@ func TestMdxInstanceCleanup(t *testing.T) {
 
 		// no samples from vmagent1:8429 in the last hour, so it should be removed from the mdx instance list.
 		f(map[string]int64{
-			fmt.Sprintf("%q:%q", "test", "victoria-metrics1:8428"): 0,
+			"\"test\":\"victoria-metrics1:8428\"": 0,
 		})
-		filter.MustStop()
 	})
 
 }

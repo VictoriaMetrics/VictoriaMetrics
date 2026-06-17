@@ -21,12 +21,12 @@ var (
 
 // Filter manages the list of VictoriaMetrics instances discovered from previous data flow, and uses it to filter out metrics that are not from VictoriaMetrics instances.
 type Filter struct {
-	mu                       sync.RWMutex
-	wg                       sync.WaitGroup
-	stopCh                   chan struct{}
-	vmInstance               map[string]*atomic.Int64
-	filterByCustomLabelName  string
-	filterByCustomLabelValue string
+	mu                 sync.RWMutex
+	wg                 sync.WaitGroup
+	stopCh             chan struct{}
+	vmInstance         map[string]*atomic.Int64
+	filterByLabelName  string
+	filterByLabelValue string
 }
 
 func NewFilter() *Filter {
@@ -40,8 +40,8 @@ func NewFilter() *Filter {
 		if n < 0 {
 			logger.Fatalf("missing '=' in `-mdx.label`. It must contain label in the form `name=value`; got %q", *vmLabel)
 		}
-		filter.filterByCustomLabelName = (*vmLabel)[:n]
-		filter.filterByCustomLabelValue = (*vmLabel)[n+1:]
+		filter.filterByLabelName = (*vmLabel)[:n]
+		filter.filterByLabelValue = (*vmLabel)[n+1:]
 	}
 
 	filter.wg.Go(filter.cleanStale)
@@ -49,6 +49,9 @@ func NewFilter() *Filter {
 }
 
 func (filter *Filter) VmInstancesCount() int {
+	if filter == nil {
+		return 0
+	}
 	filter.mu.RLock()
 	defer filter.mu.RUnlock()
 	return len(filter.vmInstance)
@@ -95,6 +98,23 @@ func (filter *Filter) Filter(tss []prompb.TimeSeries, resTss []prompb.TimeSeries
 	currTs := time.Now().Unix()
 	var identicalKey []byte
 
+	addVmAppLabelIfAbsent := func(idx int, ts prompb.TimeSeries) prompb.TimeSeries {
+		hasVmAppLabel := false
+		for j := idx + 1; j < len(ts.Labels); j++ {
+			if ts.Labels[j].Name == vmAppLabelName {
+				hasVmAppLabel = true
+				break
+			}
+		}
+		if !hasVmAppLabel {
+			originalLabels := ts.Labels
+			ts.Labels = make([]prompb.Label, len(originalLabels)+1)
+			copy(ts.Labels, originalLabels)
+			ts.Labels[len(ts.Labels)-1] = prompb.Label{Name: vmAppLabelName, Value: "true"}
+		}
+		return ts
+	}
+
 nextTss:
 	for _, ts := range tss {
 		var hasVersionLabel, triedJobInstance bool
@@ -104,18 +124,8 @@ nextTss:
 				resTss = append(resTss, ts)
 				continue nextTss
 			}
-			if filter.filterByCustomLabelName != "" && label.Name == filter.filterByCustomLabelName && label.Value == filter.filterByCustomLabelValue {
-				// add victoriametrics_app=true label if absent.
-				hasVmAppLabel := false
-				for j := i + 1; j < len(ts.Labels); j++ {
-					if ts.Labels[j].Name == vmAppLabelName {
-						hasVmAppLabel = true
-						break
-					}
-				}
-				if !hasVmAppLabel {
-					ts.Labels = append(ts.Labels, prompb.Label{Name: vmAppLabelName, Value: "true"})
-				}
+			if filter.filterByLabelName != "" && label.Name == filter.filterByLabelName && label.Value == filter.filterByLabelValue {
+				ts = addVmAppLabelIfAbsent(i, ts)
 				resTss = append(resTss, ts)
 				continue nextTss
 			}
@@ -147,17 +157,7 @@ nextTss:
 				filter.mu.RUnlock()
 				if found {
 					ptr.Store(currTs)
-					// add victoriametrics_app=true label if absent.
-					hasVmAppLabel := false
-					for j := i + 1; j < len(ts.Labels); j++ {
-						if ts.Labels[j].Name == vmAppLabelName {
-							hasVmAppLabel = true
-							break
-						}
-					}
-					if !hasVmAppLabel {
-						ts.Labels = append(ts.Labels, prompb.Label{Name: vmAppLabelName, Value: "true"})
-					}
+					ts = addVmAppLabelIfAbsent(i, ts)
 					resTss = append(resTss, ts)
 					continue nextTss
 				}
@@ -176,17 +176,7 @@ nextTss:
 				filter.mu.Lock()
 				filter.vmInstance[string(identicalKey)] = v
 				filter.mu.Unlock()
-				// add victoriametrics_app=true label if absent.
-				hasVmAppLabel := false
-				for j := i + 1; j < len(ts.Labels); j++ {
-					if ts.Labels[j].Name == vmAppLabelName {
-						hasVmAppLabel = true
-						break
-					}
-				}
-				if !hasVmAppLabel {
-					ts.Labels = append(ts.Labels, prompb.Label{Name: vmAppLabelName, Value: "true"})
-				}
+				ts = addVmAppLabelIfAbsent(i, ts)
 				resTss = append(resTss, ts)
 				continue nextTss
 			}
