@@ -628,7 +628,7 @@ curl -Is http://<vmselect>:8481/internal/resetRollupResultCache?propagate=1
 vmselect will propagate this call to the rest of the vmselects listed in its `-selectNode` cmd-line flag when `propagate=1` argument is set.
 If this flag or the `propagate` argument isn't set, then cache need to be purged from each vmselect individually.
 
-If `-search.resetCacheAuthKey` is set, automatic propagation will fail and must be triggered manually.
+If `-search.resetCacheAuthKey` is set, it will be attached to the propagation request as query argument.
 
 ### TCP and UDP
 
