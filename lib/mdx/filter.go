@@ -98,21 +98,18 @@ func (filter *Filter) Filter(tss []prompb.TimeSeries, resTss []prompb.TimeSeries
 	currTs := time.Now().Unix()
 	var identicalKey []byte
 
-	addVmAppLabelIfAbsent := func(idx int, ts prompb.TimeSeries) prompb.TimeSeries {
-		hasVmAppLabel := false
-		for j := idx + 1; j < len(ts.Labels); j++ {
-			if ts.Labels[j].Name == vmAppLabelName {
-				hasVmAppLabel = true
-				break
+	maybeAddVmAppLabel := func(idx int, labels []prompb.Label) []prompb.Label {
+		for j := idx + 1; j < len(labels); j++ {
+			if labels[j].Name == vmAppLabelName && labels[j].Value == "true" {
+				return labels
 			}
 		}
-		if !hasVmAppLabel {
-			originalLabels := ts.Labels
-			ts.Labels = make([]prompb.Label, len(originalLabels)+1)
-			copy(ts.Labels, originalLabels)
-			ts.Labels[len(ts.Labels)-1] = prompb.Label{Name: vmAppLabelName, Value: "true"}
-		}
-		return ts
+
+		copyLabels := make([]prompb.Label, len(labels)+1)
+		copy(copyLabels, labels)
+
+		copyLabels[len(copyLabels)-1] = prompb.Label{Name: vmAppLabelName, Value: "true"}
+		return copyLabels
 	}
 
 nextTss:
@@ -125,7 +122,7 @@ nextTss:
 				continue nextTss
 			}
 			if filter.filterByLabelName != "" && label.Name == filter.filterByLabelName && label.Value == filter.filterByLabelValue {
-				ts = addVmAppLabelIfAbsent(i, ts)
+				ts.Labels = maybeAddVmAppLabel(i, ts.Labels)
 				resTss = append(resTss, ts)
 				continue nextTss
 			}
@@ -157,7 +154,7 @@ nextTss:
 				filter.mu.RUnlock()
 				if found {
 					ptr.Store(currTs)
-					ts = addVmAppLabelIfAbsent(i, ts)
+					ts.Labels = maybeAddVmAppLabel(i, ts.Labels)
 					resTss = append(resTss, ts)
 					continue nextTss
 				}
@@ -176,7 +173,7 @@ nextTss:
 				filter.mu.Lock()
 				filter.vmInstance[string(identicalKey)] = v
 				filter.mu.Unlock()
-				ts = addVmAppLabelIfAbsent(i, ts)
+				ts.Labels = maybeAddVmAppLabel(i, ts.Labels)
 				resTss = append(resTss, ts)
 				continue nextTss
 			}

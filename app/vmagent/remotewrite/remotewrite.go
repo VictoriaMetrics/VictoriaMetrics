@@ -1011,6 +1011,7 @@ func (rwctx *remoteWriteCtx) MustStop() {
 	if rwctx.mdxFilter != nil {
 		rwctx.mdxFilter.MustStop()
 		rwctx.mdxFilter = nil
+		rwctx.mdxRowsPreserved = nil
 	}
 
 	for _, ps := range rwctx.pss {
@@ -1028,9 +1029,6 @@ func (rwctx *remoteWriteCtx) MustStop() {
 	rwctx.rowsPushedAfterRelabel = nil
 	rwctx.rowsDroppedByRelabel = nil
 
-	if rwctx.mdxFilter != nil {
-		rwctx.mdxRowsPreserved = nil
-	}
 }
 
 // TryPushTimeSeries sends tss series to the configured remote write endpoint
