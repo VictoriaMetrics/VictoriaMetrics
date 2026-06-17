@@ -14,6 +14,13 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.29.6
+Released: 2026-06-17
+
+- BUGFIX: Fixed `VLogsReader` startup and query execution when `tenant_id` is omitted or provided in short account-only form such as `"0"`. Omitted or empty tenant IDs are treated as single-node/no-tenant mode, and account-only tenant IDs are expanded to `accountID:0` before adding VictoriaLogs `AccountID`/`ProjectID` params or VM tenant labels.
+
+- BUGFIX: Hardened [`OnlineMADModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-mad) anomaly scoring for perfectly constant time series (all values identical). The model now keeps a small deterministic prediction interval when the learned MAD is zero, so values deviating from an unknown constant baseline can produce `anomaly_score > 1` (previously, all anomaly scores were `0`).
+
 ## v1.29.5
 Released: 2026-06-11
 
