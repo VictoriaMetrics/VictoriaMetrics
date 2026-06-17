@@ -986,10 +986,11 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, sanitizedURL string)
 	rwctx.initStreamAggrConfig()
 
 	if enableMdx.GetOptionalArg(argIdx) {
-		rwctx.mdxFilter = mdx.NewFilter()
+		mdxFilter := mdx.NewFilter()
+		rwctx.mdxFilter = mdxFilter
 		rwctx.mdxRowsPreserved = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_mdx_rows_preserved_total{path=%q,url=%q}`, queuePath, sanitizedURL))
 		_ = metrics.NewGauge(fmt.Sprintf(`vmagent_mdx_tracked_vm_instances{path=%q,url=%q}`, queuePath, sanitizedURL), func() float64 {
-			return float64(rwctx.mdxFilter.VmInstancesCount())
+			return float64(mdxFilter.VmInstancesCount())
 		})
 
 	}
