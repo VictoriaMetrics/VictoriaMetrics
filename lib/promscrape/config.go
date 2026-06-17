@@ -118,6 +118,7 @@ func mustInitClusterMemberID() {
 
 func initClusterShardByLabels() {
 	if len(*clusterShardByLabels) == 0 {
+		clusterShardByLabelsSorted = nil
 		return
 	}
 	clusterShardByLabelsSorted = slices.Clone(*clusterShardByLabels)
@@ -1151,9 +1152,9 @@ func (stc *StaticConfig) appendScrapeWork(dst []*ScrapeWork, swc *scrapeWorkConf
 	return dst
 }
 
-func appendScrapeWorkKey(dst []byte, labels *promutil.Labels, shardByLabels []string) []byte {
+func appendScrapeWorkKey(dst []byte, labels *promutil.Labels) []byte {
 	originalDstLen := len(dst)
-	for _, targetLabelName := range shardByLabels {
+	for _, targetLabelName := range clusterShardByLabelsSorted {
 		for _, label := range labels.GetLabels() {
 			if label.Name == targetLabelName {
 				// Do not use strconv.AppendQuote, since it is slow according to CPU profile.
@@ -1165,7 +1166,7 @@ func appendScrapeWorkKey(dst []byte, labels *promutil.Labels, shardByLabels []st
 			}
 		}
 	}
-	// none of the labels specified in -promscrape.cluster.shardByLabels is present, use all labels for backward compatibility.
+	// Use all labels to compute the key if `promscrape.cluster.shardByLabels` is not configured
 	if len(dst) == originalDstLen {
 		for _, label := range labels.GetLabels() {
 			dst = append(dst, label.Name...)
@@ -1225,7 +1226,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1687#issuecomment-940629495
 	if *clusterMembersCount > 1 {
 		bb := scrapeWorkKeyBufPool.Get()
-		bb.B = appendScrapeWorkKey(bb.B[:0], labels, clusterShardByLabelsSorted)
+		bb.B = appendScrapeWorkKey(bb.B[:0], labels)
 		memberNums := getClusterMemberNumsForScrapeWork(bytesutil.ToUnsafeString(bb.B), *clusterMembersCount, *clusterReplicationFactor)
 		scrapeWorkKeyBufPool.Put(bb)
 		if !slices.Contains(memberNums, clusterMemberID) {

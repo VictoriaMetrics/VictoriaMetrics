@@ -798,11 +798,10 @@ The `-promscrape.cluster.memberNum` can be set to a StatefulSet pod name when `v
 The pod name must end with a number in the range `0 ... promscrape.cluster.membersCount-1`. For example, `-promscrape.cluster.memberNum=vmagent-0`.
 
 By default, targets are sharded among `vmagent` instances by all target labels after relabeling.
-Use `-promscrape.cluster.shardByLabels` to shard targets by specified labels instead.
-For example, `-promscrape.cluster.shardByLabels=service,pod` keeps targets with the same `service` and `pod` label value on the same `vmagent` instance.
-
-If some of the specified labels are present on a target, then only the present labels are used for sharding.
-If none of the specified labels are present, then all target labels are used for sharding.
+Use `-promscrape.cluster.shardByLabels` {{% available_from "#" %}} to shard targets by specified labels instead.
+For example, with `-promscrape.cluster.shardByLabels=service`, the targets with the same `service` label value will be scraped by the same `vmagent` instance, 
+which is useful when perform stream aggregation that requires all metrics with the same `service` label value to be processed on the same `vmagent` instance. 
+If none of the specified labels are present in the target labels, then all target labels will be used for sharding.
 
 By default, each scrape target is scraped only by a single `vmagent` instance in the cluster. If there is a need for replicating scrape targets among multiple `vmagent` instances,
 then `-promscrape.cluster.replicationFactor` command-line flag must be set to the desired number of replicas. For example, the following commands
