@@ -5,7 +5,7 @@ import uPlot from "uplot";
 import Button from "../../Main/Button/Button";
 import { CloseIcon, DragIcon } from "../../Main/Icons";
 import { SeriesItemStatsFormatted } from "../../../types";
-import { STATS_ORDER } from "../../../constants/graph";
+import { STATS_ORDER_TOOLTIP } from "../../../constants/graph";
 
 export interface ChartTooltipProps {
   u?: uPlot;
@@ -164,7 +164,7 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
       </div>
       {statsFormatted && (
         <table className="vm-chart-tooltip-stats">
-          {STATS_ORDER.map((key, i) => (
+          {STATS_ORDER_TOOLTIP.map((key, i) => (
             <div
               className="vm-chart-tooltip-stats-row"
               key={i}

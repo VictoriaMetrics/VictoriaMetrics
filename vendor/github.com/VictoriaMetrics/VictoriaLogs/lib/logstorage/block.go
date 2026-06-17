@@ -150,7 +150,7 @@ func (c *column) mustWriteTo(ch *columnHeader, sw *streamWriters) {
 	putValuesEncoder(ve)
 	ch.valuesSize = uint64(len(bb.B))
 	if ch.valuesSize > maxValuesBlockSize {
-		logger.Panicf("BUG: too valuesSize: %d bytes; mustn't exceed %d bytes", ch.valuesSize, maxValuesBlockSize)
+		logger.Panicf("BUG: too big valuesSize: %d bytes; mustn't exceed %d bytes", ch.valuesSize, maxValuesBlockSize)
 	}
 	ch.valuesOffset = bloomValuesWriter.values.bytesWritten
 	bloomValuesWriter.values.MustWrite(bb.B)

@@ -312,7 +312,7 @@ func (c *snoozeGRPCClient) ListSnoozes(ctx context.Context, req *monitoringpb.Li
 	}
 	opts = append((*c.CallOptions).ListSnoozes[0:len((*c.CallOptions).ListSnoozes):len((*c.CallOptions).ListSnoozes)], opts...)
 	it := &SnoozeIterator{}
-	req = proto.Clone(req).(*monitoringpb.ListSnoozesRequest)
+	req = proto.CloneOf(req)
 	it.InternalFetch = func(pageSize int, pageToken string) ([]*monitoringpb.Snooze, string, error) {
 		resp := &monitoringpb.ListSnoozesResponse{}
 		if pageToken != "" {

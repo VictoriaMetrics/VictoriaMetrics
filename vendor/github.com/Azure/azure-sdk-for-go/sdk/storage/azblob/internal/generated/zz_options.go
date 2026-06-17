@@ -265,6 +265,12 @@ type BlobClientDeleteImmutabilityPolicyOptions struct {
 
 // BlobClientDeleteOptions contains the optional parameters for the BlobClient.Delete method.
 type BlobClientDeleteOptions struct {
+	// Specify this header value to operate only on a blob if the access-tier has been modified since the specified date/time.
+	AccessTierIfModifiedSince *time.Time
+
+	// Specify this header value to operate only on a blob if the access-tier has not been modified since the specified date/time.
+	AccessTierIfUnmodifiedSince *time.Time
+
 	// Required if the blob has associated snapshots. Specify one of the following two options: include: Delete the base blob
 	// and all of its snapshots. only: Delete only the blob's snapshots and not the blob
 	// itself
@@ -1560,6 +1566,19 @@ type ServiceClientSubmitBatchOptions struct {
 	// The timeout parameter is expressed in seconds. For more information, see Setting Timeouts for Blob Service Operations.
 	// [https://learn.microsoft.com/rest/api/storageservices/setting-timeouts-for-blob-service-operations]
 	Timeout *int32
+}
+
+// SourceCPKInfo contains a group of parameters for the PageBlobClient.UploadPagesFromURL method.
+type SourceCPKInfo struct {
+	// The algorithm used to produce the source encryption key hash. Currently, the only accepted value is "AES256". Must be provided
+	// if the x-ms-source-encryption-key is provided.
+	SourceEncryptionAlgorithm *EncryptionAlgorithmType
+
+	// Optional. Specifies the source encryption key to use to encrypt the source data provided in the request.
+	SourceEncryptionKey *string
+
+	// The SHA-256 hash of the provided source encryption key. Must be provided if the x-ms-source-encryption-key header is provided.
+	SourceEncryptionKeySHA256 *string
 }
 
 // SourceModifiedAccessConditions contains a group of parameters for the BlobClient.StartCopyFromURL method.

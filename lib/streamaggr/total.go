@@ -53,36 +53,30 @@ func (av *totalAggrValue) pushSample(c aggrConfig, sample *pushSample, key strin
 
 func (av *totalAggrValue) flush(c aggrConfig, ctx *flushCtx, key string, isLast bool) {
 	ac := c.(*totalAggrConfig)
-	suffix := ac.getSuffix()
-	// check for stale entries
 	total := av.shared.total + av.total
 	av.total = 0
-	lvs := av.shared.lastValues
-	for lk, lv := range lvs {
+	for lk, lv := range av.shared.lastValues {
 		if ctx.flushTimestamp > lv.deleteDeadline || isLast {
-			delete(lvs, lk)
+			delete(av.shared.lastValues, lk)
 		}
 	}
-	if ac.resetTotalOnFlush {
-		av.shared.total = 0
-	} else if math.Abs(total) >= (1 << 53) {
+	if math.Abs(total) >= (1 << 53) {
 		// It is time to reset the entry, since it starts losing float64 precision
 		av.shared.total = 0
 	} else {
 		av.shared.total = total
 	}
-	ctx.appendSeries(key, suffix, total)
+	ctx.appendSeries(key, ac.getSuffix(), total)
 }
 
 func (av *totalAggrValue) state() any {
 	return av.shared
 }
 
-func newTotalAggrConfig(ms *metrics.Set, metricLabels string, ignoreFirstSampleIntervalSecs uint64, resetTotalOnFlush, keepFirstSample bool) aggrConfig {
+func newTotalAggrConfig(ms *metrics.Set, metricLabels string, ignoreFirstSampleIntervalSecs uint64, keepFirstSample bool) aggrConfig {
 	ignoreFirstSampleDeadline := fasttime.UnixTimestamp() + ignoreFirstSampleIntervalSecs
 	cfg := &totalAggrConfig{
 		keepFirstSample:           keepFirstSample,
-		resetTotalOnFlush:         resetTotalOnFlush,
 		ignoreFirstSampleDeadline: ignoreFirstSampleDeadline,
 	}
 	cfg.counterResetsTotal = ms.NewCounter(fmt.Sprintf(`vm_streamaggr_counter_resets_total{%s}`, metricLabels))
@@ -90,8 +84,6 @@ func newTotalAggrConfig(ms *metrics.Set, metricLabels string, ignoreFirstSampleI
 }
 
 type totalAggrConfig struct {
-	resetTotalOnFlush bool
-
 	// Whether to take into account the first sample in new time series when calculating the output value.
 	keepFirstSample bool
 
@@ -117,12 +109,6 @@ func (*totalAggrConfig) getValue(s any) aggrValue {
 }
 
 func (ac *totalAggrConfig) getSuffix() string {
-	if ac.resetTotalOnFlush {
-		if ac.keepFirstSample {
-			return "increase"
-		}
-		return "increase_prometheus"
-	}
 	if ac.keepFirstSample {
 		return "total"
 	}
