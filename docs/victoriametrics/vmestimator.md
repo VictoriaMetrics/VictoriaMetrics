@@ -14,7 +14,8 @@ aliases:
   - /vmestimator/
 ---
 
-`cestimator` is a cardinality estimator that receives Prometheus remote write streams and exposes approximate time series cardinality as metrics.
+`vmestimator` is a cardinality estimator that receives Prometheus remote write streams
+and exposes approximate time series cardinality as metrics (TODO: support remote write).
 
 It is useful for tracking how many unique time series are flowing through across all metrics, metric name, or broken down by specific labels.
 
@@ -22,7 +23,7 @@ It is useful for tracking how many unique time series are flowing through across
 
 Running:
 ```
-go run ./app/cestimator/... -config=streams.yaml -httpListenAddr=:8490
+go run ./app/vmestimator/... -config=streams.yaml -httpListenAddr=:8490
 ```
 
 Configuration:
@@ -53,23 +54,20 @@ streams:
 Fields:
 - `group_by` (optional): list of label names to split cardinality by; each distinct combination gets its own estimate
 - `group_limit` (optional): maximum number of distinct groups to track; excess groups are counted in a rejected sketch but not individually; defaults to `10000`
-- `buckets` (optional): number of internal shards for parallel ingestion; defaults to `min(20, availableCPUs)`
+- `buckets` (optional): number of internal shards for parallel ingestion; defaults to `min(64, 2*availableCPUs)`
 - `labels` (optional): extra labels attached to all output metrics for this estimator
 - `interval` (optional): how often to rotate (reset) counters; defaults to `5m`
 - `hll_precision` (optional): HyperLogLog precision, must be in range `[4, 18]`; higher values yield more accurate estimates at the cost of more memory; defaults to `14`
 - `hll_sparse` (optional): whether to use sparse HyperLogLog representation, which reduces memory for low-cardinality groups; defaults to `true`
 
-Cardinality generator:
-
-```
-go run ./app/cegen/main.go -cardI=100 -cardY=20 -template="foo{instance=\"127.0.0.[cardI]\",job=\"ametric[cardY]\"}"
-```
-
 ## Metrics
 
 By default, cardinality estimates are merged with regular metrics and exposed at `/metrics`.
 
-This behavior is controlled by the `-cardinalityMetrics.exposeAt` flag:
+This behavior is controlled by the following flags:
+- `-cardinalityMetrics.cacheTTL` (default `30s`): how long to cache the cardinality metrics response before recomputing it
+
+The HTTP endpoint is controlled by the `-cardinalityMetrics.exposeAt` flag:
 - `-cardinalityMetrics.exposeAt=/metrics` (default): cardinality metrics merged with regular metrics at `/metrics`
 - `-cardinalityMetrics.exposeAt=/cardinality/metrics`: only cardinality metrics exposed at that path
 - `-cardinalityMetrics.exposeAt=`: cardinality metrics not exposed via HTTP
@@ -95,9 +93,8 @@ cardinality_estimate{interval="5m0s",env="production",region="eu-central-1",grou
 
 ## Operational metrics
 
-When grouping is enabled, cestimator exposes per-bucket operational metrics at `/metrics`:
+When grouping is enabled, vmestimator exposes per-bucket operational metrics at `/metrics`:
 
-- `cestimator_group_estimator_size{groupBy, bucket}` — number of active groups in this bucket after the last rotation
-- `cestimator_group_estimator_rejected_size{groupBy, bucket}` — estimated number of distinct group values rejected since the last rotation because `group_limit` was reached
-- `cestimator_group_limit{groupBy, bucket}` — configured `group_limit` for this bucket
-
+- `vmestimator_estimator_group_size{group_by_keys, bucket}` — number of active groups in this bucket after the last rotation
+- `vmestimator_estimator_group_rejected_size{group_by_keys}` — estimated number of distinct group values rejected since the last rotation because `group_limit` was reached
+- `vmestimator_estimator_group_limit{group_by_keys, bucket}` — configured `group_limit` for this bucket
