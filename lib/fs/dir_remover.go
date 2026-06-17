@@ -179,11 +179,11 @@ func tryRemoveDir(dirPath string) bool {
 			// times simultaneously and properly close it, fs caching may still
 			// confuse NFS client.
 			if err := os.RemoveAll(dirEntryPath); err != nil {
-				if !isTemporaryNFSError(err) {
-					logger.Fatalf("FATAL: cannot remove %q: %s", dirEntryPath, err)
-				}
 				if os.IsNotExist(err) {
 					return
+				}
+				if !isTemporaryNFSError(err) {
+					logger.Fatalf("FATAL: cannot remove %q: %s", dirEntryPath, err)
 				}
 				mustRetry.Store(true)
 			}
