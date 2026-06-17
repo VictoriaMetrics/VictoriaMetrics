@@ -34,6 +34,9 @@ func parseIfFilter(lex *lexer) (*ifFilter, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse 'if' filter: %w", err)
 	}
+	if lex.isKeyword(";") {
+		lex.nextToken()
+	}
 	if !lex.isKeyword(")") {
 		return nil, fmt.Errorf("unexpected token %q after 'if' filter; expecting ')'", lex.token)
 	}
