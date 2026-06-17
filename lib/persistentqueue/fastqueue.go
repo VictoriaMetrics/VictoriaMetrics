@@ -196,7 +196,6 @@ func (fq *FastQueue) tryWriteBlock(block []byte, ignoreDisabledPQ bool) bool {
 	defer fq.mu.Unlock()
 
 	isPQWriteAllowed := !fq.isPQDisabled || ignoreDisabledPQ
-
 	if !isPQWriteAllowed && fq.pq.GetPendingBytes() > 0 {
 		// fast path: there is pending data at file-based queue,
 		// it must be drained before in-memory queue could be used.
@@ -239,7 +238,7 @@ func (fq *FastQueue) tryWriteBlock(block []byte, ignoreDisabledPQ bool) bool {
 }
 
 // MustReadBlock reads the next block from fq into dst and returns it.
-// It first reads from the in-memory queue, then checks file-based queue.
+// It first reads from the file-based queue, then checks in-memory queue.
 // It blocks until a block is available or the stop deadline is exceeded, in which case it returns (dst, false).
 func (fq *FastQueue) MustReadBlock(dst []byte) ([]byte, bool) {
 	fq.mu.Lock()

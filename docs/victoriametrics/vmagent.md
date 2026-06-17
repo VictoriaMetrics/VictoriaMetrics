@@ -930,34 +930,26 @@ vmagent will generate the following persistent queue folders:
 
 ### On-disk persistence and data processing order
 
-By default, vmagent processes data in FIFO order. If data has been written
-to the on-disk queue, it must be flushed to the remote storage before newly
-ingested data can be forwarded there. During long outages, vmagent may
-accumulate large amounts of data in the file-based queue, which can introduce
-a significant lag between the moment data is collected by vmagent and the
+By default, vmagent processes data in FIFO order. If data has been written to the on-disk queue,
+it must be flushed to the remote storage before newly ingested data can be forwarded there.
+During long outages, vmagent may accumulate large amounts of data in the file-based queue,
+which can introduce a significant lag between the moment data is collected by vmagent and the
 moment it becomes visible at the remote storage.
 
-This behavior can be changed with the `-remoteWrite.inmemoryQueueWorkers`
-command-line flag. When set to a non-zero value, vmagent starts the given
-number of additional workers, which send only recently ingested data from
-the in-memory queue, while the workers configured via `-remoteWrite.queues`
-drain the file-based backlog concurrently. This reduces the delivery lag for
-fresh samples after remote storage outages or slowdowns. The flag can be set
-individually per each `-remoteWrite.url`.
+This behavior can be changed with the `-remoteWrite.inmemoryQueueWorkers` {{% available_from "#" %}} command-line flag.
+When set to a non-zero value, vmagent starts the given number of additional workers,
+which send only recently ingested data from the in-memory queue, while the workers configured via `-remoteWrite.queues` drain the file-based backlog concurrently.
+This reduces the delivery lag for fresh samples after remote storage outages or slowdowns. The flag can be set individually per each `-remoteWrite.url`.
 
-Note that these workers are started in addition to the workers configured
-via `-remoteWrite.queues`, so the total number of concurrent connections to
-the remote storage becomes the sum of both flags. Take this into account if
-the remote storage limits the number of concurrent requests.
+Note that these workers are started in addition to the workers configured via `-remoteWrite.queues`, so the total number of concurrent connections to
+the remote storage becomes the sum of both flags. Take this into account if the remote storage limits the number of concurrent requests.
 
 This flag has the following possible limitations:
 
-* Samples may arrive at the remote storage out of order, since recent data
-  can be delivered before the older backlogged data. Do not use this option
-  if the remote storage doesn't accept out-of-order samples.
-* Recent data isn't guaranteed to take the fast path: if the in-memory queue
-  is full, newly ingested data is still written to the file-based queue and
-  is delivered in FIFO order by the generic workers.
+* Samples may arrive at the remote storage out of order, since recent data can be delivered before the older backlogged data.
+  Do not use this option if the remote storage doesn't accept out-of-order samples.
+* Recent data isn't guaranteed to take the fast path: if the in-memory queue  is full,
+  newly ingested data is still written to the file-based queue and is delivered in FIFO order by the generic workers.
 
 ### Disabling On-disk persistence
 
