@@ -315,7 +315,7 @@ docker run -it --rm \
   -e VMANOMALY_MCP_SERVER_URL=http://mcp-vmanomaly:8081/mcp \
   -p 8080:8080 \
   -p 8490:8490 \
-  victoriametrics/vmanomaly:v1.29.5 \
+  victoriametrics/vmanomaly:v1.29.6 \
   vmanomaly_config.yaml
 ```
 
