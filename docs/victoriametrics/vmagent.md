@@ -300,6 +300,8 @@ In this configuration, metrics with the label `service=victoriametrics` are pres
 
 The number of VictoriaMetrics metrics preserved by MDX is exposed as `vmagent_remotewrite_mdx_rows_preserved_total`.
 
+The scope of MDX is at the per-url level, so it works after global level mechanisms, such as stream aggregation, relabeling, complexity limiter, and cardinality limiter. See [Life of a sample](https://docs.victoriametrics.com/victoriametrics/vmagent/#life-of-a-sample).
+
 ### Life of a sample
 
 vmagent supports limiting, relabeling, deduplication, and stream aggregation for all metric samples, scraped or pushed.
