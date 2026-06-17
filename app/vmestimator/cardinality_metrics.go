@@ -37,7 +37,8 @@ func writeCardinalityMetrics(w io.Writer, es []*estimator) {
 		cardinalityMetricsCache = plain.Bytes()
 		cardinalityMetricsCacheAt = time.Now()
 	}
-	cm := cardinalityMetricsCache
+	cm := make([]byte, len(cardinalityMetricsCache))
+	copy(cm, cardinalityMetricsCache)
 	cardinalityCacheMu.Unlock()
 
 	_, _ = w.Write(cm)
