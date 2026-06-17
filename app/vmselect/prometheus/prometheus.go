@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"net/url"
 	"runtime"
 	"slices"
 	"strconv"
@@ -615,7 +616,7 @@ func resetRollupResultCachesAndPropagate() {
 		selectNode = normalizedAddr
 		callURL := fmt.Sprintf("http://%s/internal/resetRollupResultCache", selectNode)
 		if rcAuthKey != "" {
-			callURL += fmt.Sprintf("?authKey=%s", rcAuthKey)
+			callURL += fmt.Sprintf("?authKey=%s", url.QueryEscape(rcAuthKey))
 		}
 		resp, err := httpClient.Get(callURL)
 		if err != nil {
