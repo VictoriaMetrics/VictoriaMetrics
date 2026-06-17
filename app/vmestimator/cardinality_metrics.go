@@ -11,9 +11,9 @@ import (
 )
 
 var (
-	cardinalityMetricsWrites        = metrics.NewCounter(`cestimator_write_cardinality_metrics_total`)
-	cardinalityMetricsWriteDuration = metrics.NewFloatCounter(`cestimator_write_cardinality_metrics_duration_seconds_total`)
-	cardinalityMetricsWriteBytes    = metrics.NewCounter(`cestimator_write_cardinality_metrics_size_bytes_total`)
+	cardinalityMetricsWrites        = metrics.NewCounter(`vmestimator_write_cardinality_metrics_total`)
+	cardinalityMetricsWriteDuration = metrics.NewFloatCounter(`vmestimator_write_cardinality_metrics_duration_seconds_total`)
+	cardinalityMetricsWriteBytes    = metrics.NewCounter(`vmestimator_write_cardinality_metrics_size_bytes_total`)
 
 	cardinalityCacheMu         sync.Mutex
 	cardinalityMetricsCacheAt  time.Time

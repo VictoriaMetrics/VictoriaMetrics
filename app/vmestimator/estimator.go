@@ -84,9 +84,9 @@ func newEstimator(cfg EstimatorConfig) (*estimator, error) {
 	}
 
 	e.insertTotal = e.metricsSet.NewCounter(
-		fmt.Sprintf(`cestimator_estimator_insert_total{group_by_keys=%q}`, e.groupByKeysLabel),
+		fmt.Sprintf(`vmestimator_estimator_insert_total{group_by_keys=%q}`, e.groupByKeysLabel),
 	)
-	e.metricsSet.NewGauge(fmt.Sprintf(`cestimator_estimator_group_rejected_size{group_by_keys=%q}`, e.groupByKeysLabel), func() float64 {
+	e.metricsSet.NewGauge(fmt.Sprintf(`vmestimator_estimator_group_rejected_size{group_by_keys=%q}`, e.groupByKeysLabel), func() float64 {
 		e.groupRejectedMu.Lock()
 		defer e.groupRejectedMu.Unlock()
 		return float64(e.groupRejectedSketch.Estimate())
@@ -114,10 +114,10 @@ func newEstimator(cfg EstimatorConfig) (*estimator, error) {
 			eb.groups = make(map[string]groupSketch)
 			eb.prevGroups = make(map[string]groupSketch)
 
-			e.metricsSet.NewGauge(fmt.Sprintf(`cestimator_estimator_group_size{group_by_keys=%q,bucket="%d"}`, eb.groupByKeysLabel, i), func() float64 {
+			e.metricsSet.NewGauge(fmt.Sprintf(`vmestimator_estimator_group_size{group_by_keys=%q,bucket="%d"}`, eb.groupByKeysLabel, i), func() float64 {
 				return float64(eb.groupSize.Load())
 			})
-			e.metricsSet.NewGauge(fmt.Sprintf(`cestimator_estimator_group_limit{group_by_keys=%q,bucket="%d"}`, eb.groupByKeysLabel, i), func() float64 {
+			e.metricsSet.NewGauge(fmt.Sprintf(`vmestimator_estimator_group_limit{group_by_keys=%q,bucket="%d"}`, eb.groupByKeysLabel, i), func() float64 {
 				return float64(eb.groupLimit)
 			})
 		}

@@ -23,7 +23,7 @@ var (
 	httpListenAddrs = flagutil.NewArrayString("httpListenAddr", "TCP address to listen for incoming HTTP requests")
 	configPath      = flag.String("config", "config.yaml", "Path to YAML configuration file")
 
-	prometheusWriteRequests = metrics.NewCounter(`cestimator_http_requests_total{path="/api/v1/write", protocol="promremotewrite"}`)
+	prometheusWriteRequests = metrics.NewCounter(`vmestimator_http_requests_total{path="/api/v1/write", protocol="promremotewrite"}`)
 )
 
 func main() {
@@ -69,7 +69,7 @@ func main() {
 		listenAddrs = []string{":8490"}
 	}
 
-	logger.Infof("starting cestimator at %q", listenAddrs)
+	logger.Infof("starting vmestimator at %q", listenAddrs)
 	startTime := time.Now()
 
 	go httpserver.Serve(listenAddrs, func(w http.ResponseWriter, r *http.Request) bool {
@@ -105,7 +105,7 @@ func main() {
 		return false
 	}, httpserver.ServeOptions{})
 
-	logger.Infof("started cestimator in %.3f seconds", time.Since(startTime).Seconds())
+	logger.Infof("started vmestimator in %.3f seconds", time.Since(startTime).Seconds())
 
 	pushmetrics.Init()
 	sig := procutil.WaitForSigterm()
@@ -119,5 +119,5 @@ func main() {
 	for _, e := range estimators {
 		e.stop()
 	}
-	logger.Infof("shutting down cestimator")
+	logger.Infof("shutting down vmestimator")
 }
