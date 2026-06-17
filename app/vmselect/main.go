@@ -56,7 +56,6 @@ var (
 	minScrapeInterval = flag.Duration("dedup.minScrapeInterval", 0, "Leave only the last sample in every time series per each discrete interval "+
 		"equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication for details")
 	deleteAuthKey                = flagutil.NewPassword("deleteAuthKey", "authKey for metrics' deletion via /prometheus/api/v1/admin/tsdb/delete_series and /graphite/tags/delSeries. It could be passed via authKey query arg. It overrides -httpAuth.*")
-	resetCacheAuthKey            = flagutil.NewPassword("search.resetCacheAuthKey", "Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call. It could be passed via authKey query arg. It overrides -httpAuth.*")
 	metricNamesStatsResetAuthKey = flagutil.NewPassword("metricNamesStatsResetAuthKey", "authKey for resetting metric names usage cache via /api/v1/admin/status/metric_names_stats/reset. It overrides -httpAuth.*. "+
 		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#track-ingested-metrics-usage")
 
@@ -260,7 +259,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	if path == "/internal/resetRollupResultCache" {
-		if !httpserver.CheckAuthFlag(w, r, resetCacheAuthKey) {
+		if !httpserver.CheckAuthFlag(w, r, prometheus.GetResetCacheAuthKey()) {
 			return true
 		}
 		return prometheus.ResetRollupResultCacheHandler(w, r)

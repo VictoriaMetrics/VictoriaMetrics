@@ -54,6 +54,7 @@ var (
 	selectNodes = flagutil.NewArrayString("selectNode", "A list of vmselect node addresses to propagate the '/internal/resetRollupResultCache' call with 'propagate=1' argument. "+
 		"If this flag or the 'propagate' argument isn't set, then cache need to be purged from each vmselect individually. "+
 		"Comma-separated addresses of vmselect nodes; usage: -selectNode=vmselect-host1,...,vmselect-hostN")
+	resetCacheAuthKey = flagutil.NewPassword("search.resetCacheAuthKey", "Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call. It could be passed via authKey query arg. It overrides -httpAuth.*. It'll be used when reset request is propagate to other -selectNode.")
 
 	maxUniqueTimeseries = flag.Int("search.maxUniqueTimeseries", 0, "The maximum number of unique time series, which can be selected during /api/v1/query and /api/v1/query_range queries. This option allows limiting memory usage. "+
 		"The limit can't exceed the explicitly set corresponding value `-search.maxUniqueTimeseries` on vmstorage side.")
@@ -585,6 +586,11 @@ func ResetRollupResultCacheHandler(w http.ResponseWriter, r *http.Request) bool 
 	return true
 }
 
+// GetResetCacheAuthKey returns resetCacheAuthKey value in *Password.
+func GetResetCacheAuthKey() *flagutil.Password {
+	return resetCacheAuthKey
+}
+
 func resetRollupResultCaches() {
 	resetRollupResultCacheCalls.Inc()
 	// Reset local cache before checking whether selectNodes list is empty.
@@ -600,6 +606,7 @@ func resetRollupResultCachesAndPropagate() {
 			" For example: -selectNode=select-addr-1:8481,select-addr-2:8481")
 		return
 	}
+	rcAuthKey := GetResetCacheAuthKey().Get()
 	for _, selectNode := range *selectNodes {
 		normalizedAddr, err := netutil.NormalizeAddr(selectNode, 8481)
 		if err != nil {
@@ -607,6 +614,9 @@ func resetRollupResultCachesAndPropagate() {
 		}
 		selectNode = normalizedAddr
 		callURL := fmt.Sprintf("http://%s/internal/resetRollupResultCache", selectNode)
+		if rcAuthKey != "" {
+			callURL += fmt.Sprintf("?authKey=%s", rcAuthKey)
+		}
 		resp, err := httpClient.Get(callURL)
 		if err != nil {
 			logger.Errorf("error when accessing %q: %s", callURL, err)
