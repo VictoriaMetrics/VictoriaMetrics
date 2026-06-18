@@ -2,7 +2,8 @@ package netstorage
 
 import (
 	"fmt"
-	"strings"
+
+	"github.com/VictoriaMetrics/metricsql"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
@@ -70,14 +71,6 @@ func ApplyTenantFiltersToTagFilters(tts []storage.TenantToken, tfs [][]storage.T
 	return tts, otherFilters
 }
 
-func tagFiltersToString(tfs []storage.TagFilter) string {
-	a := make([]string, len(tfs))
-	for i, tf := range tfs {
-		a[i] = tf.String()
-	}
-	return "{" + strings.Join(a, ",") + "}"
-}
-
 // applyFiltersToTenants applies the given filters to the given tenants.
 // It returns the filtered tenants.
 func applyFiltersToTenants(tenants []storage.TenantToken, filters [][]storage.TagFilter) ([]storage.TenantToken, error) {
@@ -102,21 +95,16 @@ func applyFiltersToTenants(tenants []storage.TenantToken, filters [][]storage.Ta
 		lbs = append(lbs, lbsAux[lbsAuxLen:])
 	}
 
-	promIfs := make([]promrelabel.IfExpression, len(filters))
-	for i, tags := range filters {
-		filter := tagFiltersToString(tags)
-		err := promIfs[i].Parse(filter)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse if expression from filters %v: %w", filter, err)
-		}
+	me := &metricsql.MetricExpr{
+		LabelFilterss: toLabelFilterss(filters),
 	}
-
+	var promIf promrelabel.IfExpression
+	if err := promIf.ParseFromMetricExpr(me); err != nil {
+		return nil, fmt.Errorf("cannot parse if expression from filters %v: %w", filters, err)
+	}
 	for i, lb := range lbs {
-		for _, promIf := range promIfs {
-			if promIf.Match(lb) {
-				resultingTokens = append(resultingTokens, tenants[i])
-				break
-			}
+		if promIf.Match(lb) {
+			resultingTokens = append(resultingTokens, tenants[i])
 		}
 	}
 
@@ -126,4 +114,27 @@ func applyFiltersToTenants(tenants []storage.TenantToken, filters [][]storage.Ta
 // isTenancyLabel returns true if the given label name is used for tenancy.
 func isTenancyLabel(name string) bool {
 	return name == "vm_account_id" || name == "vm_project_id"
+}
+
+func toLabelFilterss(tfss [][]storage.TagFilter) [][]metricsql.LabelFilter {
+	lfss := make([][]metricsql.LabelFilter, len(tfss))
+	for i, tfs := range tfss {
+		lfs := make([]metricsql.LabelFilter, len(tfs))
+		for j := range tfs {
+			toLabelFilter(&lfs[j], &tfs[j])
+		}
+		lfss[i] = lfs
+	}
+	return lfss
+}
+
+func toLabelFilter(dst *metricsql.LabelFilter, src *storage.TagFilter) {
+	if src.Key == nil {
+		dst.Label = "__name__"
+	} else {
+		dst.Label = string(src.Key)
+	}
+	dst.Value = string(src.Value)
+	dst.IsRegexp = src.IsRegexp
+	dst.IsNegative = src.IsNegative
 }
