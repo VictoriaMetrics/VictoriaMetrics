@@ -851,17 +851,6 @@ func MetadataHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token
 	if err != nil {
 		return fmt.Errorf("cannot get metadata: %w", err)
 	}
-	unique := make(map[string]struct{}, len(metadata))
-	var cnt int
-	for _, mdr := range metadata {
-		if _, ok := unique[string(mdr.MetricFamilyName)]; ok {
-			continue
-		}
-		unique[bytesutil.ToUnsafeString(mdr.MetricFamilyName)] = struct{}{}
-		metadata[cnt] = mdr
-		cnt++
-	}
-	metadata = metadata[:cnt]
 	qt.Done()
 	w.Header().Set("Content-Type", "application/json")
 	bw := bufferedwriter.Get(w)
