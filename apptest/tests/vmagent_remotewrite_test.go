@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -649,8 +650,15 @@ func TestSingleVMAgentPriorizeRecentData(t *testing.T) {
 	}))
 	defer remoteWriteSrv.Close()
 
+	var mustRW2ReturnError atomic.Bool
+	mustRW2ReturnError.Store(true)
+
 	remoteWriteSrv2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusServiceUnavailable)
+		if mustRW2ReturnError.Load() {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
 	}))
 	defer remoteWriteSrv2.Close()
 
@@ -661,7 +669,7 @@ func TestSingleVMAgentPriorizeRecentData(t *testing.T) {
 		// use only 1 worker to get a full queue faster
 		"-remoteWrite.queues=1",
 		"-remoteWrite.flushInterval=1ms",
-		"-remoteWrite.inmemoryQueueWorkers=1",
+		"-remoteWrite.inmemoryQueues=1",
 		// fastqueue size is roughly memory.Allowed() / len(urls) / *maxRowsPerBlock / 100
 		// Use very large maxRowsPerBlock to get fastqueue of minimal length(2).
 		// See initRemoteWriteCtxs function in remotewrite.go for details.
@@ -670,13 +678,13 @@ func TestSingleVMAgentPriorizeRecentData(t *testing.T) {
 
 		// Delay retry logic to avoid race conditions with waitFor assertions.
 		// It improves the test stability on resource-constrained runners.
-		// Should be bigger than retries * period
 		"-remoteWrite.retryMinInterval=3s",
+		"-remoteWrite.retryMaxTime=3s",
 	})
 
 	const (
 		retries = 20
-		period  = 100 * time.Millisecond
+		period  = 200 * time.Millisecond
 	)
 
 	waitFor := func(f func() bool) {
@@ -735,6 +743,13 @@ func TestSingleVMAgentPriorizeRecentData(t *testing.T) {
 	waitFor(
 		func() bool {
 			return vmagent.RemoteWriteRequests(t, url1) == 5 && vmagent.RemoteWriteSamplesDropped(t, url2) > 0
+		},
+	)
+	mustRW2ReturnError.Store(false)
+	// ensure that inmemory data correctly flushed to the remote write
+	waitFor(
+		func() bool {
+			return vmagent.RemoteWritePendingInmemoryBlocks(t, url2) == 0
 		},
 	)
 }

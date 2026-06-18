@@ -41,6 +41,31 @@ type FastQueue struct {
 	stopDeadline uint64
 }
 
+// OpenFastQueueOpts defines options for FastQueue
+type OpenFastQueueOpts struct {
+	// MaxInmemoryBlocks defines amount of blocks to hold in memory before falling back to file-based persistence.
+	MaxInmemoryBlocks int
+	// MaxPendingBytes limits file-based size of the queue.
+	// If MaxPendingBytes is 0, then the queue size is unlimited.
+	// The oldest data is dropped when the queue
+	// reaches MaxPendingSize.
+	MaxPendingBytes int64
+	// IsPQDisabled defines whether file-based queue could be used.
+	// If it is set to true, then write requests that exceed in-memory buffer capacity are rejected.
+	// in-memory queue part can be stored on disk during graceful shutdown.
+	IsPQDisabled bool
+	// PrioritizeInMemoryData instructs FastQueue to write data into the in-memory queue
+	// even if the file-based queue is not empty.
+	// This is useful when data order doesn't matter and getting the most recent data
+	// as fast as possible is more important.
+	PrioritizeInmemoryData bool
+}
+
+// MustOpenFastQueueWithOpts opens persistent queue at the given path with given opts
+func MustOpenFastQueueWithOpts(path, name string, opts OpenFastQueueOpts) *FastQueue {
+	return mustOpenFastQueue(path, name, opts)
+}
+
 // MustOpenFastQueue opens persistent queue at the given path.
 //
 // It holds up to maxInmemoryBlocks in memory before falling back to file-based persistence.
@@ -50,13 +75,23 @@ type FastQueue struct {
 // reaches maxPendingSize.
 // if isPQDisabled is set to true, then write requests that exceed in-memory buffer capacity are rejected.
 // in-memory queue part can be stored on disk during graceful shutdown.
-func MustOpenFastQueue(path, name string, maxInmemoryBlocks int, maxPendingBytes int64, isPQDisabled bool, prioritizeInMemoryData bool) *FastQueue {
+func MustOpenFastQueue(path, name string, maxInmemoryBlocks int, maxPendingBytes int64, isPQDisabled bool) *FastQueue {
+	opts := OpenFastQueueOpts{
+		MaxInmemoryBlocks: maxInmemoryBlocks,
+		MaxPendingBytes:   maxPendingBytes,
+		IsPQDisabled:      isPQDisabled,
+	}
+	return mustOpenFastQueue(path, name, opts)
+}
+func mustOpenFastQueue(path, name string, opts OpenFastQueueOpts) *FastQueue {
+	maxPendingBytes := opts.MaxPendingBytes
+	isPQDisabled := opts.IsPQDisabled
 	pq := mustOpen(path, name, maxPendingBytes)
 	fq := &FastQueue{
 		pq:                     pq,
 		isPQDisabled:           isPQDisabled,
-		prioritizeInMemoryData: prioritizeInMemoryData,
-		ch:                     make(chan *bytesutil.ByteBuffer, maxInmemoryBlocks),
+		prioritizeInMemoryData: opts.PrioritizeInmemoryData,
+		ch:                     make(chan *bytesutil.ByteBuffer, opts.MaxInmemoryBlocks),
 	}
 	fq.cond.L = &fq.mu
 	fq.lastInmemoryBlockReadTime = fasttime.UnixTimestamp()
@@ -84,7 +119,7 @@ func MustOpenFastQueue(path, name string, maxInmemoryBlocks int, maxPendingBytes
 	if isPQDisabled {
 		persistenceStatus = "disabled"
 	}
-	logger.Infof("opened fast queue at %q with maxInmemoryBlocks=%d, it contains %d pending bytes, persistence is %s", path, maxInmemoryBlocks, pendingBytes, persistenceStatus)
+	logger.Infof("opened fast queue at %q with maxInmemoryBlocks=%d, it contains %d pending bytes, persistence is %s", path, opts.MaxInmemoryBlocks, pendingBytes, persistenceStatus)
 	return fq
 }
 
@@ -205,10 +240,12 @@ func (fq *FastQueue) tryWriteBlock(block []byte, ignoreDisabledPQ bool) bool {
 	}
 	if !fq.prioritizeInMemoryData {
 		fq.flushInmemoryBlocksToFileIfNeededLocked()
-		if fq.pq.GetPendingBytes() > 0 {
+		if n := fq.pq.GetPendingBytes(); n > 0 {
 			// The file-based queue isn't drained yet. This means that in-memory queue cannot be used yet.
 			// So put the block to file-based queue.
-
+			if len(fq.ch) > 0 {
+				logger.Panicf("BUG: the in-memory queue must be empty when the file-based queue is non-empty; it contains %d pending bytes", n)
+			}
 			if !isPQWriteAllowed {
 				return false
 			}

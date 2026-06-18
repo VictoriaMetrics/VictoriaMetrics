@@ -77,7 +77,7 @@ func TestRemoteWriteContext_TryPushTimeSeries(t *testing.T) {
 
 		path := "fast-queue-write-test"
 		fs.MustRemoveDir(path)
-		fq := persistentqueue.MustOpenFastQueue(path, "test", 100, 0, false, false)
+		fq := persistentqueue.MustOpenFastQueue(path, "test", 100, 0, false)
 		defer fs.MustRemoveDir(path)
 		defer fq.MustClose()
 
