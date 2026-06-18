@@ -11,6 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
 
 var (
@@ -18,6 +19,22 @@ var (
 
 	vmAppLabelName = "victoriametrics_app"
 )
+
+type Ctx struct {
+	// pool for labels, which are used when adding victoriametrics_app label to the original labels.
+	labels []prompb.Label
+}
+
+func (ctx *Ctx) Reset() {
+	promrelabel.CleanLabels(ctx.labels)
+	ctx.labels = ctx.labels[:0]
+}
+
+var CtxPool = &sync.Pool{
+	New: func() any {
+		return &Ctx{}
+	},
+}
 
 // Filter manages the list of VictoriaMetrics instances discovered from previous data flow, and uses it to filter out metrics that are not from VictoriaMetrics instances.
 type Filter struct {
@@ -94,22 +111,20 @@ func (filter *Filter) MustStop() {
 	filter.wg.Wait()
 }
 
-func (filter *Filter) Filter(tss []prompb.TimeSeries, resTss []prompb.TimeSeries) []prompb.TimeSeries {
+func (filter *Filter) Filter(tss []prompb.TimeSeries, resTss []prompb.TimeSeries, ctx *Ctx) []prompb.TimeSeries {
 	currTs := time.Now().Unix()
 	var identicalKey []byte
-
+	poolLabels := ctx.labels[:0]
 	maybeAddVmAppLabel := func(idx int, labels []prompb.Label) []prompb.Label {
 		for j := idx + 1; j < len(labels); j++ {
 			if labels[j].Name == vmAppLabelName && labels[j].Value == "true" {
 				return labels
 			}
 		}
-
-		copyLabels := make([]prompb.Label, len(labels)+1)
-		copy(copyLabels, labels)
-
-		copyLabels[len(copyLabels)-1] = prompb.Label{Name: vmAppLabelName, Value: "true"}
-		return copyLabels
+		poolLabelsLen := len(poolLabels)
+		poolLabels = append(poolLabels, labels...)
+		poolLabels = append(poolLabels, prompb.Label{Name: vmAppLabelName, Value: "true"})
+		return poolLabels[poolLabelsLen:]
 	}
 
 nextTss:

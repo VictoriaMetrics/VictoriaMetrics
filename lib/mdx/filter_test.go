@@ -34,7 +34,8 @@ func TestMdxInstanceFilter(t *testing.T) {
 	defer filter.MustStop()
 	f := func(input []prompb.TimeSeries, expectedOutput []prompb.TimeSeries, expectedInstanceMap map[string]int64) {
 		t.Helper()
-		output := filter.Filter(input, nil)
+		ctx := Ctx{}
+		output := filter.Filter(input, nil, &ctx)
 		outputString := timeSeriessToString(output)
 		expectedOutputString := timeSeriessToString(expectedOutput)
 		if outputString != expectedOutputString {
@@ -284,6 +285,7 @@ func TestMdxInstanceCleanup(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		filter := NewFilter()
 		defer filter.MustStop()
+		ctx := Ctx{}
 		filter.Filter([]prompb.TimeSeries{
 			{
 				Labels: []prompb.Label{
@@ -312,7 +314,7 @@ func TestMdxInstanceCleanup(t *testing.T) {
 					{Name: "instance", Value: "vmagent1:8429"},
 					{Name: "job", Value: "test"},
 				},
-			}}, []prompb.TimeSeries{},
+			}}, []prompb.TimeSeries{}, &ctx,
 		)
 		f := func(expectedInstanceMap map[string]int64) {
 			t.Helper()
@@ -335,6 +337,7 @@ func TestMdxInstanceCleanup(t *testing.T) {
 
 		// receive samples from victoria-metrics1:8428 after 59 minutes.
 		// so the entry will be refreshed.
+		ctx.Reset()
 		filter.Filter([]prompb.TimeSeries{
 			{
 				Labels: []prompb.Label{
@@ -342,7 +345,7 @@ func TestMdxInstanceCleanup(t *testing.T) {
 					{Name: "instance", Value: "victoria-metrics1:8428"},
 					{Name: "job", Value: "test"},
 				},
-			}}, []prompb.TimeSeries{},
+			}}, []prompb.TimeSeries{}, &ctx,
 		)
 
 		time.Sleep(2 * time.Minute)

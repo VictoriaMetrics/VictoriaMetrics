@@ -1036,8 +1036,13 @@ func (rwctx *remoteWriteCtx) MustStop() {
 // TryPushTimeSeries doesn't modify tss, so tss can be passed concurrently to TryPush across distinct rwctx instances.
 func (rwctx *remoteWriteCtx) TryPushTimeSeries(tss []prompb.TimeSeries, forceDropSamplesOnFailure bool) bool {
 	var rctx *relabelCtx
+	var mctx *mdx.Ctx
 	var v *[]prompb.TimeSeries
 	defer func() {
+		if mctx != nil {
+			mctx.Reset()
+			mdx.CtxPool.Put(mctx)
+		}
 		if rctx == nil {
 			return
 		}
@@ -1047,8 +1052,10 @@ func (rwctx *remoteWriteCtx) TryPushTimeSeries(tss []prompb.TimeSeries, forceDro
 	}()
 
 	if rwctx.mdxFilter != nil {
+		mctx = mdx.CtxPool.Get().(*mdx.Ctx)
+		mctx.Reset()
 		tssResP := tssPool.Get().(*[]prompb.TimeSeries)
-		tssRes := rwctx.mdxFilter.Filter(tss, *tssResP)
+		tssRes := rwctx.mdxFilter.Filter(tss, *tssResP, mctx)
 		defer func() {
 			*tssResP = prompb.ResetTimeSeries(tssRes)
 			tssPool.Put(tssResP)
