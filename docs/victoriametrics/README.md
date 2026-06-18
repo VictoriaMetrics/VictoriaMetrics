@@ -1712,29 +1712,20 @@ The following versions of VictoriaMetrics receive regular security fixes:
 | [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/) | ✅                 |
 | other releases                                                                 | ❌                 |
 
-### Software Bill of Materials (SBOM)
-
-Every VictoriaMetrics container{{% available_from "v1.137.0" %}} image published to
-[Docker Hub](https://hub.docker.com/u/victoriametrics) and [Quay.io](https://quay.io/organization/victoriametrics) include an [SPDX](https://spdx.dev/) SBOM attestation generated automatically by BuildKit during `docker buildx build`.
-
-To inspect the SBOM for an image:
-
-```sh
-docker buildx imagetools inspect \
-  docker.io/victoriametrics/victoria-metrics:latest \
-  --format "{{ json .SBOM }}"
-```
-
-To scan an image using its SBOM attestation with [Trivy](https://github.com/aquasecurity/trivy):
-
-```sh
-trivy image --sbom-sources oci \
-  docker.io/victoriametrics/victoria-metrics:latest
-```
-
 ### Reporting a Vulnerability
 
 Please report any security issues to <security@victoriametrics.com>
+
+### CVE handling policy
+
+**Source code:** Go dependencies are scanned by [govulncheck](https://pkg.go.dev/golang.org/x/vuln/cmd/govulncheck) in CI.
+All vulnerabilities must be fixed before next scheduled release and backported to [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/).
+
+**Docker images:** CVE findings in [Alpine](https://security.alpinelinux.org/) base image pose minimal risk since VictoriaMetrics binaries are statically compiled with no OS dependencies.
+When detected, only the Alpine base tag is updated.
+Releases proceed as planned even if upstream fixes are not yet available.
+For maximum security, hardened [scratch](https://hub.docker.com/_/scratch)-based images are also provided.
+All images are continuously scanned by Docker Hub and verified before release using [grype](https://github.com/anchore/grype).
 
 ### General security recommendations:
 
@@ -1749,14 +1740,24 @@ Please report any security issues to <security@victoriametrics.com>
 * Set reasonable [`Content-Security-Policy`](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP) header value to mitigate [XSS attacks](https://en.wikipedia.org/wiki/Cross-site_scripting). See `-http.header.csp` flag.
 * Set reasonable [`X-Frame-Options`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options) header value to mitigate [clickjacking attacks](https://en.wikipedia.org/wiki/Clickjacking), for example `DENY`. See `-http.header.frameOptions` flag.
 
-VictoriaMetrics provides the following security-related command-line flags:
+There are the following security-related command-line flags for all components with HTTP API:
 
-* `-tls`, `-tlsCertFile` and `-tlsKeyFile` for switching from HTTP to HTTPS at `-httpListenAddr` (TCP port 8428 is listened by default).
+* `-tls`, `-tlsCertFile` and `-tlsKeyFile` for switching from HTTP to HTTPS at `-httpListenAddr`.
   [Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/enterprise/) supports automatic issuing of TLS certificates.
   See [these docs](#automatic-issuing-of-tls-certificates).
 * `-mtls` and `-mtlsCAFile` for enabling [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication) for requests to `-httpListenAddr`. See [these docs](#mtls-protection).
 * `-httpAuth.username` and `-httpAuth.password` for protecting all the HTTP endpoints
   with [HTTP Basic Authentication](https://en.wikipedia.org/wiki/Basic_access_authentication).
+* `-http.header.hsts`, `-http.header.csp`, and `-http.header.frameOptions` for serving `Strict-Transport-Security`, `Content-Security-Policy`
+  and `X-Frame-Options` HTTP response headers.
+
+### Protecting service endpoints
+
+All VictoriaMetrics components expose internal metrics in Prometheus exposition format at `/metrics` page for [#Monitoring](https://docs.victoriametrics.com/victoriametrics/#monitoring).
+Consider limiting access to `/metrics` page to trusted networks only.
+
+There are other service endpoints that might require protection:
+
 * `-deleteAuthKey` for protecting the `/api/v1/admin/tsdb/delete_series` endpoint. See [how to delete time series](#how-to-delete-time-series).
 * `-snapshotAuthKey` for protecting the `/snapshot*` endpoints. See [how to work with snapshots](#how-to-work-with-snapshots).
 * `-forceFlushAuthKey` for protecting the `/internal/force_flush` endpoint. See [force flush docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#forced-flush).
@@ -1768,25 +1769,12 @@ VictoriaMetrics provides the following security-related command-line flags:
 * `-pprofAuthKey` for protecting the `/debug/pprof/*` endpoints, which can be used for [profiling](#profiling).
 * `-metricNamesStatsResetAuthKey` for protecting the `/api/v1/admin/status/metric_names_stats/reset` endpoint, used for [Metric Names Tracker](#track-ingested-metrics-usage).
 * `-denyQueryTracing` for disallowing [query tracing](#query-tracing).
-* `-http.header.hsts`, `-http.header.csp`, and `-http.header.frameOptions` for serving `Strict-Transport-Security`, `Content-Security-Policy`
-  and `X-Frame-Options` HTTP response headers.
 
 Explicitly set internal network interface for TCP and UDP ports for data ingestion with Graphite and OpenTSDB formats.
 For example, substitute `-graphiteListenAddr=:2003` with `-graphiteListenAddr=<internal_iface_ip>:2003`. This protects from unexpected requests from untrusted network interfaces.
 
 See also [security recommendation for VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#security)
 and [the general security page at VictoriaMetrics website](https://victoriametrics.com/security/).
-
-### CVE handling policy
-
-**Source code:** Go dependencies are scanned by [govulncheck](https://pkg.go.dev/golang.org/x/vuln/cmd/govulncheck) in CI. 
-All vulnerabilities must be fixed before next scheduled release and backported to [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/).
-
-**Docker images:** CVE findings in [Alpine](https://security.alpinelinux.org/) base image pose minimal risk since VictoriaMetrics binaries are statically compiled with no OS dependencies.
-When detected, only the Alpine base tag is updated.
-Releases proceed as planned even if upstream fixes are not yet available.
-For maximum security, hardened [scratch](https://hub.docker.com/_/scratch)-based images are also provided.
-All images are continuously scanned by Docker Hub and verified before release using [grype](https://github.com/anchore/grype).
 
 ### mTLS protection
 
@@ -1816,6 +1804,26 @@ via [Let's Encrypt service](https://letsencrypt.org/). The following command-lin
 This functionality can be evaluated for free according to [these docs](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 
 See also [security recommendations](#security).
+
+### Software Bill of Materials (SBOM)
+
+Every VictoriaMetrics container{{% available_from "v1.137.0" %}} image published to
+[Docker Hub](https://hub.docker.com/u/victoriametrics) and [Quay.io](https://quay.io/organization/victoriametrics) include an [SPDX](https://spdx.dev/) SBOM attestation generated automatically by BuildKit during `docker buildx build`.
+
+To inspect the SBOM for an image:
+
+```sh
+docker buildx imagetools inspect \
+  docker.io/victoriametrics/victoria-metrics:latest \
+  --format "{{ json .SBOM }}"
+```
+
+To scan an image using its SBOM attestation with [Trivy](https://github.com/aquasecurity/trivy):
+
+```sh
+trivy image --sbom-sources oci \
+  docker.io/victoriametrics/victoria-metrics:latest
+```
 
 ## Tuning
 
