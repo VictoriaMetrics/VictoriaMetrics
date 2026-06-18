@@ -1807,7 +1807,7 @@ See also [security recommendations](#security).
 
 ### Software Bill of Materials (SBOM)
 
-Every VictoriaMetrics container{{% available_from "v1.137.0" %}} images published to
+Every VictoriaMetrics container{{% available_from "v1.137.0" %}} image published to
 [Docker Hub](https://hub.docker.com/u/victoriametrics) and [Quay.io](https://quay.io/organization/victoriametrics) include an [SPDX](https://spdx.dev/) SBOM attestation generated automatically by BuildKit during `docker buildx build`.
 
 To inspect the SBOM for an image:
