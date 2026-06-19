@@ -246,9 +246,6 @@ func (fq *FastQueue) tryWriteBlock(block []byte, ignoreDisabledPQ bool) bool {
 			if len(fq.ch) > 0 {
 				logger.Panicf("BUG: the in-memory queue must be empty when the file-based queue is non-empty; it contains %d pending bytes", n)
 			}
-			if !isPQWriteAllowed {
-				return false
-			}
 			fq.pq.MustWriteBlock(block)
 			return true
 		}
