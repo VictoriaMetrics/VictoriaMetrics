@@ -669,18 +669,7 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 	}
 
 	if dedupInterval > 0 {
-		a.da = newDedupAggr()
-		a.da.flushTimeouts = ms.NewCounter(fmt.Sprintf(`vm_streamaggr_dedup_flush_timeouts_total{%s}`, metricLabels))
-		a.da.flushDuration = ms.NewHistogram(fmt.Sprintf(`vm_streamaggr_dedup_flush_duration_seconds{%s}`, metricLabels))
-
-		_ = ms.NewGauge(fmt.Sprintf(`vm_streamaggr_dedup_state_size_bytes{%s}`, metricLabels), func() float64 {
-			n := a.da.sizeBytes()
-			return float64(n)
-		})
-		_ = ms.NewGauge(fmt.Sprintf(`vm_streamaggr_dedup_state_items_count{%s}`, metricLabels), func() float64 {
-			n := a.da.itemsCount()
-			return float64(n)
-		})
+		a.da = newDedupAggr(ms, metricLabels)
 	}
 
 	alignFlushToInterval := !opts.NoAlignFlushToInterval

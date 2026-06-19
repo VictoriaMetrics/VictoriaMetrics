@@ -44,7 +44,6 @@ type Deduplicator struct {
 // MustStop must be called on the returned deduplicator in order to free up occupied resources.
 func NewDeduplicator(pushFunc PushFunc, enableWindows bool, interval time.Duration, dropLabels []string, alias string) *Deduplicator {
 	d := &Deduplicator{
-		da:            newDedupAggr(),
 		dropLabels:    dropLabels,
 		interval:      interval,
 		enableWindows: enableWindows,
@@ -64,16 +63,7 @@ func NewDeduplicator(pushFunc PushFunc, enableWindows bool, interval time.Durati
 	ms := d.ms
 
 	metricLabels := fmt.Sprintf(`name="dedup",url=%q`, alias)
-
-	_ = ms.NewGauge(fmt.Sprintf(`vm_streamaggr_dedup_state_size_bytes{%s}`, metricLabels), func() float64 {
-		return float64(d.da.sizeBytes())
-	})
-	_ = ms.NewGauge(fmt.Sprintf(`vm_streamaggr_dedup_state_items_count{%s}`, metricLabels), func() float64 {
-		return float64(d.da.itemsCount())
-	})
-
-	d.da.flushDuration = ms.NewHistogram(fmt.Sprintf(`vm_streamaggr_dedup_flush_duration_seconds{%s}`, metricLabels))
-	d.da.flushTimeouts = ms.NewCounter(fmt.Sprintf(`vm_streamaggr_dedup_flush_timeouts_total{%s}`, metricLabels))
+	d.da = newDedupAggr(ms, metricLabels)
 
 	metrics.RegisterSet(ms)
 
@@ -120,6 +110,7 @@ func (d *Deduplicator) Push(tss []prompb.TimeSeries) {
 		key := bytesutil.ToUnsafeString(buf[bufLen:])
 		for _, s := range ts.Samples {
 			if d.enableWindows && minDeadline > s.Timestamp {
+				d.da.droppedSamples.Inc()
 				continue
 			} else if d.enableWindows && s.Timestamp <= cs.maxDeadline == cs.isGreen {
 				ctx.green = append(ctx.green, pushSample{
