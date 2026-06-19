@@ -43,6 +43,7 @@ var supportedOutputs = []string{
 	"stddev",
 	"stdvar",
 	"sum_samples",
+	"sum_samples_total",
 	"total",
 	"total_prometheus",
 	"unique_samples",
@@ -770,7 +771,9 @@ func newOutputConfig(ms *metrics.Set, metricLabels, output string, outputsSeen m
 	case "stdvar":
 		return newStdvarAggrConfig(), nil
 	case "sum_samples":
-		return newSumSamplesAggrConfig(), nil
+		return newSumSamplesAggrConfig(true), nil
+	case "sum_samples_total":
+		return newSumSamplesAggrConfig(false), nil
 	case "total":
 		return newTotalAggrConfig(ms, metricLabels, ignoreFirstSampleIntervalSecs, true), nil
 	case "total_prometheus":
