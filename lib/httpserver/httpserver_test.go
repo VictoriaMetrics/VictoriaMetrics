@@ -228,4 +228,30 @@ func TestHandlerWrapper(t *testing.T) {
 	if got := h.Get("Content-Security-Policy"); got != cspHeader {
 		t.Fatalf("unexpected CSP header; got %q; want %q", got, cspHeader)
 	}
+	if got := h.Get("X-Server-Hostname"); got != hostname {
+		t.Fatalf("unexpected X-Server-Hostname header; got %q; want %q", got, hostname)
+	}
+}
+
+func TestHandlerWrapperDisableServerHostnameHeader(t *testing.T) {
+	origDisableServerHostname := *headerDisableServerHostname
+	*headerDisableServerHostname = true
+	defer func() {
+		*headerDisableServerHostname = origDisableServerHostname
+	}()
+
+	req, _ := http.NewRequest("GET", "/health", nil)
+
+	srv := &server{s: &http.Server{}}
+	w := &httptest.ResponseRecorder{}
+
+	handlerWrapper(w, req, func(w http.ResponseWriter, r *http.Request) bool {
+		return builtinRoutesHandler(srv, r, w, func(_ http.ResponseWriter, _ *http.Request) bool {
+			return true
+		})
+	})
+
+	if got := w.Header().Get("X-Server-Hostname"); got != "" {
+		t.Fatalf("unexpected X-Server-Hostname header; got %q; want empty value", got)
+	}
 }

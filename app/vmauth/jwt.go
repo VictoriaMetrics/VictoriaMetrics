@@ -17,6 +17,8 @@ import (
 
 const (
 	metricsTenantPlaceholder       = `{{.MetricsTenant}}`
+	metricsAccountIDPlaceholder    = `{{.MetricsAccountID}}`
+	metricsProjectIDPlaceholder    = `{{.MetricsProjectID}}`
 	metricsExtraLabelsPlaceholder  = `{{.MetricsExtraLabels}}`
 	metricsExtraFiltersPlaceholder = `{{.MetricsExtraFilters}}`
 
@@ -30,6 +32,8 @@ const (
 
 var allPlaceholders = []string{
 	metricsTenantPlaceholder,
+	metricsAccountIDPlaceholder,
+	metricsProjectIDPlaceholder,
 	metricsExtraLabelsPlaceholder,
 	metricsExtraFiltersPlaceholder,
 	logsAccountIDPlaceholder,
@@ -40,6 +44,8 @@ var allPlaceholders = []string{
 
 var urlPathPlaceHolders = []string{
 	metricsTenantPlaceholder,
+	metricsAccountIDPlaceholder,
+	metricsProjectIDPlaceholder,
 	logsAccountIDPlaceholder,
 	logsProjectIDPlaceholder,
 }
@@ -66,9 +72,8 @@ type JWTConfig struct {
 	verifierPool atomic.Pointer[jwt.VerifierPool]
 }
 
-func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, *oidcDiscovererPool, error) {
+func parseJWTUsers(ac *AuthConfig, oidcDP *oidcDiscovererPool) ([]*UserInfo, error) {
 	jui := make([]*UserInfo, 0, len(ac.Users))
-	oidcDP := &oidcDiscovererPool{}
 
 	uniqClaims := make(map[string]*UserInfo)
 	var sortedClaims []string
@@ -79,10 +84,10 @@ func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, *oidcDiscovererPool, error) {
 		}
 
 		if ui.AuthToken != "" || ui.BearerToken != "" || ui.Username != "" || ui.Password != "" {
-			return nil, nil, fmt.Errorf("auth_token, bearer_token, username and password cannot be specified if jwt is set")
+			return nil, fmt.Errorf("auth_token, bearer_token, username and password cannot be specified if jwt is set")
 		}
 		if len(jwtToken.PublicKeys) == 0 && len(jwtToken.PublicKeyFiles) == 0 && !jwtToken.SkipVerify && jwtToken.OIDC == nil {
-			return nil, nil, fmt.Errorf("jwt must contain at least a single public key, public_key_files, oidc or have skip_verify=true")
+			return nil, fmt.Errorf("jwt must contain at least a single public key, public_key_files, oidc or have skip_verify=true")
 		}
 		var claimsString string
 		sortedClaims = sortedClaims[:0]
@@ -91,7 +96,7 @@ func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, *oidcDiscovererPool, error) {
 			sortedClaims = append(sortedClaims, fmt.Sprintf("%s=%s", ck, cv))
 			pc, err := jwt.NewClaim(ck, cv)
 			if err != nil {
-				return nil, nil, fmt.Errorf("incorrect match claim, key=%q, value regex=%q: %w", ck, cv, err)
+				return nil, fmt.Errorf("incorrect match claim, key=%q, value regex=%q: %w", ck, cv, err)
 			}
 			parsedClaims = append(parsedClaims, pc)
 		}
@@ -100,7 +105,7 @@ func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, *oidcDiscovererPool, error) {
 		claimsString = strings.Join(sortedClaims, ",")
 
 		if oldUI, ok := uniqClaims[claimsString]; ok {
-			return nil, nil, fmt.Errorf("duplicate match claims=%q found for name=%q at idx=%d; the previous one is set for name=%q", claimsString, ui.Name, idx, oldUI.Name)
+			return nil, fmt.Errorf("duplicate match claims=%q found for name=%q at idx=%d; the previous one is set for name=%q", claimsString, ui.Name, idx, oldUI.Name)
 		}
 		uniqClaims[claimsString] = &ui
 		if len(jwtToken.PublicKeys) > 0 || len(jwtToken.PublicKeyFiles) > 0 {
@@ -109,7 +114,7 @@ func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, *oidcDiscovererPool, error) {
 			for i := range jwtToken.PublicKeys {
 				k, err := jwt.ParseKey([]byte(jwtToken.PublicKeys[i]))
 				if err != nil {
-					return nil, nil, err
+					return nil, err
 				}
 				keys = append(keys, k)
 			}
@@ -117,52 +122,52 @@ func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, *oidcDiscovererPool, error) {
 			for _, filePath := range jwtToken.PublicKeyFiles {
 				keyData, err := os.ReadFile(filePath)
 				if err != nil {
-					return nil, nil, fmt.Errorf("cannot read public key from file %q: %w", filePath, err)
+					return nil, fmt.Errorf("cannot read public key from file %q: %w", filePath, err)
 				}
 				k, err := jwt.ParseKey(keyData)
 				if err != nil {
-					return nil, nil, fmt.Errorf("cannot parse public key from file %q: %w", filePath, err)
+					return nil, fmt.Errorf("cannot parse public key from file %q: %w", filePath, err)
 				}
 				keys = append(keys, k)
 			}
 
 			vp, err := jwt.NewVerifierPool(keys)
 			if err != nil {
-				return nil, nil, err
+				return nil, err
 			}
 
 			jwtToken.verifierPool.Store(vp)
 		}
 		if jwtToken.OIDC != nil {
 			if len(jwtToken.PublicKeys) > 0 || len(jwtToken.PublicKeyFiles) > 0 || jwtToken.SkipVerify {
-				return nil, nil, fmt.Errorf("jwt with oidc cannot contain public keys or have skip_verify=true")
+				return nil, fmt.Errorf("jwt with oidc cannot contain public keys or have skip_verify=true")
 			}
 
 			if jwtToken.OIDC.Issuer == "" {
-				return nil, nil, fmt.Errorf("oidc issuer cannot be empty")
+				return nil, fmt.Errorf("oidc issuer cannot be empty")
 			}
 			isserURL, err := url.Parse(jwtToken.OIDC.Issuer)
 			if err != nil {
-				return nil, nil, fmt.Errorf("oidc issuer %q must be a valid URL", jwtToken.OIDC.Issuer)
+				return nil, fmt.Errorf("oidc issuer %q must be a valid URL", jwtToken.OIDC.Issuer)
 			}
 			if isserURL.Scheme != "https" && isserURL.Scheme != "http" {
-				return nil, nil, fmt.Errorf("oidc issuer %q must have http or https scheme", jwtToken.OIDC.Issuer)
+				return nil, fmt.Errorf("oidc issuer %q must have http or https scheme", jwtToken.OIDC.Issuer)
 			}
 
 			oidcDP.createOrAdd(ui.JWT.OIDC.Issuer, &ui.JWT.verifierPool)
 		}
 
 		if err := parseJWTPlaceholdersForUserInfo(&ui, true); err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 
 		if err := ui.initURLs(); err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 
 		metricLabels, err := ui.getMetricLabels()
 		if err != nil {
-			return nil, nil, fmt.Errorf("cannot parse metric_labels: %w", err)
+			return nil, fmt.Errorf("cannot parse metric_labels: %w", err)
 		}
 		ui.requests = ac.ms.GetOrCreateCounter(`vmauth_user_requests_total` + metricLabels)
 		ui.requestErrors = ac.ms.GetOrCreateCounter(`vmauth_user_request_errors_total` + metricLabels)
@@ -181,7 +186,7 @@ func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, *oidcDiscovererPool, error) {
 
 		rt, err := newRoundTripper(ui.TLSCAFile, ui.TLSCertFile, ui.TLSKeyFile, ui.TLSServerName, ui.TLSInsecureSkipVerify)
 		if err != nil {
-			return nil, nil, fmt.Errorf("cannot initialize HTTP RoundTripper: %w", err)
+			return nil, fmt.Errorf("cannot initialize HTTP RoundTripper: %w", err)
 		}
 		ui.rt = rt
 
@@ -194,7 +199,7 @@ func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, *oidcDiscovererPool, error) {
 		return len(jui[i].JWT.MatchClaims) > len(jui[j].JWT.MatchClaims)
 	})
 
-	return jui, oidcDP, nil
+	return jui, nil
 }
 
 var tokenPool sync.Pool
@@ -371,6 +376,8 @@ func jwtClaimsData(vma *jwt.VMAccessClaim) map[string][]string {
 	data := map[string][]string{
 		// TODO: optimize at parsing stage
 		metricsTenantPlaceholder:       {fmt.Sprintf("%d:%d", vma.MetricsAccountID, vma.MetricsProjectID)},
+		metricsAccountIDPlaceholder:    {fmt.Sprintf("%d", vma.MetricsAccountID)},
+		metricsProjectIDPlaceholder:    {fmt.Sprintf("%d", vma.MetricsProjectID)},
 		metricsExtraLabelsPlaceholder:  vma.MetricsExtraLabels,
 		metricsExtraFiltersPlaceholder: vma.MetricsExtraFilters,
 

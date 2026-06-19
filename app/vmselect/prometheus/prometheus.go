@@ -112,6 +112,11 @@ func PrettifyQuery(w http.ResponseWriter, r *http.Request) {
 	_ = bw.Flush()
 }
 
+const (
+	federateEscapeSchemeUnderscore = "underscore"
+	federateEscapeSchemeUTF8       = "utf-8"
+)
+
 // FederateHandler implements /federate . See https://prometheus.io/docs/prometheus/latest/federation/
 func FederateHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	defer federateDuration.UpdateDuration(startTime)
@@ -144,6 +149,21 @@ func FederateHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter,
 		return fmt.Errorf("cannot export federated metrics, because some of vmstorage nodes are unavailable")
 	}
 
+	// add best-effort format negotiation
+	// modern version of Prometheus always set allow-utf-8 in order to properly parse utf-8 names and labels
+	// prometheus below v3 uses underscore escaping by default and it's the most common standard
+	var escapeScheme string
+	accept := r.Header.Get("Accept")
+	if len(accept) > 0 && strings.Contains(accept, "allow-utf-8") {
+		escapeScheme = federateEscapeSchemeUTF8
+	}
+	// try fallback to legacy underscore escaping if needed for Prometheus only,
+	// it's not widely used after Prometheus v3.0 release
+	// most of the Prometheus scrapers already use allow-utf-8 header
+	isPrometheus := strings.HasPrefix(r.UserAgent(), "Prometheus")
+	if len(escapeScheme) == 0 && isPrometheus {
+		escapeScheme = federateEscapeSchemeUnderscore
+	}
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
@@ -153,7 +173,7 @@ func FederateHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter,
 			return err
 		}
 		bb := sw.getBuffer(workerID)
-		WriteFederate(bb, rs)
+		WriteFederate(bb, rs, escapeScheme)
 		return sw.maybeFlushBuffer(bb)
 	})
 	if err == nil {
@@ -544,6 +564,7 @@ func DeleteHandler(startTime time.Time, at *auth.Token, r *http.Request) error {
 		// TODO: reset only cache for (account, project)
 		resetRollupResultCaches()
 	}
+	logger.Infof("/api/v1/admin/tsdb/delete_series has been called for %q. Deleted %d series.", sq.FiltersString(), deletedCount)
 	return nil
 }
 

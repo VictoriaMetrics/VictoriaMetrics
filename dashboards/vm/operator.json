@@ -131,7 +131,7 @@
           "calcs": [
             "lastNotNull"
           ],
-          "fields": "/^short_version$/",
+          "fields": "/^version$/",
           "values": false
         },
         "showPercentChange": false,
@@ -147,11 +147,10 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "vm_app_version{job=~\"$job\",instance=~\"$instance\"}",
+          "expr": "sum by(job, version) (label_replace(vm_app_version{job=~\"$job\", instance=~\"$instance\", short_version!=\"\"}, \"version\", \"$1\", \"short_version\", \"(.*)\") or vm_app_version{job=~\"$job\", instance=~\"$instance\", short_version=\"\"})",
           "format": "table",
           "instant": true,
           "interval": "",
-          "legendFormat": "{{short_version}}",
           "range": false,
           "refId": "A"
         }
@@ -1697,7 +1696,7 @@
         "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
-      "description": "Shows the time goroutines have spent in runnable state before actually running. The lower is better.\n\nHigh values or values exceeding the threshold is usually a sign of insufficient CPU resources or CPU throttling. \n\nVerify that service has enough CPU resources. Otherwise, the service could work unreliably with delays in processing.",
+      "description": "Shows the time goroutines have spent in runnable state before actually running.\n\n**Lower is better.**\n\nHigh values or values exceeding the threshold is usually a sign of insufficient CPU resources or CPU throttling. \n\nVerify that service has enough CPU resources. Otherwise, the service could work unreliably with delays in processing.",
       "fieldConfig": {
         "defaults": {
           "color": {

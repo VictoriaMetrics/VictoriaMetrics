@@ -22,6 +22,7 @@ func NewContainerClient(endpoint string, azClient *azcore.Client) *ContainerClie
 	client := &ContainerClient{
 		internal: azClient,
 		endpoint: endpoint,
+		version:  ServiceVersion,
 	}
 	return client
 }

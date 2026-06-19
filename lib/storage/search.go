@@ -467,23 +467,29 @@ func (tf *TagFilter) Unmarshal(src []byte) ([]byte, error) {
 	return src, nil
 }
 
-// String returns string representation of the search query.
+// String returns string representation of the search query: tag filters and time range.
 func (sq *SearchQuery) String() string {
-	a := make([]string, len(sq.TagFilterss))
-	for i, tfs := range sq.TagFilterss {
-		a[i] = tagFiltersToString(tfs)
-	}
 	start := TimestampToHumanReadableFormat(sq.MinTimestamp)
 	end := TimestampToHumanReadableFormat(sq.MaxTimestamp)
+	a := sq.FiltersString()
 	if !sq.IsMultiTenant {
 		return fmt.Sprintf("accountID=%d, projectID=%d, filters=%s, timeRange=[%s..%s]", sq.AccountID, sq.ProjectID, a, start, end)
 	}
-
 	tts := make([]string, len(sq.TenantTokens))
 	for i, tt := range sq.TenantTokens {
 		tts[i] = tt.String()
 	}
+
 	return fmt.Sprintf("tenants=[%s], filters=%s, timeRange=[%s..%s]", strings.Join(tts, ","), a, start, end)
+}
+
+// FiltersString returns string representation of the tag filters.
+func (sq *SearchQuery) FiltersString() []string {
+	a := make([]string, len(sq.TagFilterss))
+	for i, tfs := range sq.TagFilterss {
+		a[i] = tagFiltersToString(tfs)
+	}
+	return a
 }
 
 func tagFiltersToString(tfs []TagFilter) string {

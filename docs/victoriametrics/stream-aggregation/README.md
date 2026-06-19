@@ -26,6 +26,7 @@ Stream aggregation has the following features:
   and/or scraped from [Prometheus-compatible targets](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
 - It can filter out raw samples matched by aggregation rules, so raw data will never reach the remote destination. See `-streamAggr.keepInput` and `-streamAggr.dropInput` in [aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/);
 - It allows building [flexible processing pipelines](#routing);
+- It is [horizontally scalable](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#scaling-aggregation-horizontally).
 
 # Limitations
 
@@ -360,9 +361,9 @@ the received data, scraped or pushed. See the [processing order for vmagent](htt
 
 Typical scenarios for data routing with `vmagent`:
 
-1. **Aggregate incoming data and replicate to N destinations**. Specify [`-streamAggr.config`](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#configuration) command-line flag
+1. **Aggregate incoming data and replicate to N destinations**. Specify [`-streamAggr.config`](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/) command-line flag
    to aggregate the incoming data before replicating it to all the configured `-remoteWrite.url` destinations.
-2. **Individually aggregate incoming data for each destination**. Specify [`-remoteWrite.streamAggr.config`](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#configuration)
+2. **Individually aggregate incoming data for each destination**. Specify [`-remoteWrite.streamAggr.config`](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/)
    command-line flag for each `-remoteWrite.url` destination. [Relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/) via `-remoteWrite.urlRelabelConfig`
    can be used for routing only the selected metrics to each `-remoteWrite.url` destination.
 
@@ -598,6 +599,47 @@ Below is an example of an `aggr.yaml` configuration that drops the `replica` and
   keep_metric_names: true
 ```
 
+## Scaling aggregation horizontally
+
+Aggregation output is only correct when all contributing samples are processed by the same aggregator instance.
+
+To scale the aggregation horizontally, always shard the input samples in a deterministic way. This can be achieved by
+building a two layer topology of vmagents where the first layer is responsible for sharding, and the second layer is responsible for aggregating:
+```mermaid
+flowchart LR
+    V1[vmagent-shard-1] -- requests_total{env=test, pod=foo} --> SV1[vmagent-aggr-1]
+    V1[vmagent-shard-1] -- requests_total{env=prod, pod=bar} --> SV2[vmagent-aggr-1]
+    V2[vmagent-shard-2] -- requests_total{env=prod, pod=baz} --> SV2[vmagent-aggr-2]
+    SV1 -- requests_total:5m_without_pod_total{env=test} --> x(( ))
+    SV2 -- requests_total:5m_without_pod_total{env=prod} --> y(( ))
+style x fill:none,stroke:none
+style y fill:none,stroke:none
+```
+
+The sharding layer of vmagents can be configured via the `-remoteWrite.shardByURL.labels` or `-remoteWrite.shardByURL.ignoreLabels`
+command line flags. See how to [shard data across remote write destinations](https://docs.victoriametrics.com/victoriametrics/vmagent/#sharding-among-remote-storages) for more details.
+
+The following requirements must be met for sharded aggregation to work correctly:
+- All sharding vmagents should have the same deterministic sharding configuration.
+- The sharding configuration must align with the `by` and `without` lists:
+  - Labels listed in `by` setting should be a subset of shard's routing key `-remoteWrite.shardByURL.labels`. 
+    With `-remoteWrite.shardByURL.labels=env,job` aggregator's `by` should include `by: env`, `by: job` or both: `by: [env, job]`.
+    This makes sure that all the samples for the same `env` and `job` are aggregated together and produce the complete output.
+  - Labels listed in `without` setting should be a superset of shard's routing key `--remoteWrite.shardByURL.ignoreLabels`.
+    With `-remoteWrite.shardByURL.ignoreLabels=env,job` aggegator's `without` should include at least both labels `without: [env,job]`.
+    This makes sure that `requests_total{env=test, job=foo}` and `requests_total{env=prod, job=foo}` are routed to the same aggregator
+    and are aggregated together. See also [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5938#issuecomment-2018470324).
+- Aggregating vmagents should not produce collisions: the aggregation output should be unique across all the sharded agents.
+  For example, `requests_total:5m_without_env_pod_total` produced by both `vmagent-aggr-1` and `vmagent-aggr-2` will collide
+  unless they have labels uniquely identifying them. These labels should be either preserved during sharding and aggregation config,
+  or enforced on the output via `-remoteWrite.label` - see [these docs](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#cluster-mode) for more details.
+
+> Never shard histograms by `le` (or `vmrange` in case of VM histograms) label. A histogram is a logical group of series differing
+only in the bucket label. All of those buckets must land on the same aggregator at the same time so it can produce a
+coherent bucket set. See more about [aggregating histograms](https://docs.victoriametrics.com/stream-aggregation/#aggregating-histograms).
+
+See also [why you shouldn't put an aggregator behind a load balancer](https://docs.victoriametrics.com/stream-aggregation/#put-aggregator-behind-load-balancer).
+
 # Troubleshooting
 
 - [Unexpected spikes for `total` or `increase` outputs](#staleness).
@@ -628,7 +670,7 @@ the following settings:
   `-remoteWrite.streamAggr.enableWindows` flag can be specified individually for each `-remoteWrite.url`.
   If one of these flags is set, all aggregators will use fixed windows. In conjunction with `-remoteWrite.streamAggr.dedupInterval` or
   `-streamAggr.dedupInterval` fixed aggregation windows are enabled on the deduplicator as well.
- - `enable_windows` option in [aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#stream-aggregation-config).
+ - `enable_windows` option in [aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config).
   It allows enabling aggregation windows for a specific aggregator.
 
 ## Counter resets

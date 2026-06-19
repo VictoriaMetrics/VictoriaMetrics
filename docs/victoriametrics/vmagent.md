@@ -182,15 +182,15 @@ among remote storage systems specified in `-remoteWrite.url`.
 > For example, if you set `-remoteWrite.url=srv+foo` and it's resolved to three addresses (`192.168.1.1`, `192.168.1.2`, `192.168.1.3`),
 > vmagent will only choose **one** randomly every time it (re-)creates the connection. In contrast, specifying the addresses manually (`-remoteWrite.url=192.168.1.1 -remoteWrite.url=192.168.1.2 -remoteWrite.url=192.168.1.3`) will shard samples across all three URLs.
 
-Sometimes, it may be necessary to use only a particular set of labels for sharding. For example, it may be necessary to route all the metrics with the same `instance` label
-to the same `-remoteWrite.url`. In this case, you can specify a comma-separated list of these labels in the `-remoteWrite.shardByURL.labels`
-command-line flag. For example, `-remoteWrite.shardByURL.labels=instance,__name__` would shard metrics with the same name and `instance`
-label to the same `-remoteWrite.url`.
+Use `-remoteWrite.shardByURL.labels` to route metrics among `-remoteWrite.url` based on their label values. 
+For example, `-remoteWrite.shardByURL.labels=instance,__name__` would shard metrics with the same name and `instance`
+label to the same `-remoteWrite.url`. This command-line flag allows specifying a comma-separated list of labels.
 
-Sometimes, it may be necessary to ignore some labels when sharding samples across multiple `-remoteWrite.url` backends.
-For example, if all the [raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) with the same set of labels
-except for the labels `instance` and `pod` must be routed to the same backend. In this case the list of ignored labels must be passed to
-`-remoteWrite.shardByURL.ignoreLabels` command-line flag: `-remoteWrite.shardByURL.ignoreLabels=instance,pod`.
+Alternatively, you can use `-remoteWrite.shardByURL.ignoreLabels` to route metrics among `-remoteWrite.url` based on their label values, excluding the specified labels.
+For example, `-remoteWrite.shardByURL.ignoreLabels=pod` would shard metrics `metric{pod="foo"}` and `metric{pod="bar"}` to the same `-remoteWrite.url`
+by ignoring the `pod` label. This command-line flag allows specifying a comma-separated list of labels.
+
+> Command-line flags `-remoteWrite.shardByURL.labels` and `-remoteWrite.shardByURL.ignoreLabels` are mutually exclusive.
 
 See also [how to scrape a large number of targets](#scraping-big-number-of-targets).
 
@@ -796,6 +796,12 @@ For example, the following commands spread scrape targets among a cluster of two
 
 The `-promscrape.cluster.memberNum` can be set to a StatefulSet pod name when `vmagent` runs in Kubernetes.
 The pod name must end with a number in the range `0 ... promscrape.cluster.membersCount-1`. For example, `-promscrape.cluster.memberNum=vmagent-0`.
+
+By default, targets are sharded among `vmagent` instances by all target labels after relabeling.
+Use `-promscrape.cluster.shardByLabels` {{% available_from "#" %}} to shard targets by specified labels instead.
+For example, with `-promscrape.cluster.shardByLabels=service`, the targets with the same `service` label value will be scraped by the same `vmagent` instance, 
+which is useful when perform stream aggregation that requires all metrics with the same `service` label value to be processed on the same `vmagent` instance. 
+If none of the specified labels are present in the target labels, then all target labels will be used for sharding.
 
 By default, each scrape target is scraped only by a single `vmagent` instance in the cluster. If there is a need for replicating scrape targets among multiple `vmagent` instances,
 then `-promscrape.cluster.replicationFactor` command-line flag must be set to the desired number of replicas. For example, the following commands

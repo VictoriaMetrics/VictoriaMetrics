@@ -36,9 +36,6 @@ var (
 func NewVMSelectServer(addr string) (*vmselectapi.Server, error) {
 	api := &vmstorageAPI{}
 	limits := vmselectapi.Limits{
-		MaxLabelNames:                 *maxTagKeys,
-		MaxLabelValues:                *maxTagValues,
-		MaxTagValueSuffixes:           *maxTagValueSuffixesPerSearch,
 		MaxConcurrentRequests:         *maxConcurrentRequests,
 		MaxConcurrentRequestsFlagName: "clusternative.maxConcurrentRequests",
 		MaxQueueDuration:              *maxQueueDuration,
@@ -69,6 +66,9 @@ func (api *vmstorageAPI) SearchMetricNames(qt *querytracer.Tracer, sq *storage.S
 }
 
 func (api *vmstorageAPI) LabelValues(qt *querytracer.Tracer, sq *storage.SearchQuery, labelName string, maxLabelValues int, deadline uint64) ([]string, error) {
+	if maxLabelValues <= 0 || maxLabelValues > *maxTagValues {
+		maxLabelValues = *maxTagValues
+	}
 	dl := searchutil.DeadlineFromTimestamp(deadline)
 	labelValues, _, err := netstorage.LabelValues(qt, true, labelName, sq, maxLabelValues, dl)
 	return labelValues, wrapClusterNativeError(err)
@@ -76,12 +76,18 @@ func (api *vmstorageAPI) LabelValues(qt *querytracer.Tracer, sq *storage.SearchQ
 
 func (api *vmstorageAPI) TagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte,
 	maxSuffixes int, deadline uint64) ([]string, error) {
+	if maxSuffixes <= 0 || maxSuffixes > *maxTagValueSuffixesPerSearch {
+		maxSuffixes = *maxTagValueSuffixesPerSearch
+	}
 	dl := searchutil.DeadlineFromTimestamp(deadline)
 	suffixes, _, err := netstorage.TagValueSuffixes(qt, accountID, projectID, true, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes, dl)
 	return suffixes, wrapClusterNativeError(err)
 }
 
 func (api *vmstorageAPI) LabelNames(qt *querytracer.Tracer, sq *storage.SearchQuery, maxLabelNames int, deadline uint64) ([]string, error) {
+	if maxLabelNames <= 0 || maxLabelNames > *maxTagKeys {
+		maxLabelNames = *maxTagKeys
+	}
 	dl := searchutil.DeadlineFromTimestamp(deadline)
 	labelNames, _, err := netstorage.LabelNames(qt, true, sq, maxLabelNames, dl)
 	return labelNames, wrapClusterNativeError(err)

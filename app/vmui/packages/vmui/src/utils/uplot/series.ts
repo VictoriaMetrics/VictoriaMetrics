@@ -38,6 +38,7 @@ export const getSeriesItemContext = (data: MetricResult[], hideSeries: string[],
       show: !includesHideSeries(label, hideSeries),
       scale: "1",
       paths: isRawQuery ? drawPoints : undefined,
+      nullTimestamps: d.nullTimestamps,
       ...getSeriesStatistics(d),
     };
   };
@@ -52,6 +53,7 @@ const getSeriesStatistics = (d: MetricResult) => {
       min: formatPrettyNumber(min, min, max),
       max: formatPrettyNumber(max, min, max),
       median: formatPrettyNumber(median, min, max),
+      last: formatPrettyNumber(values.at(-1), min, max),
     },
   };
 };

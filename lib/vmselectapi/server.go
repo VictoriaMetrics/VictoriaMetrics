@@ -76,15 +76,6 @@ type Server struct {
 
 // Limits contains various limits for Server.
 type Limits struct {
-	// MaxLabelNames is the maximum label names, which may be returned from labelNames request.
-	MaxLabelNames int
-
-	// MaxLabelValues is the maximum label values, which may be returned from labelValues request.
-	MaxLabelValues int
-
-	// MaxTagValueSuffixes is the maximum number of entries, which can be returned from tagValueSuffixes request.
-	MaxTagValueSuffixes int
-
 	// MaxConcurrentRequests is the maximum number of concurrent requests a server can process.
 	//
 	// The remaining requests wait for up to MaxQueueDuration for their execution.
@@ -134,7 +125,7 @@ func NewServer(addr string, api API, limits Limits, disableResponseCompression b
 		labelNamesRequests:          metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="labelNames",addr=%q}`, addr)),
 		labelValuesRequests:         metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="labelValues",addr=%q}`, addr)),
 		tagValueSuffixesRequests:    metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="tagValueSuffixes",addr=%q}`, addr)),
-		seriesCountRequests:         metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="seriesSount",addr=%q}`, addr)),
+		seriesCountRequests:         metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="seriesCount",addr=%q}`, addr)),
 		tsdbStatusRequests:          metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="tsdbStatus",addr=%q}`, addr)),
 		searchMetricNamesRequests:   metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="searchMetricNames",addr=%q}`, addr)),
 		searchRequests:              metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="search",addr=%q}`, addr)),
@@ -498,13 +489,6 @@ func (s *Server) processRequest(ctx *vmselectRequestCtx) error {
 	}
 	rpcName := string(ctx.dataBuf)
 
-	// Initialize query tracing.
-	traceEnabled, err := ctx.readBool()
-	if err != nil {
-		return fmt.Errorf("cannot read traceEnabled: %w", err)
-	}
-	ctx.qt = querytracer.New(traceEnabled, "rpc call %s() at vmstorage", rpcName)
-
 	// Limit the time required for reading request args.
 	if err := ctx.bc.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
 		return fmt.Errorf("cannot set read deadline for reading request args: %w", err)
@@ -512,6 +496,13 @@ func (s *Server) processRequest(ctx *vmselectRequestCtx) error {
 	defer func() {
 		_ = ctx.bc.SetReadDeadline(time.Time{})
 	}()
+
+	// Initialize query tracing.
+	traceEnabled, err := ctx.readBool()
+	if err != nil {
+		return fmt.Errorf("cannot read traceEnabled: %w", err)
+	}
+	ctx.qt = querytracer.New(traceEnabled, "rpc call %s() at vmstorage", rpcName)
 
 	// Read the timeout for request execution.
 	timeout, err := ctx.readUint32()
@@ -683,9 +674,6 @@ func (s *Server) processLabelNames(ctx *vmselectRequestCtx) error {
 	if err != nil {
 		return fmt.Errorf("cannot read maxLabelNames: %w", err)
 	}
-	if maxLabelNames <= 0 || maxLabelNames > s.limits.MaxLabelNames {
-		maxLabelNames = s.limits.MaxLabelNames
-	}
 
 	if err := s.beginConcurrentRequest(ctx); err != nil {
 		return ctx.writeErrorMessage(err)
@@ -736,9 +724,6 @@ func (s *Server) processLabelValues(ctx *vmselectRequestCtx) error {
 	maxLabelValues, err := ctx.readLimit()
 	if err != nil {
 		return fmt.Errorf("cannot read maxLabelValues: %w", err)
-	}
-	if maxLabelValues <= 0 || maxLabelValues > s.limits.MaxLabelValues {
-		maxLabelValues = s.limits.MaxLabelValues
 	}
 
 	if err := s.beginConcurrentRequest(ctx); err != nil {
@@ -800,10 +785,7 @@ func (s *Server) processTagValueSuffixes(ctx *vmselectRequestCtx) error {
 	}
 	maxSuffixes, err := ctx.readLimit()
 	if err != nil {
-		return fmt.Errorf("cannot read maxTagValueSuffixes: %d", err)
-	}
-	if maxSuffixes <= 0 || maxSuffixes > s.limits.MaxTagValueSuffixes {
-		maxSuffixes = s.limits.MaxTagValueSuffixes
+		return fmt.Errorf("cannot read maxTagValueSuffixes: %w", err)
 	}
 
 	if err := s.beginConcurrentRequest(ctx); err != nil {
@@ -814,14 +796,6 @@ func (s *Server) processTagValueSuffixes(ctx *vmselectRequestCtx) error {
 	// Execute the request
 	suffixes, err := s.api.TagValueSuffixes(ctx.qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes, ctx.deadline)
 	if err != nil {
-		return ctx.writeErrorMessage(err)
-	}
-
-	if len(suffixes) >= s.limits.MaxTagValueSuffixes {
-		err := fmt.Errorf("more than %d tag value suffixes found "+
-			"for tagKey=%q, tagValuePrefix=%q, delimiter=%c on time range %s; "+
-			"either narrow down the query or increase -search.max* command-line flag value; see https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#resource-usage-limits",
-			s.limits.MaxTagValueSuffixes, tagKey, tagValuePrefix, delimiter, tr.String())
 		return ctx.writeErrorMessage(err)
 	}
 

@@ -43,6 +43,9 @@ Just download VictoriaMetrics and follow [these instructions](https://docs.victo
 See [available integrations](https://docs.victoriametrics.com/victoriametrics/integrations/) with other systems like
 [Prometheus](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus/) or [Grafana](https://docs.victoriametrics.com/victoriametrics/integrations/grafana/).
 
+> Want to see VictoriaMetrics in action, but without installing anything?
+> Try [Playgrounds](https://docs.victoriametrics.com/playgrounds/) - a list of publicly available playgrounds for VictoriaMetrics software.
+
 VictoriaMetrics is developed at a fast pace, so it is recommended to periodically check the [CHANGELOG](https://docs.victoriametrics.com/victoriametrics/changelog/)
 and perform [regular upgrades](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-upgrade-victoriametrics).
 
@@ -58,9 +61,9 @@ Download the newest available [VictoriaMetrics release](https://docs.victoriamet
 from [DockerHub](https://hub.docker.com/r/victoriametrics/victoria-metrics) or [Quay](https://quay.io/repository/victoriametrics/victoria-metrics?tab=tags):
 
 ```sh
-docker pull victoriametrics/victoria-metrics:v1.143.0
+docker pull victoriametrics/victoria-metrics:v1.145.0
 docker run -it --rm -v `pwd`/victoria-metrics-data:/victoria-metrics-data -p 8428:8428 \
- victoriametrics/victoria-metrics:v1.143.0 --selfScrapeInterval=5s -storageDataPath=victoria-metrics-data
+ victoriametrics/victoria-metrics:v1.145.0 --selfScrapeInterval=5s -storageDataPath=victoria-metrics-data
 ```
 
 _For Enterprise images, see [this link](https://docs.victoriametrics.com/victoriametrics/enterprise/#docker-images)._
@@ -147,7 +150,7 @@ After=network.target
 Type=simple
 User=victoriametrics
 Group=victoriametrics
-ExecStart=/usr/local/bin/victoria-metrics-prod -storageDataPath=/var/lib/victoria-metrics -retentionPeriod=90d -selfScrapeInterval=10s
+ExecStart=/usr/local/bin/victoria-metrics-prod -storageDataPath=/var/lib/victoria-metrics -selfScrapeInterval=10s
 SyslogIdentifier=victoriametrics
 Restart=always
 
@@ -231,7 +234,7 @@ Type=simple
 User=victoriametrics
 Group=victoriametrics
 Restart=always
-ExecStart=/usr/local/bin/vmstorage-prod -retentionPeriod=90d -storageDataPath=/var/lib/vmstorage
+ExecStart=/usr/local/bin/vmstorage-prod -storageDataPath=/var/lib/vmstorage
 
 PrivateTmp=yes
 NoNewPrivileges=yes
@@ -433,6 +436,14 @@ production installation of VictoriaMetrics. This would make monitoring independe
 the main monitoring installation.
 
 See more details in the article [VictoriaMetrics Monitoring](https://victoriametrics.com/blog/victoriametrics-monitoring/).
+
+### Retention
+
+VictoriaMetrics Single-node and `vmstorage` in VictoriaMetrics Cluster retain data for 1 month by default.
+Data older than the retention period will be automatically deleted. To change the retention period, use the `-retentionPeriod` flag (e.g. `-retentionPeriod=90d`).
+See the [retention](https://docs.victoriametrics.com/victoriametrics/#retention) documentation for more details. 
+
+If free disk space falls below `-storage.minFreeDiskSpaceBytes`, VictoriaMetrics Single-node or `vmstorage` switches to read-only mode and stops accepting new data. To prevent this, ensure proper [capacity planning](#capacity-planning) and set up monitoring and alerting for disk usage.
 
 ### Capacity planning
 

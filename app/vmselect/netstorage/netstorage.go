@@ -2171,23 +2171,16 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 		return false, nil
 	}
 
-	// Verify whether at least a single node per each group successfully returned result in order to be able returning partial result.
-	missingGroups := 0
 	var firstErr error
 	for g, errsPartial := range errsPartialPerGroup {
-		if len(errsPartial) == g.nodesCount {
-			missingGroups++
-			if firstErr == nil {
-				// Return only the first error, since it has no sense in returning all errors.
-				firstErr = errsPartial[0]
-			}
+		if firstErr == nil {
+			// Return only the first error, since it has no sense in returning all errors.
+			firstErr = errsPartial[0]
 		}
-		if len(errsPartial) > 0 {
-			partialErrorsLogger.Warnf("%d out of %d vmstorage nodes at group %q were unavailable during the query; a sample error: %s", len(errsPartial), len(sns), g.name, errsPartial[0])
-		}
+		partialErrorsLogger.Warnf("%d out of %d vmstorage nodes at group %q were unavailable during the query; a sample error: %s", len(errsPartial), g.nodesCount, g.name, errsPartial[0])
 	}
-	if missingGroups >= *globalReplicationFactor {
-		// Too many groups contain all the non-working vmstorage nodes.
+	if snr.denyPartialResponse || len(resultsCollectedPerGroup) == 0 {
+		// The response cannot be returned as partial.
 		// Returns 503 status code, so the caller could retry it if needed.
 		err := &httpserver.ErrorWithStatusCode{
 			Err:        firstErr,
@@ -3626,9 +3619,8 @@ func readMetadataRows(bc *handshake.BufferedConn) ([]*metricsmetadata.Row, error
 		return nil, fmt.Errorf("cannot read the number of metadata records: %w", err)
 	}
 	records := make([]*metricsmetadata.Row, 0, n)
-	var dataBuf []byte
 	for i := range n {
-		dataBuf, err = readBytes(dataBuf[:0], bc, maxLabelValueSize)
+		dataBuf, err := readBytes(nil, bc, maxLabelValueSize)
 		if err != nil {
 			return records, fmt.Errorf("cannot read record metricName: %w", err)
 		}

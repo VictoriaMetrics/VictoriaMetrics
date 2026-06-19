@@ -554,15 +554,17 @@ At request time each placeholder is replaced with the corresponding value from t
 
 The following placeholders are supported:
 
-| Placeholder                   | JWT claim field                                                             |
-|-------------------------------|-----------------------------------------------------------------------------|
+| Placeholder                   | JWT claim field                                         |
+|-------------------------------|---------------------------------------------------------|
+| `{{.MetricsAccountID}}`       | `metrics_account_id` int                                |
+| `{{.MetricsProjectID}}`       | `metrics_project_id` int                                |
 | `{{.MetricsTenant}}` -> `0:0` | `metrics_account_id` int, <br/>`metrics_project_id` int |
-| `{{.MetricsExtraLabels}}`     | `metrics_extra_labels` string array                               |
-| `{{.MetricsExtraFilters}}`    | `metrics_extra_filters` string array                              |
-| `{{.LogsAccountID}}`          | `logs_account_id` int                                             |
-| `{{.LogsProjectID}}`          | `logs_project_id` int                                             |
-| `{{.LogsExtraFilters}}`       | `logs_extra_filters` string array                                 |
-| `{{.LogsExtraStreamFilters}}` | `logs_extra_stream_filters` string array                          |
+| `{{.MetricsExtraLabels}}`     | `metrics_extra_labels` string array                     |
+| `{{.MetricsExtraFilters}}`    | `metrics_extra_filters` string array                    |
+| `{{.LogsAccountID}}`          | `logs_account_id` int                                   |
+| `{{.LogsProjectID}}`          | `logs_project_id` int                                   |
+| `{{.LogsExtraFilters}}`       | `logs_extra_filters` string array                       |
+| `{{.LogsExtraStreamFilters}}` | `logs_extra_stream_filters` string array                |
 
 Placeholders are supported in the following locations:
 
@@ -1533,6 +1535,16 @@ To enable TLS on the public listener while keeping the internal listener non-TLS
 ```
 
 `vmauth` also supports restricting access by IP - see [these docs](#ip-filters). See also [concurrency limiting docs](#concurrency-limiting).
+
+
+When `vmauth` performs tenant routing for [multitenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenant-reads) requests, it is crucial to explicitly set `extra_label`, `extra_filters` and `extra_filters[]` in the url_prefix configuration:
+
+```yaml
+unauthorized_user:
+    url_prefix: http://vmselect/select/multitenant?extra_filters[]=&extra_filters=&extra_label=vm_account_id=10&extra_label=vm_project_id=100
+```
+
+This is required because `vmselect` uses `OR` logic for tenant filtering. If a client sets `extra_filters[]` or `extra_filters`, it could bypass the tenant restriction configured via `extra_label`.
 
 ## Automatic issuing of TLS certificates
 

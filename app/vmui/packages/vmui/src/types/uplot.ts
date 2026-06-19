@@ -4,6 +4,7 @@ export interface SeriesItemStatsFormatted {
     min: string,
     max: string,
     median: string,
+    last: string,
 }
 
 export interface SeriesItem extends Series {
@@ -11,6 +12,7 @@ export interface SeriesItem extends Series {
     statsFormatted: SeriesItemStatsFormatted;
     median: number;
     hasAlias?: boolean;
+    nullTimestamps?: number[];
 }
 
 export interface HideSeriesArgs {

@@ -172,7 +172,7 @@ func mustOpenIndexDB(id uint64, tr TimeRange, name, path string, s *Storage, isR
 	}
 
 	tfssCache := lrucache.NewCache(getTagFiltersCacheSize)
-	tb := mergeset.MustOpenTable(path, dataFlushInterval, tfssCache.Reset, mergeTagToMetricIDsRows, isReadOnly)
+	tb := mergeset.MustOpenTable(path, dataFlushInterval, tfssCache.Reset, 0, mergeTagToMetricIDsRows, isReadOnly)
 	db := &indexDB{
 		legacyMinMissingTimestampByKey: make(map[string]int64),
 		id:                             id,
@@ -665,7 +665,7 @@ func (is *indexSearch) searchLabelNamesWithFiltersOnDate(qt *querytracer.Tracer,
 		} else {
 			_, key, err := unmarshalCompositeTagKey(labelName)
 			if err != nil {
-				return nil, fmt.Errorf("cannot unmarshal composite tag key: %s", err)
+				return nil, fmt.Errorf("cannot unmarshal composite tag key: %w", err)
 			}
 			lns[string(key)] = struct{}{}
 		}

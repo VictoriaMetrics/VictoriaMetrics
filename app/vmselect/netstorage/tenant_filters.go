@@ -107,7 +107,7 @@ func applyFiltersToTenants(tenants []storage.TenantToken, filters [][]storage.Ta
 		filter := tagFiltersToString(tags)
 		err := promIfs[i].Parse(filter)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse if expression from filters %v: %s", filter, err)
+			return nil, fmt.Errorf("cannot parse if expression from filters %v: %w", filter, err)
 		}
 	}
 
