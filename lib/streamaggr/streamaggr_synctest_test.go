@@ -549,24 +549,53 @@ foo:1m_without_non_existing_label_total_prometheus 12
   outputs: [increase, increase_prometheus, total, total_prometheus]
 `, "111111")
 
-	// multiple aggregate configs
+	// sum_sample and sum_samples_total outputs with different staleness intervals
 	f([]string{`
 foo 1
+foo 2 1
 foo{bar="baz"} 2
-foo 3.3
-`, ``, ``, ``, ``}, time.Minute, `foo:1m_count_series 1
-foo:1m_count_series{bar="baz"} 1
-foo:1m_sum_samples 4.3
+`, `
+foo 4
+`, ``, ``, `
+foo 6
+`, ``, ``}, time.Minute, `foo:1m_sum_samples 3
+foo:1m_sum_samples 4
+foo:1m_sum_samples 6
+foo:1m_sum_samples_total 3
+foo:1m_sum_samples_total 7
+foo:1m_sum_samples_total 6
+foo:1m_sum_samples_total{bar="baz"} 2
 foo:1m_sum_samples{bar="baz"} 2
-foo:5m_by_bar_sum_samples 4.3
+foo:1m_without_non-existing-label_sum_samples 3
+foo:1m_without_non-existing-label_sum_samples 4
+foo:1m_without_non-existing-label_sum_samples 0
+foo:1m_without_non-existing-label_sum_samples 6
+foo:1m_without_non-existing-label_sum_samples 0
+foo:1m_without_non-existing-label_sum_samples_total 3
+foo:1m_without_non-existing-label_sum_samples_total 7
+foo:1m_without_non-existing-label_sum_samples_total 7
+foo:1m_without_non-existing-label_sum_samples_total 6
+foo:1m_without_non-existing-label_sum_samples_total 6
+foo:1m_without_non-existing-label_sum_samples_total{bar="baz"} 2
+foo:1m_without_non-existing-label_sum_samples_total{bar="baz"} 2
+foo:1m_without_non-existing-label_sum_samples{bar="baz"} 2
+foo:1m_without_non-existing-label_sum_samples{bar="baz"} 0
+foo:5m_by_bar_sum_samples 13
+foo:5m_by_bar_sum_samples_total 13
+foo:5m_by_bar_sum_samples_total{bar="baz"} 2
 foo:5m_by_bar_sum_samples{bar="baz"} 2
 `, `
 - interval: 1m
-  outputs: [count_series, sum_samples]
+  staleness_interval: 1m
+  outputs: [ sum_samples, sum_samples_total]
+- interval: 1m
+  staleness_interval: 2m
+  without: [non-existing-label]
+  outputs: [ sum_samples, sum_samples_total]
 - interval: 5m
   by: [bar]
-  outputs: [sum_samples]
-`, "111")
+  outputs: [sum_samples, sum_samples_total]
+`, "11111")
 
 	// min and max outputs
 	f([]string{`
