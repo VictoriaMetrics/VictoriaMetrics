@@ -172,12 +172,12 @@ type Config struct {
 	DedupInterval string `yaml:"dedup_interval,omitempty"`
 
 	// Staleness interval is interval after which the series state will be reset if no samples have been sent during it.
-	// The parameter is only relevant for outputs: total, total_prometheus, increase, increase_prometheus and histogram_bucket.
+	// The parameter is only relevant for outputs: total, total_prometheus, increase, increase_prometheus, rate_avg and rate_sum.
 	StalenessInterval string `yaml:"staleness_interval,omitempty"`
 
 	// IgnoreFirstSampleInterval specifies the interval after which the agent begins sending samples.
 	// By default, it is set to the staleness interval, and it helps reduce the initial sample load after an agent restart.
-	// This parameter is relevant only for the following outputs: total, total_prometheus, increase, increase_prometheus, and histogram_bucket.
+	// This parameter is relevant only for the following outputs: total, total_prometheus, increase and increase_prometheus.
 	IgnoreFirstSampleInterval string `yaml:"ignore_first_sample_interval,omitempty"`
 
 	// Outputs is a list of output aggregate functions to produce.
@@ -501,8 +501,9 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 		return nil, fmt.Errorf("interval=%s must be a multiple of dedup_interval=%s", interval, dedupInterval)
 	}
 
-	// check cfg.StalenessInterval
-	stalenessInterval := interval * 2
+	// set the default staleness interval as the aggregation interval, to be consistent with query lookbehind window in metricsQL,
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11102
+	stalenessInterval := interval
 	if cfg.StalenessInterval != "" {
 		stalenessInterval, err = time.ParseDuration(cfg.StalenessInterval)
 		if err != nil {
