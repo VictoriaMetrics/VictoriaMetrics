@@ -506,6 +506,19 @@ See also:
 - [count_samples](#count_samples)
 - [count_series](#count_series)
 
+### `sum_samples_total`
+
+`sum_samples_total` sums input delta values into a cumulative [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/index.html#counter) and outputs the result at the given `interval`.
+`sum_samples_total` makes sense only for aggregating delta values from clients such as [StatsD counter](https://github.com/statsd/statsd/blob/master/docs/metric_types.md#counting).
+
+The results of `sum_samples_total` is roughly equal to the following [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query:
+
+```metricsql
+sum(running_sum(some_delta_values))
+```
+
+>Note: The aggregator will forget the cumulative counter if it has not seen input samples for `staleness_interval`(set to `interval` by default) per output result, so the output counter will start from `0` the next time it sees the input again. Increase the `staleness_interval` option if you want to extend the window to tolerate bigger gaps.
+
 ### total
 
 `total` generates output [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter) by summing the input counters over the given `interval`.
