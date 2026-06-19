@@ -798,7 +798,7 @@ The `-promscrape.cluster.memberNum` can be set to a StatefulSet pod name when `v
 The pod name must end with a number in the range `0 ... promscrape.cluster.membersCount-1`. For example, `-promscrape.cluster.memberNum=vmagent-0`.
 
 By default, targets are sharded among `vmagent` instances by all target labels after relabeling.
-Use `-promscrape.cluster.shardByLabels` {{% available_from "#" %}} to shard targets by specified labels instead.
+Use `-promscrape.cluster.shardByLabels` {{% available_from "v1.146.0" %}} to shard targets by specified labels instead.
 For example, with `-promscrape.cluster.shardByLabels=service`, the targets with the same `service` label value will be scraped by the same `vmagent` instance, 
 which is useful when perform stream aggregation that requires all metrics with the same `service` label value to be processed on the same `vmagent` instance. 
 If none of the specified labels are present in the target labels, then all target labels will be used for sharding.
@@ -942,7 +942,7 @@ During long outages, vmagent may accumulate large amounts of data in the file-ba
 which can introduce a significant lag between the moment data is collected by vmagent and the
 moment it becomes visible at the remote storage.
 
-This behavior can be changed with the `-remoteWrite.inmemoryQueues` {{% available_from "#" %}} command-line flag.
+This behavior can be changed with the `-remoteWrite.inmemoryQueues` {{% available_from "v1.146.0" %}} command-line flag.
 When set to a non-zero value, vmagent starts the given number of additional workers,
 which send only recently ingested data from the in-memory queue, while the workers configured via `-remoteWrite.queues` drain the file-based backlog concurrently.
 This reduces the delivery lag for fresh samples after remote storage outages or slowdowns. The flag can be set individually per each `-remoteWrite.url`.
