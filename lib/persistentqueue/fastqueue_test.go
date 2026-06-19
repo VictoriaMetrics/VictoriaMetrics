@@ -386,17 +386,33 @@ func TestFastQueueWriteReadWithPrioritizeInmemory(t *testing.T) {
 		}
 		blocks = append(blocks, block)
 	}
-	if fq.TryWriteBlock([]byte("error-block")) {
-		t.Fatalf("expect false due to full queue")
+	if n := fq.GetInmemoryQueueLen(); n != capacity {
+		t.Fatalf("unexpected non-zero inmemory queue size:  %d: %d", n, capacity)
 	}
 	for i := range capacity {
 		block := fmt.Sprintf("block %d-%d", i, i)
-		fq.MustWriteBlockIgnoreDisabledPQ([]byte(block))
+		if !fq.TryWriteBlock([]byte(block)) {
+			t.Fatalf("TryWriteBlock must return true in this context")
+		}
 		blocks = append(blocks, block)
 	}
 
-	fq.MustClose()
-	fq = MustOpenFastQueueWithOpts(path, "foobar", opts)
+	// in case of capacity exceed last element is written into file-based queue
+	if n := fq.GetInmemoryQueueLen(); n != capacity-1 {
+		t.Fatalf("unexpected non-zero inmemory queue size:  %d: %d", n, capacity)
+	}
+
+	// make sure that recently ingested elemements returned first
+	for idx := capacity + 1; idx < capacity*2; idx++ {
+		buf, ok := fq.MustReadInMemoryBlockBlocking(nil)
+		if !ok {
+			t.Fatalf("unexpected ok=false")
+		}
+		if string(buf) != blocks[idx] {
+			t.Fatalf("unexpected block read; got %q; want %q: %d", buf, blocks[idx], idx)
+		}
+	}
+	blocks = blocks[:capacity+1]
 	for _, block := range blocks {
 		buf, ok := fq.MustReadBlock(nil)
 		if !ok {

@@ -909,7 +909,8 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, sanitizedURL string)
 	}
 
 	isPQDisabled := disableOnDiskQueue.GetOptionalArg(argIdx)
-	queuesSize := queues.GetOptionalArg(argIdx) + inmemoryQueues.GetOptionalArg(argIdx)
+	inmemoryQueueSize := inmemoryQueues.GetOptionalArg(argIdx)
+	queuesSize := queues.GetOptionalArg(argIdx) + inmemoryQueueSize
 	if queuesSize > maxQueues {
 		queuesSize = maxQueues
 	} else if queuesSize <= 0 {
@@ -930,7 +931,7 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, sanitizedURL string)
 		MaxInmemoryBlocks:      maxInmemoryBlocks,
 		MaxPendingBytes:        maxPendingBytes,
 		IsPQDisabled:           isPQDisabled,
-		PrioritizeInmemoryData: inmemoryQueues.GetOptionalArg(argIdx) > 0,
+		PrioritizeInmemoryData: inmemoryQueueSize > 0,
 	}
 	fq := persistentqueue.MustOpenFastQueueWithOpts(queuePath, sanitizedURL, fqOpts)
 	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_pending_data_bytes{path=%q, url=%q}`, queuePath, sanitizedURL), func() float64 {
