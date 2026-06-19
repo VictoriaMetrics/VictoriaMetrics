@@ -51,7 +51,7 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-unused-imports": "^4.4.1",
     "globals": "^17.6.0",
-    "http-proxy-middleware": "^4.1.0",
+    "http-proxy-middleware": "^4.1.1",
     "jsdom": "^29.1.1",
     "postcss": "^8.5.15",
     "sass-embedded": "^1.100.0",
