@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -404,16 +405,113 @@ func readPSITotals(cgroupPath, statsName string) (uint64, uint64, error) {
 }
 
 func getCgroupV2Path() string {
-	data, err := ioutil.ReadFile("/proc/self/cgroup")
+	cgroupData, err := os.ReadFile("/proc/self/cgroup")
 	if err != nil {
 		return ""
 	}
-	tmp := strings.SplitN(string(data), "::", 2)
-	if len(tmp) != 2 {
+	// Read /proc/self/mountinfo with a timeout. Generating the mountinfo contents
+	// can block in the kernel when a backing filesystem (e.g. a hung NFS or FUSE
+	// mount) is unresponsive. Since this runs at program init via psiMetricsStart,
+	// a blocking read would hang startup, so fall back to disabling PSI metrics instead.
+	mountinfoData, _ := readFileWithTimeout("/proc/self/mountinfo", time.Second)
+	return getCgroupV2PathInternal(string(cgroupData), mountinfoData)
+}
+
+// readFileWithTimeout reads the file at path, returning ("", false) if the read
+// doesn't complete within timeout.
+//
+// A timed-out read leaks the reading goroutine until the read eventually unblocks
+// (if ever). This is an acceptable safeguard against a read of a pseudo-file such
+// as /proc/self/mountinfo hanging on an unresponsive mount.
+func readFileWithTimeout(path string, timeout time.Duration) (string, bool) {
+	type result struct {
+		data []byte
+		err  error
+	}
+	// The channel is buffered so the goroutine can always send and exit,
+	// even after this function has returned on timeout.
+	ch := make(chan result, 1)
+	go func() {
+		data, err := os.ReadFile(path)
+		ch <- result{data: data, err: err}
+	}()
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	select {
+	case r := <-ch:
+		if r.err != nil {
+			return "", false
+		}
+		return string(r.data), true
+	case <-timer.C:
+		return "", false
+	}
+}
+
+func getCgroupV2PathInternal(cgroupData, mountinfoData string) string {
+	rel := getCgroupV2RelativePath(cgroupData)
+	if rel == "" {
+		// The process doesn't run under cgroup v2.
 		return ""
 	}
-	path := "/sys/fs/cgroup" + strings.TrimSpace(tmp[1])
 
-	// Drop trailing slash if it exsits. This prevents from '//' in the constructed paths by the caller.
-	return strings.TrimSuffix(path, "/")
+	// Determine the actual cgroup v2 mountpoint instead of assuming /sys/fs/cgroup.
+	// On systems with a hybrid cgroup hierarchy the unified cgroup v2 is mounted
+	// at a different location such as /sys/fs/cgroup/unified.
+	// See https://github.com/VictoriaMetrics/metrics/issues/127
+	mountpoint := getCgroupV2Mountpoint(mountinfoData)
+	if mountpoint == "" {
+		// fallback to assumed path
+		mountpoint = "/sys/fs/cgroup"
+	}
+	cgroupPath := path.Join(mountpoint, rel)
+	// Drop trailing slash if it exists. This prevents from '//' in the constructed paths by the caller.
+	return strings.TrimSuffix(cgroupPath, "/")
+}
+
+// getCgroupV2RelativePath returns the cgroup v2 path of the process relative to
+// the cgroup v2 mountpoint, or an empty string if the process doesn't run under cgroup v2.
+//
+// The cgroup v2 entry in /proc/self/cgroup has an empty controllers field, e.g. "0::/the/path".
+// See https://man7.org/linux/man-pages/man7/cgroups.7.html
+func getCgroupV2RelativePath(cgroupData string) string {
+	for _, line := range strings.Split(cgroupData, "\n") {
+		// Each line has the form "hierarchy-ID:controller-list:cgroup-path".
+		// The cgroup v2 line has an empty hierarchy-ID and controller-list, i.e. it starts with "0::".
+		tmp := strings.SplitN(line, "::", 2)
+		if len(tmp) == 2 && strings.HasPrefix(line, "0::") {
+			return strings.TrimSpace(tmp[1])
+		}
+	}
+	return ""
+}
+
+// getCgroupV2Mountpoint returns the mountpoint of the cgroup v2 (unified) hierarchy
+// parsed from the contents of /proc/self/mountinfo, or an empty string if cgroup v2 isn't mounted.
+func getCgroupV2Mountpoint(mountinfoData string) string {
+	for _, line := range strings.Split(mountinfoData, "\n") {
+		if !strings.Contains(line, "cgroup2") {
+			// fast path
+			continue
+		}
+		// mountinfo lines have the form:
+		//   36 35 98:0 / /sys/fs/cgroup/unified rw,... - cgroup2 cgroup2 rw,...
+		// The optional fields preceding the filesystem type are terminated by " - ".
+		// See https://man7.org/linux/man-pages/man5/proc_pid_mountinfo.5.html
+		tmp := strings.SplitN(line, " - ", 2)
+		if len(tmp) != 2 {
+			continue
+		}
+		after := strings.Fields(tmp[1])
+		if len(after) < 1 || after[0] != "cgroup2" {
+			continue
+		}
+		before := strings.Fields(tmp[0])
+		if len(before) < 5 {
+			continue
+		}
+		// before[4] is the mount point.
+		return before[4]
+	}
+	return ""
 }
