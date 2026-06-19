@@ -353,7 +353,7 @@ func (c *groupGRPCClient) ListGroups(ctx context.Context, req *monitoringpb.List
 	}
 	opts = append((*c.CallOptions).ListGroups[0:len((*c.CallOptions).ListGroups):len((*c.CallOptions).ListGroups)], opts...)
 	it := &GroupIterator{}
-	req = proto.Clone(req).(*monitoringpb.ListGroupsRequest)
+	req = proto.CloneOf(req)
 	it.InternalFetch = func(pageSize int, pageToken string) ([]*monitoringpb.Group, string, error) {
 		resp := &monitoringpb.ListGroupsResponse{}
 		if pageToken != "" {
@@ -494,7 +494,7 @@ func (c *groupGRPCClient) ListGroupMembers(ctx context.Context, req *monitoringp
 	}
 	opts = append((*c.CallOptions).ListGroupMembers[0:len((*c.CallOptions).ListGroupMembers):len((*c.CallOptions).ListGroupMembers)], opts...)
 	it := &MonitoredResourceIterator{}
-	req = proto.Clone(req).(*monitoringpb.ListGroupMembersRequest)
+	req = proto.CloneOf(req)
 	it.InternalFetch = func(pageSize int, pageToken string) ([]*monitoredrespb.MonitoredResource, string, error) {
 		resp := &monitoringpb.ListGroupMembersResponse{}
 		if pageToken != "" {

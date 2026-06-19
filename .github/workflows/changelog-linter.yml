@@ -17,6 +17,7 @@ jobs:
         with:
           # needed for proper diff
           fetch-depth: 0
+          persist-credentials: false
 
       - name: 'Validate that changelog changes are under ## tip'
         run: |

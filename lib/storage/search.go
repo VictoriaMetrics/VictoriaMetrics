@@ -468,15 +468,21 @@ func (tf *TagFilter) Unmarshal(src []byte) ([]byte, error) {
 	return src, nil
 }
 
-// String returns string representation of the search query.
+// String returns string representation of the search query: tag filters and time range.
 func (sq *SearchQuery) String() string {
+	start := TimestampToHumanReadableFormat(sq.MinTimestamp)
+	end := TimestampToHumanReadableFormat(sq.MaxTimestamp)
+	a := sq.FiltersString()
+	return fmt.Sprintf("filters=%s, timeRange=[%s..%s]", a, start, end)
+}
+
+// FiltersString returns string representation of the tag filters.
+func (sq *SearchQuery) FiltersString() []string {
 	a := make([]string, len(sq.TagFilterss))
 	for i, tfs := range sq.TagFilterss {
 		a[i] = tagFiltersToString(tfs)
 	}
-	start := TimestampToHumanReadableFormat(sq.MinTimestamp)
-	end := TimestampToHumanReadableFormat(sq.MaxTimestamp)
-	return fmt.Sprintf("filters=%s, timeRange=[%s..%s]", a, start, end)
+	return a
 }
 
 func tagFiltersToString(tfs []TagFilter) string {

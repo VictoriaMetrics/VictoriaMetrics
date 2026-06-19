@@ -19,7 +19,7 @@ func ParseDuration(s string) (time.Duration, error) {
 		return 0, err
 	}
 	if ms < minValidMilli || maxValidMilli < ms {
-		return 0, fmt.Errorf("duration %q must be in the range [%v, %v]", s, minDuration, maxDuration)
+		return 0, fmt.Errorf("duration %q must be in the range [%s, %s]", s, minDuration, maxDuration)
 	}
 	return time.Duration(ms) * time.Millisecond, nil
 }
