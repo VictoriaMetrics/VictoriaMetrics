@@ -66,6 +66,8 @@ specified individually per each `-remoteWrite.url`:
 
   # interval is the interval for the aggregation.
   # The aggregated stats is sent to remote storage once per interval.
+  # It is recommended to set `interval` to at least 2× the scrape or push interval of the input.
+  # Set it to a higher value if the input pipeline is prone to large delays.
   #
   interval: 1m
 
@@ -94,7 +96,7 @@ specified individually per each `-remoteWrite.url`:
   # - total_prometheus
   # See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#staleness for more details.
   #
-  # staleness_interval: 2m
+  # staleness_interval: 1m
 
   # ignore_first_sample_interval specifies the interval after which the agent begins sending samples.
   # By default, it is set to the staleness interval, and it helps reduce the initial sample load after an agent restart.
@@ -290,9 +292,6 @@ The results of `histogram_bucket` is equal to the following [MetricsQL](https://
 ```metricsql
 sum(histogram_over_time(some_histogram_bucket[interval])) by (vmrange)
 ```
-
-Aggregating irregular and sporadic metrics (received from [Lambdas](https://aws.amazon.com/lambda/)
-or [Cloud Functions](https://cloud.google.com/functions)) can be controlled via [staleness_interval](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#staleness) option.
 
 See also:
 - [quantiles](#quantiles)
