@@ -674,7 +674,7 @@ Released: 2024-02-15
 
 ## v1.9.2
 Released: 2024-01-29
-- BUGFIX: now multivariate models (like [`IsolationForestMultivariateModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#isolation-foresthttpsenwikipediaorgwikiisolation_forest-multivariate)) are properly handled throughout fit/infer phases.
+- BUGFIX: now multivariate models (like [`IsolationForestMultivariateModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#isolation-forest-multivariate)) are properly handled throughout fit/infer phases.
 
 
 ## v1.9.1
