@@ -342,7 +342,7 @@ See [these docs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#ht
 The following [`-promscrape.config`](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
 instructs discovering and scraping metrics for all the containers with the name `my-super-app`.
 It is expected that these containers expose only a single TCP port, which serves its metrics at `/metrics` page
-according to [Prometheus text exposition format](https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-based-format):
+according to [Prometheus text exposition format](https://prometheus.io/docs/instrumenting/exposition_formats/#prometheus-text-format):
 
 ```yaml
 scrape_configs:

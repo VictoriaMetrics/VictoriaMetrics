@@ -84,7 +84,7 @@ If the value has more than 12 significant decimal digits, then the less signific
 The `timestamp` is a [Unix timestamp](https://en.wikipedia.org/wiki/Unix_time) with millisecond precision.
 
 Below is an example of a single raw sample
-in [Prometheus text exposition format](https://github.com/prometheus/docs/blob/main/content/docs/instrumenting/exposition_formats.md#text-based-format):
+in [Prometheus text exposition format](https://prometheus.io/docs/instrumenting/exposition_formats/#prometheus-text-format):
 
 ```
 requests_total{path="/", code="200"} 123 4567890

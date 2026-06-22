@@ -19,8 +19,8 @@ Use `-kafka.consumer.topic.defaultFormat` or `-kafka.consumer.topic.format` comm
 * `promremotewrite` - [Prometheus remote_write](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write).
   Messages in this format can be sent by vmagent - see [these docs](#writing-metrics).
 * `influx` - [InfluxDB line protocol format](https://docs.influxdata.com/influxdb/cloud/reference/syntax/line-protocol/).
-* `prometheus` - [Prometheus text exposition format](https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-based-format)
-  and [OpenMetrics format](https://github.com/OpenObservability/OpenMetrics/blob/master/specification/OpenMetrics.md).
+* `prometheus` - [Prometheus text exposition format](https://prometheus.io/docs/instrumenting/exposition_formats/#prometheus-text-format)
+  and [OpenMetrics format](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md).
 * `graphite` - [Graphite plaintext format](https://graphite.readthedocs.io/en/latest/feeding-carbon.html#the-plaintext-protocol).
 * `jsonline` - [JSON line format](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-json-line-format).
 * `opentelemetry`{{% available_from "v1.128.0" %}}  - [Opentelemetry format](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/)
