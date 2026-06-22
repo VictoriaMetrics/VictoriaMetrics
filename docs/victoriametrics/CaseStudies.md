@@ -482,7 +482,7 @@ Across our production VictoriaMetrics clusters, in a 12 months period we go beyo
 
 ## Roblox
 
-[Roblox](https://roblox.com/) builds the tools and platform that empower people to create their own immersive experiences,
+[Roblox](https://www.roblox.com/) builds the tools and platform that empower people to create their own immersive experiences,
 so that any world they can imagine can be brought to life.
 
 With more than 200 million active monthly users, Roblox is one of the most popular gaming platforms on the Internet.

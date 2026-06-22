@@ -36,7 +36,6 @@ VictoriaMetrics is available as:
 * [Ansible Roles](https://github.com/VictoriaMetrics/ansible-playbooks)
 * [Source code](https://github.com/VictoriaMetrics/VictoriaMetrics).
   See [How to build from sources](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-build-from-sources)
-* [VictoriaMetrics on Linode](https://www.linode.com/marketplace/apps/victoriametrics/victoriametrics/)
 * [VictoriaMetrics on DigitalOcean](https://marketplace.digitalocean.com/apps/victoriametrics-single)
 
 Just download VictoriaMetrics and follow [these instructions](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-start-victoriametrics).

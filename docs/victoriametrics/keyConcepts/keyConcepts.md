@@ -492,7 +492,7 @@ Params:
 * `time` - optional, [timestamp](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats)
   in millisecond precision to evaluate the `query` at. If omitted, `time` is set to `now()` (current timestamp).
   The `time` param can be specified in [multiple allowed formats](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats).
-* `step` - optional [interval](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations)
+* `step` - optional [interval](https://prometheus.io/docs/prometheus/latest/querying/basics/#float-literals-and-time-durations)
   for searching for raw samples in the past when executing the `query` (used when a sample is missing at the specified `time`).
   For example, the request `/api/v1/query?query=up&step=1m` looks for the last written raw sample for the metric `up`
   in the `(now()-1m, now()]` interval (the first millisecond is not included). If omitted, `step` is set to `5m` (5 minutes)
@@ -590,7 +590,7 @@ Params:
 * `end` - the ending [timestamp](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats)
   of the time range for `query` evaluation.
   If the `end` isn't set, then the `end` is automatically set to the current time.
-* `step` - the [interval](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations) 
+* `step` - the [interval](https://prometheus.io/docs/prometheus/latest/querying/basics/#float-literals-and-time-durations)
   between data points, which must be returned from the range query.
   The `query` is executed at `start`, `start+step`, `start+2*step`, ..., `start+N*step` timestamps,
   where `N` is the whole number of steps that fit between `start` and `end`.
@@ -929,7 +929,7 @@ rate(node_network_receive_bytes_total)
 By default, VictoriaMetrics calculates the `rate` over [raw samples](#raw-samples) on the lookbehind window specified in the `step` param
 passed either to [instant query](#instant-query) or to [range query](#range-query).
 The interval on which `rate` needs to be calculated can be specified explicitly
-as [duration](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations) in square brackets:
+as [duration](https://prometheus.io/docs/prometheus/latest/querying/basics/#float-literals-and-time-durations) in square brackets:
 
 ```metricsql
  rate(node_network_receive_bytes_total[5m])

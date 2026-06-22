@@ -796,7 +796,7 @@ Released at 2026-02-13
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 The v1.122.x line will be supported for at least 12 months since [v1.122.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11220) release**
 
-* SECURITY: upgrade base docker image (Alpine) from 3.23.2 to 3.23.3. See [Alpine 3.23.3 release notes](https://www.alpinelinux.org/posts/Alpine-3.23.3-released.html).
+* SECURITY: upgrade base docker image (Alpine) from 3.23.2 to 3.23.3. See [Alpine 3.23.3 release notes](https://www.alpinelinux.org/posts/Alpine-3.20.9-3.21.6-3.22.3-3.23.3-released.html).
 * SECURITY: upgrade Go builder from Go1.24.12 to Go1.24.13. See [the list of issues addressed in Go1.24.13](https://github.com/golang/go/issues?q=milestone%3AGo1.24.13+label%3ACherryPickApproved).
 
 * BUGFIX: all VictoriaMetrics components: respect default http client proxy env variables (`HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`). See [#10385](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10385). Thanks to @zane-deg for the contribution.
@@ -958,7 +958,7 @@ Released at 2026-02-13
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11100) release**
 
-* SECURITY: upgrade base docker image (Alpine) from 3.23.2 to 3.23.3. See [Alpine 3.23.3 release notes](https://www.alpinelinux.org/posts/Alpine-3.23.3-released.html).
+* SECURITY: upgrade base docker image (Alpine) from 3.23.2 to 3.23.3. See [Alpine 3.23.3 release notes](https://www.alpinelinux.org/posts/Alpine-3.20.9-3.21.6-3.22.3-3.23.3-released.html).
 * SECURITY: upgrade Go builder from Go1.24.12 to Go1.24.13. See [the list of issues addressed in Go1.24.13](https://github.com/golang/go/issues?q=milestone%3AGo1.24.13+label%3ACherryPickApproved).
 
 * BUGFIX: VictoriaMetrics [enterprise](https://docs.victoriametrics.com/enterprise/) [vmagent](https://docs.victoriametrics.com/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): introduce time‑based manual offset commit for [kafka consumer](https://docs.victoriametrics.com/victoriametrics/integrations/kafka/) to fix performance degradation with enabled manual commit. After this change, the consumer will commit partition offsets in batch per second to avoid high commit QPS on the Kafka broker. It's no longer recommended to set `enable.auto.commit=true` in `-kafka.consumer.topic.options`, as `vmagent` will automatically manage it. See [#10395](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10395).

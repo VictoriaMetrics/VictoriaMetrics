@@ -32,7 +32,7 @@ supports the following Prometheus-compatible service discovery options for Prome
 * `http_sd_configs` is for discovering and scraping targets provided by external http-based service discovery. See [these docs](#http_sd_configs).
 * `kubernetes_sd_configs` is for discovering and scraping [Kubernetes](https://kubernetes.io/) targets. See [these docs](#kubernetes_sd_configs).
 * `kuma_sd_configs` is for discovering and scraping [Kuma](https://kuma.io) targets. See [these docs](#kuma_sd_configs).
-* `marathon_sd_configs` is for discovering and scraping [Marathon](https://mesosphere.github.io/marathon/) targets. See [these docs](#marathon_sd_configs).
+* `marathon_sd_configs` is for discovering and scraping [Marathon](https://github.com/d2iq-archive/marathon) targets. See [these docs](#marathon_sd_configs).
 * `nomad_sd_configs` is for discovering and scraping targets registered in [HashiCorp Nomad](https://www.nomadproject.io/). See [these docs](#nomad_sd_configs).
 * `openstack_sd_configs` is for discovering and scraping OpenStack targets. See [these docs](#openstack_sd_configs).
 * `ovhcloud_sd_configs` is for discovering and scraping OVH Cloud VPS and dedicated server targets. See [these docs](#ovhcloud_sd_configs).
@@ -1315,7 +1315,7 @@ The list of discovered Kuma targets is refreshed at the interval, which can be c
 
 ## marathon_sd_configs
 
-Marathon SD configuration {{% available_from "v1.109.0" %}} allows retrieving scrape targets from [Marathon](https://mesosphere.github.io/marathon/) REST API.
+Marathon SD configuration {{% available_from "v1.109.0" %}} allows retrieving scrape targets from [Marathon](https://github.com/d2iq-archive/marathon) REST API.
 
 Configuration example:
 
@@ -1350,7 +1350,7 @@ The list of discovered Marathon targets is refreshed at the interval, which can 
 
 ## nomad_sd_configs
 
-Nomad SD configuration allows retrieving scrape targets from [HashiCorp Nomad Services](https://www.hashicorp.com/blog/nomad-service-discovery).
+Nomad SD configuration allows retrieving scrape targets from [HashiCorp Nomad Services](https://www.hashicorp.com/en/blog/nomad-service-discovery).
 
 Configuration example:
 
