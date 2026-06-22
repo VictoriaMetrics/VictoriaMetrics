@@ -46,6 +46,32 @@ To keep them stable:
 1. Leave headroom for the OS page cache and workload spikes -
    see [capacity planning](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#capacity-planning).
 
+## Memory
+
+VictoriaMetrics components detect the available memory at startup as the smaller of the host RAM and the cgroup memory limit.
+To keep them stable:
+
+1. Do not set `GOMEMLIMIT`. VictoriaMetrics paces garbage collection with `GOGC` and does not use `GOMEMLIMIT` for sizing.
+   `GOMEMLIMIT` bounds only Go runtime memory, not the process's total RSS, off-heap caches, mmap-ed files,
+   or the OS page cache, so it is not a reliable way to size VictoriaMetrics containers. It can curb Go heap growth,
+   but set too low it makes the garbage collector run more often than `GOGC` dictates,
+   spending in the worst case up to ~50% of CPU time on GC —
+   the ceiling enforced by Go's [GC CPU limiter](https://go.dev/doc/gc-guide).
+   Control memory with the container memory limit plus `-memory.allowedPercent` or `-memory.allowedBytes`.
+
+1. Do not hand-tune cache sizes with `-storage.cacheSize*` flags — it frequently causes OOM.
+   If a component needs larger caches, move it to a host with more memory.
+   See [Cache tuning](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning).
+
+1. Do not use the Vertical Pod Autoscaler (VPA) for `vmstorage`. Cache sizes are derived from the memory limit read at startup.
+   Modes that recreate the pod (`Recreate`, `Auto`) reset the caches and force a cold start,
+   causing slow inserts and query latency spikes. In-place resizing is not picked up at runtime,
+   so `vmstorage` keeps the budget and `vm_available_memory_bytes` from startup, which also skews the dashboards.
+   Use fixed memory resources instead.
+
+1. Leave headroom for the OS page cache and workload spikes —
+   see [capacity planning](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#capacity-planning).
+
 ## Swap
 
 It is recommended to disable swap for machines running [vmstorage](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#storage) or [Single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/).
