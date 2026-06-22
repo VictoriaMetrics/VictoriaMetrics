@@ -1,7 +1,6 @@
 package vmstorage
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -9,13 +8,9 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
-	"github.com/VictoriaMetrics/metrics"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage/promdb"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
@@ -24,11 +19,10 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricnamestats"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/syncwg"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vminsertapi"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vmselectapi"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -40,10 +34,7 @@ var (
 	snapshotAuthKey   = flagutil.NewPassword("snapshotAuthKey", "authKey, which must be passed in query string to /snapshot* pages. It overrides -httpAuth.*")
 	forceMergeAuthKey = flagutil.NewPassword("forceMergeAuthKey", "authKey, which must be passed in query string to /internal/force_merge pages. It overrides -httpAuth.*")
 	forceFlushAuthKey = flagutil.NewPassword("forceFlushAuthKey", "authKey, which must be passed in query string to /internal/force_flush pages. It overrides -httpAuth.*")
-	snapshotsMaxAge   = flagutil.NewRetentionDuration("snapshotsMaxAge", "3d", "Automatically delete snapshots older than -snapshotsMaxAge if it is set to non-zero duration. Make sure that backup process has enough time to finish the backup before the corresponding snapshot is automatically deleted")
 	_                 = flag.Duration("snapshotCreateTimeout", 0, "Deprecated: this flag does nothing")
-
-	precisionBits = flag.Int("precisionBits", 64, "The number of precision bits to store per each value. Lower precision bits improves data compression at the cost of precision loss")
 
 	_ = flag.Duration("finalMergeDelay", 0, "Deprecated: this flag does nothing")
 	_ = flag.Int("bigMergeConcurrency", 0, "Deprecated: this flag does nothing")
@@ -121,10 +112,7 @@ func DataPath() string {
 }
 
 // Init initializes vmstorage.
-func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
-	if err := encoding.CheckPrecisionBits(uint8(*precisionBits)); err != nil {
-		logger.Fatalf("invalid `-precisionBits`: %s", err)
-	}
+func Init(vmselectMaxConcurrentRequests int, resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 
 	err := storage.SetDownsamplingPeriods(*downsamplingPeriods, *minScrapeInterval)
 	if err != nil {
@@ -173,7 +161,7 @@ func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 		LogNewSeries:                *logNewSeries,
 	}
 	strg := storage.MustOpenStorage(*storageDataPath, opts)
-	initStaleSnapshotsRemover(strg)
+	vmStorage = newVMStorage(strg, vmselectMaxConcurrentRequests, resetCacheIfNeeded)
 
 	var m storage.Metrics
 	strg.UpdateMetrics(&m)
@@ -185,154 +173,36 @@ func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	logger.Infof("successfully opened storage %q in %.3f seconds; partsCount: %d; blocksCount: %d; rowsCount: %d; sizeBytes: %d",
 		*storageDataPath, time.Since(startTime).Seconds(), partsCount, blocksCount, rowsCount, sizeBytes)
 
+	promdb.Init(retentionPeriod.Milliseconds())
+
 	// register storage metrics
 	storageMetrics = metrics.NewSet()
-	storageMetrics.RegisterMetricsWriter(func(w io.Writer) {
-		writeStorageMetrics(w, Storage)
-	})
+	storageMetrics.RegisterMetricsWriter(vmStorage.writeStorageMetrics)
 	metrics.RegisterSet(storageMetrics)
 
-	promdb.Init(retentionPeriod.Milliseconds())
-	WG = syncwg.WaitGroup{}
-	resetResponseCacheIfNeeded = resetCacheIfNeeded
-	Storage = strg
+	VMInsertAPI = vmStorage
+	VMSelectAPI = vmStorage
+	GetSearch = vmStorage.GetSearch
+	PutSearch = vmStorage.PutSearch
+	RequestHandler = vmStorage.requestHandler
+	DebugFlush = vmStorage.s.DebugFlush
 }
 
 var storageMetrics *metrics.Set
 
-// Storage is a storage.
-//
-// Every storage call must be wrapped into WG.Add(1) ... WG.Done()
-// for proper graceful shutdown when Stop is called.
-var Storage *storage.Storage
+var (
+	// vmStorage is an instance of vmstorage used by vminsert and
+	// vmselect for writing and reading data.
+	vmStorage      *VMStorage
+	VMInsertAPI    vminsertapi.API
+	VMSelectAPI    vmselectapi.API
+	GetSearch      func(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (*storage.Search, int, error)
+	PutSearch      func(sr *storage.Search)
+	RequestHandler func(w http.ResponseWriter, r *http.Request) bool
 
-// WG must be incremented before Storage call.
-//
-// Use syncwg instead of sync, since Add is called from concurrent goroutines.
-var WG syncwg.WaitGroup
-
-// resetResponseCacheIfNeeded is a callback for automatic resetting of response cache if needed.
-var resetResponseCacheIfNeeded func(mrs []storage.MetricRow)
-
-// AddRows adds mrs to the storage.
-//
-// The caller should limit the number of concurrent calls to AddRows() in order to limit memory usage.
-func AddRows(mrs []storage.MetricRow) error {
-	if Storage.IsReadOnly() {
-		return errReadOnly
-	}
-	resetResponseCacheIfNeeded(mrs)
-	WG.Add(1)
-	Storage.AddRows(mrs, uint8(*precisionBits))
-	WG.Done()
-	return nil
-}
-
-// AddMetadataRows adds mrs to the storage.
-//
-// The caller should limit the number of concurrent calls to AddMetadataRows() in order to limit memory usage.
-func AddMetadataRows(mms []metricsmetadata.Row) error {
-	if Storage.IsReadOnly() {
-		return errReadOnly
-	}
-	WG.Add(1)
-	Storage.AddMetadataRows(mms)
-	WG.Done()
-	return nil
-}
-
-var errReadOnly = errors.New("the storage is in read-only mode; check -storage.minFreeDiskSpaceBytes command-line flag value")
-
-// RegisterMetricNames registers all the metrics from mrs in the storage.
-func RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow) {
-	WG.Add(1)
-	Storage.RegisterMetricNames(qt, mrs)
-	WG.Done()
-}
-
-// DeleteSeries deletes series matching tfss.
-//
-// Returns the number of deleted series.
-func DeleteSeries(qt *querytracer.Tracer, tfss []*storage.TagFilters, maxMetrics int) (int, error) {
-	WG.Add(1)
-	n, err := Storage.DeleteSeries(qt, tfss, maxMetrics)
-	WG.Done()
-	return n, err
-}
-
-// GetMetricNamesStats returns metric names usage stats with give limit and lte predicate
-func GetMetricNamesStats(qt *querytracer.Tracer, limit, le int, matchPattern string) (metricnamestats.StatsResult, error) {
-	WG.Add(1)
-	r := Storage.GetMetricNamesStats(qt, limit, le, matchPattern)
-	WG.Done()
-	return r, nil
-}
-
-// ResetMetricNamesStats resets state for metric names usage tracker
-func ResetMetricNamesStats(qt *querytracer.Tracer) {
-	WG.Add(1)
-	Storage.ResetMetricNamesStats(qt)
-	WG.Done()
-}
-
-// SearchMetricNames returns metric names for the given tfss on the given tr.
-func SearchMetricNames(qt *querytracer.Tracer, tfss []*storage.TagFilters, tr storage.TimeRange, maxMetrics int, deadline uint64) ([]string, error) {
-	WG.Add(1)
-	metricNames, err := Storage.SearchMetricNames(qt, tfss, tr, maxMetrics, deadline)
-	WG.Done()
-	return metricNames, err
-}
-
-// SearchLabelNames searches for tag keys matching the given tfss on tr.
-func SearchLabelNames(qt *querytracer.Tracer, tfss []*storage.TagFilters, tr storage.TimeRange, maxTagKeys, maxMetrics int, deadline uint64) ([]string, error) {
-	WG.Add(1)
-	labelNames, err := Storage.SearchLabelNames(qt, tfss, tr, maxTagKeys, maxMetrics, deadline)
-	WG.Done()
-	return labelNames, err
-}
-
-// SearchLabelValues searches for label values for the given labelName, tfss and
-// tr.
-func SearchLabelValues(qt *querytracer.Tracer, labelName string, tfss []*storage.TagFilters, tr storage.TimeRange, maxLabelValues, maxMetrics int, deadline uint64) ([]string, error) {
-	WG.Add(1)
-	labelValues, err := Storage.SearchLabelValues(qt, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline)
-	WG.Done()
-	return labelValues, err
-}
-
-// SearchTagValueSuffixes returns all the tag value suffixes for the given tagKey and tagValuePrefix on the given tr.
-//
-// This allows implementing https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find or similar APIs.
-func SearchTagValueSuffixes(qt *querytracer.Tracer, tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxTagValueSuffixes int, deadline uint64) ([]string, error) {
-	WG.Add(1)
-	suffixes, err := Storage.SearchTagValueSuffixes(qt, tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes, deadline)
-	WG.Done()
-	return suffixes, err
-}
-
-// SearchGraphitePaths returns all the metric names matching the given Graphite query.
-func SearchGraphitePaths(qt *querytracer.Tracer, tr storage.TimeRange, query []byte, maxPaths int, deadline uint64) ([]string, error) {
-	WG.Add(1)
-	paths, err := Storage.SearchGraphitePaths(qt, tr, query, maxPaths, deadline)
-	WG.Done()
-	return paths, err
-}
-
-// GetTSDBStatus returns TSDB status for given filters on the given date.
-func GetTSDBStatus(qt *querytracer.Tracer, tfss []*storage.TagFilters, date uint64, focusLabel string, topN, maxMetrics int, deadline uint64) (*storage.TSDBStatus, error) {
-	WG.Add(1)
-	status, err := Storage.GetTSDBStatus(qt, tfss, date, focusLabel, topN, maxMetrics, deadline)
-	WG.Done()
-	return status, err
-}
-
-// GetSeriesCount returns the number of time series in the storage.
-func GetSeriesCount(deadline uint64) (uint64, error) {
-	WG.Add(1)
-	n, err := Storage.GetSeriesCount(deadline)
-	WG.Done()
-	return n, err
-}
+	// TODO(@rtm0): Remove this dependency from vmalert-tool unit tests.
+	DebugFlush func()
+)
 
 // Stop stops the vmstorage
 func Stop() {
@@ -342,18 +212,20 @@ func Stop() {
 
 	logger.Infof("gracefully closing the storage at %s", *storageDataPath)
 	startTime := time.Now()
-	WG.WaitAndBlock()
 	promdb.MustClose()
-	stopStaleSnapshotsRemover()
-	Storage.MustClose()
+	vmStorage.Stop()
 	logger.Infof("successfully closed the storage in %.3f seconds", time.Since(startTime).Seconds())
 
 	fs.MustStopDirRemover()
-	logger.Infof("the storage has been stopped")
+	logger.Infof("the vmstorage has been stopped")
 }
 
-// RequestHandler is a storage request handler.
-func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
+// requestHandler is a storage request handler.
+// TODO(@rtm0): Move to a separate file, request_handler.go
+func (vms *VMStorage) requestHandler(w http.ResponseWriter, r *http.Request) bool {
+	vms.wg.Add(1)
+	defer vms.wg.Done()
+
 	path := r.URL.Path
 	if path == "/internal/force_merge" {
 		if !httpserver.CheckAuthFlag(w, r, forceMergeAuthKey) {
@@ -366,7 +238,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			defer activeForceMerges.Dec()
 			logger.Infof("forced merge for partition_prefix=%q has been started", partitionNamePrefix)
 			startTime := time.Now()
-			if err := Storage.ForceMergePartitions(partitionNamePrefix); err != nil {
+			if err := vms.s.ForceMergePartitions(partitionNamePrefix); err != nil {
 				logger.Errorf("error in forced merge for partition_prefix=%q: %s", partitionNamePrefix, err)
 				return
 			}
@@ -379,7 +251,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		logger.Infof("flushing storage to make pending data available for reading")
-		Storage.DebugFlush()
+		vms.s.DebugFlush()
 		return true
 	}
 
@@ -393,13 +265,13 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			dealine, err = strconv.Atoi(deadlineStr)
 			if err != nil {
 				logger.Errorf("cannot parse `seconds` arg %q: %s", deadlineStr, err)
-				jsonResponseError(w, fmt.Errorf("cannot parse `seconds` arg %q: %s", deadlineStr, err))
+				jsonResponseError(w, fmt.Errorf("cannot parse `seconds` arg %q: %w", deadlineStr, err))
 				return true
 			}
 		}
 		logger.Infof("enabling logging of new series for the next %s. This may increase resource usage during this period.", time.Duration(dealine)*time.Second)
 		endTime := fasttime.UnixTimestamp() + uint64(dealine)
-		Storage.SetLogNewSeriesUntil(endTime)
+		vms.s.SetLogNewSeriesUntil(endTime)
 		fmt.Fprintf(w, `{"status":"success","data":{"logEndTime":%q}}`, time.Unix(int64(endTime), 0))
 		return true
 	}
@@ -421,13 +293,13 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "/create":
 		snapshotsCreateTotal.Inc()
 		w.Header().Set("Content-Type", "application/json")
-		snapshotName := Storage.MustCreateSnapshot()
+		snapshotName := vms.s.MustCreateSnapshot()
 
 		// Verify whether the client already closed the connection.
 		// In this case it is better to drop the created snapshot, since the client isn't interested in it.
 		if err := r.Context().Err(); err != nil {
 			logger.Infof("deleting already created snapshot at %s because the client canceled the request", snapshotName)
-			if err := deleteSnapshot(snapshotName); err != nil {
+			if err := vms.deleteSnapshot(snapshotName); err != nil {
 				logger.Infof("cannot delete just created snapshot: %s", err)
 				return true
 			}
@@ -443,7 +315,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "/list":
 		snapshotsListTotal.Inc()
 		w.Header().Set("Content-Type", "application/json")
-		snapshots := Storage.MustListSnapshots()
+		snapshots := vms.s.MustListSnapshots()
 		fmt.Fprintf(w, `{"status":"ok","snapshots":[`)
 		if len(snapshots) > 0 {
 			for _, snapshot := range snapshots[:len(snapshots)-1] {
@@ -457,7 +329,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		snapshotsDeleteTotal.Inc()
 		w.Header().Set("Content-Type", "application/json")
 		snapshotName := r.FormValue("snapshot")
-		if err := deleteSnapshot(snapshotName); err != nil {
+		if err := vms.deleteSnapshot(snapshotName); err != nil {
 			jsonResponseError(w, err)
 			snapshotsDeleteErrorsTotal.Inc()
 			return true
@@ -467,9 +339,9 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "/delete_all":
 		snapshotsDeleteAllTotal.Inc()
 		w.Header().Set("Content-Type", "application/json")
-		snapshots := Storage.MustListSnapshots()
+		snapshots := vms.s.MustListSnapshots()
 		for _, snapshotName := range snapshots {
-			if err := Storage.DeleteSnapshot(snapshotName); err != nil {
+			if err := vms.s.DeleteSnapshot(snapshotName); err != nil {
 				err = fmt.Errorf("cannot delete snapshot %q: %w", snapshotName, err)
 				jsonResponseError(w, err)
 				snapshotsDeleteAllErrorsTotal.Inc()
@@ -482,50 +354,6 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 }
-
-func deleteSnapshot(snapshotName string) error {
-	snapshots := Storage.MustListSnapshots()
-	for _, snName := range snapshots {
-		if snName == snapshotName {
-			if err := Storage.DeleteSnapshot(snName); err != nil {
-				return fmt.Errorf("cannot delete snapshot %q: %w", snName, err)
-			}
-			return nil
-		}
-	}
-	return fmt.Errorf("cannot find snapshot %q", snapshotName)
-}
-
-func initStaleSnapshotsRemover(strg *storage.Storage) {
-	staleSnapshotsRemoverCh = make(chan struct{})
-	if snapshotsMaxAge.Duration() <= 0 {
-		return
-	}
-	snapshotsMaxAgeDur := snapshotsMaxAge.Duration()
-	staleSnapshotsRemoverWG.Go(func() {
-		d := timeutil.AddJitterToDuration(time.Second * 11)
-		t := time.NewTicker(d)
-		defer t.Stop()
-		for {
-			select {
-			case <-staleSnapshotsRemoverCh:
-				return
-			case <-t.C:
-			}
-			strg.MustDeleteStaleSnapshots(snapshotsMaxAgeDur)
-		}
-	})
-}
-
-func stopStaleSnapshotsRemover() {
-	close(staleSnapshotsRemoverCh)
-	staleSnapshotsRemoverWG.Wait()
-}
-
-var (
-	staleSnapshotsRemoverCh chan struct{}
-	staleSnapshotsRemoverWG sync.WaitGroup
-)
 
 var (
 	activeForceMerges = metrics.NewCounter("vm_active_force_merges")
@@ -541,7 +369,12 @@ var (
 	snapshotsDeleteAllErrorsTotal = metrics.NewCounter(`vm_http_request_errors_total{path="/snapshot/delete_all"}`)
 )
 
-func writeStorageMetrics(w io.Writer, strg *storage.Storage) {
+// TODO(@rtm0): Move to metrics.go.
+func (vms *VMStorage) writeStorageMetrics(w io.Writer) {
+	vms.wg.Add(1)
+	defer vms.wg.Done()
+
+	strg := vms.s
 	var m storage.Metrics
 	strg.UpdateMetrics(&m)
 	tm := &m.TableMetrics
@@ -764,6 +597,8 @@ func writeStorageMetrics(w io.Writer, strg *storage.Storage) {
 
 	metrics.WriteGaugeUint64(w, `vm_downsampling_partitions_scheduled`, tm.ScheduledDownsamplingPartitions)
 	metrics.WriteGaugeUint64(w, `vm_downsampling_partitions_scheduled_size_bytes`, tm.ScheduledDownsamplingPartitionsSize)
+
+	metrics.WriteGaugeUint64(w, `vm_search_max_unique_timeseries`, uint64(vms.maxUniqueTimeSeriesCalculated))
 
 	metrics.WriteGaugeUint64(w, `vm_metrics_metadata_storage_items`, m.MetadataStorageItemsCurrent)
 	metrics.WriteCounterUint64(w, `vm_metrics_metadata_storage_size_bytes`, m.MetadataStorageCurrentSizeBytes)

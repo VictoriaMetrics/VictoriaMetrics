@@ -601,7 +601,7 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 func (ar *AlertingRule) expandLabelTemplates(m datasource.Metric, qFn templates.QueryFn) (*labelSet, error) {
 	ls, err := ar.toLabels(m, qFn)
 	if err != nil {
-		return ls, fmt.Errorf("failed to expand label templates: %s", err)
+		return ls, fmt.Errorf("failed to expand label templates: %w", err)
 	}
 	return ls, nil
 }
@@ -620,7 +620,7 @@ func (ar *AlertingRule) expandAnnotationTemplates(m datasource.Metric, qFn templ
 	}
 	as, err := notifier.ExecTemplate(qFn, ar.Annotations, tplData)
 	if err != nil {
-		return as, fmt.Errorf("failed to expand annotation templates: %s", err)
+		return as, fmt.Errorf("failed to expand annotation templates: %w", err)
 	}
 	return as, nil
 }

@@ -46,7 +46,7 @@ type prometheusProcessor struct {
 func (pp *prometheusProcessor) run(ctx context.Context) error {
 	blocks, err := pp.cl.Explore()
 	if err != nil {
-		return fmt.Errorf("explore failed: %s", err)
+		return fmt.Errorf("explore failed: %w", err)
 	}
 	if len(blocks) < 1 {
 		return fmt.Errorf("found no blocks to import")
@@ -57,7 +57,7 @@ func (pp *prometheusProcessor) run(ctx context.Context) error {
 	}
 
 	if err := pp.processBlocks(ctx, blocks); err != nil {
-		return fmt.Errorf("migration failed: %s", err)
+		return fmt.Errorf("migration failed: %w", err)
 	}
 
 	log.Println("Import finished!")
@@ -68,7 +68,7 @@ func (pp *prometheusProcessor) run(ctx context.Context) error {
 func (pp *prometheusProcessor) do(ctx context.Context, b tsdb.BlockReader) error {
 	css, err := pp.cl.Read(ctx, b)
 	if err != nil {
-		return fmt.Errorf("failed to read block: %s", err)
+		return fmt.Errorf("failed to read block: %w", err)
 	}
 	defer func() {
 		if err := css.Close(); err != nil {
@@ -146,7 +146,7 @@ func (pp *prometheusProcessor) processBlocks(ctx context.Context, blocks []tsdb.
 			for br := range blockReadersCh {
 				if err := pp.do(ctx, br); err != nil {
 					promErrorsTotal.Inc()
-					errCh <- fmt.Errorf("cannot read block %q: %s", br.Meta().ULID, err)
+					errCh <- fmt.Errorf("cannot read block %q: %w", br.Meta().ULID, err)
 					return
 				}
 				if cb, ok := br.(io.Closer); ok {
@@ -164,11 +164,11 @@ func (pp *prometheusProcessor) processBlocks(ctx context.Context, blocks []tsdb.
 		select {
 		case promErr := <-errCh:
 			close(blockReadersCh)
-			return fmt.Errorf("prometheus error: %s", promErr)
+			return fmt.Errorf("prometheus error: %w", promErr)
 		case vmErr := <-pp.im.Errors():
 			close(blockReadersCh)
 			promErrorsTotal.Inc()
-			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, pp.isVerbose))
+			return fmt.Errorf("import process failed: %w", wrapErr(vmErr, pp.isVerbose))
 		case blockReadersCh <- br:
 		}
 	}
@@ -182,11 +182,11 @@ func (pp *prometheusProcessor) processBlocks(ctx context.Context, blocks []tsdb.
 	for vmErr := range pp.im.Errors() {
 		if vmErr.Err != nil {
 			promErrorsTotal.Inc()
-			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, pp.isVerbose))
+			return fmt.Errorf("import process failed: %w", wrapErr(vmErr, pp.isVerbose))
 		}
 	}
 	for err := range errCh {
-		return fmt.Errorf("import process failed: %s", err)
+		return fmt.Errorf("import process failed: %w", err)
 	}
 
 	return nil

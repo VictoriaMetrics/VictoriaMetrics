@@ -67,7 +67,7 @@ func parseRunningStatsLast(lex *lexer) (runningStatsFunc, error) {
 		return nil, err
 	}
 	if len(args) != 1 {
-		return nil, fmt.Errorf("unexpeccted number of args for the last() function; got %d; want 1; args: %q", len(args), args)
+		return nil, fmt.Errorf("unexpected number of args for the last() function; got %d; want 1; args: %q", len(args), args)
 	}
 
 	fieldName := args[0]

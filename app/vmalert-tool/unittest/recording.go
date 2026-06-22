@@ -53,13 +53,13 @@ Outer:
 			if s.Labels != "" {
 				metricsqlExpr, err := metricsql.Parse(s.Labels)
 				if err != nil {
-					checkErrs = append(checkErrs, fmt.Errorf("\n    expr: %q, time: %s, err: %v", mt.Expr,
+					checkErrs = append(checkErrs, fmt.Errorf("\n    expr: %q, time: %s, err: %w", mt.Expr,
 						mt.EvalTime.Duration().String(), fmt.Errorf("failed to parse labels %q: %w", s.Labels, err)))
 					continue Outer
 				}
 				metricsqlMetricExpr, ok := metricsqlExpr.(*metricsql.MetricExpr)
 				if !ok || len(metricsqlMetricExpr.LabelFilterss) > 1 {
-					checkErrs = append(checkErrs, fmt.Errorf("\n    expr: %q, time: %s, err: %v", mt.Expr,
+					checkErrs = append(checkErrs, fmt.Errorf("\n    expr: %q, time: %s, err: %w", mt.Expr,
 						mt.EvalTime.Duration().String(), fmt.Errorf("got invalid exp_samples: %q", s.Labels)))
 					continue Outer
 				}

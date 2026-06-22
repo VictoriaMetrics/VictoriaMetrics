@@ -187,7 +187,7 @@ func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persiste
 	return c
 }
 
-func (c *client) init(argIdx, concurrency int, sanitizedURL string) {
+func (c *client) init(argIdx int, sanitizedURL string) {
 	limitReached := metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_rate_limit_reached_total{url=%q}`, c.sanitizedURL))
 	if bytesPerSec := rateLimit.GetOptionalArg(argIdx); bytesPerSec > 0 {
 		logger.Infof("applying %d bytes per second rate limit for -remoteWrite.url=%q", bytesPerSec, sanitizedURL)
@@ -204,11 +204,20 @@ func (c *client) init(argIdx, concurrency int, sanitizedURL string) {
 	c.packetsDropped = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_packets_dropped_total{url=%q}`, c.sanitizedURL))
 	c.retriesCount = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_retries_count_total{url=%q}`, c.sanitizedURL))
 	c.sendDuration = metrics.GetOrCreateFloatCounter(fmt.Sprintf(`vmagent_remotewrite_send_duration_seconds_total{url=%q}`, c.sanitizedURL))
-	metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_queues{url=%q}`, c.sanitizedURL), func() float64 {
-		return float64(concurrency)
-	})
-	for range concurrency {
-		c.wg.Go(c.runWorker)
+	workers := queues.GetOptionalArg(argIdx)
+	if workers <= 0 {
+		workers = 1
+	}
+	inmemoryWorkers := inmemoryQueues.GetOptionalArg(argIdx)
+	for range inmemoryWorkers {
+		c.wg.Go(func() {
+			c.runWorker(c.fq.MustReadInMemoryBlockBlocking)
+		})
+	}
+	for range workers {
+		c.wg.Go(func() {
+			c.runWorker(c.fq.MustReadBlock)
+		})
 	}
 	logger.Infof("initialized client for -remoteWrite.url=%q", c.sanitizedURL)
 }
@@ -302,12 +311,12 @@ func getAWSAPIConfig(argIdx int) (*awsapi.Config, error) {
 	return cfg, nil
 }
 
-func (c *client) runWorker() {
+func (c *client) runWorker(readBlock func(dst []byte) ([]byte, bool)) {
 	var ok bool
 	var block []byte
 	ch := make(chan bool, 1)
 	for {
-		block, ok = c.fq.MustReadBlock(block[:0])
+		block, ok = readBlock(block[:0])
 		if !ok {
 			return
 		}

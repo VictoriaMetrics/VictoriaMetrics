@@ -1695,7 +1695,7 @@
         "type": "prometheus",
         "uid": "$ds"
       },
-      "description": "Shows the time goroutines have spent in runnable state before actually running. The lower is better.\n\nHigh values or values exceeding the threshold is usually a sign of insufficient CPU resources or CPU throttling. \n\nVerify that service has enough CPU resources. Otherwise, the service could work unreliably with delays in processing.",
+      "description": "Shows the time goroutines have spent in runnable state before actually running.\n\n**Lower is better.**\n\nHigh values or values exceeding the threshold is usually a sign of insufficient CPU resources or CPU throttling. \n\nVerify that service has enough CPU resources. Otherwise, the service could work unreliably with delays in processing.",
       "fieldConfig": {
         "defaults": {
           "color": {

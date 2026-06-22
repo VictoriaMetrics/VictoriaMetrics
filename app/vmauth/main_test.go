@@ -1639,7 +1639,7 @@ func (w *fakeResponseWriter) WriteHeader(statusCode int) {
 		"X-Content-Type-Options": true,
 	})
 	if err != nil {
-		panic(fmt.Errorf("cannot marshal headers: %s", err))
+		panic(fmt.Errorf("cannot marshal headers: %w", err))
 	}
 }
 

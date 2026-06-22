@@ -93,7 +93,7 @@ func selfScraper(scrapeInterval time.Duration) {
 				mr.Value = r.Value
 			}
 		}
-		if err := vmstorage.AddRows(mrs); err != nil {
+		if err := vmstorage.VMInsertAPI.WriteRows(mrs); err != nil {
 			logger.Errorf("cannot store self-scraped metrics: %s", err)
 		}
 		if len(metadataRows.Rows) > 0 {
@@ -105,7 +105,7 @@ func selfScraper(scrapeInterval time.Duration) {
 					Type:             mm.Type,
 				})
 			}
-			if err := vmstorage.AddMetadataRows(mms); err != nil {
+			if err := vmstorage.VMInsertAPI.WriteMetadata(mms); err != nil {
 				logger.Errorf("cannot store self-scraped metrics metadata: %s", err)
 			}
 		}

@@ -58,11 +58,11 @@ func newVmsingle(app *app, cli *Client, rt vmsingleRuntimeValues) *Vmsingle {
 		app:           app,
 		metricsClient: newMetricsClient(cli, rt.httpListenAddr),
 		vmstorageClient: &vmstorageClient{
-			vmstorageCli:   cli,
+			cli:            cli,
 			httpListenAddr: rt.httpListenAddr,
 		},
 		vmselectClient: &vmselectClient{
-			vmselectCli: cli,
+			cli: cli,
 			url: func(op, path string, opts QueryOpts) string {
 				return fmt.Sprintf("http://%s/%s", rt.httpListenAddr, path)
 			},
@@ -70,7 +70,7 @@ func newVmsingle(app *app, cli *Client, rt vmsingleRuntimeValues) *Vmsingle {
 			tenantsURL:               "vmsingle-does-not-serve-tenants",
 		},
 		vminsertClient: &vminsertClient{
-			vminsertCli: cli,
+			cli: cli,
 			url: func(_, path string, _ QueryOpts) string {
 				return fmt.Sprintf("http://%s/%s", rt.httpListenAddr, path)
 			},
