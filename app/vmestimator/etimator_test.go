@@ -68,10 +68,7 @@ func TestGlobalEstimate(t *testing.T) {
 
 		buf := bytes.NewBuffer(nil)
 		e.writeMetrics(buf)
-
-		if strings.TrimSpace(buf.String()) != expMetric {
-			t.Fatalf("\nexpected:\n%s\n\ngot:\n%s", expMetric, buf.String())
-		}
+		assertMetricsSame(t, "", expMetric, buf.String())
 	}
 
 	// no previous
@@ -223,14 +220,7 @@ func TestGroupEstimate(t *testing.T) {
 
 		buf := bytes.NewBuffer(nil)
 		e.writeMetrics(buf)
-
-		lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
-		sort.Strings(lines)
-		actMetrics := "\n" + strings.Join(lines, "\n")
-
-		if expMetrics != actMetrics {
-			t.Fatalf("\nexpected:\n%s\n\ngot:\n%s", expMetrics, actMetrics)
-		}
+		assertMetricsSame(t, "", expMetrics, buf.String())
 	}
 
 	// group by metric name
@@ -421,7 +411,8 @@ cardinality_estimate{interval="10m0s",group_by_keys="foo,bar",group_by_values="1
 			genCard(2, 2, 1000, "two")(e)
 		}
 	}
-	f([]string{"foo", "bar"}, genCardTwoLabelsRotateInsertDiff(), `
+	f(
+		[]string{"foo", "bar"}, genCardTwoLabelsRotateInsertDiff(), `
 cardinality_estimate{interval="10m0s",group_by_keys="__group__",group_by_values="foo,bar"} 8
 cardinality_estimate{interval="10m0s",group_by_keys="foo,bar",group_by_values="one0,one0",by_foo="one0",by_bar="one0"} 1000
 cardinality_estimate{interval="10m0s",group_by_keys="foo,bar",group_by_values="one0,one1",by_foo="one0",by_bar="one1"} 1000
@@ -507,14 +498,7 @@ func TestGroupEstimateGroupLimit(t *testing.T) {
 
 		buf := bytes.NewBuffer(nil)
 		e.writeMetrics(buf)
-
-		lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
-		sort.Strings(lines)
-		actMetrics := "\n" + strings.Join(lines, "\n")
-
-		if expMetrics != actMetrics {
-			t.Fatalf("\nexpected:\n%s\n\ngot:\n%s", expMetrics, actMetrics)
-		}
+		assertMetricsSame(t, "", expMetrics, buf.String())
 
 		var actRejected int
 		if e.buckets[0].groupRejectedSketch != nil {
@@ -592,4 +576,20 @@ cardinality_estimate{interval="10m0s",group_by_keys="foo",group_by_values="a0",b
 cardinality_estimate{interval="10m0s",group_by_keys="foo",group_by_values="a1",by_foo="a1"} 1
 cardinality_estimate{interval="10m0s",group_by_keys="foo",group_by_values="a2",by_foo="a2"} 1`,
 	)
+}
+
+func assertMetricsSame(t *testing.T, msg, exp, act string) {
+	t.Helper()
+
+	expLines := strings.Split(strings.TrimSpace(exp), "\n")
+	sort.Strings(expLines)
+	expSorted := strings.TrimSpace(strings.Join(expLines, "\n"))
+
+	actLines := strings.Split(strings.TrimSpace(act), "\n")
+	sort.Strings(actLines)
+	actSorted := strings.TrimSpace(strings.Join(actLines, "\n"))
+
+	if expSorted != actSorted {
+		t.Fatalf("%s\nexpected:\n%s\n\ngot:\n%s", msg, expSorted, actSorted)
+	}
 }

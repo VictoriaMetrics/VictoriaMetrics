@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/gob"
 	"fmt"
 	"io"
 	"sort"
@@ -232,8 +233,7 @@ func (e *estimator) writeMetrics(w io.Writer) {
 			eb.writeNoGroupMetric(resSK)
 		}
 
-		formatBuf = append(formatBuf, eb0.metricPrefix...)
-		formatBuf = append(formatBuf, `,group_by_keys="__global__"} `...)
+		formatBuf = appendGlobalMetric(formatBuf, eb0.metricPrefix)
 		formatBuf = strconv.AppendUint(formatBuf, resSK.Estimate(), 10)
 		formatBuf = append(formatBuf, "\n"...)
 		if _, err := w.Write(formatBuf); err != nil {
@@ -243,10 +243,7 @@ func (e *estimator) writeMetrics(w io.Writer) {
 	}
 
 	formatBuf := make([]byte, 0, 16384)
-	formatBuf = append(formatBuf, eb0.metricPrefix...)
-	formatBuf = append(formatBuf, `,group_by_keys="`...)
-	formatBuf = append(formatBuf, eb0.groupByKeysLabel...)
-	formatBuf = append(formatBuf, `",group_by_values=`...)
+	formatBuf = appendGroupByKeysAndValuesPrefix(formatBuf, eb0.metricPrefix, eb0.groupByKeysLabel)
 
 	prefixLen := len(formatBuf)
 	resSK := eb0.newSketch()
@@ -270,10 +267,7 @@ func (e *estimator) writeMetrics(w io.Writer) {
 	}
 
 	formatBuf = formatBuf[:0]
-	formatBuf = append(formatBuf, eb0.metricPrefix...)
-	formatBuf = append(formatBuf, `,group_by_keys="__group__",group_by_values="`...)
-	formatBuf = append(formatBuf, eb0.groupByKeysLabel...)
-	formatBuf = append(formatBuf, `"} `...)
+	formatBuf = appendGroupMetric(formatBuf, eb0.metricPrefix, eb0.groupByKeysLabel)
 	formatBuf = strconv.AppendInt(formatBuf, groupSize, 10)
 	formatBuf = append(formatBuf, "\n"...)
 	if _, err := w.Write(formatBuf); err != nil {
@@ -309,6 +303,39 @@ func (e *estimator) rotate() {
 	e.groupRejectedSketchPrev = e.groupRejectedSketch
 	e.groupRejectedSketch = prevSK
 	e.groupRejectedMu.Unlock()
+}
+
+func (e *estimator) writeSnapshot(enc *gob.Encoder) error {
+	if len(e.groupBy) == 0 {
+		s := newSnapshot()
+		if err := enc.Encode(convertNoGroupToSnapshot(e, s)); err != nil {
+			return fmt.Errorf("encode snapshot: %w", err)
+		}
+
+		return nil
+	}
+
+	eb0 := e.buckets[0]
+
+	formatBuf := make([]byte, 0, 16384)
+	formatBuf = appendGroupByKeysAndValuesPrefix(formatBuf, eb0.metricPrefix, eb0.groupByKeysLabel)
+
+	s := newSnapshot()
+	for i, eb := range e.buckets {
+		s.reset()
+		if i == 0 {
+			eb.groupRejectedMu.Lock()
+			if eb.groupRejectedSketch != nil {
+				s.GroupRejectedSketch = eb.groupRejectedSketch.Clone()
+			}
+			eb.groupRejectedMu.Unlock()
+		}
+		if err := enc.Encode(convertGroupBucketToSnapshot(eb, s, formatBuf)); err != nil {
+			return fmt.Errorf("encode snapshot: %w", err)
+		}
+	}
+
+	return nil
 }
 
 type estimatorBucket struct {
@@ -434,9 +461,7 @@ func (eb *estimatorBucket) writeGroupMetrics(w io.Writer, res *hyperloglog.Sketc
 
 	for valuesKey, gsk := range eb.groups {
 		res.Reset()
-		formatBuf = formatBuf[:prefixLen]
-
-		formatBuf = append(formatBuf, gsk.groupValueLabels...)
+		formatBuf = append(formatBuf[:prefixLen], gsk.groupValueLabels...)
 
 		eb.mergeSketches(gsk.Sketch, eb.prevGroups[valuesKey].Sketch, res)
 		formatBuf = strconv.AppendUint(formatBuf, res.Estimate(), 10)
@@ -448,7 +473,6 @@ func (eb *estimatorBucket) writeGroupMetrics(w io.Writer, res *hyperloglog.Sketc
 
 	for valuesKey := range eb.prevGroups {
 		if _, ok := eb.groups[valuesKey]; ok {
-
 			continue
 		}
 
@@ -505,4 +529,32 @@ func mustNewSketch(precision uint8, sparse bool) *hyperloglog.Sketch {
 
 func hash(v []byte) uint64 {
 	return metro.Hash64(v, 1337)
+}
+
+// appendGlobalMetric produces:
+// 'cardinality_estimate{interval="5m",group_by_keys="__global__"} '
+func appendGlobalMetric(buf []byte, metricPrefix string) []byte {
+	buf = append(buf, metricPrefix...)
+	buf = append(buf, `,group_by_keys="__global__"} `...)
+	return buf
+}
+
+// appendGroupMetric produces:
+// 'cardinality_estimate{interval="5m",group_by_keys="__group__",group_by_values="fooKey,barKey"} '
+func appendGroupMetric(buf []byte, metricPrefix, groupByKeysLabel string) []byte {
+	buf = append(buf, metricPrefix...)
+	buf = append(buf, `,group_by_keys="__group__",group_by_values="`...)
+	buf = append(buf, groupByKeysLabel...)
+	buf = append(buf, `"} `...)
+	return buf
+}
+
+// appendGroupByKeysAndValuesPrefix produces:
+// 'cardinality_estimate{interval="5m",group_by_keys="fooKey,barKey",group_by_values='
+func appendGroupByKeysAndValuesPrefix(buf []byte, metricPrefix, groupByKeysLabel string) []byte {
+	buf = append(buf, metricPrefix...)
+	buf = append(buf, `,group_by_keys="`...)
+	buf = append(buf, groupByKeysLabel...)
+	buf = append(buf, `",group_by_values=`...)
+	return buf
 }

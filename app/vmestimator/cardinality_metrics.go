@@ -3,10 +3,13 @@ package main
 import (
 	"bytes"
 	"flag"
+	"fmt"
 	"io"
+	"net/http"
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -25,7 +28,7 @@ var (
 		"If set to an empty value, cardinality metrics are not exposed via HTTP at all.")
 )
 
-func writeCardinalityMetrics(w io.Writer, es []*estimator) {
+func writeCardinalityMetrics(w io.Writer, es []*estimator, storageNodeURLs []string) {
 	startTime := time.Now()
 
 	cardinalityCacheMu.Lock()
@@ -34,6 +37,26 @@ func writeCardinalityMetrics(w io.Writer, es []*estimator) {
 		for _, e := range es {
 			e.writeMetrics(plain)
 		}
+
+		if len(storageNodeURLs) > 0 {
+			ss := newSnapshots()
+			var wg sync.WaitGroup
+			for _, nodeURL := range storageNodeURLs {
+				wg.Add(1)
+				go func(url string) {
+					defer wg.Done()
+					if err := fetchAndMergeSnapshots(url, ss.add); err != nil {
+						logger.Errorf("fetch snapshots from %s: %s", url, err)
+					}
+				}(nodeURL)
+			}
+			wg.Wait()
+
+			if err := ss.writeMetrics(plain); err != nil {
+				logger.Errorf("write cardinality metrics: %s", err)
+			}
+		}
+
 		cardinalityMetricsCache = plain.Bytes()
 		cardinalityMetricsCacheAt = time.Now()
 	}
@@ -41,9 +64,26 @@ func writeCardinalityMetrics(w io.Writer, es []*estimator) {
 	copy(cm, cardinalityMetricsCache)
 	cardinalityCacheMu.Unlock()
 
-	_, _ = w.Write(cm)
+	if _, err := w.Write(cm); err != nil {
+		logger.Warnf("writing cardinality metrics: %s", err)
+	}
 
 	cardinalityMetricsWrites.Inc()
 	cardinalityMetricsWriteDuration.Add(time.Since(startTime).Seconds())
 	cardinalityMetricsWriteBytes.Add(len(cm))
+}
+
+func fetchAndMergeSnapshots(storageNodeURL string, cb func(s *snapshot)) error {
+	url := fmt.Sprintf("%s/clusternative/snapshot", storageNodeURL)
+	resp, err := http.Get(url) //nolint:noctx
+	if err != nil {
+		return fmt.Errorf("http get %s: %w", url, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected status code %d from %s", resp.StatusCode, url)
+	}
+
+	return decodeSnapshots(resp.Body, cb)
 }

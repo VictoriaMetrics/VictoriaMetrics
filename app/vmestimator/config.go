@@ -6,6 +6,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"gopkg.in/yaml.v2"
 )
 
@@ -23,7 +24,14 @@ type EstimatorConfig struct {
 	HLLSparse    *bool             `yaml:"hll_sparse"`
 }
 
-func loadConfig(path string) (*Config, error) {
+func loadConfig(path string) ([]*estimator, error) {
+	if path == "" && len(*storageNodes) > 0 {
+		return nil, nil
+	}
+	if path == "" {
+		return nil, fmt.Errorf("no -config flag specified")
+	}
+
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read config file %q: %w", path, err)
@@ -39,5 +47,14 @@ func loadConfig(path string) (*Config, error) {
 		}
 	}
 
-	return &cfg, nil
+	es := make([]*estimator, 0, len(cfg.Streams))
+	for _, ec := range cfg.Streams {
+		e, err := newEstimator(ec)
+		if err != nil {
+			logger.Fatalf("cannot create estimator: %v", err)
+		}
+		es = append(es, e)
+	}
+
+	return es, nil
 }
