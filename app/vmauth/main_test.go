@@ -307,6 +307,24 @@ statusCode=200
 requested_url={BACKEND}/bar/a/b`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 
+	// correct authorization but unexisted path, hence missing route error.
+	cfgStr = `
+users:
+- username: foo
+  password: secret
+  url_map:
+  - src_paths:
+    - "/api/v1/write"
+    url_prefix: "{BACKEND}/bar"`
+	requestURL = "http://foo:secret@some-host.com/a/b"
+	backendHandler = func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "requested_url=http://%s%s", r.Host, r.URL)
+	}
+	responseExpected = `
+statusCode=400
+user foo missing route for "http://foo:secret@some-host.com/a/b"`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
 	// verify how path cleanup works
 	cfgStr = `
 unauthorized_user:
@@ -403,7 +421,7 @@ unauthorized_user:
 	}
 	responseExpected = `
 statusCode=400
-missing route for "http://some-host.com/abc?de=fg"`
+user unauthorized missing route for "http://some-host.com/abc?de=fg"`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 
 	// missing default_url and default url_prefix for unauthorized user with dump_request_on_errors enabled
@@ -419,7 +437,7 @@ unauthorized_user:
 	}
 	responseExpected = `
 statusCode=400
-missing route for "http://some-host.com/abc?de=fg" (host: "some-host.com"; path: "/abc"; args: "de=fg"; headers:Connection: Some-Header,Other-Header
+user unauthorized missing route for "http://some-host.com/abc?de=fg" (host: "some-host.com"; path: "/abc"; args: "de=fg"; headers:Connection: Some-Header,Other-Header
 Pass-Header: abc
 Some-Header: foobar
 X-Forwarded-For: 12.34.56.78
@@ -461,7 +479,7 @@ unauthorized_user:
 	}
 	responseExpected = `
 statusCode=502
-all the 2 backends for the user "" are unavailable for proxying the request - check previous WARN logs to see the exact error for each failed backend`
+all the 2 backends for the user "unauthorized" are unavailable for proxying the request - check previous WARN logs to see the exact error for each failed backend`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 
 	// all the backend_urls are unavailable for authorized user
@@ -501,7 +519,7 @@ unauthorized_user:
 	}
 	responseExpected = `
 statusCode=502
-all the 0 backends for the user "" are unavailable for proxying the request - check previous WARN logs to see the exact error for each failed backend`
+all the 0 backends for the user "unauthorized" are unavailable for proxying the request - check previous WARN logs to see the exact error for each failed backend`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 	netutil.Resolver = origResolver
 
@@ -518,7 +536,7 @@ unauthorized_user:
 	}
 	responseExpected = `
 statusCode=502
-all the 2 backends for the user "" are unavailable for proxying the request - check previous WARN logs to see the exact error for each failed backend`
+all the 2 backends for the user "unauthorized" are unavailable for proxying the request - check previous WARN logs to see the exact error for each failed backend`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 	if n := retries.Load(); n != 2 {
 		t.Fatalf("unexpected number of retries; got %d; want 2", n)
@@ -1621,7 +1639,7 @@ func (w *fakeResponseWriter) WriteHeader(statusCode int) {
 		"X-Content-Type-Options": true,
 	})
 	if err != nil {
-		panic(fmt.Errorf("cannot marshal headers: %s", err))
+		panic(fmt.Errorf("cannot marshal headers: %w", err))
 	}
 }
 

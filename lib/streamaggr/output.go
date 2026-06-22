@@ -75,6 +75,9 @@ func (ao *aggrOutputs) pushSamples(samples []pushSample, deleteDeadline int64, i
 				outputs = av.blue
 			}
 			for idx, o := range outputs {
+				if o == nil {
+					o = av.blue[idx]
+				}
 				o.pushSample(ao.configs[idx], sample, inputKey, deleteDeadline)
 			}
 			av.deleteDeadline = deleteDeadline
@@ -112,6 +115,9 @@ func (ao *aggrOutputs) flushState(ctx *flushCtx) {
 			outputs = av.blue
 		}
 		for i, o := range outputs {
+			if o == nil {
+				o = av.blue[i]
+			}
 			o.flush(ao.configs[i], ctx, outputKey, ctx.isLast)
 		}
 		av.mu.Unlock()

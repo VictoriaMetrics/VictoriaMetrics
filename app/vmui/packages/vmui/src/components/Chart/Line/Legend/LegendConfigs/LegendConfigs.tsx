@@ -61,7 +61,7 @@ const LegendConfigs: FC<Props> = ({ data, isCompact }) => {
       label: "Hide Statistics",
       value: hideStats,
       onChange: onChangeStats,
-      info: "If enabled, hides the display of min, median, and max values.",
+      info: "If enabled, hides the display of min, median, max, and last values.",
     }
   ];
 

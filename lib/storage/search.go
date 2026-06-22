@@ -90,6 +90,77 @@ type MetricBlockRef struct {
 	BlockRef *BlockRef
 }
 
+// MetricBlock is a time series block for a single metric.
+type MetricBlock struct {
+	// MetricName is metric name for the given Block.
+	MetricName []byte
+
+	// Block is a block for the given MetricName
+	Block Block
+}
+
+// Marshal marshals MetricBlock to dst
+func (mb *MetricBlock) Marshal(dst []byte) []byte {
+	dst = encoding.MarshalBytes(dst, mb.MetricName)
+	return MarshalBlock(dst, &mb.Block)
+}
+
+// CopyFrom copies src to mb.
+func (mb *MetricBlock) CopyFrom(src *MetricBlock) {
+	mb.MetricName = append(mb.MetricName[:0], src.MetricName...)
+	mb.Block.CopyFrom(&src.Block)
+}
+
+// MarshalBlock marshals b to dst.
+//
+// b.MarshalData must be called on b before calling MarshalBlock.
+func MarshalBlock(dst []byte, b *Block) []byte {
+	dst = b.bh.Marshal(dst)
+	dst = encoding.MarshalBytes(dst, b.timestampsData)
+	dst = encoding.MarshalBytes(dst, b.valuesData)
+	return dst
+}
+
+// Unmarshal unmarshals MetricBlock from src
+func (mb *MetricBlock) Unmarshal(src []byte) ([]byte, error) {
+	mb.Block.Reset()
+	mn, nSize := encoding.UnmarshalBytes(src)
+	if nSize <= 0 {
+		return src, fmt.Errorf("cannot unmarshal MetricName")
+	}
+	src = src[nSize:]
+	mb.MetricName = append(mb.MetricName[:0], mn...)
+
+	return UnmarshalBlock(&mb.Block, src)
+}
+
+// UnmarshalBlock unmarshal Block from src to dst.
+//
+// dst.UnmarshalData isn't called on the block.
+func UnmarshalBlock(dst *Block, src []byte) ([]byte, error) {
+	tail, err := dst.bh.Unmarshal(src)
+	if err != nil {
+		return tail, fmt.Errorf("cannot unmarshal blockHeader: %w", err)
+	}
+	src = tail
+
+	tds, nSize := encoding.UnmarshalBytes(src)
+	if nSize <= 0 {
+		return tail, fmt.Errorf("cannot unmarshal timestampsData")
+	}
+	src = src[nSize:]
+	dst.timestampsData = append(dst.timestampsData[:0], tds...)
+
+	vd, nSize := encoding.UnmarshalBytes(src)
+	if nSize <= 0 {
+		return tail, fmt.Errorf("cannot unmarshal valuesData")
+	}
+	src = src[nSize:]
+	dst.valuesData = append(dst.valuesData[:0], vd...)
+
+	return src, nil
+}
+
 // Search is a search for time series.
 type Search struct {
 	// MetricBlockRef is updated with each Search.NextMetricBlock call.
@@ -290,6 +361,24 @@ func NewSearchQuery(start, end int64, tagFilterss [][]TagFilter, maxMetrics int)
 	}
 }
 
+// TenantToken represents a tenant (accountID, projectID) pair.
+type TenantToken struct {
+	AccountID uint32
+	ProjectID uint32
+}
+
+// String returns string representation of t.
+func (t *TenantToken) String() string {
+	return fmt.Sprintf("{accountID=%d, projectID=%d}", t.AccountID, t.ProjectID)
+}
+
+// Marshal appends marshaled t to dst and returns the result.
+func (t *TenantToken) Marshal(dst []byte) []byte {
+	dst = encoding.MarshalUint32(dst, t.AccountID)
+	dst = encoding.MarshalUint32(dst, t.ProjectID)
+	return dst
+}
+
 // TagFilter represents a single tag filter from SearchQuery.
 type TagFilter struct {
 	Key        []byte
@@ -379,15 +468,21 @@ func (tf *TagFilter) Unmarshal(src []byte) ([]byte, error) {
 	return src, nil
 }
 
-// String returns string representation of the search query.
+// String returns string representation of the search query: tag filters and time range.
 func (sq *SearchQuery) String() string {
+	start := TimestampToHumanReadableFormat(sq.MinTimestamp)
+	end := TimestampToHumanReadableFormat(sq.MaxTimestamp)
+	a := sq.FiltersString()
+	return fmt.Sprintf("filters=%s, timeRange=[%s..%s]", a, start, end)
+}
+
+// FiltersString returns string representation of the tag filters.
+func (sq *SearchQuery) FiltersString() []string {
 	a := make([]string, len(sq.TagFilterss))
 	for i, tfs := range sq.TagFilterss {
 		a[i] = tagFiltersToString(tfs)
 	}
-	start := TimestampToHumanReadableFormat(sq.MinTimestamp)
-	end := TimestampToHumanReadableFormat(sq.MaxTimestamp)
-	return fmt.Sprintf("filters=%s, timeRange=[%s..%s]", a, start, end)
+	return a
 }
 
 func tagFiltersToString(tfs []TagFilter) string {

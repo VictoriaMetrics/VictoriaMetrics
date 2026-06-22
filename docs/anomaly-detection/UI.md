@@ -315,7 +315,7 @@ docker run -it --rm \
   -e VMANOMALY_MCP_SERVER_URL=http://mcp-vmanomaly:8081/mcp \
   -p 8080:8080 \
   -p 8490:8490 \
-  victoriametrics/vmanomaly:v1.29.4 \
+  victoriametrics/vmanomaly:v1.29.6 \
   vmanomaly_config.yaml
 ```
 
@@ -640,6 +640,17 @@ If the **results** look good and the **model configuration should be deployed in
 
 ## Changelog
 
+### v1.7.1
+Released: 2026-06-11
+
+vmanomaly version: [v1.29.5](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1295)
+
+- FEATURE: Added bulk Apply/Decline actions for [Copilot](#ai-assistance) chat suggestions.
+
+- BUGFIX: Fixed modal windows closing when the mouse is released outside the window during text selection.
+
+- BUGFIX: Fixed tooltip hover behavior so tooltips do not disappear while the cursor moves into the hover content.
+
 ### v1.7.0
 Released: 2026-05-15
 
@@ -694,7 +705,7 @@ vmanomaly version: [v1.29.1](https://docs.victoriametrics.com/anomaly-detection/
 
 - BUGFIX: Now Visualization Panel correctly switches in between "query" and "detect" modes when respective buttons are hit in the [Visualization Panel](#visualization-panel), without showing stale results from the previous mode, once running anomaly detection task is explicitly cancelled (regression introduced in [v1.5.0](#v150)).
 
-- BUGFIX: Fixed an issue with [crypto.randomUUID](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID) introduced in [v1.29.0](#v1290) in [UI copilot](https://docs.victoriametrics.com/anomaly-detection/ui/#ai-assistance) that led to the front app showing a blank page.
+- BUGFIX: Fixed an issue with [crypto.randomUUID](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID) introduced in [v1.29.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1290) in [UI copilot](https://docs.victoriametrics.com/anomaly-detection/ui/#ai-assistance) that led to the front app showing a blank page.
 
 ### v1.5.0
 Released: 2026-03-05

@@ -40,7 +40,7 @@ func TestTableSearchSerial(t *testing.T) {
 	func() {
 		// Re-open the table and verify the search works.
 		var isReadOnly atomic.Bool
-		tb := MustOpenTable(path, 0, nil, nil, &isReadOnly)
+		tb := MustOpenTable(path, 0, nil, 0, nil, &isReadOnly)
 		defer tb.MustClose()
 		if err := testTableSearchSerial(tb, items); err != nil {
 			t.Fatalf("unexpected error: %s", err)
@@ -70,7 +70,7 @@ func TestTableSearchConcurrent(t *testing.T) {
 	// Re-open the table and verify the search works.
 	func() {
 		var isReadOnly atomic.Bool
-		tb := MustOpenTable(path, 0, nil, nil, &isReadOnly)
+		tb := MustOpenTable(path, 0, nil, 0, nil, &isReadOnly)
 		defer tb.MustClose()
 		if err := testTableSearchConcurrent(tb, items); err != nil {
 			t.Fatalf("unexpected error: %s", err)
@@ -144,7 +144,7 @@ func newTestTable(r *rand.Rand, path string, itemsCount int) (*Table, []string, 
 		flushes.Add(1)
 	}
 	var isReadOnly atomic.Bool
-	tb := MustOpenTable(path, 0, flushCallback, nil, &isReadOnly)
+	tb := MustOpenTable(path, 0, flushCallback, 0, nil, &isReadOnly)
 	items := make([]string, itemsCount)
 	for i := range itemsCount {
 		item := fmt.Sprintf("%d:%d", r.Intn(1e9), i)
