@@ -632,7 +632,7 @@ func resetRollupResultCachesAndPropagate() {
 		}
 		if resp.StatusCode != http.StatusOK {
 			_ = resp.Body.Close()
-			logger.Errorf("unexpected status code at %q; got %d; want %d", req.URL.String(), resp.StatusCode, http.StatusOK)
+			logger.Errorf("unexpected status code %d when propagate cache reset request to %q. See https://docs.victoriametrics.com/victoriametrics/url-examples/#internalresetrollupresultcache for more details.", resp.StatusCode, req.URL.String())
 			resetRollupResultCacheErrors.Inc()
 			continue
 		}
