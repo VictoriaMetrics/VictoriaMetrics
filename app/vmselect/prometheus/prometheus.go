@@ -51,7 +51,7 @@ var (
 		"If set to true, the query model becomes closer to InfluxDB data model. If set to true, then -search.maxLookback and -search.maxStalenessInterval are ignored")
 	maxStepForPointsAdjustment = flag.Duration("search.maxStepForPointsAdjustment", time.Minute, "The maximum step when /api/v1/query_range handler adjusts "+
 		"points with timestamps closer than -search.latencyOffset to the current time. The adjustment is needed because such points may contain incomplete data")
-	selectNodes = flagutil.NewArrayString("selectNode", "A list of vmselect node addresses to propagate the '/internal/resetRollupResultCache' call with 'propagate=1' argument. "+
+	selectNodes = flagutil.NewArrayString("selectNode", "A list of vmselect node addresses to propagate the '/internal/resetRollupResultCache?propagate=1' call. "+
 		"If this flag or the 'propagate' argument isn't set, then cache need to be purged from each vmselect individually. "+
 		"Comma-separated addresses of vmselect nodes; usage: -selectNode=vmselect-host1,...,vmselect-hostN")
 	resetCacheAuthKey = flagutil.NewPassword("search.resetCacheAuthKey", "Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call. It could be passed via authKey query arg. It overrides -httpAuth.*. It'll be used when reset request is propagate to other -selectNode.")
