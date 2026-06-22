@@ -204,7 +204,7 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
 
 ### Providing credentials as a file
 
-`vmbackup`, `vmbackupmanager`, and [`vmalert`](https://docs.victoriametrics.com/victoriametrics/vmalert/) can load credentials from a file via the `-credsFilePath` flag to access remote S3-compatible buckets and Google Cloud Storage.
+`vmbackup` and `vmbackupmanager` can load credentials from a file via the `-credsFilePath` flag to access remote S3-compatible buckets and Google Cloud Storage.
 
 To use a credential file, add the flag:
 
