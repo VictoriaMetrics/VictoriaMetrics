@@ -574,15 +574,14 @@ var deleteDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/
 // ResetRollupResultCacheHandler handle request for `/internal/resetRollupResultCache` API.
 // It propagates the request if `propagate` argument is set.
 func ResetRollupResultCacheHandler(w http.ResponseWriter, r *http.Request) bool {
-	// check if this is a propagated request from another vmselect, by propagate argument.
-	// - if yes: simply execute and return.
+	// check if we need to propagate the request to other vmselect nodes. this usually happens via manual requests.
+	// vmselect propagates requests to other nodes without this argument to avoid dead loops.
 	propagate := httputil.GetBool(r, "propagate")
-	if !propagate {
-		resetRollupResultCaches()
+	if propagate {
+		resetRollupResultCachesAndPropagate()
 		return true
 	}
-	// - if no: it's manual request and need to propagate to other vmselect(s).
-	resetRollupResultCachesAndPropagate()
+	resetRollupResultCaches()
 	return true
 }
 
