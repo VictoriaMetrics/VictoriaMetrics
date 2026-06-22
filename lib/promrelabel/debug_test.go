@@ -10,10 +10,10 @@ import (
 
 // TestWriteRelabelDebugSupportFormats verifies the relabeling debug input, rules and output.
 func TestWriteRelabelDebugSupportFormats(t *testing.T) {
-	f := func(input, relabelRules, globalRemoteWriteRelabelRules, urlRelabelRules, expect string) {
+	f := func(input, relabelRules, expect string) {
 		// execute
 		outputWriter := bytes.NewBuffer(nil)
-		writeRelabelDebug(outputWriter, false, "", input, relabelRules, globalRemoteWriteRelabelRules+urlRelabelRules, 0, 0, "json", nil)
+		writeRelabelDebug(outputWriter, false, "", input, relabelRules, 0, 0, "json", nil)
 
 		// the response is in JSON with HTML content, extract the `resultingLabels` in JSON and unescape it.
 		resultingLabels := fastjson.GetString(outputWriter.Bytes(), `resultingLabels`)
@@ -31,16 +31,16 @@ func TestWriteRelabelDebugSupportFormats(t *testing.T) {
 - action: labeldrop
   regex: "a_not_exist_label"
 `
-	f(`metric_name`, ruleTestParsing, "", "", `metric_name`)
-	f(`metric_name{label1="value1"}`, ruleTestParsing, "", "", `metric_name{label1="value1"}`)
-	f(`{__name__="metric_name", label1="value1"}`, ruleTestParsing, "", "", `metric_name{label1="value1"}`)
-	f(`__name__="metric_name", label1="value1"`, ruleTestParsing, "", "", `metric_name{label1="value1"}`)
-	f(`_name__="metric_name"`, ruleTestParsing, "", "", `{_name__="metric_name"}`)
+	f(`metric_name`, ruleTestParsing,`metric_name`)
+	f(`metric_name{label1="value1"}`, ruleTestParsing,`metric_name{label1="value1"}`)
+	f(`{__name__="metric_name", label1="value1"}`, ruleTestParsing,`metric_name{label1="value1"}`)
+	f(`__name__="metric_name", label1="value1"`, ruleTestParsing,`metric_name{label1="value1"}`)
+	f(`_name__="metric_name"`, ruleTestParsing,`{_name__="metric_name"}`)
 
 	// special case: incorrect input format
-	f(`{_name__="metric_name"`, ruleTestParsing, "", "", ``)
-	f(`_name__="metric_name}"`, ruleTestParsing, "", "", ``)
-	f(`metrics_name}"`, ruleTestParsing, "", "", ``)
+	f(`{_name__="metric_name"`, ruleTestParsing,``)
+	f(`_name__="metric_name}"`, ruleTestParsing,``)
+	f(`metrics_name}"`, ruleTestParsing,``)
 
 	// test multiple rules including remote writes
 	// drop all labels and add one in URL relabeling
@@ -56,5 +56,5 @@ func TestWriteRelabelDebugSupportFormats(t *testing.T) {
 - target_label: add_me_url_relabel
   replacement: added
 `
-	f(`{__name__="metric_name", drop_me_metrics_relabel="1", drop_me_remote_write_relabel="2"}`, rule1, rule2, rule3, `metric_name{add_me_url_relabel="added"}`)
+	f(`{__name__="metric_name", drop_me_metrics_relabel="1", drop_me_remote_write_relabel="2"}`, rule1 + rule2 + rule3, `metric_name{add_me_url_relabel="added"}`)
 }
