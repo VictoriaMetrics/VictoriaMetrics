@@ -272,7 +272,7 @@ Released: 2025-06-13
 ## v1.23.2
 Released: 2025-06-09
 
-- IMPROVEMENT: Increased convergence speed for [OnlineZScoreModel](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-z-score), [ZScoreModel](https://docs.victoriametrics.com/anomaly-detection/components/models/#z-score), [MADModel](https://docs.victoriametrics.com/anomaly-detection/components/models/#mad), and [OnlineMADModel](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-mad) models. Now it works better for tight optimization budgets (n_trials < 10, timeout < 1s)
+- IMPROVEMENT: Increased convergence speed for [OnlineZScoreModel](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-z-score), [ZScoreModel](https://docs.victoriametrics.com/anomaly-detection/components/models/#z-score), [MADModel](https://docs.victoriametrics.com/anomaly-detection/components/models/#mad-median-absolute-deviation), and [OnlineMADModel](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-mad) models. Now it works better for tight optimization budgets (n_trials < 10, timeout < 1s)
 
 - BUGFIX: Now mean and variance of [OnlineZScoreModel](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-z-score) with exponential `decay` < 1 [arg](https://docs.victoriametrics.com/anomaly-detection/components/models/#decay) are properly calculated for unbiased predictions.
 
@@ -527,7 +527,7 @@ Released: 2024-10-01
 
 > A bug was discovered in this release that causes the service to crash. Please use the patch [v1.16.1](#v1161) to resolve this issue.
 
-- FEATURE: Introduced data dumps to a host filesystem for [VmReader](https://docs.victoriametrics.com/anomaly-detection/#vm-reader).  Resource-intensive setups (multiple queries returning many metrics, bigger `fit_window` arg) will have RAM consumption reduced during fit calls.
+- FEATURE: Introduced data dumps to a host filesystem for [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader).  Resource-intensive setups (multiple queries returning many metrics, bigger `fit_window` arg) will have RAM consumption reduced during fit calls.
 - IMPROVEMENT: Added a `groupby` argument for logical grouping in [multivariate models](https://docs.victoriametrics.com/anomaly-detection/components/models/#multivariate-models). When specified, a separate multivariate model is trained for each unique combination of label values in the `groupby` columns. For example, to perform multivariate anomaly detection on metrics at the machine level without cross-entity interference, you can use `groupby: [host]` or `groupby: [instance]`, ensuring one model per entity being trained (e.g., per host). Please find more details [here](https://docs.victoriametrics.com/anomaly-detection/components/models/#group-by).
 - IMPROVEMENT: Improved performance of [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) on multicore instances for reading and data processing.
 - IMPROVEMENT: Introduced new CLI argument aliases to enhance compatibility with [Helm charts](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-anomaly/README.md) (i.e. using secrets) and better align with [VictoriaMetrics flags](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#list-of-command-line-flags):
