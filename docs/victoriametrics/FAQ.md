@@ -269,7 +269,7 @@ We provide commercial support for both versions. [Contact us](https://victoriame
 [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_faq) – the most cost-efficient hosted monitoring platform, operated by VictoriaMetrics core team.
 
 <!-- Links inside the paragraph break navigation in the right-side menu. To fix this, an explicit anchor definition has been added. -->
-## Why doesn't VictoriaMetrics support the [Prometheus remote read API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#%3Cremote_read%3E)? {#why-doesnrsquot-victoriametrics-support-the-prometheus-remote-read-api-}
+## Why doesn't VictoriaMetrics support the [Prometheus remote read API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_read)? {#why-doesnrsquot-victoriametrics-support-the-prometheus-remote-read-api-}
 
 The remote read API requires transferring all the raw data for all the requested metrics over the given time range. For instance,
 if a query covers 1000 metrics with 10K values each, then the remote read API has to return `1000*10K`=10M metric values to Prometheus.

@@ -324,7 +324,7 @@ The list of discovered Consul Agent targets is refreshed at the interval, which 
 
 ## digitalocean_sd_configs
 
-DigitalOcean SD configuration allows retrieving scrape targets from [DigitalOcean's Droplets API](https://docs.digitalocean.com/reference/api/api-reference/#tag/Droplets).
+DigitalOcean SD configuration allows retrieving scrape targets from [DigitalOcean's Droplets API](https://docs.digitalocean.com/reference/api/reference/droplets/).
 
 Configuration example:
 

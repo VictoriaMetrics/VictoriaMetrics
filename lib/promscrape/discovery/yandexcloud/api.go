@@ -127,7 +127,7 @@ func getCreds(cfg *apiConfig) (*apiCredentials, error) {
 // See https://cloud.yandex.com/en-ru/docs/compute/operations/vm-connect/auth-inside-vm
 func getInstanceCreds(cfg *apiConfig) (*apiCredentials, error) {
 	// Try obtaining GCE-like creds at first.
-	// See https://yandex.cloud/en-ru/docs/compute/operations/vm-connect/auth-inside-vm#auth-inside-vm
+	// See https://yandex.cloud/en/docs/compute/operations/vm-connect/auth-inside-vm#auth-inside-vm
 	creds, err := getGCEInstanceCreds(cfg)
 	if err == nil {
 		return creds, nil
@@ -150,7 +150,7 @@ func getInstanceCreds(cfg *apiConfig) (*apiCredentials, error) {
 
 // getGCEInstanceCreds gets Yandex Cloud IAM token using GCE API
 //
-// See https://yandex.cloud/en-ru/docs/compute/operations/vm-connect/auth-inside-vm#auth-inside-vm
+// See https://yandex.cloud/en/docs/compute/operations/vm-connect/auth-inside-vm#auth-inside-vm
 func getGCEInstanceCreds(cfg *apiConfig) (*apiCredentials, error) {
 	endpoint := "http://169.254.169.254/computeMetadata/v1/instance/service-accounts/default/token"
 	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
@@ -183,7 +183,7 @@ func getGCEInstanceCreds(cfg *apiConfig) (*apiCredentials, error) {
 	}, nil
 }
 
-// See https://yandex.cloud/en-ru/docs/compute/operations/vm-connect/auth-inside-vm#auth-inside-vm
+// See https://yandex.cloud/en/docs/compute/operations/vm-connect/auth-inside-vm#auth-inside-vm
 type gceAPICredentials struct {
 	AccessToken string `json:"access_token"`
 	ExpiresIn   int    `json:"expires_in"`
