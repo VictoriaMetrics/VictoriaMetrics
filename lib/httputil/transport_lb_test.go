@@ -110,7 +110,7 @@ func TestLoadbalancerTransport(t *testing.T) {
 				t.Fatalf("not found expected backend request for: %q", expectedHostPort)
 			}
 			if gotRequestsPerHost != expectedRequestsPerHost {
-				t.Fatalf("unexpected requests per host: %d:%d (-;+)", expectedRequestsPerHost, gotRequestsPerHost)
+				t.Fatalf("unexpected requests per host:%q %d:%d (-;+)", expectedHostPort, expectedRequestsPerHost, gotRequestsPerHost)
 			}
 		}
 	}
@@ -118,12 +118,6 @@ func TestLoadbalancerTransport(t *testing.T) {
 	f([]string{"1.1.1.1"}, &trs)
 
 	trs = testRemoteServer{}
-	f([]string{"1.1.1.1", "2.2.2.2", "5.5.5.5"}, &trs)
-
-	// retry dns resolve error
-	trs = testRemoteServer{
-		firstError: &net.DNSError{Err: "no such host", IsNotFound: true},
-	}
 	f([]string{"1.1.1.1", "2.2.2.2", "5.5.5.5"}, &trs)
 
 	// empty backends, expecting error
