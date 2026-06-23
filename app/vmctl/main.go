@@ -563,11 +563,11 @@ func main() {
 	}()
 
 	err = app.Run(os.Args)
+	pushmetrics.StopAndPush()
 	if err != nil {
 		log.Fatalln(err)
 	}
 	log.Printf("Total time: %v", time.Since(start))
-	pushmetrics.StopAndPush()
 }
 
 func initConfigVM(c *cli.Context) (vm.Config, error) {

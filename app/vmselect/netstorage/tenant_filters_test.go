@@ -27,6 +27,12 @@ func TestApplyFiltersToTenants(t *testing.T) {
 	f([][]storage.TagFilter{{{Key: []byte("vm_account_id"), Value: []byte("1[0-9]+"), IsNegative: false, IsRegexp: true}}}, []storage.TenantToken{{AccountID: 1, ProjectID: 1}, {AccountID: 12323, ProjectID: 0}, {AccountID: 12323, ProjectID: 3}, {AccountID: 345, ProjectID: 0}}, []storage.TenantToken{{AccountID: 12323, ProjectID: 0}, {AccountID: 12323, ProjectID: 3}})
 
 	f([][]storage.TagFilter{{{Key: []byte("vm_account_id"), Value: []byte("1"), IsNegative: false, IsRegexp: false}, {Key: []byte("vm_project_id"), Value: []byte("0"), IsNegative: true, IsRegexp: false}}}, []storage.TenantToken{{AccountID: 1, ProjectID: 1}, {AccountID: 1, ProjectID: 0}}, []storage.TenantToken{{AccountID: 1, ProjectID: 1}})
+
+	f(
+		[][]storage.TagFilter{{{Key: []byte("vm_account_id"), Value: []byte("100|101|102|103|104|105|106|107|108|109|110|111|112|113|114|115|116"), IsNegative: false, IsRegexp: true}}},
+		[]storage.TenantToken{{AccountID: 100, ProjectID: 0}, {AccountID: 108, ProjectID: 0}, {AccountID: 116, ProjectID: 0}, {AccountID: 1239, ProjectID: 0}, {AccountID: 200, ProjectID: 0}},
+		[]storage.TenantToken{{AccountID: 100, ProjectID: 0}, {AccountID: 108, ProjectID: 0}, {AccountID: 116, ProjectID: 0}},
+	)
 }
 
 func TestIsTenancyLabel(t *testing.T) {

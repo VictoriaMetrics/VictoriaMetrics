@@ -811,10 +811,20 @@ func LogError(req *http.Request, errStr string) {
 	logger.Errorf("uri: %s, remote address: %q: %s", uri, remoteAddr, errStr)
 }
 
+// tlsErrorSkipLogger must be passed as the out argument to log.New only.
+// It suppresses noisy TCP probe errors on TLS connections to avoid log pollution.
+//
+// This cannot be implemented in net.Listener because a TLS handshake may take seconds,
+// during which no other connections can be accepted. Therefor, the implementation inside net.Listener can lead to DoS.
+// Once a connection is passed to the conn serve goroutine, there is no direct access to the handshake logic, so this indirect
+// approach is used instead.
 type tlsErrorSkipLogger struct{}
 
+// Write filters out TLS handshake errors from health-check probes.
+// log.Logger guarantees that each complete message is delivered in a single Write call
+// and that calls are serialized, so we can safely inspect p for a "TLS handshake error".
+// See https://github.com/golang/go/blob/38e988efb4b8f5e73e887027f386a342c138b649/src/log/log.go#L53-L57
 func (*tlsErrorSkipLogger) Write(p []byte) (int, error) {
-	// skip common health check errors produced by Kubernetes and other tools
 	if bytes.Contains(p, []byte("TLS handshake error")) &&
 		(bytes.Contains(p, []byte("EOF")) || bytes.Contains(p, []byte("connection reset by peer"))) {
 		return len(p), nil

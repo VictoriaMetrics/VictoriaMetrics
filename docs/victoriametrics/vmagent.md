@@ -797,6 +797,12 @@ For example, the following commands spread scrape targets among a cluster of two
 The `-promscrape.cluster.memberNum` can be set to a StatefulSet pod name when `vmagent` runs in Kubernetes.
 The pod name must end with a number in the range `0 ... promscrape.cluster.membersCount-1`. For example, `-promscrape.cluster.memberNum=vmagent-0`.
 
+By default, targets are sharded among `vmagent` instances by all target labels after relabeling.
+Use `-promscrape.cluster.shardByLabels` {{% available_from "v1.146.0" %}} to shard targets by specified labels instead.
+For example, with `-promscrape.cluster.shardByLabels=service`, the targets with the same `service` label value will be scraped by the same `vmagent` instance, 
+which is useful when perform stream aggregation that requires all metrics with the same `service` label value to be processed on the same `vmagent` instance. 
+If none of the specified labels are present in the target labels, then all target labels will be used for sharding.
+
 By default, each scrape target is scraped only by a single `vmagent` instance in the cluster. If there is a need for replicating scrape targets among multiple `vmagent` instances,
 then `-promscrape.cluster.replicationFactor` command-line flag must be set to the desired number of replicas. For example, the following commands
 start a cluster of three `vmagent` instances, where two `vmagent` instances scrape each target:
@@ -927,6 +933,29 @@ vmagent will generate the following persistent queue folders:
 # 2_<hash(http://user:pass@example-2:8428/prometheus/api/v1/write)>, query parameters qux=quux and fragment quuz are removed.
 2_0AAFDF53E314A72A
 ```
+
+### On-disk persistence and data processing order
+
+By default, vmagent processes data in FIFO order. If data has been written to the on-disk queue,
+it must be flushed to the remote storage before newly ingested data can be forwarded there.
+During long outages, vmagent may accumulate large amounts of data in the file-based queue,
+which can introduce a significant lag between the moment data is collected by vmagent and the
+moment it becomes visible at the remote storage.
+
+This behavior can be changed with the `-remoteWrite.inmemoryQueues` {{% available_from "v1.146.0" %}} command-line flag.
+When set to a non-zero value, vmagent starts the given number of additional workers,
+which send only recently ingested data from the in-memory queue, while the workers configured via `-remoteWrite.queues` drain the file-based backlog concurrently.
+This reduces the delivery lag for fresh samples after remote storage outages or slowdowns. The flag can be set individually per each `-remoteWrite.url`.
+
+Note that these workers are started in addition to the workers configured via `-remoteWrite.queues`, so the total number of concurrent connections to
+the remote storage becomes the sum of both flags. Take this into account if the remote storage limits the number of concurrent requests.
+
+This flag has the following possible limitations:
+
+* Samples may arrive at the remote storage out of order, since recent data can be delivered before the older backlogged data.
+  Do not use this option if the remote storage doesn't accept out-of-order samples.
+* Recent data isn't guaranteed to take the fast path: if the in-memory queue  is full,
+  newly ingested data is still written to the file-based queue and is delivered in FIFO order by the generic workers.
 
 ### Disabling On-disk persistence
 
