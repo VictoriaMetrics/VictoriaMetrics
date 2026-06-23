@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"net/url"
 	"runtime"
 	"slices"
 	"strconv"
@@ -51,9 +52,10 @@ var (
 		"If set to true, the query model becomes closer to InfluxDB data model. If set to true, then -search.maxLookback and -search.maxStalenessInterval are ignored")
 	maxStepForPointsAdjustment = flag.Duration("search.maxStepForPointsAdjustment", time.Minute, "The maximum step when /api/v1/query_range handler adjusts "+
 		"points with timestamps closer than -search.latencyOffset to the current time. The adjustment is needed because such points may contain incomplete data")
-	selectNodes = flagutil.NewArrayString("selectNode", "A list of vmselect node addresses to propagate the '/internal/resetRollupResultCache' call. "+
-		"If this flag isn't set, then cache need to be purged from each vmselect individually. "+
+	selectNodes = flagutil.NewArrayString("selectNode", "A list of vmselect node addresses to propagate the '/internal/resetRollupResultCache?propagate=1' call. "+
+		"If either this flag or the 'propagate=1' query parameter is missing, the cache must be purged on each vmselect instance individually."+
 		"Comma-separated addresses of vmselect nodes; usage: -selectNode=vmselect-host1,...,vmselect-hostN")
+	resetCacheAuthKey = flagutil.NewPassword("search.resetCacheAuthKey", "Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call. It could be passed via authKey query arg. It overrides -httpAuth.*. It'll be used when reset request is propagate to other -selectNode.")
 
 	maxUniqueTimeseries = flag.Int("search.maxUniqueTimeseries", 0, "The maximum number of unique time series, which can be selected during /api/v1/query and /api/v1/query_range queries. This option allows limiting memory usage. "+
 		"The limit can't exceed the explicitly set corresponding value `-search.maxUniqueTimeseries` on vmstorage side.")
@@ -562,7 +564,7 @@ func DeleteHandler(startTime time.Time, at *auth.Token, r *http.Request) error {
 		// Reset rollup result cache on all the vmselect nodes,
 		// since the cache may contain deleted data.
 		// TODO: reset only cache for (account, project)
-		resetRollupResultCaches()
+		resetRollupResultCachesAndPropagate()
 	}
 	logger.Infof("/api/v1/admin/tsdb/delete_series has been called for %q. Deleted %d series.", sq.FiltersString(), deletedCount)
 	return nil
@@ -570,33 +572,63 @@ func DeleteHandler(startTime time.Time, at *auth.Token, r *http.Request) error {
 
 var deleteDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/admin/tsdb/delete_series"}`)
 
+// ResetRollupResultCacheHandler handle request for `/internal/resetRollupResultCache` API.
+// It propagates the request if `propagate` argument is set.
+func ResetRollupResultCacheHandler(w http.ResponseWriter, r *http.Request) bool {
+	// check if we need to propagate the request to other vmselect nodes. this usually happens via manual requests.
+	// vmselect propagates requests to other nodes without this argument to avoid dead loops.
+	propagate := httputil.GetBool(r, "propagate")
+	if propagate {
+		resetRollupResultCachesAndPropagate()
+		return true
+	}
+	resetRollupResultCaches()
+	return true
+}
+
+// GetResetCacheAuthKey returns resetCacheAuthKey value in *Password.
+func GetResetCacheAuthKey() *flagutil.Password {
+	return resetCacheAuthKey
+}
+
 func resetRollupResultCaches() {
 	resetRollupResultCacheCalls.Inc()
 	// Reset local cache before checking whether selectNodes list is empty.
 	// This guarantees that at least local cache is reset if selectNodes list is empty.
 	promql.ResetRollupResultCache()
+}
+
+func resetRollupResultCachesAndPropagate() {
+	resetRollupResultCaches()
 	if len(*selectNodes) == 0 {
 		logger.Warnf("missing -selectNode flag, cache reset request wont be propagated to the other vmselect nodes." +
 			"This can be fixed by enumerating all the vmselect node addresses in `-selectNode` command line flag. " +
 			" For example: -selectNode=select-addr-1:8481,select-addr-2:8481")
 		return
 	}
+	rcAuthKey := GetResetCacheAuthKey().Get()
 	for _, selectNode := range *selectNodes {
 		normalizedAddr, err := netutil.NormalizeAddr(selectNode, 8481)
 		if err != nil {
 			logger.Fatalf("cannot normalize -selectNode=%q: %s", selectNode, err)
 		}
 		selectNode = normalizedAddr
-		callURL := fmt.Sprintf("http://%s/internal/resetRollupResultCache", selectNode)
-		resp, err := httpClient.Get(callURL)
+
+		resetURL := fmt.Sprintf("http://%s/internal/resetRollupResultCache", selectNode)
+		// usually `-search.resetCacheAuthKey` is set to the same on each vmselect. it's good to propagate with this argument.
+		authData := url.Values{}
+		if rcAuthKey != "" {
+			authData.Add("authKey", rcAuthKey)
+		}
+		resp, err := httpClient.PostForm(resetURL, authData)
 		if err != nil {
-			logger.Errorf("error when accessing %q: %s", callURL, err)
+			logger.Errorf("error when accessing %q: %s", resetURL, err)
 			resetRollupResultCacheErrors.Inc()
 			continue
 		}
 		if resp.StatusCode != http.StatusOK {
 			_ = resp.Body.Close()
-			logger.Errorf("unexpected status code at %q; got %d; want %d", callURL, resp.StatusCode, http.StatusOK)
+			logger.Errorf("unexpected status code %d when propagate cache reset request to %q.", resp.StatusCode, resetURL)
 			resetRollupResultCacheErrors.Inc()
 			continue
 		}
