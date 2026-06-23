@@ -171,8 +171,8 @@ func (lb *loadbalancerTransport) discoverBackends() {
 		cancel()
 		ct := fasttime.UnixTimestamp()
 		nextDeadline := ct + uint64(discoveryInterval.Seconds())
-		lb.discovering.Store(false)
 		lb.nextDiscoveryDeadline.Store(nextDeadline)
+		lb.discovering.Store(false)
 	}()
 	backends, err := lb.discoverFunc(ctx, lb.host, lb.port)
 	if err != nil {
