@@ -1472,7 +1472,7 @@ The configuration file can be [hot-reloaded](#hot-config-reload).
 
 ## DNS URLs
 
-If `vmalert` encounters URLs with the `dns+` prefix in the hostname (such as `http://dns+some-addr:8428/some/path`), it resolves `some-addr` into IP addresses
+If `vmalert` encounters URLs with the `dns+` prefix in the hostname (such as `http://dns+some-addr:8428/some/path`), it resolves `some-addr` into IP addresses via DNS A/AAAA records.
 via [DNS A records](https://datatracker.ietf.org/doc/html/rfc1035#section-3.4.1). The port from the original URL is appended to each discovered IP address.
 Each discovered IP address is used for round-robin balancing of write requests.
 
