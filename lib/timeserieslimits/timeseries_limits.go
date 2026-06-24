@@ -9,6 +9,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 )
 
 var (
@@ -173,6 +174,26 @@ func IsMetricMetadataExceeding(md *prompb.MetricMetadata) bool {
 	}
 	if len(md.Unit) > metricMetadataMaxFieldValueSize {
 		trackIgnoredMetricMetadataWithTooLongValue("unit", md.MetricFamilyName, len(md.Unit))
+		return true
+	}
+
+	return false
+}
+
+// IsPrometheusMetadataExceeding checks if passed prometheus.Metadata exceed size limit
+// for the following fields:
+// * Help
+// * Metric
+//
+// increments metrics and shows warning in logs
+func IsPrometheusMetadataExceeding(md *prometheus.Metadata) bool {
+	if len(md.Help) > metricMetadataMaxFieldValueSize {
+		trackIgnoredMetricMetadataWithTooLongValue("help", md.Metric, len(md.Help))
+		return true
+	}
+	if len(md.Metric) > metricMetadataMaxFieldValueSize {
+		trackIgnoredMetricMetadataWithTooLongValue("metric", md.Metric, len(md.Metric))
+
 		return true
 	}
 
