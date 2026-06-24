@@ -743,6 +743,61 @@ func (tb *Table) DebugFlush() {
 	tb.flushPendingItemsWG.Wait()
 }
 
+// ForceMerge merges all the file parts in the table into a minimal number of parts.
+//
+// It first converts pending items to searchable parts and flushes all in-memory
+// parts to disk, then merges the resulting file parts. Unlike background merges,
+// it merges even a single file part, so the prepareBlock callback (see
+// MustOpenTable) is guaranteed to run over every block. This is needed for
+// transformations applied only during merge, such as retention-based pruning of
+// per-day index entries in the storage layer.
+//
+// Merging is stopped prematurely if stopCh is closed.
+func (tb *Table) ForceMerge(stopCh <-chan struct{}) error {
+	if tb.isReadOnly.Load() {
+		return nil
+	}
+
+	// Move all the data into file parts, so the merge below covers everything.
+	tb.DebugFlush()
+	tb.flushInmemoryPartsToFiles(true)
+
+	// Grab all the file parts which aren't currently being merged by background mergers.
+	tb.partsLock.Lock()
+	var pws []*partWrapper
+	for _, pw := range tb.fileParts {
+		if !pw.isInMerge {
+			pw.isInMerge = true
+			pws = append(pws, pw)
+		}
+	}
+	tb.partsLock.Unlock()
+
+	if len(pws) == 0 {
+		// Nothing to merge.
+		return nil
+	}
+
+	// Check whether there is enough disk space for merging pws.
+	newPartSize := getPartsSize(pws)
+	maxOutBytes := fs.MustGetFreeSpace(tb.path)
+	if newPartSize > maxOutBytes {
+		tb.releasePartsToMerge(pws)
+		return fmt.Errorf("cannot force merge %d parts in %q; additional %d bytes of disk space needed", len(pws), tb.path, newPartSize-maxOutBytes)
+	}
+
+	// Merge all the file parts into a single part. mergeParts() runs the
+	// prepareBlock callback over all blocks, even when len(pws) == 1, and
+	// releases the isInMerge flag on the parts before returning.
+	if err := tb.mergeParts(pws, stopCh, false); err != nil {
+		if errors.Is(err, errForciblyStopped) {
+			return nil
+		}
+		return fmt.Errorf("cannot force merge %d file parts in %q: %w", len(pws), tb.path, err)
+	}
+	return nil
+}
+
 func (tb *Table) pendingItemsFlusher() {
 	// do not add jitter in order to guarantee flush interval
 	d := pendingItemsFlushInterval

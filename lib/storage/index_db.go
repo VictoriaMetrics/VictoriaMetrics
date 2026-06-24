@@ -172,13 +172,11 @@ func mustOpenIndexDB(id uint64, tr TimeRange, name, path string, s *Storage, isR
 	}
 
 	tfssCache := lrucache.NewCache(getTagFiltersCacheSize)
-	tb := mergeset.MustOpenTable(path, dataFlushInterval, tfssCache.Reset, 0, mergeTagToMetricIDsRows, isReadOnly)
 	db := &indexDB{
 		legacyMinMissingTimestampByKey: make(map[string]int64),
 		id:                             id,
 		tr:                             tr,
 		name:                           name,
-		tb:                             tb,
 		s:                              s,
 		tagFiltersToMetricIDsCache:     tfssCache,
 		loopsPerDateTagFilterCache:     workingsetcache.New(memory.Allowed() / 128),
@@ -186,6 +184,10 @@ func mustOpenIndexDB(id uint64, tr TimeRange, name, path string, s *Storage, isR
 		dateMetricIDCache:              newDateMetricIDCache(),
 	}
 	db.noRegisterNewSeries.Store(noRegisterNewSeries)
+
+	// The prepareBlock callback is bound to db, so it can prune per-day index
+	// entries outside the retention period during merges. See db.prepareBlock.
+	db.tb = mergeset.MustOpenTable(path, dataFlushInterval, tfssCache.Reset, 0, db.prepareBlock, isReadOnly)
 	db.mustLoadDeletedMetricIDs()
 	return db
 }
@@ -3245,6 +3247,95 @@ func (mp *tagToMetricIDsRowParser) GetMatchingSeriesCount(filter, negativeFilter
 		}
 	}
 	return n
+}
+
+// prepareBlock is the mergeset.PrepareBlockCallback for the partition indexDB.
+//
+// In addition to merging tag->metricIDs rows (see mergeTagToMetricIDsRows), it
+// prunes per-day index entries that fall outside the retention period.
+//
+// Each partition has its own indexDB which accumulates per-day index entries
+// for every day of the partition's month. Without pruning, indexDBs of
+// partitions with retention periods shorter than one month would keep per-day
+// entries for days already outside the retention, wasting disk space. The
+// pruning here is the index-side counterpart of the per-block retention filter
+// applied to the data parts during merge (see blockStreamMerger in merge.go).
+func (db *indexDB) prepareBlock(data []byte, items []mergeset.Item) ([]byte, []mergeset.Item) {
+	data, items = db.pruneExpiredPerDayIndexItems(data, items)
+	return mergeTagToMetricIDsRows(data, items)
+}
+
+// pruneExpiredPerDayIndexItems drops per-day index items (nsPrefixDateToMetricID,
+// nsPrefixDateTagToMetricIDs and nsPrefixDateMetricNameToTSID) whose date is
+// fully outside the retention period.
+//
+// The first and the last items are always preserved unchanged in order to
+// satisfy the mergeset.PrepareBlockCallback contract (the returned first item
+// must be >= the original first item and the last item must be <= the original
+// last item, so the sort order of adjacent blocks is preserved). As a result
+// pruning is best-effort: an expired item which happens to be the first or the
+// last item of a block is removed during a later merge once it is no longer at
+// the block boundary.
+func (db *indexDB) pruneExpiredPerDayIndexItems(data []byte, items []mergeset.Item) ([]byte, []mergeset.Item) {
+	if db.s.disablePerDayIndex {
+		// There are no per-day index entries to prune.
+		return data, items
+	}
+	if len(items) <= 2 {
+		// The first and the last items must remain unchanged, so there is
+		// nothing to prune in between.
+		return data, items
+	}
+
+	// Fast path: items are sorted by nsPrefix, so if the last item has a prefix
+	// smaller than the smallest per-day prefix, there are no per-day items.
+	lastItem := items[len(items)-1].Bytes(data)
+	if len(lastItem) == 0 || lastItem[0] < nsPrefixDateToMetricID {
+		return data, items
+	}
+
+	retentionDeadline := int64(fasttime.UnixTimestamp()*1000) - db.s.retentionMsecs
+	if retentionDeadline <= 0 {
+		// Nothing can be outside the retention yet.
+		return data, items
+	}
+	// minDate is the earliest date which still has retained samples. Every date
+	// strictly smaller than minDate is fully outside the retention period, so
+	// its per-day index entries can be safely dropped.
+	minDate := uint64(retentionDeadline) / msecPerDay
+
+	dstData := data[:0]
+	dstItems := items[:0]
+	for i, it := range items {
+		item := it.Bytes(data)
+		// Always keep the first and the last items unchanged, see the func comment.
+		if i != 0 && i != len(items)-1 && isExpiredPerDayIndexItem(item, minDate) {
+			continue
+		}
+		dstData = append(dstData, item...)
+		dstItems = append(dstItems, mergeset.Item{
+			Start: uint32(len(dstData) - len(item)),
+			End:   uint32(len(dstData)),
+		})
+	}
+	return dstData, dstItems
+}
+
+// isExpiredPerDayIndexItem returns true if item is a per-day index entry whose
+// date is strictly smaller than minDate, i.e. fully outside the retention.
+func isExpiredPerDayIndexItem(item []byte, minDate uint64) bool {
+	// Per-day index items are encoded as [1-byte nsPrefix][8-byte big-endian date][...].
+	// See indexDB.createPerDayIndexes.
+	if len(item) < 9 {
+		return false
+	}
+	switch item[0] {
+	case nsPrefixDateToMetricID, nsPrefixDateTagToMetricIDs, nsPrefixDateMetricNameToTSID:
+	default:
+		return false
+	}
+	date := encoding.UnmarshalUint64(item[1:9])
+	return date < minDate
 }
 
 func mergeTagToMetricIDsRows(data []byte, items []mergeset.Item) ([]byte, []mergeset.Item) {

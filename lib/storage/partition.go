@@ -1258,6 +1258,24 @@ func (pt *partition) mergePartsToFiles(pws []*partWrapper, stopCh <-chan struct{
 
 // ForceMergeAllParts runs merge for all the parts in pt.
 func (pt *partition) ForceMergeAllParts(stopCh <-chan struct{}) error {
+	if err := pt.forceMergeAllDataParts(stopCh); err != nil {
+		return err
+	}
+
+	// Force-merge the per-partition indexdb as well, so the prepareBlock callback
+	// runs over all the index parts. This applies retention-based pruning of
+	// per-day index entries (see indexDB.prepareBlock), which background index
+	// merges otherwise apply only opportunistically. Without this, indexdbs of
+	// partitions with retention shorter than one month keep per-day index entries
+	// for days already outside the retention.
+	if err := pt.idb.tb.ForceMerge(stopCh); err != nil {
+		return fmt.Errorf("cannot force merge indexdb for partition %q: %w", pt.name, err)
+	}
+
+	return nil
+}
+
+func (pt *partition) forceMergeAllDataParts(stopCh <-chan struct{}) error {
 	pws := pt.getAllPartsForMerge()
 	if len(pws) == 0 {
 		// Nothing to merge.
