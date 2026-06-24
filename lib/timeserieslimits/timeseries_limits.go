@@ -46,7 +46,7 @@ func Init(inputMaxLabelsPerTimeseries, inputMaxLabelNameLen, inputMaxLabelValueL
 		return float64(ignoredSeriesWithTooLongLabelValue.Load())
 	})
 	_ = metrics.GetOrCreateGauge(`vm_rows_ignored_total{reason="too_long_metric_metadata_value"}`, func() float64 {
-		return float64(ignoredSeriesWithTooLongLabelName.Load())
+		return float64(ignoredMetricsMetadataWithTooLongValue.Load())
 	})
 }
 
