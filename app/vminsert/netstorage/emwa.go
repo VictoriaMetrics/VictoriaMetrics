@@ -1,5 +1,7 @@
 package netstorage
 
+import "sync"
+
 // Copied and pasted from github.com/VividCortex/ewma to avoid adding a new dependency.
 // Reduced to only the needed functionality.
 
@@ -22,6 +24,8 @@ func newMovingAverage(age float64) *variableEWMA {
 // variableEWMA represents the exponentially weighted moving average of a series of
 // numbers. Unlike SimpleEWMA, it supports a custom age, and thus uses more memory.
 type variableEWMA struct {
+	// mu protects fields below
+	mu sync.Mutex
 	// The multiplier factor by which the previous samples decay.
 	decay float64
 	// The current value of the average.
@@ -32,6 +36,8 @@ type variableEWMA struct {
 
 // Add adds a value to the series and updates the moving average.
 func (e *variableEWMA) Add(value float64) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
 	switch {
 	case e.count < warmupSamples:
 		e.count++
@@ -48,6 +54,8 @@ func (e *variableEWMA) Add(value float64) {
 // Value returns the current value of the average, or 0.0 if the series hasn't
 // warmed up yet.
 func (e *variableEWMA) Value() float64 {
+	e.mu.Lock()
+	defer e.mu.Unlock()
 	if e.count <= warmupSamples {
 		return 0.0
 	}
@@ -57,8 +65,10 @@ func (e *variableEWMA) Value() float64 {
 
 // Set sets the EWMA's value.
 func (e *variableEWMA) Set(value float64) {
+	e.mu.Lock()
 	e.value = value
 	if e.count <= warmupSamples {
 		e.count = warmupSamples + 1
 	}
+	e.mu.Unlock()
 }
