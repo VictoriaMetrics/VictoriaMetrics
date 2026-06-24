@@ -202,6 +202,17 @@ These are the most common reasons for slow data ingestion in VictoriaMetrics:
    then it is likely that the current number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series)
    cannot fit the `storage/tsid` cache.
 
+   The `storage/tsid` cache has a fixed maximum size — 37% of the memory available to VictoriaMetrics (or `vmstorage`)
+   by default. It can be overridden with the `-storage.cacheSizeStorageTSID` command-line flag. Entries are evicted from the cache
+   when they aren't accessed during the `-cacheExpireDuration` (30 minutes by default) or when the cache overflows.
+   The eviction isn't tied to the configured retention. So, after a temporary spike in the number of active time series
+   (for example, during a rolling restart of monitored workloads in Kubernetes, which changes pod names),
+   the elevated `slow inserts` percentage usually recovers within hours after the spike ends,
+   as the cache gets re-populated with the entries for the currently active series.
+   If the `slow inserts` percentage stays high, then the number of active time series permanently exceeds the cache capacity.
+   In this case the eviction of entries for active series continues until the available memory is increased
+   or the number of active time series is reduced.
+
    These are the solutions that exist for this issue:
 
    - Increase the available memory on the host where VictoriaMetrics runs until the `slow inserts` percentage
@@ -351,6 +362,24 @@ These are the solutions that exist for improving the performance of slow queries
 
   See also [this article](https://valyala.medium.com/how-to-optimize-promql-and-metricsql-queries-85a1b75bf986),
   which explains how to identify and optimize slow queries.
+
+- Improving the selectivity of label filters.
+
+  VictoriaMetrics locates the requested time series via the first non-negative label filter with the smallest cost,
+  e.g. the smallest number of matching time series. Negative label filters (`!=` and `!~`) cannot be used
+  for locating time series — they only filter out the series located via non-negative filters.
+  If the query contains only negative label filters, then VictoriaMetrics has to locate all the time series
+  for the selected time range before applying these filters.
+
+  This means negative label filters reduce the size of the query response, but not the amounts of CPU, RAM
+  and disk read I/O needed for executing the query. For example, `node_filesystem_files{fstype!~"tmpfs|overlay"}`
+  locates all the `node_filesystem_files` series via the `__name__` filter and only then drops the series
+  with `tmpfs` and `overlay` filesystems, so it executes as slowly as `node_filesystem_files` without filters.
+  Rewriting the filter in the equivalent positive form, such as `node_filesystem_files{fstype=~"ext4|xfs"}`,
+  allows locating only the needed series and reduces both the query duration and memory usage.
+
+  [Query tracing](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#query-tracing)
+  shows which label filters are used for locating the time series.
 
 ## Out of memory errors
 
