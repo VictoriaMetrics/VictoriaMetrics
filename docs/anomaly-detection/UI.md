@@ -653,7 +653,7 @@ FEATURE: Added controls for selecting server-configured scheduled models (drop-d
 
 - BUGFIX: Fixed [settings](#settings-panel) inputs for server and datasource URLs so editing, deleting, or pasting text is no longer immediately reverted to the previous value before applying changes.
 
-BUGFIX: Fixed [model wizard](#model-panel) settings for [`IsolationForestModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#isolation-forest-multivariate) `contamination`, allowing decimal float values such as `0.1` or `0,1` to be typed or pasted without being collapsed to `0`, while preserving the `"auto"` value.
+- BUGFIX: Fixed [model wizard](#model-panel) settings for [`IsolationForestModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#isolation-forest-multivariate) `contamination`, allowing decimal float values such as `0.1` or `0,1` to be typed or pasted without being collapsed to `0`, while preserving the `"auto"` value.
 
 ### v1.7.1
 Released: 2026-06-11
