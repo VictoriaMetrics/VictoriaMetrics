@@ -1,6 +1,7 @@
 package timeserieslimits
 
 import (
+	"math"
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
@@ -44,6 +45,9 @@ func Init(inputMaxLabelsPerTimeseries, inputMaxLabelNameLen, inputMaxLabelValueL
 	_ = metrics.GetOrCreateGauge(`vm_rows_ignored_total{reason="too_long_label_value"}`, func() float64 {
 		return float64(ignoredSeriesWithTooLongLabelValue.Load())
 	})
+	_ = metrics.GetOrCreateGauge(`vm_rows_ignored_total{reason="too_long_metric_metadata_value"}`, func() float64 {
+		return float64(ignoredSeriesWithTooLongLabelName.Load())
+	})
 }
 
 var (
@@ -61,6 +65,8 @@ var (
 
 	// ignoredSeriesWithTooLongLabelValue is the number of ignored series which contain labels with too long values
 	ignoredSeriesWithTooLongLabelValue atomicutil.Uint64
+
+	ignoredMetricsMetadataWithTooLongValue atomicutil.Uint64
 )
 
 func trackIgnoredSeriesWithTooManyLabels(labels []prompb.Label) {
@@ -130,5 +136,45 @@ func IsExceeding(labels []prompb.Label) bool {
 			return true
 		}
 	}
+	return false
+}
+func trackIgnoredMetricMetadataWithTooLongValue(fieldName, metricName string, fieldSize int) {
+	ignoredMetricsMetadataWithTooLongValue.Add(1)
+	select {
+	case <-ignoredSeriesWithTooLongLabelValueLogTicker.C:
+		// Do not call logger.WithThrottler() here, since this will result in increased CPU usage
+		logger.Warnf("ignoring metric metadata with metric name %q; field %q value length=%d exceeds %d limit; "+
+			"reduce the size of field at metric metadata source.",
+			metricName, fieldName, fieldSize, metricMetadataMaxFieldValueSize)
+	default:
+	}
+}
+
+// metricMetadataMaxFieldValueSize defines max size of string fields at MetricMetadata
+// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11128 for details
+const metricMetadataMaxFieldValueSize = math.MaxUint16
+
+// IsMetricMetadataExceeding checks if passed metricMetadata exceed size limit
+// for the following fields:
+// * Help
+// * MetricFamilyName
+// * Unit
+//
+// increments metrics and shows warning in logs
+func IsMetricMetadataExceeding(md *prompb.MetricMetadata) bool {
+	if len(md.Help) > metricMetadataMaxFieldValueSize {
+		trackIgnoredMetricMetadataWithTooLongValue("help", md.MetricFamilyName, len(md.Help))
+		return true
+	}
+	if len(md.MetricFamilyName) > metricMetadataMaxFieldValueSize {
+		trackIgnoredMetricMetadataWithTooLongValue("metricFamilyName", md.MetricFamilyName, len(md.MetricFamilyName))
+
+		return true
+	}
+	if len(md.Unit) > metricMetadataMaxFieldValueSize {
+		trackIgnoredMetricMetadataWithTooLongValue("unit", md.MetricFamilyName, len(md.Unit))
+		return true
+	}
+
 	return false
 }

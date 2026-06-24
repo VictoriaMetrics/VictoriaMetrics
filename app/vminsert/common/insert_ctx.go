@@ -175,13 +175,19 @@ func (ctx *InsertCtx) WriteMetadata(mmpbs []prompb.MetricMetadata) error {
 	}
 	mms := ctx.mms
 	mms = slicesutil.SetLength(mms, len(mmpbs))
-	for idx, mmpb := range mmpbs {
-		mm := &mms[idx]
+	var cnt int
+	for _, mmpb := range mmpbs {
+		if timeserieslimits.IsMetricMetadataExceeding(&mmpb) {
+			continue
+		}
+		mm := &mms[cnt]
 		mm.MetricFamilyName = bytesutil.ToUnsafeBytes(mmpb.MetricFamilyName)
 		mm.Help = bytesutil.ToUnsafeBytes(mmpb.Help)
 		mm.Type = mmpb.Type
 		mm.Unit = bytesutil.ToUnsafeBytes(mmpb.Unit)
+		cnt++
 	}
+	mms = mms[:cnt]
 	ctx.mms = mms
 
 	err := vmstorage.VMInsertAPI.WriteMetadata(mms)
