@@ -1953,12 +1953,22 @@ func processBlocksInternal(qt *querytracer.Tracer, sns []*storageNode, denyParti
 		return false, err
 	}
 	// Send the query to all the storage nodes in parallel.
+	// Create rpcsCanceler only when -search.skipSlowReplicas is enabled, so connections
+	// aren't tracked when vmselect must wait for all vmstorage responses.
+	var rpcsCanceler *storageRPCsCanceler
+	cancel := func() {}
+	if *skipSlowReplicas {
+		rpcsCanceler = newStorageRPCsCanceler()
+		cancel = rpcsCanceler.cancel
+		defer cancel()
+	}
 	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) any {
-		if err := execSearchQueryRequest(qt, sq, workerID, sn, f, deadline); err != nil {
+		if err := execSearchQueryRequest(rpcsCanceler, qt, sq, workerID, sn, f, deadline); err != nil {
 			return err
 		}
 		return nil
 	})
+	snr.cancel = cancel
 
 	// Collect results.
 	isPartial, err := snr.collectResults(partialSearchResults, func(result any) error {
@@ -2001,6 +2011,7 @@ func populateSqTenantTokensIfNeeded(sq *storage.SearchQuery) error {
 type storageNodesRequest struct {
 	denyPartialResponse bool
 	resultsCh           chan rpcResult
+	cancel              func()
 	qt                  *querytracer.Tracer
 	// query tracers to storageAddresses mapping
 	qts map[*querytracer.Tracer]string
@@ -2039,6 +2050,7 @@ func startStorageNodesRequest(qt *querytracer.Tracer, sns []*storageNode, denyPa
 	return &storageNodesRequest{
 		denyPartialResponse: denyPartialResponse,
 		resultsCh:           resultsCh,
+		cancel:              func() {},
 		qt:                  qt,
 		qts:                 qts,
 		sns:                 sns,
@@ -2072,8 +2084,8 @@ func (snr *storageNodesRequest) collectAllResults(f func(result any) error) erro
 		result := <-snr.resultsCh
 		if err := f(result.data); err != nil {
 			snr.finishQueryTracer(result.qt, fmt.Sprintf("error: %s", err))
-			// Immediately return the error to the caller without waiting for responses from other vmstorage nodes -
-			// they will be processed in brackground.
+			// Immediately return the error to the caller without waiting for responses from other vmstorage nodes.
+			snr.cancel()
 			snr.finishQueryTracers("cancel request because of error in other vmstorage nodes")
 			return err
 		}
@@ -2105,6 +2117,7 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 				// The misconfiguration must be known by the caller, so it is fixed ASAP.
 				// Hitting maxConcurrentRequests limit is not fatal if replicationFactor > 1.
 				// Errors from vmselect clusternative server should not immediately fail.
+				snr.cancel()
 				snr.finishQueryTracers("cancel request because of error in other vmstorage nodes")
 				return false, err
 			}
@@ -2112,6 +2125,7 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 			if errors.As(err, &limitErr) {
 				// Immediately return the error, since complexity limits are already exceeded,
 				// and we don't need to process the rest of results.
+				snr.cancel()
 				snr.finishQueryTracers("cancel request because query complexity limit was exceeded")
 				return false, err
 			}
@@ -2127,6 +2141,7 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 				// Return the error to the caller if partial responses are denied
 				// and the number of partial responses for the given group reach its replicationFactor,
 				// since this means that the response is partial.
+				snr.cancel()
 				snr.finishQueryTracers(fmt.Sprintf("cancel request because partial responses are denied and replicationFactor=%d vmstorage nodes at group %q failed to return response",
 					group.replicationFactor, group.name))
 
@@ -2153,6 +2168,7 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 				// because the collected results contain all the data according to the given per-group replicationFactor.
 				// This should speed up responses when a part of vmstorage nodes are slow and/or temporarily unavailable.
 				// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/711
+				snr.cancel()
 				snr.finishQueryTracers("cancel request because -search.skipSlowReplicas is set and every group returned the needed number of responses according to replicationFactor")
 				return false, nil
 			}
@@ -2455,18 +2471,22 @@ func (sn *storageNode) processSearchMetricNames(qt *querytracer.Tracer, requestD
 	return metricNames, nil
 }
 
-func (sn *storageNode) processSearchQuery(qt *querytracer.Tracer, requestData []byte, processBlock func(rawBlock []byte, workerID uint) error,
+func (sn *storageNode) processSearchQuery(rpcsCanceler *storageRPCsCanceler, qt *querytracer.Tracer, requestData []byte, processBlock func(rawBlock []byte, workerID uint) error,
 	workerID uint, deadline searchutil.Deadline,
 ) error {
 	f := func(bc *handshake.BufferedConn) error {
 		return sn.processSearchQueryOnConn(bc, requestData, processBlock, workerID)
 	}
-	return sn.execOnConnWithPossibleRetry(qt, "search_v7", f, deadline)
+	return sn.execOnConnWithPossibleRetryCanceler(rpcsCanceler, qt, "search_v7", f, deadline)
 }
 
 func (sn *storageNode) execOnConnWithPossibleRetry(qt *querytracer.Tracer, funcName string, f func(bc *handshake.BufferedConn) error, deadline searchutil.Deadline) error {
+	return sn.execOnConnWithPossibleRetryCanceler(nil, qt, funcName, f, deadline)
+}
+
+func (sn *storageNode) execOnConnWithPossibleRetryCanceler(rpcsCanceler *storageRPCsCanceler, qt *querytracer.Tracer, funcName string, f func(bc *handshake.BufferedConn) error, deadline searchutil.Deadline) error {
 	qtChild := qt.NewChild("rpc call %s()", funcName)
-	err := sn.execOnConn(qtChild, funcName, f, deadline, false)
+	err := sn.execOnConn(rpcsCanceler, qtChild, funcName, f, deadline, false)
 	defer qtChild.Done()
 	if err == nil {
 		return nil
@@ -2474,7 +2494,7 @@ func (sn *storageNode) execOnConnWithPossibleRetry(qt *querytracer.Tracer, funcN
 	var er *errRemote
 	var ne net.Error
 	var le *limitExceededErr
-	if errors.As(err, &le) || errors.As(err, &er) || errors.As(err, &ne) && ne.Timeout() || deadline.Exceeded() || errors.Is(err, errCannotObtainConn) {
+	if errors.As(err, &le) || errors.As(err, &er) || errors.As(err, &ne) && ne.Timeout() || deadline.Exceeded() || errors.Is(err, errCannotObtainConn) || errors.Is(err, errRequestCanceled) || rpcsCanceler.isCanceled() {
 		// There is no sense in repeating the query on the following errors:
 		//
 		//   - exceeded complexity limits (limitExceededErr)
@@ -2482,6 +2502,7 @@ func (sn *storageNode) execOnConnWithPossibleRetry(qt *querytracer.Tracer, funcN
 		//   - network timeout errors
 		//   - request deadline exceeded errors
 		//   - cannot obtain connection from the pool (pool exhaustion, dial or handshake errors)
+		//   - canceled requests
 		return err
 	}
 	// Repeat the query in the hope the error was temporary.
@@ -2494,17 +2515,83 @@ func (sn *storageNode) execOnConnWithPossibleRetry(qt *querytracer.Tracer, funcN
 	// proceed without waiting for the broken connection to be evicted from the pool.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10314
 	dialConn := errors.Is(err, io.EOF) || errors.Is(err, syscall.EPIPE) || errors.Is(err, syscall.ECONNRESET)
-	err = sn.execOnConn(qtRetry, funcName, f, deadline, dialConn)
+	err = sn.execOnConn(rpcsCanceler, qtRetry, funcName, f, deadline, dialConn)
 	qtRetry.Done()
 	return err
 }
 
-var errCannotObtainConn = fmt.Errorf("cannot obtain connection from a pool")
+var (
+	errCannotObtainConn = fmt.Errorf("cannot obtain connection from a pool")
+	errRequestCanceled  = errors.New("request was canceled")
+)
 
-func (sn *storageNode) execOnConn(qt *querytracer.Tracer, funcName string, f func(bc *handshake.BufferedConn) error, deadline searchutil.Deadline, forceNew bool) error {
+type storageRPCsCanceler struct {
+	mu       sync.Mutex
+	conns    map[*handshake.BufferedConn]struct{}
+	canceled bool
+}
+
+func newStorageRPCsCanceler() *storageRPCsCanceler {
+	return &storageRPCsCanceler{
+		conns: make(map[*handshake.BufferedConn]struct{}),
+	}
+}
+
+func (rc *storageRPCsCanceler) isCanceled() bool {
+	if rc == nil {
+		return false
+	}
+	rc.mu.Lock()
+	canceled := rc.canceled
+	rc.mu.Unlock()
+	return canceled
+}
+
+func (rc *storageRPCsCanceler) add(bc *handshake.BufferedConn) bool {
+	if rc == nil {
+		return true
+	}
+	rc.mu.Lock()
+	defer rc.mu.Unlock()
+	if rc.canceled {
+		return false
+	}
+	rc.conns[bc] = struct{}{}
+	return true
+}
+
+func (rc *storageRPCsCanceler) remove(bc *handshake.BufferedConn) bool {
+	if rc == nil {
+		return false
+	}
+	rc.mu.Lock()
+	canceled := rc.canceled
+	delete(rc.conns, bc)
+	rc.mu.Unlock()
+	return canceled
+}
+
+// cancel closes all the currently executed search RPC connections in order to
+// unblock RPCs, which may be waiting for data from vmstorage.
+func (rc *storageRPCsCanceler) cancel() {
+	rc.mu.Lock()
+	defer rc.mu.Unlock()
+	if rc.canceled {
+		return
+	}
+	rc.canceled = true
+	for bc := range rc.conns {
+		_ = bc.Conn.Close()
+	}
+}
+
+func (sn *storageNode) execOnConn(rpcsCanceler *storageRPCsCanceler, qt *querytracer.Tracer, funcName string, f func(bc *handshake.BufferedConn) error, deadline searchutil.Deadline, forceNew bool) error {
 	sn.concurrentQueries.Inc()
 	defer sn.concurrentQueries.Dec()
 
+	if rpcsCanceler.isCanceled() {
+		return errRequestCanceled
+	}
 	d := time.Unix(int64(deadline.Deadline()), 0)
 	nowSecs := fasttime.UnixTimestamp()
 	currentTime := time.Unix(int64(nowSecs), 0)
@@ -2522,6 +2609,16 @@ func (sn *storageNode) execOnConn(qt *querytracer.Tracer, funcName string, f fun
 	if err != nil {
 		return fmt.Errorf("%w: %w", errCannotObtainConn, err)
 	}
+	if rpcsCanceler.isCanceled() {
+		_ = bc.Close()
+		return errRequestCanceled
+	}
+
+	remoteAddr := bc.RemoteAddr()
+	newCanceledErr := func() error {
+		return fmt.Errorf("cannot execute funcName=%q on vmstorage %q: %w", funcName, remoteAddr, errRequestCanceled)
+	}
+
 	// Extend the connection deadline by 2 seconds, so the remote storage could return `timeout` error
 	// without the need to break the connection.
 	connDeadline := d.Add(2 * time.Second)
@@ -2529,42 +2626,68 @@ func (sn *storageNode) execOnConn(qt *querytracer.Tracer, funcName string, f fun
 		_ = bc.Close()
 		logger.Panicf("FATAL: cannot set connection deadline: %s", err)
 	}
+	if !rpcsCanceler.add(bc) {
+		_ = bc.Close()
+		return errRequestCanceled
+	}
+	removeRPCConn := func() bool {
+		return rpcsCanceler.remove(bc)
+	}
 	if err := writeBytes(bc, []byte(funcName)); err != nil {
+		cancelled := removeRPCConn()
 		// Close the connection instead of returning it to the pool,
 		// since it may be broken.
 		_ = bc.Close()
+		if cancelled {
+			return newCanceledErr()
+		}
 		return fmt.Errorf("cannot send funcName=%q to the server: %w", funcName, err)
 	}
 
 	// Send query trace flag
 	traceEnabled := qt.Enabled()
 	if err := writeBool(bc, traceEnabled); err != nil {
+		cancelled := removeRPCConn()
 		// Close the connection instead of returning it to the pool,
 		// since it may be broken.
 		_ = bc.Close()
+		if cancelled {
+			return newCanceledErr()
+		}
 		return fmt.Errorf("cannot send traceEnabled=%v for funcName=%q to the server: %w", traceEnabled, funcName, err)
 	}
 	// Send the remaining timeout instead of deadline to remote server, since it may have different time.
 	timeoutSecs := uint32(timeout.Seconds() + 1)
 	if err := writeUint32(bc, timeoutSecs); err != nil {
+		cancelled := removeRPCConn()
 		// Close the connection instead of returning it to the pool,
 		// since it may be broken.
 		_ = bc.Close()
+		if cancelled {
+			return newCanceledErr()
+		}
 		return fmt.Errorf("cannot send timeout=%d for funcName=%q to the server: %w", timeout, funcName, err)
 	}
 	// Execute the rpc function.
 	if err := f(bc); err != nil {
-		remoteAddr := bc.RemoteAddr()
 		var er *errRemote
 		if errors.As(err, &er) {
 			// Remote error. The connection may be re-used. Return it to the pool.
 			_ = readTrace(qt, bc)
+			if cancelled := removeRPCConn(); cancelled {
+				_ = bc.Close()
+				return newCanceledErr()
+			}
 			sn.connPool.Put(bc)
 		} else {
+			cancelled := removeRPCConn()
 			// Local error.
 			// Close the connection instead of returning it to the pool,
 			// since it may be broken.
 			_ = bc.Close()
+			if cancelled {
+				return newCanceledErr()
+			}
 		}
 		if deadline.Exceeded() || errors.Is(err, os.ErrDeadlineExceeded) {
 			return fmt.Errorf("cannot execute funcName=%q on vmstorage %q with timeout %s: %w", funcName, remoteAddr, deadline.String(), err)
@@ -2574,10 +2697,18 @@ func (sn *storageNode) execOnConn(qt *querytracer.Tracer, funcName string, f fun
 
 	// Read trace from the response
 	if err := readTrace(qt, bc); err != nil {
+		cancelled := removeRPCConn()
 		// Close the connection instead of returning it to the pool,
 		// since it may be broken.
 		_ = bc.Close()
+		if cancelled {
+			return newCanceledErr()
+		}
 		return err
+	}
+	if cancelled := removeRPCConn(); cancelled {
+		_ = bc.Close()
+		return newCanceledErr()
 	}
 	// Return the connection back to the pool, assuming it is healthy.
 	sn.connPool.Put(bc)
@@ -3347,7 +3478,7 @@ func (pnc *perNodeCounter) GetTotal() uint64 {
 const maxFastAllocBlockSize = 32 * 1024
 
 // execSearchQueryRequest executes processSearchQuery for each searchQuery tenant.
-func execSearchQueryRequest(qt *querytracer.Tracer, sq *storage.SearchQuery, workerID uint, sn *storageNode, f func(rawBlock []byte, workerID uint) error, deadline searchutil.Deadline) error {
+func execSearchQueryRequest(rpcsCanceler *storageRPCsCanceler, qt *querytracer.Tracer, sq *storage.SearchQuery, workerID uint, sn *storageNode, f func(rawBlock []byte, workerID uint) error, deadline searchutil.Deadline) error {
 	var requestData []byte
 
 	for i := range sq.TenantTokens {
@@ -3357,9 +3488,17 @@ func execSearchQueryRequest(qt *querytracer.Tracer, sq *storage.SearchQuery, wor
 		if sq.IsMultiTenant && qt.Enabled() {
 			qtL = qt.NewChild("query for tenant: %s", sq.TenantTokens[i].String())
 		}
+		if rpcsCanceler.isCanceled() {
+			if sq.IsMultiTenant {
+				qtL.Done()
+			}
+			return errRequestCanceled
+		}
 		sn.searchRequests.Inc()
-		if err := sn.processSearchQuery(qtL, requestData, f, workerID, deadline); err != nil {
-			sn.searchErrors.Inc()
+		if err := sn.processSearchQuery(rpcsCanceler, qtL, requestData, f, workerID, deadline); err != nil {
+			if !errors.Is(err, errRequestCanceled) {
+				sn.searchErrors.Inc()
+			}
 			if sq.IsMultiTenant {
 				qtL.Done()
 			}
