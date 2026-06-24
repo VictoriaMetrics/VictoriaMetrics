@@ -104,7 +104,7 @@ var (
 		"By default, metadata sending is controlled by the global -enableMetadata flag")
 
 	obfuscationLabels = flagutil.NewArrayString("remoteWrite.obfuscationLabels", "List of label names whose values must be obfuscated before sending to the corresponding -remoteWrite.url."+
-		"By default, label obfuscation is disabled")
+		"Multiple label names should be separated by `^^`, e.g. \"job^^instance,ip\". By default, label obfuscation is disabled")
 )
 
 var (
@@ -1108,6 +1108,7 @@ func (rwctx *remoteWriteCtx) tryPushMetadataInternal(mms []prompb.MetricMetadata
 func (rwctx *remoteWriteCtx) tryPushTimeSeriesInternal(tss []prompb.TimeSeries) bool {
 	var rctx *relabelCtx
 	var v *[]prompb.TimeSeries
+	var octx *obfuscationCtx
 	defer func() {
 		if rctx == nil {
 			return
@@ -1128,11 +1129,20 @@ func (rwctx *remoteWriteCtx) tryPushTimeSeriesInternal(tss []prompb.TimeSeries) 
 
 	if len(rwctx.obfuscationLabels) != 0 {
 		if rctx == nil {
-			rctx = getRelabelCtx()
-			v = tssPool.Get().(*[]prompb.TimeSeries)
-			tss = append(*v, tss...)
+			shadowTss := tssPool.Get().(*[]prompb.TimeSeries)
+			tss = append(*shadowTss, tss...)
+			defer func() {
+				*shadowTss = prompb.ResetTimeSeries(tss)
+				tssPool.Put(shadowTss)
+			}()
 		}
-		tss = rwctx.applyObfuscation(tss)
+		octx = obfuscationCtxPool.Get().(*obfuscationCtx)
+		defer func() {
+			octx.Reset()
+			obfuscationCtxPool.Put(octx)
+		}()
+
+		tss = rwctx.applyObfuscation(tss, octx)
 	}
 
 	pss := rwctx.pss

@@ -4,9 +4,26 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"strings"
+	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
+
+type obfuscationCtx struct {
+	labels []prompb.Label
+}
+
+func (ctx *obfuscationCtx) Reset() {
+	promrelabel.CleanLabels(ctx.labels)
+	ctx.labels = ctx.labels[:0]
+}
+
+var obfuscationCtxPool = &sync.Pool{
+	New: func() any {
+		return &obfuscationCtx{}
+	},
+}
 
 func (rwctx *remoteWriteCtx) initObfuscationConfig() {
 	if len(*obfuscationLabels) == 0 {
@@ -22,15 +39,33 @@ func (rwctx *remoteWriteCtx) initObfuscationConfig() {
 	}
 }
 
-func (rwctx *remoteWriteCtx) applyObfuscation(tss []prompb.TimeSeries) []prompb.TimeSeries {
+func (rwctx *remoteWriteCtx) applyObfuscation(tss []prompb.TimeSeries, ctx *obfuscationCtx) []prompb.TimeSeries {
 	if len(rwctx.obfuscationLabels) == 0 || len(tss) == 0 {
 		return tss
 	}
 	cacheObfuscatedResult := make(map[string]string)
+	poolLabels := ctx.labels[:0]
 	for i := range tss {
 		ts := &tss[i]
 		labels := ts.Labels
-		for j := range labels {
+		j := 0
+		needToObfuscate := false
+		for ; j < len(labels); j++ {
+			label := &labels[j]
+			if _, ok := rwctx.obfuscationLabels[label.Name]; !ok {
+				continue
+			}
+			needToObfuscate = true
+			break
+		}
+		if !needToObfuscate {
+			continue
+		}
+		// Copy the label array to apply obfuscation
+		poolLabelsLen := len(poolLabels)
+		labels = append(poolLabels, labels...)
+		ts.Labels = labels[poolLabelsLen:]
+		for ; j < len(labels); j++ {
 			label := &labels[j]
 			if _, ok := rwctx.obfuscationLabels[label.Name]; !ok {
 				continue

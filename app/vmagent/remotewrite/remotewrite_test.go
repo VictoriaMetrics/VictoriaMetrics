@@ -1,6 +1,8 @@
 package remotewrite
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"math"
 	"reflect"
@@ -375,29 +377,34 @@ func TestCalculateHealthyRwctxIdx(t *testing.T) {
 	f(1, []int{}, []int{0})
 }
 
-func TestRemoteWriteContext_Obfuscation(t *testing.T) {
-	f := func(obfuscationLabelList string, obfuscationLabelCount int, inputTss []prompb.TimeSeries, expectedTss []prompb.TimeSeries) {
+func TestRemoteWriteObfuscation(t *testing.T) {
+	f := func(obfuscationLabelList string, inputTss []prompb.TimeSeries, expectedTss []prompb.TimeSeries) {
 		t.Helper()
 		rwctx := &remoteWriteCtx{
-			idx:                 0,
-			streamAggrKeepInput: false,
-			streamAggrDropInput: true,
+			idx: 0,
 		}
 		defer metrics.UnregisterAllMetrics()
+		originValue := *obfuscationLabels
+		defer func() {
+			*obfuscationLabels = originValue
+		}()
 		*obfuscationLabels = []string{obfuscationLabelList}
 		rwctx.initObfuscationConfig()
-		if len(rwctx.obfuscationLabels) != obfuscationLabelCount {
-			t.Fatalf("unexpected obfuscation labels len; got %v; want %d", len(rwctx.obfuscationLabels), obfuscationLabelCount)
-		}
-
-		outputTss := rwctx.applyObfuscation(inputTss)
+		octx := obfuscationCtx{}
+		outputTss := rwctx.applyObfuscation(inputTss, &octx)
 
 		if !reflect.DeepEqual(expectedTss, outputTss) {
 			t.Fatalf("unexpected samples;\ngot\n%v\nwant\n%v", outputTss, expectedTss)
 		}
 	}
 
-	f("ip", 1,
+	sha256Result := func(str string) string {
+		sha256Result := sha256.Sum256([]byte(str))
+		return hex.EncodeToString(sha256Result[:])
+	}
+
+	// 1. obfuscation is not set.
+	f("",
 		[]prompb.TimeSeries{
 			{
 				Labels: []prompb.Label{
@@ -412,7 +419,7 @@ func TestRemoteWriteContext_Obfuscation(t *testing.T) {
 		[]prompb.TimeSeries{
 			{
 				Labels: []prompb.Label{
-					{Name: "ip", Value: "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3"},
+					{Name: "ip", Value: "123"},
 					{Name: "instance", Value: "1234"},
 				},
 				Samples: []prompb.Sample{
@@ -422,7 +429,34 @@ func TestRemoteWriteContext_Obfuscation(t *testing.T) {
 		},
 	)
 
-	f("ip^^instance", 2,
+	// 2. obfuscate the value of "ip" label
+	f("ip",
+		[]prompb.TimeSeries{
+			{
+				Labels: []prompb.Label{
+					{Name: "ip", Value: "123"},
+					{Name: "instance", Value: "1234"},
+				},
+				Samples: []prompb.Sample{
+					{Value: 1, Timestamp: 0},
+				},
+			},
+		},
+		[]prompb.TimeSeries{
+			{
+				Labels: []prompb.Label{
+					{Name: "ip", Value: sha256Result("123")},
+					{Name: "instance", Value: "1234"},
+				},
+				Samples: []prompb.Sample{
+					{Value: 1, Timestamp: 0},
+				},
+			},
+		},
+	)
+
+	// 3. obfuscate the values of "ip" and "instance"
+	f("ip^^instance",
 		[]prompb.TimeSeries{
 			{
 				Labels: []prompb.Label{
@@ -445,8 +479,8 @@ func TestRemoteWriteContext_Obfuscation(t *testing.T) {
 		[]prompb.TimeSeries{
 			{
 				Labels: []prompb.Label{
-					{Name: "ip", Value: "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3"},
-					{Name: "instance", Value: "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4"},
+					{Name: "ip", Value: sha256Result("123")},
+					{Name: "instance", Value: sha256Result("1234")},
 				},
 				Samples: []prompb.Sample{
 					{Value: 1, Timestamp: 0},

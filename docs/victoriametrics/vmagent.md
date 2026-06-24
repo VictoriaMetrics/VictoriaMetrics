@@ -533,18 +533,20 @@ Extra labels can be added to metrics collected by `vmagent` via the following me
 
 ## Obfuscating label values
 
-Before sending metrics to `-remoteWrite.url`, `vmagent` can anonymize the values of specific labels in the metrics.
-Sometimes, some of the `-remoteWrite.url` may point to external services, such as monitoring service vendor outside the company. For security and compliance requirements, 
-obfuscating the specific labels (e.g. ip address, datacenter, etc.) before sending them to these external services will be useful.
+Before sending metrics to `-remoteWrite.url`, `vmagent` can anonymize the values of specific labels in the metrics via setting `-remoteWrite.obfuscationLabels`.
+Sometimes, some of the `-remoteWrite.url` may point to external services, such as monitoring service vendor outside the department or company. For security and compliance requirements, 
+obfuscating the specific label values (e.g. ip, host, datacenter, etc.) before sending them to these external services will be useful.
 
 Use `-remoteWrite.obfuscationLabels` to specify the labels that need to be obfuscated before sending to `-remoteWrite.url`. Multiple labels should be separated by `^^`:
 
 ```sh
 ./vmagent \
-  -remoteWrite.url=http://<external-service> \
+  -remoteWrite.url=http://<external-service1> \
   -remoteWrite.obfuscationLabels='instance^^datacenter' \
-  -remoteWrite.url=http://<internal-url> \
-  -remoteWrite.obfuscationLabels='job'
+  -remoteWrite.url=http://<external-service2> \
+  -remoteWrite.obfuscationLabels='instance' \
+  -remoteWrite.url=http://<internal-service> \
+  -remoteWrite.obfuscationLabels='' 
 ```
 
 ## Automatically generated metrics
