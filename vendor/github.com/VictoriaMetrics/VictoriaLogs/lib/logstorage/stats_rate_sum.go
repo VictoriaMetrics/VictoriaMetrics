@@ -14,7 +14,7 @@ type statsRateSum struct {
 }
 
 func (sr *statsRateSum) String() string {
-	return "rate_sum(" + fieldNamesString(sr.ss.fieldFilters) + ")"
+	return "rate_sum(" + fieldFiltersString(sr.ss.fieldFilters) + ")"
 }
 
 func (sr *statsRateSum) updateNeededFields(pf *prefixfilter.Filter) {
