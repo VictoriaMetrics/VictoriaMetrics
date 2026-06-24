@@ -52,8 +52,8 @@ github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapp
 github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.57.0/go.mod h1:YqwkQPrWSC7+byyc1VlKbWLBF5JsW5IoL6xUkemYSXk=
 github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERoyfY=
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=
-github.com/VictoriaMetrics/VictoriaLogs v1.121.1-0.20260616132739-c901a1e31cb3 h1:3eP8RRZitbga5EYiQ3IANrMPxpBwMAX4VA6akDaXwpU=
-github.com/VictoriaMetrics/VictoriaLogs v1.121.1-0.20260616132739-c901a1e31cb3/go.mod h1:H4sDxcvk6OmC6zOt++IlDyrwfbn4F1eSLwMpR+kpRt8=
+github.com/VictoriaMetrics/VictoriaLogs v1.51.1-0.20260624061259-dc94972a8708 h1:D9/Jzlm3B8PBnrWxg4ft8KYZdG607dV3lpBfPCoiJD8=
+github.com/VictoriaMetrics/VictoriaLogs v1.51.1-0.20260624061259-dc94972a8708/go.mod h1:H4sDxcvk6OmC6zOt++IlDyrwfbn4F1eSLwMpR+kpRt8=
 github.com/VictoriaMetrics/easyproto v1.2.0 h1:FJT9uNXA2isppFuJErbLqD306KoFlehl7Wn2dg/6oIE=
 github.com/VictoriaMetrics/easyproto v1.2.0/go.mod h1:QlGlzaJnDfFd8Lk6Ci/fuLxfTo3/GThPs2KH23mv710=
 github.com/VictoriaMetrics/fastcache v1.13.3 h1:rBabE0iIxcqKEMCwUmwHZ9dgEqXerg8FRbRDUvC7OVc=

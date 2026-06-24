@@ -17,7 +17,7 @@ type statsMin struct {
 }
 
 func (sm *statsMin) String() string {
-	return "min(" + fieldNamesString(sm.fieldFilters) + ")"
+	return "min(" + fieldFiltersString(sm.fieldFilters) + ")"
 }
 
 func (sm *statsMin) updateNeededFields(pf *prefixfilter.Filter) {
