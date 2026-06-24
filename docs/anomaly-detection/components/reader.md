@@ -893,6 +893,19 @@ If a path to a CA bundle file (like `ca.crt`), it will verify the certificate us
 (Optional) Password for authentication. If set, it will be used to authenticate the request.
             </td>
         </tr>
+        <tr>
+            <td>
+
+<span style="white-space: nowrap;">`series_processing_batch_size`</span>
+            </td>
+            <td>
+
+`8`
+            </td>
+            <td>
+Optional argument {{% available_from "v1.29.7" anomaly %}}, allows specifying the number of time series to process together while preparing data for fit or infer stages. Defaults to `8`. Suggested values are 4-16 for high-cardinality queries.
+            </td>
+        </tr>
     </tbody>
 </table>
 
@@ -911,6 +924,7 @@ reader:
   # tenant_id: '0:0'  # for cluster version only
   sampling_period: '1m'
   max_points_per_query: 10000
+  series_processing_batch_size: 8
   data_range: [0, 'inf']  # reader-level
   offset: '0s'  # reader-level
   timeout: '30s'
