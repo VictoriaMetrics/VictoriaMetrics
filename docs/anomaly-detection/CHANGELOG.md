@@ -14,6 +14,17 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.29.7
+Released: 2026-06-25
+
+- UI: updated [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/) from [v1.7.1](https://docs.victoriametrics.com/anomaly-detection/ui/#v171) to [v1.7.2](https://docs.victoriametrics.com/anomaly-detection/ui/#v172), see respective [release notes](https://docs.victoriametrics.com/anomaly-detection/ui/#v172) for details.
+
+- IMPROVEMENT: Increased high-cardinality inference scaling by optionally scattering periodic infer jobs to reduce contention on shared resources (e.g. datasource, CPU, RAM) when `settings.n_workers > 1` and `scheduler.infer_every` is smaller than the total time to fetch and process all queries. This is controlled by new `scatter_infer_jobs` boolean argument of [Periodic Scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#parameters-1) (default: `false`).
+
+- IMPROVEMENT: Optimized internal batching for reader post-fetch series processing, exposing reader processing queue depth, and clarifying inference skip logs after data fetch timeouts.
+
+- IMPROVEMENT: Refined `VmReader` and `VLogsReader` logging after datasource request failures by suppressing the follow-up generic "No data" or "No unseen data" warning for failed fetches. Failed requests now keep the original datasource error while empty successful responses still emit the no-data warning.
+
 ## v1.29.6
 Released: 2026-06-17
 
