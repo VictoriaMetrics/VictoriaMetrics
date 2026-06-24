@@ -645,7 +645,7 @@ Released: 2026-06-25
 
 vmanomaly version: [v1.29.7](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1297)
 
-FEATURE: Added controls for selecting server-configured scheduled models (drop-down inside [model wizard](#model-panel)) and browsing scheduled queries from the running vmanomaly instance ("Queries" button, "scheduled queries" tab).
+- FEATURE: Added controls for selecting server-configured scheduled models (drop-down inside [model wizard](#model-panel)) and browsing scheduled queries from the running vmanomaly instance ("Queries" button, "scheduled queries" tab).
 
 - IMPROVEMENT: Surfaced datasource fetch failures from ad-hoc VMUI raw queries as query-level errors instead of returning a successful empty result that triggers a generic "No match" warning. Now the user can see the actual error message from the datasource (e.g. "unauthorized", "not found", etc.) and take appropriate action.
 
