@@ -572,6 +572,9 @@ func shouldOptimizeRepeatedBinaryOpSubexprs(ec *EvalConfig, exprFirst, exprSecon
 	if !ec.OptimizeRepeatedBinaryOpSubexprs {
 		return false
 	}
+	if ec.Start == ec.End {
+		return false
+	}
 	if !ec.mayCache() {
 		return false
 	}

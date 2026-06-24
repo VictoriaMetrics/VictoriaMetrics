@@ -180,30 +180,47 @@ func TestShouldOptimizeRepeatedBinaryOpSubexprsGate(t *testing.T) {
 	if !ok {
 		t.Fatalf("unexpected expr type; got %T; want *metricsql.BinaryOpExpr", e)
 	}
-	ec := &EvalConfig{
+
+	f := func(name string, ec *EvalConfig, resultExpected bool) {
+		t.Helper()
+		result := shouldOptimizeRepeatedBinaryOpSubexprs(ec, be.Left, be.Right)
+		if result != resultExpected {
+			t.Fatalf("unexpected result for %q; got %v; want %v", name, result, resultExpected)
+		}
+	}
+
+	f("disabled optimization", &EvalConfig{
 		Start: 1000,
 		End:   2000,
 		Step:  1000,
-	}
-	if shouldOptimizeRepeatedBinaryOpSubexprs(ec, be.Left, be.Right) {
-		t.Fatalf("unexpected optimization when OptimizeRepeatedBinaryOpSubexprs is false")
-	}
-
-	ec.OptimizeRepeatedBinaryOpSubexprs = true
-	if shouldOptimizeRepeatedBinaryOpSubexprs(ec, be.Left, be.Right) {
-		t.Fatalf("unexpected optimization when MayCache is false")
-	}
-
-	ec.MayCache = true
-	if !shouldOptimizeRepeatedBinaryOpSubexprs(ec, be.Left, be.Right) {
-		t.Fatalf("expected optimization for repeated cacheable aggregate subexpression")
-	}
-
-	ec.Start = 1001
-	ec.End = 2000
-	if shouldOptimizeRepeatedBinaryOpSubexprs(ec, be.Left, be.Right) {
-		t.Fatalf("unexpected optimization when range query cannot use cache")
-	}
+	}, false)
+	f("disabled cache", &EvalConfig{
+		Start:                            1000,
+		End:                              2000,
+		Step:                             1000,
+		OptimizeRepeatedBinaryOpSubexprs: true,
+	}, false)
+	f("instant query", &EvalConfig{
+		Start:                            1000,
+		End:                              1000,
+		Step:                             1000,
+		MayCache:                         true,
+		OptimizeRepeatedBinaryOpSubexprs: true,
+	}, false)
+	f("repeated cacheable aggregate subexpression", &EvalConfig{
+		Start:                            1000,
+		End:                              2000,
+		Step:                             1000,
+		MayCache:                         true,
+		OptimizeRepeatedBinaryOpSubexprs: true,
+	}, true)
+	f("unaligned range query", &EvalConfig{
+		Start:                            1001,
+		End:                              2000,
+		Step:                             1000,
+		MayCache:                         true,
+		OptimizeRepeatedBinaryOpSubexprs: true,
+	}, false)
 }
 
 func TestShouldOptimizeRepeatedBinaryOpSubexprsExpressions(t *testing.T) {
