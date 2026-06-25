@@ -187,7 +187,8 @@ func (ctx *InsertCtx) WriteMetadata(mmpbs []prompb.MetricMetadata) error {
 		mm.Unit = bytesutil.ToUnsafeBytes(mmpb.Unit)
 		cnt++
 	}
-	ctx.mms = mms[:cnt]
+	mms = mms[:cnt]
+	ctx.mms = mms
 
 	err := vmstorage.VMInsertAPI.WriteMetadata(mms)
 	if err != nil {
@@ -217,8 +218,8 @@ func (ctx *InsertCtx) WritePromMetadata(mmps []prometheus.Metadata) error {
 		mm.Type = mmpb.Type
 		cnt++
 	}
-	ctx.mms = mms[:cnt]
-
+	mms = mms[:cnt]
+	ctx.mms = mms
 	err := vmstorage.VMInsertAPI.WriteMetadata(mms)
 	if err != nil {
 		return &httpserver.ErrorWithStatusCode{
