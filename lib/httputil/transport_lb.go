@@ -2,8 +2,8 @@ package httputil
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"io"
 	"math/rand/v2"
 	"net"
 	"net/http"
@@ -17,6 +17,12 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
+)
+
+const (
+	brokenBackendTimeout     = 5 * time.Second
+	backendDiscoveryInterval = 10 * time.Second
+	backendDiscoveryTimeout  = 10 * time.Second
 )
 
 // NewLoadBalancerTransport returns new RoundTripper that performs round-robin HTTP requests loadbalancing
@@ -71,30 +77,74 @@ type loadbalancerTransport struct {
 type discoveredBackends struct {
 	backends []*backend
 	// n is an atomic counter, which is used for balancing load among available backends.
-	n atomic.Uint64
+	n atomic.Uint32
 }
 
-func (dbs *discoveredBackends) getBackend() *backend {
+// getLeastLoadedBackend returns least loaded backend
+// caller must release backend with backend.put() method
+func (dbs *discoveredBackends) getLeastLoadedBackend() *backend {
+	firstB := dbs.backends[0]
 	if len(dbs.backends) == 1 {
-		// fast path
-		return dbs.backends[0]
+		firstB.get()
+		return firstB
 	}
-	for range len(dbs.backends) {
-		idx := dbs.n.Add(1)
-		b := dbs.backends[idx%uint64(len(dbs.backends))]
-		if b.isBroken() {
+
+	// Slow path - select other backends.
+	n := dbs.n.Add(1) - 1
+	for i := range uint32(len(dbs.backends)) {
+		idx := (n + i) % uint32(len(dbs.backends))
+		bu := dbs.backends[idx]
+		if bu.isBroken() {
 			continue
 		}
-		return b
+
+		// The Load() in front of CompareAndSwap() avoids CAS overhead for items with values bigger than 0.
+		if bu.concurrentRequests.Load() == 0 && bu.concurrentRequests.CompareAndSwap(0, 1) {
+			dbs.n.CompareAndSwap(n+1, idx+1)
+			// There is no need in the call b.get(), because we already incremented b.concurrentRequests above.
+			return bu
+		}
 	}
 
-	return dbs.backends[0]
+	// Slow path - return the backend with the minimum number of concurrently executed requests.
+	buMinIdx := n % uint32(len(dbs.backends))
+	minRequests := dbs.backends[buMinIdx].concurrentRequests.Load()
+	for i := uint32(1); i < uint32(len(dbs.backends)); i++ {
+		idx := (n + i) % uint32(len(dbs.backends))
+		bu := dbs.backends[idx]
+		if bu.isBroken() {
+			continue
+		}
 
+		reqs := bu.concurrentRequests.Load()
+		if reqs < minRequests || dbs.backends[buMinIdx].isBroken() {
+			buMinIdx = idx
+			minRequests = reqs
+		}
+	}
+	buMin := dbs.backends[buMinIdx]
+	if buMin.isBroken() {
+		// If all backends are broken, then returns the first backend.
+		firstB.get()
+		return firstB
+	}
+	buMin.get()
+	dbs.n.CompareAndSwap(n+1, buMinIdx+1)
+	return buMin
 }
 
 type backend struct {
-	addr           string
-	brokenDeadline atomic.Uint64
+	addr               string
+	concurrentRequests atomic.Int32
+	brokenDeadline     atomic.Uint64
+}
+
+func (b *backend) get() {
+	b.concurrentRequests.Add(1)
+}
+
+func (b *backend) put() {
+	b.concurrentRequests.Add(-1)
 }
 
 func (b *backend) isBroken() bool {
@@ -116,29 +166,13 @@ func (lb *loadbalancerTransport) RoundTrip(r *http.Request) (*http.Response, err
 	maxRetries := len(dbs.backends)
 	var lastErr error
 	for range maxRetries {
-		b := dbs.getBackend()
-		r2 := r.Clone(r.Context())
-		if r.GetBody != nil {
-			body, err := r.GetBody()
-			if err != nil {
-				return nil, err
-			}
-			r2.Body = body
-		}
-		r2.URL.Host = b.addr
-		if r2.Host == "" {
-			r2.Host = r.URL.Host
-		}
-		resp, err := lb.tr.RoundTrip(r2)
+		b := dbs.getLeastLoadedBackend()
+		resp, err := lb.doRequest(r, b)
 		if err != nil {
-			const brokenDuration = 10 * time.Second
 			ct := fasttime.UnixTimestamp()
-			brokenDeadline := ct + uint64(brokenDuration.Seconds())
+			brokenDeadline := ct + uint64(brokenBackendTimeout.Seconds())
 			b.brokenDeadline.Store(brokenDeadline)
-			var dnsErr *net.DNSError
-			// perform a single retry for in case of trivial error
-			// or dns lookup error for srv discovery
-			if !netutil.IsTrivialNetworkError(err) && (errors.As(err, &dnsErr) && !dnsErr.IsNotFound) {
+			if !netutil.IsTrivialNetworkError(err) {
 				return nil, err
 			}
 			// perform the same check for retry as http.Request.isReplayable does
@@ -154,6 +188,31 @@ func (lb *loadbalancerTransport) RoundTrip(r *http.Request) (*http.Response, err
 	return nil, fmt.Errorf("all backends are unavailable: %w", lastErr)
 }
 
+func (lb *loadbalancerTransport) doRequest(r *http.Request, b *backend) (*http.Response, error) {
+	r2 := r.Clone(r.Context())
+	if r.GetBody != nil {
+		body, err := r.GetBody()
+		if err != nil {
+			b.put()
+			return nil, err
+		}
+		r2.Body = body
+	}
+	r2.URL.Host = b.addr
+	if r2.Host == "" {
+		r2.Host = r.URL.Host
+	}
+	resp, err := lb.tr.RoundTrip(r2)
+	if err != nil {
+		b.put()
+		return nil, err
+	}
+	// wrap response body with readCloser that releases backend after Close call
+	// it's needed to properly account loaded backends at getLeastLoadedBackends
+	resp.Body = newReleaseReadCloser(resp.Body, b)
+	return resp, nil
+}
+
 func (lb *loadbalancerTransport) getBackends() *discoveredBackends {
 	ct := fasttime.UnixTimestamp()
 	deadline := lb.nextDiscoveryDeadline.Load()
@@ -165,18 +224,17 @@ func (lb *loadbalancerTransport) getBackends() *discoveredBackends {
 }
 
 func (lb *loadbalancerTransport) discoverBackends() {
-	const discoveryInterval = 5 * time.Second
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), backendDiscoveryTimeout)
 	defer func() {
 		cancel()
 		ct := fasttime.UnixTimestamp()
-		nextDeadline := ct + uint64(discoveryInterval.Seconds())
+		nextDeadline := ct + uint64(backendDiscoveryInterval.Seconds())
 		lb.nextDiscoveryDeadline.Store(nextDeadline)
 		lb.discovering.Store(false)
 	}()
 	backends, err := lb.discoverFunc(ctx, lb.host, lb.port)
 	if err != nil {
-		logger.Errorf("cannot discover backends: %s, retry in %s", err, discoveryInterval)
+		logger.Errorf("cannot discover backends: %s, retry in %s", err, backendDiscoveryInterval)
 		return
 	}
 	rand.Shuffle(len(backends), func(i, j int) {
@@ -228,4 +286,26 @@ func discoverSRVBackends(ctx context.Context, host, port string) ([]*backend, er
 		backends = append(backends, &backend{addr: hostAddr})
 	}
 	return backends, nil
+}
+
+func newReleaseReadCloser(responseBody io.ReadCloser, b *backend) io.ReadCloser {
+	return &releaseReadCloser{
+		ReadCloser: responseBody,
+		b:          b,
+	}
+}
+
+type releaseReadCloser struct {
+	io.ReadCloser
+	b        *backend
+	released atomic.Bool
+}
+
+func (rrc *releaseReadCloser) Close() error {
+	if rrc.released.CompareAndSwap(false, true) {
+		// Close method could be called multiple times
+		// and it must produce idempotent result
+		rrc.b.put()
+	}
+	return rrc.ReadCloser.Close()
 }
