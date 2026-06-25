@@ -624,13 +624,12 @@ command line flags. See how to [shard data across remote write destinations](htt
 The following requirements must be met for sharded aggregation to work correctly:
 - All sharding vmagents should have the same deterministic sharding configuration.
 - The sharding configuration must align with the `by` and `without` lists:
-  - Labels listed in `by` setting should be a subset of shard's routing key `-remoteWrite.shardByURL.labels`. 
-    With `-remoteWrite.shardByURL.labels=env,job` aggregator's `by` should include `by: env`, `by: job` or both: `by: [env, job]`.
-    This makes sure that all the samples for the same `env` and `job` are aggregated together and produce the complete output.
-  - Labels listed in `without` setting should be a superset of shard's routing key `--remoteWrite.shardByURL.ignoreLabels`.
-    With `-remoteWrite.shardByURL.ignoreLabels=env,job` aggegator's `without` should include at least both labels `without: [env,job]`.
-    This makes sure that `requests_total{env=test, job=foo}` and `requests_total{env=prod, job=foo}` are routed to the same aggregator
-    and are aggregated together. See also [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5938#issuecomment-2018470324).
+  - Labels configured in `-remoteWrite.shardByURL.labels` must be a subset of the labels listed in `by`. 
+    For example, if the aggregation config specifies `by: [env, job]`, then `-remoteWrite.shardByURL.labels` may include `env`, `job`, or both. 
+    This ensures that all samples contributing to the same aggregation result are routed to the same aggregator instance and aggregated together to produce a complete output.
+  - Labels configured in `-remoteWrite.shardByURL.ignoreLabels` must be a superset of the labels listed in `without`.
+    For example, if the aggregation config specifies `without: [env, pod]`, then `-remoteWrite.shardByURL.ignoreLabels` must include at least `env` and `pod`. 
+    This ensures that labels removed during aggregation are not used for shard routing.
 - Aggregating vmagents should not produce collisions: the aggregation output should be unique across all the sharded agents.
   For example, `requests_total:5m_without_env_pod_total` produced by both `vmagent-aggr-1` and `vmagent-aggr-2` will collide
   unless they have labels uniquely identifying them. These labels should be either preserved during sharding and aggregation config,
