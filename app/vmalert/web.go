@@ -122,6 +122,9 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
+		if r.URL.Path == "/vmalert/groups" {
+			rf.normalizeAlertState = true
+		}
 		// only support filtering by a single state
 		state := ""
 		if len(rf.states) > 0 {
@@ -371,16 +374,17 @@ func newAlertsFilter(r *http.Request) (*alertsFilter, *httpserver.ErrorWithStatu
 
 // see https://prometheus.io/docs/prometheus/latest/querying/api/#rules
 type rulesFilter struct {
-	gf             *groupsFilter
-	ruleNames      []string
-	ruleType       string
-	excludeAlerts  bool
-	states         []string
-	maxGroups      int
-	pageNum        int
-	search         string
-	match          [][]metricsql.LabelFilter
-	extendedStates bool
+	gf                  *groupsFilter
+	ruleNames           []string
+	ruleType            string
+	excludeAlerts       bool
+	states              []string
+	maxGroups           int
+	pageNum             int
+	search              string
+	match               [][]metricsql.LabelFilter
+	extendedStates      bool
+	normalizeAlertState bool
 }
 
 func newRulesFilter(r *http.Request) (*rulesFilter, *httpserver.ErrorWithStatusCode) {
@@ -543,16 +547,18 @@ func (rh *requestHandler) groups(rf *rulesFilter) *listGroupsResponse {
 			if !groupFound && !strings.Contains(strings.ToLower(rule.Name), rf.search) {
 				continue
 			}
+			ruleWithExtendedState := rule
+			ruleWithExtendedState.ExtendState(rf.normalizeAlertState)
 			if rf.extendedStates {
-				rule.ExtendState()
+				rule = ruleWithExtendedState
 			}
-			if !rf.matchesRule(&rule) {
+			if !rf.matchesRule(&ruleWithExtendedState) {
 				continue
 			}
 			if rf.excludeAlerts {
 				rule.Alerts = nil
 			}
-			g.States[rule.State]++
+			g.States[ruleWithExtendedState.State]++
 			filteredRules = append(filteredRules, rule)
 		}
 		if len(g.Rules) == 0 || len(filteredRules) > 0 {
