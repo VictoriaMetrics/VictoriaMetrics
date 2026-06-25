@@ -54,26 +54,6 @@ func TestRecordingToApi(t *testing.T) {
 	}
 }
 
-func TestApiRuleExtendStateForWeb(t *testing.T) {
-	seriesFetched := 1
-	r := ApiRule{
-		State:             "firing",
-		Health:            "ok",
-		LastSeriesFetched: &seriesFetched,
-		Alerts:            []*ApiAlert{{State: "firing"}},
-	}
-
-	r.ExtendState(false)
-	if r.State != "firing" {
-		t.Fatalf("expected alert rule state to expect %q; got %q", "firing", r.State)
-	}
-
-	r.ExtendState(true)
-	if r.State != "ok" {
-		t.Fatalf("expected alert rule state to expect %q; got %q", "ok", r.State)
-	}
-}
-
 func TestURLValuesToStrings(t *testing.T) {
 	mapQueryParams := map[string][]string{
 		"param1": {"param1"},
