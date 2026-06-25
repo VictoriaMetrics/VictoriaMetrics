@@ -141,11 +141,13 @@ users:
   url_prefix: "http://vminsert:8480/insert/prometheus"
 
 # JWT-based routing that relies solely on custom claims.
-# The `vm_access` claim is not required - tokens are routed by their custom claims,
+# The `vm_access` claim is missing, default value will be used.
 # e.g. {"role": "admin"}.
 - name: jwt-custom-claims
   jwt:
     skip_verify: true
+    vm_default_access_claim:
+        metrics_account_id: 1
     match_claims:
       role: admin
   url_prefix: "http://vmselect-admin:8481/select/0/prometheus"

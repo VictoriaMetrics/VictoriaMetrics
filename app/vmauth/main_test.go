@@ -785,7 +785,7 @@ statusCode=401
 Unauthorized`
 	f(simpleCfgStr, request, responseExpected)
 
-	// token without vm_access claim is accepted when it matches custom claims
+	// token without vm_access claim is accepted when it
 	request = httptest.NewRequest(`GET`, "http://some-host.com/abc", nil)
 	request.Header.Set(`Authorization`, `Bearer `+roleToken)
 	responseExpected = `
@@ -798,6 +798,9 @@ users:
 - jwt:
     public_keys:
     - %q
+    default_vm_access_claim:
+      metrics_account_id: 10
+      metrics_project_id: 10
     match_claims:
       role: admin
   url_prefix: {BACKEND}/foo`, string(publicKeyPEM)), request, responseExpected)

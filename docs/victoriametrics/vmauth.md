@@ -520,7 +520,8 @@ for dynamic URL rewriting based on `vm_access` claim fields.
 
 `vmauth` can dynamically rewrite{{% available_from "v1.137.0" %}} upstream URLs and request headers using values from the JWT `vm_access` claim. 
 This enables routing different users to different backends or tenants based solely on the JWT token, 
-without maintaining separate user configs per tenant.
+without maintaining separate user configs per tenant. In addition `vm_access` claim could be defined at `jwt` section with `default_vm_access_claim` {{% available_from "#" %}}.
+In this case, if JWT token doesn't have `vm_access` claim defined, value from `default_vm_access_claim` will be used for templaing.
 
 Example: minimal valid JWT. If vm_access is empty, tenant `0:0` is assumed and no additional filters are applied.
 ```json
@@ -574,6 +575,28 @@ Placeholders are supported in the following locations:
 
 Placeholders are **not** supported in response headers. 
 They are also only valid for JWT-authenticated users — using them in configs for `username`/`password` or `bearer_token` users causes a configuration error.
+
+Example: default `vm_access` claim:
+
+```yaml
+users:
+- jwt:
+    default_vm_access_claim:
+      metrics_account_id: 10
+      metrics_project_id: 10
+      metrics_extra_filters:
+      - '{instance="sandbox"}'
+      metrics_extra_labels:
+      - team=dev
+      - env=dev
+    public_keys:
+    - |
+      -----BEGIN PUBLIC KEY-----
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+      -----END PUBLIC KEY-----
+  url_prefix: "http://vminsert:8480/insert/{{.MetricsAccountID}}:{{.MetricsProjectID}}/prometheus/?extra_filters={{.MetricsExtraFilters}}&extra_label={{.MetricsExtraLabels}}"
+```
+
 
 Example: route requests to the VictoriaMetrics single-node:
 
