@@ -19,6 +19,7 @@ var benchOutputs = []string{
 	"increase",
 	"increase_prometheus",
 	"last",
+	"sum_last",
 	"max",
 	"min",
 	"quantiles(0, 0.5, 1)",

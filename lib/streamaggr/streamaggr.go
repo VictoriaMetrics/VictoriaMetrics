@@ -12,6 +12,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+	"gopkg.in/yaml.v2"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -23,8 +26,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
-	"github.com/VictoriaMetrics/metrics"
-	"gopkg.in/yaml.v2"
 )
 
 var supportedOutputs = []string{
@@ -35,6 +36,7 @@ var supportedOutputs = []string{
 	"increase",
 	"increase_prometheus",
 	"last",
+	"sum_last",
 	"max",
 	"min",
 	"quantiles(phi1, ..., phiN)",
@@ -192,6 +194,7 @@ type Config struct {
 	// - increase - calculates the increase over input series
 	// - increase_prometheus - calculates the increase over input series, ignoring the first sample in new time series
 	// - last - the last biggest sample value
+	// - sum_last - sums the last values for each input series
 	// - max - the maximum sample value
 	// - min - the minimum sample value
 	// - quantiles(phi1, ..., phiN) - quantiles' estimation for phi in the range [0..1]
@@ -758,6 +761,8 @@ func newOutputConfig(ms *metrics.Set, metricLabels, output string, outputsSeen m
 		return newIncreaseAggrConfig(ms, metricLabels, ignoreFirstSampleIntervalSecs, false), nil
 	case "last":
 		return newLastAggrConfig(), nil
+	case "sum_last":
+		return newSumLastAggrConfig(), nil
 	case "max":
 		return newMaxAggrConfig(), nil
 	case "min":

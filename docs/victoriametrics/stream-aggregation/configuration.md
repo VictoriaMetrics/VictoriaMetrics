@@ -222,6 +222,7 @@ Below are aggregation functions that can be put in the `outputs` list at [stream
 * [stddev](#stddev)
 * [stdvar](#stdvar)
 * [sum_samples](#sum_samples)
+* [sum_last](#sum_last)
 * [total](#total)
 * [total_prometheus](#total_prometheus)
 * [unique_samples](#unique_samples)
@@ -369,6 +370,23 @@ See also:
 - [max](#max)
 - [min](#min)
 - [quantiles](#quantiles)
+
+### sum_last
+
+`sum_last` returns the sum of the last [sample value](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) of each input over the given `interval`.
+
+The results of `sum_last` is roughly equal to the following [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query:
+
+```metricsql
+sum(last_over_time(some_metric[interval])) by (label)
+```
+
+See also:
+
+- [last](#last)
+- [avg](#avg)
+- [max](#max)
+- [min](#min)
 
 ### max
 
