@@ -552,7 +552,7 @@ func (rh *requestHandler) groups(rf *rulesFilter) *listGroupsResponse {
 			if rf.extendedStates {
 				rule = ruleWithExtendedState
 			}
-			if !rf.matchesRule(&ruleWithExtendedState) {
+			if !rf.matchesRule(&rule) {
 				continue
 			}
 			if rf.excludeAlerts {
