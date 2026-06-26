@@ -13,8 +13,6 @@ aliases:
   - /vmestimator/index.html
   - /vmestimator/
 ---
-# vmestimator
-
 `vmestimator` measures metrics cardinality across arbitrary label dimensions and exposes the results as metrics.
 
 # Why measure ?
@@ -60,7 +58,7 @@ Run vmagent:
 The next step is to expose cardinality estimates as metrics.
 For this, `vmagent` should scrape the estimator `/metrics` endpoint and forward those metrics to a `vmsingle` instance (or another VictoriaMetrics storage).
 
-<img width="2413" height="1189" alt="image" src="https://github.com/user-attachments/assets/e52d9210-b6f9-457b-8d8f-1d6ff6ba1416" />
+<img src="https://github.com/user-attachments/assets/e52d9210-b6f9-457b-8d8f-1d6ff6ba1416" />
 
 
 This setup is straightforward and introduces minimal overhead.
@@ -73,7 +71,7 @@ In this architecture, `vmestimator` metrics are isolated from production observa
 ensuring cardinality visibility remains available even during incidents affecting the primary monitoring system.
 
 The resulting topology looks like this:
-<img width="2413" height="1189" alt="image" src="https://github.com/user-attachments/assets/e2ca4a69-e931-47a1-9d91-99749382d4a9" />
+<img src="https://github.com/user-attachments/assets/e2ca4a69-e931-47a1-9d91-99749382d4a9" />
 
 ## Install
 
@@ -296,7 +294,7 @@ Use the cardinality explorer when you need to drill into a specific metric or la
 
 Instances are split into two roles: **storage nodes** accept Prometheus remote write and maintain local HyperLogLog sketches; **selector nodes** query all storage nodes, merge their sketches, and expose a unified cardinality estimate. Cardinality estimate results should be scraped from selector nodes.
 
-<img width="2416" height="1190" alt="image" src="https://github.com/user-attachments/assets/846e5f77-378a-44dc-a4c8-2a1c64eca9d8" />
+<img src="https://github.com/user-attachments/assets/846e5f77-378a-44dc-a4c8-2a1c64eca9d8" />
 
 **Storage nodes:**
 ```
@@ -339,7 +337,7 @@ Two Grafana dashboards are available in the [dashboards](https://github.com/Vict
 - `vmestimator.json` — application health: CPU, memory, ingestion rates, concurrent inserts, and group key saturation.
 - `cardinality-explorer.json` — cardinality analysis: global estimates, per-group-key series counts, and top-10 highest-cardinality label value combinations.
 
-<img width="1512" height="862" alt="Screenshot 2026-04-23 at 09 47 38" src="https://github.com/user-attachments/assets/2bd6a930-1eb5-40ef-8006-8196c1c12397" />
+<img src="https://github.com/user-attachments/assets/2bd6a930-1eb5-40ef-8006-8196c1c12397" />
 
 ## How to build from sources
 
@@ -526,4 +524,3 @@ Usage of ./bin/vmestimator:
   -version
         Show VictoriaMetrics version
 ```
-
