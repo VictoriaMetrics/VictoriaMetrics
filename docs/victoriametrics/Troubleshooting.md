@@ -188,7 +188,7 @@ If you see unexpected or unreliable query results from VictoriaMetrics, then try
 
 These are the most common reasons for slow data ingestion in VictoriaMetrics:
 
-1. Memory shortage for the given amounts of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series).
+1. [Memory shortage](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#memory-shortage) for the given amounts of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series).
 
    VictoriaMetrics (or `vmstorage` in the cluster version of VictoriaMetrics) maintains an in-memory cache `storage/tsid`
    for a quick search for internal series IDs for each incoming metric. VictoriaMetrics automatically determines the maximum 
@@ -352,35 +352,138 @@ These are the solutions that exist for improving the performance of slow queries
   See also [this article](https://valyala.medium.com/how-to-optimize-promql-and-metricsql-queries-85a1b75bf986),
   which explains how to identify and optimize slow queries.
 
-## Out of memory errors
+## Memory shortage
 
-The following are the most common sources of out-of-memory (aka OOM) crashes in VictoriaMetrics:
+High memory utilization alone does not indicate a shortage.
+A VictoriaMetrics component can operate normally under high memory utilization,
+but it is recommended to keep [at least 50% of free memory for stability](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#capacity-planning).
+A shortage means there is not enough memory for the workload.
+It is different from high utilization and from memory pressure (the kernel's reclaim activity, shown by [PSI](https://docs.kernel.org/accounting/psi.html)).
+Use the [signals](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#memory-signals) and [patterns](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#memory-shortage-patterns) below to tell them apart,
+and [how to fix](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#how-to-fix-memory-issues) to resolve it.
 
-1. Improper command-line flag values. Inspect command-line flags passed to VictoriaMetrics components.
-   If you don't clearly understand the purpose or the effect of some flags, remove them
-   from the list of flags passed to VictoriaMetrics components. Improper command-line flag values
-   may lead to increased memory and CPU usage. Increased memory usage increases the risk of OOM crashes.
-   VictoriaMetrics is optimized to run with default flag values (e.g., when they aren't explicitly set).
+VictoriaMetrics components detect the available memory at startup as the smaller of the host RAM and the cgroup memory limit,
+and expose it as `vm_available_memory_bytes`. The actual usage is `process_resident_memory_bytes`, which has two main parts:
 
-   For example, it isn't recommended to change cache sizes in VictoriaMetrics, as this frequently leads to OOM exceptions.
-   [These docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning) refer to command-line flags that aren't
-   recommended to tune. If you see that VictoriaMetrics needs to increase some cache sizes for the current workload,
-   then it is better to migrate to a host with more memory instead of trying to tune cache sizes manually.
+1. Go (anonymous) memory - `process_resident_memory_anon_bytes`. It includes:
 
-1. Unexpected heavy queries. The query is considered heavy if it needs to select and process millions of unique time series.
-   Such a query may cause an OOM exception, as VictoriaMetrics needs to keep some per-series data in memory.
-   VictoriaMetrics provides [various settings](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#resource-usage-limits)
-   that can help limit resource usage.
-   For more context, see [How to optimize PromQL and MetricsQL queries](https://valyala.medium.com/how-to-optimize-promql-and-metricsql-queries-85a1b75bf986).
-   VictoriaMetrics also provides [query tracer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#query-tracing)
-   to help identify the source of heavy queries. Slow queries can be logged with additional details via [Query execution stats](https://docs.victoriametrics.com/victoriametrics/query-stats/). 
+   - `-memory.allowedPercent` (default 60%, or `-memory.allowedBytes`) sets a memory budget whose use differs per component:
+     - `vmstorage`: in-process caches (for example `storage/tsid` and `indexdb/file`) and in-memory data parts.
+     - `vmselect`: the rollup result cache and the per-query rollup memory.
+     - `vminsert`: in-memory row buffers held per `vmstorage` node before flushing to `vmstorage`.
+     - `vmagent`: in-memory blocks held before they are written to the persistent queue.
+     - `vmauth`: not sized by it, but bounded by `-maxConcurrentRequests` and `-requestBufferSize` instead.
+   - The Go heap, goroutine stacks and runtime overhead used for ingestion and queries.
 
-1. Lack of free memory for processing workload spikes. If VictoriaMetrics components use almost all the available memory
-   under the current workload, then it is recommended to migrate to a host with larger amounts of memory.
-   This would protect from possible OOM crashes on workload spikes. It is recommended to have at least 50%
-   of free memory to gracefully handle possible workload spikes.
-   See [capacity planning for single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#capacity-planning)
-   and [capacity planning for the cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#capacity-planning).
+1. OS page cache for the on-disk [data](https://docs.victoriametrics.com/victoriametrics/#storage)
+   and [indexdb](https://docs.victoriametrics.com/victoriametrics/#indexdb). The OS caches recently
+   read parts of these files in free RAM and reclaims them under memory pressure.
+   `process_resident_memory_file_bytes` shows how much of them is currently resident for the process.
+
+Before tuning and troubleshooting memory issues,
+see [Best practices](https://docs.victoriametrics.com/victoriametrics/bestpractices/#memory)
+for memory configuration guidance. Be sure that `GOMEMLIMIT` is not set,
+and that the [VPA](https://github.com/kubernetes/autoscaler/tree/master/vertical-pod-autoscaler) is not used for `vmstorage` pods.
+
+### Memory signals
+
+These metrics describe how a component uses memory. See [how to monitor VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/#monitoring)
+to set up scraping and the Grafana dashboards that show them.
+None of them means a shortage on its own; read them together in [Memory shortage patterns](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#memory-shortage-patterns).
+
+- `process_resident_memory_anon_bytes` / `vm_available_memory_bytes` - anonymous memory (caches plus Go heap)
+  as a share of the available memory. This memory can't be reclaimed back by OS.
+
+- `process_resident_memory_file_bytes` - the OS page cache for the component's on-disk data,
+  currently resident for the process. Reclaimable by the OS.
+
+- `process_pressure_memory_waiting_seconds_total`, `process_pressure_memory_stalled_seconds_total` -
+  [PSI](https://docs.kernel.org/accounting/psi.html): time tasks were stalled waiting for memory reclaim.
+  Populated only on Linux hosts with PSI support.
+
+- `vm_cache_size_bytes / vm_cache_size_max_bytes` (per `type`, e.g., `storage/tsid`) -
+  how full each in-process cache is.
+
+- `vm_slow_row_inserts_total` / `vm_rows_added_to_storage_total` -
+  share of ingested rows that missed the `storage/tsid` cache ([slow inserts](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#slow-data-ingestion)).
+
+- `increase(vm_new_timeseries_created_total[24h]) / vm_cache_entries{type="storage/hour_metric_ids"}` -
+  the [churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate):
+  new series created over a day relative to the
+  [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series).
+
+- `process_major_pagefaults_total` - rate of pages read from disk (page-cache misses, refaults, or swap-in).
+
+- `go_memstats_heap_inuse_bytes` and the `CPU spent on GC` panel - the Go heap working set and the CPU cost of garbage collection.
+
+#### Out of memory errors
+
+An out-of-memory (OOM) kill is the strongest sign of a memory shortage, but the process cannot report it:
+the process is already dead. Detect the kill from outside the process:
+
+- Kubernetes: a container restart with reason `OOMKilled` in the pod events (`kubectl describe pod`).
+- Linux hosts: the kernel OOM killer log in `dmesg` or `journalctl`, with the `oom_score` for the killed process.
+- Container runtime logs record the same kill from the runtime side.
+
+To prevent recurrence, resolve the underlying shortage (see [How to fix memory issues](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#how-to-fix-memory-issues)).
+
+### Memory shortage patterns
+
+There are three patterns of memory shortage:
+
+1. **The cache cannot hold the active series (cache-bound shortage).** The `storage/tsid` cache is full:
+   `vm_cache_size_bytes{type="storage/tsid"}` is close to `vm_cache_size_max_bytes{type="storage/tsid"}`, and slow inserts stay high.
+   Most slow inserts come from `storage/tsid` cache misses, on new series or on already-known active series.
+   If they stay above 5% of ingested rows during a stable window without restarts or rerouting,
+   and are not explained by `rate(vm_new_timeseries_created_total)`,
+   it points to misses on active series that no longer fit the cache.
+   See the detailed explanation in the [Slow data ingestion](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#slow-data-ingestion) section.
+
+1. **The Go heap exceeds its budget (heap-bound shortage).** `go_memstats_heap_inuse_bytes` climbs well above its stable baseline.
+   Check it together with the non-cache part of anonymous memory:
+   `process_resident_memory_anon_bytes` minus the component's `vm_cache_size_bytes`.
+   There is no fixed normal value, so compare against the component's own stable history.
+   A `process_resident_memory_anon_bytes / vm_available_memory_bytes` ratio that keeps rising leaves little headroom
+   and may lead to an [OOM kill](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#out-of-memory-errors).
+   A single heavy query can spike the heap on its own: if it has to select and process millions of unique time series,
+   VictoriaMetrics keeps some per-series data in memory while the query runs. Find it with the
+   [query tracer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#query-tracing),
+   log slow queries with [query execution stats](https://docs.victoriametrics.com/victoriametrics/query-stats/),
+   bound it with [resource usage limits](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#resource-usage-limits),
+   and see [how to optimize PromQL and MetricsQL queries](https://valyala.medium.com/how-to-optimize-promql-and-metricsql-queries-85a1b75bf986).
+   If heap growth correlates with query or ingestion load, it is workload-driven.
+   If the heap grows regardless of load, suspect a memory leak, collect a heap profile, and [file a bug report](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/new).
+
+1. **The OS page cache is too small (I/O-bound shortage).** The main signal is a consistently high
+   `process_major_pagefaults_total` rate: the component's data and `indexdb` no longer fit the page cache,
+   so it reads them from disk and query latency grows. `process_resident_memory_file_bytes` drops as the OS
+   evicts these file pages. Swap causes the same symptoms, so keep it disabled on `vmstorage` and
+   single-node hosts (see [Swap](https://docs.victoriametrics.com/victoriametrics/bestpractices/#swap)).
+   Add memory according to
+   [capacity planning](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#capacity-planning).
+
+PSI is an additional confirmation signal: a rising `process_pressure_memory_*` value indicates that the kernel is reclaiming memory for the cgroup.
+Where PSI is unavailable, rely on the per-pattern signals above.
+
+### How to fix memory issues
+
+After distinguishing the shortage from normal high memory utilization, and if it persists,
+you can use the approaches below to resolve it:
+
+- Reduce the number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series)
+  or the [churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate) -
+  see [Slow data ingestion](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#slow-data-ingestion).
+- Add more memory by scaling vertically or horizontally - see capacity planning for
+  [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#capacity-planning)
+  and the [cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#capacity-planning).
+  Spare memory also absorbs workload spikes that would otherwise OOM a component running near its limit.
+- Remove command-line flags whose impact you do not clearly understand. Improper flags can raise
+  memory usage and lead to OOM crashes. In particular, do not change
+  [cache sizes](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning);
+  add more memory instead.
+- Investigate Go heap growth or a suspected memory leak - collect a memory profile using the profiling guide for
+  [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#profiling)
+  or [cluster components](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#profiling).
 
 ## Cluster instability
 
