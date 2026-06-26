@@ -573,8 +573,8 @@ vmagent can write data to multiple distinct tenants if:
 
 ```mermaid
 flowchart LR
-    A["requests_total{instance=foo}"] --> |<a href="http://localhost:1313/victoriametrics/cluster-victoriametrics/#multitenancy-via-headers">/insert/#60;suffix#62;</a> <br>--header AccountID: 0| V[vmagent]
-    B["requests_total{instance=bar}"] --> |<a href="http://localhost:1313/victoriametrics/cluster-victoriametrics/#multitenancy-via-headers">/insert/#60;suffix#62;</a> <br>--header AccountID: 1| V
+    A["requests_total{instance=foo}"] --> |<a href="https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-headers">/insert/#60;suffix#62;</a> <br>--header AccountID: 0| V[vmagent]
+    B["requests_total{instance=bar}"] --> |<a href="https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-headers">/insert/#60;suffix#62;</a> <br>--header AccountID: 1| V
     V --> |"/insert/multitenant/prometheus/api/v1/write"| C[vminsert]
 ```
 
