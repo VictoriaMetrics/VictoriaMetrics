@@ -1,6 +1,8 @@
 package remotewrite
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"math"
 	"reflect"
@@ -375,4 +377,125 @@ func TestCalculateHealthyRwctxIdx(t *testing.T) {
 	f(5, []int{4}, []int{0, 1, 2, 3})
 	f(1, []int{0}, nil)
 	f(1, []int{}, []int{0})
+}
+
+func TestRemoteWriteObfuscation(t *testing.T) {
+	f := func(obfuscationLabelList string, inputTss []prompb.TimeSeries, expectedTss []prompb.TimeSeries) {
+		t.Helper()
+		rwctx := &remoteWriteCtx{
+			idx: 0,
+		}
+		defer metrics.UnregisterAllMetrics()
+		originValue := *obfuscationLabels
+		defer func() {
+			*obfuscationLabels = originValue
+		}()
+		*obfuscationLabels = []string{obfuscationLabelList}
+		rwctx.initObfuscationConfig()
+		octx := obfuscationCtx{}
+		outputTss := rwctx.applyObfuscation(inputTss, &octx)
+
+		if !reflect.DeepEqual(expectedTss, outputTss) {
+			t.Fatalf("unexpected samples;\ngot\n%v\nwant\n%v", outputTss, expectedTss)
+		}
+	}
+
+	sha256Result := func(str string) string {
+		sha256Result := sha256.Sum256([]byte(str))
+		return hex.EncodeToString(sha256Result[:])
+	}
+
+	// 1. obfuscation is not set.
+	f("",
+		[]prompb.TimeSeries{
+			{
+				Labels: []prompb.Label{
+					{Name: "ip", Value: "123"},
+					{Name: "instance", Value: "1234"},
+				},
+				Samples: []prompb.Sample{
+					{Value: 1, Timestamp: 0},
+				},
+			},
+		},
+		[]prompb.TimeSeries{
+			{
+				Labels: []prompb.Label{
+					{Name: "ip", Value: "123"},
+					{Name: "instance", Value: "1234"},
+				},
+				Samples: []prompb.Sample{
+					{Value: 1, Timestamp: 0},
+				},
+			},
+		},
+	)
+
+	// 2. obfuscate the value of "ip" label
+	f("ip",
+		[]prompb.TimeSeries{
+			{
+				Labels: []prompb.Label{
+					{Name: "ip", Value: "123"},
+					{Name: "instance", Value: "1234"},
+				},
+				Samples: []prompb.Sample{
+					{Value: 1, Timestamp: 0},
+				},
+			},
+		},
+		[]prompb.TimeSeries{
+			{
+				Labels: []prompb.Label{
+					{Name: "ip", Value: sha256Result("123")},
+					{Name: "instance", Value: "1234"},
+				},
+				Samples: []prompb.Sample{
+					{Value: 1, Timestamp: 0},
+				},
+			},
+		},
+	)
+
+	// 3. obfuscate the values of "ip" and "instance"
+	f("ip^^instance",
+		[]prompb.TimeSeries{
+			{
+				Labels: []prompb.Label{
+					{Name: "ip", Value: "123"},
+					{Name: "instance", Value: "1234"},
+				},
+				Samples: []prompb.Sample{
+					{Value: 1, Timestamp: 0},
+				},
+			},
+			{
+				Labels: []prompb.Label{
+					{Name: "job", Value: "123"},
+				},
+				Samples: []prompb.Sample{
+					{Value: 1, Timestamp: 0},
+				},
+			},
+		},
+		[]prompb.TimeSeries{
+			{
+				Labels: []prompb.Label{
+					{Name: "ip", Value: sha256Result("123")},
+					{Name: "instance", Value: sha256Result("1234")},
+				},
+				Samples: []prompb.Sample{
+					{Value: 1, Timestamp: 0},
+				},
+			},
+			{
+				Labels: []prompb.Label{
+					{Name: "job", Value: "123"},
+				},
+				Samples: []prompb.Sample{
+					{Value: 1, Timestamp: 0},
+				},
+			},
+		},
+	)
 }

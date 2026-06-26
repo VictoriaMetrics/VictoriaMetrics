@@ -106,6 +106,9 @@ var (
 		"cannot be pushed into the configured -remoteWrite.url systems in a timely manner. See https://docs.victoriametrics.com/victoriametrics/vmagent/#disabling-on-disk-persistence")
 	disableMetadataPerURL = flagutil.NewArrayBool("remoteWrite.disableMetadata", "Whether to disable sending metadata to the corresponding -remoteWrite.url. "+
 		"By default, metadata sending is controlled by the global -enableMetadata flag")
+
+	obfuscationLabels = flagutil.NewArrayString("remoteWrite.obfuscationLabels", "List of label names whose values must be obfuscated before sending to the corresponding -remoteWrite.url."+
+		"Multiple label names should be separated by `^^`, e.g. \"job^^instance,ip\". By default, label obfuscation is disabled")
 )
 
 var (
@@ -874,6 +877,8 @@ type remoteWriteCtx struct {
 	pss        []*pendingSeries
 	pssNextIdx atomic.Uint64
 
+	obfuscationLabels map[string]struct{}
+
 	rowsPushedAfterRelabel *metrics.Counter
 	rowsDroppedByRelabel   *metrics.Counter
 
@@ -988,6 +993,7 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, sanitizedURL string)
 		rowsDroppedOnPushFailure:     metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_samples_dropped_total{path=%q,url=%q}`, queuePath, sanitizedURL)),
 	}
 	rwctx.initStreamAggrConfig()
+	rwctx.initObfuscationConfig()
 
 	return rwctx
 }
@@ -1153,6 +1159,7 @@ func (rwctx *remoteWriteCtx) tryPushMetadataInternal(mms []prompb.MetricMetadata
 func (rwctx *remoteWriteCtx) tryPushTimeSeriesInternal(tss []prompb.TimeSeries) bool {
 	var rctx *relabelCtx
 	var v *[]prompb.TimeSeries
+	var octx *obfuscationCtx
 	defer func() {
 		if rctx == nil {
 			return
@@ -1169,6 +1176,24 @@ func (rwctx *remoteWriteCtx) tryPushTimeSeriesInternal(tss []prompb.TimeSeries) 
 		v = tssPool.Get().(*[]prompb.TimeSeries)
 		tss = append(*v, tss...)
 		rctx.appendExtraLabels(tss, labelsGlobal)
+	}
+
+	if len(rwctx.obfuscationLabels) != 0 {
+		if rctx == nil {
+			shadowTss := tssPool.Get().(*[]prompb.TimeSeries)
+			tss = append(*shadowTss, tss...)
+			defer func() {
+				*shadowTss = prompb.ResetTimeSeries(tss)
+				tssPool.Put(shadowTss)
+			}()
+		}
+		octx = obfuscationCtxPool.Get().(*obfuscationCtx)
+		defer func() {
+			octx.Reset()
+			obfuscationCtxPool.Put(octx)
+		}()
+
+		tss = rwctx.applyObfuscation(tss, octx)
 	}
 
 	pss := rwctx.pss
