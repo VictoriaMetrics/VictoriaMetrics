@@ -309,11 +309,11 @@ Scraping has additional settings that can be applied before samples are pushed t
 `vmagent` supports [the same set of push-based data ingestion protocols as VictoriaMetrics does](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data)
 in addition to the pull-based Prometheus-compatible targets' scraping:
 
-* DataDog "submit metrics" API. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/datadog/).
+* Datadog "submit metrics" API. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/datadog/).
 * InfluxDB line protocol via `http://<vmagent>:8429/write`. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb/).
 * Graphite plaintext protocol if the `-graphiteListenAddr` command-line flag is set. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting).
 * OpenTelemetry HTTP API via `http://<vmagent>:8429/opentelemetry/v1/metrics`. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/).
-* NewRelic API. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/newrelic/#sending-data-from-agent).
+* New Relic API. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/newrelic/#sending-data-from-agent).
 * OpenTSDB telnet and http protocols if `-opentsdbListenAddr` command-line flag is set. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb/).
 * Zabbix Connector streaming protocol. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/zabbixconnector/#send-data-from-zabbix-connector).
 * Prometheus remote write protocol via `http://<vmagent>:8429/api/v1/write`.
@@ -484,7 +484,7 @@ By default, `vmagent` collects the data without [tenant](https://docs.victoriame
 and routes it to the remote storage specified via `-remoteWrite.url` command-line flag. Point `-remoteWrite.url` to vminsert's `/insert/<tenant_id>/prometheus/api/v1/write` path
 according to [these docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format). 
 
-> Note: single-node version of VictoriaMetrics doesn't support multitenancy.
+> Note: the single-node version of VictoriaMetrics doesn't support multitenancy.
 
 ```mermaid
 flowchart LR
@@ -497,8 +497,8 @@ In this case, all the metrics written to `/insert/<tenant_id>/prometheus/api/v1/
 
 ### Multitenancy via labels
 
-vmagent can write data to **multiple distinct tenants** if `-remoteWrite.url` points to [multitenant URL at VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels)
-and tenant is specified via [multitenancy labels](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels):
+vmagent can write data to **multiple distinct tenants** if `-remoteWrite.url` points to the [multitenant URL in the VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels)
+and the tenant is specified via [multitenancy labels](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels):
 
 ```mermaid
 flowchart LR
@@ -507,9 +507,9 @@ flowchart LR
     V --> |"/insert/multitenant/prometheus/api/v1/write"| C[vminsert]
 ```
 
-> It is allowed to have time series belonging to multiple tenants within one payload pulled or pushed to vmagent.
+> A single payload pulled from or pushed to vmagent may contain time series belonging to multiple tenants.
 
-When vminsert receives the data on `/insert/multitenant` path, it extracts `<tenant_id>` from the `vm_account_id` and `vm_project_id` labels for
+When vminsert receives the data on the `/insert/multitenant` path, it extracts `<tenant_id>` from the `vm_account_id` and `vm_project_id` labels for
 each distinct time series.
 
 > If `vm_account_id` or `vm_project_id` labels are missing or invalid, then the corresponding accountID and projectID are set to 0.
@@ -525,9 +525,9 @@ scrape_configs:
     target_label: vm_account_id
 ```
 
-vmagent can get tenant identifier from `__tenant_id__` label at target discovery phase.
-It implicitly converts `__tenant_id__` label into `vm_account_id` and `vm_project_id` labels and attaches
-it to the scraped metrics and metrics metadata.
+vmagent can get the tenant identifier from the `__tenant_id__` label during the target discovery phase.
+It implicitly converts the `__tenant_id__` label into `vm_account_id` and `vm_project_id` labels and attaches
+them to the scraped metrics and metrics metadata.
 
 For example, the following relabeling rule instructs sending metrics to the `10:5` tenant defined in the `prometheus.io/tenant_id: 10:5`
 annotation of the Kubernetes pod deployment:
@@ -541,15 +541,15 @@ scrape_configs:
     target_label: __tenant_id__
 ```
 
-vmagent can [enforce adding labels](https://docs.victoriametrics.com/victoriametrics/vmagent/#adding-labels-to-metrics)
-to all scraped or forwarded metrics. 
+vmagent can also [enforce adding labels](https://docs.victoriametrics.com/victoriametrics/vmagent/#adding-labels-to-metrics)
+on all scraped or forwarded metrics. 
 
 ### Multitenancy via path
 
 vmagent can write data to multiple distinct tenants if:
-* its `-remoteWrite.url` points to [multitenant URL at VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels)
+* its `-remoteWrite.url` points to the [VictoriaMetrics cluster multitenant URL](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels)
 * its `-enableMultitenantHandlers` command-line flag is set
-* clients ingest data into vmagent with tenant specified in the [write path](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format)
+* clients ingest data into vmagent with the tenant specified in the [write path](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format)
 
 ```mermaid
 flowchart LR
@@ -559,7 +559,7 @@ flowchart LR
 ```
 
 In this configuration, vmagent accepts writes via the same multitenant endpoints (`/insert/<accountID>/<suffix>`) [as vminsert does](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format).
-For all received data, vmagent will automatically convert tenant identifiers from the URL path to `vm_account_id` and `vm_project_id` labels and set tenants info in metadata.
+For all the received data, vmagent will automatically convert tenant identifiers in the URL path to `vm_account_id` and `vm_project_id` labels, and set tenant information in metadata.
 
 These tenant labels are added before applying [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/)
 specified via `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig` command-line flags. 
@@ -567,9 +567,9 @@ specified via `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig` c
 ### Multitenancy via headers
 
 vmagent can write data to multiple distinct tenants if:
-* its `-remoteWrite.url` points to [multitenant URL at VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels)
+* its `-remoteWrite.url` points to the [VictoriaMetrics cluster multitenant URL](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels)
 * its `-enableMultitenantHandlers` and `-enableMultitenancyViaHeaders` command-line flags are both set
-* clients ingest data into vmagent with tenants specified [via headers](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-headers) {{% available_from "v1.143.0" %}}
+* clients ingest data into vmagent with the tenants specified [via headers](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-headers) {{% available_from "v1.143.0" %}}
 
 ```mermaid
 flowchart LR
@@ -581,14 +581,14 @@ flowchart LR
 In this configuration, vmagent accepts writes via the same simplified multitenant endpoints (`/insert/<suffix>`) [as vminsert does](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format).
 The tenant information is extracted from the `AccountID` and `ProjectID` HTTP headers, which are expected to be included in all incoming requests.
 
-> If headers are missing, then the tenant is set to `0:0` as the default.
+> If headers are missing, then the tenant is set to `0:0` by default.
 
-For all the received data, vmagent will automatically convert tenant identifiers from the headers to `vm_account_id` and `vm_project_id` labels and set tenant info in metadata.
-These tenant labels are added before applying [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/) specified via `-remoteWrite.relabelConfig`
+For all the received data, vmagent will automatically convert tenant identifiers in the headers to `vm_account_id` and `vm_project_id` labels, and set tenant info in metadata.
+These tenant labels are added before applying [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/) specified via the `-remoteWrite.relabelConfig`
 and `-remoteWrite.urlRelabelConfig` command-line flags.
 
 vmauth can [enforce adding headers](https://docs.victoriametrics.com/victoriametrics/vmauth/#modifying-http-headers) to all
-forwarded requests via `headers` param in the config file.
+forwarded requests via the `headers` parameter in the config file.
 
 ## Adding labels to metrics
 
