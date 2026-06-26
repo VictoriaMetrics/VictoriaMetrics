@@ -13,9 +13,10 @@ aliases:
   - /vmestimator/index.html
   - /vmestimator/
 ---
+
 `vmestimator` measures metrics cardinality across arbitrary label dimensions and exposes the results as metrics.
 
-# Why measure ?
+## Why measure ?
 
 Consider a setup where metrics are scraped from dozens of Prometheus targets.
 One day, a team deploys a new version of their service with a `trace_id` or `user_id` label.
@@ -526,3 +527,4 @@ Usage of ./bin/vmestimator:
   -version
         Show VictoriaMetrics version
 ```
+
