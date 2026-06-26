@@ -376,6 +376,7 @@ type rulesFilter struct {
 	ruleType       string
 	excludeAlerts  bool
 	states         []string
+	sortParam      string
 	maxGroups      int
 	pageNum        int
 	search         string
@@ -433,6 +434,7 @@ func newRulesFilter(r *http.Request) (*rulesFilter, *httpserver.ErrorWithStatusC
 	rf.excludeAlerts = httputil.GetBool(r, "exclude_alerts")
 	rf.extendedStates = httputil.GetBool(r, "extended_states")
 	rf.ruleNames = append([]string{}, vs["rule_name[]"]...)
+	rf.sortParam = vs.Get("sort")
 	rf.search = strings.ToLower(vs.Get("search"))
 
 	pageNum := vs.Get("page_num")
@@ -509,28 +511,32 @@ func (rh *requestHandler) groups(rf *rulesFilter) *listGroupsResponse {
 	rh.m.groupsMu.RLock()
 	defer rh.m.groupsMu.RUnlock()
 
-	skipGroups := (rf.pageNum - 1) * rf.maxGroups
 	lr := &listGroupsResponse{
 		Status: "success",
 	}
 	lr.Data.Groups = make([]*rule.ApiGroup, 0)
-	if skipGroups >= len(rh.m.groups) {
-		return lr
-	}
-	// sort list of groups for deterministic output
-	groups := make([]*rule.Group, 0, len(rh.m.groups))
+
+	// Collect groups first, then apply sorting (if requested), and only then paginate.
+	// This ensures page membership is consistent with sort order.
+	baseGroups := make([]*rule.Group, 0, len(rh.m.groups))
 	for _, group := range rh.m.groups {
-		groups = append(groups, group)
+		baseGroups = append(baseGroups, group)
 	}
 
-	slices.SortFunc(groups, func(a, b *rule.Group) int {
-		nameCmp := cmp.Compare(a.Name, b.Name)
-		if nameCmp != 0 {
-			return nameCmp
-		}
-		return cmp.Compare(a.File, b.File)
-	})
-	for _, group := range groups {
+	sortParam := rf.sortParam
+	if sortParam != "evaluation_time" {
+		// sort list of groups for deterministic output
+		slices.SortFunc(baseGroups, func(a, b *rule.Group) int {
+			nameCmp := cmp.Compare(a.Name, b.Name)
+			if nameCmp != 0 {
+				return nameCmp
+			}
+			return cmp.Compare(a.File, b.File)
+		})
+	}
+
+	filteredGroups := make([]*rule.ApiGroup, 0, len(baseGroups))
+	for _, group := range baseGroups {
 		if !rf.gf.matches(group) {
 			continue
 		}
@@ -538,7 +544,7 @@ func (rh *requestHandler) groups(rf *rulesFilter) *listGroupsResponse {
 		g := group.ToAPI()
 		// the returned list should always be non-nil
 		// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4221
-		filteredRules := make([]rule.ApiRule, 0)
+		filteredRules := make([]rule.ApiRule, 0, len(g.Rules))
 		for _, rule := range g.Rules {
 			if !groupFound && !strings.Contains(strings.ToLower(rule.Name), rf.search) {
 				continue
@@ -560,21 +566,92 @@ func (rh *requestHandler) groups(rf *rulesFilter) *listGroupsResponse {
 				lr.TotalGroups++
 				lr.TotalRules += len(filteredRules)
 			}
-			if skipGroups > 0 {
-				skipGroups--
-				continue
-			}
-			if rf.maxGroups == 0 || len(lr.Data.Groups) < rf.maxGroups {
-				g.Rules = filteredRules
-				lr.Data.Groups = append(lr.Data.Groups, g)
-			}
+			g.Rules = filteredRules
+			filteredGroups = append(filteredGroups, g)
 		}
 	}
+
+	if sortParam == "evaluation_time" {
+		for _, g := range filteredGroups {
+			sortRulesByEvaluationTime(g.Rules)
+		}
+		sortGroupsByEvaluationTime(filteredGroups)
+	}
+
+	// Apply pagination after sorting.
 	if rf.maxGroups > 0 {
+		skipGroups := (rf.pageNum - 1) * rf.maxGroups
+		if skipGroups < 0 {
+			skipGroups = 0
+		}
+		if skipGroups < len(filteredGroups) {
+			end := skipGroups + rf.maxGroups
+			if end > len(filteredGroups) {
+				end = len(filteredGroups)
+			}
+			lr.Data.Groups = filteredGroups[skipGroups:end]
+		}
 		lr.Page = rf.pageNum
 		lr.TotalPages = max(int(math.Ceil(float64(lr.TotalGroups)/float64(rf.maxGroups))), 1)
+		return lr
 	}
+
+	lr.Data.Groups = filteredGroups
 	return lr
+}
+
+// compareIDs compares two numeric IDs formatted as strings (strconv.FormatUint).
+// IDs have no leading zeros, so shorter strings always represent smaller numbers.
+func compareIDs(a, b string) int {
+	if len(a) != len(b) {
+		return cmp.Compare(len(a), len(b))
+	}
+	return cmp.Compare(a, b)
+}
+
+func sortRulesByEvaluationTime(rules []rule.ApiRule) {
+	slices.SortFunc(rules, func(a, b rule.ApiRule) int {
+		// Sort slowest first.
+		evalCmp := cmp.Compare(b.EvaluationTime, a.EvaluationTime)
+		if evalCmp != 0 {
+			return evalCmp
+		}
+		// Tie-breakers for deterministic ordering.
+		nameCmp := cmp.Compare(a.Name, b.Name)
+		if nameCmp != 0 {
+			return nameCmp
+		}
+		return compareIDs(a.ID, b.ID)
+	})
+}
+
+func sortGroupsByEvaluationTime(groups []*rule.ApiGroup) {
+	// Pre-compute max evaluation time per group for O(N) instead of O(N log N).
+	maxTimes := make(map[*rule.ApiGroup]float64, len(groups))
+	for _, g := range groups {
+		var maxEval float64
+		for _, r := range g.Rules {
+			if r.EvaluationTime > maxEval {
+				maxEval = r.EvaluationTime
+			}
+		}
+		maxTimes[g] = maxEval
+	}
+	slices.SortFunc(groups, func(a, b *rule.ApiGroup) int {
+		evalCmp := cmp.Compare(maxTimes[b], maxTimes[a])
+		if evalCmp != 0 {
+			return evalCmp
+		}
+		nameCmp := cmp.Compare(a.Name, b.Name)
+		if nameCmp != 0 {
+			return nameCmp
+		}
+		fileCmp := cmp.Compare(a.File, b.File)
+		if fileCmp != 0 {
+			return fileCmp
+		}
+		return compareIDs(a.ID, b.ID)
+	})
 }
 
 func (rh *requestHandler) listGroups(rf *rulesFilter) ([]byte, *httpserver.ErrorWithStatusCode) {

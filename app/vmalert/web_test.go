@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -17,6 +19,20 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/rule"
 )
+
+func checkAPIRuleOrder(t *testing.T, lr listGroupsResponse) {
+	t.Helper()
+	if len(lr.Data.Groups) == 0 {
+		t.Fatalf("expected at least one group in response")
+	}
+	rules := lr.Data.Groups[0].Rules
+	if len(rules) < 2 {
+		t.Fatalf("expected at least 2 rules in group, got %d", len(rules))
+	}
+	if rules[0].Name != "alert" || rules[1].Name != "record" {
+		t.Fatalf("unexpected API rule order: got %q, %q; want alert, record (config order)", rules[0].Name, rules[1].Name)
+	}
+}
 
 func TestHandler(t *testing.T) {
 	fq := &datasource.FakeQuerier{}
@@ -89,6 +105,33 @@ func TestHandler(t *testing.T) {
 		getResp(t, ts.URL+"/vmalert/groups", nil, 200)
 		getResp(t, ts.URL+"/vmalert/notifiers", nil, 200)
 		getResp(t, ts.URL+"/rules", nil, 200)
+	})
+
+	t.Run("/vmalert/groups evaluation duration", func(t *testing.T) {
+		t.Helper()
+		resp, err := http.Get(ts.URL + "/vmalert/groups")
+		if err != nil {
+			t.Fatalf("unexpected err %s", err)
+		}
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Fatalf("err closing body %s", err)
+			}
+		}()
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("unexpected status code %d want %d", resp.StatusCode, http.StatusOK)
+		}
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			t.Fatalf("unexpected err %s", err)
+		}
+		page := string(body)
+		if !strings.Contains(page, "Duration") {
+			t.Fatalf("expected Duration column on groups page")
+		}
+		if !strings.Contains(page, "toggleSortByEvaluationTime") {
+			t.Fatalf("expected sort control on groups page")
+		}
 	})
 
 	t.Run("/vmalert/rule", func(t *testing.T) {
@@ -181,12 +224,14 @@ func TestHandler(t *testing.T) {
 		if length := len(lr.Data.Groups); length != 3 {
 			t.Fatalf("expected 3 group got %d", length)
 		}
+		checkAPIRuleOrder(t, lr)
 
 		lr = listGroupsResponse{}
 		getResp(t, ts.URL+"/vmalert/api/v1/rules", &lr, 200)
 		if length := len(lr.Data.Groups); length != 3 {
 			t.Fatalf("expected 3 group got %d", length)
 		}
+		checkAPIRuleOrder(t, lr)
 	})
 	t.Run("/api/v1/rule?ruleID&groupID", func(t *testing.T) {
 		expRule := ar.ToAPI()
