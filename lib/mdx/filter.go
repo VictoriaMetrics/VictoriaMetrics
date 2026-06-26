@@ -2,197 +2,309 @@ package mdx
 
 import (
 	"flag"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
 
 var (
-	vmLabel = flag.String("mdx.label", "", "Optional label in the form 'name=value' used to identify VictoriaMetrics metrics for MDX. Metrics containing the specified label are forwarded to `-remoteWrite.url` endpoints configured with `-remoteWrite.mdx.enable=true`.")
-
-	vmAppLabelName = "victoriametrics_app"
+	vmLabel = flag.String("mdx.label", "", "Optional label value in the form 'name=value' used to identify VictoriaMetrics metrics for MDX. "+
+		"Metrics containing the specified label are forwarded to `-remoteWrite.url` endpoints configured with `-remoteWrite.mdx.enable=true`.")
 )
 
+const (
+	vmAppLabelName         = "victoriametrics_app"
+	vmAppLabelValue        = "true"
+	vmAppVersionMetricName = "vm_app_version"
+)
+
+// Ctx defines filtering context
 type Ctx struct {
-	// pool for labels, which are used when adding victoriametrics_app label to the original labels.
+	// labels hold modified timeseries labels
+	// valid until PutContext call
 	labels []prompb.Label
+
+	buf                  []byte
+	hasVMAppLabel        bool
+	hasVMAppVersionLabel bool
+	hasFilterLabelValue  bool
+	jobLabelValue        string
+	instanceLabelValue   string
 }
 
-func (ctx *Ctx) Reset() {
-	promrelabel.CleanLabels(ctx.labels)
-	ctx.labels = ctx.labels[:0]
+func (ctx *Ctx) reset() {
+	// do not reset labels intentionally
+	// it must live until PutContext call
+
+	ctx.buf = ctx.buf[:0]
+	ctx.hasVMAppLabel = false
+	ctx.hasVMAppVersionLabel = false
+	ctx.hasFilterLabelValue = false
+	ctx.jobLabelValue = ""
+	ctx.instanceLabelValue = ""
 }
 
-var CtxPool = &sync.Pool{
+var ctxPool = &sync.Pool{
 	New: func() any {
 		return &Ctx{}
 	},
 }
 
-// Filter manages the list of VictoriaMetrics instances discovered from previous data flow, and uses it to filter out metrics that are not from VictoriaMetrics instances.
-type Filter struct {
-	mu                 sync.RWMutex
-	wg                 sync.WaitGroup
-	stopCh             chan struct{}
-	vmInstance         map[string]*atomic.Int64
-	filterByLabelName  string
-	filterByLabelValue string
+// GetContext returns filtering context
+func GetContext() *Ctx {
+	return ctxPool.Get().(*Ctx)
 }
 
+// PutContext resets context
+func PutContext(ctx *Ctx) {
+	clear(ctx.labels)
+	ctx.labels = ctx.labels[:0]
+	ctx.reset()
+	ctxPool.Put(ctx)
+}
+
+// Filter manages the list of VictoriaMetrics instances grouped by job:instance labels.
+// job and instance must present at timeseries.
+//
+// Filter keeps timeseries with any of the following conditions:
+// * vm_app_version present
+// * victoriametrics_app=true label present at timeseries
+// * if labels has label value defined with flag `-mdx.label`
+//
+// Filter track entries with TTL of 1 hour
+type Filter struct {
+	tracker           *instanceTracker
+	filterByLabelName string
+	label             string
+}
+
+// NewFilter returns new Filter instance
 func NewFilter() *Filter {
 	filter := &Filter{
-		vmInstance: make(map[string]*atomic.Int64),
-		stopCh:     make(chan struct{}),
+		tracker: newInstanceTracker(),
 	}
-
-	if len(*vmLabel) != 0 {
+	if len(*vmLabel) > 0 {
 		n := strings.IndexByte(*vmLabel, '=')
 		if n < 0 {
 			logger.Fatalf("missing '=' in `-mdx.label`. It must contain label in the form `name=value`; got %q", *vmLabel)
 		}
 		filter.filterByLabelName = (*vmLabel)[:n]
-		filter.filterByLabelValue = (*vmLabel)[n+1:]
+		filter.label = (*vmLabel)[n+1:]
+		if len(filter.filterByLabelName) == 0 || len(filter.label) == 0 {
+			logger.Fatalf("label name and value cannot be empty in `-mdx.label`. It must contain label in the form `name=value`; got %q", *vmLabel)
+		}
 	}
 
-	filter.wg.Go(filter.cleanStale)
 	return filter
 }
 
-func (filter *Filter) VmInstancesCount() int {
-	if filter == nil {
-		return 0
-	}
-	filter.mu.RLock()
-	defer filter.mu.RUnlock()
-	return len(filter.vmInstance)
-
+// VMInstancesCount returns amount of currently tracked instances
+func (filter *Filter) VMInstancesCount() int {
+	return filter.tracker.len()
 }
 
-func (filter *Filter) cleanStale() {
-	entryTTL := time.Hour * 1
-	ttlSec := int64(entryTTL.Seconds())
-	ticker := time.NewTicker(time.Minute)
-	defer ticker.Stop()
+// MustStop stops filter instance
+func (filter *Filter) MustStop() {
+	filter.tracker.mustStop()
+}
 
-	for {
-		select {
-		case <-ticker.C:
-			filter.mu.Lock()
-			currTs := time.Now().Unix()
-
-			dst := make(map[string]*atomic.Int64, len(filter.vmInstance))
-			for k, v := range filter.vmInstance {
-				if currTs-v.Load() < ttlSec {
-					dst[k] = v
-				}
-			}
-			if len(dst) != len(filter.vmInstance) {
-				filter.vmInstance = dst
-			}
-			filter.mu.Unlock()
-		case <-filter.stopCh:
-			return
+// Filter filters provided timeseries with given context.
+//
+// Returned timeseries is valid as long as Ctx is valid
+func (filter *Filter) Filter(ctx *Ctx, tss []prompb.TimeSeries) []prompb.TimeSeries {
+	dstTss := tss[:0]
+	for _, ts := range tss {
+		ctx.prepare(ts.Labels, filter.filterByLabelName, filter.label)
+		key := ctx.formatTimeSeriesKey()
+		if len(key) == 0 {
+			// metrics with empty job or instance labels must be always dropped
+			// despite any other conditions
+			continue
+		}
+		if ctx.hasVMAppLabel {
+			filter.registerAtCache(key)
+			dstTss = append(dstTss, ts)
+			continue
+		}
+		if ctx.hasFilterLabelValue || ctx.hasVMAppVersionLabel {
+			ts.Labels = ctx.addVMAppLabel(ts.Labels)
+			filter.registerAtCache(key)
+			dstTss = append(dstTss, ts)
+			continue
+		}
+		ok := filter.tracker.has(key)
+		if ok {
+			ts.Labels = ctx.addVMAppLabel(ts.Labels)
+			dstTss = append(dstTss, ts)
 		}
 	}
+	return dstTss
 }
 
-func (filter *Filter) MustStop() {
-	if filter == nil {
+func (filter *Filter) registerAtCache(key string) {
+	if filter.tracker.has(key) {
 		return
 	}
-	close(filter.stopCh)
-	filter.wg.Wait()
+	key = strings.Clone(key)
+	filter.tracker.register(key)
 }
 
-func (filter *Filter) Filter(tss []prompb.TimeSeries, resTss []prompb.TimeSeries, ctx *Ctx) []prompb.TimeSeries {
-	currTs := time.Now().Unix()
-	var identicalKey []byte
-	poolLabels := ctx.labels[:0]
-	maybeAddVmAppLabel := func(idx int, labels []prompb.Label) []prompb.Label {
-		for j := idx + 1; j < len(labels); j++ {
-			if labels[j].Name == vmAppLabelName && labels[j].Value == "true" {
-				return labels
+func (ctx *Ctx) prepare(labels []prompb.Label, filterByLabelName, label string) {
+	ctx.reset()
+
+	// always use the last label=value pair
+	// because in case of possible label duplicates,
+	// the last added label must win
+	for _, l := range labels {
+		switch l.Name {
+		case "job":
+			ctx.jobLabelValue = l.Value
+		case "instance":
+			ctx.instanceLabelValue = l.Value
+		case vmAppLabelName:
+			if l.Value == vmAppLabelValue {
+				ctx.hasVMAppLabel = true
+			}
+		case "__name__":
+			if l.Value == vmAppVersionMetricName {
+				ctx.hasVMAppVersionLabel = true
 			}
 		}
-		poolLabelsLen := len(poolLabels)
-		poolLabels = append(poolLabels, labels...)
-		poolLabels = append(poolLabels, prompb.Label{Name: vmAppLabelName, Value: "true"})
-		return poolLabels[poolLabelsLen:]
-	}
-
-nextTss:
-	for _, ts := range tss {
-		var hasVersionLabel, triedJobInstance bool
-		var job, instance string
-		for i, label := range ts.Labels {
-			if label.Name == vmAppLabelName && label.Value == "true" {
-				resTss = append(resTss, ts)
-				continue nextTss
-			}
-			if filter.filterByLabelName != "" && label.Name == filter.filterByLabelName && label.Value == filter.filterByLabelValue {
-				ts.Labels = maybeAddVmAppLabel(i, ts.Labels)
-				resTss = append(resTss, ts)
-				continue nextTss
-			}
-
-			if label.Name == "__name__" && label.Value == "vm_app_version" {
-				hasVersionLabel = true
-			}
-			if instance == "" && label.Name == "instance" {
-				if label.Value == "" {
-					continue
-				}
-
-				instance = label.Value
-			}
-			if job == "" && label.Name == "job" {
-				if label.Value == "" {
-					continue
-				}
-
-				job = label.Value
-			}
-			if !triedJobInstance && job != "" && instance != "" {
-				identicalKey = identicalKey[:0]
-				identicalKey = strconv.AppendQuote(identicalKey, job)
-				identicalKey = append(identicalKey, ':')
-				identicalKey = strconv.AppendQuote(identicalKey, instance)
-				filter.mu.RLock()
-				ptr, found := filter.vmInstance[bytesutil.ToUnsafeString(identicalKey)]
-				filter.mu.RUnlock()
-				if found {
-					ptr.Store(currTs)
-					ts.Labels = maybeAddVmAppLabel(i, ts.Labels)
-					resTss = append(resTss, ts)
-					continue nextTss
-				}
-				triedJobInstance = true
-			}
-
-			if hasVersionLabel && job != "" && instance != "" {
-				identicalKey = identicalKey[:0]
-				identicalKey = strconv.AppendQuote(identicalKey, job)
-				identicalKey = append(identicalKey, ':')
-				identicalKey = strconv.AppendQuote(identicalKey, instance)
-
-				v := &atomic.Int64{}
-				v.Store(currTs)
-
-				filter.mu.Lock()
-				filter.vmInstance[string(identicalKey)] = v
-				filter.mu.Unlock()
-				ts.Labels = maybeAddVmAppLabel(i, ts.Labels)
-				resTss = append(resTss, ts)
-				continue nextTss
+		if len(filterByLabelName) > 0 {
+			if l.Name == filterByLabelName && l.Value == label {
+				ctx.hasFilterLabelValue = true
 			}
 		}
 	}
-	return resTss
+}
+
+// formatTimeSeriesKey returns timeseries key after ctx.prepare call
+// if it catched job and instances labels
+//
+// returned string is valid until next ctx.prepare
+func (ctx *Ctx) formatTimeSeriesKey() string {
+	if len(ctx.jobLabelValue) == 0 || len(ctx.instanceLabelValue) == 0 {
+		return ""
+	}
+	buf := ctx.buf[:0]
+	buf = append(buf, ctx.jobLabelValue...)
+	buf = append(buf, ':')
+	buf = append(buf, ctx.instanceLabelValue...)
+	ctx.buf = buf
+	return bytesutil.ToUnsafeString(buf)
+}
+
+func (ctx *Ctx) addVMAppLabel(labels []prompb.Label) []prompb.Label {
+	// unconditionally add vmAppLabelValue at the end of labels list
+	// it will overwrite any exist vmAppLabelName labels with a value different to vmAppLabelValue
+	// it's guaranteed by VictoriaMetrics ingestion contract
+	poolLabels := ctx.labels
+	poolLabelsLen := len(poolLabels)
+	poolLabels = append(poolLabels, labels...)
+	poolLabels = append(poolLabels, prompb.Label{Name: vmAppLabelName, Value: vmAppLabelValue})
+	ctx.labels = poolLabels
+	return poolLabels[poolLabelsLen:len(poolLabels):len(poolLabels)]
+}
+
+type instanceTracker struct {
+	mu              sync.RWMutex
+	lastAccessByKey map[string]*atomic.Uint64
+	wg              sync.WaitGroup
+	stop            chan struct{}
+}
+
+func newInstanceTracker() *instanceTracker {
+	c := &instanceTracker{
+		lastAccessByKey: make(map[string]*atomic.Uint64),
+		stop:            make(chan struct{}),
+	}
+	c.wg.Add(1)
+	go c.startStaleWatcher()
+	return c
+}
+
+func (it *instanceTracker) len() int {
+	it.mu.RLock()
+	s := len(it.lastAccessByKey)
+	it.mu.RUnlock()
+	return s
+}
+
+func (it *instanceTracker) has(key string) bool {
+	it.mu.RLock()
+	lat, ok := it.lastAccessByKey[key]
+	it.mu.RUnlock()
+	if ok {
+		lat.Store(fasttime.UnixTimestamp())
+	}
+	return ok
+}
+
+func (it *instanceTracker) register(key string) {
+	it.mu.Lock()
+	// key could be registered by concurrent goroutine
+	lat, ok := it.lastAccessByKey[key]
+	if !ok {
+		lat = &atomic.Uint64{}
+		it.lastAccessByKey[key] = lat
+	}
+	it.mu.Unlock()
+	lat.Store(fasttime.UnixTimestamp())
+}
+
+func (it *instanceTracker) startStaleWatcher() {
+	defer it.wg.Done()
+
+	t := time.NewTicker(time.Minute)
+	defer t.Stop()
+	for {
+		select {
+		case <-it.stop:
+			return
+		case <-t.C:
+			it.cleanStale()
+		}
+	}
+}
+
+var entryTTLSeconds = uint64(time.Hour.Seconds())
+
+func (it *instanceTracker) cleanStale() {
+	ct := fasttime.UnixTimestamp()
+	var toDelete map[string]*atomic.Uint64
+
+	it.mu.RLock()
+	for key, lastAccessTime := range it.lastAccessByKey {
+		accessedAt := lastAccessTime.Load()
+		if ct > accessedAt+entryTTLSeconds {
+			if toDelete == nil {
+				toDelete = make(map[string]*atomic.Uint64)
+			}
+			toDelete[key] = lastAccessTime
+		}
+	}
+	it.mu.RUnlock()
+
+	if len(toDelete) > 0 {
+		it.mu.Lock()
+		for key, lastAccessTime := range toDelete {
+			accessedAt := lastAccessTime.Load()
+			// concurrent goroutine may refresh lastAccessTime
+			if ct > accessedAt+entryTTLSeconds {
+				delete(it.lastAccessByKey, key)
+			}
+		}
+		it.mu.Unlock()
+	}
+}
+
+func (it *instanceTracker) mustStop() {
+	close(it.stop)
+	it.wg.Wait()
 }

@@ -12,10 +12,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mdx"
-	"github.com/cespare/xxhash/v2"
-
 	"github.com/VictoriaMetrics/metrics"
+	"github.com/cespare/xxhash/v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
@@ -26,6 +24,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mdx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/persistentqueue"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
@@ -989,8 +988,8 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, sanitizedURL string)
 		mdxFilter := mdx.NewFilter()
 		rwctx.mdxFilter = mdxFilter
 		rwctx.mdxRowsPreserved = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_mdx_rows_preserved_total{path=%q,url=%q}`, queuePath, sanitizedURL))
-		_ = metrics.NewGauge(fmt.Sprintf(`vmagent_mdx_tracked_vm_instances{path=%q,url=%q}`, queuePath, sanitizedURL), func() float64 {
-			return float64(mdxFilter.VmInstancesCount())
+		_ = metrics.NewGauge(fmt.Sprintf(`vmagent_remotewrite_mdx_tracked_instances{path=%q,url=%q}`, queuePath, sanitizedURL), func() float64 {
+			return float64(mdxFilter.VMInstancesCount())
 		})
 
 	}
@@ -1039,32 +1038,34 @@ func (rwctx *remoteWriteCtx) TryPushTimeSeries(tss []prompb.TimeSeries, forceDro
 	var mctx *mdx.Ctx
 	var v *[]prompb.TimeSeries
 	defer func() {
+		if v != nil {
+			*v = prompb.ResetTimeSeries(tss)
+			tssPool.Put(v)
+		}
+		if rctx != nil {
+			putRelabelCtx(rctx)
+		}
 		if mctx != nil {
-			mctx.Reset()
-			mdx.CtxPool.Put(mctx)
+			mdx.PutContext(mctx)
 		}
-		if rctx == nil {
-			return
-		}
-		*v = prompb.ResetTimeSeries(tss)
-		tssPool.Put(v)
-		putRelabelCtx(rctx)
 	}()
 
-	if rwctx.mdxFilter != nil {
-		mctx = mdx.CtxPool.Get().(*mdx.Ctx)
-		mctx.Reset()
-		tssResP := tssPool.Get().(*[]prompb.TimeSeries)
-		tssRes := rwctx.mdxFilter.Filter(tss, *tssResP, mctx)
-		defer func() {
-			*tssResP = prompb.ResetTimeSeries(tssRes)
-			tssPool.Put(tssResP)
-		}()
+	copyTimeSeriesIfNeeded := func() {
+		if v == nil {
+			v := tssPool.Get().(*[]prompb.TimeSeries)
+			tss = append(*v, tss...)
+		}
+	}
 
-		if len(tssRes) == 0 {
+	if rwctx.mdxFilter != nil {
+		mctx = mdx.GetContext()
+		// Make a copy of tss before applying relabeling in order to prevent
+		// from affecting time series for other remoteWrite.mdx configs.
+		copyTimeSeriesIfNeeded()
+		tss = rwctx.mdxFilter.Filter(mctx, tss)
+		if len(tss) == 0 {
 			return true
 		}
-		tss = tssRes
 	}
 
 	// Apply relabeling
@@ -1076,8 +1077,7 @@ func (rwctx *remoteWriteCtx) TryPushTimeSeries(tss []prompb.TimeSeries, forceDro
 		// from affecting time series for other remoteWrite.url configs.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/467
 		// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/599
-		v = tssPool.Get().(*[]prompb.TimeSeries)
-		tss = append(*v, tss...)
+		copyTimeSeriesIfNeeded()
 		rowsCountBeforeRelabel := getRowsCount(tss)
 		tss = rctx.applyRelabeling(tss, pcs)
 		rowsCountAfterRelabel := getRowsCount(tss)
@@ -1095,8 +1095,7 @@ func (rwctx *remoteWriteCtx) TryPushTimeSeries(tss []prompb.TimeSeries, forceDro
 			if rctx == nil {
 				rctx = getRelabelCtx()
 				// Make a copy of tss before dropping aggregated series
-				v = tssPool.Get().(*[]prompb.TimeSeries)
-				tss = append(*v, tss...)
+				copyTimeSeriesIfNeeded()
 			}
 			tss = dropAggregatedSeries(tss, matchIdxs.B, rwctx.streamAggrDropInput)
 		} else if rwctx.streamAggrDropInput {
@@ -1104,8 +1103,7 @@ func (rwctx *remoteWriteCtx) TryPushTimeSeries(tss []prompb.TimeSeries, forceDro
 			if rctx == nil {
 				rctx = getRelabelCtx()
 				// Make a copy of tss before dropping aggregated series
-				v = tssPool.Get().(*[]prompb.TimeSeries)
-				tss = append(*v, tss...)
+				copyTimeSeriesIfNeeded()
 			}
 			tss = dropUnaggregatedSeries(tss, matchIdxs.B)
 		}

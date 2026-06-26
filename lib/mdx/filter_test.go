@@ -2,57 +2,42 @@ package mdx
 
 import (
 	"fmt"
-	"sort"
-	"strings"
+	"sync"
 	"testing"
-	"testing/synctest"
-	"time"
+
+	"github.com/google/go-cmp/cmp"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
-
-func timeSeriessToString(tss []prompb.TimeSeries) string {
-	a := make([]string, len(tss))
-	for i, ts := range tss {
-		a[i] = timeSeriesToString(ts)
-	}
-	sort.Strings(a)
-	return strings.Join(a, "")
-}
-
-func timeSeriesToString(ts prompb.TimeSeries) string {
-	labelsString := promrelabel.LabelsToString(ts.Labels)
-
-	return fmt.Sprintf("%s\n", labelsString)
-}
 
 func TestMdxInstanceFilter(t *testing.T) {
 	originalVmLabel := *vmLabel
 	*vmLabel = "service=victoriametrics"
-	filter := NewFilter()
-	defer filter.MustStop()
-	f := func(input []prompb.TimeSeries, expectedOutput []prompb.TimeSeries, expectedInstanceMap map[string]int64) {
+	t.Cleanup(func() {
+		*vmLabel = originalVmLabel
+	})
+	f := func(input []prompb.TimeSeries, expectedOutput []prompb.TimeSeries) {
 		t.Helper()
-		ctx := Ctx{}
-		output := filter.Filter(input, nil, &ctx)
-		outputString := timeSeriessToString(output)
-		expectedOutputString := timeSeriessToString(expectedOutput)
-		if outputString != expectedOutputString {
-			t.Fatalf("unexpected output; got %s; want %s", outputString, expectedOutputString)
+		filter := NewFilter()
+		defer filter.MustStop()
+
+		ctx := GetContext()
+		defer PutContext(ctx)
+		inputCopy := append([]prompb.TimeSeries{}, input...)
+		output := filter.Filter(ctx, inputCopy)
+		if diff := cmp.Diff(expectedOutput, output); len(diff) > 0 {
+			t.Fatalf("unexpected result (-want, +got):\n%s", diff)
 		}
-		if filter.VmInstancesCount() != len(expectedInstanceMap) {
-			t.Fatalf("unexpected instance map length; got %d; want %d", len(filter.vmInstance), len(expectedInstanceMap))
+		// make sure that result is the same over multiple calls
+		inputCopy = append([]prompb.TimeSeries{}, input...)
+		output = filter.Filter(ctx, inputCopy)
+		if diff := cmp.Diff(expectedOutput, output); len(diff) > 0 {
+			t.Fatalf("unexpected result (-want, +got):\n%s", diff)
 		}
-		for k := range expectedInstanceMap {
-			if filter.vmInstance[k] == nil {
-				t.Fatalf("missing instance in filter.vmInstance: %q", k)
-			}
-		}
+
 	}
-	// the first call
+	// metrics with vm_app_version and different order of labels.
 	f([]prompb.TimeSeries{
-		// 1. metrics with vm_app_version and different order of labels.
 		{
 			Labels: []prompb.Label{
 				{Name: "__name__", Value: "vm_app_version"},
@@ -74,9 +59,35 @@ func TestMdxInstanceFilter(t *testing.T) {
 				{Name: "__name__", Value: "vm_app_version"},
 			},
 		},
-		// 2.
-		// metrics without vm_app_version but with service=victoriametrics that is specified in `-vm.label`.
-		// it will be preserved, but won't be registered in instance map in MDX
+	},
+		[]prompb.TimeSeries{
+			{
+				Labels: []prompb.Label{
+					{Name: "__name__", Value: "vm_app_version"},
+					{Name: "instance", Value: "victoria-metrics1:8428"},
+					{Name: "job", Value: "test"},
+					{Name: "victoriametrics_app", Value: "true"},
+				},
+			},
+			{
+				Labels: []prompb.Label{
+					{Name: "instance", Value: "victoria-metrics2:8428"},
+					{Name: "__name__", Value: "vm_app_version"},
+					{Name: "job", Value: "test"},
+					{Name: "victoriametrics_app", Value: "true"},
+				},
+			},
+			{
+				Labels: []prompb.Label{
+					{Name: "job", Value: "test"},
+					{Name: "instance", Value: "victoria-metrics3:8428"},
+					{Name: "__name__", Value: "vm_app_version"},
+					{Name: "victoriametrics_app", Value: "true"},
+				},
+			}},
+	)
+	// metrics without vm_app_version but with service=victoriametrics that is specified in `-mdx.label`.
+	f([]prompb.TimeSeries{
 		{
 			Labels: []prompb.Label{
 				{Name: "__name__", Value: "vm_slow_queries_total"},
@@ -85,8 +96,43 @@ func TestMdxInstanceFilter(t *testing.T) {
 				{Name: "service", Value: "victoriametrics"},
 			},
 		},
+	},
+		[]prompb.TimeSeries{
+			{
+				Labels: []prompb.Label{
+					{Name: "__name__", Value: "vm_slow_queries_total"},
+					{Name: "job", Value: "test"},
+					{Name: "instance", Value: "victoria-metrics4:8428"},
+					{Name: "service", Value: "victoriametrics"},
+					{Name: "victoriametrics_app", Value: "true"},
+				},
+			},
+		})
+	// metrics without vm_app_version but with service=victoriametrics that is specified in `-mdx.label`.
+	f([]prompb.TimeSeries{
+		{
+			Labels: []prompb.Label{
+				{Name: "__name__", Value: "vm_slow_queries_total"},
+				{Name: "job", Value: "test"},
+				{Name: "instance", Value: "victoria-metrics4:8428"},
+				{Name: "service", Value: "victoriametrics"},
+			},
+		}},
+		[]prompb.TimeSeries{
+			// 2.
+			// metrics without vm_app_version but with service=victoriametrics that is specified in `-mdx.label`.
+			{
+				Labels: []prompb.Label{
+					{Name: "__name__", Value: "vm_slow_queries_total"},
+					{Name: "job", Value: "test"},
+					{Name: "instance", Value: "victoria-metrics4:8428"},
+					{Name: "service", Value: "victoriametrics"},
+					{Name: "victoriametrics_app", Value: "true"},
+				},
+			}})
 
-		// 3. metrics with vm_app_version and service=victoriametrics should be preserved.
+	// metrics with vm_app_version and service=victoriametrics should be preserved.
+	f([]prompb.TimeSeries{
 		{
 			Labels: []prompb.Label{
 				{Name: "instance", Value: "victoria-metrics5:8428"},
@@ -95,7 +141,21 @@ func TestMdxInstanceFilter(t *testing.T) {
 				{Name: "__name__", Value: "vm_app_version"},
 			},
 		},
-		// 4. metrics without vm_app_version and `service=victoriametrics` but with `victoriametrics_app=true`, which should be preserved.
+	},
+		[]prompb.TimeSeries{
+			{
+				Labels: []prompb.Label{
+					{Name: "instance", Value: "victoria-metrics5:8428"},
+					{Name: "job", Value: "test"},
+					{Name: "service", Value: "victoriametrics"},
+					{Name: "__name__", Value: "vm_app_version"},
+					{Name: "victoriametrics_app", Value: "true"},
+				},
+			},
+		},
+	)
+	// metrics without vm_app_version and `service=victoriametrics` but with `victoriametrics_app=true`, which should be preserved.
+	f([]prompb.TimeSeries{
 		{
 			Labels: []prompb.Label{
 				{Name: "instance", Value: "victoria-metrics6:8428"},
@@ -104,8 +164,20 @@ func TestMdxInstanceFilter(t *testing.T) {
 				{Name: "victoriametrics_app", Value: "true"},
 			},
 		},
+	},
+		[]prompb.TimeSeries{
+			{
+				Labels: []prompb.Label{
+					{Name: "instance", Value: "victoria-metrics6:8428"},
+					{Name: "job", Value: "test"},
+					{Name: "__name__", Value: "vm_slow_queries_total"},
+					{Name: "victoriametrics_app", Value: "true"},
+				},
+			},
+		})
 
-		// 5. metrics without vm_app_version and service=victoriametrics and `victoriametrics_app=true`, which should be filtered out.
+	// metrics without vm_app_version and service=victoriametrics and `victoriametrics_app=true`, which should be filtered out.
+	f([]prompb.TimeSeries{
 		{
 			Labels: []prompb.Label{
 				{Name: "__name__", Value: "go_gc_duration_seconds"},
@@ -120,8 +192,12 @@ func TestMdxInstanceFilter(t *testing.T) {
 				{Name: "job", Value: "test"},
 			},
 		},
+	},
+		[]prompb.TimeSeries{},
+	)
 
-		// 6. metrics with vm_app_version but job or instance is empty (or missing), they should be dropped.
+	// metrics with vm_app_version but job or instance is empty (or missing), they should be dropped.
+	f([]prompb.TimeSeries{
 		{
 			Labels: []prompb.Label{
 				{Name: "__name__", Value: "vm_app_version"},
@@ -149,69 +225,17 @@ func TestMdxInstanceFilter(t *testing.T) {
 			},
 		},
 	},
-		// `victoriametrics_app=true` should be added to all preserved metrics if absent.
-		[]prompb.TimeSeries{
-			{
-				Labels: []prompb.Label{
-					{Name: "__name__", Value: "vm_app_version"},
-					{Name: "instance", Value: "victoria-metrics1:8428"},
-					{Name: "job", Value: "test"},
-					{Name: "victoriametrics_app", Value: "true"},
-				},
-			},
-			{
-				Labels: []prompb.Label{
-					{Name: "__name__", Value: "vm_app_version"},
-					{Name: "instance", Value: "victoria-metrics2:8428"},
-					{Name: "job", Value: "test"},
-					{Name: "victoriametrics_app", Value: "true"},
-				},
-			},
-			{
-				Labels: []prompb.Label{
-					{Name: "__name__", Value: "vm_app_version"},
-					{Name: "instance", Value: "victoria-metrics3:8428"},
-					{Name: "job", Value: "test"},
-					{Name: "victoriametrics_app", Value: "true"},
-				},
-			},
-			{
-				Labels: []prompb.Label{
-					{Name: "__name__", Value: "vm_slow_queries_total"},
-					{Name: "service", Value: "victoriametrics"},
-					{Name: "instance", Value: "victoria-metrics4:8428"},
-					{Name: "job", Value: "test"},
-					{Name: "victoriametrics_app", Value: "true"},
-				},
-			},
-			{
-				Labels: []prompb.Label{
-					{Name: "instance", Value: "victoria-metrics5:8428"},
-					{Name: "job", Value: "test"},
-					{Name: "__name__", Value: "vm_app_version"},
-					{Name: "service", Value: "victoriametrics"},
-					{Name: "victoriametrics_app", Value: "true"},
-				},
-			},
-			{
-				Labels: []prompb.Label{
-					{Name: "instance", Value: "victoria-metrics6:8428"},
-					{Name: "job", Value: "test"},
-					{Name: "__name__", Value: "vm_slow_queries_total"},
-					{Name: "victoriametrics_app", Value: "true"},
-				},
+		[]prompb.TimeSeries{})
+
+	// metrics without vm_app_version, but the instances were already registered with first timeseries
+	f([]prompb.TimeSeries{
+		{
+			Labels: []prompb.Label{
+				{Name: "__name__", Value: "vm_app_version"},
+				{Name: "instance", Value: "victoria-metrics1:8428"},
+				{Name: "job", Value: "test"},
 			},
 		},
-		// only instances that are discovered via `vm_app_version` will be registered in instance map in MDX.
-		map[string]int64{
-			"\"test\":\"victoria-metrics1:8428\"": 0,
-			"\"test\":\"victoria-metrics2:8428\"": 0,
-			"\"test\":\"victoria-metrics3:8428\"": 0,
-		})
-
-	// the second call
-	f([]prompb.TimeSeries{
-		// 1. metrics without vm_app_version, but the instances were already registered in the previous call, so it will be preserved.
 		{
 			Labels: []prompb.Label{
 				{Name: "__name__", Value: "vm_rows_inserted_total"},
@@ -222,28 +246,20 @@ func TestMdxInstanceFilter(t *testing.T) {
 		{
 			Labels: []prompb.Label{
 				{Name: "__name__", Value: "vminsert_request_duration_seconds_bucket"},
-				{Name: "instance", Value: "victoria-metrics2:8428"},
-				{Name: "job", Value: "test"},
-			},
-		},
-		// 2. metrics without vm_app_version, `service=victoriametrics` and `victoriametrics_app=true`, and the instance wasn't already registered in the previous call, so it will be dropped.
-		{
-			Labels: []prompb.Label{
-				{Name: "__name__", Value: "vminsert_request_duration_seconds_bucket"},
-				{Name: "instance", Value: "victoria-metrics7:8428"},
-				{Name: "job", Value: "test"},
-			},
-		},
-		// 3. metrics with service=victoriametrics.
-		{
-			Labels: []prompb.Label{
-				{Name: "service", Value: "victoriametrics"},
-				{Name: "instance", Value: "victoria-metrics4:8428"},
+				{Name: "instance", Value: "victoria-metrics1:8428"},
 				{Name: "job", Value: "test"},
 			},
 		},
 	},
 		[]prompb.TimeSeries{
+			{
+				Labels: []prompb.Label{
+					{Name: "__name__", Value: "vm_app_version"},
+					{Name: "instance", Value: "victoria-metrics1:8428"},
+					{Name: "job", Value: "test"},
+					{Name: "victoriametrics_app", Value: "true"},
+				},
+			},
 			{
 				Labels: []prompb.Label{
 					{Name: "__name__", Value: "vm_rows_inserted_total"},
@@ -255,11 +271,31 @@ func TestMdxInstanceFilter(t *testing.T) {
 			{
 				Labels: []prompb.Label{
 					{Name: "__name__", Value: "vminsert_request_duration_seconds_bucket"},
-					{Name: "instance", Value: "victoria-metrics2:8428"},
+					{Name: "instance", Value: "victoria-metrics1:8428"},
 					{Name: "job", Value: "test"},
 					{Name: "victoriametrics_app", Value: "true"},
 				},
 			},
+		})
+
+	// metrics without vm_app_version, `service=victoriametrics` and `victoriametrics_app=true`, and the instance wasn't already registered in the previous call, so it will be dropped.
+	f([]prompb.TimeSeries{
+		{
+			Labels: []prompb.Label{
+				{Name: "__name__", Value: "vminsert_request_duration_seconds_bucket"},
+				{Name: "instance", Value: "victoria-metrics7:8428"},
+				{Name: "job", Value: "test"},
+			},
+		},
+		{
+			Labels: []prompb.Label{
+				{Name: "service", Value: "victoriametrics"},
+				{Name: "instance", Value: "victoria-metrics4:8428"},
+				{Name: "job", Value: "test"},
+			},
+		},
+	},
+		[]prompb.TimeSeries{
 			{
 				Labels: []prompb.Label{
 					{Name: "service", Value: "victoriametrics"},
@@ -267,93 +303,133 @@ func TestMdxInstanceFilter(t *testing.T) {
 					{Name: "job", Value: "test"},
 					{Name: "victoriametrics_app", Value: "true"},
 				},
+			}},
+	)
+
+	// metrics with duplicate victoriametrics_app label
+	f([]prompb.TimeSeries{
+		{
+			Labels: []prompb.Label{
+				{Name: "__name__", Value: "vm_app_version"},
+				{Name: "job", Value: "test"},
+				{Name: "instance", Value: "victoria-metrics4:8428"},
+				{Name: "service", Value: "victoriametrics"},
+				{Name: "victoriametrics_app", Value: "other_value"},
 			},
 		},
-		// only instances that are discovered via `vm_app_version` will be registered in instance map in MDX.
-		map[string]int64{
-			"\"test\":\"victoria-metrics1:8428\"": 0,
-			"\"test\":\"victoria-metrics2:8428\"": 0,
-			"\"test\":\"victoria-metrics3:8428\"": 0,
+	},
+		[]prompb.TimeSeries{
+			{
+				Labels: []prompb.Label{
+					{Name: "__name__", Value: "vm_app_version"},
+					{Name: "job", Value: "test"},
+					{Name: "instance", Value: "victoria-metrics4:8428"},
+					{Name: "service", Value: "victoriametrics"},
+					{Name: "victoriametrics_app", Value: "other_value"},
+					{Name: "victoriametrics_app", Value: "true"},
+				},
+			},
 		})
 
-	*vmLabel = originalVmLabel
+	// metrics with duplicate job and instance labels
+	// last value wins
+	f([]prompb.TimeSeries{
+		{
+			Labels: []prompb.Label{
+				{Name: "__name__", Value: "vm_app_version"},
+				{Name: "job", Value: "test"},
+				{Name: "job", Value: "test2"},
+				{Name: "instance", Value: "victoria-metrics4:8428"},
+				{Name: "instance", Value: "victoria-metrics5:8428"},
+				{Name: "service", Value: "victoriametrics"},
+			},
+		},
+		{
+			Labels: []prompb.Label{
+				{Name: "__name__", Value: "http_requests_total"},
+				{Name: "job", Value: "test2"},
+				{Name: "instance", Value: "victoria-metrics5:8428"},
+				{Name: "service", Value: "victoriametrics"},
+			},
+		},
+	},
+		[]prompb.TimeSeries{
+			{
+				Labels: []prompb.Label{
+					{Name: "__name__", Value: "vm_app_version"},
+					{Name: "job", Value: "test"},
+					{Name: "job", Value: "test2"},
+					{Name: "instance", Value: "victoria-metrics4:8428"},
+					{Name: "instance", Value: "victoria-metrics5:8428"},
+					{Name: "service", Value: "victoriametrics"},
+					{Name: "victoriametrics_app", Value: "true"},
+				},
+			},
+			{
+				Labels: []prompb.Label{
+					{Name: "__name__", Value: "http_requests_total"},
+					{Name: "job", Value: "test2"},
+					{Name: "instance", Value: "victoria-metrics5:8428"},
+					{Name: "service", Value: "victoriametrics"},
+					{Name: "victoriametrics_app", Value: "true"},
+				},
+			}})
+
 }
 
-func TestMdxInstanceCleanup(t *testing.T) {
-	t.Helper()
+func TestMdxInstanceFilterConcurrent(t *testing.T) {
+	originalVmLabel := *vmLabel
+	*vmLabel = "service=victoriametrics"
+	t.Cleanup(func() { *vmLabel = originalVmLabel })
 
-	synctest.Test(t, func(t *testing.T) {
-		filter := NewFilter()
-		defer filter.MustStop()
-		ctx := Ctx{}
-		filter.Filter([]prompb.TimeSeries{
-			{
-				Labels: []prompb.Label{
-					{Name: "__name__", Value: "vm_app_version"},
-					{Name: "instance", Value: "victoria-metrics1:8428"},
-					{Name: "job", Value: "test"},
-				},
-			},
-			{
-				Labels: []prompb.Label{
-					{Name: "__name__", Value: "go_gc_duration_seconds"},
-					{Name: "instance", Value: "node-exporter1"},
-					{Name: "job", Value: "test"},
-				},
-			},
-			{
-				Labels: []prompb.Label{
-					{Name: "__name__", Value: "http_request_duration_seconds"},
-					{Name: "instance", Value: "service1"},
-					{Name: "job", Value: "test"},
-				},
-			},
-			{
-				Labels: []prompb.Label{
-					{Name: "__name__", Value: "vm_app_version"},
-					{Name: "instance", Value: "vmagent1:8429"},
-					{Name: "job", Value: "test"},
-				},
-			}}, []prompb.TimeSeries{}, &ctx,
-		)
-		f := func(expectedInstanceMap map[string]int64) {
-			t.Helper()
-			if filter.VmInstancesCount() != len(expectedInstanceMap) {
-				t.Fatalf("unexpected instance map length; got %d; want %d", len(filter.vmInstance), len(expectedInstanceMap))
-			}
-			for k := range expectedInstanceMap {
-				if filter.vmInstance[k] == nil {
-					t.Fatalf("missing instance in filter.vmInstance: %q", k)
-				}
-			}
+	filter := NewFilter()
+	defer filter.MustStop()
+
+	const concurrency = 8
+	const iterations = 200
+
+	generateSeries := func(g int) []prompb.TimeSeries {
+		return []prompb.TimeSeries{
+			{Labels: []prompb.Label{
+				{Name: "__name__", Value: "vm_app_version"},
+				{Name: "job", Value: "test"},
+				{Name: "instance", Value: fmt.Sprintf("vm-%d:8428", g)},
+			}},
+			// shared job:instance
+			{Labels: []prompb.Label{
+				{Name: "__name__", Value: "vm_app_version"},
+				{Name: "job", Value: "test"},
+				{Name: "instance", Value: "vmagent:8428"},
+			}},
 		}
+	}
 
-		time.Sleep(59 * time.Minute)
-		// the entries should not be cleaned.
-		f(map[string]int64{
-			"\"test\":\"victoria-metrics1:8428\"": 0,
-			"\"test\":\"vmagent1:8429\"":          0,
+	var wg sync.WaitGroup
+	for worker := range concurrency {
+		wg.Go(func() {
+			input := generateSeries(worker)
+			var expectedOutput []prompb.TimeSeries
+			for _, inputTs := range input {
+				labels := append([]prompb.Label{}, inputTs.Labels...)
+				labels = append(labels, prompb.Label{Name: vmAppLabelName, Value: vmAppLabelValue})
+				expectedOutput = append(expectedOutput, prompb.TimeSeries{Labels: labels})
+			}
+			for range iterations {
+				ctx := GetContext()
+				inputCopy := append([]prompb.TimeSeries{}, input...)
+				output := filter.Filter(ctx, inputCopy)
+				if diff := cmp.Diff(expectedOutput, output); len(diff) > 0 {
+					t.Errorf("unexpected result (-want, +got):\n%s", diff)
+				}
+				PutContext(ctx)
+
+			}
 		})
+	}
+	wg.Wait()
 
-		// receive samples from victoria-metrics1:8428 after 59 minutes.
-		// so the entry will be refreshed.
-		ctx.Reset()
-		filter.Filter([]prompb.TimeSeries{
-			{
-				Labels: []prompb.Label{
-					{Name: "__name__", Value: "vm_app_version"},
-					{Name: "instance", Value: "victoria-metrics1:8428"},
-					{Name: "job", Value: "test"},
-				},
-			}}, []prompb.TimeSeries{}, &ctx,
-		)
-
-		time.Sleep(2 * time.Minute)
-
-		// no samples from vmagent1:8429 in the last hour, so it should be removed from the mdx instance list.
-		f(map[string]int64{
-			"\"test\":\"victoria-metrics1:8428\"": 0,
-		})
-	})
-
+	// goroutines + 1 shared
+	if got := filter.VMInstancesCount(); got != concurrency+1 {
+		t.Errorf("unexpected instance count: got %d, want %d", got, concurrency+1)
+	}
 }
