@@ -60,7 +60,7 @@ var (
 	disableResponseCompression  = flag.Bool("http.disableResponseCompression", false, "Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth")
 	maxGracefulShutdownDuration = flag.Duration("http.maxGracefulShutdownDuration", 7*time.Second, "The maximum duration for a graceful shutdown of the HTTP server. "+
 		"During this period the server stops accepting new connections, but it will continue serving existing connections. "+
-		"After this period the remaining in-flight requests are canceled. "+
+		"The remaining in-flight requests are canceled before the deadline, so the shutdown can finish within this duration. "+
 		"A highly loaded server may require increased value for a graceful shutdown")
 	shutdownDelay   = flag.Duration("http.shutdownDelay", 0, `Optional delay before http server shutdown. During this delay, the server returns non-OK responses from /health page, so load balancers can route new requests to other servers`)
 	idleConnTimeout = flag.Duration("http.idleConnTimeout", time.Minute, "Timeout for incoming idle http connections")
@@ -274,15 +274,16 @@ func stop(addr string) error {
 		logger.Infof("Starting shutdown for http server %q", addr)
 	}
 
-	// inflightDrainGrace lets requests canceled at the end of the graceful shutdown
-	// window unwind and release resources, so Shutdown returns cleanly and the caller
-	// can flush storage instead of dying via logger.Fatalf -> os.Exit and losing data.
+	// Cancel in-flight requests shortly before the deadline, reserving up to 2s (or 20%
+	// of the window, whichever is smaller) for them to unwind, so Shutdown returns cleanly
+	// within -http.maxGracefulShutdownDuration instead of timing out and dying via
+	// logger.Fatalf -> os.Exit, which skips the storage flush and loses data.
 	// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/1502
-	const inflightDrainGrace = 2 * time.Second
-	ctx, cancel := context.WithTimeout(context.Background(), *maxGracefulShutdownDuration+inflightDrainGrace)
+	cancelInflightAfter := *maxGracefulShutdownDuration - min(*maxGracefulShutdownDuration/5, 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), *maxGracefulShutdownDuration)
 	defer cancel()
 
-	t := time.AfterFunc(*maxGracefulShutdownDuration, s.cancel)
+	t := time.AfterFunc(cancelInflightAfter, s.cancel)
 	defer t.Stop()
 
 	if err := s.s.Shutdown(ctx); err != nil {
