@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -47,6 +48,17 @@ type Restore struct {
 	//
 	// This will likely be slower in most cases, but allows restores to resume mid file
 	SkipPreallocation bool
+
+	// RestoreSince, if non-zero, only restores partitions whose time range ends at or after
+	// (now - RestoreSince). This allows restoring only recent data to reduce disk usage.
+	//
+	// For example, RestoreSince=5*24*time.Hour restores only the last 5 days of data.
+	RestoreSince time.Duration
+
+	// RestorePartitions is an optional list of partition names in YYYY_MM format to restore.
+	// When non-empty, only the listed partitions are restored; all other partitions are skipped.
+	// Non-partition files (metadata, etc.) are always restored regardless of this setting.
+	RestorePartitions []string
 }
 
 // Run runs r with the provided settings.
@@ -94,6 +106,12 @@ func (r *Restore) Run(ctx context.Context) error {
 	for _, srcPart := range srcParts {
 		if !srcPart.IsLocalPathInsideDir(r.Dst.Dir) {
 			return fmt.Errorf("part file %s would be written outside storage directory %s", srcPart.Path, r.Dst.Dir)
+		}
+	}
+	if r.RestoreSince > 0 || len(r.RestorePartitions) > 0 {
+		srcParts, err = filterPartitions(srcParts, r.RestoreSince, r.RestorePartitions, time.Now().UTC())
+		if err != nil {
+			return fmt.Errorf("cannot filter partitions: %w", err)
 		}
 	}
 	logger.Infof("obtaining list of parts at %s", dst)
@@ -302,6 +320,116 @@ func (sw *statWriter) Write(p []byte) (int, error) {
 }
 
 var bytesDownloadedTotal = metrics.NewCounter(`vm_backups_downloaded_bytes_total`)
+
+// partitionDirPrefixes are the directory prefixes that contain per-partition subdirectories in a backup.
+var partitionDirPrefixes = []string{"data/small/", "data/big/", "data/indexdb/"}
+
+// extractPartitionName returns the YYYY_MM partition name from a part path, or an empty string
+// if the path does not belong to a partition directory (e.g. metadata files).
+//
+// Part paths in VictoriaMetrics backups follow the pattern:
+//
+//	data/small/YYYY_MM/...
+//	data/big/YYYY_MM/...
+//	data/indexdb/YYYY_MM/...
+func extractPartitionName(partPath string) string {
+	for _, prefix := range partitionDirPrefixes {
+		if strings.HasPrefix(partPath, prefix) {
+			rest := partPath[len(prefix):]
+			// The partition name is the next path component (YYYY_MM).
+			if idx := strings.IndexByte(rest, '/'); idx > 0 {
+				return rest[:idx]
+			}
+			return rest
+		}
+	}
+	return ""
+}
+
+// filterPartitions filters srcParts according to the restoreSince duration and the
+// explicit restorePartitions list. Non-partition files are always retained.
+//
+// - If restoreSince > 0, only partitions whose month ends at or after (now - restoreSince) are kept.
+// - If restorePartitions is non-empty, only the explicitly listed partitions are kept.
+// - Both filters are applied when both are set (intersection).
+//
+// now is the reference time used for computing the restoreSince cutoff.
+func filterPartitions(srcParts []common.Part, restoreSince time.Duration, restorePartitions []string, now time.Time) ([]common.Part, error) {
+	if err := validatePartitionNames(restorePartitions); err != nil {
+		return nil, err
+	}
+
+	allowedPartitions := make(map[string]struct{}, len(restorePartitions))
+	for _, name := range restorePartitions {
+		allowedPartitions[name] = struct{}{}
+	}
+
+	var sinceTime time.Time
+	if restoreSince > 0 {
+		sinceTime = now.Add(-restoreSince)
+	}
+
+	var filtered []common.Part
+	for _, p := range srcParts {
+		ptName := extractPartitionName(p.Path)
+		if ptName == "" {
+			// Non-partition file (metadata, etc.) — always include.
+			filtered = append(filtered, p)
+			continue
+		}
+
+		if len(allowedPartitions) > 0 {
+			if _, ok := allowedPartitions[ptName]; !ok {
+				continue
+			}
+		}
+
+		if !sinceTime.IsZero() {
+			ptTime, err := time.Parse("2006_01", ptName)
+			if err != nil {
+				return nil, fmt.Errorf("cannot parse partition name %q from path %q: %w", ptName, p.Path, err)
+			}
+			// The partition covers the whole calendar month. Its end timestamp is
+			// the start of the next month (exclusive). Include the partition only if
+			// its end time is after sinceTime, i.e. the partition contains data newer
+			// than sinceTime.
+			y, m, _ := ptTime.Date()
+			partitionEnd := time.Date(y, m+1, 1, 0, 0, 0, 0, time.UTC)
+			if !partitionEnd.After(sinceTime) {
+				continue
+			}
+		}
+
+		filtered = append(filtered, p)
+	}
+
+	skipped := len(srcParts) - len(filtered)
+	if skipped > 0 {
+		logger.Infof("skipped %d parts from %d partitions that are outside the requested restore range", skipped, countPartitions(srcParts)-countPartitions(filtered))
+	}
+	return filtered, nil
+}
+
+// validatePartitionNames returns an error if any name in names is not a valid YYYY_MM partition name.
+func validatePartitionNames(names []string) error {
+	for _, name := range names {
+		if _, err := time.Parse("2006_01", name); err != nil {
+			return fmt.Errorf("invalid partition name %q in -restorePartitions; expected YYYY_MM format, e.g. 2024_01", name)
+		}
+	}
+	return nil
+}
+
+// countPartitions returns the number of distinct partition names in parts.
+func countPartitions(parts []common.Part) int {
+	m := make(map[string]struct{})
+	for _, p := range parts {
+		if name := extractPartitionName(p.Path); name != "" {
+			m[name] = struct{}{}
+		}
+	}
+	return len(m)
+}
 
 func createRestoreLock(dstDir string) error {
 	lockF := path.Join(dstDir, backupnames.RestoreInProgressFilename)

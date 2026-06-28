@@ -45,6 +45,40 @@ Run the following command to restore backup from the given `-src` into the given
 The original `-storageDataPath` directory may contain old files. They will be substituted by the files from backup,
 i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/questions/476041/how-do-i-make-rsync-delete-files-that-have-been-deleted-from-the-source-folder).
 
+## Partial restore
+
+By default `vmrestore` downloads every partition from the backup. Use the flags below to
+restore only a subset of partitions and reduce both download time and disk usage.
+This is useful when only recent data is needed and over-provisioning storage is undesirable
+(for example, Kubernetes PVCs that can expand but not shrink).
+
+### Restore only recent data
+
+Use `-restoreSince` to skip partitions older than a given duration:{{% available_from "#" %}}
+
+```sh
+./vmrestore -src=<storageType>://<path/to/backup> -storageDataPath=<local/path/to/restore> \
+  -restoreSince=5d
+```
+
+This restores only the partitions that contain data from the last 5 days.
+VictoriaMetrics stores data in monthly partitions (named `YYYY_MM`), so a partition
+is included if any part of its month falls within `[now-restoreSince, now]`.
+
+### Restore specific partitions
+
+Use `-restorePartitions` to list the exact partitions to download:{{% available_from "#" %}}
+
+```sh
+./vmrestore -src=<storageType>://<path/to/backup> -storageDataPath=<local/path/to/restore> \
+  -restorePartitions=2026_05,2026_06
+```
+
+Partition names follow the `YYYY_MM` format used by VictoriaMetrics storage.
+Non-partition files (metadata etc.) are always restored regardless of this flag.
+
+Both flags can be combined — only partitions that satisfy both filters are downloaded.
+
 ## Troubleshooting
 
 * See [how to setup credentials via environment variables](https://docs.victoriametrics.com/victoriametrics/vmbackup/#providing-credentials-via-env-variables).
@@ -204,6 +238,10 @@ Run `vmrestore -help` in order to see all the available options:
      See https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage-class-intro.html
   -s3TLSInsecureSkipVerify
      Whether to skip TLS verification when connecting to the S3 endpoint.
+  -restorePartitions string
+     Comma-separated list of partition names in YYYY_MM format to restore from the backup. Partitions not in the list are skipped. Non-partition files (metadata, etc.) are always restored. Example: -restorePartitions=2024_01,2024_02. If not set, all partitions are restored.
+  -restoreSince value
+     If set, only partitions containing data newer than now()-restoreSince are restored. This reduces the download size when only recent data is needed and helps avoid over-provisioning disk space. For example, -restoreSince=5d restores only partitions that contain data from the last 5 days. Supports s (second), h (hour), d (day), w (week), M (month), y (year) suffixes.
   -skipBackupCompleteCheck
      Whether to skip checking for 'backup complete' file in -src. This may be useful for restoring from old backups, which were created without 'backup complete' file
   -src string
