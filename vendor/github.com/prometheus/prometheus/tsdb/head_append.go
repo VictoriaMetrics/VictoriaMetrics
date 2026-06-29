@@ -1384,6 +1384,7 @@ func (a *headAppenderBase) commitFloats(b *appendBatch, acc *appenderCommitConte
 			handleAppendableError(err, &acc.floatsAppended, &acc.floatOOORejected, &acc.floatOOBRejected, &acc.floatTooOldRejected)
 		}
 
+		prevHeadChunkCount := series.headChunkCount.Load()
 		switch {
 		case err != nil:
 			// Do nothing here.
@@ -1456,8 +1457,7 @@ func (a *headAppenderBase) commitFloats(b *appendBatch, acc *appenderCommitConte
 		}
 
 		if chunkCreated {
-			a.head.metrics.chunks.Inc()
-			a.head.metrics.chunksCreated.Inc()
+			a.head.onChunkCreated(series, prevHeadChunkCount)
 		}
 
 		series.cleanupAppendIDsBelow(a.cleanupAppendIDsBelow)
@@ -1489,6 +1489,7 @@ func (a *headAppenderBase) commitHistograms(b *appendBatch, acc *appenderCommitC
 			handleAppendableError(err, &acc.histogramsAppended, &acc.histoOOORejected, &acc.histoOOBRejected, &acc.histoTooOldRejected)
 		}
 
+		prevHeadChunkCount := series.headChunkCount.Load()
 		switch {
 		case err != nil:
 			// Do nothing here.
@@ -1567,8 +1568,7 @@ func (a *headAppenderBase) commitHistograms(b *appendBatch, acc *appenderCommitC
 		}
 
 		if chunkCreated {
-			a.head.metrics.chunks.Inc()
-			a.head.metrics.chunksCreated.Inc()
+			a.head.onChunkCreated(series, prevHeadChunkCount)
 		}
 
 		series.cleanupAppendIDsBelow(a.cleanupAppendIDsBelow)
@@ -1600,6 +1600,7 @@ func (a *headAppenderBase) commitFloatHistograms(b *appendBatch, acc *appenderCo
 			handleAppendableError(err, &acc.histogramsAppended, &acc.histoOOORejected, &acc.histoOOBRejected, &acc.histoTooOldRejected)
 		}
 
+		prevHeadChunkCount := series.headChunkCount.Load()
 		switch {
 		case err != nil:
 			// Do nothing here.
@@ -1678,8 +1679,7 @@ func (a *headAppenderBase) commitFloatHistograms(b *appendBatch, acc *appenderCo
 		}
 
 		if chunkCreated {
-			a.head.metrics.chunks.Inc()
-			a.head.metrics.chunksCreated.Inc()
+			a.head.onChunkCreated(series, prevHeadChunkCount)
 		}
 
 		series.cleanupAppendIDsBelow(a.cleanupAppendIDsBelow)
@@ -1916,6 +1916,7 @@ func (s *memSeries) appendHistogram(st, t int64, h *histogram.Histogram, appendI
 		maxTime: t,
 		prev:    s.headChunks,
 	}
+	s.headChunkCount.Add(1)
 	s.nextAt = rangeForTimestamp(t, o.chunkRange)
 	return true, true
 }
@@ -1973,6 +1974,7 @@ func (s *memSeries) appendFloatHistogram(st, t int64, fh *histogram.FloatHistogr
 		maxTime: t,
 		prev:    s.headChunks,
 	}
+	s.headChunkCount.Add(1)
 	s.nextAt = rangeForTimestamp(t, o.chunkRange)
 	return true, true
 }
@@ -1982,11 +1984,6 @@ func (s *memSeries) appendFloatHistogram(st, t int64, fh *histogram.FloatHistogr
 // It is unsafe to call this concurrently with s.iterator(...) without holding the series lock.
 // This should be called only when appending data.
 func (s *memSeries) appendPreprocessor(t int64, e chunkenc.Encoding, o chunkOpts) (c *memChunk, sampleInOrder, chunkCreated bool) {
-	// We target chunkenc.MaxBytesPerXORChunk as a hard for the size of an XOR chunk. We must determine whether to cut
-	// a new head chunk without knowing the size of the next sample, however, so we assume the next sample will be a
-	// maximally-sized sample (19 bytes).
-	const maxBytesPerXORChunk = chunkenc.MaxBytesPerXORChunk - 19
-
 	c = s.headChunks
 
 	if c == nil {
@@ -2005,7 +2002,7 @@ func (s *memSeries) appendPreprocessor(t int64, e chunkenc.Encoding, o chunkOpts
 	}
 
 	// Check the chunk size, unless we just created it and if the chunk is too large, cut a new one.
-	if !chunkCreated && len(c.chunk.Bytes()) > maxBytesPerXORChunk {
+	if !chunkCreated && len(c.chunk.Bytes()) > chunkenc.MaxBytesPerXORChunkBeforeAppend {
 		c = s.cutNewHeadChunk(t, e, o.chunkRange)
 		chunkCreated = true
 	}
@@ -2146,6 +2143,7 @@ func (s *memSeries) cutNewHeadChunk(mint int64, e chunkenc.Encoding, chunkRange 
 		maxTime: math.MinInt64,
 		prev:    s.headChunks,
 	}
+	s.headChunkCount.Add(1)
 
 	if chunkenc.IsValidEncoding(e) {
 		var err error
@@ -2213,7 +2211,7 @@ func (s *memSeries) mmapCurrentOOOHeadChunk(o chunkOpts, logger *slog.Logger) []
 	return chunkRefs
 }
 
-// mmapChunks will m-map all but first chunk on s.headChunks list.
+// mmapChunks will m-map all but first chunk on s.headChunks list and update headChunkCount.
 func (s *memSeries) mmapChunks(chunkDiskMapper *chunks.ChunkDiskMapper) (count int) {
 	if s.headChunks == nil || s.headChunks.prev == nil {
 		// There is none or only one head chunk, so nothing to m-map here.
@@ -2235,8 +2233,9 @@ func (s *memSeries) mmapChunks(chunkDiskMapper *chunks.ChunkDiskMapper) (count i
 		count++
 	}
 
-	// Once we've written out all chunks except s.headChunks we need to unlink these from s.headChunk.
+	// Remove the tail of the list, leaving only the most recent head chunk.
 	s.headChunks.prev = nil
+	s.headChunkCount.Store(1)
 
 	return count
 }

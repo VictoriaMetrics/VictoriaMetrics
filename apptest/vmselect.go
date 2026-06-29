@@ -48,7 +48,7 @@ func newVmselect(app *app, cli *Client, rt vmselectRuntimeValues) *Vmselect {
 		app:           app,
 		metricsClient: newMetricsClient(cli, rt.httpListenAddr),
 		vmselectClient: &vmselectClient{
-			vmselectCli: cli,
+			cli: cli,
 			url: func(op, path string, opts QueryOpts) string {
 				return getClusterPath(rt.httpListenAddr, op, path, opts)
 			},

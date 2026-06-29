@@ -66,6 +66,7 @@ func CheckConfig() error {
 // Scraped data is passed to pushData.
 func Init(pushData func(at *auth.Token, wr *prompb.WriteRequest)) {
 	mustInitClusterMemberID()
+	initClusterShardByLabels()
 	globalStopChan = make(chan struct{})
 	scraperWG.Go(func() {
 		runScraper(*promscrapeConfigFile, pushData, globalStopChan)
@@ -155,9 +156,22 @@ func runScraper(configFile string, pushData func(at *auth.Token, wr *prompb.Writ
 		tickerCh = ticker.C
 		defer ticker.Stop()
 	}
+	stop := func() {
+		cfg.mustStop()
+		logger.Infof("stopping Prometheus scrapers")
+		startTime := time.Now()
+		scs.stop()
+		logger.Infof("stopped Prometheus scrapers in %.3f seconds", time.Since(startTime).Seconds())
+	}
 	for {
 		scs.updateConfig(cfg)
 	waitForChans:
+		select {
+		case <-globalStopCh:
+			stop()
+			return
+		default:
+		}
 		select {
 		case <-sighupCh:
 			logger.Infof("SIGHUP received; reloading Prometheus configs from %q", configFile)
@@ -196,11 +210,7 @@ func runScraper(configFile string, pushData func(at *auth.Token, wr *prompb.Writ
 			configReloads.Inc()
 			configTimestamp.Set(fasttime.UnixTimestamp())
 		case <-globalStopCh:
-			cfg.mustStop()
-			logger.Infof("stopping Prometheus scrapers")
-			startTime := time.Now()
-			scs.stop()
-			logger.Infof("stopped Prometheus scrapers in %.3f seconds", time.Since(startTime).Seconds())
+			stop()
 			return
 		}
 	}

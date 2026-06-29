@@ -221,7 +221,7 @@ func getIAMToken(cfg *apiConfig) (*iamToken, error) {
 	body := bytes.NewBuffer(passport)
 	resp, err := cfg.client.Post(iamURL, "application/json", body)
 	if err != nil {
-		return nil, fmt.Errorf("cannot send request to yandex cloud iam api %q: %s", iamURL, err)
+		return nil, fmt.Errorf("cannot send request to yandex cloud iam api %q: %w", iamURL, err)
 	}
 	data, err := readResponseBody(resp, iamURL)
 	if err != nil {

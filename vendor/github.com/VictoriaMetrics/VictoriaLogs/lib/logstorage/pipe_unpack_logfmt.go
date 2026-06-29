@@ -142,7 +142,7 @@ func parsePipeUnpackLogfmt(lex *lexer) (pipe, error) {
 	}
 
 	fromField := "_msg"
-	if !lex.isKeyword("fields", "result_prefix", "keep_original_fields", "skip_empty_results", ")", "|", "") {
+	if !lex.isKeyword("fields", "result_prefix", "keep_original_fields", "skip_empty_results") && !lex.isQueryPartTrailer() {
 		if lex.isKeyword("from") {
 			lex.nextToken()
 		}

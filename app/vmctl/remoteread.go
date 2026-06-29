@@ -44,7 +44,7 @@ func (rrp *remoteReadProcessor) run(ctx context.Context) error {
 
 	ranges, err := stepper.SplitDateRange(*rrp.filter.timeStart, *rrp.filter.timeEnd, rrp.filter.chunk, rrp.filter.timeReverse)
 	if err != nil {
-		return fmt.Errorf("failed to create date ranges for the given time filters: %v", err)
+		return fmt.Errorf("failed to create date ranges for the given time filters: %w", err)
 	}
 
 	question := fmt.Sprintf("Selected time range %q - %q will be split into %d ranges according to %q step. Continue?",
@@ -74,7 +74,7 @@ func (rrp *remoteReadProcessor) run(ctx context.Context) error {
 			for r := range rangeC {
 				if err := rrp.do(ctx, r); err != nil {
 					remoteReadErrorsTotal.Inc()
-					errCh <- fmt.Errorf("request failed for: %s", err)
+					errCh <- fmt.Errorf("request failed for: %w", err)
 					return
 				}
 				remoteReadRangesProcessed.Inc()
@@ -86,10 +86,10 @@ func (rrp *remoteReadProcessor) run(ctx context.Context) error {
 	for _, r := range ranges {
 		select {
 		case infErr := <-errCh:
-			return fmt.Errorf("remote read error: %s", infErr)
+			return fmt.Errorf("remote read error: %w", infErr)
 		case vmErr := <-rrp.dst.Errors():
 			remoteReadErrorsTotal.Inc()
-			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, rrp.isVerbose))
+			return fmt.Errorf("import process failed: %w", wrapErr(vmErr, rrp.isVerbose))
 		case rangeC <- &remoteread.Filter{
 			StartTimestampMs: r[0].UnixMilli(),
 			EndTimestampMs:   r[1].UnixMilli(),
@@ -105,11 +105,11 @@ func (rrp *remoteReadProcessor) run(ctx context.Context) error {
 	for vmErr := range rrp.dst.Errors() {
 		if vmErr.Err != nil {
 			remoteReadErrorsTotal.Inc()
-			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, rrp.isVerbose))
+			return fmt.Errorf("import process failed: %w", wrapErr(vmErr, rrp.isVerbose))
 		}
 	}
 	for err := range errCh {
-		return fmt.Errorf("import process failed: %s", err)
+		return fmt.Errorf("import process failed: %w", err)
 	}
 
 	return nil
@@ -119,7 +119,7 @@ func (rrp *remoteReadProcessor) do(ctx context.Context, filter *remoteread.Filte
 	return rrp.src.Read(ctx, filter, func(series *vm.TimeSeries) error {
 		if err := rrp.dst.Input(series); err != nil {
 			return fmt.Errorf(
-				"failed to read data for time range start: %d, end: %d, %s",
+				"failed to read data for time range start: %d, end: %d: %w",
 				filter.StartTimestampMs, filter.EndTimestampMs, err)
 		}
 		return nil

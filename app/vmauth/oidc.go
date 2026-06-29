@@ -161,7 +161,7 @@ func fetchAndParseJWKs(ctx context.Context, jwksURI string) (*jwt.VerifierPool, 
 
 	vp, err := jwt.ParseJWKs(b)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse jwks keys from %q: %v", jwksURI, err)
+		return nil, fmt.Errorf("failed to parse jwks keys from %q: %w", jwksURI, err)
 	}
 
 	return vp, nil
@@ -188,7 +188,7 @@ func getOpenIDConfiguration(ctx context.Context, issuer string) (openidConfig, e
 
 	var cfg openidConfig
 	if err := json.NewDecoder(resp.Body).Decode(&cfg); err != nil {
-		return openidConfig{}, fmt.Errorf("failed to decode openid config from %q: %s", configURL, err)
+		return openidConfig{}, fmt.Errorf("failed to decode openid config from %q: %w", configURL, err)
 	}
 
 	return cfg, nil

@@ -53,6 +53,7 @@ const getSeriesStatistics = (d: MetricResult) => {
       min: formatPrettyNumber(min, min, max),
       max: formatPrettyNumber(max, min, max),
       median: formatPrettyNumber(median, min, max),
+      last: formatPrettyNumber(values.at(-1), min, max),
     },
   };
 };

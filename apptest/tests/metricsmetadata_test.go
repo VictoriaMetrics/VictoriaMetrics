@@ -45,11 +45,13 @@ func TestSingleMetricsMetadata(t *testing.T) {
 			{Labels: []prompb.Label{{Name: "__name__", Value: "metric_name_4"}}, Samples: []prompb.Sample{{Value: 40, Timestamp: ingestTimestamp}}},
 			{Labels: []prompb.Label{{Name: "__name__", Value: "metric_name_5"}}, Samples: []prompb.Sample{{Value: 40, Timestamp: ingestTimestamp}}},
 			{Labels: []prompb.Label{{Name: "__name__", Value: "metric_name_6"}}, Samples: []prompb.Sample{{Value: 40, Timestamp: ingestTimestamp}}},
+			{Labels: []prompb.Label{{Name: "__name__", Value: `metric_name_7_!@"_suffix`}}, Samples: []prompb.Sample{{Value: 40, Timestamp: ingestTimestamp}}},
 		},
 		Metadata: []prompb.MetricMetadata{
 			{MetricFamilyName: "metric_name_4", Help: "some help message", Type: prompb.MetricTypeSummary},
 			{MetricFamilyName: "metric_name_5", Help: "some help message", Type: prompb.MetricTypeSummary},
 			{MetricFamilyName: "metric_name_6", Help: "some help message", Type: prompb.MetricTypeStateset},
+			{MetricFamilyName: `metric_name_7_!@"_suffix`, Help: "some help message", Type: prompb.MetricTypeStateset},
 		},
 	}
 
@@ -59,12 +61,13 @@ func TestSingleMetricsMetadata(t *testing.T) {
 	expected := &apptest.PrometheusAPIV1Metadata{
 		Status: "success",
 		Data: map[string][]apptest.MetadataEntry{
-			"metric_name_1": {{Help: "some help message", Type: "gauge"}},
-			"metric_name_2": {{Help: "some help message", Type: "counter"}},
-			"metric_name_3": {{Help: "some help message", Type: "gauge"}},
-			"metric_name_4": {{Help: "some help message", Type: "summary"}},
-			"metric_name_5": {{Help: "some help message", Type: "summary"}},
-			"metric_name_6": {{Help: "some help message", Type: "stateset"}},
+			"metric_name_1":            {{Help: "some help message", Type: "gauge"}},
+			"metric_name_2":            {{Help: "some help message", Type: "counter"}},
+			"metric_name_3":            {{Help: "some help message", Type: "gauge"}},
+			"metric_name_4":            {{Help: "some help message", Type: "summary"}},
+			"metric_name_5":            {{Help: "some help message", Type: "summary"}},
+			"metric_name_6":            {{Help: "some help message", Type: "stateset"}},
+			`metric_name_7_!@"_suffix`: {{Help: "some help message", Type: "stateset"}},
 		},
 	}
 	gotStats := sut.PrometheusAPIV1Metadata(t, "", 0, apptest.QueryOpts{})
@@ -154,11 +157,13 @@ func TestClusterMetricsMetadata(t *testing.T) {
 			{Labels: []prompb.Label{{Name: "__name__", Value: "metric_name_4"}}, Samples: []prompb.Sample{{Value: 40, Timestamp: ingestTimestamp}}},
 			{Labels: []prompb.Label{{Name: "__name__", Value: "metric_name_5"}}, Samples: []prompb.Sample{{Value: 40, Timestamp: ingestTimestamp}}},
 			{Labels: []prompb.Label{{Name: "__name__", Value: "metric_name_6"}}, Samples: []prompb.Sample{{Value: 40, Timestamp: ingestTimestamp}}},
+			{Labels: []prompb.Label{{Name: "__name__", Value: `metric_name_7_!@"_suffix`}}, Samples: []prompb.Sample{{Value: 40, Timestamp: ingestTimestamp}}},
 		},
 		Metadata: []prompb.MetricMetadata{
 			{MetricFamilyName: "metric_name_4", Help: "some help message", Type: prompb.MetricTypeSummary},
 			{MetricFamilyName: "metric_name_5", Help: "some help message", Type: prompb.MetricTypeSummary},
 			{MetricFamilyName: "metric_name_6", Help: "some help message", Type: prompb.MetricTypeStateset},
+			{MetricFamilyName: `metric_name_7_!@"_suffix`, Help: "some help message", Type: prompb.MetricTypeStateset},
 		},
 	}
 
@@ -171,12 +176,13 @@ func TestClusterMetricsMetadata(t *testing.T) {
 		expected := &apptest.PrometheusAPIV1Metadata{
 			Status: "success",
 			Data: map[string][]apptest.MetadataEntry{
-				"metric_name_1": {{Help: "some help message", Type: "gauge"}},
-				"metric_name_2": {{Help: "some help message", Type: "counter"}},
-				"metric_name_3": {{Help: "some help message", Type: "gauge"}},
-				"metric_name_4": {{Help: "some help message", Type: "summary"}},
-				"metric_name_5": {{Help: "some help message", Type: "summary"}},
-				"metric_name_6": {{Help: "some help message", Type: "stateset"}},
+				"metric_name_1":            {{Help: "some help message", Type: "gauge"}},
+				"metric_name_2":            {{Help: "some help message", Type: "counter"}},
+				"metric_name_3":            {{Help: "some help message", Type: "gauge"}},
+				"metric_name_4":            {{Help: "some help message", Type: "summary"}},
+				"metric_name_5":            {{Help: "some help message", Type: "summary"}},
+				"metric_name_6":            {{Help: "some help message", Type: "stateset"}},
+				`metric_name_7_!@"_suffix`: {{Help: "some help message", Type: "stateset"}},
 			},
 		}
 		gotStats := vmselect.PrometheusAPIV1Metadata(t, "", 0, apptest.QueryOpts{Tenant: tenantID})

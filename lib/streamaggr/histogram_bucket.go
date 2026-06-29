@@ -14,16 +14,10 @@ func (av *histogramBucketAggrValue) pushSample(_ aggrConfig, sample *pushSample,
 	av.h.Update(sample.value)
 }
 
-func (av *histogramBucketAggrValue) flush(c aggrConfig, ctx *flushCtx, key string, _ bool) {
-	ac := c.(*histogramBucketAggrConfig)
-	shared := av.shared
-	if ac.useSharedState {
-		shared.Merge(&av.h)
-		av.h.Reset()
-	} else {
-		shared = &av.h
-	}
-	shared.VisitNonZeroBuckets(func(vmrange string, count uint64) {
+func (av *histogramBucketAggrValue) flush(_ aggrConfig, ctx *flushCtx, key string, _ bool) {
+	av.shared.Merge(&av.h)
+	av.h.Reset()
+	av.shared.VisitNonZeroBuckets(func(vmrange string, count uint64) {
 		ctx.appendSeriesWithExtraLabel(key, "histogram_bucket", float64(count), "vmrange", vmrange)
 	})
 }
@@ -32,26 +26,17 @@ func (av *histogramBucketAggrValue) state() any {
 	return av.shared
 }
 
-func newHistogramBucketAggrConfig(useSharedState bool) aggrConfig {
-	return &histogramBucketAggrConfig{
-		useSharedState: useSharedState,
-	}
+func newHistogramBucketAggrConfig() aggrConfig {
+	return &histogramBucketAggrConfig{}
 }
 
-type histogramBucketAggrConfig struct {
-	useSharedState bool
-}
+type histogramBucketAggrConfig struct{}
 
-func (ac *histogramBucketAggrConfig) getValue(s any) aggrValue {
-	var shared *metrics.Histogram
-	if ac.useSharedState {
-		if s == nil {
-			shared = &metrics.Histogram{}
-		} else {
-			shared = s.(*metrics.Histogram)
-		}
+func (*histogramBucketAggrConfig) getValue(s any) aggrValue {
+	if s == nil {
+		s = &metrics.Histogram{}
 	}
 	return &histogramBucketAggrValue{
-		shared: shared,
+		shared: s.(*metrics.Histogram),
 	}
 }

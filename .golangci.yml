@@ -1,29 +1,25 @@
 version: "2"
 linters:
+  enable:
+    - errorlint
   settings:
     errcheck:
       exclude-functions:
-        - fmt.Fprintf
-        - fmt.Fprint
         - (net/http.ResponseWriter).Write
+    errorlint:
+      errorf: true
+      # Do not enable `comparison` and `asserts`: they produce false positives,
+      # since many call sites intentionally compare sentinel errors directly (e.g. err == io.EOF)
+      # when the producer is documented to return them unwrapped. See https://github.com/VictoriaMetrics/VictoriaLogs/pull/1490
+      comparison: false
+      asserts: false
   exclusions:
     generated: lax
     presets:
-      - common-false-positives
-      - legacy
       - std-error-handling
     rules:
       - linters:
           - staticcheck
         text: 'SA(4003|1019|5011):'
     paths:
-      - third_party$
-      - builtin$
-      - examples$
-formatters:
-  exclusions:
-    generated: lax
-    paths:
-      - third_party$
-      - builtin$
-      - examples$
+      - ^app/vmui/
