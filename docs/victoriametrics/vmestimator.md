@@ -230,7 +230,7 @@ Per tenant cardinality:
   group_by: ['vm_account_id', 'vm_project_id']
 ```
 
-### Churn rate calculation
+### Churn calculation
 
 [Churn rate](https://valyala.medium.com/prometheus-storage-technical-terms-for-humans-4ab4de6c3d48#churn-rate) measures how quickly time series are created and disappear.
 [High churn](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate) means many series appear briefly and are replaced by new ones.
@@ -273,6 +273,40 @@ Values in between indicate the fraction of maximum possible churn that is occurr
 
 This helps identify jobs that create the most indexing pressure on storage, even when their current active cardinality appears moderate.
 
+### Alerting
+
+Pre-built alert rules for cardinality monitoring are available in
+[deployment/docker/rules/alerts-cardinality.yml](https://github.com/VictoriaMetrics/vmestimator/blob/main/deployment/docker/rules/use -cardinality.yml).
+
+They require two streams with the same `group_by` but different intervals to also support churn detection:
+```yaml
+# streams.yaml
+# or use example config:
+# https://github.com/VictoriaMetrics/vmestimator/blob/main/streams.yaml
+
+- interval: '15m'
+  group_by: ['job']
+
+- interval: '30m'
+  group_by: ['job']
+```
+
+The included alerts are:
+
+- **JobTooHighCardinality** — fires when any job exceeds 20,000 estimated active series over the last 30 minutes.
+  The threshold is a starting point and should be calibrated to reflect the expected cardinality of your largest jobs.
+
+- **JobTooHighChurnRate** — fires when more than 10% of a job's series churned between the 15m and 30m windows.
+  Catches jobs that generate continuous indexing pressure even when their active series count looks moderate.
+
+- **CardinalityGroupLimitNearlyReached** — fires when the number of tracked groups exceeds 80% of the configured `group_limit`.
+  Acts as an early warning that some label value combinations may soon be dropped from individual tracking.
+
+- **CardinalityGroupLimitReached** — fires when groups are actively rejected because `group_limit` is full.
+  At this point, some label combinations are being counted in a shared "rejected" sketch rather than tracked individually.
+
+All alerts link to the [Cardinality Explorer dashboard](https://play-grafana.victoriametrics.com/d/mktd5h8/).
+
 ## Alternative solutions
 
 ### PromQL
@@ -297,7 +331,7 @@ topk(10, count({__name__=~".*"}) by (job))
 This approach works for small setups but does not scale well, because these queries scan the entire time series set.
 Most critically, if the storage is overloaded or unavailable, these queries could not be executed.
 
-### Cardinality explorer
+### Cardinality Explorer
 
 VictoriaMetrics includes a built-in [cardinality explorer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer).
 It provides per-metric detail beyond raw series counts: query frequency, last access time, day-over-day change, and share of total cardinality.
@@ -355,10 +389,11 @@ When grouping is enabled, vmestimator exposes per-bucket operational metrics at 
 
 Two Grafana dashboards are available in the [dashboards](https://github.com/VictoriaMetrics/vmestimator/tree/main/dashboards) directory:
 
-- `vmestimator.json` — application health: CPU, memory, ingestion rates, concurrent inserts, and group key saturation.
-- `cardinality-explorer.json` — cardinality analysis: global estimates, per-group-key series counts, and top-10 highest-cardinality label value combinations.
+- [VictoriaMetrics - vmestimator](https://play-grafana.victoriametrics.com/d/mkv22l4/victoriametrics-vmestimator) — application health: CPU, memory, ingestion rates, concurrent inserts, and group key saturation.
+  <img width="1507" height="801" alt="Screenshot 2026-06-29 at 19 06 46" src="https://github.com/user-attachments/assets/cbfd979d-f403-4270-b098-2d2f0b392172" />
 
-<img style="min-width:0;width: 100%" src="https://github.com/user-attachments/assets/2bd6a930-1eb5-40ef-8006-8196c1c12397" />
+- [VictoriaMetrics - Cardinality Explorer](https://play-grafana.victoriametrics.com/d/mktd5h8/victoriametrics-cardinality-explorer) — cardinality analysis: global estimates, per-group-key series counts, and top-10 highest-cardinality label value combinations.
+  <img width="1510" height="796" alt="Screenshot 2026-06-29 at 19 05 47" src="https://github.com/user-attachments/assets/a1aea6e1-8714-4d5a-a629-8bdee978f1c6" />
 
 ## How to build from sources
 
