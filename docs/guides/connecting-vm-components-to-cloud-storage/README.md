@@ -21,8 +21,8 @@ You need to supply credentials so the component can connect to the cloud storage
 ### AWS S3
 
 1. In AWS, [create an IAM user](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_users_create.html) or role with permissions to read and write the target bucket.
-2. [Create an access key](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html) for that IAM identity.
-3. Copy the **Access key ID** and **Secret access key** values. You will use them in the credentials file or environment variables.
+1. [Create an access key](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html) for that IAM identity.
+1. Copy the **Access key ID** and **Secret access key** values. You will use them in the credentials file or environment variables.
 
 ### S3-compatible storage (MinIO, Ceph)
 
@@ -31,10 +31,10 @@ Generate access keys using your storage system's admin interface or CLI. The cre
 ### Google Cloud Storage
 
 1. Open the Google Cloud Console and go to **IAM & Admin > Service Accounts**.
-2. Click **Create service account**, enter a name, and assign a Storage role (for example, Storage Object Admin).
-3. Open the service account, go to **Keys**, then click **Add key > Create new key**.
-4. Choose **JSON** as the key type and click **Create**.
-5. Store the JSON file on the machine running the VictoriaMetrics component.
+1. Click **Create service account**, enter a name, and assign a Storage role (for example, Storage Object Admin).
+1. Open the service account, go to **Keys**, then click **Add key > Create new key**.
+1. Choose **JSON** as the key type and click **Create**.
+1. Store the JSON file on the machine running the VictoriaMetrics component.
 
 ### Azure Blob Storage
 
@@ -45,7 +45,11 @@ Generate access keys using your storage system's admin interface or CLI. The cre
 1. Click on your specific storage account name. (This is your `AZURE_STORAGE_ACCOUNT_NAME`).
 1. In the left menu under **Security + networking**, click **Access keys**.
 1. Copy the key value from either **key1** or **key2** (this is your `AZURE_STORAGE_ACCOUNT_KEY`).
-1. Define the access keys [as environment variables](#authentication-via-environment-variables).
+1. Define the access keys as environment variables.
+    ```sh
+    export AZURE_STORAGE_ACCOUNT_NAME=mystorageaccount
+    export AZURE_STORAGE_ACCOUNT_KEY=myaccountkey
+    ```
 
 ## Authenticating with the cloud provider
 
