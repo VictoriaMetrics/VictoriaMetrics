@@ -4898,7 +4898,7 @@ func TestExecSuccess(t *testing.T) {
 		f(q, resultExpected)
 	})
 
-	// the number of non-empty bucket doesn't reach the given "limit", so some empty buckets will be preserved
+	// the number of non-empty bucket doesn't reach the given "limit", so some empty buckets will be preserved, and left buckets are preferred to be kept.
 	t.Run(`buckets_limit(trim_zero)`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort(buckets_limit(5, (
@@ -4910,6 +4910,7 @@ func TestExecSuccess(t *testing.T) {
 			alias(label_set(0, "le", "6"), "metric"),
 			alias(label_set(0, "le", "1"), "metric"),
 			)))`
+
 		r1 := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{0, 0, 0, 0, 0, 0},
@@ -4919,43 +4920,43 @@ func TestExecSuccess(t *testing.T) {
 		r1.MetricName.Tags = []storage.Tag{
 			{
 				Key:   []byte("le"),
-				Value: []byte("6"),
+				Value: []byte("1"),
 			},
 		}
 		r2 := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{14, 14, 14, 14, 14, 14},
+			Values:     []float64{0, 0, 0, 0, 0, 0},
 			Timestamps: timestampsExpected,
 		}
 		r2.MetricName.MetricGroup = []byte("metric")
 		r2.MetricName.Tags = []storage.Tag{
 			{
 				Key:   []byte("le"),
-				Value: []byte("9"),
+				Value: []byte("6"),
 			},
 		}
 		r3 := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{27, 27, 27, 27, 27, 27},
+			Values:     []float64{14, 14, 14, 14, 14, 14},
 			Timestamps: timestampsExpected,
 		}
 		r3.MetricName.MetricGroup = []byte("metric")
 		r3.MetricName.Tags = []storage.Tag{
 			{
 				Key:   []byte("le"),
-				Value: []byte("12"),
+				Value: []byte("9"),
 			},
 		}
 		r4 := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{36, 36, 36, 36, 36, 36},
+			Values:     []float64{27, 27, 27, 27, 27, 27},
 			Timestamps: timestampsExpected,
 		}
 		r4.MetricName.MetricGroup = []byte("metric")
 		r4.MetricName.Tags = []storage.Tag{
 			{
 				Key:   []byte("le"),
-				Value: []byte("16"),
+				Value: []byte("12"),
 			},
 		}
 		r5 := netstorage.Result{
@@ -4967,9 +4968,10 @@ func TestExecSuccess(t *testing.T) {
 		r5.MetricName.Tags = []storage.Tag{
 			{
 				Key:   []byte("le"),
-				Value: []byte("17"),
+				Value: []byte("16"),
 			},
 		}
+
 		resultExpected := []netstorage.Result{r1, r2, r3, r4, r5}
 		f(q, resultExpected)
 	})

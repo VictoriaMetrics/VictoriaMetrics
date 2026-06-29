@@ -467,31 +467,22 @@ func transformBucketsLimit(tfa *transformFuncArg) ([]*timeseries, error) {
 		epsilon := 1e-9
 		l := 0
 		r := len(leGroup) - 1
-		trimLeft := true
 		for r-l+1 > limit {
-			leftHits := math.Abs(leGroup[l].hits)
-			rightHits := math.Abs(leGroup[r].hits)
-			leftEmpty := !math.IsNaN(leftHits) && leftHits < epsilon
-			rightEmpty := !math.IsNaN(rightHits) && rightHits < epsilon
-			if !leftEmpty && !rightEmpty {
+			hits := math.Abs(leGroup[r].hits)
+			isEmpty := !math.IsNaN(hits) && hits < epsilon
+			if isEmpty {
+				r--
+			} else {
 				break
 			}
-			if trimLeft {
-				if leftHits < epsilon {
-					l++
-				}
-				// switch the trim pointer to the right side if needed
-				if rightHits < epsilon {
-					trimLeft = false
-				}
+		}
+		for r-l+1 > limit {
+			hits := math.Abs(leGroup[l].hits)
+			isEmpty := !math.IsNaN(hits) && hits < epsilon
+			if isEmpty {
+				l++
 			} else {
-				if rightHits < epsilon {
-					r--
-				}
-				// switch the trim pointer to the left side if needed
-				if leftHits < epsilon {
-					trimLeft = true
-				}
+				break
 			}
 		}
 		leGroup = leGroup[l : r+1]
