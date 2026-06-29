@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"math/rand/v2"
 	"net"
 	"net/http"
 	"net/netip"
@@ -107,8 +106,8 @@ func (dbs *discoveredBackends) getLeastLoadedBackend() *backend {
 	}
 
 	// Slow path - return the backend with the minimum number of concurrently executed requests.
-	buMinIdx := n % uint32(len(dbs.backends))
-	minRequests := dbs.backends[buMinIdx].concurrentRequests.Load()
+	bMinIdx := n % uint32(len(dbs.backends))
+	minRequests := dbs.backends[bMinIdx].concurrentRequests.Load()
 	for i := uint32(1); i < uint32(len(dbs.backends)); i++ {
 		idx := (n + i) % uint32(len(dbs.backends))
 		bu := dbs.backends[idx]
@@ -117,20 +116,20 @@ func (dbs *discoveredBackends) getLeastLoadedBackend() *backend {
 		}
 
 		reqs := bu.concurrentRequests.Load()
-		if reqs < minRequests || dbs.backends[buMinIdx].isBroken() {
-			buMinIdx = idx
+		if reqs < minRequests || dbs.backends[bMinIdx].isBroken() {
+			bMinIdx = idx
 			minRequests = reqs
 		}
 	}
-	buMin := dbs.backends[buMinIdx]
-	if buMin.isBroken() {
+	bMin := dbs.backends[bMinIdx]
+	if bMin.isBroken() {
 		// If all backends are broken, then returns the first backend.
 		firstB.get()
 		return firstB
 	}
-	buMin.get()
-	dbs.n.CompareAndSwap(n+1, buMinIdx+1)
-	return buMin
+	bMin.get()
+	dbs.n.CompareAndSwap(n+1, bMinIdx+1)
+	return bMin
 }
 
 type backend struct {
@@ -183,7 +182,7 @@ func (lb *loadbalancerTransport) RoundTrip(r *http.Request) (*http.Response, err
 			lastErr = err
 			continue
 		}
-		return resp, err
+		return resp, nil
 	}
 	return nil, fmt.Errorf("all backends are unavailable: %w", lastErr)
 }
@@ -237,12 +236,15 @@ func (lb *loadbalancerTransport) discoverBackends() {
 		logger.Errorf("cannot discover backends: %s, retry in %s", err, backendDiscoveryInterval)
 		return
 	}
-	rand.Shuffle(len(backends), func(i, j int) {
-		backends[i], backends[j] = backends[j], backends[i]
-	})
 	dbs := &discoveredBackends{
 		backends: backends,
 	}
+
+	prevBackends := lb.dbs.Load()
+	if areBackendsEqual(prevBackends, dbs) {
+		return
+	}
+
 	lb.dbs.Store(dbs)
 }
 
@@ -308,4 +310,21 @@ func (rrc *releaseReadCloser) Close() error {
 		rrc.b.put()
 	}
 	return rrc.ReadCloser.Close()
+}
+
+func areBackendsEqual(left, right *discoveredBackends) bool {
+	if left == nil || right == nil {
+		return left == right
+	}
+	if len(left.backends) != len(right.backends) {
+		return false
+	}
+	for idx, leftB := range left.backends {
+		rightB := right.backends[idx]
+		if leftB.addr != rightB.addr {
+			return false
+		}
+	}
+
+	return true
 }
