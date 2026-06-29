@@ -393,7 +393,7 @@ The table below shows how the same concept maps to different flag names across c
 
 | Concept | vmalert | vmbackup, vmrestore, and vmbackupmanager |
 |---|---|---|---|---|
-| Credentials file | `-s3.credsFilePath`  `-credsFilePath` |
+| Credentials file | `-s3.credsFilePath` | `-credsFilePath` |
 | Config file | `-s3.configFilePath` | `-configFilePath` |
 | Profile selection | `-s3.configProfile` | `-configProfile` |
 | Custom endpoint | `-s3.customEndpoint` | `-customS3Endpoint` |
