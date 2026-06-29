@@ -369,12 +369,12 @@ func filterPartitions(srcParts []common.Part, restoreSince time.Duration, restor
 		sinceTime = now.Add(-restoreSince)
 	}
 
-	var filtered []common.Part
+	var keptParts []common.Part
 	for _, p := range srcParts {
 		ptName := extractPartitionName(p.Path)
 		if ptName == "" {
 			// Non-partition file (metadata, etc.) — always include.
-			filtered = append(filtered, p)
+			keptParts = append(keptParts, p)
 			continue
 		}
 
@@ -384,30 +384,31 @@ func filterPartitions(srcParts []common.Part, restoreSince time.Duration, restor
 			}
 		}
 
-		if !sinceTime.IsZero() {
-			ptTime, err := time.Parse("2006_01", ptName)
-			if err != nil {
-				return nil, fmt.Errorf("cannot parse partition name %q from path %q: %w", ptName, p.Path, err)
-			}
-			// The partition covers the whole calendar month. Its end timestamp is
-			// the start of the next month (exclusive). Include the partition only if
-			// its end time is after sinceTime, i.e. the partition contains data newer
-			// than sinceTime.
-			y, m, _ := ptTime.Date()
-			partitionEnd := time.Date(y, m+1, 1, 0, 0, 0, 0, time.UTC)
-			if !partitionEnd.After(sinceTime) {
-				continue
-			}
+		if sinceTime.IsZero() {
+			keptParts = append(keptParts, p)
+			continue
 		}
 
-		filtered = append(filtered, p)
+		ptTime, err := time.Parse("2006_01", ptName)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse partition name %q from path %q: %w", ptName, p.Path, err)
+		}
+		// The partition covers the whole calendar month. Its end timestamp is
+		// the start of the next month (exclusive). Include the partition only if
+		// its end time is after sinceTime, i.e. the partition contains data newer
+		// than sinceTime.
+		y, m, _ := ptTime.Date()
+		partitionEnd := time.Date(y, m+1, 1, 0, 0, 0, 0, time.UTC)
+		if partitionEnd.After(sinceTime) {
+			keptParts = append(keptParts, p)
+		}
 	}
 
-	skipped := len(srcParts) - len(filtered)
+	skipped := len(srcParts) - len(keptParts)
 	if skipped > 0 {
-		logger.Infof("skipped %d parts from %d partitions that are outside the requested restore range", skipped, countPartitions(srcParts)-countPartitions(filtered))
+		logger.Infof("skipped %d parts from %d partitions that are outside the requested restore range", skipped, countPartitions(srcParts)-countPartitions(keptParts))
 	}
-	return filtered, nil
+	return keptParts, nil
 }
 
 // validatePartitionNames returns an error if any name in names is not a valid YYYY_MM partition name.

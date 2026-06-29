@@ -65,6 +65,12 @@ This restores only the partitions that contain data from the last 5 days.
 VictoriaMetrics stores data in monthly partitions (named `YYYY_MM`), so a partition
 is included if any part of its month falls within `[now-restoreSince, now]`.
 
+> **Note:** `-restoreSince` computes the cutoff relative to the current time each run.
+> If `vmrestore` is interrupted and restarted after time passes, the set of selected
+> partitions may differ from the first run, which can result in an inconsistent restore.
+> For a fully resumable partial restore, prefer `-restorePartitions` with explicit
+> partition names instead.
+
 ### Restore specific partitions
 
 Use `-restorePartitions` to list the exact partitions to download:{{% available_from "#" %}}
