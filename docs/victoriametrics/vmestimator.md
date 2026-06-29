@@ -1,9 +1,9 @@
 ---
-weight: 13
+weight: 12
 menu:
   docs:
     parent: victoriametrics
-    weight: 13
+    weight: 12
 title: vmestimator
 tags:
   - metrics
@@ -61,7 +61,6 @@ For this, `vmagent` should scrape the estimator `/metrics` endpoint and forward 
 
 <img style="min-width:0;width: 100%" src="https://github.com/user-attachments/assets/e52d9210-b6f9-457b-8d8f-1d6ff6ba1416" />
 
-
 This setup is straightforward and introduces minimal overhead.
 The main drawback is that cardinality data shares the same storage with production metrics.
 If that storage becomes unavailable, the visibility into cardinality is lost precisely when it may be most needed.
@@ -76,11 +75,24 @@ The resulting topology looks like this:
 
 ## Install
 
-To quickly try VictoriaMetrics, just download the VictoriaMetrics docker image from [Docker Hub](https://hub.docker.com/r/victoriametrics/vmestimator) or [Quay](https://quay.io/repository/victoriametrics/vmestimator) and start it with the desired [command-line flags](https://github.com/VictoriaMetrics/vmestimator#command-line-flags).
+Create a `streams.yaml` from [example config](https://github.com/VictoriaMetrics/cestimator/blob/main/streams.yaml).
+Run the Docker image from [Docker Hub](https://hub.docker.com/r/victoriametrics/vmestimator) or [Quay](https://quay.io/repository/victoriametrics/vmestimator), mounting your config file:
+```bash
+docker run --rm \
+  -p 8490:8490 \
+  -v /path/to/streams.yaml:/streams.yaml \
+  docker.io/victoriametrics/vmestimator:latest \
+  -config=/streams.yaml
+```
+
+See [Use Cases](https://github.com/VictoriaMetrics/vmestimator#use-cases) for more configuration examples and
+[Command-line flags](https://github.com/VictoriaMetrics/vmestimator#command-line-flags) for all available options.
+
+To build from sources, see [How to build from sources](https://github.com/VictoriaMetrics/vmestimator#how-to-build-from-sources).
 
 ## Configuration
 
-To run vmestimator a `streams.yaml` config has to be provided:
+To run vmestimator a `streams.yaml` config has to be provided (see [example config](https://github.com/VictoriaMetrics/cestimator/blob/main/streams.yaml):
 
 ```bash
 /path/to/vmestimator -config=streams.yaml # -httpListenAddr=:8490
@@ -98,7 +110,7 @@ streams:
     # by comparing their estimates. See Use Cases -> Churn Rate
     #
     # default: 5m
-    interval: '5m'
+    interval: 'golang duration'
 
     # Label names used to split the cardinality estimate into per-combination groups.
     # Each distinct combination of values for these labels gets its own estimate metric.
@@ -109,7 +121,7 @@ streams:
     #  - ["vm_account_id","vm_project_id"]
     #
     # default: none (single global estimate)
-    group_by: ['job']
+    group_by: 'string array'
 
     # Maximum number of distinct groups (HLL sketches) to track.
     # Once the limit is reached, excess groups are counted in a single shared "rejected" sketch
@@ -119,14 +131,14 @@ streams:
     #   group_limit * 2^hll_precision bytes. 
     #
     # default: 10000
-    group_limit: 10000
+    group_limit: 'integer'
 
     # Number of shards used to reduce lock contention during parallel ingestion.
     # Slightly increases memory for global streams (no group_by); negligible otherwise.
     # Leave at the default unless you have profiled lock contention or have a specific reason to change it.
     #
     # default: min(64, 2*availableCPUs)
-    buckets: 64
+    buckets: 'integer'
 
     # HyperLogLog precision p, in range [4..18].
     # Determines the number of registers m = 2^p and the relative error 1.04 / sqrt(m):
@@ -136,7 +148,7 @@ streams:
     # See more in https://research.google.com/pubs/archive/40671.pdf
     #
     # default: 14
-    hll_precision: 14
+    hll_precision: 'integer'
 
     # Whether to use the sparse HyperLogLog representation for low-cardinality groups.
     # Sparse mode uses far less memory until a group's cardinality reaches ~2^(p-1),
@@ -144,14 +156,12 @@ streams:
     # See more in # See more in https://research.google.com/pubs/archive/40671.pdf
     #
     # default: true
-    hll_sparse: true
+    hll_sparse: 'boolean'
 
     # Static labels attached to every output metric produced by this stream entry.
     # Useful when multiple vmestimator instances feed the same storage and you need
     # to distinguish their estimates in dashboards and alerts.
-    labels:
-      env: 'production'
-      region: 'eu-central-1'
+    labels: 'map key string: value string'
 ```
 
 ## Cardinality Metrics
@@ -226,27 +236,35 @@ Per tenant cardinality:
 [High churn](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate) means many series appear briefly and are replaced by new ones.
 This puts pressure on storage, because each new series must be indexed regardless of how short its lifetime is.
 
-To measure churn, configure two streams with the same `group_by` but different intervals. A short one (`5m`) and a long one (`1h`):
+To measure churn, configure two streams with the same `group_by` but different intervals. A short one (`15m`) and a long one (`30m`):
 ```yaml
 # streams.yaml
 
-- interval: '5m'
+- interval: '15m'
   group_by: ['job']
 
-- interval: '1h'
+- interval: '30m'
   group_by: ['job']
 ```
 
-The short interval (`5m`) captures the currently active series.
-The long interval (`1h`) retains all series seen over the past hour.
 When churn is low, both estimates are roughly equal.
-When churn is high, the `1h` estimate grows significantly larger than the `5m` estimate, because the long window accumulates series that have already disappeared.
+When churn is high, the `30m` estimate grows significantly larger than the `15m` estimate, because the long window accumulates series that have already disappeared.
 
 The following query computes the churn ratio per job:
 ```
-max(cardinality_estimate{group_by_keys="job",interval="1h0m0s"}) without (job)
+(
+    sum(
+        max(cardinality_estimate{group_by_keys="job",interval="30m0s"}) without (instance)
+    ) by (group_by_keys,group_by_values)
+    -
+    sum(
+        max(cardinality_estimate{group_by_keys="job",interval="15m0s"}) without (instance)
+    ) by (group_by_keys,group_by_values)
+)
 /
-(max(cardinality_estimate{group_by_keys="job",interval="5m0s"}) without (job) * 12)
+sum(
+    max(cardinality_estimate{group_by_keys="job",interval="30m0s"}) without (instance)
+) by (group_by_keys,group_by_values) * 100
 ```
 
 A result near `0` means the series set is stable. The same series were active throughout the entire hour.
@@ -321,7 +339,7 @@ A selector with `-storageNode` flags and no `-config` runs without local estimat
 When multiple selector nodes are scraped, each returns a fully merged estimate.
 Deduplicate at query time to avoid overcounting:
 ```
-max(cardinality_estimate) without (job)
+max(cardinality_estimate) without (instance)
 ```
 
 ## Operational metrics
@@ -346,19 +364,17 @@ Two Grafana dashboards are available in the [dashboards](https://github.com/Vict
 
 It is recommended to use the [docker images](https://hub.docker.com/r/victoriametrics/vmestimator).
 
-### Development build
-
+Development build:
 1. [Install Go](https://golang.org/doc/install).
 1. Run `make vmestimator` from the root folder of [the repository](https://github.com/VictoriaMetrics/vmestimator).
    It builds `vmestimator` binary and places it into the `bin` folder.
 
-### Production build
-
+Production build:
 1. [Install docker](https://docs.docker.com/install/).
 1. Run `make vmestimator-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/vmestimator).
    It builds `vmestimator-prod` binary and puts it into the `bin` folder.
 
-### Building docker images
+Building docker images:
 
 Run `make package-vmestimator`. It builds `victoriametrics/vmestimator:<PKG_TAG>` docker image locally.
 `<PKG_TAG>` is auto-generated image tag, which depends on source code in the repository.
@@ -387,7 +403,7 @@ Usage of ./bin/vmestimator:
   -cardinalityMetrics.exposeAt string
         HTTP path for exposing cardinality metrics. If set to the default /metrics, cardinality metrics are merged with regular metrics and exposed together. If set to a different path, only cardinality metrics are exposed at that endpoint. If set to an empty value, cardinality metrics are not exposed via HTTP at all. (default "/metrics")
   -config string
-        Path to YAML configuration file
+        Path to YAML configuration file. Must be set unless -storageNode is specified. See https://github.com/VictoriaMetrics/cestimator/blob/main/streams.yaml for config example
   -enableTCP6
         Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable
@@ -412,6 +428,8 @@ Usage of ./bin/vmestimator:
         Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
   -http.header.csp string
         Value for 'Content-Security-Policy' header, recommended: "default-src 'self'"
+  -http.header.disableServerHostname
+        Whether to disable 'X-Server-Hostname' header in HTTP responses
   -http.header.frameOptions string
         Value for 'X-Frame-Options' header
   -http.header.hsts string
@@ -466,7 +484,7 @@ Usage of ./bin/vmestimator:
         The maximum size in bytes of a single Prometheus remote_write API request
         Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 33554432)
   -memory.allowedBytes size
-        Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache resulting in higher disk IO usage
+        Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache resulting in higher disk IO usage. The process may behave unexpectedly if this flag is set too small (e.g., 1 byte).
         Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -memory.allowedPercent float
         Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache which will result in higher disk IO usage (default 60)
@@ -527,4 +545,5 @@ Usage of ./bin/vmestimator:
   -version
         Show VictoriaMetrics version
 ```
+
 
