@@ -1066,6 +1066,8 @@ func (rwctx *remoteWriteCtx) TryPushTimeSeries(tss []prompb.TimeSeries, forceDro
 		if len(tss) == 0 {
 			return true
 		}
+		rowsCount := getRowsCount(tss)
+		rwctx.mdxRowsPreserved.Add(rowsCount)
 	}
 
 	// Apply relabeling

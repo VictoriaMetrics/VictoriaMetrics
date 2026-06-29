@@ -2,6 +2,7 @@ package mdx
 
 import (
 	"flag"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -193,9 +194,9 @@ func (ctx *Ctx) formatTimeSeriesKey() string {
 		return ""
 	}
 	buf := ctx.buf[:0]
-	buf = append(buf, ctx.jobLabelValue...)
+	buf = strconv.AppendQuote(buf, ctx.jobLabelValue)
 	buf = append(buf, ':')
-	buf = append(buf, ctx.instanceLabelValue...)
+	buf = strconv.AppendQuote(buf, ctx.instanceLabelValue)
 	ctx.buf = buf
 	return bytesutil.ToUnsafeString(buf)
 }
