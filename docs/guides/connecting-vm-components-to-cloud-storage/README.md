@@ -1,11 +1,11 @@
 Several VictoriaMetrics components can connect to cloud storage to read or write object data.
 
-| Component | S3 | Google Cloud Storage | Azure Blob Storage |
+| Component | AWS S3 and S3-compatible | Google Cloud Storage | Azure Blob Storage |
 |-----------|----|----------------------|--------------------|
 | [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/) | ✅ | ✅ | ✅ |
 | [vmrestore](https://docs.victoriametrics.com/victoriametrics/vmrestore/) | ✅ | ✅ | ✅ |
-| [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/) (Enterprise only) | ✅ | ✅ | ✅ |
-| [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) (Enterprise only) |  ✅ | ✅ | ❌ |
+| [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/) | ✅ | ✅ | ✅ |
+| [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) |  ✅ | ✅ | ❌ |
 
 All these components use the same underlying libraries, so the authentication setup is largely the same. The main difference is in flag names: 
 
@@ -16,7 +16,7 @@ See the [component reference](#per-component-flag-reference) for details.
 
 ## Obtaining credentials
 
-You need to supply credentials so the component can connect to the cloud storage. The steps depend on the cloud provider.
+You need to supply credentials so the component can connect to the cloud storage. The setup differs by provider; the sections below cover AWS S3, S3‑compatible systems, GCS, and Azure Blob Storage.
 
 ### AWS S3
 
@@ -38,7 +38,7 @@ Generate access keys using your storage system's admin interface or CLI. The cre
 
 ### Azure Blob Storage
 
-> Azure does not use a credential files.
+> Azure does not use credential files.
 
 1. Log in to the Azure Portal.
 1. Search for and select **Storage accounts**.
@@ -49,7 +49,7 @@ Generate access keys using your storage system's admin interface or CLI. The cre
 
 ## Authenticating with the cloud provider
 
-Provide the credential file or environment variables and the path to the cloud storage bucket. The syntax for the bucket name depends on the cloud provider:
+Provide the credentials as a file or with environment variables, along with the path to the cloud storage bucket. The syntax for the bucket name depends on the cloud provider:
 
 - `s3://`: for AWS S3 and S3-compatible storage (MinIO, Ceph)
 - `gs://`: Google Cloud Storage
@@ -57,20 +57,20 @@ Provide the credential file or environment variables and the path to the cloud s
 
 ### vmbackup and vmrestore
 
-The following example backs up to an S3 bucket using a credentials file:
+The following example backs up to an AWS S3 bucket using a credentials file:
 
 ```sh
 vmbackup \
-  -storageDataPath=/data \ ok
+  -storageDataPath=/data \
   -snapshot.createURL=http://localhost:8428/snapshot/create \
   -dst=s3://victoriametrics-backup/backup01 \
   -credsFilePath=/etc/credentials
 ```
 
-In order to restore from the same S3 backup:
+In order to restore from the same backup from AWS S3:
 
 ```sh
-vmrestore \ ok
+vmrestore \
   -src=s3://victoriametrics-backup/backup01 \
   -storageDataPath=/data \
   -credsFilePath=/etc/credentials
@@ -83,12 +83,12 @@ Alternatively, you can set the access keys as environment variables instead of u
 export AWS_ACCESS_KEY_ID=YOUR_AWS_ACCESS_KEY
 export AWS_SECRET_ACCESS_KEY=YOUR_SECRET_AWS_ACCESS_KEY
 
-vmbackup \ ok
+vmbackup \
   -storageDataPath=/data \
   -snapshot.createURL=http://localhost:8428/snapshot/create \
   -dst=s3://victoriametrics-backup/backup01
 
-vmrestore \ ok
+vmrestore \
   -src=s3://victoriametrics-backup/backup01 \
   -storageDataPath=/data
 ```
@@ -98,7 +98,7 @@ vmrestore \ ok
 Backups on Google Cloud Storage use the `gs://` prefix in the destination:
 
 ```sh
-vmbackup \ ok
+vmbackup \
   -storageDataPath=/data \
   -snapshot.createURL=http://localhost:8428/snapshot/create \
   -dst=gs://victoriametrics-backup/backup01 \
@@ -108,7 +108,7 @@ vmbackup \ ok
 You can restore this backup with:
 
 ```sh
-vmrestore \ ok
+vmrestore \
   -src=gs://victoriametrics-backup/backup01 \
   -storageDataPath=/data \
   -credsFilePath=/etc/credentials
@@ -119,43 +119,37 @@ On Google Cloud, you can define the path to the JSON credential file with `GOOGL
 ```sh
 export GOOGLE_APPLICATION_CREDENTIALS=/etc/credentials
 
-vmbackup \ ok
+vmbackup \
   -storageDataPath=/data \
   -snapshot.createURL=http://localhost:8428/snapshot/create \
   -dst=gs://victoriametrics-backup/backup01
-```
 
-You can restore this backup with:
-
-```sh
-export GOOGLE_APPLICATION_CREDENTIALS=/etc/credentials
-
-vmrestore \ ok
+vmrestore \
   -src=gs://victoriametrics-backup/backup01 \
   -storageDataPath=/data
 ```
 
-For Azure Blog Storage uses `azblob://` prefix and relies on environment variables instead of `-credsFilePath`.
+For Azure Blob Storage, use the `azblob://` prefix and rely on environment variables instead of `-credsFilePath`.
 
 ```sh
 export AZURE_STORAGE_ACCOUNT_NAME=myaccount
 export AZURE_STORAGE_ACCOUNT_KEY=mykey
 
-vmbackup \ ok
+vmbackup \
   -storageDataPath=/data \
   -snapshot.createURL=http://localhost:8428/snapshot/create \
   -dst=azblob://victoriametrics-backup/backup01
 
-vmrestore \ ok
+vmrestore \
   -src=azblob://victoriametrics-backup/backup01 \
   -storageDataPath=/data
 ```
 
 ### vmbackupmanager 
 
-> Cloud storage only works in the [Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/) edition
+> vmbackupmanager only works in the [Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/) edition.
 
-To manage backups with vmbackupmanager on AWS S3, add the credential with the `-credsFilePath` flag:
+To manage backups with vmbackupmanager on AWS S3, add the credentials with the `-credsFilePath` flag:
 
 ```sh
 vmbackupmanager \
@@ -204,14 +198,14 @@ vmbackupmanager \
   -licenseFile=/etc/vm-license
 ```
 
-vmbackupmanager can also use the Azure Blob Storage by defining environment variables:
+vmbackupmanager can also use Azure Blob Storage by defining environment variables:
 
 ```sh
 export AZURE_STORAGE_ACCOUNT_NAME=mystorageaccount
 export AZURE_STORAGE_ACCOUNT_KEY=myaccountkey
 
 vmbackupmanager \
-  -dst=gs://vmstorage-data/backups \
+  -dst=azblob://vmstorage-data/backups \
   -storageDataPath=/vmstorage-data \
   -snapshot.createURL=http://vmstorage:8482/snapshot/create \
   -licenseFile=/etc/vm-license
@@ -244,7 +238,7 @@ vmalert \
   -notifier.url=http://alertmanager:9093
 ```
 
-> To use non-AWS S3 buckets, you must [supply the `-s3.customS3Endpoint` argument](#s3-compatible-endpoints).
+> To use non-AWS S3 buckets, you must [supply the `-s3.customEndpoint` argument](#s3-compatible-endpoints).
 
 To read rules from Google Cloud Storage:
 
@@ -362,7 +356,7 @@ vmbackup \
   -customS3Endpoint=http://minio.example.local:9000
 ```
 
-On vmalert use the `-s3.customEndpoint` flag instead:
+On vmalert, use the `-s3.customEndpoint` flag instead:
 
 ```sh
 vmalert \
@@ -373,42 +367,35 @@ vmalert \
   -notifier.url=http://alertmanager:9093
 ```
 
-### Addressing objects
+### Addressing S3-compatible buckets
 
-S3-compatible storage supports two ways of addressing objects in a bucket.
+When connecting to non-AWS S3-compatible buckets, there is an additional flag you might need to configure:
 
-| Style | `-s3ForcePathStyle` | Example URL | Use with |
-|---|---|---|---|
-| Path-style | `true` (default) | `https://endpoint/bucket/key` | MinIO, Ceph, most S3-compatible storages |
-| Virtual hosted-style | `false` | `https://bucket.endpoint/key` | [Aliyun OSS](https://www.aliyun.com/product/oss) and other endpoints that require it |
+- `-s3ForcePathStyle`: on vmbackupmanager, vmbackup, and vmrestore.
+- `-s3.forcePathStyle`: on vmalert.
 
-The flag only takes effect when you use a custom endpoint (`-customS3Endpoint` or `-s3.customEndpoint` on vmalert). When connecting to real AWS S3, the SDK handles addressing automatically.
+The flag changes the expected URL pattern for a bucket.
+
+| Flag value | Address-style | Example | Use with |
+|------------|---------------|---------|----------|
+| `true` (default) | Path-style | `https://endpoint/bucket/key` |  MinIO, Ceph, most S3-compatible storages |
+| `false`        | Virtual host-style | `https://endpoint/bucket/key` | [Aliyun OSS](https://www.aliyun.com/product/oss) and other endpoints that require it |
+
+> The flag only takes effect when you use a custom endpoint (`-customS3Endpoint` or `-s3.customEndpoint` on vmalert). When connecting to real AWS S3, the SDK handles addressing automatically.
 
 ## Per-component flag reference
 
 The table below shows how the same concept maps to different flag names across components.
 
-| Concept | vmalert (Enterprise) | vmbackup | vmrestore | vmbackupmanager (Enterprise) |
+| Concept | vmalert | vmbackup, vmrestore, and vmbackupmanager |
 |---|---|---|---|---|
-| Credentials file | `-s3.credsFilePath` | `-credsFilePath` | `-credsFilePath` | `-credsFilePath` |
-| Config file | `-s3.configFilePath` | `-configFilePath` | `-configFilePath` | `-configFilePath` |
-| Profile selection | `-s3.configProfile` | `-configProfile` | `-configProfile` | `-configProfile` |
-| Custom endpoint | `-s3.customEndpoint` | `-customS3Endpoint` | `-customS3Endpoint` | `-customS3Endpoint` |
-| Force path style | `-s3.forcePathStyle` | `-s3ForcePathStyle` | `-s3ForcePathStyle` | `-s3ForcePathStyle` |
-| TLS insecure | — | `-s3TLSInsecureSkipVerify` | `-s3TLSInsecureSkipVerify` | `-s3TLSInsecureSkipVerify` |
-| Storage class | — | `-s3StorageClass` | `-s3StorageClass` | `-s3StorageClass` |
-| ACL | — | `-s3ACL` | — | `-s3ACL` |
-| SSE KMS key | — | `-s3SSEKMSKeyId` | `-s3SSEKMSKeyId` | `-s3SSEKMSKeyId` |
-| Object tags | — | `-s3ObjectTags` | — | — |
-| Delete versions | — | `-deleteAllObjectVersions` | `-deleteAllObjectVersions` | `-deleteAllObjectVersions` |
+| Credentials file | `-s3.credsFilePath`  `-credsFilePath` |
+| Config file | `-s3.configFilePath` | `-configFilePath` |
+| Profile selection | `-s3.configProfile` | `-configProfile` |
+| Custom endpoint | `-s3.customEndpoint` | `-customS3Endpoint` |
+| Force path style | `-s3.forcePathStyle` | `-s3ForcePathStyle` |
+| TLS insecure | N/A | `-s3TLSInsecureSkipVerify` |
+| Storage class | N/A | `-s3StorageClass` |
 
-## Advanced S3 flags
 
-The following flags are only available in `vmbackup`, `vmrestore`, and `vmbackupmanager`:
 
-- `-s3StorageClass` — set the storage class for uploaded objects (for example, `GLACIER`, `STANDARD_IA`).
-- `-s3ACL` — set a canned ACL (for example, `private`, `public-read`).
-- `-s3SSEKMSKeyId` — specify a KMS key ID for server-side encryption.
-- `-s3TLSInsecureSkipVerify` — skip TLS certificate verification for the S3 endpoint.
-- `-s3ObjectTags` — set tags on uploaded objects in JSON format.
-- `-deleteAllObjectVersions` — remove all versions of an object on delete (useful when versioning is enabled).

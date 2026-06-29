@@ -1,6 +1,6 @@
 ---
 weight: 5
-title: Connecting VM components to cloud storage
+title: Connecting VictoriaMetrics components to cloud storage
 menu:
   docs:
     parent: guides
