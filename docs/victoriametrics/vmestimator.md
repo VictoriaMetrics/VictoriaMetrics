@@ -276,7 +276,7 @@ This helps identify jobs that create the most indexing pressure on storage, even
 ### Alerting
 
 Pre-built alert rules for cardinality monitoring are available in
-[deployment/docker/rules/alerts-cardinality.yml](https://github.com/VictoriaMetrics/vmestimator/blob/main/deployment/docker/rules/use -cardinality.yml).
+[deployment/docker/rules/alerts-cardinality.yml](https://github.com/VictoriaMetrics/vmestimator/blob/main/deployment/docker/rules/alerts-cardinality.yml).
 
 They require two streams with the same `group_by` but different intervals to also support churn detection:
 ```yaml
