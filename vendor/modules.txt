@@ -133,7 +133,7 @@ github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric
 # github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.57.0
 ## explicit; go 1.25.0
 github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping
-# github.com/VictoriaMetrics/VictoriaLogs v1.121.1-0.20260616132739-c901a1e31cb3
+# github.com/VictoriaMetrics/VictoriaLogs v1.51.1-0.20260624061259-dc94972a8708
 ## explicit; go 1.26.4
 github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage
 github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter
@@ -143,10 +143,10 @@ github.com/VictoriaMetrics/easyproto
 # github.com/VictoriaMetrics/fastcache v1.13.3
 ## explicit; go 1.24.0
 github.com/VictoriaMetrics/fastcache
-# github.com/VictoriaMetrics/metrics v1.43.2
+# github.com/VictoriaMetrics/metrics v1.44.0
 ## explicit; go 1.24.0
 github.com/VictoriaMetrics/metrics
-# github.com/VictoriaMetrics/metricsql v0.87.1
+# github.com/VictoriaMetrics/metricsql v0.87.2
 ## explicit; go 1.24.2
 github.com/VictoriaMetrics/metricsql
 github.com/VictoriaMetrics/metricsql/binaryop

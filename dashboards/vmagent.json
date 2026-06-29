@@ -2164,7 +2164,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows memory pressure based on [Pressure Stall Information](https://docs.kernel.org/accounting/psi.html).\n\n**Lower is better.**\n\nPressure is measured as amount of time within 1sec time window the process was:\n- waiting: at least one thread was blocked on memory.\n- stalled: every thread was blocked on memory (severe pressure).\n\nElevated memory pressure can slowdown the process performance by utilizing more disk IO. Consider increasing amount of available RAM limit or decreasing the load on the process.\n\nSeу major page faults rate panel in Troubleshooting section if this metric continued to be high.",
+          "description": "Shows memory pressure based on [Pressure Stall Information](https://docs.kernel.org/accounting/psi.html).\n\n**Lower is better.**\n\nPressure is measured as amount of time within 1sec time window the process was:\n- waiting: at least one thread was blocked on memory.\n- stalled: every thread was blocked on memory (severe pressure).\n\nElevated memory pressure can slowdown the process performance by utilizing more disk IO. Consider increasing amount of available RAM limit or decreasing the load on the process.\n\nSee major page faults rate panel in Troubleshooting section if this metric continued to be high.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -6304,7 +6304,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "The rate of ignored samples during aggregation. \nStream aggregation will drop samples with NaN values, or samples with too old timestamps. See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#ignoring-old-samples ",
+          "description": "The rate of dropped samples during aggregation. \nStream aggregation will drop samples with NaN values, too old timestamps or samples identified as duplicates during deduplication. See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#ignoring-old-samples ",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -6385,14 +6385,14 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(rate(vm_streamaggr_ignored_samples_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval]) > 0) without (instance, pod)",
+              "expr": "sum(rate({__name__=~\"vm_streamaggr_ignored_samples_total|vm_streamaggr_dedup_dropped_samples_total\", job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval]) > 0) without (instance, pod)",
               "instant": false,
               "legendFormat": "__auto",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "Ignored samples ($instance)",
+          "title": "Dropped samples ($instance)",
           "type": "timeseries"
         },
         {

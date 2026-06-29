@@ -50,6 +50,17 @@ func (ie *IfExpression) Parse(s string) error {
 	return nil
 }
 
+// ParseFromMetricExpr parses if from given MetricExpr
+func (ie *IfExpression) ParseFromMetricExpr(me *metricsql.MetricExpr) error {
+	var ieLocal ifExpression
+	if err := ieLocal.parseFromMetricExpr(me); err != nil {
+		return err
+	}
+
+	ie.ies = []*ifExpression{&ieLocal}
+	return nil
+}
+
 // UnmarshalJSON unmarshals ie from JSON data.
 func (ie *IfExpression) UnmarshalJSON(data []byte) error {
 	var v any
@@ -178,6 +189,16 @@ func (ie *ifExpression) Parse(s string) error {
 		return fmt.Errorf("cannot parse series selector: %w", err)
 	}
 	ie.s = s
+	ie.lfss = lfss
+	return nil
+}
+
+func (ie *ifExpression) parseFromMetricExpr(me *metricsql.MetricExpr) error {
+	lfss, err := metricExprToLabelFilterss(me)
+	if err != nil {
+		return fmt.Errorf("cannot parse series selector: %w", err)
+	}
+	ie.s = string(me.AppendString(nil))
 	ie.lfss = lfss
 	return nil
 }

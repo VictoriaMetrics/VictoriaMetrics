@@ -32,6 +32,17 @@ docs-image:
 		--platform $(DOCKER_PLATFORM) \
 		vmdocs
 
+docs-check-links: docs-image
+	rm -rf vmdocs/public
+	docker run \
+		--rm \
+		--platform $(DOCKER_PLATFORM) \
+		-v ./vmdocs:/opt/docs \
+		$(shell for d in ./docs/*/; do printf ' -v %s:/opt/docs/content/%s' "$${d}" "$$(basename $${d})"; done) \
+		--entrypoint /bin/sh \
+		vmdocs-docker-package \
+			-c "yarn install && hugo --minify && yarn run check-links"
+
 docs-debug: docs docs-image
 	docker run \
 		--rm \

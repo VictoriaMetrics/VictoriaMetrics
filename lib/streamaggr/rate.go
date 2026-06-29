@@ -7,6 +7,7 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
 var rateAggrSharedValuePool sync.Pool
@@ -99,9 +100,15 @@ func (av *rateAggrValue) pushSample(c aggrConfig, sample *pushSample, key string
 	ac := c.(*rateAggrConfig)
 	var state *rateAggrStateValue
 	sv, ok := av.shared[key]
+	// The last value is stale, reset it.
+	if ok && sv.deleteDeadline < int64(fasttime.UnixTimestamp())*1000 {
+		delete(av.shared, key)
+		putRateAggrSharedValue(sv)
+		ok = false
+	}
 	if ok {
 		state = sv.getState(av.isGreen)
-		if sample.timestamp < state.timestamp {
+		if sample.timestamp < state.timestamp || sample.timestamp < sv.prevTimestamp {
 			// Skip out of order sample
 			return
 		}
@@ -134,9 +141,6 @@ func (av *rateAggrValue) flush(c aggrConfig, ctx *flushCtx, key string, isLast b
 		if ctx.flushTimestamp > sv.deleteDeadline {
 			delete(av.shared, sk)
 			putRateAggrSharedValue(sv)
-			continue
-		}
-		if sv.prevTimestamp == 0 {
 			continue
 		}
 		state = sv.getState(av.isGreen)

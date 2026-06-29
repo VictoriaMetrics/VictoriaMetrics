@@ -301,38 +301,43 @@ func (lr *LogRows) NeedFlush() bool {
 
 // MustAddInsertRow adds r to lr.
 func (lr *LogRows) MustAddInsertRow(r *InsertRow) {
-	// verify r.StreamTagsCanonical
-	if err := verifyStreamTagsCanonical(r.StreamTagsCanonical, r.Fields); err != nil {
+	st := GetStreamTags()
+	streamTagsCanonical := r.StreamTagsCanonical
+	if err := parseStreamTagsCanonical(st, streamTagsCanonical); err != nil {
 		line := MarshalFieldsToJSON(nil, r.Fields)
 		invalidStreamTagsLogger.Warnf("cannot unmarshal streamTagsCanonical: %s; skipping the log entry; log entry: %s", err, line)
+		PutStreamTags(st)
 		return
 	}
+
+	if st.normalize(r.Fields) {
+		bLen := len(lr.a.b)
+		lr.a.b = st.MarshalCanonical(lr.a.b)
+		streamTagsCanonical = bytesutil.ToUnsafeString(lr.a.b[bLen:])
+	}
+	PutStreamTags(st)
 
 	// Calculate the id for the StreamTags
 	var sid streamID
 	sid.tenantID = r.TenantID
-	streamTagsCanonical := bytesutil.ToUnsafeBytes(r.StreamTagsCanonical)
-	sid.id = hash128(streamTagsCanonical)
+	sid.id = hash128(bytesutil.ToUnsafeBytes(streamTagsCanonical))
 
 	// Store the row
-	lr.mustAddInternal(sid, r.Timestamp, r.Fields, r.StreamTagsCanonical)
+	lr.mustAddInternal(sid, r.Timestamp, r.Fields, streamTagsCanonical)
 }
 
 var invalidStreamTagsLogger = logger.WithThrottler("invalid_stream_tags", 5*time.Second)
 
-func verifyStreamTagsCanonical(streamTagsCanonical string, fields []Field) error {
-	st := GetStreamTags()
-	defer PutStreamTags(st)
-
+func parseStreamTagsCanonical(dst *StreamTags, streamTagsCanonical string) error {
 	src := bytesutil.ToUnsafeBytes(streamTagsCanonical)
-	tail, err := st.UnmarshalCanonicalInplace(src)
+	tail, err := dst.UnmarshalCanonicalInplace(src)
 	if err != nil {
 		return fmt.Errorf("cannot unmarshal streamTagsCanonical: %w", err)
 	}
 	if len(tail) > 0 {
-		return fmt.Errorf("unexpected tail left after unmarshaling streamTagsCanonical; len(tail)=%d; streamTags: %s", len(tail), st)
+		return fmt.Errorf("unexpected tail left after unmarshaling streamTagsCanonical; len(tail)=%d; streamTags: %s", len(tail), dst)
 	}
-	return st.verifyCanonicalFieldValues(fields)
+	return nil
 }
 
 func (lr *LogRows) mustAdd(tenantID TenantID, timestamp int64, fields []Field) {
@@ -394,11 +399,7 @@ func (lr *LogRows) MustAdd(tenantID TenantID, timestamp int64, fields []Field, s
 					invalidStreamTagsLogger.Warnf("cannot parse _stream=%s: %s; skipping the log entry; log entry: %s", f.Value, err, line)
 					return
 				}
-				if err := st.verifyCanonicalFieldValues(fields); err != nil {
-					line := MarshalFieldsToJSON(nil, fields)
-					invalidStreamTagsLogger.Warnf("invalid _stream=%s: %s; skipping the log entry; log entry: %s", f.Value, err, line)
-					return
-				}
+				st.normalize(fields)
 				// Remove _stream field, since it is re-generated from st below.
 				f.Value = ""
 			case "_stream_id":
