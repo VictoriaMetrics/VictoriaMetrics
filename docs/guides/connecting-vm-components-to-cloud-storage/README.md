@@ -383,7 +383,7 @@ The flag changes the expected URL pattern for a bucket.
 | Flag value | Address-style | Example | Use with |
 |------------|---------------|---------|----------|
 | `true` (default) | Path-style | `https://endpoint/bucket/key` |  MinIO, Ceph, most S3-compatible storages |
-| `false`        | Virtual host-style | `https://endpoint/bucket/key` | [Aliyun OSS](https://www.aliyun.com/product/oss) and other endpoints that require it |
+| `false`        | Virtual host-style | `https://bucket.endpoint/key` | [Aliyun OSS](https://www.aliyun.com/product/oss) and other endpoints that require it |
 
 > The flag only takes effect when you use a custom endpoint (`-customS3Endpoint` or `-s3.customEndpoint` on vmalert). When connecting to real AWS S3, the SDK handles addressing automatically.
 
