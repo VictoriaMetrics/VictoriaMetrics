@@ -38,13 +38,13 @@ are supported only by the cluster version of VictoriaMetrics.
 
 The tenant ID can be specified in the following ways:
 * Via URL path for reads and writes: `/select/<tenantID>/prometheus/api/v1/query` or `/insert/<tenantID>/prometheus/api/v1/import/prometheus`
-* Via [HTTP headers](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-headers) fir reads and writes: 
+* Via [HTTP headers](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-headers) for reads and writes: 
   `curl 'https://<vmselect>:8481/select/prometheus/api/v1/query' -d 'query=up' --header "AccountID: <tenantID>"`. Note, `--enableMultitenancyViaHeaders` must be set.
 * Via [labels](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenant-writes) for writes: `curl -d 'metric_name{vm_account_id="42"} 123' -X POST http://<vminsert>:8480/insert/multitenant/prometheus/api/v1/import/prometheus`.
 
 The tenant ID [can be omitted for reads](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenant-reads) when using a special `/multitenant` endpoint.
 ```sh
-curl 'http://vmselect:8481/select/multitenant/prometheus/api/v1/query' -d 'query=up'
+curl 'http://<vmselect>:8481/select/multitenant/prometheus/api/v1/query' -d 'query=up'
 ```
 
 In this case, VictoriaMetrics will query all available tenants and will return response with `vm_account_id` and `vm_project_id` labels
@@ -53,13 +53,13 @@ attached to each time series.
 vmagent can serve as a gateway for accepting multitenant writes and forwarding them to the cluster version of VictoriaMetrics.
 See more about [multitenancy in vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy).
 
-> For clarity, API examples below don't demonstrate all multitenancy examples. It is expected that user will read this section and use the examples accordingly.
+> For clarity, API examples below don't demonstrate all multitenancy examples. It is expected that the user will read this section and use the examples accordingly.
 
 ## Writes
 
 ### /api/v1/import
 
-**Imports data in [JSON line format](https://docs.victoriametrics.com/victoriametrics/#how-to-import-data-in-json-line-format).**
+**Import data in [JSON line format](https://docs.victoriametrics.com/victoriametrics/#how-to-import-data-in-json-line-format).**
 
 > Supported by: `vmsingle`, `vminsert`, `vmagent`
 
@@ -128,7 +128,7 @@ Additional information:
 
 > Supported by: `vmsingle`, `vminsert`, `vmagent`
 
-It is expected that `filename.bin` was received by exporting data via [/api/v1/export/native ](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1exportnative).
+It is expected that `filename.bin` was received by exporting data via [/api/v1/export/native](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1exportnative).
 
 Single-node VictoriaMetrics:
 
@@ -221,11 +221,11 @@ Additional information:
 
 ### /datadog
 
-**Ingest data via [DataDog agent, DogStatsD, Datadog Lambda Extension, "submit metrics" API, "sketches" API](https://docs.victoriametrics.com/victoriametrics/integrations/datadog/).**
+**Ingest data via [Datadog agent, DogStatsD, Datadog Lambda Extension, "submit metrics" API, "sketches" API](https://docs.victoriametrics.com/victoriametrics/integrations/datadog/).**
 
 > Supported by: `vmsingle`, `vminsert`, `vmagent`
 
-Configure DataDog agent to send data to VictoriaMetrics via `/datadog` path.
+Configure Datadog agent to send data to VictoriaMetrics via `/datadog` path.
 
 Single-node VictoriaMetrics:
 ```sh
@@ -244,7 +244,7 @@ vmagent:
 http://<vmagent>:8429/datadog
 ```
 
-VictoriaMetrics components also support the following DataDog-specific paths:
+VictoriaMetrics components also support the following Datadog-specific paths:
 * `/datadog/api/v1/series`
 * `/datadog/api/v2/series`
 * `/datadog/api/beta/sketches`
@@ -275,7 +275,7 @@ Cluster version of VictoriaMetrics:
 ```sh
 exporters:
   otlphttp/victoriametrics:
-    metrics_endpoint: http://<vminsert>:8428/insert/0/opentelemetry/v1/metrics
+    metrics_endpoint: http://<vminsert>:8480/insert/0/opentelemetry/v1/metrics
 ```
 
 vmagent:
@@ -328,11 +328,11 @@ Additional information:
 
 #### How to send data from OpenTSDB-compatible agents to VictoriaMetrics
 
-**TCP/UDP via -opentsdbListenAddr. Turned off by default.** 
+**TCP/UDP via -opentsdbListenAddr. Turned off by default.**
 
 Enable OpenTSDB receiver in VictoriaMetrics by setting `-opentsdbListenAddr=:4242` command-line flag.
-If run from Docker, '-opentsdbListenAddr' port should be exposed. 
-Multitenancy is not supported for this receiver - use `-opentsdbHTTPListenAddr`or any other protocol instead.
+If run from Docker, `-opentsdbListenAddr` port should be exposed. 
+Multitenancy is not supported for this receiver - use `-opentsdbHTTPListenAddr` or any other protocol instead.
 
 > Supported by: `vmsingle`, `vminsert`, `vmagent`
 
@@ -357,7 +357,7 @@ curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"m
 Cluster version of VictoriaMetrics:
 
 ```sh
-curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"metric":"bar","value":43}]' http://<vminsert>:4242/insert/42/opentsdb/api/put
+curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"metric":"bar","value":43}]' http://<vminsert>:4242/insert/0/opentsdb/api/put
 ```
 
 vmagent:
@@ -377,7 +377,7 @@ Additional information:
 **TCP/UDP via -graphiteListenAddr. Turned off by default.**
 
 Enable Graphite receiver in VictoriaMetrics by setting `-graphiteListenAddr=:2003` command-line flag.
-If run from Docker, '-graphiteListenAddr' port should be exposed.
+If run from Docker, `-graphiteListenAddr` port should be exposed.
 Multitenancy is not supported for this receiver.
 
 > Supported by: `vmsingle`, `vminsert`, `vmagent`
@@ -400,7 +400,7 @@ Additional information:
 
 > Supported by: `vmsingle`, `vmselect`
 
-The following command exports time series matching `vm_http_request_errors_total` name for the last `1d` metric in JSON format.
+The following command exports time series matching `vm_http_request_errors_total` metric name for the last `1d` in JSON format.
 
 Single-node VictoriaMetrics:
 
@@ -429,7 +429,7 @@ Additional information:
 
 You must specify the desired `format` and optionally `match[]` selectors.
 Suppose you have a `demo` metric with `job` and `instance` labels.
-The following command exports all time series of the `demo` for the last `1d` metric in CSV format, including the `job` and `instance` labels.
+The following command exports all time series of the `demo` metric for the last `1d` in CSV format, including the `job` and `instance` labels.
 
 Single-node VictoriaMetrics:
 ```sh
@@ -454,7 +454,7 @@ Additional information:
 
 > Supported by: `vmsingle`, `vmselect`
 
-The following command exports time series matching `vm_http_request_errors_total` name for the last `1d` metric in native binary format.
+The following command exports time series matching `vm_http_request_errors_total` metric name for the last `1d` in native binary format.
 
 Single-node VictoriaMetrics:
 
@@ -649,12 +649,12 @@ curl http://<vmsingle>:8428/api/v1/metadata -d 'metric=node_os_version'
 Cluster version of VictoriaMetrics:
 
 ```sh
-curl -X GET http://<vmselect>:8481/select/0/prometheus/api/v1/metadata -d 'metric=node_os_version'
+curl http://<vmselect>:8481/select/0/prometheus/api/v1/metadata -d 'metric=node_os_version'
 ```
 
 Additional information:
 
-* [Metrics metadata](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#metric-metadata)
+* [Metrics metadata](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#metrics-metadata)
 * [Multitenancy](#multitenancy)
 
 ### /federate
@@ -864,7 +864,7 @@ curl http://<vm>:<http-port>/health
 
 Where `<vm>` is any of VictoriaMetrics services. And `<http-port>` is `-httpListenAddr` value.
 
-### /-/healthy 
+### /-/healthy
 
 **Returns `VictoriaMetrics is Healthy.` if the HTTP server is healthy.**
 
@@ -890,7 +890,7 @@ Where `<vm>` is any of VictoriaMetrics services. And `<http-port>` is `-httpList
 
 ### /metrics
 
-**Exports [service metrics](https://docs.victoriametrics.com/victoriametrics/#monitoring) in Prometheus-format.**
+**Exports [service metrics](https://docs.victoriametrics.com/victoriametrics/#monitoring) in Prometheus format.**
 
 > Supported by: `vmsingle`, `vmselect`, `vminsert`, `vmstorage`, `vmagent`, `vmalert`, `vmauth`
 
@@ -931,7 +931,7 @@ Additional information:
 > Supported by: `vmsingle`, `vmagent`, `vmalert`, `vmauth`
 
 ```sh
-curl http://<vm>:<http-port>/metrics
+curl http://<vm>:<http-port>/-/reload
 ```
 
 Where `<vm>` is any of VictoriaMetrics services. And `<http-port>` is `-httpListenAddr` value.
@@ -1009,7 +1009,7 @@ curl -Is http://<vmselect>:8481/internal/resetRollupResultCache?propagate=1
 ```
 
 vmselect will propagate this call to the rest of the vmselects listed in its `-selectNode` cmd-line flag when `propagate=1` argument is set.
-If this flag or the `propagate` argument isn't set, then cache need to be purged from each vmselect individually.
+If this flag or the `propagate` argument isn't set, then the cache needs to be purged from each vmselect individually.
 
 If `-search.resetCacheAuthKey` is set, it will be attached to the propagation request as query argument.
 
@@ -1050,7 +1050,7 @@ Additional information:
 
 > Supported by: `vmsingle`, `vmstorage`
 
-The `partition_prefix` query arg is used for mathcing a subset of partitions.
+The `partition_prefix` query arg is used for matching a subset of partitions.
 
 Single-node VictoriaMetrics:
 
@@ -1265,10 +1265,6 @@ Additional information:
 
 * [vmalert web API](https://docs.victoriametrics.com/victoriametrics/vmalert/#web)
 * [vmalert proxying through cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#vmalert)
-
-# Multitenancy
-
-
 
 ---
 
