@@ -20,7 +20,7 @@ type pipePackJSON struct {
 func (pp *pipePackJSON) String() string {
 	s := "pack_json"
 	if len(pp.fieldFilters) > 0 {
-		s += " fields (" + fieldNamesString(pp.fieldFilters) + ")"
+		s += " fields (" + fieldFiltersString(pp.fieldFilters) + ")"
 	}
 	if !isMsgFieldName(pp.resultField) {
 		s += " as " + quoteTokenIfNeeded(pp.resultField)

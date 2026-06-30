@@ -20,7 +20,7 @@ type pipePackLogfmt struct {
 func (pp *pipePackLogfmt) String() string {
 	s := "pack_logfmt"
 	if len(pp.fieldFilters) > 0 {
-		s += " fields (" + fieldNamesString(pp.fieldFilters) + ")"
+		s += " fields (" + fieldFiltersString(pp.fieldFilters) + ")"
 	}
 	if !isMsgFieldName(pp.resultField) {
 		s += " as " + quoteTokenIfNeeded(pp.resultField)

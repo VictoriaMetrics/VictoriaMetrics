@@ -2083,7 +2083,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows memory pressure based on [Pressure Stall Information](https://docs.kernel.org/accounting/psi.html).\n\n**Lower is better.**\n\nPressure is measured as amount of time within 1sec time window the process was:\n- waiting: at least one thread was blocked on memory.\n- stalled: every thread was blocked on memory (severe pressure).\n\nElevated memory pressure can slowdown the process performance by utilizing more disk IO. Consider increasing amount of available RAM limit or decreasing the load on the process.\n\nSeу major page faults rate panel in Troubleshooting section if this metric continued to be high.",
+          "description": "Shows memory pressure based on [Pressure Stall Information](https://docs.kernel.org/accounting/psi.html).\n\n**Lower is better.**\n\nPressure is measured as amount of time within 1sec time window the process was:\n- waiting: at least one thread was blocked on memory.\n- stalled: every thread was blocked on memory (severe pressure).\n\nElevated memory pressure can slowdown the process performance by utilizing more disk IO. Consider increasing amount of available RAM limit or decreasing the load on the process.\n\nSee major page faults rate panel in Troubleshooting section if this metric continued to be high.",
           "fieldConfig": {
             "defaults": {
               "color": {
