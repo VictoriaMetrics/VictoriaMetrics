@@ -136,6 +136,9 @@ type EvalConfig struct {
 	// Whether the response must not be cached.
 	NoCache bool
 
+	// Whether repeated cacheable binary op subexpressions can be optimized.
+	OptimizeRepeatedBinaryOpSubexprs bool
+
 	// LookbackDelta is analog to `-query.lookback-delta` from Prometheus.
 	LookbackDelta int64
 
@@ -183,6 +186,7 @@ func copyEvalConfig(src *EvalConfig) *EvalConfig {
 	ec.MaxPointsPerSeries = src.MaxPointsPerSeries
 	ec.Deadline = src.Deadline
 	ec.NoCache = src.NoCache
+	ec.OptimizeRepeatedBinaryOpSubexprs = src.OptimizeRepeatedBinaryOpSubexprs
 	ec.LookbackDelta = src.LookbackDelta
 	ec.RoundDigits = src.RoundDigits
 	ec.EnforcedTagFilterss = src.EnforcedTagFilterss
@@ -486,7 +490,8 @@ func isAggrFuncWithoutGrouping(e metricsql.Expr) bool {
 }
 
 func execBinaryOpArgs(qt *querytracer.Tracer, ec *EvalConfig, exprFirst, exprSecond metricsql.Expr, be *metricsql.BinaryOpExpr) ([]*timeseries, []*timeseries, error) {
-	if !canPushdownCommonFilters(be) {
+	canPushdown := canPushdownCommonFilters(be)
+	if !canPushdown && !shouldOptimizeRepeatedBinaryOpSubexprs(ec, exprFirst, exprSecond) {
 		// Execute exprFirst and exprSecond in parallel, since it is impossible to pushdown common filters
 		// from exprFirst to exprSecond.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2886
@@ -516,6 +521,25 @@ func execBinaryOpArgs(qt *querytracer.Tracer, ec *EvalConfig, exprFirst, exprSec
 		}
 		if errSecond != nil {
 			return nil, nil, errSecond
+		}
+		return tssFirst, tssSecond, nil
+	}
+	if !canPushdown {
+		qt = qt.NewChild("execute left and right sides of %q sequentially because repeated cacheable subexpression was found", be.Op)
+		defer qt.Done()
+
+		qtFirst := qt.NewChild("expr1")
+		tssFirst, err := evalExpr(qtFirst, ec, exprFirst)
+		qtFirst.Done()
+		if err != nil {
+			return nil, nil, err
+		}
+
+		qtSecond := qt.NewChild("expr2")
+		tssSecond, err := evalExpr(qtSecond, ec, exprSecond)
+		qtSecond.Done()
+		if err != nil {
+			return nil, nil, err
 		}
 		return tssFirst, tssSecond, nil
 	}
@@ -561,6 +585,78 @@ func execBinaryOpArgs(qt *querytracer.Tracer, ec *EvalConfig, exprFirst, exprSec
 		return nil, nil, err
 	}
 	return tssFirst, tssSecond, nil
+}
+
+func shouldOptimizeRepeatedBinaryOpSubexprs(ec *EvalConfig, exprFirst, exprSecond metricsql.Expr) bool {
+	if !ec.OptimizeRepeatedBinaryOpSubexprs {
+		return false
+	}
+	if ec.Start == ec.End {
+		return false
+	}
+	if ec.NoCache {
+		return false
+	}
+
+	candidatesFirst := make(map[string]struct{}, 1)
+	var b []byte
+	visitOptimizedAggrs(exprFirst, func(ae *metricsql.AggrFuncExpr) {
+		if hasUnseededVolatileFunc(ae) {
+			return
+		}
+		b = ae.AppendString(b[:0])
+		candidatesFirst[string(b)] = struct{}{}
+	})
+	if len(candidatesFirst) == 0 {
+		return false
+	}
+
+	repeated := false
+	visitOptimizedAggrs(exprSecond, func(ae *metricsql.AggrFuncExpr) {
+		if repeated {
+			return
+		}
+		b = ae.AppendString(b[:0])
+		_, repeated = candidatesFirst[string(b)]
+	})
+	return repeated
+}
+
+func visitOptimizedAggrs(e metricsql.Expr, f func(ae *metricsql.AggrFuncExpr)) {
+	metricsql.VisitAll(e, func(expr metricsql.Expr) {
+		ae, ok := expr.(*metricsql.AggrFuncExpr)
+		if !ok {
+			return
+		}
+		if getIncrementalAggrFuncCallbacks(ae.Name) == nil {
+			return
+		}
+		fe, _ := tryGetArgRollupFuncWithMetricExpr(ae)
+		if fe == nil {
+			return
+		}
+		f(ae)
+	})
+}
+
+func hasUnseededVolatileFunc(e metricsql.Expr) bool {
+	found := false
+	metricsql.VisitAll(e, func(expr metricsql.Expr) {
+		if found {
+			return
+		}
+		fe, ok := expr.(*metricsql.FuncExpr)
+		if !ok {
+			return
+		}
+		switch strings.ToLower(fe.Name) {
+		case "now":
+			found = true
+		case "rand", "rand_normal", "rand_exponential":
+			found = len(fe.Args) == 0
+		}
+	})
+	return found
 }
 
 func getCommonLabelFilters(tss []*timeseries) []metricsql.LabelFilter {

@@ -65,6 +65,8 @@ type JWTConfig struct {
 	MatchClaims       map[string]string `yaml:"match_claims,omitempty"`
 	parsedMatchClaims []*jwt.Claim
 
+	DefaultVMAccessClaim *jwt.VMAccessClaim `yaml:"default_vm_access_claim,omitempty"`
+
 	// verifierPool is used to verify JWT tokens.
 	// It is initialized from PublicKeys and/or PublicKeyFiles.
 	// In this case, it is initialized once at config reload and never updated until next reload
@@ -432,7 +434,6 @@ func validateJWTPlaceholdersForURL(up *URLPrefix, isAllowed bool) error {
 			}
 			if strings.Contains(p, placeholderPrefix) {
 				return fmt.Errorf("invalid placeholder found in URL request path: %q, supported values are: %s", bu.Path, strings.Join(allPlaceholders, ", "))
-
 			}
 		}
 		for param, values := range bu.Query() {
@@ -487,7 +488,6 @@ func hasAnyPlaceholders(u *url.URL) bool {
 				return true
 			}
 		}
-
 	}
 	return false
 }

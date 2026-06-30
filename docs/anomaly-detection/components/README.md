@@ -49,6 +49,7 @@ schedulers:
   periodic_online:  # alias
     class: 'periodic' # scheduler class
     infer_every: "30s"  # how often to produce anomaly scores for new data
+    scatter_infer_jobs: true  # distribute infer jobs evenly across the infer interval to reduce synchronized bursts
     fit_every: "365d"  # how often to re-fit the models, for online models used effectively once, then they are updated with new data and won't require re-fit
     fit_window: "3d"  # how much historical data to use for fit stage
     start_from: "00:00"  # start from specified time, i.e. 00:00 given timezone and do daily fits as `fit_every` is 1 day
@@ -56,6 +57,7 @@ schedulers:
   periodic_offline_1w:
     class: 'periodic'
     infer_every: "15m"
+    scatter_infer_jobs: true
     fit_every: "24h"
     fit_window: "14d"
     # if no start_from is specified, jobs will start immediately after service starts
@@ -135,6 +137,7 @@ server:
   port: 8490
   path_prefix: '/vmanomaly'  # optional path prefix for all HTTP routes
   max_concurrent_tasks: 4  # maximum number of concurrent anomaly detection tasks processed by backend
+  use_reader_connection_settings: True  # if True, use reader's datasource_url and credentials for UI requests to datasource
   uvicorn_config:  # optional Uvicorn server configuration
     log_level: 'warning'
 ```
