@@ -56,9 +56,9 @@ groups:
           summary: "Too many errors served for user {{ $labels.username }} (instance {{ $labels.instance }})"
           description: "Requests from user {{ $labels.username }} are receiving errors.
             Please check the vmauth logs to verify that the configuration is correct and clients are sending valid requests."
-      - alert: TooManyInvalidAuthTokenRequests
-        expr: sum(increase(vmauth_http_request_errors_total{reason="invalid_auth_token"}[5m])) by (instance) > 100
-        for: 5m
+      - alert: PotentialBruteForceAttack
+        expr: sum(increase(vmauth_http_request_errors_total{reason="invalid_auth_token"}[5m])) by (instance) > 5000
+        for: 1m
         labels:
           severity: warning
         annotations:
