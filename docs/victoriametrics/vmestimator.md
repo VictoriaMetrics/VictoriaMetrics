@@ -16,7 +16,9 @@ aliases:
 
 `vmestimator` measures metrics cardinality across arbitrary label dimensions and exposes the results as metrics.
 
-## Why measure ?
+`vmestimator` measures metrics cardinality across arbitrary label dimensions and exposes the results as metrics.
+
+## Why measure?
 
 Consider a setup where metrics are scraped from dozens of Prometheus targets.
 One day, a team deploys a new version of their service with a `trace_id` or `user_id` label.
@@ -75,7 +77,7 @@ The resulting topology looks like this:
 
 ## Install
 
-Create a `streams.yaml` from [example config](https://github.com/VictoriaMetrics/cestimator/blob/main/streams.yaml).
+Create a `streams.yaml` from [example config](https://github.com/VictoriaMetrics/vmestimator/blob/main/streams.yaml).
 Run the Docker image from [Docker Hub](https://hub.docker.com/r/victoriametrics/vmestimator) or [Quay](https://quay.io/repository/victoriametrics/vmestimator), mounting your config file:
 ```bash
 docker run --rm \
@@ -92,7 +94,7 @@ To build from sources, see [How to build from sources](https://github.com/Victor
 
 ## Configuration
 
-To run vmestimator a `streams.yaml` config has to be provided (see [example config](https://github.com/VictoriaMetrics/cestimator/blob/main/streams.yaml):
+To run vmestimator a `streams.yaml` config has to be provided (see [example config](https://github.com/VictoriaMetrics/vmestimator/blob/main/streams.yaml)):
 
 ```bash
 /path/to/vmestimator -config=streams.yaml # -httpListenAddr=:8490
@@ -153,7 +155,7 @@ streams:
     # Whether to use the sparse HyperLogLog representation for low-cardinality groups.
     # Sparse mode uses far less memory until a group's cardinality reaches ~2^(p-1),
     # at which point it automatically promotes to the dense representation.
-    # See more in # See more in https://research.google.com/pubs/archive/40671.pdf
+    # See more in https://research.google.com/pubs/archive/40671.pdf
     #
     # default: true
     hll_sparse: 'boolean'
@@ -419,17 +421,17 @@ The base docker image is [alpine](https://hub.docker.com/_/alpine) but it is pos
 For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
 
 ```sh
-ROOT_IMAGE=scratch make package-vmrestore
+ROOT_IMAGE=scratch make package-vmestimator
 ```
 
 You can build and publish to your own registry and namespace:
 ```
-DOCKER_REGISTRIES=ghcr.io DOCKER_NAMESPACE=foo make publish-vmagent
+DOCKER_REGISTRIES=ghcr.io DOCKER_NAMESPACE=foo make publish-vmestimator
 ```
 
 ## Command-line flags
 
-Run `vmestimate -help` in order to see all the available options:
+Run `vmestimator -help` in order to see all the available options:
 
 ```
 Usage of ./bin/vmestimator:
@@ -438,7 +440,7 @@ Usage of ./bin/vmestimator:
   -cardinalityMetrics.exposeAt string
         HTTP path for exposing cardinality metrics. If set to the default /metrics, cardinality metrics are merged with regular metrics and exposed together. If set to a different path, only cardinality metrics are exposed at that endpoint. If set to an empty value, cardinality metrics are not exposed via HTTP at all. (default "/metrics")
   -config string
-        Path to YAML configuration file. Must be set unless -storageNode is specified. See https://github.com/VictoriaMetrics/cestimator/blob/main/streams.yaml for config example
+        Path to YAML configuration file. Must be set unless -storageNode is specified. See https://github.com/VictoriaMetrics/vmestimator/blob/main/streams.yaml for config example
   -enableTCP6
         Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable
