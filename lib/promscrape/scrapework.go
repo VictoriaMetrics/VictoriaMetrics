@@ -157,6 +157,9 @@ type ScrapeWork struct {
 	// The Tenant Info
 	AuthToken *auth.Token
 
+	// Optional path to Unix domain socket for scraping metrics over Unix domain socket.
+	UnixSocket string
+
 	// The original 'job_name'
 	jobNameOriginal string
 }
