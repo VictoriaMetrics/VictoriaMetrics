@@ -535,7 +535,7 @@ func StreamListGroups(qw422016 *qt422016.Writer, r *http.Request, groups []*rule
                             <thead>
                                 <tr>
                                     <th scope="col" class="w-60">Rule</th>
-                                    <th scope="col" class="w-20" class="text-center" title="How many series were produced by the rule">Series</th>
+                                    <th scope="col" class="w-20" class="text-center" title="How many series were produced by the rule">Series Returned</th>
                                     <th scope="col" class="w-20" class="text-center" title="How many seconds ago rule was executed">Updated</th>
                                 </tr>
                             </thead>
