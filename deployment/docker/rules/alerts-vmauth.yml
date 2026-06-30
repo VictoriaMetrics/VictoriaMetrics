@@ -56,3 +56,14 @@ groups:
           summary: "Too many errors served for user {{ $labels.username }} (instance {{ $labels.instance }})"
           description: "Requests from user {{ $labels.username }} are receiving errors.
             Please check the vmauth logs to verify that the configuration is correct and clients are sending valid requests."
+      - alert: TooManyInvalidAuthTokenRequests
+        expr: sum(increase(vmauth_http_request_errors_total{reason="invalid_auth_token"}[5m])) by (instance) > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          dashboard: "{{ $externalURL }}/d/nbuo5Mr4k?viewPanel=37&var-instance={{ $labels.instance }}"
+          summary: "vmauth ({{ $labels.instance }}) is receiving too many requests with invalid auth tokens"
+          description: |
+            vmauth ({{ $labels.instance }}) is receiving a high number of requests with invalid auth tokens.
+            This may indicate a misconfiguration on the client side or a brute-force attack.
