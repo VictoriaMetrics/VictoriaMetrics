@@ -431,6 +431,43 @@ and `-remoteWrite.streamAggr.config`:
 
 There is also the `-promscrape.configCheckInterval` command-line flag, which can be used to automatically reload configs from the updated `-promscrape.config` file.
 
+## DNS URLs
+
+If `vmagent` encounters URLs with the `dns+` prefix in the hostname (such as `http://dns+some-addr:8428/some/path`), it resolves `some-addr` into IP addresses
+via [DNS A records](https://datatracker.ietf.org/doc/html/rfc1035#section-3.4.1). The port from the original URL is appended to each discovered IP address.
+Each discovered IP address is used for round-robin balancing of write requests.
+
+DNS URLs are supported in the following places:
+
+* In `-remoteWrite.url` command-line flag. For example, if `victoria-metrics` [DNS A Record](https://datatracker.ietf.org/doc/html/rfc1035#section-3.4.1) record contains
+  `192.168.1.15` IP address, then `-remoteWrite.url=http://dns+victoria-metrics:8428/api/v1/write` is automatically resolved into
+  `-remoteWrite.url=http://192.168.1.15:8428/api/v1/write`.
+
+DNS URLs are useful when client-side HTTP load balancing is needed. A good example
+is a [Kubernetes headless Service](https://kubernetes.io/docs/concepts/services-networking/service/#headless-services),
+which returns multiple IP addresses for a single hostname.
+
+### DNS URLs and HTTPS
+
+When a `dns+` URL uses the `https` scheme, `vmagent` connects to the discovered
+IP addresses directly. This affects [TLS](https://en.wikipedia.org/wiki/Transport_Layer_Security)
+in two ways:
+
+* No [SNI](https://en.wikipedia.org/wiki/Server_Name_Indication) is sent in the TLS handshake,
+  since the connection target is an IP address rather than a hostname.
+* The server certificate is verified against the IP address, so the verification fails
+  unless the certificate contains the corresponding
+  [IP SAN](https://en.wikipedia.org/wiki/Subject_Alternative_Name) entries.
+
+To use `dns+` URLs with HTTPS, pass the original hostname via the `-remoteWrite.tlsServerName`
+command-line flag. It is used both as SNI and as the name the server certificate
+is verified against:
+
+```sh
+-remoteWrite.url=https://dns+victoria-metrics:8428/api/v1/write
+-remoteWrite.tlsServerName=victoria-metrics
+```
+
 ## SRV URLs
 
 If `vmagent` encounters URLs with `srv+` prefix in hostname (such as `http://srv+some-addr/some/path`), then it resolves `some-addr` [DNS SRV](https://en.wikipedia.org/wiki/SRV_record)
@@ -441,7 +478,7 @@ SRV URLs are supported in the following places:
 * In `-remoteWrite.url` command-line flag. For example, if `victoria-metrics` [DNS SRV](https://en.wikipedia.org/wiki/SRV_record) record contains
   `victoria-metrics-host:8428` TCP address, then `-remoteWrite.url=http://srv+victoria-metrics/api/v1/write` is automatically resolved into
   `-remoteWrite.url=http://victoria-metrics-host:8428/api/v1/write`. If the DNS SRV record is resolved into multiple TCP addresses, then `vmagent`
-  uses a randomly chosen address for each connection it establishes to the remote storage.
+   performs per request round-robin load-balancing.
 
 * In scrape target addresses aka `__address__` label. See [these docs](https://docs.victoriametrics.com/victoriametrics/relabeling/#how-to-modify-scrape-urls-in-targets) for details.
 

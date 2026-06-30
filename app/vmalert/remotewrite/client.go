@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"path"
 	"strings"
 	"sync"
@@ -111,12 +112,18 @@ func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 	if cfg.Concurrency > 0 {
 		cc = cfg.Concurrency
 	}
+	hc := &http.Client{
+		Timeout:   *sendTimeout,
+		Transport: cfg.Transport,
+	}
+	rwURL, err := url.Parse(cfg.Addr)
+	if err != nil {
+		logger.Fatalf("cannot parse already parsed -remoteWrite.url=%q: %s", cfg.Addr, err)
+	}
+	hc.Transport, rwURL = httputil.NewLoadBalancerTransport(hc.Transport, rwURL)
 	c := &Client{
-		c: &http.Client{
-			Timeout:   *sendTimeout,
-			Transport: cfg.Transport,
-		},
-		addr:          strings.TrimSuffix(cfg.Addr, "/"),
+		c:             hc,
+		addr:          strings.TrimSuffix(rwURL.String(), "/"),
 		authCfg:       cfg.AuthCfg,
 		flushInterval: cfg.FlushInterval,
 		maxBatchSize:  cfg.MaxBatchSize,
