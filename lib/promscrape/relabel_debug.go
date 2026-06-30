@@ -62,7 +62,7 @@ func WriteMetricRelabelDebug(w http.ResponseWriter, r *http.Request, rwGlobalRel
 				rwURLRelabelConfigs = rwURLRelabelConfigss[rwURLRelabelConfigsIdx]
 			}
 
-			relabelConfigs = composeRelabelConfigs(pcs.String(), rwGlobalRelabelConfigs, rwURLRelabelConfigs)
+			relabelConfigs = composeRelabelConfigs(pcs.String(), rwGlobalRelabelConfigs, rwURLRelabelConfigs, rwURLRelabelConfigsIdx)
 		}
 	}
 
@@ -73,14 +73,18 @@ func WriteMetricRelabelDebug(w http.ResponseWriter, r *http.Request, rwGlobalRel
 	promrelabel.WriteMetricRelabelDebug(w, targetID, metric, relabelConfigs, rwURLRelabelConfigsLength, rwURLRelabelConfigsIdx, format, err)
 }
 
-func composeRelabelConfigs(relabelConfigs, rwGlobalRelabelConfigs, rwURLRelabelConfigs string) string {
+func composeRelabelConfigs(relabelConfigs, rwGlobalRelabelConfigs, rwURLRelabelConfigs string, rwURLIdx int) string {
+	if relabelConfigs != "" {
+		relabelConfigs = "# -promscrape.config\n" + relabelConfigs
+	}
+
 	if rwGlobalRelabelConfigs != "" {
 		relabelConfigs += "\n# -remoteWrite.relabelConfig"
 		relabelConfigs += "\n" + rwGlobalRelabelConfigs
 	}
 
 	if rwURLRelabelConfigs != "" {
-		relabelConfigs += "\n# -remoteWrite.urlRelabelConfig"
+		relabelConfigs += fmt.Sprintf("\n# -remoteWrite.urlRelabelConfig=remote-write-url-%d", rwURLIdx)
 		relabelConfigs += "\n" + rwURLRelabelConfigs
 	}
 
@@ -102,7 +106,7 @@ func WriteTargetRelabelDebug(w http.ResponseWriter, r *http.Request) {
 			targetID = ""
 		} else {
 			metric = labels.labelsString()
-			relabelConfigs = pcs.String()
+			relabelConfigs = "# -promscrape.config\n" + pcs.String()
 		}
 	}
 	if format == "json" {
