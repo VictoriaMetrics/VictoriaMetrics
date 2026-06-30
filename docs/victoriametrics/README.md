@@ -478,6 +478,11 @@ and [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics/keyco
 to the given number of digits after the decimal point.
 For example, `/api/v1/query?query=avg_over_time(temperature[1h])&round_digits=2` would round response values to up to two digits after the decimal point.
 
+VictoriaMetrics accepts `optimize_repeated_binary_op_subexprs=1` query arg for [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query)
+handler. It allows `vmselect` to execute left and right sides of binary operators sequentially when they contain the same
+optimized aggregate rollup result expression, so the second side may reuse the rollup result cache populated by the first side.
+The optimization is disabled by default and applies only when rollup result cache can be used for the request.
+
 VictoriaMetrics accepts `limit` query arg for [/api/v1/labels](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labels)
 and [`/api/v1/label/<labelName>/values`](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labelvalues) handlers for limiting the number of returned entries.
 For example, the query to `/api/v1/labels?limit=5` returns a sample of up to 5 unique labels, while ignoring the rest of labels.

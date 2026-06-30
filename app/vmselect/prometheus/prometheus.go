@@ -1157,6 +1157,7 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 	start, end, step int64, r *http.Request, ct int64, etfs [][]storage.TagFilter) error {
 	deadline := searchutil.GetDeadlineForQuery(r, startTime)
 	noCache := httputil.GetBool(r, "nocache")
+	optimizeRepeatedBinaryOpSubexprs := httputil.GetBool(r, "optimize_repeated_binary_op_subexprs")
 	lookbackDelta, err := getMaxLookback(r)
 	if err != nil {
 		return err
@@ -1178,18 +1179,19 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 	}
 
 	ec := &promql.EvalConfig{
-		Start:               start,
-		End:                 end,
-		Step:                step,
-		MaxPointsPerSeries:  *maxPointsPerTimeseries,
-		MaxSeries:           *maxUniqueTimeseries,
-		QuotedRemoteAddr:    httpserver.GetQuotedRemoteAddr(r),
-		Deadline:            deadline,
-		NoCache:             noCache,
-		LookbackDelta:       lookbackDelta,
-		RoundDigits:         getRoundDigits(r),
-		EnforcedTagFilterss: etfs,
-		CacheTagFilters:     etfs,
+		Start:                            start,
+		End:                              end,
+		Step:                             step,
+		MaxPointsPerSeries:               *maxPointsPerTimeseries,
+		MaxSeries:                        *maxUniqueTimeseries,
+		QuotedRemoteAddr:                 httpserver.GetQuotedRemoteAddr(r),
+		Deadline:                         deadline,
+		NoCache:                          noCache,
+		OptimizeRepeatedBinaryOpSubexprs: optimizeRepeatedBinaryOpSubexprs,
+		LookbackDelta:                    lookbackDelta,
+		RoundDigits:                      getRoundDigits(r),
+		EnforcedTagFilterss:              etfs,
+		CacheTagFilters:                  etfs,
 		GetRequestURI: func() string {
 			return httpserver.GetRequestURI(r)
 		},
