@@ -105,6 +105,10 @@ type body struct {
 	Scope         string `json:"scope,omitempty"`
 	vmAccessClaim VMAccessClaim
 
+	// hasVMAccess is set to true when the token body contains a `vm_access` claim.
+	// Presence enforcement is left to the caller via Token.HasVMAccess.
+	hasVMAccess bool
+
 	buf []byte
 	p   *fastjson.Parser
 
@@ -121,7 +125,6 @@ type body struct {
 }
 
 func (b *body) parse(src string) error {
-
 	var err error
 	b.buf, err = decodeB64(b.buf[:0], src)
 	if err != nil {
@@ -131,6 +134,9 @@ func (b *body) parse(src string) error {
 	jv, err := b.p.ParseBytes(b.buf)
 	if err != nil {
 		return err
+	}
+	if jv.Type() != fastjson.TypeObject {
+		return fmt.Errorf("unexpected non json object; type: %q", jv.Type())
 	}
 	if expObject := jv.Get("exp"); expObject != nil {
 		b.Exp, err = expObject.Int64()
@@ -153,30 +159,31 @@ func (b *body) parse(src string) error {
 	}
 
 	vaObject := jv.Get("vm_access")
-	if vaObject == nil {
-		return ErrVMAccessFieldMissing
-	}
-	// some IDPs encode custom claims as a string
-	// try parsing as an object and fallback to a string
-	switch vaObject.Type() {
-	case fastjson.TypeObject:
-		if err := b.vmAccessClaim.parseFrom(vaObject); err != nil {
-			return err
-		}
-	case fastjson.TypeString:
-		b.claimsParser = parserPool.Get()
-		va, err := b.claimsParser.ParseBytes(vaObject.GetStringBytes())
-		if err != nil {
-			return fmt.Errorf("cannot parse `vm_access` string json: %w", err)
-		}
-		if err := b.vmAccessClaim.parseFrom(va); err != nil {
-			return fmt.Errorf("cannot parse `vm_access` values from string json: %w", err)
-		}
-		b.vmAccessClaimObject = va
-	case fastjson.TypeNull:
-		return ErrVMAccessFieldMissing
+	switch {
+	case vaObject == nil || vaObject.Type() == fastjson.TypeNull:
+		b.hasVMAccess = false
 	default:
-		return fmt.Errorf("unexpected type for `vm_access` field; got: %q, want object {}", vaObject.Type())
+		// some IDPs encode custom claims as a string
+		// try parsing as an object and fallback to a string
+		switch vaObject.Type() {
+		case fastjson.TypeObject:
+			if err := b.vmAccessClaim.parseFrom(vaObject); err != nil {
+				return err
+			}
+		case fastjson.TypeString:
+			b.claimsParser = parserPool.Get()
+			va, err := b.claimsParser.ParseBytes(vaObject.GetStringBytes())
+			if err != nil {
+				return fmt.Errorf("cannot parse `vm_access` string json: %w", err)
+			}
+			if err := b.vmAccessClaim.parseFrom(va); err != nil {
+				return fmt.Errorf("cannot parse `vm_access` values from string json: %w", err)
+			}
+			b.vmAccessClaimObject = va
+		default:
+			return fmt.Errorf("unexpected type for `vm_access` field; got: %q, want object {}", vaObject.Type())
+		}
+		b.hasVMAccess = true
 	}
 	b.Jti = bytesutil.ToUnsafeString(jv.GetStringBytes("jti"))
 
@@ -218,6 +225,7 @@ func (b *body) reset() {
 	b.buf = b.buf[:0]
 	b.allClaims = nil
 	b.vmAccessClaim.reset()
+	b.hasVMAccess = false
 	if b.p != nil {
 		parserPool.Put(b.p)
 		b.p = nil
@@ -229,11 +237,9 @@ func (b *body) reset() {
 	if b.vmAccessClaimObject != nil {
 		b.vmAccessClaimObject = nil
 	}
-
 }
 
 // Parse parses JWT token from given source string
-//
 // Token field is valid until src is reachable
 func (t *Token) Parse(src string, enforceAuthPrefix bool) error {
 	if enforceAuthPrefix && (len(src) < len(prefix) || !strings.EqualFold(src[:len(prefix)], prefix)) {
@@ -266,6 +272,11 @@ func (t *Token) Parse(src string, enforceAuthPrefix bool) error {
 		return err
 	}
 	return nil
+}
+
+// HasVMAccessClaim reports whether the parsed token contains a `vm_access` claim.
+func (t *Token) HasVMAccessClaim() bool {
+	return t.body.hasVMAccess
 }
 
 // Issuer returns `iss` claim value from token body
@@ -371,30 +382,30 @@ func (t *Token) Reset() {
 
 // VMAccessClaim represent JWT claim object
 type VMAccessClaim struct {
-	MetricsExtraFilters    []string `json:"metrics_extra_filters,omitempty"`
-	MetricsExtraLabels     []string `json:"metrics_extra_labels,omitempty"`
-	LogsExtraFilters       []string `json:"logs_extra_filters,omitempty"`
-	LogsExtraStreamFilters []string `json:"logs_extra_stream_filters,omitempty"`
+	MetricsExtraFilters    []string `json:"metrics_extra_filters,omitempty" yaml:"metrics_extra_filters,omitempty"`
+	MetricsExtraLabels     []string `json:"metrics_extra_labels,omitempty" yaml:"metrics_extra_labels,omitempty"`
+	LogsExtraFilters       []string `json:"logs_extra_filters,omitempty" yaml:"logs_extra_filters,omitempty"`
+	LogsExtraStreamFilters []string `json:"logs_extra_stream_filters,omitempty" yaml:"logs_extra_stream_filters,omitempty"`
 
-	MetricsAccountID uint32 `json:"metrics_account_id,omitempty"`
-	MetricsProjectID uint32 `json:"metrics_project_id,omitempty"`
+	MetricsAccountID uint32 `json:"metrics_account_id,omitempty" yaml:"metrics_account_id,omitempty"`
+	MetricsProjectID uint32 `json:"metrics_project_id,omitempty" yaml:"metrics_project_id,omitempty"`
 
-	LogsAccountID uint32 `json:"logs_account_id,omitempty"`
-	LogsProjectID uint32 `json:"logs_project_id,omitempty"`
+	LogsAccountID uint32 `json:"logs_account_id,omitempty" yaml:"logs_account_id,omitempty"`
+	LogsProjectID uint32 `json:"logs_project_id,omitempty" yaml:"logs_project_id,omitempty"`
 
 	// Properties below are deprecated and retained only for compatibility with vmgateway, which is itself deprecated.
 
 	// promql filters applied to each select query
 	// Deprecated
-	ExtraFilters []string `json:"extra_filters,omitempty"`
+	ExtraFilters []string `json:"extra_filters,omitempty" yaml:"-"`
 	// Deprecated
-	Tenant TenantID `json:"tenant_id"`
+	Tenant TenantID `json:"tenant_id" yaml:"-"`
 	// role can be denied as 1 = read, 2 = write, 3 = read and write
 	// 0 = unconfigured - read and write
 	// Deprecated
-	Mode int `json:"mode,omitempty"`
+	Mode int `json:"mode,omitempty" yaml:"-"`
 	// Deprecated
-	Labels []string `json:"extra_labels,omitempty"`
+	Labels []string `json:"extra_labels,omitempty" yaml:"-"`
 	// labelsBuf holds allocated memory for Labels
 	// Deprecated
 	labelsBuf []byte
@@ -425,7 +436,6 @@ func (vac *VMAccessClaim) reset() {
 }
 
 func (vac *VMAccessClaim) parseFrom(jv *fastjson.Value) error {
-
 	if err := vac.Tenant.parseFrom(jv); err != nil {
 		return err
 	}
@@ -568,6 +578,9 @@ func NewToken(auth string, enforceAuthPrefix bool) (*Token, error) {
 	var t Token
 	if err := t.parse(jwt[0], jwt[1], jwt[2]); err != nil {
 		return nil, err
+	}
+	if !t.body.hasVMAccess {
+		return nil, ErrVMAccessFieldMissing
 	}
 	return &t, nil
 }

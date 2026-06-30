@@ -192,6 +192,10 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		if tkn == nil {
 			logger.Panicf("BUG: unexpected nil jwt token for user %q", ui.name())
 		}
+		if !tkn.HasVMAccessClaim() && ui.JWT.DefaultVMAccessClaim == nil {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return true
+		}
 		defer putToken(tkn)
 		processUserRequest(w, r, ui, tkn)
 		return true
@@ -427,8 +431,12 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tkn *j
 		}
 		targetURL := bu.url
 		if tkn != nil {
+			vmac := tkn.VMAccess()
+			if !tkn.HasVMAccessClaim() {
+				vmac = ui.JWT.DefaultVMAccessClaim
+			}
 			// for security reasons allow templating only for configured url values and headers
-			targetURL, hc = replaceJWTPlaceholders(bu, hc, tkn.VMAccess())
+			targetURL, hc = replaceJWTPlaceholders(bu, hc, vmac)
 		}
 		if isDefault {
 			// Don't change path and add request_path query param for default route.
