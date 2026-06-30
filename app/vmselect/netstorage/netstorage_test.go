@@ -3,11 +3,14 @@ package netstorage
 import (
 	"flag"
 	"math"
+	"net"
 	"reflect"
 	"runtime"
 	"testing"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/handshake"
 )
 
 func TestInitStopNodes(t *testing.T) {
@@ -32,6 +35,69 @@ func TestInitStopNodes(t *testing.T) {
 		Init([]string{"host1"})
 		runtime.Gosched()
 		MustStop()
+	}
+}
+
+func TestStorageRPCsCancelerCancelClosesConn(t *testing.T) {
+	rc := newStorageRPCsCanceler()
+	c1, c2 := net.Pipe()
+	defer func() { _ = c2.Close() }()
+	bc := &handshake.BufferedConn{Conn: c1}
+	if !rc.add(bc) {
+		t.Fatalf("unexpected cancellation before registering connection")
+	}
+	if err := c2.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
+		t.Fatalf("cannot set read deadline: %s", err)
+	}
+
+	rc.cancel()
+	var buf [1]byte
+	_, err := c2.Read(buf[:])
+	if err == nil {
+		t.Fatalf("unexpected successful read from closed connection")
+	}
+	if ne, ok := err.(net.Error); ok && ne.Timeout() {
+		t.Fatalf("timeout while waiting for canceled connection to close")
+	}
+	if !rc.remove(bc) {
+		t.Fatalf("expecting cancellation to be observed")
+	}
+	// The canceller closes only the underlying connection, so the caller can safely
+	// close BufferedConn afterwards for releasing the associated resources.
+	_ = bc.Close()
+}
+
+func TestStorageRPCsCancelerRemoveKeepsConnOpen(t *testing.T) {
+	rc := newStorageRPCsCanceler()
+	c1, c2 := net.Pipe()
+	defer func() { _ = c1.Close() }()
+	defer func() { _ = c2.Close() }()
+	bc := &handshake.BufferedConn{Conn: c1}
+	if !rc.add(bc) {
+		t.Fatalf("unexpected cancellation before registering connection")
+	}
+
+	if rc.remove(bc) {
+		t.Fatalf("unexpected cancellation")
+	}
+	rc.cancel()
+	if err := c1.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
+		t.Fatalf("cannot set read deadline: %s", err)
+	}
+	errCh := make(chan error, 1)
+	go func() {
+		_, err := c2.Write([]byte{42})
+		errCh <- err
+	}()
+	var buf [1]byte
+	if _, err := c1.Read(buf[:]); err != nil {
+		t.Fatalf("cannot read from connection after unregistering it from canceller: %s", err)
+	}
+	if buf[0] != 42 {
+		t.Fatalf("unexpected byte read; got %d; want 42", buf[0])
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("cannot write to connection after unregistering it from canceller: %s", err)
 	}
 }
 
