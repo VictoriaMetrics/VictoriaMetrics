@@ -97,7 +97,7 @@ type groupMetrics struct {
 	iterationMissed   *metrics.Counter
 	iterationReset    *metrics.Counter
 	iterationInterval *metrics.Gauge
-	iterationLimit    *metrics.Gauge
+	resultLimit       *metrics.Gauge
 }
 
 // merges group rule labels into result map
@@ -337,7 +337,7 @@ func (g *Group) Init() {
 		i := g.Interval.Seconds()
 		return i
 	})
-	g.metrics.iterationLimit = g.metrics.set.NewGauge(fmt.Sprintf(`vmalert_rule_group_results_limit{%s}`, labels), func() float64 {
+	g.metrics.resultLimit = g.metrics.set.NewGauge(fmt.Sprintf(`vmalert_group_rule_results_limit{%s}`, labels), func() float64 {
 		g.mu.RLock()
 		limit := g.Limit
 		g.mu.RUnlock()
