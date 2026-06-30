@@ -83,9 +83,13 @@ var (
 	cacheSizeIndexDBTagFilters = flagutil.NewBytes("storage.cacheSizeIndexDBTagFilters", 0, "Overrides max size for indexdb/tagFiltersToMetricIDs cache. "+
 		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning")
 
+	enableGlobalIndex = flag.Bool("enableGlobalIndex", false, "Enable global index. "+
+		"Deployments with high churn rate should have this index disabled as this decreases disk space usage. "+
+		"Such deployments may enable global index if the dominant query time range is > 1m as it may slightly improve query performance. "+
+		"Also see -disablePerDayIndex and https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#index-tuning")
 	disablePerDayIndex = flag.Bool("disablePerDayIndex", false, "Disable per-day index and use global index for all searches. "+
-		"This may improve performance and decrease disk space usage for the use cases with fixed set of timeseries scattered across a "+
-		"big time range (for example, when loading years of historical data). "+
+		"This may improve performance and decrease disk space usage for deployment with no/low churn rate. "+
+		"Disabling per-day index forces enabling global index and the -enableGlobalIndex flag value is ignored."+
 		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#index-tuning")
 	trackMetricNamesStats = flag.Bool("storage.trackMetricNamesStats", true, "Whether to track ingest and query requests for timeseries metric names. "+
 		"This feature allows to track metric names unused at query requests. "+
@@ -137,6 +141,12 @@ func Init(vmselectMaxConcurrentRequests int, resetCacheIfNeeded func(mrs []stora
 	if *idbPrefillStart > 23*time.Hour {
 		logger.Panicf("-storage.idbPrefillStart cannot exceed 23 hours; got %s", idbPrefillStart)
 	}
+	disableGlobalIndex := !*enableGlobalIndex
+	if *disablePerDayIndex {
+		// In case if per-day index has been disabled, forcibly enable global
+		// index even if -enableGlobalIndex flag is false.
+		disableGlobalIndex = false
+	}
 	fs.RegisterPathFsMetrics(*storageDataPath)
 	logger.Infof("opening storage at %q with -retentionPeriod=%s", *storageDataPath, retentionPeriod)
 	startTime := time.Now()
@@ -146,6 +156,7 @@ func Init(vmselectMaxConcurrentRequests int, resetCacheIfNeeded func(mrs []stora
 		DenyQueriesOutsideRetention: *denyQueriesOutsideRetention,
 		MaxHourlySeries:             getMaxHourlySeries(),
 		MaxDailySeries:              getMaxDailySeries(),
+		DisableGlobalIndex:          disableGlobalIndex,
 		DisablePerDayIndex:          *disablePerDayIndex,
 		TrackMetricNamesStats:       *trackMetricNamesStats,
 		IDBPrefillStart:             *idbPrefillStart,
