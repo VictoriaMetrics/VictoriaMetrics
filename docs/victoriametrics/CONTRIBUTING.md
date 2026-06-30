@@ -28,7 +28,7 @@ If you like VictoriaMetrics and want to contribute, then it would be great:
 ## Issues
 
 When making a new issue, make sure to create no duplicates. Use GitHub search to find whether similar issues exist already.
-The new issue should be written in English and contain concise description of the problem and environment where it exists.
+The new issue should be written in English and contain a concise description of the problem and the environment where it exists.
 We'd very much prefer to have a specific use-case included in the description, since it could have workaround or alternative solutions.
 
 When looking for an issue to contribute, always prefer working on [bugs](https://github.com/VictoriaMetrics/VictoriaMetrics/issues?q=is%3Aopen+is%3Aissue+label%3Abug)
@@ -48,7 +48,7 @@ We use [labels](https://docs.github.com/en/issues/using-labels-and-milestones-to
 1. `need more info`, assigned to issues that require elaboration from the issue creator.
   For example, if we weren't able to reproduce the reported bug based on the ticket description then we ask additional
   questions which could help to reproduce the issue and add `need more info` label. This label helps other maintainers
-  to understand that this issue wasn't forgotten but waits for the feedback from user.
+  to understand that this issue wasn't forgotten but waits for the feedback from the user.
 1. `completed`, assigned to issues that required code changes and those changes were merged to upstream, but not released yet.
   Once a release is made, maintainers go through all labeled issues, leave a comment about the new release, and close the issue.
 1. `vmui`, assigned to issues related to [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) or [VictoriaLogs webui](https://docs.victoriametrics.com/victorialogs/querying/#web-ui)
@@ -63,32 +63,46 @@ Pull requests requirements:
 1. Don't use `master` branch for making PRs, as it makes it impossible for reviewers to modify the changes.
 1. All commits need to be [signed](https://docs.github.com/en/authentication/managing-commit-signature-verification/signing-commits).
 1. Pull request title should be prefixed with `<dir>/<component>:` to show what component has been changed, i.e. `app/vmalert: fix...`.
-   Pull request description should contain clear and concise description of what was done, why it is needed and for what purpose.
+   Pull request description should contain a clear and concise description of what was done, why it is needed and for what purpose.
    Use clear language, so reviewers can quickly understand the change and its impact.
 1. A link to the issue(s) related to the change, if any. Use `Fixes [issue link]` if the PR resolves the issue, or `Related to [issue link]` for reference.
 1. Tests proving that the change is effective. Tests are expected for non-trivial new functionality or non-trivial modifications.
    Bug fixes must include tests unless a maintainer explicitly agrees otherwise.
-   See [this style guide](https://itnext.io/f-tests-as-a-replacement-for-table-driven-tests-in-go-8814a8b19e9e) for tests.
-   To run tests and code checks locally, execute commands `make test-full` and `make check-all`.
+   See [this style guide](https://itnext.io/f-tests-as-a-replacement-for-table-driven-tests-in-go-8814a8b19e9e) for tests. See [this section](#testing) for how to run tests.
 1. Try to not extend the scope of the pull requests outside the issue, do not make unrelated changes.
-1. Update [docs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs) if needed. For example, adding a new flag or changing behavior of existing flags or features
+1. Update [docs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs) if needed. For example, adding a new flag or changing the behavior of existing flags or features
    requires reflecting these changes in the documentation. For new features add `{{%/* available_from "#" */%}}` shortcode to the documentation.
    It will be later automatically replaced with an actual release version.
 1. A line in the [changelog](https://docs.victoriametrics.com/victoriametrics/changelog/#tip) mentioning the change and related issue in a way
    that would be clear to other readers even if they don't have the full context.
-1. Avoid modifying code in the `/vendor` folder manually, even when the vendored package originates are from the VictoriaMetrics GitHub organization.
+1. Avoid modifying code in the `/vendor` folder manually, even when the vendored package originates from the VictoriaMetrics GitHub organization.
    For instance, VictoriaLogs vendors packages under the `/lib` folder from VictoriaMetrics, and VictoriaTraces vendors the `/lib/logstorage` package from VictoriaLogs.
-   Submit a pull request to the upstream repository first. Afterward, a separate pull request can be opened to update the version of the vendored folder in downstream repository.
+   Submit a pull request to the upstream repository first. Afterward, a separate pull request can be opened to update the version of the vendored folder in the downstream repository.
    * For common packages, the vendored package can be updated with this command: `go get <dependency>@vX.Y.Z`.  
    * For VictoriaMetrics packages, use `go get <dependency>@canonical_commit_hash`. 
    Finally, run `go mod tidy` and `go mod vendor` to update `go.mod`, `go.sum`, and `/vendor`.
 1. Ping reviewers who you think have the best expertise on the matter.
 
-See good example of a [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6487).
+See a good example of a [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6487).
+
+## AI policy
+
+You are free to use any AI tools when working on a contribution, on code,
+documentation, issues, or anything else. You do not need to disclose whether or
+how you used them.
+
+With or without the help of AI, you are responsible for the changes you submit.
+Take the effort to understand the code base and every change in your pull request,
+and clean up any AI slop before sending it. Do not use AI to automate your
+responses to maintainers.
+
+We review contributions on their quality, regardless of how they were produced. A
+pull request or issue that looks like unreviewed AI output, with low-quality or
+broken changes, may be closed without a detailed review or triage.
 
 ## Merging Pull Request
 
-The person who merges the Pull Request is responsible for satisfying requirements below:
+The person who merges the Pull Request is responsible for satisfying the requirements below:
 
 1. Make sure that PR satisfies [Pull Request checklist](https://docs.victoriametrics.com/victoriametrics/contributing/#pull-request-checklist),
    it is approved by at least one reviewer, all CI checks are green.
@@ -97,9 +111,9 @@ The person who merges the Pull Request is responsible for satisfying requirement
 1. If applicable, cherry-pick the change to [LTS release lines](https://docs.victoriametrics.com/victoriametrics/lts-releases/)
    and mention in the PR comment what was or wasn't cherry-picked.
 1. Update related issues with a meaningful message of what has changed and when it will be
-   released. _This helps users to understand the change without reading PR._
+   released. _This helps users to understand the change without reading the PR._
 1. Add label `completed` to related issues.
-1. Do not close related tickets until release is made. If ticket was auto-closed by GitHub or user - re-open it.
+1. Do not close related tickets until the release is made. If the ticket was auto-closed by GitHub or a user - re-open it.
 
 ## KISS principle
 
@@ -115,9 +129,9 @@ We are open to third-party pull requests provided they follow [KISS design princ
 - Minimize the number of moving parts in the distributed system.
 - Avoid automated decisions, which may hurt cluster availability, consistency, performance or debuggability.
 
-Adhering to `KISS` principle, simplifies the resulting code and architecture so it can be reviewed, understood and debugged by a wider audience.
+Adhering to the `KISS` principle, simplifies the resulting code and architecture so it can be reviewed, understood and debugged by a wider audience.
 
-Due to `KISS`, [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) has none of the following "features" popular in distributed computing world:
+Due to `KISS`, [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) has none of the following "features" popular in distributed computing:
 
 - Fragile gossip protocols. See [failed attempt in Thanos](https://github.com/improbable-eng/thanos/blob/030bc345c12c446962225221795f4973848caab5/docs/proposals/completed/201809_gossip-removal.md).
 - Hard-to-understand-and-implement-properly [Paxos protocols](https://www.quora.com/In-distributed-systems-what-is-a-simple-explanation-of-the-Paxos-algorithm).
@@ -126,3 +140,17 @@ Due to `KISS`, [cluster version of VictoriaMetrics](https://docs.victoriametrics
 - Automatic cluster resizing, which may cost you a lot of money if improperly configured.
 - Automatic discovering and addition of new nodes in the cluster, which may mix data between dev and prod clusters :)
 - Automatic leader election, which may result in split brain disaster on network errors.
+
+## Testing
+
+We recommend running the following sequence of checks and tests before submitting a pull request:
+```sh
+# run static checks
+make check-all
+
+# run unit test
+make test-full
+
+# run integration tests
+make apptest
+```

@@ -457,7 +457,7 @@ func main() {
 						auth.WithBearer(c.String(vmNativeDstBearerToken)),
 						auth.WithHeaders(c.String(vmNativeDstHeaders)))
 					if err != nil {
-						return fmt.Errorf("error initialize auth config for destination: %s", dstAddr)
+						return fmt.Errorf("error initialize auth config for destination: %s: %w", dstAddr, err)
 					}
 
 					// create TLS config
@@ -563,11 +563,11 @@ func main() {
 	}()
 
 	err = app.Run(os.Args)
+	pushmetrics.StopAndPush()
 	if err != nil {
 		log.Fatalln(err)
 	}
 	log.Printf("Total time: %v", time.Since(start))
-	pushmetrics.StopAndPush()
 }
 
 func initConfigVM(c *cli.Context) (vm.Config, error) {
@@ -596,11 +596,18 @@ func initConfigVM(c *cli.Context) (vm.Config, error) {
 		return vm.Config{}, fmt.Errorf("failed to create backoff object: %w", err)
 	}
 
+	authCfg, err := auth.Generate(
+		auth.WithBasicAuth(c.String(vmUser), c.String(vmPassword)),
+		auth.WithBearer(c.String(vmBearerToken)),
+		auth.WithHeaders(c.String(vmHeaders)))
+	if err != nil {
+		return vm.Config{}, fmt.Errorf("error initialize auth config for destination: %s: %w", addr, err)
+	}
+
 	return vm.Config{
 		Addr:               addr,
 		Transport:          tr,
-		User:               c.String(vmUser),
-		Password:           c.String(vmPassword),
+		AuthCfg:            authCfg,
 		Concurrency:        uint8(c.Int(vmConcurrency)),
 		Compress:           c.Bool(vmCompress),
 		AccountID:          c.String(vmAccountID),

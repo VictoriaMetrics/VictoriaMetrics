@@ -66,6 +66,9 @@ var (
 	queues = flagutil.NewArrayInt("remoteWrite.queues", cgroup.AvailableCPUs()*2, "The number of concurrent queues to each -remoteWrite.url. Set more queues if default number of queues "+
 		"isn't enough for sending high volume of collected data to remote storage. "+
 		"Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage")
+	inmemoryQueues = flagutil.NewArrayInt("remoteWrite.inmemoryQueues", 0, "The number of additional workers per each -remoteWrite.url, which send only recently ingested data from the in-memory queue, "+
+		"while the file-based queue at -remoteWrite.tmpDataPath is drained by workers configured via -remoteWrite.queues. "+
+		"This reduces delivery lag for fresh samples when the file-based queue contains a backlog accumulated during remote storage outages.")
 	showRemoteWriteURL = flag.Bool("remoteWrite.showURL", false, "Whether to show -remoteWrite.url in the exported metrics. "+
 		"It is hidden by default, since it can contain sensitive info such as auth key")
 	maxPendingBytesPerURL = flagutil.NewArrayBytes("remoteWrite.maxDiskUsagePerURL", 0, "The maximum file-based buffer size in bytes at -remoteWrite.tmpDataPath "+
@@ -906,7 +909,8 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, sanitizedURL string)
 	}
 
 	isPQDisabled := disableOnDiskQueue.GetOptionalArg(argIdx)
-	queuesSize := queues.GetOptionalArg(argIdx)
+	inmemoryQueueSize := inmemoryQueues.GetOptionalArg(argIdx)
+	queuesSize := queues.GetOptionalArg(argIdx) + inmemoryQueueSize
 	if queuesSize > maxQueues {
 		queuesSize = maxQueues
 	} else if queuesSize <= 0 {
@@ -923,7 +927,13 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, sanitizedURL string)
 	if maxInmemoryBlocks < 2 {
 		maxInmemoryBlocks = 2
 	}
-	fq := persistentqueue.MustOpenFastQueue(queuePath, sanitizedURL, maxInmemoryBlocks, maxPendingBytes, isPQDisabled)
+	fqOpts := persistentqueue.OpenFastQueueOpts{
+		MaxInmemoryBlocks:      maxInmemoryBlocks,
+		MaxPendingBytes:        maxPendingBytes,
+		IsPQDisabled:           isPQDisabled,
+		PrioritizeInmemoryData: inmemoryQueueSize > 0,
+	}
+	fq := persistentqueue.MustOpenFastQueueWithOpts(queuePath, sanitizedURL, fqOpts)
 	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_pending_data_bytes{path=%q, url=%q}`, queuePath, sanitizedURL), func() float64 {
 		return float64(fq.GetPendingBytes())
 	})
@@ -936,6 +946,9 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, sanitizedURL string)
 		}
 		return 0
 	})
+	metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_queues{url=%q}`, sanitizedURL), func() float64 {
+		return float64(queuesSize)
+	})
 
 	var c *client
 	switch remoteWriteURL.Scheme {
@@ -944,7 +957,7 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, sanitizedURL string)
 	default:
 		logger.Fatalf("unsupported scheme: %s for remoteWriteURL: %s, want `http`, `https`", remoteWriteURL.Scheme, sanitizedURL)
 	}
-	c.init(argIdx, queuesSize, sanitizedURL)
+	c.init(argIdx, sanitizedURL)
 
 	// Initialize pss
 	sf := significantFigures.GetOptionalArg(argIdx)

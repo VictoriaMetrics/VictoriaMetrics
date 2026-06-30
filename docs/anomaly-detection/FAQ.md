@@ -423,7 +423,7 @@ services:
   # ...
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.29.5
+    image: victoriametrics/vmanomaly:v1.29.7
     # ...
     restart: always
     volumes:
@@ -641,7 +641,7 @@ options:
 Here’s an example of using the config splitter to divide configurations based on the `extra_filters` argument from the reader section:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.29.5 && docker image tag victoriametrics/vmanomaly:v1.29.5 vmanomaly
+docker pull victoriametrics/vmanomaly:v1.29.7 && docker image tag victoriametrics/vmanomaly:v1.29.7 vmanomaly
 ```
 
 ```sh

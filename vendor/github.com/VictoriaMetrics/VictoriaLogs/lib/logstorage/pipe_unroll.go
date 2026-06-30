@@ -234,7 +234,7 @@ func parsePipeUnroll(lex *lexer) (pipe, error) {
 		}
 		fields = fs
 	} else {
-		fs, err := parseCommaSeparatedFields(lex)
+		fs, err := parseCommaSeparatedFieldNames(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'by ...': %w", err)
 		}
@@ -256,6 +256,7 @@ func parsePipeUnroll(lex *lexer) (pipe, error) {
 }
 
 func unpackJSONArray(dst []string, a *arena, s string) []string {
+	s = trimJSONWhitespace(s)
 	if s == "" || s[0] != '[' {
 		return dst
 	}

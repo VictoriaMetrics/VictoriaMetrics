@@ -1,6 +1,7 @@
 package streamaggr
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"unsafe"
@@ -17,9 +18,10 @@ import (
 const dedupAggrShardsCount = 128
 
 type dedupAggr struct {
-	shards        []dedupAggrShard
-	flushDuration *metrics.Histogram
-	flushTimeouts *metrics.Counter
+	shards         []dedupAggrShard
+	flushDuration  *metrics.Histogram
+	flushTimeouts  *metrics.Counter
+	droppedSamples *metrics.Counter
 }
 
 type dedupAggrShard struct {
@@ -47,10 +49,20 @@ type dedupAggrSample struct {
 	timestamp int64
 }
 
-func newDedupAggr() *dedupAggr {
-	return &dedupAggr{
-		shards: make([]dedupAggrShard, dedupAggrShardsCount),
-	}
+func newDedupAggr(ms *metrics.Set, metricLabels string) *dedupAggr {
+	var d dedupAggr
+	d.shards = make([]dedupAggrShard, dedupAggrShardsCount)
+	_ = ms.NewGauge(fmt.Sprintf(`vm_streamaggr_dedup_state_size_bytes{%s}`, metricLabels), func() float64 {
+		return float64(d.sizeBytes())
+	})
+	_ = ms.NewGauge(fmt.Sprintf(`vm_streamaggr_dedup_state_items_count{%s}`, metricLabels), func() float64 {
+		return float64(d.itemsCount())
+	})
+
+	d.flushDuration = ms.NewHistogram(fmt.Sprintf(`vm_streamaggr_dedup_flush_duration_seconds{%s}`, metricLabels))
+	d.flushTimeouts = ms.NewCounter(fmt.Sprintf(`vm_streamaggr_dedup_flush_timeouts_total{%s}`, metricLabels))
+	d.droppedSamples = ms.NewCounter(fmt.Sprintf(`vm_streamaggr_dedup_dropped_samples_total{%s}`, metricLabels))
+	return &d
 }
 
 func (da *dedupAggr) sizeBytes() uint64 {
@@ -87,7 +99,8 @@ func (da *dedupAggr) pushSamples(samples []pushSample, _ int64, isGreen bool) {
 		if len(shardSamples) == 0 {
 			continue
 		}
-		da.shards[i].pushSamples(shardSamples, isGreen)
+		deduplicatedSamples := da.shards[i].pushSamples(shardSamples, isGreen)
+		da.droppedSamples.Add(deduplicatedSamples)
 	}
 	putPerShardSamples(pss)
 }
@@ -167,8 +180,9 @@ func putPerShardSamples(pss *perShardSamples) {
 
 var perShardSamplesPool sync.Pool
 
-func (das *dedupAggrShard) pushSamples(samples []pushSample, isGreen bool) {
+func (das *dedupAggrShard) pushSamples(samples []pushSample, isGreen bool) int {
 	var state *dedupAggrState
+	var deduplicatedSamples int
 
 	if isGreen {
 		state = &das.green
@@ -198,8 +212,10 @@ func (das *dedupAggrShard) pushSamples(samples []pushSample, isGreen bool) {
 			continue
 		}
 		s.timestamp, s.value = deduplicateSamples(s.timestamp, sample.timestamp, s.value, sample.value)
+		deduplicatedSamples++
 	}
 	state.samplesBuf = samplesBuf
+	return deduplicatedSamples
 }
 
 // deduplicateSamples returns deduplicated timestamp and value results.
