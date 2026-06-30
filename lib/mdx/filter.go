@@ -129,13 +129,13 @@ func (filter *Filter) Filter(ctx *Ctx, tss []prompb.TimeSeries) []prompb.TimeSer
 			continue
 		}
 		if ctx.hasVMAppLabel {
-			filter.registerAtCache(key)
+			filter.trackInstance(key)
 			dstTss = append(dstTss, ts)
 			continue
 		}
 		if ctx.hasFilterLabelValue || ctx.hasVMAppVersionLabel {
 			ts.Labels = ctx.addVMAppLabel(ts.Labels)
-			filter.registerAtCache(key)
+			filter.trackInstance(key)
 			dstTss = append(dstTss, ts)
 			continue
 		}
@@ -148,7 +148,7 @@ func (filter *Filter) Filter(ctx *Ctx, tss []prompb.TimeSeries) []prompb.TimeSer
 	return dstTss
 }
 
-func (filter *Filter) registerAtCache(key string) {
+func (filter *Filter) trackInstance(key string) {
 	if filter.tracker.has(key) {
 		return
 	}
