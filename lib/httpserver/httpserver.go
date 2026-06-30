@@ -11,7 +11,6 @@ import (
 	"html"
 	"io"
 	"log"
-	"math/rand"
 	"net"
 	"net/http"
 	"net/http/pprof"
@@ -483,13 +482,11 @@ func CheckAuthFlag(w http.ResponseWriter, r *http.Request, expectedKey *flagutil
 	}
 	if len(r.FormValue("authKey")) == 0 {
 		authKeyRequestErrors.Inc()
-		SlowdownUnauthorizedResponse()
 		http.Error(w, fmt.Sprintf("Expected to receive non-empty authKey when -%s is set", expectedKey.Name()), http.StatusUnauthorized)
 		return false
 	}
 	if r.FormValue("authKey") != expectedValue {
 		authKeyRequestErrors.Inc()
-		SlowdownUnauthorizedResponse()
 		http.Error(w, fmt.Sprintf("The provided authKey doesn't match -%s", expectedKey.Name()), http.StatusUnauthorized)
 		return false
 	}
@@ -509,7 +506,6 @@ func CheckBasicAuth(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		authBasicRequestErrors.Inc()
-		SlowdownUnauthorizedResponse()
 	}
 
 	w.Header().Set("WWW-Authenticate", `Basic realm="VictoriaMetrics"`)
@@ -834,12 +830,4 @@ func (*tlsErrorSkipLogger) Write(p []byte) (int, error) {
 		return len(p), nil
 	}
 	return logger.StdErrorLogger().Writer().Write(p)
-}
-
-// SlowdownUnauthorizedResponse adds a random delay in the [2..3] seconds range
-// before returning an unauthorized response.
-// This reduces the effectiveness of brute-force.
-func SlowdownUnauthorizedResponse() {
-	d := 2*time.Second + time.Duration(rand.Intn(1000))*time.Millisecond
-	time.Sleep(d)
 }
