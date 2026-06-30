@@ -178,6 +178,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 
+		httpserver.SlowdownUnauthorizedResponse()
 		handleMissingAuthorizationError(w)
 		return true
 	}
@@ -202,6 +203,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	invalidAuthTokenRequests.Inc()
+	httpserver.SlowdownUnauthorizedResponse()
 	if *logInvalidAuthTokens {
 		err := fmt.Errorf("cannot authorize request with auth tokens %q", ats)
 		err = &httpserver.ErrorWithStatusCode{
@@ -214,6 +216,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 	return true
 }
+
 
 func getUserInfoByAuthTokens(ats []string) *UserInfo {
 	ac := *authUsers.Load()
