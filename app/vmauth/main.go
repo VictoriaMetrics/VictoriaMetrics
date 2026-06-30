@@ -6,7 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"math/rand"
+	"math/rand/v2"
 	"net"
 	"net/http"
 	"net/textproto"
@@ -32,6 +32,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 )
 
 var (
@@ -888,12 +889,13 @@ func debugInfo(u *url.URL, r *http.Request) string {
 // before returning an unauthorized response.
 // This reduces the effectiveness of brute-force.
 func slowdownUnauthorizedResponse(r *http.Request) {
-	d := 2*time.Second + time.Duration(rand.Intn(1000))*time.Millisecond
-	t := time.NewTimer(d)
-	defer t.Stop()
+
+	d := 2*time.Second + time.Duration(rand.IntN(1000))*time.Millisecond
+	t := timerpool.Get(d)
 
 	select {
 	case <-t.C:
 	case <-r.Context().Done():
 	}
+	timerpool.Put(t)
 }
