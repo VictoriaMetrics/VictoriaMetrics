@@ -132,7 +132,7 @@ Below are the steps to get `vmanomaly` up and running inside a Docker container:
 1. Pull Docker image:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.29.5
+docker pull victoriametrics/vmanomaly:v1.29.7
 ```
 
 2. Create the license file with your license key.
@@ -152,7 +152,7 @@ docker run -it \
     -v ./license:/license \
     -v ./config.yaml:/config.yaml \
     -p 8490:8490 \
-    victoriametrics/vmanomaly:v1.29.5 \
+    victoriametrics/vmanomaly:v1.29.7 \
     /config.yaml \
     --licenseFile=/license \
     --loggerLevel=INFO \
@@ -169,7 +169,7 @@ docker run -it \
     -e VMANOMALY_DATA_DUMPS_DIR=/tmp/vmanomaly/data \
     -e VMANOMALY_MODEL_DUMPS_DIR=/tmp/vmanomaly/models \
     -p 8490:8490 \
-    victoriametrics/vmanomaly:v1.29.5 \
+    victoriametrics/vmanomaly:v1.29.7 \
     /config.yaml \
     --licenseFile=/license \
     --loggerLevel=INFO \
@@ -182,7 +182,7 @@ services:
   # ...
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.29.5
+    image: victoriametrics/vmanomaly:v1.29.7
     # ...
     restart: always
     volumes:
@@ -267,6 +267,7 @@ schedulers:
     # https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler
     class: 'periodic'
     infer_every: '5m'
+    scatter_infer_jobs: true
     fit_every: '1d'
     fit_window: '4w'
 
@@ -298,6 +299,7 @@ reader:
   datasource_url: "https://play.victoriametrics.com/" # [YOUR_DATASOURCE_URL]
   tenant_id: '0:0'
   sampling_period: "5m"
+  series_processing_batch_size: 8  # number of time series to process together while preparing data for fit or infer stages
   queries:
     # define your queries with MetricsQL - https://docs.victoriametrics.com/victoriametrics/metricsql/
     cpu_user:
@@ -413,11 +415,13 @@ For optimal service behavior, consider the following tweaks when configuring `vm
 - Configure the **inference frequency** in the [scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/) section of the configuration file.
 - Ensure that `infer_every` aligns with your **minimum required alerting frequency**.
   - For example, if receiving **alerts every 15 minutes** is sufficient (when `anomaly_score > 1`), set `infer_every` to match `reader.sampling_period` or override it per query via `reader.queries.query_xxx.step` for an optimal setup.
+- Set `scheduler.scatter_infer_jobs` {{% available_from "v1.29.7" anomaly %}} [arg](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#parameters-1) to `true` to allow for equal distribution of inference jobs across `infer_every` intervals, which can further enhance parallel processing efficiency and reduce resource contention when `reader.queries` contains a large number of queries.
 
 **Reader**:
 - Setup the datasource to read data from in the [reader](https://docs.victoriametrics.com/anomaly-detection/components/reader/) section. Include tenant ID if using a [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) (`multitenant` value {{% available_from "v1.16.2" anomaly %}} can be also used here).
 - Define queries for input data using [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) under `reader.queries` section. Note, it's possible to override reader-level arguments at query level for increased flexibility, e.g. specifying per-query [timezone](https://docs.victoriametrics.com/anomaly-detection/faq/#handling-timezones) or [sampling period](https://docs.victoriametrics.com/anomaly-detection/components/reader/#config-parameters).
 - For longer `fit_window` intervals in scheduler, consider splitting queries into smaller time ranges to avoid excessive memory usage, timeouts and hitting server-side constraints, so they can be queried separately and reconstructed on `vmanomaly` side. Please refer to this [example](https://docs.victoriametrics.com/anomaly-detection/faq/#handling-large-queries-in-vmanomaly) for more details.
+- Set `reader.series_processing_batch_size` {{% available_from "v1.29.7" anomaly %}} [arg](https://docs.victoriametrics.com/anomaly-detection/components/reader/#config-parameters) to a reasonable value (4-16, default is 8) to balance between memory usage and processing speed when preparing data for fit or infer stages.
 
 > If applicable - consider [`VLogsReader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#victorialogs-reader) {{% available_from "v1.26.0" anomaly %}} to perform anomaly detection on **log-derived metrics**. This is particularly useful for scenarios where log data needs to be analyzed for unusual patterns or behaviors, such as error rates or request latencies.
 

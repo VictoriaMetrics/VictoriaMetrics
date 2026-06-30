@@ -22,6 +22,7 @@ func NewServiceClient(endpoint string, azClient *azcore.Client) *ServiceClient {
 	client := &ServiceClient{
 		internal: azClient,
 		endpoint: endpoint,
+		version:  ServiceVersion,
 	}
 	return client
 }

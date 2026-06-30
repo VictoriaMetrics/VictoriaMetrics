@@ -405,7 +405,16 @@ func buildMatchWithFilter(filter string, metricName string) (string, error) {
 			if len(tf.Key) == 0 {
 				continue
 			}
-			a = append(a, tf.String())
+			switch {
+			case tf.IsNegative && tf.IsRegexp:
+				a = append(a, fmt.Sprintf("%s!~%q", tf.Key, tf.Value))
+			case tf.IsNegative:
+				a = append(a, fmt.Sprintf("%s!=%q", tf.Key, tf.Value))
+			case tf.IsRegexp:
+				a = append(a, fmt.Sprintf("%s=~%q", tf.Key, tf.Value))
+			default:
+				a = append(a, fmt.Sprintf("%s=%q", tf.Key, tf.Value))
+			}
 		}
 		a = append(a, nameFilter)
 		filters = append(filters, strings.Join(a, ","))

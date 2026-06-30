@@ -331,7 +331,7 @@ func (c *alertPolicyGRPCClient) ListAlertPolicies(ctx context.Context, req *moni
 	}
 	opts = append((*c.CallOptions).ListAlertPolicies[0:len((*c.CallOptions).ListAlertPolicies):len((*c.CallOptions).ListAlertPolicies)], opts...)
 	it := &AlertPolicyIterator{}
-	req = proto.Clone(req).(*monitoringpb.ListAlertPoliciesRequest)
+	req = proto.CloneOf(req)
 	it.InternalFetch = func(pageSize int, pageToken string) ([]*monitoringpb.AlertPolicy, string, error) {
 		resp := &monitoringpb.ListAlertPoliciesResponse{}
 		if pageToken != "" {
