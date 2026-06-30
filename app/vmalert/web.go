@@ -122,9 +122,6 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
-		if r.URL.Path == "/vmalert/groups" {
-			rf.normalizeAlertState = true
-		}
 		// only support filtering by a single state
 		state := ""
 		if len(rf.states) > 0 {
@@ -374,17 +371,16 @@ func newAlertsFilter(r *http.Request) (*alertsFilter, *httpserver.ErrorWithStatu
 
 // see https://prometheus.io/docs/prometheus/latest/querying/api/#rules
 type rulesFilter struct {
-	gf                  *groupsFilter
-	ruleNames           []string
-	ruleType            string
-	excludeAlerts       bool
-	states              []string
-	maxGroups           int
-	pageNum             int
-	search              string
-	match               [][]metricsql.LabelFilter
-	extendedStates      bool
-	normalizeAlertState bool
+	gf             *groupsFilter
+	ruleNames      []string
+	ruleType       string
+	excludeAlerts  bool
+	states         []string
+	maxGroups      int
+	pageNum        int
+	search         string
+	match          [][]metricsql.LabelFilter
+	extendedStates bool
 }
 
 func newRulesFilter(r *http.Request) (*rulesFilter, *httpserver.ErrorWithStatusCode) {
@@ -548,7 +544,7 @@ func (rh *requestHandler) groups(rf *rulesFilter) *listGroupsResponse {
 				continue
 			}
 			ruleWithExtendedState := rule
-			ruleWithExtendedState.ExtendState(rf.normalizeAlertState)
+			ruleWithExtendedState.ExtendState()
 			if rf.extendedStates {
 				rule = ruleWithExtendedState
 			}
@@ -558,7 +554,18 @@ func (rh *requestHandler) groups(rf *rulesFilter) *listGroupsResponse {
 			if rf.excludeAlerts {
 				rule.Alerts = nil
 			}
-			g.States[ruleWithExtendedState.State]++
+			ruleState := ruleWithExtendedState.State
+			if ruleState == "inactive" || ruleState == "pending" || ruleState == "firing" {
+				g.States["ok"]++
+			} else {
+				// 1. alerting rule with unhealthy or nomatch state
+				// 2. recording rule
+				g.States[ruleState]++
+
+				if ruleState == "nomatch" {
+					g.States["ok"]++
+				}
+			}
 			filteredRules = append(filteredRules, rule)
 		}
 		if len(g.Rules) == 0 || len(filteredRules) > 0 {

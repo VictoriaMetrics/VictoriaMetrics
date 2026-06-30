@@ -236,11 +236,11 @@ func NewAlertAPI(ar *AlertingRule, a *notifier.Alert) *ApiAlert {
 	return aa
 }
 
-func (r *ApiRule) ExtendState(normalizeAlertState bool) {
-	if !normalizeAlertState && r.Type == "alerting" {
+func (r *ApiRule) ExtendState() {
+	if len(r.Alerts) > 0 {
 		return
 	}
-	if r.State == "" || r.State == "inactive" || r.State == "pending" || r.State == "firing" {
+	if r.State == "" {
 		r.State = "ok"
 	}
 	if r.Health != "ok" {
