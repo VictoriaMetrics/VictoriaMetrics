@@ -178,7 +178,6 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 
-		httpserver.SlowdownUnauthorizedResponse()
 		handleMissingAuthorizationError(w)
 		return true
 	}
@@ -216,7 +215,6 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 	return true
 }
-
 
 func getUserInfoByAuthTokens(ats []string) *UserInfo {
 	ac := *authUsers.Load()
