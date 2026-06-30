@@ -69,6 +69,9 @@ package-vmalert-386:
 publish-vmalert:
 	APP_NAME=vmalert $(MAKE) publish-via-docker
 
+sign-vmalert:
+	APP_NAME=vmalert $(MAKE) sign-via-docker
+
 test-vmalert:
 	go test -v -race -cover ./app/vmalert -loggerLevel=ERROR
 	go test -v -race -cover ./app/vmalert/rule

@@ -52,6 +52,7 @@ Key steps:
 
 * Review stability and performance of the RC in the sandbox.
 * Publish final Docker images (without `-rc` suffix) and update `latest` tag.
+* Sign published Docker images using the [sign workflow](.github/workflows/sign.yml).
 * Perform a quick smoke test on final images.
 * Publish the GitHub release.
 * Close issues included in the release.

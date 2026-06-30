@@ -69,6 +69,9 @@ package-vmauth-386:
 publish-vmauth:
 	APP_NAME=vmauth $(MAKE) publish-via-docker
 
+sign-vmauth:
+	APP_NAME=vmauth $(MAKE) sign-via-docker
+
 run-vmauth:
 	APP_NAME=vmauth \
 	DOCKER_OPTS='-v $(shell pwd)/app/vmauth/:/app/vmauth' \

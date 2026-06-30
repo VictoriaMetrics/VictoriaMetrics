@@ -52,6 +52,16 @@ publish: \
 	publish-vmrestore \
 	publish-vmctl
 
+sign: \
+	sign-victoria-metrics \
+	sign-vmagent \
+	sign-vmalert \
+	sign-vmalert-tool \
+	sign-vmauth \
+	sign-vmbackup \
+	sign-vmrestore \
+	sign-vmctl
+
 package: \
 	package-victoria-metrics \
 	package-vmagent \

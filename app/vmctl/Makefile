@@ -69,6 +69,9 @@ package-vmctl-386:
 publish-vmctl:
 	APP_NAME=vmctl $(MAKE) publish-via-docker
 
+sign-vmctl:
+	APP_NAME=vmctl $(MAKE) sign-via-docker
+
 vmctl-linux-amd64:
 	APP_NAME=vmctl CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(MAKE) app-local-goos-goarch
 
