@@ -436,18 +436,6 @@ func (db *indexDB) createGlobalIndexes(tsid *TSID, mn *MetricName) {
 	ii := getIndexItems()
 	defer putIndexItems(ii)
 
-	if db.s.disablePerDayIndex {
-		// Create metricName -> TSID entry.
-		// This index is used for searching a TSID by metric name during data
-		// ingestion or metric name registration when -disablePerDayIndex flag
-		// is set.
-		ii.B = marshalCommonPrefix(ii.B, nsPrefixMetricNameToTSID)
-		ii.B = mn.Marshal(ii.B)
-		ii.B = append(ii.B, kvSeparatorChar)
-		ii.B = tsid.Marshal(ii.B)
-		ii.Next()
-	}
-
 	// Create metricID -> metricName entry.
 	ii.B = marshalCommonPrefix(ii.B, nsPrefixMetricIDToMetricName)
 	ii.B = encoding.MarshalUint64(ii.B, tsid.MetricID)
@@ -460,11 +448,20 @@ func (db *indexDB) createGlobalIndexes(tsid *TSID, mn *MetricName) {
 	ii.B = tsid.Marshal(ii.B)
 	ii.Next()
 
-	// Create tag -> metricID entries for every tag in mn.
-	kb := kbPool.Get()
-	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
-	ii.registerTagIndexes(kb.B, mn, tsid.MetricID)
-	kbPool.Put(kb)
+	if !db.s.disableGlobalIndex {
+		// Create metricName -> TSID entry.
+		ii.B = marshalCommonPrefix(ii.B, nsPrefixMetricNameToTSID)
+		ii.B = mn.Marshal(ii.B)
+		ii.B = append(ii.B, kvSeparatorChar)
+		ii.B = tsid.Marshal(ii.B)
+		ii.Next()
+
+		// Create tag -> metricID entries for every tag in mn.
+		kb := kbPool.Get()
+		kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
+		ii.registerTagIndexes(kb.B, mn, tsid.MetricID)
+		kbPool.Put(kb)
+	}
 
 	db.tb.AddItems(ii.Items)
 }
@@ -759,6 +756,7 @@ func (db *indexDB) SearchLabelValues(qt *querytracer.Tracer, labelName string, t
 func filterLabelValues(lvs map[string]struct{}, tf *tagFilter, key string) {
 	var b []byte
 	for lv := range lvs {
+		// TODO
 		b = marshalCommonPrefix(b[:0], nsPrefixTagToMetricIDs)
 		b = marshalTagValue(b, bytesutil.ToUnsafeBytes(key))
 		b = marshalTagValue(b, bytesutil.ToUnsafeBytes(lv))
@@ -1517,10 +1515,11 @@ func (db *indexDB) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxM
 	is := db.getIndexSearch(noDeadline)
 	defer db.putIndexSearch(is)
 
-	// Unconditionally search global index since a given day in per-day
-	// index may not contain the full set of metricIDs that correspond
-	// to the tfss.
-	metricIDs, err := is.searchMetricIDs(qt, tfss, globalIndexTimeRange, maxMetrics)
+	tr := globalIndexTimeRange
+	if db.s.disableGlobalIndex {
+		tr = db.tr
+	}
+	metricIDs, err := is.searchMetricIDs(qt, tfss, tr, maxMetrics)
 	if err != nil {
 		return nil, db.wrapError("delete series", err)
 	}
@@ -1967,6 +1966,7 @@ func (is *indexSearch) updateMetricIDsByMetricNameMatch(qt *querytracer.Tracer, 
 	qt.Printf("sort %d metric ids", len(sortedMetricIDs))
 
 	kb := &is.kb
+	// TODO
 	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
 	tfs = removeCompositeTagFilters(tfs, kb.B)
 
@@ -2077,6 +2077,7 @@ func hasCompositeTagFilters(tfs []*tagFilter, prefix []byte) bool {
 }
 
 func matchTagFilters(mn *MetricName, tfs []*tagFilter, kb *bytesutil.ByteBuffer) (bool, error) {
+	// TODO
 	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
 	for i, tf := range tfs {
 		if bytes.Equal(tf.key, graphiteReverseTagKey) {
@@ -3236,6 +3237,7 @@ func (mp *tagToMetricIDsRowParser) GetMatchingSeriesCount(filter, negativeFilter
 }
 
 func mergeTagToMetricIDsRows(data []byte, items []mergeset.Item) ([]byte, []mergeset.Item) {
+	// TODO
 	data, items = mergeTagToMetricIDsRowsInternal(data, items, nsPrefixTagToMetricIDs)
 	data, items = mergeTagToMetricIDsRowsInternal(data, items, nsPrefixDateTagToMetricIDs)
 	return data, items
