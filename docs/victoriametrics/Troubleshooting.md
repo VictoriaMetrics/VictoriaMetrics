@@ -305,7 +305,7 @@ to logs.
 These are the solutions that exist for improving the performance of slow queries:
 
 - Investigating the bottleneck in query execution using [query tracing](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#query-tracing).
-  It will show the percentage of time spent on each execution step and help understand the volume of processed data. See also a [skills/vm-trace-analyzer](https://github.com/VictoriaMetrics/skills/blob/main/plugins/diagnostics/skills/vm-trace-analyzer/SKILL.md)
+  It will show the percentage of time spent on each execution step and help understand the volume of processed data. See also [skills/vm-trace-analyzer](https://github.com/VictoriaMetrics/skills/blob/main/plugins/diagnostics/skills/vm-trace-analyzer/SKILL.md)
   for [agent-assisted](https://docs.victoriametrics.com/ai-tools/#agent-skills) analysis.
 
 - Adding more CPU and memory to VictoriaMetrics, so it may perform the slow query faster.

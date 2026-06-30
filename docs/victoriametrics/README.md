@@ -2047,7 +2047,7 @@ Query tracing is allowed by default. It can be denied by passing `-denyQueryTrac
 * for query tracing - just click `Trace query` checkbox and re-run the query in order to investigate its' trace.
 * for exploring custom trace - go to the tab `Trace analyzer` and upload or paste JSON with trace information.
 
-See also a [skills/vm-trace-analyzer](https://github.com/VictoriaMetrics/skills/blob/main/plugins/diagnostics/skills/vm-trace-analyzer/SKILL.md)
+See also [skills/vm-trace-analyzer](https://github.com/VictoriaMetrics/skills/blob/main/plugins/diagnostics/skills/vm-trace-analyzer/SKILL.md)
 for [agent-assisted](https://docs.victoriametrics.com/ai-tools/#agent-skills) analysis.
 
 ## Cardinality limiter
