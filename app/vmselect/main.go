@@ -541,7 +541,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		return true
 	case "/metric-relabel-debug":
 		promscrapeMetricRelabelDebugRequests.Inc()
-		promscrape.WriteMetricRelabelDebug(w, r)
+		promscrape.WriteMetricRelabelDebug(w, r, "", nil)
 		return true
 	case "/target-relabel-debug":
 		promscrapeTargetRelabelDebugRequests.Inc()

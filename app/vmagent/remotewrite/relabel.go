@@ -12,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 	"gopkg.in/yaml.v2"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -82,6 +83,16 @@ func WriteRelabelConfigData(w io.Writer) {
 	_, _ = w.Write(*p)
 }
 
+// GetRemoteWriteRelabelConfigString returns -remoteWrite.relabelConfig contents in string
+func GetRemoteWriteRelabelConfigString() string {
+	var bb bytesutil.ByteBuffer
+	WriteRelabelConfigData(&bb)
+	if bb.Len() == 0 {
+		return ""
+	}
+	return string(bb.B)
+}
+
 // WriteURLRelabelConfigData writes -remoteWrite.urlRelabelConfig contents to w
 func WriteURLRelabelConfigData(w io.Writer) {
 	p := remoteWriteURLRelabelConfigData.Load()
@@ -106,6 +117,24 @@ func WriteURLRelabelConfigData(w io.Writer) {
 	}
 	d, _ := yaml.Marshal(cs)
 	_, _ = w.Write(d)
+}
+
+// GetURLRelabelConfigString returns -remoteWrite.urlRelabelConfig contents in []string
+func GetURLRelabelConfigString() []string {
+	p := remoteWriteURLRelabelConfigData.Load()
+	if p == nil {
+		return nil
+	}
+	var ss []string
+	for i := range *remoteWriteURLs {
+		cfgData := (*p)[i]
+		var cfgDataBytes []byte
+		if cfgData != nil {
+			cfgDataBytes, _ = yaml.Marshal(cfgData)
+		}
+		ss = append(ss, string(cfgDataBytes))
+	}
+	return ss
 }
 
 func reloadRelabelConfigs() {
