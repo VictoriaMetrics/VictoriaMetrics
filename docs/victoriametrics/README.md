@@ -401,7 +401,7 @@ Resources:
 
 * [cardinality explorer playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/cardinality).
 * [Cardinality explorer blog post](https://victoriametrics.com/blog/cardinality-explorer/).
-* [skills/victoriametrics-cardinality-analysis](https://github.com/VictoriaMetrics/skills/blob/main/plugins/diagnostics/skills/victoriametrics-cardinality-analysis/SKILL.md) for [agentic assisted](https://docs.victoriametrics.com/ai-tools/#agent-skills) analysis.
+* [skills/victoriametrics-cardinality-analysis](https://github.com/VictoriaMetrics/skills/blob/main/plugins/diagnostics/skills/victoriametrics-cardinality-analysis/SKILL.md) for [agent-assisted](https://docs.victoriametrics.com/ai-tools/#agent-skills) analysis.
 
 ### Cardinality explorer statistic inaccuracy
 
@@ -1977,7 +1977,7 @@ via [cache removal](https://docs.victoriametrics.com/victoriametrics/#cache-remo
 cmd-line flag. See [Security](https://docs.victoriametrics.com/victoriametrics/#security) for details.
 
 See [skills/victoriametrics-unused-metrics-analysis](https://github.com/VictoriaMetrics/skills/blob/main/plugins/diagnostics/skills/victoriametrics-unused-metrics-analysis/SKILL.md)
-for [agentic assisted](https://docs.victoriametrics.com/ai-tools/#agent-skills) analysis of unused metrics.
+for [agent-assisted](https://docs.victoriametrics.com/ai-tools/#agent-skills) analysis of unused metrics.
 
 ## Query tracing
 
@@ -2048,7 +2048,7 @@ Query tracing is allowed by default. It can be denied by passing `-denyQueryTrac
 * for exploring custom trace - go to the tab `Trace analyzer` and upload or paste JSON with trace information.
 
 See also a [skills/vm-trace-analyzer](https://github.com/VictoriaMetrics/skills/blob/main/plugins/diagnostics/skills/vm-trace-analyzer/SKILL.md)
-for [agentic assisted](https://docs.victoriametrics.com/ai-tools/#agent-skills) analysis.
+for [agent-assisted](https://docs.victoriametrics.com/ai-tools/#agent-skills) analysis.
 
 ## Cardinality limiter
 
