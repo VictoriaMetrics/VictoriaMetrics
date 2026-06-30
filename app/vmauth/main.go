@@ -203,7 +203,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	invalidAuthTokenRequests.Inc()
-	slowdownUnauthorizedResponse()
+	slowdownUnauthorizedResponse(r)
 	if *logInvalidAuthTokens {
 		err := fmt.Errorf("cannot authorize request with auth tokens %q", ats)
 		err = &httpserver.ErrorWithStatusCode{
@@ -887,7 +887,13 @@ func debugInfo(u *url.URL, r *http.Request) string {
 // SlowdownUnauthorizedResponse adds a random delay in the [2..3] seconds range
 // before returning an unauthorized response.
 // This reduces the effectiveness of brute-force.
-func slowdownUnauthorizedResponse() {
+func slowdownUnauthorizedResponse(r *http.Request) {
 	d := 2*time.Second + time.Duration(rand.Intn(1000))*time.Millisecond
-	time.Sleep(d)
+	t := time.NewTimer(d)
+	defer t.Stop()
+
+	select {
+	case <-t.C:
+	case <-r.Context().Done():
+	}
 }
