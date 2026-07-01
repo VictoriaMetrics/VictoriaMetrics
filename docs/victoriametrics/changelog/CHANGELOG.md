@@ -26,7 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
-* FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): expose the effective group results limit under the `vmalert_group_rule_results_limit` metric.
+* FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): expose `vmalert_group_rule_results_limit` metric to indicate the number of alerts or recording results that a single rule within the group can produce. Thanks to @vinyas-bharadwaj for the contribution.
 * SECURITY: upgrade base docker image (Alpine) from 3.23.4 to 3.24.1. See [Alpine 3.24.1 release notes](https://www.alpinelinux.org/posts/Alpine-3.24.1-released.html).
 
 * BUGFIX: all VictoriaMetrics components: cancel in-flight HTTP requests shortly before `-http.maxGracefulShutdownDuration` elapses during graceful shutdown, so they can drain and the shutdown completes cleanly within that window instead of timing out and exiting via `logger.Fatalf` -> `os.Exit`. This prevents skipping the storage flush and losing in-memory data when long-lived requests are in flight (such as VictoriaLogs live tailing). See [#1502](https://github.com/VictoriaMetrics/VictoriaLogs/issues/1502).
