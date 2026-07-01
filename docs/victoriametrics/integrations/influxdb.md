@@ -81,7 +81,7 @@ The `/api/v1/export` endpoint should return the following response:
 ## Data transformations
 
 VictoriaMetrics performs the following transformations to the ingested InfluxDB data:
-* [db query arg](https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint) is mapped into `db`
+* [db query arg](https://docs.influxdata.com/influxdb/v1/api/write/#operation/PostWrite) is mapped into `db`
   [label](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#labels) value unless `db` tag exists in the InfluxDB line.
   The `db` label name can be overridden via `-influxDBLabel` command-line flag. If more strict data isolation is required,
   read more about multi-tenancy [here](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#multi-tenancy).
