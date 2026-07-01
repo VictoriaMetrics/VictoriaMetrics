@@ -2,6 +2,7 @@ package netstorage
 
 import (
 	"fmt"
+	"math"
 	"net/http"
 	"strconv"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
@@ -265,6 +267,9 @@ func (ctx *InsertCtx) GetStorageNodeIdx(at *auth.Token, labels []prompb.Label) i
 }
 
 func marshalStringFast(dst []byte, s string) []byte {
+	if len(s) > math.MaxUint16 {
+		logger.Panicf("BUG: s len %d cannot exceed %d", len(s), math.MaxUint16)
+	}
 	dst = encoding.MarshalUint16(dst, uint16(len(s)))
 	dst = append(dst, s...)
 	return dst
