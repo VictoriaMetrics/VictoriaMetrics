@@ -57,13 +57,13 @@ groups:
           description: "Requests from user {{ $labels.username }} are receiving errors.
             Please check the vmauth logs to verify that the configuration is correct and clients are sending valid requests."
       - alert: PotentialBruteForceAttack
-        expr: sum(increase(vmauth_http_request_errors_total{reason="invalid_auth_token"}[5m])) by (instance) > 5000
+        expr: sum(increase(vmauth_http_request_errors_total{reason="invalid_auth_token"}[5m])) without (instance) > 5000
         for: 1m
         labels:
           severity: warning
         annotations:
           dashboard: "{{ $externalURL }}/d/nbuo5Mr4k?viewPanel=16&var-instance={{ $labels.instance }}"
-          summary: "vmauth ({{ $labels.instance }}) is receiving too many requests with invalid auth tokens"
+          summary: "vmauth {{ $labels.job }} is receiving too many requests with invalid auth tokens"
           description: |
-            vmauth ({{ $labels.instance }}) is receiving a high number of requests with invalid auth tokens.
-            This may indicate a misconfiguration on the client side or a brute-force attack.
+            vmauth {{ $labels.job }} is receiving too many requests with invalid auth tokens.
+            This may indicate a brute-force attack or a misconfiguration on the client side.
