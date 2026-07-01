@@ -177,7 +177,11 @@ func (ctx *InsertCtx) WriteMetadata(at *auth.Token, m *prompb.MetricMetadata) er
 		mdr.AccountID = at.AccountID
 		mdr.ProjectID = at.ProjectID
 	}
-	ctx.Buf = mdr.MarshalTo(ctx.Buf[:0])
+	var err error
+	ctx.Buf, err = mdr.MarshalTo(ctx.Buf[:0])
+	if err != nil {
+		return err
+	}
 	storageNodeIdx := ctx.GetStorageNodeIdxForMeta(ctx.Buf)
 	return ctx.WriteMetadataExt(storageNodeIdx, ctx.Buf)
 }

@@ -571,6 +571,14 @@ func tryPushMetadataToRemoteStorages(at *auth.Token, rwctxs []*remoteWriteCtx, m
 			mm.ProjectID = at.ProjectID
 		}
 	}
+	tmp := mms[:0]
+	for _, mm := range mms {
+		if timeserieslimits.IsMetricMetadataExceeding(&mm) {
+			continue
+		}
+		tmp = append(tmp, mm)
+	}
+	mms = tmp
 	// Do not shard metadata even if -remoteWrite.shardByURL is set, just replicate it among rwctxs.
 	// Since metadata is usually small and there is no guarantee that metadata can be sent to
 	// the same remote storage with the corresponding metrics.

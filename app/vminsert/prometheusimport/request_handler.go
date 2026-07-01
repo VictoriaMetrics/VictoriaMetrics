@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeserieslimits"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -80,8 +81,12 @@ func insertRows(at *auth.Token, rows []prometheus.Row, mms []prometheus.Metadata
 
 	if prommetadata.IsEnabled() {
 		ctx.ResetForMetricsMetadata()
+		var err error
 		for i := range mms {
 			m := &mms[i]
+			if timeserieslimits.IsPrometheusMetadataExceeding(m) {
+				continue
+			}
 			mdr := metricsmetadata.Row{
 				Type:             m.Type,
 				MetricFamilyName: []byte(m.Metric),
@@ -91,7 +96,10 @@ func insertRows(at *auth.Token, rows []prometheus.Row, mms []prometheus.Metadata
 				mdr.AccountID = at.AccountID
 				mdr.ProjectID = at.ProjectID
 			}
-			ctx.Buf = mdr.MarshalTo(ctx.Buf[:0])
+			ctx.Buf, err = mdr.MarshalTo(ctx.Buf[:0])
+			if err != nil {
+				return err
+			}
 			storageNodeIdx := ctx.GetStorageNodeIdxForMeta(ctx.Buf)
 			if err := ctx.WriteMetadataExt(storageNodeIdx, ctx.Buf); err != nil {
 				return err

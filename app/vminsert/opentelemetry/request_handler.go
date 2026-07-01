@@ -14,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeserieslimits"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -95,6 +96,9 @@ func insertRows(at *auth.Token, tss []prompb.TimeSeries, mms []prompb.MetricMeta
 		ctx.ResetForMetricsMetadata()
 		for i := range mms {
 			m := &mms[i]
+			if timeserieslimits.IsMetricMetadataExceeding(m) {
+				continue
+			}
 			atLocal := ctx.GetLocalAuthTokenForMetadata(at, m)
 			if err := ctx.WriteMetadata(atLocal, m); err != nil {
 				return err

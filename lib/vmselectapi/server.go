@@ -1211,8 +1211,12 @@ func writeMetadataRows(ctx *vmselectRequestCtx, records []*metricsmetadata.Row) 
 	if err := ctx.writeUint64(uint64(len(records))); err != nil {
 		return fmt.Errorf("cannot write metadata rows count: %w", err)
 	}
+	var err error
 	for _, r := range records {
-		ctx.dataBuf = r.MarshalTo(ctx.dataBuf[:0])
+		ctx.dataBuf, err = r.MarshalTo(ctx.dataBuf[:0])
+		if err != nil {
+			return err
+		}
 		if err := ctx.writeDataBufBytes(); err != nil {
 			return fmt.Errorf("cannot write metadata rows: %w", err)
 		}
