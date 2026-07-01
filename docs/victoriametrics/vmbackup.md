@@ -204,38 +204,80 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
 
 ### Providing credentials as a file
 
-Obtaining credentials from a file.
+`vmbackup` and `vmbackupmanager` can load credentials from a file via the `-credsFilePath` flag to access remote S3-compatible buckets and Google Cloud Storage.
 
-Add flag `-credsFilePath=/etc/credentials` with the following content:
+To use a credential file, add the flag:
 
-* for S3 (AWS, MinIO or other S3 compatible storages):
+```sh
+-credsFilePath=/etc/credentials
+```
 
-     ```sh
-     [default]
-     aws_access_key_id=theaccesskey
-     aws_secret_access_key=thesecretaccesskeyvalue
-    ```
+The argument should point to a file with one of the formats below, depending on the storage provider.
 
-* for GCP cloud storage:
+#### S3 (AWS and S3-compatible)
 
-    ```json
-    {
-           "type": "service_account",
-           "project_id": "project-id",
-           "private_key_id": "key-id",
-           "private_key": "-----BEGIN PRIVATE KEY-----\nprivate-key\n-----END PRIVATE KEY-----\n",
-           "client_email": "service-account-email",
-           "client_id": "client-id",
-           "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-           "token_uri": "https://accounts.google.com/o/oauth2/token",
-           "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-           "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/service-account-email"
-    }
-    ```
+1. In AWS, [create an IAM user](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_users_create.html) or role with permissions to read and write the target bucket.
+2. [Create an access key](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html) for that IAM identity and copy the **Access key** and **Secret access key** values
+3. On the machine running `vmbackup`, create a credentials file with the following content and point `-credsFilePath` to it:
+
+   ```ini
+   [default]
+   aws_access_key_id=YOUR_AWS_ACCESS_KEY
+   aws_secret_access_key=YOUR_AWS_SECRET_ACCESS_KEY
+   ```
+
+This format matches the standard shared AWS credentials file used by the [AWS CLI](https://docs.aws.amazon.com/cli/v1/userguide/cli-configure-files.html) and [AWS SDKs](https://docs.aws.amazon.com/sdkref/latest/guide/file-format.html).
+
+For S3-compatible backends such as [MinIO](https://www.min.io/) or [Ceph](https://ceph.io/), create access keys in the respective
+system and use the same file format and set a custom endpoint with `-customS3Endpoint`. 
+
+For example:
+
+```sh
+vmbackup \
+  -storageDataPath=/data \
+  -snapshot.createURL=http://localhost:8428/snapshot/create \
+  -dst=s3://victoriametrics-backup/backup01 \
+  -customS3Endpoint=http://minio.example.local:9000 \
+  -credsFilePath=/etc/credentials
+```
+
+#### Google Cloud Storage (GCS)
+
+To create an IAM user and download the credential file, follow these steps:
+
+1. Open the Google Cloud Console and go to **IAM & Admin → Service Accounts**.
+2. Click **Create service account**.
+3. Enter a service account name.
+4. Assign the role the account needs to access Google Cloud Storage. See [IAM permissions for JSON methods](https://docs.cloud.google.com/storage/docs/access-control/iam-json) for more details.
+5. Open the service account, go to **Keys**, then click **Add key → Create new key**.
+6. Choose **JSON** as the key type
+7. Save the downloaded JSON file on the machine running `vmbackup` and point `-credsFilePath` to it. The file contents look similar to:
+
+   ```json
+   {
+     "type": "service_account",
+     "project_id": "project-id",
+     "private_key_id": "key-id",
+     "private_key": "-----BEGIN PRIVATE KEY-----\nprivate-key\n-----END PRIVATE KEY-----\n",
+     "client_email": "service-account-email",
+     "client_id": "client-id",
+     "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+     "token_uri": "https://accounts.google.com/o/oauth2/token",
+     "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+     "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/service-account-email"
+   }
+   ```
+
+This JSON is the standard service account key format defined by [Google Cloud IAM](https://developers.google.com/workspace/guides/create-credentials) and is used by Google client libraries and tools.
+
+#### Azure Blob Storage
+
+Azure Blob Storage uses environment variables rather than `-credsFilePath` in `vmbackup`. See [providing credentials via env variables](https://docs.victoriametrics.com/victoriametrics/vmbackup/#providing-credentials-via-env-variables) for details.
 
 ### Providing credentials via env variables
 
-Obtaining credentials from env variables.
+Obtaining credentials from environment variables.
 
 * For AWS S3 compatible storages set env variable `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
   Also you can set env variable `AWS_SHARED_CREDENTIALS_FILE` with path to credentials file.

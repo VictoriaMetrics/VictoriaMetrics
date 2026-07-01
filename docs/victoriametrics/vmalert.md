@@ -546,7 +546,7 @@ tags at [Docker Hub](https://hub.docker.com/r/victoriametrics/vmalert/tags) and 
 
 ## Reading rules from object storage
 
-[Enterprise version](https://docs.victoriametrics.com/victoriametrics/enterprise/) of `vmalert` may read alerting and recording rules
+The [Enterprise version](https://docs.victoriametrics.com/victoriametrics/enterprise/) of `vmalert` may read alerting and recording rules
 from object storage:
 
 * `./bin/vmalert -rule=s3://bucket/dir/alert.rules` would read rules from the given path at S3 bucket
@@ -562,6 +562,133 @@ The following [command-line flags](#flags) can be used for fine-tuning access to
 * `-s3.configProfile` - profile name for S3 configs. If no set, the value of the environment variable will be loaded (`AWS_PROFILE` or `AWS_DEFAULT_PROFILE`).
 * `-s3.customEndpoint` - custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set.
 * `-s3.forcePathStyle` - prefixing endpoint with bucket name when set false, true by default.
+
+### S3 (AWS and S3-compatible)
+
+1. In AWS, [create an IAM user](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_users_create.html) or role with read-only permissions on the target bucket.
+2. [Create an access key](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html) for that IAM identity and copy the **Access key** and **Secret access key** values
+3. On the machine running vmalert, create a credentials file with the following content and point `-s3.credsFilePath` to it:
+
+   ```ini
+   [default]
+   aws_access_key_id=YOUR_AWS_ACCESS_KEY
+   aws_secret_access_key=YOUR_AWS_SECRET_ACCESS_KEY
+   ```
+
+   This format matches the standard shared AWS credentials file used by the [AWS CLI](https://docs.aws.amazon.com/cli/v1/userguide/cli-configure-files.html) and [AWS SDKs](https://docs.aws.amazon.com/sdkref/latest/guide/file-format.html).
+
+The following example reads the rules from the S3 bucket called `my-alert-bucket`. If our bucket contains `rules/alerts_cpu.yml` and `rules/alerts_memory.yml`, then `-rule=s3://my-alert-bucket/rules/alerts_` matches both files because both keys start with that exact prefix
+
+```sh
+./bin/vmalert \
+  -rule=s3://my-alert-bucket/rules/alerts_ \
+  -s3.credsFilePath=/etc/vmalert/aws-credentials \
+  -datasource.url=http://vmselect:8481/select/0/prometheus \
+  -notifier.url=http://alertmanager:9093
+```
+
+You define multiple profiles in a single credentials file with different access keys:
+
+```ini
+[default]
+aws_access_key_id=DEFAULT_ACCESS_KEY
+aws_secret_access_key=DEFAULT_SECRET_KEY
+
+[monitoring]
+aws_access_key_id=MONITORING_ACCESS_KEY
+aws_secret_access_key=MONITORING_SECRET_KEY
+
+[alerts]
+aws_access_key_id=ALERTS_ACCESS_KEY
+aws_secret_access_key=ALERTS_SECRET_KEY
+```
+
+Then you can start vmalert with `-s3.configProfile` to use a non-default profile:
+
+```sh
+./bin/vmalert \
+  -rule=s3://my-alert-bucket/rules/alerts_ \
+  -s3.credsFilePath=/etc/vmalert/aws-credentials \
+  -s3.configProfile=alerts
+```
+
+Additionally, you can separate the credentials file from other configuration files. For example, one file can have credentials:
+
+
+```ini
+[default]
+aws_access_key_id=DEFAULT_ACCESS_KEY
+aws_secret_access_key=DEFAULT_SECRET_KEY
+```
+
+And leave the rest of the non-sensitive settings in a separate configuration file:
+
+```ini
+[default]
+region=us-east-1
+```
+
+Then pass both files to vmalert:
+
+```sh
+./bin/vmalert \
+  -rule=s3://my-alert-bucket/rules/alerts_ \
+  -s3.credsFilePath=/etc/vmalert/aws-credentials \
+  -s3.configFilePath=/etc/vmalert/aws-config
+```
+
+For S3-compatible backends such as [MinIO](https://www.min.io/) or [Ceph](https://ceph.io/), create access keys in the respective
+system and use the same file format and set a custom endpoint with `-s3.customS3Endpoint`.
+
+For example:
+
+```sh
+./bin/vmalert \
+  -rule=s3://victoriametrics-alert-rules/rules_ \
+  -s3.credsFilePath=/etc/vmalert/aws-credentials \
+  -s3.customEndpoint=http://minio.example.local:9000 \
+  -datasource.url=http://vmselect:8481/select/0/prometheus \
+  -notifier.url=http://alertmanager:9093
+```
+
+### Google Cloud Storage (GCS)
+
+To create a service account and download the credential file, follow these steps:
+
+1. Open the Google Cloud Console and go to **IAM & Admin → Service Accounts**.
+2. Click **Create service account**.
+3. Enter a service account name.
+4. Assign the role the account needs to access Google Cloud Storage. See [IAM permissions for JSON methods](https://docs.cloud.google.com/storage/docs/access-control/iam-json) for more details.
+5. Open the service account, go to **Keys**, then click **Add key → Create new key**.
+6. Choose **JSON** as the key type
+7. Save the downloaded JSON file on the machine running vmalert and point `-s3.credsFilePath` to it. The file contents look similar to:
+
+   ```json
+   {
+     "type": "service_account",
+     "project_id": "project-id",
+     "private_key_id": "key-id",
+     "private_key": "-----BEGIN PRIVATE KEY-----\nprivate-key\n-----END PRIVATE KEY-----\n",
+     "client_email": "service-account-email",
+     "client_id": "client-id",
+     "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+     "token_uri": "https://accounts.google.com/o/oauth2/token",
+     "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+     "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/service-account-email"
+   }
+   ```
+
+  This JSON is the standard service account key format defined by [Google Cloud IAM](https://developers.google.com/workspace/guides/create-credentials) and is used by Google client libraries and tools.
+
+The following example shows how to load rules from Google Cloud Storage in vmalert:
+
+```sh
+./bin/vmalert \
+  -rule=gs://my-alert-bucket/rules/alerts_ \
+  -s3.credsFilePath=/etc/vmalert/gcp-service-account.json \
+  -datasource.url=http://vmselect:8481/select/0/prometheus \
+  -notifier.url=http://alertmanager:9093
+```
 
 ## Topology examples
 
