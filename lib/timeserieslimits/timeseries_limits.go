@@ -155,13 +155,9 @@ func trackIgnoredMetricMetadataWithTooLongValue(fieldName, metricName string, fi
 // See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11128 for details
 const metricMetadataMaxFieldValueSize = math.MaxUint16
 
-// IsMetricMetadataExceeding checks if passed metricMetadata exceed size limit
-// for the following fields:
-// * Help
-// * MetricFamilyName
-// * Unit
+// IsMetricMetadataExceeding returns true if prompb.MetricMetadata Help, MetricFamilyName, or Unit field value size exceed the 64KiB limit.
 //
-// increments metrics and shows warning in logs
+// Additionally, it increments the corresponding metrics and prints warning messages to the log.
 func IsMetricMetadataExceeding(md *prompb.MetricMetadata) bool {
 	if len(md.Help) > metricMetadataMaxFieldValueSize {
 		trackIgnoredMetricMetadataWithTooLongValue("help", md.MetricFamilyName, len(md.Help))
@@ -180,12 +176,9 @@ func IsMetricMetadataExceeding(md *prompb.MetricMetadata) bool {
 	return false
 }
 
-// IsPrometheusMetadataExceeding checks if passed prometheus.Metadata exceed size limit
-// for the following fields:
-// * Help
-// * Metric
+// IsPrometheusMetadataExceeding returns true if prometheus.Metadata Help or Metric field value size exceed the 64KiB limit.
 //
-// increments metrics and shows warning in logs
+// Additionally, it increments the corresponding metrics and prints warning messages to the log.
 func IsPrometheusMetadataExceeding(md *prometheus.Metadata) bool {
 	if len(md.Help) > metricMetadataMaxFieldValueSize {
 		trackIgnoredMetricMetadataWithTooLongValue("help", md.Metric, len(md.Help))
