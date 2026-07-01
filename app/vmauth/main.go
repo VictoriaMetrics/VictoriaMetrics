@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math/rand/v2"
 	"net"
 	"net/http"
 	"net/textproto"
@@ -31,6 +32,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 )
 
 var (
@@ -206,6 +208,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	invalidAuthTokenRequests.Inc()
+	slowdownUnauthorizedResponse(r)
 	if *logInvalidAuthTokens {
 		err := fmt.Errorf("cannot authorize request with auth tokens %q", ats)
 		err = &httpserver.ErrorWithStatusCode{
@@ -888,4 +891,21 @@ func debugInfo(u *url.URL, r *http.Request) string {
 	_ = r.Header.WriteSubset(s, nil)
 	fmt.Fprint(s, ")")
 	return s.String()
+}
+
+// slowdownUnauthorizedResponse adds a random delay in the [2..3] seconds range before returning an unauthorized response.
+// This reduces the effectiveness of brute-force.
+//
+// Recommended by OWASP Top10:
+// https://owasp.org/Top10/2025/A07_2025-Authentication_Failures
+func slowdownUnauthorizedResponse(r *http.Request) {
+
+	d := 2*time.Second + time.Duration(rand.IntN(1000))*time.Millisecond
+	t := timerpool.Get(d)
+
+	select {
+	case <-t.C:
+	case <-r.Context().Done():
+	}
+	timerpool.Put(t)
 }
