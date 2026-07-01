@@ -183,7 +183,7 @@ const StepConfigurator: FC = () => {
           <div className="vm-step-control-popper-info">
             <p>
               <code>step</code> - the <Hyperlink
-                href="https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations"
+                href="https://prometheus.io/docs/prometheus/latest/querying/basics/#float-literals-and-time-durations"
                 text="interval"
               /> between datapoints, which must be returned from the range query.
               The <code>query</code> is executed
