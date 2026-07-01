@@ -30,6 +30,9 @@ var (
 		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention. See also -retentionFilter")
 	futureRetention = flagutil.NewRetentionDuration("futureRetention", "2d", "Data with timestamps bigger than now+futureRetention is automatically deleted. "+
 		"The minimum futureRetention is 2 days. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention")
+	vmselectAddr                  = flag.String("vmselectAddr", "", "TCP address to accept connections from vmselect services")
+	vmselectDisableRPCCompression = flag.Bool("rpc.disableCompression", false, "Whether to disable compression of the data sent from vmstorage to vmselect. "+
+		"This reduces CPU usage at the cost of higher network bandwidth usage")
 	snapshotAuthKey   = flagutil.NewPassword("snapshotAuthKey", "authKey, which must be passed in query string to /snapshot* pages. It overrides -httpAuth.*")
 	forceMergeAuthKey = flagutil.NewPassword("forceMergeAuthKey", "authKey, which must be passed in query string to /internal/force_merge pages. It overrides -httpAuth.*")
 	forceFlushAuthKey = flagutil.NewPassword("forceFlushAuthKey", "authKey, which must be passed in query string to /internal/force_flush pages. It overrides -httpAuth.*")
@@ -108,7 +111,7 @@ func DataPath() string {
 }
 
 // Init initializes vmstorage.
-func Init(vmselectMaxConcurrentRequests int, resetCacheIfNeeded func(mrs []storage.MetricRow)) {
+func Init(vmselectMaxConcurrentRequests int, vmselectMaxQueueDuration time.Duration, resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	storage.SetDedupInterval(*minScrapeInterval)
 	storage.SetDataFlushInterval(*inmemoryDataFlushInterval)
 	storage.LegacySetRetentionTimezoneOffset(*retentionTimezoneOffset)
@@ -169,6 +172,21 @@ func Init(vmselectMaxConcurrentRequests int, resetCacheIfNeeded func(mrs []stora
 	storageMetrics.RegisterMetricsWriter(vmStorage.writeStorageMetrics)
 	metrics.RegisterSet(storageMetrics)
 
+	if *vmselectAddr != "" {
+		var err error
+		limits := vmselectapi.Limits{
+			MaxConcurrentRequests:         vmselectMaxConcurrentRequests,
+			MaxConcurrentRequestsFlagName: "search.maxConcurrentRequests",
+			MaxQueueDuration:              vmselectMaxQueueDuration,
+			MaxQueueDurationFlagName:      "search.maxQueueDuration",
+		}
+		api := newVMStorageWithTenantID(vmStorage)
+		vmselectSrv, err = vmselectapi.NewServer(*vmselectAddr, api, limits, *vmselectDisableRPCCompression)
+		if err != nil {
+			logger.Fatalf("cannot create a server with -vmselectAddr=%s: %s", *vmselectAddr, err)
+		}
+	}
+
 	VMInsertAPI = vmStorage
 	VMSelectAPI = vmStorage
 	GetSearch = vmStorage.GetSearch
@@ -191,6 +209,8 @@ var (
 
 	// TODO(@rtm0): Remove this dependency from vmalert-tool unit tests.
 	DebugFlush func()
+
+	vmselectSrv *vmselectapi.Server
 )
 
 // Stop stops the vmstorage
@@ -201,6 +221,10 @@ func Stop() {
 
 	logger.Infof("gracefully closing the storage at %s", *storageDataPath)
 	startTime := time.Now()
+
+	if vmselectSrv != nil {
+		vmselectSrv.MustStop()
+	}
 	vmStorage.Stop()
 	logger.Infof("successfully closed the storage in %.3f seconds", time.Since(startTime).Seconds())
 
