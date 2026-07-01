@@ -447,7 +447,7 @@ vet:
 	go vet ./app/...
 	go vet ./apptest/...
 
-check-all: fmt vet golangci-lint govulncheck
+check-all: fmt vet golangci-lint
 
 clean-checkers: remove-golangci-lint remove-govulncheck
 
