@@ -202,7 +202,7 @@ endif
 
 	# adjust flags with dynamic default values
 	# remove after https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9680 implemented
-	sed -i '/The maximum number of concurrent search requests\./ s/(default [0-9]\+)/(default vmselect.getDefaultMaxConcurrentRequests())/' docs/victoriametrics/vmselect_common_flags.md
+	sed -i '/The maximum number of concurrent search requests\./ s/(default [0-9]\+)/(default 2*cgroup.AvailableCPUs())/' docs/victoriametrics/vmselect_common_flags.md
 	sed -i '/The maximum number of CPU cores a single query can use\./ s/(default [0-9]\+)/(default netstorage.defaultMaxWorkersPerQuery())/' docs/victoriametrics/vmselect_common_flags.md
 	sed -i '/The maximum number of concurrent vmselect requests the server can process at -clusternativeListenAddr/ s/(default [0-9]\+)/(default 2*cgroup.AvailableCPUs())/' docs/victoriametrics/vmselect_common_flags.md
 	sed -i '/The maximum number of concurrent goroutines to work with files;/ s/(default [0-9]\+)/(default fsutil.getDefaultConcurrency())/' docs/victoriametrics/vmselect_common_flags.md

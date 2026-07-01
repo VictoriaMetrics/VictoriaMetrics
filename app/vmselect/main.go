@@ -48,7 +48,7 @@ var (
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
 	cacheDataPath = flag.String("cacheDataPath", "", "Path to directory for cache files and temporary query results. "+
 		"By default, the cache won't be persisted, and temporary query results will be placed under /tmp/searchResults. If set, the cache will be persisted under cacheDataPath/rollupResult, and temporary query results will be placed under cacheDataPath/tmp/searchResults.")
-	maxConcurrentRequests = flag.Int("search.maxConcurrentRequests", getDefaultMaxConcurrentRequests(), "The maximum number of concurrent search requests. "+
+	maxConcurrentRequests = flag.Int("search.maxConcurrentRequests", 2*cgroup.AvailableCPUs(), "The maximum number of concurrent search requests. "+
 		"It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. "+
 		"See also -search.maxQueueDuration and -search.maxMemoryPerQuery")
 	maxQueueDuration = flag.Duration("search.maxQueueDuration", 10*time.Second, "The maximum time the request waits for execution when -search.maxConcurrentRequests "+
@@ -78,14 +78,6 @@ var (
 )
 
 var slowQueries = metrics.NewCounter(`vm_slow_queries_total`)
-
-func getDefaultMaxConcurrentRequests() int {
-	// A single request can saturate all the CPU cores, so there is no sense
-	// in allowing higher number of concurrent requests - they will just contend
-	// for unavailable CPU time.
-	n := min(cgroup.AvailableCPUs()*2, 16)
-	return n
-}
 
 //go:embed static
 var staticFiles embed.FS
