@@ -1687,6 +1687,10 @@ func assertInstantValues(tss []*timeseries) {
 
 var memoryIntensiveQueries = metrics.NewCounter(`vm_memory_intensive_queries_total`)
 
+var _ = metrics.NewGauge(`vm_max_memory_per_query`, func() float64 {
+	return float64(maxMemoryPerQuery.N)
+})
+
 func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf rollupFunc,
 	expr metricsql.Expr, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, windowExpr *metricsql.DurationExpr,
 ) ([]*timeseries, error) {

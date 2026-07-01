@@ -224,3 +224,15 @@ groups:
             If this happens after unclean shutdown of VictoriaMetrics process (via \"kill -9\", OOM or power off),
             then this is OK - the alert must go away in a few minutes after the restart.
             Otherwise this may point to the corruption of index data.
+
+      - alert: VMSelectConcurrentQueriesExceedMemoryLimit
+        expr: (vm_max_memory_per_query * on(job, instance) vm_concurrent_select_capacity) > on(job, instance) vm_available_memory_bytes
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "vmselect ({{ $labels.instance }}) concurrent query memory may exceed pod limit"
+          description: "Current concurrent queries ({{ $value | humanize1024 }} combined max memory) exceed
+            the available memory on instance {{ $labels.instance }}.
+            This may result in OOM kills. Consider reducing -maxConcurrentRequests,
+            lowering -maxMemoryPerQuery, or scaling up pod memory limits."
