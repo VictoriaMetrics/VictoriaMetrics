@@ -768,7 +768,7 @@ to set the `-datasource.appendTypePrefix` flag to `true`, so vmalert can adjust 
 
 ###### Prometheus
 
-vmalert uses [Prometheus HTTP API](https://prometheus.io/docs/prometheus/latest/querying/api/#http-api) for querying
+vmalert uses [Prometheus HTTP API](https://prometheus.io/docs/prometheus/latest/querying/api/) for querying
 and [Prometheus Remote Write v1 protocol](https://prometheus.io/docs/specs/prw/remote_write_spec/) for persisting
 recording rules results and alerting state. Hence, it can be integrated with any Prometheus-compatible storage
 that supports these protocols.
