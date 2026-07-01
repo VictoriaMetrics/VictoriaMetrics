@@ -1323,9 +1323,17 @@ unauthorized_user:
 
 vmauth allows configuring access logs {{% available_from "v1.138.0" %}} printing per-user:
 ```yaml
+users:
+  - username: foo
+    password: bar
+    url_prefix: 'http://localhost:8428/'
+    # Log all requests to this user
+    access_log: {}
+```
+
+If you want to log requests with missing or invalid auth tokens, use unauthorized_user without configuring any URL routes{{% available_from "#" %}}:
+```yaml
 unauthorized_user:
-  url_prefix: 'http://localhost:8428/'
-  # Log all requests to this user
   access_log: {}
 ```
 
