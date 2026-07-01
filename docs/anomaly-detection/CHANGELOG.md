@@ -14,6 +14,17 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.29.7
+Released: 2026-06-25
+
+- UI: updated [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/) from [v1.7.1](https://docs.victoriametrics.com/anomaly-detection/ui/#v171) to [v1.7.2](https://docs.victoriametrics.com/anomaly-detection/ui/#v172), see respective [release notes](https://docs.victoriametrics.com/anomaly-detection/ui/#v172) for details. Notable mentions include `api/v1/server/model` endpoint for accessing production models config and queries from UI, manually or through [AI assistant](https://docs.victoriametrics.com/anomaly-detection/ui/#ai-assistance).
+
+- IMPROVEMENT: Increased high-cardinality inference scaling by optionally scattering periodic infer jobs to reduce contention on shared resources (e.g. datasource, CPU, RAM) when `settings.n_workers > 1` and `scheduler.infer_every` is smaller than the total time to fetch and process all queries. This is controlled by new `scatter_infer_jobs` boolean argument of [Periodic Scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#parameters-1) (default: `false`).
+
+- IMPROVEMENT: Optimized internal batching for reader post-fetch series processing, exposing reader processing queue depth (`vmanomaly_reader_processing_tasks_queued` [metric](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#reader-behaviour-metrics)), and clarifying inference skip logs after data fetch timeouts. See `series_processing_batch_size` argument of [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) and [VLogsReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#victorialogs-reader) for details.
+
+- IMPROVEMENT: Refined `VmReader` and `VLogsReader` logging after datasource request failures by suppressing the follow-up generic "No data" or "No unseen data" warning for failed fetches. Failed requests now keep the original datasource error while empty successful responses still emit the no-data warning.
+
 ## v1.29.6
 Released: 2026-06-17
 

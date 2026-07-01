@@ -108,7 +108,7 @@ func (av *rateAggrValue) pushSample(c aggrConfig, sample *pushSample, key string
 	}
 	if ok {
 		state = sv.getState(av.isGreen)
-		if sample.timestamp < state.timestamp {
+		if sample.timestamp < state.timestamp || sample.timestamp < sv.prevTimestamp {
 			// Skip out of order sample
 			return
 		}
@@ -141,9 +141,6 @@ func (av *rateAggrValue) flush(c aggrConfig, ctx *flushCtx, key string, isLast b
 		if ctx.flushTimestamp > sv.deleteDeadline {
 			delete(av.shared, sk)
 			putRateAggrSharedValue(sv)
-			continue
-		}
-		if sv.prevTimestamp == 0 {
 			continue
 		}
 		state = sv.getState(av.isGreen)

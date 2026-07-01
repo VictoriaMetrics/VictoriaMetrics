@@ -30,7 +30,7 @@ func parseIfFilter(lex *lexer) (*ifFilter, error) {
 		return newIfFilter(newFilterNoop()), nil
 	}
 
-	f, err := parseFilter(lex, true)
+	f, err := parseFilter(lex)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse 'if' filter: %w", err)
 	}

@@ -25,7 +25,7 @@ func (ps *pipeSetStreamFields) String() string {
 	if ps.iff != nil {
 		s += " " + ps.iff.String()
 	}
-	s += " " + fieldNamesString(ps.streamFieldFilters)
+	s += " " + fieldFiltersString(ps.streamFieldFilters)
 	return s
 }
 
@@ -186,7 +186,7 @@ func parsePipeSetStreamFields(lex *lexer) (pipe, error) {
 	}
 
 	// Parse stream fields
-	streamFieldFilters, err := parseCommaSeparatedFields(lex)
+	streamFieldFilters, err := parseCommaSeparatedFieldFilters(lex)
 	if err != nil {
 		return nil, err
 	}
