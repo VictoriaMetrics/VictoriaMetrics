@@ -228,7 +228,7 @@ func TestShouldOptimizeRepeatedBinaryOpSubexprsExpressions(t *testing.T) {
 		if !ok {
 			t.Fatalf("unexpected expr type for %q; got %T; want *metricsql.BinaryOpExpr", name, e)
 		}
-		ec := &EvalConfig{Start: 1000, End: 2000, Step: 1000, NoCache: true, OptimizeRepeatedBinaryOpSubexprs: true}
+		ec := &EvalConfig{Start: 1000, End: 2000, Step: 1000, NoCache: false, OptimizeRepeatedBinaryOpSubexprs: true}
 		result := shouldOptimizeRepeatedBinaryOpSubexprs(ec, be.Left, be.Right)
 		if result != resultExpected {
 			t.Fatalf("unexpected result for %q; got %v; want %v; query: %q", name, result, resultExpected, q)
