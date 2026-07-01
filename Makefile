@@ -279,8 +279,9 @@ test-full-386:
 
 apptest:
 	$(MAKE) vminsert-race vmselect-race vmstorage-race vmagent-race vmctl-race vmbackup-race vmrestore-race
-	go test ./apptest/... -skip="^Test(Single|Legacy).*"
+	go test ./apptest/... -skip="^Test(Single|Mixed|Legacy).*"
 
+# App tests for legacy indexDB
 apptest-legacy: vminsert-race vmselect-race vmstorage-race vmbackup-race vmrestore-race
 	OS=$$(uname | tr '[:upper:]' '[:lower:]'); \
 	ARCH=$$(uname -m | tr '[:upper:]' '[:lower:]' | sed 's/x86_64/amd64/'); \
@@ -296,6 +297,20 @@ apptest-legacy: vminsert-race vmselect-race vmstorage-race vmbackup-race vmresto
 	VMSINGLE_V1_132_0_PATH=$${DIR}/victoria-metrics-prod \
 	VMSTORAGE_V1_132_0_PATH=$${DIR}/vmstorage-prod \
 	go test ./apptest/tests -run="^TestLegacyCluster.*"
+
+# App tests for mixed setups where vmsingle and vmcluster coexist.
+apptest-mixed: vmselect-race
+	OS=$$(uname | tr '[:upper:]' '[:lower:]'); \
+	ARCH=$$(uname -m | tr '[:upper:]' '[:lower:]' | sed 's/x86_64/amd64/'); \
+	VERSION=v1.145.0; \
+    VMSINGLE=victoria-metrics-$${OS}-$${ARCH}-$${VERSION}.tar.gz; \
+	URL=https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/$${VERSION}; \
+	DIR=/tmp/$${VERSION}; \
+	test -d $${DIR} || (mkdir $${DIR} && \
+		curl --output-dir /tmp -LO $${URL}/$${VMSINGLE} && tar xzf /tmp/$${VMSINGLE} -C $${DIR} \
+	); \
+	VMSINGLE_PATH=$${DIR}/victoria-metrics-prod \
+	go test ./apptest/tests -run="^TestMixed.*"
 
 benchmark:
 	go test -run=NO_TESTS -bench=. ./lib/...

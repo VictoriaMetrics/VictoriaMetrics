@@ -25,12 +25,14 @@ func StartVmsingle(instance string, flags []string, cli *Client, output io.Write
 			"-httpListenAddr":     "127.0.0.1:0",
 			"-graphiteListenAddr": "127.0.0.1:0",
 			"-opentsdbListenAddr": "127.0.0.1:0",
+			"-vmselectAddr":       "127.0.0.1:0",
 		},
 		extractREs: []*regexp.Regexp{
 			storageDataPathRE,
 			httpListenAddrRE,
 			graphiteListenAddrRE,
 			openTSDBListenAddrRE,
+			vmselectAddrRE,
 		},
 		output: output,
 	})
@@ -43,6 +45,7 @@ func StartVmsingle(instance string, flags []string, cli *Client, output io.Write
 		httpListenAddr:     stderrExtracts[1],
 		graphiteListenAddr: stderrExtracts[2],
 		openTSDBListenAddr: stderrExtracts[3],
+		vmselectAddr:       stderrExtracts[4],
 	}), nil
 }
 
@@ -51,6 +54,7 @@ type vmsingleRuntimeValues struct {
 	httpListenAddr     string
 	graphiteListenAddr string
 	openTSDBListenAddr string
+	vmselectAddr       string
 }
 
 func newVmsingle(app *app, cli *Client, rt vmsingleRuntimeValues) *Vmsingle {
@@ -85,6 +89,7 @@ func newVmsingle(app *app, cli *Client, rt vmsingleRuntimeValues) *Vmsingle {
 		},
 		storageDataPath: rt.storageDataPath,
 		httpListenAddr:  rt.httpListenAddr,
+		vmselectAddr:    rt.vmselectAddr,
 	}
 }
 
@@ -99,12 +104,19 @@ type Vmsingle struct {
 
 	storageDataPath string
 	httpListenAddr  string
+	vmselectAddr    string
 }
 
 // HTTPAddr returns the address at which the vminsert process is
 // listening for incoming HTTP requests.
 func (app *Vmsingle) HTTPAddr() string {
 	return app.httpListenAddr
+}
+
+// VmselectAddr returns the address at which the vmsingle process is listening
+// for vmselect connections.
+func (app *Vmsingle) VmselectAddr() string {
+	return app.vmselectAddr
 }
 
 // String returns the string representation of the vmsingle app state.

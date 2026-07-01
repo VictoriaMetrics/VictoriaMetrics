@@ -130,6 +130,10 @@ func (vms *VMStorage) IsReadOnly() bool {
 }
 
 func (vms *VMStorage) InitSearch(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (vmselectapi.BlockIterator, error) {
+	return vms.initSearch(qt, sq, marshalDefault, deadline)
+}
+
+func (vms *VMStorage) initSearch(qt *querytracer.Tracer, sq *storage.SearchQuery, marshal marshalFunc, deadline uint64) (vmselectapi.BlockIterator, error) {
 	tr := sq.GetTimeRange()
 	maxMetrics := vms.getMaxMetrics(sq.MaxMetrics)
 	tfss, err := vms.setupTfss(qt, sq, tr, maxMetrics, deadline)
@@ -140,6 +144,7 @@ func (vms *VMStorage) InitSearch(qt *querytracer.Tracer, sq *storage.SearchQuery
 		return nil, fmt.Errorf("missing tag filters")
 	}
 	bi := getBlockIterator()
+	bi.marshal = marshal
 	bi.sr.Init(qt, vms.s, tfss, tr, maxMetrics, deadline)
 	if err := bi.sr.Error(); err != nil {
 		bi.MustClose()
@@ -159,10 +164,18 @@ func (vms *VMStorage) getMaxMetrics(searchQueryLimit int) int {
 	return searchQueryLimit
 }
 
+type marshalFunc func(dst []byte, src *storage.MetricBlock) []byte
+
+// marshalDefault is the default implementation of the MetricBlock marshaling.
+func marshalDefault(dst []byte, src *storage.MetricBlock) []byte {
+	return src.Marshal(dst)
+}
+
 // blockIterator implements vmselectapi.BlockIterator
 type blockIterator struct {
-	sr storage.Search
-	mb storage.MetricBlock
+	sr      storage.Search
+	mb      storage.MetricBlock
+	marshal marshalFunc
 }
 
 var blockIteratorsPool sync.Pool
@@ -189,7 +202,7 @@ func (bi *blockIterator) NextBlock(dst []byte) ([]byte, bool) {
 	mb := bi.mb
 	mb.MetricName = bi.sr.MetricBlockRef.MetricName
 	bi.sr.MetricBlockRef.BlockRef.MustReadBlock(&mb.Block)
-	dst = mb.Marshal(dst[:0])
+	dst = bi.marshal(dst[:0], &mb)
 	return dst, true
 }
 
