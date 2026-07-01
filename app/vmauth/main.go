@@ -893,9 +893,11 @@ func debugInfo(u *url.URL, r *http.Request) string {
 	return s.String()
 }
 
-// SlowdownUnauthorizedResponse adds a random delay in the [2..3] seconds range
-// before returning an unauthorized response.
+// slowdownUnauthorizedResponse adds a random delay in the [2..3] seconds range before returning an unauthorized response.
 // This reduces the effectiveness of brute-force.
+//
+// Recommended by OWASP Top10:
+// https://owasp.org/Top10/2025/A07_2025-Authentication_Failures
 func slowdownUnauthorizedResponse(r *http.Request) {
 
 	d := 2*time.Second + time.Duration(rand.IntN(1000))*time.Millisecond
