@@ -1055,7 +1055,7 @@ func newRollupHoltWinters(args []any) (rollupFunc, error) {
 			return nan
 		}
 
-		// See https://en.wikipedia.org/wiki/Exponential_smoothing#Double_exponential_smoothing .
+		// See https://en.wikipedia.org/wiki/Exponential_smoothing#Double_exponential_smoothing_%28Holt_linear%29 .
 		// TODO: determine whether this shit really works.
 		s0 := rfa.prevValue
 		if math.IsNaN(s0) {
