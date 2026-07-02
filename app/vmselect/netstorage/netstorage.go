@@ -1161,13 +1161,6 @@ func GetMetricsMetadata(qt *querytracer.Tracer, tt *storage.TenantToken, denyPar
 		return nil, isPartial, fmt.Errorf("cannot fetch metrics metadata from vmstorage nodes: %w", err)
 	}
 
-	sort.Slice(metadata, func(i, j int) bool {
-		return string(metadata[i].MetricFamilyName) < string(metadata[j].MetricFamilyName)
-	})
-	if limit > 0 && len(metadata) >= limit {
-		metadata = metadata[:limit]
-	}
-
 	return metadata, isPartial, nil
 }
 
