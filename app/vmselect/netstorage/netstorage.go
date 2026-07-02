@@ -1,7 +1,6 @@
 package netstorage
 
 import (
-	"bytes"
 	"container/heap"
 	"errors"
 	"flag"
@@ -1160,16 +1159,6 @@ func GetMetricsMetadata(qt *querytracer.Tracer, tt *storage.TenantToken, denyPar
 	})
 	if err != nil {
 		return nil, isPartial, fmt.Errorf("cannot fetch metrics metadata from vmstorage nodes: %w", err)
-	}
-
-	sort.Slice(metadata, func(i, j int) bool {
-		return string(metadata[i].MetricFamilyName) < string(metadata[j].MetricFamilyName)
-	})
-	metadata = slices.CompactFunc(metadata, func(a, b *metricsmetadata.Row) bool {
-		return bytes.Equal(a.MetricFamilyName, b.MetricFamilyName)
-	})
-	if limit > 0 && len(metadata) >= limit {
-		metadata = metadata[:limit]
 	}
 
 	return metadata, isPartial, nil
