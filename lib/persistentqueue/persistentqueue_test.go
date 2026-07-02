@@ -123,6 +123,73 @@ func TestQueueOpen(t *testing.T) {
 		q.MustClose()
 		fs.MustRemoveDir(path)
 	})
+	t.Run("damaged-writer-file-tail", func(t *testing.T) {
+		path := "damaged-writer-file-tail"
+		fs.MustRemoveDir(path)
+		q := mustOpen(path, "foobar", 0)
+		
+		q.MustWriteBlock([]byte("valid block 1"))
+		q.MustWriteBlock([]byte("valid block 2"))
+		
+		q.MustClose()
+
+		chunkPath := filepath.Join(path, fmt.Sprintf("%016X", 0))
+		fi, err := os.Stat(chunkPath)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		
+		if err := os.Truncate(chunkPath, fi.Size()-1); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		
+		q = mustOpen(path, "foobar", 0)
+		
+		var buf []byte
+		var ok bool
+		buf, ok = q.MustReadBlockNonblocking(buf[:0])
+		if !ok {
+			t.Fatalf("expected first block to be readable")
+		}
+		if string(buf) != "valid block 1" {
+			t.Fatalf("expected 'valid block 1', got %q", buf)
+		}
+		
+		_, ok = q.MustReadBlockNonblocking(buf[:0])
+		if ok {
+			t.Fatalf("expected second block to be dropped")
+		}
+		
+		q.MustClose()
+		fs.MustRemoveDir(path)
+	})
+	t.Run("missing-metainfo", func(t *testing.T) {
+		path := "missing-metainfo"
+		fs.MustRemoveDir(path)
+		q := mustOpen(path, "foobar", 0)
+		
+		q.MustWriteBlock([]byte("valid block 1"))
+		q.MustWriteBlock([]byte("valid block 2"))
+		q.MustClose()
+
+		fs.MustRemovePath(filepath.Join(path, metainfoFilename))
+
+		q = mustOpen(path, "foobar", 0)
+
+		var buf []byte
+		var ok bool
+		buf, ok = q.MustReadBlockNonblocking(buf[:0])
+		if !ok || string(buf) != "valid block 1" {
+			t.Fatalf("expected 'valid block 1', got %q", buf)
+		}
+		buf, ok = q.MustReadBlockNonblocking(buf[:0])
+		if !ok || string(buf) != "valid block 2" {
+			t.Fatalf("expected 'valid block 2', got %q", buf)
+		}
+		
+		q.MustClose()
+		fs.MustRemoveDir(path)
+	})
 	t.Run("invalid-queue-name", func(t *testing.T) {
 		path := "invalid-queue-name"
 		mustCreateDir(path)

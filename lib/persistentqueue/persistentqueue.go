@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"time"
 
@@ -185,22 +186,29 @@ func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingB
 	metainfoPath := q.metainfoPath()
 	if err := mi.ReadFromFile(metainfoPath); err != nil {
 		if !os.IsNotExist(err) {
-			logger.Errorf("cannot read metainfo for persistent queue from %q: %s; re-creating %q", metainfoPath, err, path)
+			logger.Errorf("cannot read metainfo for persistent queue from %q: %s; trying to recover from existing chunk files", metainfoPath, err)
+		}
+		if rmi := rebuildMetainfoFromChunks(path, chunkFileSize, maxBlockSize); rmi != nil {
+			logger.Warnf("rebuilt metainfo for %q from existing chunk files; readerOffset=%d, writerOffset=%d",
+				path, rmi.ReaderOffset, rmi.WriterOffset)
+			mi = *rmi
 		}
 
-		// path contents is broken or missing. Re-create it from scratch.
-		fs.MustClose(q.flockF)
-		fs.MustRemoveDirContents(path)
-		q.flockF = fs.MustCreateFlockFile(path)
-		mi.Reset()
-		mi.Name = q.name
-		if err := mi.WriteToFile(metainfoPath); err != nil {
-			return nil, fmt.Errorf("cannot create %q: %w", metainfoPath, err)
-		}
+		if mi.ReaderOffset == 0 && mi.WriterOffset == 0 {
+			fs.MustClose(q.flockF)
+			fs.MustRemoveDirContents(path)
+			q.flockF = fs.MustCreateFlockFile(path)
+			mi.Reset()
+			mi.Name = q.name
+			if err := mi.WriteToFile(metainfoPath); err != nil {
+				return nil, fmt.Errorf("cannot create %q: %w", metainfoPath, err)
+			}
 
-		// Create initial chunk file.
-		filepath := q.chunkFilePath(0)
-		fs.MustWriteAtomic(filepath, nil, false)
+			filepath := q.chunkFilePath(0)
+			fs.MustWriteAtomic(filepath, nil, false)
+		} else {
+			mi.Name = q.name
+		}
 	}
 
 	// Locate reader and writer chunks in the path.
@@ -278,14 +286,18 @@ func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingB
 			q.writerFlushedOffset = mi.WriterOffset
 			if fileSize := fs.MustFileSize(q.writerPath); fileSize != q.writerLocalOffset {
 				if fileSize < q.writerLocalOffset {
-					logger.Errorf("%q size (%d bytes) is smaller than the writer offset (%d bytes); removing the file",
+					logger.Warnf("%q size (%d bytes) is smaller than the writer offset (%d bytes); "+
+						"this may be the case on unclean shutdown (OOM, `kill -9`, hardware reset); trying to fix it by adjusting writer offset",
 						q.writerPath, fileSize, q.writerLocalOffset)
-					fs.MustRemovePath(q.writerPath)
-					continue
+					validSize := getValidSize(q.writerPath, maxBlockSize)
+					q.writerLocalOffset = validSize
+					q.writerOffset = (mi.WriterOffset - (mi.WriterOffset % q.chunkFileSize)) + validSize
+					q.writerFlushedOffset = q.writerOffset
+				} else {
+					logger.Warnf("%q size (%d bytes) is bigger than writer offset (%d bytes); "+
+						"this may be the case on unclean shutdown (OOM, `kill -9`, hardware reset); trying to fix it by adjusting fileSize to %d",
+						q.writerPath, fileSize, q.writerLocalOffset, q.writerLocalOffset)
 				}
-				logger.Warnf("%q size (%d bytes) is bigger than writer offset (%d bytes); "+
-					"this may be the case on unclean shutdown (OOM, `kill -9`, hardware reset); trying to fix it by adjusting fileSize to %d",
-					q.writerPath, fileSize, q.writerLocalOffset, q.writerLocalOffset)
 			}
 			w, err := filestream.OpenWriterAt(q.writerPath, int64(q.writerLocalOffset), false)
 			if err != nil {
@@ -671,4 +683,76 @@ func (mi *metainfo) ReadFromFile(path string) error {
 		return fmt.Errorf("invalid data read from %q: readerOffset=%d cannot exceed writerOffset=%d", path, mi.ReaderOffset, mi.WriterOffset)
 	}
 	return nil
+}
+
+func getValidSize(filePath string, maxBlockSize uint64) uint64 {
+	f, err := os.Open(filePath)
+	if err != nil {
+		return 0
+	}
+	defer fs.MustClose(f)
+
+	fi, err := f.Stat()
+	if err != nil {
+		return 0
+	}
+	fileSize := uint64(fi.Size())
+
+	var validSize uint64
+	var header [8]byte
+	for {
+		if validSize+8 > fileSize {
+			return validSize
+		}
+		if _, err := io.ReadFull(f, header[:]); err != nil {
+			return validSize
+		}
+		blockLen := encoding.UnmarshalUint64(header[:])
+		if blockLen == 0 || blockLen > maxBlockSize {
+			return validSize
+		}
+		if validSize+8+blockLen > fileSize {
+			return validSize
+		}
+		validSize += 8 + blockLen
+		if _, err := f.Seek(int64(validSize), io.SeekStart); err != nil {
+			return validSize
+		}
+	}
+}
+
+func rebuildMetainfoFromChunks(path string, chunkFileSize, maxBlockSize uint64) *metainfo {
+	des := fs.MustReadDir(path)
+	var chunkOffsets []uint64
+	for _, de := range des {
+		fname := de.Name()
+		if de.IsDir() {
+			continue
+		}
+		if !chunkFileNameRegex.MatchString(fname) {
+			continue
+		}
+		offset, err := strconv.ParseUint(fname, 16, 64)
+		if err != nil {
+			continue
+		}
+		if offset%chunkFileSize != 0 {
+			continue
+		}
+		chunkOffsets = append(chunkOffsets, offset)
+	}
+	if len(chunkOffsets) == 0 {
+		return nil
+	}
+	sort.Slice(chunkOffsets, func(i, j int) bool {
+		return chunkOffsets[i] < chunkOffsets[j]
+	})
+
+	mi := &metainfo{}
+	mi.ReaderOffset = chunkOffsets[0]
+
+	newestOffset := chunkOffsets[len(chunkOffsets)-1]
+	chunkPath := filepath.Join(path, fmt.Sprintf("%016X", newestOffset))
+	mi.WriterOffset = newestOffset + getValidSize(chunkPath, maxBlockSize)
+	return mi
 }
