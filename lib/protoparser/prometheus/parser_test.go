@@ -379,7 +379,7 @@ cassandra_token_ownership_ratio 78.9`, &Rows{
 		}},
 	})
 
-	// Exemplars - see https://github.com/OpenObservability/OpenMetrics/blob/master/OpenMetrics.md#exemplars-1
+	// Exemplars - see https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#exemplars
 	f(`foo_bucket{le="10",a="#b"} 17 # {trace_id="oHg5SJ#YRHA0"} 9.8 1520879607.789
 	   abc 123 456 # foobar
 	   foo   344#bar`, &Rows{
@@ -411,7 +411,7 @@ cassandra_token_ownership_ratio 78.9`, &Rows{
 	})
 
 	// "Infinity" word - this has been added in OpenMetrics.
-	// See https://github.com/OpenObservability/OpenMetrics/blob/master/OpenMetrics.md
+	// See https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md
 	// Checks for https://github.com/VictoriaMetrics/VictoriaMetrics/issues/924
 	inf := math.Inf(1)
 	f(`
@@ -933,7 +933,7 @@ cassandra_token_ownership_ratio 78.9
 		}},
 	}, &MetadataRows{})
 
-	// Exemplars - see https://github.com/OpenObservability/OpenMetrics/blob/master/OpenMetrics.md#exemplars-1
+	// Exemplars - see https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#exemplars
 	f(`foo_bucket{le="10",a="#b"} 17 # {trace_id="oHg5SJ#YRHA0"} 9.8 1520879607.789
 	   abc 123 456 # foobar
 	   foo   344#bar`, &Rows{
@@ -965,7 +965,7 @@ cassandra_token_ownership_ratio 78.9
 	}, &MetadataRows{})
 
 	// "Infinity" word - this has been added in OpenMetrics.
-	// See https://github.com/OpenObservability/OpenMetrics/blob/master/OpenMetrics.md
+	// See https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md
 	// Checks for https://github.com/VictoriaMetrics/VictoriaMetrics/issues/924
 	inf := math.Inf(1)
 	f(`
