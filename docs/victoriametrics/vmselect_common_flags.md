@@ -198,7 +198,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/cluster-victori
   -search.maxBinaryOpPushdownLabelValues int
      The maximum number of values for a label in the first expression that can be extracted as a common label filter and pushed down to the second expression in a binary operation. A larger value makes the pushed-down filter more complex but fewer time series will be returned. This flag is useful when selective label (e.g., 'instance') contains numerous values, and storage resources are abundant. (default 100)
   -search.maxConcurrentRequests int
-     The maximum number of concurrent search requests. It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. See also -search.maxQueueDuration and -search.maxMemoryPerQuery (default 2*cgroup.AvailableCPUs())
+     The maximum number of concurrent search requests. It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. See also -search.maxQueueDuration and -search.maxMemoryPerQuery (default vmselect.getDefaultMaxConcurrentRequests())
   -search.maxDeleteDuration duration
      The maximum duration for /api/v1/admin/tsdb/delete_series call (default 5m0s)
   -search.maxDeleteSeries int
