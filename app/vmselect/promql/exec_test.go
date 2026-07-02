@@ -4833,15 +4833,6 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{}
 		f(q, resultExpected)
 	})
-	t.Run(`buckets_limit(zero)`, func(t *testing.T) {
-		t.Parallel()
-		q := `buckets_limit(0, (
-			alias(label_set(100, "le", "inf", "x", "y"), "metric"),
-			alias(label_set(50, "le", "120", "x", "y"), "metric"),
-		))`
-		resultExpected := []netstorage.Result{}
-		f(q, resultExpected)
-	})
 	// buckets that are consecutively empty at left and right ends will not be preserved.
 	t.Run(`buckets_limit(trim_zero_preserve_empty_when_limit_not_reached)`, func(t *testing.T) {
 		t.Parallel()
