@@ -872,6 +872,87 @@ Some capacity planning tips for VictoriaMetrics cluster:
 
 See also [resource usage limits docs](#resource-usage-limits).
 
+## Acting on disk space alerts
+
+The [official alerting rules for the cluster](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-cluster.yml)
+contain three alerts about disk space on `vmstorage` nodes:
+
+- `NodeBecomesReadonlyIn3Days` - at the current ingestion rate the node will reach `-storage.minFreeDiskSpaceBytes`
+  and switch to [readonly mode](#readonly-mode) in less than 3 days.
+- `DiskRunsOutOfSpaceIn3Days` - at the current ingestion rate the disk will be completely full in less than 3 days.
+- `DiskRunsOutOfSpace` - more than 80% of the disk is already used. Less than 20% of free space
+  slows down background merges and overall performance.
+
+When such an alert fires, the cluster still works, but a capacity decision is needed. Check two things first:
+
+1. How fast the disk fills. Open the `Storage full ETA` panel on [the official Grafana dashboard](#monitoring)
+   for the alerting instance. The alert annotation also shows the estimated time left.
+1. How much spare capacity the other nodes have. If one node stops accepting data, its load spreads across the remaining nodes:
+   with 10 nodes every remaining node gets about 11% of extra load, with 3 nodes about 50% -
+   see [cluster resizing](#cluster-resizing-and-scalability) for the details. The remaining nodes need spare disk space,
+   CPU and RAM for this extra share - see [capacity planning](#capacity-planning).
+
+Then choose one of the paths below. They are ordered from the smallest effort to the biggest change.
+
+### Reduce retention
+
+The fastest relief, also suggested in the alert descriptions: decrease the retention, so old data is deleted earlier.
+Set the lower `-retentionPeriod` value and restart `vmstorage` nodes - see [retention docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention).
+Keep in mind:
+
+- The data outside the new retention window is deleted permanently.
+- The space becomes free gradually, when old data goes outside the new retention window, not at the restart moment.
+
+### Wait for readonly mode
+
+If the data must be kept and resources cannot be added now, it is fine to let the node switch to [readonly mode](#readonly-mode):
+
+- `vminsert` automatically stops writing to the readonly node and re-routes its share of data to the remaining nodes.
+- Old data on the readonly node is still deleted according to [retention](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention).
+  When enough space is freed, the node automatically returns to normal mode and accepts writes again.
+- Queries keep working: `vmselect` reads from readonly nodes as usual.
+
+This path is acceptable when the remaining nodes have enough spare disk space, CPU and RAM for the extra write share.
+Costs to keep in mind:
+
+- The remaining nodes fill their disks faster. If they also reach readonly mode, the effect cascades:
+  when all `vmstorage` nodes are readonly or unavailable, data ingestion pauses until at least one node
+  can accept data again, and clients like `vmagent` buffer the pending data.
+- The re-routed series are new for the remaining nodes, so their RAM and CPU usage temporarily grows.
+- While the node is readonly, `vminsert` spends extra CPU on re-routing its share of samples.
+- If `-disableReroutingOnUnavailable` is set at `vminsert`, ingestion for the affected share pauses instead of re-routing.
+
+### Add disk space or vmstorage nodes
+
+The standard path - see [cluster resizing and scalability](#cluster-resizing-and-scalability) for the steps.
+Extrapolate the needed disk size as described in [capacity planning](#capacity-planning): multiply the daily disk usage growth
+by the retention in days, add the recommended spare space and the monthly deduplication headroom described there,
+then divide by the number of `vmstorage` nodes. The same calculation answers whether it is enough to grow disks
+on the existing nodes (vertical scaling) or new nodes are needed (horizontal scaling).
+
+New nodes start empty and there is no automatic data rebalancing: old nodes stay full until their data leaves
+the retention window, so disk alerts may keep firing on them even though the cluster as a whole has enough space.
+To fill the new nodes faster, route newly ingested data only to the new nodes - see [rebalancing](#rebalancing).
+
+### Switch ingestion to a new cluster
+
+For a big expected growth of the ingestion rate, or when the goal is even disk usage across all nodes,
+run a new empty cluster next to the existing one:
+
+1. Size the new cluster with the calculation above, using the expected ingestion rate.
+   Choose the retention and the disk size so that nodes never reach readonly mode.
+1. Switch the ingestion (for example, at `vmagent` or `vmauth` level) to the new cluster.
+1. Keep the old cluster running for queries only. Query both clusters together via
+   [multi-level cluster setup](#multi-level-cluster-setup) or [victoria-metrics-distributed helm chart](https://docs.victoriametrics.com/helm/victoria-metrics-distributed/).
+1. Without ingestion the old cluster needs much less CPU and RAM, so its resources can be reduced.
+   The disks keep the old data until it leaves the retention window.
+1. After the retention period passes, remove the old cluster from the query path and turn it off.
+
+The new nodes fill evenly from day one. If extra capacity is needed before the old cluster is turned off:
+when disk usage on the old and new nodes becomes similar, the old `vmstorage` nodes can be added to `-storageNode`
+at `vminsert` of the new cluster - the same approach as described in [rebalancing](#rebalancing).
+Add them in small groups if their disk usage is uneven.
+
 ## Rebalancing
 
 Every `vminsert` node evenly spreads (shards) incoming data among `vmstorage` nodes specified in the `-storageNode` command-line flag.
