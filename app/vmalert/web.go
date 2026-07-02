@@ -543,8 +543,10 @@ func (rh *requestHandler) groups(rf *rulesFilter) *listGroupsResponse {
 			if !groupFound && !strings.Contains(strings.ToLower(rule.Name), rf.search) {
 				continue
 			}
+			ruleWithExtendedState := rule
+			ruleWithExtendedState.ExtendState()
 			if rf.extendedStates {
-				rule.ExtendState()
+				rule = ruleWithExtendedState
 			}
 			if !rf.matchesRule(&rule) {
 				continue
@@ -552,7 +554,18 @@ func (rh *requestHandler) groups(rf *rulesFilter) *listGroupsResponse {
 			if rf.excludeAlerts {
 				rule.Alerts = nil
 			}
-			g.States[rule.State]++
+			ruleState := ruleWithExtendedState.State
+			if ruleState == "inactive" || ruleState == "pending" || ruleState == "firing" {
+				g.States["ok"]++
+			} else {
+				// 1. alerting rule with unhealthy or nomatch state
+				// 2. recording rule
+				g.States[ruleState]++
+
+				if ruleState == "nomatch" {
+					g.States["ok"]++
+				}
+			}
 			filteredRules = append(filteredRules, rule)
 		}
 		if len(g.Rules) == 0 || len(filteredRules) > 0 {
