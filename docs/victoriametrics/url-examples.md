@@ -999,13 +999,13 @@ Additional information:
 Single-node VictoriaMetrics:
 
 ```sh
-curl -Is http://<vmsingle>:8428/internal/resetRollupResultCache
+curl http://<vmsingle>:8428/internal/resetRollupResultCache
 ```
 
 Cluster version of VictoriaMetrics:
 
 ```sh
-curl -Is http://<vmselect>:8481/internal/resetRollupResultCache?propagate=1
+curl http://<vmselect>:8481/internal/resetRollupResultCache?propagate=1
 ```
 
 vmselect will propagate this call to the rest of the vmselects listed in its `-selectNode` cmd-line flag when `propagate=1` argument is set.
