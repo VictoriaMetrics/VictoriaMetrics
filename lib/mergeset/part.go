@@ -155,6 +155,14 @@ func (p *part) MustClose() {
 	ibSparseCache.RemoveBlocksForPart(p)
 }
 
+func (p *part) metaindexSizeBytes() uint64 {
+	n := uint64(cap(p.mrs)) * uint64(unsafe.Sizeof(metaindexRow{}))
+	for i := range p.mrs {
+		n += uint64(cap(p.mrs[i].firstItem))
+	}
+	return n
+}
+
 type indexBlock struct {
 	bhs []blockHeader
 
