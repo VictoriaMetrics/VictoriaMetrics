@@ -1229,8 +1229,7 @@ Metric names are stripped from the resulting series. Add [keep_metric_names](#ke
 `buckets_limit(limit, buckets)` is a [transform function](#transform-functions), which limits the number
 of [histogram buckets](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350) to the given `limit`. 
 
-The result will preserve the first and the last bucket to improve accuracy for min and max values. 
-So, if the `limit` is greater than 0 and less than 3, the function will still return 3 buckets: the first bucket, the last bucket, and a selected bucket.
+The given `limit` should be greater than `0`. If it is less than `3`, it will be automatically raised to `3` to preserve the first and last buckets for better accuracy of min and max values.
 
 See also [prometheus_buckets](#prometheus_buckets) and [histogram_quantile](#histogram_quantile).
 
