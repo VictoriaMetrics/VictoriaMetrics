@@ -135,10 +135,10 @@ func (ui *UserInfo) logRequest(r *http.Request, userName string, statusCode int,
 		r.Host, requestURI, statusCode, remoteAddr, r.UserAgent(), r.Referer(), duration.Milliseconds(), userName)
 }
 
-// haveURLs reports whether ui has at least one URL route configured.
-// It is used for validating unauthorized_user config, since other users
+// hasAnyURLs reports whether ui has at least one backend URL route configured.
+// It is used only for unauthorized_user config section, since other users
 // must always have either URLPrefix or URLMaps set.
-func (ui *UserInfo) haveURLs() bool {
+func (ui *UserInfo) hasAnyURLs() bool {
 	if ui == nil {
 		return false
 	}
@@ -996,7 +996,7 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 			return nil, err
 		}
 
-		if ui.URLPrefix != nil || len(ui.URLMaps) > 0 || ui.DefaultURL != nil {
+		if ui.hasAnyURLs() {
 			if err := ui.initURLs(); err != nil {
 				return nil, err
 			}
