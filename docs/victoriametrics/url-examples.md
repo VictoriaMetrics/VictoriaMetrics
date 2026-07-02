@@ -40,7 +40,7 @@ The tenant ID can be specified in the following ways:
 * Via URL path for reads and writes: `/select/<tenantID>/prometheus/api/v1/query` or `/insert/<tenantID>/prometheus/api/v1/import/prometheus`
 * Via [HTTP headers](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-headers) for reads and writes: 
   `curl 'https://<vmselect>:8481/select/prometheus/api/v1/query' -d 'query=up' --header "AccountID: <tenantID>"`. Note, `--enableMultitenancyViaHeaders` must be set.
-* Via [labels](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenant-writes) for writes: `curl -d 'metric_name{vm_account_id="42"} 123' -X POST http://<vminsert>:8480/insert/multitenant/prometheus/api/v1/import/prometheus`.
+* Via [labels](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenant-writes) for writes: `curl -d 'metric_name{vm_account_id="42"} 123' -X POST 'http://<vminsert>:8480/insert/multitenant/prometheus/api/v1/import/prometheus'`.
 
 The tenant ID [can be omitted for reads](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenant-reads) when using a special `/multitenant` endpoint.
 ```sh
@@ -66,19 +66,19 @@ See more about [multitenancy in vmagent](https://docs.victoriametrics.com/victor
 Single-node VictoriaMetrics:
 
 ```sh
-curl -H 'Content-Type: application/json' --data-binary "@filename.json" -X POST http://<vmsingle>:8428/api/v1/import
+curl -H 'Content-Type: application/json' --data-binary "@filename.json" -X POST 'http://<vmsingle>:8428/api/v1/import'
 ```
 
 Cluster version of VictoriaMetrics:
 
 ```sh
-curl -H 'Content-Type: application/json' --data-binary "@filename.json" -X POST http://<vminsert>:8480/insert/0/prometheus/api/v1/import
+curl -H 'Content-Type: application/json' --data-binary "@filename.json" -X POST 'http://<vminsert>:8480/insert/0/prometheus/api/v1/import'
 ```
 
 vmagent:
 
 ```sh
-curl -H 'Content-Type: application/json' --data-binary "@filename.json" -X POST http://<vmagent>:8429/api/v1/import
+curl -H 'Content-Type: application/json' --data-binary "@filename.json" -X POST 'http://<vmagent>:8429/api/v1/import'
 ```
 
 Additional information:
@@ -133,19 +133,19 @@ It is expected that `filename.bin` was received by exporting data via [/api/v1/e
 Single-node VictoriaMetrics:
 
 ```sh
-curl -X POST http://<vmsingle>:8428/api/v1/import/native -T filename.bin
+curl -X POST 'http://<vmsingle>:8428/api/v1/import/native' -T filename.bin
 ```
 
 Cluster version of VictoriaMetrics:
 
 ```sh
-curl -X POST http://<vminsert>:8480/insert/0/prometheus/api/v1/import/native -T filename.bin
+curl -X POST 'http://<vminsert>:8480/insert/0/prometheus/api/v1/import/native' -T filename.bin
 ```
 
 vmagent:
 
 ```sh
-curl -X POST http://<vmagent>:8429/api/v1/import/native -T filename.bin
+curl -X POST 'http://<vmagent>:8429/api/v1/import/native' -T filename.bin
 ```
 
 Additional information:
@@ -163,19 +163,19 @@ Additional information:
 Single-node VictoriaMetrics:
 
 ```sh
-curl -d 'metric_name{foo="bar"} 123' -X POST http://<vmsingle>:8428/api/v1/import/prometheus
+curl -d 'metric_name{foo="bar"} 123' -X POST 'http://<vmsingle>:8428/api/v1/import/prometheus'
 ```
 
 Cluster version of VictoriaMetrics:
 
 ```sh
-curl -d 'metric_name{foo="bar"} 123' -X POST http://<vminsert>:8480/insert/0/prometheus/api/v1/import/prometheus
+curl -d 'metric_name{foo="bar"} 123' -X POST 'http://<vminsert>:8480/insert/0/prometheus/api/v1/import/prometheus'
 ```
 
 vmagent:
 
 ```sh
-curl -d 'metric_name{foo="bar"} 123' -X POST http://<vmagent>:8429/api/v1/import/prometheus
+curl -d 'metric_name{foo="bar"} 123' -X POST 'http://<vmagent>:8429/api/v1/import/prometheus'
 ```
 
 Additional information:
@@ -304,19 +304,19 @@ The examples below use the shortest path for each component.
 Single-node VictoriaMetrics:
 
 ```sh
-curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST http://<vmsingle>:8428/write
+curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'http://<vmsingle>:8428/write'
 ```
 
 Cluster version of VictoriaMetrics:
 
 ```sh
-curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST http://<vminsert>:8480/insert/0/influx/write
+curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'http://<vminsert>:8480/insert/0/influx/write'
 ```
 
 vmagent:
 
 ```sh
-curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST http://<vmagent>:8429/write
+curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'http://<vmagent>:8429/write'
 ```
 
 Additional information:
@@ -339,7 +339,7 @@ Multitenancy is not supported for this receiver - use `-opentsdbHTTPListenAddr` 
 Works the same for vmagent, single-node or cluster version of VictoriaMetrics:
 
 ```sh
-echo "put foo.bar.baz `date +%s` 123 tag1=value1 tag2=value2" | nc -N <vmsingle/vminsert/vmagent> 4242
+echo "put foo.bar.baz `date +%s` 123 tag1=value1 tag2=value2" | nc -N '<vmsingle/vminsert/vmagent>' 4242
 ```
 
 **HTTP via -opentsdbHTTPListenAddr. Turned off by default.**
@@ -351,19 +351,19 @@ For HTTP server OpenTSDB `/api/put` requests enable `-opentsdbHTTPListenAddr=:42
 Single-node VictoriaMetrics:
 
 ```sh
-curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"metric":"bar","value":43}]' http://<vmsingle>:4242/api/put
+curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"metric":"bar","value":43}]' 'http://<vmsingle>:4242/api/put'
 ```
 
 Cluster version of VictoriaMetrics:
 
 ```sh
-curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"metric":"bar","value":43}]' http://<vminsert>:4242/insert/0/opentsdb/api/put
+curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"metric":"bar","value":43}]' 'http://<vminsert>:4242/insert/0/opentsdb/api/put'
 ```
 
 vmagent:
 
 ```sh
-curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"metric":"bar","value":43}]' http://<vmagent>:4242/api/put
+curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"metric":"bar","value":43}]' 'http://<vmagent>:4242/api/put'
 ```
 
 Additional information:
@@ -385,7 +385,7 @@ Multitenancy is not supported for this receiver.
 Works the same for vmagent, single-node or cluster version of VictoriaMetrics:
 
 ```sh
-echo "foo.bar.baz;tag1=value1;tag2=value2 123 `date +%s`" | nc -N <vmsingle/vminsert/vmagent> 2003
+echo "foo.bar.baz;tag1=value1;tag2=value2 123 `date +%s`" | nc -N '<vmsingle/vminsert/vmagent>' 2003
 ```
 
 Additional information:
@@ -405,13 +405,13 @@ The following command exports time series matching `vm_http_request_errors_total
 Single-node VictoriaMetrics:
 
 ```sh
-curl http://<vmsingle>:8428/api/v1/export -d 'match[]=vm_http_request_errors_total' -d 'start=-1d' > filename.json
+curl 'http://<vmsingle>:8428/api/v1/export' -d 'match[]=vm_http_request_errors_total' -d 'start=-1d' > filename.json
 ```
 
 Cluster version of VictoriaMetrics:
 
 ```sh
-curl http://<vmselect>:8481/select/0/prometheus/api/v1/export -d 'match[]=vm_http_request_errors_total' -d 'start=-1d' > filename.json
+curl 'http://<vmselect>:8481/select/0/prometheus/api/v1/export' -d 'match[]=vm_http_request_errors_total' -d 'start=-1d' > filename.json
 ```
 
 Additional information:
@@ -433,12 +433,12 @@ The following command exports all time series of the `demo` metric for the last 
 
 Single-node VictoriaMetrics:
 ```sh
-curl http://<vmsingle>:8428/api/v1/export/csv -d 'format=__name__,job,instance,__value__,__timestamp__:unix_s' -d 'match[]=demo' -d 'start=-1d' > demo.csv
+curl 'http://<vmsingle>:8428/api/v1/export/csv' -d 'format=__name__,job,instance,__value__,__timestamp__:unix_s' -d 'match[]=demo' -d 'start=-1d' > demo.csv
 ```
 
 Cluster version of VictoriaMetrics:
 ```sh
-curl http://<vmselect>:8481/select/0/prometheus/api/v1/export/csv -d 'format=__name__,job,instance,__value__,__timestamp__:unix_s' -d 'match[]=demo' -d 'start=-1d' > demo.csv
+curl 'http://<vmselect>:8481/select/0/prometheus/api/v1/export/csv' -d 'format=__name__,job,instance,__value__,__timestamp__:unix_s' -d 'match[]=demo' -d 'start=-1d' > demo.csv
 ```
 
 Additional information:
@@ -459,13 +459,13 @@ The following command exports time series matching `vm_http_request_errors_total
 Single-node VictoriaMetrics:
 
 ```sh
-curl http://<vmsingle>:8428/api/v1/export/native -d 'match[]=vm_http_request_errors_total' -d 'start=-1d' > filename.bin
+curl 'http://<vmsingle>:8428/api/v1/export/native' -d 'match[]=vm_http_request_errors_total' -d 'start=-1d' > filename.bin
 ```
 
 Cluster version of VictoriaMetrics:
 
 ```sh
-curl http://<vmselect>:8481/select/0/prometheus/api/v1/export/native -d 'match[]=vm_http_request_errors_total' -d 'start=-1d' > filename.bin
+curl 'http://<vmselect>:8481/select/0/prometheus/api/v1/export/native' -d 'match[]=vm_http_request_errors_total' -d 'start=-1d' > filename.bin
 ```
 
 Additional information:
@@ -484,13 +484,13 @@ Additional information:
 Single-node VictoriaMetrics:
 
 ```sh
-curl http://<vmsingle>:8428/prometheus/api/v1/query -d 'query=vm_http_request_errors_total'
+curl 'http://<vmsingle>:8428/prometheus/api/v1/query' -d 'query=vm_http_request_errors_total'
 ```
 
 Cluster version of VictoriaMetrics:
 
 ```sh
-curl http://<vmselect>:8481/select/0/prometheus/api/v1/query -d 'query=vm_http_request_errors_total'
+curl 'http://<vmselect>:8481/select/0/prometheus/api/v1/query' -d 'query=vm_http_request_errors_total'
 ```
 
 Additional information:
@@ -509,13 +509,13 @@ Additional information:
 Single-node VictoriaMetrics:
 
 ```sh
-curl http://<vmsingle>:8428/prometheus/api/v1/query_range -d 'query=sum(increase(vm_http_request_errors_total{job="foo"}[5m]))' -d 'start=-1d' -d 'step=1h'
+curl 'http://<vmsingle>:8428/prometheus/api/v1/query_range' -d 'query=sum(increase(vm_http_request_errors_total{job="foo"}[5m]))' -d 'start=-1d' -d 'step=1h'
 ```
 
 Cluster version of VictoriaMetrics:
 
 ```sh
-curl http://<vmselect>:8481/select/0/prometheus/api/v1/query_range -d 'query=sum(increase(vm_http_request_errors_total{job="foo"}[5m]))' -d 'start=-1d' -d 'step=1h'
+curl 'http://<vmselect>:8481/select/0/prometheus/api/v1/query_range' -d 'query=sum(increase(vm_http_request_errors_total{job="foo"}[5m]))' -d 'start=-1d' -d 'step=1h'
 ```
 
 Additional information:
@@ -534,13 +534,13 @@ Additional information:
 Single-node VictoriaMetrics:
 
 ```sh
-curl http://<vmsingle>:8428/prometheus/api/v1/labels
+curl 'http://<vmsingle>:8428/prometheus/api/v1/labels'
 ```
 
 Cluster version of VictoriaMetrics:
 
 ```sh
-curl http://<vmselect>:8481/select/0/prometheus/api/v1/labels
+curl 'http://<vmselect>:8481/select/0/prometheus/api/v1/labels'
 ```
 
 By default, VictoriaMetrics returns labels from the last day, starting at 00:00 UTC, for performance reasons.
@@ -562,13 +562,13 @@ Additional information:
 Single-node VictoriaMetrics:
 
 ```sh
-curl http://<vmsingle>:8428/prometheus/api/v1/label/job/values
+curl 'http://<vmsingle>:8428/prometheus/api/v1/label/job/values'
 ```
 
 Cluster version of VictoriaMetrics:
 
 ```sh
-curl http://<vmselect>:8481/select/0/prometheus/api/v1/label/job/values
+curl 'http://<vmselect>:8481/select/0/prometheus/api/v1/label/job/values'
 ```
 
 By default, VictoriaMetrics returns label values seen during the last day, starting at 00:00 UTC, for performance reasons.
@@ -590,13 +590,13 @@ Additional information:
 Single-node VictoriaMetrics:
 
 ```sh
-curl http://<vmsingle>:8428/prometheus/api/v1/series -d 'match[]=vm_http_request_errors_total'
+curl 'http://<vmsingle>:8428/prometheus/api/v1/series' -d 'match[]=vm_http_request_errors_total'
 ```
 
 Cluster version of VictoriaMetrics:
 
 ```sh
-curl http://<vmselect>:8481/select/0/prometheus/api/v1/series -d 'match[]=vm_http_request_errors_total'
+curl 'http://<vmselect>:8481/select/0/prometheus/api/v1/series' -d 'match[]=vm_http_request_errors_total'
 ```
 
 By default, VictoriaMetrics returns time series from the last day, starting at 00:00 UTC, for performance reasons.
@@ -618,13 +618,13 @@ Additional information:
 Single-node VictoriaMetrics:
 
 ```sh
-curl http://<vmsingle>:8428/prometheus/api/v1/series/count
+curl 'http://<vmsingle>:8428/prometheus/api/v1/series/count'
 ```
 
 Cluster version of VictoriaMetrics:
 
 ```sh
-curl http://<vmselect>:8481/select/0/prometheus/api/v1/series/count
+curl 'http://<vmselect>:8481/select/0/prometheus/api/v1/series/count'
 ```
 
 Additional information:
@@ -643,13 +643,13 @@ Additional information:
 Single-node VictoriaMetrics:
 
 ```sh
-curl http://<vmsingle>:8428/api/v1/metadata -d 'metric=node_os_version'
+curl 'http://<vmsingle>:8428/api/v1/metadata' -d 'metric=node_os_version'
 ```
 
 Cluster version of VictoriaMetrics:
 
 ```sh
-curl http://<vmselect>:8481/select/0/prometheus/api/v1/metadata -d 'metric=node_os_version'
+curl 'http://<vmselect>:8481/select/0/prometheus/api/v1/metadata' -d 'metric=node_os_version'
 ```
 
 Additional information:
@@ -666,13 +666,13 @@ Additional information:
 Single-node VictoriaMetrics:
 
 ```sh
-curl http://<vmsingle>:8428/federate -d 'match[]=vm_http_request_errors_total'
+curl 'http://<vmsingle>:8428/federate' -d 'match[]=vm_http_request_errors_total'
 ```
 
 Cluster version of VictoriaMetrics:
 
 ```sh
-curl http://<vmselect>:8481/select/0/prometheus/federate -d 'match[]=vm_http_request_errors_total'
+curl 'http://<vmselect>:8481/select/0/prometheus/federate' -d 'match[]=vm_http_request_errors_total'
 ```
 
 Additional information:
@@ -690,13 +690,13 @@ Additional information:
 Single-node VictoriaMetrics:
 
 ```sh
-curl http://<vmsingle>:8428/graphite/metrics/find -d 'query=vm_http_request_errors_total'
+curl 'http://<vmsingle>:8428/graphite/metrics/find' -d 'query=vm_http_request_errors_total'
 ```
 
 Cluster version of VictoriaMetrics:
 
 ```sh
-curl http://<vmselect>:8481/select/0/graphite/metrics/find -d 'query=vm_http_request_errors_total'
+curl 'http://<vmselect>:8481/select/0/graphite/metrics/find' -d 'query=vm_http_request_errors_total'
 ```
 
 Additional information:
@@ -717,13 +717,13 @@ Additional information:
 Single-node VictoriaMetrics:
 
 ```sh
-curl http://<vmsingle>:8428/prometheus/api/v1/status/tsdb
+curl 'http://<vmsingle>:8428/prometheus/api/v1/status/tsdb'
 ```
 
 Cluster version of VictoriaMetrics:
 
 ```sh
-curl http://<vmselect>:8481/select/0/prometheus/api/v1/status/tsdb
+curl 'http://<vmselect>:8481/select/0/prometheus/api/v1/status/tsdb'
 ```
 
 By default, the stats are returned for the current day. For the other date specify `date=YYYY-MM-DD` where `YYYY-MM-DD`
@@ -744,13 +744,13 @@ Additional information:
 Single-node VictoriaMetrics:
 
 ```sh
-curl http://<vmsingle>:8428/api/v1/status/active_queries
+curl 'http://<vmsingle>:8428/api/v1/status/active_queries'
 ```
 
 Cluster version of VictoriaMetrics:
 
 ```sh
-curl http://<vmselect>:8481/select/0/prometheus/api/v1/status/active_queries
+curl 'http://<vmselect>:8481/select/0/prometheus/api/v1/status/active_queries'
 ```
 
 Note that every vmselect maintains an independent list of active queries, which is returned in the response.
@@ -771,13 +771,13 @@ Additional information:
 Single-node VictoriaMetrics:
 
 ```sh
-curl http://<vmsingle>:8428/api/v1/status/top_queries
+curl 'http://<vmsingle>:8428/api/v1/status/top_queries'
 ```
 
 Cluster version of VictoriaMetrics:
 
 ```sh
-curl http://<vmselect>:8481/select/0/prometheus/api/v1/status/top_queries
+curl 'http://<vmselect>:8481/select/0/prometheus/api/v1/status/top_queries'
 ```
 
 Additional information:
@@ -794,13 +794,13 @@ Additional information:
 Single-node VictoriaMetrics:
 
 ```sh
-curl http://<vmsingle>:8428/targets
+curl 'http://<vmsingle>:8428/targets'
 ```
 
 vmagent:
 
 ```sh
-curl http://<vmagent>:8429/targets
+curl 'http://<vmagent>:8429/targets'
 ```
 
 ### /api/v1/targets
@@ -812,13 +812,13 @@ curl http://<vmagent>:8429/targets
 Single-node VictoriaMetrics:
 
 ```sh
-curl http://<vmsingle>:8428/api/v1/targets
+curl 'http://<vmsingle>:8428/api/v1/targets'
 ```
 
 vmagent:
 
 ```sh
-curl http://<vmagent>:8429/api/v1/targets
+curl 'http://<vmagent>:8429/api/v1/targets'
 ```
 
 Additional information:
@@ -835,13 +835,13 @@ Additional information:
 Single-node VictoriaMetrics:
 
 ```sh
-curl http://<vmsingle>:8428/service-discovery
+curl 'http://<vmsingle>:8428/service-discovery'
 ```
 
 vmagent:
 
 ```sh
-curl http://<vmagent>:8429/service-discovery
+curl 'http://<vmagent>:8429/service-discovery'
 ```
 
 Additional information:
@@ -859,7 +859,7 @@ Returns **non-OK** response during grace period before shutting down the server.
 Is supposed to be respected by load balancers for re-routing new requests to other servers.
 
 ```sh
-curl http://<vm>:<http-port>/health
+curl 'http://<vm>:<http-port>/health'
 ```
 
 Where `<vm>` is any of VictoriaMetrics services. And `<http-port>` is `-httpListenAddr` value.
@@ -871,7 +871,7 @@ Where `<vm>` is any of VictoriaMetrics services. And `<http-port>` is `-httpList
 > Supported by: `vmsingle`, `vmselect`, `vminsert`, `vmstorage`, `vmagent`, `vmalert`, `vmauth`
 
 ```sh
-curl http://<vm>:<http-port>/-/healthy
+curl 'http://<vm>:<http-port>/-/healthy'
 ```
 
 Where `<vm>` is any of VictoriaMetrics services. And `<http-port>` is `-httpListenAddr` value.
@@ -883,7 +883,7 @@ Where `<vm>` is any of VictoriaMetrics services. And `<http-port>` is `-httpList
 > Supported by: `vmsingle`, `vmselect`, `vminsert`, `vmstorage`, `vmagent`, `vmalert`, `vmauth`
 
 ```sh
-curl http://<vm>:<http-port>/-/ready
+curl 'http://<vm>:<http-port>/-/ready'
 ```
 
 Where `<vm>` is any of VictoriaMetrics services. And `<http-port>` is `-httpListenAddr` value.
@@ -895,7 +895,7 @@ Where `<vm>` is any of VictoriaMetrics services. And `<http-port>` is `-httpList
 > Supported by: `vmsingle`, `vmselect`, `vminsert`, `vmstorage`, `vmagent`, `vmalert`, `vmauth`
 
 ```sh
-curl http://<vm>:<http-port>/metrics
+curl 'http://<vm>:<http-port>/metrics'
 ```
 
 Where `<vm>` is any of VictoriaMetrics services. And `<http-port>` is `-httpListenAddr` value.
@@ -911,7 +911,7 @@ Additional information:
 > Supported by: `vmsingle`, `vmselect`, `vminsert`, `vmstorage`, `vmagent`, `vmalert`, `vmauth`
 
 ```sh
-curl http://<vm>:<http-port>/flags
+curl 'http://<vm>:<http-port>/flags'
 ```
 
 Where `<vm>` is any of VictoriaMetrics services. And `<http-port>` is `-httpListenAddr` value.
@@ -931,7 +931,7 @@ Additional information:
 > Supported by: `vmsingle`, `vmagent`, `vmalert`, `vmauth`
 
 ```sh
-curl http://<vm>:<http-port>/-/reload
+curl 'http://<vm>:<http-port>/-/reload'
 ```
 
 Where `<vm>` is any of VictoriaMetrics services. And `<http-port>` is `-httpListenAddr` value.
@@ -953,13 +953,13 @@ Note that the handler accepts any HTTP method, so sending a `GET` request to `/a
 Single-node VictoriaMetrics:
 
 ```sh
-curl http://<vmsingle>:8428/api/v1/admin/tsdb/delete_series -d 'match[]=vm_http_request_errors_total'
+curl 'http://<vmsingle>:8428/api/v1/admin/tsdb/delete_series' -d 'match[]=vm_http_request_errors_total'
 ```
 
 Cluster version of VictoriaMetrics:
 
 ```sh
-curl http://<vmselect>:8481/delete/0/prometheus/api/v1/admin/tsdb/delete_series -d 'match[]=vm_http_request_errors_total'
+curl 'http://<vmselect>:8481/delete/0/prometheus/api/v1/admin/tsdb/delete_series' -d 'match[]=vm_http_request_errors_total'
 ```
 
 Use `-deleteAuthKey` command-line flag for protecting the delete endpoint.
@@ -977,7 +977,7 @@ Additional information:
 Cluster version of VictoriaMetrics:
 
 ```sh
-curl http://<vmselect>:8481/admin/tenants
+curl 'http://<vmselect>:8481/admin/tenants'
 ```
 
 The optional `start` and `end` query args can be used to return only tenants with ingested data in the given time range:
@@ -999,13 +999,13 @@ Additional information:
 Single-node VictoriaMetrics:
 
 ```sh
-curl http://<vmsingle>:8428/internal/resetRollupResultCache
+curl 'http://<vmsingle>:8428/internal/resetRollupResultCache'
 ```
 
 Cluster version of VictoriaMetrics:
 
 ```sh
-curl http://<vmselect>:8481/internal/resetRollupResultCache?propagate=1
+curl 'http://<vmselect>:8481/internal/resetRollupResultCache?propagate=1'
 ```
 
 vmselect will propagate this call to the rest of the vmselects listed in its `-selectNode` cmd-line flag when `propagate=1` argument is set.
@@ -1183,7 +1183,7 @@ Alerting is supported by [vmalert](https://github.com/VictoriaMetrics/vmalert).
 > Supported by: `vmalert`; also reachable via `vmsingle` and `vmselect` when `-vmalert.proxyURL` is configured.
 
 ```sh
-curl http://<vmalert>:8880/api/v1/rules
+curl 'http://<vmalert>:8880/api/v1/rules'
 ```
 
 Additional information:
@@ -1198,7 +1198,7 @@ Additional information:
 > Supported by: `vmalert`; also reachable via `vmsingle` and `vmselect` when `-vmalert.proxyURL` is configured.
 
 ```sh
-curl http://<vmalert>:8880/api/v1/alerts
+curl 'http://<vmalert>:8880/api/v1/alerts'
 ```
 
 Additional information:
@@ -1258,7 +1258,7 @@ Additional information:
 > Supported by: `vmalert`; also reachable via `vmsingle` and `vmselect` when `-vmalert.proxyURL` is configured.
 
 ```sh
-curl http://<vmalert>:8880/api/v1/notifiers
+curl 'http://<vmalert>:8880/api/v1/notifiers'
 ```
 
 Additional information:
