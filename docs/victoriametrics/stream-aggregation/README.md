@@ -42,6 +42,8 @@ Stream aggregation can be used in the following cases:
 * [Reducing the number of stored samples](#reducing-the-number-of-stored-samples)
 * [Reducing the number of stored series](#reducing-the-number-of-stored-series)
 
+See [skills/stream-aggregation-helper](https://github.com/VictoriaMetrics/skills/blob/main/plugins/diagnostics/skills/stream-aggregation-helper/SKILL.md) for [agent-assisted](https://docs.victoriametrics.com/ai-tools/#agent-skills) configuration.
+
 ## Statsd alternative
 
 Stream aggregation can be used as [statsd](https://github.com/statsd/statsd) alternative in the following cases:
