@@ -4,11 +4,11 @@ import "./style.scss";
 import { LegendItemType } from "../../../../../types";
 import { MouseEvent } from "react";
 import classNames from "classnames";
-import { STATS_ORDER } from "../../../../../constants/graph";
+import { STATS_ORDER_LEGEND } from "../../../../../constants/graph";
 import { useShowStats } from "../hooks/useShowStats";
 import { getValueByPath } from "../../../../../utils/object";
 
-const statsColumns = STATS_ORDER.map(k => ({
+const statsColumns = STATS_ORDER_LEGEND.map(k => ({
   key: `statsFormatted.${k}`,
   title: k
 }));

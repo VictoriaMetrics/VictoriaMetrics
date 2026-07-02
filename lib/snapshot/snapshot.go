@@ -71,9 +71,9 @@ func Create(ctx context.Context, createSnapshotURL string) (string, error) {
 		return snap.Snapshot, nil
 	}
 	if snap.Status == "error" {
-		return "", errors.New(snap.Msg)
+		return "", fmt.Errorf("snapshot status: %q; msg: %q", snap.Status, snap.Msg)
 	}
-	return "", fmt.Errorf("unknown status: %v", snap.Status)
+	return "", fmt.Errorf("snapshot status unknown: %q", snap.Status)
 }
 
 // Delete deletes a snapshot via the provided api endpoint
@@ -121,14 +121,14 @@ func Delete(ctx context.Context, deleteSnapshotURL string, snapshotName string) 
 	if snap.Status == "error" {
 		return errors.New(snap.Msg)
 	}
-	return fmt.Errorf("unknown status: %v", snap.Status)
+	return fmt.Errorf("snapshot status unknown: %q", snap.Status)
 }
 
 // GetHTTPClient returns a new HTTP client configured for snapshot operations.
 func GetHTTPClient() (*http.Client, error) {
 	tr, err := promauth.NewTLSTransport(*tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify, "vm_snapshot_client")
 	if err != nil {
-		return nil, fmt.Errorf("failed to create transport: %s", err)
+		return nil, fmt.Errorf("failed to create transport: %w", err)
 	}
 	hc := &http.Client{
 		Transport: tr,

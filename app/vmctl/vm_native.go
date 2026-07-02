@@ -55,14 +55,14 @@ func (p *vmNativeProcessor) run(ctx context.Context) error {
 
 	start, err := vmctlutil.ParseTime(p.filter.TimeStart)
 	if err != nil {
-		return fmt.Errorf("failed to parse %s, provided: %s, error: %w", vmNativeFilterTimeStart, p.filter.TimeStart, err)
+		return fmt.Errorf("failed to parse %s, provided: %s: %w", vmNativeFilterTimeStart, p.filter.TimeStart, err)
 	}
 
 	end := time.Now().In(start.Location())
 	if p.filter.TimeEnd != "" {
 		end, err = vmctlutil.ParseTime(p.filter.TimeEnd)
 		if err != nil {
-			return fmt.Errorf("failed to parse %s, provided: %s, error: %w", vmNativeFilterTimeEnd, p.filter.TimeEnd, err)
+			return fmt.Errorf("failed to parse %s, provided: %s: %w", vmNativeFilterTimeEnd, p.filter.TimeEnd, err)
 		}
 	}
 
@@ -91,7 +91,7 @@ func (p *vmNativeProcessor) run(ctx context.Context) error {
 		err := p.runBackfilling(ctx, tenantID, ranges)
 		if err != nil {
 			migrationErrorsTotal.Inc()
-			return fmt.Errorf("migration failed: %s", err)
+			return fmt.Errorf("migration failed: %w", err)
 		}
 
 		if p.interCluster {
@@ -157,7 +157,7 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcU
 			}
 		default:
 		}
-		return fmt.Errorf("failed to write into %q: %s", p.dst.Addr, err)
+		return fmt.Errorf("failed to write into %q: %w", p.dst.Addr, err)
 	}
 
 	p.s.Lock()
@@ -184,7 +184,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 
 	importAddr, err := vm.AddExtraLabelsToImportPath(importAddr, p.dst.ExtraLabels)
 	if err != nil {
-		return fmt.Errorf("failed to add labels to import path: %s", err)
+		return fmt.Errorf("failed to add labels to import path: %w", err)
 	}
 	dstURL := fmt.Sprintf("%s/%s", p.dst.Addr, importAddr)
 
@@ -222,7 +222,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 		format = fmt.Sprintf(nativeWithBackoffTpl, barPrefix)
 		metricsMap, err = p.explore(ctx, p.src, tenantID, ranges)
 		if err != nil {
-			return fmt.Errorf("failed to explore metric names: %s", err)
+			return fmt.Errorf("failed to explore metric names: %w", err)
 		}
 		if len(metricsMap) == 0 {
 			errMsg := "no metrics found"
@@ -295,7 +295,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 			case <-ctx.Done():
 				return fmt.Errorf("context canceled")
 			case infErr := <-errCh:
-				return fmt.Errorf("export/import error: %s", infErr)
+				return fmt.Errorf("export/import error: %w", infErr)
 			case filterCh <- native.Filter{
 				Match:     match,
 				TimeStart: times[0].Format(time.RFC3339),
@@ -313,7 +313,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 	close(errCh)
 
 	for err := range errCh {
-		return fmt.Errorf("import process failed: %s", err)
+		return fmt.Errorf("import process failed: %w", err)
 	}
 
 	return nil
@@ -405,7 +405,16 @@ func buildMatchWithFilter(filter string, metricName string) (string, error) {
 			if len(tf.Key) == 0 {
 				continue
 			}
-			a = append(a, tf.String())
+			switch {
+			case tf.IsNegative && tf.IsRegexp:
+				a = append(a, fmt.Sprintf("%s!~%q", tf.Key, tf.Value))
+			case tf.IsNegative:
+				a = append(a, fmt.Sprintf("%s!=%q", tf.Key, tf.Value))
+			case tf.IsRegexp:
+				a = append(a, fmt.Sprintf("%s=~%q", tf.Key, tf.Value))
+			default:
+				a = append(a, fmt.Sprintf("%s=%q", tf.Key, tf.Value))
+			}
 		}
 		a = append(a, nameFilter)
 		filters = append(filters, strings.Join(a, ","))

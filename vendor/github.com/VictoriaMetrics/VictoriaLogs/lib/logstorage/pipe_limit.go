@@ -113,7 +113,7 @@ func parsePipeLimit(lex *lexer) (pipe, error) {
 	lex.nextToken()
 
 	limit := uint64(10)
-	if !lex.isKeyword("|", ")", "") {
+	if !lex.isQueryPartTrailer() {
 		limitStr, err := lex.nextCompoundToken()
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse rows limit: %w", err)

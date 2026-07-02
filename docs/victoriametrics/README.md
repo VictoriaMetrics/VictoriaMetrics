@@ -245,7 +245,7 @@ The following steps must be performed during the upgrade / downgrade procedure:
 * Wait until the process stops. This can take a few seconds.
 * Start the upgraded VictoriaMetrics.
 
-Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](https://grafana.com/blog/2019/03/25/whats-new-in-prometheus-2.8-wal-based-remote-write/) for details. The same applies also to [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/).
+Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](https://grafana.com/blog/whats-new-in-prometheus-2-8-wal-based-remote-write/) for details. The same applies also to [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/).
 
 > If you'd prefer not to manage upgrades yourself, [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_single_upgrade)
 > performs version upgrades automatically during maintenance windows with no action required on your part.
@@ -401,6 +401,7 @@ Resources:
 
 * [cardinality explorer playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/cardinality).
 * [Cardinality explorer blog post](https://victoriametrics.com/blog/cardinality-explorer/).
+* [skills/victoriametrics-cardinality-analysis](https://github.com/VictoriaMetrics/skills/blob/main/plugins/diagnostics/skills/victoriametrics-cardinality-analysis/SKILL.md) for [agent-assisted](https://docs.victoriametrics.com/ai-tools/#agent-skills) analysis.
 
 ### Cardinality explorer statistic inaccuracy
 
@@ -417,7 +418,7 @@ VictoriaMetrics is configured via command-line flags, so it must be restarted wh
 * Wait until the process stops. This can take a few seconds.
 * Start VictoriaMetrics with the new command-line flags.
 
-Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](https://grafana.com/blog/2019/03/25/whats-new-in-prometheus-2.8-wal-based-remote-write/) for details. The same applies also to [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/).
+Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](https://grafana.com/blog/whats-new-in-prometheus-2-8-wal-based-remote-write/) for details. The same applies also to [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/).
 
 ## How to scrape Prometheus exporters such as [node-exporter](https://github.com/prometheus/node_exporter)
 
@@ -477,6 +478,11 @@ VictoriaMetrics accepts `round_digits` query arg for [/api/v1/query](https://doc
 and [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query) handlers. It can be used for rounding response values
 to the given number of digits after the decimal point.
 For example, `/api/v1/query?query=avg_over_time(temperature[1h])&round_digits=2` would round response values to up to two digits after the decimal point.
+
+VictoriaMetrics accepts `optimize_repeated_binary_op_subexprs=1` query arg for [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query)
+handler. It allows `vmselect` to execute left and right sides of binary operators sequentially when they contain the same
+optimized aggregate rollup result expression, so the second side may reuse the rollup result cache populated by the first side.
+The optimization is disabled by default and applies only when rollup result cache can be used for the request.
 
 VictoriaMetrics accepts `limit` query arg for [/api/v1/labels](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labels)
 and [`/api/v1/label/<labelName>/values`](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labelvalues) handlers for limiting the number of returned entries.
@@ -701,17 +707,36 @@ It's better to use the `-retentionPeriod` command-line flag for efficient prunin
 
 ## Forced merge
 
-VictoriaMetrics performs [data compactions in background](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
-in order to keep good performance characteristics when accepting new data. These compactions (merges) are performed independently on per-month partitions.
-This means that compactions are stopped for per-month partitions if no new data is ingested into these partitions.
-Sometimes it is necessary to trigger compactions for old partitions. For instance, in order to free up disk space occupied by [deleted time series](#how-to-delete-time-series).
-In this case forced compaction may be initiated on the specified per-month partition by sending request to `/internal/force_merge?partition_prefix=YYYY_MM`,
-where `YYYY_MM` is per-month partition name. For example, `http://victoriametrics:8428/internal/force_merge?partition_prefix=2020_08` would initiate forced
-merge for August 2020 partition. The call to `/internal/force_merge` returns immediately, while the corresponding forced merge continues running in background.
+VictoriaMetrics performs [data compaction in background](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
+to keep high performance during ingestion. These compactions (merges) are performed independently on per-month partitions.
+Partitions that don't receive new data will eventually stop being merged, as they reach an optimal state.
+Sometimes it is necessary to trigger merges for old partitions. For example, to free up disk space occupied by [deleted time series](https://docs.victoriametrics.com/victoriametrics/#how-to-delete-time-series).
+The user can **force** compaction on the specified per-month partition by sending a request to `/internal/force_merge?partition_prefix=YYYY_MM`,
+where `YYYY_MM` is the per-month partition name. For example, `http://victoriametrics:8428/internal/force_merge?partition_prefix=2020_08` would initiate a forced
+merge for the August 2020 partition. The call to `/internal/force_merge` returns immediately, while the corresponding forced merge continues running in the background.
 
-Forced merges may require additional CPU, disk IO and storage space resources. It is unnecessary to run forced merge under normal conditions,
+Forced merges may require additional CPU, disk I/O, and storage space. It is unnecessary to run a forced merge under normal conditions,
 since VictoriaMetrics automatically performs [optimal merges in background](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
 when new data is ingested into it.
+
+The `/internal/force_merge` endpoint can be protected from unauthorized access via the `--forceMergeAuthKey` command-line flag.
+See [General security recommendations](https://docs.victoriametrics.com/victoriametrics/#general-security-recommendations) for more details.
+
+## Forced flush
+
+VictoriaMetrics puts the recently [ingested samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#write-data) into in-memory buffers,
+which aren't available for [querying](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#query-data) for up to a few seconds.
+If you need to query the samples immediately after they are ingested, then call the `/internal/force_flush` HTTP endpoint before running your query.
+This endpoint converts in-memory buffers containing recently ingested samples into searchable data blocks.
+
+It isn't recommended to force flush on a regular basis, as this increases CPU usage and slows data ingestion.
+The `/internal/force_flush` endpoint exists for debug and test purposes (for instance, for automated tests) and should be avoided in production.
+
+> VictoriaMetrics may intentionally hide samples with timestamps close to the current time during querying.
+> This behavior is controlled via `-search.latencyOffset` command-line flag. See more details in [Query latency](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#query-latency) documentation.
+
+The `/internal/force_flush` endpoint can be protected from unauthorized access via `-forceFlushAuthKey` command-line flag.
+See [General security recommendations](https://docs.victoriametrics.com/victoriametrics/#general-security-recommendations) for more details.
 
 ## How to export time series
 
@@ -975,7 +1000,7 @@ Note that it could be required to flush response cache after importing historica
 ### How to import data in Prometheus exposition format
 
 VictoriaMetrics accepts data in [Prometheus exposition format](https://github.com/prometheus/docs/blob/main/docs/instrumenting/exposition_formats.md),
-in [OpenMetrics format](https://github.com/OpenObservability/OpenMetrics/blob/master/specification/OpenMetrics.md)
+in [OpenMetrics format](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md)
 and in [Pushgateway format](https://github.com/prometheus/pushgateway#url) via `/api/v1/import/prometheus` path.
 
 For example, the following command imports a single line in Prometheus exposition format into VictoriaMetrics:
@@ -1116,6 +1141,8 @@ curl http://<victoriametrics-addr>:8428/federate -d 'match[]=<timeseries_selecto
 By default, the last point on the interval `[now - max_lookback ... now]` is scraped for each time series. The default value for `max_lookback` is `5m` (5 minutes), but it can be overridden with `max_lookback` query arg.
 For instance, `/federate?match[]=up&max_lookback=1h` would return last points on the `[now - 1h ... now]` interval. This may be useful for time series federation
 with scrape intervals exceeding `5m`.
+
+ VictoriaMetrics supports Prometheus v3.0 utf-8 content encoding with `Accept` header. If `Accept: allow-utf-8` HTTP header provided, `/federate` API response changes according to [Prometheus utf-8](https://prometheus.io/docs/guides/utf8/#querying) specification - `metric_name{tag="value"}` transforms into `{"metric_name","tag"="value"}`.
 
 ## Capacity planning
 
@@ -1691,81 +1718,69 @@ The following versions of VictoriaMetrics receive regular security fixes:
 | [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/) | ✅                 |
 | other releases                                                                 | ❌                 |
 
-### Software Bill of Materials (SBOM)
-
-Every VictoriaMetrics container{{% available_from "v1.137.0" %}} image published to
-[Docker Hub](https://hub.docker.com/u/victoriametrics) and [Quay.io](https://quay.io/organization/victoriametrics) include an [SPDX](https://spdx.dev/) SBOM attestation generated automatically by BuildKit during `docker buildx build`.
-
-To inspect the SBOM for an image:
-
-```sh
-docker buildx imagetools inspect \
-  docker.io/victoriametrics/victoria-metrics:latest \
-  --format "{{ json .SBOM }}"
-```
-
-To scan an image using its SBOM attestation with [Trivy](https://github.com/aquasecurity/trivy):
-
-```sh
-trivy image --sbom-sources oci \
-  docker.io/victoriametrics/victoria-metrics:latest
-```
-
 ### Reporting a Vulnerability
 
 Please report any security issues to <security@victoriametrics.com>
 
+### CVE handling policy
+
+**Source code:** Go dependencies are scanned by [govulncheck](https://pkg.go.dev/golang.org/x/vuln/cmd/govulncheck) in CI.
+All vulnerabilities must be fixed before the next scheduled release and backported to [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/).
+
+**Docker images:** CVE findings in the [Alpine](https://security.alpinelinux.org/) base image pose minimal risk since VictoriaMetrics binaries are statically compiled with no OS dependencies.
+When detected, only the Alpine base tag is updated.
+Releases proceed as planned even if upstream fixes are not yet available.
+For maximum security, hardened [scratch](https://hub.docker.com/_/scratch)-based images are also provided.
+All images are continuously scanned by Docker Hub and verified before release using [grype](https://github.com/anchore/grype).
+
 ### General security recommendations:
 
-* All the VictoriaMetrics components must run in protected private networks without direct access from untrusted networks such as Internet.
+* All VictoriaMetrics components must run in protected private networks without direct access from untrusted networks such as the Internet.
   The exception is [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) and [vmgateway](https://docs.victoriametrics.com/victoriametrics/vmgateway/),
   which are intended for serving public requests and performing authorization with [TLS termination](https://en.wikipedia.org/wiki/TLS_termination_proxy).
-* All the requests from untrusted networks to VictoriaMetrics components must go through auth proxy such as [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/)
+* All the requests from untrusted networks to VictoriaMetrics components must go through an auth proxy, such as [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/)
   or [vmgateway](https://docs.victoriametrics.com/victoriametrics/vmgateway/). The proxy must be set up with proper authentication and authorization.
 * Prefer using lists of allowed API endpoints, while disallowing access to other endpoints when configuring [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/)
   in front of VictoriaMetrics components.
-* Set reasonable [`Strict-Transport-Security`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security) header value to all the components to mitigate [MitM attacks](https://en.wikipedia.org/wiki/Man-in-the-middle_attack), for example: `max-age=31536000; includeSubDomains`. See `-http.header.hsts` flag.
+* Set a reasonable [`Strict-Transport-Security`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security) header value on all the components to mitigate [MitM attacks](https://en.wikipedia.org/wiki/Man-in-the-middle_attack), for example: `max-age=31536000; includeSubDomains`. See `-http.header.hsts` flag.
 * Set reasonable [`Content-Security-Policy`](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP) header value to mitigate [XSS attacks](https://en.wikipedia.org/wiki/Cross-site_scripting). See `-http.header.csp` flag.
 * Set reasonable [`X-Frame-Options`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options) header value to mitigate [clickjacking attacks](https://en.wikipedia.org/wiki/Clickjacking), for example `DENY`. See `-http.header.frameOptions` flag.
 
-VictoriaMetrics provides the following security-related command-line flags:
+The following security-related command-line flags are available for all components with HTTP API:
 
-* `-tls`, `-tlsCertFile` and `-tlsKeyFile` for switching from HTTP to HTTPS at `-httpListenAddr` (TCP port 8428 is listened by default).
+* `-tls`, `-tlsCertFile` and `-tlsKeyFile` for switching from HTTP to HTTPS at `-httpListenAddr`.
   [Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/enterprise/) supports automatic issuing of TLS certificates.
   See [these docs](#automatic-issuing-of-tls-certificates).
 * `-mtls` and `-mtlsCAFile` for enabling [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication) for requests to `-httpListenAddr`. See [these docs](#mtls-protection).
 * `-httpAuth.username` and `-httpAuth.password` for protecting all the HTTP endpoints
   with [HTTP Basic Authentication](https://en.wikipedia.org/wiki/Basic_access_authentication).
-* `-deleteAuthKey` for protecting `/api/v1/admin/tsdb/delete_series` endpoint. See [how to delete time series](#how-to-delete-time-series).
-* `-snapshotAuthKey` for protecting `/snapshot*` endpoints. See [how to work with snapshots](#how-to-work-with-snapshots).
-* `-forceFlushAuthKey` for protecting `/internal/force_flush` endpoint. See [these docs](#troubleshooting).
-* `-forceMergeAuthKey` for protecting `/internal/force_merge` endpoint. See [force merge docs](#forced-merge).
-* `-search.resetCacheAuthKey` for protecting `/internal/resetRollupResultCache` endpoint. See [backfilling](#backfilling) for more details.
-* `-reloadAuthKey` for protecting `/-/reload` endpoint, which is used for force reloading of [`-promscrape.config`](#how-to-scrape-prometheus-exporters-such-as-node-exporter).
-* `-configAuthKey` for protecting `/config` endpoint, since it may contain sensitive information such as passwords.
-* `-flagsAuthKey` for protecting `/flags` endpoint.
-* `-pprofAuthKey` for protecting `/debug/pprof/*` endpoints, which can be used for [profiling](#profiling).
-* `-metricNamesStatsResetAuthKey` for protecting `/api/v1/admin/status/metric_names_stats/reset` endpoint, used for [Metric Names Tracker](#track-ingested-metrics-usage).
-* `-denyQueryTracing` for disallowing [query tracing](#query-tracing).
 * `-http.header.hsts`, `-http.header.csp`, and `-http.header.frameOptions` for serving `Strict-Transport-Security`, `Content-Security-Policy`
   and `X-Frame-Options` HTTP response headers.
+
+### Protecting service endpoints
+
+All VictoriaMetrics components expose internal metrics in Prometheus exposition format at the `/metrics` page for [#Monitoring](https://docs.victoriametrics.com/victoriametrics/#monitoring).
+Consider limiting access to the `/metrics` page to trusted networks only.
+
+The following service endpoints may require protection:
+
+* `-deleteAuthKey` for protecting the `/api/v1/admin/tsdb/delete_series` endpoint. See [how to delete time series](#how-to-delete-time-series).
+* `-snapshotAuthKey` for protecting the `/snapshot*` endpoints. See [how to work with snapshots](#how-to-work-with-snapshots).
+* `-forceFlushAuthKey` for protecting the `/internal/force_flush` endpoint. See [force flush docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#forced-flush).
+* `-forceMergeAuthKey` for protecting the `/internal/force_merge` endpoint. See [force merge docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#forced-merge).
+* `-search.resetCacheAuthKey` for protecting the `/internal/resetRollupResultCache` endpoint. See [backfilling](#backfilling) for more details.
+* `-reloadAuthKey` for protecting the `/-/reload` endpoint, which is used to force reload the [`-promscrape.config`](#how-to-scrape-prometheus-exporters-such-as-node-exporter).
+* `-configAuthKey` for protecting the `/config` endpoint, since it may contain sensitive information such as passwords.
+* `-flagsAuthKey` for protecting the `/flags` endpoint.
+* `-pprofAuthKey` for protecting the `/debug/pprof/*` endpoints, which can be used for [profiling](#profiling).
+* `-metricNamesStatsResetAuthKey` for protecting the `/api/v1/admin/status/metric_names_stats/reset` endpoint, used for [Metric Names Tracker](#track-ingested-metrics-usage).
+* `-denyQueryTracing` for disallowing [query tracing](#query-tracing).
 
 Explicitly set internal network interface for TCP and UDP ports for data ingestion with Graphite and OpenTSDB formats.
 For example, substitute `-graphiteListenAddr=:2003` with `-graphiteListenAddr=<internal_iface_ip>:2003`. This protects from unexpected requests from untrusted network interfaces.
 
 See also [security recommendation for VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#security)
 and [the general security page at VictoriaMetrics website](https://victoriametrics.com/security/).
-
-### CVE handling policy
-
-**Source code:** Go dependencies are scanned by [govulncheck](https://pkg.go.dev/golang.org/x/vuln/cmd/govulncheck) in CI. 
-All vulnerabilities must be fixed before next scheduled release and backported to [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/).
-
-**Docker images:** CVE findings in [Alpine](https://security.alpinelinux.org/) base image pose minimal risk since VictoriaMetrics binaries are statically compiled with no OS dependencies.
-When detected, only the Alpine base tag is updated.
-Releases proceed as planned even if upstream fixes are not yet available.
-For maximum security, hardened [scratch](https://hub.docker.com/_/scratch)-based images are also provided.
-All images are continuously scanned by Docker Hub and verified before release using [grype](https://github.com/anchore/grype).
 
 ### mTLS protection
 
@@ -1796,19 +1811,39 @@ This functionality can be evaluated for free according to [these docs](https://d
 
 See also [security recommendations](#security).
 
+### Software Bill of Materials (SBOM)
+
+Every VictoriaMetrics container{{% available_from "v1.137.0" %}} image published to
+[Docker Hub](https://hub.docker.com/u/victoriametrics) and [Quay.io](https://quay.io/organization/victoriametrics) include an [SPDX](https://spdx.dev/) SBOM attestation generated automatically by BuildKit during `docker buildx build`.
+
+To inspect the SBOM for an image:
+
+```sh
+docker buildx imagetools inspect \
+  docker.io/victoriametrics/victoria-metrics:latest \
+  --format "{{ json .SBOM }}"
+```
+
+To scan an image using its SBOM attestation with [Trivy](https://github.com/aquasecurity/trivy):
+
+```sh
+trivy image --sbom-sources oci \
+  docker.io/victoriametrics/victoria-metrics:latest
+```
+
 ## Tuning
 
-* No need in tuning for VictoriaMetrics - it uses reasonable defaults for command-line flags,
+* No need to tune for VictoriaMetrics - it uses reasonable defaults for command-line flags,
   which are automatically adjusted for the available CPU and RAM resources.
-* No need in tuning for Operating System - VictoriaMetrics is optimized for default OS settings.
+* No need to tune for Operating System - VictoriaMetrics is optimized for default OS settings.
   The only option is increasing the limit on [the number of open files in the OS](https://medium.com/@muhammadtriwibowo/set-permanently-ulimit-n-open-files-in-ubuntu-4d61064429a).
-  The recommendation is not specific for VictoriaMetrics only but also for any service which handles many HTTP connections and stores data on disk.
-* VictoriaMetrics is a write-heavy application and its performance depends on disk performance. So be careful with other
-  applications or utilities (like [fstrim](https://manpages.ubuntu.com/manpages/lunar/en/man8/fstrim.8.html))
+  The recommendation is not specific to VictoriaMetrics only, but also for any service that handles many HTTP connections and stores data on disk.
+* VictoriaMetrics is a write-heavy application, and its performance depends on disk performance. So be careful with other
+  applications or utilities (like [fstrim](https://manpages.ubuntu.com/manpages/noble/en/man8/fstrim.8.html))
   which could [exhaust disk resources](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1521).
 * The recommended filesystem is `ext4`, the recommended persistent storage is [persistent HDD-based disk on GCP](https://cloud.google.com/compute/docs/disks/#pdspecs),
-  since it is protected from hardware failures via internal replication and it can be [resized on the fly](https://cloud.google.com/compute/docs/disks/add-persistent-disk#resize_pd).
-  If you plan to store more than 1TB of data on `ext4` partition, then the following options are recommended to pass to `mkfs.ext4`:
+  since it is protected from hardware failures via internal replication, and it can be [resized on the fly](https://cloud.google.com/compute/docs/disks/add-persistent-disk#resize_pd).
+  If you plan to store more than 1TB of data on an `ext4` partition, then the following options are recommended to pass to `mkfs.ext4`:
 
 ```sh
 mkfs.ext4 ... -O 64bit,huge_file,extent -T huge
@@ -1946,6 +1981,9 @@ in [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victori
 via [cache removal](https://docs.victoriametrics.com/victoriametrics/#cache-removal) procedure. This reset state endpoint can be protected via `-metricNamesStatsResetAuthKey`
 cmd-line flag. See [Security](https://docs.victoriametrics.com/victoriametrics/#security) for details.
 
+See [skills/victoriametrics-unused-metrics-analysis](https://github.com/VictoriaMetrics/skills/blob/main/plugins/diagnostics/skills/victoriametrics-unused-metrics-analysis/SKILL.md)
+for [agent-assisted](https://docs.victoriametrics.com/ai-tools/#agent-skills) analysis of unused metrics.
+
 ## Query tracing
 
 VictoriaMetrics supports query tracing, which can be used for determining bottlenecks during query processing.
@@ -2013,6 +2051,9 @@ Query tracing is allowed by default. It can be denied by passing `-denyQueryTrac
 
 * for query tracing - just click `Trace query` checkbox and re-run the query in order to investigate its' trace.
 * for exploring custom trace - go to the tab `Trace analyzer` and upload or paste JSON with trace information.
+
+See also [skills/vm-trace-analyzer](https://github.com/VictoriaMetrics/skills/blob/main/plugins/diagnostics/skills/vm-trace-analyzer/SKILL.md)
+for [agent-assisted](https://docs.victoriametrics.com/ai-tools/#agent-skills) analysis.
 
 ## Cardinality limiter
 

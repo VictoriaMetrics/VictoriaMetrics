@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math/rand/v2"
 	"net"
 	"net/http"
 	"net/textproto"
@@ -31,6 +32,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 )
 
 var (
@@ -190,6 +192,10 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		if tkn == nil {
 			logger.Panicf("BUG: unexpected nil jwt token for user %q", ui.name())
 		}
+		if !tkn.HasVMAccessClaim() && ui.JWT.DefaultVMAccessClaim == nil {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return true
+		}
 		defer putToken(tkn)
 		processUserRequest(w, r, ui, tkn)
 		return true
@@ -202,6 +208,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	invalidAuthTokenRequests.Inc()
+	slowdownUnauthorizedResponse(r)
 	if *logInvalidAuthTokens {
 		err := fmt.Errorf("cannot authorize request with auth tokens %q", ats)
 		err = &httpserver.ErrorWithStatusCode{
@@ -317,7 +324,7 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tk
 	defer ui.endConcurrencyLimit()
 
 	// Process the request.
-	processRequest(w, r, ui, tkn)
+	processRequest(w, r, ui, tkn, userName)
 }
 
 func beginConcurrencyLimit(ctx context.Context) error {
@@ -391,7 +398,7 @@ func bufferRequestBody(ctx context.Context, r io.ReadCloser, userName string) (i
 	return bb, nil
 }
 
-func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tkn *jwt.Token) {
+func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tkn *jwt.Token, userName string) {
 	u := normalizeURL(r.URL)
 	up, hc := ui.getURLPrefixAndHeaders(u, r.Host, r.Header)
 	isDefault := false
@@ -409,7 +416,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tkn *j
 			if ui.DumpRequestOnErrors {
 				di = debugInfo(u, r)
 			}
-			httpserver.Errorf(w, r, "missing route for %q%s", u.String(), di)
+			httpserver.Errorf(w, r, "user %s missing route for %q%s", userName, u.String(), di)
 			return
 		}
 		up, hc = ui.DefaultURL, ui.HeadersConf
@@ -424,8 +431,12 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tkn *j
 		}
 		targetURL := bu.url
 		if tkn != nil {
+			vmac := tkn.VMAccess()
+			if !tkn.HasVMAccessClaim() {
+				vmac = ui.JWT.DefaultVMAccessClaim
+			}
 			// for security reasons allow templating only for configured url values and headers
-			targetURL, hc = replaceJWTPlaceholders(bu, hc, tkn.VMAccess())
+			targetURL, hc = replaceJWTPlaceholders(bu, hc, vmac)
 		}
 		if isDefault {
 			// Don't change path and add request_path query param for default route.
@@ -455,7 +466,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tkn *j
 		ui.backendErrors.Inc()
 	}
 	err := &httpserver.ErrorWithStatusCode{
-		Err:        fmt.Errorf("all the %d backends for the user %q are unavailable for proxying the request - check previous WARN logs to see the exact error for each failed backend", up.getBackendsCount(), ui.name()),
+		Err:        fmt.Errorf("all the %d backends for the user %q are unavailable for proxying the request - check previous WARN logs to see the exact error for each failed backend", up.getBackendsCount(), userName),
 		StatusCode: http.StatusBadGateway,
 	}
 	httpserver.Errorf(w, r, "%s", err)
@@ -880,4 +891,21 @@ func debugInfo(u *url.URL, r *http.Request) string {
 	_ = r.Header.WriteSubset(s, nil)
 	fmt.Fprint(s, ")")
 	return s.String()
+}
+
+// slowdownUnauthorizedResponse adds a random delay in the [2..3] seconds range before returning an unauthorized response.
+// This reduces the effectiveness of brute-force.
+//
+// Recommended by OWASP Top10:
+// https://owasp.org/Top10/2025/A07_2025-Authentication_Failures
+func slowdownUnauthorizedResponse(r *http.Request) {
+
+	d := 2*time.Second + time.Duration(rand.IntN(1000))*time.Millisecond
+	t := timerpool.Get(d)
+
+	select {
+	case <-t.C:
+	case <-r.Context().Done():
+	}
+	timerpool.Put(t)
 }

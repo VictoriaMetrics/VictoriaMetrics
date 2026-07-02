@@ -212,6 +212,7 @@ These are the most common reasons for slow data ingestion in VictoriaMetrics:
    - Reduce the number of active time series. The [official Grafana dashboards for VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#monitoring)
      contain a graph showing the number of active time series. Use the [cardinality explorer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer)
      to determine and fix the source of [high cardinality](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-cardinality).
+     See also [skills/victoriametrics-cardinality-analysis](https://github.com/VictoriaMetrics/skills/blob/main/plugins/diagnostics/skills/victoriametrics-cardinality-analysis/SKILL.md) for [agent-assisted](https://docs.victoriametrics.com/ai-tools/#agent-skills) analysis.
 
    - Insert performance can degrade when the same time series arrives with labels in a different order.
      Ensure your ingestion client always sends labels in a consistent order for each series.
@@ -304,7 +305,8 @@ to logs.
 These are the solutions that exist for improving the performance of slow queries:
 
 - Investigating the bottleneck in query execution using [query tracing](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#query-tracing).
-  It will show the percentage of time spent on each execution step and help understand the volume of processed data.
+  It will show the percentage of time spent on each execution step and help understand the volume of processed data. See also [skills/vm-trace-analyzer](https://github.com/VictoriaMetrics/skills/blob/main/plugins/diagnostics/skills/vm-trace-analyzer/SKILL.md)
+  for [agent-assisted](https://docs.victoriametrics.com/ai-tools/#agent-skills) analysis.
 
 - Adding more CPU and memory to VictoriaMetrics, so it may perform the slow query faster.
   If you use the cluster version of VictoriaMetrics, then migrating `vmselect` nodes to machines

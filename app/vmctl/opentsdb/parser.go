@@ -88,7 +88,7 @@ func convertRetention(retention string, offset int64, msecTime bool) (Retention,
 	}
 	queryLengthDuration, err := convertDuration(chunks[2])
 	if err != nil {
-		return Retention{}, fmt.Errorf("invalid ttl (second order) duration string: %q: %s", chunks[2], err)
+		return Retention{}, fmt.Errorf("invalid ttl (second order) duration string: %q: %w", chunks[2], err)
 	}
 	// set ttl in milliseconds, unless we aren't using millisecond time in OpenTSDB...then use seconds
 	queryLength := queryLengthDuration.Milliseconds()
@@ -110,7 +110,7 @@ func convertRetention(retention string, offset int64, msecTime bool) (Retention,
 
 	aggTimeDuration, err := convertDuration(aggregates[1])
 	if err != nil {
-		return Retention{}, fmt.Errorf("invalid aggregation time duration string: %q: %s", aggregates[1], err)
+		return Retention{}, fmt.Errorf("invalid aggregation time duration string: %q: %w", aggregates[1], err)
 	}
 	aggTime := aggTimeDuration.Milliseconds()
 	if !msecTime {
@@ -119,7 +119,7 @@ func convertRetention(retention string, offset int64, msecTime bool) (Retention,
 
 	rowLengthDuration, err := convertDuration(chunks[1])
 	if err != nil {
-		return Retention{}, fmt.Errorf("invalid row length (first order) duration string: %q: %s", chunks[1], err)
+		return Retention{}, fmt.Errorf("invalid row length (first order) duration string: %q: %w", chunks[1], err)
 	}
 	// set length of each row in milliseconds, unless we aren't using millisecond time in OpenTSDB...then use seconds
 	rowLength := rowLengthDuration.Milliseconds()

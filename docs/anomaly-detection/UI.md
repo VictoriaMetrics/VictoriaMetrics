@@ -315,7 +315,7 @@ docker run -it --rm \
   -e VMANOMALY_MCP_SERVER_URL=http://mcp-vmanomaly:8081/mcp \
   -p 8080:8080 \
   -p 8490:8490 \
-  victoriametrics/vmanomaly:v1.29.3 \
+  victoriametrics/vmanomaly:v1.29.7 \
   vmanomaly_config.yaml
 ```
 
@@ -553,7 +553,7 @@ preset: ui
 # other optional server/settings parameters, e.g. port, max_concurrent_tasks, n_workers, logger_levels, etc.
 ```
 
-using one of the [deployment methods](https://docs.victoriametrics.com/anomaly-detection/quickstart/#how-to-install-and-run-vmanomaly) in a [QuickStart guide](https://docs.victoriametrics.com/anomaly-detection/quickstart/#quickstart), e.g. via Docker.
+using one of the [deployment methods](https://docs.victoriametrics.com/anomaly-detection/quickstart/#how-to-install-and-run-vmanomaly) in a [QuickStart guide](https://docs.victoriametrics.com/anomaly-detection/quickstart/), e.g. via Docker.
 
 Retrieve the UI at `http://<vmanomaly-host>:<port>` (e.g. at `http://localhost:8490` if running locally with default port) and start exploring anomaly detection models and their configurations interactively.
 
@@ -640,6 +640,51 @@ If the **results** look good and the **model configuration should be deployed in
 
 ## Changelog
 
+### v1.7.2
+Released: 2026-06-25
+
+vmanomaly version: [v1.29.7](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1297)
+
+- FEATURE: Added controls for selecting server-configured scheduled models (drop-down inside [model wizard](#model-panel)) and browsing scheduled queries from the running vmanomaly instance ("Queries" button, "scheduled queries" tab).
+
+- IMPROVEMENT: Surfaced datasource fetch failures from ad-hoc VMUI raw queries as query-level errors instead of returning a successful empty result that triggers a generic "No match" warning. Now the user can see the actual error message from the datasource (e.g. "unauthorized", "not found", etc.) and take appropriate action.
+
+- BUGFIX: Fixed [UI/query-server](#settings-panel) handling of VictoriaMetrics datasource URLs that already include `/select/multitenant/prometheus`. Such URLs are now recognized as cluster datasource URLs, preserving the multitenant path when proxying VMUI requests and allowing `server.use_reader_connection_settings` to reuse [configured reader credentials for authenticated datasources](#authentication).
+
+- BUGFIX: Fixed [settings](#settings-panel) inputs for server and datasource URLs so editing, deleting, or pasting text is no longer immediately reverted to the previous value before applying changes.
+
+- BUGFIX: Fixed [model wizard](#model-panel) settings for [`IsolationForestModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#isolation-forest-multivariate) `contamination`, allowing decimal float values such as `0.1` or `0,1` to be typed or pasted without being collapsed to `0`, while preserving the `"auto"` value.
+
+### v1.7.1
+Released: 2026-06-11
+
+vmanomaly version: [v1.29.5](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1295)
+
+- FEATURE: Added bulk Apply/Decline actions for [Copilot](#ai-assistance) chat suggestions.
+
+- BUGFIX: Fixed modal windows closing when the mouse is released outside the window during text selection.
+
+- BUGFIX: Fixed tooltip hover behavior so tooltips do not disappear while the cursor moves into the hover content.
+
+### v1.7.0
+Released: 2026-05-15
+
+vmanomaly version: [v1.29.4](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1294)
+
+- FEATURE: Improved [AI Copilot](#ai-assistance) to 
+  - support textual attachments, such as configuration files, query examples, model outputs, etc.
+  - operate with current time when suggesting time range changes, e.g. "current month" or "from the beginning of the last month until now"
+- FEATURE: improve infer jobs scheduled from UI to
+  - run 2-100x faster for [online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models) depending on a configuration vs [1.6.1](#v161) timings
+  - show stage-aware progress bar, e.g. "getting data", "fitting model", "inferring on chunk".
+- IMPROVEMENT: "Advanced Options" design is improved, section is collapsed by default to save vertical space, yet can be encoded as always open in UI state URL.
+- IMPROVEMENT: dropdowns in UI are now searchable and constrained in size for better UX, especially when many options are available (e.g. models list, tenants list, etc.).
+- BUGFIX: in generated config ("Show Config" menu)
+  - special YAML values (like `-.inf`, `.inf`, `.nan`) are now properly quoted and formatted to avoid JSON converting issues when copied to Kubernetes CRs, which previously led to rejection of the manifest before vmanomaly can consume it.
+  - with Data Source selected as "Logs/Traces" `reader.class` is now correctly set to `vlogs` (previously `vm`) in generated config, when "model only" toggle is turned off.
+- BUGFIX: now "Hide Common Labels" toggle in "Table View" works correctly and does not show common labels in the legend columns when turned on.
+- BUGFIX: "Prettify query" now works correctly for "Metrics" datasources.
+
 ### v1.6.1
 Released: 2026-04-16
 
@@ -675,7 +720,7 @@ vmanomaly version: [v1.29.1](https://docs.victoriametrics.com/anomaly-detection/
 
 - BUGFIX: Now Visualization Panel correctly switches in between "query" and "detect" modes when respective buttons are hit in the [Visualization Panel](#visualization-panel), without showing stale results from the previous mode, once running anomaly detection task is explicitly cancelled (regression introduced in [v1.5.0](#v150)).
 
-- BUGFIX: Fixed an issue with [crypto.randomUUID](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID) introduced in [v1.29.0](#v1290) in [UI copilot](https://docs.victoriametrics.com/anomaly-detection/ui/#ai-assistance) that led to the front app showing a blank page.
+- BUGFIX: Fixed an issue with [crypto.randomUUID](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID) introduced in [v1.29.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1290) in [UI copilot](https://docs.victoriametrics.com/anomaly-detection/ui/#ai-assistance) that led to the front app showing a blank page.
 
 ### v1.5.0
 Released: 2026-03-05

@@ -35,8 +35,8 @@ scrape_configs:
 After you created the `scrape.yaml` file, download and unpack [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) to the same directory:
 
 ```sh
-wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.143.0/victoria-metrics-linux-amd64-v1.143.0.tar.gz
-tar xzf victoria-metrics-linux-amd64-v1.143.0.tar.gz
+wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.146.0/victoria-metrics-linux-amd64-v1.146.0.tar.gz
+tar xzf victoria-metrics-linux-amd64-v1.146.0.tar.gz
 ```
 
 Then start VictoriaMetrics and instruct it to scrape targets defined in `scrape.yaml` and save scraped metrics
@@ -150,8 +150,8 @@ Then start [single-node VictoriaMetrics](https://docs.victoriametrics.com/victor
 
 ```yaml
 # Download and unpack single-node VictoriaMetrics
-wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.143.0/victoria-metrics-linux-amd64-v1.143.0.tar.gz
-tar xzf victoria-metrics-linux-amd64-v1.143.0.tar.gz
+wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.146.0/victoria-metrics-linux-amd64-v1.146.0.tar.gz
+tar xzf victoria-metrics-linux-amd64-v1.146.0.tar.gz
 
 # Run single-node VictoriaMetrics with the given scrape.yaml
 ./victoria-metrics-prod -promscrape.config=scrape.yaml
@@ -342,7 +342,7 @@ See [these docs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#ht
 The following [`-promscrape.config`](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
 instructs discovering and scraping metrics for all the containers with the name `my-super-app`.
 It is expected that these containers expose only a single TCP port, which serves its metrics at `/metrics` page
-according to [Prometheus text exposition format](https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-based-format):
+according to [Prometheus text exposition format](https://prometheus.io/docs/instrumenting/exposition_formats/#prometheus-text-format):
 
 ```yaml
 scrape_configs:

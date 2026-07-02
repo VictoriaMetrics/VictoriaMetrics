@@ -28,7 +28,6 @@ func ParseTimeMsec(s string) (int64, error) {
 // See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats
 //
 // If s doesn't contain timezone information, then the local timezone is used.
-// The time must be in the range [1970-01-01T00:00:00Z, 2262-04-11T23:47:16Z].
 //
 // It returns unix timestamp in nanoseconds.
 func ParseTimeAt(s string, currentTimestamp int64) (int64, error) {
@@ -71,10 +70,10 @@ func ParseTimeAt(s string, currentTimestamp int64) (int64, error) {
 		if err != nil {
 			return 0, err
 		}
-		if d > 0 {
+		if d < 0 {
 			d = -d
 		}
-		return currentTimestamp + int64(d), nil
+		return subInt64NoOverflow(currentTimestamp, int64(d)), nil
 	}
 	if len(s) == 4 {
 		// Parse YYYY
@@ -111,22 +110,28 @@ func ParseTimeAt(s string, currentTimestamp int64) (int64, error) {
 	return parseTimeAt(time.RFC3339, sOrig, 0, sOrig)
 }
 
-var (
-	minTime = time.Unix(0, 0).UTC()
-	maxTime = time.Unix(0, math.MaxInt64).UTC()
-)
-
-func parseTimeAt(layout, value string, tzOffsetNanos int64, sOrig string) (int64, error) {
+func parseTimeAt(layout, value string, tzOffsetNsec int64, sOrig string) (int64, error) {
 	t, err := time.Parse(layout, value)
 	if err != nil {
 		return 0, err
 	}
-	tzOffset := time.Duration(tzOffsetNanos)
-	t = t.UTC().Add(tzOffset)
-	if t.Before(minTime) || t.After(maxTime) {
-		return 0, fmt.Errorf("time %s (%v) must be in the range [%v, %v]", sOrig, t, minTime, maxTime)
+	nsec := t.UnixNano()
+
+	return subInt64NoOverflow(nsec, -tzOffsetNsec), nil
+}
+
+func subInt64NoOverflow(a, b int64) int64 {
+	if b >= 0 {
+		if a < math.MinInt64+b {
+			return math.MinInt64
+		}
+		return a - b
 	}
-	return t.UnixNano(), nil
+
+	if a > math.MaxInt64+b {
+		return math.MaxInt64
+	}
+	return a - b
 }
 
 // TryParseUnixTimestamp parses s as unix timestamp in seconds, milliseconds, microseconds or nanoseconds and returns the parsed timestamp in nanoseconds.

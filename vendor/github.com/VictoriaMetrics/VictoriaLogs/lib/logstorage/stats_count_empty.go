@@ -16,7 +16,7 @@ type statsCountEmpty struct {
 }
 
 func (sc *statsCountEmpty) String() string {
-	return "count_empty(" + fieldNamesString(sc.fieldFilters) + ")"
+	return "count_empty(" + fieldFiltersString(sc.fieldFilters) + ")"
 }
 
 func (sc *statsCountEmpty) updateNeededFields(pf *prefixfilter.Filter) {

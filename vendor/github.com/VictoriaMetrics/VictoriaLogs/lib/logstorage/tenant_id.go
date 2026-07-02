@@ -135,7 +135,7 @@ func MarshalTenantIDsToJSON(tenantIDs []TenantID) []byte {
 func UnmarshalTenantIDsFromJSON(src []byte) ([]TenantID, error) {
 	var tenantIDs []TenantID
 	if err := json.Unmarshal(src, &tenantIDs); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal tenantIDs from JSON array: %s", err)
+		return nil, fmt.Errorf("cannot unmarshal tenantIDs from JSON array: %w", err)
 	}
 	return tenantIDs, nil
 }

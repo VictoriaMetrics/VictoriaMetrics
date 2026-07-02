@@ -30,7 +30,7 @@ func ProcessRequestBody(b []byte) ([]byte, error) {
 		}
 	}
 	if err := json.Unmarshal(b, &req); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal Firehose JSON in request body: %s", err)
+		return nil, fmt.Errorf("cannot unmarshal Firehose JSON in request body: %w", err)
 	}
 
 	var dst []byte

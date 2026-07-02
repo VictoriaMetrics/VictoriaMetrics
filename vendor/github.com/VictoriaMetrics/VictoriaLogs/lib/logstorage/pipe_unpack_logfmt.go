@@ -35,7 +35,7 @@ func (pu *pipeUnpackLogfmt) String() string {
 		s += " from " + quoteTokenIfNeeded(pu.fromField)
 	}
 	if !prefixfilter.MatchAll(pu.fieldFilters) {
-		s += " fields (" + fieldNamesString(pu.fieldFilters) + ")"
+		s += " fields (" + fieldFiltersString(pu.fieldFilters) + ")"
 	}
 	if pu.resultPrefix != "" {
 		s += " result_prefix " + quoteTokenIfNeeded(pu.resultPrefix)
@@ -142,7 +142,7 @@ func parsePipeUnpackLogfmt(lex *lexer) (pipe, error) {
 	}
 
 	fromField := "_msg"
-	if !lex.isKeyword("fields", "result_prefix", "keep_original_fields", "skip_empty_results", ")", "|", "") {
+	if !lex.isKeyword("fields", "result_prefix", "keep_original_fields", "skip_empty_results") && !lex.isQueryPartTrailer() {
 		if lex.isKeyword("from") {
 			lex.nextToken()
 		}

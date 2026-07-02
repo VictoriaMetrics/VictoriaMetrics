@@ -270,7 +270,7 @@ users:
   url_prefix: "http://victoria-metrics:8428/"
 ```
 
-JWT tokens must contain a `"vm_access": {}` claim, more on that in [JWT claim-based request templating](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-based-request-templating)
+The `vm_access` claim is optional starting from {{% available_from "#" %}}: when present it is used for [request templating](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-based-request-templating), and when absent the default tenant `0:0` is assumed for any `vm_access`-based placeholders. Routing can rely solely on other token claims via [JWT claim matching](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-matching).
 
 For testing, skip signature verification with `skip_verify: true` (not recommended for production).
 
@@ -520,7 +520,8 @@ for dynamic URL rewriting based on `vm_access` claim fields.
 
 `vmauth` can dynamically rewrite{{% available_from "v1.137.0" %}} upstream URLs and request headers using values from the JWT `vm_access` claim. 
 This enables routing different users to different backends or tenants based solely on the JWT token, 
-without maintaining separate user configs per tenant.
+without maintaining separate user configs per tenant. In addition `vm_access` claim could be defined at `jwt` section with `default_vm_access_claim` {{% available_from "#" %}}.
+In this case, if JWT token doesn't have `vm_access` claim defined, value from `default_vm_access_claim` will be used for templaing.
 
 Example: minimal valid JWT. If vm_access is empty, tenant `0:0` is assumed and no additional filters are applied.
 ```json
@@ -554,15 +555,17 @@ At request time each placeholder is replaced with the corresponding value from t
 
 The following placeholders are supported:
 
-| Placeholder                   | JWT claim field                                                             |
-|-------------------------------|-----------------------------------------------------------------------------|
+| Placeholder                   | JWT claim field                                         |
+|-------------------------------|---------------------------------------------------------|
+| `{{.MetricsAccountID}}`       | `metrics_account_id` int                                |
+| `{{.MetricsProjectID}}`       | `metrics_project_id` int                                |
 | `{{.MetricsTenant}}` -> `0:0` | `metrics_account_id` int, <br/>`metrics_project_id` int |
-| `{{.MetricsExtraLabels}}`     | `metrics_extra_labels` string array                               |
-| `{{.MetricsExtraFilters}}`    | `metrics_extra_filters` string array                              |
-| `{{.LogsAccountID}}`          | `logs_account_id` int                                             |
-| `{{.LogsProjectID}}`          | `logs_project_id` int                                             |
-| `{{.LogsExtraFilters}}`       | `logs_extra_filters` string array                                 |
-| `{{.LogsExtraStreamFilters}}` | `logs_extra_stream_filters` string array                          |
+| `{{.MetricsExtraLabels}}`     | `metrics_extra_labels` string array                     |
+| `{{.MetricsExtraFilters}}`    | `metrics_extra_filters` string array                    |
+| `{{.LogsAccountID}}`          | `logs_account_id` int                                   |
+| `{{.LogsProjectID}}`          | `logs_project_id` int                                   |
+| `{{.LogsExtraFilters}}`       | `logs_extra_filters` string array                       |
+| `{{.LogsExtraStreamFilters}}` | `logs_extra_stream_filters` string array                |
 
 Placeholders are supported in the following locations:
 
@@ -572,6 +575,28 @@ Placeholders are supported in the following locations:
 
 Placeholders are **not** supported in response headers. 
 They are also only valid for JWT-authenticated users — using them in configs for `username`/`password` or `bearer_token` users causes a configuration error.
+
+Example: default `vm_access` claim:
+
+```yaml
+users:
+- jwt:
+    default_vm_access_claim:
+      metrics_account_id: 10
+      metrics_project_id: 10
+      metrics_extra_filters:
+      - '{instance="sandbox"}'
+      metrics_extra_labels:
+      - team=dev
+      - env=dev
+    public_keys:
+    - |
+      -----BEGIN PUBLIC KEY-----
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+      -----END PUBLIC KEY-----
+  url_prefix: "http://vminsert:8480/insert/{{.MetricsAccountID}}:{{.MetricsProjectID}}/prometheus/?extra_filters={{.MetricsExtraFilters}}&extra_label={{.MetricsExtraLabels}}"
+```
+
 
 Example: route requests to the VictoriaMetrics single-node:
 
@@ -1533,6 +1558,16 @@ To enable TLS on the public listener while keeping the internal listener non-TLS
 ```
 
 `vmauth` also supports restricting access by IP - see [these docs](#ip-filters). See also [concurrency limiting docs](#concurrency-limiting).
+
+
+When `vmauth` performs tenant routing for [multitenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenant-reads) requests, it is crucial to explicitly set `extra_label`, `extra_filters` and `extra_filters[]` in the url_prefix configuration:
+
+```yaml
+unauthorized_user:
+    url_prefix: http://vmselect/select/multitenant?extra_filters[]=&extra_filters=&extra_label=vm_account_id=10&extra_label=vm_project_id=100
+```
+
+This is required because `vmselect` uses `OR` logic for tenant filtering. If a client sets `extra_filters[]` or `extra_filters`, it could bypass the tenant restriction configured via `extra_label`.
 
 ## Automatic issuing of TLS certificates
 

@@ -2263,7 +2263,7 @@ func (d *decoder) applyByteStringTextConversion(
 		default:
 			// If this happens, there is a bug: the decoder has pushed an invalid
 			// "expected later encoding" tag to the stack.
-			panic(fmt.Sprintf("unrecognized expected later encoding tag: %d", d.expectedLaterEncodingTags))
+			panic(fmt.Sprintf("unrecognized expected later encoding tag: %d", d.expectedLaterEncodingTags[len(d.expectedLaterEncodingTags)-1]))
 		}
 
 	case reflect.Slice:

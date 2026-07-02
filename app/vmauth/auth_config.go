@@ -843,6 +843,11 @@ func authConfigReloader(sighupCh <-chan os.Signal) {
 		select {
 		case <-stopCh:
 			return
+		default:
+		}
+		select {
+		case <-stopCh:
+			return
 		case <-refreshCh:
 			updateFn()
 		case <-sighupCh:
@@ -889,7 +894,8 @@ func reloadAuthConfig() (bool, error) {
 	}
 
 	mp := authUsers.Load()
-	logger.Infof("loaded information about %d users from -auth.config=%q", len(*mp), *authConfigPath)
+	jwtc := jwtAuthCache.Load()
+	logger.Infof("loaded information about %d users from -auth.config=%q", len(*mp)+len(jwtc.users), *authConfigPath)
 	return true, nil
 }
 
@@ -905,7 +911,8 @@ func reloadAuthConfigData(data []byte) (bool, error) {
 		return false, fmt.Errorf("failed to parse auth config: %w", err)
 	}
 
-	jui, oidcDP, err := parseJWTUsers(ac)
+	oidcDP := &oidcDiscovererPool{}
+	jui, err := parseJWTUsers(ac, oidcDP)
 	if err != nil {
 		return false, fmt.Errorf("failed to parse JWT users from auth config: %w", err)
 	}

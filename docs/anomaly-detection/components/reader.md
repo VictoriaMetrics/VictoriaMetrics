@@ -369,7 +369,7 @@ If True, then query will be performed from the last seen timestamp for a given s
 `1ms`
             </td>
             <td>
-It allows overriding the default `-search.latencyOffset`{{% available_from "v1.15.1" anomaly %}} [flag of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/#list-of-command-line-flags) (30s). The default value is set to 1ms, which should help in cases where `sampling_frequency` is low (10-60s) and `sampling_frequency` equals `infer_every` in the [PeriodicScheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler). This prevents users from receiving `service - WARNING - [Scheduler [scheduler_alias]] No data available for inference.` warnings in logs and allows for consecutive `infer` calls without gaps. To restore the old behavior, set it equal to your `-search.latencyOffset` [flag value](https://docs.victoriametrics.com/victoriametrics/#list-of-command-line-flags).
+It allows overriding the default `-search.latencyOffset`{{% available_from "v1.15.1" anomaly %}} [flag of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/#list-of-command-line-flags) (30s). The default value is set to 1ms, which should help in cases where `sampling_period` is low (10-60s) and `sampling_period` equals `infer_every` in the [PeriodicScheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler). This prevents users from receiving `service - WARNING - [Scheduler [scheduler_alias]] No data available for inference.` warnings in logs and allows for consecutive `infer` calls without gaps. To restore the old behavior, set it equal to your `-search.latencyOffset` [flag value](https://docs.victoriametrics.com/victoriametrics/#list-of-command-line-flags).
             </td>
         </tr>
         <tr>
@@ -421,7 +421,20 @@ Optional argument{{% available_from "v1.18.1" anomaly %}} allows defining **vali
 `60s`
             </td>
             <td>
-Optional argument{{% available_from "v1.25.3" anomaly %}} allows specifying a time offset for all queries in `queries`. Defaults to `0s` (0) if not set and can be overridden on a [per-query basis](#per-query-parameters).
+Optional argument {{% available_from "v1.25.3" anomaly %}}, allows specifying a time offset for all queries in `queries`. Defaults to `0s` (0) if not set and can be overridden on a [per-query basis](#per-query-parameters).
+            </td>
+        </tr>
+        <tr>
+            <td>
+
+<span style="white-space: nowrap;">`series_processing_batch_size`</span>
+            </td>
+            <td>
+
+`8`
+            </td>
+            <td>
+Optional argument {{% available_from "v1.29.7" anomaly %}}, allows specifying the number of time series to process together while preparing data for fit or infer stages. Defaults to `8`. Suggested values are 4-16 for high-cardinality queries.
             </td>
         </tr>
     </tbody>
@@ -450,6 +463,7 @@ reader:
   sampling_period: '1m'
   query_from_last_seen_timestamp: True  # false by default
   latency_offset: '1ms'
+  series_processing_batch_size: 8
 ```
 
 ### MetricsQL Playground
@@ -760,7 +774,7 @@ Frequency of the points returned. Will be converted to `/select/stats_query_rang
 `10000`
             </td>
             <td>
-(Optional) For splitting long `fit_window` [queries](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vlogs-reader) into smaller sub-intervals. This helps users avoid hitting the timeout limits for individual queries by distributing initial query across multiple subquery requests with minimal overhead. Can be also set on [per-query](#per-query-parameters-1) basis to override reader-level settings.
+(Optional) For splitting long `fit_window` [queries](https://docs.victoriametrics.com/anomaly-detection/components/reader/#victorialogs-reader) into smaller sub-intervals. This helps users avoid hitting the timeout limits for individual queries by distributing initial query across multiple subquery requests with minimal overhead. Can be also set on [per-query](#per-query-parameters-1) basis to override reader-level settings.
             </td>
         </tr>
         <tr>
@@ -879,6 +893,19 @@ If a path to a CA bundle file (like `ca.crt`), it will verify the certificate us
 (Optional) Password for authentication. If set, it will be used to authenticate the request.
             </td>
         </tr>
+        <tr>
+            <td>
+
+<span style="white-space: nowrap;">`series_processing_batch_size`</span>
+            </td>
+            <td>
+
+`8`
+            </td>
+            <td>
+Optional argument {{% available_from "v1.29.7" anomaly %}}, allows specifying the number of time series to process together while preparing data for fit or infer stages. Defaults to `8`. Suggested values are 4-16 for high-cardinality queries.
+            </td>
+        </tr>
     </tbody>
 </table>
 
@@ -897,6 +924,7 @@ reader:
   # tenant_id: '0:0'  # for cluster version only
   sampling_period: '1m'
   max_points_per_query: 10000
+  series_processing_batch_size: 8
   data_range: [0, 'inf']  # reader-level
   offset: '0s'  # reader-level
   timeout: '30s'

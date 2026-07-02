@@ -32,7 +32,12 @@ func TestSearchQueryMarshalUnmarshal(t *testing.T) {
 			// Skip nil sq1.
 			continue
 		}
-		buf = sq1.Marshal(buf[:0])
+		tt := TenantToken{
+			AccountID: sq1.AccountID,
+			ProjectID: sq1.ProjectID,
+		}
+		buf = tt.Marshal(buf[:0])
+		buf = sq1.MarshalWithoutTenant(buf)
 
 		tail, err := sq2.Unmarshal(buf)
 		if err != nil {
@@ -40,6 +45,12 @@ func TestSearchQueryMarshalUnmarshal(t *testing.T) {
 		}
 		if len(tail) > 0 {
 			t.Fatalf("unexpected tail left after SearchQuery unmarshaling; tail (len=%d): %q", len(tail), tail)
+		}
+		if sq2.AccountID != sq1.AccountID {
+			t.Fatalf("unexpected AccountID; got %d; want %d", sq2.AccountID, sq1.AccountID)
+		}
+		if sq2.ProjectID != sq1.ProjectID {
+			t.Fatalf("unexpected ProjectID; got %d; want %d", sq2.ProjectID, sq1.ProjectID)
 		}
 		if sq1.MinTimestamp != sq2.MinTimestamp {
 			t.Fatalf("unexpected MinTimestamp; got %d; want %d", sq2.MinTimestamp, sq1.MinTimestamp)
@@ -228,6 +239,7 @@ func testAssertSearchResult(st *Storage, tr TimeRange, tfs *TagFilters, want []M
 
 	var s Search
 	s.Init(nil, st, []*TagFilters{tfs}, tr, 1e5, noDeadline)
+	defer s.MustClose()
 	var mbs []metricBlock
 	for s.NextMetricBlock() {
 		var b Block
@@ -241,7 +253,6 @@ func testAssertSearchResult(st *Storage, tr TimeRange, tfs *TagFilters, want []M
 	if err := s.Error(); err != nil {
 		return fmt.Errorf("search error: %w", err)
 	}
-	s.MustClose()
 
 	var got []MetricRow
 	var mn MetricName

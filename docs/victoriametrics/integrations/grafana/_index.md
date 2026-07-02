@@ -46,7 +46,7 @@ If you don't see an option to create a data source - try contacting system admin
 
 ## Prometheus datasource
 
-Create [Prometheus datasource](https://grafana.com/docs/grafana/latest/datasources/prometheus/configure-prometheus-data-source/)
+Create [Prometheus datasource](https://grafana.com/docs/grafana/latest/datasources/prometheus/configure/)
 in Grafana. Follow the same connection instructions as for [VictoriaMetrics datasource](#VictoriaMetrics-datasource).
 
 In the "Type and version" section set the type to "Prometheus" and the version to at least "2.24.x".
@@ -58,6 +58,10 @@ Once connected, you can build graphs and dashboards using [PromQL](https://prome
 
 _Creating a datasource may require [specific permissions](https://grafana.com/docs/grafana/latest/administration/data-source-management/).
 If you don't see an option to create a data source - try contacting system administrator._
+
+If you run [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) and want to see its rules in [Grafana Alerting UI](https://grafana.com/docs/grafana/latest/alerting/),
+then set configure `-vmalert.proxyURL` on VictoriaMetrics [single-node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmalert)
+or [vmselect in cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#vmalert).
 
 ## Multi-tenant access with vmauth and OIDC
 

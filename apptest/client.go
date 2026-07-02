@@ -156,14 +156,14 @@ func readAllAndClose(t *testing.T, responseBody io.ReadCloser) string {
 //
 // This type is expected to be embedded by the apps that serve metrics.
 type metricsClient struct {
-	metricsCli *Client
-	url        string
+	cli *Client
+	url string
 }
 
 func newMetricsClient(cli *Client, addr string) *metricsClient {
 	return &metricsClient{
-		metricsCli: cli,
-		url:        fmt.Sprintf("http://%s/metrics", addr),
+		cli: cli,
+		url: fmt.Sprintf("http://%s/metrics", addr),
 	}
 }
 
@@ -179,7 +179,7 @@ func (c *metricsClient) GetIntMetric(t *testing.T, metricName string) int {
 func (c *metricsClient) GetMetric(t *testing.T, metricName string) float64 {
 	t.Helper()
 
-	metrics, statusCode := c.metricsCli.Get(t, c.url, nil)
+	metrics, statusCode := c.cli.Get(t, c.url, nil)
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
 	}
@@ -205,7 +205,7 @@ func (c *metricsClient) GetMetricsByPrefix(t *testing.T, prefix string) []float6
 
 	values := []float64{}
 
-	metrics, statusCode := c.metricsCli.Get(t, c.url, nil)
+	metrics, statusCode := c.cli.Get(t, c.url, nil)
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
 	}
@@ -234,7 +234,7 @@ func (c *metricsClient) GetMetricsByRegexp(t *testing.T, re *regexp.Regexp) []fl
 
 	values := []float64{}
 
-	metrics, statusCode := c.metricsCli.Get(t, c.url, nil)
+	metrics, statusCode := c.cli.Get(t, c.url, nil)
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
 	}
@@ -270,7 +270,7 @@ func (c *metricsClient) rpcRowsSentTotal(t *testing.T) int {
 }
 
 type vmselectClient struct {
-	vmselectCli              *Client
+	cli                      *Client
 	url                      func(op, path string, opts QueryOpts) string
 	metricNamesStatsResetURL string
 	tenantsURL               string
@@ -287,7 +287,7 @@ func (c *vmselectClient) PrometheusAPIV1Export(t *testing.T, query string, opts 
 	values := opts.asURLValues()
 	values.Add("match[]", query)
 	values.Add("format", "promapi")
-	res, _ := c.vmselectCli.PostForm(t, url, values, opts.Headers)
+	res, _ := c.cli.PostForm(t, url, values, opts.Headers)
 	return NewPrometheusAPIV1QueryResponse(t, res)
 }
 
@@ -302,7 +302,7 @@ func (c *vmselectClient) PrometheusAPIV1ExportNative(t *testing.T, query string,
 	values := opts.asURLValues()
 	values.Add("match[]", query)
 	values.Add("format", "promapi")
-	res, _ := c.vmselectCli.PostForm(t, url, values, opts.Headers)
+	res, _ := c.cli.PostForm(t, url, values, opts.Headers)
 	return []byte(res)
 }
 
@@ -315,7 +315,7 @@ func (c *vmselectClient) PrometheusAPIV1Query(t *testing.T, query string, opts Q
 	url := c.url("select", "prometheus/api/v1/query", opts)
 	values := opts.asURLValues()
 	values.Add("query", query)
-	res, _ := c.vmselectCli.PostForm(t, url, values, opts.Headers)
+	res, _ := c.cli.PostForm(t, url, values, opts.Headers)
 	return NewPrometheusAPIV1QueryResponse(t, res)
 }
 
@@ -329,7 +329,7 @@ func (c *vmselectClient) PrometheusAPIV1QueryRange(t *testing.T, query string, o
 	url := c.url("select", "prometheus/api/v1/query_range", opts)
 	values := opts.asURLValues()
 	values.Add("query", query)
-	res, _ := c.vmselectCli.PostForm(t, url, values, opts.Headers)
+	res, _ := c.cli.PostForm(t, url, values, opts.Headers)
 	return NewPrometheusAPIV1QueryResponse(t, res)
 }
 
@@ -342,7 +342,7 @@ func (c *vmselectClient) PrometheusAPIV1Series(t *testing.T, matchQuery string, 
 	url := c.url("select", "prometheus/api/v1/series", opts)
 	values := opts.asURLValues()
 	values.Add("match[]", matchQuery)
-	res, _ := c.vmselectCli.PostForm(t, url, values, opts.Headers)
+	res, _ := c.cli.PostForm(t, url, values, opts.Headers)
 	return NewPrometheusAPIV1SeriesResponse(t, res)
 }
 
@@ -354,7 +354,7 @@ func (c *vmselectClient) PrometheusAPIV1SeriesCount(t *testing.T, opts QueryOpts
 	t.Helper()
 	url := c.url("select", "prometheus/api/v1/series/count", opts)
 	values := opts.asURLValues()
-	res, _ := c.vmselectCli.PostForm(t, url, values, opts.Headers)
+	res, _ := c.cli.PostForm(t, url, values, opts.Headers)
 	return NewPrometheusAPIV1SeriesCountResponse(t, res)
 }
 
@@ -367,7 +367,7 @@ func (c *vmselectClient) PrometheusAPIV1Labels(t *testing.T, matchQuery string, 
 	url := c.url("select", "prometheus/api/v1/labels", opts)
 	values := opts.asURLValues()
 	values.Add("match[]", matchQuery)
-	res, _ := c.vmselectCli.PostForm(t, url, values, opts.Headers)
+	res, _ := c.cli.PostForm(t, url, values, opts.Headers)
 	return NewPrometheusAPIV1LabelsResponse(t, res)
 }
 
@@ -382,7 +382,7 @@ func (c *vmselectClient) PrometheusAPIV1LabelValues(t *testing.T, labelName, mat
 	url := c.url("select", path, opts)
 	values := opts.asURLValues()
 	values.Add("match[]", matchQuery)
-	res, _ := c.vmselectCli.PostForm(t, url, values, opts.Headers)
+	res, _ := c.cli.PostForm(t, url, values, opts.Headers)
 	return NewPrometheusAPIV1LabelValuesResponse(t, res)
 }
 
@@ -394,7 +394,7 @@ func (c *vmselectClient) PrometheusAPIV1Metadata(t *testing.T, metric string, li
 	values := opts.asURLValues()
 	values.Add("metric", metric)
 	values.Add("limit", strconv.Itoa(limit))
-	res, _ := c.vmselectCli.PostForm(t, url, values, opts.Headers)
+	res, _ := c.cli.PostForm(t, url, values, opts.Headers)
 	return NewPrometheusAPIV1Metadata(t, res)
 }
 
@@ -408,7 +408,7 @@ func (c *vmselectClient) PrometheusAPIV1AdminTSDBDeleteSeries(t *testing.T, matc
 	url := c.url("delete", "prometheus/api/v1/admin/tsdb/delete_series", opts)
 	values := opts.asURLValues()
 	values.Add("match[]", matchQuery)
-	res, statusCode := c.vmselectCli.PostForm(t, url, values, opts.Headers)
+	res, statusCode := c.cli.PostForm(t, url, values, opts.Headers)
 	if statusCode != http.StatusNoContent {
 		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusNoContent, res)
 	}
@@ -426,7 +426,7 @@ func (c *vmselectClient) PrometheusAPIV1StatusMetricNamesStats(t *testing.T, lim
 	values.Add("limit", limit)
 	values.Add("le", le)
 	values.Add("match_pattern", matchPattern)
-	res, statusCode := c.vmselectCli.PostForm(t, url, values, opts.Headers)
+	res, statusCode := c.cli.PostForm(t, url, values, opts.Headers)
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusOK, res)
 	}
@@ -455,7 +455,7 @@ func (c *vmselectClient) PrometheusAPIV1StatusTSDB(t *testing.T, matchQuery stri
 	addNonEmpty("match[]", matchQuery)
 	addNonEmpty("topN", topN)
 	addNonEmpty("date", date)
-	res, statusCode := c.vmselectCli.PostForm(t, url, values, opts.Headers)
+	res, statusCode := c.cli.PostForm(t, url, values, opts.Headers)
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusOK, res)
 	}
@@ -476,7 +476,7 @@ func (c *vmselectClient) GraphiteMetricsIndex(t *testing.T, opts QueryOpts) Grap
 	t.Helper()
 
 	url := c.url("select", "graphite/metrics/index.json", opts)
-	res, statusCode := c.vmselectCli.Get(t, url, opts.Headers)
+	res, statusCode := c.cli.Get(t, url, opts.Headers)
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusOK, res)
 	}
@@ -499,7 +499,7 @@ func (c *vmselectClient) GraphiteMetricsFind(t *testing.T, query string, opts Qu
 	url := c.url("select", "graphite/metrics/find", opts)
 	values := opts.asURLValues()
 	values.Add("query", query)
-	resText, statusCode := c.vmselectCli.PostForm(t, url, values, opts.Headers)
+	resText, statusCode := c.cli.PostForm(t, url, values, opts.Headers)
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusOK, resText)
 	}
@@ -522,7 +522,7 @@ func (c *vmselectClient) GraphiteMetricsExpand(t *testing.T, query string, opts 
 	url := c.url("select", "graphite/metrics/expand", opts)
 	values := opts.asURLValues()
 	values.Add("query", query)
-	resText, statusCode := c.vmselectCli.PostForm(t, url, values, opts.Headers)
+	resText, statusCode := c.cli.PostForm(t, url, values, opts.Headers)
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusOK, resText)
 	}
@@ -546,7 +546,7 @@ func (c *vmselectClient) GraphiteRender(t *testing.T, target string, opts QueryO
 	values := opts.asURLValues()
 	values.Add("format", "json")
 	values.Add("target", target)
-	resText, statusCode := c.vmselectCli.PostForm(t, url, values, opts.Headers)
+	resText, statusCode := c.cli.PostForm(t, url, values, opts.Headers)
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusOK, resText)
 	}
@@ -567,7 +567,7 @@ func (c *vmselectClient) GraphiteTagsTagSeries(t *testing.T, record string, opts
 	url := c.url("select", "graphite/tags/tagSeries", opts)
 	values := opts.asURLValues()
 	values.Add("path", record)
-	_, statusCode := c.vmselectCli.PostForm(t, url, values, opts.Headers)
+	_, statusCode := c.cli.PostForm(t, url, values, opts.Headers)
 	if got, want := statusCode, http.StatusNotImplemented; got != want {
 		t.Fatalf("unexpected status code: got %d, want %d", got, want)
 	}
@@ -584,7 +584,7 @@ func (c *vmselectClient) GraphiteTagsTagMultiSeries(t *testing.T, records []stri
 	for _, rec := range records {
 		values.Add("path", rec)
 	}
-	_, statusCode := c.vmselectCli.PostForm(t, url, values, opts.Headers)
+	_, statusCode := c.cli.PostForm(t, url, values, opts.Headers)
 	if got, want := statusCode, http.StatusNotImplemented; got != want {
 		t.Fatalf("unexpected status code: got %d, want %d", got, want)
 	}
@@ -598,7 +598,7 @@ func (c *vmselectClient) GraphiteTagsTagMultiSeries(t *testing.T, records []stri
 func (c *vmselectClient) PrometheusAPIV1AdminStatusMetricNamesStatsReset(t *testing.T, opts QueryOpts) {
 	t.Helper()
 	values := opts.asURLValues()
-	res, statusCode := c.vmselectCli.PostForm(t, c.metricNamesStatsResetURL, values, opts.Headers)
+	res, statusCode := c.cli.PostForm(t, c.metricNamesStatsResetURL, values, opts.Headers)
 	if statusCode != http.StatusNoContent {
 		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusNoContent, res)
 	}
@@ -608,7 +608,7 @@ func (c *vmselectClient) PrometheusAPIV1AdminStatusMetricNamesStatsReset(t *test
 // /admin/tenants endpoint.
 func (c *vmselectClient) APIV1AdminTenants(t *testing.T, opts QueryOpts) *AdminTenantsResponse {
 	t.Helper()
-	res, statusCode := c.vmselectCli.Get(t, c.tenantsURL, opts.Headers)
+	res, statusCode := c.cli.Get(t, c.tenantsURL, opts.Headers)
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusOK, res)
 	}
@@ -622,7 +622,7 @@ func (c *vmselectClient) APIV1AdminTenants(t *testing.T, opts QueryOpts) *AdminT
 }
 
 type vminsertClient struct {
-	vminsertCli        *Client
+	cli                *Client
 	url                func(op, path string, opts QueryOpts) string
 	openTSDBURL        func(op, path string, opts QueryOpts) string
 	graphiteListenAddr string
@@ -647,7 +647,7 @@ func (c *vminsertClient) PrometheusAPIV1ImportCSV(t *testing.T, records []string
 	headers := opts.getHeaders()
 	headers.Set("Content-Type", "text/plain")
 	c.sendBlocking(t, len(records), func() {
-		_, statusCode := c.vminsertCli.Post(t, url, data, headers)
+		_, statusCode := c.cli.Post(t, url, data, headers)
 		if statusCode != http.StatusNoContent {
 			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
 		}
@@ -671,7 +671,7 @@ func (c *vminsertClient) PrometheusAPIV1ImportNative(t *testing.T, data []byte, 
 	headers := opts.getHeaders()
 	headers.Set("Content-Type", "text/plain")
 	c.sendBlocking(t, 1, func() {
-		_, statusCode := c.vminsertCli.Post(t, url, data, headers)
+		_, statusCode := c.cli.Post(t, url, data, headers)
 		if statusCode != http.StatusNoContent {
 			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
 		}
@@ -693,7 +693,7 @@ func (c *vminsertClient) PrometheusAPIV1Write(t *testing.T, wr prompb.WriteReque
 	headers := opts.getHeaders()
 	headers.Set("Content-Type", "application/x-protobuf")
 	c.sendBlocking(t, recordsCount, func() {
-		_, statusCode := c.vminsertCli.Post(t, url, data, headers)
+		_, statusCode := c.cli.Post(t, url, data, headers)
 		if statusCode != http.StatusNoContent {
 			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
 		}
@@ -745,7 +745,7 @@ func (c *vminsertClient) PrometheusAPIV1ImportPrometheus(t *testing.T, records [
 	headers := opts.getHeaders()
 	headers.Set("Content-Type", "text/plain")
 	c.sendBlocking(t, recordsCount, func() {
-		_, statusCode := c.vminsertCli.Post(t, url, data, headers)
+		_, statusCode := c.cli.Post(t, url, data, headers)
 		if statusCode != http.StatusNoContent {
 			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
 		}
@@ -771,7 +771,7 @@ func (c *vminsertClient) InfluxWrite(t *testing.T, records []string, opts QueryO
 	headers.Set("Content-Type", "text/plain")
 	c.sendBlocking(t, len(records), func() {
 		t.Helper()
-		_, statusCode := c.vminsertCli.Post(t, url, data, headers)
+		_, statusCode := c.cli.Post(t, url, data, headers)
 		if statusCode != http.StatusNoContent {
 			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
 		}
@@ -805,7 +805,7 @@ func (c *vminsertClient) OpentelemetryV1Metrics(t *testing.T, md otlppb.MetricsD
 	headers := opts.getHeaders()
 	headers.Set("Content-Type", "application/x-protobuf")
 	c.sendBlocking(t, recordsCount, func() {
-		_, statusCode := c.vminsertCli.Post(t, url, data, headers)
+		_, statusCode := c.cli.Post(t, url, data, headers)
 		if statusCode != http.StatusOK {
 			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
 		}
@@ -830,7 +830,7 @@ func (c *vminsertClient) OpenTSDBAPIPut(t *testing.T, records []string, opts Que
 	headers := opts.getHeaders()
 	headers.Set("Content-Type", "application/json")
 	c.sendBlocking(t, len(records), func() {
-		_, statusCode := c.vminsertCli.Post(t, url, data, headers)
+		_, statusCode := c.cli.Post(t, url, data, headers)
 		if statusCode != http.StatusNoContent {
 			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
 		}
@@ -853,7 +853,7 @@ func (c *vminsertClient) ZabbixConnectorHistory(t *testing.T, records []string, 
 	headers := opts.getHeaders()
 	headers.Set("Content-Type", "application/json")
 	c.sendBlocking(t, len(records), func() {
-		_, statusCode := c.vminsertCli.Post(t, url, data, headers)
+		_, statusCode := c.cli.Post(t, url, data, headers)
 		if statusCode != http.StatusOK {
 			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
 		}
@@ -867,11 +867,11 @@ func (c *vminsertClient) ZabbixConnectorHistory(t *testing.T, records []string, 
 // See https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting
 func (c *vminsertClient) GraphiteWrite(t *testing.T, records []string, _ QueryOpts) {
 	t.Helper()
-	c.vminsertCli.Write(t, c.graphiteListenAddr, records)
+	c.cli.Write(t, c.graphiteListenAddr, records)
 }
 
 type vmstorageClient struct {
-	vmstorageCli   *Client
+	cli            *Client
 	httpListenAddr string
 }
 
@@ -881,7 +881,7 @@ func (c *vmstorageClient) ForceFlush(t *testing.T) {
 	t.Helper()
 
 	url := fmt.Sprintf("http://%s/internal/force_flush", c.httpListenAddr)
-	_, statusCode := c.vmstorageCli.Get(t, url, nil)
+	_, statusCode := c.cli.Get(t, url, nil)
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
 	}
@@ -892,7 +892,7 @@ func (c *vmstorageClient) ForceMerge(t *testing.T) {
 	t.Helper()
 
 	url := fmt.Sprintf("http://%s/internal/force_merge", c.httpListenAddr)
-	_, statusCode := c.vmstorageCli.Get(t, url, nil)
+	_, statusCode := c.cli.Get(t, url, nil)
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
 	}
@@ -905,7 +905,7 @@ func (c *vmstorageClient) ForceMerge(t *testing.T) {
 func (c *vmstorageClient) SnapshotCreate(t *testing.T) *SnapshotCreateResponse {
 	t.Helper()
 
-	data, statusCode := c.vmstorageCli.Post(t, c.SnapshotCreateURL(), nil, nil)
+	data, statusCode := c.cli.Post(t, c.SnapshotCreateURL(), nil, nil)
 	if got, want := statusCode, http.StatusOK; got != want {
 		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", got, want, data)
 	}
@@ -931,7 +931,7 @@ func (c *vmstorageClient) APIV1AdminTSDBSnapshot(t *testing.T) *APIV1AdminTSDBSn
 	t.Helper()
 
 	url := fmt.Sprintf("http://%s/api/v1/admin/tsdb/snapshot", c.httpListenAddr)
-	data, statusCode := c.vmstorageCli.Post(t, url, nil, nil)
+	data, statusCode := c.cli.Post(t, url, nil, nil)
 	if got, want := statusCode, http.StatusOK; got != want {
 		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", got, want, data)
 	}
@@ -952,7 +952,7 @@ func (c *vmstorageClient) SnapshotList(t *testing.T) *SnapshotListResponse {
 	t.Helper()
 
 	url := fmt.Sprintf("http://%s/snapshot/list", c.httpListenAddr)
-	data, statusCode := c.vmstorageCli.Get(t, url, nil)
+	data, statusCode := c.cli.Get(t, url, nil)
 	if got, want := statusCode, http.StatusOK; got != want {
 		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", got, want, data)
 	}
@@ -973,7 +973,7 @@ func (c *vmstorageClient) SnapshotDelete(t *testing.T, snapshotName string) *Sna
 	t.Helper()
 
 	url := fmt.Sprintf("http://%s/snapshot/delete?snapshot=%s", c.httpListenAddr, snapshotName)
-	data, statusCode := c.vmstorageCli.Delete(t, url)
+	data, statusCode := c.cli.Delete(t, url)
 	wantStatusCodes := map[int]bool{
 		http.StatusOK:                  true,
 		http.StatusInternalServerError: true,
@@ -998,7 +998,7 @@ func (c *vmstorageClient) SnapshotDeleteAll(t *testing.T) *SnapshotDeleteAllResp
 	t.Helper()
 
 	url := fmt.Sprintf("http://%s/snapshot/delete_all", c.httpListenAddr)
-	data, statusCode := c.vmstorageCli.Post(t, url, nil, nil)
+	data, statusCode := c.cli.Post(t, url, nil, nil)
 	if got, want := statusCode, http.StatusOK; got != want {
 		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", got, want, data)
 	}

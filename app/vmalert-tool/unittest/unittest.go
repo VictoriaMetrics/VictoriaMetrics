@@ -61,7 +61,7 @@ func UnitTest(files []string, disableGroupLabel bool, externalLabels []string, e
 	}
 	eu, err := url.Parse(externalURL)
 	if err != nil {
-		logger.Fatalf("failed to parse external URL: %w", err)
+		logger.Fatalf("failed to parse external URL: %s", err)
 	}
 	if err := templates.Load([]string{}, *eu); err != nil {
 		logger.Fatalf("failed to load template: %v", err)
@@ -108,7 +108,9 @@ func UnitTest(files []string, disableGroupLabel bool, externalLabels []string, e
 	storagePath = tmpFolder
 	processFlags()
 	vminsert.Init()
-	vmselect.Init()
+	const maxConcurrentRequests = 4
+	maxQueueDuration := 5 * time.Second
+	vmselect.Init(maxConcurrentRequests, maxQueueDuration)
 	// storagePath will be created again when closing vmselect, so remove it again.
 	defer fs.MustRemoveDir(storagePath)
 	defer vminsert.Stop()
@@ -279,7 +281,9 @@ func processFlags() {
 }
 
 func setUp() {
-	vmstorage.Init(promql.ResetRollupResultCacheIfNeeded)
+	const maxConcurrentRequests = 4
+	maxQueueDuration := 5 * time.Second
+	vmstorage.Init(maxConcurrentRequests, maxQueueDuration, promql.ResetRollupResultCacheIfNeeded)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	readyCheckFunc := func() bool {
@@ -326,11 +330,11 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 
 	q, err := datasource.Init(nil)
 	if err != nil {
-		return []error{fmt.Errorf("failed to init datasource: %v", err)}
+		return []error{fmt.Errorf("failed to init datasource: %w", err)}
 	}
 	rw, err := remotewrite.NewDebugClient()
 	if err != nil {
-		return []error{fmt.Errorf("failed to init wr: %v", err)}
+		return []error{fmt.Errorf("failed to init wr: %w", err)}
 	}
 
 	alertEvalTimesMap := map[time.Duration]struct{}{}
@@ -384,7 +388,7 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 				}
 			}
 			// flush series after each group evaluation
-			vmstorage.Storage.DebugFlush()
+			vmstorage.DebugFlush()
 		}
 
 		// check alert_rule_test case at every eval time

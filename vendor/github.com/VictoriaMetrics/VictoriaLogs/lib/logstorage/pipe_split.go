@@ -142,7 +142,7 @@ func parsePipeSplit(lex *lexer) (pipe, error) {
 	}
 
 	srcField := "_msg"
-	if !lex.isKeyword("as", ")", "|", "") {
+	if !lex.isKeyword("as") && !lex.isQueryPartTrailer() {
 		if lex.isKeyword("from") {
 			lex.nextToken()
 		}
@@ -154,7 +154,7 @@ func parsePipeSplit(lex *lexer) (pipe, error) {
 	}
 
 	dstField := srcField
-	if !lex.isKeyword(")", "|", "") {
+	if !lex.isQueryPartTrailer() {
 		if lex.isKeyword("as") {
 			lex.nextToken()
 		}
