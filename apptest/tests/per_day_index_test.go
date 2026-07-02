@@ -16,6 +16,7 @@ func TestSingleSearchWithDisabledPerDayIndex(t *testing.T) {
 			"-storageDataPath=" + tc.Dir() + "/vmsingle",
 			"-retentionPeriod=100y",
 			"-search.maxStalenessInterval=1m",
+			"-enableGlobalIndex=true",
 			fmt.Sprintf("-disablePerDayIndex=%t", disablePerDayIndex),
 		})
 	})
@@ -34,6 +35,7 @@ func TestClusterSearchWithDisabledPerDayIndex(t *testing.T) {
 			"-httpListenAddr=127.0.0.1:61001",
 			"-vminsertAddr=127.0.0.1:61002",
 			"-vmselectAddr=127.0.0.1:61003",
+			"-enableGlobalIndex=true",
 			fmt.Sprintf("-disablePerDayIndex=%t", disablePerDayIndex),
 		})
 		vmstorage2 := tc.MustStartVmstorage("vmstorage2-"+name, []string{
@@ -42,6 +44,7 @@ func TestClusterSearchWithDisabledPerDayIndex(t *testing.T) {
 			"-httpListenAddr=127.0.0.1:62001",
 			"-vminsertAddr=127.0.0.1:62002",
 			"-vmselectAddr=127.0.0.1:62003",
+			"-enableGlobalIndex=true",
 			fmt.Sprintf("-disablePerDayIndex=%t", disablePerDayIndex),
 		})
 		vminsert := tc.MustStartVminsert("vminsert-"+name, []string{

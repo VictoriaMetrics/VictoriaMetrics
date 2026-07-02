@@ -79,6 +79,7 @@ type Storage struct {
 	// compatibility with partition index.
 	legacyIndexDBs atomic.Pointer[legacyIndexDBs]
 
+	disableGlobalIndex bool
 	disablePerDayIndex bool
 
 	tb *table
@@ -167,6 +168,7 @@ type OpenOptions struct {
 	DenyQueriesOutsideRetention bool
 	MaxHourlySeries             int
 	MaxDailySeries              int
+	DisableGlobalIndex          bool
 	DisablePerDayIndex          bool
 	TrackMetricNamesStats       bool
 	IDBPrefillStart             time.Duration
@@ -262,6 +264,10 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	fs.MustMkdirIfNotExist(metadataDir)
 	s.minTimestampForCompositeIndex = mustGetMinTimestampForCompositeIndex(metadataDir, isEmptyDB)
 
+	if opts.DisableGlobalIndex && opts.DisablePerDayIndex {
+		logger.Panicf("BUG: global and per-day indexes cannot be disabled at the same time")
+	}
+	s.disableGlobalIndex = opts.DisableGlobalIndex
 	s.disablePerDayIndex = opts.DisablePerDayIndex
 
 	// Load legacy indexDBs.
@@ -1733,7 +1739,7 @@ func (s *Storage) adjustTimeRange(searchTR, idbTR TimeRange) TimeRange {
 	// For legacy IndexDBs only, partition indexDBs can't span more than a
 	// month.
 	minDate, maxDate := tr.DateRange()
-	if maxDate-minDate > maxDaysForPerDaySearch {
+	if !s.disableGlobalIndex && maxDate-minDate > maxDaysForPerDaySearch {
 		return globalIndexTimeRange
 	}
 
@@ -1741,7 +1747,7 @@ func (s *Storage) adjustTimeRange(searchTR, idbTR TimeRange) TimeRange {
 	// the idb time range, then return globalIndexTimeRange to indicate that we
 	// want to search the global index since the entire index db needs to be
 	// searched anyway.
-	if tr == idbTR {
+	if !s.disableGlobalIndex && tr == idbTR {
 		return globalIndexTimeRange
 	}
 
