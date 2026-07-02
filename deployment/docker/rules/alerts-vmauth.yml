@@ -65,7 +65,7 @@ groups:
           dashboard: "{{ $externalURL }}/d/nbuo5Mr4k?viewPanel=16&var-job={{ $labels.job }}"
           summary: "vmauth {{ $labels.job }} is receiving many requests with invalid auth tokens"
           description: |
-            vmauth {{ $labels.job }} received {{ $value }} requests with invalid auth tokens in the last 15 minutes.
+            vmauth {{ $labels.job }} received {{ $value }} requests with invalid auth tokens in the last 5 minutes.
             This may indicate:
               - credentials have been updated on vmauth but not on clients
               - client misconfiguration or use of an expired token
