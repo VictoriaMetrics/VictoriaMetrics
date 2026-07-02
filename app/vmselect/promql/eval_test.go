@@ -170,3 +170,87 @@ func TestGetSumInstantValues(t *testing.T) {
 		[]*timeseries{ts("foo", 100, 1)},
 	)
 }
+
+func TestShouldOptimizeRepeatedBinaryOpSubexprsGate(t *testing.T) {
+	e, err := metricsql.Parse(`count(count(vm_requests_total) by (action,addr,cluster,endpoint)) by (action,addr,cluster) / count(count(vm_requests_total) by (action,addr,cluster,endpoint))`)
+	if err != nil {
+		t.Fatalf("unexpected error in metricsql.Parse(): %s", err)
+	}
+	be, ok := e.(*metricsql.BinaryOpExpr)
+	if !ok {
+		t.Fatalf("unexpected expr type; got %T; want *metricsql.BinaryOpExpr", e)
+	}
+
+	f := func(name string, ec *EvalConfig, resultExpected bool) {
+		t.Helper()
+		result := shouldOptimizeRepeatedBinaryOpSubexprs(ec, be.Left, be.Right)
+		if result != resultExpected {
+			t.Fatalf("unexpected result for %q; got %v; want %v", name, result, resultExpected)
+		}
+	}
+
+	f("disabled optimization", &EvalConfig{
+		Start: 1000,
+		End:   2000,
+		Step:  1000,
+	}, false)
+	f("disabled cache", &EvalConfig{
+		Start:                            1000,
+		End:                              2000,
+		Step:                             1000,
+		OptimizeRepeatedBinaryOpSubexprs: true,
+	}, false)
+	f("instant query", &EvalConfig{
+		Start:                            1000,
+		End:                              1000,
+		Step:                             1000,
+		MayCache:                         true,
+		OptimizeRepeatedBinaryOpSubexprs: true,
+	}, false)
+	f("repeated cacheable aggregate subexpression", &EvalConfig{
+		Start:                            1000,
+		End:                              2000,
+		Step:                             1000,
+		MayCache:                         true,
+		OptimizeRepeatedBinaryOpSubexprs: true,
+	}, true)
+	f("unaligned range query", &EvalConfig{
+		Start:                            1001,
+		End:                              2000,
+		Step:                             1000,
+		MayCache:                         true,
+		OptimizeRepeatedBinaryOpSubexprs: true,
+	}, false)
+}
+
+func TestShouldOptimizeRepeatedBinaryOpSubexprsExpressions(t *testing.T) {
+	f := func(name, q string, resultExpected bool) {
+		t.Helper()
+		e, err := metricsql.Parse(q)
+		if err != nil {
+			t.Fatalf("unexpected error in metricsql.Parse(%q) for %q: %s", q, name, err)
+		}
+		be, ok := e.(*metricsql.BinaryOpExpr)
+		if !ok {
+			t.Fatalf("unexpected expr type for %q; got %T; want *metricsql.BinaryOpExpr", name, e)
+		}
+		ec := &EvalConfig{Start: 1000, End: 2000, Step: 1000, MayCache: true, OptimizeRepeatedBinaryOpSubexprs: true}
+		result := shouldOptimizeRepeatedBinaryOpSubexprs(ec, be.Left, be.Right)
+		if result != resultExpected {
+			t.Fatalf("unexpected result for %q; got %v; want %v; query: %q", name, result, resultExpected, q)
+		}
+	}
+
+	f("original issue query", `count(count(vm_requests_total) by (action,addr,cluster,endpoint)) by (action,addr,cluster) / count(count(vm_requests_total) by (action,addr,cluster,endpoint))`, true)
+	f("right side contains repeated count aggregate", `count(foo) by (job) / (count(foo) by (job) + 1)`, true)
+	f("same sum aggregate", `sum(rate(foo[5m])) by (job) / sum(rate(foo[5m])) by (job)`, true)
+	f("same inner rollup but different aggregates", `sum(rate(foo[5m])) by (job) / count(rate(foo[5m])) by (job)`, false)
+	f("different count aggregates", `count(foo) by (job) / count(bar) by (job)`, false)
+	f("bare metric selector", `foo / foo`, false)
+	f("bare rollup function", `rate(a[5m]) / rate(a[5m])`, false)
+	f("now at modifier", `sum(rate(foo[5m] @ now())) by (job) / sum(rate(foo[5m] @ now())) by (job)`, false)
+	f("unseeded rand at modifier", `sum(rate(foo[5m] @ rand())) by (job) / sum(rate(foo[5m] @ rand())) by (job)`, false)
+	f("unseeded rand_normal at modifier", `sum(rate(foo[5m] @ rand_normal())) by (job) / sum(rate(foo[5m] @ rand_normal())) by (job)`, false)
+	f("unseeded rand_exponential at modifier", `sum(rate(foo[5m] @ rand_exponential())) by (job) / sum(rate(foo[5m] @ rand_exponential())) by (job)`, false)
+	f("seeded rand at modifier", `sum(rate(foo[5m] @ rand(1))) by (job) / sum(rate(foo[5m] @ rand(1))) by (job)`, true)
+}

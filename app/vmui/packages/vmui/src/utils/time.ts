@@ -16,7 +16,7 @@ const supportedValuesOf = Intl.supportedValuesOf;
 export const supportedTimezones = supportedValuesOf ? supportedValuesOf("timeZone") as string[] : timezones;
 
 // The list of supported units could be the following -
-// https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations
+// https://prometheus.io/docs/prometheus/latest/querying/basics/#float-literals-and-time-durations
 export const supportedDurations = [
   { long: "years", short: "y", possible: "year" },
   { long: "weeks", short: "w", possible: "week" },

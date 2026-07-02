@@ -16,8 +16,6 @@ aliases:
 
 `vmestimator` measures metrics cardinality across arbitrary label dimensions and exposes the results as metrics.
 
-`vmestimator` measures metrics cardinality across arbitrary label dimensions and exposes the results as metrics.
-
 ## Why measure?
 
 Consider a setup where metrics are scraped from dozens of Prometheus targets.
