@@ -33,11 +33,14 @@ func TestAddExtraLabelsToImportPath_Success(t *testing.T) {
 	f("/api/v1/import", nil, "/api/v1/import")
 
 	// ok one extra label
-	f("/api/v1/import", []string{"instance=host-1"}, "/api/v1/import?extra_label=instance=host-1")
+	f("/api/v1/import", []string{"instance=host-1"}, "/api/v1/import?extra_label=instance%3Dhost-1")
 
 	// ok two extra labels
-	f("/api/v1/import", []string{"instance=host-2", "job=vmagent"}, "/api/v1/import?extra_label=instance=host-2&extra_label=job=vmagent")
+	f("/api/v1/import", []string{"instance=host-2", "job=vmagent"}, "/api/v1/import?extra_label=instance%3Dhost-2&extra_label=job%3Dvmagent")
 
 	// ok two extra with exist param
-	f("/api/v1/import?timeout=50", []string{"instance=host-2", "job=vmagent"}, "/api/v1/import?timeout=50&extra_label=instance=host-2&extra_label=job=vmagent")
+	f("/api/v1/import?timeout=50", []string{"instance=host-2", "job=vmagent"}, "/api/v1/import?timeout=50&extra_label=instance%3Dhost-2&extra_label=job%3Dvmagent")
+
+	// ok special chars in label value
+	f("/api/v1/import", []string{"team=a&b"}, "/api/v1/import?extra_label=team%3Da%26b")
 }
