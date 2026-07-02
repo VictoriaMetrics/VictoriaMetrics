@@ -63,7 +63,7 @@ groups:
           severity: warning
         annotations:
           dashboard: "{{ $externalURL }}/d/nbuo5Mr4k?viewPanel=16&var-job={{ $labels.job }}"
-          summary: "vmauth {{ $labels.job }} is receiving too many requests with invalid auth tokens"
+          summary: "vmauth {{ $labels.job }} is receiving many requests with invalid auth tokens"
           description: |
             vmauth {{ $labels.job }} received {{ $value }} requests with invalid auth tokens in the last 15 minutes.
             This may indicate:
