@@ -67,6 +67,8 @@ func NewDeduplicator(pushFunc PushFunc, enableWindows bool, interval time.Durati
 
 	metrics.RegisterSet(ms)
 
+	lc.Register(2 * interval)
+
 	d.wg.Go(func() {
 		d.runFlusher(pushFunc)
 	})
@@ -76,6 +78,8 @@ func NewDeduplicator(pushFunc PushFunc, enableWindows bool, interval time.Durati
 
 // MustStop stops d.
 func (d *Deduplicator) MustStop() {
+	lc.Unregister(2 * d.interval)
+
 	metrics.UnregisterSet(d.ms, true)
 	d.ms = nil
 
@@ -194,7 +198,7 @@ func (d *Deduplicator) flush(pushFunc PushFunc) {
 		dstSamples := ctx.samples
 		for _, ps := range samples {
 			labelsLen := len(labels)
-			labels = decompressLabels(labels, ps.key)
+			labels = lc.Decompress(labels, bytesutil.ToUnsafeBytes(ps.key))
 
 			dstSamplesLen := len(dstSamples)
 			dstSamples = append(dstSamples, prompb.Sample{
