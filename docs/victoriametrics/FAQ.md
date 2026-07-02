@@ -416,7 +416,7 @@ The cache size depends on the available memory for VictoriaMetrics in the host s
 then VictoriaMetrics needs to read and unpack the information from disk on every incoming sample for time series missing in the cache.
 This operation is much slower than the cache lookup, so such an insert is named a `slow insert`.
 A high percentage of slow inserts on the [official dashboard for VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#monitoring) indicates
-a memory shortage for the current number of [active time series](#what-is-an-active-time-series). Such a condition usually leads
+a [memory shortage](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#memory-shortage) for the current number of [active time series](#what-is-an-active-time-series). Such a condition usually leads
 to a significant slowdown for data ingestion and to significantly increased disk IO and CPU usage.
 The solution is to add more memory or to reduce the number of [active time series](#what-is-an-active-time-series).
 
