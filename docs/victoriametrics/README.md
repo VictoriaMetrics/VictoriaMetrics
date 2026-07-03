@@ -1693,16 +1693,16 @@ The functionality is disabled by default and can be enabled by setting the
 `-vmselectAddr` flag. This will start the `vmselect RPC server` that accepts
 requests and serves responses in cluster format.
 
-Cluster data format assumes the presense of a `tenantID`. Single-node data
+Cluster data format assumes the presence of a `tenantID`. Single-node data
 format still does not support multitenancy but it is possible to configure the
-single-node which `tenantID` its data corresponds to with `-accountID` and
-`-projectID` flags. Both are `0` by default, which means that `"0:0"` `tenantID`
-is used by default.
+single-node which `tenantID` the single-node's data corresponds to with
+`-accountID` and `-projectID` flags. Both are `0` by default, which means that
+`"0:0"` `tenantID` is used by default.
 
-For example, the following command will start a single-node with that listens
-for vmselect RPC requests on `8401` port. The requests must be either
-`multinenant`(i.e. want data for all tenants) or for `"12:34"` tenant.
-Otherwise, single node will return empty result:
+For example, the following command will start a single-node that listens for
+vmselect RPC requests on `8401` port. The requests must be either `multitenant`
+(i.e. want data for all tenants) or for `"12:34"` tenant. Otherwise, the
+single-node will return an empty result:
 
 ```shell
 ./victoria-metrics -storageDataPath=/data -vmselectAddr=:8401 -accountID=12 -projectID=34
@@ -2349,7 +2349,7 @@ This requires no data migration nor downtime (apart from restarting the
 single-node at step 1). And once the single-node data becomes outside the
 retention period, the single-node deployment can be removed.
 
-Note that if you need the actually migrate data to cluster and/or modify it, you
+Note that if you need to actually migrate data to cluster and/or modify it, you
 will need to use
 [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/)
 instead.

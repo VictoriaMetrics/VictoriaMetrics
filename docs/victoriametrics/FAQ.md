@@ -472,7 +472,7 @@ This makes it impossible to just copy the on-disk data from `-storageDataPath` d
 
 There are two options, however:
 
-1. Deploy an new cluster next to the existing single-node and let them co-exist until the cluster is filled with new data and the old data in vmsingle becomes outside of the retention period. This option requires no data migration nor downtime. See instructions [here](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#from-single-node-to-cluster)
+1. Deploy a new cluster next to the existing single-node and let them co-exist until the cluster is filled with new data and the old data in vmsingle becomes outside of the retention period. This option requires no data migration nor downtime. See instructions [here](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#from-single-node-to-cluster)
 2. If you need to actually migrate data from a single-node VictoriaMetrics to the cluster version (and/or possibly modify it), then [follow these vmctl instructions](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/).
 
 ## Why isn't MetricsQL 100% compatible with PromQL?
