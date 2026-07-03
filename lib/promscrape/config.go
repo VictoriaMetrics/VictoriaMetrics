@@ -1311,8 +1311,8 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		}
 		streamParse = b
 	}
-	// Read __vm_unix_socket__ option from __vm_unix_socket__ label.
-	unixSocket := labels.Get("__vm_unix_socket__")
+	// Read __unix_socket__ option from __unix_socket__ label.
+	unixSocket := labels.Get("__unix_socket__")
 
 	// Remove labels with "__" prefix according to https://www.robustperception.io/life-of-a-label/
 	labels.RemoveLabelsWithDoubleUnderscorePrefix()

@@ -56,8 +56,7 @@ func newClient(ctx context.Context, sw *ScrapeWork) (*client, error) {
 	dialFunc := netutil.NewStatDialFunc("vm_promscrape")
 	if sw.UnixSocket != "" {
 		dialFunc = netutil.NewStatDialFuncWithDial("vm_promscrape", func(ctx context.Context, _, _ string) (net.Conn, error) {
-			var d net.Dialer
-			return d.DialContext(ctx, "unix", sw.UnixSocket)
+			return netutil.Dialer.DialContext(ctx, "unix", sw.UnixSocket)
 		})
 	}
 	proxyURL := sw.ProxyURL

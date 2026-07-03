@@ -26,7 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
-* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): support scraping metrics over Unix domain sockets. The socket path can be configured via the `__vm_unix_socket__` target label.
+* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): support scraping metrics over Unix domain sockets. The socket path can be configured via the `__unix_socket__` target label.
 * SECURITY: upgrade base docker image (Alpine) from 3.23.4 to 3.24.1. See [Alpine 3.24.1 release notes](https://www.alpinelinux.org/posts/Alpine-3.24.1-released.html).
 
 * FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): add `default_vm_access_claim` field into `jwt` section of auth config. It could be used at [JWT claim placeholders](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-based-request-templating), if `JWT` token doesn't have `vm_access` claim. See [#11054](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11054).
