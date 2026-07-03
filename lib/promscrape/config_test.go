@@ -1157,30 +1157,46 @@ scrape_configs:
   max_scrape_size: 8MiB
   relabel_configs:
   - source_labels: [__address__]
-    regex: foo:.*
+    regex: foo1:.*
     target_label: __max_scrape_size__
     replacement: 2.5MiB
+  - source_labels: [__address__]
+    regex: foo2:.*
+    target_label: __max_scrape_size__
+    replacement: -1
   static_configs:
-  - targets: ["foo:1234", "bar:1234"]
+  - targets: ["foo1:1234", "foo2:1234", "foo3:1234"]
 `, []*ScrapeWork{
 		{
-			ScrapeURL:      "http://foo:1234/metrics",
+			ScrapeURL:      "http://foo1:1234/metrics",
 			ScrapeInterval: defaultScrapeInterval,
 			ScrapeTimeout:  defaultScrapeTimeout,
 			MaxScrapeSize:  2.5 * 1024 * 1024,
 			Labels: promutil.NewLabelsFromMap(map[string]string{
-				"instance": "foo:1234",
+				"instance": "foo1:1234",
+				"job":      "foo",
+			}),
+			jobNameOriginal: "foo",
+		},
+		// invalid __max_scrape_size__ will be ignored
+		{
+			ScrapeURL:      "http://foo2:1234/metrics",
+			ScrapeInterval: defaultScrapeInterval,
+			ScrapeTimeout:  defaultScrapeTimeout,
+			MaxScrapeSize:  8 * 1024 * 1024,
+			Labels: promutil.NewLabelsFromMap(map[string]string{
+				"instance": "foo2:1234",
 				"job":      "foo",
 			}),
 			jobNameOriginal: "foo",
 		},
 		{
-			ScrapeURL:      "http://bar:1234/metrics",
+			ScrapeURL:      "http://foo3:1234/metrics",
 			ScrapeInterval: defaultScrapeInterval,
 			ScrapeTimeout:  defaultScrapeTimeout,
 			MaxScrapeSize:  8 * 1024 * 1024,
 			Labels: promutil.NewLabelsFromMap(map[string]string{
-				"instance": "bar:1234",
+				"instance": "foo3:1234",
 				"job":      "foo",
 			}),
 			jobNameOriginal: "foo",

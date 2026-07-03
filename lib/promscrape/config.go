@@ -1278,10 +1278,9 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse __max_scrape_size__=%q: %w", s, err)
 		}
-		if n <= 0 {
-			return nil, fmt.Errorf("invalid non-positive __max_scrape_size__=%d", n)
+		if n > 0 {
+			targetMaxScrapeSize = n
 		}
-		targetMaxScrapeSize = n
 	}
 	// Read series_limit option from __series_limit__ label.
 	// See https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter
