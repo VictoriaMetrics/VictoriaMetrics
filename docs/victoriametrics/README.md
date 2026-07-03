@@ -401,6 +401,7 @@ Resources:
 
 * [cardinality explorer playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/cardinality).
 * [Cardinality explorer blog post](https://victoriametrics.com/blog/cardinality-explorer/).
+* [skills/victoriametrics-cardinality-analysis](https://github.com/VictoriaMetrics/skills/blob/main/plugins/diagnostics/skills/victoriametrics-cardinality-analysis/SKILL.md) for [agent-assisted](https://docs.victoriametrics.com/ai-tools/#agent-skills) analysis.
 
 ### Cardinality explorer statistic inaccuracy
 
@@ -1980,6 +1981,9 @@ in [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victori
 via [cache removal](https://docs.victoriametrics.com/victoriametrics/#cache-removal) procedure. This reset state endpoint can be protected via `-metricNamesStatsResetAuthKey`
 cmd-line flag. See [Security](https://docs.victoriametrics.com/victoriametrics/#security) for details.
 
+See [skills/victoriametrics-unused-metrics-analysis](https://github.com/VictoriaMetrics/skills/blob/main/plugins/diagnostics/skills/victoriametrics-unused-metrics-analysis/SKILL.md)
+for [agent-assisted](https://docs.victoriametrics.com/ai-tools/#agent-skills) analysis of unused metrics.
+
 ## Query tracing
 
 VictoriaMetrics supports query tracing, which can be used for determining bottlenecks during query processing.
@@ -2047,6 +2051,9 @@ Query tracing is allowed by default. It can be denied by passing `-denyQueryTrac
 
 * for query tracing - just click `Trace query` checkbox and re-run the query in order to investigate its' trace.
 * for exploring custom trace - go to the tab `Trace analyzer` and upload or paste JSON with trace information.
+
+See also [skills/vm-trace-analyzer](https://github.com/VictoriaMetrics/skills/blob/main/plugins/diagnostics/skills/vm-trace-analyzer/SKILL.md)
+for [agent-assisted](https://docs.victoriametrics.com/ai-tools/#agent-skills) analysis.
 
 ## Cardinality limiter
 

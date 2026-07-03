@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -111,7 +112,7 @@ func AddExtraLabelsToImportPath(path string, extraLabels []string) (string, erro
 		if strings.Contains(dst, "?") {
 			separator = "&"
 		}
-		dst += fmt.Sprintf("%sextra_label=%s", separator, extraLabel)
+		dst += fmt.Sprintf("%sextra_label=%s", separator, url.QueryEscape(extraLabel))
 	}
 	return dst, nil
 }
