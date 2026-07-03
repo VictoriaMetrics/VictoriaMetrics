@@ -8,7 +8,7 @@ menu:
     weight: 9
 ---
 
-The simplest way to migrate data between VictoriaMetrics installations is [to copy data between instances](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#data-migration).
+The simplest way to migrate data between VictoriaMetrics installations is [to copy data between instances](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#data-migration) or [to run single-node and cluster together](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#from-single-node-to-cluster).
 But when simple copy isn't possible (migration between single-node and cluster, or re-sharding) or when data need to be
 modified - use `vmctl vm-native` to migrate data.
 
