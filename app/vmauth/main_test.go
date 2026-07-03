@@ -785,7 +785,26 @@ statusCode=401
 Unauthorized`
 	f(simpleCfgStr, request, responseExpected)
 
-	// token without vm_access claim is accepted when it
+	// token without vm_access claim should fall through to unauthorized_user
+	request = httptest.NewRequest(`GET`, "http://some-host.com/abc", nil)
+	request.Header.Set(`Authorization`, `Bearer `+noVMAccessClaimToken)
+	responseExpected = `
+statusCode=200
+path: /bar/abc
+query:
+headers:`
+	f(fmt.Sprintf(`
+unauthorized_user:
+  url_prefix: {BACKEND}/bar
+users:
+- jwt:
+    public_keys:
+    - %q
+    match_claims:
+      role: admin
+  url_prefix: {BACKEND}/foo`, string(publicKeyPEM)), request, responseExpected)
+
+	// token without vm_access claim is accepted when default_vm_access_claim configured
 	request = httptest.NewRequest(`GET`, "http://some-host.com/abc", nil)
 	request.Header.Set(`Authorization`, `Bearer `+roleToken)
 	responseExpected = `
