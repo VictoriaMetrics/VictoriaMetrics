@@ -194,6 +194,8 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			logger.Panicf("BUG: unexpected nil jwt token for user %q", ui.name())
 		}
 		defer putToken(tkn)
+		// Call processUserRequest only if the token contains the vm_access claim
+		// or a default claim is configured; otherwise fall through to unauthorized_user.
 		if tkn.HasVMAccessClaim() || ui.JWT.DefaultVMAccessClaim != nil {
 			processUserRequest(w, r, ui, tkn)
 			return true
