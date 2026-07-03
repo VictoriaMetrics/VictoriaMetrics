@@ -172,7 +172,13 @@ func newBinaryOpFunc(bf func(left, right float64, isBool bool) float64) binaryOp
 			left = removeEmptySeries(left)
 			right = removeEmptySeries(right)
 		}
-		if len(left) == 0 || len(right) == 0 {
+		if len(left) == 0 && len(right) == 0 {
+			return nil, nil
+		}
+		if len(left) == 0 && bfa.be.FillLeft == nil {
+			return nil, nil
+		}
+		if len(right) == 0 && bfa.be.FillRight == nil {
 			return nil, nil
 		}
 		left, right, dst, err := adjustBinaryOpTags(bfa.be, left, right)
@@ -226,7 +232,7 @@ func adjustBinaryOpTags(be *metricsql.BinaryOpExpr, left, right []*timeseries) (
 		}
 	}
 
-	// Slow path: `vector op vector` or `a op {on|ignoring} {group_left|group_right} b`
+	// Slow path: `vector op vector` or `a op {on|ignoring} {group_left|group_right} {fill|fill_left|fill_right} b`
 	var rvsLeft, rvsRight []*timeseries
 	mLeft, mRight := createTimeseriesMapByTagSet(be, left, right)
 	joinOp := strings.ToLower(be.JoinModifier.Op)
@@ -239,10 +245,27 @@ func adjustBinaryOpTags(be *metricsql.BinaryOpExpr, left, right []*timeseries) (
 		// Add __name__ to groupTags if metric name must be preserved.
 		groupTags = append(groupTags[:len(groupTags):len(groupTags)], "__name__")
 	}
+	// Add missing keys from mRight to mLeft when fill_left()/fill() modifier is used
+	if be.FillLeft != nil {
+		for k := range mRight {
+			if _, ok := mLeft[k]; !ok {
+				mLeft[k] = nil
+			}
+		}
+	}
 	for k, tssLeft := range mLeft {
 		tssRight := mRight[k]
+		if len(tssLeft) == 0 {
+			if be.FillLeft == nil {
+				logger.Panicf("BUG: unexpected empty tssLeft for key %q when FillLeft is nil", k)
+			}
+			tssLeft = []*timeseries{newFillTimeseries(be, tssRight[0], be.FillLeft.N)}
+		}
 		if len(tssRight) == 0 {
-			continue
+			if be.FillRight == nil {
+				continue
+			}
+			tssRight = []*timeseries{newFillTimeseries(be, tssLeft[0], be.FillRight.N)}
 		}
 		switch joinOp {
 		case "group_left":
@@ -285,6 +308,27 @@ func adjustBinaryOpTags(be *metricsql.BinaryOpExpr, left, right []*timeseries) (
 		dst = rvsRight
 	}
 	return rvsLeft, rvsRight, dst, nil
+}
+
+// newFillTimeseries returns a time series filled with fillValue for the fill_left()/fill_right()/fill() modifiers.
+func newFillTimeseries(be *metricsql.BinaryOpExpr, src *timeseries, fillValue float64) *timeseries {
+	var ts timeseries
+	ts.CopyFromShallowTimestamps(src)
+	if !be.KeepMetricNames {
+		ts.MetricName.ResetMetricGroup()
+	}
+	groupTags := be.GroupModifier.Args
+	switch strings.ToLower(be.GroupModifier.Op) {
+	case "on":
+		ts.MetricName.RemoveTagsOn(groupTags)
+	default:
+		ts.MetricName.RemoveTagsIgnoring(groupTags)
+	}
+	values := ts.Values
+	for i := range values {
+		values[i] = fillValue
+	}
+	return &ts
 }
 
 func ensureSingleTimeseries(side string, be *metricsql.BinaryOpExpr, tss []*timeseries) error {
