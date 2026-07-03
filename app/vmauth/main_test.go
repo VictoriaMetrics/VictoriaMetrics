@@ -785,7 +785,7 @@ statusCode=401
 Unauthorized`
 	f(simpleCfgStr, request, responseExpected)
 
-	// token without vm_access claim should go through unauthorized_user
+	// token without vm_access claim should fall through to unauthorized_user
 	request = httptest.NewRequest(`GET`, "http://some-host.com/abc", nil)
 	request.Header.Set(`Authorization`, `Bearer `+noVMAccessClaimToken)
 	responseExpected = `
