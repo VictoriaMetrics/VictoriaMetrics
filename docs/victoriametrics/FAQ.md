@@ -339,7 +339,7 @@ File bugs and feature requests in our [GitHub Issues](https://github.com/Victori
 
 See [these docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy).
 Multitenancy is fully supported only by the [cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) of VictoriaMetrics.
-Single node provides limited [multitenancy](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#multitenancy) support to facilitate
+Single-node provides limited [multitenancy](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#multitenancy) support to facilitate
 the migration [from single-node to cluster](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#from-single-node-to-cluster).
 
 ## How to set a memory limit for VictoriaMetrics components?
@@ -472,8 +472,8 @@ This makes it impossible to just copy the on-disk data from `-storageDataPath` d
 
 There are two options, however:
 
-1. Deploy a new cluster next to the existing single-node and let them co-exist until the cluster is filled with new data and the old data in vmsingle becomes outside of the retention period. This option requires no data migration nor downtime. See instructions [here](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#from-single-node-to-cluster)
-2. If you need to actually migrate data from a single-node VictoriaMetrics to the cluster version (and/or possibly modify it), then [follow these vmctl instructions](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/).
+1. Deploy a new cluster next to the existing single-node and let them co-exist until the cluster is filled with new data and the old data in vmsingle becomes outside of the retention period. This option requires no data migration nor downtime. See instructions [here](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#from-single-node-to-cluster).
+2. If you need to actually migrate data from a single-node VictoriaMetrics to the cluster version (and/or possibly modify it), then follow [these vmctl instructions](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/).
 
 ## Why isn't MetricsQL 100% compatible with PromQL?
 

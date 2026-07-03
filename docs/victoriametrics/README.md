@@ -2340,14 +2340,14 @@ multitenancy becomes a requirement, etc.) the migration can be as simple as:
 1. Restart the existing single-node with multitenancy support enabled as
    described in [Multitenancy](#multitenancy) section.
 1. Deploy an empty cluster next to the existing single-node.
-1. Deploy higher-level vmselect and configure it to query both the existing
+1. Deploy higher-level `vmselect` and configure it to query both the existing
    single-node and the new cluster.
-1. Start writing data to the cluster
-1. Stop writing data to the single-node
+1. Start writing data to the cluster.
+1. Stop writing data to the single-node.
 
-This requires no data migration nor downtime (apart from restarting the
+This approach requires no data migration nor downtime (apart from restarting the
 single-node at step 1). And once the single-node data becomes outside the
-retention period, the single-node deployment can be removed.
+retention period, the single-node can be removed from the deployment.
 
 Note that if you need to actually migrate data to cluster and/or modify it, you
 will need to use
