@@ -393,7 +393,7 @@ func transformBucketsLimit(tfa *transformFuncArg) ([]*timeseries, error) {
 		return nil, err
 	}
 	if limit <= 0 {
-		return nil, nil
+		return nil, fmt.Errorf("limit must be greater than 0; got %d", limit)
 	}
 	if limit < 3 {
 		// Preserve the first and the last bucket for better accuracy for min and max values.
@@ -461,6 +461,23 @@ func transformBucketsLimit(tfa *transformFuncArg) ([]*timeseries, error) {
 				prevValue = value
 			}
 		}
+
+		// Remove buckets that are consecutively empty at left and right ends to obtain more accurate max and min values.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10417.
+		epsilon := 1e-9
+		isEmptyBucket := func(hits float64) bool {
+			return !math.IsNaN(hits) && math.Abs(hits) < epsilon
+		}
+		l := 0
+		r := len(leGroup) - 1
+		for r-l+1 > limit && isEmptyBucket(leGroup[r].hits) {
+			r--
+		}
+		for r-l+1 > limit && isEmptyBucket(leGroup[l].hits) {
+			l++
+		}
+		leGroup = leGroup[l : r+1]
+
 		for len(leGroup) > limit {
 			// Preserve the first and the last bucket for better accuracy for min and max values
 			xxMinIdx := 1
