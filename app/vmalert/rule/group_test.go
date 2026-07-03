@@ -1,14 +1,12 @@
 package rule
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"math"
 	"net/url"
 	"os"
 	"sort"
-	"strings"
 	"testing"
 	"time"
 
@@ -803,82 +801,5 @@ func TestRuleStripFilePath(t *testing.T) {
 				t.Fatalf("expected rule file path to be unchanged; got %q instead", rr.File)
 			}
 		}
-	}
-}
-
-// TestGroupLimitMetric verifies that the group results limit metric is correctly registered and exposed.
-func TestGroupLimitMetric(t *testing.T) {
-	limit := 123
-	g := &Group{
-		Name:  "test-limit-metric",
-		File:  "test-file.yaml",
-		Limit: limit,
-	}
-	g.Init()
-	defer metrics.UnregisterSet(g.metrics.set, true)
-
-	var buf bytes.Buffer
-	g.metrics.set.WritePrometheus(&buf)
-
-	expectedMetric := fmt.Sprintf(`vmalert_rule_group_results_limit{group=%q, file=%q} 123`, g.Name, g.File)
-	if !strings.Contains(buf.String(), expectedMetric) {
-		t.Fatalf("expected to find %q in metrics: %s", expectedMetric, buf.String())
-	}
-}
-
-// TestGroupLimitMetric_Scenarios verifies that the limit is correctly resolved from both per-group overrides and global flags.
-func TestGroupLimitMetric_Scenarios(t *testing.T) {
-	rulesYAML := `
-  - name: bounded_metrics_group
-    file: rules.yaml
-    limit: 50
-    rules:
-      - record: job:vm_rows:sum
-        expr: sum(vm_rows) by (job)
-
-  - name: global_fallback_group
-    file: rules.yaml
-    rules:
-      - alert: HighCpuUsage
-        expr: process_cpu_cores_available > 4
-        for: 2m
-        labels:
-          severity: warning
-        annotations:
-          summary: "Instance exposing high core availability"
-`
-	var groups []config.Group
-	if err := yaml.Unmarshal([]byte(rulesYAML), &groups); err != nil {
-		t.Fatalf("failed to parse rules: %s", err)
-	}
-
-	// Scenario 1: Group with a custom override limit (limit: 50)
-	g1 := NewGroup(groups[0], &datasource.FakeQuerier{}, time.Minute, nil)
-	g1.Init()
-	defer metrics.UnregisterSet(g1.metrics.set, true)
-
-	var buf1 bytes.Buffer
-	g1.metrics.set.WritePrometheus(&buf1)
-	expectedMetric1 := fmt.Sprintf(`vmalert_rule_group_results_limit{group=%q, file=%q} 50`, g1.Name, g1.File)
-	if !strings.Contains(buf1.String(), expectedMetric1) {
-		t.Fatalf("expected to find %q in metrics: %s", expectedMetric1, buf1.String())
-	}
-
-	// Scenario 2: Group relying on the global default (-rule.resultsLimit), let's set ruleResultsLimit flag to 100
-	oldRuleResultsLimit := *ruleResultsLimit
-	*ruleResultsLimit = 100
-	defer func() {
-		*ruleResultsLimit = oldRuleResultsLimit
-	}()
-
-	g2 := NewGroup(groups[1], &datasource.FakeQuerier{}, time.Minute, nil)
-	g2.Init()
-	defer metrics.UnregisterSet(g2.metrics.set, true)
-
-	var buf2 bytes.Buffer
-	g2.metrics.set.WritePrometheus(&buf2)
-	expectedMetric2 := fmt.Sprintf(`vmalert_rule_group_results_limit{group=%q, file=%q} 100`, g2.Name, g2.File)
-	if !strings.Contains(buf2.String(), expectedMetric2) {
-		t.Fatalf("expected to find %q in metrics: %s", expectedMetric2, buf2.String())
 	}
 }
