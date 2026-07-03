@@ -26,6 +26,10 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+## [v1.147.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.147.0)
+
+Release candidate
+
 * SECURITY: upgrade base docker image (Alpine) from 3.23.4 to 3.24.1. See [Alpine 3.24.1 release notes](https://www.alpinelinux.org/posts/Alpine-3.24.1-released.html).
 
 * FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): add `default_vm_access_claim` field into `jwt` section of auth config. It could be used at [JWT claim placeholders](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-based-request-templating), if `JWT` token doesn't have `vm_access` claim. See [#11054](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11054).
