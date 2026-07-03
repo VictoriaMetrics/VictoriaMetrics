@@ -194,7 +194,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			logger.Panicf("BUG: unexpected nil jwt token for user %q", ui.name())
 		}
 		if !tkn.HasVMAccessClaim() && ui.JWT.DefaultVMAccessClaim == nil {
-			ui.logRequest(r, ``, http.StatusUnauthorized, 0)
+			ui.logRequest(r, `unauthorized`, http.StatusUnauthorized, 0)
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return true
 		}
