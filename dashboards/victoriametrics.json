@@ -896,7 +896,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(min_over_time(vm_app_version{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job)",
+          "expr": "sum(min_over_time(up{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job)",
           "format": "time_series",
           "instant": false,
           "legendFormat": "{{job}}",
