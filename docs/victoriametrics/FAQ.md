@@ -338,7 +338,9 @@ File bugs and feature requests in our [GitHub Issues](https://github.com/Victori
 ## Where can I find information about multi-tenancy?
 
 See [these docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy).
-Multitenancy is supported only by the [cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) of VictoriaMetrics.
+Multitenancy is fully supported only by the [cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) of VictoriaMetrics.
+Single node provides limited [multitenancy](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#multitenancy) support to facilitate
+the migration [from single-node to cluster](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#from-single-node-to-cluster).
 
 ## How to set a memory limit for VictoriaMetrics components?
 
