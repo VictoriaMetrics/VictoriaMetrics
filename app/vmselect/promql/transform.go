@@ -2,7 +2,6 @@ package promql
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"math"
 	"math/rand"
@@ -394,7 +393,7 @@ func transformBucketsLimit(tfa *transformFuncArg) ([]*timeseries, error) {
 		return nil, err
 	}
 	if limit <= 0 {
-		return nil, errors.New("the limitation should be greater than 0")
+		return nil, fmt.Errorf("limit must be greater than 0; got %d", limit)
 	}
 	if limit < 3 {
 		// Preserve the first and the last bucket for better accuracy for min and max values.
