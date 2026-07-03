@@ -1923,6 +1923,9 @@ scrape_configs:
   # Example values:
   # - "10MiB" - 10 * 1024 * 1024 bytes
   # - "100MB" - 100 * 1000 * 1000 bytes
+  # The max_scrape_size can be set on a per-target basis by specifying `__max_scrape_size__`
+  # label during target relabeling phase.
+  # See https://docs.victoriametrics.com/victoriametrics/relabeling/
   #
   # max_scrape_size: <size>
 
