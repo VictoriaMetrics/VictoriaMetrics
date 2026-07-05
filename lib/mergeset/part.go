@@ -78,7 +78,8 @@ type part struct {
 
 	size uint64
 
-	mrs []metaindexRow
+	mrs                []metaindexRow
+	metaindexSizeBytes uint64
 
 	indexFile fs.MustReadAtCloser
 	itemsFile fs.MustReadAtCloser
@@ -131,6 +132,7 @@ func newPart(ph *partHeader, path string, size uint64, metaindexReader filestrea
 	p.path = path
 	p.size = size
 	p.mrs = mrs
+	p.metaindexSizeBytes = metaindexSizeBytes(mrs)
 
 	p.indexFile = indexFile
 	p.itemsFile = itemsFile
@@ -155,10 +157,10 @@ func (p *part) MustClose() {
 	ibSparseCache.RemoveBlocksForPart(p)
 }
 
-func (p *part) metaindexSizeBytes() uint64 {
-	n := uint64(cap(p.mrs)) * uint64(unsafe.Sizeof(metaindexRow{}))
-	for i := range p.mrs {
-		n += uint64(cap(p.mrs[i].firstItem))
+func metaindexSizeBytes(mrs []metaindexRow) uint64 {
+	n := uint64(cap(mrs)) * uint64(unsafe.Sizeof(metaindexRow{}))
+	for i := range mrs {
+		n += uint64(cap(mrs[i].firstItem))
 	}
 	return n
 }

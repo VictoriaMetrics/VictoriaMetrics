@@ -619,7 +619,7 @@ func (tb *Table) UpdateMetrics(m *TableMetrics) {
 		m.InmemoryBlocksCount += p.ph.blocksCount
 		m.InmemoryItemsCount += p.ph.itemsCount
 		m.InmemorySizeBytes += p.size
-		m.MetaindexSizeBytes += p.metaindexSizeBytes()
+		m.MetaindexSizeBytes += p.metaindexSizeBytes
 		m.PartsRefCount += uint64(pw.refCount.Load())
 	}
 
@@ -629,7 +629,7 @@ func (tb *Table) UpdateMetrics(m *TableMetrics) {
 		m.FileBlocksCount += p.ph.blocksCount
 		m.FileItemsCount += p.ph.itemsCount
 		m.FileSizeBytes += p.size
-		m.MetaindexSizeBytes += p.metaindexSizeBytes()
+		m.MetaindexSizeBytes += p.metaindexSizeBytes
 		m.PartsRefCount += uint64(pw.refCount.Load())
 	}
 	tb.partsLock.Unlock()
