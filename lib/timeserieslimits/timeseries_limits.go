@@ -30,6 +30,18 @@ var (
 	maxLabelsPerTimeseries = 40
 )
 
+// MustInit checks if limits are with-in supported range and prepares package for usage
+func MustInit(inputMaxLabelsPerTimeseries, inputMaxLabelNameLen, inputMaxLabelValueLen int) {
+	mustBeInRange := func(name string, limit int) {
+		if limit <= 0 || limit > math.MaxUint16 {
+			logger.Fatalf("incorrect limit: %q value: %d, must be in range 1..%d", name, limit, math.MaxUint16)
+		}
+	}
+	mustBeInRange("maxLabelNameLen", inputMaxLabelNameLen)
+	mustBeInRange("maxLabelValueLen", inputMaxLabelValueLen)
+	Init(inputMaxLabelsPerTimeseries, inputMaxLabelNameLen, inputMaxLabelValueLen)
+}
+
 // Init prepares package for usage
 func Init(inputMaxLabelsPerTimeseries, inputMaxLabelNameLen, inputMaxLabelValueLen int) {
 	maxLabelsPerTimeseries = inputMaxLabelsPerTimeseries

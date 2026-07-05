@@ -120,3 +120,39 @@ groups:
           summary: "vmalert instance {{ $labels.instance }} is failing to send notifications to Alertmanager"
           description: "vmalert instance {{ $labels.instance }} is failing to send alert notifications to \"{{ $labels.addr }}\".
             Check vmalert's logs for detailed error message."
+
+      - alert: AlertingRuleResultsApproachingLimit
+        expr: |
+          (
+            vmalert_alerting_rules_last_evaluation_samples
+              > on(group,file) group_left()
+            (vmalert_group_rule_results_limit * 0.9)
+          )
+            and on(group,file)
+          (vmalert_group_rule_results_limit > 0)
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Alerting rule {{ $labels.alertname }} in group {{ $labels.group }} is approaching the configured results limit"
+          description: "Alerting rule \"{{ $labels.alertname }}\" from group \"{{ $labels.group }}\" in file \"{{ $labels.file }}\" produced {{ $value }} samples in last evaluation, which approaches the configured results limit.
+            If the produced results exceed the limit, the rule will be marked with an error and all its results will be discarded. 
+            Try increasing the results limit for the group or reducing the number of series produced by the rule. See https://docs.victoriametrics.com/victoriametrics/vmalert/#groups."
+
+      - alert: RecordingRuleResultsApproachingLimit
+        expr: |
+          (
+            vmalert_recording_rules_last_evaluation_samples
+              > on(group,file) group_left()
+            (vmalert_group_rule_results_limit * 0.9)
+          )
+            and on(group,file)
+          (vmalert_group_rule_results_limit > 0)
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Recording rule {{ $labels.recording }} in group {{ $labels.group }} is approaching the configured results limit"
+          description: "Recording rule \"{{ $labels.recording }}\" from group \"{{ $labels.group }}\" in file \"{{ $labels.file }}\" produced {{ $value }} samples in last evaluation, which approaches the configured results limit.
+            If the produced results exceed the limit, the rule will be marked with an error and all its results will be discarded. 
+            Try increasing the results limit for the group or reducing the number of series produced by the rule. See https://docs.victoriametrics.com/victoriametrics/vmalert/#groups."

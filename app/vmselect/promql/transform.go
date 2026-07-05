@@ -393,7 +393,7 @@ func transformBucketsLimit(tfa *transformFuncArg) ([]*timeseries, error) {
 		return nil, err
 	}
 	if limit <= 0 {
-		return nil, nil
+		return nil, fmt.Errorf("limit must be greater than 0; got %d", limit)
 	}
 	if limit < 3 {
 		// Preserve the first and the last bucket for better accuracy for min and max values.
@@ -461,6 +461,23 @@ func transformBucketsLimit(tfa *transformFuncArg) ([]*timeseries, error) {
 				prevValue = value
 			}
 		}
+
+		// Remove buckets that are consecutively empty at left and right ends to obtain more accurate max and min values.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10417.
+		epsilon := 1e-9
+		isEmptyBucket := func(hits float64) bool {
+			return !math.IsNaN(hits) && math.Abs(hits) < epsilon
+		}
+		l := 0
+		r := len(leGroup) - 1
+		for r-l+1 > limit && isEmptyBucket(leGroup[r].hits) {
+			r--
+		}
+		for r-l+1 > limit && isEmptyBucket(leGroup[l].hits) {
+			l++
+		}
+		leGroup = leGroup[l : r+1]
+
 		for len(leGroup) > limit {
 			// Preserve the first and the last bucket for better accuracy for min and max values
 			xxMinIdx := 1
@@ -1121,29 +1138,29 @@ func groupLeTimeseries(tss []*timeseries) map[string][]leTimeseries {
 
 func fixBrokenBuckets(i int, xss []leTimeseries) {
 	// Buckets are already sorted by le, so their values must be in ascending order,
-	// since the next bucket includes all the previous buckets.
-	// If the next bucket has lower value than the current bucket,
-	// then the next bucket must be substituted with the current bucket value.
+	// since the upper bucket includes all the lower buckets.
+	// If the upper bucket has lower value than the current bucket,
+	// then the upper bucket must be substituted with the current bucket value.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4580#issuecomment-2186659102
 	if len(xss) < 2 {
 		return
 	}
 
-	vNext := xss[0].ts.Values[i]
+	vPrev := xss[0].ts.Values[i]
 	// Set the lowest bucket to 0 if its value is NaN, so it can be properly
 	// compared with upper buckets in the loop below.
-	if math.IsNaN(vNext) {
-		vNext = 0
-		xss[0].ts.Values[i] = vNext
+	if math.IsNaN(vPrev) {
+		vPrev = 0
+		xss[0].ts.Values[i] = vPrev
 	}
 	// Substitute upper bucket values with lower bucket values if the upper values are NaN
-	// or are bigger than the lower bucket values.
+	// or are smaller than the lower bucket values.
 	for j := 1; j < len(xss); j++ {
 		v := xss[j].ts.Values[i]
-		if math.IsNaN(v) || vNext > v {
-			xss[j].ts.Values[i] = vNext
+		if math.IsNaN(v) || vPrev > v {
+			xss[j].ts.Values[i] = vPrev
 		} else {
-			vNext = v
+			vPrev = v
 		}
 	}
 }
