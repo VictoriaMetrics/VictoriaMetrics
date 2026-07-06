@@ -271,7 +271,7 @@ for the collected samples. Examples:
   
 ### Monitoring Data eXchange
 
-The Monitoring Data eXchange (MDX){{% available_from "#" %}} feature allows `vmagent` to forward only VictoriaMetrics metrics to selected `-remoteWrite.url` destinations while dropping metrics from non-VictoriaMetrics services.
+The Monitoring Data eXchange (MDX){{% available_from "v1.147.0" %}} feature allows `vmagent` to forward only VictoriaMetrics metrics to selected `-remoteWrite.url` destinations while dropping metrics from non-VictoriaMetrics services.
 
 To enable MDX, set `-remoteWrite.mdx.enable=true` for the target URL and `-remoteWrite.mdx.enable=false` for other URLs:
 

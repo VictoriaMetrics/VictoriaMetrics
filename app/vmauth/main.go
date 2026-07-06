@@ -175,11 +175,12 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	if len(ats) == 0 {
 		// Process requests for unauthorized users
 		ui := authConfig.Load().UnauthorizedUser
-		if ui != nil {
+		if ui.hasAnyURLs() {
 			processUserRequest(w, r, ui, nil)
 			return true
 		}
 
+		ui.logRequest(r, `unauthorized`, http.StatusUnauthorized, 0)
 		handleMissingAuthorizationError(w)
 		return true
 	}
@@ -192,23 +193,24 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		if tkn == nil {
 			logger.Panicf("BUG: unexpected nil jwt token for user %q", ui.name())
 		}
-		if !tkn.HasVMAccessClaim() && ui.JWT.DefaultVMAccessClaim == nil {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		defer putToken(tkn)
+		// Call processUserRequest only if the token contains the vm_access claim
+		// or a default claim is configured; otherwise fall through to unauthorized_user.
+		if tkn.HasVMAccessClaim() || ui.JWT.DefaultVMAccessClaim != nil {
+			processUserRequest(w, r, ui, tkn)
 			return true
 		}
-		defer putToken(tkn)
-		processUserRequest(w, r, ui, tkn)
-		return true
 	}
 
 	uu := authConfig.Load().UnauthorizedUser
-	if uu != nil {
+	if uu.hasAnyURLs() {
 		processUserRequest(w, r, uu, nil)
 		return true
 	}
 
 	invalidAuthTokenRequests.Inc()
 	slowdownUnauthorizedResponse(r)
+	uu.logRequest(r, `unauthorized`, http.StatusUnauthorized, 0)
 	if *logInvalidAuthTokens {
 		err := fmt.Errorf("cannot authorize request with auth tokens %q", ats)
 		err = &httpserver.ErrorWithStatusCode{

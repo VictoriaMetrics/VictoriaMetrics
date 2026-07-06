@@ -270,7 +270,7 @@ users:
   url_prefix: "http://victoria-metrics:8428/"
 ```
 
-The `vm_access` claim is optional starting from {{% available_from "#" %}}: when present it is used for [request templating](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-based-request-templating), and when absent the default tenant `0:0` is assumed for any `vm_access`-based placeholders. Routing can rely solely on other token claims via [JWT claim matching](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-matching).
+The `vm_access` claim is optional starting from {{% available_from "v1.147.0" %}}: when present it is used for [request templating](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-based-request-templating), and when absent the default tenant `0:0` is assumed for any `vm_access`-based placeholders. Routing can rely solely on other token claims via [JWT claim matching](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-matching).
 
 For testing, skip signature verification with `skip_verify: true` (not recommended for production).
 
@@ -520,7 +520,7 @@ for dynamic URL rewriting based on `vm_access` claim fields.
 
 `vmauth` can dynamically rewrite{{% available_from "v1.137.0" %}} upstream URLs and request headers using values from the JWT `vm_access` claim. 
 This enables routing different users to different backends or tenants based solely on the JWT token, 
-without maintaining separate user configs per tenant. In addition `vm_access` claim could be defined at `jwt` section with `default_vm_access_claim` {{% available_from "#" %}}.
+without maintaining separate user configs per tenant. In addition `vm_access` claim could be defined at `jwt` section with `default_vm_access_claim` {{% available_from "v1.147.0" %}}.
 In this case, if JWT token doesn't have `vm_access` claim defined, value from `default_vm_access_claim` will be used for templaing.
 
 Example: minimal valid JWT. If vm_access is empty, tenant `0:0` is assumed and no additional filters are applied.
@@ -1323,9 +1323,17 @@ unauthorized_user:
 
 vmauth allows configuring access logs {{% available_from "v1.138.0" %}} printing per-user:
 ```yaml
+users:
+  - username: foo
+    password: bar
+    url_prefix: 'http://localhost:8428/'
+    # Log all requests to this user
+    access_log: {}
+```
+
+If you want to log requests with missing or invalid auth tokens, use unauthorized_user without configuring any URL routes{{% available_from "v1.147.0" %}}:
+```yaml
 unauthorized_user:
-  url_prefix: 'http://localhost:8428/'
-  # Log all requests to this user
   access_log: {}
 ```
 
