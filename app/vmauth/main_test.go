@@ -2112,3 +2112,22 @@ func newTestString(sLen int) string {
 	}
 	return string(data)
 }
+
+func TestUpdateHeadersByConfigPreservesCase(t *testing.T) {
+	dst := http.Header{}
+	updateHeadersByConfig(dst, []*Header{
+		{Name: "AccountID", Value: "1"},
+		{Name: "capInMiddle", Value: "2"},
+	})
+	if _, ok := dst["AccountID"]; !ok {
+		t.Fatalf("AccountID casing not preserved: %v", dst)
+	}
+	if _, ok := dst["capInMiddle"]; !ok {
+		t.Fatalf("capInMiddle casing not preserved: %v", dst)
+	}
+
+	updateHeadersByConfig(dst, []*Header{{Name: "AccountID", Value: ""}})
+	if _, ok := dst["AccountID"]; ok {
+		t.Fatalf("AccountID not removed: %v", dst)
+	}
+}

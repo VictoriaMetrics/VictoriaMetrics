@@ -627,10 +627,12 @@ func getHostHeader(headers []*Header) string {
 
 func updateHeadersByConfig(dst http.Header, src []*Header) {
 	for _, h := range src {
+		// Write to the map directly instead of Set/Del, which canonicalize the
+		// key, so header names keep the casing configured by the user.
 		if h.Value == "" {
-			dst.Del(h.Name)
+			delete(dst, h.Name)
 		} else {
-			dst.Set(h.Name, h.Value)
+			dst[h.Name] = []string{h.Value}
 		}
 	}
 }
