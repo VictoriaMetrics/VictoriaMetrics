@@ -445,11 +445,8 @@ There are three patterns of memory shortage:
    A `process_resident_memory_anon_bytes / vm_available_memory_bytes` ratio that keeps rising leaves little headroom
    and may lead to an [OOM kill](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#out-of-memory-errors).
    A single heavy query can spike the heap on its own: if it has to select and process millions of unique time series,
-   VictoriaMetrics keeps some per-series data in memory while the query runs. Find it with the
-   [query tracer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#query-tracing),
-   log slow queries with [query execution stats](https://docs.victoriametrics.com/victoriametrics/query-stats/),
-   bound it with [resource usage limits](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#resource-usage-limits),
-   and see [how to optimize PromQL and MetricsQL queries](https://valyala.medium.com/how-to-optimize-promql-and-metricsql-queries-85a1b75bf986).
+   VictoriaMetrics keeps some per-series data in memory while the query runs. 
+    See how to find expensive and slow queries [here](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#slow-queries). Prevent expensive queries from execution with [resource usage limits](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#resource-usage-limits).
    If heap growth correlates with query or ingestion load, it is workload-driven.
    If the heap grows regardless of load, suspect a memory leak, collect a heap profile, and [file a bug report](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/new).
 
