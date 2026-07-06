@@ -1684,7 +1684,7 @@ See how to request a [free trial license](https://victoriametrics.com/products/e
 
 ## Multitenancy {#multi-tenancy}
 
-Starting from `v1.147.0` single-node VictoriaMetrics has limited
+Starting from{{% available_from "v1.147.0" %}} single-node VictoriaMetrics has limited
 [multitenancy](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy)
 support. Specifically, a single-node can serve multitenant queries as if it were a
 `vmstorage`. The write path is not supported.
