@@ -477,6 +477,7 @@ you can use the approaches below to resolve it:
   memory usage and lead to OOM crashes. In particular, do not change
   [cache sizes](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning);
   add more memory instead.
+ - Set sane [resource usage limits](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#resource-usage-limits) to protect components;
 - Investigate Go heap growth or a suspected memory leak - collect a memory profile using the profiling guide for
   [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#profiling)
   or [cluster components](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#profiling).
