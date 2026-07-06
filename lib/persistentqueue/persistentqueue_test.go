@@ -6,7 +6,9 @@ import (
 	"path/filepath"
 	"strconv"
 	"testing"
+	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
@@ -21,6 +23,54 @@ func TestQueueOpenClose(t *testing.T) {
 		q.MustClose()
 	}
 	fs.MustRemoveDir(path)
+}
+
+func TestFlushReaderMetainfoFlushesPendingWriterData(t *testing.T) {
+	t.Run("invalid-writeOffset", func(_ *testing.T) {
+		path := "queue-flush-reader-metainfo"
+		fs.MustRemoveDir(path)
+		q := mustOpen(path, "foobar", 0)
+		defer func() {
+			q.MustClose()
+			fs.MustRemoveDir(path)
+		}()
+
+		block := []byte("foobar")
+		data := encoding.MarshalUint64(nil, uint64(len(block)))
+		data = append(data, block...)
+		// it will call `flushWriterMetainfoIfNeeded` internally
+		err := q.writeBlock(data)
+		if err != nil {
+			t.Fatalf("unexpected error when writing data to queue: %s", err)
+		}
+		// the second call will update the writeOffset in memory but won't flush it to the metainfo file, because the last flush was performed less than 1 second ago.
+		err = q.writeBlock(data)
+		if err != nil {
+			t.Fatalf("unexpected error when writing data to queue: %s", err)
+		}
+
+		time.Sleep(1 * time.Second)
+
+		// it will call `flushReaderMetainfoIfNeeded` internally
+		if _, err = q.readBlock(nil); err != nil {
+			t.Fatalf("unexpected error when flushing reader metainfo: %s", err)
+		}
+
+		if fileSize := fs.MustFileSize(q.writerPath); fileSize != q.writerOffset {
+			t.Fatalf("unexpected writer file size after flushing reader metainfo; got %d bytes; want %d bytes", fileSize, q.writerOffset)
+		}
+		var mi metainfo
+		if err := mi.ReadFromFile(q.metainfoPath()); err != nil {
+			t.Fatalf("cannot read metainfo: %s", err)
+		}
+		if mi.ReaderOffset != q.readerOffset {
+			t.Fatalf("unexpected ReaderOffset in metainfo; got %d; want %d", mi.ReaderOffset, q.readerOffset)
+		}
+		if mi.WriterOffset != q.writerOffset {
+			t.Fatalf("unexpected WriterOffset in metainfo; got %d; want %d", mi.WriterOffset, q.writerOffset)
+		}
+	})
+
 }
 
 func TestQueueOpen(t *testing.T) {

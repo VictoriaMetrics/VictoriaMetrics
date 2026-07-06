@@ -414,7 +414,7 @@ func (q *queue) writeBlock(block []byte) error {
 	}
 	q.blocksWritten.Inc()
 	q.bytesWritten.Add(len(block))
-	return q.flushWriterMetainfoIfNeeded()
+	return q.flushBufAndMetainfoIfNeeded()
 }
 
 var writeDurationSeconds = metrics.NewFloatCounter(`vm_persistentqueue_write_duration_seconds_total`)
@@ -513,7 +513,7 @@ again:
 	}
 	q.blocksRead.Inc()
 	q.bytesRead.Add(int(blockLen))
-	if err := q.flushReaderMetainfoIfNeeded(); err != nil {
+	if err := q.flushBufAndMetainfoIfNeeded(); err != nil {
 		return dst, err
 	}
 	return dst, nil
@@ -595,24 +595,15 @@ func (q *queue) checkReaderWriterOffsets() error {
 	return nil
 }
 
-func (q *queue) flushReaderMetainfoIfNeeded() error {
+func (q *queue) flushBufAndMetainfoIfNeeded() error {
 	t := fasttime.UnixTimestamp()
 	if t == q.lastMetainfoFlushTime {
 		return nil
 	}
-	if err := q.flushMetainfo(); err != nil {
-		return fmt.Errorf("cannot flush metainfo: %w", err)
+	if q.writerFlushedOffset < q.writerOffset {
+		q.writer.MustFlush(true)
+		q.writerFlushedOffset = q.writerOffset
 	}
-	q.lastMetainfoFlushTime = t
-	return nil
-}
-
-func (q *queue) flushWriterMetainfoIfNeeded() error {
-	t := fasttime.UnixTimestamp()
-	if t == q.lastMetainfoFlushTime {
-		return nil
-	}
-	q.writer.MustFlush(true)
 	if err := q.flushMetainfo(); err != nil {
 		return fmt.Errorf("cannot flush metainfo: %w", err)
 	}
