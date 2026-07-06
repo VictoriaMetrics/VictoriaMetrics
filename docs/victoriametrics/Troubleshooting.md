@@ -391,8 +391,7 @@ These metrics describe how a component uses memory. See [how to monitor Victoria
 to set up scraping and the Grafana dashboards that show them.
 None of them means a shortage on its own; read them together in [Memory shortage patterns](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#memory-shortage-patterns).
 
-- `process_resident_memory_anon_bytes` / `vm_available_memory_bytes` - anonymous memory (caches plus Go heap)
-  as a share of the available memory. This memory can't be reclaimed back by OS.
+- `process_resident_memory_anon_bytes / vm_available_memory_bytes` - a share of available memory occupied by the process (caches, internal buffers, Go heap). This memory can't be reclaimed back by OS.
 
 - `process_resident_memory_file_bytes` - the OS page cache for the component's on-disk data,
   currently resident for the process. Reclaimable by the OS.
