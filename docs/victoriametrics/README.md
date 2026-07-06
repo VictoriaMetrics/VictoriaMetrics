@@ -1686,22 +1686,22 @@ See how to request a [free trial license](https://victoriametrics.com/products/e
 
 Starting from `v1.147.0` single-node VictoriaMetrics has limited
 [multitenancy](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy)
-support. Specifically, single-node can serve multitenant queries as if it were a
-`vmstorage`. Write path is not supported.
+support. Specifically, a single-node can serve multitenant queries as if it were a
+`vmstorage`. The write path is not supported.
 
 The functionality is disabled by default and can be enabled by setting the
 `-vmselectAddr` flag. This will start the `vmselect RPC server` that accepts
 requests and serves responses in cluster format.
 
 Cluster data format assumes the presence of a `tenantID`. Single-node data
-format still does not support multitenancy but it is possible to configure the
-single-node which `tenantID` the single-node's data corresponds to with
+format still does not support multitenancy, but it is possible to configure the
+single-node to specify which `tenantID` the single-node's data corresponds to with the
 `-accountID` and `-projectID` flags. Both are `0` by default, which means that
 `"0:0"` `tenantID` is used by default.
 
 For example, the following command will start a single-node that listens for
-vmselect RPC requests on `8401` port. The requests must be either `multitenant`
-(i.e. want data for all tenants) or for `"12:34"` tenant. Otherwise, the
+vmselect RPC requests on the `8401` port. The requests must be either `multitenant`
+(i.e., want data for all tenants) or for `"12:34"` tenant. Otherwise, the
 single-node will return an empty result:
 
 ```shell
@@ -1715,9 +1715,9 @@ values at any time.
 Note that the single-node's HTTP handlers still do not support multitenancy.
 
 The purpose of this limited multitenancy support is enabling the single-node to
-operate in VictoriaMetrics cluster setups. I.e. one or more single-nodes that
+operate in VictoriaMetrics cluster setups. I.e., one or more single-nodes that
 contain data for different tenants can be a part of a cluster, and the entire
-non-homogenous deployment can be queried with a higher-level `vmselect`.
+non-homogeneous deployment can be queried with a higher-level `vmselect`.
 
 This, in turn, enables easy [migrations from single-node to cluster](#from-single-node-to-cluster).
 Previously, the only option was the use of
