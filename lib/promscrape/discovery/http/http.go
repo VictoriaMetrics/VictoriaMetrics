@@ -31,11 +31,16 @@ func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutil.Labels, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot get API config: %w", err)
 	}
-	hts, err := getHTTPTargets(cfg)
-	if err != nil {
-		return nil, err
+	return cfg.getLabels()
+}
+
+// MustStop stops further usage for sdc.
+func (sdc *SDConfig) MustStop() {
+	v := configMap.Delete(sdc)
+	if v != nil {
+		cfg := v.(*apiConfig)
+		cfg.mustStop()
 	}
-	return addHTTPTargetLabels(hts, sdc.URL), nil
 }
 
 func addHTTPTargetLabels(src []httpGroupTarget, sourceURL string) []*promutil.Labels {
@@ -53,13 +58,4 @@ func addHTTPTargetLabels(src []httpGroupTarget, sourceURL string) []*promutil.La
 		}
 	}
 	return ms
-}
-
-// MustStop stops further usage for sdc.
-func (sdc *SDConfig) MustStop() {
-	v := configMap.Delete(sdc)
-	if v != nil {
-		cfg := v.(*apiConfig)
-		cfg.client.Stop()
-	}
 }

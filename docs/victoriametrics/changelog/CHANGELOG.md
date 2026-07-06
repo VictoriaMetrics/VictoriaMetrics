@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): Improve background discovery performance for [http_sd](https://docs.victoriametrics.com/victoriametrics/sd_configs/#http_sd_configs) discovery. See [#8838](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8838).
+
 ## [v1.147.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.147.0)
 
 Release candidate

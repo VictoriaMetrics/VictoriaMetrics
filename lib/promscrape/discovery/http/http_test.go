@@ -1,7 +1,14 @@
 package http
 
 import (
+	"net/http"
+	"net/http/httptest"
+	"sort"
+	"strconv"
+	"sync/atomic"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
@@ -37,4 +44,150 @@ func TestAddHTTPTargetLabels(t *testing.T) {
 		}),
 	}
 	f(src, labelssExpected)
+}
+
+func TestSDConfigGetLabels(t *testing.T) {
+
+	type apiResponse struct {
+		statusCode int
+		body       string
+	}
+	var currentResponse atomic.Pointer[apiResponse]
+
+	// add initial non-empty response
+	currentResponse.Store(&apiResponse{
+		body:       `[{"targets":["10.0.0.2:9100"],"labels":{"job":"node"}}]`,
+		statusCode: http.StatusOK,
+	})
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		resp := currentResponse.Load()
+		w.WriteHeader(resp.statusCode)
+		_, _ = w.Write([]byte(resp.body))
+	}))
+	defer srv.Close()
+
+	sdc := &SDConfig{
+		URL: srv.URL,
+	}
+	defer sdc.MustStop()
+
+	assertLabelss := func(expectedLabelss []*promutil.Labels) {
+		t.Helper()
+		got, err := sdc.GetLabels(".")
+		if err != nil {
+			t.Fatalf("unexpected GetLabels error: %s", err)
+		}
+		compareLabelss(t, expectedLabelss, got)
+	}
+
+	// check initial state, it must be non-empty
+	// it also inits apiConfig below
+	assertLabelss([]*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
+			"__address__": "10.0.0.2:9100",
+			"job":         "node",
+			"__meta_url":  srv.URL,
+		}),
+	})
+
+	cfg, err := getAPIConfig(sdc, ".")
+	if err != nil {
+		t.Fatalf("unexpected get apiConfig error: %s", err)
+	}
+
+	updateAPIResponse := func(response apiResponse) {
+		currentResponse.Store(&response)
+		cfg.refreshTargetsIfNeeded()
+
+	}
+
+	// change response to empty
+	updateAPIResponse(apiResponse{
+		statusCode: http.StatusOK,
+		body:       `[]`,
+	})
+	assertLabelss([]*promutil.Labels{})
+
+	// change response to non-empty
+	updateAPIResponse(apiResponse{
+		statusCode: http.StatusOK,
+		body:       `[{"targets":["10.0.0.1:9100"],"labels":{"job":"node"}},{"targets":["10.0.0.5:8429"],"labels":{"job":"vmagent"}}]`,
+	})
+	assertLabelss([]*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
+			"__address__": "10.0.0.1:9100",
+			"job":         "node",
+			"__meta_url":  srv.URL,
+		}),
+		promutil.NewLabelsFromMap(map[string]string{
+			"__address__": "10.0.0.5:8429",
+			"job":         "vmagent",
+			"__meta_url":  srv.URL,
+		}),
+	})
+
+	// change response to error
+	updateAPIResponse(apiResponse{
+		statusCode: http.StatusServiceUnavailable,
+		body:       `Internal Server Error`,
+	})
+	_, err = sdc.GetLabels(".")
+	if err == nil {
+		t.Fatalf("unexpected empty error")
+	}
+
+	// transit back to correct api response
+	updateAPIResponse(apiResponse{
+		statusCode: http.StatusOK,
+		body:       `[{"targets":["10.0.0.1:9100"],"labels":{"job":"node"}},{"targets":["10.0.0.5:8429"],"labels":{"job":"vmagent"}}]`,
+	})
+	assertLabelss([]*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
+			"__address__": "10.0.0.1:9100",
+			"job":         "node",
+			"__meta_url":  srv.URL,
+		}),
+		promutil.NewLabelsFromMap(map[string]string{
+			"__address__": "10.0.0.5:8429",
+			"job":         "vmagent",
+			"__meta_url":  srv.URL,
+		}),
+	})
+
+	// make sure that api response is properly cached
+	before := cfg.targetLabels.Load()
+	updateAPIResponse(apiResponse{statusCode: http.StatusOK,
+		body: `[{"targets":["10.0.0.1:9100"],"labels":{"job":"node"}},{"targets":["10.0.0.5:8429"],"labels":{"job":"vmagent"}}]`})
+
+	if cfg.targetLabels.Load() != before {
+		t.Fatalf("expected identical response to be deduplicated")
+	}
+}
+
+func compareLabelss(t *testing.T, want, got []*promutil.Labels) {
+	t.Helper()
+	sortLabelss(want)
+	sortLabelss(got)
+
+	if diff := cmp.Diff(want, got); len(diff) > 0 {
+		t.Fatalf("unexpected labelss (-want, +got):\n%s", diff)
+	}
+}
+
+func sortLabelss(a []*promutil.Labels) {
+	sort.Slice(a, func(i, j int) bool {
+		return marshalLabels(a[i]) < marshalLabels(a[j])
+	})
+}
+
+func marshalLabels(a *promutil.Labels) string {
+	var b []byte
+	for _, label := range a.Labels {
+		b = strconv.AppendQuote(b, label.Name)
+		b = append(b, ':')
+		b = strconv.AppendQuote(b, label.Value)
+		b = append(b, ',')
+	}
+	return string(b)
 }
