@@ -1719,7 +1719,7 @@ operate in VictoriaMetrics cluster setups. I.e., one or more single-nodes that
 contain data for different tenants can be a part of a cluster, and the entire
 non-homogeneous deployment can be queried with a higher-level `vmselect`.
 
-This, in turn, enables easy [migrations from single-node to cluster](#from-single-node-to-cluster).
+This, in turn, enables easy [migrations from single-node to cluster](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#from-single-node-to-cluster).
 Previously, the only option was the use of
 [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/).
 
