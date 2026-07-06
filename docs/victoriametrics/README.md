@@ -2338,7 +2338,7 @@ cluster (such as the single-node can't be scaled vertically anymore, or
 multitenancy becomes a requirement, etc.) the migration can be as simple as:
 
 1. Restart the existing single-node with multitenancy support enabled as
-   described in [Multitenancy](#multi-tenancy) section.
+   described in [Multitenancy](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#multi-tenancy) section.
 1. Deploy an empty cluster next to the existing single-node.
 1. Deploy higher-level `vmselect` and configure it to query both the existing
    single-node and the new cluster.
