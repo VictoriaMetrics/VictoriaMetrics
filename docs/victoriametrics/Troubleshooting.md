@@ -433,7 +433,7 @@ There are three patterns of memory shortage:
 1. **The cache cannot hold the active series (cache-bound shortage).** The `storage/tsid` cache is full:
    `vm_cache_size_bytes{type="storage/tsid"}` is close to `vm_cache_size_max_bytes{type="storage/tsid"}`, and slow inserts stay high.
    Most slow inserts come from `storage/tsid` cache misses, on new series or on already-known active series.
-   If they stay above 5% of ingested rows during a stable window without restarts or rerouting,
+   If slow inserts stay above 5% during a stable window without restarts or rerouting,
    and are not explained by `rate(vm_new_timeseries_created_total)`,
    it points to misses on active series that no longer fit the cache.
    See the detailed explanation in the [Slow data ingestion](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#slow-data-ingestion) section.
