@@ -397,7 +397,7 @@ None of them means a shortage on its own; read them together in [Memory shortage
   currently resident for the process. Reclaimable by the OS.
 
 - `process_pressure_memory_waiting_seconds_total`, `process_pressure_memory_stalled_seconds_total` -
-  [PSI](https://docs.kernel.org/accounting/psi.html): time tasks were stalled waiting for memory reclaim.
+  [PSI](https://docs.kernel.org/accounting/psi.html): amount of time tasks were stalled waiting for memory reclaim.
   Populated only on Linux hosts with PSI support.
 
 - `vm_cache_size_bytes / vm_cache_size_max_bytes` (per `type`, e.g., `storage/tsid`) -
