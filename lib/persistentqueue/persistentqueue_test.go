@@ -38,12 +38,13 @@ func TestFlushReaderMetainfoFlushesPendingWriterData(t *testing.T) {
 		block := []byte("foobar")
 		data := encoding.MarshalUint64(nil, uint64(len(block)))
 		data = append(data, block...)
-		// it will call `flushWriterMetainfoIfNeeded` internally
+		// it will call `flushBufAndMetainfoIfNeeded` internally to flush the data and metadata.
 		err := q.writeBlock(data)
 		if err != nil {
 			t.Fatalf("unexpected error when writing data to queue: %s", err)
 		}
-		// the second call will update the writeOffset in memory but won't flush it to the metainfo file, because the last flush was performed less than 1 second ago.
+		// the second call will update the writeOffset in memory without flushing the data and metadata,
+		// because the last flush was performed less than 1 second ago.
 		err = q.writeBlock(data)
 		if err != nil {
 			t.Fatalf("unexpected error when writing data to queue: %s", err)
@@ -51,7 +52,7 @@ func TestFlushReaderMetainfoFlushesPendingWriterData(t *testing.T) {
 
 		time.Sleep(1 * time.Second)
 
-		// it will call `flushReaderMetainfoIfNeeded` internally
+		// it will call `flushBufAndMetainfoIfNeeded` internally to flush the data and metadata.
 		if _, err = q.readBlock(nil); err != nil {
 			t.Fatalf("unexpected error when flushing reader metainfo: %s", err)
 		}
