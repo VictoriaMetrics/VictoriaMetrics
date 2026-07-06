@@ -26,7 +26,7 @@ func TestQueueOpenClose(t *testing.T) {
 }
 
 func TestFlushReaderMetainfoFlushesPendingWriterData(t *testing.T) {
-	t.Run("invalid-writeOffset", func(_ *testing.T) {
+	t.Run("invalid-writerOffset", func(t *testing.T) {
 		path := "queue-flush-reader-metainfo"
 		fs.MustRemoveDir(path)
 		q := mustOpen(path, "foobar", 0)

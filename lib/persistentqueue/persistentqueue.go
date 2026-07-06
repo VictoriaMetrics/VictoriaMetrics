@@ -52,6 +52,7 @@ type queue struct {
 	writerFlushedOffset uint64
 
 	lastMetainfoFlushTime uint64
+	hasDataToFlush        bool
 
 	blocksDropped *metrics.Counter
 	bytesDropped  *metrics.Counter
@@ -84,6 +85,7 @@ func (q *queue) mustResetFiles() {
 	}
 	q.reader.MustClose()
 	q.writer.MustClose()
+	q.hasDataToFlush = false
 	fs.MustRemovePath(q.readerPath)
 
 	q.writerOffset = 0
@@ -318,6 +320,7 @@ func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingB
 func (q *queue) MustClose() {
 	// Close writer.
 	q.writer.MustClose()
+	q.hasDataToFlush = false
 	q.writer = nil
 
 	// Close reader.
@@ -422,6 +425,7 @@ var writeDurationSeconds = metrics.NewFloatCounter(`vm_persistentqueue_write_dur
 func (q *queue) nextChunkFileForWrite() error {
 	// Finalize the current chunk and start new one.
 	q.writer.MustClose()
+	q.hasDataToFlush = false
 	// There is no need to do fs.MustSyncPath(q.writerPath) here,
 	// since MustClose already does this.
 	if n := q.writerOffset % q.chunkFileSize; n > 0 {
@@ -566,6 +570,7 @@ func (q *queue) write(buf []byte) error {
 	}
 	q.writerLocalOffset += bufLen
 	q.writerOffset += bufLen
+	q.hasDataToFlush = true
 	return nil
 }
 
@@ -600,9 +605,10 @@ func (q *queue) flushBufAndMetainfoIfNeeded() error {
 	if t == q.lastMetainfoFlushTime {
 		return nil
 	}
-	if q.writerFlushedOffset < q.writerOffset {
+	if q.hasDataToFlush {
 		q.writer.MustFlush(true)
 		q.writerFlushedOffset = q.writerOffset
+		q.hasDataToFlush = false
 	}
 	if err := q.flushMetainfo(); err != nil {
 		return fmt.Errorf("cannot flush metainfo: %w", err)
