@@ -1682,9 +1682,46 @@ See also [retention filters](#retention-filters).
 The downsampling can be evaluated for free by downloading and using enterprise binaries from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 See how to request a [free trial license](https://victoriametrics.com/products/enterprise/trial/).
 
-## Multi-tenancy
+## Multitenancy {#multi-tenancy}
 
-Single-node VictoriaMetrics doesn't support multi-tenancy. Use the [cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) instead.
+Starting from{{% available_from "v1.147.0" %}} single-node VictoriaMetrics has limited
+[multitenancy](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy)
+support. Specifically, a single-node can serve multitenant queries as if it were a
+`vmstorage`. The write path is not supported.
+
+The functionality is disabled by default and can be enabled by setting the
+`-vmselectAddr` flag. This will start the `vmselect RPC server` that accepts
+requests and serves responses in cluster format.
+
+Cluster data format assumes the presence of a `tenantID`. Single-node data
+format still does not support multitenancy, but it is possible to configure the
+single-node to specify which `tenantID` the single-node's data corresponds to with the
+`-accountID` and `-projectID` flags. Both are `0` by default, which means that
+`"0:0"` `tenantID` is used by default.
+
+For example, the following command will start a single-node that listens for
+vmselect RPC requests on the `8401` port. The requests must be either `multitenant`
+(i.e., want data for all tenants) or for `"12:34"` tenant. Otherwise, the
+single-node will return an empty result:
+
+```shell
+./victoria-metrics -storageDataPath=/data -vmselectAddr=:8401 -accountID=12 -projectID=34
+```
+
+The `tenantID` configuration is not persisted in any way and is enforced only at
+runtime. Thus, it is safe to change the `-accountID` and `-projectID` flag
+values at any time.
+
+Note that the single-node's HTTP handlers still do not support multitenancy.
+
+The purpose of this limited multitenancy support is enabling the single-node to
+operate in VictoriaMetrics cluster setups. I.e., one or more single-nodes that
+contain data for different tenants can be a part of a cluster, and the entire
+non-homogeneous deployment can be queried with a higher-level `vmselect`.
+
+This, in turn, enables easy [migrations from single-node to cluster](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#from-single-node-to-cluster).
+Previously, the only option was the use of
+[vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/).
 
 ## Scalability and cluster version
 
@@ -2293,6 +2330,30 @@ Things to consider when copying data:
 
 For scenarios like single-to-cluster, cluster-to-single, re-sharding or migrating only a fraction of data: 
 [see how to migrate data from VictoriaMetrics via vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/).
+
+### From Single-node to Cluster
+
+When, for some reason, the deployment needs to be switched from single-node to
+cluster (such as the single-node can't be scaled vertically anymore, or
+multitenancy becomes a requirement, etc.) the migration can be as simple as:
+
+1. Restart the existing single-node with multitenancy support enabled as
+   described in [Multitenancy](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#multi-tenancy) section.
+1. Deploy an empty cluster next to the existing single-node.
+1. Deploy higher-level `vmselect` and configure it to query both the existing
+   single-node and the new cluster.
+1. Start writing data to the cluster.
+1. Stop writing data to the single-node.
+
+This approach requires no data migration nor downtime (apart from restarting the
+single-node at step 1). And once the single-node data becomes outside the
+retention period, the single-node can be removed from the deployment.
+
+Note that if you need to actually migrate data to cluster and/or modify it, you
+will need to use
+[vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/)
+instead.
+
 
 ### From other systems
 
