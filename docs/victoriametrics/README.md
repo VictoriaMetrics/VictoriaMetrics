@@ -1682,7 +1682,7 @@ See also [retention filters](#retention-filters).
 The downsampling can be evaluated for free by downloading and using enterprise binaries from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 See how to request a [free trial license](https://victoriametrics.com/products/enterprise/trial/).
 
-## Multitenancy
+## Multitenancy {#multi-tenancy}
 
 Starting from `v1.147.0` single-node VictoriaMetrics has limited
 [multitenancy](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy)
@@ -2338,7 +2338,7 @@ cluster (such as the single-node can't be scaled vertically anymore, or
 multitenancy becomes a requirement, etc.) the migration can be as simple as:
 
 1. Restart the existing single-node with multitenancy support enabled as
-   described in [Multitenancy](#multitenancy) section.
+   described in [Multitenancy](#multi-tenancy) section.
 1. Deploy an empty cluster next to the existing single-node.
 1. Deploy higher-level `vmselect` and configure it to query both the existing
    single-node and the new cluster.
