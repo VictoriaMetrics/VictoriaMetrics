@@ -403,7 +403,7 @@ None of them means a shortage on its own; read them together in [Memory shortage
 - `vm_cache_size_bytes / vm_cache_size_max_bytes` (per `type`, e.g., `storage/tsid`) -
   how full each in-process cache is.
 
-- `vm_slow_row_inserts_total` / `vm_rows_added_to_storage_total` -
+- `vm_slow_row_inserts_total / vm_rows_added_to_storage_total` -
   share of ingested rows that missed the `storage/tsid` cache ([slow inserts](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#slow-data-ingestion)).
 
 - `increase(vm_new_timeseries_created_total[24h]) / vm_cache_entries{type="storage/hour_metric_ids"}` -
