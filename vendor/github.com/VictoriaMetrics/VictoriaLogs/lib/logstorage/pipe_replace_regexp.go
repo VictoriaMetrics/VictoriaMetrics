@@ -92,7 +92,6 @@ func (pr *pipeReplaceRegexp) newPipeProcessor(_ int, _ <-chan struct{}, _ func()
 	}
 
 	return newPipeUpdateProcessor(updateFunc, ppNext, pr.field, pr.iff)
-
 }
 
 func parsePipeReplaceRegexp(lex *lexer) (pipe, error) {

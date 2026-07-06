@@ -16,7 +16,7 @@ aliases:
 1. The main goal - **to help users and [clients](https://docs.victoriametrics.com/victoriametrics/enterprise/) using VictoriaMetrics products in the most efficient way**.
 1. Fixing bugs in the essential functionality of VictoriaMetrics components. Small usability bugs are usually the most annoying,
    so they **must be fixed first**. Bugs, which affect a small number of users at some rare edge cases, can be fixed later.
-1. Improving [public docs for VictoriaMetrics products](https://docs.victoriametrics.com).
+1. Improving [public docs for VictoriaMetrics products](https://docs.victoriametrics.com),
    so users could find answers to their questions via Google or any other AI-powered web search without the need
    to ask these questions at our [support channels](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#community-and-contributions).
 1. Simplifying usage of VictoriaMetrics products without breaking backwards compatibility, so users could regularly

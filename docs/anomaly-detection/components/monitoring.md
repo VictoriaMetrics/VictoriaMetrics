@@ -461,6 +461,21 @@ Label names [description](#labelnames)
 `url`, `query_key`, `scheduler_alias`, `preset`
             </td>
         </tr>
+        <tr>
+            <td>
+
+<span style="white-space: nowrap;">`vmanomaly_reader_processing_tasks_queued`</span>
+            </td>
+            <td>
+
+`Gauge`
+            </td>
+            <td>The total number of queued processing tasks {{% available_from "v1.29.7" anomaly %}} (timeseries batches of size `series_processing_batch_size`) for the `query_key` query within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode. If continuously >0, it may lead to skipped infer runs due to resource contention and timeouts.</td>
+            <td>
+
+`url`, `query_key`, `scheduler_alias`, `preset`
+            </td>
+        </tr>
     </tbody>
 </table>
 

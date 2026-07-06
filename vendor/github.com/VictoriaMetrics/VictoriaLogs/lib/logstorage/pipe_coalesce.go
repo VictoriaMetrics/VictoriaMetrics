@@ -23,7 +23,7 @@ func (pc *pipeCoalesce) String() string {
 		logger.Panicf("BUG: pipeCoalesce must contain at least one srcField")
 	}
 
-	s := "coalesce(" + fieldNamesString(pc.srcFieldFilters) + ")"
+	s := "coalesce(" + fieldFiltersString(pc.srcFieldFilters) + ")"
 	if pc.defaultValue != "" {
 		s += " default " + quoteTokenIfNeeded(pc.defaultValue)
 	}

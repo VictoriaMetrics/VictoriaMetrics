@@ -85,6 +85,21 @@ Pull requests requirements:
 
 See a good example of a [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6487).
 
+## AI policy
+
+You are free to use any AI tools when working on a contribution, on code,
+documentation, issues, or anything else. You do not need to disclose whether or
+how you used them.
+
+With or without the help of AI, you are responsible for the changes you submit.
+Take the effort to understand the code base and every change in your pull request,
+and clean up any AI slop before sending it. Do not use AI to automate your
+responses to maintainers.
+
+We review contributions on their quality, regardless of how they were produced. A
+pull request or issue that looks like unreviewed AI output, with low-quality or
+broken changes, may be closed without a detailed review or triage.
+
 ## Merging Pull Request
 
 The person who merges the Pull Request is responsible for satisfying the requirements below:

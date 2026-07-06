@@ -74,40 +74,7 @@ options={`"scheduler.periodic.PeriodicScheduler"`, `"scheduler.oneoff.OneoffSche
 
 ### Parameters
 
-For periodic scheduler parameters are defined as differences in times, expressed in difference units, e.g. days, hours, minutes, seconds.
-
-Examples: `"50s"`, `"4m"`, `"3h"`, `"2d"`, `"1w"`. 
-
-<table class="params">
-    <thead>
-        <tr>
-            <th></th>
-            <th>Time granularity</th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr>
-            <td>s</td>
-            <td>seconds</td>
-        </tr>
-        <tr>
-            <td>m</td>
-            <td>minutes</td>
-        </tr>
-        <tr>
-            <td>h</td>
-            <td>hours</td>
-        </tr>
-        <tr>
-            <td>d</td>
-            <td>days</td>
-        </tr>
-        <tr>
-            <td>w</td>
-            <td>weeks</td>
-        </tr>
-    </tbody>
-</table>
+For periodic scheduler parameters are defined as differences in times, expressed in difference units, e.g. days, hours, minutes, seconds. Time granularity is defined by the last characters of a string. Examples: `"50s"` (seconds), `"4m"` (minutes), `"3h"` (hours), `"2d"` (days), `"1w"` (weeks).
 
 <table class="params">
     <thead>
@@ -188,6 +155,21 @@ Specifies when to initiate the first `fit_every` call. Accepts either an ISO 860
 Defines the local timezone for the `start_from` parameter, if specified. Defaults to `UTC` if no timezone is provided.
             </td>
         </tr>
+        <tr>
+            <td>
+
+<span style="white-space: nowrap;">`scatter_infer_jobs`{{% available_from "v1.29.7" anomaly %}}</span>
+            </td>
+            <td>bool, <span style="white-space: nowrap;">Optional</span></td>
+            <td>
+
+`true` or `false`
+            </td>
+            <td>
+
+If `true`, distribute infer jobs and their dependent data-fetch jobs evenly across the infer interval. This reduces synchronized read and inference bursts for high-scale configurations. Defaults to `false`. Useful when `settings.n_workers > 1`, `reader.queries` cardinality is high, and `scheduler.infer_every` is small.
+            </td>
+        </tr>
     </tbody>
 </table>
 
@@ -200,6 +182,7 @@ schedulers:
     # (or class: "scheduler.periodic.PeriodicScheduler" for versions before v1.13.0, without class alias support)
     fit_window: "14d" 
     infer_every: "1m" 
+    scatter_infer_jobs: true  # Distribute infer jobs evenly across the infer interval to reduce synchronized bursts.
     fit_every: "1h"
     start_from: "20:00"  # If launched before 20:00 (local Kyiv time), the first run starts today at 20:00. Otherwise, it starts tomorrow at 20:00.
     tz: "Europe/Kyiv"  # Defaults to 'UTC' if not specified.

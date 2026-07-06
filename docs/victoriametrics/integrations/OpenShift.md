@@ -11,7 +11,7 @@ menu:
 
 OpenShift uses Prometheus as a core monitoring solution. It cannot be replaced without violating the OpenShift support policy. However, OpenShift can be configured to use VictoriaMetrics as a remote write target.
 
-According to [remote write configuration in the OpenShift documentation](https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/monitoring/configuring-core-platform-monitoring#configuring-remote-write-storage_configuring-metrics), the following manifest needs to be applied to send platform metrics to VictoriaMetrics:
+According to [remote write configuration in the OpenShift documentation](https://docs.redhat.com/en/documentation/monitoring_stack_for_red_hat_openshift/4.18/html/configuring_core_platform_monitoring/configuring-metrics#configuring-remote-write-storage_configuring-metrics), the following manifest needs to be applied to send platform metrics to VictoriaMetrics:
 
 ```yaml
 apiVersion: v1
@@ -91,7 +91,7 @@ data:
             key: token
 ```
 
-Along with core platform monitoring, OpenShift also supports collecting user workload metrics. See [this guide](https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/monitoring/configuring-user-workload-monitoring) for more information. In order to send user workload metrics to VictoriaMetrics, the following manifest needs to be applied:
+Along with core platform monitoring, OpenShift also supports collecting user workload metrics. See [this guide](https://docs.redhat.com/en/documentation/monitoring_stack_for_red_hat_openshift/4.18/html/configuring_user_workload_monitoring/index) for more information. In order to send user workload metrics to VictoriaMetrics, the following manifest needs to be applied:
 ```yaml
 apiVersion: v1
 kind: ConfigMap
@@ -166,6 +166,6 @@ data:
 
 ## References
 
-- [OpenShift Documentation: Core Platform Monitoring](https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/monitoring/configuring-core-platform-monitoring)
-- [OpenShift Documentation: User Workload Monitoring](https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/monitoring/configuring-user-workload-monitoring)
+- [OpenShift Documentation: Core Platform Monitoring](https://docs.redhat.com/en/documentation/monitoring_stack_for_red_hat_openshift/4.18/html/configuring_core_platform_monitoring/index)
+- [OpenShift Documentation: User Workload Monitoring](https://docs.redhat.com/en/documentation/monitoring_stack_for_red_hat_openshift/4.18/html/configuring_user_workload_monitoring/index)
 - [OpenShift Documentation: Hosted Control Planes Overview](https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/hosted_control_planes/hosted-control-planes-overview)

@@ -6,6 +6,25 @@ import (
 	"testing"
 )
 
+// marshalRaw marshals mn to dst and returns the result.
+//
+// The results may be unmarshaled with MetricName.UnmarshalRaw.
+//
+// This function is for testing purposes. MarshalMetricNameRaw must be used
+// in prod instead.
+func (mn *MetricName) marshalRaw(dst []byte) []byte {
+	dst = marshalBytesFast(dst, nil)
+	dst = marshalBytesFast(dst, mn.MetricGroup)
+
+	mn.sortTags()
+	for i := range mn.Tags {
+		tag := &mn.Tags[i]
+		dst = marshalBytesFast(dst, tag.Key)
+		dst = marshalBytesFast(dst, tag.Value)
+	}
+	return dst
+}
+
 func TestMetricNameString(t *testing.T) {
 	f := func(mn *MetricName, resultExpected string) {
 		t.Helper()

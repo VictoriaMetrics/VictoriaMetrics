@@ -74,7 +74,6 @@ var transformFuncs = map[string]bool{
 	"rand":                       true,
 	"rand_exponential":           true,
 	"rand_normal":                true,
-	"range":                      true,
 	"range_avg":                  true,
 	"range_first":                true,
 	"range_last":                 true,

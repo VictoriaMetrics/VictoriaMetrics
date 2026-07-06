@@ -1347,7 +1347,6 @@ func (s *Storage) searchParallel(workersCount int, sso *storageSearchOptions, qs
 			putBlockSearch(bs)
 			putBitmap(bm)
 			qs.UpdateAtomic(qsLocal)
-
 		})
 	}
 
@@ -1601,7 +1600,6 @@ func (p *part) hasMatchingRows(pso *partitionSearchOptions, stopCh <-chan struct
 
 			putBlockSearch(bs)
 			putBitmap(bm)
-
 		})
 	}
 

@@ -39,7 +39,7 @@ Each subsequent section of this guide presents an architecture designed to handl
 ### The decision tree
 
 <p align="center">
-<img src="decision-tree.webp" alt="Decision Tree" width="80%">
+<img src="/guides/vm-architectures/decision-tree.webp" alt="Decision Tree" width="80%">
 </p>
 
 ## Basic
@@ -62,7 +62,7 @@ Installation guide reference: [VictoriaMetrics Single](https://docs.victoriametr
 **Schema:**
 
 <p align="center">
-<img src="basic-architecture.webp" alt="Basic Architecture" width="40%">
+<img src="/guides/vm-architectures/basic-architecture.webp" alt="Basic Architecture" width="40%">
 </p>
 
 ### Unavailability Scenarios
@@ -93,7 +93,7 @@ High availability implementation: [HA VictoriaMetrics Cluster](https://docs.vict
 **Schema:**
 
 <p align="center">
-<img src="single-az-architecture.webp" alt="Single AZ Architecture" width="60%">
+<img src="/guides/vm-architectures/single-az-architecture.webp" alt="Single AZ Architecture" width="60%">
 </p>
 
 ### Application vs. Storage Replication
@@ -210,7 +210,7 @@ To ensure reliability, vmagent implements the bulkhead pattern: each destination
 **Schema:**
 
 <p align="center">
-<img src="multi-az-architecture.webp" alt="Multi-AZ Architecture" width="65%">
+<img src="/guides/vm-architectures/multi-az-architecture.webp" alt="Multi-AZ Architecture" width="65%">
 </p>
 
 ### Unavailability Scenarios
@@ -257,7 +257,7 @@ For complete disaster recovery, this entire cell-based architecture is duplicate
 A global, stateless layer of routing cells (vmagent, vmauth) sits on top. It routes traffic to several logical groups of storage cells. Each storage group contains multiple AZs, and data is replicated or sharded across them. There are several approaches to implementing it.
 
 <p align="center">
-<img src="hyperscale-architecture.webp" alt="Hyperscale Architecture" width="85%">
+<img src="/guides/vm-architectures/hyperscale-architecture.webp" alt="Hyperscale Architecture" width="85%">
 </p>
 
 ### Choosing Your Read Path Strategy
@@ -375,7 +375,7 @@ This multitenancy approach gives us another trade-off in the isolation implement
 **Schema:**
 
 <p align="center">
-<img src="logical-layers-architecture.webp" alt="Logical Layers Architecture" width="80%">
+<img src="/guides/vm-architectures/logical-layers-architecture.webp" alt="Logical Layers Architecture" width="80%">
 </p>
 
 **Path A: Shared resources.** We have a single, shared pool of all cluster components.

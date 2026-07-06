@@ -282,7 +282,8 @@ func processFlags() {
 
 func setUp() {
 	const maxConcurrentRequests = 4
-	vmstorage.Init(maxConcurrentRequests, promql.ResetRollupResultCacheIfNeeded)
+	maxQueueDuration := 5 * time.Second
+	vmstorage.Init(maxConcurrentRequests, maxQueueDuration, promql.ResetRollupResultCacheIfNeeded)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	readyCheckFunc := func() bool {

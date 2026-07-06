@@ -789,6 +789,24 @@ foo:1m_by_cde_rate_sum{cde="1"} 0.125
   outputs: [rate_sum, rate_avg]
 `, "11111")
 
+	// test rate_sum with out of order samples
+	f([]string{`
+foo 1
+`, `
+foo 61
+`, `
+foo 31 -70
+foo 91
+`, `
+foo 121
+`}, time.Minute, `foo:1m_rate_sum 1
+foo:1m_rate_sum 0.5
+foo:1m_rate_sum 0.5
+`, `
+- interval: 1m
+  outputs: [rate_sum]
+`, "11111")
+
 	// test rate_sum and rate_avg with different staleness intervals
 	f([]string{`
 foo{abc="123", cde="1"} 1

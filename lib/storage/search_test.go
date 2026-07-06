@@ -32,7 +32,12 @@ func TestSearchQueryMarshalUnmarshal(t *testing.T) {
 			// Skip nil sq1.
 			continue
 		}
-		buf = sq1.Marshal(buf[:0])
+		tt := TenantToken{
+			AccountID: sq1.AccountID,
+			ProjectID: sq1.ProjectID,
+		}
+		buf = tt.Marshal(buf[:0])
+		buf = sq1.MarshalWithoutTenant(buf)
 
 		tail, err := sq2.Unmarshal(buf)
 		if err != nil {
@@ -40,6 +45,12 @@ func TestSearchQueryMarshalUnmarshal(t *testing.T) {
 		}
 		if len(tail) > 0 {
 			t.Fatalf("unexpected tail left after SearchQuery unmarshaling; tail (len=%d): %q", len(tail), tail)
+		}
+		if sq2.AccountID != sq1.AccountID {
+			t.Fatalf("unexpected AccountID; got %d; want %d", sq2.AccountID, sq1.AccountID)
+		}
+		if sq2.ProjectID != sq1.ProjectID {
+			t.Fatalf("unexpected ProjectID; got %d; want %d", sq2.ProjectID, sq1.ProjectID)
 		}
 		if sq1.MinTimestamp != sq2.MinTimestamp {
 			t.Fatalf("unexpected MinTimestamp; got %d; want %d", sq2.MinTimestamp, sq1.MinTimestamp)

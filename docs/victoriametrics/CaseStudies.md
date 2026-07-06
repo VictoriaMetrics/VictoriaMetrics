@@ -482,7 +482,7 @@ Across our production VictoriaMetrics clusters, in a 12 months period we go beyo
 
 ## Roblox
 
-[Roblox](https://roblox.com/) builds the tools and platform that empower people to create their own immersive experiences,
+[Roblox](https://www.roblox.com/) builds the tools and platform that empower people to create their own immersive experiences,
 so that any world they can imagine can be brought to life.
 
 With more than 200 million active monthly users, Roblox is one of the most popular gaming platforms on the Internet.
@@ -688,8 +688,7 @@ Thanos, Cortex and VictoriaMetrics were evaluated as a long-term storage for Pro
 - The API is compatible with Prometheus and nearly all standard PromQL queries work well out of the box.
 - Handles storage well, with periodic compaction which makes it easy to take snapshots.
 
-Please see [Monitoring K8S with VictoriaMetrics](https://docs.google.com/presentation/d/1g7yUyVEaAp4tPuRy-MZbPXKqJ1z78_5VKuV841aQfsg/edit) slides,
-[video](https://youtu.be/ZJQYW-cFOms) and [Infrastructure monitoring with Prometheus at Zerodha](https://zerodha.tech/blog/infra-monitoring-at-zerodha/) blog post for more details.
+Please see [Monitoring K8S with VictoriaMetrics](https://youtu.be/ZJQYW-cFOms) video and [Infrastructure monitoring with Prometheus at Zerodha](https://zerodha.tech/blog/infra-monitoring-at-zerodha/) blog post for more details.
 
 ## zhihu
 

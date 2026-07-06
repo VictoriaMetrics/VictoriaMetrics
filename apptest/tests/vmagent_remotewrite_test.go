@@ -517,10 +517,15 @@ func TestClusterVMAgentForwardMetricsMetadata(t *testing.T) {
 		"-remoteWrite.tmpDataPath=" + tc.Dir() + "/vmagent",
 		fmt.Sprintf(`-remoteWrite.url=http://%s/insert/multitenant/prometheus/api/v1/write`, sut.Vminsert.HTTPAddr()),
 	})
-
+	generateValueExceedLimit := func(prefix string) string {
+		buf := make([]byte, math.MaxUint16+len(prefix))
+		copy(buf, prefix)
+		return string(buf)
+	}
 	prometheusRemoteWriteDataSet := prompb.WriteRequest{
 		Metadata: []prompb.MetricMetadata{
 			{MetricFamilyName: "metric_name_4", Help: "some help message", Type: prompb.MetricTypeSummary, AccountID: 100},
+			{MetricFamilyName: "metric_name_8", Help: generateValueExceedLimit("large_help"), Type: prompb.MetricTypeStateset, AccountID: 100},
 		},
 	}
 	vmagent.PrometheusAPIV1Write(t, prometheusRemoteWriteDataSet, apptest.QueryOpts{Tenant: "multitenant"})

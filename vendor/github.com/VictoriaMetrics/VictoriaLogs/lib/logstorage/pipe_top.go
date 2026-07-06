@@ -621,7 +621,7 @@ func parsePipeTop(lex *lexer) (pipe, error) {
 		}
 		byFields = bfs
 	} else if !lex.isKeyword("hits", "rank") && !lex.isQueryPartTrailer() {
-		bfs, err := parseCommaSeparatedFields(lex)
+		bfs, err := parseCommaSeparatedFieldNames(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'by ...': %w", err)
 		}

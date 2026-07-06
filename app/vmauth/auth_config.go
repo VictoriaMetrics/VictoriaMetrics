@@ -118,9 +118,10 @@ type AccessLogFilters struct {
 }
 
 func (ui *UserInfo) logRequest(r *http.Request, userName string, statusCode int, duration time.Duration) {
-	if ui.AccessLog == nil {
+	if ui == nil || ui.AccessLog == nil {
 		return
 	}
+
 	filters := ui.AccessLog.Filters
 	if filters != nil && len(filters.SkipStatusCodes) > 0 {
 		if slices.Contains(filters.SkipStatusCodes, statusCode) {
@@ -132,6 +133,17 @@ func (ui *UserInfo) logRequest(r *http.Request, userName string, statusCode int,
 	requestURI := httpserver.GetRequestURI(r)
 	logger.Infof("access_log request_host=%q request_uri=%q status_code=%d remote_addr=%s user_agent=%q referer=%q duration_ms=%d username=%q",
 		r.Host, requestURI, statusCode, remoteAddr, r.UserAgent(), r.Referer(), duration.Milliseconds(), userName)
+}
+
+// hasAnyURLs reports whether ui has at least one backend URL route configured.
+// It is used only for unauthorized_user config section, since other users
+// must always have either URLPrefix or URLMaps set.
+func (ui *UserInfo) hasAnyURLs() bool {
+	if ui == nil {
+		return false
+	}
+
+	return ui.URLPrefix != nil || len(ui.URLMaps) > 0 || ui.DefaultURL != nil
 }
 
 // HeadersConf represents config for request and response headers.
@@ -983,8 +995,11 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 		if err := parseJWTPlaceholdersForUserInfo(ui, false); err != nil {
 			return nil, err
 		}
-		if err := ui.initURLs(); err != nil {
-			return nil, err
+
+		if ui.hasAnyURLs() {
+			if err := ui.initURLs(); err != nil {
+				return nil, err
+			}
 		}
 
 		metricLabels, err := ui.getMetricLabels()
