@@ -256,8 +256,7 @@ func (vms *VMStorage) LabelValues(qt *querytracer.Tracer, sq *storage.SearchQuer
 // https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find or
 // similar APIs.
 func (vms *VMStorage) TagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte,
-	maxSuffixes int, deadline uint64,
-) ([]string, error) {
+	maxSuffixes int, deadline uint64) ([]string, error) {
 	if maxSuffixes <= 0 || maxSuffixes > *maxTagValueSuffixesPerSearch {
 		maxSuffixes = *maxTagValueSuffixesPerSearch
 	}
