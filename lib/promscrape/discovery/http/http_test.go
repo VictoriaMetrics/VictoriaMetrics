@@ -168,6 +168,7 @@ func TestSDConfigGetLabels(t *testing.T) {
 func compareLabelss(t *testing.T, want, got []*promutil.Labels) {
 	t.Helper()
 	sortLabelss(want)
+	got = append([]*promutil.Labels(nil), got...)
 	sortLabelss(got)
 
 	if diff := cmp.Diff(want, got); len(diff) > 0 {
