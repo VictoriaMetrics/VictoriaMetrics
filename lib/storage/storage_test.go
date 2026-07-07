@@ -2546,6 +2546,7 @@ func TestStorageSearchLabelValues_SingleFilterOnLabelName(t *testing.T) {
 	s.DebugFlush()
 
 	f := func(label, k, v string, isNegative, isRegex bool, tr TimeRange, maxLabelValues, maxMetrics int, want []string) {
+		t.Helper()
 		tfs := NewTagFilters()
 		if err := tfs.Add([]byte(k), []byte(v), isNegative, isRegex); err != nil {
 			t.Fatalf("unexpected error in TagFilters.Add: %v", err)
