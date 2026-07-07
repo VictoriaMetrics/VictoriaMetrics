@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/) and [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): retry S3 requests failing with `HTTP 429` status code or `TooManyRequests` error code. Previously such requests were not retried, so a short burst of rate limiting would fail the whole backup. See [#11218](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11218).
+
 ## [v1.147.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.147.0)
 
 Released at 2026-07-06
