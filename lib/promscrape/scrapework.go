@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"math"
 	"math/bits"
 	"strings"
@@ -180,12 +181,12 @@ func (sw *ScrapeWork) key() string {
 	key := fmt.Sprintf("JobNameOriginal=%s, ScrapeURL=%s, ScrapeInterval=%s, ScrapeTimeout=%s, HonorLabels=%v, "+
 		"HonorTimestamps=%v, DenyRedirects=%v, Labels=%s, ExternalLabels=%s, MaxScrapeSize=%d, "+
 		"ProxyURL=%s, ProxyAuthConfig=%s, AuthConfig=%s, MetricRelabelConfigs=%q, "+
-		"SampleLimit=%d, DisableCompression=%v, DisableKeepAlive=%v, StreamParse=%v, "+
+		"SampleLimit=%d, DisableCompression=%v, AcceptEncoding=%s, DisableKeepAlive=%v, StreamParse=%v, "+
 		"ScrapeAlignInterval=%s, ScrapeOffset=%s, SeriesLimit=%d, LabelLimit=%d, NoStaleMarkers=%v",
 		sw.jobNameOriginal, sw.ScrapeURL, sw.ScrapeInterval, sw.ScrapeTimeout, sw.HonorLabels,
 		sw.HonorTimestamps, sw.DenyRedirects, sw.Labels.String(), sw.ExternalLabels.String(), sw.MaxScrapeSize,
 		sw.ProxyURL.String(), sw.ProxyAuthConfig.String(), sw.AuthConfig.String(), sw.MetricRelabelConfigs.String(),
-		sw.SampleLimit, sw.DisableCompression, sw.DisableKeepAlive, sw.StreamParse,
+		sw.SampleLimit, sw.DisableCompression, sw.AcceptEncoding, sw.DisableKeepAlive, sw.StreamParse,
 		sw.ScrapeAlignInterval, sw.ScrapeOffset, sw.SeriesLimit, sw.LabelLimit, sw.NoStaleMarkers)
 	return key
 }
@@ -501,17 +502,39 @@ func (sw *scrapeWork) readFromBuffer(dst *bytesutil.ByteBuffer, src *chunkedbuff
 		return nil
 	}
 
-	r := src.NewReader()
-	reader, err := protoparserutil.GetUncompressedReader(r, contentEncoding)
-	if err != nil {
-		return fmt.Errorf("cannot decompress response body from %s: %w", sw.Config.ScrapeURL, err)
+	encodings := strings.Split(contentEncoding, ",")
+	var readers []io.Reader
+	var currReader io.Reader = src.NewReader()
+
+	for i := len(encodings) - 1; i >= 0; i-- {
+		enc := strings.TrimSpace(encodings[i])
+		if enc == "" || enc == "identity" || enc == "none" {
+			continue
+		}
+		reader, err := protoparserutil.GetUncompressedReader(currReader, enc)
+		if err != nil {
+			for _, rToPut := range readers {
+				protoparserutil.PutUncompressedReader(rToPut)
+			}
+			return fmt.Errorf("cannot decompress response body from %s using encoding %q: %w", sw.Config.ScrapeURL, enc, err)
+		}
+		readers = append(readers, reader)
+		currReader = reader
 	}
 
-	lr := ioutil.GetLimitedReader(reader, sw.Config.MaxScrapeSize+1)
-	_, err = dst.ReadFrom(lr)
+	if len(readers) == 0 {
+		src.MustWriteTo(dst)
+		return nil
+	}
+
+	lr := ioutil.GetLimitedReader(currReader, sw.Config.MaxScrapeSize+1)
+	_, err := dst.ReadFrom(lr)
 	ioutil.PutLimitedReader(lr)
 
-	protoparserutil.PutUncompressedReader(reader)
+	for _, reader := range readers {
+		protoparserutil.PutUncompressedReader(reader)
+	}
+
 	if err != nil {
 		return fmt.Errorf("cannot read compressed response body from %s: %w", sw.Config.ScrapeURL, err)
 	}

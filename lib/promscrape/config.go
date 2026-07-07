@@ -1005,7 +1005,6 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		honorLabels:          honorLabels,
 		honorTimestamps:      honorTimestamps,
 		denyRedirects:        denyRedirects,
-		denyHTTPSTargets:     sc.HTTPClientConfig.TLSConfig != nil && sc.HTTPClientConfig.TLSConfig.InsecureSkipVerify,
 		externalLabels:       externalLabels,
 		relabelConfigs:       relabelConfigs,
 		metricRelabelConfigs: metricRelabelConfigs,
@@ -1039,7 +1038,6 @@ type scrapeWorkConfig struct {
 	honorLabels          bool
 	honorTimestamps      bool
 	denyRedirects        bool
-	denyHTTPSTargets   bool
 	externalLabels       *promutil.Labels
 	relabelConfigs       *promrelabel.ParsedConfigs
 	metricRelabelConfigs *promrelabel.ParsedConfigs
@@ -1351,6 +1349,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		RelabelConfigs:       swc.relabelConfigs,
 		MetricRelabelConfigs: swc.metricRelabelConfigs,
 		DisableCompression:   swc.disableCompression,
+		AcceptEncoding:       swc.acceptEncoding,
 		DisableKeepAlive:     swc.disableKeepAlive,
 		StreamParse:          streamParse,
 		ScrapeAlignInterval:  swc.scrapeAlignInterval,
