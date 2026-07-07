@@ -3,12 +3,8 @@ package http
 import (
 	"net/http"
 	"net/http/httptest"
-	"sort"
-	"strconv"
 	"sync/atomic"
 	"testing"
-
-	"github.com/google/go-cmp/cmp"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
@@ -78,7 +74,10 @@ func TestSDConfigGetLabels(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected GetLabels error: %s", err)
 		}
-		compareLabelss(t, expectedLabelss, got)
+		if len(got) == 0 && len(expectedLabelss) == 0 {
+			return
+		}
+		discoveryutil.TestEqualLabelss(t, expectedLabelss, got)
 	}
 
 	// check initial state, it must be non-empty
@@ -163,32 +162,4 @@ func TestSDConfigGetLabels(t *testing.T) {
 	if cfg.targetLabels.Load() != before {
 		t.Fatalf("expected identical response to be deduplicated")
 	}
-}
-
-func compareLabelss(t *testing.T, want, got []*promutil.Labels) {
-	t.Helper()
-	sortLabelss(want)
-	got = append([]*promutil.Labels(nil), got...)
-	sortLabelss(got)
-
-	if diff := cmp.Diff(want, got); len(diff) > 0 {
-		t.Fatalf("unexpected labelss (-want, +got):\n%s", diff)
-	}
-}
-
-func sortLabelss(a []*promutil.Labels) {
-	sort.Slice(a, func(i, j int) bool {
-		return marshalLabels(a[i]) < marshalLabels(a[j])
-	})
-}
-
-func marshalLabels(a *promutil.Labels) string {
-	var b []byte
-	for _, label := range a.Labels {
-		b = strconv.AppendQuote(b, label.Name)
-		b = append(b, ':')
-		b = strconv.AppendQuote(b, label.Value)
-		b = append(b, ',')
-	}
-	return string(b)
 }
