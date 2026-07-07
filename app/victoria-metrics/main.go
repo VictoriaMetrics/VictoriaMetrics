@@ -89,7 +89,7 @@ func main() {
 	}
 	logger.Infof("starting VictoriaMetrics at %q...", listenAddrs)
 	startTime := time.Now()
-	vmstorage.Init(*vmselectMaxConcurrentRequests, promql.ResetRollupResultCacheIfNeeded)
+	vmstorage.Init(*vmselectMaxConcurrentRequests, *vmselectMaxQueueDuration, promql.ResetRollupResultCacheIfNeeded)
 	vmselect.Init(*vmselectMaxConcurrentRequests, *vmselectMaxQueueDuration)
 	vminsertcommon.StartIngestionRateLimiter(*maxIngestionRate)
 	vminsert.Init()

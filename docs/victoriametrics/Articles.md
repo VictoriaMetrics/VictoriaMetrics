@@ -49,7 +49,7 @@ See also [case studies](https://docs.victoriametrics.com/victoriametrics/casestu
 * [Brewblox: InfluxDB to Victoria Metrics](https://www.brewblox.com/dev/decisions/20210718_victoria_metrics.html)
 * [Techetio: Evaluating Backend Options For Prometheus Metrics](https://www.techetio.com/2022/08/21/evaluating-backend-options-for-prometheus-metrics/)
 * [Asserts: Announcing Asserts](https://www.asserts.ai/blog/announcing-asserts/)
-* [Optimizing Linkerd metrics in Prometheus](https://aatarasoff.medium.com/optimizing-linkerd-metrics-in-prometheus-de607ec10f6b)
+* [Optimizing Linkerd metrics in Prometheus](https://itnext.io/optimizing-linkerd-metrics-in-prometheus-de607ec10f6b)
 * [VictoriaMetrics vs. OpenTSDB](https://blg.robot-house.us/posts/tsdbs-grow/)
 * [Monitoring of multiple OpenShift clusters with VictoriaMetrics](https://medium.com/ibm-garage/monitoring-of-multiple-openshift-clusters-with-victoriametrics-d4f0979e2544)
 * [Ultra Monitoring with Victoria Metrics](https://dev.to/aws-builders/ultra-monitoring-with-victoria-metrics-1p2)

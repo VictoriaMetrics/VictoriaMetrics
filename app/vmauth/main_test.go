@@ -739,6 +739,12 @@ users:
 		"vm_access": map[string]any{},
 	}, false)
 
+	// token without vm_access claim, but with a custom claim usable for routing
+	roleToken := genToken(t, map[string]any{
+		"exp":  time.Now().Add(10 * time.Minute).Unix(),
+		"role": "admin",
+	}, true)
+
 	fullToken := genToken(t, map[string]any{
 		"exp": time.Now().Add(10 * time.Minute).Unix(),
 		"vm_access": map[string]any{
@@ -778,6 +784,45 @@ missing 'Authorization' request header`
 statusCode=401
 Unauthorized`
 	f(simpleCfgStr, request, responseExpected)
+
+	// token without vm_access claim should fall through to unauthorized_user
+	request = httptest.NewRequest(`GET`, "http://some-host.com/abc", nil)
+	request.Header.Set(`Authorization`, `Bearer `+noVMAccessClaimToken)
+	responseExpected = `
+statusCode=200
+path: /bar/abc
+query:
+headers:`
+	f(fmt.Sprintf(`
+unauthorized_user:
+  url_prefix: {BACKEND}/bar
+users:
+- jwt:
+    public_keys:
+    - %q
+    match_claims:
+      role: admin
+  url_prefix: {BACKEND}/foo`, string(publicKeyPEM)), request, responseExpected)
+
+	// token without vm_access claim is accepted when default_vm_access_claim configured
+	request = httptest.NewRequest(`GET`, "http://some-host.com/abc", nil)
+	request.Header.Set(`Authorization`, `Bearer `+roleToken)
+	responseExpected = `
+statusCode=200
+path: /foo/abc
+query:
+headers:`
+	f(fmt.Sprintf(`
+users:
+- jwt:
+    public_keys:
+    - %q
+    default_vm_access_claim:
+      metrics_account_id: 10
+      metrics_project_id: 10
+    match_claims:
+      role: admin
+  url_prefix: {BACKEND}/foo`, string(publicKeyPEM)), request, responseExpected)
 
 	// expired token
 	request = httptest.NewRequest(`GET`, "http://some-host.com/abc", nil)

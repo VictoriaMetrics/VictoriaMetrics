@@ -88,7 +88,7 @@ Here's an example of importing timeseries for one day only:
   --influx-filter-time-end "2020-01-01T15:07:00Z"
  ```
 
-See more about [time filtering in InfluxDB](https://docs.influxdata.com/influxdb/v1.7/query_language/schema_exploration#filter-meta-queries-by-time).
+See more about [time filtering in InfluxDB](https://docs.influxdata.com/influxdb/v1/query_language/explore-schema/#filter-meta-queries-by-time).
 
 ## InfluxDB v2
 
@@ -103,7 +103,7 @@ Increase `--influx-concurrency` to execute more read requests concurrently. But 
 during migration.
 
 The flag `--influx-chunk-size` controls the max amount of datapoints to return in single chunk from fetch requests.
-Please see more details [here](https://docs.influxdata.com/influxdb/v1.7/guides/querying_data/#chunking).
+Please see more details [here](https://archive.docs.influxdata.com/influxdb/v1.2/guides/querying_data/#chunking).
 The chunk size is used to control InfluxDB memory usage, so it won't OOM on processing large timeseries with
 billions of datapoints.
 

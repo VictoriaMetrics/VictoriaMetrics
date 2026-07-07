@@ -46,7 +46,7 @@ If you don't see an option to create a data source - try contacting system admin
 
 ## Prometheus datasource
 
-Create [Prometheus datasource](https://grafana.com/docs/grafana/latest/datasources/prometheus/configure-prometheus-data-source/)
+Create [Prometheus datasource](https://grafana.com/docs/grafana/latest/datasources/prometheus/configure/)
 in Grafana. Follow the same connection instructions as for [VictoriaMetrics datasource](#VictoriaMetrics-datasource).
 
 In the "Type and version" section set the type to "Prometheus" and the version to at least "2.24.x".

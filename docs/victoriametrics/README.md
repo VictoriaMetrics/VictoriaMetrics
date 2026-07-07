@@ -245,7 +245,7 @@ The following steps must be performed during the upgrade / downgrade procedure:
 * Wait until the process stops. This can take a few seconds.
 * Start the upgraded VictoriaMetrics.
 
-Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](https://grafana.com/blog/2019/03/25/whats-new-in-prometheus-2.8-wal-based-remote-write/) for details. The same applies also to [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/).
+Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](https://grafana.com/blog/whats-new-in-prometheus-2-8-wal-based-remote-write/) for details. The same applies also to [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/).
 
 > If you'd prefer not to manage upgrades yourself, [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_single_upgrade)
 > performs version upgrades automatically during maintenance windows with no action required on your part.
@@ -401,6 +401,7 @@ Resources:
 
 * [cardinality explorer playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/cardinality).
 * [Cardinality explorer blog post](https://victoriametrics.com/blog/cardinality-explorer/).
+* [skills/victoriametrics-cardinality-analysis](https://github.com/VictoriaMetrics/skills/blob/main/plugins/diagnostics/skills/victoriametrics-cardinality-analysis/SKILL.md) for [agent-assisted](https://docs.victoriametrics.com/ai-tools/#agent-skills) analysis.
 
 ### Cardinality explorer statistic inaccuracy
 
@@ -417,7 +418,7 @@ VictoriaMetrics is configured via command-line flags, so it must be restarted wh
 * Wait until the process stops. This can take a few seconds.
 * Start VictoriaMetrics with the new command-line flags.
 
-Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](https://grafana.com/blog/2019/03/25/whats-new-in-prometheus-2.8-wal-based-remote-write/) for details. The same applies also to [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/).
+Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](https://grafana.com/blog/whats-new-in-prometheus-2-8-wal-based-remote-write/) for details. The same applies also to [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/).
 
 ## How to scrape Prometheus exporters such as [node-exporter](https://github.com/prometheus/node_exporter)
 
@@ -477,6 +478,11 @@ VictoriaMetrics accepts `round_digits` query arg for [/api/v1/query](https://doc
 and [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query) handlers. It can be used for rounding response values
 to the given number of digits after the decimal point.
 For example, `/api/v1/query?query=avg_over_time(temperature[1h])&round_digits=2` would round response values to up to two digits after the decimal point.
+
+VictoriaMetrics accepts `optimize_repeated_binary_op_subexprs=1` query arg for [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query)
+handler. It allows `vmselect` to execute left and right sides of binary operators sequentially when they contain the same
+optimized aggregate rollup result expression, so the second side may reuse the rollup result cache populated by the first side.
+The optimization is disabled by default and applies only when rollup result cache can be used for the request.
 
 VictoriaMetrics accepts `limit` query arg for [/api/v1/labels](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labels)
 and [`/api/v1/label/<labelName>/values`](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labelvalues) handlers for limiting the number of returned entries.
@@ -994,7 +1000,7 @@ Note that it could be required to flush response cache after importing historica
 ### How to import data in Prometheus exposition format
 
 VictoriaMetrics accepts data in [Prometheus exposition format](https://github.com/prometheus/docs/blob/main/docs/instrumenting/exposition_formats.md),
-in [OpenMetrics format](https://github.com/OpenObservability/OpenMetrics/blob/master/specification/OpenMetrics.md)
+in [OpenMetrics format](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md)
 and in [Pushgateway format](https://github.com/prometheus/pushgateway#url) via `/api/v1/import/prometheus` path.
 
 For example, the following command imports a single line in Prometheus exposition format into VictoriaMetrics:
@@ -1676,9 +1682,46 @@ See also [retention filters](#retention-filters).
 The downsampling can be evaluated for free by downloading and using enterprise binaries from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 See how to request a [free trial license](https://victoriametrics.com/products/enterprise/trial/).
 
-## Multi-tenancy
+## Multitenancy {#multi-tenancy}
 
-Single-node VictoriaMetrics doesn't support multi-tenancy. Use the [cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) instead.
+Single-node VictoriaMetrics has limited
+[multitenancy](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy)
+support {{% available_from "v1.147.0" %}}. Specifically, a single-node can serve
+multitenant queries as if it were a `vmstorage`. The write path is not supported.
+
+The functionality is disabled by default and can be enabled by setting the
+`-vmselectAddr` flag. This will start the `vmselect RPC server` that accepts
+requests and serves responses in cluster format.
+
+Cluster data format assumes the presence of a `tenantID`. Single-node data
+format still does not support multitenancy, but it is possible to configure the
+single-node to specify which `tenantID` the single-node's data corresponds to with the
+`-accountID` and `-projectID` flags. Both are `0` by default, which means that
+`"0:0"` `tenantID` is used by default.
+
+For example, the following command will start a single-node that listens for
+vmselect RPC requests on the `8401` port. The requests must be either `multitenant`
+(i.e., want data for all tenants) or for `"12:34"` tenant. Otherwise, the
+single-node will return an empty result:
+
+```shell
+./victoria-metrics -storageDataPath=/data -vmselectAddr=:8401 -accountID=12 -projectID=34
+```
+
+The `tenantID` configuration is not persisted in any way and is enforced only at
+runtime. Thus, it is safe to change the `-accountID` and `-projectID` flag
+values at any time.
+
+Note that the single-node's HTTP handlers still do not support multitenancy.
+
+The purpose of this limited multitenancy support is enabling the single-node to
+operate in VictoriaMetrics cluster setups. I.e., one or more single-nodes that
+contain data for different tenants can be a part of a cluster, and the entire
+non-homogeneous deployment can be queried with a higher-level `vmselect`.
+
+This, in turn, enables easy [migrations from single-node to cluster](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#from-single-node-to-cluster).
+Previously, the only option was the use of
+[vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/).
 
 ## Scalability and cluster version
 
@@ -1833,7 +1876,7 @@ trivy image --sbom-sources oci \
   The only option is increasing the limit on [the number of open files in the OS](https://medium.com/@muhammadtriwibowo/set-permanently-ulimit-n-open-files-in-ubuntu-4d61064429a).
   The recommendation is not specific to VictoriaMetrics only, but also for any service that handles many HTTP connections and stores data on disk.
 * VictoriaMetrics is a write-heavy application, and its performance depends on disk performance. So be careful with other
-  applications or utilities (like [fstrim](https://manpages.ubuntu.com/manpages/lunar/en/man8/fstrim.8.html))
+  applications or utilities (like [fstrim](https://manpages.ubuntu.com/manpages/noble/en/man8/fstrim.8.html))
   which could [exhaust disk resources](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1521).
 * The recommended filesystem is `ext4`, the recommended persistent storage is [persistent HDD-based disk on GCP](https://cloud.google.com/compute/docs/disks/#pdspecs),
   since it is protected from hardware failures via internal replication, and it can be [resized on the fly](https://cloud.google.com/compute/docs/disks/add-persistent-disk#resize_pd).
@@ -1975,6 +2018,9 @@ in [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victori
 via [cache removal](https://docs.victoriametrics.com/victoriametrics/#cache-removal) procedure. This reset state endpoint can be protected via `-metricNamesStatsResetAuthKey`
 cmd-line flag. See [Security](https://docs.victoriametrics.com/victoriametrics/#security) for details.
 
+See [skills/victoriametrics-unused-metrics-analysis](https://github.com/VictoriaMetrics/skills/blob/main/plugins/diagnostics/skills/victoriametrics-unused-metrics-analysis/SKILL.md)
+for [agent-assisted](https://docs.victoriametrics.com/ai-tools/#agent-skills) analysis of unused metrics.
+
 ## Query tracing
 
 VictoriaMetrics supports query tracing, which can be used for determining bottlenecks during query processing.
@@ -2042,6 +2088,9 @@ Query tracing is allowed by default. It can be denied by passing `-denyQueryTrac
 
 * for query tracing - just click `Trace query` checkbox and re-run the query in order to investigate its' trace.
 * for exploring custom trace - go to the tab `Trace analyzer` and upload or paste JSON with trace information.
+
+See also [skills/vm-trace-analyzer](https://github.com/VictoriaMetrics/skills/blob/main/plugins/diagnostics/skills/vm-trace-analyzer/SKILL.md)
+for [agent-assisted](https://docs.victoriametrics.com/ai-tools/#agent-skills) analysis.
 
 ## Cardinality limiter
 
@@ -2281,6 +2330,30 @@ Things to consider when copying data:
 
 For scenarios like single-to-cluster, cluster-to-single, re-sharding or migrating only a fraction of data: 
 [see how to migrate data from VictoriaMetrics via vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/).
+
+### From Single-node to Cluster
+
+When, for some reason, the deployment needs to be switched from single-node to
+cluster (such as the single-node can't be scaled vertically anymore, or
+multitenancy becomes a requirement, etc.) the migration can be as simple as:
+
+1. Restart the existing single-node with multitenancy support enabled as
+   described in [Multitenancy](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#multi-tenancy) section.
+1. Deploy an empty cluster next to the existing single-node.
+1. Deploy higher-level `vmselect` and configure it to query both the existing
+   single-node and the new cluster.
+1. Start writing data to the cluster.
+1. Stop writing data to the single-node.
+
+This approach requires no data migration nor downtime (apart from restarting the
+single-node at step 1). And once the single-node data becomes outside the
+retention period, the single-node can be removed from the deployment.
+
+Note that if you need to actually migrate data to cluster and/or modify it, you
+will need to use
+[vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/)
+instead.
+
 
 ### From other systems
 

@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"reflect"
 	"sort"
-	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
@@ -93,11 +92,4 @@ Outer:
 
 	}
 	return
-}
-
-func durationToTime(pd *promutil.Duration) time.Time {
-	if pd == nil {
-		return time.Time{}
-	}
-	return time.UnixMilli(pd.Duration().Milliseconds())
 }

@@ -91,9 +91,9 @@ The list of MetricsQL features on top of PromQL:
   Labels from the `on()` list aren't copied.
 * [Aggregate functions](#aggregate-functions) accept arbitrary number of args.
   For example, `avg(q1, q2, q3)` would return the average values for every point across time series returned by `q1`, `q2` and `q3`.
-* [@ modifier](https://prometheus.io/docs/prometheus/latest/querying/basics/#modifier) can be put anywhere in the query.
+* [@ modifier](https://prometheus.io/docs/prometheus/latest/querying/basics/#-modifier) can be put anywhere in the query.
   For example, `sum(foo) @ end()` calculates `sum(foo)` at the `end` timestamp of the selected time range `[start ... end]`.
-* Arbitrary subexpression can be used as [@ modifier](https://prometheus.io/docs/prometheus/latest/querying/basics/#modifier).
+* Arbitrary subexpression can be used as [@ modifier](https://prometheus.io/docs/prometheus/latest/querying/basics/#-modifier).
   For example, `foo @ (end() - 1h)` calculates `foo` at the `end - 1 hour` timestamp on the selected time range `[start ... end]`.
 * [offset](https://prometheus.io/docs/prometheus/latest/querying/basics/#offset-modifier), lookbehind window in square brackets
   and `step` value for [subquery](#subqueries) may refer to the current step aka `$__interval` value from Grafana with `[Ni]` syntax.
@@ -482,7 +482,7 @@ See also [hoeffding_bound_lower](#hoeffding_bound_lower).
 #### holt_winters
 
 `holt_winters(series_selector[d], sf, tf)` is a [rollup function](#rollup-functions), which calculates Holt-Winters value
-(aka [double exponential smoothing](https://en.wikipedia.org/wiki/Exponential_smoothing#Double_exponential_smoothing)) for [raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples)
+(aka [double exponential smoothing](https://en.wikipedia.org/wiki/Exponential_smoothing#Double_exponential_smoothing_%28Holt_linear%29)) for [raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples)
 over the given lookbehind window `d` using the given smoothing factor `sf` and the given trend factor `tf`.
 Both `sf` and `tf` must be in the range `[0...1]`.
 
@@ -1154,7 +1154,7 @@ See also [asin](#asin) and [cos](#cos).
 #### acosh
 
 `acosh(q)` is a [transform function](#transform-functions), which returns
-[inverse hyperbolic cosine](https://en.wikipedia.org/wiki/Inverse_hyperbolic_functions#Inverse_hyperbolic_cosine) for every point of every time series returned by `q`.
+[inverse hyperbolic cosine](https://en.wikipedia.org/wiki/Inverse_hyperbolic_functions#Definitions_in_terms_of_logarithms) for every point of every time series returned by `q`.
 
 Metric names are stripped from the resulting series. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
@@ -1176,7 +1176,7 @@ See also [acos](#acos) and [sin](#sin).
 #### asinh
 
 `asinh(q)` is a [transform function](#transform-functions), which returns
-[inverse hyperbolic sine](https://en.wikipedia.org/wiki/Inverse_hyperbolic_functions#Inverse_hyperbolic_sine) for every point of every time series returned by `q`.
+[inverse hyperbolic sine](https://en.wikipedia.org/wiki/Inverse_hyperbolic_functions#Definitions_in_terms_of_logarithms) for every point of every time series returned by `q`.
 
 Metric names are stripped from the resulting series. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
@@ -1198,7 +1198,7 @@ See also [tan](#tan).
 #### atanh
 
 `atanh(q)` is a [transform function](#transform-functions), which returns
-[inverse hyperbolic tangent](https://en.wikipedia.org/wiki/Inverse_hyperbolic_functions#Inverse_hyperbolic_tangent) for every point of every time series returned by `q`.
+[inverse hyperbolic tangent](https://en.wikipedia.org/wiki/Inverse_hyperbolic_functions#Definitions_in_terms_of_logarithms) for every point of every time series returned by `q`.
 
 Metric names are stripped from the resulting series. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
@@ -1229,8 +1229,7 @@ Metric names are stripped from the resulting series. Add [keep_metric_names](#ke
 `buckets_limit(limit, buckets)` is a [transform function](#transform-functions), which limits the number
 of [histogram buckets](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350) to the given `limit`. 
 
-The result will preserve the first and the last bucket to improve accuracy for min and max values. 
-So, if the `limit` is greater than 0 and less than 3, the function will still return 3 buckets: the first bucket, the last bucket, and a selected bucket.
+The given `limit` should be greater than `0`. If it is less than `3`, it will be automatically raised to `3` to preserve the first and last buckets for better accuracy of min and max values.
 
 See also [prometheus_buckets](#prometheus_buckets) and [histogram_quantile](#histogram_quantile).
 

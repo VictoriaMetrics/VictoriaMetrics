@@ -2,6 +2,7 @@ package promql
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
 	"sync"
@@ -288,6 +289,9 @@ func marshalMetricTagsSorted(dst []byte, mn *storage.MetricName) []byte {
 }
 
 func marshalBytesFast(dst []byte, s []byte) []byte {
+	if len(s) > math.MaxUint16 {
+		logger.Panicf("BUG: s len %d cannot exceed %d", len(s), math.MaxUint16)
+	}
 	dst = encoding.MarshalUint16(dst, uint16(len(s)))
 	dst = append(dst, s...)
 	return dst
