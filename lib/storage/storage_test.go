@@ -1807,18 +1807,19 @@ func TestStorageRowsNotAdded(t *testing.T) {
 	defer testRemoveAll(t)
 
 	type options struct {
-		name        string
-		retention   time.Duration
-		mrs         []MetricRow
-		tr          TimeRange
-		wantMetrics *Metrics
+		name           string
+		retention      time.Duration
+		maxBackfillAge time.Duration
+		mrs            []MetricRow
+		tr             TimeRange
+		wantMetrics    *Metrics
 	}
 	f := func(opts *options) {
 		t.Helper()
 
 		var gotMetrics Metrics
 		path := fmt.Sprintf("%s/%s", t.Name(), opts.name)
-		s := MustOpenStorage(path, OpenOptions{Retention: opts.retention})
+		s := MustOpenStorage(path, OpenOptions{Retention: opts.retention, MaxBackfillAge: opts.maxBackfillAge})
 		defer s.MustClose()
 		s.AddRows(opts.mrs, defaultPrecisionBits)
 		s.DebugFlush()
@@ -1887,6 +1888,22 @@ func TestStorageRowsNotAdded(t *testing.T) {
 		wantMetrics: &Metrics{
 			RowsReceivedTotal:   numRows,
 			TooBigTimestampRows: numRows,
+		},
+	})
+
+	retention = retentionMax
+	maxBackfillAge := 48 * time.Hour
+	minTimestamp = time.Now().Add(-maxBackfillAge - time.Hour).UnixMilli()
+	maxTimestamp = minTimestamp + 1000
+	f(&options{
+		name:           "TooSmallTimestampsForMaxBackfillAge",
+		retention:      retention,
+		maxBackfillAge: maxBackfillAge,
+		mrs:            testGenerateMetricRows(rng, numRows, minTimestamp, maxTimestamp),
+		tr:             TimeRange{minTimestamp, maxTimestamp},
+		wantMetrics: &Metrics{
+			RowsReceivedTotal:     numRows,
+			TooSmallTimestampRows: numRows,
 		},
 	})
 

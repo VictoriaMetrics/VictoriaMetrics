@@ -1551,6 +1551,18 @@ For example, the following command starts VictoriaMetrics, which accepts samples
 /path/to/victoria-metrics -futureRetention=1y
 ```
 
+By default, VictoriaMetrics accepts samples with timestamps as old as the configured `-retentionPeriod` allows, e.g. it accepts backfilled
+historical data as long as it fits into the retention. If you need rejecting samples with historical timestamps older than the specified
+duration, then specify the desired duration via the `-maxBackfillAge` command-line flag. This can be useful for limiting ingestion of
+historical samples, for example, when older data has been moved to another storage tier (nvme/hdd, hot/cold).
+`-maxBackfillAge` cannot exceed the configured `-retentionPeriod` - bigger values are automatically clamped to `-retentionPeriod`.
+
+For example, the following command starts VictoriaMetrics, which rejects ingested samples with timestamps older than 2 days:
+
+```sh
+/path/to/victoria-metrics -maxBackfillAge=2d
+```
+
 ### Multiple retentions
 
 Distinct retentions for distinct time series can be configured via [retention filters](#retention-filters)
