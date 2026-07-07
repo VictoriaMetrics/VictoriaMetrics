@@ -97,8 +97,8 @@ document.addEventListener('DOMContentLoaded', initRelabelConfigsHighlight);
 {% func relabelDebugFormInputs(metric, relabelConfigs string, urlRelabelIndexLength, urlRelabelIndexCurrent int, isTargetRelabel bool, targetID string) %}
     <div>
         Relabel configs:<br/>
-        <!-- show remote write relabel reload only for scrape metric relabel debug. discovery debug and pure relabel debug should not display this section -->
-        {% if !isTargetRelabel && targetID != "" %}
+        <!-- show remote write relabel reload only for scrape metric relabel debug and pure relabel debug. discovery debug should not display this section -->
+        {% if !isTargetRelabel %}
         <div>
             <div class="m-1">
                 <div class="d-flex align-items-center gap-2 mt-1">

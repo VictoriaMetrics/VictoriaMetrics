@@ -173,9 +173,9 @@ func RelabelDebugStepsHTML(targetURL, targetID string, dss []DebugStep, metric, 
 //line lib/promrelabel/debug.qtpl:97
 func streamrelabelDebugFormInputs(qw422016 *qt422016.Writer, metric, relabelConfigs string, urlRelabelIndexLength, urlRelabelIndexCurrent int, isTargetRelabel bool, targetID string) {
 //line lib/promrelabel/debug.qtpl:97
-	qw422016.N().S(`<div>Relabel configs:<br/><!-- show remote write relabel reload only for scrape metric relabel debug. discovery debug and pure relabel debug should not display this section -->`)
+	qw422016.N().S(`<div>Relabel configs:<br/><!-- show remote write relabel reload only for scrape metric relabel debug and pure relabel debug. discovery debug should not display this section -->`)
 //line lib/promrelabel/debug.qtpl:101
-	if !isTargetRelabel && targetID != "" {
+	if !isTargetRelabel {
 //line lib/promrelabel/debug.qtpl:101
 		qw422016.N().S(`<div><div class="m-1"><div class="d-flex align-items-center gap-2 mt-1">`)
 //line lib/promrelabel/debug.qtpl:105

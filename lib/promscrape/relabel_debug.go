@@ -2,6 +2,7 @@ package promscrape
 
 import (
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"net/http"
 	"strconv"
 
@@ -40,30 +41,39 @@ func WriteMetricRelabelDebug(w http.ResponseWriter, r *http.Request, rwGlobalRel
 	}
 
 	// load the initial data with specific remote write URL index (default 0) in 2 cases:
-	// - everything is not set.
-	// - `reload` is set.
+	// - relabel config is empty. load scrape relabel (if targetID exist) + remote write related relabel (always).
+	// - `reload` is set. load scrape relabel (if targetID exist) + reload remote write related relabel (by the URL index).
 	init := metric == "" && relabelConfigs == "" && reloadRWURLRelabelConfigs == ""
 	reload := reloadRWURLRelabelConfigs != ""
-	if (init || reload) && targetID != "" {
-		pcs, labels, ok := getMetricRelabelContextByTargetID(targetID)
-		if !ok {
-			err = fmt.Errorf("cannot find target for id=%s", targetID)
-			targetID = ""
-		} else {
-			metric = labels.String()
-
-			// set the per-URL remote write relabel according to index, any error will fall back the index to 0.
-			rwURLRelabelConfigs := ""
-			if len(rwURLRelabelConfigss) > 0 {
-				// ignore the error if the input is invalid or exceed the length, and fallback to 0.
-				if rwURLRelabelConfigsIdx < 0 || rwURLRelabelConfigsIdx >= len(rwURLRelabelConfigss) {
-					rwURLRelabelConfigsIdx = 0
-				}
-				rwURLRelabelConfigs = rwURLRelabelConfigss[rwURLRelabelConfigsIdx]
+	if init || reload {
+		// scrape related relabel labels & rules
+		var (
+			pcs    = &promrelabel.ParsedConfigs{} // could be empty
+			labels *promutil.Labels
+			ok     bool
+		)
+		if targetID != "" {
+			pcs, labels, ok = getMetricRelabelContextByTargetID(targetID)
+			if !ok {
+				err = fmt.Errorf("cannot find target for id=%s", targetID)
+				targetID = ""
+			} else {
+				metric = labels.String()
 			}
-
-			relabelConfigs = composeRelabelConfigs(pcs.String(), rwGlobalRelabelConfigs, rwURLRelabelConfigs, rwURLRelabelConfigsIdx)
 		}
+
+		// general relabel rules (remote write)
+		// set the per-URL remote write relabel according to index, any error will fall back the index to 0.
+		rwURLRelabelConfigs := ""
+		if len(rwURLRelabelConfigss) > 0 {
+			// ignore the error if the input is invalid or exceed the length, and fallback to 0.
+			if rwURLRelabelConfigsIdx < 0 || rwURLRelabelConfigsIdx >= len(rwURLRelabelConfigss) {
+				rwURLRelabelConfigsIdx = 0
+			}
+			rwURLRelabelConfigs = rwURLRelabelConfigss[rwURLRelabelConfigsIdx]
+		}
+
+		relabelConfigs = composeRelabelConfigs(pcs.String(), rwGlobalRelabelConfigs, rwURLRelabelConfigs, rwURLRelabelConfigsIdx)
 	}
 
 	if format == "json" {
