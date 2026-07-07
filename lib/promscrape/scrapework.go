@@ -507,7 +507,7 @@ func (sw *scrapeWork) readFromBuffer(dst *bytesutil.ByteBuffer, src *chunkedbuff
 	var currReader io.Reader = src.NewReader()
 
 	for i := len(encodings) - 1; i >= 0; i-- {
-		enc := strings.TrimSpace(encodings[i])
+		enc := strings.ToLower(strings.TrimSpace(encodings[i]))
 		if enc == "" || enc == "identity" || enc == "none" {
 			continue
 		}
