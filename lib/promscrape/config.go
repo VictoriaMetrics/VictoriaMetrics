@@ -342,6 +342,7 @@ type ScrapeConfig struct {
 
 	// These options are supported only by lib/promscrape.
 	DisableCompression  bool                       `yaml:"disable_compression,omitempty"`
+	AcceptEncoding      string                     `yaml:"accept_encoding,omitempty"`
 	DisableKeepAlive    bool                       `yaml:"disable_keepalive,omitempty"`
 	StreamParse         bool                       `yaml:"stream_parse,omitempty"`
 	ScrapeAlignInterval *promutil.Duration         `yaml:"scrape_align_interval,omitempty"`
@@ -1004,12 +1005,14 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		honorLabels:          honorLabels,
 		honorTimestamps:      honorTimestamps,
 		denyRedirects:        denyRedirects,
+		denyHTTPSTargets:     sc.HTTPClientConfig.TLSConfig != nil && sc.HTTPClientConfig.TLSConfig.InsecureSkipVerify,
 		externalLabels:       externalLabels,
 		relabelConfigs:       relabelConfigs,
 		metricRelabelConfigs: metricRelabelConfigs,
 		sampleLimit:          sampleLimit,
 		labelLimit:           labelLimit,
 		disableCompression:   disableCompression,
+		acceptEncoding:       sc.AcceptEncoding,
 		disableKeepAlive:     sc.DisableKeepAlive,
 		streamParse:          sc.StreamParse,
 		scrapeAlignInterval:  sc.ScrapeAlignInterval.Duration(),
@@ -1036,12 +1039,14 @@ type scrapeWorkConfig struct {
 	honorLabels          bool
 	honorTimestamps      bool
 	denyRedirects        bool
+	denyHTTPSTargets   bool
 	externalLabels       *promutil.Labels
 	relabelConfigs       *promrelabel.ParsedConfigs
 	metricRelabelConfigs *promrelabel.ParsedConfigs
 	sampleLimit          int
 	labelLimit           int
 	disableCompression   bool
+	acceptEncoding       string
 	disableKeepAlive     bool
 	streamParse          bool
 	scrapeAlignInterval  time.Duration

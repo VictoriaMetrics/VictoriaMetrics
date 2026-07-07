@@ -132,6 +132,9 @@ type ScrapeWork struct {
 	// Whether to disable response compression when querying ScrapeURL.
 	DisableCompression bool
 
+	// The Accept-Encoding header to send when querying ScrapeURL.
+	AcceptEncoding string
+
 	// Whether to disable HTTP keep-alive when querying ScrapeURL.
 	DisableKeepAlive bool
 
@@ -197,7 +200,8 @@ type scrapeWork struct {
 	Config *ScrapeWork
 
 	// ReadData is called for reading the scrape response data into dst.
-	ReadData func(dst *chunkedbuffer.Buffer) (bool, error)
+	// It returns the response Content-Encoding (e.g., "gzip", "zstd") and an error if any.
+	ReadData func(dst *chunkedbuffer.Buffer) (string, error)
 
 	// PushData is called for pushing collected data.
 	//
@@ -428,13 +432,13 @@ func (sw *scrapeWork) getTargetResponse() ([]byte, error) {
 	cb := chunkedbuffer.Get()
 	defer chunkedbuffer.Put(cb)
 
-	isGzipped, err := sw.ReadData(cb)
+	contentEncoding, err := sw.ReadData(cb)
 	if err != nil {
 		return nil, err
 	}
 
 	var bb bytesutil.ByteBuffer
-	err = sw.readFromBuffer(&bb, cb, isGzipped)
+	err = sw.readFromBuffer(&bb, cb, contentEncoding)
 	return bb.B, err
 }
 
@@ -445,7 +449,7 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	// This also allows measuring the real scrape duration, which doesn't include
 	// the time needed for processing of the read response.
 	cb := chunkedbuffer.Get()
-	isGzipped, err := sw.ReadData(cb)
+	contentEncoding, err := sw.ReadData(cb)
 
 	// Measure scrape duration.
 	endTimestamp := time.Now().UnixMilli()
@@ -462,7 +466,7 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	// the parsed results to remote storage.
 	body := leveledbytebufferpool.Get(sw.prevBodyLen)
 	if err == nil {
-		err = sw.readFromBuffer(body, cb, isGzipped)
+		err = sw.readFromBuffer(body, cb, contentEncoding)
 	}
 	chunkedbuffer.Put(cb)
 
@@ -491,14 +495,14 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 
 var processScrapedDataConcurrencyLimitCh = make(chan struct{}, cgroup.AvailableCPUs())
 
-func (sw *scrapeWork) readFromBuffer(dst *bytesutil.ByteBuffer, src *chunkedbuffer.Buffer, isGzipped bool) error {
-	if !isGzipped {
+func (sw *scrapeWork) readFromBuffer(dst *bytesutil.ByteBuffer, src *chunkedbuffer.Buffer, contentEncoding string) error {
+	if contentEncoding == "" || contentEncoding == "none" || contentEncoding == "identity" {
 		src.MustWriteTo(dst)
 		return nil
 	}
 
 	r := src.NewReader()
-	reader, err := protoparserutil.GetUncompressedReader(r, "gzip")
+	reader, err := protoparserutil.GetUncompressedReader(r, contentEncoding)
 	if err != nil {
 		return fmt.Errorf("cannot decompress response body from %s: %w", sw.Config.ScrapeURL, err)
 	}
@@ -509,7 +513,7 @@ func (sw *scrapeWork) readFromBuffer(dst *bytesutil.ByteBuffer, src *chunkedbuff
 
 	protoparserutil.PutUncompressedReader(reader)
 	if err != nil {
-		return fmt.Errorf("cannot read gzipped response body from %s: %w", sw.Config.ScrapeURL, err)
+		return fmt.Errorf("cannot read compressed response body from %s: %w", sw.Config.ScrapeURL, err)
 	}
 
 	if int64(dst.Len()) > sw.Config.MaxScrapeSize {

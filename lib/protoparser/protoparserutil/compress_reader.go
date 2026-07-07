@@ -5,6 +5,7 @@ import (
 	"io"
 	"sync"
 
+	"github.com/andybalholm/brotli"
 	"github.com/klauspost/compress/gzip"
 	"github.com/klauspost/compress/zlib"
 
@@ -146,6 +147,8 @@ func GetUncompressedReader(r io.Reader, contentType string) (io.Reader, error) {
 	switch contentType {
 	case "zstd":
 		return zstd.GetReader(r), nil
+	case "br":
+		return getBrotliReader(r)
 	case "snappy":
 		return getSnappyReader(r)
 	case "gzip":
@@ -170,6 +173,8 @@ func PutUncompressedReader(r io.Reader) {
 		zstd.PutReader(t)
 	case *gzip.Reader:
 		putGzipReader(t)
+	case *brotli.Reader:
+		putBrotliReader(t)
 	case zlib.Resetter:
 		putZlibReader(t)
 	case *plainReader:
@@ -239,6 +244,24 @@ func putZlibReader(zr zlib.Resetter) {
 }
 
 var zlibReaderPool sync.Pool
+
+func getBrotliReader(r io.Reader) (*brotli.Reader, error) {
+	v := brotliReaderPool.Get()
+	if v == nil {
+		return brotli.NewReader(r), nil
+	}
+	br := v.(*brotli.Reader)
+	if err := br.Reset(r); err != nil {
+		return nil, err
+	}
+	return br, nil
+}
+
+func putBrotliReader(br *brotli.Reader) {
+	brotliReaderPool.Put(br)
+}
+
+var brotliReaderPool sync.Pool
 
 type snappyReader struct {
 	// b contains decompressed the data, which must be read by snappy reader

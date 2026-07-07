@@ -2004,6 +2004,12 @@ scrape_configs:
   #
   # sample_limit: <int>
 
+  # accept_encoding configures the `Accept-Encoding` header sent to scrape targets.
+  # This allows targets to return compressed responses in the configured format.
+  # Supported values: `gzip` (default), `zstd`, `br`, `identity`, or a comma-separated list of these.
+  #
+  # accept_encoding: <string>
+
   # disable_compression allows disabling HTTP compression for responses received from scrape targets.
   # By default, scrape targets are queried with `Accept-Encoding: gzip` http request header,
   # so targets could send compressed responses in order to save network bandwidth.
