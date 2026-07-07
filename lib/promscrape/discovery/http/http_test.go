@@ -77,7 +77,7 @@ func TestSDConfigGetLabels(t *testing.T) {
 		if len(got) == 0 && len(expectedLabelss) == 0 {
 			return
 		}
-		discoveryutil.TestEqualLabelss(t, expectedLabelss, got)
+		discoveryutil.TestEqualLabelss(t, got, expectedLabelss)
 	}
 
 	// check initial state, it must be non-empty
