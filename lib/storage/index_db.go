@@ -729,9 +729,7 @@ func (db *indexDB) SearchLabelValues(qt *querytracer.Tracer, labelName string, t
 		needSlowSearch := len(lvs) == maxMetrics
 
 		lvsLen := len(lvs)
-
 		filterLabelValues(lvs, &tfss[0].tfs[0], key)
-
 		qt.Printf("found %d out of %d values for the label %q after filtering", len(lvs), lvsLen, labelName)
 		if len(lvs) >= maxLabelValues {
 			qt.Printf("leave %d out of %d values for the label %q because of the limit", maxLabelValues, len(lvs), labelName)
