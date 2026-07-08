@@ -1,11 +1,8 @@
-import { FC, useRef, useState } from "preact/compat";
-import { useLocation } from "react-router-dom";
+import { FC, useRef, useState, Dispatch, SetStateAction } from "preact/compat";
 import classNames from "classnames";
 import { ArrowDropDownIcon } from "../../../components/Main/Icons";
 import Popper from "../../../components/Main/Popper/Popper";
 import NavItem from "./NavItem";
-import { useEffect } from "react";
-import useBoolean from "../../../hooks/useBoolean";
 import { NavigationItem, NavigationItemType } from "../../../router/navigation";
 
 interface NavItemProps {
@@ -15,6 +12,8 @@ interface NavItemProps {
   color?: string
   background?: string
   direction?: "row" | "column"
+  openMenu: string | null,
+  setOpenMenu: Dispatch<SetStateAction<string | null>>,
 }
 
 const NavSubItem: FC<NavItemProps> = ({
@@ -23,21 +22,18 @@ const NavSubItem: FC<NavItemProps> = ({
   color,
   background,
   submenu,
-  direction = "row"
+  direction = "row",
+  openMenu,
+  setOpenMenu,
 }) => {
-  const { pathname } = useLocation();
-
   const [menuTimeout, setMenuTimeout] = useState<NodeJS.Timeout | null>(null);
   const buttonRef = useRef<HTMLDivElement>(null);
 
-  const {
-    value: openSubmenu,
-    setFalse: handleCloseSubmenu,
-    setTrue: setOpenSubmenu,
-  } = useBoolean(false);
+  const openSubmenu = openMenu === label;
+  const handleCloseSubmenu = () => setOpenMenu(prev => (prev === label ? null : prev));
 
   const handleOpenSubmenu = () => {
-    if (direction === "row" || !openSubmenu) setOpenSubmenu();
+    if (direction === "row" || !openSubmenu) setOpenMenu(label);
     if (direction === "column" && openSubmenu) handleCloseSubmenu();
     if (direction === "row" && menuTimeout) clearTimeout(menuTimeout);
   };
@@ -51,10 +47,6 @@ const NavSubItem: FC<NavItemProps> = ({
   const handleMouseEnterPopup = () => {
     if (menuTimeout) clearTimeout(menuTimeout);
   };
-
-  useEffect(() => {
-    handleCloseSubmenu();
-  }, [pathname]);
 
   return (
     <div
