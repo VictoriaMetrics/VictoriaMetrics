@@ -8,6 +8,7 @@ import (
 	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
@@ -154,6 +155,14 @@ func putRawRowsMarshaler(rrm *rawRowsMarshaler) {
 
 var rrmPool sync.Pool
 
+// The number of shards for rawRow entries per partition.
+//
+// Higher number of shards reduces CPU contention and increases the max bandwidth on multi-core systems.
+var rawRowsShardsPerPartition = cgroup.AvailableCPUs()
+
+// The interval for flushing buffered rows into parts, so they become visible to search.
+const pendingRowsFlushInterval = 2 * time.Second
+
 type rawRowsShards struct {
 	flushDeadlineMs atomic.Int64
 
@@ -168,6 +177,21 @@ type rawRowsShards struct {
 
 func (rrss *rawRowsShards) init() {
 	rrss.shards = make([]rawRowsShard, rawRowsShardsPerPartition)
+}
+
+func (rrss *rawRowsShards) Len() int {
+	n := 0
+	for i := range rrss.shards[:] {
+		n += rrss.shards[i].Len()
+	}
+
+	rrss.rowssToFlushLock.Lock()
+	for _, rows := range rrss.rowssToFlush {
+		n += len(rows)
+	}
+	rrss.rowssToFlushLock.Unlock()
+
+	return n
 }
 
 func (rrss *rawRowsShards) addRows(pt *partition, rows []rawRow) {
@@ -203,23 +227,27 @@ func (rrss *rawRowsShards) addRowsToFlush(pt *partition, rowsToFlush []rawRow) {
 	pt.flushRowssToInmemoryParts(rowssToMerge)
 }
 
-func (rrss *rawRowsShards) Len() int {
-	n := 0
-	for i := range rrss.shards[:] {
-		n += rrss.shards[i].Len()
-	}
-
-	rrss.rowssToFlushLock.Lock()
-	for _, rows := range rrss.rowssToFlush {
-		n += len(rows)
-	}
-	rrss.rowssToFlushLock.Unlock()
-
-	return n
-}
-
 func (rrss *rawRowsShards) updateFlushDeadline() {
 	rrss.flushDeadlineMs.Store(time.Now().Add(pendingRowsFlushInterval).UnixMilli())
+}
+
+func (rrss *rawRowsShards) flush(pt *partition, isFinal bool) {
+	var dst [][]rawRow
+
+	currentTimeMs := time.Now().UnixMilli()
+	flushDeadlineMs := rrss.flushDeadlineMs.Load()
+	if isFinal || currentTimeMs >= flushDeadlineMs {
+		rrss.rowssToFlushLock.Lock()
+		dst = rrss.rowssToFlush
+		rrss.rowssToFlush = nil
+		rrss.rowssToFlushLock.Unlock()
+	}
+
+	for i := range rrss.shards {
+		dst = rrss.shards[i].appendRawRowsToFlush(dst, currentTimeMs, isFinal)
+	}
+
+	pt.flushRowssToInmemoryParts(dst)
 }
 
 type rawRowsShardNopad struct {
@@ -269,6 +297,52 @@ func (rrs *rawRowsShard) addRows(rows []rawRow) ([]rawRow, []rawRow) {
 	return rows, rowsToFlush
 }
 
+// The maximum number of rawRow items in rawRowsShard.
+//
+// Limit the maximum shard size to 8Mb, since this gives the lowest CPU usage under high ingestion rate.
+const maxRawRowsPerShard = (8 << 20) / int(unsafe.Sizeof(rawRow{}))
+
 func newRawRows() []rawRow {
 	return make([]rawRow, 0, maxRawRowsPerShard)
+}
+
+func (rrs *rawRowsShard) updateFlushDeadline() {
+	rrs.flushDeadlineMs.Store(time.Now().Add(pendingRowsFlushInterval).UnixMilli())
+}
+
+func (rrs *rawRowsShard) appendRawRowsToFlush(dst [][]rawRow, currentTimeMs int64, isFinal bool) [][]rawRow {
+	flushDeadlineMs := rrs.flushDeadlineMs.Load()
+	if !isFinal && currentTimeMs < flushDeadlineMs {
+		// Fast path - nothing to flush
+		return dst
+	}
+
+	// Slow path - move rrs.rows to dst.
+	rrs.mu.Lock()
+	dst = appendRawRowss(dst, rrs.rows)
+	rrs.rows = rrs.rows[:0]
+	rrs.mu.Unlock()
+
+	return dst
+}
+
+func appendRawRowss(dst [][]rawRow, src []rawRow) [][]rawRow {
+	if len(src) == 0 {
+		return dst
+	}
+	if len(dst) == 0 {
+		dst = append(dst, newRawRows())
+	}
+	prows := &dst[len(dst)-1]
+	n := copy((*prows)[len(*prows):cap(*prows)], src)
+	*prows = (*prows)[:len(*prows)+n]
+	src = src[n:]
+	for len(src) > 0 {
+		rows := newRawRows()
+		n := copy(rows[:cap(rows)], src)
+		rows = rows[:len(rows)+n]
+		src = src[n:]
+		dst = append(dst, rows)
+	}
+	return dst
 }
