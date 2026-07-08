@@ -1242,12 +1242,9 @@ func (db *indexDB) GetSeriesCount(deadline uint64) (uint64, error) {
 func (is *indexSearch) getSeriesCount() (uint64, error) {
 	ts := &is.ts
 	kb := &is.kb
-	mp := &is.mp
 	loopsPaceLimiter := 0
 	var metricIDsLen uint64
-	// Extract the number of series from ((__name__=value): metricIDs) rows
-	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
-	kb.B = marshalTagValue(kb.B, nil)
+	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixMetricIDToTSID)
 	ts.Seek(kb.B)
 	for ts.NextItem() {
 		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
@@ -1260,19 +1257,10 @@ func (is *indexSearch) getSeriesCount() (uint64, error) {
 		if !bytes.HasPrefix(item, kb.B) {
 			break
 		}
-		tail := item[len(kb.B):]
-		n := bytes.IndexByte(tail, tagSeparatorChar)
-		if n < 0 {
-			return 0, fmt.Errorf("invalid tag->metricIDs line %q: cannot find tagSeparatorChar %d", item, tagSeparatorChar)
-		}
-		tail = tail[n+1:]
-		if err := mp.InitOnlyTail(item, tail); err != nil {
-			return 0, err
-		}
 		// Take into account deleted timeseries too.
 		// It is OK if series can be counted multiple times in rare cases -
 		// the returned number is an estimation.
-		metricIDsLen += uint64(mp.MetricIDsLen())
+		metricIDsLen++
 	}
 	if err := ts.Error(); err != nil {
 		return 0, fmt.Errorf("error when counting unique timeseries: %w", err)
