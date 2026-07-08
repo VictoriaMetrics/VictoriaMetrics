@@ -1410,3 +1410,80 @@ func TestStorage_denyQueriesOutsideRetention(t *testing.T) {
 
 	})
 }
+
+func TestStorageAddRows_MaxBackfillAge(t *testing.T) {
+	defer testRemoveAll(t)
+
+	mn := MetricName{
+		MetricGroup: []byte("metric"),
+	}
+	mr := MetricRow{
+		MetricNameRaw: mn.marshalRaw(nil),
+		Value:         123,
+	}
+
+	f := func(s *Storage, age time.Duration, want uint64) {
+		t.Helper()
+
+		mr.Timestamp = time.Now().UTC().Add(-age).UnixMilli()
+		s.AddRows([]MetricRow{mr}, defaultPrecisionBits)
+		s.DebugFlush()
+		if got := s.tooSmallTimestampRows.Load(); got != want {
+			t.Fatalf("unexpected number of tooSmallTimestampRows: got %d, want %d", got, want)
+		}
+	}
+
+	synctest.Test(t, func(t *testing.T) {
+		// synctest time begins at 2000-01-01T00:00:00Z.
+
+		retention1y := 365 * 24 * time.Hour
+		var s *Storage
+
+		s = MustOpenStorage(t.Name(), OpenOptions{
+			Retention: retention1y,
+			// By default MaxBackfillAge must be the same as Retention
+		})
+		// Verify that the sample with timestamp 1ms older than retention is
+		// rejected.
+		f(s, retention1y+time.Millisecond, 1)
+		// Verify that the sample with timestamp which is exactly at retention
+		// boundary is accepted.
+		f(s, retention1y, 1)
+
+		// Restart storage with negative MaxBackfillAge. In this case,
+		// MaxBackfillAge must be the same as Retention.
+		// Also advance time a bit so that the storage will not use the same
+		// nanosecond for creating a new part for storing the samples.
+		s.MustClose()
+		time.Sleep(time.Nanosecond)
+		s = MustOpenStorage(t.Name(), OpenOptions{
+			Retention:      retention1y,
+			MaxBackfillAge: -1,
+		})
+		f(s, retention1y+time.Millisecond, 1)
+		f(s, retention1y, 1)
+
+		// Restart storage with MaxBackfillAge bigger than Retention. In this
+		// case, MaxBackfillAge must be the same as Retention.
+		s.MustClose()
+		time.Sleep(time.Nanosecond)
+		s = MustOpenStorage(t.Name(), OpenOptions{
+			Retention:      retention1y,
+			MaxBackfillAge: retention1y + time.Millisecond,
+		})
+		f(s, retention1y+time.Millisecond, 1)
+		f(s, retention1y, 1)
+
+		// Restart storage with MaxBackfillAge smaller than Retention.
+		s.MustClose()
+		time.Sleep(time.Nanosecond)
+		s = MustOpenStorage(t.Name(), OpenOptions{
+			Retention:      retention1y,
+			MaxBackfillAge: retention1y - time.Millisecond,
+		})
+		f(s, retention1y, 1)
+		f(s, retention1y-time.Millisecond, 1)
+
+		s.MustClose()
+	})
+}
