@@ -130,9 +130,12 @@
                             data-bs-target="#item-{%s g.ID %}"
                         >
                             <span class="d-flex gap-2">
-                                {% if g.States["unhealthy"] > 0 %}<span class="badge bg-danger" title="Number of rules with status Error">{%d g.States["unhealthy"] %}</span> {% endif %}
-                                {% if g.States["nomatch"] > 0 %}<span class="badge bg-warning" title="Number of rules with status NoMatch">{%d g.States["nomatch"] %}</span> {% endif %}
-                                <span class="badge bg-success" title="Number of rules with status Ok">{%d g.States["ok"] %}</span>
+                                {% if g.States["inactive"] > 0 %}<span class="badge bg-light text-success border border-success" title="None of the alert instances is in a pending or firing state">{%d g.States["inactive"] %} inactive</span> {% endif %}
+                                {% if g.States["pending"] > 0 %}<span class="badge bg-warning text-dark" title="At least one alert instance is pending">{%d g.States["pending"] %} pending</span> {% endif %}
+                                {% if g.States["firing"] > 0 %}<span class="badge bg-danger" title="At least one alert instance is firing">{%d g.States["firing"] %} firing</span> {% endif %}
+                                {% if g.States["ok"] > 0 %}<span class="badge bg-success" title="Recording rule last evaluation succeeded">{%d g.States["ok"] %} ok</span>{% endif %}
+                                {% if g.States["unhealthy"] > 0 %}<span class="badge bg-danger" title="Last evaluation failed with an error">{%d g.States["unhealthy"] %} unhealthy</span> {% endif %}
+                                {% if g.States["nomatch"] > 0 %}<span class="badge bg-warning" title="Rule expression matched no time series">{%d g.States["nomatch"] %} nomatch</span> {% endif %}
                             </span>
                         </span>
                     </span>
