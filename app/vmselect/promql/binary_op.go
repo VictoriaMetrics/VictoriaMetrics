@@ -189,6 +189,8 @@ func newBinaryOpFunc(bf func(left, right float64, isBool bool) float64) binaryOp
 			logger.Panicf("BUG: len(left) must match len(right) and len(dst); got %d vs %d vs %d", len(left), len(right), len(dst))
 		}
 		isBool := bfa.be.Bool
+		fillLeft := bfa.be.FillLeft
+		fillRight := bfa.be.FillRight
 		for i, tsLeft := range left {
 			leftValues := tsLeft.Values
 			rightValues := right[i].Values
@@ -199,6 +201,17 @@ func newBinaryOpFunc(bf func(left, right float64, isBool bool) float64) binaryOp
 			}
 			for j, a := range leftValues {
 				b := rightValues[j]
+				leftIsNaN := math.IsNaN(a)
+				rightIsNaN := math.IsNaN(b)
+				// use the fill value only when either the left or right side is NaN, but not both.
+				if !(leftIsNaN && rightIsNaN) {
+					if fillLeft != nil && leftIsNaN {
+						a = fillLeft.N
+					}
+					if fillRight != nil && rightIsNaN {
+						b = fillRight.N
+					}
+				}
 				dstValues[j] = bf(a, b, isBool)
 			}
 		}
@@ -259,13 +272,13 @@ func adjustBinaryOpTags(be *metricsql.BinaryOpExpr, left, right []*timeseries) (
 			if be.FillLeft == nil {
 				logger.Panicf("BUG: unexpected empty tssLeft for key %q when FillLeft is nil", k)
 			}
-			tssLeft = []*timeseries{newFillTimeseries(be, tssRight[0], be.FillLeft.N)}
+			tssLeft = []*timeseries{newFillTimeseries(be, tssRight[0])}
 		}
 		if len(tssRight) == 0 {
 			if be.FillRight == nil {
 				continue
 			}
-			tssRight = []*timeseries{newFillTimeseries(be, tssLeft[0], be.FillRight.N)}
+			tssRight = []*timeseries{newFillTimeseries(be, tssLeft[0])}
 		}
 		switch joinOp {
 		case "group_left":
@@ -310,8 +323,9 @@ func adjustBinaryOpTags(be *metricsql.BinaryOpExpr, left, right []*timeseries) (
 	return rvsLeft, rvsRight, dst, nil
 }
 
-// newFillTimeseries returns a time series filled with fillValue for the fill_left()/fill_right()/fill() modifiers.
-func newFillTimeseries(be *metricsql.BinaryOpExpr, src *timeseries, fillValue float64) *timeseries {
+// newFillTimeseries returns a time series filled with NaN values for the fill_left()/fill_right()/fill() modifiers.
+// These NaN values will be replaced later with the fill value if needed.
+func newFillTimeseries(be *metricsql.BinaryOpExpr, src *timeseries) *timeseries {
 	var ts timeseries
 	ts.CopyFromShallowTimestamps(src)
 	if !be.KeepMetricNames {
@@ -326,7 +340,7 @@ func newFillTimeseries(be *metricsql.BinaryOpExpr, src *timeseries, fillValue fl
 	}
 	values := ts.Values
 	for i := range values {
-		values[i] = fillValue
+		values[i] = math.NaN()
 	}
 	return &ts
 }

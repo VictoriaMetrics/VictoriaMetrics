@@ -4045,6 +4045,25 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r1, r2, r3}
 		f(q, resultExpected)
 	})
+	t.Run(`vector + vector fill() both sides NaN case`, func(t *testing.T) {
+		t.Parallel()
+		q := `(
+			label_set(time() <= 1200, "foo", "common")
+		) + fill(10) (
+			label_set(time() >= 1600, "foo", "common")
+		)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1010, 1210, nan, 1610, 1810, 2010},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("common"),
+		}}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`vector + vector fill_left() fill_right()`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort_by_label((
