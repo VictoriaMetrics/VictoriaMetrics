@@ -206,7 +206,7 @@ func (rrss *rawRowsShards) addRows(pt *partition, rows []rawRow) {
 	}
 }
 
-func (rrss *rawRowsShards) addRowsToFlush(pt *partition, rowsToFlush []rawRow) {
+func (rrss *rawRowsShards) addRowsToFlush(rrsf rawRowsFlusher, rowsToFlush []rawRow) {
 	if len(rowsToFlush) == 0 {
 		return
 	}
@@ -224,14 +224,14 @@ func (rrss *rawRowsShards) addRowsToFlush(pt *partition, rowsToFlush []rawRow) {
 	}
 	rrss.rowssToFlushLock.Unlock()
 
-	pt.flushRowssToInmemoryParts(rowssToMerge)
+	rrsf.flushRowssToInmemoryParts(rowssToMerge)
 }
 
 func (rrss *rawRowsShards) updateFlushDeadline() {
 	rrss.flushDeadlineMs.Store(time.Now().Add(pendingRowsFlushInterval).UnixMilli())
 }
 
-func (rrss *rawRowsShards) flush(pt *partition, isFinal bool) {
+func (rrss *rawRowsShards) flush(rrsf rawRowsFlusher, isFinal bool) {
 	var dst [][]rawRow
 
 	currentTimeMs := time.Now().UnixMilli()
@@ -247,7 +247,11 @@ func (rrss *rawRowsShards) flush(pt *partition, isFinal bool) {
 		dst = rrss.shards[i].appendRawRowsToFlush(dst, currentTimeMs, isFinal)
 	}
 
-	pt.flushRowssToInmemoryParts(dst)
+	rrsf.flushRowssToInmemoryParts(dst)
+}
+
+type rawRowsFlusher interface {
+	flushRowssToInmemoryParts(rrs [][]rawRow)
 }
 
 type rawRowsShardNopad struct {
