@@ -13,7 +13,6 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
@@ -484,125 +483,6 @@ func (pt *partition) AddRows(rows []rawRow) {
 }
 
 var isDebug = false
-
-type rawRowsShards struct {
-	flushDeadlineMs atomic.Int64
-
-	shardIdx atomic.Uint32
-
-	// Shards reduce lock contention when adding rows on multi-CPU systems.
-	shards []rawRowsShard
-
-	rowssToFlushLock sync.Mutex
-	rowssToFlush     [][]rawRow
-}
-
-func (rrss *rawRowsShards) init() {
-	rrss.shards = make([]rawRowsShard, rawRowsShardsPerPartition)
-}
-
-func (rrss *rawRowsShards) addRows(pt *partition, rows []rawRow) {
-	shards := rrss.shards
-	shardsLen := uint32(len(shards))
-	for len(rows) > 0 {
-		n := rrss.shardIdx.Add(1)
-		idx := n % shardsLen
-		tailRows, rowsToFlush := shards[idx].addRows(rows)
-		rrss.addRowsToFlush(pt, rowsToFlush)
-		rows = tailRows
-	}
-}
-
-func (rrss *rawRowsShards) addRowsToFlush(pt *partition, rowsToFlush []rawRow) {
-	if len(rowsToFlush) == 0 {
-		return
-	}
-
-	var rowssToMerge [][]rawRow
-
-	rrss.rowssToFlushLock.Lock()
-	if len(rrss.rowssToFlush) == 0 {
-		rrss.updateFlushDeadline()
-	}
-	rrss.rowssToFlush = append(rrss.rowssToFlush, rowsToFlush)
-	if len(rrss.rowssToFlush) >= defaultPartsToMerge {
-		rowssToMerge = rrss.rowssToFlush
-		rrss.rowssToFlush = nil
-	}
-	rrss.rowssToFlushLock.Unlock()
-
-	pt.flushRowssToInmemoryParts(rowssToMerge)
-}
-
-func (rrss *rawRowsShards) Len() int {
-	n := 0
-	for i := range rrss.shards[:] {
-		n += rrss.shards[i].Len()
-	}
-
-	rrss.rowssToFlushLock.Lock()
-	for _, rows := range rrss.rowssToFlush {
-		n += len(rows)
-	}
-	rrss.rowssToFlushLock.Unlock()
-
-	return n
-}
-
-func (rrss *rawRowsShards) updateFlushDeadline() {
-	rrss.flushDeadlineMs.Store(time.Now().Add(pendingRowsFlushInterval).UnixMilli())
-}
-
-type rawRowsShardNopad struct {
-	flushDeadlineMs atomic.Int64
-
-	mu   sync.Mutex
-	rows []rawRow
-}
-
-type rawRowsShard struct {
-	rawRowsShardNopad
-
-	// The padding prevents false sharing
-	_ [atomicutil.CacheLineSize - unsafe.Sizeof(rawRowsShardNopad{})%atomicutil.CacheLineSize]byte
-}
-
-func (rrs *rawRowsShard) Len() int {
-	rrs.mu.Lock()
-	n := len(rrs.rows)
-	rrs.mu.Unlock()
-	return n
-}
-
-func (rrs *rawRowsShard) addRows(rows []rawRow) ([]rawRow, []rawRow) {
-	var rowsToFlush []rawRow
-
-	rrs.mu.Lock()
-	if cap(rrs.rows) == 0 {
-		rrs.rows = newRawRows()
-	}
-	if len(rrs.rows) == 0 {
-		rrs.updateFlushDeadline()
-	}
-	n := copy(rrs.rows[len(rrs.rows):cap(rrs.rows)], rows)
-	rrs.rows = rrs.rows[:len(rrs.rows)+n]
-	rows = rows[n:]
-	if len(rows) > 0 {
-		rowsToFlush = rrs.rows
-		rrs.rows = newRawRows()
-		rrs.updateFlushDeadline()
-		n = copy(rrs.rows[:cap(rrs.rows)], rows)
-		rrs.rows = rrs.rows[:n]
-		rows = rows[n:]
-	}
-	rrs.mu.Unlock()
-
-	return rows, rowsToFlush
-}
-
-func newRawRows() []rawRow {
-	return make([]rawRow, 0, maxRawRowsPerShard)
-}
 
 func (pt *partition) flushRowssToInmemoryParts(rowss [][]rawRow) {
 	if len(rowss) == 0 {
