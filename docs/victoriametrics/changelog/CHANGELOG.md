@@ -26,6 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly handle legacy vmstorage connections with RPC support. See [#11146](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11146).
 * BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly apply limit to metrics metadata response. See [#11139](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11139).
 
 ## [v1.147.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.147.0)

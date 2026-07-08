@@ -307,6 +307,14 @@ func (sn *storageNode) sendBufRowsNonblocking(br *bufRows) bool {
 	startTime := time.Now()
 	var err error
 	if sn.bc.IsLegacy {
+		// in legacy mode only MetricRows could be sent to vmstorage
+		// drop the data because most likely it's not possible to re-route it.
+		if sn.rpcCall.VersionedName != vminsertapi.MetricRowsRpcCall.VersionedName {
+			sn.rpcIsNotSupportedDeadline.Store(unsupportedRPCRetrySeconds + fasttime.UnixTimestamp())
+			cannotSendBufsLogger.Warnf("cannot send %d bytes with %d rows to -storageNode=%q; storageNode doesn't support RPC=%q. "+
+				"Perform upgrade of vmstorage to the same version as vminsert", len(br.buf), br.rows, sn.dialer.Addr(), sn.rpcCall.VersionedName)
+			return true
+		}
 		err = vminsertapi.SendToConn(sn.bc, br.buf)
 	} else {
 		err = vminsertapi.SendRPCRequestToConn(sn.bc, sn.rpcCall.VersionedName, br.buf)
