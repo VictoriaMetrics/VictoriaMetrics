@@ -203,14 +203,16 @@ func newBinaryOpFunc(bf func(left, right float64, isBool bool) float64) binaryOp
 				b := rightValues[j]
 				leftIsNaN := math.IsNaN(a)
 				rightIsNaN := math.IsNaN(b)
-				// use the fill value only when either the left or right side is NaN, but not both.
-				if !(leftIsNaN && rightIsNaN) {
-					if fillLeft != nil && leftIsNaN {
-						a = fillLeft.N
-					}
-					if fillRight != nil && rightIsNaN {
-						b = fillRight.N
-					}
+				// apply the fill value when either the left or right side is NaN, but not both.
+				if leftIsNaN && rightIsNaN {
+					dstValues[j] = bf(a, b, isBool)
+					continue
+				}
+				if leftIsNaN && fillLeft != nil {
+					a = fillLeft.N
+				}
+				if rightIsNaN && fillRight != nil {
+					b = fillRight.N
 				}
 				dstValues[j] = bf(a, b, isBool)
 			}
