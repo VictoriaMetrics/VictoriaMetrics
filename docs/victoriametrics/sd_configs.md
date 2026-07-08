@@ -2006,9 +2006,14 @@ scrape_configs:
 
   # accept_encoding configures the `Accept-Encoding` header sent to scrape targets.
   # This allows targets to return compressed responses in the configured format.
-  # Supported values: `gzip` (default), `zstd`, `br`, `identity`, or a comma-separated list of these.
+  # Typical values are `gzip`, `zstd`, `identity` (for no compression), or 
+  # a comma-separated list like `gzip, zstd` which lets the server choose 
+  # the best algorithm it supports.
+  # If omitted, it defaults to `gzip`.
   #
-  # accept_encoding: <string>
+  # See also `-promscrape.disableCompression` command-line flag.
+  #
+  # accept_encoding: "gzip"
 
   # disable_compression allows disabling HTTP compression for responses received from scrape targets.
   # By default, scrape targets are queried with `Accept-Encoding: gzip` http request header,

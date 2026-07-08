@@ -156,10 +156,6 @@ github.com/VividCortex/ewma
 # github.com/alecthomas/units v0.0.0-20240927000941-0f3dac36c52b
 ## explicit; go 1.15
 github.com/alecthomas/units
-# github.com/andybalholm/brotli v1.1.0
-## explicit; go 1.13
-github.com/andybalholm/brotli
-github.com/andybalholm/brotli/matchfinder
 # github.com/aws/aws-sdk-go-v2 v1.42.0
 ## explicit; go 1.24
 github.com/aws/aws-sdk-go-v2/aws
