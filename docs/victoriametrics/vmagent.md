@@ -655,7 +655,7 @@ Before sending metrics to `-remoteWrite.url`, `vmagent` can obfuscate the values
 This is useful when one or more `-remoteWrite.url` endpoints point to external services, such as monitoring vendors outside the department or company. 
 To meet security and compliance requirements, sensitive label values such as `ip`, `host`, `instance`, or `datacenter` can be obfuscated before metrics are sent to these external systems.
 
-Use `-remoteWrite.obfuscationLabels` to specify which labels should have their values obfuscated for the corresponding `-remoteWrite.url`. Multiple label names must be separated with ^^.
+Use `-remoteWrite.obfuscationLabels` to specify which labels should have their values obfuscated for the corresponding `-remoteWrite.url`. Multiple label names must be separated with `^^`.
 
 ```sh
 ./vmagent \
