@@ -48,11 +48,10 @@ func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutil.Labels, error) {
 
 // MustStop stops further usage for sdc.
 func (sdc *SDConfig) MustStop() {
-	v := configMap.Delete(sdc)
-	if v != nil {
-		cfg := v.(*apiConfig)
-		cfg.mustStop()
+	if sdc.cfg == nil {
+		return
 	}
+	sdc.cfg.mustStop()
 }
 
 func addHTTPTargetLabels(src []httpGroupTarget, sourceURL string) []*promutil.Labels {

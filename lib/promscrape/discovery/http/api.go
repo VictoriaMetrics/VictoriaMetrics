@@ -17,8 +17,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
-var configMap = discoveryutil.NewConfigMap()
-
 type apiConfig struct {
 	client        *discoveryutil.Client
 	path          string
