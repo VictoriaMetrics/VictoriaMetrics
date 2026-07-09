@@ -67,6 +67,7 @@ func (rwctx *remoteWriteCtx) applyObfuscation(tss []prompb.TimeSeries, ctx *obfu
 		// Copy the label array to apply obfuscation
 		poolLabelsLen := len(poolLabels)
 		poolLabels = append(poolLabels, labels...)
+		ctx.labels = poolLabels
 		ts.Labels = poolLabels[poolLabelsLen:]
 		for ; j < len(ts.Labels); j++ {
 			label := &ts.Labels[j]
