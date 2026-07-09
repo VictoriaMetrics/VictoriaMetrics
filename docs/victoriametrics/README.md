@@ -403,6 +403,9 @@ Resources:
 * [Cardinality explorer blog post](https://victoriametrics.com/blog/cardinality-explorer/).
 * [skills/victoriametrics-cardinality-analysis](https://github.com/VictoriaMetrics/skills/blob/main/plugins/diagnostics/skills/victoriametrics-cardinality-analysis/SKILL.md) for [agent-assisted](https://docs.victoriametrics.com/ai-tools/#agent-skills) analysis.
 
+For monitoring or alerting on cardinality, use [vmestimator](https://docs.victoriametrics.com/victoriametrics/vmestimator/).
+vmestimator measures metrics cardinality across [arbitrary label dimensions](https://docs.victoriametrics.com/victoriametrics/vmestimator/#basic) in real time and exposes the [results as metrics](https://docs.victoriametrics.com/victoriametrics/vmestimator/#cardinality-metrics).
+
 ### Cardinality explorer statistic inaccuracy
 
 In [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) each vmstorage tracks the stored time series individually.
