@@ -471,25 +471,23 @@ func (pt *partition) AddRows(rows []rawRow) {
 var isDebug = false
 
 func (pt *partition) flushRowssToInmemoryParts(rowss [][]rawRow) {
-	if len(rowss) == 0 {
+	var nonEmptyRowss [][]rawRow
+	for _, rows := range rowss {
+		if len(rows) > 0 {
+			nonEmptyRowss = append(nonEmptyRowss, rows)
+		}
+	}
+	if len(nonEmptyRowss) == 0 {
 		return
 	}
 
 	// Convert rowss into in-memory parts.
-	var pwsLock sync.Mutex
-	pws := make([]*partWrapper, 0, len(rowss))
+	pws := make([]*partWrapper, len(nonEmptyRowss))
 	wg := getWaitGroup()
-	for _, rows := range rowss {
+	for i, rows := range nonEmptyRowss {
 		inmemoryPartsConcurrencyCh <- struct{}{}
-
 		wg.Go(func() {
-			pw := pt.createInmemoryPart(rows)
-			if pw != nil {
-				pwsLock.Lock()
-				pws = append(pws, pw)
-				pwsLock.Unlock()
-			}
-
+			pws[i] = pt.mustCreateInmemoryPart(rows)
 			<-inmemoryPartsConcurrencyCh
 		})
 	}
@@ -744,9 +742,14 @@ func (pt *partition) mustMergeInmemoryPartsFinal(pws []*partWrapper) *partWrappe
 	return newPartWrapperFromInmemoryPart(mpDst, flushToDiskDeadline)
 }
 
-func (pt *partition) createInmemoryPart(rows []rawRow) *partWrapper {
+// mustCreateInmemoryPart creates a new in-memory part from rawRows.
+//
+// The number of rawRows cannot be zero. Otherwise the method will panic.
+//
+// The returned value is always a non-nil partWrapper.
+func (pt *partition) mustCreateInmemoryPart(rows []rawRow) *partWrapper {
 	if len(rows) == 0 {
-		return nil
+		logger.Panicf("BUG: a part cannot be created from 0 rawRows")
 	}
 	mp := getInmemoryPart()
 	mp.InitFromRows(rows)
