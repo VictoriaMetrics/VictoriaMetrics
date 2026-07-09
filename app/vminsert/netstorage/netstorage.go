@@ -310,7 +310,7 @@ func (sn *storageNode) sendBufRowsNonblocking(br *bufRows) bool {
 		// in legacy mode only MetricRows could be sent to vmstorage
 		// drop the data because most likely it's not possible to re-route it.
 		if sn.rpcCall.VersionedName != vminsertapi.MetricRowsRpcCall.VersionedName {
-			sn.rpcIsNotSupportedDeadline.Store(unsupportedRPCRetrySeconds + fasttime.UnixTimestamp())
+			sn.rowsDroppedOnUnsupportedRPC.Add(br.rows)
 			cannotSendBufsLogger.Warnf("cannot send %d bytes with %d rows to -storageNode=%q; storageNode doesn't support RPC=%q. "+
 				"Perform upgrade of vmstorage to the same version as vminsert", len(br.buf), br.rows, sn.dialer.Addr(), sn.rpcCall.VersionedName)
 			return true
@@ -468,6 +468,9 @@ type storageNode struct {
 	// This metric is useful for determining the saturation of vminsert->vmstorage link.
 	sendDurationSeconds *metrics.FloatCounter
 
+	// The number of rows dropped if legacy vmstorage doesn't support RPC protocol
+	rowsDroppedOnUnsupportedRPC *metrics.Counter
+
 	// avgSaturation tracks the moving average of (send duration / (now - lastSendTime)).
 	// Updated in run(). Used by allowRerouting to decide when to trigger slowness-based rerouting.
 	avgSaturation *variableEWMA
@@ -564,15 +567,16 @@ func initStorageNodes(unsortedAddrs []string, rpcCall vminsertapi.RPCCall, hashS
 
 			rpcCall: rpcCall,
 
-			dialErrors:            ms.NewCounter(fmt.Sprintf(`vm_rpc_dial_errors_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
-			handshakeErrors:       ms.NewCounter(fmt.Sprintf(`vm_rpc_handshake_errors_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
-			connectionErrors:      ms.NewCounter(fmt.Sprintf(`vm_rpc_connection_errors_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
-			rowsPushed:            ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_pushed_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
-			rowsSent:              ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_sent_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
-			rowsDroppedOnOverload: ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_dropped_on_overload_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
-			rowsReroutedFromHere:  ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_rerouted_from_here_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
-			rowsReroutedToHere:    ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_rerouted_to_here_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
-			sendDurationSeconds:   ms.NewFloatCounter(fmt.Sprintf(`vm_rpc_send_duration_seconds_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
+			dialErrors:                  ms.NewCounter(fmt.Sprintf(`vm_rpc_dial_errors_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
+			handshakeErrors:             ms.NewCounter(fmt.Sprintf(`vm_rpc_handshake_errors_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
+			connectionErrors:            ms.NewCounter(fmt.Sprintf(`vm_rpc_connection_errors_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
+			rowsPushed:                  ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_pushed_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
+			rowsSent:                    ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_sent_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
+			rowsDroppedOnOverload:       ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_dropped_on_overload_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
+			rowsReroutedFromHere:        ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_rerouted_from_here_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
+			rowsReroutedToHere:          ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_rerouted_to_here_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
+			sendDurationSeconds:         ms.NewFloatCounter(fmt.Sprintf(`vm_rpc_send_duration_seconds_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
+			rowsDroppedOnUnsupportedRPC: ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_dropped_on_unsupported_rpc{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
 
 			avgSaturation: newMovingAverage(180),
 			lastSendTime:  time.Now(),
