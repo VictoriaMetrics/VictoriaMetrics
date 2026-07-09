@@ -367,6 +367,9 @@ func (sc *ScrapeConfig) mustStart(baseDir string) {
 	for i := range sc.KubernetesSDConfigs {
 		sc.KubernetesSDConfigs[i].MustStart(baseDir, swosFunc)
 	}
+	for i := range sc.HTTPSDConfigs {
+		sc.HTTPSDConfigs[i].MustStart(baseDir)
+	}
 }
 
 func (sc *ScrapeConfig) mustStop() {

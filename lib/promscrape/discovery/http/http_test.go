@@ -66,6 +66,7 @@ func TestSDConfigGetLabels(t *testing.T) {
 	sdc := &SDConfig{
 		URL: srv.URL,
 	}
+	sdc.MustStart(".")
 	defer sdc.MustStop()
 
 	assertLabelss := func(expectedLabelss []*promutil.Labels) {
@@ -90,14 +91,9 @@ func TestSDConfigGetLabels(t *testing.T) {
 		}),
 	})
 
-	cfg, err := getAPIConfig(sdc, ".")
-	if err != nil {
-		t.Fatalf("unexpected get apiConfig error: %s", err)
-	}
-
 	updateAPIResponse := func(response apiResponse) {
 		currentResponse.Store(&response)
-		cfg.refreshTargetsIfNeeded()
+		sdc.cfg.refreshTargetsIfNeeded()
 
 	}
 
@@ -131,7 +127,7 @@ func TestSDConfigGetLabels(t *testing.T) {
 		statusCode: http.StatusServiceUnavailable,
 		body:       `Internal Server Error`,
 	})
-	_, err = sdc.GetLabels(".")
+	_, err := sdc.GetLabels(".")
 	if err == nil {
 		t.Fatalf("unexpected empty error")
 	}
@@ -155,11 +151,11 @@ func TestSDConfigGetLabels(t *testing.T) {
 	})
 
 	// make sure that api response is properly cached
-	before := cfg.targetLabels.Load()
+	before := sdc.cfg.targetLabels.Load()
 	updateAPIResponse(apiResponse{statusCode: http.StatusOK,
 		body: `[{"targets":["10.0.0.1:9100"],"labels":{"job":"node"}},{"targets":["10.0.0.5:8429"],"labels":{"job":"vmagent"}}]`})
 
-	if cfg.targetLabels.Load() != before {
+	if sdc.cfg.targetLabels.Load() != before {
 		t.Fatalf("expected identical response to be deduplicated")
 	}
 }

@@ -80,14 +80,6 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	return cfg, nil
 }
 
-func getAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
-	v, err := configMap.Get(sdc, func() (any, error) { return newAPIConfig(sdc, baseDir) })
-	if err != nil {
-		return nil, err
-	}
-	return v.(*apiConfig), nil
-}
-
 func (cfg *apiConfig) init() {
 	cfg.initOnce.Do(func() {
 		cfg.refreshTargetsIfNeeded()
