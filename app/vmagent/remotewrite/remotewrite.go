@@ -108,7 +108,7 @@ var (
 
 	enableMdx = flagutil.NewArrayBool("remoteWrite.mdx.enable", "Whether to only retain metrics from VictoriaMetrics services before sending them to the corresponding -remoteWrite.url. "+
 		"Please see https://docs.victoriametrics.com/victoriametrics/vmagent/#monitoring-data-exchange")
-	obfuscationLabels = flagutil.NewArrayString("remoteWrite.obfuscationLabels", "List of label names whose values will be obfuscated before being sent to the corresponding -remoteWrite.url."+
+	obfuscationLabels = flagutil.NewArrayString("remoteWrite.obfuscationLabels", "List of label names whose values will be obfuscated before being sent to the corresponding -remoteWrite.url. "+
 		"Multiple label names should be separated by `^^`, e.g. \"job^^instance,ip\".")
 )
 
