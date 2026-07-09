@@ -368,7 +368,7 @@ func (tb *table) MustAddRows(rows []rawRow) {
 	// The slowest path - there are rows that don't fit any existing partition.
 	// Create new partitions for these rows.
 	// Do this under tb.ptwsLock.
-	minTimestamp, maxTimestamp := tb.getMinMaxTimestampsForIngestion()
+	minTimestamp, maxTimestamp := tb.getMinMaxIngestionTimestamps()
 	tb.ptwsLock.Lock()
 	for i := range missingRows {
 		r := &missingRows[i]
@@ -407,22 +407,22 @@ func (tb *table) MustGetIndexDBIDByHour(hour uint64) uint64 {
 	return ptw.pt.idb.id
 }
 
-// getMinMaxTimestamps returns the minimum and maximum timestamps allowed
-// by the configured -retentionPeriod and -futureRetention.
+// getMinMaxRetentionTimestamps returns the minimum and maximum timestamps
+// allowed by the configured -retentionPeriod and -futureRetention.
 //
 // It is used for checking whether the given time range is fully covered
 // by the retention, e.g. for -denyQueriesOutsideRetention.
-func (tb *table) getMinMaxTimestamps() (int64, int64) {
+func (tb *table) getMinMaxRetentionTimestamps() (int64, int64) {
 	return tb.getMinMaxTimestampsForAge(tb.s.retentionMsecs)
 }
 
-// getMinMaxTimestampsForIngestion returns the minimum and maximum timestamps
+// getMinMaxIngestionTimestamps returns the minimum and maximum timestamps
 // allowed for newly ingested rows.
 //
 // The minimum timestamp is bound by -maxBackfillAge instead of -retentionPeriod,
 // since -maxBackfillAge can be configured to reject backfilled rows with historical
 // timestamps stricter than the full -retentionPeriod window.
-func (tb *table) getMinMaxTimestampsForIngestion() (int64, int64) {
+func (tb *table) getMinMaxIngestionTimestamps() (int64, int64) {
 	return tb.getMinMaxTimestampsForAge(tb.s.maxBackfillAgeMsecs)
 }
 

@@ -1243,7 +1243,7 @@ func (s *Storage) checkTimeRange(tr TimeRange) error {
 		return nil
 	}
 
-	minTimestamp, maxTimestamp := s.tb.getMinMaxTimestamps()
+	minTimestamp, maxTimestamp := s.tb.getMinMaxRetentionTimestamps()
 	if minTimestamp <= tr.MinTimestamp && tr.MaxTimestamp <= maxTimestamp {
 		return nil
 	}
@@ -1903,7 +1903,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 	var newSeriesCount uint64
 	var seriesRepopulated uint64
 
-	minTimestamp, maxTimestamp := s.tb.getMinMaxTimestampsForIngestion()
+	minTimestamp, maxTimestamp := s.tb.getMinMaxIngestionTimestamps()
 
 	var lTSID legacyTSID
 	var ptw *partitionWrapper
