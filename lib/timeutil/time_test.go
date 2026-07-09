@@ -1,6 +1,9 @@
 package timeutil
 
 import (
+	"fmt"
+	"math"
+	"strings"
 	"testing"
 	"time"
 )
@@ -202,6 +205,143 @@ func TestParseTimeAtSuccess(t *testing.T) {
 	f("2023-05-20T04:57:43.123456789-02:30", now, 1684567663123456789)
 }
 
+func TestParseTimeAtLimits(t *testing.T) {
+	now := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	f := func(s string, wantTime time.Time) {
+		t.Helper()
+
+		got, err := ParseTimeAt(s, now.UnixNano())
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if want := wantTime.UnixNano(); got != want {
+			t.Fatalf("unexpected result; got %d; want %d", got, want)
+		}
+	}
+
+	location := func(t *testing.T, location string) *time.Location {
+		t.Helper()
+		l, err := time.LoadLocation(location)
+		if err != nil {
+			t.Fatalf("could not load location %q: %v", location, err)
+		}
+		return l
+	}
+	east := location(t, "Etc/GMT-14") // UTC+14:00
+	west := location(t, "Etc/GMT+12") // UTC-12:00
+	var s string
+
+	// min year
+	f("1678Z", time.Date(1678, 1, 1, 0, 0, 0, 0, time.UTC))
+	f("1678+14:00", time.Date(1678, 1, 1, 0, 0, 0, 0, east))
+	f("1678-12:00", time.Date(1678, 1, 1, 0, 0, 0, 0, west))
+
+	// min month
+	f("1677-10Z", time.Date(1677, 10, 1, 0, 0, 0, 0, time.UTC))
+	f("1677-10+14:00", time.Date(1677, 10, 1, 0, 0, 0, 0, east))
+	f("1677-10-12:00", time.Date(1677, 10, 1, 0, 0, 0, 0, west))
+
+	// min day
+	f("1677-09-22Z", time.Date(1677, 9, 22, 0, 0, 0, 0, time.UTC))
+	f("1677-09-22+14:00", time.Date(1677, 9, 22, 0, 0, 0, 0, east))
+	f("1677-09-22-12:00", time.Date(1677, 9, 22, 0, 0, 0, 0, west))
+
+	// min hour
+	f("1677-09-21T01Z", time.Date(1677, 9, 21, 1, 0, 0, 0, time.UTC))
+	f("1677-09-21T15+14:00", time.Date(1677, 9, 21, 15, 0, 0, 0, east))
+	f("1677-09-21T01+14:00", time.Unix(0, math.MinInt64))
+	f("1677-09-21T01-12:00", time.Date(1677, 9, 21, 1, 0, 0, 0, west))
+
+	// min minute
+	f("1677-09-21T00:12Z", time.Date(1677, 9, 21, 0, 12, 0, 0, time.UTC))
+	f("1677-09-21T15:12Z+14:00", time.Date(1677, 9, 21, 15, 12, 0, 0, east))
+	f("1677-09-21T00:13Z+14:00", time.Unix(0, math.MinInt64))
+	f("1677-09-21T00:13Z-12:00", time.Date(1677, 9, 21, 0, 13, 0, 0, west))
+
+	// min second
+	f("1677-09-21T00:12:43Z", time.Date(1677, 9, 21, 0, 12, 43, 0, time.UTC))
+	f("1677-09-21T15:12:43Z+14:00", time.Date(1677, 9, 21, 15, 12, 43, 0, east))
+	f("1677-09-21T00:12:44Z+14:00", time.Unix(0, math.MinInt64))
+	f("1677-09-21T00:12:44Z-12:00", time.Date(1677, 9, 21, 0, 12, 44, 0, west))
+
+	// max year
+	f("2262Z", time.Date(2262, 1, 1, 0, 0, 0, 0, time.UTC))
+	f("2262+14:00", time.Date(2262, 1, 1, 0, 0, 0, 0, east))
+	f("2262-12:00", time.Date(2262, 1, 1, 0, 0, 0, 0, west))
+
+	// max month
+	f("2262-04Z", time.Date(2262, 4, 1, 0, 0, 0, 0, time.UTC))
+	f("2262-04+14:00", time.Date(2262, 4, 1, 0, 0, 0, 0, east))
+	f("2262-04-12:00", time.Date(2262, 4, 1, 0, 0, 0, 0, west))
+
+	// max day
+	f("2262-04-11Z", time.Date(2262, 4, 11, 0, 0, 0, 0, time.UTC))
+	f("2262-04-11+14:00", time.Date(2262, 4, 11, 0, 0, 0, 0, east))
+	f("2262-04-11-12:00", time.Date(2262, 4, 11, 0, 0, 0, 0, west))
+
+	// max hour
+	f("2262-04-11T23Z", time.Date(2262, 4, 11, 23, 0, 0, 0, time.UTC))
+	f("2262-04-11T23+14:00", time.Date(2262, 4, 11, 23, 0, 0, 0, east))
+	f("2262-04-11T11-12:00", time.Date(2262, 4, 11, 11, 0, 0, 0, west))
+	f("2262-04-11T23-12:00", time.Unix(0, math.MaxInt64))
+
+	// max minute
+	f("2262-04-11T23:47Z", time.Date(2262, 4, 11, 23, 47, 0, 0, time.UTC))
+	f("2262-04-11T23:47+14:00", time.Date(2262, 4, 11, 23, 47, 0, 0, east))
+	f("2262-04-11T11:47-12:00", time.Date(2262, 4, 11, 11, 47, 0, 0, west))
+	f("2262-04-11T23:47-12:00", time.Unix(0, math.MaxInt64))
+
+	// max second
+	f("2262-04-11T23:47:16Z", time.Date(2262, 4, 11, 23, 47, 16, 0, time.UTC))
+	f("2262-04-11T23:47:16+14:00", time.Date(2262, 4, 11, 23, 47, 16, 0, east))
+	f("2262-04-11T11:47:16-12:00", time.Date(2262, 4, 11, 11, 47, 16, 0, west))
+	f("2262-04-11T23:47:16-12:00", time.Unix(0, math.MaxInt64))
+
+	// max timestamp
+	s = fmt.Sprintf("%d", int64(maxValidSecond))
+	f(s, time.Date(2262, 4, 11, 23, 47, 16, 0, time.UTC))
+	s = fmt.Sprintf("%d", int64(maxValidMilli))
+	f(s, time.Date(2262, 4, 11, 23, 47, 16, 854_000_000, time.UTC))
+	s = fmt.Sprintf("%d", int64(maxValidMicro))
+	f(s, time.Date(2262, 4, 11, 23, 47, 16, 854_775_000, time.UTC))
+	s = fmt.Sprintf("%d", int64(math.MaxInt64))
+	f(s, time.Date(2262, 4, 11, 23, 47, 16, 854_775_807, time.UTC))
+
+	// timestamps beyond max valid second are still valid but are treated as
+	// milliseconds.
+	s = fmt.Sprintf("%d", int64(maxValidSecond)+1)
+	f(s, time.Date(1970, 4, 17, 18, 2, 52, 37_000_000, time.UTC))
+
+	// timestamps beyond max valid millisecond are still valid but are treated
+	// as microseconds.
+	s = fmt.Sprintf("%d", int64(maxValidMilli)+1)
+	f(s, time.Date(1970, 4, 17, 18, 2, 52, 36_855_000, time.UTC))
+
+	// timestamps beyond max valid microsecond are still valid but are treated
+	// as nanoseconds.
+	s = fmt.Sprintf("%d", int64(maxValidMicro)+1)
+	f(s, time.Date(1970, 4, 17, 18, 2, 52, 36_854_776, time.UTC))
+}
+
+func TestParseTimeAtOutsideLimits_Nanos(t *testing.T) {
+	now := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	f := func(s string) {
+		t.Helper()
+		got, err := ParseTimeAt(s, now.UnixNano())
+		if err == nil {
+			t.Fatalf("expected error but got %d", got)
+		}
+		if !strings.Contains(err.Error(), "cannot parse numeric timestamp") {
+			t.Fatalf("expected error: %v", err)
+		}
+	}
+
+	// max unix nano
+	f(fmt.Sprintf("%d", uint64(math.MaxInt64+1)))
+}
+
 func TestParseTimeMsecFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
@@ -215,7 +355,6 @@ func TestParseTimeMsecFailure(t *testing.T) {
 	}
 
 	f("")
-	f("2263")
 	f("23-45:50")
 	f("1223-fo:ba")
 	f("1223-12:ba")

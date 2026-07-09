@@ -39,15 +39,13 @@ XOtclIk1uhc03oL9nOQ=
 			}
 			return
 		}
-		users, oidcDP, err := parseJWTUsers(ac)
+		oidcDP := &oidcDiscovererPool{}
+		users, err := parseJWTUsers(ac, oidcDP)
 		if err == nil {
 			t.Fatalf("expecting non-nil error; got %v", users)
 		}
 		if expErr != err.Error() {
 			t.Fatalf("unexpected error; got\n%q\nwant \n%q", err.Error(), expErr)
-		}
-		if oidcDP != nil {
-			t.Fatalf("expecting nil oidcDP; got %v", oidcDP)
 		}
 	}
 
@@ -170,13 +168,13 @@ users:
   url_prefix: http://foo.bar
 `, "cannot parse public key from file \""+publicKeyFile+"\": failed to parse key \"invalidPEM\": failed to decode PEM block containing public key")
 
-	// unsupported placeholder in a header
+	// unsupported placeholder in a URL path
 	f(`
 users:
 - jwt: 
     skip_verify: true
   url_prefix: http://foo.bar/{{.UnsupportedPlaceholder}}/foo`,
-		"invalid placeholder found in URL request path: \"/{{.UnsupportedPlaceholder}}/foo\", supported values are: {{.MetricsTenant}}, {{.MetricsExtraLabels}}, {{.MetricsExtraFilters}}, {{.LogsAccountID}}, {{.LogsProjectID}}, {{.LogsExtraFilters}}, {{.LogsExtraStreamFilters}}",
+		"invalid placeholder found in URL request path: \"/{{.UnsupportedPlaceholder}}/foo\", supported values are: {{.MetricsTenant}}, {{.MetricsAccountID}}, {{.MetricsProjectID}}, {{.MetricsExtraLabels}}, {{.MetricsExtraFilters}}, {{.LogsAccountID}}, {{.LogsProjectID}}, {{.LogsExtraFilters}}, {{.LogsExtraStreamFilters}}",
 	)
 	// unsupported placeholder in a header
 	f(`
@@ -187,7 +185,7 @@ users:
     - "AccountID: {{.UnsupportedPlaceholder}}"
   url_prefix: http://foo.bar
 `,
-		"request header: \"AccountID\" has unsupported placeholder: \"{{.UnsupportedPlaceholder}}\", supported values are: {{.MetricsTenant}}, {{.MetricsExtraLabels}}, {{.MetricsExtraFilters}}, {{.LogsAccountID}}, {{.LogsProjectID}}, {{.LogsExtraFilters}}, {{.LogsExtraStreamFilters}}",
+		"request header: \"AccountID\" has unsupported placeholder: \"{{.UnsupportedPlaceholder}}\", supported values are: {{.MetricsTenant}}, {{.MetricsAccountID}}, {{.MetricsProjectID}}, {{.MetricsExtraLabels}}, {{.MetricsExtraFilters}}, {{.LogsAccountID}}, {{.LogsProjectID}}, {{.LogsExtraFilters}}, {{.LogsExtraStreamFilters}}",
 	)
 
 	// spaces in templating not allowed
@@ -199,7 +197,19 @@ users:
     - "AccountID: {{ .LogsAccountID }}"
   url_prefix: http://foo.bar
 `,
-		"request header: \"AccountID\" has unsupported placeholder: \"{{ .LogsAccountID }}\", supported values are: {{.MetricsTenant}}, {{.MetricsExtraLabels}}, {{.MetricsExtraFilters}}, {{.LogsAccountID}}, {{.LogsProjectID}}, {{.LogsExtraFilters}}, {{.LogsExtraStreamFilters}}",
+		"request header: \"AccountID\" has unsupported placeholder: \"{{ .LogsAccountID }}\", supported values are: {{.MetricsTenant}}, {{.MetricsAccountID}}, {{.MetricsProjectID}}, {{.MetricsExtraLabels}}, {{.MetricsExtraFilters}}, {{.LogsAccountID}}, {{.LogsProjectID}}, {{.LogsExtraFilters}}, {{.LogsExtraStreamFilters}}",
+	)
+
+	// placeholder must match the entire header value
+	f(`
+users:
+- jwt: 
+    skip_verify: true
+  headers:
+    - "AccountID: foo {{.MetricsAccountID}}"
+  url_prefix: http://foo.bar
+`,
+		"request header: \"AccountID\" has unsupported placeholder: \"foo {{.MetricsAccountID}}\", supported values are: {{.MetricsTenant}}, {{.MetricsAccountID}}, {{.MetricsProjectID}}, {{.MetricsExtraLabels}}, {{.MetricsExtraFilters}}, {{.LogsAccountID}}, {{.LogsProjectID}}, {{.LogsExtraFilters}}, {{.LogsExtraStreamFilters}}",
 	)
 
 	// oidc is not an object
@@ -314,7 +324,8 @@ XOtclIk1uhc03oL9nOQ=
 			t.Fatalf("unexpected error: %s", err)
 		}
 
-		jui, oidcDP, err := parseJWTUsers(ac)
+		oidcDP := &oidcDiscovererPool{}
+		jui, err := parseJWTUsers(ac, oidcDP)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -364,10 +375,25 @@ users:
   url_prefix: http://foo.bar
 `, validRSAPublicKey, validECDSAPublicKey))
 
+	// metrics header placeholders
 	f(`
 users:
 - jwt:
     skip_verify: true
+  headers:
+  - "MetricsAccountID: {{.MetricsAccountID}}"
+  - "MetricsProjectID: {{.MetricsProjectID}}"
+  url_prefix: http://foo.bar
+`)
+
+	// logs header placeholders
+	f(`
+users:
+- jwt:
+    skip_verify: true
+  headers:
+  - "LogsAccountID: {{.LogsAccountID}}"
+  - "LogsProjectID: {{.LogsProjectID}}"
   url_prefix: http://foo.bar
 `)
 

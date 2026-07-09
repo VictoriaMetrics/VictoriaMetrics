@@ -41,7 +41,7 @@ func (pf *pipeFirst) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pf *pipeFirst) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
+func (pf *pipeFirst) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pf, nil
 }
 

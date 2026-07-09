@@ -159,7 +159,9 @@ func (c *client) ReadData(dst *chunkedbuffer.Buffer) (bool, error) {
 
 	if resp.StatusCode != http.StatusOK {
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_scrapes_total{status_code="%d"}`, resp.StatusCode)).Inc()
-		respBody, err := io.ReadAll(resp.Body)
+		lr := ioutil.GetLimitedReader(resp.Body, c.maxScrapeSize+1)
+		respBody, err := io.ReadAll(lr)
+		ioutil.PutLimitedReader(lr)
 		if err != nil {
 			respBody = []byte(err.Error())
 		}

@@ -20,7 +20,7 @@ type pipePackJSON struct {
 func (pp *pipePackJSON) String() string {
 	s := "pack_json"
 	if len(pp.fieldFilters) > 0 {
-		s += " fields (" + fieldNamesString(pp.fieldFilters) + ")"
+		s += " fields (" + fieldFiltersString(pp.fieldFilters) + ")"
 	}
 	if !isMsgFieldName(pp.resultField) {
 		s += " as " + quoteTokenIfNeeded(pp.resultField)
@@ -52,7 +52,7 @@ func (pp *pipePackJSON) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pp *pipePackJSON) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
+func (pp *pipePackJSON) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pp, nil
 }
 
@@ -88,7 +88,7 @@ func parsePipePackJSON(lex *lexer) (pipe, error) {
 	if lex.isKeyword("as") {
 		lex.nextToken()
 	}
-	if !lex.isKeyword("|", ")", "") {
+	if !lex.isQueryPartTrailer() {
 		field, err := parseFieldName(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse result field for 'pack_json': %w", err)

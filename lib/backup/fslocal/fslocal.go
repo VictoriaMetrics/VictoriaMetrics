@@ -33,6 +33,7 @@ type FS struct {
 //
 // The returned fs must be stopped when no long needed with MustStop call.
 func (fs *FS) Init() error {
+	fs.Dir = filepath.Clean(fs.Dir)
 	if fs.MaxBytesPerSecond > 0 {
 		fs.bl = newBandwidthLimiter(fs.MaxBytesPerSecond)
 	}
@@ -128,6 +129,10 @@ func (fs *FS) NewReadCloser(p common.Part) (io.ReadCloser, error) {
 // On platforms with preallocation, writes go to a .tmp file that must be
 // finalized with FinalizeFile.
 func (fs *FS) NewDirectWriteCloser(p common.Part) (io.WriteCloser, error) {
+	if !p.IsLocalPathInsideDir(fs.Dir) {
+		logger.Fatalf("BUG: part file %s would be written outside storage directory %s", p.Path, fs.Dir)
+	}
+
 	path := fs.writePath(p)
 	if err := fs.mkdirAll(path); err != nil {
 		return nil, err

@@ -33,7 +33,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	}
 	parsedURL, err := url.Parse(sdc.URL)
 	if err != nil {
-		return nil, fmt.Errorf("parse URL %s error: %v", sdc.URL, err)
+		return nil, fmt.Errorf("cannot parse %s: %w", sdc.URL, err)
 	}
 	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
 		return nil, fmt.Errorf("URL %s scheme must be 'http' or 'https'", sdc.URL)

@@ -24,6 +24,7 @@ func NewBlockBlobClient(endpoint string, azClient *azcore.Client) *BlockBlobClie
 	client := &BlockBlobClient{
 		internal: azClient,
 		endpoint: endpoint,
+		version:  ServiceVersion,
 	}
 	return client
 }

@@ -9,8 +9,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/golang/snappy"
-
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
@@ -64,19 +63,17 @@ func (c *DebugClient) Close() error {
 }
 
 func (c *DebugClient) send(data []byte) error {
-	b := snappy.Encode(nil, data)
+	b := zstd.CompressLevel(nil, data, 0)
 	r := bytes.NewReader(b)
 	req, err := http.NewRequest(http.MethodPost, c.addr, r)
 	if err != nil {
 		return fmt.Errorf("failed to create new HTTP request: %w", err)
 	}
 
-	// RFC standard compliant headers
-	req.Header.Set("Content-Encoding", "snappy")
+	req.Header.Set("Content-Encoding", "zstd")
 	req.Header.Set("Content-Type", "application/x-protobuf")
 
-	// Prometheus compliant headers
-	req.Header.Set("X-Prometheus-Remote-Write-Version", "0.1.0")
+	req.Header.Set("X-VictoriaMetrics-Remote-Write-Version", "1")
 
 	if !*disablePathAppend {
 		req.URL.Path = path.Join(req.URL.Path, "/api/v1/write")

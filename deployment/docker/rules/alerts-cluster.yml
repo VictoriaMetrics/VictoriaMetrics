@@ -170,3 +170,57 @@ groups:
             is saturated by more than 90% and vminsert won't be able to keep up.\n
             This usually means that more vminsert or vmstorage nodes must be added to the cluster in order to increase
             the total number of vminsert -> vmstorage links."
+
+      - alert: MetadataCacheUtilizationIsTooHigh
+        expr: |
+          vm_metrics_metadata_storage_size_bytes / vm_metrics_metadata_storage_max_size_bytes > 0.95
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Metadata cache capacity on {{ $labels.instance }} (job={{ $labels.job }}) is utilized for more than 95% for the last 15min"
+          description: "Metadata cache stores meta information about ingested time series - see https://docs.victoriametrics.com/victoriametrics/#metrics-metadata.
+           When cache is overutilized, the oldest entries will be dropped out automatically. It may result into incomplete
+           response for /api/v1/metadata API calls. It doesn't impact regular queries or alerts. Cache size is controlled
+           via -storage.maxMetadataStorageSize cmd-line flag."
+
+      - alert: MetricNameStatsCacheUtilizationIsTooHigh
+        expr: |
+          vm_cache_size_bytes{type="storage/metricNamesStatsTracker"} / vm_cache_size_max_bytes{type="storage/metricNamesStatsTracker"} > 0.95
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Cache capacity for tracking metric names usage on {{ $labels.instance }} (job={{ $labels.job }}) is utilized for more than 95% during the last 15min"
+          description: "Metric names usage cache stores information about unique metric names and how frequently they are queried - see https://docs.victoriametrics.com/victoriametrics/#track-ingested-metrics-usage.
+           When cache is overutilized, it will stop tracking the new metric names. It has no other negative impact.
+           Usually, the number of unique metric names is very limited (thousands). The cache can be overutilized only if metric names
+           are changing too frequently or if the cache size is too low. There are following ways to mitigate cache overutilization:
+           - disable cache via `--storage.trackMetricNamesStats=false` flag, so metric names usage will stop tracking
+           - increase the cache size via `--storage.cacheSizeMetricNamesStats` flag
+           - reset the cache (see docs for details)"
+
+      - alert: IndexDBRecordsDrop
+        expr: increase(vm_indexdb_items_dropped_total[5m]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "IndexDB skipped registering items during data ingestion with reason={{ $labels.reason }}."
+          description: |
+            VictoriaMetrics could skip registering new timeseries during ingestion if they fail the validation process. 
+            For example, `reason=too_long_item` means that time series cannot exceed 64KB. Please, reduce the number 
+            of labels or label values for such series. Or enforce these limits via `-maxLabelsPerTimeseries` and 
+            `-maxLabelValueLen` command-line flags.
+
+      - alert: TooManyTSIDMisses
+        expr: increase(vm_missing_tsids_for_metric_id_total[5m]) > 0
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Unexpected TSID misses for job \"{{ $labels.job }}\" ({{ $labels.instance }}) for the last 15 minutes"
+          description: |
+            Unexpected TSID misses for \"{{ $labels.job }}\" ({{ $labels.instance }}) for the last 15 minutes.
+            If this happens after unclean shutdown of VictoriaMetrics process (via \"kill -9\", OOM or power off),
+            then this is OK - the alert must go away in a few minutes after the restart.
+            Otherwise this may point to the corruption of index data.

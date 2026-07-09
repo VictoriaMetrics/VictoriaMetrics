@@ -23,12 +23,6 @@ func ParseTimeMsec(s string) (int64, error) {
 	return msecs, nil
 }
 
-const (
-	// time.UnixNano can only store maxInt64, which is 2262
-	maxValidYear = 2262
-	minValidYear = 1970
-)
-
 // ParseTimeAt parses time s in different formats, assuming the given currentTimestamp.
 //
 // See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats
@@ -76,22 +70,14 @@ func ParseTimeAt(s string, currentTimestamp int64) (int64, error) {
 		if err != nil {
 			return 0, err
 		}
-		if d > 0 {
+		if d < 0 {
 			d = -d
 		}
-		return currentTimestamp + int64(d), nil
+		return subInt64NoOverflow(currentTimestamp, int64(d)), nil
 	}
 	if len(s) == 4 {
 		// Parse YYYY
-		t, err := time.Parse("2006", s)
-		if err != nil {
-			return 0, err
-		}
-		y := t.Year()
-		if y > maxValidYear || y < minValidYear {
-			return 0, fmt.Errorf("cannot parse year from %q: year must in range [%d, %d]", s, minValidYear, maxValidYear)
-		}
-		return tzOffset + t.UnixNano(), nil
+		return parseTimeAt("2006", s, tzOffset, sOrig)
 	}
 	if !strings.Contains(sOrig, "-") {
 		nsec, ok := TryParseUnixTimestamp(sOrig)
@@ -102,50 +88,50 @@ func ParseTimeAt(s string, currentTimestamp int64) (int64, error) {
 	}
 	if len(s) == 7 {
 		// Parse YYYY-MM
-		t, err := time.Parse("2006-01", s)
-		if err != nil {
-			return 0, err
-		}
-		return tzOffset + t.UnixNano(), nil
+		return parseTimeAt("2006-01", s, tzOffset, sOrig)
 	}
 	if len(s) == 10 {
 		// Parse YYYY-MM-DD
-		t, err := time.Parse("2006-01-02", s)
-		if err != nil {
-			return 0, err
-		}
-		return tzOffset + t.UnixNano(), nil
+		return parseTimeAt("2006-01-02", s, tzOffset, sOrig)
 	}
 	if len(s) == 13 {
 		// Parse YYYY-MM-DDTHH
-		t, err := time.Parse("2006-01-02T15", s)
-		if err != nil {
-			return 0, err
-		}
-		return tzOffset + t.UnixNano(), nil
+		return parseTimeAt("2006-01-02T15", s, tzOffset, sOrig)
 	}
 	if len(s) == 16 {
 		// Parse YYYY-MM-DDTHH:MM
-		t, err := time.Parse("2006-01-02T15:04", s)
-		if err != nil {
-			return 0, err
-		}
-		return tzOffset + t.UnixNano(), nil
+		return parseTimeAt("2006-01-02T15:04", s, tzOffset, sOrig)
 	}
 	if len(s) == 19 {
 		// Parse YYYY-MM-DDTHH:MM:SS
-		t, err := time.Parse("2006-01-02T15:04:05", s)
-		if err != nil {
-			return 0, err
-		}
-		return tzOffset + t.UnixNano(), nil
+		return parseTimeAt("2006-01-02T15:04:05", s, tzOffset, sOrig)
 	}
 	// Parse RFC3339
-	t, err := time.Parse(time.RFC3339, sOrig)
+	return parseTimeAt(time.RFC3339, sOrig, 0, sOrig)
+}
+
+func parseTimeAt(layout, value string, tzOffsetNsec int64, sOrig string) (int64, error) {
+	t, err := time.Parse(layout, value)
 	if err != nil {
 		return 0, err
 	}
-	return t.UnixNano(), nil
+	nsec := t.UnixNano()
+
+	return subInt64NoOverflow(nsec, -tzOffsetNsec), nil
+}
+
+func subInt64NoOverflow(a, b int64) int64 {
+	if b >= 0 {
+		if a < math.MinInt64+b {
+			return math.MinInt64
+		}
+		return a - b
+	}
+
+	if a > math.MaxInt64+b {
+		return math.MaxInt64
+	}
+	return a - b
 }
 
 // TryParseUnixTimestamp parses s as unix timestamp in seconds, milliseconds, microseconds or nanoseconds and returns the parsed timestamp in nanoseconds.
@@ -287,16 +273,25 @@ func multiplyByDecimalExp(n int64, decimalExp int64) (int64, bool) {
 
 var decimalMultipliers = [...]int64{0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10, 1e11, 1e12, 1e13, 1e14, 1e15, 1e16, 1e17, 1e18}
 
+const (
+	maxValidSecond = math.MaxInt64 / 1_000_000_000
+	maxValidMilli  = math.MaxInt64 / 1_000_000
+	maxValidMicro  = math.MaxInt64 / 1_000
+	minValidSecond = math.MinInt64 / 1_000_000_000
+	minValidMilli  = math.MinInt64 / 1_000_000
+	minValidMicro  = math.MinInt64 / 1_000
+)
+
 func getUnixTimestampNanoseconds(n int64) int64 {
-	if n < (1<<31) && n >= (-1<<31) {
+	if n <= maxValidSecond && n >= minValidSecond {
 		// The timestamp is in seconds.
 		return n * 1e9
 	}
-	if n < 1e3*(1<<31) && n >= 1e3*(-1<<31) {
+	if n <= maxValidMilli && n >= minValidMilli {
 		// The timestamp is in milliseconds.
 		return n * 1e6
 	}
-	if n < 1e6*(1<<31) && n >= 1e6*(-1<<31) {
+	if n <= maxValidMicro && n >= minValidMicro {
 		// The timestamp is in microseconds.
 		return n * 1e3
 	}

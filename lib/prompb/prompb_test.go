@@ -50,6 +50,12 @@ func TestWriteRequestMarshalUnmarshal(t *testing.T) {
 						Value: "node-exporter",
 					},
 				},
+				Samples: []prompb.Sample{
+					{
+						Value:     1,
+						Timestamp: 1000,
+					},
+				},
 			},
 		},
 	})

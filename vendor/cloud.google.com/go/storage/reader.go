@@ -265,7 +265,9 @@ func (o *ObjectHandle) NewMultiRangeDownloader(ctx context.Context, opts ...MRDO
 	for _, opt := range opts {
 		opt.apply(params)
 	}
-
+	if params.minConnections > 1 || params.maxConnections > 1 {
+		spanCtx = addFeatureAttributes(spanCtx, featureMultistreamInMRD)
+	}
 	// This call will return the *MultiRangeDownloader with the .impl field set.
 	return o.c.tc.NewMultiRangeDownloader(spanCtx, params, storageOpts...)
 }
@@ -494,11 +496,14 @@ func (mrd *MultiRangeDownloader) Add(output io.Writer, offset, length int64, cal
 // Close the MultiRangeDownloader. It must be called when done reading.
 // Adding new ranges after this has been called will cause an error.
 //
-// This will immediately close the stream and can result in a
+// This will immediately close the streams and can result in a
 // "stream closed early" error if a response for a range is still not processed.
 // Call [MultiRangeDownloader.Wait] to avoid this error.
 //
 // If the downloader is in a permanent error state, this will return an error.
+//
+// This must not be called from the callback sent into Add command otherwise
+// it could lead to a deadlock.
 func (mrd *MultiRangeDownloader) Close() error {
 	err := mrd.impl.close(nil)
 	endSpan(mrd.impl.getSpanCtx(), err)

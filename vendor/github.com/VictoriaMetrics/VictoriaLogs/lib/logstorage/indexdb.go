@@ -7,6 +7,7 @@ import (
 	"sort"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -105,7 +106,7 @@ func mustOpenIndexdb(path, partitionName string, s *Storage) *indexdb {
 		s:             s,
 	}
 	var isReadOnly atomic.Bool
-	idb.tb = mergeset.MustOpenTable(path, s.flushInterval, idb.invalidateStreamFilterCache, mergeTagToStreamIDsRows, &isReadOnly)
+	idb.tb = mergeset.MustOpenTable(path, s.flushInterval, idb.invalidateStreamFilterCache, time.Second, mergeTagToStreamIDsRows, &isReadOnly)
 	return idb
 }
 
@@ -583,6 +584,7 @@ func (idb *indexdb) invalidateStreamFilterCache() {
 }
 
 func (idb *indexdb) marshalStreamFilterCacheKey(dst []byte, tenantIDs []TenantID, sf *StreamFilter) []byte {
+	dst = encoding.MarshalUint64(dst, idb.s.partitionCacheGeneration.Load())
 	dst = encoding.MarshalUint32(dst, idb.filterStreamCacheGeneration.Load())
 	dst = encoding.MarshalBytes(dst, bytesutil.ToUnsafeBytes(idb.partitionName))
 	dst = encoding.MarshalVarUint64(dst, uint64(len(tenantIDs)))
@@ -872,7 +874,7 @@ type tagToStreamIDsRowParser struct {
 	streamIDsParsed bool
 
 	// Tag contains parsed tag after Init call
-	Tag streamTag
+	Tag Field
 
 	// tagBuf is a buffer used during Tag parsing.
 	tagBuf []byte
@@ -885,7 +887,7 @@ func (sp *tagToStreamIDsRowParser) Reset() {
 	sp.TenantID.Reset()
 	sp.StreamIDs = sp.StreamIDs[:0]
 	sp.streamIDsParsed = false
-	sp.Tag.reset()
+	sp.Tag.Reset()
 	sp.tagBuf = sp.tagBuf[:0]
 	sp.tail = nil
 }

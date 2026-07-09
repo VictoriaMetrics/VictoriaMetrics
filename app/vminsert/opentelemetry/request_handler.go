@@ -20,6 +20,11 @@ var (
 	metadataInserted = metrics.NewCounter(`vm_metadata_rows_inserted_total{type="opentelemetry"}`)
 )
 
+// Init must be called after flag.Parse and before using the opentelemetry package.
+func Init() {
+	stream.InitDecodeOptions()
+}
+
 // InsertHandler processes opentelemetry metrics.
 func InsertHandler(req *http.Request) error {
 	extraLabels, err := protoparserutil.GetExtraLabels(req)

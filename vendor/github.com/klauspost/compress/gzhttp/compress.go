@@ -64,7 +64,7 @@ const (
 	acceptRanges    = "Accept-Ranges"
 	contentType     = "Content-Type"
 	contentLength   = "Content-Length"
-	eTag            = "ETag"
+	eTag            = "Etag"
 )
 
 type codings map[string]float64

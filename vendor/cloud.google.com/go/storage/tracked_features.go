@@ -16,7 +16,7 @@ package storage
 
 // trackedFeature represents a specific client feature being tracked, represented
 // as a bit in a bitmask. Each feature corresponds to a specific bit position.
-type trackedFeature uint
+type trackedFeature uint32
 
 const (
 	featureMultistreamInMRD trackedFeature = 0

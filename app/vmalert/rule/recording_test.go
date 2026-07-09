@@ -163,11 +163,13 @@ func TestRecordingRule_Exec(t *testing.T) {
 	f(&RecordingRule{
 		Name: "job:foo",
 		Labels: map[string]string{
-			"source": "test",
+			"source":      "test",
+			"empty_label": "", // this should be dropped
+			"pod":         "", // this should remove the pod label from query result
 		},
 	}, [][]datasource.Metric{{
-		metricWithValueAndLabels(t, 2, "__name__", "foo", "job", "foo"),
-		metricWithValueAndLabels(t, 1, "__name__", "bar", "job", "bar", "source", "origin"),
+		metricWithValueAndLabels(t, 2, "__name__", "foo", "job", "foo", "pod", "vmalert-0"),
+		metricWithValueAndLabels(t, 1, "__name__", "bar", "job", "bar", "source", "origin", "pod", "vmalert-1"),
 		metricWithValueAndLabels(t, 1, "__name__", "baz", "job", "baz", "source", "test"),
 	}}, [][]prompb.TimeSeries{{
 		newTimeSeries([]float64{2}, []int64{ts.UnixNano()}, []prompb.Label{
@@ -455,12 +457,10 @@ func TestSetIntervalAsTimeFilter(t *testing.T) {
 	f(`* | count()`, "vlogs", true)
 	f(`error OR _time:5m  | count()`, "vlogs", true)
 	f(`(_time: 5m AND error) OR (_time: 5m AND warn) | count()`, "vlogs", true)
-	f(`* | error OR _time:5m | count()`, "vlogs", true)
 
 	f(`_time:5m | count()`, "vlogs", false)
 	f(`_time:2023-04-25T22:45:59Z | count()`, "vlogs", false)
 	f(`error AND _time:5m | count()`, "vlogs", false)
-	f(`* | error AND _time:5m | count()`, "vlogs", false)
 }
 
 func TestRecordingRuleExec_Partial(t *testing.T) {

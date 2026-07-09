@@ -157,7 +157,7 @@ func (c *Client) Read(ctx context.Context, filter *Filter, streamCb StreamCallba
 		if errors.Is(err, context.Canceled) {
 			return fmt.Errorf("fetch request has ben cancelled")
 		}
-		return fmt.Errorf("error while fetching data from remote storage: %s", err)
+		return fmt.Errorf("error while fetching data from remote storage: %w", err)
 	}
 	return nil
 }

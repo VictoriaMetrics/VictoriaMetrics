@@ -12,7 +12,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/metrics"
-	"github.com/valyala/histogram"
 )
 
 // Deduplicator deduplicates samples per each time series.
@@ -29,9 +28,8 @@ type Deduplicator struct {
 	stopCh chan struct{}
 
 	ms *metrics.Set
-	// time to wait after interval end before flush
-	flushAfter   *histogram.Fast
-	muFlushAfter sync.Mutex
+	// flushAfterMsec is the max sample lag (in milliseconds) observed in the current flush interval.
+	flushAfterMsec atomic.Int64
 }
 
 // NewDeduplicator returns new deduplicator, which deduplicates samples per each time series.
@@ -46,7 +44,6 @@ type Deduplicator struct {
 // MustStop must be called on the returned deduplicator in order to free up occupied resources.
 func NewDeduplicator(pushFunc PushFunc, enableWindows bool, interval time.Duration, dropLabels []string, alias string) *Deduplicator {
 	d := &Deduplicator{
-		da:            newDedupAggr(),
 		dropLabels:    dropLabels,
 		interval:      interval,
 		enableWindows: enableWindows,
@@ -59,7 +56,6 @@ func NewDeduplicator(pushFunc PushFunc, enableWindows bool, interval time.Durati
 	}
 	d.cs.Store(cs)
 	if enableWindows {
-		d.flushAfter = histogram.GetFast()
 		d.minDeadline.Store(startTime.UnixMilli())
 	}
 	d.cs.Store(cs)
@@ -67,16 +63,7 @@ func NewDeduplicator(pushFunc PushFunc, enableWindows bool, interval time.Durati
 	ms := d.ms
 
 	metricLabels := fmt.Sprintf(`name="dedup",url=%q`, alias)
-
-	_ = ms.NewGauge(fmt.Sprintf(`vm_streamaggr_dedup_state_size_bytes{%s}`, metricLabels), func() float64 {
-		return float64(d.da.sizeBytes())
-	})
-	_ = ms.NewGauge(fmt.Sprintf(`vm_streamaggr_dedup_state_items_count{%s}`, metricLabels), func() float64 {
-		return float64(d.da.itemsCount())
-	})
-
-	d.da.flushDuration = ms.NewHistogram(fmt.Sprintf(`vm_streamaggr_dedup_flush_duration_seconds{%s}`, metricLabels))
-	d.da.flushTimeouts = ms.NewCounter(fmt.Sprintf(`vm_streamaggr_dedup_flush_timeouts_total{%s}`, metricLabels))
+	d.da = newDedupAggr(ms, metricLabels)
 
 	metrics.RegisterSet(ms)
 
@@ -123,6 +110,7 @@ func (d *Deduplicator) Push(tss []prompb.TimeSeries) {
 		key := bytesutil.ToUnsafeString(buf[bufLen:])
 		for _, s := range ts.Samples {
 			if d.enableWindows && minDeadline > s.Timestamp {
+				d.da.droppedSamples.Inc()
 				continue
 			} else if d.enableWindows && s.Timestamp <= cs.maxDeadline == cs.isGreen {
 				ctx.green = append(ctx.green, pushSample{
@@ -145,9 +133,15 @@ func (d *Deduplicator) Push(tss []prompb.TimeSeries) {
 	}
 
 	if d.enableWindows && maxLagMsec > 0 {
-		d.muFlushAfter.Lock()
-		d.flushAfter.Update(float64(maxLagMsec))
-		d.muFlushAfter.Unlock()
+		for {
+			old := d.flushAfterMsec.Load()
+			if maxLagMsec <= old {
+				break
+			}
+			if d.flushAfterMsec.CompareAndSwap(old, maxLagMsec) {
+				break
+			}
+		}
 	}
 
 	if len(ctx.blue) > 0 {
@@ -172,7 +166,6 @@ func dropSeriesLabels(dst, src []prompb.Label, labelNames []string) []prompb.Lab
 
 func (d *Deduplicator) runFlusher(pushFunc PushFunc) {
 	t := time.NewTicker(d.interval)
-	var fa *histogram.Fast
 	defer t.Stop()
 	for {
 		select {
@@ -180,12 +173,7 @@ func (d *Deduplicator) runFlusher(pushFunc PushFunc) {
 			return
 		case <-t.C:
 			if d.enableWindows {
-				// Calculate delay and wait
-				d.muFlushAfter.Lock()
-				fa, d.flushAfter = d.flushAfter, histogram.GetFast()
-				d.muFlushAfter.Unlock()
-				delay := time.Duration(fa.Quantile(flushQuantile)) * time.Millisecond
-				histogram.PutFast(fa)
+				delay := time.Duration(d.flushAfterMsec.Swap(0)) * time.Millisecond
 				time.Sleep(delay)
 			}
 			d.flush(pushFunc)
@@ -234,6 +222,7 @@ func (d *Deduplicator) flush(pushFunc PushFunc) {
 		logger.Warnf("deduplication couldn't be finished in the configured dedupInterval=%s; it took %.03fs; "+
 			"possible solutions: increase dedupInterval; reduce samples' ingestion rate", d.interval, duration.Seconds())
 	}
+	deadlineTime = deadlineTime.Add(d.interval)
 	for time.Now().After(deadlineTime) {
 		deadlineTime = deadlineTime.Add(d.interval)
 	}

@@ -25,7 +25,7 @@ func (ps *pipeSetStreamFields) String() string {
 	if ps.iff != nil {
 		s += " " + ps.iff.String()
 	}
-	s += " " + fieldNamesString(ps.streamFieldFilters)
+	s += " " + fieldFiltersString(ps.streamFieldFilters)
 	return s
 }
 
@@ -62,8 +62,8 @@ func (ps *pipeSetStreamFields) hasFilterInWithQuery() bool {
 	return ps.iff.hasFilterInWithQuery()
 }
 
-func (ps *pipeSetStreamFields) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc, keepSubquery bool) (pipe, error) {
-	iffNew, err := ps.iff.initFilterInValues(cache, getFieldValuesFunc, keepSubquery)
+func (ps *pipeSetStreamFields) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+	iffNew, err := ps.iff.initFilterInValues(cache, getFieldValuesFunc)
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +186,7 @@ func parsePipeSetStreamFields(lex *lexer) (pipe, error) {
 	}
 
 	// Parse stream fields
-	streamFieldFilters, err := parseCommaSeparatedFields(lex)
+	streamFieldFilters, err := parseCommaSeparatedFieldFilters(lex)
 	if err != nil {
 		return nil, err
 	}

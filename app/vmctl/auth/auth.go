@@ -131,16 +131,13 @@ func (ac *authContext) initFromBasicAuthConfig(ba *BasicAuthConfig) error {
 	if ba.Username == "" {
 		return fmt.Errorf("missing `username` in `basic_auth` section")
 	}
-	if ba.Password != "" {
-		ac.getAuthHeader = func() string {
-			// See https://en.wikipedia.org/wiki/Basic_access_authentication
-			token := ba.Username + ":" + ba.Password
-			token64 := base64.StdEncoding.EncodeToString([]byte(token))
-			return "Basic " + token64
-		}
-		ac.authDigest = fmt.Sprintf("basic(username=%q, password=%q)", ba.Username, ba.Password)
-		return nil
+	ac.getAuthHeader = func() string {
+		// See https://en.wikipedia.org/wiki/Basic_access_authentication
+		token := ba.Username + ":" + ba.Password
+		token64 := base64.StdEncoding.EncodeToString([]byte(token))
+		return "Basic " + token64
 	}
+	ac.authDigest = fmt.Sprintf("basic(username=%q, password=%q)", ba.Username, ba.Password)
 	return nil
 }
 

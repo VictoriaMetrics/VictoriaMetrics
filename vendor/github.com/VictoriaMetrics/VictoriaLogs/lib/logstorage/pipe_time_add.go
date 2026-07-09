@@ -51,7 +51,7 @@ func (pa *pipeTimeAdd) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pa *pipeTimeAdd) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
+func (pa *pipeTimeAdd) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pa, nil
 }
 

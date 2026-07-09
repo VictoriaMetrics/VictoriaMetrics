@@ -8,18 +8,15 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
-
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
 )
 
 // filterAnyCasePrefix matches the given prefix in lower, upper and mixed case.
 //
-// Example LogsQL: `fieldName:i(prefix*)` or `fieldName:i("some prefix"*)`
+// Example LogsQL: `i(prefix*)` or `i("some prefix"*)`
 //
-// A special case `fieldName:i(*)` equals to `fieldName:*` and matches non-empty value for the given `fieldName` field.
+// A special case `i(*)` equals to `*` and matches non-empty value.
 type filterAnyCasePrefix struct {
-	fieldName string
-	prefix    string
+	prefix string
 
 	prefixLowercaseOnce sync.Once
 	prefixLowercase     string
@@ -32,15 +29,18 @@ type filterAnyCasePrefix struct {
 	tokensUppercaseHashes []uint64
 }
 
-func (fp *filterAnyCasePrefix) String() string {
-	if fp.prefix == "" {
-		return quoteFieldNameIfNeeded(fp.fieldName) + "i(*)"
+func newFilterAnyCasePrefix(fieldName, prefix string) *filterGeneric {
+	fp := &filterAnyCasePrefix{
+		prefix: prefix,
 	}
-	return fmt.Sprintf("%si(%s*)", quoteFieldNameIfNeeded(fp.fieldName), quoteTokenIfNeeded(fp.prefix))
+	return newFilterGeneric(fieldName, fp)
 }
 
-func (fp *filterAnyCasePrefix) updateNeededFields(pf *prefixfilter.Filter) {
-	pf.AddAllowFilter(fp.fieldName)
+func (fp *filterAnyCasePrefix) String() string {
+	if fp.prefix == "" {
+		return "i(*)"
+	}
+	return fmt.Sprintf("i(%s*)", quoteTokenIfNeeded(fp.prefix))
 }
 
 func (fp *filterAnyCasePrefix) getTokensHashes() []uint64 {
@@ -82,19 +82,18 @@ func (fp *filterAnyCasePrefix) initPrefixUppercase() {
 	fp.prefixUppercase = strings.ToUpper(fp.prefix)
 }
 
-func (fp *filterAnyCasePrefix) matchRow(fields []Field) bool {
-	v := getFieldValueByName(fields, fp.fieldName)
+func (fp *filterAnyCasePrefix) matchRowByField(fields []Field, fieldName string) bool {
+	v := getFieldValueByName(fields, fieldName)
 	prefixLowercase := fp.getPrefixLowercase()
 	return matchAnyCasePrefix(v, prefixLowercase)
 }
 
-func (fp *filterAnyCasePrefix) applyToBlockResult(br *blockResult, bm *bitmap) {
+func (fp *filterAnyCasePrefix) applyToBlockResultByField(br *blockResult, bm *bitmap, fieldName string) {
 	prefixLowercase := fp.getPrefixLowercase()
-	applyToBlockResultGeneric(br, bm, fp.fieldName, prefixLowercase, matchAnyCasePrefix)
+	applyToBlockResultGeneric(br, bm, fieldName, prefixLowercase, matchAnyCasePrefix)
 }
 
-func (fp *filterAnyCasePrefix) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
-	fieldName := fp.fieldName
+func (fp *filterAnyCasePrefix) applyToBlockSearchByField(bs *blockSearch, bm *bitmap, fieldName string) {
 	prefixLowercase := fp.getPrefixLowercase()
 
 	// Verify whether fp matches const column

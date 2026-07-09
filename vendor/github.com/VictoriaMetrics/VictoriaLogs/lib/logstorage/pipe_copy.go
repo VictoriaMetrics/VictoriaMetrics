@@ -68,7 +68,7 @@ func (pc *pipeCopy) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pc *pipeCopy) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
+func (pc *pipeCopy) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pc, nil
 }
 
@@ -126,7 +126,7 @@ func parsePipeCopy(lex *lexer) (pipe, error) {
 		dstFieldFilters = append(dstFieldFilters, dstFieldFilter)
 
 		switch {
-		case lex.isKeyword("|", ")", ""):
+		case lex.isQueryPartTrailer():
 			pc := &pipeCopy{
 				srcFieldFilters: srcFieldFilters,
 				dstFieldFilters: dstFieldFilters,
@@ -134,7 +134,7 @@ func parsePipeCopy(lex *lexer) (pipe, error) {
 			return pc, nil
 		case lex.isKeyword(","):
 		default:
-			return nil, fmt.Errorf("unexpected token: %q; expecting ',', '|' or ')'", lex.token)
+			return nil, fmt.Errorf("unexpected token: %q; expecting ',', '|', ';' or ')'", lex.token)
 		}
 	}
 }

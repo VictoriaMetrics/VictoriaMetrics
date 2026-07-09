@@ -206,7 +206,7 @@ func (br *blockResult) addValues(values []string) {
 	}
 }
 
-func (br *blockResult) addValue(v string) {
+func (br *blockResult) addValue(v string) string {
 	valuesBuf := br.valuesBuf
 	if len(valuesBuf) > 0 && v == valuesBuf[len(valuesBuf)-1] {
 		v = valuesBuf[len(valuesBuf)-1]
@@ -214,6 +214,7 @@ func (br *blockResult) addValue(v string) {
 		v = br.a.copyString(v)
 	}
 	br.valuesBuf = append(br.valuesBuf, v)
+	return v
 }
 
 // sizeBytes returns the size of br in bytes.
@@ -229,7 +230,7 @@ func (br *blockResult) sizeBytes() int {
 	return n
 }
 
-func (br *blockResult) initFromDataBlock(db *DataBlock) {
+func (br *blockResult) mustInitFromDataBlock(db *DataBlock) {
 	br.reset()
 
 	br.rowsLen = db.RowsCount()
@@ -251,6 +252,75 @@ func (br *blockResult) initFromDataBlock(db *DataBlock) {
 			values: c.Values,
 		})
 	}
+}
+
+func (br *blockResult) mustInitFromRows(rows [][]Field) {
+	br.reset()
+
+	br.rowsLen = len(rows)
+
+	if len(rows) == 0 {
+		// Nothing to do.
+		return
+	}
+
+	if areSameFieldsInRows(rows) {
+		// Fast path - all the rows have the same fields
+		fields := rows[0]
+		for i := range fields {
+			name := br.addValue(fields[i].Name)
+
+			valuesBufLen := len(br.valuesBuf)
+			for _, row := range rows {
+				br.addValue(row[i].Value)
+			}
+			values := br.valuesBuf[valuesBufLen:]
+
+			br.addResultColumn(resultColumn{
+				name:   name,
+				values: values,
+			})
+		}
+		return
+	}
+
+	// Slow path - rows have different fields.
+	// Create common columns across all the fields seen in the rows.
+	columnIdxs := getColumnIdxs()
+	for _, fields := range rows {
+		for j := range fields {
+			name := br.addValue(fields[j].Name)
+			if _, ok := columnIdxs[name]; !ok {
+				columnIdxs[name] = len(columnIdxs)
+			}
+		}
+	}
+
+	// Initialize columns
+	csBufLen := len(br.csBuf)
+	br.csBuf = slicesutil.SetLength(br.csBuf, csBufLen+len(columnIdxs))
+	cs := br.csBuf[csBufLen:]
+
+	for name, idx := range columnIdxs {
+		valuesBufLen := len(br.valuesBuf)
+		br.valuesBuf = slicesutil.SetLength(br.valuesBuf, valuesBufLen+len(rows))
+		values := br.valuesBuf[valuesBufLen:]
+
+		c := &cs[idx]
+		c.name = name
+		c.valueType = valueTypeString
+		c.valuesEncoded = values
+	}
+
+	// Add values to columns
+	for i := range rows {
+		for _, f := range rows[i] {
+			idx := columnIdxs[f.Name]
+			value := br.addValue(f.Value)
+			cs[idx].valuesEncoded[i] = value
+		}
+	}
+	putColumnIdxs(columnIdxs)
 }
 
 // setResultColumns sets the given rcs as br columns.
@@ -374,13 +444,14 @@ func (br *blockResult) initColumnsByFilter(pf *prefixfilter.Filter) {
 	}
 
 	// Add other const columns
-	csh := br.bs.getColumnsHeader()
+	bs := br.bs
+	csh := bs.getColumnsHeader()
 	for _, cc := range csh.constColumns {
-		if cc.Name == "" {
-			// We already added _msg column above
+		if isSpecialColumn(cc.Name) {
+			// Special columns have been added above.
 			continue
 		}
-		if pf.MatchString(cc.Name) {
+		if pf.MatchString(cc.Name) && !bs.isHiddenField(cc.Name) {
 			br.addConstColumn(cc.Name, cc.Value)
 		}
 	}
@@ -389,15 +460,28 @@ func (br *blockResult) initColumnsByFilter(pf *prefixfilter.Filter) {
 	chs := csh.columnHeaders
 	for i := range chs {
 		ch := &chs[i]
-		if ch.name == "" {
-			// We already added _msg column above
+		if isSpecialColumn(ch.name) {
+			// Special columns have been added above.
 			continue
 		}
-		if pf.MatchString(ch.name) {
+		if pf.MatchString(ch.name) && !bs.isHiddenField(ch.name) {
 			br.addColumn(ch)
 		}
 	}
 }
+
+func isSpecialColumn(c string) bool {
+	if len(c) == 0 {
+		// This is a _msg column.
+		return true
+	}
+	if c[0] != '_' {
+		return false
+	}
+	return c == "_time" || c == "_stream" || c == "_stream_id"
+}
+
+var specialColumns = []string{"_msg", "_time", "_stream", "_stream_id"}
 
 // mustInit initializes br with the given bs and bm.
 //
@@ -423,6 +507,8 @@ func (br *blockResult) getMinTimestamp(minTimestamp int64) int64 {
 	if br.bs != nil {
 		th := &br.bs.bsw.bh.timestampsHeader
 		if br.isFull() {
+			// Fast path - all the rows in the br are present, so return the minTimestamp
+			// from blockHeader without the need to read the actual timestamps.
 			return min(minTimestamp, th.minTimestamp)
 		}
 		if minTimestamp <= th.minTimestamp {
@@ -430,8 +516,18 @@ func (br *blockResult) getMinTimestamp(minTimestamp int64) int64 {
 		}
 	}
 
-	// Slow path - need to scan timestamps
 	timestamps := br.getTimestamps()
+	c := br.getColumnByName("_time")
+	if c.isTime {
+		// Slower path - some of the rows in the br are filtered out,
+		// so try obtaining the _time column and return the first timestamp from there.
+		if len(timestamps) > 0 {
+			return min(minTimestamp, timestamps[0])
+		}
+		return minTimestamp
+	}
+
+	// Slow path - need to scan timestamps, since they may be not sorted.
 	for _, timestamp := range timestamps {
 		if timestamp < minTimestamp {
 			minTimestamp = timestamp
@@ -444,6 +540,8 @@ func (br *blockResult) getMaxTimestamp(maxTimestamp int64) int64 {
 	if br.bs != nil {
 		th := &br.bs.bsw.bh.timestampsHeader
 		if br.isFull() {
+			// Fast path - all the rows in the br are present, so return the maxTimestamp
+			// from blockHeader without the need to read the actual timestamps.
 			return max(maxTimestamp, th.maxTimestamp)
 		}
 		if maxTimestamp >= th.maxTimestamp {
@@ -451,8 +549,18 @@ func (br *blockResult) getMaxTimestamp(maxTimestamp int64) int64 {
 		}
 	}
 
-	// Slow path - need to scan timestamps
 	timestamps := br.getTimestamps()
+	c := br.getColumnByName("_time")
+	if c.isTime {
+		// Slower path - some of the rows in the br are filtered out,
+		// so try obtaining the _time column and return the last timestamp from there.
+		if len(timestamps) > 0 {
+			return max(maxTimestamp, timestamps[len(timestamps)-1])
+		}
+		return maxTimestamp
+	}
+
+	// Slow path - need to scan timestamps, since they may be not sorted.
 	for i := len(timestamps) - 1; i >= 0; i-- {
 		if timestamps[i] > maxTimestamp {
 			maxTimestamp = timestamps[i]

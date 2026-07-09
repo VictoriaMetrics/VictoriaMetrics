@@ -118,9 +118,10 @@ type AccessLogFilters struct {
 }
 
 func (ui *UserInfo) logRequest(r *http.Request, userName string, statusCode int, duration time.Duration) {
-	if ui.AccessLog == nil {
+	if ui == nil || ui.AccessLog == nil {
 		return
 	}
+
 	filters := ui.AccessLog.Filters
 	if filters != nil && len(filters.SkipStatusCodes) > 0 {
 		if slices.Contains(filters.SkipStatusCodes, statusCode) {
@@ -132,6 +133,17 @@ func (ui *UserInfo) logRequest(r *http.Request, userName string, statusCode int,
 	requestURI := httpserver.GetRequestURI(r)
 	logger.Infof("access_log request_host=%q request_uri=%q status_code=%d remote_addr=%s user_agent=%q referer=%q duration_ms=%d username=%q",
 		r.Host, requestURI, statusCode, remoteAddr, r.UserAgent(), r.Referer(), duration.Milliseconds(), userName)
+}
+
+// hasAnyURLs reports whether ui has at least one backend URL route configured.
+// It is used only for unauthorized_user config section, since other users
+// must always have either URLPrefix or URLMaps set.
+func (ui *UserInfo) hasAnyURLs() bool {
+	if ui == nil {
+		return false
+	}
+
+	return ui.URLPrefix != nil || len(ui.URLMaps) > 0 || ui.DefaultURL != nil
 }
 
 // HeadersConf represents config for request and response headers.
@@ -362,40 +374,62 @@ func (up *URLPrefix) setLoadBalancingPolicy(loadBalancingPolicy string) error {
 }
 
 type backendURLs struct {
-	healthChecksContext context.Context
-	healthChecksCancel  func()
-	healthChecksWG      sync.WaitGroup
-
+	bhc backendHealthCheck
 	bus []*backendURL
+}
+
+type backendHealthCheck struct {
+	ctx context.Context
+	// mu protects fields below
+	cancel    func()
+	mu        sync.Mutex
+	isStopped bool
+	wg        sync.WaitGroup
+}
+
+func (bhc *backendHealthCheck) run(hc func()) {
+	bhc.mu.Lock()
+	defer bhc.mu.Unlock()
+	if bhc.isStopped {
+		return
+	}
+	bhc.wg.Go(hc)
+}
+
+func (bhc *backendHealthCheck) stop() {
+	bhc.mu.Lock()
+	bhc.cancel()
+	bhc.isStopped = true
+	bhc.mu.Unlock()
+	bhc.wg.Wait()
 }
 
 func newBackendURLs() *backendURLs {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &backendURLs{
-		healthChecksContext: ctx,
-		healthChecksCancel:  cancel,
+		bhc: backendHealthCheck{
+			ctx:    ctx,
+			cancel: cancel,
+		},
 	}
 }
 
 func (bus *backendURLs) add(u *url.URL) {
 	bus.bus = append(bus.bus, &backendURL{
-		url:                u,
-		healthCheckContext: bus.healthChecksContext,
-		healthCheckWG:      &bus.healthChecksWG,
-		hasPlaceHolders:    hasAnyPlaceholders(u),
+		url:             u,
+		bhc:             &bus.bhc,
+		hasPlaceHolders: hasAnyPlaceholders(u),
 	})
 }
 
 func (bus *backendURLs) stopHealthChecks() {
-	bus.healthChecksCancel()
-	bus.healthChecksWG.Wait()
+	bus.bhc.stop()
 }
 
 type backendURL struct {
 	broken atomic.Bool
 
-	healthCheckContext context.Context
-	healthCheckWG      *sync.WaitGroup
+	bhc *backendHealthCheck
 
 	concurrentRequests atomic.Int32
 
@@ -410,7 +444,7 @@ func (bu *backendURL) isBroken() bool {
 
 func (bu *backendURL) setBroken() {
 	if bu.broken.CompareAndSwap(false, true) {
-		bu.healthCheckWG.Go(func() {
+		bu.bhc.run(func() {
 			bu.runHealthCheck()
 			bu.broken.Store(false)
 		})
@@ -432,11 +466,11 @@ func (bu *backendURL) runHealthCheck() {
 		case <-t.C:
 			// Verify network connectivity via TCP dial before marking backend healthy.
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9997
-			ctx, cancel := context.WithTimeout(bu.healthCheckContext, time.Second)
+			ctx, cancel := context.WithTimeout(bu.bhc.ctx, time.Second)
 			c, err := netutil.Dialer.DialContext(ctx, "tcp", addr)
 			cancel()
 			if err != nil {
-				if errors.Is(bu.healthCheckContext.Err(), context.Canceled) {
+				if errors.Is(bu.bhc.ctx.Err(), context.Canceled) {
 					return
 				}
 				logger.Warnf("ignoring the backend at %s for %s because of dial error: %s", addr, *failTimeout, err)
@@ -445,7 +479,7 @@ func (bu *backendURL) runHealthCheck() {
 
 			_ = c.Close()
 			return
-		case <-bu.healthCheckContext.Done():
+		case <-bu.bhc.ctx.Done():
 			return
 		}
 	}
@@ -588,6 +622,7 @@ func areEqualBackendURLs(a, b []*backendURL) bool {
 }
 
 // getFirstAvailableBackendURL returns the first available backendURL, which isn't broken.
+// If all backendURLs are broken, then returns the first backendURL.
 //
 // backendURL.put() must be called on the returned backendURL after the request is complete.
 func getFirstAvailableBackendURL(bus []*backendURL) *backendURL {
@@ -606,21 +641,22 @@ func getFirstAvailableBackendURL(bus []*backendURL) *backendURL {
 			return bu
 		}
 	}
-	return nil
+
+	// All backend urls are unavailable, then returning a first one, it could help increase the success rate of the requests。
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10837#issuecomment-4307050980.
+	bu.get()
+	return bu
 }
 
 // getLeastLoadedBackendURL returns a non-broken backendURL with the lowest number of concurrent requests.
+// If all backendURLs are broken, then returns the first backendURL.
 //
 // backendURL.put() must be called on the returned backendURL after the request is complete.
 func getLeastLoadedBackendURL(bus []*backendURL, atomicCounter *atomic.Uint32) *backendURL {
+	firstBu := bus[0]
 	if len(bus) == 1 {
-		// Fast path - return the only backend url.
-		bu := bus[0]
-		if bu.isBroken() {
-			return nil
-		}
-		bu.get()
-		return bu
+		firstBu.get()
+		return firstBu
 	}
 
 	// Slow path - select other backend urls.
@@ -658,7 +694,10 @@ func getLeastLoadedBackendURL(bus []*backendURL, atomicCounter *atomic.Uint32) *
 	}
 	buMin := bus[buMinIdx]
 	if buMin.isBroken() {
-		return nil
+		// If all backendURLs are broken, then returns the first backendURL.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10837#issuecomment-4307050980.
+		firstBu.get()
+		return firstBu
 	}
 	buMin.get()
 	atomicCounter.CompareAndSwap(n+1, buMinIdx+1)
@@ -816,6 +855,11 @@ func authConfigReloader(sighupCh <-chan os.Signal) {
 		select {
 		case <-stopCh:
 			return
+		default:
+		}
+		select {
+		case <-stopCh:
+			return
 		case <-refreshCh:
 			updateFn()
 		case <-sighupCh:
@@ -862,7 +906,8 @@ func reloadAuthConfig() (bool, error) {
 	}
 
 	mp := authUsers.Load()
-	logger.Infof("loaded information about %d users from -auth.config=%q", len(*mp), *authConfigPath)
+	jwtc := jwtAuthCache.Load()
+	logger.Infof("loaded information about %d users from -auth.config=%q", len(*mp)+len(jwtc.users), *authConfigPath)
 	return true, nil
 }
 
@@ -878,7 +923,8 @@ func reloadAuthConfigData(data []byte) (bool, error) {
 		return false, fmt.Errorf("failed to parse auth config: %w", err)
 	}
 
-	jui, oidcDP, err := parseJWTUsers(ac)
+	oidcDP := &oidcDiscovererPool{}
+	jui, err := parseJWTUsers(ac, oidcDP)
 	if err != nil {
 		return false, fmt.Errorf("failed to parse JWT users from auth config: %w", err)
 	}
@@ -949,8 +995,11 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 		if err := parseJWTPlaceholdersForUserInfo(ui, false); err != nil {
 			return nil, err
 		}
-		if err := ui.initURLs(); err != nil {
-			return nil, err
+
+		if ui.hasAnyURLs() {
+			if err := ui.initURLs(); err != nil {
+				return nil, err
+			}
 		}
 
 		metricLabels, err := ui.getMetricLabels()

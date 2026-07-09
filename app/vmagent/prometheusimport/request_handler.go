@@ -75,11 +75,6 @@ func insertRows(at *auth.Token, rows []prometheus.Row, mms []prometheus.Metadata
 			Samples: samples[len(samples)-1:],
 		})
 	}
-	var accountID, projectID uint32
-	if at != nil {
-		accountID = at.AccountID
-		projectID = at.ProjectID
-	}
 	for i := range mms {
 		mm := &mms[i]
 		mmsDst = append(mmsDst, prompb.MetricMetadata{
@@ -88,8 +83,6 @@ func insertRows(at *auth.Token, rows []prometheus.Row, mms []prometheus.Metadata
 			Type:             mm.Type,
 			// there is no unit in Prometheus exposition formats
 
-			AccountID: accountID,
-			ProjectID: projectID,
 		})
 	}
 	ctx.WriteRequest.Timeseries = tssDst

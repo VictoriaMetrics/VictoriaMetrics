@@ -4,36 +4,38 @@ import (
 	"math"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
 )
 
 // filterRange matches the given range [minValue..maxValue].
 //
-// Example LogsQL: `fieldName:range(minValue, maxValue]`
+// Example LogsQL: `range(minValue, maxValue]`
 type filterRange struct {
-	fieldName string
-
 	minValue float64
 	maxValue float64
 
 	stringRepr string
 }
 
+func newFilterRange(fieldName string, minValue, maxValue float64, stringRepr string) *filterGeneric {
+	fr := &filterRange{
+		minValue: minValue,
+		maxValue: maxValue,
+
+		stringRepr: stringRepr,
+	}
+	return newFilterGeneric(fieldName, fr)
+}
+
 func (fr *filterRange) String() string {
-	return quoteFieldNameIfNeeded(fr.fieldName) + fr.stringRepr
+	return fr.stringRepr
 }
 
-func (fr *filterRange) updateNeededFields(pf *prefixfilter.Filter) {
-	pf.AddAllowFilter(fr.fieldName)
-}
-
-func (fr *filterRange) matchRow(fields []Field) bool {
-	v := getFieldValueByName(fields, fr.fieldName)
+func (fr *filterRange) matchRowByField(fields []Field, fieldName string) bool {
+	v := getFieldValueByName(fields, fieldName)
 	return matchRange(v, fr.minValue, fr.maxValue)
 }
 
-func (fr *filterRange) applyToBlockResult(br *blockResult, bm *bitmap) {
+func (fr *filterRange) applyToBlockResultByField(br *blockResult, bm *bitmap, fieldName string) {
 	minValue := fr.minValue
 	maxValue := fr.maxValue
 
@@ -42,7 +44,7 @@ func (fr *filterRange) applyToBlockResult(br *blockResult, bm *bitmap) {
 		return
 	}
 
-	c := br.getColumnByName(fr.fieldName)
+	c := br.getColumnByName(fieldName)
 	if c.isConst {
 		v := c.valuesEncoded[0]
 		if !matchRange(v, minValue, maxValue) {
@@ -182,8 +184,7 @@ func (fr *filterRange) applyToBlockResult(br *blockResult, bm *bitmap) {
 	}
 }
 
-func (fr *filterRange) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
-	fieldName := fr.fieldName
+func (fr *filterRange) applyToBlockSearchByField(bs *blockSearch, bm *bitmap, fieldName string) {
 	minValue := fr.minValue
 	maxValue := fr.maxValue
 

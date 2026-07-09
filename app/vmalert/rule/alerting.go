@@ -312,9 +312,11 @@ type labelSet struct {
 // On k conflicts in origin set, the original value is preferred and copied
 // to processed with `exported_%k` key. The copy happens only if passed v isn't equal to origin[k] value.
 func (ls *labelSet) add(k, v string) {
-	// do not add label with empty value, since it has no meaning.
-	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9984
+	// do not add label with empty value to the result, as it has no meaning:
+	// if the label already exists in the original query result, remove it to preserve compatibility with relabeling, see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10766.
+	// otherwise, ignore the label, see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9984.
 	if v == "" {
+		delete(ls.processed, k)
 		return
 	}
 	ls.processed[k] = v
@@ -599,7 +601,7 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 func (ar *AlertingRule) expandLabelTemplates(m datasource.Metric, qFn templates.QueryFn) (*labelSet, error) {
 	ls, err := ar.toLabels(m, qFn)
 	if err != nil {
-		return ls, fmt.Errorf("failed to expand label templates: %s", err)
+		return ls, fmt.Errorf("failed to expand label templates: %w", err)
 	}
 	return ls, nil
 }
@@ -618,7 +620,7 @@ func (ar *AlertingRule) expandAnnotationTemplates(m datasource.Metric, qFn templ
 	}
 	as, err := notifier.ExecTemplate(qFn, ar.Annotations, tplData)
 	if err != nil {
-		return as, fmt.Errorf("failed to expand annotation templates: %s", err)
+		return as, fmt.Errorf("failed to expand annotation templates: %w", err)
 	}
 	return as, nil
 }

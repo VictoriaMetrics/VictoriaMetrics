@@ -402,6 +402,20 @@ func templateFuncs() textTpl.FuncMap {
 			return t, nil
 		},
 
+		// formatTime formats the given Unix timestamp with the provided layout.
+		// For example: {{ now | formatTime "2006-01-02T15:04:05Z07:00" }}
+		"formatTime": func(layout string, i any) (string, error) {
+			v, err := toFloat64(i)
+			if err != nil {
+				return "", fmt.Errorf("formatTime: %w", err)
+			}
+			if math.IsNaN(v) || math.IsInf(v, 0) {
+				return "", fmt.Errorf("formatTime: cannot convert %v to time", v)
+			}
+			t := timeFromUnixTimestamp(v).Time().UTC()
+			return t.Format(layout), nil
+		},
+
 		/* URLs */
 
 		// externalURL returns value of `external.url` flag

@@ -23,12 +23,22 @@ The following label sanitization options can be enabled:
   For example, `process.cpu.time{service.name="foo"}` is converted to `process_cpu_time_seconds_total{service_name="foo"}`.
 * `-opentelemetry.convertMetricNamesToPrometheus` - converts **only metric names** according to [OTLP Metric points to Prometheus specification](https://github.com/open-telemetry/opentelemetry-specification/blob/v1.33.0/specification/compatibility/prometheus_and_openmetrics.md#otlp-metric-points-to-prometheus) for metrics ingested via OTLP.
   For example, `process.cpu.time{service.name="foo"}` is converted to `process_cpu_time_seconds_total{service.name="foo"}`. See more about this use case [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9830).
+* `-opentelemetry.labelNameUnderscoreSanitization` - controls whether to enable prepending of `key` to labels starting with `_` when `-opentelemetry.usePrometheusNaming` is enabled. Reserved labels starting with `__` are not modified.
+  For example, `_mylabel` is converted to `key_mylabel`.
 
 > These flags can be applied on vmagent, vminsert or VictoriaMetrics single-node.
+
+## Instrumentation Scope
+
+By default, VictoriaMetrics promotes [OTel scope metadata](https://opentelemetry.io/docs/specs/otel/common/instrumentation-scope/) to metric labels. This behavior can be disabled via `-opentelemetry.promoteScopeMetadata`.
 
 ## Resource Attributes
 
 By default, VictoriaMetrics promotes all [OpenTelemetry resource](https://opentelemetry.io/docs/specs/otel/resource/data-model/) attributes to labels and attaches them to all ingested OTLP metrics.
+The following attribute promotion options can be configured:
+* `-opentelemetry.promoteAllResourceAttributes` - promotes all resource attributes to labels, except for the ones configured with `-opentelemetry.ignoreResourceAttributes`.
+* `-opentelemetry.promoteResourceAttributes` - promotes specific list of resource attributes to labels. It cannot be configured simultaneously with `-opentelemetry.promoteAllResourceAttributes`.
+* `-opentelemetry.ignoreResourceAttributes` - controls which resource attributes to ignore, can only be set when `-opentelemetry.promoteAllResourceAttributes` is true.
 
 ## Exponential histograms
 

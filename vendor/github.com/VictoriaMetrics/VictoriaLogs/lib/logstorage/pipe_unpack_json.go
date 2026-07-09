@@ -41,7 +41,7 @@ func (pu *pipeUnpackJSON) String() string {
 		s += " from " + quoteTokenIfNeeded(pu.fromField)
 	}
 	if !prefixfilter.MatchAll(pu.fieldFilters) {
-		s += " fields (" + fieldNamesString(pu.fieldFilters) + ")"
+		s += " fields (" + fieldFiltersString(pu.fieldFilters) + ")"
 	}
 	if len(pu.preserveKeys) > 0 {
 		s += " preserve_keys (" + fieldNamesString(pu.preserveKeys) + ")"
@@ -84,8 +84,8 @@ func (pu *pipeUnpackJSON) hasFilterInWithQuery() bool {
 	return pu.iff.hasFilterInWithQuery()
 }
 
-func (pu *pipeUnpackJSON) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc, keepSubquery bool) (pipe, error) {
-	iffNew, err := pu.iff.initFilterInValues(cache, getFieldValuesFunc, keepSubquery)
+func (pu *pipeUnpackJSON) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+	iffNew, err := pu.iff.initFilterInValues(cache, getFieldValuesFunc)
 	if err != nil {
 		return nil, err
 	}
@@ -100,12 +100,13 @@ func (pu *pipeUnpackJSON) visitSubqueries(visitFunc func(q *Query)) {
 
 func (pu *pipeUnpackJSON) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	unpackJSON := func(uctx *fieldsUnpackerContext, s string) {
+		s = trimJSONWhitespace(s)
 		if len(s) == 0 || s[0] != '{' {
 			// This isn't a JSON object
 			return
 		}
 		p := GetJSONParser()
-		err := p.parseLogMessage(bytesutil.ToUnsafeBytes(s), pu.preserveKeys, math.MaxInt)
+		err := p.parseLogMessage(bytesutil.ToUnsafeBytes(s), pu.preserveKeys, "", math.MaxInt)
 		if err != nil {
 			for _, filter := range pu.fieldFilters {
 				if !prefixfilter.IsWildcardFilter(filter) {
@@ -159,7 +160,7 @@ func parsePipeUnpackJSON(lex *lexer) (pipe, error) {
 	}
 
 	fromField := "_msg"
-	if !lex.isKeyword("fields", "preserve_keys", "result_prefix", "keep_original_fields", "skip_empty_results", ")", "|", "") {
+	if !lex.isKeyword("fields", "preserve_keys", "result_prefix", "keep_original_fields", "skip_empty_results") && !lex.isQueryPartTrailer() {
 		if lex.isKeyword("from") {
 			lex.nextToken()
 		}

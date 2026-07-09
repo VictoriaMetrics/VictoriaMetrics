@@ -16,6 +16,9 @@ var (
 		"via OpenTelemetry protocol; see https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/")
 	convertMetricNamesToPrometheus = flag.Bool("opentelemetry.convertMetricNamesToPrometheus", false, "Whether to convert only metric names into Prometheus-compatible format for the metrics ingested "+
 		"via OpenTelemetry protocol; see https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/")
+	labelNameUnderscoreSanitization = flag.Bool("opentelemetry.labelNameUnderscoreSanitization", true, "Whether to enable prepending of 'key' to labels starting with '_' "+
+		"when -opentelemetry.usePrometheusNaming is enabled. Reserved labels starting with '__' are not modified. "+
+		"See https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/")
 )
 
 // unitMap is obtained from https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/b8655058501bed61a06bb660869051491f46840b/pkg/translator/prometheus/normalize_name.go#L19
@@ -80,8 +83,6 @@ func (sctx *sanitizerContext) reset() {
 	sctx.labelBuf = sctx.labelBuf[:0]
 }
 
-// See https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/b8655058501bed61a06bb660869051491f46840b/pkg/translator/prometheus/normalize_label.go#L26
-//
 // The returned string is valid until the next call to sanitizeLabelName.
 func (sctx *sanitizerContext) sanitizeLabelName(labelName string) string {
 	if !*usePrometheusNaming {
@@ -90,6 +91,8 @@ func (sctx *sanitizerContext) sanitizeLabelName(labelName string) string {
 	return sctx.sanitizePrometheusLabelName(labelName)
 }
 
+// sanitizePrometheusLabelName performs conversion and normalization of OpenTelemetry attributes to Prometheus labels.
+// It follows the Prometheus guidelines: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/pkg/translator/prometheus#labels
 func (sctx *sanitizerContext) sanitizePrometheusLabelName(labelName string) string {
 	if len(labelName) == 0 {
 		return ""
@@ -97,7 +100,7 @@ func (sctx *sanitizerContext) sanitizePrometheusLabelName(labelName string) stri
 	labelName = promrelabel.SanitizeLabelName(labelName)
 	if labelName[0] >= '0' && labelName[0] <= '9' {
 		return sctx.concatLabel("key_", labelName)
-	} else if strings.HasPrefix(labelName, "_") && !strings.HasPrefix(labelName, "__") {
+	} else if *labelNameUnderscoreSanitization && strings.HasPrefix(labelName, "_") && !strings.HasPrefix(labelName, "__") {
 		return sctx.concatLabel("key", labelName)
 	}
 	return labelName

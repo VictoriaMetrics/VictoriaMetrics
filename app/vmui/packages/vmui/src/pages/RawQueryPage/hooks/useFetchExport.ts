@@ -149,15 +149,21 @@ export const useFetchExport = ({ hideQuery, showAllSeries }: FetchQueryParams): 
             const pointsToTake = shouldDownsample ? maxPointsPerSeries : totalPoints;
             const step = shouldDownsample ? totalPoints / maxPointsPerSeries : 1;
 
-            const values: [number, number][] = Array.from({ length: pointsToTake }, (_, i) => {
+            const values: [number, number][] = new Array(pointsToTake);
+            const nullTimestamps: number[] = [];
+            for (let i = 0; i < pointsToTake; i++) {
               const idx = shouldDownsample ? Math.floor(i * step) : i;
-              return [rawTimestamps[idx] / 1000, rawValues[idx]];
-            });
+              const ts = rawTimestamps[idx] / 1000;
+              const raw = rawValues[idx];
+              if (raw === null) nullTimestamps.push(ts);
+              values[i] = [ts, raw as number];
+            }
 
             tempData.push({
               group: counter,
               metric: jsonLine.metric,
               values,
+              nullTimestamps,
             } as MetricBase);
           }
 

@@ -20,6 +20,7 @@ COMMANDS:
    influx        Migrate time series from InfluxDB
    remote-read   Migrate time series via Prometheus remote-read protocol
    prometheus    Migrate time series from Prometheus
+   mimir         Migrate time series from Mimir object storage or local filesystem
    thanos        Migrate time series from Thanos blocks (supports raw and downsampled data)
    vm-native     Migrate time series between VictoriaMetrics installations
    verify-block  Verifies exported block with VictoriaMetrics Native format

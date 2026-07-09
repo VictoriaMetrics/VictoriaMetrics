@@ -43,7 +43,7 @@ func (dt *DeleteTask) String() string {
 	return string(data)
 }
 
-func newDeleteTask(taskID string, tenantIDs []TenantID, filter string, startTime int64) *DeleteTask {
+func newDeleteTask(taskID string, startTime int64, tenantIDs []TenantID, filter string) *DeleteTask {
 	return &DeleteTask{
 		TaskID:    taskID,
 		TenantIDs: tenantIDs,

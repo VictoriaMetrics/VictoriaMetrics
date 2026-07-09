@@ -384,6 +384,9 @@ type AnywhereCache struct {
 	// Id: The ID of the resource, including the project number, bucket name and
 	// anywhere cache ID.
 	Id string `json:"id,omitempty"`
+	// IngestOnWrite: Specifies whether objects are ingested into the cache upon
+	// write.
+	IngestOnWrite bool `json:"ingestOnWrite,omitempty"`
 	// Kind: The kind of item this is. For Anywhere Cache, this is always
 	// storage#anywhereCache.
 	Kind string `json:"kind,omitempty"`
@@ -1192,6 +1195,12 @@ type BucketLifecycleRuleCondition struct {
 	// this condition is satisfied when there are at least N versions (including
 	// the live version) newer than this version of the object.
 	NumNewerVersions int64 `json:"numNewerVersions,omitempty"`
+	// SizeAboveBytes: Objects having a size greater than this value in bytes will
+	// be matched.
+	SizeAboveBytes int64 `json:"sizeAboveBytes,omitempty,string"`
+	// SizeBelowBytes: Objects having a size less than this value in bytes will be
+	// matched.
+	SizeBelowBytes int64 `json:"sizeBelowBytes,omitempty,string"`
 	// ForceSendFields is a list of field names (e.g. "Age") to unconditionally
 	// include in API requests. By default, fields with empty or default values are
 	// omitted from API requests. See
@@ -3726,8 +3735,7 @@ type AnywhereCachesUpdateCall struct {
 	header_         http.Header
 }
 
-// Update: Updates the config(ttl and admissionPolicy) of an Anywhere Cache
-// instance.
+// Update: Updates the config of an Anywhere Cache instance.
 //
 // - anywhereCacheId: The ID of requested Anywhere Cache instance.
 // - bucket: Name of the parent bucket.

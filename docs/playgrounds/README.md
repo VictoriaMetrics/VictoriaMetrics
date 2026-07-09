@@ -93,6 +93,20 @@ Try viewing available dashboards or just browse via Grafana's explore page to qu
 
 ![Screenshot of Grafana Dashboard](grafana-node-exporter.webp)
 
+## Grafana SSO Playground
+
+- Try it: <https://play-grafana-sso.victoriametrics.com/>
+
+This playground showcases vmauth integration with Keycloak as an SSO provider to enforce data visibility for different users.
+See this guide for details: [Setup vmauth - Multi-Tenant Access with Grafana & OIDC](https://docs.victoriametrics.com/guides/grafana-vmauth-openid-configuration/)
+
+Credentials for login:
+
+- `developer` / `developer`
+- `platform` / `platform`
+
+Both users have their access limited to show data which is necessary for their role, so you can see how vmauth and Keycloak work together to enforce multi-tenant access control.
+
 ## VMAnomaly Playground
 
 VMAnomaly analyzes metrics, logs, or traces using VictoriaMetrics' built-in anomaly detection model to generate an [anomaly score](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score). An `anomaly_score > 1` indicates an anomalous condition that deserves attention.
@@ -130,3 +144,18 @@ VictoriaMetrics UIs are also included in the [Explore](https://docs.victoriametr
 You can experiment with your own data during the month‑long trial without deploying VictoriaStack in your infrastructure. To get started, follow [this guide](https://docs.victoriametrics.com/victoriametrics-cloud/get-started/quickstart/).
 
 
+## Iximiuz Labs Playgrounds
+
+[Iximiuz Labs](https://labs.iximiuz.com/) is a learning-by-doing platform. Its [playgrounds](https://labs.iximiuz.com/docs/playgrounds/what-are-playgrounds) 
+are fast-booting Linux microVMs that run on a fleet of large bare-metal servers. You can start a playground right from your browser. 
+Once up and running, accessing a playground is no different from SSH-ing into a remote server rented from your favorite VPS or Cloud provider.
+
+Iximiuz Labs provides various [learning-by-doing resources for VictoriaMetrics](https://labs.iximiuz.com/v/victoriametrics):
+- Tutorial:
+  - [Getting Started with VictoriaMetrics on Kubernetes](https://labs.iximiuz.com/tutorials/victoriametrics-getting-started-kubernetes)
+- Playgrounds:
+  - [VictoriaMetrics single node](https://labs.iximiuz.com/playgrounds/victoriametrics)
+  - [VictoriaMetrics cluster](https://labs.iximiuz.com/playgrounds/victoriametrics-cluster)
+  - [VictoriaMetrics on Kubernetes](https://labs.iximiuz.com/playgrounds/victoriametrics-kubernetes)
+
+Iximiuz Labs requires a [free account](https://labs.iximiuz.com/signup) to access the materials.

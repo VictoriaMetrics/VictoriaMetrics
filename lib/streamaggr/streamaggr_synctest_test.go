@@ -17,11 +17,10 @@ func TestAggregatorsSuccess(t *testing.T) {
 	f := func(inputMetrics []string, interval time.Duration, outputMetricsExpected, config, matchIdxsStrExpected string) {
 		t.Helper()
 
+		var matchIdxs []uint32
+		var tssOutput []prompb.TimeSeries
 		synctest.Test(t, func(t *testing.T) {
-			var matchIdxs []uint32
-			var tssOutput []prompb.TimeSeries
 			var tssOutputLock sync.Mutex
-
 			// Initialize Aggregators
 			pushFunc := func(tss []prompb.TimeSeries) {
 				tssOutputLock.Lock()
@@ -32,31 +31,31 @@ func TestAggregatorsSuccess(t *testing.T) {
 			if err != nil {
 				t.Fatalf("cannot initialize aggregators: %s", err)
 			}
+			offsetMsecs := time.Now().UnixMilli()
 			for _, metrics := range inputMetrics {
 				// Push the inputMetrics to Aggregators
-				offsetMsecs := time.Now().UnixMilli()
 				tssInput := prometheus.MustParsePromMetrics(metrics, offsetMsecs)
 				matchIdxs = append(matchIdxs, a.Push(tssInput, nil)...)
-				time.Sleep(interval)
+				time.Sleep(interval + time.Millisecond) // shift by 1ms from flush border to avoid flaky tests
+				offsetMsecs += interval.Milliseconds()
 			}
-
 			a.MustStop()
-
-			// Verify matchIdxs equals to matchIdxsExpected
-			matchIdxsStr := ""
-			for _, v := range matchIdxs {
-				matchIdxsStr += strconv.Itoa(int(v))
-			}
-			if matchIdxsStr != matchIdxsStrExpected {
-				t.Fatalf("unexpected matchIdxs;\ngot\n%s\nwant\n%s", matchIdxsStr, matchIdxsStrExpected)
-			}
-
-			// Verify the tssOutput contains the expected metrics
-			outputMetrics := timeSeriessToString(tssOutput)
-			if outputMetrics != outputMetricsExpected {
-				t.Fatalf("unexpected output metrics;\ngot\n%s\nwant\n%s", outputMetrics, outputMetricsExpected)
-			}
 		})
+
+		// Verify matchIdxs equals to matchIdxsExpected
+		matchIdxsStr := ""
+		for _, v := range matchIdxs {
+			matchIdxsStr += strconv.Itoa(int(v))
+		}
+		if matchIdxsStr != matchIdxsStrExpected {
+			t.Fatalf("unexpected matchIdxs;\ngot\n%s\nwant\n%s", matchIdxsStr, matchIdxsStrExpected)
+		}
+
+		// Verify the tssOutput contains the expected metrics
+		outputMetrics := timeSeriessToString(tssOutput)
+		if outputMetrics != outputMetricsExpected {
+			t.Fatalf("unexpected output metrics;\ngot\n%s\nwant\n%s", outputMetrics, outputMetricsExpected)
+		}
 	}
 
 	// Empty config
@@ -478,28 +477,125 @@ foo:1m_increase_prometheus{baz="qwe"} 15
   outputs: [increase_prometheus]
 `, "11111111")
 
-	// multiple aggregate configs
+	// increase, increase_prometheus, total, total_prometheus outputs with different staleness intervals
+	f([]string{`
+foo 5
+bar 200
+`, `
+foo 10
+bar 201
+`, ``, `
+foo 7
+bar 205
+`}, time.Minute, `bar:1m_increase 200
+bar:1m_increase 1
+bar:1m_increase 205
+bar:1m_increase_prometheus 0
+bar:1m_increase_prometheus 1
+bar:1m_increase_prometheus 0
+bar:1m_total 200
+bar:1m_total 201
+bar:1m_total 205
+bar:1m_total_prometheus 0
+bar:1m_total_prometheus 1
+bar:1m_total_prometheus 0
+bar:1m_without_non_existing_label_increase 0
+bar:1m_without_non_existing_label_increase 1
+bar:1m_without_non_existing_label_increase 4
+bar:1m_without_non_existing_label_increase_prometheus 0
+bar:1m_without_non_existing_label_increase_prometheus 1
+bar:1m_without_non_existing_label_increase_prometheus 4
+bar:1m_without_non_existing_label_total 0
+bar:1m_without_non_existing_label_total 1
+bar:1m_without_non_existing_label_total 1
+bar:1m_without_non_existing_label_total 5
+bar:1m_without_non_existing_label_total_prometheus 0
+bar:1m_without_non_existing_label_total_prometheus 1
+bar:1m_without_non_existing_label_total_prometheus 1
+bar:1m_without_non_existing_label_total_prometheus 5
+foo:1m_increase 5
+foo:1m_increase 5
+foo:1m_increase 7
+foo:1m_increase_prometheus 0
+foo:1m_increase_prometheus 5
+foo:1m_increase_prometheus 0
+foo:1m_total 5
+foo:1m_total 10
+foo:1m_total 7
+foo:1m_total_prometheus 0
+foo:1m_total_prometheus 5
+foo:1m_total_prometheus 0
+foo:1m_without_non_existing_label_increase 0
+foo:1m_without_non_existing_label_increase 5
+foo:1m_without_non_existing_label_increase 7
+foo:1m_without_non_existing_label_increase_prometheus 0
+foo:1m_without_non_existing_label_increase_prometheus 5
+foo:1m_without_non_existing_label_increase_prometheus 7
+foo:1m_without_non_existing_label_total 0
+foo:1m_without_non_existing_label_total 5
+foo:1m_without_non_existing_label_total 5
+foo:1m_without_non_existing_label_total 12
+foo:1m_without_non_existing_label_total_prometheus 0
+foo:1m_without_non_existing_label_total_prometheus 5
+foo:1m_without_non_existing_label_total_prometheus 5
+foo:1m_without_non_existing_label_total_prometheus 12
+`, `
+- interval: 1m
+  ignore_first_sample_interval: 0s
+  outputs: [increase, increase_prometheus, total, total_prometheus]
+- interval: 1m
+  staleness_interval: 2m
+  without: [non_existing_label]
+  outputs: [increase, increase_prometheus, total, total_prometheus]
+`, "111111")
+
+	// sum_sample and sum_samples_total outputs with different staleness intervals
 	f([]string{`
 foo 1
+foo 2 1
 foo{bar="baz"} 2
-foo 3.3
-`, ``, ``, ``, ``}, time.Minute, `foo:1m_count_series 1
-foo:1m_count_series{bar="baz"} 1
-foo:1m_sum_samples 0
-foo:1m_sum_samples 0
-foo:1m_sum_samples 4.3
-foo:1m_sum_samples{bar="baz"} 0
-foo:1m_sum_samples{bar="baz"} 0
+`, `
+foo 4
+`, ``, ``, `
+foo 6
+`, ``, ``}, time.Minute, `foo:1m_sum_samples 3
+foo:1m_sum_samples 4
+foo:1m_sum_samples 6
+foo:1m_sum_samples_total 3
+foo:1m_sum_samples_total 7
+foo:1m_sum_samples_total 6
+foo:1m_sum_samples_total{bar="baz"} 2
 foo:1m_sum_samples{bar="baz"} 2
-foo:5m_by_bar_sum_samples 4.3
+foo:1m_without_non-existing-label_sum_samples 3
+foo:1m_without_non-existing-label_sum_samples 4
+foo:1m_without_non-existing-label_sum_samples 0
+foo:1m_without_non-existing-label_sum_samples 6
+foo:1m_without_non-existing-label_sum_samples 0
+foo:1m_without_non-existing-label_sum_samples_total 3
+foo:1m_without_non-existing-label_sum_samples_total 7
+foo:1m_without_non-existing-label_sum_samples_total 7
+foo:1m_without_non-existing-label_sum_samples_total 6
+foo:1m_without_non-existing-label_sum_samples_total 6
+foo:1m_without_non-existing-label_sum_samples_total{bar="baz"} 2
+foo:1m_without_non-existing-label_sum_samples_total{bar="baz"} 2
+foo:1m_without_non-existing-label_sum_samples{bar="baz"} 2
+foo:1m_without_non-existing-label_sum_samples{bar="baz"} 0
+foo:5m_by_bar_sum_samples 13
+foo:5m_by_bar_sum_samples_total 13
+foo:5m_by_bar_sum_samples_total{bar="baz"} 2
 foo:5m_by_bar_sum_samples{bar="baz"} 2
 `, `
 - interval: 1m
-  outputs: [count_series, sum_samples]
+  staleness_interval: 1m
+  outputs: [ sum_samples, sum_samples_total]
+- interval: 1m
+  staleness_interval: 2m
+  without: [non-existing-label]
+  outputs: [ sum_samples, sum_samples_total]
 - interval: 5m
   by: [bar]
-  outputs: [sum_samples]
-`, "111")
+  outputs: [sum_samples, sum_samples_total]
+`, "11111")
 
 	// min and max outputs
 	f([]string{`
@@ -635,6 +731,19 @@ cpu_usage:1m_without_cpu_quantiles{quantile="1"} 90
   outputs: ["quantiles(0, 0.5, 1)"]
 `, "1111111")
 
+	// no stale quantiles should be produced
+	f([]string{`
+cpu_usage{cpu="1"} 3
+cpu_usage{cpu="2"} 3`,
+		`cpu_usage{cpu="2"} 4`,
+	}, time.Minute, `cpu_usage:1m_quantiles{cpu="1",quantile="1"} 3
+cpu_usage:1m_quantiles{cpu="2",quantile="1"} 3
+cpu_usage:1m_quantiles{cpu="2",quantile="1"} 4
+`, `
+- interval: 1m
+  outputs: ["quantiles(1)"]
+`, "111")
+
 	// append additional label
 	f([]string{`
 foo{abc="123"} 4
@@ -680,23 +789,58 @@ foo:1m_by_cde_rate_sum{cde="1"} 0.125
   outputs: [rate_sum, rate_avg]
 `, "11111")
 
-	// test rate_sum and rate_avg, when two aggregation intervals are empty
+	// test rate_sum with out of order samples
 	f([]string{`
-foo{abc="123", cde="1"} 2
-foo{abc="456", cde="1"} 8
-foo{abc="777", cde="1"} 9 -10
-`, ``, ``, `
-foo{abc="123", cde="1"} 20
-foo{abc="456", cde="1"} 26
-foo{abc="777", cde="1"} 27 -10
-`}, time.Minute, `foo:1m_by_cde_rate_avg{cde="1"} 0.1
-foo:1m_by_cde_rate_sum{cde="1"} 0.2
+foo 1
+`, `
+foo 61
+`, `
+foo 31 -70
+foo 91
+`, `
+foo 121
+`}, time.Minute, `foo:1m_rate_sum 1
+foo:1m_rate_sum 0.5
+foo:1m_rate_sum 0.5
+`, `
+- interval: 1m
+  outputs: [rate_sum]
+`, "11111")
+
+	// test rate_sum and rate_avg with different staleness intervals
+	f([]string{`
+foo{abc="123", cde="1"} 1
+foo{abc="123", cde="1"} 2 1
+foo{abc="456", cde="1"} 3
+foo{abc="456", cde="1"} 4 1
+foo{abc="777", cde="1"} 5
+foo{abc="777", cde="1"} 6 1
+`, ``, `
+foo{abc="123", cde="1"} 121
+foo{abc="123", cde="1"} 122 1
+foo{abc="456", cde="1"} 123
+foo{abc="456", cde="1"} 124 1
+foo{abc="777", cde="1"} 125
+foo{abc="777", cde="1"} 126 1
+`}, time.Minute, `foo:1m_by_cde_rate_avg{cde="1"} 1
+foo:1m_by_cde_rate_avg{cde="1"} 1
+foo:1m_by_cde_rate_sum{cde="1"} 3
+foo:1m_by_cde_rate_sum{cde="1"} 3
+foo:1m_without_abc_rate_avg{cde="1"} 1
+foo:1m_without_abc_rate_avg{cde="1"} 1
+foo:1m_without_abc_rate_sum{cde="1"} 3
+foo:1m_without_abc_rate_sum{cde="1"} 3
 `, `            
 - interval: 1m
   by: [cde]
   outputs: [rate_sum, rate_avg]
   enable_windows: true
-`, "111111")
+- interval: 1m
+  staleness_interval: 2m
+  without: [abc]
+  outputs: [rate_sum, rate_avg]
+  enable_windows: true
+`, "111111111111")
 
 	// rate_sum and rate_avg with duplicated events
 	f([]string{`

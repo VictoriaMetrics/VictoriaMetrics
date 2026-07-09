@@ -52,7 +52,7 @@ func (f filter) inRange(minV, maxV int64) bool {
 func NewClient(cfg Config) (*Client, error) {
 	minTime, maxTime, err := parseTime(cfg.Filter.TimeMin, cfg.Filter.TimeMax)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse time in filter: %s", err)
+		return nil, fmt.Errorf("failed to parse time in filter: %w", err)
 	}
 	return &Client{
 		snapshotPath: cfg.Snapshot,
@@ -183,14 +183,14 @@ func parseTime(start, end string) (int64, int64, error) {
 	if start != "" {
 		v, err := time.Parse(time.RFC3339, start)
 		if err != nil {
-			return 0, 0, fmt.Errorf("failed to parse %q: %s", start, err)
+			return 0, 0, fmt.Errorf("failed to parse %q: %w", start, err)
 		}
 		s = v.UnixNano() / int64(time.Millisecond)
 	}
 	if end != "" {
 		v, err := time.Parse(time.RFC3339, end)
 		if err != nil {
-			return 0, 0, fmt.Errorf("failed to parse %q: %s", end, err)
+			return 0, 0, fmt.Errorf("failed to parse %q: %w", end, err)
 		}
 		e = v.UnixNano() / int64(time.Millisecond)
 	}

@@ -5,34 +5,32 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
 )
 
 // filterContainsAny matches any value from the values.
 //
-// Example LogsQL: `fieldName:contains_any("foo", "bar baz")`
+// Example LogsQL: `contains_any("foo", "bar baz")`
 type filterContainsAny struct {
-	fieldName string
-
 	values inValues
+}
+
+func newFilterContainsAnyValues(fieldName string, values []string) *filterGeneric {
+	var fi filterContainsAny
+	fi.values.values = values
+	return newFilterGeneric(fieldName, &fi)
 }
 
 func (fi *filterContainsAny) String() string {
 	args := fi.values.String()
-	return fmt.Sprintf("%scontains_any(%s)", quoteFieldNameIfNeeded(fi.fieldName), args)
+	return fmt.Sprintf("contains_any(%s)", args)
 }
 
-func (fi *filterContainsAny) updateNeededFields(pf *prefixfilter.Filter) {
-	pf.AddAllowFilter(fi.fieldName)
-}
-
-func (fi *filterContainsAny) matchRow(fields []Field) bool {
-	v := getFieldValueByName(fields, fi.fieldName)
+func (fi *filterContainsAny) matchRowByField(fields []Field, fieldName string) bool {
+	v := getFieldValueByName(fields, fieldName)
 	return matchAnyPhrase(v, fi.values.values)
 }
 
-func (fi *filterContainsAny) applyToBlockResult(br *blockResult, bm *bitmap) {
+func (fi *filterContainsAny) applyToBlockResultByField(br *blockResult, bm *bitmap, fieldName string) {
 	if fi.values.isEmpty() {
 		bm.resetBits()
 		return
@@ -42,7 +40,7 @@ func (fi *filterContainsAny) applyToBlockResult(br *blockResult, bm *bitmap) {
 		return
 	}
 
-	c := br.getColumnByName(fi.fieldName)
+	c := br.getColumnByName(fieldName)
 	if c.isConst {
 		v := c.valuesEncoded[0]
 		if !matchAnyPhrase(v, fi.values.values) {
@@ -107,7 +105,7 @@ func (fi *filterContainsAny) matchColumnByStringValues(br *blockResult, bm *bitm
 	})
 }
 
-func (fi *filterContainsAny) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
+func (fi *filterContainsAny) applyToBlockSearchByField(bs *blockSearch, bm *bitmap, fieldName string) {
 	if fi.values.isEmpty() {
 		bm.resetBits()
 		return
@@ -117,7 +115,7 @@ func (fi *filterContainsAny) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 		return
 	}
 
-	v := bs.getConstColumnValue(fi.fieldName)
+	v := bs.getConstColumnValue(fieldName)
 	if v != "" {
 		if !matchAnyPhrase(v, fi.values.values) {
 			bm.resetBits()
@@ -126,7 +124,7 @@ func (fi *filterContainsAny) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	}
 
 	// Verify whether filter matches other columns
-	ch := bs.getColumnHeader(fi.fieldName)
+	ch := bs.getColumnHeader(fieldName)
 	if ch == nil {
 		// Fast path - there are no matching columns.
 		// It matches anything only for empty phrase.

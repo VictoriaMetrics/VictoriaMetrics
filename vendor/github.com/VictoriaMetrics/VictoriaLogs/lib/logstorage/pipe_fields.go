@@ -20,7 +20,7 @@ func (pf *pipeFields) String() string {
 	if len(pf.fieldFilters) == 0 {
 		logger.Panicf("BUG: pipeFields must contain at least a single field filter")
 	}
-	return "fields " + fieldNamesString(pf.fieldFilters)
+	return "fields " + fieldFiltersString(pf.fieldFilters)
 }
 
 func (pf *pipeFields) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
@@ -39,6 +39,13 @@ func (pf *pipeFields) isFixedOutputFieldsOrder() bool {
 	return !hasWildcardFilters(pf.fieldFilters)
 }
 
+func (pf *pipeFields) resultFields() ([]string, bool) {
+	if hasWildcardFilters(pf.fieldFilters) {
+		return nil, false
+	}
+	return pf.fieldFilters, true
+}
+
 func (pf *pipeFields) updateNeededFields(f *prefixfilter.Filter) {
 	fOrig := f.Clone()
 	f.Reset()
@@ -54,7 +61,7 @@ func (pf *pipeFields) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pf *pipeFields) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
+func (pf *pipeFields) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pf, nil
 }
 
@@ -93,7 +100,7 @@ func parsePipeFields(lex *lexer) (pipe, error) {
 	}
 	lex.nextToken()
 
-	fieldFilters, err := parseCommaSeparatedFields(lex)
+	fieldFilters, err := parseCommaSeparatedFieldFilters(lex)
 	if err != nil {
 		return nil, err
 	}
@@ -101,19 +108,4 @@ func parsePipeFields(lex *lexer) (pipe, error) {
 		fieldFilters: fieldFilters,
 	}
 	return pf, nil
-}
-
-func parseCommaSeparatedFields(lex *lexer) ([]string, error) {
-	var fields []string
-	for {
-		field, err := parseFieldFilter(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse field name: %w", err)
-		}
-		fields = append(fields, field)
-		if !lex.isKeyword(",") {
-			return fields, nil
-		}
-		lex.nextToken()
-	}
 }

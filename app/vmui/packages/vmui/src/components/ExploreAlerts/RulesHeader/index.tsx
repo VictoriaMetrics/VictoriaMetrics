@@ -50,7 +50,6 @@ const RulesHeader = ({
             label="Rule type"
             placeholder="Please select rule type"
             onChange={onChangeRuleType}
-            autofocus={!!types.length && !isMobile}
             includeAll
             searchable
           />
@@ -72,7 +71,7 @@ const RulesHeader = ({
           <TextField
             label="Search"
             value={search}
-            placeholder="Filter by rule, name or labels"
+            placeholder="Filter by group or rule name"
             startIcon={<SearchIcon />}
             onChange={onChangeSearch}
           />

@@ -772,7 +772,7 @@ func TestHeaders(t *testing.T) {
 
 	// basic auth
 	f(func() *Client {
-		cfg, err := vmalertutil.AuthConfig(vmalertutil.WithBasicAuth("foo", "bar", ""))
+		cfg, err := vmalertutil.AuthConfig(vmalertutil.WithBasicAuth("foo", "", "bar", ""))
 		if err != nil {
 			t.Fatalf("Error get auth config: %s", err)
 		}
@@ -817,7 +817,7 @@ func TestHeaders(t *testing.T) {
 
 	// custom header overrides basic auth
 	f(func() *Client {
-		cfg, err := vmalertutil.AuthConfig(vmalertutil.WithBasicAuth("foo", "bar", ""))
+		cfg, err := vmalertutil.AuthConfig(vmalertutil.WithBasicAuth("foo", "", "bar", ""))
 		if err != nil {
 			t.Fatalf("Error get auth config: %s", err)
 		}

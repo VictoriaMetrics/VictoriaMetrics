@@ -122,7 +122,7 @@ func (ps *pipeRunningStats) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (ps *pipeRunningStats) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
+func (ps *pipeRunningStats) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return ps, nil
 }
 
@@ -415,7 +415,7 @@ func parsePipeRunningStatsExt(lex *lexer, pipeName string) (pipe, error) {
 		f.f = sf
 
 		resultName := ""
-		if lex.isKeyword(",", "|", ")", "") {
+		if lex.isKeyword(",") || lex.isQueryPartTrailer() {
 			resultName = sf.String()
 		} else {
 			if lex.isKeyword("as") {
@@ -435,7 +435,7 @@ func parsePipeRunningStatsExt(lex *lexer, pipeName string) (pipe, error) {
 
 		funcs = append(funcs, f)
 
-		if lex.isKeyword("|", ")", "") {
+		if lex.isQueryPartTrailer() {
 			ps.funcs = funcs
 			return &ps, nil
 		}
@@ -474,6 +474,8 @@ func getRunningStatsFuncParsers() map[string]runningStatsFuncParser {
 func initRunningStatsFuncParsers() {
 	runningStatsFuncParsers = map[string]runningStatsFuncParser{
 		"count": parseRunningStatsCount,
+		"first": parseRunningStatsFirst,
+		"last":  parseRunningStatsLast,
 		"max":   parseRunningStatsMax,
 		"min":   parseRunningStatsMin,
 		"sum":   parseRunningStatsSum,

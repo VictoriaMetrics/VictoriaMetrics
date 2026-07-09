@@ -34,7 +34,7 @@ const processResponse = (data: TopQueriesData) => {
     target.forEach(t => {
       const timeRange = getDurationFromMilliseconds(t.timeRangeSeconds*1000);
       t.url = getQueryUrl(t, timeRange);
-      t.timeRange = timeRange;
+      t.timeRange = timeRange || "instant";
     });
   });
 

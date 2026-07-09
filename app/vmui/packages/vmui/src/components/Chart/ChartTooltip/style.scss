@@ -143,4 +143,10 @@ $chart-tooltip-y: -1 * ($padding-global + $chart-tooltip-half-icon);
     word-break: break-all;
     white-space: pre-wrap;
   }
+
+  &__description {
+    word-break: break-word;
+    white-space: pre-wrap;
+    opacity: 0.85;
+  }
 }

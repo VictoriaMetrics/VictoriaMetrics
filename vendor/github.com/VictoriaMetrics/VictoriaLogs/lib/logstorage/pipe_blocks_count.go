@@ -54,7 +54,7 @@ func (pc *pipeBlocksCount) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pc *pipeBlocksCount) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
+func (pc *pipeBlocksCount) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pc, nil
 }
 
@@ -133,7 +133,7 @@ func parsePipeBlocksCount(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse result name for 'blocks_count': %w", err)
 		}
 		resultName = name
-	} else if !lex.isKeyword("", "|") {
+	} else if !lex.isQueryPartTrailer() {
 		name, err := parseFieldName(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse result name for 'blocks_count': %w", err)

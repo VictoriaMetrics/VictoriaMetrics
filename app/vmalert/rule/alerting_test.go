@@ -1363,6 +1363,7 @@ func TestAlertingRule_ToLabels(t *testing.T) {
 			{Name: "instance", Value: "0.0.0.0:8800"},
 			{Name: "group", Value: "vmalert"},
 			{Name: "alertname", Value: "ConfigurationReloadFailure"},
+			{Name: "pod", Value: "vmalert-0"},
 		},
 		Values:     []float64{1},
 		Timestamps: []int64{time.Now().UnixNano()},
@@ -1374,6 +1375,7 @@ func TestAlertingRule_ToLabels(t *testing.T) {
 			"group":         "vmalert",  // this shouldn't have effect since value in metric is equal
 			"invalid_label": "{{ .Values.mustRuntimeFail }}",
 			"empty_label":   "", // this should be dropped
+			"pod":           "", // this should remove the pod label from query result
 		},
 		Expr:      "sum(vmalert_alerting_rules_error) by(instance, group, alertname) > 0",
 		Name:      "AlertingRulesError",
@@ -1385,6 +1387,7 @@ func TestAlertingRule_ToLabels(t *testing.T) {
 		"group":         "vmalert",
 		"alertname":     "ConfigurationReloadFailure",
 		"alertgroup":    "vmalert",
+		"pod":           "vmalert-0",
 		"invalid_label": `error evaluating template: template: :1:298: executing "" at <.Values.mustRuntimeFail>: can't evaluate field Values in type notifier.tplData`,
 	}
 

@@ -8,11 +8,13 @@ import (
 	"net/http/httptest"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 // TestSingleVMAgentReloadConfigs verifies that vmagent reload new configurations on SIGHUP signal
@@ -29,13 +31,12 @@ func TestSingleVMAgentReloadConfigs(t *testing.T) {
 	relabelFilePath := fmt.Sprintf("%s/%s", t.TempDir(), "relabel_config.yaml")
 	fs.MustWriteSync(relabelFilePath, []byte(relabelingRules))
 
-	vmagent := tc.MustStartVmagent("vmagent", []string{
-		`-remoteWrite.flushInterval=50ms`,
+	vmagent := tc.MustStartDefaultRWVmagent("vmagent", []string{
 		`-remoteWrite.forcePromProto=true`,
 		"-remoteWrite.tmpDataPath=" + tc.Dir() + "/vmagent",
 		fmt.Sprintf(`-remoteWrite.url=http://%s/api/v1/write`, vmsingle.HTTPAddr()),
 		fmt.Sprintf(`-remoteWrite.urlRelabelConfig=%s`, relabelFilePath),
-	}, ``)
+	})
 
 	checkResponse := func(query, expResponse string) {
 		t.Helper()
@@ -131,12 +132,11 @@ func testSingleVMAgentRemoteWrite(t *testing.T, forcePromProto bool) {
 
 	vmsingle := tc.MustStartDefaultVmsingle()
 
-	vmagent := tc.MustStartVmagent("vmagent", []string{
-		`-remoteWrite.flushInterval=50ms`,
+	vmagent := tc.MustStartDefaultRWVmagent("vmagent", []string{
 		fmt.Sprintf(`-remoteWrite.forcePromProto=%v`, forcePromProto),
 		fmt.Sprintf(`-remoteWrite.url=http://%s/api/v1/write`, vmsingle.HTTPAddr()),
 		"-remoteWrite.tmpDataPath=" + tc.Dir() + "/vmagent",
-	}, ``)
+	})
 
 	vmagent.APIV1ImportPrometheus(t, []string{
 		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
@@ -180,12 +180,11 @@ func TestSingleVMAgentUnsupportedMediaTypeDropIfSnappy(t *testing.T) {
 	}))
 	defer remoteWriteSrv.Close()
 
-	vmagent := tc.MustStartVmagent("vmagent", []string{
-		`-remoteWrite.flushInterval=50ms`,
+	vmagent := tc.MustStartDefaultRWVmagent("vmagent", []string{
 		`-remoteWrite.forcePromProto=true`,
 		fmt.Sprintf(`-remoteWrite.url=%s/api/v1/write`, remoteWriteSrv.URL),
 		"-remoteWrite.tmpDataPath=" + tc.Dir() + "/vmagent",
-	}, ``)
+	})
 
 	vmagent.APIV1ImportPrometheusNoWaitFlush(t, []string{
 		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
@@ -244,11 +243,10 @@ func TestSingleVMAgentDowngradeRemoteWriteProtocol(t *testing.T) {
 	}))
 	defer remoteWriteSrv.Close()
 
-	vmagent := tc.MustStartVmagent("vmagent", []string{
-		`-remoteWrite.flushInterval=50ms`,
+	vmagent := tc.MustStartDefaultRWVmagent("vmagent", []string{
 		fmt.Sprintf(`-remoteWrite.url=%s/api/v1/write`, remoteWriteSrv.URL),
 		"-remoteWrite.tmpDataPath=" + tc.Dir() + "/vmagent",
-	}, ``)
+	})
 
 	// Send request encoded with `zstd`; it fails, gets repacked as `snappy`, and retries successfully.
 	vmagent.APIV1ImportPrometheus(t, []string{
@@ -293,8 +291,7 @@ func TestSingleVMAgentDropOnOverload(t *testing.T) {
 	}))
 	defer remoteWriteSrv2.Close()
 
-	vmagent := tc.MustStartVmagent("vmagent", []string{
-		`-remoteWrite.flushInterval=50ms`,
+	vmagent := tc.MustStartDefaultRWVmagent("vmagent", []string{
 		fmt.Sprintf(`-remoteWrite.url=%s/api/v1/write`, remoteWriteSrv.URL),
 		fmt.Sprintf(`-remoteWrite.url=%s/api/v1/write`, remoteWriteSrv2.URL),
 		"-remoteWrite.disableOnDiskQueue=true",
@@ -310,7 +307,7 @@ func TestSingleVMAgentDropOnOverload(t *testing.T) {
 		// It improves the test stability on resource-constrained runners.
 		// Should be bigger than retries * period
 		"-remoteWrite.retryMinInterval=3s",
-	}, ``)
+	})
 
 	const (
 		retries = 20
@@ -336,13 +333,11 @@ func TestSingleVMAgentDropOnOverload(t *testing.T) {
 	vmagent.APIV1ImportPrometheusNoWaitFlush(t, []string{
 		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
 	}, apptest.QueryOpts{})
-
 	waitFor(
 		func() bool {
 			return vmagent.RemoteWriteRequests(t, url1) == 1 && vmagent.RemoteWriteRequests(t, url2) == 1
 		},
 	)
-
 	// Send 2 more requests, the first RW endpoint should receive everything, the second should add them to the queue
 	// since worker is busy with the first request.
 	for i := range 2 {
@@ -396,13 +391,12 @@ func TestSingleVMAgentCardinalityLimiter(t *testing.T) {
 	defer remoteWriteSrv.Close()
 
 	// Verify hourly limit is applied
-	vmagent := tc.MustStartVmagent("vmagent-hourly", []string{
-		`-remoteWrite.flushInterval=50ms`,
+	vmagent := tc.MustStartDefaultRWVmagent("vmagent-hourly", []string{
 		fmt.Sprintf(`-remoteWrite.url=%s/api/v1/write`, remoteWriteSrv.URL),
 		"-remoteWrite.maxRowsPerBlock=1",
 		"-remoteWrite.maxHourlySeries=1",
 		"-remoteWrite.tmpDataPath=" + tc.Dir() + "/vmagent-hourly",
-	}, ``)
+	})
 
 	vmagent.APIV1ImportPrometheus(t, []string{
 		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
@@ -431,13 +425,12 @@ func TestSingleVMAgentCardinalityLimiter(t *testing.T) {
 	)
 
 	// Daily limits
-	vmagent2 := tc.MustStartVmagent("vmagent-daily", []string{
-		`-remoteWrite.flushInterval=50ms`,
+	vmagent2 := tc.MustStartDefaultRWVmagent("vmagent-daily", []string{
 		fmt.Sprintf(`-remoteWrite.url=%s/api/v1/write`, remoteWriteSrv.URL),
 		"-remoteWrite.maxRowsPerBlock=1",
 		"-remoteWrite.maxDailySeries=1",
 		"-remoteWrite.tmpDataPath=" + tc.Dir() + "/vmagent-daily",
-	}, ``)
+	})
 
 	vmagent2.APIV1ImportPrometheus(t, []string{
 		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
@@ -466,14 +459,13 @@ func TestSingleVMAgentCardinalityLimiter(t *testing.T) {
 	)
 
 	// test running with unlimited tracker
-	vmagent3 := tc.MustStartVmagent("vmagent-unlimited", []string{
-		`-remoteWrite.flushInterval=50ms`,
+	vmagent3 := tc.MustStartDefaultRWVmagent("vmagent-unlimited", []string{
 		fmt.Sprintf(`-remoteWrite.url=%s/api/v1/write`, remoteWriteSrv.URL),
 		"-remoteWrite.maxRowsPerBlock=10",
 		"-remoteWrite.maxDailySeries=-1",
 		"-remoteWrite.maxHourlySeries=-1",
 		"-remoteWrite.tmpDataPath=" + tc.Dir() + "/vmagent-unlimited",
-	}, ``)
+	})
 
 	metrics := make([]string, 0, 100)
 	for i := range 100 {
@@ -511,4 +503,258 @@ func TestSingleVMAgentCardinalityLimiter(t *testing.T) {
 	if v := vmagent3.GetIntMetric(t, "vmagent_daily_series_limit_rows_dropped_total"); v != 0 {
 		t.Fatalf("unexpected vmagent_daily_series_limit_rows_dropped_total value: %d", v)
 	}
+}
+
+func TestClusterVMAgentForwardMetricsMetadata(t *testing.T) {
+	tc := apptest.NewTestCase(t)
+	defer tc.Stop()
+
+	sut := tc.MustStartDefaultCluster()
+
+	vmagent := tc.MustStartDefaultRWVmagent("vmagent", []string{
+		`-remoteWrite.forcePromProto=true`,
+		`-enableMultitenantHandlers=true`,
+		"-remoteWrite.tmpDataPath=" + tc.Dir() + "/vmagent",
+		fmt.Sprintf(`-remoteWrite.url=http://%s/insert/multitenant/prometheus/api/v1/write`, sut.Vminsert.HTTPAddr()),
+	})
+	generateValueExceedLimit := func(prefix string) string {
+		buf := make([]byte, math.MaxUint16+len(prefix))
+		copy(buf, prefix)
+		return string(buf)
+	}
+	prometheusRemoteWriteDataSet := prompb.WriteRequest{
+		Metadata: []prompb.MetricMetadata{
+			{MetricFamilyName: "metric_name_4", Help: "some help message", Type: prompb.MetricTypeSummary, AccountID: 100},
+			{MetricFamilyName: "metric_name_8", Help: generateValueExceedLimit("large_help"), Type: prompb.MetricTypeStateset, AccountID: 100},
+		},
+	}
+	vmagent.PrometheusAPIV1Write(t, prometheusRemoteWriteDataSet, apptest.QueryOpts{Tenant: "multitenant"})
+
+	tc.Assert(&apptest.AssertOptions{
+		Msg: "unexpected /api/v1/metadata response",
+		Got: func() any {
+			return sut.PrometheusAPIV1Metadata(t, ``, -1, apptest.QueryOpts{Tenant: "100:0"})
+		},
+		Want: &apptest.PrometheusAPIV1Metadata{
+			Status: "success",
+			Data: map[string][]apptest.MetadataEntry{
+				"metric_name_4": {{Help: "some help message", Type: "summary"}},
+			},
+		},
+	})
+
+	prometheusRemoteWriteDataSet = prompb.WriteRequest{
+		Metadata: []prompb.MetricMetadata{
+			{MetricFamilyName: "metric_name_6", Help: "some help message", Type: prompb.MetricTypeSummary, AccountID: 100},
+		},
+	}
+	// enforce tenant from request uri /insert/tenant_id/prometheus/api/v1/write
+	vmagent.PrometheusAPIV1Write(t, prometheusRemoteWriteDataSet, apptest.QueryOpts{Tenant: "500:500"})
+
+	tc.Assert(&apptest.AssertOptions{
+		Msg: "unexpected /api/v1/metadata response",
+		Got: func() any {
+			return sut.PrometheusAPIV1Metadata(t, ``, -1, apptest.QueryOpts{Tenant: "500:500"})
+		},
+		Want: &apptest.PrometheusAPIV1Metadata{
+			Status: "success",
+			Data: map[string][]apptest.MetadataEntry{
+				"metric_name_6": {{Help: "some help message", Type: "summary"}},
+			},
+		},
+	})
+
+	tc.Assert(&apptest.AssertOptions{
+		Msg: "unexpected /api/v1/metadata response",
+		Got: func() any {
+			return sut.PrometheusAPIV1Metadata(t, ``, -1, apptest.QueryOpts{Tenant: "multitenant"})
+		},
+		Want: &apptest.PrometheusAPIV1Metadata{
+			Status: "success",
+			Data: map[string][]apptest.MetadataEntry{
+				"metric_name_4": {{Help: "some help message", Type: "summary"}},
+				"metric_name_6": {{Help: "some help message", Type: "summary"}},
+			},
+		},
+	})
+
+}
+
+// See https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy
+func TestSingleVMAgentMultitenancy(t *testing.T) {
+	tc := apptest.NewTestCase(t)
+	defer tc.Stop()
+
+	remoteWriteSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer remoteWriteSrv.Close()
+
+	vmagent := tc.MustStartDefaultRWVmagent("vmagent-multitenancy", []string{
+		fmt.Sprintf(`-remoteWrite.url=%s/api/v1/write`, remoteWriteSrv.URL),
+		"-remoteWrite.tmpDataPath=" + tc.Dir() + "/vmagent-multitenancy",
+		"-enableMultitenantHandlers",
+		"-enableMultitenancyViaHeaders",
+	})
+
+	vmagent.APIV1ImportPrometheus(t, []string{
+		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
+	}, apptest.QueryOpts{Tenant: "2"})
+	v := vmagent.GetIntMetric(t, `vmagent_tenant_inserted_rows_total{type="prometheus",accountID="2",projectID="0"}`)
+	if v != 1 {
+		t.Fatalf("expected vmagent_tenant_inserted_rows_total to have value 1 for accountID=2")
+	}
+
+	vmagent.APIV1ImportPrometheus(t, []string{
+		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
+	}, apptest.QueryOpts{Tenant: "2:2"})
+	v = vmagent.GetIntMetric(t, `vmagent_tenant_inserted_rows_total{type="prometheus",accountID="2",projectID="2"}`)
+	if v != 1 {
+		t.Fatalf("expected vmagent_tenant_inserted_rows_total to have value 1 for accountID=2, projectID=2")
+	}
+
+	headers := make(http.Header)
+	headers.Set("AccountID", "3")
+	vmagent.APIV1ImportPrometheus(t, []string{
+		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
+	}, apptest.QueryOpts{Headers: headers})
+	v = vmagent.GetIntMetric(t, `vmagent_tenant_inserted_rows_total{type="prometheus",accountID="3",projectID="0"}`)
+	if v != 1 {
+		t.Fatalf("expected vmagent_tenant_inserted_rows_total to have value 1 for accountID=3, projectID=0")
+	}
+
+	headers.Set("AccountID", "3")
+	headers.Set("ProjectID", "3")
+	vmagent.APIV1ImportPrometheus(t, []string{
+		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
+	}, apptest.QueryOpts{Headers: headers})
+	v = vmagent.GetIntMetric(t, `vmagent_tenant_inserted_rows_total{type="prometheus",accountID="3",projectID="3"}`)
+	if v != 1 {
+		t.Fatalf("expected vmagent_tenant_inserted_rows_total to have value 1 for accountID=3, projectID=3")
+	}
+
+	// tenants in header and path clash - path should have higher priority on ingestion
+	opts := apptest.QueryOpts{Headers: make(http.Header)}
+	opts.Headers.Set("AccountID", "4")
+	opts.Tenant = "5"
+	vmagent.APIV1ImportPrometheus(t, []string{
+		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
+	}, opts)
+	v = vmagent.GetIntMetric(t, `vmagent_tenant_inserted_rows_total{type="prometheus",accountID="5",projectID="0"}`)
+	if v != 1 {
+		t.Fatalf("expected vmagent_tenant_inserted_rows_total to have value 1 for accountID=5, projectID=0")
+	}
+}
+
+func TestSingleVMAgentPriorizeRecentData(t *testing.T) {
+	tc := apptest.NewTestCase(t)
+	defer tc.Stop()
+
+	remoteWriteSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer remoteWriteSrv.Close()
+
+	var mustRW2ReturnError atomic.Bool
+	mustRW2ReturnError.Store(true)
+
+	remoteWriteSrv2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if mustRW2ReturnError.Load() {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer remoteWriteSrv2.Close()
+
+	vmagent := tc.MustStartDefaultRWVmagent("vmagent", []string{
+		fmt.Sprintf(`-remoteWrite.url=%s/api/v1/write`, remoteWriteSrv.URL),
+		fmt.Sprintf(`-remoteWrite.url=%s/api/v1/write`, remoteWriteSrv2.URL),
+		"-remoteWrite.disableOnDiskQueue=true",
+		// use only 1 worker to get a full queue faster
+		"-remoteWrite.queues=1",
+		"-remoteWrite.flushInterval=1ms",
+		"-remoteWrite.inmemoryQueues=1",
+		// fastqueue size is roughly memory.Allowed() / len(urls) / *maxRowsPerBlock / 100
+		// Use very large maxRowsPerBlock to get fastqueue of minimal length(2).
+		// See initRemoteWriteCtxs function in remotewrite.go for details.
+		"-remoteWrite.maxRowsPerBlock=1000000000",
+		"-remoteWrite.tmpDataPath=" + tc.Dir() + "/vmagent",
+
+		// Delay retry logic to avoid race conditions with waitFor assertions.
+		// It improves the test stability on resource-constrained runners.
+		"-remoteWrite.retryMinInterval=3s",
+		"-remoteWrite.retryMaxTime=3s",
+	})
+
+	const (
+		retries = 20
+		period  = 200 * time.Millisecond
+	)
+
+	waitFor := func(f func() bool) {
+		t.Helper()
+		for range retries {
+			if f() {
+				return
+			}
+			time.Sleep(period)
+		}
+		t.Fatalf("timed out waiting for retry #%d", retries)
+	}
+
+	// Real remote write URLs are hidden in metrics
+	url1 := "1:secret-url"
+	url2 := "2:secret-url"
+
+	// Wait until first request got flushed to remote write server
+	vmagent.APIV1ImportPrometheusNoWaitFlush(t, []string{
+		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
+	}, apptest.QueryOpts{})
+	waitFor(
+		func() bool {
+			return vmagent.RemoteWriteRequests(t, url1) == 1 && vmagent.RemoteWriteRequests(t, url2) == 1
+		},
+	)
+	// Wait until second request got flushed to remote write server
+	// since there are 2 independent queues (general and in-memory) with minimal capacity of 1
+	vmagent.APIV1ImportPrometheusNoWaitFlush(t, []string{
+		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
+	}, apptest.QueryOpts{})
+	waitFor(
+		func() bool {
+			return vmagent.RemoteWriteRequests(t, url1) == 2 && vmagent.RemoteWriteRequests(t, url2) == 2
+		},
+	)
+	// Send 2 more requests, the first RW endpoint should receive everything, the second should add them to the queue
+	// since worker is busy with the first request.
+	for i := range 2 {
+		vmagent.APIV1ImportPrometheusNoWaitFlush(t, []string{
+			"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
+		}, apptest.QueryOpts{})
+
+		waitFor(
+			func() bool {
+				return vmagent.RemoteWriteRequests(t, url1) == 3+i && vmagent.RemoteWritePendingInmemoryBlocks(t, url2) == 1+i
+			},
+		)
+	}
+
+	// Send one more request.
+	vmagent.APIV1ImportPrometheusNoWaitFlush(t, []string{
+		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
+	}, apptest.QueryOpts{})
+
+	waitFor(
+		func() bool {
+			return vmagent.RemoteWriteRequests(t, url1) == 5 && vmagent.RemoteWriteSamplesDropped(t, url2) > 0
+		},
+	)
+	mustRW2ReturnError.Store(false)
+	// ensure that inmemory data correctly flushed to the remote write
+	waitFor(
+		func() bool {
+			return vmagent.RemoteWritePendingInmemoryBlocks(t, url2) == 0
+		},
+	)
 }

@@ -106,7 +106,7 @@ func loadFrom(loadPath string, maxSizeBytes uint64) (*Tracker, error) {
 	}
 	defer func() {
 		if err := zr.Close(); err != nil {
-			logger.Panicf("FATAL: cannot close gzip reader: %w", err)
+			logger.Panicf("FATAL: cannot close gzip reader: %s", err)
 		}
 	}()
 

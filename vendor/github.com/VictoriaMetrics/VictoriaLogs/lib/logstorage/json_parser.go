@@ -13,37 +13,14 @@ import (
 //
 // See https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model
 //
+// Use ParseLogMessage() for parsing the JSON log message.
+//
 // Use GetJSONParser() for obtaining the parser.
 type JSONParser struct {
-	// Fields contains the parsed JSON line after Parse() call
-	//
-	// The Fields are valid until the next call to ParseLogMessage()
-	// or until the parser is returned to the pool with PutJSONParser() call.
-	Fields []Field
+	commonJSON
 
 	// p is used for fast JSON parsing
 	p fastjson.Parser
-
-	// buf is used for holding the backing data for Fields
-	buf []byte
-
-	// prefixBuf is used for holding the current key prefix
-	// when it is composed from multiple keys.
-	prefixBuf []byte
-
-	preserveKeys    []string
-	maxFieldNameLen int
-}
-
-func (p *JSONParser) reset() {
-	clear(p.Fields)
-	p.Fields = p.Fields[:0]
-
-	p.buf = p.buf[:0]
-
-	p.prefixBuf = p.prefixBuf[:0]
-	p.preserveKeys = nil
-	p.maxFieldNameLen = 0
 }
 
 // GetJSONParser returns JSONParser ready to parse JSON lines.
@@ -71,9 +48,11 @@ var parserPool sync.Pool
 //
 // JSON values for keys from the preserveKeys list are preserved without flattening.
 //
+// The given fieldPrefix is added to all the parsed field names.
+//
 // The p.Fields remains valid until the next call to ParseLogMessage() or PutJSONParser().
-func (p *JSONParser) ParseLogMessage(msg []byte, preserveKeys []string) error {
-	return p.parseLogMessage(msg, preserveKeys, maxFieldNameSize)
+func (p *JSONParser) ParseLogMessage(msg []byte, preserveKeys []string, fieldPrefix string) error {
+	return p.parseLogMessage(msg, preserveKeys, fieldPrefix, maxFieldNameSize)
 }
 
 // parseLogMessage parses the given JSON log message msg into p.Fields.
@@ -82,7 +61,7 @@ func (p *JSONParser) ParseLogMessage(msg []byte, preserveKeys []string) error {
 // or its length exceeds maxFieldNameLen.
 //
 // The p.Fields remains valid until the next call to ParseLogMessage() or PutJSONParser().
-func (p *JSONParser) parseLogMessage(msg []byte, preserveKeys []string, maxFieldNameLen int) error {
+func (p *JSONParser) parseLogMessage(msg []byte, preserveKeys []string, fieldPrefix string, maxFieldNameLen int) error {
 	p.reset()
 
 	msgStr := bytesutil.ToUnsafeString(msg)
@@ -94,15 +73,51 @@ func (p *JSONParser) parseLogMessage(msg []byte, preserveKeys []string, maxField
 	if err != nil {
 		return err
 	}
-	p.maxFieldNameLen = maxFieldNameLen
-	p.preserveKeys = preserveKeys
+	p.init(preserveKeys, fieldPrefix, maxFieldNameLen)
 	p.appendLogFields(o)
 	return nil
 }
 
-func (p *JSONParser) appendLogFields(o *fastjson.Object) {
-	if p.isTooLongKey(o) || p.shouldPreserveKeyPrefix() {
-		p.appendPreservedLogField(o)
+type commonJSON struct {
+	// Fields contains the parsed JSON line after appendLogFields() call.
+	Fields []Field
+
+	// buf is used for holding the backing data for Fields
+	buf []byte
+
+	// prefixBuf is used for holding the current key prefix when it is composed from multiple keys.
+	prefixBuf []byte
+
+	preserveKeys    []string
+	fieldPrefix     string
+	maxFieldNameLen int
+}
+
+func (c *commonJSON) reset() {
+	c.resetKeepSettings()
+	c.preserveKeys = nil
+	c.fieldPrefix = ""
+	c.maxFieldNameLen = 0
+}
+
+func (c *commonJSON) init(preserveKeys []string, fieldPrefix string, maxFieldNameLen int) {
+	c.preserveKeys = preserveKeys
+	c.fieldPrefix = fieldPrefix
+	c.maxFieldNameLen = maxFieldNameLen
+}
+
+func (c *commonJSON) resetKeepSettings() {
+	clear(c.Fields)
+	c.Fields = c.Fields[:0]
+
+	c.buf = c.buf[:0]
+
+	c.prefixBuf = c.prefixBuf[:0]
+}
+
+func (c *commonJSON) appendLogFields(o *fastjson.Object) {
+	if c.isTooLongKey(o) || c.shouldPreserveKeyPrefix() {
+		c.appendPreservedLogField(o)
 		return
 	}
 
@@ -120,71 +135,72 @@ func (p *JSONParser) appendLogFields(o *fastjson.Object) {
 				logger.Panicf("BUG: unexpected error: %s", err)
 			}
 
-			prefixLen := len(p.prefixBuf)
-			p.prefixBuf = append(p.prefixBuf, k...)
-			p.prefixBuf = append(p.prefixBuf, '.')
-			p.appendLogFields(o)
-			p.prefixBuf = p.prefixBuf[:prefixLen]
+			prefixLen := len(c.prefixBuf)
+			c.prefixBuf = append(c.prefixBuf, k...)
+			c.prefixBuf = append(c.prefixBuf, '.')
+			c.appendLogFields(o)
+			c.prefixBuf = c.prefixBuf[:prefixLen]
 		case fastjson.TypeArray, fastjson.TypeNumber, fastjson.TypeTrue, fastjson.TypeFalse:
 			// Convert JSON arrays, numbers, true and false values to their string representation
-			bufLen := len(p.buf)
-			p.buf = v.MarshalTo(p.buf)
-			value := p.buf[bufLen:]
-			p.appendLogField(k, value)
+			bufLen := len(c.buf)
+			c.buf = v.MarshalTo(c.buf)
+			value := c.buf[bufLen:]
+			c.appendLogField(k, value)
 		case fastjson.TypeString:
 			// Decode JSON strings
-			bufLen := len(p.buf)
-			p.buf = append(p.buf, v.GetStringBytes()...)
-			value := p.buf[bufLen:]
-			p.appendLogField(k, value)
+			bufLen := len(c.buf)
+			c.buf = append(c.buf, v.GetStringBytes()...)
+			value := c.buf[bufLen:]
+			c.appendLogField(k, value)
 		default:
 			logger.Panicf("BUG: unexpected JSON type: %s", t)
 		}
 	})
 }
 
-func (p *JSONParser) isTooLongKey(o *fastjson.Object) bool {
+func (c *commonJSON) isTooLongKey(o *fastjson.Object) bool {
 	maxKeyLen := 0
 	o.Visit(func(k []byte, _ *fastjson.Value) {
 		if len(k) > maxKeyLen {
 			maxKeyLen = len(k)
 		}
 	})
-	return len(p.prefixBuf)+maxKeyLen > p.maxFieldNameLen
+	return len(c.prefixBuf)+maxKeyLen > c.maxFieldNameLen
 }
 
-func (p *JSONParser) shouldPreserveKeyPrefix() bool {
-	if len(p.prefixBuf) == 0 {
+func (c *commonJSON) shouldPreserveKeyPrefix() bool {
+	if len(c.prefixBuf) == 0 {
 		return false
 	}
 
-	key := bytesutil.ToUnsafeString(p.prefixBuf)
+	key := bytesutil.ToUnsafeString(c.prefixBuf)
 
 	// Drop trailing dot
 	key = key[:len(key)-1]
 
-	return slices.Contains(p.preserveKeys, key)
+	return slices.Contains(c.preserveKeys, key)
 }
 
-func (p *JSONParser) appendPreservedLogField(o *fastjson.Object) {
-	prefixLen := len(p.prefixBuf)
+func (c *commonJSON) appendPreservedLogField(o *fastjson.Object) {
+	prefixLen := len(c.prefixBuf)
 	if prefixLen > 0 {
 		// Drop trailing dot
-		p.prefixBuf = p.prefixBuf[:prefixLen-1]
+		c.prefixBuf = c.prefixBuf[:prefixLen-1]
 	}
 
-	bufLen := len(p.buf)
-	p.buf = o.MarshalTo(p.buf)
-	value := p.buf[bufLen:]
-	p.appendLogField(nil, value)
-	p.prefixBuf = p.prefixBuf[:prefixLen]
+	bufLen := len(c.buf)
+	c.buf = o.MarshalTo(c.buf)
+	value := c.buf[bufLen:]
+	c.appendLogField(nil, value)
+	c.prefixBuf = c.prefixBuf[:prefixLen]
 }
 
-func (p *JSONParser) appendLogField(k, value []byte) {
-	bufLen := len(p.buf)
-	p.buf = append(p.buf, p.prefixBuf...)
-	p.buf = append(p.buf, k...)
-	name := p.buf[bufLen:]
+func (c *commonJSON) appendLogField(k, value []byte) {
+	bufLen := len(c.buf)
+	c.buf = append(c.buf, c.fieldPrefix...)
+	c.buf = append(c.buf, c.prefixBuf...)
+	c.buf = append(c.buf, k...)
+	name := c.buf[bufLen:]
 
 	nameStr := bytesutil.ToUnsafeString(name)
 	if nameStr == "" {
@@ -192,7 +208,7 @@ func (p *JSONParser) appendLogField(k, value []byte) {
 	}
 	valueStr := bytesutil.ToUnsafeString(value)
 
-	p.Fields = append(p.Fields, Field{
+	c.Fields = append(c.Fields, Field{
 		Name:  nameStr,
 		Value: valueStr,
 	})

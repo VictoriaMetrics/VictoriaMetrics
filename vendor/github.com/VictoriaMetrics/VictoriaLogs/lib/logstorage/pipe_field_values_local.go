@@ -55,7 +55,7 @@ func (pf *pipeFieldValuesLocal) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pf *pipeFieldValuesLocal) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
+func (pf *pipeFieldValuesLocal) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pf, nil
 }
 

@@ -25,6 +25,15 @@ type filterWeekRange struct {
 	stringRepr string
 }
 
+func newFilterWeekRange(startDay, endDay time.Weekday, offset int64, stringRepr string) *filterWeekRange {
+	return &filterWeekRange{
+		startDay:   startDay,
+		endDay:     endDay,
+		offset:     offset,
+		stringRepr: stringRepr,
+	}
+}
+
 func (fr *filterWeekRange) String() string {
 	return "_time:week_range" + fr.stringRepr
 }

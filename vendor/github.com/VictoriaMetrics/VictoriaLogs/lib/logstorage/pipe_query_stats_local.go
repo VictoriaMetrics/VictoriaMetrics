@@ -39,7 +39,7 @@ func (ps *pipeQueryStatsLocal) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (ps *pipeQueryStatsLocal) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
+func (ps *pipeQueryStatsLocal) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return ps, nil
 }
 

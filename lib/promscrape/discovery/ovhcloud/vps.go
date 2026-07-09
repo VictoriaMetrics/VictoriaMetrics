@@ -117,12 +117,12 @@ func getVPSDetails(cfg *apiConfig, vpsName string) (*virtualPrivateServer, error
 		request.Header, _ = getAuthHeaders(cfg, request.Header, cfg.client.APIServer(), reqPath)
 	})
 	if err != nil {
-		return nil, fmt.Errorf("request %s error: %v", reqPath, err)
+		return nil, fmt.Errorf("cannot process %s: %w", reqPath, err)
 	}
 
 	var vpsDetails virtualPrivateServer
 	if err = json.Unmarshal(resp, &vpsDetails); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal %s response: %v", reqPath, err)
+		return nil, fmt.Errorf("cannot unmarshal response from %s: %w", reqPath, err)
 	}
 
 	// get IPs for this vps.
@@ -133,12 +133,12 @@ func getVPSDetails(cfg *apiConfig, vpsName string) (*virtualPrivateServer, error
 		request.Header, _ = getAuthHeaders(cfg, request.Header, cfg.client.APIServer(), reqPath)
 	})
 	if err != nil {
-		return nil, fmt.Errorf("request %s error: %v", reqPath, err)
+		return nil, fmt.Errorf("cannot process %s: %w", reqPath, err)
 	}
 
 	var ips []string
 	if err = json.Unmarshal(resp, &ips); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal %s response: %v", reqPath, err)
+		return nil, fmt.Errorf("cannot unmarshal response from %s: %w", reqPath, err)
 	}
 
 	// handle different IP formats
@@ -162,12 +162,12 @@ func getVPSList(cfg *apiConfig) ([]string, error) {
 		request.Header, _ = getAuthHeaders(cfg, request.Header, cfg.client.APIServer(), reqPath)
 	})
 	if err != nil {
-		return nil, fmt.Errorf("request %s error: %v", reqPath, err)
+		return nil, fmt.Errorf("cannot process %s: %w", reqPath, err)
 	}
 
 	var vpsList []string
 	if err = json.Unmarshal(resp, &vpsList); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal %s response: %v", reqPath, err)
+		return nil, fmt.Errorf("cannot unmarshal response from %s: %w", reqPath, err)
 	}
 
 	return vpsList, nil

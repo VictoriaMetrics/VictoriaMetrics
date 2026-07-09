@@ -1,7 +1,6 @@
 package graphite
 
 import (
-	"flag"
 	"fmt"
 	"math"
 	"net/http"
@@ -20,8 +19,6 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/VictoriaMetrics/metricsql"
 )
-
-var maxTagValueSuffixes = flag.Int("search.maxTagValueSuffixesPerSearch", 100e3, "The maximum number of tag value suffixes returned from /metrics/find")
 
 // MetricsFindHandler implements /metrics/find handler.
 //
@@ -222,10 +219,11 @@ func MetricsIndexHandler(startTime time.Time, w http.ResponseWriter, r *http.Req
 
 // metricsFind searches for label values that match the given qHead and qTail.
 func metricsFind(tr storage.TimeRange, label, qHead, qTail string, delimiter byte, isExpand bool, deadline searchutil.Deadline) ([]string, error) {
+	maxSuffixes := 0 // let vmstorage use its maxTagValueSuffixesPerSearch limit
 	n := strings.IndexAny(qTail, "*{[")
 	if n < 0 {
 		query := qHead + qTail
-		suffixes, err := netstorage.TagValueSuffixes(nil, tr, label, query, delimiter, *maxTagValueSuffixes, deadline)
+		suffixes, err := netstorage.TagValueSuffixes(nil, tr, label, query, delimiter, maxSuffixes, deadline)
 		if err != nil {
 			return nil, err
 		}
@@ -245,7 +243,7 @@ func metricsFind(tr storage.TimeRange, label, qHead, qTail string, delimiter byt
 	}
 	if n == len(qTail)-1 && strings.HasSuffix(qTail, "*") {
 		query := qHead + qTail[:len(qTail)-1]
-		suffixes, err := netstorage.TagValueSuffixes(nil, tr, label, query, delimiter, *maxTagValueSuffixes, deadline)
+		suffixes, err := netstorage.TagValueSuffixes(nil, tr, label, query, delimiter, maxSuffixes, deadline)
 		if err != nil {
 			return nil, err
 		}

@@ -24,6 +24,11 @@ VictoriaMetrics and vmagent support Prometheus-style relabeling with
 The following articles contain useful information about Prometheus relabeling:
 
 - [How to use Relabeling in Prometheus and VictoriaMetrics](https://valyala.medium.com/how-to-use-relabeling-in-prometheus-and-victoriametrics-8b90fc22c4b2)
+- [Life of a label](https://www.robustperception.io/life-of-a-label)
+- [Discarding targets and timeseries with relabeling](https://www.robustperception.io/relabelling-can-discard-targets-timeseries-and-alerts)
+- [Dropping labels at scrape time](https://www.robustperception.io/dropping-metrics-at-scrape-time-with-prometheus)
+- [Extracting labels from legacy metric names](https://www.robustperception.io/extracting-labels-from-legacy-metric-names)
+- [relabel_configs vs metric_relabel_configs](https://www.robustperception.io/relabel_configs-vs-metric_relabel_configs)
 
 ## Relabeling Stages
 
@@ -352,9 +357,6 @@ see two types of targets:
   service discovery, before any relabeling rules are applied. This includes
   targets that may later be dropped.
 
-_This option is only available when the component is started with the
-`-promscrape.dropOriginalLabels=false` flag._
-
 {{% collapse name="How to use `/targets` page?" %}}
 
 This `/targets` page helps answer the following questions:
@@ -374,17 +376,11 @@ to all metrics scraped from that target.
 You can click the label column of the target to see the original labels
 **before** any relabeling was applied.
 
-_This option is only available when the component is started with the
-`-promscrape.dropOriginalLabels=false` flag._
-
 **3. Why does a target have a certain set of labels?**
 
 Click the `target` link in the `debug relabeling` column. This opens a
 step-by-step view of how the relabeling rules were applied to the original
 labels.
-
-_This option is only available when the component is started with the
-`-promscrape.dropOriginalLabels=false` flag._
 
 **4. How are metric relabeling rules applied to scraped metrics?**
 
@@ -408,9 +404,6 @@ Each column on the page shows important details:
 This page shows all
 [discovered targets](https://docs.victoriametrics.com/victoriametrics/sd_configs/).
 
-_This option is only available when the component is started with the
-`-promscrape.dropOriginalLabels=false` flag._
-
 It helps answer the following questions:
 
 **1. Why are some targets dropped during service discovery or showing unexpected
@@ -433,7 +426,7 @@ target.
 ### Service Discovery Relabeling Cheatsheet
 
 **Target-level relabeling** is applied during
-[service discovery](https://docs.victoriametrics.com/victoriametrics/sd_configs/#prometheus-service-discovery)
+[service discovery](https://docs.victoriametrics.com/victoriametrics/sd_configs/)
 and affects the targets (which will be scraped), their labels and all the
 metrics scraped from them:
 

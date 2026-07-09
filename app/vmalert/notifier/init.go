@@ -36,6 +36,7 @@ var (
 		"For example, -remoteWrite.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -notifier.url. "+
 		"Multiple headers must be delimited by '^^': -notifier.headers='header1:value1^^header2:value2,header3:value3'")
 	basicAuthUsername     = flagutil.NewArrayString("notifier.basicAuth.username", "Optional basic auth username for -notifier.url")
+	basicAuthUsernameFile = flagutil.NewArrayString("notifier.basicAuth.usernameFile", "Optional path to basic auth username file for -notifier.url")
 	basicAuthPassword     = flagutil.NewArrayString("notifier.basicAuth.password", "Optional basic auth password for -notifier.url")
 	basicAuthPasswordFile = flagutil.NewArrayString("notifier.basicAuth.passwordFile", "Optional path to basic auth password file for -notifier.url")
 
@@ -193,6 +194,7 @@ func InitSecretFlags() {
 	if !*showNotifierURL {
 		flagutil.RegisterSecretFlag("notifier.url")
 	}
+	flagutil.RegisterSecretFlag("notifier.headers")
 }
 
 func notifiersFromFlags(gen AlertURLGenerator) ([]Notifier, error) {
@@ -213,6 +215,7 @@ func notifiersFromFlags(gen AlertURLGenerator) ([]Notifier, error) {
 			},
 			BasicAuth: &promauth.BasicAuthConfig{
 				Username:     basicAuthUsername.GetOptionalArg(i),
+				UsernameFile: basicAuthUsernameFile.GetOptionalArg(i),
 				Password:     promauth.NewSecret(basicAuthPassword.GetOptionalArg(i)),
 				PasswordFile: basicAuthPasswordFile.GetOptionalArg(i),
 			},

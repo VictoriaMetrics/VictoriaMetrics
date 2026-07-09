@@ -105,7 +105,7 @@ func (cw *configWatcher) add(typeK TargetType, interval time.Duration, targetsFn
 			}
 			targetMetadata, errors := getTargetMetadata(targetsFn, cw.cfg)
 			for _, err := range errors {
-				logger.Errorf("failed to init notifier for %q: %w", typeK, err)
+				logger.Errorf("failed to init notifier for %q: %s", typeK, err)
 			}
 			cw.updateTargets(typeK, targetMetadata, cw.cfg, cw.genFn)
 		}
@@ -274,7 +274,7 @@ func (cw *configWatcher) updateTargets(key TargetType, targetMts map[string]targ
 	for addr, metadata := range targetMts {
 		am, err := NewAlertManager(addr, genFn, cfg.HTTPClientConfig, metadata.alertRelabelConfigs, cfg.Timeout.Duration())
 		if err != nil {
-			logger.Errorf("failed to init %s notifier with addr %q: %w", key, addr, err)
+			logger.Errorf("failed to init %s notifier with addr %q: %s", key, addr, err)
 			continue
 		}
 		updatedTargets = append(updatedTargets, Target{

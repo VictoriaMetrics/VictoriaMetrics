@@ -9,16 +9,13 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
-
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
 )
 
 // filterAnyCasePhrase filters field entries by case-insensitive phrase match.
 //
-// An example LogsQL query: `fieldName:i(word)` or `fieldName:i("word1 ... wordN")`
+// An example LogsQL query: `i(word)` or `i("word1 ... wordN")`
 type filterAnyCasePhrase struct {
-	fieldName string
-	phrase    string
+	phrase string
 
 	phraseLowercaseOnce sync.Once
 	phraseLowercase     string
@@ -31,12 +28,15 @@ type filterAnyCasePhrase struct {
 	tokensHashesUppercase []uint64
 }
 
-func (fp *filterAnyCasePhrase) String() string {
-	return fmt.Sprintf("%si(%s)", quoteFieldNameIfNeeded(fp.fieldName), quoteTokenIfNeeded(fp.phrase))
+func newFilterAnyCasePhrase(fieldName, phrase string) *filterGeneric {
+	fp := &filterAnyCasePhrase{
+		phrase: phrase,
+	}
+	return newFilterGeneric(fieldName, fp)
 }
 
-func (fp *filterAnyCasePhrase) updateNeededFields(pf *prefixfilter.Filter) {
-	pf.AddAllowFilter(fp.fieldName)
+func (fp *filterAnyCasePhrase) String() string {
+	return fmt.Sprintf("i(%s)", quoteTokenIfNeeded(fp.phrase))
 }
 
 func (fp *filterAnyCasePhrase) getTokensHashes() []uint64 {
@@ -78,19 +78,18 @@ func (fp *filterAnyCasePhrase) initPhraseUppercase() {
 	fp.phraseUppercase = strings.ToUpper(fp.phrase)
 }
 
-func (fp *filterAnyCasePhrase) matchRow(fields []Field) bool {
-	v := getFieldValueByName(fields, fp.fieldName)
+func (fp *filterAnyCasePhrase) matchRowByField(fields []Field, fieldName string) bool {
+	v := getFieldValueByName(fields, fieldName)
 	phraseLowercase := fp.getPhraseLowercase()
 	return matchAnyCasePhrase(v, phraseLowercase)
 }
 
-func (fp *filterAnyCasePhrase) applyToBlockResult(br *blockResult, bm *bitmap) {
+func (fp *filterAnyCasePhrase) applyToBlockResultByField(br *blockResult, bm *bitmap, fieldName string) {
 	phraseLowercase := fp.getPhraseLowercase()
-	applyToBlockResultGeneric(br, bm, fp.fieldName, phraseLowercase, matchAnyCasePhrase)
+	applyToBlockResultGeneric(br, bm, fieldName, phraseLowercase, matchAnyCasePhrase)
 }
 
-func (fp *filterAnyCasePhrase) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
-	fieldName := fp.fieldName
+func (fp *filterAnyCasePhrase) applyToBlockSearchByField(bs *blockSearch, bm *bitmap, fieldName string) {
 	phraseLowercase := fp.getPhraseLowercase()
 
 	// Verify whether fp matches const column

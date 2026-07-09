@@ -21,7 +21,7 @@ type statsUniqValues struct {
 }
 
 func (su *statsUniqValues) String() string {
-	s := "uniq_values(" + fieldNamesString(su.fieldFilters) + ")"
+	s := "uniq_values(" + fieldFiltersString(su.fieldFilters) + ")"
 	if su.limit > 0 {
 		s += fmt.Sprintf(" limit %d", su.limit)
 	}

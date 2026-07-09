@@ -318,6 +318,11 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 		select {
 		case <-ctx.Done():
 			return
+		default:
+		}
+		select {
+		case <-ctx.Done():
+			return
 		case <-sighupCh:
 			tmplMsg := ""
 			if len(*ruleTemplatesPath) > 0 {

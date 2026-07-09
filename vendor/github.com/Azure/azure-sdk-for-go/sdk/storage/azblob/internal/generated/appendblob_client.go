@@ -24,6 +24,7 @@ func NewAppendBlobClient(endpoint string, azClient *azcore.Client) *AppendBlobCl
 	client := &AppendBlobClient{
 		internal: azClient,
 		endpoint: endpoint,
+		version:  ServiceVersion,
 	}
 	return client
 }

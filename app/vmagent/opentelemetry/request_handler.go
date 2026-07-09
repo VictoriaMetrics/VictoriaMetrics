@@ -25,6 +25,11 @@ var (
 	rowsPerInsert          = metrics.NewHistogram(`vmagent_rows_per_insert{type="opentelemetry"}`)
 )
 
+// Init must be called after flag.Parse and before using the opentelemetry package.
+func Init() {
+	stream.InitDecodeOptions()
+}
+
 // InsertHandlerForReader processes metrics from given reader.
 func InsertHandlerForReader(at *auth.Token, r io.Reader, encoding string) error {
 	return stream.ParseStream(r, encoding, nil, func(tss []prompb.TimeSeries, mms []prompb.MetricMetadata) error {
@@ -77,16 +82,6 @@ func insertRows(at *auth.Token, tss []prompb.TimeSeries, mms []prompb.MetricMeta
 
 	var metadataTotal int
 	if prommetadata.IsEnabled() {
-		var accountID, projectID uint32
-		if at != nil {
-			accountID = at.AccountID
-			projectID = at.ProjectID
-			for i := range mms {
-				mm := &mms[i]
-				mm.AccountID = accountID
-				mm.ProjectID = projectID
-			}
-		}
 		ctx.WriteRequest.Metadata = mms
 		metadataTotal = len(mms)
 	}

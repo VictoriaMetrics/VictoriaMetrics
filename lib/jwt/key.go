@@ -16,7 +16,7 @@ func ParseKey(key []byte) (any, error) {
 
 	k, err := x509.ParsePKIXPublicKey(b.Bytes)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse key %q: %v", key, err)
+		return nil, fmt.Errorf("failed to parse key %q: %w", key, err)
 	}
 
 	return k, nil

@@ -22,6 +22,7 @@ func NewPageBlobClient(endpoint string, azClient *azcore.Client) *PageBlobClient
 	client := &PageBlobClient{
 		internal: azClient,
 		endpoint: endpoint,
+		version:  ServiceVersion,
 	}
 	return client
 }

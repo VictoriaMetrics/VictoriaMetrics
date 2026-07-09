@@ -4,35 +4,38 @@ import (
 	"unicode/utf8"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
 )
 
 // filterLenRange matches field values with the length in the given range [minLen, maxLen].
 //
-// Example LogsQL: `fieldName:len_range(10, 20)`
+// Example LogsQL: `len_range(10, 20)`
 type filterLenRange struct {
-	fieldName string
-	minLen    uint64
-	maxLen    uint64
+	minLen uint64
+	maxLen uint64
 
 	stringRepr string
 }
 
+func newFilterLenRange(fieldName string, minLen, maxLen uint64, stringRepr string) *filterGeneric {
+	fr := &filterLenRange{
+		minLen: minLen,
+		maxLen: maxLen,
+
+		stringRepr: stringRepr,
+	}
+	return newFilterGeneric(fieldName, fr)
+}
+
 func (fr *filterLenRange) String() string {
-	return quoteFieldNameIfNeeded(fr.fieldName) + "len_range" + fr.stringRepr
+	return "len_range" + fr.stringRepr
 }
 
-func (fr *filterLenRange) updateNeededFields(pf *prefixfilter.Filter) {
-	pf.AddAllowFilter(fr.fieldName)
-}
-
-func (fr *filterLenRange) matchRow(fields []Field) bool {
-	v := getFieldValueByName(fields, fr.fieldName)
+func (fr *filterLenRange) matchRowByField(fields []Field, fieldName string) bool {
+	v := getFieldValueByName(fields, fieldName)
 	return matchLenRange(v, fr.minLen, fr.maxLen)
 }
 
-func (fr *filterLenRange) applyToBlockResult(br *blockResult, bm *bitmap) {
+func (fr *filterLenRange) applyToBlockResultByField(br *blockResult, bm *bitmap, fieldName string) {
 	minLen := fr.minLen
 	maxLen := fr.maxLen
 
@@ -41,7 +44,7 @@ func (fr *filterLenRange) applyToBlockResult(br *blockResult, bm *bitmap) {
 		return
 	}
 
-	c := br.getColumnByName(fr.fieldName)
+	c := br.getColumnByName(fieldName)
 	if c.isConst {
 		v := c.valuesEncoded[0]
 		if !matchLenRange(v, minLen, maxLen) {
@@ -128,8 +131,7 @@ func matchColumnByLenRange(br *blockResult, bm *bitmap, c *blockResultColumn, mi
 	})
 }
 
-func (fr *filterLenRange) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
-	fieldName := fr.fieldName
+func (fr *filterLenRange) applyToBlockSearchByField(bs *blockSearch, bm *bitmap, fieldName string) {
 	minLen := fr.minLen
 	maxLen := fr.maxLen
 

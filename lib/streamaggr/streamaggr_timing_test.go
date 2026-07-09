@@ -27,6 +27,7 @@ var benchOutputs = []string{
 	"stddev",
 	"stdvar",
 	"sum_samples",
+	"sum_samples_total",
 	"total",
 	"total_prometheus",
 	"unique_samples",
@@ -74,7 +75,7 @@ func newBenchAggregators(outputs []string, pushFunc PushFunc) *Aggregators {
 `, strings.Join(outputsQuoted, ","))
 	a, err := LoadFromData([]byte(config), pushFunc, nil, "some_alias")
 	if err != nil {
-		panic(fmt.Errorf("unexpected error when initializing aggregators: %s", err))
+		panic(fmt.Errorf("unexpected error when initializing aggregators: %w", err))
 	}
 	return a
 }
@@ -133,7 +134,7 @@ func newPerOutputBenchAggregators(outputs []string, pushFunc PushFunc) *Aggregat
 
 	a, err := LoadFromData([]byte(config), pushFunc, nil, "some_alias")
 	if err != nil {
-		panic(fmt.Errorf("unexpected error when initializing aggregators: %s", err))
+		panic(fmt.Errorf("unexpected error when initializing aggregators: %w", err))
 	}
 	return a
 }

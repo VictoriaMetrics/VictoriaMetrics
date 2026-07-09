@@ -11,6 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	otlppb "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 )
 
 func TestSingleIngestionProtocols(t *testing.T) {
@@ -294,6 +295,231 @@ func TestSingleIngestionProtocols(t *testing.T) {
 		wantSamples: []*apptest.Sample{
 			{Timestamp: 1707123456700, Value: 10}, // 2024-02-05T08:57:36.700Z
 			{Timestamp: 1707123456800, Value: 20}, // 2024-02-05T08:57:36.700Z
+		},
+	})
+
+	// opentelemetry metrics protocol
+	tsNano := uint64(1707123456700 * 1e6) // 2024-02-05T08:57:36.700Z
+	otlpData := otlppb.MetricsData{
+		ResourceMetrics: []*otlppb.ResourceMetrics{
+			{
+				Resource: &otlppb.Resource{
+					Attributes: []*otlppb.KeyValue{
+						{
+							Key:   "foo",
+							Value: &otlppb.AnyValue{StringValue: new("bar")},
+						},
+					},
+				},
+				ScopeMetrics: []*otlppb.ScopeMetrics{
+					{
+						Scope: &otlppb.InstrumentationScope{
+							Name:    new("otlp"),
+							Version: new("v1"),
+							Attributes: []*otlppb.KeyValue{
+								{
+									Key:   "scope_attribute",
+									Value: &otlppb.AnyValue{IntValue: new(int64(100))},
+								},
+							},
+						},
+						Metrics: []*otlppb.Metric{
+							{
+								Name: "otlp_series_gauge",
+								Gauge: &otlppb.Gauge{
+									DataPoints: []*otlppb.NumberDataPoint{
+										{IntValue: new(int64(10)), TimeUnixNano: tsNano},
+										{IntValue: new(int64(5)), TimeUnixNano: tsNano, Attributes: []*otlppb.KeyValue{{Key: "bar", Value: &otlppb.AnyValue{StringValue: new("foo")}}}},
+									},
+								},
+							},
+							{
+								Name: "otlp_series_counter",
+								Sum: &otlppb.Sum{
+									DataPoints: []*otlppb.NumberDataPoint{
+										{IntValue: new(int64(30)), TimeUnixNano: tsNano, Attributes: []*otlppb.KeyValue{{Key: "bar", Value: &otlppb.AnyValue{StringValue: new("foo")}}}},
+									},
+								},
+							},
+						},
+					},
+					{
+						Scope: &otlppb.InstrumentationScope{
+							Name:    new("otlp2"),
+							Version: new("v2"),
+						},
+						Metrics: []*otlppb.Metric{
+							{
+								Name: "otlp_series_histogram",
+								Histogram: &otlppb.Histogram{
+									DataPoints: []*otlppb.HistogramDataPoint{
+										{
+											Count:          15,
+											Sum:            new(float64(100)),
+											ExplicitBounds: []float64{0.1, 0.5, 1.0, 5.0},
+											BucketCounts:   []uint64{0, 5, 10, 0, 0},
+											TimeUnixNano:   tsNano,
+											Attributes: []*otlppb.KeyValue{
+												{Key: "baz", Value: &otlppb.AnyValue{ArrayValue: &otlppb.ArrayValue{Values: []*otlppb.AnyValue{
+													{StringValue: new("foo")},
+													{IntValue: new(int64(100))},
+												}}}},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			{
+				ScopeMetrics: []*otlppb.ScopeMetrics{
+					{
+						Metrics: []*otlppb.Metric{
+							{
+								Name: "otlp_series_summary",
+								Summary: &otlppb.Summary{
+									DataPoints: []*otlppb.SummaryDataPoint{
+										{
+											Attributes:   []*otlppb.KeyValue{},
+											TimeUnixNano: tsNano,
+											Sum:          17.5,
+											Count:        2,
+											QuantileValues: []*otlppb.ValueAtQuantile{
+												{
+													Quantile: 0.1,
+													Value:    7.5,
+												},
+												{
+													Quantile: 0.5,
+													Value:    10.0,
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	sut.OpentelemetryV1Metrics(t, otlpData, apptest.QueryOpts{})
+	sut.ForceFlush(t)
+	f(sut, &opts{
+		query: `{__name__=~"otlp.+"}`,
+		wantMetrics: []map[string]string{
+			{
+				"__name__":                         "otlp_series_counter",
+				"foo":                              "bar",
+				"bar":                              "foo",
+				"scope.attributes.scope_attribute": "100",
+				"scope.name":                       "otlp",
+				"scope.version":                    "v1",
+			},
+			{
+				"__name__":                         "otlp_series_gauge",
+				"foo":                              "bar",
+				"bar":                              "foo",
+				"scope.attributes.scope_attribute": "100",
+				"scope.name":                       "otlp",
+				"scope.version":                    "v1",
+			},
+			{
+				"__name__":                         "otlp_series_gauge",
+				"foo":                              "bar",
+				"scope.attributes.scope_attribute": "100",
+				"scope.name":                       "otlp",
+				"scope.version":                    "v1",
+			},
+
+			{
+				"__name__":      "otlp_series_histogram_bucket",
+				"baz":           `["foo",100]`,
+				"foo":           "bar",
+				"scope.name":    "otlp2",
+				"scope.version": "v2",
+				"le":            "+Inf",
+			},
+			{
+				"__name__":      "otlp_series_histogram_bucket",
+				"baz":           `["foo",100]`,
+				"foo":           "bar",
+				"scope.name":    "otlp2",
+				"scope.version": "v2",
+				"le":            "0.1",
+			},
+			{
+				"__name__":      "otlp_series_histogram_bucket",
+				"baz":           `["foo",100]`,
+				"foo":           "bar",
+				"scope.name":    "otlp2",
+				"scope.version": "v2",
+				"le":            "0.5",
+			},
+			{
+				"__name__":      "otlp_series_histogram_bucket",
+				"baz":           `["foo",100]`,
+				"foo":           "bar",
+				"scope.name":    "otlp2",
+				"scope.version": "v2",
+				"le":            "1",
+			},
+			{
+				"__name__":      "otlp_series_histogram_bucket",
+				"baz":           `["foo",100]`,
+				"foo":           "bar",
+				"scope.name":    "otlp2",
+				"scope.version": "v2",
+				"le":            "5",
+			},
+			{
+				"__name__":      "otlp_series_histogram_count",
+				"baz":           `["foo",100]`,
+				"foo":           "bar",
+				"scope.name":    "otlp2",
+				"scope.version": "v2",
+			},
+			{
+				"__name__":      "otlp_series_histogram_sum",
+				"baz":           `["foo",100]`,
+				"foo":           "bar",
+				"scope.name":    "otlp2",
+				"scope.version": "v2",
+			},
+			{
+				"__name__": "otlp_series_summary",
+				"quantile": "0.1",
+			},
+			{
+				"__name__": "otlp_series_summary",
+				"quantile": "0.5",
+			},
+			{
+				"__name__": "otlp_series_summary_count",
+			},
+			{
+				"__name__": "otlp_series_summary_sum",
+			},
+		},
+		wantSamples: []*apptest.Sample{
+			{Timestamp: 1707123456700, Value: 30},   // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 5},    // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 10},   // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 15},   // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 0},    // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 5},    // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 15},   // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 15},   // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 15},   // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 100},  // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 7.5},  // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 10},   // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 2},    // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 17.5}, // 2024-02-05T08:57:36.700Z
+
 		},
 	})
 
@@ -715,6 +941,231 @@ func TestClusterIngestionProtocols(t *testing.T) {
 		wantSamples: []*apptest.Sample{
 			{Timestamp: 1707123456700, Value: 10}, // 2024-02-05T08:57:36.700Z
 			{Timestamp: 1707123456800, Value: 20}, // 2024-02-05T08:57:36.700Z
+		},
+	})
+
+	// opentelemetry metrics protocol
+	tsNano := uint64(1707123456700 * 1e6) // 2024-02-05T08:57:36.700Z
+	otlpData := otlppb.MetricsData{
+		ResourceMetrics: []*otlppb.ResourceMetrics{
+			{
+				Resource: &otlppb.Resource{
+					Attributes: []*otlppb.KeyValue{
+						{
+							Key:   "foo",
+							Value: &otlppb.AnyValue{StringValue: new("bar")},
+						},
+					},
+				},
+				ScopeMetrics: []*otlppb.ScopeMetrics{
+					{
+						Scope: &otlppb.InstrumentationScope{
+							Name:    new("otlp"),
+							Version: new("v1"),
+							Attributes: []*otlppb.KeyValue{
+								{
+									Key:   "scope_attribute",
+									Value: &otlppb.AnyValue{IntValue: new(int64(100))},
+								},
+							},
+						},
+						Metrics: []*otlppb.Metric{
+							{
+								Name: "otlp_series_gauge",
+								Gauge: &otlppb.Gauge{
+									DataPoints: []*otlppb.NumberDataPoint{
+										{IntValue: new(int64(10)), TimeUnixNano: tsNano},
+										{IntValue: new(int64(5)), TimeUnixNano: tsNano, Attributes: []*otlppb.KeyValue{{Key: "bar", Value: &otlppb.AnyValue{StringValue: new("foo")}}}},
+									},
+								},
+							},
+							{
+								Name: "otlp_series_counter",
+								Sum: &otlppb.Sum{
+									DataPoints: []*otlppb.NumberDataPoint{
+										{IntValue: new(int64(30)), TimeUnixNano: tsNano, Attributes: []*otlppb.KeyValue{{Key: "bar", Value: &otlppb.AnyValue{StringValue: new("foo")}}}},
+									},
+								},
+							},
+						},
+					},
+					{
+						Scope: &otlppb.InstrumentationScope{
+							Name:    new("otlp2"),
+							Version: new("v2"),
+						},
+						Metrics: []*otlppb.Metric{
+							{
+								Name: "otlp_series_histogram",
+								Histogram: &otlppb.Histogram{
+									DataPoints: []*otlppb.HistogramDataPoint{
+										{
+											Count:          15,
+											Sum:            new(float64(100)),
+											ExplicitBounds: []float64{0.1, 0.5, 1.0, 5.0},
+											BucketCounts:   []uint64{0, 5, 10, 0, 0},
+											TimeUnixNano:   tsNano,
+											Attributes: []*otlppb.KeyValue{
+												{Key: "baz", Value: &otlppb.AnyValue{ArrayValue: &otlppb.ArrayValue{Values: []*otlppb.AnyValue{
+													{StringValue: new("foo")},
+													{IntValue: new(int64(100))},
+												}}}},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			{
+				ScopeMetrics: []*otlppb.ScopeMetrics{
+					{
+						Metrics: []*otlppb.Metric{
+							{
+								Name: "otlp_series_summary",
+								Summary: &otlppb.Summary{
+									DataPoints: []*otlppb.SummaryDataPoint{
+										{
+											Attributes:   []*otlppb.KeyValue{},
+											TimeUnixNano: tsNano,
+											Sum:          17.5,
+											Count:        2,
+											QuantileValues: []*otlppb.ValueAtQuantile{
+												{
+													Quantile: 0.1,
+													Value:    7.5,
+												},
+												{
+													Quantile: 0.5,
+													Value:    10.0,
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	vminsert.OpentelemetryV1Metrics(t, otlpData, apptest.QueryOpts{})
+	vmstorage.ForceFlush(t)
+	f(&opts{
+		query: `{__name__=~"otlp.+"}`,
+		wantMetrics: []map[string]string{
+			{
+				"__name__":                         "otlp_series_counter",
+				"foo":                              "bar",
+				"bar":                              "foo",
+				"scope.attributes.scope_attribute": "100",
+				"scope.name":                       "otlp",
+				"scope.version":                    "v1",
+			},
+			{
+				"__name__":                         "otlp_series_gauge",
+				"foo":                              "bar",
+				"bar":                              "foo",
+				"scope.attributes.scope_attribute": "100",
+				"scope.name":                       "otlp",
+				"scope.version":                    "v1",
+			},
+			{
+				"__name__":                         "otlp_series_gauge",
+				"foo":                              "bar",
+				"scope.attributes.scope_attribute": "100",
+				"scope.name":                       "otlp",
+				"scope.version":                    "v1",
+			},
+
+			{
+				"__name__":      "otlp_series_histogram_bucket",
+				"baz":           `["foo",100]`,
+				"foo":           "bar",
+				"scope.name":    "otlp2",
+				"scope.version": "v2",
+				"le":            "+Inf",
+			},
+			{
+				"__name__":      "otlp_series_histogram_bucket",
+				"baz":           `["foo",100]`,
+				"foo":           "bar",
+				"scope.name":    "otlp2",
+				"scope.version": "v2",
+				"le":            "0.1",
+			},
+			{
+				"__name__":      "otlp_series_histogram_bucket",
+				"baz":           `["foo",100]`,
+				"foo":           "bar",
+				"scope.name":    "otlp2",
+				"scope.version": "v2",
+				"le":            "0.5",
+			},
+			{
+				"__name__":      "otlp_series_histogram_bucket",
+				"baz":           `["foo",100]`,
+				"foo":           "bar",
+				"scope.name":    "otlp2",
+				"scope.version": "v2",
+				"le":            "1",
+			},
+			{
+				"__name__":      "otlp_series_histogram_bucket",
+				"baz":           `["foo",100]`,
+				"foo":           "bar",
+				"scope.name":    "otlp2",
+				"scope.version": "v2",
+				"le":            "5",
+			},
+			{
+				"__name__":      "otlp_series_histogram_count",
+				"baz":           `["foo",100]`,
+				"foo":           "bar",
+				"scope.name":    "otlp2",
+				"scope.version": "v2",
+			},
+			{
+				"__name__":      "otlp_series_histogram_sum",
+				"baz":           `["foo",100]`,
+				"foo":           "bar",
+				"scope.name":    "otlp2",
+				"scope.version": "v2",
+			},
+			{
+				"__name__": "otlp_series_summary",
+				"quantile": "0.1",
+			},
+			{
+				"__name__": "otlp_series_summary",
+				"quantile": "0.5",
+			},
+			{
+				"__name__": "otlp_series_summary_count",
+			},
+			{
+				"__name__": "otlp_series_summary_sum",
+			},
+		},
+		wantSamples: []*apptest.Sample{
+			{Timestamp: 1707123456700, Value: 30},   // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 5},    // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 10},   // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 15},   // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 0},    // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 5},    // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 15},   // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 15},   // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 15},   // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 100},  // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 7.5},  // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 10},   // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 2},    // 2024-02-05T08:57:36.700Z
+			{Timestamp: 1707123456700, Value: 17.5}, // 2024-02-05T08:57:36.700Z
+
 		},
 	})
 

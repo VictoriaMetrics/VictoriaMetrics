@@ -95,7 +95,7 @@ func (pf *pipeFacets) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pf *pipeFacets) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
+func (pf *pipeFacets) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pf, nil
 }
 
@@ -318,7 +318,7 @@ func (shard *pipeFacetsProcessorShard) getFieldHits(fieldName string) *pipeFacet
 	fhs, ok := shard.m[fieldName]
 	if !ok {
 		fhs = &pipeFacetsFieldHits{}
-		fhs.m.init(uint(shard.pfp.concurrency), &shard.stateSizeBudget)
+		fhs.m.init(uint(shard.pfp.concurrency), "", &shard.stateSizeBudget)
 		fieldNameCopy := shard.a.cloneString(fieldName)
 		shard.m[fieldNameCopy] = fhs
 		shard.stateSizeBudget -= len(fieldNameCopy) + int(unsafe.Sizeof(fhs)+unsafe.Sizeof(*fhs))

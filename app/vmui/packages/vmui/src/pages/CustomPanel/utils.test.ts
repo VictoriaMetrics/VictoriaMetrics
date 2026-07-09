@@ -20,7 +20,7 @@ describe("convertMetricsDataToCSV", () => {
       },
     ];
     const result = convertMetricsDataToCSV(data);
-    expect(result).toBe("header1,header2\n123,value2");
+    expect(result).toBe("header1,header2,__timestamp__,__value__\n123,value2,1623945600,123");
   });
 
   it("should return a valid CSV string for multiple metric entries with values", () => {
@@ -43,7 +43,7 @@ describe("convertMetricsDataToCSV", () => {
       },
     ];
     const result = convertMetricsDataToCSV(data);
-    expect(result).toBe("header1,header2\n123,value2\n456,value4");
+    expect(result).toBe("header1,header2,__timestamp__,__value__\n123,value2,1623945600,123\n456,value4,1623949200,456");
   });
 
   it("should handle metric entries with multiple values field", () => {
@@ -58,7 +58,7 @@ describe("convertMetricsDataToCSV", () => {
       },
     ];
     const result = convertMetricsDataToCSV(data);
-    expect(result).toBe("header1,header2\n123-456,values");
+    expect(result).toBe("header1,header2,__timestamp__,__value__\n123-456,values,-,-");
   });
 
   it("should handle a combination of metric entries with value and values", () => {
@@ -81,6 +81,19 @@ describe("convertMetricsDataToCSV", () => {
       },
     ];
     const result = convertMetricsDataToCSV(data);
-    expect(result).toBe("header1,header2\n123,first\n456-789,second");
+    expect(result).toBe("header1,header2,__timestamp__,__value__\n123,first,1623945600,123\n456-789,second,-,-");
   });
+
+  it("should return value and timestamp if metric field is empty", () => {
+    const data: InstantMetricResult[] = [
+      {
+        value: [1623945600, "123"],
+        group: 0,
+        metric: {}
+      },
+    ];
+    const result = convertMetricsDataToCSV(data);
+    expect(result).toBe("__timestamp__,__value__\n1623945600,123");
+  });
+
 });

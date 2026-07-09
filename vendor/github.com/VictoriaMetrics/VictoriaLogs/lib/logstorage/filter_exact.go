@@ -7,28 +7,28 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
 )
 
 // filterExact matches the exact value.
 //
-// Example LogsQL: `fieldName:exact("foo bar")` of `fieldName:="foo bar"
+// Example LogsQL: `exact("foo bar")` of `="foo bar"
 type filterExact struct {
-	fieldName string
-	value     string
+	value string
 
 	tokensOnce   sync.Once
 	tokens       []string
 	tokensHashes []uint64
 }
 
-func (fe *filterExact) String() string {
-	return fmt.Sprintf("%s=%s", quoteFieldNameIfNeeded(fe.fieldName), quoteTokenIfNeeded(fe.value))
+func newFilterExact(fieldName, value string) *filterGeneric {
+	fe := &filterExact{
+		value: value,
+	}
+	return newFilterGeneric(fieldName, fe)
 }
 
-func (fe *filterExact) updateNeededFields(pf *prefixfilter.Filter) {
-	pf.AddAllowFilter(fe.fieldName)
+func (fe *filterExact) String() string {
+	return fmt.Sprintf("=%s", quoteTokenIfNeeded(fe.value))
 }
 
 func (fe *filterExact) getTokens() []string {
@@ -46,15 +46,15 @@ func (fe *filterExact) initTokens() {
 	fe.tokensHashes = appendTokensHashes(nil, fe.tokens)
 }
 
-func (fe *filterExact) matchRow(fields []Field) bool {
-	v := getFieldValueByName(fields, fe.fieldName)
+func (fe *filterExact) matchRowByField(fields []Field, fieldName string) bool {
+	v := getFieldValueByName(fields, fieldName)
 	return v == fe.value
 }
 
-func (fe *filterExact) applyToBlockResult(br *blockResult, bm *bitmap) {
+func (fe *filterExact) applyToBlockResultByField(br *blockResult, bm *bitmap, fieldName string) {
 	value := fe.value
 
-	c := br.getColumnByName(fe.fieldName)
+	c := br.getColumnByName(fieldName)
 	if c.isConst {
 		v := c.valuesEncoded[0]
 		if v != value {
@@ -188,8 +188,7 @@ func matchColumnByExactValue(br *blockResult, bm *bitmap, c *blockResultColumn, 
 	})
 }
 
-func (fe *filterExact) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
-	fieldName := fe.fieldName
+func (fe *filterExact) applyToBlockSearchByField(bs *blockSearch, bm *bitmap, fieldName string) {
 	value := fe.value
 
 	v := bs.getConstColumnValue(fieldName)

@@ -172,7 +172,7 @@ func mustOpenIndexDB(id uint64, tr TimeRange, name, path string, s *Storage, isR
 	}
 
 	tfssCache := lrucache.NewCache(getTagFiltersCacheSize)
-	tb := mergeset.MustOpenTable(path, dataFlushInterval, tfssCache.Reset, mergeTagToMetricIDsRows, isReadOnly)
+	tb := mergeset.MustOpenTable(path, dataFlushInterval, tfssCache.Reset, 0, mergeTagToMetricIDsRows, isReadOnly)
 	db := &indexDB{
 		legacyMinMissingTimestampByKey: make(map[string]int64),
 		id:                             id,
@@ -649,7 +649,7 @@ func (is *indexSearch) searchLabelNamesWithFiltersOnDate(qt *querytracer.Tracer,
 		} else {
 			_, key, err := unmarshalCompositeTagKey(labelName)
 			if err != nil {
-				return nil, fmt.Errorf("cannot unmarshal composite tag key: %s", err)
+				return nil, fmt.Errorf("cannot unmarshal composite tag key: %w", err)
 			}
 			lns[string(key)] = struct{}{}
 		}
@@ -764,7 +764,7 @@ func filterLabelValues(lvs map[string]struct{}, tf *tagFilter, key string) {
 		b = marshalTagValue(b, bytesutil.ToUnsafeBytes(lv))
 		ok, err := tf.match(b)
 		if err != nil {
-			logger.Panicf("BUG: cannot match label %q=%q with tagFilter %s: %w", key, lv, tf.String(), err)
+			logger.Panicf("BUG: cannot match label %q=%q with tagFilter %s: %s", key, lv, tf.String(), err)
 		}
 		if !ok {
 			delete(lvs, lv)
@@ -1242,12 +1242,9 @@ func (db *indexDB) GetSeriesCount(deadline uint64) (uint64, error) {
 func (is *indexSearch) getSeriesCount() (uint64, error) {
 	ts := &is.ts
 	kb := &is.kb
-	mp := &is.mp
 	loopsPaceLimiter := 0
 	var metricIDsLen uint64
-	// Extract the number of series from ((__name__=value): metricIDs) rows
-	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
-	kb.B = marshalTagValue(kb.B, nil)
+	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixMetricIDToTSID)
 	ts.Seek(kb.B)
 	for ts.NextItem() {
 		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
@@ -1260,19 +1257,10 @@ func (is *indexSearch) getSeriesCount() (uint64, error) {
 		if !bytes.HasPrefix(item, kb.B) {
 			break
 		}
-		tail := item[len(kb.B):]
-		n := bytes.IndexByte(tail, tagSeparatorChar)
-		if n < 0 {
-			return 0, fmt.Errorf("invalid tag->metricIDs line %q: cannot find tagSeparatorChar %d", item, tagSeparatorChar)
-		}
-		tail = tail[n+1:]
-		if err := mp.InitOnlyTail(item, tail); err != nil {
-			return 0, err
-		}
 		// Take into account deleted timeseries too.
 		// It is OK if series can be counted multiple times in rare cases -
 		// the returned number is an estimation.
-		metricIDsLen += uint64(mp.MetricIDsLen())
+		metricIDsLen++
 	}
 	if err := ts.Error(); err != nil {
 		return 0, fmt.Errorf("error when counting unique timeseries: %w", err)

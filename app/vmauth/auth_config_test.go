@@ -1031,6 +1031,33 @@ func TestLogRequest(t *testing.T) {
 	f("foo", 404, 10*time.Millisecond, `access_log request_host="localhost:8080" request_uri="" status_code=404 remote_addr="" user_agent="" referer="" duration_ms=10 username="foo"`)
 }
 
+func TestGetFirstAvailableBackend(t *testing.T) {
+	f := func(broken []bool, expectedIdx int) {
+		t.Helper()
+		bus := make([]*backendURL, len(broken))
+		for i := range broken {
+			bus[i] = &backendURL{
+				url: &url.URL{Host: fmt.Sprintf("server-%d", i)},
+			}
+			bus[i].broken.Store(broken[i])
+		}
+		bu := getFirstAvailableBackendURL(bus)
+		if bu == nil {
+			t.Fatalf("unexpected nil backend")
+		}
+		if bu.url.Host != fmt.Sprintf("server-%d", expectedIdx) {
+			t.Fatalf("unexpected backend, expected server-%d, got %s", expectedIdx, bu.url.Host)
+		}
+	}
+
+	f([]bool{false, false, false}, 0)
+	f([]bool{true, true, false}, 2)
+	// all backend are broken, then return the first one.
+	f([]bool{true, true, true}, 0)
+	f([]bool{true}, 0)
+
+}
+
 func getRegexs(paths []string) []*Regex {
 	var sps []*Regex
 	for _, path := range paths {

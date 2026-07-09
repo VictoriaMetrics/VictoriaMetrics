@@ -77,7 +77,7 @@ func (pr *pipeRename) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pr *pipeRename) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
+func (pr *pipeRename) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pr, nil
 }
 
@@ -135,7 +135,7 @@ func parsePipeRename(lex *lexer) (pipe, error) {
 		dstFieldFilters = append(dstFieldFilters, dstFieldFilter)
 
 		switch {
-		case lex.isKeyword("|", ")", ""):
+		case lex.isQueryPartTrailer():
 			pr := &pipeRename{
 				srcFieldFilters: srcFieldFilters,
 				dstFieldFilters: dstFieldFilters,

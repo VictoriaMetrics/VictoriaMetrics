@@ -36,10 +36,12 @@ function submitRelabelDebugForm(e) {
     <div class="container-fluid">
         <a href="https://docs.victoriametrics.com/victoriametrics/relabeling/" target="_blank">Relabeling docs</a>{% space %}
 
-        {% if targetURL != "" %}
-          <a href="metric-relabel-debug{% if targetID != "" %}?id={%s targetID %}{% endif %}">Metric relabel debug</a>
-        {% else %}
-          <a href="target-relabel-debug{% if targetID != "" %}?id={%s targetID %}{% endif %}">Target relabel debug</a>
+        {% if targetID != "" %}
+          {% if targetURL != "" %}
+            <a href="metric-relabel-debug?id={%s targetID %}">Metric relabel debug</a>
+          {% else %}
+            <a href="target-relabel-debug?id={%s targetID %}">Target relabel debug</a>
+          {% endif %}
         {% endif %}
 
         <br>

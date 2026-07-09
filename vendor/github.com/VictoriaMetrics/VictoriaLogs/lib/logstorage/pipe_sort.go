@@ -97,6 +97,28 @@ func (ps *pipeSort) isFixedOutputFieldsOrder() bool {
 	return false
 }
 
+func (ps *pipeSort) adjustResultFieldsOrder(fields []string) []string {
+	var result []string
+
+	if ps.rankFieldName != "" {
+		result = append(result, ps.rankFieldName)
+	}
+
+	resultLen := len(result)
+	for _, bf := range ps.byFields {
+		result = append(result, bf.name)
+	}
+	byFields := result[resultLen:]
+
+	for _, f := range fields {
+		if !slices.Contains(byFields, f) {
+			result = append(result, f)
+		}
+	}
+
+	return result
+}
+
 func (ps *pipeSort) updateNeededFields(pf *prefixfilter.Filter) {
 	if pf.MatchNothing() {
 		// There is no need in fetching any fields, since all of them are ignored by the caller.
@@ -122,7 +144,7 @@ func (ps *pipeSort) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (ps *pipeSort) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
+func (ps *pipeSort) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return ps, nil
 }
 
@@ -814,7 +836,7 @@ func parsePipeSort(lex *lexer) (pipe, error) {
 		case lex.isKeyword("rank"):
 			rankFieldName, err := parseRankFieldName(lex)
 			if err != nil {
-				return nil, fmt.Errorf("cannot read rank field name: %s", err)
+				return nil, fmt.Errorf("cannot read rank field name: %w", err)
 			}
 			ps.rankFieldName = rankFieldName
 		case lex.isKeyword("partition"):
@@ -908,7 +930,7 @@ func parseLimit(lex *lexer) (uint64, error) {
 
 	limitStr, err := lex.nextCompoundToken()
 	if err != nil {
-		return 0, fmt.Errorf("cannot parse 'limit': %s", err)
+		return 0, fmt.Errorf("cannot parse 'limit': %w", err)
 	}
 
 	n, ok := tryParseUint64(limitStr)
@@ -927,7 +949,7 @@ func parseOffset(lex *lexer) (uint64, error) {
 
 	limitStr, err := lex.nextCompoundToken()
 	if err != nil {
-		return 0, fmt.Errorf("cannot parse 'offset': %s", err)
+		return 0, fmt.Errorf("cannot parse 'offset': %w", err)
 	}
 
 	n, ok := tryParseUint64(limitStr)

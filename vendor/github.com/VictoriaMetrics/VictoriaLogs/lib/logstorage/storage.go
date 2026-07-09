@@ -170,7 +170,7 @@ type Storage struct {
 	// partitions are sorted by time, e.g. partitions[0] has the smallest time.
 	partitions []*partitionWrapper
 
-	// ptwHot is the "hot" partition, were the last rows were ingested.
+	// ptwHot is the "hot" partition, where the last rows were ingested.
 	//
 	// It must be accessed under partitionsLock.
 	ptwHot *partitionWrapper
@@ -197,10 +197,15 @@ type Storage struct {
 	// the check whether the given stream is already registered in the persistent storage.
 	streamIDCache *cache
 
-	// filterStreamCache caches streamIDs keyed by (partition, []TenanID, StreamFilter).
+	// filterStreamCache caches streamIDs keyed by (partition, []TenantID, StreamFilter).
 	//
 	// It reduces the load on persistent storage during querying by _stream:{...} filter.
 	filterStreamCache *cache
+
+	// partitionCacheGeneration is incremented on partition attach and detach.
+	//
+	// It is used for invalidating partition-related caches after partition lifecycle changes.
+	partitionCacheGeneration atomic.Uint64
 
 	// deleteTasksLock protects deleteTasks
 	deleteTasksLock sync.Mutex
@@ -230,7 +235,7 @@ func (s *Storage) PartitionAttach(name string) error {
 	// Verify whether the given partition already exists in the attached partitions list.
 	for _, ptw := range s.partitions {
 		if ptw.pt.name == name {
-			return fmt.Errorf("cannot attach the partition %q, because it is arleady attached", name)
+			return fmt.Errorf("cannot attach the partition %q, because it is already attached", name)
 		}
 	}
 
@@ -246,6 +251,7 @@ func (s *Storage) PartitionAttach(name string) error {
 
 	s.partitions = append(s.partitions, ptw)
 	sortPartitions(s.partitions)
+	s.partitionCacheGeneration.Add(1)
 
 	logger.Infof("successfully attached partition %q from %q", name, partitionPath)
 
@@ -286,6 +292,10 @@ func (s *Storage) PartitionDetach(name string) error {
 
 	logger.Infof("waiting until the partition %q isn't accessed", name)
 	<-ptw.doneCh
+
+	// Invalidate partition-related caches after partition detach.
+	// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/657
+	s.partitionCacheGeneration.Add(1)
 
 	logger.Infof("successfully detached partition %q from %q", name, partitionPath)
 
@@ -371,7 +381,7 @@ func getSnapshotPaths(ptws []*partitionWrapper) []string {
 func (s *Storage) PartitionSnapshotDelete(snapshotPath string) error {
 	snapshotName := filepath.Base(snapshotPath)
 	if err := snapshotutil.Validate(snapshotName); err != nil {
-		return fmt.Errorf("unsupported snapshot name %q at %q: %s", snapshotName, snapshotPath, err)
+		return fmt.Errorf("unsupported snapshot name %q at %q: %w", snapshotName, snapshotPath, err)
 	}
 
 	snapshotDir := filepath.Dir(snapshotPath)
@@ -432,11 +442,11 @@ func (s *Storage) MustDeleteStalePartitionSnapshots(maxAge time.Duration) []stri
 
 // DeleteRunTask starts deletion of logs according to the given filter f for the given tenantIDs.
 //
-// The taskID must contain an unique id of the task. It is used for tracking the task at the list returned by DeleteActiveTasks().
+// The taskID must contain a unique id of the task. It is used for tracking the task at the list returned by DeleteActiveTasks().
 // The timestamp must contain the timestamp in seconds when the task is started.
 func (s *Storage) DeleteRunTask(_ context.Context, taskID string, timestamp int64, tenantIDs []TenantID, f *Filter) error {
 	// Register the task in the list of active delete tasks, so it survives application restarts and crashes.
-	dt := newDeleteTask(taskID, tenantIDs, f.String(), timestamp)
+	dt := newDeleteTask(taskID, timestamp, tenantIDs, f.String())
 
 	s.deleteTasksLock.Lock()
 	defer s.deleteTasksLock.Unlock()
@@ -673,14 +683,14 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 	fs.MustSyncPath(path)
 
 	des := fs.MustReadDir(partitionsPath)
-	ptws := make([]*partitionWrapper, len(des))
-
-	// Open partitions in parallel. This should improve VictoriaLogs initialization duration
-	// when it opens many partitions.
-	var wg sync.WaitGroup
-	concurrencyLimiterCh := make(chan struct{}, cgroup.AvailableCPUs())
-	for idx, de := range des {
+	var partitionNames []string
+	for _, de := range des {
 		fname := de.Name()
+		if strings.HasPrefix(fname, ".") {
+			// Ignore "hidden" entries, which can be automatically created by MacOS (such as .DS_Store).
+			// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/996
+			continue
+		}
 
 		partitionDir := filepath.Join(partitionsPath, fname)
 		if fs.IsPartiallyRemovedDir(partitionDir) {
@@ -689,6 +699,14 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 			continue
 		}
 
+		partitionNames = append(partitionNames, fname)
+	}
+
+	// Open partitions in parallel. This should improve VictoriaLogs initialization duration when it opens many partitions.
+	ptws := make([]*partitionWrapper, len(partitionNames))
+	var wg sync.WaitGroup
+	concurrencyLimiterCh := make(chan struct{}, cgroup.AvailableCPUs())
+	for idx, fname := range partitionNames {
 		concurrencyLimiterCh <- struct{}{}
 		wg.Go(func() {
 			day, err := getPartitionDayFromName(fname)
@@ -765,47 +783,43 @@ func (s *Storage) watchRetention() {
 	ticker := time.NewTicker(d)
 	defer ticker.Stop()
 	for {
-		var ptwsToDelete []*partitionWrapper
-		now := time.Now().UnixNano()
-		minAllowedDay := s.getMinAllowedDay(now)
-
-		s.partitionsLock.Lock()
-
-		// Delete outdated partitions.
-		// s.partitions are sorted by day, so the partitions, which can become outdated, are located at the beginning of the list
-		ptws := s.partitions
-		for i, ptw := range ptws {
-			if ptw.day < minAllowedDay {
-				continue
-			}
-
-			// ptws are sorted by time, so just drop all the partitions until i.
-			ptwsToDelete = ptws[:i]
-			s.partitions = ptws[i:]
-			s.updateDeletedPartitionsLocked(ptwsToDelete)
-
-			// Remove reference to deleted partitions from s.ptwHot
-			if slices.Contains(ptwsToDelete, s.ptwHot) {
-				s.ptwHot = nil
-			}
-
-			break
-		}
-
-		s.partitionsLock.Unlock()
-
-		for i, ptw := range ptwsToDelete {
-			logger.Infof("the partition %s is scheduled to be deleted because it is outside the -retentionPeriod=%dd", ptw.pt.path, durationToDays(s.retention))
-			ptw.mustDrop.Store(true)
-			ptw.decRef()
-			ptwsToDelete[i] = nil
-		}
+		s.dropStalePartitions()
 
 		select {
 		case <-s.stopCh:
 			return
 		case <-ticker.C:
 		}
+	}
+}
+
+func (s *Storage) dropStalePartitions() {
+	now := time.Now().UnixNano()
+	minAllowedDay := s.getMinAllowedDay(now)
+
+	s.partitionsLock.Lock()
+
+	// Delete outdated partitions.
+	// s.partitions are sorted by day, so find the first non-expired partition.
+	n := sort.Search(len(s.partitions), func(i int) bool {
+		return s.partitions[i].day >= minAllowedDay
+	})
+	ptwsToDelete := s.partitions[:n]
+	s.partitions = s.partitions[n:]
+	s.updateDeletedPartitionsLocked(ptwsToDelete)
+
+	// Remove reference to deleted partitions from s.ptwHot
+	if slices.Contains(ptwsToDelete, s.ptwHot) {
+		s.ptwHot = nil
+	}
+
+	s.partitionsLock.Unlock()
+
+	for i, ptw := range ptwsToDelete {
+		logger.Infof("the partition %s is scheduled to be deleted because it is outside the -retentionPeriod=%dd", ptw.pt.path, durationToDays(s.retention))
+		ptw.mustDrop.Store(true)
+		ptw.decRef()
+		ptwsToDelete[i] = nil
 	}
 }
 
@@ -954,7 +968,7 @@ func (s *Storage) watchDeleteTasks() {
 
 		s.deleteTasks = s.deleteTasks[1:]
 		if !ok {
-			// The delete task coudn't be completed now. Try it later.
+			// The delete task couldn't be completed now. Try it later.
 			s.deleteTasks = append(s.deleteTasks, dt)
 		}
 		s.mustSaveDeleteTasksLocked()
@@ -970,8 +984,9 @@ func (s *Storage) watchDeleteTasks() {
 func (s *Storage) processDeleteTask(ctx context.Context, dt *DeleteTask) bool {
 	logger.Infof("started processing delete task %s", dt)
 	startTime := time.Now()
+	now := dt.StartTime.UnixNano()
 
-	f, err := ParseFilter(dt.Filter)
+	f, err := ParseFilterAtTimestamp(dt.Filter, now)
 	if err != nil {
 		logger.Panicf("BUG: cannot parse filter from delete task: [%s]", dt.Filter)
 	}
@@ -981,17 +996,14 @@ func (s *Storage) processDeleteTask(ctx context.Context, dt *DeleteTask) bool {
 		timestamp: dt.StartTime.UnixNano(),
 	}
 
-	// Add time filter ending at the delete task start time.
-	// This avoids deleting logs from the future.
-	start := int64(math.MinInt64)
-	end := dt.StartTime.UnixNano()
-	q.AddTimeFilter(start, end)
+	// Add time filter ending at now in order to avoid deleting logs from the future.
+	q.AddTimeFilter(math.MinInt64, now)
 
 	var qs QueryStats
 	qctx := NewQueryContext(ctx, &qs, dt.TenantIDs, q, false, nil)
 
 	// Initialize subqueries
-	qNew, err := initSubqueries(qctx, s.runQuery, true)
+	qNew, err := initSubqueries(qctx, s.runQuery, false)
 	if err != nil {
 		logger.Errorf("cannot process delete task with task_id=%q while initializing subqueries: %s; retrying later", dt.TaskID, err)
 		return false
@@ -1019,7 +1031,7 @@ func (s *Storage) processDeleteTask(ctx context.Context, dt *DeleteTask) bool {
 		}
 
 		// The task couldn't be processed at the moment
-		logger.Warnf("cannot proceeed with the delete task with task_id=%q in %.3f seconds; retrying it later", dt.TaskID, time.Since(startTime).Seconds())
+		logger.Warnf("cannot proceed with the delete task with task_id=%q in %.3f seconds; retrying it later", dt.TaskID, time.Since(startTime).Seconds())
 		return false
 	}
 

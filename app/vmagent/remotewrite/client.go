@@ -2,6 +2,7 @@ package remotewrite
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -59,6 +60,8 @@ var (
 		"Multiple headers must be delimited by '^^': -remoteWrite.headers='header1:value1^^header2:value2'")
 
 	basicAuthUsername     = flagutil.NewArrayString("remoteWrite.basicAuth.username", "Optional basic auth username to use for the corresponding -remoteWrite.url")
+	basicAuthUsernameFile = flagutil.NewArrayString("remoteWrite.basicAuth.usernameFile", "Optional path to basic auth username to use for the corresponding -remoteWrite.url. "+
+		"The file is re-read every second")
 	basicAuthPassword     = flagutil.NewArrayString("remoteWrite.basicAuth.password", "Optional basic auth password to use for the corresponding -remoteWrite.url")
 	basicAuthPasswordFile = flagutil.NewArrayString("remoteWrite.basicAuth.passwordFile", "Optional path to basic auth password to use for the corresponding -remoteWrite.url. "+
 		"The file is re-read every second")
@@ -184,7 +187,7 @@ func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persiste
 	return c
 }
 
-func (c *client) init(argIdx, concurrency int, sanitizedURL string) {
+func (c *client) init(argIdx int, sanitizedURL string) {
 	limitReached := metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_rate_limit_reached_total{url=%q}`, c.sanitizedURL))
 	if bytesPerSec := rateLimit.GetOptionalArg(argIdx); bytesPerSec > 0 {
 		logger.Infof("applying %d bytes per second rate limit for -remoteWrite.url=%q", bytesPerSec, sanitizedURL)
@@ -201,11 +204,20 @@ func (c *client) init(argIdx, concurrency int, sanitizedURL string) {
 	c.packetsDropped = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_packets_dropped_total{url=%q}`, c.sanitizedURL))
 	c.retriesCount = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_retries_count_total{url=%q}`, c.sanitizedURL))
 	c.sendDuration = metrics.GetOrCreateFloatCounter(fmt.Sprintf(`vmagent_remotewrite_send_duration_seconds_total{url=%q}`, c.sanitizedURL))
-	metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_queues{url=%q}`, c.sanitizedURL), func() float64 {
-		return float64(concurrency)
-	})
-	for range concurrency {
-		c.wg.Go(c.runWorker)
+	workers := queues.GetOptionalArg(argIdx)
+	if workers <= 0 {
+		workers = 1
+	}
+	inmemoryWorkers := inmemoryQueues.GetOptionalArg(argIdx)
+	for range inmemoryWorkers {
+		c.wg.Go(func() {
+			c.runWorker(c.fq.MustReadInMemoryBlockBlocking)
+		})
+	}
+	for range workers {
+		c.wg.Go(func() {
+			c.runWorker(c.fq.MustReadBlock)
+		})
 	}
 	logger.Infof("initialized client for -remoteWrite.url=%q", c.sanitizedURL)
 }
@@ -223,12 +235,14 @@ func getAuthConfig(argIdx int) (*promauth.Config, error) {
 		hdrs = strings.Split(headersValue, "^^")
 	}
 	username := basicAuthUsername.GetOptionalArg(argIdx)
+	usernameFile := basicAuthUsernameFile.GetOptionalArg(argIdx)
 	password := basicAuthPassword.GetOptionalArg(argIdx)
 	passwordFile := basicAuthPasswordFile.GetOptionalArg(argIdx)
 	var basicAuthCfg *promauth.BasicAuthConfig
-	if username != "" || password != "" || passwordFile != "" {
+	if username != "" || usernameFile != "" || password != "" || passwordFile != "" {
 		basicAuthCfg = &promauth.BasicAuthConfig{
 			Username:     username,
+			UsernameFile: usernameFile,
 			Password:     promauth.NewSecret(password),
 			PasswordFile: passwordFile,
 		}
@@ -297,19 +311,14 @@ func getAWSAPIConfig(argIdx int) (*awsapi.Config, error) {
 	return cfg, nil
 }
 
-func (c *client) runWorker() {
+func (c *client) runWorker(readBlock func(dst []byte) ([]byte, bool)) {
 	var ok bool
 	var block []byte
 	ch := make(chan bool, 1)
 	for {
-		block, ok = c.fq.MustReadBlock(block[:0])
+		block, ok = readBlock(block[:0])
 		if !ok {
 			return
-		}
-		if len(block) == 0 {
-			// skip empty data blocks from sending
-			// see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6241
-			continue
 		}
 		go func() {
 			startTime := time.Now()
@@ -326,15 +335,20 @@ func (c *client) runWorker() {
 			c.fq.MustWriteBlockIgnoreDisabledPQ(block)
 			return
 		case <-c.stopCh:
-			// c must be stopped. Wait for a while in the hope the block will be sent.
-			graceDuration := 5 * time.Second
+			// c must be stopped. Wait up to 5 seconds for the in-flight request to complete.
+			// If it succeeds, drain the remaining in-memory queue before returning.
+			stopCtx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+			defer cancel()
+
 			select {
 			case ok := <-ch:
 				if !ok {
 					// Return unsent block to the queue.
 					c.fq.MustWriteBlockIgnoreDisabledPQ(block)
+				} else {
+					c.drainInMemoryQueue(stopCtx, block[:0])
 				}
-			case <-time.After(graceDuration):
+			case <-stopCtx.Done():
 				// Return unsent block to the queue.
 				c.fq.MustWriteBlockIgnoreDisabledPQ(block)
 			}
@@ -466,7 +480,7 @@ again:
 				goto again
 			}
 
-			logger.Warnf("failed to repack zstd block (%s bytes) to snappy: %s; The block will be rejected. "+
+			logger.Warnf("failed to repack zstd block (%d bytes) to snappy: %s; The block will be rejected. "+
 				"Possible cause: ungraceful shutdown leading to persisted queue corruption.",
 				zstdBlockLen, err)
 		}
@@ -502,6 +516,32 @@ again:
 	}
 	c.retriesCount.Inc()
 	goto again
+}
+
+func (c *client) drainInMemoryQueue(stopCtx context.Context, block []byte) {
+	var ok bool
+	for {
+		select {
+		case <-stopCtx.Done():
+			return
+		default:
+		}
+
+		block, ok = c.fq.MustReadInMemoryBlock(block[:0])
+		if !ok {
+			// The in memory queue has already been drained,
+			// or persisted queue is being used.
+			// In this case it is guaranteed that fq will be empty
+			return
+		}
+
+		// at this stage c.stopCh should be closed
+		// so sendBlock function should not perform retries
+		if ok := c.sendBlock(block); !ok {
+			c.fq.MustWriteBlockIgnoreDisabledPQ(block)
+			return
+		}
+	}
 }
 
 var remoteWriteRejectedLogger = logger.WithThrottler("remoteWriteRejected", 5*time.Second)

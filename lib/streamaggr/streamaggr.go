@@ -24,13 +24,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/metrics"
-	"github.com/valyala/histogram"
 	"gopkg.in/yaml.v2"
 )
-
-// defines ingested samples lag quantile to determine a time to wait before flush.
-// It's not configurable at the moment.
-const flushQuantile = 0.95
 
 var supportedOutputs = []string{
 	"avg",
@@ -48,6 +43,7 @@ var supportedOutputs = []string{
 	"stddev",
 	"stdvar",
 	"sum_samples",
+	"sum_samples_total",
 	"total",
 	"total_prometheus",
 	"unique_samples",
@@ -177,12 +173,12 @@ type Config struct {
 	DedupInterval string `yaml:"dedup_interval,omitempty"`
 
 	// Staleness interval is interval after which the series state will be reset if no samples have been sent during it.
-	// The parameter is only relevant for outputs: total, total_prometheus, increase, increase_prometheus and histogram_bucket.
+	// The parameter is only relevant for outputs: total, total_prometheus, increase, increase_prometheus, rate_avg and rate_sum.
 	StalenessInterval string `yaml:"staleness_interval,omitempty"`
 
 	// IgnoreFirstSampleInterval specifies the interval after which the agent begins sending samples.
 	// By default, it is set to the staleness interval, and it helps reduce the initial sample load after an agent restart.
-	// This parameter is relevant only for the following outputs: total, total_prometheus, increase, increase_prometheus, and histogram_bucket.
+	// This parameter is relevant only for the following outputs: total, total_prometheus, increase and increase_prometheus.
 	IgnoreFirstSampleInterval string `yaml:"ignore_first_sample_interval,omitempty"`
 
 	// Outputs is a list of output aggregate functions to produce.
@@ -440,9 +436,9 @@ type aggregator struct {
 	// aggrOutputs contains aggregate states for the given outputs
 	aggrOutputs *aggrOutputs
 
-	// time to wait after interval end before flush
-	flushAfter   *histogram.Fast
-	muFlushAfter sync.Mutex
+	// flushAfterMsec is the max sample lag (in milliseconds) observed in the current flush interval.
+	// It is used to properly delay the flush time while using aggregation windows.
+	flushAfterMsec atomic.Int64
 
 	// suffix contains a suffix, which should be added to aggregate metric names
 	//
@@ -506,8 +502,9 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 		return nil, fmt.Errorf("interval=%s must be a multiple of dedup_interval=%s", interval, dedupInterval)
 	}
 
-	// check cfg.StalenessInterval
-	stalenessInterval := interval * 2
+	// set the default staleness interval as the aggregation interval, to be consistent with query lookbehind window in metricsQL,
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11102
+	stalenessInterval := interval
 	if cfg.StalenessInterval != "" {
 		stalenessInterval, err = time.ParseDuration(cfg.StalenessInterval)
 		if err != nil {
@@ -613,7 +610,8 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 	}
 	outputsSeen := make(map[string]struct{}, len(cfg.Outputs))
 	for i, output := range cfg.Outputs {
-		ac, err := newOutputConfig(output, outputsSeen, useSharedState, ignoreFirstSampleInterval)
+		outputMetricLabels := fmt.Sprintf(`output=%q,name=%q,path=%q,url=%q,position="%d"`, output, name, path, alias, aggrID)
+		ac, err := newOutputConfig(ms, outputMetricLabels, output, outputsSeen, ignoreFirstSampleInterval)
 		if err != nil {
 			return nil, err
 		}
@@ -672,18 +670,7 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 	}
 
 	if dedupInterval > 0 {
-		a.da = newDedupAggr()
-		a.da.flushTimeouts = ms.NewCounter(fmt.Sprintf(`vm_streamaggr_dedup_flush_timeouts_total{%s}`, metricLabels))
-		a.da.flushDuration = ms.NewHistogram(fmt.Sprintf(`vm_streamaggr_dedup_flush_duration_seconds{%s}`, metricLabels))
-
-		_ = ms.NewGauge(fmt.Sprintf(`vm_streamaggr_dedup_state_size_bytes{%s}`, metricLabels), func() float64 {
-			n := a.da.sizeBytes()
-			return float64(n)
-		})
-		_ = ms.NewGauge(fmt.Sprintf(`vm_streamaggr_dedup_state_items_count{%s}`, metricLabels), func() float64 {
-			n := a.da.itemsCount()
-			return float64(n)
-		})
+		a.da = newDedupAggr(ms, metricLabels)
 	}
 
 	alignFlushToInterval := !opts.NoAlignFlushToInterval
@@ -704,9 +691,6 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 			minTime = minTime.Add(interval)
 		}
 	}
-	if enableWindows {
-		a.flushAfter = histogram.GetFast()
-	}
 	a.minDeadline.Store(minTime.UnixMilli())
 	cs := &currentState{}
 	if a.dedupInterval > 0 {
@@ -723,7 +707,7 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 	return a, nil
 }
 
-func newOutputConfig(output string, outputsSeen map[string]struct{}, useSharedState bool, ignoreFirstSampleInterval time.Duration) (aggrConfig, error) {
+func newOutputConfig(ms *metrics.Set, metricLabels, output string, outputsSeen map[string]struct{}, ignoreFirstSampleInterval time.Duration) (aggrConfig, error) {
 	// check for duplicated output
 	if _, ok := outputsSeen[output]; ok {
 		return nil, fmt.Errorf("`outputs` list contains duplicate aggregation function: %s", output)
@@ -767,11 +751,11 @@ func newOutputConfig(output string, outputsSeen map[string]struct{}, useSharedSt
 	case "count_series":
 		return newCountSeriesAggrConfig(), nil
 	case "histogram_bucket":
-		return newHistogramBucketAggrConfig(useSharedState), nil
+		return newHistogramBucketAggrConfig(), nil
 	case "increase":
-		return newTotalAggrConfig(ignoreFirstSampleIntervalSecs, true, true), nil
+		return newIncreaseAggrConfig(ms, metricLabels, ignoreFirstSampleIntervalSecs, true), nil
 	case "increase_prometheus":
-		return newTotalAggrConfig(ignoreFirstSampleIntervalSecs, true, false), nil
+		return newIncreaseAggrConfig(ms, metricLabels, ignoreFirstSampleIntervalSecs, false), nil
 	case "last":
 		return newLastAggrConfig(), nil
 	case "max":
@@ -779,19 +763,21 @@ func newOutputConfig(output string, outputsSeen map[string]struct{}, useSharedSt
 	case "min":
 		return newMinAggrConfig(), nil
 	case "rate_avg":
-		return newRateAggrConfig(true), nil
+		return newRateAggrConfig(ms, metricLabels, true), nil
 	case "rate_sum":
-		return newRateAggrConfig(false), nil
+		return newRateAggrConfig(ms, metricLabels, false), nil
 	case "stddev":
 		return newStddevAggrConfig(), nil
 	case "stdvar":
 		return newStdvarAggrConfig(), nil
 	case "sum_samples":
-		return newSumSamplesAggrConfig(), nil
+		return newSumSamplesAggrConfig(true), nil
+	case "sum_samples_total":
+		return newSumSamplesAggrConfig(false), nil
 	case "total":
-		return newTotalAggrConfig(ignoreFirstSampleIntervalSecs, false, true), nil
+		return newTotalAggrConfig(ms, metricLabels, ignoreFirstSampleIntervalSecs, true), nil
 	case "total_prometheus":
-		return newTotalAggrConfig(ignoreFirstSampleIntervalSecs, false, false), nil
+		return newTotalAggrConfig(ms, metricLabels, ignoreFirstSampleIntervalSecs, false), nil
 	case "unique_samples":
 		return newUniqueSamplesAggrConfig(), nil
 	default:
@@ -833,16 +819,10 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipFlu
 	t := time.NewTicker(interval)
 	defer t.Stop()
 
-	var fa *histogram.Fast
 	for tickerWait(t) {
 		pf := pushFunc
 		if a.enableWindows {
-			// Calculate delay and wait
-			a.muFlushAfter.Lock()
-			fa, a.flushAfter = a.flushAfter, histogram.GetFast()
-			a.muFlushAfter.Unlock()
-			delay := time.Duration(fa.Quantile(flushQuantile)) * time.Millisecond
-			histogram.PutFast(fa)
+			delay := time.Duration(a.flushAfterMsec.Swap(0)) * time.Millisecond
 			time.Sleep(delay)
 		}
 
@@ -858,6 +838,7 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipFlu
 			} else {
 				a.flush(pf, flushTime, cs, false)
 			}
+			flushTime = flushTime.Add(a.interval)
 			for time.Now().After(flushTime) {
 				flushTime = flushTime.Add(a.interval)
 			}
@@ -1043,9 +1024,15 @@ func (a *aggregator) Push(tss []prompb.TimeSeries, matchIdxs []uint32) {
 		}
 	}
 	if enableWindows && maxLagMsec > 0 {
-		a.muFlushAfter.Lock()
-		a.flushAfter.Update(float64(maxLagMsec))
-		a.muFlushAfter.Unlock()
+		for {
+			old := a.flushAfterMsec.Load()
+			if maxLagMsec <= old {
+				break
+			}
+			if a.flushAfterMsec.CompareAndSwap(old, maxLagMsec) {
+				break
+			}
+		}
 	}
 	a.samplesLag.Update(float64(maxLagMsec) / 1_000)
 

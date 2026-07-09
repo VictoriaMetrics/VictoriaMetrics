@@ -12,6 +12,12 @@ func updateNeededFieldsForUpdatePipe(pf *prefixfilter.Filter, field string, iff 
 	}
 }
 
+// shouldDenyOverwrittenField reports whether planner can safely avoid reading
+// the original value for an overwritten field.
+func shouldDenyOverwrittenField(iff *ifFilter, keepOriginalFields, skipEmptyResults bool) bool {
+	return iff == nil && !keepOriginalFields && !skipEmptyResults
+}
+
 func newPipeUpdateProcessor(updateFunc func(a *arena, v string) string, ppNext pipeProcessor, field string, iff *ifFilter) pipeProcessor {
 	return &pipeUpdateProcessor{
 		updateFunc: updateFunc,

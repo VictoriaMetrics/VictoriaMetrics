@@ -1115,7 +1115,7 @@ func StreamListTargets(qw422016 *qt422016.Writer, r *http.Request, targets map[n
 
 //line app/vmalert/web.qtpl:350
 			qw422016.N().S(`
-            <div class="w-100 flex-column vm-group">
+            <div class="w-100 flex-column">
                 <span class="d-flex justify-content-between" id="group-`)
 //line app/vmalert/web.qtpl:352
 			qw422016.E().S(typeK)
@@ -1152,7 +1152,7 @@ func StreamListTargets(qw422016 *qt422016.Writer, r *http.Request, targets map[n
 			qw422016.N().S(`" class="collapse show">
                     <table class="table table-striped table-hover table-sm">
                         <thead>
-                            <tr class="vm-item">
+                            <tr>
                                 <th scope="col">Labels</th>
                                 <th scope="col">Address</th>
                             </tr>

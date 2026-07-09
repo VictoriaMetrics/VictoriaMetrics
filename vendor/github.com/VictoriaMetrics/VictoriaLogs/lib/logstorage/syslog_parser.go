@@ -124,7 +124,7 @@ func (p *SyslogParser) parseCEEMessage(s string) bool {
 	if p.jsonParser == nil {
 		p.jsonParser = GetJSONParser()
 	}
-	err := p.jsonParser.ParseLogMessage(bytesutil.ToUnsafeBytes(s), nil)
+	err := p.jsonParser.ParseLogMessage(bytesutil.ToUnsafeBytes(s), nil, "")
 	if err != nil {
 		return false
 	}
@@ -655,7 +655,6 @@ func (p *SyslogParser) parseCEFExtension(s string) bool {
 		p.AddField(keyName, unescapeCEFValue(s[:n]))
 		s = s[n+1:]
 	}
-
 }
 
 func (p *SyslogParser) tryParseTimestampRFC3164(s string) bool {

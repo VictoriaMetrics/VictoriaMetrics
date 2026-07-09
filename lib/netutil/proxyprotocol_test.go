@@ -107,6 +107,28 @@ func TestParseProxyProtocolFail(t *testing.T) {
 		0, 80, 0, 0})
 }
 
+func TestParseProxyProtocolIPv6DoesNotAliasPool(t *testing.T) {
+	header := func(last byte) *bytes.Buffer {
+		return bytes.NewBuffer([]byte{
+			0x0D, 0x0A, 0x0D, 0x0A, 0x00, 0x0D, 0x0A, 0x51, 0x55, 0x49, 0x54, 0x0A, 0x21, 0x21, 0x00, 0x24,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, last,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			0, 80, 0, 0,
+		})
+	}
+	got, err := readProxyProto(header(1))
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	if _, err := readProxyProto(header(2)); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	want := &net.TCPAddr{IP: net.ParseIP("::1"), Port: 80}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("first addr mutated by pool reuse; got %v, want %v", got, want)
+	}
+}
+
 func TestProxyProtocolConnReadWriteSuccessful(t *testing.T) {
 	server, client := net.Pipe()
 	defer server.Close()

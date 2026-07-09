@@ -23,7 +23,7 @@ func getRobotServerLabels(cfg *apiConfig) ([]*promutil.Labels, error) {
 }
 
 func appendRobotTargetLabels(ms []*promutil.Labels, server *RobotServer, port int) []*promutil.Labels {
-	m := promutil.NewLabels(16)
+	m := promutil.NewLabels(17)
 
 	addr := discoveryutil.JoinHostPort(server.ServerIP, port)
 	m.Add("__address__", addr)
@@ -32,6 +32,7 @@ func appendRobotTargetLabels(ms []*promutil.Labels, server *RobotServer, port in
 	m.Add("__meta_hetzner_server_id", fmt.Sprintf("%d", server.ServerNumber))
 	m.Add("__meta_hetzner_server_name", server.ServerName)
 	m.Add("__meta_hetzner_datacenter", strings.ToLower(server.DC))
+	m.Add("__meta_hetzner_robot_datacenter", strings.ToLower(server.DC))
 	m.Add("__meta_hetzner_public_ipv4", server.ServerIP)
 	for _, subnet := range server.Subnet {
 		ip := net.ParseIP(subnet.IP)

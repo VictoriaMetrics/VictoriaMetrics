@@ -97,6 +97,9 @@ type UploadBlobFromURLOptions struct {
 	// Optional. Indicates the tier to be set on the blob.
 	Tier *blob.AccessTier
 
+	// Optional. Specifies the customer-provided encryption key to use to decrypt the source blob.
+	SourceCustomerProvidedKey *blob.SourceCPKInfo
+
 	// Additional optional headers
 	HTTPHeaders                    *blob.HTTPHeaders
 	AccessConditions               *blob.AccessConditions
@@ -107,9 +110,9 @@ type UploadBlobFromURLOptions struct {
 
 func (o *UploadBlobFromURLOptions) format() (*generated.BlockBlobClientPutBlobFromURLOptions, *generated.BlobHTTPHeaders,
 	*generated.LeaseAccessConditions, *generated.CPKInfo, *generated.CPKScopeInfo, *generated.ModifiedAccessConditions,
-	*generated.SourceModifiedAccessConditions) {
+	*generated.SourceModifiedAccessConditions, *generated.SourceCPKInfo) {
 	if o == nil {
-		return nil, nil, nil, nil, nil, nil, nil
+		return nil, nil, nil, nil, nil, nil, nil, nil
 	}
 
 	options := generated.BlockBlobClientPutBlobFromURLOptions{
@@ -124,7 +127,8 @@ func (o *UploadBlobFromURLOptions) format() (*generated.BlockBlobClientPutBlobFr
 	}
 
 	leaseAccessConditions, modifiedAccessConditions := exported.FormatBlobAccessConditions(o.AccessConditions)
-	return &options, o.HTTPHeaders, leaseAccessConditions, o.CPKInfo, o.CPKScopeInfo, modifiedAccessConditions, o.SourceModifiedAccessConditions
+	return &options, o.HTTPHeaders, leaseAccessConditions, o.CPKInfo, o.CPKScopeInfo, modifiedAccessConditions,
+		o.SourceModifiedAccessConditions, o.SourceCustomerProvidedKey
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -174,11 +178,14 @@ type StageBlockFromURLOptions struct {
 	CPKInfo *blob.CPKInfo
 
 	CPKScopeInfo *blob.CPKScopeInfo
+
+	// Optional. Specifies the customer-provided encryption key to use to decrypt the source blob.
+	SourceCustomerProvidedKey *blob.SourceCPKInfo
 }
 
-func (o *StageBlockFromURLOptions) format() (*generated.BlockBlobClientStageBlockFromURLOptions, *generated.CPKInfo, *generated.CPKScopeInfo, *generated.LeaseAccessConditions, *generated.SourceModifiedAccessConditions) {
+func (o *StageBlockFromURLOptions) format() (*generated.BlockBlobClientStageBlockFromURLOptions, *generated.CPKInfo, *generated.CPKScopeInfo, *generated.LeaseAccessConditions, *generated.SourceModifiedAccessConditions, *generated.SourceCPKInfo) {
 	if o == nil {
-		return nil, nil, nil, nil, nil
+		return nil, nil, nil, nil, nil, nil
 	}
 
 	options := &generated.BlockBlobClientStageBlockFromURLOptions{
@@ -191,7 +198,8 @@ func (o *StageBlockFromURLOptions) format() (*generated.BlockBlobClientStageBloc
 		o.SourceContentValidation.Apply(options)
 	}
 
-	return options, o.CPKInfo, o.CPKScopeInfo, o.LeaseAccessConditions, o.SourceModifiedAccessConditions
+	return options, o.CPKInfo, o.CPKScopeInfo, o.LeaseAccessConditions, o.SourceModifiedAccessConditions,
+		o.SourceCustomerProvidedKey
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
