@@ -390,7 +390,9 @@ func TestRemoteWriteObfuscation(t *testing.T) {
 		}()
 		*obfuscationLabels = []string{obfuscationLabelList}
 		rwctx.initObfuscationConfig()
-		octx := obfuscationCtx{}
+		octx := obfuscationCtx{
+			cacheObfuscatedResult: make(map[string]string),
+		}
 		outputTss := rwctx.applyObfuscation(inputTss, &octx)
 
 		if !reflect.DeepEqual(expectedTss, outputTss) {
