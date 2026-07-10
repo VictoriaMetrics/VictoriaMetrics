@@ -32,7 +32,7 @@ type SDConfig struct {
 func (sdc *SDConfig) MustStart(baseDir string) {
 	cfg, err := newAPIConfig(sdc, baseDir)
 	if err != nil {
-		sdc.startErr = fmt.Errorf("cannot create API config for kubernetes: %w", err)
+		sdc.startErr = fmt.Errorf("cannot create API config for http_sd: %w", err)
 		return
 	}
 	sdc.cfg = cfg
