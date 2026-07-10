@@ -34,6 +34,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * BUGFIX: [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/) and [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): retry S3 requests failing with `HTTP 429` status code or `TooManyRequests` error code. Previously such requests were not retried, so a short burst of rate limiting would fail the whole backup. See [#11218](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11218). Thanks to @gautamrizwani for contribution.
 * BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly apply limit to metrics metadata response. See [#11139](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11139).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): keep only one header navigation dropdown (`Explore`, `Tools`) open at a time. Previously, hovering across two dropdowns could briefly leave both open due to the close delay. See [#11224](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11224). Thanks to @antedotee for contribution.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): fix a possible data race when processing OpenTelemetry metadata. See [#11238](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11238). Thanks to @nevgeny for contribution.
 
 ## [v1.147.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.147.0)
 
