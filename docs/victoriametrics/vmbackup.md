@@ -204,103 +204,45 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
 
 ### Providing credentials as a file
 
-`vmbackup` and `vmbackupmanager` can load credentials from a file via the `-credsFilePath` flag to access remote S3-compatible buckets and Google Cloud Storage.
+See [Connecting VM components to cloud storage](https://docs.victoriametrics.com/guides/connecting-vm-components-to-cloud-storage/) for instructions on obtaining credentials and providing them via credential files, environment variables, cloud provider metadata service, or Kubernetes secrets and IAM roles.
 
-To use a credential file, add the flag:
-
-```sh
--credsFilePath=/etc/credentials
-```
-
-The argument should point to a file with one of the formats below, depending on the storage provider.
+The following examples show the most common authentication patterns for each storage provider.
 
 #### S3 (AWS and S3-compatible)
-
-1. In AWS, [create an IAM user](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_users_create.html) or role with permissions to read and write the target bucket.
-2. [Create an access key](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html) for that IAM identity and copy the **Access key** and **Secret access key** values
-3. On the machine running `vmbackup`, create a credentials file with the following content and point `-credsFilePath` to it:
-
-   ```ini
-   [default]
-   aws_access_key_id=YOUR_AWS_ACCESS_KEY
-   aws_secret_access_key=YOUR_AWS_SECRET_ACCESS_KEY
-   ```
-
-This format matches the standard shared AWS credentials file used by the [AWS CLI](https://docs.aws.amazon.com/cli/v1/userguide/cli-configure-files.html) and [AWS SDKs](https://docs.aws.amazon.com/sdkref/latest/guide/file-format.html).
-
-For S3-compatible backends such as [MinIO](https://www.min.io/) or [Ceph](https://ceph.io/), create access keys in the respective
-system and use the same file format and set a custom endpoint with `-customS3Endpoint`. 
-
-For example:
 
 ```sh
 vmbackup \
   -storageDataPath=/data \
   -snapshot.createURL=http://localhost:8428/snapshot/create \
   -dst=s3://victoriametrics-backup/backup01 \
-  -customS3Endpoint=http://minio.example.local:9000 \
   -credsFilePath=/etc/credentials
 ```
 
 #### Google Cloud Storage (GCS)
 
-To create an IAM user and download the credential file, follow these steps:
-
-1. Open the Google Cloud Console and go to **IAM & Admin → Service Accounts**.
-2. Click **Create service account**.
-3. Enter a service account name.
-4. Assign the role the account needs to access Google Cloud Storage. See [IAM permissions for JSON methods](https://docs.cloud.google.com/storage/docs/access-control/iam-json) for more details.
-5. Open the service account, go to **Keys**, then click **Add key → Create new key**.
-6. Choose **JSON** as the key type
-7. Save the downloaded JSON file on the machine running `vmbackup` and point `-credsFilePath` to it. The file contents look similar to:
-
-   ```json
-   {
-     "type": "service_account",
-     "project_id": "project-id",
-     "private_key_id": "key-id",
-     "private_key": "-----BEGIN PRIVATE KEY-----\nprivate-key\n-----END PRIVATE KEY-----\n",
-     "client_email": "service-account-email",
-     "client_id": "client-id",
-     "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-     "token_uri": "https://accounts.google.com/o/oauth2/token",
-     "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-     "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/service-account-email"
-   }
-   ```
-
-This JSON is the standard service account key format defined by [Google Cloud IAM](https://developers.google.com/workspace/guides/create-credentials) and is used by Google client libraries and tools.
+```sh
+vmbackup \
+  -storageDataPath=/data \
+  -snapshot.createURL=http://localhost:8428/snapshot/create \
+  -dst=gs://victoriametrics-backup/backup01 \
+  -credsFilePath=/etc/credentials
+```
 
 #### Azure Blob Storage
 
-Azure Blob Storage uses environment variables rather than `-credsFilePath` in `vmbackup`. See [providing credentials via env variables](https://docs.victoriametrics.com/victoriametrics/vmbackup/#providing-credentials-via-env-variables) for details.
+```sh
+export AZURE_STORAGE_ACCOUNT_NAME=mystorageaccount
+export AZURE_STORAGE_ACCOUNT_KEY=myaccountkey
 
-### Providing credentials via env variables
-
-Obtaining credentials from environment variables.
-
-* For AWS S3 compatible storages set env variable `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
-  Also you can set env variable `AWS_SHARED_CREDENTIALS_FILE` with path to credentials file.
-* For GCE cloud storage set env variable `GOOGLE_APPLICATION_CREDENTIALS` with path to credentials file.
-* For Azure storage use one of these env variables:
-  * `AZURE_STORAGE_ACCOUNT_CONNECTION_STRING`: use a connection string (must be either SAS Token or Account/Key)
-  * `AZURE_STORAGE_ACCOUNT_NAME` and `AZURE_STORAGE_ACCOUNT_KEY`: use a specific account name and key (either primary or secondary)
-  * `AZURE_USE_DEFAULT_CREDENTIAL` and `AZURE_STORAGE_ACCOUNT_NAME`: use the `DefaultAzureCredential` to allow the Azure library
-     to search for multiple options (for example, managed identity related variables). Note that if multiple credentials are available,
-     it is required to specify the `AZURE_CLIENT_ID` to select specific credentials.
-
-  The `AZURE_STORAGE_DOMAIN` can be used for optionally overriding the default domain for the Azure storage service.
-
-Please, note that `vmbackup` will use credentials provided by cloud providers metadata service [when applicable](https://docs.victoriametrics.com/victoriametrics/vmbackup/#using-cloud-providers-metadata-service).
-
-### Using cloud providers metadata service
-
-`vmbackup` and `vmbackupmanager` will automatically use cloud providers metadata service in order to obtain credentials if they are running in cloud environment and credentials are not explicitly provided via flags or env variables.
+vmbackup \
+  -storageDataPath=/data \
+  -snapshot.createURL=http://localhost:8428/snapshot/create \
+  -dst=azblob://victoriametrics-backup/backup01
+```
 
 ### Providing credentials in Kubernetes
 
-The simplest way to provide credentials in Kubernetes is to use [Secrets](https://kubernetes.io/docs/concepts/configuration/secret/)
-and inject them into the pod as environment variables. For example, the following secret can be used for AWS S3 credentials:
+The simplest way to provide credentials in Kubernetes is to use [Secrets](https://kubernetes.io/docs/concepts/configuration/secret/) and inject them into the pod as environment variables. For example, the following secret can be used for AWS S3 credentials:
 
 ```yaml
 apiVersion: v1
@@ -308,14 +250,13 @@ kind: Secret
 metadata:
   name: vmbackup-credentials
 data:
-  access_key: key
-  secret_key: secret
+  access_key: <base64-encoded-key>
+  secret_key: <base64-encoded-secret>
 ```
 
 And then it can be injected into the pod as environment variables:
 
 ```yaml
-...
 env:
 - name: AWS_ACCESS_KEY_ID
   valueFrom:
@@ -327,7 +268,6 @@ env:
     secretKeyRef:
       key: secret_key
       name: vmbackup-credentials
-...
 ```
 
 A more secure way is to use IAM roles to provide tokens for pods instead of managing credentials manually.
