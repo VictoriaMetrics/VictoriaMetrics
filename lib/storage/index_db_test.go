@@ -2060,10 +2060,11 @@ func newTestStorage() *Storage {
 	s := &Storage{
 		cachePath: "test-storage-cache",
 
-		metricIDCache:   workingsetcache.New(1234),
-		metricNameCache: workingsetcache.New(1234),
-		tsidCache:       workingsetcache.New(1234),
-		retentionMsecs:  retentionMax.Milliseconds(),
+		metricIDCache:       workingsetcache.New(1234),
+		metricNameCache:     workingsetcache.New(1234),
+		tsidCache:           workingsetcache.New(1234),
+		retentionMsecs:      retentionMax.Milliseconds(),
+		maxBackfillAgeMsecs: retentionMax.Milliseconds(),
 	}
 	return s
 }
