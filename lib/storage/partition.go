@@ -334,9 +334,10 @@ type partitionMetrics struct {
 	IndexBlocksCacheRequests     uint64
 	IndexBlocksCacheMisses       uint64
 
-	InmemorySizeBytes uint64
-	SmallSizeBytes    uint64
-	BigSizeBytes      uint64
+	InmemorySizeBytes  uint64
+	SmallSizeBytes     uint64
+	BigSizeBytes       uint64
+	MetaindexSizeBytes uint64
 
 	InmemoryRowsCount uint64
 	SmallRowsCount    uint64
@@ -397,6 +398,7 @@ func (pt *partition) UpdateMetrics(m *partitionMetrics) {
 		m.InmemoryRowsCount += p.ph.RowsCount
 		m.InmemoryBlocksCount += p.ph.BlocksCount
 		m.InmemorySizeBytes += p.size
+		m.MetaindexSizeBytes += p.metaindexSizeBytes
 		m.InmemoryPartsRefCount += uint64(pw.refCount.Load())
 		if isDedupScheduled {
 			m.ScheduledDownsamplingPartitionsSize += p.size
@@ -407,6 +409,7 @@ func (pt *partition) UpdateMetrics(m *partitionMetrics) {
 		m.SmallRowsCount += p.ph.RowsCount
 		m.SmallBlocksCount += p.ph.BlocksCount
 		m.SmallSizeBytes += p.size
+		m.MetaindexSizeBytes += p.metaindexSizeBytes
 		m.SmallPartsRefCount += uint64(pw.refCount.Load())
 		if isDedupScheduled {
 			m.ScheduledDownsamplingPartitionsSize += p.size
@@ -417,6 +420,7 @@ func (pt *partition) UpdateMetrics(m *partitionMetrics) {
 		m.BigRowsCount += p.ph.RowsCount
 		m.BigBlocksCount += p.ph.BlocksCount
 		m.BigSizeBytes += p.size
+		m.MetaindexSizeBytes += p.metaindexSizeBytes
 		m.BigPartsRefCount += uint64(pw.refCount.Load())
 		if isDedupScheduled {
 			m.ScheduledDownsamplingPartitionsSize += p.size
