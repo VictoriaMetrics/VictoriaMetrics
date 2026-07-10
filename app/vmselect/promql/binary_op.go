@@ -164,10 +164,13 @@ func newBinaryOpFunc(bf func(left, right float64, isBool bool) float64) binaryOp
 		left := bfa.left
 		right := bfa.right
 		op := bfa.be.Op
-		isCmpOp := metricsql.IsBinaryOpCmp(op)
-		if !isCmpOp {
-			// Do not remove empty series for comparison operations,
+		switch true {
+		case metricsql.IsBinaryOpCmp(op) && isNaNTimeseries(right):
+			// Do not remove empty series for comparison operations on pure `NaN` expression,
 			// since this may lead to missing result.
+			// see: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10018
+			// see: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/150
+		default:
 			left = removeEmptySeries(left)
 			right = removeEmptySeries(right)
 		}
@@ -180,11 +183,6 @@ func newBinaryOpFunc(bf func(left, right float64, isBool bool) float64) binaryOp
 		if len(right) == 0 && bfa.be.FillRight == nil {
 			return nil, nil
 		}
-		// NaN values in non-scalar operands of comparison operations mean missing samples,
-		// so they cannot match any sample on the other side. Drop such data points
-		// in the same way as Prometheus does.
-		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10018
-		dropNaNRight := isCmpOp && !isScalar(right)
 		left, right, dst, err := adjustBinaryOpTags(bfa.be, left, right)
 		if err != nil {
 			return nil, err
@@ -229,6 +227,22 @@ func newBinaryOpFunc(bf func(left, right float64, isBool bool) float64) binaryOp
 		// won't work as expected if `(foo op bar)` results to NaN series.
 		return dst, nil
 	}
+}
+
+func isNaNTimeseries(tss []*timeseries) bool {
+	if len(tss) != 1 {
+		return false
+	}
+	ts := tss[0]
+	if len(ts.MetricName.MetricGroup) != 0 || len(ts.MetricName.Tags) != 0 {
+		return false
+	}
+	for _, v := range ts.Values {
+		if !math.IsNaN(v) {
+			return false
+		}
+	}
+	return true
 }
 
 func adjustBinaryOpTags(be *metricsql.BinaryOpExpr, left, right []*timeseries) ([]*timeseries, []*timeseries, []*timeseries, error) {
