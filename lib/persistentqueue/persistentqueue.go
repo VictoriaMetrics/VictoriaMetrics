@@ -52,6 +52,7 @@ type queue struct {
 	writerFlushedOffset uint64
 
 	lastMetainfoFlushTime uint64
+	hasDataToFlush        bool
 
 	blocksDropped *metrics.Counter
 	bytesDropped  *metrics.Counter
@@ -84,6 +85,7 @@ func (q *queue) mustResetFiles() {
 	}
 	q.reader.MustClose()
 	q.writer.MustClose()
+	q.hasDataToFlush = false
 	fs.MustRemovePath(q.readerPath)
 
 	q.writerOffset = 0
@@ -318,6 +320,7 @@ func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingB
 func (q *queue) MustClose() {
 	// Close writer.
 	q.writer.MustClose()
+	q.hasDataToFlush = false
 	q.writer = nil
 
 	// Close reader.
@@ -414,7 +417,7 @@ func (q *queue) writeBlock(block []byte) error {
 	}
 	q.blocksWritten.Inc()
 	q.bytesWritten.Add(len(block))
-	return q.flushWriterMetainfoIfNeeded()
+	return q.flushBufAndMetainfoIfNeeded()
 }
 
 var writeDurationSeconds = metrics.NewFloatCounter(`vm_persistentqueue_write_duration_seconds_total`)
@@ -422,6 +425,7 @@ var writeDurationSeconds = metrics.NewFloatCounter(`vm_persistentqueue_write_dur
 func (q *queue) nextChunkFileForWrite() error {
 	// Finalize the current chunk and start new one.
 	q.writer.MustClose()
+	q.hasDataToFlush = false
 	// There is no need to do fs.MustSyncPath(q.writerPath) here,
 	// since MustClose already does this.
 	if n := q.writerOffset % q.chunkFileSize; n > 0 {
@@ -513,7 +517,7 @@ again:
 	}
 	q.blocksRead.Inc()
 	q.bytesRead.Add(int(blockLen))
-	if err := q.flushReaderMetainfoIfNeeded(); err != nil {
+	if err := q.flushBufAndMetainfoIfNeeded(); err != nil {
 		return dst, err
 	}
 	return dst, nil
@@ -566,6 +570,7 @@ func (q *queue) write(buf []byte) error {
 	}
 	q.writerLocalOffset += bufLen
 	q.writerOffset += bufLen
+	q.hasDataToFlush = true
 	return nil
 }
 
@@ -595,24 +600,16 @@ func (q *queue) checkReaderWriterOffsets() error {
 	return nil
 }
 
-func (q *queue) flushReaderMetainfoIfNeeded() error {
+func (q *queue) flushBufAndMetainfoIfNeeded() error {
 	t := fasttime.UnixTimestamp()
 	if t == q.lastMetainfoFlushTime {
 		return nil
 	}
-	if err := q.flushMetainfo(); err != nil {
-		return fmt.Errorf("cannot flush metainfo: %w", err)
+	if q.hasDataToFlush {
+		q.writer.MustFlush(true)
+		q.writerFlushedOffset = q.writerOffset
+		q.hasDataToFlush = false
 	}
-	q.lastMetainfoFlushTime = t
-	return nil
-}
-
-func (q *queue) flushWriterMetainfoIfNeeded() error {
-	t := fasttime.UnixTimestamp()
-	if t == q.lastMetainfoFlushTime {
-		return nil
-	}
-	q.writer.MustFlush(true)
 	if err := q.flushMetainfo(); err != nil {
 		return fmt.Errorf("cannot flush metainfo: %w", err)
 	}
