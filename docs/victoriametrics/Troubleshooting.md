@@ -375,8 +375,9 @@ These are the solutions that exist for improving the performance of slow queries
   and disk read I/O needed for executing the query. For example, `node_filesystem_files{fstype!~"tmpfs|overlay"}`
   locates all the `node_filesystem_files` series via the `__name__` filter and only then drops the series
   with `tmpfs` and `overlay` filesystems, so it executes as slowly as `node_filesystem_files` without filters.
-  Rewriting the filter in the equivalent positive form, such as `node_filesystem_files{fstype=~"ext4|xfs"}`,
+  Rewriting the filter as an allow-list of the filesystem types you actually need, such as `node_filesystem_files{fstype=~"ext4|xfs"}`,
   allows locating only the needed series and reduces both the query duration and memory usage.
+  Note the allow-list must enumerate all the needed values - it selects a different set of series than the negative filter unless the enumeration is complete.
 
   [Query tracing](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#query-tracing)
   shows which label filters are used for locating the time series.
