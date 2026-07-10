@@ -251,7 +251,8 @@ export AWS_SECRET_ACCESS_KEY=YOUR_SECRET_AWS_ACCESS_KEY
 vmalert \
   -rule=s3://my-alert-bucket/rules/alerts_ \
   -datasource.url=http://vmselect:8481/select/0/prometheus \
-  -notifier.url=http://alertmanager:9093
+  -notifier.url=http://alertmanager:9093 \
+  -licenseFile=/etc/vm-license
 ```
 
 > To use non-AWS S3 buckets, you must [supply the `-s3.customEndpoint` argument](#s3-compatible-endpoints).
@@ -263,7 +264,8 @@ vmalert \
   -rule=gs://my-alert-bucket/rules/alerts_ \
   -s3.credsFilePath=/etc/vmalert/gcp-service-account.json \
   -datasource.url=http://vmselect:8481/select/0/prometheus \
-  -notifier.url=http://alertmanager:9093
+  -notifier.url=http://alertmanager:9093 \
+  -licenseFile=/etc/vm-license
 ```
 
 If you prefer, you can supply the path to the JSON credential file with the `GOOGLE_APPLICATION_CREDENTIALS` environment variable:
@@ -274,7 +276,8 @@ export GOOGLE_APPLICATION_CREDENTIALS=/etc/credentials
 vmalert \
   -rule=gs://my-alert-bucket/rules/alerts_ \
   -datasource.url=http://vmselect:8481/select/0/prometheus \
-  -notifier.url=http://alertmanager:9093
+  -notifier.url=http://alertmanager:9093 \
+  -licenseFile=/etc/vm-license
 ```
 
 ## Credentials files format
@@ -365,7 +368,7 @@ export AZURE_STORAGE_ACCOUNT_NAME=mystorageaccount
 export AZURE_STORAGE_ACCOUNT_KEY=myaccountkey
 ```
 
-## Self-hosted S3-compatible endpoints {#s3-compatible}
+## Self-hosted and S3-compatible endpoints {#s3-compatible}
 
 For S3-compatible storage such as MinIO or Ceph, set a custom endpoint with the `-customS3Endpoint` flag  for vmbackup, vmrestore, and vmbackupmanager. For example:
 
@@ -385,7 +388,8 @@ vmalert \
   -s3.customEndpoint=http://minio.example.local:9000 \
   -s3.credsFilePath=/etc/vmalert/aws-credentials \
   -datasource.url=http://vmselect:8481/select/0/prometheus \
-  -notifier.url=http://alertmanager:9093
+  -notifier.url=http://alertmanager:9093 \
+  -licenseFile=/etc/vm-license
 ```
 
 ### Addressing S3-compatible buckets
