@@ -2994,23 +2994,36 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{}
 		f(q, resultExpected)
 	})
+	t.Run(`compare_to_nan_right`, func(t *testing.T) {
+		// `right` is empty time series from NaN.
+		t.Parallel()
+		q := `label_set(time(), "foo", "bar") != NaN`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("bar"),
+		}}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`compare_to_empty_series_right`, func(t *testing.T) {
-		// Missing samples on the right side of vector comparison must not match anything.
-		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10018
+		// `right` is empty time series but not from NaN.
 		t.Parallel()
 		q := `label_set(time(), "foo", "bar") != (label_set(time(), "foo", "bar") > 100000)`
 		resultExpected := []netstorage.Result{}
 		f(q, resultExpected)
 	})
 	t.Run(`compare_to_empty_series_right_bool`, func(t *testing.T) {
-		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10018
 		t.Parallel()
 		q := `label_set(time(), "foo", "bar") == bool (label_set(time(), "foo", "bar") > 100000)`
 		resultExpected := []netstorage.Result{}
 		f(q, resultExpected)
 	})
 	t.Run(`compare_to_partially_empty_series_right`, func(t *testing.T) {
-		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10018
 		t.Parallel()
 		q := `label_set(time(), "foo", "bar") != (label_set(time(), "foo", "bar") * 2 > 2800)`
 		r := netstorage.Result{
