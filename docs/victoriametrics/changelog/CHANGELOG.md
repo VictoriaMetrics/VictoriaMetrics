@@ -26,9 +26,17 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): support `fill` modifiers to allow missing series on either side of a binary operation to be filled with a provided default value. See [#10598](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10598).
+* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): allow overriding `max_scrape_size` on a per-target basis via the `__max_scrape_size__` label during target relabeling. See [#11188](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11188).
+
+* BUGFIX: `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): Now drops metadata blocks when communicating with vmstorage nodes over the legacy RPC protocol. To avoid this limitation, upgrade `vmstorage` to a version that supports the new RPC protocol (>= [v1.137.0](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/changelog/CHANGELOG.md#v11370)). See [#11146](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11146).
+* BUGFIX: [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/) and [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): retry S3 requests failing with `HTTP 429` status code or `TooManyRequests` error code. Previously such requests were not retried, so a short burst of rate limiting would fail the whole backup. See [#11218](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11218). Thanks to @gautamrizwani for contribution.
+* BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly apply limit to metrics metadata response. See [#11139](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11139).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): keep only one header navigation dropdown (`Explore`, `Tools`) open at a time. Previously, hovering across two dropdowns could briefly leave both open due to the close delay. See [#11224](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11224). Thanks to @antedotee for contribution.
+
 ## [v1.147.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.147.0)
 
-Release candidate
+Released at 2026-07-06
 
 * SECURITY: upgrade base docker image (Alpine) from 3.23.4 to 3.24.1. See [Alpine 3.24.1 release notes](https://www.alpinelinux.org/posts/Alpine-3.24.1-released.html).
 
@@ -40,7 +48,7 @@ Release candidate
 * FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): add `optimize_repeated_binary_op_subexprs=1` query arg to [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query) for executing binary operator sides sequentially when they share the same optimized aggregate rollup result expression. This allows the second side to reuse rollup result cache populated by the first side. See [#10575](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10575). Thanks to @xhebox for the contribution.
 * FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): prevent possible password brute-force attacks with an artificial 2-3 second delay as recommended by [OWASP](https://owasp.org/Top10/2025/A07_2025-Authentication_Failures). See [#11180](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11180).
 * FEATURE: [alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules): add `InvalidAuthTokenRequestErrors` alerting rule to [vmauth alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-vmauth.yml). The new rule notifies when vmauth receives requests with invalid or missing auth tokens, which may indicate a client misconfiguration, expired token use, or brute-force attack. See [#11180](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11180).
-* FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): Add the support of vmselect RPC to vmsingle so that single node can be queried by a vmselect from a vmcluster deployment. See [4328](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4328) and [10926](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10926).
+* FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): Add the support of vmselect RPC to vmsingle so that single node can be queried by a vmselect from a vmcluster deployment. See [4328](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4328), [10926](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10926), and the [documentation](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#multi-tenancy).
 * FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): allow log requests with missing or invalid auth tokens to [access log](https://docs.victoriametrics.com/victoriametrics/vmauth/#access-log). This is useful for identifying `remote_addr` IPs performing brute-force attacks. See [#11180](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11180).
 * FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): fall through to `unauthorized_user` when a [JWT token](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-token-auth-proxy) has no `vm_access` claim and no `default_vm_access_claim` is configured. Previously, vmauth returned `401 Unauthorized` immediately in this case, which prevented `unauthorized_user` from handling such requests. See [#5740](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5740).
 * FEATURE: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): improve the selection algorithm of [buckets_limit](https://docs.victoriametrics.com/victoriametrics/metricsql/#buckets_limit) to remove consecutive empty buckets at the beginning and end to obtain more accurate min and max values. See [#10417](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10417).
@@ -320,6 +328,24 @@ It enables back `Discovered targets` debug UI by default.
 * BUGFIX: `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly search tenants for [multitenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) query request. See [#10422](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10422).
 * BUGFIX: `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly apply `extra_filters[]` filter when querying `vm_account_id` or `vm_project_id` labels via [multitenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) request for `/api/v1/label/…/values` API. Before, `extra_filters` was ignored. See [#10503](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10503).
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): revert the use of rollup result cache for [instant queries](https://docs.victoriametrics.com/keyConcepts.html#instant-query) that contain [`rate`](https://docs.victoriametrics.com/MetricsQL.html#rate) function with a lookbehind window larger than `-search.minWindowForInstantRollupOptimization`. The cache usage was removed since [v1.132.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.132.0). See [#10098](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10098#issuecomment-3895011084) for more details.
+
+## [v1.136.13](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.136.13)
+
+Released at 2026-07-03
+
+**v1.136.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.136.x line will be supported for at least 12 months since [v1.136.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11360) release**
+
+* SECURITY: upgrade base docker image (Alpine) from 3.23.4 to 3.24.1. See [Alpine 3.24.1 release notes](https://www.alpinelinux.org/posts/Alpine-3.24.1-released.html).
+
+* BUGFIX: `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): properly check values range for the limits configured with flags `-maxLabelsPerTimeseries`, `-maxLabelNameLen` and `-maxLabelValueLen`. It must be in range `1..65535`. See [#11128](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11128).
+* BUGFIX: `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fixes unexpected rare rerouting. See [#11162](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11162).
+* BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): propagate cache reset operation to `selectNode` when `/internal/resetRollupResultCache` is called. Previously, the propagation only happened when the `delete_series` API was called. See [#11112](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11112).
+* BUGFIX: [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/): fix possible unexpected increases in `rate_avg` and `rate_sum` if an out-of-order sample is ingested after the previous flush. See [#11140](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11140).
+* BUGFIX: [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/): properly URL-encode `-vm-extra-label` values when building import requests, so special characters such as `&` don't get split into broken query parameters. See [#11144](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11144). Thanks to @immanuwell for contribution.
+* BUGFIX: [enterprise](https://docs.victoriametrics.com/enterprise/) [vmagent](https://docs.victoriametrics.com/vmagent/): ignore `enable.auto.offset.store` option in `kafka.consumer.topic.options`, since `vmagent` manages offset storage internally. Previously, setting this option could cause `vmagent` to stop committing Kafka messages. See [#11208](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11208).
+* BUGFIX: all VictoriaMetrics components: cancel in-flight HTTP requests shortly before `-http.maxGracefulShutdownDuration` elapses during graceful shutdown, so they can drain and the shutdown completes cleanly within that window instead of timing out and exiting via `logger.Fatalf` -> `os.Exit`. This prevents skipping the storage flush and losing in-memory data when long-lived requests are in flight (such as VictoriaLogs live tailing). See [#1502](https://github.com/VictoriaMetrics/VictoriaLogs/issues/1502).
 
 ## [v1.136.12](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.136.12)
 
@@ -700,6 +726,22 @@ See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/ch
 ## [v1.123.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.123.0)
 
 See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2025/#v11230)
+
+## [v1.122.26](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.26)
+
+Released at 2026-07-03
+
+**v1.122.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.122.x line will be supported for at least 12 months since [v1.122.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11220) release**
+
+* SECURITY: upgrade base docker image (Alpine) from 3.23.4 to 3.24.1. See [Alpine 3.24.1 release notes](https://www.alpinelinux.org/posts/Alpine-3.24.1-released.html).
+
+* BUGFIX: `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): properly check values range for the limits configured with flags `-maxLabelsPerTimeseries`, `-maxLabelNameLen` and `-maxLabelValueLen`. It must be in range `1..65535`. See [#11128](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11128).
+* BUGFIX: [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/): fix possible unexpected increases in `rate_avg` and `rate_sum` if an out-of-order sample is ingested after the previous flush. See [#11140](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11140).
+* BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): propagate cache reset operation to `selectNode` when `/internal/resetRollupResultCache` is called. Previously, the propagation only happened when the `delete_series` API was called. See [#11112](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11112).
+* BUGFIX: [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/): properly URL-encode `-vm-extra-label` values when building import requests, so special characters such as `&` don't get split into broken query parameters. See [#11144](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11144). Thanks to @immanuwell for contribution.
+* BUGFIX: all VictoriaMetrics components: cancel in-flight HTTP requests shortly before `-http.maxGracefulShutdownDuration` elapses during graceful shutdown, so they can drain and the shutdown completes cleanly within that window instead of timing out and exiting via `logger.Fatalf` -> `os.Exit`. This prevents skipping the storage flush and losing in-memory data when long-lived requests are in flight (such as VictoriaLogs live tailing). See [#1502](https://github.com/VictoriaMetrics/VictoriaLogs/issues/1502).
 
 ## [v1.122.25](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.25)
 

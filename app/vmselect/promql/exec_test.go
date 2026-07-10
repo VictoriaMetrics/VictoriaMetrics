@@ -4006,6 +4006,275 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r1, r2}
 		f(q, resultExpected)
 	})
+	t.Run(`vector + vector fill()`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort_by_label((
+			label_set(1, "foo", "common")
+			or label_set(2, "foo", "left_only")
+		) + fill(0) (
+			label_set(3, "foo", "common")
+			or label_set(4, "foo", "right_only")
+		), "foo")`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{4, 4, 4, 4, 4, 4},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("common"),
+		}}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{2, 2, 2, 2, 2, 2},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("left_only"),
+		}}
+		r3 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{4, 4, 4, 4, 4, 4},
+			Timestamps: timestampsExpected,
+		}
+		r3.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("right_only"),
+		}}
+		resultExpected := []netstorage.Result{r1, r2, r3}
+		f(q, resultExpected)
+	})
+	t.Run(`vector + vector fill() both sides NaN case`, func(t *testing.T) {
+		t.Parallel()
+		q := `(
+			label_set(time() <= 1200, "foo", "common")
+		) + fill(10) (
+			label_set(time() >= 1600, "foo", "common")
+		)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1010, 1210, nan, 1610, 1810, 2010},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("common"),
+		}}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`vector + vector fill_left() fill_right()`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort_by_label((
+			label_set(1, "foo", "common")
+			or label_set(2, "foo", "left_only")
+		) + fill_left(10) fill_right(20) (
+			label_set(3, "foo", "common")
+			or label_set(4, "foo", "right_only")
+		), "foo")`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{4, 4, 4, 4, 4, 4},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("common"),
+		}}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{22, 22, 22, 22, 22, 22},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("left_only"),
+		}}
+		r3 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{14, 14, 14, 14, 14, 14},
+			Timestamps: timestampsExpected,
+		}
+		r3.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("right_only"),
+		}}
+		resultExpected := []netstorage.Result{r1, r2, r3}
+		f(q, resultExpected)
+	})
+	t.Run(`vector + vector fill_right() only`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort_by_label((
+			label_set(1, "foo", "common")
+			or label_set(2, "foo", "left_only")
+		) + fill_right(20) (
+			label_set(3, "foo", "common")
+			or label_set(4, "foo", "right_only")
+		), "foo")`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{4, 4, 4, 4, 4, 4},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("common"),
+		}}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{22, 22, 22, 22, 22, 22},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("left_only"),
+		}}
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
+	t.Run(`vector + vector on() fill()`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort_by_label((
+			label_set(1, "foo", "common", "extra", "l")
+			or label_set(2, "foo", "left_only", "extra", "l")
+		) + on(foo) fill(0) (
+			label_set(3, "foo", "common", "extra", "r")
+			or label_set(4, "foo", "right_only", "extra", "r")
+		), "foo")`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{4, 4, 4, 4, 4, 4},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("common"),
+		}}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{2, 2, 2, 2, 2, 2},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("left_only"),
+		}}
+		r3 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{4, 4, 4, 4, 4, 4},
+			Timestamps: timestampsExpected,
+		}
+		r3.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("right_only"),
+		}}
+		resultExpected := []netstorage.Result{r1, r2, r3}
+		f(q, resultExpected)
+	})
+	t.Run(`vector + vector on() group_left() fill_right()`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort_by_label((
+			label_set(1, "method", "get", "code", "500")
+			or label_set(2, "method", "get", "code", "404")
+			or label_set(3, "method", "put", "code", "501")
+		) + on(method) group_left() fill_right(0) (
+			label_set(10, "method", "get")
+		), "method", "code")`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{12, 12, 12, 12, 12, 12},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("code"),
+				Value: []byte("404"),
+			},
+			{
+				Key:   []byte("method"),
+				Value: []byte("get"),
+			},
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{11, 11, 11, 11, 11, 11},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("code"),
+				Value: []byte("500"),
+			},
+			{
+				Key:   []byte("method"),
+				Value: []byte("get"),
+			},
+		}
+		r3 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{3, 3, 3, 3, 3, 3},
+			Timestamps: timestampsExpected,
+		}
+		r3.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("code"),
+				Value: []byte("501"),
+			},
+			{
+				Key:   []byte("method"),
+				Value: []byte("put"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1, r2, r3}
+		f(q, resultExpected)
+	})
+	t.Run(`vector / vector ignoring() fill()`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort_by_label((
+			label_set(6, "method", "get", "code", "500")
+			or label_set(1, "method", "put", "code", "500")
+		) / ignoring(code) fill(0) (
+			label_set(12, "method", "get")
+			or label_set(5, "method", "post")
+			or label_set(10, "method", "put")
+		), "method")`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0.5, 0.5, 0.5, 0.5, 0.5, 0.5},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("method"),
+				Value: []byte("get"),
+			},
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0, 0, 0, 0, 0, 0},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("method"),
+				Value: []byte("post"),
+			},
+		}
+		r3 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0.1, 0.1, 0.1, 0.1, 0.1, 0.1},
+			Timestamps: timestampsExpected,
+		}
+		r3.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("method"),
+				Value: []byte("put"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1, r2, r3}
+		f(q, resultExpected)
+	})
 	t.Run(`histogram_quantile(scalar)`, func(t *testing.T) {
 		t.Parallel()
 		q := `histogram_quantile(0.6, time())`

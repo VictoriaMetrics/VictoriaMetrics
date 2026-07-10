@@ -338,13 +338,15 @@ File bugs and feature requests in our [GitHub Issues](https://github.com/Victori
 ## Where can I find information about multi-tenancy?
 
 See [these docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy).
-Multitenancy is supported only by the [cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) of VictoriaMetrics.
+Multitenancy is fully supported only by the [cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) of VictoriaMetrics.
+Single-node provides limited [multitenancy](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#multi-tenancy) support to facilitate
+the migration [from single-node to cluster](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#from-single-node-to-cluster).
 
 ## How to set a memory limit for VictoriaMetrics components?
 
 All VictoriaMetrics components provide command-line flags to control the size of internal buffers and caches:
 `-memory.allowedPercent` and `-memory.allowedBytes` (pass `-help` to any VictoriaMetrics component in order to see the description for these flags).
-These limits don't take into account additional memory, which may be needed for processing incoming queries.
+These limits don't account for additional memory that may be needed to process incoming queries.
 Hard limits may be enforced only by the OS via [cgroups](https://en.wikipedia.org/wiki/Cgroups),
 Docker (see [these docs](https://docs.docker.com/config/containers/resource_constraints)) or
 Kubernetes (see [these docs](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers)).
@@ -465,9 +467,13 @@ Cluster version of VictoriaMetrics may be preferred over single-node VictoriaMet
 
 ## How to migrate data from single-node VictoriaMetrics to cluster version?
 
-The single-node version of VictoriaMetrics stores data on disk in slightly different format compared to the cluster version of VictoriaMetrics.
-This makes it impossible to just copy the on-disk data from `-storageDataPath` directory from single-node VictoriaMetrics to a `vmstorage` node in VictoriaMetrics cluster.
-If you need to migrate data from a single-node VictoriaMetrics to the cluster version, then [follow these instructions](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/).
+The single-node version of VictoriaMetrics stores data on disk in a slightly different format compared to the cluster version of VictoriaMetrics.
+This makes it impossible to just copy the on-disk data from the `-storageDataPath` directory from single-node VictoriaMetrics to a `vmstorage` node in a VictoriaMetrics cluster.
+
+There are two options, however:
+
+1. Deploy a new cluster next to the existing single-node and let them co-exist until the cluster is filled with new data and the old data in vmsingle becomes outside of the retention period. This option requires no data migration or downtime. See instructions [here](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#from-single-node-to-cluster).
+2. If you need to actually migrate data from a single-node VictoriaMetrics to the cluster version (and/or possibly modify it), then follow [these vmctl instructions](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/).
 
 ## Why isn't MetricsQL 100% compatible with PromQL?
 
