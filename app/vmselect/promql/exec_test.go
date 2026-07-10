@@ -3010,6 +3010,38 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`compare_to_nan_right`, func(t *testing.T) {
+		// `right` is empty time series from NaN.
+		t.Parallel()
+		q := `label_set(time(), "foo", "bar") != 1200`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, nan, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("bar"),
+		}}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`compare_to_nan_right`, func(t *testing.T) {
+		// `right` is empty time series from NaN.
+		t.Parallel()
+		q := `label_set(time(), "foo", "bar") != NaN`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("bar"),
+		}}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`compare_to_empty_series_right`, func(t *testing.T) {
 		// `right` is empty time series but not from NaN.
 		t.Parallel()
