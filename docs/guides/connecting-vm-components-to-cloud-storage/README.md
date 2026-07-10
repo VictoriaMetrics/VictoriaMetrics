@@ -1,5 +1,7 @@
 Several VictoriaMetrics components can connect to cloud storage to read or write object data.
 
+The following table shows the supported types of storage for each component:
+
 | Component | AWS S3 and S3-compatible | Google Cloud Storage | Azure Blob Storage |
 |-----------|----|----------------------|--------------------|
 | [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/) | ✅ | ✅ | ✅ |
@@ -7,12 +9,12 @@ Several VictoriaMetrics components can connect to cloud storage to read or write
 | [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/) | ✅ | ✅ | ✅ |
 | [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) |  ✅ | ✅ | ❌ |
 
-All these components use the same underlying libraries, so the authentication setup is largely the same. The main difference is in flag names: 
+All these components use the same underlying libraries, so the authentication setup is largely the same. The main difference is in the command-line flags: 
 
 - vmalert uses `-s3.*` prefixed flags (e.g., `-s3.credsFilePath`)
 - backup and restore tools use unprefixed flags (e.g., `-credsFilePath`)
 
-See the [component reference](#per-component-flag-reference) for details.
+See the [component reference](https://docs.victoriametrics.com/guides/connecting-vm-components-to-cloud-storage/#per-component-flag-reference) for details.
 
 ## Obtaining credentials
 
@@ -20,9 +22,17 @@ You need to supply credentials so the component can connect to the cloud storage
 
 ### AWS S3
 
-1. In AWS, [create an IAM user](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_users_create.html) or role with permissions to read and write the target bucket.
+1. In AWS, [create an IAM user](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_users_create.html) or role with the minimum permissions for the target bucket (see table below).
 1. [Create an access key](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html) for that IAM identity.
 1. Copy the **Access key ID** and **Secret access key** values. You will use them in the credentials file or environment variables.
+
+| Component       | S3 usage                                                    | Minimum S3 permissions |
+|-----------------|-------------------------------------------------------------|------------------------|
+| vmalert (Enterprise) | Reads alerting/recording rules from bucket.    | `s3:GetObject`, `s3:ListBucket` on the rules bucket/prefix.|
+| vmrestore       | Restores backups from S3 buckets                            | `s3:GetObject`, `s3:ListBucket` on the backup bucket/prefix.|
+| vmbackup        | Uploads backups to S3 and may delete old backup objects during maintenance.| `s3:PutObject`, `s3:GetObject`, `s3:ListBucket`, `s3:DeleteObject` on the backup bucket/prefix.|
+| vmbackupmanager (Enterprise) | Automates backups using vmbackup behavior.                  | Same as vmbackup. |
+
 
 ### S3-compatible storage (MinIO, Ceph)
 
@@ -55,13 +65,13 @@ Generate access keys using your storage system's admin interface or CLI. The cre
 
 Provide the credentials as a file or with environment variables, along with the path to the cloud storage bucket. The syntax for the bucket name depends on the cloud provider:
 
-- `s3://`: for AWS S3 and S3-compatible storage (MinIO, Ceph)
+- `s3://`: for AWS S3 and self-hosted S3-compatible storage (MinIO, Ceph)
 - `gs://`: Google Cloud Storage
 - `azblob://`: Azure Blob Storage
 
 ### vmbackup and vmrestore
 
-The following example backs up to an AWS S3 bucket using a credentials file:
+The following example backups to an AWS S3 bucket using a credentials file:
 
 ```sh
 vmbackup \
@@ -81,6 +91,8 @@ vmrestore \
 
 ```
 
+> To use non-AWS S3 buckets such as MinIO or Ceph, you must [supply the `-customS3Endpoint` argument](https://docs.victoriametrics.com/guides/connecting-vm-components-to-cloud-storage/#s3-compatible).
+
 Alternatively, you can set the access keys as environment variables instead of using a credential file:
 
 ```sh
@@ -97,7 +109,6 @@ vmrestore \
   -storageDataPath=/data
 ```
 
-> To use non-AWS S3 buckets, you must [supply the `-customS3Endpoint` argument](#s3-compatible-endpoints).
 
 Backups on Google Cloud Storage use the `gs://` prefix in the destination:
 
@@ -227,7 +238,8 @@ vmalert \
   -rule=s3://my-alert-bucket/rules/alerts_ \
   -s3.credsFilePath=/etc/vmalert/aws-credentials \
   -datasource.url=http://vmselect:8481/select/0/prometheus \
-  -notifier.url=http://alertmanager:9093
+  -notifier.url=http://alertmanager:9093 \
+  -licenseFile=/etc/vm-license
 ```
 
 Instead of a credential file, you can supply the access keys using environment variables:
@@ -348,7 +360,12 @@ This is the standard service account key format defined by [Google Cloud IAM](ht
 
 Azure does not support credentials via file. Use environment variables instead.
 
-## S3-compatible endpoints
+```sh
+export AZURE_STORAGE_ACCOUNT_NAME=mystorageaccount
+export AZURE_STORAGE_ACCOUNT_KEY=myaccountkey
+```
+
+## Self-hosted S3-compatible endpoints {#s3-compatible}
 
 For S3-compatible storage such as MinIO or Ceph, set a custom endpoint with the `-customS3Endpoint` flag  for vmbackup, vmrestore, and vmbackupmanager. For example:
 
