@@ -1718,7 +1718,7 @@ var (
 	rollupMemoryPerQuery = metrics.NewHistogram(`vm_rollup_memory_bytes_per_query`)
 
 	rollupMemoryLimitRejects       = metrics.NewCounter(`vm_rollup_memory_limit_rejects_total{limit="search.maxMemoryPerQuery"}`)
-	rollupMemoryLimitRejectsGlobal = metrics.NewCounter(`vm_rollup_memory_limit_rejects_total{limit="memory.allowedPercent"}`)
+	rollupMemoryLimitRejectsGlobal = metrics.NewCounter(`vm_rollup_memory_limit_rejects_total{limit="memory.allowed"}`)
 )
 
 func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf rollupFunc,
