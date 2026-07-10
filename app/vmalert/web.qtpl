@@ -191,8 +191,21 @@
                                                     {% else %}
                                                         <b>record:</b> {%s r.Name %}
                                                     {% endif %}
-                                                    |
+                                                    {% if r.State == "inactive" %}
+                                                        <span><a class="badge bg-success">{%s r.State %}</a></span>
+                                                    {% elseif  r.State == "pending" %}
+                                                        <span><a class="badge bg-warning">{%s r.State %}</a></span>
+                                                    {% elseif  r.State == "firing" %}
+                                                        <span><a class="badge bg-danger">{%s r.State %}</a></span>
+                                                    {% elseif  r.State == "ok" %}
+                                                        <span><a class="badge bg-success">{%s r.State %}</a></span>
+                                                    {% elseif  r.State == "unhealthy" %}
+                                                        <span><a class="badge bg-danger">{%s r.State %}</a></span>
+                                                    {% elseif  r.State == "nomatch" %}
+                                                        <span><a class="badge bg-warning">{%s r.State %}</a></span>
+                                                    {% endif %}
                                                     {%= seriesFetchedWarn(prefix, &r) %}
+                                                    |
                                                     <span><a target="_blank" href="{%s prefix+r.WebLink() %}">Details</a></span>
                                                 </div>
                                                 <div class="col-12">
