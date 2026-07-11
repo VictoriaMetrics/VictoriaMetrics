@@ -3488,12 +3488,11 @@ func TestStorageAddRows_currHourMetricIDs(t *testing.T) {
 		})
 		defer s.MustClose()
 
-		now := time.Now().UTC()
+		currHour := fasttime.UnixHour()
 		currHourTR := TimeRange{
-			MinTimestamp: time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), 0, 0, 0, time.UTC).UnixMilli(),
-			MaxTimestamp: time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), 59, 59, 999_999_999, time.UTC).UnixMilli(),
+			MinTimestamp: int64(currHour) * 3600 * 1000,
+			MaxTimestamp: int64(currHour)*3600*1000 + 3600*1000 - 1,
 		}
-		currHour := uint64(currHourTR.MinTimestamp / 1000 / 3600)
 		prevHourTR := TimeRange{
 			MinTimestamp: currHourTR.MinTimestamp - 3600*1000,
 			MaxTimestamp: currHourTR.MaxTimestamp - 3600*1000,
