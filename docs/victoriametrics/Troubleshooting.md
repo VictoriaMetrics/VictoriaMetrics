@@ -378,7 +378,8 @@ These are the solutions that exist for improving the performance of slow queries
   Rewriting the filter as an allow-list of the filesystem types you actually need, such as `node_filesystem_files{fstype=~"ext4|xfs"}`,
   allows locating only the needed series and reduces both the query duration and memory usage.
   Note the allow-list selects a different set of series than the negative filter: it only matches series that have the label
-  with one of the enumerated values, while the negative filter also matches series without the label.
+  with one of the enumerated values, while the negative filter also matches series without the label
+  (this applies to regexes that don't match an empty string, like the ones above).
   Make sure the allow-list covers all the needed values and that all the needed series have the label.
 
   [Query tracing](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#query-tracing)
