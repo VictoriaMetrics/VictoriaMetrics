@@ -56,9 +56,11 @@ document.addEventListener('DOMContentLoaded', initRelabelConfigsHighlight);
 <body>
     {%= htmlcomponents.Navbar() %}
     <div class="container-fluid">
-        <a href="https://docs.victoriametrics.com/victoriametrics/relabeling/" target="_blank">Relabeling docs</a>{% space %}
+        <a href="https://docs.victoriametrics.com/victoriametrics/relabeling/" target="_blank">Relabeling Cookbook</a>{% space %}|{% space %}
+        <a href="https://docs.victoriametrics.com/victoriametrics/relabeling/#relabeling-stages" target="_blank">Relabeling Stages</a>
 
         {% if targetID != "" %}
+          {% space %}|{% space %}
           {% if targetURL != "" %}
             <a href="metric-relabel-debug?id={%s targetID %}">Metric relabel debug</a>
           {% else %}
@@ -96,12 +98,12 @@ document.addEventListener('DOMContentLoaded', initRelabelConfigsHighlight);
 
 {% func relabelDebugFormInputs(metric, relabelConfigs string, urlRelabelIndexLength, urlRelabelIndexCurrent int, isTargetRelabel bool, targetID string) %}
     <div>
-        Relabel configs:<br/>
         <!-- show remote write relabel reload only for scrape metric relabel debug and pure relabel debug. discovery debug should not display this section -->
         {% if !isTargetRelabel %}
         <div>
             <div class="m-1">
                 <div class="d-flex align-items-center gap-2 mt-1">
+                    Configs:
                     {% if urlRelabelIndexLength > 0 %}
                         <input type="hidden" name="reload_url_relabel_configs" id="reload_url_relabel_configs" value="" />
                         <select name="url_relabel_configs_index" class="form-select form-select-sm w-auto" onchange="document.getElementById('reload_url_relabel_configs').value='1'; this.form.submit()">
@@ -117,6 +119,8 @@ document.addEventListener('DOMContentLoaded', initRelabelConfigsHighlight);
                 </div>
             </div>
         </div>
+        {% else %}
+        Configs:
         {% endif %}
 
         <!-- the following text area css was generated with the help of AI to display yaml comments (starting with #) in gray. it could be rewritten in the future -->
