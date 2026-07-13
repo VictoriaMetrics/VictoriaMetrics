@@ -1807,18 +1807,19 @@ func TestStorageRowsNotAdded(t *testing.T) {
 	defer testRemoveAll(t)
 
 	type options struct {
-		name        string
-		retention   time.Duration
-		mrs         []MetricRow
-		tr          TimeRange
-		wantMetrics *Metrics
+		name           string
+		retention      time.Duration
+		maxBackfillAge time.Duration
+		mrs            []MetricRow
+		tr             TimeRange
+		wantMetrics    *Metrics
 	}
 	f := func(opts *options) {
 		t.Helper()
 
 		var gotMetrics Metrics
 		path := fmt.Sprintf("%s/%s", t.Name(), opts.name)
-		s := MustOpenStorage(path, OpenOptions{Retention: opts.retention})
+		s := MustOpenStorage(path, OpenOptions{Retention: opts.retention, MaxBackfillAge: opts.maxBackfillAge})
 		defer s.MustClose()
 		s.AddRows(opts.mrs, defaultPrecisionBits)
 		s.DebugFlush()
@@ -1887,6 +1888,22 @@ func TestStorageRowsNotAdded(t *testing.T) {
 		wantMetrics: &Metrics{
 			RowsReceivedTotal:   numRows,
 			TooBigTimestampRows: numRows,
+		},
+	})
+
+	retention = retentionMax
+	maxBackfillAge := 48 * time.Hour
+	minTimestamp = time.Now().Add(-maxBackfillAge - time.Hour).UnixMilli()
+	maxTimestamp = minTimestamp + 1000
+	f(&options{
+		name:           "TooSmallTimestampsForMaxBackfillAge",
+		retention:      retention,
+		maxBackfillAge: maxBackfillAge,
+		mrs:            testGenerateMetricRows(rng, numRows, minTimestamp, maxTimestamp),
+		tr:             TimeRange{minTimestamp, maxTimestamp},
+		wantMetrics: &Metrics{
+			RowsReceivedTotal:     numRows,
+			TooSmallTimestampRows: numRows,
 		},
 	})
 
@@ -2504,6 +2521,80 @@ func testStorageOpOnVariousTimeRanges(t *testing.T, op func(t *testing.T, tr Tim
 			MaxTimestamp: maxTime.UnixMilli(),
 		})
 	})
+}
+
+func TestStorageSearchLabelValues_SingleFilterOnLabelName(t *testing.T) {
+	defer testRemoveAll(t)
+
+	const N = 1000
+
+	tr := TimeRange{
+		MinTimestamp: time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 12, 15, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	step := (tr.MaxTimestamp - tr.MinTimestamp) / N
+	mrs := make([]MetricRow, N)
+	allMetricNames := make([]string, N)
+	allLabelValues := make([]string, N)
+
+	for i := range int64(N) {
+		metricName := fmt.Sprintf("metric_%03d", i)
+		labelValue := fmt.Sprintf("value_%03d", i)
+		mn := MetricName{
+			MetricGroup: []byte(metricName),
+			Tags: []Tag{
+				{
+					Key:   []byte("label"),
+					Value: []byte(labelValue),
+				},
+			},
+		}
+
+		mrs[i].MetricNameRaw = mn.marshalRaw(nil)
+		mrs[i].Timestamp = tr.MinTimestamp + i*step
+		mrs[i].Value = float64(i)
+		allMetricNames[i] = metricName
+		allLabelValues[i] = labelValue
+	}
+
+	s := MustOpenStorage(t.Name(), OpenOptions{})
+	defer s.MustClose()
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+
+	f := func(label, k, v string, isNegative, isRegex bool, tr TimeRange, maxLabelValues, maxMetrics int, want []string) {
+		t.Helper()
+		tfs := NewTagFilters()
+		if err := tfs.Add([]byte(k), []byte(v), isNegative, isRegex); err != nil {
+			t.Fatalf("unexpected error in TagFilters.Add: %v", err)
+		}
+		got, err := s.SearchLabelValues(nil, label, []*TagFilters{tfs}, tr, maxLabelValues, maxMetrics, noDeadline)
+		if err != nil {
+			t.Fatalf("SearchLabelValues() failed unexpectedly: %v", err)
+		}
+		slices.Sort(got)
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Fatalf("unexpected label values (-want, +got):\n%s", diff)
+		}
+	}
+
+	wantAllMetricNames := allMetricNames
+	wantAllLabelValues := allLabelValues
+	f("", "", "metric_.*", false, true, tr, N+1, N+1, wantAllMetricNames)
+	f("__name__", "", "metric_.*", false, true, tr, N+1, N+1, wantAllMetricNames)
+	f("label", "label", "value_.*", false, true, tr, N+1, N+1, wantAllLabelValues)
+
+	var wantEvery10thMetricName []string
+	var wantEvery10thLabelValue []string
+	for i := range N {
+		if i%10 == 0 {
+			wantEvery10thMetricName = append(wantEvery10thMetricName, allMetricNames[i])
+			wantEvery10thLabelValue = append(wantEvery10thLabelValue, allLabelValues[i])
+		}
+	}
+	f("", "", "metric_[0-9]{2}0", false, true, tr, N+1, N+1, wantEvery10thMetricName)
+	f("__name__", "", "metric_[0-9]{2}0", false, true, tr, N+1, N+1, wantEvery10thMetricName)
+	f("label", "label", "value_[0-9]{2}0", false, true, tr, N+1, N+1, wantEvery10thLabelValue)
 }
 
 func TestStorageSearchLabelValues_EmptyValuesAreNotReturned(t *testing.T) {

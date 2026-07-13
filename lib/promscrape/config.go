@@ -367,6 +367,9 @@ func (sc *ScrapeConfig) mustStart(baseDir string) {
 	for i := range sc.KubernetesSDConfigs {
 		sc.KubernetesSDConfigs[i].MustStart(baseDir, swosFunc)
 	}
+	for i := range sc.HTTPSDConfigs {
+		sc.HTTPSDConfigs[i].MustStart(baseDir)
+	}
 }
 
 func (sc *ScrapeConfig) mustStop() {
@@ -1271,6 +1274,17 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		}
 		scrapeTimeout = d
 	}
+	// Read max_scrape_size option from __max_scrape_size__ label.
+	targetMaxScrapeSize := swc.maxScrapeSize
+	if s := labels.Get("__max_scrape_size__"); len(s) > 0 {
+		n, err := flagutil.ParseBytes(s)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse __max_scrape_size__=%q: %w", s, err)
+		}
+		if n > 0 {
+			targetMaxScrapeSize = n
+		}
+	}
 	// Read series_limit option from __series_limit__ label.
 	// See https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter
 	seriesLimit := swc.seriesLimit
@@ -1333,7 +1347,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		ScrapeURL:            scrapeURL,
 		ScrapeInterval:       scrapeInterval,
 		ScrapeTimeout:        scrapeTimeout,
-		MaxScrapeSize:        swc.maxScrapeSize,
+		MaxScrapeSize:        targetMaxScrapeSize,
 		HonorLabels:          swc.honorLabels,
 		HonorTimestamps:      swc.honorTimestamps,
 		DenyRedirects:        swc.denyRedirects,

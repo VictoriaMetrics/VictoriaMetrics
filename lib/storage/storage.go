@@ -65,6 +65,7 @@ type Storage struct {
 	cachePath                   string
 	retentionMsecs              int64
 	futureRetentionMsecs        int64
+	maxBackfillAgeMsecs         int64
 	denyQueriesOutsideRetention bool
 
 	// lock file for exclusive access to the storage on the given path.
@@ -164,6 +165,7 @@ type Storage struct {
 type OpenOptions struct {
 	Retention                   time.Duration
 	FutureRetention             time.Duration
+	MaxBackfillAge              time.Duration
 	DenyQueriesOutsideRetention bool
 	MaxHourlySeries             int
 	MaxDailySeries              int
@@ -187,6 +189,10 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 		retention = retentionMax
 	}
 	futureRetention := max(opts.FutureRetention, retention2Days)
+	maxBackfillAge := opts.MaxBackfillAge
+	if maxBackfillAge <= 0 || maxBackfillAge > retention {
+		maxBackfillAge = retention
+	}
 	idbPrefillStart := opts.IDBPrefillStart
 	if idbPrefillStart <= 0 {
 		idbPrefillStart = time.Hour
@@ -196,6 +202,7 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 		cachePath:                   filepath.Join(path, cacheDirname),
 		retentionMsecs:              retention.Milliseconds(),
 		futureRetentionMsecs:        futureRetention.Milliseconds(),
+		maxBackfillAgeMsecs:         maxBackfillAge.Milliseconds(),
 		denyQueriesOutsideRetention: opts.DenyQueriesOutsideRetention,
 		stopCh:                      make(chan struct{}),
 		idbPrefillStartSeconds:      idbPrefillStart.Milliseconds() / 1000,
@@ -1236,7 +1243,7 @@ func (s *Storage) checkTimeRange(tr TimeRange) error {
 		return nil
 	}
 
-	minTimestamp, maxTimestamp := s.tb.getMinMaxTimestamps()
+	minTimestamp, maxTimestamp := s.tb.getMinMaxRetentionTimestamps()
 	if minTimestamp <= tr.MinTimestamp && tr.MaxTimestamp <= maxTimestamp {
 		return nil
 	}
@@ -1896,7 +1903,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 	var newSeriesCount uint64
 	var seriesRepopulated uint64
 
-	minTimestamp, maxTimestamp := s.tb.getMinMaxTimestamps()
+	minTimestamp, maxTimestamp := s.tb.getMinMaxIngestionTimestamps()
 
 	var lTSID legacyTSID
 	var ptw *partitionWrapper
@@ -1918,11 +1925,11 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			}
 		}
 		if mr.Timestamp < minTimestamp {
-			// Skip rows with too small timestamps outside the retention.
+			// Skip rows with too small timestamps outside the retention or -maxBackfillAge.
 			if firstWarn == nil {
 				metricName := getUserReadableMetricName(mr.MetricNameRaw)
-				firstWarn = fmt.Errorf("cannot insert row with too small timestamp %d outside the retention; minimum allowed timestamp is %d; "+
-					"probably you need updating -retentionPeriod command-line flag; metricName: %s",
+				firstWarn = fmt.Errorf("cannot insert row with too small timestamp %d; minimum allowed timestamp is %d; "+
+					"probably you need updating -retentionPeriod or -maxBackfillAge command-line flags; metricName: %s",
 					mr.Timestamp, minTimestamp, metricName)
 			}
 			s.tooSmallTimestampRows.Add(1)

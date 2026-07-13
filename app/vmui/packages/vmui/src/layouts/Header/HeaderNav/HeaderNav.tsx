@@ -17,10 +17,12 @@ interface HeaderNavProps {
 const HeaderNav: FC<HeaderNavProps> = ({ color, background, direction }) => {
   const { pathname } = useLocation();
   const [activeMenu, setActiveMenu] = useState(pathname);
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
   const menu = useNavigationMenu();
 
   useEffect(() => {
     setActiveMenu(pathname);
+    setOpenMenu(null);
   }, [pathname]);
 
   return (
@@ -41,6 +43,8 @@ const HeaderNav: FC<HeaderNavProps> = ({ color, background, direction }) => {
               color={color}
               background={background}
               direction={direction}
+              openMenu={openMenu}
+              setOpenMenu={setOpenMenu}
             />
           )
           : (

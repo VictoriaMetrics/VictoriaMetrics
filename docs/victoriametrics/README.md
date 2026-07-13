@@ -403,6 +403,9 @@ Resources:
 * [Cardinality explorer blog post](https://victoriametrics.com/blog/cardinality-explorer/).
 * [skills/victoriametrics-cardinality-analysis](https://github.com/VictoriaMetrics/skills/blob/main/plugins/diagnostics/skills/victoriametrics-cardinality-analysis/SKILL.md) for [agent-assisted](https://docs.victoriametrics.com/ai-tools/#agent-skills) analysis.
 
+For monitoring or alerting on cardinality, use [vmestimator](https://docs.victoriametrics.com/victoriametrics/vmestimator/).
+vmestimator measures metrics cardinality across [arbitrary label dimensions](https://docs.victoriametrics.com/victoriametrics/vmestimator/#basic) in real time and exposes the [results as metrics](https://docs.victoriametrics.com/victoriametrics/vmestimator/#cardinality-metrics).
+
 ### Cardinality explorer statistic inaccuracy
 
 In [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) each vmstorage tracks the stored time series individually.
@@ -1546,6 +1549,18 @@ For example, the following command starts VictoriaMetrics, which accepts samples
 
 ```sh
 /path/to/victoria-metrics -futureRetention=1y
+```
+
+By default, VictoriaMetrics accepts samples with timestamps as old as the configured `-retentionPeriod` allows, e.g. it accepts backfilled
+historical data as long as it fits into the retention. If you need rejecting samples with historical timestamps older than the specified
+duration, then specify the desired duration via the `-maxBackfillAge` command-line flag. This can be useful for limiting ingestion of
+historical samples, for example, when older data has been moved to another storage tier (nvme/hdd, hot/cold).
+`-maxBackfillAge` cannot exceed the configured `-retentionPeriod` - bigger values are automatically clamped to `-retentionPeriod`.
+
+For example, the following command starts VictoriaMetrics, which rejects ingested samples with timestamps older than 2 days:
+
+```sh
+/path/to/victoria-metrics -maxBackfillAge=2d
 ```
 
 ### Multiple retentions

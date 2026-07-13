@@ -20,6 +20,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestTagFiltersToMetricIDsCache(t *testing.T) {
@@ -1948,10 +1949,11 @@ func newTestStorage() *Storage {
 	s := &Storage{
 		cachePath: "test-storage-cache",
 
-		metricIDCache:   workingsetcache.New(1234),
-		metricNameCache: workingsetcache.New(1234),
-		tsidCache:       workingsetcache.New(1234),
-		retentionMsecs:  retentionMax.Milliseconds(),
+		metricIDCache:       workingsetcache.New(1234),
+		metricNameCache:     workingsetcache.New(1234),
+		tsidCache:           workingsetcache.New(1234),
+		retentionMsecs:      retentionMax.Milliseconds(),
+		maxBackfillAgeMsecs: retentionMax.Milliseconds(),
 	}
 	return s
 }
@@ -2140,4 +2142,47 @@ func TestSearchLabelValues(t *testing.T) {
 	s.tb.PutPartition(ptw)
 	s.MustClose()
 	fs.MustRemoveDir(path)
+}
+
+func TestFilterLabelValues(t *testing.T) {
+	const n = 1000
+	key := "key"
+	var all []string
+	for i := range n {
+		all = append(all, fmt.Sprintf("value_%03d", i))
+	}
+
+	var got, want map[string]struct{}
+
+	tfsAll := NewTagFilters()
+	if err := tfsAll.Add([]byte("key"), []byte("value_.*"), false, true); err != nil {
+		t.Fatalf("unexpected error in TagFilters.Add: %v", err)
+	}
+	got = make(map[string]struct{})
+	want = make(map[string]struct{})
+	for _, v := range all {
+		got[v] = struct{}{}
+		want[v] = struct{}{}
+	}
+	filterLabelValues(got, &tfsAll.tfs[0], key)
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatalf("unexpected label values (-want, +got):\n%s", diff)
+	}
+
+	tfsEvery10th := NewTagFilters()
+	if err := tfsEvery10th.Add([]byte("key"), []byte("value_[0-9]{2}0"), false, true); err != nil {
+		t.Fatalf("unexpected error in TagFilters.Add: %v", err)
+	}
+	got = make(map[string]struct{})
+	want = make(map[string]struct{})
+	for i, v := range all {
+		got[v] = struct{}{}
+		if i%10 == 0 {
+			want[v] = struct{}{}
+		}
+	}
+	filterLabelValues(got, &tfsEvery10th.tfs[0], key)
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatalf("unexpected label values (-want, +got):\n%s", diff)
+	}
 }
