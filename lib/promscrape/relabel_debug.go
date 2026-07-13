@@ -2,9 +2,10 @@ package promscrape
 
 import (
 	"fmt"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"net/http"
 	"strconv"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
@@ -84,7 +85,7 @@ func WriteMetricRelabelDebug(w http.ResponseWriter, r *http.Request, rwGlobalRel
 
 func composeRelabelConfigs(relabelConfigs, rwGlobalRelabelConfigs, rwURLRelabelConfigs string, rwURLIdx int) string {
 	if relabelConfigs != "" {
-		relabelConfigs = "# -promscrape.config\n" + relabelConfigs
+		relabelConfigs = "# -promscrape.config .scrape_configs[].metric_relabel_configs\n" + relabelConfigs
 	}
 
 	if rwGlobalRelabelConfigs != "" {
@@ -115,7 +116,7 @@ func WriteTargetRelabelDebug(w http.ResponseWriter, r *http.Request) {
 			targetID = ""
 		} else {
 			metric = labels.labelsString()
-			relabelConfigs = "# -promscrape.config\n" + pcs.String()
+			relabelConfigs = "# -promscrape.config .scrape_configs[].relabel_configs\n" + pcs.String()
 		}
 	}
 	if format == "json" {
