@@ -188,7 +188,7 @@ vmbackupmanager \
   -licenseFile=/etc/vm-license
 ```
 
-> To use non-AWS S3 buckets, you must [supply the `-customS3Endpoint` argument](#s3-compatible-endpoints).
+> To use non-AWS S3 buckets, you must [supply the `-customS3Endpoint` argument](#s3-compatible).
 
 Automated backups on Google Cloud Storage take the following form:
 
@@ -255,7 +255,7 @@ vmalert \
   -licenseFile=/etc/vm-license
 ```
 
-> To use non-AWS S3 buckets, you must [supply the `-s3.customEndpoint` argument](#s3-compatible-endpoints).
+> To use non-AWS S3 buckets, you must [supply the `-s3.customEndpoint` argument](#s3-compatible).
 
 To read rules from Google Cloud Storage:
 
@@ -368,7 +368,7 @@ export AZURE_STORAGE_ACCOUNT_NAME=mystorageaccount
 export AZURE_STORAGE_ACCOUNT_KEY=myaccountkey
 ```
 
-## Self-hosted and S3-compatible endpoints {#s3-compatible}
+## Self-hosted and S3-compatible endpoints
 
 For S3-compatible storage such as MinIO or Ceph, set a custom endpoint with the `-customS3Endpoint` flag  for vmbackup, vmrestore, and vmbackupmanager. For example:
 
@@ -392,7 +392,7 @@ vmalert \
   -licenseFile=/etc/vm-license
 ```
 
-### Addressing S3-compatible buckets
+### Addressing S3-compatible buckets {#s3-compatible}
 
 When connecting to non-AWS S3-compatible buckets, there is an additional flag you might need to configure:
 
