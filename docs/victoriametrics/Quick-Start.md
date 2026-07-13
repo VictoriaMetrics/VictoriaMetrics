@@ -467,7 +467,7 @@ For backup configuration, please refer to [vmbackup documentation](https://docs.
 
 ### Graceful shutdown
 
-To gracefully shut down VictoriaMetrics (or any other) process - send `SIGTERM` or `SIGINT` signals anwait until shutdown finishes.
+To gracefully shut down VictoriaMetrics (or any other) process - send `SIGTERM` or `SIGINT` signals and wait until shutdown finishes.
 See [how to send signals to processes](https://stackoverflow.com/questions/33239959/send-signal-to-process-from-command-line).
 
 Graceful shutdown guarantees data safety and graceful handling of the ongoing connections.
