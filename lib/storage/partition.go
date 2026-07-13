@@ -465,7 +465,7 @@ func (pt *partition) AddRows(rows []rawRow) {
 		}
 	}
 
-	pt.rawRows.addRows(pt, rows)
+	pt.rawRows.addRows(pt.flushRowssToInmemoryParts, rows)
 }
 
 var isDebug = false
@@ -1008,7 +1008,7 @@ func (pt *partition) pendingRowsFlusher() {
 }
 
 func (pt *partition) flushPendingRows(isFinal bool) {
-	pt.rawRows.flush(pt, isFinal)
+	pt.rawRows.flush(pt.flushRowssToInmemoryParts, isFinal)
 }
 
 func (pt *partition) flushInmemoryRowsToFiles() {
