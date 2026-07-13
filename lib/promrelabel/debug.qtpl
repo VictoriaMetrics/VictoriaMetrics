@@ -131,8 +131,8 @@ document.addEventListener('DOMContentLoaded', initRelabelConfigsHighlight);
             </textarea>
         </div>
     </div>
-    <div>
-        Labels:<br/>
+    <div class="mt-2">
+        One Time Series:<br/>
         <textarea name="metric" style="width: 100%; height: 5em; font-family: monospace" class="m-1">{%s metric %}</textarea>
     </div>
 {% endfunc %}
