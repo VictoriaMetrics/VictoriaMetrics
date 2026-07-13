@@ -27,6 +27,7 @@ function setRelabelDebugFormMethod(form) {
 
 function reloadRelabelConfigs(select) {
   if (!confirm('Reload will discard all modifications to the current configuration. Continue?')) {
+    select.value = select.prevValue;
     return;
   }
   document.getElementById('reload_url_relabel_configs').value = '1';
@@ -110,7 +111,7 @@ document.addEventListener('DOMContentLoaded', initRelabelConfigsHighlight);
                     Configs:
                     {% if urlRelabelIndexLength > 0 %}
                         <input type="hidden" name="reload_url_relabel_configs" id="reload_url_relabel_configs" value="" />
-                        <select name="url_relabel_configs_index" class="form-select form-select-sm w-auto" onchange="reloadRelabelConfigs(this)">
+                        <select name="url_relabel_configs_index" class="form-select form-select-sm w-auto" onfocus="this.prevValue=this.value" onchange="reloadRelabelConfigs(this)">
                             {% for i := range urlRelabelIndexLength %}
                                 {% if urlRelabelIndexCurrent == i %}
                                     <option value="{%d i %}" selected="selected">remote-write-url-{%d i %}</option>
