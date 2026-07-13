@@ -58,7 +58,8 @@ func WriteMetricRelabelDebug(w http.ResponseWriter, r *http.Request, rwGlobalRel
 				err = fmt.Errorf("cannot find target for id=%s", targetID)
 				targetID = ""
 			} else {
-				metric = labels.String()
+				metric = "up"
+				metric += labels.String()
 			}
 		}
 
