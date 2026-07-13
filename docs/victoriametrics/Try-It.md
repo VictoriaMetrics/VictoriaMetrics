@@ -58,9 +58,9 @@ VictoriaMetrics prints a couple of dozen log lines on start, describing the stor
 and memory limits it sets up. Look for these two lines confirming that it is up and running:
 
 ```sh
-2026-07-10T16:55:06.615Z    info    VictoriaMetrics/app/victoria-metrics/main.go:102    started VictoriaMetrics in 0.019 seconds
+2026-07-10T16:55:06.615Z    info    app/victoria-metrics/main.go:102    started VictoriaMetrics in 0.019 seconds
 ...
-2026-07-10T16:55:06.615Z    info    VictoriaMetrics/lib/httpserver/httpserver.go:148    started server at http://0.0.0.0:8428/
+2026-07-10T16:55:06.615Z    info    lib/httpserver/httpserver.go:148    started server at http://0.0.0.0:8428/
 ```
 
 That's it - VictoriaMetrics is running, listening on port `8428` and scraping its own metrics
@@ -92,7 +92,7 @@ So far the only available metrics are the ones VictoriaMetrics reports about its
 ## Step 4 (optional): Collect metrics from your system
 
 Self-scraped metrics only describe VictoriaMetrics itself. To monitor your machine (CPU, memory, disk, network),
-run [node_exporter](https://github.com/prometheus/node_exporter) - the standard Prometheus agent for host metrics -
+run [node_exporter](https://github.com/prometheus/node_exporter) - the standard Prometheus exporter for host metrics -
 and let VictoriaMetrics scrape it. Single-node VictoriaMetrics has a built-in
 [Prometheus-compatible scraper](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter),
 so no other components are needed.
@@ -159,7 +159,7 @@ Once you're done experimenting, tidying everything up takes a single command.
 
 ## Cleanup
 
-Stop VictoriaMetrics with `Ctrl+C`. All the collected data lives in the `victoria-metrics-data` directory -
+Stop VictoriaMetrics and node_exporter with `Ctrl+C` in their respective terminals. All the collected data lives in the `victoria-metrics-data` directory -
 delete it if you want to start from scratch. To remove all traces of this test drive,
 delete the whole `vm-try-it` directory created at [step 1](#step-1-download-the-binary).
 
