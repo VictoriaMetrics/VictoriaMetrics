@@ -103,7 +103,8 @@ document.addEventListener('DOMContentLoaded', initRelabelConfigsHighlight);
             <div class="m-1">
                 <div class="d-flex align-items-center gap-2 mt-1">
                     {% if urlRelabelIndexLength > 0 %}
-                        <select name="url_relabel_configs_index" class="form-select form-select-sm w-auto">
+                        <input type="hidden" name="reload_url_relabel_configs" id="reload_url_relabel_configs" value="" />
+                        <select name="url_relabel_configs_index" class="form-select form-select-sm w-auto" onchange="document.getElementById('reload_url_relabel_configs').value='1'; this.form.submit()">
                             {% for i := range urlRelabelIndexLength %}
                                 {% if urlRelabelIndexCurrent == i %}
                                     <option value="{%d i %}" selected="selected">remote-write-url-{%d i %}</option>
@@ -112,7 +113,6 @@ document.addEventListener('DOMContentLoaded', initRelabelConfigsHighlight);
                                 {% endif %}
                             {% endfor %}
                         </select>
-                        <input type="submit" name="reload_url_relabel_configs" value="Reload" class="btn btn-secondary btn-sm" onclick="return confirm('Reload will discard all modifications to the current configuration. Continue?')" />
                     {% endif %}
                 </div>
             </div>

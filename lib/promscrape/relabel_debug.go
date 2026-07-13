@@ -17,9 +17,8 @@ func WriteMetricRelabelDebug(w http.ResponseWriter, r *http.Request, rwGlobalRel
 	metric := r.FormValue("metric")
 	relabelConfigs := r.FormValue("relabel_configs")
 
-	// if set, it means user want to load relabel config for another url so everything will be reloaded.
+	// if set, it means user selected another URL from the dropdown and everything will be reloaded.
 	reloadRWURLRelabelConfigs := r.FormValue("reload_url_relabel_configs")
-	// only for per-URL configs and has to be set with reload_url_relabel_configs.
 	rwURLRelabelConfigsIdxStr := r.FormValue("url_relabel_configs_index")
 
 	format := r.FormValue("format")

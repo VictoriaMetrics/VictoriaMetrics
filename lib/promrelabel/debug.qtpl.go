@@ -181,39 +181,39 @@ func streamrelabelDebugFormInputs(qw422016 *qt422016.Writer, metric, relabelConf
 //line lib/promrelabel/debug.qtpl:105
 		if urlRelabelIndexLength > 0 {
 //line lib/promrelabel/debug.qtpl:105
-			qw422016.N().S(`<select name="url_relabel_configs_index" class="form-select form-select-sm w-auto">`)
-//line lib/promrelabel/debug.qtpl:107
+			qw422016.N().S(`<input type="hidden" name="reload_url_relabel_configs" id="reload_url_relabel_configs" value="" /><select name="url_relabel_configs_index" class="form-select form-select-sm w-auto" onchange="document.getElementById('reload_url_relabel_configs').value='1'; this.form.submit()">`)
+//line lib/promrelabel/debug.qtpl:108
 			for i := range urlRelabelIndexLength {
-//line lib/promrelabel/debug.qtpl:108
+//line lib/promrelabel/debug.qtpl:109
 				if urlRelabelIndexCurrent == i {
-//line lib/promrelabel/debug.qtpl:108
+//line lib/promrelabel/debug.qtpl:109
 					qw422016.N().S(`<option value="`)
-//line lib/promrelabel/debug.qtpl:109
+//line lib/promrelabel/debug.qtpl:110
 					qw422016.N().D(i)
-//line lib/promrelabel/debug.qtpl:109
+//line lib/promrelabel/debug.qtpl:110
 					qw422016.N().S(`" selected="selected">remote-write-url-`)
-//line lib/promrelabel/debug.qtpl:109
-					qw422016.N().D(i)
-//line lib/promrelabel/debug.qtpl:109
-					qw422016.N().S(`</option>`)
 //line lib/promrelabel/debug.qtpl:110
+					qw422016.N().D(i)
+//line lib/promrelabel/debug.qtpl:110
+					qw422016.N().S(`</option>`)
+//line lib/promrelabel/debug.qtpl:111
 				} else {
-//line lib/promrelabel/debug.qtpl:110
+//line lib/promrelabel/debug.qtpl:111
 					qw422016.N().S(`<option value="`)
-//line lib/promrelabel/debug.qtpl:111
-					qw422016.N().D(i)
-//line lib/promrelabel/debug.qtpl:111
-					qw422016.N().S(`">remote-write-url-`)
-//line lib/promrelabel/debug.qtpl:111
-					qw422016.N().D(i)
-//line lib/promrelabel/debug.qtpl:111
-					qw422016.N().S(`</option>`)
 //line lib/promrelabel/debug.qtpl:112
+					qw422016.N().D(i)
+//line lib/promrelabel/debug.qtpl:112
+					qw422016.N().S(`">remote-write-url-`)
+//line lib/promrelabel/debug.qtpl:112
+					qw422016.N().D(i)
+//line lib/promrelabel/debug.qtpl:112
+					qw422016.N().S(`</option>`)
+//line lib/promrelabel/debug.qtpl:113
 				}
-//line lib/promrelabel/debug.qtpl:113
+//line lib/promrelabel/debug.qtpl:114
 			}
-//line lib/promrelabel/debug.qtpl:113
-			qw422016.N().S(`</select><input type="submit" name="reload_url_relabel_configs" value="Reload" class="btn btn-secondary btn-sm" onclick="return confirm('Reload will discard all modifications to the current configuration. Continue?')" />`)
+//line lib/promrelabel/debug.qtpl:114
+			qw422016.N().S(`</select>`)
 //line lib/promrelabel/debug.qtpl:116
 		}
 //line lib/promrelabel/debug.qtpl:116
