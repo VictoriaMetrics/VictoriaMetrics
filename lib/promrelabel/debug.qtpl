@@ -21,13 +21,8 @@
     {%= htmlcomponents.CommonHeader() %}
     <title>Metric relabel debug</title>
     <script>
-function submitRelabelDebugForm(e) {
-  var form = e.target;
-  var method = "GET";
-  if (form.elements["relabel_configs"].value.length + form.elements["metric"].value.length > 1000) {
-    method = "POST";
-  }
-  form.method = method;
+function setRelabelDebugFormMethod(form) {
+  form.method = (form.elements["relabel_configs"].value.length + form.elements["metric"].value.length > 1000) ? "POST" : "GET";
 }
 
 function initRelabelConfigsHighlight() {
@@ -74,7 +69,7 @@ document.addEventListener('DOMContentLoaded', initRelabelConfigsHighlight);
         {% endif %}
 
         <div class="m-3">
-        <form method="POST" onsubmit="submitRelabelDebugForm(event)">
+        <form method="POST" onsubmit="setRelabelDebugFormMethod(this)">
             {%= relabelDebugFormInputs(metric, relabelConfigs, urlRelabelIndexLength, urlRelabelIndexCurrent, isTargetRelabel, targetID) %}
             {% if targetID != "" %}
               <input type="hidden" name="id" value="{%s targetID %}" />
@@ -106,7 +101,7 @@ document.addEventListener('DOMContentLoaded', initRelabelConfigsHighlight);
                     Configs:
                     {% if urlRelabelIndexLength > 0 %}
                         <input type="hidden" name="reload_url_relabel_configs" id="reload_url_relabel_configs" value="" />
-                        <select name="url_relabel_configs_index" class="form-select form-select-sm w-auto" onchange="document.getElementById('reload_url_relabel_configs').value='1'; this.form.submit()">
+                        <select name="url_relabel_configs_index" class="form-select form-select-sm w-auto" onchange="document.getElementById('reload_url_relabel_configs').value='1'; setRelabelDebugFormMethod(this.form); this.form.submit();">
                             {% for i := range urlRelabelIndexLength %}
                                 {% if urlRelabelIndexCurrent == i %}
                                     <option value="{%d i %}" selected="selected">remote-write-url-{%d i %}</option>
