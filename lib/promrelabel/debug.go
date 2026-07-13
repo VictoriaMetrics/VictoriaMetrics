@@ -141,6 +141,10 @@ func getChangedLabelNames(in, out *promutil.Labels) map[string]struct{} {
 func normalizeInputLabels(metric string) (string, error) {
 	metric = strings.TrimSpace(metric)
 
+	if strings.ContainsRune(metric, '\n') {
+		return metric, fmt.Errorf("only one time series is allowed; got multiple lines")
+	}
+
 	openBrace := strings.Contains(metric, `{`)
 	closeBrace := strings.Contains(metric, `}`)
 
