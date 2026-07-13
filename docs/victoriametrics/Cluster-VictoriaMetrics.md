@@ -1,10 +1,10 @@
 ---
-weight: 2
+weight: 3
 menu:
   docs:
     identifier: vm-cluster-version
     parent: 'victoriametrics'
-    weight: 2
+    weight: 3
 title: Cluster version
 tags:
   - metrics

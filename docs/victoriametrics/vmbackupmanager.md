@@ -1,9 +1,9 @@
 ---
-weight: 10
+weight: 11
 menu:
   docs:
     parent: victoriametrics
-    weight: 10
+    weight: 11
 title: vmbackupmanager
 tags:
   - metrics

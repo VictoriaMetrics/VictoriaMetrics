@@ -1,9 +1,9 @@
 ---
-weight: 8
+weight: 9
 menu:
   docs:
     parent: victoriametrics
-    weight: 8
+    weight: 9
 title: vmctl
 tags:
   - metrics

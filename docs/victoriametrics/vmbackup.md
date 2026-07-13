@@ -1,9 +1,9 @@
 ---
-weight: 6
+weight: 7
 menu:
   docs:
     parent: victoriametrics
-    weight: 6
+    weight: 7
 title: vmbackup
 tags:
   - metrics

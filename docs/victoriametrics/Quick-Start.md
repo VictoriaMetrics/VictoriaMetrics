@@ -1,11 +1,11 @@
 ---
-weight: 1
+weight: 2
 title: Quick start
 menu:
   docs:
     identifier: vm-quick-start
     parent: victoriametrics
-    weight: 1
+    weight: 2
 tags:
   - metrics
   - guide
