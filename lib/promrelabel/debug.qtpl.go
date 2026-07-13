@@ -144,7 +144,7 @@ func StreamRelabelDebugStepsHTML(qw422016 *qt422016.Writer, targetURL, targetID 
 //line lib/promrelabel/debug.qtpl:84
 		qw422016.E().S(targetID)
 //line lib/promrelabel/debug.qtpl:84
-		qw422016.N().S(`'" class="btn btn-secondary m-1">Reset</button>`)
+		qw422016.N().S(`'" class="btn btn-secondary m-1">Reset All</button>`)
 //line lib/promrelabel/debug.qtpl:85
 	}
 //line lib/promrelabel/debug.qtpl:85

@@ -81,7 +81,7 @@ document.addEventListener('DOMContentLoaded', initRelabelConfigsHighlight);
             {% endif %}
             <input type="submit" value="Submit" class="btn btn-primary m-1" />
             {% if targetID != "" %}
-                <button type="button" onclick="location.href='?id={%s targetID %}'" class="btn btn-secondary m-1">Reset</button>
+                <button type="button" onclick="location.href='?id={%s targetID %}'" class="btn btn-secondary m-1">Reset All</button>
             {% endif %}
         </form>
         </div>
