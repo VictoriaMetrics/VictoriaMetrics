@@ -3479,7 +3479,6 @@ func TestStorageAddRows_SamplesWithZeroDate(t *testing.T) {
 
 func TestStorageAddRows_currHourMetricIDs(t *testing.T) {
 	defer testRemoveAll(t)
-
 	f := func(t *testing.T, disablePerDayIndex bool) {
 		t.Helper()
 
