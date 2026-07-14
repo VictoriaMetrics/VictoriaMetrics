@@ -194,6 +194,9 @@ func newBinaryOpFunc(bf func(left, right float64, isBool bool) float64) binaryOp
 		// A NaN produced by a vector comparison denotes a filtered-out sample rather
 		// than an explicitly present NaN value. Drop it when this result is used as
 		// the right-hand side of another comparison.
+		// Note that filtered-out samples surviving as NaN inside other wrappers such as
+		// transform functions or arithmetic operations aren't detected, since such NaN
+		// is indistinguishable from an explicitly present NaN value there.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10018.
 		dropNaNRight := isCmpOp && isVectorComparisonExpr(bfa.be.Right)
 		for i, tsLeft := range left {
@@ -233,20 +236,29 @@ func newBinaryOpFunc(bf func(left, right float64, isBool bool) float64) binaryOp
 	}
 }
 
+// isVectorComparisonExpr returns whether e is a comparison operation
+// with at least one non-scalar operand.
 func isVectorComparisonExpr(e metricsql.Expr) bool {
+	if re, ok := e.(*metricsql.RollupExpr); ok && re.Window == nil {
+		// Unwrap `(...) offset <d>` and `(...) @ <t>`, which do not change
+		// the shape of the result. Subqueries are left as is, since rollup
+		// functions skip NaN values on their own.
+		e = re.Expr
+	}
 	be, ok := e.(*metricsql.BinaryOpExpr)
 	if !ok || !metricsql.IsBinaryOpCmp(be.Op) {
 		return false
 	}
-	return !isScalarBinaryOpExpr(be.Left) || !isScalarBinaryOpExpr(be.Right)
+	return !isScalarLikeExpr(be.Left) || !isScalarLikeExpr(be.Right)
 }
 
-func isScalarBinaryOpExpr(e metricsql.Expr) bool {
+// isScalarLikeExpr returns whether e always evaluates to a scalar value.
+func isScalarLikeExpr(e metricsql.Expr) bool {
 	switch e := e.(type) {
 	case *metricsql.NumberExpr, *metricsql.DurationExpr:
 		return true
 	case *metricsql.BinaryOpExpr:
-		return isScalarBinaryOpExpr(e.Left) && isScalarBinaryOpExpr(e.Right)
+		return isScalarLikeExpr(e.Left) && isScalarLikeExpr(e.Right)
 	case *metricsql.FuncExpr:
 		switch strings.ToLower(e.Name) {
 		case "now", "pi", "scalar", "start", "end", "step", "time", "timezone_offset":

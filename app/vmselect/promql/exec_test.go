@@ -3060,6 +3060,20 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{}
 		f(q, resultExpected)
 	})
+	t.Run(`compare_to_empty_vector_right_offset`, func(t *testing.T) {
+		t.Parallel()
+		q := `label_set(time(), "foo", "bar") != ((label_set(time(), "foo", "bar") > 100000) offset 0s)`
+		resultExpected := []netstorage.Result{}
+		f(q, resultExpected)
+	})
+	t.Run(`compare_to_empty_vector_left`, func(t *testing.T) {
+		// A missing sample on the left side results in NaN for every comparison
+		// operation, so no special handling is needed there.
+		t.Parallel()
+		q := `(label_set(time(), "foo", "bar") > 100000) != label_set(time(), "foo", "bar")`
+		resultExpected := []netstorage.Result{}
+		f(q, resultExpected)
+	})
 	t.Run(`compare_to_empty_series_right_bool`, func(t *testing.T) {
 		t.Parallel()
 		q := `label_set(time(), "foo", "bar") == bool (label_set(time(), "foo", "bar") > 100000)`
