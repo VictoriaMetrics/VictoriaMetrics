@@ -551,7 +551,7 @@ func TestStorageAddRows_nextDayIndexPrefill(t *testing.T) {
 		nextDaySlowInserts := m.SlowPerDayIndexInserts
 		slowInserts := nextDaySlowInserts - currDaySlowInserts
 		if slowInserts >= numSeries {
-			t.Errorf("unexpected amount of slow inserts: got %d, want < %d", slowInserts, numSeries)
+			t.Fatalf("unexpected amount of slow inserts: got %d, want < %d", slowInserts, numSeries)
 		}
 
 	})
@@ -842,7 +842,7 @@ func TestStorageLastPartitionMetrics(t *testing.T) {
 		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
 		if got := s.newTimeseriesCreated.Load(); got != want {
-			t.Errorf("unexpected number of new timeseries: got %d, want %d", got, want)
+			t.Fatalf("unexpected number of new timeseries: got %d, want %d", got, want)
 		}
 		// wait for merged parts to be attached to the table
 		time.Sleep(time.Minute)
@@ -1218,7 +1218,7 @@ func TestStorage_denyQueriesOutsideRetention(t *testing.T) {
 		slices.Sort(gotData)
 
 		if diff := cmp.Diff(wantData, gotData); diff != "" {
-			t.Errorf("unexpected tag value suffixes (-want, +got):\n%s", diff)
+			t.Fatalf("unexpected tag value suffixes (-want, +got):\n%s", diff)
 		}
 	}
 
@@ -1492,8 +1492,6 @@ func TestStorageAddRows_currHourMetricIDs(t *testing.T) {
 	defer testRemoveAll(t)
 
 	f := func(t *testing.T, disablePerDayIndex bool) {
-		t.Helper()
-
 		synctest.Test(t, func(t *testing.T) {
 			s := MustOpenStorage(t.Name(), OpenOptions{
 				DisablePerDayIndex: disablePerDayIndex,
@@ -1522,7 +1520,7 @@ func TestStorageAddRows_currHourMetricIDs(t *testing.T) {
 			s.DebugFlush()
 			s.updateCurrHourMetricIDs(currHour)
 			if got, want := s.currHourMetricIDs.Load().m.Len(), 1000; got != want {
-				t.Errorf("[slow path] unexpected current hour metric ID count: got %d, want %d", got, want)
+				t.Fatalf("[slow path] unexpected current hour metric ID count: got %d, want %d", got, want)
 			}
 
 			// Test current hour metricIDs population when data ingestion takes the
@@ -1536,7 +1534,7 @@ func TestStorageAddRows_currHourMetricIDs(t *testing.T) {
 			s.DebugFlush()
 			s.updateCurrHourMetricIDs(currHour)
 			if got, want := s.currHourMetricIDs.Load().m.Len(), 1000; got != want {
-				t.Errorf("[fast path] unexpected current hour metric ID count after ingesting samples for previous hour: got %d, want %d", got, want)
+				t.Fatalf("[fast path] unexpected current hour metric ID count after ingesting samples for previous hour: got %d, want %d", got, want)
 			}
 
 			// Now ingest the same metrics. This time the metricIDs will be found in
@@ -1546,7 +1544,7 @@ func TestStorageAddRows_currHourMetricIDs(t *testing.T) {
 			s.DebugFlush()
 			s.updateCurrHourMetricIDs(currHour)
 			if got, want := s.currHourMetricIDs.Load().m.Len(), 2000; got != want {
-				t.Errorf("[fast path] unexpected current hour metric ID count: got %d, want %d", got, want)
+				t.Fatalf("[fast path] unexpected current hour metric ID count: got %d, want %d", got, want)
 			}
 
 			// Test current hour metricIDs population when data ingestion takes the
@@ -1561,7 +1559,7 @@ func TestStorageAddRows_currHourMetricIDs(t *testing.T) {
 			s.DebugFlush()
 			s.updateCurrHourMetricIDs(currHour)
 			if got, want := s.currHourMetricIDs.Load().m.Len(), 2000; got != want {
-				t.Errorf("[slower path] unexpected current hour metric ID count after ingesting samples for previous hour: got %d, want %d", got, want)
+				t.Fatalf("[slower path] unexpected current hour metric ID count after ingesting samples for previous hour: got %d, want %d", got, want)
 			}
 			// Inserted samples were also added to the tsidCache. Drop it to
 			// enforce the fallback to index search.
@@ -1574,7 +1572,7 @@ func TestStorageAddRows_currHourMetricIDs(t *testing.T) {
 			s.DebugFlush()
 			s.updateCurrHourMetricIDs(currHour)
 			if got, want := s.currHourMetricIDs.Load().m.Len(), 3000; got != want {
-				t.Errorf("[slower path] unexpected current hour metric ID count: got %d, want %d", got, want)
+				t.Fatalf("[slower path] unexpected current hour metric ID count: got %d, want %d", got, want)
 			}
 		})
 	}
