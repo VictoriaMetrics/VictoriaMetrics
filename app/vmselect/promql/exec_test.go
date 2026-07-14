@@ -3044,7 +3044,7 @@ func TestExecSuccess(t *testing.T) {
 		q := `label_set(time(), "foo", "bar") != (label_set(time(), "foo", "bar") * 2 > 2800)`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Values:     []float64{nan, nan, nan, 1600, 1800, 2000},
 			Timestamps: timestampsExpected,
 		}
 		r.MetricName.Tags = []storage.Tag{{

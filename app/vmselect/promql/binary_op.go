@@ -164,9 +164,11 @@ func newBinaryOpFunc(bf func(left, right float64, isBool bool) float64) binaryOp
 		left := bfa.left
 		right := bfa.right
 		op := bfa.be.Op
+		isScalarRight := isScalar(right)
+
 		switch true {
-		case metricsql.IsBinaryOpCmp(op) && isScalar(right):
-			// Do not remove empty series for comparison operations on pure `NaN` expression,
+		case metricsql.IsBinaryOpCmp(op) && isScalarRight:
+			// Do not remove empty series for comparison operations on pure scalar expression such as `NaN,
 			// since this may lead to missing result.
 			// see: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10018
 			// see: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/150
@@ -205,11 +207,18 @@ func newBinaryOpFunc(bf func(left, right float64, isBool bool) float64) binaryOp
 				b := rightValues[j]
 				leftIsNaN := math.IsNaN(a)
 				rightIsNaN := math.IsNaN(b)
-				// apply the fill value when either the left or right side is NaN, but not both.
+				// both sides are NaN
 				if leftIsNaN && rightIsNaN {
 					dstValues[j] = bf(a, b, isBool)
 					continue
 				}
+				// skip if contains NaN only in one side and no fill value exist.
+				// this applies to
+				if !isScalarRight && leftIsNaN != rightIsNaN && fillLeft == nil && fillRight == nil {
+					dstValues[j] = nan
+					continue
+				}
+				// apply the fill value when either the left or right side is NaN, but not both.
 				if leftIsNaN && fillLeft != nil {
 					a = fillLeft.N
 				}
