@@ -115,6 +115,7 @@ See also [case studies](https://docs.victoriametrics.com/victoriametrics/casestu
 * [How We Made Telemetry Queries 10x Faster: Chunk-Split Caching for Metrics, Logs, and Traces](https://mirastacklabs.ai/blog/chunk-split-caching/)
 * [Claude Code: creating Kubernetes debugging AI Agent for VictoriaMetrics](https://rtfm.co.ua/en/claude-code-creating-kubernetes-debugging-ai-agent-for-victoriametrics/)
 * [OpenTelemetry: OTel Collectors in Kubernetes and VictoriaMetrics Stack integration](https://itnext.io/opentelemetry-otel-collectors-in-kubernetes-and-victoriametrics-stack-integration-d907ed0a15a0)
+* [VictoriaMetrics vs Prometheus: my default, and when I still pick Prometheus](https://jorijn.com/en/blog/victoriametrics-vs-prometheus/)
 
 ## Third-party articles and slides about VictoriaLogs
 
