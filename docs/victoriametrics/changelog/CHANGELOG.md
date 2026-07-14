@@ -38,6 +38,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): fix a possible data race when processing OpenTelemetry metadata. See [#11238](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11238). Thanks to @nevgeny for contribution.
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): flush pending persistent queue data to chunk file before updating the metadata. This prevents the metadata writer offset from getting ahead of the chunk file size and avoids losing the persistent queue after an unclean shutdown. See [#11192](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11192).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): fix increased CPU and memory usage when `-remoteWrite.urlRelabelConfig` or `-remoteWrite.streamAggr.config` flags are used. The bug was introduced in [#10854](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10854) and existed since [v1.147.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.147.0). See [#11250](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11250).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): preserve newline formatting in alert and rule annotations on the Alerting page. See [#11171](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11171).
 
 ## [v1.147.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.147.0)
 
@@ -68,7 +69,6 @@ Released at 2026-07-06
 * BUGFIX: [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/): fix possible unexpected increases in `rate_avg` and `rate_sum` if an out-of-order sample is ingested after the previous flush. See [#11140](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11140).
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/): properly URL-encode `-vm-extra-label` values when building import requests, so special characters such as `&` don't get split into broken query parameters. See [#11144](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11144). Thanks to @immanuwell for contribution.
 * BUGFIX: [enterprise](https://docs.victoriametrics.com/enterprise/) [vmagent](https://docs.victoriametrics.com/vmagent/): ignore `enable.auto.offset.store` option in `kafka.consumer.topic.options`, since `vmagent` manages offset storage internally. Previously, setting this option could cause `vmagent` to stop committing Kafka messages. See [#11208](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11208).
-* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): preserve newline formatting in alert and rule annotations on the Alerting page. See [#11171](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11171).
 
 ## [v1.146.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.146.0)
 
