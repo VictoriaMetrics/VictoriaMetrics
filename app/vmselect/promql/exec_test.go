@@ -3038,6 +3038,8 @@ func TestExecSuccess(t *testing.T) {
 		f(q, resultExpected)
 	})
 	t.Run(`compare_to_partially_empty_series_right`, func(t *testing.T) {
+		// this test is incompatible with Prometheus which returns `{nan, nan, nan, 1600, 1800, 2000}`.
+		// see: https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11100#issuecomment-4933952390
 		t.Parallel()
 		q := `label_set(time(), "foo", "bar") != (label_set(time(), "foo", "bar") * 2 > 2800)`
 		r := netstorage.Result{
