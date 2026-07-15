@@ -1024,6 +1024,9 @@ Try the following tips to avoid common issues:
     In that case, the default step will be used (`-datasource.queryStep`) and may cause unexpected results compared to
     executing this query in vmui/Grafana, where step is adjusted differently.
 
+See [practical examples for reducing alert noise](https://victoriametrics.com/blog/alerting-best-practices/#reducing-noise),
+including aggregating alerts and configuring inhibition.
+
 ### Rule state
 
 vmalert keeps the last `-rule.updateEntriesLimit` updates (or `update_entries_limit` [per-rule config](https://docs.victoriametrics.com/victoriametrics/vmalert/#alerting-rules))
@@ -1078,6 +1081,9 @@ Sometimes, it's hard to understand why a specific alert fired or not. Keep in mi
 
 If evaluation returns error (i.e. datasource is unavailable), alert state doesn't change.
 If at least one evaluation returns no data, then alert's `for` state resets.
+
+See [how to tune the `for` parameter](https://victoriametrics.com/blog/alerting-best-practices/#the-for-param),
+including its tradeoff with the query lookbehind window.
 
 > Note: The alert state is tracked separately for each time series returned during evaluation.
 > For example, if the 1st evaluation returns series A and B, and the 2nd evaluation returns only B – the alert will remain active **only for B**.
@@ -1151,6 +1157,9 @@ How to reduce the chance for a rule to flap:
 1. Review the metric's past behavior to set a threshold that avoids triggering alerts too easily.
 
 See [common mistakes](#common-mistakes) for rules config.
+
+See [how to tune `keep_firing_for`](https://victoriametrics.com/blog/alerting-best-practices/#the-keep_firing_for-param)
+to avoid alert flapping during brief data gaps.
 
 ### Never-firing alerts
 
