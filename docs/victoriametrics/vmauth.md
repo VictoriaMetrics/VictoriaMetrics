@@ -1,9 +1,9 @@
 ---
-weight: 6
+weight: 5
 menu:
   docs:
     parent: victoriametrics
-    weight: 6
+    weight: 5
 title: vmauth
 tags:
   - metrics

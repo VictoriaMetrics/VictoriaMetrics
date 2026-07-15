@@ -1,9 +1,9 @@
 ---
-weight: 8
+weight: 7
 menu:
   docs:
     parent: victoriametrics
-    weight: 8
+    weight: 7
 title: vmrestore
 tags:
   - metrics

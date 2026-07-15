@@ -1,9 +1,9 @@
 ---
-weight: 4
+weight: 3
 menu:
   docs:
     parent: victoriametrics
-    weight: 4
+    weight: 3
 title: vmagent
 tags:
   - metrics

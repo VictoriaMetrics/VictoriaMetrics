@@ -1,10 +1,10 @@
 ---
-weight: 2
+weight: 1
 menu:
   docs:
     identifier: vm-single-version
     parent: victoriametrics
-    weight: 2
+    weight: 1
 title: Single-node version
 tags:
   - metrics

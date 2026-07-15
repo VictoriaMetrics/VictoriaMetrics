@@ -1,9 +1,9 @@
 ---
-weight: 5
+weight: 4
 menu:
   docs:
     parent: victoriametrics
-    weight: 5
+    weight: 4
 title: vmalert
 tags:
   - metrics

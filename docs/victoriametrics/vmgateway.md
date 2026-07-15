@@ -1,9 +1,9 @@
 ---
-weight: 10
+weight: 9
 menu:
   docs:
     parent: victoriametrics
-    weight: 10
+    weight: 9
 title: vmgateway
 tags:
   - metrics
