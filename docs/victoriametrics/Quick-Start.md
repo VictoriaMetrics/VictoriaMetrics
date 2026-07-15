@@ -634,6 +634,15 @@ It is recommended to read [Replication and data safety](https://docs.victoriamet
 
 For backup configuration, please refer to [vmbackup documentation](https://docs.victoriametrics.com/victoriametrics/vmbackup/).
 
+### Graceful shutdown
+
+To gracefully shut down a VictoriaMetrics process, send SIGTERM or SIGINT signal and wait until the process exits.
+See [how to send signals to processes](https://stackoverflow.com/questions/33239959/send-signal-to-process-from-command-line).
+
+Graceful shutdown is required for data safety. A successful graceful shutdown guarantees that pending in-memory data and 
+ongoing writes are flushed on disk before the process exits. During graceful shutdown, VictoriaMetrics stops accepting
+new HTTP connections and waits for in-flight requests to finish until `-http.maxGracefulShutdownDuration` expires.
+
 ### Configuring limits
 
 To avoid excessive resource usage or performance degradation, limits must be in place:
