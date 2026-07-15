@@ -16,16 +16,23 @@ aliases:
 ---
 There are two ways to get started with VictoriaMetrics:
 
-* [Try it locally](#try-it-locally) - if you just want to see how VictoriaMetrics works,
+* [Try it locally](https://docs.victoriametrics.com/victoriametrics/quick-start/#try-it-locally) - if you just want to see how VictoriaMetrics works,
   go with the single binary: download it, start it with one command, and see live metrics
   in the built-in UI in a couple of minutes. No Docker, no configuration files
   and no extra components are required;
-* [Install it](#how-to-install) - if you want to set up VictoriaMetrics for real use,
+* [Install it](https://docs.victoriametrics.com/victoriametrics/quick-start/#how-to-install) - if you want to set up VictoriaMetrics for real use,
   pick a distribution (single-node, cluster or cloud) and an installation method
   (Docker, Helm, binary releases, etc.).
 
 If you'd rather not install anything at all, try [Playgrounds](https://docs.victoriametrics.com/playgrounds/) -
 a list of publicly available playgrounds for VictoriaMetrics software.
+
+Whichever way you choose, you may also find interesting the other sections of this page,
+like how to [write](https://docs.victoriametrics.com/victoriametrics/quick-start/#write-data) and [query](https://docs.victoriametrics.com/victoriametrics/quick-start/#query-data) data,
+[alerting](https://docs.victoriametrics.com/victoriametrics/quick-start/#alerting),
+[data migration](https://docs.victoriametrics.com/victoriametrics/quick-start/#data-migration) from other TSDBs,
+and [productionization](https://docs.victoriametrics.com/victoriametrics/quick-start/#productionization)
+best practices for running VictoriaMetrics in production.
 
 ## Try it locally
 
@@ -46,8 +53,8 @@ and unpack it. It contains a single `victoria-metrics-prod` binary.
 For example, on Linux with `amd64` architecture:
 
 ```sh
-wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.146.0/victoria-metrics-linux-amd64-v1.146.0.tar.gz
-tar xzf victoria-metrics-linux-amd64-v1.146.0.tar.gz
+wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.147.0/victoria-metrics-linux-amd64-v1.147.0.tar.gz
+tar xzf victoria-metrics-linux-amd64-v1.147.0.tar.gz
 ```
 
 The binary is self-contained and requires no installation - it is ready to run as is.
@@ -81,7 +88,11 @@ Now that metrics are being collected, it's time to look at them.
 ### Step 3: Explore the metrics
 
 Open [http://localhost:8428/vmui](http://localhost:8428/vmui) in your browser to access [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) -
-the built-in UI for querying and graphing metrics. Self-scraped metrics become queryable within ~30 seconds after the start.
+the built-in UI for querying and graphing metrics. You should see its query page:
+
+![vmui query page](quick-start-vmui.webp)
+
+Self-scraped metrics become queryable within ~30 seconds after the start.
 
 Try the following:
 
@@ -169,7 +180,7 @@ Once you're done experimenting, tidying everything up takes a single command.
 
 Stop VictoriaMetrics and node_exporter with `Ctrl+C` in their respective terminals. All the collected data lives in the `victoria-metrics-data` directory -
 delete it if you want to start from scratch. To remove all traces of this test drive,
-delete the whole `vm-quick-start` directory created at [step 1](#step-1-download-the-binary).
+delete the whole `vm-quick-start` directory created at [step 1](https://docs.victoriametrics.com/victoriametrics/quick-start/#step-1-download-the-binary).
 
 This test drive only scratches the surface of what VictoriaMetrics can do. Ready for a real setup?
 Continue with the installation options below, or learn the [key concepts](https://docs.victoriametrics.com/victoriametrics/keyconcepts/)
@@ -219,9 +230,9 @@ Download the newest available [VictoriaMetrics release](https://docs.victoriamet
 from [DockerHub](https://hub.docker.com/r/victoriametrics/victoria-metrics) or [Quay](https://quay.io/repository/victoriametrics/victoria-metrics?tab=tags):
 
 ```sh
-docker pull victoriametrics/victoria-metrics:v1.146.0
+docker pull victoriametrics/victoria-metrics:v1.147.0
 docker run -it --rm -v `pwd`/victoria-metrics-data:/victoria-metrics-data -p 8428:8428 \
- victoriametrics/victoria-metrics:v1.146.0 --selfScrapeInterval=5s -storageDataPath=victoria-metrics-data
+ victoriametrics/victoria-metrics:v1.147.0 --selfScrapeInterval=5s -storageDataPath=victoria-metrics-data
 ```
 
 _For Enterprise images, see [this link](https://docs.victoriametrics.com/victoriametrics/enterprise/#docker-images)._
