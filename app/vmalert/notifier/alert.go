@@ -31,6 +31,8 @@ type Alert struct {
 	State AlertState
 	// Expr contains expression that was executed to generate the Alert
 	Expr string
+	// Interval contains the evaluation interval of the Alert's group
+	Interval string
 	// ActiveAt defines the moment of time when Alert has become active
 	ActiveAt time.Time
 	// Start defines the moment of time when Alert has become firing
@@ -84,6 +86,7 @@ type AlertTplData struct {
 	Labels    map[string]string
 	Value     float64
 	Expr      string
+	Interval  string
 	AlertID   uint64
 	GroupID   uint64
 	ActiveAt  time.Time
@@ -96,6 +99,7 @@ var tplHeaders = []string{
 	"{{ $type := .Type }}",
 	"{{ $labels := .Labels }}",
 	"{{ $expr := .Expr }}",
+	"{{ $interval := .Interval }}",
 	"{{ $externalLabels := .ExternalLabels }}",
 	"{{ $externalURL := .ExternalURL }}",
 	"{{ $alertID := .AlertID }}",
@@ -115,6 +119,7 @@ func (a *Alert) ExecTemplate(q templates.QueryFn, labels, annotations map[string
 		Type:     a.Type,
 		Labels:   labels,
 		Expr:     a.Expr,
+		Interval: a.Interval,
 		AlertID:  a.ID,
 		GroupID:  a.GroupID,
 		ActiveAt: a.ActiveAt,

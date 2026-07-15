@@ -349,11 +349,12 @@ func (ar *AlertingRule) toLabels(m datasource.Metric, qFn templates.QueryFn) (*l
 	}
 
 	// labels only support limited templating variables,
-	// including `labels`, `value` and `expr`, to avoid breaking alert states or causing cardinality issue with results
+	// including `labels`, `value`, `expr` and `interval`, to avoid breaking alert states or causing cardinality issue with results
 	extraLabels, err := notifier.ExecTemplate(qFn, ar.Labels, notifier.AlertTplData{
-		Labels: ls.origin,
-		Value:  m.Values[0],
-		Expr:   ar.Expr,
+		Labels:   ls.origin,
+		Value:    m.Values[0],
+		Expr:     ar.Expr,
+		Interval: ar.EvalInterval.String(),
 	})
 	for k, v := range extraLabels {
 		ls.add(k, v)
@@ -530,6 +531,7 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 				ar.logDebugf(ts, a, "INACTIVE => PENDING")
 			}
 			a.Value = m.Values[0]
+			a.Interval = ar.EvalInterval.String()
 			a.Annotations = annotations
 			a.KeepFiringSince = time.Time{}
 			continue
@@ -612,6 +614,7 @@ func (ar *AlertingRule) expandAnnotationTemplates(m datasource.Metric, qFn templ
 		Type:      ar.Type.String(),
 		Labels:    ls.origin,
 		Expr:      ar.Expr,
+		Interval:  ar.EvalInterval.String(),
 		AlertID:   hash(ls.processed),
 		GroupID:   ar.GroupID,
 		ActiveAt:  activeAt,
@@ -673,6 +676,7 @@ func (ar *AlertingRule) newAlert(m datasource.Metric, start time.Time, labels, a
 		Name:        ar.Name,
 		Type:        ar.Type.String(),
 		Expr:        ar.Expr,
+		Interval:    ar.EvalInterval.String(),
 		For:         ar.For,
 		ActiveAt:    start,
 		Value:       m.Values[0],

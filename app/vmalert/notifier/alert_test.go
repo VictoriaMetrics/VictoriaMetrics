@@ -129,6 +129,17 @@ func TestAlertExecTemplate(t *testing.T) {
 		"exprEscapedHTML":   "vm_rows{&quot;label&quot;=&quot;bar&quot;}&lt;0",
 	})
 
+	// interval-template
+	f(&Alert{
+		Interval: "1m30s",
+	}, map[string]string{
+		"interval":         "{{ .Interval }}",
+		"intervalVariable": "{{ $interval }}",
+	}, map[string]string{
+		"interval":         "1m30s",
+		"intervalVariable": "1m30s",
+	})
+
 	// query
 	f(&Alert{
 		Expr: `vm_rows{"label"="bar"}>0`,

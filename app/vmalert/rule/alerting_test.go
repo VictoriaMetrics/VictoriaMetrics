@@ -49,6 +49,67 @@ func TestNewAlertingRule(t *testing.T) {
 		})
 }
 
+func TestTemplateInterval(t *testing.T) {
+	tests := []struct {
+		name            string
+		interval        *promutil.Duration
+		defaultInterval time.Duration
+		want            string
+	}{
+		{
+			name:            "group interval",
+			interval:        promutil.NewDuration(30 * time.Second),
+			defaultInterval: time.Minute,
+			want:            "30s",
+		},
+		{
+			name:            "default interval",
+			defaultInterval: time.Minute,
+			want:            "1m0s",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewGroup(config.Group{
+				Name:     "test-group",
+				Interval: tt.interval,
+				Rules: []config.Rule{
+					{
+						Alert:       "test-alert",
+						Expr:        "up == 0",
+						Labels:      map[string]string{"interval": "{{ .Interval }}"},
+						Annotations: map[string]string{"interval": "{{ $interval }}"},
+					},
+				},
+			}, &datasource.FakeQuerier{}, tt.defaultInterval, nil)
+			ar := g.Rules[0].(*AlertingRule)
+			m := datasource.Metric{Values: []float64{1}}
+
+			ls, err := ar.expandLabelTemplates(m, nil)
+			if err != nil {
+				t.Fatalf("unexpected error expanding label templates: %s", err)
+			}
+			if got := ls.processed["interval"]; got != tt.want {
+				t.Fatalf("unexpected interval label; got %q; want %q", got, tt.want)
+			}
+
+			annotations, err := ar.expandAnnotationTemplates(m, nil, time.Time{}, ls, false)
+			if err != nil {
+				t.Fatalf("unexpected error expanding annotation templates: %s", err)
+			}
+			if got := annotations["interval"]; got != tt.want {
+				t.Fatalf("unexpected interval annotation; got %q; want %q", got, tt.want)
+			}
+
+			a := ar.newAlert(m, time.Time{}, ls.processed, annotations)
+			if a.Interval != tt.want {
+				t.Fatalf("unexpected alert interval; got %q; want %q", a.Interval, tt.want)
+			}
+		})
+	}
+}
+
 func TestAlertingRuleToTimeSeries(t *testing.T) {
 	timestamp := time.Now()
 
@@ -662,6 +723,7 @@ func TestAlertingRuleExecRange(t *testing.T) {
 			GroupID:     fakeGroup.GetID(),
 			Name:        "for-pending",
 			Type:        config.NewPrometheusType().String(),
+			Interval:    time.Second.String(),
 			Labels:      map[string]string{"alertname": "for-pending"},
 			Annotations: map[string]string{},
 			State:       notifier.StatePending,
@@ -682,6 +744,7 @@ func TestAlertingRuleExecRange(t *testing.T) {
 			GroupID:     fakeGroup.GetID(),
 			Name:        "for-firing",
 			Type:        config.NewPrometheusType().String(),
+			Interval:    (3 * time.Second).String(),
 			Labels:      map[string]string{"alertname": "for-firing"},
 			Annotations: map[string]string{},
 			State:       notifier.StateFiring,
@@ -703,6 +766,7 @@ func TestAlertingRuleExecRange(t *testing.T) {
 			GroupID:     fakeGroup.GetID(),
 			Name:        "for-hold-pending",
 			Type:        config.NewPrometheusType().String(),
+			Interval:    time.Second.String(),
 			Labels:      map[string]string{"alertname": "for-hold-pending"},
 			Annotations: map[string]string{},
 			State:       notifier.StatePending,
@@ -759,6 +823,7 @@ func TestAlertingRuleExecRange(t *testing.T) {
 			GroupID:     fakeGroup.GetID(),
 			Name:        "multi-series",
 			Type:        config.NewPrometheusType().String(),
+			Interval:    (3 * time.Second).String(),
 			Labels:      map[string]string{"alertname": "multi-series"},
 			Annotations: map[string]string{},
 			State:       notifier.StateFiring,
@@ -771,6 +836,7 @@ func TestAlertingRuleExecRange(t *testing.T) {
 			GroupID:     fakeGroup.GetID(),
 			Name:        "multi-series",
 			Type:        config.NewPrometheusType().String(),
+			Interval:    (3 * time.Second).String(),
 			Labels:      map[string]string{"alertname": "multi-series", "foo": "bar"},
 			Annotations: map[string]string{},
 			State:       notifier.StatePending,
@@ -1388,7 +1454,7 @@ func TestAlertingRule_ToLabels(t *testing.T) {
 		"alertname":     "ConfigurationReloadFailure",
 		"alertgroup":    "vmalert",
 		"pod":           "vmalert-0",
-		"invalid_label": `error evaluating template: template: :1:298: executing "" at <.Values.mustRuntimeFail>: can't evaluate field Values in type notifier.tplData`,
+		"invalid_label": `error evaluating template: template: :1:326: executing "" at <.Values.mustRuntimeFail>: can't evaluate field Values in type notifier.tplData`,
 	}
 
 	expectedProcessedLabels := map[string]string{
@@ -1398,7 +1464,7 @@ func TestAlertingRule_ToLabels(t *testing.T) {
 		"exported_alertname": "ConfigurationReloadFailure",
 		"group":              "vmalert",
 		"alertgroup":         "vmalert",
-		"invalid_label":      `error evaluating template: template: :1:298: executing "" at <.Values.mustRuntimeFail>: can't evaluate field Values in type notifier.tplData`,
+		"invalid_label":      `error evaluating template: template: :1:326: executing "" at <.Values.mustRuntimeFail>: can't evaluate field Values in type notifier.tplData`,
 	}
 
 	ls, err := ar.toLabels(metric, nil)
