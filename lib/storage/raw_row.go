@@ -243,7 +243,7 @@ func (rrss *rawRowsShards) updateFlushDeadline() {
 // internal buffers (see pendingRowsFlushInterval) or if the operation is final
 // and the rawRow needs to be flushed immediately.
 //
-// The flushed rawRows are removed from rrss intenal buffers.
+// The flushed rawRows are removed from rrss internal buffers.
 func (rrss *rawRowsShards) flush(flush func(rrs [][]rawRow), isFinal bool) {
 	rrss.rowssToFlushLock.Lock()
 	defer rrss.rowssToFlushLock.Unlock()
