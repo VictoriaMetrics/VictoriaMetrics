@@ -13,9 +13,6 @@ aliases:
 - /Quick-Start.html
 - /quick-start/index.html
 - /quick-start/
-- /Try-It.html
-- /try-it/index.html
-- /try-it/
 ---
 There are two ways to get started with VictoriaMetrics:
 
