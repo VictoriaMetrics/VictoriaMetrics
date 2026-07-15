@@ -203,24 +203,25 @@ func TestStorageAddThenSearchConcurrently(t *testing.T) {
 		mrs := make([]MetricRow, numMetrics)
 		step := (tr.MaxTimestamp - tr.MinTimestamp) / int64(numMetrics)
 		for i := range numMetrics {
-			name := fmt.Sprintf("metric_%d_%d", workerID, i)
+			name := fmt.Sprintf("metric_%04d_%04d", workerID, i)
 			mn := MetricName{MetricGroup: []byte(name)}
 			mrs[i].MetricNameRaw = mn.marshalRaw(nil)
 			mrs[i].Timestamp = tr.MinTimestamp + int64(i)*step
 			mrs[i].Value = float64(i)
 		}
+
 		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
 
 		tfs := NewTagFilters()
-		re := fmt.Sprintf(`metric_%d.*`, workerID)
+		re := fmt.Sprintf(`metric_%04d.*`, workerID)
 		if err := tfs.Add(nil, []byte(re), false, true); err != nil {
 			return fmt.Errorf("tfs.Add(%q) failed unexpectedly: %w", re, err)
 		}
 		return testAssertSearchResult(s, tr, tfs, mrs)
 	}
 
-	const concurrency = 10
+	const concurrency = 20
 	var wg sync.WaitGroup
 	errs := make([]error, concurrency)
 	for workerID := range concurrency {
