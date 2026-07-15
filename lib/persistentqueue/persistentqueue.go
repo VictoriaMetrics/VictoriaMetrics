@@ -284,7 +284,7 @@ func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingB
 				if fileSize < q.writerLocalOffset {
 					validChunkFileSize := mustGetChunkValidDataSize(q.writerPath, q.maxBlockSize)
 					logger.Warnf("%q size (%d bytes) is smaller than the writer offset (%d bytes); "+
-						"this may be the case on unclean shutdown (OOM, `kill -9`, hardware reset); reseting writer to fileSize: %d",
+						"this may be the case on unclean shutdown (OOM, `kill -9`, hardware reset); resetting writer to fileSize: %d",
 						q.writerPath, fileSize, q.writerLocalOffset, validChunkFileSize)
 					mi.WriterOffset = offset + validChunkFileSize
 					q.writerOffset = mi.WriterOffset
