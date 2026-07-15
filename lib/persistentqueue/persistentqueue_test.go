@@ -137,6 +137,243 @@ func TestQueueOpen(t *testing.T) {
 		q.MustClose()
 		fs.MustRemoveDir(path)
 	})
+	t.Run("damaged-writer-file-tail", func(t *testing.T) {
+		path := "damaged-writer-file-tail"
+		fs.MustRemoveDir(path)
+
+		q := mustOpen(path, "foobar", 0)
+		block1 := []byte("valid block 1")
+		block2 := []byte("valid block 2")
+		q.MustWriteBlock(block1)
+		q.MustWriteBlock(block2)
+		q.MustClose()
+
+		chunkPath := filepath.Join(path, fmt.Sprintf("%016X", 0))
+		chunkFileSize := fs.MustFileSize(chunkPath)
+
+		if err := os.Truncate(chunkPath, int64(chunkFileSize)-1); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		q = mustOpen(path, "foobar", 0)
+
+		var buf []byte
+		var ok bool
+		buf, ok = q.MustReadBlockNonblocking(buf[:0])
+		if !ok {
+			t.Fatalf("expected block to be readable")
+		}
+		if string(buf) != string(block1) {
+			t.Fatalf("unexpected block got: %q, want: %q", buf, block1)
+		}
+
+		_, ok = q.MustReadBlockNonblocking(buf[:0])
+		if ok {
+			t.Fatalf("expected second block to be dropped")
+		}
+		q.MustClose()
+
+		expectedChunkFileSize := uint64(blockHeaderSize + len(block1))
+		chunkFileSize = fs.MustFileSize(chunkPath)
+		if chunkFileSize != expectedChunkFileSize {
+			t.Fatalf("unexpected chunk file size: got %d; want %d", chunkFileSize, expectedChunkFileSize)
+		}
+
+		fs.MustRemoveDir(path)
+	})
+	t.Run("damaged-writer-file-extra-tail", func(t *testing.T) {
+		path := "damaged-writer-file-extra-tail"
+		fs.MustRemoveDir(path)
+
+		q := mustOpen(path, "foobar", 0)
+		blocks := [][]byte{
+			[]byte("valid block 1"),
+			[]byte("valid block 2"),
+		}
+		for _, block := range blocks {
+			q.MustWriteBlock(block)
+		}
+		q.MustClose()
+
+		chunkPath := filepath.Join(path, fmt.Sprintf("%016X", 0))
+		originChunkFileSize := fs.MustFileSize(chunkPath)
+
+		f, err := os.OpenFile(chunkPath, os.O_WRONLY|os.O_APPEND, 0)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if _, err := f.Write([]byte("corrupted block")); err != nil {
+			t.Fatalf("cannot append corrupted tail: %s", err)
+		}
+		if err := f.Close(); err != nil {
+			t.Fatalf("cannot close chunk file: %s", err)
+		}
+
+		q = mustOpen(path, "foobar", 0)
+
+		var buf []byte
+		var ok bool
+		for _, block := range blocks {
+			buf, ok = q.MustReadBlockNonblocking(buf[:0])
+			if !ok {
+				t.Fatalf("expected block to be readable")
+			}
+			if string(buf) != string(block) {
+				t.Fatalf("unexpected block got: %q, want: %q", buf, block)
+			}
+		}
+		q.MustClose()
+		chunkFileSize := fs.MustFileSize(chunkPath)
+		if chunkFileSize != originChunkFileSize {
+			t.Fatalf("unexpected chunk file size: got %d; want %d", chunkFileSize, originChunkFileSize)
+		}
+		fs.MustRemoveDir(path)
+	})
+	t.Run("damaged-writer-file-partial-header", func(t *testing.T) {
+		path := "damaged-writer-file-partial-header"
+		fs.MustRemoveDir(path)
+
+		q := mustOpen(path, "foobar", 0)
+		block1 := []byte("valid block 1")
+		block2 := []byte("valid block 2")
+		q.MustWriteBlock(block1)
+		q.MustWriteBlock(block2)
+		q.MustClose()
+
+		chunkPath := filepath.Join(path, fmt.Sprintf("%016X", 0))
+		// Keep block1 intact plus only 3 bytes of the second block's header.
+		newSize := int64(blockHeaderSize + len(block1) + 3)
+		if err := os.Truncate(chunkPath, newSize); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		q = mustOpen(path, "foobar", 0)
+		buf, ok := q.MustReadBlockNonblocking(nil)
+		if !ok {
+			t.Fatalf("expected block to be readable")
+		}
+		if string(buf) != string(block1) {
+			t.Fatalf("unexpected block got: %q, want: %q", buf, block1)
+		}
+		if _, ok := q.MustReadBlockNonblocking(buf[:0]); ok {
+			t.Fatalf("expected second block to be dropped")
+		}
+		q.MustClose()
+
+		expectedChunkFileSize := uint64(blockHeaderSize + len(block1))
+		if chunkFileSize := fs.MustFileSize(chunkPath); chunkFileSize != expectedChunkFileSize {
+			t.Fatalf("unexpected chunk file size: got %d; want %d", chunkFileSize, expectedChunkFileSize)
+		}
+		fs.MustRemoveDir(path)
+	})
+	t.Run("damaged-writer-file-corrupted-header", func(t *testing.T) {
+		path := "damaged-writer-file-corrupted-header"
+		fs.MustRemoveDir(path)
+
+		q := mustOpen(path, "foobar", 0)
+		block1 := []byte("valid block 1")
+		block2 := []byte("valid block 2")
+		block3 := []byte("valid block 3")
+		q.MustWriteBlock(block1)
+		q.MustWriteBlock(block2)
+		q.MustWriteBlock(block3)
+		q.MustClose()
+
+		chunkPath := filepath.Join(path, fmt.Sprintf("%016X", 0))
+		chunkFileSize := fs.MustFileSize(chunkPath)
+
+		// Overwrite the second block's header with an impossible blockLen
+		// and drop the last byte so the recovery scan is triggered.
+		f, err := os.OpenFile(chunkPath, os.O_WRONLY, 0)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		garbage := [blockHeaderSize]byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
+		if _, err := f.WriteAt(garbage[:], int64(blockHeaderSize+len(block1))); err != nil {
+			t.Fatalf("cannot corrupt block header: %s", err)
+		}
+		if err := f.Close(); err != nil {
+			t.Fatalf("cannot close chunk file: %s", err)
+		}
+		if err := os.Truncate(chunkPath, int64(chunkFileSize)-1); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		q = mustOpen(path, "foobar", 0)
+		buf, ok := q.MustReadBlockNonblocking(nil)
+		if !ok {
+			t.Fatalf("expected block to be readable")
+		}
+		if string(buf) != string(block1) {
+			t.Fatalf("unexpected block got: %q, want: %q", buf, block1)
+		}
+		if _, ok := q.MustReadBlockNonblocking(buf[:0]); ok {
+			t.Fatalf("expected remaining blocks to be dropped")
+		}
+		q.MustClose()
+
+		expectedChunkFileSize := uint64(blockHeaderSize + len(block1))
+		if chunkFileSize := fs.MustFileSize(chunkPath); chunkFileSize != expectedChunkFileSize {
+			t.Fatalf("unexpected chunk file size: got %d; want %d", chunkFileSize, expectedChunkFileSize)
+		}
+		fs.MustRemoveDir(path)
+	})
+	t.Run("damaged-writer-file-second-chunk", func(t *testing.T) {
+		path := "damaged-writer-file-second-chunk"
+		fs.MustRemoveDir(path)
+
+		const maxBlockSize = 64
+		const chunkFileSize = (maxBlockSize + blockHeaderSize) * 2
+
+		newBlock := func(fill byte) []byte {
+			b := make([]byte, 32)
+			for i := range b {
+				b[i] = fill
+			}
+			return b
+		}
+		block1 := newBlock('1')
+		block2 := newBlock('2')
+		block3 := newBlock('3')
+		block4 := newBlock('4')
+
+		q := mustOpenInternal(path, "foobar", chunkFileSize, maxBlockSize, 0)
+		q.MustWriteBlock(block1)
+		q.MustWriteBlock(block2)
+		// blocks 3 and 4 land in the second chunk file
+		q.MustWriteBlock(block3)
+		q.MustWriteBlock(block4)
+		q.MustClose()
+
+		secondChunkPath := filepath.Join(path, fmt.Sprintf("%016X", chunkFileSize))
+		secondChunkSize := fs.MustFileSize(secondChunkPath)
+		if err := os.Truncate(secondChunkPath, int64(secondChunkSize)-1); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		q = mustOpenInternal(path, "foobar", chunkFileSize, maxBlockSize, 0)
+		var buf []byte
+		var ok bool
+		for _, block := range [][]byte{block1, block2, block3} {
+			buf, ok = q.MustReadBlockNonblocking(buf[:0])
+			if !ok {
+				t.Fatalf("expected block to be readable")
+			}
+			if string(buf) != string(block) {
+				t.Fatalf("unexpected block got: %q, want: %q", buf, block)
+			}
+		}
+		if _, ok := q.MustReadBlockNonblocking(buf[:0]); ok {
+			t.Fatalf("expected last block to be dropped")
+		}
+		q.MustClose()
+
+		expectedSize := uint64(blockHeaderSize + len(block3))
+		if gotSize := fs.MustFileSize(secondChunkPath); gotSize != expectedSize {
+			t.Fatalf("unexpected second chunk file size: got %d; want %d", gotSize, expectedSize)
+		}
+		fs.MustRemoveDir(path)
+	})
 }
 
 func TestQueueResetIfEmpty(t *testing.T) {

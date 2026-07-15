@@ -25,6 +25,8 @@ const MaxBlockSize = 32 * 1024 * 1024
 // DefaultChunkFileSize represents default chunk file size
 const DefaultChunkFileSize = (MaxBlockSize + 8) * 16
 
+const blockHeaderSize = 8
+
 var chunkFileNameRegex = regexp.MustCompile("^[0-9A-F]{16}$")
 
 // queue represents persistent queue.
@@ -129,7 +131,7 @@ func mustOpen(path, name string, maxPendingBytes int64) *queue {
 }
 
 func mustOpenInternal(path, name string, chunkFileSize, maxBlockSize, maxPendingBytes uint64) *queue {
-	if chunkFileSize < 8 || chunkFileSize-8 < maxBlockSize {
+	if chunkFileSize < blockHeaderSize || chunkFileSize-blockHeaderSize < maxBlockSize {
 		logger.Panicf("BUG: too small chunkFileSize=%d for maxBlockSize=%d; chunkFileSize must fit at least one block", chunkFileSize, maxBlockSize)
 	}
 	if maxBlockSize <= 0 {
@@ -280,14 +282,30 @@ func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingB
 			q.writerFlushedOffset = mi.WriterOffset
 			if fileSize := fs.MustFileSize(q.writerPath); fileSize != q.writerLocalOffset {
 				if fileSize < q.writerLocalOffset {
-					logger.Errorf("%q size (%d bytes) is smaller than the writer offset (%d bytes); removing the file",
-						q.writerPath, fileSize, q.writerLocalOffset)
-					fs.MustRemovePath(q.writerPath)
-					continue
+					validChunkFileSize := mustGetChunkValidDataSize(q.writerPath, q.maxBlockSize)
+					logger.Warnf("%q size (%d bytes) is smaller than the writer offset (%d bytes); "+
+						"this may be the case on unclean shutdown (OOM, `kill -9`, hardware reset); reseting writer to fileSize: %d",
+						q.writerPath, fileSize, q.writerLocalOffset, validChunkFileSize)
+					mi.WriterOffset = offset + validChunkFileSize
+					q.writerOffset = mi.WriterOffset
+					q.writerLocalOffset = mi.WriterOffset % q.chunkFileSize
+					q.writerFlushedOffset = mi.WriterOffset
+					// The recovered writer offset may end up smaller than mi.ReaderOffset.
+					// Do not clamp the reader offset in this case: it means the reader has already
+					// consumed data that is now lost, so the remaining queue state cannot be trusted.
+					// The readerOffset > writerOffset check below will fail queue opening,
+					// and the caller (mustOpen) will drop the queue and recreate it from scratch.
+				} else {
+					logger.Warnf("%q size (%d bytes) is bigger than writer offset (%d bytes); "+
+						"this may be the case on unclean shutdown (OOM, `kill -9`, hardware reset); trying to fix it by adjusting fileSize to %d",
+						q.writerPath, fileSize, q.writerLocalOffset, q.writerLocalOffset)
 				}
-				logger.Warnf("%q size (%d bytes) is bigger than writer offset (%d bytes); "+
-					"this may be the case on unclean shutdown (OOM, `kill -9`, hardware reset); trying to fix it by adjusting fileSize to %d",
-					q.writerPath, fileSize, q.writerLocalOffset, q.writerLocalOffset)
+				if err := os.Truncate(q.writerPath, int64(q.writerLocalOffset)); err != nil {
+					logger.Panicf("FATAL: cannot truncate chunk: %q to size: %d: %s", q.writerPath, q.writerLocalOffset, err)
+				}
+				if err := mi.WriteToFile(metainfoPath); err != nil {
+					logger.Panicf("FATAL: cannot update metainfo file: %q: %s", metainfoPath, err)
+				}
 			}
 			w, err := filestream.OpenWriterAt(q.writerPath, int64(q.writerLocalOffset), false)
 			if err != nil {
@@ -357,7 +375,7 @@ func (q *queue) MustWriteBlock(block []byte) {
 	}
 	if q.maxPendingBytes > 0 {
 		// Drain the oldest blocks until the number of pending bytes becomes enough for the block.
-		blockSize := uint64(len(block) + 8)
+		blockSize := uint64(len(block) + blockHeaderSize)
 		maxPendingBytes := q.maxPendingBytes
 		if blockSize < maxPendingBytes {
 			maxPendingBytes -= blockSize
@@ -395,7 +413,7 @@ func (q *queue) writeBlock(block []byte) error {
 	defer func() {
 		writeDurationSeconds.Add(time.Since(startTime).Seconds())
 	}()
-	if q.writerLocalOffset+q.maxBlockSize+8 > q.chunkFileSize {
+	if q.writerLocalOffset+q.maxBlockSize+blockHeaderSize > q.chunkFileSize {
 		if err := q.nextChunkFileForWrite(); err != nil {
 			return fmt.Errorf("cannot create next chunk file: %w", err)
 		}
@@ -408,7 +426,7 @@ func (q *queue) writeBlock(block []byte) error {
 	err := q.write(header.B)
 	headerBufPool.Put(header)
 	if err != nil {
-		return fmt.Errorf("cannot write header with size 8 bytes to %q: %w", q.writerPath, err)
+		return fmt.Errorf("cannot write header with size %d bytes to %q: %w", blockHeaderSize, q.writerPath, err)
 	}
 
 	// Write block contents.
@@ -469,7 +487,7 @@ func (q *queue) readBlock(dst []byte) ([]byte, error) {
 	defer func() {
 		readDurationSeconds.Add(time.Since(startTime).Seconds())
 	}()
-	if q.readerLocalOffset+q.maxBlockSize+8 > q.chunkFileSize {
+	if q.readerLocalOffset+q.maxBlockSize+blockHeaderSize > q.chunkFileSize {
 		if err := q.nextChunkFileForRead(); err != nil {
 			return dst, fmt.Errorf("cannot open next chunk file: %w", err)
 		}
@@ -478,12 +496,12 @@ func (q *queue) readBlock(dst []byte) ([]byte, error) {
 again:
 	// Read block len.
 	header := headerBufPool.Get()
-	header.B = bytesutil.ResizeNoCopyMayOverallocate(header.B, 8)
+	header.B = bytesutil.ResizeNoCopyMayOverallocate(header.B, blockHeaderSize)
 	err := q.readFull(header.B)
 	blockLen := encoding.UnmarshalUint64(header.B)
 	headerBufPool.Put(header)
 	if err != nil {
-		logger.Errorf("skipping corrupted %q, since header with size 8 bytes cannot be read from it: %s", q.readerPath, err)
+		logger.Errorf("skipping corrupted %q, since header with size %d bytes cannot be read from it: %s", q.readerPath, blockHeaderSize, err)
 		if err := q.skipBrokenChunkFile(); err != nil {
 			return dst, err
 		}
@@ -668,4 +686,40 @@ func (mi *metainfo) ReadFromFile(path string) error {
 		return fmt.Errorf("invalid data read from %q: readerOffset=%d cannot exceed writerOffset=%d", path, mi.ReaderOffset, mi.WriterOffset)
 	}
 	return nil
+}
+
+func mustGetChunkValidDataSize(filePath string, maxBlockSize uint64) uint64 {
+	f, err := os.Open(filePath)
+	if err != nil {
+		logger.Panicf("FATAL: cannot open file: %s", err)
+	}
+	defer fs.MustClose(f)
+
+	fi, err := f.Stat()
+	if err != nil {
+		logger.Panicf("FATAL: cannot read file stat: %s", err)
+	}
+	fileSize := uint64(fi.Size())
+
+	var offset uint64
+	var header [blockHeaderSize]byte
+	for {
+		if offset+blockHeaderSize > fileSize {
+			return offset
+		}
+		if _, err := io.ReadFull(f, header[:]); err != nil {
+			return offset
+		}
+		blockLen := encoding.UnmarshalUint64(header[:])
+		if blockLen == 0 || blockLen > maxBlockSize {
+			return offset
+		}
+		if offset+blockHeaderSize+blockLen > fileSize {
+			return offset
+		}
+		offset += blockHeaderSize + blockLen
+		if _, err := f.Seek(int64(offset), io.SeekStart); err != nil {
+			return offset
+		}
+	}
 }
