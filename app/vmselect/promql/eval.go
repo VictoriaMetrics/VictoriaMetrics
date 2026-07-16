@@ -424,18 +424,7 @@ func evalBinaryOp(qt *querytracer.Tracer, ec *EvalConfig, be *metricsql.BinaryOp
 	if bf == nil {
 		return nil, fmt.Errorf(`unknown binary op %q`, be.Op)
 	}
-	var err error
-	var tssLeft, tssRight []*timeseries
-	switch strings.ToLower(be.Op) {
-	case "and", "if":
-		// Fetch right-side series at first, since it usually contains
-		// lower number of time series for `and` and `if` operator.
-		// This should produce more specific label filters for the left side of the query.
-		// This, in turn, should reduce the time to select series for the left side of the query.
-		tssRight, tssLeft, err = execBinaryOpArgs(qt, ec, be.Right, be.Left, be)
-	default:
-		tssLeft, tssRight, err = execBinaryOpArgs(qt, ec, be.Left, be.Right, be)
-	}
+	tssLeft, tssRight, err := execBinaryOpArgs(qt, ec, be)
 	if err != nil {
 		return nil, fmt.Errorf("cannot execute %q: %w", be.AppendString(nil), err)
 	}
@@ -451,12 +440,39 @@ func evalBinaryOp(qt *querytracer.Tracer, ec *EvalConfig, be *metricsql.BinaryOp
 	return rv, nil
 }
 
+// binaryOpEvalOrder might change the order of evaluation of the left and right sides of a binary operation,
+// when there is chance to push down common label filters from exprFirst to exprSecond in the following executions.
+func binaryOpEvalOrder(be *metricsql.BinaryOpExpr) (exprFirst, exprSecond metricsql.Expr) {
+	exprFirst, exprSecond = be.Left, be.Right
+	switch strings.ToLower(be.Op) {
+	case "and", "if":
+		// For `and` and `if`, fetch the right-side series first, since it usually contains
+		// fewer time series and yields more specific filters for the left side.
+		exprFirst, exprSecond = be.Right, be.Left
+	}
+	if be.FillLeft != nil && be.FillRight == nil {
+		// For `fill_left(<value>)`, the unmatched series can only come from the right side, so evaluate it first.
+		exprFirst, exprSecond = be.Right, be.Left
+	}
+	return exprFirst, exprSecond
+}
+
+// canPushdownCommonFilters decides if common label filters can be pushed down from one side of a binary operation to the other.
+//
+// Common filters cannot be pushed down when:
+// - the operator is `or` or `default`;
+// - either side is an aggregation function without explicit grouping;
+// - fill(<value>) modifier is used.
 func canPushdownCommonFilters(be *metricsql.BinaryOpExpr) bool {
 	switch strings.ToLower(be.Op) {
 	case "or", "default":
 		return false
 	}
 	if isAggrFuncWithoutGrouping(be.Left) || isAggrFuncWithoutGrouping(be.Right) {
+		return false
+	}
+	// Filters cannot be propagated when fill(<value>) modifier is used.
+	if be.FillLeft != nil && be.FillRight != nil {
 		return false
 	}
 	return true
@@ -470,7 +486,15 @@ func isAggrFuncWithoutGrouping(e metricsql.Expr) bool {
 	return len(afe.Modifier.Args) == 0
 }
 
-func execBinaryOpArgs(qt *querytracer.Tracer, ec *EvalConfig, exprFirst, exprSecond metricsql.Expr, be *metricsql.BinaryOpExpr) ([]*timeseries, []*timeseries, error) {
+func execBinaryOpArgs(qt *querytracer.Tracer, ec *EvalConfig, be *metricsql.BinaryOpExpr) ([]*timeseries, []*timeseries, error) {
+	exprFirst, exprSecond := binaryOpEvalOrder(be)
+	firstIsLeft := exprFirst == be.Left
+	sortResult := func(tssFirst, tssSecond []*timeseries) ([]*timeseries, []*timeseries, error) {
+		if firstIsLeft {
+			return tssFirst, tssSecond, nil
+		}
+		return tssSecond, tssFirst, nil
+	}
 	if canPushdownCommonFilters(be) {
 		// Execute binary operation in the following way:
 		//
@@ -512,7 +536,7 @@ func execBinaryOpArgs(qt *querytracer.Tracer, ec *EvalConfig, exprFirst, exprSec
 		if err != nil {
 			return nil, nil, err
 		}
-		return tssFirst, tssSecond, nil
+		return sortResult(tssFirst, tssSecond)
 	}
 
 	// Execute exprFirst and exprSecond sequentially if there are cacheable repeated subexpressions
@@ -568,7 +592,7 @@ func execBinaryOpArgs(qt *querytracer.Tracer, ec *EvalConfig, exprFirst, exprSec
 	if errSecond != nil {
 		return nil, nil, errSecond
 	}
-	return tssFirst, tssSecond, nil
+	return sortResult(tssFirst, tssSecond)
 }
 
 func shouldOptimizeRepeatedBinaryOpSubexprs(ec *EvalConfig, exprFirst, exprSecond metricsql.Expr) bool {

@@ -241,10 +241,10 @@ func (bi *blockIterator) NextBlock(dst []byte) ([]byte, bool) {
 	if !bi.sr.NextMetricBlock() {
 		return dst, false
 	}
-	mb := bi.mb
+	mb := &bi.mb
 	mb.MetricName = bi.sr.MetricBlockRef.MetricName
 	bi.sr.MetricBlockRef.BlockRef.MustReadBlock(&mb.Block)
-	dst = bi.marshal(dst[:0], &mb)
+	dst = bi.marshal(dst[:0], mb)
 	return dst, true
 }
 

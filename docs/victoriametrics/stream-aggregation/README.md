@@ -645,9 +645,9 @@ See also [why you shouldn't put an aggregator behind a load balancer](https://do
 
 # Troubleshooting
 
-- [Unexpected spikes for `total` or `increase` outputs](#data-delay-and-staleness).
+- [Unexpected spikes for `total` or `increase` outputs](#staleness).
 - [Excessively large values for `total*`, `increase*`, and `rate*` outputs](#counter-resets).
-- [Lower than expected values for `total_prometheus` and `increase_prometheus` outputs](#data-delay-and-staleness).
+- [Lower than expected values for `total_prometheus` and `increase_prometheus` outputs](#staleness).
 - [High memory usage and CPU usage](#high-resource-usage).
 - [Unexpected results in vmagent cluster mode](#cluster-mode).
 - [Inaccurate aggregation results for histograms](#aggregation-windows)
