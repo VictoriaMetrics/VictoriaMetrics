@@ -63,6 +63,9 @@ func newClient(ctx context.Context, sw *ScrapeWork) (*client, error) {
 	var proxyURLFunc func(*http.Request) (*url.URL, error)
 
 	if proxyURL != nil {
+		if sw.UnixSocket != "" {
+			return nil, fmt.Errorf("proxyURL: %q cannot be used for scrapping unix_socket target: %q", proxyURL, sw.UnixSocket)
+		}
 		// case for direct http proxy connection.
 		// must be used for http based scrape targets
 		// since standard golang http.transport has special case for it
