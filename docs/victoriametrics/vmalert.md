@@ -1159,9 +1159,6 @@ How to reduce the chance for a rule to flap:
 
 See [common mistakes](#common-mistakes) for rules config.
 
-See [how to tune `keep_firing_for`](https://victoriametrics.com/blog/alerting-best-practices/#the-keep_firing_for-param)
-to avoid alert flapping during brief data gaps.
-
 ### Never-firing alerts
 
 vmalert can detect {{% available_from "v1.91.0" %}} if alert's expression doesn't match any time series in runtime.
