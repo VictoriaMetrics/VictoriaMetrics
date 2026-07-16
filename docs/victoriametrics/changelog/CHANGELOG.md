@@ -49,6 +49,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 Released at 2026-07-06
 
+**Update Note 1:** [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): contains a bug that causes increased CPU and memory usage when `-remoteWrite.urlRelabelConfig` or `-remoteWrite.streamAggr.config` flags are used. The bug was introduced in [#10854](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10854). Upgrade to v1.148.0 or rollback to v1.146.0. See [#11250](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11250).
+
 * SECURITY: upgrade base docker image (Alpine) from 3.23.4 to 3.24.1. See [Alpine 3.24.1 release notes](https://www.alpinelinux.org/posts/Alpine-3.24.1-released.html).
 
 * FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): add `default_vm_access_claim` field into `jwt` section of auth config. It could be used at [JWT claim placeholders](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-based-request-templating), if `JWT` token doesn't have `vm_access` claim. See [#11054](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11054).
