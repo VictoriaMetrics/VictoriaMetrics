@@ -192,7 +192,12 @@ func TestSearch_VariousTimeRanges(t *testing.T) {
 	testStorageOpOnVariousTimeRanges(t, f)
 }
 
-func TestStorageAddThenSearchConcurrently(t *testing.T) {
+// TestStorageAddFlushSearchDataConcurrently verifies that concurrent goroutines
+// can read their own writes.
+//
+// This test focuses on reading the data. For reading the index see
+// TestStorageAddFlushSearchMetricNamesConcurrently in storage_test.go.
+func TestStorageAddFlushSearchDataConcurrently(t *testing.T) {
 	defer testRemoveAll(t)
 
 	s := MustOpenStorage(t.Name(), OpenOptions{})

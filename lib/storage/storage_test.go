@@ -4325,7 +4325,12 @@ func TestStorage_futureTimestamps(t *testing.T) {
 	})
 }
 
-func TestStorageAddThenSearchMetricNamesConcurrently(t *testing.T) {
+// TestStorageAddFlushSearchMetricNamesConcurrently verifies that concurrent
+// goroutines can read their own writes.
+//
+// This test focuses on reading the index. For reading the data see
+// TestStorageAddFlushSearchDataConcurrently in search_test.go.
+func TestStorageAddFlushSearchMetricNamesConcurrently(t *testing.T) {
 	defer testRemoveAll(t)
 
 	s := MustOpenStorage(t.Name(), OpenOptions{})
