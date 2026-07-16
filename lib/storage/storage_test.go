@@ -530,8 +530,8 @@ func TestStorageDeletePendingSeries(t *testing.T) {
 func TestStorageDeleteSeries(t *testing.T) {
 	defer testRemoveAll(t)
 
-	for _, concurrency := range []int{4} {
-		for _, disablePerDayIndex := range []bool{false} {
+	for _, concurrency := range []int{1, 4} {
+		for _, disablePerDayIndex := range []bool{false, true} {
 			name := fmt.Sprintf("concurrency=%d/disablePerDayIndex=%t", concurrency, disablePerDayIndex)
 			t.Run(name, func(t *testing.T) {
 				testStorageDeleteSeries(t, concurrency, disablePerDayIndex)
