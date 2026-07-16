@@ -236,24 +236,16 @@ func (rrss *rawRowsShards) updateFlushDeadline() {
 	rrss.flushDeadlineMs.Store(time.Now().Add(pendingRowsFlushInterval).UnixMilli())
 }
 
-// flush calls flush callback on all rawRows that are stored in rrss internal
-// buffers and are ready to be flushed.
-//
-// A rawRow is ready to be flushed either when it has spent enough time in rrss
-// internal buffers (see pendingRowsFlushInterval) or if the operation is final
-// and the rawRow needs to be flushed immediately.
-//
-// The flushed rawRows are removed from rrss internal buffers.
 func (rrss *rawRowsShards) flush(flush func(rrs [][]rawRow), isFinal bool) {
-	rrss.rowssToFlushLock.Lock()
-	defer rrss.rowssToFlushLock.Unlock()
-
 	var dst [][]rawRow
+
 	currentTimeMs := time.Now().UnixMilli()
 	flushDeadlineMs := rrss.flushDeadlineMs.Load()
 	if isFinal || currentTimeMs >= flushDeadlineMs {
+		rrss.rowssToFlushLock.Lock()
 		dst = rrss.rowssToFlush
 		rrss.rowssToFlush = nil
+		rrss.rowssToFlushLock.Unlock()
 	}
 
 	for i := range rrss.shards {
