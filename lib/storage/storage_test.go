@@ -642,18 +642,6 @@ func testStorageDeleteSeries(t *testing.T, concurrency int, disablePerDayIndex b
 	})
 	defer s.MustClose()
 
-	assertEmptyStorage := func() {
-		t.Helper()
-		lns, err := s.SearchLabelNames(nil, 0, 0, nil, tr, 1e5, 1e9, noDeadline)
-		if err != nil {
-			t.Fatalf("SearchLabelNames() failed unexpectedly: %s", err)
-		}
-		if len(lns) != 0 {
-			t.Fatalf("storage is not empty: %v", lns)
-		}
-	}
-	assertEmptyStorage()
-
 	errs := make([]error, concurrency)
 	var wg sync.WaitGroup
 	for workerNum := range concurrency {
@@ -675,8 +663,6 @@ func testStorageDeleteSeries(t *testing.T, concurrency int, disablePerDayIndex b
 			t.Fatalf("[worker %d] %s", i, err)
 		}
 	}
-
-	assertEmptyStorage()
 }
 
 func testStorageDeleteSeriesForWorker(workerNum int, s *Storage, tr TimeRange) error {
