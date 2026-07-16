@@ -137,7 +137,7 @@ document.addEventListener('DOMContentLoaded', initRelabelConfigsHighlight);
         </div>
     </div>
     <div class="mt-2">
-        One Time Series:<br/>
+        A Time Series:<br/>
         <textarea name="metric" style="width: 100%; height: 5em; font-family: monospace" class="m-1" placeholder="up{job=&quot;job_name&quot;,instance=&quot;host:port&quot;}">{%s metric %}</textarea>
     </div>
 {% endfunc %}

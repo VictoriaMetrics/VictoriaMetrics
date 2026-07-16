@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 
@@ -86,17 +87,17 @@ func WriteMetricRelabelDebug(w http.ResponseWriter, r *http.Request, rwGlobalRel
 
 func composeRelabelConfigs(relabelConfigs, rwGlobalRelabelConfigs, rwURLRelabelConfigs string, rwURLIdx int) string {
 	if relabelConfigs != "" {
-		relabelConfigs = "# -promscrape.config .scrape_configs[].metric_relabel_configs\n" + relabelConfigs
+		relabelConfigs = "# -promscrape.config .scrape_configs[].metric_relabel_configs\n" + strings.TrimSpace(relabelConfigs) + "\n"
 	}
 
 	if rwGlobalRelabelConfigs != "" {
 		relabelConfigs += "\n# -remoteWrite.relabelConfig"
-		relabelConfigs += "\n" + rwGlobalRelabelConfigs
+		relabelConfigs += "\n" + strings.TrimSpace(rwGlobalRelabelConfigs) + "\n"
 	}
 
 	if rwURLRelabelConfigs != "" {
 		relabelConfigs += fmt.Sprintf("\n# -remoteWrite.urlRelabelConfig=remote-write-url-%d", rwURLIdx)
-		relabelConfigs += "\n" + rwURLRelabelConfigs
+		relabelConfigs += "\n" + strings.TrimSpace(rwURLRelabelConfigs) + "\n"
 	}
 
 	return relabelConfigs

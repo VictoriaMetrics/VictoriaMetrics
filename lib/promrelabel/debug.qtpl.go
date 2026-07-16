@@ -241,7 +241,7 @@ func streamrelabelDebugFormInputs(qw422016 *qt422016.Writer, metric, relabelConf
 //line lib/promrelabel/debug.qtpl:135
 	qw422016.E().S(relabelConfigs)
 //line lib/promrelabel/debug.qtpl:135
-	qw422016.N().S(`</textarea></div></div><div class="mt-2">One Time Series:<br/><textarea name="metric" style="width: 100%; height: 5em; font-family: monospace" class="m-1" placeholder="up{job=&quot;job_name&quot;,instance=&quot;host:port&quot;}">`)
+	qw422016.N().S(`</textarea></div></div><div class="mt-2">A Time Series:<br/><textarea name="metric" style="width: 100%; height: 5em; font-family: monospace" class="m-1" placeholder="up{job=&quot;job_name&quot;,instance=&quot;host:port&quot;}">`)
 //line lib/promrelabel/debug.qtpl:141
 	qw422016.E().S(metric)
 //line lib/promrelabel/debug.qtpl:141
