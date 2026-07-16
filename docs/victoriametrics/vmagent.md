@@ -470,7 +470,7 @@ There is also the `-promscrape.configCheckInterval` command-line flag, which can
 
 If `vmagent` encounters URLs with the `dns+` prefix in the hostname (such as `http://dns+some-addr:8428/some/path`), it resolves `some-addr` into IP addresses
 via [DNS A records](https://datatracker.ietf.org/doc/html/rfc1035#section-3.4.1). The port from the original URL is appended to each discovered IP address.
-Each discovered IP address is used for round-robin balancing of write requests.
+Each discovered IP address is used for least-loaded balancing of write requests.
 
 DNS URLs are supported in the following places:
 
@@ -513,7 +513,7 @@ SRV URLs are supported in the following places:
 * In `-remoteWrite.url` command-line flag. For example, if `victoria-metrics` [DNS SRV](https://en.wikipedia.org/wiki/SRV_record) record contains
   `victoria-metrics-host:8428` TCP address, then `-remoteWrite.url=http://srv+victoria-metrics/api/v1/write` is automatically resolved into
   `-remoteWrite.url=http://victoria-metrics-host:8428/api/v1/write`. If the DNS SRV record is resolved into multiple TCP addresses, then `vmagent`
-   performs per request round-robin load-balancing.
+   performs per request least-loaded load-balancing.
 
 * In scrape target addresses aka `__address__` label. See [these docs](https://docs.victoriametrics.com/victoriametrics/relabeling/#how-to-modify-scrape-urls-in-targets) for details.
 
