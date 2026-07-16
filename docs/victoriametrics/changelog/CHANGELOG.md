@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* SECURITY: upgrade Go builder from Go1.26.4 to Go1.26.5. See [the list of issues addressed in Go1.26.5](https://github.com/golang/go/issues?q=milestone%3AGo1.26.5%20label%3ACherryPickApproved).
+
 * FEATURE: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): support `fill` modifiers to allow missing series on either side of a binary operation to be filled with a provided default value. See [#10598](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10598).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): support scraping metrics over Unix domain sockets. The socket path can be configured via the `__unix_socket__` target label. See [#11156](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11156). Thanks to @vinyas-bharadwaj for contribution.
 * FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): Improve background discovery performance for [http_sd](https://docs.victoriametrics.com/victoriametrics/sd_configs/#http_sd_configs) discovery. See [#8838](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8838).
