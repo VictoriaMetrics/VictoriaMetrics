@@ -1397,13 +1397,16 @@ in separate files under `part` directory - `timestamps.bin` and `values.bin`.
 The `part` directory also contains `index.bin` and `metaindex.bin` files - these files contain index
 for fast block lookups, which belong to the given `TSID` and cover the given time range.
 
-`Parts` are periodically merged into bigger parts in background. The [background merge](https://victoriametrics.com/blog/vmstorage-retention-merging-deduplication/#merge-process) provides the following benefits:
+`Parts` are periodically merged into bigger parts in background. The background merge provides the following benefits:
 
 * keeping the number of data files under control, so they don't exceed limits on open files
 * improved data compression, since bigger parts are usually compressed better than smaller parts
 * improved query speed, since queries over smaller number of parts are executed faster
 * various background maintenance tasks such as [de-duplication](#deduplication), [downsampling](#downsampling)
   and [freeing up disk space for the deleted time series](#how-to-delete-time-series) are performed during the merge
+
+See how `vmstorage` [selects parts for background merging](https://victoriametrics.com/blog/vmstorage-retention-merging-deduplication/#merge-process),
+including merge limits and monitoring metrics.
 
 Newly added `parts` either successfully appear in the storage or fail to appear.
 The newly added `part` is atomically registered in the `parts.json` file under the corresponding partition
@@ -1532,7 +1535,8 @@ are **eventually deleted** during [background merge](https://medium.com/@valyala
 The time range covered by data part is **not limited by retention period unit**. One data part can cover hours or days of
 data. Hence, a data part can be deleted only **when fully outside the configured retention**.
 See more about partitions and parts in the [Storage section](#storage).
-See [how retention frees disk space](https://victoriametrics.com/blog/vmstorage-retention-merging-deduplication/#retention-free-disk-space-guard-and-downsampling) for details.
+See how the [retention and free-disk watchers manage storage](https://victoriametrics.com/blog/vmstorage-retention-merging-deduplication/#retention-free-disk-space-guard-and-downsampling)
+for implementation details and monitoring metrics.
 
 The maximum disk space usage for a given `-retentionPeriod` is going to be (`-retentionPeriod` + 1) months.
 For example, if `-retentionPeriod` is set to 1, data for January is deleted on March 1st.
@@ -1635,7 +1639,6 @@ See how to request a [free trial license](https://victoriametrics.com/products/e
 This command-line flag instructs leaving the last sample per each `interval` for [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series)
 [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) older than the `offset`. The `offset` must be a multiple of `interval`. For example, `-downsampling.period=30d:5m` instructs leaving the last sample
 per each 5-minute interval for samples older than 30 days, while the rest of samples are dropped.
-See [Enterprise downsampling internals](https://victoriametrics.com/blog/vmstorage-retention-merging-deduplication/#retention-filters-and-downsampling-enterprise-plan) for details.
 
 The `-downsampling.period` command-line flag can be specified multiple times in order to apply different downsampling levels for different time ranges (aka multi-level downsampling).
 For example, `-downsampling.period=30d:5m,180d:1h` instructs leaving the last sample per each 5-minute interval for samples older than 30 days,

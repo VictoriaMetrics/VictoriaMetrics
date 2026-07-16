@@ -57,11 +57,12 @@ Each service may scale independently and may run on the most suitable hardware.
 This is a [shared nothing architecture](https://en.wikipedia.org/wiki/Shared-nothing_architecture).
 It increases cluster availability, and simplifies cluster maintenance as well as cluster scaling.
 
+![Cluster Scheme](Cluster-VictoriaMetrics-components.webp)
+
 > Further reading, deep dives into how each service works internally:
 > - `vmstorage`: [How vmstorage Handles Data Ingestion From vminsert](https://victoriametrics.com/blog/vmstorage-how-it-handles-data-ingestion/), [How vmstorage's IndexDB Works](https://victoriametrics.com/blog/vmstorage-how-indexdb-works/), [How vmstorage Handles Query Requests From vmselect](https://victoriametrics.com/blog/vmstorage-how-it-handles-query-requests/).
+> - `vminsert`: [When Metrics Meet vminsert: A Data-Delivery Story](https://victoriametrics.com/blog/vminsert-how-it-works/).
 > - `vmselect`: [Inside vmselect: The Query Processing Engine of VictoriaMetrics](https://victoriametrics.com/blog/vmselect-how-it-works/).
-
-![Cluster Scheme](Cluster-VictoriaMetrics-components.webp)
 
 ## vmui
 
