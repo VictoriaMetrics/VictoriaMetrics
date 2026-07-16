@@ -17,6 +17,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/syncwg"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
@@ -130,6 +131,9 @@ type partition struct {
 	// wg.Add() must be called under partsLock after checking whether stopCh isn't closed.
 	// This should prevent from calling wg.Add() after stopCh is closed and wg.Wait() is called.
 	wg sync.WaitGroup
+
+	// Use syncwg instead of sync, since Add/Wait may be called from concurrent goroutines.
+	flushPendingItemsWG syncwg.WaitGroup
 }
 
 // partWrapper is a wrapper for the part.
@@ -471,25 +475,23 @@ func (pt *partition) AddRows(rows []rawRow) {
 var isDebug = false
 
 func (pt *partition) flushRowssToInmemoryParts(rowss [][]rawRow) {
-	if len(rowss) == 0 {
+	var nonEmptyRowss [][]rawRow
+	for _, rows := range rowss {
+		if len(rows) > 0 {
+			nonEmptyRowss = append(nonEmptyRowss, rows)
+		}
+	}
+	if len(nonEmptyRowss) == 0 {
 		return
 	}
 
 	// Convert rowss into in-memory parts.
-	var pwsLock sync.Mutex
-	pws := make([]*partWrapper, 0, len(rowss))
+	pws := make([]*partWrapper, len(nonEmptyRowss))
 	wg := getWaitGroup()
-	for _, rows := range rowss {
+	for i, rows := range nonEmptyRowss {
 		inmemoryPartsConcurrencyCh <- struct{}{}
-
 		wg.Go(func() {
-			pw := pt.createInmemoryPart(rows)
-			if pw != nil {
-				pwsLock.Lock()
-				pws = append(pws, pw)
-				pwsLock.Unlock()
-			}
-
+			pws[i] = pt.mustCreateInmemoryPart(rows)
 			<-inmemoryPartsConcurrencyCh
 		})
 	}
@@ -744,9 +746,14 @@ func (pt *partition) mustMergeInmemoryPartsFinal(pws []*partWrapper) *partWrappe
 	return newPartWrapperFromInmemoryPart(mpDst, flushToDiskDeadline)
 }
 
-func (pt *partition) createInmemoryPart(rows []rawRow) *partWrapper {
+// mustCreateInmemoryPart creates a new in-memory part from rawRows.
+//
+// The number of rawRows cannot be zero. Otherwise the method will panic.
+//
+// The returned value is always a non-nil partWrapper.
+func (pt *partition) mustCreateInmemoryPart(rows []rawRow) *partWrapper {
 	if len(rows) == 0 {
-		return nil
+		logger.Panicf("BUG: a part cannot be created from 0 rawRows")
 	}
 	mp := getInmemoryPart()
 	mp.InitFromRows(rows)
@@ -878,6 +885,9 @@ func (pt *partition) MustClose() {
 func (pt *partition) DebugFlush() {
 	pt.idb.tb.DebugFlush()
 	pt.flushPendingRows(true)
+
+	// Wait for background flushers to finish.
+	pt.flushPendingItemsWG.Wait()
 }
 
 func (pt *partition) startInmemoryPartsMergers() {
@@ -1008,7 +1018,9 @@ func (pt *partition) pendingRowsFlusher() {
 }
 
 func (pt *partition) flushPendingRows(isFinal bool) {
+	pt.flushPendingItemsWG.Add(1)
 	pt.rawRows.flush(pt.flushRowssToInmemoryParts, isFinal)
+	pt.flushPendingItemsWG.Done()
 }
 
 func (pt *partition) flushInmemoryRowsToFiles() {
