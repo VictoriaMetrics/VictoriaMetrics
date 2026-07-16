@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -24,7 +25,7 @@ const (
 	backendDiscoveryTimeout  = 10 * time.Second
 )
 
-// NewLoadBalancerTransport returns new RoundTripper that performs round-robin HTTP requests loadbalancing
+// NewLoadBalancerTransport returns new RoundTripper that performs least-loaded HTTP requests loadbalancing
 // based on discovered backends for the given url host
 // and update url with load-balancing prefix
 //
@@ -239,6 +240,9 @@ func (lb *loadbalancerTransport) discoverBackends() {
 	dbs := &discoveredBackends{
 		backends: backends,
 	}
+	sort.Slice(dbs.backends, func(i, j int) bool {
+		return dbs.backends[i].addr < dbs.backends[j].addr
+	})
 
 	prevBackends := lb.dbs.Load()
 	if areBackendsEqual(prevBackends, dbs) {
