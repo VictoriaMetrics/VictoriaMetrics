@@ -619,58 +619,70 @@ func TestStorageDeletePendingSeries(t *testing.T) {
 }
 
 func TestStorageDeleteSeries(t *testing.T) {
-	path := "TestStorageDeleteSeries"
-	s := MustOpenStorage(path, OpenOptions{})
+	defer testRemoveAll(t)
 
-	t.Run("serial", func(t *testing.T) {
-		for i := range 3 {
-			if err := testStorageDeleteSeries(s, 0); err != nil {
-				t.Fatalf("unexpected error on iteration %d: %s", i, err)
-			}
-
-			// Re-open the storage in order to check how deleted metricIDs
-			// are persisted.
-			s.MustClose()
-			s = MustOpenStorage(path, OpenOptions{})
+	for _, concurrency := range []int{1, 4} {
+		for _, disablePerDayIndex := range []bool{false, true} {
+			name := fmt.Sprintf("concurrency=%d/disablePerDayIndex=%t", concurrency, disablePerDayIndex)
+			t.Run(name, func(t *testing.T) {
+				testStorageDeleteSeries(t, concurrency, disablePerDayIndex)
+			})
 		}
-	})
-
-	t.Run("concurrent", func(t *testing.T) {
-		ch := make(chan error, 3)
-		for i := range cap(ch) {
-			go func(workerNum int) {
-				var err error
-				for range 2 {
-					err = testStorageDeleteSeries(s, workerNum)
-					if err != nil {
-						break
-					}
-				}
-				ch <- err
-			}(i)
-		}
-		tt := time.NewTimer(30 * time.Second)
-		for i := range cap(ch) {
-			select {
-			case err := <-ch:
-				if err != nil {
-					t.Fatalf("unexpected error on iteration %d: %s", i, err)
-				}
-			case <-tt.C:
-				t.Fatalf("timeout on iteration %d", i)
-			}
-		}
-	})
-
-	s.MustClose()
-	fs.MustRemoveDir(path)
+	}
 }
 
-func testStorageDeleteSeries(s *Storage, workerNum int) error {
+func testStorageDeleteSeries(t *testing.T, concurrency int, disablePerDayIndex bool) {
+	tr := TimeRange{
+		MinTimestamp: time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2026, 1, 15, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+
+	s := MustOpenStorage(t.Name(), OpenOptions{
+		DisablePerDayIndex: disablePerDayIndex,
+	})
+	defer s.MustClose()
+
+	assertEmptyStorage := func() {
+		t.Helper()
+		lns, err := s.SearchLabelNames(nil, 0, 0, nil, tr, 1e5, 1e9, noDeadline)
+		if err != nil {
+			t.Fatalf("SearchLabelNames() failed unexpectedly: %s", err)
+		}
+		if len(lns) != 0 {
+			t.Fatalf("storage is not empty: %v", lns)
+		}
+	}
+	assertEmptyStorage()
+
+	errs := make([]error, concurrency)
+	var wg sync.WaitGroup
+	for workerNum := range concurrency {
+		wg.Go(func() {
+			var err error
+			for range 10 {
+				err = testStorageDeleteSeriesForWorker(workerNum, s, tr)
+				if err != nil {
+					break
+				}
+			}
+			errs[workerNum] = err
+		})
+	}
+	wg.Wait()
+
+	for i, err := range errs {
+		if err != nil {
+			t.Fatalf("[worker %d] %s", i, err)
+		}
+	}
+
+	assertEmptyStorage()
+}
+
+func testStorageDeleteSeriesForWorker(workerNum int, s *Storage, tr TimeRange) error {
 	rng := rand.New(rand.NewSource(1))
 	const rowsPerMetric = 100
 	const metricsCount = 30
-
 	workerTag := fmt.Appendf(nil, "workerTag_%d", workerNum)
 	accountID := uint32(workerNum)
 	projectID := uint32(123)
@@ -687,40 +699,34 @@ func testStorageDeleteSeries(s *Storage, workerNum int) error {
 	lnsAll := make(map[string]bool)
 	lnsAll["__name__"] = true
 	for i := range metricsCount {
-		var mrs []MetricRow
-		var mn MetricName
-		mn.AccountID = accountID
-		mn.ProjectID = projectID
-		job := fmt.Sprintf("job_%d_%d", i, workerNum)
-		instance := fmt.Sprintf("instance_%d_%d", i, workerNum)
-		mn.Tags = []Tag{
-			{[]byte("job"), []byte(job)},
-			{[]byte("instance"), []byte(instance)},
-			{workerTag, []byte("foobar")},
+		mn := MetricName{
+			AccountID:   accountID,
+			ProjectID:   projectID,
+			MetricGroup: fmt.Appendf(nil, "metric_%d_%d", i, workerNum),
+			Tags: []Tag{
+				{[]byte("job"), fmt.Appendf(nil, "job_%d_%d", i, workerNum)},
+				{[]byte("instance"), fmt.Appendf(nil, "instance_%d_%d", i, workerNum)},
+				{workerTag, []byte("foobar")},
+			},
 		}
 		for i := range mn.Tags {
 			lnsAll[string(mn.Tags[i].Key)] = true
 		}
-		mn.MetricGroup = fmt.Appendf(nil, "metric_%d_%d", i, workerNum)
-		metricNameRaw := mn.marshalRaw(nil)
 
+		var mrs []MetricRow
 		for range rowsPerMetric {
-			timestamp := rng.Int63n(1e10)
-			value := rng.NormFloat64() * 1e6
-
-			mr := MetricRow{
-				MetricNameRaw: metricNameRaw,
-				Timestamp:     timestamp,
-				Value:         value,
-			}
-			mrs = append(mrs, mr)
+			mrs = append(mrs, MetricRow{
+				MetricNameRaw: mn.marshalRaw(nil),
+				Timestamp:     tr.MinTimestamp + rng.Int63n(tr.MaxTimestamp-tr.MinTimestamp),
+				Value:         rng.NormFloat64() * 1e6,
+			})
 		}
 		s.AddRows(mrs, defaultPrecisionBits)
 	}
 	s.DebugFlush()
 
 	// Verify tag values exist
-	tvs, err := s.SearchLabelValues(nil, accountID, projectID, string(workerTag), nil, TimeRange{}, 1e5, 1e9, noDeadline)
+	tvs, err := s.SearchLabelValues(nil, accountID, projectID, string(workerTag), nil, tr, 1e5, 1e9, noDeadline)
 	if err != nil {
 		return fmt.Errorf("error in SearchLabelValues before metrics removal: %w", err)
 	}
@@ -729,7 +735,7 @@ func testStorageDeleteSeries(s *Storage, workerNum int) error {
 	}
 
 	// Verify tag keys exist
-	lns, err = s.SearchLabelNames(nil, accountID, projectID, nil, TimeRange{}, 1e5, 1e9, noDeadline)
+	lns, err = s.SearchLabelNames(nil, accountID, projectID, nil, tr, 1e5, 1e9, noDeadline)
 	if err != nil {
 		return fmt.Errorf("error in SearchLabelNames before metrics removal: %w", err)
 	}
@@ -737,20 +743,18 @@ func testStorageDeleteSeries(s *Storage, workerNum int) error {
 		return fmt.Errorf("unexpected label names before metrics removal: %w", err)
 	}
 
-	var sr Search
-	tr := TimeRange{
-		MinTimestamp: 0,
-		MaxTimestamp: 2e10,
-	}
-	metricBlocksCount := func(tfs *TagFilters) int {
-		// Verify the number of blocks
-		n := 0
+	countMetricBlocks := func(tfs *TagFilters) (int, error) {
+		var sr Search
 		sr.Init(nil, s, []*TagFilters{tfs}, tr, 1e5, noDeadline)
+		defer sr.MustClose()
+		n := 0
 		for sr.NextMetricBlock() {
 			n++
 		}
-		sr.MustClose()
-		return n
+		if err := sr.Error(); err != nil {
+			return 0, err
+		}
+		return n, nil
 	}
 	for i := range metricsCount {
 		tfs := NewTagFilters(accountID, projectID)
@@ -761,17 +765,26 @@ func testStorageDeleteSeries(s *Storage, workerNum int) error {
 		if err := tfs.Add([]byte("job"), []byte(job), false, false); err != nil {
 			return fmt.Errorf("cannot add job tag filter: %w", err)
 		}
-		if n := metricBlocksCount(tfs); n == 0 {
+		n, err := countMetricBlocks(tfs)
+		if err != nil {
+			return fmt.Errorf("failed to count metric blocks for tfs=%s: %w", tfs, err)
+		}
+		if n == 0 {
 			return fmt.Errorf("expecting non-zero number of metric blocks for tfs=%s", tfs)
 		}
 		deletedCount, err := s.DeleteSeries(nil, []*TagFilters{tfs}, 1e9)
 		if err != nil {
 			return fmt.Errorf("cannot delete metrics: %w", err)
 		}
+		s.DebugFlush()
 		if deletedCount == 0 {
 			return fmt.Errorf("expecting non-zero number of deleted metrics on iteration %d", i)
 		}
-		if n := metricBlocksCount(tfs); n != 0 {
+		n, err = countMetricBlocks(tfs)
+		if err != nil {
+			return fmt.Errorf("failed to count metric blocks for tfs=%s: %w", tfs, err)
+		}
+		if n != 0 {
 			return fmt.Errorf("expecting zero metric blocks after DeleteSeries call for tfs=%s; got %d blocks", tfs, n)
 		}
 
@@ -780,6 +793,7 @@ func testStorageDeleteSeries(s *Storage, workerNum int) error {
 		if err != nil {
 			return fmt.Errorf("cannot delete empty tfss: %w", err)
 		}
+		s.DebugFlush()
 		if deletedCount != 0 {
 			return fmt.Errorf("expecting zero deleted metrics for empty tfss; got %d", deletedCount)
 		}
@@ -790,10 +804,14 @@ func testStorageDeleteSeries(s *Storage, workerNum int) error {
 	if err := tfs.Add(nil, fmt.Appendf(nil, "metric_.+_%d", workerNum), false, true); err != nil {
 		return fmt.Errorf("cannot add regexp tag filter for worker metrics: %w", err)
 	}
-	if n := metricBlocksCount(tfs); n != 0 {
+	n, err := countMetricBlocks(tfs)
+	if err != nil {
+		return fmt.Errorf("failed to count metric blocks for tfs=%s: %w", tfs, err)
+	}
+	if n != 0 {
 		return fmt.Errorf("expecting zero metric blocks after deleting all the metrics; got %d blocks", n)
 	}
-	tvs, err = s.SearchLabelValues(nil, accountID, projectID, string(workerTag), nil, TimeRange{}, 1e5, 1e9, noDeadline)
+	tvs, err = s.SearchLabelValues(nil, accountID, projectID, string(workerTag), nil, tr, 1e5, 1e9, noDeadline)
 	if err != nil {
 		return fmt.Errorf("error in SearchLabelValues after all the metrics are removed: %w", err)
 	}
