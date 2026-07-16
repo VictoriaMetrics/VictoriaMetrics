@@ -64,7 +64,7 @@ func newClient(ctx context.Context, sw *ScrapeWork) (*client, error) {
 
 	if proxyURL != nil {
 		if sw.UnixSocket != "" {
-			return nil, fmt.Errorf("proxyURL: %q cannot be used for scrapping unix_socket target: %q", proxyURL, sw.UnixSocket)
+			return nil, fmt.Errorf("proxyURL: %q cannot be used for scraping unix_socket target: %q", proxyURL, sw.UnixSocket)
 		}
 		// case for direct http proxy connection.
 		// must be used for http based scrape targets
