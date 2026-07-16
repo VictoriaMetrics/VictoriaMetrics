@@ -17,6 +17,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/syncwg"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
@@ -130,6 +131,9 @@ type partition struct {
 	// wg.Add() must be called under partsLock after checking whether stopCh isn't closed.
 	// This should prevent from calling wg.Add() after stopCh is closed and wg.Wait() is called.
 	wg sync.WaitGroup
+
+	// Use syncwg instead of sync, since Add/Wait may be called from concurrent goroutines.
+	flushPendingItemsWG syncwg.WaitGroup
 }
 
 // partWrapper is a wrapper for the part.
@@ -881,6 +885,9 @@ func (pt *partition) MustClose() {
 func (pt *partition) DebugFlush() {
 	pt.idb.tb.DebugFlush()
 	pt.flushPendingRows(true)
+
+	// Wait for background flushers to finish.
+	pt.flushPendingItemsWG.Wait()
 }
 
 func (pt *partition) startInmemoryPartsMergers() {
@@ -1011,7 +1018,9 @@ func (pt *partition) pendingRowsFlusher() {
 }
 
 func (pt *partition) flushPendingRows(isFinal bool) {
+	pt.flushPendingItemsWG.Add(1)
 	pt.rawRows.flush(pt.flushRowssToInmemoryParts, isFinal)
+	pt.flushPendingItemsWG.Done()
 }
 
 func (pt *partition) flushInmemoryRowsToFiles() {

@@ -4728,3 +4728,91 @@ func TestStorage_futureTimestamps(t *testing.T) {
 		})
 	})
 }
+
+// TestStorageAddFlushSearchMetricNamesConcurrently verifies that concurrent
+// goroutines can read their own writes.
+//
+// This test focuses on reading the index. For reading the data see
+// TestStorageAddFlushSearchDataConcurrently in search_test.go.
+func TestStorageAddFlushSearchMetricNamesConcurrently(t *testing.T) {
+	defer testRemoveAll(t)
+
+	const (
+		accountID = 12
+		projectID = 34
+	)
+
+	s := MustOpenStorage(t.Name(), OpenOptions{})
+	defer s.MustClose()
+
+	const numMetrics = 100
+	f := func(workerID int, tr TimeRange) error {
+		mrs := make([]MetricRow, numMetrics)
+		want := make([]string, numMetrics)
+		step := (tr.MaxTimestamp - tr.MinTimestamp) / int64(numMetrics)
+		for i := range numMetrics {
+			timestamp := tr.MinTimestamp + int64(i)*step
+			name := fmt.Sprintf("metric_%04d_%d", workerID, timestamp)
+			want[i] = name
+			mn := MetricName{
+				AccountID:   accountID,
+				ProjectID:   projectID,
+				MetricGroup: []byte(name),
+			}
+			mrs[i].MetricNameRaw = mn.marshalRaw(nil)
+			mrs[i].Timestamp = timestamp
+		}
+
+		s.AddRows(mrs, defaultPrecisionBits)
+		s.DebugFlush()
+
+		tfs := NewTagFilters(accountID, projectID)
+		re := fmt.Sprintf(`metric_%04d.*`, workerID)
+		if err := tfs.Add(nil, []byte(re), false, true); err != nil {
+			return fmt.Errorf("tfs.Add(%q) failed unexpectedly: %w", re, err)
+		}
+		got, err := s.SearchMetricNames(nil, []*TagFilters{tfs}, tr, 1e9, noDeadline)
+		if err != nil {
+			return fmt.Errorf("SearchMetricNames(%v) failed unexpectedly: %w", tfs, err)
+		}
+		for i, name := range got {
+			var mn MetricName
+			if err := mn.UnmarshalString(name); err != nil {
+				return fmt.Errorf("Could not unmarshal metric name %q: %w", name, err)
+			}
+			got[i] = string(mn.MetricGroup)
+		}
+		slices.Sort(got)
+
+		if diff := cmp.Diff(want, got); diff != "" {
+			return fmt.Errorf("unexpected metric names (-want, +got):\n%s", diff)
+		}
+		return nil
+	}
+
+	const concurrency = 20
+	var wg sync.WaitGroup
+	errs := make([]error, concurrency)
+	for workerID := range concurrency {
+		wg.Go(func() {
+			for m := time.Month(1); m <= 12; m++ {
+				tr := TimeRange{
+					MinTimestamp: time.Date(2025, m, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+					MaxTimestamp: time.Date(2025, m+1, 0, 0, 0, 0, 0, time.UTC).UnixMilli() - 1,
+				}
+				err := f(workerID, tr)
+				if err != nil {
+					errs[workerID] = fmt.Errorf("worker %d failed on tr=%v: %w", workerID, &tr, err)
+					break
+				}
+			}
+		})
+	}
+	wg.Wait()
+
+	for _, err := range errs {
+		if err != nil {
+			t.Errorf("%s", err)
+		}
+	}
+}
