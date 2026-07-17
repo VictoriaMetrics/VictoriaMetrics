@@ -648,7 +648,7 @@ func (mi *metainfo) WriteToFile(path string) error {
 	if err != nil {
 		return fmt.Errorf("cannot marshal persistent queue metainfo %#v: %w", mi, err)
 	}
-	fs.MustWriteSync(path, data)
+	fs.MustWriteAtomic(path, data, true)
 	return nil
 }
 
