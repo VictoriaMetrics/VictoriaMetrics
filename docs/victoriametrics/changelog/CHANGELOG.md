@@ -26,6 +26,10 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+## [v1.148.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.148.0)
+
+Release candidate
+
 * SECURITY: upgrade Go builder from Go1.26.4 to Go1.26.5. See [the list of issues addressed in Go1.26.5](https://github.com/golang/go/issues?q=milestone%3AGo1.26.5%20label%3ACherryPickApproved).
 
 * FEATURE: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): support `fill` modifiers to allow missing series on either side of a binary operation to be filled with a provided default value. See [#10598](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10598).
