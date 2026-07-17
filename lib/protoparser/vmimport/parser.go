@@ -28,9 +28,9 @@ func (rs *Rows) Reset() {
 	rs.tu.reset()
 }
 
-// Unmarshal unmarshals influx line protocol rows from s.
+// Unmarshal unmarshals json line protocol from s.
 //
-// See https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/
+// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#json-line-format
 //
 // s shouldn't be modified when rs is in use.
 func (rs *Rows) Unmarshal(s string) {
