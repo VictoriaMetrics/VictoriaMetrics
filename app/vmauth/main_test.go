@@ -1909,11 +1909,11 @@ unauthorized_user:
 	}
 
 	// an error at the beginning of reading
-	f(&mockBody{err: fmt.Errorf("an error")}, `statusCode=400
+	f(&mockBody{err: fmt.Errorf("an error")}, `statusCode=408
 cannot read request body: an error`)
 
 	// an error after reading 1024 bytes, buffer size is 2048 bytes
-	f(&mockBody{head: make([]byte, 1024), err: fmt.Errorf("an error")}, `statusCode=400
+	f(&mockBody{head: make([]byte, 1024), err: fmt.Errorf("an error")}, `statusCode=408
 cannot read request body: an error`)
 }
 
