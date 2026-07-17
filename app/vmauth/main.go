@@ -392,7 +392,7 @@ func bufferRequestBody(ctx context.Context, r io.ReadCloser, userName string) (i
 
 		return nil, &httpserver.ErrorWithStatusCode{
 			Err:        fmt.Errorf("cannot read request body: %w", err),
-			StatusCode: http.StatusRequestTimeout,
+			StatusCode: http.StatusBadRequest,
 		}
 	}
 
