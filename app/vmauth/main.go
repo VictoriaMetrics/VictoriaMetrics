@@ -386,13 +386,13 @@ func bufferRequestBody(ctx context.Context, r io.ReadCloser, userName string) (i
 			return nil, &httpserver.ErrorWithStatusCode{
 				Err: fmt.Errorf("reject request from the user %s because the request body couldn't be read in -maxQueueDuration=%s; read %d bytes in %s",
 					userName, *maxQueueDuration, len(buf), d.Truncate(time.Second)),
-				StatusCode: http.StatusBadRequest,
+				StatusCode: http.StatusRequestTimeout,
 			}
 		}
 
 		return nil, &httpserver.ErrorWithStatusCode{
 			Err:        fmt.Errorf("cannot read request body: %w", err),
-			StatusCode: http.StatusBadRequest,
+			StatusCode: http.StatusRequestTimeout,
 		}
 	}
 
