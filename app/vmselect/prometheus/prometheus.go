@@ -1,6 +1,7 @@
 package prometheus
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"math"
@@ -35,6 +36,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
 )
 
 var (
@@ -851,17 +853,17 @@ func MetadataHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token
 	if err != nil {
 		return fmt.Errorf("cannot get metadata: %w", err)
 	}
-	unique := make(map[string]struct{}, len(metadata))
-	var cnt int
-	for _, mdr := range metadata {
-		if _, ok := unique[string(mdr.MetricFamilyName)]; ok {
-			continue
-		}
-		unique[bytesutil.ToUnsafeString(mdr.MetricFamilyName)] = struct{}{}
-		metadata[cnt] = mdr
-		cnt++
+
+	slices.SortFunc(metadata, func(a, b *metricsmetadata.Row) int {
+		return bytes.Compare(a.MetricFamilyName, b.MetricFamilyName)
+	})
+	metadata = slices.CompactFunc(metadata, func(a, b *metricsmetadata.Row) bool {
+		return bytes.Equal(a.MetricFamilyName, b.MetricFamilyName)
+	})
+	if limit > 0 && len(metadata) >= limit {
+		metadata = metadata[:limit]
 	}
-	metadata = metadata[:cnt]
+
 	qt.Done()
 	w.Header().Set("Content-Type", "application/json")
 	bw := bufferedwriter.Get(w)

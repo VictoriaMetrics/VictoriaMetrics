@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/clusternative"
@@ -758,10 +759,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		return true
 	case "prometheus/metric-relabel-debug", "metric-relabel-debug":
 		promrelabelMetricRelabelDebugRequests.Inc()
-		metric := r.FormValue("metric")
-		relabelConfigs := r.FormValue("relabel_configs")
-		format := r.FormValue("format")
-		promrelabel.WriteMetricRelabelDebug(w, "", metric, relabelConfigs, format, nil)
+		promscrape.WriteMetricRelabelDebug(w, r, "", nil)
 		return true
 	case "prometheus/target-relabel-debug", "target-relabel-debug":
 		promrelabelTargetRelabelDebugRequests.Inc()

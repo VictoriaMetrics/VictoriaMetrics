@@ -619,58 +619,56 @@ func TestStorageDeletePendingSeries(t *testing.T) {
 }
 
 func TestStorageDeleteSeries(t *testing.T) {
-	path := "TestStorageDeleteSeries"
-	s := MustOpenStorage(path, OpenOptions{})
+	defer testRemoveAll(t)
 
-	t.Run("serial", func(t *testing.T) {
-		for i := range 3 {
-			if err := testStorageDeleteSeries(s, 0); err != nil {
-				t.Fatalf("unexpected error on iteration %d: %s", i, err)
-			}
-
-			// Re-open the storage in order to check how deleted metricIDs
-			// are persisted.
-			s.MustClose()
-			s = MustOpenStorage(path, OpenOptions{})
+	for _, concurrency := range []int{1, 4} {
+		for _, disablePerDayIndex := range []bool{false, true} {
+			name := fmt.Sprintf("concurrency=%d/disablePerDayIndex=%t", concurrency, disablePerDayIndex)
+			t.Run(name, func(t *testing.T) {
+				testStorageDeleteSeries(t, concurrency, disablePerDayIndex)
+			})
 		}
-	})
-
-	t.Run("concurrent", func(t *testing.T) {
-		ch := make(chan error, 3)
-		for i := range cap(ch) {
-			go func(workerNum int) {
-				var err error
-				for range 2 {
-					err = testStorageDeleteSeries(s, workerNum)
-					if err != nil {
-						break
-					}
-				}
-				ch <- err
-			}(i)
-		}
-		tt := time.NewTimer(30 * time.Second)
-		for i := range cap(ch) {
-			select {
-			case err := <-ch:
-				if err != nil {
-					t.Fatalf("unexpected error on iteration %d: %s", i, err)
-				}
-			case <-tt.C:
-				t.Fatalf("timeout on iteration %d", i)
-			}
-		}
-	})
-
-	s.MustClose()
-	fs.MustRemoveDir(path)
+	}
 }
 
-func testStorageDeleteSeries(s *Storage, workerNum int) error {
+func testStorageDeleteSeries(t *testing.T, concurrency int, disablePerDayIndex bool) {
+	tr := TimeRange{
+		MinTimestamp: time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2026, 1, 15, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+
+	s := MustOpenStorage(t.Name(), OpenOptions{
+		DisablePerDayIndex: disablePerDayIndex,
+	})
+	defer s.MustClose()
+
+	errs := make([]error, concurrency)
+	var wg sync.WaitGroup
+	for workerNum := range concurrency {
+		wg.Go(func() {
+			var err error
+			for range 10 {
+				err = testStorageDeleteSeriesForWorker(workerNum, s, tr)
+				if err != nil {
+					break
+				}
+			}
+			errs[workerNum] = err
+		})
+	}
+	wg.Wait()
+
+	for i, err := range errs {
+		if err != nil {
+			t.Fatalf("[worker %d] %s", i, err)
+		}
+	}
+}
+
+func testStorageDeleteSeriesForWorker(workerNum int, s *Storage, tr TimeRange) error {
 	rng := rand.New(rand.NewSource(1))
 	const rowsPerMetric = 100
 	const metricsCount = 30
-
 	workerTag := fmt.Appendf(nil, "workerTag_%d", workerNum)
 	accountID := uint32(workerNum)
 	projectID := uint32(123)
@@ -687,40 +685,34 @@ func testStorageDeleteSeries(s *Storage, workerNum int) error {
 	lnsAll := make(map[string]bool)
 	lnsAll["__name__"] = true
 	for i := range metricsCount {
-		var mrs []MetricRow
-		var mn MetricName
-		mn.AccountID = accountID
-		mn.ProjectID = projectID
-		job := fmt.Sprintf("job_%d_%d", i, workerNum)
-		instance := fmt.Sprintf("instance_%d_%d", i, workerNum)
-		mn.Tags = []Tag{
-			{[]byte("job"), []byte(job)},
-			{[]byte("instance"), []byte(instance)},
-			{workerTag, []byte("foobar")},
+		mn := MetricName{
+			AccountID:   accountID,
+			ProjectID:   projectID,
+			MetricGroup: fmt.Appendf(nil, "metric_%d_%d", i, workerNum),
+			Tags: []Tag{
+				{[]byte("job"), fmt.Appendf(nil, "job_%d_%d", i, workerNum)},
+				{[]byte("instance"), fmt.Appendf(nil, "instance_%d_%d", i, workerNum)},
+				{workerTag, []byte("foobar")},
+			},
 		}
 		for i := range mn.Tags {
 			lnsAll[string(mn.Tags[i].Key)] = true
 		}
-		mn.MetricGroup = fmt.Appendf(nil, "metric_%d_%d", i, workerNum)
-		metricNameRaw := mn.marshalRaw(nil)
 
+		var mrs []MetricRow
 		for range rowsPerMetric {
-			timestamp := rng.Int63n(1e10)
-			value := rng.NormFloat64() * 1e6
-
-			mr := MetricRow{
-				MetricNameRaw: metricNameRaw,
-				Timestamp:     timestamp,
-				Value:         value,
-			}
-			mrs = append(mrs, mr)
+			mrs = append(mrs, MetricRow{
+				MetricNameRaw: mn.marshalRaw(nil),
+				Timestamp:     tr.MinTimestamp + rng.Int63n(tr.MaxTimestamp-tr.MinTimestamp),
+				Value:         rng.NormFloat64() * 1e6,
+			})
 		}
 		s.AddRows(mrs, defaultPrecisionBits)
 	}
 	s.DebugFlush()
 
 	// Verify tag values exist
-	tvs, err := s.SearchLabelValues(nil, accountID, projectID, string(workerTag), nil, TimeRange{}, 1e5, 1e9, noDeadline)
+	tvs, err := s.SearchLabelValues(nil, accountID, projectID, string(workerTag), nil, tr, 1e5, 1e9, noDeadline)
 	if err != nil {
 		return fmt.Errorf("error in SearchLabelValues before metrics removal: %w", err)
 	}
@@ -729,7 +721,7 @@ func testStorageDeleteSeries(s *Storage, workerNum int) error {
 	}
 
 	// Verify tag keys exist
-	lns, err = s.SearchLabelNames(nil, accountID, projectID, nil, TimeRange{}, 1e5, 1e9, noDeadline)
+	lns, err = s.SearchLabelNames(nil, accountID, projectID, nil, tr, 1e5, 1e9, noDeadline)
 	if err != nil {
 		return fmt.Errorf("error in SearchLabelNames before metrics removal: %w", err)
 	}
@@ -737,20 +729,18 @@ func testStorageDeleteSeries(s *Storage, workerNum int) error {
 		return fmt.Errorf("unexpected label names before metrics removal: %w", err)
 	}
 
-	var sr Search
-	tr := TimeRange{
-		MinTimestamp: 0,
-		MaxTimestamp: 2e10,
-	}
-	metricBlocksCount := func(tfs *TagFilters) int {
-		// Verify the number of blocks
-		n := 0
+	countMetricBlocks := func(tfs *TagFilters) (int, error) {
+		var sr Search
 		sr.Init(nil, s, []*TagFilters{tfs}, tr, 1e5, noDeadline)
+		defer sr.MustClose()
+		n := 0
 		for sr.NextMetricBlock() {
 			n++
 		}
-		sr.MustClose()
-		return n
+		if err := sr.Error(); err != nil {
+			return 0, err
+		}
+		return n, nil
 	}
 	for i := range metricsCount {
 		tfs := NewTagFilters(accountID, projectID)
@@ -761,17 +751,26 @@ func testStorageDeleteSeries(s *Storage, workerNum int) error {
 		if err := tfs.Add([]byte("job"), []byte(job), false, false); err != nil {
 			return fmt.Errorf("cannot add job tag filter: %w", err)
 		}
-		if n := metricBlocksCount(tfs); n == 0 {
+		n, err := countMetricBlocks(tfs)
+		if err != nil {
+			return fmt.Errorf("failed to count metric blocks for tfs=%s: %w", tfs, err)
+		}
+		if n == 0 {
 			return fmt.Errorf("expecting non-zero number of metric blocks for tfs=%s", tfs)
 		}
 		deletedCount, err := s.DeleteSeries(nil, []*TagFilters{tfs}, 1e9)
 		if err != nil {
 			return fmt.Errorf("cannot delete metrics: %w", err)
 		}
+		s.DebugFlush()
 		if deletedCount == 0 {
 			return fmt.Errorf("expecting non-zero number of deleted metrics on iteration %d", i)
 		}
-		if n := metricBlocksCount(tfs); n != 0 {
+		n, err = countMetricBlocks(tfs)
+		if err != nil {
+			return fmt.Errorf("failed to count metric blocks for tfs=%s: %w", tfs, err)
+		}
+		if n != 0 {
 			return fmt.Errorf("expecting zero metric blocks after DeleteSeries call for tfs=%s; got %d blocks", tfs, n)
 		}
 
@@ -780,6 +779,7 @@ func testStorageDeleteSeries(s *Storage, workerNum int) error {
 		if err != nil {
 			return fmt.Errorf("cannot delete empty tfss: %w", err)
 		}
+		s.DebugFlush()
 		if deletedCount != 0 {
 			return fmt.Errorf("expecting zero deleted metrics for empty tfss; got %d", deletedCount)
 		}
@@ -790,10 +790,14 @@ func testStorageDeleteSeries(s *Storage, workerNum int) error {
 	if err := tfs.Add(nil, fmt.Appendf(nil, "metric_.+_%d", workerNum), false, true); err != nil {
 		return fmt.Errorf("cannot add regexp tag filter for worker metrics: %w", err)
 	}
-	if n := metricBlocksCount(tfs); n != 0 {
+	n, err := countMetricBlocks(tfs)
+	if err != nil {
+		return fmt.Errorf("failed to count metric blocks for tfs=%s: %w", tfs, err)
+	}
+	if n != 0 {
 		return fmt.Errorf("expecting zero metric blocks after deleting all the metrics; got %d blocks", n)
 	}
-	tvs, err = s.SearchLabelValues(nil, accountID, projectID, string(workerTag), nil, TimeRange{}, 1e5, 1e9, noDeadline)
+	tvs, err = s.SearchLabelValues(nil, accountID, projectID, string(workerTag), nil, tr, 1e5, 1e9, noDeadline)
 	if err != nil {
 		return fmt.Errorf("error in SearchLabelValues after all the metrics are removed: %w", err)
 	}
@@ -2087,18 +2091,19 @@ func TestStorageRowsNotAdded(t *testing.T) {
 	defer testRemoveAll(t)
 
 	type options struct {
-		name        string
-		retention   time.Duration
-		mrs         []MetricRow
-		tr          TimeRange
-		wantMetrics *Metrics
+		name           string
+		retention      time.Duration
+		maxBackfillAge time.Duration
+		mrs            []MetricRow
+		tr             TimeRange
+		wantMetrics    *Metrics
 	}
 	f := func(opts *options) {
 		t.Helper()
 
 		var gotMetrics Metrics
 		path := fmt.Sprintf("%s/%s", t.Name(), opts.name)
-		s := MustOpenStorage(path, OpenOptions{Retention: opts.retention})
+		s := MustOpenStorage(path, OpenOptions{Retention: opts.retention, MaxBackfillAge: opts.maxBackfillAge})
 		defer s.MustClose()
 		s.AddRows(opts.mrs, defaultPrecisionBits)
 		s.DebugFlush()
@@ -2167,6 +2172,22 @@ func TestStorageRowsNotAdded(t *testing.T) {
 		wantMetrics: &Metrics{
 			RowsReceivedTotal:   numRows,
 			TooBigTimestampRows: numRows,
+		},
+	})
+
+	retention = retentionMax
+	maxBackfillAge := 48 * time.Hour
+	minTimestamp = time.Now().Add(-maxBackfillAge - time.Hour).UnixMilli()
+	maxTimestamp = minTimestamp + 1000
+	f(&options{
+		name:           "TooSmallTimestampsForMaxBackfillAge",
+		retention:      retention,
+		maxBackfillAge: maxBackfillAge,
+		mrs:            testGenerateMetricRows(rng, numRows, minTimestamp, maxTimestamp),
+		tr:             TimeRange{minTimestamp, maxTimestamp},
+		wantMetrics: &Metrics{
+			RowsReceivedTotal:     numRows,
+			TooSmallTimestampRows: numRows,
 		},
 	})
 
@@ -2825,6 +2846,87 @@ func testStorageOpOnVariousTimeRanges(t *testing.T, op func(t *testing.T, tr Tim
 			MaxTimestamp: maxTime.UnixMilli(),
 		})
 	})
+}
+
+func TestStorageSearchLabelValues_SingleFilterOnLabelName(t *testing.T) {
+	defer testRemoveAll(t)
+
+	const (
+		accountID = 12
+		projectID = 34
+	)
+
+	const N = 1000
+
+	tr := TimeRange{
+		MinTimestamp: time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 12, 15, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	step := (tr.MaxTimestamp - tr.MinTimestamp) / N
+	mrs := make([]MetricRow, N)
+	allMetricNames := make([]string, N)
+	allLabelValues := make([]string, N)
+
+	for i := range int64(N) {
+		metricName := fmt.Sprintf("metric_%03d", i)
+		labelValue := fmt.Sprintf("value_%03d", i)
+		mn := MetricName{
+			AccountID:   accountID,
+			ProjectID:   projectID,
+			MetricGroup: []byte(metricName),
+			Tags: []Tag{
+				{
+					Key:   []byte("label"),
+					Value: []byte(labelValue),
+				},
+			},
+		}
+
+		mrs[i].MetricNameRaw = mn.marshalRaw(nil)
+		mrs[i].Timestamp = tr.MinTimestamp + i*step
+		mrs[i].Value = float64(i)
+		allMetricNames[i] = metricName
+		allLabelValues[i] = labelValue
+	}
+
+	s := MustOpenStorage(t.Name(), OpenOptions{})
+	defer s.MustClose()
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+
+	f := func(label, k, v string, isNegative, isRegex bool, tr TimeRange, maxLabelValues, maxMetrics int, want []string) {
+		t.Helper()
+		tfs := NewTagFilters(accountID, projectID)
+		if err := tfs.Add([]byte(k), []byte(v), isNegative, isRegex); err != nil {
+			t.Fatalf("unexpected error in TagFilters.Add: %v", err)
+		}
+		got, err := s.SearchLabelValues(nil, accountID, projectID, label, []*TagFilters{tfs}, tr, maxLabelValues, maxMetrics, noDeadline)
+		if err != nil {
+			t.Fatalf("SearchLabelValues() failed unexpectedly: %v", err)
+		}
+		slices.Sort(got)
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Fatalf("unexpected label values (-want, +got):\n%s", diff)
+		}
+	}
+
+	wantAllMetricNames := allMetricNames
+	wantAllLabelValues := allLabelValues
+	f("", "", "metric_.*", false, true, tr, N+1, N+1, wantAllMetricNames)
+	f("__name__", "", "metric_.*", false, true, tr, N+1, N+1, wantAllMetricNames)
+	f("label", "label", "value_.*", false, true, tr, N+1, N+1, wantAllLabelValues)
+
+	var wantEvery10thMetricName []string
+	var wantEvery10thLabelValue []string
+	for i := range N {
+		if i%10 == 0 {
+			wantEvery10thMetricName = append(wantEvery10thMetricName, allMetricNames[i])
+			wantEvery10thLabelValue = append(wantEvery10thLabelValue, allLabelValues[i])
+		}
+	}
+	f("", "", "metric_[0-9]{2}0", false, true, tr, N+1, N+1, wantEvery10thMetricName)
+	f("__name__", "", "metric_[0-9]{2}0", false, true, tr, N+1, N+1, wantEvery10thMetricName)
+	f("label", "label", "value_[0-9]{2}0", false, true, tr, N+1, N+1, wantEvery10thLabelValue)
 }
 
 func TestStorageSearchLabelValues_EmptyValuesAreNotReturned(t *testing.T) {
@@ -3757,107 +3859,6 @@ func TestStorageAddRows_SamplesWithZeroDate(t *testing.T) {
 	})
 }
 
-func TestStorageAddRows_currHourMetricIDs(t *testing.T) {
-	defer testRemoveAll(t)
-
-	f := func(t *testing.T, disablePerDayIndex bool) {
-		t.Helper()
-
-		const (
-			accountID = 12
-			projectID = 34
-		)
-		s := MustOpenStorage(t.Name(), OpenOptions{
-			DisablePerDayIndex: disablePerDayIndex,
-		})
-		defer s.MustClose()
-
-		now := time.Now().UTC()
-		currHourTR := TimeRange{
-			MinTimestamp: time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), 0, 0, 0, time.UTC).UnixMilli(),
-			MaxTimestamp: time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), 59, 59, 999_999_999, time.UTC).UnixMilli(),
-		}
-		currHour := uint64(currHourTR.MinTimestamp / 1000 / 3600)
-		prevHourTR := TimeRange{
-			MinTimestamp: currHourTR.MinTimestamp - 3600*1000,
-			MaxTimestamp: currHourTR.MaxTimestamp - 3600*1000,
-		}
-		rng := rand.New(rand.NewSource(1))
-
-		// Test current hour metricIDs population when data ingestion takes the
-		// slow path. The database is empty, therefore the index and the
-		// tsidCache contain no metricIDs, therefore the data ingestion will
-		// take slow path.
-
-		mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "slow_path", currHourTR)
-		s.AddRows(mrs, defaultPrecisionBits)
-		s.DebugFlush()
-		s.updateCurrHourMetricIDs(currHour)
-		if got, want := s.currHourMetricIDs.Load().m.Len(), 1000; got != want {
-			t.Errorf("[slow path] unexpected current hour metric ID count: got %d, want %d", got, want)
-		}
-
-		// Test current hour metricIDs population when data ingestion takes the
-		// fast path (when the metricIDs are found in the tsidCache)
-
-		// First insert samples to populate the tsidCache. The samples belong to
-		// the previous hour, therefore the metricIDs won't be added to
-		// currHourMetricIDs.
-		mrs = testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "fast_path", prevHourTR)
-		s.AddRows(mrs, defaultPrecisionBits)
-		s.DebugFlush()
-		s.updateCurrHourMetricIDs(currHour)
-		if got, want := s.currHourMetricIDs.Load().m.Len(), 1000; got != want {
-			t.Errorf("[fast path] unexpected current hour metric ID count after ingesting samples for previous hour: got %d, want %d", got, want)
-		}
-
-		// Now ingest the same metrics. This time the metricIDs will be found in
-		// tsidCache so the ingestion will take the fast path.
-		mrs = testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "fast_path", currHourTR)
-		s.AddRows(mrs, defaultPrecisionBits)
-		s.DebugFlush()
-		s.updateCurrHourMetricIDs(currHour)
-		if got, want := s.currHourMetricIDs.Load().m.Len(), 2000; got != want {
-			t.Errorf("[fast path] unexpected current hour metric ID count: got %d, want %d", got, want)
-		}
-
-		// Test current hour metricIDs population when data ingestion takes the
-		// slower path (when the metricIDs are not found in the tsidCache but
-		// found in the index)
-
-		// First insert samples to populate the index. The samples belong to
-		// the previous hour, therefore the metricIDs won't be added to
-		// currHourMetricIDs.
-		mrs = testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "slower_path", prevHourTR)
-		s.AddRows(mrs, defaultPrecisionBits)
-		s.DebugFlush()
-		s.updateCurrHourMetricIDs(currHour)
-		if got, want := s.currHourMetricIDs.Load().m.Len(), 2000; got != want {
-			t.Errorf("[slower path] unexpected current hour metric ID count after ingesting samples for previous hour: got %d, want %d", got, want)
-		}
-		// Inserted samples were also added to the tsidCache. Drop it to
-		// enforce the fallback to index search.
-		s.resetAndSaveTSIDCache()
-
-		// Now ingest the same metrics. This time the metricIDs will be searched
-		// and found in index so the ingestion will take the slower path.
-		mrs = testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "slower_path", currHourTR)
-		s.AddRows(mrs, defaultPrecisionBits)
-		s.DebugFlush()
-		s.updateCurrHourMetricIDs(currHour)
-		if got, want := s.currHourMetricIDs.Load().m.Len(), 3000; got != want {
-			t.Errorf("[slower path] unexpected current hour metric ID count: got %d, want %d", got, want)
-		}
-	}
-
-	t.Run("disablePerDayIndex=false", func(t *testing.T) {
-		f(t, false)
-	})
-	t.Run("disablePerDayIndex=true", func(t *testing.T) {
-		f(t, true)
-	})
-}
-
 // testSearchMetricIDs returns metricIDs for the given tfss and tr.
 //
 // The returned metricIDs are sorted. The function panics in in case of error.
@@ -4730,4 +4731,92 @@ func TestStorage_futureTimestamps(t *testing.T) {
 			MaxTimestamp: maxTime.UnixMilli(),
 		})
 	})
+}
+
+// TestStorageAddFlushSearchMetricNamesConcurrently verifies that concurrent
+// goroutines can read their own writes.
+//
+// This test focuses on reading the index. For reading the data see
+// TestStorageAddFlushSearchDataConcurrently in search_test.go.
+func TestStorageAddFlushSearchMetricNamesConcurrently(t *testing.T) {
+	defer testRemoveAll(t)
+
+	const (
+		accountID = 12
+		projectID = 34
+	)
+
+	s := MustOpenStorage(t.Name(), OpenOptions{})
+	defer s.MustClose()
+
+	const numMetrics = 100
+	f := func(workerID int, tr TimeRange) error {
+		mrs := make([]MetricRow, numMetrics)
+		want := make([]string, numMetrics)
+		step := (tr.MaxTimestamp - tr.MinTimestamp) / int64(numMetrics)
+		for i := range numMetrics {
+			timestamp := tr.MinTimestamp + int64(i)*step
+			name := fmt.Sprintf("metric_%04d_%d", workerID, timestamp)
+			want[i] = name
+			mn := MetricName{
+				AccountID:   accountID,
+				ProjectID:   projectID,
+				MetricGroup: []byte(name),
+			}
+			mrs[i].MetricNameRaw = mn.marshalRaw(nil)
+			mrs[i].Timestamp = timestamp
+		}
+
+		s.AddRows(mrs, defaultPrecisionBits)
+		s.DebugFlush()
+
+		tfs := NewTagFilters(accountID, projectID)
+		re := fmt.Sprintf(`metric_%04d.*`, workerID)
+		if err := tfs.Add(nil, []byte(re), false, true); err != nil {
+			return fmt.Errorf("tfs.Add(%q) failed unexpectedly: %w", re, err)
+		}
+		got, err := s.SearchMetricNames(nil, []*TagFilters{tfs}, tr, 1e9, noDeadline)
+		if err != nil {
+			return fmt.Errorf("SearchMetricNames(%v) failed unexpectedly: %w", tfs, err)
+		}
+		for i, name := range got {
+			var mn MetricName
+			if err := mn.UnmarshalString(name); err != nil {
+				return fmt.Errorf("Could not unmarshal metric name %q: %w", name, err)
+			}
+			got[i] = string(mn.MetricGroup)
+		}
+		slices.Sort(got)
+
+		if diff := cmp.Diff(want, got); diff != "" {
+			return fmt.Errorf("unexpected metric names (-want, +got):\n%s", diff)
+		}
+		return nil
+	}
+
+	const concurrency = 20
+	var wg sync.WaitGroup
+	errs := make([]error, concurrency)
+	for workerID := range concurrency {
+		wg.Go(func() {
+			for m := time.Month(1); m <= 12; m++ {
+				tr := TimeRange{
+					MinTimestamp: time.Date(2025, m, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+					MaxTimestamp: time.Date(2025, m+1, 0, 0, 0, 0, 0, time.UTC).UnixMilli() - 1,
+				}
+				err := f(workerID, tr)
+				if err != nil {
+					errs[workerID] = fmt.Errorf("worker %d failed on tr=%v: %w", workerID, &tr, err)
+					break
+				}
+			}
+		})
+	}
+	wg.Wait()
+
+	for _, err := range errs {
+		if err != nil {
+			t.Errorf("%s", err)
+		}
+	}
 }

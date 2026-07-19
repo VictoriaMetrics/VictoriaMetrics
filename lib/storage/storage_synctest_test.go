@@ -573,7 +573,7 @@ func TestStorageAddRows_nextDayIndexPrefill(t *testing.T) {
 		nextDaySlowInserts := m.SlowPerDayIndexInserts
 		slowInserts := nextDaySlowInserts - currDaySlowInserts
 		if slowInserts >= numSeries {
-			t.Errorf("unexpected amount of slow inserts: got %d, want < %d", slowInserts, numSeries)
+			t.Fatalf("unexpected amount of slow inserts: got %d, want < %d", slowInserts, numSeries)
 		}
 
 	})
@@ -879,7 +879,7 @@ func TestStorageLastPartitionMetrics(t *testing.T) {
 		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
 		if got := s.newTimeseriesCreated.Load(); got != want {
-			t.Errorf("unexpected number of new timeseries: got %d, want %d", got, want)
+			t.Fatalf("unexpected number of new timeseries: got %d, want %d", got, want)
 		}
 		// wait for merged parts to be attached to the table
 		time.Sleep(time.Minute)
@@ -1274,7 +1274,7 @@ func TestStorage_denyQueriesOutsideRetention(t *testing.T) {
 		slices.Sort(gotData)
 
 		if diff := cmp.Diff(wantData, gotData); diff != "" {
-			t.Errorf("unexpected tag value suffixes (-want, +got):\n%s", diff)
+			t.Fatalf("unexpected tag value suffixes (-want, +got):\n%s", diff)
 		}
 	}
 
@@ -1466,5 +1466,191 @@ func TestStorage_denyQueriesOutsideRetention(t *testing.T) {
 		assertGraphitePaths(t, s, trOutsideLeft, emptyGraphitePaths, false)
 		assertGraphitePaths(t, s, trOutsideRight, emptyGraphitePaths, false)
 
+	})
+}
+
+func TestStorageAddRows_MaxBackfillAge(t *testing.T) {
+	defer testRemoveAll(t)
+
+	const (
+		accountID = 12
+		projectID = 34
+	)
+
+	mn := MetricName{
+		AccountID:   accountID,
+		ProjectID:   projectID,
+		MetricGroup: []byte("metric"),
+	}
+	mr := MetricRow{
+		MetricNameRaw: mn.marshalRaw(nil),
+		Value:         123,
+	}
+
+	f := func(s *Storage, age time.Duration, want uint64) {
+		t.Helper()
+
+		mr.Timestamp = time.Now().UTC().Add(-age).UnixMilli()
+		s.AddRows([]MetricRow{mr}, defaultPrecisionBits)
+		s.DebugFlush()
+		if got := s.tooSmallTimestampRows.Load(); got != want {
+			t.Fatalf("unexpected number of tooSmallTimestampRows: got %d, want %d", got, want)
+		}
+	}
+
+	synctest.Test(t, func(t *testing.T) {
+		// synctest time begins at 2000-01-01T00:00:00Z.
+
+		retention1y := 365 * 24 * time.Hour
+		var s *Storage
+
+		s = MustOpenStorage(t.Name(), OpenOptions{
+			Retention: retention1y,
+			// By default MaxBackfillAge must be the same as Retention
+		})
+		// Verify that the sample with timestamp 1ms older than retention is
+		// rejected.
+		f(s, retention1y+time.Millisecond, 1)
+		// Verify that the sample with timestamp which is exactly at retention
+		// boundary is accepted.
+		f(s, retention1y, 1)
+
+		// Restart storage with negative MaxBackfillAge. In this case,
+		// MaxBackfillAge must be the same as Retention.
+		// Also advance time a bit so that the storage will not use the same
+		// nanosecond for creating a new part for storing the samples.
+		s.MustClose()
+		time.Sleep(time.Nanosecond)
+		s = MustOpenStorage(t.Name(), OpenOptions{
+			Retention:      retention1y,
+			MaxBackfillAge: -1,
+		})
+		f(s, retention1y+time.Millisecond, 1)
+		f(s, retention1y, 1)
+
+		// Restart storage with MaxBackfillAge bigger than Retention. In this
+		// case, MaxBackfillAge must be the same as Retention.
+		s.MustClose()
+		time.Sleep(time.Nanosecond)
+		s = MustOpenStorage(t.Name(), OpenOptions{
+			Retention:      retention1y,
+			MaxBackfillAge: retention1y + time.Millisecond,
+		})
+		f(s, retention1y+time.Millisecond, 1)
+		f(s, retention1y, 1)
+
+		// Restart storage with MaxBackfillAge smaller than Retention.
+		s.MustClose()
+		time.Sleep(time.Nanosecond)
+		s = MustOpenStorage(t.Name(), OpenOptions{
+			Retention:      retention1y,
+			MaxBackfillAge: retention1y - time.Millisecond,
+		})
+		f(s, retention1y, 1)
+		f(s, retention1y-time.Millisecond, 1)
+
+		s.MustClose()
+	})
+}
+
+func TestStorageAddRows_currHourMetricIDs(t *testing.T) {
+	defer testRemoveAll(t)
+
+	const (
+		accountID = 12
+		projectID = 34
+	)
+
+	f := func(t *testing.T, disablePerDayIndex bool) {
+		synctest.Test(t, func(t *testing.T) {
+			s := MustOpenStorage(t.Name(), OpenOptions{
+				DisablePerDayIndex: disablePerDayIndex,
+			})
+			defer s.MustClose()
+
+			now := time.Now().UTC()
+			currHourTR := TimeRange{
+				MinTimestamp: time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), 0, 0, 0, time.UTC).UnixMilli(),
+				MaxTimestamp: time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), 59, 59, 999_999_999, time.UTC).UnixMilli(),
+			}
+			currHour := uint64(currHourTR.MinTimestamp / 1000 / 3600)
+			prevHourTR := TimeRange{
+				MinTimestamp: currHourTR.MinTimestamp - msecPerHour,
+				MaxTimestamp: currHourTR.MaxTimestamp - msecPerHour,
+			}
+			rng := rand.New(rand.NewSource(1))
+
+			// Test current hour metricIDs population when data ingestion takes the
+			// slow path. The database is empty, therefore the index and the
+			// tsidCache contain no metricIDs, therefore the data ingestion will
+			// take slow path.
+
+			mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "slow_path", currHourTR)
+			s.AddRows(mrs, defaultPrecisionBits)
+			s.DebugFlush()
+			s.updateCurrHourMetricIDs(currHour)
+			if got, want := s.currHourMetricIDs.Load().m.Len(), 1000; got != want {
+				t.Fatalf("[slow path] unexpected current hour metric ID count: got %d, want %d", got, want)
+			}
+
+			// Test current hour metricIDs population when data ingestion takes the
+			// fast path (when the metricIDs are found in the tsidCache)
+
+			// First insert samples to populate the tsidCache. The samples belong to
+			// the previous hour, therefore the metricIDs won't be added to
+			// currHourMetricIDs.
+			mrs = testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "fast_path", prevHourTR)
+			s.AddRows(mrs, defaultPrecisionBits)
+			s.DebugFlush()
+			s.updateCurrHourMetricIDs(currHour)
+			if got, want := s.currHourMetricIDs.Load().m.Len(), 1000; got != want {
+				t.Fatalf("[fast path] unexpected current hour metric ID count after ingesting samples for previous hour: got %d, want %d", got, want)
+			}
+
+			// Now ingest the same metrics. This time the metricIDs will be found in
+			// tsidCache so the ingestion will take the fast path.
+			mrs = testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "fast_path", currHourTR)
+			s.AddRows(mrs, defaultPrecisionBits)
+			s.DebugFlush()
+			s.updateCurrHourMetricIDs(currHour)
+			if got, want := s.currHourMetricIDs.Load().m.Len(), 2000; got != want {
+				t.Fatalf("[fast path] unexpected current hour metric ID count: got %d, want %d", got, want)
+			}
+
+			// Test current hour metricIDs population when data ingestion takes the
+			// slower path (when the metricIDs are not found in the tsidCache but
+			// found in the index)
+
+			// First insert samples to populate the index. The samples belong to
+			// the previous hour, therefore the metricIDs won't be added to
+			// currHourMetricIDs.
+			mrs = testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "slower_path", prevHourTR)
+			s.AddRows(mrs, defaultPrecisionBits)
+			s.DebugFlush()
+			s.updateCurrHourMetricIDs(currHour)
+			if got, want := s.currHourMetricIDs.Load().m.Len(), 2000; got != want {
+				t.Fatalf("[slower path] unexpected current hour metric ID count after ingesting samples for previous hour: got %d, want %d", got, want)
+			}
+			// Inserted samples were also added to the tsidCache. Drop it to
+			// enforce the fallback to index search.
+			s.resetAndSaveTSIDCache()
+
+			// Now ingest the same metrics. This time the metricIDs will be searched
+			// and found in index so the ingestion will take the slower path.
+			mrs = testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "slower_path", currHourTR)
+			s.AddRows(mrs, defaultPrecisionBits)
+			s.DebugFlush()
+			s.updateCurrHourMetricIDs(currHour)
+			if got, want := s.currHourMetricIDs.Load().m.Len(), 3000; got != want {
+				t.Fatalf("[slower path] unexpected current hour metric ID count: got %d, want %d", got, want)
+			}
+		})
+	}
+
+	t.Run("disablePerDayIndex=false", func(t *testing.T) {
+		f(t, false)
+	})
+	t.Run("disablePerDayIndex=true", func(t *testing.T) {
+		f(t, true)
 	})
 }

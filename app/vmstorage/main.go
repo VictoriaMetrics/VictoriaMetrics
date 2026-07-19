@@ -37,6 +37,11 @@ var (
 		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention. See also -retentionFilter")
 	futureRetention = flagutil.NewRetentionDuration("futureRetention", "2d", "Data with timestamps bigger than now+futureRetention is automatically deleted. "+
 		"The minimum futureRetention is 2 days. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention")
+	maxBackfillAge = flagutil.NewRetentionDuration("maxBackfillAge", "0", "The maximum allowed age for the ingested samples with historical timestamps. "+
+		"Samples with timestamps older than now-maxBackfillAge are rejected during data ingestion. "+
+		"By default, or when set to 0, -maxBackfillAge equals to -retentionPeriod, e.g. it is unlimited within the configured retention. "+
+		"This can be useful for limiting ingestion of historical samples, for example, when older data has been moved to another storage tier. "+
+		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention")
 	httpListenAddrs  = flagutil.NewArrayString("httpListenAddr", "Address to listen for incoming http requests. See also -httpListenAddr.useProxyProtocol")
 	useProxyProtocol = flagutil.NewArrayBool("httpListenAddr.useProxyProtocol", "Whether to use proxy protocol for connections accepted at the given -httpListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
@@ -179,6 +184,7 @@ func main() {
 	opts := storage.OpenOptions{
 		Retention:                   retentionPeriod.Duration(),
 		FutureRetention:             futureRetention.Duration(),
+		MaxBackfillAge:              maxBackfillAge.Duration(),
 		DenyQueriesOutsideRetention: *denyQueriesOutsideRetention,
 		MaxHourlySeries:             getMaxHourlySeries(),
 		MaxDailySeries:              getMaxDailySeries(),
@@ -492,8 +498,10 @@ func (vms *VMStorage) writeStorageMetrics(w io.Writer) {
 	metrics.WriteGaugeUint64(w, `vm_data_size_bytes{type="storage/inmemory"}`, tm.InmemorySizeBytes)
 	metrics.WriteGaugeUint64(w, `vm_data_size_bytes{type="storage/small"}`, tm.SmallSizeBytes)
 	metrics.WriteGaugeUint64(w, `vm_data_size_bytes{type="storage/big"}`, tm.BigSizeBytes)
+	metrics.WriteGaugeUint64(w, `vm_data_size_bytes{type="storage/metaindex"}`, tm.MetaindexSizeBytes)
 	metrics.WriteGaugeUint64(w, `vm_data_size_bytes{type="indexdb/inmemory"}`, idbm.InmemorySizeBytes)
 	metrics.WriteGaugeUint64(w, `vm_data_size_bytes{type="indexdb/file"}`, idbm.FileSizeBytes)
+	metrics.WriteGaugeUint64(w, `vm_data_size_bytes{type="indexdb/metaindex"}`, idbm.MetaindexSizeBytes)
 
 	metrics.WriteCounterUint64(w, `vm_rows_received_by_storage_total`, m.RowsReceivedTotal)
 	metrics.WriteCounterUint64(w, `vm_rows_added_to_storage_total`, m.RowsAddedTotal)
