@@ -73,6 +73,16 @@ func isBinaryOp(op string) bool {
 	return binaryOps[op]
 }
 
+func isSetOperator(op string) bool {
+	op = strings.ToLower(op)
+	switch op {
+	case "and", "or", "unless", "if", "ifnot", "default":
+		return true
+	default:
+		return false
+	}
+}
+
 func binaryOpPriority(op string) int {
 	op = strings.ToLower(op)
 	return binaryOpPriorities[op]
@@ -121,6 +131,16 @@ func isBinaryOpJoinModifier(s string) bool {
 func isBinaryOpBoolModifier(s string) bool {
 	s = strings.ToLower(s)
 	return s == "bool"
+}
+
+func isBinaryOpFillModifier(s string) bool {
+	s = strings.ToLower(s)
+	switch s {
+	case "fill", "fill_left", "fill_right":
+		return true
+	default:
+		return false
+	}
 }
 
 // IsBinaryOpCmp returns true if op is comparison operator such as '==', '!=', etc.

@@ -164,6 +164,14 @@ func (fs *FS) Init(ctx context.Context) error {
 						// when using EKS Pod Identity or similar.
 						// See: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9280
 						"ExpiredToken": {},
+						// S3-compatible stores may return TooManyRequests instead of TooManyRequestsException.
+						// See: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11218
+						"TooManyRequests": {},
+					},
+				}, retry.RetryableHTTPStatusCode{
+					Codes: map[int]struct{}{
+						// S3-compatible stores may return HTTP 429 for rate limiting instead of HTTP 503.
+						429: {},
 					},
 				}, retry.IsErrorRetryableFunc(func(err error) aws.Ternary {
 					if errors.Is(err, io.ErrUnexpectedEOF) {
