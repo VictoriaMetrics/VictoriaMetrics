@@ -766,6 +766,18 @@ See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/ch
 
 See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2025/#v11230)
 
+## [v1.122.27](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.27)
+
+Released at 2026-07-17
+
+**v1.122.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.122.x line will be supported for at least 12 months since [v1.122.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11220) release**
+
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): flush pending persistent queue data to chunk file before updating the metadata. This prevents the metadata writer offset from getting ahead of the chunk file size and avoids losing the persistent queue after an unclean shutdown. See [#11192](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11192).
+* BUGFIX: [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/) and [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): retry S3 requests failing with `HTTP 429` status code or `TooManyRequests` error code. Previously such requests were not retried, so a short burst of rate limiting would fail the whole backup. See [#11218](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11218). Thanks to @gautamrizwani for contribution.
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): hide `Total metric names` stats on [Cardinality Explorer](https://docs.victoriametrics.com/victoriametrics/#cardinality-explorer) page when user selects a specific metric or label to focus. See [#11154](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11154) for details. Thanks to @lghuy05 for the contribution.
+
 ## [v1.122.26](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.26)
 
 Released at 2026-07-03
