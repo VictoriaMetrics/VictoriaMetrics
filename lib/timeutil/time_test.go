@@ -69,6 +69,15 @@ func TestTryParseUnixTimestamp_Success(t *testing.T) {
 	f("1.23e2", 123000000000)
 	f("1.2e1", 12000000000)
 	f("1123.456789123456789E15", 1123456789123456789)
+
+	// scientific notation with sub-second precision, i.e. more fractional digits
+	// than the exponent shifts (https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11268).
+	// These must match the equivalent plain fractional form.
+	f("1.784144612388E9", 1784144612388000000) // == 1784144612.388
+	f("1.784144612388e9", 1784144612388000000)
+	f("-1.784144612388e9", -1784144612388000000)
+	f("1.5000000005e9", 1500000000500000000) // == 1500000000.5
+	f("1.23456789e9", 1234567890000000000)   // exponent consumes all frac digits (integer result)
 }
 
 func TestTryParseUnixTimestamp_Failure(t *testing.T) {
