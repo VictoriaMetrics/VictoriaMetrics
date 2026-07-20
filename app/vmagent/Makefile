@@ -98,7 +98,7 @@ vmagent-linux-s390x:
 	APP_NAME=vmagent CGO_ENABLED=0 GOOS=linux GOARCH=s390x $(MAKE) app-local-goos-goarch
 
 vmagent-linux-riscv64:
-	APP_NAME=vmagent GOOS=linux GOARCH=riscv64 $(MAKE) app-local-goos-goarch
+	APP_NAME=vmagent CGO_ENABLED=0 GOOS=linux GOARCH=riscv64 $(MAKE) app-local-goos-goarch
 
 vmagent-linux-loong64:
 	APP_NAME=vmagent CGO_ENABLED=0 GOOS=linux GOARCH=loong64 $(MAKE) app-local-goos-goarch

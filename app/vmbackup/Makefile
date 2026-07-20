@@ -95,7 +95,7 @@ vmbackup-linux-s390x:
 	APP_NAME=vmbackup EXTRA_GO_BUILD_TAGS=$(VMBACKUP_GO_BUILD_TAGS) CGO_ENABLED=0 GOOS=linux GOARCH=s390x $(MAKE) app-local-goos-goarch
 
 vmbackup-linux-riscv64:
-	APP_NAME=vmbackup EXTRA_GO_BUILD_TAGS=$(VMBACKUP_GO_BUILD_TAGS) GOOS=linux GOARCH=riscv64 $(MAKE) app-local-goos-goarch
+	APP_NAME=vmbackup EXTRA_GO_BUILD_TAGS=$(VMBACKUP_GO_BUILD_TAGS) CGO_ENABLED=0 GOOS=linux GOARCH=riscv64 $(MAKE) app-local-goos-goarch
 
 vmbackup-linux-loong64:
 	APP_NAME=vmbackup EXTRA_GO_BUILD_TAGS=$(VMBACKUP_GO_BUILD_TAGS) CGO_ENABLED=0 GOOS=linux GOARCH=loong64 $(MAKE) app-local-goos-goarch

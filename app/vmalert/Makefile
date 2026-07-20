@@ -128,7 +128,7 @@ vmalert-linux-s390x:
 	APP_NAME=vmalert CGO_ENABLED=0 GOOS=linux GOARCH=s390x $(MAKE) app-local-goos-goarch
 
 vmalert-linux-riscv64:
-	APP_NAME=vmalert GOOS=linux GOARCH=riscv64 $(MAKE) app-local-goos-goarch
+	APP_NAME=vmalert CGO_ENABLED=0 GOOS=linux GOARCH=riscv64 $(MAKE) app-local-goos-goarch
 
 vmalert-linux-loong64:
 	APP_NAME=vmalert CGO_ENABLED=0 GOOS=linux GOARCH=loong64 $(MAKE) app-local-goos-goarch

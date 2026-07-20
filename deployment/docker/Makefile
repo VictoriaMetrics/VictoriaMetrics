@@ -189,7 +189,7 @@ app-via-docker-linux-s390x:
 	CGO_ENABLED=0 GOOS=linux GOARCH=s390x $(MAKE) app-via-docker-goos-goarch
 
 app-via-docker-linux-riscv64:
-	GOOS=linux GOARCH=riscv64 $(MAKE) app-via-docker-goos-goarch
+	CGO_ENABLED=0 GOOS=linux GOARCH=riscv64 $(MAKE) app-via-docker-goos-goarch
 
 app-via-docker-darwin-amd64:
 	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 $(MAKE) app-via-docker-goos-goarch
@@ -232,7 +232,7 @@ package-via-docker-ppc64le:
 	CGO_ENABLED=0 GOARCH=ppc64le $(MAKE) package-via-docker-goarch
 
 package-via-docker-riscv64:
-	GOARCH=riscv64 $(MAKE) package-via-docker-goarch
+	CGO_ENABLED=0 GOARCH=riscv64 $(MAKE) package-via-docker-goarch
 
 package-via-docker-386:
 	CGO_ENABLED=0 GOARCH=386 $(MAKE) package-via-docker-goarch
