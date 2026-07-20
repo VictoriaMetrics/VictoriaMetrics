@@ -1367,21 +1367,22 @@ by setting it via the `<ROOT_IMAGE>` environment variable. For example, the foll
 ROOT_IMAGE=scratch make package-vmagent
 ```
 
-### ARM build
+### Linux ARM and RISC-V builds
 
-ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://blog.cloudflare.com/arm-takes-wing/).
+ARM builds may run on Raspberry Pi or on [energy-efficient ARM servers](https://blog.cloudflare.com/arm-takes-wing/).
+RISC-V 64 builds produce binaries for Linux `riscv64` systems.
 
-### Development ARM build
+### Development Linux ARM and RISC-V build
 
 1. [Install Go](https://golang.org/doc/install).
-1. Run `make vmagent-linux-arm` or `make vmagent-linux-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics)
-   It builds `vmagent-linux-arm` or `vmagent-linux-arm64` binary, respectively, and puts it into the `bin` folder.
+1. Run `make vmagent-linux-arm`, `make vmagent-linux-arm64`, or `make vmagent-linux-riscv64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
+   It builds the corresponding `vmagent-linux-arm`, `vmagent-linux-arm64`, or `vmagent-linux-riscv64` binary and puts it into the `bin` folder.
 
-### Production ARM build
+### Production Linux ARM and RISC-V build
 
 1. [Install Docker](https://docs.docker.com/install/).
-1. Run `make vmagent-linux-arm-prod` or `make vmagent-linux-arm64-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
-   It builds `vmagent-linux-arm-prod` or `vmagent-linux-arm64-prod` binary, respectively, and puts it into the `bin` folder.
+1. Run `make vmagent-linux-arm-prod`, `make vmagent-linux-arm64-prod`, or `make vmagent-linux-riscv64-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
+   It builds the corresponding `vmagent-linux-arm-prod`, `vmagent-linux-arm64-prod`, or `vmagent-linux-riscv64-prod` binary and puts it into the `bin` folder.
 
 ## Profiling
 
