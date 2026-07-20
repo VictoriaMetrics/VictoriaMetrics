@@ -30,6 +30,9 @@ vmauth-linux-386-prod:
 vmauth-linux-s390x-prod:
 	APP_NAME=vmauth $(MAKE) app-via-docker-linux-s390x
 
+vmauth-linux-riscv64-prod:
+	APP_NAME=vmauth $(MAKE) app-via-docker-linux-riscv64
+
 vmauth-darwin-amd64-prod:
 	APP_NAME=vmauth $(MAKE) app-via-docker-darwin-amd64
 
@@ -63,6 +66,9 @@ package-vmauth-arm64:
 package-vmauth-ppc64le:
 	APP_NAME=vmauth $(MAKE) package-via-docker-ppc64le
 
+package-vmauth-riscv64:
+	APP_NAME=vmauth $(MAKE) package-via-docker-riscv64
+
 package-vmauth-386:
 	APP_NAME=vmauth $(MAKE) package-via-docker-386
 
@@ -90,6 +96,9 @@ vmauth-linux-ppc64le:
 vmauth-linux-s390x:
 	APP_NAME=vmauth CGO_ENABLED=0 GOOS=linux GOARCH=s390x $(MAKE) app-local-goos-goarch
 
+vmauth-linux-riscv64:
+	APP_NAME=vmauth GOOS=linux GOARCH=riscv64 $(MAKE) app-local-goos-goarch
+
 vmauth-linux-loong64:
 	APP_NAME=vmauth CGO_ENABLED=0 GOOS=linux GOARCH=loong64 $(MAKE) app-local-goos-goarch
 
@@ -104,6 +113,9 @@ vmauth-darwin-arm64:
 
 vmauth-freebsd-amd64:
 	APP_NAME=vmauth CGO_ENABLED=0 GOOS=freebsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
+vmauth-netbsd-amd64:
+	APP_NAME=vmauth CGO_ENABLED=0 GOOS=netbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
 
 vmauth-openbsd-amd64:
 	APP_NAME=vmauth CGO_ENABLED=0 GOOS=openbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch

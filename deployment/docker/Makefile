@@ -82,9 +82,10 @@ publish-via-docker:
 		app-via-docker-linux-arm \
 		app-via-docker-linux-arm64 \
 		app-via-docker-linux-ppc64le \
+		app-via-docker-linux-riscv64 \
 		app-via-docker-linux-386
 	$(DOCKER) buildx build \
-		--platform=linux/amd64,linux/arm,linux/arm64,linux/ppc64le,linux/386 \
+		--platform=linux/amd64,linux/arm,linux/arm64,linux/ppc64le,linux/riscv64,linux/386 \
 		--build-arg certs_image=$(CERTS_IMAGE) \
 		--build-arg root_image=$(ROOT_IMAGE) \
 		--build-arg APP_NAME=$(APP_NAME) \
@@ -105,7 +106,7 @@ publish-via-docker:
 		--push \
 		bin
 	$(DOCKER) buildx build \
-		--platform=linux/amd64,linux/arm,linux/arm64,linux/ppc64le,linux/386 \
+		--platform=linux/amd64,linux/arm,linux/arm64,linux/ppc64le,linux/riscv64,linux/386 \
 		--build-arg certs_image=$(CERTS_IMAGE) \
 		--build-arg root_image=$(ROOT_IMAGE_SCRATCH) \
 		--build-arg APP_NAME=$(APP_NAME) \
@@ -130,6 +131,7 @@ publish-via-docker:
 		$(APP_NAME)-linux-arm-prod \
 		$(APP_NAME)-linux-arm64-prod \
 		$(APP_NAME)-linux-ppc64le-prod \
+		$(APP_NAME)-linux-riscv64-prod \
 		$(APP_NAME)-linux-386-prod
 
 publish-via-docker-from-rc:
@@ -186,6 +188,9 @@ app-via-docker-linux-386:
 app-via-docker-linux-s390x:
 	CGO_ENABLED=0 GOOS=linux GOARCH=s390x $(MAKE) app-via-docker-goos-goarch
 
+app-via-docker-linux-riscv64:
+	GOOS=linux GOARCH=riscv64 $(MAKE) app-via-docker-goos-goarch
+
 app-via-docker-darwin-amd64:
 	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 $(MAKE) app-via-docker-goos-goarch
 
@@ -225,6 +230,9 @@ package-via-docker-arm:
 
 package-via-docker-ppc64le:
 	CGO_ENABLED=0 GOARCH=ppc64le $(MAKE) package-via-docker-goarch
+
+package-via-docker-riscv64:
+	GOARCH=riscv64 $(MAKE) package-via-docker-goarch
 
 package-via-docker-386:
 	CGO_ENABLED=0 GOARCH=386 $(MAKE) package-via-docker-goarch

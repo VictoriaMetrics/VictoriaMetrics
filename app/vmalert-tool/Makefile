@@ -30,6 +30,9 @@ vmalert-tool-linux-386-prod:
 vmalert-tool-linux-s390x-prod:
 	APP_NAME=vmalert-tool $(MAKE) app-via-docker-linux-s390x
 
+vmalert-tool-linux-riscv64-prod:
+	APP_NAME=vmalert-tool $(MAKE) app-via-docker-linux-riscv64
+
 vmalert-tool-darwin-amd64-prod:
 	APP_NAME=vmalert-tool $(MAKE) app-via-docker-darwin-amd64
 
@@ -63,6 +66,9 @@ package-vmalert-tool-arm64:
 package-vmalert-tool-ppc64le:
 	APP_NAME=vmalert-tool $(MAKE) package-via-docker-ppc64le
 
+package-vmalert-tool-riscv64:
+	APP_NAME=vmalert-tool $(MAKE) package-via-docker-riscv64
+
 package-vmalert-tool-386:
 	APP_NAME=vmalert-tool $(MAKE) package-via-docker-386
 
@@ -84,6 +90,9 @@ vmalert-tool-linux-ppc64le:
 vmalert-tool-linux-s390x:
 	APP_NAME=vmalert-tool CGO_ENABLED=0 GOOS=linux GOARCH=s390x $(MAKE) app-local-goos-goarch
 
+vmalert-tool-linux-riscv64:
+	APP_NAME=vmalert-tool GOOS=linux GOARCH=riscv64 $(MAKE) app-local-goos-goarch
+
 vmalert-tool-linux-loong64:
 	APP_NAME=vmalert-tool CGO_ENABLED=0 GOOS=linux GOARCH=loong64 $(MAKE) app-local-goos-goarch
 
@@ -98,6 +107,9 @@ vmalert-tool-darwin-arm64:
 
 vmalert-tool-freebsd-amd64:
 	APP_NAME=vmalert-tool CGO_ENABLED=0 GOOS=freebsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
+vmalert-tool-netbsd-amd64:
+	APP_NAME=vmalert-tool CGO_ENABLED=0 GOOS=netbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
 
 vmalert-tool-openbsd-amd64:
 	APP_NAME=vmalert-tool CGO_ENABLED=0 GOOS=openbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch

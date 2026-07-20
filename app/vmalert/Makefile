@@ -30,6 +30,9 @@ vmalert-linux-386-prod:
 vmalert-linux-s390x-prod:
 	APP_NAME=vmalert $(MAKE) app-via-docker-linux-s390x
 
+vmalert-linux-riscv64-prod:
+	APP_NAME=vmalert $(MAKE) app-via-docker-linux-riscv64
+
 vmalert-darwin-amd64-prod:
 	APP_NAME=vmalert $(MAKE) app-via-docker-darwin-amd64
 
@@ -62,6 +65,9 @@ package-vmalert-arm64:
 
 package-vmalert-ppc64le:
 	APP_NAME=vmalert $(MAKE) package-via-docker-ppc64le
+
+package-vmalert-riscv64:
+	APP_NAME=vmalert $(MAKE) package-via-docker-riscv64
 
 package-vmalert-386:
 	APP_NAME=vmalert $(MAKE) package-via-docker-386
@@ -121,6 +127,9 @@ vmalert-linux-ppc64le:
 vmalert-linux-s390x:
 	APP_NAME=vmalert CGO_ENABLED=0 GOOS=linux GOARCH=s390x $(MAKE) app-local-goos-goarch
 
+vmalert-linux-riscv64:
+	APP_NAME=vmalert GOOS=linux GOARCH=riscv64 $(MAKE) app-local-goos-goarch
+
 vmalert-linux-loong64:
 	APP_NAME=vmalert CGO_ENABLED=0 GOOS=linux GOARCH=loong64 $(MAKE) app-local-goos-goarch
 
@@ -135,6 +144,9 @@ vmalert-darwin-arm64:
 
 vmalert-freebsd-amd64:
 	APP_NAME=vmalert CGO_ENABLED=0 GOOS=freebsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
+vmalert-netbsd-amd64:
+	APP_NAME=vmalert CGO_ENABLED=0 GOOS=netbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
 
 vmalert-openbsd-amd64:
 	APP_NAME=vmalert CGO_ENABLED=0 GOOS=openbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch

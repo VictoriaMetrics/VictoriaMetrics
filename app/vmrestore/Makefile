@@ -34,6 +34,9 @@ vmrestore-linux-386-prod:
 vmrestore-linux-s390x-prod:
 	APP_NAME=vmrestore EXTRA_GO_BUILD_TAGS=$(VMRESTORE_GO_BUILD_TAGS) $(MAKE) app-via-docker-linux-s390x
 
+vmrestore-linux-riscv64-prod:
+	APP_NAME=vmrestore EXTRA_GO_BUILD_TAGS=$(VMRESTORE_GO_BUILD_TAGS) $(MAKE) app-via-docker-linux-riscv64
+
 vmrestore-darwin-amd64-prod:
 	APP_NAME=vmrestore EXTRA_GO_BUILD_TAGS=$(VMRESTORE_GO_BUILD_TAGS) $(MAKE) app-via-docker-darwin-amd64
 
@@ -67,6 +70,9 @@ package-vmrestore-arm64:
 package-vmrestore-ppc64le:
 	APP_NAME=vmrestore EXTRA_GO_BUILD_TAGS=$(VMRESTORE_GO_BUILD_TAGS) $(MAKE) package-via-docker-ppc64le
 
+package-vmrestore-riscv64:
+	APP_NAME=vmrestore EXTRA_GO_BUILD_TAGS=$(VMRESTORE_GO_BUILD_TAGS) $(MAKE) package-via-docker-riscv64
+
 package-vmrestore-386:
 	APP_NAME=vmrestore EXTRA_GO_BUILD_TAGS=$(VMRESTORE_GO_BUILD_TAGS) $(MAKE) package-via-docker-386
 
@@ -88,6 +94,9 @@ vmrestore-linux-ppc64le:
 vmrestore-linux-s390x:
 	APP_NAME=vmrestore EXTRA_GO_BUILD_TAGS=$(VMRESTORE_GO_BUILD_TAGS) CGO_ENABLED=0 GOOS=linux GOARCH=s390x $(MAKE) app-local-goos-goarch
 
+vmrestore-linux-riscv64:
+	APP_NAME=vmrestore EXTRA_GO_BUILD_TAGS=$(VMRESTORE_GO_BUILD_TAGS) GOOS=linux GOARCH=riscv64 $(MAKE) app-local-goos-goarch
+
 vmrestore-linux-loong64:
 	APP_NAME=vmrestore EXTRA_GO_BUILD_TAGS=$(VMRESTORE_GO_BUILD_TAGS) CGO_ENABLED=0 GOOS=linux GOARCH=loong64 $(MAKE) app-local-goos-goarch
 
@@ -102,6 +111,9 @@ vmrestore-darwin-arm64:
 
 vmrestore-freebsd-amd64:
 	APP_NAME=vmrestore EXTRA_GO_BUILD_TAGS=$(VMRESTORE_GO_BUILD_TAGS) CGO_ENABLED=0 GOOS=freebsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
+vmrestore-netbsd-amd64:
+	APP_NAME=vmrestore EXTRA_GO_BUILD_TAGS=$(VMRESTORE_GO_BUILD_TAGS) CGO_ENABLED=0 GOOS=netbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
 
 vmrestore-openbsd-amd64:
 	APP_NAME=vmrestore EXTRA_GO_BUILD_TAGS=$(VMRESTORE_GO_BUILD_TAGS) CGO_ENABLED=0 GOOS=openbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
