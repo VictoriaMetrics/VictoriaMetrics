@@ -9,7 +9,7 @@
     "start": "vite",
     "start:playground": "cross-env PLAYGROUND=true npm run start",
     "build": "vite build",
-    "lint": "eslint --output-file vmui-lint-report.json --format json 'src/**/*.{ts,tsx}'",
+    "lint": "eslint --format stylish 'src/**/*.{ts,tsx}'",
     "lint:local": "eslint --ext .ts,.tsx -f stylish src",
     "lint:fix": "eslint 'src/**/*.{ts,tsx}' --fix",
     "copy-metricsql-docs": "cp ../../../../docs/MetricsQL.md src/assets/MetricsQL.md || true",

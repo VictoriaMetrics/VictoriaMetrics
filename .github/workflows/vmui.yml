@@ -26,9 +26,7 @@ jobs:
   vmui-checks:
     name: VMUI Checks (lint, test, typecheck)
     permissions:
-      checks: write
       contents: read
-      pull-requests: read
     runs-on: ubuntu-latest
     steps:
       - name: Code checkout
@@ -69,12 +67,6 @@ jobs:
         continue-on-error: true
         env:
           VMUI_SKIP_INSTALL: true
-
-      - name: Annotate Code Linting Results
-        uses: ataylorme/eslint-annotate-action@d57a1193d4c59cbfbf3f86c271f42612f9dbd9e9  # 3.0.0
-        with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          report-json: app/vmui/packages/vmui/vmui-lint-report.json
 
       - name: Check overall status
         run: |
