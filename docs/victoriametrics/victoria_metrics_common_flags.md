@@ -188,6 +188,9 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/
      Timezone to use for timestamps in logs. Timezone must be a valid IANA Time Zone. For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local (default "UTC")
   -loggerWarnsPerSecondLimit int
      Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
+  -maxBackfillAge value
+     The maximum allowed age for the ingested samples with historical timestamps. Samples with timestamps older than now-maxBackfillAge are rejected during data ingestion. By default, or when set to 0, -maxBackfillAge equals to -retentionPeriod, e.g. it is unlimited within the configured retention. This can be useful for limiting ingestion of historical samples, for example, when older data has been moved to another storage tier. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention
+     The following optional suffixes are supported: s (second), h (hour), d (day), w (week), M (month), y (year). If suffix isn't set, then the duration is counted in months (default 0)
   -maxConcurrentInserts int
      The maximum number of concurrent insert requests. Set higher value when clients send data over slow networks. Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage. See also -insert.maxQueueDuration (default 2*cgroup.AvailableCPUs())
   -maxIngestionRate int
