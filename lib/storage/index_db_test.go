@@ -501,81 +501,67 @@ func TestIndexDBOpenClose(t *testing.T) {
 }
 
 func TestIndexDB(t *testing.T) {
-	const accountsCount = 3
-	const projectsCount = 2
-	const metricGroups = 10
-	timestamp := time.Now().UnixMilli()
+	defer testRemoveAll(t)
 
-	t.Run("serial", func(t *testing.T) {
-		const path = "TestIndexDB-serial"
-		s := MustOpenStorage(path, OpenOptions{})
+	f := func(t *testing.T, concurrency int, disablePerDayIndex bool) {
+		const accountsCount = 3
+		const projectsCount = 2
+		const metricGroups = 10
+		now := time.Now().UTC()
+		timestamp := now.UnixMilli()
+		date := uint64(timestamp / msecPerDay)
+		searchTR := TimeRange{
+			MinTimestamp: time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+		}
+		if disablePerDayIndex {
+			searchTR = globalIndexTimeRange
+		}
 
+		s := MustOpenStorage(t.Name(), OpenOptions{
+			DisablePerDayIndex: disablePerDayIndex,
+		})
+		defer s.MustClose()
 		ptw := s.tb.MustGetPartition(timestamp)
-		db := ptw.pt.idb
-		mns, tsids, tenants, err := testIndexDBGetOrCreateTSIDByName(db, accountsCount, projectsCount, metricGroups, timestamp)
-		if err != nil {
-			t.Fatalf("unexpected error: %s", err)
-		}
-		if err := testIndexDBCheckTSIDByName(db, mns, tsids, tenants, timestamp, false); err != nil {
-			t.Fatalf("unexpected error: %s", err)
-		}
-
-		// Re-open the storage and verify it works as expected.
-		s.tb.PutPartition(ptw)
-		s.MustClose()
-		s = MustOpenStorage(path, OpenOptions{})
-
-		ptw = s.tb.MustGetPartition(timestamp)
-		db = ptw.pt.idb
-		if err := testIndexDBCheckTSIDByName(db, mns, tsids, tenants, timestamp, false); err != nil {
-			t.Fatalf("unexpected error: %s", err)
-		}
-
-		s.tb.PutPartition(ptw)
-		s.MustClose()
-		fs.MustRemoveDir(path)
-	})
-
-	t.Run("concurrent", func(t *testing.T) {
-		const path = "TestIndexDB-concurrent"
-		s := MustOpenStorage(path, OpenOptions{})
-		ptw := s.tb.MustGetPartition(timestamp)
+		defer s.tb.PutPartition(ptw)
 		db := ptw.pt.idb
 
-		ch := make(chan error, 3)
-		for range cap(ch) {
-			go func() {
-				mns, tsid, tenants, err := testIndexDBGetOrCreateTSIDByName(db, accountsCount, projectsCount, metricGroups, timestamp)
+		var wg sync.WaitGroup
+		errs := make([]error, concurrency)
+		isConcurrent := concurrency > 1
+		for i := range concurrency {
+			wg.Go(func() {
+				mns, tsids, tenants, err := testIndexDBGetOrCreateTSIDByName(db, accountsCount, projectsCount, metricGroups, date)
 				if err != nil {
-					ch <- err
+					errs[i] = fmt.Errorf("testIndexDBGetOrCreateTSIDByName failed unexpectedly: %w", err)
 					return
 				}
-				if err := testIndexDBCheckTSIDByName(db, mns, tsid, tenants, timestamp, true); err != nil {
-					ch <- err
-					return
+				if err := testIndexDBCheckTSIDByName(db, mns, tsids, tenants, date, searchTR, isConcurrent); err != nil {
+					errs[i] = fmt.Errorf("testIndexDBCheckTSIDByName failed unexpectedly: %w", err)
 				}
-				ch <- nil
-			}()
+			})
 		}
-		deadlineCh := time.After(30 * time.Second)
-		for range cap(ch) {
-			select {
-			case err := <-ch:
-				if err != nil {
-					t.Fatalf("unexpected error: %s", err)
-				}
-			case <-deadlineCh:
-				t.Fatalf("timeout")
+		wg.Wait()
+		for i, err := range errs {
+			if err != nil {
+				t.Errorf("[worker %d] %s", i, err)
 			}
 		}
+	}
 
-		s.tb.PutPartition(ptw)
-		s.MustClose()
-		fs.MustRemoveDir(path)
-	})
+	for _, concurrency := range []int{1, 4} {
+		for _, disablePerDayIndex := range []bool{false, true} {
+			name := fmt.Sprintf("concurrency=%d/disablePerDayIndex=%t", concurrency, disablePerDayIndex)
+			t.Run(name, func(t *testing.T) {
+				f(t, concurrency, disablePerDayIndex)
+				// Repeat the same test on non-empty reopened storage.
+				f(t, concurrency, disablePerDayIndex)
+			})
+		}
+	}
 }
 
-func testIndexDBGetOrCreateTSIDByName(db *indexDB, accountsCount, projectsCount, metricGroups int, timestamp int64) ([]MetricName, []TSID, []string, error) {
+func testIndexDBGetOrCreateTSIDByName(db *indexDB, accountsCount, projectsCount, metricGroups int, date uint64) ([]MetricName, []TSID, []string, error) {
 	r := rand.New(rand.NewSource(1))
 
 	// Create tsids.
@@ -585,8 +571,6 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, accountsCount, projectsCount,
 
 	// Usage of 0:0 is ok, since getTSIDByMetricName uses accountID and projectID from metric name.
 	is := db.getIndexSearch(0, 0, noDeadline)
-
-	date := uint64(timestamp) / msecPerDay
 
 	var metricNameBuf []byte
 	for i := range 401 {
@@ -639,7 +623,7 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, accountsCount, projectsCount,
 	return mns, tsids, tenantsList, nil
 }
 
-func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, tenants []string, timestamp int64, isConcurrent bool) error {
+func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, tenants []string, date uint64, tr TimeRange, isConcurrent bool) error {
 	allLabelNames := make(map[accountProjectKey]map[string]bool)
 	timeseriesCounters := make(map[accountProjectKey]map[uint64]bool)
 	var tsidLocal TSID
@@ -664,7 +648,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, ten
 
 		// Usage of 0:0 is ok, since getTSIDByMetricName uses accountID and projectID from metric name.
 		is := db.getIndexSearch(0, 0, noDeadline)
-		if !is.getTSIDByMetricName(&tsidLocal, metricName, uint64(timestamp)/msecPerDay) {
+		if !is.getTSIDByMetricName(&tsidLocal, metricName, date) {
 			return fmt.Errorf("cannot obtain tsid #%d for mn %s", i, mn)
 		}
 		db.putIndexSearch(is)
@@ -698,7 +682,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, ten
 		}
 
 		// Test SearchLabelValues
-		lvs, err := db.SearchLabelValues(nil, mn.AccountID, mn.ProjectID, "__name__", nil, TimeRange{}, 1e5, 1e9, noDeadline)
+		lvs, err := db.SearchLabelValues(nil, mn.AccountID, mn.ProjectID, "__name__", nil, tr, 1e5, 1e9, noDeadline)
 		if err != nil {
 			return fmt.Errorf("error in SearchLabelValues(labelName=%q): %w", "__name__", err)
 		}
@@ -712,7 +696,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, ten
 		}
 		for i := range mn.Tags {
 			tag := &mn.Tags[i]
-			lvs, err := db.SearchLabelValues(nil, mn.AccountID, mn.ProjectID, string(tag.Key), nil, TimeRange{}, 1e5, 1e9, noDeadline)
+			lvs, err := db.SearchLabelValues(nil, mn.AccountID, mn.ProjectID, string(tag.Key), nil, tr, 1e5, 1e9, noDeadline)
 			if err != nil {
 				return fmt.Errorf("error in SearchLabelValues(labelName=%q): %w", tag.Key, err)
 			}
@@ -723,11 +707,11 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, ten
 		}
 	}
 
-	// Test SearchLabelNames (empty filters, global time range)
+	// Test SearchLabelNames (empty filters)
 	for k, labelNames := range allLabelNames {
-		lns, err := db.SearchLabelNames(nil, k.AccountID, k.ProjectID, nil, TimeRange{}, 1e5, 1e9, noDeadline)
+		lns, err := db.SearchLabelNames(nil, k.AccountID, k.ProjectID, nil, tr, 1e5, 1e9, noDeadline)
 		if err != nil {
-			return fmt.Errorf("error in SearchLabelNames(empty filter, global time range): %w", err)
+			return fmt.Errorf("error in SearchLabelNames(empty filter): %w", err)
 		}
 		if _, ok := lns["__name__"]; !ok {
 			return fmt.Errorf("cannot find __name__ in %q", lns)
@@ -739,28 +723,14 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, ten
 		}
 	}
 
-	// Test SearchTenants on global time range
-	tenantsGotMap, err := db.SearchTenants(nil, TimeRange{}, noDeadline)
+	// Test SearchTenants
+	tenantsGotMap, err := db.SearchTenants(nil, tr, noDeadline)
 	if err != nil {
 		return fmt.Errorf("error in SearchTenants: %w", err)
 	}
 	tenantsGot := sortedSlice(tenantsGotMap)
 	if !reflect.DeepEqual(tenants, tenantsGot) {
-		return fmt.Errorf("unexpected tenants got when searching in global time range;\ngot\n%s\nwant\n%s", tenantsGot, tenants)
-	}
-
-	// Test SearchTenants on specific time range
-	tr := TimeRange{
-		MinTimestamp: timestamp - msecPerDay,
-		MaxTimestamp: timestamp + msecPerDay,
-	}
-	tenantsGotMap, err = db.SearchTenants(nil, tr, noDeadline)
-	if err != nil {
-		return fmt.Errorf("error in SearchTenants: %w", err)
-	}
-	tenantsGot = sortedSlice(tenantsGotMap)
-	if !reflect.DeepEqual(tenants, tenantsGot) {
-		return fmt.Errorf("unexpected tenants got when searching in global time range;\ngot\n%s\nwant\n%s", tenantsGot, tenants)
+		return fmt.Errorf("unexpected tenants;\ngot\n%s\nwant\n%s", tenantsGot, tenants)
 	}
 
 	// Check timeseriesCounters only for serial test.
