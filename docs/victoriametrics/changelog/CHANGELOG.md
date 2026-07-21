@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): allow specifying individual `url_prefix` list items as a mapping instead of a plain url string, so a group of backend urls can override `load_balancing_policy`, `discover_backend_ips`, `max_concurrent_requests` and `tls_*` options, instead of inheriting them from the enclosing `user` / `url_map` scope. This makes it possible, for example, to prefer a primary backend group over a standby one via the outer `load_balancing_policy`, while independently load-balancing across the targets discovered for each group. Such a group can also be given an optional `name`, used to identify it in [metrics](https://docs.victoriametrics.com/victoriametrics/vmauth/#concurrency-limiting) (falls back to its ordinal position in `url_prefix` when not set). See [these docs](https://docs.victoriametrics.com/victoriametrics/vmauth/#load-balancing) for more details.
+
 ## [v1.148.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.148.0)
 
 Released at 2026-07-20

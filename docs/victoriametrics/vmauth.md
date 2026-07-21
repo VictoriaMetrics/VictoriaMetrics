@@ -946,6 +946,38 @@ Each `url_prefix` in the [-auth.config](#auth-config) can be specified in the fo
     load_balancing_policy: first_available
   ```
 
+  The `load_balancing_policy` option (and the `-loadBalancingPolicy` command-line flag) selects among the backends listed under `url_prefix`.
+  Each `url_prefix` list item can also be specified as a mapping instead of a plain url string, letting a group of backend urls override
+  `load_balancing_policy`, `discover_backend_ips`, `max_concurrent_requests` and `tls_*` options for that particular group, instead of inheriting
+  them from the enclosing `user` / `url_map` scope. This is useful when a single backend is expanded into multiple discovered targets via
+  [`discover_backend_ips`](#discovering-backend-ips): the outer `load_balancing_policy` still selects among the configured backends,
+  while the group's own `load_balancing_policy` selects among the targets discovered for that particular backend.
+  For example, the following config uses `first_available` to pick between the two availability zones, while spreading load evenly across the instances discovered in the active zone:
+
+  ```yaml
+  unauthorized_user:
+    load_balancing_policy: first_available
+    url_prefix:
+    - name: az1
+      url_prefix: http://vmselect-az1:8481/
+      discover_backend_ips: true
+      load_balancing_policy: least_loaded
+    - name: az2
+      url_prefix: http://vmselect-az2:8481/
+      discover_backend_ips: true
+      load_balancing_policy: least_loaded
+  ```
+
+  A backend group mapping supports the following options, all of which are optional and fall back to the value inherited from the
+  enclosing `user` / `url_map` scope when omitted:
+
+  * `url_prefix` - a single url or a list of urls for this group. This is the only required field.
+  * `name` - optionally identifies this group in its [metrics](#monitoring) (see `max_concurrent_requests` below). When not set, the group's ordinal position in `url_prefix` (`0`, `1`, ...) is used instead.
+  * `load_balancing_policy` - overrides the policy used for selecting among this group's own targets (its static urls, or the ones discovered via `discover_backend_ips`).
+  * `discover_backend_ips` - overrides whether backend IPs are discovered for this group. See [discovering backend IPs](#discovering-backend-ips).
+  * `max_concurrent_requests` - limits the number of concurrent requests proxied to this group specifically, on top of the `user`-level and global concurrency limits. Requests that hit this limit are sent to another backend instead of being queued or rejected - see [concurrency limiting](#concurrency-limiting).
+  * `tls_ca_file`, `tls_cert_file`, `tls_key_file`, `tls_server_name`, `tls_insecure_skip_verify` - override the TLS settings used when connecting to this group's backends. See [backend TLS setup](#backend-tls-setup).
+
 The load balancing feature can be used in the following cases:
 
 * Balancing the load among multiple `vmselect` and/or `vminsert` nodes in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/).
@@ -1021,7 +1053,11 @@ There are the following solutions for this issue:
 
   This functionality is useful for balancing load across backend instances running on different TCP ports, since DNS SRV records include TCP ports.
 
-  The `discover_backend_ips` option can be specified at `user` and `url_map` level in the [`-auth.config`](#auth-config). It can also be enabled globally via the `-discoverBackendIPs` command-line flag.
+  The `discover_backend_ips` option can be specified at `user`, `url_map`, and individual backend group level in the [`-auth.config`](#auth-config) (see [load balancing docs](#load-balancing)
+  for the backend group mapping syntax). It can also be enabled globally via the `-discoverBackendIPs` command-line flag.
+
+  By default, `vmauth` uses the same load balancing policy for selecting among the discovered targets of a backend as the one used for selecting among the configured backends themselves.
+  This can be changed via the `load_balancing_policy` option inside a backend group mapping. See [these docs](#load-balancing) for more details.
 
 See also [load balancing docs](#load-balancing).
 
@@ -1146,6 +1182,16 @@ The following [metrics](https://docs.victoriametrics.com/victoriametrics/vmauth/
 * `vmauth_unauthorized_user_concurrent_requests_limit_reached_total` - the number of requests rejected with `429 Too Many Requests` error
   because the concurrency limit has been reached for unauthorized users (if the `unauthorized_user` section is used).
 
+It is also possible to limit the number of concurrent requests proxied to an individual backend group via the `max_concurrent_requests` option
+inside a [backend group mapping](#load-balancing). Unlike the per-user and global limits above, hitting a backend group's own limit doesn't queue
+the request or return `429 Too Many Requests` - `vmauth` immediately tries another backend instead, since the goal is to protect a single backend
+from overload while still using the rest of the configured backends. The `backend_group` label below is the group's `name` if set, or its ordinal
+position in `url_prefix` (`0`, `1`, ...) otherwise. The following metrics are exposed for backend groups which set `max_concurrent_requests`:
+
+* `vmauth_backend_group_concurrent_requests_capacity{backend_group="..."}` - the configured `max_concurrent_requests` limit for the given backend group.
+* `vmauth_backend_group_concurrent_requests_current{backend_group="..."}` - the current number of concurrent requests proxied to the given backend group.
+* `vmauth_backend_group_concurrent_requests_limit_reached_total{backend_group="..."}` - the number of times the given backend group's limit was reached and the request was retried at another backend.
+
 See also [request body buffering](https://docs.victoriametrics.com/victoriametrics/vmauth/#request-body-buffering).
 
 ## Request body buffering
@@ -1212,6 +1258,9 @@ By default, `vmauth` uses system settings when performing requests to HTTPS back
 
 The `-backend.tlsCAFile`, `-backend.tlsCertFile`, `-backend.tlsKeyFile`, `tls_ca_file`, `tls_cert_file`, and `tls_key_file` may point either to a local file or to a `http` / `https` URL.
 The file is checked for modifications every second and is automatically re-read when it is updated.
+
+Any of the `tls_*` options above can also be set on an individual backend group inside `url_prefix` (see the [backend group mapping](#load-balancing) syntax),
+overriding the per-user settings for that group only. This is useful when different backends behind a single user require different TLS credentials.
 
 ## IP filters
 

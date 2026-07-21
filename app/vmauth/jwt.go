@@ -163,7 +163,7 @@ func parseJWTUsers(ac *AuthConfig, oidcDP *oidcDiscovererPool) ([]*UserInfo, err
 			return nil, err
 		}
 
-		if err := ui.initURLs(); err != nil {
+		if err := ui.initURLs(ac.ms); err != nil {
 			return nil, err
 		}
 
@@ -186,7 +186,7 @@ func parseJWTUsers(ac *AuthConfig, oidcDP *oidcDiscovererPool) ([]*UserInfo, err
 			return float64(len(ui.concurrencyLimitCh))
 		})
 
-		rt, err := newRoundTripper(ui.TLSCAFile, ui.TLSCertFile, ui.TLSKeyFile, ui.TLSServerName, ui.TLSInsecureSkipVerify)
+		rt, err := newRoundTripper(ui.BackendSettings)
 		if err != nil {
 			return nil, fmt.Errorf("cannot initialize HTTP RoundTripper: %w", err)
 		}
@@ -422,30 +422,32 @@ func parseJWTPlaceholdersForUserInfo(ui *UserInfo, isAllowed bool) error {
 }
 
 func validateJWTPlaceholdersForURL(up *URLPrefix, isAllowed bool) error {
-	for _, bu := range up.busOriginal {
-		ok := strings.Contains(bu.Path, placeholderPrefix)
-		if ok && !isAllowed {
-			return fmt.Errorf("placeholder: %q is only allowed at JWT token context", bu.Path)
-		}
-		if ok {
-			p := bu.Path
-			for _, ph := range allPlaceholders {
-				p = strings.ReplaceAll(p, ph, ``)
+	for _, spec := range up.busOriginal {
+		for _, bu := range spec.urls {
+			ok := strings.Contains(bu.Path, placeholderPrefix)
+			if ok && !isAllowed {
+				return fmt.Errorf("placeholder: %q is only allowed at JWT token context", bu.Path)
 			}
-			if strings.Contains(p, placeholderPrefix) {
-				return fmt.Errorf("invalid placeholder found in URL request path: %q, supported values are: %s", bu.Path, strings.Join(allPlaceholders, ", "))
-			}
-		}
-		for param, values := range bu.Query() {
-			for _, value := range values {
-				ok := strings.Contains(value, placeholderPrefix)
-				if ok && !isAllowed {
-					return fmt.Errorf("query param: %q with placeholder: %q is only allowed at JWT token context", param, value)
+			if ok {
+				p := bu.Path
+				for _, ph := range allPlaceholders {
+					p = strings.ReplaceAll(p, ph, ``)
 				}
-				if ok {
-					// possible placeholder
-					if !slices.Contains(allPlaceholders, value) {
-						return fmt.Errorf("query param: %q has unsupported placeholder string: %q, supported values are: %s", param, value, strings.Join(allPlaceholders, ", "))
+				if strings.Contains(p, placeholderPrefix) {
+					return fmt.Errorf("invalid placeholder found in URL request path: %q, supported values are: %s", bu.Path, strings.Join(allPlaceholders, ", "))
+				}
+			}
+			for param, values := range bu.Query() {
+				for _, value := range values {
+					ok := strings.Contains(value, placeholderPrefix)
+					if ok && !isAllowed {
+						return fmt.Errorf("query param: %q with placeholder: %q is only allowed at JWT token context", param, value)
+					}
+					if ok {
+						// possible placeholder
+						if !slices.Contains(allPlaceholders, value) {
+							return fmt.Errorf("query param: %q has unsupported placeholder string: %q, supported values are: %s", param, value, strings.Join(allPlaceholders, ", "))
+						}
 					}
 				}
 			}
