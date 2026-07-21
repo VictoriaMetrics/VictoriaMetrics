@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): add `name` label with value of `remoteWrite.url` to the `vm_persistentqueue_*` metrics exposed by persistent queue. See [#7944](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7944). Thanks to @tIGO for contribution.
+
 ## [v1.148.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.148.0)
 
 Released at 2026-07-20
