@@ -546,7 +546,7 @@ tags at [Docker Hub](https://hub.docker.com/r/victoriametrics/vmalert/tags) and 
 
 ## Reading rules from object storage
 
-[Enterprise version](https://docs.victoriametrics.com/victoriametrics/enterprise/) of `vmalert` may read alerting and recording rules
+The [Enterprise version](https://docs.victoriametrics.com/victoriametrics/enterprise/) of `vmalert` may read alerting and recording rules
 from object storage:
 
 * `./bin/vmalert -rule=s3://bucket/dir/alert.rules` would read rules from the given path at S3 bucket
@@ -562,6 +562,48 @@ The following [command-line flags](#flags) can be used for fine-tuning access to
 * `-s3.configProfile` - profile name for S3 configs. If no set, the value of the environment variable will be loaded (`AWS_PROFILE` or `AWS_DEFAULT_PROFILE`).
 * `-s3.customEndpoint` - custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set.
 * `-s3.forcePathStyle` - prefixing endpoint with bucket name when set false, true by default.
+
+### S3 (AWS and S3-compatible)
+
+The following example reads rules from an S3 bucket:
+
+```sh
+./bin/vmalert \
+  -rule=s3://my-alert-bucket/rules/alerts_ \
+  -s3.credsFilePath=/etc/vmalert/aws-credentials \
+  -datasource.url=http://vmselect:8481/select/0/prometheus \
+  -notifier.url=http://alertmanager:9093 \
+  -licenseFile=/etc/vm-license
+```
+
+For S3-compatible backends such as [MinIO](https://www.min.io/) or [Ceph](https://ceph.io/), add `-s3.customEndpoint`:
+
+```sh
+./bin/vmalert \
+  -rule=s3://victoriametrics-alert-rules/rules_ \
+  -s3.credsFilePath=/etc/vmalert/aws-credentials \
+  -s3.customEndpoint=http://minio.example.local:9000 \
+  -datasource.url=http://vmselect:8481/select/0/prometheus \
+  -notifier.url=http://alertmanager:9093 \
+  -licenseFile=/etc/vm-license
+```
+
+See [Connecting VM components to cloud storage](https://docs.victoriametrics.com/guides/connecting-vm-components-to-cloud-storage/) for details on creating IAM users, credentials file format, environment variables, and IAM roles.
+
+### Google Cloud Storage (GCS)
+
+The following example reads rules from a GCS bucket:
+
+```sh
+./bin/vmalert \
+  -rule=gs://my-alert-bucket/rules/alerts_ \
+  -s3.credsFilePath=/etc/vmalert/gcp-service-account.json \
+  -datasource.url=http://vmselect:8481/select/0/prometheus \
+  -notifier.url=http://alertmanager:9093 \
+  -licenseFile=/etc/vm-license
+```
+
+See [Connecting VM components to cloud storage](https://docs.victoriametrics.com/guides/connecting-vm-components-to-cloud-storage/) for details on creating service accounts and downloading JSON keys.
 
 ## Topology examples
 

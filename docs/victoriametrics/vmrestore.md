@@ -47,13 +47,13 @@ i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/q
 
 ## Troubleshooting
 
-* See [how to setup credentials via environment variables](https://docs.victoriametrics.com/victoriametrics/vmbackup/#providing-credentials-via-env-variables).
+* See [Connecting VM components to cloud storage](https://docs.victoriametrics.com/guides/connecting-vm-components-to-cloud-storage/) for instructions on configuring credentials.
 * If `vmrestore` consumes all the network bandwidth, then set `-maxBytesPerSecond` to the desired value.
 * If `vmrestore` has been interrupted due to temporary error, then just restart it with the same args. It will resume the restore process.
 
 ## Advanced usage
 
-Please, see [vmbackup docs](https://docs.victoriametrics.com/victoriametrics/vmbackup/#advanced-usage) for examples of authentication
+See [Connecting VM components to cloud storage](https://docs.victoriametrics.com/guides/connecting-vm-components-to-cloud-storage/) for examples of authentication
 with different storage types.
 
 Run `vmrestore -help` in order to see all the available options:
