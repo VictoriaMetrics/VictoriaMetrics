@@ -35,7 +35,7 @@ var (
 		"By default, or when set to 0, -maxBackfillAge equals to -retentionPeriod, e.g. it is unlimited within the configured retention. "+
 		"This can be useful for limiting ingestion of historical samples, for example, when older data has been moved to another storage tier. "+
 		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention")
-	vmselectAddr                  = flag.String("vmselectAddr", "", "TCP address to listen for incoming connections from vmselect. "+
+	vmselectAddr = flag.String("vmselectAddr", "", "TCP address to listen for incoming connections from vmselect. "+
 		"When set, this node accepts vmselect Clusternative RPC requests, enabling it to serve as a vmstorage node in VictoriaMetrics cluster. "+
 		"The tenant ID assigned to this node's data is controlled by -accountID and -projectID flags. "+
 		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#multi-tenancy")
