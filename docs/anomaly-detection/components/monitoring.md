@@ -304,7 +304,7 @@ For detailed guidance on configuring mTLS parameters such as `verify_tls`, `tls_
 <span style="white-space: nowrap;">`vmanomaly_available_memory_bytes`</span>
             </td>
             <td>Gauge</td>
-            <td>Virtual memory size in bytes, available to the process{{% available_from "v1.18.4" anomaly %}}.</td>
+            <td>Effective memory capacity available to the process in bytes{{% available_from "v1.18.4" anomaly %}}. The value honors cgroup limits when available, then process address-space limits, and otherwise reports host physical memory. It does not represent currently unused memory.</td>
         </tr>
         <tr>
             <td>
@@ -312,7 +312,7 @@ For detailed guidance on configuring mTLS parameters such as `verify_tls`, `tls_
 <span style="white-space: nowrap;">`vmanomaly_cpu_cores_available`</span>
             </td>
             <td>Gauge</td>
-            <td>Number of (logical) CPU cores available to the process{{% available_from "v1.18.4" anomaly %}}.</td>
+            <td>Effective CPU capacity available to the process{{% available_from "v1.18.4" anomaly %}}, constrained by host logical CPUs, process affinity, and cgroup quota. The value can be fractional when a fractional CPU quota is configured.</td>
         </tr>
         <tr>
             <td>
@@ -320,7 +320,7 @@ For detailed guidance on configuring mTLS parameters such as `verify_tls`, `tls_
 <span style="white-space: nowrap;">`vmanomaly_config_entities`</span>
             </td>
             <td>Gauge</td>
-            <td>Number of [sub-configs](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#sub-configuration) **available** (`{scope="total"}`) and **used** for particular [shard](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#horizontal-scalability) (`{scope="shard"}`) {{% available_from "v1.21.0" anomaly %}}</td>
+            <td>Number of [sub-configs](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#sub-configuration) **available** (`scope="total"`) and **used** by the current [shard](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#horizontal-scalability) (`scope="shard"`){{% available_from "v1.21.0" anomaly %}}, labeled by `preset` and `scope`.</td>
         </tr>
         <tr>
             <td>
@@ -351,6 +351,34 @@ For detailed guidance on configuring mTLS parameters such as `verify_tls`, `tls_
             </td>
             <td>Gauge</td>
             <td>Timestamp of the last successful config [hot-reload](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) in seconds since epoch {{% available_from "v1.25.1" anomaly %}}</td>
+        </tr>
+        <tr>
+            <td>
+<span style="white-space: nowrap;">`vmanomaly_scheduler_alive`</span>
+            </td>
+            <td>Gauge</td>
+            <td>Whether the scheduler worker thread identified by `scheduler_alias` and `preset` is alive (`1`) or not (`0`) {{% available_from "v1.30.0" anomaly %}}.</td>
+        </tr>
+        <tr>
+            <td>
+<span style="white-space: nowrap;">`vmanomaly_scheduler_restarts_total`</span>
+            </td>
+            <td>Counter</td>
+            <td>Number of bounded scheduler restart attempts {{% available_from "v1.30.0" anomaly %}}, labeled by `scheduler_alias`, `preset`, and `status` (`success` or `failure`).</td>
+        </tr>
+        <tr>
+            <td>
+<span style="white-space: nowrap;">`vm_license_expires_at`</span>
+            </td>
+            <td>Gauge</td>
+            <td>License expiration time as a Unix timestamp in seconds. See the [licensing section](https://docs.victoriametrics.com/anomaly-detection/quickstart/#licensing) for example alerts.</td>
+        </tr>
+        <tr>
+            <td>
+<span style="white-space: nowrap;">`vm_license_expires_in_seconds`</span>
+            </td>
+            <td>Gauge</td>
+            <td>Time remaining until license expiration in seconds. See the [licensing section](https://docs.victoriametrics.com/anomaly-detection/quickstart/#licensing) for warning and critical alert examples.</td>
         </tr>
     </tbody>
 </table>
@@ -425,7 +453,7 @@ Label names [description](#labelnames)
 
 `Histogram` (was `Summary`{{% deprecated_from "v1.17.0" anomaly %}})
             </td>
-            <td>The total time (in seconds) taken for data parsing at each `step` (json, dataframe) for the `query_key` query within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
+            <td>The total time (in seconds) taken for data parsing at each `step` (`json` or `df`) for the `query_key` query within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
             <td>
 
 `step`, `url`, `query_key`, `scheduler_alias`, `preset`
@@ -521,7 +549,7 @@ Label names [description](#labelnames)
             <td>
 
 <span style="white-space: nowrap;">`Histogram`</span> (was `Summary`{{% deprecated_from "v1.17.0" anomaly %}}) </td>
-            <td>The total time (in seconds) taken by model invocations during the `stage` (`fit`, `infer`, `fit_infer`), based on the results of the `query_key` query, for models of class `model_alias`, within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
+            <td>The model-service stage duration in seconds for `fit`, `infer`, or combined `fit_infer` execution, based on the results of the `query_key` query for `model_alias`. Reader and writer I/O durations are reported by their respective metrics.</td>
             <td>
 
 `stage`, `query_key`, `model_alias`, `scheduler_alias`, `preset`
@@ -536,7 +564,7 @@ Label names [description](#labelnames)
 
 `Counter`
             </td>
-            <td>The number of datapoints accepted (excluding NaN or Inf values) by models of class `model_alias` from the results of the `query_key` query during the `stage` (`infer`, `fit_infer`), within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
+            <td>The number of valid datapoints accepted by `model_alias`, excluding NaN and Inf values, during `fit`, `infer`, or combined `fit_infer` execution for the `query_key` query.</td>
             <td>
 
 `stage`, `query_key`, `model_alias`, `scheduler_alias`, `preset`
@@ -641,7 +669,7 @@ Label names [description](#labelnames)
         <tr>
             <td>
 
-<span style="white-space: nowrap;">`vmanomaly_writer_responses`</span> (named `vmanomaly_reader_response_count`{{% deprecated_from "v1.17.0" anomaly %}})
+<span style="white-space: nowrap;">`vmanomaly_writer_responses`</span> (named `vmanomaly_writer_response_count`{{% deprecated_from "v1.17.0" anomaly %}})
             </td>
             <td>
 
@@ -720,318 +748,215 @@ Label names [description](#labelnames)
 
 ### Labelnames
 
-* `stage` - stage of model - 'fit', 'infer' or 'fit_infer' for models that do it simultaneously, see [model types](https://docs.victoriametrics.com/anomaly-detection/components/models/#model-types).
+* `stage` - model execution stage: `fit`, `infer`, or `fit_infer` for a combined fit/inference scheduler run. See [model types](https://docs.victoriametrics.com/anomaly-detection/components/models/#model-types).
 * `query_key` - query alias from [`reader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/) config section.
 * `model_alias` - model alias from [`models`](https://docs.victoriametrics.com/anomaly-detection/components/models/) config section{{% available_from "v1.10.0" anomaly %}}.
 * `scheduler_alias` - scheduler alias from [`schedulers`](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/) config section{{% available_from "v1.11.0" anomaly %}}.
 * `preset` - preset alias for [`preset`](https://docs.victoriametrics.com/anomaly-detection/presets/) mode of `vmanomaly`{{% available_from "v1.12.0" anomaly %}}.
 * `url` - writer or reader url endpoint.
-* `code` - response status code or `connection_error`, `timeout`.
-* `step` - json or dataframe reading step.
+* `code` - HTTP response status code or `connection_error`, `timeout`, `ssl_error`, or `io_error`.
+* `step` - reader parsing step: `json` or `df`.
 
 [Back to metric sections](#metrics-generated-by-vmanomaly)
 
 
 ## Logs generated by vmanomaly
 
-The `vmanomaly` service logs operations, errors, and performance for its components (service, reader, writer), alongside [self-monitoring metrics](#metrics-generated-by-vmanomaly) updates. Below is a description of key logs {{% available_from "v1.17.1" anomaly %}} for each component and the related metrics affected.
+The `vmanomaly` service logs important lifecycle, I/O, model, and recovery events alongside
+[self-monitoring metrics](#metrics-generated-by-vmanomaly). The fragments below are stable prefixes for
+recognizing log families, rather than byte-for-byte message contracts; entity values and exception details follow
+the prefix.
 
-`{{X}}` indicates a placeholder in the log message templates described below, which will be replaced with the appropriate entity during logging.
+By default, `vmanomaly` uses the `INFO` level. Use the global `--loggerLevel` command-line argument or
+`settings.logger_levels`{{% available_from "v1.30.0" anomaly %}} for prefix-based component overrides:
 
+```yaml
+settings:
+  logger_levels:
+    reader: DEBUG       # also applies to reader.vm, reader.vlogs, and other child loggers
+    writer.vm: ERROR
+    copilot: WARNING
+```
 
-> By default, `vmanomaly` uses the `INFO` logging level. You can change this by specifying the `--loggerLevel` argument. See command-line arguments [here](https://docs.victoriametrics.com/anomaly-detection/quickstart/#command-line-arguments).
+More-specific prefixes override their parent. Changes limited to `settings.logger_levels` can be
+[hot-reloaded](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) without restarting
+services. See [`settings.logger_levels`](https://docs.victoriametrics.com/anomaly-detection/components/settings/#logger-levels)
+and the [command-line arguments](https://docs.victoriametrics.com/anomaly-detection/quickstart/#command-line-arguments).
 
 - [Startup logs](#startup-logs)
-- [Reader  logs](#reader-logs)
+- [Reader logs](#reader-logs)
 - [Service logs](#service-logs)
-- [Writer  logs](#writer-logs)
+- [Writer logs](#writer-logs)
+- [Scheduler supervision logs](#scheduler-supervision-logs)
+- [Hot-reload logs](#hot-reload-logs)
+- [Persisted-state logs](#persisted-state-logs)
+- [Query server and task logs](#query-server-and-task-logs)
+- [AI Copilot logs](#ai-copilot-logs)
 
 
 ### Startup logs
 
-The `vmanomaly` service logs important information during the startup process. This includes checking for the license, validating configurations, and setting up schedulers, readers, and writers. Below are key logs that are generated during startup, which can help troubleshoot issues with the service's initial configuration or license validation.
+Startup logs summarize the version, license, effective storage mode, state restoration, process-pool mode,
+server addresses, hot-reload state, and active schedulers. The most useful prefixes are:
 
----
-
-**License check**. If no license key or file is provided, the service will fail to start and log an error message. If a license file is provided but cannot be read, the service logs a failure. Log messages:
-
-```text
-Please provide a license code using --license or --licenseFile arg, or as VM_LICENSE_FILE env. See https://victoriametrics.com/products/enterprise/trial/ to obtain a trial license.
-```
-
-```text
-failed to read file {{args.license_file}}: {{error_message}}
-```
-
----
-
-**Config validation**. If the service's configuration fails to load or does not meet validation requirements, an error message is logged and the service will exit. If the configuration is loaded successfully, a message confirming the successful load is logged. Log messages:
-
-```text
-Config validation failed, please fix these errors: {{error_details}}
-```
-
-```text
-Config has been loaded successfully.
-```
-
----
-
-**Model and data directory setup**. The service checks the environment variables `VMANOMALY_MODEL_DUMPS_DIR` and `VMANOMALY_DATA_DUMPS_DIR` to determine where to store models and data. If these variables are not set, models and data will be stored in memory. Please find the [on-disk mode details here](https://docs.victoriametrics.com/anomaly-detection/faq/#on-disk-mode). Log messages:
-
-```text
-Using ENV MODEL_DUMP_DIR=`{{model_dump_dir}}` to store anomaly detection models.
-```
-```text
-ENV MODEL_DUMP_DIR is not set. Models will be kept in RAM between consecutive `fit` calls.
-```
-```text
-Using ENV DATA_DUMP_DIR=`{{data_dump_dir}}` to store anomaly detection data.
-```
-```text
-ENV DATA_DUMP_DIR is not set. Models' training data will be stored in RAM.
-```
-
----
-
-**Scheduler and service initialization**. After configuration is successfully loaded, the service initializes [schedulers](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/) and services for each defined `scheduler_alias`. If there are issues with a specific scheduler (e.g., no models or queries found to attach to a scheduler), a warning is logged. When schedulers are initialized, the service logs a list of active schedulers. Log messages:
-
-```text
-Scheduler {{scheduler_alias}} wrapped and initialized with {{N}} model spec(s).
-```
-```text
-No model spec(s) found for scheduler `{{scheduler_alias}}`, skipping setting it up.
-```
-```text
-Active schedulers: {{list_of_schedulers}}.
-```
+- **License check**: `Please provide a license code`, `failed to read file`, and `Licensed to`.
+- **Config validation**: `Config validation failed`, `Config read failed`, and the fatal
+  `Config validation failed, shutting down`. Successful startup ends with `Config has been loaded successfully`.
+- **Model and data directory setup**: `Using ENV VMANOMALY_MODEL_DUMPS_DIR`,
+  `Using ENV VMANOMALY_DATA_DUMPS_DIR`, or their `is not set` in-memory variants. See
+  [on-disk mode](https://docs.victoriametrics.com/anomaly-detection/faq/#on-disk-mode).
+- **Scheduler and service initialization**: `Version:`, `Using process pool executor`, `Listening on`,
+  `Serving /metrics`, `Hot reload enabled`, and `Active schedulers`. `Process pool health check failed, falling
+  back to sequential mode` reports a safe runtime fallback. Per-scheduler wrapping and omitted empty schedulers are
+  `DEBUG` diagnostics.
 
 [Back to logging sections](#logs-generated-by-vmanomaly)
 
----
-
 ### Reader logs
 
-The `reader` component logs events during the process of querying VictoriaMetrics and retrieving the data necessary for anomaly detection. This includes making HTTP requests, handling SSL, parsing responses, and processing data into formats like DataFrames. The logs help to troubleshoot issues such as connection problems, timeout errors, or misconfigured queries.
+Reader logs cover endpoint checks, request splitting, network failures, response parsing, and coordination between
+queries used by the same model.
 
----
+**Starting a healthcheck request**. The reader probes each configured tenant and discovers
+`search.maxPointsPerTimeseries`. `Max points per timeseries set as` is a `DEBUG` diagnostic. A warning beginning
+`Could not get constraints` means the reader uses its built-in limit. Endpoint initialization errors identify SSL,
+connection, or timeout failures.
 
-**Starting a healthcheck request**. When the `reader` component initializes, it checks whether the VictoriaMetrics endpoint is accessible by sending a request for `_vmanomaly_healthcheck`. Log messages:
-
-```text
-[Scheduler {{scheduler_alias}}] Max points per timeseries set as: {{vm_max_datapoints_per_ts}}
-```
-```text
-[Scheduler {{scheduler_alias}}] Reader endpoint SSL error {{url}}: {{error_message}}
-```
-```text
-[Scheduler {{scheduler_alias}}] Reader endpoint inaccessible {{url}}: {{error_message}}
-```
-```text
-[Scheduler {{scheduler_alias}}] Reader endpoint timeout {{url}}: {{error_message}}
-```
-
----
-
-
-**No data found (False)**. Based on [`query_from_last_seen_timestamp`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#config-parameters) VmReader flag. A `warning` log is generated when no data is found in the requested range. This could indicate that the query was misconfigured or that no new data exists for the time period requested. Log message format:
+**No data found (False)**. A fit/read range with no results uses this form, showing both local and Unix times:
 
 ```text
-[Scheduler {{scheduler_alias}}] No data between {{start_s}} and {{end_s}} for query "{{query_key}}"
+[Scheduler `SCHEDULER`] No data for query_key `QUERY` between LOCAL_START and LOCAL_END timezone TZ (START_EPOCH to END_EPOCH)
 ```
 
----
+Check the query, tenant, offsets, and selected range.
 
-**No unseen data found (True)**. Based on [`query_from_last_seen_timestamp`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#config-parameters) VmReader flag. A `warning` log is generated when no new data is returned (i.e., all data has already been seen in a previous inference step(s)). This helps in identifying situations where data for inference has already been processed. Based on VmReader's `adjust` flag. Log messages:
+**No unseen data found (True)**. An inference read whose timestamps were already processed uses:
 
 ```text
-[Scheduler {{scheduler_alias}}] No unseen data between {{start_s}} and {{end_s}} for query "{{query_key}}"
+[Scheduler `SCHEDULER`] No unseen data for query_key `QUERY` between LOCAL_START and LOCAL_END, timezone TZ (START_EPOCH to END_EPOCH)
 ```
 
----
+This can be expected for overlapping scheduler windows, UI range navigation, or retries. Investigate when it
+persists while the datasource continues receiving newer samples.
 
-**Connection or timeout errors**. When the reader fails to retrieve data due to connection or timeout errors, a `warning` log is generated. These errors could result from network issues, incorrect query endpoints, or VictoriaMetrics being temporarily unavailable. Log message format:
+**Connection or timeout errors**. `Error querying URL for QUERY with PARAMS` includes the effective endpoint,
+query alias, request parameters, and nested SSL, connection, timeout, or I/O reason. The corresponding
+`vmanomaly_reader_responses` code is `ssl_error`, `connection_error`, `timeout`, or `io_error`.
 
-```text
-[Scheduler {{scheduler_alias}}] Error querying {{query_key}} for {{url}}: {{error_message}}
-```
+At `DEBUG`, reader request lines start with `[Scheduler ...] GET` or `OPTIONS` and show the effective URL;
+token query parameters are redacted. `Cancellation requested for query` records cooperative cancellation.
+`Failed queries detected`, `Timeout waiting for queries`, and `Auto-marking pending queries as failed` identify
+coordination failures for related query sets.
 
----
+**Max datapoints warning**. `Query "QUERY" from START to END with step ... may exceed max datapoints per
+timeseries (LIMIT)` means the range will be split{{% available_from "v1.14.1" anomaly %}}. The message reports the
+effective limit and suggests reducing the range, increasing the step, or raising
+`search.maxPointsPerTimeseries`. A `DEBUG` message reports the resulting interval count.
 
-**Max datapoints warning**. If the requested query range (defined by `fit_every` or `infer_every` [scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#parameters-1) args) exceeds the maximum number of datapoints allowed by VictoriaMetrics, a `warning` log is generated, and the request is split into multiple intervals{{% available_from "v1.14.1" anomaly %}}. This ensures that the request does not violate VictoriaMetrics’ constraints. Log messages:
+**Multi-tenancy warnings**. Messages starting with `The label vm_account_id was not found` indicate that a
+multitenant query lost routing labels. Preserve `vm_account_id` and `vm_project_id` through query aggregation; see
+[multitenancy support](https://docs.victoriametrics.com/anomaly-detection/components/writer/#multitenancy-support).
 
-```text
-[Scheduler {{scheduler_alias}}] Query "{{query_key}}" from {{start_s}} to {{end_s}} with step {{step}} may exceed max datapoints per timeseries and will be split...
-```
-
----
-
-**Multi-tenancy warnings**. If the reader detects any issues related to missing or misconfigured multi-tenancy labels (a `warning` log{{% available_from "v1.16.2" anomaly %}} is generated to indicate the issue. See additional details [here](https://docs.victoriametrics.com/anomaly-detection/components/writer/#multitenancy-support). Log message format:
-
-```text
-The label vm_account_id was not found in the label set of {{query_key}}, but tenant_id='multitenant' is set in reader configuration...
-```
-
----
-
-**Metrics updated in read operations**. During successful query execution process, the following reader [self-monitoring metrics](#reader-behaviour-metrics) are updated:
-
-- `vmanomaly_reader_request_duration_seconds`: Records the time (in seconds) taken to complete the query request.
-  
-- `vmanomaly_reader_responses`: Tracks the number of response codes received from VictoriaMetrics.
-
-- `vmanomaly_reader_received_bytes`: Counts the number of bytes received in the response.
-
-- `vmanomaly_reader_response_parsing_seconds`: Records the time spent parsing the response into different formats (e.g., JSON or DataFrame).
-
-- `vmanomaly_reader_timeseries_received`: Tracks how many timeseries were retrieved in the query result.
-
-- `vmanomaly_reader_datapoints_received`: Counts the number of datapoints retrieved in the query result.
-
----
-
-**Metrics skipped in case of failures**. If an error occurs (connection or timeout), `vmanomaly_reader_received_bytes`, `vmanomaly_reader_timeseries_received`, and `vmanomaly_reader_datapoints_received` are not incremented because no valid data was received.
+**Metrics updated in read operations**. Requests update duration and response-code metrics even on handled
+failures. Bytes, time series, datapoints, and parsing durations are recorded only when those values were received
+or parsed. See [reader behaviour metrics](#reader-behaviour-metrics).
 
 [Back to logging sections](#logs-generated-by-vmanomaly)
 
 ### Service logs
 
-The `model` component (wrapped in service) logs operations during the fitting and inference stages for each model spec attached to particular [scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/) `scheduler_alias`. These logs inform about skipped runs, connection or timeout issues, invalid data points, and successful or failed model operations.
+The service logs `fit`, `infer`, and combined `fit_infer`/backtesting work for each model alias and scheduler.
+The `query_key` value may be a composite key containing source labels and an internal hash, rather than only the
+configured query alias.
 
----
+**Skipped runs**. Warnings start with `Skipping run for stage 'STAGE' for model 'MODEL'`. Common reasons are no
+fit or inference partition, no data to infer, no unseen valid data, a missing model instance or on-disk model, an
+unsupported exact-batch path, or no valid output. The service attempts fitting when at least one valid row exists;
+individual models may require more history and report their own error. Skips increment
+`vmanomaly_model_runs_skipped`.
 
-**Skipped runs**. When there are insufficient valid data points to fit or infer using a model, the run is skipped and a `warning` log is generated. This can occur when the query returns no new data or when the data contains invalid values (e.g., `NaN`, `INF`). The skipped run is also reflected in the `vmanomaly_model_runs_skipped` metric. Log messages:
+**Errors during model execution**. Errors start with `Error during stage 'STAGE' for model 'MODEL'` and include
+the composite query key and exception. They increment `vmanomaly_model_run_errors`.
 
-When there are insufficient valid data points (at least 1 for [online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models) and 2 for [offline models](https://docs.victoriametrics.com/anomaly-detection/components/models/#offline-models))
-```text
-[Scheduler {{scheduler_alias}}] Skipping run for stage 'fit' for model '{{model_alias}}' (query_key: {{query_key}}): Not enough valid data to fit: {{valid_values_cnt}}
-```
+**Model instance created during inference**. `Model instance 'MODEL' created ... during inference` is a `DEBUG`
+message for an online model cold start{{% available_from "v1.15.2" anomaly %}}.
 
-When all the received timestamps during an `infer` call have already been processed, meaning the [`anomaly_score`](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score) has already been produced for those points
-```text
-[Scheduler {{scheduler_alias}}] Skipping run for stage 'infer' for model '{{model_alias}}' (query_key: {{query_key}}): No unseen data to infer on.
-```
-When the model fails to produce any valid or finite outputs (such as [`anomaly_score`](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score))
-```text
-[Scheduler {{scheduler_alias}}] Skipping run for stage 'infer' for model '{{model_alias}}' (query_key: {{query_key}}): No (valid) datapoints produced.
-```
+**Successful model runs**. `Fitting on VALID/TOTAL valid datapoints` is emitted at `INFO`. At `DEBUG`,
+`Model ... fit completed`, `Inference ran in`, and `Fit-Infer ran in` report stage duration. Combined
+`fit_infer` is used by applicable backtesting/scheduler execution and is not a separate “rolling model” class.
 
----
-
-**Errors during model execution**. If the model fails to fit or infer data due to internal service errors or model spec misconfigurations, an `error` log is generated and the error is also reflected in the `vmanomaly_model_run_errors` metric. This can occur during both `fit` and `infer` stages. Log messages:
-```text
-[Scheduler {{scheduler_alias}}] Error during stage 'fit' for model '{{model_alias}}' (query_key: {{query_key}}): {{error_message}}
-```
-```text
-[Scheduler {{scheduler_alias}}] Error during stage 'infer' for model '{{model_alias}}' (query_key: {{query_key}}): {{error_message}}
-```
-
----
-
-**Model instance created during inference**. In cases where an [online model](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models) instance is created during the inference stage (without a prior fit{{% available_from "v1.15.2" anomaly %}}), a `debug` log is produced. This helps track models that are created dynamically based on incoming data. Log messages:
-
-```text
-[Scheduler {{scheduler_alias}}] Model instance '{{model_alias}}' created for '{{query_key}}' during inference.
-```
----
-
-**Successful model runs**. When a model successfully fits, logs track the number of valid datapoints processed and the time taken for the operation. These logs are accompanied by updates to [self-monitoring metrics](#models-behaviour-metrics) like `vmanomaly_model_runs`, `vmanomaly_model_run_duration_seconds`, `vmanomaly_model_datapoints_accepted`, and `vmanomaly_model_datapoints_produced`. Log messages:
-
-For [non-rolling models](https://docs.victoriametrics.com/anomaly-detection/components/models/#non-rolling-models)
-```text
-[Scheduler {{scheduler_alias}}] Fitting on {{valid_values_cnt}}/{{total_values_cnt}} valid datapoints for "{{query_key}}" using model "{{model_alias}}".
-```
-```text
-[Scheduler {{scheduler_alias}}] Model '{{model_alias}}' fit completed in {{model_run_duration}} seconds for {{query_key}}.
-```
-For [rolling models](https://docs.victoriametrics.com/anomaly-detection/components/models/#rolling-models) (combined stage)
-```text
-[Scheduler {{scheduler_alias}}] Fit-Infer on {{datapoint_count}} points for "{{query_key}}" using model "{{model_alias}}".
-```
-
----
-
-**Metrics updated in model runs**. During successful fit or infer operations, the following [self-monitoring metrics](#models-behaviour-metrics) are updated for each run:
-
-- `vmanomaly_model_runs`: Tracks how many times the model ran (`fit`, `infer`, or `fit_infer`) for a specific `query_key`.
-
-- `vmanomaly_model_run_duration_seconds`: Records the total time (in seconds) for the model invocation, based on the results of the `query_key`.
-
-- `vmanomaly_model_datapoints_accepted`: The number of valid datapoints processed by the model during the run.
-
-- `vmanomaly_model_datapoints_produced`: The number of datapoints generated by the model during inference.
-
-- `vmanomaly_models_active`: Tracks the number of models currently **available for infer** for a specific `query_key`.
-
----
-
-**Metrics skipped in case of failures**. If a model run fails due to an error or if no valid data is available, the metrics such as `vmanomaly_model_datapoints_accepted`, `vmanomaly_model_datapoints_produced`, and `vmanomaly_model_run_duration_seconds` are not updated.
-
----
+**Metrics updated in model runs**. Successful stages update runs, duration, accepted/produced datapoints, and
+active-model gauges. Skips and failures update their respective counters; success-only values are not recorded for
+an unsuccessful stage. See [models behaviour metrics](#models-behaviour-metrics).
 
 [Back to logging sections](#logs-generated-by-vmanomaly)
 
 ### Writer logs
 
-The `writer` component logs events during the process of sending produced data (like `anomaly_score` [metrics](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score)) to VictoriaMetrics. This includes data preparation, serialization, and network requests to VictoriaMetrics endpoints. The logs can help identify issues in data transmission, such as connection errors, invalid data points, and track the performance of write requests.
+Writer logs cover serialization and delivery of produced series such as
+[`anomaly_score`](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score).
 
----
+**Starting a write request**. At `DEBUG`, `[Scheduler ...] POST URL with N datapoints, M bytes of payload`
+includes the composite query key and dataframe shape.
 
-**Starting a write request**. A `debug` level log is produced when the `writer` component starts the process of writing data to VictoriaMetrics. It includes details like the number of datapoints, bytes of payload, and the query being written. This is useful for tracking the payload size and performance at the start of the request. Log messages:
+**No valid data points**. `No valid datapoints to save for metric` includes the query key and original dataframe
+shape; no request is sent.
 
-```text
-[Scheduler {{scheduler_alias}}] POST {{url}} with {{N}} datapoints, {{M}} bytes of payload, for {{query_key}}
-```
+**Connection, timeout, or I/O errors**. `Cannot write N points for QUERY` ends with an SSL, connection, timeout,
+or I/O reason. A retriable connection failure first emits `Connection error while writing ... reinitializing
+session and retrying`; the final failed attempt is logged as an error.
 
----
+**Multi-tenancy warnings**. `The label vm_account_id was not found` means a `multitenant` writer will fall back to
+tenant `0:0`. `The label set for the metric ... contains multi-tenancy labels` means labels disagree with the
+configured single tenant. Preserve or align tenant labels and `writer.tenant_id`; see
+[multitenancy support](https://docs.victoriametrics.com/anomaly-detection/components/writer/#multitenancy-support).
 
-**No valid data points**. A `warning` log is generated if there are no valid datapoints to write (i.e., all are `NaN` or unsupported like `INF`). This indicates that the writer will not send any data to VictoriaMetrics. Log messages:
+**Metrics updated in write operations**. Request duration is observed for successful and handled failed requests.
+`vmanomaly_writer_responses` records the HTTP status or `ssl_error`, `connection_error`, `timeout`, or `io_error`.
+Serialization duration and prepared time-series count may already be recorded before a failed request; sent bytes
+and datapoints are recorded only after a successful response. See [writer behaviour metrics](#writer-behaviour-metrics).
 
-```text
-[Scheduler {{scheduler_alias}}] No valid datapoints to save for metric: {{query_key}}
-```
+[Back to logging sections](#logs-generated-by-vmanomaly)
 
----
+### Scheduler supervision logs
 
-**Connection, timeout, or I/O errors**. When the writer fails to send data due to connection, timeout, or I/O errors, an `error` log is generated. These errors often arise from network problems, incorrect URLs, or VictoriaMetrics being unavailable. The log includes details of the failed request and the reason for the failure. Log messages:
+Scheduler supervision{{% available_from "v1.30.0" anomaly %}} logs a dead worker, automatic restart, successful
+recovery, failed-attempt backoff, and removal after the retry limit. Stable prefixes include `Scheduler ... is not
+alive`, `Scheduler ... restarted successfully`, `restart attempt ... failed`, and `reached max restart attempts`.
+Correlate them with `vmanomaly_scheduler_alive` and `vmanomaly_scheduler_restarts_total`.
 
-```text
-[Scheduler {{scheduler_alias}}] Cannot write {{N}} points for {{query_key}}: connection error {{url}} {{error_message}}
-```
-```text
-[Scheduler {{scheduler_alias}}] Cannot write {{N}} points for {{query_key}}: timeout for {{url}} {{error_message}}
-```
-```text
-[Scheduler {{scheduler_alias}}] Cannot write {{N}} points for {{query_key}}: I/O error for {{url}} {{error_message}}
-```
+[Back to logging sections](#logs-generated-by-vmanomaly)
 
----
+### Hot-reload logs
 
-**Multi-tenancy warnings**. If the `tenant_id` is set to `multitenant` but the `vm_account_id` label is missing from the query result, or vice versa, a `warning` log is produced{{% available_from "v1.16.2" anomaly %}}. This helps in debugging label set issues that may occur due to the multi-tenant configuration - see [this section for details](https://docs.victoriametrics.com/anomaly-detection/components/writer/#multitenancy-support). Log messages:
+Hot reload logs config-change detection, validation, staged service restart, success, and rollback. `Reload aborted
+– invalid config` keeps the current runtime unchanged; `Reload apply failed; attempting rollback` starts recovery.
+`Rollback failed` is critical and requests shutdown. A logger-only change emits `Applied component log level changes
+without restarting services`.
 
-```text
-The label vm_account_id was not found in the label set of {{query_key}}, but tenant_id='multitenant' is set in writer...
-```
-```text
-The label set for the metric {{query_key}} contains multi-tenancy labels, but the write endpoint is configured for single-tenant mode (tenant_id != 'multitenant')...
-```
+[Back to logging sections](#logs-generated-by-vmanomaly)
 
----
+### Persisted-state logs
 
-**Metrics updated in write operations**. During the successful write process of *non-empty data*, the following [self-monitoring metrics](#writer-behaviour-metrics) are updated:
+With `settings.restore_state`, startup logs the stored/runtime version assessment, reusable components, required
+model or reader-data purges, and restored jobs/services. `Persisted state is incompatible` followed by `Dropping
+stored artifacts completely` indicates a full reset; missing or unreadable model files are reported separately.
 
-- `vmanomaly_writer_request_duration_seconds`: Records the time (in seconds) taken to complete the write request.
+[Back to logging sections](#logs-generated-by-vmanomaly)
 
-- `vmanomaly_writer_sent_bytes`: Tracks the number of bytes sent in the request.
+### Query server and task logs
 
-- `vmanomaly_writer_responses`: Captures the HTTP response code returned by VictoriaMetrics. In case of connection, timeout, or I/O errors, a specific error code (`connection_error`, `timeout`, or `io_error`) is recorded instead.
+The query server logs its listening address and datasource-proxy timeouts/failures. Background anomaly-detection
+and autotune failures use `Error in task` and `Error in autotune task`; canceled client requests may still leave a
+background raw query finishing cleanly.
 
-- `vmanomaly_writer_request_serialize_seconds`: Records the time taken for data serialization.
+[Back to logging sections](#logs-generated-by-vmanomaly)
 
-- `vmanomaly_writer_datapoints_sent`: Counts the number of valid datapoints that were successfully sent.
+### AI Copilot logs
 
-- `vmanomaly_writer_timeseries_sent`: Tracks the number of timeseries sent to VictoriaMetrics.
-
-**Metrics skipped in case of failures**. If an error occurs (connection, timeout, or I/O error), only `vmanomaly_writer_request_duration_seconds` is updated with appropriate error code. 
+AI Copilot{{% available_from "v1.30.0" anomaly %}} reports whether it is initialized, disabled, misconfigured, or
+unable to mount. `Invalid Copilot request state` identifies an incomplete/canceled tool-call history, `Copilot
+request failed` identifies provider execution failure, and `MCP server unreachable` identifies unavailable MCP
+guidance tools.
 
 [Back to logging sections](#logs-generated-by-vmanomaly)
