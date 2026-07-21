@@ -36,7 +36,7 @@ var (
 		"This can be useful for limiting ingestion of historical samples, for example, when older data has been moved to another storage tier. "+
 		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention")
 	vmselectAddr = flag.String("vmselectAddr", "", "TCP address to listen for incoming connections from vmselect. "+
-		"When set, this node accepts vmselect Clusternative RPC requests, enabling it to serve as a vmstorage node in VictoriaMetrics cluster. "+
+		"When set, the node will be able to accept cluster-native vmselect RPC requests as if it were vmstorage. "+
 		"The tenant ID assigned to this node's data is controlled by -accountID and -projectID flags. "+
 		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#multi-tenancy")
 	vmselectDisableRPCCompression = flag.Bool("rpc.disableCompression", false, "Whether to disable compression of the data sent from vmstorage to vmselect. "+
