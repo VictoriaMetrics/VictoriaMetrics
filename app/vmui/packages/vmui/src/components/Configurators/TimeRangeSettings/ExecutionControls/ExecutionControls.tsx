@@ -1,4 +1,4 @@
-import { FC, useEffect, useRef, useState } from "preact/compat";
+import { FC, useEffect, useRef } from "preact/compat";
 import { useTimeDispatch } from "../../../../state/time/TimeStateContext";
 import { getAppModeEnable } from "../../../../utils/app-mode";
 import Button from "../../../Main/Button/Button";
@@ -9,26 +9,37 @@ import classNames from "classnames";
 import Tooltip from "../../../Main/Tooltip/Tooltip";
 import useDeviceDetect from "../../../../hooks/useDeviceDetect";
 import useBoolean from "../../../../hooks/useBoolean";
+import { getMillisecondsFromDuration } from "../../../../utils/time";
+import { useSearchParams } from "react-router";
 
-interface AutoRefreshOption {
-  seconds: number
-  title: string
-}
-
-const delayOptions: AutoRefreshOption[] = [
-  { seconds: 0, title: "Off" },
-  { seconds: 1, title: "1s" },
-  { seconds: 2, title: "2s" },
-  { seconds: 5, title: "5s" },
-  { seconds: 10, title: "10s" },
-  { seconds: 30, title: "30s" },
-  { seconds: 60, title: "1m" },
-  { seconds: 300, title: "5m" },
-  { seconds: 900, title: "15m" },
-  { seconds: 1800, title: "30m" },
-  { seconds: 3600, title: "1h" },
-  { seconds: 7200, title: "2h" }
+const delayOptions = [
+  "Off",
+  "1s",
+  "2s",
+  "5s",
+  "10s",
+  "30s",
+  "1m",
+  "5m",
+  "15m",
+  "30m",
+  "1h",
+  "2h"
 ];
+
+const DEFAULT_OPTION = delayOptions[0];
+
+const MIN_REFRESH_MS = 1000;
+const MAX_REFRESH_MS = getMillisecondsFromDuration(delayOptions[delayOptions.length - 1]);
+const REFRESH_URL_PARAM = "refresh";
+
+const durationToMs = (dur: string | null) => {
+  return dur ? getMillisecondsFromDuration(dur) : 0;
+};
+
+const isValidDelay = (ms: number) => {
+  return ms >= MIN_REFRESH_MS && ms <= MAX_REFRESH_MS;
+};
 
 interface ExecutionControlsProps {
   tooltip: string;
@@ -38,12 +49,14 @@ interface ExecutionControlsProps {
 
 export const ExecutionControls: FC<ExecutionControlsProps> = ({ tooltip, useAutorefresh, closeModal }) => {
   const { isMobile } = useDeviceDetect();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const dispatch = useTimeDispatch();
   const appModeEnable = getAppModeEnable();
-  const [autoRefresh, setAutoRefresh] = useState(false);
 
-  const [selectedDelay, setSelectedDelay] = useState<AutoRefreshOption>(delayOptions[0]);
+  const rawDelay = searchParams.get(REFRESH_URL_PARAM);
+  const msDelay = durationToMs(rawDelay);
+  const selectedDelay = isValidDelay(msDelay) ? rawDelay : DEFAULT_OPTION;
 
   const {
     value: openOptions,
@@ -52,11 +65,20 @@ export const ExecutionControls: FC<ExecutionControlsProps> = ({ tooltip, useAuto
   } = useBoolean(false);
   const optionsButtonRef = useRef<HTMLDivElement>(null);
 
-  const handleChange = (d: AutoRefreshOption) => {
-    if ((autoRefresh && !d.seconds) || (!autoRefresh && d.seconds)) {
-      setAutoRefresh(prev => !prev);
-    }
-    setSelectedDelay(d);
+  const handleChange = (dur: string) => () => {
+    setSearchParams(prev => {
+      const nextParams = new URLSearchParams(prev);
+      const ms = durationToMs(dur);
+
+      if (ms) {
+        nextParams.set(REFRESH_URL_PARAM, `${dur}`);
+      } else {
+        nextParams.delete(REFRESH_URL_PARAM);
+      }
+
+      return nextParams;
+    });
+
     handleCloseOptions();
   };
 
@@ -68,23 +90,19 @@ export const ExecutionControls: FC<ExecutionControlsProps> = ({ tooltip, useAuto
   };
 
   useEffect(() => {
-    const delay = selectedDelay.seconds;
+    const ms = durationToMs(selectedDelay);
     let timer: number;
-    if (autoRefresh) {
+
+    if (useAutorefresh && isValidDelay(ms)) {
       timer = setInterval(() => {
         dispatch({ type: "RUN_QUERY" });
-      }, delay * 1000) as unknown as number;
-    } else {
-      setSelectedDelay(delayOptions[0]);
+      }, ms) as unknown as number;
     }
-    return () => {
-      timer && clearInterval(timer);
-    };
-  }, [selectedDelay, autoRefresh]);
 
-  const createHandlerChange = (d: AutoRefreshOption) => () => {
-    handleChange(d);
-  };
+    return () => {
+      clearInterval(timer);
+    };
+  }, [selectedDelay, useAutorefresh]);
 
   return (
     <>
@@ -106,7 +124,7 @@ export const ExecutionControls: FC<ExecutionControlsProps> = ({ tooltip, useAuto
                 <span className="vm-mobile-option__icon"><RestartIcon/></span>
                 <div className="vm-mobile-option-text">
                   <span className="vm-mobile-option-text__label">Auto-refresh</span>
-                  <span className="vm-mobile-option-text__value">{selectedDelay.title}</span>
+                  <span className="vm-mobile-option-text__value">{selectedDelay}</span>
                 </div>
                 <span className="vm-mobile-option__arrow"><ArrowDownIcon/></span>
               </div>
@@ -139,7 +157,7 @@ export const ExecutionControls: FC<ExecutionControlsProps> = ({ tooltip, useAuto
                       )}
                       onClick={toggleOpenOptions}
                     >
-                      {selectedDelay.title}
+                      {selectedDelay}
                     </Button>
                   </div>
                 </Tooltip>
@@ -187,12 +205,12 @@ export const ExecutionControls: FC<ExecutionControlsProps> = ({ tooltip, useAuto
                 className={classNames({
                   "vm-list-item": true,
                   "vm-list-item_mobile": isMobile,
-                  "vm-list-item_active": d.seconds === selectedDelay.seconds
+                  "vm-list-item_active": d === selectedDelay
                 })}
-                key={d.seconds}
-                onClick={createHandlerChange(d)}
+                key={d}
+                onClick={handleChange(d)}
               >
-                {d.title}
+                {d}
               </div>
             ))}
           </div>
