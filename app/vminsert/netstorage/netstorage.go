@@ -31,7 +31,7 @@ var (
 	replicationFactor  = flag.Int("replicationFactor", 1, "Replication factor for the ingested data, i.e. how many copies to make among distinct -storageNode instances. "+
 		"Note that vmselect must run with -dedup.minScrapeInterval=1ms for data de-duplication when replicationFactor is greater than 1. "+
 		"Higher values for -dedup.minScrapeInterval at vmselect is OK")
-	disableRerouting      = flag.Bool("disableRerouting", true, "Whether to disable re-routing when some of vmstorage nodes accept incoming data at slower speed compared to other storage nodes. Disabled re-routing limits the ingestion rate by the slowest vmstorage node. On the other side, disabled re-routing minimizes the number of active time series in the cluster during rolling restarts and during spikes in series churn rate. See also -disableReroutingOnUnavailable and -dropSamplesOnOverload")
+	disableRerouting      = flag.Bool("disableRerouting", false, "Whether to disable re-routing when some of vmstorage nodes accept incoming data at slower speed compared to other storage nodes. Disabled re-routing limits the ingestion rate by the slowest vmstorage node. On the other side, disabled re-routing minimizes the number of active time series in the cluster during rolling restarts and during spikes in series churn rate. See also -disableReroutingOnUnavailable and -dropSamplesOnOverload")
 	dropSamplesOnOverload = flag.Bool("dropSamplesOnOverload", false, "Whether to drop incoming samples if the destination vmstorage node is overloaded and/or unavailable. This prioritizes cluster availability over consistency, e.g. the cluster continues accepting all the ingested samples, but some of them may be dropped if vmstorage nodes are temporarily unavailable and/or overloaded. The drop of samples happens before the replication, so it's not recommended to use this flag with -replicationFactor enabled.")
 	vmstorageDialTimeout  = flag.Duration("vmstorageDialTimeout", 3*time.Second, "Timeout for establishing RPC connections from vminsert to vmstorage. "+
 		"See also -vmstorageUserTimeout")
@@ -127,7 +127,7 @@ again:
 		return nil
 	}
 	// Slow path: the buf contents doesn't fit sn.buf, so try re-routing it to other vmstorage nodes.
-	if !allowRerouting(sn, sns) {
+	if !allowSlownessRerouting(sn, sns) {
 		sn.brCond.Wait()
 		goto again
 	}
@@ -472,7 +472,7 @@ type storageNode struct {
 	rowsDroppedOnUnsupportedRPC *metrics.Counter
 
 	// avgSaturation tracks the moving average of (send duration / (now - lastSendTime)).
-	// Updated in run(). Used by allowRerouting to decide when to trigger slowness-based rerouting.
+	// Updated in run(). Used by allowSlownessRerouting to decide when to trigger slowness-based rerouting.
 	avgSaturation *variableEWMA
 	lastSendTime  time.Time
 }
@@ -512,12 +512,31 @@ func setStorageNodesBucket(snb *storageNodesBucket) {
 	storageNodes.Store(snb)
 }
 
+// enableSlownessRerouting holds the effective slowness rerouting state computed at Init time.
+// See initSlownessRerouting for the computation logic
+var enableSlownessRerouting bool
+
+// initSlownessRerouting computes and stores the effective value of enableSlownessRerouting.
+// It keeps the -disableRerouting flag value when replicationFactor == 1,
+// and forces rerouting to be disabled when replicationFactor > 1.
+func initSlownessRerouting() {
+	if *replicationFactor > 1 {
+		if !*disableRerouting {
+			logger.Warnf("disabling slowness rerouting (controlled by -disableRerouting) because replicationFactor=%d > 1; slowness rerouting is incompatible with replication and may cause data inconsistencies or even loss", *replicationFactor)
+		}
+		enableSlownessRerouting = false
+		return
+	}
+	enableSlownessRerouting = !*disableRerouting
+}
+
 // Init initializes vmstorage nodes' connections to the given addrs.
 //
 // hashSeed is used for changing the distribution of input time series among addrs.
 //
 // Call MustStop when the initialized vmstorage connections are no longer needed.
 func Init(addrs []string, hashSeed uint64) {
+	initSlownessRerouting()
 	snb := initStorageNodes(addrs, vminsertapi.MetricRowsRpcCall, hashSeed)
 	setStorageNodesBucket(snb)
 	metadataSnb := initStorageNodes(addrs, vminsertapi.MetricMetadataRpcCall, hashSeed)
@@ -705,7 +724,7 @@ func rerouteRowsToReadyStorageNodes(snb *storageNodesBucket, snSource *storageNo
 			// re-generate idxsExclude list, since sn must be put there.
 			idxsExclude = getNotReadyStorageNodeIdxsBlocking(snb, idxsExclude[:0])
 		}
-		if *disableRerouting {
+		if !enableSlownessRerouting {
 			if !sn.sendBufMayBlock(rowBuf) {
 				return rowsProcessed, fmt.Errorf("graceful shutdown started")
 			}
@@ -744,16 +763,16 @@ func rerouteRowsToReadyStorageNodes(snb *storageNodesBucket, snSource *storageNo
 	return rowsProcessed, nil
 }
 
-var reroutingLogger = logger.WithThrottler("allowRerouting", 5*time.Second)
+var reroutingLogger = logger.WithThrottler("allowSlownessRerouting", 5*time.Second)
 
-// allowRerouting determines whether data should be rerouted from snSource to other storage nodes (sns)
+// allowSlownessRerouting determines whether data should be rerouted from snSource to other storage nodes (sns)
 // based on performance metrics.
 //
 // It returns true only when snSource is the slowest node in the cluster
 // and significantly slower than the cluster on average.
 // See the comments below for detailed conditions.
-func allowRerouting(snSource *storageNode, sns []*storageNode) bool {
-	if *disableRerouting {
+func allowSlownessRerouting(snSource *storageNode, sns []*storageNode) bool {
+	if !enableSlownessRerouting {
 		return false
 	}
 
@@ -814,7 +833,7 @@ func allowRerouting(snSource *storageNode, sns []*storageNode) bool {
 // It is expected than *disableRerouting isn't set when calling this function.
 // It is expected that len(snb.sns) >= 2
 func rerouteRowsToFreeStorageNodes(snb *storageNodesBucket, snSource *storageNode, src []byte, getRowHasher func() rowHasher) (int, error) {
-	if *disableRerouting {
+	if !enableSlownessRerouting {
 		logger.Panicf("BUG: disableRerouting must be disabled when calling rerouteRowsToFreeStorageNodes")
 	}
 

@@ -26,7 +26,10 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+**Update Note 1:** `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): the default value of `-disableRerouting` flag has changed from `true` to `false`, enabling [slowness-based re-routing](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#slowness-based-re-routing) by default. Slowness re-routing is automatically disabled when `-replicationFactor` is greater than 1. If you rely on the old behavior, pass `-disableRerouting` command-line flag to `vminsert`. See [#11287](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11287).
+
 * FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): add `name` label identifying the corresponding `-remoteWrite.url` target to the `vm_persistentqueue_*` metrics exposed by persistent queue. See [#7944](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7944). Thanks to @tIGO for contribution.
+* FEATURE: `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): enable [slowness-based re-routing](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#slowness-based-re-routing) by default. Previously, `-disableRerouting` defaulted to `true`, which limited ingestion throughput to the slowest `vmstorage` node. Now `-disableRerouting` defaults to `false`, so `vminsert` automatically routes data away from the slowest `vmstorage` node, improving overall ingestion performance. Slowness re-routing is automatically disabled when `-replicationFactor` is greater than 1. See [#11287](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11287).
 
 ## [v1.148.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.148.0)
 
