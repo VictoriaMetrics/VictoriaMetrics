@@ -26,7 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
-* FEATURE: [dashboards](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/dashboards): add ``Fsync avg duration` panel to the Troubleshooting section of the single-node, cluster, and vmagent dashboards. This panel surfaces `vm_filestream_fsync_*` metrics for faster incident triage. See [#10432](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10432).
+* FEATURE: [dashboards](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/dashboards): add `Fsync avg duration` panel to the Troubleshooting section of the single-node, cluster, and vmagent dashboards. This panel surfaces degradation of IO operation for faster incident triage. See [#10432](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10432).
 
 ## [v1.148.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.148.0)
 
