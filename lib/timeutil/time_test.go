@@ -78,6 +78,8 @@ func TestTryParseUnixTimestamp_Success(t *testing.T) {
 	f("-1.784144612388e9", -1784144612388000000)
 	f("1.5000000005e9", 1500000000500000000) // == 1500000000.5
 	f("1.23456789e9", 1234567890000000000)   // exponent consumes all frac digits (integer result)
+	f("1.23e1", 12300000000000)              // == 12.3
+	f("1.234e0", 1234000000000)              // == 1.234
 }
 
 func TestTryParseUnixTimestamp_Failure(t *testing.T) {
@@ -124,9 +126,7 @@ func TestTryParseUnixTimestamp_Failure(t *testing.T) {
 	f("1e19")
 	f("1.3e123456789090123")
 
-	// too small decimal exponent
-	f("1.23e1")
-	f("1.234e0")
+	// negative decimal exponent
 	f("1E-1")
 	f("1.3e-123456789090123")
 }

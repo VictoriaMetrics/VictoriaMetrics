@@ -206,6 +206,12 @@ func tryParseScientificNumberForUnixTimestamp(s string, decimalExp int64) (int64
 		return multiplyByDecimalExp(n, decimalExp)
 	}
 
+	if decimalExp < 0 {
+		// Negative exponents on a fractional mantissa are intentionally not
+		// supported. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11268
+		return 0, false
+	}
+
 	intStr := s[:dotIdx]
 	fracStr := s[dotIdx+1:]
 	n, ok := tryParseFractionalNumberForUnixTimestamp(intStr, fracStr)
@@ -218,18 +224,9 @@ func tryParseScientificNumberForUnixTimestamp(s string, decimalExp int64) (int64
 		decimalExp -= int64(len(fracStr))
 		return multiplyByDecimalExp(n, decimalExp)
 	}
-	if decimalExp < 0 {
-		// Negative exponents on a fractional mantissa are intentionally not
-		// supported. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11268
-		return 0, false
-	}
 
-	// 0 <= decimalExp < len(fracStr): the exponent leaves sub-second fractional
-	// digits, e.g. 1.784144612388E9 == 1784144612.388. n already holds the
-	// mantissa with the decimal point removed; the number of remaining fractional
-	// digits is len(fracStr)-decimalExp. Pad n up to the next milli/micro/nano
-	// boundary so getUnixTimestampNanoseconds classifies its unit correctly, the
-	// same way the equivalent plain fractional timestamp is parsed above.
+	// The exponent leaves fractional digits, e.g. 1.784144612388E9 == 1784144612.388
+	// Pad n as plain fractional timestamps do.
 	fracDigits := int64(len(fracStr)) - decimalExp
 	for fracDigits%3 != 0 {
 		if n >= 0 && n > math.MaxInt64/10 || n < 0 && n < math.MinInt64/10 {
@@ -237,13 +234,6 @@ func tryParseScientificNumberForUnixTimestamp(s string, decimalExp int64) (int64
 		}
 		n *= 10
 		fracDigits++
-	}
-
-	// Only accept sub-second timestamps large enough to be milliseconds or finer.
-	// Smaller scientific values (e.g. 1.23e1) stay unsupported as before, so they
-	// aren't silently misinterpreted as second-scale timestamps.
-	if n >= minValidSecond && n <= maxValidSecond {
-		return 0, false
 	}
 	return n, true
 }
