@@ -100,6 +100,10 @@ export const getSecondsFromDuration = (dur: string) => {
   return dayjs.duration(durObject).asSeconds();
 };
 
+export const getMillisecondsFromDuration = (dur: string): number => {
+  return getSecondsFromDuration(dur) * 1000;
+};
+
 const instantQueryViews = [DisplayType.table, DisplayType.code];
 export const getStepFromDuration = (dur: number, histogram?: boolean, displayType?: DisplayType): string => {
   if (displayType && instantQueryViews.includes(displayType)) return roundStep(dur);
@@ -276,4 +280,3 @@ export const getNanoTimestamp = (dateStr: string): bigint => {
   // Return the full timestamp in nanoseconds as a BigInt
   return BigInt(baseMs) * 1000000n + BigInt(extraNano);
 };
-
