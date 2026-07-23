@@ -34,6 +34,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * FEATURE: [dashboards](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/dashboards): add `Fsync avg duration` panel to the Troubleshooting section of the single-node, cluster, and vmagent dashboards. This panel surfaces degradation of IO operation for faster incident triage. See [#10432](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10432).
 
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): fixed the display of rule state badges on the `Groups` page in the web UI. See [#11160](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11160).
+* BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): previously, `vmbackupmanager` was crashing on startup when it failed to restore backup state from remote storage, causing a crash loop. Now it logs the error and continues running, retrying the state restore before each scheduled backup. Added `vm_backup_errors_total{type="restoreState"}` metric to track backup state restore failures. See [#11217](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11217).
 
 ## [v1.148.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.148.0)
 
