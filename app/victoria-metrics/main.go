@@ -63,6 +63,7 @@ func main() {
 	flag.CommandLine.SetOutput(os.Stdout)
 	flag.Usage = usage
 	envflag.Parse()
+	initSecretFlags()
 	buildinfo.Init()
 	logger.Init()
 
@@ -169,4 +170,8 @@ victoria-metrics is a time series database and monitoring solution.
 See the docs at https://docs.victoriametrics.com/victoriametrics/
 `
 	flagutil.Usage(s)
+}
+
+func initSecretFlags() {
+	pushmetrics.InitSecretFlags()
 }

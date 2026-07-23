@@ -47,9 +47,8 @@ func main() {
 	// Write flags and help message to stdout, since it is easier to grep or pipe.
 	flag.CommandLine.SetOutput(os.Stdout)
 	flag.Usage = usage
-	flagutil.RegisterSecretFlag("snapshot.createURL")
-	flagutil.RegisterSecretFlag("snapshot.deleteURL")
 	envflag.Parse()
+	initSecretFlags()
 	buildinfo.Init()
 	logger.Init()
 
@@ -272,4 +271,10 @@ func newRemoteOriginFS(ctx context.Context) (common.RemoteFS, error) {
 		return nil, fmt.Errorf("cannot parse `-origin`=%q: %w", *origin, err)
 	}
 	return fs, nil
+}
+
+func initSecretFlags() {
+	flagutil.RegisterSecretFlag("snapshot.createURL")
+	flagutil.RegisterSecretFlag("snapshot.deleteURL")
+	pushmetrics.InitSecretFlags()
 }

@@ -88,10 +88,7 @@ func main() {
 	flag.CommandLine.SetOutput(os.Stdout)
 	flag.Usage = usage
 	envflag.Parse()
-	remoteread.InitSecretFlags()
-	remotewrite.InitSecretFlags()
-	datasource.InitSecretFlags()
-	notifier.InitSecretFlags()
+	initSecretFlags()
 	buildinfo.Init()
 	logger.Init()
 
@@ -437,4 +434,12 @@ func getLastConfigError() error {
 	lastConfigErrMu.RLock()
 	defer lastConfigErrMu.RUnlock()
 	return lastConfigErr
+}
+
+func initSecretFlags() {
+	remoteread.InitSecretFlags()
+	remotewrite.InitSecretFlags()
+	datasource.InitSecretFlags()
+	notifier.InitSecretFlags()
+	pushmetrics.InitSecretFlags()
 }

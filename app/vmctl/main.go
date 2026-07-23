@@ -47,6 +47,7 @@ func main() {
 	start := time.Now()
 	beforeFn := func(c *cli.Context) error {
 		flag.Parse()
+		initSecretFlags()
 		logger.Init()
 		isSilent = c.Bool(globalSilent)
 		if c.Bool(globalDisableProgressBar) {
@@ -618,4 +619,8 @@ func initConfigVM(c *cli.Context) (vm.Config, error) {
 		RateLimit:          c.Int64(vmRateLimit),
 		Backoff:            bf,
 	}, nil
+}
+
+func initSecretFlags() {
+	pushmetrics.InitSecretFlags()
 }

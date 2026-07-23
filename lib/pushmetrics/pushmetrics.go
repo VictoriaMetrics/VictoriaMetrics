@@ -24,7 +24,7 @@ var (
 	disableCompression = flag.Bool("pushmetrics.disableCompression", false, "Whether to disable request body compression when pushing metrics to every -pushmetrics.url")
 )
 
-func init() {
+func InitSecretFlags() {
 	// The -pushmetrics.url flag can contain basic auth creds, so it mustn't be visible when exposing the flags.
 	flagutil.RegisterSecretFlag("pushmetrics.url")
 }

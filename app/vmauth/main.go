@@ -96,6 +96,7 @@ func main() {
 	flag.CommandLine.SetOutput(os.Stdout)
 	flag.Usage = usage
 	envflag.Parse()
+	initSecretFlags()
 	buildinfo.Init()
 	logger.Init()
 
@@ -910,4 +911,8 @@ func slowdownUnauthorizedResponse(r *http.Request) {
 	case <-r.Context().Done():
 	}
 	timerpool.Put(t)
+}
+
+func initSecretFlags() {
+	pushmetrics.InitSecretFlags()
 }
