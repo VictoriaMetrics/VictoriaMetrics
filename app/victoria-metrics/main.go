@@ -174,4 +174,5 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/
 
 func initSecretFlags() {
 	pushmetrics.InitSecretFlags()
+	vmselect.InitSecretFlags()
 }

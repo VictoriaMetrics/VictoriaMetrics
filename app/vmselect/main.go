@@ -59,6 +59,10 @@ func Init(vmselectMaxConcurrentRequests int, vmselectMaxQueueDuration time.Durat
 	initVMUIConfig()
 
 	vmalertproxy.Init(*vmalertProxyURL)
+
+}
+
+func InitSecretFlags() {
 	flagutil.RegisterSecretFlag("vmalert.proxyURL")
 }
 
