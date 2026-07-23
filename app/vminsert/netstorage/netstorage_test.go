@@ -59,10 +59,11 @@ func TestAllowRerouting(t *testing.T) {
 
 		snSource := sns[snSourceIdx]
 
-		actual := allowRerouting(snSource, sns)
+		initSlownessRerouting()
+		actual := allowSlownessRerouting(snSource, sns)
 
 		if actual != expected {
-			t.Errorf("unexpected allowRerouting result for snSourceIdx=%d from %d storages; got %v; want %v", snSourceIdx, len(sns), actual, expected)
+			t.Errorf("unexpected allowSlownessRerouting result for snSourceIdx=%d from %d storages; got %v; want %v", snSourceIdx, len(sns), actual, expected)
 		}
 	}
 
