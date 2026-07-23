@@ -829,12 +829,9 @@ See also [minimum downtime strategy](#minimum-downtime-strategy).
 
 ## Slowness-based re-routing
 
-By default, `vminsert` nodes limit the cluster's overall ingestion rate to the throughput of the slowest `vmstorage` node. 
-This ensures that incoming metrics are evenly distributed across all `vmstorage` nodes. 
-The downside is that a single slow vmstorage node can throttle the entire cluster.
-
-When `-disableRerouting=false` is enabled on `vminsert`, 
-the cluster will automatically re-route writes away from the slowest vmstorage node to preserve maximum ingestion throughput.
+By default{{% available_from "#" %}}, `vminsert` automatically re-routes writes away from the slowest `vmstorage` node
+to preserve maximum ingestion throughput. This prevents a single slow `vmstorage` node
+from throttling the entire cluster.
 
 Re-routing occurs only when all of the following conditions hold:
 - the storage send buffer is full.
@@ -842,11 +839,15 @@ Re-routing occurs only when all of the following conditions hold:
 - the vmstorage cluster have much lower saturation overall.
 - the vmstorage cluster has at least three ready nodes.
 
-Enable slowness-based re-routing when peak write throughput matters more 
-than minimizing the number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series)
-or keeping metrics perfectly balanced across nodes.
+Disable slowness-based re-routing with `-disableRerouting=true` when keeping metrics
+perfectly balanced across nodes or minimizing the number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series) 
+matters more than peak write throughput.
 
-The rerouting and node saturation could be seen at  [VictoriaMetrics - cluster](https://grafana.com/grafana/dashboards/11176) dashboard.
+Slowness-based re-routing is automatically disabled{{% available_from "#" %}} when `-replicationFactor` is greater than `1`,
+because rerouting does not guarantee that replicated copies land on distinct storage nodes,
+which violates the replication contract.
+
+The rerouting and node saturation could be seen at [VictoriaMetrics - cluster](https://grafana.com/grafana/dashboards/11176) dashboard.
 
 ## Capacity planning
 

@@ -462,7 +462,9 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/prometheus/metric-relabel-debug", "/metric-relabel-debug":
 		promscrapeMetricRelabelDebugRequests.Inc()
-		promscrape.WriteMetricRelabelDebug(w, r)
+		rwGlobalRelabelConfigs := remotewrite.GetRemoteWriteRelabelConfigString()
+		rwURLRelabelConfigss := remotewrite.GetURLRelabelConfigString()
+		promscrape.WriteMetricRelabelDebug(w, r, rwGlobalRelabelConfigs, rwURLRelabelConfigss)
 		return true
 	case "/prometheus/target-relabel-debug", "/target-relabel-debug":
 		promscrapeTargetRelabelDebugRequests.Inc()

@@ -88,33 +88,20 @@ There are two flags which could help with performance tuning:
 
 ### Example of Usage
 
-GCS and cluster version. You need to have a credentials file in json format with following structure:
-
-credentials.json
-
-```json
-{
-  "type": "service_account",
-  "project_id": "<project>",
-  "private_key_id": "",
-  "private_key": "-----BEGIN PRIVATE KEY-----\-----END PRIVATE KEY-----\n",
-  "client_email": "test@<project>.iam.gserviceaccount.com",
-  "client_id": "",
-  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-  "token_uri": "https://oauth2.googleapis.com/token",
-  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/test%40<project>.iam.gserviceaccount.com"
-}
-
-```
-
-Backup manager launched with the following configuration:
+The following command backs up data to a GCS bucket:
 
 ```sh
 export NODE_IP=192.168.0.10
 export VMSTORAGE_ENDPOINT=http://127.0.0.1:8428
-./vmbackupmanager -dst=gs://vmstorage-data/$NODE_IP -credsFilePath=credentials.json -storageDataPath=/vmstorage-data -snapshot.createURL=$VMSTORAGE_ENDPOINT/snapshot/create -licenseFile=/path/to/vm-license
+./vmbackupmanager \
+  -dst=gs://vmstorage-data/$NODE_IP \
+  -credsFilePath=credentials.json \
+  -storageDataPath=/vmstorage-data \
+  -snapshot.createURL=$VMSTORAGE_ENDPOINT/snapshot/create \
+  -licenseFile=/path/to/vm-license
 ```
+
+See [Connecting VM components to cloud storage](https://docs.victoriametrics.com/guides/connecting-vm-components-to-cloud-storage/) for instructions on obtaining credentials and configuring access to S3, GCS, and Azure Blob Storage.
 
 Expected logs in vmbackupmanager:
 
@@ -147,8 +134,7 @@ objects. Typical object storage systems implement server-side copy by creating n
 This is very fast and efficient. Unfortunately there are systems such as [S3 Glacier](https://aws.amazon.com/s3/storage-classes/glacier/),
 which perform full object copy during server-side copying. This may be slow and expensive.
 
-Please, see [vmbackup docs](https://docs.victoriametrics.com/victoriametrics/vmbackup/#advanced-usage) for more examples of authentication with different
-storage types.
+See [Connecting VM components to cloud storage](https://docs.victoriametrics.com/guides/connecting-vm-components-to-cloud-storage/) for more examples of authentication with different storage types.
 
 ### Backup Retention Policy
 

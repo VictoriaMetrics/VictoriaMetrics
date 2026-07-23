@@ -35,7 +35,10 @@ var (
 		"By default, or when set to 0, -maxBackfillAge equals to -retentionPeriod, e.g. it is unlimited within the configured retention. "+
 		"This can be useful for limiting ingestion of historical samples, for example, when older data has been moved to another storage tier. "+
 		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention")
-	vmselectAddr                  = flag.String("vmselectAddr", "", "TCP address to accept connections from vmselect services")
+	vmselectAddr = flag.String("vmselectAddr", "", "TCP address to listen for incoming connections from vmselect. "+
+		"When set, the node will be able to accept cluster-native vmselect RPC requests as if it were vmstorage. "+
+		"The tenant ID assigned to this node's data is controlled by -accountID and -projectID flags. "+
+		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#multi-tenancy")
 	vmselectDisableRPCCompression = flag.Bool("rpc.disableCompression", false, "Whether to disable compression of the data sent from vmstorage to vmselect. "+
 		"This reduces CPU usage at the cost of higher network bandwidth usage")
 	snapshotAuthKey   = flagutil.NewPassword("snapshotAuthKey", "authKey, which must be passed in query string to /snapshot* pages. It overrides -httpAuth.*")

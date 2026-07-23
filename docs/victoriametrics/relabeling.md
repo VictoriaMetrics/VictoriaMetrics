@@ -513,6 +513,7 @@ URLs for scrape targets are composed of the following parts:
     [scrape_config](https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs)
     or by updating/setting the corresponding `__param_*` labels during
     relabeling.
+- Unix domain socket path (e.g. `/var/run/node_exporter.sock`) can be configured during target relabeling via a special label - `__unix_socket__`. If this label is set, `vmagent` tunnels the scrape request through the specified Unix domain socket instead of connecting to a TCP socket. The `__address__` label is still used to populate the `instance` label and construct the HTTP request URL, but the actual network connection goes through the Unix socket.
 
 The resulting scrape URL looks like the following:
 

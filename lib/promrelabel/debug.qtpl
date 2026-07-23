@@ -6,37 +6,66 @@
 
 {% stripspace %}
 
-{% func RelabelDebugSteps(targetURL, targetID, format string, dss []DebugStep, metric, relabelConfigs  string, err error) %}
+{% func RelabelDebugSteps(targetURL, targetID, format string, dss []DebugStep, metric, relabelConfigs string, urlRelabelIndexLength, urlRelabelIndexCurrent int, isTargetRelabel bool, err error) %}
   {% if format == "json" %}
-      {%= RelabelDebugStepsJSON(targetURL, targetID, dss, metric, relabelConfigs, err) %}
+      {%= RelabelDebugStepsJSON(targetURL, targetID, dss, metric, relabelConfigs, urlRelabelIndexLength, urlRelabelIndexCurrent, isTargetRelabel, err) %}
   {% else %}
-      {%= RelabelDebugStepsHTML(targetURL, targetID, dss, metric, relabelConfigs, err) %}
+      {%= RelabelDebugStepsHTML(targetURL, targetID, dss, metric, relabelConfigs, urlRelabelIndexLength, urlRelabelIndexCurrent, isTargetRelabel, err) %}
   {% endif %}
 {% endfunc %}
 
-{% func RelabelDebugStepsHTML(targetURL, targetID string, dss []DebugStep, metric, relabelConfigs string, err error) %}
+{% func RelabelDebugStepsHTML(targetURL, targetID string, dss []DebugStep, metric, relabelConfigs string, urlRelabelIndexLength, urlRelabelIndexCurrent int, isTargetRelabel bool, err error) %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     {%= htmlcomponents.CommonHeader() %}
     <title>Metric relabel debug</title>
     <script>
-function submitRelabelDebugForm(e) {
-  var form = e.target;
-  var method = "GET";
-  if (form.elements["relabel_configs"].value.length + form.elements["metric"].value.length > 1000) {
-    method = "POST";
-  }
-  form.method = method;
+function setRelabelDebugFormMethod(form) {
+  form.method = (form.elements["relabel_configs"].value.length + form.elements["metric"].value.length > 1000) ? "POST" : "GET";
 }
+
+function reloadRelabelConfigs(select) {
+  if (!confirm('Reload will discard all modifications to the current configuration. Continue?')) {
+    select.value = select.prevValue;
+    return;
+  }
+  document.getElementById('reload_url_relabel_configs').value = '1';
+  setRelabelDebugFormMethod(select.form);
+  select.form.submit();
+}
+
+function initRelabelConfigsHighlight() {
+  var ta = document.getElementById('relabel-configs-input');
+  var bd = document.getElementById('relabel-configs-backdrop');
+  if (!ta || !bd) return;
+  function escapeHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  function highlight(text) {
+    return text.split('\n').map(function(line) {
+      var e = escapeHtml(line);
+      return /^\s*#/.test(line)
+        ? '<span style="color:#999">'+e+'</span>'
+        : '<span style="color:#212529">'+e+'</span>';
+    }).join('\n');
+  }
+  function update() { bd.innerHTML = highlight(ta.value)+'\n'; }
+  ta.addEventListener('input', update);
+  ta.addEventListener('scroll', function() { bd.scrollTop = ta.scrollTop; });
+  update();
+}
+document.addEventListener('DOMContentLoaded', initRelabelConfigsHighlight);
     </script>
 </head>
 <body>
     {%= htmlcomponents.Navbar() %}
     <div class="container-fluid">
-        <a href="https://docs.victoriametrics.com/victoriametrics/relabeling/" target="_blank">Relabeling docs</a>{% space %}
+        <a href="https://docs.victoriametrics.com/victoriametrics/relabeling/" target="_blank">Relabeling Cookbook</a>{% space %}|{% space %}
+        <a href="https://docs.victoriametrics.com/victoriametrics/relabeling/#relabeling-stages" target="_blank">Relabeling Stages</a>
 
         {% if targetID != "" %}
+          {% space %}|{% space %}
           {% if targetURL != "" %}
             <a href="metric-relabel-debug?id={%s targetID %}">Metric relabel debug</a>
           {% else %}
@@ -50,14 +79,14 @@ function submitRelabelDebugForm(e) {
         {% endif %}
 
         <div class="m-3">
-        <form method="POST" onsubmit="submitRelabelDebugForm(event)">
-            {%= relabelDebugFormInputs(metric, relabelConfigs) %}
+        <form method="POST" onsubmit="setRelabelDebugFormMethod(this)">
+            {%= relabelDebugFormInputs(metric, relabelConfigs, urlRelabelIndexLength, urlRelabelIndexCurrent, isTargetRelabel, targetID) %}
             {% if targetID != "" %}
               <input type="hidden" name="id" value="{%s targetID %}" />
             {% endif %}
             <input type="submit" value="Submit" class="btn btn-primary m-1" />
             {% if targetID != "" %}
-                <button type="button" onclick="location.href='?id={%s targetID %}'" class="btn btn-secondary m-1">Reset</button>
+                <button type="button" onclick="location.href='?id={%s targetID %}'" class="btn btn-secondary m-1">Reset All</button>
             {% endif %}
         </form>
         </div>
@@ -72,15 +101,44 @@ function submitRelabelDebugForm(e) {
 </html>
 {% endfunc %}
 
-{% func relabelDebugFormInputs(metric, relabelConfigs string) %}
+{% func relabelDebugFormInputs(metric, relabelConfigs string, urlRelabelIndexLength, urlRelabelIndexCurrent int, isTargetRelabel bool, targetID string) %}
     <div>
-        Relabel configs:<br/>
-        <textarea name="relabel_configs" style="width: 100%; height: 15em; font-family: monospace" class="m-1">{%s relabelConfigs %}</textarea>
-    </div>
+        <!-- show remote write relabel reload only for scrape metric relabel debug and pure relabel debug. discovery debug should not display this section -->
+        {% if !isTargetRelabel %}
+        <div>
+            <div class="m-1">
+                <div class="d-flex align-items-center gap-2 mt-1">
+                    Configs:
+                    {% if urlRelabelIndexLength > 0 %}
+                        <input type="hidden" name="reload_url_relabel_configs" id="reload_url_relabel_configs" value="" />
+                        <select name="url_relabel_configs_index" class="form-select form-select-sm w-auto" onfocus="this.prevValue=this.value" onchange="reloadRelabelConfigs(this)">
+                            {% for i := range urlRelabelIndexLength %}
+                                {% if urlRelabelIndexCurrent == i %}
+                                    <option value="{%d i %}" selected="selected">remote-write-url-{%d i %}</option>
+                                {% else %}
+                                    <option value="{%d i %}">remote-write-url-{%d i %}</option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% else %}
+        Configs:
+        {% endif %}
 
-    <div>
-        Labels:<br/>
-        <textarea name="metric" style="width: 100%; height: 5em; font-family: monospace" class="m-1">{%s metric %}</textarea>
+        <!-- the following text area css was generated with the help of AI to display yaml comments (starting with #) in gray. it could be rewritten in the future -->
+        <div class="m-1" style="position:relative;height:15em;">
+            <div id="relabel-configs-backdrop" style="position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;overflow:hidden;font-family:monospace;white-space:pre-wrap;padding:0.375rem 0.75rem;border:1px solid transparent;"></div>
+            <textarea id="relabel-configs-input" name="relabel_configs" class="form-control" style="position:absolute;top:0;left:0;height:100%;font-family:monospace;color:transparent;caret-color:#212529;background:transparent;resize:none;overflow-y:scroll;">
+                {%s relabelConfigs %}
+            </textarea>
+        </div>
+    </div>
+    <div class="mt-2">
+        A Time Series:<br/>
+        <textarea name="metric" style="width: 100%; height: 5em; font-family: monospace" class="m-1" placeholder="up{job=&quot;job_name&quot;,instance=&quot;host:port&quot;}">{%s metric %}</textarea>
     </div>
 {% endfunc %}
 
@@ -153,7 +211,7 @@ function submitRelabelDebugForm(e) {
 {% endif %}
 {% endfunc %}
 
-{% func RelabelDebugStepsJSON(targetURL, targetID string, dss []DebugStep, metric, relabelConfigs string, err error) %}
+{% func RelabelDebugStepsJSON(targetURL, targetID string, dss []DebugStep, metric, relabelConfigs string,  urlRelabelIndexLength, urlRelabelIndexCurrent int, isTargetRelabel bool, err error) %}
 {
     {% if err != nil %}
         "status": "error",

@@ -546,7 +546,7 @@ tags at [Docker Hub](https://hub.docker.com/r/victoriametrics/vmalert/tags) and 
 
 ## Reading rules from object storage
 
-[Enterprise version](https://docs.victoriametrics.com/victoriametrics/enterprise/) of `vmalert` may read alerting and recording rules
+The [Enterprise version](https://docs.victoriametrics.com/victoriametrics/enterprise/) of `vmalert` may read alerting and recording rules
 from object storage:
 
 * `./bin/vmalert -rule=s3://bucket/dir/alert.rules` would read rules from the given path at S3 bucket
@@ -562,6 +562,48 @@ The following [command-line flags](#flags) can be used for fine-tuning access to
 * `-s3.configProfile` - profile name for S3 configs. If no set, the value of the environment variable will be loaded (`AWS_PROFILE` or `AWS_DEFAULT_PROFILE`).
 * `-s3.customEndpoint` - custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set.
 * `-s3.forcePathStyle` - prefixing endpoint with bucket name when set false, true by default.
+
+### S3 (AWS and S3-compatible)
+
+The following example reads rules from an S3 bucket:
+
+```sh
+./bin/vmalert \
+  -rule=s3://my-alert-bucket/rules/alerts_ \
+  -s3.credsFilePath=/etc/vmalert/aws-credentials \
+  -datasource.url=http://vmselect:8481/select/0/prometheus \
+  -notifier.url=http://alertmanager:9093 \
+  -licenseFile=/etc/vm-license
+```
+
+For S3-compatible backends such as [MinIO](https://www.min.io/) or [Ceph](https://ceph.io/), add `-s3.customEndpoint`:
+
+```sh
+./bin/vmalert \
+  -rule=s3://victoriametrics-alert-rules/rules_ \
+  -s3.credsFilePath=/etc/vmalert/aws-credentials \
+  -s3.customEndpoint=http://minio.example.local:9000 \
+  -datasource.url=http://vmselect:8481/select/0/prometheus \
+  -notifier.url=http://alertmanager:9093 \
+  -licenseFile=/etc/vm-license
+```
+
+See [Connecting VM components to cloud storage](https://docs.victoriametrics.com/guides/connecting-vm-components-to-cloud-storage/) for details on creating IAM users, credentials file format, environment variables, and IAM roles.
+
+### Google Cloud Storage (GCS)
+
+The following example reads rules from a GCS bucket:
+
+```sh
+./bin/vmalert \
+  -rule=gs://my-alert-bucket/rules/alerts_ \
+  -s3.credsFilePath=/etc/vmalert/gcp-service-account.json \
+  -datasource.url=http://vmselect:8481/select/0/prometheus \
+  -notifier.url=http://alertmanager:9093 \
+  -licenseFile=/etc/vm-license
+```
+
+See [Connecting VM components to cloud storage](https://docs.victoriametrics.com/guides/connecting-vm-components-to-cloud-storage/) for details on creating service accounts and downloading JSON keys.
 
 ## Topology examples
 
@@ -1469,6 +1511,59 @@ alert_relabel_configs:
 ```
 
 The configuration file can be [hot-reloaded](#hot-config-reload).
+
+## DNS URLs
+
+If `vmalert` encounters URLs with the `dns+` prefix in the hostname (such as `http://dns+some-addr:8428/some/path`), it resolves `some-addr` into IP addresses via DNS A/AAAA records.
+The port from the original URL is appended to each discovered IP address.
+Each discovered IP address is used for least-loaded balancing of write requests.
+
+DNS URLs are supported in the following places:
+
+* In `-remoteWrite.url`, `-remoteRead.url` and `-datasource.url` command-line flags. For example, if `victoria-metrics` [DNS A Record](https://datatracker.ietf.org/doc/html/rfc1035#section-3.4.1) record contains
+  `192.168.1.15` IP address, then `-remoteWrite.url=http://dns+victoria-metrics:8428` is automatically resolved into
+  `-remoteWrite.url=http://192.168.1.15:8428`.
+
+DNS URLs are useful when client-side HTTP load balancing is needed. A good example
+is a [Kubernetes headless Service](https://kubernetes.io/docs/concepts/services-networking/service/#headless-services),
+which returns multiple IP addresses for a single hostname.
+
+### DNS URLs and HTTPS
+
+When a `dns+` URL uses the `https` scheme, `vmalert` connects to the discovered
+IP addresses directly. No [SNI](https://en.wikipedia.org/wiki/Server_Name_Indication)
+is sent in the TLS handshake, and the server certificate is verified against the IP address,
+which fails unless the certificate contains the corresponding
+[IP SAN](https://en.wikipedia.org/wiki/Subject_Alternative_Name) entries.
+
+To use `dns+` URLs with HTTPS, pass the original hostname via the corresponding
+`tlsServerName` command-line flag - `-datasource.tlsServerName`, `-remoteRead.tlsServerName`
+or `-remoteWrite.tlsServerName`. It is used both as SNI and as the name the server
+certificate is verified against:
+
+```sh
+-datasource.url=https://dns+victoria-metrics:8428
+-datasource.tlsServerName=victoria-metrics
+```
+
+Alternatively, issue server certificates with IP SAN entries for every backend IP address.
+Avoid `tlsInsecureSkipVerify` flags for working around this, since they disable
+server certificate verification completely.
+
+## SRV URLs
+
+If `vmalert` encounters URLs with `srv+` prefix in hostname (such as `http://srv+some-addr/some/path`), then it resolves `some-addr` [DNS SRV](https://en.wikipedia.org/wiki/SRV_record)
+record into TCP address with hostname and TCP port, and then use the resulting URL when it needs to connect to it.
+
+SRV URLs are supported in the following places:
+
+* In `-remoteWrite.url`, `-remoteRead.url` and `-datasource.url` command-line flags. For example, if `victoria-metrics` [DNS SRV](https://en.wikipedia.org/wiki/SRV_record) record contains
+  `victoria-metrics-host:8085`, then `-remoteWrite.url=http://srv+victoria-metrics:8428` is automatically resolved into
+  `-remoteWrite.url=http://victoria-metrics-host:8085`. If the DNS SRV record is resolved into multiple TCP addresses, then `vmalert`
+   performs per request round-robin load-balancing.
+
+SRV URLs are useful when HTTP services run on different TCP ports or when their TCP ports can change over time (for instance, after a restart).
+
 
 ## Contributing
 
