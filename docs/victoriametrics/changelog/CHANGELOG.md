@@ -33,6 +33,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): persist the selected auto-refresh interval in the URL. See [VictoriaLogs#1310](https://github.com/VictoriaMetrics/VictoriaLogs/issues/1310).
 * FEATURE: [dashboards](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/dashboards): add `Fsync avg duration` panel to the Troubleshooting section of the single-node, cluster, and vmagent dashboards. This panel surfaces degradation of IO operation for faster incident triage. See [#10432](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10432).
 
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): fixed the display of rule state badges on the `Groups` page in the web UI. See [#11160](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11160).
+
 ## [v1.148.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.148.0)
 
 Released at 2026-07-20
@@ -58,6 +60,7 @@ Released at 2026-07-20
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): hide `Total metric names` stats on [Cardinality Explorer](https://docs.victoriametrics.com/victoriametrics/#cardinality-explorer) page when user selects a specific metric or label to focus. See [#11154](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11154) for details. Thanks to @lghuy05 for the contribution.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): keep only one header navigation dropdown (`Explore`, `Tools`) open at a time. Previously, hovering across two dropdowns could briefly leave both open due to the close delay. See [#11224](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11224). Thanks to @antedotee for contribution.
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): return `408 Request Timeout` instead of `400 Bad Request` when the request body isn't received within `-maxQueueDuration`. This prevents `vmagent` from incorrectly downgrading the remote write protocol and dropping data when `vmauth` is used as a proxy for a remote write endpoint. See [#11272](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11272).
+
 ## [v1.147.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.147.0)
 
 Released at 2026-07-06

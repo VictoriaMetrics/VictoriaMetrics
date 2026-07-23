@@ -115,7 +115,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		WriteRule(w, r, rule)
 		return true
-	// current used by old vmalert UI and Grafana Alerts
+	// used by old vmalert UI
 	case "/vmalert/groups", "/rules":
 		rf, err := newRulesFilter(r)
 		if err != nil {
@@ -128,6 +128,8 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 			state = rf.states[0]
 			rf.states = rf.states[:1]
 		}
+		// enable extendedStates by default for vmalert UI
+		rf.extendedStates = true
 		lr := rh.groups(rf)
 		WriteListGroups(w, r, lr.Data.Groups, state)
 		return true
@@ -543,6 +545,8 @@ func (rh *requestHandler) groups(rf *rulesFilter) *listGroupsResponse {
 			if !groupFound && !strings.Contains(strings.ToLower(rule.Name), rf.search) {
 				continue
 			}
+			// extendedStates is used by the vmalert UI to extend the rule state with values such as "nomatch" and "unhealthy".
+			// those states are not supported by Grafana and not part of the Prometheus API spec yet
 			if rf.extendedStates {
 				rule.ExtendState()
 			}
