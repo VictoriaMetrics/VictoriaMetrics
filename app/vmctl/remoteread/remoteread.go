@@ -8,12 +8,14 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
 	"github.com/prometheus/prometheus/config"
+	"github.com/prometheus/prometheus/model/histogram"
 	"github.com/prometheus/prometheus/prompb"
 	"github.com/prometheus/prometheus/storage/remote"
 	"github.com/prometheus/prometheus/tsdb/chunkenc"
@@ -234,9 +236,25 @@ func processResponse(body io.ReadCloser, callback StreamCallback) error {
 	// shouldn't be accounted as an error.
 	for _, res := range readResp.Results {
 		for _, ts := range res.Timeseries {
-			vmTs := convertSamples(ts.Samples, ts.Labels)
-			if err := callback(vmTs); err != nil {
-				return err
+			if len(ts.Samples) > 0 || len(ts.Histograms) == 0 {
+				vmTs := convertSamples(ts.Samples, ts.Labels)
+				if err := callback(vmTs); err != nil {
+					return err
+				}
+			}
+			if len(ts.Histograms) > 0 {
+				hSamples := make([]histogramSample, 0, len(ts.Histograms))
+				for _, h := range ts.Histograms {
+					hSamples = append(hSamples, histogramSample{
+						timestamp: h.Timestamp,
+						fh:        h.ToFloatHistogram(),
+					})
+				}
+				for _, vmTs := range convertHistograms(hSamples, ts.Labels) {
+					if err := callback(vmTs); err != nil {
+						return err
+					}
+				}
 			}
 		}
 	}
@@ -263,17 +281,41 @@ func processStreamResponse(body io.ReadCloser, callback StreamCallback) error {
 
 		for _, series := range res.ChunkedSeries {
 			samples := make([]prompb.Sample, 0)
+			var hSamples []histogramSample
 			for _, chunk := range series.Chunks {
-				s, err := parseSamples(chunk.Data)
-				if err != nil {
-					return err
+				switch chunk.Type {
+				case prompb.Chunk_XOR, prompb.Chunk_UNKNOWN:
+					// In proto3 the `type` field may be left unset (UNKNOWN) for XOR chunks.
+					// Prometheus remote.proto: "REQUIREMENT: when using proto3, this field
+					// MUST be set when using anything else than XOR". Senders before native
+					// histograms support (Prometheus < 2.40) do not set this field at all,
+					// so UNKNOWN chunks must be parsed as XOR ones.
+					s, err := parseSamples(chunk.Data)
+					if err != nil {
+						return err
+					}
+					samples = append(samples, s...)
+				case prompb.Chunk_HISTOGRAM, prompb.Chunk_FLOAT_HISTOGRAM:
+					hs, err := parseHistograms(chunk.Type, chunk.Data)
+					if err != nil {
+						return err
+					}
+					hSamples = append(hSamples, hs...)
+				default:
+					return fmt.Errorf("unsupported chunk encoding %q", chunk.Type)
 				}
-				samples = append(samples, s...)
 			}
 
-			ts := convertSamples(samples, series.Labels)
-			if err := callback(ts); err != nil {
-				return err
+			if len(samples) > 0 || len(hSamples) == 0 {
+				ts := convertSamples(samples, series.Labels)
+				if err := callback(ts); err != nil {
+					return err
+				}
+			}
+			for _, ts := range convertHistograms(hSamples, series.Labels) {
+				if err := callback(ts); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -310,6 +352,151 @@ func parseSamples(chunk []byte) ([]prompb.Sample, error) {
 	}
 
 	return samples, it.Err()
+}
+
+// histogramSample represents a single native histogram sample.
+type histogramSample struct {
+	timestamp int64
+	fh        *histogram.FloatHistogram
+}
+
+func parseHistograms(encoding prompb.Chunk_Encoding, chunk []byte) ([]histogramSample, error) {
+	var enc chunkenc.Encoding
+	switch encoding {
+	case prompb.Chunk_HISTOGRAM:
+		enc = chunkenc.EncHistogram
+	case prompb.Chunk_FLOAT_HISTOGRAM:
+		enc = chunkenc.EncFloatHistogram
+	default:
+		return nil, fmt.Errorf("unsupported histogram chunk encoding %q", encoding)
+	}
+	c, err := chunkenc.FromData(enc, chunk)
+	if err != nil {
+		return nil, fmt.Errorf("error read chunk: %w", err)
+	}
+
+	var hSamples []histogramSample
+	it := c.Iterator(nil)
+	for {
+		typ := it.Next()
+		if typ == chunkenc.ValNone {
+			break
+		}
+		switch typ {
+		case chunkenc.ValHistogram:
+			ts, h := it.AtHistogram(nil)
+			hSamples = append(hSamples, histogramSample{
+				timestamp: ts,
+				fh:        h.ToFloat(nil),
+			})
+		case chunkenc.ValFloatHistogram:
+			ts, fh := it.AtFloatHistogram(nil)
+			hSamples = append(hSamples, histogramSample{
+				timestamp: ts,
+				fh:        fh,
+			})
+		default:
+			// Skip unsupported values
+			continue
+		}
+	}
+	if err := it.Err(); err != nil {
+		return nil, fmt.Errorf("error iterate over chunks: %w", err)
+	}
+
+	return hSamples, nil
+}
+
+// convertHistograms converts native histogram samples into VictoriaMetrics histogram
+// time series in the same way as VictoriaMetrics converts native histograms
+// received via Prometheus remote write protocol: every native histogram sample
+// is converted into `<name>_count` and `<name>_sum` series plus a set of
+// `<name>_bucket` series with `vmrange` labels containing non-cumulative bucket counts.
+// The only difference is that for native histograms with custom buckets (NHCB)
+// bucket bounds are taken from the custom values, while the remote write protocol
+// parser ignores custom values and estimates the bounds with the exponential formula.
+// See https://prometheus.io/docs/specs/native_histograms/#data-model
+func convertHistograms(hSamples []histogramSample, labels []prompb.Label) []*vm.TimeSeries {
+	if len(hSamples) == 0 {
+		return nil
+	}
+
+	labelPairs := make([]vm.LabelPair, 0, len(labels))
+	nameValue := ""
+	for _, label := range labels {
+		if label.Name == "__name__" {
+			nameValue = label.Value
+			continue
+		}
+		labelPairs = append(labelPairs, vm.LabelPair{Name: label.Name, Value: label.Value})
+	}
+	// the metric has no name, skip it in the same way as VictoriaMetrics does
+	// when it receives a native histogram without the metric name via remote write protocol.
+	if nameValue == "" {
+		return nil
+	}
+
+	countSeries := &vm.TimeSeries{
+		Name:       nameValue + "_count",
+		LabelPairs: labelPairs,
+	}
+	sumSeries := &vm.TimeSeries{
+		Name:       nameValue + "_sum",
+		LabelPairs: labelPairs,
+	}
+	bucketSeries := make(map[string]*vm.TimeSeries)
+	// vmranges preserves the order of bucketSeries creation
+	// in order to get deterministic results.
+	var vmranges []string
+
+	for _, hs := range hSamples {
+		fh := hs.fh
+		countSeries.Timestamps = append(countSeries.Timestamps, hs.timestamp)
+		countSeries.Values = append(countSeries.Values, fh.Count)
+		sumSeries.Timestamps = append(sumSeries.Timestamps, hs.timestamp)
+		sumSeries.Values = append(sumSeries.Values, fh.Sum)
+
+		it := fh.AllBucketIterator()
+		for it.Next() {
+			b := it.At()
+			if b.Count <= 0 {
+				continue
+			}
+			vmrange := formatVmrange(b.Lower, b.Upper)
+			s := bucketSeries[vmrange]
+			if s == nil {
+				bucketLabelPairs := make([]vm.LabelPair, len(labelPairs), len(labelPairs)+1)
+				copy(bucketLabelPairs, labelPairs)
+				bucketLabelPairs = append(bucketLabelPairs, vm.LabelPair{Name: "vmrange", Value: vmrange})
+				s = &vm.TimeSeries{
+					Name:       nameValue + "_bucket",
+					LabelPairs: bucketLabelPairs,
+				}
+				bucketSeries[vmrange] = s
+				vmranges = append(vmranges, vmrange)
+			}
+			s.Timestamps = append(s.Timestamps, hs.timestamp)
+			s.Values = append(s.Values, b.Count)
+		}
+	}
+
+	tss := make([]*vm.TimeSeries, 0, 2+len(vmranges))
+	tss = append(tss, countSeries, sumSeries)
+	for _, vmrange := range vmranges {
+		tss = append(tss, bucketSeries[vmrange])
+	}
+	return tss
+}
+
+// formatVmrange formats the given bucket bounds into `vmrange` label value
+// in the same way as VictoriaMetrics does for native histograms
+// received via Prometheus remote write protocol.
+func formatVmrange(lower, upper float64) string {
+	b := make([]byte, 0, 24)
+	b = strconv.AppendFloat(b, lower, 'e', 3, 64)
+	b = append(b, "..."...)
+	b = strconv.AppendFloat(b, upper, 'e', 3, 64)
+	return string(b)
 }
 
 type keyValue struct {
