@@ -16,6 +16,16 @@ function groupForState(key) {
     }
 }
 
+function toggleSortByEvaluationTime() {
+    const url = new URL(location.href);
+    if (url.searchParams.get('sort') === 'evaluation_time') {
+        url.searchParams.delete('sort');
+    } else {
+        url.searchParams.set('sort', 'evaluation_time');
+    }
+    window.location = url.pathname + url.search + url.hash;
+}
+
 function showBySelector(selector) {
     if (!selector) {
         return

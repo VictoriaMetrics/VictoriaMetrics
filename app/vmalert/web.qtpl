@@ -168,9 +168,14 @@
                         <table class="table table-striped table-hover table-sm">
                             <thead>
                                 <tr>
-                                    <th scope="col" class="w-60">Rule</th>
-                                    <th scope="col" class="w-20" class="text-center" title="How many series were produced by the rule">Series</th>
-                                    <th scope="col" class="w-20" class="text-center" title="How many seconds ago rule was executed">Updated</th>
+                                    <th scope="col" class="w-50">Rule</th>
+                                    <th scope="col" class="w-15 text-center" title="How many series were produced by the rule">Series</th>
+                                    <th scope="col" class="w-15 text-center" title="How long the last evaluation took">
+                                        <a href="#" onclick="toggleSortByEvaluationTime(); return false;" title="Sort groups and rules by evaluation duration">
+                                            Duration{% if r.URL.Query().Get("sort") == "evaluation_time" %} ↓{% endif %}
+                                        </a>
+                                    </th>
+                                    <th scope="col" class="w-20 text-center" title="How many seconds ago rule was executed">Updated</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -212,6 +217,7 @@
                                             </div>
                                         </td>
                                         <td class="text-center">{%d r.LastSamples %}</td>
+                                        <td class="text-center">{% if r.EvaluationTime > 0 %}{%f.3 r.EvaluationTime %}s{% else %}-{% endif %}</td>
                                         <td class="text-center">{% if r.LastEvaluation.IsZero() %}
                                              Never
                                          {% else %}
