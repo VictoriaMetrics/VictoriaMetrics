@@ -70,6 +70,7 @@ services:
       - ./rules/alerts-health.yml:/etc/alerts/alerts-health.yml
       - ./rules/alerts-vmagent.yml:/etc/alerts/alerts-vmagent.yml
       - ./rules/alerts-vmalert.yml:/etc/alerts/alerts-vmalert.yml
+      - ./rules/alerts-vmbackupmanager.yml:/etc/alerts/alerts-vmbackupmanager.yml
     command:
       - "--datasource.url=http://victoriametrics:8428/"
       - "--remoteRead.url=http://victoriametrics:8428/"

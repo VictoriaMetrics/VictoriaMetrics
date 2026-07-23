@@ -129,6 +129,7 @@ services:
       - ./rules/alerts-health.yml:/etc/alerts/alerts-health.yml
       - ./rules/alerts-vmagent.yml:/etc/alerts/alerts-vmagent.yml
       - ./rules/alerts-vmalert.yml:/etc/alerts/alerts-vmalert.yml
+      - ./rules/alerts-vmbackupmanager.yml:/etc/alerts/alerts-vmbackupmanager.yml
     command:
       - "--datasource.url=http://vmauth:8427/select/0/prometheus"
       - "--datasource.basicAuth.username=foo"

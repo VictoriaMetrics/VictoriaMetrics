@@ -478,6 +478,12 @@ Clusters here are referred to as `source` and `destination`.
 
 `vmbackupmanager` exports various metrics in Prometheus exposition format at `http://vmbackupmanager:8300/metrics` page. It is recommended to set up regular scraping of this page either via [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) or via Prometheus, so the exported metrics could be analyzed later.
 
+To verify that `vmbackupmanager` is executing backup tasks normally, the following metrics can help:
+
+* `vm_backup_last_success_at{type="<backup_type>"}` - unix timestamp of the last successful backup{{% available_from "#" %}}. Remains `0` if no backup has completed successfully since startup. Check error logs and verify remote storage accessibility if this persists.
+* `vm_backup_last_run_failed{type="<backup_type>"}` - whether the last backup task for the given backup type failed. The value `1` means the last task failed. Check the error logs of `vmbackupmanager` for the root cause
+* `vm_backup_errors_total{type="<backup_type>"}` - total number of backup errors for the given backup type.
+
 Use the official [Grafana dashboard](https://grafana.com/grafana/dashboards/17798) for `vmbackupmanager` overview.
 Graphs on this dashboard contain useful hints - hover the `i` icon in the top left corner of each graph in order to read it.
 If you have suggestions for improvements or have found a bug - please open an issue on github or add a review to the dashboard.
