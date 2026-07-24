@@ -1400,10 +1400,22 @@ func TestMatchTagFilters(t *testing.T) {
 }
 
 func TestSearchTSIDWithTimeRange(t *testing.T) {
+	defer testRemoveAll(t)
+	for _, disablePerDayIndex := range []bool{false, true} {
+		name := fmt.Sprintf("disablePerDayIndex=%t", disablePerDayIndex)
+		t.Run(name, func(t *testing.T) {
+			testSearchTSIDWithTimeRange(t, disablePerDayIndex)
+		})
+
+	}
+
+}
+
+func testSearchTSIDWithTimeRange(t *testing.T, disablePerDayIndex bool) {
 	// TODO: @f41gh7 refactor this test:
 	// create a new test for LabelNames
 	// move exist LabelVales tests into TestSearchLabelValues
-	const path = "TestSearchTSIDWithTimeRange"
+
 	// Create a bunch of per-day time series
 	const days = 5
 	const metricsPerDay = 1000
@@ -1423,28 +1435,20 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	newMN := func(name string, day, metric int) MetricName {
 		var mn MetricName
 		mn.MetricGroup = []byte(name)
-		mn.AddTag(
-			"constant",
-			"const",
-		)
-		mn.AddTag(
-			"day",
-			fmt.Sprintf("%v", day),
-		)
-		mn.AddTag(
-			"UniqueId",
-			fmt.Sprintf("%v", metric),
-		)
-		mn.AddTag(
-			"some_unique_id",
-			fmt.Sprintf("%v", day),
-		)
+		mn.AddTag("constant", "const")
+		mn.AddTag("day", fmt.Sprintf("%v", day))
+		mn.AddTag("UniqueId", fmt.Sprintf("%v", metric))
+		mn.AddTag("some_unique_id", fmt.Sprintf("%v", day))
 		mn.sortTags()
 		return mn
 	}
 
-	s := MustOpenStorage(path, OpenOptions{})
+	s := MustOpenStorage(t.Name(), OpenOptions{
+		DisablePerDayIndex: disablePerDayIndex,
+	})
+	defer s.MustClose()
 	ptw := s.tb.MustGetPartition(timestamp)
+	defer s.tb.PutPartition(ptw)
 	db := ptw.pt.idb
 	is := db.getIndexSearch(noDeadline)
 
@@ -1472,25 +1476,28 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 
 	is2 := db.getIndexSearch(noDeadline)
 
-	// Check that all the metrics are found for all the days.
-	for date := baseDate - days + 1; date <= baseDate; date++ {
-		metricIDs, err := is2.getMetricIDsForDate(date, metricsPerDay)
-		if err != nil {
-			t.Fatalf("unexpected error: %s", err)
-		}
-		if !perDayMetricIDs[date].Equal(metricIDs) {
-			t.Fatalf("unexpected metricIDs found;\ngot\n%d\nwant\n%d", metricIDs.AppendTo(nil), perDayMetricIDs[date].AppendTo(nil))
+	if !disablePerDayIndex {
+		// Check that all the metrics are found for all the days.
+		for date := baseDate - days + 1; date <= baseDate; date++ {
+			metricIDs, err := is2.getMetricIDsForDate(date, metricsPerDay)
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+			if !perDayMetricIDs[date].Equal(metricIDs) {
+				t.Fatalf("unexpected metricIDs found;\ngot\n%d\nwant\n%d", metricIDs.AppendTo(nil), perDayMetricIDs[date].AppendTo(nil))
+			}
 		}
 	}
 
 	// Check that all the metrics are found in global index
-	metricIDs, err := is2.getMetricIDsForDate(0, metricsPerDay*days)
+	metricIDs, err := is2.getMetricIDsForDate(globalIndexDate, metricsPerDay*days)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	if !allMetricIDs.Equal(metricIDs) {
 		t.Fatalf("unexpected metricIDs found;\ngot\n%d\nwant\n%d", metricIDs.AppendTo(nil), allMetricIDs.AppendTo(nil))
 	}
+
 	db.putIndexSearch(is2)
 
 	// add a metric that will be deleted shortly
@@ -1498,10 +1505,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	day := days
 	date := baseDate - uint64(day)
 	mn := newMN("deletedMetric", day, 999)
-	mn.AddTag(
-		"labelToDelete",
-		fmt.Sprintf("%v", day),
-	)
+	mn.AddTag("labelToDelete", fmt.Sprintf("%v", day))
 	mn.sortTags()
 	metricNameBuf = mn.Marshal(metricNameBuf[:0])
 	var tsid TSID
@@ -1520,6 +1524,9 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	tr := TimeRange{
 		MinTimestamp: timestamp - msecPerDay,
 		MaxTimestamp: timestamp,
+	}
+	if disablePerDayIndex {
+		tr = globalIndexTimeRange
 	}
 	lns, err := db.SearchLabelNames(nil, nil, tr, 10000, 1e9, noDeadline)
 	if err != nil {
@@ -1563,22 +1570,17 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		MinTimestamp: timestamp - 2*msecPerHour - 1,
 		MaxTimestamp: timestamp,
 	}
+	wantNumMatchedTSIDs := metricsPerDay
+	if disablePerDayIndex {
+		tr = globalIndexTimeRange
+		wantNumMatchedTSIDs = days * metricsPerDay
+	}
 	matchedTSIDs, err := db.SearchTSIDs(nil, []*TagFilters{tfs}, tr, 1e5, noDeadline)
 	if err != nil {
 		t.Fatalf("error searching tsids: %v", err)
 	}
-	if len(matchedTSIDs) != metricsPerDay {
-		t.Fatalf("expected %d time series for current day, got %d time series", metricsPerDay, len(matchedTSIDs))
-	}
-
-	// Check SearchLabelNames with the specified filter.
-	lns, err = db.SearchLabelNames(nil, []*TagFilters{tfs}, TimeRange{}, 10000, 1e9, noDeadline)
-	if err != nil {
-		t.Fatalf("unexpected error in SearchLabelNames(filters=%s): %s", tfs, err)
-	}
-	got = sortedSlice(lns)
-	if !reflect.DeepEqual(got, labelNames) {
-		t.Fatalf("unexpected labelNames; got\n%s\nwant\n%s", got, labelNames)
+	if len(matchedTSIDs) != wantNumMatchedTSIDs {
+		t.Fatalf("expected %d time series for current day, got %d time series", wantNumMatchedTSIDs, len(matchedTSIDs))
 	}
 
 	// Check SearchLabelNames with the specified filter and time range.
@@ -1609,16 +1611,6 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	got = sortedSlice(lns)
 	if !reflect.DeepEqual(got, labelNames) {
 		t.Fatalf("unexpected labelNames; got\n%s\nwant\n%s", got, labelNames)
-	}
-
-	// Check SearchLabelValues with the specified filter.
-	lvs, err = db.SearchLabelValues(nil, "", []*TagFilters{tfs}, TimeRange{}, 10000, 1e9, noDeadline)
-	if err != nil {
-		t.Fatalf("unexpected error in SearchLabelValues(filters=%s): %s", tfs, err)
-	}
-	got = sortedSlice(lvs)
-	if !reflect.DeepEqual(got, labelValues) {
-		t.Fatalf("unexpected labelValues; got\n%s\nwant\n%s", got, labelValues)
 	}
 
 	// Check SearchLabelValues with the specified filter and time range.
@@ -1657,6 +1649,9 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		MinTimestamp: timestamp - msecPerDay*days,
 		MaxTimestamp: timestamp,
 	}
+	if disablePerDayIndex {
+		tr = globalIndexTimeRange
+	}
 
 	matchedTSIDs, err = db.SearchTSIDs(nil, []*TagFilters{tfs}, tr, 1e5, noDeadline)
 	if err != nil {
@@ -1666,256 +1661,219 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		t.Fatalf("expected %d time series for all days, got %d time series", metricsPerDay*days, len(matchedTSIDs))
 	}
 
-	// Check GetTSDBStatus with nil filters.
-	status, err := db.GetTSDBStatus(nil, nil, baseDate, "day", 5, 1e6, noDeadline)
+	// Get TSDB status with nil filters.
+	tsdbStatusDate := baseDate
+	if disablePerDayIndex {
+		tsdbStatusDate = globalIndexDate
+	}
+	status, err := db.GetTSDBStatus(nil, nil, tsdbStatusDate, "day", 5, 1e6, noDeadline)
 	if err != nil {
 		t.Fatalf("error in GetTSDBStatus with nil filters: %s", err)
 	}
-	if !status.hasEntries() {
-		t.Fatalf("expecting non-empty TSDB status")
-	}
-	expectedSeriesCountByMetricName := []TopHeapEntry{
-		{
-			Name:  "testMetric",
-			Count: 1000,
+
+	wantStatus := &TSDBStatus{
+		TotalSeries:          metricsPerDay,
+		TotalLabelValuePairs: 5 * metricsPerDay,
+		SeriesCountByMetricName: []TopHeapEntry{
+			{Name: "testMetric", Count: metricsPerDay},
+		},
+		SeriesCountByLabelName: []TopHeapEntry{
+			{Name: "UniqueId", Count: metricsPerDay},
+			{Name: "__name__", Count: metricsPerDay},
+			{Name: "constant", Count: metricsPerDay},
+			{Name: "day", Count: metricsPerDay},
+			{Name: "some_unique_id", Count: metricsPerDay},
+		},
+		SeriesCountByFocusLabelValue: []TopHeapEntry{
+			{Name: "0", Count: metricsPerDay},
+		},
+		SeriesCountByLabelValuePair: []TopHeapEntry{
+			{Name: "__name__=testMetric", Count: metricsPerDay},
+			{Name: "constant=const", Count: metricsPerDay},
+			{Name: "day=0", Count: metricsPerDay},
+			{Name: "some_unique_id=0", Count: metricsPerDay},
+			{Name: "UniqueId=1", Count: 1},
+		},
+		LabelValueCountByLabelName: []TopHeapEntry{
+			{Name: "UniqueId", Count: metricsPerDay},
+			{Name: "__name__", Count: 1},
+			{Name: "constant", Count: 1},
+			{Name: "day", Count: 1},
+			{Name: "some_unique_id", Count: 1},
 		},
 	}
-	if !reflect.DeepEqual(status.SeriesCountByMetricName, expectedSeriesCountByMetricName) {
-		t.Fatalf("unexpected SeriesCountByMetricName;\ngot\n%v\nwant\n%v", status.SeriesCountByMetricName, expectedSeriesCountByMetricName)
+	if disablePerDayIndex {
+		wantStatus = &TSDBStatus{
+			TotalSeries:          days * metricsPerDay,
+			TotalLabelValuePairs: days * 5 * metricsPerDay,
+			SeriesCountByMetricName: []TopHeapEntry{
+				{Name: "testMetric", Count: days * metricsPerDay},
+			},
+			SeriesCountByLabelName: []TopHeapEntry{
+				{Name: "UniqueId", Count: days * metricsPerDay},
+				{Name: "__name__", Count: days * metricsPerDay},
+				{Name: "constant", Count: days * metricsPerDay},
+				{Name: "day", Count: days * metricsPerDay},
+				{Name: "some_unique_id", Count: days * metricsPerDay},
+			},
+			SeriesCountByFocusLabelValue: []TopHeapEntry{
+				{Name: "0", Count: metricsPerDay},
+				{Name: "1", Count: metricsPerDay},
+				{Name: "2", Count: metricsPerDay},
+				{Name: "3", Count: metricsPerDay},
+				{Name: "4", Count: metricsPerDay},
+			},
+			SeriesCountByLabelValuePair: []TopHeapEntry{
+				{Name: "__name__=testMetric", Count: days * metricsPerDay},
+				{Name: "constant=const", Count: days * metricsPerDay},
+				{Name: "day=0", Count: metricsPerDay},
+				{Name: "day=1", Count: metricsPerDay},
+				{Name: "day=2", Count: metricsPerDay},
+			},
+			LabelValueCountByLabelName: []TopHeapEntry{
+				{Name: "UniqueId", Count: metricsPerDay},
+				{Name: "day", Count: days},
+				{Name: "some_unique_id", Count: days},
+				{Name: "__name__", Count: 1},
+				{Name: "constant", Count: 1},
+			},
+		}
 	}
-	expectedSeriesCountByLabelName := []TopHeapEntry{
-		{
-			Name:  "UniqueId",
-			Count: 1000,
-		},
-		{
-			Name:  "__name__",
-			Count: 1000,
-		},
-		{
-			Name:  "constant",
-			Count: 1000,
-		},
-		{
-			Name:  "day",
-			Count: 1000,
-		},
-		{
-			Name:  "some_unique_id",
-			Count: 1000,
-		},
+	if diff := cmp.Diff(wantStatus, status); diff != "" {
+		t.Fatalf("unexpected TSDBStatus (-want, +got):\n%s", diff)
 	}
-	if !reflect.DeepEqual(status.SeriesCountByLabelName, expectedSeriesCountByLabelName) {
-		t.Fatalf("unexpected SeriesCountByLabelName;\ngot\n%v\nwant\n%v", status.SeriesCountByLabelName, expectedSeriesCountByLabelName)
+	// Get TSDB status  with non-nil filter which matches all series.
+	tfs = NewTagFilters()
+	if err := tfs.Add([]byte("constant"), []byte("const"), false, false); err != nil {
+		t.Fatalf("cannot add filter: %s", err)
 	}
-	expectedSeriesCountByFocusLabelValue := []TopHeapEntry{
-		{
-			Name:  "0",
-			Count: 1000,
-		},
+	status, err = db.GetTSDBStatus(nil, []*TagFilters{tfs}, tsdbStatusDate, "", 5, 1e6, noDeadline)
+	if err != nil {
+		t.Fatalf("error in GetTSDBStatus: %s", err)
 	}
-	if !reflect.DeepEqual(status.SeriesCountByFocusLabelValue, expectedSeriesCountByFocusLabelValue) {
-		t.Fatalf("unexpected SeriesCountByFocusLabelValue;\ngot\n%v\nwant\n%v", status.SeriesCountByFocusLabelValue, expectedSeriesCountByFocusLabelValue)
-	}
-	expectedLabelValueCountByLabelName := []TopHeapEntry{
-		{
-			Name:  "UniqueId",
-			Count: 1000,
-		},
-		{
-			Name:  "__name__",
-			Count: 1,
-		},
-		{
-			Name:  "constant",
-			Count: 1,
-		},
-		{
-			Name:  "day",
-			Count: 1,
-		},
-		{
-			Name:  "some_unique_id",
-			Count: 1,
-		},
-	}
-	if !reflect.DeepEqual(status.LabelValueCountByLabelName, expectedLabelValueCountByLabelName) {
-		t.Fatalf("unexpected LabelValueCountByLabelName;\ngot\n%v\nwant\n%v", status.LabelValueCountByLabelName, expectedLabelValueCountByLabelName)
-	}
-	expectedSeriesCountByLabelValuePair := []TopHeapEntry{
-		{
-			Name:  "__name__=testMetric",
-			Count: 1000,
-		},
-		{
-			Name:  "constant=const",
-			Count: 1000,
-		},
-		{
-			Name:  "day=0",
-			Count: 1000,
-		},
-		{
-			Name:  "some_unique_id=0",
-			Count: 1000,
-		},
-		{
-			Name:  "UniqueId=1",
-			Count: 1,
-		},
-	}
-	if !reflect.DeepEqual(status.SeriesCountByLabelValuePair, expectedSeriesCountByLabelValuePair) {
-		t.Fatalf("unexpected SeriesCountByLabelValuePair;\ngot\n%v\nwant\n%v", status.SeriesCountByLabelValuePair, expectedSeriesCountByLabelValuePair)
-	}
-	expectedTotalSeries := uint64(1000)
-	if status.TotalSeries != expectedTotalSeries {
-		t.Fatalf("unexpected TotalSeries; got %d; want %d", status.TotalSeries, expectedTotalSeries)
-	}
-	expectedLabelValuePairs := uint64(5000)
-	if status.TotalLabelValuePairs != expectedLabelValuePairs {
-		t.Fatalf("unexpected TotalLabelValuePairs; got %d; want %d", status.TotalLabelValuePairs, expectedLabelValuePairs)
+	// The result must be the same as with no filters (see above) except that
+	// the SeriesCountByFocusLabelValue must be empty.
+	wantStatus.SeriesCountByFocusLabelValue = []TopHeapEntry{}
+	if diff := cmp.Diff(wantStatus, status); diff != "" {
+		t.Fatalf("unexpected TSDBStatus (-want, +got):\n%s", diff)
 	}
 
-	// Check GetTSDBStatus with non-nil filter, which matches all the series
+	// Get TSDB status with non-nil filter that matches all the series on a
+	// given day.
 	tfs = NewTagFilters()
 	if err := tfs.Add([]byte("day"), []byte("0"), false, false); err != nil {
 		t.Fatalf("cannot add filter: %s", err)
 	}
-	status, err = db.GetTSDBStatus(nil, []*TagFilters{tfs}, baseDate, "", 5, 1e6, noDeadline)
+	status, err = db.GetTSDBStatus(nil, []*TagFilters{tfs}, tsdbStatusDate, "", 5, 1e6, noDeadline)
 	if err != nil {
 		t.Fatalf("error in GetTSDBStatus: %s", err)
 	}
-	if !status.hasEntries() {
-		t.Fatalf("expecting non-empty TSDB status")
-	}
-	expectedSeriesCountByMetricName = []TopHeapEntry{
-		{
-			Name:  "testMetric",
-			Count: 1000,
+	wantStatus = &TSDBStatus{
+		TotalSeries:          metricsPerDay,
+		TotalLabelValuePairs: 5 * metricsPerDay,
+		SeriesCountByMetricName: []TopHeapEntry{
+			{Name: "testMetric", Count: metricsPerDay},
+		},
+		SeriesCountByLabelName: []TopHeapEntry{
+			{Name: "UniqueId", Count: metricsPerDay},
+			{Name: "__name__", Count: metricsPerDay},
+			{Name: "constant", Count: metricsPerDay},
+			{Name: "day", Count: metricsPerDay},
+			{Name: "some_unique_id", Count: metricsPerDay},
+		},
+		SeriesCountByFocusLabelValue: []TopHeapEntry{},
+		SeriesCountByLabelValuePair: []TopHeapEntry{
+			{Name: "__name__=testMetric", Count: metricsPerDay},
+			{Name: "constant=const", Count: metricsPerDay},
+			{Name: "day=0", Count: metricsPerDay},
+			{Name: "some_unique_id=0", Count: metricsPerDay},
+			{Name: "UniqueId=1", Count: 1},
+		},
+		LabelValueCountByLabelName: []TopHeapEntry{
+			{Name: "UniqueId", Count: metricsPerDay},
+			{Name: "__name__", Count: 1},
+			{Name: "constant", Count: 1},
+			{Name: "day", Count: 1},
+			{Name: "some_unique_id", Count: 1},
 		},
 	}
-	if !reflect.DeepEqual(status.SeriesCountByMetricName, expectedSeriesCountByMetricName) {
-		t.Fatalf("unexpected SeriesCountByMetricName;\ngot\n%v\nwant\n%v", status.SeriesCountByMetricName, expectedSeriesCountByMetricName)
-	}
-	expectedTotalSeries = 1000
-	if status.TotalSeries != expectedTotalSeries {
-		t.Fatalf("unexpected TotalSeries; got %d; want %d", status.TotalSeries, expectedTotalSeries)
-	}
-	expectedLabelValuePairs = 5000
-	if status.TotalLabelValuePairs != expectedLabelValuePairs {
-		t.Fatalf("unexpected TotalLabelValuePairs; got %d; want %d", status.TotalLabelValuePairs, expectedLabelValuePairs)
+	if diff := cmp.Diff(wantStatus, status); diff != "" {
+		t.Fatalf("unexpected TSDBStatus (-want, +got):\n%s", diff)
 	}
 
-	// Check GetTSDBStatus, which matches all the series on a global time range
-	status, err = db.GetTSDBStatus(nil, nil, 0, "day", 5, 1e6, noDeadline)
-	if err != nil {
-		t.Fatalf("error in GetTSDBStatus: %s", err)
-	}
-	if !status.hasEntries() {
-		t.Fatalf("expecting non-empty TSDB status")
-	}
-	expectedSeriesCountByMetricName = []TopHeapEntry{
-		{
-			Name:  "testMetric",
-			Count: 5000,
-		},
-	}
-	if !reflect.DeepEqual(status.SeriesCountByMetricName, expectedSeriesCountByMetricName) {
-		t.Fatalf("unexpected SeriesCountByMetricName;\ngot\n%v\nwant\n%v", status.SeriesCountByMetricName, expectedSeriesCountByMetricName)
-	}
-	expectedTotalSeries = 5000
-	if status.TotalSeries != expectedTotalSeries {
-		t.Fatalf("unexpected TotalSeries; got %d; want %d", status.TotalSeries, expectedTotalSeries)
-	}
-	expectedLabelValuePairs = 25000
-	if status.TotalLabelValuePairs != expectedLabelValuePairs {
-		t.Fatalf("unexpected TotalLabelValuePairs; got %d; want %d", status.TotalLabelValuePairs, expectedLabelValuePairs)
-	}
-	expectedSeriesCountByFocusLabelValue = []TopHeapEntry{
-		{
-			Name:  "0",
-			Count: 1000,
-		},
-		{
-			Name:  "1",
-			Count: 1000,
-		},
-		{
-			Name:  "2",
-			Count: 1000,
-		},
-		{
-			Name:  "3",
-			Count: 1000,
-		},
-		{
-			Name:  "4",
-			Count: 1000,
-		},
-	}
-	if !reflect.DeepEqual(status.SeriesCountByFocusLabelValue, expectedSeriesCountByFocusLabelValue) {
-		t.Fatalf("unexpected SeriesCountByFocusLabelValue;\ngot\n%v\nwant\n%v", status.SeriesCountByFocusLabelValue, expectedSeriesCountByFocusLabelValue)
-	}
-
-	// Check GetTSDBStatus with non-nil filter, which matches only 3 series
+	// Get TSDB status with non-nil filter that matches only 3 series.
 	tfs = NewTagFilters()
 	if err := tfs.Add([]byte("UniqueId"), []byte("0|1|3"), false, true); err != nil {
 		t.Fatalf("cannot add filter: %s", err)
 	}
-	status, err = db.GetTSDBStatus(nil, []*TagFilters{tfs}, baseDate, "", 5, 1e6, noDeadline)
+	status, err = db.GetTSDBStatus(nil, []*TagFilters{tfs}, tsdbStatusDate, "", 5, 1e6, noDeadline)
 	if err != nil {
 		t.Fatalf("error in GetTSDBStatus: %s", err)
 	}
-	if !status.hasEntries() {
-		t.Fatalf("expecting non-empty TSDB status")
+	if !disablePerDayIndex {
+		wantStatus = &TSDBStatus{
+			TotalSeries:          3,
+			TotalLabelValuePairs: 5 * 3,
+			SeriesCountByMetricName: []TopHeapEntry{
+				{Name: "testMetric", Count: 3},
+			},
+			SeriesCountByLabelName: []TopHeapEntry{
+				{Name: "UniqueId", Count: 3},
+				{Name: "__name__", Count: 3},
+				{Name: "constant", Count: 3},
+				{Name: "day", Count: 3},
+				{Name: "some_unique_id", Count: 3},
+			},
+			SeriesCountByFocusLabelValue: []TopHeapEntry{},
+			SeriesCountByLabelValuePair: []TopHeapEntry{
+				{Name: "__name__=testMetric", Count: 3},
+				{Name: "constant=const", Count: 3},
+				{Name: "day=0", Count: 3},
+				{Name: "some_unique_id=0", Count: 3},
+				{Name: "UniqueId=1", Count: 1},
+			},
+			LabelValueCountByLabelName: []TopHeapEntry{
+				{Name: "UniqueId", Count: 3},
+				{Name: "__name__", Count: 1},
+				{Name: "constant", Count: 1},
+				{Name: "day", Count: 1},
+				{Name: "some_unique_id", Count: 1},
+			},
+		}
+	} else {
+		wantStatus = &TSDBStatus{
+			TotalSeries:          days * 3,
+			TotalLabelValuePairs: days * 5 * 3,
+			SeriesCountByMetricName: []TopHeapEntry{
+				{Name: "testMetric", Count: days * 3},
+			},
+			SeriesCountByLabelName: []TopHeapEntry{
+				{Name: "UniqueId", Count: days * 3},
+				{Name: "__name__", Count: days * 3},
+				{Name: "constant", Count: days * 3},
+				{Name: "day", Count: days * 3},
+				{Name: "some_unique_id", Count: days * 3},
+			},
+			SeriesCountByFocusLabelValue: []TopHeapEntry{},
+			SeriesCountByLabelValuePair: []TopHeapEntry{
+				{Name: "__name__=testMetric", Count: days * 3},
+				{Name: "constant=const", Count: days * 3},
+				{Name: "UniqueId=0", Count: days},
+				{Name: "UniqueId=1", Count: days},
+				{Name: "UniqueId=3", Count: days},
+			},
+			LabelValueCountByLabelName: []TopHeapEntry{
+				{Name: "day", Count: days},
+				{Name: "some_unique_id", Count: days},
+				{Name: "UniqueId", Count: 3},
+				{Name: "__name__", Count: 1},
+				{Name: "constant", Count: 1},
+			},
+		}
 	}
-	expectedSeriesCountByMetricName = []TopHeapEntry{
-		{
-			Name:  "testMetric",
-			Count: 3,
-		},
+	if diff := cmp.Diff(wantStatus, status); diff != "" {
+		t.Fatalf("unexpected TSDBStatus (-want, +got):\n%s", diff)
 	}
-	if !reflect.DeepEqual(status.SeriesCountByMetricName, expectedSeriesCountByMetricName) {
-		t.Fatalf("unexpected SeriesCountByMetricName;\ngot\n%v\nwant\n%v", status.SeriesCountByMetricName, expectedSeriesCountByMetricName)
-	}
-	expectedTotalSeries = 3
-	if status.TotalSeries != expectedTotalSeries {
-		t.Fatalf("unexpected TotalSeries; got %d; want %d", status.TotalSeries, expectedTotalSeries)
-	}
-	expectedLabelValuePairs = 15
-	if status.TotalLabelValuePairs != expectedLabelValuePairs {
-		t.Fatalf("unexpected TotalLabelValuePairs; got %d; want %d", status.TotalLabelValuePairs, expectedLabelValuePairs)
-	}
-
-	// Check GetTSDBStatus with non-nil filter on global time range, which matches only 15 series
-	status, err = db.GetTSDBStatus(nil, []*TagFilters{tfs}, 0, "", 5, 1e6, noDeadline)
-	if err != nil {
-		t.Fatalf("error in GetTSDBStatus: %s", err)
-	}
-	if !status.hasEntries() {
-		t.Fatalf("expecting non-empty TSDB status")
-	}
-	expectedSeriesCountByMetricName = []TopHeapEntry{
-		{
-			Name:  "testMetric",
-			Count: 15,
-		},
-	}
-	if !reflect.DeepEqual(status.SeriesCountByMetricName, expectedSeriesCountByMetricName) {
-		t.Fatalf("unexpected SeriesCountByMetricName;\ngot\n%v\nwant\n%v", status.SeriesCountByMetricName, expectedSeriesCountByMetricName)
-	}
-	expectedTotalSeries = 15
-	if status.TotalSeries != expectedTotalSeries {
-		t.Fatalf("unexpected TotalSeries; got %d; want %d", status.TotalSeries, expectedTotalSeries)
-	}
-	expectedLabelValuePairs = 75
-	if status.TotalLabelValuePairs != expectedLabelValuePairs {
-		t.Fatalf("unexpected TotalLabelValuePairs; got %d; want %d", status.TotalLabelValuePairs, expectedLabelValuePairs)
-	}
-
-	s.tb.PutPartition(ptw)
-	s.MustClose()
-	fs.MustRemoveDir(path)
 }
 
 func toTFPointers(tfs []tagFilter) []*tagFilter {
@@ -1990,7 +1948,19 @@ func TestIndexSearchLegacyContainsTimeRange_Concurrent(t *testing.T) {
 }
 
 func TestSearchLabelValues(t *testing.T) {
-	const path = "TestSearchLabelValues"
+	defer testRemoveAll(t)
+
+	for _, disablePerDayIndex := range []bool{false, true} {
+		name := fmt.Sprintf("disablePerDayIndex=%t", disablePerDayIndex)
+		t.Run(name, func(t *testing.T) {
+			testSearchLabelValues(t, disablePerDayIndex)
+		})
+
+	}
+
+}
+
+func testSearchLabelValues(t *testing.T, disablePerDayIndex bool) {
 	// Create a bunch of per-day time series
 	const days = 5
 	const metricsPerDay = 1000
@@ -2008,28 +1978,20 @@ func TestSearchLabelValues(t *testing.T) {
 			uniqLabelNames[metricName] = struct{}{}
 		}
 		mn.MetricGroup = []byte(metricName)
-		mn.AddTag(
-			"constant",
-			"const",
-		)
-		mn.AddTag(
-			"day",
-			fmt.Sprintf("%v", day),
-		)
-		mn.AddTag(
-			"UniqueId",
-			fmt.Sprintf("%v", metric),
-		)
-		mn.AddTag(
-			"some_unique_id",
-			fmt.Sprintf("%v", day),
-		)
+		mn.AddTag("constant", "const")
+		mn.AddTag("day", fmt.Sprintf("%v", day))
+		mn.AddTag("UniqueId", fmt.Sprintf("%v", metric))
+		mn.AddTag("some_unique_id", fmt.Sprintf("%v", day))
 		mn.sortTags()
 		return mn
 	}
 
-	s := MustOpenStorage(path, OpenOptions{})
+	s := MustOpenStorage(t.Name(), OpenOptions{
+		DisablePerDayIndex: disablePerDayIndex,
+	})
+	defer s.MustClose()
 	ptw := s.tb.MustGetPartition(timestamp)
+	defer s.tb.PutPartition(ptw)
 	db := ptw.pt.idb
 	is := db.getIndexSearch(noDeadline)
 
@@ -2059,31 +2021,37 @@ func TestSearchLabelValues(t *testing.T) {
 
 	is2 := db.getIndexSearch(noDeadline)
 
-	// Check that all the metrics are found for all the days.
-	for date := baseDate - days + 1; date <= baseDate; date++ {
-		metricIDs, err := is2.getMetricIDsForDate(date, metricsPerDay)
-		if err != nil {
-			t.Fatalf("unexpected error: %s", err)
-		}
-		if !perDayMetricIDs[date].Equal(metricIDs) {
-			t.Fatalf("unexpected metricIDs found;\ngot\n%d\nwant\n%d", metricIDs.AppendTo(nil), perDayMetricIDs[date].AppendTo(nil))
+	if !disablePerDayIndex {
+		// Check that all the metrics are found for all the days.
+		for date := baseDate - days + 1; date <= baseDate; date++ {
+			metricIDs, err := is2.getMetricIDsForDate(date, metricsPerDay)
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+			if !perDayMetricIDs[date].Equal(metricIDs) {
+				t.Fatalf("unexpected metricIDs found;\ngot\n%d\nwant\n%d", metricIDs.AppendTo(nil), perDayMetricIDs[date].AppendTo(nil))
+			}
 		}
 	}
 
 	// Check that all the metrics are found in global index
-	metricIDs, err := is2.getMetricIDsForDate(0, metricsPerDay*days)
+	metricIDs, err := is2.getMetricIDsForDate(globalIndexDate, metricsPerDay*days)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	if !allMetricIDs.Equal(metricIDs) {
 		t.Fatalf("unexpected metricIDs found;\ngot\n%d\nwant\n%d", metricIDs.AppendTo(nil), allMetricIDs.AppendTo(nil))
 	}
+
 	db.putIndexSearch(is2)
 
 	// Check SearchLabelNames with the specified time range.
 	tr := TimeRange{
 		MinTimestamp: timestamp - msecPerDay,
 		MaxTimestamp: timestamp,
+	}
+	if disablePerDayIndex {
+		tr = globalIndexTimeRange
 	}
 
 	// Check SearchLabelValues with the specified time range.
@@ -2119,10 +2087,6 @@ func TestSearchLabelValues(t *testing.T) {
 	if !reflect.DeepEqual(got, labelValuesReMatch) {
 		t.Fatalf("unexpected labelValues; got\n%s\nwant\n%s", got, labelValuesReMatch)
 	}
-
-	s.tb.PutPartition(ptw)
-	s.MustClose()
-	fs.MustRemoveDir(path)
 }
 
 func TestFilterLabelValues(t *testing.T) {
