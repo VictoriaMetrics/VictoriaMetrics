@@ -30,6 +30,35 @@ groups:
           summary: "Service {{ $labels.job }} is down on {{ $labels.instance }}"
           description: "{{ $labels.instance }} of job {{ $labels.job }} has been down for more than 5m"
 
+      - alert: SchedulerWorkerDown
+        expr: >
+          (vmanomaly_scheduler_alive{job=~".*vmanomaly.*"} == 0)
+          and on (job, instance, scheduler_alias, preset)
+          (sum(vmanomaly_scheduler_restarts_total{job=~".*vmanomaly.*"})
+          by (job, instance, scheduler_alias, preset) > 0)
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Scheduler {{ $labels.scheduler_alias }} is down in {{ $labels.job }} ({{ $labels.instance }})"
+          description: |
+            Periodic scheduler {{ $labels.scheduler_alias }} from preset {{ $labels.preset }} has remained down for more than 2 minutes
+            after entering automatic recovery. The restart policy may be exhausted.
+            Check vmanomaly logs and the vmanomaly_scheduler_restarts_total metric for restart failures.
+
+      - alert: FrequentSchedulerRestarts
+        expr: >
+          sum(increase(vmanomaly_scheduler_restarts_total{job=~".*vmanomaly.*"}[15m]))
+          by (job, instance, scheduler_alias, preset) > 2
+        labels:
+          severity: warning
+        annotations:
+          summary: "Scheduler {{ $labels.scheduler_alias }} is restarting frequently in {{ $labels.job }} ({{ $labels.instance }})"
+          description: |
+            Scheduler {{ $labels.scheduler_alias }} from preset {{ $labels.preset }} had more than two restart attempts
+            during the last 15 minutes. The service may be self-healing, but repeated restarts indicate an unstable
+            scheduler, configuration, datasource, or runtime dependency. Check vmanomaly logs for the original failure.
+
       # default value of 900 Should be changed to the scrape_interval for pull metrics. For push metrics this should be the lowest fit_every or infer_every in your vmanomaly config.
       - alert: NoSelfMonitoringMetrics
         expr: >
