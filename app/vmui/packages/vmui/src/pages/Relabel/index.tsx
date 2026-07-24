@@ -72,7 +72,7 @@ const Relabel: FC = () => {
         <div className="vm-relabeling-header-configs">
           <TextField
             type="textarea"
-            label="Relabel configs"
+            label="Config"
             value={config}
             autofocus
             onChange={handleChangeConfig}
@@ -82,8 +82,9 @@ const Relabel: FC = () => {
         <div className="vm-relabeling-header__labels">
           <TextField
             type="textarea"
-            label="Labels"
+            label="A time series"
             value={labels}
+            placeholder={`up{job="job_name",instance="host:port"}`}
             onChange={handleChangeLabels}
             onEnter={handleRunQuery}
           />
@@ -97,22 +98,22 @@ const Relabel: FC = () => {
             <Button
               variant="text"
               color="gray"
-              startIcon={<InfoIcon/>}
+              startIcon={<WikiIcon/>}
             >
               Relabeling cookbook
             </Button>
           </a>
           <a
             target="_blank"
-            href="https://docs.victoriametrics.com/victoriametrics/relabeling/"
+            href="https://docs.victoriametrics.com/victoriametrics/relabeling/#relabeling-stages"
             rel="help noreferrer"
           >
             <Button
               variant="text"
               color="gray"
-              startIcon={<WikiIcon/>}
+              startIcon={<InfoIcon/>}
             >
-              Documentation
+              Relabeling Stages
             </Button>
           </a>
           <Button
