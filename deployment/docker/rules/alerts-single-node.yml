@@ -75,7 +75,7 @@ groups:
             Consider to limit the ingestion rate, decrease retention or scale the disk space if possible."
 
       - alert: RequestErrorsToAPI
-        expr: increase(vm_http_request_errors_total[5m]) > 0
+        expr: increase(vm_http_request_errors_total{path=~".+"}[5m]) > 0
         for: 15m
         labels:
           severity: warning

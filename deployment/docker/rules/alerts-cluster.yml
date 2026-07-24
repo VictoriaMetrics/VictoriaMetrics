@@ -75,7 +75,7 @@ groups:
             Consider to limit the ingestion rate, decrease retention or scale the disk space if possible."
 
       - alert: RequestErrorsToAPI
-        expr: increase(vm_http_request_errors_total[5m]) > 0
+        expr: increase(vm_http_request_errors_total{path=~".+"}[5m]) > 0
         for: 15m
         labels:
           severity: warning
@@ -83,8 +83,9 @@ groups:
         annotations:
           dashboard: "{{ $externalURL }}/d/oS7Bi_0Wz?viewPanel=52&var-instance={{ $labels.instance }}"
           summary: "Too many errors served for {{ $labels.job }} path {{ $labels.path }} (instance {{ $labels.instance }})"
-          description: "Requests to path {{ $labels.path }} are receiving errors.
-            Please verify if clients are sending correct requests."
+          description: |
+              Requests to path {{ $labels.path }} are receiving errors.
+              Please verify if clients are sending correct requests.
 
       - alert: RPCErrors
         expr: |
