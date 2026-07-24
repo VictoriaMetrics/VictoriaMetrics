@@ -84,7 +84,7 @@ const Relabel: FC = () => {
             type="textarea"
             label="A time series"
             value={labels}
-            placeholder={`up{job="job_name",instance="host:port"}`}
+            placeholder="up{job=&quot;job_name&quot;,instance=&quot;host:port&quot;}"
             onChange={handleChangeLabels}
             onEnter={handleRunQuery}
           />
