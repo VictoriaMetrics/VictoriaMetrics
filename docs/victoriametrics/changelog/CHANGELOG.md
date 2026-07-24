@@ -36,6 +36,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): fixed the display of rule state badges on the `Groups` page in the web UI. See [#11160](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11160).
 * BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): previously, `vmbackupmanager` was crashing on startup when it failed to restore backup state from remote storage, causing a crash loop. Now it logs the error and continues running, retrying the state restore before each scheduled backup. Added `vm_backup_errors_total{type="restoreState"}` metric to track backup state restore failures. See [#11217](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11217).
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): properly drop data points with missing samples on the right side of [comparison operations](https://prometheus.io/docs/prometheus/latest/querying/operators/#comparison-binary-operators) between series, in the same way as Prometheus does. Previously, queries like `foo != (bar > 100)` could return unexpected results when the right side contained `NaN` values, since `value != NaN` evaluates to `true`. Comparisons to scalars such as `foo != nan` keep the previous behavior. See [#10018](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10018). Thanks to @zasdaym for contribution.
+
 
 ## [v1.148.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.148.0)
 

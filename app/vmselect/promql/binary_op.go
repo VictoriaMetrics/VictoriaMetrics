@@ -164,11 +164,10 @@ func newBinaryOpFunc(bf func(left, right float64, isBool bool) float64) binaryOp
 		left := bfa.left
 		right := bfa.right
 		op := bfa.be.Op
-		switch true {
-		case metricsql.IsBinaryOpCmp(op):
+		isCmpOp := metricsql.IsBinaryOpCmp(op)
+		if !isCmpOp {
 			// Do not remove empty series for comparison operations,
 			// since this may lead to missing result.
-		default:
 			left = removeEmptySeries(left)
 			right = removeEmptySeries(right)
 		}
@@ -181,6 +180,11 @@ func newBinaryOpFunc(bf func(left, right float64, isBool bool) float64) binaryOp
 		if len(right) == 0 && bfa.be.FillRight == nil {
 			return nil, nil
 		}
+		// NaN values in non-scalar operands of comparison operations mean missing samples,
+		// so they cannot match any sample on the other side. Drop such data points
+		// in the same way as Prometheus does.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10018
+		dropNaNRight := isCmpOp && !isScalar(right)
 		left, right, dst, err := adjustBinaryOpTags(bfa.be, left, right)
 		if err != nil {
 			return nil, err
@@ -213,6 +217,10 @@ func newBinaryOpFunc(bf func(left, right float64, isBool bool) float64) binaryOp
 				}
 				if rightIsNaN && fillRight != nil {
 					b = fillRight.N
+				}
+				if dropNaNRight && rightIsNaN {
+					dstValues[j] = nan
+					continue
 				}
 				dstValues[j] = bf(a, b, isBool)
 			}
