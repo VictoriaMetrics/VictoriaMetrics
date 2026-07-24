@@ -1087,7 +1087,7 @@ Otherwise, if you see issues such as
 - unexpected spikes for [total](#total) and [increase](#increase) outputs, or
 - heatmaps for bucket metrics displayed as being all over the map, including impossible negative values,
 
-it might be that your vmagent is calculating totals for counters and buckets based on partial data, causing the values to jump higher and lower depending on which samples get aggregated. This easily happens if you use clustered VictoriaMetrics in kubernetes with multiple vmagent pods behind a load balancer which distributes incoming requests randomly across pods.
+it might be that your vmagent is calculating totals for counters and buckets based on partial data, causing the values to jump higher and lower depending on which samples get aggregated. This easily happens if you use clustered VictoriaMetrics in kubernetes with multiple vmagent pods [behind a load balancer](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#put-aggregator-behind-load-balancer) which distributes incoming requests randomly across pods.
 
 Possible solutions include:
 
