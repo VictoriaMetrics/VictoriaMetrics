@@ -164,15 +164,11 @@ func newBinaryOpFunc(bf func(left, right float64, isBool bool) float64) binaryOp
 		left := bfa.left
 		right := bfa.right
 		op := bfa.be.Op
-		isScalarRight := isScalar(right)
-
-		switch true {
-		case metricsql.IsBinaryOpCmp(op) && isScalarRight:
-			// Do not remove empty series for comparison operations on pure scalar expression such as `NaN,
-			// since this may lead to missing result.
-			// see: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10018
-			// see: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/150
-		default:
+		isCmpOp := metricsql.IsBinaryOpCmp(op)
+		if !isCmpOp {
+			// Do not remove empty series for comparison operations, since NaN can be an
+			// explicitly present sample value. In particular, `value != NaN` is true.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/150.
 			left = removeEmptySeries(left)
 			right = removeEmptySeries(right)
 		}
@@ -195,6 +191,11 @@ func newBinaryOpFunc(bf func(left, right float64, isBool bool) float64) binaryOp
 		isBool := bfa.be.Bool
 		fillLeft := bfa.be.FillLeft
 		fillRight := bfa.be.FillRight
+		// A NaN produced by a vector comparison denotes a filtered-out sample rather
+		// than an explicitly present NaN value. Drop it when this result is used as
+		// the right-hand side of another comparison.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10018.
+		dropNaNRight := isCmpOp && isVectorComparisonExpr(bfa.be.Right)
 		for i, tsLeft := range left {
 			leftValues := tsLeft.Values
 			rightValues := right[i].Values
@@ -207,27 +208,21 @@ func newBinaryOpFunc(bf func(left, right float64, isBool bool) float64) binaryOp
 				b := rightValues[j]
 				leftIsNaN := math.IsNaN(a)
 				rightIsNaN := math.IsNaN(b)
-				// both sides are NaN
+				// Both sides are NaN.
 				if leftIsNaN && rightIsNaN {
 					dstValues[j] = bf(a, b, isBool)
 					continue
 				}
-				// skip if contains NaN only in one side and no fill value exist.
-				// this applies to
-				if !isScalarRight && leftIsNaN != rightIsNaN && fillLeft == nil && fillRight == nil {
+				if dropNaNRight && rightIsNaN && fillRight == nil {
 					dstValues[j] = nan
 					continue
 				}
-				// apply the fill value when either the left or right side is NaN, but not both.
+				// Apply the fill value when either the left or right side is NaN, but not both.
 				if leftIsNaN && fillLeft != nil {
 					a = fillLeft.N
 				}
 				if rightIsNaN && fillRight != nil {
 					b = fillRight.N
-				}
-				if dropNaNRight && rightIsNaN {
-					dstValues[j] = nan
-					continue
 				}
 				dstValues[j] = bf(a, b, isBool)
 			}
@@ -236,6 +231,29 @@ func newBinaryOpFunc(bf func(left, right float64, isBool bool) float64) binaryOp
 		// won't work as expected if `(foo op bar)` results to NaN series.
 		return dst, nil
 	}
+}
+
+func isVectorComparisonExpr(e metricsql.Expr) bool {
+	be, ok := e.(*metricsql.BinaryOpExpr)
+	if !ok || !metricsql.IsBinaryOpCmp(be.Op) {
+		return false
+	}
+	return !isScalarBinaryOpExpr(be.Left) || !isScalarBinaryOpExpr(be.Right)
+}
+
+func isScalarBinaryOpExpr(e metricsql.Expr) bool {
+	switch e := e.(type) {
+	case *metricsql.NumberExpr, *metricsql.DurationExpr:
+		return true
+	case *metricsql.BinaryOpExpr:
+		return isScalarBinaryOpExpr(e.Left) && isScalarBinaryOpExpr(e.Right)
+	case *metricsql.FuncExpr:
+		switch strings.ToLower(e.Name) {
+		case "now", "pi", "scalar", "start", "end", "step", "time", "timezone_offset":
+			return true
+		}
+	}
+	return false
 }
 
 func adjustBinaryOpTags(be *metricsql.BinaryOpExpr, left, right []*timeseries) ([]*timeseries, []*timeseries, []*timeseries, error) {

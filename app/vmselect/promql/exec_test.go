@@ -3024,8 +3024,37 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
-	t.Run(`compare_to_nan_left_vector_right_vector`, func(t *testing.T) {
-		// `right` is empty time series but not from NaN.
+	t.Run(`compare_to_nan_vector_right`, func(t *testing.T) {
+		t.Parallel()
+		q := `label_set(time(), "foo", "bar") != label_set(NaN, "foo", "bar")`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("bar"),
+		}}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`compare_to_nan_scalar_comparison_right`, func(t *testing.T) {
+		t.Parallel()
+		q := `label_set(time(), "foo", "bar") != (1 > 2)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("bar"),
+		}}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`compare_to_empty_vector_right`, func(t *testing.T) {
 		t.Parallel()
 		q := `label_set(time(), "foo", "bar") != (label_set(time(), "foo", "bar") > 100000)`
 		resultExpected := []netstorage.Result{}
@@ -3038,13 +3067,40 @@ func TestExecSuccess(t *testing.T) {
 		f(q, resultExpected)
 	})
 	t.Run(`compare_to_partially_empty_series_right`, func(t *testing.T) {
-		// this test is incompatible with Prometheus which returns `{nan, nan, nan, 1600, 1800, 2000}`.
-		// see: https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11100#issuecomment-4933952390
+		// Prometheus drops the timestamps filtered out by the comparison on the right.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11100#issuecomment-4933952390.
 		t.Parallel()
 		q := `label_set(time(), "foo", "bar") != (label_set(time(), "foo", "bar") * 2 > 2800)`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{nan, nan, nan, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("bar"),
+		}}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`compare_to_empty_unlabeled_vector_right`, func(t *testing.T) {
+		t.Parallel()
+		q := `sum(label_set(time(), "foo", "bar")) != (sum(label_set(time(), "foo", "bar")) > 100000)`
+		resultExpected := []netstorage.Result{}
+		f(q, resultExpected)
+	})
+	t.Run(`compare_to_empty_series_right_with_fill_left`, func(t *testing.T) {
+		t.Parallel()
+		q := `label_set(time(), "foo", "bar") != fill_left(0) (label_set(time(), "foo", "bar") > 100000)`
+		resultExpected := []netstorage.Result{}
+		f(q, resultExpected)
+	})
+	t.Run(`compare_to_empty_series_right_with_fill_right`, func(t *testing.T) {
+		t.Parallel()
+		q := `label_set(time(), "foo", "bar") != fill_right(0) (label_set(time(), "foo", "bar") > 100000)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
 			Timestamps: timestampsExpected,
 		}
 		r.MetricName.Tags = []storage.Tag{{
