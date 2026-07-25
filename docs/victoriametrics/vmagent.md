@@ -464,7 +464,11 @@ and `-remoteWrite.streamAggr.config`:
 
 * Sending HTTP request to `http://vmagent:8429/-/reload` endpoint. This endpoint can be protected with the `-reloadAuthKey` command-line flag.
 
-There is also the `-promscrape.configCheckInterval` command-line flag, which can be used to automatically reload configs from the updated `-promscrape.config` file.
+The `-configCheckInterval` command-line flag can be used to periodically reload all the configuration files supported by the `/-/reload` endpoint.
+For example, `-configCheckInterval=60s` reloads `-promscrape.config`, `-remoteWrite.relabelConfig`, `-remoteWrite.urlRelabelConfig`,
+`-streamAggr.config` and `-remoteWrite.streamAggr.config` every 60 seconds.
+
+The `-promscrape.configCheckInterval` command-line flag can be used instead when only automatic reloads of the updated `-promscrape.config` file are needed.
 
 ## DNS URLs
 
