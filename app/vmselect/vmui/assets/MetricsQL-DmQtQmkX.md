@@ -482,7 +482,7 @@ See also [hoeffding_bound_lower](#hoeffding_bound_lower).
 #### holt_winters
 
 `holt_winters(series_selector[d], sf, tf)` is a [rollup function](#rollup-functions), which calculates Holt-Winters value
-(aka [double exponential smoothing](https://en.wikipedia.org/wiki/Exponential_smoothing#Double_exponential_smoothing)) for [raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples)
+(aka [double exponential smoothing](https://en.wikipedia.org/wiki/Exponential_smoothing#Double_exponential_smoothing_%28Holt_linear%29)) for [raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples)
 over the given lookbehind window `d` using the given smoothing factor `sf` and the given trend factor `tf`.
 Both `sf` and `tf` must be in the range `[0...1]`.
 
@@ -1154,7 +1154,7 @@ See also [asin](#asin) and [cos](#cos).
 #### acosh
 
 `acosh(q)` is a [transform function](#transform-functions), which returns
-[inverse hyperbolic cosine](https://en.wikipedia.org/wiki/Inverse_hyperbolic_functions#Inverse_hyperbolic_cosine) for every point of every time series returned by `q`.
+[inverse hyperbolic cosine](https://en.wikipedia.org/wiki/Inverse_hyperbolic_functions#Definitions_in_terms_of_logarithms) for every point of every time series returned by `q`.
 
 Metric names are stripped from the resulting series. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
@@ -1176,7 +1176,7 @@ See also [acos](#acos) and [sin](#sin).
 #### asinh
 
 `asinh(q)` is a [transform function](#transform-functions), which returns
-[inverse hyperbolic sine](https://en.wikipedia.org/wiki/Inverse_hyperbolic_functions#Inverse_hyperbolic_sine) for every point of every time series returned by `q`.
+[inverse hyperbolic sine](https://en.wikipedia.org/wiki/Inverse_hyperbolic_functions#Definitions_in_terms_of_logarithms) for every point of every time series returned by `q`.
 
 Metric names are stripped from the resulting series. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
@@ -1198,7 +1198,7 @@ See also [tan](#tan).
 #### atanh
 
 `atanh(q)` is a [transform function](#transform-functions), which returns
-[inverse hyperbolic tangent](https://en.wikipedia.org/wiki/Inverse_hyperbolic_functions#Inverse_hyperbolic_tangent) for every point of every time series returned by `q`.
+[inverse hyperbolic tangent](https://en.wikipedia.org/wiki/Inverse_hyperbolic_functions#Definitions_in_terms_of_logarithms) for every point of every time series returned by `q`.
 
 Metric names are stripped from the resulting series. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 

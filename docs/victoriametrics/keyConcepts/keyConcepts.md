@@ -84,7 +84,7 @@ If the value has more than 12 significant decimal digits, then the less signific
 The `timestamp` is a [Unix timestamp](https://en.wikipedia.org/wiki/Unix_time) with millisecond precision.
 
 Below is an example of a single raw sample
-in [Prometheus text exposition format](https://github.com/prometheus/docs/blob/main/content/docs/instrumenting/exposition_formats.md#text-based-format):
+in [Prometheus text exposition format](https://prometheus.io/docs/instrumenting/exposition_formats/#prometheus-text-format):
 
 ```
 requests_total{path="/", code="200"} 123 4567890
@@ -456,7 +456,7 @@ The basic monitoring setup of VictoriaMetrics and vmagent is described
 in the [example docker-compose manifest](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#readme).
 In this example vmagent [scrapes a list of targets](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/prometheus-vm-single.yml)
 and [forwards collected data to VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/9751ea10983d42068487624849cac7ad6fd7e1d8/deployment/docker/compose-vm-single.yml#L16).
-VictoriaMetrics is then used as a [datasource for Grafana](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/provisioning/datasources/prometheus-datasource/single.yml)
+VictoriaMetrics is then used as a [datasource for Grafana](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/provisioning/datasources/prometheus/single.yml)
 installation for querying collected data.
 
 VictoriaMetrics components allow building more advanced topologies. For example, vmagents can push metrics from separate datacenters to the central VictoriaMetrics:
@@ -492,7 +492,7 @@ Params:
 * `time` - optional, [timestamp](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats)
   in millisecond precision to evaluate the `query` at. If omitted, `time` is set to `now()` (current timestamp).
   The `time` param can be specified in [multiple allowed formats](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats).
-* `step` - optional [interval](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations)
+* `step` - optional [interval](https://prometheus.io/docs/prometheus/latest/querying/basics/#float-literals-and-time-durations)
   for searching for raw samples in the past when executing the `query` (used when a sample is missing at the specified `time`).
   For example, the request `/api/v1/query?query=up&step=1m` looks for the last written raw sample for the metric `up`
   in the `(now()-1m, now()]` interval (the first millisecond is not included). If omitted, `step` is set to `5m` (5 minutes)
@@ -590,7 +590,7 @@ Params:
 * `end` - the ending [timestamp](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats)
   of the time range for `query` evaluation.
   If the `end` isn't set, then the `end` is automatically set to the current time.
-* `step` - the [interval](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations) 
+* `step` - the [interval](https://prometheus.io/docs/prometheus/latest/querying/basics/#float-literals-and-time-durations)
   between data points, which must be returned from the range query.
   The `query` is executed at `start`, `start+step`, `start+2*step`, ..., `start+N*step` timestamps,
   where `N` is the whole number of steps that fit between `start` and `end`.
@@ -929,7 +929,7 @@ rate(node_network_receive_bytes_total)
 By default, VictoriaMetrics calculates the `rate` over [raw samples](#raw-samples) on the lookbehind window specified in the `step` param
 passed either to [instant query](#instant-query) or to [range query](#range-query).
 The interval on which `rate` needs to be calculated can be specified explicitly
-as [duration](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations) in square brackets:
+as [duration](https://prometheus.io/docs/prometheus/latest/querying/basics/#float-literals-and-time-durations) in square brackets:
 
 ```metricsql
  rate(node_network_receive_bytes_total[5m])

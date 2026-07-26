@@ -168,17 +168,10 @@ func TestParseJWTBody_Failure(t *testing.T) {
 		true,
 	)
 
-	// invalid body type json
+	// non-object body type
 	f(
 		`[]`,
-		"missing `vm_access` claim",
-		true,
-	)
-
-	// missing vm_access claim
-	f(
-		`{}`,
-		"missing `vm_access` claim",
+		`unexpected non json object; type: "array"`,
 		true,
 	)
 
@@ -186,13 +179,6 @@ func TestParseJWTBody_Failure(t *testing.T) {
 	f(
 		`{"vm_access": 123}`,
 		"unexpected type for `vm_access` field; got: \"number\", want object {}",
-		true,
-	)
-
-	// vm_access claim null
-	f(
-		`{"vm_access": null}`,
-		"missing `vm_access` claim",
 		true,
 	)
 
@@ -555,6 +541,33 @@ func TestParseJWTBody_Success(t *testing.T) {
 	)
 }
 
+func TestParseJWTBody_VMAccessPresence(t *testing.T) {
+	f := func(data string, wantHasVMAccess bool) {
+		t.Helper()
+
+		encodedLen := base64.RawURLEncoding.EncodedLen(len(data))
+		encoded := make([]byte, encodedLen)
+		base64.RawURLEncoding.Encode(encoded, []byte(data))
+
+		var b body
+		if err := b.parse(string(encoded)); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if b.hasVMAccess != wantHasVMAccess {
+			t.Fatalf("unexpected hasVMAccess; got %v; want %v", b.hasVMAccess, wantHasVMAccess)
+		}
+	}
+
+	// vm_access claim is present
+	f(`{"vm_access": {}}`, true)
+	f(`{"vm_access": {"metrics_account_id": 1}}`, true)
+
+	// vm_access claim is absent or null - parsing must succeed with hasVMAccess=false
+	f(`{}`, false)
+	f(`{"vm_access": null}`, false)
+	f(`{"role": "admin"}`, false)
+}
+
 func TestNewTokenFromRequest_Failure(t *testing.T) {
 	f := func(r *http.Request) {
 		t.Helper()
@@ -866,7 +879,6 @@ func TestNewTokenFromRequest_Success(t *testing.T) {
 }
 
 func TestTokenMatchClaims(t *testing.T) {
-
 	/*
 		{
 		  "iss": "https://login.microsoftonline.com/-6691-4868-a77b-1b0f9bbe5f43/v2.0",

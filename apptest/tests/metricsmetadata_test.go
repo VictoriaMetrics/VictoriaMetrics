@@ -2,6 +2,7 @@ package tests
 
 import (
 	"fmt"
+	"math"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -25,7 +26,11 @@ func TestSingleMetricsMetadata(t *testing.T) {
 	if len(resp.Data) != 0 {
 		t.Fatalf("unexpected resp Records: %d, want: %d", len(resp.Data), 0)
 	}
-
+	generateValueExceedLimit := func(prefix string) string {
+		buf := make([]byte, math.MaxUint16+len(prefix))
+		copy(buf, prefix)
+		return string(buf)
+	}
 	const ingestTimestamp = 1707123456700
 	prometheusTextDataSet := []string{
 		`# HELP metric_name_1 some help message`,
@@ -40,6 +45,12 @@ func TestSingleMetricsMetadata(t *testing.T) {
 		`# TYPE metric_name_3 gauge`,
 		`metric_name_3{label="baz"} 30`,
 	}
+	prometheusTextDataSet = append(prometheusTextDataSet,
+		`# HELP metric_name_4 `+generateValueExceedLimit("large help"),
+		`# TYPE metric_name_4 gauge`,
+		`metric_name_4{label="baz"} 30`,
+	)
+
 	prometheusRemoteWriteDataSet := prompb.WriteRequest{
 		Timeseries: []prompb.TimeSeries{
 			{Labels: []prompb.Label{{Name: "__name__", Value: "metric_name_4"}}, Samples: []prompb.Sample{{Value: 40, Timestamp: ingestTimestamp}}},
@@ -52,6 +63,9 @@ func TestSingleMetricsMetadata(t *testing.T) {
 			{MetricFamilyName: "metric_name_5", Help: "some help message", Type: prompb.MetricTypeSummary},
 			{MetricFamilyName: "metric_name_6", Help: "some help message", Type: prompb.MetricTypeStateset},
 			{MetricFamilyName: `metric_name_7_!@"_suffix`, Help: "some help message", Type: prompb.MetricTypeStateset},
+			{MetricFamilyName: "metric_name_8", Help: generateValueExceedLimit("large_help"), Type: prompb.MetricTypeStateset},
+			{MetricFamilyName: "metric_name_9", Help: "some help message", Type: prompb.MetricTypeStateset, Unit: generateValueExceedLimit("large_unit")},
+			{MetricFamilyName: generateValueExceedLimit("metric_name_10"), Help: "some help message", Type: prompb.MetricTypeStateset},
 		},
 	}
 
@@ -137,6 +151,11 @@ func TestClusterMetricsMetadata(t *testing.T) {
 	if len(resp.Data) != 0 {
 		t.Fatalf("unexpected resp Records: %d, want: %d", len(resp.Data), 0)
 	}
+	generateValueExceedLimit := func(prefix string) string {
+		buf := make([]byte, math.MaxUint16+len(prefix))
+		copy(buf, prefix)
+		return string(buf)
+	}
 
 	const ingestTimestamp = 1707123456700
 	prometheusTextDataSet := []string{
@@ -152,6 +171,11 @@ func TestClusterMetricsMetadata(t *testing.T) {
 		`# TYPE metric_name_3 gauge`,
 		`metric_name_3{label="baz"} 30`,
 	}
+	prometheusTextDataSet = append(prometheusTextDataSet,
+		`# HELP metric_name_4 `+generateValueExceedLimit("large help"),
+		`# TYPE metric_name_4 gauge`,
+		`metric_name_4{label="baz"} 30`,
+	)
 	prometheusRemoteWriteDataSet := prompb.WriteRequest{
 		Timeseries: []prompb.TimeSeries{
 			{Labels: []prompb.Label{{Name: "__name__", Value: "metric_name_4"}}, Samples: []prompb.Sample{{Value: 40, Timestamp: ingestTimestamp}}},
@@ -164,6 +188,9 @@ func TestClusterMetricsMetadata(t *testing.T) {
 			{MetricFamilyName: "metric_name_5", Help: "some help message", Type: prompb.MetricTypeSummary},
 			{MetricFamilyName: "metric_name_6", Help: "some help message", Type: prompb.MetricTypeStateset},
 			{MetricFamilyName: `metric_name_7_!@"_suffix`, Help: "some help message", Type: prompb.MetricTypeStateset},
+			{MetricFamilyName: "metric_name_8", Help: generateValueExceedLimit("large_help"), Type: prompb.MetricTypeStateset},
+			{MetricFamilyName: "metric_name_9", Help: "some help message", Type: prompb.MetricTypeStateset, Unit: generateValueExceedLimit("large_unit")},
+			{MetricFamilyName: generateValueExceedLimit("metric_name_10"), Help: "some help message", Type: prompb.MetricTypeStateset},
 		},
 	}
 
