@@ -57,9 +57,9 @@ func TestFilterPartitions(t *testing.T) {
 		makePart("metadata/tenantsMetadata.json"),
 	}
 
-	f := func(restoreSince time.Duration, restorePartitions []string, wantPaths []string) {
+	f := func(restoreSince time.Duration, restorePartitionsRegexp string, wantPaths []string) {
 		t.Helper()
-		got, err := filterPartitions(allParts, restoreSince, restorePartitions, now)
+		got, err := filterPartitions(allParts, restoreSince, restorePartitionsRegexp, now)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -78,7 +78,7 @@ func TestFilterPartitions(t *testing.T) {
 	}
 
 	// No filters — all parts pass through.
-	f(0, nil, []string{
+	f(0, "", []string{
 		"data/small/2024_01/parts.json",
 		"data/small/2024_01/file.bin",
 		"data/big/2024_01/big.bin",
@@ -95,7 +95,7 @@ func TestFilterPartitions(t *testing.T) {
 	})
 
 	// restorePartitions=2024_01 — only Jan 2024 and metadata.
-	f(0, []string{"2024_01"}, []string{
+	f(0, "2024_01", []string{
 		"data/small/2024_01/parts.json",
 		"data/small/2024_01/file.bin",
 		"data/big/2024_01/big.bin",
@@ -103,8 +103,8 @@ func TestFilterPartitions(t *testing.T) {
 		"metadata/tenantsMetadata.json",
 	})
 
-	// restorePartitions=2024_01,2026_06 — two explicit partitions plus metadata.
-	f(0, []string{"2024_01", "2026_06"}, []string{
+	// restorePartitions=2024_01|2026_06 — two explicit partitions plus metadata.
+	f(0, "2024_01|2026_06", []string{
 		"data/small/2024_01/parts.json",
 		"data/small/2024_01/file.bin",
 		"data/big/2024_01/big.bin",
@@ -116,12 +116,25 @@ func TestFilterPartitions(t *testing.T) {
 		"metadata/tenantsMetadata.json",
 	})
 
+	// restorePartitions=2024_.* — every 2024 partition (regexp, not a literal list) plus metadata.
+	f(0, "2024_.*", []string{
+		"data/small/2024_01/parts.json",
+		"data/small/2024_01/file.bin",
+		"data/big/2024_01/big.bin",
+		"data/indexdb/2024_01/index.dat",
+		"data/small/2024_06/parts.json",
+		"data/small/2024_06/file.bin",
+		"data/big/2024_06/big.bin",
+		"data/indexdb/2024_06/index.dat",
+		"metadata/tenantsMetadata.json",
+	})
+
 	// restoreSince=2y from 2026-06-28: cutoff is 2024-06-28.
 	// 2024_01 ends 2024-02-01 — before cutoff, excluded.
 	// 2024_06 ends 2024-07-01 — after cutoff (Jul 1 > Jun 28), included.
 	// 2026_06 ends 2026-07-01 — after cutoff, included.
 	twoYears := 2 * 365 * 24 * time.Hour
-	f(twoYears, nil, []string{
+	f(twoYears, "", []string{
 		"data/small/2024_06/parts.json",
 		"data/small/2024_06/file.bin",
 		"data/big/2024_06/big.bin",
@@ -134,7 +147,7 @@ func TestFilterPartitions(t *testing.T) {
 	})
 
 	// Both filters: restoreSince=2y AND restorePartitions=2026_06 — only 2026_06 and metadata.
-	f(twoYears, []string{"2026_06"}, []string{
+	f(twoYears, "2026_06", []string{
 		"data/small/2026_06/parts.json",
 		"data/small/2026_06/file.bin",
 		"data/big/2026_06/big.bin",
@@ -142,23 +155,21 @@ func TestFilterPartitions(t *testing.T) {
 		"metadata/tenantsMetadata.json",
 	})
 
-	// restorePartitions with a valid name that matches nothing in the set — only metadata survives.
-	f(0, []string{"9999_01"}, []string{
+	// restorePartitions regexp that matches nothing in the set — only metadata survives.
+	f(0, "9999_01", []string{
 		"metadata/tenantsMetadata.json",
 	})
 }
 
-func TestFilterPartitionsInvalidName(t *testing.T) {
+func TestFilterPartitionsInvalidRegexp(t *testing.T) {
 	now := time.Date(2026, 6, 28, 0, 0, 0, 0, time.UTC)
 	parts := []common.Part{{Path: "data/small/2024_01/file.bin", FileSize: 100, Size: 100, ActualSize: 100}}
 
-	// Bad separator format.
-	if _, err := filterPartitions(parts, 0, []string{"2024-01"}, now); err == nil {
-		t.Fatal("expected error for invalid partition name '2024-01', got nil")
+	if _, err := filterPartitions(parts, 0, "2024_0[", now); err == nil {
+		t.Fatal("expected error for invalid -restorePartitions regexp '2024_0[', got nil")
 	}
-	// Missing zero-padding.
-	if _, err := filterPartitions(parts, 0, []string{"2024_1"}, now); err == nil {
-		t.Fatal("expected error for invalid partition name '2024_1', got nil")
+	if _, err := filterPartitions(parts, 0, "2024_(01", now); err == nil {
+		t.Fatal("expected error for invalid -restorePartitions regexp '2024_(01', got nil")
 	}
 }
 
@@ -169,10 +180,10 @@ func TestFilterPartitionsLegacyIndexDB(t *testing.T) {
 		{Path: "indexdb/2024_01/index.dat", FileSize: 100, Size: 100, ActualSize: 100},
 	}
 
-	if _, err := filterPartitions(parts, 24*time.Hour, nil, now); err == nil {
+	if _, err := filterPartitions(parts, 24*time.Hour, "", now); err == nil {
 		t.Fatal("expected error when filtering a backup containing the legacy indexdb, got nil")
 	}
-	if _, err := filterPartitions(parts, 0, []string{"2024_01"}, now); err == nil {
+	if _, err := filterPartitions(parts, 0, "2024_01", now); err == nil {
 		t.Fatal("expected error when filtering a backup containing the legacy indexdb, got nil")
 	}
 }

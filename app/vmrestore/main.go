@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/actions"
@@ -36,9 +35,10 @@ var (
 		"This reduces the download size when only recent data is needed and helps avoid over-provisioning disk space. "+
 		"For example, -restoreSince=5d restores only partitions whose calendar month ends within the last 5 days. "+
 		"Supports s (second), h (hour), d (day), w (week), M (month), y (year) suffixes.")
-	restorePartitions = flag.String("restorePartitions", "", "Comma-separated list of partition names in YYYY_MM format to restore from the backup. "+
-		"Partitions not in the list are skipped. Non-partition files (metadata, etc.) are always restored. "+
-		"Example: -restorePartitions=2024_01,2024_02. If not set, all partitions are restored.")
+	restorePartitions = flag.String("restorePartitions", "", "Regular expression matching partition names (YYYY_MM) to restore from the backup. "+
+		"Partitions whose name doesn't match are skipped. Non-partition files (metadata, etc.) are always restored. "+
+		"Example: -restorePartitions=2024_01 restores only January 2024; -restorePartitions=2026_.* restores the whole of 2026; "+
+		"-restorePartitions=2026_(0[1-6]) restores the first half of 2026. If not set, all partitions are restored.")
 )
 
 func main() {
@@ -67,15 +67,6 @@ func main() {
 	if err != nil {
 		logger.Fatalf("%s", err)
 	}
-	var partitionList []string
-	if *restorePartitions != "" {
-		for _, name := range strings.Split(*restorePartitions, ",") {
-			name = strings.TrimSpace(name)
-			if name != "" {
-				partitionList = append(partitionList, name)
-			}
-		}
-	}
 	a := &actions.Restore{
 		Concurrency:             *concurrency,
 		Src:                     srcFS,
@@ -83,7 +74,7 @@ func main() {
 		SkipBackupCompleteCheck: *skipBackupCompleteCheck,
 		SkipPreallocation:       *SkipPreallocation,
 		RestoreSince:            restoreSince.Duration(),
-		RestorePartitions:       partitionList,
+		RestorePartitions:       *restorePartitions,
 	}
 	pushmetrics.Init()
 	if err := a.Run(ctx); err != nil {

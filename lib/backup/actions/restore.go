@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"regexp"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -55,10 +56,11 @@ type Restore struct {
 	// For example, RestoreSince=5*24*time.Hour restores only the last 5 days of data.
 	RestoreSince time.Duration
 
-	// RestorePartitions is an optional list of partition names in YYYY_MM format to restore.
-	// When non-empty, only the listed partitions are restored; all other partitions are skipped.
-	// Non-partition files (metadata, etc.) are always restored regardless of this setting.
-	RestorePartitions []string
+	// RestorePartitions, if non-empty, is a regular expression matched against partition
+	// names (YYYY_MM). Only partitions whose name matches are restored; all other partitions
+	// are skipped. Non-partition files (metadata, etc.) are always restored regardless of
+	// this setting.
+	RestorePartitions string
 }
 
 // Run runs r with the provided settings.
@@ -108,7 +110,7 @@ func (r *Restore) Run(ctx context.Context) error {
 			return fmt.Errorf("part file %s would be written outside storage directory %s", srcPart.Path, r.Dst.Dir)
 		}
 	}
-	if r.RestoreSince > 0 || len(r.RestorePartitions) > 0 {
+	if r.RestoreSince > 0 || r.RestorePartitions != "" {
 		srcParts, err = filterPartitions(srcParts, r.RestoreSince, r.RestorePartitions, time.Now().UTC())
 		if err != nil {
 			return fmt.Errorf("cannot filter partitions: %w", err)
@@ -355,21 +357,29 @@ func extractPartitionName(partPath string) string {
 }
 
 // filterPartitions filters srcParts according to the restoreSince duration and the
-// explicit restorePartitions list. Non-partition files are always retained.
+// restorePartitionsRegexp pattern. Non-partition files are always retained.
 //
 //   - If restoreSince > 0, a partition is kept if the end date derived from its name
 //     (YYYY_MM) is at or after (now - restoreSince). The whole partition is kept, even
 //     though it may also contain data older than restoreSince.
-//   - If restorePartitions is non-empty, only the explicitly listed partitions are kept.
+//   - If restorePartitionsRegexp is non-empty, only partitions whose name matches the
+//     regexp are kept. The regexp is matched unanchored against the partition name, so
+//     e.g. "2026_" matches every 2026 partition and "2026_(0[1-6])" matches partitions
+//     from the first half of 2026.
 //   - Both filters are applied when both are set (intersection).
 //
 // It is an error to filter a backup that contains the legacy, non-partitioned indexDB
 // (see legacyIndexDBPathPrefix), since such a backup cannot be restored partially.
 //
 // now is the reference time used for computing the restoreSince cutoff.
-func filterPartitions(srcParts []common.Part, restoreSince time.Duration, restorePartitions []string, now time.Time) ([]common.Part, error) {
-	if err := validatePartitionNames(restorePartitions); err != nil {
-		return nil, err
+func filterPartitions(srcParts []common.Part, restoreSince time.Duration, restorePartitionsRegexp string, now time.Time) ([]common.Part, error) {
+	var partitionRe *regexp.Regexp
+	if restorePartitionsRegexp != "" {
+		re, err := regexp.Compile(restorePartitionsRegexp)
+		if err != nil {
+			return nil, fmt.Errorf("invalid -restorePartitions regexp %q: %w", restorePartitionsRegexp, err)
+		}
+		partitionRe = re
 	}
 
 	for _, p := range srcParts {
@@ -378,11 +388,6 @@ func filterPartitions(srcParts []common.Part, restoreSince time.Duration, restor
 				"non-partitioned indexdb format (found %q); such backups must be restored in full; "+
 				"see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7599", p.Path)
 		}
-	}
-
-	allowedPartitions := make(map[string]struct{}, len(restorePartitions))
-	for _, name := range restorePartitions {
-		allowedPartitions[name] = struct{}{}
 	}
 
 	var sinceTime time.Time
@@ -399,10 +404,8 @@ func filterPartitions(srcParts []common.Part, restoreSince time.Duration, restor
 			continue
 		}
 
-		if len(allowedPartitions) > 0 {
-			if _, ok := allowedPartitions[ptName]; !ok {
-				continue
-			}
+		if partitionRe != nil && !partitionRe.MatchString(ptName) {
+			continue
 		}
 
 		if sinceTime.IsZero() {
@@ -431,16 +434,6 @@ func filterPartitions(srcParts []common.Part, restoreSince time.Duration, restor
 		logger.Infof("skipped %d parts from %d partitions that are outside the requested restore range", skipped, countPartitions(srcParts)-countPartitions(keptParts))
 	}
 	return keptParts, nil
-}
-
-// validatePartitionNames returns an error if any name in names is not a valid YYYY_MM partition name.
-func validatePartitionNames(names []string) error {
-	for _, name := range names {
-		if _, err := time.Parse("2006_01", name); err != nil {
-			return fmt.Errorf("invalid partition name %q in -restorePartitions; expected YYYY_MM format, e.g. 2024_01", name)
-		}
-	}
-	return nil
 }
 
 // countPartitions returns the number of distinct partition names in parts.

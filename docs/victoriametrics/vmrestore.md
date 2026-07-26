@@ -81,14 +81,19 @@ still contain data older than the requested duration.
 
 ### Restore specific partitions
 
-Use `-restorePartitions` to list the exact partitions to download:{{% available_from "#" %}}
+Use `-restorePartitions` with a regular expression matched against partition names to select
+which partitions to download:{{% available_from "#" %}}
 
 ```sh
 ./vmrestore -src=<storageType>://<path/to/backup> -storageDataPath=<local/path/to/restore> \
-  -restorePartitions=2026_05,2026_06
+  -restorePartitions=2026_05
 ```
 
-Partition names follow the `YYYY_MM` format used by VictoriaMetrics storage.
+Partition names follow the `YYYY_MM` format used by VictoriaMetrics storage, and the regexp is
+matched unanchored against that name. For example, `-restorePartitions=2026_.*` restores every
+partition in 2026, and `-restorePartitions=2026_(0[1-6])` restores only the first half of 2026.
+To restore a fixed set of specific months, alternate them explicitly, e.g.
+`-restorePartitions=2026_05|2026_06`.
 Non-partition files (metadata etc.) are always restored regardless of this flag.
 
 Both flags can be combined — only partitions that satisfy both filters are downloaded.
@@ -253,7 +258,7 @@ Run `vmrestore -help` in order to see all the available options:
   -s3TLSInsecureSkipVerify
      Whether to skip TLS verification when connecting to the S3 endpoint.
   -restorePartitions string
-     Comma-separated list of partition names in YYYY_MM format to restore from the backup. Partitions not in the list are skipped. Non-partition files (metadata, etc.) are always restored. Example: -restorePartitions=2024_01,2024_02. If not set, all partitions are restored.
+     Regular expression matching partition names (YYYY_MM) to restore from the backup. Partitions whose name doesn't match are skipped. Non-partition files (metadata, etc.) are always restored. Example: -restorePartitions=2024_01 restores only January 2024; -restorePartitions=2026_.* restores the whole of 2026; -restorePartitions=2026_(0[1-6]) restores the first half of 2026. If not set, all partitions are restored.
   -restoreSince value
      If set, a partition is restored only if the end date derived from its name (YYYY_MM) is newer than now()-restoreSince; the whole partition is restored, even though it may also contain data older than restoreSince. This reduces the download size when only recent data is needed and helps avoid over-provisioning disk space. For example, -restoreSince=5d restores only partitions whose calendar month ends within the last 5 days. Supports s (second), h (hour), d (day), w (week), M (month), y (year) suffixes.
   -skipBackupCompleteCheck
