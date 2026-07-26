@@ -1,16 +1,18 @@
 schedulers:
   periodic:
     infer_every: "1m"
-    fit_every: "1h"
-    fit_window: "2d" # 2d-14d based on the presence of weekly seasonality in your data
+    fit_every: "100w" # the online model keeps learning during inference
+    fit_window: "2w"
 
 models:
-  prophet:
-    class: "prophet"
-    args:
-      interval_width: 0.98
-      weekly_seasonality: False  # comment it if your data has weekly seasonality
-      yearly_seasonality: False
+  temporal_envelope:
+    class: "temporal_envelope"
+    queries: "all"
+    schedulers: "all"
+    seasonalities: ["hod_smooth", "dow_smooth"]
+    alpha: 0.005
+    loss_reactivity: 5
+    iqr_threshold: 2
 
 reader:
   datasource_url: "http://victoriametrics:8428/"

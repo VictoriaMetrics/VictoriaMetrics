@@ -334,7 +334,7 @@ For detailed guidance on configuring mTLS parameters such as `verify_tls`, `tls_
 
 ### Healthcheck metrics
 
-`VmWriter` exposes [several healthchecks metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#writer-behaviour-metrics). 
+`VmWriter` exposes [several health metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#writer-behaviour-metrics).
 
 ### Metrics formatting
 

@@ -75,10 +75,13 @@ type GroupAlerts struct {
 // ApiRule represents a Rule for web view
 // see https://github.com/prometheus/compliance/blob/main/alert_generator/specification.md#get-apiv1rules
 type ApiRule struct {
-	// State must be one of these under following scenarios
-	//  "pending": at least 1 alert in the rule in pending state and no other alert in firing ruleState.
-	//  "firing": at least 1 alert in the rule in firing state.
-	//  "inactive": no alert in the rule in firing or pending state.
+	// Rule state must be one of these under following scenarios:
+	//  "pending": at least 1 alert in the rule in pending state and no other alert in firing state. (only for alerting rules)
+	//  "firing": at least 1 alert in the rule in firing state. (only for alerting rules)
+	//  "inactive": rule's last evaluation was successful but no alert in the rule in firing or pending state. (only for alerting rules)
+	//  "unhealthy": rule's last evaluation was failed with error. (for both alerting and recording rules)
+	// 	"nomatch": rule's last evaluation was successful but no time series matched the rule's expression. (for both alerting and recording rules)
+	//  "ok": the recording rule's last evaluation was successful. (only for recording rules)
 	State string `json:"state"`
 	Name  string `json:"name"`
 	// Query represents Rule's `expression` field
@@ -237,6 +240,7 @@ func NewAlertAPI(ar *AlertingRule, a *notifier.Alert) *ApiAlert {
 }
 
 func (r *ApiRule) ExtendState() {
+	// if alerting rule already has alerts, then state is already set to either "pending" or "firing" and we don't need to change it
 	if len(r.Alerts) > 0 {
 		return
 	}

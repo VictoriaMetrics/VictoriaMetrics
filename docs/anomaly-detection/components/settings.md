@@ -307,7 +307,7 @@ This means that the service upon restart:
 
 ## Retention
 
-{{% available_from "v1.28.1" anomaly %}} The `retention` argument allows to set a [time-to-live](https://en.wikipedia.org/wiki/Time_to_live) (TTL) for service artifacts, such as stored model instances and their training data. When enabled, the service will periodically check (controlled by `check_interval` period) and clean up model instances that have not been used for inference or refitting within the specified period of time (defined in `ttl` argument as a valid period). This helps to manage resources in long-running deployments by removing stale or unused artifacts.
+{{% available_from "v1.28.1" anomaly %}} The `retention` argument sets a [time to live](https://en.wikipedia.org/wiki/Time_to_live) (TTL) for service artifacts such as stored model instances and training data. At each `check_interval`, the service removes artifacts that have not been used for inference or refitting within `ttl`. This bounds stale resource usage in long-running deployments.
 
 ### Use Cases
 - With **[online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models)** as they continuously create model instances for new timeseries over time during inference calls, especially when combined with [periodic schedulers](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) with infrequent `fit_every` (say, `90d`).
@@ -322,7 +322,7 @@ The section is **backward-compatible and disabled by default**, meaning that all
 
 `ttl` argument defines the time-to-live period for model instances and their training data. It should be a valid period string (e.g., `7d` for 7 days, `30d` for 30 days, etc.). If a model instance or its training data has not been used for inference or refitting within this period, it will be considered stale and eligible for cleanup.
 
-> If set higher than respective scheduler's `fit_every` period, the ttl will have no effect, as models will always be refitted before they become stale.
+> If `ttl` is greater than a scheduler's `fit_every`, the model is refitted before it becomes stale and the TTL has no effect.
 
 `check_interval` argument defines how often the service should check for stale artifacts. It should be a valid period string (e.g., `1h` for 1 hour, `24h` for 24 hours, etc.). During each check, the service will evaluate all stored model instances and their training data against the defined `ttl` and remove those that are stale.
 

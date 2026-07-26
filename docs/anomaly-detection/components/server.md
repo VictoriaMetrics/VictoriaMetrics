@@ -64,3 +64,15 @@ reader:
 After starting the `vmanomaly` server with the above configuration, UI can be accessed at `<vmanomaly-host>:8490/vmanomaly/vmui/` (e.g. `http://localhost:8490/vmanomaly/vmui/`).
 
 Rest API endpoints (e.g. `/metrics`) can be accessed at `<vmanomaly-host>:8490/vmanomaly/metrics` (e.g. `http://localhost:8490/vmanomaly/metrics`).
+
+### Time-series analysis and autotune API
+
+{{% available_from "v1.30.0" anomaly %}} The server exposes bounded endpoints for UI, MCP, and automation workflows:
+
+- `GET /api/v1/timeseries/characteristics` samples the supplied query and summarizes trend, calendar seasonality, changepoints, gaps, and intermittent or spiky behavior. Use `limit` (default 100) to cap sampled series and pass the production `step` and timezone.
+- `POST /api/v1/autotune/tasks` starts asynchronous shared-model tuning. The request contains the query, candidate `tuned_class_name`, expected `anomaly_percentage`, data-source settings, and optimization parameters.
+- `GET /api/v1/autotune/tasks/{task_id}` returns progress and the concrete suggested `modelConfig` when complete.
+- `DELETE /api/v1/autotune/tasks/{task_id}` cancels pending work cooperatively.
+
+> [!TIP]
+> For a complete request and recommended workflow, see [Shared asynchronous autotune workflow](https://docs.victoriametrics.com/anomaly-detection/components/models/#shared-asynchronous-autotune-workflow). OpenAPI schemas for the running version are available at `/docs` endpoint of a running `vmanomaly` instance.

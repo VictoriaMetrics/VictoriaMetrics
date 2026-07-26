@@ -163,6 +163,8 @@ The list of alerting rules is the following:
   alerting rules related to [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) component;
 * [alerts-vmanomaly.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-vmanomaly.yml):
   alerting rules related to [VictoriaMetrics Anomaly Detection](https://docs.victoriametrics.com/anomaly-detection/);
+* [alerts-vmbackupmanager.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-vmbackupmanager.yml):
+  alerting rules related to [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/) component;
 
 Please, also see [how to monitor VictoriaMetrics installations](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#monitoring).
 ## Troubleshooting

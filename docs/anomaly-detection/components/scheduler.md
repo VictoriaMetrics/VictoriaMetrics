@@ -72,6 +72,8 @@ options={`"scheduler.periodic.PeriodicScheduler"`, `"scheduler.oneoff.OneoffSche
 
 > If `start_from` [parameter](#parameters-1) is used, it's suggested to also set `restore_state: true` in the [Settings section](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration) of a config, so that the scheduler can restore its state from the previous run **if terminated or restarted in between scheduled runs** and continue producing anomaly scores without interruptions, otherwise the service will be idle until future `start_from` time is reached. E.g. if `start_from` is set to `20:00` and the service is started and then terminated and restarted at `20:30`, it will not produce any anomaly scores until the next day's `20:00` is reached (+23:30 of being idle), which introduces inconvenience for the users.
 
+> {{% available_from "v1.30.0" anomaly %}} If a periodic scheduler worker exits unexpectedly, the service attempts bounded restarts with exponential backoff instead of shutting down unrelated schedulers. Monitor [`vmanomaly_scheduler_alive`](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#startup-metrics) and `vmanomaly_scheduler_restarts_total` to alert on persistent failures.
+
 ### Parameters
 
 For periodic scheduler parameters are defined as differences in times, expressed in difference units, e.g. days, hours, minutes, seconds. Time granularity is defined by the last characters of a string. Examples: `"50s"` (seconds), `"4m"` (minutes), `"3h"` (hours), `"2d"` (days), `"1w"` (weeks).

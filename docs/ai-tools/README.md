@@ -69,18 +69,21 @@ See more details at [VictoriaMetrics/mcp-victoriatraces](https://github.com/Vict
 REST API and documentation for AI-assisted anomaly detection, model management, and observability insights.
 
 Capabilities include:
-- Health Monitoring: Check `vmanomaly` server health and build information
-- Model Management: List, validate, and configure anomaly detection models (like `zscore_online`, `prophet`, and more)
-- Configuration Generation: Generate complete `vmanomaly` YAML configurations
-- Alert Rule Generation: Generate [`vmalert`](https://docs.victoriametrics.com/victoriametrics/vmalert/) [alerting rules](https://docs.victoriametrics.com/victoriametrics/vmalert/#alerting-rules) based on [anomaly score metrics](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score) to simplify alerting setup
-- Documentation Search: Full-text search across embedded `vmanomaly` documentation with fuzzy matching
+- Check `vmanomaly` health, build information, compatibility, and self-monitoring metrics
+- Inspect model schemas and validate model or complete service configurations
+- Profile sampled query results for trends, seasonalities, changepoints, gaps, and intermittent behavior
+- Run asynchronous autotune tasks and turn their results into data-driven model recommendations
+- Generate complete `vmanomaly` YAML configurations and [`vmalert`](https://docs.victoriametrics.com/victoriametrics/vmalert/) [alerting rules](https://docs.victoriametrics.com/victoriametrics/vmalert/#alerting-rules)
+- Search embedded `vmanomaly` documentation with fuzzy matching
 
 See more details at [VictoriaMetrics/mcp-vmanomaly](https://github.com/VictoriaMetrics/mcp-vmanomaly).
+# vmanomaly UI Copilot
+The vmanomaly UI includes an [AI Copilot](https://docs.victoriametrics.com/anomaly-detection/ui/#ai-assistance) that can assist users with anomaly detection tasks, model configuration, and troubleshooting, changing the UI state based on user queries and providing actionable suggestions through automated data profiling and validation. The AI Copilot is powered by respective [MCP Server](#vmanomaly-mcp-server) and [Agent Skills](#agent-skills), enabling it to understand the context of the user's actions and provide relevant guidance.
 
 # Agent Skills
 
-[Agent skills](https://github.com/VictoriaMetrics/skills) help AI agents and automation tools understand, operate, 
-and troubleshoot VictoriaMetrics observability components, including metrics, logs, and traces.
+[Agent skills](https://github.com/VictoriaMetrics/skills) help AI agents and automation tools understand, operate,
+and troubleshoot VictoriaMetrics observability components, including metrics, logs, traces, and [`vmanomaly`](https://docs.victoriametrics.com/anomaly-detection/).
 
 These skills provide predefined workflows and capabilities such as:
 * Query metrics, logs, traces and alerts
@@ -89,6 +92,9 @@ These skills provide predefined workflows and capabilities such as:
 * Cardinality optimization 
 * Unused metric detection
 * Stream aggregation configuration
+* Build validated `vmanomaly` configurations from measured time-series characteristics (e.g., seasonality, changepoints, trends)
+* Query and operate the `vmanomaly` API
+* Review existing anomaly detection configurations against real data and identify false-positive or model-data fit issues
 
 To install the available skills for AI agents, run:
 ```sh
