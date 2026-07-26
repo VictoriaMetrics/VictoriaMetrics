@@ -161,3 +161,18 @@ func TestFilterPartitionsInvalidName(t *testing.T) {
 		t.Fatal("expected error for invalid partition name '2024_1', got nil")
 	}
 }
+
+func TestFilterPartitionsLegacyIndexDB(t *testing.T) {
+	now := time.Date(2026, 6, 28, 0, 0, 0, 0, time.UTC)
+	parts := []common.Part{
+		{Path: "data/small/2024_01/file.bin", FileSize: 100, Size: 100, ActualSize: 100},
+		{Path: "indexdb/2024_01/index.dat", FileSize: 100, Size: 100, ActualSize: 100},
+	}
+
+	if _, err := filterPartitions(parts, 24*time.Hour, nil, now); err == nil {
+		t.Fatal("expected error when filtering a backup containing the legacy indexdb, got nil")
+	}
+	if _, err := filterPartitions(parts, 0, []string{"2024_01"}, now); err == nil {
+		t.Fatal("expected error when filtering a backup containing the legacy indexdb, got nil")
+	}
+}

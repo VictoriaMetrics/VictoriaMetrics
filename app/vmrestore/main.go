@@ -32,9 +32,9 @@ var (
 	maxBytesPerSecond       = flagutil.NewBytes("maxBytesPerSecond", 0, "The maximum download speed. There is no limit if it is set to 0")
 	skipBackupCompleteCheck = flag.Bool("skipBackupCompleteCheck", false, "Whether to skip checking for 'backup complete' file in -src. This may be useful for restoring from old backups, which were created without 'backup complete' file")
 	SkipPreallocation       = flag.Bool("skipFilePreallocation", false, "Whether to skip pre-allocated files. This will likely be slower in most cases, but allows restores to resume mid file on failure")
-	restoreSince            = flagutil.NewRetentionDuration("restoreSince", "", "If set, only partitions containing data newer than now()-restoreSince are restored. "+
+	restoreSince            = flagutil.NewRetentionDuration("restoreSince", "", "If set, a partition is restored only if the end date derived from its name (YYYY_MM) is newer than now()-restoreSince; the whole partition is restored, even though it may also contain data older than restoreSince. "+
 		"This reduces the download size when only recent data is needed and helps avoid over-provisioning disk space. "+
-		"For example, -restoreSince=5d restores only partitions that contain data from the last 5 days. "+
+		"For example, -restoreSince=5d restores only partitions whose calendar month ends within the last 5 days. "+
 		"Supports s (second), h (hour), d (day), w (week), M (month), y (year) suffixes.")
 	restorePartitions = flag.String("restorePartitions", "", "Comma-separated list of partition names in YYYY_MM format to restore from the backup. "+
 		"Partitions not in the list are skipped. Non-partition files (metadata, etc.) are always restored. "+

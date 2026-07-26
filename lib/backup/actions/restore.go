@@ -324,6 +324,14 @@ var bytesDownloadedTotal = metrics.NewCounter(`vm_backups_downloaded_bytes_total
 // partitionDirPrefixes are the directory prefixes that contain per-partition subdirectories in a backup.
 var partitionDirPrefixes = []string{"data/small/", "data/big/", "data/indexdb/"}
 
+// legacyIndexDBPathPrefix is the path prefix of the legacy, non-partitioned indexDB
+// directory in a backup, as created by VictoriaMetrics versions prior to per-partition
+// indexDB support (https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7599).
+//
+// A backup containing files under this prefix cannot be safely restored partially,
+// since the legacy indexDB isn't scoped to individual YYYY_MM partitions.
+const legacyIndexDBPathPrefix = "indexdb/"
+
 // extractPartitionName returns the YYYY_MM partition name from a part path, or an empty string
 // if the path does not belong to a partition directory (e.g. metadata files).
 //
@@ -349,14 +357,27 @@ func extractPartitionName(partPath string) string {
 // filterPartitions filters srcParts according to the restoreSince duration and the
 // explicit restorePartitions list. Non-partition files are always retained.
 //
-// - If restoreSince > 0, only partitions whose month ends at or after (now - restoreSince) are kept.
-// - If restorePartitions is non-empty, only the explicitly listed partitions are kept.
-// - Both filters are applied when both are set (intersection).
+//   - If restoreSince > 0, a partition is kept if the end date derived from its name
+//     (YYYY_MM) is at or after (now - restoreSince). The whole partition is kept, even
+//     though it may also contain data older than restoreSince.
+//   - If restorePartitions is non-empty, only the explicitly listed partitions are kept.
+//   - Both filters are applied when both are set (intersection).
+//
+// It is an error to filter a backup that contains the legacy, non-partitioned indexDB
+// (see legacyIndexDBPathPrefix), since such a backup cannot be restored partially.
 //
 // now is the reference time used for computing the restoreSince cutoff.
 func filterPartitions(srcParts []common.Part, restoreSince time.Duration, restorePartitions []string, now time.Time) ([]common.Part, error) {
 	if err := validatePartitionNames(restorePartitions); err != nil {
 		return nil, err
+	}
+
+	for _, p := range srcParts {
+		if strings.HasPrefix(p.Path, legacyIndexDBPathPrefix) {
+			return nil, fmt.Errorf("cannot apply -restoreSince or -restorePartitions: the backup contains data in the legacy, "+
+				"non-partitioned indexdb format (found %q); such backups must be restored in full; "+
+				"see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7599", p.Path)
+		}
 	}
 
 	allowedPartitions := make(map[string]struct{}, len(restorePartitions))
@@ -394,9 +415,10 @@ func filterPartitions(srcParts []common.Part, restoreSince time.Duration, restor
 			return nil, fmt.Errorf("cannot parse partition name %q from path %q: %w", ptName, p.Path, err)
 		}
 		// The partition covers the whole calendar month. Its end timestamp is
-		// the start of the next month (exclusive). Include the partition only if
-		// its end time is after sinceTime, i.e. the partition contains data newer
-		// than sinceTime.
+		// the start of the next month (exclusive). The partition's end date,
+		// derived from its YYYY_MM name, is compared against sinceTime; the whole
+		// partition is kept if that end date is after sinceTime, even though the
+		// partition may also contain data older than sinceTime.
 		y, m, _ := ptTime.Date()
 		partitionEnd := time.Date(y, m+1, 1, 0, 0, 0, 0, time.UTC)
 		if partitionEnd.After(sinceTime) {
