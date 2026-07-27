@@ -1976,8 +1976,6 @@ func testIndexDBGetTSDBStatus(t *testing.T, disablePerDayIndex bool) {
 		perDayMetricIDs[date] = &metricIDs
 	}
 	db.putIndexSearch(is)
-
-	// Flush index to disk, so it becomes visible for search
 	db.tb.DebugFlush()
 
 	// Get TSDB status with nil filters.
