@@ -1409,7 +1409,6 @@ func TestIndexDBSearchTSIDs(t *testing.T) {
 }
 
 func testIndexDBSearchTSIDs(t *testing.T, disablePerDayIndex bool) {
-	// Create a bunch of per-day time series
 	const days = 5
 	const metricsPerDay = 1000
 	timestamp := time.Date(2019, time.October, 15, 5, 1, 0, 0, time.UTC).UnixMilli()
@@ -1467,8 +1466,10 @@ func testIndexDBSearchTSIDs(t *testing.T, disablePerDayIndex bool) {
 			if err != nil {
 				t.Fatalf("unexpected error: %s", err)
 			}
-			if !perDayMetricIDs[date].Equal(metricIDs) {
-				t.Fatalf("unexpected metricIDs found;\ngot\n%d\nwant\n%d", metricIDs.AppendTo(nil), perDayMetricIDs[date].AppendTo(nil))
+			got := metricIDs.AppendTo(nil)
+			want := perDayMetricIDs[date].AppendTo(nil)
+			if diff := cmp.Diff(want, got); diff != "" {
+				t.Fatalf("unexpected metricIDs (-want, +got):\n%s", diff)
 			}
 		}
 	}
@@ -1478,8 +1479,10 @@ func testIndexDBSearchTSIDs(t *testing.T, disablePerDayIndex bool) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	if !allMetricIDs.Equal(metricIDs) {
-		t.Fatalf("unexpected metricIDs found;\ngot\n%d\nwant\n%d", metricIDs.AppendTo(nil), allMetricIDs.AppendTo(nil))
+	got := metricIDs.AppendTo(nil)
+	want := allMetricIDs.AppendTo(nil)
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatalf("unexpected metricIDs (-want, +got):\n%s", diff)
 	}
 
 	db.putIndexSearch(is2)
@@ -1505,8 +1508,8 @@ func testIndexDBSearchTSIDs(t *testing.T, disablePerDayIndex bool) {
 	if err != nil {
 		t.Fatalf("error searching tsids: %v", err)
 	}
-	if len(matchedTSIDs) != wantNumMatchedTSIDs {
-		t.Fatalf("expected %d time series for current day, got %d time series", wantNumMatchedTSIDs, len(matchedTSIDs))
+	if got, want := len(matchedTSIDs), wantNumMatchedTSIDs; got != want {
+		t.Fatalf("unexpected number of TSIDs: got %d, want %d", got, want)
 	}
 
 	// Perform a search across all the days, should match all metrics.
@@ -1522,8 +1525,8 @@ func testIndexDBSearchTSIDs(t *testing.T, disablePerDayIndex bool) {
 	if err != nil {
 		t.Fatalf("error searching tsids: %v", err)
 	}
-	if len(matchedTSIDs) != metricsPerDay*days {
-		t.Fatalf("expected %d time series for all days, got %d time series", metricsPerDay*days, len(matchedTSIDs))
+	if got, want := len(matchedTSIDs), metricsPerDay*days; got != want {
+		t.Fatalf("unexpected number of TSIDs: got %d, want %d", got, want)
 	}
 }
 
@@ -1543,10 +1546,10 @@ func testIndexDBSearchLabelNames(t *testing.T, disablePerDayIndex bool) {
 	timestamp := time.Date(2019, time.October, 15, 5, 1, 0, 0, time.UTC).UnixMilli()
 	baseDate := uint64(timestamp) / msecPerDay
 	var metricNameBuf []byte
-	labelNames := []string{
+	allLabelNames := []string{
 		"__name__", "constant", "day", "UniqueId", "some_unique_id",
 	}
-	slices.Sort(labelNames)
+	slices.Sort(allLabelNames)
 
 	newMN := func(name string, day, metric int) MetricName {
 		var mn MetricName
@@ -1583,6 +1586,22 @@ func testIndexDBSearchLabelNames(t *testing.T, disablePerDayIndex bool) {
 	db.putIndexSearch(is)
 	db.tb.DebugFlush()
 
+	assertLabelNames := func(tfs *TagFilters, tr TimeRange, want []string) {
+		t.Helper()
+		var tfss []*TagFilters
+		if tfs != nil {
+			tfss = append(tfss, tfs)
+		}
+		lns, err := db.SearchLabelNames(nil, tfss, tr, 10000, 1e9, noDeadline)
+		if err != nil {
+			t.Fatalf("SearchLabelNames(%v, %v) failed unexpectedly: %s", tfs, &tr, err)
+		}
+		got := sortedSlice(lns)
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Fatalf("unexpected label values (-want, +got):\n%s", diff)
+		}
+	}
+
 	// Check SearchLabelNames with the specified time range.
 	tr := TimeRange{
 		MinTimestamp: timestamp - msecPerDay,
@@ -1591,31 +1610,7 @@ func testIndexDBSearchLabelNames(t *testing.T, disablePerDayIndex bool) {
 	if disablePerDayIndex {
 		tr = globalIndexTimeRange
 	}
-	lns, err := db.SearchLabelNames(nil, nil, tr, 10000, 1e9, noDeadline)
-	if err != nil {
-		t.Fatalf("unexpected error in SearchLabelNames(timeRange=%s): %s", &tr, err)
-	}
-	got := sortedSlice(lns)
-	if !reflect.DeepEqual(got, labelNames) {
-		t.Fatalf("unexpected labelNames; got\n%s\nwant\n%s", got, labelNames)
-	}
-
-	// Create a filter that will match series that occur across multiple days
-	tfs := NewTagFilters()
-	if err := tfs.Add([]byte("constant"), []byte("const"), false, false); err != nil {
-		t.Fatalf("cannot add filter: %s", err)
-	}
-	tfsMetricName := NewTagFilters()
-	if err := tfsMetricName.Add([]byte("constant"), []byte("const"), false, false); err != nil {
-		t.Fatalf("cannot add filter on label: %s", err)
-	}
-	if err := tfsMetricName.Add(nil, []byte("testMetric"), false, false); err != nil {
-		t.Fatalf("cannot add filter on metric name: %s", err)
-	}
-	tfsComposite := NewTagFilters()
-	if err := tfsComposite.Add(nil, []byte("testMetric"), false, false); err != nil {
-		t.Fatalf("cannot add filter: %s", err)
-	}
+	assertLabelNames(nil, tr, allLabelNames)
 
 	// Perform a search within a day.
 	// This should return the metrics for the day.
@@ -1628,34 +1623,29 @@ func testIndexDBSearchLabelNames(t *testing.T, disablePerDayIndex bool) {
 	}
 
 	// Check SearchLabelNames with the specified filter and time range.
-	lns, err = db.SearchLabelNames(nil, []*TagFilters{tfs}, tr, 10000, 1e9, noDeadline)
-	if err != nil {
-		t.Fatalf("unexpected error in SearchLabelNames(filters=%s, timeRange=%s): %s", tfs, &tr, err)
+	// Create a filter that will match series that occur across multiple days
+	tfs := NewTagFilters()
+	if err := tfs.Add([]byte("constant"), []byte("const"), false, false); err != nil {
+		t.Fatalf("cannot add filter: %s", err)
 	}
-	got = sortedSlice(lns)
-	if !reflect.DeepEqual(got, labelNames) {
-		t.Fatalf("unexpected labelNames; got\n%s\nwant\n%s", got, labelNames)
-	}
+	assertLabelNames(tfs, tr, allLabelNames)
 
 	// Check SearchLabelNames with filters on metric name and time range.
-	lns, err = db.SearchLabelNames(nil, []*TagFilters{tfsMetricName}, tr, 10000, 1e9, noDeadline)
-	if err != nil {
-		t.Fatalf("unexpected error in SearchLabelNames(filters=%s, timeRange=%s): %s", tfs, &tr, err)
+	tfsMetricName := NewTagFilters()
+	if err := tfsMetricName.Add([]byte("constant"), []byte("const"), false, false); err != nil {
+		t.Fatalf("cannot add filter on label: %s", err)
 	}
-	got = sortedSlice(lns)
-	if !reflect.DeepEqual(got, labelNames) {
-		t.Fatalf("unexpected labelNames; got\n%s\nwant\n%s", got, labelNames)
+	if err := tfsMetricName.Add(nil, []byte("testMetric"), false, false); err != nil {
+		t.Fatalf("cannot add filter on metric name: %s", err)
 	}
+	assertLabelNames(tfsMetricName, tr, allLabelNames)
 
 	// Check SearchLabelNames with filters on composite key and time range.
-	lns, err = db.SearchLabelNames(nil, []*TagFilters{tfsComposite}, tr, 10000, 1e9, noDeadline)
-	if err != nil {
-		t.Fatalf("unexpected error in SearchLabelNames(filters=%s, timeRange=%s): %s", tfs, &tr, err)
+	tfsComposite := NewTagFilters()
+	if err := tfsComposite.Add(nil, []byte("testMetric"), false, false); err != nil {
+		t.Fatalf("cannot add filter: %s", err)
 	}
-	got = sortedSlice(lns)
-	if !reflect.DeepEqual(got, labelNames) {
-		t.Fatalf("unexpected labelNames; got\n%s\nwant\n%s", got, labelNames)
-	}
+	assertLabelNames(tfsMetricName, tr, allLabelNames)
 }
 
 func TestIndexDBSearchLabelValues(t *testing.T) {
@@ -1675,14 +1665,14 @@ func testIndexDBSearchLabelValues(t *testing.T, disablePerDayIndex bool) {
 	timestamp := time.Date(2019, time.October, 15, 5, 1, 0, 0, time.UTC).UnixMilli()
 	baseDate := uint64(timestamp) / msecPerDay
 	var metricNameBuf []byte
-	uniqLabelNames := make(map[string]struct{})
+	var allMetricNames []string
 
 	newMN := func(name string, day, metric int) MetricName {
-		var mn MetricName
 		metricName := fmt.Sprintf("%s_%d", name, metric)
-		if _, ok := uniqLabelNames[metricName]; !ok {
-			uniqLabelNames[metricName] = struct{}{}
+		if !slices.Contains(allMetricNames, metricName) {
+			allMetricNames = append(allMetricNames, metricName)
 		}
+		var mn MetricName
 		mn.MetricGroup = []byte(metricName)
 		mn.AddTag("constant", "const")
 		mn.AddTag("day", fmt.Sprintf("%v", day))
@@ -1715,7 +1705,23 @@ func testIndexDBSearchLabelValues(t *testing.T, disablePerDayIndex bool) {
 	}
 	db.putIndexSearch(is)
 	db.tb.DebugFlush()
-	labelValues := sortedSlice(uniqLabelNames)
+	slices.Sort(allMetricNames)
+
+	assertLabelValues := func(labelName string, tfs *TagFilters, tr TimeRange, want []string) {
+		t.Helper()
+		var tfss []*TagFilters
+		if tfs != nil {
+			tfss = append(tfss, tfs)
+		}
+		lvs, err := db.SearchLabelValues(nil, labelName, tfss, tr, 10000, 1e9, noDeadline)
+		if err != nil {
+			t.Fatalf("SearchLabelValues(%q, %v, %v) failed unexpectedly: %s", labelName, tfs, &tr, err)
+		}
+		got := sortedSlice(lvs)
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Fatalf("unexpected label values (-want, +got):\n%s", diff)
+		}
+	}
 
 	// Check SearchLabelNames with the specified time range.
 	tr := TimeRange{
@@ -1727,15 +1733,10 @@ func testIndexDBSearchLabelValues(t *testing.T, disablePerDayIndex bool) {
 	}
 
 	// Check SearchLabelValues with the specified time range.
-	lvs, err := db.SearchLabelValues(nil, "", nil, tr, 10000, 1e9, noDeadline)
-	if err != nil {
-		t.Fatalf("unexpected error in SearchLabelValues(timeRange=%s): %s", &tr, err)
-	}
-	got := sortedSlice(lvs)
-	if !reflect.DeepEqual(got, labelValues) {
-		t.Fatalf("unexpected labelValues; got\n%s\nwant\n%s", got, labelValues)
-	}
+	assertLabelValues("", nil, tr, allMetricNames)
 
+	// Check SearchLabelValues with the specified time range and tfs matches correct results
+	// if filter result exceeds quick search limit
 	tfsMetricNameRe := NewTagFilters()
 	if err := tfsMetricNameRe.Add([]byte("constant"), []byte("const"), false, false); err != nil {
 		t.Fatalf("cannot add filter on label: %s", err)
@@ -1743,22 +1744,16 @@ func testIndexDBSearchLabelValues(t *testing.T, disablePerDayIndex bool) {
 	if err := tfsMetricNameRe.Add(nil, []byte("testMetric_99.*"), false, true); err != nil {
 		t.Fatalf("cannot add filter on metric name: %s", err)
 	}
-	// Check SearchLabelValues with the specified time range and tfs matches correct results
-	// if filter result exceeds quick search limit
 	originValue := maxMetricIDsForDirectLabelsLookup
 	maxMetricIDsForDirectLabelsLookup = 10
 	defer func() {
 		maxMetricIDsForDirectLabelsLookup = originValue
 	}()
-	lvs, err = db.SearchLabelValues(nil, "__name__", []*TagFilters{tfsMetricNameRe}, tr, 10000, 1e9, noDeadline)
-	if err != nil {
-		t.Fatalf("unexpected error in SearchLabelValues(timeRange=%s): %s", &tr, err)
-	}
-	got = sortedSlice(lvs)
-	labelValuesReMatch := []string{"testMetric_99", "testMetric_990", "testMetric_991", "testMetric_992", "testMetric_993", "testMetric_994", "testMetric_995", "testMetric_996", "testMetric_997", "testMetric_998", "testMetric_999"}
-	if !reflect.DeepEqual(got, labelValuesReMatch) {
-		t.Fatalf("unexpected labelValues; got\n%s\nwant\n%s", got, labelValuesReMatch)
-	}
+	assertLabelValues("__name__", tfsMetricNameRe, tr, []string{
+		"testMetric_99",
+		"testMetric_990", "testMetric_991", "testMetric_992", "testMetric_993",
+		"testMetric_994", "testMetric_995", "testMetric_996", "testMetric_997",
+		"testMetric_998", "testMetric_999"})
 
 	// Perform a search within a day.
 	// This should return the metrics for the day.
@@ -1776,15 +1771,7 @@ func testIndexDBSearchLabelValues(t *testing.T, disablePerDayIndex bool) {
 	if err := tfs.Add([]byte("constant"), []byte("const"), false, false); err != nil {
 		t.Fatalf("cannot add filter: %s", err)
 	}
-
-	lvs, err = db.SearchLabelValues(nil, "", []*TagFilters{tfs}, tr, 10000, 1e9, noDeadline)
-	if err != nil {
-		t.Fatalf("unexpected error in SearchLabelValues(filters=%s, timeRange=%s): %s", tfs, &tr, err)
-	}
-	got = sortedSlice(lvs)
-	if !reflect.DeepEqual(got, labelValues) {
-		t.Fatalf("unexpected labelValues; got\n%s\nwant\n%s", got, labelValues)
-	}
+	assertLabelValues("", tfs, tr, allMetricNames)
 
 	// Check SearchLabelValues with filters on metric name and time range.
 	tfsMetricName := NewTagFilters()
@@ -1794,29 +1781,14 @@ func testIndexDBSearchLabelValues(t *testing.T, disablePerDayIndex bool) {
 	if err := tfsMetricName.Add(nil, []byte("testMetric.*"), false, true); err != nil {
 		t.Fatalf("cannot add filter on metric name: %s", err)
 	}
-	lvs, err = db.SearchLabelValues(nil, "", []*TagFilters{tfsMetricName}, tr, 10000, 1e9, noDeadline)
-	if err != nil {
-		t.Fatalf("unexpected error in SearchLabelValues(filters=%s, timeRange=%s): %s", tfs, &tr, err)
-	}
-	got = sortedSlice(lvs)
-	if !reflect.DeepEqual(got, labelValues) {
-		t.Fatalf("unexpected labelValues; got\n%s\nwant\n%s", got, labelValues)
-	}
+	assertLabelValues("", tfsMetricName, tr, allMetricNames)
 
 	// Check SearchLabelValues with filters on composite key and time range.
 	tfsComposite := NewTagFilters()
 	if err := tfsComposite.Add(nil, []byte("testMetric.*"), false, true); err != nil {
 		t.Fatalf("cannot add filter: %s", err)
 	}
-	lvs, err = db.SearchLabelValues(nil, "constant", []*TagFilters{tfsComposite}, tr, 10000, 1e9, noDeadline)
-	if err != nil {
-		t.Fatalf("unexpected error in SearchLabelValues(filters=%s, timeRange=%s): %s", tfs, &tr, err)
-	}
-	got = sortedSlice(lvs)
-	labelValues = []string{"const"}
-	if !reflect.DeepEqual(got, labelValues) {
-		t.Fatalf("unexpected labelValues; got\n%s\nwant\n%s", got, labelValues)
-	}
+	assertLabelValues("constant", tfsComposite, tr, []string{"const"})
 }
 
 func TestFilterLabelValues(t *testing.T) {
