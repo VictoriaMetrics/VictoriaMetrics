@@ -132,7 +132,7 @@ Below are the steps to get `vmanomaly` up and running inside a Docker container:
 1. Pull Docker image:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.29.7
+docker pull victoriametrics/vmanomaly:v1.30.0
 ```
 
 2. Create the license file with your license key.
@@ -152,7 +152,7 @@ docker run -it \
     -v ./license:/license \
     -v ./config.yaml:/config.yaml \
     -p 8490:8490 \
-    victoriametrics/vmanomaly:v1.29.7 \
+    victoriametrics/vmanomaly:v1.30.0 \
     /config.yaml \
     --licenseFile=/license \
     --loggerLevel=INFO \
@@ -169,7 +169,7 @@ docker run -it \
     -e VMANOMALY_DATA_DUMPS_DIR=/tmp/vmanomaly/data \
     -e VMANOMALY_MODEL_DUMPS_DIR=/tmp/vmanomaly/models \
     -p 8490:8490 \
-    victoriametrics/vmanomaly:v1.29.7 \
+    victoriametrics/vmanomaly:v1.30.0 \
     /config.yaml \
     --licenseFile=/license \
     --loggerLevel=INFO \
@@ -182,7 +182,7 @@ services:
   # ...
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.29.7
+    image: victoriametrics/vmanomaly:v1.30.0
     # ...
     restart: always
     volumes:
@@ -245,7 +245,7 @@ Before deploying, check the correctness of your configuration validate config fi
 
 ### Example
 
-Here is an example of a config file that will run the [Prophet](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) model on `vm_cache_entries` metric, with periodic scheduler that runs inference every minute and fits the model every day. The model will be trained on the last 2 weeks of data each time it is (re)fitted. The model will produce `anomaly_score`, `yhat`, `yhat_lower`, and `yhat_upper` [series](https://docs.victoriametrics.com/anomaly-detection/components/models/#vmanomaly-output) for debugging purposes. The model will be timezone-aware and will use cyclical encoding for the hour of the day and day of the week seasonality.
+Here is an example of a config file that runs the online [Temporal Envelope](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope) model on a CPU metric. The scheduler runs inference every five minutes and performs a full refit only every 100 weeks; between refits the model updates causally from each inference batch. The initial fit uses four weeks of data. The model produces `anomaly_score`, `yhat`, `yhat_lower`, and `yhat_upper` [series](https://docs.victoriametrics.com/anomaly-detection/components/models/#vmanomaly-output) for debugging, and its hour-of-day and day-of-week profiles follow the query timezone and daylight-saving-time changes.
 
 ```yaml
 settings:
@@ -260,38 +260,30 @@ settings:
     # scheduler: INFO
     # reader: INFO
     # writer: INFO
-    model.prophet: WARNING
+    model.online.temporal_envelope: WARNING
 
 schedulers:
-  1d_5m:
+  100w_5m:
     # https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler
     class: 'periodic'
     infer_every: '5m'
     scatter_infer_jobs: true
-    fit_every: '1d'
+    # Temporal Envelope learns online between full refits.
+    fit_every: '100w'
     fit_window: '4w'
 
 models:
-  # https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet
-  prophet_model:
-    class: 'prophet'
+  # https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope
+  temporal_envelope_model:
+    class: 'temporal_envelope'
+    queries: ['cpu_user']
+    schedulers: ['100w_5m']
     provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']  # for debugging
-    tz_aware: True  # set to True if your data is timezone-aware, to deal with DST changes correctly
-    tz_use_cyclical_encoding: True
-    tz_seasonalities: # intra-day + intra-week seasonality
-      - name: 'hod'  # intra-day seasonality, hour of the day
-        fourier_order: 4  # keep it 3-8 based on intraday pattern complexity
-        prior_scale: 10
-      - name: 'dow'  # intra-week seasonality, time of the week
-        fourier_order: 2  # keep it 2-4, as dependencies are learned separately for each weekday
-    compression:  # available since v1.28.1
-      window: "30m"               # downsample 5m data into 30m intervals before fitting
-      agg_method: "mean"          # use mean aggregation within each window
-      adjust_boundaries: true     # adjust confidence intervals after downsampling
-    # inner model args (key-value pairs) accepted by
-    # https://facebook.github.io/prophet/docs/quick_start#python-api
-    args:
-      interval_width: 0.98  # see https://facebook.github.io/prophet/docs/uncertainty_intervals
+    seasonalities: ['hod_smooth', 'dow_smooth']
+    alpha: 0.005  # trend reactivity; try 0.0025-0.02
+    loss_reactivity: 5  # try 1-5; lower values reduce the influence of spikes
+    iqr_threshold: 2  # try 1-4 to adjust data-driven interval width
+    min_n_samples_seen: 16
 
 reader:
   class: 'vm'  # use VictoriaMetrics as a data source
@@ -299,6 +291,7 @@ reader:
   datasource_url: "https://play.victoriametrics.com/" # [YOUR_DATASOURCE_URL]
   tenant_id: '0:0'
   sampling_period: "5m"
+  tz: 'UTC'  # set the IANA timezone that defines local calendar patterns, e.g. 'America/New_York'
   series_processing_batch_size: 8  # number of time series to process together while preparing data for fit or infer stages
   queries:
     # define your queries with MetricsQL - https://docs.victoriametrics.com/victoriametrics/metricsql/
@@ -317,7 +310,7 @@ writer:
 
 ### UI
 
-{{% available_from "v1.26.0" anomaly %}} `vmanomaly`'s built-in web UI can be used for prototyping and interactive experimenting to produce vmanomaly's and vmalert's configuration files. Please refer to the [UI documentation](https://docs.victoriametrics.com/anomaly-detection/ui/) for detailed instructions and examples. {{% available_from "v1.29.0" anomaly %}} Connect MCP server to the UI to benefit from better response quality and tool access in the UI Copilot, which provides AI-assisted configuration generation and debugging capabilities. See the [UI documentation](https://docs.victoriametrics.com/anomaly-detection/ui/#ai-assistance) for instructions on how to set it up.
+{{% available_from "v1.26.0" anomaly %}} `vmanomaly`'s built-in web UI supports prototyping and interactive generation of `vmanomaly` and `vmalert` configuration files. See the [UI documentation](https://docs.victoriametrics.com/anomaly-detection/ui/) for instructions and examples. For optional AI-assisted workflows, use the [UI Copilot](https://docs.victoriametrics.com/anomaly-detection/ui/#ai-assistance), connect the [vmanomaly MCP server](https://docs.victoriametrics.com/ai-tools/#vmanomaly-mcp-server), or follow the published [agent skills](https://docs.victoriametrics.com/ai-tools/#agent-skills).
 
 ![vmanomaly-ui-overview](vmanomaly-ui-overview.webp)
 > [!TIP]
@@ -409,7 +402,7 @@ For optimal service behavior, consider the following tweaks when configuring `vm
 
 - Set up **state restoration** {{% available_from "v1.24.0" anomaly %}} to resume from the last known state for long-term stability. This is controlled by the `settings.restore_state` boolean [arg](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration).
 
-- Set up **config hot-reloading** {{% available_from "v1.25.0" anomaly %}} to automatically reload configurations on config files changes. This can be enabled via the `--watch` [CLI argument](https://docs.victoriametrics.com/anomaly-detection/quickstart/#command-line-arguments) and allows for configuration updates without explicit service restarts.
+- Set up **configuration hot reload** {{% available_from "v1.25.0" anomaly %}} to apply configuration-file changes automatically. Enable it with the `--watch` [CLI argument](https://docs.victoriametrics.com/anomaly-detection/quickstart/#command-line-arguments) to update the service without an explicit restart.
 
 **Schedulers**:
 - Configure the **inference frequency** in the [scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/) section of the configuration file.

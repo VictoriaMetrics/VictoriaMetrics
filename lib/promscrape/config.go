@@ -367,6 +367,9 @@ func (sc *ScrapeConfig) mustStart(baseDir string) {
 	for i := range sc.KubernetesSDConfigs {
 		sc.KubernetesSDConfigs[i].MustStart(baseDir, swosFunc)
 	}
+	for i := range sc.HTTPSDConfigs {
+		sc.HTTPSDConfigs[i].MustStart(baseDir)
+	}
 }
 
 func (sc *ScrapeConfig) mustStop() {
@@ -1322,6 +1325,9 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		}
 		streamParse = b
 	}
+	// Read __unix_socket__ option from __unix_socket__ label.
+	unixSocket := labels.Get("__unix_socket__")
+
 	// Remove labels with "__" prefix according to https://www.robustperception.io/life-of-a-label/
 	labels.RemoveLabelsWithDoubleUnderscorePrefix()
 	// Add missing "instance" label according to https://www.robustperception.io/life-of-a-label
@@ -1366,6 +1372,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		LabelLimit:           labelLimit,
 		NoStaleMarkers:       swc.noStaleMarkers,
 		AuthToken:            at,
+		UnixSocket:           unixSocket,
 
 		jobNameOriginal: swc.jobName,
 	}

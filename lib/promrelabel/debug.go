@@ -9,47 +9,48 @@ import (
 )
 
 // WriteMetricRelabelDebug writes /metric-relabel-debug page to w with the corresponding args.
-func WriteMetricRelabelDebug(w io.Writer, targetID, metric, relabelConfigs, format string, err error) {
-	writeRelabelDebug(w, false, targetID, metric, relabelConfigs, format, err)
+func WriteMetricRelabelDebug(w io.Writer, targetID, metric, relabelConfigs string, urlRelabelIndexLength, urlRelabelIndexCurrent int, format string, err error) {
+	writeRelabelDebug(w, false, targetID, metric, relabelConfigs, urlRelabelIndexLength, urlRelabelIndexCurrent, format, err)
 }
 
 // WriteTargetRelabelDebug writes /target-relabel-debug page to w with the corresponding args.
 func WriteTargetRelabelDebug(w io.Writer, targetID, metric, relabelConfigs, format string, err error) {
-	writeRelabelDebug(w, true, targetID, metric, relabelConfigs, format, err)
+	writeRelabelDebug(w, true, targetID, metric, relabelConfigs, 0, 0, format, err)
 }
 
-func writeRelabelDebug(w io.Writer, isTargetRelabel bool, targetID, metric, relabelConfigs, format string, err error) {
+func writeRelabelDebug(w io.Writer, isTargetRelabel bool, targetID, metric, relabelConfigs string, urlRelabelIndexLength, urlRelabelIndexCurrent int, format string, err error) {
 	if metric == "" {
 		metric = "{}"
 	}
 	targetURL := ""
 	if err != nil {
-		WriteRelabelDebugSteps(w, targetURL, targetID, format, nil, metric, relabelConfigs, err)
+		WriteRelabelDebugSteps(w, targetURL, targetID, format, nil, metric, relabelConfigs, urlRelabelIndexLength, urlRelabelIndexCurrent, isTargetRelabel, err)
 		return
 	}
 
 	metric, err = normalizeInputLabels(metric)
 	if err != nil {
 		err = fmt.Errorf("cannot parse metric: %w", err)
-		WriteRelabelDebugSteps(w, targetURL, targetID, format, nil, metric, relabelConfigs, err)
+		WriteRelabelDebugSteps(w, targetURL, targetID, format, nil, metric, relabelConfigs, urlRelabelIndexLength, urlRelabelIndexCurrent, isTargetRelabel, err)
 		return
 	}
 
 	labels, err := promutil.NewLabelsFromString(metric)
 	if err != nil {
 		err = fmt.Errorf("cannot parse metric: %w", err)
-		WriteRelabelDebugSteps(w, targetURL, targetID, format, nil, metric, relabelConfigs, err)
+		WriteRelabelDebugSteps(w, targetURL, targetID, format, nil, metric, relabelConfigs, urlRelabelIndexLength, urlRelabelIndexCurrent, isTargetRelabel, err)
 		return
 	}
+
 	pcs, err := ParseRelabelConfigsData([]byte(relabelConfigs))
 	if err != nil {
 		err = fmt.Errorf("cannot parse relabel configs: %w", err)
-		WriteRelabelDebugSteps(w, targetURL, targetID, format, nil, metric, relabelConfigs, err)
+		WriteRelabelDebugSteps(w, targetURL, targetID, format, nil, metric, relabelConfigs, urlRelabelIndexLength, urlRelabelIndexCurrent, isTargetRelabel, err)
 		return
 	}
 
 	dss, targetURL := newDebugRelabelSteps(pcs, labels, isTargetRelabel)
-	WriteRelabelDebugSteps(w, targetURL, targetID, format, dss, metric, relabelConfigs, nil)
+	WriteRelabelDebugSteps(w, targetURL, targetID, format, dss, metric, relabelConfigs, urlRelabelIndexLength, urlRelabelIndexCurrent, isTargetRelabel, nil)
 }
 
 func newDebugRelabelSteps(pcs *ParsedConfigs, labels *promutil.Labels, isTargetRelabel bool) ([]DebugStep, string) {
@@ -139,6 +140,10 @@ func getChangedLabelNames(in, out *promutil.Labels) map[string]struct{} {
 // it does not handle complex edge cases like `{` or `}` appear multiple times. they're invalid and will not pass `NewLabelsFromString`.
 func normalizeInputLabels(metric string) (string, error) {
 	metric = strings.TrimSpace(metric)
+
+	if strings.ContainsRune(metric, '\n') {
+		return metric, fmt.Errorf("only one time series is allowed; got multiple lines")
+	}
 
 	openBrace := strings.Contains(metric, `{`)
 	closeBrace := strings.Contains(metric, `}`)

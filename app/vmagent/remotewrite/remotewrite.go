@@ -1069,7 +1069,7 @@ func (rwctx *remoteWriteCtx) TryPushTimeSeries(tss []prompb.TimeSeries, forceDro
 
 	copyTimeSeriesIfNeeded := func() {
 		if v == nil {
-			v := tssPool.Get().(*[]prompb.TimeSeries)
+			v = tssPool.Get().(*[]prompb.TimeSeries)
 			tss = append(*v, tss...)
 		}
 	}
