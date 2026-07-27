@@ -1413,20 +1413,8 @@ func testIndexDBSearchTSIDs(t *testing.T, disablePerDayIndex bool) {
 	const metricsPerDay = 1000
 	timestamp := time.Date(2019, time.October, 15, 5, 1, 0, 0, time.UTC).UnixMilli()
 	baseDate := uint64(timestamp) / msecPerDay
-	var metricNameBuf []byte
 	perDayMetricIDs := make(map[uint64]*uint64set.Set)
-	var allMetricIDs uint64set.Set
-
-	newMN := func(name string, day, metric int) MetricName {
-		var mn MetricName
-		mn.MetricGroup = []byte(name)
-		mn.AddTag("constant", "const")
-		mn.AddTag("day", fmt.Sprintf("%v", day))
-		mn.AddTag("UniqueId", fmt.Sprintf("%v", metric))
-		mn.AddTag("some_unique_id", fmt.Sprintf("%v", day))
-		mn.sortTags()
-		return mn
-	}
+	allMetricIDs := &uint64set.Set{}
 
 	s := MustOpenStorage(t.Name(), OpenOptions{
 		DisablePerDayIndex: disablePerDayIndex,
@@ -1435,14 +1423,22 @@ func testIndexDBSearchTSIDs(t *testing.T, disablePerDayIndex bool) {
 	ptw := s.tb.MustGetPartition(timestamp)
 	defer s.tb.PutPartition(ptw)
 	db := ptw.pt.idb
-	is := db.getIndexSearch(noDeadline)
 
+	is := db.getIndexSearch(noDeadline)
 	for day := range days {
 		date := baseDate - uint64(day)
 		var metricIDs uint64set.Set
 		for metric := range metricsPerDay {
-			mn := newMN("testMetric", day, metric)
-			metricNameBuf = mn.Marshal(metricNameBuf[:0])
+			mn := MetricName{
+				MetricGroup: []byte("testMetric"),
+			}
+			mn.AddTag("constant", "const")
+			mn.AddTag("day", fmt.Sprintf("%v", day))
+			mn.AddTag("UniqueId", fmt.Sprintf("%v", metric))
+			mn.AddTag("some_unique_id", fmt.Sprintf("%v", day))
+			mn.sortTags()
+			metricNameBuf := mn.Marshal(nil)
+
 			var tsid TSID
 			if !is.getTSIDByMetricName(&tsid, metricNameBuf, date) {
 				generateTSID(&tsid, &mn)
@@ -1459,33 +1455,40 @@ func testIndexDBSearchTSIDs(t *testing.T, disablePerDayIndex bool) {
 
 	is2 := db.getIndexSearch(noDeadline)
 
-	if !disablePerDayIndex {
-		// Check that all the metrics are found for all the days.
-		for date := baseDate - days + 1; date <= baseDate; date++ {
-			metricIDs, err := is2.getMetricIDsForDate(date, metricsPerDay)
-			if err != nil {
-				t.Fatalf("unexpected error: %s", err)
-			}
-			got := metricIDs.AppendTo(nil)
-			want := perDayMetricIDs[date].AppendTo(nil)
-			if diff := cmp.Diff(want, got); diff != "" {
-				t.Fatalf("unexpected metricIDs (-want, +got):\n%s", diff)
-			}
+	assertMetricIDs := func(date uint64, maxMetrics int, wantSet *uint64set.Set) {
+		t.Helper()
+		gotSet, err := is2.getMetricIDsForDate(date, maxMetrics)
+		if err != nil {
+			t.Fatalf("getMetricIDsForDate(%d, %d) failed unexpectedly: %s", date, maxMetrics, err)
+		}
+		got := gotSet.AppendTo(nil)
+		want := wantSet.AppendTo(nil)
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Fatalf("unexpected metricIDs (-want, +got):\n%s", diff)
 		}
 	}
 
+	if !disablePerDayIndex {
+		// Check that all the metrics are found for all the days.
+		for date := baseDate - days + 1; date <= baseDate; date++ {
+			assertMetricIDs(date, metricsPerDay, perDayMetricIDs[date])
+		}
+	}
 	// Check that all the metrics are found in global index
-	metricIDs, err := is2.getMetricIDsForDate(globalIndexDate, metricsPerDay*days)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	got := metricIDs.AppendTo(nil)
-	want := allMetricIDs.AppendTo(nil)
-	if diff := cmp.Diff(want, got); diff != "" {
-		t.Fatalf("unexpected metricIDs (-want, +got):\n%s", diff)
-	}
+	assertMetricIDs(globalIndexDate, metricsPerDay*days, allMetricIDs)
 
 	db.putIndexSearch(is2)
+
+	assertTSIDs := func(tfs *TagFilters, tr TimeRange, want int) {
+		t.Helper()
+		tsids, err := db.SearchTSIDs(nil, []*TagFilters{tfs}, tr, 1e5, noDeadline)
+		if err != nil {
+			t.Fatalf("SearchTSIDs(%v, %v) failed unexpectedly: %s", tfs, &tr, err)
+		}
+		if got := len(tsids); got != want {
+			t.Fatalf("unexpected number of TSIDs: got %d, want %d", got, want)
+		}
+	}
 
 	// Create a filter that will match series that occur across multiple days
 	tfs := NewTagFilters()
@@ -1499,18 +1502,12 @@ func testIndexDBSearchTSIDs(t *testing.T, disablePerDayIndex bool) {
 		MinTimestamp: timestamp - 2*msecPerHour - 1,
 		MaxTimestamp: timestamp,
 	}
-	wantNumMatchedTSIDs := metricsPerDay
+	wantTSIDCount := metricsPerDay
 	if disablePerDayIndex {
 		tr = globalIndexTimeRange
-		wantNumMatchedTSIDs = days * metricsPerDay
+		wantTSIDCount = days * metricsPerDay
 	}
-	matchedTSIDs, err := db.SearchTSIDs(nil, []*TagFilters{tfs}, tr, 1e5, noDeadline)
-	if err != nil {
-		t.Fatalf("error searching tsids: %v", err)
-	}
-	if got, want := len(matchedTSIDs), wantNumMatchedTSIDs; got != want {
-		t.Fatalf("unexpected number of TSIDs: got %d, want %d", got, want)
-	}
+	assertTSIDs(tfs, tr, wantTSIDCount)
 
 	// Perform a search across all the days, should match all metrics.
 	tr = TimeRange{
@@ -1520,14 +1517,7 @@ func testIndexDBSearchTSIDs(t *testing.T, disablePerDayIndex bool) {
 	if disablePerDayIndex {
 		tr = globalIndexTimeRange
 	}
-
-	matchedTSIDs, err = db.SearchTSIDs(nil, []*TagFilters{tfs}, tr, 1e5, noDeadline)
-	if err != nil {
-		t.Fatalf("error searching tsids: %v", err)
-	}
-	if got, want := len(matchedTSIDs), metricsPerDay*days; got != want {
-		t.Fatalf("unexpected number of TSIDs: got %d, want %d", got, want)
-	}
+	assertTSIDs(tfs, tr, metricsPerDay*days)
 }
 
 func TestIndexDBSearchLabelNames(t *testing.T) {
@@ -1545,22 +1535,6 @@ func testIndexDBSearchLabelNames(t *testing.T, disablePerDayIndex bool) {
 	const metricsPerDay = 1000
 	timestamp := time.Date(2019, time.October, 15, 5, 1, 0, 0, time.UTC).UnixMilli()
 	baseDate := uint64(timestamp) / msecPerDay
-	var metricNameBuf []byte
-	allLabelNames := []string{
-		"__name__", "constant", "day", "UniqueId", "some_unique_id",
-	}
-	slices.Sort(allLabelNames)
-
-	newMN := func(name string, day, metric int) MetricName {
-		var mn MetricName
-		mn.MetricGroup = []byte(name)
-		mn.AddTag("constant", "const")
-		mn.AddTag("day", fmt.Sprintf("%v", day))
-		mn.AddTag("UniqueId", fmt.Sprintf("%v", metric))
-		mn.AddTag("some_unique_id", fmt.Sprintf("%v", day))
-		mn.sortTags()
-		return mn
-	}
 
 	s := MustOpenStorage(t.Name(), OpenOptions{
 		DisablePerDayIndex: disablePerDayIndex,
@@ -1569,13 +1543,21 @@ func testIndexDBSearchLabelNames(t *testing.T, disablePerDayIndex bool) {
 	ptw := s.tb.MustGetPartition(timestamp)
 	defer s.tb.PutPartition(ptw)
 	db := ptw.pt.idb
-	is := db.getIndexSearch(noDeadline)
 
+	is := db.getIndexSearch(noDeadline)
 	for day := range days {
 		date := baseDate - uint64(day)
 		for metric := range metricsPerDay {
-			mn := newMN("testMetric", day, metric)
-			metricNameBuf = mn.Marshal(metricNameBuf[:0])
+			mn := MetricName{
+				MetricGroup: []byte("testMetric"),
+			}
+			mn.AddTag("constant", "const")
+			mn.AddTag("day", fmt.Sprintf("%v", day))
+			mn.AddTag("UniqueId", fmt.Sprintf("%v", metric))
+			mn.AddTag("some_unique_id", fmt.Sprintf("%v", day))
+			mn.sortTags()
+			metricNameBuf := mn.Marshal(nil)
+
 			var tsid TSID
 			if !is.getTSIDByMetricName(&tsid, metricNameBuf, date) {
 				generateTSID(&tsid, &mn)
@@ -1585,6 +1567,7 @@ func testIndexDBSearchLabelNames(t *testing.T, disablePerDayIndex bool) {
 	}
 	db.putIndexSearch(is)
 	db.tb.DebugFlush()
+	allLabelNames := []string{"UniqueId", "__name__", "constant", "day", "some_unique_id"}
 
 	assertLabelNames := func(tfs *TagFilters, tr TimeRange, want []string) {
 		t.Helper()
@@ -1664,23 +1647,7 @@ func testIndexDBSearchLabelValues(t *testing.T, disablePerDayIndex bool) {
 	const metricsPerDay = 1000
 	timestamp := time.Date(2019, time.October, 15, 5, 1, 0, 0, time.UTC).UnixMilli()
 	baseDate := uint64(timestamp) / msecPerDay
-	var metricNameBuf []byte
 	var allMetricNames []string
-
-	newMN := func(name string, day, metric int) MetricName {
-		metricName := fmt.Sprintf("%s_%d", name, metric)
-		if !slices.Contains(allMetricNames, metricName) {
-			allMetricNames = append(allMetricNames, metricName)
-		}
-		var mn MetricName
-		mn.MetricGroup = []byte(metricName)
-		mn.AddTag("constant", "const")
-		mn.AddTag("day", fmt.Sprintf("%v", day))
-		mn.AddTag("UniqueId", fmt.Sprintf("%v", metric))
-		mn.AddTag("some_unique_id", fmt.Sprintf("%v", day))
-		mn.sortTags()
-		return mn
-	}
 
 	s := MustOpenStorage(t.Name(), OpenOptions{
 		DisablePerDayIndex: disablePerDayIndex,
@@ -1689,13 +1656,26 @@ func testIndexDBSearchLabelValues(t *testing.T, disablePerDayIndex bool) {
 	ptw := s.tb.MustGetPartition(timestamp)
 	defer s.tb.PutPartition(ptw)
 	db := ptw.pt.idb
-	is := db.getIndexSearch(noDeadline)
 
+	is := db.getIndexSearch(noDeadline)
 	for day := range days {
 		date := baseDate - uint64(day)
 		for metric := range metricsPerDay {
-			mn := newMN("testMetric", day, metric)
-			metricNameBuf = mn.Marshal(metricNameBuf[:0])
+			name := fmt.Sprintf("testMetric_%d", metric)
+			if !slices.Contains(allMetricNames, name) {
+				allMetricNames = append(allMetricNames, name)
+			}
+
+			mn := MetricName{
+				MetricGroup: []byte(name),
+			}
+			mn.AddTag("constant", "const")
+			mn.AddTag("day", fmt.Sprintf("%v", day))
+			mn.AddTag("UniqueId", fmt.Sprintf("%v", metric))
+			mn.AddTag("some_unique_id", fmt.Sprintf("%v", day))
+			mn.sortTags()
+			metricNameBuf := mn.Marshal(nil)
+
 			var tsid TSID
 			if !is.getTSIDByMetricName(&tsid, metricNameBuf, date) {
 				generateTSID(&tsid, &mn)
@@ -1847,64 +1827,97 @@ func TestIndexDBDeleteSeries(t *testing.T) {
 func testIndexDBDeleteSeries(t *testing.T, disablePerDayIndex bool) {
 	const days = 5
 	const metricsPerDay = 1000
-	timestamp := time.Date(2019, time.October, 15, 5, 1, 0, 0, time.UTC).UnixMilli()
-	baseDate := uint64(timestamp) / msecPerDay
-	var metricNameBuf []byte
-
-	newMN := func(name string, day, metric int) MetricName {
-		var mn MetricName
-		mn.MetricGroup = []byte(name)
-		mn.AddTag("constant", "const")
-		mn.AddTag("day", fmt.Sprintf("%v", day))
-		mn.AddTag("UniqueId", fmt.Sprintf("%v", metric))
-		mn.AddTag("some_unique_id", fmt.Sprintf("%v", day))
-		mn.sortTags()
-		return mn
+	trAllDays := TimeRange{
+		MinTimestamp: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2026, 1, days+1, 0, 0, 0, 0, time.UTC).UnixMilli() - 1,
 	}
+	date0 := uint64(trAllDays.MinTimestamp) / msecPerDay
+	allMetricIDs := &uint64set.Set{}
+	var allMetricNames []string
+	metricNamesByDate := make(map[uint64][]string)
 
 	s := MustOpenStorage(t.Name(), OpenOptions{
 		DisablePerDayIndex: disablePerDayIndex,
 	})
 	defer s.MustClose()
-	ptw := s.tb.MustGetPartition(timestamp)
+	ptw := s.tb.MustGetPartition(trAllDays.MinTimestamp)
 	defer s.tb.PutPartition(ptw)
 	db := ptw.pt.idb
-	is := db.getIndexSearch(noDeadline)
 
+	is := db.getIndexSearch(noDeadline)
 	for day := range days {
-		date := baseDate - uint64(day)
+		date := date0 + uint64(day)
 		for metric := range metricsPerDay {
-			mn := newMN("testMetric", day, metric)
-			metricNameBuf = mn.Marshal(metricNameBuf[:0])
+			name := fmt.Sprintf("testMetric_%03d", metric)
+			mn := MetricName{
+				MetricGroup: []byte(name),
+			}
+			mn.AddTag("constant", "const")
+			mn.AddTag("day", fmt.Sprintf("%v", day))
+			mn.AddTag("UniqueId", fmt.Sprintf("%v", metric))
+			mn.AddTag("some_unique_id", fmt.Sprintf("%v", day))
+			mn.sortTags()
+			fullName := mn.String()
+			if !slices.Contains(allMetricNames, fullName) {
+				allMetricNames = append(allMetricNames, fullName)
+			}
+			if !slices.Contains(metricNamesByDate[date], fullName) {
+				metricNamesByDate[date] = append(metricNamesByDate[date], fullName)
+			}
+
+			metricNameBuf := mn.Marshal(nil)
 			var tsid TSID
 			if !is.getTSIDByMetricName(&tsid, metricNameBuf, date) {
 				generateTSID(&tsid, &mn)
 				createAllIndexesForMetricName(db, &mn, &tsid, date)
 			}
+			allMetricIDs.Add(tsid.MetricID)
 		}
 	}
 	db.putIndexSearch(is)
 	db.tb.DebugFlush()
 
-	// add a metric that will be deleted shortly
-	is3 := db.getIndexSearch(noDeadline)
-	day := days
-	date := baseDate - uint64(day)
-	mn := newMN("deletedMetric", day, 999)
-	mn.AddTag("labelToDelete", fmt.Sprintf("%v", day))
-	mn.sortTags()
-	metricNameBuf = mn.Marshal(metricNameBuf[:0])
-	var tsid TSID
-	if !is3.getTSIDByMetricName(&tsid, metricNameBuf, date) {
-		generateTSID(&tsid, &mn)
-		createAllIndexesForMetricName(db, &mn, &tsid, date)
+	assertMetricNames := func(tfs *TagFilters, tr TimeRange, want []string) {
+		t.Helper()
+		got, err := db.SearchMetricNames(nil, []*TagFilters{tfs}, tr, 1e9, noDeadline)
+		if err != nil {
+			t.Fatalf("SearchMetricNames(%v, %v) failed unexpectedly: %s", tfs, &tr, err)
+		}
+		for i, name := range got {
+			var mn MetricName
+			if err := mn.UnmarshalString(name); err != nil {
+				t.Fatalf("Could not unmarshal metric name %q: %v", name, err)
+			}
+			got[i] = mn.String()
+		}
+		slices.Sort(got)
+		slices.Sort(want)
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Fatalf("unexpected metric names (-want, +got):\n%s", diff)
+		}
 	}
-	// delete the added metric. It is expected it won't be returned during searches
-	deletedSet := &uint64set.Set{}
-	deletedSet.Add(tsid.MetricID)
-	db.setDeletedMetricIDs(deletedSet)
-	db.putIndexSearch(is3)
-	db.tb.DebugFlush()
+
+	tfs := NewTagFilters()
+	if err := tfs.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
+		t.Fatalf("unexpected error in TagFilters.Add: %v", err)
+	}
+	tr := trAllDays
+	if disablePerDayIndex {
+		tr = globalIndexTimeRange
+	}
+	assertMetricNames(tfs, tr, allMetricNames)
+
+	gotMetricIDs, err := db.DeleteSeries(nil, []*TagFilters{tfs}, 1e9)
+	if err != nil {
+		t.Fatalf("DeleteSeries(%v) failed unexpectedly: %s", tfs, err)
+	}
+	got := gotMetricIDs.AppendTo(nil)
+	want := allMetricIDs.AppendTo(nil)
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatalf("unexpected metricIDs (-want, +got):\n%s", diff)
+	}
+
+	assertMetricNames(tfs, tr, nil)
 }
 
 func TestIndexDBGetTSDBStatus(t *testing.T) {
