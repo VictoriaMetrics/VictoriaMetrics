@@ -10,41 +10,36 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
 
-type obfuscationCtx struct {
+type obfuscateLabelsCtx struct {
 	labels                []prompb.Label
 	cacheObfuscatedResult map[string]string
 }
 
-func (ctx *obfuscationCtx) Reset() {
+func (ctx *obfuscateLabelsCtx) Reset() {
 	promrelabel.CleanLabels(ctx.labels)
 	ctx.labels = ctx.labels[:0]
 	clear(ctx.cacheObfuscatedResult)
 }
 
-var obfuscationCtxPool = &sync.Pool{
+var obfuscateLabelsCtxPool = &sync.Pool{
 	New: func() any {
-		return &obfuscationCtx{
+		return &obfuscateLabelsCtx{
 			cacheObfuscatedResult: make(map[string]string),
 		}
 	},
 }
 
-func (rwctx *remoteWriteCtx) initObfuscationConfig() {
-	if len(*obfuscationLabels) == 0 {
-		return
-	}
-	idx := rwctx.idx
-	rwctx.obfuscationLabels = make(map[string]struct{})
-	rwObfuscationLabels := obfuscationLabels.GetOptionalArg(idx)
-	rwObfuscationLabelsList := strings.Split(rwObfuscationLabels, "^^")
-
-	for _, label := range rwObfuscationLabelsList {
-		rwctx.obfuscationLabels[label] = struct{}{}
-	}
+func getObfuscateLabelsCtx() *obfuscateLabelsCtx {
+	return obfuscateLabelsCtxPool.Get().(*obfuscateLabelsCtx)
 }
 
-func (rwctx *remoteWriteCtx) applyObfuscation(tss []prompb.TimeSeries, ctx *obfuscationCtx) []prompb.TimeSeries {
-	if len(rwctx.obfuscationLabels) == 0 || len(tss) == 0 {
+func putObfuscateLabelsCtx(ctx *obfuscateLabelsCtx) {
+	ctx.Reset()
+	obfuscateLabelsCtxPool.Put(ctx)
+}
+
+func (ctx *obfuscateLabelsCtx) apply(tss []prompb.TimeSeries, obfuscateLabels map[string]struct{}) []prompb.TimeSeries {
+	if len(tss) == 0 {
 		return tss
 	}
 	poolLabels := ctx.labels[:0]
@@ -55,7 +50,7 @@ func (rwctx *remoteWriteCtx) applyObfuscation(tss []prompb.TimeSeries, ctx *obfu
 		needToObfuscate := false
 		for ; j < len(labels); j++ {
 			label := &labels[j]
-			if _, ok := rwctx.obfuscationLabels[label.Name]; !ok {
+			if _, ok := obfuscateLabels[label.Name]; !ok {
 				continue
 			}
 			needToObfuscate = true
@@ -71,7 +66,7 @@ func (rwctx *remoteWriteCtx) applyObfuscation(tss []prompb.TimeSeries, ctx *obfu
 		ts.Labels = poolLabels[poolLabelsLen:]
 		for ; j < len(ts.Labels); j++ {
 			label := &ts.Labels[j]
-			if _, ok := rwctx.obfuscationLabels[label.Name]; !ok {
+			if _, ok := obfuscateLabels[label.Name]; !ok {
 				continue
 			}
 			if obfuscatedValue, ok := ctx.cacheObfuscatedResult[label.Value]; ok {
@@ -85,4 +80,18 @@ func (rwctx *remoteWriteCtx) applyObfuscation(tss []prompb.TimeSeries, ctx *obfu
 		}
 	}
 	return tss
+}
+
+func (rwctx *remoteWriteCtx) initObfuscationConfig() {
+	if len(*obfuscationLabels) == 0 {
+		return
+	}
+	idx := rwctx.idx
+	rwctx.obfuscationLabels = make(map[string]struct{})
+	rwObfuscationLabels := obfuscationLabels.GetOptionalArg(idx)
+	rwObfuscationLabelsList := strings.Split(rwObfuscationLabels, "^^")
+
+	for _, label := range rwObfuscationLabelsList {
+		rwctx.obfuscationLabels[label] = struct{}{}
+	}
 }

@@ -1203,7 +1203,7 @@ func (rwctx *remoteWriteCtx) tryPushMetadataInternal(mms []prompb.MetricMetadata
 func (rwctx *remoteWriteCtx) tryPushTimeSeriesInternal(tss []prompb.TimeSeries) bool {
 	var rctx *relabelCtx
 	var v *[]prompb.TimeSeries
-	var octx *obfuscationCtx
+	var olctx *obfuscateLabelsCtx
 	defer func() {
 		if v != nil {
 			*v = prompb.ResetTimeSeries(tss)
@@ -1212,8 +1212,8 @@ func (rwctx *remoteWriteCtx) tryPushTimeSeriesInternal(tss []prompb.TimeSeries) 
 		if rctx != nil {
 			putRelabelCtx(rctx)
 		}
-		if octx != nil {
-			obfuscationCtxPool.Put(octx)
+		if olctx != nil {
+			putObfuscateLabelsCtx(olctx)
 		}
 	}()
 
@@ -1234,8 +1234,8 @@ func (rwctx *remoteWriteCtx) tryPushTimeSeriesInternal(tss []prompb.TimeSeries) 
 
 	if len(rwctx.obfuscationLabels) != 0 {
 		copyTimeSeriesIfNeeded()
-		octx = obfuscationCtxPool.Get().(*obfuscationCtx)
-		tss = rwctx.applyObfuscation(tss, octx)
+		olctx = getObfuscateLabelsCtx()
+		tss = olctx.apply(tss, rwctx.obfuscationLabels)
 	}
 
 	pss := rwctx.pss
