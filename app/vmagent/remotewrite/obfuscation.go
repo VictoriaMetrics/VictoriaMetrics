@@ -83,15 +83,15 @@ func (ctx *obfuscateLabelsCtx) apply(tss []prompb.TimeSeries, obfuscateLabels ma
 }
 
 func (rwctx *remoteWriteCtx) initObfuscationConfig() {
-	if len(*obfuscationLabels) == 0 {
+	if len(*obfuscateLabels) == 0 {
 		return
 	}
 	idx := rwctx.idx
-	rwctx.obfuscationLabels = make(map[string]struct{})
-	rwObfuscationLabels := obfuscationLabels.GetOptionalArg(idx)
-	rwObfuscationLabelsList := strings.Split(rwObfuscationLabels, "^^")
+	rwctx.obfuscateLabels = make(map[string]struct{})
+	rwObfuscateLabels := obfuscateLabels.GetOptionalArg(idx)
+	rwObfuscateLabelsList := strings.Split(rwObfuscateLabels, "^^")
 
-	for _, label := range rwObfuscationLabelsList {
-		rwctx.obfuscationLabels[label] = struct{}{}
+	for _, label := range rwObfuscateLabelsList {
+		rwctx.obfuscateLabels[label] = struct{}{}
 	}
 }

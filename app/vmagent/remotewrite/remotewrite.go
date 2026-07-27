@@ -108,7 +108,7 @@ var (
 
 	enableMdx = flagutil.NewArrayBool("remoteWrite.mdx.enable", "Whether to only retain metrics from VictoriaMetrics services before sending them to the corresponding -remoteWrite.url. "+
 		"Please see https://docs.victoriametrics.com/victoriametrics/vmagent/#monitoring-data-exchange")
-	obfuscationLabels = flagutil.NewArrayString("remoteWrite.obfuscationLabels", "List of label names whose values will be obfuscated before being sent to the corresponding -remoteWrite.url. "+
+	obfuscateLabels = flagutil.NewArrayString("remoteWrite.obfuscateLabels", "List of label names whose values will be obfuscated before being sent to the corresponding -remoteWrite.url. "+
 		"Multiple label names should be separated by `^^`, e.g. \"job^^instance,ip\".")
 )
 
@@ -883,7 +883,7 @@ type remoteWriteCtx struct {
 	pss        []*pendingSeries
 	pssNextIdx atomic.Uint64
 
-	obfuscationLabels map[string]struct{}
+	obfuscateLabels map[string]struct{}
 
 	rowsPushedAfterRelabel *metrics.Counter
 	rowsDroppedByRelabel   *metrics.Counter
@@ -1232,10 +1232,10 @@ func (rwctx *remoteWriteCtx) tryPushTimeSeriesInternal(tss []prompb.TimeSeries) 
 		rctx.appendExtraLabels(tss, labelsGlobal)
 	}
 
-	if len(rwctx.obfuscationLabels) != 0 {
+	if len(rwctx.obfuscateLabels) != 0 {
 		copyTimeSeriesIfNeeded()
 		olctx = getObfuscateLabelsCtx()
-		tss = olctx.apply(tss, rwctx.obfuscationLabels)
+		tss = olctx.apply(tss, rwctx.obfuscateLabels)
 	}
 
 	pss := rwctx.pss

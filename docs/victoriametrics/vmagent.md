@@ -323,7 +323,7 @@ flowchart TB
       H2 --> H3[per-url <a href="https://docs.victoriametrics.com/victoriametrics/stream-aggregation">aggregation</a><br><b>-remoteWrite.streamAggr.config</b><br><b>-remoteWrite.streamAggr.dedupInterval</b>]
       H3 --> H4["per-url <a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#calculating-disk-space-for-persistence-queue">queue</a> (default: enabled)<br><b>-remoteWrite.disableOnDiskQueue</b>"]
       H4 --> H5[<a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#adding-labels-to-metrics">add extra labels</a><br><b>-remoteWrite.label</b>]
-      H5 --> H6[<a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#obfuscating-label-values">obfuscate labels</a><br><b>-remoteWrite.obfuscationLabels</b>]
+      H5 --> H6[<a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#obfuscating-label-values">obfuscate labels</a><br><b>-remoteWrite.obfuscateLabels</b>]
       H6 --> H7[[push to <b>-remoteWrite.url</b>]]
 
       %% Right branch
@@ -332,7 +332,7 @@ flowchart TB
       R2 --> R3[per-url <a href="https://docs.victoriametrics.com/victoriametrics/stream-aggregation">aggregation</a><br><b>-remoteWrite.streamAggr.config</b><br><b>-remoteWrite.streamAggr.dedupInterval</b>]
       R3 --> R4["per-url <a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#calculating-disk-space-for-persistence-queue">queue</a> (default: enabled)<br><b>-remoteWrite.disableOnDiskQueue</b>"]
       R4 --> R5[<a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#adding-labels-to-metrics">add extra labels</a><br><b>-remoteWrite.label</b>]
-      R5 --> R6[<a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#obfuscating-label-values">obfuscate labels</a><br><b>-remoteWrite.obfuscationLabels</b>]
+      R5 --> R6[<a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#obfuscating-label-values">obfuscate labels</a><br><b>-remoteWrite.obfuscateLabels</b>]
       R6 --> R7[[push to <b>-remoteWrite.url</b>]]
 ```
 
@@ -687,21 +687,21 @@ Extra labels can be added to metrics collected by `vmagent` via the following me
 
 ## Obfuscating label values
 
-Before sending metrics to `-remoteWrite.url`, `vmagent` can obfuscate the values of specific labels by using `-remoteWrite.obfuscationLabels`.
+Before sending metrics to `-remoteWrite.url`, `vmagent` can obfuscate the values of specific labels by using `-remoteWrite.obfuscateLabels`.
 
 This is useful when one or more `-remoteWrite.url` endpoints point to external services, such as monitoring vendors outside the department or company. 
 To meet security and compliance requirements, sensitive label values such as `ip`, `host`, `instance`, or `datacenter` can be obfuscated before metrics are sent to these external systems.
 
-Use `-remoteWrite.obfuscationLabels` to specify which labels should have their values obfuscated for the corresponding `-remoteWrite.url`. Multiple label names must be separated with `^^`.
+Use `-remoteWrite.obfuscateLabels` to specify which labels should have their values obfuscated for the corresponding `-remoteWrite.url`. Multiple label names must be separated with `^^`.
 
 ```sh
 ./vmagent \
   -remoteWrite.url=http://<external-service1> \
-  -remoteWrite.obfuscationLabels='instance^^datacenter' \
+  -remoteWrite.obfuscateLabels='instance^^datacenter' \
   -remoteWrite.url=http://<external-service2> \
-  -remoteWrite.obfuscationLabels='instance' \
+  -remoteWrite.obfuscateLabels='instance' \
   -remoteWrite.url=http://<internal-service> \
-  -remoteWrite.obfuscationLabels='' 
+  -remoteWrite.obfuscateLabels='' 
 ```
 
 ## Automatically generated metrics

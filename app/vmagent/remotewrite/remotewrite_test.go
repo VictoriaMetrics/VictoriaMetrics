@@ -380,22 +380,23 @@ func TestCalculateHealthyRwctxIdx(t *testing.T) {
 }
 
 func TestRemoteWriteObfuscation(t *testing.T) {
-	f := func(obfuscationLabelList string, inputTss []prompb.TimeSeries, expectedTss []prompb.TimeSeries) {
+	f := func(obfuscateLabelList string, inputTss []prompb.TimeSeries, expectedTss []prompb.TimeSeries) {
 		t.Helper()
 		rwctx := &remoteWriteCtx{
 			idx: 0,
 		}
-		defer metrics.UnregisterAllMetrics()
-		originValue := *obfuscationLabels
-		defer func() {
-			*obfuscationLabels = originValue
-		}()
-		*obfuscationLabels = []string{obfuscationLabelList}
-		rwctx.initObfuscationConfig()
-		octx := obfuscateLabelsCtx{
+		olctx := &obfuscateLabelsCtx{
 			cacheObfuscatedResult: make(map[string]string),
 		}
-		outputTss := rwctx.applyObfuscation(inputTss, &octx)
+		defer metrics.UnregisterAllMetrics()
+		originValue := *obfuscateLabels
+		defer func() {
+			*obfuscateLabels = originValue
+		}()
+		*obfuscateLabels = []string{obfuscateLabelList}
+		rwctx.initObfuscationConfig()
+
+		outputTss := olctx.apply(inputTss, rwctx.obfuscateLabels)
 
 		if !reflect.DeepEqual(expectedTss, outputTss) {
 			t.Fatalf("unexpected samples;\ngot\n%v\nwant\n%v", outputTss, expectedTss)
