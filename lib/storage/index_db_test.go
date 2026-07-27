@@ -1628,7 +1628,7 @@ func testIndexDBSearchLabelNames(t *testing.T, disablePerDayIndex bool) {
 	if err := tfsComposite.Add(nil, []byte("testMetric"), false, false); err != nil {
 		t.Fatalf("cannot add filter: %s", err)
 	}
-	assertLabelNames(tfsMetricName, tr, allLabelNames)
+	assertLabelNames(tfsComposite, tr, allLabelNames)
 }
 
 func TestIndexDBSearchLabelValues(t *testing.T) {
