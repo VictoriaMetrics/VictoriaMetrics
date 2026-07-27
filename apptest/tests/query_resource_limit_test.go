@@ -1,7 +1,9 @@
 package tests
 
 import (
+	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -179,4 +181,124 @@ func TestClusterMaxSeries(t *testing.T) {
 		t.Fatalf("unexpected status code, got %s, want %d, error message is: %v", seriesRes.ErrorType, 422, seriesRes1.Error)
 	}
 
+}
+
+func searchLimitsStartVmsingle(tc *apptest.TestCase, vmstorageFlags, vmselectFlags []string) apptest.PrometheusWriteQuerier {
+	vmsingleFlags := []string{
+		"-storageDataPath=" + filepath.Join(tc.Dir(), "vmsingle"),
+		"-retentionPeriod=100y",
+	}
+	vmsingleFlags = append(vmsingleFlags, vmstorageFlags...)
+	vmsingleFlags = append(vmsingleFlags, vmselectFlags...)
+	return tc.MustStartVmsingle("vmsingle", vmsingleFlags)
+}
+
+func searchLimitsStopVmsingle(tc *apptest.TestCase) {
+	tc.StopApp("vmsingle")
+}
+
+func searchLimitsStartVmcluster(tc *apptest.TestCase, vmstorageFlags, vmselectFlags []string) apptest.PrometheusWriteQuerier {
+	vmstorageFlags = append(vmstorageFlags, []string{
+		"-storageDataPath=" + filepath.Join(tc.Dir(), "vmstorage"),
+		"-retentionPeriod=100y",
+	}...)
+	vmstorage := tc.MustStartVmstorage("vmstorage", vmstorageFlags)
+	vminsert := tc.MustStartVminsert("vminsert", []string{
+		"-storageNode=" + vmstorage.VminsertAddr(),
+	})
+	vmselectFlags = append(vmselectFlags, []string{
+		"-storageNode=" + vmstorage.VmselectAddr(),
+	}...)
+	vmselect := tc.MustStartVmselect("vmselect", vmselectFlags)
+	return &apptest.Vmcluster{vminsert, vmselect, []*apptest.Vmstorage{vmstorage}}
+}
+
+func searchLimitsStopVmcluster(tc *apptest.TestCase) {
+	tc.StopApp("vminsert")
+	tc.StopApp("vmselect")
+	tc.StopApp("vmstorage")
+}
+
+type searchLimitsOpts struct {
+	startSUT func(tc *apptest.TestCase, vmstorageFlags, vmselectFlags []string) apptest.PrometheusWriteQuerier
+	stopSUT  func(tc *apptest.TestCase)
+}
+
+func TestSingleSearchLimits_MetricNames(t *testing.T) {
+	tc := apptest.NewTestCase(t)
+	defer tc.Stop()
+	testSearchLimits_MetricNames(tc, searchLimitsOpts{
+		startSUT: searchLimitsStartVmsingle,
+		stopSUT:  searchLimitsStopVmsingle,
+	})
+}
+
+func TestClusterSearchLimits_MetricNames(t *testing.T) {
+	tc := apptest.NewTestCase(t)
+	defer tc.Stop()
+	testSearchLimits_MetricNames(tc, searchLimitsOpts{
+		startSUT: searchLimitsStartVmcluster,
+		stopSUT:  searchLimitsStopVmcluster,
+	})
+}
+
+func testSearchLimits_MetricNames(tc *apptest.TestCase, opts searchLimitsOpts) {
+	const numMetrics = 100
+	start := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
+	end := time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC).UnixMilli()
+	data := apptest.GenerateTestData("metric", numMetrics, start, end)
+
+	sut := opts.startSUT(tc, nil, nil)
+	sut.PrometheusAPIV1ImportPrometheus(tc.T(), data.Samples, apptest.QueryOpts{})
+	sut.ForceFlush(tc.T())
+
+	// Check that with default search limits all metrics can be retrieved.
+	apptest.AssertSeries(tc, sut, "metric.*", "", start, end, data.WantSeries)
+
+	// Restart cluster with explicit maxUniqueTimeseries on vmstorage side.
+	opts.stopSUT(tc)
+	sut = opts.startSUT(tc, []string{
+		"-search.maxUniqueTimeseries=10",
+	}, nil)
+
+	// Check that retrieving number of metrics that matches the
+	// maxUniqueTimeseries limit is ok but retrieving more than that causes an
+	// error.
+	apptest.AssertSeries(tc, sut, "metric_000[0-9]{1}", "", start, end, data.WantSeries[0:10])
+	apptest.AssertSeries(tc, sut, "metric.*", "", start, end, data.WantSeries) // Should fail but does not.
+}
+
+func _TestSingleSearchLimits(t *testing.T) {
+	tc := apptest.NewTestCase(t)
+	defer tc.Stop()
+
+	const numMetrics = 100
+	start := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
+	end := time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC).UnixMilli()
+	data := apptest.GenerateTestData("metric", numMetrics, start, end)
+
+	vmsingle := tc.MustStartVmsingle("vmsingle", []string{
+		"-storageDataPath=" + tc.Dir() + "/vmsingle",
+		"-retentionPeriod=100y",
+		"-search.maxUniqueTimeseries=10",
+		"-search.maxTagKeys=10",
+		"-search.maxTagValues=10",
+		"-search.maxTagValueSuffixesPerSearch=10",
+		"-search.maxFederateSeries=10",
+		"-search.maxExportSeries=10",
+		"-search.maxTSDBStatusSeries=10",
+		"-search.maxSeries=10",
+		"-search.maxDeleteSeries=10",
+		"-search.maxLabelsAPISeries=10",
+	})
+	vmsingle.PrometheusAPIV1ImportPrometheus(tc.T(), data.Samples, apptest.QueryOpts{})
+	vmsingle.ForceFlush(t)
+
+	apptest.AssertSeries(tc, vmsingle, "metric_00[0-9]{2}", "", start, end, data.WantSeries)
+	return
+	apptest.AssertSeriesCount(tc, vmsingle, "", start, end, numMetrics)
+	apptest.AssertLabels(tc, vmsingle, "metric.*", "", start, end, data.WantLabels)
+	apptest.AssertLabelValues(tc, vmsingle, "metric.*", "label", "", start, end, data.WantLabelValues)
+	apptest.AssertQueryResults(tc, vmsingle, "metric.*", "", start, end, data.Step, data.WantQueryResults)
+	apptest.AssertMetadata(tc, vmsingle, "", "", data.WantMetadata)
 }

@@ -81,7 +81,6 @@ func AssertSeries(tc *TestCase, app PrometheusQuerier, metricNameRE, tenantID st
 			Status: "success",
 			Data:   want,
 		},
-		Retries: 1000,
 		FailNow: true,
 	})
 }
