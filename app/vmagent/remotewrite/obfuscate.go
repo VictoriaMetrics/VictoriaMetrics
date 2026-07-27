@@ -15,6 +15,9 @@ import (
 type obfuscateLabelsCtx struct {
 	labels []prompb.Label
 
+	// buf holds allocations for cached results below
+	buf []byte
+
 	// cacheResults maps original label values to their SHA-256 hex digests,
 	// avoiding redundant hashing of repeated values within a single batch.
 	cacheResults map[string]string
@@ -24,6 +27,7 @@ func (olctx *obfuscateLabelsCtx) reset() {
 	promrelabel.CleanLabels(olctx.labels)
 	olctx.labels = olctx.labels[:0]
 	clear(olctx.cacheResults)
+	olctx.buf = olctx.buf[:0]
 }
 
 var obfuscateLabelsCtxPool = &sync.Pool{
@@ -64,10 +68,16 @@ func (olctx *obfuscateLabelsCtx) obfuscate(tss []prompb.TimeSeries, obfuscateLab
 				tmp.Value = obfuscatedValue
 				continue
 			}
-			res := sha256.Sum256(bytesutil.ToUnsafeBytes(tmp.Value))
-			hashed := hex.EncodeToString(res[:])
-			olctx.cacheResults[tmp.Value] = hashed
-			tmp.Value = hashed
+
+			digest := sha256.Sum256(bytesutil.ToUnsafeBytes(tmp.Value))
+			buf := olctx.buf
+			bufLen := len(buf)
+			buf = hex.AppendEncode(buf, digest[:])
+			obfuscatedValue := bytesutil.ToUnsafeString(buf[bufLen:])
+
+			olctx.buf = buf
+			olctx.cacheResults[tmp.Value] = obfuscatedValue
+			tmp.Value = obfuscatedValue
 		}
 		if found {
 			ts.Labels = labels[labelsLen:]
