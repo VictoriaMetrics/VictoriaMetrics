@@ -937,9 +937,7 @@ foo:1m_sum_samples{baz="qwe"} 10
 `, "11111111")
 
 	// Reproduce issue #11261: sum_samples_total must be monotonic with enable_windows: true
-	// Send 4 batches of delta=1 each. With windows enabled, blue and green flush alternately.
-	// Without shared state the cumulative total resets per-window, causing non-monotonic output.
-	// Expected: 1, 2, 3, 4 (monotonically increasing).
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11262
 	f([]string{`
 test_delta 1
 `, `
