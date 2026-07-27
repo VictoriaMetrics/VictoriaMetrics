@@ -47,7 +47,7 @@ func (olctx *obfuscateLabelsCtx) obfuscate(tss []prompb.TimeSeries, obfuscateLab
 	if len(obfuscateLabels) == 0 || len(tss) == 0 {
 		return tss
 	}
-	labels := olctx.labels[:0]
+	labels := olctx.labels
 	for i := range tss {
 		ts := &tss[i]
 		labelsLen := len(labels)
@@ -75,6 +75,7 @@ func (olctx *obfuscateLabelsCtx) obfuscate(tss []prompb.TimeSeries, obfuscateLab
 			labels = labels[:labelsLen]
 		}
 	}
+	olctx.labels = labels
 	return tss
 }
 
