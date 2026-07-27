@@ -935,4 +935,27 @@ foo:1m_sum_samples{baz="qwe"} 10
   dedup_interval: 30s
   outputs: [sum_samples]
 `, "11111111")
+
+	// Reproduce issue #11261: sum_samples_total must be monotonic with enable_windows: true
+	// Send 4 batches of delta=1 each. With windows enabled, blue and green flush alternately.
+	// Without shared state the cumulative total resets per-window, causing non-monotonic output.
+	// Expected: 1, 2, 3, 4 (monotonically increasing).
+	f([]string{`
+test_delta 1
+`, `
+test_delta 1
+`, `
+test_delta 1
+`, `
+test_delta 1
+`}, time.Minute, `test_delta 1
+test_delta 2
+test_delta 3
+test_delta 4
+`, `
+- interval: 1m
+  keep_metric_names: true
+  outputs: [sum_samples_total]
+  enable_windows: true
+`, "1111")
 }
