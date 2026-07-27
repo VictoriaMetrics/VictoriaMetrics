@@ -107,9 +107,12 @@ var (
 		"By default, metadata sending is controlled by the global -enableMetadata flag")
 
 	enableMdx = flagutil.NewArrayBool("remoteWrite.mdx.enable", "Whether to only retain metrics from VictoriaMetrics services before sending them to the corresponding -remoteWrite.url. "+
+		"Can be combined with -remoteWrite.obfuscateLabels to hide sensitive label values in the forwarded metrics. "+
 		"Please see https://docs.victoriametrics.com/victoriametrics/vmagent/#monitoring-data-exchange")
 	obfuscateLabels = flagutil.NewArrayString("remoteWrite.obfuscateLabels", "List of label names whose values will be obfuscated before being sent to the corresponding -remoteWrite.url. "+
-		"Multiple label names should be separated by `^^`, e.g. \"job^^instance,ip\".")
+		"Multiple label names should be separated by `^^`, e.g. \"job^^instance,ip\". "+
+		"Can be combined with -remoteWrite.mdx.enable to hide sensitive label values in VictoriaMetrics self-monitoring metrics. "+
+		"Please see https://docs.victoriametrics.com/victoriametrics/vmagent/#obfuscating-label-values")
 )
 
 var (

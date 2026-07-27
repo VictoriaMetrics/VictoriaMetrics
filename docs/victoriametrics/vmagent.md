@@ -687,12 +687,22 @@ Extra labels can be added to metrics collected by `vmagent` via the following me
 
 ## Obfuscating label values
 
-Before sending metrics to `-remoteWrite.url`, `vmagent` can obfuscate the values of specific labels by using `-remoteWrite.obfuscateLabels`.
+`vmagent` can obfuscate the values of specified labels before sending metrics to `-remoteWrite.url`
+via `-remoteWrite.obfuscateLabels`{{% available_from "#" %}}.
 
-This is useful when one or more `-remoteWrite.url` endpoints point to external services, such as monitoring vendors outside the department or company. 
-To meet security and compliance requirements, sensitive label values such as `ip`, `host`, `instance`, or `datacenter` can be obfuscated before metrics are sent to these external systems.
+This is useful when one or more `-remoteWrite.url` endpoints point to external monitoring services
+outside the organization, and sensitive label values such as `ip`, `host`, `instance`, or `datacenter`
+must not be exposed.
 
-Use `-remoteWrite.obfuscateLabels` to specify which labels should have their values obfuscated for the corresponding `-remoteWrite.url`. Multiple label names must be separated with `^^`.
+Label values are replaced with their SHA-256 hex digests. No salt is applied, so values with a small
+or predictable value space can potentially be recovered by brute force.
+
+This feature pairs well with [Monitoring Data eXchange (MDX)](https://docs.victoriametrics.com/victoriametrics/vmagent/#monitoring-data-exchange):
+use `-remoteWrite.mdx.enable=true` to forward only VictoriaMetrics self-monitoring metrics to an
+external vendor while hiding sensitive label values with `-remoteWrite.obfuscateLabels`.
+
+Use `-remoteWrite.obfuscateLabels` to list label names whose values should be obfuscated for the
+corresponding `-remoteWrite.url`. Separate multiple label names with `^^`.
 
 ```sh
 ./vmagent \
