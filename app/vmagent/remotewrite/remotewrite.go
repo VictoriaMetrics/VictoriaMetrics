@@ -883,7 +883,7 @@ type remoteWriteCtx struct {
 	pss        []*pendingSeries
 	pssNextIdx atomic.Uint64
 
-	obfuscateLabels map[string]struct{}
+	obfuscateLabels []string
 
 	rowsPushedAfterRelabel *metrics.Counter
 	rowsDroppedByRelabel   *metrics.Counter
@@ -999,7 +999,7 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, sanitizedURL string)
 		rowsDroppedOnPushFailure:     metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_samples_dropped_total{path=%q,url=%q}`, queuePath, sanitizedURL)),
 	}
 	rwctx.initStreamAggrConfig()
-	rwctx.initObfuscationConfig()
+	rwctx.initObfuscateLabels()
 
 	if enableMdx.GetOptionalArg(argIdx) {
 		mdxFilter := mdx.NewFilter()
@@ -1235,7 +1235,7 @@ func (rwctx *remoteWriteCtx) tryPushTimeSeriesInternal(tss []prompb.TimeSeries) 
 	if len(rwctx.obfuscateLabels) != 0 {
 		copyTimeSeriesIfNeeded()
 		olctx = getObfuscateLabelsCtx()
-		tss = olctx.apply(tss, rwctx.obfuscateLabels)
+		tss = olctx.obfuscate(tss, rwctx.obfuscateLabels)
 	}
 
 	pss := rwctx.pss

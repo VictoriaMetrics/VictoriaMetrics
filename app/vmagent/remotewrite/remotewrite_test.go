@@ -379,14 +379,14 @@ func TestCalculateHealthyRwctxIdx(t *testing.T) {
 	f(1, []int{}, []int{0})
 }
 
-func TestRemoteWriteObfuscation(t *testing.T) {
+func TestRemoteWriteObfuscateLabels(t *testing.T) {
 	f := func(obfuscateLabelList string, inputTss []prompb.TimeSeries, expectedTss []prompb.TimeSeries) {
 		t.Helper()
 		rwctx := &remoteWriteCtx{
 			idx: 0,
 		}
 		olctx := &obfuscateLabelsCtx{
-			cacheObfuscatedResult: make(map[string]string),
+			cacheResults: make(map[string]string),
 		}
 		defer metrics.UnregisterAllMetrics()
 		originValue := *obfuscateLabels
@@ -394,9 +394,9 @@ func TestRemoteWriteObfuscation(t *testing.T) {
 			*obfuscateLabels = originValue
 		}()
 		*obfuscateLabels = []string{obfuscateLabelList}
-		rwctx.initObfuscationConfig()
+		rwctx.initObfuscateLabels()
 
-		outputTss := olctx.apply(inputTss, rwctx.obfuscateLabels)
+		outputTss := olctx.obfuscate(inputTss, rwctx.obfuscateLabels)
 
 		if !reflect.DeepEqual(expectedTss, outputTss) {
 			t.Fatalf("unexpected samples;\ngot\n%v\nwant\n%v", outputTss, expectedTss)
@@ -410,6 +410,32 @@ func TestRemoteWriteObfuscation(t *testing.T) {
 
 	// 1. obfuscation is not set.
 	f("",
+		[]prompb.TimeSeries{
+			{
+				Labels: []prompb.Label{
+					{Name: "ip", Value: "123"},
+					{Name: "instance", Value: "1234"},
+				},
+				Samples: []prompb.Sample{
+					{Value: 1, Timestamp: 0},
+				},
+			},
+		},
+		[]prompb.TimeSeries{
+			{
+				Labels: []prompb.Label{
+					{Name: "ip", Value: "123"},
+					{Name: "instance", Value: "1234"},
+				},
+				Samples: []prompb.Sample{
+					{Value: 1, Timestamp: 0},
+				},
+			},
+		},
+	)
+
+	// 1. obfuscation is set for another rwctx.
+	f(",ip",
 		[]prompb.TimeSeries{
 			{
 				Labels: []prompb.Label{
