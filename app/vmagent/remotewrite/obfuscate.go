@@ -13,7 +13,10 @@ import (
 )
 
 type obfuscateLabelsCtx struct {
-	labels       []prompb.Label
+	labels []prompb.Label
+
+	// cacheResults maps original label values to their SHA-256 hex digests,
+	// avoiding redundant hashing of repeated values within a single batch.
 	cacheResults map[string]string
 }
 
