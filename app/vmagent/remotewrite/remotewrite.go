@@ -1205,38 +1205,36 @@ func (rwctx *remoteWriteCtx) tryPushTimeSeriesInternal(tss []prompb.TimeSeries) 
 	var v *[]prompb.TimeSeries
 	var octx *obfuscationCtx
 	defer func() {
-		if rctx == nil {
-			return
+		if v != nil {
+			*v = prompb.ResetTimeSeries(tss)
+			tssPool.Put(v)
 		}
-		*v = prompb.ResetTimeSeries(tss)
-		tssPool.Put(v)
-		putRelabelCtx(rctx)
+		if rctx != nil {
+			putRelabelCtx(rctx)
+		}
+		if octx != nil {
+			obfuscationCtxPool.Put(octx)
+		}
 	}()
+
+	copyTimeSeriesIfNeeded := func() {
+		if v == nil {
+			v = tssPool.Get().(*[]prompb.TimeSeries)
+			tss = append(*v, tss...)
+		}
+	}
 
 	if len(labelsGlobal) > 0 {
 		// Make a copy of tss before adding extra labels to prevent
 		// from affecting time series for other remoteWrite.url configs.
 		rctx = getRelabelCtx()
-		v = tssPool.Get().(*[]prompb.TimeSeries)
-		tss = append(*v, tss...)
+		copyTimeSeriesIfNeeded()
 		rctx.appendExtraLabels(tss, labelsGlobal)
 	}
 
 	if len(rwctx.obfuscationLabels) != 0 {
-		if rctx == nil {
-			shadowTss := tssPool.Get().(*[]prompb.TimeSeries)
-			tss = append(*shadowTss, tss...)
-			defer func() {
-				*shadowTss = prompb.ResetTimeSeries(tss)
-				tssPool.Put(shadowTss)
-			}()
-		}
+		copyTimeSeriesIfNeeded()
 		octx = obfuscationCtxPool.Get().(*obfuscationCtx)
-		defer func() {
-			octx.Reset()
-			obfuscationCtxPool.Put(octx)
-		}()
-
 		tss = rwctx.applyObfuscation(tss, octx)
 	}
 
