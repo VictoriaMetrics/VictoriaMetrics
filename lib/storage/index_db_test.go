@@ -1935,19 +1935,6 @@ func testIndexDBGetTSDBStatus(t *testing.T, disablePerDayIndex bool) {
 	const metricsPerDay = 1000
 	timestamp := time.Date(2019, time.October, 15, 5, 1, 0, 0, time.UTC).UnixMilli()
 	baseDate := uint64(timestamp) / msecPerDay
-	var metricNameBuf []byte
-	perDayMetricIDs := make(map[uint64]*uint64set.Set)
-	var allMetricIDs uint64set.Set
-	newMN := func(name string, day, metric int) MetricName {
-		var mn MetricName
-		mn.MetricGroup = []byte(name)
-		mn.AddTag("constant", "const")
-		mn.AddTag("day", fmt.Sprintf("%v", day))
-		mn.AddTag("UniqueId", fmt.Sprintf("%v", metric))
-		mn.AddTag("some_unique_id", fmt.Sprintf("%v", day))
-		mn.sortTags()
-		return mn
-	}
 
 	s := MustOpenStorage(t.Name(), OpenOptions{
 		DisablePerDayIndex: disablePerDayIndex,
@@ -1956,24 +1943,27 @@ func testIndexDBGetTSDBStatus(t *testing.T, disablePerDayIndex bool) {
 	ptw := s.tb.MustGetPartition(timestamp)
 	defer s.tb.PutPartition(ptw)
 	db := ptw.pt.idb
-	is := db.getIndexSearch(noDeadline)
 
+	is := db.getIndexSearch(noDeadline)
 	for day := range days {
 		date := baseDate - uint64(day)
-		var metricIDs uint64set.Set
 		for metric := range metricsPerDay {
-			mn := newMN("testMetric", day, metric)
-			metricNameBuf = mn.Marshal(metricNameBuf[:0])
+			mn := MetricName{
+				MetricGroup: []byte("testMetric"),
+			}
+			mn.AddTag("constant", "const")
+			mn.AddTag("day", fmt.Sprintf("%v", day))
+			mn.AddTag("UniqueId", fmt.Sprintf("%v", metric))
+			mn.AddTag("some_unique_id", fmt.Sprintf("%v", day))
+			mn.sortTags()
+			metricNameBuf := mn.Marshal(nil)
+
 			var tsid TSID
 			if !is.getTSIDByMetricName(&tsid, metricNameBuf, date) {
 				generateTSID(&tsid, &mn)
 				createAllIndexesForMetricName(db, &mn, &tsid, date)
 			}
-			metricIDs.Add(tsid.MetricID)
 		}
-
-		allMetricIDs.Union(&metricIDs)
-		perDayMetricIDs[date] = &metricIDs
 	}
 	db.putIndexSearch(is)
 	db.tb.DebugFlush()
