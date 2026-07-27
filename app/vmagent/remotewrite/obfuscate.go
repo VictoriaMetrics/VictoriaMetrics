@@ -3,6 +3,7 @@ package remotewrite
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"slices"
 	"strings"
 	"sync"
 
@@ -46,39 +47,32 @@ func (olctx *obfuscateLabelsCtx) obfuscate(tss []prompb.TimeSeries, obfuscateLab
 	labels := olctx.labels[:0]
 	for i := range tss {
 		ts := &tss[i]
-		if !olctx.shouldObfuscate(ts.Labels, obfuscateLabels) {
-			continue
-		}
-
 		labelsLen := len(labels)
 		labels = append(labels, ts.Labels...)
-		for i := range obfuscateLabels {
-			tmp := promrelabel.GetLabelByName(labels[labelsLen:], obfuscateLabels[i])
+		found := false
+		for _, labelName := range obfuscateLabels {
+			tmp := promrelabel.GetLabelByName(labels[labelsLen:], labelName)
 			if tmp == nil {
 				continue
 			}
+			found = true
 			if obfuscatedValue, ok := olctx.cacheResults[tmp.Value]; ok {
 				// fast path: the obfuscated result was calculated before
 				tmp.Value = obfuscatedValue
 				continue
 			}
 			res := sha256.Sum256(bytesutil.ToUnsafeBytes(tmp.Value))
-			olctx.cacheResults[tmp.Value] = hex.EncodeToString(res[:])
-			tmp.Value = olctx.cacheResults[tmp.Value]
+			hashed := hex.EncodeToString(res[:])
+			olctx.cacheResults[tmp.Value] = hashed
+			tmp.Value = hashed
 		}
-		ts.Labels = labels[labelsLen:]
+		if found {
+			ts.Labels = labels[labelsLen:]
+		} else {
+			labels = labels[:labelsLen]
+		}
 	}
 	return tss
-}
-
-func (olctx *obfuscateLabelsCtx) shouldObfuscate(labels []prompb.Label, obfuscateLabels []string) bool {
-	for i := range obfuscateLabels {
-		if tmp := promrelabel.GetLabelByName(labels, obfuscateLabels[i]); tmp == nil {
-			continue
-		}
-		return true
-	}
-	return false
 }
 
 func (rwctx *remoteWriteCtx) initObfuscateLabels() {
@@ -93,6 +87,8 @@ func (rwctx *remoteWriteCtx) initObfuscateLabels() {
 		if label == "" {
 			continue
 		}
-		rwctx.obfuscateLabels = append(rwctx.obfuscateLabels, label)
+		if !slices.Contains(rwctx.obfuscateLabels, label) {
+			rwctx.obfuscateLabels = append(rwctx.obfuscateLabels, label)
+		}
 	}
 }

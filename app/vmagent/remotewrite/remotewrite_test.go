@@ -527,4 +527,28 @@ func TestRemoteWriteObfuscateLabels(t *testing.T) {
 			},
 		},
 	)
+
+	// 4. duplicate label names in config must produce single SHA-256, not double
+	f("ip^^ip",
+		[]prompb.TimeSeries{
+			{
+				Labels: []prompb.Label{
+					{Name: "ip", Value: "123"},
+				},
+				Samples: []prompb.Sample{
+					{Value: 1, Timestamp: 0},
+				},
+			},
+		},
+		[]prompb.TimeSeries{
+			{
+				Labels: []prompb.Label{
+					{Name: "ip", Value: sha256Result("123")},
+				},
+				Samples: []prompb.Sample{
+					{Value: 1, Timestamp: 0},
+				},
+			},
+		},
+	)
 }
