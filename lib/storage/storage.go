@@ -54,6 +54,11 @@ type Storage struct {
 	slowRowInserts         atomic.Uint64
 	slowPerDayIndexInserts atomic.Uint64
 
+	// tsidCacheVerifierMisses counts storage/tsid cache entries rejected
+	// because the stored verifier didn't match the verifier calculated for the
+	// looked up metric name. It is only updated in the fingerprint key mode.
+	tsidCacheVerifierMisses atomic.Uint64
+
 	hourlySeriesLimitRowsDropped atomic.Uint64
 	dailySeriesLimitRowsDropped  atomic.Uint64
 
@@ -246,7 +251,7 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 
 	// Load caches.
 	mem := memory.Allowed()
-	s.tsidCache = s.mustLoadCache(tsidCacheFilename, getTSIDCacheSize())
+	s.tsidCache = s.mustLoadCache(tsidCacheFilenameForMode(), getTSIDCacheSize())
 	s.metricIDCache = s.mustLoadCache(metricIDCacheFilename, mem/16)
 	s.metricNameCache = s.mustLoadCache(metricNameCacheFilename, getMetricNamesCacheSize())
 
@@ -561,12 +566,13 @@ type Metrics struct {
 	TimestampsBlocksMerged uint64
 	TimestampsBytesSaved   uint64
 
-	TSIDCacheSize         uint64
-	TSIDCacheSizeBytes    uint64
-	TSIDCacheSizeMaxBytes uint64
-	TSIDCacheRequests     uint64
-	TSIDCacheMisses       uint64
-	TSIDCacheCollisions   uint64
+	TSIDCacheSize           uint64
+	TSIDCacheSizeBytes      uint64
+	TSIDCacheSizeMaxBytes   uint64
+	TSIDCacheRequests       uint64
+	TSIDCacheMisses         uint64
+	TSIDCacheCollisions     uint64
+	TSIDCacheVerifierMisses uint64
 
 	MetricIDCacheSize         uint64
 	MetricIDCacheSizeBytes    uint64
@@ -648,6 +654,7 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.TSIDCacheRequests += cs.GetCalls
 	m.TSIDCacheMisses += cs.Misses
 	m.TSIDCacheCollisions += cs.Collisions
+	m.TSIDCacheVerifierMisses += s.tsidCacheVerifierMisses.Load()
 
 	cs.Reset()
 	s.metricIDCache.UpdateStats(&cs)
@@ -825,7 +832,7 @@ func (s *Storage) resetAndSaveTSIDCache() {
 	// from inconsistent behaviour after possible unclean shutdown.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1347
 	s.tsidCache.Reset()
-	s.mustSaveCache(s.tsidCache, tsidCacheFilename)
+	s.mustSaveCache(s.tsidCache, tsidCacheFilenameForMode())
 }
 
 // MustClose closes the storage.
@@ -844,7 +851,7 @@ func (s *Storage) MustClose() {
 	s.legacyMustCloseIndexDBs()
 
 	// Save caches.
-	s.mustSaveCache(s.tsidCache, tsidCacheFilename)
+	s.mustSaveCache(s.tsidCache, tsidCacheFilenameForMode())
 	s.tsidCache.Stop()
 	s.mustSaveCache(s.metricIDCache, metricIDCacheFilename)
 	s.metricIDCache.Stop()
@@ -2614,13 +2621,60 @@ type legacyTSID struct {
 	_ uint64
 }
 
+// fingerprintTSID is the value stored in the tsid cache in the "fingerprint"
+// key mode, where the cache key is a 128-bit fingerprint of the metric name
+// instead of the metric name itself. verifier holds the 64-bit verifier of that
+// fingerprint and is checked on every read.
+type fingerprintTSID struct {
+	TSID     TSID
+	verifier uint64
+}
+
+// Any change to the fingerprint key derivation or fingerprintTSID layout
+// requires bumping tsidCacheFPFilename.
+var _ = [1]struct{}{}[unsafe.Sizeof(fingerprintTSID{})-32]
+
+// fingerprintTSIDBytes returns the raw view of ft used for storing it in the
+// tsid cache.
+func fingerprintTSIDBytes(ft *fingerprintTSID) []byte {
+	return (*[unsafe.Sizeof(*ft)]byte)(unsafe.Pointer(ft))[:]
+}
+
 func (s *Storage) getTSIDByMetricNameFromCache(dst *legacyTSID, metricName []byte) bool {
+	if tsidCacheFingerprintKey {
+		var kb [16]byte
+		key, verifier := marshalTSIDCacheKey(&kb, metricName)
+		var ft fingerprintTSID
+		buf := fingerprintTSIDBytes(&ft)
+		buf = s.tsidCache.Get(buf[:0], key)
+		if uintptr(len(buf)) != unsafe.Sizeof(ft) {
+			return false
+		}
+		if ft.verifier != verifier {
+			// The fingerprint key matched, but the verifier didn't.
+			// Treat the entry as a cache miss.
+			s.tsidCacheVerifierMisses.Add(1)
+			return false
+		}
+		dst.TSID = ft.TSID
+		return true
+	}
 	buf := (*[unsafe.Sizeof(*dst)]byte)(unsafe.Pointer(dst))[:]
 	buf = s.tsidCache.Get(buf[:0], metricName)
 	return uintptr(len(buf)) == unsafe.Sizeof(*dst)
 }
 
 func (s *Storage) putTSIDByMetricNameToCache(tsid *legacyTSID, metricName []byte) {
+	if tsidCacheFingerprintKey {
+		var kb [16]byte
+		key, verifier := marshalTSIDCacheKey(&kb, metricName)
+		ft := fingerprintTSID{
+			TSID:     tsid.TSID,
+			verifier: verifier,
+		}
+		s.tsidCache.Set(key, fingerprintTSIDBytes(&ft))
+		return
+	}
 	buf := (*[unsafe.Sizeof(*tsid)]byte)(unsafe.Pointer(tsid))[:]
 	s.tsidCache.Set(metricName, buf)
 }
