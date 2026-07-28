@@ -21,6 +21,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
      Authorization key for accessing /config and /remotewrite-.*-config pages. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -configAuthKey=file:///abs/path/to/file or -configAuthKey=file://./relative/path/to/file.
      Flag value can be read from the given http/https url when using -configAuthKey=http://host/path or -configAuthKey=https://host/path
+  -configCheckInterval duration
+     Interval for reloading configuration files supported by the /-/reload endpoint. This includes -promscrape.config, -remoteWrite.relabelConfig, -remoteWrite.urlRelabelConfig, -streamAggr.config and -remoteWrite.streamAggr.config. By default, periodic reloading is disabled
   -csvTrimTimestamp duration
      Trim timestamps when importing csv data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
   -datadog.maxInsertRequestSize size

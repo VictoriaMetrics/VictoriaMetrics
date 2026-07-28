@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
@@ -75,9 +76,12 @@ var (
 		"See also -opentsdbHTTPListenAddr.useProxyProtocol")
 	opentsdbHTTPUseProxyProtocol = flag.Bool("opentsdbHTTPListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted "+
 		"at -opentsdbHTTPListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt")
-	configAuthKey = flagutil.NewPassword("configAuthKey", "Authorization key for accessing /config and /remotewrite-.*-config pages. It must be passed via authKey query arg. It overrides -httpAuth.*")
-	reloadAuthKey = flagutil.NewPassword("reloadAuthKey", "Auth key for /-/reload http endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*")
-	dryRun        = flag.Bool("dryRun", false, "Whether to check config files without running vmagent. The following files are checked: "+
+	configAuthKey       = flagutil.NewPassword("configAuthKey", "Authorization key for accessing /config and /remotewrite-.*-config pages. It must be passed via authKey query arg. It overrides -httpAuth.*")
+	reloadAuthKey       = flagutil.NewPassword("reloadAuthKey", "Auth key for /-/reload http endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*")
+	configCheckInterval = flag.Duration("configCheckInterval", 0, "Interval for reloading configuration files supported by the /-/reload endpoint. "+
+		"This includes -promscrape.config, -remoteWrite.relabelConfig, -remoteWrite.urlRelabelConfig, -streamAggr.config and -remoteWrite.streamAggr.config. "+
+		"By default, periodic reloading is disabled")
+	dryRun = flag.Bool("dryRun", false, "Whether to check config files without running vmagent. The following files are checked: "+
 		"-promscrape.config, -remoteWrite.relabelConfig, -remoteWrite.urlRelabelConfig, -remoteWrite.streamAggr.config . "+
 		"Unknown config entries aren't allowed in -promscrape.config by default. This can be changed by passing -promscrape.config.strictParse=false command-line flag")
 	maxLabelsPerTimeseries = flag.Int("maxLabelsPerTimeseries", 0, "The maximum number of labels per time series to be accepted. Series with superfluous labels are ignored. In this case the vm_rows_ignored_total{reason=\"too_many_labels\"} metric at /metrics page is incremented")
@@ -169,6 +173,7 @@ func main() {
 	}
 
 	promscrape.Init(remotewrite.PushDropSamplesOnFailure)
+	stopConfigReloader := startConfigReloader(*configCheckInterval, procutil.SelfSIGHUP)
 
 	go httpserver.Serve(listenAddrs, requestHandler, httpserver.ServeOptions{
 		UseProxyProtocol: useProxyProtocol,
@@ -178,6 +183,7 @@ func main() {
 	pushmetrics.Init()
 	sig := procutil.WaitForSigterm()
 	logger.Infof("received signal %s", sig)
+	stopConfigReloader()
 	remotewrite.StopIngestionRateLimiter()
 	pushmetrics.Stop()
 
@@ -206,6 +212,31 @@ func main() {
 	remotewrite.Stop()
 
 	logger.Infof("successfully stopped vmagent in %.3f seconds", time.Since(startTime).Seconds())
+}
+
+func startConfigReloader(interval time.Duration, reload func()) func() {
+	if interval <= 0 {
+		return func() {}
+	}
+
+	stopCh := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				reload()
+			case <-stopCh:
+				return
+			}
+		}
+	})
+	return func() {
+		close(stopCh)
+		wg.Wait()
+	}
 }
 
 func getOpenTSDBHTTPInsertHandler() func(req *http.Request) error {
