@@ -32,7 +32,7 @@ type Alert struct {
 	// Expr contains expression that was executed to generate the Alert
 	Expr string
 	// Interval contains the evaluation interval of the Alert's group
-	Interval string
+	Interval time.Duration
 	// ActiveAt defines the moment of time when Alert has become active
 	ActiveAt time.Time
 	// Start defines the moment of time when Alert has become firing
@@ -86,7 +86,7 @@ type AlertTplData struct {
 	Labels    map[string]string
 	Value     float64
 	Expr      string
-	Interval  string
+	Interval  time.Duration
 	AlertID   uint64
 	GroupID   uint64
 	ActiveAt  time.Time

@@ -131,13 +131,13 @@ func TestAlertExecTemplate(t *testing.T) {
 
 	// interval-template
 	f(&Alert{
-		Interval: "1m30s",
+		Interval: 10 * time.Second,
 	}, map[string]string{
 		"interval":         "{{ .Interval }}",
 		"intervalVariable": "{{ $interval }}",
 	}, map[string]string{
-		"interval":         "1m30s",
-		"intervalVariable": "1m30s",
+		"interval":         "10s",
+		"intervalVariable": "10s",
 	})
 
 	// query

@@ -49,67 +49,6 @@ func TestNewAlertingRule(t *testing.T) {
 		})
 }
 
-func TestTemplateInterval(t *testing.T) {
-	tests := []struct {
-		name            string
-		interval        *promutil.Duration
-		defaultInterval time.Duration
-		want            string
-	}{
-		{
-			name:            "group interval",
-			interval:        promutil.NewDuration(30 * time.Second),
-			defaultInterval: time.Minute,
-			want:            "30s",
-		},
-		{
-			name:            "default interval",
-			defaultInterval: time.Minute,
-			want:            "1m0s",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			g := NewGroup(config.Group{
-				Name:     "test-group",
-				Interval: tt.interval,
-				Rules: []config.Rule{
-					{
-						Alert:       "test-alert",
-						Expr:        "up == 0",
-						Labels:      map[string]string{"interval": "{{ .Interval }}"},
-						Annotations: map[string]string{"interval": "{{ $interval }}"},
-					},
-				},
-			}, &datasource.FakeQuerier{}, tt.defaultInterval, nil)
-			ar := g.Rules[0].(*AlertingRule)
-			m := datasource.Metric{Values: []float64{1}}
-
-			ls, err := ar.expandLabelTemplates(m, nil)
-			if err != nil {
-				t.Fatalf("unexpected error expanding label templates: %s", err)
-			}
-			if got := ls.processed["interval"]; got != tt.want {
-				t.Fatalf("unexpected interval label; got %q; want %q", got, tt.want)
-			}
-
-			annotations, err := ar.expandAnnotationTemplates(m, nil, time.Time{}, ls, false)
-			if err != nil {
-				t.Fatalf("unexpected error expanding annotation templates: %s", err)
-			}
-			if got := annotations["interval"]; got != tt.want {
-				t.Fatalf("unexpected interval annotation; got %q; want %q", got, tt.want)
-			}
-
-			a := ar.newAlert(m, time.Time{}, ls.processed, annotations)
-			if a.Interval != tt.want {
-				t.Fatalf("unexpected alert interval; got %q; want %q", a.Interval, tt.want)
-			}
-		})
-	}
-}
-
 func TestAlertingRuleToTimeSeries(t *testing.T) {
 	timestamp := time.Now()
 
@@ -723,7 +662,7 @@ func TestAlertingRuleExecRange(t *testing.T) {
 			GroupID:     fakeGroup.GetID(),
 			Name:        "for-pending",
 			Type:        config.NewPrometheusType().String(),
-			Interval:    time.Second.String(),
+			Interval:    time.Second,
 			Labels:      map[string]string{"alertname": "for-pending"},
 			Annotations: map[string]string{},
 			State:       notifier.StatePending,
@@ -744,7 +683,7 @@ func TestAlertingRuleExecRange(t *testing.T) {
 			GroupID:     fakeGroup.GetID(),
 			Name:        "for-firing",
 			Type:        config.NewPrometheusType().String(),
-			Interval:    (3 * time.Second).String(),
+			Interval:    3 * time.Second,
 			Labels:      map[string]string{"alertname": "for-firing"},
 			Annotations: map[string]string{},
 			State:       notifier.StateFiring,
@@ -766,7 +705,7 @@ func TestAlertingRuleExecRange(t *testing.T) {
 			GroupID:     fakeGroup.GetID(),
 			Name:        "for-hold-pending",
 			Type:        config.NewPrometheusType().String(),
-			Interval:    time.Second.String(),
+			Interval:    time.Second,
 			Labels:      map[string]string{"alertname": "for-hold-pending"},
 			Annotations: map[string]string{},
 			State:       notifier.StatePending,
@@ -823,7 +762,7 @@ func TestAlertingRuleExecRange(t *testing.T) {
 			GroupID:     fakeGroup.GetID(),
 			Name:        "multi-series",
 			Type:        config.NewPrometheusType().String(),
-			Interval:    (3 * time.Second).String(),
+			Interval:    3 * time.Second,
 			Labels:      map[string]string{"alertname": "multi-series"},
 			Annotations: map[string]string{},
 			State:       notifier.StateFiring,
@@ -836,7 +775,7 @@ func TestAlertingRuleExecRange(t *testing.T) {
 			GroupID:     fakeGroup.GetID(),
 			Name:        "multi-series",
 			Type:        config.NewPrometheusType().String(),
-			Interval:    (3 * time.Second).String(),
+			Interval:    3 * time.Second,
 			Labels:      map[string]string{"alertname": "multi-series", "foo": "bar"},
 			Annotations: map[string]string{},
 			State:       notifier.StatePending,
@@ -1200,7 +1139,8 @@ func TestAlertingRule_Template(t *testing.T) {
 		fq.Add(metrics...)
 		fq.SetPartialResponse(isResponsePartial)
 
-		if _, err := rule.exec(context.TODO(), time.Now(), 0); err != nil {
+		ts := time.Unix(3600, 0)
+		if _, err := rule.exec(context.TODO(), ts, 0); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 		for hash, expAlert := range alertsExpected {
@@ -1218,12 +1158,14 @@ func TestAlertingRule_Template(t *testing.T) {
 	}
 
 	f(&AlertingRule{
-		Name: "common",
+		Name:         "common",
+		EvalInterval: time.Hour,
 		Labels: map[string]string{
 			"region": "east",
 		},
 		Annotations: map[string]string{
-			"summary": `{{ $labels.alertname }}: Too high connection number for "{{ $labels.instance }}"`,
+			"summary":   `{{ $labels.alertname }}: Too high connection number for "{{ $labels.instance }}"`,
+			"dashboard": `&from={{ ($activeAt.Add (parseDurationTime (printf "-%s" .Interval))).UnixMilli }}&to={{ $activeAt.UnixMilli }}`,
 		},
 		alerts: make(map[uint64]*notifier.Alert),
 	}, []datasource.Metric{
@@ -1232,7 +1174,8 @@ func TestAlertingRule_Template(t *testing.T) {
 	}, false, map[uint64]*notifier.Alert{
 		hash(map[string]string{alertNameLabel: "common", "region": "east", "instance": "foo"}): {
 			Annotations: map[string]string{
-				"summary": `common: Too high connection number for "foo"`,
+				"summary":   `common: Too high connection number for "foo"`,
+				"dashboard": "&from=0&to=3600000",
 			},
 			Labels: map[string]string{
 				alertNameLabel: "common",
@@ -1242,7 +1185,8 @@ func TestAlertingRule_Template(t *testing.T) {
 		},
 		hash(map[string]string{alertNameLabel: "common", "region": "east", "instance": "bar"}): {
 			Annotations: map[string]string{
-				"summary": `common: Too high connection number for "bar"`,
+				"summary":   `common: Too high connection number for "bar"`,
+				"dashboard": "&from=0&to=3600000",
 			},
 			Labels: map[string]string{
 				alertNameLabel: "common",
