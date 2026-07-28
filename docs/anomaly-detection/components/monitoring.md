@@ -24,6 +24,10 @@ There are 2 models to monitor VictoriaMetrics Anomaly Detection behavior - [push
 - Adding `preset` and `scheduler_alias` keys to [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#reader-behaviour-metrics) and [VmWriter](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#writer-behaviour-metrics) metrics for consistency in multi-[scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/) setups.
 - Renaming [Counters](https://prometheus.io/docs/concepts/metric_types/#counter) `vmanomaly_reader_response_count` to `vmanomaly_reader_responses` and `vmanomaly_writer_response_count` to `vmanomaly_writer_responses`.
 
+<div class="collapse-group">
+
+{{% collapse name="Pull model config parameters" %}}
+
 ## Pull Model Config parameters
 
 <table class="params">
@@ -59,6 +63,10 @@ There are 2 models to monitor VictoriaMetrics Anomaly Detection behavior - [push
         </tr>
     </tbody>
 </table>
+
+{{% /collapse %}}
+
+{{% collapse name="Push config parameters" %}}
 
 ## Push Config parameters
 
@@ -227,6 +235,10 @@ Path to a file with the client certificate key, i.e. `client.key`{{% available_f
     </tbody>
 </table>
 
+{{% /collapse %}}
+
+</div>
+
 ## Monitoring section config example
 
 ``` yaml
@@ -259,6 +271,10 @@ For detailed guidance on configuring mTLS parameters such as `verify_tls`, `tls_
 - [Reader metrics](#reader-behaviour-metrics)
 - [Model metrics](#models-behaviour-metrics)
 - [Writer metrics](#writer-behaviour-metrics)
+
+<div class="collapse-group">
+
+{{% collapse name="Startup metrics" %}}
 
 ### Startup metrics
 
@@ -385,6 +401,10 @@ For detailed guidance on configuring mTLS parameters such as `verify_tls`, `tls_
 
 [Back to metric sections](#metrics-generated-by-vmanomaly)
 
+{{% /collapse %}}
+
+{{% collapse name="Reader behaviour metrics" %}}
+
 ### Reader behaviour metrics
 Label names [description](#labelnames)
 
@@ -508,6 +528,10 @@ Label names [description](#labelnames)
 </table>
 
 [Back to metric sections](#metrics-generated-by-vmanomaly)
+
+{{% /collapse %}}
+
+{{% collapse name="Models behaviour metrics" %}}
 
 ### Models behaviour metrics
 Label names [description](#labelnames)
@@ -635,6 +659,10 @@ Label names [description](#labelnames)
 
 [Back to metric sections](#metrics-generated-by-vmanomaly)
 
+{{% /collapse %}}
+
+{{% collapse name="Writer behaviour metrics" %}}
+
 ### Writer behaviour metrics
 Label names [description](#labelnames)
 
@@ -746,6 +774,10 @@ Label names [description](#labelnames)
 
 [Back to metric sections](#metrics-generated-by-vmanomaly)
 
+{{% /collapse %}}
+
+</div>
+
 ### Labelnames
 
 * `stage` - model execution stage: `fit`, `infer`, or `fit_infer` for a combined fit/inference scheduler run. See [model types](https://docs.victoriametrics.com/anomaly-detection/components/models/#model-types).
@@ -793,6 +825,10 @@ and the [command-line arguments](https://docs.victoriametrics.com/anomaly-detect
 - [Query server and task logs](#query-server-and-task-logs)
 - [AI Copilot logs](#ai-copilot-logs)
 
+<div class="collapse-group">
+
+
+{{% collapse name="Startup logs" %}}
 
 ### Startup logs
 
@@ -811,6 +847,10 @@ server addresses, hot-reload state, and active schedulers. The most useful prefi
   `DEBUG` diagnostics.
 
 [Back to logging sections](#logs-generated-by-vmanomaly)
+
+{{% /collapse %}}
+
+{{% collapse name="Reader logs" %}}
 
 ### Reader logs
 
@@ -863,6 +903,10 @@ or parsed. See [reader behaviour metrics](#reader-behaviour-metrics).
 
 [Back to logging sections](#logs-generated-by-vmanomaly)
 
+{{% /collapse %}}
+
+{{% collapse name="Service logs" %}}
+
 ### Service logs
 
 The service logs `fit`, `infer`, and combined `fit_infer`/backtesting work for each model alias and scheduler.
@@ -891,6 +935,10 @@ an unsuccessful stage. See [models behaviour metrics](#models-behaviour-metrics)
 
 [Back to logging sections](#logs-generated-by-vmanomaly)
 
+{{% /collapse %}}
+
+{{% collapse name="Writer logs" %}}
+
 ### Writer logs
 
 Writer logs cover serialization and delivery of produced series such as
@@ -918,6 +966,10 @@ and datapoints are recorded only after a successful response. See [writer behavi
 
 [Back to logging sections](#logs-generated-by-vmanomaly)
 
+{{% /collapse %}}
+
+{{% collapse name="Scheduler supervision logs" %}}
+
 ### Scheduler supervision logs
 
 Scheduler supervision{{% available_from "v1.30.0" anomaly %}} logs a dead worker, automatic restart, successful
@@ -926,6 +978,10 @@ alive`, `Scheduler ... restarted successfully`, `restart attempt ... failed`, an
 Correlate them with `vmanomaly_scheduler_alive` and `vmanomaly_scheduler_restarts_total`.
 
 [Back to logging sections](#logs-generated-by-vmanomaly)
+
+{{% /collapse %}}
+
+{{% collapse name="Hot-reload logs" %}}
 
 ### Hot-reload logs
 
@@ -936,6 +992,10 @@ without restarting services`.
 
 [Back to logging sections](#logs-generated-by-vmanomaly)
 
+{{% /collapse %}}
+
+{{% collapse name="Persisted-state logs" %}}
+
 ### Persisted-state logs
 
 With `settings.restore_state`, startup logs the stored/runtime version assessment, reusable components, required
@@ -943,6 +1003,10 @@ model or reader-data purges, and restored jobs/services. `Persisted state is inc
 stored artifacts completely` indicates a full reset; missing or unreadable model files are reported separately.
 
 [Back to logging sections](#logs-generated-by-vmanomaly)
+
+{{% /collapse %}}
+
+{{% collapse name="Query server and task logs" %}}
 
 ### Query server and task logs
 
@@ -952,6 +1016,10 @@ background raw query finishing cleanly.
 
 [Back to logging sections](#logs-generated-by-vmanomaly)
 
+{{% /collapse %}}
+
+{{% collapse name="AI Copilot logs" %}}
+
 ### AI Copilot logs
 
 AI Copilot{{% available_from "v1.30.0" anomaly %}} reports whether it is initialized, disabled, misconfigured, or
@@ -960,3 +1028,7 @@ request failed` identifies provider execution failure, and `MCP server unreachab
 guidance tools.
 
 [Back to logging sections](#logs-generated-by-vmanomaly)
+
+{{% /collapse %}}
+
+</div>
