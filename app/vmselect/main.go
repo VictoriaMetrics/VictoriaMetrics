@@ -545,6 +545,10 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		}
 		return true
 	case "graphite/tags/delSeries":
+		if r.Method != "POST" {
+			http.Error(w, fmt.Sprintf("Only POST method is allowed. Got %s.", r.Method), http.StatusMethodNotAllowed)
+			return true
+		}
 		if !httpserver.CheckAuthFlag(w, r, deleteAuthKey) {
 			return true
 		}
@@ -563,7 +567,6 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 			return true
 		}
 		return true
-
 	case "prometheus/api/v1/status/metric_names_stats":
 		metricNamesStatsRequests.Inc()
 		httpserver.EnableCORS(w, r)
@@ -831,6 +834,10 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 func deleteHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, p *httpserver.Path, at *auth.Token) bool {
 	switch p.Suffix {
 	case "prometheus/api/v1/admin/tsdb/delete_series":
+		if r.Method != "POST" {
+			http.Error(w, fmt.Sprintf("Only POST method is allowed. Got %s.", r.Method), http.StatusMethodNotAllowed)
+			return true
+		}
 		if !httpserver.CheckAuthFlag(w, r, deleteAuthKey) {
 			return true
 		}
