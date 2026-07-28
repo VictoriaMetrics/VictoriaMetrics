@@ -236,7 +236,11 @@ func processResponse(body io.ReadCloser, callback StreamCallback) error {
 	// shouldn't be accounted as an error.
 	for _, res := range readResp.Results {
 		for _, ts := range res.Timeseries {
-			if len(ts.Samples) > 0 || len(ts.Histograms) == 0 {
+			// A series contains either float samples or native histogram samples.
+			// Both fields are processed independently, since a series may switch
+			// from float to native histogram representation at some point in time,
+			// so the requested time range may contain samples of both types.
+			if len(ts.Samples) > 0 {
 				vmTs := convertSamples(ts.Samples, ts.Labels)
 				if err := callback(vmTs); err != nil {
 					return err
@@ -306,7 +310,11 @@ func processStreamResponse(body io.ReadCloser, callback StreamCallback) error {
 				}
 			}
 
-			if len(samples) > 0 || len(hSamples) == 0 {
+			// A series contains either XOR chunks or native histogram chunks.
+			// Both are processed independently, since a series may switch
+			// from float to native histogram representation at some point in time,
+			// so the requested time range may contain chunks of both types.
+			if len(samples) > 0 {
 				ts := convertSamples(samples, series.Labels)
 				if err := callback(ts); err != nil {
 					return err

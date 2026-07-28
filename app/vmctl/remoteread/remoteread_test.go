@@ -156,11 +156,17 @@ func TestProcessResponse(t *testing.T) {
 				Timeseries: []*prompb.TimeSeries{
 					{
 						Labels: []prompb.Label{
-							{Name: "__name__", Value: "request_duration_seconds"},
+							{Name: "__name__", Value: "cpu_usage"},
 							{Name: "job", Value: "bar"},
 						},
 						Samples: []prompb.Sample{
 							{Timestamp: 1000, Value: 1.5},
+						},
+					},
+					{
+						Labels: []prompb.Label{
+							{Name: "__name__", Value: "request_duration_seconds"},
+							{Name: "job", Value: "bar"},
 						},
 						Histograms: []prompb.Histogram{
 							prompb.FromIntHistogram(1000, testHistogram(1)),
@@ -189,7 +195,7 @@ func TestProcessResponse(t *testing.T) {
 	if len(tss) != 7 {
 		t.Fatalf("unexpected number of time series; got %d; want 7", len(tss))
 	}
-	if tss[0].Name != "request_duration_seconds" || !reflect.DeepEqual(tss[0].Values, []float64{1.5}) {
+	if tss[0].Name != "cpu_usage" || !reflect.DeepEqual(tss[0].Values, []float64{1.5}) {
 		t.Fatalf("unexpected float series: %v", tss[0])
 	}
 	if tss[1].Name != "request_duration_seconds_count" || !reflect.DeepEqual(tss[1].Values, []float64{10}) {
@@ -236,13 +242,20 @@ func TestProcessStreamResponse(t *testing.T) {
 					{Name: "job", Value: "bar"},
 				},
 				Chunks: []prompb.Chunk{
-					{Type: prompb.Chunk_XOR, Data: xc.Bytes()},
 					{Type: prompb.Chunk_HISTOGRAM, Data: hc.Bytes()},
 				},
 			},
 			{
 				Labels: []prompb.Label{
 					{Name: "__name__", Value: "cpu_usage"},
+				},
+				Chunks: []prompb.Chunk{
+					{Type: prompb.Chunk_XOR, Data: xc.Bytes()},
+				},
+			},
+			{
+				Labels: []prompb.Label{
+					{Name: "__name__", Value: "memory_usage"},
 				},
 				Chunks: []prompb.Chunk{
 					// the `type` field may be unset for XOR chunks,
@@ -271,25 +284,25 @@ func TestProcessStreamResponse(t *testing.T) {
 		t.Fatalf("cannot process stream response: %s", err)
 	}
 
-	// 1 float series + _count + _sum + 4 buckets + 1 float series from UNKNOWN chunk
+	// _count + _sum + 4 buckets + 1 float series + 1 float series from UNKNOWN chunk
 	if len(tss) != 8 {
 		t.Fatalf("unexpected number of time series; got %d; want 8", len(tss))
 	}
-	if tss[0].Name != "request_duration_seconds" || !reflect.DeepEqual(tss[0].Values, []float64{1.5}) {
-		t.Fatalf("unexpected float series: %v", tss[0])
+	if tss[0].Name != "request_duration_seconds_count" || !reflect.DeepEqual(tss[0].Values, []float64{10}) {
+		t.Fatalf("unexpected _count series: %v", tss[0])
 	}
-	if tss[1].Name != "request_duration_seconds_count" || !reflect.DeepEqual(tss[1].Values, []float64{10}) {
-		t.Fatalf("unexpected _count series: %v", tss[1])
+	if tss[1].Name != "request_duration_seconds_sum" || !reflect.DeepEqual(tss[1].Values, []float64{25.5}) {
+		t.Fatalf("unexpected _sum series: %v", tss[1])
 	}
-	if tss[2].Name != "request_duration_seconds_sum" || !reflect.DeepEqual(tss[2].Values, []float64{25.5}) {
-		t.Fatalf("unexpected _sum series: %v", tss[2])
-	}
-	for _, ts := range tss[3:7] {
+	for _, ts := range tss[2:6] {
 		if ts.Name != "request_duration_seconds_bucket" {
 			t.Fatalf("unexpected bucket series name %q", ts.Name)
 		}
 	}
-	if tss[7].Name != "cpu_usage" || !reflect.DeepEqual(tss[7].Values, []float64{1.5}) {
+	if tss[6].Name != "cpu_usage" || !reflect.DeepEqual(tss[6].Values, []float64{1.5}) {
+		t.Fatalf("unexpected float series: %v", tss[6])
+	}
+	if tss[7].Name != "memory_usage" || !reflect.DeepEqual(tss[7].Values, []float64{1.5}) {
 		t.Fatalf("unexpected float series from UNKNOWN chunk: %v", tss[7])
 	}
 }
