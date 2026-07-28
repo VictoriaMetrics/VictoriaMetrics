@@ -369,6 +369,10 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		return true
 	case "/tags/delSeries":
+		if r.Method != "POST" {
+			http.Error(w, fmt.Sprintf("Only POST method is allowed. Got %s.", r.Method), http.StatusMethodNotAllowed)
+			return true
+		}
 		if !httpserver.CheckAuthFlag(w, r, deleteAuthKey) {
 			return true
 		}
