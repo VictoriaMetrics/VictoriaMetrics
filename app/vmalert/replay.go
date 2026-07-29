@@ -25,11 +25,12 @@ var (
 	replayMaxDatapoints = flag.Int("replay.maxDatapointsPerQuery", 1e3,
 		"Max number of data points expected in one request. It affects the max time range for every '/query_range' request during the replay. The higher the value, the less requests will be made during replay.")
 	replayRuleRetryAttempts = flag.Int("replay.ruleRetryAttempts", 5,
-		"Defines how many retries to make before giving up on rule if request for it returns an error.")
+		"Defines how many retries to make before giving up on rule if request for it returns a retriable error.")
 	disableProgressBar = flag.Bool("replay.disableProgressBar", false, "Whether to disable rendering progress bars during the replay. "+
 		"Progress bar rendering might be verbose or break the logs parsing, so it is recommended to be disabled when not used in interactive mode.")
 	ruleEvaluationConcurrency = flag.Int("replay.ruleEvaluationConcurrency", 1, "The maximum number of concurrent '/query_range' requests when replay recording rule or alerting rule with for=0. "+
 		"Increasing this value when replaying for a long time, since each request is limited by -replay.maxDatapointsPerQuery.")
+	continueWithExecutionErr = flag.Bool("replay.continueWithExecutionErr", false, "Whether to continue replaying other rules if a rule execution fails with a 422 response code, which can happen due to an expression syntax error or a resource limit being hit.")
 )
 
 func replay(groupsCfg []config.Group, qb datasource.QuerierBuilder, rw remotewrite.RWClient) (totalRows, droppedRows int, err error) {
@@ -73,7 +74,7 @@ func replay(groupsCfg []config.Group, qb datasource.QuerierBuilder, rw remotewri
 
 	for _, cfg := range groupsCfg {
 		ng := rule.NewGroup(cfg, qb, *evaluationInterval, labels)
-		totalRows += ng.Replay(tFrom, tTo, rw, *replayMaxDatapoints, *replayRuleRetryAttempts, *replayRulesDelay, *disableProgressBar, *ruleEvaluationConcurrency)
+		totalRows += ng.Replay(tFrom, tTo, rw, *replayMaxDatapoints, *replayRuleRetryAttempts, *replayRulesDelay, *disableProgressBar, *ruleEvaluationConcurrency, *continueWithExecutionErr)
 	}
 	logger.Infof("replay evaluation finished, generated %d samples", totalRows)
 	if err := rw.Close(); err != nil {

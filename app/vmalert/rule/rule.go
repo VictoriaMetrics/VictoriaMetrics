@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
@@ -118,13 +120,28 @@ func (s *ruleState) add(e StateEntry) {
 	s.entries[s.cur] = e
 }
 
-func replayRule(r Rule, start, end time.Time, rw remotewrite.RWClient, replayRuleRetryAttempts int) (int, error) {
+func replayRule(r Rule, start, end time.Time, rw remotewrite.RWClient, replayRuleRetryAttempts int, continueWithExecutionErr bool) (int, error) {
 	var err error
 	var tss []prompb.TimeSeries
 	for i := range replayRuleRetryAttempts {
 		tss, err = r.execRange(context.Background(), start, end)
 		if err == nil {
 			break
+		}
+		// retry request if possible to tolerate temporary network or datasource unavailability issues
+		var esc *httpserver.ErrorWithStatusCode
+		if errors.As(err, &esc) {
+			statusCode := esc.StatusCode
+			// if the status code is 422, it means that the query was executed but failed due to an expression syntax error or a the resource limit being hit,
+			// continue replaying but skip the problematic execution if continueWithExecutionErr is true, otherwise, return the error without retry.
+			if statusCode == http.StatusUnprocessableEntity {
+				if continueWithExecutionErr {
+					logger.Errorf("rule %q: %s", r, err)
+					return 0, nil
+				} else {
+					return 0, err
+				}
+			}
 		}
 		logger.Errorf("attempt %d to execute rule %q failed: %s", i+1, r, err)
 		time.Sleep(time.Second)
