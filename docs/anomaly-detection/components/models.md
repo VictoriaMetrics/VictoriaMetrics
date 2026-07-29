@@ -68,6 +68,10 @@ models:
 
 Common arguments supported by every model were introduced in [v1.10.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1100).
 
+<div class="collapse-group">
+
+{{% collapse name="Queries" %}}
+
 ### Queries
 
 The `queries` argument selects the [reader queries](https://docs.victoriametrics.com/anomaly-detection/components/reader/#config-parameters) used to fit and run a particular model{{% available_from "v1.10.0" anomaly %}}. Every series returned by a selected query is passed to that model.
@@ -92,6 +96,10 @@ models:
     # if not set, `queries` arg is created and propagated with all query aliases found in `queries` arg of `reader` section
     queries: ['q1', 'q2', 'q3']  # i.e., if your `queries` in `reader` section has exactly q1, q2, q3 aliases
 ```
+
+{{% /collapse %}}
+
+{{% collapse name="Schedulers" %}}
 
 ### Schedulers
 
@@ -118,6 +126,10 @@ models:
     schedulers: ['s1', 's2', 's3']  # i.e., if your `schedulers` section has exactly s1, s2, s3 aliases
 ```
 
+{{% /collapse %}}
+
+{{% collapse name="Provide series" %}}
+
 ### Provide series
 
 The `provide_series` argument{{% available_from "v1.12.0" anomaly %}} limits the [model output](#vmanomaly-output) sent to the writer. For example, a model may produce `['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']` by default, while the following configuration writes only `anomaly_score` for each input series:
@@ -130,6 +142,10 @@ models:
 ```
 
 > If `provide_series` is not specified in model config, the model will produce its default [model-dependent output](#vmanomaly-output). The output can't be less than `['anomaly_score']`. Even if `timestamp` column is omitted, it will be implicitly added to `provide_series` list, as it's required for metrics to be properly written.
+
+{{% /collapse %}}
+
+{{% collapse name="Detection direction" %}}
 
 ### Detection direction
 The `detection_direction` argument{{% available_from "v1.13.0" anomaly %}} can reduce [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive) when domain knowledge indicates that only values above or below the expected value are anomalous. Available values are `both`, `above_expected`, and `below_expected`.
@@ -190,6 +206,10 @@ reader:
 # other components like writer, schedule, monitoring
 ```
 
+{{% /collapse %}}
+
+{{% collapse name="Minimal deviation from expected" %}}
+
 ### Minimal deviation from expected
 
 `min_dev_from_expected`{{% available_from "v1.13.0" anomaly %}} argument is designed to **reduce [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive)** in scenarios where deviations between the actual value (`y`) and the expected value (`yhat`) are **relatively** high. Such deviations can cause models to generate high [anomaly scores](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score). However, these deviations may not be significant enough in **absolute values** from a business perspective to be considered anomalies. This parameter ensures that anomaly scores for data points where `|y - yhat| < min_dev_from_expected` are explicitly set to 0. By default, if this parameter is not set, it is set to `0` to maintain backward compatibility.
@@ -238,6 +258,10 @@ models:
     queries: ['normal_behavior']  # use the default where it's not needed
 ```
 
+{{% /collapse %}}
+
+{{% collapse name="Minimal relative deviation from expected" %}}
+
 ### Minimal relative deviation from expected
 
 {{% available_from "v1.29.1" anomaly %}} `min_rel_dev_from_expected` argument serves a similar purpose to `min_dev_from_expected` (see [section above](#minimal-deviation-from-expected)), but focuses on **relative deviations** rather than absolute ones. It is designed to reduce [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive) in scenarios where the relative deviation between the actual value (`y`) and the expected value (`yhat`) is high, but the absolute deviation is not significant enough to be considered an anomaly from a business perspective. This parameter ensures that anomaly scores for data points where `|y - yhat| / |yhat| < min_rel_dev_from_expected` are explicitly set to 0. By default, if this parameter is not set, it is set to `0` to maintain backward compatibility. 
@@ -278,6 +302,10 @@ models:
 ```
   
 
+{{% /collapse %}}
+
+{{% collapse name="Group by" %}}
+
 ### Group by
 
 > The `groupby` argument works only in combination with [multivariate models](#multivariate-models).
@@ -316,6 +344,10 @@ models:
     groupby: [host]
 ```
 
+{{% /collapse %}}
+
+{{% collapse name="Scale" %}}
+
 ### Scale
 
 Previously available only to [ProphetModel](#prophet) and [OnlineQuantileModel](#online-seasonal-quantile),  the `scale` {{% available_from "v1.20.0" anomaly %}} parameter is now applicable to all models that support generating predictions (`yhat`, `yhat_lower`, `yhat_upper`). Also, it is **two-sided** now, represented as a list of two positive float values, allowing separate scaling for the intervals `[yhat, yhat_upper]` and `[yhat_lower, yhat]`. The new margins are calculated as:
@@ -345,6 +377,10 @@ models:
     # vs `zscore_no_scale`, increase lower confidence interval width by 1.2x, decrease upper confidence width by 25% (1.0 - 0.25 = 0.75), thus, making the model more conservative in flagging anomalies when y < yhat and more aggressive when y > yhat
     scale: [1.2, 0.75]
 ```
+
+{{% /collapse %}}
+
+{{% collapse name="Clip predictions" %}}
 
 ### Clip predictions
 
@@ -400,6 +436,10 @@ models:
     ]
 ```
 
+{{% /collapse %}}
+
+{{% collapse name="Score outside data range" %}}
+
 ### Score outside data range
 
 The `anomaly_score_outside_data_range` {{% available_from "v1.20.0" anomaly %}} parameter allows overriding the default **anomaly score (`1.01`)** assigned when actual values (`y`) fall **outside the defined `data_range` if defined in [reader](https://docs.victoriametrics.com/anomaly-detection/components/reader/)**. This provides greater flexibility for **alerting rule configurations** and enables **clearer visual differentiation** between different types of anomalies:
@@ -445,6 +485,10 @@ models:
     anomaly_score_outside_data_range: 3.0  
 ```
 
+{{% /collapse %}}
+
+{{% collapse name="Decay" %}}
+
 ### Decay
 
 > The `decay` argument works only in combination with [online models](#online-models) like [`ZScoreOnlineModel`](#online-z-score) or [`OnlineQuantileModel`](#online-seasonal-quantile).
@@ -477,6 +521,10 @@ models:
     queries: ['q1']
 ```
 
+{{% /collapse %}}
+
+</div>
+
 
 ## Model types
 
@@ -502,7 +550,7 @@ If during an inference, you got a series having **new labelset** (not present in
 
 **Examples:** [Prophet](#prophet), [Holt-Winters](#holt-winters)
 
-![vmanomaly-model-type-univariate](model-lifecycle-univariate.webp)
+![Univariate model lifecycle](model-lifecycle-univariate.svg)
 
 
 ### Multivariate Models
@@ -517,9 +565,34 @@ If during an inference, you got a **different amount of series** or some series 
 
 **Implications:** Multivariate models are a go-to default, when your queries returns **fixed** amount of **individual** time series (say, some aggregations), to be used for adding cross-series (and cross-query) context, useful for catching [collective anomalies](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-2/#collective-anomalies) or [novelties](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-2/#novelties) (expanded to multi-input scenario). For example, you may set it up for anomaly detection of CPU usage in different modes (`idle`, `user`, `system`, etc.) and use its cross-dependencies to detect **unseen (in fit data)** behavior.
 
-**Examples:** [IsolationForest](#isolation-forest-multivariate)
+**Examples:** [Temporal Envelope](#temporal-envelope), [Isolation Forest](#isolation-forest-multivariate)
 
-![vmanomaly-model-type-multivariate](model-lifecycle-multivariate.webp)
+![Multivariate model lifecycle](model-lifecycle-multivariate.svg)
+
+The following configuration applies both models to the same aligned input series. Start with Temporal Envelope when temporal profiles and online adaptation matter; use Isolation Forest as an offline alternative when feature-space outliers are the primary concern.
+
+```yaml
+models:
+  service_dependency_envelope:
+    class: temporal_envelope_multivariate
+    queries: [request_rate, error_rate, latency]
+    groupby: [cluster]
+    dependency_rank: 8
+    score_aggregation: l2
+    seasonalities: [hod_smooth, dow_smooth]
+    provide_series: [anomaly_score]
+
+  service_dependency_isolation_forest:
+    class: isolation_forest_multivariate
+    queries: [request_rate, error_rate, latency]
+    groupby: [cluster]
+    contamination: 0.01
+    seasonal_features: [hod, dow]
+    args:
+      n_estimators: 100
+      random_state: 42
+    provide_series: [anomaly_score]
+```
 
 
 ### Online Models
@@ -664,7 +737,7 @@ models:
 
 </div>
 
-![vmanomaly-autotune-schema](autotune.webp)
+![AutoTunedModel tuning and inference lifecycle](autotune.svg)
 
 #### Shared asynchronous autotune workflow
 
@@ -1344,6 +1417,10 @@ This guide shows how to:
 
 > The file containing the model must be written in [Python](https://www.python.org/) 3.14 or later. A custom model runs inside the `vmanomaly` Python environment, so keep its dependencies compatible with the target image and keep the module available when restoring serialized model state after a restart.
 
+<div class="collapse-group">
+
+{{% collapse name="Custom model implementation guide" %}}
+
 ### 1. Custom model
 
 Create `custom_model.py` with a `CustomModel` class derived from `Model`. A concrete model must implement:
@@ -1509,6 +1586,10 @@ The writer emits one `custom_anomaly_score` series for each input series. It ret
 {__name__="custom_anomaly_score", for="ingestion_rate", model_alias="custom_model", scheduler_alias="s1", run="test-format"},
 {__name__="custom_anomaly_score", for="churn_rate",     model_alias="custom_model", scheduler_alias="s1", run="test-format"}
 ```
+
+{{% /collapse %}}
+
+</div>
 
 ## Deprecations
 
