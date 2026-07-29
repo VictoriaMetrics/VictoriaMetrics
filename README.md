@@ -2,7 +2,6 @@
 
 [![Latest Release](https://img.shields.io/github/v/release/VictoriaMetrics/VictoriaMetrics?sort=semver&label=&filter=!*-victorialogs&logo=github&labelColor=gray&color=gray&link=https%3A%2F%2Fgithub.com%2FVictoriaMetrics%2FVictoriaMetrics%2Freleases%2Flatest)](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)
 [![Docker Pulls](https://img.shields.io/docker/pulls/victoriametrics/victoria-metrics?label=&logo=docker&logoColor=white&labelColor=2496ED&color=2496ED&link=https%3A%2F%2Fhub.docker.com%2Fr%2Fvictoriametrics%2Fvictoria-metrics)](https://hub.docker.com/u/victoriametrics)
-[![Go Report](https://goreportcard.com/badge/github.com/VictoriaMetrics/VictoriaMetrics?link=https%3A%2F%2Fgoreportcard.com%2Freport%2Fgithub.com%2FVictoriaMetrics%2FVictoriaMetrics)](https://goreportcard.com/report/github.com/VictoriaMetrics/VictoriaMetrics)
 [![Build Status](https://github.com/VictoriaMetrics/VictoriaMetrics/actions/workflows/build.yml/badge.svg?branch=master&link=https%3A%2F%2Fgithub.com%2FVictoriaMetrics%2FVictoriaMetrics%2Factions)](https://github.com/VictoriaMetrics/VictoriaMetrics/actions/workflows/build.yml)
 [![License](https://img.shields.io/github/license/VictoriaMetrics/VictoriaMetrics?labelColor=green&label=&link=https%3A%2F%2Fgithub.com%2FVictoriaMetrics%2FVictoriaMetrics%2Fblob%2Fmaster%2FLICENSE)](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/LICENSE)
 [![Join Slack](https://img.shields.io/badge/Join%20Slack-4A154B?logo=slack)](https://slack.victoriametrics.com)
