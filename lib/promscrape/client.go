@@ -92,6 +92,7 @@ func newClient(ctx context.Context, sw *ScrapeWork) (*client, error) {
 	tr := httputil.NewTransport(false, "vm_promscrape")
 	if sw.UnixSocket != "" {
 		// Unix sockets are direct local endpoints and cannot be reached via HTTP proxies.
+		// Proxy could be set implicitly via global env variable HTTP_PROXY
 		tr.Proxy = nil
 	} else if proxyURLFunc != nil {
 		tr.Proxy = proxyURLFunc
