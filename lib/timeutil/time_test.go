@@ -21,6 +21,8 @@ func TestTryParseUnixTimestamp_Success(t *testing.T) {
 		}
 	}
 
+	f("0", 0)
+
 	//smaller than maxValidSecond
 
 	f("12", 12000000000)
