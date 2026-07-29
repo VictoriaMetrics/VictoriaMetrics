@@ -9,7 +9,7 @@ sitemap:
 
 ## Overview {#scenario}
 
-This guide shows how to run VictoriaMetrics across multiple regions with dedicated monitoring clusters. Each workload region runs vmagent and sends metrics to two monitoring regions, so both monitoring regions store the same data.
+This guide shows how to run VictoriaMetrics across multiple regions in high-availability mode. Each workload runs a local vmagent and sends metrics to dedicated monitoring deployments, so metric data is duplicated and available even if one VictoriaMetrics instance is down.
 
 Use this architecture when you need region-level resilience and want monitoring to keep working even if one region becomes unavailable.
 
@@ -19,27 +19,25 @@ This setup gives you:
 * A global query view
 * Simpler disaster recovery
 
-The trade-off is that you store and transmit the same data twice, so storage and compute requirements are doubled.
+The trade-off is that you store and transmit the same data twice, so storage and compute requirements are increased.
 
 ## Architecture
 
-This architecture separates workload regions from monitoring regions, called Earth, Mars, and Venus in the example. Each workload region runs vmagent and sends the same metrics to two dedicated monitoring regions, called Ground Control 1 and 2, each running VictoriaMetrics. 
+This architecture separates workload regions, called Earth, Mars, and Venus, from monitoring regions, called Ground Control 1 and 2. Each workload region runs a local vmagent and sends the same metrics to the two dedicated monitoring regions, each running a separate instance of VictoriaMetrics.
 
 ![Multi-regional setup with VictoriaMetrics: Dedicated regions for monitoring](setup-1.webp)
 
-This setup works with VictoriaMetrics [single-node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [cluster mode](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/). As vmagent keeps a separate queue for each remote-write destination, a problem in one region does not block delivery to the other.
+This setup works with VictoriaMetrics [single-node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [cluster mode](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/). As vmagent keeps a separate queue for each remote-write destination, an outage in one region does not block delivery to the other.
 
-## High Availability
+### High Availability
 
-This setup provides high availability by storing a full copy of the data in each Ground Control region. Because every workload region sends the same metrics to both monitoring regions, you can lose one Ground Control region and still query the data from the other one.
+The architecture provides high availability by storing a full copy of the data in each of the Ground Control regions. Since both regions receive the same data, losing one keeps metric data available for queries, dashboards, and alerts.
 
-You do not need to use VictoriaMetrics cluster `-replicationFactor` for this cross-region setup. Here, availability comes from vmagent replicating writes to independent monitoring regions.
-
-vmagent also keeps a separate queue for each `-remoteWrite.url`, so a problem in one region does not block delivery to the other. The trade-off is that storage and cross-region traffic are duplicated.
+You do not need to use VictoriaMetrics cluster `-replicationFactor` for this cross-region setup, as availability comes from vmagent replicating writes to independent monitoring regions.
 
 ## How to write the data to Ground Control regions
 
-Run one vmagent in each workload region (Earth, Mars, Venus) and configure each with two `-remoteWrite.url` flags, one for each VictoriaMetrics instance. For example:
+Run a local vmagent in each workload region (Earth, Mars, Venus) and point them to the Ground Control URLs using the `-remoteWrite.url` flag. For example:
 
 ```sh
 /path/to/vmagent-prod \
@@ -63,25 +61,25 @@ For more details, read the [vmagent Quickstart guide](https://docs.victoriametri
 You can read data from Ground Control regions in a few different ways. The best option depends on your needs:
 
 * Regional endpoints: use one region endpoint as default and manually switch to the other during an outage. This is the simplest option but needs manual failover.
-* Load balancer: put one stable endpoint and route traffic to a preferred region, with automatic failover to another region if needed.
-* Global vmselect: can keep serving queries during a regional outage, but it waits on all configured regions and needs [deduplication](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#deduplication). Requires VictoriaMetrics cluster mode.
-* Multi-level vmselect: Can also keep serving queries during a regional outage, with a top-level vmselect merging regional vmselect nodes and [deduplicating](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#deduplication) replicated data. Requires VictoriaMetrics cluster mode.
+* Load balancer: put a load balancer in front of both Ground Control regions. Route traffic to a preferred region, with automatic failover to the other region on failure.
+* Global vmselect: wire vmselect directly to the vmstorage nodes for both Ground Control regions (which must run in cluster mode).
+* Multi-level vmselect: run a dedicated vmselect on top of the Ground Control regional vmselect nodes. This setup also requires both Ground Control instances to run in cluster mode.
 
 You can read more about choosing the right architecture in the [VictoriaMetrics topologies guide](https://docs.victoriametrics.com/guides/vm-architectures/).
 
 ### Regional endpoints
 
-In this setup, Grafana, vmalert, or any other query client sends requests to one region by default, and you switch to another region only if the default region becomes unavailable. For instance, use Ground Control 1 as the primary datasource and keep Ground Control 2 as a standby endpoint.
+In this setup, Grafana, vmalert, or any other query client sends requests to one region by default, and you manually switch to another region only if the default region becomes unavailable. For instance, use Ground Control 1 as the primary datasource and keep Ground Control 2 as a standby endpoint.
 
 TODO: diagram
 
-This option works well when operational simplicity matters more than automatic failover or a single global query endpoint. It also works with both VictoriaMetrics single-node and cluster deployments, because it only relies on each region exposing a working query endpoint.
+This option works well when operational simplicity matters more than automatic failover or a single global query endpoint. It also works with both VictoriaMetrics single-node and cluster deployments, because it only relies on each region exposing a query endpoint.
 
 If you use VictoriaMetrics single-node, the endpoints point directly to the single-node HTTP API. For example:
 - Primary endpoint: `https://ground-control-1:8428/prometheus/api/v1/query`
 - Standby endpoint: `https://ground-control-2:8428/prometheus/api/v1/query`
 
-On VictoriaMetrics cluster, the endpoints point to each cluster vmselect HTTP API. For example:
+On the VictoriaMetrics cluster, the endpoints point to each cluster's vmselect HTTP API. For example:
 - Primary endpoint: `https://ground-control-1-vmselect:8428/select/0/prometheus`
 - Standby endpoint: `https://ground-control-2-vmselect:8428/select/0/prometheus`
 
@@ -91,7 +89,7 @@ Use a load balancer when you want one stable query endpoint in front of multiple
 
 This option keeps the client side simple because users only need one endpoint. It also works with both VictoriaMetrics single-node and cluster deployments, because the load balancer only routes requests to an existing query endpoint in each region.
 
-You can use [vmauth] as a load balancer. For VictoriaMetrics single node, you can start with the following configuration:
+You can use [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) as a load balancer. For VictoriaMetrics single node, you can run it with the following configuration:
 
 ```yaml
 unauthorized_user:
@@ -101,7 +99,7 @@ unauthorized_user:
   load_balancing_policy: first_available
 ```
 
-On VictoriaMetrics cluster, the URLs must point to the vmselect nodes. For example:
+On the VictoriaMetrics cluster, the URLs must point to the Ground Control vmselect nodes. For example:
 
 ```yaml
 unauthorized_user:
@@ -111,9 +109,9 @@ unauthorized_user:
   load_balancing_policy: first_available
 ```
 
-The examples above show how to load balance requests without authentication. You can optionally implement authentication in several ways, for more details read the [vmauth authorization section](https://docs.victoriametrics.com/victoriametrics/vmauth/#authorization).
+The examples above show how to load balance requests without authentication. You can optionally implement authentication in several ways; for more details, read the [vmauth authorization section](https://docs.victoriametrics.com/victoriametrics/vmauth/#authorization).
 
-Start vmauth with your configuration file as follows:
+To start vmauth with your configuration, use the `-auth.config` flag. For example:
 
 ```sh
 /path/to/vmauth-prod -auth.config=/path/to/auth.yaml
@@ -121,13 +119,13 @@ Start vmauth with your configuration file as follows:
 
 ### Global vmselect
 
-> This options requires [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/)
+> This option requires a [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) for Ground Control.
 
-Use a global vmselect when each Ground Control region runs VictoriaMetrics cluster and you want one VictoriaMetrics-native query endpoint across all regions. In this setup, you run an additional vmselect that knows about storage in every Ground Control region and queries all of them directly.
+Use a global vmselect when each Ground Control region runs a VictoriaMetrics cluster, and you want one VictoriaMetrics-native query endpoint across all regions. In this setup, you run an extra vmselect node that knows about storage in every Ground Control region and queries all of them directly.
 
 TODO: diagram
 
-Because the same samples are stored in more than one region, you must enable [deduplication] on the global vmselect. VictoriaMetrics stores timestamps with millisecond precision, so you need to provide the `-dedup.minScrapeInterval=1ms` flag to handle duplicated samples.
+Since the same samples are duplicated across Ground Control regions, you must enable [deduplication](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#deduplication) on the global vmselect. VictoriaMetrics stores timestamps with millisecond precision, so you need to provide the `-dedup.minScrapeInterval=1ms` flag to handle duplicated samples.
 
 For example:
 
@@ -137,19 +135,23 @@ For example:
   -dedup.minScrapeInterval=1ms
 ```
 
-This option supports MetricsQL and gives you a single query endpoint for all Ground Control regions. It can also continue serving data during a regional outage, because the global vmselect can still query the remaining region.
+This option supports MetricsQL and gives you a single query endpoint for all Ground Control regions. It can also continue serving data during an outage on a Ground Control region.
 
-The main trade-off is query behavior under failure or latency, as vmselect waits for responses from all storages in all regions, so slow or unavailable backends can increase query latency or lead to [partial responses](https://docs.victoriametrics.com/guides/vm-architectures/#query-consistency-partial-vs-complete-responses).
+The main trade-off is query behavior under region failure or latency, as the global vmselect waits for responses from all storages in all regions; a slow or unavailable backend can increase query latency or lead to [partial responses](https://docs.victoriametrics.com/guides/vm-architectures/#query-consistency-partial-vs-complete-responses).
 
 ### Multi-level vmselect
 
-Use multi-level vmselect when each Ground Control region runs VictoriaMetrics cluster and you want a global VictoriaMetrics query layer on top of the regional clusters. In this setup, each Ground Control region runs its own local vmselect, and a top-level vmselect queries those regional vmselect nodes instead of querying vmstorage directly.
+> This option requires a [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) for Ground Control.
+
+Use multi-level vmselect when each Ground Control region runs a VictoriaMetrics cluster, and you want a top-level VictoriaMetrics query layer over the regional Ground Control clusters. In this setup, each Ground Control region runs its own local vmselect, and a top-level vmselect queries them instead of connecting to vmstorage nodes directly.
 
 TODO: diagram
 
-This option is useful when direct access to regional vmstorage is not practical or not desirable. For example when running on Kubernetes, since the vmstorage services don't provide an HTTP query endpoint.
+This option is useful when direct access to vmstorage nodes is not practical or not desirable. For example, when running on Kubernetes, the vmstorage services don't provide an HTTP query endpoint by default.
 
-To enable this setup, each regional vmselect must listen for requests from the global layer by setting `-clusternativeListenAddr`. The global vmselect must then use `-storageNode` to point to the regional vmselect nodes.
+To enable this setup, each regional vmselect must listen for requests from the global layer by setting the `-clusternativeListenAddr` flag. The top-level vmselect must then use `-storageNode` to point to the Ground Control vmselect nodes and must set a [deduplication](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#deduplication) interval to handle duplicated data across the Ground Control regions.
+
+For example, here's how we can run the local and top-level vmselect nodes:
 
 ```sh
 # Ground Control 1 cluster vmselect
@@ -168,19 +170,17 @@ To enable this setup, each regional vmselect must listen for requests from the g
   -dedup.minScrapeInterval=1ms
 ```
 
-This option supports MetricsQL and can keep serving queries during a regional outage, because the top-level vmselect can still query the remaining regional vmselect nodes. It also gives you a cleaner separation between regional and global query layers than a single global vmselect that talks to all vmstorage nodes directly.
+This option supports MetricsQL and can keep serving queries during a regional outage, because the top-level vmselect can still query the remaining regional vmselect nodes. It also gives you a cleaner separation between regional and top-level query layers than a single global vmselect that talks to all vmstorage nodes directly. 
 
-The main trade-off is complexity. You add another query layer and more moving parts, so this setup is harder to deploy and operate than regional endpoints, a load balancer, or regional endpoints.
+The main trade-off is complexity. You add another query layer and more moving parts, so this setup is harder to deploy and operate than regional endpoints, a load balancer, or global vmselect.
 
 ## Alerting
 
-Run vmalert in each Ground Control region and point it to the local VictoriaMetrics endpoint. Because each region stores the same data, you can deploy the same alerting and recording rules in every region without cross-region rule synchronization. Send alerts to an [Alertmanager cluster](https://prometheus.io/docs/alerting/latest/alertmanager/#high-availability) so duplicate notifications are deduplicated automatically.
+Run a vmalert node in each Ground Control region and point it to the local VictoriaMetrics endpoint. Since each region stores the same data, you can deploy the same alerting and recording rules in every region without needing cross-region rule synchronization. Send alerts to an [Alertmanager cluster](https://prometheus.io/docs/alerting/latest/alertmanager/#high-availability) to deduplicate firing alerts automatically.
 
 TODO: diagram
 
-You can set up vmalert in each Ground Control region to evaluate and enforce recording and alerting rules. As every region contains a full copy of the data, you don't need to synchronize recording rules from one region to another.
-
-A simple vmalert example for single node VictoriaMetrics looks like this:
+A simple vmalert example for a single-node VictoriaMetrics looks like this:
 
 ```sh
 /path/to/vmalert \
@@ -198,7 +198,7 @@ In VictoriaMetrics cluster mode, point `-datasource.url` to the regional vmselec
   -notifier.url=http://alertmanager-1:9093,http://alertmanager-2:9093
 ```
 
-If you want vmalert to preserve alert state and recording rule results across restarts, configure `-remoteWrite.url` and `-remoteRead.url` to point to VictoriaMetrics as well. For example, for VictoriaMetrics cluster:
+If you want vmalert to preserve alert state and recording rule results across restarts, configure `-remoteWrite.url` and `-remoteRead.url` to point to VictoriaMetrics as well. For example, for a VictoriaMetrics cluster:
 
 ```sh
 /path/to/vmalert \
@@ -214,13 +214,17 @@ for VictoriaMetrics components.
 
 ## Monitoring
 
-Monitor the monitoring system through a separate path. A practical approach is to run an additional VictoriaMetrics single-node instance in each Ground Control region and scrape metrics from the local VictoriaMetrics components into it.
+You can monitor VictoriaMetrics itself with a separate, dedicated monitoring path. In this setup, each Ground Control region runs its own monitoring instance that scrapes metrics from the Ground Control components. 
 
-Refer to the following pages to learn more:
+TODO: diagram
+
+You can optionally duplicate the monitored metrics to the neighboring region for extra resilience. That way, if a whole Ground Control region goes down, you still have access to the telemetry of the downed VictoriaMetrics instance, which can help you troubleshoot and restore service more easily.
+
+TODO: diagram
+
+Refer to the following pages on how to monitor your monitoring deployments:
 * [How to monitor VictoriaMetrics single node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#monitoring)
 * [How to monitor a VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#monitoring)
-
-You also may evaluate the option to send these metrics to the neighbour region to achieve high-availability in the monitoring of monitoring system.
 
 ## What more can we do?
 
