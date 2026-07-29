@@ -662,6 +662,7 @@ func TestAlertingRuleExecRange(t *testing.T) {
 			GroupID:     fakeGroup.GetID(),
 			Name:        "for-pending",
 			Type:        config.NewPrometheusType().String(),
+			Interval:    time.Second,
 			Labels:      map[string]string{"alertname": "for-pending"},
 			Annotations: map[string]string{},
 			State:       notifier.StatePending,
@@ -682,6 +683,7 @@ func TestAlertingRuleExecRange(t *testing.T) {
 			GroupID:     fakeGroup.GetID(),
 			Name:        "for-firing",
 			Type:        config.NewPrometheusType().String(),
+			Interval:    3 * time.Second,
 			Labels:      map[string]string{"alertname": "for-firing"},
 			Annotations: map[string]string{},
 			State:       notifier.StateFiring,
@@ -703,6 +705,7 @@ func TestAlertingRuleExecRange(t *testing.T) {
 			GroupID:     fakeGroup.GetID(),
 			Name:        "for-hold-pending",
 			Type:        config.NewPrometheusType().String(),
+			Interval:    time.Second,
 			Labels:      map[string]string{"alertname": "for-hold-pending"},
 			Annotations: map[string]string{},
 			State:       notifier.StatePending,
@@ -759,6 +762,7 @@ func TestAlertingRuleExecRange(t *testing.T) {
 			GroupID:     fakeGroup.GetID(),
 			Name:        "multi-series",
 			Type:        config.NewPrometheusType().String(),
+			Interval:    3 * time.Second,
 			Labels:      map[string]string{"alertname": "multi-series"},
 			Annotations: map[string]string{},
 			State:       notifier.StateFiring,
@@ -771,6 +775,7 @@ func TestAlertingRuleExecRange(t *testing.T) {
 			GroupID:     fakeGroup.GetID(),
 			Name:        "multi-series",
 			Type:        config.NewPrometheusType().String(),
+			Interval:    3 * time.Second,
 			Labels:      map[string]string{"alertname": "multi-series", "foo": "bar"},
 			Annotations: map[string]string{},
 			State:       notifier.StatePending,
@@ -1134,7 +1139,8 @@ func TestAlertingRule_Template(t *testing.T) {
 		fq.Add(metrics...)
 		fq.SetPartialResponse(isResponsePartial)
 
-		if _, err := rule.exec(context.TODO(), time.Now(), 0); err != nil {
+		ts := time.Unix(3600, 0)
+		if _, err := rule.exec(context.TODO(), ts, 0); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 		for hash, expAlert := range alertsExpected {
@@ -1152,12 +1158,14 @@ func TestAlertingRule_Template(t *testing.T) {
 	}
 
 	f(&AlertingRule{
-		Name: "common",
+		Name:         "common",
+		EvalInterval: time.Hour,
 		Labels: map[string]string{
 			"region": "east",
 		},
 		Annotations: map[string]string{
-			"summary": `{{ $labels.alertname }}: Too high connection number for "{{ $labels.instance }}"`,
+			"summary":   `{{ $labels.alertname }}: Too high connection number for "{{ $labels.instance }}"`,
+			"dashboard": `&from={{ ($activeAt.Add (parseDurationTime (printf "-%s" .Interval))).UnixMilli }}&to={{ $activeAt.UnixMilli }}`,
 		},
 		alerts: make(map[uint64]*notifier.Alert),
 	}, []datasource.Metric{
@@ -1166,7 +1174,8 @@ func TestAlertingRule_Template(t *testing.T) {
 	}, false, map[uint64]*notifier.Alert{
 		hash(map[string]string{alertNameLabel: "common", "region": "east", "instance": "foo"}): {
 			Annotations: map[string]string{
-				"summary": `common: Too high connection number for "foo"`,
+				"summary":   `common: Too high connection number for "foo"`,
+				"dashboard": "&from=0&to=3600000",
 			},
 			Labels: map[string]string{
 				alertNameLabel: "common",
@@ -1176,7 +1185,8 @@ func TestAlertingRule_Template(t *testing.T) {
 		},
 		hash(map[string]string{alertNameLabel: "common", "region": "east", "instance": "bar"}): {
 			Annotations: map[string]string{
-				"summary": `common: Too high connection number for "bar"`,
+				"summary":   `common: Too high connection number for "bar"`,
+				"dashboard": "&from=0&to=3600000",
 			},
 			Labels: map[string]string{
 				alertNameLabel: "common",
@@ -1388,7 +1398,7 @@ func TestAlertingRule_ToLabels(t *testing.T) {
 		"alertname":     "ConfigurationReloadFailure",
 		"alertgroup":    "vmalert",
 		"pod":           "vmalert-0",
-		"invalid_label": `error evaluating template: template: :1:298: executing "" at <.Values.mustRuntimeFail>: can't evaluate field Values in type notifier.tplData`,
+		"invalid_label": `error evaluating template: template: :1:326: executing "" at <.Values.mustRuntimeFail>: can't evaluate field Values in type notifier.tplData`,
 	}
 
 	expectedProcessedLabels := map[string]string{
@@ -1398,7 +1408,7 @@ func TestAlertingRule_ToLabels(t *testing.T) {
 		"exported_alertname": "ConfigurationReloadFailure",
 		"group":              "vmalert",
 		"alertgroup":         "vmalert",
-		"invalid_label":      `error evaluating template: template: :1:298: executing "" at <.Values.mustRuntimeFail>: can't evaluate field Values in type notifier.tplData`,
+		"invalid_label":      `error evaluating template: template: :1:326: executing "" at <.Values.mustRuntimeFail>: can't evaluate field Values in type notifier.tplData`,
 	}
 
 	ls, err := ar.toLabels(metric, nil)
