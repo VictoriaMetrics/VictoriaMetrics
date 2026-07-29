@@ -21,7 +21,21 @@ func TestTryParseUnixTimestamp_Success(t *testing.T) {
 		}
 	}
 
-	f("0", 0)
+	//smaller than maxValidSecond
+
+	f("12", 12000000000)
+	f("12.0", 12000000000) // check fail, got 12000000000000
+
+	f("9223372", 9223372000000000)
+	f("9223372.0", 9223372000000000) // check fail, got 9223372000000000000
+
+	// bigger than maxValidSecond
+
+	f("9223373", 9223373000000000)
+	f("9223373.0", 9223373000000000) // check success
+
+	f("1700000000", 1700000000000000000)
+	f("1700000000.0", 1700000000000000000) // check success
 
 	// nanoseconds
 	f("-1234567890123456789", -1234567890123456789)
