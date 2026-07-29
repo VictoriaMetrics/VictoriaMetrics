@@ -90,7 +90,10 @@ func newClient(ctx context.Context, sw *ScrapeWork) (*client, error) {
 	}
 
 	tr := httputil.NewTransport(false, "vm_promscrape")
-	if proxyURLFunc != nil {
+	if sw.UnixSocket != "" {
+		// Unix sockets are direct local endpoints and cannot be reached via HTTP proxies.
+		tr.Proxy = nil
+	} else if proxyURLFunc != nil {
 		tr.Proxy = proxyURLFunc
 	}
 	tr.TLSHandshakeTimeout = 10 * time.Second
