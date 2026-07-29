@@ -226,6 +226,30 @@ func TestHandler(t *testing.T) {
 		}
 	})
 
+	t.Run("/api/v1/status/buildinfo", func(t *testing.T) {
+		// the path must be served by vmalert itself, otherwise lib/httpserver
+		// rejects it with 400 and Grafana stops loading the rules
+		f := func(url string) {
+			t.Helper()
+			buildInfo := struct {
+				Status string `json:"status"`
+				Data   struct {
+					Version string `json:"version"`
+				} `json:"data"`
+			}{}
+			getResp(t, ts.URL+url, &buildInfo, 200)
+			if buildInfo.Status != "success" {
+				t.Fatalf("unexpected status %q; want \"success\"", buildInfo.Status)
+			}
+			if buildInfo.Data.Version == "" {
+				t.Fatalf("expected non-empty version in response")
+			}
+		}
+
+		f("/api/v1/status/buildinfo")
+		f("/vmalert/api/v1/status/buildinfo")
+	})
+
 	t.Run("/api/v1/rules&states", func(t *testing.T) {
 		check := func(url string, statusCode, expGroups, expRules int) {
 			t.Helper()

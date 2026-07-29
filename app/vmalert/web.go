@@ -223,6 +223,15 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(data)
 		return true
+	case "/vmalert/api/v1/status/buildinfo", "/api/v1/status/buildinfo":
+		// Grafana calls this path to discover datasource features before loading rules.
+		// It only falls back to feature detection on 404, so an unsupported path error
+		// would make Grafana treat vmalert as a broken datasource.
+		// Prometheus version is reported here for the same reason as in vmselect,
+		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5370
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, "%s", `{"status":"success","data":{"version":"2.24.0"}}`)
+		return true
 	case "/-/reload":
 		if !httpserver.CheckAuthFlag(w, r, reloadAuthKey) {
 			return true

@@ -846,6 +846,7 @@ Please refer to the [VictoriaMetrics Cloud documentation](https://docs.victoriam
 * `http://<vmalert-addr>/api/v1/rules` - returns a list of all loaded groups and rules. Supports the `datasource_type`, `search`, `group_limit`, and `page_num` parameters, as well as additional [filtering](https://prometheus.io/docs/prometheus/latest/querying/api/#rules);
 * `http://<vmalert-addr>/api/v1/alerts` - returns a list of all active alerts. Supports the `datasource_type`, `rule_group[]`, `file[]` and `match[]`(applied on templated alert labels) query parameters;
 * `http://<vmalert-addr>/api/v1/notifiers` - returns a list of all available notifiers;
+* `http://<vmalert-addr>/api/v1/status/buildinfo`{{% available_from "#" %}} - returns build information in Prometheus format. Grafana requests this endpoint to discover datasource features before loading the rules;
 * `http://<vmalert-addr>/vmalert/api/v1/alert?group_id=<group_id>&alert_id=<alert_id>` - returns the alert status in JSON format;
 * `http://<vmalert-addr>/vmalert/api/v1/rule?group_id=<group_id>&rule_id=<rule_id>` - returns the rule status in JSON format;
 * `http://<vmalert-addr>/vmalert/api/v1/group?group_id=<group_id>` - returns the group status in JSON format. Used as the alert source in AlertManager;
