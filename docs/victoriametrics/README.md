@@ -1544,7 +1544,7 @@ value than before, then data outside the configured period will be eventually de
 VictoriaMetrics does not support indefinite retention, but you can specify an arbitrarily high duration, e.g. `-retentionPeriod=100y`.
 Just keep in mind that VictoriaMetrics does not support samples with negative timestamps. Timestamps from `1970-01-01` are also not
 supported because this date has a special meaning internally. It therefore will reject samples with timestamps before
-`1970-01-02T00:00:00.000Z` if the retention period includes dates before this timestamp.
+`1970-01-02T00:00:00.000Z`.
 
 By default, VictoriaMetrics doesn't accept samples with timestamps bigger than `now+2d`, e.g. 2 days in the future.
 If you need accepting samples with bigger timestamps, then specify the desired "future retention" via `-futureRetention` command-line flag.
@@ -1556,7 +1556,7 @@ For example, the following command starts VictoriaMetrics, which accepts samples
 /path/to/victoria-metrics -futureRetention=1y
 ```
 
-VictoriaMetrics does not support stamples after `2262-03-31T23:59:59.999Z`. And if the future retention includes dates after this timestamp,
+VictoriaMetrics does not support stamples after `2262-03-31T23:59:59.999Z`. If the future retention includes dates after this timestamp,
 the samples for those dates will be rejected.
 
 By default, VictoriaMetrics accepts samples with timestamps as old as the configured `-retentionPeriod` allows, e.g. it accepts backfilled
