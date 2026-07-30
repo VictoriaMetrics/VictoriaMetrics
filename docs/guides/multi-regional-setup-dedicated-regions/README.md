@@ -26,6 +26,7 @@ The trade-off is that you store and send the same data twice, so storage and com
 The example architecture separates workloads into three regions, called Earth, Mars, and Venus. These represent the systems you want to monitor (e.g., your applications or your infrastructure). For monitoring there are two separate regions, Ground Control 1 and 2, each running its own VictoriaMetrics deployment. The workload regions (the planets) run a local vmagent that forwards the same metrics to the two dedicated Ground Control regions.
 
 ![Multi-regional setup with VictoriaMetrics: Dedicated regions for monitoring](setup-1.webp)
+{width="700"}
 
 The role of the Ground Controls can be filled by VictoriaMetrics in [single-node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) or [cluster mode](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/). Since vmagent keeps a separate queue for each remote-write destination, an outage in one Ground Control region does not block delivery to the other.
 
@@ -69,27 +70,29 @@ You can read more about choosing the right architecture in the [VictoriaMetrics 
 
 ### Regional endpoints
 
-In this setup, Grafana, vmalert, or any other query client sends requests to one region by default. In case of an outage, you manually switch to the other region. For instance, use Ground Control 1 as the primary datasource and keep Ground Control 2 as a standby endpoint.
+In this setup, Grafana, vmalert, or any other query client sends requests to one region. This is the default datasource. In case of an outage, you manually switch to the other region (standby datasource). For instance, use Ground Control 1 as the primary datasource and keep Ground Control 2 as a standby endpoint.
 
-TODO: diagram
+![Diagram shows two Ground Control regions. Grafana connects to one by default leaving the other as failover](regional-endpoints.webp)
+{width="700"}
 
 Choose this option if you prioritize operational simplicity over automatic failover or a unified global query endpoint.
 
 If you use VictoriaMetrics single-node, the endpoints should point directly to the single-node HTTP API. For example:
 
 - Primary endpoint: `https://ground-control-1:8428/prometheus/api/v1/query`
-
 - Standby endpoint: `https://ground-control-2:8428/prometheus/api/v1/query`
 
 On the VictoriaMetrics cluster, the endpoints point to the cluster's vmselect HTTP API. For example:
 
 - Primary endpoint: `https://ground-control-1-vmselect:8481/select/0/prometheus`
-
 - Standby endpoint: `https://ground-control-2-vmselect:8481/select/0/prometheus`
 
 ### Load balancer
 
-Use a load balancer when you want one stable query endpoint in front of your Ground Control regions. In this setup, dashboards and tools send queries to a single URL, and the load balancer routes them to a preferred region. If that region becomes unavailable, the load balancer fails over to the standby region.
+Use a load balancer when you want one stable query endpoint in front of your Ground Control regions. In this setup, dashboards and tools send queries to a single URL, and the load balancer routes them to the first available region. If that region becomes unavailable, the load balancer fails over to the next available region.
+
+![Diagram shows vmauth between Grafana and Ground Control regions](load-balancer-vmauth.webp)
+{width="700"}
 
 This option provides a single endpoint for metric ingestion. You can use [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) as a load balancer. For VictoriaMetrics single node, you can run it with the following configuration:
 
@@ -125,7 +128,8 @@ To start vmauth with your configuration, use the `-auth.config` flag. For exampl
 
 You can use a global [vmselect](https://docs.victoriametrics.com/victoriametrics/quick-start/#installing-vmselect) when each Ground Control region runs a VictoriaMetrics cluster. In this setup, you run a global vmselect node that connects directly to the storage nodes in both Ground Control regions.
 
-TODO: diagram
+![Diagram showing a vmselect node connecting to the vmstorage nodes in each ground control region. The global vmselect serves Grafana](global-vmselect.webp)
+{width="700"}
 
 Since the samples are duplicated across Ground Control regions, you must enable [deduplication](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#deduplication) on the global vmselect. You must set `-dedup.minScrapeInterval=1ms` at a minimum or to the same value as the scrape interval if there is one.
 
@@ -147,7 +151,8 @@ The downside is query behavior during region failures or high latency. The globa
 
 In this setup, each Ground Control region has its own local vmselect. A top-level vmselect queries these instead of connecting directly to vmstorage nodes.
 
-TODO: diagram
+![Diagram shows top-level vmselect connecting to the regional vmselect nodes in each Ground Control cluster](top-level-vmselect.webp)
+{width="700"}
 
 This option is useful when direct access to vmstorage nodes is not practical or desirable. For example, when running on Kubernetes, the vmstorage services don't provide an HTTP query endpoint by default.
 
@@ -180,7 +185,8 @@ The main trade-off is complexity. You add another query layer and more moving pa
 
 Run a vmalert node in each Ground Control region and point it to the local VictoriaMetrics endpoint. Since each region stores the same data, you can deploy the same alerting and recording rules in every region without needing cross-region rule synchronization. Send alerts to an [Alertmanager cluster](https://prometheus.io/docs/alerting/latest/alertmanager/#high-availability) to deduplicate firing alerts.
 
-TODO: diagram
+![Diagram showing vmalert nodes running in each Ground Control region. An Alertmanager cluster connects to each vmalert and deduplicates notifications](vmalert-alertmanager.webp)
+{width="700"}
 
 A simple vmalert example for a single-node VictoriaMetrics looks like this:
 
@@ -217,23 +223,22 @@ We recommend using the list of [VictoriaMetrics alerting rules](https://github.c
 
 You can monitor Ground Control instances themselves using a separate monitoring path. In this setup, each region runs its own monitoring instance that scrapes metrics from the Ground Control components.
 
-TODO: diagram
+![Diagram of the original setup with monitoring of monitoring added. Each region has a dedicated VictoriaMetrics instance dedicated to monitoring the main TSDB](setup-mom-1.webp)
+{width="700"}
 
 You can optionally duplicate the monitored metrics to the neighboring region for extra resilience. That way, if a whole Ground Control region goes down, you still have access to the telemetry of the downed VictoriaMetrics instance, which can help you troubleshoot and restore service more easily.
-
-TODO: diagram
 
 Refer to the following pages on how to monitor your VictoriaMetrics deployments:
 
 * [How to monitor VictoriaMetrics single node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#monitoring)
-
 * [How to monitor a VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#monitoring)
 
 ## What more can we do?
 
 You can deploy extra vmagent instances in Ground Control regions and use them as regional ingestion proxies. This places the write endpoint closer to storage and adds another disk-backed buffer, which improves resilience when storage is temporarily unavailable.
 
-TODO: diagram
+![Diagram of the original setup where a vmagent node runs in front of each Ground Control region](setup-vmagent-1.webp)
+{width="700"}
 
 This pattern is useful when you want more reliable delivery, local relabeling, or a cleaner separation between cross-region traffic and local storage ingestion.
 
