@@ -58,8 +58,8 @@ For a VictoriaMetrics cluster, we use the following URL pattern (assuming [accou
 
 ```sh
 /path/to/vmagent-prod \
-  -remoteWrite.url=https://ground-control-1-vminsert:8480/insert/0/prometheus/v1/write \
-  -remoteWrite.url=https://ground-control-2-vminsert:8480/insert/0/prometheus/v1/write
+  -remoteWrite.url=https://ground-control-1-vminsert:8480/insert/0/prometheus/api/v1/write \
+  -remoteWrite.url=https://ground-control-2-vminsert:8480/insert/0/prometheus/api/v1/write
 ```
 
 If you scrape Prometheus-compatible targets in your workloads, also pass a `-promscrape.config` file so vmagent knows what to scrape before it forwards the data.
@@ -189,12 +189,12 @@ For example, here's how we can run the local and top-level vmselect nodes:
 ```sh
 # Ground Control 1 cluster vmselect
 /path/to/vmselect-prod \
-  -storageNode=ground-control-1-vmstorage-1:8482,ground-control-1-vmstorage-2:8482 \
+  -storageNode=ground-control-1-vmstorage-1:8401,ground-control-1-vmstorage-2:8401 \
   -clusternativeListenAddr=:8401
 
 # Ground Control 2 cluster vmselect
 /path/to/vmselect-prod \
-  -storageNode=ground-control-2-vmstorage-1:8482,ground-control-2-vmstorage-2:8482 \
+  -storageNode=ground-control-2-vmstorage-1:8401,ground-control-2-vmstorage-2:8401 \
   -clusternativeListenAddr=:8401
 
 # Top-level vmselect
