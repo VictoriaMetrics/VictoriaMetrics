@@ -42,8 +42,24 @@ Run a local vmagent in each workload region (Earth, Mars, Venus) and point it to
 
 ```sh
 /path/to/vmagent-prod \
-  -remoteWrite.url=https://<ground-control-1-remote-write>:8428 \
-  -remoteWrite.url=https://<ground-control-2-remote-write>:8428
+  -remoteWrite.url=https://<ground-control-1-remote-write> \
+  -remoteWrite.url=https://<ground-control-2-remote-write>
+```
+
+For single-node VictoriaMetrics the URLs follow this pattern:
+
+```sh
+/path/to/vmagent-prod \
+  -remoteWrite.url=https://ground-control-1:8428/api/v1/write \
+  -remoteWrite.url=https://ground-control-2:8428/api/v1/write
+```
+
+For a VictoriaMetrics cluster, we use the following URL pattern (assuming [accountID](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) is 0):
+
+```sh
+/path/to/vmagent-prod \
+  -remoteWrite.url=https://ground-control-1-vminsert:8480/insert/0/prometheus/v1/write \
+  -remoteWrite.url=https://ground-control-2-vminsert:8480/insert/0/prometheus/v1/write
 ```
 
 If you scrape Prometheus-compatible targets in your workloads, also pass a `-promscrape.config` file so vmagent knows what to scrape before it forwards the data.
@@ -51,8 +67,8 @@ If you scrape Prometheus-compatible targets in your workloads, also pass a `-pro
 ```sh
 /path/to/vmagent-prod \
   -promscrape.config=/path/to/scrape.yaml \
-  -remoteWrite.url=https://ground-control-1:8428/api/v1/write \
-  -remoteWrite.url=https://ground-control-2:8428/api/v1/write
+  -remoteWrite.url=https://<ground-control-1-remote-write> \
+  -remoteWrite.url=https://<ground-control-2-remote-write>
 ```
 
 For more details, see the [vmagent quickstart guide](https://docs.victoriametrics.com/victoriametrics/vmagent/#quick-start)
@@ -79,13 +95,13 @@ Choose this option if you prioritize operational simplicity over automatic failo
 
 If you use VictoriaMetrics single-node, the endpoints should point directly to the single-node HTTP API. For example:
 
-- Primary endpoint: `https://ground-control-1:8428/prometheus/api/v1/query`
-- Standby endpoint: `https://ground-control-2:8428/prometheus/api/v1/query`
+- Primary endpoint: `https://ground-control-1:8428/api/v1/query`
+- Standby endpoint: `https://ground-control-2:8428/api/v1/query`
 
 On the VictoriaMetrics cluster, the endpoints point to the cluster's vmselect HTTP API. For example:
 
-- Primary endpoint: `https://ground-control-1-vmselect:8481/select/0/prometheus`
-- Standby endpoint: `https://ground-control-2-vmselect:8481/select/0/prometheus`
+- Primary endpoint: `https://ground-control-1-vmselect:8481/select/0/prometheus/api/v1/query`
+- Standby endpoint: `https://ground-control-2-vmselect:8481/select/0/prometheus/api/v1/query`
 
 ### Load balancer
 
@@ -94,13 +110,13 @@ Use a load balancer when you want one stable query endpoint in front of your Gro
 ![Diagram shows vmauth between Grafana and Ground Control regions](load-balancer-vmauth.webp)
 {width="700"}
 
-This option provides a single endpoint for metric ingestion. You can use [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) as a load balancer. For VictoriaMetrics single node, you can run it with the following configuration:
+This option provides a single endpoint for queries. You can use [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) as a load balancer. For VictoriaMetrics single node, you can run it with the following configuration:
 
 ```yaml
 unauthorized_user:
   url_prefix:
-    - "http://ground-control-1:8428/"
-    - "http://ground-control-2:8428/"
+    - "http://ground-control-1:8428"
+    - "http://ground-control-2:8428"
   load_balancing_policy: first_available
 ```
 
@@ -109,8 +125,8 @@ On the VictoriaMetrics cluster, the URLs must point to the Ground Control vmsele
 ```yaml
 unauthorized_user:
   url_prefix:
-    - "http://ground-control-1-vmselect:8481/select/0/prometheus/"
-    - "http://ground-control-2-vmselect:8481/select/0/prometheus/"
+    - "http://ground-control-1-vmselect:8481"
+    - "http://ground-control-2-vmselect:8481"
   load_balancing_policy: first_available
 ```
 
@@ -120,6 +136,16 @@ To start vmauth with your configuration, use the `-auth.config` flag. For exampl
 
 ```sh
 /path/to/vmauth-prod -auth.config=/path/to/auth.yaml
+```
+
+You can test that queries work with curl:
+
+```sh
+# single node
+curl http://vmauth-node:8427/api/v1/query?query=up
+
+# cluster
+curl http://vmauth-node:8427/select/0/prometheus/api/v1/query?query=up
 ```
 
 ### Global vmselect
@@ -137,7 +163,7 @@ For example:
 
 ```sh
 /path/to/vmselect-prod \
-  -storageNode=ground-control-1-vmstorage-1:8482,ground-control-1-vmstorage-2:8482,ground-controll-2-vmstorage-1:8482,ground-control-2-vmstorage-2:8482 \
+  -storageNode=ground-control-1-vmstorage-1:8401,ground-control-1-vmstorage-2:8401,ground-control-2-vmstorage-1:8401,ground-control-2-vmstorage-2:8401 \
   -dedup.minScrapeInterval=1ms
 ```
 
@@ -173,7 +199,7 @@ For example, here's how we can run the local and top-level vmselect nodes:
 
 # Top-level vmselect
 /path/to/vmselect-prod \
-  -storageNode=ground-control-1-vmselect:8481,ground-control-2-vmselect:8481 \
+  -storageNode=ground-control-1-vmselect:8401,ground-control-2-vmselect:8401 \
   -dedup.minScrapeInterval=1ms
 ```
 
@@ -194,7 +220,8 @@ A simple vmalert example for a single-node VictoriaMetrics looks like this:
 /path/to/vmalert \
   -rule=/path/to/rules.yaml \
   -datasource.url=http://ground-control-1:8428 \
-  -notifier.url=http://alertmanager-1:9093,http://alertmanager-2:9093
+  -notifier.url=http://alertmanager-1:9093 \
+  -notifier.url=http://alertmanager-2:9093
 ```
 
 In VictoriaMetrics cluster mode, point `-datasource.url` to the regional vmselect endpoint. For example:
@@ -255,6 +282,6 @@ If running in cluster mode, use this instead:
 ```sh
 # vmagent next to Ground Control 1 for cluster mode
 /path/to/vmagent-prod \
-  -remoteWrite.url=http://ground-control-1-vminsert:8480/insert/0/prometheus
+  -remoteWrite.url=http://ground-control-1-vminsert:8480/insert/0/prometheus/api/v1/write
 ```
 
