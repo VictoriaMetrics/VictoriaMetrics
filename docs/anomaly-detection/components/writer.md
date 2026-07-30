@@ -17,6 +17,10 @@ Future updates will introduce additional export methods, offering users more fle
 
 ## VM writer
 
+<div class="collapse-group">
+
+{{% collapse name="VM writer config parameters and example" %}}
+
 ### Config parameters
 
 <table class="params">
@@ -35,8 +39,7 @@ Future updates will introduce additional export methods, offering users more fle
             </td>
             <td>
 
-<span style="white-space: nowrap;">`writer.vm.VmWriter` or `vm`{{% available_from "v1.13.0" anomaly %}}
-</span>
+`writer.vm.VmWriter` or `vm`{{% available_from "v1.13.0" anomaly %}}
             </td>
             <td>
 
@@ -63,10 +66,7 @@ Datasource URL address
 <span style="white-space: nowrap;">`tenant_id`</span>
             </td>
             <td>
-<span>
-
 `0:0`, `multitenant`{{% available_from "v1.16.2" anomaly %}}
-</span>
             </td>
             <td>
 
@@ -253,9 +253,8 @@ Token is passed in the standard format with header: `Authorization: bearer {toke
 `path_to_file`
             </td>
             <td>
-<span>
 Path to a file, which contains token, that is passed in the standard format with header: `Authorization: bearer {token}`{{% available_from "v1.15.9" anomaly %}}
-</span>            </td>
+            </td>
         </tr>
         <tr>
             <td>
@@ -267,9 +266,8 @@ Path to a file, which contains token, that is passed in the standard format with
 `1`
             </td>
             <td>
-<span>
 Number of attempts to retry the connection in case of failure {{% available_from "v1.29.2" anomaly %}}.
-</span>            </td>
+            </td>
         </tr>
     </tbody>
 </table>
@@ -292,6 +290,10 @@ writer:
   password: "bar"
   connection_retry_attempts: 2  # if not specified, it will be 1 by default
 ```
+
+{{% /collapse %}}
+
+</div>
 
 ### Multitenancy support
 

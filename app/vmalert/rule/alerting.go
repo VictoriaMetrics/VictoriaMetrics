@@ -530,6 +530,7 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 				ar.logDebugf(ts, a, "INACTIVE => PENDING")
 			}
 			a.Value = m.Values[0]
+			a.Interval = ar.EvalInterval
 			a.Annotations = annotations
 			a.KeepFiringSince = time.Time{}
 			continue
@@ -612,6 +613,7 @@ func (ar *AlertingRule) expandAnnotationTemplates(m datasource.Metric, qFn templ
 		Type:      ar.Type.String(),
 		Labels:    ls.origin,
 		Expr:      ar.Expr,
+		Interval:  ar.EvalInterval,
 		AlertID:   hash(ls.processed),
 		GroupID:   ar.GroupID,
 		ActiveAt:  activeAt,
@@ -673,6 +675,7 @@ func (ar *AlertingRule) newAlert(m datasource.Metric, start time.Time, labels, a
 		Name:        ar.Name,
 		Type:        ar.Type.String(),
 		Expr:        ar.Expr,
+		Interval:    ar.EvalInterval,
 		For:         ar.For,
 		ActiveAt:    start,
 		Value:       m.Values[0],

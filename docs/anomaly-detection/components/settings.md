@@ -226,6 +226,10 @@ monitoring:
   # other monitoring settings
 ```
 
+<div class="collapse-group">
+
+{{% collapse name="State restoration example" %}}
+
 ### Example
 
 For a configuration with the following models, queries and schedulers:
@@ -304,6 +308,10 @@ reader:  # can be partially reused, because its class and datasource URL are unc
 This means that the service upon restart:
 1. Won't restore the state of `zscore_online` model, because its `z_threshold` argument **has changed**, retraining from scratch is needed on the last `fit_window` = 24 hours of data for `q1`, `q2` and `q3` (as model's `queries` arg is not set so it defaults to all queries found in the reader).
 2. Will **partially** restore the state of `prophet` model, because its class and schedulers are unchanged, but **only instances trained on timeseries returned by `q1` query**. New fit/infer jobs will be set for new query `q3`. The old query `q2` artifacts will be dropped upon restart - all respective models and data for (`prophet`, `q2`) combination will be removed from the database file and from the disk.
+
+{{% /collapse %}}
+
+</div>
 
 ## Retention
 
