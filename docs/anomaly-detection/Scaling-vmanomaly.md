@@ -78,9 +78,7 @@ These [sub-configurations](#sub-configuration) can be assigned to a specific sha
 
 Additionally, a replication factor `R ≥ 1` ensures [high availability](#high-availability) by enforcing redundancy across shards.
 
-<p></p>
-
-![vmanomaly-sharding-ha-diagram](vmanomaly-sharding-ha-diagram.webp)
+{{% content "vmanomaly-sharding-ha-diagram.md" %}}
 
 > Please [refer to deployment options section](#deployment-options) for the examples (Docker, Docker Compose, Helm). To avoid duplicate metrics being reported from each vmanomaly service used in sharded mode, make sure that [deduplication](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) is configured on vmsingle or vmselect and vmstorage for the VictoriaMetrics instance used in the [writer section of the configuration](https://docs.victoriametrics.com/anomaly-detection/components/writer/).
 
@@ -130,9 +128,7 @@ Similar to other VictoriaMetrics ecosystem components, like [VMAgent](https://do
 
 When `VMANOMALY_REPLICATION_FACTOR` > 1, each [sub-config](#sub-configuration) `n` from `{0, N-1}` is assigned to exactly `R` nodes. This ensures redundancy, preventing single-node failures from causing data loss.
 
-<p></p>
-
-![vmanomaly-sharding-ha-diagram](vmanomaly-sharding-ha-diagram.webp)
+{{% content "vmanomaly-sharding-ha-diagram.md" %}}
 
 > Please [refer to deployment options section](#deployment-options) for the examples (Docker, Docker Compose, Helm). To avoid duplicate metrics being reported from each vmanomaly service used in sharded mode, make sure that [deduplication](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) is configured on vmsingle or vmselect and vmstorage for the VictoriaMetrics instance used in the [writer section of the configuration](https://docs.victoriametrics.com/anomaly-detection/components/writer/).
 

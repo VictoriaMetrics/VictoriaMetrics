@@ -2843,9 +2843,8 @@ func TestStorageAdjustTimeRange(t *testing.T) {
 	}
 	var searchTimeRange TimeRange
 
-	// Zero search time range is adjusted to globalIndexTimeRange regardless
-	// whether the -disablePerDayIndex flag is set or not.
-	searchTimeRange = TimeRange{}
+	// Search time range is the same as globalIndexTimeRange.
+	searchTimeRange = globalIndexTimeRange
 	f(false, searchTimeRange, legacyIDBTimeRange, globalIndexTimeRange)
 	f(false, searchTimeRange, partitionIDBTimeRange, globalIndexTimeRange)
 	f(true, searchTimeRange, legacyIDBTimeRange, globalIndexTimeRange)
@@ -2853,9 +2852,6 @@ func TestStorageAdjustTimeRange(t *testing.T) {
 
 	// The search time range is smaller than a month (and therefore < 40 days)
 	// and is fully included into the partition idb time range.
-	// If -disablePerDayIndex is set, the effective search time range is
-	// expected to be globalIndexTimeRange. Otherwise it must remain the same
-	// after the adjustment.
 	searchTimeRange = TimeRange{
 		MinTimestamp: partitionIDBTimeRange.MinTimestamp + msecPerDay,
 		MaxTimestamp: partitionIDBTimeRange.MaxTimestamp - msecPerDay,
@@ -2866,11 +2862,6 @@ func TestStorageAdjustTimeRange(t *testing.T) {
 	f(true, searchTimeRange, partitionIDBTimeRange, globalIndexTimeRange)
 
 	// The search time range is the same as partition idb time range.
-	// If -disablePerDayIndex is set, the effective search time range is
-	// expected to be globalIndexTimeRange for both legacy and parition idb.
-	// Otherwise:
-	// - For the legacy idb: it must remain the same
-	// - For the partition idb: it must be replaced with globalIndexTimeRange.
 	searchTimeRange = partitionIDBTimeRange
 	f(false, searchTimeRange, legacyIDBTimeRange, searchTimeRange)
 	f(false, searchTimeRange, partitionIDBTimeRange, globalIndexTimeRange)
@@ -2879,11 +2870,6 @@ func TestStorageAdjustTimeRange(t *testing.T) {
 
 	// The search time range is smaller than 40 days and fully includes the
 	// partition idb time range.
-	// If -disablePerDayIndex is set, the effective search time range is
-	// expected to be globalIndexTimeRange for both legacy and parition idb.
-	// Otherwise:
-	// - For the legacy idb: it must remain the same
-	// - For the partition idb: it must be replaced with globalIndexTimeRange.
 	searchTimeRange = TimeRange{
 		MinTimestamp: partitionIDBTimeRange.MinTimestamp - msecPerDay,
 		MaxTimestamp: partitionIDBTimeRange.MaxTimestamp + msecPerDay,
@@ -2895,10 +2881,6 @@ func TestStorageAdjustTimeRange(t *testing.T) {
 
 	// The search time range is 41 days and fully includes the partition idb
 	// time range.
-	// If -disablePerDayIndex is set, the effective search time range is
-	// expected to be globalIndexTimeRange for both legacy and parition idb.
-	// Otherwise it must be replaced with globalIndexTimeRange for both legacy
-	// and partition idbs.
 	searchTimeRange = TimeRange{
 		MinTimestamp: partitionIDBTimeRange.MinTimestamp - msecPerDay,
 		MaxTimestamp: partitionIDBTimeRange.MinTimestamp + 41*msecPerDay,
@@ -2910,12 +2892,6 @@ func TestStorageAdjustTimeRange(t *testing.T) {
 
 	// The search time range is smaller than 40 days and overlaps with partition
 	// idb time range on the left.
-	// If -disablePerDayIndex is set, the effective search time range is
-	// expected to be globalIndexTimeRange for both legacy and parition idb.
-	// Otherwise:
-	// - For the legacy idb: it must remain the same
-	// - For the partition idb: the MinTimestamp must be adjusted to match the
-	// partition idb time range MinTimestamp.
 	searchTimeRange = TimeRange{
 		MinTimestamp: partitionIDBTimeRange.MinTimestamp - msecPerDay,
 		MaxTimestamp: partitionIDBTimeRange.MinTimestamp + msecPerDay,
@@ -2930,12 +2906,6 @@ func TestStorageAdjustTimeRange(t *testing.T) {
 
 	// The search time range is smaller than 40 days and overlaps with partition
 	// idb time range on the right.
-	// If -disablePerDayIndex is set, the effective search time range is
-	// expected to be globalIndexTimeRange for both legacy and parition idb.
-	// Otherwise:
-	// - For the legacy idb, it must remain the same
-	// - For the partition idb: its MaxTimestamp must be adjusted to match the
-	//   partition idb time range MaxTimestamp.
 	searchTimeRange = TimeRange{
 		MinTimestamp: partitionIDBTimeRange.MaxTimestamp - msecPerDay,
 		MaxTimestamp: partitionIDBTimeRange.MaxTimestamp + msecPerDay,
@@ -2949,7 +2919,7 @@ func TestStorageAdjustTimeRange(t *testing.T) {
 	f(true, searchTimeRange, partitionIDBTimeRange, globalIndexTimeRange)
 }
 
-type testStorageSearchWithoutPerDayIndexOptions struct {
+type testStorageSearchWithoutIndexOptions struct {
 	mrs                []MetricRow
 	assertSearchResult func(t *testing.T, s *Storage, tr TimeRange, want any)
 	alwaysPerTimeRange bool // If true, use wantPerTimeRange instead of wantAll
@@ -2958,16 +2928,15 @@ type testStorageSearchWithoutPerDayIndexOptions struct {
 	wantEmpty          any
 }
 
-// testStorageSearchWithoutPerDayIndex tests how the search behaves when the
+// testStorageSearchWithoutIndex tests how the search behaves when the
 // per-day index is disabled. This function is expected to be called by
 // functions that test a particular search operation, such as GetTSDBStatus(),
 // SearchMetricNames(), etc.
-func testStorageSearchWithoutPerDayIndex(t *testing.T, opts *testStorageSearchWithoutPerDayIndexOptions) {
+func testStorageSearchWithoutIndex(t *testing.T, opts *testStorageSearchWithoutIndexOptions) {
 	defer testRemoveAll(t)
 
-	// The data is inserted and the search is performed when the per-day index
-	// is enabled.
-	t.Run("InsertAndSearchWithPerDayIndex", func(t *testing.T) {
+	// The data is inserted and the search is performed when per-day index is enabled.
+	t.Run("Add-Global-PerDay/Search-Global-PerDay", func(t *testing.T) {
 		s := MustOpenStorage(t.Name(), OpenOptions{
 			DisablePerDayIndex: false,
 		})
@@ -2979,9 +2948,8 @@ func testStorageSearchWithoutPerDayIndex(t *testing.T, opts *testStorageSearchWi
 		s.MustClose()
 	})
 
-	//  The data is inserted and the search is performed when the per-day index
-	//  is disabled.
-	t.Run("InsertAndSearchWithoutPerDayIndex", func(t *testing.T) {
+	// The data is inserted and the search is performed when per-day index is disabled.
+	t.Run("Add-Global-noPerDay/Search-Global-noPerDay", func(t *testing.T) {
 		s := MustOpenStorage(t.Name(), OpenOptions{
 			DisablePerDayIndex: true,
 		})
@@ -2996,9 +2964,9 @@ func testStorageSearchWithoutPerDayIndex(t *testing.T, opts *testStorageSearchWi
 		s.MustClose()
 	})
 
-	// The data is inserted when the per-day index is enabled but the search is
-	// performed when the per-day index is disabled.
-	t.Run("InsertWithPerDayIndexSearchWithout", func(t *testing.T) {
+	// The data is inserted when per-day index are enabled.
+	// The search is performed when per-day index is disabled.
+	t.Run("Add-Global-PerDay/Search-Global-noPerDay", func(t *testing.T) {
 		s := MustOpenStorage(t.Name(), OpenOptions{
 			DisablePerDayIndex: false,
 		})
@@ -3018,10 +2986,11 @@ func testStorageSearchWithoutPerDayIndex(t *testing.T, opts *testStorageSearchWi
 		s.MustClose()
 	})
 
-	// The data is inserted when the per-day index is disabled but the search is
-	// performed when the per-day index is enabled. This case also shows that
-	// registering metric names recovers the per-day index.
-	t.Run("InsertWithoutPerDayIndexSearchWith", func(t *testing.T) {
+	// The data is inserted when per-day index is disabled.
+	// The search is performed when per-day index is enabled.
+	// This case also shows that registering metric names recovers the per-day
+	// index.
+	t.Run("Add-Global-noPerDay/Search-Global-PerDay", func(t *testing.T) {
 		s := MustOpenStorage(t.Name(), OpenOptions{
 			DisablePerDayIndex: true,
 		})
@@ -3048,13 +3017,13 @@ func testStorageSearchWithoutPerDayIndex(t *testing.T, opts *testStorageSearchWi
 	})
 }
 
-func TestStorageGetTSDBStatusWithoutPerDayIndex(t *testing.T) {
+func TestStorageGetTSDBStatusWithoutIndex(t *testing.T) {
 	const (
 		days = 4
 		rows = 10
 	)
 	rng := rand.New(rand.NewSource(1))
-	opts := testStorageSearchWithoutPerDayIndexOptions{
+	opts := testStorageSearchWithoutIndexOptions{
 		wantEmpty:        &TSDBStatus{},
 		wantPerTimeRange: make(map[TimeRange]any),
 		wantAll:          &TSDBStatus{TotalSeries: days * rows},
@@ -3094,16 +3063,16 @@ func TestStorageGetTSDBStatusWithoutPerDayIndex(t *testing.T) {
 		}
 	}
 
-	testStorageSearchWithoutPerDayIndex(t, &opts)
+	testStorageSearchWithoutIndex(t, &opts)
 }
 
-func TestStorageSearchMetricNamesWithoutPerDayIndex(t *testing.T) {
+func TestStorageSearchMetricNamesWithoutIndex(t *testing.T) {
 	const (
 		days = 4
 		rows = 10
 	)
 	rng := rand.New(rand.NewSource(1))
-	opts := testStorageSearchWithoutPerDayIndexOptions{
+	opts := testStorageSearchWithoutIndexOptions{
 		wantEmpty:        []string{},
 		wantPerTimeRange: make(map[TimeRange]any),
 		wantAll:          []string{},
@@ -3155,16 +3124,16 @@ func TestStorageSearchMetricNamesWithoutPerDayIndex(t *testing.T) {
 		}
 	}
 
-	testStorageSearchWithoutPerDayIndex(t, &opts)
+	testStorageSearchWithoutIndex(t, &opts)
 }
 
-func TestStorageSearchLabelNamesWithoutPerDayIndex(t *testing.T) {
+func TestStorageSearchLabelNamesWithoutIndex(t *testing.T) {
 	const (
 		days = 4
 		rows = 10
 	)
 	rng := rand.New(rand.NewSource(1))
-	opts := testStorageSearchWithoutPerDayIndexOptions{
+	opts := testStorageSearchWithoutIndexOptions{
 		wantEmpty:        []string{},
 		wantPerTimeRange: make(map[TimeRange]any),
 		wantAll:          []string{},
@@ -3209,17 +3178,17 @@ func TestStorageSearchLabelNamesWithoutPerDayIndex(t *testing.T) {
 		}
 	}
 
-	testStorageSearchWithoutPerDayIndex(t, &opts)
+	testStorageSearchWithoutIndex(t, &opts)
 }
 
-func TestStorageSearchLabelValuesWithoutPerDayIndex(t *testing.T) {
+func TestStorageSearchLabelValuesWithoutIndex(t *testing.T) {
 	const (
 		days      = 4
 		rows      = 10
 		labelName = "job"
 	)
 	rng := rand.New(rand.NewSource(1))
-	opts := testStorageSearchWithoutPerDayIndexOptions{
+	opts := testStorageSearchWithoutIndexOptions{
 		wantEmpty:        []string{},
 		wantPerTimeRange: make(map[TimeRange]any),
 		wantAll:          []string{},
@@ -3263,17 +3232,17 @@ func TestStorageSearchLabelValuesWithoutPerDayIndex(t *testing.T) {
 		}
 	}
 
-	testStorageSearchWithoutPerDayIndex(t, &opts)
+	testStorageSearchWithoutIndex(t, &opts)
 }
 
-func TestStorageSearchTagValueSuffixesWithoutPerDayIndex(t *testing.T) {
+func TestStorageSearchTagValueSuffixesWithoutIndex(t *testing.T) {
 	const (
 		days           = 4
 		rows           = 10
 		tagValuePrefix = "metric."
 	)
 	rng := rand.New(rand.NewSource(1))
-	opts := testStorageSearchWithoutPerDayIndexOptions{
+	opts := testStorageSearchWithoutIndexOptions{
 		wantEmpty:        []string{},
 		wantPerTimeRange: make(map[TimeRange]any),
 		wantAll:          []string{},
@@ -3313,16 +3282,16 @@ func TestStorageSearchTagValueSuffixesWithoutPerDayIndex(t *testing.T) {
 		}
 	}
 
-	testStorageSearchWithoutPerDayIndex(t, &opts)
+	testStorageSearchWithoutIndex(t, &opts)
 }
 
-func TestStorageSearchGraphitePathsWithoutPerDayIndex(t *testing.T) {
+func TestStorageSearchGraphitePathsWithoutIndex(t *testing.T) {
 	const (
 		days = 4
 		rows = 10
 	)
 	rng := rand.New(rand.NewSource(1))
-	opts := testStorageSearchWithoutPerDayIndexOptions{
+	opts := testStorageSearchWithoutIndexOptions{
 		wantEmpty:        []string{},
 		wantPerTimeRange: make(map[TimeRange]any),
 		wantAll:          []string{},
@@ -3363,16 +3332,16 @@ func TestStorageSearchGraphitePathsWithoutPerDayIndex(t *testing.T) {
 		}
 	}
 
-	testStorageSearchWithoutPerDayIndex(t, &opts)
+	testStorageSearchWithoutIndex(t, &opts)
 }
 
-func TestStorageQueryWithoutPerDayIndex(t *testing.T) {
+func TestStorageQueryWithoutIndex(t *testing.T) {
 	const (
 		days = 4
 		rows = 10
 	)
 	rng := rand.New(rand.NewSource(1))
-	opts := testStorageSearchWithoutPerDayIndexOptions{
+	opts := testStorageSearchWithoutIndexOptions{
 		wantEmpty:          []MetricRow(nil),
 		wantPerTimeRange:   make(map[TimeRange]any),
 		alwaysPerTimeRange: true,
@@ -3413,7 +3382,7 @@ func TestStorageQueryWithoutPerDayIndex(t *testing.T) {
 		}
 	}
 
-	testStorageSearchWithoutPerDayIndex(t, &opts)
+	testStorageSearchWithoutIndex(t, &opts)
 }
 
 func TestStorageAddRows_SamplesWithZeroDate(t *testing.T) {
@@ -3455,12 +3424,12 @@ func TestStorageAddRows_SamplesWithZeroDate(t *testing.T) {
 		}
 	}
 
-	t.Run("disablePerDayIndex=false", func(t *testing.T) {
-		f(t, false)
-	})
-	t.Run("disablePerDayIndex=true", func(t *testing.T) {
-		f(t, true)
-	})
+	for _, disablePerDayIndex := range []bool{false, true} {
+		name := fmt.Sprintf("disablePerDayIndex=%t", disablePerDayIndex)
+		t.Run(name, func(t *testing.T) {
+			f(t, disablePerDayIndex)
+		})
+	}
 }
 
 // testSearchMetricIDs returns metricIDs for the given tfss and tr.
@@ -3497,13 +3466,13 @@ func testCountAllMetricIDs(s *Storage, tr TimeRange) int {
 	return len(ids)
 }
 
-func TestStorageRegisterMetricNamesForVariousDataPatternsConcurrently(t *testing.T) {
+func TestStorageRegisterMetricNamesVariousDataPatterns(t *testing.T) {
 	testStorageVariousDataPatternsConcurrently(t, true, func(s *Storage, mrs []MetricRow) {
 		s.RegisterMetricNames(nil, mrs)
 	})
 }
 
-func TestStorageAddRowsForVariousDataPatternsConcurrently(t *testing.T) {
+func TestStorageAddRowsVariousDataPatterns(t *testing.T) {
 	testStorageVariousDataPatternsConcurrently(t, false, func(s *Storage, mrs []MetricRow) {
 		s.AddRows(mrs, defaultPrecisionBits)
 	})
@@ -3520,27 +3489,18 @@ func testStorageVariousDataPatternsConcurrently(t *testing.T, registerOnly bool,
 
 	const concurrency = 4
 
-	disablePerDayIndex := false
-	t.Run("perDayIndexes/serial", func(t *testing.T) {
-		testStorageVariousDataPatterns(t, disablePerDayIndex, registerOnly, op, 1, false)
-	})
-	t.Run("perDayIndexes/concurrentRows", func(t *testing.T) {
-		testStorageVariousDataPatterns(t, disablePerDayIndex, registerOnly, op, concurrency, true)
-	})
-	t.Run("perDayIndexes/concurrentBatches", func(t *testing.T) {
-		testStorageVariousDataPatterns(t, disablePerDayIndex, registerOnly, op, concurrency, false)
-	})
-
-	disablePerDayIndex = true
-	t.Run("noPerDayIndexes/serial", func(t *testing.T) {
-		testStorageVariousDataPatterns(t, disablePerDayIndex, registerOnly, op, 1, false)
-	})
-	t.Run("noPerDayIndexes/concurrentRows", func(t *testing.T) {
-		testStorageVariousDataPatterns(t, disablePerDayIndex, registerOnly, op, concurrency, true)
-	})
-	t.Run("noPerDayIndexes/concurrentBatches", func(t *testing.T) {
-		testStorageVariousDataPatterns(t, disablePerDayIndex, registerOnly, op, concurrency, false)
-	})
+	for _, disablePerDayIndex := range []bool{false, true} {
+		prefix := fmt.Sprintf("disablePerDayIndex=%t", disablePerDayIndex)
+		t.Run(prefix+"/serial", func(t *testing.T) {
+			testStorageVariousDataPatterns(t, disablePerDayIndex, registerOnly, op, 1, false)
+		})
+		t.Run(prefix+"/concurrentRows", func(t *testing.T) {
+			testStorageVariousDataPatterns(t, disablePerDayIndex, registerOnly, op, concurrency, true)
+		})
+		t.Run(prefix+"/concurrentBatches", func(t *testing.T) {
+			testStorageVariousDataPatterns(t, disablePerDayIndex, registerOnly, op, concurrency, false)
+		})
+	}
 }
 
 // testStorageVariousDataPatterns tests the ingestion of different combinations

@@ -17,7 +17,7 @@ sitemap:
 - [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/)
 - [Node exporter](https://github.com/prometheus/node_exporter#node-exporter) (v1.9.1) and [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/) (v0.28.1)
 
-![typical setup diagram](guide-vmanomaly-vmalert_overview.webp)
+![Typical vmanomaly observability pipeline](guide-vmanomaly-vmalert_overview.svg)
 
 > **Configurations used throughout this guide can be found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/vmanomaly/vmanomaly-integration/)**
 
