@@ -206,17 +206,36 @@ func tryParseScientificNumberForUnixTimestamp(s string, decimalExp int64) (int64
 		return multiplyByDecimalExp(n, decimalExp)
 	}
 
-	intStr := s[:dotIdx]
-	fracStr := s[dotIdx+1:]
-	if decimalExp < int64(len(fracStr)) {
+	if decimalExp < 0 {
+		// Negative exponents on a fractional mantissa are intentionally not
+		// supported. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11268
 		return 0, false
 	}
+
+	intStr := s[:dotIdx]
+	fracStr := s[dotIdx+1:]
 	n, ok := tryParseFractionalNumberForUnixTimestamp(intStr, fracStr)
 	if !ok {
 		return 0, false
 	}
-	decimalExp -= int64(len(fracStr))
-	return multiplyByDecimalExp(n, decimalExp)
+	if decimalExp >= int64(len(fracStr)) {
+		// The exponent shifts the decimal point past every fractional digit,
+		// so the value is an integer number of seconds (or coarser).
+		decimalExp -= int64(len(fracStr))
+		return multiplyByDecimalExp(n, decimalExp)
+	}
+
+	// The exponent leaves fractional digits, e.g. 1.784144612388E9 == 1784144612.388
+	// Pad n as plain fractional timestamps do.
+	fracDigits := int64(len(fracStr)) - decimalExp
+	for fracDigits%3 != 0 {
+		if n >= 0 && n > math.MaxInt64/10 || n < 0 && n < math.MinInt64/10 {
+			return 0, false
+		}
+		n *= 10
+		fracDigits++
+	}
+	return n, true
 }
 
 func tryParseFractionalNumberForUnixTimestamp(intStr, fracStr string) (int64, bool) {
