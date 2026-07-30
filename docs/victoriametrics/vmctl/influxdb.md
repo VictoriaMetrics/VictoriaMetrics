@@ -95,7 +95,7 @@ See more about [time filtering in InfluxDB](https://docs.influxdata.com/influxdb
 
 ## InfluxDB v2
 
-Migrating data from InfluxDB v2 is supported via the `--influx-version=2` flag. In this mode vmctl reads
+Migrating data from InfluxDB v2 is supported {{% available_from "#" %}} via the `--influx-version=2` flag. In this mode vmctl reads
 data through the [InfluxDB 1.x compatibility API](https://docs.influxdata.com/influxdb/v2/api-guide/influxdb-1x/)
 of InfluxDB v2, so migration uses the same queries and produces the same
 [data mapping](#data-mapping) as for InfluxDB v1. Only authentication differs:
