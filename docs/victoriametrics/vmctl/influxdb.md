@@ -7,8 +7,11 @@ menu:
     identifier: "vmctl-influxdb"
     weight: 2
 ---
-`vmctl` can migrate historical data from InfluxDB (v1) to VictoriaMetrics. See `./vmctl influx --help` for details and 
+`vmctl` can migrate historical data from InfluxDB v1 and v2 to VictoriaMetrics. See `./vmctl influx --help` for details and 
 full list of flags. Also see [migrating data from InfluxDB to VictoriaMetrics](https://docs.victoriametrics.com/guides/migrate-from-influx/) article.
+
+For InfluxDB v2 see [InfluxDB v2](#influxdb-v2) below. The examples in this section use InfluxDB v1,
+which is the default (`--influx-version=1`).
 
 To start migration, specify the InfluxDB address `--influx-addr`, database `--influx-database` and VictoriaMetrics address `--vm-addr`:
 ```sh
@@ -92,8 +95,45 @@ See more about [time filtering in InfluxDB](https://docs.influxdata.com/influxdb
 
 ## InfluxDB v2
 
-Migrating data from InfluxDB v2.x is not supported yet ([#32](https://github.com/VictoriaMetrics/vmctl/issues/32)).
-You may find useful a 3rd party solution for this - <https://github.com/jonppe/influx_to_victoriametrics>.
+Migrating data from InfluxDB v2 is supported via the `--influx-version=2` flag. In this mode vmctl reads
+data through the [InfluxDB 1.x compatibility API](https://docs.influxdata.com/influxdb/v2/api-guide/influxdb-1x/)
+of InfluxDB v2, so migration uses the same queries and produces the same
+[data mapping](#data-mapping) as for InfluxDB v1. Only authentication differs:
+
+- `--influx-token` must be set to an InfluxDB v2 [API token](https://docs.influxdata.com/influxdb/v2/admin/tokens/).
+  It is sent as the password of the compatibility API. The username is required by that API but its value
+  is ignored, so `--influx-user` may be left unset.
+- `--influx-database` accepts the name of the **bucket** to migrate.
+- `--influx-retention-policy` should be left unset. InfluxDB then resolves the default database and
+  retention policy (DBRP) mapping of the bucket. Set it only if the bucket is exposed through an explicit
+  mapping with a non-default retention policy name.
+
+```sh
+./vmctl influx --influx-version=2 \
+  --influx-addr=http://<influx-addr>:8086 \
+  --influx-token=<influx-token> \
+  --influx-database=<bucket-name> \
+  --vm-addr=http://<victoriametrics-addr>:8428
+```
+
+InfluxDB OSS automatically creates a *virtual* DBRP mapping for every bucket, where the database name equals
+the bucket name. No mapping has to be created manually before the migration. Existing mappings can be listed
+with:
+
+```sh
+curl -s 'http://<influx-addr>:8086/api/v2/dbrps?org=<org>' \
+  --header 'Authorization: Token <influx-token>'
+```
+
+If the bucket must be reachable under a different database name, or if several retention policies are mapped
+to different buckets, create the mapping explicitly. See
+[Database and retention policy mapping](https://docs.influxdata.com/influxdb/v2/api-guide/influxdb-1x/dbrp/)
+and pass its `database` and `retention_policy` values via `--influx-database` and `--influx-retention-policy`.
+
+All the other `--influx-*` flags behave the same as for InfluxDB v1, including
+[filtering](#filtering) via `--influx-filter-series` and the time filters, since the compatibility API
+accepts the same InfluxQL statements. When using `--influx-filter-series` with an `ON <database_name>`
+clause, the database name is the one of the DBRP mapping, which for a virtual mapping is the bucket name.
 
 ## Configuration
 
