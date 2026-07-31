@@ -1118,6 +1118,14 @@ func searchAndMerge[T any](qt *querytracer.Tracer, s *Storage, tr TimeRange, sea
 	qt = qt.NewChild("search indexDBs: timeRange=%v", &tr)
 	defer qt.Done()
 
+	var zeroValue T
+	if tr.MinTimestamp < minUnixMilli {
+		tr.MinTimestamp = minUnixMilli
+	}
+	if tr.MaxTimestamp < tr.MinTimestamp {
+		return zeroValue, nil
+	}
+
 	var idbts []indexDBWithType
 
 	ptws := s.tb.GetPartitions(tr)
