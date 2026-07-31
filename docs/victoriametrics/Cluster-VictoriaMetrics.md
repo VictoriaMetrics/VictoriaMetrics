@@ -59,6 +59,11 @@ It increases cluster availability, and simplifies cluster maintenance as well as
 
 ![Cluster Scheme](Cluster-VictoriaMetrics-components.webp)
 
+> Further reading, deep dives into how each service works internally:
+> - `vmstorage`: [How vmstorage Handles Data Ingestion From vminsert](https://victoriametrics.com/blog/vmstorage-how-it-handles-data-ingestion/), [How vmstorage's IndexDB Works](https://victoriametrics.com/blog/vmstorage-how-indexdb-works/), [How vmstorage Handles Query Requests From vmselect](https://victoriametrics.com/blog/vmstorage-how-it-handles-query-requests/).
+> - `vminsert`: [When Metrics Meet vminsert: A Data-Delivery Story](https://victoriametrics.com/blog/vminsert-how-it-works/).
+> - `vmselect`: [Inside vmselect: The Query Processing Engine of VictoriaMetrics](https://victoriametrics.com/blog/vmselect-how-it-works/).
+
 ## vmui
 
 VictoriaMetrics cluster version provides UI for query troubleshooting and exploration. The UI is available at
@@ -829,9 +834,9 @@ See also [minimum downtime strategy](#minimum-downtime-strategy).
 
 ## Slowness-based re-routing
 
-By default{{% available_from "#" %}}, `vminsert` automatically re-routes writes away from the slowest `vmstorage` node
-to preserve maximum ingestion throughput. This prevents a single slow `vmstorage` node
-from throttling the entire cluster.
+By default{{% available_from "#" %}}, `vminsert` automatically [re-route writes](https://victoriametrics.com/blog/vminsert-how-it-works/#31-rerouting)
+away from the slowest `vmstorage` node to preserve maximum ingestion throughput. This prevents a single slow `vmstorage` 
+node from throttling the entire cluster.
 
 Re-routing occurs only when all of the following conditions hold:
 - the storage send buffer is full.
@@ -878,7 +883,7 @@ See also [resource usage limits docs](#resource-usage-limits).
 
 ## Rebalancing
 
-Every `vminsert` node evenly spreads (shards) incoming data among `vmstorage` nodes specified in the `-storageNode` command-line flag.
+Every `vminsert` node [evenly spreads (shards) incoming data](https://victoriametrics.com/blog/vminsert-how-it-works/#3-sharding-and-buffering) among `vmstorage` nodes specified in the `-storageNode` command-line flag.
 This guarantees even distribution of the ingested data among `vmstorage` nodes. When new `vmstorage` nodes are added to the `-storageNode`
 command-line flag at `vminsert`, then only newly ingested data is distributed evenly among old and new `vmstorage` nodes, while
 historical data remains on the old `vmstorage` nodes. This speeds up data ingestion and querying for the majority of production workloads,
@@ -1026,7 +1031,7 @@ By default, VictoriaMetrics offloads replication to the underlying storage point
 which guarantees data durability. VictoriaMetrics supports application-level replication if replicated durable persistent disks cannot be used for some reason.
 
 The replication can be enabled by passing `-replicationFactor=N` command-line flag to `vminsert`. This instructs `vminsert` to store `N` copies for every ingested sample
-on `N` distinct `vmstorage` nodes. This guarantees that all the stored data remains available for querying if up to `N-1` `vmstorage` nodes are unavailable.
+on `N` distinct `vmstorage` nodes. This guarantees that all the stored data remains available for querying if up to `N-1` `vmstorage` nodes are unavailable. See [how `vminsert` replicates each sample to `N` `vmstorage` nodes](https://victoriametrics.com/blog/vminsert-how-it-works/#4-replication-and-sending-data-to-vmstorage) for details.
 
 Passing `-replicationFactor=N` command-line flag to `vmselect` instructs it to not mark responses as `partial` if less than `-replicationFactor` vmstorage nodes are unavailable during the query.
 See [cluster availability docs](#cluster-availability) for details.
@@ -1061,7 +1066,7 @@ deduplication can't be guaranteed when samples and sample duplicates for the sam
 - when `vmstorage` node has no enough capacity for processing incoming data stream. Then `vminsert` re-routes new samples to other `vmstorage` nodes.
 
 It is recommended to set **the same** `-dedup.minScrapeInterval` command-line flag value to both `vmselect` and `vmstorage` nodes
-to ensure query results consistency, even if storage layer didn't complete deduplication yet.
+to ensure query results consistency, even if [storage layer didn't complete deduplication](https://victoriametrics.com/blog/vmstorage-retention-merging-deduplication/#deduplication) yet.
 
 ## Metrics Metadata
 
