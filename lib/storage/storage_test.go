@@ -488,8 +488,13 @@ func TestStorageDeletePendingSeries(t *testing.T) {
 	const (
 		accountID = 12
 		projectID = 34
-		numMonths = 10
 	)
+
+	const numMonths = 10
+	start := time.Date(1971, 1, 1, 0, 0, 0, 0, time.UTC)
+	middle := start.AddDate(0, (numMonths-1)/2, 0)
+	end := start.AddDate(0, numMonths-1, 0)
+
 	s := MustOpenStorage(t.Name(), OpenOptions{})
 
 	var metricGroupName = []byte("metric")
@@ -547,7 +552,7 @@ func TestStorageDeletePendingSeries(t *testing.T) {
 	assertCountMonthsWithLabels := func(count int) {
 		t.Helper()
 
-		ts := time.Unix(0, 0)
+		ts := start
 		n := 0
 		for range numMonths {
 			lns, err := s.SearchLabelNames(nil, accountID, projectID, nil, TimeRange{ts.UnixMilli(), ts.UnixMilli()}, 1e5, 1e9, noDeadline)
@@ -572,7 +577,7 @@ func TestStorageDeletePendingSeries(t *testing.T) {
 		var search Search
 		defer search.MustClose()
 
-		search.Init(nil, s, []*TagFilters{tfs}, TimeRange{0, math.MaxInt64}, 1e5, noDeadline)
+		search.Init(nil, s, []*TagFilters{tfs}, TimeRange{start.UnixMilli(), math.MaxInt64}, 1e5, noDeadline)
 		n := 0
 		for search.NextMetricBlock() {
 			var b Block
@@ -588,10 +593,6 @@ func TestStorageDeletePendingSeries(t *testing.T) {
 	}
 	// Verify no metrics exist
 	assertCountRows(0)
-
-	start := time.Unix(0, 0)
-	middle := start.AddDate(0, (numMonths-1)/2, 0)
-	end := start.AddDate(0, numMonths-1, 0)
 
 	// Add some rows and flush, so next DeleteSeries() can delete them
 	addRows(start, middle, false)
@@ -3772,60 +3773,195 @@ func TestStorageQueryWithoutIndex(t *testing.T) {
 	testStorageSearchWithoutIndex(t, &opts)
 }
 
-func TestStorageAddRows_SamplesWithZeroDate(t *testing.T) {
+func TestStorageAddRowsWithZeroDate(t *testing.T) {
 	defer testRemoveAll(t)
+
+	for _, disablePerDayIndex := range []bool{false, true} {
+		name := fmt.Sprintf("disablePerDayIndex=%t", disablePerDayIndex)
+		t.Run(name, func(t *testing.T) {
+			testStorageAddRowsWithZeroDate(t, disablePerDayIndex)
+		})
+	}
+}
+
+func testStorageAddRowsWithZeroDate(t *testing.T, disablePerDayIndex bool) {
+	s := MustOpenStorage(t.Name(), OpenOptions{
+		DisablePerDayIndex: disablePerDayIndex,
+	})
+	defer s.MustClose()
 
 	const (
 		accountID = 12
 		projectID = 34
 	)
 
-	f := func(t *testing.T, disablePerDayIndex bool) {
-		t.Helper()
+	const numDays = 4
+	var metricNamesAll []string
+	labelNamesAll := []string{"__name__", "label"}
+	var labelValuesAll []string
+	mrs := make([]MetricRow, numDays)
+	for day := range numDays {
+		metricName := fmt.Sprintf("metric_%02d", day)
+		labelName := fmt.Sprintf("label_%02d", day)
+		labelValue := fmt.Sprintf("value_%02d", day)
 
-		s := MustOpenStorage(t.Name(), OpenOptions{
-			DisablePerDayIndex: disablePerDayIndex,
-		})
-		defer s.MustClose()
+		if day != 0 {
+			metricNamesAll = append(metricNamesAll, metricName)
+			labelNamesAll = append(labelNamesAll, labelName)
+			labelValuesAll = append(labelValuesAll, labelValue)
+		}
 
 		mn := MetricName{
 			AccountID:   accountID,
 			ProjectID:   projectID,
-			MetricGroup: []byte("metric"),
+			MetricGroup: []byte(metricName),
+			Tags: []Tag{
+				{Key: []byte(labelName), Value: []byte("value")},
+				{Key: []byte("label"), Value: []byte(labelValue)},
+			},
 		}
-		mr := MetricRow{MetricNameRaw: mn.marshalRaw(nil)}
-		for range 10 {
-			mr.Timestamp = rand.Int63n(msecPerDay)
-			mr.Value = float64(rand.Intn(1000))
-			s.AddRows([]MetricRow{mr}, defaultPrecisionBits)
-			s.DebugFlush()
-			// Reset TSID cache so that insertion takes the path that involves
-			// checking whether the index contains metricName->TSID mapping.
-			s.resetAndSaveTSIDCache()
-		}
+		mn.sortTags()
 
-		want := 1
-		firstUnixDay := TimeRange{
-			MinTimestamp: 0,
-			MaxTimestamp: msecPerDay - 1,
+		mrs[day].MetricNameRaw = mn.marshalRaw(nil)
+		mrs[day].Timestamp = int64(day * msecPerDay)
+	}
+
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+	if got, want := s.newTimeseriesCreated.Load(), uint64(numDays-1); got != want {
+		t.Fatalf("unexpected new timeseries count: got %d, want %d", got, want)
+	}
+	if got, want := s.tooSmallTimestampRows.Load(), uint64(1); got != want {
+		t.Fatalf("unexpected rows with too small timestamp: got %d, want %d", got, want)
+	}
+
+	assertMetricNames := func(tr TimeRange, want []string) {
+		t.Helper()
+		tfs := NewTagFilters(accountID, projectID)
+		if err := tfs.Add(nil, []byte("metric_.*"), false, true); err != nil {
+			t.Fatalf("unexpected error in TagFilters.Add: %v", err)
 		}
-		if got := s.newTimeseriesCreated.Load(); got != uint64(want) {
-			t.Errorf("unexpected new timeseries count: got %d, want %d", got, want)
+		got, err := s.SearchMetricNames(nil, []*TagFilters{tfs}, tr, 1e9, noDeadline)
+		if err != nil {
+			t.Fatalf("SearchMetricNames(%v, %v) failed unexpectedly: %v", tfs, &tr, err)
 		}
-		if got := testCountAllMetricNames(s, accountID, projectID, firstUnixDay); got != want {
-			t.Errorf("unexpected metric name count: got %d, want %d", got, want)
+		for i, name := range got {
+			var mn MetricName
+			if err := mn.UnmarshalString(name); err != nil {
+				t.Fatalf("Could not unmarshal metric name %q: %v", name, err)
+			}
+			got[i] = string(mn.MetricGroup)
 		}
-		if got := testCountAllMetricIDs(s, accountID, projectID, firstUnixDay); got != want {
-			t.Errorf("unexpected metric id count: got %d, want %d", got, want)
+		slices.Sort(got)
+		slices.Sort(want)
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Fatalf("unexpected metric names (-want, +got):\n%s", diff)
+		}
+	}
+	assertLabelNames := func(tr TimeRange, want []string) {
+		t.Helper()
+		tfs := NewTagFilters(accountID, projectID)
+		if err := tfs.Add(nil, []byte("metric_.*"), false, true); err != nil {
+			t.Fatalf("unexpected error in TagFilters.Add: %v", err)
+		}
+		got, err := s.SearchLabelNames(nil, accountID, projectID, []*TagFilters{tfs}, tr, 1e9, 1e9, noDeadline)
+		if err != nil {
+			t.Fatalf("SearchLabelNames(%v, %v) failed unexpectedly: %s", tfs, &tr, err)
+		}
+		slices.Sort(got)
+		slices.Sort(want)
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Fatalf("unexpected label names (-want, +got):\n%s", diff)
+		}
+	}
+	assertLabelValues := func(tr TimeRange, want []string) {
+		t.Helper()
+		tfs := NewTagFilters(accountID, projectID)
+		if err := tfs.Add([]byte("label"), []byte("value_.*"), false, true); err != nil {
+			t.Fatalf("unexpected error in TagFilters.Add: %v", err)
+		}
+		got, err := s.SearchLabelValues(nil, accountID, projectID, "label", []*TagFilters{tfs}, tr, 1e9, 1e9, noDeadline)
+		if err != nil {
+			t.Fatalf("SearchLabelValues(%v, %v) failed unexpectedly: %s", tfs, tr, err)
+		}
+		slices.Sort(got)
+		slices.Sort(want)
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Fatalf("unexpected label values (-want, +got):\n%s", diff)
+		}
+	}
+	assertData := func(tr TimeRange, want []MetricRow) {
+		t.Helper()
+		tfs := NewTagFilters(accountID, projectID)
+		if err := tfs.Add(nil, []byte("metric_.*"), false, true); err != nil {
+			t.Fatalf("TagFilters.Add() failed unexpectedly: %v", err)
+		}
+		if err := testAssertSearchResult(s, tr, tfs, want); err != nil {
+			t.Fatalf("Search(%v, %v) failed unexpectedly: %v", tfs, tr, err)
 		}
 	}
 
-	for _, disablePerDayIndex := range []bool{false, true} {
-		name := fmt.Sprintf("disablePerDayIndex=%t", disablePerDayIndex)
-		t.Run(name, func(t *testing.T) {
-			f(t, disablePerDayIndex)
-		})
+	var tr TimeRange
+
+	// Empty time range.
+	// Expect empty search results
+	tr = TimeRange{}
+	assertMetricNames(tr, nil)
+	assertLabelNames(tr, []string{})
+	assertLabelValues(tr, []string{})
+	assertData(tr, nil)
+
+	// First day time range.
+	// Expect empty search results
+	tr = TimeRange{
+		MinTimestamp: 0,
+		MaxTimestamp: msecPerDay - 1,
 	}
+	assertMetricNames(tr, nil)
+	assertLabelNames(tr, []string{})
+	assertLabelValues(tr, []string{})
+	assertData(tr, nil)
+
+	// Second day time range.
+	tr = TimeRange{
+		MinTimestamp: msecPerDay,
+		MaxTimestamp: 2*msecPerDay - 1,
+	}
+	if disablePerDayIndex {
+		// Expect index search results for all days if per-day index is
+		// disabled.
+		assertMetricNames(tr, metricNamesAll)
+		assertLabelNames(tr, labelNamesAll)
+		assertLabelValues(tr, labelValuesAll)
+	} else {
+		// Expect index search results on second day only if per-day index is
+		// enabled.
+		assertMetricNames(tr, []string{"metric_01"})
+		assertLabelNames(tr, []string{"__name__", "label", "label_01"})
+		assertLabelValues(tr, []string{"value_01"})
+	}
+	assertData(tr, mrs[1:2])
+
+	// First two days time range.
+	// Expect results on second day only.
+	tr = TimeRange{
+		MinTimestamp: 0,
+		MaxTimestamp: 2*msecPerDay - 1,
+	}
+	if disablePerDayIndex {
+		// Expect index search results for all days if per-day index is
+		// disabled.
+		assertMetricNames(tr, metricNamesAll)
+		assertLabelNames(tr, labelNamesAll)
+		assertLabelValues(tr, labelValuesAll)
+	} else {
+		// Expect index search results on second day only if per-day index is
+		// enabled.
+		assertMetricNames(tr, []string{"metric_01"})
+		assertLabelNames(tr, []string{"__name__", "label", "label_01"})
+		assertLabelValues(tr, []string{"value_01"})
+	}
+	assertData(tr, mrs[1:2])
 }
 
 // testSearchMetricIDs returns metricIDs for the given tfss and tr.
