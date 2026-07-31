@@ -223,7 +223,7 @@ func tryParseScientificUnixTimestamp(s string, decimalExp int64) (int64, bool) {
 	}
 
 	// The exponent leaves fractional digits, e.g. 1.784144612388E9 == 1784144612.388
-	if decimalExp > int64(math.MaxInt) {
+	if decimalExp >= int64(len(decimalMultipliers)) {
 		return 0, false
 	}
 	decimalExpInt := int(decimalExp)
