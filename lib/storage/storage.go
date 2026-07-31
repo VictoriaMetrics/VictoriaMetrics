@@ -1738,6 +1738,12 @@ const maxDaysForPerDaySearch = 40
 // globalIndexTimeRange based on the time range length and -disablePerDayIndex
 // flag.
 func (s *Storage) adjustTimeRange(searchTR, idbTR TimeRange) TimeRange {
+	// if the global index is disabled and the searchTR is the
+	// globalIndexTimeRange, use idbTR.
+	if s.disableGlobalIndex && searchTR == globalIndexTimeRange {
+		return idbTR
+	}
+
 	// If the per day index is disabled, unconditionally search global index.
 	if s.disablePerDayIndex {
 		return globalIndexTimeRange
