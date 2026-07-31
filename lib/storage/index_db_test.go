@@ -486,7 +486,7 @@ func TestIndexDBOpenClose(t *testing.T) {
 func TestIndexDB(t *testing.T) {
 	defer testRemoveAll(t)
 
-	f := func(t *testing.T, concurrency int, disablePerDayIndex bool) {
+	f := func(t *testing.T, concurrency int, disableGlobalIndex, disablePerDayIndex bool) {
 		const metricGroups = 10
 		now := time.Now().UTC()
 		timestamp := now.UnixMilli()
@@ -500,6 +500,7 @@ func TestIndexDB(t *testing.T) {
 		}
 
 		s := MustOpenStorage(t.Name(), OpenOptions{
+			DisableGlobalIndex: disableGlobalIndex,
 			DisablePerDayIndex: disablePerDayIndex,
 		})
 		defer s.MustClose()
@@ -531,13 +532,19 @@ func TestIndexDB(t *testing.T) {
 	}
 
 	for _, concurrency := range []int{1, 4} {
-		for _, disablePerDayIndex := range []bool{false, true} {
-			name := fmt.Sprintf("concurrency=%d/disablePerDayIndex=%t", concurrency, disablePerDayIndex)
-			t.Run(name, func(t *testing.T) {
-				f(t, concurrency, disablePerDayIndex)
-				// Repeat the same test on non-empty reopened storage.
-				f(t, concurrency, disablePerDayIndex)
-			})
+		for _, disableGlobalIndex := range []bool{false, true} {
+			for _, disablePerDayIndex := range []bool{false, true} {
+				if disableGlobalIndex && disablePerDayIndex {
+					// Both indexes cannot be disabled at the same time.
+					continue
+				}
+				name := fmt.Sprintf("concurrency=%d/disableGlobalIndex=%t/disablePerDayIndex=%t", concurrency, disableGlobalIndex, disablePerDayIndex)
+				t.Run(name, func(t *testing.T) {
+					f(t, concurrency, disableGlobalIndex, disablePerDayIndex)
+					// Repeat the same test on non-empty reopened storage.
+					f(t, concurrency, disableGlobalIndex, disablePerDayIndex)
+				})
+			}
 		}
 	}
 }
@@ -1400,15 +1407,21 @@ func TestMatchTagFilters(t *testing.T) {
 
 func TestIndexDBSearchTSIDs(t *testing.T) {
 	defer testRemoveAll(t)
-	for _, disablePerDayIndex := range []bool{false, true} {
-		name := fmt.Sprintf("disablePerDayIndex=%t", disablePerDayIndex)
-		t.Run(name, func(t *testing.T) {
-			testIndexDBSearchTSIDs(t, disablePerDayIndex)
-		})
+	for _, disableGlobalIndex := range []bool{false, true} {
+		for _, disablePerDayIndex := range []bool{false, true} {
+			if disableGlobalIndex && disablePerDayIndex {
+				// Both indexes cannot be disabled at the same time.
+				continue
+			}
+			name := fmt.Sprintf("disableGlobalIndex=%t/disablePerDayIndex=%t", disableGlobalIndex, disablePerDayIndex)
+			t.Run(name, func(t *testing.T) {
+				testIndexDBSearchTSIDs(t, disableGlobalIndex, disablePerDayIndex)
+			})
+		}
 	}
 }
 
-func testIndexDBSearchTSIDs(t *testing.T, disablePerDayIndex bool) {
+func testIndexDBSearchTSIDs(t *testing.T, disableGlobalIndex, disablePerDayIndex bool) {
 	const days = 5
 	const metricsPerDay = 1000
 	timestamp := time.Date(2019, time.October, 15, 5, 1, 0, 0, time.UTC).UnixMilli()
@@ -1417,6 +1430,7 @@ func testIndexDBSearchTSIDs(t *testing.T, disablePerDayIndex bool) {
 	allMetricIDs := &uint64set.Set{}
 
 	s := MustOpenStorage(t.Name(), OpenOptions{
+		DisableGlobalIndex: disableGlobalIndex,
 		DisablePerDayIndex: disablePerDayIndex,
 	})
 	defer s.MustClose()
@@ -1474,8 +1488,10 @@ func testIndexDBSearchTSIDs(t *testing.T, disablePerDayIndex bool) {
 			assertMetricIDs(date, metricsPerDay, perDayMetricIDs[date])
 		}
 	}
-	// Check that all the metrics are found in global index
-	assertMetricIDs(globalIndexDate, metricsPerDay*days, allMetricIDs)
+	if !disableGlobalIndex {
+		// Check that all the metrics are found in global index
+		assertMetricIDs(globalIndexDate, metricsPerDay*days, allMetricIDs)
+	}
 
 	db.putIndexSearch(is2)
 
@@ -1522,21 +1538,28 @@ func testIndexDBSearchTSIDs(t *testing.T, disablePerDayIndex bool) {
 
 func TestIndexDBSearchLabelNames(t *testing.T) {
 	defer testRemoveAll(t)
-	for _, disablePerDayIndex := range []bool{false, true} {
-		name := fmt.Sprintf("disablePerDayIndex=%t", disablePerDayIndex)
-		t.Run(name, func(t *testing.T) {
-			testIndexDBSearchLabelNames(t, disablePerDayIndex)
-		})
+	for _, disableGlobalIndex := range []bool{false, true} {
+		for _, disablePerDayIndex := range []bool{false, true} {
+			if disableGlobalIndex && disablePerDayIndex {
+				// Both indexes cannot be disabled at the same time.
+				continue
+			}
+			name := fmt.Sprintf("disableGlobalIndex=%t/disablePerDayIndex=%t", disableGlobalIndex, disablePerDayIndex)
+			t.Run(name, func(t *testing.T) {
+				testIndexDBSearchLabelNames(t, disableGlobalIndex, disablePerDayIndex)
+			})
+		}
 	}
 }
 
-func testIndexDBSearchLabelNames(t *testing.T, disablePerDayIndex bool) {
+func testIndexDBSearchLabelNames(t *testing.T, disableGlobalIndex, disablePerDayIndex bool) {
 	const days = 5
 	const metricsPerDay = 1000
 	timestamp := time.Date(2019, time.October, 15, 5, 1, 0, 0, time.UTC).UnixMilli()
 	baseDate := uint64(timestamp) / msecPerDay
 
 	s := MustOpenStorage(t.Name(), OpenOptions{
+		DisableGlobalIndex: disableGlobalIndex,
 		DisablePerDayIndex: disablePerDayIndex,
 	})
 	defer s.MustClose()
@@ -1633,16 +1656,21 @@ func testIndexDBSearchLabelNames(t *testing.T, disablePerDayIndex bool) {
 
 func TestIndexDBSearchLabelValues(t *testing.T) {
 	defer testRemoveAll(t)
-
-	for _, disablePerDayIndex := range []bool{false, true} {
-		name := fmt.Sprintf("disablePerDayIndex=%t", disablePerDayIndex)
-		t.Run(name, func(t *testing.T) {
-			testIndexDBSearchLabelValues(t, disablePerDayIndex)
-		})
+	for _, disableGlobalIndex := range []bool{false, true} {
+		for _, disablePerDayIndex := range []bool{false, true} {
+			if disableGlobalIndex && disablePerDayIndex {
+				// Both indexes cannot be disabled at the same time.
+				continue
+			}
+			name := fmt.Sprintf("disableGlobalIndex=%t/disablePerDayIndex=%t", disableGlobalIndex, disablePerDayIndex)
+			t.Run(name, func(t *testing.T) {
+				testIndexDBSearchLabelValues(t, disableGlobalIndex, disablePerDayIndex)
+			})
+		}
 	}
 }
 
-func testIndexDBSearchLabelValues(t *testing.T, disablePerDayIndex bool) {
+func testIndexDBSearchLabelValues(t *testing.T, disableGlobalIndex, disablePerDayIndex bool) {
 	const days = 5
 	const metricsPerDay = 1000
 	timestamp := time.Date(2019, time.October, 15, 5, 1, 0, 0, time.UTC).UnixMilli()
@@ -1650,6 +1678,7 @@ func testIndexDBSearchLabelValues(t *testing.T, disablePerDayIndex bool) {
 	var allMetricNames []string
 
 	s := MustOpenStorage(t.Name(), OpenOptions{
+		DisableGlobalIndex: disableGlobalIndex,
 		DisablePerDayIndex: disablePerDayIndex,
 	})
 	defer s.MustClose()
@@ -1816,15 +1845,21 @@ func TestFilterLabelValues(t *testing.T) {
 
 func TestIndexDBDeleteSeries(t *testing.T) {
 	defer testRemoveAll(t)
-	for _, disablePerDayIndex := range []bool{false, true} {
-		name := fmt.Sprintf("disablePerDayIndex=%t", disablePerDayIndex)
-		t.Run(name, func(t *testing.T) {
-			testIndexDBDeleteSeries(t, disablePerDayIndex)
-		})
+	for _, disableGlobalIndex := range []bool{false, true} {
+		for _, disablePerDayIndex := range []bool{false, true} {
+			if disableGlobalIndex && disablePerDayIndex {
+				// Both indexes cannot be disabled at the same time.
+				continue
+			}
+			name := fmt.Sprintf("disableGlobalIndex=%t/disablePerDayIndex=%t", disableGlobalIndex, disablePerDayIndex)
+			t.Run(name, func(t *testing.T) {
+				testIndexDBDeleteSeries(t, disableGlobalIndex, disablePerDayIndex)
+			})
+		}
 	}
 }
 
-func testIndexDBDeleteSeries(t *testing.T, disablePerDayIndex bool) {
+func testIndexDBDeleteSeries(t *testing.T, disableGlobalIndex, disablePerDayIndex bool) {
 	const days = 5
 	const metricsPerDay = 1000
 	trAllDays := TimeRange{
@@ -1837,6 +1872,7 @@ func testIndexDBDeleteSeries(t *testing.T, disablePerDayIndex bool) {
 	metricNamesByDate := make(map[uint64][]string)
 
 	s := MustOpenStorage(t.Name(), OpenOptions{
+		DisableGlobalIndex: disableGlobalIndex,
 		DisablePerDayIndex: disablePerDayIndex,
 	})
 	defer s.MustClose()
@@ -1922,21 +1958,28 @@ func testIndexDBDeleteSeries(t *testing.T, disablePerDayIndex bool) {
 
 func TestIndexDBGetTSDBStatus(t *testing.T) {
 	defer testRemoveAll(t)
-	for _, disablePerDayIndex := range []bool{false, true} {
-		name := fmt.Sprintf("disablePerDayIndex=%t", disablePerDayIndex)
-		t.Run(name, func(t *testing.T) {
-			testIndexDBGetTSDBStatus(t, disablePerDayIndex)
-		})
+	for _, disableGlobalIndex := range []bool{false, true} {
+		for _, disablePerDayIndex := range []bool{false, true} {
+			if disableGlobalIndex && disablePerDayIndex {
+				// Both indexes cannot be disabled at the same time.
+				continue
+			}
+			name := fmt.Sprintf("disableGlobalIndex=%t/disablePerDayIndex=%t", disableGlobalIndex, disablePerDayIndex)
+			t.Run(name, func(t *testing.T) {
+				testIndexDBGetTSDBStatus(t, disableGlobalIndex, disablePerDayIndex)
+			})
+		}
 	}
 }
 
-func testIndexDBGetTSDBStatus(t *testing.T, disablePerDayIndex bool) {
+func testIndexDBGetTSDBStatus(t *testing.T, disableGlobalIndex, disablePerDayIndex bool) {
 	const days = 5
 	const metricsPerDay = 1000
 	timestamp := time.Date(2019, time.October, 15, 5, 1, 0, 0, time.UTC).UnixMilli()
 	baseDate := uint64(timestamp) / msecPerDay
 
 	s := MustOpenStorage(t.Name(), OpenOptions{
+		DisableGlobalIndex: disableGlobalIndex,
 		DisablePerDayIndex: disablePerDayIndex,
 	})
 	defer s.MustClose()
