@@ -1542,8 +1542,8 @@ It is safe to extend `-retentionPeriod` on existing data. If `-retentionPeriod` 
 value than before, then data outside the configured period will be eventually deleted.
 
 VictoriaMetrics does not support indefinite retention, but you can specify an arbitrarily high duration, e.g. `-retentionPeriod=100y`.
-Just keep in mind that VictoriaMetrics does not support samples with negative timestamps. Timestamps from `1970-01-01` are also not
-supported because this date has a special meaning internally. It therefore will reject samples with timestamps before
+Just keep in mind that VictoriaMetrics does not support samples with negative timestamps. Timestamps at `1970-01-01` are also not
+supported because this date has a special meaning internally. It therefore rejects samples with timestamps before
 `1970-01-02T00:00:00.000Z`.
 
 By default, VictoriaMetrics doesn't accept samples with timestamps bigger than `now+2d`, e.g. 2 days in the future.
