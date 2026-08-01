@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -834,7 +835,10 @@ func (uw *urlWatcher) watchForUpdates() {
 		if err != nil {
 			if !errors.Is(err, io.EOF) && !errors.Is(err, context.Canceled) {
 				logger.Errorf("error when reading WatchEvent stream from %q: %s", requestURL, err)
-				uw.resourceVersion = ""
+				var ne net.Error
+				if !errors.As(err, &ne) {
+					uw.resourceVersion = ""
+				}
 			}
 			bt.Wait(stopCh)
 			continue

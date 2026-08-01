@@ -1,16 +1,107 @@
 package kubernetes
 
 import (
+	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
+
+func TestURLWatcherKeepsResourceVersionOnNetworkError(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	tr := &networkErrorTransport{
+		watchRequests: make(chan struct{}, 2),
+	}
+	gw := &groupWatcher{
+		apiServer: "http://example.com",
+		setHeaders: func(_ *http.Request) error {
+			return nil
+		},
+		client: &http.Client{
+			Transport: tr,
+			Timeout:   10 * time.Second,
+		},
+		m:      make(map[string]*urlWatcher),
+		ctx:    ctx,
+		cancel: cancel,
+	}
+	uw := newURLWatcher("pod", "/api/v1/pods", gw)
+
+	go uw.watchForUpdates()
+	for range 2 {
+		select {
+		case <-tr.watchRequests:
+		case <-time.After(3 * time.Second):
+			t.Fatalf("timeout while waiting for watch request; list requests=%d, watch requests=%d", tr.listRequests.Load(), tr.watchRequestCount.Load())
+		}
+	}
+	cancel()
+
+	if n := tr.listRequests.Load(); n != 1 {
+		t.Fatalf("unexpected number of list requests after a network error; got %d; want 1", n)
+	}
+}
+
+type networkErrorTransport struct {
+	listRequests      atomic.Int32
+	watchRequestCount atomic.Int32
+	watchRequests     chan struct{}
+}
+
+func (tr *networkErrorTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if req.URL.Query().Get("watch") == "" {
+		tr.listRequests.Add(1)
+		body := `{"metadata":{"resourceVersion":"42"},"items":[]}`
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Header:     make(http.Header),
+		}, nil
+	}
+
+	tr.watchRequestCount.Add(1)
+	tr.watchRequests <- struct{}{}
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       networkErrorBody{},
+		Header:     make(http.Header),
+	}, nil
+}
+
+type networkErrorBody struct{}
+
+func (networkErrorBody) Read(_ []byte) (int, error) {
+	return 0, temporaryNetworkError{}
+}
+
+func (networkErrorBody) Close() error {
+	return nil
+}
+
+type temporaryNetworkError struct{}
+
+func (temporaryNetworkError) Error() string {
+	return "temporary network error"
+}
+
+func (temporaryNetworkError) Timeout() bool {
+	return false
+}
+
+func (temporaryNetworkError) Temporary() bool {
+	return true
+}
 
 func TestGetAPIPathsWithNamespaces(t *testing.T) {
 	f := func(role string, namespaces []string, selectors []Selector, expectedPaths []string) {
