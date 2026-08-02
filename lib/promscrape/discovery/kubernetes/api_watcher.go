@@ -836,7 +836,7 @@ func (uw *urlWatcher) watchForUpdates() {
 			if !errors.Is(err, io.EOF) && !errors.Is(err, context.Canceled) {
 				logger.Errorf("error when reading WatchEvent stream from %q: %s", requestURL, err)
 				var ne net.Error
-				if !errors.As(err, &ne) {
+				if !errors.As(err, &ne) && !errors.Is(err, io.ErrUnexpectedEOF) {
 					uw.resourceVersion = ""
 				}
 			}

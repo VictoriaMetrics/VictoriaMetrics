@@ -17,46 +17,59 @@ import (
 )
 
 func TestURLWatcherKeepsResourceVersionOnNetworkError(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	f := func(t *testing.T, streamErr error) {
+		t.Helper()
 
-	tr := &networkErrorTransport{
-		watchRequests: make(chan struct{}, 2),
-	}
-	gw := &groupWatcher{
-		apiServer: "http://example.com",
-		setHeaders: func(_ *http.Request) error {
-			return nil
-		},
-		client: &http.Client{
-			Transport: tr,
-			Timeout:   10 * time.Second,
-		},
-		m:      make(map[string]*urlWatcher),
-		ctx:    ctx,
-		cancel: cancel,
-	}
-	uw := newURLWatcher("pod", "/api/v1/pods", gw)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 
-	go uw.watchForUpdates()
-	for range 2 {
-		select {
-		case <-tr.watchRequests:
-		case <-time.After(3 * time.Second):
-			t.Fatalf("timeout while waiting for watch request; list requests=%d, watch requests=%d", tr.listRequests.Load(), tr.watchRequestCount.Load())
+		tr := &networkErrorTransport{
+			watchRequests: make(chan struct{}, 2),
+			streamErr:     streamErr,
+		}
+		gw := &groupWatcher{
+			apiServer: "http://example.com",
+			setHeaders: func(_ *http.Request) error {
+				return nil
+			},
+			client: &http.Client{
+				Transport: tr,
+				Timeout:   10 * time.Second,
+			},
+			m:      make(map[string]*urlWatcher),
+			ctx:    ctx,
+			cancel: cancel,
+		}
+		uw := newURLWatcher("pod", "/api/v1/pods", gw)
+
+		go uw.watchForUpdates()
+		for range 2 {
+			select {
+			case <-tr.watchRequests:
+			case <-time.After(3 * time.Second):
+				t.Fatalf("timeout while waiting for watch request; list requests=%d, watch requests=%d", tr.listRequests.Load(), tr.watchRequestCount.Load())
+			}
+		}
+		cancel()
+
+		if n := tr.listRequests.Load(); n != 1 {
+			t.Fatalf("unexpected number of list requests after a network error; got %d; want 1", n)
 		}
 	}
-	cancel()
 
-	if n := tr.listRequests.Load(); n != 1 {
-		t.Fatalf("unexpected number of list requests after a network error; got %d; want 1", n)
-	}
+	t.Run("net.Error", func(t *testing.T) {
+		f(t, temporaryNetworkError{})
+	})
+	t.Run("io.ErrUnexpectedEOF", func(t *testing.T) {
+		f(t, io.ErrUnexpectedEOF)
+	})
 }
 
 type networkErrorTransport struct {
 	listRequests      atomic.Int32
 	watchRequestCount atomic.Int32
 	watchRequests     chan struct{}
+	streamErr         error
 }
 
 func (tr *networkErrorTransport) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -74,15 +87,17 @@ func (tr *networkErrorTransport) RoundTrip(req *http.Request) (*http.Response, e
 	tr.watchRequests <- struct{}{}
 	return &http.Response{
 		StatusCode: http.StatusOK,
-		Body:       networkErrorBody{},
+		Body:       networkErrorBody{err: tr.streamErr},
 		Header:     make(http.Header),
 	}, nil
 }
 
-type networkErrorBody struct{}
+type networkErrorBody struct {
+	err error
+}
 
-func (networkErrorBody) Read(_ []byte) (int, error) {
-	return 0, temporaryNetworkError{}
+func (b networkErrorBody) Read(_ []byte) (int, error) {
+	return 0, b.err
 }
 
 func (networkErrorBody) Close() error {
