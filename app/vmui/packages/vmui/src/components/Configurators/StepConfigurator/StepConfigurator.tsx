@@ -117,6 +117,8 @@ const StepConfigurator: FC = () => {
     if (step === value || step === defaultStep) handleApply(defaultStep);
   }, [isHistogram, displayType]);
 
+  const textValue = isAutoStep ? `auto (${customStep})` : customStep;
+
   return (
     <div
       className="vm-step-control"
@@ -130,7 +132,7 @@ const StepConfigurator: FC = () => {
           <span className="vm-mobile-option__icon"><TimelineIcon/></span>
           <div className="vm-mobile-option-text">
             <span className="vm-mobile-option-text__label">Step</span>
-            <span className="vm-mobile-option-text__value">{customStep}</span>
+            <span className="vm-mobile-option-text__value">{textValue}</span>
           </div>
           <span className="vm-mobile-option__arrow"><ArrowDownIcon/></span>
         </div>
@@ -142,7 +144,7 @@ const StepConfigurator: FC = () => {
           startIcon={<TimelineIcon/>}
           onClick={toggleOpenOptions}
         >
-          Step: {isAutoStep ? `auto (${customStep})` : customStep}
+          Step: {textValue}
         </Button>
       )}
       <Popper

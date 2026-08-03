@@ -1,4 +1,4 @@
-import { FC, useRef } from "preact/compat";
+import { forwardRef, useImperativeHandle, useRef } from "preact/compat";
 import ServerConfigurator from "./ServerConfigurator/ServerConfigurator";
 import { ArrowDownIcon, SettingsIcon } from "../../Main/Icons";
 import Button from "../../Main/Button/Button";
@@ -19,7 +19,11 @@ export interface ChildComponentHandle {
   handleApply: () => void;
 }
 
-const GlobalSettings: FC = () => {
+export interface GlobalSettingsHandle {
+  open: () => void;
+}
+
+const GlobalSettings = forwardRef<GlobalSettingsHandle>((_, ref) => {
   const { isMobile } = useDeviceDetect();
 
   const appModeEnable = getAppModeEnable();
@@ -65,6 +69,10 @@ const GlobalSettings: FC = () => {
       component: <ThemeControl/>
     }
   ].filter(control => control.show);
+
+  useImperativeHandle(ref, () => ({
+    open: handleOpen,
+  }));
 
   return <>
     {isMobile ? (
@@ -131,6 +139,6 @@ const GlobalSettings: FC = () => {
       </Modal>
     )}
   </>;
-};
+});
 
 export default GlobalSettings;
