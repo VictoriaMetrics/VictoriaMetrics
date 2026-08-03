@@ -222,6 +222,15 @@ var (
 	configReloadErrors = configMetricsSet.NewCounter(`vm_promscrape_config_reloads_errors_total`)
 	configSuccess      = configMetricsSet.NewGauge(`vm_promscrape_config_last_reload_successful`, nil)
 	configTimestamp    = configMetricsSet.NewCounter(`vm_promscrape_config_last_reload_success_timestamp_seconds`)
+
+	// scrapeConfigsInvalid tracks scrape_config entries dropped during the
+	// most recent successful reload because getScrapeWorkConfig() couldn't
+	// build them (e.g. an unsupported relabel_config regex). Such entries
+	// are silently excluded from ScrapeConfigs, so without this gauge a
+	// misconfigured job simply vanishes - it isn't even shown as a "down"
+	// target - and any alerting based on scrape target availability never
+	// fires. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8426
+	scrapeConfigsInvalid = configMetricsSet.NewGauge(`vm_promscrape_scrape_configs_invalid`, nil)
 )
 
 type scrapeConfigs struct {
