@@ -139,7 +139,7 @@ curl http://vmauth-node:8427/api/v1/query?query=up
 curl http://vmauth-node:8427/select/0/prometheus/api/v1/query?query=up
 ```
 
-For an example of this topology in Kubernetes, see the [`VMDistributed` resource](https://docs.victoriametrics.com/helm/victoriametrics-k8s-stack/index.html#vmdistributed-enabled).
+For an example of this topology in Kubernetes, see the [`VMDistributed` resource](https://docs.victoriametrics.com/helm/victoriametrics-k8s-stack/#vmdistributed-enabled).
 
 ### Multi-level vmselect
 
@@ -156,7 +156,7 @@ This option is useful when direct access to vmstorage nodes is not practical or 
 
 To enable this setup, each Ground Control regional vmselect must listen for requests from the top layer by setting the `-clusternativeListenAddr` flag. The top-level vmselect must then use `-storageNode` to point to the regional vmselect nodes and must set a [deduplication](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#deduplication) interval to handle duplicated data.
 
-For example, here's how we can run the local and top-level vmselect nodes:
+For example, here's how we can run the local cluster vmselect nodes and a top-level vmselect node:
 
 ```sh
 # Ground Control 1 cluster vmselect
