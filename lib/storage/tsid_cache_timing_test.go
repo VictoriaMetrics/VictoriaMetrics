@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"encoding/binary"
 	"fmt"
 	"strings"
 	"testing"
@@ -106,64 +105,6 @@ func BenchmarkTSIDCacheGetPut(b *testing.B) {
 			})
 		}
 	}
-}
-
-const tsidCacheBudget = 32 << 20
-
-// BenchmarkTSIDCacheDensity reports how many entries fit into a tsid cache of a
-// fixed size in both key modes, so higher is better.
-//
-// Entries are counted instead of the cache size per entry, because
-// vm_cache_size_bytes sums the capacity of the allocated 64KiB chunks over 512
-// buckets and cannot resolve per-entry differences of a few bytes.
-//
-// The count includes keys held in both cache generations twice, so it is only
-// comparable between the modes, not an absolute number of series.
-func BenchmarkTSIDCacheDensity(b *testing.B) {
-	for _, mode := range []string{tsidCacheKeyModeMetricName, tsidCacheKeyModeFingerprint} {
-		for _, nameSize := range metricNameSizes {
-			metricNameLen := len(buildRowsWithNameSize(1, nameSize)[0].MetricNameRaw)
-			b.Run(fmt.Sprintf("%s/nameSize=%d", mode, metricNameLen), func(b *testing.B) {
-				restore := setTSIDCacheKeyModeForBench(mode)
-				defer restore()
-
-				prevMax := maxTSIDCacheSize
-				SetTSIDCacheSize(tsidCacheBudget)
-				defer SetTSIDCacheSize(prevMax)
-
-				for i := 0; i < b.N; i++ {
-					b.ReportMetric(fillTSIDCache(b, nameSize), "entries")
-				}
-			})
-		}
-	}
-}
-
-// fillTSIDCache stores distinct metric names of nameSize bytes in a tsid cache
-// limited to tsidCacheBudget and returns the number of resident entries.
-func fillTSIDCache(b *testing.B, nameSize int) float64 {
-	b.Helper()
-	s := MustOpenStorage(b.TempDir(), OpenOptions{})
-	defer s.MustClose()
-
-	// The metric name is regenerated in place for every entry, so that the test
-	// data itself does not dominate the measured memory.
-	metricNameRaw := buildRowsWithNameSize(1, nameSize)[0].MetricNameRaw
-	lTSID := legacyTSID{TSID: TSID{MetricID: 42}}
-
-	// Store more entries than fit, so that the cache starts evicting.
-	entries := 4 * tsidCacheBudget / (16 + 24 + 4)
-	for i := 0; i < entries; i++ {
-		binary.LittleEndian.PutUint64(metricNameRaw[len(metricNameRaw)-8:], uint64(i))
-		s.putTSIDByMetricNameToCache(&lTSID, metricNameRaw)
-	}
-
-	var m Metrics
-	s.UpdateMetrics(&m)
-	if m.TSIDCacheSize == 0 {
-		b.Fatalf("empty tsid cache after storing %d entries", entries)
-	}
-	return float64(m.TSIDCacheSize)
 }
 
 // setTSIDCacheKeyModeForBench sets the package-global key mode and returns a
