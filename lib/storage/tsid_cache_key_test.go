@@ -60,13 +60,10 @@ func TestMarshalTSIDCacheKey(t *testing.T) {
 	raw := []byte("fixed test input")
 
 	var kb [16]byte
-	key, verifier := marshalTSIDCacheKey(&kb, raw)
+	key := marshalTSIDCacheKey(&kb, raw)
 
-	if got, want := hex.EncodeToString(key), "aed986b1d00ace49de381a574550dd76"; got != want {
+	if got, want := hex.EncodeToString(key), "aed986b1d00ace49d6d9e0b08c9c6303"; got != want {
 		t.Fatalf("unexpected key: got %s, want %s", got, want)
-	}
-	if got, want := verifier, uint64(8792092503232340279); got != want {
-		t.Fatalf("unexpected verifier: got %d, want %d", got, want)
 	}
 }
 
@@ -97,18 +94,14 @@ func TestTSIDCacheGetPut(t *testing.T) {
 					}
 					ids[lTSID.TSID.MetricID] = i
 				}
-
-				var m Metrics
-				s.UpdateMetrics(&m)
-				if m.TSIDCacheVerifierMisses != 0 {
-					t.Fatalf("unexpected verifier mismatches: %d", m.TSIDCacheVerifierMisses)
-				}
 			})
 		})
 	}
 }
 
-func TestTSIDCacheVerifierMismatch(t *testing.T) {
+// TestTSIDCacheFingerprintRoundtrip checks that an entry written under the
+// fingerprint key is read back through the same key.
+func TestTSIDCacheFingerprintRoundtrip(t *testing.T) {
 	withTSIDCacheKeyMode(t, tsidCacheKeyModeFingerprint, func() {
 		s := MustOpenStorage(t.TempDir(), OpenOptions{})
 		defer s.MustClose()
@@ -117,38 +110,30 @@ func TestTSIDCacheVerifierMismatch(t *testing.T) {
 			{Name: "__name__", Value: "some_series"},
 			{Name: "job", Value: "api"},
 		})
-		var kb [16]byte
-		key, verifier := marshalTSIDCacheKey(&kb, raw)
-
-		// An entry with the expected key but an unexpected verifier must be
-		// rejected as a cache miss and counted.
-		mismatching := fingerprintTSID{
-			TSID:     TSID{MetricID: 123456},
-			verifier: verifier + 1,
-		}
-		s.tsidCache.Set(key, fingerprintTSIDBytes(&mismatching))
 
 		var lTSID legacyTSID
 		if s.getTSIDByMetricNameFromCache(&lTSID, raw) {
-			t.Fatalf("entry with an unexpected verifier must be rejected")
-		}
-		var m Metrics
-		s.UpdateMetrics(&m)
-		if m.TSIDCacheVerifierMisses != 1 {
-			t.Fatalf("unexpected number of verifier mismatches: got %d, want 1", m.TSIDCacheVerifierMisses)
+			t.Fatalf("unexpected cache hit for a metric name which wasn't cached")
 		}
 
-		// An entry with the expected verifier must be accepted.
-		matching := fingerprintTSID{
-			TSID:     TSID{MetricID: 123456},
-			verifier: verifier,
-		}
-		s.tsidCache.Set(key, fingerprintTSIDBytes(&matching))
+		stored := legacyTSID{TSID: TSID{MetricID: 123456}}
+		s.putTSIDByMetricNameToCache(&stored, raw)
+
+		lTSID = legacyTSID{}
 		if !s.getTSIDByMetricNameFromCache(&lTSID, raw) {
-			t.Fatalf("entry with the expected verifier must be accepted")
+			t.Fatalf("the cached metric name must be found")
 		}
 		if lTSID.TSID.MetricID != 123456 {
 			t.Fatalf("unexpected MetricID: got %d, want 123456", lTSID.TSID.MetricID)
+		}
+
+		// A different metric name must not resolve to the cached entry.
+		other := MarshalMetricNameRaw(nil, []prompb.Label{
+			{Name: "__name__", Value: "other_series"},
+			{Name: "job", Value: "api"},
+		})
+		if s.getTSIDByMetricNameFromCache(&lTSID, other) {
+			t.Fatalf("unexpected cache hit for a different metric name")
 		}
 	})
 }
@@ -181,7 +166,7 @@ func TestTSIDCacheFingerprintPersistence(t *testing.T) {
 			t.Fatalf("fingerprint mode must not write the metricName cache at %s", mnPath)
 		}
 
-		// Reopening must decode the persisted fingerprintTSID values.
+		// Reopening must decode the persisted TSID values.
 		s = MustOpenStorage(dir, OpenOptions{})
 		defer s.MustClose()
 		for i := range mrs {
@@ -192,11 +177,6 @@ func TestTSIDCacheFingerprintPersistence(t *testing.T) {
 				t.Fatalf("series %d has unexpected MetricID after restart: got %d, want %d",
 					i, lTSID.TSID.MetricID, want)
 			}
-		}
-		var m Metrics
-		s.UpdateMetrics(&m)
-		if m.TSIDCacheVerifierMisses != 0 {
-			t.Fatalf("unexpected verifier mismatches after restart: %d", m.TSIDCacheVerifierMisses)
 		}
 	})
 }
@@ -254,9 +234,6 @@ func TestTSIDCacheKeyModeSwitch(t *testing.T) {
 						t.Fatalf("series %d MetricID changed across the mode switch: got %d, want %d",
 							i, lTSID.TSID.MetricID, want)
 					}
-				}
-				if mAfter.TSIDCacheVerifierMisses != 0 {
-					t.Fatalf("unexpected verifier mismatches after the mode switch: %d", mAfter.TSIDCacheVerifierMisses)
 				}
 			})
 		})

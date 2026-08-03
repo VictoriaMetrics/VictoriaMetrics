@@ -2,13 +2,14 @@ package storage
 
 import (
 	"encoding/binary"
+	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/cespare/xxhash/v2"
 )
 
 // Key modes for the storage/tsid cache: the metric name itself, or a fixed-size
-// fingerprint of it plus a verifier stored in the cached value.
+// 128-bit fingerprint of it.
 const (
 	tsidCacheKeyModeMetricName  = "metricName"
 	tsidCacheKeyModeFingerprint = "fingerprint"
@@ -21,12 +22,8 @@ const (
 // maxTSIDCacheSize).
 var tsidCacheFingerprintKey = false
 
-// Domain-separation suffixes for the second and the third xxHash64 output.
-// The byte values are arbitrary; they only need to be distinct and stable.
-var (
-	tsidFPLane1Sep = [1]byte{0xF3}
-	tsidFPLane2Sep = [1]byte{0xF4}
-)
+// magicSuffixForHash separates the two xxHash64 outputs of the fingerprint.
+var magicSuffixForHash = []byte("magic!")
 
 // SetTSIDCacheKeyMode selects the key mode for the storage/tsid cache.
 //
@@ -54,20 +51,36 @@ func tsidCacheFilenameForMode() string {
 	return tsidCacheFilename
 }
 
-// marshalTSIDCacheKey returns a 128-bit fingerprint and a 64-bit verifier for
-// metricNameRaw using domain-separated xxHash64 outputs.
+// marshalTSIDCacheKey writes a 128-bit fingerprint of metricNameRaw into kb and
+// returns it. It mirrors VictoriaLogs lib/logstorage.hash128 and accepts the
+// possibility of a theoretical hash collision.
 //
-// The fingerprint is written into the caller-provided kb to avoid allocations.
-func marshalTSIDCacheKey(kb *[16]byte, metricNameRaw []byte) (key []byte, verifier uint64) {
-	var d xxhash.Digest
-	d.Reset()
-	_, _ = d.Write(metricNameRaw)
-	h0 := d.Sum64()
-	_, _ = d.Write(tsidFPLane1Sep[:])
-	h1 := d.Sum64()
-	_, _ = d.Write(tsidFPLane2Sep[:])
-	h2 := d.Sum64()
-	binary.LittleEndian.PutUint64(kb[0:8], h0)
-	binary.LittleEndian.PutUint64(kb[8:16], h1)
-	return kb[:], h2
+// Changing the derivation or the cached value format requires bumping
+// tsidCacheFPFilename.
+func marshalTSIDCacheKey(kb *[16]byte, metricNameRaw []byte) []byte {
+	h := getHasher()
+	_, _ = h.Write(metricNameRaw)
+	hi := h.Sum64()
+	_, _ = h.Write(magicSuffixForHash)
+	lo := h.Sum64()
+	putHasher(h)
+
+	binary.LittleEndian.PutUint64(kb[0:8], hi)
+	binary.LittleEndian.PutUint64(kb[8:16], lo)
+	return kb[:]
 }
+
+func getHasher() *xxhash.Digest {
+	v := hasherPool.Get()
+	if v == nil {
+		return xxhash.New()
+	}
+	return v.(*xxhash.Digest)
+}
+
+func putHasher(h *xxhash.Digest) {
+	h.Reset()
+	hasherPool.Put(h)
+}
+
+var hasherPool sync.Pool

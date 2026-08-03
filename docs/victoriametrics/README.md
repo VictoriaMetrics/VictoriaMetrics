@@ -2341,19 +2341,13 @@ grows with the number of active series and with the number and the length of the
 series.
 
 Setting `-storage.tsidCacheKeyMode=fingerprint` {{% available_from "#" %}} keys the cache entries by a
-fixed-size 128-bit fingerprint of the metric name instead, and stores a 64-bit verifier next to the
-cached value. The benefit is bigger for metric names containing many or long labels, since the key size
-no longer depends on them.
+fixed-size 128-bit fingerprint of the metric name instead. The benefit is bigger for metric names
+containing many or long labels, since the key size no longer depends on them.
 
 This mode is **experimental** and is disabled by default. Keep the following in mind before enabling it:
 
-* A cache entry is accepted only when both the fingerprint key and verifier match. A verifier mismatch
-  is treated as a cache miss and the metric name is resolved through `indexdb`. If two metric names share
-  the same fingerprint key but have different verifiers, they compete for the same cache entry. This causes
-  repeated verifier mismatches and `indexdb` lookups.
-* Verifier mismatches are exported as `vm_cache_verifier_mismatches_total{type="storage/tsid"}`.
-  As with any fixed-size fingerprint, a collision of both the key and verifier remains theoretically
-  possible.
+* This mode introduces theoretical possibility of hash collisions. Two distinct metric names whose 128-bit fingerprints collide are mapped onto the same cache
+  entry, and both resolve to the same internal series id for as long as that entry stays cached. Enable this mode only if that trade-off is acceptable.
 * Each mode uses its own cache file, so switching the mode starts with a cold `storage/tsid` cache for
   that mode, which leads to a temporary increase in `indexdb` lookups until the cache warms up.
 * The smaller key lets the same cache size limit hold more entries, which increases the Go heap memory

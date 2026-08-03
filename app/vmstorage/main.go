@@ -85,7 +85,7 @@ var (
 		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning")
 	tsidCacheKeyMode = flag.String("storage.tsidCacheKeyMode", "metricName", "EXPERIMENTAL: controls the key format for the "+
 		"storage/tsid cache. The default 'metricName' mode uses the full metric name with labels. The 'fingerprint' mode uses a "+
-		"fixed-size hash with an additional verifier, which can reduce cache memory usage for series with many or long labels. "+
+		"fixed-size 128-bit hash, which can reduce cache memory usage for series with many or long labels. "+
 		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning")
 	cacheSizeStorageMetricName = flagutil.NewBytes("storage.cacheSizeStorageMetricName", 0, "Overrides max size for storage/metricName cache. "+
 		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning")
@@ -606,9 +606,6 @@ func (vms *VMStorage) writeStorageMetrics(w io.Writer) {
 
 	metrics.WriteCounterUint64(w, `vm_cache_collisions_total{type="storage/tsid"}`, m.TSIDCacheCollisions)
 	metrics.WriteCounterUint64(w, `vm_cache_collisions_total{type="storage/metricName"}`, m.MetricNameCacheCollisions)
-	// Counts fingerprint cache entries rejected because the stored verifier
-	// didn't match. It is only updated when -storage.tsidCacheKeyMode=fingerprint.
-	metrics.WriteCounterUint64(w, `vm_cache_verifier_mismatches_total{type="storage/tsid"}`, m.TSIDCacheVerifierMisses)
 
 	metrics.WriteCounterUint64(w, `vm_cache_syncs_total{type="indexdb/metricID"}`, idbm.MetricIDCacheSyncsCount)
 	metrics.WriteCounterUint64(w, `vm_cache_syncs_total{type="indexdb/date_metricID"}`, idbm.DateMetricIDCacheSyncsCount)
