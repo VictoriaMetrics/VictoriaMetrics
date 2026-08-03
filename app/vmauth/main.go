@@ -913,6 +913,7 @@ func slowdownUnauthorizedResponse(r *http.Request) {
 	timerpool.Put(t)
 }
 
+// initSecretFlags manages the secret flags for this app and must be called after flag parsing and before logger init.
 func initSecretFlags() {
 	pushmetrics.InitSecretFlags()
 }

@@ -189,7 +189,7 @@ func Init(extLabels map[string]string, extURL string) error {
 	return nil
 }
 
-// InitSecretFlags must be called after flag.Parse and before any logging
+// InitSecretFlags manages the secret flags for this pkg and must be called by app-level initSecretFlags.
 func InitSecretFlags() {
 	if !*showNotifierURL {
 		flagutil.RegisterSecretFlag("notifier.url")

@@ -844,6 +844,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
 	flagutil.Usage(s)
 }
 
+// initSecretFlags manages the secret flags for this app and must be called after flag parsing and before logger init.
 func initSecretFlags() {
 	remotewrite.InitSecretFlags()
 	pushmetrics.InitSecretFlags()

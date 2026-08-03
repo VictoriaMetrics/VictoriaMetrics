@@ -62,6 +62,7 @@ func Init(vmselectMaxConcurrentRequests int, vmselectMaxQueueDuration time.Durat
 
 }
 
+// InitSecretFlags manages the secret flags for this pkg and must be called by app-level initSecretFlags.
 func InitSecretFlags() {
 	flagutil.RegisterSecretFlag("vmalert.proxyURL")
 }

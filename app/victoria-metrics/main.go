@@ -172,6 +172,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/
 	flagutil.Usage(s)
 }
 
+// initSecretFlags manages the secret flags for this app and must be called after flag parsing and before logger init.
 func initSecretFlags() {
 	pushmetrics.InitSecretFlags()
 	vmselect.InitSecretFlags()

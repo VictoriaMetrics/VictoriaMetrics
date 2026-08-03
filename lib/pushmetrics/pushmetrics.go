@@ -24,6 +24,7 @@ var (
 	disableCompression = flag.Bool("pushmetrics.disableCompression", false, "Whether to disable request body compression when pushing metrics to every -pushmetrics.url")
 )
 
+// InitSecretFlags manages the secret flags for this pkg and must be called by app-level initSecretFlags.
 func InitSecretFlags() {
 	// The -pushmetrics.url flag can contain basic auth creds, so it mustn't be visible when exposing the flags.
 	flagutil.RegisterSecretFlag("pushmetrics.url")

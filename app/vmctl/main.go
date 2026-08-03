@@ -621,6 +621,7 @@ func initConfigVM(c *cli.Context) (vm.Config, error) {
 	}, nil
 }
 
+// initSecretFlags manages the secret flags for this app and must be called after flag parsing and before logger init.
 func initSecretFlags() {
 	pushmetrics.InitSecretFlags()
 }

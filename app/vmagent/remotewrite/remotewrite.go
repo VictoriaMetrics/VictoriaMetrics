@@ -151,7 +151,7 @@ var maxQueues = cgroup.AvailableCPUs() * 16
 
 const persistentQueueDirname = "persistent-queue"
 
-// InitSecretFlags must be called after flag.Parse and before any logging.
+// InitSecretFlags manages the secret flags for this pkg and must be called by app-level initSecretFlags.
 func InitSecretFlags() {
 	if !*showRemoteWriteURL {
 		// remoteWrite.url can contain authentication codes, so hide it at `/metrics` output.

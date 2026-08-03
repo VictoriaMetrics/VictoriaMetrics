@@ -114,6 +114,7 @@ func newSrcFS(ctx context.Context) (common.RemoteFS, error) {
 	return fs, nil
 }
 
+// initSecretFlags manages the secret flags for this app and must be called after flag parsing and before logger init.
 func initSecretFlags() {
 	pushmetrics.InitSecretFlags()
 }
