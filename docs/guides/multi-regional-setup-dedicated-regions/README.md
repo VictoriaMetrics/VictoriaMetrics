@@ -23,30 +23,26 @@ The trade-off is that you store and send the same data twice, so storage and com
 
 ## Architecture
 
-The example architecture separates workloads into three regions, called Earth, Mars, and Venus. These represent the systems you want to monitor (e.g., your applications or your infrastructure). For monitoring there are two separate regions, Ground Control 1 and 2, each running its own VictoriaMetrics deployment. The workload regions (the planets) run a local vmagent that forwards the same metrics to the two dedicated Ground Control regions.
+The example architecture separates workloads into three regions, called Earth, Mars, and Venus. These represent the systems you want to monitor (e.g., your applications or your infrastructure). For monitoring, there are two separate regions, Ground Control 1 and 2, each running its own VictoriaMetrics deployment. The workload regions (the planets) run a local vmagent that forwards the same metrics to the two dedicated Ground Control regions.
 
 ![Multi-regional setup with VictoriaMetrics: Dedicated regions for monitoring](setup-1.webp)
 {width="700"}
 
-The role of the Ground Controls can be filled by VictoriaMetrics in [single-node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) or [cluster mode](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/). Since vmagent keeps a separate queue for each remote-write destination, an outage in one Ground Control region does not block delivery to the other.
+The role of the Ground Controls can be filled by VictoriaMetrics in [single-node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) or [cluster mode](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/).
 
 ### High Availability
 
 The architecture provides high availability by storing two full copies of the data: one in Ground Control 1 and the other in Ground Control 2. Since both store the same data, losing one region doesn't result in a monitoring outage. You can still run queries, view dashboards, and receive alerts.
 
-Note that you do not need to use the VictoriaMetrics cluster `-replicationFactor` flag for this cross-region setup, as high availability comes from vmagent replicating writes to independent monitoring regions.
+vmagent keeps a separate persistent queue for each `-remoteWrite.url` destination. If one Ground Control region is unavailable, vmagent continues sending data to the other region. The samples for the unavailable region stay in the queue, and vmagent delivers them after the region recovers. This helps restore consistency across both regions.
+
+This setup provides two logical copies of the data in separate monitoring regions. That lets you fail over to the healthy region if one region becomes unavailable, or spread read load across both regions if needed.
 
 ## How to write the data to Ground Control regions
 
-Run a local vmagent in each workload region (Earth, Mars, Venus) and point it to the Ground Control URLs using the `-remoteWrite.url` flag. For example:
+Run one or more vmagent nodes in each workload region and configure them to send metrics to both Ground Control regions. This gives each workload region a local write path and keeps delivery going if one monitoring region is unavailable. 
 
-```sh
-/path/to/vmagent-prod \
-  -remoteWrite.url=https://<ground-control-1-remote-write> \
-  -remoteWrite.url=https://<ground-control-2-remote-write>
-```
-
-For single-node VictoriaMetrics the URLs follow this pattern:
+For example, a vmagent that sends data to two single-node VictoriaMetrics instances looks like this:
 
 ```sh
 /path/to/vmagent-prod \
@@ -54,24 +50,14 @@ For single-node VictoriaMetrics the URLs follow this pattern:
   -remoteWrite.url=https://ground-control-2:8428/api/v1/write
 ```
 
-For a VictoriaMetrics cluster, we use the following URL pattern (assuming [accountID](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) is 0):
+For a VictoriaMetrics cluster, use the following URLs for [`accountID=0`](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy)
 
 ```sh
 /path/to/vmagent-prod \
   -remoteWrite.url=https://ground-control-1-vminsert:8480/insert/0/prometheus/api/v1/write \
   -remoteWrite.url=https://ground-control-2-vminsert:8480/insert/0/prometheus/api/v1/write
 ```
-
-If you scrape Prometheus-compatible targets in your workloads, also pass a `-promscrape.config` file so vmagent knows what to scrape before it forwards the data.
-
-```sh
-/path/to/vmagent-prod \
-  -promscrape.config=/path/to/scrape.yaml \
-  -remoteWrite.url=https://<ground-control-1-remote-write> \
-  -remoteWrite.url=https://<ground-control-2-remote-write>
-```
-
-For more details, see the [vmagent quickstart guide](https://docs.victoriametrics.com/victoriametrics/vmagent/#quick-start)
+For more details, see [data ingestion with vmagent](https://docs.victoriametrics.com/victoriametrics/data-ingestion/vmagent/).
 
 ## How to read the data from Ground Control regions
 
@@ -79,7 +65,6 @@ You can read data from Ground Control regions in a few different ways. The best 
 
 * Regional endpoints: use one region endpoint as default and manually switch to the other during an outage. This is the simplest option but needs manual failover.
 * Load balancer: put a load balancer in front of both Ground Control regions. Route traffic to a preferred region, with automatic failover to the other region in case of failure.
-* Global vmselect: wire vmselect directly to the vmstorage nodes for both Ground Control regions (which must run in cluster mode).
 * Multi-level vmselect: run a dedicated vmselect on top of the Ground Control local vmselect nodes. This setup also requires both Ground Control instances to run in cluster mode.
 
 You can read more about choosing the right architecture in the [VictoriaMetrics topologies guide](https://docs.victoriametrics.com/guides/vm-architectures/).
@@ -88,7 +73,7 @@ You can read more about choosing the right architecture in the [VictoriaMetrics 
 
 In this setup, Grafana, vmalert, or any other query client sends requests to one region. This is the default datasource. In case of an outage, you manually switch to the other region (standby datasource). For instance, use Ground Control 1 as the primary datasource and keep Ground Control 2 as a standby endpoint.
 
-![Diagram shows two Ground Control regions. Grafana connects to one by default leaving the other as failover](regional-endpoints.webp)
+![Diagram shows two Ground Control regions. Grafana connects to one by default, leaving the other as a failover](regional-endpoints.webp)
 {width="700"}
 
 Choose this option if you prioritize operational simplicity over automatic failover or a unified global query endpoint.
@@ -105,12 +90,18 @@ On the VictoriaMetrics cluster, the endpoints point to the cluster's vmselect HT
 
 ### Load balancer
 
-Use a load balancer when you want one stable query endpoint in front of your Ground Control regions. In this setup, dashboards and tools send queries to a single URL, and the load balancer routes them to the first available region. If that region becomes unavailable, the load balancer fails over to the next available region.
+Use a load balancer when you want one stable query endpoint in front of your Ground Control regions. In this setup, dashboards and tools send queries to a single URL, and vmauth routes each request to one available region.
+
+The following diagram shows [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) performing the role of load balancer.
 
 ![Diagram shows vmauth between Grafana and Ground Control regions](load-balancer-vmauth.webp)
 {width="700"}
 
-This option provides a single endpoint for queries. You can use [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) as a load balancer. For VictoriaMetrics single node, you can run it with the following configuration:
+This approach is faster than merging results from multiple regions, because each query goes to only one region. It can also reduce query latency by roughly half compared with a topology that reads and merges data from both regions.
+
+The main downside is that vmauth does not know whether a recovered region has already finished replaying delayed data from the vmagent queue. If you send queries to that region too early, recent data may still be incomplete. In that case, it is better to wait until the region catches up before routing traffic there.
+
+For VictoriaMetrics single node, you can vmauth it with the following configuration:
 
 ```yaml
 unauthorized_user:
@@ -148,32 +139,13 @@ curl http://vmauth-node:8427/api/v1/query?query=up
 curl http://vmauth-node:8427/select/0/prometheus/api/v1/query?query=up
 ```
 
-### Global vmselect
-
-> This option requires a [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) for the role of Ground Control.
-
-You can use a global [vmselect](https://docs.victoriametrics.com/victoriametrics/quick-start/#installing-vmselect) when each Ground Control region runs a VictoriaMetrics cluster. In this setup, you run a global vmselect node that connects directly to the storage nodes in both Ground Control regions.
-
-![Diagram showing a vmselect node connecting to the vmstorage nodes in each ground control region. The global vmselect serves Grafana](global-vmselect.webp)
-{width="700"}
-
-Since the samples are duplicated across Ground Control regions, you must enable [deduplication](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#deduplication) on the global vmselect. You must set `-dedup.minScrapeInterval=1ms` at a minimum or to the same value as the scrape interval if there is one.
-
-For example:
-
-```sh
-/path/to/vmselect-prod \
-  -storageNode=ground-control-1-vmstorage-1:8401,ground-control-1-vmstorage-2:8401,ground-control-2-vmstorage-1:8401,ground-control-2-vmstorage-2:8401 \
-  -dedup.minScrapeInterval=1ms
-```
-
-This option supports [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) and gives you a single query endpoint for all Ground Control regions. It can also continue to serve data during an outage of one Ground Control region.
-
-The downside is query behavior during region failures or high latency. The global vmselect waits for responses from all storage nodes across regions, so a slow or unavailable backend can slow queries or lead to [partial responses](https://docs.victoriametrics.com/guides/vm-architectures/#query-consistency-partial-vs-complete-responses).
+For an example of this topology in Kubernetes, see the [`VMDistributed` resource](https://docs.victoriametrics.com/helm/victoriametrics-k8s-stack/index.html#vmdistributed-enabled).
 
 ### Multi-level vmselect
 
-> This option requires a [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) for the role of Ground Control.
+> This option requires that Ground Control regions are deployed in one of these modes:
+> - As a [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/).
+> - Or as VictoriaMetrics [single-node with multitenant support enabled](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#multi-tenancy). In other words, VictoriaMetrics should be started with the optional `-vmselectAddr=:8401` command line flag to enable the vmselect RPC server.
 
 In this setup, each Ground Control region has its own local vmselect. A top-level vmselect queries these instead of connecting directly to vmstorage nodes.
 
@@ -200,12 +172,13 @@ For example, here's how we can run the local and top-level vmselect nodes:
 # Top-level vmselect
 /path/to/vmselect-prod \
   -storageNode=ground-control-1-vmselect:8401,ground-control-2-vmselect:8401 \
-  -dedup.minScrapeInterval=1ms
+  -dedup.minScrapeInterval=1ms \
+  -replicationFactor=2
 ```
 
-This option supports MetricsQL and can keep serving queries during a regional outage because the top-level vmselect can still query the remaining Ground Control vmselect node. It also gives you a cleaner separation between regional and top-level query layers than a single global vmselect that talks to all vmstorage nodes directly.
+This option provides a single query endpoint for both Ground Control regions. If one region becomes unavailable, the global vmselect can still query the healthy region, so dashboards and queries can continue to work.
 
-The main trade-off is complexity. You add another query layer and more moving parts, so this setup is harder to deploy and operate than regional endpoints, a load balancer, or global vmselect.
+The main trade-off is performance. In a two-level vmselect topology, queries pass through two query layers, so they usually take longer than using regional endpoints directly, or through a load balancer. The benefit is that the topology is easy to understand; it keeps working if one region is lost, and it can merge data from both regions while one region is still catching up after recovery.
 
 ## Alerting
 
