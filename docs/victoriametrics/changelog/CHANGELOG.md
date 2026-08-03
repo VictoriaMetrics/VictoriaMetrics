@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules): update `RequestErrorsToAPI` alerting rule and add `RequestErrorsToUnknownPaths` to [cluster alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-cluster.yml). The new rule notifies when authentication fails or unknown paths are requested. Previously both cases were treated as errors to the API.
+
 ## [v1.149.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.149.0)
 
 Release candidate
