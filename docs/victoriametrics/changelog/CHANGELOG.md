@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/): reduce CPU usage when matching relabeling rules with multiple `if` expressions containing exact metric names. Expressions for other metric names are now skipped before evaluating their remaining label filters.
+
 ## [v1.149.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.149.0)
 
 Release candidate
