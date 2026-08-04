@@ -412,7 +412,7 @@ func (c *Cache) selectCacheToSave() (*fastcache.Cache, fastcache.Stats, string) 
 	// Prefer saving prev cache when:
 	// 1. 80% requests were missed in curr cache and served by prev cache.
 	// 2. the cache hit rate of prev cache is higher than 20%.
-	if csCurr.GetCalls < 10 || (float64(csPrev.GetCalls)/float64(csCurr.GetCalls) > minPrevCacheSaveRequestsRatio && prevHitRate > (1-minPrevCacheSaveRequestsRatio)) {
+	if csCurr.GetCalls < 10 || (float64(csCurr.Misses)/float64(csCurr.GetCalls) > minPrevCacheSaveRequestsRatio && prevHitRate > (1-minPrevCacheSaveRequestsRatio)) {
 		return prev, csPrev, "prev"
 	}
 	return curr, csCurr, "curr"
