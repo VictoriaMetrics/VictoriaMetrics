@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): change the HTTP response code for Prometheus querying API requests from `422 Unprocessable Entity` to `400 Bad Request` when request parameters are missing or incorrect. See [#11330](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11330).
+
 ## [v1.149.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.149.0)
 
 Release candidate
