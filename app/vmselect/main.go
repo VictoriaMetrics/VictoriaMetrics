@@ -81,11 +81,10 @@ var (
 var slowQueries = metrics.NewCounter(`vm_slow_queries_total`)
 
 func getDefaultMaxConcurrentRequests() int {
-	// A single request can saturate all the CPU cores, so there is no sense
-	// in allowing higher number of concurrent requests - they will just contend
-	// for unavailable CPU time.
-	n := min(cgroup.AvailableCPUs()*2, 16)
-	return n
+	// Unlike single-node VictoriaMetrics, cluster vmselect doesn't share CPU
+	// with a local insert path. Scale the default with available CPUs to match
+	// other cluster request limits, such as vmstorage's -search.maxConcurrentRequests.
+	return cgroup.AvailableCPUs() * 2
 }
 
 //go:embed static
