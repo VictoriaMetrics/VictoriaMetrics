@@ -201,7 +201,7 @@ func TestMustSaveSelectsCacheInSplitMode(t *testing.T) {
 	t.Run("prefers prev cache when prev is still useful", func(t *testing.T) {
 		cachePath := filepath.Join(t.TempDir(), "cache")
 		synctest.Test(t, func(t *testing.T) {
-			const keysCount = 9
+			const keysCount = 10
 			var (
 				v   = []byte("v")
 				dst []byte
