@@ -30,6 +30,12 @@ const (
 	modeWhole     = 2
 )
 
+const (
+	// minPrevCacheSaveRequestsRatio is the minimum ratio of prev cache Get calls
+	// to curr cache Get calls for saving prev instead of curr during split mode.
+	minPrevCacheSaveRequestsRatio = 0.8
+)
+
 // Cache is a cache for working set entries.
 //
 // The cache evicts inactive entries after the given expireDuration.
@@ -363,19 +369,53 @@ func (c *Cache) transitIntoWholeModeLocked(maxBytesSize uint64, t *time.Ticker) 
 func (c *Cache) MustSave(filePath string) {
 	startTime := time.Now()
 
-	var cs fastcache.Stats
-	curr := c.curr.Load()
-	curr.UpdateStats(&cs)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	cacheToSave, cs, cacheName := c.selectCacheToSave()
 
 	concurrency := cgroup.AvailableCPUs()
 
-	logger.Infof("saving cache to %s by using %d concurrent workers", filePath, concurrency)
-	err := curr.SaveToFileConcurrent(filePath, concurrency)
+	logger.Infof("saving %s cache to %s by using %d concurrent workers", cacheName, filePath, concurrency)
+	err := cacheToSave.SaveToFileConcurrent(filePath, concurrency)
 	if err != nil {
 		logger.Panicf("FATAL: cannot save cache to %s: %s", filePath, err)
 	}
 
 	logger.Infof("cache has been successfully saved to %s in %.3f seconds; entriesCount: %d, sizeBytes: %d", filePath, time.Since(startTime).Seconds(), cs.EntriesCount, cs.BytesSize)
+}
+
+func (c *Cache) selectCacheToSave() (*fastcache.Cache, fastcache.Stats, string) {
+	curr := c.curr.Load()
+
+	var csCurr fastcache.Stats
+	curr.UpdateStats(&csCurr)
+
+	if c.mode.Load() != modeSplit {
+		return curr, csCurr, "curr"
+	}
+
+	prev := c.prev.Load()
+
+	var csPrev fastcache.Stats
+	prev.UpdateStats(&csPrev)
+
+	if csPrev.EntriesCount == 0 || csPrev.GetCalls == 0 {
+		return curr, csCurr, "curr"
+	}
+	prevHits := csPrev.GetCalls - csPrev.Misses
+	if csPrev.Misses > csPrev.GetCalls {
+		prevHits = 0
+	}
+	prevHitRate := float64(prevHits) / float64(csPrev.GetCalls)
+
+	// Prefer saving prev cache when:
+	// 1. 80% requests were missed in curr cache and served by prev cache.
+	// 2. the cache hit rate of prev cache is higher than 20%.
+	if csCurr.GetCalls < 10 || (float64(csPrev.GetCalls)/float64(csCurr.GetCalls) > minPrevCacheSaveRequestsRatio && prevHitRate > (1-minPrevCacheSaveRequestsRatio)) {
+		return prev, csPrev, "prev"
+	}
+	return curr, csCurr, "curr"
 }
 
 // Stop stops the cache.
