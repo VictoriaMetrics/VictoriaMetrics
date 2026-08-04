@@ -31,9 +31,9 @@ const (
 )
 
 const (
-	// minPrevCacheSaveRequestsRatio is the minimum ratio of prev cache Get calls
-	// to curr cache Get calls for saving prev instead of curr during split mode.
-	minPrevCacheSaveRequestsRatio = 0.8
+	// minCurrCacheSaveMissRate is the minimum miss rate of curr cache
+	// for saving prev instead of curr during split mode.
+	minCurrCacheSaveMissRate = 0.8
 )
 
 // Cache is a cache for working set entries.
@@ -46,6 +46,10 @@ type Cache struct {
 
 	// csHistory holds cache stats history
 	csHistory fastcache.Stats
+
+	// prevStatsAtRotation holds prev cache stats at the moment it became prev from curr.
+	// It is used for calculating prev miss rate since the last cache rotation.
+	prevStatsAtRotation fastcache.Stats
 
 	// mode indicates whether to use only curr and skip prev.
 	//
@@ -151,6 +155,7 @@ func newCacheInternal(curr, prev *fastcache.Cache, mode, maxBytes int, expireDur
 	c.maxBytes = maxBytes
 	c.curr.Store(curr)
 	c.prev.Store(prev)
+	prev.UpdateStats(&c.prevStatsAtRotation)
 	c.stopCh = make(chan struct{})
 	c.mode.Store(uint32(mode))
 	c.runWatchers(expireDuration)
@@ -190,7 +195,7 @@ func (c *Cache) expirationWatcher(expireDuration time.Duration) {
 		prev := c.prev.Load()
 		curr := c.curr.Load()
 		c.updateCacheStatsHistoryBeforeRotationLocked(prev, curr)
-
+		c.storeCurrStatsBeforeRotationLocked(curr)
 		c.prev.Store(curr)
 		prev.Reset()
 		c.curr.Store(prev)
@@ -311,7 +316,7 @@ func (c *Cache) transitIntoWholeModeLocked(maxBytesSize uint64, t *time.Ticker) 
 	prev := c.prev.Load()
 	curr := c.curr.Load()
 	c.updateCacheStatsHistoryBeforeRotationLocked(prev, curr)
-
+	c.storeCurrStatsBeforeRotationLocked(curr)
 	c.prev.Store(curr)
 	prev.Reset()
 
@@ -362,6 +367,7 @@ func (c *Cache) transitIntoWholeModeLocked(maxBytesSize uint64, t *time.Ticker) 
 	c.updateCacheStatsHistoryBeforeRotationLocked(prev, curr)
 
 	c.prev.Store(newWithAutoCleanup(1024))
+	c.prevStatsAtRotation.Reset()
 	prev.Reset()
 }
 
@@ -403,16 +409,24 @@ func (c *Cache) selectCacheToSave() (*fastcache.Cache, fastcache.Stats, string) 
 	if csPrev.EntriesCount == 0 || csPrev.GetCalls == 0 {
 		return curr, csCurr, "curr"
 	}
-	prevHits := csPrev.GetCalls - csPrev.Misses
-	if csPrev.Misses > csPrev.GetCalls {
-		prevHits = 0
+
+	csPrevAtRotation := &c.prevStatsAtRotation
+	prevMissRateAfterRotation := float64(1)
+	if csPrev.GetCalls > csPrevAtRotation.GetCalls {
+		prevGetCallsAfterRotation := csPrev.GetCalls - csPrevAtRotation.GetCalls
+		prevMissesAfterRotation := uint64(0)
+		if csPrev.Misses > csPrevAtRotation.Misses {
+			prevMissesAfterRotation = csPrev.Misses - csPrevAtRotation.Misses
+		}
+		if prevMissesAfterRotation < prevGetCallsAfterRotation {
+			prevMissRateAfterRotation = float64(prevMissesAfterRotation) / float64(prevGetCallsAfterRotation)
+		}
 	}
-	prevHitRate := float64(prevHits) / float64(csPrev.GetCalls)
 
 	// Prefer saving prev cache when:
 	// 1. 80% requests were missed in curr cache and served by prev cache.
-	// 2. the cache hit rate of prev cache is higher than 20%.
-	if csCurr.GetCalls < 10 || (float64(csCurr.Misses)/float64(csCurr.GetCalls) > minPrevCacheSaveRequestsRatio && prevHitRate > (1-minPrevCacheSaveRequestsRatio)) {
+	// 2. less than 80% requests were missed in prev cache since the last rotation.
+	if csCurr.GetCalls < 10 || (float64(csCurr.Misses)/float64(csCurr.GetCalls) > minCurrCacheSaveMissRate && prevMissRateAfterRotation < minCurrCacheSaveMissRate) {
 		return prev, csPrev, "prev"
 	}
 	return curr, csCurr, "curr"
@@ -446,12 +460,18 @@ func (c *Cache) Reset() {
 		// so we have to restore it into original size for split mode
 		c.prev.Store(newWithAutoCleanup(c.maxBytes / 2))
 		c.curr.Store(newWithAutoCleanup(c.maxBytes / 2))
-
+		c.prevStatsAtRotation.Reset()
 		c.mode.Store(modeSplit)
 	}
 
 	prev.Reset()
 	curr.Reset()
+	c.prevStatsAtRotation.Reset()
+}
+
+func (c *Cache) storeCurrStatsBeforeRotationLocked(curr *fastcache.Cache) {
+	c.prevStatsAtRotation.Reset()
+	curr.UpdateStats(&c.prevStatsAtRotation)
 }
 
 // UpdateStats updates fcs with cache stats.

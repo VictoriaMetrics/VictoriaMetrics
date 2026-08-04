@@ -277,6 +277,50 @@ func TestMustSaveSelectsCacheInSplitMode(t *testing.T) {
 			}
 		})
 	})
+
+	t.Run("prefers curr cache when prev hits rate is low after rotation", func(t *testing.T) {
+		cachePath := filepath.Join(t.TempDir(), "cache")
+		synctest.Test(t, func(t *testing.T) {
+			const keysCount = 10
+			var (
+				prevKey = []byte("prev")
+				currKey = []byte("curr")
+				v       = []byte("v")
+				dst     []byte
+			)
+
+			c := Load(cachePath, 1024)
+			c.Set(prevKey, v)
+			// the curr cache hit all the requests.
+			for range keysCount {
+				dst = c.Get(dst[:0], prevKey)
+			}
+
+			// prev and curr were rotated, prevKey is now in prev, whose cache hit ratio is 100%.
+			time.Sleep(*cacheExpireDuration + time.Minute)
+			synctest.Wait()
+			assertMode(t, c, modeSplit)
+
+			c.Set(currKey, v)
+			// the prev cache miss all the requests after the rotation
+			for i := range keysCount {
+				newKey := []byte(fmt.Sprintf("new_%d", i))
+				dst = c.Get(dst[:0], newKey)
+			}
+
+			c.MustSave(cachePath)
+			c.Stop()
+
+			c = Load(cachePath, 1024)
+			defer c.Stop()
+			if got := c.Get(dst[:0], currKey); string(got) != string(v) {
+				t.Fatalf("unexpected value loaded from saved cache for key %q; got %q; want %q", currKey, got, v)
+			}
+			if got := c.Get(dst[:0], prevKey); len(got) != 0 {
+				t.Fatalf("unexpected prev value loaded from saved cache for key %q; got %q; want an empty value", prevKey, got)
+			}
+		})
+	})
 }
 
 func testSetGetStatsInSplitMode(t *testing.T, c *Cache) {
