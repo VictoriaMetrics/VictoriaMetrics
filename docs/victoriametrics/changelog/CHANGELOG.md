@@ -26,6 +26,10 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+## [v1.149.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.149.0)
+
+Release candidate
+
 **Update Note 1:** `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): the default value of `-disableRerouting` flag has changed from `true` to `false`, enabling [slowness-based re-routing](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#slowness-based-re-routing) by default. Slowness re-routing is automatically disabled when `-replicationFactor` is greater than 1. If you rely on the old behavior, pass `-disableRerouting` command-line flag to `vminsert`. See [#11287](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11287).
 
 **Update Note 2:** [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): the `/api/v1/admin/tsdb/delete_series`, `/tags/delSeries` endpoints now require `POST` method. Previously, it also accepted `GET` requests. If you use `GET` requests for this endpoint, update your scripts or tooling to use `POST` instead. See [#5552](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5552).

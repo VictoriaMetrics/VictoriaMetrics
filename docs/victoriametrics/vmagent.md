@@ -688,7 +688,7 @@ Extra labels can be added to metrics collected by `vmagent` via the following me
 ## Obfuscating label values
 
 `vmagent` can obfuscate the values of specified labels before sending metrics to `-remoteWrite.url`
-via `-remoteWrite.obfuscateLabels`{{% available_from "#" %}}.
+via `-remoteWrite.obfuscateLabels`{{% available_from "v1.149.0" %}}.
 
 This is useful when one or more `-remoteWrite.url` endpoints point to external monitoring services
 outside the organization, and sensitive label values such as `ip`, `host`, `instance`, or `datacenter`

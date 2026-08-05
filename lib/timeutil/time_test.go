@@ -92,6 +92,7 @@ func TestTryParseUnixTimestamp_Success(t *testing.T) {
 	f("1.23e1", 12_300_000_000)                 // == 12.3
 	f("1.234e0", 1_234_000_000)                 // == 1.234
 	f("1234567890123456789.0e0", 1234567890_123_456_789)
+
 }
 
 func TestTryParseUnixTimestamp_Failure(t *testing.T) {
