@@ -405,7 +405,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
   -remoteWrite.url string
      Optional URL to persist alerts state and recording rules results in form of timeseries. It must support either VictoriaMetrics remote write protocol or Prometheus remote_write protocol. Supports address in the form of IP address with a port (e.g., http://127.0.0.1:8428) or DNS SRV record. For example, if -remoteWrite.url=http://127.0.0.1:8428 is specified, then the alerts state will be written to http://127.0.0.1:8428/api/v1/write . See also -remoteWrite.disablePathAppend, '-remoteWrite.showURL'.
   -replay.continueWithExecutionErr
-     Whether to continue replaying other rules if a rule execution fails with a 422 response code, which can happen due to an expression syntax error or a resource limit being hit.
+     Whether to continue replaying other rules if a rule execution fails with a 400 or 422 response code, which can happen due to an expression syntax error or a resource limit being hit.
   -replay.disableProgressBar
      Whether to disable rendering progress bars during the replay. Progress bar rendering might be verbose or break the logs parsing, so it is recommended to be disabled when not used in interactive mode.
   -replay.maxDatapointsPerQuery int
