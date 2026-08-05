@@ -822,6 +822,9 @@ To proxy requests from [Grafana Alerting UI](https://grafana.com/docs/grafana/la
 on VictoriaMetrics [single-node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmalert)
 or [vmselect in cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#vmalert).
 
+If rules are split across multiple vmalert instances, then pass every vmalert url to `-vmalert.proxyURL` {{% available_from "#" %}} -
+in this case rules and alerts from all the configured instances are merged into a single response for Grafana.
+
 ###### vmui
 
 To access rules UI through [vmui](https://docs.victoriametrics.com/victoriametrics/#vmui) configure `-vmalert.proxyURL`

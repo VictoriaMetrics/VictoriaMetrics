@@ -2432,6 +2432,26 @@ when `-vmalert.proxyURL` flag is set. Use this feature for the following cases:
 For accessing vmalerts UI through single-node VictoriaMetrics configure `-vmalert.proxyURL` flag and visit
 `http://<victoriametrics-addr>:8428/vmalert/` link.
 
+`-vmalert.proxyURL` accepts multiple vmalert urls {{% available_from "#" %}}. This is useful when alerting and recording rules are split
+across multiple vmalert instances, e.g. a vmalert per team, and all of them must be visible in Grafana:
+
+```sh
+./victoria-metrics -vmalert.proxyURL=http://vmalert-team1:8880 -vmalert.proxyURL=http://vmalert-team2:8880
+```
+
+In this case responses to `/api/v1/rules` and `/api/v1/alerts` requests are fetched from all the configured
+vmalert instances and merged into a single response by concatenating `data.groups` and `data.alerts` lists.
+Query args are forwarded to every vmalert instance as is, so filters such as `type` or `match[]` are applied
+by every instance independently. This also applies to the `group_limit` and `page_num` args - they limit
+the number of returned groups per vmalert instance instead of the merged response.
+
+If some of the configured vmalert instances are unavailable, then the merged response contains data
+from the remaining healthy instances instead of failing the whole request. The number of unavailable instances
+is logged and is reported via the `warnings` field in the response.
+
+All the other requests, including vmalert web UI and `/api/v1/notifiers`, are proxied to the first url
+in the list, since their responses cannot be merged.
+
 ## Benchmarks
 
 Note, that vendors (including VictoriaMetrics) are often biased when doing such tests. E.g. they try highlighting
