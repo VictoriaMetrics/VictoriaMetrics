@@ -182,6 +182,52 @@ func TestAddInstanceLabels(t *testing.T) {
 	})
 }
 
+func TestAddInstanceLabelsPrivateOnlyFallback(t *testing.T) {
+	instances := []instance{
+		{
+			ID: 2, Label: "vpc-only", Status: "running", Type: "g6-nanode-1",
+			Image: "linode/ubuntu", Region: "us-east", Hypervisor: "kvm",
+			IPv4:  []string{"10.0.0.5"},
+			Specs: specs{Disk: 1, Memory: 1, VCPUs: 1, Transfer: 1},
+		},
+		// Has IPv4 list entries but no matching detailed IPs — must be skipped.
+		{
+			ID: 3, Label: "orphan", Status: "running", Type: "g6-nanode-1",
+			Image: "linode/ubuntu", Region: "us-east",
+			IPv4:  []string{"10.0.0.99"},
+			Specs: specs{Disk: 1, Memory: 1, VCPUs: 1, Transfer: 1},
+		},
+	}
+	ips := []ipAddress{{Address: "10.0.0.5", Public: false, RDNS: ""}}
+	got := addInstanceLabels(instances, ips, nil, 80, ",")
+	want := []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
+			"__address__":                        "10.0.0.5:80",
+			"__meta_linode_instance_id":          "2",
+			"__meta_linode_instance_label":       "vpc-only",
+			"__meta_linode_image":                "linode/ubuntu",
+			"__meta_linode_private_ipv4":         "10.0.0.5",
+			"__meta_linode_public_ipv4":          "",
+			"__meta_linode_public_ipv6":          "",
+			"__meta_linode_private_ipv4_rdns":    "",
+			"__meta_linode_public_ipv4_rdns":     "",
+			"__meta_linode_public_ipv6_rdns":     "",
+			"__meta_linode_region":               "us-east",
+			"__meta_linode_type":                 "g6-nanode-1",
+			"__meta_linode_status":               "running",
+			"__meta_linode_group":                "",
+			"__meta_linode_gpus":                 "0",
+			"__meta_linode_hypervisor":           "kvm",
+			"__meta_linode_backups":              "disabled",
+			"__meta_linode_specs_disk_bytes":     "1048576",
+			"__meta_linode_specs_memory_bytes":   "1048576",
+			"__meta_linode_specs_vcpus":          "1",
+			"__meta_linode_specs_transfer_bytes": "1048576",
+		}),
+	}
+	discoveryutil.TestEqualLabelss(t, got, want)
+}
+
 func TestAddInstanceLabelsCustomPortAndTagSeparator(t *testing.T) {
 	instances := []instance{
 		{

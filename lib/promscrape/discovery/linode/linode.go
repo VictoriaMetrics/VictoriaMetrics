@@ -128,13 +128,23 @@ func addInstanceLabels(instances []instance, detailedIPs []ipAddress, ipv6RangeL
 			}
 		}
 
+		// Prefer public IPv4 for __address__ (Prometheus default). Fall back to private
+		// when the instance has no public IPv4 so we never emit empty-host targets like ":80".
+		addrHost := publicIPv4
+		if addrHost == "" {
+			addrHost = privateIPv4
+		}
+		if addrHost == "" {
+			continue
+		}
+
 		backupsStatus := "disabled"
 		if inst.Backups.Enabled {
 			backupsStatus = "enabled"
 		}
 
 		m := promutil.NewLabels(28)
-		m.Add("__address__", discoveryutil.JoinHostPort(publicIPv4, port))
+		m.Add("__address__", discoveryutil.JoinHostPort(addrHost, port))
 		m.Add("__meta_linode_instance_id", strconv.Itoa(inst.ID))
 		m.Add("__meta_linode_instance_label", inst.Label)
 		m.Add("__meta_linode_image", inst.Image)

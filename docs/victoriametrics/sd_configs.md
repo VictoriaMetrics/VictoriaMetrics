@@ -1357,7 +1357,8 @@ scrape_configs:
 ```
 
 Each discovered target has an [`__address__`](https://docs.victoriametrics.com/victoriametrics/relabeling/#how-to-modify-scrape-urls-in-targets) label set
-to `<public_ipv4>:<port>`, where `<public_ipv4>` is a public IPv4 address of the Linode instance, while `<port>` is the port specified in the `linode_sd_configs`.
+to `<ip>:<port>`, where `<ip>` is the public IPv4 of the Linode instance when available, otherwise the private IPv4, and `<port>` is the port specified in the `linode_sd_configs`.
+Instances without a usable IPv4 address are skipped.
 
 The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
 
