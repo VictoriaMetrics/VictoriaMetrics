@@ -109,6 +109,7 @@ const RawQueryPage: FC = () => {
         abortFetch={abortFetch}
         hideButtons={{ traceQuery: true, disableCache: true }}
         includeFunctions={false}
+        useAutorefresh
       />
       {showPageDescription && (
         <Alert variant="info">

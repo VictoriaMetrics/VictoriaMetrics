@@ -38,7 +38,15 @@ interface ExecutionControlsProps {
   useAutorefresh: boolean;
 }
 
-const routerOptionsDefault = {
+const routerOptionsQuery = {
+  header: {
+    tenant: true,
+    stepControl: true,
+    timeSelector: true,
+  },
+};
+
+const routerOptionsDashboard = {
   header: {
     tenant: true,
     stepControl: true,
@@ -53,7 +61,7 @@ const routerOptionsDefault = {
 export const routerOptions: { [key: string]: RouterOptions } = {
   [router.home]: {
     title: "Query",
-    ...routerOptionsDefault,
+    ...routerOptionsQuery,
   },
   [router.rawQuery]: {
     title: "Raw query",
@@ -61,10 +69,6 @@ export const routerOptions: { [key: string]: RouterOptions } = {
       tenant: true,
       stepControl: false,
       timeSelector: true,
-      executionControls: {
-        tooltip: "Refresh dashboard",
-        useAutorefresh: true,
-      }
     },
   },
   [router.metrics]: {
@@ -98,7 +102,7 @@ export const routerOptions: { [key: string]: RouterOptions } = {
   },
   [router.dashboards]: {
     title: "Dashboards",
-    ...routerOptionsDefault,
+    ...routerOptionsDashboard,
   },
   [router.rules]: {
     title: "Rules",
@@ -136,7 +140,7 @@ export const routerOptions: { [key: string]: RouterOptions } = {
   },
   [router.query]: {
     title: "Query",
-    ...routerOptionsDefault,
+    ...routerOptionsQuery,
   },
   [router.downsamplingDebug]: {
     title: "Downsampling filters debug",

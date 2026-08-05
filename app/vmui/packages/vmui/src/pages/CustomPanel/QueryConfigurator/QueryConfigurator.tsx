@@ -1,4 +1,4 @@
-import { Dispatch, FC, SetStateAction, useEffect, useState } from "preact/compat";
+import { Dispatch, FC, SetStateAction, useEffect, useRef, useState } from "preact/compat";
 import QueryEditor from "../../../components/Configurators/QueryEditor/QueryEditor";
 import AdditionalSettings from "../../../components/Configurators/AdditionalSettings/AdditionalSettings";
 import usePrevious from "../../../hooks/usePrevious";
@@ -7,6 +7,7 @@ import { useQueryDispatch, useQueryState } from "../../../state/query/QueryState
 import { useTimeDispatch } from "../../../state/time/TimeStateContext";
 import { getQueryStringValue } from "../../../utils/query-string";
 import {
+  ArrowDownIcon,
   DeleteIcon,
   PlayIcon,
   PlusIcon,
@@ -28,6 +29,28 @@ import { usePrettifyQuery } from "./hooks/usePrettifyQuery";
 import QueryHistory from "../../../components/QueryHistory/QueryHistory";
 import QueryEditorAutocomplete from "../../../components/Configurators/QueryEditor/QueryEditorAutocomplete";
 import { getUpdatedHistory } from "../../../components/QueryHistory/utils";
+import useBoolean from "../../../hooks/useBoolean";
+import Popper from "../../../components/Main/Popper/Popper";
+
+interface AutoRefreshOption {
+  seconds: number
+  title: string
+}
+
+const delayOptions: AutoRefreshOption[] = [
+  { seconds: 0, title: "Off" },
+  { seconds: 1, title: "1s" },
+  { seconds: 2, title: "2s" },
+  { seconds: 5, title: "5s" },
+  { seconds: 10, title: "10s" },
+  { seconds: 30, title: "30s" },
+  { seconds: 60, title: "1m" },
+  { seconds: 300, title: "5m" },
+  { seconds: 900, title: "15m" },
+  { seconds: 1800, title: "30m" },
+  { seconds: 3600, title: "1h" },
+  { seconds: 7200, title: "2h" }
+];
 
 export interface QueryConfiguratorProps {
   queryErrors?: string[];
@@ -37,6 +60,7 @@ export interface QueryConfiguratorProps {
   label?: string;
   isLoading?: boolean;
   includeFunctions?: boolean;
+  useAutorefresh?: boolean;
   onHideQuery?: (queries: number[]) => void
   onRunQuery: () => void;
   abortFetch?: () => void;
@@ -61,6 +85,7 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
   label,
   isLoading,
   includeFunctions = true,
+  useAutorefresh = false,
   onHideQuery,
   onRunQuery,
   abortFetch,
@@ -77,7 +102,16 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
   const [stateQuery, setStateQuery] = useState(query || []);
   const [hideQuery, setHideQuery] = useState<number[]>(defaultHideQuery);
   const [awaitStateQuery, setAwaitStateQuery] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [selectedDelay, setSelectedDelay] = useState<AutoRefreshOption>(delayOptions[0]);
   const prevStateQuery = usePrevious(stateQuery) as (undefined | string[]);
+  const optionsButtonRef = useRef<HTMLDivElement>(null);
+
+  const {
+    value: openOptions,
+    toggle: toggleOpenOptions,
+    setFalse: handleCloseOptions,
+  } = useBoolean(false);
 
   const getPrettifiedQuery = usePrettifyQuery();
 
@@ -91,15 +125,24 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
     });
   };
 
-  const handleRunQuery = () => {
+  const handleRunQuery = (updateQueryHistory = true, abortLoadingQuery = true) => {
     if (isLoading) {
+      if (!abortLoadingQuery) return;
       abortFetch && abortFetch();
       return;
     }
-    updateHistory();
+    if (updateQueryHistory) updateHistory();
     queryDispatch({ type: "SET_QUERY", payload: stateQuery });
     timeDispatch({ type: "RUN_QUERY" });
     onRunQuery();
+  };
+
+  const handleChangeAutoRefresh = (d: AutoRefreshOption) => {
+    if ((autoRefresh && !d.seconds) || (!autoRefresh && d.seconds)) {
+      setAutoRefresh(prev => !prev);
+    }
+    setSelectedDelay(d);
+    handleCloseOptions();
   };
 
   const handleAddQuery = () => {
@@ -144,6 +187,10 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
 
   const createHandlerArrow = (step: number, i: number) => () => {
     handleHistoryChange(step, i);
+  };
+
+  const createHandlerChangeAutoRefresh = (d: AutoRefreshOption) => () => {
+    handleChangeAutoRefresh(d);
   };
 
   const createHandlerChangeQuery = (i: number) => (value: string) => {
@@ -193,6 +240,25 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
   useEffect(() => {
     setStateQuery(query || []);
   }, [query]);
+
+  useEffect(() => {
+    const delay = selectedDelay.seconds;
+    let timer: number;
+    if (autoRefresh) {
+      timer = setInterval(() => {
+        handleRunQuery(false, false);
+      }, delay * 1000) as unknown as number;
+    } else {
+      setSelectedDelay(delayOptions[0]);
+    }
+    return () => {
+      timer && clearInterval(timer);
+    };
+  }, [selectedDelay, autoRefresh, stateQuery, isLoading]);
+
+  const executeButtonText = isLoading
+    ? "Cancel"
+    : `Execute${autoRefresh && selectedDelay.seconds ? ` (every: ${selectedDelay.title})` : ""}`;
 
   return <div
     className={classNames({
@@ -285,15 +351,74 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
             Add Query
           </Button>
         )}
-        <Button
-          variant="contained"
-          onClick={handleRunQuery}
-          startIcon={isLoading ? <SpinnerIcon/> : <PlayIcon/>}
+        <div
+          className="vm-query-configurator-execute"
+          ref={optionsButtonRef}
         >
-          {`${isLoading ? "Cancel" : "Execute"} ${isMobile ? "" : "Query"}`}
-        </Button>
+          <Button
+            variant="contained"
+            onClick={() => handleRunQuery()}
+            startIcon={isLoading ? <SpinnerIcon/> : <PlayIcon/>}
+            className={classNames({
+              "vm-query-configurator-execute__button": useAutorefresh,
+            })}
+          >
+            {executeButtonText}
+          </Button>
+          {useAutorefresh && (
+            <Tooltip title="Auto-refresh control">
+              <Button
+                variant="contained"
+                color="primary"
+                className="vm-query-configurator-execute__options"
+                ariaLabel="Auto-refresh control"
+                endIcon={(
+                  <div
+                    className={classNames({
+                      "vm-query-configurator-execute__arrow": true,
+                      "vm-query-configurator-execute__arrow_open": openOptions,
+                    })}
+                  >
+                    <ArrowDownIcon/>
+                  </div>
+                )}
+                onClick={toggleOpenOptions}
+              />
+            </Tooltip>
+          )}
+        </div>
       </div>
     </div>
+    {useAutorefresh && (
+      <Popper
+        open={openOptions}
+        placement="bottom-right"
+        onClose={handleCloseOptions}
+        buttonRef={optionsButtonRef}
+        title={isMobile ? "Auto-refresh duration" : undefined}
+      >
+        <div
+          className={classNames({
+            "vm-query-configurator-execute-list": true,
+            "vm-query-configurator-execute-list_mobile": isMobile,
+          })}
+        >
+          {delayOptions.map(d => (
+            <div
+              className={classNames({
+                "vm-list-item": true,
+                "vm-list-item_mobile": isMobile,
+                "vm-list-item_active": d.seconds === selectedDelay.seconds
+              })}
+              key={d.seconds}
+              onClick={createHandlerChangeAutoRefresh(d)}
+            >
+              {d.title}
+            </div>
+          ))}
+        </div>
+      </Popper>
+    )}
   </div>;
 };
 

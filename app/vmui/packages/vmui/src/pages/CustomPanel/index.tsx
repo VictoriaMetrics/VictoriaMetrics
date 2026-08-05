@@ -111,6 +111,7 @@ const CustomPanel: FC = () => {
         onHideQuery={handleHideQuery}
         onRunQuery={handleRunQuery}
         abortFetch={abortFetch}
+        useAutorefresh
         hideButtons={{ reduceMemUsage: true }}
       />
       <CustomPanelTraces
