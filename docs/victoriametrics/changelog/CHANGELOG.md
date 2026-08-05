@@ -26,7 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
-* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): add support for [linode_sd_configs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#linode_sd_configs) for discovering scrape targets from Linode instances.
+* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): add support for [linode_sd_configs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#linode_sd_configs) for discovering scrape targets from Linode instances. See [#9118](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9118).
 
 ## [v1.149.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.149.0)
 
