@@ -26,7 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
-* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): add `vm_promscrape_scrape_configs_invalid` metric tracking `scrape_config` entries dropped during the last config reload (e.g. because of an unsupported `relabel_configs` regex such as a Perl-style negative lookahead). Previously such a `scrape_config` was silently excluded from scraping with only a log line, so the affected target never appeared even as "down", and alerting based on scrape target availability never fired. See [#8426](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8426).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/), and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): add `vm_promscrape_scrape_configs_invalid` metric tracking `scrape_config` entries dropped during the last successful config reload (e.g. because of an unsupported `relabel_configs` regex such as a Perl-style negative lookahead). Previously such a `scrape_config` was silently excluded from scraping with only a log line, so the affected target never appeared even as "down", and alerting based on scrape target availability never fired. See [#8426](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8426).
 
 ## [v1.149.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.149.0)
 
