@@ -468,7 +468,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
   -remoteWrite.maxRowsPerBlock int
      The maximum number of samples to send in each block to remote storage. Higher number may improve performance at the cost of the increased memory usage. See also -remoteWrite.maxBlockSize (default 10000)
   -remoteWrite.mdx.enable array
-     Whether to only retain metrics from VictoriaMetrics services before sending them to the corresponding -remoteWrite.url. Please see https://docs.victoriametrics.com/victoriametrics/vmagent/#monitoring-data-exchange
+     Whether to only retain metrics from VictoriaMetrics services before sending them to the corresponding -remoteWrite.url. Can be combined with -remoteWrite.obfuscateLabels to hide sensitive label values in the forwarded metrics. Please see https://docs.victoriametrics.com/victoriametrics/vmagent/#monitoring-data-exchange
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to false.
   -remoteWrite.oauth2.clientID array
@@ -494,6 +494,10 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
   -remoteWrite.oauth2.tokenUrl array
      Optional OAuth2 tokenURL to use for the corresponding -remoteWrite.url
      Supports an array of values separated by comma or specified via multiple flags.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -remoteWrite.obfuscateLabels ^^
+     List of label names whose values will be obfuscated before being sent to the corresponding -remoteWrite.url. Multiple label names should be separated by ^^, e.g. "job^^instance,ip". Can be combined with -remoteWrite.mdx.enable to hide sensitive label values in VictoriaMetrics self-monitoring metrics. Please see https://docs.victoriametrics.com/victoriametrics/vmagent/#obfuscating-label-values
+     Supports an `array` of values separated by comma or specified via multiple flags.
      Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -remoteWrite.proxyURL array
      Optional proxy URL for writing data to the corresponding -remoteWrite.url. Supported proxies: http, https, socks5. Example: -remoteWrite.proxyURL=socks5://proxy:1234
