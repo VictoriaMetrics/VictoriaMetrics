@@ -9,6 +9,7 @@ tags:
   - metrics
   - logs
   - traces
+  - anomaly detection
   - AI
   - AI integration
   - agent

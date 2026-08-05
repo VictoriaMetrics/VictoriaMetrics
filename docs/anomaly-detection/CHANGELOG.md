@@ -14,6 +14,31 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+{{% collapse name="2026" open=true %}}
+
+## v1.30.0
+Released: 2026-07-23
+
+- FEATURE: Added univariate and multivariate online [Temporal Envelope](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope) models for complex time-series profiles. They combine robust causal trend, compact calendar and learned holiday behavior, changepoint adaptation, residual prediction intervals, future-horizon forecasts, and optional cross-series dependency detection in bounded state.
+
+- FEATURE: Added asynchronous [`/api/v1/autotune/tasks`](https://docs.victoriametrics.com/anomaly-detection/components/models/#shared-asynchronous-autotune-workflow) endpoints and improved unsupervised tuning with model-capability-aware objectives, optional causal exact validation for online models, constrained alert-volume selection, fitted-state complexity tie-breaking, and frozen model-specific parameters.
+
+- FEATURE: Added `/api/v1/timeseries/characteristics` for bounded analysis of trend, calendar seasonality, changepoints, gaps, and intermittent or spiky behavior across sampled query results. This improves automated model selection and search-space suggestions in both agentic workflows and [AI Copilot](https://docs.victoriametrics.com/anomaly-detection/ui/#ai-assistance)-backed [UI](https://docs.victoriametrics.com/anomaly-detection/ui/) experiments.
+
+- UI: Updated [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/) from [v1.7.2](https://docs.victoriametrics.com/anomaly-detection/ui/#v172) to [v1.8.0](https://docs.victoriametrics.com/anomaly-detection/ui/#v180). Notable mentions are model and query configuration, query prettification, fullscreen charts, out-of-date results alert and improved [AI Copilot](https://docs.victoriametrics.com/anomaly-detection/ui/#ai-assistance) suggestion and cancellation behavior.
+
+- FEATURE: Made AI-assisted configuration more reliable with reusable [vmanomaly workflow skills](https://github.com/VictoriaMetrics/skills), data-aware model suggestions, protocol-safe cancellation and synchronized query, model, and anomaly-setting updates in [UI](https://docs.victoriametrics.com/anomaly-detection/ui/).
+
+- IMPROVEMENT: Fitted history can be retained as a stronger prior through `history_strength` argument, requiring a reduced number of observations (say 2 weeks for weekly seasonality) to be effective if the history window is a good indicator of "normal" data patterns. Models supported: `mad_online`, `zscore_online`, `quantile_online`.
+
+- IMPROVEMENT: Improved bounded datasource operation with optional ad-hoc series limits, stale-series lookback caps, and propagation of configured per-query sampling periods to models and autotune trials.
+
+- IMPROVEMENT: Added `reader.fetch_timeout` and `reader.processing_timeout` for [`VmReader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) and [`VLogsReader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#victorialogs-reader), allowing datasource reads and post-fetch processing to be tuned *independently* while preserving `reader.timeout` as the backward-compatible default for both phases.
+
+- BUGFIX: Fixed [backtesting runs](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#backtesting-scheduler) across multiple fit cycles and for auto-tuned online wrappers, preventing duplicate or missing predictions while retaining causal model updates and restoration of compatible legacy auto-tuned state.
+
+- BUGFIX: Prevented service shutdown after a [`PeriodicScheduler`](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) worker dies by adding bounded restart attempts with backoff and exposing restart health through [startup metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#startup-metrics).
+
 ## v1.29.7
 Released: 2026-06-25
 
@@ -123,6 +148,10 @@ Released: 2026-01-12
 - UI: Updated [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/) from [v1.4.0](https://docs.victoriametrics.com/anomaly-detection/ui/#v140) to [v1.4.1](https://docs.victoriametrics.com/anomaly-detection/ui/#v141), see respective [release notes](https://docs.victoriametrics.com/anomaly-detection/ui/#v141) for details.
 
 - BUGFIX: Restored expected behavior when `fit_every` equals `infer_every` in [`PeriodicScheduler`](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) - now full data range `fit_window` is fetched for model trainings instead of a  last point from that interval.
+
+{{% /collapse %}}
+
+{{% collapse name="2025" %}}
 
 ## v1.28.3
 Released: 2025-12-17
@@ -394,6 +423,10 @@ Released: 2025-01-20
 - IMPROVEMENT: Reduced service RAM usage by 5-10%, depending on configuration complexity.
 - BUGFIX: Now [`VmReader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) properly handles the cases where the number of queries processed in parallel (up to `reader.queries` cardinality) exceeds the default limit of 10 HTTP(S) connections, preventing potential data loss from discarded queries. The pool limit will automatically adjust to match `reader.queries` cardinality.
 - BUGFIX: Corrected the construction of write endpoints for cluster VictoriaMetrics `url`s (`tenant_id` arg is set) in `monitoring.push` [section configurations](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#push-config-parameters).
+
+{{% /collapse %}}
+
+{{% collapse name="2024" %}}
 
 ## v1.18.8
 Released: 2024-12-03
@@ -709,6 +742,10 @@ Released: 2024-01-15
 - IMPROVEMENT: Don't check /health endpoint, check the real /query_range or /import endpoints directly. Users kept getting problems with /health.
 - DEPRECATION: "health_path" param is deprecated and doesn't do anything in config ([reader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader), [writer](https://docs.victoriametrics.com/anomaly-detection/components/writer/#vm-writer), [monitoring.push](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#push-config-parameters)).
 
+{{% /collapse %}}
+
+{{% collapse name="2023" %}}
+
 
 ## v1.7.2
 Released: 2023-12-21
@@ -803,6 +840,12 @@ Released: 2023-01-23
 Released: 2023-01-06
 - BUGFIX: prophet model incorrectly predicted two points in case of only one
 
+{{% /collapse %}}
+
+{{% collapse name="2022" %}}
+
 ## v1.0.0-beta
 Released: 2022-12-08
 - First public release is available
+
+{{% /collapse %}}

@@ -8,8 +8,10 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
+	"github.com/VictoriaMetrics/metricsql"
 )
 
 type fakeReplayQuerier struct {
@@ -32,6 +34,14 @@ func (fc *fakeRWClient) Close() error {
 }
 
 func (fr *fakeReplayQuerier) QueryRange(_ context.Context, q string, from, to time.Time) (res datasource.Result, err error) {
+	_, err = metricsql.Parse(q)
+	if err != nil {
+		return res, &httpserver.ErrorWithStatusCode{
+			StatusCode: 422,
+			Err:        err,
+		}
+	}
+
 	key := fmt.Sprintf("%s+%s", from.Format("15:04:05"), to.Format("15:04:05"))
 	dps, ok := fr.registry[q]
 	if !ok {
@@ -275,4 +285,28 @@ func TestReplay(t *testing.T) {
 			},
 		},
 	}, 10)
+
+	// rule with wrong expression won't break the other rule with continueWithExecutionErr
+	continueWithExecutionErrOld := *continueWithExecutionErr
+	defer func() {
+		*continueWithExecutionErr = continueWithExecutionErrOld
+	}()
+	*continueWithExecutionErr = true
+	f("2021-01-01T12:00:00.000Z", "2021-01-01T12:02:30.000Z", 1, 1, time.Millisecond, []config.Group{
+		{Rules: []config.Rule{{Record: "foo", Expr: "sum(up)"}}},
+		{Rules: []config.Rule{{Record: "bar", Expr: "up ++"}}},
+	}, &fakeReplayQuerier{
+		registry: map[string]map[string][]datasource.Metric{
+			"sum(up)": {
+				"12:00:00+12:01:00": {
+					{
+						Timestamps: []int64{1, 2},
+						Values:     []float64{1, 2},
+					},
+				},
+				"12:01:00+12:02:00": {},
+				"12:02:00+12:02:30": {},
+			},
+		},
+	}, 2)
 }

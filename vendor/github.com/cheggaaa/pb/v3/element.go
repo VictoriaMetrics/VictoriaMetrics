@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"math"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -15,7 +16,32 @@ const (
 )
 
 var (
-	defaultBarEls = [5]string{"[", "-", ">", "_", "]"}
+	asciiBarEls   = [barElementCount]string{"[", "-", ">", "_", "]", "", ""}
+	firaBarEls    = [barElementCount]string{"", "", "", "", "", "", ""}
+	defaultBarEls = asciiBarEls
+)
+
+func init() {
+	configureDefaultBarEls()
+}
+
+func configureDefaultBarEls() {
+	defaultBarEls = asciiBarEls
+	if os.Getenv(unicodeProgressBarEnv) == "true" {
+		// Only "true" is accepted; values like "1" are ignored to match the Fira Code README spec.
+		defaultBarEls = firaBarEls
+	}
+}
+
+const (
+	barLeft = iota
+	barFill
+	barCurrent
+	barEmpty
+	barRight
+	barLeftEmpty
+	barRightFinished
+	barElementCount
 )
 
 // Element is an interface for bar elements
@@ -122,9 +148,10 @@ const (
 )
 
 type bar struct {
-	eb  [5][]byte // elements in bytes
-	cc  [5]int    // cell counts
-	buf *bytes.Buffer
+	eb      [barElementCount][]byte // elements in bytes
+	cc      [barElementCount]int    // cell counts
+	enabled [barElementCount]bool
+	buf     *bytes.Buffer
 }
 
 func (p *bar) write(state *State, eln, width int) int {
@@ -149,7 +176,29 @@ func getProgressObj(state *State, args ...string) (p *bar) {
 	}
 	argsH := argsHelper(args)
 	for i := range p.eb {
-		arg := argsH.getNotEmptyOr(i, defaultBarEls[i])
+		enabled := true
+
+		var arg string
+		switch {
+		case i < barLeftEmpty:
+			arg = argsH.getNotEmptyOr(i, defaultBarEls[i])
+		case len(args) == 0:
+			arg = defaultBarEls[i]
+		default:
+			arg = argsH.getOr(i, "")
+		}
+
+		if i >= barLeftEmpty {
+			enabled = arg != ""
+		}
+		if p.enabled[i] != enabled {
+			p.enabled[i] = enabled
+			p.eb[i] = nil
+			p.cc[i] = 0
+		}
+		if !enabled {
+			continue
+		}
 		if string(p.eb[i]) != arg {
 			p.cc[i] = CellCount(arg)
 			p.eb[i] = []byte(arg)
@@ -163,7 +212,11 @@ func getProgressObj(state *State, args ...string) (p *bar) {
 }
 
 // ElementBar make progress bar view [-->__]
-// Optionally can take up to 5 string arguments. Defaults is "[", "-", ">", "_", "]"
+// Optionally can take up to 7 string arguments.
+// Defaults is "[", "-", ">", "_", "]".
+// First five arguments are left border, fill, current, empty, and right border.
+// Sixth argument overrides the left border when progress is empty.
+// Seventh argument overrides the right border when progress is finished.
 // In template use as follows: {{bar . }} or {{bar . "<" "oOo" "|" "~" ">"}}
 // Color args: {{bar . (red "[") (green "-") ...
 var ElementBar ElementFunc = func(state *State, args ...string) string {
@@ -190,20 +243,28 @@ var ElementBar ElementFunc = func(state *State, args ...string) string {
 		widthLeft = 30
 	}
 
+	leftEl, rightEl := barLeft, barRight
+	if (total <= 0 || value == 0) && p.enabled[barLeftEmpty] {
+		leftEl = barLeftEmpty
+	}
+	if total == value && state.IsFinished() && p.enabled[barRightFinished] {
+		rightEl = barRightFinished
+	}
+
 	// write left border
-	if p.cc[0] < widthLeft {
-		widthLeft -= p.write(state, 0, p.cc[0])
+	if p.cc[leftEl] < widthLeft {
+		widthLeft -= p.write(state, leftEl, p.cc[leftEl])
 	} else {
-		p.write(state, 0, widthLeft)
+		p.write(state, leftEl, widthLeft)
 		return p.buf.String()
 	}
 
 	// check right border size
-	if p.cc[4] < widthLeft {
+	if p.cc[rightEl] < widthLeft {
 		// write later
-		widthLeft -= p.cc[4]
+		widthLeft -= p.cc[rightEl]
 	} else {
-		p.write(state, 4, widthLeft)
+		p.write(state, rightEl, widthLeft)
 		return p.buf.String()
 	}
 
@@ -216,18 +277,18 @@ var ElementBar ElementFunc = func(state *State, args ...string) string {
 
 	// write bar
 	if total == value && state.IsFinished() {
-		widthLeft -= p.write(state, 1, curCount)
-	} else if toWrite := curCount - p.cc[2]; toWrite > 0 {
-		widthLeft -= p.write(state, 1, toWrite)
-		widthLeft -= p.write(state, 2, p.cc[2])
+		widthLeft -= p.write(state, barFill, curCount)
+	} else if toWrite := curCount - p.cc[barCurrent]; toWrite > 0 {
+		widthLeft -= p.write(state, barFill, toWrite)
+		widthLeft -= p.write(state, barCurrent, p.cc[barCurrent])
 	} else if curCount > 0 {
-		widthLeft -= p.write(state, 2, curCount)
+		widthLeft -= p.write(state, barCurrent, curCount)
 	}
 	if widthLeft > 0 {
-		widthLeft -= p.write(state, 3, widthLeft)
+		widthLeft -= p.write(state, barEmpty, widthLeft)
 	}
 	// write right border
-	p.write(state, 4, p.cc[4])
+	p.write(state, rightEl, p.cc[rightEl])
 	// cut result and return string
 	return p.buf.String()
 }

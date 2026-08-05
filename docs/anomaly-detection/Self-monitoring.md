@@ -135,6 +135,8 @@ These alerting rules complements the [dashboard](#grafana-dashboard) to monitor 
 `vmanomaly-health` alerting group:
 - **`TooManyRestarts`**: Triggers if an instance restarts more than twice within 15 minutes, suggesting the process might be crashlooping and needs investigation.
 - **`ServiceDown`**: Alerts if an instance is down for more than 5 minutes, indicating a service outage.
+- **`SchedulerWorkerDown`**: {{% available_from "v1.30.0" anomaly %}} Alerts when an individual periodic scheduler remains down for more than 2 minutes after automatic recovery attempts. This catches partial service failures that a process-level `ServiceDown` alert cannot detect.
+- **`FrequentSchedulerRestarts`**: {{% available_from "v1.30.0" anomaly %}} Warns when an individual scheduler has more than two restart attempts within 15 minutes. A single successful self-heal does not alert, while repeated attempts indicate a flapping scheduler or dependency.
 - **`ProcessNearFDLimits`**: Alerts when the number of available file descriptors falls below 100, which could lead to severe degradation if the limit is exhausted.
 - **`TooHighCPUUsage`**: Alerts when CPU usage exceeds 90% for a continuous 5-minute period, indicating possible resource exhaustion and the need to adjust resource allocation or load.
 - **`TooHighMemoryUsage`**: Alerts when RAM usage exceeds 85% for a continuous 5-minute period and the need to adjust resource allocation or load.

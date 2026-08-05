@@ -95,14 +95,14 @@ func mustOpenFastQueue(path, name string, opts OpenFastQueueOpts) *FastQueue {
 	}
 	fq.cond.L = &fq.mu
 	fq.lastInmemoryBlockReadTime = fasttime.UnixTimestamp()
-	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vm_persistentqueue_bytes_pending{path=%q}`, path), func() float64 {
+	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vm_persistentqueue_bytes_pending{path=%q, name=%q}`, path, name), func() float64 {
 		fq.mu.Lock()
 		n := fq.pq.GetPendingBytes()
 		fq.mu.Unlock()
 		return float64(n)
 	})
 
-	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vm_persistentqueue_free_disk_space_bytes{path=%q}`, path), func() float64 {
+	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vm_persistentqueue_free_disk_space_bytes{path=%q, name=%q}`, path, name), func() float64 {
 		freeSpaceBytes := fs.MustGetFreeSpace(path)
 		// Limited by disk space if remoteWrite.maxDiskUsagePerURL wasn't set
 		if maxPendingBytes == 0 {
