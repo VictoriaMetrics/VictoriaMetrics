@@ -1316,7 +1316,7 @@ The list of discovered Kuma targets is refreshed at the interval, which can be c
 
 ## linode_sd_configs
 
-Linode SD configuration allows retrieving scrape targets from [Linode](https://www.linode.com/) instances.
+Linode SD configuration {{% available_from "#" %}} allows retrieving scrape targets from [Linode](https://www.linode.com/) instances.
 The following [Linode API](https://www.linode.com/docs/api/) token scopes are required: `linodes:read_only` and `ips:read_only`.
 
 Configuration example:
