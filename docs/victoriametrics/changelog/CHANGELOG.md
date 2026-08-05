@@ -394,6 +394,20 @@ It enables back `Discovered targets` debug UI by default.
 * BUGFIX: `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly apply `extra_filters[]` filter when querying `vm_account_id` or `vm_project_id` labels via [multitenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) request for `/api/v1/label/…/values` API. Before, `extra_filters` was ignored. See [#10503](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10503).
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): revert the use of rollup result cache for [instant queries](https://docs.victoriametrics.com/keyConcepts.html#instant-query) that contain [`rate`](https://docs.victoriametrics.com/MetricsQL.html#rate) function with a lookbehind window larger than `-search.minWindowForInstantRollupOptimization`. The cache usage was removed since [v1.132.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.132.0). See [#10098](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10098#issuecomment-3895011084) for more details.
 
+## [v1.136.15](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.136.15)
+
+Released at 2026-07-31
+
+**v1.136.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.136.x line will be supported for at least 12 months since [v1.136.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11360) release**
+
+**Update Note 1:** [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): the `/api/v1/admin/tsdb/delete_series`, `/tags/delSeries` endpoints now require `POST` method. Previously, it also accepted `GET` requests. If you use `GET` requests for this endpoint, update your scripts or tooling to use `POST` instead. See [#5552](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5552).
+
+* SECURITY: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): restrict `/api/v1/admin/tsdb/delete_series`, `/tags/delSeries` endpoints to `POST` method only to prevent some [SSRF](https://en.wikipedia.org/wiki/Server-side_request_forgery)-based data deletion attacks. See [#5552](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5552).
+
+* BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): previously, `vmbackupmanager` was crashing on startup when it failed to restore backup state from remote storage, causing a crash loop. Now it logs the error and continues running, retrying the state restore before each scheduled backup. Added `vm_backup_errors_total{type="restoreState"}` metric to track backup state restore failures. See [#11217](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11217).
+
 ## [v1.136.14](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.136.14)
 
 Released at 2026-07-17
