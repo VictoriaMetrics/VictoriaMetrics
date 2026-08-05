@@ -28,7 +28,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## [v1.149.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.149.0)
 
-Release candidate
+Released at 2026-08-05
 
 **Update Note 1:** `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): the default value of `-disableRerouting` flag has changed from `true` to `false`, enabling [slowness-based re-routing](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#slowness-based-re-routing) by default. Slowness re-routing is automatically disabled when `-replicationFactor` is greater than 1. If you rely on the old behavior, pass `-disableRerouting` command-line flag to `vminsert`. See [#11287](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11287).
 
