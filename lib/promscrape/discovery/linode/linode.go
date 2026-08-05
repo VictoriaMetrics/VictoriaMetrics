@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
@@ -17,6 +19,10 @@ import (
 var SDCheckInterval = flag.Duration("promscrape.linodeSDCheckInterval", time.Minute, "Interval for checking for changes in Linode. "+
 	"This works only if linode_sd_configs is configured in '-promscrape.config' file. "+
 	"See https://docs.victoriametrics.com/victoriametrics/sd_configs/#linode_sd_configs for details")
+
+// failuresTotal counts failed Linode SD refresh attempts.
+// Analogous to Prometheus prometheus_sd_linode_failures_total.
+var failuresTotal = metrics.NewCounter(`vm_promscrape_discovery_linode_failures_total`)
 
 // SDConfig represents service discovery config for Linode.
 //
@@ -36,18 +42,22 @@ type SDConfig struct {
 func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutil.Labels, error) {
 	cfg, err := getAPIConfig(sdc, baseDir)
 	if err != nil {
+		failuresTotal.Inc()
 		return nil, fmt.Errorf("cannot get API config: %w", err)
 	}
 	instances, err := getInstances(cfg)
 	if err != nil {
+		failuresTotal.Inc()
 		return nil, err
 	}
 	detailedIPs, err := getIPAddresses(cfg)
 	if err != nil {
+		failuresTotal.Inc()
 		return nil, err
 	}
 	ipv6Ranges, err := getIPv6Ranges(cfg)
 	if err != nil {
+		failuresTotal.Inc()
 		return nil, err
 	}
 	return addInstanceLabels(instances, detailedIPs, ipv6Ranges, cfg.port, cfg.tagSeparator), nil

@@ -1386,6 +1386,7 @@ The following meta labels are available on discovered targets during [relabeling
 * `__meta_linode_ipv6_ranges`: a list of IPv6 ranges with mask assigned to the linode instance joined by the tag separator
 
 The list of discovered Linode targets is refreshed at the interval, which can be configured via `-promscrape.linodeSDCheckInterval` command-line flag.
+Discovery failures are tracked in the `vm_promscrape_discovery_linode_failures_total` metric.
 
 ## marathon_sd_configs
 
