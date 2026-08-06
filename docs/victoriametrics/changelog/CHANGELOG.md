@@ -27,6 +27,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 ## tip
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/), `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) and [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/): properly parse small fractional Unix timestamps in timestamp args such as `start` and `end` in `/api/v1/query_range` and `--vm-native-filter-time-start` and `--vm-native-filter-time-end` in `vmctl`. Previously, fractional Unix timestamps with the integer part below `9223372` were interpreted with the wrong unit, for example `12.0` was parsed as `12000` seconds instead of `12` seconds. See [#11324](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11324).
 
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): respect the custom query step specified via `g0.step_input` when opening a URL. Previously, it could be reset to the automatically calculated step and potentially cause dashboards to freeze. See [#11137](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11137).
+
 ## [v1.149.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.149.0)
 
 Released at 2026-08-05
