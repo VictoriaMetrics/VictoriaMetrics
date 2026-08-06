@@ -186,6 +186,11 @@ func getExpIndex(s string) int {
 }
 
 func tryParseScientificUnixTimestamp(s string, decimalExp int64) (int64, bool) {
+	if decimalExp < 0 {
+		// Negative exponents on a fractional mantissa are intentionally not
+		// supported. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11268
+		return 0, false
+	}
 	dotIdx := strings.IndexByte(s, '.')
 	if dotIdx < 0 {
 		n, ok := tryParseInt64(s)
@@ -199,17 +204,10 @@ func tryParseScientificUnixTimestamp(s string, decimalExp int64) (int64, bool) {
 		return getUnixTimestampNanoseconds(n), true
 	}
 
-	if decimalExp < 0 {
-		// Negative exponents on a fractional mantissa are intentionally not
-		// supported. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11268
-		return 0, false
-	}
-
 	intStr := s[:dotIdx]
 	fracStr := s[dotIdx+1:]
 	if decimalExp >= int64(len(fracStr)) {
 		// The exponent shifts the decimal point past every fractional digit,
-		// so the value is an integer number of seconds (or coarser).
 		n, ok := tryParseDecimalMantissaAsInt(intStr, fracStr)
 		if !ok {
 			return 0, false
