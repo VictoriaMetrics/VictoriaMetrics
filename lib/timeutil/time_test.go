@@ -118,6 +118,7 @@ func TestTryParseUnixTimestamp_Failure(t *testing.T) {
 	f("foobar")
 	f("foo.bar")
 	f("1.12345671x34")
+	f("1.123456789x")
 	f("1.3e12345678x0123")
 	f("1xs.12345671")
 	f("1xs.12345671e5")

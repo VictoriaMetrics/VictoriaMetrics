@@ -272,8 +272,23 @@ func tryParseFractionalUnixTimestamp(intStr, fracStr string) (int64, bool) {
 
 	multiplier := getUnixTimestampNanosecondsMultiplier(n)
 	// Truncate the fractional digits to valid length according to the unit precision.
-	maxFracDigits := len(strconv.FormatInt(multiplier, 10)) - 1
+	maxFracDigits := 0
+	switch multiplier {
+	case 1e9:
+		maxFracDigits = 9
+	case 1e6:
+		maxFracDigits = 6
+	case 1e3:
+		maxFracDigits = 3
+	}
 	if len(fracStr) > maxFracDigits {
+		// 1.123456789XXX is invalid.
+		tail := fracStr[maxFracDigits:]
+		for i := 0; i < len(tail); i++ {
+			if tail[i] < '0' || tail[i] > '9' {
+				return 0, false
+			}
+		}
 		fracStr = fracStr[:maxFracDigits]
 	}
 	if len(fracStr) == 0 {
@@ -290,18 +305,8 @@ func tryParseFractionalUnixTimestamp(intStr, fracStr string) (int64, bool) {
 	}
 	n *= multiplier
 	scale := decimalMultipliers[decimalExp]
-	var fracNsec int64
-	if scale >= multiplier {
-		divisor := scale / multiplier
-		// Reject fractional values that cannot be represented as a whole number of nanoseconds.
-		// e.g. 1700000000000000000.1 ns
-		if frac%divisor != 0 {
-			return 0, false
-		}
-		fracNsec = frac / divisor
-	} else {
-		fracNsec = frac * (multiplier / scale)
-	}
+	fracNsec := frac * (multiplier / scale)
+
 	if strings.HasPrefix(intStr, "-") {
 		if n < math.MinInt64+fracNsec {
 			return 0, false
