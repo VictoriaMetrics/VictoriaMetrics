@@ -1304,7 +1304,7 @@ since it uses lower amounts of RAM, CPU and network bandwidth than Prometheus.
 If you use identically configured [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) instances for collecting the same data
 and sending it to VictoriaMetrics, then do not forget enabling [deduplication](#deduplication) at VictoriaMetrics side.
 
-See [victoria-metrics-distributed chart](https://docs.victoriametrics.com/helm/victoria-metrics-distributed/) for an example.
+See [VMDistributed](https://docs.victoriametrics.com/operator/resources/vmdistributed/) Kubernetes operator resource for an example.
 
 ## Deduplication
 
