@@ -76,3 +76,112 @@ func benchIfExpr(b *testing.B, expr string, labels []prompb.Label) {
 		}
 	})
 }
+
+func BenchmarkIfExpressionAlternatives(b *testing.B) {
+	type benchmarkCase struct {
+		name    string
+		ifExprs []string
+		labels  []prompb.Label
+		result  bool
+	}
+	var testCases []benchmarkCase
+	for _, labelsCount := range []int{16, 32, 48} {
+		testCases = append(testCases, benchmarkCase{
+			name:    fmt.Sprintf("single_exact_match/labels_%d", labelsCount),
+			ifExprs: []string{"metric_0"},
+			labels:  newIfExpressionBenchmarkLabels("metric_0", labelsCount),
+			result:  true,
+		})
+	}
+	for _, alternativesCount := range []int{16, 32, 64} {
+		exact := newIfExpressionBenchmarkExpressions(alternativesCount, "metric_%d")
+		mixedExactCount := alternativesCount * 7 / 8
+		mixed := append([]string{}, newIfExpressionBenchmarkExpressions(mixedExactCount, "metric_%d")...)
+		mixed = append(mixed, newIfExpressionBenchmarkExpressions(alternativesCount-mixedExactCount, `{missing_%d="yes"}`)...)
+		generic := newIfExpressionBenchmarkExpressions(alternativesCount, `{missing_%d="yes"}`)
+		for _, labelsCount := range []int{16, 32, 48} {
+			testCases = append(testCases,
+				benchmarkCase{
+					name:    fmt.Sprintf("distinct_exact_%d_miss/labels_%d", alternativesCount, labelsCount),
+					ifExprs: exact,
+					labels:  newIfExpressionBenchmarkLabels("other", labelsCount),
+				},
+				benchmarkCase{
+					name:    fmt.Sprintf("generic_%d_miss/labels_%d", alternativesCount, labelsCount),
+					ifExprs: generic,
+					labels:  newIfExpressionBenchmarkLabels("other", labelsCount),
+				},
+				benchmarkCase{
+					name:    fmt.Sprintf("mixed_%d_miss/labels_%d", alternativesCount, labelsCount),
+					ifExprs: mixed,
+					labels:  newIfExpressionBenchmarkLabels("other", labelsCount),
+				},
+			)
+		}
+	}
+
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			ie := mustNewIfExpressionForBenchmark(b, tc.ifExprs)
+			b.Run("optimized", func(b *testing.B) {
+				for b.Loop() {
+					if result := ie.Match(tc.labels); result != tc.result {
+						b.Fatalf("unexpected match result; got %v; want %v", result, tc.result)
+					}
+				}
+			})
+			b.Run("legacy", func(b *testing.B) {
+				for b.Loop() {
+					if result := matchIfExpressionLegacy(ie, tc.labels); result != tc.result {
+						b.Fatalf("unexpected match result; got %v; want %v", result, tc.result)
+					}
+				}
+			})
+		})
+	}
+}
+
+func matchIfExpressionLegacy(ie *IfExpression, labels []prompb.Label) bool {
+	if ie == nil || len(ie.ies) == 0 {
+		return true
+	}
+	for _, ieLocal := range ie.ies {
+		if ieLocal.Match(labels) {
+			return true
+		}
+	}
+	return false
+}
+
+func mustNewIfExpressionForBenchmark(b *testing.B, ifExprs []string) *IfExpression {
+	b.Helper()
+	v := make([]any, len(ifExprs))
+	for i, ifExpr := range ifExprs {
+		v[i] = ifExpr
+	}
+	var ie IfExpression
+	if err := ie.unmarshalFromInterface(v); err != nil {
+		b.Fatalf("cannot unmarshal if expressions: %s", err)
+	}
+	return &ie
+}
+
+func newIfExpressionBenchmarkExpressions(n int, format string) []string {
+	ifExprs := make([]string, n)
+	for i := range ifExprs {
+		ifExprs[i] = fmt.Sprintf(format, i)
+	}
+	return ifExprs
+}
+
+func newIfExpressionBenchmarkLabels(metricName string, labelsCount int) []prompb.Label {
+	labels := make([]prompb.Label, 0, labelsCount)
+	labels = append(labels, prompb.Label{Name: "__name__", Value: metricName})
+	for i := range labelsCount - 1 {
+		labels = append(labels, prompb.Label{
+			Name:  fmt.Sprintf("label_%d", i),
+			Value: fmt.Sprintf("value_%d", i),
+		})
+	}
+	return labels
+}
