@@ -38,8 +38,10 @@ var (
 	logSlowQueryDuration = flag.Duration("search.logSlowQueryDuration", 5*time.Second, "Log queries with execution time exceeding this value. Zero disables slow query logging. "+
 		"See also -search.logQueryMemoryUsage")
 
-	vmalertProxyURL = flag.String("vmalert.proxyURL", "", "Optional URL for proxying requests to vmalert. For example, if -vmalert.proxyURL=http://vmalert:8880 , "+
+	vmalertProxyURL = flagutil.NewArrayString("vmalert.proxyURL", "Optional URL for proxying requests to vmalert. For example, if -vmalert.proxyURL=http://vmalert:8880 , "+
 		"then alerting API requests such as /api/v1/rules from Grafana will be proxied to http://vmalert:8880/api/v1/rules . "+
+		"If multiple URLs are set, then responses to /api/v1/rules and /api/v1/alerts requests are fetched from all the configured vmalert instances "+
+		"and merged into a single response, while all the other requests, including vmalert web UI, are proxied to the first URL in the list. "+
 		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmalert")
 )
 
@@ -56,10 +58,10 @@ func Init(vmselectMaxConcurrentRequests int, vmselectMaxQueueDuration time.Durat
 	maxQueueDuration = vmselectMaxQueueDuration
 	concurrencyLimitCh = make(chan struct{}, maxConcurrentRequests)
 
-	initVMUIConfig()
-
 	vmalertproxy.Init(*vmalertProxyURL)
 	flagutil.RegisterSecretFlag("vmalert.proxyURL")
+
+	initVMUIConfig()
 }
 
 // Stop stops vmselect
@@ -521,7 +523,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 	}
 	if strings.HasPrefix(path, "/vmalert/") {
 		vmalertRequests.Inc()
-		if len(*vmalertProxyURL) == 0 {
+		if !vmalertproxy.Enabled() {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Header().Set("Content-Type", "application/json")
 			fmt.Fprintf(w, "%s", `{"status":"error","msg":"the '-vmalert.proxyURL' command-line must be configured; `+
@@ -565,7 +567,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		return true
 	case "/api/v1/rules", "/rules":
 		rulesRequests.Inc()
-		if len(*vmalertProxyURL) > 0 {
+		if vmalertproxy.Enabled() {
 			vmalertproxy.HandleRequest(w, r, path)
 			return true
 		}
@@ -575,7 +577,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		return true
 	case "/api/v1/alerts", "/alerts":
 		alertsRequests.Inc()
-		if len(*vmalertProxyURL) > 0 {
+		if vmalertproxy.Enabled() {
 			vmalertproxy.HandleRequest(w, r, path)
 			return true
 		}
@@ -585,7 +587,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		return true
 	case "/api/v1/notifiers", "/notifiers":
 		notifiersRequests.Inc()
-		if len(*vmalertProxyURL) > 0 {
+		if vmalertproxy.Enabled() {
 			vmalertproxy.HandleRequest(w, r, path)
 			return true
 		}
@@ -758,7 +760,7 @@ func initVMUIConfig() {
 		// buildinfo.ShortVersion() may return empty result for builds without tags
 		cfg.Version = buildinfo.Version
 	}
-	cfg.VMAlert.Enabled = len(*vmalertProxyURL) != 0
+	cfg.VMAlert.Enabled = vmalertproxy.Enabled()
 	data, err = json.Marshal(&cfg)
 	if err != nil {
 		logger.Fatalf("cannot create vmui config: %s", err)
