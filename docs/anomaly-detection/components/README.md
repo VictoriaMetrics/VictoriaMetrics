@@ -54,11 +54,11 @@ schedulers:
     fit_window: "3d"  # how much historical data to use for fit stage
     start_from: "00:00"  # align the annual fit schedule to midnight in the configured timezone
     tz: "Europe/Kyiv"  # timezone to use for start_from
-  periodic_offline_1w:
+  periodic_online_weekly:
     class: 'periodic'
     infer_every: "15m"
     scatter_infer_jobs: true
-    fit_every: "24h"
+    fit_every: "365d"  # online state continues adapting between infrequent full re-fits
     fit_window: "14d"
     # if no start_from is specified, jobs will start immediately after service starts
 
@@ -75,18 +75,16 @@ models:
     min_dev_from_expected: 0.0  # turned off. if |y - yhat| < min_dev_from_expected, anomaly score will be 0
     detection_direction: 'above_expected' # detect anomalies only when y > yhat, "peaks"
     clip_predictions: True  # clip predictions to expected data range, i.e. [0, inf] for this query `host_network_receive_errors
-  prophet_weekly: # we can set up alias for model
-    class: 'prophet'
+  envelope_weekly: # we can set up alias for model
+    class: 'temporal_envelope'
     provide_series: ['anomaly_score', 'y', 'yhat', 'yhat_lower', 'yhat_upper']
     queries: ['cpu_seconds_total']
-    schedulers: ['periodic_offline_1w']  # will be attached to 1-week scheduler, re-fit every 24h and infer every 15m
+    schedulers: ['periodic_online_weekly']  # fit on two weekly cycles, then update online every 15m
     min_dev_from_expected: [0.01, 0.01]  # minimum deviation from expected value to be even considered as anomaly
     anomaly_score_outside_data_range: 1.5  # override default anomaly score outside expected data range
     detection_direction: 'above_expected'
     clip_predictions: True  # clip predictions to expected data range, i.e. [0, inf] for this query `cpu_seconds_total`
-    args:  # model-specific arguments
-      interval_width: 0.98
-      yearly_seasonality: False  # disable yearly seasonality, since we have only 7 days of data
+    seasonalities: ['hod_smooth', 'dow_smooth']
 
 # where to read data from
 # https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader
@@ -113,7 +111,7 @@ reader:
 # https://docs.victoriametrics.com/anomaly-detection/components/writer/
 writer:
   datasource_url: "http://victoriametrics:8428/"
-  # tenant_id: "0:0"  # for VictoriaMetrics cluster, can support "multitenant"
+  tenant_id: "0:0"  # for VictoriaMetrics cluster, can support "multitenant"
   # https://docs.victoriametrics.com/anomaly-detection/components/writer/#metrics-formatting
   metric_format:
     __name__: $VAR
@@ -204,6 +202,7 @@ models:
 
 writer:
   datasource_url: "http://victoriametrics:8428/"
+  tenant_id: "0:0"
 
 monitoring:
   push:
