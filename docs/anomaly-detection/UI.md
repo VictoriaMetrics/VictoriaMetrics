@@ -193,7 +193,7 @@ The best applications of this mode are:
 
 ### What you can do with Copilot
 
-- **Ask questions** about any model (e.g. [Temporal Envelope](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope), [Prophet](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet), or [Z-score](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-z-score) - parameters, trade-offs, when to use each)
+- **Ask questions** about any model (e.g. [Temporal Envelope](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope), [Online Seasonal Quantile](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-seasonal-quantile), or [Online Z-score](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-z-score) - parameters, trade-offs, when to use each)
 - **Improve detection quality** - describe what's wrong ("too many false positives", "missing spikes") and Copilot reads the config, searches the docs, and proposes a validated configuration change to fix the issue.
 - **Get config suggestions inline** - suggestions appear as interactive cards with an explanation and a YAML diff; click **Apply** to write the change directly to your current settings, or **Decline** to keep the conversation going.
 - {{% available_from "v1.30.0" anomaly %}} **Profile and tune the real query** - with [mcp-vmanomaly](#mcp-tools-server) connected, Copilot can inspect bounded time-series characteristics, recommend an online model, start an asynchronous autotune task, and apply its validated query and model suggestions.
@@ -316,7 +316,7 @@ docker run -it --rm \
   -e VMANOMALY_MCP_SERVER_URL=http://mcp-vmanomaly:8081/mcp \
   -p 8080:8080 \
   -p 8490:8490 \
-  victoriametrics/vmanomaly:v1.30.0 \
+  victoriametrics/vmanomaly:v1.30.1 \
   vmanomaly_config.yaml
 ```
 
@@ -569,7 +569,7 @@ Set up the time range and resolution (step) for data visualization and anomaly d
 
 ![vmanomaly-ui-sections-explore](vmanomaly-ui-sections-explore.webp)
 
-Pay attention to trends, seasonality, noise, outliers, and other patterns in the data, which can influence the choice of anomaly detection model and its hyperparameters (e.g. use seasonal models for seasonal data - like `Prophet`, robust models for noisy de-seasonalized data - like `MAD`, etc.).
+Pay attention to trends, seasonality, noise, outliers, and other patterns in the data, which can influence the choice of anomaly detection model and its hyperparameters. Use [Temporal Envelope](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope) for complex data with trend or calendar patterns, and [Online MAD](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-mad) for simple, mostly stationary data where robustness to outliers matters.
 
 ![vmanomaly-ui-sections-plot-area-query-mode](vmanomaly-ui-sections-plot-area-query-mode.webp)
 
@@ -644,6 +644,19 @@ If the **results** look good and the **model configuration should be deployed in
 ## Changelog
 
 {{% collapse name="Release history" %}}
+
+### v1.8.1
+Released: 2026-08-06
+
+vmanomaly version: [v1.30.1](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1301)
+
+- IMPROVEMENT: Model settings are validated and normalized when applied. Invalid drafts remain open with actionable feedback, and advanced-setting summaries open the corresponding editor directly.
+
+- BUGFIX: Server-query counts load when the query drawer opens, and numeric model fields preserve valid scalar and range values while reporting parsing errors on blur.
+
+- BUGFIX: The anomaly visualization empty state now follows the active theme instead of using light-theme colors in dark mode.
+
+- BUGFIX: Tenant selection now follows the datasource URL resolved by the server, avoiding an incorrect switch to tenant `0` when it is unavailable.
 
 ### v1.8.0
 Released: 2026-07-23
