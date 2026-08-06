@@ -354,6 +354,60 @@ scrape_configs:
 	checkEqualScrapeWorks(t, sws, swsExpected)
 }
 
+// TestInvalidScrapeConfigIsCountedAndSkipped is a regression test for
+// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8426: a
+// scrape_config whose relabel_configs regex is unsupported by Go's regexp
+// package (e.g. a Perl-style negative lookahead) is silently dropped from
+// cfg.ScrapeConfigs with only a log line, and no scrapable signal ever
+// indicates it happened. Valid jobs alongside it must still load normally,
+// and scrapeConfigsInvalid must reflect the number of dropped jobs so
+// operators can alert on it instead of a job just vanishing unnoticed.
+func TestInvalidScrapeConfigIsCountedAndSkipped(t *testing.T) {
+	data := `
+scrape_configs:
+- job_name: valid
+  static_configs:
+  - targets: ["host1:80"]
+- job_name: invalid
+  relabel_configs:
+  - source_labels: [__meta_kubernetes_node_label_foo]
+    regex: "(?!bar).+"
+    action: keep
+  static_configs:
+  - targets: ["host2:80"]
+`
+	var cfg Config
+	if err := cfg.parseData([]byte(data), "sss"); err != nil {
+		t.Fatalf("cannot parse data: %s", err)
+	}
+
+	if len(cfg.ScrapeConfigs) != 1 {
+		t.Fatalf("unexpected number of scrape configs loaded; got %d; want 1", len(cfg.ScrapeConfigs))
+	}
+	if cfg.ScrapeConfigs[0].JobName != "valid" {
+		t.Fatalf("unexpected scrape config loaded; got job_name=%q; want %q", cfg.ScrapeConfigs[0].JobName, "valid")
+	}
+
+	if got := scrapeConfigsInvalid.Get(); got != 1 {
+		t.Fatalf("unexpected scrapeConfigsInvalid value; got %v; want 1", got)
+	}
+
+	// Reloading with an all-valid config must reset the gauge back to 0,
+	// so a subsequent fix to the scrape_configs is reflected promptly.
+	dataFixed := `
+scrape_configs:
+- job_name: valid
+  static_configs:
+  - targets: ["host1:80"]
+`
+	if err := cfg.parseData([]byte(dataFixed), "sss"); err != nil {
+		t.Fatalf("cannot parse fixed data: %s", err)
+	}
+	if got := scrapeConfigsInvalid.Get(); got != 0 {
+		t.Fatalf("unexpected scrapeConfigsInvalid value after reload with valid config; got %v; want 0", got)
+	}
+}
+
 func TestBlackboxExporter(t *testing.T) {
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/684
 	data := `

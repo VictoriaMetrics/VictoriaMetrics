@@ -569,6 +569,10 @@ func (cfg *Config) parseData(data []byte, path string) error {
 	}
 	tailScrapeConfigs := cfg.ScrapeConfigs[len(validScrapeConfigs):]
 	cfg.ScrapeConfigs = validScrapeConfigs
+	// Surface how many scrape_config entries were dropped above so operators
+	// can alert on it - otherwise a misconfigured job (e.g. an unsupported
+	// relabel_config regex) simply disappears with no scrapable signal at all.
+	scrapeConfigsInvalid.Set(float64(len(tailScrapeConfigs)))
 	for i := range tailScrapeConfigs {
 		tailScrapeConfigs[i] = nil
 	}
