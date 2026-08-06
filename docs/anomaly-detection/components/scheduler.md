@@ -74,6 +74,8 @@ options={`"scheduler.periodic.PeriodicScheduler"`, `"scheduler.oneoff.OneoffSche
 
 > {{% available_from "v1.30.0" anomaly %}} If a periodic scheduler worker exits unexpectedly, the service attempts bounded restarts with exponential backoff instead of shutting down unrelated schedulers. Monitor [`vmanomaly_scheduler_alive`](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#startup-metrics) and `vmanomaly_scheduler_restarts_total` to alert on persistent failures.
 
+> {{% available_from "v1.30.1" anomaly %}} For exact-capable [online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models), `infer_every` is also the causal model-update cadence. If a delayed periodic job fetches several observations at once, they are processed on the same chronological grid used by exact backtesting rather than as one behaviorally different batch.
+
 ### Parameters
 
 For periodic scheduler parameters are defined as differences in times, expressed in difference units, e.g. days, hours, minutes, seconds. Time granularity is defined by the last characters of a string. Examples: `"50s"` (seconds), `"4m"` (minutes), `"3h"` (hours), `"2d"` (days), `"1w"` (weeks).
@@ -440,7 +442,7 @@ In **Inference only** mode {{% available_from "v1.22.1" anomaly %}}, the schedul
 - `fit_window`: Duration of historical data used for each training run (e.g. `P7D`, `PT1H`).
 - `fit_every`: Interval between consecutive training/inference cycles.
 - {{% available_from "v1.28.0" anomaly %}} `exact`: If set to `true`, BacktestingScheduler will execute inference for online models in small chronological batches equal to `infer_every` to mimic the production scheduler. (default: `false`)
-- {{% available_from "v1.28.0" anomaly %}} `infer_every`: Optional inference cadence for exact mode, defining how often the scheduler should call infer between two fits, otherwise defaults to `fit_every` when unset.
+- {{% available_from "v1.28.0" anomaly %}} `infer_every`: Optional inference grid and, in exact mode, model-call cadence between two fits. {{% available_from "v1.30.1" anomaly %}} In `inference_only` mode, an omitted value is derived from the effective query step or reader sampling period and capped by `fit_every`; it falls back to `fit_every` only when neither reader value is available.
 - `n_jobs`: Number of parallel jobs for backtesting (default: `1`).
 
 #### Example
