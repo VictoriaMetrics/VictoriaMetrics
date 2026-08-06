@@ -269,16 +269,23 @@ func tryParseFractionalUnixTimestamp(intStr, fracStr string) (int64, bool) {
 	if !ok {
 		return 0, false
 	}
+
+	multiplier := getUnixTimestampNanosecondsMultiplier(n)
+	// Truncate the fractional digits to valid length according to the unit precision.
+	maxFracDigits := len(strconv.FormatInt(multiplier, 10)) - 1
+	if len(fracStr) > maxFracDigits {
+		fracStr = fracStr[:maxFracDigits]
+	}
+	if len(fracStr) == 0 {
+		return n * multiplier, true
+	}
+
 	frac, ok := tryParseInt64(fracStr)
 	if !ok {
 		return 0, false
 	}
 	decimalExp := len(fracStr)
-	if decimalExp == 0 || decimalExp >= len(decimalMultipliers) {
-		return 0, false
-	}
-	multiplier := getUnixTimestampNanosecondsMultiplier(n)
-	if multiplier == 1 && frac != 0 {
+	if decimalExp >= len(decimalMultipliers) {
 		return 0, false
 	}
 	n *= multiplier
