@@ -280,21 +280,22 @@ by setting it via `<ROOT_IMAGE>` environment variable. For example, the followin
 ROOT_IMAGE=scratch make package-vmctl
 ```
 
-### ARM build
+### Linux ARM and RISC-V builds
 
-ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://blog.cloudflare.com/arm-takes-wing/).
+ARM builds may run on Raspberry Pi or on [energy-efficient ARM servers](https://blog.cloudflare.com/arm-takes-wing/).
+RISC-V 64 builds produce binaries for Linux `riscv64` systems.
 
-#### Development ARM build
+#### Development Linux ARM and RISC-V build
 
 1. [Install Go](https://golang.org/doc/install).
-1. Run `make vmctl-linux-arm` or `make vmctl-linux-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
-   It builds `vmctl-linux-arm` or `vmctl-linux-arm64` binary respectively and puts it into the `bin` folder.
+1. Run `make vmctl-linux-arm`, `make vmctl-linux-arm64`, or `make vmctl-linux-riscv64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
+   It builds the corresponding `vmctl-linux-arm`, `vmctl-linux-arm64`, or `vmctl-linux-riscv64` binary and puts it into the `bin` folder.
 
-#### Production ARM build
+#### Production Linux ARM and RISC-V build
 
 1. [Install docker](https://docs.docker.com/install/).
-1. Run `make vmctl-linux-arm-prod` or `make vmctl-linux-arm64-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
-   It builds `vmctl-linux-arm-prod` or `vmctl-linux-arm64-prod` binary respectively and puts it into the `bin` folder.
+1. Run `make vmctl-linux-arm-prod`, `make vmctl-linux-arm64-prod`, or `make vmctl-linux-riscv64-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
+   It builds the corresponding `vmctl-linux-arm-prod`, `vmctl-linux-arm64-prod`, or `vmctl-linux-riscv64-prod` binary and puts it into the `bin` folder.
 
 ## Command-line flags
 

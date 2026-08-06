@@ -19,8 +19,6 @@ TAR_OWNERSHIP ?= --owner=1000 --group=1000
 
 GOLANGCI_LINT_VERSION := 2.12.2
 
-.PHONY: $(MAKECMDGOALS)
-
 include app/*/Makefile
 include codespell/Makefile
 include docs/Makefile
@@ -28,6 +26,14 @@ include deployment/*/Makefile
 include dashboards/Makefile
 include package/release/Makefile
 include benchmarks/Makefile
+
+MAKE_TARGETS := $(shell awk 'BEGIN{FS=":"} /^[A-Za-z0-9_.\/%$$(){}-][A-Za-z0-9_.\/%$$(){}-]*:($$|[^=])/ {print $$1}' $(MAKEFILE_LIST))
+UNKNOWN_MAKE_TARGETS := $(filter-out $(MAKE_TARGETS),$(MAKECMDGOALS))
+ifneq ($(UNKNOWN_MAKE_TARGETS),)
+$(error unknown make target(s): $(UNKNOWN_MAKE_TARGETS))
+endif
+
+.PHONY: $(MAKECMDGOALS)
 
 all: \
 	victoria-metrics-prod \
@@ -134,6 +140,24 @@ vmutils-linux-s390x: \
 	vmrestore-linux-s390x \
 	vmctl-linux-s390x
 
+vmutils-linux-riscv64: \
+	vmagent-linux-riscv64 \
+	vmalert-linux-riscv64 \
+	vmalert-tool-linux-riscv64 \
+	vmauth-linux-riscv64 \
+	vmbackup-linux-riscv64 \
+	vmrestore-linux-riscv64 \
+	vmctl-linux-riscv64
+
+vmutils-netbsd-amd64: \
+	vmagent-netbsd-amd64 \
+	vmalert-netbsd-amd64 \
+	vmalert-tool-netbsd-amd64 \
+	vmauth-netbsd-amd64 \
+	vmbackup-netbsd-amd64 \
+	vmrestore-netbsd-amd64 \
+	vmctl-netbsd-amd64
+
 vmutils-darwin-amd64: \
 	vmagent-darwin-amd64 \
 	vmalert-darwin-amd64 \
@@ -190,9 +214,12 @@ victoria-metrics-crossbuild: \
 	victoria-metrics-linux-arm64 \
 	victoria-metrics-linux-arm \
 	victoria-metrics-linux-ppc64le \
+	victoria-metrics-linux-s390x \
+	victoria-metrics-linux-riscv64 \
 	victoria-metrics-darwin-amd64 \
 	victoria-metrics-darwin-arm64 \
 	victoria-metrics-freebsd-amd64 \
+	victoria-metrics-netbsd-amd64 \
 	victoria-metrics-openbsd-amd64 \
 	victoria-metrics-windows-amd64
 
@@ -203,9 +230,12 @@ vmutils-crossbuild: \
 	vmutils-linux-arm64 \
 	vmutils-linux-arm \
 	vmutils-linux-ppc64le \
+	vmutils-linux-s390x \
+	vmutils-linux-riscv64 \
 	vmutils-darwin-amd64 \
 	vmutils-darwin-arm64 \
 	vmutils-freebsd-amd64 \
+	vmutils-netbsd-amd64 \
 	vmutils-openbsd-amd64 \
 	vmutils-windows-amd64
 
@@ -267,6 +297,7 @@ release-victoria-metrics: \
 	release-victoria-metrics-linux-arm \
 	release-victoria-metrics-linux-arm64 \
 	release-victoria-metrics-linux-s390x \
+	release-victoria-metrics-linux-riscv64 \
 	release-victoria-metrics-darwin-amd64 \
 	release-victoria-metrics-darwin-arm64 \
 	release-victoria-metrics-freebsd-amd64 \
@@ -287,6 +318,9 @@ release-victoria-metrics-linux-arm64:
 
 release-victoria-metrics-linux-s390x:
 	GOOS=linux GOARCH=s390x $(MAKE) release-victoria-metrics-goos-goarch
+
+release-victoria-metrics-linux-riscv64:
+	GOOS=linux GOARCH=riscv64 $(MAKE) release-victoria-metrics-goos-goarch
 
 release-victoria-metrics-darwin-amd64:
 	GOOS=darwin GOARCH=amd64 $(MAKE) release-victoria-metrics-goos-goarch
@@ -328,6 +362,7 @@ release-vmutils: \
 	release-vmutils-linux-arm64 \
 	release-vmutils-linux-arm \
 	release-vmutils-linux-s390x \
+	release-vmutils-linux-riscv64 \
 	release-vmutils-darwin-amd64 \
 	release-vmutils-darwin-arm64 \
 	release-vmutils-freebsd-amd64 \
@@ -348,6 +383,9 @@ release-vmutils-linux-arm:
 
 release-vmutils-linux-s390x:
 	GOOS=linux GOARCH=s390x $(MAKE) release-vmutils-goos-goarch
+
+release-vmutils-linux-riscv64:
+	GOOS=linux GOARCH=riscv64 $(MAKE) release-vmutils-goos-goarch
 
 release-vmutils-darwin-amd64:
 	GOOS=darwin GOARCH=amd64 $(MAKE) release-vmutils-goos-goarch
