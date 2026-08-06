@@ -269,7 +269,7 @@ func tryParseFractionalUnixTimestamp(intStr, fracStr string) (int64, bool) {
 	}
 	isNegative := n < 0 || n == 0 && strings.HasPrefix(intStr, "-")
 
-	multiplier, maxFracDigits := getUnixTimestampMultiplierAndMaxFracDigits(n)
+	multiplier, maxFracDigits := getUnixTimestampMultiplier(n)
 	// Truncate the fractional digits to valid length according to the unit precision.
 	if len(fracStr) > maxFracDigits {
 		// 1.123456789XXX is invalid.
@@ -341,11 +341,11 @@ const (
 )
 
 func getUnixTimestampNanoseconds(n int64) int64 {
-	multiplier, _ := getUnixTimestampMultiplierAndMaxFracDigits(n)
+	multiplier, _ := getUnixTimestampMultiplier(n)
 	return n * multiplier
 }
 
-func getUnixTimestampMultiplierAndMaxFracDigits(n int64) (int64, int) {
+func getUnixTimestampMultiplier(n int64) (int64, int) {
 	if n <= maxValidSecond && n >= minValidSecond {
 		// The timestamp is in seconds.
 		return 1e9, 9
