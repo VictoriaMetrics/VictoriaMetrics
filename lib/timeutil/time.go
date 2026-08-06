@@ -207,7 +207,7 @@ func tryParseScientificUnixTimestamp(s string, decimalExp int64) (int64, bool) {
 	intStr := s[:dotIdx]
 	fracStr := s[dotIdx+1:]
 	if decimalExp >= int64(len(fracStr)) {
-		// The exponent shifts the decimal point past every fractional digit,
+		// The exponent shifts the decimal point past every fractional digit.
 		n, ok := tryParseDecimalMantissaAsInt(intStr, fracStr)
 		if !ok {
 			return 0, false
@@ -267,18 +267,10 @@ func tryParseFractionalUnixTimestamp(intStr, fracStr string) (int64, bool) {
 	if !ok {
 		return 0, false
 	}
+	isNegative := n < 0 || n == 0 && strings.HasPrefix(intStr, "-")
 
-	multiplier := getUnixTimestampNanosecondsMultiplier(n)
+	multiplier, maxFracDigits := getUnixTimestampMultiplierAndMaxFracDigits(n)
 	// Truncate the fractional digits to valid length according to the unit precision.
-	maxFracDigits := 0
-	switch multiplier {
-	case 1e9:
-		maxFracDigits = 9
-	case 1e6:
-		maxFracDigits = 6
-	case 1e3:
-		maxFracDigits = 3
-	}
 	if len(fracStr) > maxFracDigits {
 		// 1.123456789XXX is invalid.
 		tail := fracStr[maxFracDigits:]
@@ -303,18 +295,18 @@ func tryParseFractionalUnixTimestamp(intStr, fracStr string) (int64, bool) {
 	}
 	n *= multiplier
 	scale := decimalMultipliers[decimalExp]
-	fracNsec := frac * (multiplier / scale)
+	frac *= multiplier / scale
 
-	if strings.HasPrefix(intStr, "-") {
-		if n < math.MinInt64+fracNsec {
+	if isNegative {
+		if n < math.MinInt64+frac {
 			return 0, false
 		}
-		return n - fracNsec, true
+		return n - frac, true
 	}
-	if n > math.MaxInt64-fracNsec {
+	if n > math.MaxInt64-frac {
 		return 0, false
 	}
-	return n + fracNsec, true
+	return n + frac, true
 }
 
 func multiplyByDecimalExp(n int64, decimalExp int64) (int64, bool) {
@@ -349,24 +341,25 @@ const (
 )
 
 func getUnixTimestampNanoseconds(n int64) int64 {
-	return n * getUnixTimestampNanosecondsMultiplier(n)
+	multiplier, _ := getUnixTimestampMultiplierAndMaxFracDigits(n)
+	return n * multiplier
 }
 
-func getUnixTimestampNanosecondsMultiplier(n int64) int64 {
+func getUnixTimestampMultiplierAndMaxFracDigits(n int64) (int64, int) {
 	if n <= maxValidSecond && n >= minValidSecond {
 		// The timestamp is in seconds.
-		return 1e9
+		return 1e9, 9
 	}
 	if n <= maxValidMilli && n >= minValidMilli {
 		// The timestamp is in milliseconds.
-		return 1e6
+		return 1e6, 6
 	}
 	if n <= maxValidMicro && n >= minValidMicro {
 		// The timestamp is in microseconds.
-		return 1e3
+		return 1e3, 3
 	}
 	// The timestamp is in nanoseconds
-	return 1
+	return 1, 0
 }
 
 func tryParseInt64(s string) (int64, bool) {
