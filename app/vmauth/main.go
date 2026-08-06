@@ -431,6 +431,11 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tkn *j
 		if bu == nil {
 			break
 		}
+		if !bu.group.beginConcurrencyLimit() {
+			// The backend group hit its own max_concurrent_requests limit - skip it and try another backend.
+			bu.put()
+			continue
+		}
 		targetURL := bu.url
 		if tkn != nil {
 			vmac := tkn.VMAccess()
@@ -459,6 +464,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tkn *j
 			goto again
 		}
 
+		bu.group.endConcurrencyLimit()
 		bu.put()
 		if ok {
 			return
@@ -493,7 +499,11 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 	bb, bbOK := req.Body.(*bufferedBody)
 	canRetry := !bbOK || bb.canRetry()
 
-	res, err := ui.rt.RoundTrip(req)
+	rt := bu.group.rt
+	if rt == nil {
+		rt = ui.rt
+	}
+	res, err := rt.RoundTrip(req)
 	if err == nil {
 		defer func() { _ = res.Body.Close() }()
 	}
@@ -711,25 +721,25 @@ var (
 	bufferRequestBodyDuration = metrics.NewSummary(`vmauth_buffer_request_body_duration_seconds`)
 )
 
-func newRoundTripper(caFileOpt, certFileOpt, keyFileOpt, serverNameOpt string, insecureSkipVerifyP *bool) (http.RoundTripper, error) {
+func newRoundTripper(bs BackendSettings) (http.RoundTripper, error) {
 	caFile := *backendTLSCAFile
-	if caFileOpt != "" {
-		caFile = caFileOpt
+	if bs.TLSCAFile != "" {
+		caFile = bs.TLSCAFile
 	}
 	certFile := *backendTLSCertFile
-	if certFileOpt != "" {
-		certFile = certFileOpt
+	if bs.TLSCertFile != "" {
+		certFile = bs.TLSCertFile
 	}
 	keyFile := *backendTLSKeyFile
-	if keyFileOpt != "" {
-		keyFile = keyFileOpt
+	if bs.TLSKeyFile != "" {
+		keyFile = bs.TLSKeyFile
 	}
 	serverName := *backendTLSServerName
-	if serverNameOpt != "" {
-		serverName = serverNameOpt
+	if bs.TLSServerName != "" {
+		serverName = bs.TLSServerName
 	}
 	insecureSkipVerify := *backendTLSInsecureSkipVerify
-	if p := insecureSkipVerifyP; p != nil {
+	if p := bs.TLSInsecureSkipVerify; p != nil {
 		insecureSkipVerify = *p
 	}
 	opts := &promauth.Options{

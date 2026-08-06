@@ -590,6 +590,65 @@ X-Forwarded-For: 12.34.56.78, 42.2.3.84`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 }
 
+func TestRequestHandlerSkipsBackendGroupAtConcurrencyLimit(t *testing.T) {
+	tsA := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "backend=A")
+	}))
+	defer tsA.Close()
+	tsB := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "backend=B")
+	}))
+	defer tsB.Close()
+
+	cfgStr := fmt.Sprintf(`
+unauthorized_user:
+  load_balancing_policy: first_available
+  url_prefix:
+  - url_prefix: %s/foo
+    max_concurrent_requests: 1
+  - %s/foo
+`, tsA.URL, tsB.URL)
+
+	cfgOrigP := authConfigData.Load()
+	if _, err := reloadAuthConfigData([]byte(cfgStr)); err != nil {
+		t.Fatalf("cannot load config data: %s", err)
+	}
+	defer func() {
+		cfgOrig := []byte("unauthorized_user:\n  url_prefix: http://foo/bar")
+		if cfgOrigP != nil {
+			cfgOrig = *cfgOrigP
+		}
+		if _, err := reloadAuthConfigData(cfgOrig); err != nil {
+			t.Fatalf("cannot load the original config: %s", err)
+		}
+	}()
+
+	ac := authConfig.Load()
+	up := ac.UnauthorizedUser.URLPrefix
+	g0 := up.bus.Load().groups[0]
+	if cap(g0.concurrencyLimitCh) != 1 {
+		t.Fatalf("unexpected group0 concurrency limit; got %d; want 1", cap(g0.concurrencyLimitCh))
+	}
+	// Saturate group0's concurrency limit, simulating an in-flight request to backend A.
+	g0.concurrencyLimitCh <- struct{}{}
+	defer func() { <-g0.concurrencyLimitCh }()
+
+	r, err := http.NewRequest(http.MethodGet, "http://some-host.com/abc", nil)
+	if err != nil {
+		t.Fatalf("cannot initialize http request: %s", err)
+	}
+	r.RequestURI = r.URL.RequestURI()
+	w := &fakeResponseWriter{}
+	if !requestHandlerWithInternalRoutes(w, r) {
+		t.Fatalf("unexpected false is returned from requestHandler")
+	}
+
+	resp := w.getResponse()
+	if !strings.Contains(resp, "backend=B") {
+		t.Fatalf("expecting the request to be routed to backend B, since backend A's group is at its concurrency limit; got response:\n%s", resp)
+	}
+}
+
 func TestJWTRequestHandler(t *testing.T) {
 	// Generate RSA key pair for testing
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
