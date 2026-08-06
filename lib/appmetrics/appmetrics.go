@@ -65,6 +65,9 @@ func writePrometheusMetrics(w io.Writer) {
 	// Export start time and uptime in seconds
 	metrics.WriteGaugeUint64(w, "vm_app_start_timestamp", uint64(startTime.Unix()))
 	metrics.WriteGaugeUint64(w, "vm_app_uptime_seconds", uint64(time.Since(startTime).Seconds()))
+	if uncleanShutdownMetricEnabled.Load() {
+		metrics.WriteGaugeUint64(w, "vm_app_started_after_unclean_shutdown", startedAfterUncleanShutdown.Load())
+	}
 
 	// Export flags as metrics.
 	isSetMap := make(map[string]bool)
