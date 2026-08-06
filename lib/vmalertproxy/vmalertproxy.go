@@ -2,18 +2,26 @@ package vmalertproxy
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	vmhttputil "github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
+
+var proxyTimeout = flag.Duration("vmalert.proxyTimeout", 30*time.Second, "Timeout for requests to vmalert instances when multiple -vmalert.proxyURL urls are set "+
+	"and the responses are merged. This prevents a single slow vmalert instance from blocking the merged response. "+
+	"A single -vmalert.proxyURL is proxied without this timeout")
 
 // Init initializes proxying requests to the given proxyURLs when calling HandleRequest.
 //
@@ -52,6 +60,7 @@ func Enabled() bool {
 // requests are fetched from all the configured vmalert instances and merged into a single response
 // by concatenating data.groups and data.alerts lists. Responses from unavailable vmalert instances
 // are skipped, so the merged response contains data from the healthy instances only.
+// The `group_limit` and `page_num` args of /api/v1/rules are applied to the merged groups list - see pagination.
 //
 // All the other requests, including vmalert web UI, are proxied to the first proxyURL,
 // since their responses cannot be merged.
@@ -128,6 +137,21 @@ func isGrafanaRequest(r *http.Request) bool {
 // handleMergeRequest fetches the given path from all the configured vmalert instances
 // and writes the merged response to w.
 func handleMergeRequest(w http.ResponseWriter, r *http.Request, path, fieldName string) {
+	var pgn *pagination
+	if fieldName == "groups" {
+		var err error
+		pgn, err = parsePagination(r)
+		if err != nil {
+			writeErrorResponse(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		if pgn != nil {
+			// The merged groups list is paginated by the proxy itself - see the pagination doc comment,
+			// so the pagination args must not be forwarded to vmalert instances.
+			r = requestWithoutPaginationArgs(r)
+		}
+	}
+
 	itemsPerTarget := make([][]json.RawMessage, len(targets))
 	errsPerTarget := make([]error, len(targets))
 	var wg sync.WaitGroup
@@ -155,11 +179,19 @@ func handleMergeRequest(w http.ResponseWriter, r *http.Request, path, fieldName 
 		items = append(items, itemsPerTarget[i]...)
 	}
 	if failedTargets == len(targets) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusServiceUnavailable)
 		errMsg := fmt.Sprintf("all the %d vmalert instances at -vmalert.proxyURL are unavailable; see logs for details", len(targets))
-		fmt.Fprintf(w, `{"status":"error","errorType":"503","error":%q}`, errMsg)
+		writeErrorResponse(w, http.StatusServiceUnavailable, errMsg)
 		return
+	}
+
+	pgnFields := ""
+	if pgn != nil {
+		var err error
+		items, pgnFields, err = pgn.paginate(items)
+		if err != nil {
+			writeErrorResponse(w, http.StatusBadRequest, err.Error())
+			return
+		}
 	}
 
 	var bb bytes.Buffer
@@ -169,6 +201,7 @@ func handleMergeRequest(w http.ResponseWriter, r *http.Request, path, fieldName 
 			failedTargets, len(targets))
 		fmt.Fprintf(&bb, `,"warnings":[%q]`, warning)
 	}
+	bb.WriteString(pgnFields)
 	fmt.Fprintf(&bb, `,"data":{%q:[`, fieldName)
 	for i, item := range items {
 		if i > 0 {
@@ -185,7 +218,11 @@ func handleMergeRequest(w http.ResponseWriter, r *http.Request, path, fieldName 
 // fetchAPIItems requests the given path from t and returns the list of items
 // stored at the given fieldName of the `data` object in the response.
 func (t *proxyTarget) fetchAPIItems(r *http.Request, path, fieldName string) ([]json.RawMessage, error) {
-	req, err := t.newAPIRequest(r, path)
+	// Limit the request duration with -vmalert.proxyTimeout, so a single stuck vmalert instance
+	// doesn't block the merged response - it is skipped in the same way as an unavailable instance.
+	ctx, cancel := context.WithTimeout(r.Context(), *proxyTimeout)
+	defer cancel()
+	req, err := t.newAPIRequest(ctx, r, path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create request: %w", err)
 	}
@@ -224,12 +261,18 @@ func (t *proxyTarget) fetchAPIItems(r *http.Request, path, fieldName string) ([]
 }
 
 // newAPIRequest returns a GET request to t for the given path with query args copied from r.
-func (t *proxyTarget) newAPIRequest(r *http.Request, path string) (*http.Request, error) {
+func (t *proxyTarget) newAPIRequest(ctx context.Context, r *http.Request, path string) (*http.Request, error) {
 	u := *t.u
 	u.Path = joinURLPath(t.u.Path, path)
 	u.RawPath = ""
-	u.RawQuery = r.URL.RawQuery
-	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, u.String(), nil)
+	// Preserve the query args at -vmalert.proxyURL and append the request query args to them
+	// in the same way as net/http/httputil.NewSingleHostReverseProxy does.
+	if t.u.RawQuery == "" || r.URL.RawQuery == "" {
+		u.RawQuery = t.u.RawQuery + r.URL.RawQuery
+	} else {
+		u.RawQuery = t.u.RawQuery + "&" + r.URL.RawQuery
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -240,6 +283,103 @@ func (t *proxyTarget) newAPIRequest(r *http.Request, path string) (*http.Request
 		req.URL.RawQuery = q.Encode()
 	}
 	return req, nil
+}
+
+// pagination holds the `group_limit` and `page_num` args of the /api/v1/rules request.
+//
+// When multiple -vmalert.proxyURL urls are set, the pagination is applied to the merged groups list
+// by the proxy itself instead of forwarding the args to vmalert instances, since otherwise every
+// instance would paginate its own groups independently and the metadata fields such as `total_pages`
+// couldn't be calculated for the merged response. The accepted args, the returned metadata fields
+// and the returned errors mirror the vmalert behaviour - see listGroups at app/vmalert/web.go.
+type pagination struct {
+	groupLimit int
+	pageNum    int
+}
+
+// parsePagination returns the pagination args of r, or nil if r isn't paginated.
+func parsePagination(r *http.Request) (*pagination, error) {
+	q := r.URL.Query()
+	groupLimit := q.Get("group_limit")
+	pageNum := q.Get("page_num")
+	if groupLimit == "" {
+		if pageNum != "" {
+			return nil, fmt.Errorf(`"group_limit" needs to be present in order to paginate over the groups`)
+		}
+		return nil, nil
+	}
+	var pgn pagination
+	v, err := strconv.Atoi(groupLimit)
+	if err != nil || v <= 0 {
+		return nil, fmt.Errorf(`"group_limit" is expected to be a positive number, found %q`, groupLimit)
+	}
+	pgn.groupLimit = v
+	if pageNum != "" {
+		v, err := strconv.Atoi(pageNum)
+		if err != nil || v <= 0 {
+			return nil, fmt.Errorf(`"page_num" is expected to be a positive number, found %q`, pageNum)
+		}
+		pgn.pageNum = v
+	}
+	return &pgn, nil
+}
+
+// requestWithoutPaginationArgs returns a copy of r without the pagination query args.
+func requestWithoutPaginationArgs(r *http.Request) *http.Request {
+	r = r.Clone(r.Context())
+	q := r.URL.Query()
+	q.Del("group_limit")
+	q.Del("page_num")
+	r.URL.RawQuery = q.Encode()
+	return r
+}
+
+// paginate returns the page of groups requested by pgn together with the JSON-encoded
+// pagination metadata fields for the merged response.
+//
+// Zero metadata fields are skipped in the same way as the `omitempty` fields
+// of listGroupsResponse at app/vmalert/web.go.
+func (pgn *pagination) paginate(groups []json.RawMessage) ([]json.RawMessage, string, error) {
+	totalGroups := len(groups)
+	totalRules := 0
+	for _, g := range groups {
+		var v struct {
+			Rules []json.RawMessage `json:"rules"`
+		}
+		// Parse errors are ignored, since g has been already validated as a JSON value
+		// and the groups without the `rules` list contain no rules to count.
+		_ = json.Unmarshal(g, &v)
+		totalRules += len(v.Rules)
+	}
+	totalPages := max((totalGroups+pgn.groupLimit-1)/pgn.groupLimit, 1)
+	if pgn.pageNum > totalPages {
+		return nil, "", fmt.Errorf("page_num=%d exceeds total amount of pages in result=%d", pgn.pageNum, totalPages)
+	}
+	start := 0
+	if pgn.pageNum > 0 {
+		start = (pgn.pageNum - 1) * pgn.groupLimit
+	}
+	end := min(start+pgn.groupLimit, totalGroups)
+
+	var sb strings.Builder
+	if pgn.pageNum > 0 {
+		fmt.Fprintf(&sb, `,"page":%d`, pgn.pageNum)
+	}
+	fmt.Fprintf(&sb, `,"total_pages":%d`, totalPages)
+	if totalGroups > 0 {
+		fmt.Fprintf(&sb, `,"total_groups":%d`, totalGroups)
+	}
+	if totalRules > 0 {
+		fmt.Fprintf(&sb, `,"total_rules":%d`, totalRules)
+	}
+	return groups[start:end], sb.String(), nil
+}
+
+// writeErrorResponse writes a Prometheus-compatible JSON error to w.
+func writeErrorResponse(w http.ResponseWriter, statusCode int, errMsg string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	fmt.Fprintf(w, `{"status":"error","errorType":%q,"error":%q}`, strconv.Itoa(statusCode), errMsg)
 }
 
 // apiResponse is a Prometheus-compatible API response returned by vmalert.

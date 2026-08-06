@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"sync"
 	"testing"
+	"time"
 )
 
 func TestEnabled(t *testing.T) {
@@ -241,6 +242,145 @@ func TestHandleRequestMergeGrafana(t *testing.T) {
 			t.Fatalf("unexpected query requested from vmalert; got %q; want %q", query, queryExpected)
 		}
 	}
+}
+
+// TestHandleRequestMergeURLQueryArgs verifies that the query args at -vmalert.proxyURL
+// are preserved in the same way as the plain reverse proxy does.
+func TestHandleRequestMergeURLQueryArgs(t *testing.T) {
+	f := func(requestQuery string, headers map[string]string, queryExpected string) {
+		t.Helper()
+
+		vmalert1 := newTestVMAlert(t, `{"status":"success","data":{"groups":[]}}`)
+		vmalert2 := newTestVMAlert(t, `{"status":"success","data":{"groups":[]}}`)
+		Init([]string{vmalert1.s.URL + "/?authKey=secret", vmalert2.s.URL + "/?authKey=secret"})
+
+		doRequest(t, "/api/v1/rules", requestQuery, headers)
+
+		for _, vmalert := range []*testVMAlert{vmalert1, vmalert2} {
+			vmalert.mustHaveRequests(t, 1)
+			if query := vmalert.queries()[0]; query != queryExpected {
+				t.Fatalf("unexpected query requested from vmalert; got %q; want %q", query, queryExpected)
+			}
+		}
+	}
+
+	f("", nil, "authKey=secret")
+	f("type=alert", nil, "authKey=secret&type=alert")
+	// the query args at -vmalert.proxyURL must survive the Grafana query rewrite
+	f("type=alert", map[string]string{"User-Agent": "Grafana/11.3.0"}, "authKey=secret&datasource_type=prometheus&type=alert")
+}
+
+// TestHandleRequestMergeStuckInstance verifies that a vmalert instance not responding within
+// -vmalert.proxyTimeout doesn't block the merged response.
+func TestHandleRequestMergeStuckInstance(t *testing.T) {
+	proxyTimeoutOld := *proxyTimeout
+	*proxyTimeout = 100 * time.Millisecond
+	defer func() {
+		*proxyTimeout = proxyTimeoutOld
+	}()
+
+	vmalert1 := newTestVMAlert(t, `{"status":"success","data":{"groups":[{"name":"g1"}]}}`)
+	stuck := newTestVMAlertFunc(t, func(_ http.ResponseWriter, r *http.Request) {
+		// Block until the request is aborted by the -vmalert.proxyTimeout deadline.
+		<-r.Context().Done()
+	})
+	Init([]string{vmalert1.s.URL, stuck.s.URL})
+
+	w := doRequest(t, "/api/v1/rules", "", nil)
+	if w.Code != http.StatusOK {
+		t.Fatalf("unexpected status code; got %d; want %d", w.Code, http.StatusOK)
+	}
+	bodyExpected := `{"status":"success","warnings":["1 out of 2 vmalert instances at -vmalert.proxyURL are unavailable; ` +
+		`see logs for details"],"data":{"groups":[{"name":"g1"}]}}`
+	if body := w.Body.String(); body != bodyExpected {
+		t.Fatalf("unexpected response body\ngot\n%s\nwant\n%s", body, bodyExpected)
+	}
+}
+
+// TestHandleRequestMergePagination verifies that `group_limit` and `page_num` are applied
+// to the merged groups list instead of being forwarded to vmalert instances.
+func TestHandleRequestMergePagination(t *testing.T) {
+	f := func(query, bodyExpected, vmalertQueryExpected string) {
+		t.Helper()
+
+		vmalert1 := newTestVMAlert(t, `{"status":"success","data":{"groups":[{"name":"g1","rules":[{"name":"r1"},{"name":"r2"}]},{"name":"g2","rules":[{"name":"r3"}]}]}}`)
+		vmalert2 := newTestVMAlert(t, `{"status":"success","data":{"groups":[{"name":"g3","rules":[{"name":"r4"}]}]}}`)
+		Init([]string{vmalert1.s.URL, vmalert2.s.URL})
+
+		w := doRequest(t, "/api/v1/rules", query, nil)
+		if w.Code != http.StatusOK {
+			t.Fatalf("unexpected status code; got %d; want %d; response: %s", w.Code, http.StatusOK, w.Body.String())
+		}
+		if body := w.Body.String(); body != bodyExpected {
+			t.Fatalf("unexpected response body\ngot\n%s\nwant\n%s", body, bodyExpected)
+		}
+		for _, vmalert := range []*testVMAlert{vmalert1, vmalert2} {
+			vmalert.mustHaveRequests(t, 1)
+			if query := vmalert.queries()[0]; query != vmalertQueryExpected {
+				t.Fatalf("unexpected query requested from vmalert; got %q; want %q", query, vmalertQueryExpected)
+			}
+		}
+	}
+
+	// group_limit without page_num returns the first page without the `page` field -
+	// the same as vmalert does
+	f("group_limit=2",
+		`{"status":"success","total_pages":2,"total_groups":3,"total_rules":4,"data":{"groups":[{"name":"g1","rules":[{"name":"r1"},{"name":"r2"}]},{"name":"g2","rules":[{"name":"r3"}]}]}}`,
+		"")
+	f("group_limit=2&page_num=1",
+		`{"status":"success","page":1,"total_pages":2,"total_groups":3,"total_rules":4,"data":{"groups":[{"name":"g1","rules":[{"name":"r1"},{"name":"r2"}]},{"name":"g2","rules":[{"name":"r3"}]}]}}`,
+		"")
+	// the last page contains groups from the second vmalert instance
+	f("group_limit=2&page_num=2",
+		`{"status":"success","page":2,"total_pages":2,"total_groups":3,"total_rules":4,"data":{"groups":[{"name":"g3","rules":[{"name":"r4"}]}]}}`,
+		"")
+	// the other query args must be forwarded to every vmalert instance
+	f("group_limit=1&page_num=3&type=alert",
+		`{"status":"success","page":3,"total_pages":3,"total_groups":3,"total_rules":4,"data":{"groups":[{"name":"g3","rules":[{"name":"r4"}]}]}}`,
+		"type=alert")
+}
+
+// TestHandleRequestMergePaginationEmptyResult verifies the pagination metadata
+// for the empty merged groups list.
+func TestHandleRequestMergePaginationEmptyResult(t *testing.T) {
+	vmalert1 := newTestVMAlert(t, `{"status":"success","data":{"groups":[]}}`)
+	vmalert2 := newTestVMAlert(t, `{"status":"success","data":{"groups":[]}}`)
+	Init([]string{vmalert1.s.URL, vmalert2.s.URL})
+
+	w := doRequest(t, "/api/v1/rules", "group_limit=2&page_num=1", nil)
+	// zero metadata fields are skipped in the same way as vmalert does
+	bodyExpected := `{"status":"success","page":1,"total_pages":1,"data":{"groups":[]}}`
+	if body := w.Body.String(); body != bodyExpected {
+		t.Fatalf("unexpected response body\ngot\n%s\nwant\n%s", body, bodyExpected)
+	}
+}
+
+// TestHandleRequestMergePaginationFailure verifies that invalid pagination args
+// are rejected with the same errors as vmalert returns.
+func TestHandleRequestMergePaginationFailure(t *testing.T) {
+	f := func(query, errExpected string) {
+		t.Helper()
+
+		vmalert1 := newTestVMAlert(t, `{"status":"success","data":{"groups":[{"name":"g1"}]}}`)
+		vmalert2 := newTestVMAlert(t, `{"status":"success","data":{"groups":[{"name":"g2"}]}}`)
+		Init([]string{vmalert1.s.URL, vmalert2.s.URL})
+
+		w := doRequest(t, "/api/v1/rules", query, nil)
+		if w.Code != http.StatusBadRequest {
+			t.Fatalf("unexpected status code; got %d; want %d; response: %s", w.Code, http.StatusBadRequest, w.Body.String())
+		}
+		bodyExpected := fmt.Sprintf(`{"status":"error","errorType":"400","error":%q}`, errExpected)
+		if body := w.Body.String(); body != bodyExpected {
+			t.Fatalf("unexpected response body\ngot\n%s\nwant\n%s", body, bodyExpected)
+		}
+	}
+
+	f("page_num=1", `"group_limit" needs to be present in order to paginate over the groups`)
+	f("group_limit=0", `"group_limit" is expected to be a positive number, found "0"`)
+	f("group_limit=foo", `"group_limit" is expected to be a positive number, found "foo"`)
+	f("group_limit=1&page_num=-1", `"page_num" is expected to be a positive number, found "-1"`)
+	f("group_limit=1&page_num=foo", `"page_num" is expected to be a positive number, found "foo"`)
+	f("group_limit=2&page_num=2", `page_num=2 exceeds total amount of pages in result=1`)
 }
 
 // TestHandleRequestMergeURLPathPrefix verifies that the path prefix at -vmalert.proxyURL
