@@ -134,7 +134,7 @@ func tenantViaURL(addr, prefix, tenant, suffix string) string {
 }
 
 // tenantViaHeaders returns path in cluster's URL format where tenant is omitted in URL
-// Only supported if -enableMultitenancyViaHeaders is specified
+// Only supported if -enableMultitenancyViaHeaders is enabled
 func tenantViaHeaders(addr, prefix, suffix string) string {
 	return fmt.Sprintf("http://%s/%s/%s", addr, prefix, suffix)
 }
