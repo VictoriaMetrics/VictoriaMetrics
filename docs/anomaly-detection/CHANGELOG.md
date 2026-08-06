@@ -23,7 +23,7 @@ Released: 2026-08-06
 
 - IMPROVEMENT: Reduced fit and inference latency for the Z-score, MAD, standard deviation, Seasonal Quantile, and Rolling Quantile online models. Representative service-stage gains range from 1.5-2.6x for fit and 1.7-2.3x for inference, depending on model, storage mode, and data size.
 
-- IMPROVEMENT: Removed forwarded datasource credentials from completed, failed, canceled, and shutting-down QueryServer task state instead of retaining them with in-memory task history.
+- IMPROVEMENT: Removed forwarded datasource credentials from in-memory state for completed, failed, canceled, and shutting-down [analysis and autotune tasks](https://docs.victoriametrics.com/anomaly-detection/components/server/#time-series-analysis-and-autotune-api).
 
 - BUGFIX: Stabilized [Temporal Envelope](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope) after fitting across a late level shift. Its level, trend, residual, and supported calendar state now initialize coherently from the recent regime, avoiding stale fitted magnitudes and false seasonal oscillations when periodic inference starts.
 

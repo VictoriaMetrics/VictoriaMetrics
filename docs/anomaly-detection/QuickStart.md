@@ -129,7 +129,7 @@ groups:
 > [!NOTE] ARM64 startup on affected Apple Silicon virtualization
 > On some `linux/arm64` environments running through virtualization on Apple M4/M5 hosts, `vmanomaly` may exit with `SIGILL` (exit code `132`) before startup. This is caused by the virtualized host advertising an SVE2 capability that traps when used by OpenSSL 4.x; it does not affect all ARM64 systems.
 >
-> On affected hosts, add `-e OPENSSL_armcap=0` to `docker run`, or set `OPENSSL_armcap: "0"` under the service's Docker Compose `environment`. This disables ARM cryptographic acceleration, so apply it only as a temporary workaround on affected hosts.
+> On affected hosts, add `-e OPENSSL_armcap=0` to `docker run`, or add `- OPENSSL_armcap=0` under the service's Docker Compose `environment`, matching the list syntax used below. This disables ARM cryptographic acceleration, so apply it only as a temporary workaround on affected hosts.
 
 
 Below are the steps to get `vmanomaly` up and running inside a Docker container:
