@@ -38,6 +38,7 @@ func main() {
 	flag.CommandLine.SetOutput(os.Stdout)
 	flag.Usage = usage
 	envflag.Parse()
+	initSecretFlags()
 	buildinfo.Init()
 	logger.Init()
 
@@ -111,4 +112,9 @@ func newSrcFS(ctx context.Context) (common.RemoteFS, error) {
 		return nil, fmt.Errorf("cannot parse `-src`=%q: %w", *src, err)
 	}
 	return fs, nil
+}
+
+// initSecretFlags manages the secret flags for this app and must be called after flag parsing and before logger init.
+func initSecretFlags() {
+	pushmetrics.InitSecretFlags()
 }
