@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: `vmagent` and single-node VictoriaMetrics: expose the `vm_app_started_after_unclean_shutdown` gauge. It is set to `1` when the previous process run didn't shut down cleanly. Added the `UncleanShutdown` [alerting rule](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules), which fires for 10 minutes after a detected unclean shutdown. See [#8443](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8443).
+
 ## [v1.149.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.149.0)
 
 Released at 2026-08-05

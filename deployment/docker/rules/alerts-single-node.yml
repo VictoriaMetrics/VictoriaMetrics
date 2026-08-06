@@ -190,3 +190,14 @@ groups:
             If this happens after unclean shutdown of VictoriaMetrics process (via \"kill -9\", OOM or power off),
             then this is OK - the alert must go away in a few minutes after the restart.
             Otherwise this may point to the corruption of index data.
+
+      - alert: UncleanShutdown
+        expr: vm_app_started_after_unclean_shutdown == 1 and time() - vm_app_start_timestamp < 600
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.job }} on instance {{ $labels.instance }} started after an unclean shutdown"
+          description: |
+            The previous process run didn't shut down cleanly. Check the logs for OOM, SIGKILL,
+            a host failure, or another unexpected termination. This alert stops firing 10 minutes after startup.
+            See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8443 for more details.

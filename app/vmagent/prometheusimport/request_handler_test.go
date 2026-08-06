@@ -52,9 +52,9 @@ func setUp() {
 
 func tearDown() {
 	protoparserutil.StopUnmarshalWorkers()
+	remotewrite.Stop()
 	srv.Close()
 	logger.ResetOutputForTest()
 	tmpDataDir := flag.Lookup("remoteWrite.tmpDataPath").Value.String()
 	fs.MustRemoveDir(tmpDataDir)
-
 }

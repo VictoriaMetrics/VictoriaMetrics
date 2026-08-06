@@ -192,7 +192,7 @@ groups:
           (
             (sum(vm_persistentqueue_free_disk_space_bytes) by (job, instance, path)) /
             (sum(deriv(vm_persistentqueue_bytes_pending[1m])) by (job, instance, path) > 0)
-          ) * 
+          ) *
           on(job, instance, path) group_left(url)
           (vmagent_remotewrite_pending_data_bytes * 0 + 1) < 4 * 3600 >0
         for: 10m
@@ -200,5 +200,16 @@ groups:
           severity: critical
         annotations:
           summary: "Persistent Queue (url {{ $labels.url }}) of {{ $labels.instance }} (job:{{ $labels.job }}) will run out of space in 4 hours."
-          description: "RemoteWrite destination ({{ $labels.url }}) is unavailable or unable to receive data in a timely manner, so the persistent queue size is growing. 
+          description: "RemoteWrite destination ({{ $labels.url }}) is unavailable or unable to receive data in a timely manner, so the persistent queue size is growing.
             Once the available space is exhausted, some samples will be discarded and cause incident. Please check the health of remoteWrite destination ({{ $labels.url }})."
+
+      - alert: UncleanShutdown
+        expr: vm_app_started_after_unclean_shutdown == 1 and time() - vm_app_start_timestamp < 600
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.job }} on instance {{ $labels.instance }} started after an unclean shutdown"
+          description: |
+            The previous vmagent run didn't shut down cleanly. Check the logs and verify the on-disk
+            persistent queue. This alert stops firing 10 minutes after startup.
+            See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8443 for more details.
