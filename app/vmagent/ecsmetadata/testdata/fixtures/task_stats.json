@@ -1,0 +1,176 @@
+{
+  "d0d5326066614758844ca19c57e3dd5f-1366325544": {
+    "read": "2026-03-12T20:55:53.735906668Z",
+    "preread": "0001-01-01T00:00:00Z",
+    "pids_stats": {},
+    "blkio_stats": {
+      "io_service_bytes_recursive": [
+        {
+          "major": 259,
+          "minor": 3,
+          "op": "Read",
+          "value": 598016
+        },
+        {
+          "major": 259,
+          "minor": 3,
+          "op": "Write",
+          "value": 0
+        },
+        {
+          "major": 259,
+          "minor": 3,
+          "op": "Sync",
+          "value": 598016
+        },
+        {
+          "major": 259,
+          "minor": 3,
+          "op": "Async",
+          "value": 0
+        },
+        {
+          "major": 259,
+          "minor": 3,
+          "op": "Discard",
+          "value": 0
+        },
+        {
+          "major": 259,
+          "minor": 3,
+          "op": "Total",
+          "value": 598016
+        }
+      ],
+      "io_serviced_recursive": [
+        {
+          "major": 259,
+          "minor": 3,
+          "op": "Read",
+          "value": 16
+        },
+        {
+          "major": 259,
+          "minor": 3,
+          "op": "Write",
+          "value": 0
+        },
+        {
+          "major": 259,
+          "minor": 3,
+          "op": "Sync",
+          "value": 16
+        },
+        {
+          "major": 259,
+          "minor": 3,
+          "op": "Async",
+          "value": 0
+        },
+        {
+          "major": 259,
+          "minor": 3,
+          "op": "Discard",
+          "value": 0
+        },
+        {
+          "major": 259,
+          "minor": 3,
+          "op": "Total",
+          "value": 16
+        }
+      ],
+      "io_queue_recursive": [],
+      "io_service_time_recursive": [],
+      "io_wait_time_recursive": [],
+      "io_merged_recursive": [],
+      "io_time_recursive": [],
+      "sectors_recursive": []
+    },
+    "num_procs": 0,
+    "storage_stats": {},
+    "cpu_stats": {
+      "cpu_usage": {
+        "total_usage": 34109761,
+        "percpu_usage": [
+          32109005,
+          2140909
+        ],
+        "usage_in_kernelmode": 10000000,
+        "usage_in_usermode": 10000000
+      },
+      "system_cpu_usage": 575640000000,
+      "online_cpus": 2,
+      "throttling_data": {
+        "periods": 0,
+        "throttled_periods": 0,
+        "throttled_time": 0
+      }
+    },
+    "precpu_stats": {
+      "cpu_usage": {
+        "total_usage": 0,
+        "usage_in_kernelmode": 0,
+        "usage_in_usermode": 0
+      },
+      "throttling_data": {
+        "periods": 0,
+        "throttled_periods": 0,
+        "throttled_time": 0
+      }
+    },
+    "memory_stats": {
+      "usage": 913408,
+      "max_usage": 4919296,
+      "stats": {
+        "active_anon": 0,
+        "active_file": 0,
+        "cache": 270336,
+        "dirty": 0,
+        "hierarchical_memory_limit": 2147483648,
+        "hierarchical_memsw_limit": 9223372036854772000,
+        "inactive_anon": 0,
+        "inactive_file": 135168,
+        "mapped_file": 0,
+        "pgfault": 1353,
+        "pgmajfault": 0,
+        "pgpgin": 1089,
+        "pgpgout": 996,
+        "rss": 0,
+        "rss_huge": 0,
+        "total_active_anon": 0,
+        "total_active_file": 0,
+        "total_cache": 270336,
+        "total_dirty": 0,
+        "total_inactive_anon": 0,
+        "total_inactive_file": 135168,
+        "total_mapped_file": 0,
+        "total_pgfault": 1353,
+        "total_pgmajfault": 0,
+        "total_pgpgin": 1089,
+        "total_pgpgout": 996,
+        "total_rss": 0,
+        "total_rss_huge": 0,
+        "total_unevictable": 0,
+        "total_writeback": 0,
+        "unevictable": 0,
+        "writeback": 0
+      },
+      "limit": 2147483648
+    },
+    "name": "Main",
+    "id": "d0d5326066614758844ca19c57e3dd5f-1366325544",
+    "networks": {
+      "eth1": {
+        "rx_bytes": 69923,
+        "rx_packets": 125,
+        "rx_errors": 0,
+        "rx_dropped": 0,
+        "tx_bytes": 30026,
+        "tx_packets": 121,
+        "tx_errors": 0,
+        "tx_dropped": 0
+      }
+    }
+  }
+}
