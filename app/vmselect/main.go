@@ -74,7 +74,7 @@ var (
 	clusternativeListenAddr = flag.String("clusternativeListenAddr", "", "TCP address to listen for requests from other vmselect nodes in multi-level cluster setup. "+
 		"See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multi-level-cluster-setup . Usually :8401 should be set to match default vmstorage port for vmselect. Disabled work if empty")
 
-	enableMultitenancyViaHeaders = flag.Bool("enableMultitenancyViaHeaders", false, "Enables multitenancy via HTTP headers. "+
+	enableMultitenancyViaHeaders = flag.Bool("enableMultitenancyViaHeaders", true, "Enables multitenancy via HTTP headers. "+
 		"See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-headers")
 )
 
