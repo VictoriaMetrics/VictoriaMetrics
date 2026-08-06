@@ -2,10 +2,10 @@ package storage
 
 import (
 	"bytes"
-	"math"
 	"path/filepath"
 	"strconv"
 	"sync/atomic"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -79,7 +79,7 @@ func mustOpenLegacyIndexDB(path string, s *Storage) *legacyIndexDB {
 
 	tr := TimeRange{
 		MinTimestamp: 0,
-		MaxTimestamp: math.MaxInt64,
+		MaxTimestamp: time.Now().UnixMilli(),
 	}
 	idb := mustOpenIndexDB(id, tr, name, path, s, &s.isReadOnly, true)
 	legacyIDB := &legacyIndexDB{idb: idb}
