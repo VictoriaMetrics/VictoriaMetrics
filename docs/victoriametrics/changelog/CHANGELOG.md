@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): extend `-replay.continueWithExecutionErr` to also handle the `400 Bad Request` response code, since it is used for Prometheus querying API requests when request parameters are missing or incorrect. See [#11352](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11352).
+
 ## [v1.149.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.149.0)
 
 Released at 2026-08-05
