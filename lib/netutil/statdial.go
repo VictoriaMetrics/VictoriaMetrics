@@ -11,51 +11,58 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
-// NewStatDialFuncWithDial returns dialer function that registers stats metrics for conns.
+// NewStatDialFuncWithDial returns a dialer function that registers stats metrics for conns.
 func NewStatDialFuncWithDial(metricPrefix string, dialFunc func(ctx context.Context, network, addr string) (net.Conn, error)) func(ctx context.Context, network, addr string) (net.Conn, error) {
-	return newStatDialFunc(metricPrefix, dialFunc)
+	return newStatDialFunc(metricPrefix, "", dialFunc)
 }
 
-// NewStatDialFunc returns dialer function that supports DNS SRV records and registers stats metrics for conns.
+// NewStatDialFunc returns a dialer function that supports DNS SRV records and registers stats metrics for conns.
 func NewStatDialFunc(metricPrefix string) func(ctx context.Context, network, addr string) (net.Conn, error) {
-	return newStatDialFunc(metricPrefix, DialMaybeSRV)
+	return newStatDialFunc(metricPrefix, "", DialMaybeSRV)
 }
 
-func newStatDialFunc(metricPrefix string, dialFunc func(ctx context.Context, network, addr string) (net.Conn, error)) func(ctx context.Context, network, addr string) (net.Conn, error) {
+// NewStatDialFuncWithLabels returns a dialer function that supports DNS SRV records and registers stats metrics for conns.
+//
+// metricLabels are appended to each metric name and must have the form `{label1="value1", ...}`.
+func NewStatDialFuncWithLabels(metricPrefix, metricLabels string) func(ctx context.Context, network, addr string) (net.Conn, error) {
+	return newStatDialFunc(metricPrefix, metricLabels, DialMaybeSRV)
+}
+
+func newStatDialFunc(metricPrefix, metricLabels string, dialFunc func(ctx context.Context, network, addr string) (net.Conn, error)) func(ctx context.Context, network, addr string) (net.Conn, error) {
+	sm := &statDialMetrics{
+		dialsTotal: metrics.GetOrCreateCounter(metricPrefix + `_dials_total` + metricLabels),
+		dialErrors: metrics.GetOrCreateCounter(metricPrefix + `_dial_errors_total` + metricLabels),
+		conns:      metrics.GetOrCreateGauge(metricPrefix+`_conns`+metricLabels, nil),
+
+		readsTotal:        metrics.GetOrCreateCounter(metricPrefix + `_conn_reads_total` + metricLabels),
+		writesTotal:       metrics.GetOrCreateCounter(metricPrefix + `_conn_writes_total` + metricLabels),
+		readErrorsTotal:   metrics.GetOrCreateCounter(metricPrefix + `_conn_read_errors_total` + metricLabels),
+		writeErrorsTotal:  metrics.GetOrCreateCounter(metricPrefix + `_conn_write_errors_total` + metricLabels),
+		bytesReadTotal:    metrics.GetOrCreateCounter(metricPrefix + `_conn_bytes_read_total` + metricLabels),
+		bytesWrittenTotal: metrics.GetOrCreateCounter(metricPrefix + `_conn_bytes_written_total` + metricLabels),
+	}
+
 	return func(ctx context.Context, _, addr string) (net.Conn, error) {
-		sc := &statDialConn{
-			dialsTotal: metrics.GetOrCreateCounter(fmt.Sprintf(`%s_dials_total`, metricPrefix)),
-			dialErrors: metrics.GetOrCreateCounter(fmt.Sprintf(`%s_dial_errors_total`, metricPrefix)),
-			conns:      metrics.GetOrCreateGauge(fmt.Sprintf(`%s_conns`, metricPrefix), nil),
-
-			readsTotal:        metrics.GetOrCreateCounter(fmt.Sprintf(`%s_conn_reads_total`, metricPrefix)),
-			writesTotal:       metrics.GetOrCreateCounter(fmt.Sprintf(`%s_conn_writes_total`, metricPrefix)),
-			readErrorsTotal:   metrics.GetOrCreateCounter(fmt.Sprintf(`%s_conn_read_errors_total`, metricPrefix)),
-			writeErrorsTotal:  metrics.GetOrCreateCounter(fmt.Sprintf(`%s_conn_write_errors_total`, metricPrefix)),
-			bytesReadTotal:    metrics.GetOrCreateCounter(fmt.Sprintf(`%s_conn_bytes_read_total`, metricPrefix)),
-			bytesWrittenTotal: metrics.GetOrCreateCounter(fmt.Sprintf(`%s_conn_bytes_written_total`, metricPrefix)),
-		}
-
 		network := GetTCPNetwork()
 		conn, err := dialFunc(ctx, network, addr)
-		sc.dialsTotal.Inc()
+		sm.dialsTotal.Inc()
 		if err != nil {
-			sc.dialErrors.Inc()
+			sm.dialErrors.Inc()
 			if !TCP6Enabled() && !isTCPv4Addr(addr) {
 				err = fmt.Errorf("%w; try -enableTCP6 command-line flag for dialing ipv6 addresses", err)
 			}
 			return nil, err
 		}
-		sc.Conn = conn
-		sc.conns.Inc()
+		sc := &statDialConn{
+			Conn: conn,
+			sm:   sm,
+		}
+		sm.conns.Inc()
 		return sc, nil
 	}
 }
 
-type statDialConn struct {
-	closed atomic.Int32
-	net.Conn
-
+type statDialMetrics struct {
 	dialsTotal *metrics.Counter
 	dialErrors *metrics.Counter
 	conns      *metrics.Gauge
@@ -68,30 +75,37 @@ type statDialConn struct {
 	bytesWrittenTotal *metrics.Counter
 }
 
+type statDialConn struct {
+	closed atomic.Int32
+	net.Conn
+
+	sm *statDialMetrics
+}
+
 func (sc *statDialConn) Read(p []byte) (int, error) {
 	n, err := sc.Conn.Read(p)
-	sc.readsTotal.Inc()
+	sc.sm.readsTotal.Inc()
 	if err != nil {
-		sc.readErrorsTotal.Inc()
+		sc.sm.readErrorsTotal.Inc()
 	}
-	sc.bytesReadTotal.Add(n)
+	sc.sm.bytesReadTotal.Add(n)
 	return n, err
 }
 
 func (sc *statDialConn) Write(p []byte) (int, error) {
 	n, err := sc.Conn.Write(p)
-	sc.writesTotal.Inc()
+	sc.sm.writesTotal.Inc()
 	if err != nil {
-		sc.writeErrorsTotal.Inc()
+		sc.sm.writeErrorsTotal.Inc()
 	}
-	sc.bytesWrittenTotal.Add(n)
+	sc.sm.bytesWrittenTotal.Add(n)
 	return n, err
 }
 
 func (sc *statDialConn) Close() error {
 	err := sc.Conn.Close()
 	if sc.closed.Add(1) == 1 {
-		sc.conns.Dec()
+		sc.sm.conns.Dec()
 	}
 	return err
 }
