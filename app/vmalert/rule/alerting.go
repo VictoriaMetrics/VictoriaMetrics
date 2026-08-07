@@ -838,8 +838,17 @@ func (ar *AlertingRule) restore(ctx context.Context, q datasource.Querier, ts ti
 	// build a map of prior alertstate values from ALERTS metric when the flag is enabled
 	priorStateMap := make(map[uint64]string)
 	if *restoreFiringAsFiring {
+		// ALERTS always stores alertstate as the synthetic value, not the user-defined one (if any)
+		// querying with alertstate=<user-value> would match nothing, so exclude it from the filter
+		var alertsLabelsFilter string
+		for k, v := range ar.Labels {
+			if k == alertStateLabel || (strings.Contains(v, "{{") && strings.Contains(v, "}}")) {
+				continue
+			}
+			alertsLabelsFilter += fmt.Sprintf(",%s=%q", k, v)
+		}
 		exprAlerts := fmt.Sprintf("default_rollup(%s{%s%s}[%ds])",
-			alertMetricName, nameStr, labelsFilter, int(lookback.Seconds()))
+			alertMetricName, nameStr, alertsLabelsFilter, int(lookback.Seconds()))
 		resAlerts, _, err := q.Query(ctx, exprAlerts, ts.Add(-1*time.Second))
 		if err != nil {
 			ar.logDebugf(ts, nil, "failed to query prior alertstate from %s: %s", alertMetricName, err)
@@ -876,15 +885,11 @@ func (ar *AlertingRule) restore(ctx context.Context, q datasource.Querier, ts ti
 		}
 		a.ActiveAt = time.Unix(int64(series.Values[0]), 0)
 		a.Restored = true
-		// priorStateMap is keyed without alertstate (ALERTS always uses the synthetic value).
-		// ALERTS_FOR_STATE may retain a user-defined alertstate label, so strip it for lookup.
-		lookupLabels := labelSet
-		if _, hasUserState := labelSet[alertStateLabel]; hasUserState {
-			lookupLabels = make(map[string]string, len(labelSet)-1)
-			for k, v := range labelSet {
-				if k != alertStateLabel {
-					lookupLabels[k] = v
-				}
+		// priorStateMap is keyed without alertstate, so strip it for lookup.
+		lookupLabels := make(map[string]string, len(labelSet))
+		for k, v := range labelSet {
+			if k != alertStateLabel {
+				lookupLabels[k] = v
 			}
 		}
 		priorState := priorStateMap[hash(lookupLabels)]

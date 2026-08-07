@@ -1188,8 +1188,9 @@ func TestGroup_RestoreFiringAsFiring(t *testing.T) {
 					alertStateLabel, "mystate")
 				return m
 			}())
-		// ALERTS uses the synthetic alertstate="firing" (overrides user value).
-		fqr.Set(`default_rollup(ALERTS{alertgroup="TestRestoreFiring",alertname="foo",alertstate="mystate"}[3600s])`,
+		// ALERTS query must NOT filter by alertstate: the stored series has alertstate="firing" (synthetic),
+		// not the user's value. The filter excludes alertstate so the query matches real data.
+		fqr.Set(`default_rollup(ALERTS{alertgroup="TestRestoreFiring",alertname="foo"}[3600s])`,
 			metricWithValueAndLabels(t, 1,
 				"__name__", alertMetricName,
 				alertNameLabel, "foo",
