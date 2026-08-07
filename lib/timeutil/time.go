@@ -151,6 +151,7 @@ func TryParseUnixTimestamp(s string) (int64, bool) {
 		return 0, false
 	}
 
+	// Move decimal point `exp` positions to the right.
 	if whole, ok = scale10xNoOverflow(whole, exp); !ok {
 		return 0, false
 	}
@@ -167,6 +168,7 @@ func TryParseUnixTimestamp(s string) (int64, bool) {
 		fracExp -= exp
 	}
 
+	// Move decimal point `tsExp` positions to the right.
 	tsExp := getUnixTimestampExponent(whole)
 	if whole, ok = scale10xNoOverflow(whole, tsExp); !ok {
 		return 0, false
