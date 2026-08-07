@@ -272,6 +272,7 @@ for the collected samples. Examples:
 ### Monitoring Data eXchange
 
 The Monitoring Data eXchange (MDX){{% available_from "v1.147.0" %}} feature allows `vmagent` to forward only VictoriaMetrics metrics to selected `-remoteWrite.url` destinations while dropping metrics from non-VictoriaMetrics services.
+See [Metrics](https://docs.victoriametrics.com/victoriametrics/metrics/) for what these metrics mean.
 
 To enable MDX, set `-remoteWrite.mdx.enable=true` for the target URL and `-remoteWrite.mdx.enable=false` for other URLs:
 
@@ -1181,6 +1182,7 @@ See also [cardinality explorer docs](https://docs.victoriametrics.com/victoriame
 `vmagent` exports various metrics in Prometheus exposition format at `http://vmagent-host:8429/metrics` page.
 We recommend setting up regular scraping of this page either through `vmagent` itself or by a Prometheus-compatible scraper,
 so that the exported metrics may be analyzed later.
+See [Metrics](https://docs.victoriametrics.com/victoriametrics/metrics/) for what the exported metrics mean.
 
 If you use Google Cloud Managed Prometheus for scraping metrics from VictoriaMetrics components, then pass `-metrics.exposeMetadata`
 command-line to them, so they add `TYPE` and `HELP` comments for each exposed metric on the `/metrics` page.
