@@ -876,7 +876,18 @@ func (ar *AlertingRule) restore(ctx context.Context, q datasource.Querier, ts ti
 		}
 		a.ActiveAt = time.Unix(int64(series.Values[0]), 0)
 		a.Restored = true
-		priorState := priorStateMap[id]
+		// priorStateMap is keyed without alertstate (ALERTS always uses the synthetic value).
+		// ALERTS_FOR_STATE may retain a user-defined alertstate label, so strip it for lookup.
+		lookupLabels := labelSet
+		if _, hasUserState := labelSet[alertStateLabel]; hasUserState {
+			lookupLabels = make(map[string]string, len(labelSet)-1)
+			for k, v := range labelSet {
+				if k != alertStateLabel {
+					lookupLabels[k] = v
+				}
+			}
+		}
+		priorState := priorStateMap[hash(lookupLabels)]
 		if priorState == "firing" {
 			a.State = notifier.StateFiring
 			a.Start = ts
