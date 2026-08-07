@@ -1167,6 +1167,51 @@ func TestGroup_RestoreFiringAsFiring(t *testing.T) {
 			}
 		}
 	})
+
+	// User-defined alertstate label: ALERTS overrides it with the synthetic value, but
+	// ALERTS_FOR_STATE retains it. The priorStateMap lookup must strip alertstate so that
+	// the hashes match across both metrics.
+	t.Run("user_defined_alertstate_label", func(t *testing.T) {
+		defer fqr.Reset()
+		*restoreFiringAsFiring = true
+		defer func() { *restoreFiringAsFiring = false }()
+
+		ts := time.Now().Truncate(time.Hour)
+		fqr.Set("foo", metricWithValueAndLabels(t, 0, "__name__", "foo"))
+		// ALERTS_FOR_STATE retains the user-defined alertstate="mystate" label.
+		fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertgroup="TestRestoreFiring",alertname="foo",alertstate="mystate"}[3600s])`,
+			func() datasource.Metric {
+				m := metricWithValueAndLabels(t, float64(ts.Unix()),
+					"__name__", alertForStateMetricName,
+					alertNameLabel, "foo",
+					alertGroupNameLabel, "TestRestoreFiring",
+					alertStateLabel, "mystate")
+				return m
+			}())
+		// ALERTS uses the synthetic alertstate="firing" (overrides user value).
+		fqr.Set(`default_rollup(ALERTS{alertgroup="TestRestoreFiring",alertname="foo",alertstate="mystate"}[3600s])`,
+			metricWithValueAndLabels(t, 1,
+				"__name__", alertMetricName,
+				alertNameLabel, "foo",
+				alertGroupNameLabel, "TestRestoreFiring",
+				alertStateLabel, "firing"))
+
+		fg := NewGroup(config.Group{Name: "TestRestoreFiring", Rules: []config.Rule{
+			{Alert: "foo", Expr: "foo", Labels: map[string]string{alertStateLabel: "mystate"}, For: promutil.NewDuration(time.Second)},
+		}}, fqr, time.Second, nil)
+		fg.Init()
+		wg := sync.WaitGroup{}
+		wg.Go(func() { fg.Start(context.Background(), nil, fqr) })
+		fg.Close()
+		wg.Wait()
+
+		alerts := fg.Rules[0].(*AlertingRule).alerts
+		for _, a := range alerts {
+			if a.State != notifier.StateFiring {
+				t.Fatalf("expected StateFiring for alert with user-defined alertstate label; got %v", a.State)
+			}
+		}
+	})
 }
 
 func TestAlertingRule_Exec_Negative(t *testing.T) {
