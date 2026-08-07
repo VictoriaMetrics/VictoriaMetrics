@@ -363,7 +363,7 @@ Use the [signals](https://docs.victoriametrics.com/victoriametrics/troubleshooti
 and [how to fix](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#how-to-fix-memory-issues) to resolve it.
 
 VictoriaMetrics components detect the available memory at startup as the smaller of the host RAM and the cgroup memory limit,
-and expose it as `vm_available_memory_bytes`. The actual usage is `process_resident_memory_bytes` (RSS):
+and expose it as `vm_available_memory_bytes` [metric](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#monitoring). The actual memory usage (RSS) is exposed via `process_resident_memory_bytes` metric:
 
 ![VictoriaMetrics process memory model](troubleshooting-memory-model.webp)
 
@@ -376,11 +376,12 @@ and [indexdb](https://docs.victoriametrics.com/victoriametrics/#indexdb)
 
 `-memory.allowedPercent` (default 60%) or `-memory.allowedBytes` is a soft limit that sizes the VM caches
 and internal buffers (the buffers are resident in the Go heap). It does not bound the rest of the Go
-runtime memory or the OS page cache. The container or cgroup limit is the hard limit: if RSS reaches it,
-the process is [OOM-killed](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#out-of-memory-errors).
+runtime memory or the OS page cache. The cgroup memory limit is the hard limit. If the container's
+memory usage reaches that limit and cannot be reduced by reclaiming file-backed pages, the process can be
+[OOM-killed](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#out-of-memory-errors).
 
 The Go heap grows with the current workload (queries, ingestion, merges) outside the soft limit, so a
-heavy load can push RSS to the hard limit and trigger an OOM kill even while the VM caches stay within the
+heavy load can increase anonymous memory and trigger an OOM kill even while the VM caches stay within the
 soft limit.
 
 Before tuning and troubleshooting memory issues,
