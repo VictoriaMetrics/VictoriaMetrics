@@ -835,6 +835,28 @@ func (ar *AlertingRule) restore(ctx context.Context, q datasource.Querier, ts ti
 		return nil
 	}
 
+	// build a map of prior alertstate values from ALERTS metric when the flag is enabled
+	priorStateMap := make(map[uint64]string)
+	if *restoreFiringAsFiring {
+		exprAlerts := fmt.Sprintf("default_rollup(%s{%s%s}[%ds])",
+			alertMetricName, nameStr, labelsFilter, int(lookback.Seconds()))
+		resAlerts, _, err := q.Query(ctx, exprAlerts, ts.Add(-1*time.Second))
+		if err != nil {
+			ar.logDebugf(ts, nil, "failed to query prior alertstate from %s: %s", alertMetricName, err)
+		} else {
+			for _, series := range resAlerts.Data {
+				series.DelLabel("__name__")
+				priorState := series.Label(alertStateLabel)
+				series.DelLabel(alertStateLabel)
+				labelSet := make(map[string]string, len(series.Labels))
+				for _, v := range series.Labels {
+					labelSet[v.Name] = v.Value
+				}
+				priorStateMap[hash(labelSet)] = priorState
+			}
+		}
+	}
+
 	ar.alertsMu.Lock()
 	defer ar.alertsMu.Unlock()
 
@@ -854,7 +876,12 @@ func (ar *AlertingRule) restore(ctx context.Context, q datasource.Querier, ts ti
 		}
 		a.ActiveAt = time.Unix(int64(series.Values[0]), 0)
 		a.Restored = true
-		logger.Infof("alert %q (%d) restored to state at %v", a.Name, a.ID, a.ActiveAt)
+		priorState := priorStateMap[id]
+		if priorState == "firing" {
+			a.State = notifier.StateFiring
+			a.Start = ts
+		}
+		logger.Infof("alert %q (%d) restored to state at %v (prior alertstate: %q)", a.Name, a.ID, a.ActiveAt, priorState)
 	}
 	return nil
 }
