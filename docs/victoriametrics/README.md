@@ -2331,6 +2331,32 @@ and vmstorage has enough free memory to accommodate new cache sizes.
 To override the default values see command-line flags with `-storage.cacheSize` prefix.
 See the full description of [command-line flags](#list-of-command-line-flags).
 
+#### storage/tsid cache key mode
+
+The `storage/tsid` cache speeds up the lookup of internal series ids by `metric_name{labels...}`
+during data ingestion. By default every entry in this cache is keyed by the
+[time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) itself,
+which is the metric name together with all its labels. This means the memory used by the cache
+grows with the number of active series and with the number and the length of the labels of every
+series.
+
+Setting `-storage.tsidCacheKeyMode=fingerprint` {{% available_from "#" %}} keys the cache entries by a
+fixed-size 128-bit fingerprint of the metric name instead. The benefit is bigger for metric names
+containing many or long labels, since the key size no longer depends on them.
+
+This mode is **experimental** and is disabled by default. Keep the following in mind before enabling it:
+
+* This mode introduces theoretical possibility of hash collisions. Two distinct metric names whose 128-bit fingerprints collide are mapped onto the same cache
+  entry, and both resolve to the same internal series id for as long as that entry stays cached. Enable this mode only if that trade-off is acceptable.
+* Each mode uses its own cache file, so switching the mode starts with a cold `storage/tsid` cache for
+  that mode, which leads to a temporary increase in `indexdb` lookups until the cache warms up.
+* The smaller key lets the same cache size limit hold more entries, which increases the Go heap memory
+  used by the cache index. This part is not reported by `vm_cache_size_bytes`.
+
+When evaluating the mode, compare the process memory usage, the `storage/tsid` cache hit rate
+(`vm_cache_misses_total{type="storage/tsid"}` against `vm_cache_requests_total{type="storage/tsid"}`)
+and the number of slow inserts (`vm_slow_row_inserts_total`) before and after enabling it.
+
 ## Data migration
 
 ### From VictoriaMetrics

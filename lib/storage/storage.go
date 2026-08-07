@@ -246,7 +246,7 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 
 	// Load caches.
 	mem := memory.Allowed()
-	s.tsidCache = s.mustLoadCache(tsidCacheFilename, getTSIDCacheSize())
+	s.tsidCache = s.mustLoadCache(tsidCacheFilenameForMode(), getTSIDCacheSize())
 	s.metricIDCache = s.mustLoadCache(metricIDCacheFilename, mem/16)
 	s.metricNameCache = s.mustLoadCache(metricNameCacheFilename, getMetricNamesCacheSize())
 
@@ -825,7 +825,7 @@ func (s *Storage) resetAndSaveTSIDCache() {
 	// from inconsistent behaviour after possible unclean shutdown.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1347
 	s.tsidCache.Reset()
-	s.mustSaveCache(s.tsidCache, tsidCacheFilename)
+	s.mustSaveCache(s.tsidCache, tsidCacheFilenameForMode())
 }
 
 // MustClose closes the storage.
@@ -844,7 +844,7 @@ func (s *Storage) MustClose() {
 	s.legacyMustCloseIndexDBs()
 
 	// Save caches.
-	s.mustSaveCache(s.tsidCache, tsidCacheFilename)
+	s.mustSaveCache(s.tsidCache, tsidCacheFilenameForMode())
 	s.tsidCache.Stop()
 	s.mustSaveCache(s.metricIDCache, metricIDCacheFilename)
 	s.metricIDCache.Stop()
@@ -2615,12 +2615,26 @@ type legacyTSID struct {
 }
 
 func (s *Storage) getTSIDByMetricNameFromCache(dst *legacyTSID, metricName []byte) bool {
+	if tsidCacheFingerprintKey {
+		var kb [16]byte
+		key := marshalTSIDCacheKey(&kb, metricName)
+		buf := (*[unsafe.Sizeof(dst.TSID)]byte)(unsafe.Pointer(&dst.TSID))[:]
+		buf = s.tsidCache.Get(buf[:0], key)
+		return uintptr(len(buf)) == unsafe.Sizeof(dst.TSID)
+	}
 	buf := (*[unsafe.Sizeof(*dst)]byte)(unsafe.Pointer(dst))[:]
 	buf = s.tsidCache.Get(buf[:0], metricName)
 	return uintptr(len(buf)) == unsafe.Sizeof(*dst)
 }
 
 func (s *Storage) putTSIDByMetricNameToCache(tsid *legacyTSID, metricName []byte) {
+	if tsidCacheFingerprintKey {
+		var kb [16]byte
+		key := marshalTSIDCacheKey(&kb, metricName)
+		buf := (*[unsafe.Sizeof(tsid.TSID)]byte)(unsafe.Pointer(&tsid.TSID))[:]
+		s.tsidCache.Set(key, buf)
+		return
+	}
 	buf := (*[unsafe.Sizeof(*tsid)]byte)(unsafe.Pointer(tsid))[:]
 	s.tsidCache.Set(metricName, buf)
 }
