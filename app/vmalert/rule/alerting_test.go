@@ -1034,6 +1034,167 @@ func TestGroup_Restore(t *testing.T) {
 		})
 }
 
+// TestGroup_RestoreFiringAsFiring verifies that the -rule.restoreFiringAsFiring flag
+// restores the prior alertstate (firing/pending) from the ALERTS metric on startup.
+func TestGroup_RestoreFiringAsFiring(t *testing.T) {
+	fqr := &datasource.FakeQuerierWithRegistry{}
+
+	// stateMetric builds a fake ALERTS_FOR_STATE series carrying the ActiveAt Unix timestamp.
+	stateMetric := func(name string, value time.Time, labels ...string) datasource.Metric {
+		labels = append(labels, "__name__", alertForStateMetricName)
+		labels = append(labels, alertNameLabel, name)
+		labels = append(labels, alertGroupNameLabel, "TestRestoreFiring")
+		return metricWithValueAndLabels(t, float64(value.Unix()), labels...)
+	}
+	// alertsMetric builds a fake ALERTS series with the given alertstate label value.
+	alertsMetric := func(name, state string, labels ...string) datasource.Metric {
+		labels = append(labels, "__name__", alertMetricName)
+		labels = append(labels, alertNameLabel, name)
+		labels = append(labels, alertGroupNameLabel, "TestRestoreFiring")
+		labels = append(labels, alertStateLabel, state)
+		return metricWithValueAndLabels(t, 1, labels...)
+	}
+
+	runRestore := func(t *testing.T, flagValue bool, rules []config.Rule,
+		setup func(ts time.Time), check func(ts time.Time, alerts map[uint64]*notifier.Alert),
+	) {
+		t.Helper()
+		defer fqr.Reset()
+		*restoreFiringAsFiring = flagValue
+		defer func() { *restoreFiringAsFiring = false }()
+
+		ts := time.Now().Truncate(time.Hour)
+		setup(ts)
+
+		fg := NewGroup(config.Group{Name: "TestRestoreFiring", Rules: rules}, fqr, time.Second, nil)
+		fg.Init()
+		wg := sync.WaitGroup{}
+		wg.Go(func() { fg.Start(context.Background(), nil, fqr) })
+		fg.Close()
+		wg.Wait()
+
+		check(ts, fg.Rules[0].(*AlertingRule).alerts)
+	}
+
+	defaultRules := []config.Rule{{Alert: "foo", Expr: "foo", For: promutil.NewDuration(time.Second)}}
+
+	// flag=false (default): ALERTS "firing" is ignored, alert stays StatePending
+	t.Run("flag_false", func(t *testing.T) {
+		runRestore(t, false, defaultRules, func(ts time.Time) {
+			fqr.Set("foo", metricWithValueAndLabels(t, 0, "__name__", "foo"))
+			fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertgroup="TestRestoreFiring",alertname="foo"}[3600s])`,
+				stateMetric("foo", ts))
+			fqr.Set(`default_rollup(ALERTS{alertgroup="TestRestoreFiring",alertname="foo"}[3600s])`,
+				alertsMetric("foo", "firing"))
+		}, func(_ time.Time, alerts map[uint64]*notifier.Alert) {
+			for _, a := range alerts {
+				if a.State != notifier.StatePending {
+					t.Fatalf("expected StatePending; got %v", a.State)
+				}
+				// Start is set to the restore timestamp only when StateFiring is restored.
+				if !a.Start.IsZero() {
+					t.Fatalf("expected Start to be zero; got %v", a.Start)
+				}
+			}
+		})
+	})
+
+	// flag=true: ALERTS "firing" → StateFiring with non-zero Start
+	t.Run("flag_true_prior_firing", func(t *testing.T) {
+		runRestore(t, true, defaultRules, func(ts time.Time) {
+			fqr.Set("foo", metricWithValueAndLabels(t, 0, "__name__", "foo"))
+			fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertgroup="TestRestoreFiring",alertname="foo"}[3600s])`,
+				stateMetric("foo", ts))
+			fqr.Set(`default_rollup(ALERTS{alertgroup="TestRestoreFiring",alertname="foo"}[3600s])`,
+				alertsMetric("foo", "firing"))
+		}, func(_ time.Time, alerts map[uint64]*notifier.Alert) {
+			for _, a := range alerts {
+				if a.State != notifier.StateFiring {
+					t.Fatalf("expected StateFiring; got %v", a.State)
+				}
+				if a.Start.IsZero() {
+					t.Fatalf("expected Start to be non-zero; got zero")
+				}
+			}
+		})
+	})
+
+	// ALERTS reports "pending": alert must stay StatePending regardless of flag.
+	t.Run("prior_state_pending", func(t *testing.T) {
+		runRestore(t, true, defaultRules, func(ts time.Time) {
+			fqr.Set("foo", metricWithValueAndLabels(t, 0, "__name__", "foo"))
+			fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertgroup="TestRestoreFiring",alertname="foo"}[3600s])`,
+				stateMetric("foo", ts))
+			fqr.Set(`default_rollup(ALERTS{alertgroup="TestRestoreFiring",alertname="foo"}[3600s])`,
+				alertsMetric("foo", "pending"))
+		}, func(_ time.Time, alerts map[uint64]*notifier.Alert) {
+			for _, a := range alerts {
+				if a.State != notifier.StatePending {
+					t.Fatalf("expected StatePending; got %v", a.State)
+				}
+			}
+		})
+	})
+
+	// ALERTS returns no data: restore must still succeed via ALERTS_FOR_STATE alone.
+	t.Run("alerts_query_missing", func(t *testing.T) {
+		runRestore(t, true, defaultRules, func(ts time.Time) {
+			fqr.Set("foo", metricWithValueAndLabels(t, 0, "__name__", "foo"))
+			fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertgroup="TestRestoreFiring",alertname="foo"}[3600s])`,
+				stateMetric("foo", ts))
+			// ALERTS key intentionally absent — priorStateMap will be empty
+		}, func(ts time.Time, alerts map[uint64]*notifier.Alert) {
+			for _, a := range alerts {
+				if !a.Restored {
+					t.Fatalf("expected alert to be restored")
+				}
+				if a.State != notifier.StatePending {
+					t.Fatalf("expected StatePending when ALERTS returns no data; got %v", a.State)
+				}
+				if a.ActiveAt != ts {
+					t.Fatalf("expected ActiveAt %v; got %v", ts, a.ActiveAt)
+				}
+			}
+		})
+	})
+
+	// User-defined alertstate label: ALERTS overrides it with the synthetic value, but
+	// ALERTS_FOR_STATE retains it. The priorStateMap lookup must strip alertstate so that
+	// the hashes match across both metrics.
+	t.Run("user_defined_alertstate_label", func(t *testing.T) {
+		rules := []config.Rule{{
+			Alert:  "foo",
+			Expr:   "foo",
+			Labels: map[string]string{alertStateLabel: "mystate"},
+			For:    promutil.NewDuration(time.Second),
+		}}
+		runRestore(t, true, rules, func(ts time.Time) {
+			fqr.Set("foo", metricWithValueAndLabels(t, 0, "__name__", "foo"))
+			// ALERTS_FOR_STATE retains the user-defined alertstate="mystate" label.
+			fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertgroup="TestRestoreFiring",alertname="foo",alertstate="mystate"}[3600s])`,
+				metricWithValueAndLabels(t, float64(ts.Unix()),
+					"__name__", alertForStateMetricName,
+					alertNameLabel, "foo",
+					alertGroupNameLabel, "TestRestoreFiring",
+					alertStateLabel, "mystate"))
+			// ALERTS query must NOT filter by alertstate: the stored series has alertstate="firing" (synthetic),
+			// not the user's value. The filter excludes alertstate so the query matches real data.
+			fqr.Set(`default_rollup(ALERTS{alertgroup="TestRestoreFiring",alertname="foo"}[3600s])`,
+				metricWithValueAndLabels(t, 1,
+					"__name__", alertMetricName,
+					alertNameLabel, "foo",
+					alertGroupNameLabel, "TestRestoreFiring",
+					alertStateLabel, "firing"))
+		}, func(_ time.Time, alerts map[uint64]*notifier.Alert) {
+			for _, a := range alerts {
+				if a.State != notifier.StateFiring {
+					t.Fatalf("expected StateFiring for alert with user-defined alertstate label; got %v", a.State)
+				}
+			}
+		})
+	})
+}
+
 func TestAlertingRule_Exec_Negative(t *testing.T) {
 	fq := &datasource.FakeQuerier{}
 	ar := newTestAlertingRule("test", 0)
@@ -1326,6 +1487,15 @@ func TestAlertsToSend(t *testing.T) {
 		{Name: "c", State: notifier.StateInactive, ResolvedAt: ts.Add(-1 * time.Minute), LastSent: ts.Add(-1 * time.Minute)},
 	},
 		[]*notifier.Alert{{Name: "a"}, {Name: "c"}},
+		5*time.Minute, time.Minute,
+	)
+
+	// A firing alert restored by -rule.restoreFiringAsFiring has LastSent==zero,
+	// so it is always included in the first send cycle after restart.
+	f([]*notifier.Alert{
+		{Name: "restored-firing", State: notifier.StateFiring, Start: ts, Restored: true},
+	},
+		[]*notifier.Alert{{Name: "restored-firing"}},
 		5*time.Minute, time.Minute,
 	)
 }

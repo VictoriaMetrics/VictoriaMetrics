@@ -792,6 +792,20 @@ func firingAlertStaleTimeSeries(ls map[string]string, timestamp int64) []prompb.
 	}
 }
 
+// buildLabelsFilter returns a comma-prefixed PromQL label filter string from ar.Labels.
+// Labels with template values are always skipped; alertstate is also skipped when excludeAlertState is true.
+func (ar *AlertingRule) buildLabelsFilter(excludeAlertState bool) string {
+	var filter string
+	for k, v := range ar.Labels {
+		if (excludeAlertState && k == alertStateLabel) || (strings.Contains(v, "{{") && strings.Contains(v, "}}")) {
+			// skip template-valued labels: see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9305
+			continue
+		}
+		filter += fmt.Sprintf(",%s=%q", k, v)
+	}
+	return filter
+}
+
 // restore restores the value of ActiveAt field for active alerts,
 // based on previously written time series `alertForStateMetricName`.
 // Only rules with For > 0 can be restored.
@@ -808,17 +822,12 @@ func (ar *AlertingRule) restore(ctx context.Context, q datasource.Querier, ts ti
 	if !*disableAlertGroupLabel {
 		nameStr = fmt.Sprintf("%s=%q,%s=%q", alertGroupNameLabel, ar.GroupName, alertNameLabel, ar.Name)
 	}
-	var labelsFilter string
-	for k, v := range ar.Labels {
-		if strings.Contains(v, "{{") && strings.Contains(v, "}}") {
-			// do not append label to the filter when value contains template,
-			// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9305.
-			// it's ok to do the simple check to skip some labels,
-			// since we verify the results' hash afterward to ensure the alerts match.
-			continue
-		}
-		labelsFilter += fmt.Sprintf(",%s=%q", k, v)
-	}
+
+	// do not append label to the filter when value contains template,
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9305.
+	// it's ok to do the simple check to skip some labels,
+	// since we verify the results' hash afterward to ensure the alerts match.
+	labelsFilter := ar.buildLabelsFilter(false)
 	// use `default_rollup()` instead of `last_over_time()` here to accounts for possible staleness markers
 	expr := fmt.Sprintf("default_rollup(%s{%s%s}[%ds])",
 		alertForStateMetricName, nameStr, labelsFilter, int(lookback.Seconds()))
@@ -833,6 +842,30 @@ func (ar *AlertingRule) restore(ctx context.Context, q datasource.Querier, ts ti
 	if len(res.Data) < 1 {
 		ar.logDebugf(ts, nil, "no response was received from restore query")
 		return nil
+	}
+
+	// build a map of prior alertstate values from ALERTS metric when the flag is enabled
+	priorStateMap := make(map[uint64]string)
+	if *restoreFiringAsFiring {
+		// ALERTS always stores alertstate as the synthetic value, not the user-defined one (if any);
+		// querying with alertstate=<user-value> would match nothing, so exclude it from the filter.
+		exprAlerts := fmt.Sprintf("default_rollup(%s{%s%s}[%ds])",
+			alertMetricName, nameStr, ar.buildLabelsFilter(true), int(lookback.Seconds()))
+		resAlerts, _, err := q.Query(ctx, exprAlerts, ts.Add(-1*time.Second))
+		if err != nil {
+			ar.logDebugf(ts, nil, "failed to query prior alertstate from %s: %s", alertMetricName, err)
+		} else {
+			for _, series := range resAlerts.Data {
+				series.DelLabel("__name__")
+				priorState := series.Label(alertStateLabel)
+				series.DelLabel(alertStateLabel)
+				labelSet := make(map[string]string, len(series.Labels))
+				for _, v := range series.Labels {
+					labelSet[v.Name] = v.Value
+				}
+				priorStateMap[hash(labelSet)] = priorState
+			}
+		}
 	}
 
 	ar.alertsMu.Lock()
@@ -854,7 +887,19 @@ func (ar *AlertingRule) restore(ctx context.Context, q datasource.Querier, ts ti
 		}
 		a.ActiveAt = time.Unix(int64(series.Values[0]), 0)
 		a.Restored = true
-		logger.Infof("alert %q (%d) restored to state at %v", a.Name, a.ID, a.ActiveAt)
+		// priorStateMap is keyed without alertstate, so strip it for lookup.
+		lookupLabels := make(map[string]string, len(labelSet))
+		for k, v := range labelSet {
+			if k != alertStateLabel {
+				lookupLabels[k] = v
+			}
+		}
+		priorState := priorStateMap[hash(lookupLabels)]
+		if priorState == "firing" {
+			a.State = notifier.StateFiring
+			a.Start = ts
+		}
+		logger.Infof("alert %q (%d) restored to state at %v (prior alertstate: %q)", a.Name, a.ID, a.ActiveAt, priorState)
 	}
 	return nil
 }
