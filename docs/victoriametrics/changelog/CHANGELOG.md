@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): added `-rule.restoreFiringAsFiring` flag (default `false`). When enabled, alert restore queries the `ALERTS` metric in addition to `ALERTS_FOR_STATE` to preserve the prior `firing`/`pending` state across restarts. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1686).
+
 ## [v1.149.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.149.0)
 
 Released at 2026-08-05
