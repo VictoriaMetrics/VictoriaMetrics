@@ -41,6 +41,9 @@ var (
 	disableAlertGroupLabel = flag.Bool("disableAlertgroupLabel", false, "Whether to disable adding group's Name as label to generated alerts and time series.")
 	remoteReadLookBack     = flag.Duration("remoteRead.lookback", time.Hour, "Lookback defines how far to look into past for alerts timeseries. "+
 		"For example, if lookback=1h then range from now() to now()-1h will be scanned.")
+	restoreFiringAsFiring = flag.Bool("rule.restoreFiringAsFiring", false, "Whether to restore prior alert state (firing/pending) from ALERTS metric on startup. "+
+		"When true, alerts that were in firing state before restart are restored as StateFiring instead of StatePending. "+
+		"Requires -remoteRead.url to be configured.")
 	maxStartDelay = flag.Duration("group.maxStartDelay", 5*time.Minute, "Defines the max delay before starting the group evaluation. Group's start is artificially delayed for random duration on interval"+
 		" [0..min(--group.maxStartDelay, group.interval)]. This helps smoothing out the load on the configured datasource, so evaluations aren't executed too close to each other.")
 	ruleStripFilePath = flag.Bool("rule.stripFilePath", false, "Whether to strip rule file paths in logs and all API responses, including /metrics. "+
