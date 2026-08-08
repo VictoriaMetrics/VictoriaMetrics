@@ -980,6 +980,7 @@ See more details in [vmalert-tool](https://docs.victoriametrics.com/victoriametr
 See the [list of recommended alerting rules](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-vmalert.yml) to track the vmalert health.
 We recommend setting up regular scraping of this page either through [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) or by Prometheus-compatible scraper,
 so that the exported metrics may be analyzed later.
+See [Metrics](https://docs.victoriametrics.com/victoriametrics/metrics/) for what the exported metrics mean.
 
 If you use Google Cloud Managed Prometheus for scraping metrics from VictoriaMetrics components, then pass `-metrics.exposeMetadata`
 command-line to them, so they add `TYPE` and `HELP` comments per each exposed metric at `/metrics` page.

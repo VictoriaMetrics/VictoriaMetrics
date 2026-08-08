@@ -1914,6 +1914,7 @@ mkfs.ext4 ... -O 64bit,huge_file,extent -T huge
 VictoriaMetrics exports internal metrics in Prometheus exposition format at `/metrics` page.
 These metrics [can be scraped](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/prometheus-vm-single.yml)
 via [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) or any other Prometheus-compatible scraper.
+See [Metrics](https://docs.victoriametrics.com/victoriametrics/metrics/) for what the exported metrics mean.
 
 > Single-node VictoriaMetrics can self-scrape its metrics when `-selfScrapeInterval` command-line flag is
 set to duration greater than 0. For example, `-selfScrapeInterval=10s` scrapes `/metrics` page every 10 seconds.
