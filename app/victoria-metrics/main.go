@@ -41,6 +41,10 @@ var (
 		"limit is reached; see also -search.maxQueryDuration")
 )
 
+func init() {
+	flagutil.SetDynamicDefault("search.maxConcurrentRequests", "min(2 * availableCPUs, 16)")
+}
+
 func getDefaultMaxConcurrentRequests() int {
 	// A single request can saturate all the CPU cores, so there is no sense
 	// in allowing higher number of concurrent requests - they will just contend

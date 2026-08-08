@@ -5,10 +5,15 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 )
 
 var maxConcurrency = flag.Int("fs.maxConcurrency", getDefaultConcurrency(), "The maximum number of concurrent goroutines to work with files; smaller values may help reducing Go scheduling latency "+
 	"on systems with small number of CPU cores; higher values may help reducing data ingestion latency on systems with high-latency storage such as NFS or Ceph")
+
+func init() {
+	flagutil.SetDynamicDefault("fs.maxConcurrency", "min(16 * availableCPUs, 256)")
+}
 
 func getDefaultConcurrency() int {
 	n := min(16*cgroup.AvailableCPUs(), 256)

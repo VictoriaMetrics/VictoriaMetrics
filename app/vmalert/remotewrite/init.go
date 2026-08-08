@@ -37,7 +37,7 @@ var (
 
 	maxQueueSize  = flag.Int("remoteWrite.maxQueueSize", defaultMaxQueueSize, "Defines the max number of pending datapoints to remote write endpoint")
 	maxBatchSize  = flag.Int("remoteWrite.maxBatchSize", defaultMaxBatchSize, "Defines max number of timeseries to be flushed at once")
-	concurrency   = flag.Int("remoteWrite.concurrency", defaultConcurrency, "Defines number of writers for concurrent writing into remote write endpoint. Default value depends on the number of available CPU cores.")
+	concurrency   = flag.Int("remoteWrite.concurrency", defaultConcurrency, "Defines number of writers for concurrent writing into remote write endpoint")
 	flushInterval = flag.Duration("remoteWrite.flushInterval", defaultFlushInterval, "Defines interval of flushes to remote write endpoint")
 
 	tlsInsecureSkipVerify = flag.Bool("remoteWrite.tlsInsecureSkipVerify", false, "Whether to skip tls verification when connecting to -remoteWrite.url")
@@ -56,6 +56,10 @@ var (
 	oauth2TokenURL = flag.String("remoteWrite.oauth2.tokenUrl", "", "Optional OAuth2 tokenURL to use for -notifier.url.")
 	oauth2Scopes   = flag.String("remoteWrite.oauth2.scopes", "", "Optional OAuth2 scopes to use for -notifier.url. Scopes must be delimited by ';'.")
 )
+
+func init() {
+	flagutil.SetDynamicDefault("remoteWrite.concurrency", "2 * availableCPUs")
+}
 
 // InitSecretFlags must be called after flag.Parse and before any logging
 func InitSecretFlags() {
