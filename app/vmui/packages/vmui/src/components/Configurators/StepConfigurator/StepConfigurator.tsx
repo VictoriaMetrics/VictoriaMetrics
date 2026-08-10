@@ -22,11 +22,9 @@ const StepConfigurator: FC = () => {
   const { isMobile } = useDeviceDetect();
 
   const { customStep: value, isHistogram } = useGraphState();
-  const { period: { step, end, start } } = useTimeState();
+  const { period: { end, start } } = useTimeState();
   const graphDispatch = useGraphDispatch();
   const { displayType } = useCustomPanelState();
-
-  const prevDuration = usePrevious(end - start);
 
   const defaultStep = useMemo(() => {
     return getStepFromDuration(end - start, isHistogram, displayType);
@@ -106,16 +104,14 @@ const StepConfigurator: FC = () => {
   }, [defaultStep]);
 
   useEffect(() => {
-    const dur = end - start;
-    if (dur === prevDuration || !prevDuration || value !== prevDefaultStep) return;
-    if (defaultStep) {
-      handleApply(defaultStep);
-    }
-  }, [prevDuration, defaultStep]);
+    if (!prevDefaultStep) return;
+    if (value !== prevDefaultStep) return;
+    if (value === defaultStep) return;
 
-  useEffect(() => {
-    if (step === value || step === defaultStep) handleApply(defaultStep);
-  }, [isHistogram, displayType]);
+    graphDispatch({ type: "SET_CUSTOM_STEP", payload: defaultStep });
+    setCustomStep(defaultStep);
+    setError("");
+  }, [defaultStep, prevDefaultStep, value, graphDispatch]);
 
   return (
     <div
