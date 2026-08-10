@@ -31,6 +31,14 @@ var (
 	maxBytesPerSecond       = flagutil.NewBytes("maxBytesPerSecond", 0, "The maximum download speed. There is no limit if it is set to 0")
 	skipBackupCompleteCheck = flag.Bool("skipBackupCompleteCheck", false, "Whether to skip checking for 'backup complete' file in -src. This may be useful for restoring from old backups, which were created without 'backup complete' file")
 	SkipPreallocation       = flag.Bool("skipFilePreallocation", false, "Whether to skip pre-allocated files. This will likely be slower in most cases, but allows restores to resume mid file on failure")
+	restoreSince            = flagutil.NewRetentionDuration("restoreSince", "", "If set, a partition is restored only if the end date derived from its name (YYYY_MM) is newer than now()-restoreSince; the whole partition is restored, even though it may also contain data older than restoreSince. "+
+		"This reduces the download size when only recent data is needed and helps avoid over-provisioning disk space. "+
+		"For example, -restoreSince=5d restores only partitions whose calendar month ends within the last 5 days. "+
+		"Supports s (second), h (hour), d (day), w (week), M (month), y (year) suffixes.")
+	restorePartitions = flag.String("restorePartitions", "", "Regular expression matching partition names (YYYY_MM) to restore from the backup. "+
+		"Partitions whose name doesn't match are skipped. Non-partition files (metadata, etc.) are always restored. "+
+		"Example: -restorePartitions=2024_01 restores only January 2024; -restorePartitions=2026_.* restores the whole of 2026; "+
+		"-restorePartitions=2026_(0[1-6]) restores the first half of 2026. If not set, all partitions are restored.")
 )
 
 func main() {
@@ -65,6 +73,8 @@ func main() {
 		Dst:                     dstFS,
 		SkipBackupCompleteCheck: *skipBackupCompleteCheck,
 		SkipPreallocation:       *SkipPreallocation,
+		RestoreSince:            restoreSince.Duration(),
+		RestorePartitions:       *restorePartitions,
 	}
 	pushmetrics.Init()
 	if err := a.Run(ctx); err != nil {
