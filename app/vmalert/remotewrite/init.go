@@ -35,9 +35,10 @@ var (
 
 	idleConnectionTimeout = flag.Duration("remoteWrite.idleConnTimeout", 50*time.Second, `Defines a duration for idle (keep-alive connections) to exist. Consider settings this value less to the value of "-http.idleConnTimeout". It must prevent possible "write: broken pipe" and "read: connection reset by peer" errors.`)
 
-	maxQueueSize  = flag.Int("remoteWrite.maxQueueSize", defaultMaxQueueSize, "Defines the max number of pending datapoints to remote write endpoint")
-	maxBatchSize  = flag.Int("remoteWrite.maxBatchSize", defaultMaxBatchSize, "Defines max number of timeseries to be flushed at once")
-	concurrency   = flag.Int("remoteWrite.concurrency", defaultConcurrency, "Defines number of writers for concurrent writing into remote write endpoint. Default value depends on the number of available CPU cores.")
+	maxQueueSize = flag.Int("remoteWrite.maxQueueSize", defaultMaxQueueSize, "Defines the max number of pending datapoints to remote write endpoint")
+	maxBatchSize = flag.Int("remoteWrite.maxBatchSize", defaultMaxBatchSize, "Defines max number of timeseries to be flushed at once")
+	concurrency  = flagutil.NewIntWithDynamicDefault("remoteWrite.concurrency", defaultConcurrency, "2*cgroup.AvailableCPUs()",
+		"Defines number of writers for concurrent writing into remote write endpoint. Default value depends on the number of available CPU cores.")
 	flushInterval = flag.Duration("remoteWrite.flushInterval", defaultFlushInterval, "Defines interval of flushes to remote write endpoint")
 
 	tlsInsecureSkipVerify = flag.Bool("remoteWrite.tlsInsecureSkipVerify", false, "Whether to skip tls verification when connecting to -remoteWrite.url")

@@ -20,6 +20,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricnamestats"
@@ -30,11 +31,12 @@ var (
 	maxSamplesPerSeries = flag.Int("search.maxSamplesPerSeries", 30e6, "The maximum number of raw samples a single query can scan per each time series. This option allows limiting memory usage")
 	maxSamplesPerQuery  = flag.Int("search.maxSamplesPerQuery", 1e9, "The maximum number of raw samples a single query can process across all time series. "+
 		"This protects from heavy queries, which select unexpectedly high number of raw samples. See also -search.maxSamplesPerSeries")
-	maxWorkersPerQuery = flag.Int("search.maxWorkersPerQuery", defaultMaxWorkersPerQuery, "The maximum number of CPU cores a single query can use. "+
-		"The default value should work good for most cases. "+
-		"The flag can be set to lower values for improving performance of big number of concurrently executed queries. "+
-		"The flag can be set to bigger values for improving performance of heavy queries, which scan big number of time series (>10K) and/or big number of samples (>100M). "+
-		"There is no sense in setting this flag to values bigger than the number of CPU cores available on the system")
+	maxWorkersPerQuery = flagutil.NewIntWithDynamicDefault("search.maxWorkersPerQuery", defaultMaxWorkersPerQuery, "netstorage.defaultMaxWorkersPerQuery()",
+		"The maximum number of CPU cores a single query can use. "+
+			"The default value should work good for most cases. "+
+			"The flag can be set to lower values for improving performance of big number of concurrently executed queries. "+
+			"The flag can be set to bigger values for improving performance of heavy queries, which scan big number of time series (>10K) and/or big number of samples (>100M). "+
+			"There is no sense in setting this flag to values bigger than the number of CPU cores available on the system")
 )
 
 // Result is a single timeseries result.
