@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): properly update group-level `eval_delay` and `eval_alignment` for existing groups during runtime when config reload is triggered periodically or manually via `/-/reload`. Previously, these settings weren't updated after config reload during runtime. See [#11374](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11374).
+
 ## [v1.149.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.149.0)
 
 Release candidate
