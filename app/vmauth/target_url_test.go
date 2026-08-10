@@ -87,7 +87,7 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 		expectedRetryStatusCodes []int, expectedLoadBalancingPolicy string, expectedDropSrcPathPrefixParts int) {
 		t.Helper()
 
-		if err := ui.initURLs(); err != nil {
+		if err := ui.initURLs(nil); err != nil {
 			t.Fatalf("cannot initialize urls inside UserInfo: %s", err)
 		}
 		u, err := url.Parse(requestURI)
@@ -172,8 +172,10 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 				mustNewHeader("'x: y'"),
 			},
 		},
-		RetryStatusCodes:       []int{503, 501},
-		LoadBalancingPolicy:    "first_available",
+		RetryStatusCodes: []int{503, 501},
+		BackendSettings: BackendSettings{
+			LoadBalancingPolicy: "first_available",
+		},
 		DropSrcPathPrefixParts: new(2),
 	}, "/a/b/c", "http://foo.bar/c", `bb: aaa`, `x: y`, []int{503, 501}, "first_available", 2)
 	f(&UserInfo{
@@ -402,10 +404,12 @@ func TestUserInfoGetBackendURL_SRV(t *testing.T) {
 				URLPrefix: mustParseURL("http://vminsert:8480"),
 			},
 		},
-		DiscoverBackendIPs: &allowed,
-		URLPrefix:          mustParseURL("http://non-exist-dns-addr"),
+		BackendSettings: BackendSettings{
+			DiscoverBackendIPs: &allowed,
+		},
+		URLPrefix: mustParseURL("http://non-exist-dns-addr"),
 	}
-	if err := ui.initURLs(); err != nil {
+	if err := ui.initURLs(nil); err != nil {
 		t.Fatalf("cannot initialize urls inside UserInfo: %s", err)
 	}
 
@@ -455,10 +459,12 @@ func TestUserInfoGetBackendURL_SRVZeroBackends(t *testing.T) {
 				URLPrefix: mustParseURL("http://srv+vmselect"),
 			},
 		},
-		DiscoverBackendIPs: &allowed,
-		URLPrefix:          mustParseURL("http://non-exist-dns-addr"),
+		BackendSettings: BackendSettings{
+			DiscoverBackendIPs: &allowed,
+		},
+		URLPrefix: mustParseURL("http://non-exist-dns-addr"),
 	}
-	if err := ui.initURLs(); err != nil {
+	if err := ui.initURLs(nil); err != nil {
 		t.Fatalf("cannot initialize urls inside UserInfo: %s", err)
 	}
 

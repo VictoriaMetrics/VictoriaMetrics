@@ -73,22 +73,15 @@ type UserInfo struct {
 	Username    string     `yaml:"username,omitempty"`
 	Password    string     `yaml:"password,omitempty"`
 
-	URLPrefix              *URLPrefix  `yaml:"url_prefix,omitempty"`
-	DiscoverBackendIPs     *bool       `yaml:"discover_backend_ips,omitempty"`
-	URLMaps                []URLMap    `yaml:"url_map,omitempty"`
-	DumpRequestOnErrors    bool        `yaml:"dump_request_on_errors,omitempty"`
-	HeadersConf            HeadersConf `yaml:",inline"`
-	MaxConcurrentRequests  int         `yaml:"max_concurrent_requests,omitempty"`
-	DefaultURL             *URLPrefix  `yaml:"default_url,omitempty"`
-	RetryStatusCodes       []int       `yaml:"retry_status_codes,omitempty"`
-	LoadBalancingPolicy    string      `yaml:"load_balancing_policy,omitempty"`
-	MergeQueryArgs         []string    `yaml:"merge_query_args,omitempty"`
-	DropSrcPathPrefixParts *int        `yaml:"drop_src_path_prefix_parts,omitempty"`
-	TLSCAFile              string      `yaml:"tls_ca_file,omitempty"`
-	TLSCertFile            string      `yaml:"tls_cert_file,omitempty"`
-	TLSKeyFile             string      `yaml:"tls_key_file,omitempty"`
-	TLSServerName          string      `yaml:"tls_server_name,omitempty"`
-	TLSInsecureSkipVerify  *bool       `yaml:"tls_insecure_skip_verify,omitempty"`
+	URLPrefix              *URLPrefix      `yaml:"url_prefix,omitempty"`
+	URLMaps                []URLMap        `yaml:"url_map,omitempty"`
+	DumpRequestOnErrors    bool            `yaml:"dump_request_on_errors,omitempty"`
+	HeadersConf            HeadersConf     `yaml:",inline"`
+	BackendSettings        BackendSettings `yaml:",inline"`
+	DefaultURL             *URLPrefix      `yaml:"default_url,omitempty"`
+	RetryStatusCodes       []int           `yaml:"retry_status_codes,omitempty"`
+	MergeQueryArgs         []string        `yaml:"merge_query_args,omitempty"`
+	DropSrcPathPrefixParts *int            `yaml:"drop_src_path_prefix_parts,omitempty"`
 
 	MetricLabels map[string]string `yaml:"metric_labels,omitempty"`
 
@@ -154,6 +147,19 @@ type HeadersConf struct {
 	hasAnyPlaceHolders bool
 }
 
+// BackendSettings holds settings shared between UserInfo and BackendGroupConfig for controlling
+// how vmauth selects and connects to backends.
+type BackendSettings struct {
+	LoadBalancingPolicy   string `yaml:"load_balancing_policy,omitempty"`
+	DiscoverBackendIPs    *bool  `yaml:"discover_backend_ips,omitempty"`
+	MaxConcurrentRequests int    `yaml:"max_concurrent_requests,omitempty"`
+	TLSCAFile             string `yaml:"tls_ca_file,omitempty"`
+	TLSCertFile           string `yaml:"tls_cert_file,omitempty"`
+	TLSKeyFile            string `yaml:"tls_key_file,omitempty"`
+	TLSServerName         string `yaml:"tls_server_name,omitempty"`
+	TLSInsecureSkipVerify *bool  `yaml:"tls_insecure_skip_verify,omitempty"`
+}
+
 func (ui *UserInfo) beginConcurrencyLimit(ctx context.Context) error {
 	select {
 	case ui.concurrencyLimitCh <- struct{}{}:
@@ -185,7 +191,7 @@ func (ui *UserInfo) endConcurrencyLimit() {
 }
 
 func (ui *UserInfo) getMaxConcurrentRequests() int {
-	mcr := ui.MaxConcurrentRequests
+	mcr := ui.BackendSettings.MaxConcurrentRequests
 	if mcr <= 0 {
 		mcr = *maxConcurrentPerUserRequests
 	}
@@ -340,19 +346,29 @@ type URLPrefix struct {
 	// how many request path prefix parts to drop before routing the request to backendURL
 	dropSrcPathPrefixParts int
 
-	// busOriginal contains the original list of backends specified in yaml config.
-	busOriginal []*url.URL
+	// busOriginal contains the original list of backend groups specified in yaml config.
+	busOriginal []*backendGroupSpec
 
 	// n is an atomic counter, which is used for balancing load among available backends.
 	n atomic.Uint32
+
+	// backendGroupCounters holds one atomic counter per busOriginal entry, used for balancing load.
+	backendGroupCounters []atomic.Uint32
 
 	// the list of backend urls
 	//
 	// the list can be dynamically updated if `discover_backend_ips` option is set.
 	bus atomic.Pointer[backendURLs]
 
-	// if this option is set, then backend ips for busOriginal are periodically re-discovered and put to bus.
+	// if this option is set by default, then backend ips for busOriginal are periodically re-discovered and put to bus.
+	//
+	// individual busOriginal entries may override this via their own discover_backend_ips setting.
 	discoverBackendIPs bool
+
+	// hasAnyBackendDiscovery is true if discovery is effectively enabled for at least one busOriginal entry.
+	// It is computed once in sanitizeAndInitialize, so discoverBackendAddrsIfNeeded can cheaply skip
+	// the whole discovery machinery on the common no-discovery path.
+	hasAnyBackendDiscovery bool
 
 	// The next deadline for DNS-based discovery of backend IPs
 	nextDiscoveryDeadline atomic.Uint64
@@ -361,21 +377,208 @@ type URLPrefix struct {
 	vOriginal any
 }
 
-func (up *URLPrefix) setLoadBalancingPolicy(loadBalancingPolicy string) error {
-	switch loadBalancingPolicy {
-	case "", // empty string is equivalent to least_loaded
-		"least_loaded",
-		"first_available":
-		up.loadBalancingPolicy = loadBalancingPolicy
-		return nil
+// backendGroupSpec represents a single parsed `url_prefix` list item.
+//
+// It is built either from a plain url string (no overrides, inherits everything from the
+// enclosing scope) or from a BackendGroupConfig mapping.
+type backendGroupSpec struct {
+	// name identifies this group in metrics. Falls back to its ordinal position in url_prefix when empty.
+	name string
+
+	urls []*url.URL
+
+	// per-group overrides; zero values mean "inherit from the enclosing url_prefix / user / url_map scope".
+	loadBalancingPolicy   string
+	discoverBackendIPs    *bool
+	maxConcurrentRequests int
+	tlsCAFile             string
+	tlsCertFile           string
+	tlsKeyFile            string
+	tlsServerName         string
+	tlsInsecureSkipVerify *bool
+}
+
+func (spec *backendGroupSpec) hasTLSOverride() bool {
+	return spec.tlsCAFile != "" || spec.tlsCertFile != "" || spec.tlsKeyFile != "" ||
+		spec.tlsServerName != "" || spec.tlsInsecureSkipVerify != nil
+}
+
+// BackendGroupConfig represents a `url_prefix` list item specified as a YAML mapping instead of a plain string.
+//
+// It lets a group of backend urls override load_balancing_policy, discover_backend_ips,
+// max_concurrent_requests and tls_* settings, which are otherwise inherited from the enclosing
+// `user` / `url_map` scope. See https://docs.victoriametrics.com/victoriametrics/vmauth/#load-balancing
+type BackendGroupConfig struct {
+	// Name optionally identifies this backend group in metrics. Falls back to its ordinal
+	// position in url_prefix when not set.
+	Name            string          `yaml:"name,omitempty"`
+	URLPrefix       stringOrSlice   `yaml:"url_prefix"`
+	BackendSettings BackendSettings `yaml:",inline"`
+}
+
+// stringOrSlice unmarshals a YAML value that is either a single string or a list of strings.
+type stringOrSlice []string
+
+func (s *stringOrSlice) UnmarshalYAML(f func(any) error) error {
+	var v any
+	if err := f(&v); err != nil {
+		return err
+	}
+	urls, err := parseStringOrSliceValue(v)
+	if err != nil {
+		return fmt.Errorf("cannot unmarshal `url_prefix`: %w", err)
+	}
+	*s = urls
+	return nil
+}
+
+func parseStringOrSliceValue(v any) ([]string, error) {
+	switch x := v.(type) {
+	case string:
+		return []string{x}, nil
+	case []any:
+		if len(x) == 0 {
+			return nil, fmt.Errorf("must contain at least a single url")
+		}
+		us := make([]string, len(x))
+		for i, xx := range x {
+			s, ok := xx.(string)
+			if !ok {
+				return nil, fmt.Errorf("must contain array of strings; got %T", xx)
+			}
+			us[i] = s
+		}
+		return us, nil
 	default:
-		return fmt.Errorf("unexpected load_balancing_policy: %q; want least_loaded or first_available", loadBalancingPolicy)
+		return nil, fmt.Errorf("unexpected type: %T; want string or []string", v)
 	}
 }
 
+func validateLoadBalancingPolicyValue(policy string) error {
+	switch policy {
+	case "", // empty string is equivalent to least_loaded
+		"least_loaded",
+		"first_available":
+		return nil
+	default:
+		return fmt.Errorf("unexpected load_balancing_policy: %q; want least_loaded or first_available", policy)
+	}
+}
+
+func (up *URLPrefix) setLoadBalancingPolicy(loadBalancingPolicy string) error {
+	if err := validateLoadBalancingPolicyValue(loadBalancingPolicy); err != nil {
+		return err
+	}
+	up.loadBalancingPolicy = loadBalancingPolicy
+	return nil
+}
+
+// backendUserSettings holds the resolved user-level settings needed for building backendURLGroups.
+//
+// It lets URLPrefix.sanitizeAndInitialize apply per-group overrides (load_balancing_policy, tls_*,
+// max_concurrent_requests) on top of the settings inherited from the enclosing user.
+type backendUserSettings struct {
+	tlsCAFile             string
+	tlsCertFile           string
+	tlsKeyFile            string
+	tlsServerName         string
+	tlsInsecureSkipVerify *bool
+
+	ms           *metrics.Set
+	metricLabels string
+}
+
+func backendGroupMetricLabels(userLabels, groupID string) string {
+	label := fmt.Sprintf(`backend_group=%q`, groupID)
+	if userLabels == "" {
+		return "{" + label + "}"
+	}
+	return userLabels[:len(userLabels)-1] + "," + label + "}"
+}
+
 type backendURLs struct {
-	bhc backendHealthCheck
+	bhc    backendHealthCheck
+	n      *atomic.Uint32
+	groups []*backendURLGroup
+}
+
+// backendURLGroup holds the backend urls discovered for a single busOriginal entry.
+type backendURLGroup struct {
+	// n is an atomic counter, which is used for balancing load among bus.
+	//
+	// It points into URLPrefix.backendGroupCounters, so it survives across the
+	// group being recreated by backend IP rediscovery.
+	n *atomic.Uint32
+
 	bus []*backendURL
+
+	loadBalancingPolicy string
+
+	// rt is a per-group HTTP RoundTripper. nil means inherit the enclosing user's RoundTripper.
+	rt http.RoundTripper
+
+	// concurrencyLimitCh is a per-group concurrency limiter. nil means no group-level limit is configured.
+	concurrencyLimitCh      chan struct{}
+	concurrencyLimitReached *metrics.Counter
+}
+
+func (g *backendURLGroup) isBroken() bool {
+	for _, bu := range g.bus {
+		if !bu.isBroken() {
+			return false
+		}
+	}
+	return true
+}
+
+func (g *backendURLGroup) isAtConcurrencyLimit() bool {
+	return g.concurrencyLimitCh != nil && len(g.concurrencyLimitCh) >= cap(g.concurrencyLimitCh)
+}
+
+func (g *backendURLGroup) isUnavailable() bool {
+	return g.isBroken() || g.isAtConcurrencyLimit()
+}
+
+func (g *backendURLGroup) minConcurrentRequests() int32 {
+	minReqs := int32(math.MaxInt32)
+	for _, bu := range g.bus {
+		if bu.isBroken() {
+			continue
+		}
+		if n := bu.concurrentRequests.Load(); n < minReqs {
+			minReqs = n
+		}
+	}
+	return minReqs
+}
+
+func (g *backendURLGroup) getBackendURL() *backendURL {
+	if g.loadBalancingPolicy == "first_available" {
+		return g.getFirstAvailable()
+	}
+	return g.getLeastLoaded()
+}
+
+func (g *backendURLGroup) beginConcurrencyLimit() bool {
+	if g.concurrencyLimitCh == nil {
+		return true
+	}
+	select {
+	case g.concurrencyLimitCh <- struct{}{}:
+		return true
+	default:
+		if g.concurrencyLimitReached != nil {
+			g.concurrencyLimitReached.Inc()
+		}
+		return false
+	}
+}
+
+func (g *backendURLGroup) endConcurrencyLimit() {
+	if g.concurrencyLimitCh == nil {
+		return
+	}
+	<-g.concurrencyLimitCh
 }
 
 type backendHealthCheck struct {
@@ -404,22 +607,34 @@ func (bhc *backendHealthCheck) stop() {
 	bhc.wg.Wait()
 }
 
-func newBackendURLs() *backendURLs {
+func newBackendURLs(n *atomic.Uint32) *backendURLs {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &backendURLs{
 		bhc: backendHealthCheck{
 			ctx:    ctx,
 			cancel: cancel,
 		},
+		n: n,
 	}
 }
 
-func (bus *backendURLs) add(u *url.URL) {
-	bus.bus = append(bus.bus, &backendURL{
-		url:             u,
-		bhc:             &bus.bhc,
-		hasPlaceHolders: hasAnyPlaceholders(u),
-	})
+// addGroup appends a new backendURLGroup to bus, containing a backendURL for every url in urls,
+// and returns the newly created group so the caller can apply per-group settings to it.
+func (bus *backendURLs) addGroup(urls []*url.URL, n *atomic.Uint32) *backendURLGroup {
+	g := &backendURLGroup{
+		n:   n,
+		bus: make([]*backendURL, len(urls)),
+	}
+	for i, u := range urls {
+		g.bus[i] = &backendURL{
+			url:             u,
+			bhc:             &bus.bhc,
+			hasPlaceHolders: hasAnyPlaceholders(u),
+			group:           g,
+		}
+	}
+	bus.groups = append(bus.groups, g)
+	return g
 }
 
 func (bus *backendURLs) stopHealthChecks() {
@@ -436,6 +651,8 @@ type backendURL struct {
 	url *url.URL
 
 	hasPlaceHolders bool
+
+	group *backendURLGroup
 }
 
 func (bu *backendURL) isBroken() bool {
@@ -495,7 +712,11 @@ func (bu *backendURL) put() {
 
 func (up *URLPrefix) getBackendsCount() int {
 	bus := up.bus.Load()
-	return len(bus.bus)
+	n := 0
+	for _, g := range bus.groups {
+		n += len(g.bus)
+	}
+	return n
 }
 
 // getBackendURL returns the backendURL depending on the load balance policy.
@@ -507,19 +728,34 @@ func (up *URLPrefix) getBackendURL() *backendURL {
 	up.discoverBackendAddrsIfNeeded()
 
 	bus := up.bus.Load()
-	if len(bus.bus) == 0 {
+	if len(bus.groups) == 0 {
 		return nil
 	}
 
+	var g *backendURLGroup
 	if up.loadBalancingPolicy == "first_available" {
-		return getFirstAvailableBackendURL(bus.bus)
+		g = bus.getFirstAvailable()
+	} else {
+		g = bus.getLeastLoaded()
 	}
-	return getLeastLoadedBackendURL(bus.bus, &up.n)
+	if len(g.bus) == 0 {
+		return nil
+	}
+
+	return g.getBackendURL()
+}
+
+// effectiveDiscoverBackendIPs returns whether backend IP discovery is enabled for spec,
+// taking into account spec's own override of up.discoverBackendIPs.
+func (up *URLPrefix) effectiveDiscoverBackendIPs(spec *backendGroupSpec) bool {
+	if spec.discoverBackendIPs != nil {
+		return *spec.discoverBackendIPs
+	}
+	return up.discoverBackendIPs
 }
 
 func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
-	if !up.discoverBackendIPs {
-		// The discovery is disabled.
+	if !up.hasAnyBackendDiscovery {
 		return
 	}
 
@@ -540,72 +776,107 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 		return
 	}
 
-	// Discover ips for all the backendURLs
+	// Discover ips for all the backendURLs which need it.
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(intervalSec))
 	hostToAddrs := make(map[string][]string)
-	for _, bu := range up.busOriginal {
-		host := bu.Hostname()
-		port := bu.Port()
-		if hostToAddrs[host] != nil {
-			// ips for the given host have been already discovered
+	for _, spec := range up.busOriginal {
+		if !up.effectiveDiscoverBackendIPs(spec) {
 			continue
 		}
+		for _, bu := range spec.urls {
+			host := bu.Hostname()
+			port := bu.Port()
+			if hostToAddrs[host] != nil {
+				// ips for the given host have been already discovered
+				continue
+			}
 
-		var resolvedAddrs []string
-		if strings.HasPrefix(host, "srv+") {
-			// The host has the format 'srv+realhost'. Strip 'srv+' prefix before performing the lookup.
-			srvHost := strings.TrimPrefix(host, "srv+")
-			_, addrs, err := netutil.Resolver.LookupSRV(ctx, "", "", srvHost)
-			if err != nil {
-				logger.Warnf("cannot discover backend SRV records for %s: %s; use it literally", bu, err)
-				resolvedAddrs = []string{host}
-			} else {
-				resolvedAddrs = make([]string, len(addrs))
-				for i, addr := range addrs {
-					hostPort := port
-					if hostPort == "" && addr.Port > 0 {
-						hostPort = strconv.FormatUint(uint64(addr.Port), 10)
+			var resolvedAddrs []string
+			if strings.HasPrefix(host, "srv+") {
+				// The host has the format 'srv+realhost'. Strip 'srv+' prefix before performing the lookup.
+				srvHost := strings.TrimPrefix(host, "srv+")
+				_, addrs, err := netutil.Resolver.LookupSRV(ctx, "", "", srvHost)
+				if err != nil {
+					logger.Warnf("cannot discover backend SRV records for %s: %s; use it literally", bu, err)
+					resolvedAddrs = []string{host}
+				} else {
+					resolvedAddrs = make([]string, len(addrs))
+					for i, addr := range addrs {
+						hostPort := port
+						if hostPort == "" && addr.Port > 0 {
+							hostPort = strconv.FormatUint(uint64(addr.Port), 10)
+						}
+						resolvedAddrs[i] = net.JoinHostPort(addr.Target, hostPort)
 					}
-					resolvedAddrs[i] = net.JoinHostPort(addr.Target, hostPort)
 				}
-			}
-		} else {
-			addrs, err := netutil.Resolver.LookupIPAddr(ctx, host)
-			if err != nil {
-				logger.Warnf("cannot discover backend IPs for %s: %s; use it literally", bu, err)
-				resolvedAddrs = []string{host}
 			} else {
-				resolvedAddrs = make([]string, len(addrs))
-				for i, addr := range addrs {
-					resolvedAddrs[i] = net.JoinHostPort(addr.String(), port)
+				addrs, err := netutil.Resolver.LookupIPAddr(ctx, host)
+				if err != nil {
+					logger.Warnf("cannot discover backend IPs for %s: %s; use it literally", bu, err)
+					resolvedAddrs = []string{host}
+				} else {
+					resolvedAddrs = make([]string, len(addrs))
+					for i, addr := range addrs {
+						resolvedAddrs[i] = net.JoinHostPort(addr.String(), port)
+					}
 				}
 			}
+			// sort resolvedAddrs, so they could be compared below in areEqualBackendURLGroups()
+			sort.Strings(resolvedAddrs)
+			hostToAddrs[host] = resolvedAddrs
 		}
-		// sort resolvedAddrs, so they could be compared below in areEqualBackendURLs()
-		sort.Strings(resolvedAddrs)
-		hostToAddrs[host] = resolvedAddrs
 	}
 	cancel()
 
-	// generate new backendURLs for the resolved IPs
-	busNew := newBackendURLs()
-	for _, bu := range up.busOriginal {
-		host := bu.Hostname()
-		for _, addr := range hostToAddrs[host] {
-			buCopy := *bu
-			buCopy.Host = addr
-			busNew.add(&buCopy)
+	// generate new backendURLs for the resolved IPs, one group per busOriginal entry
+	oldGroups := up.bus.Load().groups
+	busNew := newBackendURLs(&up.n)
+	for i, spec := range up.busOriginal {
+		var urls []*url.URL
+		if up.effectiveDiscoverBackendIPs(spec) {
+			for _, bu := range spec.urls {
+				host := bu.Hostname()
+				for _, addr := range hostToAddrs[host] {
+					buCopy := *bu
+					buCopy.Host = addr
+					urls = append(urls, &buCopy)
+				}
+			}
+		} else {
+			urls = spec.urls
+		}
+		g := busNew.addGroup(urls, &up.backendGroupCounters[i])
+		if i < len(oldGroups) {
+			// Per-group settings are static for the lifetime of this URLPrefix - carry them over
+			// instead of recomputing, so a per-group RoundTripper / concurrency limiter isn't
+			// rebuilt (and in-flight concurrency accounting isn't lost) on every rediscovery.
+			g.loadBalancingPolicy = oldGroups[i].loadBalancingPolicy
+			g.rt = oldGroups[i].rt
+			g.concurrencyLimitCh = oldGroups[i].concurrencyLimitCh
+			g.concurrencyLimitReached = oldGroups[i].concurrencyLimitReached
 		}
 	}
 
 	bus := up.bus.Load()
-	if areEqualBackendURLs(bus.bus, busNew.bus) {
+	if areEqualBackendURLGroups(bus.groups, busNew.groups) {
 		return
 	}
 
 	// Store new backend urls
 	up.bus.Store(busNew)
 	bus.stopHealthChecks()
+}
+
+func areEqualBackendURLGroups(a, b []*backendURLGroup) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, g := range a {
+		if !areEqualBackendURLs(g.bus, b[i].bus) {
+			return false
+		}
+	}
+	return true
 }
 
 func areEqualBackendURLs(a, b []*backendURL) bool {
@@ -621,11 +892,12 @@ func areEqualBackendURLs(a, b []*backendURL) bool {
 	return true
 }
 
-// getFirstAvailableBackendURL returns the first available backendURL, which isn't broken.
-// If all backendURLs are broken, then returns the first backendURL.
+// getFirstAvailable returns the first available backendURL in g, which isn't broken.
+// If all backendURLs in g are broken, then returns the first one.
 //
 // backendURL.put() must be called on the returned backendURL after the request is complete.
-func getFirstAvailableBackendURL(bus []*backendURL) *backendURL {
+func (g *backendURLGroup) getFirstAvailable() *backendURL {
+	bus := g.bus
 	bu := bus[0]
 	if !bu.isBroken() {
 		// Fast path - send the request to the first url.
@@ -648,11 +920,10 @@ func getFirstAvailableBackendURL(bus []*backendURL) *backendURL {
 	return bu
 }
 
-// getLeastLoadedBackendURL returns a non-broken backendURL with the lowest number of concurrent requests.
-// If all backendURLs are broken, then returns the first backendURL.
-//
-// backendURL.put() must be called on the returned backendURL after the request is complete.
-func getLeastLoadedBackendURL(bus []*backendURL, atomicCounter *atomic.Uint32) *backendURL {
+func (g *backendURLGroup) getLeastLoaded() *backendURL {
+	bus := g.bus
+	atomicCounter := g.n
+
 	firstBu := bus[0]
 	if len(bus) == 1 {
 		firstBu.get()
@@ -704,6 +975,62 @@ func getLeastLoadedBackendURL(bus []*backendURL, atomicCounter *atomic.Uint32) *
 	return buMin
 }
 
+// getFirstAvailable returns the first backendURLGroup in bus, which has at least a single non-broken backend url.
+// If all groups are fully broken, then returns the first one.
+func (bus *backendURLs) getFirstAvailable() *backendURLGroup {
+	groups := bus.groups
+	g := groups[0]
+	if !g.isUnavailable() {
+		// Fast path - use the first group.
+		return g
+	}
+
+	// Slow path - the first group is temporarily unavailable. Fall back to the remaining groups.
+	for i := 1; i < len(groups); i++ {
+		if !groups[i].isUnavailable() {
+			return groups[i]
+		}
+	}
+
+	// All groups are unavailable, then return the first one, it could help increase the success rate of the requests.
+	return g
+}
+
+// getLeastLoaded returns a non-broken backendURLGroup in bus with the lowest number of concurrent requests
+// among its non-broken backend urls. If all groups are broken, then returns the first one.
+func (bus *backendURLs) getLeastLoaded() *backendURLGroup {
+	groups := bus.groups
+	atomicCounter := bus.n
+	firstGroup := groups[0]
+	if len(groups) == 1 {
+		return firstGroup
+	}
+
+	n := atomicCounter.Add(1) - 1
+	gMinIdx := n % uint32(len(groups))
+	minRequests := groups[gMinIdx].minConcurrentRequests()
+	for i := uint32(1); i < uint32(len(groups)); i++ {
+		idx := (n + i) % uint32(len(groups))
+		g := groups[idx]
+		if g.isUnavailable() {
+			continue
+		}
+
+		reqs := g.minConcurrentRequests()
+		if reqs < minRequests || groups[gMinIdx].isUnavailable() {
+			gMinIdx = idx
+			minRequests = reqs
+		}
+	}
+	gMin := groups[gMinIdx]
+	if gMin.isUnavailable() {
+		// If all groups are unavailable, then returns the first group.
+		return firstGroup
+	}
+	atomicCounter.CompareAndSwap(n+1, gMinIdx+1)
+	return gMin
+}
+
 // UnmarshalYAML unmarshals up from yaml.
 func (up *URLPrefix) UnmarshalYAML(f func(any) error) error {
 	var v any
@@ -712,37 +1039,77 @@ func (up *URLPrefix) UnmarshalYAML(f func(any) error) error {
 	}
 	up.vOriginal = v
 
-	var urls []string
+	var items []any
 	switch x := v.(type) {
 	case string:
-		urls = []string{x}
+		items = []any{x}
 	case []any:
 		if len(x) == 0 {
 			return fmt.Errorf("`url_prefix` must contain at least a single url")
 		}
-		us := make([]string, len(x))
-		for i, xx := range x {
-			s, ok := xx.(string)
-			if !ok {
-				return fmt.Errorf("`url_prefix` must contain array of strings; got %T", xx)
-			}
-			us[i] = s
-		}
-		urls = us
+		items = x
 	default:
-		return fmt.Errorf("unexpected type for `url_prefix`: %T; want string or []string", v)
+		return fmt.Errorf("unexpected type for `url_prefix`: %T; want string, []string or a list containing backend group mappings", v)
 	}
 
-	bus := make([]*url.URL, len(urls))
-	for i, u := range urls {
-		pu, err := url.Parse(u)
+	specs := make([]*backendGroupSpec, len(items))
+	for i, item := range items {
+		spec, err := parseBackendGroupSpecItem(item)
 		if err != nil {
-			return fmt.Errorf("cannot unmarshal %q into url: %w", u, err)
+			return fmt.Errorf("cannot unmarshal `url_prefix` item #%d: %w", i+1, err)
 		}
-		bus[i] = pu
+		specs[i] = spec
 	}
-	up.busOriginal = bus
+	up.busOriginal = specs
 	return nil
+}
+
+func parseBackendGroupSpecItem(item any) (*backendGroupSpec, error) {
+	switch x := item.(type) {
+	case string:
+		pu, err := url.Parse(x)
+		if err != nil {
+			return nil, fmt.Errorf("cannot unmarshal %q into url: %w", x, err)
+		}
+		return &backendGroupSpec{urls: []*url.URL{pu}}, nil
+	case map[interface{}]interface{}:
+		data, err := yaml.Marshal(x)
+		if err != nil {
+			return nil, fmt.Errorf("cannot re-marshal backend group mapping: %w", err)
+		}
+		var bgc BackendGroupConfig
+		if err := yaml.UnmarshalStrict(data, &bgc); err != nil {
+			return nil, fmt.Errorf("cannot unmarshal backend group mapping: %w", err)
+		}
+		if len(bgc.URLPrefix) == 0 {
+			return nil, fmt.Errorf("missing `url_prefix` in backend group mapping")
+		}
+		if err := validateLoadBalancingPolicyValue(bgc.BackendSettings.LoadBalancingPolicy); err != nil {
+			return nil, err
+		}
+		urls := make([]*url.URL, len(bgc.URLPrefix))
+		for i, u := range bgc.URLPrefix {
+			pu, err := url.Parse(u)
+			if err != nil {
+				return nil, fmt.Errorf("cannot unmarshal %q into url: %w", u, err)
+			}
+			urls[i] = pu
+		}
+		return &backendGroupSpec{
+			name:                  bgc.Name,
+			urls:                  urls,
+			loadBalancingPolicy:   bgc.BackendSettings.LoadBalancingPolicy,
+			discoverBackendIPs:    bgc.BackendSettings.DiscoverBackendIPs,
+			maxConcurrentRequests: bgc.BackendSettings.MaxConcurrentRequests,
+			tlsCAFile:             bgc.BackendSettings.TLSCAFile,
+			tlsCertFile:           bgc.BackendSettings.TLSCertFile,
+			tlsKeyFile:            bgc.BackendSettings.TLSKeyFile,
+			tlsServerName:         bgc.BackendSettings.TLSServerName,
+			tlsInsecureSkipVerify: bgc.BackendSettings.TLSInsecureSkipVerify,
+		}, nil
+	default:
+		return nil, fmt.Errorf("unexpected type for `url_prefix` item: %T; want a string or a mapping with url_prefix/load_balancing_policy/discover_backend_ips/etc", item)
+	}
 }
 
 // MarshalYAML marshals up to yaml.
@@ -997,7 +1364,7 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 		}
 
 		if ui.hasAnyURLs() {
-			if err := ui.initURLs(); err != nil {
+			if err := ui.initURLs(ac.ms); err != nil {
 				return nil, err
 			}
 		}
@@ -1020,7 +1387,7 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 			return float64(len(ui.concurrencyLimitCh))
 		})
 
-		rt, err := newRoundTripper(ui.TLSCAFile, ui.TLSCertFile, ui.TLSKeyFile, ui.TLSServerName, ui.TLSInsecureSkipVerify)
+		rt, err := newRoundTripper(ui.BackendSettings)
 		if err != nil {
 			return nil, fmt.Errorf("cannot initialize HTTP RoundTripper: %w", err)
 		}
@@ -1059,7 +1426,7 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 		if err := parseJWTPlaceholdersForUserInfo(ui, false); err != nil {
 			return nil, err
 		}
-		if err := ui.initURLs(); err != nil {
+		if err := ui.initURLs(ac.ms); err != nil {
 			return nil, err
 		}
 
@@ -1082,7 +1449,7 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 			return float64(len(ui.concurrencyLimitCh))
 		})
 
-		rt, err := newRoundTripper(ui.TLSCAFile, ui.TLSCertFile, ui.TLSKeyFile, ui.TLSServerName, ui.TLSInsecureSkipVerify)
+		rt, err := newRoundTripper(ui.BackendSettings)
 		if err != nil {
 			return nil, fmt.Errorf("cannot initialize HTTP RoundTripper: %w", err)
 		}
@@ -1118,7 +1485,7 @@ func (ui *UserInfo) getMetricLabels() (string, error) {
 	return labelsStr, nil
 }
 
-func (ui *UserInfo) initURLs() error {
+func (ui *UserInfo) initURLs(ms *metrics.Set) error {
 	retryStatusCodes := defaultRetryStatusCodes.Values()
 	loadBalancingPolicy := *defaultLoadBalancingPolicy
 	mergeQueryArgs := *defaultMergeQueryArgs
@@ -1127,8 +1494,8 @@ func (ui *UserInfo) initURLs() error {
 	if ui.RetryStatusCodes != nil {
 		retryStatusCodes = ui.RetryStatusCodes
 	}
-	if ui.LoadBalancingPolicy != "" {
-		loadBalancingPolicy = ui.LoadBalancingPolicy
+	if ui.BackendSettings.LoadBalancingPolicy != "" {
+		loadBalancingPolicy = ui.BackendSettings.LoadBalancingPolicy
 	}
 	if len(ui.MergeQueryArgs) != 0 {
 		mergeQueryArgs = ui.MergeQueryArgs
@@ -1136,15 +1503,26 @@ func (ui *UserInfo) initURLs() error {
 	if ui.DropSrcPathPrefixParts != nil {
 		dropSrcPathPrefixParts = *ui.DropSrcPathPrefixParts
 	}
-	if ui.DiscoverBackendIPs != nil {
-		discoverBackendIPs = *ui.DiscoverBackendIPs
+	if ui.BackendSettings.DiscoverBackendIPs != nil {
+		discoverBackendIPs = *ui.BackendSettings.DiscoverBackendIPs
+	}
+
+	metricLabels, err := ui.getMetricLabels()
+	if err != nil {
+		return err
+	}
+	userSettings := backendUserSettings{
+		tlsCAFile:             ui.BackendSettings.TLSCAFile,
+		tlsCertFile:           ui.BackendSettings.TLSCertFile,
+		tlsKeyFile:            ui.BackendSettings.TLSKeyFile,
+		tlsServerName:         ui.BackendSettings.TLSServerName,
+		tlsInsecureSkipVerify: ui.BackendSettings.TLSInsecureSkipVerify,
+		ms:                    ms,
+		metricLabels:          metricLabels,
 	}
 
 	up := ui.URLPrefix
 	if up != nil {
-		if err := up.sanitizeAndInitialize(); err != nil {
-			return err
-		}
 		up.retryStatusCodes = retryStatusCodes
 		up.dropSrcPathPrefixParts = dropSrcPathPrefixParts
 		up.discoverBackendIPs = discoverBackendIPs
@@ -1152,9 +1530,12 @@ func (ui *UserInfo) initURLs() error {
 			return err
 		}
 		up.mergeQueryArgs = mergeQueryArgs
+		if err := up.sanitizeAndInitialize(userSettings); err != nil {
+			return err
+		}
 	}
 	if ui.DefaultURL != nil {
-		if err := ui.DefaultURL.sanitizeAndInitialize(); err != nil {
+		if err := ui.DefaultURL.sanitizeAndInitialize(userSettings); err != nil {
 			return err
 		}
 	}
@@ -1165,9 +1546,6 @@ func (ui *UserInfo) initURLs() error {
 		}
 		if e.URLPrefix == nil {
 			return fmt.Errorf("missing `url_prefix` in `url_map`")
-		}
-		if err := e.URLPrefix.sanitizeAndInitialize(); err != nil {
-			return err
 		}
 		rscs := retryStatusCodes
 		lbp := loadBalancingPolicy
@@ -1196,6 +1574,9 @@ func (ui *UserInfo) initURLs() error {
 		e.URLPrefix.mergeQueryArgs = mqa
 		e.URLPrefix.dropSrcPathPrefixParts = dsp
 		e.URLPrefix.discoverBackendIPs = dbd
+		if err := e.URLPrefix.sanitizeAndInitialize(userSettings); err != nil {
+			return err
+		}
 	}
 	if len(ui.URLMaps) == 0 && ui.URLPrefix == nil {
 		return fmt.Errorf("missing `url_prefix` or `url_map`")
@@ -1298,19 +1679,89 @@ func getAuthTokensFromRequest(r *http.Request) []string {
 	return ats
 }
 
-func (up *URLPrefix) sanitizeAndInitialize() error {
-	for i, bu := range up.busOriginal {
-		puNew, err := sanitizeURLPrefix(bu)
-		if err != nil {
-			return err
+// sanitizeAndInitialize validates up.busOriginal and (re)initializes up.bus from it,
+// applying per-group overrides on top of the settings inherited from userSettings.
+func (up *URLPrefix) sanitizeAndInitialize(userSettings backendUserSettings) error {
+	for _, spec := range up.busOriginal {
+		for i, bu := range spec.urls {
+			puNew, err := sanitizeURLPrefix(bu)
+			if err != nil {
+				return err
+			}
+			spec.urls[i] = puNew
 		}
-		up.busOriginal[i] = puNew
 	}
 
-	// Initialize up.bus
-	bus := newBackendURLs()
-	for _, bu := range up.busOriginal {
-		bus.add(bu)
+	up.backendGroupCounters = make([]atomic.Uint32, len(up.busOriginal))
+
+	up.hasAnyBackendDiscovery = false
+	for _, spec := range up.busOriginal {
+		if up.effectiveDiscoverBackendIPs(spec) {
+			up.hasAnyBackendDiscovery = true
+			break
+		}
+	}
+
+	// Initialize up.bus with a single group per busOriginal entry.
+	bus := newBackendURLs(&up.n)
+	for i, spec := range up.busOriginal {
+		g := bus.addGroup(spec.urls, &up.backendGroupCounters[i])
+
+		lbp := spec.loadBalancingPolicy
+		if lbp == "" {
+			lbp = up.loadBalancingPolicy
+		}
+		g.loadBalancingPolicy = lbp
+
+		if spec.hasTLSOverride() {
+			bs := BackendSettings{
+				TLSCAFile:             spec.tlsCAFile,
+				TLSCertFile:           spec.tlsCertFile,
+				TLSKeyFile:            spec.tlsKeyFile,
+				TLSServerName:         spec.tlsServerName,
+				TLSInsecureSkipVerify: spec.tlsInsecureSkipVerify,
+			}
+			if bs.TLSCAFile == "" {
+				bs.TLSCAFile = userSettings.tlsCAFile
+			}
+			if bs.TLSCertFile == "" {
+				bs.TLSCertFile = userSettings.tlsCertFile
+			}
+			if bs.TLSKeyFile == "" {
+				bs.TLSKeyFile = userSettings.tlsKeyFile
+			}
+			if bs.TLSServerName == "" {
+				bs.TLSServerName = userSettings.tlsServerName
+			}
+			if bs.TLSInsecureSkipVerify == nil {
+				bs.TLSInsecureSkipVerify = userSettings.tlsInsecureSkipVerify
+			}
+
+			rt, err := newRoundTripper(bs)
+			if err != nil {
+				return fmt.Errorf("cannot initialize HTTP RoundTripper for a backend group at `url_prefix` item #%d: %w", i+1, err)
+			}
+			g.rt = rt
+		}
+
+		if spec.maxConcurrentRequests > 0 {
+			g.concurrencyLimitCh = make(chan struct{}, spec.maxConcurrentRequests)
+			if userSettings.ms != nil {
+				groupID := spec.name
+				if groupID == "" {
+					groupID = strconv.Itoa(i)
+				}
+				groupLabels := backendGroupMetricLabels(userSettings.metricLabels, groupID)
+				g.concurrencyLimitReached = userSettings.ms.GetOrCreateCounter(`vmauth_backend_group_concurrent_requests_limit_reached_total` + groupLabels)
+				ch := g.concurrencyLimitCh
+				_ = userSettings.ms.GetOrCreateGauge(`vmauth_backend_group_concurrent_requests_capacity`+groupLabels, func() float64 {
+					return float64(cap(ch))
+				})
+				_ = userSettings.ms.GetOrCreateGauge(`vmauth_backend_group_concurrent_requests_current`+groupLabels, func() float64 {
+					return float64(len(ch))
+				})
+			}
+		}
 	}
 	up.bus.Store(bus)
 
