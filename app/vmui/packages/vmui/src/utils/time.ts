@@ -205,19 +205,21 @@ export const getUTCByTimezone = (timezone: string) => {
 };
 
 export const getTimezoneList = (search = "") => {
-  const regexp = new RegExp(search, "i");
+  const normalizedSearch = search.toLowerCase();
 
-  return supportedTimezones.reduce((acc: {[key: string]: Timezone[]}, region) => {
+  return supportedTimezones.reduce((acc: { [key: string]: Timezone[] }, region) => {
     const zone = (region.match(/^(.*?)\//) || [])[1] || "unknown";
     const utc = getUTCByTimezone(region);
-    const utcForSearch = utc.replace(/UTC|0/, "");
+    const utcForSearch = utc.replace(/^UTC/, "");
     const regionForSearch = region.replace(/[/_]/g, " ");
+
     const item = {
       region,
       utc,
       search: `${region} ${utc} ${regionForSearch} ${utcForSearch}`
     };
-    const includeZone = !search || (search && regexp.test(item.search));
+
+    const includeZone = !normalizedSearch || item.search.toLowerCase().includes(normalizedSearch);
 
     if (includeZone && acc[zone]) {
       acc[zone].push(item);
