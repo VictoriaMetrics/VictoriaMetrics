@@ -330,6 +330,8 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 	if tg.Interval == nil {
 		tg.Interval = promutil.NewDuration(evalInterval)
 	}
+	// Evaluate at the resolution the input series are written at.
+	evalInterval = tg.Interval.Duration()
 	err := writeInputSeries(tg.InputSeries, tg.Interval, testStartTime, fmt.Sprintf("http://127.0.0.1:%s/api/v1/write", httpListenAddr))
 	if err != nil {
 		return []error{err}
@@ -374,7 +376,7 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 		mergedExternalLabels := make(map[string]string)
 		maps.Copy(mergedExternalLabels, tg.ExternalLabels)
 		maps.Copy(mergedExternalLabels, externalLabels)
-		ng := rule.NewGroup(group, q, time.Minute, mergedExternalLabels)
+		ng := rule.NewGroup(group, q, evalInterval, mergedExternalLabels)
 		ng.Init()
 		groups = append(groups, ng)
 	}
