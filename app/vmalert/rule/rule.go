@@ -132,9 +132,10 @@ func replayRule(r Rule, start, end time.Time, rw remotewrite.RWClient, replayRul
 		var esc *httpserver.ErrorWithStatusCode
 		if errors.As(err, &esc) {
 			statusCode := esc.StatusCode
-			// if the status code is 422, it means that the query was executed but failed due to an expression syntax error or a the resource limit being hit,
-			// continue replaying but skip the problematic execution if continueWithExecutionErr is true, otherwise, return the error without retry.
-			if statusCode == http.StatusUnprocessableEntity {
+			// if the status code is 400 or 422, the query failed due to reasons such as an expression syntax error or a resource limit being hit,
+			// rather than datasource unavailability.
+			// Continue replaying but skip the problematic execution if continueWithExecutionErr is true, otherwise, return the error without retry.
+			if statusCode == http.StatusUnprocessableEntity || statusCode == http.StatusBadRequest {
 				if continueWithExecutionErr {
 					logger.Errorf("rule %q: %s", r, err)
 					return 0, nil
