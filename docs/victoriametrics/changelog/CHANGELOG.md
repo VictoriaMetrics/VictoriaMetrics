@@ -26,6 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmalert-tool](https://docs.victoriametrics.com/victoriametrics/vmalert-tool/): evaluate every rule group on the `interval` defined for it, instead of evaluating all the groups on the file-wide `evaluation_interval`. Groups without an `interval` keep using `evaluation_interval`.
 * FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): add an option to customize the favicon color. This makes it easier to distinguish between different installations opened in multiple browser tabs. See [#11329](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11329).
 
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/), `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) and [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/): properly parse small fractional Unix timestamps in timestamp args such as `start` and `end` in `/api/v1/query_range` and `--vm-native-filter-time-start` and `--vm-native-filter-time-end` in `vmctl`. Previously, fractional Unix timestamps with the integer part below `9223372` were interpreted with the wrong unit, for example `12.0` was parsed as `12000` seconds instead of `12` seconds. See [#11324](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11324).
