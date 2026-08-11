@@ -31,6 +31,12 @@
       "id": "table",
       "name": "Table",
       "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "timeseries",
+      "name": "Time series",
+      "version": ""
     }
   ],
   "annotations": {
@@ -466,6 +472,106 @@
         "type": "prometheus",
         "uid": "${ds}"
       },
+      "description": "Mean Time To Resolution (MTTR) aggregated across the selected jobs, instances and groups.\n\nAt every point the value is computed over the trailing $mttr_window window as the accumulated firing time (integral of the vmalert_alerts_firing gauge, in alert-seconds) divided by the number of resolved alerts (sum of the gauge decreases) within that window.\n\nCaveats:\n* alerts which are still firing contribute firing time but no resolve event, inflating the value;\n* resolve time granularity is limited by the scrape interval of vmalert metrics;",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 30,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": 7200000,
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 18
+      },
+      "id": 11,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.0.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "sum(integrate(vmalert_alerts_firing{job=~\"$job\",instance=~\"$instance\",group=~\"$group\"}[$mttr_window])) / (sum(descent_over_time(vmalert_alerts_firing{job=~\"$job\",instance=~\"$instance\",group=~\"$group\"}[$mttr_window])) > 0)",
+          "format": "time_series",
+          "instant": false,
+          "legendFormat": "MTTR",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "MTTR ($mttr_window window)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds}"
+      },
+      "description": "Number of times alerts switched to the FIRING state (Count) and the mean time to resolve (MTTR) per group over the selected time range.\n\nMTTR = total firing time / number of resolved alerts. Empty MTTR means no alerts were resolved within the selected range.\n\nMTTR is an approximation: alerts which are still firing add firing time but no resolve event (inflating MTTR), resolve time granularity is limited by the scrape interval of vmalert metrics, and vmalert restarts may register spurious resolve events.",
       "fieldConfig": {
         "defaults": {
           "custom": {
@@ -485,10 +591,6 @@
               {
                 "color": "green",
                 "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
               }
             ]
           }
@@ -502,7 +604,50 @@
             "properties": [
               {
                 "id": "custom.width",
-                "value": 100
+                "value": 150
+              },
+              {
+                "id": "fieldMinMax",
+                "value": true
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "gradient",
+                  "type": "gauge"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "MTTR"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "custom.width",
+                "value": 150
+              },
+              {
+                "id": "noValue",
+                "value": "-"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "gradient",
+                  "type": "gauge",
+                  "valueDisplayMode": "text"
+                }
+              },
+              {
+                "id": "fieldMinMax",
+                "value": true
               }
             ]
           }
@@ -512,12 +657,12 @@
         "h": 13,
         "w": 9,
         "x": 0,
-        "y": 18
+        "y": 26
       },
       "id": 2,
       "options": {
         "cellHeight": "sm",
-        "frameIndex": 1,
+        "frameIndex": 0,
         "showHeader": true,
         "sortBy": [
           {
@@ -542,10 +687,29 @@
           "legendFormat": "__auto",
           "range": false,
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "(sum(integrate(vmalert_alerts_firing{job=~\"$job\",instance=~\"$instance\",group=~\"$group\"}[$__range])) by (group) / (sum(descent_over_time(vmalert_alerts_firing{job=~\"$job\",instance=~\"$instance\",group=~\"$group\"}[$__range])) by (group) > 0)) and on (group) (topk_max(100, sum(increases_over_time(vmalert_alerts_firing{job=~\"$job\",instance=~\"$instance\",group=~\"$group\"}[$__range])) by(group) > 0))",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "legendFormat": "__auto",
+          "range": false,
+          "refId": "B"
         }
       ],
       "title": "FIRING over time by group",
       "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
         {
           "id": "organize",
           "options": {
@@ -556,13 +720,13 @@
             "includeByName": {},
             "indexByName": {
               "Time": 0,
-              "Value": 3,
-              "alertname": 2,
+              "Value #A": 2,
+              "Value #B": 3,
               "group": 1
             },
             "renameByName": {
-              "Value": "Count",
-              "alertname": "Alert",
+              "Value #A": "Count",
+              "Value #B": "MTTR",
               "group": "Group"
             }
           }
@@ -575,6 +739,7 @@
         "type": "prometheus",
         "uid": "${ds}"
       },
+      "description": "Number of times alerts switched to the FIRING state (Count) and the mean time to resolve (MTTR) per alerting rule over the selected time range.\n\nMTTR = total firing time / number of resolved alerts. Empty MTTR means no alerts were resolved within the selected range.\n\nMTTR is an approximation: alerts which are still firing add firing time but no resolve event (inflating MTTR), resolve time granularity is limited by the scrape interval of vmalert metrics, and vmalert restarts may register spurious resolve events.",
       "fieldConfig": {
         "defaults": {
           "custom": {
@@ -591,10 +756,6 @@
               {
                 "color": "green",
                 "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
               }
             ]
           }
@@ -608,7 +769,18 @@
             "properties": [
               {
                 "id": "custom.width",
-                "value": 100
+                "value": 150
+              },
+              {
+                "id": "fieldMinMax",
+                "value": true
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "gradient",
+                  "type": "gauge"
+                }
               }
             ]
           },
@@ -641,6 +813,36 @@
                 ]
               }
             ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "MTTR"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "custom.width",
+                "value": 150
+              },
+              {
+                "id": "noValue",
+                "value": "-"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge"
+                }
+              },
+              {
+                "id": "fieldMinMax",
+                "value": true
+              }
+            ]
           }
         ]
       },
@@ -648,12 +850,12 @@
         "h": 13,
         "w": 15,
         "x": 9,
-        "y": 18
+        "y": 26
       },
       "id": 1,
       "options": {
         "cellHeight": "sm",
-        "frameIndex": 1,
+        "frameIndex": 0,
         "showHeader": true,
         "sortBy": [
           {
@@ -678,10 +880,29 @@
           "legendFormat": "__auto",
           "range": false,
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "(sum(integrate(vmalert_alerts_firing{job=~\"$job\",instance=~\"$instance\",group=~\"$group\"}[$__range])) by (group, alertname) / (sum(descent_over_time(vmalert_alerts_firing{job=~\"$job\",instance=~\"$instance\",group=~\"$group\"}[$__range])) by (group, alertname) > 0)) and on (group, alertname) (topk_max($topk, sum(increases_over_time(vmalert_alerts_firing{job=~\"$job\",instance=~\"$instance\",group=~\"$group\"}[$__range])) by (group, alertname) > 0))",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "legendFormat": "__auto",
+          "range": false,
+          "refId": "B"
         }
       ],
       "title": "FIRING over time by rule",
       "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
         {
           "id": "organize",
           "options": {
@@ -690,16 +911,16 @@
             },
             "indexByName": {
               "Time": 0,
-              "Value": 3,
+              "Value #A": 3,
+              "Value #B": 4,
               "alertname": 2,
               "group": 1
             },
             "renameByName": {
-              "Time": "",
-              "Value": "Count",
+              "Value #A": "Count",
+              "Value #B": "MTTR",
               "alertname": "Alert",
-              "group": "Group",
-              "range": ""
+              "group": "Group"
             }
           }
         }
@@ -818,6 +1039,55 @@
           }
         ],
         "query": "5, 10, 20, 30, 50",
+        "type": "custom"
+      },
+      {
+        "current": {
+          "text": "1d",
+          "value": "1d"
+        },
+        "description": "Sliding window interval for calculation of Mean time to resolution",
+        "includeAll": false,
+        "label": "MTTR window",
+        "name": "mttr_window",
+        "options": [
+          {
+            "selected": false,
+            "text": "1h",
+            "value": "1h"
+          },
+          {
+            "selected": false,
+            "text": "6h",
+            "value": "6h"
+          },
+          {
+            "selected": false,
+            "text": "12h",
+            "value": "12h"
+          },
+          {
+            "selected": true,
+            "text": "1d",
+            "value": "1d"
+          },
+          {
+            "selected": false,
+            "text": "7d",
+            "value": "7d"
+          },
+          {
+            "selected": false,
+            "text": "14d",
+            "value": "14d"
+          },
+          {
+            "selected": false,
+            "text": "30d",
+            "value": "30d"
+          }
+        ],
+        "query": "1h, 6h, 12h, 1d, 7d, 14d, 30d",
         "type": "custom"
       }
     ]
