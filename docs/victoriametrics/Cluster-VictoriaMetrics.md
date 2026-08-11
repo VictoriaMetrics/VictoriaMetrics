@@ -291,7 +291,7 @@ If you need multi-AZ setup, then it is recommended running independent clusters 
 into all the cluster - see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy) for details.
 Then an additional `vmselect` nodes can be configured for reading the data from multiple clusters according to [these docs](#multi-level-cluster-setup).
 
-See [victoria-metrics-distributed chart](https://docs.victoriametrics.com/helm/victoria-metrics-distributed/) for an example.
+See [VMDistributed](https://docs.victoriametrics.com/operator/resources/vmdistributed/) Kubernetes operator resource for an example.
 
 ## Cluster setup
 
@@ -829,7 +829,7 @@ See also [minimum downtime strategy](#minimum-downtime-strategy).
 
 ## Slowness-based re-routing
 
-By default{{% available_from "#" %}}, `vminsert` automatically re-routes writes away from the slowest `vmstorage` node
+By default{{% available_from "v1.149.0" %}}, `vminsert` automatically re-routes writes away from the slowest `vmstorage` node
 to preserve maximum ingestion throughput. This prevents a single slow `vmstorage` node
 from throttling the entire cluster.
 
@@ -843,7 +843,7 @@ Disable slowness-based re-routing with `-disableRerouting=true` when keeping met
 perfectly balanced across nodes or minimizing the number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series) 
 matters more than peak write throughput.
 
-Slowness-based re-routing is automatically disabled{{% available_from "#" %}} when `-replicationFactor` is greater than `1`,
+Slowness-based re-routing is automatically disabled{{% available_from "v1.149.0" %}} when `-replicationFactor` is greater than `1`,
 because rerouting does not guarantee that replicated copies land on distinct storage nodes,
 which violates the replication contract.
 
