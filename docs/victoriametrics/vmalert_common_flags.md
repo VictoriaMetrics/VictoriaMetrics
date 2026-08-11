@@ -371,7 +371,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
   -remoteWrite.maxBatchSize int
      Defines max number of timeseries to be flushed at once (default 10000)
   -remoteWrite.maxIdleConnections int
-     Defines the number of idle (keep-alive connections) to -remoteWrite.url. Too low a value may result in a high number of sockets in TIME_WAIT state. (default 100)
+     Defines the number of idle (keep-alive connections) to -remoteWrite.url for the vmalert-tool debug writer, which sends every series in a separate request. Too low a value may result in a high number of sockets in TIME_WAIT state. (default 100)
   -remoteWrite.maxQueueSize int
      Defines the max number of pending datapoints to remote write endpoint (default 100000)
   -remoteWrite.oauth2.clientID string
