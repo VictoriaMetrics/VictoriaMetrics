@@ -745,7 +745,7 @@ By default, Victoria Metrics does not immediately return the recently written sa
 written prior to the time specified by the `-search.latencyOffset` command-line flag, which has a default offset of 30 seconds.
 This is true for both `query` and `query_range` and may give the impression that data is written to the VM with a 30-second delay.
 
-This flag prevents non-consistent results due to the fact that only part of the values are scraped in the last scrape interval.
+This flag prevents inconsistent results due to the fact that only part of the values are scraped in the last scrape interval.
 
 Here is an illustration of a potential problem when `-search.latencyOffset` is set to zero:
 
