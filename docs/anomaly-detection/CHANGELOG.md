@@ -16,6 +16,27 @@ Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
 {{% collapse name="2026" open=true %}}
 
+## v1.30.1
+Released: 2026-08-06
+
+- UI: Updated [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/) from [v1.8.0](https://docs.victoriametrics.com/anomaly-detection/ui/#v180) to [v1.8.1](https://docs.victoriametrics.com/anomaly-detection/ui/#v181). The update improves UX validation and fixes regressions introduced by new design.
+
+- IMPROVEMENT: Reduced fit and inference latency for the Z-score, MAD, standard deviation, Seasonal Quantile, and Rolling Quantile online models. Representative service-stage gains range from 1.5-2.6x for fit and 1.7-2.3x for inference, depending on model, storage mode, and data size.
+
+- IMPROVEMENT: Removed forwarded datasource credentials from in-memory state for completed, failed, canceled, and shutting-down [analysis and autotune tasks](https://docs.victoriametrics.com/anomaly-detection/components/server/#time-series-analysis-and-autotune-api).
+
+- BUGFIX: Stabilized [Temporal Envelope](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope) after fitting across a late level shift. Its level, trend, residual, and supported calendar state now initialize coherently from the recent regime, avoiding stale fitted magnitudes and false seasonal oscillations when periodic inference starts.
+
+- BUGFIX: Corrected `/api/v1/timeseries/characteristics` seasonality detection for time series whose timestamps are offset from whole sampling intervals. Trend interpolation now preserves the original observation grid, allowing daily and weekly patterns to be detected on shifted grids.
+
+- BUGFIX: Restored backward-compatible `inference_only` [backtesting](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#backtesting-scheduler) for configurations that omit `infer_every`. The scheduler derives its inference grid from the query step or reader sampling period and preserves valid single-timestamp range queries.
+
+- BUGFIX: Aligned periodic inference for exact-capable online models with exact backtesting (used in [UI](https://docs.victoriametrics.com/anomaly-detection/ui/) experiments) by applying the configured `infer_every` as the causal update cadence.
+
+- BUGFIX: Corrected [self-monitoring](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#writer-behaviour-metrics) accounting so failed VictoriaMetrics write attempts contribute to `vmanomaly_writer_request_duration_seconds`, including connection retries, and inference counts only unseen *valid* rows in `vmanomaly_model_datapoints_accepted`.
+
+- BUGFIX: Fixed service-level [`settings.anomaly_score_outside_data_range`](https://docs.victoriametrics.com/anomaly-detection/components/settings/#anomaly-score-outside-data-range) propagation so its configured score applies to every model unless the model defines its own override.
+
 ## v1.30.0
 Released: 2026-07-23
 

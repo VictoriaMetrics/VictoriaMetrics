@@ -588,7 +588,7 @@ Label names [description](#labelnames)
 
 `Counter`
             </td>
-            <td>The number of valid datapoints accepted by `model_alias`, excluding NaN and Inf values, during `fit`, `infer`, or combined `fit_infer` execution for the `query_key` query.</td>
+            <td>The number of valid datapoints accepted by `model_alias`, excluding NaN and Inf values, during `fit`, `infer`, or combined `fit_infer` execution for the `query_key` query. During inference, only previously unseen valid rows are counted {{% available_from "v1.30.1" anomaly %}}.</td>
             <td>
 
 `stage`, `query_key`, `model_alias`, `scheduler_alias`, `preset`
@@ -687,7 +687,7 @@ Label names [description](#labelnames)
 
 `Histogram` (was `Summary`{{% deprecated_from "v1.17.0" anomaly %}})
             </td>
-            <td>The total time (in seconds) taken by write requests to VictoriaMetrics `url` for the `query_key` query within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.
+            <td>The total time (in seconds) taken by write requests to VictoriaMetrics `url` for the `query_key` query within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode. Successful and handled failed attempts, including connection retries, are observed {{% available_from "v1.30.1" anomaly %}}.
 </td>
             <td>
 
