@@ -21,9 +21,11 @@ type ruleGraph struct {
 	alertsIn map[string][]int
 	// reads holds the metric names read by every rule group.
 	reads [][]string
-	// readsAlerts holds the alert names every rule group reads through ALERTS.
+	// readsAlerts holds the alert names every rule group reads through ALERTS
+	// and ALERTS_FOR_STATE.
 	readsAlerts [][]string
-	// readsAnyAlert marks groups reading ALERTS without pinning an alert name.
+	// readsAnyAlert marks groups reading ALERTS or ALERTS_FOR_STATE without
+	// pinning an alert name.
 	readsAnyAlert []bool
 	// dynamic marks rule groups that cannot be analysed statically, because they
 	// select metrics by a regexp or by label filters without a metric name.
@@ -243,8 +245,8 @@ func (rg *ruleGraph) reachableGroups(tg *testGroup, total int) []int {
 				add(dep)
 			}
 		}
-		// A group reading ALERTS without pinning an alert name may observe any
-		// alert, so every group defining one has to be evaluated.
+		// A group reading the alert series without pinning an alert name may
+		// observe any alert, so every group defining one has to be evaluated.
 		if rg.readsAnyAlert[i] {
 			for _, idxs := range rg.alertsIn {
 				for _, dep := range idxs {
