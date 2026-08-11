@@ -1,0 +1,78 @@
+rule_files:
+  - rule-deps.yaml
+
+evaluation_interval: 1m
+
+tests:
+  # Asserting on the end of a recording rule chain must still evaluate every
+  # group feeding it.
+  - interval: 1m
+    name: "recording rule chain"
+    input_series:
+      - series: "raw_input"
+        values: "10x5"
+    alert_rule_test:
+      - eval_time: 2m
+        groupname: chainTop
+        alertname: ChainAlert
+        exp_alerts:
+          - exp_labels: {}
+    metricsql_expr_test:
+      - expr: dep:level1
+        eval_time: 2m
+        exp_samples:
+          - labels: 'dep:level1'
+            value: 10
+      - expr: dep:level2
+        eval_time: 2m
+        exp_samples:
+          - labels: 'dep:level2'
+            value: 20
+
+  # Asserting on a group reading ALERTS must evaluate the group defining the
+  # alert too, even though no rule records the ALERTS series.
+  - interval: 1m
+    name: "dependency through ALERTS"
+    input_series:
+      - series: "raw_input"
+        values: "10x5"
+    metricsql_expr_test:
+      - expr: dep:firing_chain_alerts
+        eval_time: 3m
+        exp_samples:
+          - labels: 'dep:firing_chain_alerts'
+            value: 1
+
+  # A group selecting series without a metric name cannot be analysed, so it is
+  # always evaluated and keeps producing its series.
+  - interval: 1m
+    name: "unanalysable selector"
+    input_series:
+      - series: "raw_input"
+        values: "10x5"
+    metricsql_expr_test:
+      - expr: dep:dynamic
+        eval_time: 2m
+        exp_samples:
+          - labels: 'dep:dynamic'
+            value: 0
+
+  # The same alert name in two groups: both must fire.
+  - interval: 1m
+    name: "alert name shared by two groups"
+    input_series:
+      - series: "raw_input"
+        values: "10x5"
+      - series: "other_input"
+        values: "10x5"
+    alert_rule_test:
+      - eval_time: 2m
+        groupname: sharedNameOne
+        alertname: SharedDepAlert
+        exp_alerts:
+          - exp_labels: {}
+      - eval_time: 2m
+        groupname: sharedNameTwo
+        alertname: SharedDepAlert
+        exp_alerts:
+          - exp_labels: {}

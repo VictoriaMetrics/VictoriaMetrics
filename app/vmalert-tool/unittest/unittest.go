@@ -45,9 +45,10 @@ var (
 	storagePath    string
 	httpListenAddr string
 	// Insert series from 2000-01-01T00:00:00.
-	testStartTime          = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
-	testLogLevel           = "ERROR"
-	disableAlertgroupLabel bool
+	testStartTime           = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	testLogLevel            = "ERROR"
+	disableAlertgroupLabel  bool
+	skipUnrelatedRuleGroups bool
 )
 
 func durationToTime(pd *promutil.Duration) time.Time {
@@ -62,7 +63,7 @@ const (
 )
 
 // UnitTest runs unittest for files
-func UnitTest(files []string, disableGroupLabel bool, externalLabels []string, externalURL, httpListenPort, logLevel string) bool {
+func UnitTest(files []string, disableGroupLabel bool, externalLabels []string, externalURL, httpListenPort, logLevel string, skipUnrelatedGroups bool) bool {
 	if logLevel != "" {
 		testLogLevel = logLevel
 	}
@@ -123,6 +124,7 @@ func UnitTest(files []string, disableGroupLabel bool, externalLabels []string, e
 	defer vminsert.Stop()
 	defer vmselect.Stop()
 	disableAlertgroupLabel = disableGroupLabel
+	skipUnrelatedRuleGroups = skipUnrelatedGroups
 
 	testfiles, err := vmalertconfig.ReadFromFS(files)
 	if err != nil {
@@ -368,9 +370,19 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 		return groupOrderMap[testGroups[i].Name] < groupOrderMap[testGroups[j].Name]
 	})
 
+	// evaluate only the rule groups this test can observe
+	evalGroups := testGroups
+	if skipUnrelatedRuleGroups {
+		idxs := newRuleGraph(testGroups).reachableGroups(tg, len(testGroups))
+		evalGroups = make([]vmalertconfig.Group, 0, len(idxs))
+		for _, i := range idxs {
+			evalGroups = append(evalGroups, testGroups[i])
+		}
+	}
+
 	// create groups with given rule
 	var groups []*rule.Group
-	for _, group := range testGroups {
+	for _, group := range evalGroups {
 		mergedExternalLabels := make(map[string]string)
 		maps.Copy(mergedExternalLabels, tg.ExternalLabels)
 		maps.Copy(mergedExternalLabels, externalLabels)
