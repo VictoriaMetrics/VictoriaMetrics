@@ -330,8 +330,6 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 	if tg.Interval == nil {
 		tg.Interval = promutil.NewDuration(evalInterval)
 	}
-	// Evaluate at the resolution the input series are written at.
-	evalInterval = tg.Interval.Duration()
 	err := writeInputSeries(tg.InputSeries, tg.Interval, testStartTime, fmt.Sprintf("http://127.0.0.1:%s/api/v1/write", httpListenAddr))
 	if err != nil {
 		return []error{err}
@@ -381,13 +379,18 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 		groups = append(groups, ng)
 	}
 
+	// every group is evaluated on its own interval, so the loop below walks the
+	// union of the evaluation timestamps of all the groups
+	nextEval := make([]time.Time, len(groups))
+
 	evalIndex := 0
 	maxEvalTime := testStartTime.Add(tg.maxEvalTime())
-	for ts := testStartTime; ts.Before(maxEvalTime) || ts.Equal(maxEvalTime); ts = ts.Add(evalInterval) {
-		for _, g := range groups {
-			if len(g.Rules) == 0 {
+	for ts := testStartTime; ts.Before(maxEvalTime) || ts.Equal(maxEvalTime); {
+		for i, g := range groups {
+			if len(g.Rules) == 0 || nextEval[i].After(ts) {
 				continue
 			}
+			nextEval[i] = ts.Add(g.Interval)
 			errs := g.ExecOnce(context.Background(), rw, ts)
 			for err := range errs {
 				if err != nil {
@@ -400,10 +403,21 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 			vmstorage.DebugFlush()
 		}
 
+		// the next timestamp any of the groups has to be evaluated at
+		nextTS := maxEvalTime.Add(time.Nanosecond)
+		for i, g := range groups {
+			if len(g.Rules) == 0 {
+				continue
+			}
+			if nextEval[i].Before(nextTS) {
+				nextTS = nextEval[i]
+			}
+		}
+
 		// check alert_rule_test case at every eval time
 		for evalIndex < len(alertEvalTimes) {
 			if ts.Sub(testStartTime) > alertEvalTimes[evalIndex] ||
-				alertEvalTimes[evalIndex] >= ts.Add(evalInterval).Sub(testStartTime) {
+				alertEvalTimes[evalIndex] >= nextTS.Sub(testStartTime) {
 				break
 			}
 			gotAlertsMap := map[string]map[string]labelsAndAnnotations{}
@@ -477,6 +491,7 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 			evalIndex++
 		}
 
+		ts = nextTS
 	}
 
 	checkErrs = append(checkErrs, checkMetricsqlCase(tg.MetricsqlExprTests, q)...)
