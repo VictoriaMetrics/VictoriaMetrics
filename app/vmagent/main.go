@@ -115,7 +115,7 @@ func main() {
 	flag.CommandLine.SetOutput(os.Stdout)
 	flag.Usage = usage
 	envflag.Parse()
-	remotewrite.InitSecretFlags()
+	initSecretFlags()
 	buildinfo.Init()
 	logger.Init()
 	opentelemetry.Init()
@@ -842,4 +842,10 @@ vmagent collects metrics data via popular data ingestion protocols and routes it
 See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
 `
 	flagutil.Usage(s)
+}
+
+// initSecretFlags manages the secret flags for this app and must be called after flag parsing and before logger init.
+func initSecretFlags() {
+	remotewrite.InitSecretFlags()
+	pushmetrics.InitSecretFlags()
 }
