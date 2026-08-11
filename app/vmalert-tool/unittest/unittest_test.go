@@ -32,6 +32,9 @@ func TestUnitTest_Success(t *testing.T) {
 	// run multi files with random http port
 	f(false, []string{"./testdata/test1.yaml", "./testdata/test2.yaml"}, []string{"cluster=prod"}, "http://grafana:3000", "")
 
+	// every rule group is evaluated on its own interval
+	f(false, []string{"./testdata/group-interval-test.yaml"}, nil, "", "")
+
 	// disable group label
 	// template with null external values
 	// specify httpListenAddr
