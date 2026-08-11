@@ -245,6 +245,8 @@ func Init() {
 	dropDanglingQueues()
 
 	// Start config reloader.
+	configReloaderStopCh = make(chan struct{})
+	configReloaderWG = sync.WaitGroup{}
 	configReloaderWG.Go(func() {
 		for {
 			select {
@@ -331,7 +333,7 @@ func initRemoteWriteCtxs(urls []string) {
 }
 
 var (
-	configReloaderStopCh = make(chan struct{})
+	configReloaderStopCh chan struct{}
 	configReloaderWG     sync.WaitGroup
 )
 
