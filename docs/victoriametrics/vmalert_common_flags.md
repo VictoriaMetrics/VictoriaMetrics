@@ -370,6 +370,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
      Defines a duration for idle (keep-alive connections) to exist. Consider settings this value less to the value of "-http.idleConnTimeout". It must prevent possible "write: broken pipe" and "read: connection reset by peer" errors. (default 50s)
   -remoteWrite.maxBatchSize int
      Defines max number of timeseries to be flushed at once (default 10000)
+  -remoteWrite.maxIdleConnections int
+     Defines the number of idle (keep-alive connections) to -remoteWrite.url. Too low a value may result in a high number of sockets in TIME_WAIT state. (default 100)
   -remoteWrite.maxQueueSize int
      Defines the max number of pending datapoints to remote write endpoint (default 100000)
   -remoteWrite.oauth2.clientID string

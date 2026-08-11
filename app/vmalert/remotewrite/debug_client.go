@@ -36,6 +36,13 @@ func NewDebugClient() (*DebugClient, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transport for -remoteWrite.url=%q: %w", *addr, err)
 	}
+	tr.IdleConnTimeout = *idleConnectionTimeout
+	// DebugClient sends every series in a separate request, so it needs more idle
+	// connections than the two http.DefaultTransport keeps per host.
+	tr.MaxIdleConnsPerHost = *maxIdleConnections
+	if tr.MaxIdleConns != 0 && tr.MaxIdleConns < tr.MaxIdleConnsPerHost {
+		tr.MaxIdleConns = tr.MaxIdleConnsPerHost
+	}
 	c := &DebugClient{
 		c: &http.Client{
 			Timeout:   *sendTimeout,
