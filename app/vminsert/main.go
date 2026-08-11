@@ -101,6 +101,7 @@ func main() {
 	flag.CommandLine.SetOutput(os.Stdout)
 	flag.Usage = usage
 	envflag.Parse()
+	initSecretFlags()
 	buildinfo.Init()
 	logger.Init()
 
@@ -504,4 +505,9 @@ func checkDuplicates(arr []string) string {
 
 func hasEmptyValues(arr []string) bool {
 	return slices.Contains(arr, "")
+}
+
+// initSecretFlags manages the secret flags for this app and must be called after flag parsing and before logger init.
+func initSecretFlags() {
+	pushmetrics.InitSecretFlags()
 }

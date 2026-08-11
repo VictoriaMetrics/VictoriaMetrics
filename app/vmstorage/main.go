@@ -147,6 +147,7 @@ func main() {
 	flag.CommandLine.SetOutput(os.Stdout)
 	flag.Usage = usage
 	envflag.Parse()
+	initSecretFlags()
 	buildinfo.Init()
 	logger.Init()
 
@@ -683,4 +684,9 @@ func getMaxDailySeries() int {
 	}
 
 	return int(limit)
+}
+
+// initSecretFlags manages the secret flags for this app and must be called after flag parsing and before logger init.
+func initSecretFlags() {
+	pushmetrics.InitSecretFlags()
 }
