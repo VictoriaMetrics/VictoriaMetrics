@@ -6,8 +6,11 @@ import (
 	vmalertconfig "github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 )
 
-// alertMetricName is the series vmalert writes for every pending or firing rule.
-const alertMetricName = "ALERTS"
+// Series vmalert writes for every pending or firing alert.
+const (
+	alertMetricName         = "ALERTS"
+	alertForStateMetricName = "ALERTS_FOR_STATE"
+)
 
 // ruleGraph describes which metrics every rule group produces and reads.
 // It is used to narrow the rule groups evaluated for a single test group.
@@ -120,10 +123,11 @@ func metricNamesInExpr(expr string) ([]string, bool) {
 	return names, true
 }
 
-// alertNamesInExpr returns the alert names the expression reads through ALERTS.
-// No rule records ALERTS, so this dependency is invisible to metricNamesInExpr.
+// alertNamesInExpr returns the alert names the expression reads through the ALERTS
+// and ALERTS_FOR_STATE series. No rule records them, so this dependency is invisible
+// to metricNamesInExpr.
 //
-// The second return value is false when ALERTS is read without pinning
+// The second return value is false when one of the series is read without pinning
 // alertname to an exact value.
 func alertNamesInExpr(expr string) ([]string, bool) {
 	e, err := metricsql.Parse(expr)
@@ -140,7 +144,7 @@ func alertNamesInExpr(expr string) ([]string, bool) {
 		}
 		for _, lfs := range me.LabelFilterss {
 			name, ok := metricNameFromFilters(lfs)
-			if !ok || name != alertMetricName {
+			if !ok || (name != alertMetricName && name != alertForStateMetricName) {
 				continue
 			}
 			alertname, ok := exactLabelValue(lfs, "alertname")
@@ -225,19 +229,6 @@ func (rg *ruleGraph) reachableGroups(tg *testGroup, total int) []int {
 		}
 	}
 
-	// A group reading ALERTS without pinning an alert name may observe any alert,
-	// so every group that defines one has to be evaluated.
-	for i, anyAlert := range rg.readsAnyAlert {
-		if anyAlert && needed[i] {
-			for _, idxs := range rg.alertsIn {
-				for _, dep := range idxs {
-					add(dep)
-				}
-			}
-			break
-		}
-	}
-
 	// Expand over recording and alert dependencies.
 	for len(queue) > 0 {
 		i := queue[len(queue)-1]
@@ -250,6 +241,15 @@ func (rg *ruleGraph) reachableGroups(tg *testGroup, total int) []int {
 		for _, name := range rg.readsAlerts[i] {
 			for _, dep := range rg.alertsIn[name] {
 				add(dep)
+			}
+		}
+		// A group reading ALERTS without pinning an alert name may observe any
+		// alert, so every group defining one has to be evaluated.
+		if rg.readsAnyAlert[i] {
+			for _, idxs := range rg.alertsIn {
+				for _, dep := range idxs {
+					add(dep)
+				}
 			}
 		}
 	}

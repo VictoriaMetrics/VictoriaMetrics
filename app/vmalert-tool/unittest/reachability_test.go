@@ -81,6 +81,8 @@ func TestAlertNamesInExpr(t *testing.T) {
 	}
 
 	f(`ALERTS{alertname="Foo"}`, []string{"Foo"}, true)
+	f(`ALERTS_FOR_STATE{alertname="Foo"}`, []string{"Foo"}, true)
+	f(`ALERTS_FOR_STATE`, nil, false)
 	f(`ALERTS{alertname="Foo", alertstate="firing"}`, []string{"Foo"}, true)
 	f(`count(ALERTS{alertname="Foo"}) by (instance)`, []string{"Foo"}, true)
 
@@ -213,6 +215,32 @@ func TestReachableGroups(t *testing.T) {
 
 	// Reading ALERTS in a group the test does not need must not pull anything in.
 	f(viaAnyAlert, exprOn(`r`), []string{"rec"})
+
+	// A group reading ALERTS without a name is often reached only by expanding the
+	// dependencies of another group, so it must be expanded as well.
+	indirectAnyAlert := testRuleGroups(
+		group("src", alert("Src", `up == 0`)),
+		group("mid", record("r_mid", `count(ALERTS)`)),
+		group("top", record("r_top", `r_mid * 2`)),
+	)
+	f(indirectAnyAlert, exprOn(`r_top`), []string{"src", "mid", "top"})
+
+	// ALERTS_FOR_STATE is generated for alerts too, so reading it depends on the
+	// group defining the alert.
+	viaAlertsForState := testRuleGroups(
+		group("src", alert("Src", `up == 0`)),
+		group("reader", record("r_state", `ALERTS_FOR_STATE{alertname="Src"}`)),
+		group("unrelated", alert("Other", `x > 0`)),
+	)
+	f(viaAlertsForState, exprOn(`r_state`), []string{"src", "reader"})
+
+	// ALERTS_FOR_STATE without an alert name may observe any alert.
+	viaAnyAlertsForState := testRuleGroups(
+		group("src", alert("Src", `up == 0`)),
+		group("reader", record("r_state", `ALERTS_FOR_STATE`)),
+		group("other", alert("Other", `x > 0`)),
+	)
+	f(viaAnyAlertsForState, exprOn(`r_state`), []string{"src", "reader", "other"})
 }
 
 // TestReachableGroups_Cycle makes sure a recording rule cycle terminates instead
