@@ -109,6 +109,8 @@ Released at 2026-07-06
 
 **Update Note 1:** [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): contains a bug that causes increased CPU and memory usage when `-remoteWrite.urlRelabelConfig` or `-remoteWrite.streamAggr.config` flags are used. The bug was introduced in [#10854](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10854). Upgrade to v1.148.0 or rollback to v1.146.0. See [#11250](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11250).
 
+**Update Note 2:** [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): vmalert updates VictoriaLogs LogsQL query parser to [v1.51.0](https://docs.victoriametrics.com/victorialogs/changelog/#v1510), which contains a breaking change in LogsQL filter pipes handling. If you used vmalert with `vlogs` query type and query expressions contained deprecated syntax - these rules will fail the validation on vmalert restart. Please review the [VictoriaLogs v1.51.0 changelog](https://docs.victoriametrics.com/victorialogs/changelog/#v1510) and update your alerting rules accordingly before upgrading.
+
 * SECURITY: upgrade base docker image (Alpine) from 3.23.4 to 3.24.1. See [Alpine 3.24.1 release notes](https://www.alpinelinux.org/posts/Alpine-3.24.1-released.html).
 
 * FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): add `default_vm_access_claim` field into `jwt` section of auth config. It could be used at [JWT claim placeholders](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-based-request-templating), if `JWT` token doesn't have `vm_access` claim. See [#11054](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11054).
