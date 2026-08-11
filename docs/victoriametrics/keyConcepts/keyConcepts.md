@@ -70,8 +70,7 @@ See [what is an active time series](https://docs.victoriametrics.com/victoriamet
 #### Cardinality
 
 The number of unique [time series](#time-series) is named `cardinality`. Too big number of unique time series is named `high cardinality`.
-High cardinality may result in increased resource usage at VictoriaMetrics.
-See [these docs](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-cardinality) for more details.
+[High cardinality](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-cardinality) may result in increased resource usage at VictoriaMetrics.
 
 #### Raw samples
 
@@ -306,7 +305,7 @@ Such an approach makes summaries easier to use but also puts significant limitat
 - It is impossible to calculate quantile over multiple summary metrics, e.g. `sum(go_gc_duration_seconds{quantile="0.75"})`,
   `avg(go_gc_duration_seconds{quantile="0.75"})` or `max(go_gc_duration_seconds{quantile="0.75"})`
   won't return the expected 75th percentile over `go_gc_duration_seconds` metrics collected from multiple instances
-  of the application. See [this article](https://latencytipoftheday.blogspot.de/2014/06/latencytipoftheday-you-cant-average.html) for details.
+  of the application. See [Latency Tip of the Day: You Can't Average Percentiles](https://latencytipoftheday.blogspot.de/2014/06/latencytipoftheday-you-cant-average.html) for details.
 
 - It is impossible to calculate quantiles other than the already pre-calculated quantiles.
 
@@ -323,7 +322,7 @@ What are these metrics, what do they measure, and how - all this depends on the 
 
 To instrument your application with metrics compatible with VictoriaMetrics we recommend
 using [github.com/VictoriaMetrics/metrics](https://github.com/VictoriaMetrics/metrics) package.
-See more details on how to use it in [this article](https://victoriametrics.medium.com/how-to-monitor-go-applications-with-victoriametrics-c04703110870).
+See [How to monitor Go applications with VictoriaMetrics](https://victoriametrics.medium.com/how-to-monitor-go-applications-with-victoriametrics-c04703110870).
 
 VictoriaMetrics is also compatible with [Prometheus client libraries for metrics instrumentation](https://prometheus.io/docs/instrumenting/clientlibs/).
 
@@ -421,7 +420,7 @@ In pull model, the monitoring system needs to be aware of all the applications i
 scraped (pulled) from the known applications (aka `scrape targets`) via HTTP protocol on a regular basis (aka `scrape_interval`).
 
 VictoriaMetrics supports discovering Prometheus-compatible targets and scraping metrics from them in the same way as Prometheus does -
-see [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter).
+see [how to scrape Prometheus exporters in VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter).
 
 Metrics scraping is supported by [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
 and by [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/).
@@ -775,7 +774,7 @@ VictoriaMetrics provide a special query language for executing read queries - [M
 It is a [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics)-like query language with a powerful set of
 functions and features for working specifically with time series data. MetricsQL is backward-compatible with PromQL,
 so it shares most of the query concepts. The basic concepts for PromQL and MetricsQL are
-described [here](https://valyala.medium.com/promql-tutorial-for-beginners-9ab455142085).
+described in this [PromQL tutorial for beginners](https://valyala.medium.com/promql-tutorial-for-beginners-9ab455142085).
 
 #### Filtering
 
@@ -882,7 +881,7 @@ query may break or may lead to incorrect results. The basics of the matching rul
   with the same set of labels, applies the operation for each data point and returns the resulting time series with the
   same set of labels. If there are no matches, then the time series is dropped from the result.
 * The matching rules may be augmented with `ignoring`, `on`, `group_left` and `group_right` modifiers.
-  See [these docs](https://prometheus.io/docs/prometheus/latest/querying/operators/#vector-matching) for details.
+  See [Prometheus's vector matching documentation](https://prometheus.io/docs/prometheus/latest/querying/operators/#vector-matching) for details.
 
 #### Comparison operations
 
@@ -974,15 +973,14 @@ See [How to delete time series](https://docs.victoriametrics.com/victoriametrics
 
 ### Relabeling
 
-Relabeling is a powerful mechanism for modifying time series before they have been written to the database. Relabeling
-may be applied for both [push](#push-model) and [pull](#pull-model) models. See more
-details [here](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#relabeling).
+[Relabeling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#relabeling) is a powerful mechanism for modifying time series before they have been written to the database. Relabeling
+may be applied for both [push](#push-model) and [pull](#pull-model) models.
 
 ### Deduplication
 
-VictoriaMetrics supports data deduplication. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication).
+VictoriaMetrics supports data [deduplication](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication).
 
 
 ### Downsampling
 
-VictoriaMetrics supports data downsampling. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#downsampling).
+VictoriaMetrics supports data [downsampling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#downsampling).
