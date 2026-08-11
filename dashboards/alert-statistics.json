@@ -472,7 +472,7 @@
         "type": "prometheus",
         "uid": "${ds}"
       },
-      "description": "Mean Time To Resolution (MTTR) aggregated across the selected jobs, instances and groups.\n\nAt every point the value is computed over the trailing $mttr_window window as the accumulated firing time (integral of the vmalert_alerts_firing gauge, in alert-seconds) divided by the number of resolved alerts (sum of the gauge decreases) within that window.\n\nCaveats:\n* alerts which are still firing contribute firing time but no resolve event, inflating the value;\n* resolve time granularity is limited by the scrape interval of vmalert metrics;",
+      "description": "Mean Time To Resolution (MTTR) aggregated across the selected jobs, instances and groups.\n\nAt every point the value is computed over the trailing $mttr_window window as the accumulated firing time (integral of the vmalert_alerts_firing gauge, in alert-seconds) divided by the number of resolved alerts (sum of the gauge decreases) within that window.\n\nCaveats:\n* alerts which are still firing contribute firing time but no resolve event, inflating the value;\n* resolve time granularity is limited by the scrape interval of vmalert metrics.",
       "fieldConfig": {
         "defaults": {
           "color": {
