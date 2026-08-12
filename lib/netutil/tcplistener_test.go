@@ -2,6 +2,8 @@ package netutil
 
 import (
 	"net"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -61,6 +63,70 @@ func TestTCPListenerSetMaxConns(t *testing.T) {
 	}
 	if n := ln.cm.connsDropped.Get(); n != 1 {
 		t.Fatalf("unexpected number of dropped connections; got %d; want 1", n)
+	}
+}
+
+func TestTCPListenerSetMaxConnsConcurrentAccept(t *testing.T) {
+	ln, err := NewTCPListener("test_max_conns_concurrent", "127.0.0.1:0", false, nil)
+	if err != nil {
+		t.Fatalf("unexpected error in NewTCPListener: %s", err)
+	}
+	defer ln.Close()
+
+	const maxConns = 5
+	ln.SetMaxConns(maxConns)
+
+	var admitted atomic.Int64
+	var maxObserved atomic.Int64
+
+	// Run multiple goroutines calling Accept concurrently on the same listener,
+	// so the maxConns enforcement must be safe against concurrent check-then-act races.
+	var acceptorsWG sync.WaitGroup
+	for range 4 {
+		acceptorsWG.Add(1)
+		go func() {
+			defer acceptorsWG.Done()
+			for {
+				c, err := ln.Accept()
+				if err != nil {
+					return
+				}
+				n := admitted.Add(1)
+				for {
+					old := maxObserved.Load()
+					if n <= old || maxObserved.CompareAndSwap(old, n) {
+						break
+					}
+				}
+				time.Sleep(20 * time.Millisecond)
+				admitted.Add(-1)
+				c.Close()
+			}
+		}()
+	}
+
+	addr := ln.Addr().String()
+	var dialersWG sync.WaitGroup
+	for range 50 {
+		dialersWG.Add(1)
+		go func() {
+			defer dialersWG.Done()
+			c, err := net.DialTimeout("tcp", addr, 2*time.Second)
+			if err != nil {
+				return
+			}
+			defer c.Close()
+			buf := make([]byte, 1)
+			c.SetReadDeadline(time.Now().Add(2 * time.Second))
+			_, _ = c.Read(buf)
+		}()
+	}
+	dialersWG.Wait()
+	ln.Close()
+	acceptorsWG.Wait()
+
+	if got := maxObserved.Load(); got > maxConns {
+		t.Fatalf("more than maxConns connections were admitted concurrently; got %d; want at most %d", got, maxConns)
 	}
 }
 

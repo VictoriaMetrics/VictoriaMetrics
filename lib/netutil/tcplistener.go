@@ -131,7 +131,9 @@ func (ln *TCPListener) Accept() (net.Conn, error) {
 			ln.acceptErrors.Inc()
 			return nil, err
 		}
-		if maxConns := ln.maxConns.Load(); maxConns > 0 && int64(ln.cm.conns.Get()) >= maxConns {
+		n := ln.cm.activeConns.Add(1)
+		if maxConns := ln.maxConns.Load(); maxConns > 0 && n > maxConns {
+			ln.cm.activeConns.Add(-1)
 			ln.cm.connsDropped.Inc()
 			_ = conn.Close()
 			continue
