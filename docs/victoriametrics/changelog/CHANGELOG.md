@@ -448,8 +448,6 @@ Released at 2026-07-03
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 The v1.136.x line will be supported for at least 12 months since [v1.136.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11360) release**
 
-**Update Note 1:** [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): vmalert updates VictoriaLogs LogsQL query parser to [v1.51.0](https://docs.victoriametrics.com/victorialogs/changelog/#v1510), which contains a breaking change in LogsQL filter pipes handling. If you used vmalert with `vlogs` query type and query expressions contained deprecated syntax - these rules will fail the validation on vmalert restart. Please review the [VictoriaLogs v1.51.0 changelog](https://docs.victoriametrics.com/victorialogs/changelog/#v1510) and update your alerting rules accordingly before upgrading.
-
 * SECURITY: upgrade base docker image (Alpine) from 3.23.4 to 3.24.1. See [Alpine 3.24.1 release notes](https://www.alpinelinux.org/posts/Alpine-3.24.1-released.html).
 
 * BUGFIX: `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): properly check values range for the limits configured with flags `-maxLabelsPerTimeseries`, `-maxLabelNameLen` and `-maxLabelValueLen`. It must be in range `1..65535`. See [#11128](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11128).
@@ -859,8 +857,6 @@ Released at 2026-07-03
 **v1.122.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 The v1.122.x line will be supported for at least 12 months since [v1.122.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11220) release**
-
-**Update Note 1:** [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): vmalert updates VictoriaLogs LogsQL query parser to [v1.51.0](https://docs.victoriametrics.com/victorialogs/changelog/#v1510), which contains a breaking change in LogsQL filter pipes handling. If you used vmalert with `vlogs` query type and query expressions contained deprecated syntax - these rules will fail the validation on vmalert restart. Please review the [VictoriaLogs v1.51.0 changelog](https://docs.victoriametrics.com/victorialogs/changelog/#v1510) and update your alerting rules accordingly before upgrading.
 
 * SECURITY: upgrade base docker image (Alpine) from 3.23.4 to 3.24.1. See [Alpine 3.24.1 release notes](https://www.alpinelinux.org/posts/Alpine-3.24.1-released.html).
 
