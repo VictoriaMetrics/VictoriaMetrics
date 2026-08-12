@@ -56,6 +56,9 @@ var (
 	flagsAuthKey     = flagutil.NewPassword("flagsAuthKey", "Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*")
 	pprofAuthKey     = flagutil.NewPassword("pprofAuthKey", "Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides -httpAuth.*")
 
+	maxConns = flagutil.NewArrayInt("http.maxConns", 0, "The maximum number of established connections a server accepts at the corresponding -httpListenAddr. "+
+		"Exceeding connections are closed immediately. Zero value disables the limit")
+
 	disableKeepAlive            = flag.Bool("http.disableKeepAlive", false, "Whether to disable HTTP keep-alive for incoming connections at -httpListenAddr")
 	disableResponseCompression  = flag.Bool("http.disableResponseCompression", false, "Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth")
 	maxGracefulShutdownDuration = flag.Duration("http.maxGracefulShutdownDuration", 7*time.Second, "The maximum duration for a graceful shutdown of the HTTP server. "+
@@ -149,6 +152,7 @@ func serve(addr string, rh RequestHandler, idx int, opts ServeOptions) {
 	if err != nil {
 		logger.Fatalf("cannot start http server at %s: %s", addr, err)
 	}
+	ln.SetMaxConns(maxConns.GetOptionalArg(idx))
 	logger.Infof("started server at %s://%s/", scheme, ln.Addr())
 	if !opts.DisableBuiltinRoutes {
 		logger.Infof("pprof handlers are exposed at %s://%s/debug/pprof/", scheme, ln.Addr())
