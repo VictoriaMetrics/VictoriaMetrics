@@ -222,29 +222,6 @@ func (g *Group) CreateID() uint64 {
 	return hash.Sum64()
 }
 
-// restore restores alerts state for group rules
-func (g *Group) restore(ctx context.Context, qb datasource.QuerierBuilder, ts time.Time, lookback time.Duration) error {
-	for _, rule := range g.Rules {
-		ar, ok := rule.(*AlertingRule)
-		if !ok {
-			continue
-		}
-		if ar.For < 1 {
-			continue
-		}
-		q := qb.BuildWithParams(datasource.QuerierParams{
-			EvaluationInterval: g.Interval,
-			QueryParams:        g.Params,
-			Headers:            g.Headers,
-			Debug:              ar.Debug,
-		})
-		if err := ar.restore(ctx, q, ts, lookback); err != nil {
-			return fmt.Errorf("error while restoring rule %q: %w", rule, err)
-		}
-	}
-	return nil
-}
-
 // updateWith updates existing group with
 // passed group object. This function ignores group
 // evaluation interval change. It supposed to be updated
@@ -395,7 +372,7 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 
 	g.infof("started")
 
-	eval := func(ctx context.Context, ts time.Time) time.Time {
+	eval := func(ctx context.Context, ts time.Time, getRemoteReadQuerier func(enableDebug bool) datasource.Querier) {
 		g.metrics.iterationTotal.Inc()
 
 		start := time.Now()
@@ -405,13 +382,13 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 			g.mu.Lock()
 			g.LastEvaluation = start
 			g.mu.Unlock()
-			return ts
+			return
 		}
 
 		resolveDuration := getResolveDuration(g.Interval, *resendDelay, *maxResolveDuration)
 		// adjust request timestamp using evalDelay and evalAlignment if necessary
 		ts = g.adjustReqTimestamp(ts)
-		errs := e.execConcurrently(ctx, g.Rules, ts, g.Concurrency, resolveDuration, g.Limit)
+		errs := e.execConcurrently(ctx, g.Rules, ts, g.Concurrency, resolveDuration, g.Limit, getRemoteReadQuerier)
 		for err := range errs {
 			if err != nil {
 				logger.Errorf("group %q (file=%q): %s", g.Name, g.File, err)
@@ -421,7 +398,6 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 		g.mu.Lock()
 		g.LastEvaluation = start
 		g.mu.Unlock()
-		return ts
 	}
 
 	evalCtx, cancel := context.WithCancel(ctx)
@@ -436,16 +412,19 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 	t := time.NewTicker(g.Interval)
 	defer t.Stop()
 
-	realEvalTS := eval(evalCtx, evalTS)
-
-	// restore the rules state after the first evaluation
-	// so only active alerts can be restored.
+	var getRemoteReadQuerier func(enableDebug bool) datasource.Querier
 	if rr != nil {
-		err := g.restore(ctx, rr, realEvalTS, *remoteReadLookBack)
-		if err != nil {
-			logger.Errorf("error while restoring ruleState for group %q (file=%q): %s", g.Name, g.File, err)
+		getRemoteReadQuerier = func(enableDebug bool) datasource.Querier {
+			return rr.BuildWithParams(datasource.QuerierParams{
+				EvaluationInterval: g.Interval,
+				QueryParams:        g.Params,
+				Headers:            g.Headers,
+				Debug:              enableDebug,
+			})
 		}
 	}
+	// pass getRemoteReadQuerier to the first evaluation, so it can be used for restoring alert states
+	eval(evalCtx, evalTS, getRemoteReadQuerier)
 
 	for {
 		select {
@@ -496,7 +475,7 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 				g.metrics.iterationMissed.Inc()
 			}
 
-			eval(evalCtx, evalTS)
+			eval(evalCtx, evalTS, nil)
 		}
 	}
 }
@@ -667,7 +646,7 @@ func (g *Group) ExecOnce(ctx context.Context, rw remotewrite.RWClient, evalTS ti
 		return nil
 	}
 	resolveDuration := getResolveDuration(g.Interval, *resendDelay, *maxResolveDuration)
-	return e.execConcurrently(ctx, g.Rules, evalTS, g.Concurrency, resolveDuration, g.Limit)
+	return e.execConcurrently(ctx, g.Rules, evalTS, g.Concurrency, resolveDuration, g.Limit, nil)
 }
 
 type rangeIterator struct {
@@ -741,12 +720,12 @@ type executor struct {
 }
 
 // execConcurrently executes rules concurrently if concurrency>1
-func (e *executor) execConcurrently(ctx context.Context, rules []Rule, ts time.Time, concurrency int, resolveDuration time.Duration, limit int) chan error {
+func (e *executor) execConcurrently(ctx context.Context, rules []Rule, ts time.Time, concurrency int, resolveDuration time.Duration, limit int, getRemoteReadQuerier func(enableDebug bool) datasource.Querier) chan error {
 	res := make(chan error, len(rules))
 	if concurrency == 1 {
 		// fast path
 		for _, rule := range rules {
-			res <- e.exec(ctx, rule, ts, resolveDuration, limit)
+			res <- e.exec(ctx, rule, ts, resolveDuration, limit, getRemoteReadQuerier)
 		}
 		close(res)
 		return res
@@ -759,7 +738,7 @@ func (e *executor) execConcurrently(ctx context.Context, rules []Rule, ts time.T
 			rule := rules[i]
 			sem <- struct{}{}
 			wg.Go(func() {
-				res <- e.exec(ctx, rule, ts, resolveDuration, limit)
+				res <- e.exec(ctx, rule, ts, resolveDuration, limit, getRemoteReadQuerier)
 				<-sem
 			})
 		}
@@ -776,10 +755,10 @@ var (
 	execErrors = metrics.NewCounter(`vmalert_execution_errors_total`)
 )
 
-func (e *executor) exec(ctx context.Context, r Rule, ts time.Time, resolveDuration time.Duration, limit int) error {
+func (e *executor) exec(ctx context.Context, r Rule, ts time.Time, resolveDuration time.Duration, limit int, getRemoteReadQuerier func(enableDebug bool) datasource.Querier) error {
 	execTotal.Inc()
 
-	tss, err := r.exec(ctx, ts, limit)
+	tss, err := r.exec(ctx, ts, limit, getRemoteReadQuerier)
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
 			// the context can be cancelled on graceful shutdown
