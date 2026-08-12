@@ -1,0 +1,19 @@
+@use "src/styles/variables" as *;
+
+.vm-legend-collapse-controller {
+  background-color: $color-hover-black;
+  border-radius: $border-radius-medium;
+  padding: $padding-large;
+  border: $border-divider;
+
+  .vm-graph-settings-row__label {
+    margin: 0;
+  }
+
+  &__description {
+    padding-top: $padding-global;
+    font-size: $font-size-small;
+    line-height: 1.3;
+    text-wrap: pretty;
+  }
+}

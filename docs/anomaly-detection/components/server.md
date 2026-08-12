@@ -74,5 +74,7 @@ Rest API endpoints (e.g. `/metrics`) can be accessed at `<vmanomaly-host>:8490/v
 - `GET /api/v1/autotune/tasks/{task_id}` returns progress and the concrete suggested `modelConfig` when complete.
 - `DELETE /api/v1/autotune/tasks/{task_id}` cancels pending work cooperatively.
 
+{{% available_from "v1.30.1" anomaly %}} Seasonality analysis preserves the original timestamp grid when samples are offset from whole step boundaries. This avoids missing daily or weekly patterns solely because timestamps are shifted within the configured sampling interval.
+
 > [!TIP]
 > For a complete request and recommended workflow, see [Shared asynchronous autotune workflow](https://docs.victoriametrics.com/anomaly-detection/components/models/#shared-asynchronous-autotune-workflow). OpenAPI schemas for the running version are available at `/docs` endpoint of a running `vmanomaly` instance.
