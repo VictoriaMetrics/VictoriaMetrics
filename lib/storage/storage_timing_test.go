@@ -412,25 +412,41 @@ func benchmarkSearch(b *testing.B, dataConfig dataConfig, split splitFunc, searc
 		graphitePrefix = "graphite."
 	}
 	genRows := func(n int, prefix string, tr TimeRange) []MetricRow {
-		mrs := make([]MetricRow, n)
+		minDate, maxDate := tr.DateRange()
+		numDays := int(maxDate-minDate) + 1
+		mrs := make([]MetricRow, n*numDays)
 		if n == 0 {
 			return mrs
 		}
-		step := (tr.MaxTimestamp - tr.MinTimestamp) / int64(n)
-		for i := range n {
-			name := fmt.Sprintf("%s%s_%09d", graphitePrefix, prefix, i)
-			labelName := fmt.Sprintf("%s_label_%09d", prefix, i)
-			labelValue := fmt.Sprintf("%s_value_%09d", prefix, i)
-			mn := MetricName{
-				MetricGroup: []byte(name),
-				Tags: []Tag{
-					{[]byte(labelName), []byte("value")},
-					{[]byte("label"), []byte(labelValue)},
-				},
+		for date := minDate; date <= maxDate; date++ {
+			day := TimeRange{
+				MinTimestamp: int64(date) * msecPerDay,
+				MaxTimestamp: int64(date+1)*msecPerDay - 1,
 			}
-			mrs[i].MetricNameRaw = mn.marshalRaw(nil)
-			mrs[i].Timestamp = tr.MinTimestamp + int64(i)*step
-			mrs[i].Value = float64(i)
+			if day.MinTimestamp < tr.MinTimestamp {
+				day.MinTimestamp = tr.MinTimestamp
+			}
+			if day.MaxTimestamp > tr.MaxTimestamp {
+				day.MaxTimestamp = tr.MaxTimestamp
+			}
+
+			step := (day.MaxTimestamp - day.MinTimestamp) / int64(n)
+			d := int(date - minDate)
+			for i := range n {
+				name := fmt.Sprintf("%s%s_%03d_%09d", graphitePrefix, prefix, d, i)
+				labelName := fmt.Sprintf("%s_label_%03d_%09d", prefix, d, i)
+				labelValue := fmt.Sprintf("%s_value_%03d_%09d", prefix, d, i)
+				mn := MetricName{
+					MetricGroup: []byte(name),
+					Tags: []Tag{
+						{[]byte(labelName), []byte("value")},
+						{[]byte("label"), []byte(labelValue)},
+					},
+				}
+				mrs[d*n+i].MetricNameRaw = mn.marshalRaw(nil)
+				mrs[d*n+i].Timestamp = day.MinTimestamp + int64(i)*step
+				mrs[d*n+i].Value = float64(i)
+			}
 		}
 		return mrs
 	}
@@ -838,7 +854,7 @@ func variableSeries() []dataConfig {
 	// routine running of the benchmarks does not take too long. However, when
 	// debugging it is often helpful to add more numbers in between these
 	// numbers.
-	for _, numSeries := range []int{100, 1000, 10_000, 100_000, 1_000_000} {
+	for _, numSeries := range []int{100, 1000, 10_000, 100_000} {
 		cfgs = append(cfgs, dataConfig{
 			name:             fmt.Sprintf("VariableSeries/%d", numSeries),
 			numSeries:        numSeries,
@@ -860,10 +876,10 @@ func variableSeries() []dataConfig {
 // 100K as something in the middle.
 func variableDeletedSeries() []dataConfig {
 	var cfgs []dataConfig
-	for _, numDeletedSeries := range []int{100, 1000, 10_000, 100_000, 1_000_000} {
+	for _, numDeletedSeries := range []int{100, 1000, 10_000, 100_000} {
 		cfgs = append(cfgs, dataConfig{
 			name:             fmt.Sprintf("VariableDeletedSeries/%d", numDeletedSeries),
-			numSeries:        100_000,
+			numSeries:        10_000,
 			numDeletedSeries: numDeletedSeries,
 			tr: TimeRange{
 				MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
@@ -881,9 +897,29 @@ func variableTimeRange() []dataConfig {
 		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		MaxTimestamp: time.Date(2025, 1, 1, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
-	tr1w := TimeRange{
+	tr2d := TimeRange{
 		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-		MaxTimestamp: time.Date(2025, 1, 7, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2025, 1, 2, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	tr4d := TimeRange{
+		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2025, 1, 4, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	tr8d := TimeRange{
+		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2025, 1, 8, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	tr16d := TimeRange{
+		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2025, 1, 16, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	tr32d := TimeRange{
+		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2025, 1, 32, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	tr64d := TimeRange{
+		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2025, 1, 64, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
 	tr1m := TimeRange{
 		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
@@ -893,16 +929,16 @@ func variableTimeRange() []dataConfig {
 		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		MaxTimestamp: time.Date(2025, 2, 28, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
-	tr6m := TimeRange{
+	tr4m := TimeRange{
 		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-		MaxTimestamp: time.Date(2025, 5, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2025, 4, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
-	trNames := []string{"1d", "1w", "1m", "2m", "6m"}
+	trNames := []string{"1d", "2d", "4d", "8d", "16d", "32d", "64d", "1m", "2m", "4m"}
 	var cfgs []dataConfig
-	for i, tr := range []TimeRange{tr1d, tr1w, tr2m, tr1m, tr6m} {
+	for i, tr := range []TimeRange{tr1d, tr2d, tr4d, tr8d, tr16d, tr32d, tr64d, tr1m, tr2m, tr4m} {
 		cfgs = append(cfgs, dataConfig{
 			name:             fmt.Sprintf("VariableTimeRange/%s", trNames[i]),
-			numSeries:        100_000,
+			numSeries:        1000,
 			numDeletedSeries: 0,
 			tr:               tr,
 		})
