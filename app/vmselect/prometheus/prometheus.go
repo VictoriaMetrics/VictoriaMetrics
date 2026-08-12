@@ -552,7 +552,7 @@ func DeleteHandler(startTime time.Time, at *auth.Token, r *http.Request) error {
 	cp.deadline = searchutil.GetDeadlineForDelete(r, startTime)
 
 	if !cp.IsDefaultTimeRange() {
-		return fmt.Errorf("start=%d and end=%d args aren't supported. Remove these args from the query in order to delete all the matching metrics", cp.start, cp.end)
+		return fmt.Errorf("delete API does not support specific time ranges using start and end args, the series can only be deleted completely")
 	}
 	sq, err := getSearchQuery(nil, at, cp, *maxDeleteSeries)
 	if err != nil {
@@ -685,11 +685,11 @@ func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.To
 
 	cp, err := getCommonParamsForLabelsAPI(r, startTime, false)
 	if err != nil {
-		return err
+		return httpserver.InvalidParamError(err)
 	}
 	limit, err := httputil.GetInt(r, "limit")
 	if err != nil {
-		return err
+		return httpserver.InvalidParamError(err)
 	}
 	denyPartialResponse := httputil.GetDenyPartialResponse(r)
 	sq, err := getSearchQuery(qt, at, cp, *maxLabelsAPISeries)
@@ -730,7 +730,7 @@ func TSDBStatusHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 
 	cp, err := getCommonParams(r, startTime, false)
 	if err != nil {
-		return err
+		return httpserver.InvalidParamError(err)
 	}
 	cp.deadline = searchutil.GetDeadlineForStatusRequest(r, startTime)
 
@@ -742,7 +742,7 @@ func TSDBStatusHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 		} else {
 			t, err := time.Parse("2006-01-02", dateStr)
 			if err != nil {
-				return fmt.Errorf("cannot parse `date` arg %q: %w", dateStr, err)
+				return httpserver.InvalidParamError(fmt.Errorf("cannot parse `date` arg %q: %w", dateStr, err))
 			}
 			date = uint64(t.Unix()) / secsPerDay
 		}
@@ -753,7 +753,7 @@ func TSDBStatusHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 	if len(topNStr) > 0 {
 		n, err := strconv.Atoi(topNStr)
 		if err != nil {
-			return fmt.Errorf("cannot parse `topN` arg %q: %w", topNStr, err)
+			return httpserver.InvalidParamError(fmt.Errorf("cannot parse `topN` arg %q: %w", topNStr, err))
 		}
 		if n <= 0 {
 			n = 1
@@ -795,11 +795,11 @@ func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 
 	cp, err := getCommonParamsForLabelsAPI(r, startTime, false)
 	if err != nil {
-		return err
+		return httpserver.InvalidParamError(err)
 	}
 	limit, err := httputil.GetInt(r, "limit")
 	if err != nil {
-		return err
+		return httpserver.InvalidParamError(err)
 	}
 	denyPartialResponse := httputil.GetDenyPartialResponse(r)
 	sq, err := getSearchQuery(qt, at, cp, *maxLabelsAPISeries)
@@ -829,9 +829,10 @@ func MetadataHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token
 	if err != nil {
 		return err
 	}
+
 	limit, err := httputil.GetInt(r, "limit")
 	if err != nil {
-		return err
+		return httpserver.InvalidParamError(err)
 	}
 	if limit < 0 {
 		limit = 0
@@ -928,11 +929,11 @@ func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/91
 	cp, err := getCommonParamsForLabelsAPI(r, startTime, true)
 	if err != nil {
-		return err
+		return httpserver.InvalidParamError(err)
 	}
 	limit, err := httputil.GetInt(r, "limit")
 	if err != nil {
-		return err
+		return httpserver.InvalidParamError(err)
 	}
 	sq, err := getSearchQuery(qt, at, cp, *maxSeriesLimit)
 	if err != nil {
@@ -969,19 +970,19 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w
 	noCache := httputil.GetBool(r, "nocache")
 	query := r.FormValue("query")
 	if len(query) == 0 {
-		return fmt.Errorf("missing `query` arg")
+		return httpserver.InvalidParamError(fmt.Errorf("missing `query` arg"))
 	}
 	start, err := httputil.GetTime(r, "time", ct)
 	if err != nil {
-		return err
+		return httpserver.InvalidParamError(err)
 	}
 	lookbackDelta, err := getMaxLookback(r)
 	if err != nil {
-		return err
+		return httpserver.InvalidParamError(err)
 	}
 	step, err := httputil.GetDuration(r, "step", lookbackDelta)
 	if err != nil {
-		return err
+		return httpserver.InvalidParamError(err)
 	}
 	if step <= 0 {
 		step = defaultStep
@@ -989,16 +990,16 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w
 
 	maxLen := searchutil.GetMaxQueryLen()
 	if len(query) > maxLen {
-		return fmt.Errorf("too long query; got %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(query), maxLen)
+		return httpserver.InvalidParamError(fmt.Errorf("too long query; got %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(query), maxLen))
 	}
 	etfs, err := searchutil.GetExtraTagFilters(r)
 	if err != nil {
-		return err
+		return httpserver.InvalidParamError(err)
 	}
 	if childQuery, windowExpr, offsetExpr := promql.IsMetricSelectorWithRollup(query); childQuery != "" {
 		window, err := windowExpr.NonNegativeDuration(step)
 		if err != nil {
-			return fmt.Errorf("cannot parse lookbehind window in square brackets at %s: %w", query, err)
+			return httpserver.InvalidParamError(fmt.Errorf("cannot parse lookbehind window in square brackets at %s: %w", query, err))
 		}
 		offset := offsetExpr.Duration(step)
 		start -= offset
@@ -1012,7 +1013,7 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w
 
 		tagFilterss, err := getTagFilterssFromMatches([]string{childQuery})
 		if err != nil {
-			return err
+			return httpserver.InvalidParamError(err)
 		}
 		filterss := searchutil.JoinTagFilterss(tagFilterss, etfs)
 
@@ -1028,22 +1029,25 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w
 		return nil
 	}
 	if childQuery, windowExpr, stepExpr, offsetExpr := promql.IsRollup(query); childQuery != "" {
+		if len(childQuery) > maxLen {
+			return httpserver.InvalidParamError(fmt.Errorf("too long query; got %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(childQuery), maxLen))
+		}
 		newStep, err := stepExpr.NonNegativeDuration(step)
 		if err != nil {
-			return fmt.Errorf("cannot parse step in square brackets at %s: %w", query, err)
+			return httpserver.InvalidParamError(fmt.Errorf("cannot parse step in square brackets at %s: %w", query, err))
 		}
 		if newStep > 0 {
 			step = newStep
 		}
 		window, err := windowExpr.NonNegativeDuration(step)
 		if err != nil {
-			return fmt.Errorf("cannot parse lookbehind window in square brackets at %s: %w", query, err)
+			return httpserver.InvalidParamError(fmt.Errorf("cannot parse lookbehind window in square brackets at %s: %w", query, err))
 		}
 		offset := offsetExpr.Duration(step)
 		start -= offset
 		end := start
 		start = end - window
-		if err := queryRangeHandler(qt, startTime, at, w, childQuery, start, end, step, r, ct, etfs); err != nil {
+		if err := queryRangeHandler(qt, startTime, at, w, childQuery, start, end, step, lookbackDelta, r, ct, etfs); err != nil {
 			return fmt.Errorf("error when executing query=%q on the time range (start=%d, end=%d, step=%d): %w", childQuery, start, end, step, err)
 		}
 		return nil
@@ -1051,7 +1055,7 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w
 
 	queryOffset, err := getLatencyOffsetMilliseconds(r)
 	if err != nil {
-		return err
+		return httpserver.InvalidParamError(err)
 	}
 	if !httputil.GetBool(r, "nocache") && ct-start < queryOffset && start-ct < queryOffset {
 		// Adjust start time only if `nocache` arg isn't set.
@@ -1131,45 +1135,43 @@ func QueryRangeHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 	ct := startTime.UnixNano() / 1e6
 	query := r.FormValue("query")
 	if len(query) == 0 {
-		return fmt.Errorf("missing `query` arg")
+		return httpserver.InvalidParamError(fmt.Errorf("missing `query` arg"))
+	}
+	maxLen := searchutil.GetMaxQueryLen()
+	if len(query) > maxLen {
+		return httpserver.InvalidParamError(fmt.Errorf("too long query; got %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(query), maxLen))
 	}
 	start, err := httputil.GetTime(r, "start", ct-defaultStep)
 	if err != nil {
-		return err
+		return httpserver.InvalidParamError(err)
 	}
 	end, err := httputil.GetTime(r, "end", ct)
 	if err != nil {
-		return err
+		return httpserver.InvalidParamError(err)
 	}
 	step, err := httputil.GetDuration(r, "step", defaultStep)
 	if err != nil {
-		return err
+		return httpserver.InvalidParamError(err)
 	}
 	etfs, err := searchutil.GetExtraTagFilters(r)
 	if err != nil {
-		return err
+		return httpserver.InvalidParamError(err)
 	}
-	if err := queryRangeHandler(qt, startTime, at, w, query, start, end, step, r, ct, etfs); err != nil {
+	lookbackDelta, err := getMaxLookback(r)
+	if err != nil {
+		return httpserver.InvalidParamError(err)
+	}
+	if err := queryRangeHandler(qt, startTime, at, w, query, start, end, step, lookbackDelta, r, ct, etfs); err != nil {
 		return fmt.Errorf("error when executing query=%q on the time range (start=%d, end=%d, step=%d): %w", query, start, end, step, err)
 	}
 	return nil
 }
 
 func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w http.ResponseWriter, query string,
-	start, end, step int64, r *http.Request, ct int64, etfs [][]storage.TagFilter) error {
+	start, end, step, lookbackDelta int64, r *http.Request, ct int64, etfs [][]storage.TagFilter) error {
 	deadline := searchutil.GetDeadlineForQuery(r, startTime)
 	noCache := httputil.GetBool(r, "nocache")
 	optimizeRepeatedBinaryOpSubexprs := httputil.GetBool(r, "optimize_repeated_binary_op_subexprs")
-	lookbackDelta, err := getMaxLookback(r)
-	if err != nil {
-		return err
-	}
-
-	// Validate input args.
-	maxLen := searchutil.GetMaxQueryLen()
-	if len(query) > maxLen {
-		return fmt.Errorf("too long query; got %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(query), maxLen)
-	}
 	if start > end {
 		end = start + defaultStep
 	}
@@ -1200,8 +1202,7 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 
 		DenyPartialResponse: httputil.GetDenyPartialResponse(r),
 	}
-	err = populateAuthTokens(qt, ec, at, deadline)
-	if err != nil {
+	if err := populateAuthTokens(qt, ec, at, deadline); err != nil {
 		return fmt.Errorf("cannot populate auth tokens: %w", err)
 	}
 	qs := promql.NewQueryStats(query, at, ec)
@@ -1214,7 +1215,7 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 	if step < maxStepForPointsAdjustment.Milliseconds() {
 		queryOffset, err := getLatencyOffsetMilliseconds(r)
 		if err != nil {
-			return err
+			return httpserver.InvalidParamError(err)
 		}
 		if ct-queryOffset < end {
 			result = adjustLastPoints(result, ct-queryOffset, ct+step)
@@ -1389,13 +1390,13 @@ func QueryStatsHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) e
 	if len(topNStr) > 0 {
 		n, err := strconv.Atoi(topNStr)
 		if err != nil {
-			return fmt.Errorf("cannot parse `topN` arg %q: %w", topNStr, err)
+			return httpserver.InvalidParamError(fmt.Errorf("cannot parse `topN` arg %q: %w", topNStr, err))
 		}
 		topN = n
 	}
 	maxLifetimeMsecs, err := httputil.GetDuration(r, "maxLifetime", 10*60*1000)
 	if err != nil {
-		return fmt.Errorf("cannot parse `maxLifetime` arg: %w", err)
+		return httpserver.InvalidParamError(fmt.Errorf("cannot parse `maxLifetime` arg: %w", err))
 	}
 	maxLifetime := time.Duration(maxLifetimeMsecs) * time.Millisecond
 	w.Header().Set("Content-Type", "application/json")
