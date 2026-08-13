@@ -1,5 +1,6 @@
 ---
 title: Settings
+description: "Global settings for the anomaly detection service."
 weight: 6
 menu:
   docs:

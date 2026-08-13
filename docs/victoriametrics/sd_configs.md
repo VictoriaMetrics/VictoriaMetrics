@@ -1,6 +1,7 @@
 ---
 weight: 36
 title: Prometheus service discovery
+description: "Supported Prometheus-compatible service discovery mechanisms (Azure, Consul, DNS, Docker, EC2, GCE, Kubernetes, OpenStack, and more)"
 menu:
   docs:
     parent: 'victoriametrics'

@@ -1,6 +1,7 @@
 ---
 weight: 5
 title: Migration
+description: "Migration guide to the latest vmanomaly version."
 menu:
   docs:
     identifier: "vmanomaly-migration"

@@ -5,6 +5,7 @@ menu:
     parent: victoriametrics
     weight: 4
 title: vmalert
+description: "Alerting and recording rule evaluation with Alertmanager integration and multi-tenancy support."
 tags:
   - metrics
   - logs

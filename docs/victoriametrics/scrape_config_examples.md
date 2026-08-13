@@ -1,6 +1,7 @@
 ---
 weight: 37
 title: Scrape config examples
+description: "Scrape configuration examples for static configs, file-based, HTTP-based, and Kubernetes target discovery."
 menu:
   docs:
     parent: 'victoriametrics'

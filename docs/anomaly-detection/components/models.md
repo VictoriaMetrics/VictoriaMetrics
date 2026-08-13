@@ -1,5 +1,6 @@
 ---
 title: Models
+description: "Model types and configuration. Built-in and custom anomaly detection models."
 weight: 1
 menu:
   docs:

@@ -1,6 +1,7 @@
 ---
 weight: 3
 title: Scaling vmanomaly
+description: "High availability and horizontal scaling for vmanomaly."
 menu:
   docs:
     identifier: "vmanomaly-scaling"

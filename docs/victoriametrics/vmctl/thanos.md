@@ -1,5 +1,6 @@
 ---
 title: Thanos
+description: "Migrate data from Thanos blocks via snapshot or remote-read."
 weight: 5
 menu:
   docs:

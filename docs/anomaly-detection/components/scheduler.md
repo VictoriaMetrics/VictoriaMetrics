@@ -1,5 +1,6 @@
 ---
 title: Scheduler
+description: "Scheduling configuration. Inference frequency and training time range."
 weight: 3
 menu:
   docs:

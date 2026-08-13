@@ -1,5 +1,6 @@
 ---
 title: AI tools
+description: "MCP servers and AI assistant integrations for querying metrics, logs, and traces with natural language."
 weight: 61
 menu:
   docs:

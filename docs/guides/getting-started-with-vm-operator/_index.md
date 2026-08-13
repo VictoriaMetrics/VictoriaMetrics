@@ -1,6 +1,7 @@
 ---
 weight: 4
 title: Getting started with VM Operator
+description: "Deploy VM stack on Kubernetes with the Operator."
 menu:
   docs:
     parent: "guides"

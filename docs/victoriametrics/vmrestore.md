@@ -5,6 +5,7 @@ menu:
     parent: victoriametrics
     weight: 7
 title: vmrestore
+description: "Restore VictoriaMetrics data from backups with support for partial restores."
 tags:
   - metrics
 aliases:

@@ -5,6 +5,7 @@ menu:
     parent: victoriametrics
     weight: 3
 title: vmagent
+description: "agent for metrics collection, supporting both push and pull models, service discovery, relabeling, sharding, replication, on-disk buffering."
 tags:
   - metrics
 aliases:
