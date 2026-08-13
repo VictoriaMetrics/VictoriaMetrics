@@ -16,6 +16,23 @@ Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
 {{% collapse name="2026" open=true %}}
 
+## v1.30.2
+Released: 2026-08-13
+
+- UI: Updated [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/) from [v1.8.1](https://docs.victoriametrics.com/anomaly-detection/ui/#v181) to [v1.8.2](https://docs.victoriametrics.com/anomaly-detection/ui/#v182), fixing tenant discovery and switching for multitenant VictoriaMetrics datasources.
+
+- FEATURE: Added **query**-level [`data_range`, `detection_direction`, `min_dev_from_expected`, and `min_rel_dev_from_expected`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#per-query-parameters). Model-level placement is deprecated but remains a compatible fallback.
+
+- IMPROVEMENT: Added [`reader.workers`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#config-parameters) to cap concurrent datasource requests and disk-streamed query chunks; `0` selects an automatic bound.
+
+- IMPROVEMENT: Added [`settings.native_threads_per_worker`](https://docs.victoriametrics.com/anomaly-detection/components/settings/#parallelization) to reduce [native-thread oversubscription](https://scikit-learn.org/stable/computing/parallelism.html#oversubscription-spawning-too-many-threads), throttling risk, fit latency, and memory. For example, with 16 CPUs/workers, [Temporal Envelope](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope) fit time fell 70.6% for 1,000 univariate models and 11.5% for 100 x 10-channel grouped models; inference was unchanged.
+
+- IMPROVEMENT: Removed temporary fit-data generations after all dependent models finish and commit, while safely retaining failed or overlapping generations.
+
+- IMPROVEMENT: Reduced disk-backed grouped multivariate memory and fit latency without model or state migration. For example, 100 x 100-channel four-week fits cut peak PSS/fit time by 63%/56% for [Temporal Envelope](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope).
+
+- BUGFIX: Made [multivariate models](https://docs.victoriametrics.com/anomaly-detection/components/models/#multivariate-models) independent of input channel order when the fitted channel set matches; missing, extra, or duplicate channels remain rejected.
+
 ## v1.30.1
 Released: 2026-08-06
 

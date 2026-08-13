@@ -333,6 +333,14 @@ For detailed guidance on configuring mTLS parameters such as `verify_tls`, `tls_
         <tr>
             <td>
 
+<span style="white-space: nowrap;">`vmanomaly_native_threads_per_worker`</span>
+            </td>
+            <td>Gauge</td>
+            <td>Effective maximum native numerical-library threads per model worker{{% available_from "v1.30.2" anomaly %}} after resolving [`settings.native_threads_per_worker`](https://docs.victoriametrics.com/anomaly-detection/components/settings/#parallelization) against the effective worker count and container-aware CPU capacity.</td>
+        </tr>
+        <tr>
+            <td>
+
 <span style="white-space: nowrap;">`vmanomaly_config_entities`</span>
             </td>
             <td>Gauge</td>
