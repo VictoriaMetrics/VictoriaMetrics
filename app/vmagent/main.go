@@ -2,11 +2,13 @@ package main
 
 import (
 	"embed"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -549,6 +551,33 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		procutil.SelfSIGHUP()
 		w.WriteHeader(http.StatusOK)
 		return true
+	case "/remotewrite/maintenance":
+		if !remotewrite.CheckMaintenanceAuthKey(w, r) {
+			return true
+		}
+		remoteWriteMaintenanceRequests.Inc()
+		if v := r.FormValue("enable"); v != "" {
+			enable, err := strconv.ParseBool(v)
+			if err != nil {
+				httpserver.Errorf(w, r, "cannot parse `enable` query arg: %s", err)
+				return true
+			}
+			rwURL := r.FormValue("url")
+			if rwURL == "" {
+				httpserver.Errorf(w, r, "missing `url` query arg; it must match the `url` label of vmagent_remotewrite_* metrics for the target -remoteWrite.url, "+
+					"or be set to `*` to target all the configured -remoteWrite.url destinations")
+				return true
+			}
+			if matched := remotewrite.SetMaintenanceMode(rwURL, enable); matched == 0 {
+				httpserver.Errorf(w, r, "no -remoteWrite.url destinations match `url=%s`", rwURL)
+				return true
+			}
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"maintenance": remotewrite.GetMaintenanceMode(),
+		})
+		return true
 	case "/ready":
 		if rdy := promscrape.PendingScrapeConfigs.Load(); rdy > 0 {
 			errMsg := fmt.Sprintf("waiting for scrapes to init, left: %d", rdy)
@@ -833,6 +862,8 @@ var (
 	remoteWriteStatusURLRelabelConfigRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/api/v1/status/remotewrite-url-relabel-config"}`)
 
 	promscrapeConfigReloadRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/-/reload"}`)
+
+	remoteWriteMaintenanceRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/remotewrite/maintenance"}`)
 )
 
 func usage() {
