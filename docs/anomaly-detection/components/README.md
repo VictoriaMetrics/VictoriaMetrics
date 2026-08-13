@@ -76,6 +76,8 @@ models:
     clip_predictions: True  # clip predictions to expected data range, i.e. [0, inf] for this query `host_network_receive_errors
   envelope_weekly: # we can set up alias for model
     class: 'temporal_envelope'
+    alpha: 0.005  # adapt the trend while using the bootstrap-only fit schedule
+    loss_reactivity: 5  # allow new deviations to update the envelope
     provide_series: ['anomaly_score', 'y', 'yhat', 'yhat_lower', 'yhat_upper']
     queries: ['cpu_seconds_total']
     schedulers: ['periodic_online_weekly']  # fit on two weekly cycles, then update online every 15m

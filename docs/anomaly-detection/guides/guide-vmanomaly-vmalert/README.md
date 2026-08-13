@@ -151,6 +151,8 @@ schedulers:
 models:
   temporal_envelope:
     class: "temporal_envelope"
+    alpha: 0.005 # adapt the trend while using the bootstrap-only fit schedule
+    loss_reactivity: 5 # allow new deviations to update the envelope
     seasonalities: ["hod_smooth", "dow_smooth"]
     provide_series: ["anomaly_score", "y", "yhat", "yhat_lower", "yhat_upper"]
 

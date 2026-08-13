@@ -45,12 +45,14 @@ models:
   zscore_online_inherited:
     class: zscore_online
     z_threshold: 3.5
+    decay: 0.99  # give more weight to recent data while using the bootstrap-only fit schedule
     clip_predictions: True
     # will be inherited from settings.anomaly_score_outside_data_range
     # anomaly_score_outside_data_range: 5.0
   zscore_online_override:
     class: zscore_online
     z_threshold: 3.5
+    decay: 0.99  # give more weight to recent data while using the bootstrap-only fit schedule
     clip_predictions: True
     anomaly_score_outside_data_range: 1.5  # will override settings.anomaly_score_outside_data_range
   # other models
@@ -92,10 +94,10 @@ The examples on this page use `fit_every: 1000d` as an effectively bootstrap-onl
 
 The `n_workers` argument allows you to explicitly specify the number of process workers for internal parallelization of the service. This can help improve performance on multicore systems by allowing the service to process multiple tasks in parallel. For backward compatibility, it is set to `1` by default. It should be an integer greater than or equal to `-1`; values `-1` and `0` use the number of CPU cores available to the service, including container CPU limits.
 
-The `native_threads_per_worker` argument {{% available_from "v1.30.2" anomaly %}} limits native numerical-library threads, such as OpenBLAS threads, inside each model worker. Its default `0` divides the CPU capacity available to the service across effective workers automatically. A positive integer requests an explicit per-worker limit, capped by the CPU share available to that worker. This avoids oversubscription and CPU throttling when every process would otherwise start its own multi-threaded numerical workload. Both `n_workers` and `native_threads_per_worker` are startup settings and require a service restart to change.
+The `native_threads_per_worker` argument {{% available_from "v1.30.2" anomaly %}} limits [native numerical-library threads](https://scikit-learn.org/stable/computing/parallelism.html#oversubscription-spawning-too-many-threads), such as OpenBLAS threads, inside each model worker. Its default `0` divides the CPU capacity available to the service across effective workers automatically. A positive integer requests an explicit per-worker limit, capped by the CPU share available to that worker. This avoids oversubscription and CPU throttling when every process would otherwise start its own multi-threaded numerical workload. Both `n_workers` and `native_threads_per_worker` are startup settings and require a service restart to change.
 
-Increasing the number can be particularly useful when dealing with a high volume of queries returning many (long) timeseries.
-Decreasing the number can be useful when running the service on a system with limited resources or when you want to reduce the load on the system.
+- **Increasing** the number can be particularly useful when dealing with a high volume of queries returning many (long) timeseries.
+- **Decreasing** the number can be useful when running the service on a system with limited resources or when you want to reduce the load on the system.
 
 Here's an example configuration that uses 4 workers for service's internal parallelization:
 
@@ -117,6 +119,7 @@ models:
   zscore_online_override:
     class: zscore_online
     z_threshold: 3.5
+    decay: 0.99  # give more weight to recent data while using the bootstrap-only fit schedule
     clip_predictions: True
   # other models
 
@@ -201,6 +204,7 @@ models:
   zscore_online:
     class: zscore_online
     z_threshold: 3.5
+    decay: 0.99  # give more weight to recent data while using the bootstrap-only fit schedule
     clip_predictions: True
   # other models
 
@@ -256,9 +260,12 @@ models:
   zscore_online:
     class: zscore_online
     z_threshold: 3.5
+    decay: 0.99  # give more weight to recent data while using the bootstrap-only fit schedule
     schedulers: ['periodic_1d']
   temporal_envelope:
     class: temporal_envelope
+    alpha: 0.005  # adapt the trend while using the bootstrap-only fit schedule
+    loss_reactivity: 5  # allow new deviations to update the envelope
     schedulers: ['periodic_1d']
     queries: ['q1', 'q2']
     seasonalities: ['hod_smooth', 'dow_smooth']
@@ -291,9 +298,12 @@ models:
   zscore_online:  # can't be reused, because its `z_threshold` has changed
     class: zscore_online  # unchanged, still the same model class
     z_threshold: 3.0 # changed, needs retraining!
+    decay: 0.99  # unchanged forgetting factor
     schedulers: ['periodic_1d']  # unchanged, still attached to the same scheduler
   temporal_envelope:  # can be partially reused, because its class and schedulers are unchanged but queries have changed
     class: temporal_envelope  # unchanged, still the same model class
+    alpha: 0.005  # unchanged trend reactivity
+    loss_reactivity: 5  # unchanged envelope reactivity
     schedulers: ['periodic_1d']  # unchanged, still attached to the same scheduler
     queries: ['q1', 'q3']  # changed, added new query 'q3', drops 'q2', so (temporal_envelope, q2) should be trained from scratch
     seasonalities: ['hod_smooth', 'dow_smooth']  # unchanged

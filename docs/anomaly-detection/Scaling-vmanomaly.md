@@ -40,6 +40,7 @@ models:
   zscore:  # we can set up alias for model
     class: 'zscore_online'  # online model class
     z_threshold: 3.5
+    decay: 0.99  # give more weight to recent data while using the bootstrap-only fit schedule
     queries: ['cpu_seconds_total', 'host_network_receive_errors']
 
 # https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader

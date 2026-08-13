@@ -182,6 +182,7 @@ models:
   zscore:  # let it be online Z-score, for simplicity
     class: zscore_online  # online model update itself each infer call, resulting in resource-efficient setups
     z_threshold: 3.0
+    decay: 0.99  # give more weight to recent data while using the bootstrap-only fit schedule
     schedulers: ['periodic_http']
     queries: ['percentage_4xx']
     # to align predictions to be within [0, 5%] interval, defined in reader.queries.percentage_4xx.data_range
@@ -308,6 +309,7 @@ models:
     class: 'quantile_online'  # online model, which updates itself each infer call
     queries: ['disk_usage_perc_5m']
     schedulers: ['periodic_5m']
+    decay: 0.99  # give more weight to recent data while using the bootstrap-only fit schedule
     clip_predictions: True
     quantiles: [0.25, 0.5, 0.75]  # to produce median and upper quartiles
     iqr_threshold: 2.0
@@ -316,6 +318,8 @@ models:
     class: 'temporal_envelope'
     queries: ['disk_usage_perc_1d']
     schedulers: ['periodic_forecast']
+    alpha: 0.005  # adapt the trend while using the bootstrap-only fit schedule
+    loss_reactivity: 5  # allow new deviations to update the envelope
     clip_predictions: True
     forecast_at: ['3d', '7d']  # this will produce forecasts for 3 and 7 days ahead
     provide_series: ['yhat', 'yhat_upper']  # to write forecasts back to VictoriaMetrics, omitting `yhat_lower` as it is not needed in this example
