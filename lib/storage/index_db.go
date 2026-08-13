@@ -1295,7 +1295,7 @@ func (db *indexDB) GetTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters, dat
 
 	if !db.legacyContainsDate(date) {
 		qt.Printf("indexDB doesn't contain data for the given date: %s", dateToString(date))
-		return nil, nil
+		return &TSDBStatus{}, nil
 	}
 
 	is := db.getIndexSearch(deadline)
