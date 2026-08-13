@@ -42,7 +42,7 @@ schedulers:
   # other schedulers
 
 models:
-  zscore_online_override:
+  zscore_online_inherited:
     class: zscore_online
     z_threshold: 3.5
     clip_predictions: True
@@ -73,6 +73,7 @@ reader:
 writer:
   class: "vm"
   datasource_url: http://localhost:8428
+  tenant_id: "0"
   metric_format:
     __name__: "$VAR"
     for: "$QUERY_KEY"
@@ -226,6 +227,10 @@ monitoring:
   # other monitoring settings
 ```
 
+<div class="collapse-group">
+
+{{% collapse name="State restoration example" %}}
+
 ### Example
 
 For a configuration with the following models, queries and schedulers:
@@ -245,12 +250,11 @@ models:
     class: zscore_online
     z_threshold: 3.5
     schedulers: ['periodic_1d']
-  prophet:
-    class: prophet
+  temporal_envelope:
+    class: temporal_envelope
     schedulers: ['periodic_1d']
     queries: ['q1', 'q2']
-    args:
-      interval_width: 0.98
+    seasonalities: ['hod_smooth', 'dow_smooth']
 reader:
   class: vm
   datasource_url: 'https://play.victoriametrics.com'
@@ -264,7 +268,7 @@ reader:
 # other components like writer, monitoring, etc.
 ```
 
-if the service is restarted in less than 1 hour after the last training (now < next scheduled fit time), it will restore the state of the `zscore_online` and `prophet` models if their signature (class, hyperparameters, schedulers, etc.) has not changed. It will load the trained model instances or their training data from disk and continue producing [anomaly scores](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score) without retraining. If there are changes or new queries added to the configuration, the service will add these to scheduled jobs for fit and infer. That's what is changed and what is restored in a config below:
+if the service is restarted in less than 1 hour after the last training (now < next scheduled fit time), it will restore the state of the `zscore_online` and `temporal_envelope` models if their signature (class, hyperparameters, schedulers, etc.) has not changed. It will load the trained model instances or their training data from disk and continue producing [anomaly scores](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score) without retraining. If there are changes or new queries added to the configuration, the service will add these to scheduled jobs for fit and infer. That's what is changed and what is restored in a config below:
 
 ```yaml
 settings:
@@ -281,12 +285,11 @@ models:
     class: zscore_online  # unchanged, still the same model class
     z_threshold: 3.0 # changed, needs retraining!
     schedulers: ['periodic_1d']  # unchanged, still attached to the same scheduler
-  prophet:  # can be partially reused, because its class and schedulers are unchanged but queries have changed
-    class: prophet  # unchanged, still the same model class
+  temporal_envelope:  # can be partially reused, because its class and schedulers are unchanged but queries have changed
+    class: temporal_envelope  # unchanged, still the same model class
     schedulers: ['periodic_1d']  # unchanged, still attached to the same scheduler
-    queries: ['q1', 'q3']  # changed, added new query 'q3', drops 'q2', so (prophet, q2) should be trained from scratch
-    args:
-      interval_width: 0.98  # unchanged, still the same argument
+    queries: ['q1', 'q3']  # changed, added new query 'q3', drops 'q2', so (temporal_envelope, q2) should be trained from scratch
+    seasonalities: ['hod_smooth', 'dow_smooth']  # unchanged
 reader:  # can be partially reused, because its class and datasource URL are unchanged, but queries have changed
   class: vm  # unchanged, still the same reader class
   datasource_url: 'https://play.victoriametrics.com'  # unchanged, still the same datasource URL
@@ -297,17 +300,21 @@ reader:  # can be partially reused, because its class and datasource URL are unc
     q2:
       expr: 'some_metricsql_query_2'  # will be removed, no longer used by any model
     q3:
-      expr: 'some_metricsql_query_3'  # new query, added to the reader, and used by the `prophet` model
+      expr: 'some_metricsql_query_3'  # new query, added to the reader, and used by the `temporal_envelope` model
   sampling_period: 30s  # unchanged, still the same sampling period
 # other components like writer, monitoring, etc. remain unchanged
 ```
 This means that the service upon restart:
 1. Won't restore the state of `zscore_online` model, because its `z_threshold` argument **has changed**, retraining from scratch is needed on the last `fit_window` = 24 hours of data for `q1`, `q2` and `q3` (as model's `queries` arg is not set so it defaults to all queries found in the reader).
-2. Will **partially** restore the state of `prophet` model, because its class and schedulers are unchanged, but **only instances trained on timeseries returned by `q1` query**. New fit/infer jobs will be set for new query `q3`. The old query `q2` artifacts will be dropped upon restart - all respective models and data for (`prophet`, `q2`) combination will be removed from the database file and from the disk.
+2. Will **partially** restore the state of `temporal_envelope` model, because its class and schedulers are unchanged, but **only instances trained on timeseries returned by `q1` query**. New fit/infer jobs will be set for new query `q3`. The old query `q2` artifacts will be dropped upon restart - all respective models and data for (`temporal_envelope`, `q2`) combination will be removed from the database file and from the disk.
+
+{{% /collapse %}}
+
+</div>
 
 ## Retention
 
-{{% available_from "v1.28.1" anomaly %}} The `retention` argument allows to set a [time-to-live](https://en.wikipedia.org/wiki/Time_to_live) (TTL) for service artifacts, such as stored model instances and their training data. When enabled, the service will periodically check (controlled by `check_interval` period) and clean up model instances that have not been used for inference or refitting within the specified period of time (defined in `ttl` argument as a valid period). This helps to manage resources in long-running deployments by removing stale or unused artifacts.
+{{% available_from "v1.28.1" anomaly %}} The `retention` argument sets a [time to live](https://en.wikipedia.org/wiki/Time_to_live) (TTL) for service artifacts such as stored model instances and training data. At each `check_interval`, the service removes artifacts that have not been used for inference or refitting within `ttl`. This bounds stale resource usage in long-running deployments.
 
 ### Use Cases
 - With **[online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models)** as they continuously create model instances for new timeseries over time during inference calls, especially when combined with [periodic schedulers](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) with infrequent `fit_every` (say, `90d`).
@@ -322,7 +329,7 @@ The section is **backward-compatible and disabled by default**, meaning that all
 
 `ttl` argument defines the time-to-live period for model instances and their training data. It should be a valid period string (e.g., `7d` for 7 days, `30d` for 30 days, etc.). If a model instance or its training data has not been used for inference or refitting within this period, it will be considered stale and eligible for cleanup.
 
-> If set higher than respective scheduler's `fit_every` period, the ttl will have no effect, as models will always be refitted before they become stale.
+> If `ttl` is greater than a scheduler's `fit_every`, the model is refitted before it becomes stale and the TTL has no effect.
 
 `check_interval` argument defines how often the service should check for stale artifacts. It should be a valid period string (e.g., `1h` for 1 hour, `24h` for 24 hours, etc.). During each check, the service will evaluate all stored model instances and their training data against the defined `ttl` and remove those that are stale.
 
@@ -363,7 +370,7 @@ models:
     queries: ['q1']
     # other model args
   m2:  # model instances will be likely dropped during retention checks due to high churn rate
-    class: prophet
+    class: temporal_envelope
     schedulers: ['s1']
     queries: ['q2']
     # other model args
@@ -398,7 +405,7 @@ settings:
   restore_state: True  # enables state restoration
   logger_levels:
     reader.vm: DEBUG  # affects only VmReader logs
-    model: WARNING  # applies to all components with 'model' prefix, such as 'model.zscore_online', 'model.prophet', etc.
+    model: WARNING  # applies to all components with 'model' prefix, such as 'model.zscore_online', 'model.online.temporal_envelope', etc.
     # once commented out in hot-reload mode, will use the default logger level set by --loggerLevel command line argument
     # monitoring.push: critical
 ```

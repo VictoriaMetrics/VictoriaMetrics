@@ -290,6 +290,8 @@ func (g *Group) updateWith(newGroup *Group) error {
 	g.Headers = newGroup.Headers
 	g.NotifierHeaders = newGroup.NotifierHeaders
 	g.Labels = newGroup.Labels
+	g.EvalDelay = newGroup.EvalDelay
+	g.evalAlignment = newGroup.evalAlignment
 	g.Limit = newGroup.Limit
 	g.checksum = newGroup.checksum
 	g.Rules = newRules
@@ -337,7 +339,7 @@ func (g *Group) Init() {
 		i := g.Interval.Seconds()
 		return i
 	})
-	g.metrics.iterationLimit = g.metrics.set.NewGauge(fmt.Sprintf(`vmalert_rule_group_results_limit{%s}`, labels), func() float64 {
+	g.metrics.iterationLimit = g.metrics.set.NewGauge(fmt.Sprintf(`vmalert_group_rule_results_limit{%s}`, labels), func() float64 {
 		g.mu.RLock()
 		limit := g.Limit
 		g.mu.RUnlock()
@@ -548,7 +550,7 @@ func (g *Group) infof(format string, args ...any) {
 }
 
 // Replay performs group replay
-func (g *Group) Replay(start, end time.Time, rw remotewrite.RWClient, maxDataPoint, replayRuleRetryAttempts int, replayDelay time.Duration, disableProgressBar bool, ruleEvaluationConcurrency int) int {
+func (g *Group) Replay(start, end time.Time, rw remotewrite.RWClient, maxDataPoint, replayRuleRetryAttempts int, replayDelay time.Duration, disableProgressBar bool, ruleEvaluationConcurrency int, continueWithExecutionErr bool) int {
 	var total int
 	step := g.Interval * time.Duration(maxDataPoint)
 	ri := rangeIterator{start: start, end: end, step: step}
@@ -576,7 +578,7 @@ func (g *Group) Replay(start, end time.Time, rw remotewrite.RWClient, maxDataPoi
 			if !disableProgressBar {
 				bar = pb.StartNew(iterations)
 			}
-			total += replayRuleRange(rule, ri, bar, rw, replayRuleRetryAttempts, ruleEvaluationConcurrency)
+			total += replayRuleRange(rule, ri, bar, rw, replayRuleRetryAttempts, ruleEvaluationConcurrency, continueWithExecutionErr)
 			if bar != nil {
 				bar.Finish()
 			}
@@ -598,7 +600,7 @@ func (g *Group) Replay(start, end time.Time, rw remotewrite.RWClient, maxDataPoi
 		rule := g.Rules[i]
 		sem <- struct{}{}
 		wg.Go(func() {
-			res <- replayRuleRange(rule, ri, bar, rw, replayRuleRetryAttempts, ruleEvaluationConcurrency)
+			res <- replayRuleRange(rule, ri, bar, rw, replayRuleRetryAttempts, ruleEvaluationConcurrency, continueWithExecutionErr)
 			<-sem
 		})
 	}
@@ -618,7 +620,7 @@ func (g *Group) Replay(start, end time.Time, rw remotewrite.RWClient, maxDataPoi
 	return total
 }
 
-func replayRuleRange(r Rule, ri rangeIterator, bar *pb.ProgressBar, rw remotewrite.RWClient, replayRuleRetryAttempts, ruleEvaluationConcurrency int) int {
+func replayRuleRange(r Rule, ri rangeIterator, bar *pb.ProgressBar, rw remotewrite.RWClient, replayRuleRetryAttempts, ruleEvaluationConcurrency int, continueWithExecutionErr bool) int {
 	fmt.Printf("> Rule %q (ID: %d)\n", r, r.ID())
 	// alerting rule with for>0 can't be replayed concurrently, since the status change might depend on the previous evaluation
 	// see https://github.com/VictoriaMetrics/VictoriaMetrics/commit/abcb21aa5ee918ba9a4e9cde495dba06e1e9564c
@@ -633,7 +635,7 @@ func replayRuleRange(r Rule, ri rangeIterator, bar *pb.ProgressBar, rw remotewri
 		start := ri.s
 		end := ri.e
 		wg.Go(func() {
-			n, err := replayRule(r, start, end, rw, replayRuleRetryAttempts)
+			n, err := replayRule(r, start, end, rw, replayRuleRetryAttempts, continueWithExecutionErr)
 			if err != nil {
 				logger.Fatalf("rule %q: %s", r, err)
 			}

@@ -6,7 +6,7 @@ build:
 sitemap:
   disable: true
 ---
-This chapter describes different components, that correspond to respective sections of a config to launch VictoriaMetrics Anomaly Detection (or simply [`vmanomaly`](https://docs.victoriametrics.com/anomaly-detection/) service:
+This chapter describes the configuration sections used to run VictoriaMetrics Anomaly Detection, or [`vmanomaly`](https://docs.victoriametrics.com/anomaly-detection/):
 
 - [Model(s) section](https://docs.victoriametrics.com/anomaly-detection/components/models/) - Required
 - [Reader section](https://docs.victoriametrics.com/anomaly-detection/components/reader/) - Required
@@ -16,9 +16,9 @@ This chapter describes different components, that correspond to respective secti
 - [Settings section](https://docs.victoriametrics.com/anomaly-detection/components/settings/) - Optional
 - [Server section](https://docs.victoriametrics.com/anomaly-detection/components/server/) - Optional
 
-> Once the service starts, automated config validation is performed {{% available_from "v1.7.2" anomaly %}}. Please see container logs for errors that need to be fixed to create fully valid config, visiting sections above for examples and documentation.
+> The service validates its configuration at startup{{% available_from "v1.7.2" anomaly %}}. Check the container logs for validation errors and use the sections above for field descriptions and examples.
 
-> Components' class {{% available_from "v1.13.0" anomaly %}} can be referenced by a short alias instead of a full class path - i.e. `model.zscore.ZscoreModel` becomes `zscore`, `reader.vm.VmReader` becomes `vm`, `scheduler.periodic.PeriodicScheduler` becomes `periodic`, etc. Please see according sections for the details.
+> Component classes{{% available_from "v1.13.0" anomaly %}} can be referenced by short aliases instead of full import paths. For example, `model.zscore.ZscoreModel` becomes `zscore`, `reader.vm.VmReader` becomes `vm`, and `scheduler.periodic.PeriodicScheduler` becomes `periodic`.
 
 > `preset` modes are available {{% available_from "v1.13.0" anomaly %}} for `vmanomaly`. Please find the guide [here](https://docs.victoriametrics.com/anomaly-detection/presets/).
 
@@ -28,11 +28,11 @@ Below, you will find an example illustrating how the components of `vmanomaly` i
 
 > [Reader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) and [Writer](https://docs.victoriametrics.com/anomaly-detection/components/writer/#vm-writer) also support [multitenancy](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy), so you can read/write from/to different locations - see `tenant_id` param description.
 
-![vmanomaly-components](vmanomaly-components.webp)
+{{% content "vmanomaly-components-diagram.md" %}}
 
 ## Example config
 
-Here's a minimalistic full config example, demonstrating many-to-many configuration (actual for [latest version](https://docs.victoriametrics.com/anomaly-detection/changelog/)):
+The following minimal configuration demonstrates current many-to-many model, query, and scheduler mapping:
 
 ```yaml
 settings:
@@ -52,13 +52,13 @@ schedulers:
     scatter_infer_jobs: true  # distribute infer jobs evenly across the infer interval to reduce synchronized bursts
     fit_every: "365d"  # how often to re-fit the models, for online models used effectively once, then they are updated with new data and won't require re-fit
     fit_window: "3d"  # how much historical data to use for fit stage
-    start_from: "00:00"  # start from specified time, i.e. 00:00 given timezone and do daily fits as `fit_every` is 1 day
+    start_from: "00:00"  # align the annual fit schedule to midnight in the configured timezone
     tz: "Europe/Kyiv"  # timezone to use for start_from
-  periodic_offline_1w:
+  periodic_online_weekly:
     class: 'periodic'
     infer_every: "15m"
     scatter_infer_jobs: true
-    fit_every: "24h"
+    fit_every: "365d"  # online state continues adapting between infrequent full re-fits
     fit_window: "14d"
     # if no start_from is specified, jobs will start immediately after service starts
 
@@ -75,18 +75,16 @@ models:
     min_dev_from_expected: 0.0  # turned off. if |y - yhat| < min_dev_from_expected, anomaly score will be 0
     detection_direction: 'above_expected' # detect anomalies only when y > yhat, "peaks"
     clip_predictions: True  # clip predictions to expected data range, i.e. [0, inf] for this query `host_network_receive_errors
-  prophet_weekly: # we can set up alias for model
-    class: 'prophet'
+  envelope_weekly: # we can set up alias for model
+    class: 'temporal_envelope'
     provide_series: ['anomaly_score', 'y', 'yhat', 'yhat_lower', 'yhat_upper']
     queries: ['cpu_seconds_total']
-    schedulers: ['periodic_offline_1w']  # will be attached to 1-week scheduler, re-fit every 24h and infer every 15m
+    schedulers: ['periodic_online_weekly']  # fit on two weekly cycles, then update online every 15m
     min_dev_from_expected: [0.01, 0.01]  # minimum deviation from expected value to be even considered as anomaly
     anomaly_score_outside_data_range: 1.5  # override default anomaly score outside expected data range
     detection_direction: 'above_expected'
     clip_predictions: True  # clip predictions to expected data range, i.e. [0, inf] for this query `cpu_seconds_total`
-    args:  # model-specific arguments
-      interval_width: 0.98
-      yearly_seasonality: False  # disable yearly seasonality, since we have only 7 days of data
+    seasonalities: ['hod_smooth', 'dow_smooth']
 
 # where to read data from
 # https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader
@@ -113,7 +111,7 @@ reader:
 # https://docs.victoriametrics.com/anomaly-detection/components/writer/
 writer:
   datasource_url: "http://victoriametrics:8428/"
-  # tenant_id: "0:0"  # for VictoriaMetrics cluster, can support "multitenant"
+  tenant_id: "0:0"  # for VictoriaMetrics cluster, can support "multitenant"
   # https://docs.victoriametrics.com/anomaly-detection/components/writer/#metrics-formatting
   metric_format:
     __name__: $VAR
@@ -146,14 +144,14 @@ server:
 
 > This feature is better used in conjunction with [stateful service](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration) to preserve the state of the models and schedulers between restarts and reuse what can be reused, thus avoiding unnecessary re-training of models, re-initialization of schedulers and re-reading of data.
 
-{{% available_from "v1.25.0" anomaly %}} Service supports hot reload of configuration files, which allows for automatic reloading of configurations on config files change without the need of explicit service restart. This can be enabled via the `--watch` [CLI argument](https://docs.victoriametrics.com/anomaly-detection/quickstart/#command-line-arguments). `vmanomaly_config_reload_enabled` flag in [self-monitoring metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#startup-metrics) will be set to 1 (if enabled) or 0 (if disabled).
+{{% available_from "v1.25.0" anomaly %}} The service supports hot reload of configuration files, applying changes without an explicit restart. Enable it with the `--watch` [CLI argument](https://docs.victoriametrics.com/anomaly-detection/quickstart/#command-line-arguments). The `vmanomaly_config_reload_enabled` [self-monitoring metric](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#startup-metrics) is `1` when hot reload is enabled and `0` otherwise.
 
 > [!NOTE]
 > {{% deprecated_from "v1.29.5" anomaly %}} File system event-based hot reload has been deprecated in favor of content-based polling with configurable `-configCheckInterval` due to reliability issues with Kubernetes ConfigMap symlink rotations and other filesystems where event delivery can be inconsistent. If you were using file system event-based hot reload, please switch to content-based polling by enabling `--watch` flag and configuring `-configCheckInterval` as needed.
 
 ### How it works
 
-It works by checking watched `.yml|.yaml` file contents in the specified files or directories on the configured interval `-configCheckInterval` (default is `30s`) {{% available_from "v1.29.5" anomaly %}}. When a content change is detected, the service will attempt to reload the configuration files after the existing debounce window, rebuild the [global config](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#global-configuration) and reinitialize the components. If the reload is successful, the `vmanomaly_config_reloads_total` metric will be incremented for `status="success"` label, otherwise it will be incremented with `status="failure"` label and a respective error message on config validation failure(s) will be logged.
+The service checks watched `.yml` and `.yaml` files at the `-configCheckInterval` interval (default `30s`){{% available_from "v1.29.5" anomaly %}}. When it detects a content change, it waits for the debounce window, rebuilds the [global configuration](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#global-configuration), and reinitializes the components. The `vmanomaly_config_reloads_total` metric is incremented with `status="success"` or `status="failure"`; validation failures are also logged.
 
 > If the reload fails, the service will log an error message indicating the reason for the failure, and the **previous configuration will remain active until a successful reload occurs** to preserve the service's stability. This means that if there are errors in the new configuration, the service will continue to operate with the last valid configuration until the issues are resolved.
 
@@ -204,6 +202,7 @@ models:
 
 writer:
   datasource_url: "http://victoriametrics:8428/"
+  tenant_id: "0:0"
 
 monitoring:
   push:

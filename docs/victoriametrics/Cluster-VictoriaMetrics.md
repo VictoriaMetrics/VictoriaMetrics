@@ -95,15 +95,14 @@ See also multitenancy [via headers](#multitenancy-via-headers) and [via labels](
 
 ### Multitenancy via headers
 
-By default, VictoriaMetrics allows specifying `accountID` and `projectID` only in the request URL.
+With `--enableMultitenancyViaHeaders` {{% available_from "v1.143.0" %}} command-line flag enabled (enabled by default {{% available_from "#" %}})
+tenant ID can be specified via HTTP headers `AccountID` and `ProjectID`. This flag needs to be enabled on vminserts and vmselects.
 
-Set `--enableMultitenancyViaHeaders` {{% available_from "v1.143.0" %}} command-line flag to support 
-specifying `accountID` and `projectID` via HTTP headers `AccountID` and `ProjectID` respectively.
-This flag needs to be specified separately for vminserts and vmselects.
-
-When `--enableMultitenancyViaHeaders` is enabled, [URL format](#url-format) can be simplified to the following:
+With `--enableMultitenancyViaHeaders` enabled [URL format](#url-format) can be simplified to the following:
 - `http://<vminsert>:8480/insert/<suffix>` for writes
 - `http://<vmselect>:8481/select/prometheus/<suffix>` for reads
+
+> Set --enableMultitenancyViaHeaders=false to disable simplified URL format.
 
 For example, the following query will only select metric `up` from `accountID=2` and `projectID=3`:
 ```
@@ -291,7 +290,7 @@ If you need multi-AZ setup, then it is recommended running independent clusters 
 into all the cluster - see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy) for details.
 Then an additional `vmselect` nodes can be configured for reading the data from multiple clusters according to [these docs](#multi-level-cluster-setup).
 
-See [victoria-metrics-distributed chart](https://docs.victoriametrics.com/helm/victoria-metrics-distributed/) for an example.
+See [VMDistributed](https://docs.victoriametrics.com/operator/resources/vmdistributed/) Kubernetes operator resource for an example.
 
 ## Cluster setup
 
@@ -829,12 +828,9 @@ See also [minimum downtime strategy](#minimum-downtime-strategy).
 
 ## Slowness-based re-routing
 
-By default, `vminsert` nodes limit the cluster's overall ingestion rate to the throughput of the slowest `vmstorage` node. 
-This ensures that incoming metrics are evenly distributed across all `vmstorage` nodes. 
-The downside is that a single slow vmstorage node can throttle the entire cluster.
-
-When `-disableRerouting=false` is enabled on `vminsert`, 
-the cluster will automatically re-route writes away from the slowest vmstorage node to preserve maximum ingestion throughput.
+By default{{% available_from "v1.149.0" %}}, `vminsert` automatically re-routes writes away from the slowest `vmstorage` node
+to preserve maximum ingestion throughput. This prevents a single slow `vmstorage` node
+from throttling the entire cluster.
 
 Re-routing occurs only when all of the following conditions hold:
 - the storage send buffer is full.
@@ -842,11 +838,15 @@ Re-routing occurs only when all of the following conditions hold:
 - the vmstorage cluster have much lower saturation overall.
 - the vmstorage cluster has at least three ready nodes.
 
-Enable slowness-based re-routing when peak write throughput matters more 
-than minimizing the number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series)
-or keeping metrics perfectly balanced across nodes.
+Disable slowness-based re-routing with `-disableRerouting=true` when keeping metrics
+perfectly balanced across nodes or minimizing the number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series) 
+matters more than peak write throughput.
 
-The rerouting and node saturation could be seen at  [VictoriaMetrics - cluster](https://grafana.com/grafana/dashboards/11176) dashboard.
+Slowness-based re-routing is automatically disabled{{% available_from "v1.149.0" %}} when `-replicationFactor` is greater than `1`,
+because rerouting does not guarantee that replicated copies land on distinct storage nodes,
+which violates the replication contract.
+
+The rerouting and node saturation could be seen at [VictoriaMetrics - cluster](https://grafana.com/grafana/dashboards/11176) dashboard.
 
 ## Capacity planning
 

@@ -100,6 +100,10 @@ export const getSecondsFromDuration = (dur: string) => {
   return dayjs.duration(durObject).asSeconds();
 };
 
+export const getMillisecondsFromDuration = (dur: string): number => {
+  return getSecondsFromDuration(dur) * 1000;
+};
+
 const instantQueryViews = [DisplayType.table, DisplayType.code];
 export const getStepFromDuration = (dur: number, histogram?: boolean, displayType?: DisplayType): string => {
   if (displayType && instantQueryViews.includes(displayType)) return roundStep(dur);
@@ -201,19 +205,21 @@ export const getUTCByTimezone = (timezone: string) => {
 };
 
 export const getTimezoneList = (search = "") => {
-  const regexp = new RegExp(search, "i");
+  const normalizedSearch = search.toLowerCase();
 
-  return supportedTimezones.reduce((acc: {[key: string]: Timezone[]}, region) => {
+  return supportedTimezones.reduce((acc: { [key: string]: Timezone[] }, region) => {
     const zone = (region.match(/^(.*?)\//) || [])[1] || "unknown";
     const utc = getUTCByTimezone(region);
-    const utcForSearch = utc.replace(/UTC|0/, "");
+    const utcForSearch = utc.replace(/^UTC/, "");
     const regionForSearch = region.replace(/[/_]/g, " ");
+
     const item = {
       region,
       utc,
       search: `${region} ${utc} ${regionForSearch} ${utcForSearch}`
     };
-    const includeZone = !search || (search && regexp.test(item.search));
+
+    const includeZone = !normalizedSearch || item.search.toLowerCase().includes(normalizedSearch);
 
     if (includeZone && acc[zone]) {
       acc[zone].push(item);
@@ -276,4 +282,3 @@ export const getNanoTimestamp = (dateStr: string): bigint => {
   // Return the full timestamp in nanoseconds as a BigInt
   return BigInt(baseMs) * 1000000n + BigInt(extraNano);
 };
-

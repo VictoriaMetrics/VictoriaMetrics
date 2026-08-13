@@ -323,7 +323,8 @@ flowchart TB
       H2 --> H3[per-url <a href="https://docs.victoriametrics.com/victoriametrics/stream-aggregation">aggregation</a><br><b>-remoteWrite.streamAggr.config</b><br><b>-remoteWrite.streamAggr.dedupInterval</b>]
       H3 --> H4["per-url <a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#calculating-disk-space-for-persistence-queue">queue</a> (default: enabled)<br><b>-remoteWrite.disableOnDiskQueue</b>"]
       H4 --> H5[<a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#adding-labels-to-metrics">add extra labels</a><br><b>-remoteWrite.label</b>]
-      H5 --> H6[[push to <b>-remoteWrite.url</b>]]
+      H5 --> H6[<a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#obfuscating-label-values">obfuscate labels</a><br><b>-remoteWrite.obfuscateLabels</b>]
+      H6 --> H7[[push to <b>-remoteWrite.url</b>]]
 
       %% Right branch
       G --> R1[per-url <a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#monitoring-data-exchange">mdx filter</a><br><b>-remoteWrite.mdx.enable</b>]
@@ -331,7 +332,8 @@ flowchart TB
       R2 --> R3[per-url <a href="https://docs.victoriametrics.com/victoriametrics/stream-aggregation">aggregation</a><br><b>-remoteWrite.streamAggr.config</b><br><b>-remoteWrite.streamAggr.dedupInterval</b>]
       R3 --> R4["per-url <a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#calculating-disk-space-for-persistence-queue">queue</a> (default: enabled)<br><b>-remoteWrite.disableOnDiskQueue</b>"]
       R4 --> R5[<a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#adding-labels-to-metrics">add extra labels</a><br><b>-remoteWrite.label</b>]
-      R5 --> R6[[push to <b>-remoteWrite.url</b>]]
+      R5 --> R6[<a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#obfuscating-label-values">obfuscate labels</a><br><b>-remoteWrite.obfuscateLabels</b>]
+      R6 --> R7[[push to <b>-remoteWrite.url</b>]]
 ```
 
 Scraping has additional settings that can be applied before samples are pushed to the processing pipeline above:
@@ -466,6 +468,43 @@ and `-remoteWrite.streamAggr.config`:
 
 There is also the `-promscrape.configCheckInterval` command-line flag, which can be used to automatically reload configs from the updated `-promscrape.config` file.
 
+## DNS URLs
+
+If `vmagent` encounters URLs with the `dns+` prefix in the hostname (such as `http://dns+some-addr:8428/some/path`), it resolves `some-addr` into IP addresses
+via [DNS A records](https://datatracker.ietf.org/doc/html/rfc1035#section-3.4.1). The port from the original URL is appended to each discovered IP address.
+Each discovered IP address is used for least-loaded balancing of write requests.
+
+DNS URLs are supported in the following places:
+
+* In `-remoteWrite.url` command-line flag. For example, if `victoria-metrics` [DNS A Record](https://datatracker.ietf.org/doc/html/rfc1035#section-3.4.1) record contains
+  `192.168.1.15` IP address, then `-remoteWrite.url=http://dns+victoria-metrics:8428/api/v1/write` is automatically resolved into
+  `-remoteWrite.url=http://192.168.1.15:8428/api/v1/write`.
+
+DNS URLs are useful when client-side HTTP load balancing is needed. A good example
+is a [Kubernetes headless Service](https://kubernetes.io/docs/concepts/services-networking/service/#headless-services),
+which returns multiple IP addresses for a single hostname.
+
+### DNS URLs and HTTPS
+
+When a `dns+` URL uses the `https` scheme, `vmagent` connects to the discovered
+IP addresses directly. This affects [TLS](https://en.wikipedia.org/wiki/Transport_Layer_Security)
+in two ways:
+
+* No [SNI](https://en.wikipedia.org/wiki/Server_Name_Indication) is sent in the TLS handshake,
+  since the connection target is an IP address rather than a hostname.
+* The server certificate is verified against the IP address, so the verification fails
+  unless the certificate contains the corresponding
+  [IP SAN](https://en.wikipedia.org/wiki/Subject_Alternative_Name) entries.
+
+To use `dns+` URLs with HTTPS, pass the original hostname via the `-remoteWrite.tlsServerName`
+command-line flag. It is used both as SNI and as the name the server certificate
+is verified against:
+
+```sh
+-remoteWrite.url=https://dns+victoria-metrics:8428/api/v1/write
+-remoteWrite.tlsServerName=victoria-metrics
+```
+
 ## SRV URLs
 
 If `vmagent` encounters URLs with `srv+` prefix in hostname (such as `http://srv+some-addr/some/path`), then it resolves `some-addr` [DNS SRV](https://en.wikipedia.org/wiki/SRV_record)
@@ -476,7 +515,7 @@ SRV URLs are supported in the following places:
 * In `-remoteWrite.url` command-line flag. For example, if `victoria-metrics` [DNS SRV](https://en.wikipedia.org/wiki/SRV_record) record contains
   `victoria-metrics-host:8428` TCP address, then `-remoteWrite.url=http://srv+victoria-metrics/api/v1/write` is automatically resolved into
   `-remoteWrite.url=http://victoria-metrics-host:8428/api/v1/write`. If the DNS SRV record is resolved into multiple TCP addresses, then `vmagent`
-  uses a randomly chosen address for each connection it establishes to the remote storage.
+   performs per request least-loaded load-balancing.
 
 * In scrape target addresses aka `__address__` label. See [these docs](https://docs.victoriametrics.com/victoriametrics/relabeling/#how-to-modify-scrape-urls-in-targets) for details.
 
@@ -603,7 +642,7 @@ specified via `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig` c
 
 vmagent can write data to multiple distinct tenants if:
 * its `-remoteWrite.url` points to the [VictoriaMetrics cluster multitenant URL](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels)
-* its `-enableMultitenantHandlers` and `-enableMultitenancyViaHeaders` command-line flags are both set
+* its `-enableMultitenantHandlers` and `-enableMultitenancyViaHeaders` (enabled by default {{% available_from "#" %}}) command-line flags are both set
 * clients ingest data into vmagent with the tenants specified [via headers](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-headers) {{% available_from "v1.143.0" %}}
 
 ```mermaid
@@ -645,6 +684,35 @@ Extra labels can be added to metrics collected by `vmagent` via the following me
   ```sh
   /path/to/vmagent -remoteWrite.url=http://127.0.0.1:8428/api/v1/write?extra_label="env=prod"
   ```
+
+## Obfuscating label values
+
+`vmagent` can obfuscate the values of specified labels before sending metrics to `-remoteWrite.url`
+via `-remoteWrite.obfuscateLabels`{{% available_from "v1.149.0" %}}.
+
+This is useful when one or more `-remoteWrite.url` endpoints point to external monitoring services
+outside the organization, and sensitive label values such as `ip`, `host`, `instance`, or `datacenter`
+must not be exposed.
+
+Label values are replaced with their SHA-256 hex digests. No salt is applied, so values with a small
+or predictable value space can potentially be recovered by brute force.
+
+This feature pairs well with [Monitoring Data eXchange (MDX)](https://docs.victoriametrics.com/victoriametrics/vmagent/#monitoring-data-exchange):
+use `-remoteWrite.mdx.enable=true` to forward only VictoriaMetrics self-monitoring metrics to an
+external vendor while hiding sensitive label values with `-remoteWrite.obfuscateLabels`.
+
+Use `-remoteWrite.obfuscateLabels` to list label names whose values should be obfuscated for the
+corresponding `-remoteWrite.url`. Separate multiple label names with `^^`.
+
+```sh
+./vmagent \
+  -remoteWrite.url=http://<external-service1> \
+  -remoteWrite.obfuscateLabels='instance^^datacenter' \
+  -remoteWrite.url=http://<external-service2> \
+  -remoteWrite.obfuscateLabels='instance' \
+  -remoteWrite.url=http://<internal-service> \
+  -remoteWrite.obfuscateLabels='' 
+```
 
 ## Automatically generated metrics
 

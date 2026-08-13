@@ -39,16 +39,22 @@ func TestLegacyStorage_SearchMetricNames(t *testing.T) {
 		return mrs, want
 	}
 	const numMetrics = 1000
-	tr := TimeRange{
+	tr1 := TimeRange{
 		MinTimestamp: time.Date(2023, 6, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		MaxTimestamp: time.Date(2024, 5, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
-	legacyData, wantLegacy := genData(numMetrics, "legacy", tr)
-	newData, wantNew := genData(numMetrics, "new", tr)
-	wantNew = append(wantNew, wantLegacy...)
-	slices.Sort(wantNew)
+	tr2 := TimeRange{
+		MinTimestamp: time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 6, 30, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	legacyData, wantLegacy := genData(numMetrics, "legacy", tr1)
+	new1Data, wantNew1 := genData(numMetrics, "new1", tr1)
+	new2Data, wantNew2 := genData(numMetrics, "new2", tr2)
+	newData := slices.Concat(new1Data, new2Data)
+	wantLegacyAndNew1 := slices.Concat(wantLegacy, wantNew1)
+	slices.Sort(wantLegacyAndNew1)
 
-	assertSearchResults := func(s *Storage, want []string) {
+	assertSearchResults := func(s *Storage, tr TimeRange, want []string) {
 		t.Helper()
 		tfsAll := NewTagFilters(accountID, projectID)
 		if err := tfsAll.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
@@ -73,10 +79,11 @@ func TestLegacyStorage_SearchMetricNames(t *testing.T) {
 	}
 
 	assertLegacyData := func(s *Storage) {
-		assertSearchResults(s, wantLegacy)
+		assertSearchResults(s, tr1, wantLegacy)
 	}
 	assertNewData := func(s *Storage) {
-		assertSearchResults(s, wantNew)
+		assertSearchResults(s, tr1, wantLegacyAndNew1)
+		assertSearchResults(s, tr2, wantNew2)
 	}
 	testSearchOpWithLegacyIndexDBs(t, accountID, projectID, legacyData, newData, assertLegacyData, assertNewData)
 }
@@ -107,15 +114,22 @@ func TestLegacyStorage_SearchLabelNames(t *testing.T) {
 		return mrs, want
 	}
 	const numMetrics = 1000
-	tr := TimeRange{
+	tr1 := TimeRange{
 		MinTimestamp: time.Date(2023, 6, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		MaxTimestamp: time.Date(2024, 5, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
-	legacyData, wantLegacy := genData(numMetrics, "legacy", tr)
-	newData, wantNew := genData(numMetrics, "new", tr)
-	wantNew = append(wantNew, wantLegacy...)
+	tr2 := TimeRange{
+		MinTimestamp: time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 6, 30, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	legacyData, wantLegacy := genData(numMetrics, "legacy", tr1)
+	new1Data, wantNew1 := genData(numMetrics, "new1", tr1)
+	new2Data, wantNew2 := genData(numMetrics, "new2", tr2)
+	newData := slices.Concat(new1Data, new2Data)
+	wantLegacyAndNew1 := slices.Concat(wantLegacy, wantNew1)
+	slices.Sort(wantLegacyAndNew1)
 
-	assertSearchResults := func(s *Storage, want []string) {
+	assertSearchResults := func(s *Storage, tr TimeRange, want []string) {
 		t.Helper()
 		got, err := s.SearchLabelNames(nil, accountID, projectID, nil, tr, 1e9, 1e9, noDeadline)
 		if err != nil {
@@ -130,12 +144,16 @@ func TestLegacyStorage_SearchLabelNames(t *testing.T) {
 	assertLegacyData := func(s *Storage) {
 		want := append(wantLegacy, "__name__")
 		slices.Sort(want)
-		assertSearchResults(s, want)
+		assertSearchResults(s, tr1, want)
 	}
 	assertNewData := func(s *Storage) {
-		want := append(wantNew, "__name__")
+		want := append(wantLegacyAndNew1, "__name__")
 		slices.Sort(want)
-		assertSearchResults(s, want)
+		assertSearchResults(s, tr1, want)
+
+		want = append(wantNew2, "__name__")
+		slices.Sort(want)
+		assertSearchResults(s, tr2, want)
 	}
 	testSearchOpWithLegacyIndexDBs(t, accountID, projectID, legacyData, newData, assertLegacyData, assertNewData)
 }
@@ -166,16 +184,22 @@ func TestLegacyStorage_SearchLabelValues(t *testing.T) {
 		return mrs, want
 	}
 	const numMetrics = 1000
-	tr := TimeRange{
+	tr1 := TimeRange{
 		MinTimestamp: time.Date(2023, 6, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		MaxTimestamp: time.Date(2024, 5, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
-	legacyData, wantLegacy := genData(numMetrics, "legacy", tr)
-	newData, wantNew := genData(numMetrics, "new", tr)
-	wantNew = append(wantNew, wantLegacy...)
-	slices.Sort(wantNew)
+	tr2 := TimeRange{
+		MinTimestamp: time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 6, 30, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	legacyData, wantLegacy := genData(numMetrics, "legacy", tr1)
+	new1Data, wantNew1 := genData(numMetrics, "new1", tr1)
+	new2Data, wantNew2 := genData(numMetrics, "new2", tr2)
+	newData := slices.Concat(new1Data, new2Data)
+	wantLegacyAndNew1 := slices.Concat(wantLegacy, wantNew1)
+	slices.Sort(wantLegacyAndNew1)
 
-	assertSearchResults := func(s *Storage, want []string) {
+	assertSearchResults := func(s *Storage, tr TimeRange, want []string) {
 		t.Helper()
 		got, err := s.SearchLabelValues(nil, accountID, projectID, "label", nil, tr, 1e9, 1e9, noDeadline)
 		if err != nil {
@@ -189,11 +213,12 @@ func TestLegacyStorage_SearchLabelValues(t *testing.T) {
 
 	assertLegacyData := func(s *Storage) {
 		t.Helper()
-		assertSearchResults(s, wantLegacy)
+		assertSearchResults(s, tr1, wantLegacy)
 	}
 	assertNewData := func(s *Storage) {
 		t.Helper()
-		assertSearchResults(s, wantNew)
+		assertSearchResults(s, tr1, wantLegacyAndNew1)
+		assertSearchResults(s, tr2, wantNew2)
 	}
 	testSearchOpWithLegacyIndexDBs(t, accountID, projectID, legacyData, newData, assertLegacyData, assertNewData)
 }
@@ -221,16 +246,22 @@ func TestLegacyStorage_SearchTagValueSuffixes(t *testing.T) {
 		return mrs, want
 	}
 	const numMetrics = 1000
-	tr := TimeRange{
+	tr1 := TimeRange{
 		MinTimestamp: time.Date(2023, 6, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		MaxTimestamp: time.Date(2024, 5, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
-	legacyData, wantLegacy := genData(numMetrics, "legacy", tr)
-	newData, wantNew := genData(numMetrics, "new", tr)
-	wantNew = append(wantNew, wantLegacy...)
-	slices.Sort(wantNew)
+	tr2 := TimeRange{
+		MinTimestamp: time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 6, 30, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	legacyData, wantLegacy := genData(numMetrics, "legacy", tr1)
+	new1Data, wantNew1 := genData(numMetrics, "new1", tr1)
+	new2Data, wantNew2 := genData(numMetrics, "new2", tr2)
+	newData := slices.Concat(new1Data, new2Data)
+	wantLegacyAndNew1 := slices.Concat(wantLegacy, wantNew1)
+	slices.Sort(wantLegacyAndNew1)
 
-	assertSearchResults := func(s *Storage, want []string) {
+	assertSearchResults := func(s *Storage, tr TimeRange, want []string) {
 		t.Helper()
 		got, err := s.SearchTagValueSuffixes(nil, accountID, projectID, tr, "", "prefix.", '.', 1e9, noDeadline)
 		if err != nil {
@@ -245,11 +276,12 @@ func TestLegacyStorage_SearchTagValueSuffixes(t *testing.T) {
 
 	assertLegacyData := func(s *Storage) {
 		t.Helper()
-		assertSearchResults(s, wantLegacy)
+		assertSearchResults(s, tr1, wantLegacy)
 	}
 	assertNewData := func(s *Storage) {
 		t.Helper()
-		assertSearchResults(s, wantNew)
+		assertSearchResults(s, tr1, wantLegacyAndNew1)
+		assertSearchResults(s, tr2, wantNew2)
 	}
 	testSearchOpWithLegacyIndexDBs(t, accountID, projectID, legacyData, newData, assertLegacyData, assertNewData)
 }
@@ -277,16 +309,22 @@ func TestLegacyStorage_SearchGraphitePaths(t *testing.T) {
 		return mrs, want
 	}
 	const numMetrics = 1000
-	tr := TimeRange{
+	tr1 := TimeRange{
 		MinTimestamp: time.Date(2023, 6, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		MaxTimestamp: time.Date(2024, 5, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
-	legacyData, wantLegacy := genData(numMetrics, "legacy", tr)
-	newData, wantNew := genData(numMetrics, "new", tr)
-	wantNew = append(wantNew, wantLegacy...)
-	slices.Sort(wantNew)
+	tr2 := TimeRange{
+		MinTimestamp: time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 6, 30, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	legacyData, wantLegacy := genData(numMetrics, "legacy", tr1)
+	new1Data, wantNew1 := genData(numMetrics, "new1", tr1)
+	new2Data, wantNew2 := genData(numMetrics, "new2", tr2)
+	newData := slices.Concat(new1Data, new2Data)
+	wantLegacyAndNew1 := slices.Concat(wantLegacy, wantNew1)
+	slices.Sort(wantLegacyAndNew1)
 
-	assertSearchResults := func(s *Storage, want []string) {
+	assertSearchResults := func(s *Storage, tr TimeRange, want []string) {
 		t.Helper()
 		got, err := s.SearchGraphitePaths(nil, accountID, projectID, tr, []byte("*.*"), 1e9, noDeadline)
 		if err != nil {
@@ -301,20 +339,22 @@ func TestLegacyStorage_SearchGraphitePaths(t *testing.T) {
 
 	assertLegacyData := func(s *Storage) {
 		t.Helper()
-		assertSearchResults(s, wantLegacy)
+		assertSearchResults(s, tr1, wantLegacy)
 	}
 	assertNewData := func(s *Storage) {
 		t.Helper()
-		assertSearchResults(s, wantNew)
+		assertSearchResults(s, tr1, wantLegacyAndNew1)
+		assertSearchResults(s, tr2, wantNew2)
 	}
 	testSearchOpWithLegacyIndexDBs(t, accountID, projectID, legacyData, newData, assertLegacyData, assertNewData)
 }
 
-func TestLegacyStorage_Search(t *testing.T) {
+func TestLegacyStorage_SearchData(t *testing.T) {
 	const (
 		accountID = 12
 		projectID = 34
 	)
+
 	genData := func(numMetrics int, prefix string, tr TimeRange) []MetricRow {
 		mrs := make([]MetricRow, numMetrics)
 		for i := range numMetrics {
@@ -331,14 +371,20 @@ func TestLegacyStorage_Search(t *testing.T) {
 		return mrs
 	}
 	const numMetrics = 1000
-	tr := TimeRange{
+	tr1 := TimeRange{
 		MinTimestamp: time.Date(2023, 6, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		MaxTimestamp: time.Date(2024, 5, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
-	legacyData := genData(numMetrics, "legacy", tr)
-	newData := genData(numMetrics, "new", tr)
+	tr2 := TimeRange{
+		MinTimestamp: time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 6, 30, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	legacyData := genData(numMetrics, "legacy", tr1)
+	new1Data := genData(numMetrics, "new1", tr1)
+	new2Data := genData(numMetrics, "new2", tr2)
+	newData := slices.Concat(new1Data, new2Data)
 
-	assertSearchResults := func(s *Storage, want []MetricRow) {
+	assertSearchResults := func(s *Storage, tr TimeRange, want []MetricRow) {
 		tfsAll := NewTagFilters(accountID, projectID)
 		if err := tfsAll.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
 			t.Fatalf("unexpected error in TagFilters.Add: %v", err)
@@ -350,13 +396,13 @@ func TestLegacyStorage_Search(t *testing.T) {
 
 	assertLegacyData := func(s *Storage) {
 		t.Helper()
-		want := legacyData
-		assertSearchResults(s, want)
+		assertSearchResults(s, tr1, legacyData)
 	}
 	assertNewData := func(s *Storage) {
 		t.Helper()
-		want := slices.Concat(legacyData, newData)
-		assertSearchResults(s, want)
+		want := slices.Concat(legacyData, new1Data)
+		assertSearchResults(s, tr1, want)
+		assertSearchResults(s, tr2, new2Data)
 	}
 	testSearchOpWithLegacyIndexDBs(t, accountID, projectID, legacyData, newData, assertLegacyData, assertNewData)
 }

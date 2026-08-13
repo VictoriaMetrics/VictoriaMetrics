@@ -39,6 +39,8 @@ VictoriaMetrics has the following prominent features:
   * Easy and fast backups from [instant snapshots](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
     can be done with [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/) / [vmrestore](https://docs.victoriametrics.com/victoriametrics/vmrestore/) tools.
     See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883) for more details.
+* It supports storage and retrieval of samples with timestamps that fall within the `[1970-01-02T00:00:00.000Z, 2262-03-31T23:59:59.999Z]` time range with millisecond precision.
+  See [Retention](#retention) for details.
 * It implements a PromQL-like query language - [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/), which provides improved functionality on top of PromQL.
 * It provides a global query view. Multiple Prometheus instances or any other data sources may ingest data into VictoriaMetrics. Later this data may be queried via a single query.
 * It provides high performance and good vertical and horizontal scalability for both
@@ -1304,7 +1306,7 @@ since it uses lower amounts of RAM, CPU and network bandwidth than Prometheus.
 If you use identically configured [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) instances for collecting the same data
 and sending it to VictoriaMetrics, then do not forget enabling [deduplication](#deduplication) at VictoriaMetrics side.
 
-See [victoria-metrics-distributed chart](https://docs.victoriametrics.com/helm/victoria-metrics-distributed/) for an example.
+See [VMDistributed](https://docs.victoriametrics.com/operator/resources/vmdistributed/) Kubernetes operator resource for an example.
 
 ## Deduplication
 
@@ -1540,6 +1542,9 @@ It is safe to extend `-retentionPeriod` on existing data. If `-retentionPeriod` 
 value than before, then data outside the configured period will be eventually deleted.
 
 VictoriaMetrics does not support indefinite retention, but you can specify an arbitrarily high duration, e.g. `-retentionPeriod=100y`.
+Just keep in mind that VictoriaMetrics does not support samples with negative timestamps. Timestamps at `1970-01-01` are also not
+supported because this date has a special meaning internally. It therefore rejects samples with timestamps before
+`1970-01-02T00:00:00.000Z`.
 
 By default, VictoriaMetrics doesn't accept samples with timestamps bigger than `now+2d`, e.g. 2 days in the future.
 If you need accepting samples with bigger timestamps, then specify the desired "future retention" via `-futureRetention` command-line flag.
@@ -1550,6 +1555,9 @@ For example, the following command starts VictoriaMetrics, which accepts samples
 ```sh
 /path/to/victoria-metrics -futureRetention=1y
 ```
+
+VictoriaMetrics does not support stamples after `2262-03-31T23:59:59.999Z`. If the future retention includes dates after this timestamp,
+the samples for those dates will be rejected.
 
 By default, VictoriaMetrics accepts samples with timestamps as old as the configured `-retentionPeriod` allows, e.g. it accepts backfilled
 historical data as long as it fits into the retention. If you need rejecting samples with historical timestamps older than the specified
