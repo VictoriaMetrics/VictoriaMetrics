@@ -2381,15 +2381,16 @@ func TestIndexSearchLegacyContainsTimeRange_Concurrent(t *testing.T) {
 	for i := range concurrency {
 		ts := minTimestamp + msecPerDay*i
 		wg.Go(func() {
-			is := idb.getIndexSearch(accountID, projectID, noDeadline)
-			_ = is.legacyContainsTimeRange(TimeRange{ts, ts})
-			idb.putIndexSearch(is)
+			_ = idb.legacyContainsTimeRange(accountID, projectID, TimeRange{ts, ts})
 		})
 	}
 	wg.Wait()
 
-	key := marshalCommonPrefix(nil, nsPrefixDateToMetricID, accountID, projectID)
-	if got, want := idb.legacyMinMissingTimestampByKey[string(key)], minTimestamp; got != want {
+	key := TenantToken{
+		AccountID: accountID,
+		ProjectID: projectID,
+	}
+	if got, want := idb.legacyMinMissingTimestampByKey[key], minTimestamp; got != want {
 		t.Fatalf("unexpected min timestamp: got %v, want %v", time.UnixMilli(got).UTC(), time.UnixMilli(want).UTC())
 	}
 }

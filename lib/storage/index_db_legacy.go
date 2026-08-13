@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"sync/atomic"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -87,48 +86,60 @@ func mustOpenLegacyIndexDB(path string, s *Storage) *legacyIndexDB {
 	return legacyIDB
 }
 
-func (is *indexSearch) legacyContainsTimeRange(tr TimeRange) bool {
-	if tr == globalIndexTimeRange {
+func (db *indexDB) legacyContainsDate(accountID, projectID uint32, date uint64) bool {
+	tr := TimeRange{
+		MinTimestamp: int64(date) * msecPerDay,
+		MaxTimestamp: int64(date+1)*msecPerDay - 1,
+	}
+	return db.legacyContainsTimeRange(accountID, projectID, tr)
+}
+
+func (db *indexDB) legacyContainsTimeRange(accountID, projectID uint32, tr TimeRange) bool {
+	if db.s.disablePerDayIndex {
+		// If per-day index is disabled, there is no way to tell if indexDB
+		// contains data for the given time range. Assume that it does.
 		return true
 	}
 
-	db := is.db
 	if !db.noRegisterNewSeries.Load() {
 		// indexDB could register new time series - it is not safe to cache minMissingTimestamp
 		return true
 	}
 
-	// use common prefix as a key for minMissingTimestamp
-	// it's needed to properly track timestamps for cluster version
-	// which uses tenant labels for the index search
-	kb := &is.kb
-	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateToMetricID)
-	key := kb.B
-
+	// vmsingle does not have tenants and therefore has just one key.
+	// While vmstorage can potentially have many tenants and the actual
+	// accountID and projectID will be set from the request.
+	key := TenantToken{
+		AccountID: accountID,
+		ProjectID: projectID,
+	}
 	db.legacyMinMissingTimestampByKeyLock.Lock()
-	minMissingTimestamp, ok := db.legacyMinMissingTimestampByKey[string(key)]
+	minMissingTimestamp, ok := db.legacyMinMissingTimestampByKey[key]
 	db.legacyMinMissingTimestampByKeyLock.Unlock()
 
 	if ok && tr.MinTimestamp >= minMissingTimestamp {
+		// Fast path.
 		return false
 	}
-	if is.legacyContainsTimeRangeSlow(kb, tr) {
+
+	// Slow path.
+	is := db.getIndexSearch(accountID, projectID, noDeadline)
+	defer db.putIndexSearch(is)
+	if is.legacyContainsTimeRange(tr) {
 		return true
 	}
 
 	db.legacyMinMissingTimestampByKeyLock.Lock()
-	minMissingTimestamp, ok = db.legacyMinMissingTimestampByKey[string(key)]
+	minMissingTimestamp, ok = db.legacyMinMissingTimestampByKey[key]
 	if !ok || tr.MinTimestamp < minMissingTimestamp {
-		db.legacyMinMissingTimestampByKey[string(key)] = tr.MinTimestamp
+		db.legacyMinMissingTimestampByKey[key] = tr.MinTimestamp
 	}
 	db.legacyMinMissingTimestampByKeyLock.Unlock()
 
 	return false
 }
 
-func (is *indexSearch) legacyContainsTimeRangeSlow(prefixBuf *bytesutil.ByteBuffer, tr TimeRange) bool {
-	ts := &is.ts
-
+func (is *indexSearch) legacyContainsTimeRange(tr TimeRange) bool {
 	// Verify whether the tr.MinTimestamp is included into `ts` or is smaller than the minimum date stored in `ts`.
 	// Do not check whether tr.MaxTimestamp is included into `ts` or is bigger than the max date stored in `ts` for performance reasons.
 	// This means that this func can return true if `tr` is located below the min date stored in `ts`.
@@ -136,12 +147,17 @@ func (is *indexSearch) legacyContainsTimeRangeSlow(prefixBuf *bytesutil.ByteBuff
 	// The main practical case allows skipping searching in prev indexdb (`ts`) when `tr`
 	// is located above the max date stored there.
 	minDate := uint64(tr.MinTimestamp) / msecPerDay
-	prefix := prefixBuf.B
-	prefixBuf.B = encoding.MarshalUint64(prefixBuf.B, minDate)
-	ts.Seek(prefixBuf.B)
+
+	kb := &is.kb
+	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateToMetricID)
+	prefix := kb.B
+	kb.B = encoding.MarshalUint64(kb.B, minDate)
+
+	ts := &is.ts
+	ts.Seek(kb.B)
 	if !ts.NextItem() {
 		if err := ts.Error(); err != nil {
-			logger.Panicf("FATAL: error when searching for minDate=%d, prefix %q: %s", minDate, prefixBuf.B, err)
+			logger.Panicf("FATAL: error when searching for minDate=%d, prefix %q: %s", minDate, kb.B, err)
 		}
 		return false
 	}

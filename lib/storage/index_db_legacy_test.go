@@ -33,11 +33,7 @@ func TestLegacyContainsTimeRange(t *testing.T) {
 
 	f := func(idb *indexDB, tr TimeRange, want bool) {
 		t.Helper()
-		is := idb.getIndexSearch(accountID, projectID, noDeadline)
-		defer idb.putIndexSearch(is)
-
-		got := is.legacyContainsTimeRange(tr)
-
+		got := idb.legacyContainsTimeRange(accountID, projectID, tr)
 		if got != want {
 			t.Fatalf("legacyContainsTimeRange(%s) for index db %s returns unexpected result: got %t, want %t", tr.String(), idb.name, got, want)
 		}
@@ -101,8 +97,8 @@ func TestLegacyContainsTimeRange(t *testing.T) {
 	f(legacyIDBs.getIDBCurr(), tr, true)
 	f(idb, tr, true)
 
-	// Fully inside trPt, overlaps with trPrev on the right side and trCurr on
-	// the left side.
+	// Fully inside trPt, overlaps with trPrev on the right side and with trCurr
+	// on the left side.
 	tr = TimeRange{
 		MinTimestamp: time.Date(2025, 1, 7, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		MaxTimestamp: time.Date(2025, 1, 21, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
