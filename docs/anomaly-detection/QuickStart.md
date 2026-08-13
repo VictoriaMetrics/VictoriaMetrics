@@ -274,7 +274,7 @@ schedulers:
     class: 'periodic'
     infer_every: '5m'
     scatter_infer_jobs: true
-    fit_every: '1000d'  # online models learn on the inference stream and do not need periodic refits
+    fit_every: '1000d'  # bootstrap-only schedule; use a finite cadence if accumulated state must be reset
     fit_window: '4w'
 
 models:

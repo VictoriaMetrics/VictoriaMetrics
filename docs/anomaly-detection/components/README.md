@@ -51,15 +51,15 @@ schedulers:
     class: 'periodic' # scheduler class
     infer_every: "30s"  # how often to produce anomaly scores for new data
     scatter_infer_jobs: true  # distribute infer jobs evenly across the infer interval to reduce synchronized bursts
-    fit_every: "1000d"  # online models learn on the inference stream and do not need periodic refits
+    fit_every: "1000d"  # bootstrap-only schedule; use a finite cadence if accumulated state must be reset
     fit_window: "3d"  # how much historical data to use for fit stage
-    start_from: "00:00"  # align the annual fit schedule to midnight in the configured timezone
+    start_from: "00:00"  # align the bootstrap fit to midnight in the configured timezone
     tz: "Europe/Kyiv"  # timezone to use for start_from
   periodic_online_weekly:
     class: 'periodic'
     infer_every: "15m"
     scatter_infer_jobs: true
-    fit_every: "1000d"  # online models learn on the inference stream and do not need periodic refits
+    fit_every: "1000d"  # bootstrap-only schedule; use a finite cadence if accumulated state must be reset
     fit_window: "14d"
     # if no start_from is specified, jobs will start immediately after service starts
 
@@ -175,7 +175,7 @@ schedulers:
   periodic:
     class: 'periodic'
     infer_every: "30s"
-    fit_every: "1000d"  # online models learn on the inference stream and do not need periodic refits
+    fit_every: "1000d"  # bootstrap-only schedule; use a finite cadence if accumulated state must be reset
     fit_window: "24h"
 
 reader:

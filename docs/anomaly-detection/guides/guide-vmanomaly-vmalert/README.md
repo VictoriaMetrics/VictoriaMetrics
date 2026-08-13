@@ -124,7 +124,7 @@ Detailed parameters in each section:
 
 * `schedulers` ([PeriodicScheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) is used here)
   * `infer_every` - Specifies the frequency at which the trained models perform inferences on new data, essentially determining how often new anomaly score data points are generated. Format examples: 30s, 4m, 2h, 1d (time units: 's' for seconds, 'm' for minutes, 'h' for hours, 'd' for days). This parameter essentially asks, at regular intervals (e.g., every 1 minute), whether the latest data points appear abnormal based on historical data.
-  * `fit_every` - Sets the frequency for retraining the models. [Online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models) learn from every inference batch, so configure a large value such as `1000d` after the initial bootstrap instead of repeatedly refitting historical data. Format is similar to `infer_every`.
+  * `fit_every` - Sets the frequency for retraining the models. [Online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models) learn from every inference batch, so set a large value such as `1000d` to make fitting effectively bootstrap-only. For evolving behavior, configure the model's forgetting or reactivity mechanism, or choose a finite fit cadence to reset accumulated state. Format is similar to `infer_every`.
   * `fit_window` - Defines the data interval for training the models. Longer intervals allow for capturing extensive historical behavior and better seasonal pattern detection but may slow down the model's response to permanent metric changes and increase resource consumption. A minimum of two full seasonal cycles is recommended. Example format: 3h for three hours of data.
 
 * `models`
@@ -145,7 +145,7 @@ Below is an illustrative example of a `vmanomaly_config.yml` configuration file.
 schedulers:
   periodic:
     infer_every: "1m"
-    fit_every: "1000d" # online models learn on the inference stream and do not need periodic refits
+    fit_every: "1000d" # bootstrap-only schedule; use a finite cadence if accumulated state must be reset
     fit_window: "14d" # two weekly cycles for initial bootstrap
 
 models:

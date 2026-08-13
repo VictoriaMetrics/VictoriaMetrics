@@ -36,7 +36,7 @@ settings:
 schedulers:
   periodic:
     class: periodic
-    fit_every: 1000d  # online models learn on the inference stream and do not need periodic refits
+    fit_every: 1000d  # bootstrap-only schedule; use a finite cadence if accumulated state must be reset
     fit_window: 3h
     infer_every: 30s
   # other schedulers
@@ -86,6 +86,8 @@ monitoring:
   # other monitoring settings
 ```
 
+The examples on this page use `fit_every: 1000d` as an effectively bootstrap-only schedule. This is appropriate when an online model has a suitable forgetting or reactivity mechanism, such as `zscore_online` with `decay < 1`. If outdated history must be discarded explicitly, choose a finite fit cadence instead; each fit resets the online model state from the configured `fit_window`.
+
 ## Parallelization
 
 The `n_workers` argument allows you to explicitly specify the number of process workers for internal parallelization of the service. This can help improve performance on multicore systems by allowing the service to process multiple tasks in parallel. For backward compatibility, it is set to `1` by default. It should be an integer greater than or equal to `-1`; values `-1` and `0` use the number of CPU cores available to the service, including container CPU limits.
@@ -106,7 +108,7 @@ settings:
 schedulers:
   periodic:
     class: periodic
-    fit_every: 1000d  # online models learn on the inference stream and do not need periodic refits
+    fit_every: 1000d  # bootstrap-only schedule; use a finite cadence if accumulated state must be reset
     fit_window: 3h
     infer_every: 30s
   # other schedulers
@@ -190,7 +192,7 @@ settings:
 schedulers:
   periodic:
     class: periodic
-    fit_every: 1000d  # online models learn on the inference stream and do not need periodic refits
+    fit_every: 1000d  # bootstrap-only schedule; use a finite cadence if accumulated state must be reset
     fit_window: 3h
     infer_every: 30s
   # other schedulers
@@ -247,7 +249,7 @@ settings:
 schedulers:
   periodic_1d:
     class: periodic
-    fit_every: 1000d  # online models learn on the inference stream and do not need periodic refits
+    fit_every: 1000d  # bootstrap-only schedule; use a finite cadence if accumulated state must be reset
     infer_every: 30s
     fit_window: 24h
 models:
@@ -282,7 +284,7 @@ settings:
 schedulers:
   periodic_1d:  # can be fully reused, no changes
     class: periodic
-    fit_every: 1000d  # unchanged; online state learns during inference instead of periodic refits
+    fit_every: 1000d  # unchanged bootstrap-only schedule
     infer_every: 30s  # unchanged, still infers every 30 seconds
     fit_window: 24h  # unchanged, still fits on the last 24 hours of data
 models:

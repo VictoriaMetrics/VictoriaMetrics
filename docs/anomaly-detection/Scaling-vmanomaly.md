@@ -32,7 +32,7 @@ schedulers:
   periodic_1d:  # alias
     class: 'periodic' # scheduler class
     infer_every: "30s"
-    fit_every: "1000d"  # online models learn on the inference stream and do not need periodic refits
+    fit_every: "1000d"  # bootstrap-only schedule; use a finite cadence if accumulated state must be reset
     fit_window: "24h"
 
 # https://docs.victoriametrics.com/anomaly-detection/components/models/

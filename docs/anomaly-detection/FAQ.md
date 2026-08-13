@@ -163,7 +163,7 @@ Then, the following config may be used to benefit from incorporating domain know
 schedulers:
   periodic_http:
     class: periodic
-    fit_every: 1000d  # online models learn on the inference stream and do not need periodic refits
+    fit_every: 1000d  # bootstrap-only schedule; use a finite cadence if accumulated state must be reset
     fit_window: 1w
     infer_every: 1m
   # other schedulers ...
@@ -264,12 +264,12 @@ Here's an example of how to produce forecasts using `vmanomaly` and combine it w
 schedulers:
   periodic_5m:  # this scheduler will be used to produce anomaly scores each 5 minutes using "regular" simple model
     class: 'periodic'
-    fit_every: '1000d'  # online models learn on the inference stream and do not need periodic refits
+    fit_every: '1000d'  # bootstrap-only schedule; use a finite cadence if accumulated state must be reset
     fit_window: '3d'
     infer_every: '5m'
   periodic_forecast:  # this scheduler will be used to produce forecasts each 24h using "daily" model
     class: 'periodic'
-    fit_every: '1000d'  # online models learn on the inference stream and do not need periodic refits
+    fit_every: '1000d'  # bootstrap-only schedule; use a finite cadence if accumulated state must be reset
     fit_window: '730d' # to fit the model on 2 years of data to account for seasonality and holidays
     infer_every: '24h'
 # https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader
@@ -506,7 +506,7 @@ settings:
 schedulers:
   periodic:
     class: 'periodic'
-    fit_every: '1000d'  # online models learn on the inference stream and do not need periodic refits
+    fit_every: '1000d'  # bootstrap-only schedule; use a finite cadence if accumulated state must be reset
     fit_window: '4h'  # reduced window, especially if the data doesn't have strong seasonality
     infer_every: '1m'  # the model will be updated during each infer call
   # other schedulers ...
