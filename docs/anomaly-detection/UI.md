@@ -137,13 +137,13 @@ users:
     password: '<password>'
     url_map:
       - src_hosts:
-        - "metrics.local.some-domain.net"
+          - "metrics.local.some-domain.net"
         url_prefix: "http://victoriametrics:8428"
       - src_hosts:
-        - "vl.local.some-domain.net"
+          - "vl.local.some-domain.net"
         url_prefix: "http://victorialogs:9428"
       - src_hosts:
-        - "vmanomaly.local.some-domain.net"
+          - "vmanomaly.local.some-domain.net"
         url_prefix: "http://vmanomaly:8490"
         keep_original_host: true
 ```

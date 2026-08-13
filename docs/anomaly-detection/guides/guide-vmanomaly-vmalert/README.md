@@ -279,19 +279,24 @@ global:
 scrape_configs:
   - job_name: 'vmagent'
     static_configs:
-      - targets: ['vmagent:8429']
+      - targets:
+          - 'vmagent:8429'
   - job_name: 'vmalert'
     static_configs:
-      - targets: ['vmalert:8880']
+      - targets:
+          - 'vmalert:8880'
   - job_name: 'victoriametrics'
     static_configs:
-      - targets: ['victoriametrics:8428']
+      - targets:
+          - 'victoriametrics:8428'
   - job_name: 'node-exporter'
     static_configs:
-      - targets: ['node-exporter:9100']
+      - targets:
+          - 'node-exporter:9100'
   - job_name: 'vmanomaly'
     static_configs:
-      - targets: [ 'vmanomaly:8490' ]
+      - targets:
+          - 'vmanomaly:8490'
 ```
 
 
@@ -387,7 +392,7 @@ services:
       - "--notifier.url=http://alertmanager:9093/"
       - "--rule=/etc/alerts/*.yml"
       # display source of alerts in grafana
-      - "--external.url=http://127.0.0.1:3000" #grafana outside container
+      - "--external.url=http://127.0.0.1:3000" # grafana outside container
       # when copypaste the line be aware of '$$' for escaping in '$expr'
       - '--external.alert.source=explore?orgId=1&left=["now-1h","now","VictoriaMetrics",{"expr": },{"mode":"Metrics"},{"ui":[true,true,true,"none"]}]'
     networks:

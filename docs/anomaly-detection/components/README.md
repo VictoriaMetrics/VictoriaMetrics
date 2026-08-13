@@ -77,7 +77,7 @@ models:
   envelope_weekly: # we can set up alias for model
     class: 'temporal_envelope'
     alpha: 0.005  # adapt the trend while using the bootstrap-only fit schedule
-    loss_reactivity: 5  # allow new deviations to update the envelope
+    loss_reactivity: 3  # allow new deviations to update the envelope
     provide_series: ['anomaly_score', 'y', 'yhat', 'yhat_lower', 'yhat_upper']
     queries: ['cpu_seconds_total']
     schedulers: ['periodic_online_weekly']  # fit on two weekly cycles, then update online every 15m
@@ -150,7 +150,7 @@ server:
 
 {{% available_from "v1.25.0" anomaly %}} The service supports hot reload of configuration files, applying changes without an explicit restart. Enable it with the `--watch` [CLI argument](https://docs.victoriametrics.com/anomaly-detection/quickstart/#command-line-arguments). The `vmanomaly_config_reload_enabled` [self-monitoring metric](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#startup-metrics) is `1` when hot reload is enabled and `0` otherwise.
 
-> [!NOTE]
+> [!WARNING]
 > {{% deprecated_from "v1.29.5" anomaly %}} File system event-based hot reload has been deprecated in favor of content-based polling with configurable `-configCheckInterval` due to reliability issues with Kubernetes ConfigMap symlink rotations and other filesystems where event delivery can be inconsistent. If you were using file system event-based hot reload, please switch to content-based polling by enabling `--watch` flag and configuring `-configCheckInterval` as needed.
 
 ### How it works

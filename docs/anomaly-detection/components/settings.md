@@ -161,6 +161,7 @@ The `restore_state` argument {{% available_from "v1.24.0" anomaly %}} makes `vma
 
 By default, `restore_state` is set to `false`, meaning the service will start fresh on each restart, to maintain backward compatibility.
 
+> [!WARNING]
 > This feature requires enabling [on-disk mode](https://docs.victoriametrics.com/anomaly-detection/faq/#on-disk-mode) for the models and data. If not enabled, the service will exit with an error when `restore_state` is set to `true`.
 
 ### Benefits

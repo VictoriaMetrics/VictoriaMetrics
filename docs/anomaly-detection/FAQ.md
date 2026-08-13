@@ -135,7 +135,7 @@ Still not 100% sure what to use? We are [here to help](https://docs.victoriametr
 
 ## Incorporating domain knowledge
 
-Anomaly detection models can significantly improve when incorporating business-specific assumptions about the data and what constitutes an anomaly. `vmanomaly` supports [query-level business policies](https://docs.victoriametrics.com/anomaly-detection/components/reader/#per-query-parameters) across built-in models to **reduce [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive)** and **align model behavior with business needs**, for example:
+Anomaly detection models can significantly improve when incorporating business-specific assumptions about the data and what constitutes an anomaly. `vmanomaly` supports [business policies](https://docs.victoriametrics.com/anomaly-detection/components/models/#common-args) across built-in models to **reduce [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive)** and **align model behavior with business needs**, for example:
 
 - **Setting `detection_direction`** - use [`detection_direction`](https://docs.victoriametrics.com/anomaly-detection/components/models/#detection-direction) to specify whether anomalies occur **above or below expectations**:
   - Set to `above_expected` for metrics like error rates, where spikes indicate anomalies.
@@ -163,7 +163,7 @@ Then, the following config may be used to benefit from incorporating domain know
 schedulers:
   periodic_http:
     class: periodic
-    fit_every: 1000d  # bootstrap-only schedule; use a finite cadence if accumulated state must be reset
+    fit_every: 1000d
     fit_window: 1w
     infer_every: 1m
   # other schedulers ...
@@ -230,7 +230,7 @@ models:
     schedulers: ['scheduler_alias']  # if omitted, all the defined schedulers will be attached
     queries: ['query_alias1']  # if omitted, all the defined queries will be attached
     # https://docs.victoriametrics.com/anomaly-detection/components/models/#provide-series
-    provide_series: ['anomaly_score']  
+    provide_series: ['anomaly_score']
   # ... other models
 
 reader:
@@ -256,6 +256,7 @@ Configuration above will produce N intervals of full length (`fit_window`=14d + 
 
 `vmanomaly` can generate future forecasts with [Temporal Envelope](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope) {{% available_from "v1.30.0" anomaly %}}, the preferred online forecasting model. [ProphetModel](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) {{% available_from "v1.25.3" anomaly %}} also supports forecasting for existing offline configurations. Forecasts help with capacity planning, resource allocation, or trend analysis when the underlying data is complex and exceeds what inline MetricsQL queries, including [predict_linear](https://docs.victoriametrics.com/victoriametrics/metricsql/#predict_linear), can handle.
 
+> [!WARNING]
 > However, please note that this mode should be used with care, as the model will produce `yhat_{h}` (and probably `yhat_lower_{h}`, and `yhat_upper_{h}`) time series **for each timeseries returned by input queries and for each forecasting horizon specified in `forecast_at` argument, which can lead to a significant increase in the number of active timeseries in VictoriaMetrics TSDB**.
 
 Here's an example of how to produce forecasts using `vmanomaly` and combine it with the regular model, e.g. to estimate daily outcomes for a disk usage metric:
@@ -265,12 +266,12 @@ Here's an example of how to produce forecasts using `vmanomaly` and combine it w
 schedulers:
   periodic_5m:  # this scheduler will be used to produce anomaly scores each 5 minutes using "regular" simple model
     class: 'periodic'
-    fit_every: '1000d'  # bootstrap-only schedule; use a finite cadence if accumulated state must be reset
+    fit_every: '1000d'
     fit_window: '3d'
     infer_every: '5m'
   periodic_forecast:  # this scheduler will be used to produce forecasts each 24h using "daily" model
     class: 'periodic'
-    fit_every: '1000d'  # bootstrap-only schedule; use a finite cadence if accumulated state must be reset
+    fit_every: '1000d'
     fit_window: '730d' # to fit the model on 2 years of data to account for seasonality and holidays
     infer_every: '24h'
 # https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader
@@ -318,8 +319,8 @@ models:
     class: 'temporal_envelope'
     queries: ['disk_usage_perc_1d']
     schedulers: ['periodic_forecast']
-    alpha: 0.005  # adapt the trend while using the bootstrap-only fit schedule
-    loss_reactivity: 5  # allow new deviations to update the envelope
+    alpha: 0.005  # capture the changes faster if increased
+    loss_reactivity: 3  # allow new deviations to update the envelope
     clip_predictions: True
     forecast_at: ['3d', '7d']  # this will produce forecasts for 3 and 7 days ahead
     provide_series: ['yhat', 'yhat_upper']  # to write forecasts back to VictoriaMetrics, omitting `yhat_lower` as it is not needed in this example
@@ -429,9 +430,7 @@ For information on migrating between different versions of `vmanomaly`, please r
 
 > {{% available_from "v1.24.0" anomaly %}} This feature is best used in conjunction with [stateful mode](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration) to ensure that the model state is preserved across service restarts.
 
-> {{% available_from "v1.30.2" anomaly %}} Scheduler-managed Parquet fit data is temporary. It is removed after every dependent univariate or multivariate model completes fitting and commits its state, rather than being retained until the next `fit_every` cycle. Model dumps and state metadata remain available for restoration.
-
-> {{% available_from "v1.30.2" anomaly %}} Disk-backed grouped multivariate workloads prepare active groups with bounded concurrency instead of materializing every group at once, reducing peak memory at high series cardinality without changing model output or persisted-state compatibility.
+> {{% available_from "v1.30.2" anomaly %}} Scheduler-managed fit data is **temporary**. It is removed after every dependent univariate or multivariate model completes fitting and commits its state, rather than being retained until the next `fit_every` cycle. Model dumps and state metadata remain available for restoration.
 
 Here's an example of how to set it up in docker-compose using volumes:
 ```yaml
@@ -510,7 +509,7 @@ settings:
 schedulers:
   periodic:
     class: 'periodic'
-    fit_every: '1000d'  # bootstrap-only schedule; use a finite cadence if accumulated state must be reset
+    fit_every: '1000d'
     fit_window: '4h'  # reduced window, especially if the data doesn't have strong seasonality
     infer_every: '1m'  # the model will be updated during each infer call
   # other schedulers ...
@@ -518,7 +517,7 @@ models:
   zscore_example:
     class: 'zscore_online'
     min_n_samples_seen: 120  # i.e. minimal relevant seasonality or (initial) fit_window / sampling_period
-    decay: 0.999  # decay factor to control how fast the model adapts to new data, the lower, the faster it adapts
+    decay: 0.99  # decay factor to control how fast the model adapts to new data, the lower, the faster it adapts
     schedulers: ['periodic']
     # other model params ...
 # other config sections ...
@@ -564,9 +563,7 @@ models:
     temporal_envelope:
       class: temporal_envelope
       # other model args
-      queries: [
-        'sum_alerts',
-      ]
+      queries: ['sum_alerts']
 # other config sections
 ```
 
@@ -586,9 +583,7 @@ models:
     temporal_envelope:
       class: temporal_envelope
       # other model args
-      queries: [
-        'sum_alerts',
-      ]
+      queries: ['sum_alerts']
 # other config sections
 ```
 
@@ -606,10 +601,7 @@ models:
     temporal_envelope:
       class: temporal_envelope
       # other model args
-      queries: [
-        'sum_alerts_pending',
-        'sum_alerts_firing',
-      ]
+      queries: ['sum_alerts_pending', 'sum_alerts_firing']
 # other config sections
 ```
 
@@ -659,6 +651,8 @@ options:
                         Minimum level to log. Default: INFO
 ```
 
+For a side-by-side comparison of all split modes and their resulting sub-configurations, see [splitting strategies](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#splitting-strategies).
+
 Here’s an example of using the config splitter to divide configurations based on the `extra_filters` argument from the reader section:
 
 ```sh
@@ -695,10 +689,11 @@ reader:
   # ...
   queries:
     extra_big_query: metricsql_expression_returning_too_many_timeseries
-    extra_filters:
+    extra_filters: [
       # suppose you have a label `region` with values to deterministically define such subsets
-      - '{env="region_name_1"}'
+      '{env="region_name_1"}',
       # ...
+    ]
 ```
 
 ```yaml
@@ -708,10 +703,11 @@ reader:
   # ...
   queries:
     extra_big_query: metricsql_expression_returning_too_many_timeseries
-    extra_filters:
+    extra_filters: [
       # suppose you have a label `region` with values to deterministically define such subsets
-      - '{region="region_name_2"}'
+      '{region="region_name_2"}',
       # ...
+    ]
 ```
 
 ## Monitoring vmanomaly
