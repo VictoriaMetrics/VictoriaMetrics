@@ -32,13 +32,13 @@ schedulers:
   periodic_1d:  # alias
     class: 'periodic' # scheduler class
     infer_every: "30s"
-    fit_every: "1h"
+    fit_every: "1000d"  # online models learn on the inference stream and do not need periodic refits
     fit_window: "24h"
 
 # https://docs.victoriametrics.com/anomaly-detection/components/models/
 models:
   zscore:  # we can set up alias for model
-    class: 'zscore'  # model class
+    class: 'zscore_online'  # online model class
     z_threshold: 3.5
     queries: ['cpu_seconds_total', 'host_network_receive_errors']
 

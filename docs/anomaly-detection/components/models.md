@@ -65,6 +65,8 @@ models:
 
 Common arguments supported by every model were introduced in [v1.10.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1100).
 
+> Configuring `data_range`, `detection_direction`, `min_dev_from_expected`, or `min_rel_dev_from_expected` at model level is {{% deprecated_from "v1.30.2" anomaly %}}. These stable KPI policies belong under [`reader.queries.<alias>`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#per-query-parameters), where they remain consistent across every univariate or multivariate model that uses the query. Existing model-level values remain compatible as model-local fallbacks when an attached query does not define the corresponding field; an explicit query value is authoritative.
+
 <div class="collapse-group">
 
 {{% collapse name="Queries" %}}
@@ -145,7 +147,7 @@ models:
 {{% collapse name="Detection direction" %}}
 
 ### Detection direction
-The `detection_direction` argument{{% available_from "v1.13.0" anomaly %}} can reduce [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive) when domain knowledge indicates that only values above or below the expected value are anomalous. Available values are `both`, `above_expected`, and `below_expected`.
+The `detection_direction` argument{{% available_from "v1.13.0" anomaly %}} can reduce [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive) when domain knowledge indicates that only values above or below the expected value are anomalous. Available values are `both`, `above_expected`, and `below_expected`. Configure it on the input query; model-level placement is {{% deprecated_from "v1.30.2" anomaly %}}.
 
 Here's how default (backward-compatible) behavior looks like - anomalies will be tracked in `both` directions (`y > yhat` or `y < yhat`). This is useful when there is no domain expertise to filter the required direction.
 
@@ -166,40 +168,29 @@ When set to `below_expected`, anomalies are tracked only when `y < yhat`.
 ![schema_detection_direction=below_expected](schema_detection_direction_below_expected.webp)
 
 
-Config with a split example:
+One model can use multiple queries with different directions because the policy belongs to each query:
 
 ```yaml
-models:
-  model_above_expected:
-    class: 'zscore_online'
-    z_threshold: 3.0
-    # track only cases when y > yhat, otherwise anomaly_score would be explicitly set to 0
-    detection_direction: 'above_expected'
-    # for this query we do not need to track lower values, thus, set anomaly detection tracking for y > yhat (above_expected)
-    queries: ['query_values_the_lower_the_better']
-  model_below_expected:
-    class: 'zscore_online'
-    z_threshold: 3.0
-    # track only cases when y < yhat, otherwise anomaly_score would be explicitly set to 0
-    detection_direction: 'below_expected'
-    # for this query we do not need to track higher values, thus, set anomaly detection tracking for y < yhat (above_expected)
-    queries: ['query_values_the_higher_the_better']
-  model_bidirectional_default:
-    class: 'zscore_online'
-    z_threshold: 3.0
-    # track in both direction, same backward-compatible behavior in case this arg is missing
-    detection_direction: 'both'
-    # for this query both directions can be equally important for anomaly detection, thus, setting it bidirectional (both)
-    queries: ['query_values_both_direction_matters']
 reader:
   # ...
   queries:
-    query_values_the_lower_the_better: 
+    query_values_the_lower_the_better:
       expr: metricsql_expression1
-    query_values_the_higher_the_better: 
+      detection_direction: 'above_expected'  # query-level from v1.30.2; only y > yhat can be anomalous
+    query_values_the_higher_the_better:
       expr: metricsql_expression2
-    query_values_both_direction_matters: 
+      detection_direction: 'below_expected'  # query-level from v1.30.2; only y < yhat can be anomalous
+    query_values_both_direction_matters:
       expr: metricsql_expression3
+      detection_direction: 'both'  # query-level from v1.30.2; the default when omitted
+models:
+  model_all_directions:
+    class: 'zscore_online'
+    z_threshold: 3.0
+    queries:
+      - 'query_values_the_lower_the_better'
+      - 'query_values_the_higher_the_better'
+      - 'query_values_both_direction_matters'
 # other components like writer, schedule, monitoring
 ```
 
@@ -209,7 +200,7 @@ reader:
 
 ### Minimal deviation from expected
 
-`min_dev_from_expected`{{% available_from "v1.13.0" anomaly %}} argument is designed to **reduce [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive)** in scenarios where deviations between the actual value (`y`) and the expected value (`yhat`) are **relatively** high. Such deviations can cause models to generate high [anomaly scores](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score). However, these deviations may not be significant enough in **absolute values** from a business perspective to be considered anomalies. This parameter ensures that anomaly scores for data points where `|y - yhat| < min_dev_from_expected` are explicitly set to 0. By default, if this parameter is not set, it is set to `0` to maintain backward compatibility.
+`min_dev_from_expected`{{% available_from "v1.13.0" anomaly %}} argument is designed to **reduce [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive)** in scenarios where deviations between the actual value (`y`) and the expected value (`yhat`) are **relatively** high. Such deviations can cause models to generate high [anomaly scores](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score). However, these deviations may not be significant enough in **absolute values** from a business perspective to be considered anomalies. This parameter ensures that anomaly scores for data points where `|y - yhat| < min_dev_from_expected` are explicitly set to 0. By default, if this parameter is not set, it is set to `0` to maintain backward compatibility. Configure it on the input query; model-level placement is {{% deprecated_from "v1.30.2" anomaly %}}.
 
 > [!NOTE]
 {{% available_from "v1.23.0" anomaly %}} The `min_dev_from_expected` argument can be a list of two float values, allowing separate thresholds for upper and lower deviations. This is useful when the acceptable deviation varies in different directions (e.g., `min_dev_from_expected: [0.01, 0.02]` means that the lower bound is `0.01` when `y` is less than `yhat` and the upper bound is `0.02` when `y` is greater than `yhat`). If only one value is provided, it is broadcasted to both directions, meaning that the same threshold is applied for both upper and lower deviations (e.g., `min_dev_from_expected: 0.01` means that the lower bound is `0.01` when `y` is less than `yhat` and the upper bound is also `0.01` when `y` is greater than `yhat`).
@@ -236,23 +227,17 @@ reader:
   # ...
   queries:
     # the usage of min_dev should reduce false positives here
-    need_to_include_min_dev: 
+    need_to_include_min_dev:
       expr: small_abs_values_metricsql_expression
+      min_dev_from_expected: [5.0, 5.0]  # query-level from v1.30.2
     # min_dev is not really needed here
-    normal_behavior: 
+    normal_behavior:
       expr: no_need_to_exclude_small_deviations_metricsql_expression
 models:
-  zscore_with_min_dev:
+  zscore:
     class: 'zscore_online'
     z_threshold: 3
-    min_dev_from_expected: [5.0, 5.0]  # set the same threshold for both directions, meaning that deviations less than 5.0 in absolute values won't be considered anomalous, even if they are relatively significant
-    queries: ['need_to_include_min_dev']  # use such models on queries where domain experience confirm usefulness
-  zscore_wo_min_dev:
-    class: 'zscore_online'
-    z_threshold: 3
-    # if not set, equals to setting min_dev_from_expected == 0 (meaning no filtering is applied)
-    # min_dev_from_expected: [0.0, 0.0]
-    queries: ['normal_behavior']  # use the default where it's not needed
+    queries: ['need_to_include_min_dev', 'normal_behavior']
 ```
 
 {{% /collapse %}}
@@ -261,7 +246,7 @@ models:
 
 ### Minimal relative deviation from expected
 
-{{% available_from "v1.29.1" anomaly %}} `min_rel_dev_from_expected` argument serves a similar purpose to `min_dev_from_expected` (see [section above](#minimal-deviation-from-expected)), but focuses on **relative deviations** rather than absolute ones. It is designed to reduce [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive) in scenarios where the relative deviation between the actual value (`y`) and the expected value (`yhat`) is high, but the absolute deviation is not significant enough to be considered an anomaly from a business perspective. This parameter ensures that anomaly scores for data points where `|y - yhat| / |yhat| < min_rel_dev_from_expected` are explicitly set to 0. By default, if this parameter is not set, it is set to `0` to maintain backward compatibility. 
+{{% available_from "v1.29.1" anomaly %}} `min_rel_dev_from_expected` argument serves a similar purpose to `min_dev_from_expected` (see [section above](#minimal-deviation-from-expected)), but focuses on **relative deviations** rather than absolute ones. It is designed to reduce [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive) in scenarios where the relative deviation between the actual value (`y`) and the expected value (`yhat`) is high, but the absolute deviation is not significant enough to be considered an anomaly from a business perspective. This parameter ensures that anomaly scores for data points where `|y - yhat| / |yhat| < min_rel_dev_from_expected` are explicitly set to 0. By default, if this parameter is not set, it is set to `0` to maintain backward compatibility. Configure it on the input query; model-level placement is {{% deprecated_from "v1.30.2" anomaly %}}.
 
 Parameter can be a list of two float values, *allowing separate thresholds for upper and lower relative deviations*. If only one value is provided, it is broadcasted to both directions.
 
@@ -279,23 +264,17 @@ reader:
   # ...
   queries:
     # the usage of min_rel_dev should reduce false positives here
-    need_to_include_min_rel_dev: 
+    need_to_include_min_rel_dev:
       expr: small_abs_values_metricsql_expression
+      min_rel_dev_from_expected: [10, 20]  # query-level from v1.30.2
     # min_rel_dev is not really needed here
-    normal_behavior: 
+    normal_behavior:
       expr: no_need_to_exclude_small_deviations_metricsql_expression
 models:
-  zscore_with_min_rel_dev:
+  zscore:
     class: 'zscore_online'
     z_threshold: 3
-    min_rel_dev_from_expected: [10, 20]  # set different thresholds for both directions, meaning that relative deviations less than 10% when y < yhat and less than 20% when y > yhat won't be considered anomalous, even if they exceed confidence intervals, thus, reducing false positives for small absolute deviations that are relatively significant
-    queries: ['need_to_include_min_rel_dev']  # use such models on queries where domain experience confirm usefulness
-  zscore_wo_min_rel_dev:
-    class: 'zscore_online'
-    z_threshold: 3
-    # if not set, equals to setting min_rel_dev_from_expected == 0 (meaning no filtering is applied)
-    # min_rel_dev_from_expected: [0, 0]
-    queries: ['normal_behavior']  # use the default where it's not needed
+    queries: ['need_to_include_min_rel_dev', 'normal_behavior']
 ```
   
 
@@ -557,6 +536,8 @@ For a multivariate model, **one shared model instance** is fitted and used acros
 
 For example, if you have some **multivariate** model to use 3 [MetricQL queries](https://docs.victoriametrics.com/victoriametrics/metricsql/), each returning 5 time series, there will be one shared model created in total. Once fit, this model will expect **exactly 15 time series with exact same labelsets as an input**. This model will produce **one shared [output](#vmanomaly-output)**.
 
+> {{% available_from "v1.30.2" anomaly %}} Multivariate Temporal Envelope and Isolation Forest accept matching input channels in any order. The channel set must still match the fitted model exactly: missing, extra, and duplicate channels are rejected, while a matching set is restored to learned fit order before inference or online updates.
+
 > {{% available_from "v1.16.0" anomaly %}} N models — one for each N unique combinations of label values specified in the `groupby` [common argument](#group-by) — can be trained. This allows for context separation (e.g., one model per host, region, or other relevant grouping label), leading to improved accuracy and faster training. See an example [here](#group-by).
 
 If during an inference, you got a **different amount of series** or some series having a **new labelset** (not present in any of fitted models), the inference will be skipped until you get a model, trained particularly for such labelset during forthcoming re-fit step. 
@@ -685,7 +666,7 @@ Selecting model [hyperparameters](https://en.wikipedia.org/wiki/Hyperparameter_(
 - `tuned_class_name` (string) - [Built-in model class](#built-in-models) to wrap, i.e. `zscore_online`
 - `optimization_params` (dict) - Optimization parameters for *unsupervised* model tuning. Control percentage of found anomalies, as well as a tradeoff between time spent and the accuracy. The higher `timeout` and `n_trials` are, the better model configuration can be found for `tuned_class_name`, but the longer it takes and vice versa. Set `n_jobs` to `-1` to use all the CPUs available, it makes sense if only you have a big dataset to train on during `fit` calls, otherwise overhead isn't worth it.
   - `anomaly_percentage` (float) - Expected percentage of anomalies that can be seen in training data, from `[0, 0.5)` interval (i.e. 0.01 means it's expected ~ 1% of anomalies to be present in training data). This is a *required* parameter.
-  - `optimized_business_params` (list[string]) - {{% available_from "v1.15.0" anomaly %}} this argument allows particular [business-specific parameters](#common-args) such as [`detection_direction`](https://docs.victoriametrics.com/anomaly-detection/components/models/#detection-direction) or [`min_dev_from_expected`](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-deviation-from-expected) to remain **unchanged during optimizations, retaining their initial values**. I.e. setting `optimized_business_params` to  `['detection_direction']` will allow to optimize only `detection_direction` business-specific arg, while `min_dev_from_expected` will retain its default value of (e.g. [1, 2] if set to that value in model config). By default and if not set, will be equal to `[]` (empty list), meaning no business params will be optimized. **A recommended option is to leave it empty** as this feature is still experimental and may lead to unexpected results.
+  - `optimized_business_params` (list[string]) - {{% available_from "v1.15.0" anomaly %}} Experimental optimization of model-level business parameters is {{% deprecated_from "v1.30.2" anomaly %}}. Keep this list empty and configure stable `detection_direction`, `min_dev_from_expected`, and `min_rel_dev_from_expected` policies on [`reader.queries.<alias>`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#per-query-parameters) instead.
   - `seed` (int) - Random seed for reproducibility and deterministic nature of underlying optimizations.
   - `validation_scheme` (string) - {{% available_from "v1.25.1" anomaly %}} the validation scheme to use for hyperparameter tuning, either `regular` (time-based default) or `leaky` (regular cross-validation with  `n_splits` folds, where each fold is a time-based split of the data). The `leaky` scheme is recommended for `anomaly_percentage` ~ 0%, as it allows the model to "see" all the datapoints at least once during the optimization process, which can lead to better results in such cases. Defaults to `regular`.
   - `n_splits` (int) - How many folds to create for hyperparameter tuning out of your data. The higher, the longer it takes but the better the results can be. Defaults to 3.
@@ -809,7 +790,7 @@ For simple profiles without strong trend or seasonality, prefer [Online MAD](#on
 
 Preset suffixes describe expected profile shape: `smooth` represents gradual recurring curves, `spiky` represents narrow phase peaks, and `plateau` represents sustained calendar levels. Choose only profiles supported by the data. Calendar and holiday features use civil time from the configured query timezone, so hour/day profiles remain aligned across daylight-saving-time transitions.
 
-Temporal Envelope also supports the [common model arguments](#common-args), including `queries`, `schedulers`, `provide_series`, `detection_direction`, `scale`, `clip_predictions`, `min_dev_from_expected`, and `min_rel_dev_from_expected`. Input `data_range` and query timezone are configured on the [reader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#config-parameters).
+Temporal Envelope also supports the [common model arguments](#common-args), including `queries`, `schedulers`, `provide_series`, `scale`, and `clip_predictions`. Configure `data_range`, `detection_direction`, `min_dev_from_expected`, `min_rel_dev_from_expected`, and query timezone under the corresponding [reader query](https://docs.victoriametrics.com/anomaly-detection/components/reader/#per-query-parameters). The multivariate variant applies these business policies independently to each input channel {{% available_from "v1.30.2" anomaly %}}, so one model can represent combinations such as temperature above expected, power above expected, and clock below expected.
 
 The multivariate variant uses `class: temporal_envelope_multivariate` or `model.online.TemporalEnvelopeMultivariateModel` and adds:
 
@@ -902,8 +883,7 @@ models:
     # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']
     # schedulers: [all scheduler aliases defined in `scheduler` section]
     # queries: [all query aliases defined in `reader.queries` section]
-    # detection_direction: 'both'  # meaning both drops and spikes will be captured
-    # min_dev_from_expected: [0.0, 0.0]  # meaning, no minimal threshold is applied to prevent smaller anomalies
+    # Configure detection_direction and minimum-deviation policies under reader.queries.<alias> (query-level from v1.30.2).
     # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
     # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
     # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
@@ -969,8 +949,7 @@ models:
     # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']
     # schedulers: [all scheduler aliases defined in `scheduler` section]
     # queries: [all query aliases defined in `reader.queries` section]
-    # detection_direction: 'both'  # meaning both drops and spikes will be captured
-    # min_dev_from_expected: [0.0, 0.0]  # meaning, no minimal threshold is applied to prevent smaller anomalies
+    # Configure detection_direction and minimum-deviation policies under reader.queries.<alias> (query-level from v1.30.2).
     # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
     # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
     # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
@@ -1016,8 +995,7 @@ models:
     # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']
     # schedulers: [all scheduler aliases defined in `scheduler` section]
     # queries: [all query aliases defined in `reader.queries` section]
-    # detection_direction: 'both'  # meaning both drops and spikes will be captured
-    # min_dev_from_expected: [0.0, 0.0]  # meaning, no minimal threshold is applied to prevent smaller anomalies
+    # Configure detection_direction and minimum-deviation policies under reader.queries.<alias> (query-level from v1.30.2).
     # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
     # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
     # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
@@ -1062,8 +1040,7 @@ models:
     # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']
     # schedulers: [all scheduler aliases defined in `scheduler` section]
     # queries: [all query aliases defined in `reader.queries` section]
-    # detection_direction: 'both'  # meaning both drops and spikes will be captured
-    # min_dev_from_expected: [0.0, 0.0]  # meaning, no minimal threshold is applied to prevent smaller anomalies
+    # Configure detection_direction and minimum-deviation policies under reader.queries.<alias> (query-level from v1.30.2).
     # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
     # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
     # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
@@ -1123,8 +1100,7 @@ models:
     # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper', 'trend']
     # schedulers: [all scheduler aliases defined in `scheduler` section]
     # queries: [all query aliases defined in `reader.queries` section]
-    # detection_direction: 'both'  # meaning both drops and spikes will be captured
-    # min_dev_from_expected: [0.0, 0.0]  # meaning, no minimal threshold is applied to prevent smaller anomalies
+    # Configure detection_direction and minimum-deviation policies under reader.queries.<alias> (query-level from v1.30.2).
     # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
     # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
     # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
@@ -1157,8 +1133,7 @@ models:
     # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper', 'trend']
     # schedulers: [all scheduler aliases defined in `scheduler` section]
     # queries: [all query aliases defined in `reader.queries` section]
-    # detection_direction: 'both'  # meaning both drops and spikes will be captured
-    # min_dev_from_expected: [0.0, 0.0]  # meaning, no minimal threshold is applied to prevent smaller anomalies
+    # Configure detection_direction and minimum-deviation policies under reader.queries.<alias> (query-level from v1.30.2).
     # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
     # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
     # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
@@ -1318,8 +1293,7 @@ models:
     # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']
     # schedulers: [all scheduler aliases defined in `scheduler` section]
     # queries: [all query aliases defined in `reader.queries` section]
-    # detection_direction: 'both'  # meaning both drops and spikes will be captured
-    # min_dev_from_expected: [0.0, 0.0]  # meaning, no minimal threshold is applied to prevent smaller anomalies
+    # Configure detection_direction and minimum-deviation policies under reader.queries.<alias> (query-level from v1.30.2).
     # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
     # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
     # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
@@ -1361,8 +1335,7 @@ models:
     # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']
     # schedulers: [all scheduler aliases defined in `scheduler` section]
     # queries: [all query aliases defined in `reader.queries` section]
-    # detection_direction: 'both'  # meaning both drops and spikes will be captured
-    # min_dev_from_expected: [0.0, 0.0]  # meaning, no minimal threshold is applied to prevent smaller anomalies
+    # Configure detection_direction and minimum-deviation policies under reader.queries.<alias> (query-level from v1.30.2).
     # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
     # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
     # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
@@ -1433,7 +1406,7 @@ Create `custom_model.py` with a `CustomModel` class derived from `Model`. A conc
 - `serialize`, which returns `bytes` suitable for on-disk storage;
 - `deserialize`, which restores the same model from bytes or a file path.
 
-Model-specific configuration is passed through the `args` mapping. The example below learns a stationary normal interval. It emits the standard forecast columns and uses the base-class anomaly-score calculation, so common settings such as `detection_direction`, `data_range`, `scale`, and minimum deviations continue to work.
+Model-specific configuration is passed through the `args` mapping. The example below learns a stationary normal interval. It emits the standard forecast columns and uses the base-class anomaly-score calculation, so query policies such as `detection_direction`, `data_range`, and minimum deviations, together with model settings such as `scale`, continue to work.
 
 ```python
 from pickle import dumps
@@ -1561,7 +1534,7 @@ See the [component configuration reference](https://docs.victoriametrics.com/ano
 Pull the `vmanomaly` image:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.30.1
+docker pull victoriametrics/vmanomaly:v1.30.2
 ```
 
 Mount the module at `/vmanomaly/src/model/custom.py`, which matches the configured import path `model.custom.CustomModel`. Validate the complete configuration with `--dryRun` before starting the long-running service.
@@ -1571,7 +1544,7 @@ docker run --rm \
   -v "$PWD/license:/license:ro" \
   -v "$PWD/custom_model.py:/vmanomaly/src/model/custom.py:ro" \
   -v "$PWD/config.yaml:/config.yaml:ro" \
-  victoriametrics/vmanomaly:v1.30.1 \
+  victoriametrics/vmanomaly:v1.30.2 \
   /config.yaml \
   --licenseFile=/license \
   --dryRun
@@ -1669,8 +1642,7 @@ models:
     # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']
     # schedulers: [all scheduler aliases defined in `scheduler` section]
     # queries: [all query aliases defined in `reader.queries` section]
-    # detection_direction: 'both'  # meaning both drops and spikes will be captured
-    # min_dev_from_expected: [0.0, 0.0]  # meaning, no minimal threshold is applied to prevent smaller anomalies
+    # Configure detection_direction and minimum-deviation policies under reader.queries.<alias> (query-level from v1.30.2).
     # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
     # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
     # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
@@ -1711,8 +1683,7 @@ models:
     # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']
     # schedulers: [all scheduler aliases defined in `scheduler` section]
     # queries: [all query aliases defined in `reader.queries` section]
-    # detection_direction: 'both'  # meaning both drops and spikes will be captured
-    # min_dev_from_expected: [0.0, 0.0]  # meaning, no minimal threshold is applied to prevent smaller anomalies
+    # Configure detection_direction and minimum-deviation policies under reader.queries.<alias> (query-level from v1.30.2).
     # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
     # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
     # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set

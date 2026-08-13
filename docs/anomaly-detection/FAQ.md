@@ -33,7 +33,7 @@ Please see example graph illustrating this logic below:
 
 ![anomaly-score-calculation-example](vmanomaly-prophet-example.webp)
 
-> p.s. please note that additional post-processing logic might be applied to produced anomaly scores, if common arguments like [`min_dev_from_expected`](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-deviation-from-expected) or [`detection_direction`](https://docs.victoriametrics.com/anomaly-detection/components/models/#detection-direction) are enabled for a particular model. Follow the links above for the explanations.
+> Additional post-processing logic may be applied to produced anomaly scores when query policies such as [`min_dev_from_expected`](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-deviation-from-expected) or [`detection_direction`](https://docs.victoriametrics.com/anomaly-detection/components/models/#detection-direction) are configured. Follow the links for details.
 
 
 ## How does vmanomaly work?
@@ -135,7 +135,7 @@ Still not 100% sure what to use? We are [here to help](https://docs.victoriametr
 
 ## Incorporating domain knowledge
 
-Anomaly detection models can significantly improve when incorporating business-specific assumptions about the data and what constitutes an anomaly. `vmanomaly` supports various [business-side configuration parameters](https://docs.victoriametrics.com/anomaly-detection/components/models/#common-args) across all built-in models to **reduce [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive)** and **align model behavior with business needs**, for example:
+Anomaly detection models can significantly improve when incorporating business-specific assumptions about the data and what constitutes an anomaly. `vmanomaly` supports [query-level business policies](https://docs.victoriametrics.com/anomaly-detection/components/reader/#per-query-parameters) across built-in models to **reduce [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive)** and **align model behavior with business needs**, for example:
 
 - **Setting `detection_direction`** - use [`detection_direction`](https://docs.victoriametrics.com/anomaly-detection/components/models/#detection-direction) to specify whether anomalies occur **above or below expectations**:
   - Set to `above_expected` for metrics like error rates, where spikes indicate anomalies.
@@ -163,7 +163,7 @@ Then, the following config may be used to benefit from incorporating domain know
 schedulers:
   periodic_http:
     class: periodic
-    fit_every: 12w
+    fit_every: 1000d  # online models learn on the inference stream and do not need periodic refits
     fit_window: 1w
     infer_every: 1m
   # other schedulers ...
@@ -172,7 +172,10 @@ reader:
   queries:
     percentage_4xx:
       expr: respective_metricsQL_expr
-      data_range: [0, 0.05]  # to automatically trigger anomaly score > 1 for error rates > 5%
+      data_range: [0, 0.05]  # query-level business policy from v1.30.2; error rates >5% trigger anomaly score >1
+      detection_direction: 'above_expected'  # query-level from v1.30.2; only spikes are anomalous
+      min_dev_from_expected: [0, 0.005]  # query-level from v1.30.2; ignore upward deviations below 0.5%
+      min_rel_dev_from_expected: [0, 10]  # query-level from v1.30.2; ignore upward deviations below 10%
       step: 1m
 models:
   # other models ...
@@ -181,9 +184,6 @@ models:
     z_threshold: 3.0
     schedulers: ['periodic_http']
     queries: ['percentage_4xx']
-    detection_direction: 'above_expected'  # as interested only in spikes, drops are OK
-    min_dev_from_expected: [0, 0.005]  # <0.5% deviations vs expected values should be neglected, generating anomaly score == 0
-    min_rel_dev_from_expected: [0, 0.1]  # <10% relative deviations vs expected values should be neglected, generating anomaly score == 0
     # to align predictions to be within [0, 5%] interval, defined in reader.queries.percentage_4xx.data_range
     clip_predictions: True
     # specify output series produced by vmanomaly to be written to VictoriaMetrics in `writer`
@@ -264,12 +264,12 @@ Here's an example of how to produce forecasts using `vmanomaly` and combine it w
 schedulers:
   periodic_5m:  # this scheduler will be used to produce anomaly scores each 5 minutes using "regular" simple model
     class: 'periodic'
-    fit_every: '100w'
+    fit_every: '1000d'  # online models learn on the inference stream and do not need periodic refits
     fit_window: '3d'
     infer_every: '5m'
   periodic_forecast:  # this scheduler will be used to produce forecasts each 24h using "daily" model
     class: 'periodic'
-    fit_every: '1000w'
+    fit_every: '1000d'  # online models learn on the inference stream and do not need periodic refits
     fit_window: '730d' # to fit the model on 2 years of data to account for seasonality and holidays
     infer_every: '24h'
 # https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader
@@ -289,6 +289,7 @@ reader:
           1h
         )
       data_range: [0, 1]
+      detection_direction: 'above_expected'  # query-level from v1.30.2
       # step: '1m'  # default will be inherited from sampling_period
     disk_usage_perc_1d:
       expr: |
@@ -300,6 +301,7 @@ reader:
         )
       step: '1d'  # override default step to 1d, as we want to produce daily forecasts
       data_range: [0, 1]
+      detection_direction: 'above_expected'  # query-level from v1.30.2
 # https://docs.victoriametrics.com/anomaly-detection/components/models/
 models:
   quantile_5m:
@@ -307,7 +309,6 @@ models:
     queries: ['disk_usage_perc_5m']
     schedulers: ['periodic_5m']
     clip_predictions: True
-    detection_direction: 'above_expected'  # as we are interested in spikes in capacity planning
     quantiles: [0.25, 0.5, 0.75]  # to produce median and upper quartiles
     iqr_threshold: 2.0
 
@@ -316,7 +317,6 @@ models:
     queries: ['disk_usage_perc_1d']
     schedulers: ['periodic_forecast']
     clip_predictions: True
-    detection_direction: 'above_expected'  # as we are interested in spikes in capacity planning
     forecast_at: ['3d', '7d']  # this will produce forecasts for 3 and 7 days ahead
     provide_series: ['yhat', 'yhat_upper']  # to write forecasts back to VictoriaMetrics, omitting `yhat_lower` as it is not needed in this example
     seasonalities: [dow_smooth]
@@ -425,13 +425,17 @@ For information on migrating between different versions of `vmanomaly`, please r
 
 > {{% available_from "v1.24.0" anomaly %}} This feature is best used in conjunction with [stateful mode](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration) to ensure that the model state is preserved across service restarts.
 
+> {{% available_from "v1.30.2" anomaly %}} Scheduler-managed Parquet fit data is temporary. It is removed after every dependent univariate or multivariate model completes fitting and commits its state, rather than being retained until the next `fit_every` cycle. Model dumps and state metadata remain available for restoration.
+
+> {{% available_from "v1.30.2" anomaly %}} Disk-backed grouped multivariate workloads prepare active groups with bounded concurrency instead of materializing every group at once, reducing peak memory at high series cardinality without changing model output or persisted-state compatibility.
+
 Here's an example of how to set it up in docker-compose using volumes:
 ```yaml
 services:
   # ...
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.30.1
+    image: victoriametrics/vmanomaly:v1.30.2
     # ...
     restart: always
     volumes:
@@ -502,7 +506,7 @@ settings:
 schedulers:
   periodic:
     class: 'periodic'
-    fit_every: '180d'  # we need only initial fit to start
+    fit_every: '1000d'  # online models learn on the inference stream and do not need periodic refits
     fit_window: '4h'  # reduced window, especially if the data doesn't have strong seasonality
     infer_every: '1m'  # the model will be updated during each infer call
   # other schedulers ...
@@ -524,11 +528,11 @@ As a result, switching from the offline Z-score model to the Online Z-score mode
 
 **New configuration**: 
 - `fit_window`: 4 hours
-- `fit_every`: 180 days ( >1 week)
+- `fit_every`: 1000 days ( >1 week)
 
 The old configuration would perform 168 (hours in a week) `fit` calls, each using 2 days (48 hours) of data, totaling 168 * 48 = 8064 hours of data for each timeseries returned.
 
-The new configuration performs only 1 `fit` call in 180 days, using 4 hours of data initially, totaling 4 hours of data, which is **magnitudes smaller**.
+The new configuration performs only 1 `fit` call in 1000 days, using 4 hours of data initially, totaling 4 hours of data, which is **magnitudes smaller**.
 
 P.s. `infer` data volume will remain the same for both models, so it does not affect the overall calculations.
 
@@ -654,7 +658,7 @@ options:
 Here’s an example of using the config splitter to divide configurations based on the `extra_filters` argument from the reader section:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.30.1 && docker image tag victoriametrics/vmanomaly:v1.30.1 vmanomaly
+docker pull victoriametrics/vmanomaly:v1.30.2 && docker image tag victoriametrics/vmanomaly:v1.30.2 vmanomaly
 ```
 
 ```sh

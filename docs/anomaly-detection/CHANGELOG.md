@@ -16,6 +16,23 @@ Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
 {{% collapse name="2026" open=true %}}
 
+## v1.30.2
+Released: 2026-08-13
+
+- UI: Updated [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/) from [v1.8.1](https://docs.victoriametrics.com/anomaly-detection/ui/#v181) to [v1.8.2](https://docs.victoriametrics.com/anomaly-detection/ui/#v182). VMUI now discovers and switches numeric tenants correctly when the configured VictoriaMetrics datasource uses `/select/multitenant/prometheus`.
+
+- FEATURE: Added query-level [`data_range`, `detection_direction`, `min_dev_from_expected`, and `min_rel_dev_from_expected`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#per-query-parameters) policies. A query now owns the stable business meaning of its KPI across univariate and multivariate models. Multivariate Temporal Envelope applies the policies independently to each input channel. Existing model-level values remain compatible as model-local fallbacks, emit a deprecation warning, and are overridden by explicit query policies.
+
+- IMPROVEMENT: Added [`reader.workers`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#config-parameters) to cap concurrent datasource requests and disk-streamed query chunks. The default `0` selects a bounded value automatically from the query count and available CPUs.
+
+- IMPROVEMENT: Added [`settings.native_threads_per_worker`](https://docs.victoriametrics.com/anomaly-detection/components/settings/#parallelization) to limit native numerical-library threads per model worker. Automatic mode is aware of container CPU limits and reduces oversubscription and CPU throttling in parallel workloads.
+
+- IMPROVEMENT: Scheduler-managed fit-data Parquet generations are removed after every dependent model finishes fitting and commits its state. Failed and overlapping fits retain safe ownership, while completed bootstrap-only online workloads no longer keep the full fit window indefinitely.
+
+- IMPROVEMENT: Reduced memory pressure for disk-backed grouped multivariate fit and inference workloads, improving stability at high series cardinality without changing model or persisted-state formats.
+
+- BUGFIX: Made multivariate Temporal Envelope and Isolation Forest inference independent of input channel order when the channel set matches the fitted model. Missing, extra, and duplicate channels remain rejected, while matching channels are restored to learned fit order before scoring or online updates.
+
 ## v1.30.1
 Released: 2026-08-06
 
