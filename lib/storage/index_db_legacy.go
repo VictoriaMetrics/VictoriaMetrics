@@ -87,17 +87,18 @@ func mustOpenLegacyIndexDB(path string, s *Storage) *legacyIndexDB {
 }
 
 func (db *indexDB) legacyContainsDate(date uint64) bool {
-	tr := TimeRange{
-		MinTimestamp: int64(date) * msecPerDay,
-		MaxTimestamp: int64(date+1)*msecPerDay - 1,
+	var tr TimeRange
+	if date == globalIndexDate {
+		tr = globalIndexTimeRange
+	} else {
+		tr.MinTimestamp = int64(date) * msecPerDay
+		tr.MaxTimestamp = int64(date+1)*msecPerDay - 1
 	}
 	return db.legacyContainsTimeRange(tr)
 }
 
 func (db *indexDB) legacyContainsTimeRange(tr TimeRange) bool {
-	if db.s.disablePerDayIndex {
-		// If per-day index is disabled, there is no way to tell if indexDB
-		// contains data for the given time range. Assume that it does.
+	if tr == globalIndexTimeRange {
 		return true
 	}
 
