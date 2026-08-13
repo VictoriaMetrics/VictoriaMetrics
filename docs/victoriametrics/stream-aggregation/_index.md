@@ -1,7 +1,7 @@
 ---
 weight: 39
 title: Streaming aggregation
-description: "Real-time stream aggregation in vmagent and single-node VM, including output functions (count, sum, avg, min, max, histogram_bucket, rate, increase, quantile,"
+description: "Real-time stream aggregation in vmagent and single-node VM, including output functions such as count, sum, avg, min, max, histogram_bucket, rate, increase, and more."
 menu:
   docs:
     parent: 'victoriametrics'

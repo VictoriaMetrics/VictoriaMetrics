@@ -1,6 +1,6 @@
 ---
 title: Thanos
-description: "Migrate data from Thanos blocks via snapshot or remote-read."
+description: "Migrate data from Thanos snapshot blocks to VictoriaMetrics."
 weight: 5
 menu:
   docs:

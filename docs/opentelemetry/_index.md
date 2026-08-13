@@ -1,6 +1,6 @@
 ---
 title: OpenTelemetry
-description: "Native OTLP ingestion for metrics (VictoriaMetrics), logs (VictoriaLogs), and traces (VictoriaTraces). Contains configuration, data mapping, and demos."
+description: "OTLP ingestion for metrics, logs, and traces in VictoriaMetrics, VictoriaLogs, and VictoriaTraces, with signal correlation and configuration guides."
 weight: 60
 menu:
   docs:

@@ -1,6 +1,6 @@
 ---
 title: VictoriaMetrics
-description: "Learn about VictoriaMetrics extensions to PromQL and the additional query features available in MetricsQL."
+description: "Fast, cost-effective, and scalable time series database for monitoring and managing metrics data."
 menu:
   docs:
     weight: 10

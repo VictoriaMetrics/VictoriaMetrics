@@ -1,6 +1,6 @@
 ---
 title: Anomaly Detection
-description: "Use vmanomaly to detect unusual patterns in metrics and logs. Learn how to configure models, run inference, monitor the service, and connect results to"
+description: "Use vmanomaly to detect anomalies in metrics and logs. Configure models, run inference, monitor the service, and connect results to alerts and dashboards."
 weight: 50
 menu:
   docs:

@@ -5,7 +5,7 @@ menu:
     parent: victoriametrics
     weight: 9
 title: vmgateway
-description: "Configure vmgateway as a gateway for routing, load balancing, and multi-tenant access to VictoriaMetrics."
+description: "Proxy for the VictoriaMetrics TSDB providing per-tenant rate limiting and token-based access control."
 tags:
   - metrics
   - enterprise
