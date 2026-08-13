@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/cespare/xxhash/v2"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/appmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
@@ -233,6 +234,7 @@ func Init() {
 	initStreamAggrConfigGlobal()
 
 	initRemoteWriteCtxs(*remoteWriteURLs)
+	appmetrics.MustCreateUncleanShutdownMarker(*tmpDataPath)
 
 	disableOnDiskQueues := []bool(*disableOnDiskQueue)
 	disableOnDiskQueueAny = slices.Contains(disableOnDiskQueues, true)
@@ -391,6 +393,8 @@ func Stop() {
 	if sl := dailySeriesLimiter; sl != nil {
 		sl.MustStop()
 	}
+
+	appmetrics.MustRemoveUncleanShutdownMarker(*tmpDataPath)
 }
 
 // PushDropSamplesOnFailure pushes wr to the configured remote storage systems set via -remoteWrite.url
