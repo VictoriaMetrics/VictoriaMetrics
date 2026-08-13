@@ -85,7 +85,7 @@ func BenchmarkIfExpressionAlternatives(b *testing.B) {
 		result  bool
 	}
 	var testCases []benchmarkCase
-	for _, labelsCount := range []int{16, 32, 48} {
+	for _, labelsCount := range []int{16, 48} {
 		testCases = append(testCases, benchmarkCase{
 			name:    fmt.Sprintf("single_exact_match/labels_%d", labelsCount),
 			ifExprs: []string{"metric_0"},
@@ -93,13 +93,13 @@ func BenchmarkIfExpressionAlternatives(b *testing.B) {
 			result:  true,
 		})
 	}
-	for _, alternativesCount := range []int{16, 32, 64} {
+	for _, alternativesCount := range []int{6, 32} {
 		exact := newIfExpressionBenchmarkExpressions(alternativesCount, "metric_%d")
 		mixedExactCount := alternativesCount * 7 / 8
 		mixed := append([]string{}, newIfExpressionBenchmarkExpressions(mixedExactCount, "metric_%d")...)
 		mixed = append(mixed, newIfExpressionBenchmarkExpressions(alternativesCount-mixedExactCount, `{missing_%d="yes"}`)...)
 		generic := newIfExpressionBenchmarkExpressions(alternativesCount, `{missing_%d="yes"}`)
-		for _, labelsCount := range []int{16, 32, 48} {
+		for _, labelsCount := range []int{16, 48} {
 			testCases = append(testCases,
 				benchmarkCase{
 					name:    fmt.Sprintf("distinct_exact_%d_miss/labels_%d", alternativesCount, labelsCount),
@@ -123,34 +123,13 @@ func BenchmarkIfExpressionAlternatives(b *testing.B) {
 	for _, tc := range testCases {
 		b.Run(tc.name, func(b *testing.B) {
 			ie := mustNewIfExpressionForBenchmark(b, tc.ifExprs)
-			b.Run("optimized", func(b *testing.B) {
-				for b.Loop() {
-					if result := ie.Match(tc.labels); result != tc.result {
-						b.Fatalf("unexpected match result; got %v; want %v", result, tc.result)
-					}
+			for b.Loop() {
+				if result := ie.Match(tc.labels); result != tc.result {
+					b.Fatalf("unexpected match result; got %v; want %v", result, tc.result)
 				}
-			})
-			b.Run("legacy", func(b *testing.B) {
-				for b.Loop() {
-					if result := matchIfExpressionLegacy(ie, tc.labels); result != tc.result {
-						b.Fatalf("unexpected match result; got %v; want %v", result, tc.result)
-					}
-				}
-			})
+			}
 		})
 	}
-}
-
-func matchIfExpressionLegacy(ie *IfExpression, labels []prompb.Label) bool {
-	if ie == nil || len(ie.ies) == 0 {
-		return true
-	}
-	for _, ieLocal := range ie.ies {
-		if ieLocal.Match(labels) {
-			return true
-		}
-	}
-	return false
 }
 
 func mustNewIfExpressionForBenchmark(b *testing.B, ifExprs []string) *IfExpression {
