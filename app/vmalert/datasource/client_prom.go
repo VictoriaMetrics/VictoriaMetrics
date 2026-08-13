@@ -109,7 +109,7 @@ func (pi *promInstant) Unmarshal(b []byte) error {
 		if len(sample) != 2 {
 			return fmt.Errorf("object `value` in %q should contain 2 values, but contains %d instead", row, len(sample))
 		}
-		r.Timestamps = []int64{sample[0].GetInt64()}
+		r.Timestamps = []int64{int64(sample[0].GetFloat64())}
 		val, err := sample[1].StringBytes()
 		if err != nil {
 			return fmt.Errorf("error when parsing `value` object %q: %w", sample[1], err)
