@@ -290,6 +290,8 @@ func (g *Group) updateWith(newGroup *Group) error {
 	g.Headers = newGroup.Headers
 	g.NotifierHeaders = newGroup.NotifierHeaders
 	g.Labels = newGroup.Labels
+	g.EvalDelay = newGroup.EvalDelay
+	g.evalAlignment = newGroup.evalAlignment
 	g.Limit = newGroup.Limit
 	g.checksum = newGroup.checksum
 	g.Rules = newRules
