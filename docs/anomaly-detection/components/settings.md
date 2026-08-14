@@ -16,7 +16,7 @@ aliases:
 Through the **Settings** section of a config, you can configure the following parameters of the anomaly detection service:
 
 - [Anomaly score outside data range](#anomaly-score-outside-data-range) - specific anomaly score fo values outside the expected data range of particular query
-- [Parallelization](#parallelization) - number of workers to run workloads in parallel
+- [Parallelization](#parallelization) - process workers and native numerical-library threads used by each worker
 - [State restoration](#state-restoration) - whether to restore models' state in between runs if the service is restarted or stopped
 
 ## Anomaly Score Outside Data Range
@@ -36,7 +36,7 @@ settings:
 schedulers:
   periodic:
     class: periodic
-    fit_every: 5m
+    fit_every: 1000d  # bootstrap-only schedule; use a finite cadence if accumulated state must be reset
     fit_window: 3h
     infer_every: 30s
   # other schedulers
@@ -45,12 +45,14 @@ models:
   zscore_online_inherited:
     class: zscore_online
     z_threshold: 3.5
+    decay: 0.99  # give more weight to recent data while using the bootstrap-only fit schedule
     clip_predictions: True
     # will be inherited from settings.anomaly_score_outside_data_range
     # anomaly_score_outside_data_range: 5.0
   zscore_online_override:
     class: zscore_online
     z_threshold: 3.5
+    decay: 0.99  # give more weight to recent data while using the bootstrap-only fit schedule
     clip_predictions: True
     anomaly_score_outside_data_range: 1.5  # will override settings.anomaly_score_outside_data_range
   # other models
@@ -86,24 +88,29 @@ monitoring:
   # other monitoring settings
 ```
 
+The examples on this page use `fit_every: 1000d` as an effectively bootstrap-only schedule. This is appropriate when an online model has a suitable forgetting or reactivity mechanism, such as `zscore_online` with `decay < 1`. If outdated history must be discarded explicitly, choose a finite fit cadence instead; each fit resets the online model state from the configured `fit_window`.
+
 ## Parallelization
 
-The `n_workers` argument allows you to explicitly specify the number of workers for internal parallelization of the service. This can help improve performance on multicore systems by allowing the service to process multiple tasks in parallel. For backward compatibility, it's set to `1` by default, meaning that the service will run in a single-threaded mode. It should be an integer greater than or equal to `-1`, where `-1` and `0` means that the service will automatically inherit the number of workers based on the number of available CPU cores.
+The `n_workers` argument allows you to explicitly specify the number of process workers for internal parallelization of the service. This can help improve performance on multicore systems by allowing the service to process multiple tasks in parallel. For backward compatibility, it is set to `1` by default. It should be an integer greater than or equal to `-1`; values `-1` and `0` use the number of CPU cores available to the service, including container CPU limits.
 
-Increasing the number can be particularly useful when dealing with a high volume of queries returning many (long) timeseries.
-Decreasing the number can be useful when running the service on a system with limited resources or when you want to reduce the load on the system.
+The `native_threads_per_worker` argument {{% available_from "v1.30.2" anomaly %}} limits [native numerical-library threads](https://scikit-learn.org/stable/computing/parallelism.html#oversubscription-spawning-too-many-threads), such as OpenBLAS threads, inside each model worker. Its default `0` divides the CPU capacity available to the service across effective workers automatically. A positive integer requests an explicit per-worker limit, capped by the CPU share available to that worker. This avoids oversubscription and CPU throttling when every process would otherwise start its own multi-threaded numerical workload. Both `n_workers` and `native_threads_per_worker` are startup settings and require a service restart to change.
+
+- **Increasing** the number can be particularly useful when dealing with a high volume of queries returning many (long) timeseries.
+- **Decreasing** the number can be useful when running the service on a system with limited resources or when you want to reduce the load on the system.
 
 Here's an example configuration that uses 4 workers for service's internal parallelization:
 
 ```yaml
 settings:
   n_workers: 4
+  native_threads_per_worker: 0  # automatically divide available CPU capacity across workers
   restore_state: False  # do not restore state from previous run
 
 schedulers:
   periodic:
     class: periodic
-    fit_every: 5m
+    fit_every: 1000d  # bootstrap-only schedule; use a finite cadence if accumulated state must be reset
     fit_window: 3h
     infer_every: 30s
   # other schedulers
@@ -112,6 +119,7 @@ models:
   zscore_online_override:
     class: zscore_online
     z_threshold: 3.5
+    decay: 0.99  # give more weight to recent data while using the bootstrap-only fit schedule
     clip_predictions: True
   # other models
 
@@ -149,10 +157,11 @@ monitoring:
 
 > This feature is best used with config [hot-reloading](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) {{% available_from "v1.25.0" anomaly %}} for increased deployment flexibility.
 
-The `restore_state` argument {{% available_from "v1.24.0" anomaly %}} makes `vmanomaly` service **stateful** by persisting and restoring state between runs. If enabled, the service will save the state of anomaly detection models and their training data to local filesystem, allowing for seamless continuation of operations after service restarts.
+The `restore_state` argument {{% available_from "v1.24.0" anomaly %}} makes `vmanomaly` service **stateful** by persisting and restoring service metadata and fitted model state between runs, allowing seamless continuation after service restarts.
 
 By default, `restore_state` is set to `false`, meaning the service will start fresh on each restart, to maintain backward compatibility.
 
+> [!WARNING]
 > This feature requires enabling [on-disk mode](https://docs.victoriametrics.com/anomaly-detection/faq/#on-disk-mode) for the models and data. If not enabled, the service will exit with an error when `restore_state` is set to `true`.
 
 ### Benefits
@@ -164,14 +173,16 @@ This feature improves the experience of using the anomaly detection service in s
 
 ### How it works
 
-**Storage**: The service dumps its state into a database file located at `$VMANOMALY_MODEL_DUMPS_DIR/vmanomaly.db`. This database contains metadata about model configurations, schedulers and references to the trained model instances and their respective data.
+**Storage**: The service dumps its state into a database file located at `$VMANOMALY_MODEL_DUMPS_DIR/vmanomaly.db`. This database contains metadata about model configurations and schedulers, together with references to trained model artifacts. Scheduler-managed Parquet data is temporary fit input rather than durable model state.
 
 **State restoration**: When the service starts with `restore_state` set to `true`, it will:
 1. Check for the existence of the database file in the specified directory.
-2. If the file does not exist, it will create a new database file and initialize the state with the current configuration, training models as needed. If the file exists, then it compares the loaded state with the current configuration to ensure compatibility - what can be reused and what needs to be retrained (e.g., if the model class or hyperparameters have changed, it will not restore the state for that model, same for schedulers or reader queries). For reusable components, previously saved state, including model configurations, trained model instances, and their training data, will be restored.
-3. Subsequently, it will check for model "staleness" and retrain models if necessary, based on the current configuration and the last training time stored in the database vs next scheduled training time. If the model is **actual**, it will continue to use the previously trained model instances or its training data. If the model is **stale** (e.g. `fit_every` time has passed since the last training), it will retrain the model using the latest data of `fit_window` length from VictoriaMetrics TSDB.
+2. If the file does not exist, it will create a new database file and initialize the state with the current configuration, training models as needed. If the file exists, then it compares the loaded state with the current configuration to determine what can be reused and what needs to be retrained (for example, a changed model class, hyperparameter, scheduler, or reader query invalidates the affected state). Compatible model configurations and trained model instances are restored.
+3. Subsequently, it checks model "staleness" and retrains models if necessary, based on the current configuration and the last training time stored in the database versus the next scheduled training time. If the model is **actual**, it continues to use the previously trained model instance. If the model is **stale** (for example, `fit_every` has passed since the last training), it reads the latest `fit_window` from VictoriaMetrics and retrains the model.
 
 **State update**: The service periodically saves the updated state after each "atomic" operations, such as (model_alias, query_alias)-based training or inference. This ensures that the state is always up-to-date and can be restored in case of a service restart. [Online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models) are also updated after each inference, while [offline models](https://docs.victoriametrics.com/anomaly-detection/components/models/#offline-models) are only saved after each training operation as they do not change the state during consecutive fit calls.
+
+**Fit-data cleanup**: {{% available_from "v1.30.2" anomaly %}} Each scheduler-managed Parquet generation is removed after all dependent univariate or multivariate models finish fitting and commit their state. Failed or overlapping fits retain their own generation until it is safe to clean up. This keeps the initial bootstrap window available while it is in use without retaining it for the full `fit_every` interval.
 
 **Cleanup behavior**: When `restore_state` is switched from `true` to `false`, the database file is automatically removed on the next service startup to prevent inconsistent behavior. All the artifacts (such as model dumps and data dumps) will be removed as well, so the service will start fresh without any previous state.
 
@@ -185,7 +196,7 @@ settings:
 schedulers:
   periodic:
     class: periodic
-    fit_every: 5m
+    fit_every: 1000d  # bootstrap-only schedule; use a finite cadence if accumulated state must be reset
     fit_window: 3h
     infer_every: 30s
   # other schedulers
@@ -194,6 +205,7 @@ models:
   zscore_online:
     class: zscore_online
     z_threshold: 3.5
+    decay: 0.99  # give more weight to recent data while using the bootstrap-only fit schedule
     clip_predictions: True
   # other models
 
@@ -242,16 +254,19 @@ settings:
 schedulers:
   periodic_1d:
     class: periodic
-    fit_every: 1h
+    fit_every: 1000d  # bootstrap-only schedule; use a finite cadence if accumulated state must be reset
     infer_every: 30s
     fit_window: 24h
 models:
   zscore_online:
     class: zscore_online
     z_threshold: 3.5
+    decay: 0.99  # give more weight to recent data while using the bootstrap-only fit schedule
     schedulers: ['periodic_1d']
   temporal_envelope:
     class: temporal_envelope
+    alpha: 0.005  # adapt the trend while using the bootstrap-only fit schedule
+    loss_reactivity: 5  # allow new deviations to update the envelope
     schedulers: ['periodic_1d']
     queries: ['q1', 'q2']
     seasonalities: ['hod_smooth', 'dow_smooth']
@@ -268,7 +283,7 @@ reader:
 # other components like writer, monitoring, etc.
 ```
 
-if the service is restarted in less than 1 hour after the last training (now < next scheduled fit time), it will restore the state of the `zscore_online` and `temporal_envelope` models if their signature (class, hyperparameters, schedulers, etc.) has not changed. It will load the trained model instances or their training data from disk and continue producing [anomaly scores](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score) without retraining. If there are changes or new queries added to the configuration, the service will add these to scheduled jobs for fit and infer. That's what is changed and what is restored in a config below:
+if the service is restarted before the next scheduled fit, it will restore the state of the `zscore_online` and `temporal_envelope` models if their signature (class, hyperparameters, schedulers, etc.) has not changed. It loads trained model instances from disk and continues producing [anomaly scores](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score) without retraining. If there are changes or new queries added to the configuration, the service will add these to scheduled jobs for fit and infer. That's what is changed and what is restored in a config below:
 
 ```yaml
 settings:
@@ -277,16 +292,19 @@ settings:
 schedulers:
   periodic_1d:  # can be fully reused, no changes
     class: periodic
-    fit_every: 1h  # unchanged, still fits every hour
+    fit_every: 1000d  # unchanged bootstrap-only schedule
     infer_every: 30s  # unchanged, still infers every 30 seconds
     fit_window: 24h  # unchanged, still fits on the last 24 hours of data
 models:
   zscore_online:  # can't be reused, because its `z_threshold` has changed
     class: zscore_online  # unchanged, still the same model class
     z_threshold: 3.0 # changed, needs retraining!
+    decay: 0.99  # unchanged forgetting factor
     schedulers: ['periodic_1d']  # unchanged, still attached to the same scheduler
   temporal_envelope:  # can be partially reused, because its class and schedulers are unchanged but queries have changed
     class: temporal_envelope  # unchanged, still the same model class
+    alpha: 0.005  # unchanged trend reactivity
+    loss_reactivity: 5  # unchanged envelope reactivity
     schedulers: ['periodic_1d']  # unchanged, still attached to the same scheduler
     queries: ['q1', 'q3']  # changed, added new query 'q3', drops 'q2', so (temporal_envelope, q2) should be trained from scratch
     seasonalities: ['hod_smooth', 'dow_smooth']  # unchanged
@@ -314,31 +332,31 @@ This means that the service upon restart:
 
 ## Retention
 
-{{% available_from "v1.28.1" anomaly %}} The `retention` argument sets a [time to live](https://en.wikipedia.org/wiki/Time_to_live) (TTL) for service artifacts such as stored model instances and training data. At each `check_interval`, the service removes artifacts that have not been used for inference or refitting within `ttl`. This bounds stale resource usage in long-running deployments.
+{{% available_from "v1.28.1" anomaly %}} The `retention` argument sets a [time to live](https://en.wikipedia.org/wiki/Time_to_live) (TTL) for stored model instances. At each `check_interval`, the service removes instances that have not been used for inference or refitting within `ttl`. This bounds stale resource usage in long-running deployments. Temporary scheduler-managed fit data follows the [fit-data cleanup lifecycle](#how-it-works) independently.
 
 ### Use Cases
 - With **[online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models)** as they continuously create model instances for new timeseries over time during inference calls, especially when combined with [periodic schedulers](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) with infrequent `fit_every` (say, `90d`).
-- In deployments where **the set of monitored timeseries changes frequently**, leading to accumulation of unused model instances and training data over time, due to high churn rate or relabeling of metrics.
-- When using **[state restoration](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration) feature** which improves fault tolerance, but may retain all model instances and their training data for considerable time, potentially leading to high disk or RAM usage.
+- In deployments where **the set of monitored timeseries changes frequently**, leading to accumulation of unused model instances due to high churn rate or relabeling of metrics.
+- When using **[state restoration](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration)**, which improves fault tolerance but can retain inactive model instances unless retention is configured.
 
 ### Configuration
 
-The section is **backward-compatible and disabled by default**, meaning that all model instances and their training data are retained unless:
+The section is **backward-compatible and disabled by default**, meaning that model instances are retained unless:
 - The service is restarted with `restore_state` set to `false`, which triggers a cleanup of all stored artifacts.
 - The models are marked as outdated once scheduled re-fitting is due, leading to retraining and replacement of previous artifacts.
 
-`ttl` argument defines the time-to-live period for model instances and their training data. It should be a valid period string (e.g., `7d` for 7 days, `30d` for 30 days, etc.). If a model instance or its training data has not been used for inference or refitting within this period, it will be considered stale and eligible for cleanup.
+`ttl` defines the time-to-live period for model instances. It should be a valid period string (e.g., `7d` for 7 days or `30d` for 30 days). If a model instance has not been used for inference or refitting within this period, it is considered stale and eligible for cleanup.
 
 > If `ttl` is greater than a scheduler's `fit_every`, the model is refitted before it becomes stale and the TTL has no effect.
 
-`check_interval` argument defines how often the service should check for stale artifacts. It should be a valid period string (e.g., `1h` for 1 hour, `24h` for 24 hours, etc.). During each check, the service will evaluate all stored model instances and their training data against the defined `ttl` and remove those that are stale.
+`check_interval` defines how often the service should check for stale artifacts. It should be a valid period string (e.g., `1h` for 1 hour or `24h` for 24 hours). During each check, the service evaluates stored model instances against the defined `ttl` and removes those that are stale.
 
 > Check interval should be set to a value smaller than `ttl` and smaller than the smallest `fit_every` period among all schedulers used in the config to ensure timely cleanup of stale artifacts, otherwise stale artifacts may persist longer than intended.
 
 ### Example
 
 Here's an example configuration that enables retention with a TTL of 1 day and a check interval of 30 minutes, where inference is performed every 15 minutes.
-- Model instances and their training data that have not been used for inference or refitting within the last day will be cleaned up every 30 minutes (m2 example on a diagram)
+- Model instances that have not been used for inference or refitting within the last day will be cleaned up every 30 minutes (m2 example on a diagram)
 - While model instances used for inference within the last day at least 1 time will be retained (m1 example on a diagram)
 
 ![Retention Example Diagram](vmanomaly-ttl-example.webp)
@@ -382,7 +400,7 @@ settings:
   # other settings
   restore_state: True  # enables state restoration
   retention:
-    ttl: 24h  # time-to-live for model instances and their training data
+    ttl: 24h  # time-to-live for inactive model instances
     check_interval: 30m  # interval to check for stale artifacts
 ```
 
