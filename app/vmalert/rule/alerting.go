@@ -462,7 +462,11 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 	}
 
 	isPartial := isPartialResponse(res)
-	ar.logDebugf(ts, nil, "query returned %d series (elapsed: %s, isPartial: %t)", curState.Samples, curState.Duration, isPartial)
+	seriesFetched := 0
+	if res.SeriesFetched != nil {
+		seriesFetched = *res.SeriesFetched
+	}
+	ar.logDebugf(ts, nil, "query returned %d series (series_fetched: %d, elapsed: %s, isPartial: %t)", curState.Samples, seriesFetched, curState.Duration, isPartial)
 	qFn := func(query string) ([]datasource.Metric, error) {
 		res, _, err := ar.q.Query(ctx, query, ts)
 		return res.Data, err
