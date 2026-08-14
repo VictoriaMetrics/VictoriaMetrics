@@ -377,10 +377,10 @@ func BenchmarkSearch(b *testing.B) {
 // dataConfig holds the test dataset config. Such as now many deleted and visible
 // series to insert and on which time range.
 type dataConfig struct {
-	name             string
-	numSeries        int
-	numDeletedSeries int
-	tr               TimeRange
+	name                   string
+	numSeriesPerDay        int
+	numDeletedSeriesPerDay int
+	tr                     TimeRange
 }
 
 // searchFunc is a func that measures the search of some data on the given time
@@ -396,11 +396,13 @@ type splitFunc func(total dataConfig) (prev, curr, pt dataConfig)
 // It generates the test data, inserts it into the storage, and runs the search
 // op against it.
 //
-// The number of series is controlled with dataConfig.numSeries. The function also
-// generates the deleted series and saves them to the storage. If the deleted
-// series are not needed, set dataConfig.numDeletedSeries to 0. The data is spread
-// evenly across the time range provided via dataConfig.tr. The data is split
-// across prev and curr idb using the split callback func.
+// The number of series is controlled with dataConfig.numSeriesPerDay.
+// The function also generates the deleted series and saves them to the storage.
+// If the deleted series are not needed, set dataConfig.numDeletedSeriesPerDay
+// to 0.
+// The per-day data is spread evenly within every day from time range provided
+// via dataConfig.tr. The data is split across prev and curr idb using the split
+// callback func.
 //
 // The generated data is designed so that it can be reused by all types of
 // search ops. It is also passed to the search op so that it could perform all
@@ -468,18 +470,23 @@ func benchmarkSearch(b *testing.B, dataConfig dataConfig, split splitFunc, searc
 
 	}
 
+	numDays := func(tr TimeRange) int {
+		minDate, maxDate := tr.DateRange()
+		return int(maxDate-minDate) + 1
+	}
+
 	cfgPrev, cfgCurr, cfgPt := split(dataConfig)
-	mrsToDeletePrev := genRows(cfgPrev.numDeletedSeries, "prev", cfgPrev.tr)
-	mrsToDeleteCurr := genRows(cfgCurr.numDeletedSeries, "curr", cfgCurr.tr)
-	mrsToDeletePt := genRows(cfgPt.numDeletedSeries, "pt", cfgPt.tr)
-	mrsPrev := genRows(cfgPrev.numSeries, "prev", cfgPrev.tr)
-	mrsCurr := genRows(cfgCurr.numSeries, "curr", cfgCurr.tr)
-	mrsPt := genRows(cfgPt.numSeries, "pt", cfgPt.tr)
+	mrsToDeletePrev := genRows(cfgPrev.numDeletedSeriesPerDay, "prev", cfgPrev.tr)
+	mrsToDeleteCurr := genRows(cfgCurr.numDeletedSeriesPerDay, "curr", cfgCurr.tr)
+	mrsToDeletePt := genRows(cfgPt.numDeletedSeriesPerDay, "pt", cfgPt.tr)
+	mrsPrev := genRows(cfgPrev.numSeriesPerDay, "prev", cfgPrev.tr)
+	mrsCurr := genRows(cfgCurr.numSeriesPerDay, "curr", cfgCurr.tr)
+	mrsPt := genRows(cfgPt.numSeriesPerDay, "pt", cfgPt.tr)
 
 	s := MustOpenStorage(b.Name(), OpenOptions{})
 	s.AddRows(mrsToDeletePrev, defaultPrecisionBits)
 	s.DebugFlush()
-	deleteSeries(s, "prev", cfgPrev.numDeletedSeries)
+	deleteSeries(s, "prev", cfgPrev.numDeletedSeriesPerDay*numDays(cfgPrev.tr))
 	s.DebugFlush()
 	s.AddRows(mrsPrev, defaultPrecisionBits)
 	s.DebugFlush()
@@ -487,7 +494,7 @@ func benchmarkSearch(b *testing.B, dataConfig dataConfig, split splitFunc, searc
 
 	s.AddRows(mrsToDeleteCurr, defaultPrecisionBits)
 	s.DebugFlush()
-	deleteSeries(s, "curr", cfgCurr.numDeletedSeries)
+	deleteSeries(s, "curr", cfgCurr.numDeletedSeriesPerDay*numDays(cfgCurr.tr))
 	s.DebugFlush()
 	s.AddRows(mrsCurr, defaultPrecisionBits)
 	s.DebugFlush()
@@ -495,7 +502,7 @@ func benchmarkSearch(b *testing.B, dataConfig dataConfig, split splitFunc, searc
 
 	s.AddRows(mrsToDeletePt, defaultPrecisionBits)
 	s.DebugFlush()
-	deleteSeries(s, "pt", cfgPt.numDeletedSeries)
+	deleteSeries(s, "pt", cfgPt.numDeletedSeriesPerDay*numDays(cfgPt.tr))
 	s.DebugFlush()
 	s.AddRows(mrsPt, defaultPrecisionBits)
 	s.DebugFlush()
@@ -745,13 +752,13 @@ func currOnly(total dataConfig) (prev, curr, pt dataConfig) {
 // index some significant time after legacy indexDB rotation. I.e. index entries
 // are in both prev and curr legacy indexDBs.
 func prevCurr(total dataConfig) (prev, curr, pt dataConfig) {
-	prev.numSeries = total.numSeries / 2
-	prev.numDeletedSeries = total.numDeletedSeries / 2
+	prev.numSeriesPerDay = total.numSeriesPerDay / 2
+	prev.numDeletedSeriesPerDay = total.numDeletedSeriesPerDay / 2
 	prev.tr.MinTimestamp = total.tr.MinTimestamp
 	prev.tr.MaxTimestamp = total.tr.MinTimestamp + (total.tr.MaxTimestamp-total.tr.MinTimestamp)/2
 
-	curr.numSeries = total.numSeries - prev.numSeries
-	curr.numDeletedSeries = total.numDeletedSeries - prev.numDeletedSeries
+	curr.numSeriesPerDay = total.numSeriesPerDay - prev.numSeriesPerDay
+	curr.numDeletedSeriesPerDay = total.numDeletedSeriesPerDay - prev.numDeletedSeriesPerDay
 	curr.tr.MinTimestamp = prev.tr.MaxTimestamp + 1
 	curr.tr.MaxTimestamp = total.tr.MaxTimestamp
 
@@ -775,13 +782,13 @@ func ptOnly(total dataConfig) (prev, curr, pt dataConfig) {
 // index right after legacy indexDB rotation and continued to work for some
 // time.
 func prevPt(total dataConfig) (prev, curr, pt dataConfig) {
-	prev.numSeries = total.numSeries / 2
-	prev.numDeletedSeries = total.numDeletedSeries / 2
+	prev.numSeriesPerDay = total.numSeriesPerDay / 2
+	prev.numDeletedSeriesPerDay = total.numDeletedSeriesPerDay / 2
 	prev.tr.MinTimestamp = total.tr.MinTimestamp
 	prev.tr.MaxTimestamp = total.tr.MinTimestamp + (total.tr.MaxTimestamp-total.tr.MinTimestamp)/2
 
-	pt.numSeries = total.numSeries - prev.numSeries
-	pt.numDeletedSeries = total.numDeletedSeries - prev.numDeletedSeries
+	pt.numSeriesPerDay = total.numSeriesPerDay - prev.numSeriesPerDay
+	pt.numDeletedSeriesPerDay = total.numDeletedSeriesPerDay - prev.numDeletedSeriesPerDay
 	pt.tr.MinTimestamp = prev.tr.MaxTimestamp + 1
 	pt.tr.MaxTimestamp = total.tr.MaxTimestamp
 
@@ -795,13 +802,13 @@ func prevPt(total dataConfig) (prev, curr, pt dataConfig) {
 // index right before legacy indexDB rotation and continued to work for some
 // time.
 func currPt(total dataConfig) (prev, curr, pt dataConfig) {
-	curr.numSeries = total.numSeries / 2
-	curr.numDeletedSeries = total.numDeletedSeries / 2
+	curr.numSeriesPerDay = total.numSeriesPerDay / 2
+	curr.numDeletedSeriesPerDay = total.numDeletedSeriesPerDay / 2
 	curr.tr.MinTimestamp = total.tr.MinTimestamp
 	curr.tr.MaxTimestamp = total.tr.MinTimestamp + (total.tr.MaxTimestamp-total.tr.MinTimestamp)/2
 
-	pt.numSeries = total.numSeries - curr.numSeries
-	pt.numDeletedSeries = total.numDeletedSeries - curr.numDeletedSeries
+	pt.numSeriesPerDay = total.numSeriesPerDay - curr.numSeriesPerDay
+	pt.numDeletedSeriesPerDay = total.numDeletedSeriesPerDay - curr.numDeletedSeriesPerDay
 	pt.tr.MinTimestamp = curr.tr.MaxTimestamp + 1
 	pt.tr.MaxTimestamp = total.tr.MaxTimestamp
 
@@ -815,18 +822,18 @@ func currPt(total dataConfig) (prev, curr, pt dataConfig) {
 // index right some time after legacy indexDB rotation and continued to work for
 // some time.
 func prevCurrPt(total dataConfig) (prev, curr, pt dataConfig) {
-	prev.numSeries = total.numSeries / 3
-	prev.numDeletedSeries = total.numDeletedSeries / 3
+	prev.numSeriesPerDay = total.numSeriesPerDay / 3
+	prev.numDeletedSeriesPerDay = total.numDeletedSeriesPerDay / 3
 	prev.tr.MinTimestamp = total.tr.MinTimestamp
 	prev.tr.MaxTimestamp = total.tr.MinTimestamp + (total.tr.MaxTimestamp-total.tr.MinTimestamp)/3
 
-	curr.numSeries = prev.numSeries
-	curr.numDeletedSeries = prev.numDeletedSeries
+	curr.numSeriesPerDay = prev.numSeriesPerDay
+	curr.numDeletedSeriesPerDay = prev.numDeletedSeriesPerDay
 	curr.tr.MinTimestamp = prev.tr.MaxTimestamp + 1
 	curr.tr.MaxTimestamp = prev.tr.MaxTimestamp + (total.tr.MaxTimestamp-total.tr.MinTimestamp)/3
 
-	pt.numSeries = total.numSeries - prev.numSeries - curr.numSeries
-	pt.numDeletedSeries = total.numDeletedSeries - prev.numDeletedSeries - curr.numDeletedSeries
+	pt.numSeriesPerDay = total.numSeriesPerDay - prev.numSeriesPerDay - curr.numSeriesPerDay
+	pt.numDeletedSeriesPerDay = total.numDeletedSeriesPerDay - prev.numDeletedSeriesPerDay - curr.numDeletedSeriesPerDay
 	pt.tr.MinTimestamp = curr.tr.MaxTimestamp + 1
 	pt.tr.MaxTimestamp = total.tr.MaxTimestamp
 
@@ -854,11 +861,11 @@ func variableSeries() []dataConfig {
 	// routine running of the benchmarks does not take too long. However, when
 	// debugging it is often helpful to add more numbers in between these
 	// numbers.
-	for _, numSeries := range []int{100, 1000, 10_000, 100_000} {
+	for _, numSeriesPerDay := range []int{100, 1000, 10_000, 100_000} {
 		cfgs = append(cfgs, dataConfig{
-			name:             fmt.Sprintf("VariableSeries/%d", numSeries),
-			numSeries:        numSeries,
-			numDeletedSeries: 0,
+			name:                   fmt.Sprintf("VariableSeries/%d", numSeriesPerDay),
+			numSeriesPerDay:        numSeriesPerDay,
+			numDeletedSeriesPerDay: 0,
 			tr: TimeRange{
 				MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 				MaxTimestamp: time.Date(2025, 1, 1, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
@@ -876,11 +883,11 @@ func variableSeries() []dataConfig {
 // 100K as something in the middle.
 func variableDeletedSeries() []dataConfig {
 	var cfgs []dataConfig
-	for _, numDeletedSeries := range []int{100, 1000, 10_000, 100_000} {
+	for _, numDeletedSeriesPerDay := range []int{100, 1000, 10_000, 100_000} {
 		cfgs = append(cfgs, dataConfig{
-			name:             fmt.Sprintf("VariableDeletedSeries/%d", numDeletedSeries),
-			numSeries:        10_000,
-			numDeletedSeries: numDeletedSeries,
+			name:                   fmt.Sprintf("VariableDeletedSeries/%d", numDeletedSeriesPerDay),
+			numSeriesPerDay:        10_000,
+			numDeletedSeriesPerDay: numDeletedSeriesPerDay,
 			tr: TimeRange{
 				MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 				MaxTimestamp: time.Date(2025, 1, 1, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
@@ -941,10 +948,10 @@ func variableTimeRange() []dataConfig {
 	var cfgs []dataConfig
 	for i, tr := range []TimeRange{tr1d, tr2d, tr4d, tr8d, tr16d, tr32d, tr64d, tr1m, tr2m, tr4m} {
 		cfgs = append(cfgs, dataConfig{
-			name:             fmt.Sprintf("VariableTimeRange/%s", trNames[i]),
-			numSeries:        10_000,
-			numDeletedSeries: 0,
-			tr:               tr,
+			name:                   fmt.Sprintf("VariableTimeRange/%s", trNames[i]),
+			numSeriesPerDay:        10_000,
+			numDeletedSeriesPerDay: 0,
+			tr:                     tr,
 		})
 	}
 	return cfgs
