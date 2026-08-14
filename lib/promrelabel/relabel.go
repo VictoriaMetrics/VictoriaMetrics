@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -77,7 +78,7 @@ func (pcs *ParsedConfigs) ApplyDebug(labels []prompb.Label) ([]prompb.Label, []D
 	var dss []DebugStep
 	if pcs != nil {
 		for _, prc := range pcs.prcs {
-			labels = prc.apply(labels, 0)
+			_, labels = prc.apply(labels, 0, nil)
 			outStr := LabelsToString(labels)
 			dss = append(dss, DebugStep{
 				Rule: prc.String(),
@@ -110,8 +111,28 @@ func (pcs *ParsedConfigs) ApplyDebug(labels []prompb.Label) ([]prompb.Label, []D
 // stored between len(labels) and cap(labels).
 func (pcs *ParsedConfigs) Apply(labels []prompb.Label, labelsOffset int) []prompb.Label {
 	if pcs != nil {
+		// Bloom filter is used for efficient matching of `if` conditions with many labels and/or many relabeling rules.
+		// we only build it if there are few instances where we'll have to rebuild it due to modified labels
+		// and there are a significant number of If Filters or labels to filter.
+		var bf *BloomFilter
+		shouldUseBf := false
+		bfIsValid := false
+		if pcs.GetBfBuildCount() < 5 && (pcs.GetIfFilterSize() > 50 || len(labels[labelsOffset:]) > 20) {
+			bf = getBloomFilter()
+			defer putBloomFilter(bf)
+			shouldUseBf = true
+		}
+
+		didModify := false
 		for _, prc := range pcs.prcs {
-			labels = prc.apply(labels, labelsOffset)
+			if shouldUseBf && !bfIsValid && prc.If != nil {
+				bf = buildBloomFilter(bf, labels, labelsOffset)
+				bfIsValid = true
+			}
+			didModify, labels = prc.apply(labels, labelsOffset, bf)
+			if didModify {
+				bfIsValid = false
+			}
 			if len(labels) == labelsOffset {
 				// All the labels have been removed.
 				return labels
@@ -120,6 +141,58 @@ func (pcs *ParsedConfigs) Apply(labels []prompb.Label, labelsOffset int) []promp
 	}
 	labels = removeEmptyLabels(labels, labelsOffset)
 	return labels
+}
+
+func buildBloomFilter(bf *BloomFilter, labels []prompb.Label, labelsOffset int) *BloomFilter {
+	bf.Reset()
+	selLabels := labels[labelsOffset:]
+	itemCount := len(selLabels) * 2
+	bf.EnsureSize(itemCount)
+
+	// Batch all tokens into a single slice for efficient insertion
+	tokens := getTokenSlice(itemCount)
+	for _, label := range selLabels {
+		tokens = append(tokens, label.Name, label.Value)
+	}
+	bf.AddTokens(tokens)
+	putTokenSlice(tokens)
+	return bf
+}
+
+func getBloomFilter() *BloomFilter {
+	v := bloomFilterPool.Get()
+	if v == nil {
+		return &BloomFilter{}
+	}
+	return v.(*BloomFilter)
+}
+
+func putBloomFilter(bf *BloomFilter) {
+	bf.Reset()
+	bloomFilterPool.Put(bf)
+}
+
+var bloomFilterPool sync.Pool
+
+var tokenSlicePool sync.Pool
+
+func getTokenSlice(capacity int) []string {
+	v := tokenSlicePool.Get()
+	if v == nil {
+		return make([]string, 0, capacity)
+	}
+	tokensPtr := v.(*[]string)
+	tokens := *tokensPtr
+	if cap(tokens) < capacity {
+		// Grow the slice to the needed capacity
+		tokens = tokens[:cap(tokens)]
+		tokens = append(tokens, make([]string, capacity-cap(tokens))...)
+	}
+	return tokens[:0]
+}
+
+func putTokenSlice(tokens []string) {
+	tokenSlicePool.Put(&tokens)
 }
 
 func removeEmptyLabels(labels []prompb.Label, labelsOffset int) []prompb.Label {
@@ -160,15 +233,22 @@ func FinalizeLabels(dst, src []prompb.Label) []prompb.Label {
 // apply applies relabeling according to prc.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
-func (prc *parsedRelabelConfig) apply(labels []prompb.Label, labelsOffset int) []prompb.Label {
+func (prc *parsedRelabelConfig) apply(labels []prompb.Label, labelsOffset int, bf *BloomFilter) (didModify bool, resultLabels []prompb.Label) {
 	src := labels[labelsOffset:]
-	if !prc.If.Match(src) {
+	var match bool
+	if bf != nil {
+		match = prc.If.MatchWithFilters(src, bf)
+	} else {
+		match = prc.If.Match(src)
+	}
+
+	if !match {
 		if prc.Action == "keep" {
 			// Drop the target on `if` mismatch for `action: keep`
-			return labels[:labelsOffset]
+			return false, labels[:labelsOffset]
 		}
 		// Do not apply prc actions on `if` mismatch.
-		return labels
+		return false, labels
 	}
 	switch prc.Action {
 	case "graphite":
@@ -179,7 +259,7 @@ func (prc *parsedRelabelConfig) apply(labels []prompb.Label, labelsOffset int) [
 		if !ok {
 			// Fast path - name mismatch
 			graphiteMatchesPool.Put(gm)
-			return labels
+			return false, labels
 		}
 		// Slow path - extract labels from graphite metric name
 		bb := relabelBufPool.Get()
@@ -190,7 +270,7 @@ func (prc *parsedRelabelConfig) apply(labels []prompb.Label, labelsOffset int) [
 		}
 		relabelBufPool.Put(bb)
 		graphiteMatchesPool.Put(gm)
-		return labels
+		return true, labels
 	case "replace":
 		// Store `replacement` at `target_label` if the `regex` matches `source_labels` joined with `separator`
 		replacement := prc.Replacement
@@ -208,7 +288,7 @@ func (prc *parsedRelabelConfig) apply(labels []prompb.Label, labelsOffset int) [
 				//   target_label: foobar
 				valueStr := bytesutil.InternBytes(bb.B)
 				relabelBufPool.Put(bb)
-				return setLabelValue(labels, labelsOffset, prc.TargetLabel, valueStr)
+				return true, setLabelValue(labels, labelsOffset, prc.TargetLabel, valueStr)
 			}
 			if !prc.hasCaptureGroupInReplacement {
 				// Fast path for the rule that sets label value:
@@ -216,14 +296,14 @@ func (prc *parsedRelabelConfig) apply(labels []prompb.Label, labelsOffset int) [
 				//   replacement: something-here
 				relabelBufPool.Put(bb)
 				labels = setLabelValue(labels, labelsOffset, prc.TargetLabel, replacement)
-				return labels
+				return true, labels
 			}
 		}
 		sourceStr := bytesutil.ToUnsafeString(bb.B)
 		if !prc.regex.MatchString(sourceStr) {
 			// Fast path - regexp mismatch.
 			relabelBufPool.Put(bb)
-			return labels
+			return false, labels
 		}
 		var valueStr string
 		if replacement == prc.Replacement {
@@ -243,7 +323,7 @@ func (prc *parsedRelabelConfig) apply(labels []prompb.Label, labelsOffset int) [
 			nameStr = prc.expandCaptureGroups(nameStr, sourceStr, match)
 		}
 		relabelBufPool.Put(bb)
-		return setLabelValue(labels, labelsOffset, nameStr, valueStr)
+		return true, setLabelValue(labels, labelsOffset, nameStr, valueStr)
 	case "replace_all":
 		// Replace all the occurrences of `regex` at `source_labels` joined with `separator` with the `replacement`
 		// and store the result at `target_label`
@@ -252,10 +332,12 @@ func (prc *parsedRelabelConfig) apply(labels []prompb.Label, labelsOffset int) [
 		sourceStr := bytesutil.InternBytes(bb.B)
 		relabelBufPool.Put(bb)
 		valueStr := prc.replaceStringSubmatchesFast(sourceStr)
+		didModify := false
 		if valueStr != sourceStr {
+			didModify = true
 			labels = setLabelValue(labels, labelsOffset, prc.TargetLabel, valueStr)
 		}
-		return labels
+		return didModify, labels
 	case "keep_if_contains":
 		// Keep the entry if target_label contains all the label values listed in source_labels.
 		// For example, the following relabeling rule would leave the entry if __meta_consul_tags
@@ -266,9 +348,9 @@ func (prc *parsedRelabelConfig) apply(labels []prompb.Label, labelsOffset int) [
 		//     source_labels: [__meta_required_tag1, __meta_required_tag2]
 		//
 		if containsAllLabelValues(src, prc.TargetLabel, prc.SourceLabels) {
-			return labels
+			return false, labels
 		}
-		return labels[:labelsOffset]
+		return false, labels[:labelsOffset]
 	case "drop_if_contains":
 		// Drop the entry if target_label contains all the label values listed in source_labels.
 		// For example, the following relabeling rule would drop the entry if __meta_consul_tags
@@ -279,9 +361,9 @@ func (prc *parsedRelabelConfig) apply(labels []prompb.Label, labelsOffset int) [
 		//     source_labels: [__meta_required_tag1, __meta_required_tag2]
 		//
 		if containsAllLabelValues(src, prc.TargetLabel, prc.SourceLabels) {
-			return labels[:labelsOffset]
+			return false, labels[:labelsOffset]
 		}
-		return labels
+		return false, labels
 	case "keep_if_equal":
 		// Keep the entry if all the label values in source_labels are equal.
 		// For example:
@@ -291,9 +373,9 @@ func (prc *parsedRelabelConfig) apply(labels []prompb.Label, labelsOffset int) [
 		//
 		// Would leave the entry if `foo` value equals `bar` value
 		if areEqualLabelValues(src, prc.SourceLabels) {
-			return labels
+			return false, labels
 		}
-		return labels[:labelsOffset]
+		return false, labels[:labelsOffset]
 	case "drop_if_equal":
 		// Drop the entry if all the label values in source_labels are equal.
 		// For example:
@@ -303,9 +385,9 @@ func (prc *parsedRelabelConfig) apply(labels []prompb.Label, labelsOffset int) [
 		//
 		// Would drop the entry if `foo` value equals `bar` value.
 		if areEqualLabelValues(src, prc.SourceLabels) {
-			return labels[:labelsOffset]
+			return false, labels[:labelsOffset]
 		}
-		return labels
+		return false, labels
 	case "keepequal":
 		// Keep the entry if `source_labels` joined with `separator` matches `target_label`
 		bb := relabelBufPool.Get()
@@ -314,9 +396,9 @@ func (prc *parsedRelabelConfig) apply(labels []prompb.Label, labelsOffset int) [
 		keep := string(bb.B) == targetValue
 		relabelBufPool.Put(bb)
 		if keep {
-			return labels
+			return false, labels
 		}
-		return labels[:labelsOffset]
+		return false, labels[:labelsOffset]
 	case "dropequal":
 		// Drop the entry if `source_labels` joined with `separator` doesn't match `target_label`
 		bb := relabelBufPool.Get()
@@ -325,9 +407,9 @@ func (prc *parsedRelabelConfig) apply(labels []prompb.Label, labelsOffset int) [
 		drop := string(bb.B) == targetValue
 		relabelBufPool.Put(bb)
 		if !drop {
-			return labels
+			return false, labels
 		}
-		return labels[:labelsOffset]
+		return false, labels[:labelsOffset]
 	case "keep":
 		// Keep the target if `source_labels` joined with `separator` match the `regex`.
 		if prc.RegexAnchored == defaultRegexForRelabelConfig {
@@ -336,16 +418,16 @@ func (prc *parsedRelabelConfig) apply(labels []prompb.Label, labelsOffset int) [
 			// - action: keep
 			//   if: 'some{label=~"filters"}'
 			//
-			return labels
+			return false, labels
 		}
 		bb := relabelBufPool.Get()
 		bb.B = concatLabelValues(bb.B[:0], src, prc.SourceLabels, prc.Separator)
 		keep := prc.regex.MatchString(bytesutil.ToUnsafeString(bb.B))
 		relabelBufPool.Put(bb)
 		if !keep {
-			return labels[:labelsOffset]
+			return false, labels[:labelsOffset]
 		}
-		return labels
+		return false, labels
 	case "drop":
 		// Drop the target if `source_labels` joined with `separator` don't match the `regex`.
 		if prc.RegexAnchored == defaultRegexForRelabelConfig {
@@ -354,16 +436,16 @@ func (prc *parsedRelabelConfig) apply(labels []prompb.Label, labelsOffset int) [
 			// - action: drop
 			//   if: 'some{label=~"filters"}'
 			//
-			return labels[:labelsOffset]
+			return false, labels[:labelsOffset]
 		}
 		bb := relabelBufPool.Get()
 		bb.B = concatLabelValues(bb.B[:0], src, prc.SourceLabels, prc.Separator)
 		drop := prc.regex.MatchString(bytesutil.ToUnsafeString(bb.B))
 		relabelBufPool.Put(bb)
 		if drop {
-			return labels[:labelsOffset]
+			return false, labels[:labelsOffset]
 		}
-		return labels
+		return false, labels
 	case "hashmod":
 		// Calculate the `modulus` from the hash of `source_labels` joined with `separator` and store it at `target_label`
 		bb := relabelBufPool.Get()
@@ -371,7 +453,7 @@ func (prc *parsedRelabelConfig) apply(labels []prompb.Label, labelsOffset int) [
 		h := xxhash.Sum64(bb.B) % prc.Modulus
 		value := strconv.Itoa(int(h))
 		relabelBufPool.Put(bb)
-		return setLabelValue(labels, labelsOffset, prc.TargetLabel, value)
+		return true, setLabelValue(labels, labelsOffset, prc.TargetLabel, value)
 	case "labelmap":
 		// Replace label names with the `replacement` if they match `regex`
 		for _, label := range src {
@@ -380,14 +462,14 @@ func (prc *parsedRelabelConfig) apply(labels []prompb.Label, labelsOffset int) [
 				labels = setLabelValue(labels, labelsOffset, labelName, label.Value)
 			}
 		}
-		return labels
+		return true, labels
 	case "labelmap_all":
 		// Replace all the occurrences of `regex` at label names with `replacement`
 		for i := range src {
 			label := &src[i]
 			label.Name = prc.replaceStringSubmatchesFast(label.Name)
 		}
-		return labels
+		return true, labels
 	case "labeldrop":
 		// Drop labels with names matching the `regex`
 		dst := labels[:labelsOffset]
@@ -397,7 +479,7 @@ func (prc *parsedRelabelConfig) apply(labels []prompb.Label, labelsOffset int) [
 				dst = append(dst, label)
 			}
 		}
-		return dst
+		return true, dst
 	case "labelkeep":
 		// Keep labels with names matching the `regex`
 		dst := labels[:labelsOffset]
@@ -407,7 +489,7 @@ func (prc *parsedRelabelConfig) apply(labels []prompb.Label, labelsOffset int) [
 				dst = append(dst, label)
 			}
 		}
-		return dst
+		return true, dst
 	case "uppercase":
 		bb := relabelBufPool.Get()
 		bb.B = concatLabelValues(bb.B[:0], src, prc.SourceLabels, prc.Separator)
@@ -415,7 +497,7 @@ func (prc *parsedRelabelConfig) apply(labels []prompb.Label, labelsOffset int) [
 		relabelBufPool.Put(bb)
 		valueStr = strings.ToUpper(valueStr)
 		labels = setLabelValue(labels, labelsOffset, prc.TargetLabel, valueStr)
-		return labels
+		return true, labels
 	case "lowercase":
 		bb := relabelBufPool.Get()
 		bb.B = concatLabelValues(bb.B[:0], src, prc.SourceLabels, prc.Separator)
@@ -423,10 +505,10 @@ func (prc *parsedRelabelConfig) apply(labels []prompb.Label, labelsOffset int) [
 		relabelBufPool.Put(bb)
 		valueStr = strings.ToLower(valueStr)
 		labels = setLabelValue(labels, labelsOffset, prc.TargetLabel, valueStr)
-		return labels
+		return true, labels
 	default:
 		logger.Panicf("BUG: unknown `action`: %q", prc.Action)
-		return labels
+		return false, labels
 	}
 }
 
