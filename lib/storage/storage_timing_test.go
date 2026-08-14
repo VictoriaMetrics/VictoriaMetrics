@@ -869,7 +869,7 @@ func variableSeries() []dataConfig {
 }
 
 // variableDeletedSeries generates a collection of data configs with fixed number of
-// series (100k), variable number of deleted series, and fixed time range (1d).
+// series (10k), variable number of deleted series, and fixed time range (1d).
 //
 // Why 100k: the eployments that we are aware of often have tens and hundreds of
 // thouthands series in their query results, sometimes even millions. Chosen
@@ -891,7 +891,11 @@ func variableDeletedSeries() []dataConfig {
 }
 
 // variableTimeRange generates a collection of data configs with fixed number of
-// series (100k), 0 deleted series, and time ranges of various duration.
+// series per day (10k), 0 deleted series, and time ranges of various duration.
+//
+// 1d time range will have 10k series,
+// 2d time range will have 20k series,
+// and so on.
 func variableTimeRange() []dataConfig {
 	tr1d := TimeRange{
 		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
@@ -931,14 +935,14 @@ func variableTimeRange() []dataConfig {
 	}
 	tr4m := TimeRange{
 		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-		MaxTimestamp: time.Date(2025, 4, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2025, 4, 30, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
 	trNames := []string{"1d", "2d", "4d", "8d", "16d", "32d", "64d", "1m", "2m", "4m"}
 	var cfgs []dataConfig
 	for i, tr := range []TimeRange{tr1d, tr2d, tr4d, tr8d, tr16d, tr32d, tr64d, tr1m, tr2m, tr4m} {
 		cfgs = append(cfgs, dataConfig{
 			name:             fmt.Sprintf("VariableTimeRange/%s", trNames[i]),
-			numSeries:        1000,
+			numSeries:        10_000,
 			numDeletedSeries: 0,
 			tr:               tr,
 		})
