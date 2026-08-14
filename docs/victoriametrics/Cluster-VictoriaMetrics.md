@@ -95,7 +95,7 @@ See also multitenancy [via headers](#multitenancy-via-headers) and [via labels](
 
 ### Multitenancy via headers
 
-With `--enableMultitenancyViaHeaders` {{% available_from "v1.143.0" %}} command-line flag enabled (enabled by default {{% available_from "#" %}})
+With `--enableMultitenancyViaHeaders` {{% available_from "v1.143.0" %}} command-line flag enabled (enabled by default {{% available_from "v1.150.0" %}})
 tenant ID can be specified via HTTP headers `AccountID` and `ProjectID`. This flag needs to be enabled on vminserts and vmselects.
 
 With `--enableMultitenancyViaHeaders` enabled [URL format](#url-format) can be simplified to the following:
