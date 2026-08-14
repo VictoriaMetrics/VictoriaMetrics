@@ -34,7 +34,7 @@ The role of the Ground Controls can be filled by VictoriaMetrics in [single-node
 
 The architecture provides high availability by storing two full copies of the data: one in Ground Control 1 and the other in Ground Control 2. Since both store the same data, losing one region doesn't result in a monitoring outage. You can still run queries, view dashboards, and receive alerts.
 
-vmagent keeps a separate persistent queue for each `-remoteWrite.url` destination. If one Ground Control region is unavailable, vmagent continues sending data to the other region. The samples for the unavailable region stay in the queue, and vmagent delivers them after the region recovers. This helps restore consistency across both regions.
+vmagent keeps a separate persistent queue for each `-remoteWrite.url` destination. If one Ground Control region is unavailable, vmagent continues sending data to the other region. The samples for the unavailable region stay in the file-based queue, and vmagent delivers them after the region recovers. The queue size is limited by disk space available to the vmagent or group of vmagents. This helps restore consistency across both regions.
 
 This setup provides two logical copies of the data in separate monitoring regions. That lets you fail over to the healthy region if one region becomes unavailable, or spread read load across both regions if needed.
 
@@ -58,14 +58,16 @@ For a VictoriaMetrics cluster, use the following URLs for [`accountID=0`](https:
   -remoteWrite.url=https://ground-control-2-vminsert:8480/insert/0/prometheus/api/v1/write
 ```
 For more details, see [data ingestion with vmagent](https://docs.victoriametrics.com/victoriametrics/data-ingestion/vmagent/).
+vmagent [alerting rules and dashboards](https://docs.victoriametrics.com/vmagent/index.html#monitoring) help to monitor 
+the health state of each configured destination and its queue size.
 
 ## How to read the data from Ground Control regions
 
 You can read data from Ground Control regions in a few different ways. The best option depends on your needs and operational complexity:
 
 * Regional endpoints: use one region endpoint as default and manually switch to the other during an outage. This is the simplest option but needs manual failover.
-* Load balancer: put a load balancer in front of both Ground Control regions. Route traffic to a preferred region, with automatic failover to the other region in case of failure.
-* Multi-level vmselect: run a dedicated vmselect on top of the Ground Control local vmselect nodes. This setup also requires both Ground Control instances to run in cluster mode.
+* Load balancer: put a load balancer in front of both Ground Control regions. Route traffic to a preferred region, with automatic failover to the other region in case of failure. [vmauth with `-loadBalancingPolicy=first_available`](https://docs.victoriametrics.com/vmauth/index.html#high-availability) setting does exactly that.
+* Multi-level vmselect: run a dedicated vmselect that would be configured to read from both regions and merge the results.
 
 You can read more about choosing the right architecture in the [VictoriaMetrics topologies guide](https://docs.victoriametrics.com/guides/vm-architectures/).
 
