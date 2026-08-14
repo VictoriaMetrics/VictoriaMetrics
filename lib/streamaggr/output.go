@@ -99,12 +99,16 @@ func (ao *aggrOutputs) stateSizeBytes(configIdx int) uint64 {
 		av := v.(*aggrValues)
 		av.mu.Lock()
 		if av.deleteDeadline >= 0 {
-			if o := av.blue[configIdx]; o != nil {
+			o := av.blue[configIdx]
+			if o != nil {
 				n += o.sizeBytes()
 			}
-			if ao.useSharedState {
-				if o := av.green[configIdx]; o != nil {
-					n += o.sizeBytes()
+			// blue and green share the same underlying state for outputs whose state() is non-nil
+			// (e.g. total, sum_samples, rate, histogram_bucket, increase), so green's size must be
+			// skipped for them to avoid counting the shared state twice.
+			if ao.useSharedState && (o == nil || o.state() == nil) {
+				if gv := av.green[configIdx]; gv != nil {
+					n += gv.sizeBytes()
 				}
 			}
 		}

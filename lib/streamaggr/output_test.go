@@ -72,6 +72,8 @@ func TestAggrOutputsStateSizeAndItemsCount(t *testing.T) {
 	}
 }
 
+// TestAggrOutputsStateSizeBytesWithSharedState covers an output whose state() returns nil
+// (count_series), so blue and green don't share any underlying state and both must be counted.
 func TestAggrOutputsStateSizeBytesWithSharedState(t *testing.T) {
 	ao := &aggrOutputs{
 		configs:        []aggrConfig{newCountSeriesAggrConfig()},
@@ -94,7 +96,40 @@ func TestAggrOutputsStateSizeBytesWithSharedState(t *testing.T) {
 	got := ao.stateSizeBytes(0)
 	want := blue.sizeBytes() + green.sizeBytes()
 	if got != want {
-		t.Fatalf("unexpected size with shared state; got %d; want %d", got, want)
+		t.Fatalf("unexpected size with non-shared state; got %d; want %d", got, want)
+	}
+}
+
+// TestAggrOutputsStateSizeBytesWithTrulySharedState covers an output whose state() returns
+// non-nil (rate_sum), so blue and green wrap the same underlying map and must be counted once,
+// not twice.
+func TestAggrOutputsStateSizeBytesWithTrulySharedState(t *testing.T) {
+	ms := metrics.NewSet()
+	ao := &aggrOutputs{
+		configs:        []aggrConfig{newRateAggrConfig(ms, `output="rate_sum"`, false)},
+		useSharedState: true,
+	}
+
+	const future = int64(1) << 62
+	blue := ao.configs[0].getValue(nil)
+	if blue.state() == nil {
+		t.Fatalf("expected rate_sum state() to be non-nil (shared between blue and green)")
+	}
+	green := ao.configs[0].getValue(blue.state())
+	av := &aggrValues{
+		blue:           []aggrValue{blue},
+		green:          []aggrValue{green},
+		deleteDeadline: future,
+	}
+	ao.m.Store("key1", av)
+
+	blue.pushSample(ao.configs[0], &pushSample{value: 1, timestamp: 1000}, "series-a", future)
+	green.pushSample(ao.configs[0], &pushSample{value: 2, timestamp: 2000}, "series-b", future)
+
+	got := ao.stateSizeBytes(0)
+	want := blue.sizeBytes()
+	if got != want {
+		t.Fatalf("unexpected size with truly shared state; got %d; want %d (blue and green share the same map, so it must be counted once)", got, want)
 	}
 }
 

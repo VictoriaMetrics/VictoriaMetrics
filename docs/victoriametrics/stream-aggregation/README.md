@@ -717,8 +717,8 @@ These issues can be improved in the following ways:
 ## High resource usage
 
 The `vm_streamaggr_output_state_size_bytes` and `vm_streamaggr_output_state_items_count` metrics{{% available_from "#" %}} show the approximate memory usage and the number of tracked series
-per configured `output`, `name`, `path`, `url` and `position`. These metrics can help identifying which output (e.g. `total`, `rate_sum`, `histogram_bucket`) contributes the most
-to the overall memory usage of streaming aggregation, and correlating memory usage growth with a specific aggregation config.
+per configured `output`, `name`, `path`, `url` and `position`. These metrics can help identify which output (e.g. `total`, `rate_sum`, `histogram_bucket`) contributes the most
+to the overall memory usage of streaming aggregation, and correlate memory usage growth with a specific aggregation config.
 
 The following solutions can help reduce memory usage and CPU usage during streaming aggregation:
 
