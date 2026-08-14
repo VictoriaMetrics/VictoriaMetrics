@@ -1271,7 +1271,7 @@ Achieve **high availability for writes** using replication:
 * Run two or more identically configured VictoriaMetrics instances in distinct datacenters (availability zones);
 * Replicate collected metrics simultaneously into these instances via one or more [vmagents](https://docs.victoriametrics.com/victoriametrics/vmagent/).
 
-In this setup, vmagent should be configured [to replicate data](https://docs.victoriametrics.com/vmagent/index.html#replication-and-high-availability)
+In this setup, vmagent should be configured [to replicate data](https://docs.victoriametrics.com/victoriametrics/vmagent/#replication-and-high-availability)
 to each configured remote destination:
 ```sh
 /path/to/vmagent \
