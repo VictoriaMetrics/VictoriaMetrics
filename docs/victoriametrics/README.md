@@ -1266,38 +1266,42 @@ See also [resource usage limits at VictoriaMetrics cluster](https://docs.victori
 
 ## High availability
 
-Achieve **high availability for writes** using replication:
+VictoriaMetrics supports high availability for both writes and reads by combining replication with multiple instances.
+
+You can achieve **high availability for writes** using replication:
 
 * Run two or more identically configured VictoriaMetrics instances in distinct datacenters (availability zones);
-* Replicate collected metrics simultaneously into these instances via one or more [vmagents](https://docs.victoriametrics.com/victoriametrics/vmagent/).
+* Replicate collected metrics simultaneously into all these instances via one or more [vmagents](https://docs.victoriametrics.com/victoriametrics/vmagent/).
 
-In this setup, vmagent should be configured [to replicate data](https://docs.victoriametrics.com/victoriametrics/vmagent/#replication-and-high-availability)
-to each configured remote destination:
+In this setup, configure vmagent [to replicate data](https://docs.victoriametrics.com/victoriametrics/vmagent/#replication-and-high-availability)
+to each remote destination:
 ```sh
 /path/to/vmagent \
   -remoteWrite.url=https://victoriametrics-1:8428/api/v1/write \
   -remoteWrite.url=https://victoriametrics-2:8428/api/v1/write
 ```
 
-Each configured `--remoteWrite.url` creates its own replication queue in case the remote destination is unavailable.
+Each `--remoteWrite.url` creates its own replication queue. The queue temporarily stores data on disk while a remote destination is unavailable.
 See more about [on-disk persistence in vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/#on-disk-persistence).
 
-Once the remote destination is available, vmagent will drain the queue and restore data consistency between destinations.
+When the remote destination becomes available, vmagent drains the queue and restores data consistency across destinations.
 
 > The max size of the on-disk queue can be increased by [horizontally sharding vmagents](https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets).
-> For achieving vmagent's high availability, run multiple identically configured replicas of vmagents. In this case, the load
-> on the remote destinations will increase proportionally to the number of vmagent replicas. The duplicated data in remote destinations
-> has to be [deduplicated](#deduplication) on the VictoriaMetrics side.
+> To achieve high availability for vmagent itself, run multiple identically configured vmagent replicas.
+> In this case, the load on the remote destinations will increase proportionally to the number of vmagent replicas. The duplicated data in remote destinations
+> has to be [deduplicated](https://docs.victoriametrics.com/victoriametrics/#deduplication) on the VictoriaMetrics side.
 
-Achieve **high availability for reads** by choosing one of the following options.
+You can achieve **high availability for reads** by choosing one of the following options:
 
-1. Use load balancer to query the first VictoriaMetrics instance and fail over to the second instance if the first instance becomes temporarily unavailable.
-  This can be done via [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) according to [these docs](https://docs.victoriametrics.com/victoriametrics/vmauth/#high-availability).
-1. Use [vmselect](https://docs.victoriametrics.com/victoriametrics/vmselect/) to query all remote destinations at once
-  and merge the results. This option is only possible if VictoriaMetrics single-node instances are configured with `-vmselectAddr` flag. See more details in [these docs](https://docs.victoriametrics.com/victoriametrics/#multi-tenancy).
+- Load balancer: Use a load balancer to ensure read operations are always routed to an available VictoriaMetrics instance.
+- Top-level vmselect: Use vmselect to query all available VictoriaMetrics instances and merge the results
 
-**Option 1.** Use load balancer to query the first VictoriaMetrics instance and fail over to the second instance if the first instance becomes temporarily unavailable.
-This can be done via [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) according to [these docs](https://docs.victoriametrics.com/victoriametrics/vmauth/#high-availability).
+### Load balancer
+
+In this mode, we use a load balancer to query the main VictoriaMetrics instance and fail over to a secondary instance if the first one becomes temporarily unavailable.
+
+This can be done using [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) configured in [high-availability mode](https://docs.victoriametrics.com/victoriametrics/vmauth/#high-availability).
+
 ```mermaid
 flowchart LR
     Client["Query Client<br/>Grafana/vmalert"]
@@ -1313,17 +1317,26 @@ flowchart LR
     VMAUTH -.->|"2. Fail over if VM1<br/>is unavailable"| VM2
 ```
 
-This option is the most cost-efficient, as only one of VictoriaMetrics instances is queried at a time.
-However, during short recovery periods of the unavailable instance, the read queries could be routed to this instance and  
-return incomplete results, while queue on vmagents is still being drained. 
+This is the most cost-efficient option because only one VictoriaMetrics instance is queried at a time.
 
-**Option 2.**  Use [vmselect](https://docs.victoriametrics.com/victoriametrics/vmselect/) to query all remote destinations at once
-and merge the results. This option is only possible if VictoriaMetrics single-node instances are configured with `-vmselectAddr` flag. See more details in [these docs](https://docs.victoriametrics.com/victoriametrics/#multi-tenancy).
+The downside is that when one instance goes down and then comes back up, the load balancer may immediately start sending read queries to the recovering instance, even though it hasn't caught up yet. During this short recovery window:
+
+- The recovering VictoriaMetrics instance has not yet ingested all the data that was queued while it was down.
+- vmagent nodes may still be draining their backlogged queues into that instance
+- Read queries routed to the recovering instance can return incomplete results, because some recent data may still be in transit or not yet visible.
+
+### Top-level vmselect
+
+In this option, we use a top-level [vmselect](https://docs.victoriametrics.com/victoriametrics/vmselect/) to query all remote destinations simultaneously and merge the results.
+
+This option is only possible if VictoriaMetrics single-node instances are configured with the `-vmselectAddr` flag. See more details in the [VictoriaMetrics multi-tenancy section](https://docs.victoriametrics.com/victoriametrics/#multi-tenancy).
+
 ```mermaid
 flowchart LR
     Client["Query Client<br/>Grafana / vmalert"]
 
-    VMSELECT["vmselect<br/>Query all destinations <br><code>-dedup.minScrapeInterval=1ms -replicationFactor=2</code>"]
+    VMSELECT["vmselect<br/>Query all destinations<br/>
+     <code><pre>-dedup.minScrapeInterval=1ms<br/>-replicationFactor=2</pre></code>"]
 
     VM1["VictoriaMetrics-1<br/>Single-node<br/><code>-vmselectAddr=:8401</code>"]
     VM2["VictoriaMetrics-2<br/>Single-node<br/><code>-vmselectAddr=:8401</code>"]
@@ -1336,13 +1349,13 @@ flowchart LR
     VMSELECT -->|"Merged and deduplicated results"| Client
 ```
 
-Option 2 is more costly, as all remote destinations are queried at once and responses must be merged before returning
-the final result. But this option can tolerate data gaps among destinations by merging responses from all VictoriaMetrics instances.
-Since vmselect will be querying identical data across VictoriaMetrics instances, it should be configured
-with `-dedup.minScrapeInterval=1ms` to remove the duplicates during the merge. Configure vmselect with `-replicationFactor=N`,
-where `N` is the number of remote destinations, so it could tolerate unavailability of these destinations.
+This option requires more resources because it queries all remote destinations simultaneously and merges their responses before returning the final result.
 
-See [VMDistributed](https://docs.victoriametrics.com/operator/resources/vmdistributed/) Kubernetes operator resource for an example.
+The benefit is that it can handle data gaps across destinations by merging responses from all VictoriaMetrics instances. Thus, a single recovering instance is less likely to cause incomplete results, unlike in the load balancer case.
+
+Since vmselect queries identical data across multiple VictoriaMetrics instances, configure it with `-dedup.minScrapeInterval=1ms` to remove duplicate samples during merging. Also set `-replicationFactor=N` on vmselect, where `N` equals the number of remote storage destinations, so that queries can tolerate the unavailability of up to `N-1` destinations.
+
+See [VMDistributed](https://docs.victoriametrics.com/operator/resources/vmdistributed/) Kubernetes operator resource for an example of configuring vmselect with deduplication and replication.
 
 ## Deduplication
 
