@@ -30,7 +30,7 @@ The example architecture separates workloads into three regions, called Earth, M
 
 The role of the Ground Controls can be filled by VictoriaMetrics in [single-node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) or [cluster mode](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/).
 
-### High Availability
+## High Availability
 
 The architecture provides high availability by storing two full copies of the data: one in Ground Control 1 and the other in Ground Control 2. Since both store the same data, losing one region doesn't result in a monitoring outage. You can still run queries, view dashboards, and receive alerts.
 
@@ -38,7 +38,7 @@ vmagent keeps a separate persistent queue for each `-remoteWrite.url` destinatio
 
 This setup provides two logical copies of the data in separate monitoring regions. That lets you fail over to the healthy region if one region becomes unavailable, or spread read load across both regions if needed.
 
-## How to write the data to Ground Control regions
+### How to write the data to Ground Control regions
 
 Run one or more vmagent nodes in each workload region and configure them to send metrics to both Ground Control regions. This gives each workload region a local write path and keeps delivery going if one monitoring region is unavailable. 
 
@@ -61,45 +61,25 @@ For more details, see [data ingestion with vmagent](https://docs.victoriametrics
 vmagent [alerting rules and dashboards](https://docs.victoriametrics.com/vmagent/index.html#monitoring) help to monitor 
 the health state of each configured destination and its queue size.
 
-## How to read the data from Ground Control regions
+### How to read the data from Ground Control regions
 
 You can read data from Ground Control regions in a few different ways. The best option depends on your needs and operational complexity:
 
-* Regional endpoints: use one region endpoint as default and manually switch to the other during an outage. This is the simplest option but needs manual failover.
-* Load balancer: put a load balancer in front of both Ground Control regions. Route traffic to a preferred region, with automatic failover to the other region in case of failure. [vmauth with `-loadBalancingPolicy=first_available`](https://docs.victoriametrics.com/vmauth/index.html#high-availability) setting does exactly that.
-* Multi-level vmselect: run a dedicated vmselect that would be configured to read from both regions and merge the results.
+* Choose region via load balancer: put a load balancer in front of both Ground Control regions. Route traffic to a preferred region, with automatic failover to the other region in case of failure.
+* Merge results from multiple regions via vmselect: run a dedicated vmselect that would be configured to read from both regions and merge the results.
 
 You can read more about choosing the right architecture in the [VictoriaMetrics topologies guide](https://docs.victoriametrics.com/guides/vm-architectures/).
 
-### Regional endpoints
-
-In this setup, Grafana, vmalert, or any other query client sends requests to one region. This is the default datasource. In case of an outage, you manually switch to the other region (standby datasource). For instance, use Ground Control 1 as the primary datasource and keep Ground Control 2 as a standby endpoint.
-
-![Diagram shows two Ground Control regions. Grafana connects to one by default, leaving the other as a failover](regional-endpoints.webp)
-{width="700"}
-
-Choose this option if you prioritize operational simplicity over automatic failover or a unified global query endpoint.
-
-If you use VictoriaMetrics single-node, the endpoints should point directly to the single-node HTTP API. For example:
-
-- Primary endpoint: `https://ground-control-1:8428/api/v1/query`
-- Standby endpoint: `https://ground-control-2:8428/api/v1/query`
-
-On the VictoriaMetrics cluster, the endpoints point to the cluster's vmselect HTTP API. For example:
-
-- Primary endpoint: `https://ground-control-1-vmselect:8481/select/0/prometheus/api/v1/query`
-- Standby endpoint: `https://ground-control-2-vmselect:8481/select/0/prometheus/api/v1/query`
-
-### Load balancer
+#### Load balancer
 
 Use a load balancer when you want one stable query endpoint in front of your Ground Control regions. In this setup, dashboards and tools send queries to a single URL, and vmauth routes each request to one available region.
 
-The following diagram shows [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) performing the role of load balancer.
+The following diagram shows [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) performing the role of [load balancer for HA setups](https://docs.victoriametrics.com/vmauth/index.html#high-availability).
 
 ![Diagram shows vmauth between Grafana and Ground Control regions](load-balancer-vmauth.webp)
 {width="700"}
 
-This approach is faster than merging results from multiple regions, because each query goes to only one region. It can also reduce query latency by roughly half compared with a topology that reads and merges data from both regions.
+This approach is faster than [merging results with vmselect](#vmselect), because each query goes to only one region. It can also reduce query latency by roughly half compared with a topology that reads and merges data from both regions.
 
 The main downside is that vmauth does not know whether a recovered region has already finished replaying delayed data from the vmagent queue. If you send queries to that region too early, recent data may still be incomplete. In that case, it is better to wait until the region catches up before routing traffic there.
 
@@ -143,7 +123,7 @@ curl http://vmauth-node:8427/select/0/prometheus/api/v1/query?query=up
 
 For an example of this topology in Kubernetes, see the [`VMDistributed` resource](https://docs.victoriametrics.com/helm/victoriametrics-k8s-stack/#vmdistributed-enabled).
 
-### Multi-level vmselect
+#### vmselect
 
 > This option requires that Ground Control regions are deployed in one of these modes:
 > - As a [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/).
