@@ -1,3 +1,11 @@
+---
+build:
+  list: never
+  publishResources: false
+  render: never
+sitemap:
+  disable: true
+---
 VictoriaMetrics Observability Stack integrates with AI assistants through [MCP servers](https://docs.victoriametrics.com/ai-tools/#mcp-servers)
 and [agent skills](https://docs.victoriametrics.com/ai-tools/#agent-skills).
 The integrations allow AI agents and automation tools to query Metrics, Logs, and Traces, analyze telemetry data, 

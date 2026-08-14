@@ -290,6 +290,8 @@ func (g *Group) updateWith(newGroup *Group) error {
 	g.Headers = newGroup.Headers
 	g.NotifierHeaders = newGroup.NotifierHeaders
 	g.Labels = newGroup.Labels
+	g.EvalDelay = newGroup.EvalDelay
+	g.evalAlignment = newGroup.evalAlignment
 	g.Limit = newGroup.Limit
 	g.checksum = newGroup.checksum
 	g.Rules = newRules
@@ -337,7 +339,7 @@ func (g *Group) Init() {
 		i := g.Interval.Seconds()
 		return i
 	})
-	g.metrics.iterationLimit = g.metrics.set.NewGauge(fmt.Sprintf(`vmalert_rule_group_results_limit{%s}`, labels), func() float64 {
+	g.metrics.iterationLimit = g.metrics.set.NewGauge(fmt.Sprintf(`vmalert_group_rule_results_limit{%s}`, labels), func() float64 {
 		g.mu.RLock()
 		limit := g.Limit
 		g.mu.RUnlock()
