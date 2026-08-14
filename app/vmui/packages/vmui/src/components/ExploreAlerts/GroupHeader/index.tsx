@@ -7,6 +7,7 @@ import { DetailsIcon } from "../../Main/Icons";
 import Button from "../../Main/Button/Button";
 import Badges, { BadgeColor } from "../Badges";
 import classNames from "classnames";
+import { getVMAlertSource, groupSourceParam } from "../helpers";
 interface GroupHeaderControlsProps {
   group: APIGroup;
 }
@@ -18,7 +19,9 @@ const GroupHeaderHeader: FC<GroupHeaderControlsProps> = ({ group }) => {
   const openGroupModal = async () => {
     navigate({
       pathname: "/rules",
-      search:   `group_id=${group.id}`,
+      // The group details must be requested from the vmalert owning the group,
+      // so the link carries its name.
+      search:   `group_id=${group.id}${groupSourceParam(getVMAlertSource(group))}`,
     });
   };
 

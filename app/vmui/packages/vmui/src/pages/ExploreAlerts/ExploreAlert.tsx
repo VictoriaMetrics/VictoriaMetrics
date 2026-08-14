@@ -12,21 +12,22 @@ interface ExploreAlertProps {
   groupId: string;
   id: string;
   mode: string;
+  source: string;
   onClose: () => void;
 }
 
-const ExploreAlert = ({ groupId, id, mode, onClose }: ExploreAlertProps) => {
+const ExploreAlert = ({ groupId, id, mode, source, onClose }: ExploreAlertProps) => {
   const {
     item,
     isLoading: isLoadingItem,
     error: errorItem,
-  } = useFetchItem<APIAlert>({ groupId, id, mode });
+  } = useFetchItem<APIAlert>({ groupId, id, mode, source });
 
   const {
     group,
     isLoading: isLoadingGroup,
     error: errorGroup,
-  } = useFetchGroup<APIGroup>({ id: groupId });
+  } = useFetchGroup<APIGroup>({ id: groupId, source });
 
   const error =  errorItem || errorGroup;
   const isLoading = isLoadingItem || isLoadingGroup;
@@ -52,6 +53,7 @@ const ExploreAlert = ({ groupId, id, mode, onClose }: ExploreAlertProps) => {
           entity="alert"
           type="alerting"
           groupId={item.group_id}
+          source={source}
           id={item.id}
           name={item.name}
           states={states}

@@ -1183,6 +1183,34 @@ when `-vmalert.proxyURL` flag is set. Use this feature for the following cases:
 For accessing vmalerts UI through vmselect configure `-vmalert.proxyURL` flag and visit
 `http://<vmselect>:8481/select/<accountID>/prometheus/vmalert/` link.
 
+### Proxying to multiple vmalerts
+
+`-vmalert.proxyURL` accepts multiple URLs. In this case related API requests are sent to all the configured
+vmalerts and the responses are merged, so groups, alerts and notifiers from all of them can be returned at once.
+
+Every vmalert is assigned a name. By default it is set to `vmalert_proxy_N`, where `N` is the position
+of the corresponding `-vmalert.proxyURL`. Set `-vmalert.proxyName` if you want to display meaningful names
+in VMUI or in the API requests, for example:
+```sh
+-vmalert.proxyURL=http://vmalert-1:8880 -vmalert.proxyName=prod
+-vmalert.proxyURL=http://vmalert-2:8880 -vmalert.proxyName=staging
+```
+
+If some of the configured vmalerts are unavailable, the request does not fail. The response contains data
+from the remaining vmalerts, along with a `warnings` field describing each unavailable vmalert. The request fails
+only if all configured vmalerts are unavailable.
+
+`group_limit` is applied by every vmalert to its own groups. For example, `group_limit=10` with two configured
+vmalerts returns up to 10 groups from each of them - up to 20 groups per page. `total_groups` and `total_rules`
+in the response are summed across all vmalerts, while `total_pages` is the largest number of pages among them.
+
+Using the `vmalert_source` query arg with a vmalert name sends the request to the specific vmalert:
+```sh
+curl http://<victoriametrics-addr>:8428/api/v1/rules?vmalert_source=prod
+```
+Requests to `/api/v1/group`, `/api/v1/rule` and `/api/v1/alert` must contain the `vmalert_source` query arg
+when multiple vmalerts are configured.
+
 ## Community and contributions
 
 Feel free asking any questions regarding VictoriaMetrics:

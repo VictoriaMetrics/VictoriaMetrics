@@ -16,12 +16,14 @@ import ExploreGroup from "../../pages/ExploreAlerts/ExploreGroup";
 import { getQueryStringValue } from "../../utils/query-string";
 import { getChanges } from "./helpers";
 import debounce from "lodash.debounce";
-import { getStates } from "../../components/ExploreAlerts/helpers";
+import { getStates, getVMAlertSource, GROUP_SOURCE_PARAM } from "../../components/ExploreAlerts/helpers";
+import { useAppState } from "../../state/common/StateContext";
 
 const defaultRuleType = getQueryStringValue("type", "") as string;
 const defaultStatesStr = getQueryStringValue("states", "") as string;
 const defaultStates = defaultStatesStr.split("&").filter((s) => s) as string[];
 const defaultSearchInput = getQueryStringValue("search", "") as string;
+const defaultSource = getQueryStringValue("vmalert_source", "") as string;
 const TYPE_STATES: Record<string, string[]> = {
   alert:  ["inactive", "firing", "nomatch", "pending", "unhealthy"],
   record: ["unhealthy", "nomatch", "ok"],
@@ -32,12 +34,17 @@ const ExploreRules: FC = () => {
   const groupId = getQueryStringValue("group_id", "") as string;
   const ruleId = getQueryStringValue("rule_id", "") as string;
   const alertId = getQueryStringValue("alert_id", "") as string;
+  // groupSource is set by links to a group, rule or alert. It routes the detail request
+  // to the owning vmalert without touching the source filter. See GROUP_SOURCE_PARAM.
+  const groupSource = getQueryStringValue(GROUP_SOURCE_PARAM, "") as string;
 
   const [searchInput, setSearchInput] = useState(defaultSearchInput);
   const [ruleType, setRuleType] = useState(defaultRuleType);
   const [states, setStates] = useState(defaultStates);
+  const [source, setSource] = useState(defaultSource);
   const [modalOpen, setModalOpen] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
+  const { appConfig } = useAppState();
 
   useEffect(() => {
     setModalOpen(!!groupId);
@@ -47,6 +54,7 @@ const ExploreRules: FC = () => {
     type: ruleType,
     states: states.join("&"),
     search: searchInput,
+    vmalert_source: source,
     group_id: groupId,
     alert_id: alertId,
     rule_id: ruleId,
@@ -66,6 +74,7 @@ const ExploreRules: FC = () => {
           groupId={groupId}
           id={ruleId}
           mode={ruleId ? "rule" : "alert"}
+          source={selectedGroupSource}
           onClose={handleClose}
         />
       );
@@ -75,6 +84,7 @@ const ExploreRules: FC = () => {
           groupId={groupId}
           id={alertId}
           mode={ruleId ? "rule" : "alert"}
+          source={selectedGroupSource}
           onClose={handleClose}
         />
       );
@@ -82,6 +92,7 @@ const ExploreRules: FC = () => {
       return (
         <ExploreGroup
           id={groupId}
+          source={selectedGroupSource}
           onClose={handleClose}
         />
       );
@@ -95,6 +106,8 @@ const ExploreRules: FC = () => {
     newParams.delete("group_id");
     newParams.delete("rule_id");
     newParams.delete("alert_id");
+    // The routing hint belongs to the closed modal, not to the rules list.
+    newParams.delete(GROUP_SOURCE_PARAM);
     setSearchParams(newParams);
     setModalOpen(false);
   };
@@ -113,19 +126,40 @@ const ExploreRules: FC = () => {
     [ruleType]
   );
   const selectedRuleTypes = [ruleType].filter(Boolean);
+  // allSources is set by vmselect only when more than a single -vmalert.proxyURL is configured.
+  const allSources = useMemo(() => appConfig?.vmalert?.sources || [], [appConfig]);
+  const selectedSources = [source].filter(Boolean);
   useEffect(() => {
     if (!states.every(v => allStates.includes(v))) {
       setStates([]);
     }
   }, [states, allStates]);
+  useEffect(() => {
+    if (source && allSources.length && !allSources.includes(source)) {
+      setSource("");
+    }
+  }, [source, allSources]);
 
   const pageNumInt: number = Math.max(1, parseInt(pageNum, 10) || 1);
   const {
     groups,
     isLoading,
     error,
+    warnings,
     pageInfo,
-  } = useFetchGroups({ blockFetch: modalOpen, search: searchInput, ruleType, states, pageNum: pageNumInt, onPageChange });
+  } = useFetchGroups({ blockFetch: modalOpen, search: searchInput, ruleType, states, source, pageNum: pageNumInt, onPageChange });
+
+  // Group, rule and alert details are owned by the vmalert, which returned the group,
+  // so the detail requests must be routed to it instead of being fanned out to all
+  // the vmalerts at -vmalert.proxyURL.
+  //
+  // The loaded group is the most reliable source. groupSource covers direct links, where
+  // the groups aren't loaded yet, and the source filter covers links created before
+  // GROUP_SOURCE_PARAM was introduced.
+  const selectedGroupSource = useMemo(
+    () => getVMAlertSource(groups.find((g) => g.id === groupId)) || groupSource || source,
+    [groups, groupId, groupSource, source],
+  );
 
   const handleChangeStates = useCallback((title: string) => {
     const newParams = new URLSearchParams(searchParams);
@@ -139,9 +173,21 @@ const ExploreRules: FC = () => {
     const newParams = new URLSearchParams(searchParams);
     newParams.set("page_num", "1");
     setSearchParams(newParams);
-    const changes = getChanges(title, selectedRuleTypes);
-    setRuleType(changes.length && changes.length !== allRuleTypes.length ? changes[0] : "");
+    // Only a single rule type can be selected - see the comment at handleChangeSource.
+    setRuleType(title === "All" || title === ruleType ? "" : title);
   }, [ruleType, searchParams]);
+
+  const handleChangeSource = useCallback((title: string) => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set("page_num", "1");
+    setSearchParams(newParams);
+    // Only a single source can be selected, so the clicked one replaces the previous
+    // selection. Clicking "All" or the already selected source clears the filter.
+    // getChanges() isn't used here, since it toggles a multi-select set: clicking another
+    // source would either select both (and reset to "All" when all of them are selected)
+    // or keep the previous selection, making it impossible to switch between sources.
+    setSource(title === "All" || title === source ? "" : title);
+  }, [source, searchParams]);
 
   return (
     <>
@@ -153,11 +199,20 @@ const ExploreRules: FC = () => {
             allRuleTypes={allRuleTypes}
             states={states}
             allStates={allStates}
+            sources={selectedSources}
+            allSources={allSources}
             search={searchInput}
             onChangeRuleType={handleChangeRuleType}
             onChangeStates={handleChangeStates}
+            onChangeSource={handleChangeSource}
             onChangeSearch={debounce(handleChangeSearch, 500)}
           />
+          {warnings.map((warning) => (
+            <Alert
+              key={warning}
+              variant="warning"
+            >{warning}</Alert>
+          ))}
           <Pagination
             page={pageInfo.page}
             totalPages={pageInfo.total_pages}

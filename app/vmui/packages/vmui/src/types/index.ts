@@ -184,6 +184,9 @@ export interface AppConfig {
   };
   vmalert?: {
     enabled: boolean;
+    // sources contains names of the vmalerts configured via -vmalert.proxyURL.
+    // It is set only if more than a single vmalert is configured.
+    sources?: string[];
   };
   version?: string;
 }
