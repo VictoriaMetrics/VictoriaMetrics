@@ -11,9 +11,12 @@ interface RulesHeaderProps {
   allRuleTypes: string[];
   allStates: string[];
   states: string[];
+  sources: string[];
+  allSources: string[];
   search: string;
   onChangeRuleType: (input: string) => void;
   onChangeStates: (input: string) => void;
+  onChangeSource: (input: string) => void;
   onChangeSearch: (input: string) => void;
 }
 
@@ -22,9 +25,12 @@ const RulesHeader = ({
   allRuleTypes,
   allStates,
   states,
+  sources,
+  allSources,
   search,
   onChangeRuleType,
   onChangeStates,
+  onChangeSource,
   onChangeSearch,
 }: RulesHeaderProps) => {
   const noStateText = useMemo(
@@ -67,6 +73,19 @@ const RulesHeader = ({
             searchable
           />
         </div>
+        {allSources.length > 1 && (
+          <div className="vm-explore-alerts-header__vmalert_source">
+            <Select
+              value={sources}
+              list={allSources}
+              label="vmalert source"
+              placeholder="Please select vmalert source"
+              onChange={onChangeSource}
+              includeAll
+              searchable
+            />
+          </div>
+        )}
         <div className="vm-explore-alerts-header-search">
           <TextField
             label="Search"

@@ -21,6 +21,10 @@
     min-width: 150px;
   }
 
+  &__vmalert_source {
+    min-width: 180px;
+  }
+
   &-search {
     flex-grow: 1;
     .vm-text-field__input {

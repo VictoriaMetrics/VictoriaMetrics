@@ -17,11 +17,13 @@ import { getQueryStringValue } from "../../utils/query-string";
 import { getChanges } from "./helpers";
 import debounce from "lodash.debounce";
 import { getStates } from "../../components/ExploreAlerts/helpers";
+import { useAppState } from "../../state/common/StateContext";
 
 const defaultRuleType = getQueryStringValue("type", "") as string;
 const defaultStatesStr = getQueryStringValue("states", "") as string;
 const defaultStates = defaultStatesStr.split("&").filter((s) => s) as string[];
 const defaultSearchInput = getQueryStringValue("search", "") as string;
+const defaultSource = getQueryStringValue("vmalert_source", "") as string;
 const TYPE_STATES: Record<string, string[]> = {
   alert:  ["inactive", "firing", "nomatch", "pending", "unhealthy"],
   record: ["unhealthy", "nomatch", "ok"],
@@ -36,8 +38,10 @@ const ExploreRules: FC = () => {
   const [searchInput, setSearchInput] = useState(defaultSearchInput);
   const [ruleType, setRuleType] = useState(defaultRuleType);
   const [states, setStates] = useState(defaultStates);
+  const [source, setSource] = useState(defaultSource);
   const [modalOpen, setModalOpen] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
+  const { appConfig } = useAppState();
 
   useEffect(() => {
     setModalOpen(!!groupId);
@@ -47,6 +51,7 @@ const ExploreRules: FC = () => {
     type: ruleType,
     states: states.join("&"),
     search: searchInput,
+    vmalert_source: source,
     group_id: groupId,
     alert_id: alertId,
     rule_id: ruleId,
@@ -113,19 +118,28 @@ const ExploreRules: FC = () => {
     [ruleType]
   );
   const selectedRuleTypes = [ruleType].filter(Boolean);
+  // allSources is set by vmselect only when more than a single -vmalert.proxyURL is configured.
+  const allSources = useMemo(() => appConfig?.vmalert?.sources || [], [appConfig]);
+  const selectedSources = [source].filter(Boolean);
   useEffect(() => {
     if (!states.every(v => allStates.includes(v))) {
       setStates([]);
     }
   }, [states, allStates]);
+  useEffect(() => {
+    if (source && allSources.length && !allSources.includes(source)) {
+      setSource("");
+    }
+  }, [source, allSources]);
 
   const pageNumInt: number = Math.max(1, parseInt(pageNum, 10) || 1);
   const {
     groups,
     isLoading,
     error,
+    warnings,
     pageInfo,
-  } = useFetchGroups({ blockFetch: modalOpen, search: searchInput, ruleType, states, pageNum: pageNumInt, onPageChange });
+  } = useFetchGroups({ blockFetch: modalOpen, search: searchInput, ruleType, states, source, pageNum: pageNumInt, onPageChange });
 
   const handleChangeStates = useCallback((title: string) => {
     const newParams = new URLSearchParams(searchParams);
@@ -143,6 +157,14 @@ const ExploreRules: FC = () => {
     setRuleType(changes.length && changes.length !== allRuleTypes.length ? changes[0] : "");
   }, [ruleType, searchParams]);
 
+  const handleChangeSource = useCallback((title: string) => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set("page_num", "1");
+    setSearchParams(newParams);
+    const changes = getChanges(title, selectedSources);
+    setSource(changes.length && changes.length !== allSources.length ? changes[0] : "");
+  }, [source, searchParams, allSources]);
+
   return (
     <>
       {modalOpen && getModal()}
@@ -153,11 +175,20 @@ const ExploreRules: FC = () => {
             allRuleTypes={allRuleTypes}
             states={states}
             allStates={allStates}
+            sources={selectedSources}
+            allSources={allSources}
             search={searchInput}
             onChangeRuleType={handleChangeRuleType}
             onChangeStates={handleChangeStates}
+            onChangeSource={handleChangeSource}
             onChangeSearch={debounce(handleChangeSearch, 500)}
           />
+          {warnings.map((warning) => (
+            <Alert
+              key={warning}
+              variant="warning"
+            >{warning}</Alert>
+          ))}
           <Pagination
             page={pageInfo.page}
             totalPages={pageInfo.total_pages}

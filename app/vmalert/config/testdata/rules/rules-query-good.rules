@@ -1,5 +1,7 @@
 groups:
   - name: alertmanager.rules
+    labels:
+      team: wow
     rules:
       - alert: AlertmanagerConfigInconsistent
         annotations:
@@ -13,3 +15,11 @@ groups:
         for: 5m
         labels:
           severity: critical
+  - name: g1
+    interval: 30s
+    labels:
+      team: wow
+    rules:
+      - alert: a1
+        expr: up>0
+        for: 5m

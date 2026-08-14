@@ -6,6 +6,7 @@ interface rulesQueryProps {
   type?: string;
   states?: string;
   search?: string;
+  vmalert_source?: string;
   rule_id: string;
   group_id: string;
   alert_id: string;
@@ -15,6 +16,7 @@ export const useRulesSetQueryParams = ({
   type,
   states,
   search,
+  vmalert_source,
   rule_id,
   alert_id,
   group_id,
@@ -26,6 +28,7 @@ export const useRulesSetQueryParams = ({
       type,
       states,
       search,
+      vmalert_source,
       alert_id,
       rule_id,
       group_id,
@@ -38,6 +41,7 @@ export const useRulesSetQueryParams = ({
     type,
     states,
     search,
+    vmalert_source,
     rule_id,
     group_id,
     alert_id,
