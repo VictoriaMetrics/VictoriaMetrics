@@ -72,7 +72,7 @@ See [what is an active time series](https://docs.victoriametrics.com/victoriamet
 
 The number of unique [time series](#time-series) is named `cardinality`. Having too many unique time series is named `high cardinality`.
 [High cardinality](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-cardinality) may result in increased resource usage in VictoriaMetrics.
-The number of unique [time series](#time-series) is named `cardinality`.  unique time series is named `high cardinality`.
+The number of unique [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) is named `cardinality`.  unique time series is named `high cardinality`.
 
 #### Raw samples
 
@@ -976,7 +976,7 @@ See [How to delete time series](https://docs.victoriametrics.com/victoriametrics
 ### Relabeling
 
 [Relabeling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#relabeling) is a powerful mechanism for modifying time series before they have been written to the database. Relabeling
-may be applied for both [push](#push-model) and [pull](#pull-model) models.
+may be applied for both [push](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#push-model) and [pull](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#pull-model) models.
 
 ### Deduplication
 
@@ -985,4 +985,4 @@ VictoriaMetrics supports data [deduplication](https://docs.victoriametrics.com/v
 
 ### Downsampling
 
-VictoriaMetrics supports data [downsampling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#downsampling).
+VictoriaMetrics Enteprise supports data [downsampling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#downsampling). Downsampling can reduce disk space usage and improve query performance by reducing the number samples in a time series. 
