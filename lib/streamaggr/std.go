@@ -2,6 +2,7 @@ package streamaggr
 
 import (
 	"math"
+	"unsafe"
 )
 
 // stdAggrValue calculates output=stdvar or stddev, e.g. the average value over input samples.
@@ -42,6 +43,10 @@ func (ac *stdAggrConfig) getSuffix() string {
 
 func (*stdAggrValue) state() any {
 	return nil
+}
+
+func (av *stdAggrValue) sizeBytes() uint64 {
+	return uint64(unsafe.Sizeof(*av))
 }
 
 func newStddevAggrConfig() aggrConfig {

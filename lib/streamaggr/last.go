@@ -1,5 +1,7 @@
 package streamaggr
 
+import "unsafe"
+
 type lastAggrValue struct {
 	last      float64
 	timestamp int64
@@ -21,6 +23,10 @@ func (av *lastAggrValue) flush(_ aggrConfig, ctx *flushCtx, key string, _ bool) 
 
 func (*lastAggrValue) state() any {
 	return nil
+}
+
+func (av *lastAggrValue) sizeBytes() uint64 {
+	return uint64(unsafe.Sizeof(*av))
 }
 
 func newLastAggrConfig() aggrConfig {

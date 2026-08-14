@@ -1,5 +1,7 @@
 package streamaggr
 
+import "unsafe"
+
 type uniqueSamplesAggrValue struct {
 	samples map[float64]struct{}
 }
@@ -19,6 +21,12 @@ func (av *uniqueSamplesAggrValue) flush(_ aggrConfig, ctx *flushCtx, key string,
 
 func (*uniqueSamplesAggrValue) state() any {
 	return nil
+}
+
+func (av *uniqueSamplesAggrValue) sizeBytes() uint64 {
+	n := uint64(unsafe.Sizeof(*av))
+	n += uint64(len(av.samples)) * (uint64(unsafe.Sizeof(float64(0))) + mapEntryOverheadBytes)
+	return n
 }
 
 func newUniqueSamplesAggrConfig() aggrConfig {

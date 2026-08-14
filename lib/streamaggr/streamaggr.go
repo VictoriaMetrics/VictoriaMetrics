@@ -616,6 +616,14 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 			return nil, err
 		}
 		aggrOutputs.configs[i] = ac
+
+		configIdx := i
+		_ = ms.NewGauge(fmt.Sprintf(`vm_streamaggr_output_state_size_bytes{%s}`, outputMetricLabels), func() float64 {
+			return float64(aggrOutputs.stateSizeBytes(configIdx))
+		})
+		_ = ms.NewGauge(fmt.Sprintf(`vm_streamaggr_output_state_items_count{%s}`, outputMetricLabels), func() float64 {
+			return float64(aggrOutputs.stateItemsCount())
+		})
 	}
 	outputsLabels := make([]string, 0, len(outputsSeen))
 	for o := range outputsSeen {

@@ -2,6 +2,7 @@ package streamaggr
 
 import (
 	"math"
+	"unsafe"
 )
 
 type sumSamplesAggrValueShared struct {
@@ -37,6 +38,10 @@ func (av *sumSamplesAggrValue) flush(c aggrConfig, ctx *flushCtx, key string, _ 
 
 func (av *sumSamplesAggrValue) state() any {
 	return av.shared
+}
+
+func (av *sumSamplesAggrValue) sizeBytes() uint64 {
+	return uint64(unsafe.Sizeof(*av)) + uint64(unsafe.Sizeof(*av.shared))
 }
 
 func newSumSamplesAggrConfig(resetTotalOnFlush bool) aggrConfig {

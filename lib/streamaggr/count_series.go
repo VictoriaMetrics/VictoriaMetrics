@@ -1,6 +1,8 @@
 package streamaggr
 
 import (
+	"unsafe"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/cespare/xxhash/v2"
 )
@@ -27,6 +29,12 @@ func (av *countSeriesAggrValue) flush(_ aggrConfig, ctx *flushCtx, key string, _
 
 func (*countSeriesAggrValue) state() any {
 	return nil
+}
+
+func (av *countSeriesAggrValue) sizeBytes() uint64 {
+	n := uint64(unsafe.Sizeof(*av))
+	n += uint64(len(av.samples)) * (uint64(unsafe.Sizeof(uint64(0))) + mapEntryOverheadBytes)
+	return n
 }
 
 func newCountSeriesAggrConfig() aggrConfig {

@@ -1,5 +1,7 @@
 package streamaggr
 
+import "unsafe"
+
 type countSamplesAggrValue struct {
 	count uint64
 }
@@ -17,6 +19,10 @@ func (av *countSamplesAggrValue) flush(_ aggrConfig, ctx *flushCtx, key string, 
 
 func (*countSamplesAggrValue) state() any {
 	return nil
+}
+
+func (av *countSamplesAggrValue) sizeBytes() uint64 {
+	return uint64(unsafe.Sizeof(*av))
 }
 
 func newCountSamplesAggrConfig() aggrConfig {
