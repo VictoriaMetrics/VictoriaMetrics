@@ -1323,7 +1323,7 @@ and merge the results. This option is only possible if VictoriaMetrics single-no
 flowchart LR
     Client["Query Client<br/>Grafana / vmalert"]
 
-    VMSELECT["vmselect<br/>Query all destinations <br><code>-dedup.minScrapeInterval=1ms</code>"]
+    VMSELECT["vmselect<br/>Query all destinations <br><code>-dedup.minScrapeInterval=1ms -replicationFactor=2</code>"]
 
     VM1["VictoriaMetrics-1<br/>Single-node<br/><code>-vmselectAddr=:8401</code>"]
     VM2["VictoriaMetrics-2<br/>Single-node<br/><code>-vmselectAddr=:8401</code>"]
@@ -1339,7 +1339,8 @@ flowchart LR
 Option 2 is more costly, as all remote destinations are queried at once and responses must be merged before returning
 the final result. But this option can tolerate data gaps among destinations by merging responses from all VictoriaMetrics instances.
 Since vmselect will be querying identical data across VictoriaMetrics instances, it should be configured
-with `-dedup.minScrapeInterval=1ms` to remove the duplicates during the merge.
+with `-dedup.minScrapeInterval=1ms` to remove the duplicates during the merge. Configure vmselect with `-replicationFactor=N`,
+where `N` is the number of remote destinations, so it could tolerate unavailability of these destinations.
 
 See [VMDistributed](https://docs.victoriametrics.com/operator/resources/vmdistributed/) Kubernetes operator resource for an example.
 
