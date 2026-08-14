@@ -375,7 +375,7 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 				g.mu.Lock()
 				err := g.updateWith(ng)
 				if err != nil {
-					logger.Errorf("group %q: failed to update: %s", g.Name, err)
+					logger.Errorf("group %q (file=%q): failed to update: %s", g.Name, g.File, err)
 					g.mu.Unlock()
 					continue
 				}
@@ -414,7 +414,7 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 		errs := e.execConcurrently(ctx, g.Rules, ts, g.Concurrency, resolveDuration, g.Limit)
 		for err := range errs {
 			if err != nil {
-				logger.Errorf("group %q: %s", g.Name, err)
+				logger.Errorf("group %q (file=%q): %s", g.Name, g.File, err)
 			}
 		}
 		g.metrics.iterationDuration.UpdateDuration(start)
@@ -443,17 +443,17 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 	if rr != nil {
 		err := g.restore(ctx, rr, realEvalTS, *remoteReadLookBack)
 		if err != nil {
-			logger.Errorf("error while restoring ruleState for group %q: %s", g.Name, err)
+			logger.Errorf("error while restoring ruleState for group %q (file=%q): %s", g.Name, g.File, err)
 		}
 	}
 
 	for {
 		select {
 		case <-ctx.Done():
-			logger.Infof("group %q: context cancelled", g.Name)
+			logger.Infof("group %q (file=%q): context cancelled", g.Name, g.File)
 			return
 		case <-g.doneCh:
-			logger.Infof("group %q: received stop signal", g.Name)
+			logger.Infof("group %q (file=%q): received stop signal", g.Name, g.File)
 			return
 		case ng := <-g.updateCh:
 			g.mu.Lock()
@@ -467,7 +467,7 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 
 			err := g.updateWith(ng)
 			if err != nil {
-				logger.Errorf("group %q: failed to update: %s", g.Name, err)
+				logger.Errorf("group %q (file=%q): failed to update: %s", g.Name, g.File, err)
 				g.mu.Unlock()
 				continue
 			}
@@ -545,8 +545,8 @@ func (g *Group) delayBeforeStart(ts time.Time, maxDelay time.Duration) time.Dura
 
 func (g *Group) infof(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
-	logger.Infof("group %q %s; interval=%v; eval_offset=%v; concurrency=%d",
-		g.Name, msg, g.Interval, g.EvalOffset, g.Concurrency)
+	logger.Infof("group %q (file=%q; interval=%v; eval_offset=%v; concurrency=%d) %s",
+		g.Name, g.File, g.Interval, g.EvalOffset, g.Concurrency, msg)
 }
 
 // Replay performs group replay
