@@ -1280,7 +1280,7 @@ to each configured remote destination:
 ```
 
 Each configured `--remoteWrite.url` creates its own replication queue in case the remote destination is unavailable.
-See more about [on-disk persistence in vmagent](https://docs.victoriametrics.com/vmagent/index.html#on-disk-persistence).
+See more about [on-disk persistence in vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/#on-disk-persistence).
 
 Once the remote destination is available, vmagent will drain the queue and restore data consistency between destinations.
 
