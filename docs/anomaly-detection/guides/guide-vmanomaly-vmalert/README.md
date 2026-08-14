@@ -124,12 +124,12 @@ Detailed parameters in each section:
 
 * `schedulers` ([PeriodicScheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) is used here)
   * `infer_every` - Specifies the frequency at which the trained models perform inferences on new data, essentially determining how often new anomaly score data points are generated. Format examples: 30s, 4m, 2h, 1d (time units: 's' for seconds, 'm' for minutes, 'h' for hours, 'd' for days). This parameter essentially asks, at regular intervals (e.g., every 1 minute), whether the latest data points appear abnormal based on historical data.
-  * `fit_every` - Sets the frequency for retraining the models. A higher frequency ensures more updated models but requires more CPU resources. If omitted, models are retrained in each `infer_every` cycle. Format is similar to `infer_every`.
+  * `fit_every` - Sets the frequency for retraining the models. [Online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models) learn from every inference batch, so set a large value such as `1000d` to make fitting effectively bootstrap-only. For evolving behavior, configure the model's forgetting or reactivity mechanism, or choose a finite fit cadence to reset accumulated state. Format is similar to `infer_every`.
   * `fit_window` - Defines the data interval for training the models. Longer intervals allow for capturing extensive historical behavior and better seasonal pattern detection but may slow down the model's response to permanent metric changes and increase resource consumption. A minimum of two full seasonal cycles is recommended. Example format: 3h for three hours of data.
 
 * `models`
-  * `class` - Specifies the model to be used. Options include custom models ([guide here](https://docs.victoriametrics.com/anomaly-detection/components/models/#custom-model-guide)) or a selection from [built-in models](https://docs.victoriametrics.com/anomaly-detection/components/models/#built-in-models), such as the [Facebook Prophet](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) (`model.prophet.ProphetModel`).
-  * `args` - Model-specific parameters, formatted as a YAML dictionary in the `key: value` structure. Parameters available in [FB Prophet](https://facebook.github.io/prophet/docs/quick_start) can be used as an example.
+  * `class` - Specifies the model to be used. Options include custom models ([guide here](https://docs.victoriametrics.com/anomaly-detection/components/models/#custom-model-guide)) or a selection from [built-in models](https://docs.victoriametrics.com/anomaly-detection/components/models/#built-in-models). For operational metrics with calendar behavior, use the online [Temporal Envelope](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope).
+  * Model-specific parameters are configured directly below the model alias, as shown in the example.
 
 * `reader`
   * `datasource_url` - The URL for the data source, typically an HTTP endpoint serving `/api/v1/query_range`.
@@ -145,16 +145,16 @@ Below is an illustrative example of a `vmanomaly_config.yml` configuration file.
 schedulers:
   periodic:
     infer_every: "1m"
-    fit_every: "1h"
-    fit_window: "2d" # 2d-14d based on the presence of weekly seasonality in your data
+    fit_every: "1000d" # bootstrap-only schedule; use a finite cadence if accumulated state must be reset
+    fit_window: "14d" # two weekly cycles for initial bootstrap
 
 models:
-  prophet:
-    class: "prophet" 
-    args:
-      interval_width: 0.98
-      weekly_seasonality: False  # comment it if your data has weekly seasonality
-      yearly_seasonality: False
+  temporal_envelope:
+    class: "temporal_envelope"
+    alpha: 0.005 # adapt the trend while using the bootstrap-only fit schedule
+    loss_reactivity: 5 # allow new deviations to update the envelope
+    seasonalities: ["hod_smooth", "dow_smooth"]
+    provide_series: ["anomaly_score", "y", "yhat", "yhat_lower", "yhat_upper"]
 
 reader:
   datasource_url: "http://victoriametrics:8428/"
@@ -279,19 +279,24 @@ global:
 scrape_configs:
   - job_name: 'vmagent'
     static_configs:
-      - targets: ['vmagent:8429']
+      - targets:
+          - 'vmagent:8429'
   - job_name: 'vmalert'
     static_configs:
-      - targets: ['vmalert:8880']
+      - targets:
+          - 'vmalert:8880'
   - job_name: 'victoriametrics'
     static_configs:
-      - targets: ['victoriametrics:8428']
+      - targets:
+          - 'victoriametrics:8428'
   - job_name: 'node-exporter'
     static_configs:
-      - targets: ['node-exporter:9100']
+      - targets:
+          - 'node-exporter:9100'
   - job_name: 'vmanomaly'
     static_configs:
-      - targets: [ 'vmanomaly:8490' ]
+      - targets:
+          - 'vmanomaly:8490'
 ```
 
 
@@ -387,7 +392,7 @@ services:
       - "--notifier.url=http://alertmanager:9093/"
       - "--rule=/etc/alerts/*.yml"
       # display source of alerts in grafana
-      - "--external.url=http://127.0.0.1:3000" #grafana outside container
+      - "--external.url=http://127.0.0.1:3000" # grafana outside container
       # when copypaste the line be aware of '$$' for escaping in '$expr'
       - '--external.alert.source=explore?orgId=1&left=["now-1h","now","VictoriaMetrics",{"expr": },{"mode":"Metrics"},{"ui":[true,true,true,"none"]}]'
     networks:
@@ -395,7 +400,7 @@ services:
     restart: always
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.30.1
+    image: victoriametrics/vmanomaly:v1.30.2
     depends_on:
       - "victoriametrics"
     ports:

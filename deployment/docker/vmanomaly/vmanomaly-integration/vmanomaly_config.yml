@@ -1,7 +1,7 @@
 schedulers:
   periodic:
     infer_every: "1m"
-    fit_every: "100w" # the online model keeps learning during inference
+    fit_every: "1000d" # bootstrap-only schedule; use a finite cadence if accumulated state must be reset
     fit_window: "2w"
 
 models:

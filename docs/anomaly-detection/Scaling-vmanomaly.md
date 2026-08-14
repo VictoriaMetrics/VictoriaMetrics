@@ -32,14 +32,15 @@ schedulers:
   periodic_1d:  # alias
     class: 'periodic' # scheduler class
     infer_every: "30s"
-    fit_every: "1h"
+    fit_every: "1000d"
     fit_window: "24h"
 
 # https://docs.victoriametrics.com/anomaly-detection/components/models/
 models:
   zscore:  # we can set up alias for model
-    class: 'zscore'  # model class
+    class: 'zscore_online'  # online model class
     z_threshold: 3.5
+    decay: 0.99  # give more weight to recent data while using the bootstrap-only fit schedule
     queries: ['cpu_seconds_total', 'host_network_receive_errors']
 
 # https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader
@@ -80,6 +81,7 @@ Additionally, a replication factor `R ≥ 1` ensures [high availability](#high-a
 
 {{% content "vmanomaly-sharding-ha-diagram.md" %}}
 
+> [!WARNING]
 > Please [refer to deployment options section](#deployment-options) for the examples (Docker, Docker Compose, Helm). To avoid duplicate metrics being reported from each vmanomaly service used in sharded mode, make sure that [deduplication](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) is configured on vmsingle or vmselect and vmstorage for the VictoriaMetrics instance used in the [writer section of the configuration](https://docs.victoriametrics.com/anomaly-detection/components/writer/).
 
 Sharding configuration can be controlled by using the following environment variables:
@@ -87,7 +89,94 @@ Sharding configuration can be controlled by using the following environment vari
 - **`VMANOMALY_MEMBERS_COUNT`**: Defines the total number of shards (i.e., available nodes to distribute [sub-configurations](#sub-configuration) to). <br>Defaults to `1` for backward compatibility.
 - **`VMANOMALY_MEMBER_NUM`**: Specifies the shard index (`0` to `VMANOMALY_MEMBERS_COUNT - 1`), determining the subset of [sub-configurations](#sub-configuration) to run on a specific node. Defaults to `0`. Supports automatic **pod name discovery** in Kubernetes [StatefulSets](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/) (e.g., if set to `vmanomaly-node-exporter-7`, shard `7` will be extracted).
 - **`VMANOMALY_REPLICATION_FACTOR`**: If `R > 1`, enables [high availability](#high-availability) by ensuring each [sub-configuration](#sub-configuration) is assigned to exactly `R` shards. Defaults to `1` (no replication).
-- **`VMANOMALY_SPLIT_BY`**: Defines the logical entity used to split the global config into [sub-configurations](#sub-configuration). Defaults to `complete`, which provides the most granular distribution (1 model per [sub-config](#sub-configuration), mapped to 1 query and attached to 1 scheduler) for balanced workloads.
+- **`VMANOMALY_SPLIT_BY`**: Defines the logical entity used to split the global config into [sub-configurations](#sub-configuration). The accepted values are `SCHEDULERS`, `MODELS`, `QUERIES`, `EXTRA_FILTERS`, and `COMPLETE` (case-insensitive). It defaults to `COMPLETE`, which usually provides the most granular and balanced distribution.
+
+The split strategies differ as follows:
+
+| `VMANOMALY_SPLIT_BY` | Unit of work in each sub-configuration | Recommended use |
+| --- | --- | --- |
+| `SCHEDULERS` | One scheduler and the workload attached to it | Separate workloads by fit and inference cadence. The number of sub-configurations is limited by the number of referenced schedulers. |
+| `MODELS` | One configured model alias with its attached schedulers and queries | Isolate computationally different models or distribute several models that process the same queries. |
+| `QUERIES` | One query for [univariate models](https://docs.victoriametrics.com/anomaly-detection/components/models/#univariate-models); the complete attached query set for each [multivariate model](https://docs.victoriametrics.com/anomaly-detection/components/models/#multivariate-models) | Distribute independent query workloads. Queries belonging to one multivariate model remain together because the model needs all channels. This option does not split the series returned by one query. |
+| `EXTRA_FILTERS` | One configured `reader.extra_filters` selector, with the full model/query/scheduler topology retained | Partition the series returned by large queries, for example by region, cluster, another stable label, or by [VictoriaMetrics tenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels) using `vm_account_id` and `vm_project_id` selectors with the multitenant endpoint. The filters must already be defined in the global configuration. |
+| `COMPLETE` | One valid scheduler/model/query combination; [multivariate](https://docs.victoriametrics.com/anomaly-detection/components/models/#multivariate-models) query sets remain together | Obtain the finest general-purpose split and the default choice for balanced sharding. `reader.extra_filters` are intentionally not expanded by this strategy. |
+
+After the selected strategy creates the sub-configurations, they are assigned to members in deterministic round-robin order and then replicated according to `VMANOMALY_REPLICATION_FACTOR`.
+
+### Splitting strategies
+
+{{% collapse name="Configuration and resulting sub-configurations" %}}
+
+The following abbreviated global configuration contains two schedulers, two models, four queries, and two data partitions:
+
+```yaml
+schedulers:
+  fast:
+    class: periodic
+    infer_every: 1m
+    fit_every: 1000d
+    fit_window: 1d
+  seasonal:
+    class: periodic
+    infer_every: 5m
+    fit_every: 1000d
+    fit_window: 2w
+
+models:
+  cpu_zscore:
+    class: zscore_online
+    schedulers: [fast]
+    queries: [cpu, error_rate]
+    decay: 0.99
+  gpu_envelope:
+    class: temporal_envelope_multivariate
+    schedulers: [seasonal]
+    queries: [temperature, power]
+    seasonalities: [hod_smooth, dow_smooth]
+
+reader:
+  class: vm
+  datasource_url: http://victoriametrics:8428/
+  sampling_period: 1m
+  queries:
+    cpu:
+      expr: avg(rate(node_cpu_seconds_total[5m])) by (instance)
+    error_rate:
+      expr: rate(application_errors_total[5m])
+    temperature:
+      expr: avg(gpu_temperature_celsius) by (gpu)
+    power:
+      expr: avg(gpu_power_watts) by (gpu)
+  extra_filters: ['{region="us-east"}', '{region="eu-west"}']
+
+writer:
+  class: vm
+  datasource_url: http://victoriametrics:8428/
+```
+
+For this configuration, each strategy produces the following logical units before they are assigned to shards:
+
+| Value | Resulting sub-configurations |
+| --- | --- |
+| `SCHEDULERS` | `fast`; `seasonal` |
+| `MODELS` | `cpu_zscore`; `gpu_envelope` |
+| `QUERIES` | `cpu`; `error_rate`; the multivariate set `power,temperature` |
+| `EXTRA_FILTERS` | `{region="us-east"}`; `{region="eu-west"}`; each retains all schedulers, models, and queries, while the query context is restricted by its selector |
+| `COMPLETE` | `fast:cpu_zscore:cpu`; `fast:cpu_zscore:error_rate`; `seasonal:gpu_envelope:power,temperature` |
+
+For example, choose the query split with:
+
+```yaml
+environment:
+  VMANOMALY_MEMBERS_COUNT: 3
+  VMANOMALY_MEMBER_NUM: 0
+  VMANOMALY_REPLICATION_FACTOR: 1
+  VMANOMALY_SPLIT_BY: QUERIES
+```
+
+To partition the timeseries returned by the same large query instead, define non-overlapping selectors in `reader.extra_filters` and use `VMANOMALY_SPLIT_BY: EXTRA_FILTERS`. Each generated sub-configuration keeps one selector, for example `{region="us-east"}` or `{region="eu-west"}`.
+
+{{% /collapse %}}
 
 ---
 
@@ -130,6 +219,7 @@ When `VMANOMALY_REPLICATION_FACTOR` > 1, each [sub-config](#sub-configuration) `
 
 {{% content "vmanomaly-sharding-ha-diagram.md" %}}
 
+> [!WARNING]
 > Please [refer to deployment options section](#deployment-options) for the examples (Docker, Docker Compose, Helm). To avoid duplicate metrics being reported from each vmanomaly service used in sharded mode, make sure that [deduplication](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) is configured on vmsingle or vmselect and vmstorage for the VictoriaMetrics instance used in the [writer section of the configuration](https://docs.victoriametrics.com/anomaly-detection/components/writer/).
 
 ### Example
@@ -198,7 +288,11 @@ services:
     user: "1000:1000"
     restart: always
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://127.0.0.1:8490/health"]
+      test:
+        - "CMD"
+        - "curl"
+        - "-f"
+        - "http://127.0.0.1:8490/health"
       interval: 30s
       timeout: 10s
       retries: 5
@@ -218,7 +312,11 @@ services:
     user: "1000:1000"
     restart: always
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://127.0.0.1:8490/health"]
+      test:
+        - "CMD"
+        - "curl"
+        - "-f"
+        - "http://127.0.0.1:8490/health"
       interval: 30s
       timeout: 10s
       retries: 5

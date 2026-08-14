@@ -32,6 +32,7 @@ supports the following Prometheus-compatible service discovery options for Prome
 * `http_sd_configs` is for discovering and scraping targets provided by external http-based service discovery. See [these docs](#http_sd_configs).
 * `kubernetes_sd_configs` is for discovering and scraping [Kubernetes](https://kubernetes.io/) targets. See [these docs](#kubernetes_sd_configs).
 * `kuma_sd_configs` is for discovering and scraping [Kuma](https://kuma.io) targets. See [these docs](#kuma_sd_configs).
+* `linode_sd_configs` is for discovering and scraping [Linode](https://www.linode.com/) instances. See [these docs](#linode_sd_configs).
 * `marathon_sd_configs` is for discovering and scraping [Marathon](https://github.com/d2iq-archive/marathon) targets. See [these docs](#marathon_sd_configs).
 * `nomad_sd_configs` is for discovering and scraping targets registered in [HashiCorp Nomad](https://www.nomadproject.io/). See [these docs](#nomad_sd_configs).
 * `openstack_sd_configs` is for discovering and scraping OpenStack targets. See [these docs](#openstack_sd_configs).
@@ -1312,6 +1313,81 @@ The following meta labels are available on discovered targets during [relabeling
 * `__meta_kuma_label_<label_name>`: each label of target given from Kuma Control Plane
 
 The list of discovered Kuma targets is refreshed at the interval, which can be configured via `-promscrape.kumaSDCheckInterval` command-line flag.
+
+## linode_sd_configs
+
+Linode SD configuration {{% available_from "#" %}} allows retrieving scrape targets from [Linode](https://www.linode.com/) instances.
+The following [Linode API](https://www.linode.com/docs/api/) token scopes are required: `linodes:read_only` and `ips:read_only`.
+
+Configuration example:
+
+```yaml
+scrape_configs:
+- job_name: linode
+  linode_sd_configs:
+
+    # server is an optional Linode API server to query.
+    # By default, https://api.linode.com is used.
+    #
+    # server: "https://api.linode.com"
+
+    # port is an optional port to scrape metrics from. By default, port 80 is used.
+    #
+    # port: ...
+
+    # tag_separator is an optional string used to join multi-value labels such as tags and extra IPs.
+    # By default, "," is used.
+    #
+    # tag_separator: ","
+
+    # region is an optional Linode region to filter instances by.
+    # By default, instances from all regions are returned.
+    #
+    # region: "..."
+
+    # Required credentials for Linode API authentication.
+    #
+    authorization:
+      credentials: "..."
+      # type: "..."  # default: Bearer
+      # credentials_file: "..."  # is mutually-exclusive with credentials
+
+    # Additional HTTP API client options can be specified here.
+    # See https://docs.victoriametrics.com/victoriametrics/sd_configs/#http-api-client-options
+```
+
+Each discovered target has an [`__address__`](https://docs.victoriametrics.com/victoriametrics/relabeling/#how-to-modify-scrape-urls-in-targets) label set
+to `<ip>:<port>`, where `<ip>` is the public IPv4 of the Linode instance when available, otherwise the private IPv4, and `<port>` is the port specified in the `linode_sd_configs`.
+Instances without a usable IPv4 address are skipped.
+
+The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
+
+* `__meta_linode_instance_id`: the id of the linode instance
+* `__meta_linode_instance_label`: the label of the linode instance
+* `__meta_linode_image`: the slug of the linode instance's image
+* `__meta_linode_private_ipv4`: the private IPv4 of the linode instance
+* `__meta_linode_public_ipv4`: the public IPv4 of the linode instance
+* `__meta_linode_public_ipv6`: the public IPv6 of the linode instance
+* `__meta_linode_private_ipv4_rdns`: the reverse DNS for the first private IPv4 of the linode instance
+* `__meta_linode_public_ipv4_rdns`: the reverse DNS for the first public IPv4 of the linode instance
+* `__meta_linode_public_ipv6_rdns`: the reverse DNS for the first public IPv6 of the linode instance
+* `__meta_linode_region`: the region of the linode instance
+* `__meta_linode_type`: the type of the linode instance
+* `__meta_linode_status`: the status of the linode instance
+* `__meta_linode_tags`: a list of tags of the linode instance joined by the tag separator
+* `__meta_linode_group`: the display group a linode instance is a member of
+* `__meta_linode_gpus`: the number of GPUs of the linode instance
+* `__meta_linode_hypervisor`: the virtualization software powering the linode instance
+* `__meta_linode_backups`: the backup service status of the linode instance
+* `__meta_linode_specs_disk_bytes`: the amount of storage space the linode instance has access to
+* `__meta_linode_specs_memory_bytes`: the amount of RAM the linode instance has access to
+* `__meta_linode_specs_vcpus`: the number of VCPUs this linode has access to
+* `__meta_linode_specs_transfer_bytes`: the amount of network transfer the linode instance is allotted each month
+* `__meta_linode_extra_ips`: a list of all extra IPv4 addresses assigned to the linode instance joined by the tag separator
+* `__meta_linode_ipv6_ranges`: a list of IPv6 ranges with mask assigned to the linode instance joined by the tag separator
+
+The list of discovered Linode targets is refreshed at the interval, which can be configured via `-promscrape.linodeSDCheckInterval` command-line flag.
+Discovery failures are tracked in the `vm_promscrape_discovery_linode_failures_total` metric.
 
 ## marathon_sd_configs
 

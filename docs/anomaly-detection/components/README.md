@@ -37,6 +37,7 @@ The following minimal configuration demonstrates current many-to-many model, que
 ```yaml
 settings:
   n_workers: 4  # number of workers to run models in parallel
+  native_threads_per_worker: 0  # automatically divide container-aware CPU capacity across workers
   anomaly_score_outside_data_range: 5.0  # default anomaly score for anomalies outside expected data range
   restore_state: True  # restore state from previous run, if available
   retention:  # how long to keep stale models on disk/in memory
@@ -50,15 +51,15 @@ schedulers:
     class: 'periodic' # scheduler class
     infer_every: "30s"  # how often to produce anomaly scores for new data
     scatter_infer_jobs: true  # distribute infer jobs evenly across the infer interval to reduce synchronized bursts
-    fit_every: "365d"  # how often to re-fit the models, for online models used effectively once, then they are updated with new data and won't require re-fit
+    fit_every: "1000d"  # bootstrap-only schedule; use a finite cadence if accumulated state must be reset
     fit_window: "3d"  # how much historical data to use for fit stage
-    start_from: "00:00"  # align the annual fit schedule to midnight in the configured timezone
+    start_from: "00:00"  # align the bootstrap fit to midnight in the configured timezone
     tz: "Europe/Kyiv"  # timezone to use for start_from
   periodic_online_weekly:
     class: 'periodic'
     infer_every: "15m"
     scatter_infer_jobs: true
-    fit_every: "365d"  # online state continues adapting between infrequent full re-fits
+    fit_every: "1000d"  # bootstrap-only schedule; use a finite cadence if accumulated state must be reset
     fit_window: "14d"
     # if no start_from is specified, jobs will start immediately after service starts
 
@@ -72,17 +73,15 @@ models:
     provide_series: ['anomaly_score', 'y', 'yhat', 'yhat_upper']  # what series to produce as output of the model
     queries: ['host_network_receive_errors']  # what queries to run particular model on
     schedulers: ['periodic_online']  # will be fit once, used for infer every 30s
-    min_dev_from_expected: 0.0  # turned off. if |y - yhat| < min_dev_from_expected, anomaly score will be 0
-    detection_direction: 'above_expected' # detect anomalies only when y > yhat, "peaks"
     clip_predictions: True  # clip predictions to expected data range, i.e. [0, inf] for this query `host_network_receive_errors
   envelope_weekly: # we can set up alias for model
     class: 'temporal_envelope'
+    alpha: 0.005  # adapt the trend while using the bootstrap-only fit schedule
+    loss_reactivity: 3  # allow new deviations to update the envelope
     provide_series: ['anomaly_score', 'y', 'yhat', 'yhat_lower', 'yhat_upper']
     queries: ['cpu_seconds_total']
     schedulers: ['periodic_online_weekly']  # fit on two weekly cycles, then update online every 15m
-    min_dev_from_expected: [0.01, 0.01]  # minimum deviation from expected value to be even considered as anomaly
     anomaly_score_outside_data_range: 1.5  # override default anomaly score outside expected data range
-    detection_direction: 'above_expected'
     clip_predictions: True  # clip predictions to expected data range, i.e. [0, inf] for this query `cpu_seconds_total`
     seasonalities: ['hod_smooth', 'dow_smooth']
 
@@ -93,6 +92,7 @@ reader:
   datasource_url: "https://play.victoriametrics.com/"
   tenant_id: "0:0"
   sampling_period: "30s"  # what data resolution to fetch from VictoriaMetrics' /query_range endpoint
+  workers: 0  # automatically choose bounded datasource concurrency
   latency_offset: '1ms'
   query_from_last_seen_timestamp: False
   tz: "UTC"  # timezone to use for queries without explicit timezone
@@ -101,11 +101,15 @@ reader:
     cpu_seconds_total:
       expr: 'avg(rate(node_cpu_seconds_total[5m])) by (mode)' 
       # step: '30s'  # if not set, will be equal to reader-level sampling_period
-      data_range: [0, 'inf']  # expected value range, anomaly_score = anomaly_score_outside_data_range if y (real value) is outside
+      data_range: [0, 'inf']  # query-level business policy from v1.30.2
+      detection_direction: 'above_expected'  # query-level from v1.30.2; detect spikes only
+      min_dev_from_expected: [0.01, 0.01]  # query-level from v1.30.2
     host_network_receive_errors:
       expr: 'rate(node_network_receive_errs_total[3m]) / rate(node_network_receive_packets_total[3m])'
       step: '15m'  # here we override per-query `sampling_period` to request way less data from VM TSDB
-      data_range: [0, 'inf']
+      data_range: [0, 'inf']  # query-level business policy from v1.30.2
+      detection_direction: 'above_expected'  # query-level from v1.30.2; detect spikes only
+      min_dev_from_expected: 0.0  # query-level from v1.30.2; absolute-deviation filtering is disabled
 
 # where to write data to
 # https://docs.victoriametrics.com/anomaly-detection/components/writer/
@@ -146,7 +150,7 @@ server:
 
 {{% available_from "v1.25.0" anomaly %}} The service supports hot reload of configuration files, applying changes without an explicit restart. Enable it with the `--watch` [CLI argument](https://docs.victoriametrics.com/anomaly-detection/quickstart/#command-line-arguments). The `vmanomaly_config_reload_enabled` [self-monitoring metric](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#startup-metrics) is `1` when hot reload is enabled and `0` otherwise.
 
-> [!NOTE]
+> [!WARNING]
 > {{% deprecated_from "v1.29.5" anomaly %}} File system event-based hot reload has been deprecated in favor of content-based polling with configurable `-configCheckInterval` due to reliability issues with Kubernetes ConfigMap symlink rotations and other filesystems where event delivery can be inconsistent. If you were using file system event-based hot reload, please switch to content-based polling by enabling `--watch` flag and configuring `-configCheckInterval` as needed.
 
 ### How it works
@@ -173,7 +177,7 @@ schedulers:
   periodic:
     class: 'periodic'
     infer_every: "30s"
-    fit_every: "365d"
+    fit_every: "1000d"  # bootstrap-only schedule; use a finite cadence if accumulated state must be reset
     fit_window: "24h"
 
 reader:
