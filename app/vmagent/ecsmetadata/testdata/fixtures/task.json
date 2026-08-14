@@ -1,0 +1,80 @@
+{
+  "Cluster": "arn:aws:ecs:us-east-1:318168454351:cluster/default",
+  "TaskARN": "arn:aws:ecs:us-east-1:318168454351:task/default/0f94400c58524a8482c1bd43d3404708",
+  "Family": "default-alpine-c2f5",
+  "Revision": "1",
+  "DesiredStatus": "RUNNING",
+  "KnownStatus": "RUNNING",
+  "Limits": {
+    "CPU": 1,
+    "Memory": 2048
+  },
+  "PullStartedAt": "2026-03-12T20:51:55.901428603Z",
+  "PullStoppedAt": "2026-03-12T20:51:56.642191152Z",
+  "AvailabilityZone": "us-east-1a",
+  "LaunchType": "FARGATE",
+  "Containers": [
+    {
+      "DockerId": "0f94400c58524a8482c1bd43d3404708-1366325544",
+      "Name": "Main",
+      "DockerName": "Main",
+      "Image": "alpine:latest",
+      "ImageID": "sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f2198c3f659",
+      "Labels": {
+        "com.amazonaws.ecs.cluster": "arn:aws:ecs:us-east-1:318168454351:cluster/default",
+        "com.amazonaws.ecs.container-name": "Main",
+        "com.amazonaws.ecs.task-arn": "arn:aws:ecs:us-east-1:318168454351:task/default/0f94400c58524a8482c1bd43d3404708",
+        "com.amazonaws.ecs.task-definition-family": "default-alpine-c2f5",
+        "com.amazonaws.ecs.task-definition-version": "1"
+      },
+      "DesiredStatus": "RUNNING",
+      "KnownStatus": "RUNNING",
+      "Limits": {
+        "CPU": 1024
+      },
+      "CreatedAt": "2026-03-12T20:51:57.131822313Z",
+      "StartedAt": "2026-03-12T20:51:57.131822313Z",
+      "Type": "NORMAL",
+      "LogDriver": "awslogs",
+      "LogOptions": {
+        "awslogs-group": "/aws/ecs/default/alpine-c2f5-7844",
+        "awslogs-region": "us-east-1",
+        "awslogs-stream": "ecs/Main/0f94400c58524a8482c1bd43d3404708",
+        "mode": "non-blocking"
+      },
+      "ContainerARN": "arn:aws:ecs:us-east-1:318168454351:container/default/0f94400c58524a8482c1bd43d3404708/ba57c45b-46f2-45e0-b633-6c026750127d",
+      "Networks": [
+        {
+          "NetworkMode": "awsvpc",
+          "IPv4Addresses": [
+            "172.31.3.111"
+          ],
+          "AttachmentIndex": 0,
+          "MACAddress": "02:9e:b3:23:b5:15",
+          "IPv4SubnetCIDRBlock": "172.31.0.0/20",
+          "DomainNameServers": [
+            "172.31.0.2"
+          ],
+          "DomainNameSearchList": [
+            "ec2.internal"
+          ],
+          "PrivateDNSName": "ip-172-31-3-111.ec2.internal",
+          "SubnetGatewayIpv4Address": "172.31.0.1/20"
+        }
+      ],
+      "Snapshotter": "overlayfs"
+    }
+  ],
+  "ServiceName": "alpine-c2f5",
+  "ClockDrift": {
+    "ClockErrorBound": 0.7575785,
+    "ReferenceTimestamp": "2026-03-12T20:51:45Z",
+    "ClockSynchronizationStatus": "SYNCHRONIZED"
+  },
+  "EphemeralStorageMetrics": {
+    "Utilized": 0,
+    "Reserved": 20496
+  },
+  "FaultInjectionEnabled": false,
+  "AvailabilityZoneID": "use1-az1"
+}
