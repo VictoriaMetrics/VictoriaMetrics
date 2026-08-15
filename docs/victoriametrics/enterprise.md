@@ -1,6 +1,7 @@
 ---
 weight: 80
 title: Enterprise
+description: "Enterprise features. Downsampling, backup automation, multi-tenancy, advanced security."
 menu:
   docs:
     identifier: vm-enterprise

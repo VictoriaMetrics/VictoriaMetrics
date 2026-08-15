@@ -1,6 +1,7 @@
 ---
 weight: 23
 title: MetricsQL
+description: "Query language reference. Enhanced PromQL with additional functions, histogram helpers, and subquery support."
 menu:
   docs:
     parent: 'victoriametrics'

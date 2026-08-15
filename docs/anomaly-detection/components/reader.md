@@ -1,5 +1,6 @@
 ---
 title: Reader
+description: "Data reader configuration. MetricsQL queries from VictoriaMetrics or LogsQL from VictoriaLogs/VictoriaTraces."
 weight: 2
 menu:
   docs:

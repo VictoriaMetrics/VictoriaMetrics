@@ -1,6 +1,7 @@
 ---
 weight: 7
 title: CHANGELOG
+description: "Release history for vmanomaly."
 menu:
   docs:
     identifier: "vmanomaly-changelog"

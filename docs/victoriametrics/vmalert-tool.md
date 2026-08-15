@@ -5,6 +5,7 @@ menu:
     parent: victoriametrics
     weight: 12
 title: vmalert-tool
+description: "Command-line tool for unit testing alerting and recording rules."
 tags:
   - metrics
 aliases:

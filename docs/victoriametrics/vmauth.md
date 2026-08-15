@@ -5,6 +5,7 @@ menu:
     parent: victoriametrics
     weight: 5
 title: vmauth
+description: "HTTP auth proxy, load balancer, and request router with support for basic auth, bearer tokens, per-user routing, and IP-based filters."
 tags:
   - metrics
 aliases:
