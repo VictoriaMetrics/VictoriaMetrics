@@ -1,6 +1,7 @@
 ---
 weight: 1
 title: Quick start
+description: "Get up and running with VictoriaMetrics. Download, run, scrape, and query."
 menu:
   docs:
     identifier: vm-quick-start

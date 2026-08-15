@@ -6,6 +6,7 @@ menu:
     parent: 'victoriametrics'
     weight: 2
 title: Cluster version
+description: "Deploy and configure cluster mode with vminsert, vmselect, and vmstorage components, including replication and multi-tenancy."
 tags:
   - metrics
 aliases:

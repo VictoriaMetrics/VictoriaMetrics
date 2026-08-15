@@ -1,6 +1,7 @@
 ---
 weight: 29
 title: Articles
+description: "Third-party articles, slides, and videos about VictoriaMetrics."
 menu:
   docs:
     parent: 'victoriametrics'

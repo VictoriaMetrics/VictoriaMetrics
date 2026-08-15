@@ -1,5 +1,6 @@
 ---
 title: VictoriaMetrics
+description: "Fast, cost-effective, and scalable time series database for monitoring and managing metrics data."
 menu:
   docs:
     weight: 10

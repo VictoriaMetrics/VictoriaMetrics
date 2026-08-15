@@ -1,6 +1,7 @@
 ---
 weight: 6
 title: FAQ
+description: "Frequently asked questions about vmanomaly."
 menu:
   docs:
     identifier: "vmanomaly-faq"

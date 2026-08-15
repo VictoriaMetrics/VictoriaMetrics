@@ -1,6 +1,7 @@
 ---
 weight: 25
 title: Case studies and talks
+description: "Production case studies from Grammarly, Roblox, Wix, Spotify, adidas, and more."
 menu:
   docs:
     parent: "victoriametrics"

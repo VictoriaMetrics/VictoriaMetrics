@@ -1,6 +1,7 @@
 ---
 weight: 300
 title: Long-term support releases
+description: "Long-term support release lines for enterprise customers."
 menu:
   docs:
     parent: 'victoriametrics'
