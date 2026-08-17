@@ -1,6 +1,7 @@
 package graphite
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"reflect"
@@ -9,11 +10,13 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/graphiteql"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 )
 
 func TestExecExprSuccess(t *testing.T) {
 	ec := &evalConfig{
+		ctx:         searchutil.NewContext(context.Background(), searchutil.NewDeadline(time.Now(), time.Minute, "")),
 		at:          &auth.Token{},
 		startTime:   120e3,
 		endTime:     210e3,
