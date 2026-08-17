@@ -44,6 +44,16 @@ var (
 		"On the other side, disabled re-routing minimizes the number of active time series in the cluster "+
 		"during rolling restarts and during spikes in series churn rate. "+
 		"See also -disableRerouting")
+	disableReplicaRerouting = flag.Bool("disableReplicaRerouting", false, "Whether to disable re-routing of replica copies to vmstorage nodes "+
+		"outside the set of nodes selected for the given data according to -replicationFactor. "+
+		"By default, when a node selected for a replica copy is temporarily unavailable, the copy is sent to the next available node. "+
+		"That node has to register all the time series from the copy, which may result in spikes in CPU and disk IO usage "+
+		"and in increased number of active time series there. When this flag is set, such copies are dropped instead, "+
+		"so the affected data stays under-replicated until the selected nodes become available again. "+
+		"The first copy of the data is always stored even if all the selected nodes are unavailable, so the data isn't lost. "+
+		"Use vm_rpc_rows_incompletely_replicated_total metric for tracking the number of rows, "+
+		"which weren't replicated to all the selected nodes. "+
+		"See also -disableRerouting and -disableReroutingOnUnavailable")
 )
 
 const unsupportedRPCRetrySeconds = 120
@@ -231,6 +241,20 @@ func sendBufToReplicasNonblocking(snb *storageNodesBucket, br *bufRows, snIdx, r
 					"since a part of storage nodes is temporarily unavailable", i+1, replicas, *replicationFactor, len(br.buf), br.rows)
 				return true
 			}
+			// Do not send the copy to a storage node outside the set of nodes selected for the given data,
+			// since that node has to register all the time series from the copy. This may result in spikes
+			// in CPU and disk IO usage and in increased number of active time series there. It is better
+			// leaving the data under-replicated until the selected nodes become available again.
+			//
+			// This doesn't apply to the first copy (i == 0), since otherwise the data would be lost
+			// when all the nodes selected for the given data are temporarily unavailable.
+			if i > 0 && *disableReplicaRerouting && isOutsideReplicaNodes(idx, snIdx, replicas, len(sns)) {
+				rowsIncompletelyReplicatedTotal.Add(br.rows)
+				incompleteReplicationLogger.Warnf("cannot make a copy #%d out of %d copies according to -replicationFactor=%d for %d bytes with %d rows, "+
+					"since a part of the storage nodes selected for this data is temporarily unavailable and -disableReplicaRerouting is set",
+					i+1, replicas, *replicationFactor, len(br.buf), br.rows)
+				return true
+			}
 			if idx >= len(sns) {
 				idx %= len(sns)
 			}
@@ -256,6 +280,20 @@ var (
 	cannotReplicateLogger       = logger.WithThrottler("cannotReplicateDataBecauseNoStorageNodes", 5*time.Second)
 	incompleteReplicationLogger = logger.WithThrottler("incompleteReplication", 5*time.Second)
 )
+
+// isOutsideReplicaNodes returns true if the storage node at the given idx is outside
+// the set of replicas nodes starting at snIdx in the list of nodesCount storage nodes.
+//
+// The set of nodes for the given data is determined by snIdx and replicas, so a copy sent
+// to a node outside this set makes that node register all the time series from the copy.
+// See the -disableReplicaRerouting command-line flag.
+func isOutsideReplicaNodes(idx, snIdx, replicas, nodesCount int) bool {
+	if idx >= snIdx {
+		return idx-snIdx >= replicas
+	}
+	// idx has been wrapped around the end of the storage nodes list.
+	return idx+(nodesCount-snIdx) >= replicas
+}
 
 func (sn *storageNode) checkHealth() {
 	sn.bcLock.Lock()
