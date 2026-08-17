@@ -642,7 +642,7 @@ specified via `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig` c
 
 vmagent can write data to multiple distinct tenants if:
 * its `-remoteWrite.url` points to the [VictoriaMetrics cluster multitenant URL](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels)
-* its `-enableMultitenantHandlers` and `-enableMultitenancyViaHeaders` command-line flags are both set
+* its `-enableMultitenantHandlers` and `-enableMultitenancyViaHeaders` (enabled by default {{% available_from "v1.150.0" %}}) command-line flags are both set
 * clients ingest data into vmagent with the tenants specified [via headers](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-headers) {{% available_from "v1.143.0" %}}
 
 ```mermaid

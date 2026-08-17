@@ -126,13 +126,18 @@ groups:
 > docker pull quay.io/victoriametrics/vmanomaly:vX.Y.Z
 > ```
 
+> [!NOTE] ARM64 startup on affected Apple Silicon virtualization
+> On some `linux/arm64` environments running through virtualization on Apple M4/M5 hosts, `vmanomaly` may exit with `SIGILL` (exit code `132`) before startup. This is caused by the virtualized host advertising an SVE2 capability that traps when used by OpenSSL 4.x; it does not affect all ARM64 systems.
+>
+> On affected hosts, add `-e OPENSSL_armcap=0` to `docker run`, or add `- OPENSSL_armcap=0` under the service's Docker Compose `environment`, matching the list syntax used below. This disables ARM cryptographic acceleration, so apply it only as a temporary workaround on affected hosts.
+
 
 Below are the steps to get `vmanomaly` up and running inside a Docker container:
 
 1. Pull Docker image:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.30.0
+docker pull victoriametrics/vmanomaly:v1.30.2
 ```
 
 2. Create the license file with your license key.
@@ -152,7 +157,7 @@ docker run -it \
     -v ./license:/license \
     -v ./config.yaml:/config.yaml \
     -p 8490:8490 \
-    victoriametrics/vmanomaly:v1.30.0 \
+    victoriametrics/vmanomaly:v1.30.2 \
     /config.yaml \
     --licenseFile=/license \
     --loggerLevel=INFO \
@@ -169,7 +174,7 @@ docker run -it \
     -e VMANOMALY_DATA_DUMPS_DIR=/tmp/vmanomaly/data \
     -e VMANOMALY_MODEL_DUMPS_DIR=/tmp/vmanomaly/models \
     -p 8490:8490 \
-    victoriametrics/vmanomaly:v1.30.0 \
+    victoriametrics/vmanomaly:v1.30.2 \
     /config.yaml \
     --licenseFile=/license \
     --loggerLevel=INFO \
@@ -182,7 +187,7 @@ services:
   # ...
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.30.0
+    image: victoriametrics/vmanomaly:v1.30.2
     # ...
     restart: always
     volumes:
@@ -245,12 +250,13 @@ Before deploying, check the correctness of your configuration validate config fi
 
 ### Example
 
-Here is an example of a config file that runs the online [Temporal Envelope](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope) model on a CPU metric. The scheduler runs inference every five minutes and performs a full refit only every 100 weeks; between refits the model updates causally from each inference batch. The initial fit uses four weeks of data. The model produces `anomaly_score`, `yhat`, `yhat_lower`, and `yhat_upper` [series](https://docs.victoriametrics.com/anomaly-detection/components/models/#vmanomaly-output) for debugging, and its hour-of-day and day-of-week profiles follow the query timezone and daylight-saving-time changes.
+Here is an example of a config file that runs the online [Temporal Envelope](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope) model on a CPU metric. The scheduler runs inference every five minutes and uses the fit only for initial bootstrap; between fits the model updates causally from each inference batch. The initial fit uses four weeks of data. The model produces `anomaly_score`, `yhat`, `yhat_lower`, and `yhat_upper` [series](https://docs.victoriametrics.com/anomaly-detection/components/models/#vmanomaly-output) for debugging, and its hour-of-day and day-of-week profiles follow the query timezone and daylight-saving-time changes.
 
 ```yaml
 settings:
   # https://docs.victoriametrics.com/anomaly-detection/components/settings/
   n_workers: 2  # number of workers to run workload in parallel, set to 0 or negative number to use all available CPU cores
+  native_threads_per_worker: 0  # automatically divide container-aware CPU capacity across workers
   anomaly_score_outside_data_range: 5.0  # default anomaly score for anomalies outside expected data range
   restore_state: true  # restore state from previous run, available since v1.24.0
   # https://docs.victoriametrics.com/anomaly-detection/components/settings/#logger-levels
@@ -263,13 +269,12 @@ settings:
     model.online.temporal_envelope: WARNING
 
 schedulers:
-  100w_5m:
+  online_5m:
     # https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler
     class: 'periodic'
     infer_every: '5m'
     scatter_infer_jobs: true
-    # Temporal Envelope learns online between full refits.
-    fit_every: '100w'
+    fit_every: '1000d'
     fit_window: '4w'
 
 models:
@@ -277,7 +282,7 @@ models:
   temporal_envelope_model:
     class: 'temporal_envelope'
     queries: ['cpu_user']
-    schedulers: ['100w_5m']
+    schedulers: ['online_5m']
     provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']  # for debugging
     seasonalities: ['hod_smooth', 'dow_smooth']
     alpha: 0.005  # trend reactivity; try 0.0025-0.02
@@ -292,12 +297,15 @@ reader:
   tenant_id: '0:0'
   sampling_period: "5m"
   tz: 'UTC'  # set the IANA timezone that defines local calendar patterns, e.g. 'America/New_York'
+  workers: 0  # automatically choose bounded datasource concurrency
   series_processing_batch_size: 8  # number of time series to process together while preparing data for fit or infer stages
   queries:
     # define your queries with MetricsQL - https://docs.victoriametrics.com/victoriametrics/metricsql/
     cpu_user:
       expr: 'sum(rate(node_cpu_seconds_total{mode=~"user"}[10m])) by (container)'
-      max_datapoints_per_query: 15000  # to deal with longer queries hitting search.MaxPointsPerTimeseries
+      data_range: [0, 'inf']  # query-level business policy from v1.30.2
+      detection_direction: 'above_expected'  # query-level from v1.30.2; only spikes are anomalous
+      max_points_per_query: 15000  # to deal with longer queries hitting search.maxPointsPerTimeseries
     # other queries ...
 
 writer:

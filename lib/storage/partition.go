@@ -1290,6 +1290,9 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFi
 		putBlockStreamReader(bsr)
 	}
 	if err != nil {
+		if mpNew != nil {
+			putInmemoryPart(mpNew)
+		}
 		return err
 	}
 	if mpNew != nil {
@@ -1444,6 +1447,8 @@ func (pt *partition) openCreatedPart(ph *partHeader, pws []*partWrapper, mpNew *
 		// The created part is empty. Remove it
 		if mpNew == nil {
 			fs.MustRemoveDir(dstPartPath)
+		} else {
+			putInmemoryPart(mpNew)
 		}
 		return nil
 	}

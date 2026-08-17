@@ -95,15 +95,14 @@ See also multitenancy [via headers](#multitenancy-via-headers) and [via labels](
 
 ### Multitenancy via headers
 
-By default, VictoriaMetrics allows specifying `accountID` and `projectID` only in the request URL.
+With `--enableMultitenancyViaHeaders` {{% available_from "v1.143.0" %}} command-line flag enabled (enabled by default {{% available_from "v1.150.0" %}})
+tenant ID can be specified via HTTP headers `AccountID` and `ProjectID`. This flag needs to be enabled on vminserts and vmselects.
 
-Set `--enableMultitenancyViaHeaders` {{% available_from "v1.143.0" %}} command-line flag to support 
-specifying `accountID` and `projectID` via HTTP headers `AccountID` and `ProjectID` respectively.
-This flag needs to be specified separately for vminserts and vmselects.
-
-When `--enableMultitenancyViaHeaders` is enabled, [URL format](#url-format) can be simplified to the following:
+With `--enableMultitenancyViaHeaders` enabled [URL format](#url-format) can be simplified to the following:
 - `http://<vminsert>:8480/insert/<suffix>` for writes
 - `http://<vmselect>:8481/select/prometheus/<suffix>` for reads
+
+> Set --enableMultitenancyViaHeaders=false to disable simplified URL format.
 
 For example, the following query will only select metric `up` from `accountID=2` and `projectID=3`:
 ```
@@ -291,7 +290,7 @@ If you need multi-AZ setup, then it is recommended running independent clusters 
 into all the cluster - see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy) for details.
 Then an additional `vmselect` nodes can be configured for reading the data from multiple clusters according to [these docs](#multi-level-cluster-setup).
 
-See [victoria-metrics-distributed chart](https://docs.victoriametrics.com/helm/victoria-metrics-distributed/) for an example.
+See [VMDistributed](https://docs.victoriametrics.com/operator/resources/vmdistributed/) Kubernetes operator resource for an example.
 
 ## Cluster setup
 

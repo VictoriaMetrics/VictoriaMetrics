@@ -27,16 +27,13 @@ This section covers the `Models` component of VictoriaMetrics Anomaly Detection 
 ```yaml
 models:
   model_univariate_1:
-    class: 'zscore' # or 'model.zscore.ZscoreModel' until v1.13.0
+    class: 'zscore_online'
     z_threshold: 2.5
     queries: ['query_alias2']  # referencing queries defined in `reader` section
   model_multivariate_1:
-    class: 'isolation_forest_multivariate'  # or model.isolation_forest.IsolationForestMultivariateModel until v1.13.0
-    contamination: 'auto'
-    args:
-      n_estimators: 100
-      # i.e. to assure reproducibility of produced results each time model is fit on the same input
-      random_state: 42
+    class: 'temporal_envelope_multivariate'
+    seasonalities: ['hod_smooth', 'dow_smooth']
+    provide_series: ['anomaly_score']
     # if there is no explicit `queries` arg, then the model will be run on ALL queries found in reader section
 # ...
 ```  
@@ -67,6 +64,9 @@ models:
 ## Common args
 
 Common arguments supported by every model were introduced in [v1.10.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1100).
+
+> [!WARNING]
+> Configuring `data_range`, `detection_direction`, `min_dev_from_expected`, or `min_rel_dev_from_expected` at model level is deprecated {{% deprecated_from "v1.30.2" anomaly %}}. These stable KPI policies belong under [`reader.queries.<alias>`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#per-query-parameters), where they remain consistent across every [univariate](#univariate-models) or [multivariate](#multivariate-models) model that uses the query. Existing model-level values remain compatible as model-local fallbacks when an attached query does not define the corresponding field; an explicit query value is authoritative.
 
 <div class="collapse-group">
 
@@ -148,61 +148,46 @@ models:
 {{% collapse name="Detection direction" %}}
 
 ### Detection direction
-The `detection_direction` argument{{% available_from "v1.13.0" anomaly %}} can reduce [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive) when domain knowledge indicates that only values above or below the expected value are anomalous. Available values are `both`, `above_expected`, and `below_expected`.
+The `detection_direction` argument{{% available_from "v1.13.0" anomaly %}} can reduce [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive) when domain knowledge indicates that only values above or below the expected value are anomalous. Available values are `both`, `above_expected`, and `below_expected`. Configure it on the input query; model-level placement is {{% deprecated_from "v1.30.2" anomaly %}}.
 
-Here's how default (backward-compatible) behavior looks like - anomalies will be tracked in `both` directions (`y > yhat` or `y < yhat`). This is useful when there is no domain expertise to filter the required direction.
+Here's how the three options differ:
 
-![schema_detection_direction=both](schema_detection_direction_both.webp)
+![detection_direction comparison](schema_detection_direction.webp)
 
+With the default, backward-compatible `both` value, anomalies are tracked in both directions (`y > yhat` or `y < yhat`). This is useful when there is no domain expertise to filter the required direction.
 
 When set to `above_expected`, anomalies are tracked only when `y > yhat`.
 
 *Example metrics*: Error rate, response time, page load time, number of failed transactions - metrics where *lower values are better*, so **higher** values are typically tracked.
 
-![schema_detection_direction=above_expected](schema_detection_direction_above_expected.webp)
-
-
 When set to `below_expected`, anomalies are tracked only when `y < yhat`. 
 
 *Example metrics*: Service Level Agreement (SLA) compliance, conversion rate, Customer Satisfaction Score (CSAT) - metrics where *higher values are better*, so **lower** values are typically tracked.
 
-![schema_detection_direction=below_expected](schema_detection_direction_below_expected.webp)
-
-
-Config with a split example:
+One model can use multiple queries with different directions because the policy belongs to each query:
 
 ```yaml
-models:
-  model_above_expected:
-    class: 'zscore_online'
-    z_threshold: 3.0
-    # track only cases when y > yhat, otherwise anomaly_score would be explicitly set to 0
-    detection_direction: 'above_expected'
-    # for this query we do not need to track lower values, thus, set anomaly detection tracking for y > yhat (above_expected)
-    queries: ['query_values_the_lower_the_better']
-  model_below_expected:
-    class: 'zscore_online'
-    z_threshold: 3.0
-    # track only cases when y < yhat, otherwise anomaly_score would be explicitly set to 0
-    detection_direction: 'below_expected'
-    # for this query we do not need to track higher values, thus, set anomaly detection tracking for y < yhat (above_expected)
-    queries: ['query_values_the_higher_the_better']
-  model_bidirectional_default:
-    class: 'zscore_online'
-    z_threshold: 3.0
-    # track in both direction, same backward-compatible behavior in case this arg is missing
-    detection_direction: 'both'
-    # for this query both directions can be equally important for anomaly detection, thus, setting it bidirectional (both)
-    queries: ['query_values_both_direction_matters']
 reader:
   # ...
   queries:
-    query_values_the_lower_the_better: 
+    query_values_the_lower_the_better:
       expr: metricsql_expression1
-    query_values_the_higher_the_better: 
+      detection_direction: 'above_expected'  # query-level from v1.30.2; only y > yhat can be anomalous
+    query_values_the_higher_the_better:
       expr: metricsql_expression2
-    query_values_both_direction_matters: 
+      detection_direction: 'below_expected'  # query-level from v1.30.2; only y < yhat can be anomalous
+    query_values_both_direction_matters:
       expr: metricsql_expression3
+      detection_direction: 'both'  # query-level from v1.30.2; the default when omitted
+models:
+  model_all_directions:
+    class: 'zscore_online'
+    z_threshold: 3.0
+    queries: [
+      'query_values_the_lower_the_better',
+      'query_values_the_higher_the_better',
+      'query_values_both_direction_matters',
+    ]
 # other components like writer, schedule, monitoring
 ```
 
@@ -212,7 +197,7 @@ reader:
 
 ### Minimal deviation from expected
 
-`min_dev_from_expected`{{% available_from "v1.13.0" anomaly %}} argument is designed to **reduce [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive)** in scenarios where deviations between the actual value (`y`) and the expected value (`yhat`) are **relatively** high. Such deviations can cause models to generate high [anomaly scores](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score). However, these deviations may not be significant enough in **absolute values** from a business perspective to be considered anomalies. This parameter ensures that anomaly scores for data points where `|y - yhat| < min_dev_from_expected` are explicitly set to 0. By default, if this parameter is not set, it is set to `0` to maintain backward compatibility.
+`min_dev_from_expected`{{% available_from "v1.13.0" anomaly %}} argument is designed to **reduce [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive)** in scenarios where deviations between the actual value (`y`) and the expected value (`yhat`) are **relatively** high. Such deviations can cause models to generate high [anomaly scores](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score). However, these deviations may not be significant enough in **absolute values** from a business perspective to be considered anomalies. This parameter ensures that anomaly scores for data points where `|y - yhat| < min_dev_from_expected` are explicitly set to 0. By default, if this parameter is not set, it is set to `0` to maintain backward compatibility. Configure it on the input query; model-level placement is {{% deprecated_from "v1.30.2" anomaly %}}.
 
 > [!NOTE]
 {{% available_from "v1.23.0" anomaly %}} The `min_dev_from_expected` argument can be a list of two float values, allowing separate thresholds for upper and lower deviations. This is useful when the acceptable deviation varies in different directions (e.g., `min_dev_from_expected: [0.01, 0.02]` means that the lower bound is `0.01` when `y` is less than `yhat` and the upper bound is `0.02` when `y` is greater than `yhat`). If only one value is provided, it is broadcasted to both directions, meaning that the same threshold is applied for both upper and lower deviations (e.g., `min_dev_from_expected: 0.01` means that the lower bound is `0.01` when `y` is less than `yhat` and the upper bound is also `0.01` when `y` is greater than `yhat`).
@@ -221,15 +206,9 @@ reader:
 
 *Example*: Consider a scenario where CPU utilization in specific mode is low and oscillates around 0.3% (0.003). A sudden spike to 1.3% (0.013) represents a +333% increase in **relative** terms, but only a +1 percentage point (0.01) increase in **absolute** terms, which may be negligible and not warrant an alert. Setting the `min_dev_from_expected` argument to `0.01` (1%) will ensure that all anomaly scores for deviations <= `0.01` are set to 0.
 
-Visualizations below demonstrate this concept; the green zone defined as the `[yhat - min_dev_from_expected, yhat + min_dev_from_expected]` range excludes actual data points (`y`) from generating anomaly scores if they fall within that range.
+The visualization below demonstrates this concept. The narrow blue model prediction boundary is nested inside the wider green business protection boundary. Actual values outside the prediction boundary but still within `[yhat - min_dev_from_expected, yhat + min_dev_from_expected]` receive `anomaly_score = 0`; only values outside the green boundary remain anomalous.
 
-![min_dev_from_expected-default](schema_min_dev_from_expected_0.webp)
-
-
-![min_dev_from_expected-small](schema_min_dev_from_expected_1_0.webp)
-
-
-![min_dev_from_expected-big](schema_min_dev_from_expected_5_0.webp)
+![min_dev_from_expected](schema_min_dev_from_expected.webp)
 
 Example config of how to use this param based on query results:
 
@@ -239,23 +218,17 @@ reader:
   # ...
   queries:
     # the usage of min_dev should reduce false positives here
-    need_to_include_min_dev: 
+    need_to_include_min_dev:
       expr: small_abs_values_metricsql_expression
+      min_dev_from_expected: [5.0, 5.0]  # query-level from v1.30.2
     # min_dev is not really needed here
-    normal_behavior: 
+    normal_behavior:
       expr: no_need_to_exclude_small_deviations_metricsql_expression
 models:
-  zscore_with_min_dev:
+  zscore:
     class: 'zscore_online'
     z_threshold: 3
-    min_dev_from_expected: [5.0, 5.0]  # set the same threshold for both directions, meaning that deviations less than 5.0 in absolute values won't be considered anomalous, even if they are relatively significant
-    queries: ['need_to_include_min_dev']  # use such models on queries where domain experience confirm usefulness
-  zscore_wo_min_dev:
-    class: 'zscore_online'
-    z_threshold: 3
-    # if not set, equals to setting min_dev_from_expected == 0 (meaning no filtering is applied)
-    # min_dev_from_expected: [0.0, 0.0]
-    queries: ['normal_behavior']  # use the default where it's not needed
+    queries: ['need_to_include_min_dev', 'normal_behavior']
 ```
 
 {{% /collapse %}}
@@ -264,12 +237,16 @@ models:
 
 ### Minimal relative deviation from expected
 
-{{% available_from "v1.29.1" anomaly %}} `min_rel_dev_from_expected` argument serves a similar purpose to `min_dev_from_expected` (see [section above](#minimal-deviation-from-expected)), but focuses on **relative deviations** rather than absolute ones. It is designed to reduce [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive) in scenarios where the relative deviation between the actual value (`y`) and the expected value (`yhat`) is high, but the absolute deviation is not significant enough to be considered an anomaly from a business perspective. This parameter ensures that anomaly scores for data points where `|y - yhat| / |yhat| < min_rel_dev_from_expected` are explicitly set to 0. By default, if this parameter is not set, it is set to `0` to maintain backward compatibility. 
+{{% available_from "v1.29.1" anomaly %}} `min_rel_dev_from_expected` argument serves a similar purpose to `min_dev_from_expected` (see [section above](#minimal-deviation-from-expected)), but focuses on **relative deviations** rather than absolute ones. It is designed to reduce [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive) in scenarios where the relative deviation between the actual value (`y`) and the expected value (`yhat`) is high, but the absolute deviation is not significant enough to be considered an anomaly from a business perspective. This parameter ensures that anomaly scores for data points where `|y - yhat| / |yhat| < min_rel_dev_from_expected` are explicitly set to 0. By default, if this parameter is not set, it is set to `0` to maintain backward compatibility. Configure it on the input query; model-level placement is {{% deprecated_from "v1.30.2" anomaly %}}.
 
 Parameter can be a list of two float values, *allowing separate thresholds for upper and lower relative deviations*. If only one value is provided, it is broadcasted to both directions.
 
 > [!NOTE]
 If both `min_dev_from_expected` [arg](#minimal-deviation-from-expected) and `min_rel_dev_from_expected` are set, the model will combine both filters. A data point will be considered anomalous (i.e., have an anomaly score != 0) only if it exceeds **both** the *absolute* deviation threshold defined by `min_dev_from_expected` and the *relative* deviation threshold defined by `min_rel_dev_from_expected`. This allows for more granular control over anomaly detection, ensuring that only significant deviations in both absolute and relative terms are flagged as anomalies.
+
+The green business protection boundary below scales with `|yhat|`, while the model prediction boundary remains visible inside it. Actual values outside the blue boundary but inside the proportional green boundary receive `anomaly_score = 0`.
+
+![min_rel_dev_from_expected](schema_min_rel_dev_from_expected.webp)
 
 
 *Example*: Consider a scenario of monitoring incoming traffic to websites that typically receives *unknown in advance* requests per second (from tens to thousands). Setting absolute deviation threshold with `min_dev_from_expected` *may not be effective in reducing false positives*, as even a small increase in traffic (e.g., from 10 to 20 requests per second) can represent a 100% relative increase, which may be significant for that website. Instead, setting `min_rel_dev_from_expected` to smaller relative value - `[20, 40]` (20/40%) - will ensure that traffic drop from 10 to 8 requests per second (20% decrease) and traffic spike from 10 to 14 requests per second (40% increase) won't be considered anomalous, even if they exceed confidence intervals, thus, reducing false positives for small absolute deviations that are relatively significant.
@@ -282,23 +259,17 @@ reader:
   # ...
   queries:
     # the usage of min_rel_dev should reduce false positives here
-    need_to_include_min_rel_dev: 
+    need_to_include_min_rel_dev:
       expr: small_abs_values_metricsql_expression
+      min_rel_dev_from_expected: [10, 20]  # query-level from v1.30.2
     # min_rel_dev is not really needed here
-    normal_behavior: 
+    normal_behavior:
       expr: no_need_to_exclude_small_deviations_metricsql_expression
 models:
-  zscore_with_min_rel_dev:
+  zscore:
     class: 'zscore_online'
     z_threshold: 3
-    min_rel_dev_from_expected: [10, 20]  # set different thresholds for both directions, meaning that relative deviations less than 10% when y < yhat and less than 20% when y > yhat won't be considered anomalous, even if they exceed confidence intervals, thus, reducing false positives for small absolute deviations that are relatively significant
-    queries: ['need_to_include_min_rel_dev']  # use such models on queries where domain experience confirm usefulness
-  zscore_wo_min_rel_dev:
-    class: 'zscore_online'
-    z_threshold: 3
-    # if not set, equals to setting min_rel_dev_from_expected == 0 (meaning no filtering is applied)
-    # min_rel_dev_from_expected: [0, 0]
-    queries: ['normal_behavior']  # use the default where it's not needed
+    queries: ['need_to_include_min_rel_dev', 'normal_behavior']
 ```
   
 
@@ -321,28 +292,44 @@ reader:
   # assume there are M unique hosts identified by the `host` label
   queries:
     # return one timeseries for each CPU mode per host, total = N*M timeseries
-    cpu: sum(rate(node_cpu_seconds_total[5m])) by (host, mode)
+    cpu:
+      expr: sum(rate(node_cpu_seconds_total[5m])) by (host, mode)
+      data_range: [0, 'inf']
+      detection_direction: both
+      min_rel_dev_from_expected: [15, 15]
     # return one timeseries per host, total = 1*M timeseries
-    ram: | 
-      (
-       (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) 
-       / node_memory_MemTotal_bytes
-      ) * 100 by (host)
+    ram:
+      expr: |
+        100 * (
+          1 - node_memory_MemAvailable_bytes
+          / node_memory_MemTotal_bytes
+        )
+      data_range: [0, 100]
+      detection_direction: above_expected
+      min_rel_dev_from_expected: [0, 15]
     # return one timeseries per host for both network receive and transmit data, total = 1*M timeseries
-    network: |
-      sum(rate(node_network_receive_bytes_total[5m])) by (host) 
-      + sum(rate(node_network_transmit_bytes_total[5m])) by (host)
+    network:
+      expr: |
+        sum(rate(node_network_receive_bytes_total[5m])) by (host)
+        + sum(rate(node_network_transmit_bytes_total[5m])) by (host)
+      data_range: [0, 'inf']
+      detection_direction: below_expected
+      min_rel_dev_from_expected: [20, 0]
 
 models:
-  iforest: # alias for the model
-    class: isolation_forest_multivariate
-    contamination: 0.01
+  envelope: # alias for the model
+    class: temporal_envelope_multivariate
+    seasonalities: [hod_smooth, dow_smooth]
+    provide_series: [anomaly_score]
     # the multivariate model can be trained on 2+ timeseries returned by 1+ queries
     queries: [cpu, ram, network]
     # train a distinct multivariate model for each unique value found in the `host` label
     # a single multivariate model will be trained on (N + 1 + 1) timeseries, total = M models
     groupby: [host]
 ```
+
+> [!TIP]
+> {{% available_from "v1.30.2" anomaly %}} Multivariate Temporal Envelope applies each query's [`data_range`, `detection_direction`, and minimum relative deviation](https://docs.victoriametrics.com/anomaly-detection/components/reader/#per-query-parameters) to every channel returned by that query before aggregating the joint anomaly score. The example detects CPU deviations in either direction, RAM increases of at least 15%, and network drops of at least 20% within each host model.
 
 {{% /collapse %}}
 
@@ -360,6 +347,10 @@ For backward compatibility, the previous format (`scale: x`) remains supported a
 For example, setting `scale: [1.2, 0.75]` for particular model will:
 - **Increase** the width of the lower confidence interval by **20%**.
 - **Decrease** the width of the upper confidence boundary by **25%**.
+
+Alternative visualization:
+
+![two-sided scale comparison](schema_scale_overview_v2.webp)
 
 The most common **use case** is when there is a preference to **widen one side** to blacklist smaller false positives (which otherwise would have [anomaly scores](https://docs.victoriametrics.com/anomaly-detection/faq/#how-is-anomaly-score-calculated) **only slightly higher than 1.0**, still making such data points **anomalous**), while **tightening the other side** to avoid missing true positives due to an overly loose margin (leading to [anomaly scores](https://docs.victoriametrics.com/anomaly-detection/faq/#how-is-anomaly-score-calculated) being slightly less than 1.0, making such data points **non-anomalous**).
 
@@ -548,7 +539,7 @@ If during an inference, you got a series having **new labelset** (not present in
 
 **Implications:** Univariate models are a go-to default, when your queries returns **changing** amount of **individual** time series of **different** magnitude, [trend](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend) or [seasonality](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality), so you won't be mixing incompatible data with different behavior within a single fit model (context isolation).
 
-**Examples:** [Prophet](#prophet), [Holt-Winters](#holt-winters)
+**Examples:** [Temporal Envelope](#temporal-envelope), [Online MAD](#online-mad), [Online Z-score](#online-z-score), [Online Seasonal Quantile](#online-seasonal-quantile)
 
 ![Univariate model lifecycle](model-lifecycle-univariate.svg)
 
@@ -559,17 +550,19 @@ For a multivariate model, **one shared model instance** is fitted and used acros
 
 For example, if you have some **multivariate** model to use 3 [MetricQL queries](https://docs.victoriametrics.com/victoriametrics/metricsql/), each returning 5 time series, there will be one shared model created in total. Once fit, this model will expect **exactly 15 time series with exact same labelsets as an input**. This model will produce **one shared [output](#vmanomaly-output)**.
 
+> {{% available_from "v1.30.2" anomaly %}} Multivariate Temporal Envelope and Isolation Forest accept matching input channels in any order. The channel set must still match the fitted model exactly: missing, extra, and duplicate channels are rejected, while a matching set is restored to learned fit order before inference or online updates.
+
 > {{% available_from "v1.16.0" anomaly %}} N models — one for each N unique combinations of label values specified in the `groupby` [common argument](#group-by) — can be trained. This allows for context separation (e.g., one model per host, region, or other relevant grouping label), leading to improved accuracy and faster training. See an example [here](#group-by).
 
 If during an inference, you got a **different amount of series** or some series having a **new labelset** (not present in any of fitted models), the inference will be skipped until you get a model, trained particularly for such labelset during forthcoming re-fit step. 
 
 **Implications:** Multivariate models are a go-to default, when your queries returns **fixed** amount of **individual** time series (say, some aggregations), to be used for adding cross-series (and cross-query) context, useful for catching [collective anomalies](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-2/#collective-anomalies) or [novelties](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-2/#novelties) (expanded to multi-input scenario). For example, you may set it up for anomaly detection of CPU usage in different modes (`idle`, `user`, `system`, etc.) and use its cross-dependencies to detect **unseen (in fit data)** behavior.
 
-**Examples:** [Temporal Envelope](#temporal-envelope), [Isolation Forest](#isolation-forest-multivariate)
+**Recommended:** [Temporal Envelope](#temporal-envelope). Existing [Isolation Forest](#isolation-forest-multivariate) configurations can migrate to its multivariate form.
 
 ![Multivariate model lifecycle](model-lifecycle-multivariate.svg)
 
-The following configuration applies both models to the same aligned input series. Start with Temporal Envelope when temporal profiles and online adaptation matter; use Isolation Forest as an offline alternative when feature-space outliers are the primary concern.
+The following configuration applies a multivariate Temporal Envelope model to the same aligned input series:
 
 ```yaml
 models:
@@ -582,16 +575,6 @@ models:
     seasonalities: [hod_smooth, dow_smooth]
     provide_series: [anomaly_score]
 
-  service_dependency_isolation_forest:
-    class: isolation_forest_multivariate
-    queries: [request_rate, error_rate, latency]
-    groupby: [cluster]
-    contamination: 0.01
-    seasonal_features: [hod, dow]
-    args:
-      n_estimators: 100
-      random_state: 42
-    provide_series: [anomaly_score]
 ```
 
 
@@ -634,6 +617,9 @@ Each of the ([built-in](#built-in-models) or [custom](#custom-model-guide)) onli
 
 Every other model that isn't [online](#online-models). Offline models are completely re-trained during `fit` call and aren't updated during consecutive `infer` calls.
 
+> [!NOTE]
+> Built-in offline model classes are planned for deprecation in a future release in favor of online counterparts. For complex temporal data, prefer [Temporal Envelope](#temporal-envelope), which supports incremental adaptation, forecasting, and both univariate and multivariate operation.
+
 
 ## Built-in Models 
 
@@ -649,14 +635,14 @@ Built-in models support 2 groups of arguments:
 **Models**:
 - [AutoTuned](#autotuned) - designed to take the cognitive load off the user, allowing any of built-in models below to be re-tuned for best hyperparameters on data seen during each `fit` phase of the algorithm. Tradeoff is between increased computational time and optimized results / simpler maintenance.
 - [Temporal Envelope](#temporal-envelope) - the preferred **online model for complex operational data** with trends, changepoints, multiple calendar patterns, holidays, capable of [forecasting](https://docs.victoriametrics.com/anomaly-detection/faq/#forecasting). Its multivariate form also learns cross-series relationships.
-- [Prophet](#prophet) - an offline forecasting alternative when Prophet-specific decomposition outputs are required. Favor `Temporal Envelope` for online adaptation and multivariate support.
 - [Online Z-score](#online-z-score) - useful for initial testing and for simpler data ([de-trended](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend) data without strict [seasonality](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality) and with anomalies of similar magnitude as your "normal" data)
 - [MAD](#online-mad) - similarly to [Z-score](#online-z-score), is effective for **identifying outliers in relatively consistent data**. Useful for detecting sudden, stark deviations from the median, being less prone to outlier's magnitude than z-score.
 - [Rolling Quantile](#rolling-quantile) - best for **data with evolving patterns**, as it adapts to changes over a rolling window.
 - [Online Seasonal Quantile](#online-seasonal-quantile) - best used on **[de-trended](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend) data with strong (possibly multiple) [seasonalities](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality)**. Can act as a (slightly less powerful) [online](#online-models) replacement to [`ProphetModel`](#prophet).
 - [Seasonal Trend Decomposition](#seasonal-trend-decomposition) - similarly to Holt-Winters, is best for **data with pronounced [seasonal](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality) and [trend](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend) components**
-- [Isolation forest (Multivariate)](#isolation-forest-multivariate) - an offline alternative for **metrics data interaction** (several queries/metrics -> single anomaly score) and high-dimensional feature-space outliers. Prefer multivariate Temporal Envelope when temporal profiles and *online* adaptation matter.
-- [Holt-Winters](#holt-winters) - well-suited for **data with moderate complexity**, exhibiting distinct [trends](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend) and/or [single seasonal pattern](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality).
+- [Prophet](#prophet) - an offline model retained for existing deployments. Migrate forecasting and seasonal anomaly-detection configurations to [Temporal Envelope](#temporal-envelope), unless Prophet-specific decomposition output must be preserved.
+- [Isolation forest (Multivariate)](#isolation-forest-multivariate) - an offline model retained for existing univariate and multivariate deployments. Migrate to the corresponding [Temporal Envelope](#temporal-envelope) form for online adaptation and temporal or cross-series context.
+- [Holt-Winters](#holt-winters) - an offline model retained for existing trend and single-seasonality configurations. Migrate these configurations to [Temporal Envelope](#temporal-envelope).
 - [Custom model](#custom-model-guide) - benefit from your own models and expertise to better support your **unique use case**.
 
 
@@ -694,7 +680,7 @@ Selecting model [hyperparameters](https://en.wikipedia.org/wiki/Hyperparameter_(
 - `tuned_class_name` (string) - [Built-in model class](#built-in-models) to wrap, i.e. `zscore_online`
 - `optimization_params` (dict) - Optimization parameters for *unsupervised* model tuning. Control percentage of found anomalies, as well as a tradeoff between time spent and the accuracy. The higher `timeout` and `n_trials` are, the better model configuration can be found for `tuned_class_name`, but the longer it takes and vice versa. Set `n_jobs` to `-1` to use all the CPUs available, it makes sense if only you have a big dataset to train on during `fit` calls, otherwise overhead isn't worth it.
   - `anomaly_percentage` (float) - Expected percentage of anomalies that can be seen in training data, from `[0, 0.5)` interval (i.e. 0.01 means it's expected ~ 1% of anomalies to be present in training data). This is a *required* parameter.
-  - `optimized_business_params` (list[string]) - {{% available_from "v1.15.0" anomaly %}} this argument allows particular [business-specific parameters](#common-args) such as [`detection_direction`](https://docs.victoriametrics.com/anomaly-detection/components/models/#detection-direction) or [`min_dev_from_expected`](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-deviation-from-expected) to remain **unchanged during optimizations, retaining their initial values**. I.e. setting `optimized_business_params` to  `['detection_direction']` will allow to optimize only `detection_direction` business-specific arg, while `min_dev_from_expected` will retain its default value of (e.g. [1, 2] if set to that value in model config). By default and if not set, will be equal to `[]` (empty list), meaning no business params will be optimized. **A recommended option is to leave it empty** as this feature is still experimental and may lead to unexpected results.
+  - `optimized_business_params` (list[string]) - {{% available_from "v1.15.0" anomaly %}} Experimental optimization of model-level business parameters is {{% deprecated_from "v1.30.2" anomaly %}}. Keep this list empty and configure stable `detection_direction`, `min_dev_from_expected`, and `min_rel_dev_from_expected` policies on [`reader.queries.<alias>`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#per-query-parameters) instead.
   - `seed` (int) - Random seed for reproducibility and deterministic nature of underlying optimizations.
   - `validation_scheme` (string) - {{% available_from "v1.25.1" anomaly %}} the validation scheme to use for hyperparameter tuning, either `regular` (time-based default) or `leaky` (regular cross-validation with  `n_splits` folds, where each fold is a time-based split of the data). The `leaky` scheme is recommended for `anomaly_percentage` ~ 0%, as it allows the model to "see" all the datapoints at least once during the optimization process, which can lead to better results in such cases. Defaults to `regular`.
   - `n_splits` (int) - How many folds to create for hyperparameter tuning out of your data. The higher, the longer it takes but the better the results can be. Defaults to 3.
@@ -785,6 +771,8 @@ The requested anomaly percentage is treated as an alert-volume constraint rather
 
 {{% available_from "v1.30.0" anomaly %}} Temporal Envelope is the preferred online model for complex operational and business metrics. It learns an evolving expected range from robust trend, calendar and holiday patterns, persistent level shifts, uncertainty, and optional future forecasts. The model adapts during inference while limiting the lasting influence of short-lived spikes.
 
+{{% available_from "v1.30.1" anomaly %}} When the fit window ends in a recently established level, the model initializes its adaptive state from that recent regime while preserving supported calendar structure. This improves the first periodic predictions after a level shift and reduces false seasonal oscillation without requiring additional configuration.
+
 > `TemporalEnvelopeModel` is [univariate](#univariate-models) and [online](#online-models). `TemporalEnvelopeMultivariateModel` also learns normal cross-series relationships as a [multivariate](#multivariate-models) model.
 
 Use it for:
@@ -793,7 +781,7 @@ Use it for:
 - deployments, traffic migrations, and capacity changes that create persistent shifts, including short-horizon forecasts through `forecast_at`;
 - aligned related metrics where each channel keeps its own temporal pattern while their joint behavior contributes to one anomaly score.
 
-For simple profiles without strong trend or seasonality, prefer [Online MAD](#online-mad) or [Online Z-score](#online-z-score). [Prophet](#prophet) and [Isolation Forest](#isolation-forest-multivariate) remain offline alternatives when their distinct capabilities are required or validation favors them.
+For simple profiles without strong trend or seasonality, prefer [Online MAD](#online-mad) or [Online Z-score](#online-z-score). Existing [Prophet](#prophet) and [Isolation Forest](#isolation-forest-multivariate) configurations can be migrated to the corresponding univariate or multivariate Temporal Envelope form.
 
 <div class="model-details">
 
@@ -816,7 +804,7 @@ For simple profiles without strong trend or seasonality, prefer [Online MAD](#on
 
 Preset suffixes describe expected profile shape: `smooth` represents gradual recurring curves, `spiky` represents narrow phase peaks, and `plateau` represents sustained calendar levels. Choose only profiles supported by the data. Calendar and holiday features use civil time from the configured query timezone, so hour/day profiles remain aligned across daylight-saving-time transitions.
 
-Temporal Envelope also supports the [common model arguments](#common-args), including `queries`, `schedulers`, `provide_series`, `detection_direction`, `scale`, `clip_predictions`, `min_dev_from_expected`, and `min_rel_dev_from_expected`. Input `data_range` and query timezone are configured on the [reader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#config-parameters).
+Temporal Envelope also supports the [common model arguments](#common-args), including `queries`, `schedulers`, `provide_series`, `scale`, and `clip_predictions`. Configure `data_range`, `detection_direction`, `min_dev_from_expected`, `min_rel_dev_from_expected`, and query timezone under the corresponding [reader query](https://docs.victoriametrics.com/anomaly-detection/components/reader/#per-query-parameters). The multivariate variant applies these business policies independently to each input channel {{% available_from "v1.30.2" anomaly %}}, so one model can represent combinations such as temperature above expected, power above expected, and clock below expected.
 
 The multivariate variant uses `class: temporal_envelope_multivariate` or `model.online.TemporalEnvelopeMultivariateModel` and adds:
 
@@ -873,173 +861,6 @@ For independent per-series detection, use `temporal_envelope`. Use `temporal_env
 
 </div>
 
-### [Prophet](https://facebook.github.io/prophet/)
-`vmanomaly` uses the Facebook Prophet implementation for time series forecasting, with detailed usage provided in the [Prophet library documentation](https://facebook.github.io/prophet/docs/quick_start#python-api). All original Prophet parameters are supported and can be directly passed to the model via `args` argument.
-
-> `ProphetModel` is a [univariate](#univariate-models), [offline](#offline-models) model.
-
-> {{% available_from "v1.25.3" anomaly %}} Producing forecasts for future timestamps is now supported. To enable this, set the `forecast_at` argument to a list of relative future offsets (e.g., `['1h', '1d']`). The model will then generate forecasts for these future timestamps, which can be useful for planning and resource allocation. Output series are affected by [provide_series](#provide-series) argument, which need to include at least `yhat` for point-wise forecasts (and `yhat_lower` or/and `yhat_upper` for respective confidence intervals). See the example below for more details.
-
-<div class="model-details">
-
-{{% collapse name="Model-specific arguments" %}}
-
-- `class` (string) - model class name `"model.prophet.ProphetModel"` (or `prophet` with class alias support{{% available_from "v1.13.0" anomaly %}})
-- `seasonalities` (list[dict], optional): Additional seasonal components to include in Prophet. See Prophet’s [`add_seasonality()`](https://facebook.github.io/prophet/docs/seasonality,_holiday_effects,_and_regressors#modeling-holidays-and-special-events:~:text=modeling%20the%20cycle-,Specifying,-Custom%20Seasonalities) documentation for details.
-- `scale`{{% available_from "v1.18.0" anomaly %}} (float): Is used to adjust the margins between `yhat` and [`yhat_lower`, `yhat_upper`]. New margin = `|yhat_* - yhat_lower| * scale`. Defaults to 1 (no scaling is applied). See `scale`[common arg](https://docs.victoriametrics.com/anomaly-detection/components/models/#scale) section for detailed instructions and 2-sided option.
-- `tz_aware`{{% available_from "v1.18.0" anomaly %}} (bool): Enables handling of timezone-aware timestamps. Default is `False`. Should be used with `tz_seasonalities` and `tz_use_cyclical_encoding` parameters.
-- `tz_seasonalities`{{% available_from "v1.18.0" anomaly %}} (list[dict]): Specifies timezone-aware seasonal components. Requires `tz_aware=True`. Supported options include `minute`, `hod` (hour of day), `dow` (day of week), and `month` (month of year). {{% available_from "v1.18.2" anomaly %}} users can configure additional parameters for each seasonality, such as `fourier_order`, `prior_scale`, and `mode`. For more details, please refer to the **Timezone-unaware** configuration example below.
-  > {{% available_from "v1.18.2" anomaly %}} the format for `tz_seasonalities` has been updated to enhance flexibility. Previously, it accepted a list of strings (e.g., `['hod', 'minute']`). Now, it follows the same structure as custom seasonalities defined in the `seasonalities` argument (e.g., `{"name": "hod", "fourier_order": 5, "mode": "additive"}`). This change is backward-compatible, so older configurations will be automatically converted to the new format using default values.
-- `tz_use_cyclical_encoding`{{% available_from "v1.18.0" anomaly %}} (bool): If set to `True`, applies [cyclical encoding technique](https://www.kaggle.com/code/avanwyk/encoding-cyclical-features-for-deep-learning) to timezone-aware seasonalities. Should be used with `tz_aware=True` and `tz_seasonalities`.
-- `forecast_at`{{% available_from "v1.25.3" anomaly %}} (list[str]): Specifies future relative offsets for which forecasts should be generated (e.g., `['1h', '1d']`). Works similarly to [predict_linear](https://docs.victoriametrics.com/victoriametrics/metricsql/#predict_linear) in MetricQL, but with more flexibility and seasonality support - produced series will have *the same timestamp* as the other [output](#vmanomaly-output) series, but with the forecasted value for the *future timestamp*. Defaults to `[]` (empty list, meaning no future forecasts are produced). If set, `provide_series` must include at least `yhat` for point-wise forecasts (and `yhat_lower` or/and `yhat_upper` for respective confidence intervals). For example, if `forecast_at` is set to `['1h', '1d']`, the model will produce forecasts for both the next hour and the next day, and these series can be accessed by `yhat_1h`, `yhat_lower_1h`, `yhat_upper_1h`, `yhat_1d`, `yhat_lower_1d`, and `yhat_upper_1d` in the output, respectively. See [FAQ](https://docs.victoriametrics.com/anomaly-detection/faq/#forecasting) for more details.
-
-> `forecast_at` parameter can lead to **significant increase in active timeseries** if you have a lot of time series returned by your queries, as it will produce additional series for each of the future timestamps specified in `forecast_at` (optionally multiplied by 1-3 if interval forecasts are included). For example, if you have 1000 time series returned by your query and set `forecast_at` to `[1h, 1d, 1w]`, and `provide_series` includes `yhat_lower` and `yhat_upper`, it will produce 1000 (series) * 3 (intervals) * 3 (predictions, point + interval) = 9000 additional timeseries. Consider using it only on small subset of metrics (e.g. grouped by `host` or `region`) to avoid this issue, as it also **proportionally (to the number of `forecast_at` elements) increases the timings of inference calls**.
-
-- `compression` {{% available_from "v1.28.1" anomaly %}} (dict, optional): Configuration for downsampling input data before fitting the model. Useful for high-frequency data to reduce CPU and RAM/disk load and improve model performance. The `compression` block supports the following parameters:
-  - `window` (str, required): Time window for downsampling (e.g., "5m", "1h").
-  - `agg_method` (str, optional, default="mean"): Aggregation function to apply within each window. Supported values: "mean", "median".
-  - `adjust_boundaries` (bool, optional, default=true): Whether to adjust confidence interval boundaries after downsampling. If true, `yhat_lower` and `yhat_upper` will be adjusted based on the aggregated vs original data variability.
-
-{{% /collapse %}}
-
-{{% collapse name="Configuration examples" %}}
-
-Timezone-unaware example:
-
-```yaml
-models:
-  your_desired_alias_for_a_model:
-    class: 'prophet'  # or 'model.prophet.ProphetModel' until v1.13.0
-    provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper', 'trend']
-    # Common arguments for built-in model, if not set, default to
-    # See https://docs.victoriametrics.com/anomaly-detection/components/models/#common-args
-    #
-    # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper', 'trend']
-    # schedulers: [all scheduler aliases defined in `scheduler` section]
-    # queries: [all query aliases defined in `reader.queries` section]
-    # detection_direction: 'both'  # meaning both drops and spikes will be captured
-    # min_dev_from_expected: [0.0, 0.0]  # meaning, no minimal threshold is applied to prevent smaller anomalies
-    # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
-    # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
-    # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
-    seasonalities:
-      - name: 'hourly'
-        period: 0.04166666666
-        fourier_order: 30
-        prior_scale: 20
-    compression:  # downsample input data to reduce CPU/RAM load
-      window: '30m'  # downsample to 30-minute intervals
-      agg_method: 'mean'  # use mean aggregation within each window
-      adjust_boundaries: true  # adjust yhat_lower/yhat_upper after downsampling
-    # inner model args (key-value pairs) accepted by
-    # https://facebook.github.io/prophet/docs/quick_start#python-api
-    args:
-      interval_width: 0.98  # see https://facebook.github.io/prophet/docs/uncertainty_intervals
-      country_holidays: 'US'
-```
-
-Timezone-aware example:
-
-```yaml
-models:
-  your_desired_alias_for_a_model:
-    class: 'prophet'  # or 'model.prophet.ProphetModel' until v1.13.0
-    provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper', 'trend']
-    # Common arguments for built-in model, if not set, default to
-    # See https://docs.victoriametrics.com/anomaly-detection/components/models/#common-args
-    #
-    # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper', 'trend']
-    # schedulers: [all scheduler aliases defined in `scheduler` section]
-    # queries: [all query aliases defined in `reader.queries` section]
-    # detection_direction: 'both'  # meaning both drops and spikes will be captured
-    # min_dev_from_expected: [0.0, 0.0]  # meaning, no minimal threshold is applied to prevent smaller anomalies
-    # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
-    # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
-    # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
-    tz_aware: True
-    tz_use_cyclical_encoding: True
-    tz_seasonalities: # intra-day + intra-week seasonality, no intra-year / sub-hour seasonality
-      - name: 'hod'  # intra-day seasonality, hour of the day
-        fourier_order: 5  # keep it 3-8 based on intraday pattern complexity
-        prior_scale: 10
-      - name: 'dow'  # intra-week seasonality, time of the week
-        fourier_order: 2  # keep it 2-4, as dependencies are learned separately for each weekday
-    compression:  # downsample input data to reduce CPU/RAM load
-      window: '30m'  # downsample to 30-minute intervals
-      agg_method: 'mean'  # use mean aggregation within each window
-      adjust_boundaries: true  # adjust yhat_lower/yhat_upper after downsampling
-    # inner model args (key-value pairs) accepted by
-    # https://facebook.github.io/prophet/docs/quick_start#python-api
-    args:
-      interval_width: 0.98  # see https://facebook.github.io/prophet/docs/uncertainty_intervals
-      country_holidays: 'US'
-```
-
-{{% /collapse %}}
-
-</div>
-
-> Apart from standard [`vmanomaly` output](#vmanomaly-output), Prophet model can provide additional metrics.
-
-**Additional output metrics produced by FB Prophet**
-Depending on chosen `seasonality` parameter FB Prophet can return additional metrics such as:
-- `trend`, `trend_lower`, `trend_upper`
-- `additive_terms`, `additive_terms_lower`, `additive_terms_upper`,
-- `multiplicative_terms`, `multiplicative_terms_lower`, `multiplicative_terms_upper`,
-- `daily`, `daily_lower`, `daily_upper`,
-- `hourly`, `hourly_lower`, `hourly_upper`,
-- `holidays`, `holidays_lower`, `holidays_upper`,
-- and a number of columns for each holiday if `holidays` param is set
-
-Resulting metrics of the model are described [here](#vmanomaly-output)
-
-### Online Z-score
-
-> `OnlineZscoreModel` is a [univariate](#univariate-models), [online](#online-models) model.
-
-Online version of existing [Z-score](#z-score) implementation with the same exact behavior and implications {{% available_from "v1.15.0" anomaly %}}.
-
-<div class="model-details">
-
-{{% collapse name="Model-specific arguments" %}}
-
-- `class` (string) - model class name `"model.online.OnlineZscoreModel"` (or `zscore_online`with class alias support{{% available_from "v1.13.0" anomaly %}})
-- `z_threshold` (float, optional) - [standard score](https://en.wikipedia.org/wiki/Standard_score) for calculation boundaries and anomaly score. Defaults to `2.5`.
-- `min_n_samples_seen` (int, optional) - the minimum number of samples to be seen (`n_samples_seen_` property) before computing the anomaly score. Otherwise, the **anomaly score will be 0**, as there is not enough data to trust the model's predictions. Defaults to 16.
-- `history_strength` (float, optional) - {{% available_from "v1.30.0" anomaly %}} strength of the initial history learned by `fit`. Values above `1` keep fitted mean and variance unchanged initially but reduce the leverage of subsequent updates. Defaults to `1`.
-
-{{% /collapse %}}
-
-{{% collapse name="Configuration example" %}}
-
-```yaml
-models:
-  your_desired_alias_for_a_model:
-    class: "zscore_online"  # or 'model.online.OnlineZscoreModel'
-    z_threshold: 3.5
-    min_n_samples_seen: 128  # i.e. calculate it as full seasonality / data freq
-    history_strength: 2  # retain fitted history as a stronger prior
-    provide_series: ['anomaly_score', 'yhat']  # common arg example
-    # Common arguments for built-in model, if not set, default to
-    # See https://docs.victoriametrics.com/anomaly-detection/components/models/#common-args
-    #
-    # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']
-    # schedulers: [all scheduler aliases defined in `scheduler` section]
-    # queries: [all query aliases defined in `reader.queries` section]
-    # detection_direction: 'both'  # meaning both drops and spikes will be captured
-    # min_dev_from_expected: [0.0, 0.0]  # meaning, no minimal threshold is applied to prevent smaller anomalies
-    # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
-    # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
-    # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
-```
-
-{{% /collapse %}}
-
-</div>
-
-Resulting metrics of the model are described [here](#vmanomaly-output).
-
-
 ### Online MAD
 
 > `OnlineMADModel` is a [univariate](#univariate-models), [online](#online-models) model.
@@ -1074,56 +895,13 @@ models:
     # See https://docs.victoriametrics.com/anomaly-detection/components/models/#common-args
     #
     # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']
-    # schedulers: [all scheduler aliases defined in `scheduler` section]
-    # queries: [all query aliases defined in `reader.queries` section]
-    # detection_direction: 'both'  # meaning both drops and spikes will be captured
-    # min_dev_from_expected: [0.0, 0.0]  # meaning, no minimal threshold is applied to prevent smaller anomalies
-    # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
-    # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
-    # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
-```
-
-{{% /collapse %}}
-
-</div>
-
-Resulting metrics of the model are described [here](#vmanomaly-output).
-
-
-### [Rolling Quantile](https://en.wikipedia.org/wiki/Quantile)
-
-> `RollingQuantileModel` **is** {{% available_from "v1.28.0" anomaly %}} a [univariate](#univariate-models), [online](#online-models) model. It **was** {{% deprecated_from "v1.28.0" anomaly %}} a [univariate](#univariate-models), [rolling](#rolling-models), [offline](#offline-models) model.
-
-This model is best used on **data with short evolving patterns** (i.e. 10-100 datapoints of particular frequency), as it adapts to changes over a rolling window.
-
-<div class="model-details">
-
-{{% collapse name="Model-specific arguments" %}}
-
-- `class` (string) - model class name `"model.rolling_quantile.RollingQuantileModel"` (or `rolling_quantile` with class alias support {{% available_from "v1.13.0" anomaly %}})
-- `quantile` (float) - quantile value, from 0.5 to 1.0. This constraint is implied by 2-sided confidence interval.
-- `window_steps` (integer) - size of the moving window. (see 'sampling_period')
-- `iqr_threshold` (float, optional) - {{% available_from "v1.25.0" anomaly %}} The [interquartile range (IQR)](https://en.wikipedia.org/wiki/Interquartile_range) multiplier to increase the width of the prediction intervals. Defaults to 0 (no adjustment) for backward compatibility. If set > 0, the model will add half IQR * `iqr_threshold` to `yhat_lower` and  `yhat_upper`. This is useful for data with high variance or outliers, as it helps to avoid false positives in anomaly detection.
-
-{{% /collapse %}}
-
-{{% collapse name="Configuration example" %}}
-
-```yaml
-models:
-  your_desired_alias_for_a_model:
-    class: "rolling_quantile"
-    quantile: 0.9
-    window_steps: 96
-    iqr_threshold: 1
-    # Common arguments for built-in model, if not set, default to
-    # See https://docs.victoriametrics.com/anomaly-detection/components/models/#common-args
-    #
-    # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']
-    # schedulers: [all scheduler aliases defined in `scheduler` section]
-    # queries: [all query aliases defined in `reader.queries` section]
-    # detection_direction: 'both'  # meaning both drops and spikes will be captured
-    # min_dev_from_expected: [0.0, 0.0]  # meaning, no minimal threshold is applied to prevent smaller anomalies
+    # schedulers: [
+    #   all scheduler aliases defined in `scheduler` section,
+    # ]
+    # queries: [
+    #   all query aliases defined in `reader.queries` section,
+    # ]
+    # Configure detection_direction and minimum-deviation policies under reader.queries.<alias> (query-level from v1.30.2).
     # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
     # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
     # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
@@ -1144,7 +922,7 @@ Online (seasonal) quantile utilizes a set of approximate distributions, based on
 
 Best used on **[de-trended](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend) data with strong (potentially multiple) [seasonalities](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality)**. Can act as a (slightly less flexible) replacement to [`ProphetModel`](#prophet).
 
-It uses the `quantiles` triplet to calculate `yhat_lower`, `yhat`, and `yhat_upper` [output](#vmanomaly-output), respectively, for each of the `min_subseasons` sub-intervals contained in `seasonal_interval`. For example, with '4d' + '2h' seasonality patterns (multiple), it will hold and update 24*4 / 2 = 48 consecutive estimates (each 2 hours long).
+It uses the `quantiles` triplet to calculate `yhat_lower`, `yhat`, and `yhat_upper` [output](#vmanomaly-output), respectively, for each of the `min_subseason` sub-intervals contained in `seasonal_interval`. For example, with '4d' + '2h' seasonality patterns (multiple), it will hold and update 24*4 / 2 = 48 consecutive estimates (each 2 hours long).
 
 <div class="model-details">
 
@@ -1187,10 +965,13 @@ models:
     # See https://docs.victoriametrics.com/anomaly-detection/components/models/#common-args
     #
     # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']
-    # schedulers: [all scheduler aliases defined in `scheduler` section]
-    # queries: [all query aliases defined in `reader.queries` section]
-    # detection_direction: 'both'  # meaning both drops and spikes will be captured
-    # min_dev_from_expected: [0.0, 0.0]  # meaning, no minimal threshold is applied to prevent smaller anomalies
+    # schedulers: [
+    #   all scheduler aliases defined in `scheduler` section,
+    # ]
+    # queries: [
+    #   all query aliases defined in `reader.queries` section,
+    # ]
+    # Configure detection_direction and minimum-deviation policies under reader.queries.<alias> (query-level from v1.30.2).
     # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
     # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
     # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
@@ -1203,38 +984,44 @@ models:
 Resulting metrics of the model are described [here](#vmanomaly-output).
 
 
-### [Seasonal Trend Decomposition](https://en.wikipedia.org/wiki/Seasonal_adjustment)
+### Online Z-score
 
-> `StdModel` **is** {{% available_from "v1.28.0" anomaly %}} a [univariate](#univariate-models), [online](#online-models) model. It **was** {{% deprecated_from "v1.28.0" anomaly %}} a [univariate](#univariate-models), [rolling](#rolling-models), [offline](#offline-models) model.
+> `OnlineZscoreModel` is a [univariate](#univariate-models), [online](#online-models) model.
 
-Here we use Seasonal Decompose implementation from `statsmodels` [library](https://www.statsmodels.org/dev/generated/statsmodels.tsa.seasonal.seasonal_decompose). Parameters from this library can be passed to the model. Some parameters are specifically predefined in `vmanomaly` and can't be changed by user (`model`='additive', `two_sided`=False).
+Online version of existing [Z-score](#z-score) implementation with the same exact behavior and implications {{% available_from "v1.15.0" anomaly %}}.
 
 <div class="model-details">
 
 {{% collapse name="Model-specific arguments" %}}
 
-- `class` (string) - model class name `"model.std.StdModel"` (or `std` with class alias support{{% available_from "v1.13.0" anomaly %}})
-- `period` (integer) -  Number of datapoints in one season.
-- `z_threshold` (float, optional) - [standard score](https://en.wikipedia.org/wiki/Standard_score) for calculating boundaries to define anomaly score. Defaults to `2.5`.
+- `class` (string) - model class name `"model.online.OnlineZscoreModel"` (or `zscore_online`with class alias support{{% available_from "v1.13.0" anomaly %}})
+- `z_threshold` (float, optional) - [standard score](https://en.wikipedia.org/wiki/Standard_score) for calculation boundaries and anomaly score. Defaults to `2.5`.
+- `min_n_samples_seen` (int, optional) - the minimum number of samples to be seen (`n_samples_seen_` property) before computing the anomaly score. Otherwise, the **anomaly score will be 0**, as there is not enough data to trust the model's predictions. Defaults to 16.
+- `history_strength` (float, optional) - {{% available_from "v1.30.0" anomaly %}} strength of the initial history learned by `fit`. Values above `1` keep fitted mean and variance unchanged initially but reduce the leverage of subsequent updates. Defaults to `1`.
 
 {{% /collapse %}}
 
 {{% collapse name="Configuration example" %}}
 
-
 ```yaml
 models:
   your_desired_alias_for_a_model:
-    class: "std"  # or 'model.std.StdModel' starting from v1.13.0
-    period: 2
+    class: "zscore_online"  # or 'model.online.OnlineZscoreModel'
+    z_threshold: 3.5
+    min_n_samples_seen: 128  # i.e. calculate it as full seasonality / data freq
+    history_strength: 2  # retain fitted history as a stronger prior
+    provide_series: ['anomaly_score', 'yhat']  # common arg example
     # Common arguments for built-in model, if not set, default to
     # See https://docs.victoriametrics.com/anomaly-detection/components/models/#common-args
     #
     # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']
-    # schedulers: [all scheduler aliases defined in `scheduler` section]
-    # queries: [all query aliases defined in `reader.queries` section]
-    # detection_direction: 'both'  # meaning both drops and spikes will be captured
-    # min_dev_from_expected: [0.0, 0.0]  # meaning, no minimal threshold is applied to prevent smaller anomalies
+    # schedulers: [
+    #   all scheduler aliases defined in `scheduler` section,
+    # ]
+    # queries: [
+    #   all query aliases defined in `reader.queries` section,
+    # ]
+    # Configure detection_direction and minimum-deviation policies under reader.queries.<alias> (query-level from v1.30.2).
     # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
     # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
     # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
@@ -1246,17 +1033,194 @@ models:
 
 Resulting metrics of the model are described [here](#vmanomaly-output).
 
-**Additional output metrics produced by Seasonal Trend Decomposition model**
-- `resid` - The residual component of the data series.
-- `trend` - The trend component of the data series.
-- `seasonal` - The seasonal component of the data series.
 
+### [Rolling Quantile](https://en.wikipedia.org/wiki/Quantile)
+
+> `RollingQuantileModel` **is** {{% available_from "v1.28.0" anomaly %}} a [univariate](#univariate-models), [online](#online-models) model. It **was** {{% deprecated_from "v1.28.0" anomaly %}} a [univariate](#univariate-models), [rolling](#rolling-models), [offline](#offline-models) model.
+
+This model is best used on **data with short evolving patterns** (i.e. 10-100 datapoints of particular frequency), as it adapts to changes over a rolling window.
+
+<div class="model-details">
+
+{{% collapse name="Model-specific arguments" %}}
+
+- `class` (string) - model class name `"model.rolling_quantile.RollingQuantileModel"` (or `rolling_quantile` with class alias support {{% available_from "v1.13.0" anomaly %}})
+- `quantile` (float) - quantile value, from 0.5 to 1.0. This constraint is implied by 2-sided confidence interval.
+- `window_steps` (integer) - size of the moving window. (see 'sampling_period')
+- `iqr_threshold` (float, optional) - {{% available_from "v1.25.0" anomaly %}} The [interquartile range (IQR)](https://en.wikipedia.org/wiki/Interquartile_range) multiplier to increase the width of the prediction intervals. Defaults to 0 (no adjustment) for backward compatibility. If set > 0, the model will add half IQR * `iqr_threshold` to `yhat_lower` and  `yhat_upper`. This is useful for data with high variance or outliers, as it helps to avoid false positives in anomaly detection.
+
+{{% /collapse %}}
+
+{{% collapse name="Configuration example" %}}
+
+```yaml
+models:
+  your_desired_alias_for_a_model:
+    class: "rolling_quantile"
+    quantile: 0.9
+    window_steps: 96
+    iqr_threshold: 1
+    # Common arguments for built-in model, if not set, default to
+    # See https://docs.victoriametrics.com/anomaly-detection/components/models/#common-args
+    #
+    # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']
+    # schedulers: [
+    #   all scheduler aliases defined in `scheduler` section,
+    # ]
+    # queries: [
+    #   all query aliases defined in `reader.queries` section,
+    # ]
+    # Configure detection_direction and minimum-deviation policies under reader.queries.<alias> (query-level from v1.30.2).
+    # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
+    # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
+    # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
+```
+
+{{% /collapse %}}
+
+</div>
+
+Resulting metrics of the model are described [here](#vmanomaly-output).
+
+
+### [Prophet](https://facebook.github.io/prophet/)
+`vmanomaly` uses the Facebook Prophet implementation for time series forecasting, with detailed usage provided in the [Prophet library documentation](https://facebook.github.io/prophet/docs/quick_start#python-api). All original Prophet parameters are supported and can be directly passed to the model via `args` argument.
+
+> `ProphetModel` is a [univariate](#univariate-models), [offline](#offline-models) model.
+
+> [!NOTE]
+> Prophet is planned for deprecation in a future release. For new forecasting and anomaly-detection deployments, prefer the online [Temporal Envelope](#temporal-envelope) model unless Prophet-specific decomposition output is required.
+
+> {{% available_from "v1.25.3" anomaly %}} Producing forecasts for future timestamps is now supported. To enable this, set the `forecast_at` argument to a list of relative future offsets (e.g., `['1h', '1d']`). The model will then generate forecasts for these future timestamps, which can be useful for planning and resource allocation. Output series are affected by [provide_series](#provide-series) argument, which need to include at least `yhat` for point-wise forecasts (and `yhat_lower` or/and `yhat_upper` for respective confidence intervals). See the example below for more details.
+
+<div class="model-details">
+
+{{% collapse name="Model-specific arguments" %}}
+
+- `class` (string) - model class name `"model.prophet.ProphetModel"` (or `prophet` with class alias support{{% available_from "v1.13.0" anomaly %}})
+- `seasonalities` (list[dict], optional): Additional seasonal components to include in Prophet. See Prophet’s [`add_seasonality()`](https://facebook.github.io/prophet/docs/seasonality,_holiday_effects,_and_regressors#modeling-holidays-and-special-events:~:text=modeling%20the%20cycle-,Specifying,-Custom%20Seasonalities) documentation for details.
+- `scale`{{% available_from "v1.18.0" anomaly %}} (float): Is used to adjust the margins between `yhat` and [`yhat_lower`, `yhat_upper`]. New margin = `|yhat_* - yhat_lower| * scale`. Defaults to 1 (no scaling is applied). See `scale`[common arg](https://docs.victoriametrics.com/anomaly-detection/components/models/#scale) section for detailed instructions and 2-sided option.
+- `tz_aware`{{% available_from "v1.18.0" anomaly %}} (bool): Enables handling of timezone-aware timestamps. Default is `False`. Should be used with `tz_seasonalities` and `tz_use_cyclical_encoding` parameters.
+- `tz_seasonalities`{{% available_from "v1.18.0" anomaly %}} (list[dict]): Specifies timezone-aware seasonal components. Requires `tz_aware=True`. Supported options include `minute`, `hod` (hour of day), `dow` (day of week), and `month` (month of year). {{% available_from "v1.18.2" anomaly %}} users can configure additional parameters for each seasonality, such as `fourier_order`, `prior_scale`, and `mode`. For more details, please refer to the **Timezone-unaware** configuration example below.
+  > {{% available_from "v1.18.2" anomaly %}} the format for `tz_seasonalities` has been updated to enhance flexibility. Previously, it accepted a list of strings (e.g., `['hod', 'minute']`). Now, it follows the same structure as custom seasonalities defined in the `seasonalities` argument (e.g., `{"name": "hod", "fourier_order": 5, "mode": "additive"}`). This change is backward-compatible, so older configurations will be automatically converted to the new format using default values.
+- `tz_use_cyclical_encoding`{{% available_from "v1.18.0" anomaly %}} (bool): If set to `True`, applies [cyclical encoding technique](https://www.kaggle.com/code/avanwyk/encoding-cyclical-features-for-deep-learning) to timezone-aware seasonalities. Should be used with `tz_aware=True` and `tz_seasonalities`.
+- `forecast_at`{{% available_from "v1.25.3" anomaly %}} (list[str]): Specifies future relative offsets for which forecasts should be generated (e.g., `['1h', '1d']`). Works similarly to [predict_linear](https://docs.victoriametrics.com/victoriametrics/metricsql/#predict_linear) in MetricQL, but with more flexibility and seasonality support - produced series will have *the same timestamp* as the other [output](#vmanomaly-output) series, but with the forecasted value for the *future timestamp*. Defaults to `[]` (empty list, meaning no future forecasts are produced). If set, `provide_series` must include at least `yhat` for point-wise forecasts (and `yhat_lower` or/and `yhat_upper` for respective confidence intervals). For example, if `forecast_at` is set to `['1h', '1d']`, the model will produce forecasts for both the next hour and the next day, and these series can be accessed by `yhat_1h`, `yhat_lower_1h`, `yhat_upper_1h`, `yhat_1d`, `yhat_lower_1d`, and `yhat_upper_1d` in the output, respectively. See [FAQ](https://docs.victoriametrics.com/anomaly-detection/faq/#forecasting) for more details.
+
+> [!WARNING]
+> `forecast_at` parameter can lead to **significant increase in active timeseries** if you have a lot of time series returned by your queries, as it will produce additional series for each of the future timestamps specified in `forecast_at` (optionally multiplied by 1-3 if interval forecasts are included). For example, if you have 1000 time series returned by your query and set `forecast_at` to `[1h, 1d, 1w]`, and `provide_series` includes `yhat_lower` and `yhat_upper`, it will produce 1000 (series) * 3 (intervals) * 3 (predictions, point + interval) = 9000 additional timeseries. Consider using it only on small subset of metrics (e.g. grouped by `host` or `region`) to avoid this issue, as it also **proportionally (to the number of `forecast_at` elements) increases the timings of inference calls**.
+
+- `compression` {{% available_from "v1.28.1" anomaly %}} (dict, optional): Configuration for downsampling input data before fitting the model. Useful for high-frequency data to reduce CPU and RAM/disk load and improve model performance. The `compression` block supports the following parameters:
+  - `window` (str, required): Time window for downsampling (e.g., "5m", "1h").
+  - `agg_method` (str, optional, default="mean"): Aggregation function to apply within each window. Supported values: "mean", "median".
+  - `adjust_boundaries` (bool, optional, default=true): Whether to adjust confidence interval boundaries after downsampling. If true, `yhat_lower` and `yhat_upper` will be adjusted based on the aggregated vs original data variability.
+
+{{% /collapse %}}
+
+{{% collapse name="Configuration examples" %}}
+
+Timezone-unaware example:
+
+```yaml
+models:
+  your_desired_alias_for_a_model:
+    class: 'prophet'  # or 'model.prophet.ProphetModel' until v1.13.0
+    provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper', 'trend']
+    # Common arguments for built-in model, if not set, default to
+    # See https://docs.victoriametrics.com/anomaly-detection/components/models/#common-args
+    #
+    # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper', 'trend']
+    # schedulers: [
+    #   all scheduler aliases defined in `scheduler` section,
+    # ]
+    # queries: [
+    #   all query aliases defined in `reader.queries` section,
+    # ]
+    # Configure detection_direction and minimum-deviation policies under reader.queries.<alias> (query-level from v1.30.2).
+    # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
+    # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
+    # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
+    seasonalities:
+      - name: 'hourly'
+        period: 0.04166666666
+        fourier_order: 30
+        prior_scale: 20
+    compression:  # downsample input data to reduce CPU/RAM load
+      window: '30m'  # downsample to 30-minute intervals
+      agg_method: 'mean'  # use mean aggregation within each window
+      adjust_boundaries: true  # adjust yhat_lower/yhat_upper after downsampling
+    # inner model args (key-value pairs) accepted by
+    # https://facebook.github.io/prophet/docs/quick_start#python-api
+    args:
+      interval_width: 0.98  # see https://facebook.github.io/prophet/docs/uncertainty_intervals
+      country_holidays: 'US'
+```
+
+Timezone-aware example:
+
+```yaml
+models:
+  your_desired_alias_for_a_model:
+    class: 'prophet'  # or 'model.prophet.ProphetModel' until v1.13.0
+    provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper', 'trend']
+    # Common arguments for built-in model, if not set, default to
+    # See https://docs.victoriametrics.com/anomaly-detection/components/models/#common-args
+    #
+    # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper', 'trend']
+    # schedulers: [
+    #   all scheduler aliases defined in `scheduler` section,
+    # ]
+    # queries: [
+    #   all query aliases defined in `reader.queries` section,
+    # ]
+    # Configure detection_direction and minimum-deviation policies under reader.queries.<alias> (query-level from v1.30.2).
+    # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
+    # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
+    # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
+    tz_aware: True
+    tz_use_cyclical_encoding: True
+    tz_seasonalities: # intra-day + intra-week seasonality, no intra-year / sub-hour seasonality
+      - name: 'hod'  # intra-day seasonality, hour of the day
+        fourier_order: 5  # keep it 3-8 based on intraday pattern complexity
+        prior_scale: 10
+      - name: 'dow'  # intra-week seasonality, time of the week
+        fourier_order: 2  # keep it 2-4, as dependencies are learned separately for each weekday
+    compression:  # downsample input data to reduce CPU/RAM load
+      window: '30m'  # downsample to 30-minute intervals
+      agg_method: 'mean'  # use mean aggregation within each window
+      adjust_boundaries: true  # adjust yhat_lower/yhat_upper after downsampling
+    # inner model args (key-value pairs) accepted by
+    # https://facebook.github.io/prophet/docs/quick_start#python-api
+    args:
+      interval_width: 0.98  # see https://facebook.github.io/prophet/docs/uncertainty_intervals
+      country_holidays: 'US'
+```
+
+{{% /collapse %}}
+
+</div>
+
+> Apart from standard [`vmanomaly` output](#vmanomaly-output), Prophet model can provide additional metrics.
+
+**Additional output metrics produced by FB Prophet**
+Depending on chosen `seasonality` parameter FB Prophet can return additional metrics such as:
+- `trend`, `trend_lower`, `trend_upper`
+- `additive_terms`, `additive_terms_lower`, `additive_terms_upper`,
+- `multiplicative_terms`, `multiplicative_terms_lower`, `multiplicative_terms_upper`,
+- `daily`, `daily_lower`, `daily_upper`,
+- `hourly`, `hourly_lower`, `hourly_upper`,
+- `holidays`, `holidays_lower`, `holidays_upper`,
+- and a number of columns for each holiday if `holidays` param is set
+
+Resulting metrics of the model are described [here](#vmanomaly-output)
 
 ### [Isolation forest](https://en.wikipedia.org/wiki/Isolation_forest) (Multivariate)
 
 > `IsolationForestModel` is a [univariate](#univariate-models), [offline](#offline-models) model.
 
 > `IsolationForestMultivariateModel` is a [multivariate](#multivariate-models), [offline](#offline-models) model.
+
+> [!NOTE]
+> Both univariate `isolation_forest` and multivariate `isolation_forest_multivariate` are planned for deprecation in a future release. For new deployments, use the corresponding univariate or multivariate online [Temporal Envelope](#temporal-envelope) model.
 
 Detects anomalies using binary trees. The algorithm has a linear time complexity and a low memory requirement, which works well with high-volume data. It can be used on both univariate and multivariate data, but it is more effective in multivariate case.
 
@@ -1304,8 +1268,12 @@ models:
     # See https://docs.victoriametrics.com/anomaly-detection/components/models/#common-args
     #
     # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']
-    # schedulers: [all scheduler aliases defined in `scheduler` section]
-    # queries: [all query aliases defined in `reader.queries` section]
+    # schedulers: [
+    #   all scheduler aliases defined in `scheduler` section,
+    # ]
+    # queries: [
+    #   all query aliases defined in `reader.queries` section,
+    # ]
     # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
 ```
 
@@ -1318,6 +1286,9 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 ### [Holt-Winters](https://en.wikipedia.org/wiki/Exponential_smoothing)
 
 > `HoltWinters` is a [univariate](#univariate-models), [offline](#offline-models) model.
+
+> [!NOTE]
+> Holt-Winters is planned for deprecation in a future release. For new deployments, prefer the online [Temporal Envelope](#temporal-envelope) model.
 
 Here we use Holt-Winters Exponential Smoothing implementation from `statsmodels` [library](https://www.statsmodels.org/dev/generated/statsmodels.tsa.holtwinters.ExponentialSmoothing). All parameters from this library can be passed to the model.
 
@@ -1363,10 +1334,13 @@ models:
     # See https://docs.victoriametrics.com/anomaly-detection/components/models/#common-args
     #
     # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']
-    # schedulers: [all scheduler aliases defined in `scheduler` section]
-    # queries: [all query aliases defined in `reader.queries` section]
-    # detection_direction: 'both'  # meaning both drops and spikes will be captured
-    # min_dev_from_expected: [0.0, 0.0]  # meaning, no minimal threshold is applied to prevent smaller anomalies
+    # schedulers: [
+    #   all scheduler aliases defined in `scheduler` section,
+    # ]
+    # queries: [
+    #   all query aliases defined in `reader.queries` section,
+    # ]
+    # Configure detection_direction and minimum-deviation policies under reader.queries.<alias> (query-level from v1.30.2).
     # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
     # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
     # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
@@ -1377,6 +1351,58 @@ models:
 </div>
 
 Resulting metrics of the model are described [here](#vmanomaly-output).
+
+### [Seasonal Trend Decomposition](https://en.wikipedia.org/wiki/Seasonal_adjustment)
+
+> `StdModel` **is** {{% available_from "v1.28.0" anomaly %}} a [univariate](#univariate-models), [online](#online-models) model. It **was** {{% deprecated_from "v1.28.0" anomaly %}} a [univariate](#univariate-models), [rolling](#rolling-models), [offline](#offline-models) model.
+
+Here we use Seasonal Decompose implementation from `statsmodels` [library](https://www.statsmodels.org/dev/generated/statsmodels.tsa.seasonal.seasonal_decompose). Parameters from this library can be passed to the model. Some parameters are specifically predefined in `vmanomaly` and can't be changed by user (`model`='additive', `two_sided`=False).
+
+<div class="model-details">
+
+{{% collapse name="Model-specific arguments" %}}
+
+- `class` (string) - model class name `"model.std.StdModel"` (or `std` with class alias support{{% available_from "v1.13.0" anomaly %}})
+- `period` (integer) -  Number of datapoints in one season.
+- `z_threshold` (float, optional) - [standard score](https://en.wikipedia.org/wiki/Standard_score) for calculating boundaries to define anomaly score. Defaults to `2.5`.
+
+{{% /collapse %}}
+
+{{% collapse name="Configuration example" %}}
+
+
+```yaml
+models:
+  your_desired_alias_for_a_model:
+    class: "std"  # or 'model.std.StdModel' starting from v1.13.0
+    period: 2
+    # Common arguments for built-in model, if not set, default to
+    # See https://docs.victoriametrics.com/anomaly-detection/components/models/#common-args
+    #
+    # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']
+    # schedulers: [
+    #   all scheduler aliases defined in `scheduler` section,
+    # ]
+    # queries: [
+    #   all query aliases defined in `reader.queries` section,
+    # ]
+    # Configure detection_direction and minimum-deviation policies under reader.queries.<alias> (query-level from v1.30.2).
+    # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
+    # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
+    # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
+```
+
+{{% /collapse %}}
+
+</div>
+
+Resulting metrics of the model are described [here](#vmanomaly-output).
+
+**Additional output metrics produced by Seasonal Trend Decomposition model**
+- `resid` - The residual component of the data series.
+- `trend` - The trend component of the data series.
+- `seasonal` - The seasonal component of the data series.
+
 
 ## vmanomaly output
 
@@ -1431,7 +1457,7 @@ Create `custom_model.py` with a `CustomModel` class derived from `Model`. A conc
 - `serialize`, which returns `bytes` suitable for on-disk storage;
 - `deserialize`, which restores the same model from bytes or a file path.
 
-Model-specific configuration is passed through the `args` mapping. The example below learns a stationary normal interval. It emits the standard forecast columns and uses the base-class anomaly-score calculation, so common settings such as `detection_direction`, `data_range`, `scale`, and minimum deviations continue to work.
+Model-specific configuration is passed through the `args` mapping. The example below learns a stationary normal interval. It emits the standard forecast columns and uses the base-class anomaly-score calculation, so query policies such as `detection_direction`, `data_range`, and minimum deviations, together with model settings such as `scale`, continue to work.
 
 ```python
 from pickle import dumps
@@ -1559,7 +1585,7 @@ See the [component configuration reference](https://docs.victoriametrics.com/ano
 Pull the `vmanomaly` image:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.30.0
+docker pull victoriametrics/vmanomaly:v1.30.2
 ```
 
 Mount the module at `/vmanomaly/src/model/custom.py`, which matches the configured import path `model.custom.CustomModel`. Validate the complete configuration with `--dryRun` before starting the long-running service.
@@ -1569,7 +1595,7 @@ docker run --rm \
   -v "$PWD/license:/license:ro" \
   -v "$PWD/custom_model.py:/vmanomaly/src/model/custom.py:ro" \
   -v "$PWD/config.yaml:/config.yaml:ro" \
-  victoriametrics/vmanomaly:v1.30.0 \
+  victoriametrics/vmanomaly:v1.30.2 \
   /config.yaml \
   --licenseFile=/license \
   --dryRun
@@ -1665,10 +1691,13 @@ models:
     # See https://docs.victoriametrics.com/anomaly-detection/components/models/#common-args
     #
     # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']
-    # schedulers: [all scheduler aliases defined in `scheduler` section]
-    # queries: [all query aliases defined in `reader.queries` section]
-    # detection_direction: 'both'  # meaning both drops and spikes will be captured
-    # min_dev_from_expected: [0.0, 0.0]  # meaning, no minimal threshold is applied to prevent smaller anomalies
+    # schedulers: [
+    #   all scheduler aliases defined in `scheduler` section,
+    # ]
+    # queries: [
+    #   all query aliases defined in `reader.queries` section,
+    # ]
+    # Configure detection_direction and minimum-deviation policies under reader.queries.<alias> (query-level from v1.30.2).
     # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
     # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
     # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
@@ -1707,10 +1736,13 @@ models:
     # See https://docs.victoriametrics.com/anomaly-detection/components/models/#common-args
     #
     # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']
-    # schedulers: [all scheduler aliases defined in `scheduler` section]
-    # queries: [all query aliases defined in `reader.queries` section]
-    # detection_direction: 'both'  # meaning both drops and spikes will be captured
-    # min_dev_from_expected: [0.0, 0.0]  # meaning, no minimal threshold is applied to prevent smaller anomalies
+    # schedulers: [
+    #   all scheduler aliases defined in `scheduler` section,
+    # ]
+    # queries: [
+    #   all query aliases defined in `reader.queries` section,
+    # ]
+    # Configure detection_direction and minimum-deviation policies under reader.queries.<alias> (query-level from v1.30.2).
     # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
     # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
     # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set

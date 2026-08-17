@@ -32,7 +32,22 @@ func (ie *IfExpression) Match(labels []prompb.Label) bool {
 	if ie == nil || len(ie.ies) == 0 {
 		return true
 	}
+	if len(ie.ies) == 1 {
+		return ie.ies[0].Match(labels)
+	}
+
+	metricName := ""
+	metricNameInitialized := false
 	for _, ie := range ie.ies {
+		if ie.metricName != "" {
+			if !metricNameInitialized {
+				metricName = getLabelValue(labels, "__name__")
+				metricNameInitialized = true
+			}
+			if ie.metricName != metricName {
+				continue
+			}
+		}
 		if ie.Match(labels) {
 			return true
 		}
@@ -166,6 +181,12 @@ func (ie *IfExpression) String() string {
 type ifExpression struct {
 	s    string
 	lfss [][]*labelFilter
+
+	// metricName is the metric name, which must be present in labels in order to match ie.
+	//
+	// It is non empty if ie has a single clause, which matches a particular metric name
+	// and empty otherwise - see getCommonMetricName.
+	metricName string
 }
 
 func (ie *ifExpression) String() string {
@@ -190,6 +211,7 @@ func (ie *ifExpression) Parse(s string) error {
 	}
 	ie.s = s
 	ie.lfss = lfss
+	ie.metricName = getCommonMetricName(lfss)
 	return nil
 }
 
@@ -200,6 +222,7 @@ func (ie *ifExpression) parseFromMetricExpr(me *metricsql.MetricExpr) error {
 	}
 	ie.s = string(me.AppendString(nil))
 	ie.lfss = lfss
+	ie.metricName = getCommonMetricName(lfss)
 	return nil
 }
 
@@ -270,6 +293,24 @@ func metricExprToLabelFilterss(me *metricsql.MetricExpr) ([][]*labelFilter, erro
 		lfssNew[i] = lfsNew
 	}
 	return lfssNew, nil
+}
+
+// getCommonMetricName returns the metric name, which is required by lfss.
+//
+// Labels with a metric name distinct from the returned one cannot match lfss,
+// so the returned metric name may be used for fast filtering of non-matching labels.
+func getCommonMetricName(lfss [][]*labelFilter) string {
+	if len(lfss) != 1 {
+		// Do not extract the metric name from `or` groups, since every group
+		// may require its own metric name.
+		return ""
+	}
+	for _, lf := range lfss[0] {
+		if lf.label == "" && lf.op == "=" && lf.value != "" {
+			return lf.value
+		}
+	}
+	return ""
 }
 
 // labelFilter contains PromQL filter for `{label op "value"}`
