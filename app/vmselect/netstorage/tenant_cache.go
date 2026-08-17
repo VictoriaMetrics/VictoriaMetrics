@@ -21,7 +21,7 @@ var (
 )
 
 // TenantsCached returns the list of tenants available in the storage.
-func TenantsCached(qt *querytracer.Tracer, tr storage.TimeRange, deadline searchutil.Deadline, mayCache bool) ([]storage.TenantToken, error) {
+func TenantsCached(ctx searchutil.Context, qt *querytracer.Tracer, tr storage.TimeRange, mayCache bool) ([]storage.TenantToken, error) {
 	qtL := qt.NewChild("fetching tenants on timeRange=%s", tr.String())
 	defer qtL.Done()
 
@@ -41,7 +41,7 @@ func TenantsCached(qt *querytracer.Tracer, tr storage.TimeRange, deadline search
 		qtL.Printf("do not fetch list of tenants from cache")
 	}
 
-	tenants, err := Tenants(qtL, tr, deadline)
+	tenants, err := Tenants(ctx, qtL, tr)
 	if err != nil {
 		return nil, fmt.Errorf("cannot obtain tenants: %w", err)
 	}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"encoding/json"
 	"flag"
@@ -104,6 +105,8 @@ func main() {
 	buildinfo.Init()
 	logger.Init()
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	logger.Infof("starting netstorage at storageNodes %s", *storageNodes)
 	startTime := time.Now()
 	storage.SetDedupInterval(*minScrapeInterval)
@@ -139,7 +142,7 @@ func main() {
 	var vmselectapiServer *vmselectapi.Server
 	if *clusternativeListenAddr != "" {
 		logger.Infof("starting vmselectapi server at %q", *clusternativeListenAddr)
-		s, err := clusternative.NewVMSelectServer(*clusternativeListenAddr)
+		s, err := clusternative.NewVMSelectServer(ctx, *clusternativeListenAddr)
 		if err != nil {
 			logger.Fatalf("cannot initialize vmselectapi server: %s", err)
 		}
@@ -166,6 +169,7 @@ func main() {
 		logger.Fatalf("cannot stop http service: %s", err)
 	}
 	logger.Infof("successfully shut down http service in %.3f seconds", time.Since(startTime).Seconds())
+	cancel()
 
 	if vmselectapiServer != nil {
 		logger.Infof("stopping vmselectapi server...")
@@ -201,7 +205,6 @@ var (
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	path := strings.ReplaceAll(r.URL.Path, "//", "/")
-
 	if handleStaticAndSimpleRequests(w, r, path) {
 		return true
 	}

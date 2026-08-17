@@ -44,7 +44,7 @@ func MetricNamesStatsHandler(startTime time.Time, at *auth.Token, qt *querytrace
 			return fmt.Errorf("match_pattern=%q must be valid regex: %w", matchPattern, err)
 		}
 	}
-	deadline := searchutil.GetDeadlineForStatusRequest(r, startTime)
+	ctx := searchutil.GetContextForStatusRequest(r, startTime)
 	var tt *storage.TenantToken
 	if at != nil {
 		tt = &storage.TenantToken{
@@ -52,7 +52,7 @@ func MetricNamesStatsHandler(startTime time.Time, at *auth.Token, qt *querytrace
 			ProjectID: at.ProjectID,
 		}
 	}
-	stats, err := netstorage.GetMetricNamesStats(qt, tt, limit, le, matchPattern, deadline)
+	stats, err := netstorage.GetMetricNamesStats(ctx, qt, tt, limit, le, matchPattern)
 	if err != nil {
 		return err
 	}
@@ -62,8 +62,8 @@ func MetricNamesStatsHandler(startTime time.Time, at *auth.Token, qt *querytrace
 
 // ResetMetricNamesStatsHandler resets metric names usage state
 func ResetMetricNamesStatsHandler(startTime time.Time, qt *querytracer.Tracer, r *http.Request) error {
-	deadline := searchutil.GetDeadlineForStatusRequest(r, startTime)
-	if err := netstorage.ResetMetricNamesStats(qt, deadline); err != nil {
+	ctx := searchutil.GetContextForStatusRequest(r, startTime)
+	if err := netstorage.ResetMetricNamesStats(ctx, qt); err != nil {
 		return err
 	}
 	return nil
