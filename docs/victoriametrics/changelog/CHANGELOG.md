@@ -28,7 +28,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## [v1.150.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.150.0)
 
-Release candidate
+Released at 2026-08-17
 
 **Update Note 1:** `vmselect` and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/), and `vmagent`: default value of `-enableMultitenancyViaHeaders` command-line flag has changed from `false` to `true`. This change enables support of [multitenancy via headers for cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-headers) and [for vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy-via-headers) by default. With this change, mentioned components will start supporting URLs with omitted tenant ID in the path: `https://<vmselect>:8481/select/prometheus/api/v1/query` will become a valid URL. To disable multitenancy via headers and simplified URLs set `--enableMultitenancyViaHeaders=false` on vmagent, vminsert and vmselect. 
 
