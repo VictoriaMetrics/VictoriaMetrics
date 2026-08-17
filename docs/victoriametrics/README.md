@@ -1268,7 +1268,7 @@ See also [resource usage limits at VictoriaMetrics cluster](https://docs.victori
 
 VictoriaMetrics supports high availability for both writes and reads by combining replication with multiple instances.
 
-## High availability for writes
+### High availability for writes
 
 You can achieve **high availability for writes** using replication:
 
