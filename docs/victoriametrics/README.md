@@ -1268,6 +1268,8 @@ See also [resource usage limits at VictoriaMetrics cluster](https://docs.victori
 
 VictoriaMetrics supports high availability for both writes and reads by combining replication with multiple instances.
 
+## High availability for writes
+
 You can achieve **high availability for writes** using replication:
 
 * Run two or more identically configured VictoriaMetrics instances in distinct datacenters (availability zones);
@@ -1291,12 +1293,14 @@ When the remote destination becomes available, vmagent drains the queue and rest
 > In this case, the load on the remote destinations will increase proportionally to the number of vmagent replicas. The duplicated data in remote destinations
 > has to be [deduplicated](https://docs.victoriametrics.com/victoriametrics/#deduplication) on the VictoriaMetrics side.
 
+### High availability for reads
+
 You can achieve **high availability for reads** by choosing one of the following options:
 
 - Load balancer: Use a load balancer to ensure read operations are always routed to an available VictoriaMetrics instance.
 - Top-level vmselect: Use vmselect to query all available VictoriaMetrics instances and merge the results
 
-### Load balancer
+**Load balancer for reads**
 
 In this mode, we use a load balancer to query the main VictoriaMetrics instance and fail over to a secondary instance if the first one becomes temporarily unavailable.
 
@@ -1325,7 +1329,7 @@ The downside is that when one instance goes down and then comes back up, the loa
 - vmagent nodes may still be draining their backlogged queues into that instance
 - Read queries routed to the recovering instance can return incomplete results, because some recent data may still be in transit or not yet visible.
 
-### Top-level vmselect
+**Top-level vmselect for reads**
 
 In this option, we use a top-level [vmselect](https://docs.victoriametrics.com/victoriametrics/vmselect/) to query all remote destinations simultaneously and merge the results.
 
