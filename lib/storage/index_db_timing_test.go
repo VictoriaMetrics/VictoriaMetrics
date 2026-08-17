@@ -134,10 +134,11 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 		tfss := []*TagFilters{tfs}
 		// Use special globalIndexTimeRange to instruct indexDB to search global
 		// index instead of per-day index.
-		tr := globalIndexTimeRange
+		date := globalIndexDate
 		for range b.N {
 			is := db.getIndexSearch(noDeadline)
-			metricIDs, err := is.searchMetricIDs(nil, tfss, tr, 2e9)
+			// TODO: requires disabled tfss cache?
+			metricIDs, err := is.searchMetricIDsWithFiltersOnDate(nil, tfss, date, 2e9)
 			db.putIndexSearch(is)
 			if err != nil {
 				b.Fatalf("unexpected error in searchMetricIDs: %s", err)
