@@ -1,6 +1,7 @@
 ---
 weight: 2
 title: Presets
+description: "Preconfigured anomaly detection configurations for widely-recognized metrics (e.g., node_exporter)"
 menu:
   docs:
     parent: "anomaly-detection"

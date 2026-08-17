@@ -1,5 +1,6 @@
 ---
 title: Kafka
+description: "Enterprise vmagent Kafka consumer/producer for metrics."
 weight: 9
 menu:
   docs:

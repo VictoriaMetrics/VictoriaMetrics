@@ -1,6 +1,7 @@
 ---
 weight: 1
 title: Quick Start
+description: "Get started with vmanomaly. Install, configure, and run anomaly detection."
 menu:
   docs:
     parent: "anomaly-detection"

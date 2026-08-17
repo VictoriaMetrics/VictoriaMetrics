@@ -1,5 +1,6 @@
 ---
 title: Writer
+description: "Data writer. Write anomaly scores back to VictoriaMetrics."
 weight: 4
 menu:
   docs:

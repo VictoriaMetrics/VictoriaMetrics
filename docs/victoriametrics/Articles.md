@@ -1,6 +1,7 @@
 ---
 weight: 29
 title: Articles
+description: "Third-party articles, slides, and videos about VictoriaMetrics."
 menu:
   docs:
     parent: 'victoriametrics'
@@ -156,6 +157,13 @@ See [our blog](https://victoriametrics.com/blog) for the latest articles written
 * [Why irate from Prometheus doesn't capture spikes](https://valyala.medium.com/why-irate-from-prometheus-doesnt-capture-spikes-45f9896d7832)
 * [VictoriaMetrics: PromQL compliance](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e)
 * [How do open source solutions for logs work: Elasticsearch, Loki and VictoriaLogs](https://itnext.io/how-do-open-source-solutions-for-logs-work-elasticsearch-loki-and-victorialogs-9f7097ecbc2f)
+* [How vmagent Collects and Ships Metrics Fast with Aggregation, Deduplication, and More](https://victoriametrics.com/blog/vmagent-how-it-works/)
+* [When Metrics Meet vminsert: A Data-Delivery Story](https://victoriametrics.com/blog/vminsert-how-it-works/)
+* [How vmstorage Handles Data Ingestion From vminsert](https://victoriametrics.com/blog/vmstorage-how-it-handles-data-ingestion/)
+* [How vmstorage Processes Data: Retention, Merging, Deduplication...](https://victoriametrics.com/blog/vmstorage-retention-merging-deduplication/)
+* [How vmstorage's IndexDB Works](https://victoriametrics.com/blog/vmstorage-how-indexdb-works/)
+* [How vmstorage Handles Query Requests From vmselect](https://victoriametrics.com/blog/vmstorage-how-it-handles-query-requests/)
+* [Inside vmselect: The Query Processing Engine of VictoriaMetrics](https://victoriametrics.com/blog/vmselect-how-it-works/)
 
 ### Tutorials, guides and how-to articles
 
@@ -173,6 +181,12 @@ See [our guides](https://docs.victoriametrics.com/guides/) for the up-to-date gu
 * [Prometheus storage: tech terms for humans](https://valyala.medium.com/prometheus-storage-technical-terms-for-humans-4ab4de6c3d48)
 * [Cardinality explorer](https://victoriametrics.com/blog/cardinality-explorer/)
 * [Rules backfilling via vmalert](https://victoriametrics.com/blog/rules-replay/)
+* [vmagent: Key Features Explained in Under 15 Minutes](https://victoriametrics.com/blog/vmagent-key-features-explained/)
+* [Prometheus Metrics Explained: Counters, Gauges, Histograms & Summaries](https://victoriametrics.com/blog/prometheus-monitoring-metrics-counters-gauges-histogram-summaries/)
+* [Prometheus Monitoring: Instant Queries and Range Queries Explained](https://victoriametrics.com/blog/prometheus-monitoring-instant-range-query/)
+* [Prometheus Monitoring: Functions, Subqueries, Operators, and Modifiers](https://victoriametrics.com/blog/prometheus-monitoring-function-operator-modifier/)
+* [Prometheus Alerting 101: Rules, Recording Rules, and Alertmanager](https://victoriametrics.com/blog/alerting-recording-rules-alertmanager/)
+* [Alerting Best Practices](https://victoriametrics.com/blog/alerting-best-practices/)
 
 ### Other articles
 

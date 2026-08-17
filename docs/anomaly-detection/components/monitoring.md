@@ -1,5 +1,6 @@
 ---
 title: Monitoring
+description: "Self-monitoring via push and pull models."
 weight: 5
 menu:
   docs:
