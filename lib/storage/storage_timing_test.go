@@ -929,3 +929,200 @@ func variableTimeRange() []dataConfig {
 	}
 	return cfgs
 }
+
+func BenchmarkSearchTimeRanges_Data(b *testing.B) {
+	benchmarkSearchTimeRanges(b, benchmarkSearchData)
+}
+
+func BenchmarkSearchTimeRanges_MetricNames(b *testing.B) {
+	benchmarkSearchTimeRanges(b, benchmarkSearchMetricNames)
+}
+
+func benchmarkSearchTimeRanges(b *testing.B, op func(b *testing.B, s *Storage, tr TimeRange, mrs []MetricRow)) {
+	type cfg struct {
+		name   string
+		tr     TimeRange
+		numTRs int64
+	}
+	tr1h := cfg{
+		name: "1h",
+		tr: TimeRange{
+			MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2025, 1, 1, 1, 0, 0, 0, time.UTC).UnixMilli(),
+		},
+		numTRs: 1,
+	}
+	tr2h := cfg{
+		name: "2h",
+		tr: TimeRange{
+			MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2025, 1, 1, 2, 0, 0, 0, time.UTC).UnixMilli(),
+		},
+		numTRs: 2,
+	}
+	tr4h := cfg{
+		name: "4h",
+		tr: TimeRange{
+			MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2025, 1, 1, 4, 0, 0, 0, time.UTC).UnixMilli(),
+		},
+		numTRs: 4,
+	}
+	tr8h := cfg{
+		name: "8h",
+		tr: TimeRange{
+			MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2025, 1, 1, 8, 0, 0, 0, time.UTC).UnixMilli(),
+		},
+		numTRs: 8,
+	}
+	tr16h := cfg{
+		name: "16h",
+		tr: TimeRange{
+			MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2025, 1, 1, 16, 0, 0, 0, time.UTC).UnixMilli(),
+		},
+		numTRs: 16,
+	}
+	tr32h := cfg{
+		name: "32h",
+		tr: TimeRange{
+			MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2025, 1, 1, 32, 0, 0, 0, time.UTC).UnixMilli(),
+		},
+		numTRs: 32,
+	}
+	tr64h := cfg{
+		name: "64h",
+		tr: TimeRange{
+			MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2025, 1, 1, 64, 0, 0, 0, time.UTC).UnixMilli(),
+		},
+		numTRs: 64,
+	}
+	tr1d := cfg{
+		name: "1d",
+		tr: TimeRange{
+			MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		},
+		numTRs: 1,
+	}
+	tr2d := cfg{
+		name: "2d",
+		tr: TimeRange{
+			MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2025, 1, 3, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		},
+		numTRs: 2,
+	}
+	tr4d := cfg{
+		name: "4d",
+		tr: TimeRange{
+			MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2025, 1, 5, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		},
+		numTRs: 4,
+	}
+	tr8d := cfg{
+		name: "8d",
+		tr: TimeRange{
+			MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2025, 1, 9, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		},
+		numTRs: 8,
+	}
+	tr16d := cfg{
+		name: "16d",
+		tr: TimeRange{
+			MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2025, 1, 17, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		},
+		numTRs: 16,
+	}
+	tr32d := cfg{
+		name: "32d",
+		tr: TimeRange{
+			MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2025, 1, 33, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		},
+		numTRs: 32,
+	}
+	tr64d := cfg{
+		name: "64d",
+		tr: TimeRange{
+			MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2025, 1, 65, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		},
+		numTRs: 64,
+	}
+
+	const numSeries = 1000
+
+	for _, sameSeries := range []bool{false, true} {
+		for _, cfg := range []cfg{tr1h, tr2h, tr4h, tr8h, tr16h, tr32h, tr64h} {
+			name := fmt.Sprintf("numSeriesPerHour=%d/seriesRepeatEveryHour=%t/%s", numSeries, sameSeries, cfg.name)
+			b.Run(name, func(b *testing.B) {
+				benchmarkSearchTimeRange(b, numSeries, cfg.tr, cfg.numTRs, false, op)
+			})
+		}
+	}
+
+	for _, sameSeries := range []bool{false, true} {
+		for _, cfg := range []cfg{tr1d, tr2d, tr4d, tr8d, tr16d, tr32d, tr64d} {
+			name := fmt.Sprintf("numSeriesPerDay=%d/seriesRepeatEveryDay=%t/%s", numSeries, sameSeries, cfg.name)
+			b.Run(name, func(b *testing.B) {
+				benchmarkSearchTimeRange(b, numSeries, cfg.tr, cfg.numTRs, false, op)
+			})
+		}
+	}
+}
+
+func benchmarkSearchTimeRange(b *testing.B, numSeries int, tr TimeRange, numTRs int64, sameSeries bool, search func(b *testing.B, s *Storage, tr TimeRange, mrs []MetricRow)) {
+	b.Helper()
+	genRows := func(n int, tr TimeRange, trSeqNum int64) []MetricRow {
+		mrs := make([]MetricRow, n)
+		if n == 0 {
+			return mrs
+		}
+		if sameSeries {
+			trSeqNum = 0
+		}
+		step := (tr.MaxTimestamp - tr.MinTimestamp) / int64(n)
+		for i := range n {
+			name := fmt.Sprintf("metric_%09d_%09d", trSeqNum, i)
+			labelName := fmt.Sprintf("label_%09d_%09d", trSeqNum, i)
+			labelValue := fmt.Sprintf("value_%09d_%09d", trSeqNum, i)
+			mn := MetricName{
+				MetricGroup: []byte(name),
+				Tags: []Tag{
+					{[]byte(labelName), []byte("value")},
+					{[]byte("label"), []byte(labelValue)},
+				},
+			}
+			mrs[i].MetricNameRaw = mn.marshalRaw(nil)
+			mrs[i].Timestamp = tr.MinTimestamp + int64(i)*step
+			mrs[i].Value = float64(i)
+		}
+		return mrs
+	}
+
+	var mrs []MetricRow
+	trLen := (tr.MaxTimestamp - tr.MinTimestamp) / numTRs
+	for i := range numTRs {
+		subTR := TimeRange{
+			MinTimestamp: tr.MinTimestamp + trLen*i,
+			MaxTimestamp: tr.MinTimestamp + trLen*(i+1) - 1,
+		}
+		mrs = append(mrs, genRows(numSeries, subTR, i)...)
+	}
+
+	s := MustOpenStorage(b.Name(), OpenOptions{})
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+
+	search(b, s, tr, mrs)
+
+	s.MustClose()
+	_ = os.RemoveAll(b.Name())
+}
