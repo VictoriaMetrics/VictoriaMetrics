@@ -1289,7 +1289,7 @@ See more about [on-disk persistence in vmagent](https://docs.victoriametrics.com
 When the remote destination becomes available, vmagent drains the queue and restores data consistency across destinations.
 
 > The max size of the on-disk queue can be increased by [horizontally sharding vmagents](https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets).
-> To achieve high availability for vmagent itself, run multiple identically configured vmagent replicas.
+> To achieve high availability for vmagent itself run multiple identically configured vmagent replicas.
 > In this case, the load on the remote destinations will increase proportionally to the number of vmagent replicas. The duplicated data in remote destinations
 > has to be [deduplicated](https://docs.victoriametrics.com/victoriametrics/#deduplication) on the VictoriaMetrics side.
 
@@ -1321,22 +1321,21 @@ flowchart LR
     VMAUTH -.->|"2. Fail over if VM1<br/>is unavailable"| VM2
 ```
 
-This is the most cost-efficient option because only one VictoriaMetrics instance is queried at a time.
+This is the most cost-efficient option because it queries only one VictoriaMetrics instance at a time.
 
 The downside is that when one instance goes down and then comes back up, the load balancer may immediately start sending
 read queries to the recovering instance, even though it hasn't caught up with vmagent's queue yet and may return incomplete results.
 
-This shortcoming can be mitigated by removing the catching up instance from the vmauth config until the queue on vmagents
-is drained. This mechanism is automatically applied when using [k8s VMDistributed](https://docs.victoriametrics.com/operator/resources/vmdistributed/) resource.
+This shortcoming can be mitigated during sequential upgrades by removing the catching-up instance from the vmauth configuration until the vmagent queues are drained. During sequential upgrades, this mechanism is automatically applied when using the [Kubernetes VMDistributed](https://docs.victoriametrics.com/operator/resources/vmdistributed/) resource. After an outage, you must remove the recovered instance manually until its vmagent queues are drained.
 
 Another option is to use top-level vmselect as described below.
 
 **Top-level vmselect for reads**
 
-In this option, we use a top-level [vmselect](https://docs.victoriametrics.com/victoriametrics/vmselect/) to query all 
+In this option, we use a top-level [vmselect](https://docs.victoriametrics.com/victoriametrics/vmselect/) to query all
 remote destinations simultaneously and merge the results.
 
-This option is only possible if VictoriaMetrics single-node instances are configured with the `-vmselectAddr` flag. 
+This option is only possible if VictoriaMetrics single-node instances are configured with the `-vmselectAddr` flag.
 See more details in the [VictoriaMetrics multi-tenancy section](https://docs.victoriametrics.com/victoriametrics/#multi-tenancy).
 
 ```mermaid
@@ -1357,14 +1356,14 @@ flowchart LR
     VMSELECT -->|"Merged and deduplicated results"| Client
 ```
 
-This option requires extra resources on vmselect because it queries all remote destinations simultaneously and merges 
+This option requires extra resources on vmselect because it queries all remote destinations simultaneously and merges
 their responses before returning the final result.
 
-The benefit is that it can handle data gaps across destinations by merging responses from all VictoriaMetrics instances.
+The benefit is that it can handle data gaps across destinations by merging responses from all VictoriaMetrics instances (as long as at least one instance has all the data without gaps).
 Thus, a single recovering instance can't cause incomplete results, as gaps will be filled with samples from the healthy instance.
 
-Since vmselect fetches replicated data from VictoriaMetrics instances, it must be deduplicated before processing. 
-Configure vmselect with `-dedup.minScrapeInterval=1ms` to remove duplicated samples during merging. 
+Since vmselect fetches replicated data from VictoriaMetrics instances, it must be deduplicated before processing.
+Configure vmselect with `-dedup.minScrapeInterval=1ms` to remove duplicated samples during merging.
 Also set `-replicationFactor=N` on vmselect, where `N` equals the number of remote storage destinations, so that queries
 can tolerate the unavailability of up to `N-1` destinations.
 
