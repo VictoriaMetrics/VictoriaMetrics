@@ -1750,6 +1750,49 @@ func (db *indexDB) SearchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Ti
 		return nil, nil
 	}
 
+	if tr == globalIndexTimeRange {
+		return db.searchTSIDsWithFiltersOnDate(qt, tfss, globalIndexDate, maxMetrics, deadline)
+	}
+
+	minDate, maxDate := tr.DateRange()
+	numDays := maxDate - minDate + 1
+	if minDate == maxDate {
+		return db.searchTSIDsWithFiltersOnDate(qt, tfss, minDate, maxMetrics, deadline)
+	}
+
+	var wg sync.WaitGroup
+	tsidss := make([][]TSID, numDays)
+	errs := make([]error, numDays)
+	for d := range numDays {
+		date := minDate + d
+		wg.Go(func() {
+			tsidss[d], errs[d] = db.searchTSIDsWithFiltersOnDate(qt, tfss, date, maxMetrics, deadline)
+		})
+	}
+	wg.Wait()
+
+	for _, err := range errs {
+		if err != nil {
+			return nil, db.wrapError("search TSIDs", err)
+		}
+	}
+
+	tsids := mergeSortedTSIDs(tsidss)
+	return tsids, nil
+}
+
+func (db *indexDB) searchTSIDsWithFiltersOnDate(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, maxMetrics int, deadline uint64) ([]TSID, error) {
+	qt = qt.NewChild("search TSIDs: filters=%s, date=%d, maxMetrics=%d", tfss, date, maxMetrics)
+	defer qt.Done()
+
+	tr := TimeRange{
+		MinTimestamp: int64(date) * msecPerDay,
+		MaxTimestamp: int64(date+1)*msecPerDay - 1,
+	}
+	if date == globalIndexDate {
+		tr = globalIndexTimeRange
+	}
+
 	metricIDs, err := db.searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
 	if err != nil {
 		return nil, db.wrapError("search TSIDs", err)
