@@ -881,9 +881,29 @@ func variableTimeRange() []dataConfig {
 		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		MaxTimestamp: time.Date(2025, 1, 1, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
-	tr1w := TimeRange{
+	tr2d := TimeRange{
 		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-		MaxTimestamp: time.Date(2025, 1, 7, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2025, 1, 2, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	tr4d := TimeRange{
+		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2025, 1, 4, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	tr8d := TimeRange{
+		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2025, 1, 8, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	tr16d := TimeRange{
+		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2025, 1, 16, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	tr32d := TimeRange{
+		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2025, 1, 32, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	tr64d := TimeRange{
+		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2025, 1, 64, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
 	tr1m := TimeRange{
 		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
@@ -893,13 +913,13 @@ func variableTimeRange() []dataConfig {
 		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		MaxTimestamp: time.Date(2025, 2, 28, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
-	tr6m := TimeRange{
+	tr4m := TimeRange{
 		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-		MaxTimestamp: time.Date(2025, 5, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2025, 4, 30, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
-	trNames := []string{"1d", "1w", "1m", "2m", "6m"}
+	trNames := []string{"1d", "2d", "4d", "8d", "16d", "32d", "64d", "1m", "2m", "4m"}
 	var cfgs []dataConfig
-	for i, tr := range []TimeRange{tr1d, tr1w, tr2m, tr1m, tr6m} {
+	for i, tr := range []TimeRange{tr1d, tr2d, tr4d, tr8d, tr16d, tr32d, tr64d, tr1m, tr2m, tr4m} {
 		cfgs = append(cfgs, dataConfig{
 			name:             fmt.Sprintf("VariableTimeRange/%s", trNames[i]),
 			numSeries:        100_000,

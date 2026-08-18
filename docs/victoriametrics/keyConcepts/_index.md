@@ -1,6 +1,7 @@
 ---
 weight: 34
 title: Key concepts
+description: "Metrics data model, time series, cardinality, push vs pull model, and query types."
 menu:
   docs:
     identifier: vm-key-concepts

@@ -1,5 +1,6 @@
 ---
 title: Components
+description: "Architecture overview. Models, reader, writer, scheduler, monitoring, settings, server."
 weight: 3
 menu:
   docs:

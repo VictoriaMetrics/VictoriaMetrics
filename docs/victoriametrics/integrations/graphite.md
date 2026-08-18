@@ -1,5 +1,6 @@
 ---
 title: Graphite
+description: "Receiving Graphite/StatsD metrics and Graphite query language support."
 weight: 3
 menu:
   docs:
