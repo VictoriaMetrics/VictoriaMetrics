@@ -1,5 +1,6 @@
 ---
 title: Telegraf
+description: "Configure Telegraf to ship metrics to VictoriaMetrics."
 weight: 5
 menu:
   docs:

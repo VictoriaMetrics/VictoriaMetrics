@@ -1,6 +1,7 @@
 ---
 weight: 2
 title: UI
+description: "Built-in vmui-like UI for exploring anomaly detection results."
 menu:
   docs:
     parent: "anomaly-detection"

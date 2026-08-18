@@ -44,7 +44,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/cluster-victori
   -enableMetadata
      Whether to enable metadata processing for metrics scraped from targets, received via VictoriaMetrics remote write, Prometheus remote write v1 or OpenTelemetry protocol. See also remoteWrite.maxMetadataPerBlock (default true)
   -enableMultitenancyViaHeaders
-     Enables multitenancy via HTTP headers. See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-headers
+     Enables multitenancy via HTTP headers. See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-headers (default true)
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable
@@ -228,6 +228,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/cluster-victori
      Interval for checking for changes in Kubernetes API server. This works only if kubernetes_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/victoriametrics/sd_configs/#kubernetes_sd_configs for details (default 30s)
   -promscrape.kumaSDCheckInterval duration
      Interval for checking for changes in kuma service discovery. This works only if kuma_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/victoriametrics/sd_configs/#kuma_sd_configs for details (default 30s)
+  -promscrape.linodeSDCheckInterval duration
+     Interval for checking for changes in Linode. This works only if linode_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/victoriametrics/sd_configs/#linode_sd_configs for details (default 1m0s)
   -promscrape.marathonSDCheckInterval duration
      Interval for checking for changes in Marathon REST API. This works only if marathon_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/victoriametrics/sd_configs/#marathon_sd_configs for details (default 30s)
   -promscrape.maxDroppedTargets int

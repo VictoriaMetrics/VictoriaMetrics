@@ -1,6 +1,7 @@
 ---
 weight: 1
 title: Quick start
+description: "Get up and running with VictoriaMetrics. Download, run, scrape, and query."
 menu:
   docs:
     identifier: vm-quick-start
@@ -53,8 +54,8 @@ and unpack it. It contains a single `victoria-metrics-prod` binary.
 For example, on Linux with `amd64` architecture:
 
 ```sh
-wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.149.0/victoria-metrics-linux-amd64-v1.149.0.tar.gz
-tar xzf victoria-metrics-linux-amd64-v1.149.0.tar.gz
+wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.150.0/victoria-metrics-linux-amd64-v1.150.0.tar.gz
+tar xzf victoria-metrics-linux-amd64-v1.150.0.tar.gz
 ```
 
 The binary is self-contained and requires no installation - it is ready to run as is.
@@ -229,9 +230,9 @@ Download the newest available [VictoriaMetrics release](https://docs.victoriamet
 from [DockerHub](https://hub.docker.com/r/victoriametrics/victoria-metrics) or [Quay](https://quay.io/repository/victoriametrics/victoria-metrics?tab=tags):
 
 ```sh
-docker pull victoriametrics/victoria-metrics:v1.149.0
+docker pull victoriametrics/victoria-metrics:v1.150.0
 docker run -it --rm -v `pwd`/victoria-metrics-data:/victoria-metrics-data -p 8428:8428 \
- victoriametrics/victoria-metrics:v1.149.0 --selfScrapeInterval=5s -storageDataPath=victoria-metrics-data
+ victoriametrics/victoria-metrics:v1.150.0 --selfScrapeInterval=5s -storageDataPath=victoria-metrics-data
 ```
 
 _For Enterprise images, see [this link](https://docs.victoriametrics.com/victoriametrics/enterprise/#docker-images)._

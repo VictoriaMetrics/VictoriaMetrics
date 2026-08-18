@@ -5,6 +5,7 @@ menu:
     parent: victoriametrics
     weight: 3
 title: vmagent
+description: "agent for metrics collection, supporting both push and pull models, service discovery, relabeling, sharding, replication, on-disk buffering."
 tags:
   - metrics
 aliases:
@@ -141,6 +142,7 @@ to other remote storage systems that support Prometheus `remote_write` protocol 
 If a single remote storage instance is temporarily unavailable, the collected data remains available on the other remote storage instances.
 `vmagent` buffers the collected data in files at `-remoteWrite.tmpDataPath` until the remote storage becomes available again.
 Then it sends the buffered data to the remote storage in order to prevent data gaps.
+See how `vmagent` [selects shards and places replicas](https://victoriametrics.com/blog/vmagent-how-it-works/#step-4-sharding--replication) for implementation details.
 
 [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) already supports replication,
 so there is no need to specify multiple `-remoteWrite.url` flags when writing data to the same cluster.
@@ -150,7 +152,8 @@ See [these docs](https://docs.victoriametrics.com/victoriametrics/cluster-victor
 
 `vmagent` can add, remove, or update labels on the collected data before sending it to the remote storage.
 It can filter scrape targets or remove unwanted samples via Prometheus-like relabeling.
-Please see the [Relabeling cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/) for details.
+Please see the [Relabeling cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/) for configuration examples.
+For ingestion pipeline internals, see how `vmagent` [applies global relabeling and cardinality limits](https://victoriametrics.com/blog/vmagent-how-it-works/#step-2-global-relabeling-cardinality-reduction).
 
 ### Sharding among remote storages
 
@@ -268,7 +271,9 @@ for the collected samples. Examples:
   ```sh
   ./vmagent -remoteWrite.url=http://remote-storage/api/v1/write -streamAggr.dropInputLabels=replica -streamAggr.dedupInterval=60s
   ```
-  
+
+See how `vmagent` [orders global deduplication and stream aggregation](https://victoriametrics.com/blog/vmagent-how-it-works/#step-3-global-deduplication--stream-aggregation) in the ingestion pipeline.
+
 ### Monitoring Data eXchange
 
 The Monitoring Data eXchange (MDX){{% available_from "v1.147.0" %}} feature allows `vmagent` to forward only VictoriaMetrics metrics to selected `-remoteWrite.url` destinations while dropping metrics from non-VictoriaMetrics services.
@@ -358,6 +363,8 @@ in addition to the pull-based Prometheus-compatible targets' scraping:
 * Native data import protocol via `http://<vmagent>:8429/api/v1/import/native`. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-native-format).
 * Prometheus exposition format via `http://<vmagent>:8429/api/v1/import/prometheus`. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-prometheus-exposition-format) for details.
 * Arbitrary CSV data via `http://<vmagent>:8429/api/v1/import/csv`. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-csv-data).
+
+See how `vmagent` [handles concurrency, decompression, and stream parsing](https://victoriametrics.com/blog/vmagent-how-it-works/#step-1-receiving-data-via-api-or-scrape) during ingestion.
 
 ## How to collect metrics in Prometheus format
 
@@ -1066,6 +1073,7 @@ This behavior can be changed with the `-remoteWrite.inmemoryQueues` {{% availabl
 When set to a non-zero value, vmagent starts the given number of additional workers,
 which send only recently ingested data from the in-memory queue, while the workers configured via `-remoteWrite.queues` drain the file-based backlog concurrently.
 This reduces the delivery lag for fresh samples after remote storage outages or slowdowns. The flag can be set individually per each `-remoteWrite.url`.
+See how the [in-memory and file-based queues manage blocks](https://victoriametrics.com/blog/vmagent-how-it-works/#in-memory-queue) for implementation details.
 
 Note that these workers are started in addition to the workers configured via `-remoteWrite.queues`, so the total number of concurrent connections to
 the remote storage becomes the sum of both flags. Take this into account if the remote storage limits the number of concurrent requests.
