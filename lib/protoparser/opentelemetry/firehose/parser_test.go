@@ -245,7 +245,7 @@ func TestProcessRequestBody(t *testing.T) {
 // TestProcessRequestBodyIncompleteVarint verifies that an incomplete varint (0x80)
 // returns an error instead of spinning forever (GHSA-89v2-864p-v3xc).
 func TestProcessRequestBodyIncompleteVarint(t *testing.T) {
-	// "gA==" is base64 for a single 0x80 byte i an incomplete varint.
+	// "gA==" is base64 for a single 0x80 byte, i.e. an incomplete varint.
 	// binary.Uvarint returns (0, 0) for this input, which previously caused an
 	// infinite zero-progress loop inside ProcessRequestBody.
 	data := []byte(`{"records":[{"data":"gA=="}]}`)
