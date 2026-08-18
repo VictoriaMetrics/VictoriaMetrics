@@ -1127,6 +1127,7 @@ func benchmarkSearchTimeRange(b *testing.B, numSeries int, tr TimeRange, numTRs 
 	s.AddRows(mrs, defaultPrecisionBits)
 	s.DebugFlush()
 
+	tr.MaxTimestamp -= 1
 	search(b, s, tr, mrs)
 
 	s.MustClose()
