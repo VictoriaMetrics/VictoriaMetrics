@@ -40,8 +40,13 @@
       gap: $padding-small;
       font-size: $font-size-small;
       margin-bottom: $padding-small;
+      color: $color-text;
+      cursor: pointer;
 
-      &__title {}
+      &:hover {
+        color: $color-primary;
+        text-decoration: underline;
+      }
 
       &__utc {
         display: inline-flex;
