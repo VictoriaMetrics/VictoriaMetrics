@@ -385,4 +385,12 @@ func TestNumericLess(t *testing.T) {
 	f("12.9", "12.56", false)
 	f("12.56", "12.9", true)
 	f("12.9", "12.9", false)
+
+	// 309-digit numbers - must not panic (regression test for GHSA-9g98-8jgr-x2vv)
+	big := strings.Repeat("9", 309)
+	f(big, "1", false)
+	f("1", big, true)
+	f(big, big, false)
+	f("-"+big, big, true)
+	f(big, "-"+big, false)
 }
