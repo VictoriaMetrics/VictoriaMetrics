@@ -26,7 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
-* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly apply default query timeout to `/api/v1/series/count` requests. It used `-search.maxStatusRequestDuration` flag value instead of `-search.maxLabelsAPIDuration`. See [#]().
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly apply default query timeout to `/api/v1/series/count` requests. It used `-search.maxStatusRequestDuration` flag value instead of `-search.maxLabelsAPIDuration`. See [#11422](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11422).
 
 ## [v1.150.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.150.0)
 
