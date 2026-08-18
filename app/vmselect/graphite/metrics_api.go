@@ -28,7 +28,7 @@ var maxTagValueSuffixes = flag.Int("search.maxTagValueSuffixesPerSearch", 100e3,
 //
 // See https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find
 func MetricsFindHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
-	deadline := searchutil.GetDeadlineForQuery(r, startTime)
+	ctx := searchutil.GetContextForQuery(r, startTime)
 	format := r.FormValue("format")
 	if format == "" {
 		format = "treejson"
@@ -81,7 +81,7 @@ func MetricsFindHandler(startTime time.Time, at *auth.Token, w http.ResponseWrit
 		MaxTimestamp: until,
 	}
 	denyPartialResponse := httputil.GetDenyPartialResponse(r)
-	paths, isPartial, err := metricsFind(at, denyPartialResponse, tr, label, "", query, delimiter[0], false, deadline)
+	paths, isPartial, err := metricsFind(ctx, at, denyPartialResponse, tr, label, "", query, delimiter[0], false)
 	if err != nil {
 		return err
 	}
@@ -123,7 +123,7 @@ func deduplicatePaths(paths []string) []string {
 //
 // See https://graphite-api.readthedocs.io/en/latest/api.html#metrics-expand
 func MetricsExpandHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
-	deadline := searchutil.GetDeadlineForQuery(r, startTime)
+	ctx := searchutil.GetContextForQuery(r, startTime)
 	queries := r.Form["query"]
 	if len(queries) == 0 {
 		return fmt.Errorf("missing `query` arg")
@@ -159,7 +159,7 @@ func MetricsExpandHandler(startTime time.Time, at *auth.Token, w http.ResponseWr
 	isPartialResponse := false
 	denyPartialResponse := httputil.GetDenyPartialResponse(r)
 	for _, query := range queries {
-		paths, isPartial, err := metricsFind(at, denyPartialResponse, tr, label, "", query, delimiter[0], true, deadline)
+		paths, isPartial, err := metricsFind(ctx, at, denyPartialResponse, tr, label, "", query, delimiter[0], true)
 		if err != nil {
 			return err
 		}
@@ -208,11 +208,11 @@ func MetricsExpandHandler(startTime time.Time, at *auth.Token, w http.ResponseWr
 //
 // See https://graphite-api.readthedocs.io/en/latest/api.html#metrics-index-json
 func MetricsIndexHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
-	deadline := searchutil.GetDeadlineForQuery(r, startTime)
+	ctx := searchutil.GetContextForQuery(r, startTime)
 	jsonp := r.FormValue("jsonp")
 	denyPartialResponse := httputil.GetDenyPartialResponse(r)
 	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, 0, math.MaxInt64, nil, 0)
-	metricNames, isPartial, err := netstorage.LabelValues(nil, denyPartialResponse, "__name__", sq, 0, deadline)
+	metricNames, isPartial, err := netstorage.LabelValues(ctx, nil, denyPartialResponse, "__name__", sq, 0)
 	if err != nil {
 		return fmt.Errorf(`cannot obtain metric names: %w`, err)
 	}
@@ -229,12 +229,12 @@ func MetricsIndexHandler(startTime time.Time, at *auth.Token, w http.ResponseWri
 }
 
 // metricsFind searches for label values that match the given qHead and qTail.
-func metricsFind(at *auth.Token, denyPartialResponse bool, tr storage.TimeRange, label, qHead, qTail string, delimiter byte,
-	isExpand bool, deadline searchutil.Deadline) ([]string, bool, error) {
+func metricsFind(ctx searchutil.Context, at *auth.Token, denyPartialResponse bool, tr storage.TimeRange, label, qHead, qTail string, delimiter byte,
+	isExpand bool) ([]string, bool, error) {
 	n := strings.IndexAny(qTail, "*{[")
 	if n < 0 {
 		query := qHead + qTail
-		suffixes, isPartial, err := netstorage.TagValueSuffixes(nil, at.AccountID, at.ProjectID, denyPartialResponse, tr, label, query, delimiter, *maxTagValueSuffixes, deadline)
+		suffixes, isPartial, err := netstorage.TagValueSuffixes(ctx, nil, at.AccountID, at.ProjectID, denyPartialResponse, tr, label, query, delimiter, *maxTagValueSuffixes)
 		if err != nil {
 			return nil, false, err
 		}
@@ -254,7 +254,7 @@ func metricsFind(at *auth.Token, denyPartialResponse bool, tr storage.TimeRange,
 	}
 	if n == len(qTail)-1 && strings.HasSuffix(qTail, "*") {
 		query := qHead + qTail[:len(qTail)-1]
-		suffixes, isPartial, err := netstorage.TagValueSuffixes(nil, at.AccountID, at.ProjectID, denyPartialResponse, tr, label, query, delimiter, *maxTagValueSuffixes, deadline)
+		suffixes, isPartial, err := netstorage.TagValueSuffixes(ctx, nil, at.AccountID, at.ProjectID, denyPartialResponse, tr, label, query, delimiter, *maxTagValueSuffixes)
 		if err != nil {
 			return nil, false, err
 		}
@@ -268,7 +268,7 @@ func metricsFind(at *auth.Token, denyPartialResponse bool, tr storage.TimeRange,
 		return results, isPartial, nil
 	}
 	qHead += qTail[:n]
-	paths, isPartial, err := metricsFind(at, denyPartialResponse, tr, label, qHead, "*", delimiter, isExpand, deadline)
+	paths, isPartial, err := metricsFind(ctx, at, denyPartialResponse, tr, label, qHead, "*", delimiter, isExpand)
 	if err != nil {
 		return nil, false, err
 	}
@@ -292,7 +292,7 @@ func metricsFind(at *auth.Token, denyPartialResponse bool, tr storage.TimeRange,
 			results = append(results, path)
 			continue
 		}
-		fullPaths, isPartialLocal, err := metricsFind(at, denyPartialResponse, tr, label, path, qTail, delimiter, isExpand, deadline)
+		fullPaths, isPartialLocal, err := metricsFind(ctx, at, denyPartialResponse, tr, label, path, qTail, delimiter, isExpand)
 		if err != nil {
 			return nil, false, err
 		}
