@@ -6,6 +6,7 @@ menu:
     parent: victoriametrics
     weight: 1
 title: Single-node version
+description: "Deploy and configure the single-node version, including CLI flags, storage, and HTTP API."
 tags:
   - metrics
 aliases:

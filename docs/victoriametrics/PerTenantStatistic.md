@@ -1,6 +1,7 @@
 ---
 weight: 81
 title: Cluster Per Tenant Statistic
+description: "Enterprise cluster per-tenant usage tracking."
 menu:
   docs:
     identifier: vm-cluster-per-tenant-statistic

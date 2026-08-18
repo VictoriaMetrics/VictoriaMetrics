@@ -39,6 +39,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/http"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/kubernetes"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/kuma"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/linode"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/marathon"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/nomad"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/openstack"
@@ -331,6 +332,7 @@ type ScrapeConfig struct {
 	HTTPSDConfigs         []http.SDConfig         `yaml:"http_sd_configs,omitempty"`
 	KubernetesSDConfigs   []kubernetes.SDConfig   `yaml:"kubernetes_sd_configs,omitempty"`
 	KumaSDConfigs         []kuma.SDConfig         `yaml:"kuma_sd_configs,omitempty"`
+	LinodeSDConfigs       []linode.SDConfig       `yaml:"linode_sd_configs,omitempty"`
 	MarathonSDConfigs     []marathon.SDConfig     `yaml:"marathon_sd_configs,omitempty"`
 	NomadSDConfigs        []nomad.SDConfig        `yaml:"nomad_sd_configs,omitempty"`
 	OpenStackSDConfigs    []openstack.SDConfig    `yaml:"openstack_sd_configs,omitempty"`
@@ -414,6 +416,9 @@ func (sc *ScrapeConfig) mustStop() {
 	}
 	for i := range sc.KumaSDConfigs {
 		sc.KumaSDConfigs[i].MustStop()
+	}
+	for i := range sc.LinodeSDConfigs {
+		sc.LinodeSDConfigs[i].MustStop()
 	}
 	for i := range sc.NomadSDConfigs {
 		sc.NomadSDConfigs[i].MustStop()
@@ -761,6 +766,16 @@ func (cfg *Config) getKumaSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 		}
 	}
 	return cfg.getScrapeWorkGeneric(visitConfigs, "kuma_sd_config", prev)
+}
+
+// getLinodeSDScrapeWork returns `linode_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getLinodeSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
+	visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
+		for i := range sc.LinodeSDConfigs {
+			visitor(&sc.LinodeSDConfigs[i])
+		}
+	}
+	return cfg.getScrapeWorkGeneric(visitConfigs, "linode_sd_config", prev)
 }
 
 // getMarathonSDScrapeWork returns `marathon_sd_configs` ScrapeWork from cfg.

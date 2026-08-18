@@ -60,7 +60,8 @@ var (
 		`Only valid for VictoriaMetrics as the datasource.`)
 )
 
-// InitSecretFlags must be called after flag.Parse and before any logging
+// InitSecretFlags manages the secret flags for this pkg and must be called by app-level initSecretFlags.
+// It should run before logger initialization and package Init() (if exists).
 func InitSecretFlags() {
 	if !*showDatasourceURL {
 		flagutil.RegisterSecretFlag("datasource.url")

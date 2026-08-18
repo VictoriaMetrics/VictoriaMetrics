@@ -1,5 +1,6 @@
 ---
 title: Grafana
+description: "Using VictoriaMetrics with Grafana via Prometheus or VM datasource plugin."
 weight: 1
 menu:
   docs:

@@ -1,6 +1,7 @@
 ---
 weight: 24
 title: FAQ
+description: "Frequently asked questions comparing VM with Prometheus, InfluxDB, TimescaleDB, M3DB, Thanos, and Cortex."
 menu:
   docs:
     parent: 'victoriametrics'

@@ -1,5 +1,6 @@
 ---
 title: Bindplane
+description: "Configure Bindplane to collect and send metrics to VictoriaMetrics."
 weight: 12
 menu:
   docs:

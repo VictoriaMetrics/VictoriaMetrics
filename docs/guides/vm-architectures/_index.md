@@ -1,6 +1,7 @@
 ---
 weight: 14
 title: VictoriaMetrics topologies
+description: "Choose the right deployment topology for risk tolerance and performance needs."
 menu:
   docs:
     parent: "guides"

@@ -1,5 +1,6 @@
 ---
 title: OpenShift
+description: "OpenShift Container Platform remote write integration."
 weight: 10
 menu:
   docs:
