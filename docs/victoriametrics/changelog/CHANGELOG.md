@@ -26,7 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
-* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): prevent process crash in `sort_by_label_numeric()` and `sort_by_label_numeric_desc()` when a label value contains a number with 309 or more digits. See [#TODO]().
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): prevent process crash in `sort_by_label_numeric()` and `sort_by_label_numeric_desc()` when a label value contains a number with 309 or more digits. See [#11423](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11423).
 
 ## [v1.150.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.150.0)
 
