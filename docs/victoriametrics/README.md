@@ -1289,7 +1289,7 @@ See more about [on-disk persistence in vmagent](https://docs.victoriametrics.com
 When the remote destination becomes available, vmagent drains the queue and restores data consistency across destinations.
 
 > The max size of the on-disk queue can be increased by [horizontally sharding vmagents](https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets).
-> To achieve high availability for vmagent itself run multiple identically configured vmagent replicas.
+> To achieve high availability for vmagent itself, run multiple identically configured vmagent replicas.
 > In this case, the load on the remote destinations will increase proportionally to the number of vmagent replicas. The duplicated data in remote destinations
 > has to be [deduplicated](https://docs.victoriametrics.com/victoriametrics/#deduplication) on the VictoriaMetrics side.
 
