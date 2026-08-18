@@ -1230,9 +1230,16 @@ If you have suggestions for improvements or have found a bug, please open an iss
   Note that tracking each dropped target requires up to 10Kb of RAM. Therefore, big values for `-promscrape.maxDroppedTargets`
   may result in increased memory usage if a large number of scrape targets are dropped during relabeling.
 
+* It is recommended to increase `-remoteWrite.queues` if `vmagent_remotewrite_pending_data_bytes` [metric](#monitoring)
+  grows constantly. It is also recommended to increase `-remoteWrite.maxBlockSize` and `-remoteWrite.maxRowsPerBlock` command-line flags in this case.
+  This can improve data ingestion performance to the configured remote storage systems at the cost of higher memory usage.
+
 * If you see gaps in the data pushed by `vmagent` to remote storage when `-remoteWrite.maxDiskUsagePerURL` is set,
   try increasing `-remoteWrite.queues`. Such gaps may appear because `vmagent` cannot keep up with sending the collected data to remote storage.
   Therefore, it starts dropping the buffered data if the on-disk buffer size exceeds `-remoteWrite.maxDiskUsagePerURL`.
+
+* `vmagent` drops data blocks if remote storage replies with `400 Bad Request` or `409 Conflict` HTTP responses.
+  The number of dropped blocks can be monitored via the `vmagent_remotewrite_packets_dropped_total` metric, which is exported on the [/metrics page](#monitoring).
 
 * Use `-remoteWrite.queues=1` when `-remoteWrite.url` points to remote storage, which doesn't accept out-of-order samples (aka data backfilling).
   Such storage systems include Prometheus, Mimir, Cortex, and Thanos, which typically emit `out of order sample` errors.
