@@ -1,6 +1,7 @@
 ---
 weight: 10
 title: Multi Retention Setup within VictoriaMetrics Cluster
+description: "Configure multiple retention periods in VM Cluster."
 menu:
   docs:
     parent: "guides"

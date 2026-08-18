@@ -5,6 +5,7 @@ menu:
     parent: victoriametrics
     weight: 10
 title: vmbackupmanager
+description: "Automated backup scheduling, retention policies, and restoration management for VictoriaMetrics data. Requires an Enterprise license."
 tags:
   - metrics
   - enterprise
