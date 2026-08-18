@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmalert-tool](https://docs.victoriametrics.com/victoriametrics/vmalert-tool/): evaluate every rule group on the `interval` defined for it, instead of evaluating all the groups on the file-wide `evaluation_interval`. Groups without an `interval` keep using `evaluation_interval`.
+
 ## [v1.150.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.150.0)
 
 Released at 2026-08-17
