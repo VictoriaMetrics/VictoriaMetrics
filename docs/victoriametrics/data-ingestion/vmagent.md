@@ -1,5 +1,6 @@
 ---
 title: vmagent
+description: "Using vmagent as a data ingestion agent."
 weight: 2
 menu:
   docs:

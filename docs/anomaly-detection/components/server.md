@@ -1,5 +1,6 @@
 ---
 title: Server
+description: "HTTP server. REST API, /metrics endpoint, and web UI."
 weight: 7
 menu:
   docs:

@@ -1,6 +1,7 @@
 ---
 weight: 300
 title: Long-term support releases
+description: "Long-term support release lines for enterprise customers."
 menu:
   docs:
     parent: 'victoriametrics'
@@ -27,5 +28,5 @@ to [the latest available releases](https://docs.victoriametrics.com/victoriametr
 
 ## Currently supported LTS release lines
 
-- v1.148.x - the latest one is [v1.148.1 LTS release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.148.1)
-- v1.136.x - the latest one is [v1.136.15 LTS release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.136.15)
+- v1.148.x - the latest one is [v1.148.2 LTS release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.148.2)
+- v1.136.x - the latest one is [v1.136.16 LTS release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.136.16)
