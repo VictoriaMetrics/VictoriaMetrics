@@ -538,12 +538,18 @@ func benchmarkSearchMetricNames(b *testing.B, s *Storage, tr TimeRange, mrs []Me
 		got[i] = string(mn.MetricGroup)
 	}
 	slices.Sort(got)
-	want := make([]string, len(mrs))
-	for i, mr := range mrs {
+
+	seen := make(map[string]bool)
+	var want []string
+	for _, mr := range mrs {
 		if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
 			b.Fatalf("could not unmarshal metric row: %v", err)
 		}
-		want[i] = string(mn.MetricGroup)
+		v := string(mn.MetricGroup)
+		if !seen[v] {
+			want = append(want, v)
+			seen[v] = true
+		}
 	}
 	slices.Sort(want)
 	if diff := cmp.Diff(want, got); diff != "" {
@@ -1057,22 +1063,22 @@ func benchmarkSearchTimeRanges(b *testing.B, op func(b *testing.B, s *Storage, t
 		numTRs: 64,
 	}
 
-	const numSeries = 1000
-
-	for _, sameSeries := range []bool{false, true} {
+	const seriesPerHour = 100
+	for _, seriesRepeatEveryHour := range []bool{false, true} {
 		for _, cfg := range []cfg{tr1h, tr2h, tr4h, tr8h, tr16h, tr32h, tr64h} {
-			name := fmt.Sprintf("numSeriesPerHour=%d/seriesRepeatEveryHour=%t/%s", numSeries, sameSeries, cfg.name)
+			name := fmt.Sprintf("seriesPerHour=%d/seriesRepeatEveryHour=%t/%s", seriesPerHour, seriesRepeatEveryHour, cfg.name)
 			b.Run(name, func(b *testing.B) {
-				benchmarkSearchTimeRange(b, numSeries, cfg.tr, cfg.numTRs, false, op)
+				benchmarkSearchTimeRange(b, seriesPerHour, cfg.tr, cfg.numTRs, seriesRepeatEveryHour, op)
 			})
 		}
 	}
 
-	for _, sameSeries := range []bool{false, true} {
+	const seriesPerDay = seriesPerHour * 24
+	for _, seriesRepeatEveryDay := range []bool{false, true} {
 		for _, cfg := range []cfg{tr1d, tr2d, tr4d, tr8d, tr16d, tr32d, tr64d} {
-			name := fmt.Sprintf("numSeriesPerDay=%d/seriesRepeatEveryDay=%t/%s", numSeries, sameSeries, cfg.name)
+			name := fmt.Sprintf("seriesPerDay=%d/seriesRepeatEveryDay=%t/%s", seriesPerDay, seriesRepeatEveryDay, cfg.name)
 			b.Run(name, func(b *testing.B) {
-				benchmarkSearchTimeRange(b, numSeries, cfg.tr, cfg.numTRs, false, op)
+				benchmarkSearchTimeRange(b, seriesPerDay, cfg.tr, cfg.numTRs, seriesRepeatEveryDay, op)
 			})
 		}
 	}
