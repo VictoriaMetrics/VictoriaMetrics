@@ -1295,6 +1295,7 @@ If you have suggestions for improvements or have found a bug, please open an iss
     source_labels: [__meta_kubernetes_pod_container_init]
     regex: true
   ```
+  
 ### Saturated remote write
 
 `vmagent` may have performance issues while writing data to the destination configured via `-remoteWrite.url`
@@ -1335,9 +1336,8 @@ if some of these signals appear together:
   ```
 
 High remote write connection saturation means that the existing remote write workers spend most of their time
-sending data and have little idle capacity. If the persistent queue grows at the same time, these workers cannot drain the queue as fast as new data is added. 
-The problem could be caused by unhealthy downstream destination, the network issue, inappropriate settings, overloaded `vmagent` or etc. The following sections describe the
-common causes and the checks for each of them.
+sending data and have little idle capacity. If the persistent queue grows at the same time, these workers cannot drain the queue as fast as new data is added.
+The problem could be caused by an unhealthy downstream destination, network issues, inappropriate settings, an overloaded `vmagent`, or other factors. The following sections describe the common causes and the checks for each of them.
 
 #### Overloaded downstream
 
@@ -1349,7 +1349,7 @@ Scale the overloaded downstream components as needed to reduce saturation.
 
 #### Small remote write concurrency
 
-If both `vmagent` and the remote write destination have spare resources and the remote write error rate remains 0 , but the
+If both `vmagent` and the remote write destination has spare resources and the remote write error rate remains 0, but the
 ingestion is still saturated, then the bottleneck is likely the number of concurrent send workers.
 In this case, more workers can send more blocks in parallel and reduce the backlog.
 
@@ -1360,14 +1360,14 @@ Increase `-remoteWrite.queues` for the affected URL when:
 * remote write error rate remains low;
 * `vmagent` and remote write destination has enough resources such as CPU, memory, and disk I/O capacity;
 
-Increasing `-remoteWrite.queues` adds more concurrent sender for the corresponding `-remoteWrite.url`.
-It can improve throughput when the single senders spend most of its time waiting on request latency.
+Increasing `-remoteWrite.queues` adds more concurrent senders for the corresponding `-remoteWrite.url`.
+It can improve throughput when a single sender spends most of its time waiting on request latency.
 
 It should not be increased if `vmagent` or the destination is already overloaded.
 
 #### Inappropriate compression level
 
-Adjust `-remoteWrite.vmProtoCompressLevel` when network bandwidth is the bottleneck(this is common when the destination
+Adjust `-remoteWrite.vmProtoCompressLevel` when network bandwidth is the bottleneck (this is common when the destination
 is in another datacenter or availability zone) and the downstream destination has enough CPU capacity.
 
 Bigger values reduce network usage at the cost of higher CPU usage on `vmagent` and the destination.
