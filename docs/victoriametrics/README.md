@@ -1323,17 +1323,21 @@ flowchart LR
 
 This is the most cost-efficient option because only one VictoriaMetrics instance is queried at a time.
 
-The downside is that when one instance goes down and then comes back up, the load balancer may immediately start sending read queries to the recovering instance, even though it hasn't caught up yet. During this short recovery window:
+The downside is that when one instance goes down and then comes back up, the load balancer may immediately start sending
+read queries to the recovering instance, even though it hasn't caught up with vmagent's queue yet and may return incomplete results.
 
-- The recovering VictoriaMetrics instance has not yet ingested all the data that was queued while it was down.
-- vmagent nodes may still be draining their backlogged queues into that instance
-- Read queries routed to the recovering instance can return incomplete results, because some recent data may still be in transit or not yet visible.
+This shortcoming can be mitigated by removing the catching up instance from the vmauth config until the queue on vmagents
+is drained. This mechanism is automatically applied when using [k8s VMDistributed](https://docs.victoriametrics.com/operator/resources/vmdistributed/) resource.
+
+Another option is to use top-level vmselect as described below.
 
 **Top-level vmselect for reads**
 
-In this option, we use a top-level [vmselect](https://docs.victoriametrics.com/victoriametrics/vmselect/) to query all remote destinations simultaneously and merge the results.
+In this option, we use a top-level [vmselect](https://docs.victoriametrics.com/victoriametrics/vmselect/) to query all 
+remote destinations simultaneously and merge the results.
 
-This option is only possible if VictoriaMetrics single-node instances are configured with the `-vmselectAddr` flag. See more details in the [VictoriaMetrics multi-tenancy section](https://docs.victoriametrics.com/victoriametrics/#multi-tenancy).
+This option is only possible if VictoriaMetrics single-node instances are configured with the `-vmselectAddr` flag. 
+See more details in the [VictoriaMetrics multi-tenancy section](https://docs.victoriametrics.com/victoriametrics/#multi-tenancy).
 
 ```mermaid
 flowchart LR
@@ -1353,13 +1357,16 @@ flowchart LR
     VMSELECT -->|"Merged and deduplicated results"| Client
 ```
 
-This option requires more resources because it queries all remote destinations simultaneously and merges their responses before returning the final result.
+This option requires extra resources on vmselect because it queries all remote destinations simultaneously and merges 
+their responses before returning the final result.
 
-The benefit is that it can handle data gaps across destinations by merging responses from all VictoriaMetrics instances. Thus, a single recovering instance is less likely to cause incomplete results, unlike in the load balancer case.
+The benefit is that it can handle data gaps across destinations by merging responses from all VictoriaMetrics instances.
+Thus, a single recovering instance can't cause incomplete results, as gaps will be filled with samples from the healthy instance.
 
-Since vmselect queries identical data across multiple VictoriaMetrics instances, configure it with `-dedup.minScrapeInterval=1ms` to remove duplicate samples during merging. Also set `-replicationFactor=N` on vmselect, where `N` equals the number of remote storage destinations, so that queries can tolerate the unavailability of up to `N-1` destinations.
-
-See [VMDistributed](https://docs.victoriametrics.com/operator/resources/vmdistributed/) Kubernetes operator resource for an example of configuring vmselect with deduplication and replication.
+Since vmselect fetches replicated data from VictoriaMetrics instances, it must be deduplicated before processing. 
+Configure vmselect with `-dedup.minScrapeInterval=1ms` to remove duplicated samples during merging. 
+Also set `-replicationFactor=N` on vmselect, where `N` equals the number of remote storage destinations, so that queries
+can tolerate the unavailability of up to `N-1` destinations.
 
 ## Deduplication
 
