@@ -26,8 +26,9 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
-* BUGFIX: [vmalert-tool](https://docs.victoriametrics.com/victoriametrics/vmalert-tool/): reuse connections to `-remoteWrite.url` when writing the results of recording rules and alerts. Previously every series was sent over a new connection, which left a lot of sockets in `TIME_WAIT` state and could exhaust the ephemeral port range. The number of idle connections can be tuned via the new `-remoteWrite.maxIdleConnections` command-line flag.
 * FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): show the selected time zone UTC offset next to the date/time controls and allow opening time zone settings from it. See [#11332](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11332).
+
+* BUGFIX: [vmalert-tool](https://docs.victoriametrics.com/victoriametrics/vmalert-tool/): reuse connections to `-remoteWrite.url` when writing the results of recording rules and alerts. Previously every series was sent over a new connection, which left a lot of sockets in `TIME_WAIT` state and could exhaust the ephemeral port range. The number of idle connections can be tuned via the new `-remoteWrite.maxIdleConnections` command-line flag. Thanks @evkuzin for contribution.
 
 ## [v1.150.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.150.0)
 
