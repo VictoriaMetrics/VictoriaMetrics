@@ -186,80 +186,75 @@ func getExpIndex(s string) int {
 }
 
 func tryParseScientificUnixTimestamp(s string, decimalExp int64) (int64, bool) {
-	if decimalExp < 0 {
-		// Negative exponents on a fractional mantissa are intentionally not
-		// supported. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11268
+	intStr, fracStr, ok := expandScientificUnixTimestamp(s, decimalExp)
+	if !ok {
 		return 0, false
 	}
-	dotIdx := strings.IndexByte(s, '.')
-	if dotIdx < 0 {
-		n, ok := tryParseInt64(s)
-		if !ok {
-			return 0, false
-		}
-		n, ok = multiplyByDecimalExp(n, decimalExp)
+	if fracStr == "" {
+		n, ok := tryParseInt64(intStr)
 		if !ok {
 			return 0, false
 		}
 		return getUnixTimestampNanoseconds(n), true
 	}
-
-	intStr := s[:dotIdx]
-	fracStr := s[dotIdx+1:]
-	if decimalExp >= int64(len(fracStr)) {
-		// The exponent shifts the decimal point past every fractional digit.
-		n, ok := tryParseDecimalMantissaAsInt(intStr, fracStr)
-		if !ok {
-			return 0, false
-		}
-		decimalExp -= int64(len(fracStr))
-		n, ok = multiplyByDecimalExp(n, decimalExp)
-		if !ok {
-			return 0, false
-		}
-		return getUnixTimestampNanoseconds(n), true
-	}
-
-	// The exponent leaves fractional digits, e.g. 1.784144612388E9 == 1784144612.388
-	if decimalExp >= int64(len(decimalMultipliers)) {
-		return 0, false
-	}
-	decimalExpInt := int(decimalExp)
-	intStr = s[:dotIdx] + fracStr[:decimalExpInt]
-	fracStr = fracStr[decimalExpInt:]
 	return tryParseFractionalUnixTimestamp(intStr, fracStr)
 }
 
-func tryParseDecimalMantissaAsInt(intStr, fracStr string) (int64, bool) {
-	n, ok := tryParseInt64(intStr)
-	if !ok {
-		return 0, false
+func expandScientificUnixTimestamp(s string, decimalExp int64) (string, string, bool) {
+	dotIdx := strings.IndexByte(s, '.')
+	intStr := s
+	fracStr := ""
+	if dotIdx >= 0 {
+		intStr = s[:dotIdx]
+		fracStr = s[dotIdx+1:]
+	}
+	if _, ok := tryParseInt64(intStr); !ok {
+		return "", "", false
+	}
+	if !isDecimalString(fracStr) {
+		return "", "", false
 	}
 
-	decimalExp := int64(len(fracStr))
-	num, ok := multiplyByDecimalExp(n, decimalExp)
-	if !ok {
-		return 0, false
+	isNegativeExp := decimalExp < 0
+	if isNegativeExp {
+		decimalExp = -decimalExp
+	}
+	// Value exceeding nanosecond precision should be rejected.
+	if decimalExp >= int64(len(decimalMultipliers)) {
+		return "", "", false
 	}
 
-	frac, ok := tryParseInt64(fracStr)
-	if !ok {
-		return 0, false
+	isNegative := strings.HasPrefix(intStr, "-")
+	if isNegative {
+		intStr = intStr[1:]
 	}
 
-	if num >= 0 {
-		if num > math.MaxInt64-frac {
-			return 0, false
+	var shiftedIntStr, shiftedFracStr string
+	decimalExpInt := int(decimalExp)
+	if isNegativeExp {
+		// e.g.
+		// 1. the integer and fractional part of 1.23e-5 should be 0 and 0000123 respectively.
+		// 2. the integer and fractional part of 123.4e-1 should be 12 and 34 respectively.
+		if decimalExpInt >= len(intStr) {
+			shiftedIntStr = "0"
+			shiftedFracStr = strings.Repeat("0", decimalExpInt-len(intStr)) + intStr + fracStr
+		} else {
+			shiftedIntStr = intStr[:len(intStr)-decimalExpInt]
+			shiftedFracStr = intStr[len(intStr)-decimalExpInt:] + fracStr
 		}
-		num += frac
+	} else if decimalExpInt >= len(fracStr) {
+		// e.g. the integer part and fractional par of 1.23e5 should be 123000 and 0 respectively
+		shiftedIntStr = intStr + fracStr + strings.Repeat("0", decimalExpInt-len(fracStr))
+		shiftedFracStr = ""
 	} else {
-		if num < math.MinInt64+frac {
-			return 0, false
-		}
-		num -= frac
+		shiftedIntStr = intStr + fracStr[:decimalExpInt]
+		shiftedFracStr = fracStr[decimalExpInt:]
 	}
 
-	return num, true
+	if isNegative {
+		shiftedIntStr = "-" + shiftedIntStr
+	}
+	return shiftedIntStr, shiftedFracStr, true
 }
 
 func tryParseFractionalUnixTimestamp(intStr, fracStr string) (int64, bool) {
@@ -270,15 +265,11 @@ func tryParseFractionalUnixTimestamp(intStr, fracStr string) (int64, bool) {
 	isNegative := n < 0 || n == 0 && strings.HasPrefix(intStr, "-")
 
 	multiplier, maxFracDigits := getUnixTimestampMultiplier(n)
+	if !isDecimalString(fracStr) {
+		return 0, false
+	}
 	// Truncate the fractional digits to valid length according to the unit precision.
 	if len(fracStr) > maxFracDigits {
-		// 1.123456789XXX is invalid.
-		tail := fracStr[maxFracDigits:]
-		for i := 0; i < len(tail); i++ {
-			if tail[i] < '0' || tail[i] > '9' {
-				return 0, false
-			}
-		}
 		fracStr = fracStr[:maxFracDigits]
 	}
 	if len(fracStr) == 0 {
@@ -307,26 +298,6 @@ func tryParseFractionalUnixTimestamp(intStr, fracStr string) (int64, bool) {
 		return 0, false
 	}
 	return n + frac, true
-}
-
-func multiplyByDecimalExp(n int64, decimalExp int64) (int64, bool) {
-	if decimalExp < 0 {
-		return 0, false
-	}
-	if decimalExp >= int64(len(decimalMultipliers)) {
-		return 0, false
-	}
-	if decimalExp == 0 {
-		return n, true
-	}
-
-	m := decimalMultipliers[decimalExp]
-
-	if n >= 0 && n > math.MaxInt64/m || n < 0 && n < math.MinInt64/m {
-		return 0, false
-	}
-
-	return n * m, true
 }
 
 var decimalMultipliers = [...]int64{0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10, 1e11, 1e12, 1e13, 1e14, 1e15, 1e16, 1e17, 1e18}
@@ -368,4 +339,13 @@ func tryParseInt64(s string) (int64, bool) {
 		return 0, false
 	}
 	return n, true
+}
+
+func isDecimalString(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return false
+		}
+	}
+	return true
 }
