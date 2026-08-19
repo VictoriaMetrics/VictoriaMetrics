@@ -4,6 +4,23 @@ import (
 	"testing"
 )
 
+func TestIsCPUCgroupLimited(t *testing.T) {
+	f := func(cpuQuota float64, cpuCount int, expected bool) {
+		t.Helper()
+		got := isCPUCgroupLimited(cpuQuota, cpuCount)
+		if got != expected {
+			t.Fatalf("unexpected result from isCPUCgroupLimited(%f, %d); got %v; want %v", cpuQuota, cpuCount, got, expected)
+		}
+	}
+
+	f(-1, 8, false)
+	f(0, 8, false)
+	f(8, 8, false)
+	f(16, 8, false)
+	f(7.5, 8, true)
+	f(0.5, 8, true)
+}
+
 func TestCountCPUs(t *testing.T) {
 	f := func(s string, nExpected int) {
 		t.Helper()

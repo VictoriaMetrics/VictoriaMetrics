@@ -21,7 +21,7 @@ func AvailableCPUs() int {
 }
 
 func init() {
-	cpuQuota := getCPUQuota()
+	cpuQuota, cpuCgroupLimited := getCPUQuota()
 	if cpuQuota > 0 {
 		updateGOMAXPROCSToCPUQuota(cpuQuota)
 	}
@@ -31,6 +31,12 @@ func init() {
 	}
 	metrics.NewGauge(`process_cpu_cores_available`, func() float64 {
 		return cpuCoresAvailable
+	})
+	metrics.NewGauge(`process_cpu_cgroup_limited`, func() float64 {
+		if cpuCgroupLimited {
+			return 1
+		}
+		return 0
 	})
 }
 
@@ -60,17 +66,21 @@ func updateGOMAXPROCSToCPUQuota(cpuQuota float64) {
 	runtime.GOMAXPROCS(gomaxprocs)
 }
 
-func getCPUQuota() float64 {
+func getCPUQuota() (float64, bool) {
 	cpuQuota, err := getCPUQuotaGeneric()
 	if err != nil {
-		return 0
+		return 0, false
 	}
 	if cpuQuota <= 0 {
 		// The quota isn't set. This may be the case in multilevel containers.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/685#issuecomment-674423728
-		return getOnlineCPUCount()
+		return getOnlineCPUCount(), false
 	}
-	return cpuQuota
+	return cpuQuota, isCPUCgroupLimited(cpuQuota, runtime.NumCPU())
+}
+
+func isCPUCgroupLimited(cpuQuota float64, cpuCount int) bool {
+	return cpuQuota > 0 && cpuQuota < float64(cpuCount)
 }
 
 func getCPUQuotaGeneric() (float64, error) {
