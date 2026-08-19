@@ -1741,7 +1741,7 @@ func (db *indexDB) wrapError(op string, err error) error {
 //
 // The method will fail if the number of found TSIDs exceeds maxMetrics or the
 // search has not completed within the specified deadline.
-func (db *indexDB) SearchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]TSID, error) {
+func (db *indexDB) SearchTSIDs2(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]TSID, error) {
 	qt = qt.NewChild("search TSIDs: filters=%s, timeRange=%s, maxMetrics=%d", tfss, &tr, maxMetrics)
 	defer qt.Done()
 
@@ -1848,6 +1848,171 @@ func (db *indexDB) searchTSIDsWithFiltersOnDate(qt *querytracer.Tracer, tfss []*
 	})
 	if err != nil {
 		return nil, db.wrapError("search TSIDs", err)
+	}
+
+	tsids = tsids[:i]
+	qt.Printf("found %d TSIDs for %d metricIDs", len(tsids), metricIDs.Len())
+
+	// Sort the found tsids, since they must be passed to TSID search
+	// in the sorted order.
+	sort.Slice(tsids, func(i, j int) bool { return tsids[i].Less(&tsids[j]) })
+	qt.Printf("sort %d TSIDs", len(tsids))
+
+	if metricIDsToDelete.Len() > 0 {
+		db.saveDeletedMetricIDs(metricIDsToDelete)
+	}
+	return tsids, nil
+}
+
+func (db *indexDB) SearchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]TSID, error) {
+	qt = qt.NewChild("search TSIDs: filters=%s, timeRange=%s, maxMetrics=%d", tfss, &tr, maxMetrics)
+	defer qt.Done()
+
+	if !db.legacyContainsTimeRange(tr) {
+		qt.Printf("indexDB doesn't contain data for the given time range: %v", &tr)
+		return nil, nil
+	}
+
+	searchTSIDsByDateAndFilters := func(date uint64) ([]TSID, error) {
+		metricIDs, err := db.searchMetricIDsByDateAndFilters(qt, tfss, date, maxMetrics, deadline)
+		if err != nil {
+			return nil, db.wrapError("search TSIDs", err)
+		}
+		tsids, err := db.searchTSIDsByMetricIDs(qt, metricIDs, deadline)
+		if err != nil {
+			return nil, db.wrapError("search TSIDs", err)
+		}
+		return tsids, nil
+	}
+
+	if tr == globalIndexTimeRange {
+		return searchTSIDsByDateAndFilters(globalIndexDate)
+	}
+
+	minDate, maxDate := tr.DateRange()
+	numDays := maxDate - minDate + 1
+	if minDate == maxDate {
+		return searchTSIDsByDateAndFilters(minDate)
+	}
+
+	var wg sync.WaitGroup
+	metricIDsByDate := make([]*uint64set.Set, numDays)
+	errs := make([]error, numDays)
+	for d := range numDays {
+		date := minDate + d
+		wg.Go(func() {
+			metricIDsByDate[d], errs[d] = db.searchMetricIDsByDateAndFilters(qt, tfss, date, maxMetrics, deadline)
+		})
+	}
+	wg.Wait()
+	for _, err := range errs {
+		if err != nil {
+			return nil, db.wrapError("search TSIDs", err)
+		}
+	}
+
+	seen := &uint64set.Set{}
+	for _, metricIDs := range metricIDsByDate {
+		metricIDs.ForEach(func(s []uint64) bool {
+			for _, metricID := range s {
+				if seen.Has(metricID) {
+					metricIDs.Del(metricID)
+				} else {
+					seen.Add(metricID)
+				}
+			}
+			return true
+		})
+	}
+
+	tsidsByDate := make([][]TSID, numDays)
+	for d := range numDays {
+		wg.Go(func() {
+			tsidsByDate[d], errs[d] = db.searchTSIDsByMetricIDs(qt, metricIDsByDate[d], deadline)
+		})
+	}
+	wg.Wait()
+	for _, err := range errs {
+		if err != nil {
+			return nil, db.wrapError("search TSIDs", err)
+		}
+	}
+
+	tsids := mergeSortedTSIDs(tsidsByDate)
+	return tsids, nil
+}
+
+func (db *indexDB) searchMetricIDsByDateAndFilters(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, maxMetrics int, deadline uint64) (*uint64set.Set, error) {
+	qt = qt.NewChild("search metricIDs: filters=%s, date=%d, maxMetrics=%d", tfss, date, maxMetrics)
+	defer qt.Done()
+
+	tr := TimeRange{
+		MinTimestamp: int64(date) * msecPerDay,
+		MaxTimestamp: int64(date+1)*msecPerDay - 1,
+	}
+	if date == globalIndexDate {
+		tr = globalIndexTimeRange
+	}
+
+	metricIDs, err := db.searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
+	if err != nil {
+		return nil, err
+	}
+	return metricIDs, nil
+}
+
+func (db *indexDB) searchTSIDsByMetricIDs(qt *querytracer.Tracer, metricIDs *uint64set.Set, deadline uint64) ([]TSID, error) {
+	qt = qt.NewChild("search TSIDs: numMetricIDs=%d", metricIDs.Len())
+	defer qt.Done()
+
+	tsids := make([]TSID, metricIDs.Len())
+	var err error
+	metricIDsToDelete := &uint64set.Set{}
+	i := 0
+	paceLimiter := 0
+	is := db.getIndexSearch(deadline)
+	defer db.putIndexSearch(is)
+	metricIDs.ForEach(func(metricIDs []uint64) bool {
+		for _, metricID := range metricIDs {
+			if paceLimiter&paceLimiterSlowIterationsMask == 0 {
+				if err = checkSearchDeadlineAndPace(deadline); err != nil {
+					return false
+				}
+			}
+			paceLimiter++
+
+			// Try obtaining TSIDs from MetricID->TSID cache. This is much faster
+			// than scanning the mergeset if it contains a lot of metricIDs.
+			tsid := &tsids[i]
+			err = db.s.getTSIDByMetricIDFromCache(tsid, metricID)
+			if err == nil {
+				// Fast path - the tsid for metricID is found in cache.
+				i++
+				continue
+			}
+			if err != io.EOF {
+				return false
+			}
+			err = nil
+			if !is.getTSIDByMetricID(tsid, metricID) {
+				// Cannot find TSID for the given metricID.
+				// This may be the case on incomplete indexDB
+				// due to snapshot or due to un-flushed entries.
+				// Mark the metricID as deleted, so it is created again when new sample
+				// for the given time series is ingested next time.
+				if db.s.wasMetricIDMissingBefore(metricID) {
+					db.missingTSIDsForMetricID.Add(1)
+					metricIDsToDelete.Add(metricID)
+				}
+				continue
+			}
+			db.s.putTSIDByMetricIDToCache(metricID, tsid)
+			i++
+		}
+		return true
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	tsids = tsids[:i]
