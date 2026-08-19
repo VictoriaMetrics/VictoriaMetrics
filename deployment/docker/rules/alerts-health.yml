@@ -71,7 +71,7 @@ groups:
             the service could work unreliably with delays in processing.
 
       - alert: TooManyErrorLogs
-        expr: sum(increase(vm_log_messages_total{level=~"error|fatal|panic"}[5m])) without (app_version, is_printed) > 0
+        expr: sum(increase(vm_log_messages_total{level=~"error|fatal|panic"}[1m])) without (app_version, is_printed) > 0
         for: 5m
         labels:
           severity: warning
