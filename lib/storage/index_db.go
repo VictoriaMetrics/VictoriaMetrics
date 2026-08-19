@@ -1882,6 +1882,7 @@ func (db *indexDB) SearchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Ti
 		if err != nil {
 			return nil, db.wrapError("search TSIDs", err)
 		}
+		sort.Slice(tsids, func(i, j int) bool { return tsids[i].Less(&tsids[j]) })
 		return tsids, nil
 	}
 
@@ -1925,10 +1926,12 @@ func (db *indexDB) SearchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Ti
 		})
 	}
 
+	var numTSIDs int
 	tsidsByDate := make([][]TSID, numDays)
 	for d := range numDays {
 		wg.Go(func() {
 			tsidsByDate[d], errs[d] = db.searchTSIDsByMetricIDs(qt, metricIDsByDate[d], deadline)
+			numTSIDs += len(tsidsByDate[d])
 		})
 	}
 	wg.Wait()
@@ -1938,8 +1941,13 @@ func (db *indexDB) SearchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Ti
 		}
 	}
 
-	tsids := mergeSortedTSIDs(tsidsByDate)
-	return tsids, nil
+	all := make([]TSID, 0, numTSIDs)
+	for _, tsids := range tsidsByDate {
+		all = append(all, tsids...)
+	}
+
+	sort.Slice(all, func(i, j int) bool { return all[i].Less(&all[j]) })
+	return all, nil
 }
 
 func (db *indexDB) searchMetricIDsByDateAndFilters(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, maxMetrics int, deadline uint64) (*uint64set.Set, error) {
@@ -2020,8 +2028,8 @@ func (db *indexDB) searchTSIDsByMetricIDs(qt *querytracer.Tracer, metricIDs *uin
 
 	// Sort the found tsids, since they must be passed to TSID search
 	// in the sorted order.
-	sort.Slice(tsids, func(i, j int) bool { return tsids[i].Less(&tsids[j]) })
-	qt.Printf("sort %d TSIDs", len(tsids))
+	// sort.Slice(tsids, func(i, j int) bool { return tsids[i].Less(&tsids[j]) })
+	// qt.Printf("sort %d TSIDs", len(tsids))
 
 	if metricIDsToDelete.Len() > 0 {
 		db.saveDeletedMetricIDs(metricIDsToDelete)
