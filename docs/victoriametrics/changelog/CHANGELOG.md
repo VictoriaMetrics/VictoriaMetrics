@@ -28,7 +28,9 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 * FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): show the selected time zone UTC offset next to the date/time controls and allow opening time zone settings from it. See [#11332](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11332).
 
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix infinite loop in the OpenTelemetry Firehose ingestion endpoint (`/opentelemetry/api/v1/push`) when receiving a malformed record with an incomplete varint in the `data` field. Previously this caused the goroutine to spin forever, permanently consuming CPU until the process was restarted.
 * BUGFIX: [vmalert-tool](https://docs.victoriametrics.com/victoriametrics/vmalert-tool/): reuse connections to `-remoteWrite.url` when writing the results of recording rules and alerts. Previously every series was sent over a new connection, which left a lot of sockets in `TIME_WAIT` state and could exhaust the ephemeral port range. The number of idle connections can be tuned via the new `-remoteWrite.maxIdleConnections` command-line flag. Thanks @evkuzin for contribution.
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): prevent process crash in `sort_by_label_numeric()` and `sort_by_label_numeric_desc()` when a label value contains a number with 309 or more digits. See [#11423](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11423).
 
 ## [v1.150.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.150.0)
 
