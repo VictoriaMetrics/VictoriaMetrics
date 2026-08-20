@@ -282,6 +282,30 @@ groups:
         expr: count_over_time(up[5m:])
 ```
 
+### Skipping unrelated rule groups
+
+> This feature is experimental. It may change or be removed in future releases.
+
+Every test evaluates all the rule groups from the configured `rule_files`, even the groups
+it doesn't assert on. This is wasteful when many tests share a single big rule file, since
+every test pays for every group at every evaluation step.
+
+Pass `-skipUnrelatedRuleGroups` to evaluate only the rule groups a test can observe:
+
+```sh
+vmalert-tool unittest -files=test.yaml -skipUnrelatedRuleGroups
+```
+
+The groups are selected from the `alertname` of every `alert_rule_test` and from the metric
+names of every `metricsql_expr_test` expression, and then expanded over dependencies between
+groups: if a selected group reads a metric recorded by another group, or reads its alerts via
+the `ALERTS` series, that group is selected too.
+
+A rule group is always evaluated when its expressions cannot be analysed, for example when a
+group selects series by a regexp on `__name__` or by label filters without a metric name.
+Results are expected to be the same with and without the flag, so if a test changes its outcome
+when the flag is set, please [file an issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/new/choose).
+
 ### Debug mode
 
 vmalert-tool can print additional log messages for specific alerting rules, similar to [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/#debug-mode), by following these steps:
@@ -324,4 +348,6 @@ Run `vmalert-tool unittest --help` to get all configuration options:
     Optional local port for incoming HTTP requests. If not specified, a random unoccupied port will be used.
   -loggerLevel
     Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "ERROR").
+  -skipUnrelatedRuleGroups
+    Experimental. Evaluate only the rule groups a test can observe, instead of every group from the configured rule_files. Rule groups whose expressions cannot be analysed statically are always evaluated. (default: false)
 ```

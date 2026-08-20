@@ -1,0 +1,48 @@
+groups:
+  # A chain of recording rules spread over several groups. Evaluating the last
+  # group alone is not enough, since every link feeds the next one.
+  - name: chainBase
+    rules:
+      - record: dep:level1
+        expr: raw_input
+
+  - name: chainMiddle
+    rules:
+      - record: dep:level2
+        expr: dep:level1 * 2
+
+  - name: chainTop
+    rules:
+      - alert: ChainAlert
+        expr: dep:level2 > 15
+
+  # Reads an alert of another group through the ALERTS series. No rule records
+  # ALERTS, so this dependency is only visible by looking at the alert name.
+  - name: alertsReader
+    rules:
+      - record: dep:firing_chain_alerts
+        expr: count(ALERTS{alertname="ChainAlert"}) or vector(0)
+
+  # Selects series without naming a metric, so it cannot be analysed statically
+  # and must always be evaluated.
+  - name: dynamicSelector
+    rules:
+      - record: dep:dynamic
+        expr: count({job="dep-job"}) or vector(0)
+
+  # Shares an alert name with another group, so asserting on the name needs both.
+  - name: sharedNameOne
+    rules:
+      - alert: SharedDepAlert
+        expr: raw_input > 5
+
+  - name: sharedNameTwo
+    rules:
+      - alert: SharedDepAlert
+        expr: other_input > 5
+
+  # Unrelated to everything above. Nothing in these test files asserts on it.
+  - name: unrelated
+    rules:
+      - record: dep:unrelated
+        expr: raw_input * 100

@@ -26,6 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmalert-tool](https://docs.victoriametrics.com/victoriametrics/vmalert-tool/): add experimental `-skipUnrelatedRuleGroups` flag for evaluating only the rule groups a test can observe, instead of every group from the configured `rule_files`. This speeds up test files where many tests share a single big rule file. See [these docs](https://docs.victoriametrics.com/victoriametrics/vmalert-tool/#skipping-unrelated-rule-groups).
 * FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): show the selected time zone UTC offset next to the date/time controls and allow opening time zone settings from it. See [#11332](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11332).
 
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix infinite loop in the OpenTelemetry Firehose ingestion endpoint (`/opentelemetry/api/v1/push`) when receiving a malformed record with an incomplete varint in the `data` field. Previously this caused the goroutine to spin forever, permanently consuming CPU until the process was restarted.

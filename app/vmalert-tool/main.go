@@ -61,9 +61,15 @@ Examples:
 						Usage:    `Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "ERROR").`,
 						Required: false,
 					},
+					&cli.BoolFlag{
+						Name: "skipUnrelatedRuleGroups",
+						Usage: `Experimental. Evaluate only the rule groups a test can observe, instead of every group from the configured rule_files. ` +
+							`Rule groups whose expressions cannot be analysed statically are always evaluated.`,
+						Required: false,
+					},
 				},
 				Action: func(c *cli.Context) error {
-					if failed := unittest.UnitTest(c.StringSlice("files"), c.Bool("disableAlertgroupLabel"), c.StringSlice("external.label"), c.String("external.url"), c.String("httpListenPort"), c.String("loggerLevel")); failed {
+					if failed := unittest.UnitTest(c.StringSlice("files"), c.Bool("disableAlertgroupLabel"), c.StringSlice("external.label"), c.String("external.url"), c.String("httpListenPort"), c.String("loggerLevel"), c.Bool("skipUnrelatedRuleGroups")); failed {
 						return fmt.Errorf("unittest failed")
 					}
 					return nil
