@@ -1568,6 +1568,8 @@ To enable TLS on the public listener while keeping the internal listener non-TLS
 
 `vmauth` also supports restricting access by IP - see [these docs](#ip-filters). See also [concurrency limiting docs](#concurrency-limiting).
 
+Review `unauthorized_user` rules carefully.
+Requests without credentials are matched against `unauthorized_user`, even if a similar route exists under authenticated `users`.
 
 When `vmauth` performs tenant routing for [multitenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenant-reads) requests, it is crucial to explicitly set `extra_label`, `extra_filters` and `extra_filters[]` in the url_prefix configuration:
 
