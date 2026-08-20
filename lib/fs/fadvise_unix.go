@@ -20,3 +20,18 @@ func fadviseSequentialRead(f *os.File, prefetch bool) error {
 	}
 	return nil
 }
+
+func fadviseRandomRead(f *os.File) error {
+	fd := int(f.Fd())
+	if err := unix.Fadvise(fd, 0, 0, unix.FADV_RANDOM); err != nil {
+		return fmt.Errorf("error returned from unix.Fadvise(FADV_RANDOM): %w", err)
+	}
+	return nil
+}
+
+func madviseRandomRead(data []byte) error {
+	if err := unix.Madvise(data, unix.MADV_RANDOM); err != nil {
+		return fmt.Errorf("error returned from unix.Madvise(MADV_RANDOM): %w", err)
+	}
+	return nil
+}
