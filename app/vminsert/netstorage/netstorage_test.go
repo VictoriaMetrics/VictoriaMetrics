@@ -177,6 +177,48 @@ func TestAllowRerouting(t *testing.T) {
 	}, 0, true)
 }
 
+func TestIsOutsideReplicaNodes(t *testing.T) {
+	f := func(idx, snIdx, replicas, nodesCount int, resultExpected bool) {
+		t.Helper()
+		result := isOutsideReplicaNodes(idx, snIdx, replicas, nodesCount)
+		if result != resultExpected {
+			t.Fatalf("unexpected isOutsideReplicaNodes(idx=%d, snIdx=%d, replicas=%d, nodesCount=%d); got %v; want %v",
+				idx, snIdx, replicas, nodesCount, result, resultExpected)
+		}
+	}
+
+	// 4 storage nodes, replicationFactor=2, the data is selected for nodes 0 and 1.
+	f(0, 0, 2, 4, false)
+	f(1, 0, 2, 4, false)
+	// Node 2 is outside the selected nodes, so the copy must not be sent there.
+	f(2, 0, 2, 4, true)
+	f(3, 0, 2, 4, true)
+
+	// 4 storage nodes, replicationFactor=2, the data is selected for nodes 3 and 0
+	// (the set wraps around the end of the storage nodes list).
+	f(3, 3, 2, 4, false)
+	f(4, 3, 2, 4, false)
+	// Node 0 after the wraparound is still inside the selected nodes.
+	f(0, 3, 2, 4, false)
+	// Nodes 1 and 2 are outside the selected nodes.
+	f(1, 3, 2, 4, true)
+	f(2, 3, 2, 4, true)
+
+	// 4 storage nodes, replicationFactor=3, the data is selected for nodes 2, 3 and 0.
+	f(2, 2, 3, 4, false)
+	f(3, 2, 3, 4, false)
+	f(0, 2, 3, 4, false)
+	// Node 1 is outside the selected nodes.
+	f(1, 2, 3, 4, true)
+
+	// replicationFactor equals the number of storage nodes, so no node is outside the selected nodes.
+	f(0, 0, 3, 3, false)
+	f(1, 0, 3, 3, false)
+	f(2, 0, 3, 3, false)
+	f(0, 2, 3, 3, false)
+	f(1, 2, 3, 3, false)
+}
+
 func TestGetMaxBufSizePerInsertCtxStorageNode(t *testing.T) {
 	f := func(mem, concurrency, netstorageCount, threshold int) {
 		t.Helper()
