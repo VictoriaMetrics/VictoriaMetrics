@@ -53,7 +53,7 @@
     "globals": "^17.7.0",
     "http-proxy-middleware": "^4.2.0",
     "jsdom": "^29.1.1",
-    "postcss": "^8.5.19",
+    "postcss": "^8.5.25",
     "sass-embedded": "^1.100.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.10"
