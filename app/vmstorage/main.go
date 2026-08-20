@@ -13,6 +13,7 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/appmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
@@ -211,6 +212,7 @@ func main() {
 	storageMetrics := metrics.NewSet()
 	storageMetrics.RegisterMetricsWriter(vmStorage.writeStorageMetrics)
 	metrics.RegisterSet(storageMetrics)
+	appmetrics.MustCreateUncleanShutdownMarker(*storageDataPath)
 
 	protoparserutil.StartUnmarshalWorkers()
 
@@ -265,6 +267,7 @@ func main() {
 	logger.Infof("successfully closed the storage in %.3f seconds", time.Since(startTime).Seconds())
 
 	fs.MustStopDirRemover()
+	appmetrics.MustRemoveUncleanShutdownMarker(*storageDataPath)
 	logger.Infof("the vmstorage has been stopped")
 }
 
