@@ -13,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/appmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
@@ -90,7 +91,9 @@ func main() {
 	}
 	logger.Infof("starting VictoriaMetrics at %q...", listenAddrs)
 	startTime := time.Now()
+
 	vmstorage.Init(*vmselectMaxConcurrentRequests, *vmselectMaxQueueDuration, promql.ResetRollupResultCacheIfNeeded)
+	appmetrics.MustCreateUncleanShutdownMarker(vmstorage.DataPath())
 	vmselect.Init(*vmselectMaxConcurrentRequests, *vmselectMaxQueueDuration)
 	vminsertcommon.StartIngestionRateLimiter(*maxIngestionRate)
 	vminsert.Init()
@@ -120,6 +123,7 @@ func main() {
 
 	vmstorage.Stop()
 	vmselect.Stop()
+	appmetrics.MustRemoveUncleanShutdownMarker(vmstorage.DataPath())
 
 	logger.Infof("the VictoriaMetrics has been stopped in %.3f seconds", time.Since(startTime).Seconds())
 }
