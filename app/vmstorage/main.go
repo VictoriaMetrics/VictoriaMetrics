@@ -54,7 +54,7 @@ var (
 		"Configured value must always be lower than the graceful shutdown period configured by the orchestration platform (terminationGracePeriodSeconds for Kubernetes). "+
 		"See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#improving-re-routing-performance-during-restart")
 	vmselectAddr                  = flag.String("vmselectAddr", ":8401", "TCP address to accept connections from vmselect services")
-	vmselectMaxConcurrentRequests = flag.Int("search.maxConcurrentRequests", 2*cgroup.AvailableCPUs(), "The maximum number of concurrent vmselect requests "+
+	vmselectMaxConcurrentRequests = flagutil.NewIntWithDynamicDefault("search.maxConcurrentRequests", 2*cgroup.AvailableCPUs(), "2*cgroup.AvailableCPUs()", "The maximum number of concurrent vmselect requests "+
 		"the vmstorage can process at -vmselectAddr. It shouldn't be high, since a single request usually saturates a CPU core, and many concurrently executed requests "+
 		"may require high amounts of memory. See also -search.maxQueueDuration")
 	vmselectMaxQueueDuration = flag.Duration("search.maxQueueDuration", 10*time.Second, "The maximum time the incoming vmselect request waits for execution "+
