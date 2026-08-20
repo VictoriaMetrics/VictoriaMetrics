@@ -930,10 +930,17 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 		if idb.tr.MaxTimestamp < tfssTR.MaxTimestamp {
 			tfssTR.MaxTimestamp = idb.tr.MaxTimestamp
 		}
-		tfssKey := marshalTagFiltersKey(nil, tfss, tr)
-		_, got := idb.getMetricIDsFromTagFiltersCache(nil, tfssKey)
-		if got != want {
-			t.Errorf("unexpected tag filters in cache %v %v: got %t, want %t", tfss, &tr, got, want)
+		minDate, maxDate := tfssTR.DateRange()
+		for date := minDate; date <= maxDate; date++ {
+			cacheTR := TimeRange{
+				MinTimestamp: int64(date) * msecPerDay,
+				MaxTimestamp: int64(date+1)*msecPerDay - 1,
+			}
+			tfssKey := marshalTagFiltersKey(nil, tfss, cacheTR)
+			_, got := idb.getMetricIDsFromTagFiltersCache(nil, tfssKey)
+			if got != want {
+				t.Errorf("unexpected tag filters in cache %v %s: got %t, want %t", tfss, dateToString(date), got, want)
+			}
 		}
 	}
 
@@ -3576,7 +3583,15 @@ func testStorageAddRowsWithZeroDate(t *testing.T, disablePerDayIndex bool) {
 // tests only.
 func testSearchMetricIDs(s *Storage, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) []uint64 {
 	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (*uint64set.Set, error) {
-		return idb.searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
+		metricIDsByDate, err := idb.searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
+		if err != nil {
+			return nil, err
+		}
+		all := &uint64set.Set{}
+		for _, d := range metricIDsByDate {
+			all.Union(d)
+		}
+		return all, nil
 	}
 	merge := func(data []*uint64set.Set) *uint64set.Set {
 		all := &uint64set.Set{}

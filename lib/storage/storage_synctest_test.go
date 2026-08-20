@@ -59,11 +59,15 @@ func TestStorageSearchTSIDs_CorruptedIndex(t *testing.T) {
 		tfssAll := []*TagFilters{tfsAll}
 
 		searchMetricIDs := func() []uint64 {
-			metricIDs, err := idb.searchMetricIDs(nil, tfssAll, tr, 1e9, noDeadline)
+			metricIDsByDate, err := idb.searchMetricIDs(nil, tfssAll, tr, 1e9, noDeadline)
 			if err != nil {
 				panic(fmt.Sprintf("searchMetricIDs() failed unexpectedly: %v", err))
 			}
-			return metricIDs.AppendTo(nil)
+			var metricIDs []uint64
+			for _, v := range metricIDsByDate {
+				return v.AppendTo(metricIDs)
+			}
+			return metricIDs
 		}
 		searchTSIDs := func() []TSID {
 			tsids, err := s.SearchTSIDs(nil, tfssAll, tr, 1e9, noDeadline)
@@ -161,11 +165,15 @@ func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
 		tfssAll := []*TagFilters{tfsAll}
 
 		searchMetricIDs := func() []uint64 {
-			metricIDs, err := idb.searchMetricIDs(nil, tfssAll, tr, 1e9, noDeadline)
+			metricIDsByDate, err := idb.searchMetricIDs(nil, tfssAll, tr, 1e9, noDeadline)
 			if err != nil {
 				panic(fmt.Sprintf("searchMetricIDs() failed unexpectedly: %v", err))
 			}
-			return metricIDs.AppendTo(nil)
+			var metricIDs []uint64
+			for _, v := range metricIDsByDate {
+				return v.AppendTo(metricIDs)
+			}
+			return metricIDs
 		}
 		searchMetricNames := func() []string {
 			metricNames, err := s.SearchMetricNames(nil, tfssAll, tr, 1e9, noDeadline)
