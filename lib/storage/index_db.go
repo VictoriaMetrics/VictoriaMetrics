@@ -1749,13 +1749,16 @@ func (db *indexDB) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, t
 	}
 
 	seen := &uint64set.Set{}
+	uniqMetricIDsByDate := make(map[uint64]*uint64set.Set)
 	for day, metricIDs := range metricIDss {
 		var err error
+		uniqMetricIDs := &uint64set.Set{}
 		metricIDs.ForEach(func(s []uint64) bool {
 			for _, metricID := range s {
 				if seen.Has(metricID) {
-					metricIDs.Del(metricID)
+					continue
 				}
+				uniqMetricIDs.Add(metricID)
 				seen.Add(metricID)
 				if seen.Len() > maxMetrics {
 					err = errTooManyTimeseries(maxMetrics)
@@ -1767,13 +1770,13 @@ func (db *indexDB) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, t
 		if err != nil {
 			return nil, err
 		}
-		if metricIDs.Len() > 0 {
+		if uniqMetricIDs.Len() > 0 {
 			date := minDate + uint64(day)
-			metricIDsByDate[date] = metricIDs
+			uniqMetricIDsByDate[date] = uniqMetricIDs
 		}
 	}
 
-	return metricIDsByDate, nil
+	return uniqMetricIDsByDate, nil
 }
 
 func (db *indexDB) searchMetricIDsByDateAndFilters(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, maxMetrics int, deadline uint64) (*uint64set.Set, error) {
