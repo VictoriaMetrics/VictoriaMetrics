@@ -44,11 +44,40 @@ import (
 var (
 	storagePath    string
 	httpListenAddr string
-	// Insert series from 2000-01-01T00:00:00.
-	testStartTime          = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	// defaultTestStartTime is the time the first sample of every input_series is written at,
+	// and the time the first rule evaluation happens at. It can be overridden via -startTime.
+	defaultTestStartTime = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	// Insert series from defaultTestStartTime unless -startTime says otherwise.
+	testStartTime          = defaultTestStartTime
 	testLogLevel           = "ERROR"
 	disableAlertgroupLabel bool
 )
+
+// minTestStartTime is the earliest start time vmstorage can hold samples at.
+//
+// The first day of the Unix epoch is reserved: the zero date and the zero time range indicate
+// that a global index search is required. See minUnixMilli in lib/storage/time.go.
+// Series seeded before this point are silently dropped, so rules never see them.
+var minTestStartTime = time.Date(1970, 1, 2, 0, 0, 0, 0, time.UTC)
+
+// parseTestStartTime parses the value of the -startTime command-line flag.
+//
+// An empty s means "use the default".
+func parseTestStartTime(s string) (time.Time, error) {
+	if s == "" {
+		return defaultTestStartTime, nil
+	}
+	t, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("cannot parse %q as an RFC3339 timestamp such as %q: %w", s, defaultTestStartTime.Format(time.RFC3339), err)
+	}
+	t = t.UTC()
+	if t.Before(minTestStartTime) {
+		return time.Time{}, fmt.Errorf("%s is earlier than %s; the first day of the Unix epoch is reserved for the global index search, "+
+			"so input_series seeded there are dropped and rules never see them", t.Format(time.RFC3339), minTestStartTime.Format(time.RFC3339))
+	}
+	return t, nil
+}
 
 func durationToTime(pd *promutil.Duration) time.Time {
 	if pd == nil {
@@ -62,10 +91,15 @@ const (
 )
 
 // UnitTest runs unittest for files
-func UnitTest(files []string, disableGroupLabel bool, externalLabels []string, externalURL, httpListenPort, logLevel string) bool {
+func UnitTest(files []string, disableGroupLabel bool, externalLabels []string, externalURL, httpListenPort, logLevel, startTime string) bool {
 	if logLevel != "" {
 		testLogLevel = logLevel
 	}
+	st, err := parseTestStartTime(startTime)
+	if err != nil {
+		logger.Fatalf("failed to parse -startTime: %s", err)
+	}
+	testStartTime = st
 	eu, err := url.Parse(externalURL)
 	if err != nil {
 		logger.Fatalf("failed to parse external URL: %s", err)
