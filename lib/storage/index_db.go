@@ -2008,69 +2008,68 @@ func (db *indexDB) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters,
 		return nil, nil
 	}
 
-	tsids, err := db.searchMetricNames(qt, tfss, tr, maxMetrics, deadline)
+	metricNames, err := db.searchMetricNames(qt, tfss, tr, maxMetrics, deadline)
 	if err != nil {
 		return nil, db.wrapError("search metric names", err)
 	}
-	return tsids, nil
+	return metricNames, nil
 }
 
 func (db *indexDB) searchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]string, error) {
-	if tr == globalIndexTimeRange {
-		return db.searchMetricNamesByDateAndFilters(qt, tfss, globalIndexDate, maxMetrics, deadline)
+	uniqMetricIDsByDate, err := db.searchMetricIDsByTimeRangeAndFilters(qt, tfss, tr, maxMetrics, deadline)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(uniqMetricIDsByDate) == 0 {
+		return []string{}, nil
+	}
+
+	if len(uniqMetricIDsByDate) == 1 {
+		for _, metricIDs := range uniqMetricIDsByDate {
+			return db.searchMetricNamesByMetricIDs(qt, metricIDs, deadline)
+		}
 	}
 
 	minDate, maxDate := tr.DateRange()
 	numDays := maxDate - minDate + 1
-	if numDays == 1 {
-		return db.searchMetricNamesByDateAndFilters(qt, tfss, minDate, maxMetrics, deadline)
-	}
-
 	var wg sync.WaitGroup
 	metricNamesByDate := make([][]string, numDays)
 	errsByDate := make([]error, numDays)
 	for day := range numDays {
 		date := minDate + uint64(day)
 		wg.Go(func() {
-			metricNamesByDate[day], errsByDate[day] = db.searchMetricNamesByDateAndFilters(qt, tfss, date, maxMetrics, deadline)
+			metricIDs := uniqMetricIDsByDate[date]
+			// TODO: do not check for nil?
+			if metricIDs != nil {
+				metricNamesByDate[day], errsByDate[day] = db.searchMetricNamesByMetricIDs(qt, metricIDs, deadline)
+			}
 		})
 	}
 	wg.Wait()
-
-	for _, err := range errsByDate {
+	var numMetricNames int
+	for day := range numDays {
+		err := errsByDate[day]
 		if err != nil {
 			return nil, err
 		}
+		numMetricNames += len(metricNamesByDate[day])
 	}
 
-	uniqMetricNames := make(map[string]struct{})
+	all := make([]string, 0, numMetricNames)
 	for _, metricNames := range metricNamesByDate {
-		for _, metricName := range metricNames {
-			uniqMetricNames[metricName] = struct{}{}
-		}
+		all = append(all, metricNames...)
 	}
-	if len(uniqMetricNames) > maxMetrics {
-		return nil, errTooManyTimeseries(maxMetrics)
-	}
-
-	metricNames := make([]string, 0, len(uniqMetricNames))
-	for metricName := range uniqMetricNames {
-		metricNames = append(metricNames, metricName)
-	}
-	return metricNames, nil
+	return all, nil
 }
 
-func (db *indexDB) searchMetricNamesByDateAndFilters(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, maxMetrics int, deadline uint64) ([]string, error) {
-	qt = qt.NewChild("search metric names: filters=%s, date=%s, maxMetrics=%d", tfss, dateToString(date), maxMetrics)
+func (db *indexDB) searchMetricNamesByMetricIDs(qt *querytracer.Tracer, metricIDs *uint64set.Set, deadline uint64) ([]string, error) {
+	qt = qt.NewChild("search metric names by %d metricIDs", metricIDs.Len())
 	defer qt.Done()
-
-	metricIDs, err := db.searchMetricIDsByDateAndFilters(qt, tfss, date, maxMetrics, deadline)
-	if err != nil {
-		return nil, err
-	}
 
 	metricNames := make([]string, 0, metricIDs.Len())
 	metricIDsToDelete := &uint64set.Set{}
+	var err error
 	var metricName []byte
 	var ok bool
 	paceLimiter := 0
