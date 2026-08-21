@@ -222,6 +222,9 @@ func expandScientificUnixTimestamp(s string, decimalExp int64) (string, string, 
 		}
 		decimalExp = -decimalExp
 	}
+	if decimalExp > int64(math.MaxInt) || decimalExp < int64(math.MinInt) {
+		return "", "", false
+	}
 
 	intStr = strings.TrimPrefix(intStr, "+")
 	isNegative := strings.HasPrefix(intStr, "-")
