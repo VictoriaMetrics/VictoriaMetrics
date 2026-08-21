@@ -10,16 +10,18 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
-	maxConcurrentInserts = flag.Int("maxConcurrentInserts", 2*cgroup.AvailableCPUs(), "The maximum number of concurrent insert requests. "+
-		"Set higher value when clients send data over slow networks. "+
-		"Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage. "+
-		"See also -insert.maxQueueDuration")
+	maxConcurrentInserts = flagutil.NewIntWithDynamicDefault("maxConcurrentInserts", 2*cgroup.AvailableCPUs(), "2*cgroup.AvailableCPUs()",
+		"The maximum number of concurrent insert requests. "+
+			"Set higher value when clients send data over slow networks. "+
+			"Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage. "+
+			"See also -insert.maxQueueDuration")
 	maxQueueDuration = flag.Duration("insert.maxQueueDuration", time.Minute, "The maximum duration to wait in the queue when -maxConcurrentInserts "+
 		"concurrent insert requests are executed")
 )
