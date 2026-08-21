@@ -91,7 +91,7 @@ func (v *vminsertAPI) WriteMetadata(mrs []metricsmetadata.Row) error {
 		if err != nil {
 			return err
 		}
-		storageNodeIdx := ctx.GetStorageNodeIdxForMeta(ctx.Buf)
+		storageNodeIdx := ctx.GetStorageNodeIdxForMeta(row.MetricFamilyName)
 		if err := ctx.WriteMetadataExt(storageNodeIdx, ctx.Buf); err != nil {
 			return err
 		}
