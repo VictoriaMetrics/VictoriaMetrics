@@ -1038,6 +1038,14 @@ func benchmarkSearchTimeRanges(b *testing.B, op func(b *testing.B, s *Storage, t
 		},
 		numTRs: 8,
 	}
+	tr15d := cfg{
+		name: "15d",
+		tr: TimeRange{
+			MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2025, 1, 16, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		},
+		numTRs: 15,
+	}
 	tr16d := cfg{
 		name: "16d",
 		tr: TimeRange{
@@ -1045,6 +1053,14 @@ func benchmarkSearchTimeRanges(b *testing.B, op func(b *testing.B, s *Storage, t
 			MaxTimestamp: time.Date(2025, 1, 17, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		},
 		numTRs: 16,
+	}
+	tr30d := cfg{
+		name: "30d",
+		tr: TimeRange{
+			MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2025, 1, 31, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		},
+		numTRs: 30,
 	}
 	tr32d := cfg{
 		name: "32d",
@@ -1075,7 +1091,7 @@ func benchmarkSearchTimeRanges(b *testing.B, op func(b *testing.B, s *Storage, t
 
 	const seriesPerDay = 1000
 	for _, seriesRepeatEveryDay := range []bool{false, true} {
-		for _, cfg := range []cfg{tr1d, tr2d, tr4d, tr8d, tr16d, tr32d, tr64d} {
+		for _, cfg := range []cfg{tr1d, tr2d, tr4d, tr8d, tr15d, tr16d, tr30d, tr32d, tr64d} {
 			name := fmt.Sprintf("seriesPerDay=%d/seriesRepeatEveryDay=%t/%s", seriesPerDay, seriesRepeatEveryDay, cfg.name)
 			b.Run(name, func(b *testing.B) {
 				benchmarkSearchTimeRange(b, seriesPerDay, cfg.tr, cfg.numTRs, seriesRepeatEveryDay, op)
