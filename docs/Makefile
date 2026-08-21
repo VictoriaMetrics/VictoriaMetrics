@@ -92,7 +92,7 @@ endif
 
 	# hide the machine-specific value of dynamic defaults, keeping the formula.
 	# the flagutil.New*WithDynamicDefault constructors print them as "(default <value> = <formula>)".
-	sed -i 's/(default [0-9]\+ = \(.*\))$/(default \1)/' docs/victoriametrics/victoria_metrics_common_flags.md
+	sed -i 's/(default [0-9]\+ = \(.*\))$$/(default \1)/' docs/victoriametrics/victoria_metrics_common_flags.md
 
 docs-update-vmauth-flags:
 ifndef TAG
@@ -118,7 +118,7 @@ endif
 
 	# hide the machine-specific value of dynamic defaults, keeping the formula.
 	# the flagutil.New*WithDynamicDefault constructors print them as "(default <value> = <formula>)".
-	sed -i 's/(default [0-9]\+ = \(.*\))$/(default \1)/' docs/victoriametrics/vmauth_common_flags.md
+	sed -i 's/(default [0-9]\+ = \(.*\))$$/(default \1)/' docs/victoriametrics/vmauth_common_flags.md
 
 docs-update-vmagent-flags:
 ifndef TAG
@@ -144,7 +144,7 @@ endif
 
 	# hide the machine-specific value of dynamic defaults, keeping the formula.
 	# the flagutil.New*WithDynamicDefault constructors print them as "(default <value> = <formula>)".
-	sed -i 's/(default [0-9]\+ = \(.*\))$/(default \1)/' docs/victoriametrics/vmagent_common_flags.md
+	sed -i 's/(default [0-9]\+ = \(.*\))$$/(default \1)/' docs/victoriametrics/vmagent_common_flags.md
 
 docs-update-vmalert-flags:
 ifndef TAG
@@ -170,7 +170,7 @@ endif
 
 	# hide the machine-specific value of dynamic defaults, keeping the formula.
 	# the flagutil.New*WithDynamicDefault constructors print them as "(default <value> = <formula>)".
-	sed -i 's/(default [0-9]\+ = \(.*\))$/(default \1)/' docs/victoriametrics/vmalert_common_flags.md
+	sed -i 's/(default [0-9]\+ = \(.*\))$$/(default \1)/' docs/victoriametrics/vmalert_common_flags.md
 
 docs-update-vmselect-flags:
 ifndef TAG
