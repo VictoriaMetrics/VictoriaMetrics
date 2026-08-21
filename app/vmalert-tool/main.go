@@ -61,9 +61,17 @@ Examples:
 						Usage:    `Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "ERROR").`,
 						Required: false,
 					},
+					&cli.StringFlag{
+						Name: "startTime",
+						Usage: `Optional RFC3339 timestamp the input_series are seeded at and the first rule evaluation happens at (default "2000-01-01T00:00:00Z").
+Set it when test files contain absolute timestamps compared against time(), so they can be migrated to another start time on your own schedule.
+It must not be earlier than "1970-01-02T00:00:00Z", since the first day of the Unix epoch is reserved for the global index search.
+ `,
+						Required: false,
+					},
 				},
 				Action: func(c *cli.Context) error {
-					if failed := unittest.UnitTest(c.StringSlice("files"), c.Bool("disableAlertgroupLabel"), c.StringSlice("external.label"), c.String("external.url"), c.String("httpListenPort"), c.String("loggerLevel")); failed {
+					if failed := unittest.UnitTest(c.StringSlice("files"), c.Bool("disableAlertgroupLabel"), c.StringSlice("external.label"), c.String("external.url"), c.String("httpListenPort"), c.String("loggerLevel"), c.String("startTime")); failed {
 						return fmt.Errorf("unittest failed")
 					}
 					return nil
