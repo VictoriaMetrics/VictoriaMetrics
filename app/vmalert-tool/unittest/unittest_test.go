@@ -58,12 +58,21 @@ func TestParseTestStartTime_Success(t *testing.T) {
 	f("2000-01-01T00:00:00Z", defaultTestStartTime)
 
 	// the earliest start time vmstorage can hold samples at
-	f("1970-01-02T00:00:00Z", minTestStartTime)
+	f("1970-01-02T00:00:00Z", minTestTime)
 
 	f("2024-12-10T12:10:26Z", time.Date(2024, 12, 10, 12, 10, 26, 0, time.UTC))
 
 	// non-UTC offsets must be accepted and normalized to UTC
 	f("2024-12-10T15:10:26+03:00", time.Date(2024, 12, 10, 12, 10, 26, 0, time.UTC))
+
+	// a start time in the future is legal as long as the samples still land inside the
+	// window vmstorage accepts. -futureRetention would cut this off after two days if
+	// processFlags did not widen it.
+	future := time.Now().UTC().AddDate(0, 0, 30).Truncate(time.Second)
+	f(future.Format(time.RFC3339), future)
+
+	// the latest start time this storage accepts
+	f(maxTestTime.Format(time.RFC3339Nano), maxTestTime)
 }
 
 func TestParseTestStartTime_Failure(t *testing.T) {
@@ -91,6 +100,56 @@ func TestParseTestStartTime_Failure(t *testing.T) {
 	f("1970-01-01T00:00:00Z")
 	f("1970-01-01T23:59:59Z")
 	f("1969-12-31T00:00:00Z")
+
+	// beyond the window vmstorage accepts: samples seeded there are dropped just as
+	// silently as the ones below minTestTime
+	f(maxTestTime.Add(time.Millisecond).Format(time.RFC3339Nano))
+	f("2300-01-01T00:00:00Z")
+	f("9999-12-31T23:59:59Z")
+}
+
+func TestCalcMaxTestTime(t *testing.T) {
+	f := func(now, resultExpected time.Time) {
+		t.Helper()
+
+		result := calcMaxTestTime(now)
+		if !result.Equal(resultExpected) {
+			t.Fatalf("unexpected max test time for now=%s; got %s; want %s", now, result, resultExpected)
+		}
+	}
+
+	// while now+100y is still representable, -futureRetention is the binding limit
+	f(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), time.Date(2126, 1, 1, 0, 0, 0, 0, time.UTC))
+
+	// once it is not, the storage limit is
+	f(time.Date(2200, 1, 1, 0, 0, 0, 0, time.UTC), maxStorageTime)
+
+	// exactly at the crossover
+	f(maxStorageTime.AddDate(-100, 0, 0), maxStorageTime)
+}
+
+func TestCheckTestTime(t *testing.T) {
+	f := func(ts time.Time, wantErr bool) {
+		t.Helper()
+
+		err := checkTestTime(ts, "the thing under test")
+		if wantErr && err == nil {
+			t.Fatalf("expecting non-nil error for %s", ts)
+		}
+		if !wantErr && err != nil {
+			t.Fatalf("unexpected error for %s: %s", ts, err)
+		}
+	}
+
+	f(defaultTestStartTime, false)
+	f(minTestTime, false)
+	f(maxTestTime, false)
+
+	f(minTestTime.Add(-time.Millisecond), true)
+	f(maxTestTime.Add(time.Millisecond), true)
+
+	// a legal start time whose evaluation offset walks past the end of the window
+	f(maxTestTime.Add(4*time.Minute), true)
 }
 
 func TestUnitTest_StartTime(t *testing.T) {

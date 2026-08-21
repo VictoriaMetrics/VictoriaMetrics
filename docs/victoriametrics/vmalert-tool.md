@@ -94,6 +94,11 @@ the calendar position the offsets are counted from.
 reserved for the global index search, so `input_series` seeded there are dropped and rules never
 see them.
 
+It must not be later than `now+100y` either, since that is the furthest ahead the underlying
+storage accepts samples at. Both bounds apply to the whole test, not only to its first sample: a
+test whose `input_series` or `eval_time` offsets carry it past the end of that window is rejected
+rather than run with the out-of-range samples silently missing.
+
 Before [v1.148.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11480) the test start
 time was `1970-01-01T00:00:00Z`. See [Update Note 1 for v1.148.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11480)
 for how to migrate test files written against it.

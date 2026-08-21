@@ -53,12 +53,42 @@ var (
 	disableAlertgroupLabel bool
 )
 
-// minTestStartTime is the earliest start time vmstorage can hold samples at.
-//
-// The first day of the Unix epoch is reserved: the zero date and the zero time range indicate
-// that a global index search is required. See minUnixMilli in lib/storage/time.go.
-// Series seeded before this point are silently dropped, so rules never see them.
-var minTestStartTime = time.Date(1970, 1, 2, 0, 0, 0, 0, time.UTC)
+// testRetention is how wide processFlags opens -retentionPeriod and -futureRetention.
+// It is the largest value flagutil.RetentionDuration accepts, i.e. 1200 months.
+const testRetention = "100y"
+
+var (
+	// minTestTime is minUnixMilli from lib/storage/time.go. The first day of the Unix epoch is
+	// reserved, because the zero date and the zero time range indicate that a global index
+	// search is required.
+	minTestTime = time.Date(1970, 1, 2, 0, 0, 0, 0, time.UTC)
+
+	// maxStorageTime is maxUnixMilli from lib/storage/time.go: the last millisecond of the last
+	// partition that still fits in math.MaxInt64 nanoseconds.
+	maxStorageTime = time.UnixMilli(9222422399999).UTC()
+
+	// maxTestTime is the latest timestamp this process can ingest a sample at.
+	//
+	// vmstorage refuses samples beyond now+(-futureRetention), so the ceiling moves with the
+	// wall clock until it reaches the representable limit. -futureRetention cannot be widened
+	// past testRetention, so for the next ~135 years this is now+100y rather than
+	// maxStorageTime.
+	maxTestTime = calcMaxTestTime(time.Now())
+)
+
+func calcMaxTestTime(now time.Time) time.Time {
+	t := now.UTC().AddDate(100, 0, 0)
+	if t.After(maxStorageTime) {
+		return maxStorageTime
+	}
+	return t
+}
+
+// formatTestTime renders t the way the -startTime flag is written, keeping the milliseconds
+// that RFC3339 alone would drop.
+func formatTestTime(t time.Time) string {
+	return t.UTC().Format("2006-01-02T15:04:05.999Z07:00")
+}
 
 // parseTestStartTime parses the value of the -startTime command-line flag.
 //
@@ -72,11 +102,29 @@ func parseTestStartTime(s string) (time.Time, error) {
 		return time.Time{}, fmt.Errorf("cannot parse %q as an RFC3339 timestamp such as %q: %w", s, defaultTestStartTime.Format(time.RFC3339), err)
 	}
 	t = t.UTC()
-	if t.Before(minTestStartTime) {
+	if t.Before(minTestTime) {
 		return time.Time{}, fmt.Errorf("%s is earlier than %s; the first day of the Unix epoch is reserved for the global index search, "+
-			"so input_series seeded there are dropped and rules never see them", t.Format(time.RFC3339), minTestStartTime.Format(time.RFC3339))
+			"so input_series seeded there are dropped and rules never see them", formatTestTime(t), formatTestTime(minTestTime))
+	}
+	if t.After(maxTestTime) {
+		return time.Time{}, fmt.Errorf("%s is later than %s, the last timestamp this storage accepts; "+
+			"input_series seeded there are dropped and rules never see them", formatTestTime(t), formatTestTime(maxTestTime))
 	}
 	return t, nil
+}
+
+// checkTestTime returns an error if the sample or evaluation timestamp t falls outside the
+// window vmstorage accepts. what names the thing that produced t, for the error message.
+//
+// -startTime is validated on its own, so reaching this with a valid start time means the test
+// is long enough to walk out of the window on its own.
+func checkTestTime(t time.Time, what string) error {
+	if t.Before(minTestTime) || t.After(maxTestTime) {
+		return fmt.Errorf("%s falls at %s, outside the [%s .. %s] window this storage accepts; "+
+			"samples there are dropped, so the test would silently see no data. Move -startTime, or shorten the test",
+			what, formatTestTime(t), formatTestTime(minTestTime), formatTestTime(maxTestTime))
+	}
+	return nil
 }
 
 func durationToTime(pd *promutil.Duration) time.Time {
@@ -308,8 +356,16 @@ func processFlags() {
 		{flag: "storageDataPath", value: storagePath},
 		{flag: "loggerLevel", value: testLogLevel},
 		{flag: "search.disableCache", value: "true"},
-		// set storage retention time to 100 years, allow to store series from 1970-01-01T00:00:00.
-		{flag: "retentionPeriod", value: "100y"},
+		// Widen the retention on both sides so that the timestamps a test may use are bounded by
+		// what vmstorage can represent at all, rather than by how far the test start time happens
+		// to sit from the wall clock.
+		//
+		// -retentionPeriod also caps -maxBackfillAge, which is what allows a test to seed series
+		// in the past; 100 years covers everything back to minTestTime.
+		{flag: "retentionPeriod", value: testRetention},
+		// -futureRetention defaults to 2 days, which would make every test starting more than
+		// two days from now silently ingest nothing at all. See maxTestTime.
+		{flag: "futureRetention", value: testRetention},
 		{flag: "datasource.url", value: fmt.Sprintf("http://127.0.0.1:%s/prometheus", httpListenAddr)},
 		{flag: "remoteWrite.url", value: fmt.Sprintf("http://127.0.0.1:%s", httpListenAddr)},
 		{flag: "notifier.blackhole", value: "true"},
@@ -363,6 +419,9 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 
 	if tg.Interval == nil {
 		tg.Interval = promutil.NewDuration(evalInterval)
+	}
+	if err := checkTestTime(testStartTime.Add(tg.maxEvalTime()), "the last rule evaluation of this test"); err != nil {
+		return []error{err}
 	}
 	err := writeInputSeries(tg.InputSeries, tg.Interval, testStartTime, fmt.Sprintf("http://127.0.0.1:%s/api/v1/write", httpListenAddr))
 	if err != nil {
