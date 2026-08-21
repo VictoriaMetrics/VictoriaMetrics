@@ -1063,7 +1063,7 @@ func benchmarkSearchTimeRanges(b *testing.B, op func(b *testing.B, s *Storage, t
 		numTRs: 64,
 	}
 
-	const seriesPerHour = 100
+	const seriesPerHour = 1000
 	for _, seriesRepeatEveryHour := range []bool{false, true} {
 		for _, cfg := range []cfg{tr1h, tr2h, tr4h, tr8h, tr16h, tr32h, tr64h} {
 			name := fmt.Sprintf("seriesPerHour=%d/seriesRepeatEveryHour=%t/%s", seriesPerHour, seriesRepeatEveryHour, cfg.name)
@@ -1073,7 +1073,7 @@ func benchmarkSearchTimeRanges(b *testing.B, op func(b *testing.B, s *Storage, t
 		}
 	}
 
-	const seriesPerDay = seriesPerHour * 24
+	const seriesPerDay = 1000
 	for _, seriesRepeatEveryDay := range []bool{false, true} {
 		for _, cfg := range []cfg{tr1d, tr2d, tr4d, tr8d, tr16d, tr32d, tr64d} {
 			name := fmt.Sprintf("seriesPerDay=%d/seriesRepeatEveryDay=%t/%s", seriesPerDay, seriesRepeatEveryDay, cfg.name)
@@ -1106,9 +1106,11 @@ func benchmarkSearchTimeRange(b *testing.B, numSeries int, tr TimeRange, numTRs 
 					{[]byte("label"), []byte(labelValue)},
 				},
 			}
+			timestamp := tr.MinTimestamp + int64(i)*step
+			value := float64(timestamp)
 			mrs[i].MetricNameRaw = mn.marshalRaw(nil)
-			mrs[i].Timestamp = tr.MinTimestamp + int64(i)*step
-			mrs[i].Value = float64(i)
+			mrs[i].Timestamp = timestamp
+			mrs[i].Value = value
 		}
 		return mrs
 	}
@@ -1118,13 +1120,13 @@ func benchmarkSearchTimeRange(b *testing.B, numSeries int, tr TimeRange, numTRs 
 	for i := range numTRs {
 		subTR := TimeRange{
 			MinTimestamp: tr.MinTimestamp + trLen*i,
-			MaxTimestamp: tr.MinTimestamp + trLen*(i+1) - 1,
+			MaxTimestamp: tr.MinTimestamp + trLen*(i+1),
 		}
 		mrs = append(mrs, genRows(numSeries, subTR, i)...)
 	}
 
 	s := MustOpenStorage(b.Name(), OpenOptions{})
-	s.AddRows(mrs, defaultPrecisionBits)
+	s.AddRows(mrs, 64)
 	s.DebugFlush()
 
 	tr.MaxTimestamp -= 1
