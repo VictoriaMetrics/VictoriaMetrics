@@ -100,7 +100,7 @@ func insertRows(at *auth.Token, rows []prometheus.Row, mms []prometheus.Metadata
 			if err != nil {
 				return err
 			}
-			storageNodeIdx := ctx.GetStorageNodeIdxForMeta(ctx.Buf)
+			storageNodeIdx := ctx.GetStorageNodeIdxForMeta(mdr.MetricFamilyName)
 			if err := ctx.WriteMetadataExt(storageNodeIdx, ctx.Buf); err != nil {
 				return err
 			}
