@@ -28,11 +28,13 @@ exposes **1000** time series per instance. Therefore, if you collect metrics fro
 amount of Active Time Series is **1000 * 50 = 50,000** series.
 
 For Prometheus, get the max number of Active Time Series over last 24h by running the following query:
+
 ```metricsql
 sum(max_over_time(prometheus_tsdb_head_series[24h]))
 ```
 
 For VictoriaMetrics, the query will be the following:
+
 ```metricsql
 sum(max_over_time(vm_cache_entries{type="storage/hour_metric_ids"}[24h]))
 ```
@@ -59,6 +61,7 @@ Active Time Series will be **1000*100 = 100,000**. If we redeploy this service, 
 and will create a **100,000** of new time series.
 
 To see the Churn Rate in VictoriaMetrics over last 24h use the following query:
+
 ```metricsql
 sum(increase(vm_new_timeseries_created_total[24h]))
 ```
@@ -73,6 +76,7 @@ if you scrape a service that exposes **1000** time series with an interval of **
 scraped or the lower scrape interval is, the higher would be the Ingestion Rate.
 
 For Prometheus, get the Ingestion Rate by running the following query:
+
 ```metricsql
 sum(rate(prometheus_tsdb_head_samples_appended_total[24h]))
 ```
@@ -80,12 +84,14 @@ sum(rate(prometheus_tsdb_head_samples_appended_total[24h]))
 _Note: if you have more than one Prometheus, you need to run this query across all of them and summarise the results._
 
 For VictoriaMetrics, use the following query:
+
 ```metricsql
 sum(rate(vm_rows_inserted_total[24h]))
 ```
 
 This query shows how many samples are inserted in VictoriaMetrics before replication.
 If you want to know ingestion rate including replication factor, use the following query:
+
 ```metricsql
 sum(rate(vm_vminsert_metrics_read_total[24h]))
 ```
@@ -93,6 +99,7 @@ sum(rate(vm_vminsert_metrics_read_total[24h]))
 ### Queries per Second
 
 There are two types of queries **light** and **heavy**:
+
 * queries calculated over 5m intervals or selecting low number of time series are **light**;
 * queries calculated over 30d or selecting big number of time series are **heavy**.
 
@@ -124,20 +131,22 @@ As a reference, see resource consumption of VictoriaMetrics cluster on our [play
 
 The Retention Period is the number of days or months for storing data. It affects the disk space usage.
 The formula for calculating required disk space is the following:
+
 ```
-Bytes Per Sample * Ingestion rate * Replication Factor * (Retention Period in Seconds +1 Retention Cycle(day or month)) * 1.25 (recommended 20% of free space for merges ) 
+Bytes Per Sample * Ingestion rate * Replication Factor * (Retention Period in Seconds +1 Retention Cycle(day or month)) * 1.25 (recommended 20% of free space for merges )
 ```
 
 The **Retention Cycle** is one **day** or one **month**. If the retention period is higher than 30 days cycle is a month; otherwise day.
 
 On average, sample size requires less or around **1 byte** after compression:
+
 ```metricsql
 sum(vm_data_size_bytes) / sum(vm_rows{type!~"indexdb.*"})
 ```
+
 _Please note, High Churn Rate could negatively impact compression efficiency._
 
 Keep at least **20%** of free space for VictoriaMetrics to remain efficient with compression and read performance.
-
 
 #### Calculation Example
 

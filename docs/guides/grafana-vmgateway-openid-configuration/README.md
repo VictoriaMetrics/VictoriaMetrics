@@ -68,7 +68,7 @@ See details about all supported options in the [vmgateway documentation](https:/
    - `User Attribute` as `vm_access`.
    - `Claim JSON Type` as `JSON`.
      Enable `Add to ID token` and `Add to access token`.<br>
-   
+
    ![Create mapper 3](create-mapper-3.webp)
    Click `Save`.<br>
 1. Go to `Realm settings` -> `User profile`.<br>
@@ -133,6 +133,7 @@ For example, if the JWT token contains the following `vm_access` claim:
   }
 }
 ```
+
 > Note: in case `project_id` is not specified, the default value `0` is used.
 
 Then vmgateway will proxy the request to an endpoint with the following path:
@@ -142,7 +143,7 @@ http://localhost:8480/select/0:0/
 ```
 
 This allows us to restrict access to specific tenants without having to create separate datasources in Grafana,
-or manually managing access at another proxy level. 
+or manually managing access at another proxy level.
 
 ### Multi-tenant access for single-node VictoriaMetrics
 
@@ -210,7 +211,7 @@ In the "Type and version" section, it is recommended to set the type to "Prometh
 This allows Grafana to use a more efficient API to get label values.
 
 You can also use VictoriaMetrics [Grafana datasource](https://github.com/VictoriaMetrics/victoriametrics-datasource) plugin.
-See installation instructions [here](https://docs.victoriametrics.com/victoriametrics/integrations/grafana/datasource/#installation).
+See installation [instructions](https://docs.victoriametrics.com/victoriametrics/integrations/grafana/datasource/#installation).
 
 Enable `Forward OAuth identity` flag.<br>
 ![Oauth identity](grafana-ds.webp)
@@ -221,6 +222,7 @@ Users with a `vm_access` claim will be able to query metrics from the specified 
 ## Test multi-tenant access
 
 For the test purpose, we will set up the following services as [docker-compose](https://docs.docker.com/compose/) manifest:
+
 - Grafana
 - Keycloak
 - vmagent to generate test metrics
@@ -425,4 +427,3 @@ It is required to replace `{CLIENT_ID}` with the client ID and provide the clien
 Note that vmagent will use the same token for both single-node and cluster vmgateway. vmgateway running in cluster mode
 will use the tenant information from the token to route the request to the correct tenant. vmgateway running in single-node mode
 will just verify token validity.
-

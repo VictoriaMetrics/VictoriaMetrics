@@ -127,7 +127,7 @@ http://vl-victoria-logs-single-server.vl.svc.cluster.local.:9428
 ## RBAC Configuration
 
 Create a service account and cluster role binding for the service account to collect and forward the logs.
-OpenShift provides separate `ClusterRoles` for monitoring of different types of logs: `audit`, `infrastructure`, and `application`. 
+OpenShift provides separate `ClusterRoles` for monitoring of different types of logs: `audit`, `infrastructure`, and `application`.
 
 Create a file to configure the service account and cluster role bindings:
 
@@ -190,11 +190,11 @@ Alternatively, you can use the OpenShift web console to create the service accou
 1. Navigate to **ServiceAccounts**.
 2. Click on **Create Service Account**.
 3. Fill in the name `victorialogs` and namespace `openshift-logging`.
-4. Click on **Create**. 
+4. Click on **Create**.
 5. Navigate to **RoleBindings**.
 6. Create a binding for each `ClusterRole` for subject `victorialogs` in `openshift-logging` namespace.
 
-## Install Red Hat OpenShift Logging operator 
+## Install Red Hat OpenShift Logging operator
 
 The [Cluster logging operator](https://github.com/openshift/cluster-logging-operator) is a logging solution to support aggregated cluster logging. It is using [Vector](https://vector.dev/) for log collection and shipping to remote storage.
 
@@ -275,6 +275,7 @@ kubectl apply -f vl-forwarder.yml
 ```
 
 Alternatively, you can configure log forwarding in the OpenShift web console. To do this:
+
 1. Navigate to **Operators** tab
 2. Click on **Installed Operators**.
 3. Find **Red Hat OpenShift Logging**
@@ -313,7 +314,7 @@ Open your browser in `http://localhost:9428/select/vmui/#/overview` and verify t
 ![Screenshot of VMUI for VictoriaLogs](vmui-overview.webp)
 <figcaption style="text-align: center; font-style: italic;">Overview pane in VMUI</figcaption>
 
-You can query your logs in the **Query** tab, found in `http://localhost:9428/select/vmui`. 
+You can query your logs in the **Query** tab, found in `http://localhost:9428/select/vmui`.
 You can filter streams on the left side pane to filter logs and use [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) to search for entries. Note that logs will have `log_type` attached to them to distinguish between different types of logs.
 
 ![Screenshot of VMUI for VictoriaLogs](vmui-query-filters.webp)
@@ -324,4 +325,3 @@ You can filter streams on the left side pane to filter logs and use [LogsQL](htt
 - [VictoriaLogs Quickstart](https://docs.victoriametrics.com/victorialogs/quickstart/)
 - [Logs Reference](https://docs.victoriametrics.com/victorialogs/logsql/)
 - [LogsQL Examples](https://docs.victoriametrics.com/victorialogs/logsql-examples/)
-

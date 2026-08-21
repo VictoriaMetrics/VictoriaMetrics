@@ -14,6 +14,7 @@ By moving rule evaluation to [vmalert](https://docs.victoriametrics.com/victoria
 ## Grafana Alert Modes
 
 Grafana supports two alert modes, which can run side by side:
+
 - Grafana-managed: alerts are created and evaluated entirely within Grafana itself. The alert state is stored in a SQL database by default, but [Grafana can be configured to store this data in a Prometheus-compatible database like VictoriaMetrics as well](https://grafana.com/docs/grafana/latest/alerting/set-up/configure-alert-state-history/#configure-prometheus-for-alert-state-grafana_alerts-metric).
 - Datasource-managed: alerts have their rules defined, stored, and evaluated in an external system like vmalert and Alertmanager, with Grafana just providing the UI. State is stored in VictoriaMetrics.
 
@@ -263,7 +264,7 @@ my-grafana-65d6d4ccbc-nxkxq   1/1     Running   0          58m
 
 ### 2. Install vmalert and Alertmanager
 
-Create a Helm values file for vmalert and Alertmanager called `vm-alerting-values.yml`. 
+Create a Helm values file for vmalert and Alertmanager called `vm-alerting-values.yml`.
 
 The example below comes with two demo alerts. Add your own vmalert [alerting rules](https://docs.victoriametrics.com/victoriametrics/vmalert/#rules) in the `config: alerts:` section below.
 
@@ -378,7 +379,7 @@ helm upgrade vmsingle vm/victoria-metrics-single \
   -f vm-vmalert-proxy-values.yml
 ```
 
-After this upgrade, vmsingle will start proxying `/api/v1/rules`, `/api/v1/alerts`, and other `vmalert` [endpoints](https://docs.victoriametrics.com/victoriametrics/vmalert/#web) to the vmalert service, enabling Grafana’s alerting UI and API to work through the VictoriaMetrics datasource. 
+After this upgrade, vmsingle will start proxying `/api/v1/rules`, `/api/v1/alerts`, and other `vmalert` [endpoints](https://docs.victoriametrics.com/victoriametrics/vmalert/#web) to the vmalert service, enabling Grafana’s alerting UI and API to work through the VictoriaMetrics datasource.
 
 To finish the setup, jump to the [Configure Grafana](https://docs.victoriametrics.com/guides/vmalert-datasource-managed-alerts-grafana/#grafana) section
 
@@ -388,9 +389,9 @@ This section explains how to configure datasource-managed alerts on the Victoria
 
 ### Prerequisites
 
-- A Kubernetes cluster  
+- A Kubernetes cluster
 - VictoriaMetrics cluster
-- Grafana  
+- Grafana
 - Helm values or config files used for the installation of the cluster
 
 You can follow this guide to install the cluster and Grafana first: [Kubernetes monitoring with VictoriaMetrics cluster](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster/).
@@ -424,7 +425,7 @@ vmcluster-victoria-metrics-cluster-vmstorage-1                 1/1     Running  
 
 VictoriaMetrics exposes its write API via the `vminsert` service on port 8480 and its read (Prometheus-compatible) API via the `vmselect` service on port 8481 by default. For a default installation, these DNS names are:
 
-- Write: `vmcluster-victoria-metrics-cluster-vminsert.default.svc.cluster.local.:8480`  
+- Write: `vmcluster-victoria-metrics-cluster-vminsert.default.svc.cluster.local.:8480`
 - Read: `vmcluster-victoria-metrics-cluster-vmselect.default.svc.cluster.local.:8481`
 
 Now, ensure Grafana is installed:
@@ -442,10 +443,9 @@ my-grafana-65d6d4ccbc-nxkxq   1/1     Running   0          58m
 
 ### 2. Install vmalert and Alertmanager
 
-Create a Helm values file for vmalert and Alertmanager called `vm-alerting-values.yml`.  
+Create a Helm values file for vmalert and Alertmanager called `vm-alerting-values.yml`.
 
 The example below comes with two demo alerts. Add your own vmalert [alerting rules](https://docs.victoriametrics.com/victoriametrics/vmalert/#rules) in the `config: alerts:` section below.
-
 
 ```sh
 cat <<EOF > vm-alerting-values.yml
@@ -512,8 +512,8 @@ server:
 EOF
 ```
 
-
 The key differences from the [single-node setup](https://docs.victoriametrics.com/guides/vmalert-datasource-managed-alerts-grafana/#vmsingle) section
+
 - `server.datasource.url` and `server.remote.read.url` point to the `vmselect` read endpoint (`/select/multitenant/prometheus/`).
 - `server.remote.write.url` points to the `vminsert` write endpoint (`/insert/multitenant/prometheus/`).
 
@@ -546,7 +546,7 @@ The internal DNS name for this service, in the default namespace, will be:
 vmalert-victoria-metrics-alert-server.default.svc.cluster.local:8880
 ```
 
-Create a Helm values overlay file for the cluster called `vmcluster-vmalert-proxy-values.yml`.  
+Create a Helm values overlay file for the cluster called `vmcluster-vmalert-proxy-values.yml`.
 
 The `vmselect.extraArgs` map in the `victoria-metrics-cluster` chart allows you to pass arbitrary command-line flags to vmselect, including `-vmalert.proxyURL`.
 
@@ -589,13 +589,13 @@ vmalert-victoria-metrics-alert-alertmanager   ClusterIP   10.43.114.243   <none>
 
 Next, add Alertmanager to Grafana:
 
-1. Log in to your Grafana dashboard.  
-2. Go to **Connections** > **Datasources**.  
-3. Press **+ Add new data source**.  
-4. Search and select “Alertmanager”.  
-5. Fill in the following parameters (adjusting namespace/service name if needed):  
-   - Implementation: Prometheus  
-   - URL: `http://vmalert-victoria-metrics-alert-alertmanager.default.svc.cluster.local:9093`  
+1. Log in to your Grafana dashboard.
+2. Go to **Connections** > **Datasources**.
+3. Press **+ Add new data source**.
+4. Search and select “Alertmanager”.
+5. Fill in the following parameters (adjusting namespace/service name if needed):
+   - Implementation: Prometheus
+   - URL: `http://vmalert-victoria-metrics-alert-alertmanager.default.svc.cluster.local:9093`
 
    Ensure the URL matches the Alertmanager service name you obtained earlier.
 
@@ -612,4 +612,3 @@ With vmselect’s `vmalert.proxyURL` set and Alertmanager configured as a dataso
 - [Kubernetes monitoring via VictoriaMetrics single](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-single/)
 - [Kubernetes monitoring with VictoriaMetrics cluster](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster/)
 - Learn more about [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/)
-

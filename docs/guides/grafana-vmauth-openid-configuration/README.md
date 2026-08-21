@@ -20,7 +20,7 @@ This guide walks through configuring Grafana with OIDC to query metrics from bot
 * [jq tool](https://jqlang.org/)
 * Add `grafana` and `keycloak` hosts to the `/etc/hosts` file, pointing to `127.0.0.1`.
 
-```
+```sh
 # /etc/hosts
 
 # Setup vmauth - Multi-Tenant Access with Grafana & OIDC
@@ -47,9 +47,11 @@ The identity provider must be able to issue JWT tokens with the following `vm_ac
   }
 }
 ```
+
 > Note: all properties inside `vm_access` are optional and could be omitted. `vm_access: {}` is a valid claim value.
 
 Some identity providers support only string-based claim values, and vmauth supports these as well:
+
 ```json
 {
   "exp": 1772019469,
@@ -88,6 +90,7 @@ volumes:
 ```
 
 Start the services:
+
 ```sh
 docker compose up
 ```
@@ -123,7 +126,7 @@ Once Keycloak is available, follow the steps below to configure the OIDC client 
    - Set `Token Claim Name` to `vm_access`.
    - Set `Claim JSON Type` to `JSON`.
    - Enable `Add to ID token` and `Add to access token`.
-   
+
    ![Create mapper 3](create-mapper-3.webp)
    - Click `Save`.
 
@@ -144,7 +147,7 @@ Once Keycloak is available, follow the steps below to configure the OIDC client 
    - Go to `Users` -> `test-dev` user -> `Credentials` tab.
    - Press `Set Password`.
    - Type the password `testpass`.
-   - Disable `Temporary` option 
+   - Disable `Temporary` option
    - Press `Save` and confirm.
 
 1. Go to `Users` -> `admin` user.
@@ -186,10 +189,10 @@ set TOKEN (curl --fail -s -X POST "http://keycloak:3001/realms/master/protocol/o
   -d "password=testpass" | jq -r '.access_token'); and echo $TOKEN
 -->
 
-The response should contain a valid JWT token with the `vm_access` claim. 
+The response should contain a valid JWT token with the `vm_access` claim.
 Use [jwt.io](https://jwt.io/) to decode and verify that the vm_access claim is present with the expected values.
 
-> Please note that the issued token is short-lived, so you might need to refresh it before use in later chapters. 
+> Please note that the issued token is short-lived, so you might need to refresh it before use in later chapters.
 
 ## VictoriaMetrics
 
@@ -280,13 +283,14 @@ Placeholders can be used inside the `url_prefix` property to restrict access by 
 
 A placeholder value is taken from the authenticated JWT token.
 The following placeholders are supported:
+
 - `{{.MetricsTenant}}` placeholder is a combination of `vm_access.metrics_account_id` and `vm_access.metrics_project_id` delimited by `:`.
 - `{{.MetricsExtraLabels}}` placeholder is substituted from `vm_access.metrics_extra_labels` claim property.
 - `{{.MetricsExtraFilters}}` placeholder is substituted from `vm_access.metrics_extra_filters` claim property.
 
 Now, let's create a vmauth configuration file `auth.yaml` that enables OIDC authorization using the [identity provider](https://docs.victoriametrics.com/guides/grafana-vmauth-openid-configuration/#identity-provider).
 For cluster access, we use the `{{.MetricsTenant}}` placeholder to route requests to a specific tenant.
-For single-node access, we use `{{.MetricsExtraLabels}}`. 
+For single-node access, we use `{{.MetricsExtraLabels}}`.
 Read more about templating in vmauth [docs](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-based-request-templating).
 
 ```yaml
@@ -336,6 +340,7 @@ docker compose up
 Use the token obtained in the [Test identity provider](https://docs.victoriametrics.com/guides/grafana-vmauth-openid-configuration/#test-identity-provider) section to test vmauth configuration.
 
 Cluster select:
+
 ```sh
 curl --fail http://localhost:8427/select/api/v1/status/buildinfo -H "Authorization: Bearer $TOKEN"
 
@@ -344,6 +349,7 @@ curl --fail http://localhost:8427/select/api/v1/status/buildinfo -H "Authorizati
 ```
 
 Cluster insert:
+
 ```sh
 curl --fail http://localhost:8427/insert/api/v1/write -H "Authorization: Bearer $TOKEN" -i
 # Output
@@ -352,6 +358,7 @@ curl --fail http://localhost:8427/insert/api/v1/write -H "Authorization: Bearer 
 ```
 
 Single select:
+
 ```sh
 curl --fail http://localhost:8427/single/api/v1/status/buildinfo -H "Authorization: Bearer $TOKEN"
 
@@ -457,7 +464,6 @@ While on VictoriaMetrics single `vmauth-single` must apply the `team=dev` label 
 Let's log in as an admin user. The `vmauth-single` data source should differ from the previous user, while `vmauth-cluster` should remain the same because both users use tenant `1:2`.
 
 The only difference is the filter: in the VictoriaMetrics cluster `vmauth-cluster`, the data source must restrict results by `tenant=1:2`.
-
 
 ![Cluster admin](grafana-cluster-admin.webp)
 <figcaption style="text-align: center; font-style: italic;">Logged in as admin user to Grafana dashboard on VictoriaMetrics Cluster</figcaption>

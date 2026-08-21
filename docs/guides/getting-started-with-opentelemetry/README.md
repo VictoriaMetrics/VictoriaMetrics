@@ -217,7 +217,7 @@ In our example, we'll create a web server in [Go](https://go.dev/), with metrics
 Download the [example code](app.go-collector.example) and rename it as `main.go`. The example code implements a dice roll web server that uses the OpenTelemetry SDK to send data to the OpenTelemetry Collector at `http://localhost:4318`.
 
 > [!NOTE] Tip
-> See how to set up and run OpenTelemetry Collector [here](#opentelemetry-collector-with-victoriametrics-and-victorialogs).
+> See how to set up and run [OpenTelemetry Collector](#opentelemetry-collector-with-victoriametrics-and-victorialogs).
 
 First, port forward the OpenTelemetry Collector service in your cluster:
 
@@ -278,7 +278,7 @@ go mod tidy
 The example implements a web server with two HTTP handlers: `/api/slow` and `/api/fast`. Start the application with:
 
 ```sh
-go run main.go 
+go run main.go
 2024/03/25 19:27:41 Starting web server...
 2024/03/25 19:27:41 web server started at localhost:8081.
 ```
@@ -286,9 +286,9 @@ go run main.go
 Make sure that VictoriaMetrics and VictoriaLogs are available locally at their default ports. In a separate terminal, port forward the VictoriaMetrics and VictoriaLogs services:
 
 ```sh
-# port-forward victoriametrics to ingest metrics
+# port-forward VictoriaMetrics to ingest metrics
 kubectl port-forward svc/victoria-metrics-victoria-metrics-single-server 8428
-# port-forward victorialogs to ingest logs
+# port-forward VictoriaLogs to ingest logs
 kubectl port-forward svc/victoria-logs-victoria-logs-single-server 9428
 ```
 
@@ -316,4 +316,3 @@ using query `service.name: unknown_service:otel`.
 ## Limitations
 
 - VictoriaMetrics and VictoriaLogs do not support experimental JSON encoding [format](https://github.com/open-telemetry/opentelemetry-proto/blob/main/examples/metrics.json).
-

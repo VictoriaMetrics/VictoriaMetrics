@@ -196,6 +196,7 @@ If this backend becomes unavailable, then `vmauth` starts proxying requests to `
 If this backend also becomes unavailable, then requests are proxied to the last specified backend - `http://victoria-metrics-standby2:8428/`:
 
 If all backends are marked as unavailable, requests are proxied to the first configured backend `http://victoria-metrics-main:8428/` instead of failing immediately.
+
 ```yaml
 unauthorized_user:
   url_prefix:
@@ -257,7 +258,7 @@ See also [authorization](#authorization), [routing](#routing) and [load balancin
 
 ### JWT Token auth proxy
 
-`vmauth` can authorize access{{% available_from "v1.137.0" %}} to backends depending on the provided [JWT token](https://www.jwt.io/) in `Authorization` request header. 
+`vmauth` can authorize access{{% available_from "v1.137.0" %}} to backends depending on the provided [JWT token](https://www.jwt.io/) in `Authorization` request header.
 JWT tokens are verified using RSA or ECDSA public keys. The following auth config proxies requests to [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) if they contain a valid JWT token:
 
 ```yaml
@@ -284,14 +285,14 @@ users:
 
 JWT authentication cannot be combined with other auth methods (`bearer_token`, `username`, `password`) in the same `users` config.
 
-
 #### OIDC Discovery
 
-Instead of specifying public keys manually, `vmauth` can automatically fetch{{% available_from "v1.138.0" %}} 
+Instead of specifying public keys manually, `vmauth` can automatically fetch{{% available_from "v1.138.0" %}}
 and rotate public keys from an [OpenID Connect (OIDC)](https://openid.net/connect/) provider via its [Discovery endpoint](https://openid.net/specs/openid-connect-discovery-1_0.html).
 This is useful when integrating with identity providers such as Keycloak, Auth0, Okta, or Google.
 
 Set `oidc.issuer` to the base URL of the OIDC provider. `vmauth` will:
+
 1. Fetch `{issuer}/.well-known/openid-configuration` to discover the `jwks_uri`.
 2. Download the JSON Web Key Set (JWKS) from the `jwks_uri` to obtain the public keys used to verify JWT signatures.
 3. Automatically refresh the keys every 5 minutes to handle key rotation.
@@ -310,7 +311,6 @@ The `oidc` option cannot be combined with `public_keys`, `public_key_files`, or 
 
 If the OIDC provider is temporarily unavailable during a key refresh, `vmauth` continues using the previously fetched keys until the next successful refresh.
 If no keys have been fetched yet (e.g., on startup when the provider is unreachable), the config section is skipped during authentication.
-
 
 #### JWT claim matching
 
@@ -452,7 +452,6 @@ users:
   url_prefix: "http://victoria-metrics-vmselect-1:8481/select/multitenant?extra_filters={vm_account_id=~\"(3|4|5)\"}"
 ```
 
-
 #### JWT claim matching. Conflict resolution
 
 When multiple users have `match_claims` entries that all match the incoming token,
@@ -519,12 +518,13 @@ for dynamic URL rewriting based on `vm_access` claim fields.
 
 #### JWT claim-based request templating
 
-`vmauth` can dynamically rewrite{{% available_from "v1.137.0" %}} upstream URLs and request headers using values from the JWT `vm_access` claim. 
-This enables routing different users to different backends or tenants based solely on the JWT token, 
+`vmauth` can dynamically rewrite{{% available_from "v1.137.0" %}} upstream URLs and request headers using values from the JWT `vm_access` claim.
+This enables routing different users to different backends or tenants based solely on the JWT token,
 without maintaining separate user configs per tenant. In addition `vm_access` claim could be defined at `jwt` section with `default_vm_access_claim` {{% available_from "v1.147.0" %}}.
-In this case, if JWT token doesn't have `vm_access` claim defined, value from `default_vm_access_claim` will be used for templaing.
+In this case, if JWT token doesn't have `vm_access` claim defined, value from `default_vm_access_claim` will be used for templating.
 
 Example: minimal valid JWT. If vm_access is empty, tenant `0:0` is assumed and no additional filters are applied.
+
 ```json
 {
   "exp": 2770832322,
@@ -551,7 +551,7 @@ Example: complete JWT with `vm_access` claim defining explicit access rules for 
 }
 ```
 
-Placeholders are written directly into `url_prefix` and `headers` values in the auth config. 
+Placeholders are written directly into `url_prefix` and `headers` values in the auth config.
 At request time each placeholder is replaced with the corresponding value from the `vm_access` claim of the incoming JWT token.
 
 The following placeholders are supported:
@@ -574,7 +574,7 @@ Placeholders are supported in the following locations:
 - **URL query parameters** — any placeholder may be used as the full value of a query parameter (e.g. `?extra_filters={{.MetricsExtraFilters}}`).
 - **Request headers** — any placeholder may be used as the full value of a request header (e.g. `AccountID: {{.LogsAccountID}}`).
 
-Placeholders are **not** supported in response headers. 
+Placeholders are **not** supported in response headers.
 They are also only valid for JWT-authenticated users — using them in configs for `username`/`password` or `bearer_token` users causes a configuration error.
 
 Example: default `vm_access` claim:
@@ -597,7 +597,6 @@ users:
       -----END PUBLIC KEY-----
   url_prefix: "http://vminsert:8480/insert/{{.MetricsAccountID}}:{{.MetricsProjectID}}/prometheus/?extra_filters={{.MetricsExtraFilters}}&extra_label={{.MetricsExtraLabels}}"
 ```
-
 
 Example: route requests to the VictoriaMetrics single-node:
 
@@ -1323,6 +1322,7 @@ unauthorized_user:
 ## Access log
 
 vmauth allows configuring access logs {{% available_from "v1.138.0" %}} printing per-user:
+
 ```yaml
 users:
   - username: foo
@@ -1333,12 +1333,14 @@ users:
 ```
 
 If you want to log requests with missing or invalid auth tokens, use unauthorized_user without configuring any URL routes{{% available_from "v1.147.0" %}}:
+
 ```yaml
 unauthorized_user:
   access_log: {}
 ```
 
 Access logs contain limited information to prevent exposing sensitive data. See an example of the printed access log below:
+
 ```bash
 2026-02-26T15:00:00.207Z        info    VictoriaMetrics/app/vmauth/auth_config.go:134   access_log request_host="localhost:8427" request_uri="/prometheus/api/v1/query_range?query=1&start=1772116199.897&end=1772117999.897&step=5s" status_code=200 remote_addr="127.0.0.1:63425" user_agent="Mozilla/5.0..." referer="http://localhost:8427/vmui/?" duration_ms=8 username="unauthorized"
 ```
@@ -1346,12 +1348,14 @@ Access logs contain limited information to prevent exposing sensitive data. See 
 The printed log starts with `access_log` prefix and is followed with `request_host`, `request_uri`, `status_code`, `remote_addr`,
 `user_agent`, `referer`, `duration_ms` and `username` fields in [logfmt](https://brandur.org/logfmt) format. Such logs can be later
 analyzed in [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/):
+
 ```logsql
 access_log | extract 'access_log <access_log>' | unpack_logfmt from access_log
 | stats by(username, request_host, status_code) count()
 ```
 
 Access logs can skip logging requests with specified status codes:
+
 ```yaml
 users:
 - username: foo
@@ -1562,12 +1566,12 @@ It is recommended to protect the following endpoints with authKeys:
 
 As an alternative, you can serve internal API routes on a different listen address using the command-line flag `-httpInternalListenAddr=127.0.0.1:8426`{{% available_from "v1.111.0" %}}.
 To enable TLS on the public listener while keeping the internal listener non-TLS, configure multiple listeners like this:
+
 ```
 /path/to/vmauth -httpInternalListenAddr=,localhost:8426 -httpListenAddr=0.0.0.0:443, -tls=true,false -tlsCertFile=a-cert.crt -tlsKeyFile=a-key.key
 ```
 
 `vmauth` also supports restricting access by IP - see [these docs](#ip-filters). See also [concurrency limiting docs](#concurrency-limiting).
-
 
 When `vmauth` performs tenant routing for [multitenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenant-reads) requests, it is crucial to explicitly set `extra_label`, `extra_filters` and `extra_filters[]` in the url_prefix configuration:
 
@@ -1703,9 +1707,11 @@ It is safe to share the collected profiles from a security perspective, as they 
 Pass `-help` command-line arg to `vmauth` in order to see all the configuration options:
 
 ### Common flags
+
 These flags are available in both VictoriaMetrics OSS and VictoriaMetrics Enterprise.
 {{% content "vmauth_common_flags.md" %}}
 
 ### Enterprise flags
+
 These flags are available only in [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 {{% content "vmauth_enterprise_flags.md" %}}

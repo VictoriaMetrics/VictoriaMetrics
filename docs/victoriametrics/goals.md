@@ -62,4 +62,4 @@ aliases:
   Happy users spread the word about VictoriaMetrics, so more people convert to VictoriaMetrics users.
   Happy users are eager to become happy [customers](https://docs.victoriametrics.com/victoriametrics/enterprise/)
   over time. This increases long-term profit.
-  Upset users may be forced to become customers, but they will constantily search for the opportunity to switch to competing solutions.
+  Upset users may be forced to become customers, but they will constantly search for the opportunity to switch to competing solutions.

@@ -10,7 +10,7 @@ aliases:
   - /victoriametrics/integrations/zabbix/
 ---
 
-VictoriaMetrics components like **vmagent**, **vminsert** or **single-node** can receive data from 
+VictoriaMetrics components like **vmagent**, **vminsert** or **single-node** can receive data from
 [Zabbix Connector streaming protocol](https://www.zabbix.com/documentation/current/en/manual/config/export/streaming#protocol)
 at `/zabbixconnector/api/v1/history` HTTP path.
 
@@ -33,7 +33,7 @@ to [raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#r
 * JSON path `$.value` is used as the metric value.
 * JSON path `$.clock` and `$.ns` is used as timestamp for the ingested [raw sample](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples).\
 timestamp is calculated using the formula: `$.clock`*1e3 + `$.ns`/1e6 (See [Zabbix item structure](https://www.zabbix.com/documentation/current/en/manual/appendix/protocols/real_time_export#item-values) for details)
-* If the command line flag `-zabbixconnector.addGroupsValue=<value>` is specified, the elements of the `$.grops` group array will be converted to the label name prefixed with `group_` with the value `<value>`.
+* If the command line flag `-zabbixconnector.addGroupsValue=<value>` is specified, the elements of the `$.groups` group array will be converted to the label name prefixed with `group_` with the value `<value>`.
 * The tag object array `$.item_tags` will be configured as follows:
   * The `tag` element will be used as the tag name, prefixed with `tag_`. The "value" element will be used as the value of the label.
   * If the command line flag `-zabbixconnector.addEmptyTagsValue=<value>` is specified, then tags with empty values ​​will not be ignored. `<value>` will be used as the tag value. By default, tags with empty values ​​are ignored.
@@ -52,7 +52,9 @@ Save this NDJSON into `data.ndjson` file and then use the following command in o
 ```sh
 curl -X POST -H 'Content-Type: application/x-ndjson' --data-binary @data.ndjson http://localhost:8428/zabbixconnector/api/v1/history
 ```
+
 Let's assume vmagent is running with command line flags:
+
 * `-zabbixconnector.addGroupsValue=exists`
 * `-zabbixconnector.addEmptyTagsValue=exists`
 * `-zabbixconnector.addDuplicateTagsSeparator=,`

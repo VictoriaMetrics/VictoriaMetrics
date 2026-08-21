@@ -116,13 +116,13 @@ EOF
 
 Let's break down the main elements of the config file:
 
-| Field                       | Purpose           | Example                      |
-| --------------------------- | ----------------- | ---------------------------- |
-| `metadata: name`               | Cluster name      | example-vmcluster-persistent |
-| `spec: retentionPeriod`        | Metrics retention | "12" (months)                |
-| `spec: vmstorage: replicaCount` | vmstorage replicas  | 2                            |
-| `spec: vmselect: replicaCount` | vmselect replicas  | 2                            |
-| `spec: vminsert: replicaCount` | vminsert replicas  | 2                            |
+| Field | Purpose | Example |
+| --- | --- | --- |
+| `metadata: name` | Cluster name | example-vmcluster-persistent |
+| `spec: retentionPeriod` | Metrics retention | "12" (months) |
+| `spec: vmstorage: replicaCount` | vmstorage replicas | 2 |
+| `spec: vmselect: replicaCount` | vmselect replicas | 2 |
+| `spec: vminsert: replicaCount` | vminsert replicas | 2 |
 
 > [!NOTE] Tip
 > A VictoriaMetrics cluster runs [three services](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#architecture-overview): `vmstorage`, `vminsert`, and `vmselect`. You can independently customize the number of replicas for each service.
@@ -326,7 +326,7 @@ Go back to the `vmagent` target page by browsing `http://127.0.0.1:8429/targets`
 
 ## 4. Verifying VictoriaMetrics cluster
 
-The next step is to install Grafana to visualize collected metrics. 
+The next step is to install Grafana to visualize collected metrics.
 
 Add the Grafana Helm repository with:
 
@@ -463,7 +463,7 @@ kubectl --namespace default port-forward $pod_name 3000
 
 ## 5. Check the result you obtained in your browser
 
-To check that [VictoriaMetrics](https://victoriametrics.com) is collecting metrics from the Kubernetes cluster, open your browser to http://127.0.0.1:3000/dashboards and choose the `VictoriaMetrics - cluster` dashboard. 
+To check that [VictoriaMetrics](https://victoriametrics.com) is collecting metrics from the Kubernetes cluster, open your browser to http://127.0.0.1:3000/dashboards and choose the `VictoriaMetrics - cluster` dashboard.
 
 Use `admin` for login and the `password` obtained with `kubectl get secret ...`.
 
@@ -485,7 +485,6 @@ If you [added the scrape configs](#kubernetes-scraping), the Kubernetes dashboar
 ![Screenshot of Grafana dashboard](kubernetes-dashboard.webp)
 <figcaption style="text-align: center; font-style: italic;">Grafana dashboard showing Kubernetes cluster metrics</figcaption>
 
-
 ## 6. Summary
 
 - We set up a Kubernetes Operator for VictoriaMetrics using CRDs.
@@ -499,4 +498,3 @@ Consider reading these resources to complete your setup:
 - Grafana
   - [Enable persistent storage](https://grafana.com/docs/grafana/latest/setup-grafana/installation/helm/#enable-persistent-storage-recommended)
   - [Configure private TLS authority](https://grafana.com/docs/grafana/latest/setup-grafana/installation/helm/#configure-a-private-ca-certificate-authority)
-

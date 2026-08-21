@@ -6,9 +6,7 @@ build:
 sitemap:
   disable: true
 ---
-InfluxDB is a well-known time series database built for
-[IoT](https://en.wikipedia.org/wiki/Internet_of_things) monitoring, Application Performance Monitoring (APM) and
-analytics. It has its query language, unique data model, and rich tooling for collecting and processing metrics.
+InfluxDB is a well-known time series database built for [IoT](https://en.wikipedia.org/wiki/Internet_of_things) monitoring, Application Performance Monitoring (APM) and analytics. It has its query language, unique data model, and rich tooling for collecting and processing metrics.
 
 VictoriaMetrics is a high-performance opensource time series database specifically designed to deal with huge volumes of
 monitoring data while remaining cost-efficient at the same time. Many companies are choosing to migrate from InfluxDB to
@@ -22,7 +20,7 @@ from InfluxDB to VictoriaMetrics.
 ## Data model differences
 
 Readers are familiar with [InfluxDB key concepts](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/).
-The data model of VictoriaMetrics is [explained here](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#data-model). 
+The data model of VictoriaMetrics is [explained here](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#data-model).
 Let's list similarities and differences:
 
 * both databases are **schemaless**, which means there is no need to define metrics or their tags in advance;
@@ -39,10 +37,10 @@ Let's list similarities and differences:
   or [fields](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#field-key) in
   VictoriaMetrics, metric name contains it all. If measurement contains more than 1 field, then for VictoriaMetrics
   it will be multiple metrics;
-* there are no [databases](https://docs.influxdata.com/influxdb/v1.8/concepts/glossary/#database), 
+* there are no [databases](https://docs.influxdata.com/influxdb/v1.8/concepts/glossary/#database),
   [buckets](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#bucket)
   or [organizations](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#organization).
-  All data in VictoriaMetrics is stored in a global namespace or within a [tenant](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#multi-tenancy). 
+  All data in VictoriaMetrics is stored in a global namespace or within a [tenant](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#multi-tenancy).
 * VictoriaMetrics query language is [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/). Influx has multiple versions
   of query languages. VictoriaMetrics doesn't support any of them.
 
@@ -74,6 +72,7 @@ by VictoriaMetrics, so lookups by names or labels have the same query speed.
 VictoriaMetrics supports [InfluxDB line protocol](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb/)
 for data ingestion. For example, to write a measurement to VictoriaMetrics we need to send an HTTP POST request with
 payload in a line protocol format:
+
 ```sh
 curl -d 'census,location=klamath,scientist=anderson bees=23' -X POST 'http://<victoriametrics-addr>:8428/write'
 ```
@@ -81,8 +80,9 @@ curl -d 'census,location=klamath,scientist=anderson bees=23' -X POST 'http://<vi
 _An arbitrary number of lines delimited by `\n` (aka newline char) can be sent in a single request._
 
 To check the written data export series matching the `location="klamath"` filter:
+
 ```sh
-curl -G 'http://<victoriametrics-addr>:8428/api/v1/export' -d 'match={location="klamath"}'   
+curl -G 'http://<victoriametrics-addr>:8428/api/v1/export' -d 'match={location="klamath"}'
 ```
 
 The expected response is the following:
@@ -148,12 +148,13 @@ foo,instance=localhost bar=1.00 1652170500000000000
 foo,instance=localhost bar=4.00 1652170560000000000
 ```
 
-This data sample consists of data points for a measurement `foo` and a field `bar` with additional 
+This data sample consists of data points for a measurement `foo` and a field `bar` with additional
 tag `instance=localhost`. If we would like plot this data as a time series in Grafana it might have the following look:
 
 ![Data sample in Influx](data-sample-in-influx.webp)
 
 The query used for this panel is written in [InfluxQL](https://docs.influxdata.com/influxdb/v1.8/query_language/):
+
 ```sql
 SELECT last ("bar")
 FROM "foo"
@@ -180,13 +181,13 @@ to [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) let'
   This param is also a part of params sent along with request. See how to perform additional
   [aggregations and grouping via MetricsQL](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#aggregation-and-grouping-functions).
 
-In result, the MetricsQL expression will have the following form: `foo_bar{instance="localhost"}`. 
+In result, the MetricsQL expression will have the following form: `foo_bar{instance="localhost"}`.
 See its result executed with `step=1m` for the same set of data in Grafana below:
 
 ![Data sample in VM](data-sample-in-vm.webp)
 
 Visualizations from both databases are a bit different - VictoriaMetrics shows some extra points filling the gaps in the graph.
-This behavior is described in more detail [here](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query). 
+This behavior is described in more detail, under [range query](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query).
 In InfluxDB, we can achieve a similar behavior by adding `fill(previous)` to the query.
 
 VictoriaMetrics fills the gaps on the graph assuming time series are always continuous and not discrete.
@@ -207,6 +208,7 @@ It has almost 15 million downloads and about 230 queries in it! But a closer loo
   like [sum](https://docs.victoriametrics.com/victoriametrics/metricsql/#sum) or [count](https://docs.victoriametrics.com/victoriametrics/metricsql/#count).
 
 To get a better understanding of how MetricsQL works, see the following resources:
+
 * [MetricsQL concepts](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#metricsql);
 * [MetricsQL functions](https://docs.victoriametrics.com/victoriametrics/metricsql/);
 * [PromQL tutorial for beginners](https://valyala.medium.com/promql-tutorial-for-beginners-9ab455142085).
@@ -218,7 +220,7 @@ Migrating data from other databases to VictoriaMetrics is as simple as importing
 
 But migration from InfluxDB might get easier with [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/). See more about
 migrating [from InfluxDB v1.x versions](https://docs.victoriametrics.com/victoriametrics/vmctl/influxdb/).
-Migrating data from InfluxDB v2.x is not supported. But there is a useful [3rd party solution](https://docs.victoriametrics.com/victoriametrics/vmctl/influxdb/#influxdb-v2) 
+Migrating data from InfluxDB v2.x is not supported. But there is a useful [3rd party solution](https://docs.victoriametrics.com/victoriametrics/vmctl/influxdb/#influxdb-v2)
 for this.
 
 Please note, data migration is a backfilling process, so read about [backfilling tips](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#backfilling).
@@ -235,9 +237,9 @@ Please note, data migration is a backfilling process, so read about [backfilling
       VictoriaMetrics. Both languages share the same concepts with slight differences._
 * Query returns more data points than expected - why?
     * _VictoriaMetrics may return non-existing data points if `step` param is lower than the actual data resolution. See
-      more about this [here](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query)._
+      more about this can be found under [range query](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query)._
 * How do I get the `real` last data point?
-    * _[last_over_time](https://docs.victoriametrics.com/victoriametrics/metricsql/#last_over_time) function returns last value on 
+    * _[last_over_time](https://docs.victoriametrics.com/victoriametrics/metricsql/#last_over_time) function returns last value on
       the given look-behind window. For example, `last_over_time(metric[10s])` would return
       sample values only if the real samples are located closer than 10 seconds to the calculated timestamps
       according to `start`, `end` and `step` query args passed
