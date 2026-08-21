@@ -1712,7 +1712,7 @@ func (db *indexDB) searchMetricIDsByTimeRangeAndFilters(qt *querytracer.Tracer, 
 	minDate, maxDate := tr.DateRange()
 	numDays := maxDate - minDate + 1
 	if numDays == 1 {
-		f(minDate)
+		return f(minDate)
 	}
 
 	var wg sync.WaitGroup
@@ -1765,12 +1765,68 @@ func (db *indexDB) searchMetricIDsByTimeRangeAndFilters(qt *querytracer.Tracer, 
 	return uniqMetricIDsByDate, nil
 }
 
-func (db *indexDB) searchMetricIDsByDateAndFilters(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, maxMetrics int, deadline uint64) (*uint64set.Set, error) {
+func marshalTagFiltersKeyForDate(key []byte, tfss []*TagFilters, date uint64) []byte {
 	tr := TimeRange{
 		MinTimestamp: int64(date) * msecPerDay,
 		MaxTimestamp: int64(date+1)*msecPerDay - 1,
 	}
-	return db.searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
+	return marshalTagFiltersKey(key, tfss, tr)
+}
+
+func (db *indexDB) searchMetricIDsByDateAndFilters(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, maxMetrics int, deadline uint64) (*uint64set.Set, error) {
+	// TODO: stringToDate
+	qt = qt.NewChild("search metricIDs: filters=%s, date=%d", tfss, date)
+	defer qt.Done()
+
+	if len(tfss) == 0 {
+		return nil, nil
+	}
+
+	tfKeyBuf := tagFiltersKeyBufPool.Get()
+	defer tagFiltersKeyBufPool.Put(tfKeyBuf)
+
+	tfKeyBuf.B = marshalTagFiltersKeyForDate(tfKeyBuf.B[:0], tfss, date)
+	if metricIDs, ok := db.getMetricIDsFromTagFiltersCache(qt, tfKeyBuf.B); ok {
+		// Fast path - metricIDs found in the cache
+		if metricIDs.Len() > maxMetrics {
+			return nil, errTooManyTimeseries(maxMetrics)
+		}
+		return metricIDs, nil
+	}
+
+	// Slow path - search for metricIDs in the db
+	if int64(date)*msecPerDay >= db.s.minTimestampForCompositeIndex {
+		tfss = convertToCompositeTagFilterss(tfss)
+		qt.Printf("composite filters=%s", tfss)
+	}
+	metricIDs := &uint64set.Set{}
+	is := db.getIndexSearch(deadline)
+	defer db.putIndexSearch(is)
+	for _, tfs := range tfss {
+		if len(tfs.tfs) == 0 {
+			// An empty filters must be equivalent to `{__name__!=""}`
+			tfs = NewTagFilters()
+			if err := tfs.Add(nil, nil, true, false); err != nil {
+				logger.Panicf(`BUG: cannot add {__name__!=""} filter: %s`, err)
+			}
+		}
+		m, err := is.getMetricIDsForDateAndFilters(qt, date, tfs, maxMetrics)
+		if err != nil {
+			return nil, err
+		}
+		metricIDs.UnionMayOwn(m)
+		if metricIDs.Len() > maxMetrics {
+			return nil, errTooManyTimeseries(maxMetrics)
+		}
+	}
+
+	dmis := is.db.getDeletedMetricIDs()
+	metricIDs.Subtract(dmis)
+
+	// Store metricIDs in the cache.
+	db.putMetricIDsToTagFiltersCache(qt, metricIDs, tfKeyBuf.B)
+
+	return metricIDs, nil
 }
 
 // searchMetricIDs returns metricIDs for the given tfss and tr.
