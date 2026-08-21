@@ -1694,6 +1694,77 @@ func (is *indexSearch) loadDeletedMetricIDs() (*uint64set.Set, error) {
 	return dmis, nil
 }
 
+func (db *indexDB) searchMetricIDsByTimeRangeAndFilters(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) (map[uint64]*uint64set.Set, error) {
+	uniqMetricIDsByDate := make(map[uint64]*uint64set.Set)
+	f := func(date uint64) (map[uint64]*uint64set.Set, error) {
+		metricIDs, err := db.searchMetricIDsByDateAndFilters(qt, tfss, date, maxMetrics, deadline)
+		if err != nil {
+			return nil, err
+		}
+		uniqMetricIDsByDate[date] = metricIDs
+		return uniqMetricIDsByDate, nil
+	}
+
+	if tr == globalIndexTimeRange {
+		return f(globalIndexDate)
+	}
+
+	minDate, maxDate := tr.DateRange()
+	numDays := maxDate - minDate + 1
+	if numDays == 1 {
+		f(minDate)
+	}
+
+	var wg sync.WaitGroup
+	metricIDsByDate := make([]*uint64set.Set, numDays)
+	errByDate := make([]error, numDays)
+	for day := range numDays {
+		date := minDate + uint64(day)
+		wg.Go(func() {
+			metricIDsByDate[day], errByDate[day] = db.searchMetricIDsByDateAndFilters(qt, tfss, date, maxMetrics, deadline)
+		})
+	}
+	wg.Wait()
+	for _, err := range errByDate {
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	seen := &uint64set.Set{}
+	var err error
+	for day, metricIDs := range metricIDsByDate {
+		if metricIDs == nil {
+			continue
+		}
+
+		date := minDate + uint64(day)
+		uniqMetricIDs := &uint64set.Set{}
+
+		metricIDs.ForEach(func(v []uint64) bool {
+			for _, metricID := range v {
+				if seen.Has(metricID) {
+					continue
+				}
+				seen.Add(metricID)
+				if seen.Len() > maxMetrics {
+					err = errTooManyTimeseries(maxMetrics)
+					return false
+				}
+				uniqMetricIDs.Add(metricID)
+			}
+			return true
+		})
+
+		uniqMetricIDsByDate[date] = uniqMetricIDs
+	}
+
+	if err != nil {
+		return nil, err
+	}
+	return uniqMetricIDsByDate, nil
+}
+
 func (db *indexDB) searchMetricIDsByDateAndFilters(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, maxMetrics int, deadline uint64) (*uint64set.Set, error) {
 	tr := TimeRange{
 		MinTimestamp: int64(date) * msecPerDay,
@@ -1766,27 +1837,36 @@ func (db *indexDB) SearchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Ti
 }
 
 func (db *indexDB) searchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]TSID, error) {
-	if tr == globalIndexTimeRange {
-		return db.searchTSIDsByDateAndFilters(qt, tfss, globalIndexDate, maxMetrics, deadline)
+	uniqMetricIDsByDate, err := db.searchMetricIDsByTimeRangeAndFilters(qt, tfss, tr, maxMetrics, deadline)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(uniqMetricIDsByDate) == 0 {
+		return nil, nil
+	}
+
+	if len(uniqMetricIDsByDate) == 1 {
+		for _, metricIDs := range uniqMetricIDsByDate {
+			return db.searchTSIDsByMetricIDs(qt, metricIDs, deadline)
+		}
 	}
 
 	minDate, maxDate := tr.DateRange()
 	numDays := maxDate - minDate + 1
-	if numDays == 1 {
-		return db.searchTSIDsByDateAndFilters(qt, tfss, minDate, maxMetrics, deadline)
-	}
-
 	var wg sync.WaitGroup
 	tsidsByDate := make([][]TSID, numDays)
 	errsByDate := make([]error, numDays)
 	for day := range numDays {
 		date := minDate + uint64(day)
 		wg.Go(func() {
-			tsidsByDate[day], errsByDate[day] = db.searchTSIDsByDateAndFilters(qt, tfss, date, maxMetrics, deadline)
+			metricIDs := uniqMetricIDsByDate[date]
+			if metricIDs != nil {
+				tsidsByDate[day], errsByDate[day] = db.searchTSIDsByMetricIDs(qt, metricIDs, deadline)
+			}
 		})
 	}
 	wg.Wait()
-
 	for _, err := range errsByDate {
 		if err != nil {
 			return nil, err
@@ -1794,24 +1874,11 @@ func (db *indexDB) searchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Ti
 	}
 
 	tsids := mergeSortedTSIDs(tsidsByDate)
-	if len(tsids) > maxMetrics {
-		return nil, errTooManyTimeseries(maxMetrics)
-	}
 	return tsids, nil
 }
 
-func (db *indexDB) searchTSIDsByDateAndFilters(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, maxMetrics int, deadline uint64) ([]TSID, error) {
-	qt = qt.NewChild("search TSIDs: filters=%s, date=%s, maxMetrics=%d", tfss, dateToString(date), maxMetrics)
-	defer qt.Done()
-
-	metricIDs, err := db.searchMetricIDsByDateAndFilters(qt, tfss, date, maxMetrics, deadline)
-	if err != nil {
-		return nil, err
-	}
-	if metricIDs.Len() == 0 {
-		return nil, nil
-	}
-
+func (db *indexDB) searchTSIDsByMetricIDs(qt *querytracer.Tracer, metricIDs *uint64set.Set, deadline uint64) ([]TSID, error) {
+	var err error
 	tsids := make([]TSID, metricIDs.Len())
 	metricIDsToDelete := &uint64set.Set{}
 	i := 0
