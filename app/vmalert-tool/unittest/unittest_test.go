@@ -118,14 +118,34 @@ func TestCalcMaxTestTime(t *testing.T) {
 		}
 	}
 
-	// while now+100y is still representable, -futureRetention is the binding limit
-	f(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), time.Date(2126, 1, 1, 0, 0, 0, 0, time.UTC))
+	// While now+100y is still representable, -futureRetention is the binding limit.
+	//
+	// The expected value is written out rather than computed, because the whole point of the
+	// case is that 100y is 36500 days and not 100 calendar years: AddDate(100, 0, 0) here
+	// would say 2126-01-01, which is 24 leap days later than vmstorage would accept.
+	f(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), time.Date(2125, 12, 8, 0, 0, 0, 0, time.UTC))
 
 	// once it is not, the storage limit is
 	f(time.Date(2200, 1, 1, 0, 0, 0, 0, time.UTC), maxStorageTime)
 
 	// exactly at the crossover
-	f(maxStorageTime.AddDate(-100, 0, 0), maxStorageTime)
+	f(maxStorageTime.Add(-testRetentionDuration), maxStorageTime)
+
+	// One day below the crossover the retention is still what binds, so the result must be
+	// one day below maxStorageTime -- not maxStorageTime. This is the case calendar
+	// arithmetic got wrong: AddDate(100, 0, 0) overshoots into the clamp and reports the
+	// storage limit for every `now` in the last ~24 days before the crossover, accepting
+	// start times whose samples are then dropped.
+	f(maxStorageTime.Add(-testRetentionDuration).Add(-24*time.Hour), maxStorageTime.Add(-24*time.Hour))
+}
+
+func TestTestRetentionDuration(t *testing.T) {
+	// vmstorage compares sample timestamps against now+(-futureRetention), and the flag
+	// parses `y` as 365 days. If this ever stops being true, maxTestTime silently starts
+	// accepting start times whose samples never land.
+	if got, want := testRetentionDuration, 100*365*24*time.Hour; got != want {
+		t.Fatalf("unexpected testRetentionDuration for testRetention=%q; got %s; want %s", testRetention, got, want)
+	}
 }
 
 func TestCheckTestTime(t *testing.T) {

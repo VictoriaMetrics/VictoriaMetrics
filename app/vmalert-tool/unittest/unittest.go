@@ -33,6 +33,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -67,6 +68,15 @@ var (
 	// partition that still fits in math.MaxInt64 nanoseconds.
 	maxStorageTime = time.UnixMilli(9222422399999).UTC()
 
+	// testRetentionDuration is testRetention as the -futureRetention flag itself parses it.
+	//
+	// It must be read through flagutil rather than restated here, because a `y` there is
+	// exactly 365 days and not a calendar year: 100y is 36500 days, while 100 calendar years
+	// span 36524 or 36525. Computing the ceiling with time.Time.AddDate would put it up to 25
+	// days past what vmstorage actually accepts, and samples in that window are dropped in
+	// silence -- the same failure minTestTime exists to prevent, at the other end.
+	testRetentionDuration = mustParseRetention(testRetention)
+
 	// maxTestTime is the latest timestamp this process can ingest a sample at.
 	//
 	// vmstorage refuses samples beyond now+(-futureRetention), so the ceiling moves with the
@@ -76,8 +86,20 @@ var (
 	maxTestTime = calcMaxTestTime(time.Now())
 )
 
+// mustParseRetention returns s as flagutil.RetentionDuration parses it.
+//
+// It panics if s is not a value the -retentionPeriod and -futureRetention flags would accept,
+// since s is a compile-time constant of this package and not user input.
+func mustParseRetention(s string) time.Duration {
+	var d flagutil.RetentionDuration
+	if err := d.Set(s); err != nil {
+		logger.Panicf("BUG: cannot parse testRetention=%q as a retention duration: %s", s, err)
+	}
+	return d.Duration()
+}
+
 func calcMaxTestTime(now time.Time) time.Time {
-	t := now.UTC().AddDate(100, 0, 0)
+	t := now.UTC().Add(testRetentionDuration)
 	if t.After(maxStorageTime) {
 		return maxStorageTime
 	}
