@@ -83,15 +83,26 @@ groups:
             insufficient CPU resources or CPU throttling. Verify that service has enough CPU resources. Otherwise,
             the service could work unreliably with delays in processing.
 
+      - alert: TooManyErrorLogs
+        expr: sum(increase(vm_log_messages_total{level=~"error|fatal|panic"}[1m])) without (app_version, is_printed) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "\"{{ $labels.job }}\" ({{ $labels.instance }}) generates too many {{ $labels.level }} logs at {{ $labels.location }}"
+          description: >
+            The job "{{ $labels.job }}" ({{ $labels.instance }}) generated {{ $value }} {{ $labels.level }} log messages
+            at {{ $labels.location }} for the last 5 minutes.
+
       - alert: TooManyLogs
-        expr: sum(increase(vm_log_messages_total{level!="info"}[5m])) without (app_version, location, is_printed) > 0
+        expr: sum(increase(vm_log_messages_total{level="warn"}[5m])) without (app_version, location, is_printed) > 0
         for: 15m
         labels:
           severity: warning
         annotations:
-          summary: "Too many logs are generated for job \"{{ $labels.job }}\" ({{ $labels.instance }})"
+          summary: "\"{{ $labels.job }}\" ({{ $labels.instance }}) generates too many logs"
           description: >
-            The job \"{{ $labels.job }}\" ({{ $labels.instance }}) generated {{ $value }} log messages with the level higher than info for the last 5 minutes.
+            The job \"{{ $labels.job }}\" ({{ $labels.instance }}) generated {{ $value }} warn log messages for the last 5 minutes.
             Check the logs for the given target. Check also the \"location\" label at the vm_log_messages_total metric if -loggerLevel command-line flag is set to value other than INFO.
             This label contains code locations responsible for generating log messages suppressed by -loggerLevel.
 
