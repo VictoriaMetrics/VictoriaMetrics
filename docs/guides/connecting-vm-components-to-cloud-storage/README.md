@@ -11,13 +11,13 @@ Several VictoriaMetrics components can connect to cloud storage to read or write
 The following table shows the supported types of storage for each component:
 
 | Component | AWS S3 and S3-compatible | Google Cloud Storage | Azure Blob Storage |
-|-----------|----|----------------------|--------------------|
+| --- | --- | --- | --- |
 | [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/) | ✅ | ✅ | ✅ |
 | [vmrestore](https://docs.victoriametrics.com/victoriametrics/vmrestore/) | ✅ | ✅ | ✅ |
 | [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/) | ✅ | ✅ | ✅ |
-| [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) |  ✅ | ✅ | ❌ |
+| [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) | ✅ | ✅ | ❌ |
 
-All these components use the same underlying libraries, so the authentication setup is largely the same. The main difference is in the command-line flags: 
+All these components use the same underlying libraries, so the authentication setup is largely the same. The main difference is in the command-line flags:
 
 - vmalert uses `-s3.*` prefixed flags (e.g., `-s3.credsFilePath`)
 - backup and restore tools use unprefixed flags (e.g., `-credsFilePath`)
@@ -34,13 +34,12 @@ You need to supply credentials so the component can connect to the cloud storage
 1. [Create an access key](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html) for that IAM identity.
 1. Copy the **Access key ID** and **Secret access key** values. You will use them in the credentials file or environment variables.
 
-| Component       | S3 usage                                                    | Minimum S3 permissions |
-|-----------------|-------------------------------------------------------------|------------------------|
-| vmalert (Enterprise) | Reads alerting/recording rules from bucket.    | `s3:GetObject`, `s3:ListBucket` on the rules bucket/prefix.|
-| vmrestore       | Restores backups from S3 buckets                            | `s3:GetObject`, `s3:ListBucket` on the backup bucket/prefix.|
-| vmbackup        | Uploads backups to S3 and may delete old backup objects during maintenance.| `s3:PutObject`, `s3:GetObject`, `s3:ListBucket`, `s3:DeleteObject` on the backup bucket/prefix.|
-| vmbackupmanager (Enterprise) | Automates backups using vmbackup behavior.                  | Same as vmbackup. |
-
+| Component | S3 usage | Minimum S3 permissions |
+| --- | --- | --- |
+| vmalert (Enterprise) | Reads alerting/recording rules from bucket. | `s3:GetObject`, `s3:ListBucket` on the rules bucket/prefix. |
+| vmrestore | Restores backups from S3 buckets | `s3:GetObject`, `s3:ListBucket` on the backup bucket/prefix. |
+| vmbackup | Uploads backups to S3 and may delete old backup objects during maintenance. | `s3:PutObject`, `s3:GetObject`, `s3:ListBucket`, `s3:DeleteObject` on the backup bucket/prefix. |
+| vmbackupmanager (Enterprise) | Automates backups using vmbackup behavior. | Same as vmbackup. |
 
 ### S3-compatible storage (MinIO, Ceph)
 
@@ -64,6 +63,7 @@ Generate access keys using your storage system's admin interface or CLI. The cre
 1. In the left menu under **Security + networking**, click **Access keys**.
 1. Copy the key value from either **key1** or **key2** (this is your `AZURE_STORAGE_ACCOUNT_KEY`).
 1. Define the access keys as environment variables.
+
     ```sh
     export AZURE_STORAGE_ACCOUNT_NAME=mystorageaccount
     export AZURE_STORAGE_ACCOUNT_KEY=myaccountkey
@@ -117,7 +117,6 @@ vmrestore \
   -storageDataPath=/data
 ```
 
-
 Backups on Google Cloud Storage use the `gs://` prefix in the destination:
 
 ```sh
@@ -168,7 +167,7 @@ vmrestore \
   -storageDataPath=/data
 ```
 
-### vmbackupmanager 
+### vmbackupmanager
 
 > vmbackupmanager only works in the [Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/) edition.
 
@@ -410,9 +409,9 @@ When connecting to non-AWS S3-compatible buckets, there is an additional flag yo
 The flag changes the expected URL pattern for a bucket.
 
 | Flag value | Address-style | Example | Use with |
-|------------|---------------|---------|----------|
-| `true` (default) | Path-style | `https://endpoint/bucket/key` |  MinIO, Ceph, most S3-compatible storages |
-| `false`        | Virtual host-style | `https://bucket.endpoint/key` | [Aliyun OSS](https://www.aliyun.com/product/oss) and other endpoints that require it |
+| --- | --- | --- | --- |
+| `true` (default) | Path-style | `https://endpoint/bucket/key` | MinIO, Ceph, most S3-compatible storages |
+| `false` | Virtual host-style | `https://bucket.endpoint/key` | [Aliyun OSS](https://www.aliyun.com/product/oss) and other endpoints that require it |
 
 > The flag only takes effect when you use a custom endpoint (`-customS3Endpoint` or `-s3.customEndpoint` on vmalert). When connecting to real AWS S3, the SDK handles addressing automatically.
 
@@ -429,6 +428,3 @@ The table below shows how the same concept maps to different flag names across c
 | Force path style | `-s3.forcePathStyle` | `-s3ForcePathStyle` |
 | TLS insecure | N/A | `-s3TLSInsecureSkipVerify` |
 | Storage class | N/A | `-s3StorageClass` |
-
-
-

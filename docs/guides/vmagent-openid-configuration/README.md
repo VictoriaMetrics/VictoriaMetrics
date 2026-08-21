@@ -8,7 +8,7 @@ This guide walks through configuring vmagent to ingest metrics through vmauth wi
 * [jq tool](https://jqlang.org/)
 * Add the `keycloak` host to the `/etc/hosts` file pointing to `127.0.0.1`.
 
-```
+```sh
 # /etc/hosts
 
 # Setup vmagent - Multi-Tenant remote write & OIDC
@@ -29,9 +29,11 @@ The identity service must be able to issue JWT tokens with the following `vm_acc
   }
 }
 ```
+
 > Note: if `metrics_account_id` or `metrics_project_id` are not specified, the default value `0` is used.
 
 Some identity providers only support string-based claim values; vmauth supports those as well:
+
 ```json
 {
    "exp": 1772019469,
@@ -76,8 +78,10 @@ Once Keycloak is available at `http://keycloak:3001`, follow the steps below to 
 ### Create client
 
 1. Log in with admin credentials to your Keycloak instance
+
   - Username: `admin`
   - Password: `change_me`
+
 1. Go to `Clients` -> `Create client`.
    - Use `OpenID Connect` as `Client Type`.
    - Specify `vmagent` as `Client ID`.
@@ -126,6 +130,7 @@ Once Keycloak is available at `http://keycloak:3001`, follow the steps below to 
 ### Test identity provider
 
 Start the service:
+
 ```sh
 docker compose up
 ```
@@ -274,4 +279,3 @@ Go to `http://localhost:8481/select/0/vmui/` and query the `vm_app_version` metr
 
 This guide showed how to configure vmagent to ingest metrics into a VictoriaMetrics cluster through vmauth using OIDC authentication.
 Vmagent uses the OAuth2 client credentials flow to obtain JWT tokens from Keycloak, which vmauth validates and uses to route requests to the correct tenant.
-

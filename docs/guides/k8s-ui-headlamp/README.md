@@ -37,7 +37,6 @@ Once VictoriaMetrics is running, note the `NAME`, `PORT`, and the namespace wher
     vmcluster-victoria-metrics-cluster-vmselect   ClusterIP   10.43.41.195   <none>        8481/TCP   2m2s
     ```
 
-
 ## 2. Configure Headlamp
 
 You can run Headlamp as a [desktop application](https://headlamp.dev/docs/latest/installation/desktop/) or as an [in-cluster service](https://headlamp.dev/docs/latest/installation/in-cluster/).
@@ -47,7 +46,7 @@ To configure the Prometheus plugin, go to **Settings** > **Plugins** and select 
 ![Screenshot of Headlamp UI](headlamp-plugins.webp)
 <figcaption style="text-align: center; font-style: italic;">Built-in plugins in Headlamp UI (desktop version)</figcaption>
 
-Ensure **Enable metrics** is activated and **Auto-detect** is disabled. 
+Ensure **Enable metrics** is activated and **Auto-detect** is disabled.
 
 ![Screenshot of Headlamp UI](prometheus-plugin-start.webp)
 <figcaption style="text-align: center; font-style: italic;">Prometheus plugin: Enable metrics and disable auto-detect</figcaption>
@@ -96,5 +95,3 @@ You should now find the Show Prometheus metrics option on several pages.
 
 - [Kubernetes monitoring via VictoriaMetrics Single](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-single/)
 - [Kubernetes monitoring with VictoriaMetrics Cluster](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster/)
-
-

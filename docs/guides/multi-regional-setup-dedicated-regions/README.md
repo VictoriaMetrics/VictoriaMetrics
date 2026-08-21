@@ -40,7 +40,7 @@ This setup provides two logical copies of the data in separate monitoring region
 
 ### How to write the data to Ground Control regions
 
-Run one or more vmagent nodes in each workload region and configure them to send metrics to both Ground Control regions. This gives each workload region a local write path and keeps delivery going if one monitoring region is unavailable. 
+Run one or more vmagent nodes in each workload region and configure them to send metrics to both Ground Control regions. This gives each workload region a local write path and keeps delivery going if one monitoring region is unavailable.
 
 For example, a vmagent that sends data to two single-node VictoriaMetrics instances looks like this:
 
@@ -57,8 +57,9 @@ For a VictoriaMetrics cluster, use the following URLs for [`accountID=0`](https:
   -remoteWrite.url=https://ground-control-1-vminsert:8480/insert/0/prometheus/api/v1/write \
   -remoteWrite.url=https://ground-control-2-vminsert:8480/insert/0/prometheus/api/v1/write
 ```
+
 For more details, see [data ingestion with vmagent](https://docs.victoriametrics.com/victoriametrics/data-ingestion/vmagent/).
-vmagent [alerting rules and dashboards](https://docs.victoriametrics.com/vmagent/index.html#monitoring) help to monitor 
+vmagent [alerting rules and dashboards](https://docs.victoriametrics.com/vmagent/index.html#monitoring) help to monitor
 the health state of each configured destination and its queue size.
 
 ### How to read the data from Ground Control regions
@@ -126,6 +127,7 @@ For an example of this topology in Kubernetes, see the [`VMDistributed` resource
 #### vmselect
 
 > This option requires that Ground Control regions are deployed in one of these modes:
+>
 > - As a [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/).
 > - Or as VictoriaMetrics [single-node with multitenant support enabled](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#multi-tenancy). In other words, VictoriaMetrics should be started with the optional `-vmselectAddr=:8401` command line flag to enable the vmselect RPC server.
 
@@ -239,4 +241,3 @@ If running in cluster mode, use this instead:
 /path/to/vmagent-prod \
   -remoteWrite.url=http://ground-control-1-vminsert:8480/insert/0/prometheus/api/v1/write
 ```
-

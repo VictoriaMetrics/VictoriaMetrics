@@ -22,6 +22,7 @@ In addition, the data deletion API is not a reliable way to free up storage. You
 - [jq tool](https://stedolan.github.io/jq/)
 
 This guide works with:
+
 - [VictoriaMetrics single node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
 - [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/)
 - [VictoriaMetrics Cloud](https://docs.victoriametrics.com/victoriametrics-cloud/)
@@ -43,15 +44,16 @@ The actual [endpoints depend on whether you are running single-node or cluster](
 
 Below are the API endpoints for the single-node version of VictoriaMetrics.
 
-| Type            | Endpoint                                                          | 
-|-----------------|-------------------------------------------------------------------|
-| `series`          | http://localhost:8428/prometheus/api/v1/series                    | 
-| `export`          | http://localhost:8428/api/v1/export                    | 
-| `import`          | http://localhost:8428/api/v1/import                    |
-| `delete_series`   | http://localhost:8428/api/v1/admin/tsdb/delete_series  |
-| `force_merge`     | http://localhost:8428/internal/force_merge                        |
+| Type | Endpoint |
+| --- | --- |
+| `series` | http://localhost:8428/prometheus/api/v1/series |
+| `export` | http://localhost:8428/api/v1/export |
+| `import` | http://localhost:8428/api/v1/import |
+| `delete_series` | http://localhost:8428/api/v1/admin/tsdb/delete_series |
+| `force_merge` | http://localhost:8428/internal/force_merge |
 
 The table assumes that:
+
 - You are logged into the machine running the single-node VictoriaMetrics process
 - Or, if on Kubernetes, that you have port-forwarded the VictoriaMetrics service to `localhost:8428`
 
@@ -78,16 +80,16 @@ kubectl port-forward svc/vmsingle-victoria-metrics-single-server 8428 &
 
 To select, import, export, and delete series from a VictoriaMetrics cluster, you need to make the API request to the correct service. The table shows the service and its API endpoints for a VictoriaMetrics cluster.
 
-| Type            | Service   | Endpoint                                                                   | 
-|-----------------|-----------|----------------------------------------------------------------------------|
-| `series`          | vmselect  | http://localhost:8481/select/0/prometheus/api/v1/series                    | 
-| `export`          | vmselect  | http://localhost:8481/select/0/prometheus/api/v1/export                    | 
-| `import`          | vminsert  | http://localhost:8480/insert/0/prometheus/api/v1/import                    |
-| `delete_series`   | vmselect  | http://localhost:8481/delete/0/prometheus/api/v1/admin/tsdb/delete_series  |
-| `force_merge`     | vmstorage | http://localhost:8482/internal/force_merge                                |
-
+| Type | Service | Endpoint |
+| --- | --- | --- |
+| `series` | vmselect | http://localhost:8481/select/0/prometheus/api/v1/series |
+| `export` | vmselect | http://localhost:8481/select/0/prometheus/api/v1/export |
+| `import` | vminsert | http://localhost:8480/insert/0/prometheus/api/v1/import |
+| `delete_series` | vmselect | http://localhost:8481/delete/0/prometheus/api/v1/admin/tsdb/delete_series |
+| `force_merge` | vmstorage | http://localhost:8482/internal/force_merge |
 
 The table assumes that:
+
 - The [Account/Tenant ID](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) is 0; adjust this value as needed
 - You are logged into the machine running the VictoriaMetrics processes
 - Or, if on Kubernetes, that you have port-forwarded the VictoriaMetrics services to localhost
@@ -173,10 +175,11 @@ The output should show the matching time series found in VictoriaMetrics:
 }
 
 ```
+
 If you are using VictoriaMetrics Cloud, you need to:
 
 - Replace the base URL with your [Access Endpoint](https://docs.victoriametrics.com/victoriametrics-cloud/get-started/quickstart/#start-writing-and-reading-data) (e.g., `https://<xxxx>.cloud.victoriametrics.com`)
-- Add an Authorization Header with your [Access Token](https://docs.victoriametrics.com/victoriametrics-cloud/get-started/quickstart/#start-writing-and-reading-data) 
+- Add an Authorization Header with your [Access Token](https://docs.victoriametrics.com/victoriametrics-cloud/get-started/quickstart/#start-writing-and-reading-data)
 - Modify the endpoint path based on your [Cloud deployment type](https://docs.victoriametrics.com/victoriametrics-cloud/deployments/single-or-cluster/)
 
 The following example works with VictoriaMetrics Cloud single:
@@ -186,7 +189,6 @@ curl -s -X POST -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   'https://<xxxx>.cloud.victoriametrics.com/prometheus/api/v1/series' \
    -d 'match[]=process_cpu_cores_available' | jq
 ```
-
 
 ### Delete data
 
@@ -216,7 +218,7 @@ curl -s -X POST -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
    -d 'match[]=process_cpu_cores_available'
 ```
 
-If the operation was successful, the deleted series will no longer be [queryable](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#query-data). 
+If the operation was successful, the deleted series will no longer be [queryable](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#query-data).
 
 ### Storage
 
@@ -304,6 +306,7 @@ The output should look like:
 }
 
 ```
+
 We can replace the value of `node_memory_MemTotal_bytes` from `33604390912` to `17179869184` (from ~32GB to ~16GB) using [sed](https://linux.die.net/man/1/sed) or any other text-processing tool:
 
 ```sh
@@ -368,7 +371,7 @@ curl -s -X POST -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
    -T data.jsonl
 ```
 
-Please note that importing data with old timestamps is called **backfilling** and may require resetting caches, as described [here](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#backfilling). 
+Please note that importing data with old timestamps is called **backfilling** and may require resetting caches, as described in [backfilling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#backfilling).
 
 ### Check imported metrics
 
@@ -423,14 +426,14 @@ The output should look like:
 ## Troubleshooting
 
 If you have problems interacting with the API, try these steps:
+
 - Remove the `-s` from the curl command to see any errors
 - Add `-v` to the curl command for verbose output
 - Check that you are using the correct endpoint and port for your VictoriaMetrics deployment
-- On Kubernetes, you might need to port-forward the services in order to reach the API endpoints 
+- On Kubernetes, you might need to port-forward the services in order to reach the API endpoints
 
 ## See also
 
 - [API Examples](https://docs.victoriametrics.com/victoriametrics/url-examples/)
 - [Relabeling cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/)
 - [Retention period configuration](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention)
-

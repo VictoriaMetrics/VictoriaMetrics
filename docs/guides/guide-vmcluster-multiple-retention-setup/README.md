@@ -13,23 +13,23 @@ This guide explains how to set up multiple retentions using an [open-source Vict
 
 ## Overview
 
-VictoriaMetrics retains metrics by default for **1 month**. You can change data retention with the [`-retentionPeriod` command-line flag](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention), but this value applies to **all time series stored** on a given `vmstorage` node and cannot be customized per tenant or per metric in the open source version. 
+VictoriaMetrics retains metrics by default for **1 month**. You can change data retention with the [`-retentionPeriod` command-line flag](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention), but this value applies to **all time series stored** on a given `vmstorage` node and cannot be customized per tenant or per metric in the open source version.
 
 The core idea of this guide is to run **separate logic groups of storages** (or even clusters) with individual `-retentionPeriod` settings, while still providing a single unified write and read path via vmagent and vmselect.
 
 ## Multi-Retention Architecture
 
-To support multiple retentions with the open source version of VictoriaMetrics cluster, you can split the cluster into several logical groups of storage nodes. Each group is configured with a different `-retentionPeriod` and receives only the data that must follow that retention. 
+To support multiple retentions with the open source version of VictoriaMetrics cluster, you can split the cluster into several logical groups of storage nodes. Each group is configured with a different `-retentionPeriod` and receives only the data that must follow that retention.
 
 Each storage group is connected to a separate vminsert, while a shared vmselect layer queries across all storage groups so that dashboards and alerts continue to see a single unified VictoriaMetrics backend.
 
 ![Setup](setup.webp)
 
-In the example used throughout this guide, the cluster is divided into three groups: 
+In the example used throughout this guide, the cluster is divided into three groups:
 
 - Group A: 3-month retention.
 - Group B: 1-year retention.
-- Group C: 3-year retention. 
+- Group C: 3-year retention.
 
 Metrics are routed to the appropriate vminsert group by splitting data streams in vmagent, so each time series is sent to exactly one retention group instead of being replicated to all groups. See [Deploying vmagent](https://docs.victoriametrics.com/guides/guide-vmcluster-multiple-retention-setup/#step3) for an example of label‑based routing that implements this split. An optional [vmauth](https://docs.victoriametrics.com/guides/guide-vmcluster-multiple-retention-setup/#additional-enhancements) layer can be added on top to restrict access to specific sub‑clusters or tenants while still keeping a unified write and read path.
 
@@ -48,12 +48,11 @@ helm repo update
 
 We'll create three storage groups. Each has a different retention period and disk size. Read [Understand Your Setup Size](https://docs.victoriametrics.com/guides/understand-your-setup-size/) to estimate how much space you will need for each group. The following table is shown as an example:
 
-
-| Group        | Retention Period | Total disk size       |
-|--------------|------------------|-----------------------|
-| `vmcluster-a`  | 3 months (`3M`)    | 80 Gi                 |
-| `vmcluster-b`  | 1 year (`1Y`)      | 300 Gi                |
-| `vmcluster-c`  | 3 years (`3Y`)     | 900 Gi                |
+| Group | Retention Period | Total disk size |
+| --- | --- | --- |
+| `vmcluster-a` | 3 months (`3M`) | 80 Gi |
+| `vmcluster-b` | 1 year (`1Y`) | 300 Gi |
+| `vmcluster-c` | 3 years (`3Y`) | 900 Gi |
 
 Create a Helm values file for Group A.
 
@@ -176,7 +175,7 @@ EOF
 
 Let's break down the file above:
 
-- Deploys vmselect as a separate Helm release. 
+- Deploys vmselect as a separate Helm release.
 - Disables vminsert and vmstorage as these services were already deployed in Step 1.
 - `suppressStorageFQDNsRender: true` turns off automatic FQDN generation for storage nodes. By default, the Helm chart auto-generates `-storageNodes` flags, but since `vmstorage` has been disabled, we need to supply them manually in `extraArgs`.
 - In `extraArgs.storageNode:` we define the vmstorage endpoints for queries. On querying, vmselect merges results across all the specified vmstorages to provide a unified view of the data.
@@ -192,11 +191,10 @@ helm upgrade --install vmselect vm/victoria-metrics-cluster -f vmselect.yaml
 We'll use `vmagent` to route incoming metrics to the correct retention group. For example, we can use a `retention` label for mapping metrics to storage groups in the following way:
 
 | `retention` label | Storage Group |
-|-------------------|--------------|
-| `"3mo"`           | `vmcluster-a` |
-| `"1yr"`           | `vmcluster-b` |
-| `"3yr"`           | `vmcluster-c` |
-
+| --- | --- |
+| `"3mo"` | `vmcluster-a` |
+| `"1yr"` | `vmcluster-b` |
+| `"3yr"` | `vmcluster-c` |
 
 Create the values file for vmagent:
 
