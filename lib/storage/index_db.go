@@ -1739,22 +1739,10 @@ func (db *indexDB) searchMetricIDsByTimeRangeAndFilters(qt *querytracer.Tracer, 
 		}
 
 		date := minDate + uint64(day)
-		uniqMetricIDs := &uint64set.Set{}
 
-		metricIDs.ForEach(func(v []uint64) bool {
-			for _, metricID := range v {
-				if seen.Has(metricID) {
-					continue
-				}
-				seen.Add(metricID)
-				if seen.Len() > maxMetrics {
-					err = errTooManyTimeseries(maxMetrics)
-					return false
-				}
-				uniqMetricIDs.Add(metricID)
-			}
-			return true
-		})
+		uniqMetricIDs := metricIDs.Clone()
+		uniqMetricIDs.Subtract(seen)
+		seen.Union(uniqMetricIDs)
 
 		uniqMetricIDsByDate[date] = uniqMetricIDs
 	}
