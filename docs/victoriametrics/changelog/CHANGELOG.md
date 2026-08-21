@@ -35,6 +35,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): prevent process crash in `sort_by_label_numeric()` and `sort_by_label_numeric_desc()` when a label value contains a number with 309 or more digits. See [#11423](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11423).
 * BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fail the query request directly when there is not enough disk space to store temporary search results. Previously, such queries could lead to vmselect crash. See [#4688](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4688).
 
+* **CHANGELOG**: [vmalert-tool](https://docs.victoriametrics.com/victoriametrics/vmalert-tool/): document the change of `testStartTime` from `1970-01-01` to `2000-01-01` in the unit test harness. This is a breaking change for unit test files using absolute timestamps in `input_series` values. Users should add `946684800` to seed values representing absolute timestamps. See [#11437](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11437).
 ## [v1.150.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.150.0)
 
 Released at 2026-08-17
