@@ -2131,6 +2131,10 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 				// Immediately return the error, since vmselect cannot store the data received
 				// from vmstorage nodes due to file system issues like disk space shortage.
 				snr.finishQueryTracers("cancel request because vmselect cannot store the received data")
+				err = &httpserver.ErrorWithStatusCode{
+					Err:        err,
+					StatusCode: http.StatusServiceUnavailable,
+				}
 				return false, err
 			}
 
