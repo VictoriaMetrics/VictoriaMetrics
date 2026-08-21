@@ -79,7 +79,7 @@ func ParseTimeAt(s string, currentTimestamp int64) (int64, error) {
 		// Parse YYYY
 		return parseTimeAt("2006", s, tzOffset, sOrig)
 	}
-	if !strings.Contains(sOrig, "-") {
+	if !strings.Contains(sOrig, "-") || getExpIndex(sOrig) >= 0 {
 		nsec, ok := TryParseUnixTimestamp(sOrig)
 		if !ok {
 			return 0, fmt.Errorf("cannot parse numeric timestamp %q", sOrig)
@@ -217,11 +217,10 @@ func expandScientificUnixTimestamp(s string, decimalExp int64) (string, string, 
 
 	isNegativeExp := decimalExp < 0
 	if isNegativeExp {
+		if decimalExp <= -int64(len(decimalMultipliers)) {
+			return "", "", false
+		}
 		decimalExp = -decimalExp
-	}
-	// Value exceeding nanosecond precision should be rejected.
-	if decimalExp >= int64(len(decimalMultipliers)) {
-		return "", "", false
 	}
 
 	isNegative := strings.HasPrefix(intStr, "-")
@@ -230,8 +229,8 @@ func expandScientificUnixTimestamp(s string, decimalExp int64) (string, string, 
 	}
 
 	var shiftedIntStr, shiftedFracStr string
-	decimalExpInt := int(decimalExp)
 	if isNegativeExp {
+		decimalExpInt := int(decimalExp)
 		// e.g.
 		// 1. the integer and fractional part of 1.23e-5 should be 0 and 0000123 respectively.
 		// 2. the integer and fractional part of 123.4e-1 should be 12 and 34 respectively.
@@ -242,11 +241,16 @@ func expandScientificUnixTimestamp(s string, decimalExp int64) (string, string, 
 			shiftedIntStr = intStr[:len(intStr)-decimalExpInt]
 			shiftedFracStr = intStr[len(intStr)-decimalExpInt:] + fracStr
 		}
-	} else if decimalExpInt >= len(fracStr) {
-		// e.g. the integer part and fractional par of 1.23e5 should be 123000 and 0 respectively
-		shiftedIntStr = intStr + fracStr + strings.Repeat("0", decimalExpInt-len(fracStr))
+	} else if decimalExp >= int64(len(fracStr)) {
+		zerosToAdd := decimalExp - int64(len(fracStr))
+		if zerosToAdd >= int64(len(decimalMultipliers)) {
+			return "", "", false
+		}
+		// e.g. the integer part and fractional part of 1.23e5 should be 123000 and 0 respectively.
+		shiftedIntStr = intStr + fracStr + strings.Repeat("0", int(zerosToAdd))
 		shiftedFracStr = ""
 	} else {
+		decimalExpInt := int(decimalExp)
 		shiftedIntStr = intStr + fracStr[:decimalExpInt]
 		shiftedFracStr = fracStr[decimalExpInt:]
 	}
