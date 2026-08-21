@@ -1917,7 +1917,7 @@ func testIndexDBDeleteSeries(t *testing.T, disablePerDayIndex bool) {
 		t.Fatalf("unexpected metricIDs (-want, +got):\n%s", diff)
 	}
 
-	assertMetricNames(tfs, tr, nil)
+	assertMetricNames(tfs, tr, []string{})
 }
 
 func TestIndexDBGetTSDBStatus(t *testing.T) {
