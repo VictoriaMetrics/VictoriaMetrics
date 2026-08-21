@@ -223,6 +223,7 @@ func expandScientificUnixTimestamp(s string, decimalExp int64) (string, string, 
 		decimalExp = -decimalExp
 	}
 
+	intStr = strings.TrimPrefix(intStr, "+")
 	isNegative := strings.HasPrefix(intStr, "-")
 	if isNegative {
 		intStr = intStr[1:]
@@ -230,14 +231,15 @@ func expandScientificUnixTimestamp(s string, decimalExp int64) (string, string, 
 
 	var shiftedIntStr, shiftedFracStr string
 	if isNegativeExp {
-		decimalExpInt := int(decimalExp)
 		// e.g.
 		// 1. the integer and fractional part of 1.23e-5 should be 0 and 0000123 respectively.
 		// 2. the integer and fractional part of 123.4e-1 should be 12 and 34 respectively.
-		if decimalExpInt >= len(intStr) {
+		if decimalExp >= int64(len(intStr)) {
+			zerosToAdd := decimalExp - int64(len(intStr))
 			shiftedIntStr = "0"
-			shiftedFracStr = strings.Repeat("0", decimalExpInt-len(intStr)) + intStr + fracStr
+			shiftedFracStr = strings.Repeat("0", int(zerosToAdd)) + intStr + fracStr
 		} else {
+			decimalExpInt := int(decimalExp)
 			shiftedIntStr = intStr[:len(intStr)-decimalExpInt]
 			shiftedFracStr = intStr[len(intStr)-decimalExpInt:] + fracStr
 		}
