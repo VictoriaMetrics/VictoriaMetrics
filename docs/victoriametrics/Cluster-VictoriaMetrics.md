@@ -881,6 +881,140 @@ Some capacity planning tips for VictoriaMetrics cluster:
 
 See also [resource usage limits docs](#resource-usage-limits).
 
+## Acting on disk space alerts
+
+The [official alerting rules for the cluster](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-cluster.yml)
+contain three alerts about disk space on `vmstorage` nodes:
+
+- `NodeBecomesReadonlyIn3Days` - at the current ingestion rate the node will reach `-storage.minFreeDiskSpaceBytes`
+  and switch to [readonly mode](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#readonly-mode) in less than 3 days.
+- `DiskRunsOutOfSpaceIn3Days` - at the current ingestion rate the disk will be completely full in less than 3 days.
+- `DiskRunsOutOfSpace` - more than 80% of the disk is already used. Less than 20% of free space
+  can slow down background merges, data ingestion, and queries.
+
+The alert alone does not mean that the cluster is unavailable. Check the time to readonly mode
+and connection saturation before choosing a response.
+
+### Check time to readonly and connection saturation
+
+The following query estimates how long each node can accept writes before it reaches
+`-storage.minFreeDiskSpaceBytes`:
+
+```metricsql
+sum(vm_free_disk_space_bytes - vm_free_disk_space_limit_bytes) without(path)
+/
+(
+  (
+    rate(vm_rows_added_to_storage_total[1d])
+    -
+    sum(rate(vm_deduplicated_samples_total[1d])) without(type)
+  )
+  *
+  (
+    sum(vm_data_size_bytes{type!~"indexdb.*"}) without(type)
+    /
+    sum(vm_rows{type!~"indexdb.*"}) without(type)
+  )
+  +
+  rate(vm_new_timeseries_created_total[1d])
+  *
+  (
+    sum(vm_data_size_bytes{type="indexdb/file"}) without(type)
+    /
+    sum(vm_rows{type="indexdb/file"}) without(type)
+  )
+) > 0
+```
+
+The query estimates how many seconds each node can keep accepting writes. Count the nodes that can become readonly before
+one of the options below takes effect. Divide this number by the total number of storage nodes.
+
+When re-routing is enabled, the following query shows how much capacity remains on the busiest connection
+from `vminsert` to `vmstorage` in each job, as a percentage:
+
+```metricsql
+100 - max(rate(vm_rpc_send_duration_seconds_total{rpc_call="metric_rows"}[5m])) by (job) * 100
+```
+
+Keep this value at 40% or higher. It must also be at least double the share of storage nodes that may become readonly.
+For example, if 30% of the nodes may become readonly, keep at least 60%. Also make sure the remaining nodes meet the
+[capacity planning](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#capacity-planning)
+recommendations for CPU, memory, and disk capacity.
+
+If `-disableReroutingOnUnavailable` is set at `vminsert`, `vminsert` stops ingestion instead of re-routing writes.
+When `vmagent` sends data to `vminsert` and its on-disk queue is enabled, the resulting backpressure increases
+`vmagent_remotewrite_pending_data_bytes`. Monitor
+`sum(vmagent_remotewrite_pending_data_bytes) by (job, instance, url)` and
+`sum(increase(vm_persistentqueue_bytes_dropped_total[5m])) by (job, instance, path)`
+to verify that data remains buffered without being dropped. See
+[vmagent on-disk persistence](https://docs.victoriametrics.com/victoriametrics/vmagent/#on-disk-persistence).
+
+We recommend starting by removing unnecessary data. This reduces the amount of data the cluster must ingest and store. Adding
+capacity does not. If removing unnecessary data cannot prevent readonly mode in time, choose another option below. Use readonly
+mode as controlled degradation only when the remaining nodes have enough disk space and connection capacity.
+
+### Reduce incoming data
+
+Removing unnecessary data usually requires coordination with data owners. Use the
+[cardinality explorer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer)
+to find metric names and labels with high series counts. Use the
+[metric name usage tracker](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#track-ingested-metrics-usage)
+to find metric names that are rarely or never queried.
+
+Drop data that is not needed at the collector or `vmagent` before it reaches VictoriaMetrics storage. This reduces remote write
+traffic, ingestion work, and future disk growth. See the
+[relabeling documentation](https://docs.victoriametrics.com/victoriametrics/relabeling/) for filtering examples.
+
+### Keep less historical data
+
+Lowering retention is one of the simplest options, but it permanently deletes historical data. Set a lower
+`-retentionPeriod` value and restart the `vmstorage` nodes.
+
+Lowering retention does not free disk space right away. Expired monthly partitions continue to use disk space
+until they are deleted on the first day of the next month. If a node may become readonly before then,
+lowering retention alone will not free space in time.
+See the [retention documentation](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention) for details.
+
+### Add storage capacity
+
+Increase the disk size for the alerting node when possible. This gives the node more disk space and keeps its historical data.
+Size the disk for the expected data growth over the retention period and the reserve described in
+[capacity planning](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#capacity-planning).
+
+Add `vmstorage` nodes when the whole cluster needs more write capacity. New nodes receive newly ingested data, but historical data
+is not moved automatically. Adding a node alone does not clear a disk alert on an existing node. See
+[cluster resizing and scalability](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#cluster-resizing-and-scalability)
+and use [rebalancing](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#rebalancing) when the existing node
+cannot wait for historical data to expire.
+
+### Move ingestion to a new cluster
+
+When disk usage is uneven, `vmstorage` nodes can trigger disk alerts at different times.
+Each alert can require a separate investigation and disk change, which interrupts other work.
+Moving ingestion to a new cluster adds migration work, but new writes are evenly spread across empty `vmstorage` nodes.
+This can reduce future alerts and allow planning disk capacity for all nodes at once.
+
+Send new writes to the new cluster and keep the old cluster for historical queries.
+Configure `vmselect` to query `vmstorage` nodes from both clusters until the old data leaves the retention window.
+Without ingestion, CPU and RAM that are no longer needed by the old cluster can be used elsewhere.
+Keep enough resources for historical queries and retention cleanup. Decommission the old cluster after its retention period expires.
+
+### Use readonly mode as controlled degradation
+
+When one node is close to its disk limit and the checks above show enough connection capacity and disk space
+on the remaining nodes, allowing the node to enter
+[readonly mode](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#readonly-mode) can be an acceptable temporary response.
+
+The readonly node stops accepting writes but remains available for queries.
+It becomes writable again after enough disk space is freed to meet `-storage.minFreeDiskSpaceBytes`. Monitor
+`vm_storage_is_read_only`, connection saturation, and disk usage while the node is readonly. When `vmagent` is used, also
+monitor its pending and dropped persistent queue data. If replication is enabled, check the required number of writable nodes in
+[replication and data safety](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety)
+before using this option.
+
+When re-routing is enabled, use readonly mode only when the remaining capacity meets both limits above
+and the remaining nodes are not close to their disk limits.
+
 ## Rebalancing
 
 Every `vminsert` node [evenly spreads (shards) incoming data](https://victoriametrics.com/blog/vminsert-how-it-works/#3-sharding-and-buffering) among `vmstorage` nodes specified in the `-storageNode` command-line flag.
