@@ -594,6 +594,8 @@ By default, the following TCP ports are used:
 
 Use [the official Grafana dashboard for VictoriaMetrics cluster](https://grafana.com/grafana/dashboards/11176).
 
+See [Metrics](https://docs.victoriametrics.com/victoriametrics/metrics/) for what the exported metrics mean.
+
 See more details on [how to monitor VictoriaMetrics components](https://docs.victoriametrics.com/victoriametrics/#monitoring).
 
 ## Cardinality limiter

@@ -1597,6 +1597,7 @@ See also [security recommendations](#security).
 
 `vmauth` exports various metrics in Prometheus exposition format at `http://vmauth-host:8427/metrics` page. It is recommended to set up regular scraping of this page either via [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) or via a Prometheus-compatible scraper, so the exported metrics can be analyzed later.
 Use the official [Grafana dashboard](https://grafana.com/grafana/dashboards/21394) and [alerting rules](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-vmauth.yml) for `vmauth` monitoring.
+See [Metrics](https://docs.victoriametrics.com/victoriametrics/metrics/) for what the exported metrics mean.
 
 If you use Google Cloud Managed Prometheus for scraping metrics from VictoriaMetrics components, then pass `-metrics.exposeMetadata`
 command-line to them, so they add `TYPE` and `HELP` comments for each exposed metric on the `/metrics` page.

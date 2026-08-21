@@ -478,6 +478,7 @@ Clusters here are referred to as `source` and `destination`.
 ### Monitoring
 
 `vmbackupmanager` exports various metrics in Prometheus exposition format at `http://vmbackupmanager:8300/metrics` page. It is recommended to set up regular scraping of this page either via [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) or via Prometheus, so the exported metrics could be analyzed later.
+See [Metrics](https://docs.victoriametrics.com/victoriametrics/metrics/) for what the exported metrics mean.
 
 To verify that `vmbackupmanager` is executing backup tasks normally, the following metrics can help:
 
