@@ -21,6 +21,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/stats"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/appmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
@@ -123,6 +124,7 @@ func main() {
 		fs.MustRemoveDirContents(tmpDataPath)
 		netstorage.InitTmpBlocksDir(tmpDataPath)
 		promql.InitRollupResultCache(*cacheDataPath + "/rollupResult")
+		appmetrics.MustCreateUncleanShutdownMarker(*cacheDataPath)
 	} else {
 		netstorage.InitTmpBlocksDir("")
 		promql.InitRollupResultCache("")
@@ -175,6 +177,7 @@ func main() {
 	netstorage.MustStop()
 	if len(*cacheDataPath) > 0 {
 		promql.StopRollupResultCache()
+		appmetrics.MustRemoveUncleanShutdownMarker(*cacheDataPath)
 	}
 	logger.Infof("successfully stopped netstorage in %.3f seconds", time.Since(startTime).Seconds())
 

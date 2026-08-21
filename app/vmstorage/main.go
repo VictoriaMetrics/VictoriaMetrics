@@ -13,6 +13,7 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/appmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
@@ -194,6 +195,7 @@ func main() {
 		LogNewSeries:                *logNewSeries,
 	}
 	strg := storage.MustOpenStorage(*storageDataPath, opts)
+	appmetrics.MustCreateUncleanShutdownMarker(*storageDataPath)
 	vmStorage := newVMStorage(strg, *vmselectMaxConcurrentRequests)
 
 	var m storage.Metrics
@@ -264,6 +266,7 @@ func main() {
 	logger.Infof("successfully closed the storage in %.3f seconds", time.Since(startTime).Seconds())
 
 	fs.MustStopDirRemover()
+	appmetrics.MustRemoveUncleanShutdownMarker(*storageDataPath)
 	logger.Infof("the vmstorage has been stopped")
 }
 
