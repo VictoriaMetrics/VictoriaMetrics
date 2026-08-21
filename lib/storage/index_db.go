@@ -1748,35 +1748,14 @@ func (db *indexDB) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, t
 		}
 	}
 
-	seen := &uint64set.Set{}
-	uniqMetricIDsByDate := make(map[uint64]*uint64set.Set)
 	for day, metricIDs := range metricIDss {
-		var err error
-		uniqMetricIDs := &uint64set.Set{}
-		metricIDs.ForEach(func(s []uint64) bool {
-			for _, metricID := range s {
-				if seen.Has(metricID) {
-					continue
-				}
-				uniqMetricIDs.Add(metricID)
-				seen.Add(metricID)
-				if seen.Len() > maxMetrics {
-					err = errTooManyTimeseries(maxMetrics)
-					return false
-				}
-			}
-			return true
-		})
-		if err != nil {
-			return nil, err
-		}
-		if uniqMetricIDs.Len() > 0 {
+		if metricIDs.Len() > 0 {
 			date := minDate + uint64(day)
-			uniqMetricIDsByDate[date] = uniqMetricIDs
+			metricIDsByDate[date] = metricIDs
 		}
 	}
 
-	return uniqMetricIDsByDate, nil
+	return metricIDsByDate, nil
 }
 
 func (db *indexDB) searchMetricIDsByDateAndFilters(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, maxMetrics int, deadline uint64) (*uint64set.Set, error) {
@@ -1844,11 +1823,11 @@ func (db *indexDB) SearchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Ti
 		return nil, nil
 	}
 	var numMetricIDs int
-	for _, v := range metricIDsByDate {
-		numMetricIDs += v.Len()
+	for _, metricIDs := range metricIDsByDate {
+		numMetricIDs += metricIDs.Len()
 	}
-
 	tsids := make([]TSID, numMetricIDs)
+	uniqMetricIDs := &uint64set.Set{}
 	metricIDsToDelete := &uint64set.Set{}
 	i := 0
 	paceLimiter := 0
@@ -1857,6 +1836,14 @@ func (db *indexDB) SearchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Ti
 	for _, metricIDs := range metricIDsByDate {
 		metricIDs.ForEach(func(metricIDs []uint64) bool {
 			for _, metricID := range metricIDs {
+				if uniqMetricIDs.Has(metricID) {
+					continue
+				}
+				uniqMetricIDs.Add(metricID)
+				if uniqMetricIDs.Len() > maxMetrics {
+					err = errTooManyTimeseries(maxMetrics)
+					return false
+				}
 				if paceLimiter&paceLimiterSlowIterationsMask == 0 {
 					if err = checkSearchDeadlineAndPace(deadline); err != nil {
 						return false
@@ -1900,7 +1887,7 @@ func (db *indexDB) SearchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Ti
 	}
 
 	tsids = tsids[:i]
-	qt.Printf("found %d TSIDs for %d metricIDs", len(tsids), numMetricIDs)
+	qt.Printf("found %d TSIDs for %d metricIDs", len(tsids), uniqMetricIDs.Len())
 
 	// Sort the found tsids, since they must be passed to TSID search
 	// in the sorted order.
@@ -1941,8 +1928,8 @@ func (db *indexDB) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters,
 	for _, v := range metricIDsByDate {
 		numMetricIDs += v.Len()
 	}
-
 	metricNames := make([]string, 0, numMetricIDs)
+	uniqMetricIDs := &uint64set.Set{}
 	metricIDsToDelete := &uint64set.Set{}
 	var metricName []byte
 	var ok bool
@@ -1952,6 +1939,14 @@ func (db *indexDB) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters,
 	for _, metricIDs := range metricIDsByDate {
 		metricIDs.ForEach(func(metricIDs []uint64) bool {
 			for _, metricID := range metricIDs {
+				if uniqMetricIDs.Has(metricID) {
+					continue
+				}
+				uniqMetricIDs.Add(metricID)
+				if uniqMetricIDs.Len() > maxMetrics {
+					err = errTooManyTimeseries(maxMetrics)
+					return false
+				}
 				if paceLimiter&paceLimiterSlowIterationsMask == 0 {
 					if err = checkSearchDeadlineAndPace(deadline); err != nil {
 						return false
