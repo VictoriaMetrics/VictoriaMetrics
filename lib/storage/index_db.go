@@ -1738,13 +1738,18 @@ func (db *indexDB) searchMetricIDsByTimeRangeAndFilters(qt *querytracer.Tracer, 
 			continue
 		}
 
-		date := minDate + uint64(day)
-
 		uniqMetricIDs := metricIDs.Clone()
 		uniqMetricIDs.Subtract(seen)
 		seen.Union(uniqMetricIDs)
 
-		uniqMetricIDsByDate[date] = uniqMetricIDs
+		if seen.Len() > maxMetrics {
+			return nil, errTooManyTimeseries(maxMetrics)
+		}
+
+		if uniqMetricIDs.Len() > 0 {
+			date := minDate + uint64(day)
+			uniqMetricIDsByDate[date] = uniqMetricIDs
+		}
 	}
 
 	if err != nil {
