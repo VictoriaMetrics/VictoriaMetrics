@@ -91,6 +91,51 @@ func (ao *aggrOutputs) pushSamples(samples []pushSample, deleteDeadline int64, i
 	}
 }
 
+// stateSizeBytes returns the approximate total size in bytes of the state kept by the output config at configIdx
+// across all the currently tracked series.
+func (ao *aggrOutputs) stateSizeBytes(configIdx int) uint64 {
+	var n uint64
+	ao.m.Range(func(_, v any) bool {
+		av := v.(*aggrValues)
+		av.mu.Lock()
+		if av.deleteDeadline >= 0 {
+			o := av.blue[configIdx]
+			if o != nil {
+				n += o.sizeBytes()
+			}
+			// blue and green share the same underlying state for outputs whose state() is non-nil
+			// (e.g. total, sum_samples, rate, histogram_bucket, increase), so green's size must be
+			// skipped for them to avoid counting the shared state twice.
+			if ao.useSharedState && (o == nil || o.state() == nil) {
+				if gv := av.green[configIdx]; gv != nil {
+					n += gv.sizeBytes()
+				}
+			}
+		}
+		av.mu.Unlock()
+		return true
+	})
+	return n
+}
+
+// stateItemsCount returns the number of series currently tracked in the output state.
+//
+// This number is the same for every output config, since all the configs of a single aggregation
+// share the same set of series keys.
+func (ao *aggrOutputs) stateItemsCount() uint64 {
+	var n uint64
+	ao.m.Range(func(_, v any) bool {
+		av := v.(*aggrValues)
+		av.mu.Lock()
+		if av.deleteDeadline >= 0 {
+			n++
+		}
+		av.mu.Unlock()
+		return true
+	})
+	return n
+}
+
 func (ao *aggrOutputs) flushState(ctx *flushCtx) {
 	m := &ao.m
 	var outputs []aggrValue
@@ -143,4 +188,11 @@ type aggrValue interface {
 	pushSample(aggrConfig, *pushSample, string, int64)
 	flush(aggrConfig, *flushCtx, string, bool)
 	state() any
+
+	// sizeBytes returns the approximate memory size occupied by the value's state.
+	sizeBytes() uint64
 }
+
+// mapEntryOverheadBytes is the approximate per-entry overhead of a Go map, used for estimating
+// sizeBytes() of aggrValue implementations, which keep their state in a map.
+const mapEntryOverheadBytes = 24

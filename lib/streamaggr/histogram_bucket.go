@@ -1,6 +1,8 @@
 package streamaggr
 
 import (
+	"unsafe"
+
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -24,6 +26,16 @@ func (av *histogramBucketAggrValue) flush(_ aggrConfig, ctx *flushCtx, key strin
 
 func (av *histogramBucketAggrValue) state() any {
 	return av.shared
+}
+
+// sizeBytes returns an approximate, lower-bound size of av's state.
+//
+// metrics.Histogram lazily allocates its per-decimal bucket arrays and doesn't expose how many
+// of them are currently allocated, so this only accounts for the fixed part of the struct
+// (including the array of bucket pointers) and doesn't count the allocated bucket arrays themselves.
+func (av *histogramBucketAggrValue) sizeBytes() uint64 {
+	// unsafe.Sizeof(*av) already accounts for av.h, since it's an embedded value, not a pointer.
+	return uint64(unsafe.Sizeof(*av)) + uint64(unsafe.Sizeof(*av.shared))
 }
 
 func newHistogramBucketAggrConfig() aggrConfig {

@@ -1,5 +1,7 @@
 package streamaggr
 
+import "unsafe"
+
 type maxAggrValue struct {
 	max     float64
 	defined bool
@@ -24,6 +26,10 @@ func (av *maxAggrValue) flush(_ aggrConfig, ctx *flushCtx, key string, _ bool) {
 
 func (*maxAggrValue) state() any {
 	return nil
+}
+
+func (av *maxAggrValue) sizeBytes() uint64 {
+	return uint64(unsafe.Sizeof(*av))
 }
 
 func newMaxAggrConfig() aggrConfig {

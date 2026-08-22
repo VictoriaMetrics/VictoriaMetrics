@@ -1,5 +1,7 @@
 package streamaggr
 
+import "unsafe"
+
 type avgAggrValue struct {
 	sum   float64
 	count float64
@@ -21,6 +23,10 @@ func (av *avgAggrValue) flush(_ aggrConfig, ctx *flushCtx, key string, _ bool) {
 
 func (*avgAggrValue) state() any {
 	return nil
+}
+
+func (av *avgAggrValue) sizeBytes() uint64 {
+	return uint64(unsafe.Sizeof(*av))
 }
 
 func newAvgAggrConfig() aggrConfig {

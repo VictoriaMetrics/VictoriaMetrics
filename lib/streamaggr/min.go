@@ -1,5 +1,7 @@
 package streamaggr
 
+import "unsafe"
+
 type minAggrValue struct {
 	min     float64
 	defined bool
@@ -24,6 +26,10 @@ func (av *minAggrValue) flush(_ aggrConfig, ctx *flushCtx, key string, _ bool) {
 
 func (*minAggrValue) state() any {
 	return nil
+}
+
+func (av *minAggrValue) sizeBytes() uint64 {
+	return uint64(unsafe.Sizeof(*av))
 }
 
 func newMinAggrConfig() aggrConfig {

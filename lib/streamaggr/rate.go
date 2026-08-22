@@ -3,6 +3,7 @@ package streamaggr
 import (
 	"fmt"
 	"sync"
+	"unsafe"
 
 	"github.com/VictoriaMetrics/metrics"
 
@@ -176,6 +177,20 @@ func (av *rateAggrValue) flush(c aggrConfig, ctx *flushCtx, key string, isLast b
 
 func (av *rateAggrValue) state() any {
 	return av.shared
+}
+
+func (av *rateAggrValue) sizeBytes() uint64 {
+	n := uint64(unsafe.Sizeof(*av))
+	for k, sv := range av.shared {
+		n += uint64(len(k)) + uint64(unsafe.Sizeof(*sv)) + mapEntryOverheadBytes
+		if sv.blue != nil {
+			n += uint64(unsafe.Sizeof(*sv.blue))
+		}
+		if sv.green != nil {
+			n += uint64(unsafe.Sizeof(*sv.green))
+		}
+	}
+	return n
 }
 
 func newRateAggrConfig(ms *metrics.Set, metricLabels string, isAvg bool) aggrConfig {
