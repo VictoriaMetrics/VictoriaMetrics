@@ -639,8 +639,12 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/
      Whether to replace characters unsupported by Prometheus with underscores in the ingested metric names and label names. For example, foo.bar{a.b='c'} is transformed into foo_bar{a_b='c'} during data ingestion if this flag is set. See https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels
   -version
      Show VictoriaMetrics version
-  -vmalert.proxyURL string
-     Optional URL for proxying requests to vmalert. For example, if -vmalert.proxyURL=http://vmalert:8880 , then alerting API requests such as /api/v1/rules from Grafana will be proxied to http://vmalert:8880/api/v1/rules . See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmalert
+  -vmalert.proxyTimeout duration
+     Timeout for requests to vmalert instances when multiple -vmalert.proxyURL urls are set and the responses are merged. This prevents a single slow vmalert instance from blocking the merged response. A single -vmalert.proxyURL is proxied without this timeout (default 30s)
+  -vmalert.proxyURL array
+     Optional URL for proxying requests to vmalert. For example, if -vmalert.proxyURL=http://vmalert:8880 , then alerting API requests such as /api/v1/rules from Grafana will be proxied to http://vmalert:8880/api/v1/rules . If multiple URLs are set, then responses to /api/v1/rules and /api/v1/alerts requests are fetched from all the configured vmalert instances and merged into a single response, while all the other requests, including vmalert web UI, are proxied to the first URL in the list. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmalert
+     Supports an array of values separated by comma or specified via multiple flags.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -vmselectAddr string
      TCP address to listen for incoming connections from vmselect. When set, the node will be able to accept cluster-native vmselect RPC requests as if it were vmstorage. The tenant ID assigned to this node's data is controlled by -accountID and -projectID flags. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#multi-tenancy
   -vmui.customDashboardsPath string
