@@ -63,7 +63,7 @@ func TestStorageSearchTSIDs_CorruptedIndex(t *testing.T) {
 			if err != nil {
 				panic(fmt.Sprintf("searchMetricIDs() failed unexpectedly: %v", err))
 			}
-			return metricIDs.AppendTo(nil)
+			return metricIDs.ToArray()
 		}
 		searchTSIDs := func() []TSID {
 			tsids, err := s.SearchTSIDs(nil, tfssAll, tr, 1e9, noDeadline)
@@ -106,7 +106,7 @@ func TestStorageSearchTSIDs_CorruptedIndex(t *testing.T) {
 			t.Fatalf("unexpected metric names (-want, +got):\n%s", diff)
 		}
 		// As a result they cannot be searched anymore.
-		if diff := cmp.Diff([]uint64(nil), searchMetricIDs()); diff != "" {
+		if diff := cmp.Diff([]uint64{}, searchMetricIDs()); diff != "" {
 			t.Fatalf("unexpected metricIDs (-want, +got):\n%s", diff)
 		}
 		// Ensure the metric that counts metricIDs for which no TSIDs were found
@@ -165,7 +165,7 @@ func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
 			if err != nil {
 				panic(fmt.Sprintf("searchMetricIDs() failed unexpectedly: %v", err))
 			}
-			return metricIDs.AppendTo(nil)
+			return metricIDs.ToArray()
 		}
 		searchMetricNames := func() []string {
 			metricNames, err := s.SearchMetricNames(nil, tfssAll, tr, 1e9, noDeadline)
@@ -208,7 +208,7 @@ func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
 			t.Fatalf("unexpected metric names (-want, +got):\n%s", diff)
 		}
 		// As a result they cannot be searched anymore.
-		if diff := cmp.Diff([]uint64(nil), searchMetricIDs()); diff != "" {
+		if diff := cmp.Diff([]uint64{}, searchMetricIDs()); diff != "" {
 			t.Fatalf("unexpected metricIDs (-want, +got):\n%s", diff)
 		}
 		// Ensure the metric that counts metricIDs for which no metric names

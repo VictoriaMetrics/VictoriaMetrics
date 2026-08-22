@@ -15,6 +15,7 @@ import (
 	"testing/quick"
 	"time"
 
+	"github.com/RoaringBitmap/roaring/v2/roaring64"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
@@ -947,7 +948,7 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 			t.Fatalf("unexpected partitions count for %v: got %d, want %d", &tr, got, want)
 		}
 		idb := ptws[0].pt.idb
-		if got := idb.getDeletedMetricIDs().Len(); got != want {
+		if got := idb.getDeletedMetricIDs().Stats().Cardinality; got != uint64(want) {
 			t.Fatalf("unexpected deletedMetricIDs cache size: got %d, want %d", got, want)
 		}
 	}
@@ -3575,13 +3576,15 @@ func testStorageAddRowsWithZeroDate(t *testing.T, disablePerDayIndex bool) {
 // The function is not a part of Storage because it is currently used in unit
 // tests only.
 func testSearchMetricIDs(s *Storage, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) []uint64 {
-	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (*uint64set.Set, error) {
+	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (*roaring64.Bitmap, error) {
 		return idb.searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
 	}
-	merge := func(data []*uint64set.Set) *uint64set.Set {
-		all := &uint64set.Set{}
+	merge := func(data []*roaring64.Bitmap) *roaring64.Bitmap {
+		all := roaring64.New()
 		for _, d := range data {
-			all.Union(d)
+			if d != nil {
+				all.Or(d)
+			}
 		}
 		return all
 	}
@@ -3589,7 +3592,7 @@ func testSearchMetricIDs(s *Storage, tfss []*TagFilters, tr TimeRange, maxMetric
 	if err != nil {
 		panic(fmt.Sprintf("searching metricIDs failed unexpectedly: %s", err))
 	}
-	return metricIDs.AppendTo(nil)
+	return metricIDs.ToArray()
 }
 
 // testCountAllMetricIDs is a test helper function that counts the IDs of

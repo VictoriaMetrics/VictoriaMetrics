@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
+	"github.com/RoaringBitmap/roaring/v2/roaring64"
 )
 
 func TestMergeBlockStreamsOneStreamOneRow(t *testing.T) {
@@ -374,7 +374,7 @@ func TestMergeForciblyStop(t *testing.T) {
 	var bsw blockStreamWriter
 	bsw.MustInitFromInmemoryPart(&mp, -5)
 	ch := make(chan struct{})
-	dmis := &uint64set.Set{}
+	dmis := roaring64.New()
 	const retentionDeadline = 0
 	var rowsMerged, rowsDeleted atomic.Uint64
 
@@ -396,7 +396,7 @@ func testMergeBlockStreams(t *testing.T, bsrs []*blockStreamReader, expectedBloc
 	var mp inmemoryPart
 	var bsw blockStreamWriter
 	bsw.MustInitFromInmemoryPart(&mp, -5)
-	dmis := &uint64set.Set{}
+	dmis := roaring64.New()
 	const retentionDeadline = 0
 	var rowsMerged, rowsDeleted atomic.Uint64
 	if err := mergeBlockStreams(&mp.ph, &bsw, bsrs, nil, dmis, retentionDeadline, &rowsMerged, &rowsDeleted); err != nil {

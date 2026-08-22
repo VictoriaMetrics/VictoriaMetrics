@@ -5,10 +5,10 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/RoaringBitmap/roaring/v2/roaring64"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
 
 // mergeBlockStreams merges bsrs into bsw and updates ph.
@@ -16,7 +16,7 @@ import (
 // mergeBlockStreams returns immediately if stopCh is closed.
 //
 // rowsMerged is atomically updated with the number of merged rows during the merge.
-func mergeBlockStreams(ph *partHeader, bsw *blockStreamWriter, bsrs []*blockStreamReader, stopCh <-chan struct{}, dmis *uint64set.Set, retentionDeadline int64, rowsMerged, rowsDeleted *atomic.Uint64) error {
+func mergeBlockStreams(ph *partHeader, bsw *blockStreamWriter, bsrs []*blockStreamReader, stopCh <-chan struct{}, dmis *roaring64.Bitmap, retentionDeadline int64, rowsMerged, rowsDeleted *atomic.Uint64) error {
 	ph.Reset()
 
 	bsm := bsmPool.Get().(*blockStreamMerger)
@@ -39,7 +39,7 @@ var bsmPool = &sync.Pool{
 
 var errForciblyStopped = fmt.Errorf("forcibly stopped")
 
-func mergeBlockStreamsInternal(ph *partHeader, bsw *blockStreamWriter, bsm *blockStreamMerger, stopCh <-chan struct{}, dmis *uint64set.Set, rowsMerged, rowsDeleted *atomic.Uint64) error {
+func mergeBlockStreamsInternal(ph *partHeader, bsw *blockStreamWriter, bsm *blockStreamMerger, stopCh <-chan struct{}, dmis *roaring64.Bitmap, rowsMerged, rowsDeleted *atomic.Uint64) error {
 	pendingBlockIsEmpty := true
 	pendingBlock := getBlock()
 	defer putBlock(pendingBlock)
@@ -77,7 +77,7 @@ func mergeBlockStreamsInternal(ph *partHeader, bsw *blockStreamWriter, bsm *bloc
 		}
 
 		b := bsm.Block
-		if dmis.Has(b.bh.TSID.MetricID) {
+		if dmis.Contains(b.bh.TSID.MetricID) {
 			// Skip blocks for deleted metrics.
 			localRowsDeleted += uint64(b.bh.RowsCount)
 			continue
