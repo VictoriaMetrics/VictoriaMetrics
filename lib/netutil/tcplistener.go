@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -57,6 +58,14 @@ func NewTCPListener(name, addr string, useProxyProtocol bool, tlsConfig *tls.Con
 	return tln, err
 }
 
+// SetMaxConns limits the number of established connections ln accepts to maxConns.
+//
+// Connections accepted while the limit is reached are immediately closed.
+// A maxConns value of 0 disables the limit.
+func (ln *TCPListener) SetMaxConns(maxConns int) {
+	ln.maxConns.Store(int64(maxConns))
+}
+
 // EnableIPv6 enables IPv6 for dialing and listening.
 func EnableIPv6() {
 	*enableTCP6 = true
@@ -96,6 +105,10 @@ type TCPListener struct {
 	accepts      *metrics.Counter
 	acceptErrors *metrics.Counter
 
+	// maxConns is the maximum number of established connections this listener accepts.
+	// Zero means no limit.
+	maxConns atomic.Int64
+
 	useProxyProtocol bool
 
 	cm connMetrics
@@ -117,6 +130,13 @@ func (ln *TCPListener) Accept() (net.Conn, error) {
 			}
 			ln.acceptErrors.Inc()
 			return nil, err
+		}
+		n := ln.cm.activeConns.Add(1)
+		if maxConns := ln.maxConns.Load(); maxConns > 0 && n > maxConns {
+			ln.cm.activeConns.Add(-1)
+			ln.cm.connsDropped.Inc()
+			_ = conn.Close()
+			continue
 		}
 		if ln.useProxyProtocol {
 			pConn := newProxyProtocolConn(conn)

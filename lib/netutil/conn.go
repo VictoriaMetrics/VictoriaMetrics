@@ -24,7 +24,15 @@ type connMetrics struct {
 
 	closeErrors *metrics.Counter
 
-	conns *metrics.Gauge
+	conns        *metrics.Gauge
+	connsDropped *metrics.Counter
+
+	// activeConns is the exact number of currently established connections.
+	//
+	// Unlike conns, which is a float64 metrics.Gauge updated via a CAS loop, activeConns is a plain
+	// atomic counter. It is used for enforcing TCPListener.maxConns, so that concurrent Accept calls
+	// reserve a slot atomically instead of racing on a check-then-act read of conns.
+	activeConns atomic.Int64
 }
 
 func (cm *connMetrics) init(ms *metrics.Set, group, name, addr string) {
@@ -41,6 +49,7 @@ func (cm *connMetrics) init(ms *metrics.Set, group, name, addr string) {
 	cm.closeErrors = ms.NewCounter(fmt.Sprintf(`%s_errors_total{name=%q, addr=%q, type="close"}`, group, name, addr))
 
 	cm.conns = ms.NewGauge(fmt.Sprintf(`%s_conns{name=%q, addr=%q}`, group, name, addr), nil)
+	cm.connsDropped = ms.NewCounter(fmt.Sprintf(`%s_conns_dropped_total{name=%q, addr=%q, reason="limit"}`, group, name, addr))
 }
 
 type statConn struct {
@@ -94,6 +103,7 @@ func (sc *statConn) Close() error {
 	}
 	err := sc.Conn.Close()
 	sc.cm.conns.Dec()
+	sc.cm.activeConns.Add(-1)
 	if err != nil {
 		sc.cm.closeErrors.Inc()
 	}
