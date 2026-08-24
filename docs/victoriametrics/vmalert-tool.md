@@ -76,6 +76,24 @@ via the `--startTime` cmd-line flag, which accepts an [RFC3339](https://www.rfc-
 ./vmalert-tool unittest --files=/path/to/file --startTime=2015-06-01T00:00:00Z
 ```
 
+A single `<test_group>` can pin its own start time with the `start_timestamp` option, which takes
+precedence over `--startTime`. It accepts either a Unix timestamp in seconds or an RFC3339 string,
+the same way [promtool](https://prometheus.io/docs/prometheus/latest/configuration/unit_testing_rules/#test_group)
+does, so a promtool test file needs no rewriting to run here:
+
+```yaml
+tests:
+  - name: "pinned to the timestamps this group's input_series were written against"
+    start_timestamp: 1609459200      # or "2021-01-01T00:00:00Z"
+    input_series:
+      - series: my_last_run_timestamp_seconds{instance="host1"}
+        values: "1609459200x121"
+```
+
+That lets `--startTime` move a whole suite while the groups which carry absolute timestamps stay
+where they are, and it lets an already-migrated group keep its start time while the rest of the
+file is still being worked through.
+
 The start time is load-bearing for any rule which compares a sample value against `time()`, such as
 the usual "is this thing stale?" alert. Series holding absolute Unix timestamps must be seeded
 relative to the same start time the rules are evaluated at:
@@ -90,9 +108,10 @@ input_series:
 Rules gated on `day_of_week()`, `hour()` or `minute()` are affected too, since the start time fixes
 the calendar position the offsets are counted from.
 
-`--startTime` must not be earlier than `1970-01-02T00:00:00Z`. The first day of the Unix epoch is
+The start time must not be earlier than `1970-01-02T00:00:00Z`. The first day of the Unix epoch is
 reserved for the global index search, so `input_series` seeded there are dropped and rules never
-see them.
+see them. This applies to `start_timestamp` too, including promtool's default of `0`: a group which
+asks for it is rejected with that error rather than run against input the rules cannot see.
 
 It must not be later than `now+100y` either, since that is the furthest ahead the underlying
 storage accepts samples at. Both bounds apply to the whole test, not only to its first sample: a
@@ -137,6 +156,12 @@ input_series:
 
 # Name of the test group, optional
 [ name: <string> ]
+
+# The time this test group starts at: input_series are seeded from it, and every eval_time below
+# is an offset from it. Accepts a Unix timestamp in seconds such as 1609459200, or an RFC3339
+# timestamp such as "2021-01-01T00:00:00Z". Takes precedence over the "--startTime" cmd-line flag.
+# Check https://docs.victoriametrics.com/victoriametrics/vmalert-tool/#test-start-time for details.
+[ start_timestamp: <int> | <rfc3339_string> | default = --startTime ]
 
 # Unit tests for alerting rules
 alert_rule_test:

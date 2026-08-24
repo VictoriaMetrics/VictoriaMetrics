@@ -123,37 +123,44 @@ func parseTestStartTime(s string) (time.Time, error) {
 	if err != nil {
 		return time.Time{}, fmt.Errorf("cannot parse %q as an RFC3339 timestamp such as %q: %w", s, defaultTestStartTime.Format(time.RFC3339), err)
 	}
-	t = t.UTC()
+	return t.UTC(), validateTestStartTime(t.UTC())
+}
+
+// validateTestStartTime returns an error if a test cannot start at t.
+//
+// It is shared by -startTime and by the per-group `start_timestamp`, because the reason either
+// value is rejected is a property of the storage rather than of the spelling it arrived in.
+func validateTestStartTime(t time.Time) error {
 	if t.Before(minTestTime) {
-		return time.Time{}, fmt.Errorf("%s is earlier than %s; the first day of the Unix epoch is reserved for the global index search, "+
+		return fmt.Errorf("%s is earlier than %s; the first day of the Unix epoch is reserved for the global index search, "+
 			"so input_series seeded there are dropped and rules never see them", formatTestTime(t), formatTestTime(minTestTime))
 	}
 	if t.After(maxTestTime) {
-		return time.Time{}, fmt.Errorf("%s is later than %s, the last timestamp this storage accepts; "+
+		return fmt.Errorf("%s is later than %s, the last timestamp this storage accepts; "+
 			"input_series seeded there are dropped and rules never see them", formatTestTime(t), formatTestTime(maxTestTime))
 	}
-	return t, nil
+	return nil
 }
 
 // checkTestTime returns an error if the sample or evaluation timestamp t falls outside the
 // window vmstorage accepts. what names the thing that produced t, for the error message.
 //
-// -startTime is validated on its own, so reaching this with a valid start time means the test
-// is long enough to walk out of the window on its own.
+// The start time is validated on its own, so reaching this with a valid start time means the
+// test is long enough to walk out of the window on its own.
 func checkTestTime(t time.Time, what string) error {
 	if t.Before(minTestTime) || t.After(maxTestTime) {
 		return fmt.Errorf("%s falls at %s, outside the [%s .. %s] window this storage accepts; "+
-			"samples there are dropped, so the test would silently see no data. Move -startTime, or shorten the test",
+			"samples there are dropped, so the test would silently see no data. Move the test start time, or shorten the test",
 			what, formatTestTime(t), formatTestTime(minTestTime), formatTestTime(maxTestTime))
 	}
 	return nil
 }
 
-func durationToTime(pd *promutil.Duration) time.Time {
+func durationToTime(startTime time.Time, pd *promutil.Duration) time.Time {
 	if pd == nil {
-		return testStartTime
+		return startTime
 	}
-	return testStartTime.Add(pd.Duration())
+	return startTime.Add(pd.Duration())
 }
 
 const (
@@ -442,11 +449,16 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 	if tg.Interval == nil {
 		tg.Interval = promutil.NewDuration(evalInterval)
 	}
-	if err := checkTestTime(testStartTime.Add(tg.maxEvalTime()), "the last rule evaluation of this test"); err != nil {
+	startTime, startTimeSource, err := tg.startTime()
+	if err != nil {
 		return []error{err}
 	}
-	err := writeInputSeries(tg.InputSeries, tg.Interval, testStartTime, fmt.Sprintf("http://127.0.0.1:%s/api/v1/write", httpListenAddr))
-	if err != nil {
+	if err := checkTestTime(startTime.Add(tg.maxEvalTime()),
+		fmt.Sprintf("the last rule evaluation of this test, counted from the %s of %s",
+			startTimeSource, formatTestTime(startTime))); err != nil {
+		return []error{err}
+	}
+	if err := writeInputSeries(tg.InputSeries, tg.Interval, startTime, fmt.Sprintf("http://127.0.0.1:%s/api/v1/write", httpListenAddr)); err != nil {
 		return []error{err}
 	}
 
@@ -495,8 +507,8 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 	}
 
 	evalIndex := 0
-	maxEvalTime := testStartTime.Add(tg.maxEvalTime())
-	for ts := testStartTime; ts.Before(maxEvalTime) || ts.Equal(maxEvalTime); ts = ts.Add(evalInterval) {
+	maxEvalTime := startTime.Add(tg.maxEvalTime())
+	for ts := startTime; ts.Before(maxEvalTime) || ts.Equal(maxEvalTime); ts = ts.Add(evalInterval) {
 		for _, g := range groups {
 			if len(g.Rules) == 0 {
 				continue
@@ -515,8 +527,8 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 
 		// check alert_rule_test case at every eval time
 		for evalIndex < len(alertEvalTimes) {
-			if ts.Sub(testStartTime) > alertEvalTimes[evalIndex] ||
-				alertEvalTimes[evalIndex] >= ts.Add(evalInterval).Sub(testStartTime) {
+			if ts.Sub(startTime) > alertEvalTimes[evalIndex] ||
+				alertEvalTimes[evalIndex] >= ts.Add(evalInterval).Sub(startTime) {
 				break
 			}
 			gotAlertsMap := map[string]map[string]labelsAndAnnotations{}
@@ -592,7 +604,7 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 
 	}
 
-	checkErrs = append(checkErrs, checkMetricsqlCase(tg.MetricsqlExprTests, q)...)
+	checkErrs = append(checkErrs, checkMetricsqlCase(tg.MetricsqlExprTests, q, startTime)...)
 	return checkErrs
 }
 
@@ -612,6 +624,57 @@ type testGroup struct {
 	MetricsqlExprTests []metricsqlTestCase `yaml:"metricsql_expr_test"`
 	ExternalLabels     map[string]string   `yaml:"external_labels"`
 	TestGroupName      string              `yaml:"name"`
+	StartTimestamp     *startTimestamp     `yaml:"start_timestamp"`
+}
+
+// startTimestamp is the per-test-group `start_timestamp`, which overrides -startTime.
+//
+// promtool spells the same option two ways -- a Unix timestamp in seconds such as 1609459200, or
+// an RFC3339 string such as "2021-01-01T00:00:00Z" -- and both are accepted here so that a
+// promtool suite runs under vmalert-tool without its test files being rewritten.
+//
+// It is a pointer field on testGroup because "absent" and "present" have to stay distinguishable:
+// the zero value of this option in promtool is the Unix epoch, which this storage cannot start a
+// test at, so a group that omits the option must fall through to -startTime rather than be read as
+// having asked for 1970-01-01.
+type startTimestamp struct {
+	t time.Time
+}
+
+// UnmarshalYAML implements yaml.Unmarshaler.
+func (st *startTimestamp) UnmarshalYAML(unmarshal func(any) error) error {
+	var secs int64
+	if err := unmarshal(&secs); err == nil {
+		st.t = time.Unix(secs, 0).UTC()
+		return nil
+	}
+	var s string
+	if err := unmarshal(&s); err != nil {
+		return fmt.Errorf("`start_timestamp` must be a Unix timestamp in seconds such as %d, or an RFC3339 timestamp such as %q",
+			defaultTestStartTime.Unix(), defaultTestStartTime.Format(time.RFC3339))
+	}
+	t, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		return fmt.Errorf("cannot parse `start_timestamp` %q as an RFC3339 timestamp such as %q: %w",
+			s, defaultTestStartTime.Format(time.RFC3339), err)
+	}
+	st.t = t.UTC()
+	return nil
+}
+
+// startTime returns the time tg starts at, and the name of the option that set it.
+//
+// The group-level `start_timestamp` wins over -startTime, so that one flag can move a whole suite
+// while a single group pins itself to the timestamps its input_series were written against.
+func (tg *testGroup) startTime() (time.Time, string, error) {
+	if tg.StartTimestamp == nil {
+		return testStartTime, "-startTime", nil
+	}
+	t := tg.StartTimestamp.t
+	if err := validateTestStartTime(t); err != nil {
+		return time.Time{}, "", fmt.Errorf("invalid `start_timestamp`: %w", err)
+	}
+	return t, "`start_timestamp`", nil
 }
 
 // maxEvalTime returns the max eval time among all alert_rule_test and metricsql_expr_test

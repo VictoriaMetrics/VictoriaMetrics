@@ -3,6 +3,8 @@ package unittest
 import (
 	"testing"
 	"time"
+
+	"gopkg.in/yaml.v2"
 )
 
 func TestUnitTest_Failure(t *testing.T) {
@@ -193,4 +195,122 @@ func TestUnitTest_StartTime(t *testing.T) {
 	f("", defaultTestStartTime)
 
 	f("2020-06-01T00:00:00Z", time.Date(2020, 6, 1, 0, 0, 0, 0, time.UTC))
+}
+
+func TestStartTimestamp_UnmarshalYAML_Success(t *testing.T) {
+	f := func(s string, resultExpected time.Time) {
+		t.Helper()
+
+		var tg testGroup
+		if err := yaml.UnmarshalStrict([]byte(s), &tg); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if tg.StartTimestamp == nil {
+			t.Fatalf("expecting non-nil start_timestamp for %q", s)
+		}
+		if !tg.StartTimestamp.t.Equal(resultExpected) {
+			t.Fatalf("unexpected start_timestamp; got %s; want %s", tg.StartTimestamp.t, resultExpected)
+		}
+	}
+
+	// a Unix timestamp in seconds, the way promtool spells it
+	f("start_timestamp: 1609459200", time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC))
+
+	// the same instant as an RFC3339 string, quoted and unquoted
+	f(`start_timestamp: "2021-01-01T00:00:00Z"`, time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC))
+	f("start_timestamp: 2021-01-01T00:00:00Z", time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC))
+
+	// a non-UTC offset is kept as the instant it names
+	f(`start_timestamp: "2021-01-01T02:00:00+02:00"`, time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC))
+
+	// promtool's own default. It is parsed here and rejected later by startTime(), so that the
+	// error names the storage window rather than the syntax.
+	f("start_timestamp: 0", time.Unix(0, 0).UTC())
+}
+
+func TestStartTimestamp_UnmarshalYAML_Failure(t *testing.T) {
+	f := func(s string) {
+		t.Helper()
+
+		var tg testGroup
+		if err := yaml.UnmarshalStrict([]byte(s), &tg); err == nil {
+			t.Fatalf("expecting non-nil error for %q", s)
+		}
+	}
+
+	f("start_timestamp: not-a-timestamp")
+	f("start_timestamp: 2021-01-01")
+	f("start_timestamp: [1609459200]")
+	f("start_timestamp: {a: b}")
+}
+
+func TestTestGroupStartTime_Success(t *testing.T) {
+	defer func() {
+		testStartTime = defaultTestStartTime
+	}()
+
+	f := func(tg testGroup, flagStartTime, resultExpected time.Time, sourceExpected string) {
+		t.Helper()
+
+		testStartTime = flagStartTime
+		result, source, err := tg.startTime()
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if !result.Equal(resultExpected) {
+			t.Fatalf("unexpected start time; got %s; want %s", result, resultExpected)
+		}
+		if source != sourceExpected {
+			t.Fatalf("unexpected start time source; got %s; want %s", source, sourceExpected)
+		}
+	}
+
+	// no group-level option: the flag decides
+	f(testGroup{}, defaultTestStartTime, defaultTestStartTime, "-startTime")
+	f(testGroup{}, time.Date(2010, 1, 1, 0, 0, 0, 0, time.UTC), time.Date(2010, 1, 1, 0, 0, 0, 0, time.UTC), "-startTime")
+
+	// the group-level option takes precedence over the flag
+	group := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
+	f(testGroup{StartTimestamp: &startTimestamp{t: group}}, defaultTestStartTime, group, "`start_timestamp`")
+	f(testGroup{StartTimestamp: &startTimestamp{t: group}}, time.Date(2010, 1, 1, 0, 0, 0, 0, time.UTC), group, "`start_timestamp`")
+
+	// the bounds of the accepted window are themselves accepted
+	f(testGroup{StartTimestamp: &startTimestamp{t: minTestTime}}, defaultTestStartTime, minTestTime, "`start_timestamp`")
+	f(testGroup{StartTimestamp: &startTimestamp{t: maxTestTime}}, defaultTestStartTime, maxTestTime, "`start_timestamp`")
+}
+
+func TestTestGroupStartTime_Failure(t *testing.T) {
+	defer func() {
+		testStartTime = defaultTestStartTime
+	}()
+	testStartTime = defaultTestStartTime
+
+	f := func(ts time.Time) {
+		t.Helper()
+
+		tg := testGroup{StartTimestamp: &startTimestamp{t: ts}}
+		if _, _, err := tg.startTime(); err == nil {
+			t.Fatalf("expecting non-nil error for %s", ts)
+		}
+	}
+
+	// promtool's default of 0 is the first day of the epoch, which this storage drops
+	f(time.Unix(0, 0).UTC())
+
+	f(minTestTime.Add(-time.Millisecond))
+	f(maxTestTime.Add(time.Millisecond))
+}
+
+func TestUnitTest_StartTimestampOverridesFlag(t *testing.T) {
+	defer func() {
+		testStartTime = defaultTestStartTime
+	}()
+
+	// Every group in this file pins its own start time, and the expectations in it are absolute
+	// timestamps. Passing a -startTime that matches none of them shows the group-level option
+	// wins: if the flag were used instead, every assertion in the file would fail.
+	failed := UnitTest([]string{"./testdata/start-timestamp.yaml"}, false, nil, "", "", "", "2010-01-01T00:00:00Z")
+	if failed {
+		t.Fatalf("unexpected failed test")
+	}
 }
