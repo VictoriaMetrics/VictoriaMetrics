@@ -91,6 +91,7 @@ Sharding configuration can be controlled by using the following environment vari
 - **`VMANOMALY_MEMBER_NUM`**: Specifies the shard index (`0` to `VMANOMALY_MEMBERS_COUNT - 1`), determining the subset of [sub-configurations](#sub-configuration) to run on a specific node. Defaults to `0`. Supports automatic **pod name discovery** in Kubernetes [StatefulSets](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/) (e.g., if set to `vmanomaly-node-exporter-7`, shard `7` will be extracted).
 - **`VMANOMALY_REPLICATION_FACTOR`**: If `R > 1`, enables [high availability](#high-availability) by ensuring each [sub-configuration](#sub-configuration) is assigned to exactly `R` shards. Defaults to `1` (no replication).
 - **`VMANOMALY_SPLIT_BY`**: Defines the logical entity used to split the global config into [sub-configurations](#sub-configuration). The accepted values are `SCHEDULERS`, `MODELS`, `QUERIES`, `EXTRA_FILTERS`, and `COMPLETE` (case-insensitive). It defaults to `COMPLETE`, which usually provides the most granular and balanced distribution.
+- **`VMANOMALY_SHARDING_STRATEGY`**: Selects how sub-configurations are assigned to shards {{% available_from "v1.30.3" anomaly %}}. `ROUND_ROBIN` is the backward-compatible default. `RENDEZVOUS` uses each sub-configuration's stable logical identity, so inserting, removing, reordering, or editing one entity does not move unrelated entities between an unchanged set of shards.
 
 The split strategies differ as follows:
 
@@ -102,7 +103,71 @@ The split strategies differ as follows:
 | `EXTRA_FILTERS` | One configured `reader.extra_filters` selector, with the full model/query/scheduler topology retained | Partition the series returned by large queries, for example by region, cluster, another stable label, or by [VictoriaMetrics tenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels) using `vm_account_id` and `vm_project_id` selectors with the multitenant endpoint. The filters must already be defined in the global configuration. |
 | `COMPLETE` | One valid scheduler/model/query combination; [multivariate](https://docs.victoriametrics.com/anomaly-detection/components/models/#multivariate-models) query sets remain together | Obtain the finest general-purpose split and the default choice for balanced sharding. `reader.extra_filters` are intentionally not expanded by this strategy. |
 
-After the selected strategy creates the sub-configurations, they are assigned to members in deterministic round-robin order and then replicated according to `VMANOMALY_REPLICATION_FACTOR`.
+After the selected split creates the sub-configurations, `VMANOMALY_SHARDING_STRATEGY` assigns them to members and `VMANOMALY_REPLICATION_FACTOR` controls the number of distinct assigned shards. Rendezvous assignment is most useful when shard-local persisted model state should survive unrelated configuration changes. Changing the shard count can still move entities, and changing an entity's own logical identity intentionally gives it a new assignment.
+
+Choose the assignment strategy based on how the global configuration changes:
+
+- Use `ROUND_ROBIN` for an even, count-based distribution when sub-configurations have comparable cost and the normalized global configuration has a stable canonical order. Assignment is position-based, so inserting or deleting an entity can shift later positions and move many existing sub-configurations between shards.
+- Use `RENDEZVOUS` when entities are added, removed, reordered, or edited regularly and preserving unrelated shard assignments is more important. Assignment is identity-based, which minimizes movement for an unchanged shard set, although small workloads may be distributed less evenly.
+
+{{% collapse name="Rendezvous assignment: algorithm, changes, and tradeoffs" %}}
+
+Rendezvous, also known as highest-random-weight (HRW) hashing, assigns each sub-configuration independently. It requires no coordinator, hash ring, or persisted placement map. Every shard derives the same result from the global configuration and these inputs:
+
+- `N`: number of shards;
+- `R`: replication factor;
+- `R' = min(R, N)`: number of distinct shards selected for each sub-configuration.
+
+Each sub-configuration has a compact canonical identity:
+
+| `VMANOMALY_SPLIT_BY` | Canonical identity |
+| --- | --- |
+| `SCHEDULERS` | `["schedulers", "scheduler-alias"]` |
+| `MODELS` | `["models", "model-alias"]` |
+| `QUERIES` | `["queries", ["sorted-query-aliases"]]` |
+| `EXTRA_FILTERS` | `["extra_filters", "exact-filter"]` |
+| `COMPLETE` | `["complete", "scheduler-alias", "model-alias", ["sorted-query-group"]]` |
+
+For each identity `e` and candidate shard `s` from `0` through `N-1`, vmanomaly calculates a deterministic SHA-256 weight:
+
+```text
+weight(e, s) = SHA-256(
+  "vmanomaly-sharding-v1\0" + canonical_json(e) + "\0" + decimal(s)
+)
+```
+
+The `R'` shards with the highest weights own the sub-configuration. `N` defines the candidate set and `R` selects a prefix of the same deterministic shard ranking; neither is part of the hash input. All instances must therefore use the same global configuration, strategy, `N`, `R`, and algorithm version.
+
+Aliases and attachments define identity; configuration content does not. For example, changing a query expression or step under the same aliases preserves placement but still reloads the shards that own it. Renaming an alias or changing model-query or scheduler attachments is treated as deleting one identity and adding another. A univariate `COMPLETE` identity contains one query, while a multivariate identity keeps its sorted query group together.
+
+For a concrete `N=2`, `R=1`, `COMPLETE` example, assume these existing owners:
+
+| Identity | Owner |
+| --- | --- |
+| `s1/m1/q1` | shard 0 |
+| `s1/m1/q2` | shard 1 |
+| `s1/m2/q1` | shard 1 |
+| `s1/m2/q2` | shard 0 |
+
+Adding `q3` to `m2` creates only the new `s1/m2/q3` identity and assigns it independently; all four existing owners remain unchanged. With round-robin, inserting the new identity into the canonical ordered list shifts every later position, potentially moving the entire suffix to different shards.
+
+The expected movement for `E` identities is:
+
+| Change | Placement effect |
+| --- | --- |
+| Add or remove an entity with fixed `N` and `R` | Existing or surviving identities keep every placement; only the added identity receives `R'` owners, or the removed identity disappears. |
+| Reorder entities | No placement changes. |
+| Add one shard, `N -> N+1` | An affected identity replaces at most one old replica with the new shard; expected affected identities: `E * R / (N+1)`. |
+| Remove one shard, `N -> N-1` with `R <= N-1` | Only identities assigned to the removed shard choose one replacement; expected affected identities: `E * R / N`. |
+| Increase `R` | Existing placements remain and each identity adds replicas up to `N`. |
+| Decrease `R` | The new placement set is a subset of the old set; retained replicas do not move. |
+| Set `R > N` | Replication is capped at all `N` distinct shards and a warning is logged. |
+
+These topology figures are expectations under uniform SHA-256 rankings, not strict balance guarantees. Changing `N` or `R` commonly also causes a deployment rollout because they are process environment variables.
+
+Rendezvous provides deterministic replica sets, minimal placement movement, and stable shard-local state reuse without shared coordination. Its tradeoffs are probabilistic rather than guaranteed even distribution—most visible with few sub-configurations—`O(E * N log N)` selection work during configuration loading, and a one-time remapping when switching from `ROUND_ROBIN`. It limits placement-related reload amplification but does not suppress reloads required by real configuration changes.
+
+{{% /collapse %}}
 
 ### Splitting strategies
 
