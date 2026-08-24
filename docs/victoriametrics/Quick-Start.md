@@ -60,6 +60,14 @@ tar xzf victoria-metrics-linux-amd64-v1.150.0.tar.gz
 
 The binary is self-contained and requires no installation - it is ready to run as is.
 
+Alternatively, on macOS or Linux with [Homebrew](https://brew.sh/):
+
+```sh
+brew install victoriametrics/tap/victoriametrics
+```
+
+This installs the same release binary as `victoria-metrics` and also provides a `brew services start victoriametrics` service definition.
+
 ### Step 2: Start VictoriaMetrics
 
 Starting VictoriaMetrics is as simple as executing the binary, with no arguments at all.
