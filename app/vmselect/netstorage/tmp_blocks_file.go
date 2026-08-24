@@ -63,6 +63,9 @@ type tmpBlocksFile struct {
 	r *fs.ReaderAt
 
 	offset uint64
+
+	// err stores the first error occurred while writing the temporary blocks file.
+	err error
 }
 
 func getTmpBlocksFile() *tmpBlocksFile {
@@ -83,6 +86,7 @@ func putTmpBlocksFile(tbf *tmpBlocksFile) {
 	tbf.f = nil
 	tbf.r = nil
 	tbf.offset = 0
+	tbf.err = nil
 	tmpBlocksFilePool.Put(tbf)
 }
 
@@ -109,8 +113,16 @@ var (
 //
 // It returns errors since the operation may fail on space shortage
 // and this must be handled.
+//
+// The tbf is left unusable after the first error, since a failed write cannot be undone:
+// the returned addresses are derived from tbf.offset before the data is flushed from tbf.buf
+// to the file, the failed flush may be partial, and the remaining buffer is dropped.
 func (tbf *tmpBlocksFile) WriteBlockData(b []byte, tbfIdx uint) (tmpBlockAddr, error) {
 	var addr tmpBlockAddr
+	if tbf.err != nil {
+		// Do not write anything to the tbf after the first failed write
+		return addr, tbf.err
+	}
 	addr.tbfIdx = tbfIdx
 	addr.offset = tbf.offset
 	addr.size = len(b)
@@ -125,7 +137,8 @@ func (tbf *tmpBlocksFile) WriteBlockData(b []byte, tbfIdx uint) (tmpBlockAddr, e
 	if tbf.f == nil {
 		f, err := os.CreateTemp(tmpBlocksDir, "")
 		if err != nil {
-			return addr, err
+			tbf.err = fmt.Errorf("cannot create temporary blocks file at %q: %w", tmpBlocksDir, err)
+			return addr, tbf.err
 		}
 		tbf.f = f
 		tmpBlocksFilesCreated.Inc()
@@ -133,7 +146,9 @@ func (tbf *tmpBlocksFile) WriteBlockData(b []byte, tbfIdx uint) (tmpBlockAddr, e
 	_, err := tbf.f.Write(tbf.buf)
 	tbf.buf = append(tbf.buf[:0], b...)
 	if err != nil {
-		return addr, fmt.Errorf("cannot write block to %q: %w", tbf.f.Name(), err)
+		// The blocks buffered at tbf.buf could be partially lost, mark the tbf as unusable.
+		tbf.err = fmt.Errorf("cannot write block to %q: %w", tbf.f.Name(), err)
+		return addr, tbf.err
 	}
 	return addr, nil
 }
@@ -144,12 +159,16 @@ func (tbf *tmpBlocksFile) Len() uint64 {
 }
 
 func (tbf *tmpBlocksFile) Finalize() error {
+	if tbf.err != nil {
+		return tbf.err
+	}
 	if tbf.f == nil {
 		return nil
 	}
 	fname := tbf.f.Name()
 	if _, err := tbf.f.Write(tbf.buf); err != nil {
-		return fmt.Errorf("cannot write the remaining %d bytes to %q: %w", len(tbf.buf), fname, err)
+		tbf.err = fmt.Errorf("cannot write the remaining %d bytes to %q: %w", len(tbf.buf), fname, err)
+		return tbf.err
 	}
 	tbf.buf = tbf.buf[:0]
 	r := fs.NewReaderAt(tbf.f)
@@ -169,6 +188,10 @@ func (tbf *tmpBlocksFile) Finalize() error {
 }
 
 func (tbf *tmpBlocksFile) MustReadBlockAt(dst *storage.Block, addr tmpBlockAddr) {
+	if tbf.err != nil {
+		// This should never happen, since Finalize() already returns the error for such a tbf.
+		logger.Panicf("BUG: cannot read block at %s from the temporary blocks file with the failed write: %s", addr, tbf.err)
+	}
 	var buf []byte
 	if tbf.r == nil {
 		buf = tbf.buf[addr.offset : addr.offset+uint64(addr.size)]

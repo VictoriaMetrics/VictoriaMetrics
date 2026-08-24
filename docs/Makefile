@@ -90,12 +90,9 @@ endif
 	sed -i 's/\t/ /g' docs/victoriametrics/victoria_metrics_common_flags.md
 	sed -i 's/\t/ /g' docs/victoriametrics/victoria_metrics_enterprise_flags.md
 
-	# adjust flags with dynamic default values
-	# remove after https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9680 implemented
-	sed -i '/The maximum number of concurrent insert requests/ s/(default [0-9]\+)/(default 2*cgroup.AvailableCPUs())/' docs/victoriametrics/victoria_metrics_common_flags.md
-	sed -i '/The maximum number of concurrent search requests\./ s/(default [0-9]\+)/(default vmselect.getDefaultMaxConcurrentRequests())/' docs/victoriametrics/victoria_metrics_common_flags.md
-	sed -i '/The maximum number of CPU cores a single query can use\./ s/(default [0-9]\+)/(default netstorage.defaultMaxWorkersPerQuery())/' docs/victoriametrics/victoria_metrics_common_flags.md
-	sed -i '/The maximum number of concurrent goroutines to work with files;/ s/(default [0-9]\+)/(default fsutil.getDefaultConcurrency())/' docs/victoriametrics/victoria_metrics_common_flags.md
+	# hide the machine-specific value of dynamic defaults, keeping the formula.
+	# the flagutil.New*WithDynamicDefault constructors print them as "(default <value> = <formula>)".
+	sed -i 's/(default [0-9]\+ = \(.*\))$$/(default \1)/' docs/victoriametrics/victoria_metrics_common_flags.md
 
 docs-update-vmauth-flags:
 ifndef TAG
@@ -119,9 +116,9 @@ endif
 	sed -i 's/\t/ /g' docs/victoriametrics/vmauth_common_flags.md
 	sed -i 's/\t/ /g' docs/victoriametrics/vmauth_enterprise_flags.md
 
-	# adjust flags with dynamic default values
-	# remove after https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9680 implemented
-	sed -i '/The maximum number of concurrent goroutines to work with files;/ s/(default [0-9]\+)/(default fsutil.getDefaultConcurrency())/' docs/victoriametrics/vmauth_common_flags.md
+	# hide the machine-specific value of dynamic defaults, keeping the formula.
+	# the flagutil.New*WithDynamicDefault constructors print them as "(default <value> = <formula>)".
+	sed -i 's/(default [0-9]\+ = \(.*\))$$/(default \1)/' docs/victoriametrics/vmauth_common_flags.md
 
 docs-update-vmagent-flags:
 ifndef TAG
@@ -145,11 +142,9 @@ endif
 	sed -i 's/\t/ /g' docs/victoriametrics/vmagent_common_flags.md
 	sed -i 's/\t/ /g' docs/victoriametrics/vmagent_enterprise_flags.md
 
-	# adjust flags with dynamic default values
-	# remove after https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9680 implemented
-	sed -i '/The maximum number of concurrent insert requests/ s/(default [0-9]\+)/(default 2*cgroup.AvailableCPUs())/' docs/victoriametrics/vmagent_common_flags.md
-	sed -i '/The number of concurrent queues to each -remoteWrite.url./ s/(default [0-9]\+)/(default 2*cgroup.AvailableCPUs())/' docs/victoriametrics/vmagent_common_flags.md
-	sed -i '/The maximum number of concurrent goroutines to work with files;/ s/(default [0-9]\+)/(default fsutil.getDefaultConcurrency())/' docs/victoriametrics/vmagent_common_flags.md
+	# hide the machine-specific value of dynamic defaults, keeping the formula.
+	# the flagutil.New*WithDynamicDefault constructors print them as "(default <value> = <formula>)".
+	sed -i 's/(default [0-9]\+ = \(.*\))$$/(default \1)/' docs/victoriametrics/vmagent_common_flags.md
 
 docs-update-vmalert-flags:
 ifndef TAG
@@ -173,10 +168,9 @@ endif
 	sed -i 's/\t/ /g' docs/victoriametrics/vmalert_common_flags.md
 	sed -i 's/\t/ /g' docs/victoriametrics/vmalert_enterprise_flags.md
 
-	# adjust flags with dynamic default values
-	# remove after https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9680 implemented
-	sed -i '/Defines number of writers for concurrent writing into remote write endpoint./ s/(default [0-9]\+)/(default 2*cgroup.AvailableCPUs())/' docs/victoriametrics/vmalert_common_flags.md
-	sed -i '/The maximum number of concurrent goroutines to work with files;/ s/(default [0-9]\+)/(default fsutil.getDefaultConcurrency())/' docs/victoriametrics/vmalert_common_flags.md
+	# hide the machine-specific value of dynamic defaults, keeping the formula.
+	# the flagutil.New*WithDynamicDefault constructors print them as "(default <value> = <formula>)".
+	sed -i 's/(default [0-9]\+ = \(.*\))$$/(default \1)/' docs/victoriametrics/vmalert_common_flags.md
 
 docs-update-vmselect-flags:
 ifndef TAG
