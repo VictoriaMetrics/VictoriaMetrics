@@ -13,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/appmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
@@ -34,9 +35,10 @@ var (
 		"This can be changed with -promscrape.config.strictParse=false command-line flag")
 	maxIngestionRate = flag.Int("maxIngestionRate", 0, "The maximum number of samples vmsingle can receive per second. Data ingestion is paused when the limit is exceeded. "+
 		"By default there are no limits on samples ingestion rate.")
-	vmselectMaxConcurrentRequests = flag.Int("search.maxConcurrentRequests", getDefaultMaxConcurrentRequests(), "The maximum number of concurrent search requests. "+
-		"It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. "+
-		"See also -search.maxQueueDuration and -search.maxMemoryPerQuery")
+	vmselectMaxConcurrentRequests = flagutil.NewIntWithDynamicDefault("search.maxConcurrentRequests", getDefaultMaxConcurrentRequests(), "vmselect.getDefaultMaxConcurrentRequests()",
+		"The maximum number of concurrent search requests. "+
+			"It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. "+
+			"See also -search.maxQueueDuration and -search.maxMemoryPerQuery")
 	vmselectMaxQueueDuration = flag.Duration("search.maxQueueDuration", 10*time.Second, "The maximum time the request waits for execution when -search.maxConcurrentRequests "+
 		"limit is reached; see also -search.maxQueryDuration")
 )
@@ -90,7 +92,9 @@ func main() {
 	}
 	logger.Infof("starting VictoriaMetrics at %q...", listenAddrs)
 	startTime := time.Now()
+
 	vmstorage.Init(*vmselectMaxConcurrentRequests, *vmselectMaxQueueDuration, promql.ResetRollupResultCacheIfNeeded)
+	appmetrics.MustCreateUncleanShutdownMarker(vmstorage.DataPath())
 	vmselect.Init(*vmselectMaxConcurrentRequests, *vmselectMaxQueueDuration)
 	vminsertcommon.StartIngestionRateLimiter(*maxIngestionRate)
 	vminsert.Init()
@@ -120,6 +124,7 @@ func main() {
 
 	vmstorage.Stop()
 	vmselect.Stop()
+	appmetrics.MustRemoveUncleanShutdownMarker(vmstorage.DataPath())
 
 	logger.Infof("the VictoriaMetrics has been stopped in %.3f seconds", time.Since(startTime).Seconds())
 }
