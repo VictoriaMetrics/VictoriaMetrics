@@ -151,18 +151,11 @@ func serve(addr string, rh RequestHandler, idx int, opts ServeOptions) {
 			logger.Fatalf("cannot use proxy protocol with Unix domain sockets for addr %q", unixAddr)
 		}
 
-		ul, err := net.ListenUnix("unix", &net.UnixAddr{Name: unixAddr, Net: "unix"})
+		ul, err := netutil.NewUnixListener("httpserver", unixAddr)
 		if err != nil {
 			logger.Fatalf("cannot start http server on Unix domain socket %q: %s", unixAddr, err)
 		}
 		listener = ul
-
-		// Default permissions are 0o777.
-		// Override them to restrict file permissions with current user and group.
-		perm := os.FileMode(0660)
-		if err := os.Chmod(unixAddr, perm); err != nil {
-			logger.Fatalf("cannot set permissions for Unix domain socket %q: %s", unixAddr, err)
-		}
 
 		logger.Infof("started server on Unix domain socket %q", ul.Addr())
 		if !opts.DisableBuiltinRoutes {
