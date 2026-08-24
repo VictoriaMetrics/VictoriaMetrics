@@ -18,32 +18,36 @@ aliases:
 
 It is recommended to run the latest available release of VictoriaMetrics from [this page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest), as it includes all bug fixes and enhancements.
 
-There is no need to tune VictoriaMetrics, as it uses reasonable defaults for its command-line flags. These flags are automatically adjusted for the available CPU and RAM resources. There is no need for operating system tuning because VictoriaMetrics is optimized for default OS settings. The only option is to increase the limit on the [number of open files in the OS](https://medium.com/@muhammadtriwibowo/set-permanently-ulimit-n-open-files-in-ubuntu-4d61064429a), so VictoriaMetrics could accept more incoming connections and could keep open more data files. VictoriaMetrics is tested and developed to run efficiently on these defaults, which fit the majority of workloads. Change a setting only when the docs explicitly instruct you to, including when and why.
+There is no need to tune VictoriaMetrics, as it uses reasonable defaults for its command-line flags. These flags are automatically adjusted for the available CPU and RAM resources. There is no need for operating system tuning because VictoriaMetrics is optimized for default OS settings. The only option is to increase the limit on the [number of open files in the OS](https://medium.com/@muhammadtriwibowo/set-permanently-ulimit-n-open-files-in-ubuntu-4d61064429a), so VictoriaMetrics could accept more incoming connections and could keep open more data files. VictoriaMetrics is tested and developed to run efficiently on these defaults, which fit the majority of workloads. Change a setting only if the documentation explains when it applies and why it is needed.
 
 ## Memory
 
 VictoriaMetrics components detect the available memory at startup as the smaller of the host RAM and the cgroup memory limit.
 To keep them stable:
 
-1. Do not set [`GOMEMLIMIT` environment variable](https://pkg.go.dev/runtime#hdr-Environment_Variables). Set the container/cgroup memory limit, and VictoriaMetrics automatically
-   sizes its memory-aware limits from it. All VictoriaMetrics components have their own [`GOGC` settings](https://pkg.go.dev/runtime#hdr-Environment_Variables), which work optimally in the majority of cases.
+1. Do not set the [`GOMEMLIMIT` environment variable](https://pkg.go.dev/runtime#hdr-Environment_Variables). Set a cgroup memory limit instead.
+   VictoriaMetrics automatically sizes its memory-aware limits from it. All VictoriaMetrics components have their own
+   [`GOGC` settings](https://pkg.go.dev/runtime#hdr-Environment_Variables), which work optimally in the majority of cases.
 
 1. Do not hand-tune cache sizes with `-storage.cacheSize*` flags; rely on the defaults.
    If a component needs larger caches, move it to a host with more memory.
    See [Cache tuning](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning).
 
 1. Do not autoscale `vmstorage` with the Vertical Pod Autoscaler (VPA) or the Horizontal Pod Autoscaler (HPA).
-   VPA: VictoriaMetrics components calculate cache sizes from the memory limit at startup and do not update them afterwards.
-   Modes that recreate the pod (`Recreate`, `Auto`) reset the caches and force a cold start,
-   causing slow inserts and query latency spikes. In-place resizing is not picked up at runtime,
-   so `vmstorage` keeps the budget and `vm_available_memory_bytes` initialized at startup, which also skews the dashboards.
-   Set fixed memory requests and limits for `vmstorage` rather than autoscaling.
-   HPA: `vmstorage` is stateful. Adding nodes sends new series to them while existing data stays where it is.
-   Removing nodes makes the data on them unavailable to queries and can cause data loss without replication.
-   Frequent scaling keeps changing the routing and can degrade cluster performance and availability.
 
-1. Leave headroom for the OS page cache and workload spikes -
-   see [capacity planning](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#capacity-planning).
+   - VPA: VictoriaMetrics calculates its memory-aware limits at startup.
+     An in-place memory limit change does not update these values.
+     `vm_available_memory_bytes` also keeps the value calculated at startup.
+     Modes that recreate the pod restart `vmstorage` to apply a size change.
+     Use fixed memory requests and limits for `vmstorage`.
+
+   - HPA: `vmstorage` is stateful. Adding or removing nodes changes where `vminsert` sends newly ingested data,
+     but existing data is not rebalanced. Removing a node can make its data unavailable to queries.
+     Use fixed replica counts and follow the
+     [cluster resizing instructions](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#cluster-resizing-and-scalability).
+
+1. Keep at least 50% of RAM free for the OS page cache and workload spikes.
+   See [capacity planning](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#capacity-planning).
 
 ## Swap
 

@@ -355,12 +355,16 @@ These are the solutions that exist for improving the performance of slow queries
 ## Memory shortage
 
 High memory utilization alone does not indicate a shortage.
-A VictoriaMetrics component can operate normally under high memory utilization,
-but it is recommended to keep [at least 50% of free memory for stability](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#capacity-planning).
-A shortage means there is not enough memory for the workload.
-It is different from high utilization and from memory pressure (the kernel's reclaim activity, shown by [PSI](https://docs.kernel.org/accounting/psi.html)).
-Use the [signals](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#memory-signals) and [patterns](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#memory-shortage-patterns) below to tell them apart,
-and [how to fix](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#how-to-fix-memory-issues) to resolve it.
+A VictoriaMetrics component can operate normally with high memory utilization.
+Keep [at least 50% of RAM free for stability](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#capacity-planning).
+
+Memory pressure occurs when tasks wait while the kernel reclaims memory.
+[PSI](https://docs.kernel.org/accounting/psi.html) reports this waiting time.
+A memory shortage means there is not enough memory for the workload.
+
+Use the [signals](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#memory-signals) and
+[patterns](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#memory-shortage-patterns) below to tell these states apart.
+See [how to fix memory issues](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#how-to-fix-memory-issues) to resolve a shortage.
 
 VictoriaMetrics components detect the available memory at startup as the smaller of the host RAM and the cgroup memory limit,
 and expose it as `vm_available_memory_bytes` [metric](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#monitoring). The actual memory usage (RSS) is exposed via `process_resident_memory_bytes` metric:
