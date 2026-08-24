@@ -242,6 +242,17 @@ func TestStartTimestamp_UnmarshalYAML_Failure(t *testing.T) {
 	f("start_timestamp: 2021-01-01")
 	f("start_timestamp: [1609459200]")
 	f("start_timestamp: {a: b}")
+
+	// A fractional start time, in either spelling. The instant query serializes its time with
+	// time.RFC3339, which carries no fractional part, so a sub-second start seeds input_series
+	// at timestamps the queries never land on and the test silently sees no input.
+	//
+	// The numeric case is the one worth a guard: yaml.v2 decodes a fractional number into the
+	// int64 field by truncating it, so without this it parsed cleanly as 2021-01-01T00:00:00Z --
+	// a different start time than the file asked for, with no error.
+	f("start_timestamp: 1609459200.5")
+	f(`start_timestamp: "2021-01-01T00:00:00.5Z"`)
+	f(`start_timestamp: "2021-01-01T00:00:00.0004Z"`)
 }
 
 func TestTestGroupStartTime_Success(t *testing.T) {

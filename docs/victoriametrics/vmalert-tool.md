@@ -78,8 +78,12 @@ via the `--startTime` cmd-line flag, which accepts an [RFC3339](https://www.rfc-
 
 A single `<test_group>` can pin its own start time with the `start_timestamp` option, which takes
 precedence over `--startTime`. It accepts either a Unix timestamp in seconds or an RFC3339 string,
-the same way [promtool](https://prometheus.io/docs/prometheus/latest/configuration/unit_testing_rules/#test_group)
-does, so a promtool test file needs no rewriting to run here:
+spelled the same way [promtool](https://prometheus.io/docs/prometheus/latest/configuration/unit_testing_rules/#test_group)
+spells it, so this option carries over from a promtool file unchanged — the `promql_expr_test` field
+still has to be renamed to `metricsql_expr_test`, as it does for any promtool file. Either
+spelling must name a whole number of seconds: the query time is formatted with second resolution, so
+a fractional start time would seed `input_series` at timestamps the test's queries never reach, and
+is rejected rather than run.
 
 ```yaml
 tests:

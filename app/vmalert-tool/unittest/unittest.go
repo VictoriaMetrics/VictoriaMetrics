@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"maps"
+	"math"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -15,6 +16,7 @@ import (
 	"reflect"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -642,9 +644,25 @@ type startTimestamp struct {
 }
 
 // UnmarshalYAML implements yaml.Unmarshaler.
+//
+// Both spellings must resolve to a whole number of seconds. A test's queries are issued at
+// `start_timestamp` plus `eval_time`, and the instant query serializes that time with
+// time.RFC3339, which carries no fractional part -- so a start time with a sub-second
+// component seeds input_series at timestamps the queries then never land on, and the test
+// sees no input at all. Refusing such a value is the same stance this option already takes
+// on a start time the storage would drop.
 func (st *startTimestamp) UnmarshalYAML(unmarshal func(any) error) error {
 	var secs int64
 	if err := unmarshal(&secs); err == nil {
+		// yaml.v2 decodes a fractional number into an integer field by truncating it, which
+		// would silently move the start time. Decode the same node as a float to catch it.
+		var f float64
+		if err := unmarshal(&f); err == nil && f != math.Trunc(f) {
+			return fmt.Errorf("`start_timestamp` must be a whole number of seconds, got %s; "+
+				"the query time is formatted with second resolution, so a fractional start would "+
+				"seed input_series at timestamps the test's queries never reach",
+				strconv.FormatFloat(f, 'f', -1, 64))
+		}
 		st.t = time.Unix(secs, 0).UTC()
 		return nil
 	}
@@ -657,6 +675,11 @@ func (st *startTimestamp) UnmarshalYAML(unmarshal func(any) error) error {
 	if err != nil {
 		return fmt.Errorf("cannot parse `start_timestamp` %q as an RFC3339 timestamp such as %q: %w",
 			s, defaultTestStartTime.Format(time.RFC3339), err)
+	}
+	if t.Nanosecond() != 0 {
+		return fmt.Errorf("`start_timestamp` %q must not carry a fractional second; "+
+			"the query time is formatted with second resolution, so a fractional start would "+
+			"seed input_series at timestamps the test's queries never reach", s)
 	}
 	st.t = t.UTC()
 	return nil
