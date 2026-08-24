@@ -574,19 +574,21 @@ func benchmarkSearchLabelNames(b *testing.B, s *Storage, tr TimeRange, mrs []Met
 	}
 	slices.Sort(got)
 	var mn MetricName
-	want := make([]string, len(mrs))
-	for i, mr := range mrs {
+	wantUniq := make(map[string]struct{})
+	for _, mr := range mrs {
 		if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
 			b.Fatalf("could not unmarshal metric row: %v", err)
 		}
 		for _, tag := range mn.Tags {
 			labelName := string(tag.Key)
-			if labelName != "label" {
-				want[i] = labelName
-			}
+			wantUniq[labelName] = struct{}{}
 		}
 	}
-	want = append(want, "__name__", "label")
+	wantUniq["__name__"] = struct{}{}
+	var want []string
+	for labelName := range wantUniq {
+		want = append(want, labelName)
+	}
 	slices.Sort(want)
 	if diff := cmp.Diff(want, got); diff != "" {
 		b.Fatalf("unexpected label names (-want, +got):\n%s", diff)
@@ -609,17 +611,21 @@ func benchmarkSearchLabelValues(b *testing.B, s *Storage, tr TimeRange, mrs []Me
 		}
 	}
 	slices.Sort(got)
-	want := make([]string, len(mrs))
-	for i, mr := range mrs {
+	wantUniq := make(map[string]struct{})
+	for _, mr := range mrs {
 		var mn MetricName
 		if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
 			b.Fatalf("could not unmarshal metric row: %v", err)
 		}
 		for _, tag := range mn.Tags {
 			if string(tag.Key) == "label" {
-				want[i] = string(tag.Value)
+				wantUniq[string(tag.Value)] = struct{}{}
 			}
 		}
+	}
+	var want []string
+	for labelValue := range wantUniq {
+		want = append(want, labelValue)
 	}
 	slices.Sort(want)
 	if diff := cmp.Diff(want, got); diff != "" {
@@ -942,6 +948,14 @@ func BenchmarkSearchTimeRanges_Data(b *testing.B) {
 
 func BenchmarkSearchTimeRanges_MetricNames(b *testing.B) {
 	benchmarkSearchTimeRanges(b, benchmarkSearchMetricNames)
+}
+
+func BenchmarkSearchTimeRanges_LabelNames(b *testing.B) {
+	benchmarkSearchTimeRanges(b, benchmarkSearchLabelNames)
+}
+
+func BenchmarkSearchTimeRanges_LabelValues(b *testing.B) {
+	benchmarkSearchTimeRanges(b, benchmarkSearchLabelValues)
 }
 
 func benchmarkSearchTimeRanges(b *testing.B, op func(b *testing.B, s *Storage, tr TimeRange, mrs []MetricRow)) {
