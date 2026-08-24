@@ -429,12 +429,14 @@ func (sw *scrapeWork) needStreamParseMode(responseSize int) bool {
 // getTargetResponse() fetches response from sw target in the same way as when scraping the target.
 func (sw *scrapeWork) getTargetResponse() ([]byte, error) {
 	cb := chunkedbuffer.Get()
-	defer chunkedbuffer.Put(cb)
 
 	isGzipped, err := sw.ReadData(cb)
 	if err != nil {
 		return nil, err
 	}
+	// in case of error buffer cannot be returned back to the pool
+	// See https://pkg.go.dev/net/http#RoundTripper
+	defer chunkedbuffer.Put(cb)
 
 	var bb bytesutil.ByteBuffer
 	err = sw.readFromBuffer(&bb, cb, isGzipped)
@@ -466,8 +468,8 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	body := leveledbytebufferpool.Get(sw.prevBodyLen)
 	if err == nil {
 		err = sw.readFromBuffer(body, cb, isGzipped)
+		chunkedbuffer.Put(cb)
 	}
-	chunkedbuffer.Put(cb)
 
 	bodyLen := len(body.B)
 	sw.prevBodyLen = bodyLen
