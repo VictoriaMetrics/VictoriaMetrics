@@ -3,6 +3,7 @@ package memory
 import (
 	"flag"
 	"fmt"
+	"math"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
@@ -19,10 +20,20 @@ var _ = metrics.NewGauge("process_memory_limit_bytes", func() float64 {
 	return float64(memoryLimit)
 })
 
+var _ = metrics.NewGauge("process_memory_host_bytes", func() float64 {
+	return memoryHostBytes
+})
+
+var _ = metrics.NewGauge("process_memory_cgroup_bytes", func() float64 {
+	return memoryCgroupBytes
+})
+
 var (
-	allowedMemory   int
-	remainingMemory int
-	memoryLimit     int
+	allowedMemory     int
+	remainingMemory   int
+	memoryLimit       int
+	memoryHostBytes   float64
+	memoryCgroupBytes = math.Inf(1)
 )
 var once sync.Once
 
@@ -32,6 +43,9 @@ func initOnce() {
 		panic(fmt.Errorf("BUG: memory.Allowed must be called only after flag.Parse call"))
 	}
 	memoryLimit = sysTotalMemory()
+	if memoryHostBytes == 0 {
+		memoryHostBytes = float64(memoryLimit)
+	}
 	if allowedBytes.N <= 0 {
 		if *allowedPercent < 1 || *allowedPercent > 100 {
 			logger.Fatalf("FATAL: -memory.allowedPercent must be in the range [1...100]; got %g", *allowedPercent)
