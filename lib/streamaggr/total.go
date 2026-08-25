@@ -40,11 +40,9 @@ func (av *totalAggrValue) pushSample(c aggrConfig, sample *pushSample, key strin
 			// Skip out of order sample
 			return
 		}
-		if sample.value >= lv.value {
-			av.total += sample.value - lv.value
-		} else {
-			// counter reset
-			av.total += sample.value
+		delta, reset := counterDelta(lv.value, sample.value)
+		av.total += delta
+		if reset {
 			ac.counterResetsTotal.Inc()
 		}
 	} else if keepFirstSample {
