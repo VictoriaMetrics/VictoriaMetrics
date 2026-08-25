@@ -249,6 +249,11 @@ type URLMap struct {
 	// SrcPaths is an optional list of regular expressions, which must match the request path.
 	SrcPaths []*Regex `yaml:"src_paths,omitempty"`
 
+	// DenyPaths is an optional list of regular expressions, which must not match the request path.
+	//
+	// This allows excluding a subset of paths matched by SrcPaths without listing every allowed path explicitly.
+	DenyPaths []*Regex `yaml:"deny_paths,omitempty"`
+
 	// SrcHosts is an optional list of regular expressions, which must match the request hostname.
 	SrcHosts []*Regex `yaml:"src_hosts,omitempty"`
 
@@ -1161,6 +1166,9 @@ func (ui *UserInfo) initURLs() error {
 
 	for _, e := range ui.URLMaps {
 		if len(e.SrcPaths) == 0 && len(e.SrcHosts) == 0 && len(e.SrcQueryArgs) == 0 && len(e.SrcHeaders) == 0 {
+			if len(e.DenyPaths) > 0 {
+				return fmt.Errorf("`deny_paths` cannot be used without at least one of `src_paths`, `src_hosts`, `src_query_args` or `src_headers` in `url_map`")
+			}
 			return fmt.Errorf("missing `src_paths`, `src_hosts`, `src_query_args` and `src_headers` in `url_map`")
 		}
 		if e.URLPrefix == nil {

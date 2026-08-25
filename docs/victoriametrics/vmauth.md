@@ -810,6 +810,22 @@ unauthorized_user:
 
 See also [how to drop request path prefix](#dropping-request-path-prefix).
 
+### Denying paths
+
+`deny_paths` inside `url_map` rejects a subset of paths matched by `src_paths` (or the other `src_*` options) so you don't have to enumerate every allowed path:
+
+```yaml
+unauthorized_user:
+  url_map:
+  - src_paths:
+    - "/select/.*"
+    deny_paths:
+    - "/select/[^/]+/prometheus/api/v1/status/active_queries"
+    url_prefix: "http://vmselect:8481"
+```
+
+`deny_paths` takes regular expressions and is matched with and without a trailing slash. It can't be used on its own, it needs at least one of `src_paths`, `src_hosts`, `src_query_args` or `src_headers` in the same `url_map` entry.
+
 ### Routing by host
 
 `src_hosts` option can be specified inside `url_map` in order to route requests by host header.
