@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -276,7 +277,7 @@ func (s *Storage) legacyMustRotateIndexDB(currentTime time.Time) {
 	s.legacyNextRotationTimestamp.Store(nextRotationTimestamp)
 }
 
-func (s *Storage) legacyDeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMetrics int) (*uint64set.Set, error) {
+func (s *Storage) legacyDeleteSeries(ctx context.Context, qt *querytracer.Tracer, tfss []*TagFilters, maxMetrics int) (*uint64set.Set, error) {
 	legacyIDBs := s.getLegacyIndexDBs()
 	defer s.putLegacyIndexDBs(legacyIDBs)
 
@@ -289,7 +290,7 @@ func (s *Storage) legacyDeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters,
 
 	if idbPrev := legacyIDBs.getIDBPrev(); idbPrev != nil {
 		qt.Printf("start deleting from previous legacy indexDB")
-		dmis, err := idbPrev.DeleteSeries(qt, tfss, maxMetrics)
+		dmis, err := idbPrev.DeleteSeries(ctx, qt, tfss, maxMetrics)
 		if err != nil {
 			return nil, err
 		}
@@ -299,7 +300,7 @@ func (s *Storage) legacyDeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters,
 
 	if idbCurr := legacyIDBs.getIDBCurr(); idbCurr != nil {
 		qt.Printf("start deleting from current legacy indexDB")
-		dmis, err := idbCurr.DeleteSeries(qt, tfss, maxMetrics)
+		dmis, err := idbCurr.DeleteSeries(ctx, qt, tfss, maxMetrics)
 		if err != nil {
 			return nil, err
 		}
@@ -372,14 +373,14 @@ func (s *Storage) legacyMustCloseIndexDBs() {
 	}
 }
 
-func (s *Storage) legacyGetTSDBStatus(qt *querytracer.Tracer, accountID, projectID uint32, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
+func (s *Storage) legacyGetTSDBStatus(ctx context.Context, qt *querytracer.Tracer, accountID, projectID uint32, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int) (*TSDBStatus, error) {
 	legacyIDBs := s.getLegacyIndexDBs()
 	defer s.putLegacyIndexDBs(legacyIDBs)
 
 	if legacyIDBs.getIDBCurr() != nil {
 		idbName := legacyIDBs.getIDBCurr().name
 		qt.Printf("collect TSDB status in current legacy indexDB %s", idbName)
-		res, err := legacyIDBs.getIDBCurr().GetTSDBStatus(qt, accountID, projectID, tfss, date, focusLabel, topN, maxMetrics, deadline)
+		res, err := legacyIDBs.getIDBCurr().GetTSDBStatus(ctx, qt, accountID, projectID, tfss, date, focusLabel, topN, maxMetrics)
 		if err != nil {
 			return nil, err
 		}
@@ -394,7 +395,7 @@ func (s *Storage) legacyGetTSDBStatus(qt *querytracer.Tracer, accountID, project
 	if legacyIDBs.getIDBPrev() != nil {
 		idbName := legacyIDBs.getIDBPrev().name
 		qt.Printf("collect TSDB status in previous legacy indexDB %s", idbName)
-		res, err := legacyIDBs.getIDBPrev().GetTSDBStatus(qt, accountID, projectID, tfss, date, focusLabel, topN, maxMetrics, deadline)
+		res, err := legacyIDBs.getIDBPrev().GetTSDBStatus(ctx, qt, accountID, projectID, tfss, date, focusLabel, topN, maxMetrics)
 		if err != nil {
 			return nil, err
 		}

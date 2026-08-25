@@ -459,7 +459,7 @@ func benchmarkSearch(b *testing.B, dataConfig dataConfig, split splitFunc, searc
 		if err := tfs.Add(nil, []byte(re), false, true); err != nil {
 			b.Fatalf("unexpected error in TagFilters.Add: %v", err)
 		}
-		got, err := s.DeleteSeries(nil, []*TagFilters{tfs}, 1e9)
+		got, err := s.DeleteSeries(noDeadlineContext, nil, []*TagFilters{tfs}, 1e9)
 		if err != nil {
 			b.Fatalf("could not delete series unexpectedly: %v", err)
 		}
@@ -545,7 +545,7 @@ func benchmarkSearchMetricNames(b *testing.B, s *Storage, tr TimeRange, mrs []Me
 		err error
 	)
 	for b.Loop() {
-		got, err = s.SearchMetricNames(nil, []*TagFilters{tfss}, tr, 1e9, noDeadline)
+		got, err = s.SearchMetricNames(noDeadlineContext, nil, []*TagFilters{tfss}, tr, 1e9)
 		if err != nil {
 			b.Fatalf("SearchMetricNames() failed unexpectedly: %v", err)
 		}
@@ -592,7 +592,7 @@ func benchmarkSearchLabelNames(b *testing.B, s *Storage, tr TimeRange, mrs []Met
 		err error
 	)
 	for b.Loop() {
-		got, err = s.SearchLabelNames(nil, accountID, projectID, nil, tr, 1e9, 1e9, noDeadline)
+		got, err = s.SearchLabelNames(noDeadlineContext, nil, accountID, projectID, nil, tr, 1e9, 1e9)
 		if err != nil {
 			b.Fatalf("SearchLabelNames() failed unexpectedly: %v", err)
 		}
@@ -634,7 +634,7 @@ func benchmarkSearchLabelValues(b *testing.B, s *Storage, tr TimeRange, mrs []Me
 		err error
 	)
 	for b.Loop() {
-		got, err = s.SearchLabelValues(nil, accountID, projectID, "label", nil, tr, 1e9, 1e9, noDeadline)
+		got, err = s.SearchLabelValues(noDeadlineContext, nil, accountID, projectID, "label", nil, tr, 1e9, 1e9)
 		if err != nil {
 			b.Fatalf("SearchLabelValues() failed unexpectedly: %v", err)
 		}
@@ -677,7 +677,7 @@ func benchmarkSearchTagValueSuffixes(b *testing.B, s *Storage, tr TimeRange, mrs
 		err    error
 	)
 	for b.Loop() {
-		got, err = s.SearchTagValueSuffixes(nil, accountID, projectID, tr, "", prefix, '.', 1e9, noDeadline)
+		got, err = s.SearchTagValueSuffixes(noDeadlineContext, nil, accountID, projectID, tr, "", prefix, '.', 1e9)
 		if err != nil {
 			b.Fatalf("SearchTagValueSuffixes() failed unexpectedly: %v", err)
 		}
@@ -716,7 +716,7 @@ func benchmarkSearchGraphitePaths(b *testing.B, s *Storage, tr TimeRange, mrs []
 		err error
 	)
 	for b.Loop() {
-		got, err = s.SearchGraphitePaths(nil, accountID, projectID, tr, []byte("*.*"), 1e9, noDeadline)
+		got, err = s.SearchGraphitePaths(noDeadlineContext, nil, accountID, projectID, tr, []byte("*.*"), 1e9)
 		if err != nil {
 			b.Fatalf("SearchGraphitePaths() failed unexpectedly: %v", err)
 		}
