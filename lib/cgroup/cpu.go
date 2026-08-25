@@ -2,6 +2,7 @@ package cgroup
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"path"
 	"runtime"
@@ -21,14 +22,31 @@ func AvailableCPUs() int {
 }
 
 func init() {
-	cpuQuota := getCPUQuota()
-	if cpuQuota > 0 {
-		updateGOMAXPROCSToCPUQuota(cpuQuota)
+	online := getOnlineCPUCount()
+	numCPU := float64(runtime.NumCPU())
+
+	cpuCoresHost := online
+	if cpuCoresHost <= 0 {
+		cpuCoresHost = numCPU
 	}
-	cpuCoresAvailable := float64(runtime.NumCPU())
-	if cpuQuota > 0 && cpuCoresAvailable > cpuQuota {
-		cpuCoresAvailable = cpuQuota
+
+	cpuCoresQuota, err := getCPUQuotaGeneric()
+	if err != nil || cpuCoresQuota <= 0 {
+		cpuCoresQuota = math.Inf(1)
 	}
+
+	// Fall back to online CPUs when the CPU quota isn't set. This may be the case in multilevel containers.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/685#issuecomment-674423728
+	effectiveCPUQuota := min(cpuCoresQuota, cpuCoresHost)
+	updateGOMAXPROCSToCPUQuota(effectiveCPUQuota)
+	cpuCoresAvailable := min(effectiveCPUQuota, numCPU)
+
+	metrics.NewGauge(`process_cpu_cores_host`, func() float64 {
+		return cpuCoresHost
+	})
+	metrics.NewGauge(`process_cpu_cores_cgroup`, func() float64 {
+		return cpuCoresQuota
+	})
 	metrics.NewGauge(`process_cpu_cores_available`, func() float64 {
 		return cpuCoresAvailable
 	})
@@ -58,19 +76,6 @@ func updateGOMAXPROCSToCPUQuota(cpuQuota float64) {
 	}
 
 	runtime.GOMAXPROCS(gomaxprocs)
-}
-
-func getCPUQuota() float64 {
-	cpuQuota, err := getCPUQuotaGeneric()
-	if err != nil {
-		return 0
-	}
-	if cpuQuota <= 0 {
-		// The quota isn't set. This may be the case in multilevel containers.
-		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/685#issuecomment-674423728
-		return getOnlineCPUCount()
-	}
-	return cpuQuota
 }
 
 func getCPUQuotaGeneric() (float64, error) {
