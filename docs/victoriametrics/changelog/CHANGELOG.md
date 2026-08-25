@@ -37,6 +37,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly re-use memory if query aggregation returns error. See [#11426](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11426).
 * BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fail the query request directly when there is not enough disk space to store temporary search results. Previously, such queries could lead to vmselect crash. See [#4688](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4688).
 * BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): consistently re-use memory during storage blocks unpacking on parsing storage block error. See [#11421](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11421).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): properly parse decimal and scientific-notation timestamps in instant query responses from Prometheus-compatible data sources. Previously, these valid JSON numbers were silently converted to Unix timestamp `0`. See [#11396](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11396).
 
 ## [v1.150.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.150.0)
 
