@@ -115,7 +115,7 @@ func TestVMNativeProcessorRunSingle_ExportFailureDoesntHang(t *testing.T) {
 		dst: &native.Client{Addr: dst.URL, HTTPClient: &http.Client{}},
 	}
 
-	const attempts = 3
+	const attempts = 10
 	for i := range attempts {
 		if err := p.runSingle(context.Background(), native.Filter{}, src.URL, dst.URL, nil); err == nil {
 			t.Fatalf("expecting non-nil error on attempt %d", i)
