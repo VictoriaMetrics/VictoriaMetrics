@@ -655,6 +655,8 @@ vmanomaly version: [v1.30.3](https://docs.victoriametrics.com/anomaly-detection/
 
 - BUGFIX: AI-suggested business settings remain synchronized with both the model wizard and the generated model configuration.
 
+- BUGFIX: Advanced model drop-downs display the selected option label instead of the control's internal numeric option position while preserving correctly typed configuration values.
+
 ### v1.8.2
 Released: 2026-08-13
 
