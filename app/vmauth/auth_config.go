@@ -249,6 +249,12 @@ type URLMap struct {
 	// SrcPaths is an optional list of regular expressions, which must match the request path.
 	SrcPaths []*Regex `yaml:"src_paths,omitempty"`
 
+	// DenyPaths is an optional list of regular expressions, which must not match the request path.
+	//
+	// If the request path matches at least one of these regexes, then the request is rejected
+	// instead of being proxied to the backend from URLPrefix.
+	DenyPaths []*Regex `yaml:"deny_paths,omitempty"`
+
 	// SrcHosts is an optional list of regular expressions, which must match the request hostname.
 	SrcHosts []*Regex `yaml:"src_hosts,omitempty"`
 

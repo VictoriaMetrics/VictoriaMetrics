@@ -95,7 +95,10 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 			t.Fatalf("cannot parse %q: %s", requestURI, err)
 		}
 		u = normalizeURL(u)
-		up, hc := ui.getURLPrefixAndHeaders(u, u.Host, nil)
+		up, hc, denied := ui.getURLPrefixAndHeaders(u, u.Host, nil)
+		if denied {
+			t.Fatalf("unexpected denial of request path %q", u.Path)
+		}
 		if up == nil {
 			t.Fatalf("cannot match available backend: %s", err)
 			return
@@ -346,7 +349,10 @@ func TestUserInfoGetBackendURL_SRV(t *testing.T) {
 			t.Fatalf("cannot parse %q: %s", requestURI, err)
 		}
 		u = normalizeURL(u)
-		up, _ := ui.getURLPrefixAndHeaders(u, u.Host, nil)
+		up, _, denied := ui.getURLPrefixAndHeaders(u, u.Host, nil)
+		if denied {
+			t.Fatalf("unexpected denial of request path %q", u.Path)
+		}
 		if up == nil {
 			t.Fatalf("cannot match available backend: %s", err)
 			return
@@ -425,7 +431,10 @@ func TestUserInfoGetBackendURL_SRVZeroBackends(t *testing.T) {
 			t.Fatalf("cannot parse %q: %s", requestURI, err)
 		}
 		u = normalizeURL(u)
-		up, _ := ui.getURLPrefixAndHeaders(u, u.Host, nil)
+		up, _, denied := ui.getURLPrefixAndHeaders(u, u.Host, nil)
+		if denied {
+			t.Fatalf("unexpected denial of request path %q", u.Path)
+		}
 		if up == nil {
 			t.Fatalf("cannot match available backend: %s", err)
 		}
@@ -473,7 +482,10 @@ func TestCreateTargetURLFailure(t *testing.T) {
 			t.Fatalf("cannot parse %q: %s", requestURI, err)
 		}
 		u = normalizeURL(u)
-		up, hc := ui.getURLPrefixAndHeaders(u, u.Host, nil)
+		up, hc, denied := ui.getURLPrefixAndHeaders(u, u.Host, nil)
+		if denied {
+			t.Fatalf("unexpected denial of request path %q", u.Path)
+		}
 		if up != nil {
 			t.Fatalf("unexpected non-empty up=%#v", up)
 		}
@@ -493,6 +505,70 @@ func TestCreateTargetURLFailure(t *testing.T) {
 			},
 		},
 	}, "/api/v1/write")
+}
+
+func TestGetURLPrefixAndHeadersDenyPaths(t *testing.T) {
+	f := func(ui *UserInfo, requestURI string, expectedDenied bool, expectedTarget string) {
+		t.Helper()
+
+		if err := ui.initURLs(); err != nil {
+			t.Fatalf("cannot initialize urls inside UserInfo: %s", err)
+		}
+		u, err := url.Parse(requestURI)
+		if err != nil {
+			t.Fatalf("cannot parse %q: %s", requestURI, err)
+		}
+		u = normalizeURL(u)
+		up, _, denied := ui.getURLPrefixAndHeaders(u, u.Host, nil)
+		if denied != expectedDenied {
+			t.Fatalf("unexpected denial flag for path %q; got %v; want %v", u.Path, denied, expectedDenied)
+		}
+		if expectedDenied {
+			if up != nil {
+				t.Fatalf("unexpected non-empty URLPrefix for the denied request path %q: %#v", u.Path, up)
+			}
+			return
+		}
+		if up == nil {
+			t.Fatalf("cannot match available backend for path %q", u.Path)
+		}
+		bu := up.getBackendURL()
+		target := mergeURLs(bu.url, u, up.dropSrcPathPrefixParts, up.mergeQueryArgs)
+		bu.put()
+		gotTarget := target.String()
+		if gotTarget != expectedTarget {
+			t.Fatalf("unexpected target; \ngot:\n%q;\nwant:\n%q", gotTarget, expectedTarget)
+		}
+	}
+
+	ui := &UserInfo{
+		URLMaps: []URLMap{
+			{
+				SrcPaths:  getRegexs([]string{"/select/.*"}),
+				DenyPaths: getRegexs([]string{"/select/[^/]+/prometheus/api/v1/status/active_queries"}),
+				URLPrefix: mustParseURL("http://vmselect/select"),
+			},
+			{
+				SrcPaths:  getRegexs([]string{"/insert/.*"}),
+				URLPrefix: mustParseURL("http://vminsert/insert"),
+			},
+		},
+	}
+
+	// src_paths and deny_paths match - the request must be denied
+	f(ui, "/select/123/prometheus/api/v1/status/active_queries", true, "")
+	// src_paths match and deny_paths do not match - the request must be proxied
+	f(ui, "/select/123/prometheus/api/v1/query", false, "http://vmselect/select/select/123/prometheus/api/v1/query")
+	// src_paths of another url_map entry without deny_paths match - the request must be proxied
+	f(ui, "/insert/0/prometheus/api/v1/write", false, "http://vminsert/insert/insert/0/prometheus/api/v1/write")
+
+	// multiple deny_paths entries
+	ui.URLMaps[0].DenyPaths = getRegexs([]string{
+		"/select/[^/]+/prometheus/api/v1/status/active_queries",
+		"/select/[^/]+/prometheus/api/v1/status/tsdb/.+",
+	})
+	// a single matching deny_paths entry among multiple ones - the request must be denied
+	f(ui, "/select/123/prometheus/api/v1/status/tsdb/status", true, "")
 }
 
 func headersToString(hs []*Header) string {

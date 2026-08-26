@@ -64,7 +64,7 @@ func dropPrefixParts(path string, parts int) string {
 	return path
 }
 
-func (ui *UserInfo) getURLPrefixAndHeaders(u *url.URL, host string, h http.Header) (*URLPrefix, HeadersConf) {
+func (ui *UserInfo) getURLPrefixAndHeaders(u *url.URL, host string, h http.Header) (*URLPrefix, HeadersConf, bool) {
 	for _, e := range ui.URLMaps {
 		if !matchAnyRegex(e.SrcHosts, host) {
 			continue
@@ -78,13 +78,19 @@ func (ui *UserInfo) getURLPrefixAndHeaders(u *url.URL, host string, h http.Heade
 		if !matchAnyHeader(e.SrcHeaders, h) {
 			continue
 		}
+		// The len(e.DenyPaths) > 0 check is required, since matchAnyRegex returns true for an empty list of regexps.
+		if len(e.DenyPaths) > 0 && matchAnyRegex(e.DenyPaths, u.Path) {
+			// The request matches all the routing conditions of the url_map entry and at least one deny_paths regexp,
+			// so it must be rejected instead of being proxied to the backend from URLPrefix.
+			return nil, HeadersConf{}, true
+		}
 
-		return e.URLPrefix, e.HeadersConf
+		return e.URLPrefix, e.HeadersConf, false
 	}
 	if ui.URLPrefix != nil {
-		return ui.URLPrefix, ui.HeadersConf
+		return ui.URLPrefix, ui.HeadersConf, false
 	}
-	return nil, HeadersConf{}
+	return nil, HeadersConf{}, false
 }
 
 func matchAnyRegex(rs []*Regex, s string) bool {

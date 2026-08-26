@@ -782,6 +782,7 @@ See also [security docs](#security), [routing docs](#routing) and [load balancin
 * [Request query arg](#routing-by-query-arg)
 * [HTTP request header](#routing-by-header)
 * [Multiple parts](#routing-by-multiple-parts)
+* [Denying requests by path](#denying-requests-by-path)
 
 See also [authorization](#authorization) and [load balancing](#load-balancing).
 For debug purposes, extra logging for failed requests can be enabled by setting `dump_request_on_errors: true` {{% available_from "v1.107.0" %}} on the user level. Please note that such logging may expose sensitive information and should be used only for debugging.
@@ -889,6 +890,27 @@ unauthorized_user:
     src_headers: ["TenantID: 42"]
     url_prefix: "http://app1-backend/"
 ```
+
+### Denying requests by path
+
+`deny_paths` {{% available_from "#" %}} option can be specified inside a `url_map` entry in order to reject requests instead of proxying them to the given `url_prefix`.
+
+The following [`-auth.config`](#auth-config) routes requests with paths starting with `/select/` to `http://vmselect:8481`,
+while rejecting requests to the `active_queries` status endpoint:
+
+```yaml
+unauthorized_user:
+  url_map:
+  - src_paths:
+    - "/select/.*"
+    deny_paths:
+    - "/select/[^/]+/prometheus/api/v1/status/active_queries"
+    url_prefix: "http://vmselect:8481"
+```
+
+`deny_paths` accepts a list of [regular expressions](https://github.com/google/re2/wiki/Syntax) with the same semantics as [`src_paths`](#routing-by-path).
+If the request matches all the [routing](#routing) conditions of a `url_map` entry and its path matches at least one `deny_paths` entry,
+then the request is rejected with `403 Forbidden` HTTP status code. It isn't routed to other `url_map` entries, `url_prefix` or `default_url`.
 
 ## Load balancing
 
