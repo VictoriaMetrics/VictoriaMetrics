@@ -31,6 +31,7 @@ VictoriaMetrics single or cluster version.
 vmctl command-line tool is available as:
 * docker images at [Docker Hub](https://hub.docker.com/r/victoriametrics/vmctl/) and [Quay](https://quay.io/repository/victoriametrics/vmctl?tab=tags)
 * [Binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) as part of `vmutils` package
+* [Homebrew tap](https://github.com/VictoriaMetrics/homebrew-tap) on macOS and Linux: `brew install victoriametrics/tap/vmctl`. The installed binary is named `vmctl`, not `vmctl-prod`.
 
 Download and unpack vmctl:
 ```sh
