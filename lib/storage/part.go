@@ -68,12 +68,13 @@ func mustOpenFilePart(path string) *part {
 
 	var timestampsFile fs.MustReadAtCloser
 	var timestampsSize uint64
-	pro.Add(timestampsPath, &timestampsFile, &timestampsSize)
+	pro.AddRandomAccess(timestampsPath, &timestampsFile, &timestampsSize)
 
 	var valuesFile fs.MustReadAtCloser
 	var valuesSize uint64
-	pro.Add(valuesPath, &valuesFile, &valuesSize)
+	pro.AddRandomAccess(valuesPath, &valuesFile, &valuesSize)
 
+	// Keep OS readahead enabled for the index file, since it may be read sequentially.
 	var indexFile fs.MustReadAtCloser
 	var indexSize uint64
 	pro.Add(indexPath, &indexFile, &indexSize)

@@ -17,6 +17,11 @@ var disableMmap = flag.Bool("fs.disableMmap", is32BitPtr, "Whether to use pread(
 	"By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. "+
 	"mmap() is usually faster for reading small data chunks than pread()")
 
+var disableFadviseRandomRead = flag.Bool("fs.disableFadviseRandomRead", false, "Whether to disable fadvise(FADV_RANDOM) hint "+
+	"for data files opened for random access. This hint disables OS readahead for reads performed through file descriptors. "+
+	"This reduces the amount of unneeded data read from disk during queries that select a small number of blocks scattered across large data files. "+
+	"Disabling the hint may improve performance for queries that read most of the data in large data files")
+
 var disableMincore = flag.Bool("fs.disableMincore", false, "Whether to disable the mincore() syscall for checking mmap()ed files. "+
 	"By default, mincore() is used to detect whether mmap()ed file pages are resident in memory. "+
 	"Disabling mincore() may be needed on older ZFS filesystems (below 2.1.5), since it may trigger ZFS bug. "+
@@ -50,6 +55,8 @@ type ReaderAt struct {
 	mrLock sync.Mutex
 
 	useLocalStats bool
+
+	useRandomReadHint bool
 }
 
 // Path returns path to r.
@@ -103,6 +110,9 @@ func (r *ReaderAt) getMmapReader() *mmapReader {
 	mr = r.mr.Load()
 	if mr == nil {
 		mr = newMmapReaderFromPath(r.path)
+		if r.useRandomReadHint && !*disableFadviseRandomRead {
+			mr.hintRandomRead(r.path)
+		}
 		r.mr.Store(mr)
 	}
 	r.mrLock.Unlock()
@@ -160,6 +170,17 @@ func MustOpenReaderAt(path string) *ReaderAt {
 	var r ReaderAt
 	r.path = path
 	return &r
+}
+
+// MustOpenReaderAtRandomAccess opens ReaderAt for reading at random offsets from the file located at path.
+//
+// The OS is hinted to skip readahead for reads performed through the file descriptor.
+//
+// MustClose must be called on the returned ReaderAt when it is no longer needed.
+func MustOpenReaderAtRandomAccess(path string) *ReaderAt {
+	r := MustOpenReaderAt(path)
+	r.useRandomReadHint = true
+	return r
 }
 
 // NewReaderAt returns ReaderAt for reading from f.
@@ -227,6 +248,13 @@ func newMmapReaderFromFile(f *os.File) *mmapReader {
 	mr.mincoreNextCleanupTimestamp.Store(fasttime.UnixTimestamp() + 60)
 
 	return mr
+}
+
+// Failures are logged, not fatal: some filesystems reject FADV_RANDOM.
+func (mr *mmapReader) hintRandomRead(path string) {
+	if err := fadviseRandomRead(mr.f); err != nil {
+		logger.Warnf("cannot apply fadvise(FADV_RANDOM) hint to %q: %s; the OS may perform excessive readahead for this file", path, err)
+	}
 }
 
 func (mr *mmapReader) mustClose() {
