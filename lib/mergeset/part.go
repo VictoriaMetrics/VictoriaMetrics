@@ -103,17 +103,20 @@ func mustOpenFilePart(path string) *part {
 	itemsPath := filepath.Join(path, itemsFilename)
 	lensPath := filepath.Join(path, lensFilename)
 
+	// Keep OS readahead enabled for mergeset files.
+	// Most of the time searches in these files read neighboring blocks.
+
 	var indexFile fs.MustReadAtCloser
 	var indexSize uint64
-	pro.Add(indexPath, &indexFile, &indexSize)
+	pro.Add(indexPath, &indexFile, &indexSize, true)
 
 	var itemsFile fs.MustReadAtCloser
 	var itemsSize uint64
-	pro.Add(itemsPath, &itemsFile, &itemsSize)
+	pro.Add(itemsPath, &itemsFile, &itemsSize, true)
 
 	var lensFile fs.MustReadAtCloser
 	var lensSize uint64
-	pro.Add(lensPath, &lensFile, &lensSize)
+	pro.Add(lensPath, &lensFile, &lensSize, true)
 
 	pro.Run()
 
