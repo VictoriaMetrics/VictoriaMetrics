@@ -1,4 +1,4 @@
-import { FC, useRef } from "preact/compat";
+import { forwardRef, useImperativeHandle, useRef } from "preact/compat";
 import ServerConfigurator from "./ServerConfigurator/ServerConfigurator";
 import { ArrowDownIcon, SettingsIcon } from "../../Main/Icons";
 import Button from "../../Main/Button/Button";
@@ -8,10 +8,12 @@ import Tooltip from "../../Main/Tooltip/Tooltip";
 import LimitsConfigurator from "./LimitsConfigurator/LimitsConfigurator";
 import { getAppModeEnable } from "../../../utils/app-mode";
 import classNames from "classnames";
-import Timezones from "./Timezones/Timezones";
+import TimezonesPicker from "./Timezones/TimezonesPicker";
 import ThemeControl from "../ThemeControl/ThemeControl";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import useBoolean from "../../../hooks/useBoolean";
+import BrowserTabController from "./BrowserTabController/BrowserTabController";
+import LegendCollapseController from "./LegendCollapseController/LegendCollapseController";
 
 const title = "Settings";
 
@@ -19,14 +21,17 @@ export interface ChildComponentHandle {
   handleApply: () => void;
 }
 
-const GlobalSettings: FC = () => {
+export interface GlobalSettingsHandle {
+  open: () => void;
+}
+
+const GlobalSettings = forwardRef<GlobalSettingsHandle>((_, ref) => {
   const { isMobile } = useDeviceDetect();
 
   const appModeEnable = getAppModeEnable();
 
   const serverSettingRef = useRef<ChildComponentHandle>(null);
   const limitsSettingRef = useRef<ChildComponentHandle>(null);
-  const timezoneSettingRef = useRef<ChildComponentHandle>(null);
 
   const {
     value: open,
@@ -37,7 +42,6 @@ const GlobalSettings: FC = () => {
   const handleApply = () => {
     serverSettingRef.current && serverSettingRef.current.handleApply();
     limitsSettingRef.current && limitsSettingRef.current.handleApply();
-    timezoneSettingRef.current && timezoneSettingRef.current.handleApply();
     handleClose();
   };
 
@@ -51,6 +55,10 @@ const GlobalSettings: FC = () => {
     },
     {
       show: true,
+      component: <TimezonesPicker/>
+    },
+    {
+      show: true,
       component: <LimitsConfigurator
         ref={limitsSettingRef}
         onClose={handleClose}
@@ -58,13 +66,21 @@ const GlobalSettings: FC = () => {
     },
     {
       show: true,
-      component: <Timezones ref={timezoneSettingRef}/>
+      component: <LegendCollapseController/>
     },
     {
       show: !appModeEnable,
       component: <ThemeControl/>
-    }
+    },
+    {
+      show: true,
+      component: <BrowserTabController/>
+    },
   ].filter(control => control.show);
+
+  useImperativeHandle(ref, () => ({
+    open: handleOpen,
+  }));
 
   return <>
     {isMobile ? (
@@ -131,6 +147,6 @@ const GlobalSettings: FC = () => {
       </Modal>
     )}
   </>;
-};
+});
 
 export default GlobalSettings;

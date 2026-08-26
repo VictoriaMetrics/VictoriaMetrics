@@ -29,6 +29,10 @@ $switch-border-radius: $switch-handle-size + ($switch-padding * 2);
     background-color: $color-secondary;
   }
 
+  &_neutral_active &-track {
+    background-color: $color-text;
+  }
+
   &_primary_active &-track {
     background-color: $color-primary;
   }
