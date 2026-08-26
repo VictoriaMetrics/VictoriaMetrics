@@ -56,7 +56,7 @@ func GetDeadlineForExport(r *http.Request, startTime time.Time) Deadline {
 	return getDeadlineWithMaxDuration(r, startTime, dMax, "-search.maxExportDuration")
 }
 
-// GetDeadlineForLabelsAPI returns deadline for the given request to /api/v1/labels, /api/v1/label/.../values, /api/v1/series or /api/v1/series/count
+// GetDeadlineForLabelsAPI returns deadline for the given request to /api/v1/labels, /api/v1/label/.../values or /api/v1/series
 func GetDeadlineForLabelsAPI(r *http.Request, startTime time.Time) Deadline {
 	dMax := maxLabelsAPIDuration.Milliseconds()
 	return getDeadlineWithMaxDuration(r, startTime, dMax, "-search.maxLabelsAPIDuration")

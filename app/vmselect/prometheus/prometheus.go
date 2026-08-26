@@ -897,7 +897,7 @@ func SeriesCountHandler(startTime time.Time, at *auth.Token, w http.ResponseWrit
 	if at == nil {
 		return fmt.Errorf("multi-tenant request to /api/v1/series/count is not supported")
 	}
-	deadline := searchutil.GetDeadlineForLabelsAPI(r, startTime)
+	deadline := searchutil.GetDeadlineForStatusRequest(r, startTime)
 	denyPartialResponse := httputil.GetDenyPartialResponse(r)
 	n, isPartial, err := netstorage.SeriesCount(nil, at.AccountID, at.ProjectID, denyPartialResponse, deadline)
 	if err != nil {
