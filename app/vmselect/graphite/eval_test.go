@@ -3444,6 +3444,7 @@ func TestExecExprFailure(t *testing.T) {
 	f := func(query string) {
 		t.Helper()
 		ec := &evalConfig{
+			ctx:         searchutil.NewContext(context.Background(), searchutil.Deadline{}),
 			at:          &auth.Token{},
 			startTime:   120e3,
 			endTime:     420e3,

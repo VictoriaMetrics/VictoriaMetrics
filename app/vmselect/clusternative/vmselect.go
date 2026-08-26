@@ -152,7 +152,7 @@ type workItem struct {
 	doneCh         chan struct{}
 }
 
-func newBlockIterator(ctx searchutil.Context, qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.SearchQuery) *blockIterator {
+func newBlockIterator(ctx *searchutil.Context, qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.SearchQuery) *blockIterator {
 	bi := getBlockIterator()
 	workers, processBlocks := netstorage.PrepareProcessRawBlocks(ctx, qt, denyPartialResponse, sq)
 	bi.workCh = make(chan workItem, workers)

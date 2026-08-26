@@ -23,7 +23,7 @@ var maxGraphitePathExpressionLen = flag.Int("search.maxGraphitePathExpressionLen
 	"Longer expressions are truncated to prevent memory exhaustion on complex nested queries. Set to 0 to disable truncation.")
 
 type evalConfig struct {
-	ctx                 searchutil.Context
+	ctx                 *searchutil.Context
 	at                  *auth.Token
 	startTime           int64
 	endTime             int64

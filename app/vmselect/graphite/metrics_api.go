@@ -229,7 +229,7 @@ func MetricsIndexHandler(startTime time.Time, at *auth.Token, w http.ResponseWri
 }
 
 // metricsFind searches for label values that match the given qHead and qTail.
-func metricsFind(ctx searchutil.Context, at *auth.Token, denyPartialResponse bool, tr storage.TimeRange, label, qHead, qTail string, delimiter byte,
+func metricsFind(ctx *searchutil.Context, at *auth.Token, denyPartialResponse bool, tr storage.TimeRange, label, qHead, qTail string, delimiter byte,
 	isExpand bool) ([]string, bool, error) {
 	n := strings.IndexAny(qTail, "*{[")
 	if n < 0 {

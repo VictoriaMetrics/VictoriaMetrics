@@ -277,7 +277,7 @@ func tagFiltersToString(tfs []storage.TagFilter) string {
 }
 
 func TestGetContextDeadline(t *testing.T) {
-	f := func(got Context, exp Deadline) {
+	f := func(got *Context, exp Deadline) {
 		t.Helper()
 		// got is a function parameter and therefore addressable,
 		// so the pointer-receiver Deadline() method resolves here.

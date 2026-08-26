@@ -127,7 +127,7 @@ type timeseriesWork struct {
 	rowsProcessed int
 }
 
-func (tsw *timeseriesWork) do(ctx searchutil.Context, r *Result, workerID uint) error {
+func (tsw *timeseriesWork) do(ctx *searchutil.Context, r *Result, workerID uint) error {
 	if tsw.mustStop.Load() {
 		return nil
 	}
@@ -150,7 +150,7 @@ func (tsw *timeseriesWork) do(ctx searchutil.Context, r *Result, workerID uint) 
 	return nil
 }
 
-func timeseriesWorker(ctx searchutil.Context, qt *querytracer.Tracer, workChs []chan *timeseriesWork, workerID uint) {
+func timeseriesWorker(ctx *searchutil.Context, qt *querytracer.Tracer, workChs []chan *timeseriesWork, workerID uint) {
 	tmpResult := getTmpResult()
 
 	// Perform own work at first.
@@ -249,7 +249,7 @@ var defaultMaxWorkersPerQuery = func() int {
 // Data processing is immediately stopped if f returns non-nil error.
 //
 // rss becomes unusable after the call to RunParallel.
-func (rss *Results) RunParallel(ctx searchutil.Context, qt *querytracer.Tracer, f func(rs *Result, workerID uint) error) error {
+func (rss *Results) RunParallel(ctx *searchutil.Context, qt *querytracer.Tracer, f func(rs *Result, workerID uint) error) error {
 	qt = qt.NewChild("parallel process of fetched data")
 	defer rss.closeTmpBlockFiles()
 
@@ -265,7 +265,7 @@ func (rss *Results) RunParallel(ctx searchutil.Context, qt *querytracer.Tracer, 
 	return err
 }
 
-func (rss *Results) runParallel(ctx searchutil.Context, qt *querytracer.Tracer, f func(rs *Result, workerID uint) error) (int, error) {
+func (rss *Results) runParallel(ctx *searchutil.Context, qt *querytracer.Tracer, f func(rs *Result, workerID uint) error) (int, error) {
 	tswsLen := len(rss.packedTimeseries)
 	if tswsLen == 0 {
 		// Nothing to process
@@ -416,7 +416,7 @@ func putUnpackWork(upw *unpackWork) {
 
 var unpackWorkPool sync.Pool
 
-func unpackWorker(ctx searchutil.Context, workChs []chan *unpackWork, workerID uint) {
+func unpackWorker(ctx *searchutil.Context, workChs []chan *unpackWork, workerID uint) {
 	tmpBlock := getTmpStorageBlock()
 
 	// Deal with own work at first.
@@ -471,7 +471,7 @@ func putTmpStorageBlock(sb *storage.Block) {
 var tmpStorageBlockPool sync.Pool
 
 // Unpack unpacks pts to dst.
-func (pts *packedTimeseries) Unpack(ctx searchutil.Context, dst *Result, tbfs []*tmpBlocksFile, tr storage.TimeRange) error {
+func (pts *packedTimeseries) Unpack(ctx *searchutil.Context, dst *Result, tbfs []*tmpBlocksFile, tr storage.TimeRange) error {
 	dst.reset()
 	if err := dst.MetricName.Unmarshal(bytesutil.ToUnsafeBytes(pts.metricName)); err != nil {
 		return fmt.Errorf("cannot unmarshal metricName %q: %w", pts.metricName, err)
@@ -490,7 +490,7 @@ func (pts *packedTimeseries) Unpack(ctx searchutil.Context, dst *Result, tbfs []
 	return nil
 }
 
-func (pts *packedTimeseries) unpackTo(ctx searchutil.Context, dst []*sortBlock, tbfs []*tmpBlocksFile, tr storage.TimeRange) ([]*sortBlock, error) {
+func (pts *packedTimeseries) unpackTo(ctx *searchutil.Context, dst []*sortBlock, tbfs []*tmpBlocksFile, tr storage.TimeRange) ([]*sortBlock, error) {
 	upwsLen := len(pts.addrs)
 	if upwsLen == 0 {
 		// Nothing to do
@@ -819,7 +819,7 @@ func putSortBlocksHeap(sbh *sortBlocksHeap) {
 var sbhPool sync.Pool
 
 // RegisterMetricNames registers metric names from mrs in the storage.
-func RegisterMetricNames(ctx searchutil.Context, qt *querytracer.Tracer, mrs []storage.MetricRow) error {
+func RegisterMetricNames(ctx *searchutil.Context, qt *querytracer.Tracer, mrs []storage.MetricRow) error {
 	qt = qt.NewChild("register metric names")
 	defer qt.Done()
 	sns := getStorageNodes()
@@ -858,7 +858,7 @@ func RegisterMetricNames(ctx searchutil.Context, qt *querytracer.Tracer, mrs []s
 }
 
 // DeleteSeries deletes time series matching the given sq.
-func DeleteSeries(ctx searchutil.Context, qt *querytracer.Tracer, sq *storage.SearchQuery) (int, error) {
+func DeleteSeries(ctx *searchutil.Context, qt *querytracer.Tracer, sq *storage.SearchQuery) (int, error) {
 	qt = qt.NewChild("delete series: %s", sq)
 	defer qt.Done()
 
@@ -905,7 +905,7 @@ func DeleteSeries(ctx searchutil.Context, qt *querytracer.Tracer, sq *storage.Se
 }
 
 // LabelNames returns label names matching the given sq until the given deadline.
-func LabelNames(ctx searchutil.Context, qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.SearchQuery, maxLabelNames int) ([]string, bool, error) {
+func LabelNames(ctx *searchutil.Context, qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.SearchQuery, maxLabelNames int) ([]string, bool, error) {
 	qt = qt.NewChild("get labels: %s", sq)
 	defer qt.Done()
 	if ctx.IsDone() {
@@ -970,7 +970,7 @@ func LabelNames(ctx searchutil.Context, qt *querytracer.Tracer, denyPartialRespo
 }
 
 // GraphiteTags returns Graphite tags until the given deadline.
-func GraphiteTags(ctx searchutil.Context, qt *querytracer.Tracer, accountID, projectID uint32, denyPartialResponse bool, filter string, limit int) ([]string, bool, error) {
+func GraphiteTags(ctx *searchutil.Context, qt *querytracer.Tracer, accountID, projectID uint32, denyPartialResponse bool, filter string, limit int) ([]string, bool, error) {
 	qt = qt.NewChild("get graphite tags: filter=%s, limit=%d", filter, limit)
 	defer qt.Done()
 	if ctx.IsDone() {
@@ -1013,7 +1013,7 @@ func hasString(a []string, s string) bool {
 }
 
 // LabelValues returns label values matching the given labelName and sq until the given deadline.
-func LabelValues(ctx searchutil.Context, qt *querytracer.Tracer, denyPartialResponse bool, labelName string, sq *storage.SearchQuery, maxLabelValues int) ([]string, bool, error) {
+func LabelValues(ctx *searchutil.Context, qt *querytracer.Tracer, denyPartialResponse bool, labelName string, sq *storage.SearchQuery, maxLabelValues int) ([]string, bool, error) {
 	qt = qt.NewChild("get values for label %s: %s", labelName, sq)
 	defer qt.Done()
 	if ctx.IsDone() {
@@ -1095,7 +1095,7 @@ func prepareLabelValues(qt *querytracer.Tracer, labelValues []string, maxLabelVa
 }
 
 // Tenants returns tenants until the given deadline.
-func Tenants(ctx searchutil.Context, qt *querytracer.Tracer, tr storage.TimeRange) ([]string, error) {
+func Tenants(ctx *searchutil.Context, qt *querytracer.Tracer, tr storage.TimeRange) ([]string, error) {
 	qt = qt.NewChild("get tenants on timeRange=%s", &tr)
 	defer qt.Done()
 	if ctx.IsDone() {
@@ -1147,7 +1147,7 @@ func Tenants(ctx searchutil.Context, qt *querytracer.Tracer, tr storage.TimeRang
 }
 
 // GetMetricsMetadata returns time series metric names metadata for the given args
-func GetMetricsMetadata(ctx searchutil.Context, qt *querytracer.Tracer, tt *storage.TenantToken, denyPartialResponse bool, limit int, metricName string) ([]*metricsmetadata.Row, bool, error) {
+func GetMetricsMetadata(ctx *searchutil.Context, qt *querytracer.Tracer, tt *storage.TenantToken, denyPartialResponse bool, limit int, metricName string) ([]*metricsmetadata.Row, bool, error) {
 	qt = qt.NewChild("get metrics metadata: limit=%d, metric_name=%q", limit, metricName)
 	defer qt.Done()
 	if ctx.IsDone() {
@@ -1188,7 +1188,7 @@ func GetMetricsMetadata(ctx searchutil.Context, qt *querytracer.Tracer, tt *stor
 }
 
 // GraphiteTagValues returns tag values for the given tagName until the given deadline.
-func GraphiteTagValues(ctx searchutil.Context, qt *querytracer.Tracer, accountID, projectID uint32, denyPartialResponse bool, tagName, filter string, limit int) ([]string, bool, error) {
+func GraphiteTagValues(ctx *searchutil.Context, qt *querytracer.Tracer, accountID, projectID uint32, denyPartialResponse bool, tagName, filter string, limit int) ([]string, bool, error) {
 	qt = qt.NewChild("get graphite tag values for tagName=%s, filter=%s, limit=%d", tagName, filter, limit)
 	defer qt.Done()
 	if ctx.IsDone() {
@@ -1217,7 +1217,7 @@ func GraphiteTagValues(ctx searchutil.Context, qt *querytracer.Tracer, accountID
 // TagValueSuffixes returns tag value suffixes for the given tagKey and the given tagValuePrefix.
 //
 // It can be used for implementing https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find
-func TagValueSuffixes(ctx searchutil.Context, qt *querytracer.Tracer, accountID, projectID uint32, denyPartialResponse bool, tr storage.TimeRange, tagKey, tagValuePrefix string,
+func TagValueSuffixes(ctx *searchutil.Context, qt *querytracer.Tracer, accountID, projectID uint32, denyPartialResponse bool, tr storage.TimeRange, tagKey, tagValuePrefix string,
 	delimiter byte, maxSuffixes int,
 ) ([]string, bool, error) {
 	qt = qt.NewChild("get tag value suffixes for tagKey=%s, tagValuePrefix=%s, maxSuffixes=%d, timeRange=%s", tagKey, tagValuePrefix, maxSuffixes, &tr)
@@ -1283,7 +1283,7 @@ func deduplicateStrings(a []string) []string {
 // TSDBStatus returns tsdb status according to https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats
 //
 // It accepts arbitrary filters on time series in sq.
-func TSDBStatus(ctx searchutil.Context, qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.SearchQuery, focusLabel string, topN int) (*storage.TSDBStatus, bool, error) {
+func TSDBStatus(ctx *searchutil.Context, qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.SearchQuery, focusLabel string, topN int) (*storage.TSDBStatus, bool, error) {
 	qt = qt.NewChild("get tsdb stats: %s, focusLabel=%q, topN=%d", sq, focusLabel, topN)
 	defer qt.Done()
 	if ctx.IsDone() {
@@ -1418,7 +1418,7 @@ func toTopHeapEntries(m map[string]uint64, topN int) []storage.TopHeapEntry {
 }
 
 // SeriesCount returns the number of unique series.
-func SeriesCount(ctx searchutil.Context, qt *querytracer.Tracer, accountID, projectID uint32, denyPartialResponse bool) (uint64, bool, error) {
+func SeriesCount(ctx *searchutil.Context, qt *querytracer.Tracer, accountID, projectID uint32, denyPartialResponse bool) (uint64, bool, error) {
 	qt = qt.NewChild("get series count")
 	defer qt.Done()
 	if ctx.IsDone() {
@@ -1694,7 +1694,7 @@ var metricNamePool = &sync.Pool{
 // f is called in parallel from multiple goroutines.
 // It is the responsibility of f to call b.UnmarshalData before reading timestamps and values from the block.
 // It is the responsibility of f to filter blocks according to the given tr.
-func ExportBlocks(ctx searchutil.Context, qt *querytracer.Tracer, sq *storage.SearchQuery,
+func ExportBlocks(ctx *searchutil.Context, qt *querytracer.Tracer, sq *storage.SearchQuery,
 	f func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange, workerID uint) error,
 ) error {
 	qt = qt.NewChild("export blocks: %s", sq)
@@ -1739,7 +1739,7 @@ func ExportBlocks(ctx searchutil.Context, qt *querytracer.Tracer, sq *storage.Se
 // SearchMetricNames returns all the metric names matching sq until the given deadline.
 //
 // The returned metric names must be unmarshaled via storage.MetricName.UnmarshalString().
-func SearchMetricNames(ctx searchutil.Context, qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.SearchQuery) ([]string, bool, error) {
+func SearchMetricNames(ctx *searchutil.Context, qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.SearchQuery) ([]string, bool, error) {
 	qt = qt.NewChild("fetch metric names: %s", sq)
 	defer qt.Done()
 	if ctx.IsDone() {
@@ -1847,7 +1847,7 @@ func (e *tmpBlocksFileErr) Unwrap() error {
 // ProcessSearchQuery performs sq until the given deadline.
 //
 // Results.RunParallel or Results.Cancel must be called on the returned Results.
-func ProcessSearchQuery(ctx searchutil.Context, qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.SearchQuery) (*Results, bool, error) {
+func ProcessSearchQuery(ctx *searchutil.Context, qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.SearchQuery) (*Results, bool, error) {
 	qt = qt.NewChild("fetch matching series: %s", sq)
 	defer qt.Done()
 	if ctx.IsDone() {
@@ -1916,7 +1916,7 @@ func ProcessSearchQuery(ctx searchutil.Context, qt *querytracer.Tracer, denyPart
 // PrepareProcessRawBlocks prepares metric blocks processor.
 //
 // Returns workers count and processBlocks function
-func PrepareProcessRawBlocks(ctx searchutil.Context, qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.SearchQuery,
+func PrepareProcessRawBlocks(ctx *searchutil.Context, qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.SearchQuery,
 ) (int, func(processBlock func(mb []byte, workerID uint) error) (bool, error)) {
 	sns := getStorageNodes()
 	return len(sns), func(processBlock func(mb []byte, workerID uint) error) (bool, error) {
@@ -1924,7 +1924,7 @@ func PrepareProcessRawBlocks(ctx searchutil.Context, qt *querytracer.Tracer, den
 	}
 }
 
-func processBlocks(ctx searchutil.Context, qt *querytracer.Tracer, sns []*storageNode, denyPartialResponse bool, sq *storage.SearchQuery,
+func processBlocks(ctx *searchutil.Context, qt *querytracer.Tracer, sns []*storageNode, denyPartialResponse bool, sq *storage.SearchQuery,
 	processBlock func(mb *storage.MetricBlock, workerID uint) error,
 ) (bool, error) {
 	mbs := make([]storage.MetricBlock, len(sns))
@@ -1942,7 +1942,7 @@ func processBlocks(ctx searchutil.Context, qt *querytracer.Tracer, sns []*storag
 	return processBlocksInternal(ctx, qt, sns, denyPartialResponse, sq, f)
 }
 
-func processBlocksInternal(ctx searchutil.Context, qt *querytracer.Tracer, sns []*storageNode, denyPartialResponse bool, sq *storage.SearchQuery,
+func processBlocksInternal(ctx *searchutil.Context, qt *querytracer.Tracer, sns []*storageNode, denyPartialResponse bool, sq *storage.SearchQuery,
 	processBlock func(rawBlock []byte, workerID uint) error,
 ) (bool, error) {
 	// Make sure that processBlock is no longer called after the exit from processBlocks() function.
@@ -2361,7 +2361,7 @@ type storageNode struct {
 	metricsMetadataErrors *metrics.Counter
 }
 
-func (sn *storageNode) registerMetricNames(ctx searchutil.Context, qt *querytracer.Tracer, mrs []storage.MetricRow) error {
+func (sn *storageNode) registerMetricNames(ctx *searchutil.Context, qt *querytracer.Tracer, mrs []storage.MetricRow) error {
 	if len(mrs) == 0 {
 		return nil
 	}
@@ -2371,7 +2371,7 @@ func (sn *storageNode) registerMetricNames(ctx searchutil.Context, qt *querytrac
 	return sn.execOnConnWithPossibleRetry(ctx, qt, "registerMetricNames_v3", f)
 }
 
-func (sn *storageNode) deleteSeries(ctx searchutil.Context, qt *querytracer.Tracer, requestData []byte) (int, error) {
+func (sn *storageNode) deleteSeries(ctx *searchutil.Context, qt *querytracer.Tracer, requestData []byte) (int, error) {
 	var deletedCount int
 	f := func(bc *handshake.BufferedConn) error {
 		n, err := sn.deleteSeriesOnConn(bc, requestData)
@@ -2387,7 +2387,7 @@ func (sn *storageNode) deleteSeries(ctx searchutil.Context, qt *querytracer.Trac
 	return deletedCount, nil
 }
 
-func (sn *storageNode) getLabelNames(ctx searchutil.Context, qt *querytracer.Tracer, requestData []byte, maxLabelNames int) ([]string, error) {
+func (sn *storageNode) getLabelNames(ctx *searchutil.Context, qt *querytracer.Tracer, requestData []byte, maxLabelNames int) ([]string, error) {
 	var labels []string
 	f := func(bc *handshake.BufferedConn) error {
 		ls, err := sn.getLabelNamesOnConn(ctx, bc, requestData, maxLabelNames)
@@ -2403,7 +2403,7 @@ func (sn *storageNode) getLabelNames(ctx searchutil.Context, qt *querytracer.Tra
 	return labels, nil
 }
 
-func (sn *storageNode) getLabelValues(ctx searchutil.Context, qt *querytracer.Tracer, labelName string, requestData []byte, maxLabelValues int) ([]string, error) {
+func (sn *storageNode) getLabelValues(ctx *searchutil.Context, qt *querytracer.Tracer, labelName string, requestData []byte, maxLabelValues int) ([]string, error) {
 	var labelValues []string
 	f := func(bc *handshake.BufferedConn) error {
 		lvs, err := sn.getLabelValuesOnConn(ctx, bc, labelName, requestData, maxLabelValues)
@@ -2419,7 +2419,7 @@ func (sn *storageNode) getLabelValues(ctx searchutil.Context, qt *querytracer.Tr
 	return labelValues, nil
 }
 
-func (sn *storageNode) getTenants(ctx searchutil.Context, qt *querytracer.Tracer, tr storage.TimeRange) ([]string, error) {
+func (sn *storageNode) getTenants(ctx *searchutil.Context, qt *querytracer.Tracer, tr storage.TimeRange) ([]string, error) {
 	var tenants []string
 	f := func(bc *handshake.BufferedConn) error {
 		result, err := sn.getTenantsOnConn(ctx, bc, tr)
@@ -2435,7 +2435,7 @@ func (sn *storageNode) getTenants(ctx searchutil.Context, qt *querytracer.Tracer
 	return tenants, nil
 }
 
-func (sn *storageNode) getTagValueSuffixes(ctx searchutil.Context, qt *querytracer.Tracer, accountID, projectID uint32, tr storage.TimeRange, tagKey, tagValuePrefix string,
+func (sn *storageNode) getTagValueSuffixes(ctx *searchutil.Context, qt *querytracer.Tracer, accountID, projectID uint32, tr storage.TimeRange, tagKey, tagValuePrefix string,
 	delimiter byte, maxSuffixes int,
 ) ([]string, error) {
 	var suffixes []string
@@ -2453,7 +2453,7 @@ func (sn *storageNode) getTagValueSuffixes(ctx searchutil.Context, qt *querytrac
 	return suffixes, nil
 }
 
-func (sn *storageNode) getTSDBStatus(ctx searchutil.Context, qt *querytracer.Tracer, requestData []byte, focusLabel string, topN int) (*storage.TSDBStatus, error) {
+func (sn *storageNode) getTSDBStatus(ctx *searchutil.Context, qt *querytracer.Tracer, requestData []byte, focusLabel string, topN int) (*storage.TSDBStatus, error) {
 	var status *storage.TSDBStatus
 	f := func(bc *handshake.BufferedConn) error {
 		st, err := sn.getTSDBStatusOnConn(ctx, bc, requestData, focusLabel, topN)
@@ -2469,7 +2469,7 @@ func (sn *storageNode) getTSDBStatus(ctx searchutil.Context, qt *querytracer.Tra
 	return status, nil
 }
 
-func (sn *storageNode) getSeriesCount(ctx searchutil.Context, qt *querytracer.Tracer, accountID, projectID uint32) (uint64, error) {
+func (sn *storageNode) getSeriesCount(ctx *searchutil.Context, qt *querytracer.Tracer, accountID, projectID uint32) (uint64, error) {
 	var n uint64
 	f := func(bc *handshake.BufferedConn) error {
 		nn, err := sn.getSeriesCountOnConn(bc, accountID, projectID)
@@ -2485,7 +2485,7 @@ func (sn *storageNode) getSeriesCount(ctx searchutil.Context, qt *querytracer.Tr
 	return n, nil
 }
 
-func (sn *storageNode) processSearchMetricNames(ctx searchutil.Context, qt *querytracer.Tracer, requestData []byte) ([]string, error) {
+func (sn *storageNode) processSearchMetricNames(ctx *searchutil.Context, qt *querytracer.Tracer, requestData []byte) ([]string, error) {
 	var metricNames []string
 	f := func(bc *handshake.BufferedConn) error {
 		mns, err := sn.processSearchMetricNamesOnConn(ctx, bc, requestData)
@@ -2501,7 +2501,7 @@ func (sn *storageNode) processSearchMetricNames(ctx searchutil.Context, qt *quer
 	return metricNames, nil
 }
 
-func (sn *storageNode) processSearchQuery(ctx searchutil.Context, qt *querytracer.Tracer, requestData []byte, processBlock func(rawBlock []byte, workerID uint) error,
+func (sn *storageNode) processSearchQuery(ctx *searchutil.Context, qt *querytracer.Tracer, requestData []byte, processBlock func(rawBlock []byte, workerID uint) error,
 	workerID uint,
 ) error {
 	f := func(bc *handshake.BufferedConn) error {
@@ -2510,7 +2510,7 @@ func (sn *storageNode) processSearchQuery(ctx searchutil.Context, qt *querytrace
 	return sn.execOnConnWithPossibleRetry(ctx, qt, "search_v7", f)
 }
 
-func (sn *storageNode) execOnConnWithPossibleRetry(ctx searchutil.Context, qt *querytracer.Tracer, funcName string, f func(bc *handshake.BufferedConn) error) error {
+func (sn *storageNode) execOnConnWithPossibleRetry(ctx *searchutil.Context, qt *querytracer.Tracer, funcName string, f func(bc *handshake.BufferedConn) error) error {
 	qtChild := qt.NewChild("rpc call %s()", funcName)
 	err := sn.execOnConn(qtChild, funcName, f, ctx.Deadline(), false)
 	defer qtChild.Done()
@@ -2671,7 +2671,7 @@ func newErrRemote(buf []byte) error {
 	}
 }
 
-func (sn *storageNode) registerMetricNamesOnConn(ctx searchutil.Context, bc *handshake.BufferedConn, mrs []storage.MetricRow) error {
+func (sn *storageNode) registerMetricNamesOnConn(ctx *searchutil.Context, bc *handshake.BufferedConn, mrs []storage.MetricRow) error {
 	// Send the request to sn.
 	if err := writeUint64(bc, uint64(len(mrs))); err != nil {
 		return fmt.Errorf("cannot send metricsCount to conn: %w", err)
@@ -2730,7 +2730,7 @@ func (sn *storageNode) deleteSeriesOnConn(bc *handshake.BufferedConn, requestDat
 
 const maxLabelNameSize = 16 * 1024 * 1024
 
-func (sn *storageNode) getLabelNamesOnConn(ctx searchutil.Context, bc *handshake.BufferedConn, requestData []byte, maxLabelNames int) ([]string, error) {
+func (sn *storageNode) getLabelNamesOnConn(ctx *searchutil.Context, bc *handshake.BufferedConn, requestData []byte, maxLabelNames int) ([]string, error) {
 	// Send the request to sn.
 	if err := writeBytes(bc, requestData); err != nil {
 		return nil, fmt.Errorf("cannot write requestData: %w", err)
@@ -2774,7 +2774,7 @@ const (
 	maxTenantValueSize = 16 * 1024 * 1024 // TODO: calc 'uint32:uint32'
 )
 
-func (sn *storageNode) getLabelValuesOnConn(ctx searchutil.Context, bc *handshake.BufferedConn, labelName string, requestData []byte, maxLabelValues int) ([]string, error) {
+func (sn *storageNode) getLabelValuesOnConn(ctx *searchutil.Context, bc *handshake.BufferedConn, labelName string, requestData []byte, maxLabelValues int) ([]string, error) {
 	// Send the request to sn.
 	if err := writeBytes(bc, []byte(labelName)); err != nil {
 		return nil, fmt.Errorf("cannot send labelName=%q to conn: %w", labelName, err)
@@ -2806,7 +2806,7 @@ func (sn *storageNode) getLabelValuesOnConn(ctx searchutil.Context, bc *handshak
 	return labelValues, nil
 }
 
-func readLabelValues(ctx searchutil.Context, buf []byte, bc *handshake.BufferedConn) ([]string, []byte, error) {
+func readLabelValues(ctx *searchutil.Context, buf []byte, bc *handshake.BufferedConn) ([]string, []byte, error) {
 	var labelValues []string
 	for {
 		if ctx.IsDone() {
@@ -2825,7 +2825,7 @@ func readLabelValues(ctx searchutil.Context, buf []byte, bc *handshake.BufferedC
 	}
 }
 
-func (sn *storageNode) getTenantsOnConn(ctx searchutil.Context, bc *handshake.BufferedConn, tr storage.TimeRange) ([]string, error) {
+func (sn *storageNode) getTenantsOnConn(ctx *searchutil.Context, bc *handshake.BufferedConn, tr storage.TimeRange) ([]string, error) {
 	if err := writeTimeRange(bc, tr); err != nil {
 		return nil, err
 	}
@@ -2861,7 +2861,7 @@ func (sn *storageNode) getTenantsOnConn(ctx searchutil.Context, bc *handshake.Bu
 	}
 }
 
-func (sn *storageNode) getTagValueSuffixesOnConn(ctx searchutil.Context, bc *handshake.BufferedConn, accountID, projectID uint32,
+func (sn *storageNode) getTagValueSuffixesOnConn(ctx *searchutil.Context, bc *handshake.BufferedConn, accountID, projectID uint32,
 	tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxSuffixes int,
 ) ([]string, error) {
 	// Send the request to sn.
@@ -2916,7 +2916,7 @@ func (sn *storageNode) getTagValueSuffixesOnConn(ctx searchutil.Context, bc *han
 	return suffixes, nil
 }
 
-func (sn *storageNode) getTSDBStatusOnConn(ctx searchutil.Context, bc *handshake.BufferedConn, requestData []byte, focusLabel string, topN int) (*storage.TSDBStatus, error) {
+func (sn *storageNode) getTSDBStatusOnConn(ctx *searchutil.Context, bc *handshake.BufferedConn, requestData []byte, focusLabel string, topN int) (*storage.TSDBStatus, error) {
 	// Send the request to sn.
 	if err := writeBytes(bc, requestData); err != nil {
 		return nil, fmt.Errorf("cannot write requestData: %w", err)
@@ -2945,7 +2945,7 @@ func (sn *storageNode) getTSDBStatusOnConn(ctx searchutil.Context, bc *handshake
 	return readTSDBStatus(ctx, bc)
 }
 
-func readTSDBStatus(ctx searchutil.Context, bc *handshake.BufferedConn) (*storage.TSDBStatus, error) {
+func readTSDBStatus(ctx *searchutil.Context, bc *handshake.BufferedConn) (*storage.TSDBStatus, error) {
 	totalSeries, err := readUint64(bc)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read totalSeries: %w", err)
@@ -2991,7 +2991,7 @@ func readTSDBStatus(ctx searchutil.Context, bc *handshake.BufferedConn) (*storag
 	return status, nil
 }
 
-func readTopHeapEntries(ctx searchutil.Context, bc *handshake.BufferedConn) ([]storage.TopHeapEntry, error) {
+func readTopHeapEntries(ctx *searchutil.Context, bc *handshake.BufferedConn) ([]storage.TopHeapEntry, error) {
 	n, err := readUint64(bc)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read the number of topHeapEntries: %w", err)
@@ -3051,7 +3051,7 @@ const maxMetricBlockSize = 1024 * 1024
 // from vmstorage.
 const maxErrorMessageSize = 64 * 1024
 
-func (sn *storageNode) processSearchMetricNamesOnConn(ctx searchutil.Context, bc *handshake.BufferedConn, requestData []byte) ([]string, error) {
+func (sn *storageNode) processSearchMetricNamesOnConn(ctx *searchutil.Context, bc *handshake.BufferedConn, requestData []byte) ([]string, error) {
 	// Send the requst to sn.
 	if err := writeBytes(bc, requestData); err != nil {
 		return nil, fmt.Errorf("cannot write requestData: %w", err)
@@ -3090,7 +3090,7 @@ func (sn *storageNode) processSearchMetricNamesOnConn(ctx searchutil.Context, bc
 
 const maxMetricNameSize = 64 * 1024
 
-func (sn *storageNode) processSearchQueryOnConn(ctx searchutil.Context, bc *handshake.BufferedConn, requestData []byte,
+func (sn *storageNode) processSearchQueryOnConn(ctx *searchutil.Context, bc *handshake.BufferedConn, requestData []byte,
 	processBlock func(rawBlock []byte, workerID uint) error, workerID uint,
 ) error {
 	// Send the request to sn.
@@ -3419,7 +3419,7 @@ func (pnc *perNodeCounter) GetTotal() uint64 {
 const maxFastAllocBlockSize = 32 * 1024
 
 // execSearchQueryRequest executes processSearchQuery for each searchQuery tenant.
-func execSearchQueryRequest(ctx searchutil.Context, qt *querytracer.Tracer, sq *storage.SearchQuery, workerID uint, sn *storageNode, f func(rawBlock []byte, workerID uint) error) error {
+func execSearchQueryRequest(ctx *searchutil.Context, qt *querytracer.Tracer, sq *storage.SearchQuery, workerID uint, sn *storageNode, f func(rawBlock []byte, workerID uint) error) error {
 	var requestData []byte
 
 	for i := range sq.TenantTokens {
@@ -3485,7 +3485,7 @@ func metricNameTenantToTags(mn *storage.MetricName) {
 }
 
 // GetMetricNamesStats returns metric names usage statistics for the given params
-func GetMetricNamesStats(ctx searchutil.Context, qt *querytracer.Tracer, tt *storage.TenantToken, limit, le int, matchPattern string) (metricnamestats.StatsResult, error) {
+func GetMetricNamesStats(ctx *searchutil.Context, qt *querytracer.Tracer, tt *storage.TenantToken, limit, le int, matchPattern string) (metricnamestats.StatsResult, error) {
 	type nodeResult struct {
 		resp metricnamestats.StatsResult
 		err  error
@@ -3513,7 +3513,7 @@ func GetMetricNamesStats(ctx searchutil.Context, qt *querytracer.Tracer, tt *sto
 	return mnuss, nil
 }
 
-func (sn *storageNode) processGetMetricNamesStats(ctx searchutil.Context, qt *querytracer.Tracer, tt *storage.TenantToken, limit, le int, matchPattern string) (metricnamestats.StatsResult, error) {
+func (sn *storageNode) processGetMetricNamesStats(ctx *searchutil.Context, qt *querytracer.Tracer, tt *storage.TenantToken, limit, le int, matchPattern string) (metricnamestats.StatsResult, error) {
 	var result metricnamestats.StatsResult
 	f := func(bc *handshake.BufferedConn) error {
 		bcResult, err := processGetMetricNamesUsageStatsOnConn(ctx, bc, tt, limit, le, matchPattern)
@@ -3529,7 +3529,7 @@ func (sn *storageNode) processGetMetricNamesStats(ctx searchutil.Context, qt *qu
 	return result, nil
 }
 
-func processGetMetricNamesUsageStatsOnConn(ctx searchutil.Context, bc *handshake.BufferedConn, tt *storage.TenantToken, limit, le int, matchPattern string) (metricnamestats.StatsResult, error) {
+func processGetMetricNamesUsageStatsOnConn(ctx *searchutil.Context, bc *handshake.BufferedConn, tt *storage.TenantToken, limit, le int, matchPattern string) (metricnamestats.StatsResult, error) {
 	var result metricnamestats.StatsResult
 	hasTenantToken := tt != nil
 	if err := writeBool(bc, hasTenantToken); err != nil {
@@ -3589,7 +3589,7 @@ func processGetMetricNamesUsageStatsOnConn(ctx searchutil.Context, bc *handshake
 	return result, nil
 }
 
-func readMetricNamesStatsRecords(ctx searchutil.Context, bc *handshake.BufferedConn) ([]metricnamestats.StatRecord, error) {
+func readMetricNamesStatsRecords(ctx *searchutil.Context, bc *handshake.BufferedConn) ([]metricnamestats.StatRecord, error) {
 	n, err := readUint64(bc)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read the number of MetricNamesStatsRecord: %w", err)
@@ -3621,7 +3621,7 @@ func readMetricNamesStatsRecords(ctx searchutil.Context, bc *handshake.BufferedC
 // ResetMetricNamesStats forwards reset tracker state request to the storage nodes
 //
 // In case of error request must be retried by the client in order to consistently reset state at all nodes
-func ResetMetricNamesStats(ctx searchutil.Context, qt *querytracer.Tracer) error {
+func ResetMetricNamesStats(ctx *searchutil.Context, qt *querytracer.Tracer) error {
 	sns := getStorageNodes()
 	snr := startStorageNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
 		return sn.processResetMetricNamesUsageStats(ctx, qt)
@@ -3637,7 +3637,7 @@ func ResetMetricNamesStats(ctx searchutil.Context, qt *querytracer.Tracer) error
 	return nil
 }
 
-func (sn *storageNode) processResetMetricNamesUsageStats(ctx searchutil.Context, qt *querytracer.Tracer) error {
+func (sn *storageNode) processResetMetricNamesUsageStats(ctx *searchutil.Context, qt *querytracer.Tracer) error {
 	f := func(bc *handshake.BufferedConn) error {
 		if err := bc.Flush(); err != nil {
 			return fmt.Errorf("cannot flush buffer: %w", err)
@@ -3647,7 +3647,7 @@ func (sn *storageNode) processResetMetricNamesUsageStats(ctx searchutil.Context,
 	return sn.execOnConnWithPossibleRetry(ctx, qt, "resetMetricNamesStats_v1", f)
 }
 
-func processSearchMetadataOnConn(ctx searchutil.Context, bc *handshake.BufferedConn, tt *storage.TenantToken, limit int, metricName string) ([]*metricsmetadata.Row, error) {
+func processSearchMetadataOnConn(ctx *searchutil.Context, bc *handshake.BufferedConn, tt *storage.TenantToken, limit int, metricName string) ([]*metricsmetadata.Row, error) {
 	hasTenantToken := tt != nil
 	if err := writeBool(bc, hasTenantToken); err != nil {
 		return nil, fmt.Errorf("cannot write hasTenantToken: %w", err)
@@ -3688,7 +3688,7 @@ func processSearchMetadataOnConn(ctx searchutil.Context, bc *handshake.BufferedC
 	return result, nil
 }
 
-func readMetadataRows(ctx searchutil.Context, bc *handshake.BufferedConn) ([]*metricsmetadata.Row, error) {
+func readMetadataRows(ctx *searchutil.Context, bc *handshake.BufferedConn) ([]*metricsmetadata.Row, error) {
 	n, err := readUint64(bc)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read the number of metadata records: %w", err)
@@ -3715,7 +3715,7 @@ func readMetadataRows(ctx searchutil.Context, bc *handshake.BufferedConn) ([]*me
 	return records, nil
 }
 
-func (sn *storageNode) getMetricsMetadata(ctx searchutil.Context, qt *querytracer.Tracer, tt *storage.TenantToken, limit int, metricName string) ([]*metricsmetadata.Row, error) {
+func (sn *storageNode) getMetricsMetadata(ctx *searchutil.Context, qt *querytracer.Tracer, tt *storage.TenantToken, limit int, metricName string) ([]*metricsmetadata.Row, error) {
 	var result []*metricsmetadata.Row
 	f := func(bc *handshake.BufferedConn) error {
 		bcResult, err := processSearchMetadataOnConn(ctx, bc, tt, limit, metricName)

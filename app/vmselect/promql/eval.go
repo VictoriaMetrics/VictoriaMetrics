@@ -114,7 +114,7 @@ func alignStartEnd(start, end, step int64) (int64, int64) {
 
 // EvalConfig is the configuration required for query evaluation via Exec
 type EvalConfig struct {
-	Context searchutil.Context
+	Context *searchutil.Context
 
 	AuthTokens []*auth.Token
 
@@ -1973,7 +1973,7 @@ func maxSilenceInterval() int64 {
 	return d
 }
 
-func evalRollupWithIncrementalAggregate(ctx searchutil.Context, qt *querytracer.Tracer, funcName string, keepMetricNames bool,
+func evalRollupWithIncrementalAggregate(ctx *searchutil.Context, qt *querytracer.Tracer, funcName string, keepMetricNames bool,
 	iafc *incrementalAggrFuncContext, rss *netstorage.Results, rcs []*rollupConfig,
 	preFunc func(values []float64, timestamps []int64), sharedTimestamps []int64,
 ) ([]*timeseries, error) {
@@ -2014,7 +2014,7 @@ func evalRollupWithIncrementalAggregate(ctx searchutil.Context, qt *querytracer.
 	return tss, nil
 }
 
-func evalRollupNoIncrementalAggregate(ctx searchutil.Context, qt *querytracer.Tracer, funcName string, keepMetricNames bool, rss *netstorage.Results, rcs []*rollupConfig,
+func evalRollupNoIncrementalAggregate(ctx *searchutil.Context, qt *querytracer.Tracer, funcName string, keepMetricNames bool, rss *netstorage.Results, rcs []*rollupConfig,
 	preFunc func(values []float64, timestamps []int64), sharedTimestamps []int64,
 ) ([]*timeseries, error) {
 	qt = qt.NewChild("rollup %s() over %d series; rollupConfigs=%s", funcName, rss.Len(), rcs)

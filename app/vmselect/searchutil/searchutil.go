@@ -40,35 +40,35 @@ func GetMaxQueryDuration(r *http.Request) time.Duration {
 }
 
 // GetDeadlineForQuery returns context for the given query r.
-func GetContextForQuery(r *http.Request, startTime time.Time) Context {
+func GetContextForQuery(r *http.Request, startTime time.Time) *Context {
 	dMax := maxQueryDuration.Milliseconds()
 	deadline := getDeadlineWithMaxDuration(r, startTime, dMax, "-search.maxQueryDuration")
 	return NewContext(r.Context(), deadline)
 }
 
 // GetContextForStatusRequest returns context for the given request to /api/v1/status/*.
-func GetContextForStatusRequest(r *http.Request, startTime time.Time) Context {
+func GetContextForStatusRequest(r *http.Request, startTime time.Time) *Context {
 	dMax := maxStatusRequestDuration.Milliseconds()
 	deadline := getDeadlineWithMaxDuration(r, startTime, dMax, "-search.maxStatusRequestDuration")
 	return NewContext(r.Context(), deadline)
 }
 
 // GetContextForExport returns context for the given request to /api/v1/export.
-func GetContextForExport(r *http.Request, startTime time.Time) Context {
+func GetContextForExport(r *http.Request, startTime time.Time) *Context {
 	dMax := maxExportDuration.Milliseconds()
 	deadline := getDeadlineWithMaxDuration(r, startTime, dMax, "-search.maxExportDuration")
 	return NewContext(r.Context(), deadline)
 }
 
 // GetContextForLabelsAPI returns context for the given request to /api/v1/labels, /api/v1/label/.../values or /api/v1/series
-func GetContextForLabelsAPI(r *http.Request, startTime time.Time) Context {
+func GetContextForLabelsAPI(r *http.Request, startTime time.Time) *Context {
 	dMax := maxLabelsAPIDuration.Milliseconds()
 	deadline := getDeadlineWithMaxDuration(r, startTime, dMax, "-search.maxLabelsAPIDuration")
 	return NewContext(r.Context(), deadline)
 }
 
 // GetDeadlineForDelete returns context for the given request to /api/v1/admin/tsdb/delete_series.
-func GetContextForDelete(r *http.Request, startTime time.Time) Context {
+func GetContextForDelete(r *http.Request, startTime time.Time) *Context {
 	dMax := maxDeleteDuration.Milliseconds()
 	deadline := getDeadlineWithMaxDuration(r, startTime, dMax, "-search.maxDeleteDuration")
 	return NewContext(r.Context(), deadline)
@@ -93,20 +93,20 @@ type Context struct {
 }
 
 // NewContext return new context for given parent context and deadline
-func NewContext(ctx context.Context, deadline Deadline) Context {
+func NewContext(ctx context.Context, deadline Deadline) *Context {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	return Context{
+	return &Context{
 		parent:   ctx,
 		deadline: deadline,
 	}
 }
 
 // NewContextWithDeadlineTimestamp return new context for given parent context and timestamp of deadline
-func NewContextWithDeadlineTimestamp(ctx context.Context, timestamp uint64) Context {
+func NewContextWithDeadlineTimestamp(ctx context.Context, timestamp uint64) *Context {
 	deadline := DeadlineFromTimestamp(timestamp)
-	return Context{
+	return &Context{
 		parent:   ctx,
 		deadline: deadline,
 	}
