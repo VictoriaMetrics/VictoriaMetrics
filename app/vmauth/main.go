@@ -408,7 +408,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tkn *j
 	up, hc, denied := ui.getURLPrefixAndHeaders(u, r.Host, r.Header)
 	if denied {
 		// Request authorization instead of confirming the path is denied.
-		if ui.BearerToken == "" && ui.Username == "" && len(*authUsers.Load()) > 0 {
+		if ui.name() == "" && len(*authUsers.Load()) > 0 {
 			handleMissingAuthorizationError(w)
 			return
 		}
