@@ -125,10 +125,6 @@ func Serve(addrs []string, rh RequestHandler, opts ServeOptions) {
 }
 
 func serve(addr string, rh RequestHandler, idx int, opts ServeOptions) {
-	scheme := "http"
-	if tlsEnable.GetOptionalArg(idx) {
-		scheme = "https"
-	}
 	useProxyProto := false
 	if opts.UseProxyProtocol != nil {
 		useProxyProto = opts.UseProxyProtocol.GetOptionalArg(idx)
@@ -145,16 +141,45 @@ func serve(addr string, rh RequestHandler, idx int, opts ServeOptions) {
 		}
 		tlsConfig = tc
 	}
-	ln, err := netutil.NewTCPListener(scheme, addr, useProxyProto, tlsConfig)
-	if err != nil {
-		logger.Fatalf("cannot start http server at %s: %s", addr, err)
-	}
-	logger.Infof("started server at %s://%s/", scheme, ln.Addr())
-	if !opts.DisableBuiltinRoutes {
-		logger.Infof("pprof handlers are exposed at %s://%s/debug/pprof/", scheme, ln.Addr())
+
+	var listener net.Listener
+	if unixAddr, ok := strings.CutPrefix(addr, "unix:"); ok {
+		if tlsEnable.GetOptionalArg(idx) {
+			logger.Fatalf("cannot use TLS with Unix domain sockets for addr %q", unixAddr)
+		}
+		if useProxyProto {
+			logger.Fatalf("cannot use proxy protocol with Unix domain sockets for addr %q", unixAddr)
+		}
+
+		ul, err := netutil.NewUnixListener("httpserver", unixAddr)
+		if err != nil {
+			logger.Fatalf("cannot start http server on Unix domain socket %q: %s", unixAddr, err)
+		}
+		listener = ul
+
+		logger.Infof("started server on Unix domain socket %q", ul.Addr())
+		if !opts.DisableBuiltinRoutes {
+			logger.Infof("pprof handlers are exposed on Unix domain socket %q under /debug/pprof/", ul.Addr())
+		}
+	} else {
+		scheme := "http"
+		if tlsEnable.GetOptionalArg(idx) {
+			scheme = "https"
+		}
+
+		tl, err := netutil.NewTCPListener(scheme, addr, useProxyProto, tlsConfig)
+		if err != nil {
+			logger.Fatalf("cannot start http server at %s: %s", addr, err)
+		}
+		listener = tl
+
+		logger.Infof("started server at %s://%s/", scheme, tl.Addr())
+		if !opts.DisableBuiltinRoutes {
+			logger.Infof("pprof handlers are exposed at %s://%s/debug/pprof/", scheme, tl.Addr())
+		}
 	}
 
-	serveWithListener(addr, ln, rh, opts.DisableBuiltinRoutes)
+	serveWithListener(addr, listener, rh, opts.DisableBuiltinRoutes)
 }
 
 func serveWithListener(addr string, ln net.Listener, rh RequestHandler, disableBuiltinRoutes bool) {
