@@ -17,6 +17,13 @@ Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
 {{% collapse name="2026" open=true %}}
 
+## v1.30.4
+Released: 2026-08-28
+
+- BUGFIX: Kept valid configurations with no runnable work live and observable instead of shutting down. Idle instances can accept future [hot-reload](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) assignments, restore compatible model state, and start scheduling work without being restarted. See the [idle-shard lifecycle](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#idle-shards-and-topology-changes) for the new behavior and topology-change boundaries.
+
+- BUGFIX: Restored compatibility with multivariate [Temporal Envelope](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope) checkpoints written by [v1.30.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1300)-[v1.30.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1302), preserving their fitted predictions and subsequent online updates. [Migration checks](https://docs.victoriametrics.com/anomaly-detection/migration/#compatibility-matrix) now also report when Temporal Envelope state must be discarded and refitted before downgrading to v1.30.2 or earlier.
+
 ## v1.30.3
 Released: 2026-08-27
 
