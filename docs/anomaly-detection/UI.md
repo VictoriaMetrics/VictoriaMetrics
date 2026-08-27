@@ -647,7 +647,7 @@ If the **results** look good and the **model configuration should be deployed in
 {{% collapse name="Release history" %}}
 
 ### v1.8.3
-Released: TBD
+Released: 2026-08-27
 
 vmanomaly version: [v1.30.3](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1303)
 
