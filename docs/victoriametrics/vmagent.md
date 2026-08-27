@@ -284,9 +284,14 @@ To enable MDX, set `-remoteWrite.mdx.enable=true` for the target URL and `-remot
 ./vmagent \
   -remoteWrite.url=http://service-to-keep-all-metrics:8428/api/v1/write \
   -remoteWrite.mdx.enable=false \
+  -remoteWrite.disableMetadata=false \
   -remoteWrite.url=http://service-to-keep-only-vm-metrics:8428/api/v1/write \
-  -remoteWrite.mdx.enable=true 
+  -remoteWrite.mdx.enable=true \
+  -remoteWrite.disableMetadata=true
 ```
+
+We recommend that you set `-remoteWrite.disableMetadata=true` for each MDX target to save resource usage. Without this setting, `vmagent` sends metadata from all scrape targets to the MDX target.
+
 When MDX is enabled for a `-remoteWrite.url`, `vmagent` forwards only metrics that:
 - come from the target that exposes the `vm_app_version` metric (emitted by all VictoriaMetrics components)
 - contain the `victoriametrics_app=true` label, which will be added automatically to the metrics if the instance was deployed via [VictoriaMetrics Operator](https://docs.victoriametrics.com/operator/).
@@ -299,6 +304,7 @@ When MDX is enabled for a `-remoteWrite.url`, `vmagent` forwards only metrics th
 ./vmagent \
   -remoteWrite.url=http://service-to-keep-only-vm-metrics:8428/api/v1/write \
   -remoteWrite.mdx.enable=true \
+  -remoteWrite.disableMetadata=true \
   -mdx.label="service=victoriametrics"
 ```
 In this configuration, metrics with the label `service=victoriametrics` are preserved even if their scrape targets do not expose `vm_app_version` metric.
