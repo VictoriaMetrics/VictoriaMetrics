@@ -20,8 +20,6 @@ Please find the changelog for VictoriaMetrics Anomaly Detection below.
 ## v1.30.3
 Released: 2026-08-27
 
-- BUGFIX: Prevented invalid ad-hoc anomaly detection requests and reader initialization failures from shutting down the query server. A UI task that cannot reach its datasource now fails independently while `/vmui`, `/metrics`, and the other HTTP endpoints remain available.
-
 - UI: Updated [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/) from [v1.8.2](https://docs.victoriametrics.com/anomaly-detection/ui/#v182) to [v1.8.3](https://docs.victoriametrics.com/anomaly-detection/ui/#v183). Fresh anomaly investigations now default to the online univariate Temporal Envelope, the selector lists online models first, and AI-suggested business settings remain synchronized with the model wizard.
 
 - FEATURE: Added opt-in stable rendezvous [config sharding](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#horizontal-scalability). Set `VMANOMALY_SHARDING_STRATEGY=RENDEZVOUS` to keep unrelated sub-configurations on their existing shards when entities are inserted, removed, reordered, or edited. The default remains `ROUND_ROBIN`.
@@ -30,13 +28,13 @@ Released: 2026-08-27
 
 - IMPROVEMENT: Reduced plain Temporal Envelope fit and inference overhead when no seasonality or holiday features are configured, and reused disk-backed univariate query data across attached models during fit.
 
-- IMPROVEMENT: Stabilized Temporal Envelope calendar composition and cold-start learning. Overlapping seasonal bases now use hierarchical features, unsupported recurring components are suppressed using reversible predictive evidence, recurring holiday effects remain learnable online after batch fitting, and sparse seasonal updates use lower-overhead inference paths without changing accepted benchmark predictions.
+- IMPROVEMENT: Improved Temporal Envelope stability when only a subset of configured seasonalities is present in the data, and aligned cold-start inference with batch-fit initialization.
 
-- BUGFIX: Prevented model output normalization from mutating shared `provide_series` configuration and default lists during model construction.
+- BUGFIX: Prevented invalid ad-hoc anomaly detection requests and reader initialization failures from shutting down the query server. A UI task that cannot reach its datasource now fails independently while `/vmui`, `/metrics`, and the other HTTP endpoints remain available.
 
-- BUGFIX: Fixed advanced model drop-downs displaying internal numeric option positions after selection instead of the selected labels. Configuration values remain correctly typed, including distinct `null` and string values.
+- BUGFIX: Prevented model output normalization from mutating shared [`provide_series`](https://docs.victoriametrics.com/anomaly-detection/components/models/#vmanomaly-output) configuration and default lists during model construction.
 
-- BREAKING: Custom many-to-one model classes must declare `topology = ModelTopology.MANY_TO_ONE`; the legacy `is_multivariate = True` flag no longer selects service orchestration. Built-in multivariate model state from compatible releases remains restorable.
+- **BREAKING**: Custom many-to-one model classes must declare `topology = ModelTopology.MANY_TO_ONE`; the legacy `is_multivariate = True` flag no longer selects service orchestration. Built-in multivariate model state from compatible releases remains restorable.
 
 ## v1.30.2
 Released: 2026-08-13
