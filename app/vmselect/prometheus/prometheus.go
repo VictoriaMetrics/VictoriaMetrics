@@ -703,7 +703,7 @@ var labelsDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/
 func SeriesCountHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	defer seriesCountDuration.UpdateDuration(startTime)
 
-	deadline := searchutil.GetDeadlineForLabelsAPI(r, startTime)
+	deadline := searchutil.GetDeadlineForStatusRequest(r, startTime)
 	n, err := netstorage.SeriesCount(nil, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot obtain series count: %w", err)
