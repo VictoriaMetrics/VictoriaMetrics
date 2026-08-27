@@ -375,6 +375,132 @@ func TestMdxInstanceFilter(t *testing.T) {
 				},
 			}})
 
+	// metrics from another tenant with the same job and instance must be dropped.
+	f([]prompb.TimeSeries{
+		{Labels: []prompb.Label{
+			{Name: "__name__", Value: "vm_app_version"},
+			{Name: "job", Value: "test"},
+			{Name: "instance", Value: "shared:8428"},
+			{Name: "vm_account_id", Value: "1042"},
+			{Name: "vm_project_id", Value: "0"},
+		}},
+		{Labels: []prompb.Label{
+			{Name: "__name__", Value: "http_requests_total"},
+			{Name: "job", Value: "test"},
+			{Name: "instance", Value: "shared:8428"},
+			{Name: "vm_account_id", Value: "2077"},
+			{Name: "vm_project_id", Value: "0"},
+		}},
+	}, []prompb.TimeSeries{
+		{Labels: []prompb.Label{
+			{Name: "__name__", Value: "vm_app_version"},
+			{Name: "job", Value: "test"},
+			{Name: "instance", Value: "shared:8428"},
+			{Name: "vm_account_id", Value: "1042"},
+			{Name: "vm_project_id", Value: "0"},
+			{Name: "victoriametrics_app", Value: "true"},
+		}},
+	})
+
+	// metrics from the same tenant and instance must be preserved.
+	f([]prompb.TimeSeries{
+		{Labels: []prompb.Label{
+			{Name: "__name__", Value: "vm_app_version"},
+			{Name: "job", Value: "test"},
+			{Name: "instance", Value: "shared:8428"},
+			{Name: "vm_account_id", Value: "1042"},
+			{Name: "vm_project_id", Value: "0"},
+		}},
+		{Labels: []prompb.Label{
+			{Name: "__name__", Value: "http_requests_total"},
+			{Name: "job", Value: "test"},
+			{Name: "instance", Value: "shared:8428"},
+			{Name: "vm_account_id", Value: "1042"},
+			{Name: "vm_project_id", Value: "0"},
+		}},
+	}, []prompb.TimeSeries{
+		{Labels: []prompb.Label{
+			{Name: "__name__", Value: "vm_app_version"},
+			{Name: "job", Value: "test"},
+			{Name: "instance", Value: "shared:8428"},
+			{Name: "vm_account_id", Value: "1042"},
+			{Name: "vm_project_id", Value: "0"},
+			{Name: "victoriametrics_app", Value: "true"},
+		}},
+		{Labels: []prompb.Label{
+			{Name: "__name__", Value: "http_requests_total"},
+			{Name: "job", Value: "test"},
+			{Name: "instance", Value: "shared:8428"},
+			{Name: "vm_account_id", Value: "1042"},
+			{Name: "vm_project_id", Value: "0"},
+			{Name: "victoriametrics_app", Value: "true"},
+		}},
+	})
+
+	// instances with and without tenant labels must remain distinct.
+	f([]prompb.TimeSeries{
+		{Labels: []prompb.Label{
+			{Name: "__name__", Value: "vm_app_version"},
+			{Name: "job", Value: "test"},
+			{Name: "instance", Value: "x"},
+		}},
+		{Labels: []prompb.Label{
+			{Name: "__name__", Value: "http_requests_total"},
+			{Name: "job", Value: "test"},
+			{Name: "instance", Value: "x"},
+			{Name: "vm_account_id", Value: "1"},
+		}},
+	}, []prompb.TimeSeries{
+		{Labels: []prompb.Label{
+			{Name: "__name__", Value: "vm_app_version"},
+			{Name: "job", Value: "test"},
+			{Name: "instance", Value: "x"},
+			{Name: "victoriametrics_app", Value: "true"},
+		}},
+	})
+
+	// partial tenant labels must remain distinct from absent and full tenant labels.
+	f([]prompb.TimeSeries{
+		{Labels: []prompb.Label{
+			{Name: "__name__", Value: "vm_app_version"},
+			{Name: "job", Value: "test"},
+			{Name: "instance", Value: "partial:8428"},
+			{Name: "vm_account_id", Value: "1"},
+		}},
+		{Labels: []prompb.Label{
+			{Name: "__name__", Value: "http_requests_total"},
+			{Name: "job", Value: "test"},
+			{Name: "instance", Value: "partial:8428"},
+			{Name: "vm_account_id", Value: "1"},
+		}},
+		{Labels: []prompb.Label{
+			{Name: "__name__", Value: "http_requests_total"},
+			{Name: "job", Value: "test"},
+			{Name: "instance", Value: "partial:8428"},
+		}},
+		{Labels: []prompb.Label{
+			{Name: "__name__", Value: "http_requests_total"},
+			{Name: "job", Value: "test"},
+			{Name: "instance", Value: "partial:8428"},
+			{Name: "vm_account_id", Value: "1"},
+			{Name: "vm_project_id", Value: "0"},
+		}},
+	}, []prompb.TimeSeries{
+		{Labels: []prompb.Label{
+			{Name: "__name__", Value: "vm_app_version"},
+			{Name: "job", Value: "test"},
+			{Name: "instance", Value: "partial:8428"},
+			{Name: "vm_account_id", Value: "1"},
+			{Name: "victoriametrics_app", Value: "true"},
+		}},
+		{Labels: []prompb.Label{
+			{Name: "__name__", Value: "http_requests_total"},
+			{Name: "job", Value: "test"},
+			{Name: "instance", Value: "partial:8428"},
+			{Name: "vm_account_id", Value: "1"},
+			{Name: "victoriametrics_app", Value: "true"},
+		}},
+	})
 }
 
 func TestMdxInstanceFilterConcurrent(t *testing.T) {
