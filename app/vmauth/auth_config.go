@@ -472,7 +472,7 @@ func (bu *backendURL) runHealthCheck() {
 			// Verify network connectivity via TCP dial before marking backend healthy.
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9997
 			ctx, cancel := context.WithTimeout(bu.bhc.ctx, time.Second)
-			c, err := netutil.Dialer.DialContext(ctx, "tcp", addr)
+			c, err := netutil.DialTCP(ctx, addr)
 			cancel()
 			if err != nil {
 				if errors.Is(bu.bhc.ctx.Err(), context.Canceled) {
@@ -580,9 +580,19 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 				logger.Warnf("cannot discover backend IPs for %s: %s; use it literally", bu, err)
 				resolvedAddrs = []string{host}
 			} else {
-				resolvedAddrs = make([]string, len(addrs))
-				for i, addr := range addrs {
-					resolvedAddrs[i] = net.JoinHostPort(addr.String(), port)
+				resolvedAddrs = make([]string, 0, len(addrs))
+				for _, addr := range addrs {
+					if !netutil.IsDialableIP(addr.IP) {
+						continue
+					}
+					resolvedAddrs = append(resolvedAddrs, net.JoinHostPort(addr.String(), port))
+				}
+				if len(resolvedAddrs) == 0 && len(addrs) > 0 {
+					// An empty list would leave the URLPrefix without backends and stop further discovery attempts,
+					// since discovery is triggered only when a backend is picked for a request.
+					logger.Warnf("cannot discover backend IPs for %s: all the resolved IPs are ipv6, "+
+						"while -enableTCP6 command-line flag isn't set; use it literally", bu)
+					resolvedAddrs = []string{bu.Host}
 				}
 			}
 		}

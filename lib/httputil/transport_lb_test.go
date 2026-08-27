@@ -2,6 +2,7 @@ package httputil
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"net"
 	"net/http"
@@ -57,7 +58,8 @@ func (tdr *testDNSResolver) LookupMX(_ context.Context, name string) ([]*net.MX,
 }
 
 func TestLoadbalancerTransport(t *testing.T) {
-	f := func(discoveredIPs []string, trs *testRemoteServer) {
+	// discoveredIPs are returned by DNS; expectedIPs must receive requests.
+	f := func(discoveredIPs, expectedIPs []string, trs *testRemoteServer) {
 		t.Helper()
 
 		parsedIPs := make([]net.IPAddr, 0, len(discoveredIPs))
@@ -78,7 +80,7 @@ func TestLoadbalancerTransport(t *testing.T) {
 			t.Fatalf("cannot parse url: %s", err)
 		}
 		lbt, requestURL := NewLoadBalancerTransport(trs, requestURL)
-		if len(discoveredIPs) == 0 {
+		if len(expectedIPs) == 0 {
 			r, err := http.NewRequest(http.MethodGet, requestURL.String(), nil)
 			if err != nil {
 				t.Fatalf("cannot create http request: %s", err)
@@ -90,7 +92,7 @@ func TestLoadbalancerTransport(t *testing.T) {
 			return
 		}
 		expectedRequestsPerHost := 2
-		for range len(discoveredIPs) * expectedRequestsPerHost {
+		for range len(expectedIPs) * expectedRequestsPerHost {
 			r, err := http.NewRequest(http.MethodGet, requestURL.String(), nil)
 			if err != nil {
 				t.Fatalf("cannot create http request: %s", err)
@@ -102,8 +104,11 @@ func TestLoadbalancerTransport(t *testing.T) {
 			resp.Body.Close()
 		}
 		requestsPerHost := trs.requestsPerHost
+		if len(requestsPerHost) != len(expectedIPs) {
+			t.Fatalf("unexpected number of backends received requests; got %d; want %d", len(requestsPerHost), len(expectedIPs))
+		}
 
-		for _, dIP := range discoveredIPs {
+		for _, dIP := range expectedIPs {
 			expectedHostPort := net.JoinHostPort(dIP, "8429")
 			gotRequestsPerHost, ok := requestsPerHost[expectedHostPort]
 			if !ok {
@@ -114,14 +119,32 @@ func TestLoadbalancerTransport(t *testing.T) {
 			}
 		}
 	}
+	origTCP6 := flag.Lookup("enableTCP6").Value.String()
+	defer func() { _ = flag.Set("enableTCP6", origTCP6) }()
+	if err := flag.Set("enableTCP6", "false"); err != nil {
+		t.Fatalf("cannot set -enableTCP6=false: %s", err)
+	}
+
 	trs := testRemoteServer{}
-	f([]string{"1.1.1.1"}, &trs)
+	f([]string{"1.1.1.1"}, []string{"1.1.1.1"}, &trs)
 
 	trs = testRemoteServer{}
-	f([]string{"1.1.1.1", "2.2.2.2", "5.5.5.5"}, &trs)
+	f([]string{"1.1.1.1", "2.2.2.2", "5.5.5.5"}, []string{"1.1.1.1", "2.2.2.2", "5.5.5.5"}, &trs)
+
+	// ipv6 backends are skipped when -enableTCP6 isn't set
+	trs = testRemoteServer{}
+	f([]string{"1.1.1.1", "2001:db8::1"}, []string{"1.1.1.1"}, &trs)
 
 	// empty backends, expecting error
 	trs = testRemoteServer{}
-	f([]string{}, &trs)
+	f([]string{}, []string{}, &trs)
 
+	trs = testRemoteServer{}
+	f([]string{"2001:db8::1"}, []string{}, &trs)
+
+	if err := flag.Set("enableTCP6", "true"); err != nil {
+		t.Fatalf("cannot set -enableTCP6=true: %s", err)
+	}
+	trs = testRemoteServer{}
+	f([]string{"1.1.1.1", "2001:db8::1"}, []string{"1.1.1.1", "2001:db8::1"}, &trs)
 }

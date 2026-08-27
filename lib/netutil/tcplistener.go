@@ -62,9 +62,14 @@ func EnableIPv6() {
 	*enableTCP6 = true
 }
 
-// TCP6Enabled returns true if dialing and listening for IPv4 TCP is enabled.
+// TCP6Enabled returns true if IPv6 is enabled for dialing and listening.
 func TCP6Enabled() bool {
 	return *enableTCP6
+}
+
+// IsDialableIP returns true if ip can be dialed over GetTCPNetwork().
+func IsDialableIP(ip net.IP) bool {
+	return *enableTCP6 || ip.To4() != nil
 }
 
 // GetUDPNetwork returns current udp network.
