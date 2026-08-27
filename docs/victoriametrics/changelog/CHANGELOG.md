@@ -139,6 +139,8 @@ The v1.148.x line will be supported for at least 12 months since [v1.148.0](http
 
 Released at 2026-07-20
 
+**Update Note 1:** [vmalert-tool](https://docs.victoriametrics.com/victoriametrics/vmalert-tool/): the default start timestamp of tests has changed in [#11219](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11219) from `1970-01-01T00:00:00` to `2000-01-01T00:00:00` to enable global index disablement. As a result, tests involving functions that depend on the current time, such as `time()` and `day_of_*()`, may produce different results. See [#11437](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11437).
+
 * SECURITY: upgrade Go builder from Go1.26.4 to Go1.26.5. See [the list of issues addressed in Go1.26.5](https://github.com/golang/go/issues?q=milestone%3AGo1.26.5%20label%3ACherryPickApproved).
 
 * FEATURE: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): support `fill` modifiers to allow missing series on either side of a binary operation to be filled with a provided default value. See [#10598](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10598).
