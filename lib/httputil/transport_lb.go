@@ -6,7 +6,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/netip"
 	"net/url"
 	"sort"
 	"strconv"
@@ -259,14 +258,8 @@ func discoverDNSBackends(ctx context.Context, host, port string) ([]*backend, er
 	}
 	backends := make([]*backend, 0, len(addrs))
 	for _, addr := range addrs {
-		if !netutil.TCP6Enabled() {
-			ip, ok := netip.AddrFromSlice(addr.IP)
-			if !ok {
-				logger.Panicf("BUG: cannot build netip Addr from slice addr: %q", addr.IP.String())
-			}
-			if !ip.Unmap().Is4() {
-				continue
-			}
+		if !netutil.TCP6Enabled() && addr.IP.To4() == nil {
+			continue
 		}
 		ip := addr.IP.String()
 		if len(port) > 0 {

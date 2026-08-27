@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"net"
 	"net/http"
@@ -928,9 +929,9 @@ func TestBrokenBackend(t *testing.T) {
 }
 
 func TestDiscoverBackendIPsWithIPV6(t *testing.T) {
-	f := func(actualUrl, expectedUrl string) {
+	f := func(actualURL string, expectedHosts []string) {
 		t.Helper()
-		up := mustParseURL(actualUrl)
+		up := mustParseURL(actualURL)
 		up.discoverBackendIPs = true
 		up.loadBalancingPolicy = "least_loaded"
 
@@ -938,13 +939,14 @@ func TestDiscoverBackendIPsWithIPV6(t *testing.T) {
 		pbus := up.bus.Load()
 		bus := pbus.bus
 
-		if len(bus) != 1 {
-			t.Fatalf("expected url list to be of size 1; got %d instead", len(bus))
+		if len(bus) != len(expectedHosts) {
+			t.Fatalf("unexpected URL list size; got %d; want %d", len(bus), len(expectedHosts))
 		}
 
-		got := bus[0].url.Host
-		if got != expectedUrl {
-			t.Fatalf(`expected url to be %q; got %q instead`, expectedUrl, bus[0].url.Host)
+		for i, expectedHost := range expectedHosts {
+			if got := bus[i].url.Host; got != expectedHost {
+				t.Fatalf("unexpected URL host at index %d; got %q; want %q", i, got, expectedHost)
+			}
 		}
 	}
 
@@ -968,14 +970,11 @@ func TestDiscoverBackendIPsWithIPV6(t *testing.T) {
 		},
 		lookupIPAddrResults: map[string][]net.IPAddr{
 			"vminsert.local": {
-				{
-					IP: net.ParseIP("10.0.10.13"),
-				},
+				{IP: net.ParseIP("10.0.10.13")},
 			},
-			"ipv6.vminsert.local": {
-				{
-					IP: net.ParseIP("2607:f8b0:400a:80b::200e"),
-				},
+			"dualstack.vminsert.local": {
+				{IP: net.ParseIP("10.0.10.13")},
+				{IP: net.ParseIP("2607:f8b0:400a:80b::200e")},
 			},
 		},
 	}
@@ -984,16 +983,31 @@ func TestDiscoverBackendIPsWithIPV6(t *testing.T) {
 	defer func() {
 		netutil.Resolver = origResolver
 	}()
-	f("http://srv+_vmselect._tcp.selectwithport.:8080", "vmselect.local:8080")
-	f("http://srv+_vmselect._tcp.selectwithport.:", "vmselect.local:8481")
-	f("http://srv+_vmselect._tcp.selectwoport.:8080", "vmselect.local:8080")
-	f("http://srv+_vmselect._tcp.selectwoport.", "vmselect.local:")
+	f("http://srv+_vmselect._tcp.selectwithport.:8080", []string{"vmselect.local:8080"})
+	f("http://srv+_vmselect._tcp.selectwithport.:", []string{"vmselect.local:8481"})
+	f("http://srv+_vmselect._tcp.selectwoport.:8080", []string{"vmselect.local:8080"})
+	f("http://srv+_vmselect._tcp.selectwoport.", []string{"vmselect.local:"})
 
-	f("http://vminsert.local:8080", "10.0.10.13:8080")
-	f("http://vminsert.local", "10.0.10.13:")
-	f("http://ipv6.vminsert.local:8080", "[2607:f8b0:400a:80b::200e]:8080")
-	f("http://ipv6.vminsert.local", "[2607:f8b0:400a:80b::200e]:")
+	enableTCP6 := flag.Lookup("enableTCP6")
+	originalTCP6 := enableTCP6.Value.String()
+	t.Cleanup(func() {
+		if err := enableTCP6.Value.Set(originalTCP6); err != nil {
+			t.Fatalf("cannot restore -enableTCP6=%s: %s", originalTCP6, err)
+		}
+	})
+	if err := enableTCP6.Value.Set("false"); err != nil {
+		t.Fatalf("cannot set -enableTCP6=false: %s", err)
+	}
+	f("http://vminsert.local:8080", []string{"10.0.10.13:8080"})
+	f("http://dualstack.vminsert.local:8080", []string{"10.0.10.13:8080"})
 
+	if err := enableTCP6.Value.Set("true"); err != nil {
+		t.Fatalf("cannot set -enableTCP6=true: %s", err)
+	}
+	f("http://dualstack.vminsert.local:8080", []string{
+		"10.0.10.13:8080",
+		"[2607:f8b0:400a:80b::200e]:8080",
+	})
 }
 
 func TestLogRequest(t *testing.T) {

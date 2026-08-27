@@ -378,9 +378,7 @@ func TestUserInfoGetBackendURL_SRV(t *testing.T) {
 		},
 		lookupIPAddrResults: map[string][]net.IPAddr{
 			"vminsert": {
-				{
-					IP: net.ParseIP("10.6.142.52"),
-				},
+				{IP: net.ParseIP("10.6.142.52")},
 			},
 		},
 	}
