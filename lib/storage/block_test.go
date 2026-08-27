@@ -129,9 +129,9 @@ func getValuesForPrecisionBits(values []int64, precisionBits uint8) []int64 {
 	return valuesAdjusted
 }
 
-// TestBlockUnmarshalPortableNearestDelta2DoS is a regression test for GHSA-7277-c249-gccp.
+// TestBlockUnmarshalPortableDoS is a regression test for GHSA-7277-c249-gccp.
 // RowsCount=1 with NearestDelta2 or ZSTDNearestDelta2 must return an error, not panic.
-func TestBlockUnmarshalPortableNearestDelta2DoS(t *testing.T) {
+func TestBlockUnmarshalPortableDoS(t *testing.T) {
 	f := func(valuesMarshalType encoding.MarshalType, valuesData []byte) {
 		t.Helper()
 		defer func() {
@@ -161,9 +161,9 @@ func TestBlockUnmarshalPortableNearestDelta2DoS(t *testing.T) {
 		}
 	}
 
-	// mt=5: raw NearestDelta2 — panic fires immediately in unmarshalInt64NearestDelta2.
+	// mt=5: raw NearestDelta2 — panicked fires immediately in unmarshalInt64NearestDelta2.
 	f(encoding.MarshalTypeNearestDelta2, []byte{0x30})
-	// mt=1: ZSTDNearestDelta2 — ZSTD decompresses OK, then same panic fires.
+	// mt=1: ZSTDNearestDelta2 — ZSTD decompresses OK, then same panic fired.
 	f(encoding.MarshalTypeZSTDNearestDelta2, encoding.CompressZSTDLevel(nil, nil, 1))
 }
 
