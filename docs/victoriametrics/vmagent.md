@@ -290,7 +290,7 @@ To enable MDX, set `-remoteWrite.mdx.enable=true` for the target URL and `-remot
   -remoteWrite.disableMetadata=true
 ```
 
-We recommend that you set `-remoteWrite.disableMetadata=true` for each MDX target to save resource usage. Without this setting, `vmagent` sends metadata from all scrape targets to the MDX target.
+> Recommendation: Set `-remoteWrite.disableMetadata=true` for MDX remote writes to save resource usage. Otherwise, `vmagent` sends [metrics metadata](https://docs.victoriametrics.com/victoriametrics/vmagent/#metric-metadata) from all scraped targets to the MDX destination.
 
 When MDX is enabled for a `-remoteWrite.url`, `vmagent` forwards only metrics that:
 - come from the target that exposes the `vm_app_version` metric (emitted by all VictoriaMetrics components)
