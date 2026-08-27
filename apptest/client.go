@@ -183,7 +183,7 @@ func (c *metricsClient) GetMetric(t *testing.T, metricName string) float64 {
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
 	}
-	for _, metric := range strings.Split(metrics, "\n") {
+	for metric := range strings.SplitSeq(metrics, "\n") {
 		value, found := strings.CutPrefix(metric, metricName)
 		if found {
 			value = strings.Trim(value, " ")
@@ -209,7 +209,7 @@ func (c *metricsClient) GetMetricsByPrefix(t *testing.T, prefix string) []float6
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
 	}
-	for _, metric := range strings.Split(metrics, "\n") {
+	for metric := range strings.SplitSeq(metrics, "\n") {
 		if !strings.HasPrefix(metric, prefix) {
 			continue
 		}
@@ -238,7 +238,7 @@ func (c *metricsClient) GetMetricsByRegexp(t *testing.T, re *regexp.Regexp) []fl
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
 	}
-	for _, metric := range strings.Split(metrics, "\n") {
+	for metric := range strings.SplitSeq(metrics, "\n") {
 		if !re.MatchString(metric) {
 			continue
 		}
