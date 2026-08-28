@@ -26,10 +26,29 @@ func TestFinalizeMetricNamesStatsAppliesLeAfterMerge(t *testing.T) {
 	}
 	result.Merge(&otherNodeResult)
 
-	finalizeMetricNamesStats(&result, 0)
+	finalizeMetricNamesStats(&result, len(result.Records), 0)
 
 	want := []metricnamestats.StatRecord{
 		{MetricName: "unused_metric"},
+	}
+	if !reflect.DeepEqual(result.Records, want) {
+		t.Fatalf("unexpected records; got %v; want %v", result.Records, want)
+	}
+}
+
+func TestFinalizeMetricNamesStatsAppliesLimitAfterLe(t *testing.T) {
+	result := metricnamestats.StatsResult{
+		Records: []metricnamestats.StatRecord{
+			{MetricName: "active_metric", RequestsCount: 3},
+			{MetricName: "unused_metric_2"},
+			{MetricName: "unused_metric_1"},
+		},
+	}
+
+	finalizeMetricNamesStats(&result, 1, 0)
+
+	want := []metricnamestats.StatRecord{
+		{MetricName: "unused_metric_1"},
 	}
 	if !reflect.DeepEqual(result.Records, want) {
 		t.Fatalf("unexpected records; got %v; want %v", result.Records, want)
