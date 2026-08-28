@@ -1530,7 +1530,31 @@ class CustomModel(Model):
         return deserialize_basic(model)
 ```
 
-`Model` is univariate and offline by default. A custom online model should derive from `OnlineModel` and implement causal update semantics; setting `is_online = True` alone is not sufficient. A multivariate model must follow the merged-channel input contract and return one joint `anomaly_score`; use `MultivariateModel` as its base class.
+`Model` is offline and uses the one-input-to-one-output service topology by default. A custom online model should derive from `OnlineModel` and implement causal update semantics; setting `is_online = True` alone is not sufficient.
+
+{{% available_from "v1.30.3" anomaly %}} Custom models must use `ModelTopology` to declare how service-level input identities map to output identities. The topology controls orchestration, persistence, grouping, and output-label restoration; it does **not** describe the number of columns returned by `infer`.
+
+- `ModelTopology.ONE_TO_ONE` is the default: the service maintains one model for each input series.
+- `ModelTopology.MANY_TO_ONE` merges aligned input series into one model identity and one joint `anomaly_score`. The model may also return per-channel `y`, `yhat`, `yhat_lower`, `yhat_upper`, or `forecast_at` prediction columns; those diagnostics do not change its many-to-one topology.
+- `ModelTopology.MANY_TO_MANY` is the `WideModel` extension contract for an online model that tracks a changing pool of peer series and restores an output identity for each entity.
+
+For a custom many-to-one model, derive from `MultivariateModel` and declare the contract explicitly:
+
+```python
+from model.model import MultivariateModel
+from model.topology import ModelTopology
+
+
+class CustomMultivariateModel(MultivariateModel):
+    topology = ModelTopology.MANY_TO_ONE
+
+    # fit receives timestamp plus one value column per aligned input channel.
+    # infer returns a joint anomaly_score and may include per-channel diagnostics.
+```
+
+The legacy `is_multivariate = True` class flag may still describe an algorithm internally, but it no longer selects service routing. A class that sets only that flag is orchestrated as one-to-one. Existing compatible built-in multivariate dumps continue to restore through their built-in class definitions.
+
+For a changing peer pool, derive from `WideModel`. Its `fit` and `infer` methods consume a long DataFrame with `timestamp`, `entity_id`, and `y`; returned entity-level rows must retain `entity_id` so the service can restore the original labels. `WideModel` is a semantic extension contract, not a marker used only to store `topology`.
 
 ### 2. Configuration file
 
@@ -1586,7 +1610,7 @@ See the [component configuration reference](https://docs.victoriametrics.com/ano
 Pull the `vmanomaly` image:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.30.2
+docker pull victoriametrics/vmanomaly:v1.30.3
 ```
 
 Mount the module at `/vmanomaly/src/model/custom.py`, which matches the configured import path `model.custom.CustomModel`. Validate the complete configuration with `--dryRun` before starting the long-running service.
@@ -1596,7 +1620,7 @@ docker run --rm \
   -v "$PWD/license:/license:ro" \
   -v "$PWD/custom_model.py:/vmanomaly/src/model/custom.py:ro" \
   -v "$PWD/config.yaml:/config.yaml:ro" \
-  victoriametrics/vmanomaly:v1.30.2 \
+  victoriametrics/vmanomaly:v1.30.3 \
   /config.yaml \
   --licenseFile=/license \
   --dryRun

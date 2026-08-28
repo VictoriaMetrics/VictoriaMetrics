@@ -300,26 +300,26 @@ See [VMDistributed](https://docs.victoriametrics.com/operator/resources/vmdistri
 
 ## Cluster setup
 
-A minimal cluster must contain the following nodes:
+A minimal cluster setup consists of the following components:
 
 - a single `vmstorage` node with `-retentionPeriod` and `-storageDataPath` flags
 - a single `vminsert` node with `-storageNode=<vmstorage_host>`
 - a single `vmselect` node with `-storageNode=<vmstorage_host>`
 
-[Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/enterprise/) supports automatic discovering and updating of `vmstorage` nodes.
-See [these docs](#automatic-vmstorage-discovery) for details.
+> The [Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/enterprise/) supports automatic discovery and updating of `vmstorage` nodes.
+> See [automatic vmstorage discovery](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#automatic-vmstorage-discovery) for details.
 
-It is recommended to run at least two nodes for each service for high availability purposes. In this case the cluster continues working when a single node is temporarily unavailable and the remaining nodes can handle the increased workload. The node may be temporarily unavailable when the underlying hardware breaks, during software upgrades, migration or other maintenance tasks.
+ Prefer running many small `vmstorage` nodes over a few big `vmstorage` nodes. For example, prefer running at least 10 `vmstorage` nodes for better [load distribution and availability](#cluster-availability). If you need fewer `vmstorage` nodes, consider using the [single-node version](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) of VictoriaMetrics instead. See more on [choosing between single-node and cluster versions](https://docs.victoriametrics.com/victoriametrics/faq/#which-victoriametrics-type-is-recommended-for-use-in-production---single-node-or-cluster).
 
-It is preferred to run many small `vmstorage` nodes over a few big `vmstorage` nodes, since this reduces the workload increase on the remaining `vmstorage` nodes when some of `vmstorage` nodes become temporarily unavailable.
-
-An http load balancer such as [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) or `nginx` must be put in front of `vminsert` and `vmselect` nodes.
-It must contain the following routing configs according to [the url format](#url-format):
+If you run multiple nodes of `vminsert` or `vmselect`, use an HTTP load balancer such as [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/)
+or `nginx` in front of them. It must contain the following routing configs according to [the URL format](#url-format):
 
 - requests starting with `/insert` must be routed to port `8480` on `vminsert` nodes.
 - requests starting with `/select` must be routed to port `8481` on `vmselect` nodes.
 
-Ports may be altered by setting `-httpListenAddr` on the corresponding nodes.
+> Ports may be altered by setting `-httpListenAddr` on the corresponding nodes.
+
+See an example of the [vmauth configuration for a VictoriaMetrics cluster](https://docs.victoriametrics.com/vmauth/index.html#load-balancer-for-victoriametrics-cluster).
 
 It is recommended setting up [monitoring](#monitoring) for the cluster.
 
@@ -346,35 +346,32 @@ VictoriaMetrics cluster remains available if the following conditions are met:
 - HTTP load balancer must stop routing requests to unavailable `vminsert` and `vmselect` nodes
   ([vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) stops routing requests to unavailable nodes).
 
-- At least a single `vminsert` node must remain available in the cluster for processing data ingestion workload.
+- At least a single `vminsert` node must remain available in the cluster for processing the ingestion workload.
   The remaining active `vminsert` nodes must have enough compute capacity (CPU, RAM, network bandwidth)
-  for handling the current data ingestion workload.
-  If the remaining active `vminsert` nodes have no enough resources for processing the data ingestion workload,
-  then arbitrary delays may occur during data ingestion.
+  for handling the ingestion workload. Otherwise, ingestion could stop or be delayed.
   See [capacity planning](#capacity-planning) and [cluster resizing](#cluster-resizing-and-scalability) docs for more details.
 
 - At least a single `vmselect` node must remain available in the cluster for processing query workload.
   The remaining active `vmselect` nodes must have enough compute capacity (CPU, RAM, network bandwidth, disk IO)
-  for handling the current query workload.
-  If the remaining active `vmselect` nodes have no enough resources for processing query workload,
-  then arbitrary failures and delays may occur during query processing.
+  for handling the query workload.
+  If the remaining active `vmselect` nodes do not have enough resources for processing the query workload,
+  then arbitrary query failures and latency increases may occur during query processing.
   See [capacity planning](#capacity-planning) and [cluster resizing](#cluster-resizing-and-scalability) docs for more details.
 
 - At least a single `vmstorage` node must remain available in the cluster for accepting newly ingested data
-  and for processing incoming queries. The remaining active `vmstorage` nodes must have enough compute capacity
-  (CPU, RAM, network bandwidth, disk IO, free disk space) for  handling the current workload.
-  If the remaining active `vmstorage` nodes have no enough resources for processing query workload,
-  then arbitrary failures and delay may occur during data ingestion and query processing.
+  and for processing incoming read queries. The remaining active `vmstorage` nodes must have enough compute capacity
+  (CPU, RAM, network bandwidth, disk IO, free disk space) for handling the workload.
+  If the remaining active `vmstorage` nodes do not have enough resources for processing the workload,
+  then arbitrary failures and delays may occur during data ingestion and query processing.
   See [capacity planning](#capacity-planning) and [cluster resizing](#cluster-resizing-and-scalability) docs for more details.
 
 The cluster works in the following way when some of `vmstorage` nodes are unavailable:
 
-- `vminsert` re-routes newly ingested data from unavailable `vmstorage` nodes to remaining healthy `vmstorage` nodes.
-  This guarantees that the newly ingested data is properly saved if the healthy `vmstorage` nodes have enough CPU, RAM, disk IO and network bandwidth
-  for processing the increased data ingestion workload.
-  `vminsert` spreads evenly the additional data among the healthy `vmstorage` nodes in order to spread evenly
-  the increased load on these nodes. During re-routing, healthy `vmstorage` nodes will experience higher resource usage
-  and increase in number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series).
+- `vminsert` [re-routes](https://victoriametrics.com/blog/vminsert-how-it-works/#31-rerouting) newly ingested data from 
+  unavailable `vmstorage` nodes to remaining healthy `vmstorage` nodes. This guarantees that the newly ingested data is 
+  properly saved if the healthy `vmstorage` nodes have enough CPU, RAM, disk I/O, and network bandwidth for processing
+  the increased data ingestion workload. During re-routing, healthy `vmstorage` nodes will experience higher resource usage
+  and an increase in the number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series).
 
 - `vmselect` continues serving queries if at least a single `vmstorage` nodes is available.
   It marks responses as partial for queries served from the remaining healthy `vmstorage` nodes,

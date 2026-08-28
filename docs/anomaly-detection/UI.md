@@ -317,7 +317,7 @@ docker run -it --rm \
   -e VMANOMALY_MCP_SERVER_URL=http://mcp-vmanomaly:8081/mcp \
   -p 8080:8080 \
   -p 8490:8490 \
-  victoriametrics/vmanomaly:v1.30.2 \
+  victoriametrics/vmanomaly:v1.30.3 \
   vmanomaly_config.yaml
 ```
 
@@ -645,6 +645,17 @@ If the **results** look good and the **model configuration should be deployed in
 ## Changelog
 
 {{% collapse name="Release history" %}}
+
+### v1.8.3
+Released: 2026-08-27
+
+vmanomaly version: [v1.30.3](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1303)
+
+- IMPROVEMENT: Fresh anomaly investigations default to the online univariate Temporal Envelope, and the model selector lists online models before offline alternatives.
+
+- BUGFIX: AI-suggested business settings remain synchronized with both the model wizard and the generated model configuration.
+
+- BUGFIX: Advanced model drop-downs display the selected option label instead of the control's internal numeric option position while preserving correctly typed configuration values.
 
 ### v1.8.2
 Released: 2026-08-13
