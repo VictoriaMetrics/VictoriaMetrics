@@ -76,9 +76,6 @@ type indexDB struct {
 	// The number of calls for date range searches.
 	dateRangeSearchCalls atomic.Uint64
 
-	// The number of hits for date range searches.
-	dateRangeSearchHits atomic.Uint64
-
 	// The number of calls for global search.
 	globalSearchCalls atomic.Uint64
 
@@ -225,7 +222,6 @@ type IndexDBMetrics struct {
 	RecentHourMetricIDsSearchHits  uint64
 
 	DateRangeSearchCalls uint64
-	DateRangeSearchHits  uint64
 	GlobalSearchCalls    uint64
 
 	MissingTSIDsForMetricID       uint64
@@ -299,7 +295,6 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	m.DateMetricIDCacheRotationsCount += dmcs.RotationsCount
 
 	m.DateRangeSearchCalls += db.dateRangeSearchCalls.Load()
-	m.DateRangeSearchHits += db.dateRangeSearchHits.Load()
 	m.GlobalSearchCalls += db.globalSearchCalls.Load()
 
 	m.MissingTSIDsForMetricID += db.missingTSIDsForMetricID.Load()
