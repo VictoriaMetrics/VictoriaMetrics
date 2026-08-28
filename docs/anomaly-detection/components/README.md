@@ -151,7 +151,7 @@ server:
 {{% available_from "v1.25.0" anomaly %}} The service supports hot reload of configuration files, applying changes without an explicit restart. Enable it with the `--watch` [CLI argument](https://docs.victoriametrics.com/anomaly-detection/quickstart/#command-line-arguments). The `vmanomaly_config_reload_enabled` [self-monitoring metric](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#startup-metrics) is `1` when hot reload is enabled and `0` otherwise.
 
 > [!WARNING]
-> {{% deprecated_from "v1.29.5" anomaly %}} File system event-based hot reload has been deprecated in favor of content-based polling with configurable `-configCheckInterval` due to reliability issues with Kubernetes ConfigMap symlink rotations and other filesystems where event delivery can be inconsistent. If you were using file system event-based hot reload, please switch to content-based polling by enabling `--watch` flag and configuring `-configCheckInterval` as needed.
+> File system event-based hot reload has been deprecated {{% deprecated_from "v1.29.5" anomaly %}} in favor of content-based polling with configurable `-configCheckInterval` due to reliability issues with Kubernetes ConfigMap symlink rotations and other filesystems where event delivery can be inconsistent. If you were using file system event-based hot reload, please switch to content-based polling by enabling `--watch` flag and configuring `-configCheckInterval` as needed.
 
 ### How it works
 
@@ -159,9 +159,9 @@ The service checks watched `.yml` and `.yaml` files at the `-configCheckInterval
 
 > If the reload fails, the service will log an error message indicating the reason for the failure, and the **previous configuration will remain active until a successful reload occurs** to preserve the service's stability. This means that if there are errors in the new configuration, the service will continue to operate with the last valid configuration until the issues are resolved.
 
-If used on [sharded setup](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#horizontal-scalability), upon [global config](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#global-configuration) change, all shards will be reinitialized with the new configurations.
+In a [sharded setup](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#horizontal-scalability), each global configuration change recalculates the current shard's assignment. {{% available_from "v1.30.4" anomaly %}} A shard with no runnable assignment remains live and idle. If a later reload assigns work, it restores compatible model state when available, creates schedulers, and starts executing tasks without a process restart. See the [idle-shard lifecycle](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#idle-shards-and-topology-changes).
 
-> Please note, that even if [state restoration](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration) is enabled, the models, queries and schedulers might "migrate" to new shards if the order or the amount of [sub-configs](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#sub-configuration) changes after new config is hot-reloaded, so the state restoration won't be **fully** efficient in this case.
+Hot reload uses the sharding topology supplied through environment variables at process startup. Changing shard count, member index, replication factor, or assignment strategy requires an orchestration rollout or process restart. With `ROUND_ROBIN`, inserting or deleting an entity may move a suffix of the canonical ordered sub-configurations; `RENDEZVOUS` preserves unrelated assignments while the shard set remains unchanged. See [assignment strategy guidance](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#horizontal-scalability).
 
 ### Example
 
