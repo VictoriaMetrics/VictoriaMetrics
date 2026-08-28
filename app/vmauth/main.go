@@ -672,7 +672,7 @@ func removeHopHeaders(h http.Header) {
 	// remove hop-by-hop headers listed in the "Connection" header of h.
 	// See RFC 7230, section 6.1
 	for _, f := range h["Connection"] {
-		for _, sf := range strings.Split(f, ",") {
+		for sf := range strings.SplitSeq(f, ",") {
 			if sf = textproto.TrimString(sf); sf != "" {
 				h.Del(sf)
 			}
