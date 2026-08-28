@@ -26,6 +26,10 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+## [v1.151.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.151.0)
+
+Release candidate
+
 * SECURITY: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/), [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), `vminsert` and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): check HTTP Basic Auth credentials from the `-httpAuth.*` command-line flags for cases that do not verify the corresponding `*AuthKey` command-line flag on its own. Previously, HTTP Basic Auth could be skipped for request paths ending with suffixes such as `/config`, `/reload`. For example, `/api/v1/import/prometheus/config` was routed to the data ingestion handler `/api/v1/import/prometheus` without checking `-httpAuth.*` credentials.
 
 * FEATURE: all VictoriaMetrics components: add support for accepting HTTP requests over Unix domain socket at `-httpListenAddr`. For example, `-httpListenAddr=unix:/run/victoria-metrics.sock`. See [VictoriaLogs#1618](https://github.com/VictoriaMetrics/VictoriaLogs/issues/1618).
