@@ -242,6 +242,17 @@ func (bh *blockHeader) validate() error {
 	if err := encoding.CheckMarshalType(bh.ValuesMarshalType); err != nil {
 		return fmt.Errorf("unsupported ValuesMarshalType: %w", err)
 	}
+	// NearestDelta2 and ZSTDNearestDelta2 require at least 2 items to encode/decode.
+	if bh.RowsCount < 2 {
+		switch bh.TimestampsMarshalType {
+		case encoding.MarshalTypeNearestDelta2, encoding.MarshalTypeZSTDNearestDelta2:
+			return fmt.Errorf("TimestampsMarshalType=%d requires RowsCount >= 2; got %d", bh.TimestampsMarshalType, bh.RowsCount)
+		}
+		switch bh.ValuesMarshalType {
+		case encoding.MarshalTypeNearestDelta2, encoding.MarshalTypeZSTDNearestDelta2:
+			return fmt.Errorf("ValuesMarshalType=%d requires RowsCount >= 2; got %d", bh.ValuesMarshalType, bh.RowsCount)
+		}
+	}
 	if err := encoding.CheckPrecisionBits(bh.PrecisionBits); err != nil {
 		return err
 	}

@@ -351,6 +351,12 @@ groups:
         expr: count_over_time(up[5m:])
 ```
 
+### Time within tests
+
+In all tests, functions that depend on the current time, such as `time()` and `day_of_*()`, return consistent values.
+
+By default, at the start of test evaluation, `time()` returns `946684800` (Unix timestamp: January 1, 2000, at 00:00:00 UTC). The `eval_time` field specifies a duration relative to this test start time. Therefore, by default, `time()` returns `946684800 + eval_time`.
+
 ### Debug mode
 
 vmalert-tool can print additional log messages for specific alerting rules, similar to [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/#debug-mode), by following these steps:
