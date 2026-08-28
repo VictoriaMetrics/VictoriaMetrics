@@ -398,16 +398,16 @@ Please note that migrating big volumes of data is a time- and resource-consuming
  ./vmctl vm-native --vm-native-src-addr=http://<new-vmselect>:8481/ \
   --vm-native-dst-addr=http://<vminsert>:8480/ \
   --vm-native-filter-match='{__name__!=""}' \
-  --vm-native-step-interval=day \  
+  --vm-native-step-interval=day \
   --vm-intercluster
 ```
 
   - Run vmctl in the same network as cluster for the best performance
   - If you have load balancer like vmauth in front of vminsert nodes, specify its address in `--vm-native-dst-addr`. This will ensure that import requests will be distributed across all vminserts.
   - Specify `--vm-native-filter-match` or `--vm-native-filter-time-start` if you want to migrate only a subset of data. See more about [vmctl configuration](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/#configuration).
-4. Wait for migration to complete. See how to [monitor migration process](https://docs.victoriametrics.com/victoriametrics/vmctl/#monitoring-the-migration-process) and [migration tips](https://docs.victoriametrics.com/victoriametrics/vmctl/#migration-tips). It is Ok to restart migration and re-ingest the same data again if main `vmselect` and `vmstorage` nodes has deduplication enabled.
+4. Wait for migration to complete. See how to [monitor migration process](https://docs.victoriametrics.com/victoriametrics/vmctl/#monitoring-the-migration-process) and [migration tips](https://docs.victoriametrics.com/victoriametrics/vmctl/#migration-tips). It is OK to restart migration and re-ingest the same data again if main `vmselect` and `vmstorage` nodes has deduplication enabled.
 5. Once migration is completed, remove `vmstorage` from [`-storageNode` command-line flag](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#cluster-setup) on all `vmselect` nodes. Verify that read queries are still returning expected results.
-6. Remove and decomission temporary `vmselect` and `vmstorage` nodes.
+6. Remove and decommission temporary `vmselect` and `vmstorage` nodes.
 
 ## Multitenancy
 
