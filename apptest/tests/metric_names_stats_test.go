@@ -190,7 +190,7 @@ func TestClusterMetricNamesStats(t *testing.T) {
 		vmstorage2.ForceFlush(t)
 
 		// verify ingest request correctly registered
-		expected := apptest.MetricNamesStatsResponse{
+		expected := &apptest.MetricNamesStatsResponse{
 			Records: []apptest.MetricNamesStatsRecord{
 				{MetricName: largeMetricName},
 				{MetricName: "metric_name_1"},
@@ -208,7 +208,7 @@ func TestClusterMetricNamesStats(t *testing.T) {
 			Tenant: tenantID, Time: ingestDateTime,
 		})
 
-		expected = apptest.MetricNamesStatsResponse{
+		expected = &apptest.MetricNamesStatsResponse{
 			Records: []apptest.MetricNamesStatsRecord{
 				{MetricName: largeMetricName, QueryRequestsCount: 1},
 				{MetricName: "metric_name_2", QueryRequestsCount: 1},
@@ -250,7 +250,7 @@ func TestClusterMetricNamesStats(t *testing.T) {
 	}
 
 	// verify multitenant stats
-	expected := apptest.MetricNamesStatsResponse{
+	expected := &apptest.MetricNamesStatsResponse{
 		Records: []apptest.MetricNamesStatsRecord{
 			{MetricName: largeMetricName, QueryRequestsCount: 3},
 			{MetricName: "metric_name_2", QueryRequestsCount: 3},
