@@ -1713,7 +1713,7 @@ func (db *indexDB) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, t
 		qtChild := qt.NewChild("search metricIDs in global index: filters=%s, maxMetrics=%d", tfss, maxMetrics)
 		defer qtChild.Done()
 		db.globalSearchCalls.Add(1)
-		return db.searchMetricIDsByDateAndFilters(qt, globalIndexDate, tfss, maxMetrics, true, deadline)
+		return db.searchMetricIDsByDateAndFilters(qtChild, globalIndexDate, tfss, maxMetrics, true, deadline)
 	}
 
 	db.dateRangeSearchCalls.Add(1)
@@ -1721,11 +1721,13 @@ func (db *indexDB) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, t
 	numDays := maxDate - minDate + 1
 	if numDays == 1 {
 		date := minDate
+		var dateStr string
 		if qt.Enabled() {
-			qtChild := qt.NewChild("search metricIDs in per-day index on 1 day: filters=%s, date=%s, maxMetrics=%d", tfss, dateToString(date), maxMetrics)
-			defer qtChild.Done()
+			dateStr = dateToString(date)
 		}
-		return db.searchMetricIDsByDateAndFilters(qt, date, tfss, maxMetrics, true, deadline)
+		qtChild := qt.NewChild("search metricIDs in per-day index on 1 day: filters=%s, date=%s, maxMetrics=%d", tfss, dateStr, maxMetrics)
+		defer qtChild.Done()
+		return db.searchMetricIDsByDateAndFilters(qtChild, date, tfss, maxMetrics, true, deadline)
 	}
 
 	qtMultiDaySearch := qt.NewChild("search metricIDs concurrently in per-day index on %d days", numDays)
