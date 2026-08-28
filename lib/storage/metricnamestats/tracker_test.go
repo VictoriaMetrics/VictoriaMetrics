@@ -590,3 +590,60 @@ func TestStatsResultMerge(t *testing.T) {
 	f(dst, src, expected)
 
 }
+
+func TestStatsResultFilterByLE(t *testing.T) {
+	f := func(result StatsResult, le int, expected StatsResult) {
+		t.Helper()
+		result.FilterByLE(le)
+		if !cmp.Equal(result, expected, statsResultCmpOpts) {
+			t.Fatalf("unexpected filter result: %s", cmp.Diff(result, expected, statsResultCmpOpts))
+		}
+	}
+
+	// le < 0 means no filtering
+	result := StatsResult{
+		Records: []StatRecord{
+			{MetricName: "mn1", RequestsCount: 0, LastRequestTs: 1},
+			{MetricName: "mn2", RequestsCount: 10, LastRequestTs: 2},
+			{MetricName: "mn3", RequestsCount: 100, LastRequestTs: 3},
+		},
+	}
+	f(result, -1, result)
+
+	// filter out records with requests count greater than le
+	result = StatsResult{
+		Records: []StatRecord{
+			{MetricName: "mn1", RequestsCount: 0, LastRequestTs: 1},
+			{MetricName: "mn2", RequestsCount: 10, LastRequestTs: 2},
+			{MetricName: "mn3", RequestsCount: 100, LastRequestTs: 3},
+		},
+	}
+	expected := StatsResult{
+		Records: []StatRecord{
+			{MetricName: "mn1", RequestsCount: 0, LastRequestTs: 1},
+			{MetricName: "mn2", RequestsCount: 10, LastRequestTs: 2},
+		},
+	}
+	f(result, 10, expected)
+
+	// all records filtered out
+	result = StatsResult{
+		Records: []StatRecord{
+			{MetricName: "mn1", RequestsCount: 11, LastRequestTs: 1},
+			{MetricName: "mn2", RequestsCount: 20, LastRequestTs: 2},
+		},
+	}
+	result.FilterByLE(10)
+	if len(result.Records) != 0 {
+		t.Fatalf("expected no records after filtering, got: %s", cmp.Diff(StatsResult{}, result, statsResultCmpOpts))
+	}
+
+	// records with zero requests count survive the filter
+	result = StatsResult{
+		Records: []StatRecord{
+			{MetricName: "mn1", RequestsCount: 0, LastRequestTs: 1},
+			{MetricName: "mn2", RequestsCount: 0, LastRequestTs: 2},
+		},
+	}
+	f(result, 0, result)
+}

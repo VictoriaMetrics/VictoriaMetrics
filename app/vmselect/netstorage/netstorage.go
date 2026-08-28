@@ -3454,7 +3454,7 @@ func GetMetricNamesStats(qt *querytracer.Tracer, tt *storage.TenantToken, limit,
 	}
 	sns := getStorageNodes()
 	snr := startStorageNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
-		resp, err := sn.processGetMetricNamesStats(qt, tt, limit, le, matchPattern, deadline)
+		resp, err := sn.processGetMetricNamesStats(qt, tt, limit, -1, matchPattern, deadline)
 		return nodeResult{resp: resp, err: err}
 	})
 	var mu sync.Mutex
@@ -3472,6 +3472,12 @@ func GetMetricNamesStats(qt *querytracer.Tracer, tt *storage.TenantToken, limit,
 		return mnuss, err
 	}
 	mnuss.Sort()
+	// le filter must be applied globally after merging records from all the
+	// vmstorage nodes, since a metric may have a non-zero requests count on a
+	// subset of nodes. Otherwise, a metric with zero requests count on a single
+	// node passes the per-node le filter and gets merged into the final result
+	// with the total requests count of 0.
+	mnuss.FilterByLE(le)
 	return mnuss, nil
 }
 

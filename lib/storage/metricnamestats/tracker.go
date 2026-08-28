@@ -562,6 +562,26 @@ func (sr *StatsResult) DeduplicateMergeRecords() {
 	sr.Records = tmp
 }
 
+// FilterByLE removes records with RequestCount greater than le.
+//
+// It must be called after Merge at cluster version, since the le filter
+// cannot be applied on data from a single vmstorage node before the records
+// from all the nodes are merged. The le filter is applied globally after
+// merging in order to keep records with the total requests count for the
+// given metric across all the nodes <= le.
+func (sr *StatsResult) FilterByLE(le int) {
+	if le < 0 {
+		return
+	}
+	records := sr.Records[:0]
+	for _, r := range sr.Records {
+		if int(r.RequestsCount) <= le {
+			records = append(records, r)
+		}
+	}
+	sr.Records = records
+}
+
 // Sort sorts records by metric name and requests count
 func (sr *StatsResult) Sort() {
 	sort.Slice(sr.Records, func(i, j int) bool {
