@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* SECURITY: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): prevent cross-site scripting (XSS) when rendering relabeling debug output, predefined dashboard descriptions, and other HTML content. See [#11485](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11485).
+
 ## [v1.151.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.151.0)
 
 Release candidate
