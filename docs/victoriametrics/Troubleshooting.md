@@ -474,6 +474,7 @@ health state, resource usage, and other specific metrics for VictoriaMetrics com
 
 Check the list of [recommended alerting rules](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#alerts)
 for VictoriaMetrics components to receive notifications about issues and receive recommendations for resolving them.
+See [Metrics](https://docs.victoriametrics.com/victoriametrics/metrics/) for what the metrics used by these alerting rules mean.
 
 Internally, we rely heavily on both dashboards and alerts, and we constantly improve them.
 It is important to stay up to date with such changes.
