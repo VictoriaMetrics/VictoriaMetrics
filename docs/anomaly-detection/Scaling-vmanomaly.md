@@ -110,6 +110,26 @@ Choose the assignment strategy based on how the global configuration changes:
 - Use `ROUND_ROBIN` for an even, count-based distribution when sub-configurations have comparable cost and the normalized global configuration has a stable canonical order. Assignment is position-based, so inserting or deleting an entity can shift later positions and move many existing sub-configurations between shards.
 - Use `RENDEZVOUS` when entities are added, removed, reordered, or edited regularly and preserving unrelated shard assignments is more important. Assignment is identity-based, which minimizes movement for an unchanged shard set, although small workloads may be distributed less evenly.
 
+### Idle shards and topology changes
+
+{{% available_from "v1.30.4" anomaly %}} A valid configuration may assign no runnable sub-configurations to a shard, including when rendezvous placement is uneven for a small workload. The shard remains live and observable but starts no schedulers or model tasks. External shutdown requests are still honored.
+
+With [hot reload](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) enabled, an idle shard waits for configuration changes. If a later configuration assigns work to it, the shard restores compatible model state when available, creates the required schedulers, and starts executing tasks in place. Without hot reload, it remains idle until an external configuration rollout or restart supplies new work.
+
+```mermaid
+flowchart TD
+    load[Load and validate global configuration] --> assign{Runnable work assigned to this shard?}
+    assign -- Yes --> restore[Restore compatible state when available]
+    restore --> active[Create schedulers and execute work]
+    assign -- No --> idle[Remain live and idle]
+    active -->|Hot-reloaded config| load
+    idle -->|Hot-reloaded config| load
+    active -->|External shutdown| stopped[Stop]
+    idle -->|External shutdown| stopped
+```
+
+Hot reload reevaluates assignments only under the topology supplied to the process at startup. Changing `VMANOMALY_MEMBERS_COUNT`, `VMANOMALY_MEMBER_NUM`, `VMANOMALY_REPLICATION_FACTOR`, `VMANOMALY_SPLIT_BY`, or `VMANOMALY_SHARDING_STRATEGY` requires an orchestration rollout or process restart. All members must use the same `VMANOMALY_MEMBERS_COUNT`, `VMANOMALY_REPLICATION_FACTOR`, `VMANOMALY_SPLIT_BY`, and `VMANOMALY_SHARDING_STRATEGY`, while each member receives its own unique `VMANOMALY_MEMBER_NUM`. Configuration-only changes can wake an idle shard without changing that topology.
+
 {{% collapse name="Rendezvous assignment: algorithm, changes, and tradeoffs" %}}
 
 Rendezvous, also known as highest-random-weight (HRW) hashing, assigns each sub-configuration independently. It requires no coordinator, hash ring, or persisted placement map. Every shard derives the same result from the global configuration and these inputs:
