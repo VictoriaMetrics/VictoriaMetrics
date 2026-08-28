@@ -149,7 +149,7 @@ The cluster works in the following way when some of `vmstorage` nodes are unavai
   Another option is to pass `deny_partial_response=1` query arg to requests to `vmselect` nodes.
 
   `vmselect` also accepts the `-replicationFactor=N` command-line flag. This flag instructs `vmselect` to return a full response
-  if fewer than `-replicationFactor` vmstorage ' nodes are unavailable during querying, since it assumes that the remaining
+  if fewer than `-replicationFactor` vmstorage nodes are unavailable during querying, since it assumes that the remaining
   `vmstorage` nodes contain the full data. See [these docs](#replication-and-data-safety) for details.
 
   It is also possible to configure an independent replication factor per distinct `vmstorage` group - see [these docs](#vmstorage-groups-at-vmselect).
@@ -381,14 +381,14 @@ See more at [rebalancing docs](https://docs.victoriametrics.com/victoriametrics/
 
 ### Scaling down
 
-Since `vmstorage` nodes are stateful, scaling down the cluster requires to redistribute existing data from the nodes to be removed to the remaining ones. This is a time- and resource-consuming process that is better avoided by scaling down vertically or by following the [capacity planning docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#capacity-planning) and picking the right number of shards from the beginning.
+Since `vmstorage` nodes are stateful, scaling down the cluster requires to redistributing existing data from the nodes to be removed to the remaining ones. This is a time- and resource-consuming process that is better avoided by scaling down vertically or by following the [capacity planning docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#capacity-planning) and picking the right number of shards from the beginning.
 
 To remove a `vmstorage` node from the cluster, follow these steps:
 1. Remove `vmstorage` from the [`-storageNode` command-line flag](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#cluster-setup) on all `vminsert` nodes. This ensures that no new data is ingested into the removed node.
 1. Keep the configuration of `vmselect` nodes unchanged, so they continue to read data from the removed `vmstorage` node.
 1. Decide how to keep the data from the removed `vmstorage` node available:
-- The easiest way is to keep the removed `vmstorage` node until its `-retentionPeriod` is reached. It won't receive new data but will continue serving read queries for what it already stores. This approach requires no additional work, but doesn't free up any nodes until the retention period has elapsed. Once `-retentionPeriod` is reached, the `vmstorage` node can be removed from `vmselect`'s `-storageNode` configuration and decommissioned. No re-distribution or migration is required in this case.
-- Alternatively, you can migrate the data from the removed node by re-ingesting it into the remaining nodes. See how to do it below.
+    - The easiest way is to keep the removed `vmstorage` node until its `-retentionPeriod` is reached. It won't receive new data but will continue serving read queries for what it already stores. This approach requires no additional work, but doesn't free up any nodes until the retention period has elapsed. Once `-retentionPeriod` is reached, the `vmstorage` node can be removed from `vmselect`'s `-storageNode` configuration and decommissioned. No re-distribution or migration is required in this case.
+    - Alternatively, you can migrate the data from the removed node by re-ingesting it into the remaining nodes. See how to do it below.
 
 Please note that migrating large volumes of data is time- and resource-consuming, as data must be read and ingested via the /export and /import APIs. To re-ingest data from the removed `vmstorage` node to the remaining nodes, follow these steps:
 1. Set [deduplication](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#deduplication) on `vmselect` and `vmstorage` nodes via the command-line flag `-dedup.minScrapeInterval=1ms`. This ensures that `vmselect` and `vmstorage` nodes deduplicate identical samples during migration.
@@ -1115,13 +1115,13 @@ We recommend reserving the following spare resources to ensure the stability of 
 
 - 50% of free RAM across all the node types for reducing the probability of OOM (out of memory) crashes and slowdowns during temporary spikes in workload.
 - 50% of spare CPU across all the node types for reducing the probability of slowdowns during temporary spikes in workload.
-- At least 20% of free storage space at the directory using in the `-storageDataPath` command-line flag at `vmstorage` nodes. See also the `-storage.minFreeDiskSpaceBytes` command-line flag [description for vmstorage](#list-of-command-line-flags-for-vmstorage).
+- At least 20% of free storage space in the directory specified by the `-storageDataPath` command-line flag at `vmstorage` nodes. See also the `-storage.minFreeDiskSpaceBytes` command-line flag [description for vmstorage](#list-of-command-line-flags-for-vmstorage).
 
 Increase free storage space and `-storage.minFreeDiskSpaceBytes` to match at least the amount of data you plan to ingest in a calendar month: on each vmstorage pod, the monthly final deduplication process will temporarily need as much space as is used for the previous month's data, before it can free up space. For example, if you have a 3-month retention period and want to keep at least 10% of your total space free at all times, you could set the value to 35%. When some of your vmstorage pods are in [read-only mode](#readonly-mode), the remaining pods will have a higher share of the total data ingestion, and will therefore need more free space the next month.
 
 Some capacity planning tips for VictoriaMetrics cluster:
 
-- [Replication](#replication-and-data-safety) increases multiplies the amount of resources for the cluster by up to `N` times, where `N` is the replication factor. This is because `vminsert` stores `N` copies of every ingested sample on distinct `vmstorage` nodes. `vmselect` de-duplicates these copies during queries. The most cost-efficient and performant solution for data durability is to rely on replicated durable persistent disks such as [Google Compute persistent disks](https://cloud.google.com/compute/docs/disks#pdspecs) instead of using the [replication at VictoriaMetrics level](#replication-and-data-safety).
+- [Replication](#replication-and-data-safety) multiplies the amount of resources for the cluster by up to `N` times, where `N` is the replication factor. This is because `vminsert` stores `N` copies of every ingested sample on distinct `vmstorage` nodes. `vmselect` de-duplicates these copies during queries. The most cost-efficient and performant solution for data durability is to rely on replicated durable persistent disks such as [Google Compute persistent disks](https://cloud.google.com/compute/docs/disks#pdspecs) instead of using the [replication at VictoriaMetrics level](#replication-and-data-safety).
 - We recommend to run a cluster with a large number of small `vmstorage` nodes instead of a cluster with a small number of big `vmstorage` nodes. This increases the chances the cluster remains available and stable when one or more `vmstorage` nodes are temporarily unavailable during maintenance events such as upgrades, configuration changes, or migrations. For example, when a cluster contains 10 `vmstorage` nodes and a single node becomes temporarily unavailable, then the workload on the remaining 9 nodes increases by `1/9=11%`. When a cluster contains 3 `vmstorage` nodes and a single node becomes temporarily unavailable, then the workload on the remaining 2 nodes increases by `1/2=50%`. The remaining `vmstorage` nodes may not have enough spare capacity for handling the increased workload. In this case, the cluster may become overloaded, which may reduce availability and stability.
 - Cluster capacity for [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series) can be raised by increasing RAM and CPU resources per each `vmstorage` node or by adding new `vmstorage` nodes.
 - You can reduce query latency by increasing CPU resources on every `vmselect` node, since a single `vmselect` node processes each incoming query. Performance for heavy queries scales with the number of available CPU cores at the `vmselect` node, since `vmselect` processes the time series referred to by the query on all the available CPU cores.
