@@ -97,6 +97,8 @@ type client struct {
 	useVMProto          atomic.Bool
 	canDowngradeVMProto atomic.Bool
 
+	maintenanceMode atomic.Bool
+
 	fq *persistentqueue.FastQueue
 	hc *http.Client
 
@@ -322,6 +324,12 @@ func (c *client) runWorker(readBlock func(dst []byte) ([]byte, bool)) {
 	var block []byte
 	ch := make(chan bool, 1)
 	for {
+		if c.maintenanceMode.Load() {
+			if !c.waitForMaintenanceModeOff() {
+				return
+			}
+		}
+
 		block, ok = readBlock(block[:0])
 		if !ok {
 			return
@@ -339,6 +347,14 @@ func (c *client) runWorker(readBlock func(dst []byte) ([]byte, bool)) {
 			}
 			// Return unsent block to the queue.
 			c.fq.MustWriteBlockIgnoreDisabledPQ(block)
+			select {
+			case <-c.stopCh:
+				// c must be stopped.
+			default:
+				// sendBlock returned false because maintenance mode is enabled, not because
+				// c is stopping. Keep the worker alive so it resumes once maintenance mode is disabled.
+				continue
+			}
 			return
 		case <-c.stopCh:
 			// c must be stopped. Wait up to 5 seconds for the in-flight request to complete.
@@ -361,6 +377,23 @@ func (c *client) runWorker(readBlock func(dst []byte) ([]byte, bool)) {
 			return
 		}
 	}
+}
+
+// waitForMaintenanceModeOff blocks while maintenance mode is enabled for c.
+//
+// It returns false only if c.stopCh is closed while waiting.
+func (c *client) waitForMaintenanceModeOff() bool {
+	t := time.NewTicker(time.Second)
+	defer t.Stop()
+
+	for c.maintenanceMode.Load() {
+		select {
+		case <-t.C:
+		case <-c.stopCh:
+			return false
+		}
+	}
+	return true
 }
 
 func (c *client) doRequest(url string, body []byte) (*http.Response, error) {
@@ -421,7 +454,7 @@ func (c *client) newRequest(url string, body []byte) (*http.Request, error) {
 
 // sendBlockHTTP sends the given block to c.remoteWriteURL.
 //
-// The function returns false only if c.stopCh is closed.
+// The function returns false if c.stopCh is closed or if maintenance mode is enabled for c.
 // Otherwise, it tries sending the block to remote storage indefinitely.
 func (c *client) sendBlockHTTP(block []byte) bool {
 	c.rl.Register(len(block))
@@ -429,6 +462,10 @@ func (c *client) sendBlockHTTP(block []byte) bool {
 	retriesCount := 0
 
 again:
+	if c.maintenanceMode.Load() {
+		return false
+	}
+
 	startTime := time.Now()
 	resp, err := c.doRequest(c.remoteWriteURL, block)
 	c.requestDuration.UpdateDuration(startTime)
@@ -511,12 +548,7 @@ again:
 	// Handle response
 	body, err := io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
-	if err != nil {
-		logger.Errorf("cannot read response body from %q during retry #%d: %s", c.sanitizedURL, retriesCount, err)
-	} else {
-		logger.Errorf("unexpected status code received after sending a block with size %d bytes to %q during retry #%d: %d; response body=%q; "+
-			"re-sending the block in %s", len(block), c.sanitizedURL, retriesCount, statusCode, body, bt.CurrentDelay())
-	}
+	logUnexpectedStatusCode(block, c.sanitizedURL, statusCode, retriesCount, bt.CurrentDelay(), retryAfterHeader > 0, body, err)
 	if !bt.Wait(c.stopCh) {
 		return false
 	}
@@ -552,6 +584,26 @@ func (c *client) drainInMemoryQueue(stopCtx context.Context, block []byte) {
 
 var remoteWriteRejectedLogger = logger.WithThrottler("remoteWriteRejected", 5*time.Second)
 var remoteWriteRetryLogger = logger.WithThrottler("remoteWriteRetry", 5*time.Second)
+var remoteWriteUnexpectedStatusLogger = logger.WithThrottler("remoteWriteUnexpectedStatus", 5*time.Second)
+
+func logUnexpectedStatusCode(block []byte, sanitizedURL string, statusCode, retriesCount int, retryDelay time.Duration, isExpectedBackoff bool, body []byte, bodyErr error) {
+	if bodyErr != nil {
+		remoteWriteUnexpectedStatusLogger.Errorf("cannot read response body from %q during retry #%d: %s", sanitizedURL, retriesCount, bodyErr)
+		return
+	}
+
+	msg := fmt.Sprintf("unexpected status code received after sending a block with size %d bytes to %q during retry #%d: %d; response body=%q; "+
+		"re-sending the block in %s", len(block), sanitizedURL, retriesCount, statusCode, body, retryDelay)
+
+	if isExpectedBackoff {
+		// The remote storage explicitly signaled backoff duration via the Retry-After header,
+		// so this isn't an anomaly worth an ERROR log.
+		remoteWriteUnexpectedStatusLogger.Warnf("%s", msg)
+		return
+	}
+
+	remoteWriteUnexpectedStatusLogger.Errorf("%s", msg)
+}
 
 // repackBlockFromZstdToSnappy repacks the given zstd-compressed block to snappy-compressed block.
 //

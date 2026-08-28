@@ -513,7 +513,8 @@ func isProtectedByAuthFlag(path string) bool {
 	return strings.HasSuffix(path, "/config") || strings.HasSuffix(path, "/reload") ||
 		strings.HasSuffix(path, "/resetRollupResultCache") || strings.HasSuffix(path, "/delSeries") || strings.HasSuffix(path, "/delete_series") ||
 		strings.HasSuffix(path, "/force_merge") || strings.HasSuffix(path, "/force_flush") || strings.HasSuffix(path, "/snapshot") ||
-		strings.HasPrefix(path, "/snapshot/") || strings.HasSuffix(path, "/admin/status/metric_names_stats/reset")
+		strings.HasPrefix(path, "/snapshot/") || strings.HasSuffix(path, "/admin/status/metric_names_stats/reset") ||
+		strings.HasSuffix(path, "/remotewrite/maintenance")
 }
 
 // CheckAuthFlag checks whether the given authKey is set and valid

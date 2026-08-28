@@ -115,6 +115,7 @@ var (
 		"Multiple label names should be separated by `^^`, e.g. \"job^^instance,ip\". "+
 		"Can be combined with -remoteWrite.mdx.enable to hide sensitive label values in VictoriaMetrics self-monitoring metrics. "+
 		"Please see https://docs.victoriametrics.com/victoriametrics/vmagent/#obfuscating-label-values")
+	maintenanceAuthKey = flagutil.NewPassword("remoteWrite.maintenanceAuthKey", "Auth key for /remotewrite/maintenance http endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*")
 )
 
 var (
@@ -141,6 +142,42 @@ var (
 // MultitenancyEnabled returns true if -enableMultitenantHandlers is specified.
 func MultitenancyEnabled() bool {
 	return *enableMultitenantHandlers
+}
+
+// SetMaintenanceMode enables or disables maintenance mode for the remote write destination(s)
+// identified by sanitizedURL, which must match the `url` label of the corresponding
+// vmagent_remotewrite_* metrics. Pass "*" to target all the configured -remoteWrite.url destinations.
+//
+// While a destination is in maintenance mode, vmagent doesn't attempt to send data to it at all -
+// it stops draining that destination's queue; buffering remains subject to the configured queue limits.
+//
+// It returns the number of destinations matched by sanitizedURL.
+func SetMaintenanceMode(sanitizedURL string, enabled bool) int {
+	matched := 0
+	for _, rwctx := range rwctxsGlobal {
+		if sanitizedURL != "*" && rwctx.c.sanitizedURL != sanitizedURL {
+			continue
+		}
+		rwctx.c.maintenanceMode.Store(enabled)
+		matched++
+	}
+	return matched
+}
+
+// GetMaintenanceMode returns the maintenance mode status for each configured -remoteWrite.url,
+// keyed by its sanitized URL.
+func GetMaintenanceMode() map[string]bool {
+	m := make(map[string]bool, len(rwctxsGlobal))
+	for _, rwctx := range rwctxsGlobal {
+		m[rwctx.c.sanitizedURL] = rwctx.c.maintenanceMode.Load()
+	}
+	return m
+}
+
+// CheckMaintenanceAuthKey verifies the authKey query arg for the /remotewrite/maintenance http endpoint
+// against -remoteWrite.maintenanceAuthKey. See httpserver.CheckAuthFlag for the semantics of the return value.
+func CheckMaintenanceAuthKey(w http.ResponseWriter, r *http.Request) bool {
+	return httpserver.CheckAuthFlag(w, r, maintenanceAuthKey)
 }
 
 // Contains the current relabelConfigs.
