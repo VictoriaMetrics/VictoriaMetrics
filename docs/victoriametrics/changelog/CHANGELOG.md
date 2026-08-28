@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/), [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix insert requests getting stuck after another insert request times out, causing clients to time out while waiting for a response. See [VictoriaLogs#1743](https://github.com/VictoriaMetrics/VictoriaLogs/issues/1743).
+
 ## [v1.151.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.151.0)
 
 Release candidate
