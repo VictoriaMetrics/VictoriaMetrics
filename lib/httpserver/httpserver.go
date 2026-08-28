@@ -499,7 +499,8 @@ func builtinRoutesHandler(s *server, r *http.Request, w http.ResponseWriter, rh 
 			pprofHandler(r.URL.Path[len("/debug/pprof/"):], w, r)
 			return true
 		}
-
+		// Check HTTP Basic Auth here for all the paths except of the ones verifying
+		// the corresponding -*AuthKey flag on their own at rh() below
 		if !isProtectedByAuthFlag(r.URL.Path) && !CheckBasicAuth(w, r) {
 			return true
 		}
@@ -507,13 +508,49 @@ func builtinRoutesHandler(s *server, r *http.Request, w http.ResponseWriter, rh 
 	return rh(w, r)
 }
 
+// pathsProtectedByAuthFlag contains paths, which explicitly call CheckAuthFlag() on their own,
+// so there is no need in checking HTTP Basic Auth for them at builtinRoutesHandler().
+//
+// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6329
+//
+// Every supported path must be listed here explicitly.
+var pathsProtectedByAuthFlag = map[string]struct{}{
+	// for vminsert and vmagent
+	"/config":               {},
+	"/api/v1/status/config": {},
+
+	// for vminsert, vmagent, vmauth and vmalert
+	"/-/reload": {},
+
+	// for vmagent
+	"/remotewrite-relabel-config":                   {},
+	"/api/v1/status/remotewrite-relabel-config":     {},
+	"/remotewrite-url-relabel-config":               {},
+	"/api/v1/status/remotewrite-url-relabel-config": {},
+
+	// for vmselect
+	"/internal/resetRollupResultCache":                    {},
+	"/tags/delSeries":                                     {},
+	"/graphite/tags/delSeries":                            {},
+	"/api/v1/admin/tsdb/delete_series":                    {},
+	"/prometheus/api/v1/admin/tsdb/delete_series":         {},
+	"/api/v1/admin/status/metric_names_stats/reset":       {},
+	"/admin/api/v1/admin/status/metric_names_stats/reset": {},
+
+	// for vmstorage
+	"/internal/force_merge":       {},
+	"/internal/force_flush":       {},
+	"/internal/log_new_series":    {},
+	"/api/v1/admin/tsdb/snapshot": {},
+	"/snapshot/create":            {},
+	"/snapshot/list":              {},
+	"/snapshot/delete":            {},
+	"/snapshot/delete_all":        {},
+}
+
 func isProtectedByAuthFlag(path string) bool {
-	// These paths must explicitly call CheckAuthFlag().
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6329
-	return strings.HasSuffix(path, "/config") || strings.HasSuffix(path, "/reload") ||
-		strings.HasSuffix(path, "/resetRollupResultCache") || strings.HasSuffix(path, "/delSeries") || strings.HasSuffix(path, "/delete_series") ||
-		strings.HasSuffix(path, "/force_merge") || strings.HasSuffix(path, "/force_flush") || strings.HasSuffix(path, "/snapshot") ||
-		strings.HasPrefix(path, "/snapshot/") || strings.HasSuffix(path, "/admin/status/metric_names_stats/reset")
+	_, ok := pathsProtectedByAuthFlag[path]
+	return ok
 }
 
 // CheckAuthFlag checks whether the given authKey is set and valid
