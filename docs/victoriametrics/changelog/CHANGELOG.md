@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/), [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): limit the number of concurrently allocated per-connection read buffers for parsers of streaming protocols, such as [InfluxDB line protocol](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb/), [Graphite](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/), [OpenTSDB](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb/) and [CSV import](https://docs.victoriametrics.com/victoriametrics/#how-to-import-csv-data). Previously, every concurrent insert connection allocated a ~64KiB buffer regardless of `-maxConcurrentInserts`, so a burst of connections caused by slow `vmstorage` could raise memory usage by hundreds of MiB and lead to OOM kills. The limit can be tuned via the new `-insert.maxConcurrentStreamReaders` command-line flag. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11463).
+
 ## [v1.151.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.151.0)
 
 Release candidate
