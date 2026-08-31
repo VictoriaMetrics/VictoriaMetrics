@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"maps"
+	"math"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -15,6 +16,7 @@ import (
 	"reflect"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -33,6 +35,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -44,17 +47,122 @@ import (
 var (
 	storagePath    string
 	httpListenAddr string
-	// Insert series from 2000-01-01T00:00:00.
-	testStartTime          = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	// defaultTestStartTime is the time the first sample of every input_series is written at,
+	// and the time the first rule evaluation happens at. It can be overridden via -startTime.
+	defaultTestStartTime = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	// Insert series from defaultTestStartTime unless -startTime says otherwise.
+	testStartTime          = defaultTestStartTime
 	testLogLevel           = "ERROR"
 	disableAlertgroupLabel bool
 )
 
-func durationToTime(pd *promutil.Duration) time.Time {
-	if pd == nil {
-		return testStartTime
+// testRetention is how wide processFlags opens -retentionPeriod and -futureRetention.
+// It is the largest value flagutil.RetentionDuration accepts, i.e. 1200 months.
+const testRetention = "100y"
+
+var (
+	// minTestTime is minUnixMilli from lib/storage/time.go. The first day of the Unix epoch is
+	// reserved, because the zero date and the zero time range indicate that a global index
+	// search is required.
+	minTestTime = time.Date(1970, 1, 2, 0, 0, 0, 0, time.UTC)
+
+	// maxStorageTime is maxUnixMilli from lib/storage/time.go: the last millisecond of the last
+	// partition that still fits in math.MaxInt64 nanoseconds.
+	maxStorageTime = time.UnixMilli(9222422399999).UTC()
+
+	// testRetentionDuration is testRetention as the -futureRetention flag itself parses it.
+	//
+	// It must be read through flagutil rather than restated here, because a `y` there is
+	// exactly 365 days and not a calendar year: 100y is 36500 days, while 100 calendar years
+	// span 36524 or 36525. Computing the ceiling with time.Time.AddDate would put it up to 25
+	// days past what vmstorage actually accepts, and samples in that window are dropped in
+	// silence -- the same failure minTestTime exists to prevent, at the other end.
+	testRetentionDuration = mustParseRetention(testRetention)
+
+	// maxTestTime is the latest timestamp this process can ingest a sample at.
+	//
+	// vmstorage refuses samples beyond now+(-futureRetention), so the ceiling moves with the
+	// wall clock until it reaches the representable limit. -futureRetention cannot be widened
+	// past testRetention, so for the next ~135 years this is now+100y rather than
+	// maxStorageTime.
+	maxTestTime = calcMaxTestTime(time.Now())
+)
+
+// mustParseRetention returns s as flagutil.RetentionDuration parses it.
+//
+// It panics if s is not a value the -retentionPeriod and -futureRetention flags would accept,
+// since s is a compile-time constant of this package and not user input.
+func mustParseRetention(s string) time.Duration {
+	var d flagutil.RetentionDuration
+	if err := d.Set(s); err != nil {
+		logger.Panicf("BUG: cannot parse testRetention=%q as a retention duration: %s", s, err)
 	}
-	return testStartTime.Add(pd.Duration())
+	return d.Duration()
+}
+
+func calcMaxTestTime(now time.Time) time.Time {
+	t := now.UTC().Add(testRetentionDuration)
+	if t.After(maxStorageTime) {
+		return maxStorageTime
+	}
+	return t
+}
+
+// formatTestTime renders t the way the -startTime flag is written, keeping the milliseconds
+// that RFC3339 alone would drop.
+func formatTestTime(t time.Time) string {
+	return t.UTC().Format("2006-01-02T15:04:05.999Z07:00")
+}
+
+// parseTestStartTime parses the value of the -startTime command-line flag.
+//
+// An empty s means "use the default".
+func parseTestStartTime(s string) (time.Time, error) {
+	if s == "" {
+		return defaultTestStartTime, nil
+	}
+	t, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("cannot parse %q as an RFC3339 timestamp such as %q: %w", s, defaultTestStartTime.Format(time.RFC3339), err)
+	}
+	return t.UTC(), validateTestStartTime(t.UTC())
+}
+
+// validateTestStartTime returns an error if a test cannot start at t.
+//
+// It is shared by -startTime and by the per-group `start_timestamp`, because the reason either
+// value is rejected is a property of the storage rather than of the spelling it arrived in.
+func validateTestStartTime(t time.Time) error {
+	if t.Before(minTestTime) {
+		return fmt.Errorf("%s is earlier than %s; the first day of the Unix epoch is reserved for the global index search, "+
+			"so input_series seeded there are dropped and rules never see them", formatTestTime(t), formatTestTime(minTestTime))
+	}
+	if t.After(maxTestTime) {
+		return fmt.Errorf("%s is later than %s, the last timestamp this storage accepts; "+
+			"input_series seeded there are dropped and rules never see them", formatTestTime(t), formatTestTime(maxTestTime))
+	}
+	return nil
+}
+
+// checkTestTime returns an error if the sample or evaluation timestamp t falls outside the
+// window vmstorage accepts. what names the thing that produced t, for the error message.
+//
+// The start time is validated on its own, so reaching this with a valid start time means the
+// test is long enough to walk out of the window on its own.
+func checkTestTime(t time.Time, what string) error {
+	if t.Before(minTestTime) || t.After(maxTestTime) {
+		return fmt.Errorf("%s falls at %s, outside the [%s .. %s] window this storage accepts; "+
+			"samples there are dropped, so the test would silently see no data. Move the test start time, or shorten the test",
+			what, formatTestTime(t), formatTestTime(minTestTime), formatTestTime(maxTestTime))
+	}
+	return nil
+}
+
+func durationToTime(startTime time.Time, pd *promutil.Duration) time.Time {
+	if pd == nil {
+		return startTime
+	}
+	return startTime.Add(pd.Duration())
 }
 
 const (
@@ -62,10 +170,15 @@ const (
 )
 
 // UnitTest runs unittest for files
-func UnitTest(files []string, disableGroupLabel bool, externalLabels []string, externalURL, httpListenPort, logLevel string) bool {
+func UnitTest(files []string, disableGroupLabel bool, externalLabels []string, externalURL, httpListenPort, logLevel, startTime string) bool {
 	if logLevel != "" {
 		testLogLevel = logLevel
 	}
+	st, err := parseTestStartTime(startTime)
+	if err != nil {
+		logger.Fatalf("failed to parse -startTime: %s", err)
+	}
+	testStartTime = st
 	eu, err := url.Parse(externalURL)
 	if err != nil {
 		logger.Fatalf("failed to parse external URL: %s", err)
@@ -274,8 +387,16 @@ func processFlags() {
 		{flag: "storageDataPath", value: storagePath},
 		{flag: "loggerLevel", value: testLogLevel},
 		{flag: "search.disableCache", value: "true"},
-		// set storage retention time to 100 years, allow to store series from 1970-01-01T00:00:00.
-		{flag: "retentionPeriod", value: "100y"},
+		// Widen the retention on both sides so that the timestamps a test may use are bounded by
+		// what vmstorage can represent at all, rather than by how far the test start time happens
+		// to sit from the wall clock.
+		//
+		// -retentionPeriod also caps -maxBackfillAge, which is what allows a test to seed series
+		// in the past; 100 years covers everything back to minTestTime.
+		{flag: "retentionPeriod", value: testRetention},
+		// -futureRetention defaults to 2 days, which would make every test starting more than
+		// two days from now silently ingest nothing at all. See maxTestTime.
+		{flag: "futureRetention", value: testRetention},
 		{flag: "datasource.url", value: fmt.Sprintf("http://127.0.0.1:%s/prometheus", httpListenAddr)},
 		{flag: "remoteWrite.url", value: fmt.Sprintf("http://127.0.0.1:%s", httpListenAddr)},
 		{flag: "notifier.blackhole", value: "true"},
@@ -330,8 +451,16 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 	if tg.Interval == nil {
 		tg.Interval = promutil.NewDuration(evalInterval)
 	}
-	err := writeInputSeries(tg.InputSeries, tg.Interval, testStartTime, fmt.Sprintf("http://127.0.0.1:%s/api/v1/write", httpListenAddr))
+	startTime, startTimeSource, err := tg.startTime()
 	if err != nil {
+		return []error{err}
+	}
+	if err := checkTestTime(startTime.Add(tg.maxEvalTime()),
+		fmt.Sprintf("the last rule evaluation of this test, counted from the %s of %s",
+			startTimeSource, formatTestTime(startTime))); err != nil {
+		return []error{err}
+	}
+	if err := writeInputSeries(tg.InputSeries, tg.Interval, startTime, fmt.Sprintf("http://127.0.0.1:%s/api/v1/write", httpListenAddr)); err != nil {
 		return []error{err}
 	}
 
@@ -380,8 +509,8 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 	}
 
 	evalIndex := 0
-	maxEvalTime := testStartTime.Add(tg.maxEvalTime())
-	for ts := testStartTime; ts.Before(maxEvalTime) || ts.Equal(maxEvalTime); ts = ts.Add(evalInterval) {
+	maxEvalTime := startTime.Add(tg.maxEvalTime())
+	for ts := startTime; ts.Before(maxEvalTime) || ts.Equal(maxEvalTime); ts = ts.Add(evalInterval) {
 		for _, g := range groups {
 			if len(g.Rules) == 0 {
 				continue
@@ -400,8 +529,8 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 
 		// check alert_rule_test case at every eval time
 		for evalIndex < len(alertEvalTimes) {
-			if ts.Sub(testStartTime) > alertEvalTimes[evalIndex] ||
-				alertEvalTimes[evalIndex] >= ts.Add(evalInterval).Sub(testStartTime) {
+			if ts.Sub(startTime) > alertEvalTimes[evalIndex] ||
+				alertEvalTimes[evalIndex] >= ts.Add(evalInterval).Sub(startTime) {
 				break
 			}
 			gotAlertsMap := map[string]map[string]labelsAndAnnotations{}
@@ -477,7 +606,7 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 
 	}
 
-	checkErrs = append(checkErrs, checkMetricsqlCase(tg.MetricsqlExprTests, q)...)
+	checkErrs = append(checkErrs, checkMetricsqlCase(tg.MetricsqlExprTests, q, startTime)...)
 	return checkErrs
 }
 
@@ -497,6 +626,78 @@ type testGroup struct {
 	MetricsqlExprTests []metricsqlTestCase `yaml:"metricsql_expr_test"`
 	ExternalLabels     map[string]string   `yaml:"external_labels"`
 	TestGroupName      string              `yaml:"name"`
+	StartTimestamp     *startTimestamp     `yaml:"start_timestamp"`
+}
+
+// startTimestamp is the per-test-group `start_timestamp`, which overrides -startTime.
+//
+// promtool spells the same option two ways -- a Unix timestamp in seconds such as 1609459200, or
+// an RFC3339 string such as "2021-01-01T00:00:00Z" -- and both are accepted here so that a
+// promtool suite runs under vmalert-tool without its test files being rewritten.
+//
+// It is a pointer field on testGroup because "absent" and "present" have to stay distinguishable:
+// the zero value of this option in promtool is the Unix epoch, which this storage cannot start a
+// test at, so a group that omits the option must fall through to -startTime rather than be read as
+// having asked for 1970-01-01.
+type startTimestamp struct {
+	t time.Time
+}
+
+// UnmarshalYAML implements yaml.Unmarshaler.
+//
+// Both spellings must resolve to a whole number of seconds. A test's queries are issued at
+// `start_timestamp` plus `eval_time`, and the instant query serializes that time with
+// time.RFC3339, which carries no fractional part -- so a start time with a sub-second
+// component seeds input_series at timestamps the queries then never land on, and the test
+// sees no input at all. Refusing such a value is the same stance this option already takes
+// on a start time the storage would drop.
+func (st *startTimestamp) UnmarshalYAML(unmarshal func(any) error) error {
+	var secs int64
+	if err := unmarshal(&secs); err == nil {
+		// yaml.v2 decodes a fractional number into an integer field by truncating it, which
+		// would silently move the start time. Decode the same node as a float to catch it.
+		var f float64
+		if err := unmarshal(&f); err == nil && f != math.Trunc(f) {
+			return fmt.Errorf("`start_timestamp` must be a whole number of seconds, got %s; "+
+				"the query time is formatted with second resolution, so a fractional start would "+
+				"seed input_series at timestamps the test's queries never reach",
+				strconv.FormatFloat(f, 'f', -1, 64))
+		}
+		st.t = time.Unix(secs, 0).UTC()
+		return nil
+	}
+	var s string
+	if err := unmarshal(&s); err != nil {
+		return fmt.Errorf("`start_timestamp` must be a Unix timestamp in seconds such as %d, or an RFC3339 timestamp such as %q",
+			defaultTestStartTime.Unix(), defaultTestStartTime.Format(time.RFC3339))
+	}
+	t, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		return fmt.Errorf("cannot parse `start_timestamp` %q as an RFC3339 timestamp such as %q: %w",
+			s, defaultTestStartTime.Format(time.RFC3339), err)
+	}
+	if t.Nanosecond() != 0 {
+		return fmt.Errorf("`start_timestamp` %q must not carry a fractional second; "+
+			"the query time is formatted with second resolution, so a fractional start would "+
+			"seed input_series at timestamps the test's queries never reach", s)
+	}
+	st.t = t.UTC()
+	return nil
+}
+
+// startTime returns the time tg starts at, and the name of the option that set it.
+//
+// The group-level `start_timestamp` wins over -startTime, so that one flag can move a whole suite
+// while a single group pins itself to the timestamps its input_series were written against.
+func (tg *testGroup) startTime() (time.Time, string, error) {
+	if tg.StartTimestamp == nil {
+		return testStartTime, "-startTime", nil
+	}
+	t := tg.StartTimestamp.t
+	if err := validateTestStartTime(t); err != nil {
+		return time.Time{}, "", fmt.Errorf("invalid `start_timestamp`: %w", err)
+	}
+	return t, "`start_timestamp`", nil
 }
 
 // maxEvalTime returns the max eval time among all alert_rule_test and metricsql_expr_test

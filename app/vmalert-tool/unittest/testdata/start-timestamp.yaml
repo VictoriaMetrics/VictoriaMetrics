@@ -1,0 +1,59 @@
+# Every group here pins its own start time via `start_timestamp`, in both of the spellings
+# promtool accepts. The tests below assert absolute timestamps, so a group whose
+# `start_timestamp` were ignored would read the -startTime the file is run with instead and fail.
+rule_files:
+  - rules.yaml
+
+evaluation_interval: 1m
+
+tests:
+  # a Unix timestamp in seconds: 1609459200 is 2021-01-01T00:00:00Z
+  - interval: 1m
+    name: "start_timestamp as a Unix timestamp"
+    start_timestamp: 1609459200
+    input_series:
+      - series: test
+        values: "0+1x10"
+      - series: 'up{job="vmagent1", instance="localhost:9090"}'
+        values: "1x10"
+      # rules.yaml's AlertWithTemplate annotation queries `foo`
+      - series: foo
+        values: "1x10"
+
+    metricsql_expr_test:
+      - expr: timestamp(test)
+        eval_time: 0m
+        exp_samples:
+          - value: 1609459200
+      - expr: timestamp(test)
+        eval_time: 5m
+        exp_samples:
+          - value: 1609459500
+
+    alert_rule_test:
+      # the alerting path counts eval_time from the same start time as the samples
+      - eval_time: 0m
+        groupname: group1
+        alertname: AlwaysFiring
+        exp_alerts:
+          - exp_labels: {}
+
+  # the same option written as an RFC3339 string: 2015-06-01T00:00:00Z is 1433116800
+  - interval: 1m
+    name: "start_timestamp as an RFC3339 string"
+    start_timestamp: "2015-06-01T00:00:00Z"
+    input_series:
+      - series: test
+        values: "0+1x10"
+      - series: foo
+        values: "1x10"
+
+    metricsql_expr_test:
+      - expr: timestamp(test)
+        eval_time: 0m
+        exp_samples:
+          - value: 1433116800
+      - expr: timestamp(test)
+        eval_time: 10m
+        exp_samples:
+          - value: 1433117400

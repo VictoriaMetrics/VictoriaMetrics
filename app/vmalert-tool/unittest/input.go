@@ -75,6 +75,9 @@ func parseInputSeries(input []series, interval *promutil.Duration, startStamp ti
 		ts := startStamp
 		for _, v := range promvals {
 			if !v.Omitted {
+				if err := checkTestTime(ts, fmt.Sprintf("a sample of input series %s", data.Series)); err != nil {
+					return res, err
+				}
 				samples = append(samples, testutil.Sample{
 					Timestamp: ts.UnixMilli(),
 					Value:     v.Value,

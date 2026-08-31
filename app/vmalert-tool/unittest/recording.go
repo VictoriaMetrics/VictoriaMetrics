@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"reflect"
 	"sort"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
@@ -25,12 +26,15 @@ type expSample struct {
 	Value  float64 `yaml:"value"`
 }
 
-// checkMetricsqlCase will check metricsql_expr_test cases
-func checkMetricsqlCase(cases []metricsqlTestCase, q datasource.QuerierBuilder) (checkErrs []error) {
+// checkMetricsqlCase will check metricsql_expr_test cases.
+//
+// startTime is the time the enclosing test group starts at, which every eval_time is an offset
+// from. It is passed in rather than read from the package, since a group may override it.
+func checkMetricsqlCase(cases []metricsqlTestCase, q datasource.QuerierBuilder, startTime time.Time) (checkErrs []error) {
 	queries := q.BuildWithParams(datasource.QuerierParams{QueryParams: url.Values{"nocache": {"1"}, "latency_offset": {"1ms"}}, DataSourceType: "prometheus"})
 Outer:
 	for _, mt := range cases {
-		result, _, err := queries.Query(context.Background(), mt.Expr, durationToTime(mt.EvalTime))
+		result, _, err := queries.Query(context.Background(), mt.Expr, durationToTime(startTime, mt.EvalTime))
 		if err != nil {
 			checkErrs = append(checkErrs, fmt.Errorf("    expr: %q, time: %s, err: %w", mt.Expr,
 				mt.EvalTime.Duration().String(), err))

@@ -63,6 +63,69 @@ groups:
     for: 1m
 ```
 
+### Test start time
+
+The unit test clock does not start at the wall clock. `input_series` are seeded starting at a fixed
+test start time, and every `eval_time` in the file is an offset from it: `eval_time: 0` is the test
+start time, `eval_time: 5m` is five minutes after it.
+
+The test start time is `2000-01-01T00:00:00Z` by default. It can be changed {{% available_from "#" %}}
+via the `--startTime` cmd-line flag, which accepts an [RFC3339](https://www.rfc-editor.org/rfc/rfc3339) timestamp:
+
+```sh
+./vmalert-tool unittest --files=/path/to/file --startTime=2015-06-01T00:00:00Z
+```
+
+A single `<test_group>` can pin its own start time with the `start_timestamp` option, which takes
+precedence over `--startTime`. It accepts either a Unix timestamp in seconds or an RFC3339 string,
+spelled the same way [promtool](https://prometheus.io/docs/prometheus/latest/configuration/unit_testing_rules/#test_group)
+spells it, so this option carries over from a promtool file unchanged — the `promql_expr_test` field
+still has to be renamed to `metricsql_expr_test`, as it does for any promtool file. Either
+spelling must name a whole number of seconds: the query time is formatted with second resolution, so
+a fractional start time would seed `input_series` at timestamps the test's queries never reach, and
+is rejected rather than run.
+
+```yaml
+tests:
+  - name: "pinned to the timestamps this group's input_series were written against"
+    start_timestamp: 1609459200      # or "2021-01-01T00:00:00Z"
+    input_series:
+      - series: my_last_run_timestamp_seconds{instance="host1"}
+        values: "1609459200x121"
+```
+
+That lets `--startTime` move a whole suite while the groups which carry absolute timestamps stay
+where they are, and it lets an already-migrated group keep its start time while the rest of the
+file is still being worked through.
+
+The start time is load-bearing for any rule which compares a sample value against `time()`, such as
+the usual "is this thing stale?" alert. Series holding absolute Unix timestamps must be seeded
+relative to the same start time the rules are evaluated at:
+
+```yaml
+input_series:
+  # 946684800 is 2000-01-01T00:00:00Z, i.e. "as of the test start time"
+  - series: my_last_run_timestamp_seconds{instance="host1"}
+    values: "946684800x121"
+```
+
+Rules gated on `day_of_week()`, `hour()` or `minute()` are affected too, since the start time fixes
+the calendar position the offsets are counted from.
+
+The start time must not be earlier than `1970-01-02T00:00:00Z`. The first day of the Unix epoch is
+reserved for the global index search, so `input_series` seeded there are dropped and rules never
+see them. This applies to `start_timestamp` too, including promtool's default of `0`: a group which
+asks for it is rejected with that error rather than run against input the rules cannot see.
+
+It must not be later than `now+100y` either, since that is the furthest ahead the underlying
+storage accepts samples at. Both bounds apply to the whole test, not only to its first sample: a
+test whose `input_series` or `eval_time` offsets carry it past the end of that window is rejected
+rather than run with the out-of-range samples silently missing.
+
+Before [v1.148.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11480) the test start
+time was `1970-01-01T00:00:00Z`. See [Update Note 1 for v1.148.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11480)
+for how to migrate test files written against it.
+
 ### Test file format
 
 The configuration format for files specified in `--files` cmd-line flag is the following:
@@ -97,6 +160,12 @@ input_series:
 
 # Name of the test group, optional
 [ name: <string> ]
+
+# The time this test group starts at: input_series are seeded from it, and every eval_time below
+# is an offset from it. Accepts a Unix timestamp in seconds such as 1609459200, or an RFC3339
+# timestamp such as "2021-01-01T00:00:00Z". Takes precedence over the "--startTime" cmd-line flag.
+# Check https://docs.victoriametrics.com/victoriametrics/vmalert-tool/#test-start-time for details.
+[ start_timestamp: <int> | <rfc3339_string> | default = --startTime ]
 
 # Unit tests for alerting rules
 alert_rule_test:
@@ -145,7 +214,7 @@ but no need to add them under `exp_alerts`.
 You can also pass `--disableAlertgroupLabel` to skip `alertgroup` check.
 
 ```yaml
-# The time elapsed from time=0s when this alerting rule should be checked.
+# The time elapsed from time=0s, i.e. the test start time, when this alerting rule should be checked.
 # Means this rule should be firing at this point, or shouldn't be firing if 'exp_alerts' is empty.
 eval_time: <duration>
 
@@ -179,7 +248,7 @@ exp_annotations:
 # Expression to evaluate
 expr: <string>
 
-# The time elapsed from time=0s when this expression be evaluated.
+# The time elapsed from time=0s, i.e. the test start time, when this expression be evaluated.
 eval_time: <duration>
 
 # Expected samples at the given evaluation time.
@@ -298,16 +367,20 @@ vmalert-tool can print additional log messages for specific alerting rules, simi
 The additional log messages include tips for alert state transformations, timestamp and result of each evaluation:
 
 ```shell-session
-2024-12-10T12:10:26.339Z	info	VictoriaMetrics/app/vmalert/rule/alerting.go:212	DEBUG rule "TestGroup":"TestRule" (14686524233356632740) at 2000-01-01T00:00:00Z: query returned 0 samples (elapsed: 2.148792ms)
-2024-12-10T12:10:26.339Z	info	VictoriaMetrics/app/vmalert/datasource/client.go:254	DEBUG datasource request: executing POST request with params "http://127.0.0.1:8880/prometheus/api/v1/query?query=test_metric+%3E+0&step=300s&time=2000-01-01T00%3A01%3A00Z"
-2024-12-10T12:10:26.339Z	info	VictoriaMetrics/app/vmalert/rule/alerting.go:212	DEBUG rule "TestGroup":"TestRule" (14686524233356632740) at 2000-01-01T00:01:00Z: query returned 0 samples (elapsed: 277µs)
-2024-12-10T12:10:26.339Z	info	VictoriaMetrics/app/vmalert/datasource/client.go:254	DEBUG datasource request: executing POST request with params "http://127.0.0.1:8880/prometheus/api/v1/query?query=test_metric+%3E+0&step=300s&time=2000-01-01T00%3A02%3A00Z"
-2024-12-10T12:10:26.340Z	info	VictoriaMetrics/app/vmalert/rule/alerting.go:212	DEBUG rule "TestGroup":"TestRule" (14686524233356632740) at 2000-01-01T00:02:00Z: query returned 1 samples (elapsed: 566.083µs)
-2024-12-10T12:10:26.340Z	info	VictoriaMetrics/app/vmalert/rule/alerting.go:212	DEBUG rule "TestGroup":"TestRule" (14686524233356632740) at 2000-01-01T00:02:00Z: alert 11669695145351808068 {alertgroup="TestGroup",alertname="TestRule"} created in state PENDING
-2024-12-10T12:10:26.343Z	info	VictoriaMetrics/app/vmalert/datasource/client.go:254	DEBUG datasource request: executing POST request with params "http://127.0.0.1:8880/prometheus/api/v1/query?query=test_metric+%3E+0&step=300s&time=2000-01-01T00%3A03%3A00Z"
-2024-12-10T12:10:26.344Z	info	VictoriaMetrics/app/vmalert/rule/alerting.go:212	DEBUG rule "TestGroup":"TestRule" (14686524233356632740) at 2000-01-01T00:03:00Z: query returned 1 samples (elapsed: 822.958µs)
-2024-12-10T12:10:26.344Z	info	VictoriaMetrics/app/vmalert/rule/alerting.go:212	DEBUG rule "TestGroup":"TestRule" (14686524233356632740) at 2000-01-01T00:03:00Z: alert 11669695145351808068 {alertgroup="TestGroup",alertname="TestRule"} PENDING => FIRING: 1m0s since becoming active at 2000-01-01 00:02:00 +0000 UTC
+2026-08-21T07:29:43.943Z	info	VictoriaMetrics/app/vmalert/datasource/client.go:262	DEBUG datasource request: executing POST request with params "http://127.0.0.1:8880/prometheus/api/v1/query?query=test_metric+%3E+0&step=300s&time=2000-01-01T00%3A00%3A00Z"
+2026-08-21T07:29:43.963Z	info	VictoriaMetrics/app/vmalert/rule/alerting.go:273	DEBUG alerting rule "rules.yaml", "TestGroup":"TestRule" (14686524233356632740) at 2000-01-01T00:00:00Z: query returned 0 series (series_fetched: 0, elapsed: 20.003307ms, isPartial: false)
+2026-08-21T07:29:43.963Z	info	VictoriaMetrics/app/vmalert/datasource/client.go:262	DEBUG datasource request: executing POST request with params "http://127.0.0.1:8880/prometheus/api/v1/query?query=test_metric+%3E+0&step=300s&time=2000-01-01T00%3A01%3A00Z"
+2026-08-21T07:29:43.972Z	info	VictoriaMetrics/app/vmalert/rule/alerting.go:273	DEBUG alerting rule "rules.yaml", "TestGroup":"TestRule" (14686524233356632740) at 2000-01-01T00:01:00Z: query returned 0 series (series_fetched: 0, elapsed: 9.47647ms, isPartial: false)
+2026-08-21T07:29:43.972Z	info	VictoriaMetrics/app/vmalert/datasource/client.go:262	DEBUG datasource request: executing POST request with params "http://127.0.0.1:8880/prometheus/api/v1/query?query=test_metric+%3E+0&step=300s&time=2000-01-01T00%3A02%3A00Z"
+2026-08-21T07:29:43.975Z	info	VictoriaMetrics/app/vmalert/rule/alerting.go:273	DEBUG alerting rule "rules.yaml", "TestGroup":"TestRule" (14686524233356632740) at 2000-01-01T00:02:00Z: query returned 1 series (series_fetched: 1, elapsed: 2.86197ms, isPartial: false)
+2026-08-21T07:29:43.975Z	info	VictoriaMetrics/app/vmalert/rule/alerting.go:273	DEBUG alerting rule "rules.yaml", "TestGroup":"TestRule" (14686524233356632740) at 2000-01-01T00:02:00Z: alert 11669695145351808068 {alertgroup="TestGroup",alertname="TestRule"} created in state PENDING
+2026-08-21T07:29:44.006Z	info	VictoriaMetrics/app/vmalert/datasource/client.go:262	DEBUG datasource request: executing POST request with params "http://127.0.0.1:8880/prometheus/api/v1/query?query=test_metric+%3E+0&step=300s&time=2000-01-01T00%3A03%3A00Z"
+2026-08-21T07:29:44.008Z	info	VictoriaMetrics/app/vmalert/rule/alerting.go:273	DEBUG alerting rule "rules.yaml", "TestGroup":"TestRule" (14686524233356632740) at 2000-01-01T00:03:00Z: query returned 1 series (series_fetched: 1, elapsed: 1.289665ms, isPartial: false)
+2026-08-21T07:29:44.008Z	info	VictoriaMetrics/app/vmalert/rule/alerting.go:273	DEBUG alerting rule "rules.yaml", "TestGroup":"TestRule" (14686524233356632740) at 2000-01-01T00:03:00Z: alert 11669695145351808068 {alertgroup="TestGroup",alertname="TestRule"} PENDING => FIRING: 1m0s since becoming active at 2000-01-01 00:02:00 +0000 UTC
 ```
+
+The timestamps the rule is evaluated at start at the [test start time](#test-start-time), not at the
+wall clock.
 
 ### Configuration
 
@@ -330,4 +403,8 @@ Run `vmalert-tool unittest --help` to get all configuration options:
     Optional local port for incoming HTTP requests. If not specified, a random unoccupied port will be used.
   -loggerLevel
     Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "ERROR").
+  -startTime
+    Optional RFC3339 timestamp the input_series are seeded at and the first rule evaluation happens at (default "2000-01-01T00:00:00Z").
+    Set it when test files contain absolute timestamps compared against time(), so they can be migrated to another start time on your own schedule.
+    It must not be earlier than "1970-01-02T00:00:00Z", since the first day of the Unix epoch is reserved for the global index search.
 ```
