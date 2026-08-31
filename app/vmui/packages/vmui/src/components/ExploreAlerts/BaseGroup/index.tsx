@@ -2,7 +2,7 @@ import { useMemo } from "preact/compat";
 import "./style.scss";
 import { Group as APIGroup } from "../../../types";
 import ItemHeader from "../ItemHeader";
-import { getStates, formatDuration, formatEventTime } from "../helpers";
+import { getStates, formatDuration, formatEventTime, getVMAlertSource } from "../helpers";
 import Badges, { BadgeColor } from "../Badges";
 
 interface BaseGroupProps {
@@ -127,6 +127,7 @@ const BaseGroup = ({ group }: BaseGroupProps) => {
             entity="rule"
             type={rule.type}
             groupId={rule.group_id}
+            source={getVMAlertSource(group)}
             states={getStates(rule)}
             id={rule.id}
             name={rule.name}

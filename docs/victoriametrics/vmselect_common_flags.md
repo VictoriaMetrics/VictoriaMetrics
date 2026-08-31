@@ -445,8 +445,10 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/cluster-victori
      Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -version
      Show VictoriaMetrics version
-  -vmalert.proxyURL string
-     Optional URL for proxying requests to vmalert. For example, if -vmalert.proxyURL=http://vmalert:8880 , then alerting API requests such as /api/v1/rules from Grafana will be proxied to http://vmalert:8880/api/v1/rules . See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#vmalert
+  -vmalert.proxyURL array
+     Optional URL for proxying requests to vmalert. For example, if -vmalert.proxyURL=http://vmalert:8880 , then alerting API requests such as /api/v1/rules from Grafana will be proxied to http://vmalert:8880/api/v1/rules. If multiple URLs are set, then alerting API requests are sent to all of them and the responses are merged. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmalert
+  -vmalert.proxyName array
+     Optional name for the vmalert at the corresponding -vmalert.proxyURL. By default the name is set to vmalert_proxy_N, where N is the position of the corresponding -vmalert.proxyURL. Set -vmalert.proxyName if you want to display meaningful names in VMUI or in the requests. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmalert
   -vmstorageDialTimeout duration
      Timeout for establishing RPC connections from vmselect to vmstorage. See also -vmstorageUserTimeout (default 3s)
   -vmstorageUserTimeout duration

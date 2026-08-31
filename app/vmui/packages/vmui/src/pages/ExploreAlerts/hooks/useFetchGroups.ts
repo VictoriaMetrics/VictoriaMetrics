@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useState } from "preact/compat";
-import { getGroupsUrl } from "../../../api/explore-alerts";
+import { getGroupsUrl, parseJsonResponse } from "../../../api/explore-alerts";
 import { useAppState } from "../../../state/common/StateContext";
 import { ErrorTypes, Group } from "../../../types";
 import { useTimeState } from "../../../state/time/TimeStateContext";
@@ -8,6 +8,9 @@ interface FetchGroupsReturn {
   groups: Group[];
   isLoading: boolean;
   error?: ErrorTypes | string;
+  // warnings is non-empty when some of the vmalerts at -vmalert.proxyURL are unavailable.
+  // The rest of vmalerts still return their groups in this case.
+  warnings: string[];
   pageInfo: PageInfo;
 }
 
@@ -16,6 +19,7 @@ interface FetchGroupsProps {
   search: string;
   ruleType: string;
   states: string[];
+  source: string;
   pageNum: number;
   onPageChange: (num: number) => () => void;
 }
@@ -29,7 +33,7 @@ interface PageInfo {
 
 const MAX_GROUPS = 100;
 
-export const useFetchGroups = ({ blockFetch, pageNum, search, ruleType, states, onPageChange }: FetchGroupsProps): FetchGroupsReturn => {
+export const useFetchGroups = ({ blockFetch, pageNum, search, ruleType, states, source, onPageChange }: FetchGroupsProps): FetchGroupsReturn => {
   const { serverUrl } = useAppState();
   const { period } = useTimeState();
 
@@ -42,10 +46,11 @@ export const useFetchGroups = ({ blockFetch, pageNum, search, ruleType, states, 
     total_rules: 0,
   });
   const [error, setError] = useState<ErrorTypes | string>();
+  const [warnings, setWarnings] = useState<string[]>([]);
 
   const fetchUrl = useMemo(
-    () => getGroupsUrl(serverUrl, search, ruleType, states, MAX_GROUPS),
-    [serverUrl, search, ruleType, states],
+    () => getGroupsUrl(serverUrl, search, ruleType, states, MAX_GROUPS, source),
+    [serverUrl, search, ruleType, states, source],
   );
 
   const loaded = !!groups.length || !blockFetch;
@@ -56,7 +61,7 @@ export const useFetchGroups = ({ blockFetch, pageNum, search, ruleType, states, 
       try {
         const url = `${fetchUrl}&page_num=${pageNum}`;
         const response = await fetch(url);
-        const resp = await response.json();
+        const resp = await parseJsonResponse(response);
         if (response.ok) {
           const loadedGroups = (resp.data.groups || []) as Group[];
           setGroups(loadedGroups);
@@ -66,6 +71,7 @@ export const useFetchGroups = ({ blockFetch, pageNum, search, ruleType, states, 
             total_groups: resp.total_groups || 0,
             total_rules: resp.total_rules || 0,
           });
+          setWarnings((resp.warnings || []) as string[]);
           setError(undefined);
         } else if (response.status === 400 && resp?.error?.includes("exceeds total amount of pages")) {
           onPageChange(1)();
@@ -83,5 +89,5 @@ export const useFetchGroups = ({ blockFetch, pageNum, search, ruleType, states, 
     fetchData().catch(console.error);
   }, [fetchUrl, period, loaded, pageNum]);
 
-  return { groups, isLoading, error, pageInfo };
+  return { groups, isLoading, error, warnings, pageInfo };
 };

@@ -22,6 +22,10 @@ interface SelectProps {
   autofocus?: boolean
   disabled?: boolean
   includeAll?: boolean
+  // closeOnSelect closes the list right after a value is selected.
+  // Use it for single-select lists, which still pass an array value
+  // in order to render the selection as a chip.
+  closeOnSelect?: boolean
   onChange: (value: string) => void
 }
 
@@ -37,6 +41,7 @@ const Select: FC<SelectProps> = ({
   autofocus,
   disabled,
   includeAll,
+  closeOnSelect,
   onChange
 }) => {
   const { isDarkTheme } = useAppState();
@@ -89,8 +94,11 @@ const Select: FC<SelectProps> = ({
   const handleSelected = (val: string) => {
     setSearch("");
     onChange(val);
-    if (!isMultiple) handleCloseList();
-    if (isMultiple && inputRef.current) inputRef.current.focus();
+    if (!isMultiple || closeOnSelect) {
+      handleCloseList();
+    } else if (inputRef.current) {
+      inputRef.current.focus();
+    }
   };
 
   const handleChange = (e: FormEvent<HTMLInputElement>) => {

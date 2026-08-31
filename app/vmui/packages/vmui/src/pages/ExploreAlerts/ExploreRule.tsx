@@ -13,21 +13,22 @@ interface ExploreRuleProps {
   groupId: string;
   id: string;
   mode: string;
+  source: string;
   onClose: () => void;
 }
 
-const ExploreRule = ({ groupId, id, mode, onClose }: ExploreRuleProps) => {
+const ExploreRule = ({ groupId, id, mode, source, onClose }: ExploreRuleProps) => {
   const {
     item,
     isLoading: isLoadingItem,
     error: errorItem,
-  } = useFetchItem<APIRule>({ groupId, id, mode });
+  } = useFetchItem<APIRule>({ groupId, id, mode, source });
 
   const {
     group,
     isLoading: isLoadingGroup,
     error: errorGroup,
-  } = useFetchGroup<APIGroup>({ id: groupId });
+  } = useFetchGroup<APIGroup>({ id: groupId, source });
 
   const error =  errorItem || errorGroup;
   const isLoading = isLoadingItem || isLoadingGroup;
@@ -50,6 +51,7 @@ const ExploreRule = ({ groupId, id, mode, onClose }: ExploreRuleProps) => {
           entity="rule"
           type={item.type}
           groupId={item.group_id}
+          source={source}
           states={getStates(item)}
           id={item.id}
           name={item.name}

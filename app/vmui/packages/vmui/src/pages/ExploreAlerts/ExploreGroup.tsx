@@ -9,15 +9,16 @@ import Modal from "../../components/Main/Modal/Modal";
 
 interface ExploreGroupProps {
   id: string;
+  source: string;
   onClose: () => void;
 }
 
-const ExploreGroup = ({ id, onClose }: ExploreGroupProps) => {
+const ExploreGroup = ({ id, source, onClose }: ExploreGroupProps) => {
   const {
     group,
     isLoading,
     error,
-  } = useFetchGroup<APIGroup>({ id });
+  } = useFetchGroup<APIGroup>({ id, source });
 
   if (isLoading) return (
     <Spinner />
@@ -36,6 +37,7 @@ const ExploreGroup = ({ id, onClose }: ExploreGroupProps) => {
         <ItemHeader
           entity="group"
           groupId={id}
+          source={source}
           name={group.name}
           states={group.states}
           onClose={onClose}

@@ -4,6 +4,7 @@ import Accordion from "../../Main/Accordion/Accordion";
 import "./style.scss";
 import { Group, Rule as APIRule } from "../../../types";
 import BaseRule from "../BaseRule";
+import { getVMAlertSource } from "../helpers";
 
 interface RuleProps {
   states: Record<string, number>;
@@ -21,6 +22,7 @@ const Rule: FC<RuleProps> = ({ states, rule, group }) => {
           entity="rule"
           type={rule.type}
           groupId={rule.group_id}
+          source={getVMAlertSource(group)}
           states={states}
           id={rule.id}
           name={rule.name}

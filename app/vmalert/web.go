@@ -22,6 +22,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vmalertapi"
 )
 
 var reloadAuthKey = flagutil.NewPassword("reloadAuthKey", "Auth key for /-/reload http endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*")
@@ -281,16 +282,8 @@ func (rh *requestHandler) getAlert(r *http.Request) (*rule.ApiAlert, *httpserver
 	return a, nil
 }
 
-type listGroupsResponse struct {
-	Status      string `json:"status"`
-	Page        int    `json:"page,omitempty"`
-	TotalPages  int    `json:"total_pages,omitempty"`
-	TotalGroups int    `json:"total_groups,omitempty"`
-	TotalRules  int    `json:"total_rules,omitempty"`
-	Data        struct {
-		Groups []*rule.ApiGroup `json:"groups"`
-	} `json:"data"`
-}
+// listGroupsResponse is shared with lib/vmalertproxy, which merges responses from multiple vmalerts.
+type listGroupsResponse = vmalertapi.ListGroupsResponse[*rule.ApiGroup]
 
 type groupsFilter struct {
 	groupNames []string
@@ -596,12 +589,8 @@ func (rh *requestHandler) listGroups(rf *rulesFilter) ([]byte, *httpserver.Error
 	return b, nil
 }
 
-type listAlertsResponse struct {
-	Status string `json:"status"`
-	Data   struct {
-		Alerts []*rule.ApiAlert `json:"alerts"`
-	} `json:"data"`
-}
+// listAlertsResponse is shared with lib/vmalertproxy, which merges responses from multiple vmalerts.
+type listAlertsResponse = vmalertapi.ListAlertsResponse[*rule.ApiAlert]
 
 func (rh *requestHandler) groupAlerts() []rule.GroupAlerts {
 	rh.m.groupsMu.RLock()
@@ -665,12 +654,8 @@ func (rh *requestHandler) listAlerts(af *alertsFilter) ([]byte, *httpserver.Erro
 	return b, nil
 }
 
-type listNotifiersResponse struct {
-	Status string `json:"status"`
-	Data   struct {
-		Notifiers []*notifier.ApiNotifier `json:"notifiers"`
-	} `json:"data"`
-}
+// listNotifiersResponse is shared with lib/vmalertproxy, which merges responses from multiple vmalerts.
+type listNotifiersResponse = vmalertapi.ListNotifiersResponse[*notifier.ApiNotifier]
 
 func (rh *requestHandler) listNotifiers() ([]byte, *httpserver.ErrorWithStatusCode) {
 	targets := notifier.GetTargets()

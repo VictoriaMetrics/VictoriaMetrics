@@ -1,4 +1,4 @@
-import { FC, useState } from "preact/compat";
+import { FC, useEffect, useMemo, useState } from "preact/compat";
 import { useNotifiersSetQueryParams as useSetQueryParams } from "./hooks/useSetQueryParams";
 import Spinner from "../../components/Main/Spinner/Spinner";
 import Alert from "../../components/Main/Alert/Alert";
@@ -12,24 +12,39 @@ import { Notifier as APINotifier, Target as APITarget } from "../../types";
 import { getQueryStringValue } from "../../utils/query-string";
 import { getChanges } from "./helpers";
 import debounce from "lodash.debounce";
+import { useAppState } from "../../state/common/StateContext";
 
 const defaultKindsStr = getQueryStringValue("kinds", "") as string;
 const defaultKinds = defaultKindsStr.split("&").filter((rt) => rt) as string[];
 const defaultSearchInput = getQueryStringValue("search", "") as string;
+const defaultSource = getQueryStringValue("vmalert_source", "") as string;
 
 const ExploreNotifiers: FC = () => {
+  const [searchInput, setSearchInput] = useState(defaultSearchInput);
+  const [kinds, setKinds] = useState(defaultKinds);
+  const [source, setSource] = useState(defaultSource);
+  const { appConfig } = useAppState();
+
   const {
     notifiers,
     isLoading,
     error,
-  } = useFetchNotifiers();
+    warnings,
+  } = useFetchNotifiers({ source });
 
-  const [searchInput, setSearchInput] = useState(defaultSearchInput);
-  const [kinds, setKinds] = useState(defaultKinds);
+  // allSources is set by vmselect only when more than a single -vmalert.proxyURL is configured.
+  const allSources = useMemo(() => appConfig?.vmalert?.sources || [], [appConfig]);
+  const selectedSources = [source].filter(Boolean);
+  useEffect(() => {
+    if (source && allSources.length && !allSources.includes(source)) {
+      setSource("");
+    }
+  }, [source, allSources]);
 
   useSetQueryParams({
     kinds: kinds.join("&"),
     search: searchInput,
+    vmalert_source: source,
   });
 
   const handleChangeSearch = (input: string) => {
@@ -68,15 +83,29 @@ const ExploreNotifiers: FC = () => {
     setKinds(getChanges(title, kinds));
   };
 
+  // Only a single source can be selected - see the comment at handleChangeSource in ExploreRules.
+  const handleChangeSource = (title: string) => {
+    setSource(title === "All" || title === source ? "" : title);
+  };
+
   return (
     <div className="vm-explore-alerts">
       <NotifiersHeader
         kinds={kinds}
         allKinds={Array.from(allKinds)}
+        sources={selectedSources}
+        allSources={allSources}
         search={searchInput}
         onChangeKinds={handleChangeKinds}
+        onChangeSource={handleChangeSource}
         onChangeSearch={debounce(handleChangeSearch, 500)}
       />
+      {warnings.map((warning) => (
+        <Alert
+          key={warning}
+          variant="warning"
+        >{warning}</Alert>
+      ))}
       {(isLoading && <Spinner />) || (error && <Alert variant="error">{error}</Alert>) || (
         !filteredNotifiers.length && <Alert variant="info">No notifiers found!</Alert>
       ) || (

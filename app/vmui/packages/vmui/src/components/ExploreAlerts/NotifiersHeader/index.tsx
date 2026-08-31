@@ -9,16 +9,22 @@ import useDeviceDetect from "../../../hooks/useDeviceDetect";
 interface NotifiersHeaderProps {
   kinds: string[];
   allKinds: string[];
+  sources: string[];
+  allSources: string[];
   search: string;
   onChangeKinds: (input: string) => void;
+  onChangeSource: (input: string) => void;
   onChangeSearch: (input: string) => void;
 }
 
 const NotifiersHeader: FC<NotifiersHeaderProps> = ({
   kinds,
   allKinds,
+  sources,
+  allSources,
   search,
   onChangeKinds,
+  onChangeSource,
   onChangeSearch,
 }) => {
   const { isMobile } = useDeviceDetect();
@@ -33,6 +39,20 @@ const NotifiersHeader: FC<NotifiersHeaderProps> = ({
           "vm-block_mobile": isMobile,
         })}
       >
+        {allSources.length > 1 && (
+          <div className="vm-explore-alerts-header__vmalert_source">
+            <Select
+              value={sources}
+              list={allSources}
+              label="Source"
+              placeholder="Please select vmalert source"
+              onChange={onChangeSource}
+              includeAll
+              searchable
+              closeOnSelect
+            />
+          </div>
+        )}
         <div className="vm-explore-alerts-header__rule_type">
           <Select
             value={kinds}

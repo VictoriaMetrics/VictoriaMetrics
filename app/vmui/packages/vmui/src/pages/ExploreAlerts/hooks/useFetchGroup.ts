@@ -1,6 +1,6 @@
 import { useTimeState } from "../../../state/time/TimeStateContext";
 import { useEffect, useMemo, useState } from "preact/compat";
-import { getGroupUrl } from "../../../api/explore-alerts";
+import { getGroupUrl, parseJsonResponse } from "../../../api/explore-alerts";
 import { useAppState } from "../../../state/common/StateContext";
 import { ErrorTypes } from "../../../types";
 
@@ -12,10 +12,13 @@ interface FetchGroupReturn<T> {
 
 interface FetchGroupProps {
   id: string;
+  // source is the name of the vmalert owning the group. See getVMAlertSource().
+  source: string;
 }
 
 export const useFetchGroup = <T>({
   id,
+  source,
 }: FetchGroupProps): FetchGroupReturn<T> => {
   const { serverUrl } = useAppState();
   const { period } = useTimeState();
@@ -25,8 +28,8 @@ export const useFetchGroup = <T>({
   const [error, setError] = useState<ErrorTypes | string>();
 
   const fetchUrl = useMemo(
-    () => getGroupUrl(serverUrl, id),
-    [serverUrl, id],
+    () => getGroupUrl(serverUrl, id, source),
+    [serverUrl, id, source],
   );
 
   useEffect(() => {
@@ -36,7 +39,7 @@ export const useFetchGroup = <T>({
         const response = await fetch(fetchUrl);
         switch (response.headers.get("Content-Type")) {
           case "application/json": {
-            const resp = await response.json();
+            const resp = await parseJsonResponse(response);
             if (response.ok) {
               setGroup(resp as T);
               setError(undefined);
