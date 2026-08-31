@@ -387,10 +387,10 @@ To remove a `vmstorage` node from the cluster, follow these steps:
 1. Remove `vmstorage` from the [`-storageNode` command-line flag](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#cluster-setup) on all `vminsert` nodes. This ensures that no new data is ingested into the removed node.
 1. Keep the configuration of `vmselect` nodes unchanged, so they continue to read data from the removed `vmstorage` node.
 1. Decide how to keep the data from the removed `vmstorage` node available:
-- The easiest way is to keep the removed `vmstorage` node until its `-retentionPeriod` is reached. It won't receive new data but will continue serving read queries for what it already stores. This approach requires no additional work, but keeps the resources of the removed node occupied. Once `-retentionPeriod` is reached, the `vmstorage` node can be removed from `vmselect`'s `-storageNode` configuration and decommissioned. No re-distribution or migration is required in this case.
-- Try migrating the data from the removed node by re-ingesting it into the remaining nodes. See how to do it below.
+   - The easiest way is to keep the removed `vmstorage` node until its `-retentionPeriod` is reached. It won't receive new data but will continue serving read queries for what it already stores. This approach requires no additional work, but keeps the resources of the removed node occupied. Once `-retentionPeriod` is reached, the `vmstorage` node can be removed from `vmselect`'s `-storageNode` configuration and decommissioned. No re-distribution or migration is required in this case.
+   - Try migrating the data from the removed node by re-ingesting it into the remaining nodes. See how to do it below.
 
-Please note that migrating big volumes of data is a time- and resource-consuming process, as data has to be read and ingested via the /export and /import APIs. To re-ingest data from the removed `vmstorage` node to the remaining nodes, follow these steps:
+Please note that migrating big volumes of data is a time- and resource-consuming process, as data has to be read and ingested via the native /export and /import APIs. To re-ingest data from the removed `vmstorage` node to the remaining nodes, follow these steps:
 1. Set [deduplication](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#deduplication) on `vmselect` and `vmstorage` nodes via the command-line flag `-dedup.minScrapeInterval=1ms`. This ensures that `vmselect` and `vmstorage` nodes deduplicate identical samples during migration.
 2. Set up a separate temporary `vmselect` node configured to read data **only from the removed node**. Adjust the `-search.maxExportDuration`, `-search.maxExportSeries`, and `-search.maxSeries` limits on the temporary `vmselect` to higher values. You might hit these limits during migration, and error logs on the temporary `vmselect` will identify which limit was hit.
 3. Use [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/) to read data from the removed node via new temporary vmselect and write it to the remaining nodes via existing vminserts:
@@ -398,6 +398,7 @@ Please note that migrating big volumes of data is a time- and resource-consuming
  ./vmctl vm-native --vm-native-src-addr=http://<new-vmselect>:8481/ \
   --vm-native-dst-addr=http://<vminsert>:8480/ \
   --vm-native-filter-match='{__name__!=""}' \
+  --vm-native-filter-time-start='2026-08-01T00:00:00Z' \
   --vm-native-step-interval=day \
   --vm-intercluster
 ```
@@ -405,9 +406,9 @@ Please note that migrating big volumes of data is a time- and resource-consuming
   - Run vmctl in the same network as cluster for the best performance
   - If you have load balancer like vmauth in front of vminsert nodes, specify its address in `--vm-native-dst-addr`. This will ensure that import requests will be distributed across all vminserts.
   - Specify `--vm-native-filter-match` or `--vm-native-filter-time-start` if you want to migrate only a subset of data. See more about [vmctl configuration](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/#configuration).
-4. Wait for migration to complete. See how to [monitor migration process](https://docs.victoriametrics.com/victoriametrics/vmctl/#monitoring-the-migration-process) and [migration tips](https://docs.victoriametrics.com/victoriametrics/vmctl/#migration-tips). It is OK to restart migration and re-ingest the same data again if main `vmselect` and `vmstorage` nodes has deduplication enabled.
+4. Wait for migration to complete. See how to [monitor migration process](https://docs.victoriametrics.com/victoriametrics/vmctl/#monitoring-the-migration-process) and [migration tips](https://docs.victoriametrics.com/victoriametrics/vmctl/#migration-tips). It is OK to restart migration and re-ingest the same data again if main `vmselect` and `vmstorage` nodes have deduplication enabled.
 5. Once migration is completed, remove `vmstorage` from [`-storageNode` command-line flag](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#cluster-setup) on all `vmselect` nodes. Verify that read queries are still returning expected results.
-6. Remove and decommission temporary `vmselect` and `vmstorage` nodes.
+6. Remove and decommission the temporary `vmselect` node, and `vmstorage` that had to be removed.
 
 ## Multitenancy
 
@@ -1097,7 +1098,7 @@ See more details about cardinality limiter in [these docs](https://docs.victoria
 
 VictoriaMetrics uses lower amounts of CPU, RAM and storage space on production workloads compared to competing solutions (Prometheus, Thanos, Cortex, TimescaleDB, InfluxDB, QuestDB, M3DB) according to [our case studies](https://docs.victoriametrics.com/victoriametrics/casestudies/).
 
-Cluster capacity scales linearly with the available resources. The needed amounts of CPU and RAM per each node type highly depends on the workload - the number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series), [series churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate), query types, query QPS, etc. 
+Cluster capacity scales linearly with the available resources. The needed amounts of CPU and RAM for each node type highly depend on the workload - the number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series), [series churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate), query types, query QPS, etc. 
 To start with capacity planning it is recommended to:
 1. Setup a test VictoriaMetrics cluster for your production workload. Start with 20-30 `vmstorage` shards with low resource limits, as bigger number of shards contributes to the cluster's reliability and makes future scalability easier.
 1. Setup [monitoring for the test cluster](#monitoring), so you can identify resource usage and bottlenecks.
@@ -1105,7 +1106,7 @@ To start with capacity planning it is recommended to:
 1. Iteratively scale resources until the cluster becomes stable:
    * Run approximately 1 `vminsert` for each 3-5 `vmstorage` shards. Scale vminserts horizontally if you have a high rate of write requests per-second, scale vertically otherwise. It is recommended running vmagent in front of vminserts, as it optimally compresses and batches data before forwarding it. Dedicate about 2GiB of RAM per 1 vCPU. 
    * Run an arbitrary number of `vmselect` nodes depending on the load. Scale vmselects horizontally if you have a high rate of read requests per-second. Scale vertically to improve query latency. Memory usage depends on queries: pick it accordingly to [-search.maxMemoryPerQuery and -search.maxConcurrentRequests](https://docs.victoriametrics.com/victoriametrics/#resource-usage-limits) limits. Dedicate at least 10GiB of disk volume for `vmselect` for storing local caches.
-   * `vmstorage`, unlike `vmselect` and `vminsert`, are stateful and its number can't be easily scaled up or down. This is why it is recommended to start with many small shards, and vertically scale resources until installation is stable. Scale horizontally to overcome hardware limitations, such as CPU/RAM/Disk size per instance.
+   * `vmstorage`, unlike `vmselect` and `vminsert`, are stateful and their number can't be easily scaled up or down. This is why it is recommended to start with many small shards, and vertically scale resources until installation is stable. Scale horizontally to overcome hardware limitations, such as CPU/RAM/Disk size per instance.
 
 The required storage space for the given retention (the retention is set via `-retentionPeriod` command-line flag at `vmstorage`) can be extrapolated from disk space usage in a test run. For example, if the storage space usage is 10GB after a day-long test run on a production workload, then it will need at least `10GB*100=1TB` of disk space for `-retentionPeriod=100d` (100-days retention period). Storage space usage can be monitored with [the official Grafana dashboard for VictoriaMetrics cluster](#monitoring).
 
