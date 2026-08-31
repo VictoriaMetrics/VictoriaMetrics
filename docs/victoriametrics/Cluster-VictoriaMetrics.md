@@ -6,6 +6,7 @@ menu:
     parent: 'victoriametrics'
     weight: 2
 title: Cluster version
+description: "Deploy and configure cluster mode with vminsert, vmselect, and vmstorage components, including replication and multi-tenancy."
 tags:
   - metrics
 aliases:
@@ -58,6 +59,11 @@ This is a [shared nothing architecture](https://en.wikipedia.org/wiki/Shared-not
 It increases cluster availability, and simplifies cluster maintenance as well as cluster scaling.
 
 ![Cluster Scheme](Cluster-VictoriaMetrics-components.webp)
+
+> Further reading, deep dives into how each service works internally:
+> - `vmstorage`: [How vmstorage Handles Data Ingestion From vminsert](https://victoriametrics.com/blog/vmstorage-how-it-handles-data-ingestion/), [How vmstorage's IndexDB Works](https://victoriametrics.com/blog/vmstorage-how-indexdb-works/), [How vmstorage Handles Query Requests From vmselect](https://victoriametrics.com/blog/vmstorage-how-it-handles-query-requests/).
+> - `vminsert`: [When Metrics Meet vminsert: A Data-Delivery Story](https://victoriametrics.com/blog/vminsert-how-it-works/).
+> - `vmselect`: [Inside vmselect: The Query Processing Engine of VictoriaMetrics](https://victoriametrics.com/blog/vmselect-how-it-works/).
 
 ## vmui
 
@@ -294,26 +300,26 @@ See [VMDistributed](https://docs.victoriametrics.com/operator/resources/vmdistri
 
 ## Cluster setup
 
-A minimal cluster must contain the following nodes:
+A minimal cluster setup consists of the following components:
 
 - a single `vmstorage` node with `-retentionPeriod` and `-storageDataPath` flags
 - a single `vminsert` node with `-storageNode=<vmstorage_host>`
 - a single `vmselect` node with `-storageNode=<vmstorage_host>`
 
-[Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/enterprise/) supports automatic discovering and updating of `vmstorage` nodes.
-See [these docs](#automatic-vmstorage-discovery) for details.
+> The [Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/enterprise/) supports automatic discovery and updating of `vmstorage` nodes.
+> See [automatic vmstorage discovery](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#automatic-vmstorage-discovery) for details.
 
-It is recommended to run at least two nodes for each service for high availability purposes. In this case the cluster continues working when a single node is temporarily unavailable and the remaining nodes can handle the increased workload. The node may be temporarily unavailable when the underlying hardware breaks, during software upgrades, migration or other maintenance tasks.
+ Prefer running many small `vmstorage` nodes over a few big `vmstorage` nodes. For example, prefer running at least 10 `vmstorage` nodes for better [load distribution and availability](#cluster-availability). If you need fewer `vmstorage` nodes, consider using the [single-node version](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) of VictoriaMetrics instead. See more on [choosing between single-node and cluster versions](https://docs.victoriametrics.com/victoriametrics/faq/#which-victoriametrics-type-is-recommended-for-use-in-production---single-node-or-cluster).
 
-It is preferred to run many small `vmstorage` nodes over a few big `vmstorage` nodes, since this reduces the workload increase on the remaining `vmstorage` nodes when some of `vmstorage` nodes become temporarily unavailable.
-
-An http load balancer such as [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) or `nginx` must be put in front of `vminsert` and `vmselect` nodes.
-It must contain the following routing configs according to [the url format](#url-format):
+If you run multiple nodes of `vminsert` or `vmselect`, use an HTTP load balancer such as [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/)
+or `nginx` in front of them. It must contain the following routing configs according to [the URL format](#url-format):
 
 - requests starting with `/insert` must be routed to port `8480` on `vminsert` nodes.
 - requests starting with `/select` must be routed to port `8481` on `vmselect` nodes.
 
-Ports may be altered by setting `-httpListenAddr` on the corresponding nodes.
+> Ports may be altered by setting `-httpListenAddr` on the corresponding nodes.
+
+See an example of the [vmauth configuration for a VictoriaMetrics cluster](https://docs.victoriametrics.com/vmauth/index.html#load-balancer-for-victoriametrics-cluster).
 
 It is recommended setting up [monitoring](#monitoring) for the cluster.
 
@@ -340,35 +346,32 @@ VictoriaMetrics cluster remains available if the following conditions are met:
 - HTTP load balancer must stop routing requests to unavailable `vminsert` and `vmselect` nodes
   ([vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) stops routing requests to unavailable nodes).
 
-- At least a single `vminsert` node must remain available in the cluster for processing data ingestion workload.
+- At least a single `vminsert` node must remain available in the cluster for processing the ingestion workload.
   The remaining active `vminsert` nodes must have enough compute capacity (CPU, RAM, network bandwidth)
-  for handling the current data ingestion workload.
-  If the remaining active `vminsert` nodes have no enough resources for processing the data ingestion workload,
-  then arbitrary delays may occur during data ingestion.
+  for handling the ingestion workload. Otherwise, ingestion could stop or be delayed.
   See [capacity planning](#capacity-planning) and [cluster resizing](#cluster-resizing-and-scalability) docs for more details.
 
 - At least a single `vmselect` node must remain available in the cluster for processing query workload.
   The remaining active `vmselect` nodes must have enough compute capacity (CPU, RAM, network bandwidth, disk IO)
-  for handling the current query workload.
-  If the remaining active `vmselect` nodes have no enough resources for processing query workload,
-  then arbitrary failures and delays may occur during query processing.
+  for handling the query workload.
+  If the remaining active `vmselect` nodes do not have enough resources for processing the query workload,
+  then arbitrary query failures and latency increases may occur during query processing.
   See [capacity planning](#capacity-planning) and [cluster resizing](#cluster-resizing-and-scalability) docs for more details.
 
 - At least a single `vmstorage` node must remain available in the cluster for accepting newly ingested data
-  and for processing incoming queries. The remaining active `vmstorage` nodes must have enough compute capacity
-  (CPU, RAM, network bandwidth, disk IO, free disk space) for  handling the current workload.
-  If the remaining active `vmstorage` nodes have no enough resources for processing query workload,
-  then arbitrary failures and delay may occur during data ingestion and query processing.
+  and for processing incoming read queries. The remaining active `vmstorage` nodes must have enough compute capacity
+  (CPU, RAM, network bandwidth, disk IO, free disk space) for handling the workload.
+  If the remaining active `vmstorage` nodes do not have enough resources for processing the workload,
+  then arbitrary failures and delays may occur during data ingestion and query processing.
   See [capacity planning](#capacity-planning) and [cluster resizing](#cluster-resizing-and-scalability) docs for more details.
 
 The cluster works in the following way when some of `vmstorage` nodes are unavailable:
 
-- `vminsert` re-routes newly ingested data from unavailable `vmstorage` nodes to remaining healthy `vmstorage` nodes.
-  This guarantees that the newly ingested data is properly saved if the healthy `vmstorage` nodes have enough CPU, RAM, disk IO and network bandwidth
-  for processing the increased data ingestion workload.
-  `vminsert` spreads evenly the additional data among the healthy `vmstorage` nodes in order to spread evenly
-  the increased load on these nodes. During re-routing, healthy `vmstorage` nodes will experience higher resource usage
-  and increase in number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series).
+- `vminsert` [re-routes](https://victoriametrics.com/blog/vminsert-how-it-works/#31-rerouting) newly ingested data from 
+  unavailable `vmstorage` nodes to remaining healthy `vmstorage` nodes. This guarantees that the newly ingested data is 
+  properly saved if the healthy `vmstorage` nodes have enough CPU, RAM, disk I/O, and network bandwidth for processing
+  the increased data ingestion workload. During re-routing, healthy `vmstorage` nodes will experience higher resource usage
+  and an increase in the number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series).
 
 - `vmselect` continues serving queries if at least a single `vmstorage` nodes is available.
   It marks responses as partial for queries served from the remaining healthy `vmstorage` nodes,
@@ -828,8 +831,8 @@ See also [minimum downtime strategy](#minimum-downtime-strategy).
 
 ## Slowness-based re-routing
 
-By default{{% available_from "v1.149.0" %}}, `vminsert` automatically re-routes writes away from the slowest `vmstorage` node
-to preserve maximum ingestion throughput. This prevents a single slow `vmstorage` node
+By default{{% available_from "v1.149.0" %}}, `vminsert` automatically [re-route writes](https://victoriametrics.com/blog/vminsert-how-it-works/#31-rerouting)
+away from the slowest `vmstorage` node to preserve maximum ingestion throughput. This prevents a single slow `vmstorage` node
 from throttling the entire cluster.
 
 Re-routing occurs only when all of the following conditions hold:
@@ -877,7 +880,7 @@ See also [resource usage limits docs](#resource-usage-limits).
 
 ## Rebalancing
 
-Every `vminsert` node evenly spreads (shards) incoming data among `vmstorage` nodes specified in the `-storageNode` command-line flag.
+Every `vminsert` node [evenly spreads (shards) incoming data](https://victoriametrics.com/blog/vminsert-how-it-works/#3-sharding-and-buffering) among `vmstorage` nodes specified in the `-storageNode` command-line flag.
 This guarantees even distribution of the ingested data among `vmstorage` nodes. When new `vmstorage` nodes are added to the `-storageNode`
 command-line flag at `vminsert`, then only newly ingested data is distributed evenly among old and new `vmstorage` nodes, while
 historical data remains on the old `vmstorage` nodes. This speeds up data ingestion and querying for the majority of production workloads,
@@ -1025,7 +1028,7 @@ By default, VictoriaMetrics offloads replication to the underlying storage point
 which guarantees data durability. VictoriaMetrics supports application-level replication if replicated durable persistent disks cannot be used for some reason.
 
 The replication can be enabled by passing `-replicationFactor=N` command-line flag to `vminsert`. This instructs `vminsert` to store `N` copies for every ingested sample
-on `N` distinct `vmstorage` nodes. This guarantees that all the stored data remains available for querying if up to `N-1` `vmstorage` nodes are unavailable.
+on `N` distinct `vmstorage` nodes. This guarantees that all the stored data remains available for querying if up to `N-1` `vmstorage` nodes are unavailable. See [how `vminsert` replicates each sample to `N` `vmstorage` nodes](https://victoriametrics.com/blog/vminsert-how-it-works/#4-replication-and-sending-data-to-vmstorage) for details.
 
 Passing `-replicationFactor=N` command-line flag to `vmselect` instructs it to not mark responses as `partial` if less than `-replicationFactor` vmstorage nodes are unavailable during the query.
 See [cluster availability docs](#cluster-availability) for details.
@@ -1060,7 +1063,7 @@ deduplication can't be guaranteed when samples and sample duplicates for the sam
 - when `vmstorage` node has no enough capacity for processing incoming data stream. Then `vminsert` re-routes new samples to other `vmstorage` nodes.
 
 It is recommended to set **the same** `-dedup.minScrapeInterval` command-line flag value to both `vmselect` and `vmstorage` nodes
-to ensure query results consistency, even if storage layer didn't complete deduplication yet.
+to ensure query results consistency, even if [storage layer didn't complete deduplication](https://victoriametrics.com/blog/vmstorage-retention-merging-deduplication/#deduplication) yet.
 
 ## Metrics Metadata
 

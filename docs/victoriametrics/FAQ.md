@@ -1,6 +1,7 @@
 ---
 weight: 24
 title: FAQ
+description: "Frequently asked questions comparing VM with Prometheus, InfluxDB, TimescaleDB, M3DB, Thanos, and Cortex."
 menu:
   docs:
     parent: 'victoriametrics'
@@ -441,29 +442,29 @@ Both [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametr
 
 See [Scalability limits of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/faq/#what-are-scalability-limits-of-victoriametrics).
 
-Single-node VictoriaMetrics requires lower amounts of CPU and RAM for handling the same workload comparing
-to cluster version of VictoriaMetrics, since it doesn't need to pass the encoded data over the network
-between [cluster components](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#architecture-overview).
+Benefits of using single-node VictoriaMetrics: 
 
-The performance of a single-node VictoriaMetrics scales almost perfectly with the available CPU, RAM and disk IO resources on the host where it runs -
-see [this article](https://valyala.medium.com/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae).
+* Requires less CPU and RAM than the cluster version for the same workload because it doesn't need to transfer   encoded data over the network between [cluster components](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#architecture-overview) 
 
-Single-node VictoriaMetrics is easier to setup and operate comparing to cluster version of VictoriaMetrics.
+* Scales almost perfectly with the available CPU, RAM, and disk I/O resources on the host where it runs. See [Measuring vertical scalability for time series databases in Google Cloud](https://valyala.medium.com/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae) to learn how VictoriaMetrics single-node scales vertically.
+
+* It is easier to set up and operate compared to the cluster version of VictoriaMetrics 
+
+* Supports [high availability](https://docs.victoriametrics.com/Single-server-VictoriaMetrics/#high-availability)
 
 Given the facts above **it is recommended to use single-node VictoriaMetrics in the majority of cases**.
 
 Cluster version of VictoriaMetrics may be preferred over single-node VictoriaMetrics in the following relatively rare cases:
 
-* If [multitenancy support](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) is needed,
-  since single-node VictoriaMetrics doesn't support multitenancy. Though it is possible to run multiple single-node VictoriaMetrics
-  instances - one per each tenant - and route incoming requests from particular tenant to the needed VictoriaMetrics instance
-  via [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/).
+* If [multitenancy support](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) is needed.
+  Single-node VictoriaMetrics doesn't support multitenancy. Though it is possible to run multiple single-node VictoriaMetrics
+  instances - one per each tenant. See more about [multitenancy in the single-node version](https://docs.victoriametrics.com/victoriametrics/#multi-tenancy). - and route incoming requests from a particular tenant to the needed VictoriaMetrics instance
+  Multitenancy can also be achieved via metric labels (i.e., `{env="prod"}` or `{team="platform"}`) and [enforcing](https://docs.victoriametrics.com/victoriametrics/#prometheus-querying-api-enhancements)
+  labels filters on reads via [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/#enforcing-query-args).
 
-* If the current workload cannot be handled by a single-node VictoriaMetrics. For example, if you are going to ingest hundreds of millions of active time series
-  at ingestion rates exceeding a million samples per second, then it is better to use cluster version of VictoriaMetrics,
-  since its capacity can [scale horizontally with the number of nodes in the cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#cluster-resizing-and-scalability).
+* If a single-node VictoriaMetrics cannot handle the current workload. For example, if you plan to ingest hundreds of millions of active time series at ingestion rates exceeding millions of samples per second, it is better to use a cluster version of VictoriaMetrics. Its capacity can [scale horizontally with the number of nodes in the cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#cluster-resizing-and-scalability).
 
-[Don't choose cluster unless you have to](https://victoriametrics.com/blog/dont-default-to-microservices-you-will-thank-us-later/).
+[Don't choose VictoriaMetrics cluster unless you have to](https://victoriametrics.com/blog/dont-default-to-microservices-you-will-thank-us-later/).
 
 ## How to migrate data from single-node VictoriaMetrics to cluster version?
 

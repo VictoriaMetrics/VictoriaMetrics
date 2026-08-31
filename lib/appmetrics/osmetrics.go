@@ -13,13 +13,13 @@ type osInfo struct {
 	release string
 }
 
-var os osInfo
+var hostOS osInfo
 var initOSOnce sync.Once
 
 func writeOSMetrics(w io.Writer) {
 	initOSOnce.Do(initOS)
 
-	if os.name != "" {
-		metrics.WriteGaugeUint64(w, fmt.Sprintf(`vm_os_info{os=%q, release=%q}`, os.name, os.release), 1)
+	if hostOS.name != "" {
+		metrics.WriteGaugeUint64(w, fmt.Sprintf(`vm_os_info{os=%q, release=%q}`, hostOS.name, hostOS.release), 1)
 	}
 }

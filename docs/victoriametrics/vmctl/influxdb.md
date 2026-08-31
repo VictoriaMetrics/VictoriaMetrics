@@ -1,5 +1,6 @@
 ---
 title: InfluxDB
+description: "Migrate historical data from InfluxDB v1."
 weight: 2
 menu:
   docs:

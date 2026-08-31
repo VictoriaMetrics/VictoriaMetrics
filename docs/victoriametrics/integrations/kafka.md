@@ -1,5 +1,6 @@
 ---
 title: Kafka
+description: "Enterprise vmagent Kafka consumer/producer for metrics."
 weight: 9
 menu:
   docs:
@@ -87,6 +88,33 @@ keep up with the data ingestion rate. Buffering can be disabled via `-remoteWrit
 See more about [disabling on-disk persistence](https://docs.victoriametrics.com/victoriametrics/vmagent/#disabling-on-disk-persistence).
 
 See also [how to write metrics to multiple distinct tenants](https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy).
+
+### Slow consumption
+
+If `vmagent` consumes messages from Kafka slower than expected, the following metrics help narrow down the bottleneck:
+
+* `vmagent_kafka_consumer_fetch_queue_size` - the number of fetched Kafka messages waiting for processing by `vmagent`.
+* `vmagent_kafka_consumer_broker_rtt_seconds` - the round-trip time between `vmagent` and Kafka brokers.
+
+These metrics help distinguish between two possible root causes:
+
+1. Kafka broker or network issues. If `vmagent_kafka_consumer_fetch_queue_size` is low while `vmagent_kafka_consumer_broker_rtt_seconds` is high or unstable, then slow consumption may be caused by unhealthy Kafka broker or high network latency. In this case, check the broker health and network connectivity.
+2. `vmagent` or remote write destination issues. If `vmagent_kafka_consumer_fetch_queue_size` grows while `vmagent_kafka_consumer_broker_rtt_seconds` remains low, then `vmagent` fetches data from Kafka successfully but cannot forward it fast enough, either due to a `vmagent`-side bottleneck or a saturated remote write destination.
+
+For the second case, use the official [`vmagent` Grafana dashboard](https://grafana.com/grafana/dashboards/12683) and check these panels:
+
+1. Check whether `vmagent` has enough CPU in the `CPU usage` panel.
+   Insufficient CPU resources are the simplest and most direct reason for slow message processing.
+   If this is the case, consider adding more resources or collect [CPU profiles](https://docs.victoriametrics.com/victoriametrics/vmagent/#profiling) to identify the bottleneck.
+
+2. If the CPU usage looks good, check the `Remote write connection saturation` panel for the corresponding downstream `-remoteWrite.url`.
+   Growing consumer lag together with a growing remote write queue and saturation indicates that the downstream destination cannot keep up with ingestion.
+   In this case, investigate and tune the downstream `-remoteWrite.url`.
+
+3. If the downstream `-remoteWrite.url` is healthy and `vmagent` has sufficient CPU capacity, consider increasing `-kafka.consumer.topic.concurrency` to speed up consumption.
+   Note that the maximum parallelism for the topic is limited to the number of partitions, so the total number of consumers should not exceed this value.
+   Any consumers exceeding this limit will be in an idle state.
+
 
 ### Consumer command-line flags 
 

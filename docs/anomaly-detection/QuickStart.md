@@ -1,6 +1,7 @@
 ---
 weight: 1
 title: Quick Start
+description: "Get started with vmanomaly. Install, configure, and run anomaly detection."
 menu:
   docs:
     parent: "anomaly-detection"
@@ -137,7 +138,7 @@ Below are the steps to get `vmanomaly` up and running inside a Docker container:
 1. Pull Docker image:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.30.2
+docker pull victoriametrics/vmanomaly:v1.30.4
 ```
 
 2. Create the license file with your license key.
@@ -157,7 +158,7 @@ docker run -it \
     -v ./license:/license \
     -v ./config.yaml:/config.yaml \
     -p 8490:8490 \
-    victoriametrics/vmanomaly:v1.30.2 \
+    victoriametrics/vmanomaly:v1.30.4 \
     /config.yaml \
     --licenseFile=/license \
     --loggerLevel=INFO \
@@ -174,7 +175,7 @@ docker run -it \
     -e VMANOMALY_DATA_DUMPS_DIR=/tmp/vmanomaly/data \
     -e VMANOMALY_MODEL_DUMPS_DIR=/tmp/vmanomaly/models \
     -p 8490:8490 \
-    victoriametrics/vmanomaly:v1.30.2 \
+    victoriametrics/vmanomaly:v1.30.4 \
     /config.yaml \
     --licenseFile=/license \
     --loggerLevel=INFO \
@@ -187,7 +188,7 @@ services:
   # ...
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.30.2
+    image: victoriametrics/vmanomaly:v1.30.4
     # ...
     restart: always
     volumes:

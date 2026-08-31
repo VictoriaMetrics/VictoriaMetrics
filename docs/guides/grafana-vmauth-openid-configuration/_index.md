@@ -1,6 +1,7 @@
 ---
 weight: 5
 title: Setup vmauth - Multi-Tenant Access with Grafana & OIDC
+description: "Multi-tenant access for metrics, logs, and traces with Grafana and OIDC."
 menu:
   docs:
     parent: guides

@@ -411,8 +411,8 @@ func newRulesFilter(r *http.Request) (*rulesFilter, *httpserver.ErrorWithStatusC
 		states = vs["filter"]
 	}
 	for _, s := range states {
-		values := strings.Split(s, ",")
-		for _, v := range values {
+		values := strings.SplitSeq(s, ",")
+		for v := range values {
 			if len(v) == 0 {
 				continue
 			}
