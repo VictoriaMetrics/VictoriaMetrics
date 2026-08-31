@@ -65,239 +65,6 @@ It increases cluster availability, and simplifies cluster maintenance as well as
 > - `vminsert`: [When Metrics Meet vminsert: A Data-Delivery Story](https://victoriametrics.com/blog/vminsert-how-it-works/).
 > - `vmselect`: [Inside vmselect: The Query Processing Engine of VictoriaMetrics](https://victoriametrics.com/blog/vmselect-how-it-works/).
 
-## vmui
-
-VictoriaMetrics cluster version provides UI for query troubleshooting and exploration. The UI is available at
-`http://<vmselect>:8481/select/<accountID>/vmui/` in each `vmselect` service.
-The UI allows exploring query results via graphs and tables. See more details about [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui).
-
-## Multitenancy
-
-VictoriaMetrics cluster supports multiple isolated tenants (aka namespaces).
-Tenants are identified by `accountID` or `accountID:projectID` inside request URLs or HTTP headers{{% available_from "v1.143.0" %}}
-for writes and reads. See [these docs](#url-format) for details.
-
-Some facts about tenants in VictoriaMetrics:
-
-- Each `accountID` and `projectID` is identified by an arbitrary 32-bit integer in the range `[0 .. 2^32)`.
-If `projectID` is missing, then it is automatically assigned to `0`. It is expected that other information about tenants
-such as auth tokens, tenant names, limits, accounting, etc. is stored in a separate relational database. This database must be managed
-by a separate service sitting in front of VictoriaMetrics cluster such as [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/)
-or [vmgateway](https://docs.victoriametrics.com/victoriametrics/vmgateway/). [Contact us](mailto:info@victoriametrics.com) if you need assistance with such service.
-
-- Tenants are automatically created when the first data point is written into the given tenant.
-
-- Data for all the tenants is evenly spread among available `vmstorage` nodes. This guarantees even load among `vmstorage` nodes
-when different tenants have different amounts of data and different query load.
-
-- The database performance and resource usage do not depend on the number of tenants. It depends mostly on the total number of 
-  [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series) in all the tenants. 
-
-- The list of registered tenants can be obtained via `http://<vmselect>:8481/admin/tenants` url. See [these docs](#url-format).
-
-- VictoriaMetrics exposes various per-tenant statistics via metrics - see [these docs](https://docs.victoriametrics.com/victoriametrics/pertenantstatistic/).
-
-See also multitenancy [via headers](#multitenancy-via-headers) and [via labels](#multitenancy-via-labels).
-
-### Multitenancy via headers
-
-With `--enableMultitenancyViaHeaders` {{% available_from "v1.143.0" %}} command-line flag enabled (enabled by default {{% available_from "v1.150.0" %}})
-tenant ID can be specified via HTTP headers `AccountID` and `ProjectID`. This flag needs to be enabled on vminserts and vmselects.
-
-With `--enableMultitenancyViaHeaders` enabled [URL format](#url-format) can be simplified to the following:
-- `http://<vminsert>:8480/insert/<suffix>` for writes
-- `http://<vmselect>:8481/select/prometheus/<suffix>` for reads
-
-> Set --enableMultitenancyViaHeaders=false to disable simplified URL format.
-
-For example, the following query will only select metric `up` from `accountID=2` and `projectID=3`:
-```
-curl 'https://<vmselect>:8481/select/prometheus/api/v1/query' \
-  -d 'query=up' \
-  --header "AccountID: 2" \
-  --header "ProjectID: 3"
-```
-
-The following example will ingest metric `up{instance="foo"}` to `accountID=2` and `projectID=0`:
-```
-curl --header "AccountID: 2" -d 'up{instance="foo"} 123' -X POST https://<vminsert>:8480/insert/prometheus/api/v1/import/prometheus
-```
-
-> When simplified path `/(insert|select)/<suffix>` is used and headers `AccountID`, `ProjectID` are missing, then IDs are set to `0:0` as default.
-> If tenant IDs are specified in URL, then headers are ignored.
-
-The `AccountID` header can be set to `multitenant` string: `AccountID: multitenant`. See more in [multitenancy via labels](#multitenancy-via-labels).
-
-### Multitenancy via labels
-
-Multitenancy via labels allows specifying [tenants](#multitenancy) as labels `vm_account_id` and `vm_project_id` during
-ingestion or querying. This feature allows [ingesting workload with mixed tenants](#multitenant-writes) and [querying
-data from multiple tenants](#multitenant-reads) via the same URL.
-
-#### Multitenant writes
-
-`vminsert` can accept data from multiple [tenants](#multitenancy) via special `multitenant` endpoints:
- - `http://vminsert:8480/insert/multitenant/<suffix>`
- - `http://vminsert:8480/insert/<suffix>` and HTTP header `AccountID: multitenant`. See how to enable headers [here](#multitenancy-via-headers).
-where `<suffix>` can be replaced with any supported suffix for data ingestion from [this list](#url-format).
-The `accountID` and `projectID` are obtained from optional `vm_account_id` and `vm_project_id` [labels](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#labels) of the incoming samples.
-If `vm_account_id` or `vm_project_id` labels are missing or invalid, then the corresponding `accountID` and `projectID` are set to 0.
-These labels are automatically removed from samples before forwarding them to `vmstorage`.
-For example, if the following samples are written into `http://vminsert:8480/insert/multitenant/prometheus/api/v1/write`:
-
-```promtextmetric
-http_requests_total{path="/foo",vm_account_id="42"} 12
-http_requests_total{path="/bar",vm_account_id="7",vm_project_id="9"} 34
-```
-
-Then the `http_requests_total{path="/foo"} 12` would be stored in the tenant `accountID=42, projectID=0`,
-while the `http_requests_total{path="/bar"} 34` would be stored in the tenant `accountID=7, projectID=9`.
-
-The `vm_account_id` and `vm_project_id` labels are extracted after applying the [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/)
-set via `-relabelConfig` command-line flag, so these labels can be set at this stage.
-
-The `vm_account_id` and `vm_project_id` labels are also taken into account when ingesting data via non-http-based protocols
-such as [Graphite](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting),
-[InfluxDB line protocol via TCP and UDP](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb/) and
-[OpenTSDB telnet put protocol](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb/#sending-data-via-telnet).
-
-#### Multitenant reads
-
-_For better performance prefer specifying [tenants in read URL](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format)._
-
-`vmselect` can execute {{% available_from "v1.104.0" %}} queries over multiple [tenants](#multitenancy) via special `multitenant` endpoints:
- - `http://vmselect:8481/select/multitenant/<suffix>`
- - `http://vmselect:8481/select/<suffix>` and HTTP header `AccountID: multitenant`. See how to enable headers [here](#multitenancy-via-headers).
-
-Currently supported endpoints for `<suffix>` are:
-
-- `/prometheus/api/v1/query`
-- `/prometheus/api/v1/query_range`
-- `/prometheus/api/v1/series`
-- `/prometheus/api/v1/labels`
-- `/prometheus/api/v1/label/<label_name>/values`
-- `/prometheus/api/v1/status/active_queries`
-- `/prometheus/api/v1/status/top_queries`
-- `/prometheus/api/v1/status/tsdb`
-- `/prometheus/api/v1/export`
-- `/prometheus/api/v1/export/csv`
-- `/prometheus/api/v1/metadata`
-- `/vmui`
-
-It is allowed to explicitly specify tenant IDs via `vm_account_id` and `vm_project_id` labels in the query.
-For example, the following query fetches metric `up` for the tenants `accountID=42` and `accountID=7, projectID=9`:
-
-```promtextmetric
-up{vm_account_id="7", vm_project_id="9" or vm_account_id="42"}
-```
-
-`vm_account_id` and `vm_project_id` labels support all operators for label matching. For example:
-
-```promtextmetric
-up{vm_account_id!="42"} # selects all the time series except those belonging to accountID=42
-up{vm_account_id=~"4.*"} # selects all the time series belonging to accountIDs starting with 4
-```
-
-Alternatively, it is possible to use [`extra_filters[]` and `extra_label`](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-enhancements)
-query args to apply additional filters for the query:
-
-```bash
-curl 'http://vmselect:8481/select/multitenant/prometheus/api/v1/query' \
-  -d 'query=up' \
-  -d 'extra_filters[]={vm_account_id="7",vm_project_id="9"}' \
-  -d 'extra_filters[]={vm_account_id="42"}'
-```
-
-The precedence for applying filters for tenants follows this order:
-
-1. Filter tenants by `extra_label`, `extra_filters` and `extra_filters[]` filters.
- These filters have the highest priority and are applied first when provided through the query arguments.
- Filters use `OR` logic - a tenant is selected if it matches any of the filters.
-2. Filter tenants from labels selectors defined at metricsQL query expression.
-
-> **Security considerations**
-It is recommended restricting access to `multitenant` endpoints only to trusted sources,
-since untrusted source may break per-tenant data by writing unwanted samples or get access to data of arbitrary tenants.
-See also [vmauth security doc](https://docs.victoriametrics.com/victoriametrics/vmauth/#security).
-
-## Binaries
-
-Compiled binaries for the cluster version are available in the `assets` section of the [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-Also see archives containing the word `cluster`.
-
-Docker images for the cluster version are available here:
-
-- `vminsert` - [Docker Hub](https://hub.docker.com/r/victoriametrics/vminsert/tags) and [Quay](https://quay.io/repository/victoriametrics/vminsert?tab=tags)
-- `vmselect` - [Docker Hub](https://hub.docker.com/r/victoriametrics/vmselect/tags) and [Quay](https://quay.io/repository/victoriametrics/vmselect?tab=tags)
-- `vmstorage` - [Docker Hub](https://hub.docker.com/r/victoriametrics/vmstorage/tags) and [Quay](https://quay.io/repository/victoriametrics/vmstorage?tab=tags)
-
-## Building from sources
-
-The source code for the cluster version is available in the [cluster branch](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
-
-### Production builds
-
-There is no need to install Go on a host system since binaries are built
-inside [the official docker container for Go](https://hub.docker.com/_/golang).
-This allows reproducible builds.
-So [install docker](https://docs.docker.com/install/) and run the following command:
-
-```bash
-make vminsert-prod vmselect-prod vmstorage-prod
-```
-
-Production binaries are built into statically linked binaries. They are put into the `bin` folder with `-prod` suffixes:
-
-```bash
-$ make vminsert-prod vmselect-prod vmstorage-prod
-$ ls -1 bin
-vminsert-prod
-vmselect-prod
-vmstorage-prod
-```
-
-### Development Builds
-
-1. [Install go](https://golang.org/doc/install).
-1. Run `make` from [the repository root](https://github.com/VictoriaMetrics/VictoriaMetrics). It should build `vmstorage`, `vmselect`
-   and `vminsert` binaries and put them into the `bin` folder.
-
-### Building docker images
-
-Run `make package`. It will build the following docker images locally:
-
-- `victoriametrics/vminsert:<PKG_TAG>`
-- `victoriametrics/vmselect:<PKG_TAG>`
-- `victoriametrics/vmstorage:<PKG_TAG>`
-
-`<PKG_TAG>` is auto-generated image tag, which depends on source code in [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
-The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package`.
-
-By default, images are built on top of [alpine](https://hub.docker.com/_/scratch) image in order to improve debuggability.
-It is possible to build an image on top of any other base image by setting it via `<ROOT_IMAGE>` environment variable.
-For example, the following command builds images on top of [scratch](https://hub.docker.com/_/scratch) image:
-
-```bash
-ROOT_IMAGE=scratch make package
-```
-
-## High availability
-
-The database is considered highly available if it continues accepting new data and processing incoming queries when some of its components are temporarily unavailable.
-VictoriaMetrics cluster is highly available according to this definition - see [cluster availability docs](#cluster-availability).
-
-It is recommended to run all the components for a single cluster in the same subnetwork with high bandwidth, low latency and low error rates.
-This improves cluster performance and availability. It isn't recommended spreading components for a single cluster
-across multiple availability zones, since cross-AZ network usually has lower bandwidth, higher latency and higher
-error rates comparing the network inside a single AZ.
-
-If you need multi-AZ setup, then it is recommended running independent clusters in each AZ and setting up
-[vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) in front of these clusters, so it could replicate incoming data
-into all the cluster - see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy) for details.
-Then an additional `vmselect` nodes can be configured for reading the data from multiple clusters according to [these docs](#multi-level-cluster-setup).
-
-See [VMDistributed](https://docs.victoriametrics.com/operator/resources/vmdistributed/) Kubernetes operator resource for an example.
-
 ## Cluster setup
 
 A minimal cluster setup consists of the following components:
@@ -309,7 +76,7 @@ A minimal cluster setup consists of the following components:
 > The [Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/enterprise/) supports automatic discovery and updating of `vmstorage` nodes.
 > See [automatic vmstorage discovery](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#automatic-vmstorage-discovery) for details.
 
- Prefer running many small `vmstorage` nodes over a few big `vmstorage` nodes. For example, prefer running at least 10 `vmstorage` nodes for better [load distribution and availability](#cluster-availability). If you need fewer `vmstorage` nodes, consider using the [single-node version](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) of VictoriaMetrics instead. See more on [choosing between single-node and cluster versions](https://docs.victoriametrics.com/victoriametrics/faq/#which-victoriametrics-type-is-recommended-for-use-in-production---single-node-or-cluster).
+Prefer running many small `vmstorage` nodes over a few big `vmstorage` nodes. For example, prefer running at least 10 `vmstorage` nodes for better [load distribution and availability](#cluster-availability). If you need fewer `vmstorage` nodes, consider using the [single-node version](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) of VictoriaMetrics instead. See more on [choosing between single-node and cluster versions](https://docs.victoriametrics.com/victoriametrics/faq/#which-victoriametrics-type-is-recommended-for-use-in-production---single-node-or-cluster).
 
 If you run multiple nodes of `vminsert` or `vmselect`, use an HTTP load balancer such as [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/)
 or `nginx` in front of them. It must contain the following routing configs according to [the URL format](#url-format):
@@ -367,8 +134,8 @@ VictoriaMetrics cluster remains available if the following conditions are met:
 
 The cluster works in the following way when some of `vmstorage` nodes are unavailable:
 
-- `vminsert` [re-routes](https://victoriametrics.com/blog/vminsert-how-it-works/#31-rerouting) newly ingested data from 
-  unavailable `vmstorage` nodes to remaining healthy `vmstorage` nodes. This guarantees that the newly ingested data is 
+- `vminsert` [re-routes](https://victoriametrics.com/blog/vminsert-how-it-works/#31-rerouting) newly ingested data from
+  unavailable `vmstorage` nodes to remaining healthy `vmstorage` nodes. This guarantees that the newly ingested data is
   properly saved if the healthy `vmstorage` nodes have enough CPU, RAM, disk I/O, and network bandwidth for processing
   the increased data ingestion workload. During re-routing, healthy `vmstorage` nodes will experience higher resource usage
   and an increase in the number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series).
@@ -527,102 +294,238 @@ Discovery mechanism could be also used together with [vmstorage group](#vmstorag
 Each `-storageNode` parameter assigns one or more storage nodes to a specific group (e.g., `g1`, `g2`, `g3`).
 The automatically discovered nodes retain the [vmstorage group](#vmstorage-groups-at-vmselect) prefix to maintain consistent group mapping.
 
-### Environment variables
+## High availability
 
-See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#environment-variables).
+The database is considered highly available if it continues accepting new data and processing incoming queries when some of its components are temporarily unavailable.
+VictoriaMetrics cluster is highly available according to this definition - see [cluster availability docs](#cluster-availability).
 
-## Security
+It is recommended to run all the components for a single cluster in the same subnetwork with high bandwidth, low latency and low error rates.
+This improves cluster performance and availability. It isn't recommended spreading components for a single cluster
+across multiple availability zones, since cross-AZ network usually has lower bandwidth, higher latency and higher
+error rates comparing the network inside a single AZ.
 
-General security recommendations:
+If you need multi-AZ setup, then it is recommended running independent clusters in each AZ and setting up
+[vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) in front of these clusters, so it could replicate incoming data
+into all the cluster - see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy) for details.
+Then an additional `vmselect` nodes can be configured for reading the data from multiple clusters according to [these docs](#multi-level-cluster-setup).
 
-- All the VictoriaMetrics cluster components must run in protected private network without direct access from untrusted networks such as Internet.
-- External clients must access `vminsert` and `vmselect` via auth proxy such as [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/)
-  or [vmgateway](https://docs.victoriametrics.com/victoriametrics/vmgateway/).
-- The auth proxy must accept auth tokens from untrusted networks only via https in order to protect the auth tokens from MitM attacks.
-- It is recommended using distinct auth tokens for distinct [tenants](#multitenancy) in order to reduce potential damage in case of compromised auth token for some tenants.
-- Prefer using lists of allowed [API endpoints](#url-format), while disallowing access to other endpoints when configuring auth proxy in front of `vminsert` and `vmselect`.
-  This minimizes attack surface.
+See [VMDistributed](https://docs.victoriametrics.com/operator/resources/vmdistributed/) Kubernetes operator resource for an example.
 
-See also [security recommendation for single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#security)
-and [the general security page at VictoriaMetrics website](https://victoriametrics.com/security/).
+## Replication and data safety
 
-### mTLS protection
+By default, VictoriaMetrics offloads replication to the underlying storage pointed by `-storageDataPath` such as [Google compute persistent disk](https://cloud.google.com/compute/docs/disks#pdspecs),
+which guarantees data durability. VictoriaMetrics supports application-level replication if replicated durable persistent disks cannot be used for some reason.
 
-By default `vminsert` and `vmselect` nodes accept http requests at `8480` and `8481` ports accordingly (these ports can be changed via `-httpListenAddr` command-line flags),
-since it is expected that [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) is used for authorization and [TLS termination](https://en.wikipedia.org/wiki/TLS_termination_proxy)
-in front of `vminsert` and `vmselect`.
-[Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/enterprise/) supports the ability to accept [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication)
-requests at `8480` and `8481` ports for `vminsert` and `vmselect` nodes, by specifying `-tls` and `-mtls` command-line flags.
-For example, the following command runs `vmselect`, which accepts only mTLS requests at port `8481`:
+The replication can be enabled by passing `-replicationFactor=N` command-line flag to `vminsert`. This instructs `vminsert` to store `N` copies for every ingested sample
+on `N` distinct `vmstorage` nodes. This guarantees that all the stored data remains available for querying if up to `N-1` `vmstorage` nodes are unavailable. See [how `vminsert` replicates each sample to `N` `vmstorage` nodes](https://victoriametrics.com/blog/vminsert-how-it-works/#4-replication-and-sending-data-to-vmstorage) for details.
 
-```bash
-./vmselect -tls -mtls
+Passing `-replicationFactor=N` command-line flag to `vmselect` instructs it to not mark responses as `partial` if less than `-replicationFactor` vmstorage nodes are unavailable during the query.
+See [cluster availability docs](#cluster-availability) for details.
+
+The cluster must contain at least `2*N-1` `vmstorage` nodes, where `N` is replication factor, in order to maintain the given replication factor
+for newly ingested data when `N-1` of storage nodes are unavailable.
+
+VictoriaMetrics stores timestamps with millisecond precision, so `-dedup.minScrapeInterval=1ms` command-line flag must be passed to `vmselect` nodes when the replication is enabled,
+so they could de-duplicate replicated samples obtained from distinct `vmstorage` nodes during querying. If duplicate data is pushed to VictoriaMetrics
+from identically configured [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) instances or Prometheus instances, then the `-dedup.minScrapeInterval` must be set
+to `scrape_interval` from scrape configs according to [deduplication docs](#deduplication).
+
+Note that [replication doesn't save from disaster](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883),
+so it is recommended performing regular backups. See [these docs](#backups) for details.
+
+Note that the replication increases resource usage - CPU, RAM, disk space, network bandwidth - by up to `-replicationFactor=N` times, because `vminsert` stores `N` copies
+of incoming data to distinct `vmstorage` nodes and `vmselect` needs to de-duplicate the replicated data obtained from `vmstorage` nodes during querying.
+So it is more cost-effective to offload the replication to underlying replicated durable storage pointed by `-storageDataPath`
+such as [Google Compute Engine persistent disk](https://cloud.google.com/compute/docs/disks/#pdspecs), which is protected from data loss and data corruption.
+It also provides consistently high performance and [may be resized](https://cloud.google.com/compute/docs/disks/add-persistent-disk) without downtime.
+HDD-based persistent disks should be enough for the majority of use cases. It is recommended using durable replicated persistent volumes in Kubernetes.
+
+## Cluster resizing and scalability
+
+Cluster performance and capacity can be scaled up in two ways:
+
+- By adding more resources (CPU, RAM, disk IO, disk space, network bandwidth) to existing nodes in the cluster (aka vertical scalability).
+- By adding more nodes to the cluster (aka horizontal scalability).
+
+General recommendations for cluster scalability:
+
+- Adding more CPU and RAM to existing `vmselect` nodes improves the performance for heavy queries, which process big number of time series with big number of raw samples.
+  See [this article on how to detect and optimize heavy queries](https://valyala.medium.com/how-to-optimize-promql-and-metricsql-queries-85a1b75bf986).
+
+- Adding more `vmstorage` nodes (aka horizontal scaling) increases the number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series)
+  the cluster can handle. This also increases query performance over time series with [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate),
+  since every `vmstorage` node contains lower number of time series when the number of `vmstorage` nodes increases.
+
+  The cluster stability is also improved with the number of `vmstorage` nodes, since active `vmstorage` nodes need to handle lower additional workload
+  when some of `vmstorage` nodes become unavailable. For example, if one node out of 3 nodes is unavailable, then `1/3=33%` of the load is re-distributed across 2 remaining nodes,
+  so per-node workload increase is `(1/3/2)/(1/3) = 1/2 = 50%`.
+  If one node out of 10 nodes is unavailable, then `1/10=10%` of the load is re-distributed across 9 remaining nodes, so per-node workload increase is `(1/10/9)/(1/10) = 1/9 =~ 11%`.
+
+- Adding more CPU and RAM to existing `vmstorage` nodes (aka vertical scaling) increases the number
+  of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series) the cluster can handle.
+  It is preferred to add more `vmstorage` nodes over adding more CPU and RAM to existing `vmstorage` nodes, since higher number of `vmstorage` nodes
+  increases cluster stability and improves query performance over time series with [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate).
+
+- Adding more `vminsert` nodes increases the maximum possible data ingestion speed, since the ingested data may be split among bigger number of `vminsert` nodes.
+
+- Adding more `vmselect` nodes increases the maximum possible queries rate, since the incoming concurrent requests may be split among bigger number of `vmselect` nodes.
+
+Steps to add `vmstorage` node:
+
+1. Start new `vmstorage` node with the same `-retentionPeriod` as existing nodes in the cluster.
+1. Gradually restart all the `vmselect` nodes with new `-storageNode` arg containing `<new_vmstorage_host>`.
+1. Gradually restart all the `vminsert` nodes with new `-storageNode` arg containing `<new_vmstorage_host>`.
+
+In order to handle uneven disk space usage distribution after adding new `vmstorage` node it is possible to update `vminsert` configuration to route newly ingested metrics only to new storage nodes. Once disk usage will be similar configuration can be updated to include all nodes again. Note that `vmselect` nodes need to reference all storage nodes for querying.
+
+## Multitenancy
+
+VictoriaMetrics cluster supports multiple isolated tenants (aka namespaces).
+Tenants are identified by `accountID` or `accountID:projectID` inside request URLs or HTTP headers{{% available_from "v1.143.0" %}}
+for writes and reads. See [these docs](#url-format) for details.
+
+Some facts about tenants in VictoriaMetrics:
+
+- Each `accountID` and `projectID` is identified by an arbitrary 32-bit integer in the range `[0 .. 2^32)`.
+  If `projectID` is missing, then it is automatically assigned to `0`. It is expected that other information about tenants
+  such as auth tokens, tenant names, limits, accounting, etc. is stored in a separate relational database. This database must be managed
+  by a separate service sitting in front of VictoriaMetrics cluster such as [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/)
+  or [vmgateway](https://docs.victoriametrics.com/victoriametrics/vmgateway/). [Contact us](mailto:info@victoriametrics.com) if you need assistance with such service.
+
+- Tenants are automatically created when the first data point is written into the given tenant.
+
+- Data for all the tenants is evenly spread among available `vmstorage` nodes. This guarantees even load among `vmstorage` nodes
+  when different tenants have different amounts of data and different query load.
+
+- The database performance and resource usage do not depend on the number of tenants. It depends mostly on the total number of
+  [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series) in all the tenants.
+
+- The list of registered tenants can be obtained via `http://<vmselect>:8481/admin/tenants` url. See [these docs](#url-format).
+
+- VictoriaMetrics exposes various per-tenant statistics via metrics - see [these docs](https://docs.victoriametrics.com/victoriametrics/pertenantstatistic/).
+
+See also multitenancy [via headers](#multitenancy-via-headers) and [via labels](#multitenancy-via-labels).
+
+### Multitenancy via headers
+
+With `--enableMultitenancyViaHeaders` {{% available_from "v1.143.0" %}} command-line flag enabled (enabled by default {{% available_from "v1.150.0" %}})
+tenant ID can be specified via HTTP headers `AccountID` and `ProjectID`. This flag needs to be enabled on vminserts and vmselects.
+
+With `--enableMultitenancyViaHeaders` enabled [URL format](#url-format) can be simplified to the following:
+- `http://<vminsert>:8480/insert/<suffix>` for writes
+- `http://<vmselect>:8481/select/prometheus/<suffix>` for reads
+
+> Set --enableMultitenancyViaHeaders=false to disable simplified URL format.
+
+For example, the following query will only select metric `up` from `accountID=2` and `projectID=3`:
+```
+curl 'https://<vmselect>:8481/select/prometheus/api/v1/query' \
+  -d 'query=up' \
+  --header "AccountID: 2" \
+  --header "ProjectID: 3"
 ```
 
-By default, system-wide [TLS Root CA](https://en.wikipedia.org/wiki/Root_certificate) is used for verifying client certificates if `-mtls` command-line flag is specified.
-It is possible to specify custom TLS Root CA via `-mtlsCAFile` command-line flag.
+The following example will ingest metric `up{instance="foo"}` to `accountID=2` and `projectID=0`:
+```
+curl --header "AccountID: 2" -d 'up{instance="foo"} 123' -X POST https://<vminsert>:8480/insert/prometheus/api/v1/import/prometheus
+```
 
-By default `vminsert` and `vmselect` nodes use unencrypted connections to `vmstorage` nodes, since it is assumed that all the cluster components [run in a protected environment](#security). [Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/enterprise/) provides optional support for [mTLS connections](https://en.wikipedia.org/wiki/Mutual_authentication#mTLS) between cluster components. Pass `-cluster.tls=true` command-line flag to `vminsert`, `vmselect` and `vmstorage` nodes in order to enable mTLS protection. Additionally, `vminsert`, `vmselect` and `vmstorage` must be configured with mTLS certificates via `-cluster.tlsCertFile`, `-cluster.tlsKeyFile` command-line options. These certificates are mutually verified when `vminsert` and `vmselect` dial `vmstorage`.
+> When simplified path `/(insert|select)/<suffix>` is used and headers `AccountID`, `ProjectID` are missing, then IDs are set to `0:0` as default.
+> If tenant IDs are specified in URL, then headers are ignored.
 
-The following optional command-line flags related to mTLS are supported:
+The `AccountID` header can be set to `multitenant` string: `AccountID: multitenant`. See more in [multitenancy via labels](#multitenancy-via-labels).
 
-- `-cluster.tlsInsecureSkipVerify` can be set at `vminsert`, `vmselect` and `vmstorage` in order to disable peer certificate verification. Note that this breaks security.
-- `-cluster.tlsCAFile` can be set at `vminsert`, `vmselect` and `vmstorage` for verifying peer certificates issued with custom [certificate authority](https://en.wikipedia.org/wiki/Certificate_authority). By default, system-wide certificate authority is used for peer certificate verification.
-- `-cluster.tlsCipherSuites` can be set to the list of supported TLS cipher suites at `vmstorage`. See [the list of supported TLS cipher suites](https://pkg.go.dev/crypto/tls#pkg-constants).
+### Multitenancy via labels
 
-When `vmselect` or `vminsert` runs with `-clusternativeListenAddr` command-line option, then it can be configured with `-clusternative.tls*` options similar to `-cluster.tls*` for accepting `mTLS` connections from top-level `vmselect` or `vminsert` nodes in [multi-level cluster setup](#multi-level-cluster-setup).
+Multitenancy via labels allows specifying [tenants](#multitenancy) as labels `vm_account_id` and `vm_project_id` during
+ingestion or querying. This feature allows [ingesting workload with mixed tenants](#multitenant-writes) and [querying
+data from multiple tenants](#multitenant-reads) via the same URL.
 
-See [these docs](https://gist.github.com/f41gh7/76ed8e5fb1ebb9737fe746bae9175ee6) on how to set up mTLS in VictoriaMetrics cluster.
+#### Multitenant writes
 
-[Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/enterprise/) can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-See how to request a free [trial license](https://victoriametrics.com/products/enterprise/trial/).
+`vminsert` can accept data from multiple [tenants](#multitenancy) via special `multitenant` endpoints:
+- `http://vminsert:8480/insert/multitenant/<suffix>`
+- `http://vminsert:8480/insert/<suffix>` and HTTP header `AccountID: multitenant`. See how to enable headers [here](#multitenancy-via-headers).
+  where `<suffix>` can be replaced with any supported suffix for data ingestion from [this list](#url-format).
+  The `accountID` and `projectID` are obtained from optional `vm_account_id` and `vm_project_id` [labels](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#labels) of the incoming samples.
+  If `vm_account_id` or `vm_project_id` labels are missing or invalid, then the corresponding `accountID` and `projectID` are set to 0.
+  These labels are automatically removed from samples before forwarding them to `vmstorage`.
+  For example, if the following samples are written into `http://vminsert:8480/insert/multitenant/prometheus/api/v1/write`:
 
-## Monitoring
+```promtextmetric
+http_requests_total{path="/foo",vm_account_id="42"} 12
+http_requests_total{path="/bar",vm_account_id="7",vm_project_id="9"} 34
+```
 
-All the cluster components [expose various metrics](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/prometheus-vm-cluster.yml)
-in Prometheus-compatible format at `/metrics` page on the TCP port set in `-httpListenAddr` command-line flag.
-By default, the following TCP ports are used:
+Then the `http_requests_total{path="/foo"} 12` would be stored in the tenant `accountID=42, projectID=0`,
+while the `http_requests_total{path="/bar"} 34` would be stored in the tenant `accountID=7, projectID=9`.
 
-- `vminsert` - 8480
-- `vmselect` - 8481
-- `vmstorage` - 8482
+The `vm_account_id` and `vm_project_id` labels are extracted after applying the [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/)
+set via `-relabelConfig` command-line flag, so these labels can be set at this stage.
 
-> Prefer giving distinct scrape job names per each component type. I.e. `vmstorage`, `vminsert` and `vmselect` should have corresponding job names.
+The `vm_account_id` and `vm_project_id` labels are also taken into account when ingesting data via non-http-based protocols
+such as [Graphite](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting),
+[InfluxDB line protocol via TCP and UDP](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb/) and
+[OpenTSDB telnet put protocol](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb/#sending-data-via-telnet).
 
-Use [the official Grafana dashboard for VictoriaMetrics cluster](https://grafana.com/grafana/dashboards/11176).
+#### Multitenant reads
 
-See more details on [how to monitor VictoriaMetrics components](https://docs.victoriametrics.com/victoriametrics/#monitoring).
+_For better performance prefer specifying [tenants in read URL](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format)._
 
-## Cardinality limiter
+`vmselect` can execute {{% available_from "v1.104.0" %}} queries over multiple [tenants](#multitenancy) via special `multitenant` endpoints:
+- `http://vmselect:8481/select/multitenant/<suffix>`
+- `http://vmselect:8481/select/<suffix>` and HTTP header `AccountID: multitenant`. See how to enable headers [here](#multitenancy-via-headers).
 
-`vmstorage` nodes can be configured with limits on the number of unique time series across all the tenants with the following command-line flags:
+Currently supported endpoints for `<suffix>` are:
 
-- `-storage.maxHourlySeries` is the limit on the number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series) during the last hour.
-- `-storage.maxDailySeries` is the limit on the number of unique time series during the day. This limit can be used for limiting daily [time series churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate).
+- `/prometheus/api/v1/query`
+- `/prometheus/api/v1/query_range`
+- `/prometheus/api/v1/series`
+- `/prometheus/api/v1/labels`
+- `/prometheus/api/v1/label/<label_name>/values`
+- `/prometheus/api/v1/status/active_queries`
+- `/prometheus/api/v1/status/top_queries`
+- `/prometheus/api/v1/status/tsdb`
+- `/prometheus/api/v1/export`
+- `/prometheus/api/v1/export/csv`
+- `/prometheus/api/v1/metadata`
+- `/vmui`
 
-It is possible to use `-1` as a value for these flags{{% available_from "v1.140.0" %}} in order to enable series tracking but set limit to maximum possible value.
-This is useful in order to estimate the number of unique series written to `vmstorage` without enforcing limits.
+It is allowed to explicitly specify tenant IDs via `vm_account_id` and `vm_project_id` labels in the query.
+For example, the following query fetches metric `up` for the tenants `accountID=42` and `accountID=7, projectID=9`:
 
-Note that these limits are set and applied individually per each `vmstorage` node in the cluster. So, if the cluster has `N` `vmstorage` nodes, then the cluster-level limits will be `N` times bigger than the per-`vmstorage` limits.
+```promtextmetric
+up{vm_account_id="7", vm_project_id="9" or vm_account_id="42"}
+```
 
-See more details about cardinality limiter in [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-limiter).
+`vm_account_id` and `vm_project_id` labels support all operators for label matching. For example:
 
-## Troubleshooting
+```promtextmetric
+up{vm_account_id!="42"} # selects all the time series except those belonging to accountID=42
+up{vm_account_id=~"4.*"} # selects all the time series belonging to accountIDs starting with 4
+```
 
-- If your VictoriaMetrics cluster experiences data ingestion delays during
-  [rolling restarts and configuration updates](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#updating--reconfiguring-cluster-nodes),
-  then see [these docs](#improving-re-routing-performance-during-restart).
+Alternatively, it is possible to use [`extra_filters[]` and `extra_label`](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-enhancements)
+query args to apply additional filters for the query:
 
-[Troubleshooting docs for single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/troubleshooting/) apply to VictoriaMetrics cluster as well.
+```bash
+curl 'http://vmselect:8481/select/multitenant/prometheus/api/v1/query' \
+  -d 'query=up' \
+  -d 'extra_filters[]={vm_account_id="7",vm_project_id="9"}' \
+  -d 'extra_filters[]={vm_account_id="42"}'
+```
 
-## Readonly mode
+The precedence for applying filters for tenants follows this order:
 
-`vmstorage` nodes automatically switch to readonly mode when the directory pointed by `-storageDataPath`
-contains less than `-storage.minFreeDiskSpaceBytes` of free space. `vminsert` nodes stop sending data to such nodes
-and start re-routing the data to the remaining `vmstorage` nodes.
+1. Filter tenants by `extra_label`, `extra_filters` and `extra_filters[]` filters.
+   These filters have the highest priority and are applied first when provided through the query arguments.
+   Filters use `OR` logic - a tenant is selected if it matches any of the filters.
+2. Filter tenants from labels selectors defined at metricsQL query expression.
 
-`vmstorage` sets `vm_storage_is_read_only` metric at `http://vmstorage:8482/metrics` to `1` when it enters read-only mode.
-The metric is set to `0` when the `vmstorage` isn't in read-only mode.
+> **Security considerations**
+It is recommended restricting access to `multitenant` endpoints only to trusted sources,
+since untrusted source may break per-tenant data by writing unwanted samples or get access to data of arbitrary tenants.
+See also [vmauth security doc](https://docs.victoriametrics.com/victoriametrics/vmauth/#security).
 
 ## URL format
 
@@ -634,7 +537,7 @@ Also in the cluster version the `/prometheus/api/v1` endpoint ingests  `jsonl`, 
 
 - URLs for data ingestion: `http://<vminsert>:8480/insert/<accountID>/<suffix>`, where:
   - `<accountID>` is an arbitrary 32-bit integer identifying namespace for data ingestion (aka tenant). It is possible to set it as `accountID:projectID`,
-    where `projectID` is also arbitrary 32-bit integer. If `projectID` isn't set, then it equals to `0`. See [multitenancy docs](#multitenancy) for more details 
+    where `projectID` is also arbitrary 32-bit integer. If `projectID` isn't set, then it equals to `0`. See [multitenancy docs](#multitenancy) for more details
     about managing tenants, specifying tenant IDs via HTTP headers or labels.
   - `<suffix>` may have the following values:
     - `prometheus` and `prometheus/api/v1/write` - for ingesting data with [Prometheus remote write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write).
@@ -715,43 +618,7 @@ Also in the cluster version the `/prometheus/api/v1` endpoint ingests  `jsonl`, 
   Snapshots may be created independently on each `vmstorage` node. There is no need in synchronizing snapshots' creation
   across `vmstorage` nodes.
 
-## Cluster resizing and scalability
-
-Cluster performance and capacity can be scaled up in two ways:
-
-- By adding more resources (CPU, RAM, disk IO, disk space, network bandwidth) to existing nodes in the cluster (aka vertical scalability).
-- By adding more nodes to the cluster (aka horizontal scalability).
-
-General recommendations for cluster scalability:
-
-- Adding more CPU and RAM to existing `vmselect` nodes improves the performance for heavy queries, which process big number of time series with big number of raw samples.
-  See [this article on how to detect and optimize heavy queries](https://valyala.medium.com/how-to-optimize-promql-and-metricsql-queries-85a1b75bf986).
-
-- Adding more `vmstorage` nodes (aka horizontal scaling) increases the number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series)
-  the cluster can handle. This also increases query performance over time series with [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate),
-  since every `vmstorage` node contains lower number of time series when the number of `vmstorage` nodes increases.
-
-  The cluster stability is also improved with the number of `vmstorage` nodes, since active `vmstorage` nodes need to handle lower additional workload
-  when some of `vmstorage` nodes become unavailable. For example, if one node out of 3 nodes is unavailable, then `1/3=33%` of the load is re-distributed across 2 remaining nodes,
-  so per-node workload increase is `(1/3/2)/(1/3) = 1/2 = 50%`.
-  If one node out of 10 nodes is unavailable, then `1/10=10%` of the load is re-distributed across 9 remaining nodes, so per-node workload increase is `(1/10/9)/(1/10) = 1/9 =~ 11%`.
-
-- Adding more CPU and RAM to existing `vmstorage` nodes (aka vertical scaling) increases the number
-  of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series) the cluster can handle.
-  It is preferred to add more `vmstorage` nodes over adding more CPU and RAM to existing `vmstorage` nodes, since higher number of `vmstorage` nodes
-  increases cluster stability and improves query performance over time series with [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate).
-
-- Adding more `vminsert` nodes increases the maximum possible data ingestion speed, since the ingested data may be split among bigger number of `vminsert` nodes.
-
-- Adding more `vmselect` nodes increases the maximum possible queries rate, since the incoming concurrent requests may be split among bigger number of `vmselect` nodes.
-
-Steps to add `vmstorage` node:
-
-1. Start new `vmstorage` node with the same `-retentionPeriod` as existing nodes in the cluster.
-1. Gradually restart all the `vmselect` nodes with new `-storageNode` arg containing `<new_vmstorage_host>`.
-1. Gradually restart all the `vminsert` nodes with new `-storageNode` arg containing `<new_vmstorage_host>`.
-
-In order to handle uneven disk space usage distribution after adding new `vmstorage` node it is possible to update `vminsert` configuration to route newly ingested metrics only to new storage nodes. Once disk usage will be similar configuration can be updated to include all nodes again. Note that `vmselect` nodes need to reference all storage nodes for querying.
+## Operation
 
 ### Updating / reconfiguring cluster nodes
 
@@ -761,7 +628,7 @@ with new configs.
 
 There are the following cluster update / upgrade approaches exist:
 
-### No downtime strategy
+#### No downtime strategy
 
 Gracefully restart every node in the cluster one-by-one with the updated config / upgraded binary.
 
@@ -785,7 +652,7 @@ This strategy allows upgrading the cluster without downtime if the following con
 If at least a single condition isn't met, then the rolling restart may result in cluster unavailability
 during the config update / version upgrade. In this case the following strategy is recommended.
 
-### Minimum downtime strategy
+#### Minimum downtime strategy
 
 1. Gracefully stop all the `vminsert` and `vmselect` nodes in parallel.
 1. Gracefully restart all the `vmstorage` nodes in parallel.
@@ -807,7 +674,29 @@ The `minimum downtime` strategy has the following benefits comparing to `no down
 > handles version upgrades automatically during maintenance windows, and lets you create, resize, or delete deployments with a few clicks from the UI.
 > See the [VictoriaMetrics Cloud documentation](https://docs.victoriametrics.com/victoriametrics-cloud/) to get started.
 
-### Improving re-routing performance during restart
+#### Slowness-based re-routing
+
+By default{{% available_from "v1.149.0" %}}, `vminsert` automatically [re-route writes](https://victoriametrics.com/blog/vminsert-how-it-works/#31-rerouting)
+away from the slowest `vmstorage` node to preserve maximum ingestion throughput. This prevents a single slow `vmstorage` node
+from throttling the entire cluster.
+
+Re-routing occurs only when all of the following conditions hold:
+- the storage send buffer is full.
+- the saturated vmstorage node is the slowest.
+- the vmstorage cluster have much lower saturation overall.
+- the vmstorage cluster has at least three ready nodes.
+
+Disable slowness-based re-routing with `-disableRerouting=true` when keeping metrics
+perfectly balanced across nodes or minimizing the number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series)
+matters more than peak write throughput.
+
+Slowness-based re-routing is automatically disabled{{% available_from "v1.149.0" %}} when `-replicationFactor` is greater than `1`,
+because rerouting does not guarantee that replicated copies land on distinct storage nodes,
+which violates the replication contract.
+
+The rerouting and node saturation could be seen at [VictoriaMetrics - cluster](https://grafana.com/grafana/dashboards/11176) dashboard.
+
+#### Improving re-routing performance during restart
 
 `vmstorage` nodes may experience increased usage for CPU, RAM and disk IO during
 [rolling restarts](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#no-downtime-strategy),
@@ -829,56 +718,24 @@ The following approaches can be used for reducing resource usage at `vmstorage` 
 
 See also [minimum downtime strategy](#minimum-downtime-strategy).
 
-## Slowness-based re-routing
+### Readonly mode
 
-By default{{% available_from "v1.149.0" %}}, `vminsert` automatically [re-route writes](https://victoriametrics.com/blog/vminsert-how-it-works/#31-rerouting)
-away from the slowest `vmstorage` node to preserve maximum ingestion throughput. This prevents a single slow `vmstorage` node
-from throttling the entire cluster.
+`vmstorage` nodes automatically switch to readonly mode when the directory pointed by `-storageDataPath`
+contains less than `-storage.minFreeDiskSpaceBytes` of free space. `vminsert` nodes stop sending data to such nodes
+and start re-routing the data to the remaining `vmstorage` nodes.
 
-Re-routing occurs only when all of the following conditions hold:
-- the storage send buffer is full.
-- the saturated vmstorage node is the slowest.
-- the vmstorage cluster have much lower saturation overall.
-- the vmstorage cluster has at least three ready nodes.
+`vmstorage` sets `vm_storage_is_read_only` metric at `http://vmstorage:8482/metrics` to `1` when it enters read-only mode.
+The metric is set to `0` when the `vmstorage` isn't in read-only mode.
 
-Disable slowness-based re-routing with `-disableRerouting=true` when keeping metrics
-perfectly balanced across nodes or minimizing the number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series) 
-matters more than peak write throughput.
+### Troubleshooting
 
-Slowness-based re-routing is automatically disabled{{% available_from "v1.149.0" %}} when `-replicationFactor` is greater than `1`,
-because rerouting does not guarantee that replicated copies land on distinct storage nodes,
-which violates the replication contract.
+- If your VictoriaMetrics cluster experiences data ingestion delays during
+  [rolling restarts and configuration updates](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#updating--reconfiguring-cluster-nodes),
+  then see [these docs](#improving-re-routing-performance-during-restart).
 
-The rerouting and node saturation could be seen at [VictoriaMetrics - cluster](https://grafana.com/grafana/dashboards/11176) dashboard.
+[Troubleshooting docs for single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/troubleshooting/) apply to VictoriaMetrics cluster as well.
 
-## Capacity planning
-
-VictoriaMetrics uses lower amounts of CPU, RAM and storage space on production workloads compared to competing solutions (Prometheus, Thanos, Cortex, TimescaleDB, InfluxDB, QuestDB, M3DB) according to [our case studies](https://docs.victoriametrics.com/victoriametrics/casestudies/).
-
-Each node type - `vminsert`, `vmselect` and `vmstorage` - can run on the most suitable hardware. Cluster capacity scales linearly with the available resources. The needed amounts of CPU and RAM per each node type highly depends on the workload - the number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series), [series churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate), query types, query qps, etc. It is recommended to setup a test VictoriaMetrics cluster for your production workload and iteratively scale per-node resources and the number of nodes per node type until the cluster becomes stable. It is recommended to setup [monitoring for the cluster](#monitoring). It helps to determine bottlenecks in the cluster setup. It is also recommended to follow [the troubleshooting docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#troubleshooting).
-
-The needed storage space for the given retention (the retention is set via `-retentionPeriod` command-line flag at `vmstorage`) can be extrapolated from disk space usage in a test run. For example, if the storage space usage is 10GB after a day-long test run on a production workload, then it will need at least `10GB*100=1TB` of disk space for `-retentionPeriod=100d` (100-days retention period). Storage space usage can be monitored with [the official Grafana dashboard for VictoriaMetrics cluster](#monitoring).
-
-It is recommended leaving the following amounts of spare resources:
-
-- 50% of free RAM across all the node types for reducing the probability of OOM (out of memory) crashes and slowdowns during temporary spikes in workload.
-- 50% of spare CPU across all the node types for reducing the probability of slowdowns during temporary spikes in workload.
-- At least 20% of free storage space at the directory pointed by `-storageDataPath` command-line flag at `vmstorage` nodes. See also `-storage.minFreeDiskSpaceBytes` command-line flag [description for vmstorage](#list-of-command-line-flags-for-vmstorage).
-
-Increase free storage space and `-storage.minFreeDiskSpaceBytes` to match at least the amount of data you plan to ingest in a calendar month: on each vmstorage pod, the monthly final deduplication process will temporarily need as much space as is used for the previous month's data, before it can free up space. For example, if you have a 3 month retention period and you want to keep at least 10 % space free at all times, you could pick 35 % of your total space as value. When some of your vmstorage pods are in [read-only mode](#readonly-mode), the remaining pods will have a higher share of the total data ingestion, and will therefore need more free space the next month.
-
-Some capacity planning tips for VictoriaMetrics cluster:
-
-- The [replication](#replication-and-data-safety) increases the amounts of needed resources for the cluster by up to `N` times where `N` is replication factor. This is because `vminsert` stores `N` copies of every ingested sample on distinct `vmstorage` nodes. These copies are de-duplicated by `vmselect` during querying. The most cost-efficient and performant solution for data durability is to rely on replicated durable persistent disks such as [Google Compute persistent disks](https://cloud.google.com/compute/docs/disks#pdspecs) instead of using the [replication at VictoriaMetrics level](#replication-and-data-safety).
-- It is recommended to run a cluster with big number of small `vmstorage` nodes instead of a cluster with small number of big `vmstorage` nodes. This increases chances that the cluster remains available and stable when some of `vmstorage` nodes are temporarily unavailable during maintenance events such as upgrades, configuration changes or migrations. For example, when a cluster contains 10 `vmstorage` nodes and a single node becomes temporarily unavailable, then the workload on the remaining 9 nodes increases by `1/9=11%`. When a cluster contains 3 `vmstorage` nodes and a single node becomes temporarily unavailable, then the workload on the remaining 2 nodes increases by `1/2=50%`. The remaining `vmstorage` nodes may have no enough free capacity for handling the increased workload. In this case the cluster may become overloaded, which may result to decreased availability and stability.
-- Cluster capacity for [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series) can be increased by increasing RAM and CPU resources per each `vmstorage` node or by adding new `vmstorage` nodes.
-- Query latency can be reduced by increasing CPU resources per each `vmselect` node, since each incoming query is processed by a single `vmselect` node. Performance for heavy queries scales with the number of available CPU cores at `vmselect` node, since `vmselect` processes time series referred by the query on all the available CPU cores.
-- If the cluster needs to process incoming queries at a high rate, then its capacity can be increased by adding more `vmselect` nodes, so incoming queries could be spread among bigger number of `vmselect` nodes.
-- By default `vmstorage` compresses the data it sends to `vmselect` during queries in order to reduce network bandwidth usage. The compression takes additional CPU resources at `vmstorage`. If `vmstorage` nodes have limited CPU, then the compression can be disabled by passing `-rpc.disableCompression` command-line flag at `vmstorage` nodes.
-
-See also [resource usage limits docs](#resource-usage-limits).
-
-## Rebalancing
+### Rebalancing
 
 Every `vminsert` node [evenly spreads (shards) incoming data](https://victoriametrics.com/blog/vminsert-how-it-works/#3-sharding-and-buffering) among `vmstorage` nodes specified in the `-storageNode` command-line flag.
 This guarantees even distribution of the ingested data among `vmstorage` nodes. When new `vmstorage` nodes are added to the `-storageNode`
@@ -908,7 +765,11 @@ There are the following approaches exist for data rebalancing among old and new 
 See also [capacity planning docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#capacity-planning)
 and [Why VictoriaMetrics misses automatic data re-balancing among vmstorage nodes?](https://docs.victoriametrics.com/victoriametrics/faq/#why-victoriametrics-misses-automatic-data-re-balancing-between-vmstorage-nodes).
 
-## Resource usage limits
+### Backups
+
+For backup configuration, please refer for [vmbackup documentation](https://docs.victoriametrics.com/victoriametrics/vmbackup/).
+
+### Resource usage limits
 
 By default, cluster components of VictoriaMetrics are tuned for an optimal resource usage under typical workloads.
 Some workloads may need fine-grained resource usage limits. In these cases the following command-line flags may be useful:
@@ -925,7 +786,7 @@ Some workloads may need fine-grained resource usage limits. In these cases the f
   By default, `vmstorage` calculates this limit automatically based on the available memory and the maximum number of concurrent read requests (see `-search.maxConcurrentRequests`).
   The calculated limit will be printed during process start-up logs and exposed as `vm_search_max_unique_timeseries` metric.
 - `-search.maxUniqueTimeseries` at `vmselect` adjusts the limit with the same name at `vmstorage`. The limit cannot exceed the
-   value set in vmstorage if the `-search.maxUniqueTimeseries` flag is explicitly defined there. By default, vmselect doesn't apply limit adjustments.
+  value set in vmstorage if the `-search.maxUniqueTimeseries` flag is explicitly defined there. By default, vmselect doesn't apply limit adjustments.
 - `-search.maxQueryDuration` at `vmselect` limits the duration of a single query. If the query takes longer than the given duration, then it is canceled.
   This allows saving CPU and RAM at `vmselect` and `vmstorage` when executing unexpectedly heavy queries.
   The limit can be overridden to a smaller value by passing `timeout` GET parameter.
@@ -1013,44 +874,6 @@ Some workloads may need fine-grained resource usage limits. In these cases the f
 
 See also [capacity planning docs](#capacity-planning) and [cardinality limiter in vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter).
 
-## Helm
-
-Helm chart simplifies managing cluster version of VictoriaMetrics in Kubernetes.
-It is available in the [helm-charts](https://github.com/VictoriaMetrics/helm-charts) repository.
-
-## Kubernetes operator
-
-[K8s operator](https://github.com/VictoriaMetrics/operator) simplifies managing VictoriaMetrics components in Kubernetes.
-
-## Replication and data safety
-
-By default, VictoriaMetrics offloads replication to the underlying storage pointed by `-storageDataPath` such as [Google compute persistent disk](https://cloud.google.com/compute/docs/disks#pdspecs),
-which guarantees data durability. VictoriaMetrics supports application-level replication if replicated durable persistent disks cannot be used for some reason.
-
-The replication can be enabled by passing `-replicationFactor=N` command-line flag to `vminsert`. This instructs `vminsert` to store `N` copies for every ingested sample
-on `N` distinct `vmstorage` nodes. This guarantees that all the stored data remains available for querying if up to `N-1` `vmstorage` nodes are unavailable. See [how `vminsert` replicates each sample to `N` `vmstorage` nodes](https://victoriametrics.com/blog/vminsert-how-it-works/#4-replication-and-sending-data-to-vmstorage) for details.
-
-Passing `-replicationFactor=N` command-line flag to `vmselect` instructs it to not mark responses as `partial` if less than `-replicationFactor` vmstorage nodes are unavailable during the query.
-See [cluster availability docs](#cluster-availability) for details.
-
-The cluster must contain at least `2*N-1` `vmstorage` nodes, where `N` is replication factor, in order to maintain the given replication factor
-for newly ingested data when `N-1` of storage nodes are unavailable.
-
-VictoriaMetrics stores timestamps with millisecond precision, so `-dedup.minScrapeInterval=1ms` command-line flag must be passed to `vmselect` nodes when the replication is enabled,
-so they could de-duplicate replicated samples obtained from distinct `vmstorage` nodes during querying. If duplicate data is pushed to VictoriaMetrics
-from identically configured [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) instances or Prometheus instances, then the `-dedup.minScrapeInterval` must be set
-to `scrape_interval` from scrape configs according to [deduplication docs](#deduplication).
-
-Note that [replication doesn't save from disaster](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883),
-so it is recommended performing regular backups. See [these docs](#backups) for details.
-
-Note that the replication increases resource usage - CPU, RAM, disk space, network bandwidth - by up to `-replicationFactor=N` times, because `vminsert` stores `N` copies
-of incoming data to distinct `vmstorage` nodes and `vmselect` needs to de-duplicate the replicated data obtained from `vmstorage` nodes during querying.
-So it is more cost-effective to offload the replication to underlying replicated durable storage pointed by `-storageDataPath`
-such as [Google Compute Engine persistent disk](https://cloud.google.com/compute/docs/disks/#pdspecs), which is protected from data loss and data corruption.
-It also provides consistently high performance and [may be resized](https://cloud.google.com/compute/docs/disks/add-persistent-disk) without downtime.
-HDD-based persistent disks should be enough for the majority of use cases. It is recommended using durable replicated persistent volumes in Kubernetes.
-
 ## Deduplication
 
 Cluster version of VictoriaMetrics supports data deduplication in the same way as single-node version do.
@@ -1082,12 +905,8 @@ Metadata is expected to be ephemeral and constantly updated on ingestion. For th
 persisted during storage restarts.
 
 Metadata supports [multitenancy](#multitenancy) and can be queried via the `/select/<accountID>/prometheus/api/v1/metadata` endpoint, which provides a response compatible with the Prometheus [metadata API](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-metric-metadata).
-If multiple vmstorage nodes return metadata for the same metric family name, or if multiple tenants have metadata for the same metric family name, vmselect returns only the first matching result. 
+If multiple vmstorage nodes return metadata for the same metric family name, or if multiple tenants have metadata for the same metric family name, vmselect returns only the first matching result.
 Duplicate metadata entries are not merged or deduplicated across storages or tenants. See [/api/v1/metadata](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1metadata) example.
-
-## Backups
-
-For backup configuration, please refer for [vmbackup documentation](https://docs.victoriametrics.com/victoriametrics/vmbackup/).
 
 ## Retention filters
 
@@ -1150,6 +969,200 @@ See also [retention filters](#retention-filters).
 Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 See how to request a free [trial license](https://victoriametrics.com/products/enterprise/trial/).
 
+## vmui
+
+VictoriaMetrics cluster version provides UI for query troubleshooting and exploration. The UI is available at
+`http://<vmselect>:8481/select/<accountID>/vmui/` in each `vmselect` service.
+The UI allows exploring query results via graphs and tables. See more details about [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui).
+
+## vmalert
+
+vmselect is capable of proxying requests to [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/)
+when `-vmalert.proxyURL` flag is set. Use this feature for the following cases:
+
+- for proxying requests from [Grafana Alerting UI](https://grafana.com/docs/grafana/latest/alerting/);
+- for accessing vmalert UI through vmselect Web interface.
+
+For accessing vmalerts UI through vmselect configure `-vmalert.proxyURL` flag and visit
+`http://<vmselect>:8481/select/<accountID>/prometheus/vmalert/` link.
+
+## Security
+
+General security recommendations:
+
+- All the VictoriaMetrics cluster components must run in protected private network without direct access from untrusted networks such as Internet.
+- External clients must access `vminsert` and `vmselect` via auth proxy such as [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/)
+  or [vmgateway](https://docs.victoriametrics.com/victoriametrics/vmgateway/).
+- The auth proxy must accept auth tokens from untrusted networks only via https in order to protect the auth tokens from MitM attacks.
+- It is recommended using distinct auth tokens for distinct [tenants](#multitenancy) in order to reduce potential damage in case of compromised auth token for some tenants.
+- Prefer using lists of allowed [API endpoints](#url-format), while disallowing access to other endpoints when configuring auth proxy in front of `vminsert` and `vmselect`.
+  This minimizes attack surface.
+
+See also [security recommendation for single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#security)
+and [the general security page at VictoriaMetrics website](https://victoriametrics.com/security/).
+
+### mTLS protection
+
+By default `vminsert` and `vmselect` nodes accept http requests at `8480` and `8481` ports accordingly (these ports can be changed via `-httpListenAddr` command-line flags),
+since it is expected that [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) is used for authorization and [TLS termination](https://en.wikipedia.org/wiki/TLS_termination_proxy)
+in front of `vminsert` and `vmselect`.
+[Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/enterprise/) supports the ability to accept [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication)
+requests at `8480` and `8481` ports for `vminsert` and `vmselect` nodes, by specifying `-tls` and `-mtls` command-line flags.
+For example, the following command runs `vmselect`, which accepts only mTLS requests at port `8481`:
+
+```bash
+./vmselect -tls -mtls
+```
+
+By default, system-wide [TLS Root CA](https://en.wikipedia.org/wiki/Root_certificate) is used for verifying client certificates if `-mtls` command-line flag is specified.
+It is possible to specify custom TLS Root CA via `-mtlsCAFile` command-line flag.
+
+By default `vminsert` and `vmselect` nodes use unencrypted connections to `vmstorage` nodes, since it is assumed that all the cluster components [run in a protected environment](#security). [Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/enterprise/) provides optional support for [mTLS connections](https://en.wikipedia.org/wiki/Mutual_authentication#mTLS) between cluster components. Pass `-cluster.tls=true` command-line flag to `vminsert`, `vmselect` and `vmstorage` nodes in order to enable mTLS protection. Additionally, `vminsert`, `vmselect` and `vmstorage` must be configured with mTLS certificates via `-cluster.tlsCertFile`, `-cluster.tlsKeyFile` command-line options. These certificates are mutually verified when `vminsert` and `vmselect` dial `vmstorage`.
+
+The following optional command-line flags related to mTLS are supported:
+
+- `-cluster.tlsInsecureSkipVerify` can be set at `vminsert`, `vmselect` and `vmstorage` in order to disable peer certificate verification. Note that this breaks security.
+- `-cluster.tlsCAFile` can be set at `vminsert`, `vmselect` and `vmstorage` for verifying peer certificates issued with custom [certificate authority](https://en.wikipedia.org/wiki/Certificate_authority). By default, system-wide certificate authority is used for peer certificate verification.
+- `-cluster.tlsCipherSuites` can be set to the list of supported TLS cipher suites at `vmstorage`. See [the list of supported TLS cipher suites](https://pkg.go.dev/crypto/tls#pkg-constants).
+
+When `vmselect` or `vminsert` runs with `-clusternativeListenAddr` command-line option, then it can be configured with `-clusternative.tls*` options similar to `-cluster.tls*` for accepting `mTLS` connections from top-level `vmselect` or `vminsert` nodes in [multi-level cluster setup](#multi-level-cluster-setup).
+
+See [these docs](https://gist.github.com/f41gh7/76ed8e5fb1ebb9737fe746bae9175ee6) on how to set up mTLS in VictoriaMetrics cluster.
+
+[Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/enterprise/) can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+See how to request a free [trial license](https://victoriametrics.com/products/enterprise/trial/).
+
+## Monitoring
+
+All the cluster components [expose various metrics](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/prometheus-vm-cluster.yml)
+in Prometheus-compatible format at `/metrics` page on the TCP port set in `-httpListenAddr` command-line flag.
+By default, the following TCP ports are used:
+
+- `vminsert` - 8480
+- `vmselect` - 8481
+- `vmstorage` - 8482
+
+> Prefer giving distinct scrape job names per each component type. I.e. `vmstorage`, `vminsert` and `vmselect` should have corresponding job names.
+
+Use [the official Grafana dashboard for VictoriaMetrics cluster](https://grafana.com/grafana/dashboards/11176).
+
+See more details on [how to monitor VictoriaMetrics components](https://docs.victoriametrics.com/victoriametrics/#monitoring).
+
+## Cardinality limiter
+
+`vmstorage` nodes can be configured with limits on the number of unique time series across all the tenants with the following command-line flags:
+
+- `-storage.maxHourlySeries` is the limit on the number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series) during the last hour.
+- `-storage.maxDailySeries` is the limit on the number of unique time series during the day. This limit can be used for limiting daily [time series churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate).
+
+It is possible to use `-1` as a value for these flags{{% available_from "v1.140.0" %}} in order to enable series tracking but set limit to maximum possible value.
+This is useful in order to estimate the number of unique series written to `vmstorage` without enforcing limits.
+
+Note that these limits are set and applied individually per each `vmstorage` node in the cluster. So, if the cluster has `N` `vmstorage` nodes, then the cluster-level limits will be `N` times bigger than the per-`vmstorage` limits.
+
+See more details about cardinality limiter in [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-limiter).
+
+## Capacity planning
+
+VictoriaMetrics uses lower amounts of CPU, RAM and storage space on production workloads compared to competing solutions (Prometheus, Thanos, Cortex, TimescaleDB, InfluxDB, QuestDB, M3DB) according to [our case studies](https://docs.victoriametrics.com/victoriametrics/casestudies/).
+
+Each node type - `vminsert`, `vmselect` and `vmstorage` - can run on the most suitable hardware. Cluster capacity scales linearly with the available resources. The needed amounts of CPU and RAM per each node type highly depends on the workload - the number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series), [series churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate), query types, query qps, etc. It is recommended to setup a test VictoriaMetrics cluster for your production workload and iteratively scale per-node resources and the number of nodes per node type until the cluster becomes stable. It is recommended to setup [monitoring for the cluster](#monitoring). It helps to determine bottlenecks in the cluster setup. It is also recommended to follow [the troubleshooting docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#troubleshooting).
+
+The needed storage space for the given retention (the retention is set via `-retentionPeriod` command-line flag at `vmstorage`) can be extrapolated from disk space usage in a test run. For example, if the storage space usage is 10GB after a day-long test run on a production workload, then it will need at least `10GB*100=1TB` of disk space for `-retentionPeriod=100d` (100-days retention period). Storage space usage can be monitored with [the official Grafana dashboard for VictoriaMetrics cluster](#monitoring).
+
+It is recommended leaving the following amounts of spare resources:
+
+- 50% of free RAM across all the node types for reducing the probability of OOM (out of memory) crashes and slowdowns during temporary spikes in workload.
+- 50% of spare CPU across all the node types for reducing the probability of slowdowns during temporary spikes in workload.
+- At least 20% of free storage space at the directory pointed by `-storageDataPath` command-line flag at `vmstorage` nodes. See also `-storage.minFreeDiskSpaceBytes` command-line flag [description for vmstorage](#list-of-command-line-flags-for-vmstorage).
+
+Increase free storage space and `-storage.minFreeDiskSpaceBytes` to match at least the amount of data you plan to ingest in a calendar month: on each vmstorage pod, the monthly final deduplication process will temporarily need as much space as is used for the previous month's data, before it can free up space. For example, if you have a 3 month retention period and you want to keep at least 10 % space free at all times, you could pick 35 % of your total space as value. When some of your vmstorage pods are in [read-only mode](#readonly-mode), the remaining pods will have a higher share of the total data ingestion, and will therefore need more free space the next month.
+
+Some capacity planning tips for VictoriaMetrics cluster:
+
+- The [replication](#replication-and-data-safety) increases the amounts of needed resources for the cluster by up to `N` times where `N` is replication factor. This is because `vminsert` stores `N` copies of every ingested sample on distinct `vmstorage` nodes. These copies are de-duplicated by `vmselect` during querying. The most cost-efficient and performant solution for data durability is to rely on replicated durable persistent disks such as [Google Compute persistent disks](https://cloud.google.com/compute/docs/disks#pdspecs) instead of using the [replication at VictoriaMetrics level](#replication-and-data-safety).
+- It is recommended to run a cluster with big number of small `vmstorage` nodes instead of a cluster with small number of big `vmstorage` nodes. This increases chances that the cluster remains available and stable when some of `vmstorage` nodes are temporarily unavailable during maintenance events such as upgrades, configuration changes or migrations. For example, when a cluster contains 10 `vmstorage` nodes and a single node becomes temporarily unavailable, then the workload on the remaining 9 nodes increases by `1/9=11%`. When a cluster contains 3 `vmstorage` nodes and a single node becomes temporarily unavailable, then the workload on the remaining 2 nodes increases by `1/2=50%`. The remaining `vmstorage` nodes may have no enough free capacity for handling the increased workload. In this case the cluster may become overloaded, which may result to decreased availability and stability.
+- Cluster capacity for [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series) can be increased by increasing RAM and CPU resources per each `vmstorage` node or by adding new `vmstorage` nodes.
+- Query latency can be reduced by increasing CPU resources per each `vmselect` node, since each incoming query is processed by a single `vmselect` node. Performance for heavy queries scales with the number of available CPU cores at `vmselect` node, since `vmselect` processes time series referred by the query on all the available CPU cores.
+- If the cluster needs to process incoming queries at a high rate, then its capacity can be increased by adding more `vmselect` nodes, so incoming queries could be spread among bigger number of `vmselect` nodes.
+- By default `vmstorage` compresses the data it sends to `vmselect` during queries in order to reduce network bandwidth usage. The compression takes additional CPU resources at `vmstorage`. If `vmstorage` nodes have limited CPU, then the compression can be disabled by passing `-rpc.disableCompression` command-line flag at `vmstorage` nodes.
+
+See also [resource usage limits docs](#resource-usage-limits).
+
+## Helm
+
+Helm chart simplifies managing cluster version of VictoriaMetrics in Kubernetes.
+It is available in the [helm-charts](https://github.com/VictoriaMetrics/helm-charts) repository.
+
+## Kubernetes operator
+
+[K8s operator](https://github.com/VictoriaMetrics/operator) simplifies managing VictoriaMetrics components in Kubernetes.
+
+## Binaries
+
+Compiled binaries for the cluster version are available in the `assets` section of the [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+Also see archives containing the word `cluster`.
+
+Docker images for the cluster version are available here:
+
+- `vminsert` - [Docker Hub](https://hub.docker.com/r/victoriametrics/vminsert/tags) and [Quay](https://quay.io/repository/victoriametrics/vminsert?tab=tags)
+- `vmselect` - [Docker Hub](https://hub.docker.com/r/victoriametrics/vmselect/tags) and [Quay](https://quay.io/repository/victoriametrics/vmselect?tab=tags)
+- `vmstorage` - [Docker Hub](https://hub.docker.com/r/victoriametrics/vmstorage/tags) and [Quay](https://quay.io/repository/victoriametrics/vmstorage?tab=tags)
+
+## Building from sources
+
+The source code for the cluster version is available in the [cluster branch](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
+
+### Production builds
+
+There is no need to install Go on a host system since binaries are built
+inside [the official docker container for Go](https://hub.docker.com/_/golang).
+This allows reproducible builds.
+So [install docker](https://docs.docker.com/install/) and run the following command:
+
+```bash
+make vminsert-prod vmselect-prod vmstorage-prod
+```
+
+Production binaries are built into statically linked binaries. They are put into the `bin` folder with `-prod` suffixes:
+
+```bash
+$ make vminsert-prod vmselect-prod vmstorage-prod
+$ ls -1 bin
+vminsert-prod
+vmselect-prod
+vmstorage-prod
+```
+
+### Development Builds
+
+1. [Install go](https://golang.org/doc/install).
+1. Run `make` from [the repository root](https://github.com/VictoriaMetrics/VictoriaMetrics). It should build `vmstorage`, `vmselect`
+   and `vminsert` binaries and put them into the `bin` folder.
+
+### Building docker images
+
+Run `make package`. It will build the following docker images locally:
+
+- `victoriametrics/vminsert:<PKG_TAG>`
+- `victoriametrics/vmselect:<PKG_TAG>`
+- `victoriametrics/vmstorage:<PKG_TAG>`
+
+`<PKG_TAG>` is auto-generated image tag, which depends on source code in [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
+The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package`.
+
+By default, images are built on top of [alpine](https://hub.docker.com/_/scratch) image in order to improve debuggability.
+It is possible to build an image on top of any other base image by setting it via `<ROOT_IMAGE>` environment variable.
+For example, the following command builds images on top of [scratch](https://hub.docker.com/_/scratch) image:
+
+```bash
+ROOT_IMAGE=scratch make package
+```
+
+## Environment variables
+
+See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#environment-variables).
+
 ## Profiling
 
 All the cluster components provide the following handlers for [profiling](https://blog.golang.org/profiling-go-programs):
@@ -1171,17 +1184,6 @@ curl http://0.0.0.0:8480/debug/pprof/heap > mem.pprof
 ```
 
 It is safe sharing the collected profiles from security point of view, since they do not contain sensitive information.
-
-## vmalert
-
-vmselect is capable of proxying requests to [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/)
-when `-vmalert.proxyURL` flag is set. Use this feature for the following cases:
-
-- for proxying requests from [Grafana Alerting UI](https://grafana.com/docs/grafana/latest/alerting/);
-- for accessing vmalert UI through vmselect Web interface.
-
-For accessing vmalerts UI through vmselect configure `-vmalert.proxyURL` flag and visit
-`http://<vmselect>:8481/select/<accountID>/prometheus/vmalert/` link.
 
 ## Community and contributions
 
