@@ -84,11 +84,16 @@ func TestGetReaderStreamReadersLimitConcurrent(t *testing.T) {
 			}
 			mu.Unlock()
 
-			PutReader(r)
-
+			// Decrement before releasing the slot, so current tracks only
+			// goroutines that actually hold a stream-reader slot. Otherwise a
+			// worker that acquires the freed slot could increment current
+			// before this goroutine decrements it, transiently pushing
+			// maxCurrent above limit and flaking the assertion below.
 			mu.Lock()
 			current--
 			mu.Unlock()
+
+			PutReader(r)
 		}()
 	}
 	wg.Wait()
