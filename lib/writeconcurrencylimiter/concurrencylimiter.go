@@ -133,7 +133,7 @@ func incStreamReadersConcurrency() error {
 		return &httpserver.ErrorWithStatusCode{
 			Err: fmt.Errorf("cannot process insert request for %.3f seconds because %d concurrent insert requests already have allocated read buffers. "+
 				"Possible solutions: to reduce the number of concurrent insert requests over streaming protocols; "+
-				"to increase -insert.maxConcurrentStreamReaders; to increase -insert.maxQueueDuration; to increase -memory.allowedBytes",
+				"to increase -insert.maxConcurrentStreamReaders; to increase -insert.maxQueueDuration",
 				maxQueueDuration.Seconds(), cap(streamReadersCh)),
 			StatusCode: http.StatusServiceUnavailable,
 		}
