@@ -35,13 +35,13 @@ func TestClusterPrometheusQueryTracer(t *testing.T) {
 // paths depending on the time range length and as the result produces different
 // query traces. Important time ranges are:
 //   - 1d: search in per-day index without concurrency (the simplest case)
-//   - 7w: (or any time range > 1d and < 1m) concurrent search in per-day index.
+//   - 7w: (or any time range > 1d and < 1M) concurrent search in per-day index.
 //     Query tracer is not safe to use concurrently. Therefore, an instance of
 //     query tracer cannot be shared between many goroutines. Instead, a child
 //     query tracer needs to be created for each goroutine. This often gets
 //     overlooked and causes panics later for queries with query tracer
 //     enabled.
-//   - 1m: this is when search switches to global index search.
+//   - 1M: this is when search switches to global index search.
 //
 // Tested endpoints:
 //   - /api/v1/query_range
@@ -84,11 +84,11 @@ func testPrometheusQueryTracer(tc *apptest.TestCase, sut apptest.PrometheusWrite
 	data1w := apptest.GenerateTestData("metric_1w", numMetrics, start, end)
 	start = time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
 	end = time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
-	data1m := apptest.GenerateTestData("metric_1m", numMetrics, start, end)
+	data1M := apptest.GenerateTestData("metric_1M", numMetrics, start, end)
 
 	sut.PrometheusAPIV1ImportPrometheus(t, data1d.Samples, apptest.QueryOpts{})
 	sut.PrometheusAPIV1ImportPrometheus(t, data1w.Samples, apptest.QueryOpts{})
-	sut.PrometheusAPIV1ImportPrometheus(t, data1m.Samples, apptest.QueryOpts{})
+	sut.PrometheusAPIV1ImportPrometheus(t, data1M.Samples, apptest.QueryOpts{})
 	sut.ForceFlush(t)
 
 	assertQueryResults := func(metricNameRE string, d apptest.TestData) {
@@ -97,7 +97,7 @@ func testPrometheusQueryTracer(tc *apptest.TestCase, sut apptest.PrometheusWrite
 	}
 	assertQueryResults(`metric_1d.*`, data1d)
 	assertQueryResults(`metric_1w.*`, data1w)
-	assertQueryResults(`metric_1m.*`, data1m)
+	assertQueryResults(`metric_1M.*`, data1M)
 
 	assertSeries := func(metricNameRE string, d apptest.TestData) {
 		t.Helper()
@@ -105,7 +105,7 @@ func testPrometheusQueryTracer(tc *apptest.TestCase, sut apptest.PrometheusWrite
 	}
 	assertSeries(`metric_1d.*`, data1d)
 	assertSeries(`metric_1w.*`, data1w)
-	assertSeries(`metric_1m.*`, data1m)
+	assertSeries(`metric_1M.*`, data1M)
 
 	assertLabels := func(metricNameRE string, d apptest.TestData) {
 		t.Helper()
@@ -113,7 +113,7 @@ func testPrometheusQueryTracer(tc *apptest.TestCase, sut apptest.PrometheusWrite
 	}
 	assertLabels(`metric_1d.*`, data1d)
 	assertLabels(`metric_1w.*`, data1w)
-	assertLabels(`metric_1m.*`, data1m)
+	assertLabels(`metric_1M.*`, data1M)
 
 	assertLabelValues := func(metricNameRE string, d apptest.TestData) {
 		t.Helper()
@@ -121,7 +121,7 @@ func testPrometheusQueryTracer(tc *apptest.TestCase, sut apptest.PrometheusWrite
 	}
 	assertLabelValues(`metric_1d.*`, data1d)
 	assertLabelValues(`metric_1w.*`, data1w)
-	assertLabelValues(`metric_1m.*`, data1m)
+	assertLabelValues(`metric_1M.*`, data1M)
 
 	assertSeriesCount := func(d apptest.TestData) {
 		t.Helper()
@@ -129,15 +129,15 @@ func testPrometheusQueryTracer(tc *apptest.TestCase, sut apptest.PrometheusWrite
 	}
 	assertSeriesCount(data1d)
 	assertSeriesCount(data1w)
-	assertSeriesCount(data1m)
+	assertSeriesCount(data1M)
 
 	allMetadata := make(map[string][]apptest.MetadataEntry)
 	maps.Insert(allMetadata, maps.All(data1d.WantMetadata))
 	maps.Insert(allMetadata, maps.All(data1w.WantMetadata))
-	maps.Insert(allMetadata, maps.All(data1m.WantMetadata))
+	maps.Insert(allMetadata, maps.All(data1M.WantMetadata))
 	apptest.AssertMetadata(tc, sut, "", tenantID, allMetadata)
 
-	allStats := slices.Concat(data1d.WantMetricNamesStats, data1w.WantMetricNamesStats, data1m.WantMetricNamesStats)
+	allStats := slices.Concat(data1d.WantMetricNamesStats, data1w.WantMetricNamesStats, data1M.WantMetricNamesStats)
 	// Metric name usage stats depends on previous queries.
 	for i := range allStats {
 		allStats[i].QueryRequestsCount = 1
