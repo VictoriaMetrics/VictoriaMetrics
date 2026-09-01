@@ -87,6 +87,26 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run("label_replace-merges-non-overlapping-duplicates", func(t *testing.T) {
+		t.Parallel()
+		q := `label_replace(
+			union(
+				label_set(time() < 1500, "a", "A"),
+				label_set(time() >= 1600, "a", "B"),
+			),
+			"a", "X", "a", ".*")`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("a"),
+			Value: []byte("X"),
+		}}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run("int_with_underscores", func(t *testing.T) {
 		t.Parallel()
 		q := `123_456_789`
@@ -10485,6 +10505,9 @@ func TestExecError(t *testing.T) {
 	// Empty expr
 	f("")
 	f("    ")
+
+	// Duplicate output series holding samples at the same timestamp
+	f(`label_replace(union(label_set(time(), "a", "A"), label_set(time(), "a", "B")), "a", "X", "a", ".*")`)
 
 	// Invalid expr
 	f("1-")
