@@ -145,12 +145,12 @@ func timeseriesToResult(tss []*timeseries, maySort bool) ([]netstorage.Result, e
 	result := make([]netstorage.Result, 0, len(tss))
 	m := make(map[string]int, len(tss))
 	bb := bbPool.Get()
+	defer bbPool.Put(bb)
 	for _, ts := range tss {
 		bb.B = marshalMetricNameSorted(bb.B[:0], &ts.MetricName)
 		k := string(bb.B)
 		if i, ok := m[k]; ok {
 			if err := mergeResultValues(&result[i], ts); err != nil {
-				bbPool.Put(bb)
 				return nil, err
 			}
 			continue
@@ -165,7 +165,6 @@ func timeseriesToResult(tss []*timeseries, maySort bool) ([]netstorage.Result, e
 		rs.Timestamps = ts.Timestamps
 		ts.Timestamps = nil
 	}
-	bbPool.Put(bb)
 
 	return result, nil
 }
@@ -175,8 +174,9 @@ func timeseriesToResult(tss []*timeseries, maySort bool) ([]netstorage.Result, e
 // It returns an error if dst and ts hold a sample at the same timestamp,
 // since there is no way to pick one of the two values.
 func mergeResultValues(dst *netstorage.Result, ts *timeseries) error {
+	// dst and ts share the timestamp grid of the query, so equal lengths mean equal timestamps.
 	if len(dst.Values) != len(ts.Values) {
-		return fmt.Errorf(`duplicate output timeseries: %s`, stringMetricName(&ts.MetricName))
+		logger.Panicf("BUG: output series %s must contain %d samples; got %d", stringMetricName(&ts.MetricName), len(dst.Values), len(ts.Values))
 	}
 	for i, v := range ts.Values {
 		if math.IsNaN(v) {
