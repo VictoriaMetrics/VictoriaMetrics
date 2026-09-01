@@ -676,11 +676,11 @@ func streammustFormatLabels(qw422016 *qt422016.Writer, s string) {
 //line lib/promrelabel/debug.qtpl:293
 		qw422016.N().S(`<span style="color: red" title="error parsing labels:`)
 //line lib/promrelabel/debug.qtpl:294
-		qw422016.E().Q(err.Error())
+		qw422016.E().S(html.EscapeString(err.Error()))
 //line lib/promrelabel/debug.qtpl:294
 		qw422016.N().S(`">`)
 //line lib/promrelabel/debug.qtpl:294
-		qw422016.E().Q("error parsing labels: " + err.Error())
+		qw422016.E().S("error parsing labels: " + html.EscapeString(err.Error()))
 //line lib/promrelabel/debug.qtpl:294
 		qw422016.N().S(`</span>`)
 //line lib/promrelabel/debug.qtpl:295
