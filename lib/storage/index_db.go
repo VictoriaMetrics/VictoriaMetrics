@@ -1706,7 +1706,7 @@ func (is *indexSearch) loadDeletedMetricIDs() (*uint64set.Set, error) {
 // If the number of unique metricIDs exceeds maxMetrics limit, the method
 // returns an error.
 func (db *indexDB) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) (*uint64set.Set, error) {
-	qt = qt.NewChild("search metricIDs: filters=%s, timeRange=%v, maxMetrics=%d", tfss, &tr, maxMetrics)
+	qt = qt.NewChild("search metricIDs: filters=%s, timeRange=%s, maxMetrics=%d", tfss, &tr, maxMetrics)
 	defer qt.Done()
 
 	if tr == globalIndexTimeRange {
