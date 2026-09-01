@@ -11,12 +11,13 @@ import (
 
 func fadviseSequentialRead(f *os.File, prefetch bool) error {
 	fd := int(f.Fd())
-	mode := unix.FADV_SEQUENTIAL
-	if prefetch {
-		mode |= unix.FADV_WILLNEED
+	if err := unix.Fadvise(int(fd), 0, 0, unix.FADV_SEQUENTIAL); err != nil {
+		return fmt.Errorf("error returned from unix.Fadvise(%d): %w", unix.FADV_SEQUENTIAL, err)
 	}
-	if err := unix.Fadvise(int(fd), 0, 0, mode); err != nil {
-		return fmt.Errorf("error returned from unix.Fadvise(%d): %w", mode, err)
+	if prefetch {
+		if err := unix.Fadvise(int(fd), 0, 0, unix.FADV_WILLNEED); err != nil {
+			return fmt.Errorf("error returned from unix.Fadvise(%d): %w", unix.FADV_WILLNEED, err)
+		}
 	}
 	return nil
 }
