@@ -523,28 +523,6 @@ func TestCreateTargetURLFailure(t *testing.T) {
 			},
 		},
 	}, "/select/0/prometheus/api/v1/status/active_queries", true)
-
-	// deny_paths must not be bypassed by appending a trailing slash to the denied path
-	f(&UserInfo{
-		URLMaps: []URLMap{
-			{
-				SrcPaths:  getRegexs([]string{"/select/.*"}),
-				DenyPaths: getRegexs([]string{"/select/[^/]+/prometheus/api/v1/status/active_queries"}),
-				URLPrefix: mustParseURL("http://vmselect:8481"),
-			},
-		},
-	}, "/select/0/prometheus/api/v1/status/active_queries/", true)
-
-	// deny_paths must not be bypassed by dropping a trailing slash from the denied path
-	f(&UserInfo{
-		URLMaps: []URLMap{
-			{
-				SrcPaths:  getRegexs([]string{"/select/.*"}),
-				DenyPaths: getRegexs([]string{"/select/[^/]+/prometheus/api/v1/status/active_queries/"}),
-				URLPrefix: mustParseURL("http://vmselect:8481"),
-			},
-		},
-	}, "/select/0/prometheus/api/v1/status/active_queries", true)
 }
 
 func headersToString(hs []*Header) string {

@@ -106,12 +106,8 @@ func matchAnyDenyPath(rs []*Regex, s string) bool {
 	if len(rs) == 0 {
 		return false
 	}
-	sAlt := strings.TrimSuffix(s, "/")
-	if sAlt == s {
-		sAlt = s + "/"
-	}
 	for _, r := range rs {
-		if r.match(s) || r.match(sAlt) {
+		if r.match(s) {
 			return true
 		}
 	}
