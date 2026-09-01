@@ -442,7 +442,7 @@ type MetricNamesStatsResponse struct {
 
 func (r *MetricNamesStatsResponse) Sort() {
 	sort.Slice(r.Records, func(i, j int) bool {
-		if r.Records[i] != r.Records[j] {
+		if r.Records[i].MetricName != r.Records[j].MetricName {
 			return r.Records[i].MetricName < r.Records[j].MetricName
 		}
 		return r.Records[i].QueryRequestsCount < r.Records[j].QueryRequestsCount
