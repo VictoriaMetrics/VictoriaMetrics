@@ -31,20 +31,28 @@ func init() {
 	}
 
 	cpuCoresQuota, err := getCPUQuotaGeneric()
-	if err != nil || cpuCoresQuota <= 0 {
-		cpuCoresQuota = math.Inf(1)
+	if err != nil {
+		cpuCoresQuota = math.NaN()
+	} else if cpuCoresQuota <= 0 {
+		// Cgroup v1 reports an unset quota as -1. Division by the period changes it to a value such as -0.00001.
+		cpuCoresQuota = -1
+	}
+
+	effectiveCPUQuota := cpuCoresQuota
+	if math.IsNaN(effectiveCPUQuota) || effectiveCPUQuota <= 0 {
+		effectiveCPUQuota = math.Inf(1)
 	}
 
 	// Fall back to online CPUs when the CPU quota isn't set. This may be the case in multilevel containers.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/685#issuecomment-674423728
-	effectiveCPUQuota := min(cpuCoresQuota, cpuCoresHost)
+	effectiveCPUQuota = min(effectiveCPUQuota, cpuCoresHost)
 	updateGOMAXPROCSToCPUQuota(effectiveCPUQuota)
 	cpuCoresAvailable := min(effectiveCPUQuota, numCPU)
 
 	metrics.NewGauge(`process_cpu_cores_host`, func() float64 {
 		return cpuCoresHost
 	})
-	metrics.NewGauge(`process_cpu_cores_cgroup`, func() float64 {
+	metrics.NewGauge(`process_cpu_cores_cgroup_quota`, func() float64 {
 		return cpuCoresQuota
 	})
 	metrics.NewGauge(`process_cpu_cores_available`, func() float64 {

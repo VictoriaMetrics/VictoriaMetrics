@@ -3,7 +3,6 @@ package memory
 import (
 	"flag"
 	"fmt"
-	"math"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
@@ -33,7 +32,7 @@ var (
 	remainingMemory   int
 	memoryLimit       int
 	memoryHostBytes   float64
-	memoryCgroupBytes = math.Inf(1)
+	memoryCgroupBytes float64 = -1
 )
 var once sync.Once
 
