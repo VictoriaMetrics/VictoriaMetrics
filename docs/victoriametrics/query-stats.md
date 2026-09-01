@@ -50,8 +50,8 @@ Each log entry contains the following fields:
 * `data_fetch_duration_ms`: time it took in milliseconds to fetch data from storage via `ProcessSearchQuery`. This helps distinguish storage/data-fetch bottlenecks from vmselect query-processing bottlenecks;
 * `series_fetched`: number of unique [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) fetched.
   This may be higher than the number of series returned if there are filters like `cpu_usage > 0`;
-* `samples_fetched`: number of [data samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) fetched;
-* `bytes`: number of bytes transferred from storage to process the query;
+* `samples_fetched`: number of [data samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) fetched (sum of `RowsCount` for all blocks read from storage);
+* `bytes`: number of bytes of compressed block data fetched from storage (sum of `TimestampsBlockSize` + `ValuesBlockSize` for all blocks);
 * `memory_estimated_bytes`: estimated memory needed to run the query. See `-search.maxMemoryPerQuery` cmd-line flag.
 * `headers.*`: header key-value pairs associated with request {{% available_from "v1.121.0" %}}. Only headers listed in `-search.logSlowQueryStatsHeaders`
   are logged.

@@ -80,7 +80,8 @@ func (rss *Results) SamplesFetched() int {
 	return rss.samples
 }
 
-// BytesFetched returns the number of bytes fetched from storage (size of marshaled BlockRefs).
+// BytesFetched returns the number of bytes of compressed block data fetched from storage
+// (sum of TimestampsBlockSize + ValuesBlockSize for all blocks).
 func (rss *Results) BytesFetched() uint64 {
 	return rss.bytes
 }
@@ -1095,6 +1096,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 
 	blocksRead := 0
 	samples := 0
+	var bytesData uint64
 	tbf := getTmpBlocksFile()
 	var buf []byte
 	var metricNamePrev []byte
@@ -1136,6 +1138,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 		// are left then because of the given time range.
 		// This allows effectively limiting CPU resources used per query.
 		samples += br.RowsCount()
+		bytesData += uint64(br.BlockSize())
 		if *maxSamplesPerQuery > 0 && samples > *maxSamplesPerQuery {
 			putTmpBlocksFile(tbf)
 			vmstorage.PutSearch(sr)
@@ -1216,7 +1219,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 		vmstorage.PutSearch(sr)
 		return nil, fmt.Errorf("cannot finalize temporary file: %w", err)
 	}
-	qt.Printf("fetch unique series=%d, blocks=%d, samples=%d, bytes=%d", len(m), blocksRead, samples, tbf.Len())
+	qt.Printf("fetch unique series=%d, blocks=%d, samples=%d, bytes=%d", len(m), blocksRead, samples, bytesData)
 
 	var rss Results
 	rss.tr = sq.GetTimeRange()
@@ -1232,7 +1235,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 	rss.sr = sr
 	rss.tbf = tbf
 	rss.samples = samples
-	rss.bytes = tbf.Len()
+	rss.bytes = bytesData
 	return &rss, nil
 }
 

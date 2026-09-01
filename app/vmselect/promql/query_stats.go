@@ -18,9 +18,10 @@ type QueryStats struct {
 	DataFetchDuration atomic.Int64
 	// SeriesFetched contains the number of series fetched from storage or cache.
 	SeriesFetched atomic.Int64
-	// SamplesFetched contains the number of samples fetched from storage.
+	// SamplesFetched contains the number of raw samples fetched from storage (sum of RowsCount for all blocks).
 	SamplesFetched atomic.Int64
-	// BytesFetched contains the number of bytes fetched from storage.
+	// BytesFetched contains the number of bytes of compressed block data fetched from storage
+	// (sum of TimestampsBlockSize + ValuesBlockSize for all blocks).
 	BytesFetched atomic.Int64
 	// MemoryUsage contains the estimated memory consumption of the query
 	MemoryUsage atomic.Int64
