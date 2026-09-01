@@ -144,8 +144,8 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 		// index instead of per-day index.
 		tr := globalIndexTimeRange
 		for range b.N {
-			is := db.getIndexSearch(tfs.accountID, tfs.projectID, noDeadline)
-			metricIDs, err := is.searchMetricIDs(nil, tfss, tr, 2e9)
+			is := db.getIndexSearch(tfs.accountID, tfs.projectID)
+			metricIDs, err := is.searchMetricIDs(noDeadlineContext, nil, tfss, tr, 2e9)
 			db.putIndexSearch(is)
 			if err != nil {
 				b.Fatalf("unexpected error in searchMetricIDs: %s", err)
@@ -311,7 +311,7 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 		mnLocal.CopyFrom(&mn)
 		mnLocal.sortTags()
 		for pb.Next() {
-			is := db.getIndexSearch(0, 0, noDeadline)
+			is := db.getIndexSearch(0, 0)
 			for i := range recordsPerLoop {
 				mnLocal.AccountID = uint32(i % accountsCount)
 				mnLocal.ProjectID = uint32(i % projectsCount)

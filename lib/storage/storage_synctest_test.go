@@ -65,14 +65,14 @@ func TestStorageSearchTSIDs_CorruptedIndex(t *testing.T) {
 		tfssAll := []*TagFilters{tfsAll}
 
 		searchMetricIDs := func() []uint64 {
-			metricIDs, err := idb.searchMetricIDs(nil, tfssAll, tr, 1e9, noDeadline)
+			metricIDs, err := idb.searchMetricIDs(noDeadlineContext, nil, tfssAll, tr, 1e9)
 			if err != nil {
 				panic(fmt.Sprintf("searchMetricIDs() failed unexpectedly: %v", err))
 			}
 			return metricIDs.AppendTo(nil)
 		}
 		searchTSIDs := func() []TSID {
-			tsids, err := s.SearchTSIDs(nil, tfssAll, tr, 1e9, noDeadline)
+			tsids, err := s.SearchTSIDs(noDeadlineContext, nil, tfssAll, tr, 1e9)
 			if err != nil {
 				panic(fmt.Sprintf("SearchTSIDs() failed unexpectedly: %v", err))
 			}
@@ -172,14 +172,14 @@ func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
 		tfssAll := []*TagFilters{tfsAll}
 
 		searchMetricIDs := func() []uint64 {
-			metricIDs, err := idb.searchMetricIDs(nil, tfssAll, tr, 1e9, noDeadline)
+			metricIDs, err := idb.searchMetricIDs(noDeadlineContext, nil, tfssAll, tr, 1e9)
 			if err != nil {
 				panic(fmt.Sprintf("searchMetricIDs() failed unexpectedly: %v", err))
 			}
 			return metricIDs.AppendTo(nil)
 		}
 		searchMetricNames := func() []string {
-			metricNames, err := s.SearchMetricNames(nil, tfssAll, tr, 1e9, noDeadline)
+			metricNames, err := s.SearchMetricNames(noDeadlineContext, nil, tfssAll, tr, 1e9)
 			if err != nil {
 				panic(fmt.Sprintf("SearchMetricNames() failed unexpectedly: %v", err))
 			}
@@ -1221,7 +1221,7 @@ func TestStorage_denyQueriesOutsideRetention(t *testing.T) {
 	}
 	assertMetricNames := func(t *testing.T, s *Storage, tr TimeRange, wantData []string, wantErr bool) {
 		t.Helper()
-		metricNames, err := s.SearchMetricNames(nil, tfssAll, tr, 1e9, noDeadline)
+		metricNames, err := s.SearchMetricNames(noDeadlineContext, nil, tfssAll, tr, 1e9)
 		gotErr := err != nil
 		if gotErr != wantErr {
 			t.Fatalf("SearchMetricNames(): unmet error expectation for timeRange=%v: got %t, want %t (err: %v)", &tr, gotErr, wantErr, err)
@@ -1240,7 +1240,7 @@ func TestStorage_denyQueriesOutsideRetention(t *testing.T) {
 	}
 	assertLabelNames := func(t *testing.T, s *Storage, tr TimeRange, wantData []string, wantErr bool) {
 		t.Helper()
-		gotData, err := s.SearchLabelNames(nil, accountID, projectID, nil, tr, 1e9, 1e9, noDeadline)
+		gotData, err := s.SearchLabelNames(noDeadlineContext, nil, accountID, projectID, nil, tr, 1e9, 1e9)
 		gotErr := err != nil
 		if gotErr != wantErr {
 			t.Fatalf("SearchLabelNames(): unmet error expectation for timeRange=%v: got %t, want %t (err: %v)", &tr, gotErr, wantErr, err)
@@ -1253,7 +1253,7 @@ func TestStorage_denyQueriesOutsideRetention(t *testing.T) {
 	}
 	assertLabelValues := func(t *testing.T, s *Storage, tr TimeRange, wantData []string, wantErr bool) {
 		t.Helper()
-		gotData, err := s.SearchLabelValues(nil, accountID, projectID, "__name__", nil, tr, 1e9, 1e9, noDeadline)
+		gotData, err := s.SearchLabelValues(noDeadlineContext, nil, accountID, projectID, "__name__", nil, tr, 1e9, 1e9)
 		gotErr := err != nil
 		if gotErr != wantErr {
 			t.Fatalf("SearchLabelValues(): unmet error expectation for timeRange=%v: got %t, want %t (err: %v)", &tr, gotErr, wantErr, err)
@@ -1266,7 +1266,7 @@ func TestStorage_denyQueriesOutsideRetention(t *testing.T) {
 	}
 	assertTagValueSuffixes := func(t *testing.T, s *Storage, tr TimeRange, wantData []string, wantErr bool) {
 		t.Helper()
-		gotData, err := s.SearchTagValueSuffixes(nil, accountID, projectID, tr, "", "", '.', 1e9, noDeadline)
+		gotData, err := s.SearchTagValueSuffixes(noDeadlineContext, nil, accountID, projectID, tr, "", "", '.', 1e9)
 		gotErr := err != nil
 		if gotErr != wantErr {
 			t.Fatalf("SearchTagValueSuffixes(): unmet error expectation for timeRange=%v: got %t, want %t (err: %v)", &tr, gotErr, wantErr, err)
@@ -1280,7 +1280,7 @@ func TestStorage_denyQueriesOutsideRetention(t *testing.T) {
 
 	assertGraphitePaths := func(t *testing.T, s *Storage, tr TimeRange, wantData []string, wantErr bool) {
 		t.Helper()
-		gotData, err := s.SearchGraphitePaths(nil, accountID, projectID, tr, []byte("*"), 1e9, noDeadline)
+		gotData, err := s.SearchGraphitePaths(noDeadlineContext, nil, accountID, projectID, tr, []byte("*"), 1e9)
 		gotErr := err != nil
 		if gotErr != wantErr {
 			t.Fatalf("SearchTagValueSuffixes(): unmet error expectation for timeRange=%v: got %t, want %t (err: %v)", &tr, gotErr, wantErr, err)

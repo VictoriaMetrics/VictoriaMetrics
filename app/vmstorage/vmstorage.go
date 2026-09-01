@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"sync"
@@ -129,14 +130,14 @@ func (vms *VMStorage) IsReadOnly() bool {
 	return vms.s.IsReadOnly()
 }
 
-func (vms *VMStorage) InitSearch(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (vmselectapi.BlockIterator, error) {
-	return vms.initSearch(qt, sq, marshalDefault, deadline)
+func (vms *VMStorage) InitSearch(ctx context.Context, qt *querytracer.Tracer, sq *storage.SearchQuery) (vmselectapi.BlockIterator, error) {
+	return vms.initSearch(ctx, qt, sq, marshalDefault)
 }
 
-func (vms *VMStorage) initSearch(qt *querytracer.Tracer, sq *storage.SearchQuery, marshal marshalFunc, deadline uint64) (vmselectapi.BlockIterator, error) {
+func (vms *VMStorage) initSearch(ctx context.Context, qt *querytracer.Tracer, sq *storage.SearchQuery, marshal marshalFunc) (vmselectapi.BlockIterator, error) {
 	tr := sq.GetTimeRange()
 	maxMetrics := vms.getMaxMetrics(sq.MaxMetrics)
-	tfss, err := vms.setupTfss(qt, sq, tr, maxMetrics, deadline)
+	tfss, err := vms.setupTfss(ctx, qt, sq, tr, maxMetrics)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +146,7 @@ func (vms *VMStorage) initSearch(qt *querytracer.Tracer, sq *storage.SearchQuery
 	}
 	bi := getBlockIterator()
 	bi.marshal = marshal
-	bi.sr.Init(qt, vms.s, tfss, tr, maxMetrics, deadline)
+	bi.sr.Init(ctx, qt, vms.s, tfss, tr, maxMetrics)
 	if err := bi.sr.Error(); err != nil {
 		bi.MustClose()
 		return nil, err
@@ -195,8 +196,8 @@ func getBlockIterator() *blockIterator {
 	return v.(*blockIterator)
 }
 
-func (bi *blockIterator) NextBlock(dst []byte) ([]byte, bool) {
-	if !bi.sr.NextMetricBlock() {
+func (bi *blockIterator) NextBlock(ctx context.Context, dst []byte) ([]byte, bool) {
+	if !bi.sr.NextMetricBlock(ctx) {
 		return dst, false
 	}
 	mb := &bi.mb
@@ -211,7 +212,7 @@ func (bi *blockIterator) Error() error {
 }
 
 // SearchMetricNames returns metric names for the given tfss on the given tr.
-func (vms *VMStorage) SearchMetricNames(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) ([]string, error) {
+func (vms *VMStorage) SearchMetricNames(ctx context.Context, qt *querytracer.Tracer, sq *storage.SearchQuery) ([]string, error) {
 	tr := sq.GetTimeRange()
 	maxMetrics := sq.MaxMetrics
 	if maxMetrics <= 0 {
@@ -219,19 +220,19 @@ func (vms *VMStorage) SearchMetricNames(qt *querytracer.Tracer, sq *storage.Sear
 		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7857
 		maxMetrics = vms.maxUniqueTimeSeriesCalculated
 	}
-	tfss, err := vms.setupTfss(qt, sq, tr, maxMetrics, deadline)
+	tfss, err := vms.setupTfss(ctx, qt, sq, tr, maxMetrics)
 	if err != nil {
 		return nil, err
 	}
 	if len(tfss) == 0 {
 		return nil, fmt.Errorf("missing tag filters")
 	}
-	return vms.s.SearchMetricNames(qt, tfss, tr, maxMetrics, deadline)
+	return vms.s.SearchMetricNames(ctx, qt, tfss, tr, maxMetrics)
 }
 
 // SearchLabelValues searches for label values for the given labelName, tfss and
 // tr.
-func (vms *VMStorage) LabelValues(qt *querytracer.Tracer, sq *storage.SearchQuery, labelName string, maxLabelValues int, deadline uint64) ([]string, error) {
+func (vms *VMStorage) LabelValues(ctx context.Context, qt *querytracer.Tracer, sq *storage.SearchQuery, labelName string, maxLabelValues int) ([]string, error) {
 	tr := sq.GetTimeRange()
 	if maxLabelValues <= 0 || maxLabelValues > *maxTagValues {
 		maxLabelValues = *maxTagValues
@@ -242,11 +243,11 @@ func (vms *VMStorage) LabelValues(qt *querytracer.Tracer, sq *storage.SearchQuer
 		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7857
 		maxMetrics = vms.maxUniqueTimeSeriesCalculated
 	}
-	tfss, err := vms.setupTfss(qt, sq, tr, maxMetrics, deadline)
+	tfss, err := vms.setupTfss(ctx, qt, sq, tr, maxMetrics)
 	if err != nil {
 		return nil, err
 	}
-	return vms.s.SearchLabelValues(qt, sq.AccountID, sq.ProjectID, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline)
+	return vms.s.SearchLabelValues(ctx, qt, sq.AccountID, sq.ProjectID, labelName, tfss, tr, maxLabelValues, maxMetrics)
 }
 
 // TagValueSuffixes returns all the tag value suffixes for the given tagKey and
@@ -255,12 +256,12 @@ func (vms *VMStorage) LabelValues(qt *querytracer.Tracer, sq *storage.SearchQuer
 // This allows implementing
 // https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find or
 // similar APIs.
-func (vms *VMStorage) TagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte,
-	maxSuffixes int, deadline uint64) ([]string, error) {
+func (vms *VMStorage) TagValueSuffixes(ctx context.Context, qt *querytracer.Tracer, accountID, projectID uint32, tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte,
+	maxSuffixes int) ([]string, error) {
 	if maxSuffixes <= 0 || maxSuffixes > *maxTagValueSuffixesPerSearch {
 		maxSuffixes = *maxTagValueSuffixesPerSearch
 	}
-	suffixes, err := vms.s.SearchTagValueSuffixes(qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes, deadline)
+	suffixes, err := vms.s.SearchTagValueSuffixes(ctx, qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes)
 	if err != nil {
 		return nil, err
 	}
@@ -272,7 +273,7 @@ func (vms *VMStorage) TagValueSuffixes(qt *querytracer.Tracer, accountID, projec
 }
 
 // SearchLabelNames searches for tag keys matching the given tfss on tr.
-func (vms *VMStorage) LabelNames(qt *querytracer.Tracer, sq *storage.SearchQuery, maxLabelNames int, deadline uint64) ([]string, error) {
+func (vms *VMStorage) LabelNames(ctx context.Context, qt *querytracer.Tracer, sq *storage.SearchQuery, maxLabelNames int) ([]string, error) {
 	tr := sq.GetTimeRange()
 	if maxLabelNames <= 0 || maxLabelNames > *maxTagKeys {
 		maxLabelNames = *maxTagKeys
@@ -283,23 +284,23 @@ func (vms *VMStorage) LabelNames(qt *querytracer.Tracer, sq *storage.SearchQuery
 		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7857
 		maxMetrics = vms.maxUniqueTimeSeriesCalculated
 	}
-	tfss, err := vms.setupTfss(qt, sq, tr, maxMetrics, deadline)
+	tfss, err := vms.setupTfss(ctx, qt, sq, tr, maxMetrics)
 	if err != nil {
 		return nil, err
 	}
-	return vms.s.SearchLabelNames(qt, sq.AccountID, sq.ProjectID, tfss, tr, maxLabelNames, maxMetrics, deadline)
+	return vms.s.SearchLabelNames(ctx, qt, sq.AccountID, sq.ProjectID, tfss, tr, maxLabelNames, maxMetrics)
 }
 
-func (vms *VMStorage) SeriesCount(_ *querytracer.Tracer, accountID, projectID uint32, deadline uint64) (uint64, error) {
-	return vms.s.GetSeriesCount(accountID, projectID, deadline)
+func (vms *VMStorage) SeriesCount(ctx context.Context, qt *querytracer.Tracer, accountID, projectID uint32) (uint64, error) {
+	return vms.s.GetSeriesCount(ctx, accountID, projectID)
 }
 
-func (vms *VMStorage) Tenants(qt *querytracer.Tracer, tr storage.TimeRange, deadline uint64) ([]string, error) {
-	return vms.s.SearchTenants(qt, tr, deadline)
+func (vms *VMStorage) Tenants(ctx context.Context, qt *querytracer.Tracer, tr storage.TimeRange) ([]string, error) {
+	return vms.s.SearchTenants(ctx, qt, tr)
 }
 
 // GetTSDBStatus returns TSDB status for given filters on the given date.
-func (vms *VMStorage) TSDBStatus(qt *querytracer.Tracer, sq *storage.SearchQuery, focusLabel string, topN int, deadline uint64) (*storage.TSDBStatus, error) {
+func (vms *VMStorage) TSDBStatus(ctx context.Context, qt *querytracer.Tracer, sq *storage.SearchQuery, focusLabel string, topN int) (*storage.TSDBStatus, error) {
 	tr := sq.GetTimeRange()
 	maxMetrics := sq.MaxMetrics
 	if maxMetrics <= 0 {
@@ -307,18 +308,18 @@ func (vms *VMStorage) TSDBStatus(qt *querytracer.Tracer, sq *storage.SearchQuery
 		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7857
 		maxMetrics = vms.maxUniqueTimeSeriesCalculated
 	}
-	tfss, err := vms.setupTfss(qt, sq, tr, maxMetrics, deadline)
+	tfss, err := vms.setupTfss(ctx, qt, sq, tr, maxMetrics)
 	if err != nil {
 		return nil, err
 	}
 	date := uint64(sq.MinTimestamp) / (24 * 3600 * 1000)
-	return vms.s.GetTSDBStatus(qt, sq.AccountID, sq.ProjectID, tfss, date, focusLabel, topN, maxMetrics, deadline)
+	return vms.s.GetTSDBStatus(ctx, qt, sq.AccountID, sq.ProjectID, tfss, date, focusLabel, topN, maxMetrics)
 }
 
 // DeleteSeries deletes series matching tfss.
 //
 // Returns the number of deleted series.
-func (vms *VMStorage) DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (int, error) {
+func (vms *VMStorage) DeleteSeries(ctx context.Context, qt *querytracer.Tracer, sq *storage.SearchQuery) (int, error) {
 	tr := sq.GetTimeRange()
 	maxMetrics := sq.MaxMetrics
 	if maxMetrics <= 0 {
@@ -326,33 +327,33 @@ func (vms *VMStorage) DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQue
 		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7857
 		maxMetrics = vms.maxUniqueTimeSeriesCalculated
 	}
-	tfss, err := vms.setupTfss(qt, sq, tr, maxMetrics, deadline)
+	tfss, err := vms.setupTfss(ctx, qt, sq, tr, maxMetrics)
 	if err != nil {
 		return 0, err
 	}
 	if len(tfss) == 0 {
 		return 0, fmt.Errorf("missing tag filters")
 	}
-	return vms.s.DeleteSeries(qt, tfss, maxMetrics)
+	return vms.s.DeleteSeries(ctx, qt, tfss, maxMetrics)
 }
 
-func (vms *VMStorage) RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, _ uint64) error {
+func (vms *VMStorage) RegisterMetricNames(ctx context.Context, qt *querytracer.Tracer, mrs []storage.MetricRow) error {
 	vms.s.RegisterMetricNames(qt, mrs)
 	return nil
 }
 
 // GetMetricNamesUsageStats returns metric name usage stats.
-func (vms *VMStorage) GetMetricNamesUsageStats(qt *querytracer.Tracer, tt *storage.TenantToken, limit, le int, matchPattern string, _ uint64) (metricnamestats.StatsResult, error) {
-	return vms.s.GetMetricNamesStats(qt, tt, limit, le, matchPattern), nil
+func (vms *VMStorage) GetMetricNamesUsageStats(ctx context.Context, qt *querytracer.Tracer, tt *storage.TenantToken, limit, le int, matchPattern string) (metricnamestats.StatsResult, error) {
+	return vms.s.GetMetricNamesStats(ctx, qt, tt, limit, le, matchPattern), nil
 }
 
 // ResetMetricNamesStats resets state for metric names usage tracker
-func (vms *VMStorage) ResetMetricNamesUsageStats(qt *querytracer.Tracer, _ uint64) error {
+func (vms *VMStorage) ResetMetricNamesUsageStats(ctx context.Context, qt *querytracer.Tracer) error {
 	vms.s.ResetMetricNamesStats(qt)
 	return nil
 }
 
-func (vms *VMStorage) setupTfss(qt *querytracer.Tracer, sq *storage.SearchQuery, tr storage.TimeRange, maxMetrics int, deadline uint64) ([]*storage.TagFilters, error) {
+func (vms *VMStorage) setupTfss(ctx context.Context, qt *querytracer.Tracer, sq *storage.SearchQuery, tr storage.TimeRange, maxMetrics int) ([]*storage.TagFilters, error) {
 	tfss := make([]*storage.TagFilters, 0, len(sq.TagFilterss))
 	accountID := sq.AccountID
 	projectID := sq.ProjectID
@@ -363,7 +364,7 @@ func (vms *VMStorage) setupTfss(qt *querytracer.Tracer, sq *storage.SearchQuery,
 			if string(tf.Key) == "__graphite__" {
 				query := tf.Value
 				qtChild := qt.NewChild("searching for series matching __graphite__=%q", query)
-				paths, err := vms.s.SearchGraphitePaths(qtChild, accountID, projectID, tr, query, maxMetrics, deadline)
+				paths, err := vms.s.SearchGraphitePaths(ctx, qtChild, accountID, projectID, tr, query, maxMetrics)
 				qtChild.Donef("found %d series", len(paths))
 				if err != nil {
 					return nil, fmt.Errorf("error when searching for Graphite paths for query %q: %w", query, err)
@@ -385,8 +386,8 @@ func (vms *VMStorage) setupTfss(qt *querytracer.Tracer, sq *storage.SearchQuery,
 	return tfss, nil
 }
 
-func (vms *VMStorage) GetMetadataRecords(qt *querytracer.Tracer, tt *storage.TenantToken, limit int, metricName string, deadline uint64) ([]*metricsmetadata.Row, error) {
-	return vms.s.GetMetadataRows(qt, tt, limit, metricName, deadline)
+func (vms *VMStorage) GetMetadataRecords(ctx context.Context, qt *querytracer.Tracer, tt *storage.TenantToken, limit int, metricName string) ([]*metricsmetadata.Row, error) {
+	return vms.s.GetMetadataRows(ctx, qt, tt, limit, metricName)
 }
 
 // deleteSnapshot deletes a snapshot by its name.
