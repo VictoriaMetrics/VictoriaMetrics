@@ -18,6 +18,10 @@ type QueryStats struct {
 	DataFetchDuration atomic.Int64
 	// SeriesFetched contains the number of series fetched from storage or cache.
 	SeriesFetched atomic.Int64
+	// SamplesFetched contains the number of samples fetched from storage.
+	SamplesFetched atomic.Int64
+	// BytesFetched contains the number of bytes fetched from storage.
+	BytesFetched atomic.Int64
 	// MemoryUsage contains the estimated memory consumption of the query
 	MemoryUsage atomic.Int64
 
@@ -51,6 +55,20 @@ func (qs *QueryStats) addSeriesFetched(n int) {
 		return
 	}
 	qs.SeriesFetched.Add(int64(n))
+}
+
+func (qs *QueryStats) addSamplesFetched(n int) {
+	if qs == nil {
+		return
+	}
+	qs.SamplesFetched.Add(int64(n))
+}
+
+func (qs *QueryStats) addBytesFetched(n int) {
+	if qs == nil {
+		return
+	}
+	qs.BytesFetched.Add(int64(n))
 }
 
 func (qs *QueryStats) addExecutionTimeMsec(startTime time.Time) {
@@ -95,7 +113,7 @@ func (qs *QueryStats) maybeLogQueryStats(startTime time.Time) {
 	if qs == nil {
 		return
 	}
-	if *logQueryStatsDuration == 0 {
+	if *logQueryStatsDuration <= 0 {
 		return
 	}
 	d := time.Since(startTime)
@@ -104,10 +122,6 @@ func (qs *QueryStats) maybeLogQueryStats(startTime time.Time) {
 	}
 	executionDurationMs := d.Milliseconds()
 	dataFetchDurationMs := qs.getDataFetchDuration().Milliseconds()
-	// Ensure dataFetchDurationMs does not exceed executionDurationMs due to clock skew or concurrent updates
-	if dataFetchDurationMs > executionDurationMs {
-		dataFetchDurationMs = executionDurationMs
-	}
 	queryHash := hashQuery(qs.query)
 	tenant := "0"
 	if qs.at != nil {
@@ -115,8 +129,8 @@ func (qs *QueryStats) maybeLogQueryStats(startTime time.Time) {
 	}
 	rangeMs := qs.end - qs.start
 	// Use Info level to match query-stats logging; vm_slow_query_stats prefix is required for filtering
-	logger.Infof("vm_slow_query_stats type=%s query=%q query_hash=%d start_ms=%d end_ms=%d step_ms=%d range_ms=%d tenant=%q execution_duration_ms=%d data_fetch_duration_ms=%d series_fetched=%d memory_estimated_bytes=%d",
-		qs.queryType, qs.query, queryHash, qs.start, qs.end, qs.step, rangeMs, tenant, executionDurationMs, dataFetchDurationMs, qs.SeriesFetched.Load(), qs.MemoryUsage.Load())
+	logger.Infof("vm_slow_query_stats type=%s query=%q query_hash=%d start_ms=%d end_ms=%d step_ms=%d range_ms=%d tenant=%q execution_duration_ms=%d data_fetch_duration_ms=%d series_fetched=%d samples_fetched=%d bytes=%d memory_estimated_bytes=%d",
+		qs.queryType, qs.query, queryHash, qs.start, qs.end, qs.step, rangeMs, tenant, executionDurationMs, dataFetchDurationMs, qs.SeriesFetched.Load(), qs.SamplesFetched.Load(), qs.BytesFetched.Load(), qs.MemoryUsage.Load())
 }
 
 func hashQuery(q string) uint64 {
