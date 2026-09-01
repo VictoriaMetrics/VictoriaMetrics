@@ -65,11 +65,24 @@ type Results struct {
 	packedTimeseries []packedTimeseries
 	sr               *storage.Search
 	tbf              *tmpBlocksFile
+
+	samples int
+	bytes   uint64
 }
 
 // Len returns the number of results in rss.
 func (rss *Results) Len() int {
 	return len(rss.packedTimeseries)
+}
+
+// SamplesFetched returns the number of raw samples fetched from storage.
+func (rss *Results) SamplesFetched() int {
+	return rss.samples
+}
+
+// BytesFetched returns the number of bytes fetched from storage (size of marshaled BlockRefs).
+func (rss *Results) BytesFetched() uint64 {
+	return rss.bytes
 }
 
 // Cancel cancels rss work.
@@ -1218,6 +1231,8 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 	rss.packedTimeseries = pts
 	rss.sr = sr
 	rss.tbf = tbf
+	rss.samples = samples
+	rss.bytes = tbf.Len()
 	return &rss, nil
 }
 

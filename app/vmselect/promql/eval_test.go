@@ -177,6 +177,8 @@ func TestQueryStats_NilSafety(t *testing.T) {
 	qs.addSeriesFetched(1)
 	qs.addExecutionTimeMsec(time.Now())
 	qs.addDataFetchDuration(time.Millisecond)
+	qs.addSamplesFetched(10)
+	qs.addBytesFetched(1024)
 	qs.addMemoryUsage(100)
 	if qs.memoryUsage() != 0 {
 		t.Fatalf("expected 0 for nil memoryUsage")
@@ -184,7 +186,68 @@ func TestQueryStats_NilSafety(t *testing.T) {
 	if qs.getDataFetchDuration() != 0 {
 		t.Fatalf("expected 0 for nil dataFetchDuration")
 	}
+	// SamplesFetched/BytesFetched are not directly readable when qs is nil (would panic on Load),
+	// but add* methods must be nil-safe and maybeLog must not panic.
 	qs.maybeLogQueryStats(time.Now())
+}
+
+func TestQueryStats_SamplesAndBytesFetched(t *testing.T) {
+	qs := &QueryStats{}
+	if n := qs.SamplesFetched.Load(); n != 0 {
+		t.Fatalf("expected initial 0 for SamplesFetched; got %d", n)
+	}
+	if n := qs.BytesFetched.Load(); n != 0 {
+		t.Fatalf("expected initial 0 for BytesFetched; got %d", n)
+	}
+	qs.addSamplesFetched(100)
+	qs.addBytesFetched(4096)
+	if n := qs.SamplesFetched.Load(); n != 100 {
+		t.Fatalf("expected 100 samples; got %d", n)
+	}
+	if n := qs.BytesFetched.Load(); n != 4096 {
+		t.Fatalf("expected 4096 bytes; got %d", n)
+	}
+	qs.addSamplesFetched(50)
+	qs.addBytesFetched(1024)
+	if n := qs.SamplesFetched.Load(); n != 150 {
+		t.Fatalf("expected 150 samples after second add; got %d", n)
+	}
+	if n := qs.BytesFetched.Load(); n != 5120 {
+		t.Fatalf("expected 5120 bytes after second add; got %d", n)
+	}
+	// Nil safety already tested, but verify concurrent adds
+	qs2 := &QueryStats{}
+	var wg = make(chan struct{})
+	go func() {
+		for range 100 {
+			qs2.addSamplesFetched(1)
+			qs2.addBytesFetched(10)
+		}
+		close(wg)
+	}()
+	for range 100 {
+		qs2.addSamplesFetched(1)
+		qs2.addBytesFetched(10)
+	}
+	<-wg
+	if n := qs2.SamplesFetched.Load(); n != 200 {
+		t.Fatalf("expected 200 samples after concurrent adds; got %d", n)
+	}
+	if n := qs2.BytesFetched.Load(); n != 2000 {
+		t.Fatalf("expected 2000 bytes after concurrent adds; got %d", n)
+	}
+	// Verify independence from SeriesFetched and DataFetchDuration
+	qs3 := &QueryStats{}
+	qs3.addSeriesFetched(5)
+	qs3.addSamplesFetched(10)
+	qs3.addBytesFetched(100)
+	qs3.addDataFetchDuration(time.Millisecond)
+	if n := qs3.SeriesFetched.Load(); n != 5 {
+		t.Fatalf("expected series 5; got %d", n)
+	}
+	if n := qs3.SamplesFetched.Load(); n != 10 {
+		t.Fatalf("expected samples 10; got %d", n)
+	}
 }
 
 func TestGetSumInstantValues(t *testing.T) {

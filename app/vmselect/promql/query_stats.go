@@ -64,7 +64,7 @@ func (qs *QueryStats) addSamplesFetched(n int) {
 	qs.SamplesFetched.Add(int64(n))
 }
 
-func (qs *QueryStats) addBytesFetched(n int) {
+func (qs *QueryStats) addBytesFetched(n uint64) {
 	if qs == nil {
 		return
 	}

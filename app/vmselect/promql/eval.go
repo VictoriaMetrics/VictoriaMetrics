@@ -1845,6 +1845,8 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 		return nil, nil
 	}
 	qs.addSeriesFetched(rssLen)
+	qs.addSamplesFetched(rss.SamplesFetched())
+	qs.addBytesFetched(rss.BytesFetched())
 
 	// Verify timeseries fit available memory during rollup calculations.
 	timeseriesLen := rssLen
