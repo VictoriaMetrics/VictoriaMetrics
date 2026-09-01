@@ -1,5 +1,7 @@
 {% import (
         "fmt"
+        "html"
+
         "github.com/VictoriaMetrics/VictoriaMetrics/lib/htmlcomponents"
         "github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 ) %}
@@ -232,12 +234,12 @@ document.addEventListener('DOMContentLoaded', initRelabelConfigsHighlight);
                     "rule": {%q= ds.Rule %},
                     "errors": {
                         {% if inErr != nil %}
-                        "inLabels": {%q= `<span style="color: #D15757">`+inErr.Error()+`</span>` %}{% if outErr != nil %},{% endif %}
+                        "inLabels": {%q= `<span style="color: #D15757">`+html.EscapeString(inErr.Error())+`</span>` %}{% if outErr != nil %},{% endif %}
                         {%code hasError = true %}
                         {% else %}
                         {% endif %}
                         {% if outErr != nil %}
-                        "outLabels": {%q= `<span style="color: #D15757">`+outErr.Error()+`</span>` %}
+                        "outLabels": {%q= `<span style="color: #D15757">`+html.EscapeString(outErr.Error())+`</span>` %}
                         {%code hasError = true %}
                         {% endif %}
                     }
@@ -289,7 +291,7 @@ document.addEventListener('DOMContentLoaded', initRelabelConfigsHighlight);
 {% func mustFormatLabels(s string) %}
         {% code labels, err := promutil.NewLabelsFromString(s) %}
         {% if err != nil %}
-            <span style="color: red" title="error parsing labels: {%s err.Error() %}">{%s "error parsing labels: " + err.Error() %}</span>
+            <span style="color: red" title="error parsing labels: {%q err.Error() %}">{%q "error parsing labels: " + err.Error() %}</span>
         {% else %}
             {%= labelsWithHighlight(labels, nil, "") %}
         {% endif %}
