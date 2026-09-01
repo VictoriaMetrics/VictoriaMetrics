@@ -1830,11 +1830,15 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 		minTimestamp -= ec.Step
 	}
 	sq := storage.NewSearchQuery(minTimestamp, ec.End, tfss, ec.MaxSeries)
+	qs := ec.QueryStats
+	startTime := time.Now()
 	rss, err := netstorage.ProcessSearchQuery(qt, sq, ec.Deadline)
+	if qs != nil {
+		qs.addDataFetchDuration(time.Since(startTime))
+	}
 	if err != nil {
 		return nil, err
 	}
-	qs := ec.QueryStats
 	rssLen := rss.Len()
 	if rssLen == 0 {
 		rss.Cancel()

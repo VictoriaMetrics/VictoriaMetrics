@@ -38,9 +38,14 @@ See https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries
             if ed := qs.ExecutionDuration.Load(); ed != nil {
                 executionDuration = ed.Milliseconds()
             }
+            dataFetchDuration := int64(0)
+            if qs != nil {
+                dataFetchDuration = qs.DataFetchDuration.Load() / 1e6
+            }
 		%}
 		"seriesFetched": "{%dl qs.SeriesFetched.Load() %}",
-		"executionTimeMsec": {%dl executionDuration %}
+		"executionTimeMsec": {%dl executionDuration %},
+		"dataFetchDurationMsec": {%dl dataFetchDuration %}
 	}
 	{% code
 		qt.Printf("generate /api/v1/query response for series=%d", seriesCount)

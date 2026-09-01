@@ -32,7 +32,7 @@ Here's how `<duration>` works:
 **Example of a query statistics log:**
 
 ```bash
-2025-03-25T11:23:29.520Z        info    VictoriaMetrics/app/vmselect/promql/query_stats.go:60       vm_slow_query_stats type=instant query="vm_promscrape_config_last_reload_successful != 1\nor\nvmagent_relabel_config_last_reload_successful != 1\n" query_hash=1585303298 start_ms=1742901750000 end_ms=1742901750000 step_ms=300000 range_ms=0 tenant="0" execution_duration_ms=0 series_fetched=2 samples_fetched=163 bytes=975 memory_estimated_bytes=2032
+2025-03-25T11:23:29.520Z        info    VictoriaMetrics/app/vmselect/promql/query_stats.go:60       vm_slow_query_stats type=instant query="vm_promscrape_config_last_reload_successful != 1\nor\nvmagent_relabel_config_last_reload_successful != 1\n" query_hash=1585303298 start_ms=1742901750000 end_ms=1742901750000 step_ms=300000 range_ms=0 tenant="0" execution_duration_ms=0 data_fetch_duration_ms=0 series_fetched=2 samples_fetched=163 bytes=975 memory_estimated_bytes=2032
 ```
 
 ## Log fields
@@ -47,6 +47,7 @@ Each log entry contains the following fields:
 * `range_ms`: a time range in milliseconds between `start_ms` and `end_ms`. If `range_ms==0` it means this query is instant;
 * `tenant`: a tenant ID. Available only in the cluster version;
 * `execution_duration_ms`: time it took in milliseconds to execute the query (not including time spent sending results over the network);
+* `data_fetch_duration_ms`: time it took in milliseconds to fetch data from storage via `ProcessSearchQuery`. This helps distinguish storage/data-fetch bottlenecks from vmselect query-processing bottlenecks;
 * `series_fetched`: number of unique [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) fetched.
   This may be higher than the number of series returned if there are filters like `cpu_usage > 0`;
 * `samples_fetched`: number of [data samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) fetched;

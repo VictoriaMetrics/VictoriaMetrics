@@ -3,6 +3,7 @@ package promql
 import (
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
@@ -95,6 +96,95 @@ func TestQueryStats_addSeriesFetched(t *testing.T) {
 	if n := qs.SeriesFetched.Load(); n != 4 {
 		t.Fatalf("expected to get 4; got %d instead", n)
 	}
+}
+
+func TestQueryStats_DataFetchDuration(t *testing.T) {
+	qs := &QueryStats{}
+	// nil safety
+	var qsNil *QueryStats
+	qsNil.addDataFetchDuration(5 * 1000000)
+	if qsNil.getDataFetchDuration() != 0 {
+		t.Fatalf("expected 0 for nil QueryStats; got %d", qsNil.getDataFetchDuration())
+	}
+	if n := qs.DataFetchDuration.Load(); n != 0 {
+		t.Fatalf("expected initial 0; got %d", n)
+	}
+	qs.addDataFetchDuration(10 * 1000000)
+	if d := qs.getDataFetchDuration(); d != 10*1000000 {
+		t.Fatalf("expected 10ms; got %v", d)
+	}
+	qs.addDataFetchDuration(5 * 1000000)
+	if d := qs.getDataFetchDuration(); d != 15*1000000 {
+		t.Fatalf("expected 15ms after second add; got %v", d)
+	}
+	if ms := qs.getDataFetchDuration().Milliseconds(); ms != 15 {
+		t.Fatalf("expected 15 milliseconds; got %d", ms)
+	}
+	// Verify DataFetchDuration does not interfere with ExecutionDuration
+	qs2 := &QueryStats{}
+	qs2.addDataFetchDuration(20 * 1000000)
+	qs2.addExecutionTimeMsec(time.Now().Add(-10 * 1000000))
+	if ed := qs2.ExecutionDuration.Load(); ed == nil {
+		t.Fatalf("expected ExecutionDuration to be set")
+	}
+	if d := qs2.getDataFetchDuration(); d != 20*1000000 {
+		t.Fatalf("expected data fetch 20ms; got %v", d)
+	}
+	// Concurrent adds
+	qs3 := &QueryStats{}
+	var wg = make(chan struct{})
+	go func() {
+		for range 100 {
+			qs3.addDataFetchDuration(1000000)
+		}
+		close(wg)
+	}()
+	for range 100 {
+		qs3.addDataFetchDuration(1000000)
+	}
+	<-wg
+	if d := qs3.getDataFetchDuration(); d != 200*1000000 {
+		t.Fatalf("expected 200ms after concurrent adds; got %v", d)
+	}
+}
+
+func TestQueryStats_ExecutionDurationPreserved(t *testing.T) {
+	qs := &QueryStats{}
+	start := time.Now().Add(-50 * 1000000)
+	qs.addExecutionTimeMsec(start)
+	if ed := qs.ExecutionDuration.Load(); ed == nil {
+		t.Fatalf("expected ExecutionDuration to be set")
+	} else {
+		ms := ed.Milliseconds()
+		if ms < 50 || ms > 100 {
+			t.Fatalf("expected execution duration ~50ms; got %d", ms)
+		}
+	}
+	// Ensure DataFetchDuration is independent and initially 0
+	if d := qs.getDataFetchDuration(); d != 0 {
+		t.Fatalf("expected data fetch 0; got %v", d)
+	}
+	// Ensure adding data fetch doesn't affect execution duration
+	qs.addDataFetchDuration(10 * 1000000)
+	if ed := qs.ExecutionDuration.Load(); ed == nil {
+		t.Fatalf("expected ExecutionDuration still set")
+	}
+}
+
+func TestQueryStats_NilSafety(t *testing.T) {
+	var qs *QueryStats
+	// Should not panic
+	qs.addSeriesFetched(1)
+	qs.addExecutionTimeMsec(time.Now())
+	qs.addDataFetchDuration(1000000)
+	qs.addMemoryUsage(100)
+	if qs.memoryUsage() != 0 {
+		t.Fatalf("expected 0 for nil memoryUsage")
+	}
+	if qs.getDataFetchDuration() != 0 {
+		t.Fatalf("expected 0 for nil dataFetchDuration")
+	}
+	qs.maybeLogQueryStats(time.Now())
 }
 
 func TestGetSumInstantValues(t *testing.T) {

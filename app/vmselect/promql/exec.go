@@ -35,11 +35,19 @@ var (
 
 // Exec executes q for the given ec.
 func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result, error) {
-	if querystats.Enabled() {
+	if ec.QueryStats != nil {
 		startTime := time.Now()
 		defer func() {
-			querystats.RegisterQuery(q, ec.End-ec.Start, startTime, ec.QueryStats.memoryUsage())
 			ec.QueryStats.addExecutionTimeMsec(startTime)
+			if querystats.Enabled() {
+				querystats.RegisterQuery(q, ec.End-ec.Start, startTime, ec.QueryStats.memoryUsage())
+			}
+			ec.QueryStats.maybeLogQueryStats(startTime)
+		}()
+	} else if querystats.Enabled() {
+		startTime := time.Now()
+		defer func() {
+			querystats.RegisterQuery(q, ec.End-ec.Start, startTime, 0)
 		}()
 	}
 
