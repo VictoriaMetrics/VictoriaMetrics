@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: all VictoriaMetrics components: expose `process_cpu_cores_host`, `process_cpu_cores_cgroup_quota`, `process_memory_host_bytes` and `process_memory_cgroup_bytes` metrics. Cgroup metrics are `+Inf` if no cgroup limit is set. See [#11460](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11460).
+
 ## [v1.151.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.151.0)
 
 Released at 2026-08-31
