@@ -364,11 +364,12 @@ func (c *client) runWorker(readBlock func(dst []byte) ([]byte, bool)) {
 }
 
 func (c *client) doRequest(url string, body []byte) (*http.Response, error) {
-	req, err := c.newRequest(url, body)
+	req, wait, err := c.newRequest(url, body)
 	if err != nil {
 		return nil, err
 	}
 	resp, err := c.hc.Do(req)
+	wait()
 	if err == nil {
 		return resp, nil
 	}
@@ -379,26 +380,82 @@ func (c *client) doRequest(url string, body []byte) (*http.Response, error) {
 	// Make another attempt in hope request will succeed.
 	// If not, the error should be handled by the caller as usual.
 	// This should help with https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4139
-	req, err = c.newRequest(url, body)
+	req, wait, err = c.newRequest(url, body)
 	if err != nil {
 		return nil, fmt.Errorf("second attempt: %w", err)
 	}
 	resp, err = c.hc.Do(req)
+	wait()
 	if err != nil {
 		return nil, fmt.Errorf("second attempt: %w", err)
 	}
 	return resp, nil
 }
 
-func (c *client) newRequest(url string, body []byte) (*http.Request, error) {
-	reqBody := bytes.NewBuffer(body)
-	req, err := http.NewRequest(http.MethodPost, url, reqBody)
+// body wraps bytes.Reader with waiter.
+// This structure is useful for reusing buffers,
+// that must wait for close in order to avoid data races.
+//
+// See ...
+type body struct {
+	*bytes.Reader
+	data []byte
+	wg   *sync.WaitGroup
+	once sync.Once
+}
+
+func newBody(data []byte) *body {
+	b := &body{
+		Reader: bytes.NewReader(data),
+		data:   data,
+		wg:     &sync.WaitGroup{},
+	}
+	b.wg.Add(1)
+	return b
+}
+
+// fork returns a new instance of body with shared waiting counter with original body.
+//
+// This function is useful for redirects when the same body is read multiple times.
+func (b *body) fork() *body {
+	b.wg.Add(1)
+	return &body{
+		Reader: bytes.NewReader(b.data),
+		data:   b.data,
+		wg:     b.wg,
+	}
+}
+
+func (b *body) Close() error {
+	b.once.Do(b.wg.Done)
+	return nil
+}
+
+func (b *body) waitForClose() {
+	b.wg.Wait()
+}
+
+func (c *client) newRequest(url string, body []byte) (*http.Request, func(), error) {
+	b := newBody(body)
+	req, err := http.NewRequest(http.MethodPost, url, b)
 	if err != nil {
 		logger.Panicf("BUG: unexpected error from http.NewRequest(%q): %s", url, err)
 	}
+
+	// Since we do not use buffers from stdlib, http.NewRequest returns
+	// a new request with unknown content length, that forces HTTP client
+	// to use chunked content encoding and also disables redirects.
+	// Set these fields ourselves avoid it.
+	// See https://pkg.go.dev/net/http#NewRequestWithContext
+	req.ContentLength = int64(len(body))
+	req.GetBody = func() (io.ReadCloser, error) {
+		// This is a redirect and body must be read again.
+		return b.fork(), nil
+	}
+
 	err = c.authCfg.SetHeaders(req, true)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	h := req.Header
 	h.Set("User-Agent", "vmagent")
@@ -413,10 +470,10 @@ func (c *client) newRequest(url string, body []byte) (*http.Request, error) {
 	if c.awsCfg != nil {
 		sigv4Hash := awsapi.HashHex(body)
 		if err := c.awsCfg.SignRequest(req, sigv4Hash); err != nil {
-			return nil, fmt.Errorf("cannot sign remoteWrite request with AWS sigv4: %w", err)
+			return nil, nil, fmt.Errorf("cannot sign remoteWrite request with AWS sigv4: %w", err)
 		}
 	}
-	return req, nil
+	return req, b.waitForClose, nil
 }
 
 // sendBlockHTTP sends the given block to c.remoteWriteURL.

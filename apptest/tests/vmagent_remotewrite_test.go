@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"math/rand/v2"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -756,4 +757,79 @@ func TestSingleVMAgentPriorizeRecentData(t *testing.T) {
 			return vmagent.RemoteWritePendingInmemoryBlocks(t, url2) == 0
 		},
 	)
+}
+
+func TestSingleVMAgentBufferReusage(t *testing.T) {
+	tc := apptest.NewTestCase(t)
+	defer tc.Stop()
+
+	remoteWriteSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer remoteWriteSrv.Close()
+
+	vmagent := tc.MustStartDefaultRWVmagent("vmagent", []string{
+		fmt.Sprintf(`-remoteWrite.url=%s/api/v1/write`, remoteWriteSrv.URL),
+		// use prom proto for worst compression ratio to simplify reproduce.
+		"-remoteWrite.forcePromProto=true",
+		"-remoteWrite.forceVMProto=false",
+
+		"-remoteWrite.disableOnDiskQueue=true",
+		// use only 1 worker to get a full queue faster
+		"-remoteWrite.queues=1",
+		// use only 1 worker to increase a change to reuse the same internal reusable buffer
+		"-remoteWrite.inmemoryQueues=1",
+		"-remoteWrite.tmpDataPath=" + tc.Dir() + "/vmagent",
+
+		// Delay retry logic to avoid race conditions with waitFor assertions.
+		// It improves the test stability on resource-constrained runners.
+		"-remoteWrite.retryMinInterval=3s",
+		"-remoteWrite.retryMaxTime=3s",
+	})
+
+	const (
+		retries = 20
+		period  = 200 * time.Millisecond
+	)
+	waitFor := func(f func() bool) {
+		t.Helper()
+		for range retries {
+			if f() {
+				return
+			}
+			time.Sleep(period)
+		}
+		t.Fatalf("timed out waiting for retry #%d", retries)
+	}
+
+	var buf []byte
+	for i := range 150_000 {
+		buf = fmt.Appendf(buf, `bench_metric_%d{host="%s",dc="%s",job="%s",uid="%s"} %f`, i, rs(12), rs(8), rs(10), rs(16), rand.Float64()*1000)
+		buf = append(buf, '\n')
+	}
+
+	// Real remote write URLs are hidden in metrics
+	const url1 = "1:secret-url"
+
+	// Send multiple requests in a row to trigger reusing of the same buffer.
+	const requests = 3
+	for range requests {
+		vmagent.APIV1ImportPrometheusNoWaitFlush(t, []string{string(buf)}, apptest.QueryOpts{})
+	}
+	waitFor(
+		func() bool {
+			return vmagent.RemoteWriteRequests(t, url1) >= requests
+		},
+	)
+}
+
+func rs(length int) string {
+	const alpha = "qwertyuiopasdfghjklzxcvbnm"
+	b := strings.Builder{}
+	b.Grow(length)
+	for range length {
+		n := rand.N(len(alpha))
+		b.WriteByte(alpha[n])
+	}
+	return b.String()
 }
