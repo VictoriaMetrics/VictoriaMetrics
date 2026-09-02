@@ -26,7 +26,10 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* SECURITY: upgrade Go builder from Go1.26.6 to Go1.27.1. See [Go 1.27 release notes](https://go.dev/doc/go1.27).
 * SECURITY: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly escape server-side errors returned by `/metric-relabel-debug` since they could contain parts of user input. This prevents XSS attacks on the `/vmui/#/relabeling` page. See [GHSA-vw9j-rqhg-qff9](https://github.com/VictoriaMetrics/VictoriaMetrics/security/advisories/GHSA-vw9j-rqhg-qff9).
+
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/), [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix insert requests getting stuck after another insert request times out, causing clients to time out while waiting for a response. See [VictoriaLogs#1743](https://github.com/VictoriaMetrics/VictoriaLogs/issues/1743).
 
 ## [v1.151.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.151.0)
 

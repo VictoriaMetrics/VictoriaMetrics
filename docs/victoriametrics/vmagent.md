@@ -1188,7 +1188,9 @@ Both limits can be set simultaneously. If any of these limits are reached, then 
 
 These limits are approximate, so `vmagent` can underflow or overflow them by a small percentage (usually less than 1%).
 
-See also [cardinality explorer docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer).
+See also:
+- [Cardinality Explorer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer).
+- [vmestimator](https://docs.victoriametrics.com/victoriametrics/vmestimator/).
 
 ## Monitoring
 
