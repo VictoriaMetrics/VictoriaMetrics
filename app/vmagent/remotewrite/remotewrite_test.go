@@ -2,7 +2,10 @@ package remotewrite
 
 import (
 	"fmt"
+	"io"
 	"math"
+	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"strconv"
 	"sync/atomic"
@@ -11,7 +14,9 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/consistenthash"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/persistentqueue"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
@@ -375,4 +380,39 @@ func TestCalculateHealthyRwctxIdx(t *testing.T) {
 	f(5, []int{4}, []int{0, 1, 2, 3})
 	f(1, []int{0}, nil)
 	f(1, []int{}, []int{0})
+}
+
+// TestClientDoRequestBufferReuse sends blocks from a single reused buffer to a remote
+// storage which doesn't read the request body. Run with -race.
+func TestClientDoRequestBufferReuse(t *testing.T) {
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	}))
+	defer s.Close()
+
+	c := &client{
+		remoteWriteURL: s.URL,
+		authCfg:        &promauth.Config{},
+		hc: &http.Client{
+			Transport: httputil.NewSyncBodyTransport(http.DefaultTransport),
+		},
+	}
+
+	// The payload must exceed the socket buffers.
+	payload := make([]byte, 8*1024*1024)
+
+	var buf []byte
+	for range 5 {
+		buf = append(buf[:0], payload...)
+
+		resp, err := c.doRequest(c.remoteWriteURL, buf)
+		if err != nil {
+			t.Fatalf("cannot send block: %s", err)
+		}
+		if _, err := io.Copy(io.Discard, resp.Body); err != nil {
+			t.Fatalf("cannot read response body: %s", err)
+		}
+		if err := resp.Body.Close(); err != nil {
+			t.Fatalf("cannot close response body: %s", err)
+		}
+	}
 }
