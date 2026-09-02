@@ -13,6 +13,7 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/RoaringBitmap/roaring/v2/roaring64"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/backupnames"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
@@ -294,13 +295,13 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	// Add deleted metricIDs from legacy previous and current indexDBs to every
 	// partition indexDB. Also add deleted metricIDs from current indexDB to the
 	// previous one, because previous may contain the same metrics that wasn't marked as deleted.
-	legacyDeletedMetricIDs := &uint64set.Set{}
+	legacyDeletedMetricIDs := roaring64.New()
 	idbPrev := legacyIDBs.getIDBPrev()
 	if idbPrev != nil {
-		legacyDeletedMetricIDs.Union(idbPrev.getDeletedMetricIDs())
+		legacyDeletedMetricIDs.Or(idbPrev.getDeletedMetricIDs())
 	}
 	if idbCurr := legacyIDBs.getIDBCurr(); idbCurr != nil {
-		legacyDeletedMetricIDs.Union(idbCurr.getDeletedMetricIDs())
+		legacyDeletedMetricIDs.Or(idbCurr.getDeletedMetricIDs())
 	}
 	if idbPrev != nil {
 		idbPrev.setDeletedMetricIDs(legacyDeletedMetricIDs)
@@ -702,17 +703,17 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	defer s.putLegacyIndexDBs(legacyIDBs)
 	var dmisCountLegacyPrev, dmisCountLegacyCurr uint64
 	if idb := legacyIDBs.getIDBCurr(); idb != nil {
-		dmisCountLegacyCurr = uint64(idb.getDeletedMetricIDs().Len())
+		dmisCountLegacyCurr = uint64(idb.getDeletedMetricIDs().Stats().Cardinality)
 		m.DeletedMetricsCount += dmisCountLegacyCurr
 	}
 	if idb := legacyIDBs.getIDBPrev(); idb != nil {
-		dmisCountLegacyPrev = uint64(idb.getDeletedMetricIDs().Len())
+		dmisCountLegacyPrev = uint64(idb.getDeletedMetricIDs().Stats().Cardinality)
 		// Legacy prev idb also stores a copy of legacy curr idb dmis.
 		dmisCountLegacyPrev -= dmisCountLegacyCurr
 		m.DeletedMetricsCount += dmisCountLegacyPrev
 	}
 	for _, ptw := range ptws {
-		cnt := uint64(ptw.pt.idb.getDeletedMetricIDs().Len())
+		cnt := uint64(ptw.pt.idb.getDeletedMetricIDs().Stats().Cardinality)
 		// Each pt idb stores a copy of legacy prev and curr idb dmis.
 		cnt -= dmisCountLegacyPrev
 		cnt -= dmisCountLegacyCurr
@@ -1367,12 +1368,14 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 
 	// Not deleting in parallel because the deletion operation is rare.
 
-	all := &uint64set.Set{}
+	all := roaring64.New()
 	legacyDMIs, err := s.legacyDeleteSeries(qt, tfss, maxMetrics)
 	if err != nil {
 		return 0, err
 	}
-	all.UnionMayOwn(legacyDMIs)
+	if legacyDMIs != nil {
+		all.Or(legacyDMIs)
+	}
 
 	ptws := s.tb.GetAllPartitions(nil)
 	defer s.tb.PutPartitions(ptws)
@@ -1380,19 +1383,22 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 	for _, ptw := range ptws {
 		idb := ptw.pt.idb
 		qt.Printf("start deleting from %s partition indexDB", idb.name)
-		if legacyDMIs.Len() > 0 {
+		if legacyDMIs != nil && legacyDMIs.Stats().Cardinality > 0 {
 			idb.updateDeletedMetricIDs(legacyDMIs)
 		}
 		dmis, err := idb.DeleteSeries(qt, tfss, maxMetrics)
 		if err != nil {
 			return 0, err
 		}
-		n := dmis.Len()
-		all.UnionMayOwn(dmis)
+		var n uint64
+		if dmis != nil {
+			n = dmis.Stats().Cardinality
+			all.Or(dmis)
+		}
 		qt.Printf("deleted %d metricIDs from %s partition indexDB", n, idb.name)
 	}
 
-	n := all.Len()
+	n := int(all.Stats().Cardinality)
 	qt.Donef("deleted %d unique metricIDs", n)
 	return n, nil
 }
@@ -1781,7 +1787,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 	var ptw *partitionWrapper
 	var idb *indexDB
 	var is *indexSearch
-	var deletedMetricIDs *uint64set.Set
+	var deletedMetricIDs *roaring64.Bitmap
 
 	var firstWarn error
 	for i := range mrs {
@@ -1806,7 +1812,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 			deletedMetricIDs = idb.getDeletedMetricIDs()
 		}
 
-		if s.getTSIDByMetricNameFromCache(&lTSID, mr.MetricNameRaw) && !deletedMetricIDs.Has(lTSID.TSID.MetricID) {
+		if s.getTSIDByMetricNameFromCache(&lTSID, mr.MetricNameRaw) && !deletedMetricIDs.Contains(lTSID.TSID.MetricID) {
 			// Fast path - the TSID for the given mr.MetricNameRaw has been
 			// found in cache and isn't deleted. If the TSID is deleted, we
 			// re-register time series. Eventually, the deleted TSID will be
@@ -1917,7 +1923,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 	var ptw *partitionWrapper
 	var idb *indexDB
 	var is *indexSearch
-	var deletedMetricIDs *uint64set.Set
+	var deletedMetricIDs *roaring64.Bitmap
 
 	// Log only the first error, since it has no sense in logging all errors.
 	var firstWarn error
@@ -2008,7 +2014,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		// tsidCache may contain TSIDs that were deleted from some indexDBs but
 		// are still in use in other indexDBs. Thus, also check if a given TSID
 		// was not deleted deom the current indexDB.
-		if s.getTSIDByMetricNameFromCache(&lTSID, mr.MetricNameRaw) && !deletedMetricIDs.Has(lTSID.TSID.MetricID) {
+		if s.getTSIDByMetricNameFromCache(&lTSID, mr.MetricNameRaw) && !deletedMetricIDs.Contains(lTSID.TSID.MetricID) {
 			// Fast path - the TSID for the given mr.MetricNameRaw has been found in cache and isn't deleted.
 
 			r.TSID = lTSID.TSID

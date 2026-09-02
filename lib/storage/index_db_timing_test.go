@@ -142,8 +142,8 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 			if err != nil {
 				b.Fatalf("unexpected error in searchMetricIDs: %s", err)
 			}
-			if metricIDs.Len() != expectedMetricIDs {
-				b.Fatalf("unexpected metricIDs found; got %d; want %d", metricIDs.Len(), expectedMetricIDs)
+			if metricIDs.Stats().Cardinality != uint64(expectedMetricIDs) {
+				b.Fatalf("unexpected metricIDs found; got %d; want %d", metricIDs.Stats().Cardinality, expectedMetricIDs)
 			}
 		}
 	}

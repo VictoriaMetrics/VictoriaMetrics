@@ -6,11 +6,11 @@ import (
 	"slices"
 	"time"
 
+	"github.com/RoaringBitmap/roaring/v2/roaring64"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
 
 type legacyIndexDBs struct {
@@ -276,7 +276,7 @@ func (s *Storage) legacyMustRotateIndexDB(currentTime time.Time) {
 	s.legacyNextRotationTimestamp.Store(nextRotationTimestamp)
 }
 
-func (s *Storage) legacyDeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMetrics int) (*uint64set.Set, error) {
+func (s *Storage) legacyDeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMetrics int) (*roaring64.Bitmap, error) {
 	legacyIDBs := s.getLegacyIndexDBs()
 	defer s.putLegacyIndexDBs(legacyIDBs)
 
@@ -285,7 +285,7 @@ func (s *Storage) legacyDeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters,
 		return nil, nil
 	}
 
-	all := &uint64set.Set{}
+	all := roaring64.New()
 
 	if idbPrev := legacyIDBs.getIDBPrev(); idbPrev != nil {
 		qt.Printf("start deleting from previous legacy indexDB")
@@ -293,8 +293,12 @@ func (s *Storage) legacyDeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters,
 		if err != nil {
 			return nil, err
 		}
-		qt.Printf("deleted %d metricIDs from previous legacy indexDB", dmis.Len())
-		all.UnionMayOwn(dmis)
+		var n uint64
+		if dmis != nil {
+			n = dmis.Stats().Cardinality
+			all.Or(dmis)
+		}
+		qt.Printf("deleted %d metricIDs from previous legacy indexDB", n)
 	}
 
 	if idbCurr := legacyIDBs.getIDBCurr(); idbCurr != nil {
@@ -303,8 +307,12 @@ func (s *Storage) legacyDeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters,
 		if err != nil {
 			return nil, err
 		}
-		qt.Printf("deleted %d metricIDs from current legacy indexDB", dmis.Len())
-		all.UnionMayOwn(dmis)
+		var n uint64
+		if dmis != nil {
+			n = dmis.Stats().Cardinality
+			all.Or(dmis)
+		}
+		qt.Printf("deleted %d metricIDs from current legacy indexDB", n)
 	}
 
 	return all, nil

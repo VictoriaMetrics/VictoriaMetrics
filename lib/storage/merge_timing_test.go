@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
+	"github.com/RoaringBitmap/roaring/v2/roaring64"
 )
 
 func BenchmarkMergeBlockStreamsTwoSourcesWorstCase(b *testing.B) {
@@ -26,7 +26,7 @@ func BenchmarkMergeBlockStreamsFourSourcesBestCase(b *testing.B) {
 }
 
 func benchmarkMergeBlockStreams(b *testing.B, mps []*inmemoryPart, rowsPerLoop int64) {
-	dmis := &uint64set.Set{}
+	dmis := roaring64.New()
 	const retentionDeadline = 0
 	var rowsMerged, rowsDeleted atomic.Uint64
 

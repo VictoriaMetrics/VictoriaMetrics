@@ -13,11 +13,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/RoaringBitmap/roaring/v2/roaring64"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 	"github.com/google/go-cmp/cmp"
 )
@@ -37,14 +37,14 @@ func TestTagFiltersToMetricIDsCache(t *testing.T) {
 		defer s.tb.PutPartition(ptw)
 
 		key := []byte("key")
-		wantSet := &uint64set.Set{}
-		wantSet.AddMulti(want)
+		wantSet := roaring64.New()
+		wantSet.AddMany(want)
 		idb.putMetricIDsToTagFiltersCache(nil, wantSet, key)
 		gotSet, ok := idb.getMetricIDsFromTagFiltersCache(nil, key)
 		if !ok {
 			t.Fatalf("expected metricIDs to be found in cache but they weren't: %v", want)
 		}
-		got := gotSet.AppendTo(nil)
+		got := gotSet.ToArray()
 		slices.Sort(want)
 		if !reflect.DeepEqual(got, want) {
 			t.Fatalf("unexpected metricIDs in cache: got %v, want %v", got, want)
@@ -72,8 +72,8 @@ func TestTagFiltersToMetricIDsCache_EmptyMetricIDList(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected empty metricID list to be found in cache but it wasn't")
 	}
-	if got.Len() > 0 {
-		t.Fatalf("unexpected found metricID list to be empty but got %v", got.AppendTo(nil))
+	if got.Stats().Cardinality > 0 {
+		t.Fatalf("unexpected found metricID list to be empty but got %v", got.ToArray())
 	}
 
 }
@@ -1413,8 +1413,8 @@ func testIndexDBSearchTSIDs(t *testing.T, disablePerDayIndex bool) {
 	const metricsPerDay = 1000
 	timestamp := time.Date(2019, time.October, 15, 5, 1, 0, 0, time.UTC).UnixMilli()
 	baseDate := uint64(timestamp) / msecPerDay
-	perDayMetricIDs := make(map[uint64]*uint64set.Set)
-	allMetricIDs := &uint64set.Set{}
+	perDayMetricIDs := make(map[uint64]*roaring64.Bitmap)
+	allMetricIDs := roaring64.New()
 
 	s := MustOpenStorage(t.Name(), OpenOptions{
 		DisablePerDayIndex: disablePerDayIndex,
@@ -1427,7 +1427,7 @@ func testIndexDBSearchTSIDs(t *testing.T, disablePerDayIndex bool) {
 	is := db.getIndexSearch(noDeadline)
 	for day := range days {
 		date := baseDate - uint64(day)
-		var metricIDs uint64set.Set
+		metricIDs := roaring64.New()
 		for metric := range metricsPerDay {
 			mn := MetricName{
 				MetricGroup: []byte("testMetric"),
@@ -1447,22 +1447,22 @@ func testIndexDBSearchTSIDs(t *testing.T, disablePerDayIndex bool) {
 			metricIDs.Add(tsid.MetricID)
 		}
 
-		allMetricIDs.Union(&metricIDs)
-		perDayMetricIDs[date] = &metricIDs
+		allMetricIDs.Or(metricIDs)
+		perDayMetricIDs[date] = metricIDs
 	}
 	db.putIndexSearch(is)
 	db.tb.DebugFlush()
 
 	is2 := db.getIndexSearch(noDeadline)
 
-	assertMetricIDs := func(date uint64, maxMetrics int, wantSet *uint64set.Set) {
+	assertMetricIDs := func(date uint64, maxMetrics int, wantSet *roaring64.Bitmap) {
 		t.Helper()
 		gotSet, err := is2.getMetricIDsForDate(date, maxMetrics)
 		if err != nil {
 			t.Fatalf("getMetricIDsForDate(%d, %d) failed unexpectedly: %s", date, maxMetrics, err)
 		}
-		got := gotSet.AppendTo(nil)
-		want := wantSet.AppendTo(nil)
+		got := gotSet.ToArray()
+		want := wantSet.ToArray()
 		if diff := cmp.Diff(want, got); diff != "" {
 			t.Fatalf("unexpected metricIDs (-want, +got):\n%s", diff)
 		}
@@ -1832,7 +1832,7 @@ func testIndexDBDeleteSeries(t *testing.T, disablePerDayIndex bool) {
 		MaxTimestamp: time.Date(2026, 1, days+1, 0, 0, 0, 0, time.UTC).UnixMilli() - 1,
 	}
 	date0 := uint64(trAllDays.MinTimestamp) / msecPerDay
-	allMetricIDs := &uint64set.Set{}
+	allMetricIDs := roaring64.New()
 	var allMetricNames []string
 	metricNamesByDate := make(map[uint64][]string)
 
@@ -1911,8 +1911,8 @@ func testIndexDBDeleteSeries(t *testing.T, disablePerDayIndex bool) {
 	if err != nil {
 		t.Fatalf("DeleteSeries(%v) failed unexpectedly: %s", tfs, err)
 	}
-	got := gotMetricIDs.AppendTo(nil)
-	want := allMetricIDs.AppendTo(nil)
+	got := gotMetricIDs.ToArray()
+	want := allMetricIDs.ToArray()
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Fatalf("unexpected metricIDs (-want, +got):\n%s", diff)
 	}
