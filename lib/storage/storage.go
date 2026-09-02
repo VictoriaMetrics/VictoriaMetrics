@@ -1425,9 +1425,6 @@ func (s *Storage) SearchMetricNames(ctx context.Context, qt *querytracer.Tracer,
 	return res, nil
 }
 
-// ErrDeadlineExceeded is returned when the request times out.
-var ErrDeadlineExceeded = fmt.Errorf("deadline exceeded")
-
 // DeleteSeries marks as deleted all series matching the given tfss and
 // resets caches where the corresponding TSIDs and MetricIDs may be stored if
 // needed.
