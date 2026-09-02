@@ -43,6 +43,19 @@ func (cm *ConnsMap) Delete(c net.Conn) {
 	cm.mu.Unlock()
 }
 
+// CloseReads sets read deadline to now on all connections in cm and marks cm as closed.
+// No new connections can be added.
+// In-flight requests could finish and write results. They will exit while trying to read next rpc request.
+func (cm *ConnsMap) CloseReads() {
+	cm.mu.Lock()
+	cm.isClosed = true
+	now := time.Now()
+	for c := range cm.m {
+		_ = c.SetReadDeadline(now)
+	}
+	cm.mu.Unlock()
+}
+
 // CloseAll gradually closes all the cm conns with during the given shutdownDuration.
 //
 // If shutdownDuration <= 0, then all the connections are closed simultaneously.
