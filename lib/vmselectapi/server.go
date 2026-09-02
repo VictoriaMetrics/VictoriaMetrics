@@ -848,14 +848,13 @@ func (s *Server) processSeriesCount(ctx *vmselectRequestCtx) error {
 	defer s.endConcurrentRequest()
 
 	rCtx, cm := newRequestContextForConn(ctx.bc, ctx.deadline)
-	cm.stop()
 	// Execute the request
 	n, err := s.api.SeriesCount(rCtx, ctx.qt, accountID, projectID)
 	if err != nil {
 		cm.stop()
 		return ctx.writeErrorMessage(err)
 	}
-
+	cm.stop()
 	// Send an empty error message to vmselect.
 	if err := ctx.writeString(""); err != nil {
 		return fmt.Errorf("cannot send empty error message: %w", err)
