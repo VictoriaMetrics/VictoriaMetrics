@@ -70,12 +70,12 @@ func GenerateTestData(prefix string, numMetrics, start, end int64) TestData {
 
 // AssertSeries retrieves metric names from the storage and compares the result
 // with the expected one.
-func AssertSeries(tc *TestCase, app PrometheusQuerier, metricNameRE, tenantID string, start, end int64, want []map[string]string) {
+func AssertSeries(tc *TestCase, app PrometheusQuerier, metricNameRE, tenantID string, start, end int64, want []map[string]string) *PrometheusAPIV1SeriesResponse {
 	tc.T().Helper()
 
 	query := fmt.Sprintf(`{__name__=~"%s"}`, metricNameRE)
 	ignoreTrace := cmpopts.IgnoreFields(PrometheusAPIV1SeriesResponse{}, "Trace")
-	tc.Assert(&AssertOptions{
+	got := tc.Assert(&AssertOptions{
 		Msg: "unexpected /prometheus/api/v1/series response",
 		Got: func() any {
 			tc.T().Helper()
@@ -93,14 +93,15 @@ func AssertSeries(tc *TestCase, app PrometheusQuerier, metricNameRE, tenantID st
 		FailNow: true,
 		CmpOpts: []cmp.Option{ignoreTrace},
 	})
+	return got.(*PrometheusAPIV1SeriesResponse)
 }
 
 // AssertSeriesCount retrieves series count and compares it with expected one.
-func AssertSeriesCount(tc *TestCase, app PrometheusQuerier, tenantID string, start, end int64, want uint64) {
+func AssertSeriesCount(tc *TestCase, app PrometheusQuerier, tenantID string, start, end int64, want uint64) *PrometheusAPIV1SeriesCountResponse {
 	tc.T().Helper()
 
 	ignoreTrace := cmpopts.IgnoreFields(PrometheusAPIV1SeriesCountResponse{}, "Trace")
-	tc.Assert(&AssertOptions{
+	got := tc.Assert(&AssertOptions{
 		Msg: "unexpected /prometheus/api/v1/series/count response",
 		Got: func() any {
 			tc.T().Helper()
@@ -118,16 +119,17 @@ func AssertSeriesCount(tc *TestCase, app PrometheusQuerier, tenantID string, sta
 		FailNow: true,
 		CmpOpts: []cmp.Option{ignoreTrace},
 	})
+	return got.(*PrometheusAPIV1SeriesCountResponse)
 }
 
 // AssertLabels retrieves label names from the storage and compares the result
 // with the expected one.
-func AssertLabels(tc *TestCase, app PrometheusQuerier, metricNameRE, tenantID string, start, end int64, want []string) {
+func AssertLabels(tc *TestCase, app PrometheusQuerier, metricNameRE, tenantID string, start, end int64, want []string) *PrometheusAPIV1LabelsResponse {
 	tc.T().Helper()
 
 	query := fmt.Sprintf(`{__name__=~"%s"}`, metricNameRE)
 	ignoreTrace := cmpopts.IgnoreFields(PrometheusAPIV1LabelsResponse{}, "Trace")
-	tc.Assert(&AssertOptions{
+	got := tc.Assert(&AssertOptions{
 		Msg: "unexpected /prometheus/api/v1/labels response",
 		Got: func() any {
 			tc.T().Helper()
@@ -147,17 +149,18 @@ func AssertLabels(tc *TestCase, app PrometheusQuerier, metricNameRE, tenantID st
 		FailNow: true,
 		CmpOpts: []cmp.Option{ignoreTrace},
 	})
+	return got.(*PrometheusAPIV1LabelsResponse)
 }
 
 // AssertLabelValues retrieves values for the label whose name is labelName for
 // the series whose name mathes metricNameRE, compares the result with the
 // expected one.
-func AssertLabelValues(tc *TestCase, app PrometheusQuerier, metricNameRE, labelName, tenantID string, start, end int64, want []string) {
+func AssertLabelValues(tc *TestCase, app PrometheusQuerier, metricNameRE, labelName, tenantID string, start, end int64, want []string) *PrometheusAPIV1LabelValuesResponse {
 	tc.T().Helper()
 
 	query := fmt.Sprintf(`{__name__=~"%s"}`, metricNameRE)
 	ignoreTrace := cmpopts.IgnoreFields(PrometheusAPIV1LabelValuesResponse{}, "Trace")
-	tc.Assert(&AssertOptions{
+	got := tc.Assert(&AssertOptions{
 		Msg: "unexpected /prometheus/api/v1/labels/.../values response",
 		Got: func() any {
 			tc.T().Helper()
@@ -177,16 +180,17 @@ func AssertLabelValues(tc *TestCase, app PrometheusQuerier, metricNameRE, labelN
 		FailNow: true,
 		CmpOpts: []cmp.Option{ignoreTrace},
 	})
+	return got.(*PrometheusAPIV1LabelValuesResponse)
 }
 
 // AssertQueryResults sends a data query to storage and compares the query
 // result with the expected one.
-func AssertQueryResults(tc *TestCase, app PrometheusQuerier, metricNameRE, tenantID string, start, end, step int64, want []*QueryResult) {
+func AssertQueryResults(tc *TestCase, app PrometheusQuerier, metricNameRE, tenantID string, start, end, step int64, want []*QueryResult) *PrometheusAPIV1QueryResponse {
 	tc.T().Helper()
 
 	query := fmt.Sprintf(`{__name__=~"%s"}`, metricNameRE)
 	ignoreTrace := cmpopts.IgnoreFields(PrometheusAPIV1QueryResponse{}, "Trace")
-	tc.Assert(&AssertOptions{
+	got := tc.Assert(&AssertOptions{
 		Msg: "unexpected /prometheus/api/v1/query_range response",
 		Got: func() any {
 			tc.T().Helper()
@@ -210,13 +214,14 @@ func AssertQueryResults(tc *TestCase, app PrometheusQuerier, metricNameRE, tenan
 		FailNow: true,
 		CmpOpts: []cmp.Option{ignoreTrace},
 	})
+	return got.(*PrometheusAPIV1QueryResponse)
 }
 
-func AssertMetadata(tc *TestCase, app PrometheusQuerier, metricName, tenantID string, want map[string][]MetadataEntry) {
+func AssertMetadata(tc *TestCase, app PrometheusQuerier, metricName, tenantID string, want map[string][]MetadataEntry) *PrometheusAPIV1Metadata {
 	tc.T().Helper()
 
 	ignoreTrace := cmpopts.IgnoreFields(PrometheusAPIV1Metadata{}, "Trace")
-	tc.Assert(&AssertOptions{
+	got := tc.Assert(&AssertOptions{
 		Msg: "unexpected /prometheus/api/v1/metadata response",
 		Got: func() any {
 			tc.T().Helper()
@@ -232,9 +237,10 @@ func AssertMetadata(tc *TestCase, app PrometheusQuerier, metricName, tenantID st
 		FailNow: true,
 		CmpOpts: []cmp.Option{ignoreTrace},
 	})
+	return got.(*PrometheusAPIV1Metadata)
 }
 
-func AssertMetricNamesStats(tc *TestCase, app PrometheusQuerier, metricNameRE, tenantID string, want []MetricNamesStatsRecord) {
+func AssertMetricNamesStats(tc *TestCase, app PrometheusQuerier, metricNameRE, tenantID string, want []MetricNamesStatsRecord) *MetricNamesStatsResponse {
 	tc.T().Helper()
 
 	wantResponse := &MetricNamesStatsResponse{
@@ -242,7 +248,7 @@ func AssertMetricNamesStats(tc *TestCase, app PrometheusQuerier, metricNameRE, t
 	}
 	wantResponse.Sort()
 	ignoreTrace := cmpopts.IgnoreFields(MetricNamesStatsResponse{}, "Trace")
-	tc.Assert(&AssertOptions{
+	got := tc.Assert(&AssertOptions{
 		Msg: "unexpected /prometheus/api/v1/status/metric_names_stats response",
 		Got: func() any {
 			tc.T().Helper()
@@ -257,7 +263,7 @@ func AssertMetricNamesStats(tc *TestCase, app PrometheusQuerier, metricNameRE, t
 		FailNow: true,
 		CmpOpts: []cmp.Option{ignoreTrace},
 	})
-
+	return got.(*MetricNamesStatsResponse)
 }
 
 // GraphiteTestData holds the data samples in Graphite Pickle format, distance

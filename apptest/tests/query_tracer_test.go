@@ -93,7 +93,10 @@ func testPrometheusQueryTracer(tc *apptest.TestCase, sut apptest.PrometheusWrite
 
 	assertQueryResults := func(metricNameRE string, d apptest.TestData) {
 		t.Helper()
-		apptest.AssertQueryResults(tc, sut, metricNameRE, tenantID, d.Start, d.End, d.Step, d.WantQueryResults)
+		got := apptest.AssertQueryResults(tc, sut, metricNameRE, tenantID, d.Start, d.End, d.Step, d.WantQueryResults)
+		if got.Trace == nil {
+			t.Fatalf("query trace is missing")
+		}
 	}
 	assertQueryResults(`metric_1d.*`, data1d)
 	assertQueryResults(`metric_1w.*`, data1w)
@@ -101,7 +104,10 @@ func testPrometheusQueryTracer(tc *apptest.TestCase, sut apptest.PrometheusWrite
 
 	assertSeries := func(metricNameRE string, d apptest.TestData) {
 		t.Helper()
-		apptest.AssertSeries(tc, sut, metricNameRE, tenantID, d.Start, d.End, d.WantSeries)
+		got := apptest.AssertSeries(tc, sut, metricNameRE, tenantID, d.Start, d.End, d.WantSeries)
+		if got.Trace == nil {
+			t.Fatalf("query trace is missing")
+		}
 	}
 	assertSeries(`metric_1d.*`, data1d)
 	assertSeries(`metric_1w.*`, data1w)
@@ -109,7 +115,10 @@ func testPrometheusQueryTracer(tc *apptest.TestCase, sut apptest.PrometheusWrite
 
 	assertLabels := func(metricNameRE string, d apptest.TestData) {
 		t.Helper()
-		apptest.AssertLabels(tc, sut, metricNameRE, tenantID, d.Start, d.End, d.WantLabels)
+		got := apptest.AssertLabels(tc, sut, metricNameRE, tenantID, d.Start, d.End, d.WantLabels)
+		if got.Trace == nil {
+			t.Fatalf("query trace is missing")
+		}
 	}
 	assertLabels(`metric_1d.*`, data1d)
 	assertLabels(`metric_1w.*`, data1w)
@@ -117,7 +126,10 @@ func testPrometheusQueryTracer(tc *apptest.TestCase, sut apptest.PrometheusWrite
 
 	assertLabelValues := func(metricNameRE string, d apptest.TestData) {
 		t.Helper()
-		apptest.AssertLabelValues(tc, sut, metricNameRE, "label", tenantID, d.Start, d.End, d.WantLabelValues)
+		got := apptest.AssertLabelValues(tc, sut, metricNameRE, "label", tenantID, d.Start, d.End, d.WantLabelValues)
+		if got.Trace == nil {
+			t.Fatalf("query trace is missing")
+		}
 	}
 	assertLabelValues(`metric_1d.*`, data1d)
 	assertLabelValues(`metric_1w.*`, data1w)
@@ -125,7 +137,10 @@ func testPrometheusQueryTracer(tc *apptest.TestCase, sut apptest.PrometheusWrite
 
 	assertSeriesCount := func(d apptest.TestData) {
 		t.Helper()
-		apptest.AssertSeriesCount(tc, sut, tenantID, d.Start, d.End, numMetrics*3)
+		got := apptest.AssertSeriesCount(tc, sut, tenantID, d.Start, d.End, numMetrics*3)
+		if got.Trace != nil {
+			t.Fatalf("looks like query tracer support has been added for this endpoint, please fix the test")
+		}
 	}
 	assertSeriesCount(data1d)
 	assertSeriesCount(data1w)
@@ -135,12 +150,18 @@ func testPrometheusQueryTracer(tc *apptest.TestCase, sut apptest.PrometheusWrite
 	maps.Insert(allMetadata, maps.All(data1d.WantMetadata))
 	maps.Insert(allMetadata, maps.All(data1w.WantMetadata))
 	maps.Insert(allMetadata, maps.All(data1M.WantMetadata))
-	apptest.AssertMetadata(tc, sut, "", tenantID, allMetadata)
+	gotMetadata := apptest.AssertMetadata(tc, sut, "", tenantID, allMetadata)
+	if gotMetadata.Trace == nil {
+		t.Fatalf("query trace is missing")
+	}
 
 	allStats := slices.Concat(data1d.WantMetricNamesStats, data1w.WantMetricNamesStats, data1M.WantMetricNamesStats)
 	// Metric name usage stats depends on previous queries.
 	for i := range allStats {
 		allStats[i].QueryRequestsCount = 1
 	}
-	apptest.AssertMetricNamesStats(tc, sut, "", tenantID, allStats)
+	gotStats := apptest.AssertMetricNamesStats(tc, sut, "", tenantID, allStats)
+	if gotStats.Trace == nil {
+		t.Fatalf("query trace is missing")
+	}
 }
