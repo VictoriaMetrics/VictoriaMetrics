@@ -578,7 +578,7 @@ func (is *indexSearch) searchLabelNamesWithFiltersOnDate(qt *querytracer.Tracer,
 	//
 	// /api/v1/labels?match=up or /api/v1/labels?extra_filters=up
 	//
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9489.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9489
 	if !isSingleMetricNameFilter(tfss) {
 		var err error
 		filter, err = is.searchMetricIDsWithFiltersOnDate(qt, tfss, date, maxMetrics)
@@ -855,9 +855,9 @@ func (is *indexSearch) searchLabelValuesOnDate(qt *querytracer.Tracer, labelName
 	// label value queries that only include the labelName and tfss with single
 	// exact metric name match. For example:
 	//
-	// /api/v1/label/job/values?match=up or /api/v1/labels?extra_filters=up
+	// /api/v1/label/job/values?match=up or /api/v1/label/job/values?extra_filters=up
 	//
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9489.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9489
 	useCompositeScan := labelName != "" && isSingleMetricNameFilter(tfss)
 	var filter *uint64set.Set
 	if !useCompositeScan {

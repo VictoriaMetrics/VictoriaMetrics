@@ -1686,10 +1686,8 @@ func testIndexDBSearchLabelValues(t *testing.T, disablePerDayIndex bool) {
 			mn := MetricName{
 				MetricGroup: []byte(name),
 			}
-			mn.AddTag("constant", "const")
 			mn.AddTag("day", fmt.Sprintf("%v", day))
 			mn.AddTag("uniq", uniqLabelValue)
-			mn.AddTag("some_unique_id", fmt.Sprintf("%v", day))
 			mn.sortTags()
 			metricNameBuf := mn.Marshal(nil)
 
@@ -1826,9 +1824,9 @@ func testIndexDBSearchLabelValues(t *testing.T, disablePerDayIndex bool) {
 	// Same as above only the metricID search result is bigger than
 	// maxMetricIDsForDirectLabelsLookup
 	//
-	// This is also are regular search path: first find metricIDs that
-	// correspond to tfss and then perform index scan for the labelName and for
-	// each matching record intersect its metricIDs with metricIDs found with tfss.
+	// This exercises the regular search path: first find metricIDs matching
+	// tfss, then scan the index for labelName and intersect each record's
+	// metricIDs with those found via tfss.
 	t.Run("allUniqLabelValuesFor_metric_0*9+_maxMetricIDsForDirectLabelsLookup", func(t *testing.T) {
 		origValue := maxMetricIDsForDirectLabelsLookup
 		maxMetricIDsForDirectLabelsLookup = 1
