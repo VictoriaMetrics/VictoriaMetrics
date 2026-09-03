@@ -12,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricnamestats"
 )
 
 // MetricNamesStatsHandler returns timeseries metric names usage statistics
@@ -56,6 +57,7 @@ func MetricNamesStatsHandler(startTime time.Time, at *auth.Token, qt *querytrace
 	if err != nil {
 		return err
 	}
+	finalizeMetricNamesStats(&stats, limit, le)
 	WriteMetricNamesStatsResponse(w, &stats, qt)
 	return nil
 }
@@ -67,4 +69,23 @@ func ResetMetricNamesStatsHandler(startTime time.Time, qt *querytracer.Tracer, r
 		return err
 	}
 	return nil
+}
+
+func finalizeMetricNamesStats(mnuss *metricnamestats.StatsResult, limit, le int) {
+	if le >= 0 {
+		tmp := mnuss.Records[:0]
+		for _, record := range mnuss.Records {
+			if record.RequestsCount <= uint64(le) {
+				tmp = append(tmp, record)
+			}
+		}
+		mnuss.Records = tmp
+	}
+	mnuss.Sort()
+	if limit < 0 {
+		limit = 0
+	}
+	if len(mnuss.Records) > limit {
+		mnuss.Records = mnuss.Records[:limit]
+	}
 }

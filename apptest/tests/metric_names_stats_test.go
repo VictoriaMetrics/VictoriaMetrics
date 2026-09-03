@@ -271,7 +271,7 @@ func TestClusterMetricNamesStats(t *testing.T) {
 	}
 }
 
-func TestClusterMetricNamesStatsLeAfterMerge(t *testing.T) {
+func TestClusterMetricNamesStatsWithParams(t *testing.T) {
 	fs.MustRemoveDir(t.Name())
 
 	tc := apptest.NewTestCase(t)
@@ -279,46 +279,119 @@ func TestClusterMetricNamesStatsLeAfterMerge(t *testing.T) {
 	vmstorage1 := tc.MustStartVmstorage("vmstorage-1", []string{
 		"-storageDataPath=" + tc.Dir() + "/vmstorage-1",
 		"-retentionPeriod=100y",
-		"-storage.trackMetricNamesStats",
 	})
 	vmstorage2 := tc.MustStartVmstorage("vmstorage-2", []string{
 		"-storageDataPath=" + tc.Dir() + "/vmstorage-2",
 		"-retentionPeriod=100y",
-		"-storage.trackMetricNamesStats",
 	})
 
-	vminsert := tc.MustStartVminsert("vminsert", []string{
-		fmt.Sprintf("-storageNode=%s,%s", vmstorage1.VminsertAddr(), vmstorage2.VminsertAddr()),
+	vminsert1 := tc.MustStartVminsert("vminsert-1", []string{
+		fmt.Sprintf("-storageNode=%s", vmstorage1.VminsertAddr()),
 	})
-	vmselect := tc.MustStartVmselect("vmselect", []string{
-		fmt.Sprintf("-storageNode=%s,%s", vmstorage1.VmselectAddr(), vmstorage2.VmselectAddr()),
+	vminsert2 := tc.MustStartVminsert("vminsert-2", []string{
+		fmt.Sprintf("-storageNode=%s", vmstorage2.VminsertAddr()),
+	})
+	vmselect1 := tc.MustStartVmselect("vmselect-1", []string{
+		fmt.Sprintf("-storageNode=%s", vmstorage1.VmselectAddr()),
+	})
+	vmselect2 := tc.MustStartVmselect("vmselect-2", []string{
+		fmt.Sprintf("-storageNode=%s", vmstorage2.VmselectAddr()),
+	})
+	vmselectGlobal := tc.MustStartVmselect("vmselect-global", []string{
+		fmt.Sprintf("-storageNode=%s,%s", vmselect1.ClusternativeListenAddr(), vmselect2.ClusternativeListenAddr()),
 	})
 
-	dataSet := make([]string, 100)
-	for i := range dataSet {
-		dataSet[i] = fmt.Sprintf(`metric_name{instance="%d"} %d 1707123456700`, i, i)
+	const ingestDateTime = `2024-02-05T08:57:36.700Z`
+	const ingestTimestamp = ` 1707123456700`
+	const date = `2024-02-05`
+	dataSet := []string{
+		`metric_name_1{label="foo"} 10`,
+		`metric_name_1{label="bar"} 10`,
+		`metric_name_2{label="baz"} 20`,
+		`metric_name_1{label="baz"} 10`,
+		`metric_name_3{label="baz"} 30`,
 	}
-	vminsert.PrometheusAPIV1ImportPrometheus(t, dataSet, apptest.QueryOpts{Tenant: "1:1"})
+	for idx := range dataSet {
+		dataSet[idx] += ingestTimestamp
+	}
+
+	tenantID := "1:1"
+
+	// verify empty stats
+	resp := vmselectGlobal.PrometheusAPIV1StatusMetricNamesStats(t, "", "", "", apptest.QueryOpts{Tenant: tenantID})
+	if len(resp.Records) != 0 {
+		t.Fatalf("unexpected resp Records: %d, want: %d", len(resp.Records), 0)
+	}
+
+	vminsert1.PrometheusAPIV1ImportPrometheus(t, dataSet, apptest.QueryOpts{Tenant: tenantID})
+
+	// ingest extra metric to the second cluster
+	dataSet = append(dataSet, fmt.Sprintf(`metric_name_0{label="baz"} 30 %s`, ingestTimestamp))
+	vminsert2.PrometheusAPIV1ImportPrometheus(t, dataSet, apptest.QueryOpts{Tenant: tenantID})
+
 	vmstorage1.ForceFlush(t)
 	vmstorage2.ForceFlush(t)
 
-	vmselect.PrometheusAPIV1Query(t, `metric_name{instance="0"}`, apptest.QueryOpts{
-		Tenant: "1:1",
-		Time:   "2024-02-05T08:57:36.700Z",
-	})
-
-	want := apptest.MetricNamesStatsResponse{
+	// verify ingested dataset correctly registered
+	expected := apptest.MetricNamesStatsResponse{
 		Records: []apptest.MetricNamesStatsRecord{
-			{MetricName: "metric_name", QueryRequestsCount: 1},
+			{MetricName: "metric_name_1"},
+			{MetricName: "metric_name_2"},
+			{MetricName: "metric_name_3"},
 		},
 	}
-	got := vmselect.PrometheusAPIV1StatusMetricNamesStats(t, "", "", `^metric_name$`, apptest.QueryOpts{Tenant: "1:1"})
-	if diff := cmp.Diff(want, got); diff != "" {
-		t.Fatalf("unexpected unfiltered response (-want, +got):\n%s", diff)
+	gotStats := vmselect1.PrometheusAPIV1StatusMetricNamesStats(t, "", "", "", apptest.QueryOpts{Tenant: tenantID})
+	if diff := cmp.Diff(expected, gotStats); diff != "" {
+		t.Errorf("unexpected response (-want, +got):\n%s", diff)
+	}
+	// and for second cluster
+	expected = apptest.MetricNamesStatsResponse{
+		Records: []apptest.MetricNamesStatsRecord{
+			{MetricName: "metric_name_0"},
+			{MetricName: "metric_name_1"},
+			{MetricName: "metric_name_2"},
+			{MetricName: "metric_name_3"},
+		},
+	}
+	gotStats = vmselect2.PrometheusAPIV1StatusMetricNamesStats(t, "", "", "", apptest.QueryOpts{Tenant: tenantID})
+	if diff := cmp.Diff(expected, gotStats); diff != "" {
+		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
 
-	got = vmselect.PrometheusAPIV1StatusMetricNamesStats(t, "", "0", `^metric_name$`, apptest.QueryOpts{Tenant: "1:1"})
-	if len(got.Records) != 0 {
-		t.Fatalf("unexpected records for le=0: %v", got.Records)
+	// query metrics for 1 cluster and check stats
+	vmselect1.PrometheusAPIV1Query(t, `{__name__!=""}`, apptest.QueryOpts{
+		Tenant: tenantID, Time: ingestDateTime,
+	})
+
+	expected = apptest.MetricNamesStatsResponse{
+		Records: []apptest.MetricNamesStatsRecord{
+			{MetricName: "metric_name_2", QueryRequestsCount: 1},
+			{MetricName: "metric_name_3", QueryRequestsCount: 1},
+			{MetricName: "metric_name_1", QueryRequestsCount: 3},
+		},
+	}
+	gotStats = vmselect1.PrometheusAPIV1StatusMetricNamesStats(t, "", "", "", apptest.QueryOpts{Tenant: tenantID})
+	if diff := cmp.Diff(expected, gotStats); diff != "" {
+		t.Errorf("unexpected response (-want, +got):\n%s", diff)
+	}
+
+	// check global stats with query params
+	expected = apptest.MetricNamesStatsResponse{
+		Records: []apptest.MetricNamesStatsRecord{
+			{MetricName: "metric_name_0", QueryRequestsCount: 0},
+		},
+	}
+	gotStats = vmselectGlobal.PrometheusAPIV1StatusMetricNamesStats(t, "", "0", "", apptest.QueryOpts{Tenant: tenantID})
+	if diff := cmp.Diff(expected, gotStats); diff != "" {
+		t.Errorf("unexpected response (-want, +got):\n%s", diff)
+	}
+	expected = apptest.MetricNamesStatsResponse{
+		Records: []apptest.MetricNamesStatsRecord{
+			{MetricName: "metric_name_0", QueryRequestsCount: 0},
+		},
+	}
+	gotStats = vmselectGlobal.PrometheusAPIV1StatusMetricNamesStats(t, "2", "0", "", apptest.QueryOpts{Tenant: tenantID})
+	if diff := cmp.Diff(expected, gotStats); diff != "" {
+		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
 }
