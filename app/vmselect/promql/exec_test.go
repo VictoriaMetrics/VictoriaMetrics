@@ -65,8 +65,10 @@ func TestExecSuccess(t *testing.T) {
 
 	f := func(q string, resultExpected []netstorage.Result) {
 		t.Helper()
+		ctx, cancel := searchutil.NewContext(context.Background(), searchutil.NewDeadline(time.Now(), time.Minute, ""))
+		defer cancel()
 		ec := &EvalConfig{
-			Context: searchutil.NewContext(context.Background(), searchutil.NewDeadline(time.Now(), time.Minute, "")),
+			Context: ctx,
 			AuthTokens: []*auth.Token{{
 				AccountID: accountID,
 				ProjectID: projectID,
@@ -10467,8 +10469,10 @@ func TestExecSuccess(t *testing.T) {
 func TestExecError(t *testing.T) {
 	f := func(q string) {
 		t.Helper()
+		ctx, cancel := searchutil.NewContext(context.Background(), searchutil.NewDeadline(time.Now(), time.Minute, ""))
+		defer cancel()
 		ec := &EvalConfig{
-			Context: searchutil.NewContext(context.Background(), searchutil.NewDeadline(time.Now(), time.Minute, "")),
+			Context: ctx,
 			AuthTokens: []*auth.Token{{
 				AccountID: 123,
 				ProjectID: 567,

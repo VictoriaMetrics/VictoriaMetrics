@@ -2,6 +2,7 @@ package prometheus
 
 import (
 	"bytes"
+	"context"
 	"flag"
 	"fmt"
 	"math"
@@ -129,7 +130,8 @@ func FederateHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter,
 	if err != nil {
 		return err
 	}
-	ctx := searchutil.GetContextForQuery(r, startTime)
+	ctx, cancel := searchutil.GetContextForQuery(r, startTime)
+	defer cancel()
 
 	lookbackDelta, err := getMaxLookback(r)
 	if err != nil {
@@ -201,7 +203,8 @@ func ExportCSVHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter
 	if err != nil {
 		return err
 	}
-	ctx := searchutil.GetContextForExport(r, startTime)
+	ctx, cancel := searchutil.GetContextForExport(r, startTime)
+	defer cancel()
 
 	format := r.FormValue("format")
 	if len(format) == 0 {
@@ -296,7 +299,8 @@ func ExportNativeHandler(startTime time.Time, at *auth.Token, w http.ResponseWri
 	if err != nil {
 		return err
 	}
-	ctx := searchutil.GetContextForExport(r, startTime)
+	ctx, cancel := searchutil.GetContextForExport(r, startTime)
+	defer cancel()
 
 	sq, err := getSearchQuery(ctx, nil, at, cp, *maxExportSeries)
 	if err != nil {
@@ -360,7 +364,8 @@ func ExportHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r
 	if err != nil {
 		return err
 	}
-	ctx := searchutil.GetContextForExport(r, startTime)
+	ctx, cancel := searchutil.GetContextForExport(r, startTime)
+	defer cancel()
 
 	format := r.FormValue("format")
 	maxRowsPerLine := int(fastfloat.ParseInt64BestEffort(r.FormValue("max_rows_per_line")))
@@ -373,7 +378,7 @@ func ExportHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r
 
 var exportDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/export"}`)
 
-func exportHandler(ctx *searchutil.Context, qt *querytracer.Tracer, at *auth.Token, w http.ResponseWriter, cp *commonParams, format string, maxRowsPerLine int, reduceMemUsage bool) error {
+func exportHandler(ctx context.Context, qt *querytracer.Tracer, at *auth.Token, w http.ResponseWriter, cp *commonParams, format string, maxRowsPerLine int, reduceMemUsage bool) error {
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 	sw := newScalableWriter(bw)
@@ -555,7 +560,8 @@ func DeleteHandler(startTime time.Time, at *auth.Token, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	ctx := searchutil.GetContextForDelete(r, startTime)
+	ctx, cancel := searchutil.GetContextForDelete(r, startTime)
+	defer cancel()
 
 	if !cp.IsDefaultTimeRange() {
 		return fmt.Errorf("delete API does not support specific time ranges using start and end args, the series can only be deleted completely")
@@ -655,7 +661,9 @@ var httpClient = &http.Client{
 
 // Tenants processes /admin/tenants request.
 func Tenants(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWriter, r *http.Request) error {
-	ctx := searchutil.GetContextForStatusRequest(r, startTime)
+	ctx, cancel := searchutil.GetContextForStatusRequest(r, startTime)
+	defer cancel()
+
 	start, err := httputil.GetTime(r, "start", 0)
 	if err != nil {
 		return err
@@ -693,7 +701,9 @@ func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.To
 	if err != nil {
 		return httpserver.InvalidParamError(err)
 	}
-	ctx := searchutil.GetContextForLabelsAPI(r, startTime)
+	ctx, cancel := searchutil.GetContextForLabelsAPI(r, startTime)
+	defer cancel()
+
 	limit, err := httputil.GetInt(r, "limit")
 	if err != nil {
 		return httpserver.InvalidParamError(err)
@@ -739,7 +749,8 @@ func TSDBStatusHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 	if err != nil {
 		return httpserver.InvalidParamError(err)
 	}
-	ctx := searchutil.GetContextForStatusRequest(r, startTime)
+	ctx, cancel := searchutil.GetContextForStatusRequest(r, startTime)
+	defer cancel()
 
 	date := fasttime.UnixDate()
 	dateStr := r.FormValue("date")
@@ -804,7 +815,9 @@ func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 	if err != nil {
 		return httpserver.InvalidParamError(err)
 	}
-	ctx := searchutil.GetContextForLabelsAPI(r, startTime)
+	ctx, cancel := searchutil.GetContextForLabelsAPI(r, startTime)
+	defer cancel()
+
 	limit, err := httputil.GetInt(r, "limit")
 	if err != nil {
 		return httpserver.InvalidParamError(err)
@@ -833,7 +846,8 @@ func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#querying-metric-metadata
 func MetadataHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
-	ctx := searchutil.GetContextForLabelsAPI(r, startTime)
+	ctx, cancel := searchutil.GetContextForLabelsAPI(r, startTime)
+	defer cancel()
 
 	limit, err := httputil.GetInt(r, "limit")
 	if err != nil {
@@ -882,7 +896,7 @@ func MetadataHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token
 	return nil
 }
 
-func getSearchQuery(ctx *searchutil.Context, qt *querytracer.Tracer, at *auth.Token, cp *commonParams, maxSeries int) (*storage.SearchQuery, error) {
+func getSearchQuery(ctx context.Context, qt *querytracer.Tracer, at *auth.Token, cp *commonParams, maxSeries int) (*storage.SearchQuery, error) {
 	if at != nil {
 		return storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, maxSeries), nil
 	}
@@ -902,7 +916,9 @@ func SeriesCountHandler(startTime time.Time, at *auth.Token, w http.ResponseWrit
 	if at == nil {
 		return fmt.Errorf("multi-tenant request to /api/v1/series/count is not supported")
 	}
-	ctx := searchutil.GetContextForStatusRequest(r, startTime)
+	ctx, cancel := searchutil.GetContextForStatusRequest(r, startTime)
+	defer cancel()
+
 	denyPartialResponse := httputil.GetDenyPartialResponse(r)
 	n, isPartial, err := netstorage.SeriesCount(ctx, nil, at.AccountID, at.ProjectID, denyPartialResponse)
 	if err != nil {
@@ -936,7 +952,8 @@ func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 	if err != nil {
 		return httpserver.InvalidParamError(err)
 	}
-	ctx := searchutil.GetContextForLabelsAPI(r, startTime)
+	ctx, cancel := searchutil.GetContextForLabelsAPI(r, startTime)
+	defer cancel()
 
 	limit, err := httputil.GetInt(r, "limit")
 	if err != nil {
@@ -1028,7 +1045,8 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w
 			end:      end,
 			filterss: filterss,
 		}
-		ctx := searchutil.GetContextForExport(r, startTime)
+		ctx, cancel := searchutil.GetContextForExport(r, startTime)
+		defer cancel()
 
 		if err := exportHandler(ctx, qt, at, w, cp, "promapi", 0, false); err != nil {
 			return fmt.Errorf("error when exporting data for query=%q on the time range (start=%d, end=%d): %w", childQuery, start, end, err)
@@ -1073,7 +1091,8 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w
 	} else {
 		queryOffset = 0
 	}
-	ctx := searchutil.GetContextForQuery(r, startTime)
+	ctx, cancel := searchutil.GetContextForQuery(r, startTime)
+	defer cancel()
 
 	ec := &promql.EvalConfig{
 		Context:             ctx,
@@ -1178,7 +1197,9 @@ func QueryRangeHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 
 func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w http.ResponseWriter, query string,
 	start, end, step, lookbackDelta int64, r *http.Request, ct int64, etfs [][]storage.TagFilter) error {
-	ctx := searchutil.GetContextForQuery(r, startTime)
+	ctx, cancel := searchutil.GetContextForQuery(r, startTime)
+	defer cancel()
+
 	noCache := httputil.GetBool(r, "nocache")
 	optimizeRepeatedBinaryOpSubexprs := httputil.GetBool(r, "optimize_repeated_binary_op_subexprs")
 	if start > end {
@@ -1250,7 +1271,7 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 	return nil
 }
 
-func populateAuthTokens(ctx *searchutil.Context, qt *querytracer.Tracer, ec *promql.EvalConfig, at *auth.Token) error {
+func populateAuthTokens(ctx context.Context, qt *querytracer.Tracer, ec *promql.EvalConfig, at *auth.Token) error {
 	if at != nil {
 		ec.AuthTokens = []*auth.Token{at}
 		return nil

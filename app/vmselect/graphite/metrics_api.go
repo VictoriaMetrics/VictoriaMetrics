@@ -1,6 +1,7 @@
 package graphite
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"math"
@@ -28,7 +29,7 @@ var maxTagValueSuffixes = flag.Int("search.maxTagValueSuffixesPerSearch", 100e3,
 //
 // See https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find
 func MetricsFindHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
-	ctx := searchutil.GetContextForQuery(r, startTime)
+
 	format := r.FormValue("format")
 	if format == "" {
 		format = "treejson"
@@ -81,6 +82,9 @@ func MetricsFindHandler(startTime time.Time, at *auth.Token, w http.ResponseWrit
 		MaxTimestamp: until,
 	}
 	denyPartialResponse := httputil.GetDenyPartialResponse(r)
+	ctx, cancel := searchutil.GetContextForQuery(r, startTime)
+	defer cancel()
+
 	paths, isPartial, err := metricsFind(ctx, at, denyPartialResponse, tr, label, "", query, delimiter[0], false)
 	if err != nil {
 		return err
@@ -123,7 +127,6 @@ func deduplicatePaths(paths []string) []string {
 //
 // See https://graphite-api.readthedocs.io/en/latest/api.html#metrics-expand
 func MetricsExpandHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
-	ctx := searchutil.GetContextForQuery(r, startTime)
 	queries := r.Form["query"]
 	if len(queries) == 0 {
 		return fmt.Errorf("missing `query` arg")
@@ -158,6 +161,9 @@ func MetricsExpandHandler(startTime time.Time, at *auth.Token, w http.ResponseWr
 	m := make(map[string][]string, len(queries))
 	isPartialResponse := false
 	denyPartialResponse := httputil.GetDenyPartialResponse(r)
+	ctx, cancel := searchutil.GetContextForQuery(r, startTime)
+	defer cancel()
+
 	for _, query := range queries {
 		paths, isPartial, err := metricsFind(ctx, at, denyPartialResponse, tr, label, "", query, delimiter[0], true)
 		if err != nil {
@@ -208,7 +214,9 @@ func MetricsExpandHandler(startTime time.Time, at *auth.Token, w http.ResponseWr
 //
 // See https://graphite-api.readthedocs.io/en/latest/api.html#metrics-index-json
 func MetricsIndexHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
-	ctx := searchutil.GetContextForQuery(r, startTime)
+	ctx, cancel := searchutil.GetContextForQuery(r, startTime)
+	defer cancel()
+
 	jsonp := r.FormValue("jsonp")
 	denyPartialResponse := httputil.GetDenyPartialResponse(r)
 	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, 0, math.MaxInt64, nil, 0)
@@ -229,7 +237,7 @@ func MetricsIndexHandler(startTime time.Time, at *auth.Token, w http.ResponseWri
 }
 
 // metricsFind searches for label values that match the given qHead and qTail.
-func metricsFind(ctx *searchutil.Context, at *auth.Token, denyPartialResponse bool, tr storage.TimeRange, label, qHead, qTail string, delimiter byte,
+func metricsFind(ctx context.Context, at *auth.Token, denyPartialResponse bool, tr storage.TimeRange, label, qHead, qTail string, delimiter byte,
 	isExpand bool) ([]string, bool, error) {
 	n := strings.IndexAny(qTail, "*{[")
 	if n < 0 {

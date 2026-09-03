@@ -1,6 +1,7 @@
 package graphite
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"time"
@@ -23,7 +24,7 @@ var maxGraphitePathExpressionLen = flag.Int("search.maxGraphitePathExpressionLen
 	"Longer expressions are truncated to prevent memory exhaustion on complex nested queries. Set to 0 to disable truncation.")
 
 type evalConfig struct {
-	ctx                 *searchutil.Context
+	ctx                 context.Context
 	at                  *auth.Token
 	startTime           int64
 	endTime             int64
@@ -201,9 +202,12 @@ func newNextSeriesForSearchQuery(ec *evalConfig, sq *storage.SearchQuery, expr g
 			}
 			s.summarize(aggrAvg, ec.startTime, ec.endTime, ec.storageStep, 0)
 
-			deadline := ec.ctx.Deadline()
+			deadline, ok := ec.ctx.Deadline()
+			if !ok {
+				logger.Fatalf("BUG: eval context without deadline")
+			}
+			remainingTimeout := deadline.Sub(time.Unix(int64(fasttime.UnixTimestamp()), 0))
 			// A negative or zero duration will cause timer.C to return immediately
-			remainingTimeout := deadline.Deadline() - fasttime.UnixTimestamp()
 			t := timerpool.Get(time.Duration(remainingTimeout) * time.Second)
 			defer timerpool.Put(t)
 

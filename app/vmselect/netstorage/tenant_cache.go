@@ -1,6 +1,7 @@
 package netstorage
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"sync"
@@ -9,7 +10,6 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
@@ -21,7 +21,7 @@ var (
 )
 
 // TenantsCached returns the list of tenants available in the storage.
-func TenantsCached(ctx *searchutil.Context, qt *querytracer.Tracer, tr storage.TimeRange, mayCache bool) ([]storage.TenantToken, error) {
+func TenantsCached(ctx context.Context, qt *querytracer.Tracer, tr storage.TimeRange, mayCache bool) ([]storage.TenantToken, error) {
 	qtL := qt.NewChild("fetching tenants on timeRange=%s", tr.String())
 	defer qtL.Done()
 

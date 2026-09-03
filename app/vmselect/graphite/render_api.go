@@ -27,7 +27,6 @@ var (
 //
 // See https://graphite.readthedocs.io/en/stable/render_api.html
 func RenderHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
-	ctx := searchutil.GetContextForQuery(r, startTime)
 	format := r.FormValue("format")
 	if format != "json" {
 		return fmt.Errorf("unsupported format=%q; supported values: json", format)
@@ -95,6 +94,9 @@ func RenderHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r
 	if err != nil {
 		return fmt.Errorf("cannot setup tag filters: %w", err)
 	}
+	ctx, cancel := searchutil.GetContextForQuery(r, startTime)
+	defer cancel()
+
 	denyPartialResponse := httputil.GetDenyPartialResponse(r)
 	var nextSeriess []nextSeriesFunc
 	targets := r.Form["target"]

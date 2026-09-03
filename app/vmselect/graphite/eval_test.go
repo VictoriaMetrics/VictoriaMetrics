@@ -15,8 +15,10 @@ import (
 )
 
 func TestExecExprSuccess(t *testing.T) {
+	ctx, cancel := searchutil.NewContext(context.Background(), searchutil.Deadline{})
+	defer cancel()
 	ec := &evalConfig{
-		ctx:         searchutil.NewContext(context.Background(), searchutil.NewDeadline(time.Now(), time.Minute, "")),
+		ctx:         ctx,
 		at:          &auth.Token{},
 		startTime:   120e3,
 		endTime:     210e3,
@@ -3443,8 +3445,10 @@ func TestExecExprSuccess(t *testing.T) {
 func TestExecExprFailure(t *testing.T) {
 	f := func(query string) {
 		t.Helper()
+		ctx, cancel := searchutil.NewContext(context.Background(), searchutil.Deadline{})
+		defer cancel()
 		ec := &evalConfig{
-			ctx:         searchutil.NewContext(context.Background(), searchutil.Deadline{}),
+			ctx:         ctx,
 			at:          &auth.Token{},
 			startTime:   120e3,
 			endTime:     420e3,

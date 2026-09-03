@@ -44,7 +44,8 @@ func MetricNamesStatsHandler(startTime time.Time, at *auth.Token, qt *querytrace
 			return fmt.Errorf("match_pattern=%q must be valid regex: %w", matchPattern, err)
 		}
 	}
-	ctx := searchutil.GetContextForStatusRequest(r, startTime)
+	ctx, cancel := searchutil.GetContextForStatusRequest(r, startTime)
+	defer cancel()
 	var tt *storage.TenantToken
 	if at != nil {
 		tt = &storage.TenantToken{
@@ -62,7 +63,8 @@ func MetricNamesStatsHandler(startTime time.Time, at *auth.Token, qt *querytrace
 
 // ResetMetricNamesStatsHandler resets metric names usage state
 func ResetMetricNamesStatsHandler(startTime time.Time, qt *querytracer.Tracer, r *http.Request) error {
-	ctx := searchutil.GetContextForStatusRequest(r, startTime)
+	ctx, cancel := searchutil.GetContextForStatusRequest(r, startTime)
+	defer cancel()
 	if err := netstorage.ResetMetricNamesStats(ctx, qt); err != nil {
 		return err
 	}
