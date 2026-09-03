@@ -151,6 +151,9 @@ func main() {
 	if len(listenAddrs) == 0 {
 		listenAddrs = []string{":8481"}
 	}
+	// Register paths which could be protected by their own -*AuthKey flag.
+	httpserver.RegisterAuthKeyProtectedPathsFunc(isAuthKeyProtectedPath)
+
 	go httpserver.Serve(listenAddrs, requestHandler, httpserver.ServeOptions{
 		UseProxyProtocol: useProxyProtocol,
 	})
@@ -316,6 +319,32 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return deleteHandler(startTime, w, r, p, at)
 	default:
 		// This is not our link
+		return false
+	}
+}
+
+// isAuthKeyProtectedPath returns true for paths, which verify -search.resetCacheAuthKey,
+// -metricNamesStatsResetAuthKey or -deleteAuthKey on their own at requestHandler().
+func isAuthKeyProtectedPath(r *http.Request) bool {
+	// path normalization is needed here because it exists in requestHandler() as well
+	path := strings.ReplaceAll(r.URL.Path, "//", "/")
+	switch path {
+	case "/internal/resetRollupResultCache", "/admin/api/v1/admin/status/metric_names_stats/reset":
+		return true
+	}
+	p, err := parsePath(path, r.Header)
+	if err != nil {
+		return false
+	}
+	switch p.Prefix {
+	case "select", "delete":
+	default:
+		return false
+	}
+	switch p.Suffix {
+	case "graphite/tags/delSeries", "prometheus/api/v1/admin/tsdb/delete_series":
+		return true
+	default:
 		return false
 	}
 }

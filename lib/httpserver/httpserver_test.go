@@ -255,3 +255,62 @@ func TestHandlerWrapperDisableServerHostnameHeader(t *testing.T) {
 		t.Fatalf("unexpected X-Server-Hostname header; got %q; want empty value", got)
 	}
 }
+
+func TestIsProtectedByAuthFlag(t *testing.T) {
+	RegisterAuthKeyProtectedPathsFunc(func(r *http.Request) bool {
+		switch r.URL.Path {
+		case "/-/reload", "/internal/force_merge":
+			return true
+		}
+		return false
+	})
+
+	origUsername := *httpAuthUsername
+	origPasswd := httpAuthPassword.Get()
+	defer func() {
+		if err := httpAuthPassword.Set(origPasswd); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		*httpAuthUsername = origUsername
+	}()
+
+	*httpAuthUsername = "test"
+	if err := httpAuthPassword.Set("pass"); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	f := func(path string, setBasicAuth, expectedRhCalled bool) {
+		t.Helper()
+
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		if setBasicAuth {
+			req.SetBasicAuth("test", "pass")
+		}
+		rhCalled := false
+		rh := func(w http.ResponseWriter, _ *http.Request) bool {
+			rhCalled = true
+			w.WriteHeader(http.StatusOK)
+			return true
+		}
+
+		w := httptest.NewRecorder()
+		builtinRoutesHandler(&server{}, req, w, rh)
+
+		res := w.Result()
+		_ = res.Body.Close()
+		if rhCalled != expectedRhCalled {
+			t.Fatalf("unexpected rh() call for path %q; got %v; want %v", path, rhCalled, expectedRhCalled)
+		}
+		if !expectedRhCalled && res.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("unexpected status code for path %q; got %d; want %d", path, res.StatusCode, http.StatusUnauthorized)
+		}
+	}
+
+	f("/-/reload", false, true)
+	f("/-/reload/", false, false)
+	f("/prometheus/-/reload", false, false)
+	f("/internal/force_merge", false, true)
+
+	f("/api/v1/query", false, false)
+	f("/api/v1/query", true, true)
+}
