@@ -171,6 +171,15 @@ func main() {
 
 	promscrape.Init(remotewrite.PushDropSamplesOnFailure)
 
+	// Register paths which could be protected by their own -*AuthKey flag.
+	httpserver.RegisterAuthKeyProtectedPaths([]string{
+		"/config", "/prometheus/config",
+		"/api/v1/status/config", "/prometheus/api/v1/status/config",
+		"/remotewrite-relabel-config", "/api/v1/status/remotewrite-relabel-config",
+		"/remotewrite-url-relabel-config", "/api/v1/status/remotewrite-url-relabel-config",
+		"/-/reload", "/prometheus/-/reload",
+	})
+
 	go httpserver.Serve(listenAddrs, requestHandler, httpserver.ServeOptions{
 		UseProxyProtocol: useProxyProtocol,
 	})

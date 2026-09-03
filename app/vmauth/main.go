@@ -126,6 +126,9 @@ func main() {
 		rh = requestHandler
 	}
 
+	// Register paths which could be protected by their own -*AuthKey flag.
+	httpserver.RegisterAuthKeyProtectedPaths([]string{"/-/reload"})
+
 	go httpserver.Serve(listenAddrs, rh, httpserver.ServeOptions{
 		UseProxyProtocol: useProxyProtocol,
 		// built-in routes will be exposed at *httpInternalListenAddr

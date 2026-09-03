@@ -102,6 +102,30 @@ func main() {
 
 	startSelfScraper()
 
+	// Register paths which could be protected by their own -*AuthKey flag.
+	httpserver.RegisterAuthKeyProtectedPaths([]string{
+		// for vminsert
+		"/config", "/prometheus/config",
+		"/api/v1/status/config", "/prometheus/api/v1/status/config",
+		"/-/reload", "/prometheus/-/reload",
+
+		// for vmselect
+		"/internal/resetRollupResultCache",
+		"/tags/delSeries", "/graphite/tags/delSeries",
+		"/api/v1/admin/tsdb/delete_series", "/prometheus/api/v1/admin/tsdb/delete_series",
+		"/api/v1/admin/status/metric_names_stats/reset",
+
+		// for vmstorage
+		"/internal/force_merge",
+		"/internal/force_flush",
+		"/internal/log_new_series",
+		"/api/v1/admin/tsdb/snapshot",
+		"/snapshot/create",
+		"/snapshot/list",
+		"/snapshot/delete",
+		"/snapshot/delete_all",
+	})
+
 	go httpserver.Serve(listenAddrs, requestHandler, httpserver.ServeOptions{
 		UseProxyProtocol: useProxyProtocol,
 	})

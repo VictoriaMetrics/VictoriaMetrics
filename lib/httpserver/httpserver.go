@@ -508,44 +508,25 @@ func builtinRoutesHandler(s *server, r *http.Request, w http.ResponseWriter, rh 
 	return rh(w, r)
 }
 
-// pathsProtectedByAuthFlag contains paths, which explicitly call CheckAuthFlag() on their own,
+// pathsProtectedByAuthFlag contains paths, which could be protected by their own -*AuthKey flag.
 // so there is no need in checking HTTP Basic Auth for them at builtinRoutesHandler().
 //
 // See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6329
 //
-// Every supported path must be listed here explicitly.
-var pathsProtectedByAuthFlag = map[string]struct{}{
-	// for vminsert and vmagent
-	"/config":               {},
-	"/api/v1/status/config": {},
+// Paths are registered via RegisterAuthKeyProtectedPaths() by the corresponding apps.
+var pathsProtectedByAuthFlag map[string]struct{}
 
-	// for vminsert, vmagent, vmauth and vmalert
-	"/-/reload": {},
-
-	// for vmagent
-	"/remotewrite-relabel-config":                   {},
-	"/api/v1/status/remotewrite-relabel-config":     {},
-	"/remotewrite-url-relabel-config":               {},
-	"/api/v1/status/remotewrite-url-relabel-config": {},
-
-	// for vmselect
-	"/internal/resetRollupResultCache":                    {},
-	"/tags/delSeries":                                     {},
-	"/graphite/tags/delSeries":                            {},
-	"/api/v1/admin/tsdb/delete_series":                    {},
-	"/prometheus/api/v1/admin/tsdb/delete_series":         {},
-	"/api/v1/admin/status/metric_names_stats/reset":       {},
-	"/admin/api/v1/admin/status/metric_names_stats/reset": {},
-
-	// for vmstorage
-	"/internal/force_merge":       {},
-	"/internal/force_flush":       {},
-	"/internal/log_new_series":    {},
-	"/api/v1/admin/tsdb/snapshot": {},
-	"/snapshot/create":            {},
-	"/snapshot/list":              {},
-	"/snapshot/delete":            {},
-	"/snapshot/delete_all":        {},
+// RegisterAuthKeyProtectedPaths registers the given paths as protected by their own -*AuthKey flag.
+// Must be called before Serve() is called.
+func RegisterAuthKeyProtectedPaths(paths []string) {
+	if pathsProtectedByAuthFlag != nil {
+		logger.Panicf("BUG: RegisterAuthKeyProtectedPaths() must be called only once before Serve()")
+	}
+	m := make(map[string]struct{}, len(paths))
+	for _, path := range paths {
+		m[path] = struct{}{}
+	}
+	pathsProtectedByAuthFlag = m
 }
 
 func isProtectedByAuthFlag(path string) bool {
