@@ -1717,11 +1717,7 @@ func (db *indexDB) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, t
 	numDays := maxDate - minDate + 1
 	if numDays == 1 {
 		date := minDate
-		var dateStr string
-		if qt.Enabled() {
-			dateStr = dateToString(date)
-		}
-		qtChild := qt.NewChild("search metricIDs in per-day index on 1 day: filters=%s, date=%s, maxMetrics=%d", tfss, dateStr, maxMetrics)
+		qtChild := qt.NewChild("search metricIDs in per-day index on 1 day: filters=%s, date=%s, maxMetrics=%d", tfss, dateToString(date), maxMetrics)
 		defer qtChild.Done()
 		return db.searchMetricIDsByDateAndFilters(qtChild, date, tfss, maxMetrics, deadline)
 	}
@@ -1734,11 +1730,7 @@ func (db *indexDB) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, t
 	errByDate := make([]error, numDays)
 	for day := range numDays {
 		date := minDate + uint64(day)
-		var dateStr string
-		if qt.Enabled() {
-			dateStr = dateToString(date)
-		}
-		qtChild := qtMultiDaySearch.NewChild("search metricIDs: filters=%s, date=%s, maxMetrics=%d", tfss, dateStr, maxMetrics)
+		qtChild := qtMultiDaySearch.NewChild("search metricIDs: filters=%s, date=%s, maxMetrics=%d", tfss, dateToString(date), maxMetrics)
 		wg.Go(func() {
 			defer qtChild.Done()
 			metricIDsByDate[day], errByDate[day] = db.searchMetricIDsByDateAndFilters(qtChild, date, tfss, maxMetrics, deadline)
@@ -1769,10 +1761,8 @@ func (db *indexDB) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, t
 // If the number of found metricIDs exceeds maxMetrics limit, the method returns
 // an error.
 func (db *indexDB) searchMetricIDsByDateAndFilters(qt *querytracer.Tracer, date uint64, tfss []*TagFilters, maxMetrics int, deadline uint64) (*uint64set.Set, error) {
-	if qt.Enabled() {
-		qt = qt.NewChild("search metricIDs: filters=%s, date=%s, maxMetrics=%d", tfss, dateToString(date), maxMetrics)
-		defer qt.Done()
-	}
+	qt = qt.NewChild("search metricIDs: filters=%s, date=%s, maxMetrics=%d", tfss, dateToString(date), maxMetrics)
+	defer qt.Done()
 
 	if len(tfss) == 0 {
 		return nil, nil
@@ -2497,10 +2487,8 @@ func (is *indexSearch) updateMetricIDsForOrSuffix(prefix []byte, metricIDs *uint
 }
 
 func (is *indexSearch) getMetricIDsForDateAndFilters(qt *querytracer.Tracer, date uint64, tfs *TagFilters, maxMetrics int) (*uint64set.Set, error) {
-	if qt.Enabled() {
-		qt = qt.NewChild("search metricIDs: filters=%s, date=%s, maxMetrics=%d", tfs, dateToString(date), maxMetrics)
-		defer qt.Done()
-	}
+	qt = qt.NewChild("search metricIDs: filters=%s, date=%s, maxMetrics=%d", tfs, dateToString(date), maxMetrics)
+	defer qt.Done()
 
 	// Sort tfs by loopsCount needed for performing each filter.
 	// This stats is usually collected from the previous queries.
@@ -2912,10 +2900,8 @@ func (is *indexSearch) hasMetricIDSlow(metricID uint64) bool {
 }
 
 func (is *indexSearch) getMetricIDsForDateTagFilter(qt *querytracer.Tracer, tf *tagFilter, date uint64, commonPrefix []byte, maxMetrics int, maxLoopsCount int64) (*uint64set.Set, int64, error) {
-	if qt.Enabled() {
-		qt = qt.NewChild("search metricIDs: filter={%s}, date=%s, maxMetrics=%d, maxLoopsCount=%d", tf, dateToString(date), maxMetrics, maxLoopsCount)
-		defer qt.Done()
-	}
+	qt = qt.NewChild("search metricIDs: filter={%s}, date=%s, maxMetrics=%d, maxLoopsCount=%d", tf, dateToString(date), maxMetrics, maxLoopsCount)
+	defer qt.Done()
 
 	if !bytes.HasPrefix(tf.prefix, commonPrefix) {
 		logger.Panicf("BUG: unexpected tf.prefix %q; must start with commonPrefix %q", tf.prefix, commonPrefix)
