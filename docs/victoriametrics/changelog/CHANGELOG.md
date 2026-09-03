@@ -28,6 +28,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 * SECURITY: upgrade Go builder from Go1.26.6 to Go1.27.1. See [Go 1.27 release notes](https://go.dev/doc/go1.27).
 
+* FEATURE: [alerts-health](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-health.yml): split `TooManyLogs` alert into `TooManyErrorLogs` and `TooManyLogs`. `TooManyLogs` now covers only `warn`-level logs and aggregates them per job and instance. `TooManyErrorLogs` fires on `error`, `fatal`, and `panic` logs with per-location granularity, making it easier to identify the exact source of critical log messages. See [#11417](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11417).
+
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/), [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix insert requests getting stuck after another insert request times out, causing clients to time out while waiting for a response. See [VictoriaLogs#1743](https://github.com/VictoriaMetrics/VictoriaLogs/issues/1743).
 
 ## [v1.151.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.151.0)
