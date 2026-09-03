@@ -41,7 +41,7 @@ type Ctx struct {
 	instanceLabelValue   string
 	accountIDLabelValue  string
 	projectIDLabelValue  string
-	drop bool
+	drop                 bool
 }
 
 func (ctx *Ctx) reset() {
@@ -189,15 +189,17 @@ func (ctx *Ctx) prepare(labels []prompb.Label, filterByLabelName, label string) 
 				ctx.hasVMAppLabel = true
 			}
 		case "__name__":
-			if l.Value == vmAppVersionMetricName {
+			switch l.Value {
+			case vmAppVersionMetricName:
 				ctx.hasVMAppVersionLabel = true
-			} else if l.Value == `cardinality_estimate` {
+			case `cardinality_estimate`:
 				// vmestimator is part of VictoriaMetrics offering so its metrics should pass through mdx filter.
-				// But, vmestimator exposes not only its operatinal metric at /metrics but cardinality estimates. 
+				// But, vmestimator exposes not only its operatinal metric at /metrics but cardinality estimates.
 				// Later should be filtered out.
 				//
 				// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11501
 				ctx.drop = true
+
 			}
 		}
 		if len(filterByLabelName) > 0 {
