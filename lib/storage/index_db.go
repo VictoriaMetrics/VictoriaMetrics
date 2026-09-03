@@ -1805,12 +1805,14 @@ func (db *indexDB) searchMetricIDsByDateAndFilters(qt *querytracer.Tracer, date 
 // searchMetricIDsByDateAndFiltersSlow searches metricIDs by a date and tag
 // filters.
 //
-// It is slow because it does not use cache. Callers should use
-// searchMetricIDsByDateAndFilters instead. The only place this method is called
-// directly is benchmarks.
+// Deleted metricIDs are excluded from the result.
 //
 // If the number of found metricIDs exceeds maxMetrics limit, the method returns
 // an error.
+//
+// It is called slow because it searches the index directly without consulting
+// the cache first. Callers should use searchMetricIDsByDateAndFilters instead.
+// The only place this method is called directly is in benchmarks.
 func (db *indexDB) searchMetricIDsByDateAndFiltersSlow(qt *querytracer.Tracer, date uint64, tfss []*TagFilters, maxMetrics int, deadline uint64) (*uint64set.Set, error) {
 	if int64(date)*msecPerDay >= db.s.minTimestampForCompositeIndex {
 		tfss = convertToCompositeTagFilterss(tfss)
