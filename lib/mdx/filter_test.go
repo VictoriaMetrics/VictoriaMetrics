@@ -375,6 +375,34 @@ func TestMdxInstanceFilter(t *testing.T) {
 				},
 			}})
 
+	// cardinality_estimate metric must be dropped
+	f([]prompb.TimeSeries{
+		{
+			Labels: []prompb.Label{
+				{Name: "__name__", Value: "vm_app_version"},
+				{Name: "instance", Value: "vmestimator:8490"},
+				{Name: "job", Value: "vmestimator-test"},
+			},
+		},
+		{
+			Labels: []prompb.Label{
+				{Name: "__name__", Value: "cardinality_estimate"},
+				{Name: "instance", Value: "vmestimator:8490"},
+				{Name: "job", Value: "vmestimator-test"},
+			},
+		},
+	},
+		[]prompb.TimeSeries{
+			{
+				Labels: []prompb.Label{
+					{Name: "__name__", Value: "vm_app_version"},
+					{Name: "instance", Value: "vmestimator:8490"},
+					{Name: "job", Value: "vmestimator-test"},
+					{Name: "victoriametrics_app", Value: "true"},
+				},
+			}},
+	)
+
 	// metrics from another tenant with the same job and instance must be dropped.
 	f([]prompb.TimeSeries{
 		{Labels: []prompb.Label{

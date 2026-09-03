@@ -41,6 +41,7 @@ type Ctx struct {
 	instanceLabelValue   string
 	accountIDLabelValue  string
 	projectIDLabelValue  string
+	drop bool
 }
 
 func (ctx *Ctx) reset() {
@@ -55,6 +56,7 @@ func (ctx *Ctx) reset() {
 	ctx.instanceLabelValue = ""
 	ctx.accountIDLabelValue = ""
 	ctx.projectIDLabelValue = ""
+	ctx.drop = false
 }
 
 var ctxPool = &sync.Pool{
@@ -135,6 +137,9 @@ func (filter *Filter) Filter(ctx *Ctx, tss []prompb.TimeSeries) []prompb.TimeSer
 			// despite any other conditions
 			continue
 		}
+		if ctx.drop {
+			continue
+		}
 		if ctx.hasVMAppLabel {
 			filter.trackInstance(key)
 			dstTss = append(dstTss, ts)
@@ -186,6 +191,13 @@ func (ctx *Ctx) prepare(labels []prompb.Label, filterByLabelName, label string) 
 		case "__name__":
 			if l.Value == vmAppVersionMetricName {
 				ctx.hasVMAppVersionLabel = true
+			} else if l.Value == `cardinality_estimate` {
+				// vmestimator is part of VictoriaMetrics offering so its metrics should pass through mdx filter.
+				// But, vmestimator exposes not only its operatinal metric at /metrics but cardinality estimates. 
+				// Later should be filtered out.
+				//
+				// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11501
+				ctx.drop = true
 			}
 		}
 		if len(filterByLabelName) > 0 {
