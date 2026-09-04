@@ -27,6 +27,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 ## tip
 
 * SECURITY: upgrade Go builder from Go1.26.6 to Go1.27.1. See [Go 1.27 release notes](https://go.dev/doc/go1.27).
+* SECURITY: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): fix authorization bypass in JWT-based routing when `match_claims` values are used. See [GHSA-f99m-22fh-qw96](https://github.com/VictoriaMetrics/VictoriaMetrics/security/advisories/GHSA-f99m-22fh-qw96).
 
 * FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): add the `deny_paths` option to `url_map` to reject a subset of paths matched by `src_paths` or other `src_*` options with `403 Forbidden` (`401 Unauthorized` for anonymous requests) instead of enumerating every allowed path. See [#11452](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11452). Thanks to @andriibeee for contribution.
 
