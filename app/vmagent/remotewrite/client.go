@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptrace"
 	"net/url"
 	"strconv"
 	"strings"
@@ -364,11 +365,7 @@ func (c *client) runWorker(readBlock func(dst []byte) ([]byte, bool)) {
 }
 
 func (c *client) doRequest(url string, body []byte) (*http.Response, error) {
-	req, err := c.newRequest(url, body)
-	if err != nil {
-		return nil, err
-	}
-	resp, err := c.hc.Do(req)
+	resp, err := c.tryRequest(url, body)
 	if err == nil {
 		return resp, nil
 	}
@@ -379,26 +376,40 @@ func (c *client) doRequest(url string, body []byte) (*http.Response, error) {
 	// Make another attempt in hope request will succeed.
 	// If not, the error should be handled by the caller as usual.
 	// This should help with https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4139
-	req, err = c.newRequest(url, body)
-	if err != nil {
-		return nil, fmt.Errorf("second attempt: %w", err)
-	}
-	resp, err = c.hc.Do(req)
+	resp, err = c.tryRequest(url, body)
 	if err != nil {
 		return nil, fmt.Errorf("second attempt: %w", err)
 	}
 	return resp, nil
 }
 
-func (c *client) newRequest(url string, body []byte) (*http.Request, error) {
+func (c *client) tryRequest(url string, body []byte) (*http.Response, error) {
+	req, w, err := c.newRequest(url, body)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.hc.Do(req)
+	w.wait(c.sanitizedURL)
+	return resp, err
+}
+
+func (c *client) newRequest(url string, body []byte) (*http.Request, *requestWriteWaiter, error) {
 	reqBody := bytes.NewBuffer(body)
 	req, err := http.NewRequest(http.MethodPost, url, reqBody)
 	if err != nil {
 		logger.Panicf("BUG: unexpected error from http.NewRequest(%q): %s", url, err)
 	}
+
+	// wait for all body writes including retries before reuse
+	w := newRequestWriteWaiter()
+	req = req.WithContext(httptrace.WithClientTrace(req.Context(), &httptrace.ClientTrace{
+		GotConn:      w.gotConn,
+		WroteRequest: w.wroteRequest,
+	}))
+
 	err = c.authCfg.SetHeaders(req, true)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	h := req.Header
 	h.Set("User-Agent", "vmagent")
@@ -413,10 +424,54 @@ func (c *client) newRequest(url string, body []byte) (*http.Request, error) {
 	if c.awsCfg != nil {
 		sigv4Hash := awsapi.HashHex(body)
 		if err := c.awsCfg.SignRequest(req, sigv4Hash); err != nil {
-			return nil, fmt.Errorf("cannot sign remoteWrite request with AWS sigv4: %w", err)
+			return nil, nil, fmt.Errorf("cannot sign remoteWrite request with AWS sigv4: %w", err)
 		}
 	}
-	return req, nil
+	return req, w, nil
+}
+
+// requestWriteWaiter waits for all body writes including retries
+type requestWriteWaiter struct {
+	mu      sync.Mutex
+	cond    *sync.Cond
+	pending int
+	err     error
+}
+
+func newRequestWriteWaiter() *requestWriteWaiter {
+	w := &requestWriteWaiter{}
+	w.cond = sync.NewCond(&w.mu)
+	return w
+}
+
+func (w *requestWriteWaiter) gotConn(httptrace.GotConnInfo) {
+	w.mu.Lock()
+	w.pending++
+	w.mu.Unlock()
+}
+
+func (w *requestWriteWaiter) wroteRequest(info httptrace.WroteRequestInfo) {
+	w.mu.Lock()
+	if info.Err != nil {
+		w.err = info.Err
+	}
+	if w.pending > 0 {
+		w.pending--
+	}
+	w.cond.Signal()
+	w.mu.Unlock()
+}
+
+func (w *requestWriteWaiter) wait(sanitizedURL string) {
+	w.mu.Lock()
+	for w.pending > 0 {
+		w.cond.Wait()
+	}
+	err := w.err
+	w.mu.Unlock()
+	if err != nil {
+		remoteWriteRetryLogger.Warnf("error writing request body to %q: %s", sanitizedURL, err)
+	}
 }
 
 // sendBlockHTTP sends the given block to c.remoteWriteURL.

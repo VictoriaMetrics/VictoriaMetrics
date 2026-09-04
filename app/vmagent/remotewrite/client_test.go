@@ -1,8 +1,17 @@
 package remotewrite
 
 import (
+	"bufio"
+	"bytes"
+	"errors"
+	"io"
 	"math"
+	"net"
 	"net/http"
+	"net/http/httptrace"
+	"slices"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -10,6 +19,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
 func TestParseRetryAfterHeader(t *testing.T) {
@@ -99,4 +109,130 @@ func TestRepackBlockFromZstdToSnappyInvalidBlock(t *testing.T) {
 	if len(snappyBlock) != 0 {
 		t.Fatalf("expected empty snappy block; got %d bytes", len(snappyBlock))
 	}
+}
+
+// TestDoRequestEarlyResponse reproduces https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11507
+func TestDoRequestEarlyResponse(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("cannot listen: %s", err)
+	}
+	defer ln.Close()
+
+	gotCh := make(chan []byte, 1)
+	go func() {
+		conn, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+
+		br := bufio.NewReader(conn)
+		contentLength := -1
+		for {
+			line, err := br.ReadString('\n')
+			if err != nil {
+				return
+			}
+			if line == "\r\n" {
+				break
+			}
+			k, v, ok := strings.Cut(strings.TrimSpace(line), ":")
+			if !ok || !strings.EqualFold(k, "Content-Length") {
+				continue
+			}
+			n, err := strconv.Atoi(strings.TrimSpace(v))
+			if err != nil {
+				return
+			}
+			contentLength = n
+		}
+
+		// reply before reading body while client may still write
+		if _, err := conn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n")); err != nil {
+			return
+		}
+		if contentLength < 0 {
+			return
+		}
+
+		got := make([]byte, contentLength)
+		if _, err := io.ReadFull(br, got); err != nil {
+			return
+		}
+		gotCh <- got
+	}()
+
+	authCfg, err := (&promauth.Options{}).NewConfig()
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	c := &client{
+		sanitizedURL: "http://" + ln.Addr().String(),
+		authCfg:      authCfg,
+		hc:           &http.Client{},
+	}
+
+	body := make([]byte, 16*1024*1024)
+	for i := range body {
+		body[i] = byte(i)
+	}
+	want := slices.Clone(body)
+
+	resp, err := c.doRequest("http://"+ln.Addr().String()+"/write", body)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	defer resp.Body.Close()
+
+	// reuse the block like runWorker after a successful send
+	for i := range body {
+		body[i] = 0
+	}
+
+	select {
+	case got := <-gotCh:
+		if !bytes.Equal(got, want) {
+			t.Fatalf("server received modified body after reuse; got %d bytes, want %d bytes", len(got), len(want))
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("timed out waiting for server to drain request body")
+	}
+}
+
+func TestRequestWriteWaiter(t *testing.T) {
+	t.Run("already written", func(t *testing.T) {
+		w := newRequestWriteWaiter()
+		w.gotConn(httptrace.GotConnInfo{})
+		w.wroteRequest(httptrace.WroteRequestInfo{Err: errors.New("write failed")})
+		w.gotConn(httptrace.GotConnInfo{})
+		w.wroteRequest(httptrace.WroteRequestInfo{})
+		w.wait("http://example.com")
+	})
+
+	t.Run("no conn", func(t *testing.T) {
+		w := newRequestWriteWaiter()
+		w.wait("http://example.com")
+	})
+
+	t.Run("wait until written", func(t *testing.T) {
+		w := newRequestWriteWaiter()
+		w.gotConn(httptrace.GotConnInfo{})
+		done := make(chan struct{})
+		go func() {
+			w.wait("http://example.com")
+			close(done)
+		}()
+		select {
+		case <-done:
+			t.Fatal("wait returned before WroteRequest")
+		case <-time.After(20 * time.Millisecond):
+		}
+		w.wroteRequest(httptrace.WroteRequestInfo{})
+		select {
+		case <-done:
+		case <-time.After(time.Second):
+			t.Fatal("wait did not return after WroteRequest")
+		}
+	})
 }
