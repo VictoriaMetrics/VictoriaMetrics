@@ -1,6 +1,7 @@
 package metricsmetadata
 
 import (
+	"bytes"
 	"fmt"
 	"math"
 
@@ -96,6 +97,20 @@ func (mr *Row) Unmarshal(data []byte) ([]byte, error) {
 	}
 
 	return data, nil
+}
+
+func (mr *Row) matchesNonEmptyRow(newRow *Row) bool {
+	// to reduce amount of re-allocations compare only non-empty fields
+	if len(newRow.Unit) > 0 && !bytes.Equal(mr.Unit, newRow.Unit) {
+		return false
+	}
+	if len(newRow.Help) > 0 && !bytes.Equal(mr.Help, newRow.Help) {
+		return false
+	}
+	if newRow.Type != 0 && mr.Type != newRow.Type {
+		return false
+	}
+	return true
 }
 
 // Reset resets Row

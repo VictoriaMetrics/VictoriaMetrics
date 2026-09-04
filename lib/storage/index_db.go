@@ -525,7 +525,7 @@ func (db *indexDB) SearchLabelNames(qt *querytracer.Tracer, accountID, projectID
 	defer qt.Done()
 
 	if !db.legacyContainsTimeRange(accountID, projectID, tr) {
-		qt.Printf("indexDB doesn't contain data for the given time range: %v", &tr)
+		qt.Printf("indexDB doesn't contain data for the given time range: %s", &tr)
 		return nil, nil
 	}
 
@@ -587,6 +587,14 @@ func (is *indexSearch) searchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tr
 
 func (is *indexSearch) searchLabelNamesWithFiltersOnDate(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, maxLabelNames, maxMetrics int) (map[string]struct{}, error) {
 	var filter *uint64set.Set
+
+	// Skip searching metricIDs and instead search the index directly for simple
+	// label name queries that only include tfss with single exact metric name
+	// match. For example:
+	//
+	// /api/v1/labels?match=up or /api/v1/labels?extra_filters=up
+	//
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9489
 	if !isSingleMetricNameFilter(tfss) {
 		var err error
 		filter, err = is.searchMetricIDsWithFiltersOnDate(qt, tfss, date, maxMetrics)
@@ -865,7 +873,7 @@ func (db *indexDB) SearchLabelValues(qt *querytracer.Tracer, accountID, projectI
 	defer qt.Done()
 
 	if !db.legacyContainsTimeRange(accountID, projectID, tr) {
-		qt.Printf("indexDB doesn't contain data for the given time range: %v", &tr)
+		qt.Printf("indexDB doesn't contain data for the given time range: %s", &tr)
 		return nil, nil
 	}
 
@@ -991,6 +999,14 @@ func (is *indexSearch) searchLabelValuesOnDate(qt *querytracer.Tracer, labelName
 		// __name__ label is encoded as empty string in indexdb.
 		labelName = ""
 	}
+
+	// Skip searching metricIDs and instead search the index directly for simple
+	// label value queries that only include the labelName and tfss with single
+	// exact metric name match. For example:
+	//
+	// /api/v1/label/job/values?match=up or /api/v1/label/job/values?extra_filters=up
+	//
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9489
 	useCompositeScan := labelName != "" && isSingleMetricNameFilter(tfss)
 	var filter *uint64set.Set
 	if !useCompositeScan {
@@ -1113,12 +1129,11 @@ func (is *indexSearch) getLabelValuesForMetricIDs(qt *querytracer.Tracer, labelN
 //
 // If it returns maxTagValueSuffixes suffixes, then it is likely more than maxTagValueSuffixes suffixes is found.
 func (db *indexDB) SearchTagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, tr TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxTagValueSuffixes int, deadline uint64) (map[string]struct{}, error) {
-	qt = qt.NewChild("search tag value suffixes for timeRange=%s, tagKey=%q, tagValuePrefix=%q, delimiter=%c, maxTagValueSuffixes=%d",
-		&tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
+	qt = qt.NewChild("search tag value suffixes for timeRange=%s, tagKey=%q, tagValuePrefix=%q, delimiter=%c, maxTagValueSuffixes=%d", &tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
 	defer qt.Done()
 
 	if !db.legacyContainsTimeRange(accountID, projectID, tr) {
-		qt.Printf("indexDB doesn't contain data for the given time range: %v", &tr)
+		qt.Printf("indexDB doesn't contain data for the given time range: %s", &tr)
 		return nil, nil
 	}
 
@@ -1257,7 +1272,7 @@ func (db *indexDB) SearchGraphitePaths(qt *querytracer.Tracer, accountID, projec
 	defer qt.Done()
 
 	if !db.legacyContainsTimeRange(accountID, projectID, tr) {
-		qt.Printf("indexDB doesn't contain data for the given time range: %v", &tr)
+		qt.Printf("indexDB doesn't contain data for the given time range: %s", &tr)
 		return nil, nil
 	}
 
@@ -1901,7 +1916,7 @@ func (db *indexDB) SearchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Ti
 	}
 
 	if !db.legacyContainsTimeRange(tfss[0].accountID, tfss[0].projectID, tr) {
-		qt.Printf("indexDB doesn't contain data for the given time range: %v", &tr)
+		qt.Printf("indexDB doesn't contain data for the given time range: %s", &tr)
 		return nil, nil
 	}
 
@@ -1993,7 +2008,7 @@ func (db *indexDB) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters,
 	}
 
 	if !db.legacyContainsTimeRange(tfss[0].accountID, tfss[0].projectID, tr) {
-		qt.Printf("indexDB doesn't contain data for the given time range: %v", &tr)
+		qt.Printf("indexDB doesn't contain data for the given time range: %s", &tr)
 		return nil, nil
 	}
 
@@ -2023,7 +2038,7 @@ func (db *indexDB) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters,
 
 			metricName, ok = is.searchMetricNameWithCache(metricName[:0], metricID)
 			if !ok {
-				// Cannot find TSID for the given metricID.
+				// Cannot find metric name for the given metricID.
 				// This may be the case on incomplete indexDB
 				// due to snapshot or due to un-flushed entries.
 				// Mark the metricID as deleted, so it is created again when new sample
@@ -2359,7 +2374,7 @@ func matchTagFilters(mn *MetricName, tfs []*tagFilter, kb *bytesutil.ByteBuffer)
 
 func isSingleMetricNameFilter(tfss []*TagFilters) bool {
 	// We check if tfss contain only single filter which is __name__
-	return len(tfss) == 1 && len(tfss[0].tfs) == 1 && getMetricNameFilter(tfss[0]) != nil
+	return len(tfss) == 1 && tfss[0] != nil && len(tfss[0].tfs) == 1 && getMetricNameFilter(tfss[0]) != nil
 }
 
 func (is *indexSearch) searchMetricIDsWithFiltersOnDate(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, maxMetrics int) (*uint64set.Set, error) {
@@ -3106,8 +3121,7 @@ func (is *indexSearch) hasMetricIDSlow(metricID uint64, accountID, projectID uin
 	return true
 }
 
-func (is *indexSearch) getMetricIDsForDateTagFilter(qt *querytracer.Tracer, tf *tagFilter, date uint64, commonPrefix []byte,
-	maxMetrics int, maxLoopsCount int64) (*uint64set.Set, int64, error) {
+func (is *indexSearch) getMetricIDsForDateTagFilter(qt *querytracer.Tracer, tf *tagFilter, date uint64, commonPrefix []byte, maxMetrics int, maxLoopsCount int64) (*uint64set.Set, int64, error) {
 	if qt.Enabled() {
 		qt = qt.NewChild("get metric ids for filter and date: filter={%s}, date=%s, maxMetrics=%d, maxLoopsCount=%d", tf, dateToString(date), maxMetrics, maxLoopsCount)
 		defer qt.Done()

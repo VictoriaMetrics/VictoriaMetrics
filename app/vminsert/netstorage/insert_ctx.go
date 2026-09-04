@@ -184,7 +184,7 @@ func (ctx *InsertCtx) WriteMetadata(at *auth.Token, m *prompb.MetricMetadata) er
 	if err != nil {
 		return err
 	}
-	storageNodeIdx := ctx.GetStorageNodeIdxForMeta(ctx.Buf)
+	storageNodeIdx := ctx.GetStorageNodeIdxForMeta(mdr.MetricFamilyName)
 	return ctx.WriteMetadataExt(storageNodeIdx, ctx.Buf)
 }
 

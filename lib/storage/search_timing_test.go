@@ -46,8 +46,8 @@ func benchmarkSearchData(b *testing.B, s *Storage, tr TimeRange, mrs []MetricRow
 	}
 
 	var mn MetricName
-	got := make([]MetricRow, len(mrs))
-	for i, mb := range mbs {
+	var got []MetricRow
+	for _, mb := range mbs {
 		rb := newTestRawBlock(mb.Block, tr)
 		if err := mn.Unmarshal(mb.MetricName); err != nil {
 			b.Fatalf("cannot unmarshal MetricName %v: %v", string(mb.MetricName), err)
@@ -59,7 +59,7 @@ func benchmarkSearchData(b *testing.B, s *Storage, tr TimeRange, mrs []MetricRow
 				Timestamp:     timestamp,
 				Value:         rb.Values[j],
 			}
-			got[i] = mr
+			got = append(got, mr)
 		}
 	}
 	testSortMetricRows(got)
