@@ -26,6 +26,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer/push"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vmalertproxy"
 )
@@ -117,8 +118,15 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	// Handle non-trivial dynamic requests, which may take big amounts of time and resources.
 	startTime := time.Now()
 	defer requestDuration.UpdateDuration(startTime)
-	tracerEnabled := httputil.GetBool(r, "trace")
+	tracerEnabled := httputil.GetBool(r, "trace") || push.IsEnabled()
 	qt := querytracer.New(tracerEnabled, "%s", r.URL.Path)
+	if push.IsEnabled() {
+		defer func() {
+			if time.Since(startTime) >= push.MinTraceDuration() {
+				push.Push(qt)
+			}
+		}()
+	}
 
 	// Limit the number of concurrent queries.
 	select {
