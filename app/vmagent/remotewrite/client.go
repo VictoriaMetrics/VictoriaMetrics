@@ -365,12 +365,7 @@ func (c *client) runWorker(readBlock func(dst []byte) ([]byte, bool)) {
 }
 
 func (c *client) doRequest(url string, body []byte) (*http.Response, error) {
-	req, w, err := c.newRequest(url, body)
-	if err != nil {
-		return nil, err
-	}
-	resp, err := c.hc.Do(req)
-	w.wait(c.sanitizedURL)
+	resp, err := c.tryRequest(url, body)
 	if err == nil {
 		return resp, nil
 	}
@@ -381,16 +376,21 @@ func (c *client) doRequest(url string, body []byte) (*http.Response, error) {
 	// Make another attempt in hope request will succeed.
 	// If not, the error should be handled by the caller as usual.
 	// This should help with https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4139
-	req, w, err = c.newRequest(url, body)
-	if err != nil {
-		return nil, fmt.Errorf("second attempt: %w", err)
-	}
-	resp, err = c.hc.Do(req)
-	w.wait(c.sanitizedURL)
+	resp, err = c.tryRequest(url, body)
 	if err != nil {
 		return nil, fmt.Errorf("second attempt: %w", err)
 	}
 	return resp, nil
+}
+
+func (c *client) tryRequest(url string, body []byte) (*http.Response, error) {
+	req, w, err := c.newRequest(url, body)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.hc.Do(req)
+	w.wait(c.sanitizedURL)
+	return resp, err
 }
 
 func (c *client) newRequest(url string, body []byte) (*http.Request, *requestWriteWaiter, error) {
@@ -400,11 +400,12 @@ func (c *client) newRequest(url string, body []byte) (*http.Request, *requestWri
 		logger.Panicf("BUG: unexpected error from http.NewRequest(%q): %s", url, err)
 	}
 
-	// net/http may still write body after Do() returns, and may retry the request
-	// (bytes.Buffer sets GetBody). Track every attempt so the caller reuses body
-	// only after all writes finish.
+	// wait for all body writes including retries before reuse
 	w := newRequestWriteWaiter()
-	req = req.WithContext(httptrace.WithClientTrace(req.Context(), w.trace()))
+	req = req.WithContext(httptrace.WithClientTrace(req.Context(), &httptrace.ClientTrace{
+		GotConn:      w.gotConn,
+		WroteRequest: w.wroteRequest,
+	}))
 
 	err = c.authCfg.SetHeaders(req, true)
 	if err != nil {
@@ -429,8 +430,7 @@ func (c *client) newRequest(url string, body []byte) (*http.Request, *requestWri
 	return req, w, nil
 }
 
-// requestWriteWaiter waits until net/http finishes writing the request body on
-// every connection attempt, including retries inside Transport / load balancer.
+// requestWriteWaiter waits for all body writes including retries
 type requestWriteWaiter struct {
 	mu      sync.Mutex
 	cond    *sync.Cond
@@ -442,13 +442,6 @@ func newRequestWriteWaiter() *requestWriteWaiter {
 	w := &requestWriteWaiter{}
 	w.cond = sync.NewCond(&w.mu)
 	return w
-}
-
-func (w *requestWriteWaiter) trace() *httptrace.ClientTrace {
-	return &httptrace.ClientTrace{
-		GotConn:      w.gotConn,
-		WroteRequest: w.wroteRequest,
-	}
 }
 
 func (w *requestWriteWaiter) gotConn(httptrace.GotConnInfo) {
@@ -469,8 +462,6 @@ func (w *requestWriteWaiter) wroteRequest(info httptrace.WroteRequestInfo) {
 	w.mu.Unlock()
 }
 
-// wait blocks until every in-flight body write started after GotConn has finished,
-// so the caller can reuse the buffer.
 func (w *requestWriteWaiter) wait(sanitizedURL string) {
 	w.mu.Lock()
 	for w.pending > 0 {

@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptrace"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -147,7 +148,7 @@ func TestDoRequestEarlyResponse(t *testing.T) {
 			contentLength = n
 		}
 
-		// respond before reading body so client may still be writing it
+		// reply before reading body while client may still write
 		if _, err := conn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n")); err != nil {
 			return
 		}
@@ -176,7 +177,7 @@ func TestDoRequestEarlyResponse(t *testing.T) {
 	for i := range body {
 		body[i] = byte(i)
 	}
-	want := append([]byte(nil), body...)
+	want := slices.Clone(body)
 
 	resp, err := c.doRequest("http://"+ln.Addr().String()+"/write", body)
 	if err != nil {
@@ -184,7 +185,7 @@ func TestDoRequestEarlyResponse(t *testing.T) {
 	}
 	defer resp.Body.Close()
 
-	// same as runWorker reusing the block right after a successful send
+	// reuse the block like runWorker after a successful send
 	for i := range body {
 		body[i] = 0
 	}
@@ -200,31 +201,17 @@ func TestDoRequestEarlyResponse(t *testing.T) {
 }
 
 func TestRequestWriteWaiter(t *testing.T) {
-	t.Run("ok", func(t *testing.T) {
-		w := newRequestWriteWaiter()
-		w.gotConn(httptrace.GotConnInfo{})
-		w.wroteRequest(httptrace.WroteRequestInfo{})
-		w.wait("http://example.com")
-	})
-
-	t.Run("err", func(t *testing.T) {
+	t.Run("already written", func(t *testing.T) {
 		w := newRequestWriteWaiter()
 		w.gotConn(httptrace.GotConnInfo{})
 		w.wroteRequest(httptrace.WroteRequestInfo{Err: errors.New("write failed")})
+		w.gotConn(httptrace.GotConnInfo{})
+		w.wroteRequest(httptrace.WroteRequestInfo{})
 		w.wait("http://example.com")
 	})
 
 	t.Run("no conn", func(t *testing.T) {
 		w := newRequestWriteWaiter()
-		w.wait("http://example.com")
-	})
-
-	t.Run("multiple attempts", func(t *testing.T) {
-		w := newRequestWriteWaiter()
-		w.gotConn(httptrace.GotConnInfo{})
-		w.wroteRequest(httptrace.WroteRequestInfo{})
-		w.gotConn(httptrace.GotConnInfo{})
-		w.wroteRequest(httptrace.WroteRequestInfo{})
 		w.wait("http://example.com")
 	})
 
