@@ -1,7 +1,11 @@
 package remotewrite
 
 import (
+	"bufio"
+	"errors"
+	"io"
 	"math"
+	"net"
 	"net/http"
 	"testing"
 	"time"
@@ -10,6 +14,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
 func TestParseRetryAfterHeader(t *testing.T) {
@@ -99,4 +104,81 @@ func TestRepackBlockFromZstdToSnappyInvalidBlock(t *testing.T) {
 	if len(snappyBlock) != 0 {
 		t.Fatalf("expected empty snappy block; got %d bytes", len(snappyBlock))
 	}
+}
+
+// TestDoRequestEarlyResponse reproduces https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11507
+func TestDoRequestEarlyResponse(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("cannot listen: %s", err)
+	}
+	defer ln.Close()
+
+	go func() {
+		conn, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+
+		br := bufio.NewReader(conn)
+		for {
+			line, err := br.ReadString('\n')
+			if err != nil {
+				return
+			}
+			if line == "\r\n" {
+				break
+			}
+		}
+
+		// respond before reading body so client may still be writing it
+		if _, err := conn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")); err != nil {
+			return
+		}
+
+		// drain body so closing does not rst the connection and kill the response
+		_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+		_, _ = io.Copy(io.Discard, br)
+	}()
+
+	authCfg, err := (&promauth.Options{}).NewConfig()
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	c := &client{
+		sanitizedURL: "http://" + ln.Addr().String(),
+		authCfg:      authCfg,
+		hc:           &http.Client{},
+	}
+
+	body := make([]byte, 16*1024*1024)
+	for i := range body {
+		body[i] = byte(i)
+	}
+
+	resp, err := c.doRequest("http://"+ln.Addr().String()+"/write", body)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	defer resp.Body.Close()
+
+	// same as runWorker reusing the block right after a successful send
+	for i := range body {
+		body[i] = 0
+	}
+}
+
+func TestWaitWritten(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		ch := make(chan error, 1)
+		ch <- nil
+		waitWritten(ch, "http://example.com")
+	})
+
+	t.Run("err", func(t *testing.T) {
+		ch := make(chan error, 1)
+		ch <- errors.New("write failed")
+		waitWritten(ch, "http://example.com")
+	})
 }
