@@ -303,7 +303,6 @@ func TestClusterMetricNamesStatsWithParams(t *testing.T) {
 
 	const ingestDateTime = `2024-02-05T08:57:36.700Z`
 	const ingestTimestamp = ` 1707123456700`
-	const date = `2024-02-05`
 	dataSet := []string{
 		`metric_name_1{label="foo"} 10`,
 		`metric_name_1{label="bar"} 10`,
