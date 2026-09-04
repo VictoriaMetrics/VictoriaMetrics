@@ -9,9 +9,10 @@ func counterDelta(prevValue, value float64) (float64, bool) {
 	}
 	d := value - prevValue
 	if -d*8 < prevValue {
-		// A small decrease is likely a partial reset. MetricsQL corrects the
-		// series to the previous value, so this sample adds no increase.
-		return 0, true
+		// A small decrease is likely counter noise rather than a reset.
+		// MetricsQL corrects the series to the previous value, so this sample
+		// adds no increase and isn't counted as a counter reset.
+		return 0, false
 	}
 	return value, true
 }

@@ -27,7 +27,6 @@ func TestCounterDelta(t *testing.T) {
 			prevValue:     100,
 			value:         95,
 			deltaExpected: 0,
-			resetExpected: true,
 		},
 		{
 			name:          "full reset at threshold",
