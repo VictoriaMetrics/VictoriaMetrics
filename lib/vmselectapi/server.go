@@ -50,6 +50,9 @@ type Server struct {
 	// wg is used for waiting for worker goroutines to stop when MustStop() is called.
 	wg sync.WaitGroup
 
+	// shutdownDuration is the maximum time to wait for in-flight RPC requests to finish during graceful shutdown.
+	shutdownDuration time.Duration
+
 	// stopFlag is set to true when the server needs to stop.
 	stopFlag atomic.Bool
 
@@ -110,6 +113,7 @@ func NewServer(addr string, api API, limits Limits, disableResponseCompression b
 		api:                        api,
 		limits:                     limits,
 		disableResponseCompression: disableResponseCompression,
+		shutdownDuration:           time.Second * 10, // TODO: add flag
 		ln:                         ln,
 
 		concurrencyLimitCh: concurrencyLimitCh,
@@ -180,7 +184,7 @@ func (s *Server) run() {
 			bc, err := handshake.VMSelectServer(c, compressionLevel)
 			if err != nil {
 				if s.isStopping() {
-					// c is closed inside Server.MustStop
+					_ = c.Close()
 					return
 				}
 				if handshake.IsTimeoutNetworkError(err) {
@@ -213,7 +217,7 @@ func (s *Server) run() {
 
 // MustStop gracefully stops s, so it no longer touches s.api after returning.
 func (s *Server) MustStop() {
-	// Mark the server as stoping.
+	// Mark the server as stopping.
 	s.setIsStopping()
 
 	// Stop accepting new connections from vmselect.
@@ -221,12 +225,24 @@ func (s *Server) MustStop() {
 		logger.Panicf("FATAL: cannot close vmselect listener: %s", err)
 	}
 
-	// Close existing connections from vmselect, so the goroutines
-	// processing these connections are finished.
-	s.connsMap.CloseAll(0)
+	// Interrupt connections that are idle (blocked waiting for the next RPC name).
+	// Active connections finish their in-flight request and exit via the isStopping()
+	// check in processConn.
+	s.connsMap.CloseReads()
 
-	// Wait until all the goroutines processing vmselect conns are finished.
-	s.wg.Wait()
+	done := make(chan struct{})
+	go func() {
+		s.wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+		return
+	case <-time.After(s.shutdownDuration):
+		logger.Warnf("not all vmselect connections were closed within %s; force-closing the remaining ones", s.shutdownDuration)
+		s.connsMap.CloseAll(0)
+		s.wg.Wait()
+	}
 }
 
 func (s *Server) setIsStopping() {
@@ -243,6 +259,9 @@ func (s *Server) processConn(bc *handshake.BufferedConn) error {
 		sizeBuf: make([]byte, 8),
 	}
 	for {
+		if s.isStopping() {
+			return nil
+		}
 		if err := s.processRequest(ctx); err != nil {
 			if isExpectedError(err) {
 				return nil
