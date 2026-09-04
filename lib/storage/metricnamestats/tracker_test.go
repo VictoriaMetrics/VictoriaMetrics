@@ -50,7 +50,6 @@ func TestMetricsTracker(t *testing.T) {
 		var got StatsResult
 		if qo.isTenantEmpty {
 			got = mt.GetStats(qo.limit, qo.lte, qo.matchPattern)
-			got.sort()
 			got.DeduplicateMergeRecords()
 		} else {
 			got = mt.GetStatsForTenant(qo.accountID, qo.projectID, qo.limit, qo.lte, qo.matchPattern)
@@ -66,7 +65,6 @@ func TestMetricsTracker(t *testing.T) {
 		}
 		if qo.isTenantEmpty {
 			got = loadedUmt.GetStats(qo.limit, qo.lte, qo.matchPattern)
-			got.sort()
 			got.DeduplicateMergeRecords()
 		} else {
 			got = loadedUmt.GetStatsForTenant(qo.accountID, qo.projectID, qo.limit, qo.lte, qo.matchPattern)
