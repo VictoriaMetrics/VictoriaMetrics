@@ -130,33 +130,64 @@ func maySortResults(e metricsql.Expr) bool {
 	return true
 }
 
+// timeseriesToResult converts tss to the query result.
+//
+// Series which end up with identical labels are merged when their samples do not overlap.
+// Such series are returned by label manipulation functions such as label_replace().
+// Prometheus evaluates every timestamp on its own, so it reports a duplicate only when
+// two series hold a sample at the same timestamp. Do the same here.
 func timeseriesToResult(tss []*timeseries, maySort bool) ([]netstorage.Result, error) {
 	tss = removeEmptySeries(tss)
 	if maySort {
 		sortSeriesByMetricName(tss)
 	}
 
-	result := make([]netstorage.Result, len(tss))
-	m := make(map[string]struct{}, len(tss))
+	result := make([]netstorage.Result, 0, len(tss))
+	m := make(map[string]int, len(tss))
 	bb := bbPool.Get()
-	for i, ts := range tss {
+	defer bbPool.Put(bb)
+	for _, ts := range tss {
 		bb.B = marshalMetricNameSorted(bb.B[:0], &ts.MetricName)
 		k := string(bb.B)
-		if _, ok := m[k]; ok {
-			return nil, fmt.Errorf(`duplicate output timeseries: %s`, stringMetricName(&ts.MetricName))
+		if i, ok := m[k]; ok {
+			if err := mergeResultValues(&result[i], ts); err != nil {
+				return nil, err
+			}
+			continue
 		}
-		m[k] = struct{}{}
+		m[k] = len(result)
 
-		rs := &result[i]
+		result = append(result, netstorage.Result{})
+		rs := &result[len(result)-1]
 		rs.MetricName.MoveFrom(&ts.MetricName)
 		rs.Values = ts.Values
 		ts.Values = nil
 		rs.Timestamps = ts.Timestamps
 		ts.Timestamps = nil
 	}
-	bbPool.Put(bb)
 
 	return result, nil
+}
+
+// mergeResultValues copies non-empty samples from ts to dst.
+//
+// It returns an error if dst and ts hold a sample at the same timestamp,
+// since there is no way to pick one of the two values.
+func mergeResultValues(dst *netstorage.Result, ts *timeseries) error {
+	// dst and ts share the timestamp grid of the query, so equal lengths mean equal timestamps.
+	if len(dst.Values) != len(ts.Values) {
+		logger.Panicf("BUG: output series %s must contain %d samples; got %d", stringMetricName(&ts.MetricName), len(dst.Values), len(ts.Values))
+	}
+	for i, v := range ts.Values {
+		if math.IsNaN(v) {
+			continue
+		}
+		if !math.IsNaN(dst.Values[i]) {
+			return fmt.Errorf(`duplicate output timeseries: %s`, stringMetricName(&ts.MetricName))
+		}
+		dst.Values[i] = v
+	}
+	return nil
 }
 
 func sortSeriesByMetricName(tss []*timeseries) {
