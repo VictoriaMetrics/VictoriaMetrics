@@ -1,13 +1,18 @@
-import { useMemo } from "react";
+import { useMemo, Fragment } from "react";
+import { Link } from "react-router-dom";
 import { TopQueryColumn } from "../TopQueryPanel/TopQueryPanel";
 import { humanizeSeconds } from "../../../utils/time";
 import { formatBytes } from "../../../utils/bytes";
+import router from "../../../router";
+
+type AlertRuleRef = { group_id: string; rule_id: string };
 
 type UseTopQueriesColumns = {
   maxLifetime: string;
+  alertQueries?: Map<string, AlertRuleRef>;
 };
 
-export const useTopQueriesColumns = ({ maxLifetime }: UseTopQueriesColumns) => {
+export const useTopQueriesColumns = ({ maxLifetime, alertQueries }: UseTopQueriesColumns) => {
   return useMemo(() => {
     const queryCol: TopQueryColumn = {
       key: "query"
@@ -17,7 +22,29 @@ export const useTopQueriesColumns = ({ maxLifetime }: UseTopQueriesColumns) => {
       key: "timeRange",
       sortBy: "timeRangeSeconds",
       title: "range",
-      tooltip: "The time range between start and end of the query request. 'instant' means the query was executed at a single point in time without a time range"
+      tooltip: (
+        <Fragment>
+          The time range between start and end of the query request.<br/>
+          <br/>
+          &apos;instant&apos; means the query was executed at a single point in time without a time range.<br/>
+          <br/>
+          &apos;alert?&apos; means the query matches an alert rule — the link goes to the first matching alert.
+        </Fragment>
+      ),
+      format: (row) => {
+        const ref = alertQueries?.get(row.query);
+        if (ref) {
+          return (
+            <Link
+              to={`${router.rules}?group_id=${ref.group_id}&rule_id=${ref.rule_id}`}
+              className="vm-link vm-link_colored"
+            >
+              alert?
+            </Link>
+          );
+        }
+        return row.timeRange;
+      },
     };
 
     const countCol: TopQueryColumn = {
@@ -73,5 +100,5 @@ export const useTopQueriesColumns = ({ maxLifetime }: UseTopQueriesColumns) => {
       topByCount,
       topByAvgMemoryUsage,
     };
-  }, [maxLifetime]);
+  }, [maxLifetime, alertQueries]);
 };

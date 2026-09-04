@@ -16,6 +16,7 @@ import useDeviceDetect from "../../hooks/useDeviceDetect";
 import classNames from "classnames";
 import useStateSearchParams from "../../hooks/useStateSearchParams";
 import { useTopQueriesColumns } from "./hooks/useTopQueriesColumns";
+import { useFetchAlertQueries } from "./hooks/useFetchAlertQueries";
 
 const exampleDuration = "30ms, 15s, 3d4h, 1y2w";
 
@@ -24,7 +25,8 @@ const TopQueries: FC = () => {
 
   const [topN, setTopN] = useStateSearchParams(10, "topN");
   const [maxLifetime, setMaxLifetime] = useStateSearchParams("10m", "maxLifetime");
-  const columns = useTopQueriesColumns({ maxLifetime });
+  const alertQueries = useFetchAlertQueries();
+  const columns = useTopQueriesColumns({ maxLifetime, alertQueries });
 
   const { data, error, loading, fetch } = useFetchTopQueries({ topN, maxLifetime });
 
