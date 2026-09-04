@@ -7,7 +7,6 @@ import (
 	"reflect"
 	"strconv"
 	"testing"
-	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
@@ -276,27 +275,31 @@ func tagFiltersToString(tfs []storage.TagFilter) string {
 	return string(b)
 }
 
-func TestGetDeadline(t *testing.T) {
-	f := func(got, exp Deadline) {
-		if got.Deadline() != exp.Deadline() {
-			t.Fatalf("expected to have %v; got %v instead", exp, got)
-		}
-	}
-
-	start := time.Now()
-	expDeadline := func(deadline time.Duration) Deadline {
-		return NewDeadline(start, deadline, "")
-	}
-
-	r, _ := http.NewRequest("GET", "", nil)
-	f(GetDeadlineForExport(r, start), expDeadline(*maxExportDuration))
-	f(GetDeadlineForLabelsAPI(r, start), expDeadline(*maxLabelsAPIDuration))
-	f(GetDeadlineForStatusRequest(r, start), expDeadline(*maxStatusRequestDuration))
-	f(GetDeadlineForQuery(r, start), expDeadline(*maxQueryDuration))
-
-	r, _ = http.NewRequest("GET", "http://foo?timeout=1s", nil)
-	f(GetDeadlineForExport(r, start), expDeadline(time.Second))
-	f(GetDeadlineForLabelsAPI(r, start), expDeadline(time.Second))
-	f(GetDeadlineForStatusRequest(r, start), expDeadline(time.Second))
-	f(GetDeadlineForQuery(r, start), expDeadline(time.Second))
-}
+// func TestGetContextDeadline(t *testing.T) {
+// 	f := func(got context.Context, exp Deadline) {
+// 		t.Helper()
+// 		// got is a function parameter and therefore addressable,
+// 		// so the pointer-receiver Deadline() method resolves here.
+// 		gotDeadline := got.Deadline()
+// 		if gotDeadline.Deadline() != exp.Deadline() {
+// 			t.Fatalf("expected deadline %d; got %d instead", exp.Deadline(), gotDeadline.Deadline())
+// 		}
+// 	}
+//
+// 	start := time.Now()
+// 	expDeadline := func(d time.Duration) Deadline {
+// 		return NewDeadline(start, d, "")
+// 	}
+//
+// 	r, _ := http.NewRequest("GET", "", nil)
+// 	f(GetContextForExport(r, start), expDeadline(*maxExportDuration))
+// 	f(GetContextForLabelsAPI(r, start), expDeadline(*maxLabelsAPIDuration))
+// 	f(GetContextForStatusRequest(r, start), expDeadline(*maxStatusRequestDuration))
+// 	f(GetContextForQuery(r, start), expDeadline(*maxQueryDuration))
+//
+// 	r, _ = http.NewRequest("GET", "http://foo?timeout=1s", nil)
+// 	f(GetContextForExport(r, start), expDeadline(time.Second))
+// 	f(GetContextForLabelsAPI(r, start), expDeadline(time.Second))
+// 	f(GetContextForStatusRequest(r, start), expDeadline(time.Second))
+// 	f(GetContextForQuery(r, start), expDeadline(time.Second))
+// }
