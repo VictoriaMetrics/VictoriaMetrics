@@ -270,3 +270,55 @@ func TestClusterMetricNamesStats(t *testing.T) {
 		t.Fatalf("want 0 records, got: %d", len(resp.Records))
 	}
 }
+
+func TestClusterMetricNamesStatsLeAfterMerge(t *testing.T) {
+	fs.MustRemoveDir(t.Name())
+
+	tc := apptest.NewTestCase(t)
+	defer tc.Stop()
+	vmstorage1 := tc.MustStartVmstorage("vmstorage-1", []string{
+		"-storageDataPath=" + tc.Dir() + "/vmstorage-1",
+		"-retentionPeriod=100y",
+		"-storage.trackMetricNamesStats",
+	})
+	vmstorage2 := tc.MustStartVmstorage("vmstorage-2", []string{
+		"-storageDataPath=" + tc.Dir() + "/vmstorage-2",
+		"-retentionPeriod=100y",
+		"-storage.trackMetricNamesStats",
+	})
+
+	vminsert := tc.MustStartVminsert("vminsert", []string{
+		fmt.Sprintf("-storageNode=%s,%s", vmstorage1.VminsertAddr(), vmstorage2.VminsertAddr()),
+	})
+	vmselect := tc.MustStartVmselect("vmselect", []string{
+		fmt.Sprintf("-storageNode=%s,%s", vmstorage1.VmselectAddr(), vmstorage2.VmselectAddr()),
+	})
+
+	dataSet := make([]string, 100)
+	for i := range dataSet {
+		dataSet[i] = fmt.Sprintf(`metric_name{instance="%d"} %d 1707123456700`, i, i)
+	}
+	vminsert.PrometheusAPIV1ImportPrometheus(t, dataSet, apptest.QueryOpts{Tenant: "1:1"})
+	vmstorage1.ForceFlush(t)
+	vmstorage2.ForceFlush(t)
+
+	vmselect.PrometheusAPIV1Query(t, `metric_name{instance="0"}`, apptest.QueryOpts{
+		Tenant: "1:1",
+		Time:   "2024-02-05T08:57:36.700Z",
+	})
+
+	want := apptest.MetricNamesStatsResponse{
+		Records: []apptest.MetricNamesStatsRecord{
+			{MetricName: "metric_name", QueryRequestsCount: 1},
+		},
+	}
+	got := vmselect.PrometheusAPIV1StatusMetricNamesStats(t, "", "", `^metric_name$`, apptest.QueryOpts{Tenant: "1:1"})
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatalf("unexpected unfiltered response (-want, +got):\n%s", diff)
+	}
+
+	got = vmselect.PrometheusAPIV1StatusMetricNamesStats(t, "", "0", `^metric_name$`, apptest.QueryOpts{Tenant: "1:1"})
+	if len(got.Records) != 0 {
+		t.Fatalf("unexpected records for le=0: %v", got.Records)
+	}
+}

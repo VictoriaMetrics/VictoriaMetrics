@@ -3454,7 +3454,8 @@ func GetMetricNamesStats(qt *querytracer.Tracer, tt *storage.TenantToken, limit,
 	}
 	sns := getStorageNodes()
 	snr := startStorageNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
-		resp, err := sn.processGetMetricNamesStats(qt, tt, limit, le, matchPattern, deadline)
+		// Request unfiltered stats, so le can be applied to counters aggregated across all the vmstorage nodes.
+		resp, err := sn.processGetMetricNamesStats(qt, tt, limit, -1, matchPattern, deadline)
 		return nodeResult{resp: resp, err: err}
 	})
 	var mu sync.Mutex
@@ -3471,8 +3472,21 @@ func GetMetricNamesStats(qt *querytracer.Tracer, tt *storage.TenantToken, limit,
 	}); err != nil {
 		return mnuss, err
 	}
-	mnuss.Sort()
+	finalizeMetricNamesStats(&mnuss, le)
 	return mnuss, nil
+}
+
+func finalizeMetricNamesStats(mnuss *metricnamestats.StatsResult, le int) {
+	if le >= 0 {
+		records := mnuss.Records[:0]
+		for _, record := range mnuss.Records {
+			if record.RequestsCount <= uint64(le) {
+				records = append(records, record)
+			}
+		}
+		mnuss.Records = records
+	}
+	mnuss.Sort()
 }
 
 func (sn *storageNode) processGetMetricNamesStats(qt *querytracer.Tracer, tt *storage.TenantToken, limit, le int, matchPattern string, deadline searchutil.Deadline) (metricnamestats.StatsResult, error) {

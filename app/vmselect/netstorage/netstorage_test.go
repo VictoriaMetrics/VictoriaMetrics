@@ -8,7 +8,33 @@ import (
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricnamestats"
 )
+
+func TestFinalizeMetricNamesStatsAppliesLeAfterMerge(t *testing.T) {
+	result := metricnamestats.StatsResult{
+		Records: []metricnamestats.StatRecord{
+			{MetricName: "active_metric", RequestsCount: 3},
+			{MetricName: "unused_metric"},
+		},
+	}
+	otherNodeResult := metricnamestats.StatsResult{
+		Records: []metricnamestats.StatRecord{
+			{MetricName: "active_metric"},
+			{MetricName: "unused_metric"},
+		},
+	}
+	result.Merge(&otherNodeResult)
+
+	finalizeMetricNamesStats(&result, 0)
+
+	want := []metricnamestats.StatRecord{
+		{MetricName: "unused_metric"},
+	}
+	if !reflect.DeepEqual(result.Records, want) {
+		t.Fatalf("unexpected records; got %v; want %v", result.Records, want)
+	}
+}
 
 func TestInitStopNodes(t *testing.T) {
 	if err := flag.Set("vmstorageDialTimeout", "1ms"); err != nil {
