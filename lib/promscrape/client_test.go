@@ -160,11 +160,11 @@ func TestClientProxyReadOk(t *testing.T) {
 		}
 
 		var cb chunkedbuffer.Buffer
-		isGzipped, err := c.ReadData(&cb)
+		contentEncoding, err := c.ReadData(&cb)
 		if err != nil {
 			t.Fatalf("unexpected error at ReadData: %s", err)
 		}
-		if isGzipped {
+		if contentEncoding == "gzip" {
 			t.Fatalf("the response mustn't be gzipped")
 		}
 		got, err := io.ReadAll(cb.NewReader())
