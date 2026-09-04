@@ -148,7 +148,9 @@ export interface RelabelStep {
   outLabels: string;
   errors: {
     inLabels: string;
+    inLabelsMsg: string;
     outLabels: string;
+    outLabelsMsg: string;
   };
 }
 

@@ -23,6 +23,8 @@ const (
 	vmAppLabelName         = "victoriametrics_app"
 	vmAppLabelValue        = "true"
 	vmAppVersionMetricName = "vm_app_version"
+	accountIDLabelName     = "vm_account_id"
+	projectIDLabelName     = "vm_project_id"
 )
 
 // Ctx defines filtering context
@@ -37,6 +39,9 @@ type Ctx struct {
 	hasFilterLabelValue  bool
 	jobLabelValue        string
 	instanceLabelValue   string
+	accountIDLabelValue  string
+	projectIDLabelValue  string
+	drop                 bool
 }
 
 func (ctx *Ctx) reset() {
@@ -49,6 +54,9 @@ func (ctx *Ctx) reset() {
 	ctx.hasFilterLabelValue = false
 	ctx.jobLabelValue = ""
 	ctx.instanceLabelValue = ""
+	ctx.accountIDLabelValue = ""
+	ctx.projectIDLabelValue = ""
+	ctx.drop = false
 }
 
 var ctxPool = &sync.Pool{
@@ -70,7 +78,8 @@ func PutContext(ctx *Ctx) {
 	ctxPool.Put(ctx)
 }
 
-// Filter manages the list of VictoriaMetrics instances grouped by job:instance labels.
+// Filter manages the list of VictoriaMetrics instances grouped by job:instance labels
+// and vm_account_id:vm_project_id labels when they are present.
 // job and instance must present at timeseries.
 //
 // Filter keeps timeseries with any of the following conditions:
@@ -128,6 +137,9 @@ func (filter *Filter) Filter(ctx *Ctx, tss []prompb.TimeSeries) []prompb.TimeSer
 			// despite any other conditions
 			continue
 		}
+		if ctx.drop {
+			continue
+		}
 		if ctx.hasVMAppLabel {
 			filter.trackInstance(key)
 			dstTss = append(dstTss, ts)
@@ -168,13 +180,26 @@ func (ctx *Ctx) prepare(labels []prompb.Label, filterByLabelName, label string) 
 			ctx.jobLabelValue = l.Value
 		case "instance":
 			ctx.instanceLabelValue = l.Value
+		case accountIDLabelName:
+			ctx.accountIDLabelValue = l.Value
+		case projectIDLabelName:
+			ctx.projectIDLabelValue = l.Value
 		case vmAppLabelName:
 			if l.Value == vmAppLabelValue {
 				ctx.hasVMAppLabel = true
 			}
 		case "__name__":
-			if l.Value == vmAppVersionMetricName {
+			switch l.Value {
+			case vmAppVersionMetricName:
 				ctx.hasVMAppVersionLabel = true
+			case `cardinality_estimate`:
+				// vmestimator is part of VictoriaMetrics offering so its metrics should pass through mdx filter.
+				// But, vmestimator exposes not only its operational metric at /metrics but cardinality estimates.
+				// Later should be filtered out.
+				//
+				// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11501
+				ctx.drop = true
+
 			}
 		}
 		if len(filterByLabelName) > 0 {
@@ -197,6 +222,10 @@ func (ctx *Ctx) formatTimeSeriesKey() string {
 	buf = strconv.AppendQuote(buf, ctx.jobLabelValue)
 	buf = append(buf, ':')
 	buf = strconv.AppendQuote(buf, ctx.instanceLabelValue)
+	buf = append(buf, ':')
+	buf = strconv.AppendQuote(buf, ctx.accountIDLabelValue)
+	buf = append(buf, ':')
+	buf = strconv.AppendQuote(buf, ctx.projectIDLabelValue)
 	ctx.buf = buf
 	return bytesutil.ToUnsafeString(buf)
 }
