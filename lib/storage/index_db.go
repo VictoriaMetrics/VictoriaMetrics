@@ -571,6 +571,14 @@ func (is *indexSearch) searchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tr
 
 func (is *indexSearch) searchLabelNamesWithFiltersOnDate(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, maxLabelNames, maxMetrics int) (map[string]struct{}, error) {
 	var filter *uint64set.Set
+
+	// Skip searching metricIDs and instead search the index directly for simple
+	// label name queries that only include tfss with single exact metric name
+	// match. For example:
+	//
+	// /api/v1/labels?match=up or /api/v1/labels?extra_filters=up
+	//
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9489
 	if !isSingleMetricNameFilter(tfss) {
 		var err error
 		filter, err = is.searchMetricIDsWithFiltersOnDate(qt, tfss, date, maxMetrics)
@@ -842,6 +850,14 @@ func (is *indexSearch) searchLabelValuesOnDate(qt *querytracer.Tracer, labelName
 		// __name__ label is encoded as empty string in indexdb.
 		labelName = ""
 	}
+
+	// Skip searching metricIDs and instead search the index directly for simple
+	// label value queries that only include the labelName and tfss with single
+	// exact metric name match. For example:
+	//
+	// /api/v1/label/job/values?match=up or /api/v1/label/job/values?extra_filters=up
+	//
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9489
 	useCompositeScan := labelName != "" && isSingleMetricNameFilter(tfss)
 	var filter *uint64set.Set
 	if !useCompositeScan {
@@ -2197,7 +2213,7 @@ func matchTagFilters(mn *MetricName, tfs []*tagFilter, kb *bytesutil.ByteBuffer)
 
 func isSingleMetricNameFilter(tfss []*TagFilters) bool {
 	// We check if tfss contain only single filter which is __name__
-	return len(tfss) == 1 && len(tfss[0].tfs) == 1 && getMetricNameFilter(tfss[0]) != nil
+	return len(tfss) == 1 && tfss[0] != nil && len(tfss[0].tfs) == 1 && getMetricNameFilter(tfss[0]) != nil
 }
 
 func (is *indexSearch) searchMetricIDsWithFiltersOnDate(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, maxMetrics int) (*uint64set.Set, error) {
