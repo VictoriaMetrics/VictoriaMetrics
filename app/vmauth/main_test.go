@@ -500,6 +500,141 @@ statusCode=502
 all the 2 backends for the user "some-user" are unavailable for proxying the request - check previous WARN logs to see the exact error for each failed backend`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 
+	// src_paths and deny_paths match for unauthorized_user - the request must be rejected
+	cfgStr = `
+unauthorized_user:
+  url_map:
+  - src_paths: ["/select/.*"]
+    deny_paths: ["/select/[^/]+/prometheus/api/v1/status/active_queries"]
+    url_prefix: {BACKEND}/select`
+	requestURL = "http://some-host.com/select/123/prometheus/api/v1/status/active_queries"
+	backendHandler = func(_ http.ResponseWriter, _ *http.Request) {
+		panic(fmt.Errorf("backend handler shouldn't be called"))
+	}
+	responseExpected = `
+statusCode=403
+user unauthorized request path "/select/123/prometheus/api/v1/status/active_queries" is forbidden by 'deny_paths' rules`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
+	// src_paths matches and deny_paths doesn't match for unauthorized_user - the request must be proxied
+	cfgStr = `
+unauthorized_user:
+  url_map:
+  - src_paths: ["/select/.*"]
+    deny_paths: ["/select/[^/]+/prometheus/api/v1/status/active_queries"]
+    url_prefix: {BACKEND}/select`
+	requestURL = "http://some-host.com/select/123/prometheus/api/v1/query"
+	backendHandler = func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "requested_url=http://%s%s", r.Host, r.URL)
+	}
+	responseExpected = `
+statusCode=200
+requested_url={BACKEND}/select/select/123/prometheus/api/v1/query`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
+	// url_map without deny_paths - existing behavior must be preserved
+	cfgStr = `
+unauthorized_user:
+  url_map:
+  - src_paths: ["/select/.*"]
+    url_prefix: {BACKEND}/select`
+	requestURL = "http://some-host.com/select/123/prometheus/api/v1/status/active_queries"
+	backendHandler = func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "requested_url=http://%s%s", r.Host, r.URL)
+	}
+	responseExpected = `
+statusCode=200
+requested_url={BACKEND}/select/select/123/prometheus/api/v1/status/active_queries`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
+	// multiple deny_paths entries for unauthorized_user
+	cfgStr = `
+unauthorized_user:
+  url_map:
+  - src_paths: ["/select/.*"]
+    deny_paths:
+    - "/select/[^/]+/prometheus/api/v1/status/active_queries"
+    - "/select/[^/]+/prometheus/api/v1/status/tsdb/.+"
+    url_prefix: {BACKEND}/select`
+	requestURL = "http://some-host.com/select/123/prometheus/api/v1/status/tsdb/status"
+	backendHandler = func(_ http.ResponseWriter, _ *http.Request) {
+		panic(fmt.Errorf("backend handler shouldn't be called"))
+	}
+	responseExpected = `
+statusCode=403
+user unauthorized request path "/select/123/prometheus/api/v1/status/tsdb/status" is forbidden by 'deny_paths' rules`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
+	// deny_paths takes precedence over default_url for unauthorized_user
+	cfgStr = `
+unauthorized_user:
+  default_url: {BACKEND}/default
+  url_map:
+  - src_paths: ["/select/.*"]
+    deny_paths: ["/select/[^/]+/prometheus/api/v1/status/active_queries"]
+    url_prefix: {BACKEND}/select`
+	requestURL = "http://some-host.com/select/123/prometheus/api/v1/status/active_queries"
+	backendHandler = func(_ http.ResponseWriter, _ *http.Request) {
+		panic(fmt.Errorf("backend handler shouldn't be called"))
+	}
+	responseExpected = `
+statusCode=403
+user unauthorized request path "/select/123/prometheus/api/v1/status/active_queries" is forbidden by 'deny_paths' rules`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
+	// src_paths and deny_paths match for authorized user - the request must be rejected
+	cfgStr = `
+users:
+- username: some-user
+  url_map:
+  - src_paths: ["/select/.*"]
+    deny_paths: ["/select/[^/]+/prometheus/api/v1/status/active_queries"]
+    url_prefix: {BACKEND}/select`
+	requestURL = "http://some-user@some-host.com/select/123/prometheus/api/v1/status/active_queries"
+	backendHandler = func(_ http.ResponseWriter, _ *http.Request) {
+		panic(fmt.Errorf("backend handler shouldn't be called"))
+	}
+	responseExpected = `
+statusCode=403
+user some-user request path "/select/123/prometheus/api/v1/status/active_queries" is forbidden by 'deny_paths' rules`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
+	// src_paths don't match the url_map entry with deny_paths - the request must be routed by the next url_map entry
+	cfgStr = `
+unauthorized_user:
+  url_map:
+  - src_paths: ["/select/.*"]
+    deny_paths: ["/select/[^/]+/prometheus/api/v1/status/active_queries"]
+    url_prefix: {BACKEND}/select
+  - src_paths: ["/other/.*"]
+    url_prefix: {BACKEND}/other`
+	requestURL = "http://some-host.com/other/api/v1/query"
+	backendHandler = func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "requested_url=http://%s%s", r.Host, r.URL)
+	}
+	responseExpected = `
+statusCode=200
+requested_url={BACKEND}/other/other/api/v1/query`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
+	// deny_paths in the first matching url_map entry must not fall through to the next matching url_map entry
+	cfgStr = `
+unauthorized_user:
+  url_map:
+  - src_paths: ["/select/.*"]
+    deny_paths: ["/select/[^/]+/prometheus/api/v1/status/active_queries"]
+    url_prefix: {BACKEND}/select
+  - src_paths: ["/select/.*"]
+    url_prefix: {BACKEND}/fallback`
+	requestURL = "http://some-host.com/select/123/prometheus/api/v1/status/active_queries"
+	backendHandler = func(_ http.ResponseWriter, _ *http.Request) {
+		panic(fmt.Errorf("backend handler shouldn't be called"))
+	}
+	responseExpected = `
+statusCode=403
+user unauthorized request path "/select/123/prometheus/api/v1/status/active_queries" is forbidden by 'deny_paths' rules`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
 	// zero discovered backend IPs
 	customResolver := &fakeResolver{
 		Resolver: &net.Resolver{},

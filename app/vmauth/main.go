@@ -405,7 +405,18 @@ func bufferRequestBody(ctx context.Context, r io.ReadCloser, userName string) (i
 
 func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tkn *jwt.Token, userName string) {
 	u := normalizeURL(r.URL)
-	up, hc := ui.getURLPrefixAndHeaders(u, r.Host, r.Header)
+	up, hc, denied := ui.getURLPrefixAndHeaders(u, r.Host, r.Header)
+	if denied {
+		// The request matches `deny_paths` in the matched `url_map` entry,
+		// so it must be rejected instead of being proxied to the backend.
+		ui.requestErrors.Inc()
+		err := &httpserver.ErrorWithStatusCode{
+			Err:        fmt.Errorf("user %s request path %q is forbidden by 'deny_paths' rules", userName, u.Path),
+			StatusCode: http.StatusForbidden,
+		}
+		httpserver.Errorf(w, r, "%s", err)
+		return
+	}
 	isDefault := false
 	if up == nil {
 		if ui.DefaultURL == nil {

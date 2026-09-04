@@ -225,6 +225,16 @@ users:
     url_prefix: http://foobar
 `)
 
+	// Invalid regexp in deny_paths
+	f(`
+users:
+- username: a
+  url_map:
+  - src_paths: ['/foobar']
+    deny_paths: ['fo[obar']
+    url_prefix: http://foobar
+`)
+
 	// Invalid regexp in src_hosts
 	f(`
 users:
@@ -454,6 +464,7 @@ users:
 		URLMaps: []URLMap{
 			{
 				SrcPaths:  getRegexs([]string{"/api/v1/query", "/api/v1/query_range", "/api/v1/label/[^./]+/.+"}),
+				DenyPaths: getRegexs([]string{"/api/v1/label/[^/]+/values"}),
 				URLPrefix: mustParseURL("http://vmselect/select/0/prometheus"),
 			},
 			{
@@ -484,6 +495,7 @@ users:
 - bearer_token: foo
   url_map:
   - src_paths: ["/api/v1/query","/api/v1/query_range","/api/v1/label/[^./]+/.+"]
+    deny_paths: ["/api/v1/label/[^/]+/values"]
     url_prefix: http://vmselect/select/0/prometheus
   - src_paths: ["/api/v1/write"]
     src_hosts: ["foo\\.bar", "baz:1234"]
