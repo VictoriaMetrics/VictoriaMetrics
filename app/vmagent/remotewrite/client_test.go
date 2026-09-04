@@ -2,11 +2,15 @@ package remotewrite
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"io"
 	"math"
 	"net"
 	"net/http"
+	"net/http/httptrace"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -114,6 +118,7 @@ func TestDoRequestEarlyResponse(t *testing.T) {
 	}
 	defer ln.Close()
 
+	gotCh := make(chan []byte, 1)
 	go func() {
 		conn, err := ln.Accept()
 		if err != nil {
@@ -122,6 +127,7 @@ func TestDoRequestEarlyResponse(t *testing.T) {
 		defer conn.Close()
 
 		br := bufio.NewReader(conn)
+		contentLength := -1
 		for {
 			line, err := br.ReadString('\n')
 			if err != nil {
@@ -130,16 +136,30 @@ func TestDoRequestEarlyResponse(t *testing.T) {
 			if line == "\r\n" {
 				break
 			}
+			k, v, ok := strings.Cut(strings.TrimSpace(line), ":")
+			if !ok || !strings.EqualFold(k, "Content-Length") {
+				continue
+			}
+			n, err := strconv.Atoi(strings.TrimSpace(v))
+			if err != nil {
+				return
+			}
+			contentLength = n
 		}
 
 		// respond before reading body so client may still be writing it
-		if _, err := conn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")); err != nil {
+		if _, err := conn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n")); err != nil {
+			return
+		}
+		if contentLength < 0 {
 			return
 		}
 
-		// drain body so closing does not rst the connection and kill the response
-		_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
-		_, _ = io.Copy(io.Discard, br)
+		got := make([]byte, contentLength)
+		if _, err := io.ReadFull(br, got); err != nil {
+			return
+		}
+		gotCh <- got
 	}()
 
 	authCfg, err := (&promauth.Options{}).NewConfig()
@@ -156,6 +176,7 @@ func TestDoRequestEarlyResponse(t *testing.T) {
 	for i := range body {
 		body[i] = byte(i)
 	}
+	want := append([]byte(nil), body...)
 
 	resp, err := c.doRequest("http://"+ln.Addr().String()+"/write", body)
 	if err != nil {
@@ -167,18 +188,64 @@ func TestDoRequestEarlyResponse(t *testing.T) {
 	for i := range body {
 		body[i] = 0
 	}
+
+	select {
+	case got := <-gotCh:
+		if !bytes.Equal(got, want) {
+			t.Fatalf("server received modified body after reuse; got %d bytes, want %d bytes", len(got), len(want))
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("timed out waiting for server to drain request body")
+	}
 }
 
-func TestWaitWritten(t *testing.T) {
+func TestRequestWriteWaiter(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		ch := make(chan error, 1)
-		ch <- nil
-		waitWritten(ch, "http://example.com")
+		w := newRequestWriteWaiter()
+		w.gotConn(httptrace.GotConnInfo{})
+		w.wroteRequest(httptrace.WroteRequestInfo{})
+		w.wait("http://example.com")
 	})
 
 	t.Run("err", func(t *testing.T) {
-		ch := make(chan error, 1)
-		ch <- errors.New("write failed")
-		waitWritten(ch, "http://example.com")
+		w := newRequestWriteWaiter()
+		w.gotConn(httptrace.GotConnInfo{})
+		w.wroteRequest(httptrace.WroteRequestInfo{Err: errors.New("write failed")})
+		w.wait("http://example.com")
+	})
+
+	t.Run("no conn", func(t *testing.T) {
+		w := newRequestWriteWaiter()
+		w.wait("http://example.com")
+	})
+
+	t.Run("multiple attempts", func(t *testing.T) {
+		w := newRequestWriteWaiter()
+		w.gotConn(httptrace.GotConnInfo{})
+		w.wroteRequest(httptrace.WroteRequestInfo{})
+		w.gotConn(httptrace.GotConnInfo{})
+		w.wroteRequest(httptrace.WroteRequestInfo{})
+		w.wait("http://example.com")
+	})
+
+	t.Run("wait until written", func(t *testing.T) {
+		w := newRequestWriteWaiter()
+		w.gotConn(httptrace.GotConnInfo{})
+		done := make(chan struct{})
+		go func() {
+			w.wait("http://example.com")
+			close(done)
+		}()
+		select {
+		case <-done:
+			t.Fatal("wait returned before WroteRequest")
+		case <-time.After(20 * time.Millisecond):
+		}
+		w.wroteRequest(httptrace.WroteRequestInfo{})
+		select {
+		case <-done:
+		case <-time.After(time.Second):
+			t.Fatal("wait did not return after WroteRequest")
+		}
 	})
 }

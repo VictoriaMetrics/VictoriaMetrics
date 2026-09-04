@@ -365,13 +365,13 @@ func (c *client) runWorker(readBlock func(dst []byte) ([]byte, bool)) {
 }
 
 func (c *client) doRequest(url string, body []byte) (*http.Response, error) {
-	req, doneCh, err := c.newRequest(url, body)
+	req, w, err := c.newRequest(url, body)
 	if err != nil {
 		return nil, err
 	}
 	resp, err := c.hc.Do(req)
+	w.wait(c.sanitizedURL)
 	if err == nil {
-		waitWritten(doneCh, c.sanitizedURL)
 		return resp, nil
 	}
 	if !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
@@ -381,31 +381,30 @@ func (c *client) doRequest(url string, body []byte) (*http.Response, error) {
 	// Make another attempt in hope request will succeed.
 	// If not, the error should be handled by the caller as usual.
 	// This should help with https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4139
-	req, doneCh, err = c.newRequest(url, body)
+	req, w, err = c.newRequest(url, body)
 	if err != nil {
 		return nil, fmt.Errorf("second attempt: %w", err)
 	}
 	resp, err = c.hc.Do(req)
+	w.wait(c.sanitizedURL)
 	if err != nil {
 		return nil, fmt.Errorf("second attempt: %w", err)
 	}
-	waitWritten(doneCh, c.sanitizedURL)
 	return resp, nil
 }
 
-func (c *client) newRequest(url string, body []byte) (*http.Request, <-chan error, error) {
+func (c *client) newRequest(url string, body []byte) (*http.Request, *requestWriteWaiter, error) {
 	reqBody := bytes.NewBuffer(body)
 	req, err := http.NewRequest(http.MethodPost, url, reqBody)
 	if err != nil {
 		logger.Panicf("BUG: unexpected error from http.NewRequest(%q): %s", url, err)
 	}
 
-	// net/http may still be writing body after Do() returns doneCh fires once done
-	doneCh := make(chan error, 1)
-	trace := &httptrace.ClientTrace{
-		WroteRequest: func(info httptrace.WroteRequestInfo) { doneCh <- info.Err },
-	}
-	req = req.WithContext(httptrace.WithClientTrace(req.Context(), trace))
+	// net/http may still write body after Do() returns, and may retry the request
+	// (bytes.Buffer sets GetBody). Track every attempt so the caller reuses body
+	// only after all writes finish.
+	w := newRequestWriteWaiter()
+	req = req.WithContext(httptrace.WithClientTrace(req.Context(), w.trace()))
 
 	err = c.authCfg.SetHeaders(req, true)
 	if err != nil {
@@ -427,21 +426,60 @@ func (c *client) newRequest(url string, body []byte) (*http.Request, <-chan erro
 			return nil, nil, fmt.Errorf("cannot sign remoteWrite request with AWS sigv4: %w", err)
 		}
 	}
-	return req, doneCh, nil
+	return req, w, nil
 }
 
-// writeTimeout bounds how long waitWritten waits for doneCh
-const writeTimeout = 10 * time.Second
+// requestWriteWaiter waits until net/http finishes writing the request body on
+// every connection attempt, including retries inside Transport / load balancer.
+type requestWriteWaiter struct {
+	mu      sync.Mutex
+	cond    *sync.Cond
+	pending int
+	err     error
+}
 
-// waitWritten blocks until net/http finishes reading the body so caller can reuse the buffer
-func waitWritten(doneCh <-chan error, sanitizedURL string) {
-	select {
-	case err := <-doneCh:
-		if err != nil {
-			remoteWriteRetryLogger.Warnf("error writing request body to %q: %s", sanitizedURL, err)
-		}
-	case <-time.After(writeTimeout):
-		remoteWriteRetryLogger.Warnf("timed out waiting for request body write to %q", sanitizedURL)
+func newRequestWriteWaiter() *requestWriteWaiter {
+	w := &requestWriteWaiter{}
+	w.cond = sync.NewCond(&w.mu)
+	return w
+}
+
+func (w *requestWriteWaiter) trace() *httptrace.ClientTrace {
+	return &httptrace.ClientTrace{
+		GotConn:      w.gotConn,
+		WroteRequest: w.wroteRequest,
+	}
+}
+
+func (w *requestWriteWaiter) gotConn(httptrace.GotConnInfo) {
+	w.mu.Lock()
+	w.pending++
+	w.mu.Unlock()
+}
+
+func (w *requestWriteWaiter) wroteRequest(info httptrace.WroteRequestInfo) {
+	w.mu.Lock()
+	if info.Err != nil {
+		w.err = info.Err
+	}
+	if w.pending > 0 {
+		w.pending--
+	}
+	w.cond.Signal()
+	w.mu.Unlock()
+}
+
+// wait blocks until every in-flight body write started after GotConn has finished,
+// so the caller can reuse the buffer.
+func (w *requestWriteWaiter) wait(sanitizedURL string) {
+	w.mu.Lock()
+	for w.pending > 0 {
+		w.cond.Wait()
+	}
+	err := w.err
+	w.mu.Unlock()
+	if err != nil {
+		remoteWriteRetryLogger.Warnf("error writing request body to %q: %s", sanitizedURL, err)
 	}
 }
 
