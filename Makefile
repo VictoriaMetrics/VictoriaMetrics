@@ -279,7 +279,7 @@ test-full-386:
 
 apptest:
 	$(MAKE) vminsert-race vmselect-race vmstorage-race vmagent-race vmctl-race vmbackup-race vmrestore-race
-	go test ./apptest/... -skip="^Test(Single|Mixed|Legacy).*"
+	GORACE="halt_on_error=1" go test ./apptest/... -skip="^Test(Single|Mixed|Legacy).*"
 
 # App tests for legacy indexDB
 apptest-legacy: vminsert-race vmselect-race vmstorage-race vmbackup-race vmrestore-race
@@ -296,7 +296,7 @@ apptest-legacy: vminsert-race vmselect-race vmstorage-race vmbackup-race vmresto
 	); \
 	VMSINGLE_V1_132_0_PATH=$${DIR}/victoria-metrics-prod \
 	VMSTORAGE_V1_132_0_PATH=$${DIR}/vmstorage-prod \
-	go test ./apptest/tests -run="^TestLegacyCluster.*"
+	GORACE="halt_on_error=1" go test ./apptest/tests -run="^TestLegacyCluster.*"
 
 # App tests for mixed setups where vmsingle and vmcluster coexist.
 apptest-mixed: vmselect-race
@@ -312,7 +312,7 @@ apptest-mixed: vmselect-race
 		curl --output-dir /tmp -LO $${URL}/$${VMCLUSTER} && tar xzf /tmp/$${VMCLUSTER} -C $${DIR} \
 	); \
 	VMSINGLE_PATH=$${DIR}/victoria-metrics-prod \
-	go test ./apptest/tests -run="^TestMixed.*"
+	GORACE="halt_on_error=1" go test ./apptest/tests -run="^TestMixed.*"
 
 benchmark:
 	go test -run=NO_TESTS -bench=. ./lib/...
