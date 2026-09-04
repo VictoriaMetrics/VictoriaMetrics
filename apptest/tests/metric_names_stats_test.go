@@ -40,7 +40,7 @@ func TestSingleMetricNamesStats(t *testing.T) {
 	sut.ForceFlush(t)
 
 	// verify ingest request correctly registered
-	expected := apptest.MetricNamesStatsResponse{
+	expected := &apptest.MetricNamesStatsResponse{
 		Records: []apptest.MetricNamesStatsRecord{
 			{MetricName: largeMetricName},
 			{MetricName: "metric_name_1"},
@@ -55,7 +55,7 @@ func TestSingleMetricNamesStats(t *testing.T) {
 
 	// verify query request correctly registered
 	sut.PrometheusAPIV1Query(t, `{__name__!=""}`, apptest.QueryOpts{Time: ingestDateTime})
-	expected = apptest.MetricNamesStatsResponse{
+	expected = &apptest.MetricNamesStatsResponse{
 		Records: []apptest.MetricNamesStatsRecord{
 			{MetricName: largeMetricName, QueryRequestsCount: 1},
 			{MetricName: "metric_name_1", QueryRequestsCount: 3},
@@ -97,7 +97,7 @@ func TestSingleMetricNamesStats(t *testing.T) {
 
 	// perform query request for single metric and check counter increase
 	sut.PrometheusAPIV1Query(t, `metric_name_2`, apptest.QueryOpts{Time: ingestDateTime})
-	expected = apptest.MetricNamesStatsResponse{
+	expected = &apptest.MetricNamesStatsResponse{
 		Records: []apptest.MetricNamesStatsRecord{
 			{MetricName: largeMetricName, QueryRequestsCount: 1},
 			{MetricName: "metric_name_1", QueryRequestsCount: 3},
@@ -111,7 +111,7 @@ func TestSingleMetricNamesStats(t *testing.T) {
 	}
 
 	// verify le filter
-	expected = apptest.MetricNamesStatsResponse{
+	expected = &apptest.MetricNamesStatsResponse{
 		Records: []apptest.MetricNamesStatsRecord{
 			{MetricName: largeMetricName, QueryRequestsCount: 1},
 			{MetricName: "metric_name_2", QueryRequestsCount: 2},
@@ -125,7 +125,7 @@ func TestSingleMetricNamesStats(t *testing.T) {
 
 	// reset state and check empty request response
 	sut.PrometheusAPIV1AdminStatusMetricNamesStatsReset(t, apptest.QueryOpts{})
-	expected = apptest.MetricNamesStatsResponse{
+	expected = &apptest.MetricNamesStatsResponse{
 		Records: []apptest.MetricNamesStatsRecord{},
 	}
 	got = sut.PrometheusAPIV1StatusMetricNamesStats(t, "", "", "", apptest.QueryOpts{})
@@ -190,7 +190,7 @@ func TestClusterMetricNamesStats(t *testing.T) {
 		vmstorage2.ForceFlush(t)
 
 		// verify ingest request correctly registered
-		expected := apptest.MetricNamesStatsResponse{
+		expected := &apptest.MetricNamesStatsResponse{
 			Records: []apptest.MetricNamesStatsRecord{
 				{MetricName: largeMetricName},
 				{MetricName: "metric_name_1"},
@@ -208,7 +208,7 @@ func TestClusterMetricNamesStats(t *testing.T) {
 			Tenant: tenantID, Time: ingestDateTime,
 		})
 
-		expected = apptest.MetricNamesStatsResponse{
+		expected = &apptest.MetricNamesStatsResponse{
 			Records: []apptest.MetricNamesStatsRecord{
 				{MetricName: largeMetricName, QueryRequestsCount: 1},
 				{MetricName: "metric_name_2", QueryRequestsCount: 1},
@@ -250,7 +250,7 @@ func TestClusterMetricNamesStats(t *testing.T) {
 	}
 
 	// verify multitenant stats
-	expected := apptest.MetricNamesStatsResponse{
+	expected := &apptest.MetricNamesStatsResponse{
 		Records: []apptest.MetricNamesStatsRecord{
 			{MetricName: largeMetricName, QueryRequestsCount: 3},
 			{MetricName: "metric_name_2", QueryRequestsCount: 3},
