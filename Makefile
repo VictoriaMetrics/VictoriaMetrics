@@ -471,7 +471,8 @@ test-full-386:
 
 apptest:
 	$(MAKE) victoria-metrics-race vmagent-race vmalert-race vmauth-race vmctl-race vmbackup-race vmrestore-race
-	go test ./apptest/... -skip="^Test(Cluster|Mixed|Legacy).*"
+	# See race options https://go.dev/doc/articles/race_detector#Options
+	GORACE="halt_on_error=1" go test ./apptest/... -skip="^Test(Cluster|Mixed|Legacy).*"
 
 # App tests for legacy indexDB
 apptest-legacy: victoria-metrics-race vmbackup-race vmrestore-race
