@@ -94,11 +94,12 @@ groups:
           description: |
             The job "{{ $labels.job }}" ({{ $labels.instance }}) generated too many {{ $labels.level }} logs at {{ $labels.location }} for the last 5 minutes.
 
-            The metric `vm_log_messages_total` tracks all log messages including those suppressed by `-loggerLevel`. Check the `is_printed` label to see whether the log was actually printed.
-
+            
             Actions:
             - Check {{ $labels.level }} logs produced by {{ $labels.job }} ({{ $labels.instance }}) component.
             - Use `source_code_url` annotation to check the source code that produced the log message.
+
+            NOTE: The metric `vm_log_messages_total` tracks all log messages including those suppressed by `-loggerLevel`. Check the `is_printed` label to see whether the log was actually printed.
           source_code_url: '{{ with printf "vm_log_messages_total{job=%q,instance=%q,location=%q}" $labels.job $labels.instance $labels.location | query | first }}https://l2s.victoriametrics.com/?app_version={{ .Labels.app_version }}&location={{ $labels.location | urlquery }}{{ end }}'
 
       - alert: TooManyLogs
@@ -111,12 +112,11 @@ groups:
           description: |
             The job "{{ $labels.job }}" ({{ $labels.instance }}) generated warn logs for the last 15 minutes.
 
-            The metric `vm_log_messages_total` tracks all log messages including those suppressed by `-loggerLevel`. Check the `is_printed` label to see whether the log was actually printed.
-
             Actions:
             - Check {{ $labels.level }} logs produced by {{ $labels.job }} ({{ $labels.instance }}) component.
             - Query `rate(vm_log_messages_total{job="{{ $labels.job }}",instance="{{ $labels.instance }}",level="warn"}[5m])` to find the source code locations generating the warnings.
-
+            
+            NOTE: The metric `vm_log_messages_total` tracks all log messages including those suppressed by `-loggerLevel`. Check the `is_printed` label to see whether the log was actually printed.
       - alert: ConcurrentInsertsHitTheLimit
         expr: avg_over_time(vm_concurrent_insert_current[1m]) >= vm_concurrent_insert_capacity
         for: 15m
