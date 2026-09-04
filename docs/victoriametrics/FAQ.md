@@ -407,7 +407,7 @@ a large number of unique values, which presents a big share of the ingested time
 * `url`
 * `ip`
 
-The solution is to identify and remove the source of high cardinality with the help of [cardinality explorer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer).
+The solution is to identify and remove the source of high cardinality with the help of [cardinality explorer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer). For monitoring or alerting on cardinality spikes, use [vmestimator](https://docs.victoriametrics.com/victoriametrics/vmestimator/).
 
 The official Grafana dashboards for VictoriaMetrics contain graphs, which show the number of active time series -
 see [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#monitoring) for details.
