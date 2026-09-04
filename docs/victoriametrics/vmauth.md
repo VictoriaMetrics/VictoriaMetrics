@@ -409,7 +409,7 @@ users:
       MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
       -----END PUBLIC KEY-----
     match_claims:
-      roles: "^(read|write)$"
+      roles: "read|write"
   url_prefix: "http://victoria-metrics-readonly:8428/"
 ```
 
@@ -439,7 +439,7 @@ users:
       MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
       -----END PUBLIC KEY-----
     match_claims:
-      vm_access.metrics_account_id: "(0|1|2)"
+      vm_access.metrics_account_id: "0|1|2"
   url_prefix: "http://victoria-metrics-vmselect-1:8481/select/multitenant?extra_filters={vm_account_id=~\"(0|1|2)\"}"
 - jwt:
     public_keys:
@@ -448,7 +448,7 @@ users:
       MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
       -----END PUBLIC KEY-----
     match_claims:
-      vm_access.metrics_account_id: "(3|4|5)"
+      vm_access.metrics_account_id: "3|4|5"
   url_prefix: "http://victoria-metrics-vmselect-1:8481/select/multitenant?extra_filters={vm_account_id=~\"(3|4|5)\"}"
 ```
 
