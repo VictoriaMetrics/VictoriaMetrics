@@ -82,6 +82,8 @@ Released at 2026-08-17
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): properly update group-level `eval_delay` and `eval_alignment` for existing groups during runtime when config reload is triggered periodically or manually via `/-/reload`. Previously, these settings weren't updated after config reload during runtime. See [#11374](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11374).
 * BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): scale the default `-search.maxConcurrentRequests` with the number of available CPU cores instead of capping it at 16. See [#11191](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11191). Thanks to @Dhru1Tanna for contribution.
 
+* FEATURE: `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): add experimental `-storage.tsidCacheKeyMode=fingerprint` command-line flag, which keys the `storage/tsid` cache by a fixed-size fingerprint of the metric name instead of by the metric name with all its labels. This can reduce the memory used by this cache during data ingestion, and the benefit is bigger for metric names containing many or long labels. The `fingerprint` mode is experimental, so the flag defaults to `metricName`. See [#11303](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11303) and [cache tuning docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning).
+
 ## [v1.149.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.149.0)
 
 Released at 2026-08-05
