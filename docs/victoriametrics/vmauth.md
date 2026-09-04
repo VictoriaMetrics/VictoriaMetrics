@@ -825,7 +825,7 @@ unauthorized_user:
     url_prefix: "http://vmselect:8481"
 ```
 
- A request matching `deny_paths` is rejected with `403 Forbidden` (or `401 Unauthorized` for anonymous requests). It can't be used on its own, it needs at least one of `src_paths`, `src_hosts`, `src_query_args` or `src_headers` in the same `url_map` entry.
+A request matching `deny_paths` is rejected with `403 Forbidden` (or `401 Unauthorized` for anonymous requests). It can't be used on its own, it needs at least one of `src_paths`, `src_hosts`, `src_query_args` or `src_headers` in the same `url_map` entry.
 
 ### Routing by host
 
