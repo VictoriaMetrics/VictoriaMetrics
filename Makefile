@@ -471,7 +471,6 @@ test-full-386:
 
 apptest:
 	$(MAKE) victoria-metrics-race vmagent-race vmalert-race vmauth-race vmctl-race vmbackup-race vmrestore-race
-	# See race options https://go.dev/doc/articles/race_detector#Options
 	GORACE="halt_on_error=1" go test ./apptest/... -skip="^Test(Cluster|Mixed|Legacy).*"
 
 # App tests for legacy indexDB
@@ -489,7 +488,7 @@ apptest-legacy: victoria-metrics-race vmbackup-race vmrestore-race
 	); \
 	VMSINGLE_V1_132_0_PATH=$${DIR}/victoria-metrics-prod \
 	VMSTORAGE_V1_132_0_PATH=$${DIR}/vmstorage-prod \
-	go test ./apptest/tests -run="^TestLegacySingle.*"
+	GORACE="halt_on_error=1" go test ./apptest/tests -run="^TestLegacySingle.*"
 
 # App tests for mixed setups where vmsingle and vmcluster coexist.
 apptest-mixed: victoria-metrics-race
@@ -505,7 +504,7 @@ apptest-mixed: victoria-metrics-race
 		curl --output-dir /tmp -LO $${URL}/$${VMCLUSTER} && tar xzf /tmp/$${VMCLUSTER} -C $${DIR} \
 	); \
 	VMSELECT_PATH=$${DIR}/vmselect-prod \
-	go test ./apptest/tests -run="^TestMixed.*"
+	GORACE="halt_on_error=1" go test ./apptest/tests -run="^TestMixed.*"
 
 benchmark:
 	go test -run=NO_TESTS -bench=. ./lib/...
