@@ -1830,17 +1830,25 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 		minTimestamp -= ec.Step
 	}
 	sq := storage.NewSearchQuery(minTimestamp, ec.End, tfss, ec.MaxSeries)
+	qs := ec.QueryStats
+	startTime := time.Now()
 	rss, err := netstorage.ProcessSearchQuery(qt, sq, ec.Deadline)
+	if qs != nil {
+		// data_fetch_duration_ms covers the search phase (ProcessSearchQuery fetching blockRefs)
+		// Sample data is read later in rss.RunParallel during rollup; see docs/query-stats.md
+		qs.addDataFetchDuration(time.Since(startTime))
+	}
 	if err != nil {
 		return nil, err
 	}
-	qs := ec.QueryStats
 	rssLen := rss.Len()
 	if rssLen == 0 {
 		rss.Cancel()
 		return nil, nil
 	}
 	qs.addSeriesFetched(rssLen)
+	qs.addSamplesFetched(rss.SamplesFetched())
+	qs.addBytesFetched(rss.BytesFetched())
 
 	// Verify timeseries fit available memory during rollup calculations.
 	timeseriesLen := rssLen
