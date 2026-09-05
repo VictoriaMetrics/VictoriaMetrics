@@ -709,6 +709,16 @@ The following approaches can be used for reducing resource usage at `vmstorage` 
   Note that the `-disableReroutingOnUnavailable` flag may pause data ingestion for long time when some `vmstorage` nodes are unavailable
   for long time.
 
+- To pass `-disableReplicaRerouting` command-line flag {{% available_from "#" %}} to `vminsert` nodes when `-replicationFactor` is greater than `1`,
+  so they drop replica copies instead of sending them to `vmstorage` nodes outside the set of nodes selected for the given data
+  according to `-replicationFactor`. Such nodes have to register all the time series from the copy, which may result in spikes
+  in CPU and disk IO usage and in increased number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series) there.
+  Note that the affected data stays under-replicated until the selected `vmstorage` nodes become available again.
+  The first copy of the data is always stored even if all the selected `vmstorage` nodes are unavailable, so the data isn't lost.
+  The number of under-replicated rows can be tracked via `vm_rpc_rows_incompletely_replicated_total` metric.
+  This metric can be used for locating the time ranges, which need re-replication with
+  [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/) after the `vmstorage` nodes become available again.
+
 - To pass bigger values to `-storage.vminsertConnsShutdownDuration` (available from [v1.95.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1950))
   command-line flag at `vmstorage` nodes.In this case `vmstorage` increases the interval between gradual closing of `vminsert` connections during graceful shutdown.
   This reduces data ingestion slowdown during rollout restarts.
