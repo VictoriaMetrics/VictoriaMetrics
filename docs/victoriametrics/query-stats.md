@@ -32,7 +32,7 @@ Here's how `<duration>` works:
 **Example of a query statistics log:**
 
 ```bash
-2025-03-25T11:23:29.520Z        info    VictoriaMetrics/app/vmselect/promql/query_stats.go:60       vm_slow_query_stats type=instant query="vm_promscrape_config_last_reload_successful != 1\nor\nvmagent_relabel_config_last_reload_successful != 1\n" query_hash=1585303298 start_ms=1742901750000 end_ms=1742901750000 step_ms=300000 range_ms=0 tenant="0" execution_duration_ms=0 series_fetched=2 samples_fetched=163 bytes=975 memory_estimated_bytes=2032
+2025-03-25T11:23:29.520Z        info    VictoriaMetrics/app/vmselect/promql/query_stats.go:60       vm_slow_query_stats type=instant query="vm_promscrape_config_last_reload_successful != 1\nor\nvmagent_relabel_config_last_reload_successful != 1\n" query_hash=17673012000967015160 start_ms=1742901750000 end_ms=1742901750000 step_ms=300000 range_ms=0 tenant="0" execution_duration_ms=0 data_fetch_duration_ms=0 series_fetched=2 samples_fetched=163 samples_fetched_per_second=0.00 bytes=975 memory_estimated_bytes=2032
 ```
 
 ## Log fields
@@ -47,10 +47,12 @@ Each log entry contains the following fields:
 * `range_ms`: a time range in milliseconds between `start_ms` and `end_ms`. If `range_ms==0` it means this query is instant;
 * `tenant`: a tenant ID. Available only in the cluster version;
 * `execution_duration_ms`: time it took in milliseconds to execute the query (not including time spent sending results over the network);
+* `data_fetch_duration_ms`: cumulative time in milliseconds spent in `ProcessSearchQuery` (search phase - fetching matching series and block metadata via `blockRefs`; actual sample data is read later in `RunParallel` during rollup, so this metric is search-phase only and `fetch << exec` can still occur even when storage I/O dominates); sum over all fetches, for queries with concurrent operands like `sum(a)/sum(b)` the sum can exceed `execution_duration_ms`;
 * `series_fetched`: number of unique [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) fetched.
   This may be higher than the number of series returned if there are filters like `cpu_usage > 0`;
-* `samples_fetched`: number of [data samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) fetched;
-* `bytes`: number of bytes transferred from storage to process the query;
+* `samples_fetched`: number of [data samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) fetched (sum of `RowsCount` for all blocks);
+* `samples_fetched_per_second`: throughput computed as `samples_fetched * 1000 / data_fetch_duration_ms` (0 if fetch duration is 0); use this for comparing fetch efficiency across queries where `data_fetch_duration_ms` may exceed wall time due to parallel execution;
+* `bytes`: number of bytes of compressed block data fetched from storage (sum of `TimestampsBlockSize` + `ValuesBlockSize` for all blocks);
 * `memory_estimated_bytes`: estimated memory needed to run the query. See `-search.maxMemoryPerQuery` cmd-line flag.
 * `headers.*`: header key-value pairs associated with request {{% available_from "v1.121.0" %}}. Only headers listed in `-search.logSlowQueryStatsHeaders`
   are logged.

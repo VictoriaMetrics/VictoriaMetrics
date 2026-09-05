@@ -1,18 +1,28 @@
 package promql
 
 import (
+	"flag"
+	"hash/fnv"
 	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 // QueryStats contains various stats of the query evaluation.
 type QueryStats struct {
 	// ExecutionDuration contains the time duration the query took to execute.
 	ExecutionDuration atomic.Pointer[time.Duration]
+	// DataFetchDuration contains the time spent fetching data from storage via ProcessSearchQuery.
+	DataFetchDuration atomic.Int64
 	// SeriesFetched contains the number of series fetched from storage or cache.
 	SeriesFetched atomic.Int64
+	// SamplesFetched contains the number of raw samples fetched from storage (sum of RowsCount for all blocks).
+	SamplesFetched atomic.Int64
+	// BytesFetched contains the number of bytes of compressed block data fetched from storage
+	// (sum of TimestampsBlockSize + ValuesBlockSize for all blocks).
+	BytesFetched atomic.Int64
 	// MemoryUsage contains the estimated memory consumption of the query
 	MemoryUsage atomic.Int64
 
@@ -48,12 +58,33 @@ func (qs *QueryStats) addSeriesFetched(n int) {
 	qs.SeriesFetched.Add(int64(n))
 }
 
+func (qs *QueryStats) addSamplesFetched(n int) {
+	if qs == nil {
+		return
+	}
+	qs.SamplesFetched.Add(int64(n))
+}
+
+func (qs *QueryStats) addBytesFetched(n uint64) {
+	if qs == nil {
+		return
+	}
+	qs.BytesFetched.Add(int64(n))
+}
+
 func (qs *QueryStats) addExecutionTimeMsec(startTime time.Time) {
 	if qs == nil {
 		return
 	}
 	d := time.Since(startTime)
 	qs.ExecutionDuration.Store(&d)
+}
+
+func (qs *QueryStats) addDataFetchDuration(d time.Duration) {
+	if qs == nil {
+		return
+	}
+	qs.DataFetchDuration.Add(d.Nanoseconds())
 }
 
 func (qs *QueryStats) addMemoryUsage(memoryUsage int64) {
@@ -68,4 +99,54 @@ func (qs *QueryStats) memoryUsage() int64 {
 		return 0
 	}
 	return qs.MemoryUsage.Load()
+}
+
+func (qs *QueryStats) getDataFetchDuration() time.Duration {
+	if qs == nil {
+		return 0
+	}
+	return time.Duration(qs.DataFetchDuration.Load())
+}
+
+var logQueryStatsDuration = flag.Duration("search.logSlowQueryStats", 5*time.Second, "Log query statistics if execution time exceeding this value - see https://docs.victoriametrics.com/victoriametrics/query-stats/ . Zero disables slow query statistics logging. See https://docs.victoriametrics.com/victoriametrics/enterprise/")
+
+func (qs *QueryStats) maybeLogQueryStats(startTime time.Time) {
+	if qs == nil {
+		return
+	}
+	if *logQueryStatsDuration <= 0 {
+		return
+	}
+	var d time.Duration
+	if ed := qs.ExecutionDuration.Load(); ed != nil {
+		d = *ed
+	} else {
+		d = time.Since(startTime)
+	}
+	if d < *logQueryStatsDuration {
+		return
+	}
+	executionDurationMs := d.Milliseconds()
+	dataFetchDurationMs := qs.getDataFetchDuration().Milliseconds()
+	samplesFetched := qs.SamplesFetched.Load()
+	var samplesPerSecond float64
+	if fetchDur := qs.getDataFetchDuration(); fetchDur > 0 {
+		samplesPerSecond = float64(samplesFetched) / fetchDur.Seconds()
+	}
+	queryHash := hashQuery(qs.query)
+	tenant := "0"
+	if qs.at != nil {
+		tenant = qs.at.String()
+	}
+	rangeMs := qs.end - qs.start
+	// Use Info level to match query-stats logging; vm_slow_query_stats prefix is required for filtering
+	// samples_fetched_per_second is reported as throughput to avoid misinterpreting summed fetch durations for concurrent operands where sum can exceed wall time
+	logger.Infof("vm_slow_query_stats type=%s query=%q query_hash=%d start_ms=%d end_ms=%d step_ms=%d range_ms=%d tenant=%q execution_duration_ms=%d data_fetch_duration_ms=%d series_fetched=%d samples_fetched=%d samples_fetched_per_second=%.2f bytes=%d memory_estimated_bytes=%d",
+		qs.queryType, qs.query, queryHash, qs.start, qs.end, qs.step, rangeMs, tenant, executionDurationMs, dataFetchDurationMs, qs.SeriesFetched.Load(), samplesFetched, samplesPerSecond, qs.BytesFetched.Load(), qs.MemoryUsage.Load())
+}
+
+func hashQuery(q string) uint64 {
+	h := fnv.New64a()
+	_, _ = h.Write([]byte(q))
+	return h.Sum64()
 }

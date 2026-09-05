@@ -57,6 +57,11 @@ func (br *BlockRef) RowsCount() int {
 	return int(br.bh.RowsCount)
 }
 
+// BlockSize returns the size in bytes of the block data (compressed timestamps + values) for br.
+func (br *BlockRef) BlockSize() int {
+	return int(br.bh.TimestampsBlockSize) + int(br.bh.ValuesBlockSize)
+}
+
 // PartRef returns PartRef from br.
 func (br *BlockRef) PartRef() PartRef {
 	return PartRef{
