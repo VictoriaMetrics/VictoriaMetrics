@@ -325,6 +325,50 @@ statusCode=400
 user foo missing route for "http://foo:secret@some-host.com/a/b"`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 
+	// correct authorization but path denied via deny_paths
+	cfgStr = `
+users:
+- username: foo
+  password: secret
+  url_map:
+  - src_paths:
+    - "/select/.*"
+    deny_paths:
+    - "/select/[^/]+/prometheus/api/v1/status/active_queries"
+    url_prefix: "{BACKEND}/bar"`
+	requestURL = "http://foo:secret@some-host.com/select/0/prometheus/api/v1/status/active_queries"
+	backendHandler = func(_ http.ResponseWriter, _ *http.Request) {
+		panic(fmt.Errorf("backend handler shouldn't be called"))
+	}
+	responseExpected = "" +
+		"statusCode=403\n" +
+		"user foo is denied access to \"http://foo:secret@some-host.com/select/0/prometheus/api/v1/status/active_queries\" via `deny_paths`"
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
+	// unauthorized request to a path denied via deny_paths for unauthorized_user, while other users are configured:
+	// authorization must be requested instead of confirming that the path is denied (issue #5236).
+	cfgStr = `
+users:
+- username: someone
+  password: secret
+  url_prefix: "{BACKEND}/other"
+unauthorized_user:
+  url_map:
+  - src_paths:
+    - "/select/.*"
+    deny_paths:
+    - "/select/[^/]+/prometheus/api/v1/status/active_queries"
+    url_prefix: "{BACKEND}/bar"`
+	requestURL = "http://some-host.com/select/0/prometheus/api/v1/status/active_queries"
+	backendHandler = func(_ http.ResponseWriter, _ *http.Request) {
+		panic(fmt.Errorf("backend handler shouldn't be called"))
+	}
+	responseExpected = `
+statusCode=401
+Www-Authenticate: Basic realm="Restricted"
+missing 'Authorization' request header`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
 	// verify how path cleanup works
 	cfgStr = `
 unauthorized_user:
