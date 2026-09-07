@@ -158,7 +158,7 @@ func parseCPUMax(data string) (float64, error) {
 func countCPUs(data string) int {
 	data = strings.TrimSpace(data)
 	n := 0
-	for _, s := range strings.Split(data, ",") {
+	for s := range strings.SplitSeq(data, ",") {
 		n++
 		if !strings.Contains(s, "-") {
 			if _, err := strconv.Atoi(s); err != nil {

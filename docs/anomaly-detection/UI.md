@@ -1,6 +1,7 @@
 ---
 weight: 2
 title: UI
+description: "Built-in vmui-like UI for exploring anomaly detection results."
 menu:
   docs:
     parent: "anomaly-detection"
@@ -137,13 +138,13 @@ users:
     password: '<password>'
     url_map:
       - src_hosts:
-        - "metrics.local.some-domain.net"
+          - "metrics.local.some-domain.net"
         url_prefix: "http://victoriametrics:8428"
       - src_hosts:
-        - "vl.local.some-domain.net"
+          - "vl.local.some-domain.net"
         url_prefix: "http://victorialogs:9428"
       - src_hosts:
-        - "vmanomaly.local.some-domain.net"
+          - "vmanomaly.local.some-domain.net"
         url_prefix: "http://vmanomaly:8490"
         keep_original_host: true
 ```
@@ -316,7 +317,7 @@ docker run -it --rm \
   -e VMANOMALY_MCP_SERVER_URL=http://mcp-vmanomaly:8081/mcp \
   -p 8080:8080 \
   -p 8490:8490 \
-  victoriametrics/vmanomaly:v1.30.1 \
+  victoriametrics/vmanomaly:v1.30.4 \
   vmanomaly_config.yaml
 ```
 
@@ -644,6 +645,24 @@ If the **results** look good and the **model configuration should be deployed in
 ## Changelog
 
 {{% collapse name="Release history" %}}
+
+### v1.8.3
+Released: 2026-08-27
+
+Recommended vmanomaly version: [v1.30.4](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1304)
+
+- IMPROVEMENT: Fresh anomaly investigations default to the online univariate Temporal Envelope, and the model selector lists online models before offline alternatives.
+
+- BUGFIX: AI-suggested business settings remain synchronized with both the model wizard and the generated model configuration.
+
+- BUGFIX: Advanced model drop-downs display the selected option label instead of the control's internal numeric option position while preserving correctly typed configuration values.
+
+### v1.8.2
+Released: 2026-08-13
+
+vmanomaly version: [v1.30.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1302)
+
+- BUGFIX: Fixed tenant discovery for VictoriaMetrics datasource URLs containing `/select/multitenant/prometheus`. The UI now loads available numeric tenants from `/admin/tenants` and can switch the datasource URL from `multitenant` to the selected tenant.
 
 ### v1.8.1
 Released: 2026-08-06

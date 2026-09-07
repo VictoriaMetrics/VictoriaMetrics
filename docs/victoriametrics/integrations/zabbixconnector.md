@@ -1,5 +1,6 @@
 ---
 title: Zabbix Connector
+description: "Receiving metrics from Zabbix Connector."
 weight: 10
 menu:
   docs:

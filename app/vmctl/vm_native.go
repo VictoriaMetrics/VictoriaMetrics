@@ -120,11 +120,17 @@ func (p *vmNativeProcessor) do(ctx context.Context, f native.Filter, srcURL, dst
 }
 
 func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcURL, dstURL string, bar barpool.Bar) error {
-	reader, err := p.src.ExportPipe(ctx, srcURL, f)
+	exportReader, err := p.src.ExportPipe(ctx, srcURL, f)
 	if err != nil {
 		return fmt.Errorf("failed to init export pipe: %w", err)
 	}
+	defer func() {
+		// close the export reader on exit, so it doesn't hang at the source
+		// until server-side timeout.
+		_ = exportReader.Close()
+	}()
 
+	reader := io.Reader(exportReader)
 	if p.disablePerMetricRequests {
 		pr := bar.NewProxyReader(reader)
 		if pr != nil {
@@ -134,10 +140,11 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcU
 	}
 
 	pr, pw := io.Pipe()
-	importCh := make(chan error)
+	// make importCh buffered so goroutine won't get stuck if nothing reads from chan
+	importCh := make(chan error, 1)
 	go func() {
 		importCh <- p.dst.ImportPipe(ctx, dstURL, pr)
-		close(importCh)
+		_ = pr.Close()
 	}()
 
 	w := io.Writer(pw)
@@ -148,13 +155,17 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcU
 
 	written, err := io.Copy(w, reader)
 	if err != nil {
-		// io.Copy could fail if ImportPipe will fail before and close the pr
-		// so we check if that's the case and to not ignore importErr if it exists.
+		// close the import writer, so the destination doesn't hang until server-side timeout
+		_ = pw.CloseWithError(err)
 		select {
+		// check if the error happened in the ImportPipe
 		case importErr := <-importCh:
 			if importErr != nil {
 				return fmt.Errorf("failed to import %s: %w", p.dst.Addr, importErr)
 			}
+		// or because vmctl has been stopped
+		case <-ctx.Done():
+			return ctx.Err()
 		default:
 		}
 		return fmt.Errorf("failed to write into %q: %w", p.dst.Addr, err)

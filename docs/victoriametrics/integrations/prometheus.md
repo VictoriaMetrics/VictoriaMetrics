@@ -1,5 +1,6 @@
 ---
 title: Prometheus
+description: "Using VictoriaMetrics as remote storage for Prometheus."
 weight: 2
 menu:
   docs:

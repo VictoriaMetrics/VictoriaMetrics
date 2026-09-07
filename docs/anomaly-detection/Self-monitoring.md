@@ -1,6 +1,7 @@
 ---
 weight: 4
 title: Self-monitoring
+description: "Track vmanomaly health and operational performance."
 menu:
   docs:
     identifier: "vmanomaly-self-monitoring"

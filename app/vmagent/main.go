@@ -51,9 +51,10 @@ import (
 )
 
 var (
-	httpListenAddrs = flagutil.NewArrayString("httpListenAddr", "TCP address to listen for incoming http requests. "+
+	httpListenAddrs = flagutil.NewArrayString("httpListenAddr", "Address to listen for incoming http requests. "+
 		"Set this flag to empty value in order to disable listening on any port. This mode may be useful for running multiple vmagent instances on the same server. "+
-		"Note that /targets and /metrics pages aren't available if -httpListenAddr=''. See also -tls and -httpListenAddr.useProxyProtocol")
+		"Note that /targets and /metrics pages aren't available if -httpListenAddr=''. "+
+		"Use unix:/path/to/socket to listen on Unix domain socket. Note that -tls and -httpListenAddr.useProxyProtocol cannot be used with Unix sockets")
 	useProxyProtocol = flagutil.NewArrayBool("httpListenAddr.useProxyProtocol", "Whether to use proxy protocol for connections accepted at the corresponding -httpListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
@@ -84,7 +85,7 @@ var (
 	maxLabelNameLen        = flag.Int("maxLabelNameLen", 0, "The maximum length of label names in the accepted time series. Series with longer label name are ignored. In this case the vm_rows_ignored_total{reason=\"too_long_label_name\"} metric at /metrics page is incremented")
 	maxLabelValueLen       = flag.Int("maxLabelValueLen", 0, "The maximum length of label values in the accepted time series. Series with longer label value are ignored. In this case the vm_rows_ignored_total{reason=\"too_long_label_value\"} metric at /metrics page is incremented")
 
-	enableMultitenancyViaHeaders = flag.Bool("enableMultitenancyViaHeaders", false, "Enables multitenancy via HTTP headers. "+
+	enableMultitenancyViaHeaders = flag.Bool("enableMultitenancyViaHeaders", true, "Enables multitenancy via HTTP headers. "+
 		"See https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy")
 )
 
@@ -115,7 +116,7 @@ func main() {
 	flag.CommandLine.SetOutput(os.Stdout)
 	flag.Usage = usage
 	envflag.Parse()
-	remotewrite.InitSecretFlags()
+	initSecretFlags()
 	buildinfo.Init()
 	logger.Init()
 	opentelemetry.Init()
@@ -842,4 +843,10 @@ vmagent collects metrics data via popular data ingestion protocols and routes it
 See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
 `
 	flagutil.Usage(s)
+}
+
+// initSecretFlags manages the secret flags for this app and must be called after flag parsing and before logger init.
+func initSecretFlags() {
+	remotewrite.InitSecretFlags()
+	pushmetrics.InitSecretFlags()
 }

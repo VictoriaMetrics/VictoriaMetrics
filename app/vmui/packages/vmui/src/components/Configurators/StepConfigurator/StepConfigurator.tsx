@@ -22,11 +22,9 @@ const StepConfigurator: FC = () => {
   const { isMobile } = useDeviceDetect();
 
   const { customStep: value, isHistogram } = useGraphState();
-  const { period: { step, end, start } } = useTimeState();
+  const { period: { end, start } } = useTimeState();
   const graphDispatch = useGraphDispatch();
   const { displayType } = useCustomPanelState();
-
-  const prevDuration = usePrevious(end - start);
 
   const defaultStep = useMemo(() => {
     return getStepFromDuration(end - start, isHistogram, displayType);
@@ -106,16 +104,16 @@ const StepConfigurator: FC = () => {
   }, [defaultStep]);
 
   useEffect(() => {
-    const dur = end - start;
-    if (dur === prevDuration || !prevDuration || value !== prevDefaultStep) return;
-    if (defaultStep) {
-      handleApply(defaultStep);
-    }
-  }, [prevDuration, defaultStep]);
+    if (!prevDefaultStep) return;
+    if (value !== prevDefaultStep) return;
+    if (value === defaultStep) return;
 
-  useEffect(() => {
-    if (step === value || step === defaultStep) handleApply(defaultStep);
-  }, [isHistogram, displayType]);
+    graphDispatch({ type: "SET_CUSTOM_STEP", payload: defaultStep });
+    setCustomStep(defaultStep);
+    setError("");
+  }, [defaultStep, prevDefaultStep, value, graphDispatch]);
+
+  const textValue = isAutoStep ? `auto (${customStep})` : customStep;
 
   return (
     <div
@@ -130,7 +128,7 @@ const StepConfigurator: FC = () => {
           <span className="vm-mobile-option__icon"><TimelineIcon/></span>
           <div className="vm-mobile-option-text">
             <span className="vm-mobile-option-text__label">Step</span>
-            <span className="vm-mobile-option-text__value">{customStep}</span>
+            <span className="vm-mobile-option-text__value">{textValue}</span>
           </div>
           <span className="vm-mobile-option__arrow"><ArrowDownIcon/></span>
         </div>
@@ -142,7 +140,7 @@ const StepConfigurator: FC = () => {
           startIcon={<TimelineIcon/>}
           onClick={toggleOpenOptions}
         >
-          Step: {isAutoStep ? `auto (${customStep})` : customStep}
+          Step: {textValue}
         </Button>
       )}
       <Popper

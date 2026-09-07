@@ -2,6 +2,7 @@ package promql
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"math"
 	"math/rand"
@@ -2566,6 +2567,11 @@ func isDecimalChar(ch byte) bool {
 func mustParseNum(s string) float64 {
 	f, err := strconv.ParseFloat(s, 64)
 	if err != nil {
+		if errors.Is(err, strconv.ErrRange) {
+			// The number is too large to fit into float64; ParseFloat returns ±Inf in this case.
+			// Use ±Inf for sorting purposes — it is semantically correct.
+			return f
+		}
 		logger.Panicf("BUG: unexpected error when parsing the number %q: %s", s, err)
 	}
 	return f

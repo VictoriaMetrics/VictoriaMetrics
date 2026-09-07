@@ -1,5 +1,6 @@
 ---
 title: Monitoring
+description: "Self-monitoring via push and pull models."
 weight: 5
 menu:
   docs:
@@ -329,6 +330,14 @@ For detailed guidance on configuring mTLS parameters such as `verify_tls`, `tls_
             </td>
             <td>Gauge</td>
             <td>Effective CPU capacity available to the process{{% available_from "v1.18.4" anomaly %}}, constrained by host logical CPUs, process affinity, and cgroup quota. The value can be fractional when a fractional CPU quota is configured.</td>
+        </tr>
+        <tr>
+            <td>
+
+<span style="white-space: nowrap;">`vmanomaly_native_threads_per_worker`</span>
+            </td>
+            <td>Gauge</td>
+            <td>Effective maximum native numerical-library threads per model worker{{% available_from "v1.30.2" anomaly %}} after resolving [`settings.native_threads_per_worker`](https://docs.victoriametrics.com/anomaly-detection/components/settings/#parallelization) against the effective worker count and container-aware CPU capacity.</td>
         </tr>
         <tr>
             <td>

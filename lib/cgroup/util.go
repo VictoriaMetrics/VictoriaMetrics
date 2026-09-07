@@ -57,8 +57,8 @@ func readCgroupV2SubPath(cgroupPath string) (string, error) {
 
 // grepFirstMatch searches match line at data and returns item from it by index with given delimiter.
 func grepFirstMatch(data string, match string, index int, delimiter string) (string, error) {
-	lines := strings.Split(string(data), "\n")
-	for _, s := range lines {
+	lines := strings.SplitSeq(string(data), "\n")
+	for s := range lines {
 		if !strings.Contains(s, match) {
 			continue
 		}

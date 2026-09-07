@@ -59,6 +59,12 @@ func Init(vmselectMaxConcurrentRequests int, vmselectMaxQueueDuration time.Durat
 	initVMUIConfig()
 
 	vmalertproxy.Init(*vmalertProxyURL)
+
+}
+
+// InitSecretFlags manages the secret flags for this pkg and must be called by app-level initSecretFlags.
+// It should run before logger initialization and package Init() (if exists).
+func InitSecretFlags() {
 	flagutil.RegisterSecretFlag("vmalert.proxyURL")
 }
 

@@ -17,7 +17,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/jwt"
 	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
@@ -27,6 +26,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ioutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/jwt"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
@@ -36,11 +36,13 @@ import (
 )
 
 var (
-	httpListenAddrs = flagutil.NewArrayString("httpListenAddr", "TCP address to listen for incoming http requests. "+
+	httpListenAddrs = flagutil.NewArrayString("httpListenAddr", "Address to listen for incoming http requests. "+
 		"By default, serves internal API and proxy requests. "+
-		" See also -tls, -httpListenAddr.useProxyProtocol and -httpInternalListenAddr.")
-	httpInternalListenAddr = flagutil.NewArrayString("httpInternalListenAddr", "TCP address to listen for incoming internal API http requests. Such as /health, /-/reload, /debug/pprof, etc. "+
-		"If flag is set, vmauth no longer serves internal API at -httpListenAddr.")
+		"Use unix:/path/to/socket to listen on Unix domain socket. Note that -tls and -httpListenAddr.useProxyProtocol cannot be used with Unix sockets. "+
+		"See also -httpInternalListenAddr")
+	httpInternalListenAddr = flagutil.NewArrayString("httpInternalListenAddr", "Address to listen for incoming internal API http requests. Such as /health, /-/reload, /debug/pprof, etc. "+
+		"If flag is set, vmauth no longer serves internal API at -httpListenAddr. "+
+		"Use unix:/path/to/socket to listen on Unix domain socket. Note that -tls and -httpListenAddr.useProxyProtocol cannot be used with Unix sockets")
 	useProxyProtocol = flagutil.NewArrayBool("httpListenAddr.useProxyProtocol", "Whether to use proxy protocol for connections accepted at the corresponding -httpListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
@@ -96,6 +98,7 @@ func main() {
 	flag.CommandLine.SetOutput(os.Stdout)
 	flag.Usage = usage
 	envflag.Parse()
+	initSecretFlags()
 	buildinfo.Init()
 	logger.Init()
 
@@ -402,7 +405,21 @@ func bufferRequestBody(ctx context.Context, r io.ReadCloser, userName string) (i
 
 func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tkn *jwt.Token, userName string) {
 	u := normalizeURL(r.URL)
-	up, hc := ui.getURLPrefixAndHeaders(u, r.Host, r.Header)
+	up, hc, denied := ui.getURLPrefixAndHeaders(u, r.Host, r.Header)
+	if denied {
+		// Request authorization instead of confirming the path is denied.
+		if ui.name() == "" && len(*authUsers.Load()) > 0 {
+			handleMissingAuthorizationError(w)
+			return
+		}
+		deniedRequests.Inc()
+		var di string
+		if ui.DumpRequestOnErrors {
+			di = debugInfo(u, r)
+		}
+		handleDeniedPathError(w, r, fmt.Errorf("user %s is denied access to %q via `deny_paths`%s", userName, u.String(), di))
+		return
+	}
 	isDefault := false
 	if up == nil {
 		if ui.DefaultURL == nil {
@@ -669,7 +686,7 @@ func removeHopHeaders(h http.Header) {
 	// remove hop-by-hop headers listed in the "Connection" header of h.
 	// See RFC 7230, section 6.1
 	for _, f := range h["Connection"] {
-		for _, sf := range strings.Split(f, ",") {
+		for sf := range strings.SplitSeq(f, ",") {
 			if sf = textproto.TrimString(sf); sf != "" {
 				h.Del(sf)
 			}
@@ -705,6 +722,7 @@ var (
 	configReloadRequests     = metrics.NewCounter(`vmauth_http_requests_total{path="/-/reload"}`)
 	invalidAuthTokenRequests = metrics.NewCounter(`vmauth_http_request_errors_total{reason="invalid_auth_token"}`)
 	missingRouteRequests     = metrics.NewCounter(`vmauth_http_request_errors_total{reason="missing_route"}`)
+	deniedRequests           = metrics.NewCounter(`vmauth_http_request_errors_total{reason="denied_paths"}`)
 	clientCanceledRequests   = metrics.NewCounter(`vmauth_http_request_errors_total{reason="client_canceled"}`)
 	rejectSlowClientRequests = metrics.NewCounter(`vmauth_http_request_errors_total{reason="reject_slow_client"}`)
 
@@ -789,6 +807,14 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
 func handleMissingAuthorizationError(w http.ResponseWriter) {
 	w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
 	http.Error(w, "missing 'Authorization' request header", http.StatusUnauthorized)
+}
+
+func handleDeniedPathError(w http.ResponseWriter, r *http.Request, err error) {
+	err = &httpserver.ErrorWithStatusCode{
+		Err:        err,
+		StatusCode: http.StatusForbidden,
+	}
+	httpserver.Errorf(w, r, "%s", err)
 }
 
 func handleConcurrencyLimitError(w http.ResponseWriter, r *http.Request, err error) {
@@ -910,4 +936,9 @@ func slowdownUnauthorizedResponse(r *http.Request) {
 	case <-r.Context().Done():
 	}
 	timerpool.Put(t)
+}
+
+// initSecretFlags manages the secret flags for this app and must be called after flag parsing and before logger init.
+func initSecretFlags() {
+	pushmetrics.InitSecretFlags()
 }

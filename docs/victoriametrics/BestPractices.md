@@ -1,6 +1,7 @@
 ---
 weight: 22
 title: Best practices
+description: "Production best practices for installation, configuration, hardware sizing, and maintenance."
 menu:
   docs:
     identifier: vm-best-practices

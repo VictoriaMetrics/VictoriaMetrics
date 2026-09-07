@@ -1,6 +1,7 @@
 ---
 weight: 33
 title: API examples
+description: "Copy-paste examples for commonly used VictoriaMetrics HTTP APIs."
 menu:
   docs:
     parent: 'victoriametrics'

@@ -431,6 +431,96 @@ func TestAddContainerLabels(t *testing.T) {
 		}),
 	}
 	f(c, networkLabels, labelssExpected)
+
+	data = []byte(`[
+  {
+    "Name": "bridge",
+    "Id": "1dd8d1a8bef59943345c7231d7ce8268333ff5a8c5b3c94881e6b4742b447634",
+    "Created": "2021-03-18T14:36:04.290821903+08:00",
+    "Scope": "local",
+    "Driver": "bridge",
+    "EnableIPv6": true,
+    "IPAM": {
+      "Driver": "default",
+      "Options": null,
+      "Config": [
+        {
+          "Subnet": "fc00::/64",
+          "Gateway": "fc00::1"
+        }
+      ]
+    },
+    "Internal": false,
+    "Attachable": false,
+    "Ingress": false,
+    "ConfigFrom": {
+      "Network": ""
+    },
+    "ConfigOnly": false,
+    "Containers": {},
+    "Options": {
+      "com.docker.network.bridge.default_bridge": "true",
+      "com.docker.network.bridge.enable_icc": "true",
+      "com.docker.network.bridge.enable_ip_masquerade": "true",
+      "com.docker.network.bridge.host_binding_ipv4": "0.0.0.0",
+      "com.docker.network.bridge.name": "docker0",
+      "com.docker.network.driver.mtu": "1500"
+    },
+    "Labels": {}
+  }
+]`)
+	networks, err = parseNetworks(data)
+	if err != nil {
+		t.Fatalf("fail to parse networks: %v", err)
+	}
+	networkLabels = getNetworkLabelsByNetworkID(networks)
+
+	// NetworkMode != host
+	c = container{
+		ID:    "90bc3b31aa13da5c0b11af2e228d54b38428a84e25d4e249ae9e9c95e51a0700",
+		Names: []string{"/crow-server"},
+		Labels: map[string]string{
+			"com.docker.compose.config-hash":      "c9f0bd5bb31921f94cff367d819a30a0cc08d4399080897a6c5cd74b983156ec",
+			"com.docker.compose.container-number": "1",
+			"com.docker.compose.oneoff":           "False",
+			"com.docker.compose.project":          "crowserver",
+			"com.docker.compose.service":          "crow-server",
+			"com.docker.compose.version":          "1.11.2",
+		},
+		HostConfig: containerHostConfig{
+			NetworkMode: "bridge",
+		},
+		NetworkSettings: containerNetworkSettings{
+			Networks: map[string]containerNetwork{
+				"bridge": {
+					GlobalIPv6Address: "fc00::2",
+					NetworkID:         "1dd8d1a8bef59943345c7231d7ce8268333ff5a8c5b3c94881e6b4742b447634",
+				},
+			},
+		},
+	}
+	labelssExpected = []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
+			"__address__":                "[fc00::2]:8012",
+			"__meta_docker_container_id": "90bc3b31aa13da5c0b11af2e228d54b38428a84e25d4e249ae9e9c95e51a0700",
+			"__meta_docker_container_label_com_docker_compose_config_hash":      "c9f0bd5bb31921f94cff367d819a30a0cc08d4399080897a6c5cd74b983156ec",
+			"__meta_docker_container_label_com_docker_compose_container_number": "1",
+			"__meta_docker_container_label_com_docker_compose_oneoff":           "False",
+			"__meta_docker_container_label_com_docker_compose_project":          "crowserver",
+			"__meta_docker_container_label_com_docker_compose_service":          "crow-server",
+			"__meta_docker_container_label_com_docker_compose_version":          "1.11.2",
+			"__meta_docker_container_name":                                      "/crow-server",
+			"__meta_docker_container_network_mode":                              "bridge",
+			"__meta_docker_network_id":                                          "1dd8d1a8bef59943345c7231d7ce8268333ff5a8c5b3c94881e6b4742b447634",
+			"__meta_docker_network_ingress":                                     "false",
+			"__meta_docker_network_internal":                                    "false",
+			"__meta_docker_network_ip":                                          "fc00::2",
+			"__meta_docker_network_name":                                        "bridge",
+			"__meta_docker_network_scope":                                       "local",
+		}),
+	}
+	f(c, networkLabels, labelssExpected)
+
 }
 
 func TestDockerMultiNetworkLabels(t *testing.T) {

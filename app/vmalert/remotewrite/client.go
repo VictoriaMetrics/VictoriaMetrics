@@ -284,7 +284,15 @@ func (c *Client) flush(ctx context.Context, wr *prompb.WriteRequest) {
 	bb := writeRequestBufPool.Get()
 	bb.B = wr.MarshalProtobuf(bb.B[:0])
 	zb := compressBufPool.Get()
-	defer compressBufPool.Put(zb)
+	// A failed send may leave the http transport still reading zb.B in a separate goroutine
+	// even after send returns, so zb is returned to the pool only if no send attempt has failed.
+	// See https://pkg.go.dev/net/http#RoundTripper
+	sendFailed := false
+	defer func() {
+		if !sendFailed {
+			compressBufPool.Put(zb)
+		}
+	}()
 	if c.isVMRemoteWrite.Load() {
 		zb.B = zstd.CompressLevel(zb.B[:0], bb.B, 0)
 	} else {
@@ -303,10 +311,13 @@ func (c *Client) flush(ctx context.Context, wr *prompb.WriteRequest) {
 L:
 	for {
 		err := c.send(ctx, zb.B)
-		if err != nil && (errors.Is(err, io.EOF) || netutil.IsTrivialNetworkError(err)) {
-			// Something in the middle between client and destination might be closing
-			// the connection. So we do a one more attempt in hope request will succeed.
-			err = c.send(ctx, zb.B)
+		if err != nil {
+			sendFailed = true
+			if errors.Is(err, io.EOF) || netutil.IsTrivialNetworkError(err) {
+				// Something in the middle between client and destination might be closing
+				// the connection. So we do a one more attempt in hope request will succeed.
+				err = c.send(ctx, zb.B)
+			}
 		}
 		if err == nil {
 			sentRows.Add(len(wr.Timeseries))

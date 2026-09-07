@@ -1,6 +1,7 @@
 ---
 weight: 400
 title: Contributing
+description: "Guidelines for contributing to VictoriaMetrics."
 menu:
   docs:
     identifier: vm-contributing

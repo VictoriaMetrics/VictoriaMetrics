@@ -1,6 +1,7 @@
 ---
 weight: 2
 title: Year 2026
+description: "Release history for all VictoriaMetrics components (YEAR 2026)"
 search:
   weight: 0.1
 menu:

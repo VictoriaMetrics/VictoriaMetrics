@@ -1,3 +1,11 @@
+---
+build:
+  list: never
+  publishResources: false
+  render: never
+sitemap:
+  disable: true
+---
 Several VictoriaMetrics components can connect to cloud storage to read or write object data.
 
 The following table shows the supported types of storage for each component:

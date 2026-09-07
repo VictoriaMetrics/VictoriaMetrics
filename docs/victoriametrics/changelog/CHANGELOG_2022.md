@@ -1,6 +1,7 @@
 ---
 weight: 6
 title: Year 2022
+description: "Release history for all VictoriaMetrics components (YEAR 2022)"
 search:
   weight: 0.1
 menu:

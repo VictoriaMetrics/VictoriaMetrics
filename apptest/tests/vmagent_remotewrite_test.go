@@ -594,7 +594,6 @@ func TestSingleVMAgentMultitenancy(t *testing.T) {
 		fmt.Sprintf(`-remoteWrite.url=%s/api/v1/write`, remoteWriteSrv.URL),
 		"-remoteWrite.tmpDataPath=" + tc.Dir() + "/vmagent-multitenancy",
 		"-enableMultitenantHandlers",
-		"-enableMultitenancyViaHeaders",
 	})
 
 	vmagent.APIV1ImportPrometheus(t, []string{

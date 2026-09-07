@@ -1,6 +1,7 @@
 ---
 weight: 3
 title: Scaling vmanomaly
+description: "High availability and horizontal scaling for vmanomaly."
 menu:
   docs:
     identifier: "vmanomaly-scaling"
@@ -32,14 +33,15 @@ schedulers:
   periodic_1d:  # alias
     class: 'periodic' # scheduler class
     infer_every: "30s"
-    fit_every: "1h"
+    fit_every: "1000d"
     fit_window: "24h"
 
 # https://docs.victoriametrics.com/anomaly-detection/components/models/
 models:
   zscore:  # we can set up alias for model
-    class: 'zscore'  # model class
+    class: 'zscore_online'  # online model class
     z_threshold: 3.5
+    decay: 0.99  # give more weight to recent data while using the bootstrap-only fit schedule
     queries: ['cpu_seconds_total', 'host_network_receive_errors']
 
 # https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader
@@ -80,6 +82,7 @@ Additionally, a replication factor `R ≥ 1` ensures [high availability](#high-a
 
 {{% content "vmanomaly-sharding-ha-diagram.md" %}}
 
+> [!WARNING]
 > Please [refer to deployment options section](#deployment-options) for the examples (Docker, Docker Compose, Helm). To avoid duplicate metrics being reported from each vmanomaly service used in sharded mode, make sure that [deduplication](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) is configured on vmsingle or vmselect and vmstorage for the VictoriaMetrics instance used in the [writer section of the configuration](https://docs.victoriametrics.com/anomaly-detection/components/writer/).
 
 Sharding configuration can be controlled by using the following environment variables:
@@ -87,7 +90,179 @@ Sharding configuration can be controlled by using the following environment vari
 - **`VMANOMALY_MEMBERS_COUNT`**: Defines the total number of shards (i.e., available nodes to distribute [sub-configurations](#sub-configuration) to). <br>Defaults to `1` for backward compatibility.
 - **`VMANOMALY_MEMBER_NUM`**: Specifies the shard index (`0` to `VMANOMALY_MEMBERS_COUNT - 1`), determining the subset of [sub-configurations](#sub-configuration) to run on a specific node. Defaults to `0`. Supports automatic **pod name discovery** in Kubernetes [StatefulSets](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/) (e.g., if set to `vmanomaly-node-exporter-7`, shard `7` will be extracted).
 - **`VMANOMALY_REPLICATION_FACTOR`**: If `R > 1`, enables [high availability](#high-availability) by ensuring each [sub-configuration](#sub-configuration) is assigned to exactly `R` shards. Defaults to `1` (no replication).
-- **`VMANOMALY_SPLIT_BY`**: Defines the logical entity used to split the global config into [sub-configurations](#sub-configuration). Defaults to `complete`, which provides the most granular distribution (1 model per [sub-config](#sub-configuration), mapped to 1 query and attached to 1 scheduler) for balanced workloads.
+- **`VMANOMALY_SPLIT_BY`**: Defines the logical entity used to split the global config into [sub-configurations](#sub-configuration). The accepted values are `SCHEDULERS`, `MODELS`, `QUERIES`, `EXTRA_FILTERS`, and `COMPLETE` (case-insensitive). It defaults to `COMPLETE`, which usually provides the most granular and balanced distribution.
+- **`VMANOMALY_SHARDING_STRATEGY`**: Selects how sub-configurations are assigned to shards {{% available_from "v1.30.3" anomaly %}}. `ROUND_ROBIN` is the backward-compatible default. `RENDEZVOUS` uses each sub-configuration's stable logical identity, so inserting, removing, reordering, or editing one entity does not move unrelated entities between an unchanged set of shards.
+
+The split strategies differ as follows:
+
+| `VMANOMALY_SPLIT_BY` | Unit of work in each sub-configuration | Recommended use |
+| --- | --- | --- |
+| `SCHEDULERS` | One scheduler and the workload attached to it | Separate workloads by fit and inference cadence. The number of sub-configurations is limited by the number of referenced schedulers. |
+| `MODELS` | One configured model alias with its attached schedulers and queries | Isolate computationally different models or distribute several models that process the same queries. |
+| `QUERIES` | One query for [univariate models](https://docs.victoriametrics.com/anomaly-detection/components/models/#univariate-models); the complete attached query set for each [multivariate model](https://docs.victoriametrics.com/anomaly-detection/components/models/#multivariate-models) | Distribute independent query workloads. Queries belonging to one multivariate model remain together because the model needs all channels. This option does not split the series returned by one query. |
+| `EXTRA_FILTERS` | One configured `reader.extra_filters` selector, with the full model/query/scheduler topology retained | Partition the series returned by large queries, for example by region, cluster, another stable label, or by [VictoriaMetrics tenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels) using `vm_account_id` and `vm_project_id` selectors with the multitenant endpoint. The filters must already be defined in the global configuration. |
+| `COMPLETE` | One valid scheduler/model/query combination; [multivariate](https://docs.victoriametrics.com/anomaly-detection/components/models/#multivariate-models) query sets remain together | Obtain the finest general-purpose split and the default choice for balanced sharding. `reader.extra_filters` are intentionally not expanded by this strategy. |
+
+After the selected split creates the sub-configurations, `VMANOMALY_SHARDING_STRATEGY` assigns them to members and `VMANOMALY_REPLICATION_FACTOR` controls the number of distinct assigned shards. Rendezvous assignment is most useful when shard-local persisted model state should survive unrelated configuration changes. Changing the shard count can still move entities, and changing an entity's own logical identity intentionally gives it a new assignment.
+
+Choose the assignment strategy based on how the global configuration changes:
+
+- Use `ROUND_ROBIN` for an even, count-based distribution when sub-configurations have comparable cost and the normalized global configuration has a stable canonical order. Assignment is position-based, so inserting or deleting an entity can shift later positions and move many existing sub-configurations between shards.
+- Use `RENDEZVOUS` when entities are added, removed, reordered, or edited regularly and preserving unrelated shard assignments is more important. Assignment is identity-based, which minimizes movement for an unchanged shard set, although small workloads may be distributed less evenly.
+
+### Idle shards and topology changes
+
+{{% available_from "v1.30.4" anomaly %}} A valid configuration may assign no runnable sub-configurations to a shard, including when rendezvous placement is uneven for a small workload. The shard remains live and observable but starts no schedulers or model tasks. External shutdown requests are still honored.
+
+With [hot reload](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) enabled, an idle shard waits for configuration changes. If a later configuration assigns work to it, the shard restores compatible model state when available, creates the required schedulers, and starts executing tasks in place. Without hot reload, it remains idle until an external configuration rollout or restart supplies new work.
+
+```mermaid
+flowchart TD
+    load[Load and validate global configuration] --> assign{Runnable work assigned to this shard?}
+    assign -- Yes --> restore[Restore compatible state when available]
+    restore --> active[Create schedulers and execute work]
+    assign -- No --> idle[Remain live and idle]
+    active -->|Hot-reloaded config| load
+    idle -->|Hot-reloaded config| load
+    active -->|External shutdown| stopped[Stop]
+    idle -->|External shutdown| stopped
+```
+
+Hot reload reevaluates assignments only under the topology supplied to the process at startup. Changing `VMANOMALY_MEMBERS_COUNT`, `VMANOMALY_MEMBER_NUM`, `VMANOMALY_REPLICATION_FACTOR`, `VMANOMALY_SPLIT_BY`, or `VMANOMALY_SHARDING_STRATEGY` requires an orchestration rollout or process restart. All members must use the same `VMANOMALY_MEMBERS_COUNT`, `VMANOMALY_REPLICATION_FACTOR`, `VMANOMALY_SPLIT_BY`, and `VMANOMALY_SHARDING_STRATEGY`, while each member receives its own unique `VMANOMALY_MEMBER_NUM`. Configuration-only changes can wake an idle shard without changing that topology.
+
+{{% collapse name="Rendezvous assignment: algorithm, changes, and tradeoffs" %}}
+
+Rendezvous, also known as highest-random-weight (HRW) hashing, assigns each sub-configuration independently. It requires no coordinator, hash ring, or persisted placement map. Every shard derives the same result from the global configuration and these inputs:
+
+- `N`: number of shards;
+- `R`: replication factor;
+- `R' = min(R, N)`: number of distinct shards selected for each sub-configuration.
+
+Each sub-configuration has a compact canonical identity:
+
+| `VMANOMALY_SPLIT_BY` | Canonical identity |
+| --- | --- |
+| `SCHEDULERS` | `["schedulers", "scheduler-alias"]` |
+| `MODELS` | `["models", "model-alias"]` |
+| `QUERIES` | `["queries", ["sorted-query-aliases"]]` |
+| `EXTRA_FILTERS` | `["extra_filters", "exact-filter"]` |
+| `COMPLETE` | `["complete", "scheduler-alias", "model-alias", ["sorted-query-group"]]` |
+
+For each identity `e` and candidate shard `s` from `0` through `N-1`, vmanomaly calculates a deterministic SHA-256 weight:
+
+```text
+weight(e, s) = SHA-256(
+  "vmanomaly-sharding-v1\0" + canonical_json(e) + "\0" + decimal(s)
+)
+```
+
+The `R'` shards with the highest weights own the sub-configuration. `N` defines the candidate set and `R` selects a prefix of the same deterministic shard ranking; neither is part of the hash input. All instances must therefore use the same global configuration, strategy, `N`, `R`, and algorithm version.
+
+Aliases and attachments define identity; configuration content does not. For example, changing a query expression or step under the same aliases preserves placement but still reloads the shards that own it. Renaming an alias or changing model-query or scheduler attachments is treated as deleting one identity and adding another. A univariate `COMPLETE` identity contains one query, while a multivariate identity keeps its sorted query group together.
+
+For a concrete `N=2`, `R=1`, `COMPLETE` example, assume these existing owners:
+
+| Identity | Owner |
+| --- | --- |
+| `s1/m1/q1` | shard 0 |
+| `s1/m1/q2` | shard 1 |
+| `s1/m2/q1` | shard 1 |
+| `s1/m2/q2` | shard 0 |
+
+Adding `q3` to `m2` creates only the new `s1/m2/q3` identity and assigns it independently; all four existing owners remain unchanged. With round-robin, inserting the new identity into the canonical ordered list shifts every later position, potentially moving the entire suffix to different shards.
+
+The expected movement for `E` identities is:
+
+| Change | Placement effect |
+| --- | --- |
+| Add or remove an entity with fixed `N` and `R` | Existing or surviving identities keep every placement; only the added identity receives `R'` owners, or the removed identity disappears. |
+| Reorder entities | No placement changes. |
+| Add one shard, `N -> N+1` | An affected identity replaces at most one old replica with the new shard; expected affected identities: `E * R / (N+1)`. |
+| Remove one shard, `N -> N-1` with `R <= N-1` | Only identities assigned to the removed shard choose one replacement; expected affected identities: `E * R / N`. |
+| Increase `R` | Existing placements remain and each identity adds replicas up to `N`. |
+| Decrease `R` | The new placement set is a subset of the old set; retained replicas do not move. |
+| Set `R > N` | Replication is capped at all `N` distinct shards and a warning is logged. |
+
+These topology figures are expectations under uniform SHA-256 rankings, not strict balance guarantees. Changing `N` or `R` commonly also causes a deployment rollout because they are process environment variables.
+
+Rendezvous provides deterministic replica sets, minimal placement movement, and stable shard-local state reuse without shared coordination. Its tradeoffs are probabilistic rather than guaranteed even distribution—most visible with few sub-configurations—`O(E * N log N)` selection work during configuration loading, and a one-time remapping when switching from `ROUND_ROBIN`. It limits placement-related reload amplification but does not suppress reloads required by real configuration changes.
+
+{{% /collapse %}}
+
+### Splitting strategies
+
+{{% collapse name="Configuration and resulting sub-configurations" %}}
+
+The following abbreviated global configuration contains two schedulers, two models, four queries, and two data partitions:
+
+```yaml
+schedulers:
+  fast:
+    class: periodic
+    infer_every: 1m
+    fit_every: 1000d
+    fit_window: 1d
+  seasonal:
+    class: periodic
+    infer_every: 5m
+    fit_every: 1000d
+    fit_window: 2w
+
+models:
+  cpu_zscore:
+    class: zscore_online
+    schedulers: [fast]
+    queries: [cpu, error_rate]
+    decay: 0.99
+  gpu_envelope:
+    class: temporal_envelope_multivariate
+    schedulers: [seasonal]
+    queries: [temperature, power]
+    seasonalities: [hod_smooth, dow_smooth]
+
+reader:
+  class: vm
+  datasource_url: http://victoriametrics:8428/
+  sampling_period: 1m
+  queries:
+    cpu:
+      expr: avg(rate(node_cpu_seconds_total[5m])) by (instance)
+    error_rate:
+      expr: rate(application_errors_total[5m])
+    temperature:
+      expr: avg(gpu_temperature_celsius) by (gpu)
+    power:
+      expr: avg(gpu_power_watts) by (gpu)
+  extra_filters: ['{region="us-east"}', '{region="eu-west"}']
+
+writer:
+  class: vm
+  datasource_url: http://victoriametrics:8428/
+```
+
+For this configuration, each strategy produces the following logical units before they are assigned to shards:
+
+| Value | Resulting sub-configurations |
+| --- | --- |
+| `SCHEDULERS` | `fast`; `seasonal` |
+| `MODELS` | `cpu_zscore`; `gpu_envelope` |
+| `QUERIES` | `cpu`; `error_rate`; the multivariate set `power,temperature` |
+| `EXTRA_FILTERS` | `{region="us-east"}`; `{region="eu-west"}`; each retains all schedulers, models, and queries, while the query context is restricted by its selector |
+| `COMPLETE` | `fast:cpu_zscore:cpu`; `fast:cpu_zscore:error_rate`; `seasonal:gpu_envelope:power,temperature` |
+
+For example, choose the query split with:
+
+```yaml
+environment:
+  VMANOMALY_MEMBERS_COUNT: 3
+  VMANOMALY_MEMBER_NUM: 0
+  VMANOMALY_REPLICATION_FACTOR: 1
+  VMANOMALY_SPLIT_BY: QUERIES
+```
+
+To partition the timeseries returned by the same large query instead, define non-overlapping selectors in `reader.extra_filters` and use `VMANOMALY_SPLIT_BY: EXTRA_FILTERS`. Each generated sub-configuration keeps one selector, for example `{region="us-east"}` or `{region="eu-west"}`.
+
+{{% /collapse %}}
 
 ---
 
@@ -130,6 +305,7 @@ When `VMANOMALY_REPLICATION_FACTOR` > 1, each [sub-config](#sub-configuration) `
 
 {{% content "vmanomaly-sharding-ha-diagram.md" %}}
 
+> [!WARNING]
 > Please [refer to deployment options section](#deployment-options) for the examples (Docker, Docker Compose, Helm). To avoid duplicate metrics being reported from each vmanomaly service used in sharded mode, make sure that [deduplication](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) is configured on vmsingle or vmselect and vmstorage for the VictoriaMetrics instance used in the [writer section of the configuration](https://docs.victoriametrics.com/anomaly-detection/components/writer/).
 
 ### Example
@@ -198,7 +374,11 @@ services:
     user: "1000:1000"
     restart: always
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://127.0.0.1:8490/health"]
+      test:
+        - "CMD"
+        - "curl"
+        - "-f"
+        - "http://127.0.0.1:8490/health"
       interval: 30s
       timeout: 10s
       retries: 5
@@ -218,7 +398,11 @@ services:
     user: "1000:1000"
     restart: always
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://127.0.0.1:8490/health"]
+      test:
+        - "CMD"
+        - "curl"
+        - "-f"
+        - "http://127.0.0.1:8490/health"
       interval: 30s
       timeout: 10s
       retries: 5

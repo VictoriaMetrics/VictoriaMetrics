@@ -1,5 +1,6 @@
 ---
 title: VictoriaMetrics
+description: "Migrate data between VM installations via native binary protocol."
 weight: 9
 menu:
   docs:

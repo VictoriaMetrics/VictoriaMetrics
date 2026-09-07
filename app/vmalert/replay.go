@@ -30,7 +30,8 @@ var (
 		"Progress bar rendering might be verbose or break the logs parsing, so it is recommended to be disabled when not used in interactive mode.")
 	ruleEvaluationConcurrency = flag.Int("replay.ruleEvaluationConcurrency", 1, "The maximum number of concurrent '/query_range' requests when replay recording rule or alerting rule with for=0. "+
 		"Increasing this value when replaying for a long time, since each request is limited by -replay.maxDatapointsPerQuery.")
-	continueWithExecutionErr = flag.Bool("replay.continueWithExecutionErr", false, "Whether to continue replaying other rules if a rule execution fails with a 422 response code, which can happen due to an expression syntax error or a resource limit being hit.")
+	continueWithExecutionErr = flag.Bool("replay.continueWithExecutionErr", false, "Whether to continue replaying other rules if a rule execution fails with a 400 or 422 response code, "+
+		"which can happen due to an expression syntax error or a resource limit being hit.")
 )
 
 func replay(groupsCfg []config.Group, qb datasource.QuerierBuilder, rw remotewrite.RWClient) (totalRows, droppedRows int, err error) {

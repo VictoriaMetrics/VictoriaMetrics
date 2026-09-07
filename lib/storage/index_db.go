@@ -99,7 +99,7 @@ type indexDB struct {
 	// legacy indexDBs, since these indexDBs are readonly.
 	// This field cannot be used for the partition indexDBs, since they may receive data
 	// with bigger timestamps at any time.
-	legacyMinMissingTimestampByKey map[string]int64
+	legacyMinMissingTimestampByKey map[TenantToken]int64
 	// protects legacyMinMissingTimestampByKey
 	legacyMinMissingTimestampByKeyLock sync.Mutex
 
@@ -174,7 +174,7 @@ func mustOpenIndexDB(id uint64, tr TimeRange, name, path string, s *Storage, isR
 	tfssCache := lrucache.NewCache(getTagFiltersCacheSize)
 	tb := mergeset.MustOpenTable(path, dataFlushInterval, tfssCache.Reset, 0, mergeTagToMetricIDsRows, isReadOnly)
 	db := &indexDB{
-		legacyMinMissingTimestampByKey: make(map[string]int64),
+		legacyMinMissingTimestampByKey: make(map[TenantToken]int64),
 		id:                             id,
 		tr:                             tr,
 		name:                           name,
@@ -508,6 +508,11 @@ func (db *indexDB) SearchLabelNames(qt *querytracer.Tracer, tfss []*TagFilters, 
 	qt = qt.NewChild("search label names: filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", tfss, &tr, maxLabelNames, maxMetrics)
 	defer qt.Done()
 
+	if !db.legacyContainsTimeRange(tr) {
+		qt.Printf("indexDB doesn't contain data for the given time range: %s", &tr)
+		return nil, nil
+	}
+
 	is := db.getIndexSearch(deadline)
 	lns, err := is.searchLabelNamesWithFiltersOnTimeRange(qt, tfss, tr, maxLabelNames, maxMetrics)
 	db.putIndexSearch(is)
@@ -566,6 +571,14 @@ func (is *indexSearch) searchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tr
 
 func (is *indexSearch) searchLabelNamesWithFiltersOnDate(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, maxLabelNames, maxMetrics int) (map[string]struct{}, error) {
 	var filter *uint64set.Set
+
+	// Skip searching metricIDs and instead search the index directly for simple
+	// label name queries that only include tfss with single exact metric name
+	// match. For example:
+	//
+	// /api/v1/labels?match=up or /api/v1/labels?extra_filters=up
+	//
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9489
 	if !isSingleMetricNameFilter(tfss) {
 		var err error
 		filter, err = is.searchMetricIDsWithFiltersOnDate(qt, tfss, date, maxMetrics)
@@ -710,6 +723,11 @@ func (db *indexDB) SearchLabelValues(qt *querytracer.Tracer, labelName string, t
 	qt = qt.NewChild("search label values: labelName=%q, filters=%s, timeRange=%s, maxLabelValues=%d, maxMetrics=%d", labelName, tfss, &tr, maxLabelValues, maxMetrics)
 	defer qt.Done()
 
+	if !db.legacyContainsTimeRange(tr) {
+		qt.Printf("indexDB doesn't contain data for the given time range: %s", &tr)
+		return nil, nil
+	}
+
 	key := labelName
 	if key == "__name__" {
 		key = ""
@@ -832,6 +850,14 @@ func (is *indexSearch) searchLabelValuesOnDate(qt *querytracer.Tracer, labelName
 		// __name__ label is encoded as empty string in indexdb.
 		labelName = ""
 	}
+
+	// Skip searching metricIDs and instead search the index directly for simple
+	// label value queries that only include the labelName and tfss with single
+	// exact metric name match. For example:
+	//
+	// /api/v1/label/job/values?match=up or /api/v1/label/job/values?extra_filters=up
+	//
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9489
 	useCompositeScan := labelName != "" && isSingleMetricNameFilter(tfss)
 	var filter *uint64set.Set
 	if !useCompositeScan {
@@ -954,9 +980,13 @@ func (is *indexSearch) getLabelValuesForMetricIDs(qt *querytracer.Tracer, labelN
 //
 // If it returns maxTagValueSuffixes suffixes, then it is likely more than maxTagValueSuffixes suffixes is found.
 func (db *indexDB) SearchTagValueSuffixes(qt *querytracer.Tracer, tr TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxTagValueSuffixes int, deadline uint64) (map[string]struct{}, error) {
-	qt = qt.NewChild("search tag value suffixes for timeRange=%s, tagKey=%q, tagValuePrefix=%q, delimiter=%c, maxTagValueSuffixes=%d",
-		&tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
+	qt = qt.NewChild("search tag value suffixes for timeRange=%s, tagKey=%q, tagValuePrefix=%q, delimiter=%c, maxTagValueSuffixes=%d", &tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
 	defer qt.Done()
+
+	if !db.legacyContainsTimeRange(tr) {
+		qt.Printf("indexDB doesn't contain data for the given time range: %s", &tr)
+		return nil, nil
+	}
 
 	// TODO: cache results?
 
@@ -1091,6 +1121,11 @@ func (is *indexSearch) searchTagValueSuffixesForPrefix(nsPrefix byte, prefix []b
 func (db *indexDB) SearchGraphitePaths(qt *querytracer.Tracer, tr TimeRange, qHead, qTail []byte, maxPaths int, deadline uint64) (map[string]struct{}, error) {
 	qt = qt.NewChild("search graphite paths: timeRange=%s, qHead=%q, qTail=%q, maxPaths=%d", &tr, bytesutil.ToUnsafeString(qHead), bytesutil.ToUnsafeString(qTail), maxPaths)
 	defer qt.Done()
+
+	if !db.legacyContainsTimeRange(tr) {
+		qt.Printf("indexDB doesn't contain data for the given time range: %s", &tr)
+		return nil, nil
+	}
 
 	n := bytes.IndexAny(qTail, "*[{")
 	if n < 0 {
@@ -1272,6 +1307,11 @@ func (is *indexSearch) getSeriesCount() (uint64, error) {
 func (db *indexDB) GetTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
 	qt = qt.NewChild("collect TSDB status: filters=%s, date=%s, focusLabel=%q, topN=%d, maxMetrics=%d", tfss, dateToString(date), focusLabel, topN, maxMetrics)
 	defer qt.Done()
+
+	if !db.legacyContainsDate(date) {
+		qt.Printf("indexDB doesn't contain data for the given date: %s", dateToString(date))
+		return &TSDBStatus{}, nil
+	}
 
 	is := db.getIndexSearch(deadline)
 	defer db.putIndexSearch(is)
@@ -1720,6 +1760,11 @@ func (db *indexDB) SearchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Ti
 	qt = qt.NewChild("search TSIDs: filters=%s, timeRange=%s, maxMetrics=%d", tfss, &tr, maxMetrics)
 	defer qt.Done()
 
+	if !db.legacyContainsTimeRange(tr) {
+		qt.Printf("indexDB doesn't contain data for the given time range: %s", &tr)
+		return nil, nil
+	}
+
 	metricIDs, err := db.searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
 	if err != nil {
 		return nil, db.wrapError("search TSIDs", err)
@@ -1803,6 +1848,11 @@ func (db *indexDB) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters,
 	qt = qt.NewChild("search metric names: filters=%s, timeRange=%s, maxMetrics=%d", tfss, &tr, maxMetrics)
 	defer qt.Done()
 
+	if !db.legacyContainsTimeRange(tr) {
+		qt.Printf("indexDB doesn't contain data for the given time range: %s", &tr)
+		return nil, nil
+	}
+
 	metricIDs, err := db.searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
 	if err != nil {
 		return nil, db.wrapError("search metric names", err)
@@ -1829,7 +1879,7 @@ func (db *indexDB) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters,
 
 			metricName, ok = is.searchMetricNameWithCache(metricName[:0], metricID)
 			if !ok {
-				// Cannot find TSID for the given metricID.
+				// Cannot find metric name for the given metricID.
 				// This may be the case on incomplete indexDB
 				// due to snapshot or due to un-flushed entries.
 				// Mark the metricID as deleted, so it is created again when new sample
@@ -2163,7 +2213,7 @@ func matchTagFilters(mn *MetricName, tfs []*tagFilter, kb *bytesutil.ByteBuffer)
 
 func isSingleMetricNameFilter(tfss []*TagFilters) bool {
 	// We check if tfss contain only single filter which is __name__
-	return len(tfss) == 1 && len(tfss[0].tfs) == 1 && getMetricNameFilter(tfss[0]) != nil
+	return len(tfss) == 1 && tfss[0] != nil && len(tfss[0].tfs) == 1 && getMetricNameFilter(tfss[0]) != nil
 }
 
 func (is *indexSearch) searchMetricIDsWithFiltersOnDate(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, maxMetrics int) (*uint64set.Set, error) {
@@ -2219,18 +2269,12 @@ func (is *indexSearch) searchMetricIDsInternal(qt *querytracer.Tracer, tfss []*T
 	qt = qt.NewChild("search for metric ids: filters=%s, timeRange=%s, maxMetrics=%d", tfss, &tr, maxMetrics)
 	defer qt.Done()
 
-	metricIDs := &uint64set.Set{}
-
-	if !is.legacyContainsTimeRange(tr) {
-		qt.Printf("indexdb doesn't contain data for the given timeRange=%s", &tr)
-		return metricIDs, nil
-	}
-
 	if tr.MinTimestamp >= is.db.s.minTimestampForCompositeIndex {
 		tfss = convertToCompositeTagFilterss(tfss)
 		qt.Printf("composite filters=%s", tfss)
 	}
 
+	metricIDs := &uint64set.Set{}
 	for _, tfs := range tfss {
 		if len(tfs.tfs) == 0 {
 			// An empty filters must be equivalent to `{__name__!=""}`
@@ -2913,8 +2957,7 @@ func (is *indexSearch) hasMetricIDSlow(metricID uint64) bool {
 	return true
 }
 
-func (is *indexSearch) getMetricIDsForDateTagFilter(qt *querytracer.Tracer, tf *tagFilter, date uint64, commonPrefix []byte,
-	maxMetrics int, maxLoopsCount int64) (*uint64set.Set, int64, error) {
+func (is *indexSearch) getMetricIDsForDateTagFilter(qt *querytracer.Tracer, tf *tagFilter, date uint64, commonPrefix []byte, maxMetrics int, maxLoopsCount int64) (*uint64set.Set, int64, error) {
 	if qt.Enabled() {
 		qt = qt.NewChild("get metric ids for filter and date: filter={%s}, date=%s, maxMetrics=%d, maxLoopsCount=%d", tf, dateToString(date), maxMetrics, maxLoopsCount)
 		defer qt.Done()

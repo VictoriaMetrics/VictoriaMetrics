@@ -37,7 +37,7 @@
           "uid": "$ds"
         },
         "enable": true,
-        "expr": "sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"}) by(version) unless (sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"} offset $__interval) by(version))",
+        "expr": "sum by(version) (\n    label_replace(vm_app_version{job=~\"$job\", instance=~\"$instance\", short_version!=\"\"}, \"version\", \"$1\", \"short_version\", \"(.*)\")\n    OR\n    vm_app_version{job=~\"$job\", instance=~\"$instance\", short_version=\"\"}\n) \nunless \n(\n    sum by(version) (\n        label_replace(vm_app_version{job=~\"$job\", instance=~\"$instance\", short_version!=\"\"}, \"version\", \"$1\", \"short_version\", \"(.*)\")\n        OR\n        vm_app_version{job=~\"$job\", instance=~\"$instance\", short_version=\"\"}\n    ) offset $__interval\n)",
         "hide": true,
         "iconColor": "dark-blue",
         "name": "version",
@@ -62,7 +62,6 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
-  "id": 13,
   "links": [
     {
       "icon": "doc",
