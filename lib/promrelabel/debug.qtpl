@@ -1,6 +1,5 @@
 {% import (
         "fmt"
-        "html"
 
         "github.com/VictoriaMetrics/VictoriaMetrics/lib/htmlcomponents"
         "github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
@@ -234,13 +233,11 @@ document.addEventListener('DOMContentLoaded', initRelabelConfigsHighlight);
                     "rule": {%q= ds.Rule %},
                     "errors": {
                         {% if inErr != nil %}
-                        "inLabels": {%q= `<span style="color: #D15757">`+html.EscapeString(inErr.Error())+`</span>` %},
                         "inLabelsMsg": {%q= inErr.Error() %}{% if outErr != nil %},{% endif %}
                         {%code hasError = true %}
                         {% else %}
                         {% endif %}
                         {% if outErr != nil %}
-                        "outLabels": {%q= `<span style="color: #D15757">`+html.EscapeString(outErr.Error())+`</span>` %},
                         "outLabelsMsg": {%q= outErr.Error() %}
                         {%code hasError = true %}
                         {% endif %}
