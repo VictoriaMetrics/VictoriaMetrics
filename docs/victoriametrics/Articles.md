@@ -117,6 +117,10 @@ See also [case studies](https://docs.victoriametrics.com/victoriametrics/casestu
 * [Claude Code: creating Kubernetes debugging AI Agent for VictoriaMetrics](https://rtfm.co.ua/en/claude-code-creating-kubernetes-debugging-ai-agent-for-victoriametrics/)
 * [OpenTelemetry: OTel Collectors in Kubernetes and VictoriaMetrics Stack integration](https://itnext.io/opentelemetry-otel-collectors-in-kubernetes-and-victoriametrics-stack-integration-d907ed0a15a0)
 * [VictoriaMetrics vs Prometheus: my default, and when I still pick Prometheus](https://jorijn.com/en/blog/victoriametrics-vs-prometheus/)
+* [LiteLLM: Monitoring with VictoriaMetrics – Alerts and Grafana](https://rtfm.co.ua/en/litellm-monitoring-with-victoriametrics-alerts-and-grafana/)
+* [LiteLLM: AI Gateway on Kubernetes and Metrics in VictoriaMetrics](https://rtfm.co.ua/en/litellm-ai-gateway-on-kubernetes-and-metrics-in-victoriametrics/)
+* [LiteLLM: Metrics, Traces, and VictoriaMetrics Stack Integration](https://rtfm.co.ua/en/litellm-metrics-traces-and-victoriametrics-stack-integration/)
+* [llama.cpp: Metrics and Monitoring with VictoriaMetrics](https://rtfm.co.ua/en/llama-cpp-metrics-and-monitoring-with-victoriametrics/)
 
 ## Third-party articles and slides about VictoriaLogs
 

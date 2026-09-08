@@ -73,8 +73,10 @@ var readerPool sync.Pool
 
 // Read implements io.Reader.
 func (r *Reader) Read(p []byte) (int, error) {
-	DecConcurrency()
-	r.increasedConcurrency = false
+	if r.increasedConcurrency {
+		DecConcurrency()
+		r.increasedConcurrency = false
+	}
 
 	n, err := r.r.Read(p)
 

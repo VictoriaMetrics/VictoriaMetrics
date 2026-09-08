@@ -17,6 +17,32 @@ Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
 {{% collapse name="2026" open=true %}}
 
+## v1.30.4
+Released: 2026-08-28
+
+- BUGFIX: Kept valid configurations with no runnable work live and observable instead of shutting down. Idle instances can accept future [hot-reload](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) assignments, restore compatible model state, and start scheduling work without being restarted. See the [idle-shard lifecycle](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#idle-shards-and-topology-changes) for the new behavior and topology-change boundaries.
+
+- BUGFIX: Restored compatibility with multivariate [Temporal Envelope](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope) checkpoints written by [v1.30.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1300)-[v1.30.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1302), preserving their fitted predictions and subsequent online updates. [Migration checks](https://docs.victoriametrics.com/anomaly-detection/migration/#compatibility-matrix) now also report when Temporal Envelope state must be discarded and refitted before downgrading to v1.30.2 or earlier.
+
+## v1.30.3
+Released: 2026-08-27
+
+- UI: Updated [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/) from [v1.8.2](https://docs.victoriametrics.com/anomaly-detection/ui/#v182) to [v1.8.3](https://docs.victoriametrics.com/anomaly-detection/ui/#v183). Fresh anomaly investigations now default to the online univariate Temporal Envelope, the selector lists online models first, and AI-suggested business settings remain synchronized with the model wizard.
+
+- FEATURE: Added opt-in stable rendezvous [config sharding](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#horizontal-scalability). Set `VMANOMALY_SHARDING_STRATEGY=RENDEZVOUS` to keep unrelated sub-configurations on their existing shards when entities are inserted, removed, reordered, or edited. The default remains `ROUND_ROBIN`.
+
+- IMPROVEMENT: Batched model outputs into bounded VictoriaMetrics import requests. [`VmWriter`](https://docs.victoriametrics.com/anomaly-detection/components/writer/#vm-writer) now exposes `batch_max_series`, `batch_max_bytes`, and `metric_prefix_cache_max_entries` controls for high-cardinality inference.
+
+- IMPROVEMENT: Reduced plain Temporal Envelope fit and inference overhead when no seasonality or holiday features are configured, and reused disk-backed univariate query data across attached models during fit.
+
+- IMPROVEMENT: Improved Temporal Envelope stability when only a subset of configured seasonalities is present in the data, and aligned cold-start inference with batch-fit initialization.
+
+- BUGFIX: Prevented invalid ad-hoc anomaly detection requests and reader initialization failures from shutting down the query server. A UI task that cannot reach its datasource now fails independently while `/vmui`, `/metrics`, and the other HTTP endpoints remain available.
+
+- BUGFIX: Prevented model output normalization from mutating shared [`provide_series`](https://docs.victoriametrics.com/anomaly-detection/components/models/#vmanomaly-output) configuration and default lists during model construction.
+
+- **BREAKING**: Custom many-to-one model classes must declare `topology = ModelTopology.MANY_TO_ONE`; the legacy `is_multivariate = True` flag no longer selects service orchestration. Built-in multivariate model state from compatible releases remains restorable.
+
 ## v1.30.2
 Released: 2026-08-13
 

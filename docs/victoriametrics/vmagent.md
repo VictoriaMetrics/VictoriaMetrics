@@ -284,9 +284,14 @@ To enable MDX, set `-remoteWrite.mdx.enable=true` for the target URL and `-remot
 ./vmagent \
   -remoteWrite.url=http://service-to-keep-all-metrics:8428/api/v1/write \
   -remoteWrite.mdx.enable=false \
+  -remoteWrite.disableMetadata=false \
   -remoteWrite.url=http://service-to-keep-only-vm-metrics:8428/api/v1/write \
-  -remoteWrite.mdx.enable=true 
+  -remoteWrite.mdx.enable=true \
+  -remoteWrite.disableMetadata=true
 ```
+
+> Recommendation: Set `-remoteWrite.disableMetadata=true` for MDX remote writes to save resource usage. Otherwise, `vmagent` sends [metrics metadata](https://docs.victoriametrics.com/victoriametrics/vmagent/#metric-metadata) from all scraped targets to the MDX destination.
+
 When MDX is enabled for a `-remoteWrite.url`, `vmagent` forwards only metrics that:
 - come from the target that exposes the `vm_app_version` metric (emitted by all VictoriaMetrics components)
 - contain the `victoriametrics_app=true` label, which will be added automatically to the metrics if the instance was deployed via [VictoriaMetrics Operator](https://docs.victoriametrics.com/operator/).
@@ -299,6 +304,7 @@ When MDX is enabled for a `-remoteWrite.url`, `vmagent` forwards only metrics th
 ./vmagent \
   -remoteWrite.url=http://service-to-keep-only-vm-metrics:8428/api/v1/write \
   -remoteWrite.mdx.enable=true \
+  -remoteWrite.disableMetadata=true \
   -mdx.label="service=victoriametrics"
 ```
 In this configuration, metrics with the label `service=victoriametrics` are preserved even if their scrape targets do not expose `vm_app_version` metric.
@@ -1182,7 +1188,9 @@ Both limits can be set simultaneously. If any of these limits are reached, then 
 
 These limits are approximate, so `vmagent` can underflow or overflow them by a small percentage (usually less than 1%).
 
-See also [cardinality explorer docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer).
+See also:
+- [Cardinality Explorer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer).
+- [vmestimator](https://docs.victoriametrics.com/victoriametrics/vmestimator/).
 
 ## Monitoring
 

@@ -460,7 +460,8 @@ func (pts *packedTimeseries) unpackTo(dst []*sortBlock, tbf *tmpBlocksFile, tr s
 			initUnpackWork(upw, br)
 			upw.unpack(tmpBlock)
 			if upw.err != nil {
-				return dst, upw.err
+				err = upw.err
+				break
 			}
 			samples += len(upw.sb.Timestamps)
 			if *maxSamplesPerSeries > 0 && samples > *maxSamplesPerSeries {
@@ -474,7 +475,11 @@ func (pts *packedTimeseries) unpackTo(dst []*sortBlock, tbf *tmpBlocksFile, tr s
 		}
 		putTmpStorageBlock(tmpBlock)
 		putUnpackWork(upw)
-
+		if err != nil {
+			for _, sb := range dst {
+				putSortBlock(sb)
+			}
+		}
 		return dst, err
 	}
 
@@ -539,6 +544,11 @@ func (pts *packedTimeseries) unpackTo(dst []*sortBlock, tbf *tmpBlocksFile, tr s
 			putSortBlock(upw.sb)
 		}
 		putUnpackWork(upw)
+	}
+	if firstErr != nil {
+		for _, sb := range dst {
+			putSortBlock(sb)
+		}
 	}
 
 	return dst, firstErr

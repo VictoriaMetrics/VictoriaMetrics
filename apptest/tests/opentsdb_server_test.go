@@ -152,7 +152,7 @@ func parseQuery(m string) (string, map[string]string, bool) {
 	metric, tagStr, _ := strings.Cut(parts[2], "{")
 	tags := make(map[string]string, 4)
 	tagStr = strings.TrimSuffix(tagStr, "}")
-	for _, kv := range strings.Split(tagStr, ",") {
+	for kv := range strings.SplitSeq(tagStr, ",") {
 		if k, v, ok := strings.Cut(kv, "="); ok {
 			tags[k] = v
 		}

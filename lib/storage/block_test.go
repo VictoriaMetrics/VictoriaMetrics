@@ -129,6 +129,44 @@ func getValuesForPrecisionBits(values []int64, precisionBits uint8) []int64 {
 	return valuesAdjusted
 }
 
+// TestBlockUnmarshalPortableDoS is a regression test for GHSA-7277-c249-gccp.
+// RowsCount=1 with NearestDelta2 or ZSTDNearestDelta2 must return an error, not panic.
+func TestBlockUnmarshalPortableDoS(t *testing.T) {
+	f := func(valuesMarshalType encoding.MarshalType, valuesData []byte) {
+		t.Helper()
+		defer func() {
+			if r := recover(); r != nil {
+				t.Fatalf("UnmarshalPortable panicked instead of returning an error: %v", r)
+			}
+		}()
+
+		// Build a portable block with RowsCount=1 and the triggering ValuesMarshalType.
+		// TimestampsMarshalType=Const is safe (no minimum item count).
+		var data []byte
+		data = encoding.MarshalVarInt64(data, 0)             // MinTimestamp
+		data = encoding.MarshalVarInt64(data, 0)             // MaxTimestamp
+		data = encoding.MarshalVarInt64(data, 0)             // FirstValue
+		data = encoding.MarshalVarUint64(data, 1)            // RowsCount=1
+		data = encoding.MarshalVarInt64(data, 0)             // Scale
+		data = append(data, byte(encoding.MarshalTypeConst)) // TimestampsMarshalType (safe)
+		data = append(data, byte(valuesMarshalType))         // ValuesMarshalType (trigger)
+		data = append(data, 64)                              // PrecisionBits
+		data = encoding.MarshalBytes(data, nil)              // timestampsData (empty; Const needs none)
+		data = encoding.MarshalBytes(data, valuesData)       // valuesData
+
+		var b Block
+		_, err := b.UnmarshalPortable(data)
+		if err == nil {
+			t.Fatalf("expected error for RowsCount=1 with ValuesMarshalType=%d, got nil", valuesMarshalType)
+		}
+	}
+
+	// mt=5: raw NearestDelta2 — panicked fires immediately in unmarshalInt64NearestDelta2.
+	f(encoding.MarshalTypeNearestDelta2, []byte{0x30})
+	// mt=1: ZSTDNearestDelta2 — ZSTD decompresses OK, then same panic fired.
+	f(encoding.MarshalTypeZSTDNearestDelta2, encoding.CompressZSTDLevel(nil, nil, 1))
+}
+
 func getRandValues(rowsCount int) []int64 {
 	rng := rand.New(rand.NewSource(1))
 	a := make([]int64, rowsCount)
