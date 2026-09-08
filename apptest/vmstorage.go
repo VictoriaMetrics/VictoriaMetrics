@@ -3,9 +3,14 @@ package apptest
 import (
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"regexp"
+	"testing"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	"github.com/golang/snappy"
 )
 
 // StartVmstorage starts the latest version of vmstorage.
@@ -98,8 +103,48 @@ func (app *Vmstorage) VmselectAddr() string {
 	return app.vmselectAddr
 }
 
+// HTTPAddr returns the address at which the vmstorage process is
+// listening for incoming HTTP requests.
+func (app *Vmstorage) HTTPAddr() string {
+	return app.httpListenAddr
+}
+
 // String returns the string representation of the vmstorage app state.
 func (app *Vmstorage) String() string {
 	return fmt.Sprintf("{app: %s storageDataPath: %q httpListenAddr: %q vminsertAddr: %q vmselectAddr: %q}", []any{
 		app.app, app.storageDataPath, app.httpListenAddr, app.vminsertAddr, app.vmselectAddr}...)
+}
+
+// PrometheusAPIV1Write is a test helper function that inserts a collection of
+// records in Prometheus remote-write format by sending a HTTP POST request to
+// vmstorage ingestion API.
+func (app *Vmstorage) PrometheusAPIV1Write(t *testing.T, wr prompb.WriteRequest, opts QueryOpts) {
+	t.Helper()
+
+	url := getVMStorageInsertPath(app.httpListenAddr, "prometheus/api/v1/write", opts)
+	data := snappy.Encode(nil, wr.MarshalProtobuf(nil))
+	headers := opts.getHeaders()
+	headers.Set("Content-Type", "application/x-protobuf")
+	_, statusCode := app.vmstorageClient.cli.Post(t, url, data, headers)
+	if statusCode != http.StatusNoContent {
+		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
+	}
+}
+
+// getVMStorageInsertPath returns URL path for writes.
+// If tenant is set in QueryOpts, it returns cluster-like path for ingestion.
+// If tenant is empty, it returns single-node (no tenants) path.
+func getVMStorageInsertPath(addr, suffix string, o QueryOpts) string {
+	if o.Tenant != "" {
+		// QueryOpts.Tenant has priority over headers.
+		return fmt.Sprintf("http://%s/insert/%s/%s", addr, o.Tenant, suffix)
+	}
+
+	h := o.getHeaders()
+	if h.Get("AccountID") != "" || h.Get("ProjectID") != "" {
+		return fmt.Sprintf("http://%s/insert/%s", addr, suffix)
+	}
+
+	// tenant is missing in QueryOpts and in HTTP headers. Use single-node (no tenants) path.
+	return fmt.Sprintf("http://%s/%s", addr, suffix)
 }

@@ -13,7 +13,9 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage/promremotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/appmetrics"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
@@ -134,6 +136,8 @@ var (
 
 	metadataStorageSize = flagutil.NewBytes("storage.maxMetadataStorageSize", 0, "Overrides max size for metrics metadata entries in-memory storage. "+
 		"If set to 0 or a negative value, defaults to 1% of allowed memory.")
+	enableIngestionAPI = flag.Bool("enableIngestionAPI", false, "Whether to enable ingestion APIs on vmstorage HTTP listener. "+
+		"Currently enables Prometheus remote write v1 at /api/v1/write and /prometheus/api/v1/write")
 )
 
 func main() {
@@ -288,6 +292,11 @@ func (vms *VMStorage) requestHandler(w http.ResponseWriter, r *http.Request) boo
 `)
 		return true
 	}
+	if *enableIngestionAPI {
+		if vms.processIngestionAPIRequest(w, r, path) {
+			return true
+		}
+	}
 
 	if path == "/internal/force_merge" {
 		if !httpserver.CheckAuthFlag(w, r, forceMergeAuthKey) {
@@ -407,8 +416,53 @@ func (vms *VMStorage) requestHandler(w http.ResponseWriter, r *http.Request) boo
 	}
 }
 
+func (vms *VMStorage) processIngestionAPIRequest(w http.ResponseWriter, r *http.Request, path string) bool {
+	switch path {
+	case "/api/v1/write", "/prometheus/api/v1/write", "/api/v1/push", "/prometheus/api/v1/push":
+		if protoparserutil.HandleVMProtoServerHandshake(w, r) {
+			return true
+		}
+		prometheusWriteRequests.Inc()
+		if err := promremotewrite.InsertHandler(nil, r, vms); err != nil {
+			prometheusWriteErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return true
+	}
+
+	p, err := httpserver.ParsePathAndHeaders(path, r.Header)
+	if err != nil || p.Prefix != "insert" {
+		return false
+	}
+	switch p.Suffix {
+	case "prometheus/", "prometheus", "prometheus/api/v1/write", "prometheus/api/v1/push":
+		if protoparserutil.HandleVMProtoServerHandshake(w, r) {
+			return true
+		}
+		at, err := auth.NewTokenPossibleMultitenant(p.AuthToken)
+		if err != nil {
+			httpserver.Errorf(w, r, "auth error: %s", err)
+			return true
+		}
+		prometheusWriteRequests.Inc()
+		if err := promremotewrite.InsertHandler(at, r, vms); err != nil {
+			prometheusWriteErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return true
+	}
+	return false
+}
+
 var (
 	activeForceMerges = metrics.NewCounter("vm_active_force_merges")
+
+	prometheusWriteRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/write", protocol="promremotewrite"}`)
+	prometheusWriteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/write", protocol="promremotewrite"}`)
 
 	snapshotsCreateTotal = metrics.NewCounter(`vm_http_requests_total{path="/snapshot/create"}`)
 
