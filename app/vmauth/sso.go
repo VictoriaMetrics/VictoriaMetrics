@@ -8,7 +8,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"html/template"
 	"io"
 	"log"
 	"net/http"
@@ -158,14 +157,6 @@ func verifySSOState(state, clientSecret string) (string, error) {
 	return p.OriginalURL, nil
 }
 
-var ssoLoginPageTmpl = template.Must(template.New("sso_login").Parse(`<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><title>Login</title></head>
-<body>
-<p><a href="{{.}}">Login with SSO</a></p>
-</body>
-</html>`))
-
 // showSSOLoginPage renders a minimal HTML page with a single "Login with SSO"
 // button pointing directly to the OIDC provider's authorization endpoint.
 func showSSOLoginPage(w http.ResponseWriter, r *http.Request, cfg *SSOHostConfig) {
@@ -198,9 +189,7 @@ func showSSOLoginPage(w http.ResponseWriter, r *http.Request, cfg *SSOHostConfig
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	if err := ssoLoginPageTmpl.Execute(w, authURL); err != nil {
-		logger.Errorf("SSO: cannot render login page: %s", err)
-	}
+	WriteSSOLoginPage(w, authURL)
 }
 
 // handleSSOCallback handles the OIDC authorization code callback at /_vmauth/sso/callback.
