@@ -121,7 +121,7 @@ func (app *Vmstorage) String() string {
 func (app *Vmstorage) PrometheusAPIV1Write(t *testing.T, wr prompb.WriteRequest, opts QueryOpts) {
 	t.Helper()
 
-	url := getSingleOrMultitenantInsertPath(app.httpListenAddr, "prometheus/api/v1/write", opts)
+	url := getClusterPath(app.httpListenAddr, "insert", "prometheus/api/v1/write", opts)
 	data := snappy.Encode(nil, wr.MarshalProtobuf(nil))
 	headers := opts.getHeaders()
 	headers.Set("Content-Type", "application/x-protobuf")

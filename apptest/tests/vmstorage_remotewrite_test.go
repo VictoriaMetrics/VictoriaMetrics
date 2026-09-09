@@ -159,7 +159,7 @@ func TestClusterVmstoragePrometheusRemoteWriteDisabled(t *testing.T) {
 	data := snappy.Encode(nil, wr.MarshalProtobuf(nil))
 	headers := make(http.Header)
 	headers.Set("Content-Type", "application/x-protobuf")
-	_, statusCode := tc.Client().Post(t, fmt.Sprintf("http://%s/api/v1/write", vmstorage.HTTPAddr()), data, headers)
+	_, statusCode := tc.Client().Post(t, fmt.Sprintf("http://%s/insert/0:0/prometheus/api/v1/write", vmstorage.HTTPAddr()), data, headers)
 	if statusCode != http.StatusBadRequest {
 		t.Fatalf("unexpected status code: got %d; want %d when -enableIngestionAPI is disabled", statusCode, http.StatusBadRequest)
 	}
