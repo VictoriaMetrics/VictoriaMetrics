@@ -828,7 +828,7 @@ To measure history byte reduction over a window (negative means growth; undefine
 
 Use `finish_reason="length"` to investigate responses ending at the output limit. See [Copilot context budgets](https://docs.victoriametrics.com/anomaly-detection/ui/#copilot-context-budgets) before changing limits; increasing a local byte limit does not increase the provider's context window.
 
-[Back to metrics](#metrics-generated-by-vmanomaly)
+[Back to metric sections](#metrics-generated-by-vmanomaly)
 
 {{% /collapse %}}
 

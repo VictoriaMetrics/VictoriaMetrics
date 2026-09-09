@@ -738,7 +738,7 @@ models:
 > [!TIP]
 > Use [skills](https://docs.victoriametrics.com/ai-tools/#agent-skills) where abovementioned workflow is automated. Also, [AI Copilot](https://docs.victoriametrics.com/anomaly-detection/ui/#ai-assistance) can generate a tuned model configuration to interactively backtest in UI, based on the query data characteristics and user's anomaly expectations.
 
-The examples below are JSON bodies for `POST /api/v1/autotune/tasks`. Set `datasource_url` for your deployment and supply `start` and `end` as Unix timestamps for the history you want to evaluate. See the server’s [interactive API reference](https://docs.victoriametrics.com/anomaly-detection/components/server/#interactive-api-reference) for the running version’s request schemas.
+The examples below are JSON bodies for `POST /api/v1/autotune/tasks`. Replace the example `datasource_url` with an address reachable from vmanomaly and adjust `start` and `end` (Unix seconds) to your data. The examples select 2026-08-10 00:00 UTC through 2026-09-09 00:00 UTC. See the server’s [interactive API reference](https://docs.victoriametrics.com/anomaly-detection/components/server/#interactive-api-reference) for the running version’s request schemas.
 
 <div class="collapse-group mb-3">
 
@@ -746,6 +746,9 @@ The examples below are JSON bodies for `POST /api/v1/autotune/tasks`. Set `datas
 
 ```json
 {
+  "datasource_url": "http://victoriametrics:8428",
+  "start": 1786320000,
+  "end": 1788912000,
   "query": "sum(rate(http_requests_total[5m])) by (service)",
   "tuned_class_name": "temporal_envelope",
   "anomaly_percentage": 0.01,
@@ -760,7 +763,12 @@ The examples below are JSON bodies for `POST /api/v1/autotune/tasks`. Set `datas
     "optimize_complexity": true
   },
   "frozen_params": {
-    "holidays": {"countries": ["US"], "group": true}
+    "holidays": {
+      "countries": [
+        "US"
+      ],
+      "group": true
+    }
   }
 }
 ```
@@ -773,19 +781,22 @@ The examples below are JSON bodies for `POST /api/v1/autotune/tasks`. Set `datas
 
 ```json
 {
+  "datasource_url": "http://victoriametrics:8428",
+  "start": 1786320000,
+  "end": 1788912000,
   "queries": {
     "request_rate": {
       "expr": "sum by (service) (rate(http_requests_total{service!=\"\"}[5m]))",
       "data_range": [
         0,
-        null
+        "inf"
       ]
     },
     "error_rate": {
       "expr": "sum by (service) (rate(http_requests_total{service!=\"\",status=~\"5..\"}[5m]))",
       "data_range": [
         0,
-        null
+        "inf"
       ],
       "detection_direction": "above_expected"
     }

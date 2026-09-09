@@ -69,7 +69,7 @@ Read each row as **source persisted state → target runtime**. The upgrade and 
 | v1.29.1–v1.29.7 | v1.30.0–v1.30.5 | Existing built-in state remains compatible. Temporal Envelope was introduced in v1.30.0 and has no state from earlier releases. Review custom-model topology changes separately. |
 | v1.28.x | v1.29.0 | Refit Prophet and Seasonal Quantile model dumps affected by the removed `pytz` dependency. Prefer v1.29.1 or newer, which restores this upgrade path. |
 | v1.28.x | v1.29.1–v1.30.5 | The v1.29.0-only Prophet/Seasonal Quantile incompatibility does not propagate to these versions. Older component-specific restrictions still apply. |
-| Before v1.28.0 | v1.28.0 or newer | Refit legacy `rolling_quantile` and `std` dumps if present: their class migration is a component boundary in the compatibility matrix. Earlier rolling implementations did not persist these artifacts by default. Other compatible state can be reused. |
+| v1.24.0–v1.27.x | v1.28.0 or newer | Refit legacy `rolling_quantile` and `std` dumps if present: their class migration is a component boundary in the compatibility matrix. Earlier rolling implementations did not persist these artifacts by default. Reuse remaining state only if the global compatibility boundaries below permit it. |
 | v1.25.3–v1.27.x | Later releases in the same global chain | Global state remains compatible; apply the model-specific boundaries above when crossing v1.28.0 or v1.29.0. |
 | v1.25.1 | v1.25.2 | Reuse state within this database-format group. |
 | v1.25.1–v1.25.2 | v1.25.3 or newer | Reinitialize state: v1.25.3 starts a new compatibility group and adds the model `forecast_at` layout. |
