@@ -1067,6 +1067,40 @@ vmagent will generate the following persistent queue folders:
 2_0AAFDF53E314A72A
 ```
 
+### Dropping a destination's pending data
+
+{{% available_from "#" %}}
+
+To discard the on-disk backlog for **one** remote write destination on the next startup,
+create an empty regular file named `clean_on_start` in that destination's existing queue directory.
+For example:
+
+```sh
+touch /path/to/vmagent-remotewrite-data/persistent-queue/1_B9EB7BE220B91E9D/clean_on_start
+```
+
+Select the directory using the `path` and `url` labels of `vmagent_remotewrite_pending_data_bytes`,
+or the queue's `metainfo.json`. Keep the remote write URL configuration and its order unchanged
+for this restart. Do not place the marker in the parent `persistent-queue` directory or in every
+destination's directory unless you intend to discard every destination's backlog.
+
+On startup, vmagent acquires the existing queue lock, removes that queue's chunk files and resets its
+metadata before starting readers or writers. It removes the marker after the empty queue is persisted,
+so the following restart does not discard newly received data. Other destination queues are not cleaned.
+No second configuration change or restart is needed to disable cleanup. Repeat the procedure separately
+for each vmagent instance whose backlog should be discarded.
+
+This operation permanently discards buffered data; it does not delete data already sent to remote storage.
+If cleanup is interrupted, the next startup completes it before accepting new data. If cleanup fails,
+vmagent stops with an error instead of opening a partially cleaned queue. Fix the reported filesystem
+error and restart; do not remove a pending marker to bypass an incomplete cleanup. A nonempty file,
+directory, symlink or unreadable marker is rejected. Do not modify the marker or queue during startup.
+
+Cleanup requires a local filesystem with working exclusive file locks and file and directory `fsync`.
+Do not disable filesystem synchronization. Windows rejects this marker without deleting queue data:
+the current Windows filesystem implementation cannot provide the required locking and directory-sync
+guarantees. A queue without the marker retains its existing behavior on all platforms.
+
 ### On-disk persistence and data processing order
 
 By default, vmagent processes data in FIFO order. If data has been written to the on-disk queue,

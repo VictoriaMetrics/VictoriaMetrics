@@ -182,6 +182,12 @@ func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingB
 	}()
 	fs.MustSyncPathAndParentDir(path)
 
+	if err := cleanupQueueOnStart(path, name); err != nil {
+		// Do not use the corruption recovery below: it removes the lock file
+		// and the cleanup request, possibly leaving an incomplete cleanup.
+		logger.Panicf("FATAL: cannot clean persistent queue at %q: %s", path, err)
+	}
+
 	// Read metainfo.
 	var mi metainfo
 	metainfoPath := q.metainfoPath()
