@@ -858,22 +858,23 @@ func (cfg *Config) getScrapeWorkGeneric(visitConfigs func(sc *ScrapeConfig, visi
 	for _, sc := range cfg.ScrapeConfigs {
 		dstLen := len(dst)
 
-		// hasSuccess indicates that at least one xxxSDConfig in the []*xxxSDConfig list has returned a successful response.
-		// Therefore, the service discovery result should be updated based on the current round of results.
-		//
-		// If no successful response is received (i.e., hasSuccess is false), fall back to the result from the previous round.
+		// Fall back to the targets discovered at the previous round only if the job has
+		// at least one xxxSDConfig of the given discoveryType and none of them succeeded.
+		// A job without such configs must yield no targets at all, otherwise the targets of
+		// an sd_config removed from the job would be scraped until the process restart.
+		hasConfigs := false
 		hasSuccess := false
 		visitConfigs(sc, func(sdc targetLabelsGetter) {
+			hasConfigs = true
 			targetLabels, err := sdc.GetLabels(cfg.baseDir)
 			if err != nil {
 				logger.Errorf("skipping some %s targets for job_name=%s because of error: %s", discoveryType, sc.swc.jobName, err)
-				hasSuccess = hasSuccess || false
 				return
 			}
 			hasSuccess = true
 			dst = appendScrapeWorkForTargetLabels(dst, sc.swc, targetLabels, discoveryType)
 		})
-		if !hasSuccess {
+		if hasConfigs && !hasSuccess {
 			dst = sc.appendPrevTargets(dst[:dstLen], swsPrevByJob, discoveryType)
 		}
 	}
