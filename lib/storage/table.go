@@ -340,14 +340,31 @@ func (tb *table) MustAddRows(rows []rawRow) {
 	}
 
 	// Slower path - split rows into per-partition buckets.
-	ptBuckets := make(map[*partitionWrapper][]rawRow)
+	type rowBucket struct {
+		rows []rawRow
+		end  int // Exclusive end in the input; -1 after copying a discontiguous bucket.
+	}
+	ptBuckets := make(map[*partitionWrapper]*rowBucket)
 	var missingRows []rawRow
 	for i := range rows {
 		r := &rows[i]
 		ptFound := false
 		for _, ptw := range ptws {
 			if ptw.pt.HasTimestamp(r.Timestamp) {
-				ptBuckets[ptw] = append(ptBuckets[ptw], *r)
+				bucket := ptBuckets[ptw]
+				switch {
+				case bucket == nil:
+					bucket = &rowBucket{rows: rows[i : i+1 : i+1], end: i + 1}
+					ptBuckets[ptw] = bucket
+				case bucket.end == i:
+					bucket.rows = rows[i-len(bucket.rows) : i+1 : i+1]
+					bucket.end = i + 1
+				default:
+					// The borrowed slice has no spare capacity, so the first
+					// append copies it. AddRows also copies before returning.
+					bucket.rows = append(bucket.rows, *r)
+					bucket.end = -1
+				}
 				ptFound = true
 				break
 			}
@@ -357,8 +374,8 @@ func (tb *table) MustAddRows(rows []rawRow) {
 		}
 	}
 
-	for ptw, ptRows := range ptBuckets {
-		ptw.pt.AddRows(ptRows)
+	for ptw, bucket := range ptBuckets {
+		ptw.pt.AddRows(bucket.rows)
 	}
 	tb.PutPartitions(ptws)
 	if len(missingRows) == 0 {
