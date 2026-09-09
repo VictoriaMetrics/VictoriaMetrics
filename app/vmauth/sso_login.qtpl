@@ -18,8 +18,8 @@
             justify-content: center;
 
             /* light mode: soft lavender background with purple radial glow */
-            background-color: #ede8f7;
-            background-image: radial-gradient(ellipse 70% 50% at 50% 100%, rgba(130,60,220,.35) 0%, transparent 70%);
+            background-color: #ddd5f5;
+            background-image: radial-gradient(ellipse 70% 55% at 50% 100%, rgba(110,30,200,.25) 0%, transparent 70%);
         }
 
         .card {
