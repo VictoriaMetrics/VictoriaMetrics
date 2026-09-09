@@ -9,25 +9,23 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
-// SSOConfig maps hostname to its SSO configuration.
-type SSOConfig map[string]*SSOHostConfig
-
-// SSOHostConfig holds the SSO configuration for a single host.
-type SSOHostConfig struct {
-	OpenIDConnect *OIDCConnectConfig `yaml:"openid_connect"`
+// SSOConfig holds the SSO configuration for a single host.
+type SSOConfig struct {
+	SrcHost       *Regex                `yaml:"src_host"`
+	OpenIDConnect *SSOOIDCConnectConfig `yaml:"openid_connect"`
 }
 
-// OIDCConnectConfig is the OpenID Connect configuration for SSO.
-type OIDCConnectConfig struct {
+// SSOOIDCConnectConfig is the OpenID Connect configuration for SSO.
+type SSOOIDCConnectConfig struct {
 	Issuer       string `yaml:"issuer"`
 	ClientID     string `yaml:"client_id"`
 	ClientSecret string `yaml:"client_secret"`
@@ -36,58 +34,49 @@ type OIDCConnectConfig struct {
 	// Scopes defaults to ["openid"] when not set.
 	Scopes []string `yaml:"scopes,omitempty"`
 
+	pm atomic.Pointer[oidcProviderMetadata]
 	// filled from OIDC discovery at init time
 	authEndpoint  string
 	tokenEndpoint string
 }
 
 // validateSSOConfigs checks that all required fields are present in SSO configs.
-func validateSSOConfigs(sso SSOConfig) error {
-	for host, cfg := range sso {
+func validateSSOConfigs(sso []*SSOConfig) error {
+	for i, cfg := range sso {
+		if cfg.SrcHost == nil {
+			return fmt.Errorf("field sso.%d.src_host is required", i)
+		}
 		if cfg.OpenIDConnect == nil {
-			return fmt.Errorf("missing openid_connect config for sso host %q", host)
+			return fmt.Errorf("field sso.%d.openid_connect is required", i)
 		}
 		oidc := cfg.OpenIDConnect
 		if oidc.Issuer == "" {
-			return fmt.Errorf("missing issuer in openid_connect config for sso host %q", host)
+			return fmt.Errorf("field sso.%d.openid_connect.issuer is required", i)
 		}
 		if oidc.ClientID == "" {
-			return fmt.Errorf("missing client_id in openid_connect config for sso host %q", host)
+			return fmt.Errorf("field sso.%d.openid_connect.client_id", i)
 		}
 		if oidc.ClientSecret == "" {
-			return fmt.Errorf("missing client_secret in openid_connect config for sso host %q", host)
+			return fmt.Errorf("field sso.%d.openid_connect.client_secret", i)
 		}
 	}
 	return nil
 }
 
-// ssoConfigForHost returns the SSO host config for the given request host, or nil.
-func ssoConfigForHost(host string) *SSOHostConfig {
-	// Strip port, e.g. "foo.com:8427" -> "foo.com"
-	if i := strings.LastIndexByte(host, ':'); i >= 0 {
-		host = host[:i]
-	}
+// getSSOConfigForHost returns the SSO host config for the given request host, or nil.
+func getSSOConfigForHost(host string) (*SSOOIDCConnectConfig, *oidcProviderMetadata) {
 	ac := authConfig.Load()
 	if ac == nil || ac.SSO == nil {
-		log.Println(21)
-		return nil
+		return nil, nil
 	}
-	ssoh := ac.SSO[host]
-	if ssoh == nil || ssoh.OpenIDConnect == nil {
-		log.Println(22)
-		return nil
+	for _, sso := range ac.SSO {
+		if !sso.SrcHost.match(host) {
+			continue
+		}
+		oidc := sso.OpenIDConnect
+		return oidc, ac.oidcDP.getProviderMetadata(oidc.Issuer)
 	}
-
-	oidcCfg := ac.oidcDP.openIDConfig(ssoh.OpenIDConnect.Issuer)
-	if oidcCfg == nil {
-		log.Println(24)
-		return nil
-	}
-	ssoh.OpenIDConnect.authEndpoint = oidcCfg.AuthorizationEndpoint
-	ssoh.OpenIDConnect.tokenEndpoint = oidcCfg.TokenEndpoint
-
-	log.Println(25)
-	return ssoh
+	return nil, nil
 }
 
 // ssoStatePayload is the CSRF state payload embedded in the OIDC state parameter.
@@ -157,20 +146,19 @@ func verifySSOState(state, clientSecret string) (string, error) {
 	return p.OriginalURL, nil
 }
 
-// showSSOLoginPage renders a minimal HTML page with a single "Login with SSO"
+// processSSOLogin renders a minimal HTML page with a single "Login with SSO"
 // button pointing directly to the OIDC provider's authorization endpoint.
-func showSSOLoginPage(w http.ResponseWriter, r *http.Request, cfg *SSOHostConfig) {
-	oidc := cfg.OpenIDConnect
-	if oidc == nil || oidc.authEndpoint == "" {
-		http.Error(w, "SSO not properly configured for this host", http.StatusInternalServerError)
-		return
+func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
+	oidc, pm := getSSOConfigForHost(r.Host)
+	if oidc == nil {
+		return false
 	}
 
 	state, err := buildSSOState(r.RequestURI, oidc.ClientSecret)
 	if err != nil {
 		logger.Errorf("SSO: cannot build state: %s", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
+		return true
 	}
 
 	redirectURL := ssoRedirectURL(r, oidc)
@@ -185,21 +173,20 @@ func showSSOLoginPage(w http.ResponseWriter, r *http.Request, cfg *SSOHostConfig
 	params.Set("redirect_uri", redirectURL)
 	params.Set("scope", strings.Join(scopes, " "))
 	params.Set("state", state)
-	authURL := oidc.authEndpoint + "?" + params.Encode()
+	authURL := pm.AuthorizationEndpoint + "?" + params.Encode()
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	WriteSSOLoginPage(w, authURL)
+	return true
 }
 
-// handleSSOCallback handles the OIDC authorization code callback at /_vmauth/sso/callback.
-func handleSSOCallback(w http.ResponseWriter, r *http.Request) {
-	cfg := ssoConfigForHost(r.Host)
-	if cfg == nil || cfg.OpenIDConnect == nil {
-		http.Error(w, "SSO not configured for this host", http.StatusBadRequest)
+// processSSOCallback handles the OIDC authorization code callback at /_vmauth/sso/callback.
+func processSSOCallback(w http.ResponseWriter, r *http.Request) {
+	oidc, _ := getSSOConfigForHost(r.Host)
+	if oidc == nil {
 		return
 	}
-	oidc := cfg.OpenIDConnect
 
 	q := r.URL.Query()
 
@@ -248,7 +235,7 @@ type tokenResponse struct {
 }
 
 // exchangeCodeForIDToken exchanges the OIDC authorization code for an id_token.
-func exchangeCodeForIDToken(ctx context.Context, oidc *OIDCConnectConfig, code, redirectURL string) (string, error) {
+func exchangeCodeForIDToken(ctx context.Context, oidc *SSOOIDCConnectConfig, code, redirectURL string) (string, error) {
 	params := url.Values{}
 	params.Set("grant_type", "authorization_code")
 	params.Set("code", code)
@@ -286,6 +273,19 @@ func exchangeCodeForIDToken(ctx context.Context, oidc *OIDCConnectConfig, code, 
 	return tr.IDToken, nil
 }
 
+// handleSSOLogout clears the SSO session cookie and redirects to the root.
+func handleSSOLogout(w http.ResponseWriter, r *http.Request) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     ssoCookieName,
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   r.TLS != nil,
+		MaxAge:   -1,
+	})
+	http.Redirect(w, r, "/", http.StatusFound)
+}
+
 // ssoAuthTokenFromRequest extracts the SSO session cookie and returns it as
 // a Bearer auth token string compatible with the existing JWT pipeline.
 func ssoAuthTokenFromRequest(r *http.Request) string {
@@ -297,7 +297,7 @@ func ssoAuthTokenFromRequest(r *http.Request) string {
 }
 
 // ssoRedirectURL returns the OIDC redirect URL for the current request.
-func ssoRedirectURL(r *http.Request, oidc *OIDCConnectConfig) string {
+func ssoRedirectURL(r *http.Request, oidc *SSOOIDCConnectConfig) string {
 	if oidc.RedirectURL != "" {
 		return oidc.RedirectURL
 	}

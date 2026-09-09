@@ -56,9 +56,9 @@ var (
 
 // AuthConfig represents auth config.
 type AuthConfig struct {
-	Users            []UserInfo `yaml:"users,omitempty"`
-	UnauthorizedUser *UserInfo  `yaml:"unauthorized_user,omitempty"`
-	SSO              SSOConfig  `yaml:"sso,omitempty"`
+	Users            []UserInfo   `yaml:"users,omitempty"`
+	UnauthorizedUser *UserInfo    `yaml:"unauthorized_user,omitempty"`
+	SSO              []*SSOConfig `yaml:"sso,omitempty"`
 
 	// ms holds all the metrics for the given AuthConfig
 	ms *metrics.Set

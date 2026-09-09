@@ -49,14 +49,14 @@ func (dp *oidcDiscovererPool) createOrAdd(issuer string, vp *atomic.Pointer[jwt.
 	}
 }
 
-// openIDConfig returns the most recently discovered openidConfig for the given issuer,
+// getProviderMetadata returns the most recently discovered oidcProviderMetadata for the given issuer,
 // or nil if the issuer is not registered or discovery has not completed yet.
-func (dp *oidcDiscovererPool) openIDConfig(issuer string) *openidConfig {
+func (dp *oidcDiscovererPool) getProviderMetadata(issuer string) *oidcProviderMetadata {
 	d := dp.ds[issuer]
 	if d == nil {
 		return nil
 	}
-	return d.cfg.Load()
+	return d.pm.Load()
 }
 
 func (dp *oidcDiscovererPool) startDiscovery() {
@@ -66,6 +66,9 @@ func (dp *oidcDiscovererPool) startDiscovery() {
 
 	for _, d := range dp.ds {
 		dp.wg.Go(func() {
+			if err := d.refreshConfig(dp.context); err != nil {
+				logger.Errorf("failed to refresh OIDC config at start for issuer %q: %s", d.issuer, err)
+			}
 			if err := d.refreshVerifierPools(dp.context); err != nil {
 				logger.Errorf("failed to initialize OIDC verifier pool at start for issuer %q: %s", d.issuer, err)
 			}
@@ -92,7 +95,7 @@ func (dp *oidcDiscovererPool) stopDiscovery() {
 type oidcDiscoverer struct {
 	issuer string
 	vps    []*atomic.Pointer[jwt.VerifierPool]
-	cfg    atomic.Pointer[openidConfig]
+	pm     atomic.Pointer[oidcProviderMetadata]
 }
 
 func (d *oidcDiscoverer) run(ctx context.Context) {
@@ -119,33 +122,42 @@ func (d *oidcDiscoverer) run(ctx context.Context) {
 	}
 }
 
-func (d *oidcDiscoverer) refreshVerifierPools(ctx context.Context) error {
-	cfg, err := getOpenIDConfiguration(ctx, d.issuer)
+func (d *oidcDiscoverer) refreshConfig(ctx context.Context) error {
+	pm, err := getOIDCProviderMetadata(ctx, d.issuer)
 	if err != nil {
 		return err
 	}
 	// The issuer in the OIDC configuration must match the expected issuer.
 	// https://openid.net/specs/openid-connect-core-1_0.html#RotateEncKeys
-	if cfg.Issuer != d.issuer {
-		return fmt.Errorf("openid configuration issuer %q does not match expected issuer %q", cfg.Issuer, d.issuer)
+	if pm.Issuer != d.issuer {
+		return fmt.Errorf("openid configuration issuer %q does not match expected issuer %q", pm.Issuer, d.issuer)
+	}
+	d.pm.Store(&pm)
+
+	return nil
+}
+
+func (d *oidcDiscoverer) refreshVerifierPools(ctx context.Context) error {
+	if len(d.vps) == 0 {
+		return nil
+	}
+	pm := d.pm.Load()
+	if pm == nil {
+		return nil
 	}
 
-	d.cfg.Store(&cfg)
-
-	if len(d.vps) > 0 {
-		verifierPool, err := fetchAndParseJWKs(ctx, cfg.JWKsURI)
-		if err != nil {
-			return err
-		}
-		for _, vp := range d.vps {
-			vp.Store(verifierPool)
-		}
+	verifierPool, err := fetchAndParseJWKs(ctx, pm.JWKsURI)
+	if err != nil {
+		return err
+	}
+	for _, vp := range d.vps {
+		vp.Store(verifierPool)
 	}
 	return nil
 }
 
 // See https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderMetadata for details.
-type openidConfig struct {
+type oidcProviderMetadata struct {
 	Issuer                string `json:"issuer"`
 	JWKsURI               string `json:"jwks_uri"`
 	AuthorizationEndpoint string `json:"authorization_endpoint"`
@@ -185,29 +197,29 @@ func fetchAndParseJWKs(ctx context.Context, jwksURI string) (*jwt.VerifierPool, 
 	return vp, nil
 }
 
-func getOpenIDConfiguration(ctx context.Context, issuer string) (openidConfig, error) {
+func getOIDCProviderMetadata(ctx context.Context, issuer string) (oidcProviderMetadata, error) {
 	issuer, _ = strings.CutSuffix(issuer, "/")
 	configURL := fmt.Sprintf("%s/.well-known/openid-configuration", issuer)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, configURL, nil)
 	if err != nil {
-		return openidConfig{}, fmt.Errorf("failed to create request for fetching openid config from %q: %w", configURL, err)
+		return oidcProviderMetadata{}, fmt.Errorf("failed to create request for fetching openid config from %q: %w", configURL, err)
 	}
 
 	resp, err := oidcHTTPClient.Do(req)
 	if err != nil {
-		return openidConfig{}, fmt.Errorf("failed to fetch openid config from %q: %w", configURL, err)
+		return oidcProviderMetadata{}, fmt.Errorf("failed to fetch openid config from %q: %w", configURL, err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return openidConfig{}, fmt.Errorf("unexpected status code %d when fetching openid config from %q", resp.StatusCode, configURL)
+		return oidcProviderMetadata{}, fmt.Errorf("unexpected status code %d when fetching openid config from %q", resp.StatusCode, configURL)
 	}
 
-	var cfg openidConfig
-	if err := json.NewDecoder(resp.Body).Decode(&cfg); err != nil {
-		return openidConfig{}, fmt.Errorf("failed to decode openid config from %q: %w", configURL, err)
+	var pm oidcProviderMetadata
+	if err := json.NewDecoder(resp.Body).Decode(&pm); err != nil {
+		return oidcProviderMetadata{}, fmt.Errorf("failed to decode openid config from %q: %w", configURL, err)
 	}
 
-	return cfg, nil
+	return pm, nil
 }

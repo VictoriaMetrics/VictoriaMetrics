@@ -175,9 +175,13 @@ func requestHandlerWithInternalRoutes(w http.ResponseWriter, r *http.Request) bo
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
-	// Handle SSO callback before any auth checks.
+	// Handle SSO paths before any auth checks.
 	if r.URL.Path == "/_vmauth/sso/callback" {
-		handleSSOCallback(w, r)
+		processSSOCallback(w, r)
+		return true
+	}
+	if r.URL.Path == "/_vmauth/sso/logout" {
+		handleSSOLogout(w, r)
 		return true
 	}
 
@@ -192,19 +196,16 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	if len(ats) == 0 {
+		if processSSOLogin(w, r) {
+			return true
+		}
+
 		// Process requests for unauthorized users
 		ui := authConfig.Load().UnauthorizedUser
 		if ui.hasAnyURLs() {
 			processUserRequest(w, r, ui, nil)
 			return true
 		}
-		log.Println(1)
-		if cfg := ssoConfigForHost(r.Host); cfg != nil {
-			log.Println(2)
-			showSSOLoginPage(w, r, cfg)
-			return true
-		}
-		log.Println(3)
 
 		handleMissingAuthorizationError(w)
 		return true
@@ -233,8 +234,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 
-	if cfg := ssoConfigForHost(r.Host); cfg != nil {
-		showSSOLoginPage(w, r, cfg)
+	if processSSOLogin(w, r) {
 		return true
 	}
 
