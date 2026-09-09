@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -29,15 +28,13 @@ type SSOOIDCConnectConfig struct {
 	Issuer       string `yaml:"issuer"`
 	ClientID     string `yaml:"client_id"`
 	ClientSecret string `yaml:"client_secret"`
+	// CookieSecret is used to sign the short-lived CSRF cookie set during the
+	// authorization flow. Must be a random string; never shared with the IdP.
+	CookieSecret string `yaml:"cookie_secret"`
 	// RedirectURL is optional. Defaults to https://{host}/_vmauth/sso/callback.
 	RedirectURL string `yaml:"redirect_url,omitempty"`
 	// Scopes defaults to ["openid"] when not set.
 	Scopes []string `yaml:"scopes,omitempty"`
-
-	pm atomic.Pointer[oidcProviderMetadata]
-	// filled from OIDC discovery at init time
-	authEndpoint  string
-	tokenEndpoint string
 }
 
 // validateSSOConfigs checks that all required fields are present in SSO configs.
@@ -57,7 +54,10 @@ func validateSSOConfigs(sso []*SSOConfig) error {
 			return fmt.Errorf("field sso.%d.openid_connect.client_id", i)
 		}
 		if oidc.ClientSecret == "" {
-			return fmt.Errorf("field sso.%d.openid_connect.client_secret", i)
+			return fmt.Errorf("field sso.%d.openid_connect.client_secret is required", i)
+		}
+		if oidc.CookieSecret == "" {
+			return fmt.Errorf("field sso.%d.openid_connect.cookie_secret is required", i)
 		}
 	}
 	return nil
@@ -79,71 +79,69 @@ func getSSOConfigForHost(host string) (*SSOOIDCConnectConfig, *oidcProviderMetad
 	return nil, nil
 }
 
-// ssoStatePayload is the CSRF state payload embedded in the OIDC state parameter.
-type ssoStatePayload struct {
-	Nonce       string `json:"n"`
-	OriginalURL string `json:"u"`
-	IssuedAt    int64  `json:"t"`
-}
-
 const (
-	ssoStateTTL   = 10 * time.Minute
-	ssoCookieName = "_vmauth_sso"
+	ssoCookieName     = "_vmauth_sso"
+	ssoCsrfCookieName = "_vmauth_sso_csrf"
+	ssoCsrfCookieTTL  = 10 * time.Minute
 )
 
-// buildSSOState builds a signed, self-contained state value safe to use across
-// multiple vmauth instances behind a load balancer.
+// buildOIDCAuthState generates a CSRF nonce and returns:
+//   - nonce: the raw nonce, to be stored in the CSRF cookie.
+//   - state: the OIDC state parameter, format: base64url(SHA256(nonce)) ":" originalURL.
 //
-// Format: base64url(JSON(payload)) "." base64url(HMAC-SHA256(clientSecret, payload))
-func buildSSOState(originalURL, clientSecret string) (string, error) {
-	nonce := make([]byte, 16)
-	if _, err := rand.Read(nonce); err != nil {
-		return "", fmt.Errorf("cannot generate nonce: %w", err)
+// The state is not signed — its integrity is guaranteed by binding it to the
+// CSRF cookie on the callback, following the oauth2-proxy pattern.
+// originalURL is sanitized to a relative path to prevent open redirect attacks.
+func buildOIDCAuthState(originalURL string) (nonce, state string, err error) {
+	raw := make([]byte, 32)
+	if _, err = rand.Read(raw); err != nil {
+		return "", "", fmt.Errorf("cannot generate nonce: %w", err)
 	}
-	p := ssoStatePayload{
-		Nonce:       base64.RawURLEncoding.EncodeToString(nonce),
-		OriginalURL: originalURL,
-		IssuedAt:    time.Now().Unix(),
+	nonce = base64.RawURLEncoding.EncodeToString(raw)
+
+	// Reject absolute and protocol-relative URLs to prevent open redirect.
+	if !strings.HasPrefix(originalURL, "/") || strings.HasPrefix(originalURL, "//") || strings.HasPrefix(originalURL, "/\\") {
+		originalURL = "/"
 	}
-	payloadJSON, err := json.Marshal(p)
-	if err != nil {
-		return "", err
-	}
-	payloadEnc := base64.RawURLEncoding.EncodeToString(payloadJSON)
-	mac := hmac.New(sha256.New, []byte(clientSecret))
-	mac.Write([]byte(payloadEnc))
-	sig := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
-	return payloadEnc + "." + sig, nil
+
+	h := sha256.Sum256([]byte(nonce))
+	nonceHash := base64.RawURLEncoding.EncodeToString(h[:])
+	return nonce, nonceHash + ":" + originalURL, nil
 }
 
-// verifySSOState verifies the state signature and expiry, returning the original URL.
-func verifySSOState(state, clientSecret string) (string, error) {
-	dot := strings.LastIndexByte(state, '.')
-	if dot < 0 {
-		return "", fmt.Errorf("invalid state: missing separator")
+// parseSSOState splits the state parameter into the nonce hash and the original URL.
+func parseSSOState(state string) (nonceHash, originalURL string, err error) {
+	parts := strings.SplitN(state, ":", 2)
+	if len(parts) != 2 {
+		return "", "", fmt.Errorf("invalid state format")
 	}
-	payloadEnc := state[:dot]
-	sig := state[dot+1:]
+	return parts[0], parts[1], nil
+}
 
-	mac := hmac.New(sha256.New, []byte(clientSecret))
-	mac.Write([]byte(payloadEnc))
+// signCSRFCookie returns a value for the CSRF cookie:
+// base64url(nonce) "." base64url(HMAC-SHA256(cookieSecret, nonce)).
+func signCSRFCookie(nonce, cookieSecret string) string {
+	mac := hmac.New(sha256.New, []byte(cookieSecret))
+	mac.Write([]byte(nonce))
+	sig := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+	return nonce + "." + sig
+}
+
+// verifyCSRFCookie verifies the CSRF cookie signature and returns the nonce.
+func verifyCSRFCookie(cookieValue, cookieSecret string) (string, error) {
+	dot := strings.LastIndexByte(cookieValue, '.')
+	if dot < 0 {
+		return "", fmt.Errorf("invalid CSRF cookie: missing separator")
+	}
+	nonce, sig := cookieValue[:dot], cookieValue[dot+1:]
+
+	mac := hmac.New(sha256.New, []byte(cookieSecret))
+	mac.Write([]byte(nonce))
 	expectedSig := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
 	if !hmac.Equal([]byte(sig), []byte(expectedSig)) {
-		return "", fmt.Errorf("invalid state signature")
+		return "", fmt.Errorf("CSRF cookie signature mismatch")
 	}
-
-	payloadJSON, err := base64.RawURLEncoding.DecodeString(payloadEnc)
-	if err != nil {
-		return "", fmt.Errorf("cannot decode state payload: %w", err)
-	}
-	var p ssoStatePayload
-	if err := json.Unmarshal(payloadJSON, &p); err != nil {
-		return "", fmt.Errorf("cannot unmarshal state payload: %w", err)
-	}
-	if time.Since(time.Unix(p.IssuedAt, 0)) > ssoStateTTL {
-		return "", fmt.Errorf("state expired")
-	}
-	return p.OriginalURL, nil
+	return nonce, nil
 }
 
 // processSSOLogin renders a minimal HTML page with a single "Login with SSO"
@@ -153,13 +151,32 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 	if oidc == nil {
 		return false
 	}
+	if pm == nil {
+		http.Error(w, "OIDC discovery not yet complete, try again shortly", http.StatusServiceUnavailable)
+		return true
+	}
 
-	state, err := buildSSOState(r.RequestURI, oidc.ClientSecret)
+	nonce, state, err := buildOIDCAuthState(r.URL.RequestURI())
 	if err != nil {
 		logger.Errorf("SSO: cannot build state: %s", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return true
 	}
+
+	// The nonce hash is what we send to the IdP; the raw nonce stays in the
+	// CSRF cookie and never leaves the browser.
+	h := sha256.Sum256([]byte(nonce))
+	nonceHash := base64.RawURLEncoding.EncodeToString(h[:])
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     ssoCsrfCookieName,
+		Value:    signCSRFCookie(nonce, oidc.CookieSecret),
+		Path:     "/_vmauth/sso/",
+		HttpOnly: true,
+		Secure:   r.TLS != nil,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   int(ssoCsrfCookieTTL.Seconds()),
+	})
 
 	redirectURL := ssoRedirectURL(r, oidc)
 	scopes := oidc.Scopes
@@ -173,6 +190,7 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 	params.Set("redirect_uri", redirectURL)
 	params.Set("scope", strings.Join(scopes, " "))
 	params.Set("state", state)
+	params.Set("nonce", nonceHash)
 	authURL := pm.AuthorizationEndpoint + "?" + params.Encode()
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -183,22 +201,57 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 
 // processSSOCallback handles the OIDC authorization code callback at /_vmauth/sso/callback.
 func processSSOCallback(w http.ResponseWriter, r *http.Request) {
-	oidc, _ := getSSOConfigForHost(r.Host)
+	oidc, pm := getSSOConfigForHost(r.Host)
 	if oidc == nil {
+		http.Error(w, "SSO not configured for this host", http.StatusNotFound)
+		return
+	}
+	if pm == nil {
+		http.Error(w, "OIDC discovery not yet complete, try again shortly", http.StatusServiceUnavailable)
 		return
 	}
 
 	q := r.URL.Query()
+
+	// Verify the CSRF cookie first — this binds the callback to the browser
+	// session that initiated the flow.
+	csrfCookie, err := r.Cookie(ssoCsrfCookieName)
+	if err != nil {
+		http.Error(w, "missing CSRF cookie", http.StatusBadRequest)
+		return
+	}
+	nonce, err := verifyCSRFCookie(csrfCookie.Value, oidc.CookieSecret)
+	if err != nil {
+		logger.Warnf("SSO callback: invalid CSRF cookie from %s: %s", r.RemoteAddr, err)
+		http.Error(w, "invalid CSRF cookie", http.StatusBadRequest)
+		return
+	}
+	// Consume the CSRF cookie — it is single-use.
+	http.SetCookie(w, &http.Cookie{
+		Name:   ssoCsrfCookieName,
+		Path:   "/_vmauth/sso/",
+		MaxAge: -1,
+	})
 
 	state := q.Get("state")
 	if state == "" {
 		http.Error(w, "missing state parameter", http.StatusBadRequest)
 		return
 	}
-	originalURL, err := verifySSOState(state, oidc.ClientSecret)
+	nonceHash, originalURL, err := parseSSOState(state)
 	if err != nil {
 		logger.Warnf("SSO callback: invalid state from %s: %s", r.RemoteAddr, err)
 		http.Error(w, "invalid state", http.StatusBadRequest)
+		return
+	}
+
+	// Confirm the state's nonce hash matches the cookie's nonce — this is the
+	// actual CSRF check binding state to the initiating browser session.
+	h := sha256.Sum256([]byte(nonce))
+	expectedNonceHash := base64.RawURLEncoding.EncodeToString(h[:])
+	if !hmac.Equal([]byte(nonceHash), []byte(expectedNonceHash)) {
+		logger.Warnf("SSO callback: state/cookie nonce mismatch from %s", r.RemoteAddr)
+		http.Error(w, "state nonce mismatch", http.StatusBadRequest)
 		return
 	}
 
@@ -208,10 +261,18 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idToken, err := exchangeCodeForIDToken(r.Context(), oidc, code, ssoRedirectURL(r, oidc))
+	idToken, err := exchangeCodeForIDToken(r.Context(), pm.TokenEndpoint, oidc, code, ssoRedirectURL(r, oidc))
 	if err != nil {
 		logger.Warnf("SSO callback: token exchange failed: %s", err)
 		http.Error(w, "token exchange failed", http.StatusBadRequest)
+		return
+	}
+
+	// OIDC Core §3.1.3.7: the IdP embedded nonceHash in the id_token; verify it
+	// matches to prevent id_token replay attacks.
+	if err := verifyIDTokenNonce(idToken, nonceHash); err != nil {
+		logger.Warnf("SSO callback: id_token nonce mismatch from %s: %s", r.RemoteAddr, err)
+		http.Error(w, "invalid id_token nonce", http.StatusBadRequest)
 		return
 	}
 
@@ -230,12 +291,38 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, originalURL, http.StatusFound)
 }
 
+// verifyIDTokenNonce decodes the id_token JWT payload and checks that the nonce
+// claim matches the expected value. The signature is validated separately by the
+// existing JWT pipeline; this check only protects against id_token replay attacks
+// (OIDC Core §3.1.3.7).
+func verifyIDTokenNonce(idToken, expectedNonce string) error {
+	// JWT format: header.payload.signature — all base64url encoded.
+	parts := strings.SplitN(idToken, ".", 3)
+	if len(parts) != 3 {
+		return fmt.Errorf("id_token is not a valid JWT")
+	}
+	payloadJSON, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return fmt.Errorf("cannot decode id_token payload: %w", err)
+	}
+	var claims struct {
+		Nonce string `json:"nonce"`
+	}
+	if err := json.Unmarshal(payloadJSON, &claims); err != nil {
+		return fmt.Errorf("cannot unmarshal id_token claims: %w", err)
+	}
+	if claims.Nonce != expectedNonce {
+		return fmt.Errorf("nonce mismatch: got %q, want %q", claims.Nonce, expectedNonce)
+	}
+	return nil
+}
+
 type tokenResponse struct {
 	IDToken string `json:"id_token"`
 }
 
 // exchangeCodeForIDToken exchanges the OIDC authorization code for an id_token.
-func exchangeCodeForIDToken(ctx context.Context, oidc *SSOOIDCConnectConfig, code, redirectURL string) (string, error) {
+func exchangeCodeForIDToken(ctx context.Context, tokenEndpoint string, oidc *SSOOIDCConnectConfig, code, redirectURL string) (string, error) {
 	params := url.Values{}
 	params.Set("grant_type", "authorization_code")
 	params.Set("code", code)
@@ -243,7 +330,7 @@ func exchangeCodeForIDToken(ctx context.Context, oidc *SSOOIDCConnectConfig, cod
 	params.Set("client_id", oidc.ClientID)
 	params.Set("client_secret", oidc.ClientSecret)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, oidc.tokenEndpoint, strings.NewReader(params.Encode()))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, tokenEndpoint, strings.NewReader(params.Encode()))
 	if err != nil {
 		return "", fmt.Errorf("cannot create token request: %w", err)
 	}
