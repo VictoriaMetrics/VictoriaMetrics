@@ -737,7 +737,7 @@ func currOnly(total dataConfig) (prev, curr, pt dataConfig) {
 // prevCurr is an index config func that splits index data evenly between
 // prev and curr legacy indexDBs. No data goes to pt indexDBs.
 //
-// This config corresponds to a state when the the deployment has switched to pt
+// This config corresponds to a state when the deployment has switched to pt
 // index some significant time after legacy indexDB rotation. I.e. index entries
 // are in both prev and curr legacy indexDBs.
 func prevCurr(total dataConfig) (prev, curr, pt dataConfig) {
@@ -767,7 +767,7 @@ func ptOnly(total dataConfig) (prev, curr, pt dataConfig) {
 // prevPt is an index config func that splits index data evenly between
 // prev legacy indexDB and pt indexDBs. No data goes to curr legacy indexDB.
 //
-// This config corresponds to a state when the the deployment has switched to pt
+// This config corresponds to a state when the deployment has switched to pt
 // index right after legacy indexDB rotation and continued to work for some
 // time.
 func prevPt(total dataConfig) (prev, curr, pt dataConfig) {
@@ -787,7 +787,7 @@ func prevPt(total dataConfig) (prev, curr, pt dataConfig) {
 // currPt is an index config func that splits index data evenly between
 // curr legacy indexDB and pt indexDBs. No data goes to prev legacy indexDB.
 //
-// This config corresponds to a state when the the deployment has switched to pt
+// This config corresponds to a state when the deployment has switched to pt
 // index right before legacy indexDB rotation and continued to work for some
 // time.
 func currPt(total dataConfig) (prev, curr, pt dataConfig) {
@@ -807,7 +807,7 @@ func currPt(total dataConfig) (prev, curr, pt dataConfig) {
 // prevCurrPt is an index config func that splits index data evenly between
 // prev and curr legacy indexDBs and pt indexDBs.
 //
-// This config corresponds to a state when the the deployment has switched to pt
+// This config corresponds to a state when the deployment has switched to pt
 // index right some time after legacy indexDB rotation and continued to work for
 // some time.
 func prevCurrPt(total dataConfig) (prev, curr, pt dataConfig) {
