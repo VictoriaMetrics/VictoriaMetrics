@@ -160,7 +160,7 @@ func TestClusterVmstoragePrometheusRemoteWriteDisabled(t *testing.T) {
 	headers := make(http.Header)
 	headers.Set("Content-Type", "application/x-protobuf")
 	_, statusCode := tc.Client().Post(t, fmt.Sprintf("http://%s/api/v1/write", vmstorage.HTTPAddr()), data, headers)
-	if statusCode == http.StatusNoContent {
-		t.Fatalf("unexpected status code: got %d; want non-%d when -enableIngestionAPI is disabled", statusCode, http.StatusNoContent)
+	if statusCode != http.StatusBadRequest {
+		t.Fatalf("unexpected status code: got %d; want %d when -enableIngestionAPI is disabled", statusCode, http.StatusBadRequest)
 	}
 }
