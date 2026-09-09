@@ -1643,36 +1643,51 @@ func TestIndexDBSearchLabelValues(t *testing.T) {
 }
 
 func testIndexDBSearchLabelValues(t *testing.T, disablePerDayIndex bool) {
-	const days = 5
-	const metricsPerDay = 1000
-	timestamp := time.Date(2019, time.October, 15, 5, 1, 0, 0, time.UTC).UnixMilli()
-	baseDate := uint64(timestamp) / msecPerDay
-	var allMetricNames []string
+	const (
+		numDays       = 4
+		metricsPerDay = 1000
+	)
+	baseTimestamp := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
+	baseDate := uint64(baseTimestamp) / msecPerDay
+	tr1d := TimeRange{
+		MinTimestamp: baseTimestamp,
+		MaxTimestamp: baseTimestamp + msecPerDay - 1,
+	}
+	tr2d := TimeRange{
+		MinTimestamp: baseTimestamp,
+		MaxTimestamp: baseTimestamp + 2*msecPerDay - 1,
+	}
+
+	var (
+		allMetricNames       []string
+		uniqLabelValuesByDay = make(map[int][]string)
+		allUniqLabelValues   []string
+	)
 
 	s := MustOpenStorage(t.Name(), OpenOptions{
 		DisablePerDayIndex: disablePerDayIndex,
 	})
 	defer s.MustClose()
-	ptw := s.tb.MustGetPartition(timestamp)
+	ptw := s.tb.MustGetPartition(baseTimestamp)
 	defer s.tb.PutPartition(ptw)
 	db := ptw.pt.idb
-
 	is := db.getIndexSearch(noDeadline)
-	for day := range days {
-		date := baseDate - uint64(day)
+	for day := range numDays {
+		date := baseDate + uint64(day)
 		for metric := range metricsPerDay {
-			name := fmt.Sprintf("testMetric_%d", metric)
+			name := fmt.Sprintf("metric_%04d", metric)
 			if !slices.Contains(allMetricNames, name) {
 				allMetricNames = append(allMetricNames, name)
 			}
+			uniqLabelValue := fmt.Sprintf("%04d", day*metricsPerDay+metric)
+			uniqLabelValuesByDay[day] = append(uniqLabelValuesByDay[day], uniqLabelValue)
+			allUniqLabelValues = append(allUniqLabelValues, uniqLabelValue)
 
 			mn := MetricName{
 				MetricGroup: []byte(name),
 			}
-			mn.AddTag("constant", "const")
 			mn.AddTag("day", fmt.Sprintf("%v", day))
-			mn.AddTag("UniqueId", fmt.Sprintf("%v", metric))
-			mn.AddTag("some_unique_id", fmt.Sprintf("%v", day))
+			mn.AddTag("uniq", uniqLabelValue)
 			mn.sortTags()
 			metricNameBuf := mn.Marshal(nil)
 
@@ -1687,7 +1702,7 @@ func testIndexDBSearchLabelValues(t *testing.T, disablePerDayIndex bool) {
 	db.tb.DebugFlush()
 	slices.Sort(allMetricNames)
 
-	assertLabelValues := func(labelName string, tfs *TagFilters, tr TimeRange, want []string) {
+	assertLabelValues := func(t *testing.T, labelName string, tfs *TagFilters, tr TimeRange, want []string) {
 		t.Helper()
 		var tfss []*TagFilters
 		if tfs != nil {
@@ -1703,72 +1718,143 @@ func testIndexDBSearchLabelValues(t *testing.T, disablePerDayIndex bool) {
 		}
 	}
 
-	// Check SearchLabelNames with the specified time range.
-	tr := TimeRange{
-		MinTimestamp: timestamp - msecPerDay,
-		MaxTimestamp: timestamp,
-	}
-	if disablePerDayIndex {
-		tr = globalIndexTimeRange
-	}
+	var tfs *TagFilters
 
-	// Check SearchLabelValues with the specified time range.
-	assertLabelValues("", nil, tr, allMetricNames)
+	// Search all metric names.
+	// This is equivalent to an HTTP request to /api/v1/label/__name__/values
+	t.Run("allMetricNames", func(t *testing.T) {
+		if disablePerDayIndex {
+			assertLabelValues(t, "", nil, globalIndexTimeRange, allMetricNames)
+			assertLabelValues(t, "__name__", nil, globalIndexTimeRange, allMetricNames)
+		} else {
+			assertLabelValues(t, "", nil, tr1d, allMetricNames)
+			assertLabelValues(t, "", nil, tr2d, allMetricNames)
+			assertLabelValues(t, "__name__", nil, tr1d, allMetricNames)
+			assertLabelValues(t, "__name__", nil, tr2d, allMetricNames)
+		}
+	})
 
-	// Check SearchLabelValues with the specified time range and tfs matches correct results
-	// if filter result exceeds quick search limit
-	tfsMetricNameRe := NewTagFilters()
-	if err := tfsMetricNameRe.Add([]byte("constant"), []byte("const"), false, false); err != nil {
-		t.Fatalf("cannot add filter on label: %s", err)
-	}
-	if err := tfsMetricNameRe.Add(nil, []byte("testMetric_99.*"), false, true); err != nil {
-		t.Fatalf("cannot add filter on metric name: %s", err)
-	}
-	originValue := maxMetricIDsForDirectLabelsLookup
-	maxMetricIDsForDirectLabelsLookup = 10
-	defer func() {
-		maxMetricIDsForDirectLabelsLookup = originValue
-	}()
-	assertLabelValues("__name__", tfsMetricNameRe, tr, []string{
-		"testMetric_99",
-		"testMetric_990", "testMetric_991", "testMetric_992", "testMetric_993",
-		"testMetric_994", "testMetric_995", "testMetric_996", "testMetric_997",
-		"testMetric_998", "testMetric_999"})
+	// Search all `uniq` label values across all metrics.
+	// This is equivalent to an HTTP request to /api/v1/label/uniq/values
+	t.Run("allUniqLabelValuesAcrossAllMetrics", func(t *testing.T) {
+		if disablePerDayIndex {
+			assertLabelValues(t, "uniq", nil, globalIndexTimeRange, allUniqLabelValues)
+		} else {
+			assertLabelValues(t, "uniq", nil, tr1d, uniqLabelValuesByDay[0])
+			uniqLabelValues2d := slices.Concat(uniqLabelValuesByDay[0], uniqLabelValuesByDay[1])
+			assertLabelValues(t, "uniq", nil, tr2d, uniqLabelValues2d)
+		}
+	})
 
-	// Perform a search within a day.
-	// This should return the metrics for the day.
-	tr = TimeRange{
-		MinTimestamp: timestamp - 2*msecPerHour - 1,
-		MaxTimestamp: timestamp,
-	}
-	if disablePerDayIndex {
-		tr = globalIndexTimeRange
-	}
+	// Search `uniq` label values that match `.0*8+` regex across all metrics.
+	// This is equivalent to an HTTP request to /api/v1/label/uniq/values?match={uniq=~".0*8+"}
+	//
+	// Tests optimization introduced in 66630c7960222b0afeaa3c69327225d16f75c502
+	t.Run("uniqLabelValues_.0*8+_acrossAllMetrics", func(t *testing.T) {
+		tfs = NewTagFilters()
+		if err := tfs.Add([]byte("uniq"), []byte(".0*8+"), false, true); err != nil {
+			t.Fatalf("cannot add filter: %s", err)
+		}
+		if disablePerDayIndex {
+			assertLabelValues(t, "uniq", tfs, globalIndexTimeRange, []string{
+				"0008", "0088", "0888",
+				"1008", "1088", "1888",
+				"2008", "2088", "2888",
+				"3008", "3088", "3888",
+			})
+		} else {
+			assertLabelValues(t, "uniq", tfs, tr1d, []string{
+				"0008", "0088", "0888",
+			})
+			assertLabelValues(t, "uniq", tfs, tr2d, []string{
+				"0008", "0088", "0888",
+				"1008", "1088", "1888",
+			})
+		}
+	})
 
-	// Check SearchLabelValues with the specified filter and time range.
-	// Create a filter that will match series that occur across multiple days
-	tfs := NewTagFilters()
-	if err := tfs.Add([]byte("constant"), []byte("const"), false, false); err != nil {
-		t.Fatalf("cannot add filter: %s", err)
-	}
-	assertLabelValues("", tfs, tr, allMetricNames)
+	// Search all `uniq` label values for `metric_0004`.
+	// This is equivalent to an HTTP request to /api/v1/label/uniq/values?match=metric_0004
+	//
+	// Tests optimization introduced in
+	// https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9489
+	t.Run("allUniqLabelValuesFor_metric_0004", func(t *testing.T) {
+		tfs = NewTagFilters()
+		if err := tfs.Add(nil, []byte("metric_0004"), false, false); err != nil {
+			t.Fatalf("cannot add filter: %s", err)
+		}
+		if disablePerDayIndex {
+			assertLabelValues(t, "uniq", tfs, globalIndexTimeRange, []string{
+				"0004", "1004", "2004", "3004",
+			})
+		} else {
+			assertLabelValues(t, "uniq", tfs, tr1d, []string{"0004"})
+			assertLabelValues(t, "uniq", tfs, tr2d, []string{"0004", "1004"})
+		}
+	})
 
-	// Check SearchLabelValues with filters on metric name and time range.
-	tfsMetricName := NewTagFilters()
-	if err := tfsMetricName.Add([]byte("constant"), []byte("const"), false, false); err != nil {
-		t.Fatalf("cannot add filter on label: %s", err)
-	}
-	if err := tfsMetricName.Add(nil, []byte("testMetric.*"), false, true); err != nil {
-		t.Fatalf("cannot add filter on metric name: %s", err)
-	}
-	assertLabelValues("", tfsMetricName, tr, allMetricNames)
+	// Search all `uniq` label values for `metric_0*9+`.
+	// This is equivalent to an HTTP request to /api/v1/label/uniq/values?match={__name__=~"metric_0*9+"}
+	//
+	// Tests the optimization introduced in dc929e0d168825d3894fb1fd74fbb94fb37f06da
+	// (also see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2978).
+	t.Run("allUniqLabelValuesFor_metric_0*9+", func(t *testing.T) {
+		tfs = NewTagFilters()
+		if err := tfs.Add(nil, []byte("metric_0*9+"), false, true); err != nil {
+			t.Fatalf("cannot add filter: %s", err)
+		}
+		if disablePerDayIndex {
+			assertLabelValues(t, "uniq", tfs, globalIndexTimeRange, []string{
+				"0009", "0099", "0999",
+				"1009", "1099", "1999",
+				"2009", "2099", "2999",
+				"3009", "3099", "3999",
+			})
+		} else {
+			assertLabelValues(t, "uniq", tfs, tr1d, []string{
+				"0009", "0099", "0999",
+			})
+			assertLabelValues(t, "uniq", tfs, tr2d, []string{
+				"0009", "0099", "0999",
+				"1009", "1099", "1999",
+			})
+		}
+	})
 
-	// Check SearchLabelValues with filters on composite key and time range.
-	tfsComposite := NewTagFilters()
-	if err := tfsComposite.Add(nil, []byte("testMetric.*"), false, true); err != nil {
-		t.Fatalf("cannot add filter: %s", err)
-	}
-	assertLabelValues("constant", tfsComposite, tr, []string{"const"})
+	// Same as above only the metricID search result is bigger than
+	// maxMetricIDsForDirectLabelsLookup
+	//
+	// This exercises the regular search path: first find metricIDs matching
+	// tfss, then scan the index for labelName and intersect each record's
+	// metricIDs with those found via tfss.
+	t.Run("allUniqLabelValuesFor_metric_0*9+_maxMetricIDsForDirectLabelsLookup", func(t *testing.T) {
+		origValue := maxMetricIDsForDirectLabelsLookup
+		maxMetricIDsForDirectLabelsLookup = 1
+		defer func() {
+			maxMetricIDsForDirectLabelsLookup = origValue
+		}()
+
+		tfs = NewTagFilters()
+		if err := tfs.Add(nil, []byte("metric_0*9+"), false, true); err != nil {
+			t.Fatalf("cannot add filter: %s", err)
+		}
+		if disablePerDayIndex {
+			assertLabelValues(t, "uniq", tfs, globalIndexTimeRange, []string{
+				"0009", "0099", "0999",
+				"1009", "1099", "1999",
+				"2009", "2099", "2999",
+				"3009", "3099", "3999",
+			})
+		} else {
+			assertLabelValues(t, "uniq", tfs, tr1d, []string{
+				"0009", "0099", "0999",
+			})
+			assertLabelValues(t, "uniq", tfs, tr2d, []string{
+				"0009", "0099", "0999",
+				"1009", "1099", "1999",
+			})
+		}
+	})
 }
 
 func TestFilterLabelValues(t *testing.T) {
@@ -2253,4 +2339,66 @@ func TestIndexSearchLegacyContainsTimeRange_Concurrent(t *testing.T) {
 	if got, want := idb.legacyMinMissingTimestampByKey[key], minTimestamp; got != want {
 		t.Fatalf("unexpected min timestamp: got %v, want %v", time.UnixMilli(got).UTC(), time.UnixMilli(want).UTC())
 	}
+}
+
+func TestIsSingleMetricNameFilter(t *testing.T) {
+	f := func(tfss []*TagFilters, want bool) {
+		t.Helper()
+		got := isSingleMetricNameFilter(tfss)
+		if got != want {
+			t.Fatalf("isSingleMetricNameFilter(%v) unexpected result: got %t, want %t", tfss, got, want)
+		}
+	}
+
+	add := func(tfs *TagFilters, key, value []byte, isNegative, isRegexp bool) {
+		t.Helper()
+		if err := tfs.Add(key, value, isNegative, isRegexp); err != nil {
+			t.Fatalf("could not add filter: %s", err)
+		}
+	}
+
+	var tfs1, tfs2 *TagFilters
+
+	f(nil, false)
+	f([]*TagFilters{}, false)
+
+	f([]*TagFilters{nil}, false)
+
+	tfs1 = NewTagFilters()
+	f([]*TagFilters{tfs1}, false)
+
+	tfs1 = NewTagFilters()
+	add(tfs1, nil, nil, false, false)
+	f([]*TagFilters{tfs1}, false)
+
+	tfs1 = NewTagFilters()
+	add(tfs1, nil, []byte{}, false, false)
+	f([]*TagFilters{tfs1}, false)
+
+	tfs1 = NewTagFilters()
+	add(tfs1, nil, []byte("metric"), false, false)
+	f([]*TagFilters{tfs1}, true)
+
+	tfs1 = NewTagFilters()
+	add(tfs1, nil, []byte("metric"), true, false)
+	f([]*TagFilters{tfs1}, false)
+
+	tfs1 = NewTagFilters()
+	add(tfs1, nil, []byte("metric.*"), false, true)
+	f([]*TagFilters{tfs1}, false)
+
+	tfs1 = NewTagFilters()
+	add(tfs1, nil, []byte("metric.*"), true, true)
+	f([]*TagFilters{tfs1}, false)
+
+	tfs1 = NewTagFilters()
+	add(tfs1, []byte("label"), []byte("value"), false, false)
+	add(tfs1, nil, []byte("metric"), false, false)
+	f([]*TagFilters{tfs1}, false)
+
+	tfs1 = NewTagFilters()
+	add(tfs1, []byte("label"), []byte("value"), false, false)
+	tfs2 = NewTagFilters()
+	add(tfs2, nil, []byte("metric"), false, false)
+	f([]*TagFilters{tfs1, tfs2}, false)
 }

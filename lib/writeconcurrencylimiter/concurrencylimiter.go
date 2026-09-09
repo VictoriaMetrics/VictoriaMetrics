@@ -57,6 +57,11 @@ type Reader struct {
 // concurrent connections could consume hundreds of MiB before -maxConcurrentInserts
 // admission kicks in. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11463 .
 func GetReader(r io.Reader) (*Reader, error) {
+	// Reserve a reader slot before waiting for an insert token. Reversing this
+	// order would let new requests hold all insert tokens while waiting for
+	// reader slots, preventing existing readers from reacquiring an insert
+	// token after Read() and eventually returning their reader slots.
+	// The reservation is released if insert admission times out.
 	if err := incStreamReadersConcurrency(); err != nil {
 		return nil, err
 	}
@@ -131,7 +136,7 @@ func incStreamReadersConcurrency() error {
 		return nil
 	case <-t.C:
 		return &httpserver.ErrorWithStatusCode{
-			Err: fmt.Errorf("cannot process insert request for %.3f seconds because %d concurrent insert requests already have allocated read buffers. "+
+			Err: fmt.Errorf("cannot process insert request for %.3f seconds because %d concurrent insert requests already have reserved read buffers. "+
 				"Possible solutions: to reduce the number of concurrent insert requests over streaming protocols; "+
 				"to increase -insert.maxConcurrentStreamReaders; to increase -insert.maxQueueDuration",
 				maxQueueDuration.Seconds(), cap(streamReadersCh)),
@@ -147,8 +152,10 @@ func decStreamReadersConcurrency() {
 
 // Read implements io.Reader.
 func (r *Reader) Read(p []byte) (int, error) {
-	DecConcurrency()
-	r.increasedConcurrency = false
+	if r.increasedConcurrency {
+		DecConcurrency()
+		r.increasedConcurrency = false
+	}
 
 	n, err := r.r.Read(p)
 

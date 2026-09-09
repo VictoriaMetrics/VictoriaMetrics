@@ -70,9 +70,12 @@ See [what is an active time series](https://docs.victoriametrics.com/victoriamet
 
 #### Cardinality
 
-The number of unique [time series](#time-series) is named `cardinality`. Having too many unique time series is named `high cardinality`.
-High cardinality may result in increased resource usage in VictoriaMetrics.
-See [these docs](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-cardinality) for more details.
+The number of unique [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) is named `cardinality`. Having too many unique time series is named `high cardinality`.
+[High cardinality](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-cardinality) may result in increased resource usage in VictoriaMetrics.
+
+See also:
+- [Cardinality Explorer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer).
+- [vmestimator](https://docs.victoriametrics.com/victoriametrics/vmestimator/).
 
 #### Raw samples
 

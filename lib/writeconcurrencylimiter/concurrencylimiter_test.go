@@ -29,6 +29,117 @@ func resetStreamReadersLimiter(t *testing.T, limit int, queueDuration time.Durat
 	})
 }
 
+func resetInsertLimiter(t *testing.T, limit int) {
+	t.Helper()
+
+	concurrencyLimitCh = nil
+	concurrencyLimitChOnce = sync.Once{}
+	prevLimit := *maxConcurrentInserts
+	*maxConcurrentInserts = limit
+	t.Cleanup(func() {
+		*maxConcurrentInserts = prevLimit
+		concurrencyLimitCh = nil
+		concurrencyLimitChOnce = sync.Once{}
+	})
+}
+
+func TestGetReaderInsertTimeoutReleasesStreamSlot(t *testing.T) {
+	resetStreamReadersLimiter(t, 1, 10*time.Millisecond)
+	resetInsertLimiter(t, 1)
+
+	if err := IncConcurrency(); err != nil {
+		t.Fatalf("cannot occupy insert token: %v", err)
+	}
+	r, err := GetReader(strings.NewReader("test"))
+	if err == nil {
+		PutReader(r)
+		t.Error("expecting an error when insert admission times out")
+	} else if esc, ok := err.(*httpserver.ErrorWithStatusCode); !ok || esc.StatusCode != http.StatusServiceUnavailable {
+		t.Errorf("unexpected insert admission error: %v", err)
+	}
+	DecConcurrency()
+	if n := len(streamReadersCh); n != 0 {
+		t.Fatalf("stream reader reservation leaked after insert timeout: %d", n)
+	}
+
+	r, err = GetReader(strings.NewReader("test"))
+	if err != nil {
+		t.Fatalf("cannot obtain reader after insert token is released: %v", err)
+	}
+	PutReader(r)
+}
+
+func TestGetReaderStreamWaitDoesNotBlockExistingReader(t *testing.T) {
+	resetStreamReadersLimiter(t, 1, time.Second)
+	resetInsertLimiter(t, 1)
+
+	br := &blockingReader{
+		started: make(chan struct{}),
+		ready:   make(chan struct{}),
+	}
+	r, err := GetReader(br)
+	if err != nil {
+		t.Fatalf("cannot obtain first reader: %v", err)
+	}
+
+	readDone := make(chan error, 1)
+	go func() {
+		buf := make([]byte, 4)
+		_, err := r.Read(buf)
+		readDone <- err
+	}()
+	<-br.started
+
+	// The existing reader holds the only stream slot, but releases its insert
+	// token while waiting for data. A new reader must not take that token
+	// while waiting for the stream slot.
+	limitReached := streamReadersLimitReached.Get()
+	getDone := make(chan error, 1)
+	go func() {
+		r, err := GetReader(strings.NewReader("test"))
+		if err == nil {
+			PutReader(r)
+		}
+		getDone <- err
+	}()
+	deadline := time.Now().Add(time.Second)
+	for streamReadersLimitReached.Get() == limitReached && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if streamReadersLimitReached.Get() == limitReached {
+		t.Error("new reader did not wait for the occupied stream slot")
+	}
+	if n := len(concurrencyLimitCh); n != 0 {
+		t.Errorf("stream slot waiter holds %d insert tokens; want 0", n)
+	}
+
+	close(br.ready)
+	if err := <-readDone; err != nil {
+		t.Errorf("existing reader cannot reacquire insert token: %v", err)
+	}
+	PutReader(r)
+	if err := <-getDone; err != nil {
+		t.Errorf("cannot obtain reader after stream slot is released: %v", err)
+	}
+	if n := len(streamReadersCh); n != 0 {
+		t.Errorf("stream reader slots leaked: %d", n)
+	}
+	if n := len(concurrencyLimitCh); n != 0 {
+		t.Errorf("insert tokens leaked: %d", n)
+	}
+}
+
+type blockingReader struct {
+	started chan struct{}
+	ready   chan struct{}
+}
+
+func (r *blockingReader) Read(p []byte) (int, error) {
+	close(r.started)
+	<-r.ready
+	return copy(p, "test"), nil
+}
+
 func TestGetReaderStreamReadersLimit(t *testing.T) {
 	resetStreamReadersLimiter(t, 1, 100*time.Millisecond)
 

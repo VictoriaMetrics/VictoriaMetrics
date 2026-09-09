@@ -513,51 +513,17 @@ func (sr *StatsResult) DeduplicateMergeRecords() {
 	if len(sr.Records) < 2 {
 		return
 	}
-	tmp := sr.Records[:0]
-	// deduplication uses sliding indexes
-	//
-	// records:
-	// [ 0    1    2    3    4    5    6   ]
-	//
-	// [ mn1, mn2, mn2, mn2, mn3, mn4, mn4 ]
-	//
-	//	0     1
-	//	0          2
-	//	           2    3
-	//	           2         4
-	//	           2              5
-	//	                          5    6
-	//
-	// result:
-	//
-	//	[0,1,4,5]
 
-	i := 0
-	j := 1
-	rCurr := sr.Records[i]
-	rNext := sr.Records[j]
-	for {
-		if rCurr.MetricName == rNext.MetricName {
-			rCurr.RequestsCount += rNext.RequestsCount
-			if rCurr.LastRequestTs < rNext.LastRequestTs {
-				rCurr.LastRequestTs = rNext.LastRequestTs
-			}
-			j++
-			if j >= len(sr.Records) {
-				tmp = append(tmp, rCurr)
-				break
-			}
+	sr.sort()
+	tmp := sr.Records[:1]
+	for _, r := range sr.Records[1:] {
+		last := &tmp[len(tmp)-1]
+		if last.MetricName == r.MetricName {
+			last.RequestsCount += r.RequestsCount
+			last.LastRequestTs = max(last.LastRequestTs, r.LastRequestTs)
 		} else {
-			tmp = append(tmp, rCurr)
-			i = j
-			rCurr = sr.Records[i]
-			j++
-			if j >= len(sr.Records) {
-				tmp = append(tmp, rNext)
-				break
-			}
+			tmp = append(tmp, r)
 		}
-		rNext = sr.Records[j]
 	}
 	sr.Records = tmp
 }
@@ -576,9 +542,7 @@ func (sr *StatsResult) Sort() {
 //
 // It expected src to be sorted by metricName
 func (sr *StatsResult) Merge(src *StatsResult) {
-	if sr.CollectedSinceTs < src.CollectedSinceTs {
-		sr.CollectedSinceTs = src.CollectedSinceTs
-	}
+	sr.CollectedSinceTs = max(sr.CollectedSinceTs, src.CollectedSinceTs)
 	sr.TotalRecords += src.TotalRecords
 	sr.CurrentSizeBytes += src.CurrentSizeBytes
 	sr.MaxSizeBytes += src.MaxSizeBytes
@@ -590,61 +554,7 @@ func (sr *StatsResult) Merge(src *StatsResult) {
 		sr.Records = append(sr.Records, src.Records...)
 		return
 	}
-	// merge sorted elements into new slice
-	// records:
-	// [ mn1, mn2, mn3, mn4, mn6 ]
-	// [ mn2, mn4, mn5 ]
-	//   0
-	//   0
-	// [ ]
-	//        1
-	//   0
-	// [ mn1 ]
-	//             2
-	//        1
-	// [ mn1, mn2 ]
-	//                  3
-	//        1
-	// [ mn1, mn2, mn3 ]
-	//                       4
-	//             2
-	// [ mn1, mn2, mn3, mn4 ]
-	//                       4
-	//                 -
-	// [ mn1, mn2, mn3, mn4, mn5 ]
-	//
-	// [ mn1, mn2, mn3, mn4, mn5, mn6 ]
-	i := 0
-	j := 0
-	// TODO: probably, we can append src records to sr instead of allocating new slice
-	// it will require to perform sort on sr and probably will use more CPU, but less memory
-	result := make([]StatRecord, 0, len(sr.Records))
-	for {
-		if i >= len(sr.Records) {
-			result = append(result, src.Records[j:]...)
-			break
-		}
-		if j >= len(src.Records) {
-			result = append(result, sr.Records[i:]...)
-			break
-		}
-		left, right := sr.Records[i], src.Records[j]
-		switch {
-		case left.MetricName == right.MetricName:
-			left.RequestsCount += right.RequestsCount
-			if left.LastRequestTs < right.LastRequestTs {
-				left.LastRequestTs = right.LastRequestTs
-			}
-			result = append(result, left)
-			i++
-			j++
-		case left.MetricName < right.MetricName:
-			result = append(result, left)
-			i++
-		case left.MetricName > right.MetricName:
-			result = append(result, right)
-			j++
-		}
-	}
-	sr.Records = result
+
+	sr.Records = append(sr.Records, src.Records...)
+	sr.DeduplicateMergeRecords()
 }
