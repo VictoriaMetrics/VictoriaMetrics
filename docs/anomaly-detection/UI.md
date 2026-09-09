@@ -42,6 +42,8 @@ For impactful parameters please refer to [optimize resource usage](#optimize-res
 
 Try the UI with preconfigured queries and models in the public VictoriaMetrics, VictoriaLogs, and VictoriaTraces playgrounds:
 
+<div class="collapse-group mb-3">
+
 {{% collapse name="Playground on VictoriaMetrics Datasource" %}}
 
 <div class="position-relative mb-3">
@@ -117,6 +119,8 @@ Try the UI with preconfigured queries and models in the public VictoriaMetrics, 
 </div>
 
 {{% /collapse %}}
+
+</div>
 
 ## Authentication
 
@@ -280,6 +284,12 @@ For example, if a smaller OpenAI model is desired, set:
 export VMANOMALY_COPILOT_MODEL=openai:gpt-5-nano
 ```
 
+### Copilot context budgets
+
+{{% available_from "v1.30.5" anomaly %}} Configure the backend with `VMANOMALY_COPILOT_MAX_CONTEXT_BYTES` (default `320000`) and `VMANOMALY_COPILOT_MAX_OUTPUT_TOKENS` (default `8192`). The backend compacts duplicate completed tool results while preserving query and approval data. Oversized requests can still be refused locally; start a fresh conversation or narrow the request. These byte and output-token ceilings are independent and do not guarantee that every provider request fits its context window.
+
+See [AI Copilot metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#ai-copilot-metrics) to inspect context growth, provider-reported usage and budget refusals.
+
 ### MCP tools server
 
 Connects Copilot to [mcp-vmanomaly](https://github.com/VictoriaMetrics/mcp-vmanomaly) for full tool access (built-in docs, models configuration and validation, alerts recommendation, service healthchecks, etc.). Full [tools list](https://github.com/VictoriaMetrics/mcp-vmanomaly?tab=readme-ov-file#toolset):
@@ -317,7 +327,7 @@ docker run -it --rm \
   -e VMANOMALY_MCP_SERVER_URL=http://mcp-vmanomaly:8081/mcp \
   -p 8080:8080 \
   -p 8490:8490 \
-  victoriametrics/vmanomaly:v1.30.4 \
+  victoriametrics/vmanomaly:v1.30.5 \
   vmanomaly_config.yaml
 ```
 
@@ -333,15 +343,23 @@ The UI has four main areas:
 
 ### Query Explorer
 
+{{% available_from "v1.30.5" anomaly %}} UI v1.9.0 supports multiple named queries in one experiment. Add, remove, rename, reorder or disable query rows, and select which active aliases a model uses. Saved query sets and URL sharing retain query composition and business policies.
+
+For each query, optionally configure [`data_range`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#per-query-parameters), [`detection_direction`](https://docs.victoriametrics.com/anomaly-detection/components/models/#detection-direction), [`min_dev_from_expected`](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-deviation-from-expected) and [`min_rel_dev_from_expected`](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-relative-deviation-from-expected). **Use model default** means the field inherits its model fallback; turn it off to apply a **Query override**. Explicit zero deviations, `both`, and unbounded ranges are valid overrides. Editing a query override does not change the model defaults. Relative deviations are percentages of the expected value, not percentage-point differences.
+
 Use Query Explorer to run MetricsQL or LogsQL queries and visualize input data.
 
-![vmanomaly-ui-sections-explore](vmanomaly-ui-sections-explore.webp)
+![Query Explorer with two named queries, per-query business policies and model-default inheritance controls](vmanomaly-ui-sections-explore.webp)
 
 Users can:
 - Enter, autocomplete, prettify and execute queries to retrieve and plot the data from the configured data source (see [settings panel](#settings-panel) for data source configuration).
 - Adjust the (inference) time range and resolution (step) for data visualization and anomaly detection purposes.
 - Access query history and saved queries for quick access to frequently used queries.
 - Switch tenants (if data source supports multi-tenancy) and access [settings panel](#settings-panel) for global UI configuration.
+
+Open **Queries** to browse query sets in the **Session**, **History**, **Favorites** and **Server** tabs. Search for a set and expand **Show query details** to inspect its named expressions and individual business policies before reusing it.
+
+![Queries menu showing history entries with named queries and expanded business policies](vmanomaly-ui-queries-menu.webp)
 
 [Back to UI navigation](#ui-navigation)
 
@@ -402,6 +420,30 @@ The vmui-like "Settings" panel allows users to configure global settings and pre
 {class="w-50 mx-auto"}
 
 [Back to navigation](#ui-navigation)
+
+## Multivariate Investigation
+
+{{% available_from "v1.30.5" anomaly %}} UI v1.9.0 can investigate supported multivariate models using multiple aligned signals. Choose a multivariate class exposed by the connected server, select the query aliases it should use, and configure `groupby` with the labels identifying independent entities. For example, grouping by `service` creates a separate joint model for each service label value; signals from different services are not mixed. One query can return several channels, and several named queries can contribute channels to the same group.
+
+> [!WARNING]
+> The multivariate UI is experimental. Its layout and interactions may change. Validate results against representative history before using the configuration in production. Availability depends on the connected server's model catalog; this does not imply support for every model topology or custom model.
+
+The workspace lets you select an anomaly-ranked group, compare normalized input signals, inspect its joint anomaly score and anomaly regions, and focus or pin individual channels with forecast and interval diagnostics. A joint anomaly score describes the group; per-channel plots help investigate contributing behavior and do not turn the result into independent univariate detections. Empty or misaligned inputs require correcting the queries, grouping labels or time range.
+
+1. Execute the intended queries and check that each required group has matching input channels.
+2. Select a supported multivariate model and set `groupby` to the entity labels. Keep query-specific policies on their query rows.
+3. Detect anomalies, choose a group, and inspect the joint score alongside its channels. Consecutive-point filtering controls which anomalous streaks are displayed; it is separate from model fitting and production alert persistence.
+4. Review the resulting configuration before exporting it. Additional channel diagnostics can increase output cardinality; UI experiments do not change production writer settings automatically.
+
+![Multivariate investigation with normalized input signals, a joint anomaly score and expanded per-channel forecast diagnostics](vmanomaly-ui-multivariate-investigation.webp)
+
+### Multivariate suggestions and autotune
+
+With [mcp-vmanomaly](https://github.com/VictoriaMetrics/mcp-vmanomaly/releases) **v0.4.0 or later**, **vmanomaly v1.30.5 or later** and **UI v1.9.0 or later**, Copilot can propose named queries and their policies, then tune the actual multivariate class with all active inputs in one shared study. Grouping and per-query policies are preserved. Each candidate is evaluated across the aligned groups, and the returned model configuration is shared across them; separately tuned univariate configurations are not a substitute for joint tuning.
+
+Review and approve suggestions before applying them. If the queries changed while a suggestion was pending, request a refreshed suggestion. Upgrade the MCP server to v0.4.0 or later to use this workflow; updating the UI alone does not upgrade its tools.
+
+For online-model experiments intended to run without refits, use `exact: true`, match `infer_every` to the query step, and choose `fit_every` longer than the displayed inference range. For example, a 30-day range can use `fit_every: 35d`; `fit_window` independently provides initialization history. Exact inference alone does not disable refits. Choose production refit cadence separately according to drift and operational needs.
 
 ## Configuration Sharing
 
@@ -568,7 +610,7 @@ Set appropriate tenants (if data source supports multi-tenancy) and access [sett
 
 Set up the time range and resolution (step) for data visualization and anomaly detection purposes - e.g. last 7 days with 30m step, especially if the data has daily/weekly seasonality. Also, set the step according to the desired granularity of anomaly detection results (e.g. 30m step for 30m granularity) which itself is based on alerting needs and latency requirements.
 
-![vmanomaly-ui-sections-explore](vmanomaly-ui-sections-explore.webp)
+![Query Explorer with two named queries, per-query business policies and model-default inheritance controls](vmanomaly-ui-sections-explore.webp)
 
 Pay attention to trends, seasonality, noise, outliers, and other patterns in the data, which can influence the choice of anomaly detection model and its hyperparameters. Use [Temporal Envelope](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope) for complex data with trend or calendar patterns, and [Online MAD](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-mad) for simple, mostly stationary data where robustness to outliers matters.
 
@@ -644,7 +686,18 @@ If the **results** look good and the **model configuration should be deployed in
 
 ## Changelog
 
+<div class="collapse-group mb-3">
+
 {{% collapse name="Release history" %}}
+
+### v1.9.0
+Released: 2026-09-10
+
+Recommended vmanomaly version: [v1.30.5](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1305)
+
+- FEATURE: Added multiple named queries with per-query policies, preserved query sets, and model query selection.
+- FEATURE: Added the experimental multivariate investigation workspace with group selection, coordinated channels and joint anomaly scores.
+- FEATURE: [AI Copilot](#ai-assistance) can suggest complete named query sets with aliases and individual business policies, and shared multivariate autotune configurations through compatible tools. Approved suggestions preserve policy inheritance and reject changes based on stale query state.
 
 ### v1.8.3
 Released: 2026-08-27
@@ -871,3 +924,5 @@ vmanomaly version: [v1.26.0](https://docs.victoriametrics.com/anomaly-detection/
 Initial public release of the vmanomaly UI.
 
 {{% /collapse %}}
+
+</div>

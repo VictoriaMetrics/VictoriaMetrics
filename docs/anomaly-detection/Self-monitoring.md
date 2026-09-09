@@ -26,6 +26,8 @@ Self-monitoring metrics are available in both the [push](https://docs.victoriame
 
 The self-monitoring assets of `vmanomaly` include Grafana dashboard and accompanying alerting rules.
 
+{{% available_from "v1.30.5" anomaly %}} For AI-assisted investigations, see [AI Copilot metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#ai-copilot-metrics): request representation size, reported input/output tokens, response finish reasons and local context-budget refusals. These counters use bounded labels and are exposed when Copilot budgeting initializes. Existing dashboards may need additional panels to display them.
+
 ## Grafana Dashboard
 
 > Recent revision of Grafana dashboard is designed to work with metrics produced by `vmanomaly` version [v1.18.4](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1184) or higher.

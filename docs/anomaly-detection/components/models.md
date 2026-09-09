@@ -731,14 +731,18 @@ models:
 {{% available_from "v1.30.0" anomaly %}} Agents, the UI, and external automation can tune one shared configuration across a bounded sample of query results without adding an `auto` wrapper to the production configuration:
 
 1. Inspect the query with `GET /api/v1/timeseries/characteristics` to identify trend, calendar seasonality, changepoints, gaps, and intermittent behavior.
-2. Start a task with `POST /api/v1/autotune/tasks`. Provide the actual query, the candidate model class, the same query `step` used in production, and a bounded `limit`.
+2. Start a task with `POST /api/v1/autotune/tasks`. Provide the actual query (or named queries), the candidate model class, the same query `step` used in production, and a bounded `limit`.
 3. Poll `GET /api/v1/autotune/tasks/{task_id}` until `status` is `done`; cancel unnecessary work with `DELETE` on the same path.
 4. Validate and deploy `result_data.data.modelConfig`, which is a concrete configuration for the selected model class.
 
 > [!TIP]
-> Use [skills](https://docs.victoriametrics.com/ai-tools/#agent-skills) where abovementioned workflow is automated. Also, [AI Copilot](https://docs.victoriametrics.com/anomaly-detection/ui/#ai-assistant) can generate a tuned model configuration to interactively backtest in UI, based on the query data characteristics and user's anomaly expectations.
+> Use [skills](https://docs.victoriametrics.com/ai-tools/#agent-skills) where abovementioned workflow is automated. Also, [AI Copilot](https://docs.victoriametrics.com/anomaly-detection/ui/#ai-assistance) can generate a tuned model configuration to interactively backtest in UI, based on the query data characteristics and user's anomaly expectations.
 
-Example request for an online model:
+The examples below are JSON bodies for `POST /api/v1/autotune/tasks`. Set `datasource_url` for your deployment and supply `start` and `end` as Unix timestamps for the history you want to evaluate. See the server’s [interactive API reference](https://docs.victoriametrics.com/anomaly-detection/components/server/#interactive-api-reference) for the running version’s request schemas.
+
+<div class="collapse-group mb-3">
+
+{{% collapse name="Univariate online-model example" %}}
 
 ```json
 {
@@ -760,6 +764,57 @@ Example request for an online model:
   }
 }
 ```
+
+{{% /collapse %}}
+
+{{% collapse name="Multivariate named-query example with grouping" %}}
+
+{{% available_from "v1.30.5" anomaly %}} Tune request rate and error rate jointly, with one multivariate input group per `service`. Both expressions must return data for every service included in the study; an absent error series is not automatically treated as zero.
+
+```json
+{
+  "queries": {
+    "request_rate": {
+      "expr": "sum by (service) (rate(http_requests_total{service!=\"\"}[5m]))",
+      "data_range": [
+        0,
+        null
+      ]
+    },
+    "error_rate": {
+      "expr": "sum by (service) (rate(http_requests_total{service!=\"\",status=~\"5..\"}[5m]))",
+      "data_range": [
+        0,
+        null
+      ],
+      "detection_direction": "above_expected"
+    }
+  },
+  "tuned_class_name": "temporal_envelope_multivariate",
+  "anomaly_percentage": 0.01,
+  "step": "5m",
+  "limit": 100,
+  "optimization_params": {
+    "exact": true,
+    "n_splits": 3,
+    "n_trials": 64,
+    "timeout": 60,
+    "optimize_complexity": true
+  },
+  "frozen_params": {
+    "groupby": [
+      "service"
+    ],
+    "score_aggregation": "l2"
+  }
+}
+```
+
+For each candidate configuration, the server fits and evaluates separate models for the aligned service groups and aggregates their validation scores in one study. The result is one shared model configuration for all groups. `frozen_params.groupby` keeps grouping fixed, while the named queries retain their individual business policies. `limit` applies separately to each expression; ensure it is large enough to retain all required channels for the intended groups.
+
+{{% /collapse %}}
+
+</div>
 
 The requested anomaly percentage is treated as an alert-volume constraint rather than a target that must be reached in every validation fold. Model-specific search ranges may be narrowed using the sampled characteristics, while `frozen_params` preserves operator-supplied context. For online models, `exact: true` usually gives the most representative choice when production inference is causal.
 
@@ -1610,7 +1665,7 @@ See the [component configuration reference](https://docs.victoriametrics.com/ano
 Pull the `vmanomaly` image:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.30.4
+docker pull victoriametrics/vmanomaly:v1.30.5
 ```
 
 Mount the module at `/vmanomaly/src/model/custom.py`, which matches the configured import path `model.custom.CustomModel`. Validate the complete configuration with `--dryRun` before starting the long-running service.
@@ -1620,7 +1675,7 @@ docker run --rm \
   -v "$PWD/license:/license:ro" \
   -v "$PWD/custom_model.py:/vmanomaly/src/model/custom.py:ro" \
   -v "$PWD/config.yaml:/config.yaml:ro" \
-  victoriametrics/vmanomaly:v1.30.4 \
+  victoriametrics/vmanomaly:v1.30.5 \
   /config.yaml \
   --licenseFile=/license \
   --dryRun

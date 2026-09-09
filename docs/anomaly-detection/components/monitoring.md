@@ -272,6 +272,7 @@ For detailed guidance on configuring mTLS parameters such as `verify_tls`, `tls_
 - [Reader metrics](#reader-behaviour-metrics)
 - [Model metrics](#models-behaviour-metrics)
 - [Writer metrics](#writer-behaviour-metrics)
+- [AI Copilot metrics](#ai-copilot-metrics)
 
 <div class="collapse-group">
 
@@ -782,6 +783,52 @@ Label names [description](#labelnames)
 </table>
 
 [Back to metric sections](#metrics-generated-by-vmanomaly)
+
+{{% /collapse %}}
+
+{{% collapse name="AI Copilot metrics" %}}
+
+### AI Copilot metrics
+
+{{% available_from "v1.30.5" anomaly %}} These counters are registered when AI Copilot budgeting initializes and are exposed through the QueryServer `/metrics` endpoint. If Copilot is disabled or fails to initialize, they may be absent. They measure model calls, not unique conversations. Counters reset on process restart; labeled series appear when first observed.
+
+| Metric | Type | Labels and meaning |
+| --- | --- | --- |
+| `vmanomaly_copilot_request_bytes_total` | Counter | `category`: `history`, `parameters`<br>`stage`: `before`, `after`<br>Cumulative serialized request representation bytes before and after history projection. Parameters are measured but not compacted. Includes attempts rejected by the local budget; not provider wire bytes. |
+| `vmanomaly_copilot_tokens_total` | Counter | `direction`: `input`, `output`<br>SDK/provider-reported tokens for observed responses; not a billing estimate. |
+| `vmanomaly_copilot_responses_total` | Counter | `finish_reason`: `stop`, `length`, `tool_call`, `content_filter`, `error`, `other`<br>Observed model responses. Unknown or missing reasons map to `other`. Transport exceptions are not necessarily counted as responses. |
+| `vmanomaly_copilot_budget_rejections_total` | Counter | No labels. Requests refused before the model call because compacted history plus measured parameters exceed the configured context byte budget. |
+
+Each listed value is a separate possible label value. Labels have bounded sets and do not include session IDs, query aliases, prompt contents or secrets. Compaction can increase small history representations; `after` is not guaranteed to be smaller than `before`.
+
+```prometheus
+vmanomaly_copilot_request_bytes_total{category="history",stage="before"} 330951
+vmanomaly_copilot_request_bytes_total{category="history",stage="after"} 43032
+vmanomaly_copilot_tokens_total{direction="input"} 25800
+vmanomaly_copilot_tokens_total{direction="output"} 4707
+vmanomaly_copilot_responses_total{finish_reason="tool_call"} 2
+vmanomaly_copilot_budget_rejections_total 0
+```
+
+These are illustrative cumulative values. To monitor token rate and local refusals:
+
+```promql
+sum by (direction) (rate(vmanomaly_copilot_tokens_total[5m]))
+sum(increase(vmanomaly_copilot_budget_rejections_total[15m]))
+```
+
+To measure history byte reduction over a window (negative means growth; undefined when no bytes were observed):
+
+```promql
+100 * (1 -
+  sum(increase(vmanomaly_copilot_request_bytes_total{category="history",stage="after"}[15m])) /
+  sum(increase(vmanomaly_copilot_request_bytes_total{category="history",stage="before"}[15m]))
+)
+```
+
+Use `finish_reason="length"` to investigate responses ending at the output limit. See [Copilot context budgets](https://docs.victoriametrics.com/anomaly-detection/ui/#copilot-context-budgets) before changing limits; increasing a local byte limit does not increase the provider's context window.
+
+[Back to metrics](#metrics-generated-by-vmanomaly)
 
 {{% /collapse %}}
 
