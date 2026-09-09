@@ -128,6 +128,23 @@ func getClusterPath(addr, prefix, suffix string, o QueryOpts) string {
 	return tenantViaURL(addr, prefix, "0:0", suffix)
 }
 
+// getSingleOrMultitenantInsertPath returns URL path for writes.
+// If tenant is set in QueryOpts, it returns cluster-like path for ingestion.
+// If tenant is empty, it returns single-node path.
+func getSingleOrMultitenantInsertPath(addr, suffix string, o QueryOpts) string {
+	if o.Tenant != "" {
+		// QueryOpts.Tenant has priority over headers.
+		return fmt.Sprintf("http://%s/insert/%s/%s", addr, o.Tenant, suffix)
+	}
+
+	h := o.getHeaders()
+	if h.Get("AccountID") != "" || h.Get("ProjectID") != "" {
+		return fmt.Sprintf("http://%s/insert/%s", addr, suffix)
+	}
+
+	return fmt.Sprintf("http://%s/%s", addr, suffix)
+}
+
 // tenantViaURL returns path in cluster's URL format with tenant specified in URL
 func tenantViaURL(addr, prefix, tenant, suffix string) string {
 	return fmt.Sprintf("http://%s/%s/%s/%s", addr, prefix, tenant, suffix)

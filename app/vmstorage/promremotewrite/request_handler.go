@@ -1,8 +1,10 @@
 package promremotewrite
 
 import (
+	"flag"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"sync"
 
@@ -23,6 +25,11 @@ var (
 	rowsInserted     = metrics.NewCounter(`vm_rows_inserted_total{type="promremotewrite"}`)
 	rowsPerInsert    = metrics.NewHistogram(`vm_rows_per_insert{type="promremotewrite"}`)
 	metadataInserted = metrics.NewCounter(`vm_metadata_rows_inserted_total{type="promremotewrite"}`)
+
+	sortLabels = flag.Bool("sortLabels", false, `Whether to sort labels for incoming samples before writing them to storage. `+
+		`This may be needed for reducing memory usage at storage when the order of labels in incoming samples is random. `+
+		`For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}. `+
+		`Enabled sorting for labels can slow down ingestion performance a bit`)
 )
 
 // Storage is used for writing Prometheus remote write data into vmstorage.
@@ -73,7 +80,9 @@ func insertRows(s Storage, at *auth.Token, tss []prompb.TimeSeries, mms []prompb
 				ctx.addLabel(label.Name, label.Value)
 			}
 			atLocal := ctx.getLocalAuthToken(at)
-			promrelabel.SortLabels(ctx.labels)
+			if !ctx.tryPrepareLabels() {
+				continue
+			}
 			var metricNameRaw []byte
 			for j := range ts.Samples {
 				sample := &ts.Samples[j]
@@ -205,6 +214,35 @@ func (ctx *ctx) addLabel(name, value string) {
 		Name:  name,
 		Value: value,
 	})
+}
+
+func (ctx *ctx) tryPrepareLabels() bool {
+	if len(ctx.labels) == 0 {
+		return false
+	}
+	if timeserieslimits.Enabled() && timeserieslimits.IsExceeding(ctx.labels) {
+		return false
+	}
+	ctx.sortLabelsIfNeeded()
+	return true
+}
+
+func (ctx *ctx) sortLabelsIfNeeded() {
+	if *sortLabels {
+		sort.Sort((*sortedLabels)(&ctx.labels))
+	}
+}
+
+type sortedLabels []prompb.Label
+
+func (sl *sortedLabels) Len() int { return len(*sl) }
+func (sl *sortedLabels) Less(i, j int) bool {
+	a := *sl
+	return a[i].Name < a[j].Name
+}
+func (sl *sortedLabels) Swap(i, j int) {
+	a := *sl
+	a[i], a[j] = a[j], a[i]
 }
 
 func (ctx *ctx) getLocalAuthToken(at *auth.Token) *auth.Token {

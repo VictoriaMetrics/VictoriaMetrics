@@ -121,7 +121,7 @@ func (app *Vmstorage) String() string {
 func (app *Vmstorage) PrometheusAPIV1Write(t *testing.T, wr prompb.WriteRequest, opts QueryOpts) {
 	t.Helper()
 
-	url := getVMStorageInsertPath(app.httpListenAddr, "prometheus/api/v1/write", opts)
+	url := getSingleOrMultitenantInsertPath(app.httpListenAddr, "prometheus/api/v1/write", opts)
 	data := snappy.Encode(nil, wr.MarshalProtobuf(nil))
 	headers := opts.getHeaders()
 	headers.Set("Content-Type", "application/x-protobuf")
@@ -129,22 +129,4 @@ func (app *Vmstorage) PrometheusAPIV1Write(t *testing.T, wr prompb.WriteRequest,
 	if statusCode != http.StatusNoContent {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
 	}
-}
-
-// getVMStorageInsertPath returns URL path for writes.
-// If tenant is set in QueryOpts, it returns cluster-like path for ingestion.
-// If tenant is empty, it returns single-node (no tenants) path.
-func getVMStorageInsertPath(addr, suffix string, o QueryOpts) string {
-	if o.Tenant != "" {
-		// QueryOpts.Tenant has priority over headers.
-		return fmt.Sprintf("http://%s/insert/%s/%s", addr, o.Tenant, suffix)
-	}
-
-	h := o.getHeaders()
-	if h.Get("AccountID") != "" || h.Get("ProjectID") != "" {
-		return fmt.Sprintf("http://%s/insert/%s", addr, suffix)
-	}
-
-	// tenant is missing in QueryOpts and in HTTP headers. Use single-node (no tenants) path.
-	return fmt.Sprintf("http://%s/%s", addr, suffix)
 }

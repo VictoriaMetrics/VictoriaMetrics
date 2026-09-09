@@ -30,6 +30,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeserieslimits"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vminsertapi"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vmselectapi"
 )
@@ -138,6 +139,11 @@ var (
 		"If set to 0 or a negative value, defaults to 1% of allowed memory.")
 	enableIngestionAPI = flag.Bool("enableIngestionAPI", false, "Whether to enable ingestion APIs on vmstorage HTTP listener. "+
 		"Currently enables Prometheus remote write v1 at /api/v1/write and /prometheus/api/v1/write")
+	maxLabelsPerTimeseries = flag.Int("maxLabelsPerTimeseries", 40, "The maximum number of labels per time series to be accepted at ingestion APIs when -enableIngestionAPI is enabled. Series with superfluous labels are ignored. In this case the vm_rows_ignored_total{reason=\"too_many_labels\"} metric at /metrics page is incremented")
+	maxLabelNameLen        = flag.Int("maxLabelNameLen", 256, "The maximum length of label name in the accepted time series at ingestion APIs when -enableIngestionAPI is enabled. Series with longer label name are ignored. In this case the vm_rows_ignored_total{reason=\"too_long_label_name\"} metric at /metrics page is incremented. "+
+		"Value must be in range 1..65535.")
+	maxLabelValueLen = flag.Int("maxLabelValueLen", 4*1024, "The maximum length of label values in the accepted time series at ingestion APIs when -enableIngestionAPI is enabled. Series with longer label value are ignored. In this case the vm_rows_ignored_total{reason=\"too_long_label_value\"} metric at /metrics page is incremented. "+
+		"Value must be in range 1..65535.")
 )
 
 func main() {
@@ -157,6 +163,7 @@ func main() {
 	initSecretFlags()
 	buildinfo.Init()
 	logger.Init()
+	timeserieslimits.MustInit(*maxLabelsPerTimeseries, *maxLabelNameLen, *maxLabelValueLen)
 
 	storage.SetDedupInterval(*minScrapeInterval)
 	storage.SetDataFlushInterval(*inmemoryDataFlushInterval)
