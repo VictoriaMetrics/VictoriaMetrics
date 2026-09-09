@@ -1,7 +1,9 @@
 package metricsmetadata
 
 import (
+	"bytes"
 	"fmt"
+	"math"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -24,7 +26,7 @@ type Row struct {
 }
 
 // MarshalTo serializes Row into provided buffer and returns result
-func (mr *Row) MarshalTo(dst []byte) []byte {
+func (mr *Row) MarshalTo(dst []byte) ([]byte, error) {
 	dstLen := len(dst)
 	// tenant information (accountID and projectID)
 	dstSize := dstLen + 8
@@ -37,10 +39,20 @@ func (mr *Row) MarshalTo(dst []byte) []byte {
 	dst = encoding.MarshalUint32(dst, mr.AccountID)
 	dst = encoding.MarshalUint32(dst, mr.ProjectID)
 	dst = encoding.MarshalUint32(dst, uint32(mr.Type))
-	dst = marshalBytesFast(dst, mr.MetricFamilyName)
-	dst = marshalBytesFast(dst, mr.Help)
-	dst = marshalBytesFast(dst, mr.Unit)
-	return dst
+	var err error
+	dst, err = marshalBytesFast(dst, mr.MetricFamilyName)
+	if err != nil {
+		return dst, fmt.Errorf("cannot marshal MetricFamilyName: %w", err)
+	}
+	dst, err = marshalBytesFast(dst, mr.Help)
+	if err != nil {
+		return dst, fmt.Errorf("cannot marshal Help: %w", err)
+	}
+	dst, err = marshalBytesFast(dst, mr.Unit)
+	if err != nil {
+		return dst, fmt.Errorf("cannot marshal Unit: %w", err)
+	}
+	return dst, nil
 }
 
 // Unmarshal parses Row from provided buffer and returns tail buffer
@@ -87,6 +99,20 @@ func (mr *Row) Unmarshal(data []byte) ([]byte, error) {
 	return data, nil
 }
 
+func (mr *Row) matchesNonEmptyRow(newRow *Row) bool {
+	// to reduce amount of re-allocations compare only non-empty fields
+	if len(newRow.Unit) > 0 && !bytes.Equal(mr.Unit, newRow.Unit) {
+		return false
+	}
+	if len(newRow.Help) > 0 && !bytes.Equal(mr.Help, newRow.Help) {
+		return false
+	}
+	if newRow.Type != 0 && mr.Type != newRow.Type {
+		return false
+	}
+	return true
+}
+
 // Reset resets Row
 func (mr *Row) Reset() {
 	mr.AccountID = 0
@@ -126,8 +152,11 @@ func UnmarshalRows(dst []Row, src []byte, maxRows int) ([]Row, []byte, error) {
 	return dst, src, nil
 }
 
-func marshalBytesFast(dst []byte, s []byte) []byte {
+func marshalBytesFast(dst []byte, s []byte) ([]byte, error) {
+	if len(s) > math.MaxUint16 {
+		return dst, fmt.Errorf("size of s: %d cannot exceed max uint16", len(s))
+	}
 	dst = encoding.MarshalUint16(dst, uint16(len(s)))
 	dst = append(dst, s...)
-	return dst
+	return dst, nil
 }

@@ -30,6 +30,12 @@ const (
 	modeWhole     = 2
 )
 
+const (
+	// minCurrCacheSaveMissRate is the minimum miss rate of curr cache
+	// for saving prev instead of curr during split mode.
+	minCurrCacheSaveMissRate = 0.8
+)
+
 // Cache is a cache for working set entries.
 //
 // The cache evicts inactive entries after the given expireDuration.
@@ -40,6 +46,10 @@ type Cache struct {
 
 	// csHistory holds cache stats history
 	csHistory fastcache.Stats
+
+	// prevStatsAtRotation holds prev cache stats at the moment it became prev from curr.
+	// It is used for calculating prev miss rate since the last cache rotation.
+	prevStatsAtRotation fastcache.Stats
 
 	// mode indicates whether to use only curr and skip prev.
 	//
@@ -145,6 +155,7 @@ func newCacheInternal(curr, prev *fastcache.Cache, mode, maxBytes int, expireDur
 	c.maxBytes = maxBytes
 	c.curr.Store(curr)
 	c.prev.Store(prev)
+	prev.UpdateStats(&c.prevStatsAtRotation)
 	c.stopCh = make(chan struct{})
 	c.mode.Store(uint32(mode))
 	c.runWatchers(expireDuration)
@@ -184,7 +195,7 @@ func (c *Cache) expirationWatcher(expireDuration time.Duration) {
 		prev := c.prev.Load()
 		curr := c.curr.Load()
 		c.updateCacheStatsHistoryBeforeRotationLocked(prev, curr)
-
+		c.storeCurrStatsBeforeRotationLocked(curr)
 		c.prev.Store(curr)
 		prev.Reset()
 		c.curr.Store(prev)
@@ -305,7 +316,7 @@ func (c *Cache) transitIntoWholeModeLocked(maxBytesSize uint64, t *time.Ticker) 
 	prev := c.prev.Load()
 	curr := c.curr.Load()
 	c.updateCacheStatsHistoryBeforeRotationLocked(prev, curr)
-
+	c.storeCurrStatsBeforeRotationLocked(curr)
 	c.prev.Store(curr)
 	prev.Reset()
 
@@ -356,6 +367,7 @@ func (c *Cache) transitIntoWholeModeLocked(maxBytesSize uint64, t *time.Ticker) 
 	c.updateCacheStatsHistoryBeforeRotationLocked(prev, curr)
 
 	c.prev.Store(newWithAutoCleanup(1024))
+	c.prevStatsAtRotation.Reset()
 	prev.Reset()
 }
 
@@ -363,19 +375,61 @@ func (c *Cache) transitIntoWholeModeLocked(maxBytesSize uint64, t *time.Ticker) 
 func (c *Cache) MustSave(filePath string) {
 	startTime := time.Now()
 
-	var cs fastcache.Stats
-	curr := c.curr.Load()
-	curr.UpdateStats(&cs)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	cacheToSave, cs, cacheName := c.selectCacheToSave()
 
 	concurrency := cgroup.AvailableCPUs()
 
-	logger.Infof("saving cache to %s by using %d concurrent workers", filePath, concurrency)
-	err := curr.SaveToFileConcurrent(filePath, concurrency)
+	logger.Infof("saving %s cache to %s by using %d concurrent workers", cacheName, filePath, concurrency)
+	err := cacheToSave.SaveToFileConcurrent(filePath, concurrency)
 	if err != nil {
 		logger.Panicf("FATAL: cannot save cache to %s: %s", filePath, err)
 	}
 
 	logger.Infof("cache has been successfully saved to %s in %.3f seconds; entriesCount: %d, sizeBytes: %d", filePath, time.Since(startTime).Seconds(), cs.EntriesCount, cs.BytesSize)
+}
+
+func (c *Cache) selectCacheToSave() (*fastcache.Cache, fastcache.Stats, string) {
+	curr := c.curr.Load()
+
+	var csCurr fastcache.Stats
+	curr.UpdateStats(&csCurr)
+
+	if c.mode.Load() != modeSplit {
+		return curr, csCurr, "curr"
+	}
+
+	prev := c.prev.Load()
+
+	var csPrev fastcache.Stats
+	prev.UpdateStats(&csPrev)
+
+	if csPrev.EntriesCount == 0 || csPrev.GetCalls == 0 {
+		return curr, csCurr, "curr"
+	}
+
+	csPrevAtRotation := &c.prevStatsAtRotation
+	prevMissRateAfterRotation := float64(1)
+	if csPrev.GetCalls > csPrevAtRotation.GetCalls {
+		prevGetCallsAfterRotation := csPrev.GetCalls - csPrevAtRotation.GetCalls
+		prevMissesAfterRotation := uint64(0)
+		if csPrev.Misses > csPrevAtRotation.Misses {
+			prevMissesAfterRotation = csPrev.Misses - csPrevAtRotation.Misses
+		}
+		if prevMissesAfterRotation < prevGetCallsAfterRotation {
+			prevMissRateAfterRotation = float64(prevMissesAfterRotation) / float64(prevGetCallsAfterRotation)
+		}
+	}
+
+	// Prefer saving prev cache when:
+	// 1. 80% requests were missed in curr cache and served by prev cache.
+	// 2. less than 80% requests were missed in prev cache since the last rotation.
+	if csCurr.GetCalls < 10 || (float64(csCurr.Misses)/float64(csCurr.GetCalls) > minCurrCacheSaveMissRate && prevMissRateAfterRotation < minCurrCacheSaveMissRate) {
+		return prev, csPrev, "prev"
+	}
+	return curr, csCurr, "curr"
 }
 
 // Stop stops the cache.
@@ -406,12 +460,18 @@ func (c *Cache) Reset() {
 		// so we have to restore it into original size for split mode
 		c.prev.Store(newWithAutoCleanup(c.maxBytes / 2))
 		c.curr.Store(newWithAutoCleanup(c.maxBytes / 2))
-
+		c.prevStatsAtRotation.Reset()
 		c.mode.Store(modeSplit)
 	}
 
 	prev.Reset()
 	curr.Reset()
+	c.prevStatsAtRotation.Reset()
+}
+
+func (c *Cache) storeCurrStatsBeforeRotationLocked(curr *fastcache.Cache) {
+	c.prevStatsAtRotation.Reset()
+	curr.UpdateStats(&c.prevStatsAtRotation)
 }
 
 // UpdateStats updates fcs with cache stats.

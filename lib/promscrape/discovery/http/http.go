@@ -23,19 +23,35 @@ type SDConfig struct {
 	HTTPClientConfig  promauth.HTTPClientConfig  `yaml:",inline"`
 	ProxyURL          *proxy.URL                 `yaml:"proxy_url,omitempty"`
 	ProxyClientConfig promauth.ProxyClientConfig `yaml:",inline"`
+
+	cfg      *apiConfig
+	startErr error
+}
+
+// MustStart initializes sdc before its usage.
+func (sdc *SDConfig) MustStart(baseDir string) {
+	cfg, err := newAPIConfig(sdc, baseDir)
+	if err != nil {
+		sdc.startErr = fmt.Errorf("cannot create API config for http_sd: %w", err)
+		return
+	}
+	sdc.cfg = cfg
 }
 
 // GetLabels returns http service discovery labels according to sdc.
 func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutil.Labels, error) {
-	cfg, err := getAPIConfig(sdc, baseDir)
-	if err != nil {
-		return nil, fmt.Errorf("cannot get API config: %w", err)
+	if sdc.cfg == nil {
+		return nil, sdc.startErr
 	}
-	hts, err := getHTTPTargets(cfg)
-	if err != nil {
-		return nil, err
+	return sdc.cfg.getLabels()
+}
+
+// MustStop stops further usage for sdc.
+func (sdc *SDConfig) MustStop() {
+	if sdc.cfg == nil {
+		return
 	}
-	return addHTTPTargetLabels(hts, sdc.URL), nil
+	sdc.cfg.mustStop()
 }
 
 func addHTTPTargetLabels(src []httpGroupTarget, sourceURL string) []*promutil.Labels {
@@ -53,13 +69,4 @@ func addHTTPTargetLabels(src []httpGroupTarget, sourceURL string) []*promutil.La
 		}
 	}
 	return ms
-}
-
-// MustStop stops further usage for sdc.
-func (sdc *SDConfig) MustStop() {
-	v := configMap.Delete(sdc)
-	if v != nil {
-		cfg := v.(*apiConfig)
-		cfg.client.Stop()
-	}
 }

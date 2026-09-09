@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand/v2"
 	"net"
 	"net/http"
 	"net/textproto"
@@ -17,7 +18,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/jwt"
 	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
@@ -27,19 +27,23 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ioutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/jwt"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 )
 
 var (
-	httpListenAddrs = flagutil.NewArrayString("httpListenAddr", "TCP address to listen for incoming http requests. "+
+	httpListenAddrs = flagutil.NewArrayString("httpListenAddr", "Address to listen for incoming http requests. "+
 		"By default, serves internal API and proxy requests. "+
-		" See also -tls, -httpListenAddr.useProxyProtocol and -httpInternalListenAddr.")
-	httpInternalListenAddr = flagutil.NewArrayString("httpInternalListenAddr", "TCP address to listen for incoming internal API http requests. Such as /health, /-/reload, /debug/pprof, etc. "+
-		"If flag is set, vmauth no longer serves internal API at -httpListenAddr.")
+		"Use unix:/path/to/socket to listen on Unix domain socket. Note that -tls and -httpListenAddr.useProxyProtocol cannot be used with Unix sockets. "+
+		"See also -httpInternalListenAddr")
+	httpInternalListenAddr = flagutil.NewArrayString("httpInternalListenAddr", "Address to listen for incoming internal API http requests. Such as /health, /-/reload, /debug/pprof, etc. "+
+		"If flag is set, vmauth no longer serves internal API at -httpListenAddr. "+
+		"Use unix:/path/to/socket to listen on Unix domain socket. Note that -tls and -httpListenAddr.useProxyProtocol cannot be used with Unix sockets")
 	useProxyProtocol = flagutil.NewArrayBool("httpListenAddr.useProxyProtocol", "Whether to use proxy protocol for connections accepted at the corresponding -httpListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
@@ -95,6 +99,7 @@ func main() {
 	flag.CommandLine.SetOutput(os.Stdout)
 	flag.Usage = usage
 	envflag.Parse()
+	initSecretFlags()
 	buildinfo.Init()
 	logger.Init()
 
@@ -189,7 +194,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	if len(ats) == 0 {
 		// Process requests for unauthorized users
 		ui := authConfig.Load().UnauthorizedUser
-		if ui != nil {
+		if ui.hasAnyURLs() {
 			processUserRequest(w, r, ui, nil)
 			return true
 		}
@@ -200,6 +205,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		log.Println(3)
+
 		handleMissingAuthorizationError(w)
 		return true
 	}
@@ -213,12 +219,16 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			logger.Panicf("BUG: unexpected nil jwt token for user %q", ui.name())
 		}
 		defer putToken(tkn)
-		processUserRequest(w, r, ui, tkn)
-		return true
+		// Call processUserRequest only if the token contains the vm_access claim
+		// or a default claim is configured; otherwise fall through to unauthorized_user.
+		if tkn.HasVMAccessClaim() || ui.JWT.DefaultVMAccessClaim != nil {
+			processUserRequest(w, r, ui, tkn)
+			return true
+		}
 	}
 
 	uu := authConfig.Load().UnauthorizedUser
-	if uu != nil {
+	if uu.hasAnyURLs() {
 		processUserRequest(w, r, uu, nil)
 		return true
 	}
@@ -229,6 +239,8 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	invalidAuthTokenRequests.Inc()
+	slowdownUnauthorizedResponse(r)
+	uu.logRequest(r, `unauthorized`, http.StatusUnauthorized, 0)
 	if *logInvalidAuthTokens {
 		err := fmt.Errorf("cannot authorize request with auth tokens %q", ats)
 		err = &httpserver.ErrorWithStatusCode{
@@ -404,7 +416,7 @@ func bufferRequestBody(ctx context.Context, r io.ReadCloser, userName string) (i
 			return nil, &httpserver.ErrorWithStatusCode{
 				Err: fmt.Errorf("reject request from the user %s because the request body couldn't be read in -maxQueueDuration=%s; read %d bytes in %s",
 					userName, *maxQueueDuration, len(buf), d.Truncate(time.Second)),
-				StatusCode: http.StatusBadRequest,
+				StatusCode: http.StatusRequestTimeout,
 			}
 		}
 
@@ -420,7 +432,21 @@ func bufferRequestBody(ctx context.Context, r io.ReadCloser, userName string) (i
 
 func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tkn *jwt.Token, userName string) {
 	u := normalizeURL(r.URL)
-	up, hc := ui.getURLPrefixAndHeaders(u, r.Host, r.Header)
+	up, hc, denied := ui.getURLPrefixAndHeaders(u, r.Host, r.Header)
+	if denied {
+		// Request authorization instead of confirming the path is denied.
+		if ui.name() == "" && len(*authUsers.Load()) > 0 {
+			handleMissingAuthorizationError(w)
+			return
+		}
+		deniedRequests.Inc()
+		var di string
+		if ui.DumpRequestOnErrors {
+			di = debugInfo(u, r)
+		}
+		handleDeniedPathError(w, r, fmt.Errorf("user %s is denied access to %q via `deny_paths`%s", userName, u.String(), di))
+		return
+	}
 	isDefault := false
 	if up == nil {
 		if ui.DefaultURL == nil {
@@ -451,8 +477,12 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tkn *j
 		}
 		targetURL := bu.url
 		if tkn != nil {
+			vmac := tkn.VMAccess()
+			if !tkn.HasVMAccessClaim() {
+				vmac = ui.JWT.DefaultVMAccessClaim
+			}
 			// for security reasons allow templating only for configured url values and headers
-			targetURL, hc = replaceJWTPlaceholders(bu, hc, tkn.VMAccess())
+			targetURL, hc = replaceJWTPlaceholders(bu, hc, vmac)
 		}
 		if isDefault {
 			// Don't change path and add request_path query param for default route.
@@ -683,7 +713,7 @@ func removeHopHeaders(h http.Header) {
 	// remove hop-by-hop headers listed in the "Connection" header of h.
 	// See RFC 7230, section 6.1
 	for _, f := range h["Connection"] {
-		for _, sf := range strings.Split(f, ",") {
+		for sf := range strings.SplitSeq(f, ",") {
 			if sf = textproto.TrimString(sf); sf != "" {
 				h.Del(sf)
 			}
@@ -719,6 +749,7 @@ var (
 	configReloadRequests     = metrics.NewCounter(`vmauth_http_requests_total{path="/-/reload"}`)
 	invalidAuthTokenRequests = metrics.NewCounter(`vmauth_http_request_errors_total{reason="invalid_auth_token"}`)
 	missingRouteRequests     = metrics.NewCounter(`vmauth_http_request_errors_total{reason="missing_route"}`)
+	deniedRequests           = metrics.NewCounter(`vmauth_http_request_errors_total{reason="denied_paths"}`)
 	clientCanceledRequests   = metrics.NewCounter(`vmauth_http_request_errors_total{reason="client_canceled"}`)
 	rejectSlowClientRequests = metrics.NewCounter(`vmauth_http_request_errors_total{reason="reject_slow_client"}`)
 
@@ -803,6 +834,14 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
 func handleMissingAuthorizationError(w http.ResponseWriter) {
 	w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
 	http.Error(w, "missing 'Authorization' request header", http.StatusUnauthorized)
+}
+
+func handleDeniedPathError(w http.ResponseWriter, r *http.Request, err error) {
+	err = &httpserver.ErrorWithStatusCode{
+		Err:        err,
+		StatusCode: http.StatusForbidden,
+	}
+	httpserver.Errorf(w, r, "%s", err)
 }
 
 func handleConcurrencyLimitError(w http.ResponseWriter, r *http.Request, err error) {
@@ -907,4 +946,26 @@ func debugInfo(u *url.URL, r *http.Request) string {
 	_ = r.Header.WriteSubset(s, nil)
 	fmt.Fprint(s, ")")
 	return s.String()
+}
+
+// slowdownUnauthorizedResponse adds a random delay in the [2..3] seconds range before returning an unauthorized response.
+// This reduces the effectiveness of brute-force.
+//
+// Recommended by OWASP Top10:
+// https://owasp.org/Top10/2025/A07_2025-Authentication_Failures
+func slowdownUnauthorizedResponse(r *http.Request) {
+
+	d := 2*time.Second + time.Duration(rand.IntN(1000))*time.Millisecond
+	t := timerpool.Get(d)
+
+	select {
+	case <-t.C:
+	case <-r.Context().Done():
+	}
+	timerpool.Put(t)
+}
+
+// initSecretFlags manages the secret flags for this app and must be called after flag parsing and before logger init.
+func initSecretFlags() {
+	pushmetrics.InitSecretFlags()
 }

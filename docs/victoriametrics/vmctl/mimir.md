@@ -1,5 +1,6 @@
 ---
 title: Mimir
+description: "Migrate historical metrics from Grafana Mimir to VictoriaMetrics with vmctl."
 weight: 8
 menu:
   docs:

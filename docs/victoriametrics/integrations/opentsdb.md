@@ -1,5 +1,6 @@
 ---
 title: OpenTSDB
+description: "Receiving OpenTSDB telnet and HTTP metrics."
 weight: 6
 menu:
   docs:

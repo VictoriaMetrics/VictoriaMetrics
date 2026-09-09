@@ -1,6 +1,7 @@
 ---
 weight: 100
 title: CHANGELOG
+description: "Release history for all VictoriaMetrics components."
 menu:
   docs:
     identifier: vm-changelog

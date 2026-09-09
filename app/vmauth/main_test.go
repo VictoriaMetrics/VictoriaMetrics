@@ -325,6 +325,50 @@ statusCode=400
 user foo missing route for "http://foo:secret@some-host.com/a/b"`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 
+	// correct authorization but path denied via deny_paths
+	cfgStr = `
+users:
+- username: foo
+  password: secret
+  url_map:
+  - src_paths:
+    - "/select/.*"
+    deny_paths:
+    - "/select/[^/]+/prometheus/api/v1/status/active_queries"
+    url_prefix: "{BACKEND}/bar"`
+	requestURL = "http://foo:secret@some-host.com/select/0/prometheus/api/v1/status/active_queries"
+	backendHandler = func(_ http.ResponseWriter, _ *http.Request) {
+		panic(fmt.Errorf("backend handler shouldn't be called"))
+	}
+	responseExpected = "" +
+		"statusCode=403\n" +
+		"user foo is denied access to \"http://foo:secret@some-host.com/select/0/prometheus/api/v1/status/active_queries\" via `deny_paths`"
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
+	// unauthorized request to a path denied via deny_paths for unauthorized_user, while other users are configured:
+	// authorization must be requested instead of confirming that the path is denied (issue #5236).
+	cfgStr = `
+users:
+- username: someone
+  password: secret
+  url_prefix: "{BACKEND}/other"
+unauthorized_user:
+  url_map:
+  - src_paths:
+    - "/select/.*"
+    deny_paths:
+    - "/select/[^/]+/prometheus/api/v1/status/active_queries"
+    url_prefix: "{BACKEND}/bar"`
+	requestURL = "http://some-host.com/select/0/prometheus/api/v1/status/active_queries"
+	backendHandler = func(_ http.ResponseWriter, _ *http.Request) {
+		panic(fmt.Errorf("backend handler shouldn't be called"))
+	}
+	responseExpected = `
+statusCode=401
+Www-Authenticate: Basic realm="Restricted"
+missing 'Authorization' request header`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
 	// verify how path cleanup works
 	cfgStr = `
 unauthorized_user:
@@ -739,6 +783,12 @@ users:
 		"vm_access": map[string]any{},
 	}, false)
 
+	// token without vm_access claim, but with a custom claim usable for routing
+	roleToken := genToken(t, map[string]any{
+		"exp":  time.Now().Add(10 * time.Minute).Unix(),
+		"role": "admin",
+	}, true)
+
 	fullToken := genToken(t, map[string]any{
 		"exp": time.Now().Add(10 * time.Minute).Unix(),
 		"vm_access": map[string]any{
@@ -778,6 +828,45 @@ missing 'Authorization' request header`
 statusCode=401
 Unauthorized`
 	f(simpleCfgStr, request, responseExpected)
+
+	// token without vm_access claim should fall through to unauthorized_user
+	request = httptest.NewRequest(`GET`, "http://some-host.com/abc", nil)
+	request.Header.Set(`Authorization`, `Bearer `+noVMAccessClaimToken)
+	responseExpected = `
+statusCode=200
+path: /bar/abc
+query:
+headers:`
+	f(fmt.Sprintf(`
+unauthorized_user:
+  url_prefix: {BACKEND}/bar
+users:
+- jwt:
+    public_keys:
+    - %q
+    match_claims:
+      role: admin
+  url_prefix: {BACKEND}/foo`, string(publicKeyPEM)), request, responseExpected)
+
+	// token without vm_access claim is accepted when default_vm_access_claim configured
+	request = httptest.NewRequest(`GET`, "http://some-host.com/abc", nil)
+	request.Header.Set(`Authorization`, `Bearer `+roleToken)
+	responseExpected = `
+statusCode=200
+path: /foo/abc
+query:
+headers:`
+	f(fmt.Sprintf(`
+users:
+- jwt:
+    public_keys:
+    - %q
+    default_vm_access_claim:
+      metrics_account_id: 10
+      metrics_project_id: 10
+    match_claims:
+      role: admin
+  url_prefix: {BACKEND}/foo`, string(publicKeyPEM)), request, responseExpected)
 
 	// expired token
 	request = httptest.NewRequest(`GET`, "http://some-host.com/abc", nil)

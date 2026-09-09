@@ -5,6 +5,7 @@ menu:
     parent: victoriametrics
     weight: 5
 title: vmauth
+description: "HTTP auth proxy, load balancer, and request router with support for basic auth, bearer tokens, per-user routing, and IP-based filters."
 tags:
   - metrics
 aliases:
@@ -270,7 +271,7 @@ users:
   url_prefix: "http://victoria-metrics:8428/"
 ```
 
-JWT tokens must contain a `"vm_access": {}` claim, more on that in [JWT claim-based request templating](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-based-request-templating)
+The `vm_access` claim is optional starting from {{% available_from "v1.147.0" %}}: when present it is used for [request templating](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-based-request-templating), and when absent the default tenant `0:0` is assumed for any `vm_access`-based placeholders. Routing can rely solely on other token claims via [JWT claim matching](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-matching).
 
 For testing, skip signature verification with `skip_verify: true` (not recommended for production).
 
@@ -408,7 +409,7 @@ users:
       MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
       -----END PUBLIC KEY-----
     match_claims:
-      roles: "^(read|write)$"
+      roles: "read|write"
   url_prefix: "http://victoria-metrics-readonly:8428/"
 ```
 
@@ -438,7 +439,7 @@ users:
       MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
       -----END PUBLIC KEY-----
     match_claims:
-      vm_access.metrics_account_id: "(0|1|2)"
+      vm_access.metrics_account_id: "0|1|2"
   url_prefix: "http://victoria-metrics-vmselect-1:8481/select/multitenant?extra_filters={vm_account_id=~\"(0|1|2)\"}"
 - jwt:
     public_keys:
@@ -447,7 +448,7 @@ users:
       MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
       -----END PUBLIC KEY-----
     match_claims:
-      vm_access.metrics_account_id: "(3|4|5)"
+      vm_access.metrics_account_id: "3|4|5"
   url_prefix: "http://victoria-metrics-vmselect-1:8481/select/multitenant?extra_filters={vm_account_id=~\"(3|4|5)\"}"
 ```
 
@@ -520,7 +521,8 @@ for dynamic URL rewriting based on `vm_access` claim fields.
 
 `vmauth` can dynamically rewrite{{% available_from "v1.137.0" %}} upstream URLs and request headers using values from the JWT `vm_access` claim. 
 This enables routing different users to different backends or tenants based solely on the JWT token, 
-without maintaining separate user configs per tenant.
+without maintaining separate user configs per tenant. In addition `vm_access` claim could be defined at `jwt` section with `default_vm_access_claim` {{% available_from "v1.147.0" %}}.
+In this case, if JWT token doesn't have `vm_access` claim defined, value from `default_vm_access_claim` will be used for templaing.
 
 Example: minimal valid JWT. If vm_access is empty, tenant `0:0` is assumed and no additional filters are applied.
 ```json
@@ -574,6 +576,28 @@ Placeholders are supported in the following locations:
 
 Placeholders are **not** supported in response headers. 
 They are also only valid for JWT-authenticated users — using them in configs for `username`/`password` or `bearer_token` users causes a configuration error.
+
+Example: default `vm_access` claim:
+
+```yaml
+users:
+- jwt:
+    default_vm_access_claim:
+      metrics_account_id: 10
+      metrics_project_id: 10
+      metrics_extra_filters:
+      - '{instance="sandbox"}'
+      metrics_extra_labels:
+      - team=dev
+      - env=dev
+    public_keys:
+    - |
+      -----BEGIN PUBLIC KEY-----
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+      -----END PUBLIC KEY-----
+  url_prefix: "http://vminsert:8480/insert/{{.MetricsAccountID}}:{{.MetricsProjectID}}/prometheus/?extra_filters={{.MetricsExtraFilters}}&extra_label={{.MetricsExtraLabels}}"
+```
+
 
 Example: route requests to the VictoriaMetrics single-node:
 
@@ -785,6 +809,23 @@ unauthorized_user:
 `src_paths` accepts a list of [regular expressions](https://github.com/google/re2/wiki/Syntax). The incoming request is routed to the given `url_prefix` if **the whole** requested path matches at least one `src_paths` entry.
 
 See also [how to drop request path prefix](#dropping-request-path-prefix).
+
+### Denying paths
+
+`deny_paths` inside `url_map` rejects a subset of paths matched by `src_paths` (or the other `src_*` options) so you don't have to enumerate every allowed path:
+
+```yaml
+unauthorized_user:
+  url_map:
+  - src_paths:
+    - "/select/.*"
+    deny_paths:
+    - "/select/[^/]+/prometheus/api/v1/status/active_queries"
+    - "/select/[^/]+/prometheus/api/v1/status/active_queries/"
+    url_prefix: "http://vmselect:8481"
+```
+
+A request matching `deny_paths` is rejected with `403 Forbidden` (or `401 Unauthorized` for anonymous requests). It can't be used on its own, it needs at least one of `src_paths`, `src_hosts`, `src_query_args` or `src_headers` in the same `url_map` entry.
 
 ### Routing by host
 
@@ -1300,9 +1341,17 @@ unauthorized_user:
 
 vmauth allows configuring access logs {{% available_from "v1.138.0" %}} printing per-user:
 ```yaml
+users:
+  - username: foo
+    password: bar
+    url_prefix: 'http://localhost:8428/'
+    # Log all requests to this user
+    access_log: {}
+```
+
+If you want to log requests with missing or invalid auth tokens, use unauthorized_user without configuring any URL routes{{% available_from "v1.147.0" %}}:
+```yaml
 unauthorized_user:
-  url_prefix: 'http://localhost:8428/'
-  # Log all requests to this user
   access_log: {}
 ```
 

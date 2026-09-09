@@ -752,31 +752,66 @@ func newCompressedLabels(src *promutil.Labels) *compressedLabels {
 	bb := compressedLabelsBufPool.Get()
 	bb.Grow(sizeNeeded)
 	// manually craft json in order to reduce memory allocations
-	fmt.Fprintf(bb, `{`) //nolint:errcheck
-	var tmpBuf []byte
+	bb.B = append(bb.B, '{')
+
+	escapeBB := compressedLabelsEscapePool.Get()
+	escapeBuf := escapeBB.B
+
 	for i, label := range srcLabels {
-		tmpBuf = quicktemplate.AppendJSONString(tmpBuf[:0], label.Name, true)
-		bb.Write(tmpBuf)      //nolint:errcheck
+		escapeBuf = quicktemplate.AppendJSONString(escapeBuf[:0], label.Name, true)
+		bb.Write(escapeBuf)   //nolint:errcheck
 		bb.Write([]byte(`:`)) //nolint:errcheck
-		tmpBuf = quicktemplate.AppendJSONString(tmpBuf[:0], label.Value, true)
-		bb.Write(tmpBuf) //nolint:errcheck
+		escapeBuf = quicktemplate.AppendJSONString(escapeBuf[:0], label.Value, true)
+		bb.Write(escapeBuf) //nolint:errcheck
 		if i+1 < len(srcLabels) {
 			bb.Write([]byte(`,`)) //nolint:errcheck
 		}
 	}
+	escapeBB.B = escapeBuf
+	compressedLabelsEscapePool.Put(escapeBB)
+
 	fmt.Fprint(bb, `}`) //nolint:errcheck
+
 	dst := zstd.CompressLevel(nil, bb.B, 1)
 
 	compressedLabelsBufPool.Put(bb)
 	cls := &compressedLabels{
-		hashKey:      h,
-		addressLabel: strings.Clone(src.Get("__address__")),
-		jobLabel:     strings.Clone(src.Get("job")),
-		data:         dst,
+		hashKey: h,
+		data:    dst,
 	}
-	cls.targetID = fmt.Sprintf("%016x", uintptr(unsafe.Pointer(cls)))
+	addressLabelValue := src.Get("__address__")
+	jobLabelValue := src.Get("job")
+	addressLen := len(addressLabelValue)
+	jobLen := len(jobLabelValue)
+	// pre-allocate buffer to recuce GC pressure for tracking individual strings
+	packedBuf := make([]byte, 0, jobLen+addressLen+16)
+
+	packedBuf = append(packedBuf, addressLabelValue...)
+	cls.addressLabel = bytesutil.ToUnsafeString(packedBuf[:addressLen])
+
+	packedBuf = append(packedBuf, jobLabelValue...)
+	cls.jobLabel = bytesutil.ToUnsafeString(packedBuf[addressLen:])
+
+	packedBuf = appendHex16(packedBuf, uint64(uintptr(unsafe.Pointer(cls))))
+	cls.targetID = bytesutil.ToUnsafeString(packedBuf[addressLen+jobLen:])
+
 	return cls
 }
+
+// appendHex16 is an equvialent for fmt.Sprintf("%016x", uintptr(unsafe.Pointer(cls)))
+// but with zero allocations
+func appendHex16(dst []byte, v uint64) []byte {
+	const hexChars = "0123456789abcdef"
+	var buf [16]byte
+	for i := 15; i >= 0; i-- {
+		buf[i] = hexChars[v&0xf]
+		v >>= 4
+	}
+	dst = append(dst, buf[:]...)
+	return dst
+}
+
+var compressedLabelsEscapePool = &bytesutil.ByteBufferPool{}
 
 func (cls *compressedLabels) getTargetID() string {
 	if cls == nil {

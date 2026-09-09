@@ -148,6 +148,77 @@ func TestGetClusterMemberNumsForScrapeWork(t *testing.T) {
 	f("foo", 3, 2, []int{2, 0})
 }
 
+func TestAppendScrapeWorkKeyShardByLabels(t *testing.T) {
+	f := func(labels map[string]string, shardByLabels []string, expectedKey string) {
+		t.Helper()
+		originValue := *clusterShardByLabels
+		*clusterShardByLabels = shardByLabels
+		defer func() {
+			*clusterShardByLabels = originValue
+		}()
+		initClusterShardByLabels()
+		outputKey := string(appendScrapeWorkKey(nil, promutil.NewLabelsFromMap(labels)))
+		if expectedKey != outputKey {
+			t.Fatalf("unexpected sharding key:%q for target labels:%v with shardByLabels=%q, expect: %q",
+				outputKey, labels, shardByLabels, expectedKey)
+		}
+	}
+
+	// didn't specify -promscrape.cluster.shardByLabels, so all labels will be used for sharding
+	f(
+		map[string]string{
+			"a": "aa",
+			"b": "bb",
+			"c": "cc",
+			"d": "dd"},
+		[]string{},
+		"a=aa,b=bb,c=cc,d=dd,",
+	)
+
+	// match all labels in -promscrape.cluster.shardByLabels, so label "a" and "c" will be used for sharding
+	f(
+		map[string]string{
+			"a": "aa",
+			"b": "bb",
+			"c": "cc",
+			"d": "dd"},
+		[]string{"a", "c"},
+		"a=aa,c=cc,",
+	)
+
+	// match all labels in -promscrape.cluster.shardByLabels, so label "a" and "c" will be used for sharding even if they're not in order in -promscrape.cluster.shardByLabels.
+	f(
+		map[string]string{
+			"a": "aa",
+			"b": "bb",
+			"c": "cc",
+			"d": "dd"},
+		[]string{"c", "a"},
+		"a=aa,c=cc,",
+	)
+
+	// match part of labels in -promscrape.cluster.shardByLabels, label "a" and "c" will be used for sharding
+	f(
+		map[string]string{
+			"a": "aa",
+			"c": "cc",
+			"d": "dd"},
+
+		[]string{"a", "b", "c"},
+		"a=aa,c=cc,",
+	)
+
+	// none of labels in -promscrape.cluster.shardByLabels is matched, so all labels will be used for sharding
+	f(
+		map[string]string{
+			"d": "dd",
+			"e": "ee"},
+		[]string{"a", "b", "c"},
+		"d=dd,e=ee,",
+	)
+
+}
+
 func TestLoadStaticConfigs(t *testing.T) {
 	scs, err := loadStaticConfigs("testdata/file_sd.json")
 	if err != nil {
@@ -1075,6 +1146,57 @@ scrape_configs:
 			MaxScrapeSize:  8 * 1024 * 1024,
 			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"instance": "foo.bar:1234",
+				"job":      "foo",
+			}),
+			jobNameOriginal: "foo",
+		},
+	})
+	f(`
+scrape_configs:
+- job_name: foo
+  max_scrape_size: 8MiB
+  relabel_configs:
+  - source_labels: [__address__]
+    regex: foo1:.*
+    target_label: __max_scrape_size__
+    replacement: 2.5MiB
+  - source_labels: [__address__]
+    regex: foo2:.*
+    target_label: __max_scrape_size__
+    replacement: -1
+  static_configs:
+  - targets: ["foo1:1234", "foo2:1234", "foo3:1234"]
+`, []*ScrapeWork{
+		{
+			ScrapeURL:      "http://foo1:1234/metrics",
+			ScrapeInterval: defaultScrapeInterval,
+			ScrapeTimeout:  defaultScrapeTimeout,
+			MaxScrapeSize:  2.5 * 1024 * 1024,
+			Labels: promutil.NewLabelsFromMap(map[string]string{
+				"instance": "foo1:1234",
+				"job":      "foo",
+			}),
+			jobNameOriginal: "foo",
+		},
+		// invalid __max_scrape_size__ will be ignored
+		{
+			ScrapeURL:      "http://foo2:1234/metrics",
+			ScrapeInterval: defaultScrapeInterval,
+			ScrapeTimeout:  defaultScrapeTimeout,
+			MaxScrapeSize:  8 * 1024 * 1024,
+			Labels: promutil.NewLabelsFromMap(map[string]string{
+				"instance": "foo2:1234",
+				"job":      "foo",
+			}),
+			jobNameOriginal: "foo",
+		},
+		{
+			ScrapeURL:      "http://foo3:1234/metrics",
+			ScrapeInterval: defaultScrapeInterval,
+			ScrapeTimeout:  defaultScrapeTimeout,
+			MaxScrapeSize:  8 * 1024 * 1024,
+			Labels: promutil.NewLabelsFromMap(map[string]string{
+				"instance": "foo3:1234",
 				"job":      "foo",
 			}),
 			jobNameOriginal: "foo",

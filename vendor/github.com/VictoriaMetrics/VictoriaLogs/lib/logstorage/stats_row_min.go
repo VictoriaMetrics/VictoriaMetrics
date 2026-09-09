@@ -21,7 +21,7 @@ type statsRowMin struct {
 func (sm *statsRowMin) String() string {
 	s := "row_min(" + quoteTokenIfNeeded(sm.srcField)
 	if !prefixfilter.MatchAll(sm.fieldFilters) {
-		s += ", " + fieldNamesString(sm.fieldFilters)
+		s += ", " + fieldFiltersString(sm.fieldFilters)
 	}
 	s += ")"
 	return s

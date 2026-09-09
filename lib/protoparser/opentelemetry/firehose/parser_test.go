@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
@@ -238,6 +239,30 @@ func TestProcessRequestBody(t *testing.T) {
 	}
 	if n := callbackCalls.Load(); n != 1 {
 		t.Fatalf("unexpected number of callback calls; got %d; want 1", n)
+	}
+}
+
+// TestProcessRequestBodyIncompleteVarint verifies that an incomplete varint (0x80)
+// returns an error instead of spinning forever (GHSA-89v2-864p-v3xc).
+func TestProcessRequestBodyIncompleteVarint(t *testing.T) {
+	// "gA==" is base64 for a single 0x80 byte, i.e. an incomplete varint.
+	// binary.Uvarint returns (0, 0) for this input, which previously caused an
+	// infinite zero-progress loop inside ProcessRequestBody.
+	data := []byte(`{"records":[{"data":"gA=="}]}`)
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := ProcessRequestBody(data)
+		done <- err
+	}()
+
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Fatal("expected error for incomplete varint input, got nil")
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("ProcessRequestBody did not return within 5s - infinite loop on incomplete varint input")
 	}
 }
 

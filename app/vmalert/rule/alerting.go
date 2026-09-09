@@ -462,7 +462,11 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 	}
 
 	isPartial := isPartialResponse(res)
-	ar.logDebugf(ts, nil, "query returned %d series (elapsed: %s, isPartial: %t)", curState.Samples, curState.Duration, isPartial)
+	seriesFetched := 0
+	if res.SeriesFetched != nil {
+		seriesFetched = *res.SeriesFetched
+	}
+	ar.logDebugf(ts, nil, "query returned %d series (series_fetched: %d, elapsed: %s, isPartial: %t)", curState.Samples, seriesFetched, curState.Duration, isPartial)
 	qFn := func(query string) ([]datasource.Metric, error) {
 		res, _, err := ar.q.Query(ctx, query, ts)
 		return res.Data, err
@@ -530,6 +534,7 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 				ar.logDebugf(ts, a, "INACTIVE => PENDING")
 			}
 			a.Value = m.Values[0]
+			a.Interval = ar.EvalInterval
 			a.Annotations = annotations
 			a.KeepFiringSince = time.Time{}
 			continue
@@ -612,6 +617,7 @@ func (ar *AlertingRule) expandAnnotationTemplates(m datasource.Metric, qFn templ
 		Type:      ar.Type.String(),
 		Labels:    ls.origin,
 		Expr:      ar.Expr,
+		Interval:  ar.EvalInterval,
 		AlertID:   hash(ls.processed),
 		GroupID:   ar.GroupID,
 		ActiveAt:  activeAt,
@@ -673,6 +679,7 @@ func (ar *AlertingRule) newAlert(m datasource.Metric, start time.Time, labels, a
 		Name:        ar.Name,
 		Type:        ar.Type.String(),
 		Expr:        ar.Expr,
+		Interval:    ar.EvalInterval,
 		For:         ar.For,
 		ActiveAt:    start,
 		Value:       m.Values[0],

@@ -59,6 +59,12 @@ func Init(vmselectMaxConcurrentRequests int, vmselectMaxQueueDuration time.Durat
 	initVMUIConfig()
 
 	vmalertproxy.Init(*vmalertProxyURL)
+
+}
+
+// InitSecretFlags manages the secret flags for this pkg and must be called by app-level initSecretFlags.
+// It should run before logger initialization and package Init() (if exists).
+func InitSecretFlags() {
 	flagutil.RegisterSecretFlag("vmalert.proxyURL")
 }
 
@@ -369,6 +375,10 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		return true
 	case "/tags/delSeries":
+		if r.Method != "POST" {
+			http.Error(w, fmt.Sprintf("Only POST method is allowed. Got %s.", r.Method), http.StatusMethodNotAllowed)
+			return true
+		}
 		if !httpserver.CheckAuthFlag(w, r, deleteAuthKey) {
 			return true
 		}
@@ -388,6 +398,10 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		return true
 	case "/api/v1/admin/tsdb/delete_series":
+		if r.Method != "POST" {
+			http.Error(w, fmt.Sprintf("Only POST method is allowed. Got %s.", r.Method), http.StatusMethodNotAllowed)
+			return true
+		}
 		if !httpserver.CheckAuthFlag(w, r, deleteAuthKey) {
 			return true
 		}
@@ -541,7 +555,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		return true
 	case "/metric-relabel-debug":
 		promscrapeMetricRelabelDebugRequests.Inc()
-		promscrape.WriteMetricRelabelDebug(w, r)
+		promscrape.WriteMetricRelabelDebug(w, r, "", nil)
 		return true
 	case "/target-relabel-debug":
 		promscrapeTargetRelabelDebugRequests.Inc()

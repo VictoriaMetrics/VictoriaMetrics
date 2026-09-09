@@ -10,7 +10,7 @@ groups:
     concurrency: 2
     rules:
       - alert: PersistentQueueIsDroppingData
-        expr: sum(increase(vm_persistentqueue_bytes_dropped_total[5m])) without (path) > 0
+        expr: sum(increase(vm_persistentqueue_bytes_dropped_total[5m])) without (path,name) > 0
         for: 10m
         labels:
           severity: critical

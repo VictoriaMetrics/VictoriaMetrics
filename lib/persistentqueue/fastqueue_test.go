@@ -364,3 +364,64 @@ func TestFastQueueWriteReadWithIgnoreDisabledPQ(t *testing.T) {
 	fq.MustClose()
 	fs.MustRemoveDir(path)
 }
+
+func TestFastQueueWriteReadWithPrioritizeInmemory(t *testing.T) {
+	path := "fast-queue-write-read-inmemory-disabled-pq-force-write"
+	fs.MustRemoveDir(path)
+
+	capacity := 20
+	opts := OpenFastQueueOpts{
+		MaxInmemoryBlocks:      capacity,
+		PrioritizeInmemoryData: true,
+	}
+	fq := MustOpenFastQueueWithOpts(path, "foobar", opts)
+	if n := fq.GetInmemoryQueueLen(); n != 0 {
+		t.Fatalf("unexpected non-zero inmemory queue size:  %d", n)
+	}
+	var blocks []string
+	for i := range capacity {
+		block := fmt.Sprintf("block %d", i)
+		if !fq.TryWriteBlock([]byte(block)) {
+			t.Fatalf("TryWriteBlock must return true in this context")
+		}
+		blocks = append(blocks, block)
+	}
+	if n := fq.GetInmemoryQueueLen(); n != capacity {
+		t.Fatalf("unexpected non-zero inmemory queue size:  %d: %d", n, capacity)
+	}
+	for i := range capacity {
+		block := fmt.Sprintf("block %d-%d", i, i)
+		if !fq.TryWriteBlock([]byte(block)) {
+			t.Fatalf("TryWriteBlock must return true in this context")
+		}
+		blocks = append(blocks, block)
+	}
+
+	// in case of capacity exceed last element is written into file-based queue
+	if n := fq.GetInmemoryQueueLen(); n != capacity-1 {
+		t.Fatalf("unexpected non-zero inmemory queue size:  %d: %d", n, capacity)
+	}
+
+	// make sure that recently ingested elemements returned first
+	for idx := capacity + 1; idx < capacity*2; idx++ {
+		buf, ok := fq.MustReadInMemoryBlockBlocking(nil)
+		if !ok {
+			t.Fatalf("unexpected ok=false")
+		}
+		if string(buf) != blocks[idx] {
+			t.Fatalf("unexpected block read; got %q; want %q: %d", buf, blocks[idx], idx)
+		}
+	}
+	blocks = blocks[:capacity+1]
+	for _, block := range blocks {
+		buf, ok := fq.MustReadBlock(nil)
+		if !ok {
+			t.Fatalf("unexpected ok=false")
+		}
+		if string(buf) != block {
+			t.Fatalf("unexpected block read; got %q; want %q", buf, block)
+		}
+	}
+	fq.MustClose()
+	fs.MustRemoveDir(path)
+}

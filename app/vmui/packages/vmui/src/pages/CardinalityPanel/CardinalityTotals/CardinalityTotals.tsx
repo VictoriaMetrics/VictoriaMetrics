@@ -32,7 +32,7 @@ const CardinalityTotals: FC<CardinalityTotalsProps> = ({
   const match = searchParams.get("match");
   const focusLabel = searchParams.get("focusLabel");
   const isMetric = /__name__/.test(match || "");
-
+  const showMetricNameStats = !(match || focusLabel);
   const progress = totalSeries / totalSeriesAll * 100;
   const diff = totalSeries - totalSeriesPrev;
   const dynamic = Math.abs(diff) / totalSeriesPrev * 100;
@@ -56,7 +56,7 @@ const CardinalityTotals: FC<CardinalityTotalsProps> = ({
     },
   ].filter(t => t.display);
 
-  if (!totals.length) {
+  if (!totals.length && !showMetricNameStats) {
     return null;
   }
 
@@ -75,7 +75,7 @@ const CardinalityTotals: FC<CardinalityTotalsProps> = ({
           <h4 className="vm-cardinality-totals-card__title">
             {info && (
               <Tooltip title={<p className="vm-cardinality-totals-card__tooltip">{info}</p>}>
-                <div className="vm-cardinality-totals-card__info-icon"><InfoOutlinedIcon/></div>
+                <div className="vm-cardinality-totals-card__info-icon"><InfoOutlinedIcon /></div>
               </Tooltip>
             )}
             {title}
@@ -99,7 +99,10 @@ const CardinalityTotals: FC<CardinalityTotalsProps> = ({
           )}
         </div>
       ))}
-      <CardinalityMetricNameStats metricNameStats={metricNameStats}/>
+      {
+        showMetricNameStats &&
+        <CardinalityMetricNameStats metricNameStats={metricNameStats} />
+      }
     </div>
   );
 };

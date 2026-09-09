@@ -124,7 +124,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
   -http.idleConnTimeout duration
      Timeout for incoming idle http connections (default 1m0s)
   -http.maxGracefulShutdownDuration duration
-     The maximum duration for a graceful shutdown of the HTTP server. A highly loaded server may require increased value for a graceful shutdown (default 7s)
+     The maximum duration for a graceful shutdown of the HTTP server. During this period the server stops accepting new connections, but it will continue serving existing connections. The remaining in-flight requests are canceled before the deadline, so the shutdown can finish within this duration. A highly loaded server may require increased value for a graceful shutdown (default 7s)
   -http.pathPrefix string
      An optional prefix to add to all the paths handled by http server. For example, if '-http.pathPrefix=/foo/bar' is set, then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. See https://www.robustperception.io/using-external-urls-and-proxies-with-prometheus
   -http.shutdownDelay duration
@@ -136,7 +136,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
   -httpAuth.username string
      Username for HTTP server's Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
   -httpListenAddr array
-     Address to listen for incoming http requests. See also -tls and -httpListenAddr.useProxyProtocol
+     Address to listen for incoming http requests. Use unix:/path/to/socket to listen on Unix domain socket. Note that -tls and -httpListenAddr.useProxyProtocol cannot be used with Unix sockets
      Supports an array of values separated by comma or specified via multiple flags.
      Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -httpListenAddr.useProxyProtocol array
@@ -370,6 +370,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
      Defines a duration for idle (keep-alive connections) to exist. Consider settings this value less to the value of "-http.idleConnTimeout". It must prevent possible "write: broken pipe" and "read: connection reset by peer" errors. (default 50s)
   -remoteWrite.maxBatchSize int
      Defines max number of timeseries to be flushed at once (default 10000)
+  -remoteWrite.maxIdleConnections int
+     Defines the number of idle (keep-alive connections) to -remoteWrite.url for the vmalert-tool debug writer, which sends every series in a separate request. Too low a value may result in a high number of sockets in TIME_WAIT state. (default 100)
   -remoteWrite.maxQueueSize int
      Defines the max number of pending datapoints to remote write endpoint (default 100000)
   -remoteWrite.oauth2.clientID string
@@ -404,6 +406,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
      Optional TLS server name to use for connections to -remoteWrite.url. By default, the server name from -remoteWrite.url is used
   -remoteWrite.url string
      Optional URL to persist alerts state and recording rules results in form of timeseries. It must support either VictoriaMetrics remote write protocol or Prometheus remote_write protocol. Supports address in the form of IP address with a port (e.g., http://127.0.0.1:8428) or DNS SRV record. For example, if -remoteWrite.url=http://127.0.0.1:8428 is specified, then the alerts state will be written to http://127.0.0.1:8428/api/v1/write . See also -remoteWrite.disablePathAppend, '-remoteWrite.showURL'.
+  -replay.continueWithExecutionErr
+     Whether to continue replaying other rules if a rule execution fails with a 400 or 422 response code, which can happen due to an expression syntax error or a resource limit being hit.
   -replay.disableProgressBar
      Whether to disable rendering progress bars during the replay. Progress bar rendering might be verbose or break the logs parsing, so it is recommended to be disabled when not used in interactive mode.
   -replay.maxDatapointsPerQuery int
@@ -411,7 +415,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
   -replay.ruleEvaluationConcurrency int
      The maximum number of concurrent '/query_range' requests when replay recording rule or alerting rule with for=0. Increasing this value when replaying for a long time, since each request is limited by -replay.maxDatapointsPerQuery. (default 1)
   -replay.ruleRetryAttempts int
-     Defines how many retries to make before giving up on rule if request for it returns an error. (default 5)
+     Defines how many retries to make before giving up on rule if request for it returns a retriable error. (default 5)
   -replay.rulesDelay duration
      Delay before evaluating the next rule within the group. Is important for chained rules. Keep it equal or bigger than -remoteWrite.flushInterval. When set to >0, replay ignores group's concurrency setting. (default 1s)
   -replay.timeFrom string

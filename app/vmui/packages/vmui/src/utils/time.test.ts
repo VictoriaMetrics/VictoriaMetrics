@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import dayjs from "dayjs";
-import { getNanoTimestamp, parseSupportedDuration } from "./time";
+import { getMillisecondsFromDuration, getNanoTimestamp, parseSupportedDuration } from "./time";
 
 describe("Time utils", () => {
   describe("getNanoTimestamp", () => {
@@ -80,6 +80,21 @@ describe("Time utils", () => {
       expect(parseSupportedDuration("abc")).toBeUndefined();
       expect(parseSupportedDuration("")).toBeUndefined();
       expect(parseSupportedDuration("   ")).toBeUndefined();
+    });
+  });
+
+  describe("getMillisecondsFromDuration", () => {
+    it("should convert valid durations to milliseconds", () => {
+      expect(getMillisecondsFromDuration("1s")).toBe(1000);
+      expect(getMillisecondsFromDuration("1.5s")).toBe(1500);
+      expect(getMillisecondsFromDuration("1m30s")).toBe(90000);
+      expect(getMillisecondsFromDuration("1h 30m")).toBe(5400000);
+      expect(getMillisecondsFromDuration("500ms")).toBe(500);
+    });
+
+    it("should return zero when duration cannot be parsed", () => {
+      expect(getMillisecondsFromDuration("garbage")).toBe(0);
+      expect(getMillisecondsFromDuration("")).toBe(0);
     });
   });
 });

@@ -31,7 +31,11 @@ func (av *totalAggrValue) pushSample(c aggrConfig, sample *pushSample, key strin
 	currentTime := fasttime.UnixTimestamp()
 	keepFirstSample := ac.keepFirstSample && currentTime >= ac.ignoreFirstSampleDeadline
 	lv, ok := av.shared.lastValues[key]
-	if ok || keepFirstSample {
+	// The last value is stale, reset it.
+	if ok && lv.deleteDeadline < int64(currentTime)*1000 {
+		ok = false
+	}
+	if ok {
 		if sample.timestamp < lv.timestamp {
 			// Skip out of order sample
 			return
@@ -43,6 +47,8 @@ func (av *totalAggrValue) pushSample(c aggrConfig, sample *pushSample, key strin
 			av.total += sample.value
 			ac.counterResetsTotal.Inc()
 		}
+	} else if keepFirstSample {
+		av.total += sample.value
 	}
 	lv.value = sample.value
 	lv.timestamp = sample.timestamp

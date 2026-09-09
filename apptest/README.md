@@ -4,7 +4,7 @@ The `apptest` package contains the integration tests for the VictoriaMetrics
 applications (such as vmstorage, vminsert, and vmselect).
 
 An integration test aims at verifying the behavior of an application as a whole,
-as apposed to a unit test that verifies the behavior of a building block of an
+as opposed to a unit test that verifies the behavior of a building block of an
 application.
 
 To achieve that an integration test starts an application in a separate process
@@ -19,10 +19,10 @@ work together as a system.
 The package provides a collection of helpers to start applications and make
 queries to them:
 
--   `app.go` - contains the generic code for staring an application and should
+-   `app.go` - contains the generic code for starting an application and should
     not be used by integration tests directly.
 -   `{vmstorage,vminsert,etc}.go` - build on top of `app.go` and provide the
-    code for staring a specific application.
+    code for starting a specific application.
 -   `client.go` - provides helper functions for sending HTTP requests to
     applications.
 
@@ -36,7 +36,7 @@ the application binary files to be built and put into the `bin` directory. The
 build rule used for running integration tests, `make apptest`,
 accounts for that, it builds all application binaries before running the tests.
 But if you want to run the tests without `make`, i.e. by executing
-`go test ./app/apptest`, you will need to build the binaries first (for example,
+`go test ./apptest/tests`, you will need to build the binaries first (for example,
 by executing `make all`).
 
 Not all binaries can be built from `master` branch, cluster binaries can be built

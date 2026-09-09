@@ -223,7 +223,7 @@ func (r *Row) unmarshal(s string, tagsPool []Tag, noEscapes bool) ([]Tag, error)
 		// This looks like OpenMetrics timestamp in Unix seconds.
 		// Convert it to milliseconds.
 		//
-		// See https://github.com/OpenObservability/OpenMetrics/blob/master/specification/OpenMetrics.md#timestamps
+		// See https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#timestamps
 		ts *= 1000
 	}
 	r.Timestamp = int64(ts)
@@ -886,7 +886,7 @@ func unmarshalMetadata(dst []Metadata, s string, errLogger func(s string)) []Met
 			// "untyped" is the Prometheus exposition format name; "unknown" is the OpenMetrics equivalent.
 			md.Type = prompb.MetricTypeUnknown
 		case "info":
-			// OpenMetrics info type - see https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md
+			// OpenMetrics info type - see https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md
 			md.Type = prompb.MetricTypeInfo
 		case "gaugehistogram":
 			// OpenMetrics GaugeHistogram type

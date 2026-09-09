@@ -1,25 +1,41 @@
 package http
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
+	"sync"
+	"sync/atomic"
+	"time"
+
+	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
-	"github.com/VictoriaMetrics/metrics"
 )
 
-var configMap = discoveryutil.NewConfigMap()
-
 type apiConfig struct {
-	client *discoveryutil.Client
-	path   string
+	client        *discoveryutil.Client
+	path          string
+	sourceURL     string
+	checkInterval time.Duration
 
 	fetchErrors *metrics.Counter
 	parseErrors *metrics.Counter
+
+	initOnce        sync.Once
+	prevAPIResponse atomic.Pointer[[]byte]
+	targetLabels    atomic.Pointer[targetLabelsResult]
+
+	wg sync.WaitGroup
+}
+
+type targetLabelsResult struct {
+	labels []*promutil.Labels
+	err    error
 }
 
 // httpGroupTarget represent prometheus GroupTarget
@@ -49,37 +65,89 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		return nil, fmt.Errorf("cannot create HTTP client for %q: %w", apiServer, err)
 	}
 	cfg := &apiConfig{
-		client:      client,
-		path:        parsedURL.RequestURI(),
-		fetchErrors: metrics.GetOrCreateCounter(fmt.Sprintf(`promscrape_discovery_http_errors_total{type="fetch",url=%q}`, sdc.URL)),
-		parseErrors: metrics.GetOrCreateCounter(fmt.Sprintf(`promscrape_discovery_http_errors_total{type="parse",url=%q}`, sdc.URL)),
+		client:        client,
+		path:          parsedURL.RequestURI(),
+		sourceURL:     sdc.URL,
+		checkInterval: max(*SDCheckInterval/2, time.Second),
+		fetchErrors:   metrics.GetOrCreateCounter(fmt.Sprintf(`promscrape_discovery_http_errors_total{type="fetch",url=%q}`, sdc.URL)),
+		parseErrors:   metrics.GetOrCreateCounter(fmt.Sprintf(`promscrape_discovery_http_errors_total{type="parse",url=%q}`, sdc.URL)),
 	}
+	cfg.wg.Go(func() {
+		cfg.run()
+	})
 	return cfg, nil
 }
 
-func getAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
-	v, err := configMap.Get(sdc, func() (any, error) { return newAPIConfig(sdc, baseDir) })
-	if err != nil {
-		return nil, err
-	}
-	return v.(*apiConfig), nil
+func (cfg *apiConfig) init() {
+	cfg.initOnce.Do(func() {
+		cfg.refreshTargetsIfNeeded()
+	})
 }
 
-func getHTTPTargets(cfg *apiConfig) ([]httpGroupTarget, error) {
+func (cfg *apiConfig) run() {
+	cfg.init()
+
+	ticker := time.NewTicker(cfg.checkInterval)
+	defer ticker.Stop()
+	stopCh := cfg.client.Context().Done()
+	for {
+		select {
+		case <-ticker.C:
+			cfg.refreshTargetsIfNeeded()
+		case <-stopCh:
+			return
+		}
+	}
+}
+
+func (cfg *apiConfig) refreshTargetsIfNeeded() {
+	apiResponse, err := cfg.getAPIResponseData()
+	if err != nil {
+		cfg.targetLabels.Store(&targetLabelsResult{err: err})
+		cfg.prevAPIResponse.Store(nil)
+		return
+	}
+	prevAPIResponse := cfg.prevAPIResponse.Load()
+	if prevAPIResponse != nil && bytes.Equal(apiResponse, *prevAPIResponse) {
+		return
+	}
+	hts, err := parseAPIResponse(apiResponse, cfg.path)
+	if err != nil {
+		cfg.prevAPIResponse.Store(nil)
+		cfg.parseErrors.Inc()
+		cfg.targetLabels.Store(&targetLabelsResult{err: err})
+		return
+	}
+	newTargets := addHTTPTargetLabels(hts, cfg.sourceURL)
+	cfg.targetLabels.Store(&targetLabelsResult{labels: newTargets})
+	cfg.prevAPIResponse.Store(&apiResponse)
+}
+
+func (cfg *apiConfig) getAPIResponseData() ([]byte, error) {
 	data, err := cfg.client.GetAPIResponseWithReqParams(cfg.path, func(request *http.Request) {
-		request.Header.Set("X-Prometheus-Refresh-Interval-Seconds", strconv.FormatFloat(SDCheckInterval.Seconds(), 'f', 0, 64))
+		request.Header.Set("X-Prometheus-Refresh-Interval-Seconds", strconv.FormatFloat(cfg.checkInterval.Seconds(), 'f', 0, 64))
 		request.Header.Set("Accept", "application/json")
 	})
 	if err != nil {
 		cfg.fetchErrors.Inc()
 		return nil, fmt.Errorf("cannot read http_sd api response: %w", err)
 	}
-	tg, err := parseAPIResponse(data, cfg.path)
-	if err != nil {
-		cfg.parseErrors.Inc()
-		return nil, err
+	return data, nil
+}
+
+func (cfg *apiConfig) getLabels() ([]*promutil.Labels, error) {
+	cfg.init()
+
+	tlr := cfg.targetLabels.Load()
+	if tlr.err != nil {
+		return nil, tlr.err
 	}
-	return tg, nil
+	return tlr.labels, nil
+}
+
+func (cfg *apiConfig) mustStop() {
+	cfg.client.Stop()
+	cfg.wg.Wait()
 }
 
 func parseAPIResponse(data []byte, path string) ([]httpGroupTarget, error) {

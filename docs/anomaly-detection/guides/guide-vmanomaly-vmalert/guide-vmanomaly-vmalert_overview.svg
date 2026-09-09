@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1706 1069" role="img" aria-labelledby="title description">
+  <title id="title">Typical vmanomaly observability pipeline</title>
+  <desc id="description">vmagent scrapes node-exporter metrics and writes them to VictoriaMetrics. vmanomaly reads those metrics and writes anomaly scores back. Grafana visualizes the results. vmalert evaluates rules based on anomaly scores and sends alerts to Alertmanager.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <path d="M0 0 10 5 0 10Z" fill="#252525"/>
+    </marker>
+    <style>
+      text { font-family: Arial, Helvetica, sans-serif; fill: #252525; font-size: 40px; }
+      .box { fill: #fff; stroke: #252525; stroke-width: 3; }
+      .arrow { fill: none; stroke: #252525; stroke-width: 4; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect width="1706" height="1069" fill="#fff"/>
+
+  <rect x="20" y="55" width="390" height="100" class="box"/>
+  <text x="215" y="119" text-anchor="middle">node-exporter</text>
+  <rect x="730" y="50" width="395" height="100" class="box"/>
+  <text x="928" y="115" text-anchor="middle">vmagent</text>
+  <path d="M710 100 H435" class="arrow"/>
+  <text x="570" y="56" text-anchor="middle">Scrape metrics</text>
+
+  <rect x="745" y="325" width="400" height="180" class="box"/>
+  <text x="945" y="405" text-anchor="middle">VictoriaMetrics</text>
+  <text x="945" y="457" text-anchor="middle">TSDB</text>
+  <path d="M945 150 V322" class="arrow"/>
+  <text x="1018" y="204">
+    <tspan x="1018" dy="0">Push node</tspan>
+    <tspan x="1018" dy="50">exporter</tspan>
+    <tspan x="1018" dy="50">metrics</tspan>
+  </text>
+
+  <rect x="25" y="340" width="395" height="100" class="box"/>
+  <text x="222" y="405" text-anchor="middle">vmanomaly</text>
+  <path d="M725 365 H440" class="arrow"/>
+  <text x="575" y="319" text-anchor="middle">Read metrics</text>
+  <path d="M440 421 H725" class="arrow"/>
+  <text x="570" y="508" text-anchor="middle">
+    <tspan x="570" dy="0">Write produced</tspan>
+    <tspan x="570" dy="50">anomaly scores</tspan>
+  </text>
+
+  <rect x="1440" y="330" width="245" height="170" class="box"/>
+  <text x="1562" y="430" text-anchor="middle">Grafana</text>
+  <path d="M1160 417 H1418" class="arrow"/>
+  <text x="1285" y="486" text-anchor="middle">
+    <tspan x="1285" dy="0">Visualize the</tspan>
+    <tspan x="1285" dy="50">results</tspan>
+  </text>
+
+  <rect x="750" y="738" width="395" height="100" class="box"/>
+  <text x="948" y="805" text-anchor="middle">vmalert</text>
+  <path d="M946 525 V716" class="arrow"/>
+  <text x="1000" y="644">
+    <tspan x="1000" dy="0">Evaluate rules based</tspan>
+    <tspan x="1000" dy="50">on anomaly scores</tspan>
+  </text>
+
+  <rect x="755" y="948" width="395" height="100" class="box"/>
+  <text x="952" y="1015" text-anchor="middle">alertmanager</text>
+  <path d="M948 858 V928" class="arrow"/>
+  <text x="1004" y="906">Send alerts</text>
+</svg>

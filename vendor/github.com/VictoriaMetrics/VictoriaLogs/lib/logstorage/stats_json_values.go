@@ -28,7 +28,7 @@ type statsJSONValues struct {
 }
 
 func (sv *statsJSONValues) String() string {
-	s := "json_values(" + fieldNamesString(sv.fieldFilters) + ")"
+	s := "json_values(" + fieldFiltersString(sv.fieldFilters) + ")"
 
 	if len(sv.sortFields) > 0 {
 		a := make([]string, len(sv.sortFields))

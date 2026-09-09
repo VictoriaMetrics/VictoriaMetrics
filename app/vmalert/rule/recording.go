@@ -208,7 +208,11 @@ func (rr *RecordingRule) exec(ctx context.Context, ts time.Time, limit int) ([]p
 		return nil, curState.Err
 	}
 
-	rr.logDebugf(ts, "query returned %d samples (elapsed: %s, isPartial: %t)", curState.Samples, curState.Duration, isPartialResponse(res))
+	seriesFetched := 0
+	if res.SeriesFetched != nil {
+		seriesFetched = *res.SeriesFetched
+	}
+	rr.logDebugf(ts, "query returned %d samples (series_fetched: %d, elapsed: %s, isPartial: %t)", curState.Samples, seriesFetched, curState.Duration, isPartialResponse(res))
 
 	qMetrics := res.Data
 	numSeries := len(qMetrics)

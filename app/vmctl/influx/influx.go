@@ -259,7 +259,7 @@ func (cr *ChunkedResponse) Next() ([]int64, []float64, error) {
 
 	fieldValues, ok := r.values[cr.field]
 	if !ok {
-		return nil, nil, fmt.Errorf("response doesn't contain filed %q", cr.field)
+		return nil, nil, fmt.Errorf("response doesn't contain field %q", cr.field)
 	}
 	values := make([]float64, len(fieldValues))
 	for i, fv := range fieldValues {

@@ -31,12 +31,16 @@ type increaseAggrValue struct {
 }
 
 func (av *increaseAggrValue) pushSample(c aggrConfig, sample *pushSample, key string, deleteDeadline int64) {
+	if av.total == nil {
+		av.total = new(float64)
+	}
 	ac := c.(*increaseAggrConfig)
 	currentTime := fasttime.UnixTimestamp()
 	keepFirstSample := ac.keepFirstSample && currentTime >= ac.ignoreFirstSampleDeadline
 	lv, ok := av.shared[key]
-	if av.total == nil {
-		av.total = new(float64)
+	// The last value is stale, reset it.
+	if ok && lv.deleteDeadline < int64(currentTime)*1000 {
+		ok = false
 	}
 	if ok {
 		if sample.timestamp < lv.timestamp {

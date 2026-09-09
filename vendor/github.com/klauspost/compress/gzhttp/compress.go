@@ -1158,8 +1158,8 @@ func parseCoding(s string) (coding string, qvalue float64, err error) {
 
 		if n == 0 {
 			coding = strings.ToLower(part)
-		} else if after, ok := strings.CutPrefix(part, "q="); ok {
-			qvalue, err = strconv.ParseFloat(after, 64)
+		} else if len(part) >= 2 && strings.EqualFold(part[:2], "q=") {
+			qvalue, err = strconv.ParseFloat(part[2:], 64)
 
 			if qvalue < 0.0 {
 				qvalue = 0.0

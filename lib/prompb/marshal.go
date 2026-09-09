@@ -112,11 +112,19 @@ func (m *TimeSeries) size() (n int) {
 	}
 	for _, e := range m.Labels {
 		l := e.size()
-		n += 1 + l + sov(uint64(l))
+		if l < 128 {
+			n += 2 + l
+		} else {
+			n += 1 + l + sov(uint64(l))
+		}
 	}
 	for _, e := range m.Samples {
 		l := e.size()
-		n += 1 + l + sov(uint64(l))
+		if l < 128 {
+			n += 2 + l
+		} else {
+			n += 1 + l + sov(uint64(l))
+		}
 	}
 	return n
 }
@@ -126,10 +134,18 @@ func (m *Label) size() (n int) {
 		return 0
 	}
 	if l := len(m.Name); l > 0 {
-		n += 1 + l + sov(uint64(l))
+		if l < 128 {
+			n += 2 + l
+		} else {
+			n += 1 + l + sov(uint64(l))
+		}
 	}
 	if l := len(m.Value); l > 0 {
-		n += 1 + l + sov(uint64(l))
+		if l < 128 {
+			n += 2 + l
+		} else {
+			n += 1 + l + sov(uint64(l))
+		}
 	}
 	return n
 }
@@ -160,6 +176,11 @@ func (m *WriteRequest) marshalToSizedBuffer(dst []byte) (int, error) {
 }
 
 func encodeVarint(dst []byte, offset int, v uint64) int {
+	if v < 1<<7 {
+		offset--
+		dst[offset] = byte(v)
+		return offset
+	}
 	offset -= sov(v)
 	base := offset
 	for v >= 1<<7 {
@@ -180,7 +201,11 @@ func (m *WriteRequest) size() (n int) {
 	}
 	for _, e := range m.Metadata {
 		l := e.size()
-		n += 1 + l + sov(uint64(l))
+		if l < 128 {
+			n += 2 + l
+		} else {
+			n += 1 + l + sov(uint64(l))
+		}
 	}
 	return n
 }
@@ -238,13 +263,25 @@ func (m *MetricMetadata) size() (n int) {
 		n += 1 + sov(uint64(m.Type))
 	}
 	if l := len(m.MetricFamilyName); l > 0 {
-		n += 1 + l + sov(uint64(l))
+		if l < 128 {
+			n += 2 + l
+		} else {
+			n += 1 + l + sov(uint64(l))
+		}
 	}
 	if l := len(m.Help); l > 0 {
-		n += 1 + l + sov(uint64(l))
+		if l < 128 {
+			n += 2 + l
+		} else {
+			n += 1 + l + sov(uint64(l))
+		}
 	}
 	if l := len(m.Unit); l > 0 {
-		n += 1 + l + sov(uint64(l))
+		if l < 128 {
+			n += 2 + l
+		} else {
+			n += 1 + l + sov(uint64(l))
+		}
 	}
 	if m.AccountID != 0 {
 		n += 1 + sov(uint64(m.AccountID))

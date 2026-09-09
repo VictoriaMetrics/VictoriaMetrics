@@ -44,11 +44,18 @@ import (
 var (
 	storagePath    string
 	httpListenAddr string
-	// insert series from 1970-01-01T00:00:00
-	testStartTime          = time.Unix(0, 0).UTC()
+	// Insert series from 2000-01-01T00:00:00.
+	testStartTime          = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 	testLogLevel           = "ERROR"
 	disableAlertgroupLabel bool
 )
+
+func durationToTime(pd *promutil.Duration) time.Time {
+	if pd == nil {
+		return testStartTime
+	}
+	return testStartTime.Add(pd.Duration())
+}
 
 const (
 	testStoragePath = "vmalert-unittest"
@@ -282,7 +289,8 @@ func processFlags() {
 
 func setUp() {
 	const maxConcurrentRequests = 4
-	vmstorage.Init(maxConcurrentRequests, promql.ResetRollupResultCacheIfNeeded)
+	maxQueueDuration := 5 * time.Second
+	vmstorage.Init(maxConcurrentRequests, maxQueueDuration, promql.ResetRollupResultCacheIfNeeded)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	readyCheckFunc := func() bool {

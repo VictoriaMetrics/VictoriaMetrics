@@ -1,6 +1,7 @@
 ---
 weight: 29
 title: Articles
+description: "Third-party articles, slides, and videos about VictoriaMetrics."
 menu:
   docs:
     parent: 'victoriametrics'
@@ -19,6 +20,7 @@ See also [case studies](https://docs.victoriametrics.com/victoriametrics/casestu
 * [Datanami: Why Roblox Picked VictoriaMetrics for Observability Data Overhaul](https://www.hpcwire.com/bigdatawire/2023/05/30/why-roblox-picked-victoriametrics-for-observability-data-overhaul/)
 * [Cloudflare: Introducing notifications for HTTP Traffic Anomalies](https://blog.cloudflare.com/introducing-http-traffic-anomalies-notifications/)
 * [Grammarly: Better, Faster, Cheaper: How Grammarly Improved Monitoring by Over 10x with VictoriaMetrics](https://www.grammarly.com/blog/engineering/monitoring-with-victoriametrics/)
+* [Xata: How we rebuilt PostgreSQL branch metrics on VictoriaMetrics, per cell](https://xata.io/blog/how-we-rebuilt-postgresql-branch-metrics-on-victoriametrics-per-cell)
 * [CERN: CMS monitoring R&D: Real-time monitoring and alerts](https://indico.cern.ch/event/877333/contributions/3696707/attachments/1972189/3281133/CMS_mon_RD_for_opInt.pdf)
 * [CERN: The CMS monitoring infrastructure and applications](https://arxiv.org/pdf/2007.03630.pdf)
 * [Forbes: The (Almost) Infinitely Scalable Open Source Monitoring Dream](https://www.forbes.com/sites/adrianbridgwater/2022/08/16/the-almost-infinitely-scalable-open-source-monitoring-dream/)
@@ -48,7 +50,7 @@ See also [case studies](https://docs.victoriametrics.com/victoriametrics/casestu
 * [Brewblox: InfluxDB to Victoria Metrics](https://www.brewblox.com/dev/decisions/20210718_victoria_metrics.html)
 * [Techetio: Evaluating Backend Options For Prometheus Metrics](https://www.techetio.com/2022/08/21/evaluating-backend-options-for-prometheus-metrics/)
 * [Asserts: Announcing Asserts](https://www.asserts.ai/blog/announcing-asserts/)
-* [Optimizing Linkerd metrics in Prometheus](https://aatarasoff.medium.com/optimizing-linkerd-metrics-in-prometheus-de607ec10f6b)
+* [Optimizing Linkerd metrics in Prometheus](https://itnext.io/optimizing-linkerd-metrics-in-prometheus-de607ec10f6b)
 * [VictoriaMetrics vs. OpenTSDB](https://blg.robot-house.us/posts/tsdbs-grow/)
 * [Monitoring of multiple OpenShift clusters with VictoriaMetrics](https://medium.com/ibm-garage/monitoring-of-multiple-openshift-clusters-with-victoriametrics-d4f0979e2544)
 * [Ultra Monitoring with Victoria Metrics](https://dev.to/aws-builders/ultra-monitoring-with-victoria-metrics-1p2)
@@ -113,6 +115,12 @@ See also [case studies](https://docs.victoriametrics.com/victoriametrics/casestu
 * [QCon London 2026: Wrangling Telemetry at Scale, a Guide to Self-Hosted Observability](https://www.infoq.com/news/2026/03/self-hosted-observability/)
 * [How We Made Telemetry Queries 10x Faster: Chunk-Split Caching for Metrics, Logs, and Traces](https://mirastacklabs.ai/blog/chunk-split-caching/)
 * [Claude Code: creating Kubernetes debugging AI Agent for VictoriaMetrics](https://rtfm.co.ua/en/claude-code-creating-kubernetes-debugging-ai-agent-for-victoriametrics/)
+* [OpenTelemetry: OTel Collectors in Kubernetes and VictoriaMetrics Stack integration](https://itnext.io/opentelemetry-otel-collectors-in-kubernetes-and-victoriametrics-stack-integration-d907ed0a15a0)
+* [VictoriaMetrics vs Prometheus: my default, and when I still pick Prometheus](https://jorijn.com/en/blog/victoriametrics-vs-prometheus/)
+* [LiteLLM: Monitoring with VictoriaMetrics – Alerts and Grafana](https://rtfm.co.ua/en/litellm-monitoring-with-victoriametrics-alerts-and-grafana/)
+* [LiteLLM: AI Gateway on Kubernetes and Metrics in VictoriaMetrics](https://rtfm.co.ua/en/litellm-ai-gateway-on-kubernetes-and-metrics-in-victoriametrics/)
+* [LiteLLM: Metrics, Traces, and VictoriaMetrics Stack Integration](https://rtfm.co.ua/en/litellm-metrics-traces-and-victoriametrics-stack-integration/)
+* [llama.cpp: Metrics and Monitoring with VictoriaMetrics](https://rtfm.co.ua/en/llama-cpp-metrics-and-monitoring-with-victoriametrics/)
 
 ## Third-party articles and slides about VictoriaLogs
 
@@ -153,6 +161,13 @@ See [our blog](https://victoriametrics.com/blog) for the latest articles written
 * [Why irate from Prometheus doesn't capture spikes](https://valyala.medium.com/why-irate-from-prometheus-doesnt-capture-spikes-45f9896d7832)
 * [VictoriaMetrics: PromQL compliance](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e)
 * [How do open source solutions for logs work: Elasticsearch, Loki and VictoriaLogs](https://itnext.io/how-do-open-source-solutions-for-logs-work-elasticsearch-loki-and-victorialogs-9f7097ecbc2f)
+* [How vmagent Collects and Ships Metrics Fast with Aggregation, Deduplication, and More](https://victoriametrics.com/blog/vmagent-how-it-works/)
+* [When Metrics Meet vminsert: A Data-Delivery Story](https://victoriametrics.com/blog/vminsert-how-it-works/)
+* [How vmstorage Handles Data Ingestion From vminsert](https://victoriametrics.com/blog/vmstorage-how-it-handles-data-ingestion/)
+* [How vmstorage Processes Data: Retention, Merging, Deduplication...](https://victoriametrics.com/blog/vmstorage-retention-merging-deduplication/)
+* [How vmstorage's IndexDB Works](https://victoriametrics.com/blog/vmstorage-how-indexdb-works/)
+* [How vmstorage Handles Query Requests From vmselect](https://victoriametrics.com/blog/vmstorage-how-it-handles-query-requests/)
+* [Inside vmselect: The Query Processing Engine of VictoriaMetrics](https://victoriametrics.com/blog/vmselect-how-it-works/)
 
 ### Tutorials, guides and how-to articles
 
@@ -170,6 +185,12 @@ See [our guides](https://docs.victoriametrics.com/guides/) for the up-to-date gu
 * [Prometheus storage: tech terms for humans](https://valyala.medium.com/prometheus-storage-technical-terms-for-humans-4ab4de6c3d48)
 * [Cardinality explorer](https://victoriametrics.com/blog/cardinality-explorer/)
 * [Rules backfilling via vmalert](https://victoriametrics.com/blog/rules-replay/)
+* [vmagent: Key Features Explained in Under 15 Minutes](https://victoriametrics.com/blog/vmagent-key-features-explained/)
+* [Prometheus Metrics Explained: Counters, Gauges, Histograms & Summaries](https://victoriametrics.com/blog/prometheus-monitoring-metrics-counters-gauges-histogram-summaries/)
+* [Prometheus Monitoring: Instant Queries and Range Queries Explained](https://victoriametrics.com/blog/prometheus-monitoring-instant-range-query/)
+* [Prometheus Monitoring: Functions, Subqueries, Operators, and Modifiers](https://victoriametrics.com/blog/prometheus-monitoring-function-operator-modifier/)
+* [Prometheus Alerting 101: Rules, Recording Rules, and Alertmanager](https://victoriametrics.com/blog/alerting-recording-rules-alertmanager/)
+* [Alerting Best Practices](https://victoriametrics.com/blog/alerting-best-practices/)
 
 ### Other articles
 

@@ -1,5 +1,6 @@
 ---
 title: Reader
+description: "Data reader configuration. MetricsQL queries from VictoriaMetrics or LogsQL from VictoriaLogs/VictoriaTraces."
 weight: 2
 menu:
   docs:
@@ -12,23 +13,24 @@ aliases:
   - /anomaly-detection/components/reader.html
 ---
 
-VictoriaMetrics Anomaly Detection (`vmanomaly`) has an input of Prometheus-compatible metrics from either [VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/) accessed with [VmReader](#vm-reader) with [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) queries or from [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) / [VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) accessed with [VLogsReader](#victorialogs-reader) with [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) queries.
+VictoriaMetrics Anomaly Detection (`vmanomaly`) reads Prometheus-compatible metrics from [VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/) through [VmReader](#vm-reader) and [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/). It can also derive metrics from [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) or [VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) through [VLogsReader](#victorialogs-reader) and [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/).
 
 Future updates will introduce additional readers, expanding the range of data sources `vmanomaly` can work with.
 
 ## Playgrounds
 
-To ease the development and testing of queries for `vmanomaly`'s input data, following playgrounds can be used for experimenting with MetricsQL and LogsQL queries:
+Use the following playgrounds to develop and test input queries:
 
-Please see respective sections below for specific reader:
 - [MetricsQL playground](#metricsql-playground) for `VmReader`
 - [LogsQL playground](#logsql-playground) for `VLogsReader`
 
 ## VM reader
 
+<div class="collapse-group">
+
 {{% collapse name="Queries format migration (to v1.13.0+)" %}}
 
-> There is backward-compatible change{{% available_from "v1.13.0" anomaly %}} of [`queries`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) arg of [VmReader](#vm-reader). New format allows to specify per-query parameters, like `step` to reduce amount of data read from VictoriaMetrics TSDB and to allow config flexibility. Please see [per-query parameters](#per-query-parameters) section for the details.
+> The backward-compatible `queries` format introduced in v1.13.0 allows [VmReader](#vm-reader) parameters such as `step` to be configured per query. This can reduce the amount of data read from VictoriaMetrics. See [per-query parameters](#per-query-parameters) for details.
 
 Old format like
 
@@ -58,9 +60,11 @@ reader:
       step: '10s'  # individual step for this query, will be filled with `sampling_period` from the root level
       data_range: ['-inf', 'inf']  # by default, no constraints applied on data range
       tz: 'UTC'  # by default, tz-free data is used throughout the model lifecycle
-      # new query-level arguments will be added in backward-compatible way in future releases
+      # from v1.30.2, explicitly add detection_direction and minimum-deviation policies here when needed
 ```
 {{% /collapse %}}
+
+{{% collapse name="VM reader per-query parameters and example" %}}
 
 ### Per-query parameters
 
@@ -82,9 +86,19 @@ There is change {{% available_from "v1.13.0" anomaly %}} of [`queries`](https://
 
   > If not set explicitly (or if older config style prior to [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130)) is used, then it is set to reader-level `data_range` arg{{% available_from "v1.18.1" anomaly %}}
 
+  > Configuring `data_range` in a model is {{% deprecated_from "v1.30.2" anomaly %}}. Configure it under `reader.queries.<alias>` so the KPI domain remains the same when the query is attached to different models. Existing model-level values remain compatible as model-local fallbacks when the query does not define an explicit value.
+
+- `detection_direction`{{% available_from "v1.30.2" anomaly %}} (`both`, `above_expected`, or `below_expected`): controls whether deviations on both sides, only above the expected value, or only below it can produce anomaly scores. The default is `both`. See [detection direction](https://docs.victoriametrics.com/anomaly-detection/components/models/#detection-direction) for behavior details.
+
+- `min_dev_from_expected`{{% available_from "v1.30.2" anomaly %}} (float or one/two-element list[float]): ignores deviations smaller than the configured absolute threshold. A scalar or one-element list applies to both directions; a two-element list configures lower and upper deviations separately. See [minimal deviation from expected](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-deviation-from-expected).
+
+- `min_rel_dev_from_expected`{{% available_from "v1.30.2" anomaly %}} (float or one/two-element list[float]): ignores deviations smaller than the configured percentage of the absolute expected value. A scalar or one-element list applies to both directions; a two-element list configures lower and upper percentages separately. See [minimal relative deviation from expected](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-relative-deviation-from-expected).
+
+  > Configuring `detection_direction`, `min_dev_from_expected`, or `min_rel_dev_from_expected` in a model is {{% deprecated_from "v1.30.2" anomaly %}}. Query-level values are authoritative. Existing model-level values remain compatible only as model-local fallbacks for attached queries that do not define the corresponding policy.
+
 - `max_points_per_query`{{% available_from "v1.17.0" anomaly %}} (int): Optional arg, overrides how `search.maxPointsPerTimeseries` flag{{% available_from "v1.14.1" anomaly %}} impacts `vmanomaly` on splitting long `fit_window` [queries](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) into smaller sub-intervals. This helps users avoid hitting the `search.maxQueryDuration` limit for individual queries by distributing initial query across multiple subquery requests with minimal overhead. Set less than `search.maxPointsPerTimeseries` if hitting `maxQueryDuration` limits. If set on a query-level, it overrides the global `max_points_per_query` (reader-level).
 
-- `tz`{{% available_from "v1.18.0" anomaly %}} (string): this optional argument enables timezone specification per query, overriding the reader’s default `tz`. This setting helps to account for local timezone shifts, such as [DST](https://en.wikipedia.org/wiki/Daylight_saving_time), in models that are sensitive to seasonal variations (e.g., [`ProphetModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) or [`OnlineQuantileModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-seasonal-quantile)).
+- `tz`{{% available_from "v1.18.0" anomaly %}} (string): this optional argument enables timezone specification per query, overriding the reader’s default `tz`. This setting helps to account for local timezone shifts, such as [DST](https://en.wikipedia.org/wiki/Daylight_saving_time), in models that are sensitive to seasonal variations (e.g., [`TemporalEnvelopeModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope) or [`OnlineQuantileModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-seasonal-quantile)).
 
 - `tenant_id` {{% available_from "v1.19.0" anomaly %}} (string): this optional argument enables tenant-level separation for queries (e.g. `query1` to get the data from tenant "0:0", `query2` - from tenant "1:0"). It works as follows:
   - if *not set, inherits* reader-level `tenant_id`
@@ -112,7 +126,10 @@ reader:
     ingestion_rate_t1:
       expr: 'sum(rate(vm_rows_inserted_total[5m])) by (type) > 0'
       step: '2m'  # overrides global `sampling_period` of 1m
-      data_range: [10, 'inf']  # meaning only positive values > 10 are expected, i.e. a value `y` < 10 will trigger anomaly score > 1
+      data_range: [10, 'inf']  # query-level business policy from v1.30.2; y < 10 triggers anomaly score > 1
+      detection_direction: 'above_expected'  # query-level from v1.30.2; only spikes can be anomalous
+      min_dev_from_expected: [0, 5]  # query-level from v1.30.2; ignore upward deviations smaller than 5
+      min_rel_dev_from_expected: [0, 15]  # query-level from v1.30.2; ignore upward deviations below 15%
       max_points_per_query: 5000 # overrides reader-level value of 10000 for `ingestion_rate` query
       tz: 'America/New_York'  # to override reader-wise `tz`
       tenant_id: '1:0'  # overriding tenant_id to isolate data
@@ -125,6 +142,10 @@ reader:
       tenant_id: '2:0'  # overriding tenant_id to isolate data
       offset: '-15s'  # to override reader-wise `offset` and query data 15 seconds earlier to account for data collection delays
 ```
+
+{{% /collapse %}}
+
+{{% collapse name="VM reader config parameters and example" %}}
 
 ### Config parameters
 
@@ -263,7 +284,46 @@ BasicAuth password. If set, it will be used to authenticate the request.
 `30s`
             </td>
             <td>
-Timeout for the requests, passed as a string
+Backward-compatible timeout used for both datasource fetches and post-fetch processing when `fetch_timeout` or `processing_timeout` are not set.
+            </td>
+        </tr>
+        <tr>
+            <td>
+
+<span style="white-space: nowrap;">`fetch_timeout`</span>
+            </td>
+            <td>
+
+Not set (`timeout` fallback)
+            </td>
+            <td>
+Optional timeout {{% available_from "v1.30.0" anomaly %}} for each datasource read request. Use values such as `5s`, `30s`, or `1m`.
+            </td>
+        </tr>
+        <tr>
+            <td>
+
+<span style="white-space: nowrap;">`processing_timeout`</span>
+            </td>
+            <td>
+
+Not set (`timeout` fallback)
+            </td>
+            <td>
+Optional timeout {{% available_from "v1.30.0" anomaly %}} for post-fetch processing that prepares returned data for fit or inference. High-cardinality queries may need a larger processing timeout than their datasource fetch timeout.
+            </td>
+        </tr>
+        <tr>
+            <td>
+
+<span style="white-space: nowrap;">`workers`</span>
+            </td>
+            <td>
+
+`0`
+            </td>
+            <td>
+Maximum concurrent datasource fetch threads {{% available_from "v1.30.2" anomaly %}}. `0` selects a bounded value automatically from the number of queries and available CPUs. A positive value sets an explicit cap for queries and disk-streamed split-query chunks.
             </td>
         </tr>
         <tr>
@@ -362,6 +422,19 @@ If True, then query will be performed from the last seen timestamp for a given s
         <tr>
             <td>
 
+<span style="white-space: nowrap;">`query_last_seen_max_lookback`</span>
+            </td>
+            <td>
+
+`None`
+            </td>
+            <td>
+Optional hard cap {{% available_from "v1.30.0" anomaly %}} for how far `query_from_last_seen_timestamp` may move a query start into the past to recover skipped inference intervals. When configured below the query step, the effective cap is raised to one step. Examples: `5m`, `1h`.
+            </td>
+        </tr>
+        <tr>
+            <td>
+
 <span style="white-space: nowrap;">`latency_offset`</span>
             </td>
             <td>
@@ -395,7 +468,7 @@ Optional arg{{% available_from "v1.17.0" anomaly %}} overrides how `search.maxPo
 `UTC`
             </td>
             <td>
-Optional argument{{% available_from "v1.18.0" anomaly %}} specifies the [IANA](https://nodatime.org/TimeZones) timezone to account for local shifts, like [DST](https://en.wikipedia.org/wiki/Daylight_saving_time), in models sensitive to seasonal patterns (e.g., [`ProphetModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) or [`OnlineQuantileModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-seasonal-quantile)). Defaults to `UTC` if not set and can be overridden on a [per-query basis](#per-query-parameters).
+Optional argument {{% available_from "v1.18.0" anomaly %}} specifies the [IANA](https://nodatime.org/TimeZones) timezone to account for local shifts, like [DST](https://en.wikipedia.org/wiki/Daylight_saving_time), in models sensitive to seasonal patterns (e.g., [`TemporalEnvelopeModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope) or [`OnlineQuantileModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-seasonal-quantile)). Defaults to `UTC` if not set and can be overridden on a [per-query basis](#per-query-parameters).
             </td>
         </tr>
         <tr>
@@ -421,7 +494,20 @@ Optional argument{{% available_from "v1.18.1" anomaly %}} allows defining **vali
 `60s`
             </td>
             <td>
-Optional argument{{% available_from "v1.25.3" anomaly %}} allows specifying a time offset for all queries in `queries`. Defaults to `0s` (0) if not set and can be overridden on a [per-query basis](#per-query-parameters).
+Optional argument {{% available_from "v1.25.3" anomaly %}}, allows specifying a time offset for all queries in `queries`. Defaults to `0s` (0) if not set and can be overridden on a [per-query basis](#per-query-parameters).
+            </td>
+        </tr>
+        <tr>
+            <td>
+
+<span style="white-space: nowrap;">`series_processing_batch_size`</span>
+            </td>
+            <td>
+
+`8`
+            </td>
+            <td>
+Optional argument {{% available_from "v1.29.7" anomaly %}}, allows specifying the number of time series to process together while preparing data for fit or infer stages. Defaults to `8`. Suggested values are 4-16 for high-cardinality queries.
             </td>
         </tr>
     </tbody>
@@ -448,13 +534,24 @@ reader:
       # tenant_id: '1:0'  # if set, overrides reader-level tenant_id
       # offset: '-15s'  # if set, overrides reader-level offset
   sampling_period: '1m'
+  timeout: '30s'  # backward-compatible default for both phases
+  fetch_timeout: '30s'  # timeout for each datasource request, overrides `timeout` if set
+  processing_timeout: '1m'  # timeout for preparing fetched series for fit/infer, overrides `timeout` if set
+  workers: 0  # automatic bounded datasource concurrency; set a positive value for an explicit cap
   query_from_last_seen_timestamp: True  # false by default
   latency_offset: '1ms'
+  series_processing_batch_size: 8
 ```
+
+{{% /collapse %}}
+
+</div>
 
 ### MetricsQL Playground
 
 To experiment with MetricsQL queries for `VmReader`, you can use the [VictoriaMetrics MetricsQL Playground](https://play.victoriametrics.com/), which provides an interactive environment to test and visualize your queries against sample data. You can also access embedded version of the playground below:
+
+<div class="collapse-group">
 
 {{% collapse name="VictoriaMetrics Playground" %}}
 
@@ -480,6 +577,8 @@ To experiment with MetricsQL queries for `VmReader`, you can use the [VictoriaMe
 </div>
 
 {{% /collapse %}}
+
+</div>
 
 ### mTLS protection
 
@@ -516,7 +615,7 @@ reader:
 
 ### Healthcheck metrics
 
-`VmReader` exposes [several healthchecks metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#reader-behaviour-metrics).
+`VmReader` exposes [several health metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#reader-behaviour-metrics).
 
 
 ## VictoriaLogs reader
@@ -625,6 +724,8 @@ Similarly, [VictoriaTraces LogsQL Playground](https://play-vtraces.victoriametri
 
 You can also access **embedded version of the playground below** (VictoriaLogs datasource):
 
+<div class="collapse-group">
+
 {{% collapse name="VictoriaLogs LogsQL Playground" %}}
 
 <div class="position-relative mb-3">
@@ -650,6 +751,11 @@ You can also access **embedded version of the playground below** (VictoriaLogs d
 
 {{% /collapse %}}
 
+</div>
+
+<div class="collapse-group">
+
+{{% collapse name="VictoriaLogs reader config parameters" %}}
 
 ### Config parameters
 
@@ -747,7 +853,7 @@ Frequency of the points returned. Will be converted to `/select/stats_query_rang
 `America/New_York`
             </td>
             <td>
-(Optional) Specifies the [IANA](https://nodatime.org/TimeZones) timezone to account for local shifts, like [DST](https://en.wikipedia.org/wiki/Daylight_saving_time), in models sensitive to seasonal patterns (e.g., [`ProphetModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) or [`OnlineQuantileModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-seasonal-quantile)). Defaults to `UTC` if not set and can be overridden on a [per-query basis](#per-query-parameters).
+(Optional) Specifies the [IANA](https://nodatime.org/TimeZones) timezone to account for local shifts, like [DST](https://en.wikipedia.org/wiki/Daylight_saving_time), in models sensitive to seasonal patterns (e.g., [`TemporalEnvelopeModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope) or [`OnlineQuantileModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-seasonal-quantile)). Defaults to `UTC` if not set and can be overridden on a [per-query basis](#per-query-parameters).
             </td>
         </tr>
         <tr>
@@ -786,7 +892,46 @@ Frequency of the points returned. Will be converted to `/select/stats_query_rang
 `30s`
             </td>
             <td>
-(Optional) Specifies the maximum duration to wait for a query to complete before timing out. Can be set on a [per-query basis](#per-query-parameters-1) to override the reader-level setting.
+(Optional) Backward-compatible timeout used for both datasource fetches and post-fetch processing when `fetch_timeout` or `processing_timeout` are not set.
+            </td>
+        </tr>
+        <tr>
+            <td>
+
+<span style="white-space: nowrap;">`fetch_timeout`</span>
+            </td>
+            <td>
+
+Not set (`timeout` fallback)
+            </td>
+            <td>
+Optional timeout {{% available_from "v1.30.0" anomaly %}} for each datasource read request. Use values such as `5s`, `30s`, or `1m`.
+            </td>
+        </tr>
+        <tr>
+            <td>
+
+<span style="white-space: nowrap;">`processing_timeout`</span>
+            </td>
+            <td>
+
+Not set (`timeout` fallback)
+            </td>
+            <td>
+Optional timeout {{% available_from "v1.30.0" anomaly %}} for post-fetch processing that prepares returned data for fit or inference. High-cardinality results may need a larger processing timeout than their datasource fetch timeout.
+            </td>
+        </tr>
+        <tr>
+            <td>
+
+<span style="white-space: nowrap;">`workers`</span>
+            </td>
+            <td>
+
+`0`
+            </td>
+            <td>
+Maximum concurrent datasource fetch threads {{% available_from "v1.30.2" anomaly %}}. `0` selects a bounded value automatically from the number of queries and available CPUs. A positive value sets an explicit cap for queries and disk-streamed split-query chunks.
             </td>
         </tr>
         <tr>
@@ -879,8 +1024,38 @@ If a path to a CA bundle file (like `ca.crt`), it will verify the certificate us
 (Optional) Password for authentication. If set, it will be used to authenticate the request.
             </td>
         </tr>
+        <tr>
+            <td>
+
+<span style="white-space: nowrap;">`series_processing_batch_size`</span>
+            </td>
+            <td>
+
+`8`
+            </td>
+            <td>
+Optional argument {{% available_from "v1.29.7" anomaly %}}, allows specifying the number of time series to process together while preparing data for fit or infer stages. Defaults to `8`. Suggested values are 4-16 for high-cardinality queries.
+            </td>
+        </tr>
+        <tr>
+            <td>
+
+<span style="white-space: nowrap;">`query_last_seen_max_lookback`</span>
+            </td>
+            <td>
+
+`None`
+            </td>
+            <td>
+Optional hard cap {{% available_from "v1.30.0" anomaly %}} for how far last-seen recovery may move a query start into the past. Examples: `5m`, `1h`.
+            </td>
+        </tr>
     </tbody>
 </table>
+
+{{% /collapse %}}
+
+{{% collapse name="VictoriaLogs reader per-query parameters and example" %}}
 
 ### Per-query parameters
 
@@ -897,15 +1072,21 @@ reader:
   # tenant_id: '0:0'  # for cluster version only
   sampling_period: '1m'
   max_points_per_query: 10000
+  series_processing_batch_size: 8
   data_range: [0, 'inf']  # reader-level
   offset: '0s'  # reader-level
-  timeout: '30s'
+  timeout: '30s'  # backward-compatible default for both phases
+  fetch_timeout: '30s'  # timeout for each datasource request, overrides `timeout` if set
+  processing_timeout: '1m'  # timeout for preparing fetched series for fit/infer, overrides `timeout` if set
+  workers: 0  # automatic bounded datasource concurrency; set a positive value for an explicit cap
   queries:
     # one query returning 1 result fields (avg_duration), it will have __name__ label (series name) as `duration_30m__avg`
     duration_avg_30m:
       expr: "* | stats avg(duration) as avg"  # initial LogsQL expression
       step: '2m'  # overrides global `sampling_period` of 1m
-      data_range: [0, 'inf']  # meaning only positive values > 0 are expected, i.e. a value `y` < 0 will trigger anomaly score > 1
+      data_range: [0, 'inf']  # query-level business policy from v1.30.2; y < 0 triggers anomaly score > 1
+      detection_direction: 'above_expected'  # query-level from v1.30.2
+      min_rel_dev_from_expected: [0, 20]  # query-level from v1.30.2; ignore upward deviations below 20%
       tz: 'America/New_York'  # to override reader-wise `tz`
       # tenant_id: '1:0'  # overriding tenant_id to isolate data
       # offset: '-15s'  # to override reader-wise `offset` and query data 15 seconds earlier to account for data collection delays
@@ -926,10 +1107,14 @@ reader:
 # other config sections, like models, schedulers, writer, ...
 ```
 
+{{% /collapse %}}
+
+</div>
+
 ### mTLS protection
 
 Please refer to the [mTLS protection](#mtls-protection) section above for details on how to configure mTLS for `VLogsReader`. It uses the same config parameters as `VmReader` for mTLS setup.
 
 ### Healthcheck metrics
 
-Similarly to `VmReader`, `VLogsReader` also exposes [several healthchecks metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#reader-behaviour-metrics).
+Like `VmReader`, `VLogsReader` exposes [several health metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#reader-behaviour-metrics).

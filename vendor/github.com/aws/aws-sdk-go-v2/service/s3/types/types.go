@@ -191,6 +191,114 @@ type AnalyticsS3BucketDestination struct {
 	noSmithyDocumentSerde
 }
 
+// Describes a single annotation attached to an object, including its name, last
+// modified time, size, ETag, checksum algorithm, and replication status. Returned
+// in the response from ListObjectAnnotations .
+type AnnotationEntry struct {
+
+	// The name of the annotation.
+	//
+	// This member is required.
+	AnnotationName *string
+
+	// The date and time the annotation was last modified.
+	//
+	// This member is required.
+	LastModified *time.Time
+
+	// The size of the annotation payload, in bytes.
+	//
+	// This member is required.
+	Size *int64
+
+	// The checksum algorithm used for the annotation.
+	ChecksumAlgorithm []ChecksumAlgorithm
+
+	// The entity tag of the annotation.
+	ETag *string
+
+	// The replication status of the annotation.
+	ReplicationStatus ReplicationStatus
+
+	noSmithyDocumentSerde
+}
+
+// Specifies the configuration for the annotation table associated with a bucket's
+// Amazon S3 Metadata configuration. The annotation table is an Iceberg table that
+// records annotation events for objects in the bucket.
+type AnnotationTableConfiguration struct {
+
+	// The state of the annotation table. Valid values are ENABLED and DISABLED .
+	//
+	// This member is required.
+	ConfigurationState AnnotationConfigurationState
+
+	//  The encryption settings for an S3 Metadata journal table or inventory table
+	// configuration.
+	EncryptionConfiguration *MetadataTableEncryptionConfiguration
+
+	// The ARN of the IAM role used to manage the annotation table.
+	Role *string
+
+	noSmithyDocumentSerde
+}
+
+// Contains the current state of the annotation table associated with a bucket's
+// Amazon S3 Metadata configuration, including its provisioning status and
+// identifiers.
+type AnnotationTableConfigurationResult struct {
+
+	// The current configuration state of the annotation table.
+	//
+	// This member is required.
+	ConfigurationState AnnotationConfigurationState
+
+	//  If an S3 Metadata V1 CreateBucketMetadataTableConfiguration or V2
+	// CreateBucketMetadataConfiguration request succeeds, but S3 Metadata was unable
+	// to create the table, this structure contains the error code and error message.
+	//
+	// If you created your S3 Metadata configuration before July 15, 2025, we
+	// recommend that you delete and re-create your configuration by using [CreateBucketMetadataConfiguration]so that you
+	// can expire journal table records and create a live inventory table.
+	//
+	// [CreateBucketMetadataConfiguration]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucketMetadataConfiguration.html
+	Error *ErrorDetails
+
+	// The ARN of the IAM role associated with the annotation table.
+	Role *string
+
+	// The ARN of the annotation table.
+	TableArn *string
+
+	// The name of the annotation table.
+	TableName *string
+
+	// The provisioning status of the annotation table. Possible values: CREATING ,
+	// BACKFILLING , ACTIVE , FAILED .
+	TableStatus *string
+
+	noSmithyDocumentSerde
+}
+
+// Specifies updates to apply to the annotation table configuration. Used as the
+// request body for UpdateBucketMetadataAnnotationTableConfiguration .
+type AnnotationTableConfigurationUpdates struct {
+
+	// The new configuration state to apply.
+	//
+	// This member is required.
+	ConfigurationState AnnotationConfigurationState
+
+	//  The encryption settings for an S3 Metadata journal table or inventory table
+	// configuration.
+	EncryptionConfiguration *MetadataTableEncryptionConfiguration
+
+	// The new IAM role ARN to apply.
+	Role *string
+
+	noSmithyDocumentSerde
+}
+
 // A bucket-level setting for Amazon S3 general purpose buckets used to prevent
 // the upload of new objects encrypted with the specified server-side encryption
 // type. For example, blocking an encryption type will block PutObject , CopyObject
@@ -1167,7 +1275,11 @@ type EndEvent struct {
 	noSmithyDocumentSerde
 }
 
+// For information about using the Amazon S3 API—including error handling—see the [Amazon S3 Developer Guide].
+//
 // Container for all error elements.
+//
+// [Amazon S3 Developer Guide]: https://docs.aws.amazon.com/AmazonS3/latest/developerguide/Welcome.html
 type Error struct {
 
 	// The error code is a string that uniquely identifies an error condition. It is
@@ -3018,6 +3130,10 @@ type MetadataConfiguration struct {
 	// This member is required.
 	JournalTableConfiguration *JournalTableConfiguration
 
+	// Optional annotation table configuration to include with the metadata
+	// configuration.
+	AnnotationTableConfiguration *AnnotationTableConfiguration
+
 	//  The inventory table configuration for a metadata configuration.
 	InventoryTableConfiguration *InventoryTableConfiguration
 
@@ -3031,6 +3147,9 @@ type MetadataConfigurationResult struct {
 	//
 	// This member is required.
 	DestinationResult *DestinationResult
+
+	// The annotation table configuration result, if an annotation table is configured.
+	AnnotationTableConfigurationResult *AnnotationTableConfigurationResult
 
 	//  The inventory table configuration for a metadata configuration.
 	InventoryTableConfigurationResult *InventoryTableConfigurationResult
@@ -5134,13 +5253,10 @@ type Transition struct {
 	Date *time.Time
 
 	// Indicates the number of days after creation when objects are transitioned to
-	// the specified storage class. If the specified storage class is
-	// INTELLIGENT_TIERING , GLACIER_IR , GLACIER , or DEEP_ARCHIVE , valid values are
-	// 0 or positive integers. If the specified storage class is STANDARD_IA or
-	// ONEZONE_IA , valid values are positive integers greater than 30 . Be aware that
-	// some storage classes have a minimum storage duration and that you're charged for
-	// transitioning objects before their minimum storage duration. For more
-	// information, see [Constraints and considerations for transitions]in the Amazon S3 User Guide.
+	// the specified storage class. The value can be 0 or any positive integer. Be
+	// aware that some storage classes have a minimum storage duration and that you're
+	// charged for transitioning objects before their minimum storage duration. For
+	// more information, see [Constraints and considerations for transitions]in the Amazon S3 User Guide.
 	//
 	// [Constraints and considerations for transitions]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/lifecycle-transition-general-considerations.html#lifecycle-configuration-constraints
 	Days *int32

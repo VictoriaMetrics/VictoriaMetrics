@@ -1,6 +1,7 @@
 ---
 weight: 13
 title: Headlamp Kubernetes UI and VictoriaMetrics
+description: "Point Headlamp's Prometheus integration at VictoriaMetrics."
 menu:
   docs:
     parent: "guides"

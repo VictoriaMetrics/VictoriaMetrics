@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -53,10 +54,18 @@ func newClient(ctx context.Context, sw *ScrapeWork) (*client, error) {
 		return nil
 	}
 	dialFunc := netutil.NewStatDialFunc("vm_promscrape")
+	if sw.UnixSocket != "" {
+		dialFunc = netutil.NewStatDialFuncWithDial("vm_promscrape", func(ctx context.Context, _, _ string) (net.Conn, error) {
+			return netutil.Dialer.DialContext(ctx, "unix", sw.UnixSocket)
+		})
+	}
 	proxyURL := sw.ProxyURL
 	var proxyURLFunc func(*http.Request) (*url.URL, error)
 
 	if proxyURL != nil {
+		if sw.UnixSocket != "" {
+			return nil, fmt.Errorf("proxyURL: %q cannot be used for scraping unix_socket target: %q", proxyURL, sw.UnixSocket)
+		}
 		// case for direct http proxy connection.
 		// must be used for http based scrape targets
 		// since standard golang http.transport has special case for it
@@ -81,7 +90,11 @@ func newClient(ctx context.Context, sw *ScrapeWork) (*client, error) {
 	}
 
 	tr := httputil.NewTransport(false, "vm_promscrape")
-	if proxyURLFunc != nil {
+	if sw.UnixSocket != "" {
+		// Unix sockets are direct local endpoints and cannot be reached via HTTP proxies.
+		// Proxy could be set implicitly via global env variable HTTP_PROXY
+		tr.Proxy = nil
+	} else if proxyURLFunc != nil {
 		tr.Proxy = proxyURLFunc
 	}
 	tr.TLSHandshakeTimeout = 10 * time.Second

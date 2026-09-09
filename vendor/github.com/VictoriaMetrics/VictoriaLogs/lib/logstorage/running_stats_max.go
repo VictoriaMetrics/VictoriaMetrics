@@ -9,7 +9,7 @@ type runningStatsMax struct {
 }
 
 func (sm *runningStatsMax) String() string {
-	return "max(" + fieldNamesString(sm.fieldFilters) + ")"
+	return "max(" + fieldFiltersString(sm.fieldFilters) + ")"
 }
 
 func (sm *runningStatsMax) updateNeededFields(pf *prefixfilter.Filter) {

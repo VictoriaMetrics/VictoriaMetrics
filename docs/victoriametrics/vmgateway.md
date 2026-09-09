@@ -5,6 +5,7 @@ menu:
     parent: victoriametrics
     weight: 9
 title: vmgateway
+description: "Proxy for the VictoriaMetrics TSDB providing per-tenant rate limiting and token-based access control."
 tags:
   - metrics
   - enterprise
@@ -663,7 +664,7 @@ Below is the list of configuration flags (it can be viewed by running `./vmgatew
 ## Troubleshooting
 
 * Access control:
-  * incorrect `jwt` format, try <https://jwt.io/#debugger-io> with our tokens
+  * incorrect `jwt` format, try <https://www.jwt.io/> with our tokens
   * expired token, check `exp` field.
 * Rate Limiting:
   * `scrape_interval` at the datasource, reduce it to apply limits faster.

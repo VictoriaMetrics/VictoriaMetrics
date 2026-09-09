@@ -1,6 +1,7 @@
 ---
 weight: 11
 title: Perses
+description: "Using VictoriaMetrics with Perses dashboards."
 menu:
   docs:
     identifier: integrations-vm-perses

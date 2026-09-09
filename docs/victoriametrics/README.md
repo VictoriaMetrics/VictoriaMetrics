@@ -39,6 +39,8 @@ VictoriaMetrics has the following prominent features:
   * Easy and fast backups from [instant snapshots](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
     can be done with [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/) / [vmrestore](https://docs.victoriametrics.com/victoriametrics/vmrestore/) tools.
     See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883) for more details.
+* It supports storage and retrieval of samples with timestamps that fall within the `[1970-01-02T00:00:00.000Z, 2262-03-31T23:59:59.999Z]` time range with millisecond precision.
+  See [Retention](#retention) for details.
 * It implements a PromQL-like query language - [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/), which provides improved functionality on top of PromQL.
 * It provides a global query view. Multiple Prometheus instances or any other data sources may ingest data into VictoriaMetrics. Later this data may be queried via a single query.
 * It provides high performance and good vertical and horizontal scalability for both
@@ -245,7 +247,7 @@ The following steps must be performed during the upgrade / downgrade procedure:
 * Wait until the process stops. This can take a few seconds.
 * Start the upgraded VictoriaMetrics.
 
-Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](https://grafana.com/blog/2019/03/25/whats-new-in-prometheus-2.8-wal-based-remote-write/) for details. The same applies also to [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/).
+Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](https://grafana.com/blog/whats-new-in-prometheus-2-8-wal-based-remote-write/) for details. The same applies also to [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/).
 
 > If you'd prefer not to manage upgrades yourself, [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_single_upgrade)
 > performs version upgrades automatically during maintenance windows with no action required on your part.
@@ -401,6 +403,10 @@ Resources:
 
 * [cardinality explorer playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/cardinality).
 * [Cardinality explorer blog post](https://victoriametrics.com/blog/cardinality-explorer/).
+* [skills/victoriametrics-cardinality-analysis](https://github.com/VictoriaMetrics/skills/blob/main/plugins/diagnostics/skills/victoriametrics-cardinality-analysis/SKILL.md) for [agent-assisted](https://docs.victoriametrics.com/ai-tools/#agent-skills) analysis.
+
+For monitoring or alerting on cardinality, use [vmestimator](https://docs.victoriametrics.com/victoriametrics/vmestimator/).
+vmestimator measures metrics cardinality across [arbitrary label dimensions](https://docs.victoriametrics.com/victoriametrics/vmestimator/#basic) in real time and exposes the [results as metrics](https://docs.victoriametrics.com/victoriametrics/vmestimator/#cardinality-metrics).
 
 ### Cardinality explorer statistic inaccuracy
 
@@ -417,7 +423,7 @@ VictoriaMetrics is configured via command-line flags, so it must be restarted wh
 * Wait until the process stops. This can take a few seconds.
 * Start VictoriaMetrics with the new command-line flags.
 
-Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](https://grafana.com/blog/2019/03/25/whats-new-in-prometheus-2.8-wal-based-remote-write/) for details. The same applies also to [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/).
+Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](https://grafana.com/blog/whats-new-in-prometheus-2-8-wal-based-remote-write/) for details. The same applies also to [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/).
 
 ## How to scrape Prometheus exporters such as [node-exporter](https://github.com/prometheus/node_exporter)
 
@@ -477,6 +483,11 @@ VictoriaMetrics accepts `round_digits` query arg for [/api/v1/query](https://doc
 and [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query) handlers. It can be used for rounding response values
 to the given number of digits after the decimal point.
 For example, `/api/v1/query?query=avg_over_time(temperature[1h])&round_digits=2` would round response values to up to two digits after the decimal point.
+
+VictoriaMetrics accepts `optimize_repeated_binary_op_subexprs=1` query arg for [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query)
+handler. It allows `vmselect` to execute left and right sides of binary operators sequentially when they contain the same
+optimized aggregate rollup result expression, so the second side may reuse the rollup result cache populated by the first side.
+The optimization is disabled by default and applies only when rollup result cache can be used for the request.
 
 VictoriaMetrics accepts `limit` query arg for [/api/v1/labels](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labels)
 and [`/api/v1/label/<labelName>/values`](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labelvalues) handlers for limiting the number of returned entries.
@@ -994,7 +1005,7 @@ Note that it could be required to flush response cache after importing historica
 ### How to import data in Prometheus exposition format
 
 VictoriaMetrics accepts data in [Prometheus exposition format](https://github.com/prometheus/docs/blob/main/docs/instrumenting/exposition_formats.md),
-in [OpenMetrics format](https://github.com/OpenObservability/OpenMetrics/blob/master/specification/OpenMetrics.md)
+in [OpenMetrics format](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md)
 and in [Pushgateway format](https://github.com/prometheus/pushgateway#url) via `/api/v1/import/prometheus` path.
 
 For example, the following command imports a single line in Prometheus exposition format into VictoriaMetrics:
@@ -1255,47 +1266,106 @@ See also [resource usage limits at VictoriaMetrics cluster](https://docs.victori
 
 ## High availability
 
-The general approach for achieving high availability is the following:
+VictoriaMetrics supports high availability for both writes and reads by combining replication with multiple instances.
 
-* To run two identically configured VictoriaMetrics instances in distinct datacenters (availability zones);
-* To store the collected data simultaneously into these instances via [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) or Prometheus.
-* To query the first VictoriaMetrics instance and to fail over to the second instance when the first instance becomes temporarily unavailable.
-  This can be done via [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) according to [these docs](https://docs.victoriametrics.com/victoriametrics/vmauth/#high-availability).
+### High availability for writes
 
-Such a setup guarantees that the collected data isn't lost when one of VictoriaMetrics instance becomes unavailable.
-The collected data continues to be written to the available VictoriaMetrics instance, so it should be available for querying.
-Both [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and Prometheus buffer the collected data locally if they cannot send it
-to the configured remote storage. So the collected data will be written to the temporarily unavailable VictoriaMetrics instance
-after it becomes available.
+You can achieve **high availability for writes** using replication:
 
-If you use [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) for storing the data into VictoriaMetrics,
-then it can be configured with multiple `-remoteWrite.url` command-line flags, where every flag points to the VictoriaMetrics
-instance in a particular availability zone, in order to replicate the collected data to all the VictoriaMetrics instances.
-For example, the following command instructs `vmagent` to replicate data to `vm-az1` and `vm-az2` instances of VictoriaMetrics:
+* Run two or more identically configured VictoriaMetrics instances in distinct datacenters (availability zones);
+* Replicate collected metrics simultaneously into all these instances via one or more [vmagents](https://docs.victoriametrics.com/victoriametrics/vmagent/).
 
+In this setup, configure vmagent [to replicate data](https://docs.victoriametrics.com/victoriametrics/vmagent/#replication-and-high-availability)
+to each remote destination:
 ```sh
 /path/to/vmagent \
-  -remoteWrite.url=http://<vm-az1>:8428/api/v1/write \
-  -remoteWrite.url=http://<vm-az2>:8428/api/v1/write
+  -remoteWrite.url=https://victoriametrics-1:8428/api/v1/write \
+  -remoteWrite.url=https://victoriametrics-2:8428/api/v1/write
 ```
 
-If you use Prometheus for collecting and writing the data to VictoriaMetrics,
-then the following [`remote_write`](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write) section
-in Prometheus config can be used for replicating the collected data to `vm-az1` and `vm-az2` VictoriaMetrics instances:
+Each `--remoteWrite.url` creates its own replication queue. The queue temporarily stores data on disk while a remote destination is unavailable.
+See more about [on-disk persistence in vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/#on-disk-persistence).
 
-```yaml
-remote_write:
-  - url: http://<vm-az1>:8428/api/v1/write
-  - url: http://<vm-az2>:8428/api/v1/write
+When the remote destination becomes available, vmagent drains the queue and restores data consistency across destinations.
+
+> The max size of the on-disk queue can be increased by [horizontally sharding vmagents](https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets).
+> To achieve high availability for vmagent itself, run multiple identically configured vmagent replicas.
+> In this case, the load on the remote destinations will increase proportionally to the number of vmagent replicas. The duplicated data in remote destinations
+> has to be [deduplicated](https://docs.victoriametrics.com/victoriametrics/#deduplication) on the VictoriaMetrics side.
+
+### High availability for reads
+
+You can achieve **high availability for reads** by choosing one of the following options:
+
+- Load balancer: Use a load balancer to ensure read operations are always routed to an available VictoriaMetrics instance.
+- Top-level vmselect: Use vmselect to query all available VictoriaMetrics instances and merge the results
+
+**Load balancer for reads**
+
+In this mode, we use a load balancer to query the main VictoriaMetrics instance and fail over to a secondary instance if the first one becomes temporarily unavailable.
+
+This can be done using [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) configured in [high-availability mode](https://docs.victoriametrics.com/victoriametrics/vmauth/#high-availability).
+
+```mermaid
+flowchart LR
+    Client["Query Client<br/>Grafana/vmalert"]
+
+    VMAUTH["vmauth<br/>Load Balancer / Failover"]
+
+    VM1["VictoriaMetrics-1<br/>Primary read target"]
+    VM2["VictoriaMetrics-2<br/>Failover read target"]
+
+    Client -->|"Read query"| VMAUTH
+
+    VMAUTH -->|"1. Send queries"| VM1
+    VMAUTH -.->|"2. Fail over if VM1<br/>is unavailable"| VM2
 ```
 
-It is recommended to use [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) instead of Prometheus for highly loaded setups,
-since it uses lower amounts of RAM, CPU and network bandwidth than Prometheus.
+This is the most cost-efficient option because it queries only one VictoriaMetrics instance at a time.
 
-If you use identically configured [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) instances for collecting the same data
-and sending it to VictoriaMetrics, then do not forget enabling [deduplication](#deduplication) at VictoriaMetrics side.
+The downside is that when one instance goes down and then comes back up, the load balancer may immediately start sending
+read queries to the recovering instance, even though it hasn't caught up with vmagent's queue yet and may return incomplete results.
 
-See [victoria-metrics-distributed chart](https://docs.victoriametrics.com/helm/victoria-metrics-distributed/) for an example.
+This shortcoming can be mitigated during sequential upgrades by removing the catching-up instance from the vmauth configuration until the vmagent queues are drained. During sequential upgrades, this mechanism is automatically applied when using the [Kubernetes VMDistributed](https://docs.victoriametrics.com/operator/resources/vmdistributed/) resource. After an outage, you must remove the recovered instance manually until its vmagent queues are drained.
+
+Another option is to use top-level vmselect as described below.
+
+**Top-level vmselect for reads**
+
+In this option, we use a top-level [vmselect](https://docs.victoriametrics.com/victoriametrics/vmselect/) to query all
+remote destinations simultaneously and merge the results.
+
+This option is only possible if VictoriaMetrics single-node instances are configured with the `-vmselectAddr` flag.
+See more details in the [VictoriaMetrics multi-tenancy section](https://docs.victoriametrics.com/victoriametrics/#multi-tenancy).
+
+```mermaid
+flowchart LR
+    Client["Query Client<br/>Grafana / vmalert"]
+
+    VMSELECT["vmselect<br/>Query all destinations<br/>
+     <code><pre>-dedup.minScrapeInterval=1ms<br/>-replicationFactor=2</pre></code>"]
+
+    VM1["VictoriaMetrics-1<br/>Single-node<br/><code>-vmselectAddr=:8401</code>"]
+    VM2["VictoriaMetrics-2<br/>Single-node<br/><code>-vmselectAddr=:8401</code>"]
+
+    Client -->|"Read query"| VMSELECT
+
+    VMSELECT --> VM1
+    VMSELECT --> VM2
+
+    VMSELECT -->|"Merged and deduplicated results"| Client
+```
+
+This option requires extra resources on vmselect because it queries all remote destinations simultaneously and merges
+their responses before returning the final result.
+
+The benefit is that it can handle data gaps across destinations by merging responses from all VictoriaMetrics instances (as long as at least one instance has all the data without gaps).
+Thus, a single recovering instance can't cause incomplete results, as gaps will be filled with samples from the healthy instance.
+
+Since vmselect fetches replicated data from VictoriaMetrics instances, it must be deduplicated before processing.
+Configure vmselect with `-dedup.minScrapeInterval=1ms` to remove duplicated samples during merging.
+Also set `-replicationFactor=N` on vmselect, where `N` equals the number of remote storage destinations, so that queries
+can tolerate the unavailability of up to `N-1` destinations.
 
 ## Deduplication
 
@@ -1395,6 +1465,9 @@ for fast block lookups, which belong to the given `TSID` and cover the given tim
 * improved query speed, since queries over smaller number of parts are executed faster
 * various background maintenance tasks such as [de-duplication](#deduplication), [downsampling](#downsampling)
   and [freeing up disk space for the deleted time series](#how-to-delete-time-series) are performed during the merge
+
+See how `vmstorage` [selects parts for background merging](https://victoriametrics.com/blog/vmstorage-retention-merging-deduplication/#merge-process),
+including merge limits and monitoring metrics.
 
 Newly added `parts` either successfully appear in the storage or fail to appear.
 The newly added `part` is atomically registered in the `parts.json` file under the corresponding partition
@@ -1523,6 +1596,8 @@ are **eventually deleted** during [background merge](https://medium.com/@valyala
 The time range covered by data part is **not limited by retention period unit**. One data part can cover hours or days of
 data. Hence, a data part can be deleted only **when fully outside the configured retention**.
 See more about partitions and parts in the [Storage section](#storage).
+See how the [retention and free-disk watchers manage storage](https://victoriametrics.com/blog/vmstorage-retention-merging-deduplication/#retention-free-disk-space-guard-and-downsampling)
+for implementation details and monitoring metrics.
 
 The maximum disk space usage for a given `-retentionPeriod` is going to be (`-retentionPeriod` + 1) months.
 For example, if `-retentionPeriod` is set to 1, data for January is deleted on March 1st.
@@ -1531,6 +1606,9 @@ It is safe to extend `-retentionPeriod` on existing data. If `-retentionPeriod` 
 value than before, then data outside the configured period will be eventually deleted.
 
 VictoriaMetrics does not support indefinite retention, but you can specify an arbitrarily high duration, e.g. `-retentionPeriod=100y`.
+Just keep in mind that VictoriaMetrics does not support samples with negative timestamps. Timestamps at `1970-01-01` are also not
+supported because this date has a special meaning internally. It therefore rejects samples with timestamps before
+`1970-01-02T00:00:00.000Z`.
 
 By default, VictoriaMetrics doesn't accept samples with timestamps bigger than `now+2d`, e.g. 2 days in the future.
 If you need accepting samples with bigger timestamps, then specify the desired "future retention" via `-futureRetention` command-line flag.
@@ -1540,6 +1618,21 @@ For example, the following command starts VictoriaMetrics, which accepts samples
 
 ```sh
 /path/to/victoria-metrics -futureRetention=1y
+```
+
+VictoriaMetrics does not support stamples after `2262-03-31T23:59:59.999Z`. If the future retention includes dates after this timestamp,
+the samples for those dates will be rejected.
+
+By default, VictoriaMetrics accepts samples with timestamps as old as the configured `-retentionPeriod` allows, e.g. it accepts backfilled
+historical data as long as it fits into the retention. If you need rejecting samples with historical timestamps older than the specified
+duration, then specify the desired duration via the `-maxBackfillAge` command-line flag. This can be useful for limiting ingestion of
+historical samples, for example, when older data has been moved to another storage tier (nvme/hdd, hot/cold).
+`-maxBackfillAge` cannot exceed the configured `-retentionPeriod` - bigger values are automatically clamped to `-retentionPeriod`.
+
+For example, the following command starts VictoriaMetrics, which rejects ingested samples with timestamps older than 2 days:
+
+```sh
+/path/to/victoria-metrics -maxBackfillAge=2d
 ```
 
 ### Multiple retentions
@@ -1676,9 +1769,46 @@ See also [retention filters](#retention-filters).
 The downsampling can be evaluated for free by downloading and using enterprise binaries from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 See how to request a [free trial license](https://victoriametrics.com/products/enterprise/trial/).
 
-## Multi-tenancy
+## Multitenancy {#multi-tenancy}
 
-Single-node VictoriaMetrics doesn't support multi-tenancy. Use the [cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) instead.
+Single-node VictoriaMetrics has limited
+[multitenancy](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy)
+support {{% available_from "v1.147.0" %}}. Specifically, a single-node can serve
+multitenant queries as if it were a `vmstorage`. The write path is not supported.
+
+The functionality is disabled by default and can be enabled by setting the
+`-vmselectAddr` flag. This will start the `vmselect RPC server` that accepts
+requests and serves responses in cluster format.
+
+Cluster data format assumes the presence of a `tenantID`. Single-node data
+format still does not support multitenancy, but it is possible to configure the
+single-node to specify which `tenantID` the single-node's data corresponds to with the
+`-accountID` and `-projectID` flags. Both are `0` by default, which means that
+`"0:0"` `tenantID` is used by default.
+
+For example, the following command will start a single-node that listens for
+vmselect RPC requests on the `8401` port. The requests must be either `multitenant`
+(i.e., want data for all tenants) or for `"12:34"` tenant. Otherwise, the
+single-node will return an empty result:
+
+```shell
+./victoria-metrics -storageDataPath=/data -vmselectAddr=:8401 -accountID=12 -projectID=34
+```
+
+The `tenantID` configuration is not persisted in any way and is enforced only at
+runtime. Thus, it is safe to change the `-accountID` and `-projectID` flag
+values at any time.
+
+Note that the single-node's HTTP handlers still do not support multitenancy.
+
+The purpose of this limited multitenancy support is enabling the single-node to
+operate in VictoriaMetrics cluster setups. I.e., one or more single-nodes that
+contain data for different tenants can be a part of a cluster, and the entire
+non-homogeneous deployment can be queried with a higher-level `vmselect`.
+
+This, in turn, enables easy [migrations from single-node to cluster](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#from-single-node-to-cluster).
+Previously, the only option was the use of
+[vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/).
 
 ## Scalability and cluster version
 
@@ -1712,81 +1842,72 @@ The following versions of VictoriaMetrics receive regular security fixes:
 | [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/) | ✅                 |
 | other releases                                                                 | ❌                 |
 
-### Software Bill of Materials (SBOM)
-
-Every VictoriaMetrics container{{% available_from "v1.137.0" %}} image published to
-[Docker Hub](https://hub.docker.com/u/victoriametrics) and [Quay.io](https://quay.io/organization/victoriametrics) include an [SPDX](https://spdx.dev/) SBOM attestation generated automatically by BuildKit during `docker buildx build`.
-
-To inspect the SBOM for an image:
-
-```sh
-docker buildx imagetools inspect \
-  docker.io/victoriametrics/victoria-metrics:latest \
-  --format "{{ json .SBOM }}"
-```
-
-To scan an image using its SBOM attestation with [Trivy](https://github.com/aquasecurity/trivy):
-
-```sh
-trivy image --sbom-sources oci \
-  docker.io/victoriametrics/victoria-metrics:latest
-```
-
 ### Reporting a Vulnerability
 
 Please report any security issues to <security@victoriametrics.com>
 
+### CVE handling policy
+
+**Source code:** Go dependencies are scanned by [govulncheck](https://pkg.go.dev/golang.org/x/vuln/cmd/govulncheck) in CI.
+All vulnerabilities must be fixed before the next scheduled release and backported to [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/).
+
+**Docker images:** CVE findings in the [Alpine](https://security.alpinelinux.org/) base image pose minimal risk since VictoriaMetrics binaries are statically compiled with no OS dependencies.
+When detected, only the Alpine base tag is updated.
+Releases proceed as planned even if upstream fixes are not yet available.
+For maximum security, hardened [scratch](https://hub.docker.com/_/scratch)-based images are also provided.
+All images are continuously scanned by Docker Hub and verified before release using [grype](https://github.com/anchore/grype).
+
 ### General security recommendations:
 
-* All the VictoriaMetrics components must run in protected private networks without direct access from untrusted networks such as Internet.
+* All VictoriaMetrics components must run in protected private networks without direct access from untrusted networks such as the Internet.
   The exception is [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) and [vmgateway](https://docs.victoriametrics.com/victoriametrics/vmgateway/),
   which are intended for serving public requests and performing authorization with [TLS termination](https://en.wikipedia.org/wiki/TLS_termination_proxy).
-* All the requests from untrusted networks to VictoriaMetrics components must go through auth proxy such as [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/)
+* All the requests from untrusted networks to VictoriaMetrics components must go through an auth proxy, such as [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/)
   or [vmgateway](https://docs.victoriametrics.com/victoriametrics/vmgateway/). The proxy must be set up with proper authentication and authorization.
 * Prefer using lists of allowed API endpoints, while disallowing access to other endpoints when configuring [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/)
   in front of VictoriaMetrics components.
-* Set reasonable [`Strict-Transport-Security`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security) header value to all the components to mitigate [MitM attacks](https://en.wikipedia.org/wiki/Man-in-the-middle_attack), for example: `max-age=31536000; includeSubDomains`. See `-http.header.hsts` flag.
+* Set a reasonable [`Strict-Transport-Security`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security) header value on all the components to mitigate [MitM attacks](https://en.wikipedia.org/wiki/Man-in-the-middle_attack), for example: `max-age=31536000; includeSubDomains`. See `-http.header.hsts` flag.
 * Set reasonable [`Content-Security-Policy`](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP) header value to mitigate [XSS attacks](https://en.wikipedia.org/wiki/Cross-site_scripting). See `-http.header.csp` flag.
 * Set reasonable [`X-Frame-Options`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options) header value to mitigate [clickjacking attacks](https://en.wikipedia.org/wiki/Clickjacking), for example `DENY`. See `-http.header.frameOptions` flag.
 
-VictoriaMetrics provides the following security-related command-line flags:
+The following security-related command-line flags are available for all components with HTTP API:
 
-* `-tls`, `-tlsCertFile` and `-tlsKeyFile` for switching from HTTP to HTTPS at `-httpListenAddr` (TCP port 8428 is listened by default).
+* `-tls`, `-tlsCertFile` and `-tlsKeyFile` for switching from HTTP to HTTPS at `-httpListenAddr`.
   [Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/enterprise/) supports automatic issuing of TLS certificates.
   See [these docs](#automatic-issuing-of-tls-certificates).
 * `-mtls` and `-mtlsCAFile` for enabling [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication) for requests to `-httpListenAddr`. See [these docs](#mtls-protection).
 * `-httpAuth.username` and `-httpAuth.password` for protecting all the HTTP endpoints
   with [HTTP Basic Authentication](https://en.wikipedia.org/wiki/Basic_access_authentication).
+* `-httpListenAddr=unix:/path/to/socket` for listening on a Unix domain socket instead of a TCP address.
+  The socket is created with `0660` permissions, so only the owner and the group of the process can access it.
+  Note that `-tls` and `-httpListenAddr.useProxyProtocol` cannot be used with Unix domain sockets.
+* `-http.header.hsts`, `-http.header.csp`, and `-http.header.frameOptions` for serving `Strict-Transport-Security`, `Content-Security-Policy`
+  and `X-Frame-Options` HTTP response headers.
+
+### Protecting service endpoints
+
+All VictoriaMetrics components expose internal metrics in Prometheus exposition format at the `/metrics` page for [#Monitoring](https://docs.victoriametrics.com/victoriametrics/#monitoring).
+Consider limiting access to the `/metrics` page to trusted networks only.
+
+The following service endpoints may require protection:
+
 * `-deleteAuthKey` for protecting the `/api/v1/admin/tsdb/delete_series` endpoint. See [how to delete time series](#how-to-delete-time-series).
 * `-snapshotAuthKey` for protecting the `/snapshot*` endpoints. See [how to work with snapshots](#how-to-work-with-snapshots).
 * `-forceFlushAuthKey` for protecting the `/internal/force_flush` endpoint. See [force flush docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#forced-flush).
 * `-forceMergeAuthKey` for protecting the `/internal/force_merge` endpoint. See [force merge docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#forced-merge).
 * `-search.resetCacheAuthKey` for protecting the `/internal/resetRollupResultCache` endpoint. See [backfilling](#backfilling) for more details.
-* `-reloadAuthKey` for protecting the `/-/reload` endpoint, which is used for force reloading of [`-promscrape.config`](#how-to-scrape-prometheus-exporters-such-as-node-exporter).
+* `-reloadAuthKey` for protecting the `/-/reload` endpoint, which is used to force reload the [`-promscrape.config`](#how-to-scrape-prometheus-exporters-such-as-node-exporter).
 * `-configAuthKey` for protecting the `/config` endpoint, since it may contain sensitive information such as passwords.
 * `-flagsAuthKey` for protecting the `/flags` endpoint.
 * `-pprofAuthKey` for protecting the `/debug/pprof/*` endpoints, which can be used for [profiling](#profiling).
 * `-metricNamesStatsResetAuthKey` for protecting the `/api/v1/admin/status/metric_names_stats/reset` endpoint, used for [Metric Names Tracker](#track-ingested-metrics-usage).
 * `-denyQueryTracing` for disallowing [query tracing](#query-tracing).
-* `-http.header.hsts`, `-http.header.csp`, and `-http.header.frameOptions` for serving `Strict-Transport-Security`, `Content-Security-Policy`
-  and `X-Frame-Options` HTTP response headers.
 
 Explicitly set internal network interface for TCP and UDP ports for data ingestion with Graphite and OpenTSDB formats.
 For example, substitute `-graphiteListenAddr=:2003` with `-graphiteListenAddr=<internal_iface_ip>:2003`. This protects from unexpected requests from untrusted network interfaces.
 
 See also [security recommendation for VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#security)
 and [the general security page at VictoriaMetrics website](https://victoriametrics.com/security/).
-
-### CVE handling policy
-
-**Source code:** Go dependencies are scanned by [govulncheck](https://pkg.go.dev/golang.org/x/vuln/cmd/govulncheck) in CI. 
-All vulnerabilities must be fixed before next scheduled release and backported to [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/).
-
-**Docker images:** CVE findings in [Alpine](https://security.alpinelinux.org/) base image pose minimal risk since VictoriaMetrics binaries are statically compiled with no OS dependencies.
-When detected, only the Alpine base tag is updated.
-Releases proceed as planned even if upstream fixes are not yet available.
-For maximum security, hardened [scratch](https://hub.docker.com/_/scratch)-based images are also provided.
-All images are continuously scanned by Docker Hub and verified before release using [grype](https://github.com/anchore/grype).
 
 ### mTLS protection
 
@@ -1817,19 +1938,39 @@ This functionality can be evaluated for free according to [these docs](https://d
 
 See also [security recommendations](#security).
 
+### Software Bill of Materials (SBOM)
+
+Every VictoriaMetrics container{{% available_from "v1.137.0" %}} image published to
+[Docker Hub](https://hub.docker.com/u/victoriametrics) and [Quay.io](https://quay.io/organization/victoriametrics) include an [SPDX](https://spdx.dev/) SBOM attestation generated automatically by BuildKit during `docker buildx build`.
+
+To inspect the SBOM for an image:
+
+```sh
+docker buildx imagetools inspect \
+  docker.io/victoriametrics/victoria-metrics:latest \
+  --format "{{ json .SBOM }}"
+```
+
+To scan an image using its SBOM attestation with [Trivy](https://github.com/aquasecurity/trivy):
+
+```sh
+trivy image --sbom-sources oci \
+  docker.io/victoriametrics/victoria-metrics:latest
+```
+
 ## Tuning
 
-* No need in tuning for VictoriaMetrics - it uses reasonable defaults for command-line flags,
+* No need to tune for VictoriaMetrics - it uses reasonable defaults for command-line flags,
   which are automatically adjusted for the available CPU and RAM resources.
-* No need in tuning for Operating System - VictoriaMetrics is optimized for default OS settings.
+* No need to tune for Operating System - VictoriaMetrics is optimized for default OS settings.
   The only option is increasing the limit on [the number of open files in the OS](https://medium.com/@muhammadtriwibowo/set-permanently-ulimit-n-open-files-in-ubuntu-4d61064429a).
-  The recommendation is not specific for VictoriaMetrics only but also for any service which handles many HTTP connections and stores data on disk.
-* VictoriaMetrics is a write-heavy application and its performance depends on disk performance. So be careful with other
-  applications or utilities (like [fstrim](https://manpages.ubuntu.com/manpages/lunar/en/man8/fstrim.8.html))
+  The recommendation is not specific to VictoriaMetrics only, but also for any service that handles many HTTP connections and stores data on disk.
+* VictoriaMetrics is a write-heavy application, and its performance depends on disk performance. So be careful with other
+  applications or utilities (like [fstrim](https://manpages.ubuntu.com/manpages/noble/en/man8/fstrim.8.html))
   which could [exhaust disk resources](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1521).
 * The recommended filesystem is `ext4`, the recommended persistent storage is [persistent HDD-based disk on GCP](https://cloud.google.com/compute/docs/disks/#pdspecs),
-  since it is protected from hardware failures via internal replication and it can be [resized on the fly](https://cloud.google.com/compute/docs/disks/add-persistent-disk#resize_pd).
-  If you plan to store more than 1TB of data on `ext4` partition, then the following options are recommended to pass to `mkfs.ext4`:
+  since it is protected from hardware failures via internal replication, and it can be [resized on the fly](https://cloud.google.com/compute/docs/disks/add-persistent-disk#resize_pd).
+  If you plan to store more than 1TB of data on an `ext4` partition, then the following options are recommended to pass to `mkfs.ext4`:
 
 ```sh
 mkfs.ext4 ... -O 64bit,huge_file,extent -T huge
@@ -1967,6 +2108,9 @@ in [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victori
 via [cache removal](https://docs.victoriametrics.com/victoriametrics/#cache-removal) procedure. This reset state endpoint can be protected via `-metricNamesStatsResetAuthKey`
 cmd-line flag. See [Security](https://docs.victoriametrics.com/victoriametrics/#security) for details.
 
+See [skills/victoriametrics-unused-metrics-analysis](https://github.com/VictoriaMetrics/skills/blob/main/plugins/diagnostics/skills/victoriametrics-unused-metrics-analysis/SKILL.md)
+for [agent-assisted](https://docs.victoriametrics.com/ai-tools/#agent-skills) analysis of unused metrics.
+
 ## Query tracing
 
 VictoriaMetrics supports query tracing, which can be used for determining bottlenecks during query processing.
@@ -2035,6 +2179,9 @@ Query tracing is allowed by default. It can be denied by passing `-denyQueryTrac
 * for query tracing - just click `Trace query` checkbox and re-run the query in order to investigate its' trace.
 * for exploring custom trace - go to the tab `Trace analyzer` and upload or paste JSON with trace information.
 
+See also [skills/vm-trace-analyzer](https://github.com/VictoriaMetrics/skills/blob/main/plugins/diagnostics/skills/vm-trace-analyzer/SKILL.md)
+for [agent-assisted](https://docs.victoriametrics.com/ai-tools/#agent-skills) analysis.
+
 ## Cardinality limiter
 
 By default, VictoriaMetrics doesn't limit the number of stored time series. The limit can be enforced by setting the following command-line flags:
@@ -2073,8 +2220,10 @@ The exceeded limits can be [monitored](#monitoring) with the following metrics:
 
 These limits are approximate, so VictoriaMetrics can underflow/overflow the limit by a small percentage (usually less than 1%).
 
-See also more advanced [cardinality limiter in vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter)
-and [cardinality explorer docs](#cardinality-explorer).
+See also:
+- [vmagent - Cardinality Limiter](https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter).
+- [Cardinality Explorer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer).
+- [vmestimator](https://docs.victoriametrics.com/victoriametrics/vmestimator/).
 
 ## Troubleshooting
 
@@ -2273,6 +2422,30 @@ Things to consider when copying data:
 
 For scenarios like single-to-cluster, cluster-to-single, re-sharding or migrating only a fraction of data: 
 [see how to migrate data from VictoriaMetrics via vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/).
+
+### From Single-node to Cluster
+
+When, for some reason, the deployment needs to be switched from single-node to
+cluster (such as the single-node can't be scaled vertically anymore, or
+multitenancy becomes a requirement, etc.) the migration can be as simple as:
+
+1. Restart the existing single-node with multitenancy support enabled as
+   described in [Multitenancy](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#multi-tenancy) section.
+1. Deploy an empty cluster next to the existing single-node.
+1. Deploy higher-level `vmselect` and configure it to query both the existing
+   single-node and the new cluster.
+1. Start writing data to the cluster.
+1. Stop writing data to the single-node.
+
+This approach requires no data migration nor downtime (apart from restarting the
+single-node at step 1). And once the single-node data becomes outside the
+retention period, the single-node can be removed from the deployment.
+
+Note that if you need to actually migrate data to cluster and/or modify it, you
+will need to use
+[vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/)
+instead.
+
 
 ### From other systems
 

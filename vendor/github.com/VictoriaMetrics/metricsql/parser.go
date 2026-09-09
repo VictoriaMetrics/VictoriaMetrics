@@ -402,6 +402,15 @@ func (p *parser) parseExpr() (Expr, error) {
 				}
 			}
 		}
+		for {
+			ok, err := p.parseFillModifier(&be)
+			if err != nil {
+				return nil, err
+			}
+			if !ok {
+				break
+			}
+		}
 		e2, err := p.parseSingleExpr()
 		if err != nil {
 			return nil, err
@@ -504,6 +513,65 @@ func (p *parser) parseSingleExprWithoutRollupSuffix() (Expr, error) {
 	default:
 		return nil, fmt.Errorf(`singleExpr: unexpected token %q; want "(", "{", "-", "+"`, p.lex.Token)
 	}
+}
+
+func (p *parser) parseFillModifier(be *BinaryOpExpr) (bool, error) {
+	if !isBinaryOpFillModifier(p.lex.Token) {
+		return false, nil
+	}
+	if isSetOperator(be.Op) {
+		return false, fmt.Errorf(`fill modifier cannot be applied to %q`, be.Op)
+	}
+	op := strings.ToLower(p.lex.Token)
+	if err := p.lex.Next(); err != nil {
+		return false, err
+	}
+	if p.lex.Token != "(" {
+		p.lex.Prev()
+		return false, nil
+	}
+	if err := p.lex.Next(); err != nil {
+		return false, err
+	}
+	ne, err := p.parseFillValue()
+	if err != nil {
+		return false, fmt.Errorf("cannot parse %s fill value: %w", op, err)
+	}
+	if p.lex.Token != ")" {
+		return false, fmt.Errorf(`%s: unexpected token %q; want ")"`, op, p.lex.Token)
+	}
+	if err := p.lex.Next(); err != nil {
+		return false, err
+	}
+	switch op {
+	case "fill":
+		be.FillLeft = ne
+		be.FillRight = ne
+	case "fill_left":
+		be.FillLeft = ne
+	case "fill_right":
+		be.FillRight = ne
+	}
+	return true, nil
+}
+
+func (p *parser) parseFillValue() (*NumberExpr, error) {
+	neg := false
+	if p.lex.Token == "-" {
+		neg = true
+		if err := p.lex.Next(); err != nil {
+			return nil, err
+		}
+	}
+	ne, err := p.parsePositiveNumberExpr()
+	if err != nil {
+		return nil, err
+	}
+	if neg {
+		ne.N = -ne.N
+		ne.s = "-" + ne.s
+	}
+	return ne, nil
 }
 
 func (p *parser) parsePositiveNumberExpr() (*NumberExpr, error) {
@@ -1896,6 +1964,12 @@ type BinaryOpExpr struct {
 	// If KeepMetricNames is set to true, then the operation should keep metric names.
 	KeepMetricNames bool
 
+	// FillLeft contains the fill value for fill_left() or fill() modifier.
+	FillLeft *NumberExpr
+
+	// FillRight contains the fill value for fill_right() or fill() modifier.
+	FillRight *NumberExpr
+
 	// Left contains left arg for the `left op right` expression.
 	Left Expr
 
@@ -1971,6 +2045,22 @@ func (be *BinaryOpExpr) appendModifiers(dst []byte) []byte {
 			dst = prefix.AppendString(dst)
 		}
 	}
+	if be.FillLeft != nil && be.FillLeft == be.FillRight {
+		dst = append(dst, " fill("...)
+		dst = be.FillLeft.AppendString(dst)
+		dst = append(dst, ')')
+	} else {
+		if be.FillLeft != nil {
+			dst = append(dst, " fill_left("...)
+			dst = be.FillLeft.AppendString(dst)
+			dst = append(dst, ')')
+		}
+		if be.FillRight != nil {
+			dst = append(dst, " fill_right("...)
+			dst = be.FillRight.AppendString(dst)
+			dst = append(dst, ')')
+		}
+	}
 	return dst
 }
 
@@ -1989,7 +2079,7 @@ func needBinaryOpArgParens(arg Expr) bool {
 }
 
 func isReservedBinaryOpIdent(s string) bool {
-	return isBinaryOpGroupModifier(s) || isBinaryOpJoinModifier(s) || isBinaryOpBoolModifier(s) || isPrefixModifier(s)
+	return isBinaryOpGroupModifier(s) || isBinaryOpJoinModifier(s) || isBinaryOpBoolModifier(s) || isPrefixModifier(s) || isBinaryOpFillModifier(s)
 }
 
 func isPrefixModifier(s string) bool {

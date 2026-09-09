@@ -1406,3 +1406,38 @@ func TestTagFilterLess(t *testing.T) {
 	f(prefixA, prefixB, true)
 	f(prefixB, prefixA, false)
 }
+
+func TestTagFilters_Add(t *testing.T) {
+	tfs := NewTagFilters()
+	f := func(k, v string, isNegative, isRegexp bool, want int) {
+		t.Helper()
+		if err := tfs.Add([]byte(k), []byte(v), isNegative, isRegexp); err != nil {
+			t.Fatalf("unexpected error in TagFilters.Add: %v", err)
+		}
+		if got := len(tfs.tfs); got != want {
+			t.Fatalf("unexpected tfs count: got %d, want %d", got, want)
+		}
+	}
+
+	// .* filter matches anything and therefore is not added to tfs.
+	f("key0", ".*", false, true, 0)
+
+	// empty filter matches only empty label values and is added to tfs.
+	f("key1", "", false, false, 1)
+
+	f("key2", "value", false, false, 2)
+	f("key3", "value.*", false, true, 3)
+	f("key4", "value", true, false, 4)
+	f("key5", "value.*", true, true, 5)
+
+	// .* filter matches anything and therefore is not added to tfs.
+	f("", ".*", false, true, 5)
+
+	// empty filter matches only empty label values and is added to tfs.
+	f("", "", false, false, 6)
+
+	f("", "value", false, false, 7)
+	f("", "value.*", false, true, 8)
+	f("", "value", true, false, 9)
+	f("", "value.*", true, true, 10)
+}
