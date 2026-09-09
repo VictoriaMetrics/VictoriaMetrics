@@ -20,13 +20,15 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeserieslimits"
 )
 
 var (
-	rowsInserted     = metrics.NewCounter(`vm_rows_inserted_total{type="promremotewrite"}`)
-	rowsPerInsert    = metrics.NewHistogram(`vm_rows_per_insert{type="promremotewrite"}`)
-	metadataInserted = metrics.NewCounter(`vm_metadata_rows_inserted_total{type="promremotewrite"}`)
+	rowsInserted       = metrics.NewCounter(`vm_rows_inserted_total{type="promremotewrite"}`)
+	rowsTenantInserted = tenantmetrics.NewCounterMap(`vm_tenant_inserted_rows_total{type="promremotewrite"}`)
+	rowsPerInsert      = metrics.NewHistogram(`vm_rows_per_insert{type="promremotewrite"}`)
+	metadataInserted   = metrics.NewCounter(`vm_metadata_rows_inserted_total{type="promremotewrite"}`)
 
 	sortLabels = flag.Bool("sortLabels", false, `Whether to sort labels for incoming samples before writing them to storage. `+
 		`This may be needed for reducing memory usage at storage when the order of labels in incoming samples is random. `+
@@ -70,6 +72,7 @@ func insertRows(s Storage, at *auth.Token, tss []prompb.TimeSeries, mms []prompb
 			ctx.rows = make([]storage.MetricRow, 0, rowsLen)
 		}
 		ctx.metricNameBuf = ctx.metricNameBuf[:0]
+		perTenantRows := make(map[auth.Token]int)
 		for i := range tss {
 			ts := &tss[i]
 			ctx.labels = ctx.labels[:0]
@@ -98,9 +101,11 @@ func insertRows(s Storage, at *auth.Token, tss []prompb.TimeSeries, mms []prompb
 					metricNameRaw = nil
 				}
 			}
+			perTenantRows[*atLocal] += len(ts.Samples)
 		}
 
 		rowsInserted.Add(rowsLen)
+		rowsTenantInserted.MultiAdd(perTenantRows)
 		rowsPerInsert.Update(float64(rowsLen))
 		if err := ctx.flushRows(s); err != nil {
 			return err
