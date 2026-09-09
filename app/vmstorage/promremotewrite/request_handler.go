@@ -1,6 +1,7 @@
 package promremotewrite
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prommetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
@@ -53,7 +55,7 @@ func InsertHandler(at *auth.Token, req *http.Request, s Storage) error {
 
 func insertRows(s Storage, at *auth.Token, tss []prompb.TimeSeries, mms []prompb.MetricMetadata, extraLabels []prompb.Label) error {
 	if s.IsReadOnly() {
-		return storage.ErrReadOnly
+		return errReadOnly()
 	}
 	ctx := getCtx()
 	defer putCtx(ctx)
@@ -79,10 +81,10 @@ func insertRows(s Storage, at *auth.Token, tss []prompb.TimeSeries, mms []prompb
 				label := &extraLabels[j]
 				ctx.addLabel(label.Name, label.Value)
 			}
-			atLocal := ctx.getLocalAuthToken(at)
 			if !ctx.tryPrepareLabels() {
 				continue
 			}
+			atLocal := ctx.getLocalAuthToken(at)
 			var metricNameRaw []byte
 			for j := range ts.Samples {
 				sample := &ts.Samples[j]
@@ -198,6 +200,9 @@ func (ctx *ctx) flushRows(s Storage) error {
 		return nil
 	}
 	if err := s.WriteRows(ctx.rows); err != nil {
+		if errors.Is(err, storage.ErrReadOnly) {
+			return errReadOnly()
+		}
 		return fmt.Errorf("cannot write rows: %w", err)
 	}
 	clear(ctx.rows)
@@ -288,4 +293,14 @@ func parseUint32(s string) uint32 {
 		return 0
 	}
 	return uint32(n)
+}
+
+func errReadOnly() error {
+	// In Prometheus remote write protocol, 400 means the request is invalid and
+	// must not be retried. vmagent follows this and drops such blocks, so report
+	// read-only storage as a retryable server-side error.
+	return &httpserver.ErrorWithStatusCode{
+		Err:        storage.ErrReadOnly,
+		StatusCode: http.StatusServiceUnavailable,
+	}
 }
