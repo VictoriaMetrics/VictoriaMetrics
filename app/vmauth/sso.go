@@ -31,10 +31,20 @@ type SSOOIDCConnectConfig struct {
 	// CookieSecret is used to sign the short-lived CSRF cookie set during the
 	// authorization flow. Must be a random string; never shared with the IdP.
 	CookieSecret string `yaml:"cookie_secret"`
+	// CookieSecure controls the Secure flag on SSO cookies. Defaults to true.
+	// Set to false only when vmauth is accessed over plain HTTP (e.g. local dev).
+	// When vmauth runs behind an SSL-terminating proxy, keep this true — the
+	// proxy speaks HTTPS to the browser even though vmauth sees plain HTTP.
+	CookieSecure *bool `yaml:"cookie_secure,omitempty"`
 	// RedirectURL is optional. Defaults to https://{host}/_vmauth/sso/callback.
 	RedirectURL string `yaml:"redirect_url,omitempty"`
 	// Scopes defaults to ["openid"] when not set.
 	Scopes []string `yaml:"scopes,omitempty"`
+}
+
+// cookieSecure returns true unless CookieSecure is explicitly set to false.
+func (c *SSOOIDCConnectConfig) cookieSecure() bool {
+	return c.CookieSecure == nil || *c.CookieSecure
 }
 
 // validateSSOConfigs checks that all required fields are present in SSO configs.
@@ -51,7 +61,7 @@ func validateSSOConfigs(sso []*SSOConfig) error {
 			return fmt.Errorf("field sso.%d.openid_connect.issuer is required", i)
 		}
 		if oidc.ClientID == "" {
-			return fmt.Errorf("field sso.%d.openid_connect.client_id", i)
+			return fmt.Errorf("field sso.%d.openid_connect.client_id is required", i)
 		}
 		if oidc.ClientSecret == "" {
 			return fmt.Errorf("field sso.%d.openid_connect.client_secret is required", i)
@@ -171,7 +181,7 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 		Value:    signCSRFCookie(nonce, originalURL, oidc.CookieSecret),
 		Path:     "/_vmauth/sso/",
 		HttpOnly: true,
-		Secure:   r.TLS != nil,
+		Secure:   oidc.cookieSecure(),
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   int(ssoCsrfCookieTTL.Seconds()),
 	})
@@ -259,7 +269,7 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 		Value:    idToken,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   r.TLS != nil,
+		Secure:   oidc.cookieSecure(),
 		SameSite: http.SameSiteLaxMode,
 	})
 
@@ -340,12 +350,14 @@ func exchangeCodeForIDToken(ctx context.Context, tokenEndpoint string, oidc *SSO
 
 // handleSSOLogout clears the SSO session cookie and redirects to the root.
 func handleSSOLogout(w http.ResponseWriter, r *http.Request) {
+	oidc, _ := getSSOConfigForHost(r.Host)
+	secure := oidc != nil && oidc.cookieSecure()
 	http.SetCookie(w, &http.Cookie{
 		Name:     ssoCookieName,
 		Value:    "",
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   r.TLS != nil,
+		Secure:   secure,
 		MaxAge:   -1,
 	})
 	http.Redirect(w, r, "/", http.StatusFound)
@@ -366,9 +378,9 @@ func ssoRedirectURL(r *http.Request, oidc *SSOOIDCConnectConfig) string {
 	if oidc.RedirectURL != "" {
 		return oidc.RedirectURL
 	}
-	scheme := "https"
-	if r.TLS == nil {
-		scheme = "http"
+	scheme := "http"
+	if oidc.cookieSecure() {
+		scheme = "https"
 	}
 	return scheme + "://" + r.Host + "/_vmauth/sso/callback"
 }
