@@ -658,6 +658,38 @@ users:
 
 See also [authorization](#authorization), [routing](#routing) and [load balancing](#load-balancing) docs.
 
+### Single sign-on (SSO)
+
+`vmauth` supports Single sign-on (SSO){{% available_from "#" %}} via [OpenID Connect (OIDC)](https://openid.net/connect/).
+When enabled, `vmauth` shows a login page with a "Login with SSO" button for unauthenticated browser requests,
+redirects to the configured Identity Provider (IdP), verifies the IdP response, and sets a session cookie for subsequent requests.
+
+The following config example demonstrates SSO:
+
+```yaml
+sso:
+  - src_host: 'sso\\.example\\.com'
+    oidc:
+      issuer: 'http:/identity-provider.com/realms/master'
+      client_id: 'sso.example.com'
+      client_secret: 'theClientSecret'
+      scopes: ['openid', 'profile', 'email']
+      cookie_secret: 'theCookieSecret'
+      # set false only for testing purposes
+      #cookie_secure: false
+
+users:
+  - jwt:
+      oidc:
+        issuer: 'http://identity-provider.com/realms/master'
+    url_map:
+      - src_paths:
+          - "/.*"
+        src_hosts:
+          - "sso\\.example\\.com"
+        url_prefix: "http://vmsingle:8428?extra_label={{.MetricsExtraLabels}}"
+```
+
 ### Per-tenant authorization
 
 The following [`-auth.config`](#auth-config) instructs proxying `insert` and `select` requests from the [Basic Auth](https://en.wikipedia.org/wiki/Basic_access_authentication) user `tenant1` to the [tenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) `1`, while requests from the user `tenant2` are sent to tenant `2`:
