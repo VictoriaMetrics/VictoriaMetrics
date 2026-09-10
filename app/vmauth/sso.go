@@ -149,6 +149,8 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 
+	// Nonce usage follows recommendation from:
+	// https://openid.net/specs/openid-connect-core-1_0.html#NonceNotes
 	nonce, err := generateSSONonce()
 	if err != nil {
 		logger.Errorf("SSO: cannot generate nonce: %s", err)
