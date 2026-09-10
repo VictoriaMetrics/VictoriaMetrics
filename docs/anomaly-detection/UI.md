@@ -284,6 +284,25 @@ For example, if a smaller OpenAI model is desired, set:
 export VMANOMALY_COPILOT_MODEL=openai:gpt-5-nano
 ```
 
+### Copilot usage and estimated cost
+
+{{% available_from "v1.30.5" anomaly %}} To confirm that Copilot initialized for a particular instance, check `vmanomaly_copilot_enabled{instance="<scrape-target>"}` on its QueryServer metrics: `1` means available, `0` means disabled or unavailable at startup. Missing data does not mean disabled; check the scrape target’s `up` metric. Use `vmanomaly_copilot_configured` alongside it: `configured=0, enabled=0` means intentionally disabled; `configured=1, enabled=0` means requested but unavailable. This startup status does not test live provider credentials, quota, or MCP connectivity. See [AI Copilot metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#ai-copilot-metrics).
+
+{{% available_from "v1.30.5" anomaly %}} UI v1.9.0 shows token usage and approximate USD costs for individual responses and the current conversation. Expand a usage row to see model request and response counts, cached input tokens, and the provider/model used. For example (illustrative values):
+
+```text
+Conversation: 23,984 input · 863 output tokens · ≈ $0.084897
+2 model requests · 2 reported responses.
+Cached input: 0 read, 0 written (included in input).
+anthropic:claude-sonnet-5
+Estimate uses model list prices; actual billing may differ. Excludes tool/server compute costs.
+Total covers this chat since it was opened or cleared.
+```
+
+Estimates use model list prices and provider-reported usage; they are not billing totals or a spending limit. Unknown prices display **Cost unavailable**, and incomplete accounting or a mix of priced and unpriced responses produces a partial estimate. Totals cover usage received by this browser chat and reset when the page is reloaded or the conversation is cleared. Closing and reopening the chat panel does not reset them. No extra provider requests are made to calculate costs.
+
+See [AI Copilot metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#ai-copilot-metrics) for process-wide estimated-cost and pricing-availability counters.
+
 ### Copilot context budgets
 
 {{% available_from "v1.30.5" anomaly %}} Configure the backend with `VMANOMALY_COPILOT_MAX_CONTEXT_BYTES` (default `320000`) and `VMANOMALY_COPILOT_MAX_OUTPUT_TOKENS` (default `8192`). The backend compacts duplicate completed tool results while preserving query and approval data. Oversized requests can still be refused locally; start a fresh conversation or narrow the request. These byte and output-token ceilings are independent and do not guarantee that every provider request fits its context window.
@@ -696,6 +715,7 @@ Released: 2026-09-10
 Recommended vmanomaly version: [v1.30.5](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1305)
 
 - FEATURE: Added multiple named queries with per-query policies, preserved query sets, and model query selection.
+- FEATURE: [AI Copilot usage details](#copilot-usage-and-estimated-cost) show per-response and conversation token totals, approximate costs, cached input, and provider/model information.
 - FEATURE: Added the experimental multivariate investigation workspace with group selection, coordinated channels and joint anomaly scores.
 - FEATURE: [AI Copilot](#ai-assistance) can suggest complete named query sets with aliases and individual business policies, and shared multivariate autotune configurations through compatible tools. Approved suggestions preserve policy inheritance and reject changes based on stale query state.
 

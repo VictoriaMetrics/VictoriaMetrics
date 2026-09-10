@@ -790,24 +790,43 @@ Label names [description](#labelnames)
 
 ### AI Copilot metrics
 
-{{% available_from "v1.30.5" anomaly %}} These counters are registered when AI Copilot budgeting initializes and are exposed through the QueryServer `/metrics` endpoint. If Copilot is disabled or fails to initialize, they may be absent. They measure model calls, not unique conversations. Counters reset on process restart; labeled series appear when first observed.
+{{% available_from "v1.30.5" anomaly %}} These metrics are exposed through the QueryServer `/metrics` endpoint. The configuration-intent and availability gauges are registered even when Copilot is disabled or fails to initialize. Usage counters are registered when Copilot budgeting or usage accounting initializes and may otherwise be absent. Counters measure model calls, not unique conversations, and reset on process restart; labeled series appear when first observed.
 
 | Metric | Type | Labels and meaning |
 | --- | --- | --- |
+| `vmanomaly_copilot_configured` | Gauge | No labels. `1` means the Copilot enable flag is set; `0` means intentionally disabled. Configuration can still be invalid when this is `1`. |
+| `vmanomaly_copilot_enabled` | Gauge | No labels. `1` means Copilot initialized successfully and is available; `0` means disabled or unavailable at startup, including initialization or mounting failure. This is not a live provider or MCP health check. |
 | `vmanomaly_copilot_request_bytes_total` | Counter | `category`: `history`, `parameters`<br>`stage`: `before`, `after`<br>Cumulative serialized request representation bytes before and after history projection. Parameters are measured but not compacted. Includes attempts rejected by the local budget; not provider wire bytes. |
 | `vmanomaly_copilot_tokens_total` | Counter | `direction`: `input`, `output`<br>SDK/provider-reported tokens for observed responses; not a billing estimate. |
 | `vmanomaly_copilot_responses_total` | Counter | `finish_reason`: `stop`, `length`, `tool_call`, `content_filter`, `error`, `other`<br>Observed model responses. Unknown or missing reasons map to `other`. Transport exceptions are not necessarily counted as responses. |
 | `vmanomaly_copilot_budget_rejections_total` | Counter | No labels. Requests refused before the model call because compacted history plus measured parameters exceed the configured context byte budget. |
+| `vmanomaly_copilot_estimated_cost_usd_total` | Counter | No labels. Sum of estimated USD costs for priced responses; excludes unpriced responses and tool/server compute. Not a billing total. |
+| `vmanomaly_copilot_cost_estimates_total` | Counter | `status`: `available`, `unavailable`<br>Observed responses with or without a usable cost estimate. Unknown pricing or missing reported tokens counts as unavailable. |
+
+To distinguish disabled Copilot from an available but unused assistant, check `vmanomaly_copilot_enabled{instance="<scrape-target>"}` for the selected instance. The `instance` label is attached by your scraper, not by this metric. Missing data means unknown availability; check the target’s `up` metric separately.
+
+The gauge pair distinguishes disabled (`configured=0`, `enabled=0`), available (`1`, `1`), and requested but unavailable (`1`, `0`). To alert on initialization failure for a reachable target, use the following expression with a persistence interval such as `for: 5m`. Match additional target labels if your scrape configuration needs them. This does not detect later provider outages or quota exhaustion.
+
+```promql
+(vmanomaly_copilot_configured == 1)
+  and on (job, instance) (vmanomaly_copilot_enabled == 0)
+  and on (job, instance) (up == 1)
+```
 
 Each listed value is a separate possible label value. Labels have bounded sets and do not include session IDs, query aliases, prompt contents or secrets. Compaction can increase small history representations; `after` is not guaranteed to be smaller than `before`.
 
 ```prometheus
+vmanomaly_copilot_configured 1
+vmanomaly_copilot_enabled 1
 vmanomaly_copilot_request_bytes_total{category="history",stage="before"} 330951
 vmanomaly_copilot_request_bytes_total{category="history",stage="after"} 43032
 vmanomaly_copilot_tokens_total{direction="input"} 25800
 vmanomaly_copilot_tokens_total{direction="output"} 4707
 vmanomaly_copilot_responses_total{finish_reason="tool_call"} 2
 vmanomaly_copilot_budget_rejections_total 0
+vmanomaly_copilot_estimated_cost_usd_total 0.042
+vmanomaly_copilot_cost_estimates_total{status="available"} 3
+vmanomaly_copilot_cost_estimates_total{status="unavailable"} 1
 ```
 
 These are illustrative cumulative values. To monitor token rate and local refusals:
