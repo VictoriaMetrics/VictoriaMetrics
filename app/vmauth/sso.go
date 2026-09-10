@@ -47,8 +47,8 @@ func (c *ssoConfig) validate() error {
 	if oidc.ClientSecret == "" {
 		res = errors.Join(res, fmt.Errorf("openid_connect.client_secret is required"))
 	}
-	if oidc.CookieSecret == "" {
-		res = errors.Join(res, fmt.Errorf("openid_connect.cookie_secret is required"))
+	if len(oidc.CookieSecret) < 16 {
+		res = errors.Join(res, fmt.Errorf("openid_connect.cookie_secret must be at least 16 characters long"))
 	}
 
 	// openid scope MUST be present per
@@ -83,8 +83,6 @@ type ssoOIDCConfig struct {
 	// When vmauth runs behind an SSL-terminating proxy, keep this true — the
 	// proxy speaks HTTPS to the browser even though vmauth sees plain HTTP.
 	CookieSecure *bool `yaml:"cookie_secure,omitempty"`
-	// RedirectURL is optional. Defaults to https://{host}/_vmauth/sso/callback.
-	RedirectURL string `yaml:"redirect_url,omitempty"`
 	// Scopes defaults to ["openid"] when not set.
 	Scopes []string `yaml:"scopes,omitempty"`
 
@@ -430,9 +428,6 @@ func getSSOAuthTokensFromRequest(r *http.Request) []string {
 
 // ssoRedirectURL returns the OIDC redirect URL for the current request.
 func ssoRedirectURL(r *http.Request, oidc *ssoOIDCConfig) string {
-	if oidc.RedirectURL != "" {
-		return oidc.RedirectURL
-	}
 	scheme := "http"
 	if oidc.cookieSecure() {
 		scheme = "https"
