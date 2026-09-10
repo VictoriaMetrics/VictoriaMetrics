@@ -217,7 +217,7 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 	h := sha256.Sum256([]byte(nonce))
 	nonceHash := base64.RawURLEncoding.EncodeToString(h[:])
 
-	redirectURL := ssoRedirectURL(r, oidc)
+	redirectURL := getSSORedirectURL(r, oidc)
 	scopes := oidc.Scopes
 
 	params := url.Values{}
@@ -301,7 +301,7 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idToken, err := exchangeCodeForIDToken(r.Context(), pm.TokenEndpoint, oidc, code, ssoRedirectURL(r, oidc))
+	idToken, err := exchangeCodeForIDToken(r.Context(), pm.TokenEndpoint, oidc, code, getSSORedirectURL(r, oidc))
 	if err != nil {
 		logger.Warnf("SSO callback: token exchange failed: %s", err)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -421,8 +421,8 @@ func getSSOAuthTokensFromRequest(r *http.Request) []string {
 	return []string{"http_auth:Bearer " + c.Value}
 }
 
-// ssoRedirectURL returns the OIDC redirect URL for the current request.
-func ssoRedirectURL(r *http.Request, oidc *ssoOIDCConfig) string {
+// getSSORedirectURL returns the OIDC redirect URL for the current request.
+func getSSORedirectURL(r *http.Request, oidc *ssoOIDCConfig) string {
 	scheme := "http"
 	if oidc.cookieSecure() {
 		scheme = "https"
