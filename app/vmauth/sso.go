@@ -57,7 +57,7 @@ func (c *ssoConfig) validate() error {
 		oidc.Scopes = append([]string{"openid"}, oidc.Scopes...)
 	}
 
-	return nil
+	return res
 }
 
 // validateSSOConfigs checks that all required fields are present in SSO configs.
