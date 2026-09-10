@@ -73,6 +73,14 @@ func VisitAll(e Expr, f func(expr Expr)) {
 //	rate(default_rollup(foo[1i:1i]) + default_rollup(bar[1i:1i]))
 //	rate(default_rollup(foo[1i:1i]) > 10)
 //
+// A lookbehind window on something other than a series selector is invalid for the same reason,
+// since it is implicitly converted into a subquery with an `1i` step:
+//
+//	sum(foo)[5m]
+//	(foo + bar)[5m]
+//
+// Write such a subquery explicitly, as `sum(foo)[5m:]` or `sum(foo)[5m:1m]`.
+//
 // See https://docs.victoriametrics.com/victoriametrics/metricsql/#implicit-query-conversions
 //
 // Note that rate(foo) is valid expression, since it returns the expected results most of the time, e.g. rate(foo[1i]).
@@ -80,6 +88,18 @@ func IsLikelyInvalid(e Expr) bool {
 	hasImplicitConversion := false
 	VisitAll(e, func(expr Expr) {
 		if hasImplicitConversion {
+			return
+		}
+		if re, ok := expr.(*RollupExpr); ok {
+			// Prometheus allows the lookbehind window only for series selectors, such as `foo[5m]`.
+			// It requires the explicit `q[d:]` or `q[d:step]` form for everything else,
+			// while MetricsQL accepts `q[d]` there and turns it into a subquery.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6752
+			if re.Window != nil && !re.ForSubquery() {
+				if _, ok := re.Expr.(*MetricExpr); !ok {
+					hasImplicitConversion = true
+				}
+			}
 			return
 		}
 		fe, ok := expr.(*FuncExpr)
