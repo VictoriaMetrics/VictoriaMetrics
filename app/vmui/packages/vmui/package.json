@@ -56,7 +56,7 @@
     "postcss": "^8.5.19",
     "sass-embedded": "^1.100.0",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   },
   "browserslist": {
     "production": [
