@@ -149,13 +149,20 @@ func verifyCSRFCookie(cookieValue, cookieSecret string) (nonce, originalURL stri
 
 // processSSOLogin renders a minimal HTML page with a single "Login with SSO"
 // button pointing directly to the OIDC provider's authorization endpoint.
+// Only GET and HEAD requests are redirected to the IdP; other methods receive
+// a 401 so that the caller's request body is not silently discarded.
 func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		return false
+	}
 	oidc, pm := getSSOConfigForHost(r.Host)
 	if oidc == nil {
 		return false
 	}
 	if pm == nil {
-		http.Error(w, "OIDC discovery not yet complete, try again shortly", http.StatusServiceUnavailable)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		WriteSSOErrorPage(w, "Identity Provider is not available, try again later", "", "/")
 		return true
 	}
 
@@ -163,8 +170,9 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 	// https://openid.net/specs/openid-connect-core-1_0.html#NonceNotes
 	nonce, err := generateSSONonce()
 	if err != nil {
-		logger.Errorf("SSO: cannot generate nonce: %s", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusInternalServerError)
+		WriteSSOErrorPage(w, "Internal Server Error", "", "/")
 		return true
 	}
 
