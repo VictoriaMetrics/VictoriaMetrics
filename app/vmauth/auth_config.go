@@ -58,7 +58,7 @@ var (
 type AuthConfig struct {
 	Users            []UserInfo   `yaml:"users,omitempty"`
 	UnauthorizedUser *UserInfo    `yaml:"unauthorized_user,omitempty"`
-	SSO              []*SSOConfig `yaml:"sso,omitempty"`
+	SSO              []*ssoConfig `yaml:"sso,omitempty"`
 
 	// ms holds all the metrics for the given AuthConfig
 	ms *metrics.Set
@@ -946,7 +946,7 @@ func reloadAuthConfigData(data []byte) (bool, error) {
 	// Register SSO issuers with the OIDC discoverer pool so their discovery
 	// runs together with JWT users during startDiscovery below.
 	for _, cfg := range ac.SSO {
-		oidcDP.createOrAdd(cfg.OpenIDConnect.Issuer, nil)
+		oidcDP.createOrAdd(cfg.OIDC.Issuer, nil)
 	}
 
 	oidcDP.startDiscovery()
@@ -1320,6 +1320,7 @@ func getAuthTokensFromRequest(r *http.Request) []string {
 		ats = append(ats, at)
 	}
 
+	ats = append(ats, getSSOAuthTokensFromRequest(r)...)
 	return ats
 }
 

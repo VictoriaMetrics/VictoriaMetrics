@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"math/rand/v2"
 	"net"
 	"net/http"
@@ -180,20 +179,8 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		processSSOCallback(w, r)
 		return true
 	}
-	if r.URL.Path == "/_vmauth/sso/logout" {
-		handleSSOLogout(w, r)
-		return true
-	}
 
 	ats := getAuthTokensFromRequest(r)
-
-	log.Println(51)
-	// Inject the SSO session cookie as a Bearer token so that the existing
-	// JWT pipeline can validate it and match it to a configured user.
-	if tok := ssoAuthTokenFromRequest(r); tok != "" {
-		log.Println(52, tok)
-		ats = append(ats, tok)
-	}
 
 	if len(ats) == 0 {
 		if processSSOLogin(w, r) {

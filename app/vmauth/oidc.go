@@ -184,7 +184,7 @@ func fetchAndParseJWKs(ctx context.Context, jwksURI string) (*jwt.VerifierPool, 
 		return nil, fmt.Errorf("unexpected status code %d when fetching jwks keys from %q", resp.StatusCode, jwksURI)
 	}
 
-	b, err := io.ReadAll(resp.Body)
+	b, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body from %q: %w", jwksURI, err)
 	}
@@ -217,7 +217,7 @@ func getOIDCProviderMetadata(ctx context.Context, issuer string) (oidcProviderMe
 	}
 
 	var pm oidcProviderMetadata
-	if err := json.NewDecoder(resp.Body).Decode(&pm); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&pm); err != nil {
 		return oidcProviderMetadata{}, fmt.Errorf("failed to decode openid config from %q: %w", configURL, err)
 	}
 

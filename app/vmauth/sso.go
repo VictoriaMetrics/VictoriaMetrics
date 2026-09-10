@@ -7,24 +7,69 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
-// SSOConfig holds the SSO configuration for a single host.
-type SSOConfig struct {
-	SrcHost       *Regex                `yaml:"src_host"`
-	OpenIDConnect *SSOOIDCConnectConfig `yaml:"openid_connect"`
+// ssoConfig holds the SSO configuration for a single host.
+type ssoConfig struct {
+	SrcHost *Regex         `yaml:"src_host"`
+	OIDC    *ssoOIDCConfig `yaml:"oidc"`
 }
 
-// SSOOIDCConnectConfig is the OpenID Connect configuration for SSO.
-type SSOOIDCConnectConfig struct {
+func (c *ssoConfig) validate() error {
+	var res error
+	if c.SrcHost == nil {
+		res = errors.Join(res, fmt.Errorf("src_host is required"))
+	}
+	if c.OIDC == nil {
+		res = errors.Join(fmt.Errorf("openid_connect is required"))
+		return res
+	}
+
+	oidc := c.OIDC
+	if oidc.Issuer == "" {
+		res = errors.Join(fmt.Errorf("openid_connect.issuer is required"))
+	}
+	if oidc.ClientID == "" {
+		res = errors.Join(fmt.Errorf("openid_connect.client_id is required"))
+	}
+	if oidc.ClientSecret == "" {
+		res = errors.Join(fmt.Errorf("openid_connect.client_secret is required"))
+	}
+	if oidc.CookieSecret == "" {
+		res = errors.Join(fmt.Errorf("openid_connect.cookie_secret is required"))
+	}
+
+	// openid scope MUST be present per
+	// https://openid.net/specs/openid-connect-core-1_0.html#AuthRequestValidation
+	if !slices.Contains(oidc.Scopes, "openid") {
+		oidc.Scopes = append([]string{"openid"}, oidc.Scopes...)
+	}
+
+	return nil
+}
+
+// validateSSOConfigs checks that all required fields are present in SSO configs.
+func validateSSOConfigs(sso []*ssoConfig) error {
+	for i, sso := range sso {
+		if err := sso.validate(); err != nil {
+			return fmt.Errorf("sso.%d: %s", i, err)
+		}
+	}
+	return nil
+}
+
+// ssoOIDCConfig is the OpenID Connect configuration for SSO.
+type ssoOIDCConfig struct {
 	Issuer       string `yaml:"issuer"`
 	ClientID     string `yaml:"client_id"`
 	ClientSecret string `yaml:"client_secret"`
@@ -43,38 +88,12 @@ type SSOOIDCConnectConfig struct {
 }
 
 // cookieSecure returns true unless CookieSecure is explicitly set to false.
-func (c *SSOOIDCConnectConfig) cookieSecure() bool {
+func (c *ssoOIDCConfig) cookieSecure() bool {
 	return c.CookieSecure == nil || *c.CookieSecure
 }
 
-// validateSSOConfigs checks that all required fields are present in SSO configs.
-func validateSSOConfigs(sso []*SSOConfig) error {
-	for i, cfg := range sso {
-		if cfg.SrcHost == nil {
-			return fmt.Errorf("field sso.%d.src_host is required", i)
-		}
-		if cfg.OpenIDConnect == nil {
-			return fmt.Errorf("field sso.%d.openid_connect is required", i)
-		}
-		oidc := cfg.OpenIDConnect
-		if oidc.Issuer == "" {
-			return fmt.Errorf("field sso.%d.openid_connect.issuer is required", i)
-		}
-		if oidc.ClientID == "" {
-			return fmt.Errorf("field sso.%d.openid_connect.client_id is required", i)
-		}
-		if oidc.ClientSecret == "" {
-			return fmt.Errorf("field sso.%d.openid_connect.client_secret is required", i)
-		}
-		if oidc.CookieSecret == "" {
-			return fmt.Errorf("field sso.%d.openid_connect.cookie_secret is required", i)
-		}
-	}
-	return nil
-}
-
 // getSSOConfigForHost returns the SSO host config for the given request host, or nil.
-func getSSOConfigForHost(host string) (*SSOOIDCConnectConfig, *oidcProviderMetadata) {
+func getSSOConfigForHost(host string) (*ssoOIDCConfig, *oidcProviderMetadata) {
 	ac := authConfig.Load()
 	if ac == nil || ac.SSO == nil {
 		return nil, nil
@@ -83,7 +102,7 @@ func getSSOConfigForHost(host string) (*SSOOIDCConnectConfig, *oidcProviderMetad
 		if !sso.SrcHost.match(host) {
 			continue
 		}
-		oidc := sso.OpenIDConnect
+		oidc := sso.OIDC
 		return oidc, ac.oidcDP.getProviderMetadata(oidc.Issuer)
 	}
 	return nil, nil
@@ -199,9 +218,6 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 
 	redirectURL := ssoRedirectURL(r, oidc)
 	scopes := oidc.Scopes
-	if len(scopes) == 0 {
-		scopes = []string{"openid"}
-	}
 
 	params := url.Values{}
 	params.Set("response_type", "code")
@@ -209,6 +225,7 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 	params.Set("redirect_uri", redirectURL)
 	params.Set("scope", strings.Join(scopes, " "))
 	params.Set("nonce", nonceHash)
+	params.Set("state", nonceHash)
 	authURL := pm.AuthorizationEndpoint + "?" + params.Encode()
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -257,6 +274,18 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 		MaxAge: -1,
 	})
 
+	// Verify the state parameter matches the nonceHash we sent — this binds the
+	// callback to the specific authorization request and is auditable in IdP logs.
+	h := sha256.Sum256([]byte(nonce))
+	nonceHash := base64.RawURLEncoding.EncodeToString(h[:])
+	if state := r.URL.Query().Get("state"); state != nonceHash {
+		logger.Warnf("SSO callback: state mismatch from %s", r.RemoteAddr)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusBadRequest)
+		WriteSSOErrorPage(w, "Invalid state parameter", "", "/")
+		return
+	}
+
 	// Handle Authentication Error Response per
 	// https://openid.net/specs/openid-connect-core-1_0.html#AuthResponseValidation
 	if errCode := r.URL.Query().Get("error"); errCode != "" {
@@ -283,8 +312,6 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 
 	// OIDC Core §3.1.3.7: verify id_token nonce == SHA256(nonce from CSRF cookie)
 	// to prevent id_token replay attacks.
-	h := sha256.Sum256([]byte(nonce))
-	nonceHash := base64.RawURLEncoding.EncodeToString(h[:])
 	if err := verifyIDTokenNonce(idToken, nonceHash); err != nil {
 		logger.Warnf("SSO callback: id_token nonce mismatch from %s: %s", r.RemoteAddr, err)
 		http.Error(w, "invalid id_token nonce", http.StatusBadRequest)
@@ -337,7 +364,7 @@ type tokenResponse struct {
 }
 
 // exchangeCodeForIDToken exchanges the OIDC authorization code for an id_token.
-func exchangeCodeForIDToken(ctx context.Context, tokenEndpoint string, oidc *SSOOIDCConnectConfig, code, redirectURL string) (string, error) {
+func exchangeCodeForIDToken(ctx context.Context, tokenEndpoint string, oidc *ssoOIDCConfig, code, redirectURL string) (string, error) {
 	params := url.Values{}
 	params.Set("grant_type", "authorization_code")
 	params.Set("code", code)
@@ -357,7 +384,7 @@ func exchangeCodeForIDToken(ctx context.Context, tokenEndpoint string, oidc *SSO
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if err != nil {
 		return "", fmt.Errorf("cannot read token response: %w", err)
 	}
@@ -375,33 +402,23 @@ func exchangeCodeForIDToken(ctx context.Context, tokenEndpoint string, oidc *SSO
 	return tr.IDToken, nil
 }
 
-// handleSSOLogout clears the SSO session cookie and redirects to the root.
-func handleSSOLogout(w http.ResponseWriter, r *http.Request) {
-	oidc, _ := getSSOConfigForHost(r.Host)
-	secure := oidc != nil && oidc.cookieSecure()
-	http.SetCookie(w, &http.Cookie{
-		Name:     ssoCookieName,
-		Value:    "",
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   secure,
-		MaxAge:   -1,
-	})
-	http.Redirect(w, r, "/", http.StatusFound)
-}
-
 // ssoAuthTokenFromRequest extracts the SSO session cookie and returns it as
 // a Bearer auth token string compatible with the existing JWT pipeline.
-func ssoAuthTokenFromRequest(r *http.Request) string {
+func getSSOAuthTokensFromRequest(r *http.Request) []string {
+	ac := authConfig.Load()
+	if ac.SSO == nil {
+		return nil
+	}
+
 	c, err := r.Cookie(ssoCookieName)
 	if err != nil || c.Value == "" {
-		return ""
+		return nil
 	}
-	return "http_auth:Bearer " + c.Value
+	return []string{"http_auth:Bearer " + c.Value}
 }
 
 // ssoRedirectURL returns the OIDC redirect URL for the current request.
-func ssoRedirectURL(r *http.Request, oidc *SSOOIDCConnectConfig) string {
+func ssoRedirectURL(r *http.Request, oidc *ssoOIDCConfig) string {
 	if oidc.RedirectURL != "" {
 		return oidc.RedirectURL
 	}
