@@ -26,7 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
-* FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): show the range between the minimum and maximum values for each graph line in legends and tooltips. See [#11425](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11425).
+* FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): show the range between the minimum and maximum values for each graph line in the legend. See [#11425](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11425). Thanks to @umer901 for contribution.
 
 * SECURITY: upgrade Go builder from Go1.26.6 to Go1.27.1. See [Go 1.27 release notes](https://go.dev/doc/go1.27).
 * SECURITY: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): fix authorization bypass in JWT-based routing when `match_claims` values are used. See [GHSA-f99m-22fh-qw96](https://github.com/VictoriaMetrics/VictoriaMetrics/security/advisories/GHSA-f99m-22fh-qw96).

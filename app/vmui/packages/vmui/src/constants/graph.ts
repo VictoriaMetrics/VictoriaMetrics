@@ -27,4 +27,4 @@ export const GRAPH_SIZES: GraphSize[] = [
 ];
 
 export const STATS_ORDER_LEGEND: (keyof SeriesItemStatsFormatted)[] = ["min", "median", "max", "range", "last"];
-export const STATS_ORDER_TOOLTIP: (keyof SeriesItemStatsFormatted)[] = ["min", "median", "max", "range"];
+export const STATS_ORDER_TOOLTIP: (keyof SeriesItemStatsFormatted)[] = ["min", "median", "max"];
