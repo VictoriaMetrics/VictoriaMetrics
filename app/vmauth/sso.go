@@ -273,9 +273,12 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	// Consume the CSRF cookie — it is single-use.
 	http.SetCookie(w, &http.Cookie{
-		Name:   ssoCsrfCookieName,
-		Path:   "/_vmauth/sso/",
-		MaxAge: -1,
+		Name:     ssoCsrfCookieName,
+		Path:     "/_vmauth/sso/",
+		HttpOnly: true,
+		Secure:   oidc.cookieSecure(),
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   -1,
 	})
 
 	// Verify the state parameter matches the nonceHash we sent — this binds the
