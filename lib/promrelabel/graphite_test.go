@@ -91,3 +91,17 @@ func TestGraphiteReplaceTemplateExpand(t *testing.T) {
 	f("$0-$1", []string{"foo", "bar"}, "foo-bar")
 	f("x-${0}-$1", []string{"foo", "bar"}, "x-foo-bar")
 }
+
+func TestGraphiteMatchTemplateStringNil(t *testing.T) {
+	var gmt *graphiteMatchTemplate
+	if got := gmt.String(); got != "<nil>" {
+		t.Fatalf("unexpected nil String(); got %q; want %q", got, "<nil>")
+	}
+}
+
+func TestGraphiteReplaceTemplateStringNil(t *testing.T) {
+	var grt *graphiteReplaceTemplate
+	if got := grt.String(); got != "<nil>" {
+		t.Fatalf("unexpected nil String(); got %q; want %q", got, "<nil>")
+	}
+}

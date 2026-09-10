@@ -23,6 +23,9 @@ type graphiteMatchTemplate struct {
 }
 
 func (gmt *graphiteMatchTemplate) String() string {
+	if gmt == nil {
+		return "<nil>"
+	}
 	return gmt.sOrig
 }
 
@@ -131,6 +134,9 @@ type graphiteReplaceTemplate struct {
 }
 
 func (grt *graphiteReplaceTemplate) String() string {
+	if grt == nil {
+		return "<nil>"
+	}
 	return grt.sOrig
 }
 
