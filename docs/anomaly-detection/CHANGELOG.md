@@ -23,6 +23,8 @@ Please find the changelog for VictoriaMetrics Anomaly Detection below.
 ## v1.30.5
 Released: 2026-09-10
 
+- IMPROVEMENT: [Prophet](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) defaults to flat growth in model configuration and autotune, avoiding trend extrapolation over long inference windows. Explicit growth settings remain supported.
+
 - UI: Updated the [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/#v190) to v1.9.0 with multiple named queries, per-query business policies, and an experimental [multivariate investigation workspace](https://docs.victoriametrics.com/anomaly-detection/ui/#multivariate-investigation). Explore aligned signals and a joint anomaly score separately for each model group.
 
 - FEATURE: Shared [autotune](https://docs.victoriametrics.com/anomaly-detection/components/server/#time-series-analysis-and-autotune-api) accepts named queries and evaluates aligned multivariate groups in one study, returning one shared model configuration.

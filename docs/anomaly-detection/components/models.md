@@ -1155,6 +1155,8 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 
 > `ProphetModel` is a [univariate](#univariate-models), [offline](#offline-models) model.
 
+Starting with v1.30.5, omitted `args.growth` defaults to `flat`, including during [autotune](#shared-asynchronous-autotune-workflow). This avoids extrapolating a trend and its uncertainty over long inference windows. Set `args.growth: linear` explicitly when trend extrapolation is intended; for autotune, put this setting under `frozen_params.args.growth`. Existing fitted checkpoints retain their learned growth setting until refitting.
+
 > [!NOTE]
 > Prophet is planned for deprecation in a future release. For new forecasting and anomaly-detection deployments, prefer the online [Temporal Envelope](#temporal-envelope) model unless Prophet-specific decomposition output is required.
 
