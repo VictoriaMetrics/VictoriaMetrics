@@ -940,15 +940,10 @@ func reloadAuthConfigData(data []byte) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("failed to parse JWT users from auth config: %w", err)
 	}
-
-	ac.oidcDP = oidcDP
-
-	// Register SSO issuers with the OIDC discoverer pool so their discovery
-	// runs together with JWT users during startDiscovery below.
 	for _, cfg := range ac.SSO {
-		oidcDP.createOrAdd(cfg.OIDC.Issuer, nil)
+		oidcDP.subscribeToMetadata(cfg.OIDC.Issuer, &cfg.OIDC.pm)
 	}
-
+	ac.oidcDP = oidcDP
 	oidcDP.startDiscovery()
 
 	jwtc := &jwtCache{

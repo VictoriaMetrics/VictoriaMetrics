@@ -14,8 +14,10 @@ import (
 	"net/url"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/jwt"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -85,6 +87,8 @@ type ssoOIDCConfig struct {
 	RedirectURL string `yaml:"redirect_url,omitempty"`
 	// Scopes defaults to ["openid"] when not set.
 	Scopes []string `yaml:"scopes,omitempty"`
+
+	pm atomic.Pointer[oidcProviderMetadata]
 }
 
 // cookieSecure returns true unless CookieSecure is explicitly set to false.
@@ -93,19 +97,17 @@ func (c *ssoOIDCConfig) cookieSecure() bool {
 }
 
 // getSSOConfigForHost returns the SSO host config for the given request host, or nil.
-func getSSOConfigForHost(host string) (*ssoOIDCConfig, *oidcProviderMetadata) {
+func getSSOConfigForHost(host string) *ssoOIDCConfig {
 	ac := authConfig.Load()
 	if ac == nil || ac.SSO == nil {
-		return nil, nil
+		return nil
 	}
 	for _, sso := range ac.SSO {
-		if !sso.SrcHost.match(host) {
-			continue
+		if sso.SrcHost.match(host) {
+			return sso.OIDC
 		}
-		oidc := sso.OIDC
-		return oidc, ac.oidcDP.getProviderMetadata(oidc.Issuer)
 	}
-	return nil, nil
+	return nil
 }
 
 const (
@@ -174,10 +176,11 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		return false
 	}
-	oidc, pm := getSSOConfigForHost(r.Host)
+	oidc := getSSOConfigForHost(r.Host)
 	if oidc == nil {
 		return false
 	}
+	pm := oidc.pm.Load()
 	if pm == nil {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusServiceUnavailable)
@@ -236,13 +239,14 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 
 // processSSOCallback handles the OIDC authorization code callback at /_vmauth/sso/callback.
 func processSSOCallback(w http.ResponseWriter, r *http.Request) {
-	oidc, pm := getSSOConfigForHost(r.Host)
+	oidc := getSSOConfigForHost(r.Host)
 	if oidc == nil {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusUnauthorized)
 		WriteSSOErrorPage(w, "SSO not configured for this host", ``, "/")
 		return
 	}
+	pm := oidc.pm.Load()
 	if pm == nil {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusServiceUnavailable)
@@ -310,11 +314,11 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// OIDC Core §3.1.3.7: verify id_token nonce == SHA256(nonce from CSRF cookie)
-	// to prevent id_token replay attacks.
-	if err := verifyIDTokenNonce(idToken, nonceHash); err != nil {
-		logger.Warnf("SSO callback: id_token nonce mismatch from %s: %s", r.RemoteAddr, err)
-		http.Error(w, "invalid id_token nonce", http.StatusBadRequest)
+	if err := validateIDToken(idToken, pm, nonceHash); err != nil {
+		logger.Warnf("SSO callback: id_token verification failed from %s: %s", r.RemoteAddr, err)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusUnauthorized)
+		WriteSSOErrorPage(w, "Token verification failed", "", "/")
 		return
 	}
 
@@ -333,28 +337,32 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, originalURL, http.StatusFound)
 }
 
-// verifyIDTokenNonce decodes the id_token JWT payload and checks that the nonce
-// claim matches the expected value. The signature is validated separately by the
-// existing JWT pipeline; this check only protects against id_token replay attacks
-// (OIDC Core §3.1.3.7).
-func verifyIDTokenNonce(idToken, expectedNonce string) error {
-	// JWT format: header.payload.signature — all base64url encoded.
-	parts := strings.SplitN(idToken, ".", 3)
-	if len(parts) != 3 {
-		return fmt.Errorf("id_token is not a valid JWT")
+// validateIDToken parses and validates the id_token JWT:
+// verifies the signature using the provider's public keys, checks expiry and issuer,
+// and confirms the nonce claim matches expectedNonce to prevent replay attacks
+// See https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation
+func validateIDToken(idToken string, pm *oidcProviderMetadata, expectedNonce string) error {
+	tkn := getToken()
+	if err := tkn.Parse(idToken, false); err != nil {
+		return fmt.Errorf("cannot parse id_token: %w", err)
 	}
-	payloadJSON, err := base64.RawURLEncoding.DecodeString(parts[1])
+	defer putToken(tkn)
+
+	if err := pm.vp.Verify(tkn); err != nil {
+		return fmt.Errorf("signature verification failed: %w", err)
+	}
+	if tkn.IsExpired(time.Now()) {
+		return fmt.Errorf("id_token is expired")
+	}
+	if tkn.Issuer() != pm.Issuer {
+		return fmt.Errorf("issuer mismatch: got %q, want %q", tkn.Issuer(), pm.Issuer)
+	}
+	nonceClaim, err := jwt.NewClaim("nonce", expectedNonce)
 	if err != nil {
-		return fmt.Errorf("cannot decode id_token payload: %w", err)
+		return fmt.Errorf("cannot build nonce claim: %w", err)
 	}
-	var claims struct {
-		Nonce string `json:"nonce"`
-	}
-	if err := json.Unmarshal(payloadJSON, &claims); err != nil {
-		return fmt.Errorf("cannot unmarshal id_token claims: %w", err)
-	}
-	if claims.Nonce != expectedNonce {
-		return fmt.Errorf("nonce mismatch: got %q, want %q", claims.Nonce, expectedNonce)
+	if !tkn.MatchClaims([]*jwt.Claim{nonceClaim}) {
+		return fmt.Errorf("nonce mismatch")
 	}
 	return nil
 }
