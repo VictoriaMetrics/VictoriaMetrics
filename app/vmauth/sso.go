@@ -33,22 +33,22 @@ func (c *ssoConfig) validate() error {
 		res = errors.Join(res, fmt.Errorf("src_host is required"))
 	}
 	if c.OIDC == nil {
-		res = errors.Join(fmt.Errorf("openid_connect is required"))
+		res = errors.Join(res, fmt.Errorf("openid_connect is required"))
 		return res
 	}
 
 	oidc := c.OIDC
 	if oidc.Issuer == "" {
-		res = errors.Join(fmt.Errorf("openid_connect.issuer is required"))
+		res = errors.Join(res, fmt.Errorf("openid_connect.issuer is required"))
 	}
 	if oidc.ClientID == "" {
-		res = errors.Join(fmt.Errorf("openid_connect.client_id is required"))
+		res = errors.Join(res, fmt.Errorf("openid_connect.client_id is required"))
 	}
 	if oidc.ClientSecret == "" {
-		res = errors.Join(fmt.Errorf("openid_connect.client_secret is required"))
+		res = errors.Join(res, fmt.Errorf("openid_connect.client_secret is required"))
 	}
 	if oidc.CookieSecret == "" {
-		res = errors.Join(fmt.Errorf("openid_connect.cookie_secret is required"))
+		res = errors.Join(res, fmt.Errorf("openid_connect.cookie_secret is required"))
 	}
 
 	// openid scope MUST be present per
