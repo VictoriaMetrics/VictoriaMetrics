@@ -213,11 +213,15 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 	oidc, pm := getSSOConfigForHost(r.Host)
 	if oidc == nil {
-		http.Error(w, "SSO not configured for this host", http.StatusNotFound)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusUnauthorized)
+		WriteSSOErrorPage(w, "SSO not configured for this host", ``, "/")
 		return
 	}
 	if pm == nil {
-		http.Error(w, "OIDC discovery not yet complete, try again shortly", http.StatusServiceUnavailable)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		WriteSSOErrorPage(w, "Identity Provider is not available, try again later", "", "/")
 		return
 	}
 
@@ -225,13 +229,17 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 	// binds this callback to the browser session that initiated the flow.
 	csrfCookie, err := r.Cookie(ssoCsrfCookieName)
 	if err != nil {
-		http.Error(w, "missing CSRF cookie", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusBadRequest)
+		WriteSSOErrorPage(w, "Missing CSRF Cookie", "", "/")
 		return
 	}
 	nonce, originalURL, err := verifyCSRFCookie(csrfCookie.Value, oidc.CookieSecret)
 	if err != nil {
 		logger.Warnf("SSO callback: invalid CSRF cookie from %s: %s", r.RemoteAddr, err)
-		http.Error(w, "invalid CSRF cookie", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusBadRequest)
+		WriteSSOErrorPage(w, "Invalid CSRF Cookie", "", "/")
 		return
 	}
 	// Consume the CSRF cookie — it is single-use.
@@ -240,6 +248,17 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 		Path:   "/_vmauth/sso/",
 		MaxAge: -1,
 	})
+
+	// Handle Authentication Error Response per
+	// https://openid.net/specs/openid-connect-core-1_0.html#AuthResponseValidation
+	if errCode := r.URL.Query().Get("error"); errCode != "" {
+		errDescription := r.URL.Query().Get("error_description")
+		logger.Warnf("SSO callback: IdP returned error %q (%s) for %s", errCode, errDescription, r.RemoteAddr)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusUnauthorized)
+		WriteSSOErrorPage(w, errCode, errDescription, "/")
+		return
+	}
 
 	code := r.URL.Query().Get("code")
 	if code == "" {
