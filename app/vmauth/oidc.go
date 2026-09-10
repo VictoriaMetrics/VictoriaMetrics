@@ -77,7 +77,7 @@ func (dp *oidcDiscovererPool) startDiscovery() {
 	for _, d := range dp.ds {
 		dp.wg.Go(func() {
 			if err := d.refreshMetadata(dp.context); err != nil {
-				logger.Errorf("failed to refresh OIDC config at start for issuer %q: %s", d.issuer, err)
+				logger.Errorf("failed to refresh OIDC provider metadata at start for issuer %q: %s", d.issuer, err)
 			}
 		})
 	}
