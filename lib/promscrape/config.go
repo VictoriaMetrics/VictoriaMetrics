@@ -862,18 +862,20 @@ func (cfg *Config) getScrapeWorkGeneric(visitConfigs func(sc *ScrapeConfig, visi
 		// Therefore, the service discovery result should be updated based on the current round of results.
 		//
 		// If no successful response is received (i.e., hasSuccess is false), fall back to the result from the previous round.
-		hasSuccess := false
+		hasSuccess, hasSDConfigs := false, false
 		visitConfigs(sc, func(sdc targetLabelsGetter) {
+			hasSDConfigs = true
 			targetLabels, err := sdc.GetLabels(cfg.baseDir)
 			if err != nil {
 				logger.Errorf("skipping some %s targets for job_name=%s because of error: %s", discoveryType, sc.swc.jobName, err)
-				hasSuccess = hasSuccess || false
 				return
 			}
 			hasSuccess = true
 			dst = appendScrapeWorkForTargetLabels(dst, sc.swc, targetLabels, discoveryType)
 		})
-		if !hasSuccess {
+		// Fall back to the previous round only when the job still has SD configs of this type and all of them failed.
+		// A job with no SD configs of this type (e.g. http_sd_configs removed on reload) must yield no such targets.
+		if hasSDConfigs && !hasSuccess {
 			dst = sc.appendPrevTargets(dst[:dstLen], swsPrevByJob, discoveryType)
 		}
 	}
