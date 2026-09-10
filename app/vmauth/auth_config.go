@@ -942,7 +942,6 @@ func reloadAuthConfigData(data []byte) (bool, error) {
 		oidcDP.subscribeToMetadata(cfg.OIDC.Issuer, &cfg.OIDC.pm)
 	}
 	oidcDP.startDiscovery()
-
 	jwtc := &jwtCache{
 		users:  jui,
 		oidcDP: oidcDP,
