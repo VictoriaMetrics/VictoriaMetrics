@@ -269,15 +269,6 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 		WriteSSOErrorPage(w, "Invalid CSRF Cookie", "", "/")
 		return
 	}
-	// Consume the CSRF cookie — it is single-use.
-	http.SetCookie(w, &http.Cookie{
-		Name:     ssoCsrfCookieName,
-		Path:     "/_vmauth/sso/",
-		HttpOnly: true,
-		Secure:   oidc.cookieSecure(),
-		SameSite: http.SameSiteLaxMode,
-		MaxAge:   -1,
-	})
 
 	// Verify the state parameter matches the nonceHash we sent — this binds the
 	// callback to the specific authorization request and is auditable in IdP logs.
@@ -304,14 +295,18 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 
 	code := r.URL.Query().Get("code")
 	if code == "" {
-		http.Error(w, "missing code parameter", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusBadRequest)
+		WriteSSOErrorPage(w, "Missing code parameter", "", "/")
 		return
 	}
 
 	idToken, err := exchangeCodeForIDToken(r.Context(), pm.TokenEndpoint, oidc, code, ssoRedirectURL(r, oidc))
 	if err != nil {
 		logger.Warnf("SSO callback: token exchange failed: %s", err)
-		http.Error(w, "token exchange failed", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusBadRequest)
+		WriteSSOErrorPage(w, "Token exchange failed", "", "/")
 		return
 	}
 
