@@ -1,0 +1,32 @@
+@use "src/styles/variables" as *;
+
+.vm-auto-refresh-control {
+
+  &-button {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    border-right: $border-divider;
+
+    &__arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transform: rotate(0);
+      transition: transform 200ms ease-in-out;
+
+      &_open {
+        transform: rotate(180deg);
+      }
+    }
+  }
+
+  &-list {
+    min-width: 90px;
+    max-height: 200px;
+    overflow: auto;
+
+    &_mobile {
+      max-height: none;
+    }
+  }
+}

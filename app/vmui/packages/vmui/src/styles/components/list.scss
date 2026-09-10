@@ -2,6 +2,9 @@
 
 .vm-list {
   &-item {
+    display: block;
+    width: 100%;
+    text-align: left;
     padding: 12px $padding-global;
     cursor: pointer;
     background-color: transparent;
