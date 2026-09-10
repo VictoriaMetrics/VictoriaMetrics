@@ -162,6 +162,9 @@ func internalRequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		procutil.SelfSIGHUP()
 		w.WriteHeader(http.StatusOK)
 		return true
+	case "/_vmauth/sso/callback":
+		processSSOCallback(w, r)
+		return true
 	}
 	return false
 }
@@ -174,12 +177,6 @@ func requestHandlerWithInternalRoutes(w http.ResponseWriter, r *http.Request) bo
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
-	// Handle SSO paths before any auth checks.
-	if r.URL.Path == "/_vmauth/sso/callback" {
-		processSSOCallback(w, r)
-		return true
-	}
-
 	ats := getAuthTokensFromRequest(r)
 
 	if len(ats) == 0 {
@@ -193,7 +190,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			processUserRequest(w, r, ui, nil)
 			return true
 		}
-
+		ui.logRequest(r, `unauthorized`, http.StatusUnauthorized, 0)
 		handleMissingAuthorizationError(w)
 		return true
 	}
@@ -215,13 +212,13 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 	}
 
-	uu := authConfig.Load().UnauthorizedUser
-	if uu.hasAnyURLs() {
-		processUserRequest(w, r, uu, nil)
+	if processSSOLogin(w, r) {
 		return true
 	}
 
-	if processSSOLogin(w, r) {
+	uu := authConfig.Load().UnauthorizedUser
+	if uu.hasAnyURLs() {
+		processUserRequest(w, r, uu, nil)
 		return true
 	}
 

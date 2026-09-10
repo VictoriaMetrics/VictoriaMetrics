@@ -62,8 +62,6 @@ type AuthConfig struct {
 
 	// ms holds all the metrics for the given AuthConfig
 	ms *metrics.Set
-
-	oidcDP *oidcDiscovererPool
 }
 
 // UserInfo is user information read from authConfigPath
@@ -943,7 +941,6 @@ func reloadAuthConfigData(data []byte) (bool, error) {
 	for _, cfg := range ac.SSO {
 		oidcDP.subscribeToMetadata(cfg.OIDC.Issuer, &cfg.OIDC.pm)
 	}
-	ac.oidcDP = oidcDP
 	oidcDP.startDiscovery()
 
 	jwtc := &jwtCache{
