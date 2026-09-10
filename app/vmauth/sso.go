@@ -64,7 +64,7 @@ func (c *ssoConfig) validate() error {
 func validateSSOConfigs(sso []*ssoConfig) error {
 	for i, sso := range sso {
 		if err := sso.validate(); err != nil {
-			return fmt.Errorf("sso.%d: %s", i, err)
+			return fmt.Errorf("sso.%d: %w", i, err)
 		}
 	}
 	return nil
