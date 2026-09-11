@@ -72,6 +72,11 @@ export default [...compat.extends(
 
     "unused-imports/no-unused-imports": "error",
 
+    "no-restricted-syntax": ["error", {
+      selector: "JSXAttribute[name.name='dangerouslySetInnerHTML']",
+      message: "Use <SafeHtml tagName=\"...\" value={...}/> instead.",
+    }],
+
     "react/jsx-closing-bracket-location": [1, "line-aligned"],
     "object-curly-spacing": [2, "always"],
 
