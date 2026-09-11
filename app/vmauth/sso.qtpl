@@ -1,0 +1,79 @@
+{% package main %}
+
+{% func ssoPageBegin(title string) %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>{%s title %} - vmauth</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            min-height: 100vh;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #ddd5f5 radial-gradient(ellipse 70% 55% at 50% 100%, rgba(110,30,200,.25), transparent 70%);
+        }
+        .card {
+            background: rgba(255,255,255,.82);
+            border: 1px solid rgba(140,80,220,.18);
+            backdrop-filter: blur(12px);
+            border-radius: 12px;
+            padding: 2.75rem 2.25rem;
+            text-align: center;
+            width: 320px;
+        }
+        svg { fill: #1a1033; margin-bottom: 1.75rem; }
+        .error-code { font-weight: 600; color: #c0392b; margin-bottom: .5rem; }
+        .error-desc { font-size: .875rem; color: #555; margin-bottom: 1.5rem; word-break: break-word; }
+        a {
+            display: block;
+            padding: .65rem;
+            background: #7b2ff7;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+        }
+        a:hover { background: #6920e0; }
+        @media (prefers-color-scheme: dark) {
+            body { background: #0f0c1d radial-gradient(ellipse 70% 50% at 50% 100%, rgba(130,0,220,.6), transparent 70%); }
+            .card { background: rgba(255,255,255,.06); border-color: rgba(180,120,255,.18); }
+            svg { fill: #e8e0ff; }
+            .error-desc { color: #aaa; }
+        }
+    </style>
+</head>
+<body>
+<div class="card">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 464.61 533.89" width="52" height="52">
+        <path d="M459.86,467.77c9,7.67,24.12,13.49,39.3,13.69v0h1.68v0c15.18-.2,30.31-6,39.3-13.69,47.43-40.45,184.65-166.24,184.65-166.24,36.84-34.27-65.64-68.28-223.95-68.47h-1.68c-158.31.19-260.79,34.2-224,68.47C275.21,301.53,412.43,427.32,459.86,467.77Z" transform="translate(-267.7 -233.05)"/>
+        <path d="M540.1,535.88c-9,7.67-24.12,13.5-39.3,13.7h-1.6c-15.18-.2-30.31-6-39.3-13.7-32.81-28-148.56-132.93-192.16-172.7v60.74c0,6.67,2.55,15.52,7.09,19.68,29.64,27.18,143.94,131.8,185.07,166.88,9,7.67,24.12,13.49,39.3,13.69v0h1.6v0c15.18-.2,30.31-6,39.3-13.69,41.13-35.08,155.43-139.7,185.07-166.88,4.54-4.16,7.09-13,7.09-19.68V363.18C688.66,403,572.91,507.9,540.1,535.88Z" transform="translate(-267.7 -233.05)"/>
+        <path d="M540.1,678.64c-9,7.67-24.12,13.49-39.3,13.69v0h-1.6v0c-15.18-.2-30.31-6-39.3-13.69-32.81-28-148.56-132.94-192.16-172.7v60.73c0,6.67,2.55,15.53,7.09,19.69,29.64,27.17,143.94,131.8,185.07,166.87,9,7.67,24.12,13.5,39.3,13.7h1.6c15.18-.2,30.31-6,39.3-13.7,41.13-35.07,155.43-139.7,185.07-166.87,4.54-4.16,7.09-13,7.09-19.69V505.94C688.66,545.7,572.91,650.66,540.1,678.64Z" transform="translate(-267.7 -233.05)"/>
+    </svg>
+{% endfunc %}
+
+{% func ssoPageEnd() %}
+</div>
+</body>
+</html>
+{% endfunc %}
+
+{% func SSOLoginPage(authURL string) %}
+{%= ssoPageBegin("Login") %}
+    <a href="{%s authURL %}">Login with SSO</a>
+{%= ssoPageEnd() %}
+{% endfunc %}
+
+{% func SSOErrorPage(errCode, errDescription, retryURL string) %}
+{%= ssoPageBegin("Login error") %}
+    <p class="error-code">{%s errCode %}</p>
+    {% if errDescription != "" %}
+    <p class="error-desc">{%s errDescription %}</p>
+    {% endif %}
+    <a href="{%s retryURL %}">Try again</a>
+{%= ssoPageEnd() %}
+{% endfunc %}
