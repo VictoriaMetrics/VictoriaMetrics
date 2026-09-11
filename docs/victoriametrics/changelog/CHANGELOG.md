@@ -26,6 +26,10 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+## [v1.152.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.152.0)
+
+Release candidate
+
 * SECURITY: upgrade Go builder from Go1.26.6 to Go1.27.1. See [Go 1.27 release notes](https://go.dev/doc/go1.27).
 * SECURITY: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): fix authorization bypass in JWT-based routing when `match_claims` values are used. See [GHSA-f99m-22fh-qw96](https://github.com/VictoriaMetrics/VictoriaMetrics/security/advisories/GHSA-f99m-22fh-qw96).
 * SECURITY: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly escape server-side errors returned by `/metric-relabel-debug` since they could contain parts of user input. This prevents XSS attacks on the `/vmui/#/relabeling` page. See [GHSA-vw10j-rqhg-qff9](https://github.com/VictoriaMetrics/VictoriaMetrics/security/advisories/GHSA-vw9j-rqhg-qff9).
