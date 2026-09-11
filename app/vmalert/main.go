@@ -180,6 +180,10 @@ func main() {
 	if len(listenAddrs) == 0 {
 		listenAddrs = []string{":8880"}
 	}
+
+	// Register paths which could be protected by their own -*AuthKey flag.
+	httpserver.RegisterAuthKeyProtectedPathsFunc(isAuthKeyProtectedPath)
+
 	rh := &requestHandler{m: manager}
 	go httpserver.Serve(listenAddrs, rh.handler, httpserver.ServeOptions{
 		UseProxyProtocol: useProxyProtocol,
