@@ -5,10 +5,46 @@ import (
 	"math/rand"
 	"testing"
 	"time"
+	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
+
+// BenchmarkTableMustAddRowsBuckets measures routing and synchronous shard writes.
+// Preallocated shards are drained after each batch to exclude asynchronous merges.
+func BenchmarkTableMustAddRowsBuckets(b *testing.B) {
+	b.Logf("rawRow size: %d bytes", unsafe.Sizeof(rawRow{}))
+	for _, r := range []int{100, 8000} {
+		for _, p := range []int{2, 12} {
+			for _, layout := range []string{"grouped", "alternating", "single"} {
+				b.Run(fmt.Sprintf("R=%d/P=%d/%s", r, p, layout), func(b *testing.B) {
+					tb := newBucketTestTable(p, r)
+					rows := make([]rawRow, r)
+					for i := range rows {
+						idx := 0
+						switch layout {
+						case "grouped":
+							idx = i * p / r
+						case "alternating":
+							idx = i % p
+						}
+						rows[i] = rawRow{Timestamp: tb.ptws[idx].pt.tr.MinTimestamp, Value: float64(i), PrecisionBits: defaultPrecisionBits}
+					}
+					b.ReportAllocs()
+					b.ResetTimer()
+					for range b.N {
+						tb.MustAddRows(rows)
+						for _, ptw := range tb.ptws {
+							shard := &ptw.pt.rawRows.shards[0]
+							shard.rows = shard.rows[:0]
+						}
+					}
+				})
+			}
+		}
+	}
+}
 
 func BenchmarkTableAddRows(b *testing.B) {
 	for _, tsidsCount := range []int{1e0, 1e1, 1e2, 1e3, 1e4} {
