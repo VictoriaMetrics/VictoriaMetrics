@@ -19,6 +19,9 @@ if [[ "$ARCH" == "amd64" ]]; then
 elif [[ "$ARCH" == "arm64" ]]; then
     RPM_ARCH=aarch64
     EXENAME_SRC="victoria-metrics-linux-arm64-prod"
+elif [[ "$ARCH" == "riscv64" ]]; then
+    RPM_ARCH=riscv64
+    EXENAME_SRC="victoria-metrics-linux-riscv64-prod"
 else
     echo "*** Unknown arch $ARCH"
     exit 1

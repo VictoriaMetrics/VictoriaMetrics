@@ -30,6 +30,9 @@ vmagent-linux-386-prod:
 vmagent-linux-s390x-prod:
 	APP_NAME=vmagent $(MAKE) app-via-docker-linux-s390x
 
+vmagent-linux-riscv64-prod:
+	APP_NAME=vmagent $(MAKE) app-via-docker-linux-riscv64
+
 vmagent-darwin-amd64-prod:
 	APP_NAME=vmagent $(MAKE) app-via-docker-darwin-amd64
 
@@ -63,6 +66,9 @@ package-vmagent-arm64:
 package-vmagent-ppc64le:
 	APP_NAME=vmagent $(MAKE) package-via-docker-ppc64le
 
+package-vmagent-riscv64:
+	APP_NAME=vmagent $(MAKE) package-via-docker-riscv64
+
 package-vmagent-386:
 	APP_NAME=vmagent $(MAKE) package-via-docker-386
 
@@ -91,6 +97,9 @@ vmagent-linux-ppc64le:
 vmagent-linux-s390x:
 	APP_NAME=vmagent CGO_ENABLED=0 GOOS=linux GOARCH=s390x $(MAKE) app-local-goos-goarch
 
+vmagent-linux-riscv64:
+	APP_NAME=vmagent CGO_ENABLED=0 GOOS=linux GOARCH=riscv64 $(MAKE) app-local-goos-goarch
+
 vmagent-linux-loong64:
 	APP_NAME=vmagent CGO_ENABLED=0 GOOS=linux GOARCH=loong64 $(MAKE) app-local-goos-goarch
 
@@ -105,6 +114,9 @@ vmagent-darwin-arm64:
 
 vmagent-freebsd-amd64:
 	APP_NAME=vmagent CGO_ENABLED=0 GOOS=freebsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
+vmagent-netbsd-amd64:
+	APP_NAME=vmagent CGO_ENABLED=0 GOOS=netbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
 
 vmagent-openbsd-amd64:
 	APP_NAME=vmagent CGO_ENABLED=0 GOOS=openbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
