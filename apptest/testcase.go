@@ -391,7 +391,10 @@ type AssertOptions struct {
 // times in order to account for the fact that the inserted data does not become
 // available for querying right away (especially in cluster version of
 // VictoriaMetrics).
-func (tc *TestCase) Assert(opts *AssertOptions) {
+//
+// If assertion passes, the method returns got result in case if further
+// inspection of the result is needed.
+func (tc *TestCase) Assert(opts *AssertOptions) any {
 	tc.t.Helper()
 
 	const (
@@ -414,9 +417,10 @@ func (tc *TestCase) Assert(opts *AssertOptions) {
 	var diff string
 
 	for range opts.Retries {
-		diff = cmp.Diff(opts.Want, opts.Got(), opts.CmpOpts...)
+		got := opts.Got()
+		diff = cmp.Diff(opts.Want, got, opts.CmpOpts...)
 		if diff == "" {
-			return
+			return got
 		}
 		time.Sleep(opts.Period)
 	}
@@ -428,6 +432,8 @@ func (tc *TestCase) Assert(opts *AssertOptions) {
 	} else {
 		tc.t.Error(msg)
 	}
+
+	return nil
 }
 
 var _ io.Writer = &outputProcessor{}

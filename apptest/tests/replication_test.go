@@ -1187,7 +1187,7 @@ func TestClusterReplication_PartialResponseMultitenant(t *testing.T) {
 		tc.Assert(&apptest.AssertOptions{
 			Msg: "unexpected /api/v1/query response",
 			Got: func() any {
-				qo := apptest.QueryOpts{Tenant: "multitenant", Trace: "1"}
+				qo := apptest.QueryOpts{Tenant: "multitenant"}
 				return app.PrometheusAPIV1Query(t, `{__name__=~"metric_.*"}`, qo)
 			},
 			Want: &apptest.PrometheusAPIV1QueryResponse{

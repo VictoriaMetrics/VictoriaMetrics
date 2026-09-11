@@ -419,7 +419,7 @@ func (c *vmselectClient) PrometheusAPIV1AdminTSDBDeleteSeries(t *testing.T, matc
 // usage stats response for given params.
 //
 // See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#track-ingested-metrics-usage
-func (c *vmselectClient) PrometheusAPIV1StatusMetricNamesStats(t *testing.T, limit, le, matchPattern string, opts QueryOpts) MetricNamesStatsResponse {
+func (c *vmselectClient) PrometheusAPIV1StatusMetricNamesStats(t *testing.T, limit, le, matchPattern string, opts QueryOpts) *MetricNamesStatsResponse {
 	t.Helper()
 	url := c.url("select", "prometheus/api/v1/status/metric_names_stats", opts)
 	values := opts.asURLValues()
@@ -434,7 +434,7 @@ func (c *vmselectClient) PrometheusAPIV1StatusMetricNamesStats(t *testing.T, lim
 	if err := json.Unmarshal([]byte(res), &resp); err != nil {
 		t.Fatalf("could not unmarshal metric names stats response data:\n%s\n err: %v", res, err)
 	}
-	return resp
+	return &resp
 }
 
 // PrometheusAPIV1StatusTSDB retrieves the TSDB status for the time series that
