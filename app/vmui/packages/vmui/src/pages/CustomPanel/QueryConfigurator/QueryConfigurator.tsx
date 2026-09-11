@@ -8,10 +8,8 @@ import { useTimeDispatch } from "../../../state/time/TimeStateContext";
 import { getQueryStringValue } from "../../../utils/query-string";
 import {
   DeleteIcon,
-  PlayIcon,
   PlusIcon,
   Prettify,
-  SpinnerIcon,
   VisibilityIcon,
   VisibilityOffIcon
 } from "../../../components/Main/Icons";
@@ -19,7 +17,6 @@ import Button from "../../../components/Main/Button/Button";
 import "./style.scss";
 import Tooltip from "../../../components/Main/Tooltip/Tooltip";
 import classNames from "classnames";
-import { MouseEvent as ReactMouseEvent } from "react";
 import { arrayEquals } from "../../../utils/array";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import useSearchParamsFromObject from "../../../hooks/useSearchParamsFromObject";
@@ -28,6 +25,7 @@ import { usePrettifyQuery } from "./hooks/usePrettifyQuery";
 import QueryHistory from "../../../components/QueryHistory/QueryHistory";
 import QueryEditorAutocomplete from "../../../components/Configurators/QueryEditor/QueryEditorAutocomplete";
 import { getUpdatedHistory } from "../../../components/QueryHistory/utils";
+import ExecuteButton from "./ExecuteButton/ExecuteButton";
 
 export interface QueryConfiguratorProps {
   queryErrors?: string[];
@@ -107,15 +105,15 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
   };
 
   const handleRemoveQuery = (index: number) => {
-    setStateQuery(prev => prev.filter((q, i) => i !== index));
+    setStateQuery(prev => prev.filter((_q, i) => i !== index));
   };
 
-  const handleToggleHideQuery = (e: ReactMouseEvent<HTMLButtonElement>, index: number) => {
+  const handleToggleHideQuery = (e: MouseEvent, index: number) => {
     const { ctrlKey, metaKey } = e;
     const ctrlMetaKey = ctrlKey || metaKey;
 
     if (ctrlMetaKey) {
-      const hideIndexes = stateQuery.map((q, i) => i).filter(n => n !== index);
+      const hideIndexes = stateQuery.map((_q, i) => i).filter(n => n !== index);
       setHideQuery(prev => arrayEquals(hideIndexes, prev) ? [] : hideIndexes);
     } else {
       setHideQuery(prev => prev.includes(index) ? prev.filter(n => n !== index) : [...prev, index]);
@@ -156,7 +154,7 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
     setHideQuery(prev => prev.includes(i) ? prev.filter(n => n !== i) : prev.map(n => n > i ? n - 1 : n));
   };
 
-  const createHandlerHideQuery = (i: number) => (e: ReactMouseEvent<HTMLButtonElement>) => {
+  const createHandlerHideQuery = (i: number) => (e: MouseEvent) => {
     handleToggleHideQuery(e, i);
   };
 
@@ -202,7 +200,7 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
     })}
   >
     <div className="vm-query-configurator-list">
-      {stateQuery.map((q, i) => (
+      {stateQuery.map((_q, i) => (
         <div
           className={classNames({
             "vm-query-configurator-list-row": true,
@@ -285,13 +283,10 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
             Add Query
           </Button>
         )}
-        <Button
-          variant="contained"
+        <ExecuteButton
           onClick={handleRunQuery}
-          startIcon={isLoading ? <SpinnerIcon/> : <PlayIcon/>}
-        >
-          {`${isLoading ? "Cancel" : "Execute"} ${isMobile ? "" : "Query"}`}
-        </Button>
+          isLoading={isLoading}
+        />
       </div>
     </div>
   </div>;
