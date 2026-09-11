@@ -194,7 +194,7 @@ func (tb *table) addPartitionWrapperLocked(pt *partition) *partitionWrapper {
 
 // MustClose closes the table.
 //
-// This func must be called only when there are no goroutines using the the
+// This func must be called only when there are no goroutines using the
 // table, such as ones that ingest or retrieve time series samples or index
 // data.
 func (tb *table) MustClose() {

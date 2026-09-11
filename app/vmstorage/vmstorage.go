@@ -33,7 +33,7 @@ var (
 	snapshotsMaxAge              = flagutil.NewRetentionDuration("snapshotsMaxAge", "3d", "Automatically delete snapshots older than -snapshotsMaxAge if it is set to non-zero duration. Make sure that backup process has enough time to finish the backup before the corresponding snapshot is automatically deleted")
 )
 
-// newVMStorage creates a new instance of of VMStorage.
+// newVMStorage creates a new instance of VMStorage.
 //
 // The created VMStorage instance takes ownership of s.
 func newVMStorage(s *storage.Storage, vmselectMaxConcurrentRequests int, resetCacheIfNeeded func(mrs []storage.MetricRow)) *VMStorage {
