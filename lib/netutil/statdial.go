@@ -37,20 +37,29 @@ func newStatDialFunc(metricPrefix string, dialFunc func(ctx context.Context, net
 			bytesWrittenTotal: metrics.GetOrCreateCounter(fmt.Sprintf(`%s_conn_bytes_written_total`, metricPrefix)),
 		}
 
-		network := GetTCPNetwork()
-		conn, err := dialFunc(ctx, network, addr)
+		conn, err := dialTCP(ctx, addr, dialFunc)
 		sc.dialsTotal.Inc()
 		if err != nil {
 			sc.dialErrors.Inc()
-			if !TCP6Enabled() && !isTCPv4Addr(addr) && !isUnixSocketDialError(err) {
-				err = fmt.Errorf("%w; try -enableTCP6 command-line flag for dialing ipv6 addresses", err)
-			}
 			return nil, err
 		}
 		sc.Conn = conn
 		sc.conns.Inc()
 		return sc, nil
 	}
+}
+
+// DialTCP dials the given TCP addr over the network selected by -enableTCP6.
+func DialTCP(ctx context.Context, addr string) (net.Conn, error) {
+	return dialTCP(ctx, addr, Dialer.DialContext)
+}
+
+func dialTCP(ctx context.Context, addr string, dialFunc func(ctx context.Context, network, addr string) (net.Conn, error)) (net.Conn, error) {
+	conn, err := dialFunc(ctx, GetTCPNetwork(), addr)
+	if err != nil && !TCP6Enabled() && !isTCPv4Addr(addr) && !isUnixSocketDialError(err) {
+		return nil, fmt.Errorf("%w; try -enableTCP6 command-line flag for dialing ipv6 addresses", err)
+	}
+	return conn, err
 }
 
 func isUnixSocketDialError(err error) bool {

@@ -139,3 +139,20 @@ func TestNormalizeAddrError(t *testing.T) {
 	f("http://vmstorage-0.svc.cluster.local.:80")
 	f("/vmstorage-0.svc.cluster.local.:80")
 }
+
+func TestIsDialableIP(t *testing.T) {
+	f := func(tcp6 bool, ip string, want bool) {
+		t.Helper()
+		orig := *enableTCP6
+		defer func() { *enableTCP6 = orig }()
+		*enableTCP6 = tcp6
+		if got := IsDialableIP(net.ParseIP(ip)); got != want {
+			t.Fatalf("unexpected result for enableTCP6=%v, ip=%q; got %v; want %v", tcp6, ip, got, want)
+		}
+	}
+	f(false, "10.0.0.1", true)
+	f(false, "::ffff:10.0.0.1", true)
+	f(false, "2001:db8::1", false)
+	f(true, "10.0.0.1", true)
+	f(true, "2001:db8::1", true)
+}
