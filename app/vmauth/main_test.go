@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"crypto"
@@ -2267,4 +2268,78 @@ func newTestString(sLen int) string {
 		data[i] = byte(i)
 	}
 	return string(data)
+}
+
+// TestBufferedBody_DataRace reproduces https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11508
+func TestBufferedBody_DataRace(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("cannot listen: %s", err)
+	}
+	defer ln.Close()
+
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			go func(c net.Conn) {
+				defer c.Close()
+				br := bufio.NewReader(c)
+				// Read request headers
+				for {
+					line, err := br.ReadString('\n')
+					if err != nil || line == "\r\n" || line == "\n" {
+						break
+					}
+				}
+				// Immediately reply 503 without consuming full body
+				resp := "HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+				_, _ = c.Write([]byte(resp))
+			}(conn)
+		}
+	}()
+
+	backendURL := "http://" + ln.Addr().String()
+	cfgStr := fmt.Sprintf(`
+users:
+- username: foo
+  password: bar
+  retry_status_codes: [503]
+  url_prefix:
+  - %s
+  - %s
+`, backendURL, backendURL)
+
+	cfgOrigP := authConfigData.Load()
+	if _, err := reloadAuthConfigData([]byte(cfgStr)); err != nil {
+		t.Fatalf("cannot load config data: %s", err)
+	}
+	defer func() {
+		cfgOrig := []byte("unauthorized_user:\n  url_prefix: http://foo/bar")
+		if cfgOrigP != nil {
+			cfgOrig = *cfgOrigP
+		}
+		_, err := reloadAuthConfigData(cfgOrig)
+		if err != nil {
+			t.Fatalf("cannot load original config: %s", err)
+		}
+	}()
+
+	for _, size := range []int{200, 5000} {
+		for range 5 {
+			body := bytes.NewReader(bytes.Repeat([]byte("large-request-body-chunk-"), size))
+			r, err := http.NewRequest(http.MethodPost, "http://foo:bar@localhost/", body)
+			if err != nil {
+				t.Fatalf("cannot create request: %s", err)
+			}
+			r.RequestURI = "/"
+			r.RemoteAddr = "127.0.0.1:1234"
+			r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+			w := &fakeResponseWriter{}
+			_ = requestHandlerWithInternalRoutes(w, r)
+		}
+	}
 }
