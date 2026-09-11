@@ -29,6 +29,7 @@ var (
 func InitSecretFlags() {
 	// The -pushmetrics.url flag can contain basic auth creds, so it mustn't be visible when exposing the flags.
 	flagutil.RegisterSecretFlag("pushmetrics.url")
+	flagutil.RegisterSecretFlag("pushmetrics.header")
 }
 
 var (

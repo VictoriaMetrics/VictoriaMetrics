@@ -138,7 +138,7 @@ Below are the steps to get `vmanomaly` up and running inside a Docker container:
 1. Pull Docker image:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.30.4
+docker pull victoriametrics/vmanomaly:v1.30.5
 ```
 
 2. Create the license file with your license key.
@@ -158,7 +158,7 @@ docker run -it \
     -v ./license:/license \
     -v ./config.yaml:/config.yaml \
     -p 8490:8490 \
-    victoriametrics/vmanomaly:v1.30.4 \
+    victoriametrics/vmanomaly:v1.30.5 \
     /config.yaml \
     --licenseFile=/license \
     --loggerLevel=INFO \
@@ -175,7 +175,7 @@ docker run -it \
     -e VMANOMALY_DATA_DUMPS_DIR=/tmp/vmanomaly/data \
     -e VMANOMALY_MODEL_DUMPS_DIR=/tmp/vmanomaly/models \
     -p 8490:8490 \
-    victoriametrics/vmanomaly:v1.30.4 \
+    victoriametrics/vmanomaly:v1.30.5 \
     /config.yaml \
     --licenseFile=/license \
     --loggerLevel=INFO \
@@ -188,7 +188,7 @@ services:
   # ...
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.30.4
+    image: victoriametrics/vmanomaly:v1.30.5
     # ...
     restart: always
     volumes:
@@ -325,6 +325,8 @@ writer:
 > [!TIP]
 > Public playgrounds with pre-configured `vmanomaly` instances and VictoriaMetrics/VictoriaLogs/VictoriaTraces datasources are available for interactive experimenting without the need to set up your own instance or getting an enterprise license. You can find them in the [UI documentation](https://docs.victoriametrics.com/anomaly-detection/ui/#playgrounds) or access them directly via the links - [metrics](https://play-vmanomaly.victoriametrics.com/metrics/), [logs](https://play-vmanomaly.victoriametrics.com/logs/), [traces](https://play-vmanomaly.victoriametrics.com/traces/) - or embedded versions in the collapsible blocks.
 
+<div class="collapse-group mb-3">
+
 {{% collapse name="Playground on VictoriaMetrics Datasource" %}}
 
 <div class="position-relative mb-3">
@@ -400,6 +402,8 @@ writer:
 </div>
 
 {{% /collapse %}}
+
+</div>
 
 ### Recommended steps
 

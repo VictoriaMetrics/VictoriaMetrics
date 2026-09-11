@@ -501,56 +501,34 @@ func builtinRoutesHandler(s *server, r *http.Request, w http.ResponseWriter, rh 
 		}
 		// Check HTTP Basic Auth here for all the paths except of the ones verifying
 		// the corresponding -*AuthKey flag on their own at rh() below
-		if !isProtectedByAuthFlag(r.URL.Path) && !CheckBasicAuth(w, r) {
+		//
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6329
+		if !isProtectedByAuthFlag(r) && !CheckBasicAuth(w, r) {
 			return true
 		}
 	}
 	return rh(w, r)
 }
 
-// pathsProtectedByAuthFlag contains paths, which explicitly call CheckAuthFlag() on their own,
-// so there is no need in checking HTTP Basic Auth for them at builtinRoutesHandler().
+var isAuthKeyProtectedPathFunc func(r *http.Request) bool
+
+// RegisterAuthKeyProtectedPathsFunc registers f, which must return true for requests
+// served by handlers verifying the corresponding -*AuthKey flag on their own.
+// There is no need in checking HTTP Basic Auth for such requests at builtinRoutesHandler().
 //
-// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6329
-//
-// Every supported path must be listed here explicitly.
-var pathsProtectedByAuthFlag = map[string]struct{}{
-	// for vminsert and vmagent
-	"/config":               {},
-	"/api/v1/status/config": {},
-
-	// for vminsert, vmagent, vmauth and vmalert
-	"/-/reload": {},
-
-	// for vmagent
-	"/remotewrite-relabel-config":                   {},
-	"/api/v1/status/remotewrite-relabel-config":     {},
-	"/remotewrite-url-relabel-config":               {},
-	"/api/v1/status/remotewrite-url-relabel-config": {},
-
-	// for vmselect
-	"/internal/resetRollupResultCache":                    {},
-	"/tags/delSeries":                                     {},
-	"/graphite/tags/delSeries":                            {},
-	"/api/v1/admin/tsdb/delete_series":                    {},
-	"/prometheus/api/v1/admin/tsdb/delete_series":         {},
-	"/api/v1/admin/status/metric_names_stats/reset":       {},
-	"/admin/api/v1/admin/status/metric_names_stats/reset": {},
-
-	// for vmstorage
-	"/internal/force_merge":       {},
-	"/internal/force_flush":       {},
-	"/internal/log_new_series":    {},
-	"/api/v1/admin/tsdb/snapshot": {},
-	"/snapshot/create":            {},
-	"/snapshot/list":              {},
-	"/snapshot/delete":            {},
-	"/snapshot/delete_all":        {},
+// Must be called before Serve().
+func RegisterAuthKeyProtectedPathsFunc(f func(r *http.Request) bool) {
+	if isAuthKeyProtectedPathFunc != nil {
+		logger.Panicf("BUG: RegisterAuthKeyProtectedPathsFunc() must be called only once before Serve()")
+	}
+	isAuthKeyProtectedPathFunc = f
 }
 
-func isProtectedByAuthFlag(path string) bool {
-	_, ok := pathsProtectedByAuthFlag[path]
-	return ok
+func isProtectedByAuthFlag(r *http.Request) bool {
+	if isAuthKeyProtectedPathFunc == nil {
+		return false
+	}
+	return isAuthKeyProtectedPathFunc(r)
 }
 
 // CheckAuthFlag checks whether the given authKey is set and valid
