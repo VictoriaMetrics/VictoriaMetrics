@@ -238,6 +238,9 @@ func main() {
 	if len(listenAddrs) == 0 {
 		listenAddrs = []string{":8482"}
 	}
+	// Register paths which could be protected by their own -*AuthKey flag.
+	httpserver.RegisterAuthKeyProtectedPathsFunc(isAuthKeyProtectedPath)
+
 	go httpserver.Serve(listenAddrs, vmStorage.requestHandler, httpserver.ServeOptions{UseProxyProtocol: useProxyProtocol})
 
 	pushmetrics.Init()
@@ -271,6 +274,18 @@ func main() {
 	fs.MustStopDirRemover()
 	appmetrics.MustRemoveUncleanShutdownMarker(*storageDataPath)
 	logger.Infof("the vmstorage has been stopped")
+}
+
+// isAuthKeyProtectedPath returns true for paths, which verify -forceMergeAuthKey, -forceFlushAuthKey,
+// -logNewSeriesAuthKey or -snapshotAuthKey on their own at requestHandler().
+func isAuthKeyProtectedPath(r *http.Request) bool {
+	switch r.URL.Path {
+	case "/internal/force_merge", "/internal/force_flush", "/internal/log_new_series",
+		"/snapshot/create", "/snapshot/list", "/snapshot/delete", "/snapshot/delete_all":
+		return true
+	default:
+		return false
+	}
 }
 
 // requestHandler is a storage request handler.
