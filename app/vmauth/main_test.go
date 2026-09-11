@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"crypto"
@@ -2267,4 +2268,104 @@ func newTestString(sLen int) string {
 		data[i] = byte(i)
 	}
 	return string(data)
+}
+
+// TestBufferedBody_DataRace reproduces https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11508
+func TestBufferedBody_DataRace(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("cannot listen: %s", err)
+	}
+	defer ln.Close()
+
+	var backendRequestsCount atomic.Int64
+
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			go func(c net.Conn) {
+				defer c.Close()
+				backendRequestsCount.Add(1)
+				br := bufio.NewReader(c)
+				// Read request headers
+				for {
+					line, err := br.ReadString('\n')
+					if err != nil || line == "\r\n" || line == "\n" {
+						break
+					}
+				}
+				// Immediately reply 503 without consuming full body
+				resp := "HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+				_, _ = c.Write([]byte(resp))
+			}(conn)
+		}
+	}()
+
+	backendURL := "http://" + ln.Addr().String()
+	cfgStr := fmt.Sprintf(`
+users:
+- username: foo
+  password: bar
+  retry_status_codes: [503]
+  url_prefix:
+  - %s
+  - %s
+  - %s
+`, backendURL, backendURL, backendURL)
+
+	cfgOrigP := authConfigData.Load()
+	if _, err := reloadAuthConfigData([]byte(cfgStr)); err != nil {
+		t.Fatalf("cannot load config data: %s", err)
+	}
+	defer func() {
+		cfgOrig := []byte("unauthorized_user:\n  url_prefix: http://foo/bar")
+		if cfgOrigP != nil {
+			cfgOrig = *cfgOrigP
+		}
+		_, err := reloadAuthConfigData(cfgOrig)
+		if err != nil {
+			t.Fatalf("cannot load original config: %s", err)
+		}
+	}()
+
+	// size 200: body size 5KB <= 16KB maxRequestBodySizeToRetry (canRetry = true, retries across all 3 backends)
+	// size 5000: body size 125KB > 16KB maxRequestBodySizeToRetry (canRetry = false, fails on 1st backend without retry)
+	for _, tc := range []struct {
+		size             int
+		expectedStatus   int
+		expectedAttempts int64
+	}{
+		{size: 200, expectedStatus: http.StatusBadGateway, expectedAttempts: 3},
+		{size: 5000, expectedStatus: http.StatusServiceUnavailable, expectedAttempts: 1},
+	} {
+		for range 5 {
+			requestsBefore := backendRequestsCount.Load()
+			body := bytes.NewReader(bytes.Repeat([]byte("large-request-body-chunk-"), tc.size))
+			r, err := http.NewRequest(http.MethodPost, "http://foo:bar@localhost/", body)
+			if err != nil {
+				t.Fatalf("cannot create request: %s", err)
+			}
+			r.RequestURI = "/"
+			r.RemoteAddr = "127.0.0.1:1234"
+			r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+			w := &fakeResponseWriter{}
+			ok := requestHandlerWithInternalRoutes(w, r)
+			if !ok {
+				t.Fatalf("requestHandlerWithInternalRoutes returned false")
+			}
+			if w.statusCode != tc.expectedStatus {
+				t.Fatalf("unexpected status code for size %d; got %d; want %d; response: %s",
+					tc.size, w.statusCode, tc.expectedStatus, w.getResponse())
+			}
+			attempts := backendRequestsCount.Load() - requestsBefore
+			if attempts != tc.expectedAttempts {
+				t.Fatalf("unexpected attempts for size %d; got %d; want %d",
+					tc.size, attempts, tc.expectedAttempts)
+			}
+		}
+	}
 }

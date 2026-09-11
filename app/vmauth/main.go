@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"flag"
@@ -507,8 +508,21 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 		}
 	}
 
-	bb, bbOK := req.Body.(*bufferedBody)
+	bb, bbOK := r.Body.(*bufferedBody)
 	canRetry := !bbOK || bb.canRetry()
+	if bbOK {
+		if canRetry {
+			req.Body = io.NopCloser(bytes.NewReader(bb.buf))
+			r.Body = io.NopCloser(bytes.NewReader(bb.buf))
+		} else {
+			r.Body = http.NoBody
+		}
+		defer func() {
+			if canRetry {
+				r.Body = bb
+			}
+		}()
+	}
 
 	res, err := ui.rt.RoundTrip(req)
 	if err == nil {
@@ -842,6 +856,8 @@ func handleConcurrencyLimitError(w http.ResponseWriter, r *http.Request, err err
 //
 // See bufferRequestBody for details on how bufferedBody is used.
 type bufferedBody struct {
+	mu sync.Mutex
+
 	// r contains reader for reading the data after buf is read.
 	//
 	// r is nil if buf contains all the data.
@@ -874,21 +890,28 @@ func newBufferedBody(r io.ReadCloser, buf []byte, maxBufSize int) *bufferedBody 
 
 // Read implements io.Reader interface.
 func (bb *bufferedBody) Read(p []byte) (int, error) {
+	bb.mu.Lock()
 	if bb.cannotRetry {
+		bb.mu.Unlock()
 		return 0, fmt.Errorf("cannot read already closed request body")
 	}
 	if bb.bufOffset < len(bb.buf) {
 		n := copy(p, bb.buf[bb.bufOffset:])
 		bb.bufOffset += n
+		bb.mu.Unlock()
 		return n, nil
 	}
-	if bb.r == nil {
+	r := bb.r
+	bb.mu.Unlock()
+	if r == nil {
 		return 0, io.EOF
 	}
-	return bb.r.Read(p)
+	return r.Read(p)
 }
 
 func (bb *bufferedBody) canRetry() bool {
+	bb.mu.Lock()
+	defer bb.mu.Unlock()
 	if bb.r != nil {
 		return false
 	}
@@ -898,16 +921,22 @@ func (bb *bufferedBody) canRetry() bool {
 
 // Close implements io.Closer interface.
 func (bb *bufferedBody) Close() error {
-	bb.resetReader()
-	bb.cannotRetry = !bb.canRetry()
-	if bb.r != nil {
-		return bb.r.Close()
+	bb.mu.Lock()
+	bb.bufOffset = 0
+	canRetry := bb.r == nil && (len(bb.buf) == 0 || (maxRequestBodySizeToRetry.IntN() > 0 && len(bb.buf) <= maxRequestBodySizeToRetry.IntN()))
+	bb.cannotRetry = !canRetry
+	r := bb.r
+	bb.mu.Unlock()
+	if r != nil {
+		return r.Close()
 	}
 	return nil
 }
 
 func (bb *bufferedBody) resetReader() {
+	bb.mu.Lock()
 	bb.bufOffset = 0
+	bb.mu.Unlock()
 }
 
 func debugInfo(u *url.URL, r *http.Request) string {
