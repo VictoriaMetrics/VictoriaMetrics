@@ -115,20 +115,7 @@ func (app *Vmagent) APIV1ImportPrometheusNoWaitFlush(t *testing.T, records []str
 // If tenant is set in QueryOpts, it will return cluster-like path for ingestion.
 // If tenant is empty, it will return single-node (no tenants) path.
 func getVMAgentInsertPath(addr, suffix string, o QueryOpts) string {
-	if o.Tenant != "" {
-		// QueryOpts.Tenant has priority over headers
-		return fmt.Sprintf("http://%s/insert/%s/%s", addr, o.Tenant, suffix)
-	}
-
-	h := o.getHeaders()
-	if h.Get("AccountID") != "" || h.Get("ProjectID") != "" {
-		// vmagent supports tenantID in HTTP headers only if -enableMultitenantHandlers and -enableMultitenancyViaHeaders are set
-		// see https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy
-		return fmt.Sprintf("http://%s/insert/%s", addr, suffix)
-	}
-
-	// tenant is missing in QueryOpts and in HTTP headers. Use single-node (no tenants) path
-	return fmt.Sprintf("http://%s/%s", addr, suffix)
+	return getSingleOrMultitenantInsertPath(addr, suffix, o)
 }
 
 // RemoteWriteRequestsRetriesCountTotal sums up the total retries for remote write requests.

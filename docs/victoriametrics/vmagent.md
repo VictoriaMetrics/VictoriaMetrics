@@ -553,7 +553,7 @@ When comparing the remote protocols between VictoriaMetrics and Prometheus, Vict
 
 `vmagent` uses VictoriaMetrics remote write protocol by default {{% available_from "v1.116.0" %}} when it sends data to VictoriaMetrics components such as other `vmagent` instances,
 [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
-or `vminsert` at [cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/). If needed, it can automatically downgrade to a Prometheus protocol at runtime.
+, `vminsert` at [cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) or `vmstorage`at [cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) (See [Remote write directly to vmstorage](https://docs.victoriametrics.com/victoriametrics/data-ingestion/vmagent/#remote-write-directly-to-vmstorage)). If needed, it can automatically downgrade to a Prometheus protocol at runtime.
 It is possible to force switch to VictoriaMetrics remote write protocol by specifying `-remoteWrite.forceVMProto`
 command-line flag for the corresponding `-remoteWrite.url`.
 It is possible to tune the compression level for VictoriaMetrics remote write protocol with the `-remoteWrite.vmProtoCompressLevel` command-line flag.
