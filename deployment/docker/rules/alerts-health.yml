@@ -100,7 +100,7 @@ groups:
             - Use `source_code_url` annotation to check the source code that produced the log message.
 
             NOTE: The metric `vm_log_messages_total` tracks all log messages including those suppressed by `-loggerLevel`. Check the `is_printed` label to see whether the log was actually printed.
-          source_code_url: '{{ with printf "vm_log_messages_total{job=%q,instance=%q,location=%q}" $labels.job $labels.instance $labels.location | query | first }}https://l2s.victoriametrics.com/?app_version={{ .Labels.app_version }}&location={{ $labels.location | urlquery }}{{ end }}'
+          source_code_url: '{{ with printf "last_over_time(vm_log_messages_total{job=%q,instance=%q,location=%q}[6m])" $labels.job $labels.instance $labels.location | query }}{{ with index . 0 }}https://l2s.victoriametrics.com/?app_version={{ .Labels.app_version }}&location={{ $labels.location | urlquery }}{{ end }}{{ end }}'
 
       - alert: TooManyLogs
         expr: sum(increase(vm_log_messages_total{level="warn"}[5m])) without (app_version, location, is_printed) > 0
