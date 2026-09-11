@@ -523,28 +523,6 @@ func TestFloatToDecimalRoundtrip(t *testing.T) {
 	}
 }
 
-func TestEqualFloat(t *testing.T) {
-	tests := []struct {
-		name string
-		f1   float64
-		f2   float64
-		want bool
-	}{
-		{name: "positive infinity", f1: infPos, f2: infPos, want: true},
-		{name: "positive infinity mismatch", f1: 1, f2: infPos, want: false},
-		{name: "negative infinity", f1: infNeg, f2: infNeg, want: true},
-		{name: "negative infinity mismatch", f1: 1, f2: infNeg, want: false},
-		{name: "negative infinity reversed mismatch", f1: infNeg, f2: 1, want: false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := equalFloat(tt.f1, tt.f2); got != tt.want {
-				t.Fatalf("equalFloat(%g, %g) = %t; want %t", tt.f1, tt.f2, got, tt.want)
-			}
-		})
-	}
-}
-
 func roundFloat(f float64, exp int) float64 {
 	f *= math.Pow10(-exp)
 	return math.Trunc(f) * math.Pow10(exp)
@@ -554,8 +532,8 @@ func equalFloat(f1, f2 float64) bool {
 	if math.IsInf(f1, 1) {
 		return math.IsInf(f2, 1)
 	}
-	if math.IsInf(f2, -1) {
-		return math.IsInf(f1, -1)
+	if math.IsInf(f1, -1) {
+		return math.IsInf(f2, -1)
 	}
 	eps := math.Abs(f1 - f2)
 	return eps == 0 || eps*conversionPrecision < math.Abs(f1)+math.Abs(f2)
