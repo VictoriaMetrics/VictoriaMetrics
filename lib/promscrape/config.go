@@ -344,6 +344,7 @@ type ScrapeConfig struct {
 
 	// These options are supported only by lib/promscrape.
 	DisableCompression  bool                       `yaml:"disable_compression,omitempty"`
+	AcceptEncoding      string                     `yaml:"accept_encoding,omitempty"`
 	DisableKeepAlive    bool                       `yaml:"disable_keepalive,omitempty"`
 	StreamParse         bool                       `yaml:"stream_parse,omitempty"`
 	ScrapeAlignInterval *promutil.Duration         `yaml:"scrape_align_interval,omitempty"`
@@ -1028,6 +1029,7 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		sampleLimit:          sampleLimit,
 		labelLimit:           labelLimit,
 		disableCompression:   disableCompression,
+		acceptEncoding:       sc.AcceptEncoding,
 		disableKeepAlive:     sc.DisableKeepAlive,
 		streamParse:          sc.StreamParse,
 		scrapeAlignInterval:  sc.ScrapeAlignInterval.Duration(),
@@ -1060,6 +1062,7 @@ type scrapeWorkConfig struct {
 	sampleLimit          int
 	labelLimit           int
 	disableCompression   bool
+	acceptEncoding       string
 	disableKeepAlive     bool
 	streamParse          bool
 	scrapeAlignInterval  time.Duration
@@ -1378,6 +1381,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		RelabelConfigs:       swc.relabelConfigs,
 		MetricRelabelConfigs: swc.metricRelabelConfigs,
 		DisableCompression:   swc.disableCompression,
+		AcceptEncoding:       swc.acceptEncoding,
 		DisableKeepAlive:     swc.disableKeepAlive,
 		StreamParse:          streamParse,
 		ScrapeAlignInterval:  swc.scrapeAlignInterval,

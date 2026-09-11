@@ -205,9 +205,9 @@ func benchmarkScrapeWorkScrapeInternal(b *testing.B, data []byte, streamParse bo
 	protoparserutil.StartUnmarshalWorkers()
 	defer protoparserutil.StopUnmarshalWorkers()
 
-	readData := func(dst *chunkedbuffer.Buffer) (bool, error) {
+	readData := func(dst *chunkedbuffer.Buffer) (string, error) {
 		dst.MustWrite(data)
-		return false, nil
+		return "", nil
 	}
 
 	b.ReportAllocs()
