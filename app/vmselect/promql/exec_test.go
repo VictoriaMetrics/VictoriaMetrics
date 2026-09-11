@@ -2480,6 +2480,45 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`label_replace(merge_non_overlapping)`, func(t *testing.T) {
+		t.Parallel()
+		q := `
+		label_replace((
+			label_set(time() < 1500, "a", "A"),
+			label_set(time() >= 1600, "a", "B"),
+		), "a", "X", "a", ".*")`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("a"),
+			Value: []byte("X"),
+		}}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`label_replace(merge_three_non_overlapping)`, func(t *testing.T) {
+		t.Parallel()
+		q := `
+		label_replace((
+			label_set(time() < 1300, "a", "A"),
+			label_set((time() >= 1400) <= 1600, "a", "B"),
+			label_set(time() >= 2000, "a", "C"),
+		), "a", "X", "a", ".*")`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, nan, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("a"),
+			Value: []byte("X"),
+		}}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`label_match()`, func(t *testing.T) {
 		t.Parallel()
 		q := `
@@ -10695,6 +10734,14 @@ func TestExecError(t *testing.T) {
 	f(`(label_set(1, "foo", "bar") or label_set(2, "foo", "baz"))
 		+ on(xx)
 		(label_set(1, "foo", "bar") or label_set(2, "foo", "baz"))`)
+	f(`label_replace((
+		label_set(time(), "a", "A"),
+		label_set(time(), "a", "B"),
+	), "a", "X", "a", ".*")`)
+	f(`label_replace((
+		label_set(time() <= 1.3, "a", "A"),
+		label_set(time(), "a", "B"),
+	), "a", "X", "a", ".*")`)
 
 	// Invalid binary op groupings
 	f(`1 + group_left() (label_set(1, "foo", bar"), label_set(2, "foo", "baz"))`)
