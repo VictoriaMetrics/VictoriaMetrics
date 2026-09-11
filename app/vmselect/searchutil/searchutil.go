@@ -1,6 +1,8 @@
 package searchutil
 
 import (
+	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"net/http"
@@ -9,7 +11,6 @@ import (
 
 	"github.com/VictoriaMetrics/metricsql"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
@@ -38,34 +39,39 @@ func GetMaxQueryDuration(r *http.Request) time.Duration {
 	return d
 }
 
-// GetDeadlineForQuery returns deadline for the given query r.
-func GetDeadlineForQuery(r *http.Request, startTime time.Time) Deadline {
+// GetDeadlineForQuery returns context for the given query r.
+func GetContextForQuery(r *http.Request, startTime time.Time) (context.Context, func()) {
 	dMax := maxQueryDuration.Milliseconds()
-	return getDeadlineWithMaxDuration(r, startTime, dMax, "-search.maxQueryDuration")
+	deadline := getDeadlineWithMaxDuration(r, startTime, dMax, "-search.maxQueryDuration")
+	return NewContext(r.Context(), deadline)
 }
 
-// GetDeadlineForStatusRequest returns deadline for the given request to /api/v1/status/*.
-func GetDeadlineForStatusRequest(r *http.Request, startTime time.Time) Deadline {
+// GetContextForStatusRequest returns context for the given request to /api/v1/status/*.
+func GetContextForStatusRequest(r *http.Request, startTime time.Time) (context.Context, func()) {
 	dMax := maxStatusRequestDuration.Milliseconds()
-	return getDeadlineWithMaxDuration(r, startTime, dMax, "-search.maxStatusRequestDuration")
+	deadline := getDeadlineWithMaxDuration(r, startTime, dMax, "-search.maxStatusRequestDuration")
+	return NewContext(r.Context(), deadline)
 }
 
-// GetDeadlineForExport returns deadline for the given request to /api/v1/export.
-func GetDeadlineForExport(r *http.Request, startTime time.Time) Deadline {
+// GetContextForExport returns context for the given request to /api/v1/export.
+func GetContextForExport(r *http.Request, startTime time.Time) (context.Context, func()) {
 	dMax := maxExportDuration.Milliseconds()
-	return getDeadlineWithMaxDuration(r, startTime, dMax, "-search.maxExportDuration")
+	deadline := getDeadlineWithMaxDuration(r, startTime, dMax, "-search.maxExportDuration")
+	return NewContext(r.Context(), deadline)
 }
 
-// GetDeadlineForLabelsAPI returns deadline for the given request to /api/v1/labels, /api/v1/label/.../values or /api/v1/series
-func GetDeadlineForLabelsAPI(r *http.Request, startTime time.Time) Deadline {
+// GetContextForLabelsAPI returns context for the given request to /api/v1/labels, /api/v1/label/.../values or /api/v1/series
+func GetContextForLabelsAPI(r *http.Request, startTime time.Time) (context.Context, func()) {
 	dMax := maxLabelsAPIDuration.Milliseconds()
-	return getDeadlineWithMaxDuration(r, startTime, dMax, "-search.maxLabelsAPIDuration")
+	deadline := getDeadlineWithMaxDuration(r, startTime, dMax, "-search.maxLabelsAPIDuration")
+	return NewContext(r.Context(), deadline)
 }
 
-// GetDeadlineForDelete returns deadline for the given request to /api/v1/admin/tsdb/delete_series.
-func GetDeadlineForDelete(r *http.Request, startTime time.Time) Deadline {
+// GetDeadlineForDelete returns context for the given request to /api/v1/admin/tsdb/delete_series.
+func GetContextForDelete(r *http.Request, startTime time.Time) (context.Context, func()) {
 	dMax := maxDeleteDuration.Milliseconds()
-	return getDeadlineWithMaxDuration(r, startTime, dMax, "-search.maxDeleteDuration")
+	deadline := getDeadlineWithMaxDuration(r, startTime, dMax, "-search.maxDeleteDuration")
+	return NewContext(r.Context(), deadline)
 }
 
 func getDeadlineWithMaxDuration(r *http.Request, startTime time.Time, dMax int64, flagHint string) Deadline {
@@ -78,6 +84,56 @@ func getDeadlineWithMaxDuration(r *http.Request, startTime time.Time, dMax int64
 	}
 	timeout := time.Duration(d) * time.Millisecond
 	return NewDeadline(startTime, timeout, flagHint)
+}
+
+// Context defines search context with deadline hint
+type searchContext struct {
+	context.Context
+	deadline Deadline
+}
+
+// NewContext return new context for given parent context and deadline
+func NewContext(ctx context.Context, deadline Deadline) (context.Context, func()) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ctx, cancel := context.WithDeadline(ctx, time.Unix(int64(deadline.Deadline()), 0))
+	return &searchContext{
+		Context:  ctx,
+		deadline: deadline,
+	}, cancel
+}
+
+// IsContextDone check if given context is cancelled
+func IsContextDone(ctx context.Context) bool {
+	select {
+	case <-ctx.Done():
+
+		return true
+	default:
+	}
+	return false
+}
+
+// Err return context error if there is any
+func (ctx *searchContext) Err() error {
+	err := ctx.Context.Err()
+	if err == nil {
+		return nil
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return fmt.Errorf("context deadline timeout: %s: %w", ctx.deadline.String(), context.DeadlineExceeded)
+	}
+	return err
+}
+
+// DeadlineTimeoutHint formats deadline from provided context and fall-back deadline time
+func DeadlineTimeoutHint(ctx context.Context, deadline time.Time) string {
+	sCtx, ok := ctx.(*searchContext)
+	if !ok {
+		return deadline.String()
+	}
+	return sCtx.deadline.String()
 }
 
 // Deadline contains deadline with the corresponding timeout for pretty error messages.
@@ -98,18 +154,6 @@ func NewDeadline(startTime time.Time, timeout time.Duration, flagHint string) De
 		timeout:  timeout,
 		flagHint: flagHint,
 	}
-}
-
-// DeadlineFromTimestamp returns deadline from the given timestamp in seconds.
-func DeadlineFromTimestamp(timestamp uint64) Deadline {
-	startTime := time.Now()
-	timeout := time.Unix(int64(timestamp), 0).Sub(startTime)
-	return NewDeadline(startTime, timeout, "")
-}
-
-// Exceeded returns true if deadline is exceeded.
-func (d *Deadline) Exceeded() bool {
-	return fasttime.UnixTimestamp() > d.deadline
 }
 
 // Deadline returns deadline in unix timestamp seconds.

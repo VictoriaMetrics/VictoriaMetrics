@@ -204,7 +204,6 @@ var (
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	path := strings.ReplaceAll(r.URL.Path, "//", "/")
-
 	if handleStaticAndSimpleRequests(w, r, path) {
 		return true
 	}
