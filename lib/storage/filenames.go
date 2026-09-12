@@ -12,6 +12,7 @@ const (
 	resetCacheOnStartupFilename = "reset_cache_on_startup"
 
 	tsidCacheFilename         = "metricName_tsid"
+	tsidCacheFPFilename       = "metricNameFPv1_tsid"
 	metricIDCacheFilename     = "metricID_tsid"
 	metricNameCacheFilename   = "metricID_metricName"
 	prevHourMetricIDsFilename = "prev_hour_metric_ids_v2"

@@ -16,6 +16,11 @@ import (
 
 func TestMain(m *testing.M) {
 	isDebug = true
+	// Allow running the whole storage test suite against the fingerprint tsid
+	// cache key mode via VM_TSID_CACHE_KEY_MODE=fingerprint, to prove parity.
+	if mode := os.Getenv("VM_TSID_CACHE_KEY_MODE"); mode != "" {
+		SetTSIDCacheKeyMode(mode)
+	}
 	n := m.Run()
 	fs.MustRemoveDir("benchmarkTableSearch")
 	os.Exit(n)
