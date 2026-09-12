@@ -8197,6 +8197,121 @@
           ],
           "title": "Consumer errors",
           "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "description": "Shows the highest Kafka request queue latency and broker RTT for each selected instance, destination and topic. See [librdkafka statistics](https://github.com/confluentinc/librdkafka/blob/master/STATISTICS.md#brokers) for the measurement definitions.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "transparent",
+                    "value": 0
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 60
+          },
+          "id": 172,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.2.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "exemplar": true,
+              "expr": "max(\n  vmagent_remotewrite_kafka_outbuf_latency_seconds{job=~\"$job\", instance=~\"$instance\"}\n) by (job, instance, url_id, topic, broker)",
+              "interval": "",
+              "legendFormat": "request queue: {{instance}} ({{job}}), topic={{topic}}, url_id={{url_id}}",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "expr": "max(\n  vmagent_remotewrite_kafka_rtt_seconds{job=~\"$job\", instance=~\"$instance\"}\n) by (job, instance, url_id, topic, broker)",
+              "legendFormat": "broker RTT: {{instance}} ({{job}}), topic={{topic}}, url_id={{url_id}}",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "Kafka producer latency ($instance)",
+          "type": "timeseries"
         }
       ],
       "title": "Kafka (Enterprise)",
