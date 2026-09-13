@@ -2,10 +2,12 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -948,7 +950,9 @@ func TestBrokenBackend(t *testing.T) {
 	}
 }
 
-func TestDiscoverBackendIPsWithIPV6(t *testing.T) {
+func TestDiscoverBackendIPsWithEnableTCP6(t *testing.T) {
+	setTCP6EnabledForTest(t, true)
+
 	f := func(actualUrl, expectedUrl string) {
 		t.Helper()
 		up := mustParseURL(actualUrl)
@@ -1015,6 +1019,62 @@ func TestDiscoverBackendIPsWithIPV6(t *testing.T) {
 	f("http://ipv6.vminsert.local:8080", "[2607:f8b0:400a:80b::200e]:8080")
 	f("http://ipv6.vminsert.local", "[2607:f8b0:400a:80b::200e]:")
 
+}
+
+func TestDiscoverBackendIPsWithoutEnableTCP6(t *testing.T) {
+	setTCP6EnabledForTest(t, false)
+
+	f := func(actualURL, expectedHost string) {
+		t.Helper()
+		up := mustParseURL(actualURL)
+		up.discoverBackendIPs = true
+		up.loadBalancingPolicy = "least_loaded"
+
+		up.discoverBackendAddrsIfNeeded()
+		pbus := up.bus.Load()
+		bus := pbus.bus
+
+		if len(bus) != 1 {
+			t.Fatalf("expected url list to be of size 1; got %d instead", len(bus))
+		}
+		if got := bus[0].url.Host; got != expectedHost {
+			t.Fatalf(`expected url to be %q; got %q instead`, expectedHost, got)
+		}
+	}
+
+	customResolver := &fakeResolver{
+		Resolver: &net.Resolver{},
+		lookupIPAddrResults: map[string][]net.IPAddr{
+			"vminsert.local": {
+				{
+					IP: net.ParseIP("10.0.10.13"),
+				},
+				{
+					IP: net.ParseIP("2607:f8b0:400a:80b::200e"),
+				},
+			},
+		},
+	}
+	origResolver := netutil.Resolver
+	netutil.Resolver = customResolver
+	defer func() {
+		netutil.Resolver = origResolver
+	}()
+	f("http://vminsert.local:8080", "10.0.10.13:8080")
+	f("http://vminsert.local", "10.0.10.13:")
+}
+
+func setTCP6EnabledForTest(t *testing.T, enabled bool) {
+	t.Helper()
+	originalValue := netutil.TCP6Enabled()
+	if err := flag.Set("enableTCP6", strconv.FormatBool(enabled)); err != nil {
+		t.Fatalf("cannot set -enableTCP6=%t: %s", enabled, err)
+	}
+	t.Cleanup(func() {
+		if err := flag.Set("enableTCP6", strconv.FormatBool(originalValue)); err != nil {
+			t.Fatalf("cannot restore -enableTCP6=%t: %s", originalValue, err)
+		}
+	})
 }
 
 func TestLogRequest(t *testing.T) {
