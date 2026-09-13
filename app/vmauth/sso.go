@@ -166,6 +166,20 @@ func verifyCSRFCookie(cookieValue, cookieSecret string) (nonce, originalURL stri
 	return parts[0], parts[1], nil
 }
 
+// setSSONoCacheHeaders sets Content-Type and no-cache headers on SSO responses.
+// Login and callback pages must not be cached because they contain CSRF tokens
+// and auth state that are valid for a single flow.
+//
+// No-cache headers follow oauth2-proxy convention:
+// https://github.com/oauth2-proxy/oauth2-proxy/blob/33c2eb92dea78204f7a18bc2dfdbccc220f39257/oauthproxy.go#L1089
+func setSSONoCacheHeaders(w http.ResponseWriter) {
+	h := w.Header()
+	h.Set("Content-Type", "text/html; charset=utf-8")
+	h.Set("Cache-Control", "no-cache, no-store, must-revalidate, max-age=0")
+	h.Set("Expires", "Thu, 01 Jan 1970 00:00:00 GMT")
+	h.Set("X-Accel-Expires", "0")
+}
+
 // processSSOLogin renders a minimal HTML page with a single "Login with SSO"
 // button pointing directly to the OIDC provider's authorization endpoint.
 // Only GET and HEAD requests are redirected to the IdP; other methods receive
@@ -180,7 +194,7 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 	}
 	pm := oidc.pm.Load()
 	if pm == nil {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusServiceUnavailable)
 		WriteSSOErrorPage(w, "Identity Provider is not available, try again later", "", "/")
 		return true
@@ -190,7 +204,7 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 	// https://openid.net/specs/openid-connect-core-1_0.html#NonceNotes
 	nonce, err := generateSSONonce()
 	if err != nil {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusInternalServerError)
 		WriteSSOErrorPage(w, "Internal Server Error", "", "/")
 		return true
@@ -229,8 +243,12 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 	params.Set("state", nonceHash)
 	authURL := pm.AuthorizationEndpoint + "?" + params.Encode()
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
+	// Return 401 so that programmatic clients (curl, Grafana, scripts) can
+	// distinguish "not authenticated" from a successful response. A 200 would
+	// cause API callers (e.g. /api/v1/query) to try parsing the HTML login
+	// page as valid data.
+	setSSONoCacheHeaders(w)
+	w.WriteHeader(http.StatusUnauthorized)
 	WriteSSOLoginPage(w, authURL)
 	return true
 }
@@ -239,14 +257,14 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 	oidc := getSSOConfigForHost(r.Host)
 	if oidc == nil {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusUnauthorized)
 		WriteSSOErrorPage(w, "SSO not configured for this host", ``, "/")
 		return
 	}
 	pm := oidc.pm.Load()
 	if pm == nil {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusServiceUnavailable)
 		WriteSSOErrorPage(w, "Identity Provider is not available, try again later", "", "/")
 		return
@@ -256,7 +274,7 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 	// binds this callback to the browser session that initiated the flow.
 	csrfCookie, err := r.Cookie(ssoCsrfCookieName)
 	if err != nil {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusBadRequest)
 		WriteSSOErrorPage(w, "Missing CSRF Cookie", "", "/")
 		return
@@ -264,7 +282,7 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 	nonce, originalURL, err := verifyCSRFCookie(csrfCookie.Value, oidc.CookieSecret)
 	if err != nil {
 		logger.Warnf("SSO callback: invalid CSRF cookie from %s: %s", r.RemoteAddr, err)
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusBadRequest)
 		WriteSSOErrorPage(w, "Invalid CSRF Cookie", "", "/")
 		return
@@ -276,7 +294,7 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 	nonceHash := base64.RawURLEncoding.EncodeToString(h[:])
 	if state := r.URL.Query().Get("state"); state != nonceHash {
 		logger.Warnf("SSO callback: state mismatch from %s", r.RemoteAddr)
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusBadRequest)
 		WriteSSOErrorPage(w, "Invalid state parameter", "", "/")
 		return
@@ -287,7 +305,7 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 	if errCode := r.URL.Query().Get("error"); errCode != "" {
 		errDescription := r.URL.Query().Get("error_description")
 		logger.Warnf("SSO callback: IdP returned error %q (%s) for %s", errCode, errDescription, r.RemoteAddr)
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusUnauthorized)
 		WriteSSOErrorPage(w, errCode, errDescription, "/")
 		return
@@ -295,7 +313,7 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 
 	code := r.URL.Query().Get("code")
 	if code == "" {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusBadRequest)
 		WriteSSOErrorPage(w, "Missing code parameter", "", "/")
 		return
@@ -304,7 +322,7 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 	idToken, err := exchangeCodeForIDToken(r.Context(), pm.TokenEndpoint, oidc, code, getSSORedirectURL(r, oidc))
 	if err != nil {
 		logger.Warnf("SSO callback: token exchange failed: %s", err)
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusBadRequest)
 		WriteSSOErrorPage(w, "Token exchange failed", "", "/")
 		return
@@ -312,7 +330,7 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 
 	if err := validateIDToken(idToken, pm, nonceHash); err != nil {
 		logger.Warnf("SSO callback: id_token verification failed from %s: %s", r.RemoteAddr, err)
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusUnauthorized)
 		WriteSSOErrorPage(w, "Token verification failed", "", "/")
 		return
