@@ -28,6 +28,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 * FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): log informative message when a JWT token has no `vm_access` claim and `default_vm_access_claim` is not configured, if `-logInvalidAuthTokens` is enabled. See [JWT claim-based request templating](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-based-request-templating) or [#11579](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11579).
 
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): respect the `-enableTCP6` flag when discovering backend IPs via [`discover_backend_ips`](https://docs.victoriametrics.com/victoriametrics/vmauth/#discovering-backend-ips) or `-discoverBackendIPs`. Previously, discovery included IPv6 addresses even when IPv6 support was disabled. See [#11470](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11470).
+
 ## [v1.152.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.152.0)
 
 Released at 2026-09-14

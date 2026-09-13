@@ -10,6 +10,7 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"os"
 	"regexp"
@@ -580,9 +581,19 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 				logger.Warnf("cannot discover backend IPs for %s: %s; use it literally", bu, err)
 				resolvedAddrs = []string{host}
 			} else {
-				resolvedAddrs = make([]string, len(addrs))
-				for i, addr := range addrs {
-					resolvedAddrs[i] = net.JoinHostPort(addr.String(), port)
+				resolvedAddrs = make([]string, 0, len(addrs))
+				for _, addr := range addrs {
+					if !netutil.TCP6Enabled() {
+						ip, ok := netip.AddrFromSlice(addr.IP)
+						if !ok {
+							logger.Panicf("BUG: cannot build netip Addr from slice addr: %q", addr.IP.String())
+						}
+						if !ip.Unmap().Is4() {
+							continue
+						}
+					}
+					ip := addr.IP.String()
+					resolvedAddrs = append(resolvedAddrs, net.JoinHostPort(ip, port))
 				}
 			}
 		}
