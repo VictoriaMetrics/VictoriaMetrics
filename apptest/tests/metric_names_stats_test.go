@@ -332,7 +332,7 @@ func TestClusterMetricNamesStatsWithParams(t *testing.T) {
 	vmstorage2.ForceFlush(t)
 
 	// verify ingested dataset correctly registered
-	expected := apptest.MetricNamesStatsResponse{
+	expected := &apptest.MetricNamesStatsResponse{
 		Records: []apptest.MetricNamesStatsRecord{
 			{MetricName: "metric_name_1"},
 			{MetricName: "metric_name_2"},
@@ -344,7 +344,7 @@ func TestClusterMetricNamesStatsWithParams(t *testing.T) {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
 	// and for second cluster
-	expected = apptest.MetricNamesStatsResponse{
+	expected = &apptest.MetricNamesStatsResponse{
 		Records: []apptest.MetricNamesStatsRecord{
 			{MetricName: "metric_name_0"},
 			{MetricName: "metric_name_1"},
@@ -362,7 +362,7 @@ func TestClusterMetricNamesStatsWithParams(t *testing.T) {
 		Tenant: tenantID, Time: ingestDateTime,
 	})
 
-	expected = apptest.MetricNamesStatsResponse{
+	expected = &apptest.MetricNamesStatsResponse{
 		Records: []apptest.MetricNamesStatsRecord{
 			{MetricName: "metric_name_2", QueryRequestsCount: 1},
 			{MetricName: "metric_name_3", QueryRequestsCount: 1},
@@ -375,7 +375,7 @@ func TestClusterMetricNamesStatsWithParams(t *testing.T) {
 	}
 
 	// check global stats with query params
-	expected = apptest.MetricNamesStatsResponse{
+	expected = &apptest.MetricNamesStatsResponse{
 		Records: []apptest.MetricNamesStatsRecord{
 			{MetricName: "metric_name_0", QueryRequestsCount: 0},
 		},
@@ -384,7 +384,7 @@ func TestClusterMetricNamesStatsWithParams(t *testing.T) {
 	if diff := cmp.Diff(expected, gotStats); diff != "" {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
-	expected = apptest.MetricNamesStatsResponse{
+	expected = &apptest.MetricNamesStatsResponse{
 		Records: []apptest.MetricNamesStatsRecord{
 			{MetricName: "metric_name_0", QueryRequestsCount: 0},
 		},
