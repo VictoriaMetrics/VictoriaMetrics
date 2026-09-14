@@ -1744,7 +1744,9 @@ func (db *indexDB) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, t
 	qtMultiDaySearch.Printf("merge metricIDs")
 	all := &uint64set.Set{}
 	for _, metricIDs := range metricIDsByDate {
-		all.UnionMayOwn(metricIDs)
+		// Do not use UnionMayOwn because the search result may be coming from
+		// the tfssCache and its contents must not be modified.
+		all.Union(metricIDs)
 		if all.Len() > maxMetrics {
 			return nil, errTooManyTimeseries(maxMetrics)
 		}
@@ -1758,6 +1760,10 @@ func (db *indexDB) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, t
 //
 // If the number of found metricIDs exceeds maxMetrics limit, the method returns
 // an error.
+//
+// The returned metricIDs set must not be modified because its pointer is stored
+// in tfssCache and subsequent searches for that date and tfss will return
+// invalid set.
 func (db *indexDB) searchMetricIDsByDateAndFilters(qt *querytracer.Tracer, date uint64, tfss []*TagFilters, maxMetrics int, deadline uint64) (*uint64set.Set, error) {
 	qt = qt.NewChild("search metricIDs: filters=%s, date=%s, maxMetrics=%d", tfss, dateToString(date), maxMetrics)
 	defer qt.Done()
