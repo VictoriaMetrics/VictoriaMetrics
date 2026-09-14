@@ -17,9 +17,9 @@ var disableMmap = flag.Bool("fs.disableMmap", is32BitPtr, "Whether to use pread(
 	"By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. "+
 	"mmap() is usually faster for reading small data chunks than pread()")
 
-var disableFadviseRandomRead = flag.Bool("fs.disableFadviseRandomRead", false, "Whether to disable POSIX_FADV_RANDOM hint for data files. "+
-	"This reduces the amount of unneeded data read from disk during queries. "+
-	"Disabling POSIX_FADV_RANDOM may improve performance for heavy queries that read most of the data in large data files.")
+var disableAdviseRandomRead = flag.Bool("fs.disableAdviseRandomRead", false, "Whether to disable FADV_RANDOM and MADV_RANDOM hints for data files. "+
+	"These hints reduce the amount of unneeded data read from disk during queries via pread() and mmap(). "+
+	"Disabling these hints may improve performance for heavy queries that read most of the data in large data files.")
 
 var disableMincore = flag.Bool("fs.disableMincore", false, "Whether to disable the mincore() syscall for checking mmap()ed files. "+
 	"By default, mincore() is used to detect whether mmap()ed file pages are resident in memory. "+
@@ -108,9 +108,14 @@ func (r *ReaderAt) getMmapReader() *mmapReader {
 	mr = r.mr.Load()
 	if mr == nil {
 		mr = newMmapReaderFromPath(r.path)
-		if !r.disableRandomReadHint && !*disableFadviseRandomRead {
+		if !r.disableRandomReadHint && !*disableAdviseRandomRead {
 			if err := fadviseRandomRead(mr.f); err != nil {
-				logger.Fatalf("FATAL: cannot apply POSIX_FADV_RANDOM hint to %q: %s; try disabling it with -fs.disableFadviseRandomRead=true", r.path, err)
+				logger.Fatalf("FATAL: cannot apply FADV_RANDOM hint to %q: %s; try disabling it with -fs.disableAdviseRandomRead=true", r.path, err)
+			}
+			if len(mr.mmapData) > 0 {
+				if err := madviseRandomRead(mr.mmapData); err != nil {
+					logger.Fatalf("FATAL: cannot apply MADV_RANDOM hint to %q: %s; try disabling it with -fs.disableAdviseRandomRead=true", r.path, err)
+				}
 			}
 		}
 		r.mr.Store(mr)
