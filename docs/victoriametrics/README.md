@@ -1323,7 +1323,7 @@ flowchart LR
     VMAUTH -.->|"2. Fail over if Primary<br/>is unavailable"| VM2
 ```
 
-This is **the most cost-efficient option** because it queries only one VictoriaMetrics instance at a time. If any of instance fails to respond, vmauth will transparently for user re-route requests to the next available instance.
+This is **the most cost-efficient option** because it queries only one VictoriaMetrics instance at a time. If any instance fails to respond, vmauth will transparently re-route requests to the next available instance.
 
 The downside of this approach is that when one instance goes down and then comes back, the load balancer may start routing
 read queries to it again. Even though this instance didn't catch up yet with vmagent's queue and may return incomplete results.
@@ -1358,7 +1358,7 @@ flowchart LR
     VMSELECT -->|"Merged and deduplicated results"| Client
 ```
 
-This option **requires extra resource**s on vmselect because it queries all remote destinations simultaneously and merges
+This option **requires extra resources** on vmselect because it queries all remote destinations simultaneously and merges
 their responses before returning the final result.
 
 The benefit is that it can handle data gaps across destinations by merging responses from all VictoriaMetrics instances (as long as at least one instance has all the data without gaps).
@@ -1782,7 +1782,7 @@ up{job="node_exporter", team="analytics"} 1
 up{job="node_exporter", team="developers"} 1
 ```
 
-Here, `team` label can be treated as a tenant identifier. Assuming that all metrics have label `team` attached, we can [enforce a tenant filter for all queryies](https://docs.victoriametrics.com/victoriametrics/#prometheus-querying-api-enhancements) via `extra_label` query parameter:
+Here, `team` label can be treated as a tenant identifier. Assuming that all metrics have label `team` attached, we can [enforce a tenant filter for all queries](https://docs.victoriametrics.com/victoriametrics/#prometheus-querying-api-enhancements) via `extra_label` query parameter:
 ```sh
 /api/v1/query?match[]=up&extra_label=team=developers
 ```
@@ -1802,9 +1802,9 @@ users:
       - url_prefix: "http://victoriametrics:8428/?extra_label=team=analytics"
 ```
 
-It is allowed setting multiple `extra_label` query parameters, or even `extra_filters` with regex support - see more details [here](https://docs.victoriametrics.com/victoriametrics/#prometheus-querying-api-enhancements).
+It is allowed to set multiple `extra_label` query parameters, or even `extra_filters` with regex support - see more details [here](https://docs.victoriametrics.com/victoriametrics/#prometheus-querying-api-enhancements).
 
-The extra label can be uncoditionally applied to all ingested data within request if `extra_label` param is set:
+The extra label can be unconditionally applied to all ingested data within request if `extra_label` param is set:
 ```sh
 curl -X POST "http://victoriametrics:8428/api/v1/import?extra_label=team=developers" -T data_to_import.jsonl 
 ```

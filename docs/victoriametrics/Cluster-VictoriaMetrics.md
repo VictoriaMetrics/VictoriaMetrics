@@ -302,7 +302,7 @@ For executing queries, `vmselect` node is configured with `-storageNode=<vmstora
 
 By default, the single-node VictoriaMetrics can't be queried by `vmselect`. Enable this functionality by configuring the `-vmselectAddr` command-line flag for single-node VictoriaMetrics. It will start the `vmselect RPC server` that accepts requests and serves responses in the cluster format.
 
-Cluster format assumes [multitenancy](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy), and single-node VictoriaMetrics [does not support multitenancy](). But with `-vmselectAddr` enabled, single-node VictoriaMetrics assumes all the data it stores belongs to `"0:0"` tenant. This default tenant can be changed by specifying extra `-accountID` and `-projectID` command-line flags for single-node VictoriaMetrics.
+Cluster format assumes [multitenancy](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy), and single-node VictoriaMetrics [does not support multitenancy](https://docs.victoriametrics.com/victoriametrics/#multi-tenancy). But with `-vmselectAddr` enabled, single-node VictoriaMetrics assumes all the data it stores belongs to `"0:0"` tenant. This default tenant can be changed by specifying extra `-accountID` and `-projectID` command-line flags for single-node VictoriaMetrics.
 
 For example, the following command will start a single-node that listens for `vmselect` RPC requests on the `8401` port. The requests must be either `/multitenant/` (i.e., [read data from all tenants](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenant-reads)) or for `"12:34"` tenant. Otherwise, the single-node will return an empty result:
 ```sh
@@ -311,7 +311,7 @@ For example, the following command will start a single-node that listens for `vm
 
 > The `tenantID` configuration is not persisted in any way and is enforced only at runtime. Thus, it is safe to change the `-accountID` and `-projectID` flag values at any time.
 
-To make `vmselect` component to query from single-node and `vmstorage` nodes at the same time simply list their addresses in the `-storageNode` command-line flag:
+To make them `vmselect` node query data from a single-node and `vmstorage` nodes at the same time, simply list their addresses in the `-storageNode` command-line flag:
 ```sh
 /path/to/vmselect \
  -storageNode=<single-node-host:8401> \
