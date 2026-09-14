@@ -849,8 +849,6 @@ func (db *indexDB) searchLabelValuesByDateAndFilters(qt *querytracer.Tracer, dat
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9489
 	if labelName == "" || !isSingleMetricNameFilter(tfss) {
 		var err error
-		// TODO(@rtm0): It asks for non-composite scan but
-		// searchMetricIDsByDateAndFilters will convert it to composite filter.
 		filter, err = db.searchMetricIDsByDateAndFilters(qt, date, tfss, maxMetrics, deadline)
 		if err != nil {
 			return nil, err
