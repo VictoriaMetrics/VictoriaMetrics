@@ -26,8 +26,7 @@ VictoriaMetrics components detect the available memory at startup as the smaller
 To keep them stable:
 
 1. Do not set the [`GOMEMLIMIT` environment variable](https://pkg.go.dev/runtime#hdr-Environment_Variables). Set a cgroup memory limit instead.
-   VictoriaMetrics automatically sizes its memory-aware limits from it. All VictoriaMetrics components have their own
-   [`GOGC` settings](https://pkg.go.dev/runtime#hdr-Environment_Variables), which work optimally in the majority of cases.
+   VictoriaMetrics automatically sizes its memory-aware limits from it.
 
 1. Do not hand-tune cache sizes with `-storage.cacheSize*` flags; rely on the defaults.
    If a component needs larger caches, move it to a host with more memory.
