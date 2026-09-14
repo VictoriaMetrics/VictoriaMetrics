@@ -1744,7 +1744,7 @@ func (db *indexDB) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, t
 	qtMultiDaySearch.Printf("merge metricIDs")
 	all := &uint64set.Set{}
 	for _, metricIDs := range metricIDsByDate {
-		all.Union(metricIDs)
+		all.UnionMayOwn(metricIDs)
 		if all.Len() > maxMetrics {
 			return nil, errTooManyTimeseries(maxMetrics)
 		}
