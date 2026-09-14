@@ -667,11 +667,11 @@ func TestScrapeWorkScrapeInternalStreamConcurrency(t *testing.T) {
 	}
 
 	generateScrape := func(n int) string {
-		w := strings.Builder{}
+		var w strings.Builder
 		for i := range n {
-			w.WriteString(fmt.Sprintf("fooooo_%d 1\n", i))
+			fmt.Fprintf(&w, "fooooo_%d 1\n", i)
 			if i%100 == 0 {
-				w.WriteString(fmt.Sprintf("# HELP fooooo_%d This is a test\n", i))
+				fmt.Fprintf(&w, "# HELP fooooo_%d This is a test\n", i)
 			}
 		}
 		return w.String()
@@ -1005,9 +1005,9 @@ func TestSendStaleSeries(t *testing.T) {
 		}
 	}
 	generateScrape := func(n int) string {
-		w := strings.Builder{}
+		var w strings.Builder
 		for i := range n {
-			w.WriteString(fmt.Sprintf("foo_%d 1\n", i))
+			fmt.Fprintf(&w, "foo_%d 1\n", i)
 		}
 		return w.String()
 	}

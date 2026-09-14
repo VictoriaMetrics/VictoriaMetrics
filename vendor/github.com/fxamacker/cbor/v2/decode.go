@@ -1769,6 +1769,7 @@ func (d *decoder) parseToTime() (time.Time, bool, error) {
 			}
 			return t, true, nil
 		}
+		d.skip()
 		return time.Time{}, false, &UnmarshalTypeError{CBORType: t.String(), GoType: typeTime.String()}
 
 	case cborTypeTextString:
@@ -1845,6 +1846,7 @@ func (d *decoder) parseToTime() (time.Time, bool, error) {
 		return time.Unix(int64(seconds), int64(fractional*1e9)), true, nil
 
 	default:
+		d.skip()
 		return time.Time{}, false, &UnmarshalTypeError{CBORType: t.String(), GoType: typeTime.String()}
 	}
 }
@@ -2263,7 +2265,7 @@ func (d *decoder) applyByteStringTextConversion(
 		default:
 			// If this happens, there is a bug: the decoder has pushed an invalid
 			// "expected later encoding" tag to the stack.
-			panic(fmt.Sprintf("unrecognized expected later encoding tag: %d", d.expectedLaterEncodingTags))
+			panic(fmt.Sprintf("unrecognized expected later encoding tag: %d", d.expectedLaterEncodingTags[len(d.expectedLaterEncodingTags)-1]))
 		}
 
 	case reflect.Slice:

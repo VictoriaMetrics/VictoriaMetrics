@@ -20,8 +20,9 @@ import (
 )
 
 var (
-	httpListenAddr = flag.String("httpListenAddr", ":8421", "TCP address for exporting metrics at /metrics page")
-	src            = flag.String("src", "", "Source path with backup on the remote storage. "+
+	httpListenAddr = flag.String("httpListenAddr", ":8421", "Address for exporting metrics at /metrics page. "+
+		"Use unix:/path/to/socket to listen on Unix domain socket")
+	src = flag.String("src", "", "Source path with backup on the remote storage. "+
 		"Example: gs://bucket/path/to/backup, s3://bucket/path/to/backup, azblob://container/path/to/backup or fs:///path/to/local/backup\n"+
 		"Note: If custom S3 endpoint is used, URL should contain only name of the bucket, while hostname of S3 server must be specified via the -customS3Endpoint command-line flag.")
 	storageDataPath = flag.String("storageDataPath", "victoria-metrics-data", "Destination path where backup must be restored. "+
@@ -38,6 +39,7 @@ func main() {
 	flag.CommandLine.SetOutput(os.Stdout)
 	flag.Usage = usage
 	envflag.Parse()
+	initSecretFlags()
 	buildinfo.Init()
 	logger.Init()
 
@@ -111,4 +113,9 @@ func newSrcFS(ctx context.Context) (common.RemoteFS, error) {
 		return nil, fmt.Errorf("cannot parse `-src`=%q: %w", *src, err)
 	}
 	return fs, nil
+}
+
+// initSecretFlags manages the secret flags for this app and must be called after flag parsing and before logger init.
+func initSecretFlags() {
+	pushmetrics.InitSecretFlags()
 }

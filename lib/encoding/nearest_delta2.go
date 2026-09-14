@@ -56,7 +56,7 @@ func marshalInt64NearestDelta2(dst []byte, src []int64, precisionBits uint8) (re
 // firstValue must be the value returned from marshalInt64NearestDelta2.
 func unmarshalInt64NearestDelta2(dst []int64, src []byte, firstValue int64, itemsCount int) ([]int64, error) {
 	if itemsCount < 2 {
-		logger.Panicf("BUG: itemsCount must be greater than 1; got %d", itemsCount)
+		return nil, fmt.Errorf("itemsCount must be greater than 1; got %d", itemsCount)
 	}
 
 	is := GetInt64s(itemsCount - 1)

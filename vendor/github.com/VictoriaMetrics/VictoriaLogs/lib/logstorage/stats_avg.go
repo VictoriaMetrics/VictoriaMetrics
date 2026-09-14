@@ -15,7 +15,7 @@ type statsAvg struct {
 }
 
 func (sa *statsAvg) String() string {
-	return "avg(" + fieldNamesString(sa.fieldFilters) + ")"
+	return "avg(" + fieldFiltersString(sa.fieldFilters) + ")"
 }
 
 func (sa *statsAvg) updateNeededFields(pf *prefixfilter.Filter) {

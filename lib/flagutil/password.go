@@ -121,7 +121,7 @@ func (p *Password) initRandomValue() {
 	_, err := io.ReadFull(rand.Reader, buf[:])
 	if err != nil {
 		// cannot use lib/logger here, since it can be uninitialized yet
-		panic(fmt.Errorf("FATAL: cannot read random data: %s", err))
+		panic(fmt.Errorf("FATAL: cannot read random data: %w", err))
 	}
 	s := string(buf[:])
 	p.value.Store(&s)

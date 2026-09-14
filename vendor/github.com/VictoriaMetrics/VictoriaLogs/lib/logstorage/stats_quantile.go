@@ -24,7 +24,7 @@ type statsQuantile struct {
 func (sq *statsQuantile) String() string {
 	s := "quantile(" + sq.phiStr
 	if !prefixfilter.MatchAll(sq.fieldFilters) {
-		s += ", " + fieldNamesString(sq.fieldFilters)
+		s += ", " + fieldFiltersString(sq.fieldFilters)
 	}
 	s += ")"
 	return s

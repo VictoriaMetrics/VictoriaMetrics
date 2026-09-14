@@ -3,8 +3,9 @@ package prompb
 import (
 	"encoding/binary"
 	"math"
-	"reflect"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestUnmarshalTimeSeries(t *testing.T) {
@@ -18,8 +19,8 @@ func TestUnmarshalTimeSeries(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		if !reflect.DeepEqual(tss, wantTSS) {
-			t.Fatalf("unexpected result\ngot:\n%v\nwant:\n%v", tss, wantTSS)
+		if diff := cmp.Diff(wantTSS, tss); len(diff) > 0 {
+			t.Fatalf("unexpected timeseries (-want, +got):\n%s", diff)
 		}
 	}
 
@@ -194,6 +195,93 @@ func TestUnmarshalTimeSeries(t *testing.T) {
 			{
 				Labels:  []Label{{Name: "__name__", Value: "rpc_latency_seconds_sum"}},
 				Samples: []Sample{{Value: 42.0, Timestamp: 4000}},
+			},
+		})
+	}
+
+	{
+		// verify histogram fields are correctly reused
+		nativeHistogramC := nativeHistogramContext{
+			countInt:         0,
+			isCountFloat:     true,
+			countFloat:       2.5,
+			sum:              1.0,
+			schema:           1,
+			zeroThreshold:    0.00001,
+			isZeroCountFloat: true,
+			zeroCountFloat:   0.5,
+			timestamp:        3000,
+			positiveSpans:    []bucketSpan{{offset: 1, length: 2}},
+			positiveCounts:   []float64{1.5, 1.0},
+			negativeSpans:    []bucketSpan{{offset: 0, length: 1}},
+		}
+		nativeHistogramC2 := nativeHistogramContext{
+			countInt:         0,
+			isCountFloat:     true,
+			countFloat:       0,
+			sum:              1.0,
+			schema:           1,
+			zeroThreshold:    0.00001,
+			isZeroCountFloat: true,
+			zeroCountFloat:   0.5,
+			timestamp:        4000,
+			positiveSpans:    []bucketSpan{{offset: 0, length: 2}},
+			positiveCounts:   []float64{1.5, 1.0},
+			negativeSpans:    []bucketSpan{{offset: 0, length: 1}},
+			negativeCounts:   []float64{1.5, 0},
+		}
+		hd1 := encodeHistogram(nativeHistogramC)
+		hd2 := encodeHistogram(nativeHistogramC2)
+
+		src := encodeTimeSeries(
+			[]Label{{Name: "__name__", Value: "rpc_latency_seconds"}},
+			nil,
+			[][]byte{hd1, hd2},
+		)
+		f(src, []TimeSeries{
+			{
+				Labels:  []Label{{Name: "__name__", Value: "rpc_latency_seconds_count"}},
+				Samples: []Sample{{Value: 2.5, Timestamp: 3000}},
+			},
+			{
+				Labels:  []Label{{Name: "__name__", Value: "rpc_latency_seconds_sum"}},
+				Samples: []Sample{{Value: 1.0, Timestamp: 3000}},
+			},
+			{
+				Labels:  []Label{{Name: "__name__", Value: "rpc_latency_seconds_bucket"}, {Name: "vmrange", Value: appendVmrangeHelper(-0.00001, 0.00001)}},
+				Samples: []Sample{{Value: 0.5, Timestamp: 3000}},
+			},
+			{
+				Labels:  []Label{{Name: "__name__", Value: "rpc_latency_seconds_bucket"}, {Name: "vmrange", Value: appendVmrangeHelper(1, 1.414)}},
+				Samples: []Sample{{Value: 1.5, Timestamp: 3000}},
+			},
+			{
+				Labels:  []Label{{Name: "__name__", Value: "rpc_latency_seconds_bucket"}, {Name: "vmrange", Value: appendVmrangeHelper(1.414, 2.0)}},
+				Samples: []Sample{{Value: 1.0, Timestamp: 3000}},
+			},
+			{
+				Labels:  []Label{{Name: "__name__", Value: "rpc_latency_seconds_count"}},
+				Samples: []Sample{{Value: 0, Timestamp: 4000}},
+			},
+			{
+				Labels:  []Label{{Name: "__name__", Value: "rpc_latency_seconds_sum"}},
+				Samples: []Sample{{Value: 1.0, Timestamp: 4000}},
+			},
+			{
+				Labels:  []Label{{Name: "__name__", Value: "rpc_latency_seconds_bucket"}, {Name: "vmrange", Value: appendVmrangeHelper(-0.00001, 0.00001)}},
+				Samples: []Sample{{Value: 0.5, Timestamp: 4000}},
+			},
+			{
+				Labels:  []Label{{Name: "__name__", Value: "rpc_latency_seconds_bucket"}, {Name: "vmrange", Value: appendVmrangeHelper(0.7071, 1)}},
+				Samples: []Sample{{Value: 1.5, Timestamp: 4000}},
+			},
+			{
+				Labels:  []Label{{Name: "__name__", Value: "rpc_latency_seconds_bucket"}, {Name: "vmrange", Value: appendVmrangeHelper(1, 1.414)}},
+				Samples: []Sample{{Value: 1.0, Timestamp: 4000}},
+			},
+			{
+				Labels:  []Label{{Name: "__name__", Value: "rpc_latency_seconds_bucket"}, {Name: "vmrange", Value: appendVmrangeHelper(-1, -0.7071)}},
+				Samples: []Sample{{Value: 1.5, Timestamp: 4000}},
 			},
 		})
 	}

@@ -52,6 +52,9 @@ func TestGetTimeSuccess(t *testing.T) {
 	f("292277025-08-18T07:12:54.999999999Z", maxTimeMsecs)
 	f("1562529662.324", 1562529662324)
 	f("1223372036.855", 1223372036855)
+
+	// relative duration that resolves to a timestamp before 1970
+	f("-9223372036.854", minTimeMsecs)
 }
 
 func TestGetTimeError(t *testing.T) {
@@ -63,8 +66,8 @@ func TestGetTimeError(t *testing.T) {
 			t.Fatalf("unexpected error in NewRequest: %s", err)
 		}
 
-		if _, err := GetTime(r, "s", 123); err == nil {
-			t.Fatalf("expecting non-nil error in GetTime(%q)", s)
+		if msec, err := GetTime(r, "s", 123); err == nil {
+			t.Fatalf("expecting non-nil error in GetTime(%q); got %d", s, msec)
 		}
 	}
 
@@ -84,7 +87,6 @@ func TestGetTimeError(t *testing.T) {
 	f("123md")
 	f("-12.3md")
 
-	// relative duration that resolves to a timestamp before 1970
-	f("-9223372036.854")
+	// relative duration outside the allowed range
 	f("-9223372036.855")
 }

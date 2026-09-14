@@ -198,7 +198,7 @@ type NotificationChannelClient struct {
 
 // Wrapper methods routed to the internal client.
 
-// Close closes the connection to the API service. The user should invoke this when
+// Close closes the connection to the API service. **Always** call Close() when
 // the client is no longer required.
 func (c *NotificationChannelClient) Close() error {
 	return c.internalClient.Close()
@@ -422,7 +422,7 @@ func (c *notificationChannelGRPCClient) setGoogleClientInfo(keyval ...string) {
 	}
 }
 
-// Close closes the connection to the API service. The user should invoke this when
+// Close closes the connection to the API service. **Always** call Close() when
 // the client is no longer required.
 func (c *notificationChannelGRPCClient) Close() error {
 	return c.connPool.Close()
@@ -441,7 +441,7 @@ func (c *notificationChannelGRPCClient) ListNotificationChannelDescriptors(ctx c
 	}
 	opts = append((*c.CallOptions).ListNotificationChannelDescriptors[0:len((*c.CallOptions).ListNotificationChannelDescriptors):len((*c.CallOptions).ListNotificationChannelDescriptors)], opts...)
 	it := &NotificationChannelDescriptorIterator{}
-	req = proto.Clone(req).(*monitoringpb.ListNotificationChannelDescriptorsRequest)
+	req = proto.CloneOf(req)
 	it.InternalFetch = func(pageSize int, pageToken string) ([]*monitoringpb.NotificationChannelDescriptor, string, error) {
 		resp := &monitoringpb.ListNotificationChannelDescriptorsResponse{}
 		if pageToken != "" {
@@ -517,7 +517,7 @@ func (c *notificationChannelGRPCClient) ListNotificationChannels(ctx context.Con
 	}
 	opts = append((*c.CallOptions).ListNotificationChannels[0:len((*c.CallOptions).ListNotificationChannels):len((*c.CallOptions).ListNotificationChannels)], opts...)
 	it := &NotificationChannelIterator{}
-	req = proto.Clone(req).(*monitoringpb.ListNotificationChannelsRequest)
+	req = proto.CloneOf(req)
 	it.InternalFetch = func(pageSize int, pageToken string) ([]*monitoringpb.NotificationChannel, string, error) {
 		resp := &monitoringpb.ListNotificationChannelsResponse{}
 		if pageToken != "" {

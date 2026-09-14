@@ -170,7 +170,7 @@ type Storage struct {
 	// partitions are sorted by time, e.g. partitions[0] has the smallest time.
 	partitions []*partitionWrapper
 
-	// ptwHot is the "hot" partition, were the last rows were ingested.
+	// ptwHot is the "hot" partition, where the last rows were ingested.
 	//
 	// It must be accessed under partitionsLock.
 	ptwHot *partitionWrapper
@@ -197,7 +197,7 @@ type Storage struct {
 	// the check whether the given stream is already registered in the persistent storage.
 	streamIDCache *cache
 
-	// filterStreamCache caches streamIDs keyed by (partition, []TenanID, StreamFilter).
+	// filterStreamCache caches streamIDs keyed by (partition, []TenantID, StreamFilter).
 	//
 	// It reduces the load on persistent storage during querying by _stream:{...} filter.
 	filterStreamCache *cache
@@ -235,7 +235,7 @@ func (s *Storage) PartitionAttach(name string) error {
 	// Verify whether the given partition already exists in the attached partitions list.
 	for _, ptw := range s.partitions {
 		if ptw.pt.name == name {
-			return fmt.Errorf("cannot attach the partition %q, because it is arleady attached", name)
+			return fmt.Errorf("cannot attach the partition %q, because it is already attached", name)
 		}
 	}
 
@@ -381,7 +381,7 @@ func getSnapshotPaths(ptws []*partitionWrapper) []string {
 func (s *Storage) PartitionSnapshotDelete(snapshotPath string) error {
 	snapshotName := filepath.Base(snapshotPath)
 	if err := snapshotutil.Validate(snapshotName); err != nil {
-		return fmt.Errorf("unsupported snapshot name %q at %q: %s", snapshotName, snapshotPath, err)
+		return fmt.Errorf("unsupported snapshot name %q at %q: %w", snapshotName, snapshotPath, err)
 	}
 
 	snapshotDir := filepath.Dir(snapshotPath)
@@ -442,7 +442,7 @@ func (s *Storage) MustDeleteStalePartitionSnapshots(maxAge time.Duration) []stri
 
 // DeleteRunTask starts deletion of logs according to the given filter f for the given tenantIDs.
 //
-// The taskID must contain an unique id of the task. It is used for tracking the task at the list returned by DeleteActiveTasks().
+// The taskID must contain a unique id of the task. It is used for tracking the task at the list returned by DeleteActiveTasks().
 // The timestamp must contain the timestamp in seconds when the task is started.
 func (s *Storage) DeleteRunTask(_ context.Context, taskID string, timestamp int64, tenantIDs []TenantID, f *Filter) error {
 	// Register the task in the list of active delete tasks, so it survives application restarts and crashes.
@@ -968,7 +968,7 @@ func (s *Storage) watchDeleteTasks() {
 
 		s.deleteTasks = s.deleteTasks[1:]
 		if !ok {
-			// The delete task coudn't be completed now. Try it later.
+			// The delete task couldn't be completed now. Try it later.
 			s.deleteTasks = append(s.deleteTasks, dt)
 		}
 		s.mustSaveDeleteTasksLocked()
@@ -1031,7 +1031,7 @@ func (s *Storage) processDeleteTask(ctx context.Context, dt *DeleteTask) bool {
 		}
 
 		// The task couldn't be processed at the moment
-		logger.Warnf("cannot proceeed with the delete task with task_id=%q in %.3f seconds; retrying it later", dt.TaskID, time.Since(startTime).Seconds())
+		logger.Warnf("cannot proceed with the delete task with task_id=%q in %.3f seconds; retrying it later", dt.TaskID, time.Since(startTime).Seconds())
 		return false
 	}
 

@@ -58,15 +58,19 @@ var (
 
 	disableKeepAlive            = flag.Bool("http.disableKeepAlive", false, "Whether to disable HTTP keep-alive for incoming connections at -httpListenAddr")
 	disableResponseCompression  = flag.Bool("http.disableResponseCompression", false, "Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth")
-	maxGracefulShutdownDuration = flag.Duration("http.maxGracefulShutdownDuration", 7*time.Second, `The maximum duration for a graceful shutdown of the HTTP server. A highly loaded server may require increased value for a graceful shutdown`)
-	shutdownDelay               = flag.Duration("http.shutdownDelay", 0, `Optional delay before http server shutdown. During this delay, the server returns non-OK responses from /health page, so load balancers can route new requests to other servers`)
-	idleConnTimeout             = flag.Duration("http.idleConnTimeout", time.Minute, "Timeout for incoming idle http connections")
-	connTimeout                 = flag.Duration("http.connTimeout", 2*time.Minute, "Incoming connections to -httpListenAddr are closed after the configured timeout. "+
+	maxGracefulShutdownDuration = flag.Duration("http.maxGracefulShutdownDuration", 7*time.Second, "The maximum duration for a graceful shutdown of the HTTP server. "+
+		"During this period the server stops accepting new connections, but it will continue serving existing connections. "+
+		"The remaining in-flight requests are canceled before the deadline, so the shutdown can finish within this duration. "+
+		"A highly loaded server may require increased value for a graceful shutdown")
+	shutdownDelay   = flag.Duration("http.shutdownDelay", 0, `Optional delay before http server shutdown. During this delay, the server returns non-OK responses from /health page, so load balancers can route new requests to other servers`)
+	idleConnTimeout = flag.Duration("http.idleConnTimeout", time.Minute, "Timeout for incoming idle http connections")
+	connTimeout     = flag.Duration("http.connTimeout", 2*time.Minute, "Incoming connections to -httpListenAddr are closed after the configured timeout. "+
 		"This may help evenly spreading load among a cluster of services behind TCP-level load balancer. Zero value disables closing of incoming connections")
 
-	headerHSTS         = flag.String("http.header.hsts", "", "Value for 'Strict-Transport-Security' header, recommended: 'max-age=31536000; includeSubDomains'")
-	headerFrameOptions = flag.String("http.header.frameOptions", "", "Value for 'X-Frame-Options' header")
-	headerCSP          = flag.String("http.header.csp", "", `Value for 'Content-Security-Policy' header, recommended: "default-src 'self'"`)
+	headerHSTS                  = flag.String("http.header.hsts", "", "Value for 'Strict-Transport-Security' header, recommended: 'max-age=31536000; includeSubDomains'")
+	headerFrameOptions          = flag.String("http.header.frameOptions", "", "Value for 'X-Frame-Options' header")
+	headerCSP                   = flag.String("http.header.csp", "", `Value for 'Content-Security-Policy' header, recommended: "default-src 'self'"`)
+	headerDisableServerHostname = flag.Bool("http.header.disableServerHostname", false, "Whether to disable 'X-Server-Hostname' header in HTTP responses")
 
 	disableCORS = flag.Bool("http.disableCORS", false, `Disable CORS for all origins (*)`)
 )
@@ -79,6 +83,7 @@ var (
 type server struct {
 	shutdownDelayDeadline atomic.Int64
 	s                     *http.Server
+	cancel                context.CancelFunc
 }
 
 // RequestHandler must serve the given request r and write response to w.
@@ -120,10 +125,6 @@ func Serve(addrs []string, rh RequestHandler, opts ServeOptions) {
 }
 
 func serve(addr string, rh RequestHandler, idx int, opts ServeOptions) {
-	scheme := "http"
-	if tlsEnable.GetOptionalArg(idx) {
-		scheme = "https"
-	}
 	useProxyProto := false
 	if opts.UseProxyProtocol != nil {
 		useProxyProto = opts.UseProxyProtocol.GetOptionalArg(idx)
@@ -140,22 +141,55 @@ func serve(addr string, rh RequestHandler, idx int, opts ServeOptions) {
 		}
 		tlsConfig = tc
 	}
-	ln, err := netutil.NewTCPListener(scheme, addr, useProxyProto, tlsConfig)
-	if err != nil {
-		logger.Fatalf("cannot start http server at %s: %s", addr, err)
-	}
-	logger.Infof("started server at %s://%s/", scheme, ln.Addr())
-	if !opts.DisableBuiltinRoutes {
-		logger.Infof("pprof handlers are exposed at %s://%s/debug/pprof/", scheme, ln.Addr())
+
+	var listener net.Listener
+	if unixAddr, ok := strings.CutPrefix(addr, "unix:"); ok {
+		if tlsEnable.GetOptionalArg(idx) {
+			logger.Fatalf("cannot use TLS with Unix domain sockets for addr %q", unixAddr)
+		}
+		if useProxyProto {
+			logger.Fatalf("cannot use proxy protocol with Unix domain sockets for addr %q", unixAddr)
+		}
+
+		ul, err := netutil.NewUnixListener("httpserver", unixAddr)
+		if err != nil {
+			logger.Fatalf("cannot start http server on Unix domain socket %q: %s", unixAddr, err)
+		}
+		listener = ul
+
+		logger.Infof("started server on Unix domain socket %q", ul.Addr())
+		if !opts.DisableBuiltinRoutes {
+			logger.Infof("pprof handlers are exposed on Unix domain socket %q under /debug/pprof/", ul.Addr())
+		}
+	} else {
+		scheme := "http"
+		if tlsEnable.GetOptionalArg(idx) {
+			scheme = "https"
+		}
+
+		tl, err := netutil.NewTCPListener(scheme, addr, useProxyProto, tlsConfig)
+		if err != nil {
+			logger.Fatalf("cannot start http server at %s: %s", addr, err)
+		}
+		listener = tl
+
+		logger.Infof("started server at %s://%s/", scheme, tl.Addr())
+		if !opts.DisableBuiltinRoutes {
+			logger.Infof("pprof handlers are exposed at %s://%s/debug/pprof/", scheme, tl.Addr())
+		}
 	}
 
-	serveWithListener(addr, ln, rh, opts.DisableBuiltinRoutes)
+	serveWithListener(addr, listener, rh, opts.DisableBuiltinRoutes)
 }
 
 func serveWithListener(addr string, ln net.Listener, rh RequestHandler, disableBuiltinRoutes bool) {
 	var s server
 
+	ctx, cancel := context.WithCancel(context.Background())
 	s.s = &http.Server{
+		BaseContext: func(l net.Listener) context.Context {
+			return ctx
+		},
 
 		// Disable http/2, since it doesn't give any advantages for VictoriaMetrics services.
 		TLSNextProto: make(map[string]func(*http.Server, *tls.Conn, http.Handler)),
@@ -169,6 +203,7 @@ func serveWithListener(addr string, ln net.Listener, rh RequestHandler, disableB
 		ErrorLog: log.New(&tlsErrorSkipLogger{}, "", 0),
 	}
 	s.s.SetKeepAlivesEnabled(!*disableKeepAlive)
+	s.cancel = cancel
 	if *connTimeout > 0 {
 		s.s.ConnContext = func(ctx context.Context, _ net.Conn) context.Context {
 			timeoutSec := connTimeout.Seconds()
@@ -264,8 +299,18 @@ func stop(addr string) error {
 		logger.Infof("Starting shutdown for http server %q", addr)
 	}
 
+	// Cancel in-flight requests shortly before the deadline, reserving up to 2s (or 20%
+	// of the window, whichever is smaller) for them to unwind, so Shutdown returns cleanly
+	// within -http.maxGracefulShutdownDuration instead of timing out and dying via
+	// logger.Fatalf -> os.Exit, which skips the storage flush and loses data.
+	// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/1502
+	cancelInflightAfter := *maxGracefulShutdownDuration - min(*maxGracefulShutdownDuration/5, 2*time.Second)
 	ctx, cancel := context.WithTimeout(context.Background(), *maxGracefulShutdownDuration)
 	defer cancel()
+
+	t := time.AfterFunc(cancelInflightAfter, s.cancel)
+	defer t.Stop()
+
 	if err := s.s.Shutdown(ctx); err != nil {
 		return fmt.Errorf("cannot gracefully shutdown http server at %q in %.3fs; "+
 			"probably, `-http.maxGracefulShutdownDuration` command-line flag value must be increased; error: %s", addr, maxGracefulShutdownDuration.Seconds(), err)
@@ -329,7 +374,9 @@ func handlerWrapper(w http.ResponseWriter, r *http.Request, rh RequestHandler) {
 	if *headerCSP != "" {
 		h.Add("Content-Security-Policy", *headerCSP)
 	}
-	h.Add("X-Server-Hostname", hostname)
+	if !*headerDisableServerHostname {
+		h.Add("X-Server-Hostname", hostname)
+	}
 	requestsTotal.Inc()
 	if whetherToCloseConn(r) {
 		connTimeoutClosedConns.Inc()
@@ -452,21 +499,36 @@ func builtinRoutesHandler(s *server, r *http.Request, w http.ResponseWriter, rh 
 			pprofHandler(r.URL.Path[len("/debug/pprof/"):], w, r)
 			return true
 		}
-
-		if !isProtectedByAuthFlag(r.URL.Path) && !CheckBasicAuth(w, r) {
+		// Check HTTP Basic Auth here for all the paths except of the ones verifying
+		// the corresponding -*AuthKey flag on their own at rh() below
+		//
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6329
+		if !isProtectedByAuthFlag(r) && !CheckBasicAuth(w, r) {
 			return true
 		}
 	}
 	return rh(w, r)
 }
 
-func isProtectedByAuthFlag(path string) bool {
-	// These paths must explicitly call CheckAuthFlag().
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6329
-	return strings.HasSuffix(path, "/config") || strings.HasSuffix(path, "/reload") ||
-		strings.HasSuffix(path, "/resetRollupResultCache") || strings.HasSuffix(path, "/delSeries") || strings.HasSuffix(path, "/delete_series") ||
-		strings.HasSuffix(path, "/force_merge") || strings.HasSuffix(path, "/force_flush") || strings.HasSuffix(path, "/snapshot") ||
-		strings.HasPrefix(path, "/snapshot/") || strings.HasSuffix(path, "/admin/status/metric_names_stats/reset")
+var isAuthKeyProtectedPathFunc func(r *http.Request) bool
+
+// RegisterAuthKeyProtectedPathsFunc registers f, which must return true for requests
+// served by handlers verifying the corresponding -*AuthKey flag on their own.
+// There is no need in checking HTTP Basic Auth for such requests at builtinRoutesHandler().
+//
+// Must be called before Serve().
+func RegisterAuthKeyProtectedPathsFunc(f func(r *http.Request) bool) {
+	if isAuthKeyProtectedPathFunc != nil {
+		logger.Panicf("BUG: RegisterAuthKeyProtectedPathsFunc() must be called only once before Serve()")
+	}
+	isAuthKeyProtectedPathFunc = f
+}
+
+func isProtectedByAuthFlag(r *http.Request) bool {
+	if isAuthKeyProtectedPathFunc == nil {
+		return false
+	}
+	return isAuthKeyProtectedPathFunc(r)
 }
 
 // CheckAuthFlag checks whether the given authKey is set and valid
@@ -808,10 +870,20 @@ func LogError(req *http.Request, errStr string) {
 	logger.Errorf("uri: %s, remote address: %q: %s", uri, remoteAddr, errStr)
 }
 
+// tlsErrorSkipLogger must be passed as the out argument to log.New only.
+// It suppresses noisy TCP probe errors on TLS connections to avoid log pollution.
+//
+// This cannot be implemented in net.Listener because a TLS handshake may take seconds,
+// during which no other connections can be accepted. Therefor, the implementation inside net.Listener can lead to DoS.
+// Once a connection is passed to the conn serve goroutine, there is no direct access to the handshake logic, so this indirect
+// approach is used instead.
 type tlsErrorSkipLogger struct{}
 
+// Write filters out TLS handshake errors from health-check probes.
+// log.Logger guarantees that each complete message is delivered in a single Write call
+// and that calls are serialized, so we can safely inspect p for a "TLS handshake error".
+// See https://github.com/golang/go/blob/38e988efb4b8f5e73e887027f386a342c138b649/src/log/log.go#L53-L57
 func (*tlsErrorSkipLogger) Write(p []byte) (int, error) {
-	// skip common health check errors produced by Kubernetes and other tools
 	if bytes.Contains(p, []byte("TLS handshake error")) &&
 		(bytes.Contains(p, []byte("EOF")) || bytes.Contains(p, []byte("connection reset by peer"))) {
 		return len(p), nil

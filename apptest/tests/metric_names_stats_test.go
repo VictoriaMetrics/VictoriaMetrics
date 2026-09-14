@@ -40,7 +40,7 @@ func TestSingleMetricNamesStats(t *testing.T) {
 	sut.ForceFlush(t)
 
 	// verify ingest request correctly registered
-	expected := apptest.MetricNamesStatsResponse{
+	expected := &apptest.MetricNamesStatsResponse{
 		Records: []apptest.MetricNamesStatsRecord{
 			{MetricName: largeMetricName},
 			{MetricName: "metric_name_1"},
@@ -55,7 +55,7 @@ func TestSingleMetricNamesStats(t *testing.T) {
 
 	// verify query request correctly registered
 	sut.PrometheusAPIV1Query(t, `{__name__!=""}`, apptest.QueryOpts{Time: ingestDateTime})
-	expected = apptest.MetricNamesStatsResponse{
+	expected = &apptest.MetricNamesStatsResponse{
 		Records: []apptest.MetricNamesStatsRecord{
 			{MetricName: largeMetricName, QueryRequestsCount: 1},
 			{MetricName: "metric_name_1", QueryRequestsCount: 3},
@@ -97,7 +97,7 @@ func TestSingleMetricNamesStats(t *testing.T) {
 
 	// perform query request for single metric and check counter increase
 	sut.PrometheusAPIV1Query(t, `metric_name_2`, apptest.QueryOpts{Time: ingestDateTime})
-	expected = apptest.MetricNamesStatsResponse{
+	expected = &apptest.MetricNamesStatsResponse{
 		Records: []apptest.MetricNamesStatsRecord{
 			{MetricName: largeMetricName, QueryRequestsCount: 1},
 			{MetricName: "metric_name_1", QueryRequestsCount: 3},
@@ -111,7 +111,7 @@ func TestSingleMetricNamesStats(t *testing.T) {
 	}
 
 	// verify le filter
-	expected = apptest.MetricNamesStatsResponse{
+	expected = &apptest.MetricNamesStatsResponse{
 		Records: []apptest.MetricNamesStatsRecord{
 			{MetricName: largeMetricName, QueryRequestsCount: 1},
 			{MetricName: "metric_name_2", QueryRequestsCount: 2},
@@ -125,7 +125,7 @@ func TestSingleMetricNamesStats(t *testing.T) {
 
 	// reset state and check empty request response
 	sut.PrometheusAPIV1AdminStatusMetricNamesStatsReset(t, apptest.QueryOpts{})
-	expected = apptest.MetricNamesStatsResponse{
+	expected = &apptest.MetricNamesStatsResponse{
 		Records: []apptest.MetricNamesStatsRecord{},
 	}
 	got = sut.PrometheusAPIV1StatusMetricNamesStats(t, "", "", "", apptest.QueryOpts{})
@@ -190,7 +190,7 @@ func TestClusterMetricNamesStats(t *testing.T) {
 		vmstorage2.ForceFlush(t)
 
 		// verify ingest request correctly registered
-		expected := apptest.MetricNamesStatsResponse{
+		expected := &apptest.MetricNamesStatsResponse{
 			Records: []apptest.MetricNamesStatsRecord{
 				{MetricName: largeMetricName},
 				{MetricName: "metric_name_1"},
@@ -208,7 +208,7 @@ func TestClusterMetricNamesStats(t *testing.T) {
 			Tenant: tenantID, Time: ingestDateTime,
 		})
 
-		expected = apptest.MetricNamesStatsResponse{
+		expected = &apptest.MetricNamesStatsResponse{
 			Records: []apptest.MetricNamesStatsRecord{
 				{MetricName: largeMetricName, QueryRequestsCount: 1},
 				{MetricName: "metric_name_2", QueryRequestsCount: 1},
@@ -250,7 +250,7 @@ func TestClusterMetricNamesStats(t *testing.T) {
 	}
 
 	// verify multitenant stats
-	expected := apptest.MetricNamesStatsResponse{
+	expected := &apptest.MetricNamesStatsResponse{
 		Records: []apptest.MetricNamesStatsRecord{
 			{MetricName: largeMetricName, QueryRequestsCount: 3},
 			{MetricName: "metric_name_2", QueryRequestsCount: 3},
@@ -268,5 +268,129 @@ func TestClusterMetricNamesStats(t *testing.T) {
 	resp = vmselect.PrometheusAPIV1StatusMetricNamesStats(t, "", "", "", apptest.QueryOpts{Tenant: "multitenant"})
 	if len(resp.Records) != 0 {
 		t.Fatalf("want 0 records, got: %d", len(resp.Records))
+	}
+}
+
+func TestClusterMetricNamesStatsWithParams(t *testing.T) {
+	fs.MustRemoveDir(t.Name())
+
+	tc := apptest.NewTestCase(t)
+	defer tc.Stop()
+	vmstorage1 := tc.MustStartVmstorage("vmstorage-1", []string{
+		"-storageDataPath=" + tc.Dir() + "/vmstorage-1",
+		"-retentionPeriod=100y",
+	})
+	vmstorage2 := tc.MustStartVmstorage("vmstorage-2", []string{
+		"-storageDataPath=" + tc.Dir() + "/vmstorage-2",
+		"-retentionPeriod=100y",
+	})
+
+	vminsert1 := tc.MustStartVminsert("vminsert-1", []string{
+		fmt.Sprintf("-storageNode=%s", vmstorage1.VminsertAddr()),
+	})
+	vminsert2 := tc.MustStartVminsert("vminsert-2", []string{
+		fmt.Sprintf("-storageNode=%s", vmstorage2.VminsertAddr()),
+	})
+	vmselect1 := tc.MustStartVmselect("vmselect-1", []string{
+		fmt.Sprintf("-storageNode=%s", vmstorage1.VmselectAddr()),
+	})
+	vmselect2 := tc.MustStartVmselect("vmselect-2", []string{
+		fmt.Sprintf("-storageNode=%s", vmstorage2.VmselectAddr()),
+	})
+	vmselectGlobal := tc.MustStartVmselect("vmselect-global", []string{
+		fmt.Sprintf("-storageNode=%s,%s", vmselect1.ClusternativeListenAddr(), vmselect2.ClusternativeListenAddr()),
+	})
+
+	const ingestDateTime = `2024-02-05T08:57:36.700Z`
+	const ingestTimestamp = ` 1707123456700`
+	dataSet := []string{
+		`metric_name_1{label="foo"} 10`,
+		`metric_name_1{label="bar"} 10`,
+		`metric_name_2{label="baz"} 20`,
+		`metric_name_1{label="baz"} 10`,
+		`metric_name_3{label="baz"} 30`,
+	}
+	for idx := range dataSet {
+		dataSet[idx] += ingestTimestamp
+	}
+
+	tenantID := "1:1"
+
+	// verify empty stats
+	resp := vmselectGlobal.PrometheusAPIV1StatusMetricNamesStats(t, "", "", "", apptest.QueryOpts{Tenant: tenantID})
+	if len(resp.Records) != 0 {
+		t.Fatalf("unexpected resp Records: %d, want: %d", len(resp.Records), 0)
+	}
+
+	vminsert1.PrometheusAPIV1ImportPrometheus(t, dataSet, apptest.QueryOpts{Tenant: tenantID})
+
+	// ingest extra metric to the second cluster
+	dataSet = append(dataSet, fmt.Sprintf(`metric_name_0{label="baz"} 30 %s`, ingestTimestamp))
+	vminsert2.PrometheusAPIV1ImportPrometheus(t, dataSet, apptest.QueryOpts{Tenant: tenantID})
+
+	vmstorage1.ForceFlush(t)
+	vmstorage2.ForceFlush(t)
+
+	// verify ingested dataset correctly registered
+	expected := &apptest.MetricNamesStatsResponse{
+		Records: []apptest.MetricNamesStatsRecord{
+			{MetricName: "metric_name_1"},
+			{MetricName: "metric_name_2"},
+			{MetricName: "metric_name_3"},
+		},
+	}
+	gotStats := vmselect1.PrometheusAPIV1StatusMetricNamesStats(t, "", "", "", apptest.QueryOpts{Tenant: tenantID})
+	if diff := cmp.Diff(expected, gotStats); diff != "" {
+		t.Errorf("unexpected response (-want, +got):\n%s", diff)
+	}
+	// and for second cluster
+	expected = &apptest.MetricNamesStatsResponse{
+		Records: []apptest.MetricNamesStatsRecord{
+			{MetricName: "metric_name_0"},
+			{MetricName: "metric_name_1"},
+			{MetricName: "metric_name_2"},
+			{MetricName: "metric_name_3"},
+		},
+	}
+	gotStats = vmselect2.PrometheusAPIV1StatusMetricNamesStats(t, "", "", "", apptest.QueryOpts{Tenant: tenantID})
+	if diff := cmp.Diff(expected, gotStats); diff != "" {
+		t.Errorf("unexpected response (-want, +got):\n%s", diff)
+	}
+
+	// query metrics for 1 cluster and check stats
+	vmselect1.PrometheusAPIV1Query(t, `{__name__!=""}`, apptest.QueryOpts{
+		Tenant: tenantID, Time: ingestDateTime,
+	})
+
+	expected = &apptest.MetricNamesStatsResponse{
+		Records: []apptest.MetricNamesStatsRecord{
+			{MetricName: "metric_name_2", QueryRequestsCount: 1},
+			{MetricName: "metric_name_3", QueryRequestsCount: 1},
+			{MetricName: "metric_name_1", QueryRequestsCount: 3},
+		},
+	}
+	gotStats = vmselect1.PrometheusAPIV1StatusMetricNamesStats(t, "", "", "", apptest.QueryOpts{Tenant: tenantID})
+	if diff := cmp.Diff(expected, gotStats); diff != "" {
+		t.Errorf("unexpected response (-want, +got):\n%s", diff)
+	}
+
+	// check global stats with query params
+	expected = &apptest.MetricNamesStatsResponse{
+		Records: []apptest.MetricNamesStatsRecord{
+			{MetricName: "metric_name_0", QueryRequestsCount: 0},
+		},
+	}
+	gotStats = vmselectGlobal.PrometheusAPIV1StatusMetricNamesStats(t, "", "0", "", apptest.QueryOpts{Tenant: tenantID})
+	if diff := cmp.Diff(expected, gotStats); diff != "" {
+		t.Errorf("unexpected response (-want, +got):\n%s", diff)
+	}
+	expected = &apptest.MetricNamesStatsResponse{
+		Records: []apptest.MetricNamesStatsRecord{
+			{MetricName: "metric_name_0", QueryRequestsCount: 0},
+		},
+	}
+	gotStats = vmselectGlobal.PrometheusAPIV1StatusMetricNamesStats(t, "2", "0", "", apptest.QueryOpts{Tenant: tenantID})
+	if diff := cmp.Diff(expected, gotStats); diff != "" {
+		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
 }

@@ -415,6 +415,16 @@ func (ps *pipeStats) initRateFuncs(step int64) {
 	}
 }
 
+func (ps *pipeStats) initRateFuncsFromTimeBucket() bool {
+	for _, bf := range ps.byFields {
+		if bf.name == "_time" && bf.bucketSize > 0 {
+			ps.initRateFuncs(int64(bf.bucketSize))
+			return true
+		}
+	}
+	return false
+}
+
 const stateSizeBudgetChunk = 1 << 20
 
 func (ps *pipeStats) newPipeProcessor(concurrency int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
@@ -1385,15 +1395,15 @@ func parsePipeStatsExt(lex *lexer, needStatsKeyword bool) (pipe, error) {
 	for {
 		e, err := parseStatsEntry(lex)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'stats' entry: %w", err)
+			return nil, err
 		}
 		ps.entries = append(ps.entries, e)
 
-		if lex.isKeyword("|", ")", "") {
+		if lex.isQueryPartTrailer() {
 			break
 		}
 		if !lex.isKeyword(",") {
-			return nil, fmt.Errorf("unexpected token %q after [%s]; want ',', '|' or ')'", lex.token, e)
+			return nil, fmt.Errorf("unexpected token %q after [%s]; want ',', '|', ';' or ')'", lex.token, e)
 		}
 		lex.nextToken()
 	}
@@ -1442,7 +1452,7 @@ func parseStatsEntry(lex *lexer) (pipeStatsEntry, error) {
 	}
 
 	resultName := ""
-	if lex.isKeyword(",", "|", ")", "") {
+	if lex.isKeyword(",") || lex.isQueryPartTrailer() {
 		resultName = sf.String()
 		if iff != nil {
 			resultName += " " + iff.String()
@@ -1767,85 +1777,6 @@ func tryParseBucketSize(s string) (float64, bool) {
 	}
 
 	return 0, false
-}
-
-func parseFieldNamesInParens(lex *lexer) ([]string, error) {
-	fieldNames, err := parseFieldFiltersInParens(lex)
-	if err != nil {
-		return nil, err
-	}
-	for _, fieldName := range fieldNames {
-		if prefixfilter.IsWildcardFilter(fieldName) {
-			return nil, fmt.Errorf("the field name %q cannot end with '*'", fieldName)
-		}
-	}
-	return fieldNames, nil
-}
-
-func parseFieldFiltersInParens(lex *lexer) ([]string, error) {
-	if !lex.isKeyword("(") {
-		return nil, fmt.Errorf("missing `(`")
-	}
-	var fields []string
-	for {
-		lex.nextToken()
-		if lex.isKeyword(")") {
-			lex.nextToken()
-			return fields, nil
-		}
-		if lex.isKeyword(",") {
-			return nil, fmt.Errorf("unexpected `,`")
-		}
-		field, err := parseFieldFilter(lex)
-		if err != nil {
-			return nil, err
-		}
-		fields = append(fields, field)
-		switch {
-		case lex.isKeyword(")"):
-			lex.nextToken()
-			return fields, nil
-		case lex.isKeyword(","):
-		default:
-			return nil, fmt.Errorf("unexpected token: %q; expecting ',' or ')'", lex.token)
-		}
-	}
-}
-
-func parseFieldName(lex *lexer) (string, error) {
-	fieldName, err := lex.nextCompoundToken()
-	if err != nil {
-		return "", err
-	}
-	fieldName = getCanonicalColumnName(fieldName)
-	return fieldName, nil
-}
-
-func parseFieldFilter(lex *lexer) (string, error) {
-	if lex.isKeyword("*") {
-		lex.nextToken()
-		return "*", nil
-	}
-
-	fieldName, err := lex.nextCompoundToken()
-	if err != nil {
-		return "", err
-	}
-	fieldName = getCanonicalColumnName(fieldName)
-	if !lex.isSkippedSpace && lex.isKeyword("*") {
-		lex.nextToken()
-		fieldName += "*"
-	}
-
-	return fieldName, nil
-}
-
-func fieldNamesString(fields []string) string {
-	a := make([]string, len(fields))
-	for i, f := range fields {
-		a[i] = quoteFieldFilterIfNeeded(f)
-	}
-	return strings.Join(a, ", ")
 }
 
 func areConstValues(values []string) bool {

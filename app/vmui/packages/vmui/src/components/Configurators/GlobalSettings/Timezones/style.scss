@@ -16,6 +16,7 @@
     }
 
     &__title {
+      flex-grow: 1;
       display: flex;
       align-items: center;
       gap: $padding-small;
@@ -34,6 +35,7 @@
       background-color: $color-hover-black;
       padding: calc($padding-small/2);
       border-radius: $border-radius-small;
+      font-size: $font-size-small;
     }
 
     &__icon {
@@ -54,9 +56,11 @@
   }
 
   &-list {
+    padding-top: 0;
     max-height: 300px;
     background-color: $color-background-block;
     border-radius: $border-radius-medium;
+    font-size: $font-size-small;
     overflow: auto;
 
     &_mobile {
@@ -72,10 +76,9 @@
       top: 0;
       background-color: $color-background-block;
       z-index: 2;
-      border-bottom: $border-divider;
 
       &__search {
-        padding: $padding-small;
+        padding: $padding-small $padding-small calc($padding-small / 2);
       }
     }
 
@@ -91,6 +94,7 @@
         font-weight: bold;
         color: $color-text-secondary;
         padding: $padding-small $padding-global;
+        font-size: $font-size-small;
       }
 
       &-options {
@@ -98,7 +102,7 @@
         align-items: flex-start;
 
         &__item {
-          padding: $padding-small $padding-global;
+          padding: calc($padding-small / 2) $padding-global;
           transition: background-color 200ms ease;
 
           &:hover {

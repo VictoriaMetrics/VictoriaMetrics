@@ -5,8 +5,20 @@ import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import classNames from "classnames";
 import { FC } from "preact/compat";
 import { useAppDispatch, useAppState } from "../../../state/common/StateContext";
+import { DarkIcon, LightIcon, SystemIcon } from "../../Main/Icons";
 
-const options = Object.values(Theme).map(value => ({ title: value, value }));
+const themeIcons = {
+  [Theme.system]: <SystemIcon/>,
+  [Theme.light]: <LightIcon/>,
+  [Theme.dark]: <DarkIcon/>,
+};
+
+const options = Object.values(Theme).map(value => ({
+  title: value,
+  value,
+  icon: themeIcons[value],
+}));
+
 const ThemeControl: FC = () => {
   const { isMobile } = useDeviceDetect();
   const dispatch = useAppDispatch();
@@ -25,13 +37,14 @@ const ThemeControl: FC = () => {
       })}
     >
       <div className="vm-server-configurator__title">
-        Theme preferences
+        Theme
       </div>
       <div
         className="vm-theme-control__toggle"
         key={`${isMobile}`}
       >
         <Toggle
+          size="large"
           options={options}
           value={theme}
           onChange={handleClickItem}

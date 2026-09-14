@@ -59,7 +59,8 @@ absolute path to all .tpl files in root.
 	configCheckInterval = flag.Duration("configCheckInterval", 0, "Interval for checking for changes in '-rule', '-rule.templates' and '-notifier.config' files. "+
 		"By default, the checking is disabled. Send SIGHUP signal in order to force config check for changes.")
 
-	httpListenAddrs  = flagutil.NewArrayString("httpListenAddr", "Address to listen for incoming http requests. See also -tls and -httpListenAddr.useProxyProtocol")
+	httpListenAddrs = flagutil.NewArrayString("httpListenAddr", "Address to listen for incoming http requests. "+
+		"Use unix:/path/to/socket to listen on Unix domain socket. Note that -tls and -httpListenAddr.useProxyProtocol cannot be used with Unix sockets")
 	useProxyProtocol = flagutil.NewArrayBool("httpListenAddr.useProxyProtocol", "Whether to use proxy protocol for connections accepted at the corresponding -httpListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
@@ -88,10 +89,7 @@ func main() {
 	flag.CommandLine.SetOutput(os.Stdout)
 	flag.Usage = usage
 	envflag.Parse()
-	remoteread.InitSecretFlags()
-	remotewrite.InitSecretFlags()
-	datasource.InitSecretFlags()
-	notifier.InitSecretFlags()
+	initSecretFlags()
 	buildinfo.Init()
 	logger.Init()
 
@@ -182,6 +180,10 @@ func main() {
 	if len(listenAddrs) == 0 {
 		listenAddrs = []string{":8880"}
 	}
+
+	// Register paths which could be protected by their own -*AuthKey flag.
+	httpserver.RegisterAuthKeyProtectedPathsFunc(isAuthKeyProtectedPath)
+
 	rh := &requestHandler{m: manager}
 	go httpserver.Serve(listenAddrs, rh.handler, httpserver.ServeOptions{
 		UseProxyProtocol: useProxyProtocol,
@@ -257,6 +259,9 @@ func getExternalURL(customURL string) (*url.URL, error) {
 		if len(*httpListenAddrs) > 0 {
 			listenAddr = (*httpListenAddrs)[0]
 		}
+		if strings.HasPrefix(listenAddr, "unix:") {
+			return nil, fmt.Errorf("-external.url must be set when -httpListenAddr is a unix socket")
+		}
 		isTLS := httpserver.IsTLS(0)
 
 		return getHostnameAsExternalURL(listenAddr, isTLS)
@@ -315,6 +320,11 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 
 	parseFn := config.Parse
 	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
 		select {
 		case <-ctx.Done():
 			return
@@ -432,4 +442,13 @@ func getLastConfigError() error {
 	lastConfigErrMu.RLock()
 	defer lastConfigErrMu.RUnlock()
 	return lastConfigErr
+}
+
+// initSecretFlags manages the secret flags for this app and must be called after flag parsing and before logger init.
+func initSecretFlags() {
+	remoteread.InitSecretFlags()
+	remotewrite.InitSecretFlags()
+	datasource.InitSecretFlags()
+	notifier.InitSecretFlags()
+	pushmetrics.InitSecretFlags()
 }

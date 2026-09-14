@@ -209,13 +209,12 @@ func (wr *writeRequest) tryPushMetadata(mms []prompb.MetricMetadata) bool {
 func (wr *writeRequest) copyMetadata(dst, src *prompb.MetricMetadata) {
 	// Direct copy for non-string fields, which are safe by value.
 	dst.Type = src.Type
-	dst.Unit = src.Unit
 
 	dst.AccountID = src.AccountID
 	dst.ProjectID = src.ProjectID
 
 	// Pre-allocate memory for all string fields.
-	neededBufLen := len(src.MetricFamilyName) + len(src.Help)
+	neededBufLen := len(src.MetricFamilyName) + len(src.Help) + len(src.Unit)
 	bufLen := len(wr.metadatabuf)
 	wr.metadatabuf = slicesutil.SetLength(wr.metadatabuf, bufLen+neededBufLen)
 	buf := wr.metadatabuf[:bufLen]
@@ -229,6 +228,11 @@ func (wr *writeRequest) copyMetadata(dst, src *prompb.MetricMetadata) {
 	bufLen = len(buf)
 	buf = append(buf, src.Help...)
 	dst.Help = bytesutil.ToUnsafeString(buf[bufLen:])
+
+	// Copy Unit
+	bufLen = len(buf)
+	buf = append(buf, src.Unit...)
+	dst.Unit = bytesutil.ToUnsafeString(buf[bufLen:])
 
 	wr.metadatabuf = buf
 }

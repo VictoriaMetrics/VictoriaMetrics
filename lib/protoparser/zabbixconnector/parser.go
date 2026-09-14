@@ -99,17 +99,17 @@ func (r *Row) unmarshal(o *fastjson.Value) error {
 
 	n, err := getFloat64(o, "value")
 	if err != nil {
-		return fmt.Errorf("missing `value` element, %s", err)
+		return fmt.Errorf("missing `value` element: %w", err)
 	}
 	r.Value = n
 
 	cl, err := getInt64(o, "clock")
 	if err != nil {
-		return fmt.Errorf("missing `clock` element, %s", err)
+		return fmt.Errorf("missing `clock` element: %w", err)
 	}
 	ns, err := getInt64(o, "ns")
 	if err != nil {
-		return fmt.Errorf("missing `ns` element, %s", err)
+		return fmt.Errorf("missing `ns` element: %w", err)
 	}
 	// clock - Number of seconds since Epoch to the moment when value was collected (integer part).
 	// ns - Number of nanoseconds to be added to clock to get a precise value collection time.
@@ -121,7 +121,7 @@ func (r *Row) unmarshal(o *fastjson.Value) error {
 	if len(groupValue) != 0 {
 		groups, err := getArray(o, "groups")
 		if err != nil {
-			return fmt.Errorf("missing `groups` element, %s", err)
+			return fmt.Errorf("missing `groups` element: %w", err)
 		}
 		for _, g := range groups {
 			k := g.GetStringBytes()
@@ -141,7 +141,7 @@ func (r *Row) unmarshal(o *fastjson.Value) error {
 
 	itemTags, err := getArray(o, "item_tags")
 	if err != nil {
-		return fmt.Errorf("missing `item_tags` element, %s", err)
+		return fmt.Errorf("missing `item_tags` element: %w", err)
 	}
 
 	if len(duplicateTagsSeparator) == 0 { // Do not merge tags

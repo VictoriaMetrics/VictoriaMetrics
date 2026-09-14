@@ -252,11 +252,15 @@ func TestAggregatorsEqual(t *testing.T) {
 }
 
 func timeSeriessToString(tss []prompb.TimeSeries) string {
-	a := make([]string, len(tss))
-	for i, ts := range tss {
+	sorted := make([]prompb.TimeSeries, len(tss))
+	copy(sorted, tss)
+	sort.SliceStable(sorted, func(i, j int) bool {
+		return promrelabel.LabelsToString(sorted[i].Labels) < promrelabel.LabelsToString(sorted[j].Labels)
+	})
+	a := make([]string, len(sorted))
+	for i, ts := range sorted {
 		a[i] = timeSeriesToString(ts)
 	}
-	sort.Strings(a)
 	return strings.Join(a, "")
 }
 

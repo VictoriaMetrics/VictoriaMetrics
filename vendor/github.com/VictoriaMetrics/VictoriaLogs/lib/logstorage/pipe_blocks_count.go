@@ -133,7 +133,7 @@ func parsePipeBlocksCount(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse result name for 'blocks_count': %w", err)
 		}
 		resultName = name
-	} else if !lex.isKeyword("", "|") {
+	} else if !lex.isQueryPartTrailer() {
 		name, err := parseFieldName(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse result name for 'blocks_count': %w", err)

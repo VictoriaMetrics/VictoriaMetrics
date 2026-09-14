@@ -39,15 +39,13 @@ XOtclIk1uhc03oL9nOQ=
 			}
 			return
 		}
-		users, oidcDP, err := parseJWTUsers(ac)
+		oidcDP := &oidcDiscovererPool{}
+		users, err := parseJWTUsers(ac, oidcDP)
 		if err == nil {
 			t.Fatalf("expecting non-nil error; got %v", users)
 		}
 		if expErr != err.Error() {
 			t.Fatalf("unexpected error; got\n%q\nwant \n%q", err.Error(), expErr)
-		}
-		if oidcDP != nil {
-			t.Fatalf("expecting nil oidcDP; got %v", oidcDP)
 		}
 	}
 
@@ -326,7 +324,8 @@ XOtclIk1uhc03oL9nOQ=
 			t.Fatalf("unexpected error: %s", err)
 		}
 
-		jui, oidcDP, err := parseJWTUsers(ac)
+		oidcDP := &oidcDiscovererPool{}
+		jui, err := parseJWTUsers(ac, oidcDP)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}

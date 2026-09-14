@@ -64,7 +64,7 @@ const (
 	acceptRanges    = "Accept-Ranges"
 	contentType     = "Content-Type"
 	contentLength   = "Content-Length"
-	eTag            = "ETag"
+	eTag            = "Etag"
 )
 
 type codings map[string]float64
@@ -293,26 +293,30 @@ func (w *GzipResponseWriter) startCompression(remain []byte) error {
 		if len(w.randomJitter) > 0 {
 			var jitRNG uint32
 			if w.jitterBuffer > 0 {
+				// Use only up to "w.jitterBuffer", otherwise the output depends on write sizes.
+				// w.buf can grow to wantBuf (max(minSize, 512[, jitterBuffer])), which may exceed jitterBuffer.
+				hashBuf := w.buf
+				if len(hashBuf) > w.jitterBuffer {
+					hashBuf = hashBuf[:w.jitterBuffer]
+				}
 				if w.sha256Jitter {
 					h := sha256.New()
-					h.Write(w.buf)
-					// Use only up to "w.jitterBuffer", otherwise the output depends on write sizes.
-					if len(remain) > 0 && len(w.buf) < w.jitterBuffer {
+					h.Write(hashBuf)
+					if len(remain) > 0 && len(hashBuf) < w.jitterBuffer {
 						remain := remain
-						if len(remain)+len(w.buf) > w.jitterBuffer {
-							remain = remain[:w.jitterBuffer-len(w.buf)]
+						if len(remain)+len(hashBuf) > w.jitterBuffer {
+							remain = remain[:w.jitterBuffer-len(hashBuf)]
 						}
 						h.Write(remain)
 					}
 					var tmp [sha256.Size]byte
 					jitRNG = binary.LittleEndian.Uint32(h.Sum(tmp[:0]))
 				} else {
-					h := crc32.Update(0, castagnoliTable, w.buf)
-					// Use only up to "w.jitterBuffer", otherwise the output depends on write sizes.
-					if len(remain) > 0 && len(w.buf) < w.jitterBuffer {
+					h := crc32.Update(0, castagnoliTable, hashBuf)
+					if len(remain) > 0 && len(hashBuf) < w.jitterBuffer {
 						remain := remain
-						if len(remain)+len(w.buf) > w.jitterBuffer {
-							remain = remain[:w.jitterBuffer-len(w.buf)]
+						if len(remain)+len(hashBuf) > w.jitterBuffer {
+							remain = remain[:w.jitterBuffer-len(hashBuf)]
 						}
 						h = crc32.Update(h, castagnoliTable, remain)
 					}
@@ -1158,8 +1162,8 @@ func parseCoding(s string) (coding string, qvalue float64, err error) {
 
 		if n == 0 {
 			coding = strings.ToLower(part)
-		} else if after, ok := strings.CutPrefix(part, "q="); ok {
-			qvalue, err = strconv.ParseFloat(after, 64)
+		} else if len(part) >= 2 && strings.EqualFold(part[:2], "q=") {
+			qvalue, err = strconv.ParseFloat(part[2:], 64)
 
 			if qvalue < 0.0 {
 				qvalue = 0.0

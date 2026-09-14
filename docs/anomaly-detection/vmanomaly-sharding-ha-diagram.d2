@@ -1,0 +1,107 @@
+# Render with D2 v0.7.1:
+# d2 --layout elk --theme 0 --pad 20 vmanomaly-sharding-ha-diagram.d2 vmanomaly-sharding-ha-diagram.svg
+
+grid-columns: 1
+grid-gap: 36
+
+classes: {
+  boundary: {
+    style.fill: "#F7F7F8"
+    style.stroke: "#A7AAB2"
+    style.stroke-width: 2
+  }
+  process: {
+    style.fill: "#FFFFFF"
+    style.stroke: "#303038"
+    style.stroke-width: 2
+    style.border-radius: 8
+  }
+  member: {
+    style.fill: "#F1F3F5"
+    style.stroke: "#59616A"
+    style.stroke-width: 2
+    style.border-radius: 8
+  }
+}
+
+flow: "" {
+  grid-columns: 3
+  grid-gap: 36
+  style.fill: transparent
+  style.stroke: transparent
+
+  global: "Global YAML\nconfiguration" {
+    shape: page
+    class: process
+  }
+
+  splitting: Configuration splitting {
+    class: boundary
+    grid-columns: 1
+    grid-gap: 24
+
+    split: "Split by VMANOMALY_SPLIT_BY\ndefault: complete" {
+      class: process
+    }
+    subconfigs: "N valid sub-configurations\nn = 0 ... N-1" {
+      class: process
+      style.multiple: true
+    }
+
+    split -> subconfigs: {
+      style.stroke: "#303038"
+    }
+  }
+
+  placement: Deterministic placement {
+    class: boundary
+    grid-columns: 1
+    grid-gap: 24
+
+    settings: "K members: VMANOMALY_MEMBERS_COUNT\nMember index: VMANOMALY_MEMBER_NUM\nR replicas: VMANOMALY_REPLICATION_FACTOR" {
+      class: process
+    }
+    assign: "Assign every sub-configuration\nto exactly R members" {
+      class: process
+    }
+
+    settings -> assign: {
+      style.stroke: "#303038"
+    }
+  }
+}
+
+members: K vmanomaly members {
+  class: boundary
+  grid-columns: 3
+  grid-gap: 30
+
+  member0: "Member 0\nvmanomaly service 1" {
+    class: member
+  }
+  member1: "Member 1\nvmanomaly service 2" {
+    class: member
+  }
+  memberK: "Member K-1\nvmanomaly service K" {
+    class: member
+  }
+}
+
+flow.global -> flow.splitting.split: {
+  style.stroke: "#303038"
+}
+flow.splitting.subconfigs -> flow.placement.assign: {
+  style.stroke: "#303038"
+}
+flow.placement.assign -> members.member0: "assigned subset" {
+  style.stroke: "#59616A"
+  style.stroke-width: 2
+}
+flow.placement.assign -> members.member1: "assigned subset" {
+  style.stroke: "#59616A"
+  style.stroke-width: 2
+}
+flow.placement.assign -> members.memberK: "assigned subset" {
+  style.stroke: "#59616A"
+  style.stroke-width: 2
+}

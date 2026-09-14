@@ -14,7 +14,7 @@ type statsSumLen struct {
 }
 
 func (ss *statsSumLen) String() string {
-	return "sum_len(" + fieldNamesString(ss.fieldFilters) + ")"
+	return "sum_len(" + fieldFiltersString(ss.fieldFilters) + ")"
 }
 
 func (ss *statsSumLen) updateNeededFields(pf *prefixfilter.Filter) {

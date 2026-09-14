@@ -55,14 +55,14 @@ func (p *vmNativeProcessor) run(ctx context.Context) error {
 
 	start, err := vmctlutil.ParseTime(p.filter.TimeStart)
 	if err != nil {
-		return fmt.Errorf("failed to parse %s, provided: %s, error: %w", vmNativeFilterTimeStart, p.filter.TimeStart, err)
+		return fmt.Errorf("failed to parse %s, provided: %s: %w", vmNativeFilterTimeStart, p.filter.TimeStart, err)
 	}
 
 	end := time.Now().In(start.Location())
 	if p.filter.TimeEnd != "" {
 		end, err = vmctlutil.ParseTime(p.filter.TimeEnd)
 		if err != nil {
-			return fmt.Errorf("failed to parse %s, provided: %s, error: %w", vmNativeFilterTimeEnd, p.filter.TimeEnd, err)
+			return fmt.Errorf("failed to parse %s, provided: %s: %w", vmNativeFilterTimeEnd, p.filter.TimeEnd, err)
 		}
 	}
 
@@ -91,7 +91,7 @@ func (p *vmNativeProcessor) run(ctx context.Context) error {
 		err := p.runBackfilling(ctx, tenantID, ranges)
 		if err != nil {
 			migrationErrorsTotal.Inc()
-			return fmt.Errorf("migration failed: %s", err)
+			return fmt.Errorf("migration failed: %w", err)
 		}
 
 		if p.interCluster {
@@ -120,11 +120,17 @@ func (p *vmNativeProcessor) do(ctx context.Context, f native.Filter, srcURL, dst
 }
 
 func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcURL, dstURL string, bar barpool.Bar) error {
-	reader, err := p.src.ExportPipe(ctx, srcURL, f)
+	exportReader, err := p.src.ExportPipe(ctx, srcURL, f)
 	if err != nil {
 		return fmt.Errorf("failed to init export pipe: %w", err)
 	}
+	defer func() {
+		// close the export reader on exit, so it doesn't hang at the source
+		// until server-side timeout.
+		_ = exportReader.Close()
+	}()
 
+	reader := io.Reader(exportReader)
 	if p.disablePerMetricRequests {
 		pr := bar.NewProxyReader(reader)
 		if pr != nil {
@@ -134,10 +140,11 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcU
 	}
 
 	pr, pw := io.Pipe()
-	importCh := make(chan error)
+	// make importCh buffered so goroutine won't get stuck if nothing reads from chan
+	importCh := make(chan error, 1)
 	go func() {
 		importCh <- p.dst.ImportPipe(ctx, dstURL, pr)
-		close(importCh)
+		_ = pr.Close()
 	}()
 
 	w := io.Writer(pw)
@@ -148,16 +155,20 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcU
 
 	written, err := io.Copy(w, reader)
 	if err != nil {
-		// io.Copy could fail if ImportPipe will fail before and close the pr
-		// so we check if that's the case and to not ignore importErr if it exists.
+		// close the import writer, so the destination doesn't hang until server-side timeout
+		_ = pw.CloseWithError(err)
 		select {
+		// check if the error happened in the ImportPipe
 		case importErr := <-importCh:
 			if importErr != nil {
 				return fmt.Errorf("failed to import %s: %w", p.dst.Addr, importErr)
 			}
+		// or because vmctl has been stopped
+		case <-ctx.Done():
+			return ctx.Err()
 		default:
 		}
-		return fmt.Errorf("failed to write into %q: %s", p.dst.Addr, err)
+		return fmt.Errorf("failed to write into %q: %w", p.dst.Addr, err)
 	}
 
 	p.s.Lock()
@@ -184,7 +195,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 
 	importAddr, err := vm.AddExtraLabelsToImportPath(importAddr, p.dst.ExtraLabels)
 	if err != nil {
-		return fmt.Errorf("failed to add labels to import path: %s", err)
+		return fmt.Errorf("failed to add labels to import path: %w", err)
 	}
 	dstURL := fmt.Sprintf("%s/%s", p.dst.Addr, importAddr)
 
@@ -222,7 +233,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 		format = fmt.Sprintf(nativeWithBackoffTpl, barPrefix)
 		metricsMap, err = p.explore(ctx, p.src, tenantID, ranges)
 		if err != nil {
-			return fmt.Errorf("failed to explore metric names: %s", err)
+			return fmt.Errorf("failed to explore metric names: %w", err)
 		}
 		if len(metricsMap) == 0 {
 			errMsg := "no metrics found"
@@ -295,7 +306,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 			case <-ctx.Done():
 				return fmt.Errorf("context canceled")
 			case infErr := <-errCh:
-				return fmt.Errorf("export/import error: %s", infErr)
+				return fmt.Errorf("export/import error: %w", infErr)
 			case filterCh <- native.Filter{
 				Match:     match,
 				TimeStart: times[0].Format(time.RFC3339),
@@ -313,7 +324,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 	close(errCh)
 
 	for err := range errCh {
-		return fmt.Errorf("import process failed: %s", err)
+		return fmt.Errorf("import process failed: %w", err)
 	}
 
 	return nil
@@ -405,7 +416,16 @@ func buildMatchWithFilter(filter string, metricName string) (string, error) {
 			if len(tf.Key) == 0 {
 				continue
 			}
-			a = append(a, tf.String())
+			switch {
+			case tf.IsNegative && tf.IsRegexp:
+				a = append(a, fmt.Sprintf("%s!~%q", tf.Key, tf.Value))
+			case tf.IsNegative:
+				a = append(a, fmt.Sprintf("%s!=%q", tf.Key, tf.Value))
+			case tf.IsRegexp:
+				a = append(a, fmt.Sprintf("%s=~%q", tf.Key, tf.Value))
+			default:
+				a = append(a, fmt.Sprintf("%s=%q", tf.Key, tf.Value))
+			}
 		}
 		a = append(a, nameFilter)
 		filters = append(filters, strings.Join(a, ","))

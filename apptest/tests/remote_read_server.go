@@ -12,6 +12,7 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
+	"github.com/prometheus/prometheus/model/histogram"
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/prompb"
 	"github.com/prometheus/prometheus/storage/remote"
@@ -86,10 +87,17 @@ func (rrs *RemoteReadServer) getReadHandler(t *testing.T) http.Handler {
 						samples = append(samples, sample)
 					}
 				}
+				var histograms []prompb.Histogram
+				for _, h := range s.Histograms {
+					if h.Timestamp >= startTs && h.Timestamp < endTs {
+						histograms = append(histograms, h)
+					}
+				}
 				var series prompb.TimeSeries
-				if len(samples) > 0 {
+				if len(samples) > 0 || len(histograms) > 0 {
 					series.Labels = s.Labels
 					series.Samples = samples
+					series.Histograms = histograms
 				}
 				ts[i] = &series
 			}
@@ -315,6 +323,37 @@ func generateRemoteReadSamples(idx int, startTime, endTime, numOfSamples int64) 
 	}
 
 	return samples
+}
+
+// GenerateRemoteReadHistogramSeries generates a remote read series
+// with native histogram samples within the given time range.
+func GenerateRemoteReadHistogramSeries(start, end, numOfSamples int64) []*prompb.TimeSeries {
+	timeSeries := &prompb.TimeSeries{
+		Labels: []prompb.Label{
+			{Name: labels.MetricName, Value: "vm_histogram_metric"},
+			{Name: "job", Value: "0"},
+		},
+	}
+
+	delta := (end - start) / numOfSamples
+	mul := int64(0)
+	for t := start; t != end; t += delta {
+		mul++
+		h := &histogram.Histogram{
+			Schema:          0,
+			Count:           uint64(10 * mul),
+			Sum:             25.5 * float64(mul),
+			ZeroThreshold:   0.001,
+			ZeroCount:       uint64(2 * mul),
+			PositiveSpans:   []histogram.Span{{Offset: 0, Length: 2}},
+			PositiveBuckets: []int64{mul, 2 * mul},
+			NegativeSpans:   []histogram.Span{{Offset: 0, Length: 1}},
+			NegativeBuckets: []int64{4 * mul},
+		}
+		timeSeries.Histograms = append(timeSeries.Histograms, prompb.FromIntHistogram(t*1000, h))
+	}
+
+	return []*prompb.TimeSeries{timeSeries}
 }
 
 func labelsToLabelsProto(ls labels.Labels) []prompb.Label {

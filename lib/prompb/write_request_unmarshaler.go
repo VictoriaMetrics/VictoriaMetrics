@@ -398,6 +398,10 @@ func (nhctx *nativeHistogramContext) appendTimeSeries(tss []TimeSeries, baseLabe
 	if baseName == "" {
 		return tss, labelsPool, samplesPool
 	}
+	originName := *nameValueP
+	defer func() {
+		*nameValueP = originName
+	}()
 
 	*nameValueP = fb.formatName(baseName, "_count")
 	tss, labelsPool, samplesPool = appendHistogramSeries(tss, labelsPool, samplesPool, baseLabels, "", tsMillis, count)
@@ -550,9 +554,11 @@ func (nhctx *nativeHistogramContext) reset() {
 	nhctx.zeroCountInt = 0
 	nhctx.zeroCountFloat = 0
 	nhctx.timestamp = 0
+	clear(nhctx.negativeSpans)
 	nhctx.negativeSpans = nhctx.negativeSpans[:0]
 	nhctx.negativeDeltas = nhctx.negativeDeltas[:0]
 	nhctx.negativeCounts = nhctx.negativeCounts[:0]
+	clear(nhctx.positiveSpans)
 	nhctx.positiveSpans = nhctx.positiveSpans[:0]
 	nhctx.positiveDeltas = nhctx.positiveDeltas[:0]
 	nhctx.positiveCounts = nhctx.positiveCounts[:0]

@@ -9,7 +9,7 @@ type runningStatsMin struct {
 }
 
 func (sm *runningStatsMin) String() string {
-	return "min(" + fieldNamesString(sm.fieldFilters) + ")"
+	return "min(" + fieldFiltersString(sm.fieldFilters) + ")"
 }
 
 func (sm *runningStatsMin) updateNeededFields(pf *prefixfilter.Filter) {

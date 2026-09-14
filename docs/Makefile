@@ -32,6 +32,17 @@ docs-image:
 		--platform $(DOCKER_PLATFORM) \
 		vmdocs
 
+docs-check-links: docs-image
+	rm -rf vmdocs/public
+	docker run \
+		--rm \
+		--platform $(DOCKER_PLATFORM) \
+		-v ./vmdocs:/opt/docs \
+		$(shell for d in ./docs/*/; do printf ' -v %s:/opt/docs/content/%s' "$${d}" "$$(basename $${d})"; done) \
+		--entrypoint /bin/sh \
+		vmdocs-docker-package \
+			-c "yarn install && hugo --minify && yarn run check-links"
+
 docs-debug: docs docs-image
 	docker run \
 		--rm \
@@ -79,12 +90,9 @@ endif
 	sed -i 's/\t/ /g' docs/victoriametrics/victoria_metrics_common_flags.md
 	sed -i 's/\t/ /g' docs/victoriametrics/victoria_metrics_enterprise_flags.md
 
-	# adjust flags with dynamic default values
-	# remove after https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9680 implemented
-	sed -i '/The maximum number of concurrent insert requests/ s/(default [0-9]\+)/(default 2*cgroup.AvailableCPUs())/' docs/victoriametrics/victoria_metrics_common_flags.md
-	sed -i '/The maximum number of concurrent search requests\./ s/(default [0-9]\+)/(default vmselect.getDefaultMaxConcurrentRequests())/' docs/victoriametrics/victoria_metrics_common_flags.md
-	sed -i '/The maximum number of CPU cores a single query can use\./ s/(default [0-9]\+)/(default netstorage.defaultMaxWorkersPerQuery())/' docs/victoriametrics/victoria_metrics_common_flags.md
-	sed -i '/The maximum number of concurrent goroutines to work with files;/ s/(default [0-9]\+)/(default fsutil.getDefaultConcurrency())/' docs/victoriametrics/victoria_metrics_common_flags.md
+	# hide the machine-specific value of dynamic defaults, keeping the formula.
+	# the flagutil.New*WithDynamicDefault constructors print them as "(default <value> = <formula>)".
+	sed -i 's/(default [0-9]\+ = \(.*\))$$/(default \1)/' docs/victoriametrics/victoria_metrics_common_flags.md
 
 docs-update-vmauth-flags:
 ifndef TAG
@@ -108,9 +116,9 @@ endif
 	sed -i 's/\t/ /g' docs/victoriametrics/vmauth_common_flags.md
 	sed -i 's/\t/ /g' docs/victoriametrics/vmauth_enterprise_flags.md
 
-	# adjust flags with dynamic default values
-	# remove after https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9680 implemented
-	sed -i '/The maximum number of concurrent goroutines to work with files;/ s/(default [0-9]\+)/(default fsutil.getDefaultConcurrency())/' docs/victoriametrics/vmauth_common_flags.md
+	# hide the machine-specific value of dynamic defaults, keeping the formula.
+	# the flagutil.New*WithDynamicDefault constructors print them as "(default <value> = <formula>)".
+	sed -i 's/(default [0-9]\+ = \(.*\))$$/(default \1)/' docs/victoriametrics/vmauth_common_flags.md
 
 docs-update-vmagent-flags:
 ifndef TAG
@@ -134,11 +142,9 @@ endif
 	sed -i 's/\t/ /g' docs/victoriametrics/vmagent_common_flags.md
 	sed -i 's/\t/ /g' docs/victoriametrics/vmagent_enterprise_flags.md
 
-	# adjust flags with dynamic default values
-	# remove after https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9680 implemented
-	sed -i '/The maximum number of concurrent insert requests/ s/(default [0-9]\+)/(default 2*cgroup.AvailableCPUs())/' docs/victoriametrics/vmagent_common_flags.md
-	sed -i '/The number of concurrent queues to each -remoteWrite.url./ s/(default [0-9]\+)/(default 2*cgroup.AvailableCPUs())/' docs/victoriametrics/vmagent_common_flags.md
-	sed -i '/The maximum number of concurrent goroutines to work with files;/ s/(default [0-9]\+)/(default fsutil.getDefaultConcurrency())/' docs/victoriametrics/vmagent_common_flags.md
+	# hide the machine-specific value of dynamic defaults, keeping the formula.
+	# the flagutil.New*WithDynamicDefault constructors print them as "(default <value> = <formula>)".
+	sed -i 's/(default [0-9]\+ = \(.*\))$$/(default \1)/' docs/victoriametrics/vmagent_common_flags.md
 
 docs-update-vmalert-flags:
 ifndef TAG
@@ -162,10 +168,9 @@ endif
 	sed -i 's/\t/ /g' docs/victoriametrics/vmalert_common_flags.md
 	sed -i 's/\t/ /g' docs/victoriametrics/vmalert_enterprise_flags.md
 
-	# adjust flags with dynamic default values
-	# remove after https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9680 implemented
-	sed -i '/Defines number of writers for concurrent writing into remote write endpoint./ s/(default [0-9]\+)/(default 2*cgroup.AvailableCPUs())/' docs/victoriametrics/vmalert_common_flags.md
-	sed -i '/The maximum number of concurrent goroutines to work with files;/ s/(default [0-9]\+)/(default fsutil.getDefaultConcurrency())/' docs/victoriametrics/vmalert_common_flags.md
+	# hide the machine-specific value of dynamic defaults, keeping the formula.
+	# the flagutil.New*WithDynamicDefault constructors print them as "(default <value> = <formula>)".
+	sed -i 's/(default [0-9]\+ = \(.*\))$$/(default \1)/' docs/victoriametrics/vmalert_common_flags.md
 
 docs-update-vmselect-flags:
 ifndef TAG
@@ -189,12 +194,9 @@ endif
 	sed -i 's/\t/ /g' docs/victoriametrics/vmselect_common_flags.md
 	sed -i 's/\t/ /g' docs/victoriametrics/vmselect_enterprise_flags.md
 
-	# adjust flags with dynamic default values
-	# remove after https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9680 implemented
-	sed -i '/The maximum number of concurrent search requests\./ s/(default [0-9]\+)/(default vmselect.getDefaultMaxConcurrentRequests())/' docs/victoriametrics/vmselect_common_flags.md
-	sed -i '/The maximum number of CPU cores a single query can use\./ s/(default [0-9]\+)/(default netstorage.defaultMaxWorkersPerQuery())/' docs/victoriametrics/vmselect_common_flags.md
-	sed -i '/The maximum number of concurrent vmselect requests the server can process at -clusternativeListenAddr/ s/(default [0-9]\+)/(default 2*cgroup.AvailableCPUs())/' docs/victoriametrics/vmselect_common_flags.md
-	sed -i '/The maximum number of concurrent goroutines to work with files;/ s/(default [0-9]\+)/(default fsutil.getDefaultConcurrency())/' docs/victoriametrics/vmselect_common_flags.md
+	# hide the machine-specific value of dynamic defaults, keeping the formula.
+	# the flagutil.New*WithDynamicDefault constructors print them as "(default <value> = <formula>)".
+	sed -i 's/(default [0-9]\+ = \(.*\))$$/(default \1)/' docs/victoriametrics/vmselect_common_flags.md
 
 docs-update-vminsert-flags:
 ifndef TAG
@@ -227,10 +229,9 @@ endif
 	#	  {print}\
 	#	' docs/victoriametrics/vminsert_common_flags.md
 
-	# adjust flags with dynamic default values
-	# remove after https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9680 implemented
-	sed -i '/The maximum number of concurrent insert requests/ s/(default [0-9]\+)/(default 2*cgroup.AvailableCPUs())/' docs/victoriametrics/vminsert_common_flags.md
-	sed -i '/The maximum number of concurrent goroutines to work with files;/ s/(default [0-9]\+)/(default fsutil.getDefaultConcurrency())/' docs/victoriametrics/vminsert_common_flags.md
+	# hide the machine-specific value of dynamic defaults, keeping the formula.
+	# the flagutil.New*WithDynamicDefault constructors print them as "(default <value> = <formula>)".
+	sed -i 's/(default [0-9]\+ = \(.*\))$$/(default \1)/' docs/victoriametrics/vminsert_common_flags.md
 
 docs-update-vmstorage-flags:
 ifndef TAG
@@ -254,11 +255,9 @@ endif
 	sed -i 's/\t/ /g' docs/victoriametrics/vmstorage_common_flags.md
 	sed -i 's/\t/ /g' docs/victoriametrics/vmstorage_enterprise_flags.md
 
-	# adjust flags with dynamic default values
-	# remove after https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9680 implemented
-	sed -i '/The maximum number of concurrent insert requests/ s/(default [0-9]\+)/(default 2*cgroup.AvailableCPUs())/' docs/victoriametrics/vmstorage_common_flags.md
-	sed -i '/The maximum number of concurrent vmselect requests the vmstorage can process at./ s/(default [0-9]\+)/(default 2*cgroup.AvailableCPUs())/' docs/victoriametrics/vmstorage_common_flags.md
-	sed -i '/The maximum number of concurrent goroutines to work with files;/ s/(default [0-9]\+)/(default fsutil.getDefaultConcurrency())/' docs/victoriametrics/vmstorage_common_flags.md
+	# hide the machine-specific value of dynamic defaults, keeping the formula.
+	# the flagutil.New*WithDynamicDefault constructors print them as "(default <value> = <formula>)".
+	sed -i 's/(default [0-9]\+ = \(.*\))$$/(default \1)/' docs/victoriametrics/vmstorage_common_flags.md
 
 docs-update-vmctl-flags:
 ifndef TAG
@@ -271,6 +270,8 @@ endif
 	(cd /tmp/vm-opensource && ./bin/vmctl remote-read -help > /tmp/vmctl_remote-read_flags_tmp.md)
 	(cd /tmp/vm-opensource && ./bin/vmctl prometheus -help > /tmp/vmctl_prometheus_flags_tmp.md)
 	(cd /tmp/vm-opensource && ./bin/vmctl vm-native -help > /tmp/vmctl_vm-native_flags_tmp.md)
+	(cd /tmp/vm-opensource && ./bin/vmctl thanos -help > /tmp/vmctl_thanos_flags_tmp.md)
+	(cd /tmp/vm-opensource && ./bin/vmctl mimir -help > /tmp/vmctl_mimir_flags_tmp.md)
 
 	echo "$$FLAGS_HEADER" > docs/victoriametrics/vmctl/vmctl_flags.md && \
 	cat /tmp/vmctl_flags_tmp.md >> docs/victoriametrics/vmctl/vmctl_flags.md && \
@@ -296,6 +297,14 @@ endif
 	cat /tmp/vmctl_vm-native_flags_tmp.md >> docs/victoriametrics/vmctl/vmctl_vm-native_flags.md && \
 	printf '```\n' >> docs/victoriametrics/vmctl/vmctl_vm-native_flags.md
 
+	echo "$$FLAGS_HEADER" > docs/victoriametrics/vmctl/vmctl_thanos_flags.md && \
+	cat /tmp/vmctl_thanos_flags_tmp.md >> docs/victoriametrics/vmctl/vmctl_thanos_flags.md && \
+	printf '```\n' >> docs/victoriametrics/vmctl/vmctl_thanos_flags.md
+
+	echo "$$FLAGS_HEADER" > docs/victoriametrics/vmctl/vmctl_mimir_flags.md && \
+	cat /tmp/vmctl_mimir_flags_tmp.md >> docs/victoriametrics/vmctl/vmctl_mimir_flags.md && \
+	printf '```\n' >> docs/victoriametrics/vmctl/vmctl_mimir_flags.md
+
 	# remove Total time line from all vmctl flag files to reduce diffs noise
 	sed -i '/Total time:/d' docs/victoriametrics/vmctl/vmctl_flags.md
 	sed -i '/Total time:/d' docs/victoriametrics/vmctl/vmctl_opentsdb_flags.md
@@ -303,6 +312,8 @@ endif
 	sed -i '/Total time:/d' docs/victoriametrics/vmctl/vmctl_remote-read_flags.md
 	sed -i '/Total time:/d' docs/victoriametrics/vmctl/vmctl_prometheus_flags.md
 	sed -i '/Total time:/d' docs/victoriametrics/vmctl/vmctl_vm-native_flags.md
+	sed -i '/Total time:/d' docs/victoriametrics/vmctl/vmctl_thanos_flags.md
+	sed -i '/Total time:/d' docs/victoriametrics/vmctl/vmctl_mimir_flags.md
 
 	# remove Version line and the actual version line from vmctl_flags.md to reduce diffs noise
 	sed -i '/^VERSION:/,+1d' docs/victoriametrics/vmctl/vmctl_flags.md

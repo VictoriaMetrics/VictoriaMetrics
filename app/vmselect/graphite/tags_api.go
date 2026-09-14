@@ -138,7 +138,9 @@ func registerMetrics(startTime time.Time, w http.ResponseWriter, r *http.Request
 		mr.MetricNameRaw = storage.MarshalMetricNameRaw(mr.MetricNameRaw[:0], labels)
 		mr.Timestamp = ct
 	}
-	vmstorage.RegisterMetricNames(nil, mrs)
+	if err := vmstorage.VMSelectAPI.RegisterMetricNames(nil, mrs, 0); err != nil {
+		return err
+	}
 
 	// Return response
 	contentType := "text/plain; charset=utf-8"

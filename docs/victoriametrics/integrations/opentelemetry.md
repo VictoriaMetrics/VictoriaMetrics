@@ -1,5 +1,6 @@
 ---
 title: OpenTelemetry
+description: "Native OTLP metrics protocol support."
 weight: 13
 menu:
   docs:

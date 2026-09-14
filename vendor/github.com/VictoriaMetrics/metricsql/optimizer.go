@@ -39,6 +39,9 @@ func canOptimize(e Expr) bool {
 			}
 		}
 	case *BinaryOpExpr:
+		if t.FillLeft != nil && t.FillRight != nil {
+			return canOptimize(t.Left) || canOptimize(t.Right)
+		}
 		return true
 	}
 	return false
@@ -66,8 +69,23 @@ func optimizeInplace(e Expr) {
 	case *BinaryOpExpr:
 		optimizeInplace(t.Left)
 		optimizeInplace(t.Right)
-		lfs := getCommonLabelFilters(t)
-		pushdownBinaryOpFiltersInplace(lfs, t)
+		switch {
+		case t.FillLeft != nil && t.FillRight != nil:
+			// for two-sided fill, no cross-side pushdown.
+		case t.FillLeft != nil:
+			// for fill_left(), only propagate filters from right to left.
+			lfs := getCommonLabelFilters(t.Right)
+			lfs = TrimFiltersByGroupModifier(lfs, t)
+			pushdownBinaryOpFiltersInplace(lfs, t.Left)
+		case t.FillRight != nil:
+			// for fill_right(), only propagate filters from left to right.
+			lfs := getCommonLabelFilters(t.Left)
+			lfs = TrimFiltersByGroupModifier(lfs, t)
+			pushdownBinaryOpFiltersInplace(lfs, t.Right)
+		default:
+			lfs := getCommonLabelFilters(t)
+			pushdownBinaryOpFiltersInplace(lfs, t)
+		}
 	}
 }
 

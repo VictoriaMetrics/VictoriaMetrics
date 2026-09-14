@@ -56,3 +56,20 @@ groups:
           summary: "Too many errors served for user {{ $labels.username }} (instance {{ $labels.instance }})"
           description: "Requests from user {{ $labels.username }} are receiving errors.
             Please check the vmauth logs to verify that the configuration is correct and clients are sending valid requests."
+      - alert: InvalidAuthTokenRequestErrors
+        expr: sum(increase(vmauth_http_request_errors_total{reason="invalid_auth_token"}[5m])) without (instance, reason) > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          dashboard: "{{ $externalURL }}/d/nbuo5Mr4k?viewPanel=16&var-job={{ $labels.job }}"
+          summary: "vmauth {{ $labels.job }} is receiving many requests with invalid auth tokens"
+          description: |
+            vmauth {{ $labels.job }} received {{ $value }} requests with invalid auth tokens in the last 5 minutes.
+            This may indicate:
+              - credentials have been updated on vmauth but not on clients
+              - client misconfiguration or use of an expired token
+              - a brute-force attack.
+
+            Check vmauth metrics for longevity and scale of the issue. 
+            Check access log for detailed information: https://docs.victoriametrics.com/victoriametrics/vmauth/#access-log

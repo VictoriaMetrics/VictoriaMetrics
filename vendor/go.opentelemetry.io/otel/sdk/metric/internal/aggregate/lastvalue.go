@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package aggregate // import "go.opentelemetry.io/otel/sdk/metric/internal/aggregate"
+package aggregate
 
 import (
 	"context"
@@ -14,36 +14,41 @@ import (
 
 // lastValuePoint is timestamped measurement data.
 type lastValuePoint[N int64 | float64] struct {
-	attrs     attribute.Set
-	value     atomicN[N]
-	res       FilteredExemplarReservoir[N]
-	startTime time.Time
+	attrs         attribute.Set
+	value         atomicN[N]
+	res           FilteredExemplarReservoir[N]
+	startTime     time.Time
+	dropExemplars bool
 }
 
 // lastValueMap summarizes a set of measurements as the last one made.
 type lastValueMap[N int64 | float64] struct {
 	newRes func(attribute.Set) FilteredExemplarReservoir[N]
-	values limitedSyncMap
+	values limitedSyncMap[*lastValuePoint[N]]
 }
 
 func (s *lastValueMap[N]) measure(
 	ctx context.Context,
 	value N,
-	fltrAttr attribute.Set,
-	droppedAttr []attribute.KeyValue,
+	lazy lazyFilteredAttributes,
 ) {
-	lv := s.values.LoadOrStoreAttr(fltrAttr, func(attr attribute.Set) any {
+	lv := s.values.LoadOrStoreAttr(lazy, func(attr attribute.Set) *lastValuePoint[N] {
+		r := s.newRes(attr)
+		_, isDrop := r.(*dropRes[N])
 		p := &lastValuePoint[N]{
-			res:       s.newRes(attr),
-			attrs:     attr,
-			startTime: now(),
+			res:           r,
+			attrs:         attr,
+			startTime:     now(),
+			dropExemplars: isDrop,
 		}
 		p.value.Store(value)
 		return p
-	}).(*lastValuePoint[N])
+	})
 
 	lv.value.Store(value)
-	lv.res.Offer(ctx, value, droppedAttr)
+	if !lv.dropExemplars {
+		lv.res.Offer(ctx, value, lazy)
+	}
 }
 
 func newDeltaLastValue[N int64 | float64](
@@ -55,12 +60,12 @@ func newDeltaLastValue[N int64 | float64](
 		start:  now(),
 		hotColdValMap: [2]lastValueMap[N]{
 			{
-				values: limitedSyncMap{aggLimit: limit},
 				newRes: r,
+				values: limitedSyncMap[*lastValuePoint[N]]{aggLimit: limit},
 			},
 			{
-				values: limitedSyncMap{aggLimit: limit},
 				newRes: r,
+				values: limitedSyncMap[*lastValuePoint[N]]{aggLimit: limit},
 			},
 		},
 	}
@@ -78,12 +83,11 @@ type deltaLastValue[N int64 | float64] struct {
 func (s *deltaLastValue[N]) measure(
 	ctx context.Context,
 	value N,
-	fltrAttr attribute.Set,
-	droppedAttr []attribute.KeyValue,
+	lazy lazyFilteredAttributes,
 ) {
 	hotIdx := s.hcwg.start()
 	defer s.hcwg.done(hotIdx)
-	s.hotColdValMap[hotIdx].measure(ctx, value, fltrAttr, droppedAttr)
+	s.hotColdValMap[hotIdx].measure(ctx, value, lazy)
 }
 
 func (s *deltaLastValue[N]) collect(
@@ -142,8 +146,8 @@ func newCumulativeLastValue[N int64 | float64](
 ) *cumulativeLastValue[N] {
 	return &cumulativeLastValue[N]{
 		lastValueMap: lastValueMap[N]{
-			values: limitedSyncMap{aggLimit: limit},
 			newRes: r,
+			values: limitedSyncMap[*lastValuePoint[N]]{aggLimit: limit},
 		},
 		start: now(),
 	}

@@ -28,7 +28,6 @@ func ParseTimeMsec(s string) (int64, error) {
 // See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats
 //
 // If s doesn't contain timezone information, then the local timezone is used.
-// The time must be in the range [1970-01-01T00:00:00Z, 2262-04-11T23:47:16Z].
 //
 // It returns unix timestamp in nanoseconds.
 func ParseTimeAt(s string, currentTimestamp int64) (int64, error) {
@@ -71,14 +70,10 @@ func ParseTimeAt(s string, currentTimestamp int64) (int64, error) {
 		if err != nil {
 			return 0, err
 		}
-		if d > 0 {
+		if d < 0 {
 			d = -d
 		}
-		nsec := currentTimestamp + int64(d)
-		if nsec < 0 {
-			return 0, fmt.Errorf("time %s (%v) must be in the range [%v, %v]", sOrig, time.Unix(0, nsec).UTC(), minTime, maxTime)
-		}
-		return nsec, nil
+		return subInt64NoOverflow(currentTimestamp, int64(d)), nil
 	}
 	if len(s) == 4 {
 		// Parse YYYY
@@ -115,22 +110,28 @@ func ParseTimeAt(s string, currentTimestamp int64) (int64, error) {
 	return parseTimeAt(time.RFC3339, sOrig, 0, sOrig)
 }
 
-var (
-	minTime = time.Unix(0, 0).UTC()
-	maxTime = time.Unix(0, math.MaxInt64).UTC()
-)
-
-func parseTimeAt(layout, value string, tzOffsetNanos int64, sOrig string) (int64, error) {
+func parseTimeAt(layout, value string, tzOffsetNsec int64, sOrig string) (int64, error) {
 	t, err := time.Parse(layout, value)
 	if err != nil {
 		return 0, err
 	}
-	tzOffset := time.Duration(tzOffsetNanos)
-	t = t.UTC().Add(tzOffset)
-	if t.Before(minTime) || t.After(maxTime) {
-		return 0, fmt.Errorf("time %s (%v) must be in the range [%v, %v]", sOrig, t, minTime, maxTime)
+	nsec := t.UnixNano()
+
+	return subInt64NoOverflow(nsec, -tzOffsetNsec), nil
+}
+
+func subInt64NoOverflow(a, b int64) int64 {
+	if b >= 0 {
+		if a < math.MinInt64+b {
+			return math.MinInt64
+		}
+		return a - b
 	}
-	return t.UnixNano(), nil
+
+	if a > math.MaxInt64+b {
+		return math.MaxInt64
+	}
+	return a - b
 }
 
 // TryParseUnixTimestamp parses s as unix timestamp in seconds, milliseconds, microseconds or nanoseconds and returns the parsed timestamp in nanoseconds.
@@ -147,11 +148,11 @@ func TryParseUnixTimestamp(s string) (int64, bool) {
 		if !ok {
 			return 0, false
 		}
-		n, ok := tryParseScientificNumberForUnixTimestamp(s[:expIdx], decimalExp)
+		n, ok := tryParseScientificUnixTimestamp(s[:expIdx], decimalExp)
 		if !ok {
 			return 0, false
 		}
-		return getUnixTimestampNanoseconds(n), true
+		return n, true
 	}
 
 	dotIdx := strings.IndexByte(s, '.')
@@ -167,22 +168,11 @@ func TryParseUnixTimestamp(s string) (int64, bool) {
 	// The timestamp is fractional.
 	intStr := s[:dotIdx]
 	fracStr := s[dotIdx+1:]
-	n, ok := tryParseFractionalNumberForUnixTimestamp(intStr, fracStr)
+	n, ok := tryParseFractionalUnixTimestamp(intStr, fracStr)
 	if !ok {
 		return 0, false
 	}
-
-	// Adjust the n to multiples of thousands, since this is expected by getUnixTimestampNanoseconds.
-	decimalExp := len(fracStr)
-	for decimalExp%3 != 0 {
-		if n >= 0 && n > math.MaxInt64/10 || n < 0 && n < math.MinInt64/10 {
-			return 0, false
-		}
-		n *= 10
-		decimalExp++
-	}
-
-	return getUnixTimestampNanoseconds(n), true
+	return n, true
 }
 
 func getExpIndex(s string) int {
@@ -195,30 +185,52 @@ func getExpIndex(s string) int {
 	return -1
 }
 
-func tryParseScientificNumberForUnixTimestamp(s string, decimalExp int64) (int64, bool) {
+func tryParseScientificUnixTimestamp(s string, decimalExp int64) (int64, bool) {
+	if decimalExp < 0 {
+		// Negative exponents on a fractional mantissa are intentionally not
+		// supported. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11268
+		return 0, false
+	}
 	dotIdx := strings.IndexByte(s, '.')
 	if dotIdx < 0 {
 		n, ok := tryParseInt64(s)
 		if !ok {
 			return 0, false
 		}
-		return multiplyByDecimalExp(n, decimalExp)
+		n, ok = multiplyByDecimalExp(n, decimalExp)
+		if !ok {
+			return 0, false
+		}
+		return getUnixTimestampNanoseconds(n), true
 	}
 
 	intStr := s[:dotIdx]
 	fracStr := s[dotIdx+1:]
-	if decimalExp < int64(len(fracStr)) {
+	if decimalExp >= int64(len(fracStr)) {
+		// The exponent shifts the decimal point past every fractional digit.
+		n, ok := tryParseDecimalMantissaAsInt(intStr, fracStr)
+		if !ok {
+			return 0, false
+		}
+		decimalExp -= int64(len(fracStr))
+		n, ok = multiplyByDecimalExp(n, decimalExp)
+		if !ok {
+			return 0, false
+		}
+		return getUnixTimestampNanoseconds(n), true
+	}
+
+	// The exponent leaves fractional digits, e.g. 1.784144612388E9 == 1784144612.388
+	if decimalExp >= int64(len(decimalMultipliers)) {
 		return 0, false
 	}
-	n, ok := tryParseFractionalNumberForUnixTimestamp(intStr, fracStr)
-	if !ok {
-		return 0, false
-	}
-	decimalExp -= int64(len(fracStr))
-	return multiplyByDecimalExp(n, decimalExp)
+	decimalExpInt := int(decimalExp)
+	intStr = s[:dotIdx] + fracStr[:decimalExpInt]
+	fracStr = fracStr[decimalExpInt:]
+	return tryParseFractionalUnixTimestamp(intStr, fracStr)
 }
 
-func tryParseFractionalNumberForUnixTimestamp(intStr, fracStr string) (int64, bool) {
+func tryParseDecimalMantissaAsInt(intStr, fracStr string) (int64, bool) {
 	n, ok := tryParseInt64(intStr)
 	if !ok {
 		return 0, false
@@ -248,6 +260,53 @@ func tryParseFractionalNumberForUnixTimestamp(intStr, fracStr string) (int64, bo
 	}
 
 	return num, true
+}
+
+func tryParseFractionalUnixTimestamp(intStr, fracStr string) (int64, bool) {
+	n, ok := tryParseInt64(intStr)
+	if !ok {
+		return 0, false
+	}
+	isNegative := n < 0 || n == 0 && strings.HasPrefix(intStr, "-")
+
+	multiplier, maxFracDigits := getUnixTimestampMultiplier(n)
+	// Truncate the fractional digits to valid length according to the unit precision.
+	if len(fracStr) > maxFracDigits {
+		// 1.123456789XXX is invalid.
+		tail := fracStr[maxFracDigits:]
+		for i := 0; i < len(tail); i++ {
+			if tail[i] < '0' || tail[i] > '9' {
+				return 0, false
+			}
+		}
+		fracStr = fracStr[:maxFracDigits]
+	}
+	if len(fracStr) == 0 {
+		return n * multiplier, true
+	}
+
+	frac, ok := tryParseInt64(fracStr)
+	if !ok {
+		return 0, false
+	}
+	decimalExp := len(fracStr)
+	if decimalExp >= len(decimalMultipliers) {
+		return 0, false
+	}
+	n *= multiplier
+	scale := decimalMultipliers[decimalExp]
+	frac *= multiplier / scale
+
+	if isNegative {
+		if n < math.MinInt64+frac {
+			return 0, false
+		}
+		return n - frac, true
+	}
+	if n > math.MaxInt64-frac {
+		return 0, false
+	}
+	return n + frac, true
 }
 
 func multiplyByDecimalExp(n int64, decimalExp int64) (int64, bool) {
@@ -282,20 +341,25 @@ const (
 )
 
 func getUnixTimestampNanoseconds(n int64) int64 {
+	multiplier, _ := getUnixTimestampMultiplier(n)
+	return n * multiplier
+}
+
+func getUnixTimestampMultiplier(n int64) (int64, int) {
 	if n <= maxValidSecond && n >= minValidSecond {
 		// The timestamp is in seconds.
-		return n * 1e9
+		return 1e9, 9
 	}
 	if n <= maxValidMilli && n >= minValidMilli {
 		// The timestamp is in milliseconds.
-		return n * 1e6
+		return 1e6, 6
 	}
 	if n <= maxValidMicro && n >= minValidMicro {
 		// The timestamp is in microseconds.
-		return n * 1e3
+		return 1e3, 3
 	}
 	// The timestamp is in nanoseconds
-	return n
+	return 1, 0
 }
 
 func tryParseInt64(s string) (int64, bool) {

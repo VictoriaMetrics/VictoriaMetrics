@@ -9,7 +9,7 @@ type statsMedian struct {
 }
 
 func (sm *statsMedian) String() string {
-	return "median(" + fieldNamesString(sm.sq.fieldFilters) + ")"
+	return "median(" + fieldFiltersString(sm.sq.fieldFilters) + ")"
 }
 
 func (sm *statsMedian) updateNeededFields(pf *prefixfilter.Filter) {

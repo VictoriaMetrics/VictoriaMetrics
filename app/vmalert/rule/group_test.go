@@ -78,6 +78,12 @@ func TestUpdateWith(t *testing.T) {
 		if g.Debug != expect.Debug {
 			t.Fatalf("expected to have debug %v; got %v", expect.Debug, g.Debug)
 		}
+		if !durationPtrEqual(g.EvalDelay, expect.EvalDelay) {
+			t.Fatalf("expected to have eval_delay %v; got %v", expect.EvalDelay, g.EvalDelay)
+		}
+		if !boolPtrEqual(g.evalAlignment, expect.evalAlignment) {
+			t.Fatalf("expected to have eval_alignment %v; got %v", expect.evalAlignment, g.evalAlignment)
+		}
 	}
 
 	// new rule
@@ -237,6 +243,37 @@ func TestUpdateWith(t *testing.T) {
 			{Alert: "foo1", Debug: &debug},
 		},
 	})
+
+	// update group evaluation settings
+	evalDelay := promutil.NewDuration(time.Minute)
+	evalAlignment := false
+	f(config.Group{
+		Rules: []config.Rule{{
+			Record: "foo",
+			Expr:   "max(up)",
+		}},
+	}, config.Group{
+		EvalDelay:     evalDelay,
+		EvalAlignment: &evalAlignment,
+		Rules: []config.Rule{{
+			Record: "foo",
+			Expr:   "min(up)",
+		}},
+	})
+}
+
+func durationPtrEqual(a, b *time.Duration) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return *a == *b
+}
+
+func boolPtrEqual(a, b *bool) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return *a == *b
 }
 
 func TestUpdateDuringRandSleep(t *testing.T) {

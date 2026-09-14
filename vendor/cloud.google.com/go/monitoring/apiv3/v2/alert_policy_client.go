@@ -144,7 +144,7 @@ type AlertPolicyClient struct {
 
 // Wrapper methods routed to the internal client.
 
-// Close closes the connection to the API service. The user should invoke this when
+// Close closes the connection to the API service. **Always** call Close() when
 // the client is no longer required.
 func (c *AlertPolicyClient) Close() error {
 	return c.internalClient.Close()
@@ -312,7 +312,7 @@ func (c *alertPolicyGRPCClient) setGoogleClientInfo(keyval ...string) {
 	}
 }
 
-// Close closes the connection to the API service. The user should invoke this when
+// Close closes the connection to the API service. **Always** call Close() when
 // the client is no longer required.
 func (c *alertPolicyGRPCClient) Close() error {
 	return c.connPool.Close()
@@ -331,7 +331,7 @@ func (c *alertPolicyGRPCClient) ListAlertPolicies(ctx context.Context, req *moni
 	}
 	opts = append((*c.CallOptions).ListAlertPolicies[0:len((*c.CallOptions).ListAlertPolicies):len((*c.CallOptions).ListAlertPolicies)], opts...)
 	it := &AlertPolicyIterator{}
-	req = proto.Clone(req).(*monitoringpb.ListAlertPoliciesRequest)
+	req = proto.CloneOf(req)
 	it.InternalFetch = func(pageSize int, pageToken string) ([]*monitoringpb.AlertPolicy, string, error) {
 		resp := &monitoringpb.ListAlertPoliciesResponse{}
 		if pageToken != "" {

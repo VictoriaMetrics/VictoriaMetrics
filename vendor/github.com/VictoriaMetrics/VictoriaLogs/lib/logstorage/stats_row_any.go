@@ -16,7 +16,7 @@ type statsRowAny struct {
 }
 
 func (sa *statsRowAny) String() string {
-	return "row_any(" + fieldNamesString(sa.fieldFilters) + ")"
+	return "row_any(" + fieldFiltersString(sa.fieldFilters) + ")"
 }
 
 func (sa *statsRowAny) updateNeededFields(pf *prefixfilter.Filter) {

@@ -87,7 +87,7 @@ type QueryClient struct {
 
 // Wrapper methods routed to the internal client.
 
-// Close closes the connection to the API service. The user should invoke this when
+// Close closes the connection to the API service. **Always** call Close() when
 // the client is no longer required.
 func (c *QueryClient) Close() error {
 	return c.internalClient.Close()
@@ -215,7 +215,7 @@ func (c *queryGRPCClient) setGoogleClientInfo(keyval ...string) {
 	}
 }
 
-// Close closes the connection to the API service. The user should invoke this when
+// Close closes the connection to the API service. **Always** call Close() when
 // the client is no longer required.
 func (c *queryGRPCClient) Close() error {
 	return c.connPool.Close()
@@ -231,7 +231,7 @@ func (c *queryGRPCClient) QueryTimeSeries(ctx context.Context, req *monitoringpb
 	}
 	opts = append((*c.CallOptions).QueryTimeSeries[0:len((*c.CallOptions).QueryTimeSeries):len((*c.CallOptions).QueryTimeSeries)], opts...)
 	it := &TimeSeriesDataIterator{}
-	req = proto.Clone(req).(*monitoringpb.QueryTimeSeriesRequest)
+	req = proto.CloneOf(req)
 	it.InternalFetch = func(pageSize int, pageToken string) ([]*monitoringpb.TimeSeriesData, string, error) {
 		resp := &monitoringpb.QueryTimeSeriesResponse{}
 		if pageToken != "" {

@@ -1,4 +1,59 @@
 {
+  "__inputs": [
+    {
+      "name": "DS_VICTORIALOGS",
+      "label": "VictoriaLogs",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "victoriametrics-logs-datasource",
+      "pluginName": "VictoriaLogs"
+    }
+  ],
+  "__elements": {},
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "12.4.3"
+    },
+    {
+      "type": "panel",
+      "id": "logs",
+      "name": "Logs",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "stat",
+      "name": "Stat",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "table",
+      "name": "Table",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "text",
+      "name": "Text",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "timeseries",
+      "name": "Time series",
+      "version": ""
+    },
+    {
+      "type": "datasource",
+      "id": "victoriametrics-logs-datasource",
+      "name": "VictoriaLogs",
+      "version": "0.29.0"
+    }
+  ],
   "annotations": {
     "list": [
       {
@@ -18,7 +73,6 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 861,
   "links": [
     {
       "icon": "doc",
@@ -78,7 +132,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               }
             ]
           }
@@ -109,7 +164,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "11.6.0",
+      "pluginVersion": "12.4.3",
       "targets": [
         {
           "datasource": {
@@ -117,7 +172,7 @@
             "uid": "${ds}"
           },
           "editorMode": "code",
-          "expr": "\"\\tvm_slow_query_stats\" | extract 'vm_slow_query_stats <vm_slow_query_stats>' | unpack_logfmt from vm_slow_query_stats \n| tenant:in($tenant)\n| query_hash:in($query_hash)\n| type:=\"instant\"\n| count()",
+          "expr": "\"vm_slow_query_stats\" | extract 'vm_slow_query_stats <vm_slow_query_stats>' | unpack_logfmt from vm_slow_query_stats \n| tenant:in($tenant)\n| query_hash:$query_hash\n| type:=\"instant\"\n| count()",
           "queryType": "stats",
           "refId": "A"
         }
@@ -140,7 +195,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               }
             ]
           }
@@ -171,7 +227,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "11.6.0",
+      "pluginVersion": "12.4.3",
       "targets": [
         {
           "datasource": {
@@ -179,7 +235,7 @@
             "uid": "${ds}"
           },
           "editorMode": "code",
-          "expr": "\"\\tvm_slow_query_stats\" | extract 'vm_slow_query_stats <vm_slow_query_stats>' | unpack_logfmt from vm_slow_query_stats \n| tenant:in($tenant)\n| query_hash:in($query_hash) \n| type:=\"range\"\n| count()",
+          "expr": "\"vm_slow_query_stats\" | extract 'vm_slow_query_stats <vm_slow_query_stats>' | unpack_logfmt from vm_slow_query_stats \n| tenant:in($tenant)\n| query_hash:$query_hash \n| type:=\"range\"\n| count()",
           "queryType": "stats",
           "refId": "A"
         }
@@ -202,7 +258,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               }
             ]
           }
@@ -233,7 +290,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "11.6.0",
+      "pluginVersion": "12.4.3",
       "targets": [
         {
           "datasource": {
@@ -241,7 +298,7 @@
             "uid": "${ds}"
           },
           "editorMode": "code",
-          "expr": "\"\\tvm_slow_query_stats\" | extract 'vm_slow_query_stats <vm_slow_query_stats>' | unpack_logfmt from vm_slow_query_stats \n| tenant:in($tenant)\n| query_hash:in($query_hash) \n| series_fetched:=0\n| count()",
+          "expr": "\"vm_slow_query_stats\" | extract 'vm_slow_query_stats <vm_slow_query_stats>' | unpack_logfmt from vm_slow_query_stats \n| tenant:in($tenant)\n| query_hash:$query_hash \n| series_fetched:=0\n| count()",
           "queryType": "stats",
           "refId": "A"
         }
@@ -265,7 +322,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               }
             ]
           },
@@ -297,7 +355,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "11.6.0",
+      "pluginVersion": "12.4.3",
       "targets": [
         {
           "datasource": {
@@ -305,7 +363,7 @@
             "uid": "${ds}"
           },
           "editorMode": "code",
-          "expr": "\"\\tvm_slow_query_stats\" | extract 'vm_slow_query_stats <vm_slow_query_stats>' | unpack_logfmt from vm_slow_query_stats \n| tenant:in($tenant)\n| query_hash:in($query_hash) \n| stats min(start_ms)\n",
+          "expr": "\"vm_slow_query_stats\" | extract 'vm_slow_query_stats <vm_slow_query_stats>' | unpack_logfmt from vm_slow_query_stats \n| tenant:in($tenant)\n| query_hash:$query_hash \n| stats min(start_ms)\n",
           "queryType": "stats",
           "refId": "A"
         }
@@ -327,10 +385,6 @@
       "type": "row"
     },
     {
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      },
       "gridPos": {
         "h": 2,
         "w": 24,
@@ -347,8 +401,7 @@
         "content": "To filter by specific query copy its hash from the table and put it into `query_hash` filter on the top. To disable filtering enter `*`.",
         "mode": "markdown"
       },
-      "pluginVersion": "11.6.0",
-      "title": "",
+      "pluginVersion": "12.4.3",
       "transparent": true,
       "type": "text"
     },
@@ -367,6 +420,9 @@
             "cellOptions": {
               "type": "auto"
             },
+            "footer": {
+              "reducers": []
+            },
             "inspect": false
           },
           "mappings": [],
@@ -374,7 +430,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "red",
@@ -423,18 +480,6 @@
                 "value": 204
               }
             ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "duration_max"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 122
-              }
-            ]
           }
         ]
       },
@@ -447,18 +492,10 @@
       "id": 4,
       "options": {
         "cellHeight": "sm",
-        "footer": {
-          "countRows": false,
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
         "showHeader": true,
         "sortBy": []
       },
-      "pluginVersion": "11.6.0",
+      "pluginVersion": "12.4.3",
       "targets": [
         {
           "datasource": {
@@ -466,7 +503,7 @@
             "uid": "${ds}"
           },
           "editorMode": "code",
-          "expr": "\"\\tvm_slow_query_stats\" | extract 'vm_slow_query_stats <vm_slow_query_stats>' | unpack_logfmt from vm_slow_query_stats \n| tenant:in($tenant)\n| query_hash:in($query_hash)\n| stats by(tenant,query,query_hash) max(execution_duration_ms) duration_max \n| sort by(duration_max) desc | limit $top",
+          "expr": "\"vm_slow_query_stats\" | extract 'vm_slow_query_stats <vm_slow_query_stats>' | unpack_logfmt from vm_slow_query_stats \n| tenant:in($tenant)\n| query_hash:$query_hash\n| stats by(tenant,query,query_hash) max(execution_duration_ms) duration_max \n| sort by(duration_max) desc | limit $top",
           "queryType": "instant",
           "refId": "A"
         }
@@ -478,7 +515,7 @@
           "options": {
             "delimiter": ",",
             "replace": true,
-            "source": "Line"
+            "source": "labels"
           }
         },
         {
@@ -533,6 +570,7 @@
               "type": "linear"
             },
             "showPoints": "auto",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -547,7 +585,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "red",
@@ -580,7 +619,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.6.0",
+      "pluginVersion": "12.4.3",
       "targets": [
         {
           "datasource": {
@@ -588,7 +627,7 @@
             "uid": "${ds}"
           },
           "editorMode": "code",
-          "expr": "\"\\tvm_slow_query_stats\" | extract 'vm_slow_query_stats <vm_slow_query_stats>' | unpack_logfmt from vm_slow_query_stats \n| tenant:in($tenant)\n| query_hash:in($query_hash)\n| stats max(execution_duration_ms) execution_duration_max",
+          "expr": "\"vm_slow_query_stats\" | extract 'vm_slow_query_stats <vm_slow_query_stats>' | unpack_logfmt from vm_slow_query_stats \n| tenant:in($tenant)\n| query_hash:$query_hash\n| stats max(execution_duration_ms) execution_duration_max",
           "queryType": "statsRange",
           "refId": "A"
         }
@@ -611,6 +650,9 @@
             "cellOptions": {
               "type": "auto"
             },
+            "footer": {
+              "reducers": []
+            },
             "inspect": false
           },
           "mappings": [],
@@ -618,7 +660,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "red",
@@ -680,18 +723,10 @@
       "interval": "1m",
       "options": {
         "cellHeight": "sm",
-        "footer": {
-          "countRows": false,
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
         "showHeader": true,
         "sortBy": []
       },
-      "pluginVersion": "11.6.0",
+      "pluginVersion": "12.4.3",
       "targets": [
         {
           "datasource": {
@@ -699,7 +734,7 @@
             "uid": "${ds}"
           },
           "editorMode": "code",
-          "expr": "\"\\tvm_slow_query_stats\" | extract 'vm_slow_query_stats <vm_slow_query_stats>' | unpack_logfmt from vm_slow_query_stats \n| tenant:in($tenant)\n| query_hash:in($query_hash)\n| stats by(tenant,query,query_hash) max(series_fetched) series_fetched_max\n| sort by(series_fetched_max) desc | limit $top",
+          "expr": "\"vm_slow_query_stats\" | extract 'vm_slow_query_stats <vm_slow_query_stats>' | unpack_logfmt from vm_slow_query_stats \n| tenant:in($tenant)\n| query_hash:$query_hash\n| stats by(tenant,query,query_hash) max(series_fetched) series_fetched_max\n| sort by(series_fetched_max) desc | limit $top",
           "queryType": "instant",
           "refId": "A"
         }
@@ -711,7 +746,7 @@
           "options": {
             "delimiter": ",",
             "replace": true,
-            "source": "Line"
+            "source": "labels"
           }
         },
         {
@@ -766,6 +801,7 @@
               "type": "linear"
             },
             "showPoints": "auto",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -780,7 +816,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "red",
@@ -813,7 +850,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.6.0",
+      "pluginVersion": "12.4.3",
       "targets": [
         {
           "datasource": {
@@ -821,7 +858,7 @@
             "uid": "${ds}"
           },
           "editorMode": "code",
-          "expr": "\"\\tvm_slow_query_stats\" | extract 'vm_slow_query_stats <vm_slow_query_stats>' | unpack_logfmt from vm_slow_query_stats \n| tenant:in($tenant)\n| query_hash:in($query_hash)\n| stats max(series_fetched) series_fetched_max",
+          "expr": "\"vm_slow_query_stats\" | extract 'vm_slow_query_stats <vm_slow_query_stats>' | unpack_logfmt from vm_slow_query_stats \n| tenant:in($tenant)\n| query_hash:$query_hash\n| stats max(series_fetched) series_fetched_max",
           "queryType": "statsRange",
           "refId": "A"
         }
@@ -844,6 +881,9 @@
             "cellOptions": {
               "type": "auto"
             },
+            "footer": {
+              "reducers": []
+            },
             "inspect": false
           },
           "mappings": [],
@@ -851,7 +891,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "red",
@@ -912,18 +953,10 @@
       "id": 5,
       "options": {
         "cellHeight": "sm",
-        "footer": {
-          "countRows": false,
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
         "showHeader": true,
         "sortBy": []
       },
-      "pluginVersion": "11.6.0",
+      "pluginVersion": "12.4.3",
       "targets": [
         {
           "datasource": {
@@ -931,7 +964,7 @@
             "uid": "${ds}"
           },
           "editorMode": "code",
-          "expr": "\"\\tvm_slow_query_stats\" | extract 'vm_slow_query_stats <vm_slow_query_stats>' | unpack_logfmt from vm_slow_query_stats \n| tenant:in($tenant)\n| query_hash:in($query_hash)\n| stats by(tenant,query,query_hash) max(samples_fetched) samples_fetched_max\n| sort by(samples_fetched_max) desc | limit $top",
+          "expr": "\"vm_slow_query_stats\" | extract 'vm_slow_query_stats <vm_slow_query_stats>' | unpack_logfmt from vm_slow_query_stats \n| tenant:in($tenant)\n| query_hash:$query_hash\n| stats by(tenant,query,query_hash) max(samples_fetched) samples_fetched_max\n| sort by(samples_fetched_max) desc | limit $top",
           "queryType": "instant",
           "refId": "A"
         }
@@ -942,8 +975,10 @@
           "id": "extractFields",
           "options": {
             "delimiter": ",",
+            "format": "json",
+            "keepTime": false,
             "replace": true,
-            "source": "Line"
+            "source": "labels"
           }
         },
         {
@@ -998,6 +1033,7 @@
               "type": "linear"
             },
             "showPoints": "auto",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -1012,7 +1048,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "red",
@@ -1045,7 +1082,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.6.0",
+      "pluginVersion": "12.4.3",
       "targets": [
         {
           "datasource": {
@@ -1053,7 +1090,7 @@
             "uid": "${ds}"
           },
           "editorMode": "code",
-          "expr": "\"\\tvm_slow_query_stats\" | extract 'vm_slow_query_stats <vm_slow_query_stats>' | unpack_logfmt from vm_slow_query_stats \n| tenant:in($tenant)\n| query_hash:in($query_hash)\n| stats max(samples_fetched) samples_fetched_max",
+          "expr": "\"vm_slow_query_stats\" | extract 'vm_slow_query_stats <vm_slow_query_stats>' | unpack_logfmt from vm_slow_query_stats \n| tenant:in($tenant)\n| query_hash:$query_hash\n| stats max(samples_fetched) samples_fetched_max",
           "queryType": "statsRange",
           "refId": "A"
         }
@@ -1076,6 +1113,9 @@
             "cellOptions": {
               "type": "auto"
             },
+            "footer": {
+              "reducers": []
+            },
             "inspect": false
           },
           "mappings": [],
@@ -1083,7 +1123,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "red",
@@ -1144,18 +1185,10 @@
       "id": 11,
       "options": {
         "cellHeight": "sm",
-        "footer": {
-          "countRows": false,
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
         "showHeader": true,
         "sortBy": []
       },
-      "pluginVersion": "11.6.0",
+      "pluginVersion": "12.4.3",
       "targets": [
         {
           "datasource": {
@@ -1163,7 +1196,7 @@
             "uid": "${ds}"
           },
           "editorMode": "code",
-          "expr": "\"\\tvm_slow_query_stats\" | extract 'vm_slow_query_stats <vm_slow_query_stats>' | unpack_logfmt from vm_slow_query_stats \n| tenant:in($tenant)\n| query_hash:in($query_hash)\n| stats by(tenant,query,query_hash) max(bytes) bytes_fetched_max \n| sort by(bytes_fetched_max) desc | limit $top",
+          "expr": "\"vm_slow_query_stats\" | extract 'vm_slow_query_stats <vm_slow_query_stats>' | unpack_logfmt from vm_slow_query_stats \n| tenant:in($tenant)\n| query_hash:$query_hash\n| stats by(tenant,query,query_hash) max(bytes) bytes_fetched_max \n| sort by(bytes_fetched_max) desc | limit $top",
           "queryType": "instant",
           "refId": "A"
         }
@@ -1175,7 +1208,7 @@
           "options": {
             "delimiter": ",",
             "replace": true,
-            "source": "Line"
+            "source": "labels"
           }
         },
         {
@@ -1230,6 +1263,7 @@
               "type": "linear"
             },
             "showPoints": "auto",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -1244,7 +1278,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "red",
@@ -1277,7 +1312,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.6.0",
+      "pluginVersion": "12.4.3",
       "targets": [
         {
           "datasource": {
@@ -1285,7 +1320,7 @@
             "uid": "${ds}"
           },
           "editorMode": "code",
-          "expr": "\"\\tvm_slow_query_stats\" | extract 'vm_slow_query_stats <vm_slow_query_stats>' | unpack_logfmt from vm_slow_query_stats \n| tenant:in($tenant)\n| query_hash:in($query_hash)\n| stats max(bytes) bytes_fetched",
+          "expr": "\"vm_slow_query_stats\" | extract 'vm_slow_query_stats <vm_slow_query_stats>' | unpack_logfmt from vm_slow_query_stats \n| tenant:in($tenant)\n| query_hash:$query_hash\n| stats max(bytes) bytes_fetched",
           "queryType": "statsRange",
           "refId": "A"
         }
@@ -1308,6 +1343,9 @@
             "cellOptions": {
               "type": "auto"
             },
+            "footer": {
+              "reducers": []
+            },
             "inspect": false
           },
           "mappings": [],
@@ -1315,7 +1353,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "red",
@@ -1388,18 +1427,10 @@
       "id": 13,
       "options": {
         "cellHeight": "sm",
-        "footer": {
-          "countRows": false,
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
         "showHeader": true,
         "sortBy": []
       },
-      "pluginVersion": "11.6.0",
+      "pluginVersion": "12.4.3",
       "targets": [
         {
           "datasource": {
@@ -1407,7 +1438,7 @@
             "uid": "${ds}"
           },
           "editorMode": "code",
-          "expr": "\"\\tvm_slow_query_stats\" | extract 'vm_slow_query_stats <vm_slow_query_stats>' | unpack_logfmt from vm_slow_query_stats \n| tenant:in($tenant)\n| query_hash:in($query_hash)\n| stats by(tenant,query,query_hash) max(memory_estimated_bytes) memory_estimated_max\n| sort by(memory_estimated_max) desc | limit $top",
+          "expr": "\"vm_slow_query_stats\" | extract 'vm_slow_query_stats <vm_slow_query_stats>' | unpack_logfmt from vm_slow_query_stats \n| tenant:in($tenant)\n| query_hash:$query_hash\n| stats by(tenant,query,query_hash) max(memory_estimated_bytes) memory_estimated_max\n| sort by(memory_estimated_max) desc | limit $top",
           "queryType": "instant",
           "refId": "A"
         }
@@ -1419,7 +1450,7 @@
           "options": {
             "delimiter": ",",
             "replace": true,
-            "source": "Line"
+            "source": "labels"
           }
         },
         {
@@ -1474,6 +1505,7 @@
               "type": "linear"
             },
             "showPoints": "auto",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -1488,7 +1520,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "red",
@@ -1521,7 +1554,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.6.0",
+      "pluginVersion": "12.4.3",
       "targets": [
         {
           "datasource": {
@@ -1529,7 +1562,7 @@
             "uid": "${ds}"
           },
           "editorMode": "code",
-          "expr": "\"\\tvm_slow_query_stats\" | extract 'vm_slow_query_stats <vm_slow_query_stats>' | unpack_logfmt from vm_slow_query_stats \n| tenant:in($tenant)\n| query_hash:in($query_hash)\n| stats max(memory_estimated_bytes) memory_estimated_bytes",
+          "expr": "\"vm_slow_query_stats\" | extract 'vm_slow_query_stats <vm_slow_query_stats>' | unpack_logfmt from vm_slow_query_stats \n| tenant:in($tenant)\n| query_hash:$query_hash\n| stats max(memory_estimated_bytes) memory_estimated_bytes",
           "queryType": "statsRange",
           "refId": "A"
         }
@@ -1552,6 +1585,9 @@
             "cellOptions": {
               "type": "auto"
             },
+            "footer": {
+              "reducers": []
+            },
             "inspect": false
           },
           "mappings": [],
@@ -1559,7 +1595,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "red",
@@ -1620,18 +1657,10 @@
       "id": 18,
       "options": {
         "cellHeight": "sm",
-        "footer": {
-          "countRows": false,
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
         "showHeader": true,
         "sortBy": []
       },
-      "pluginVersion": "11.6.0",
+      "pluginVersion": "12.4.3",
       "targets": [
         {
           "datasource": {
@@ -1639,7 +1668,7 @@
             "uid": "${ds}"
           },
           "editorMode": "code",
-          "expr": "\"\\tvm_slow_query_stats\" | extract 'vm_slow_query_stats <vm_slow_query_stats>' | unpack_logfmt from vm_slow_query_stats \n| tenant:in($tenant)\n| query_hash:in($query_hash)\n| stats by(tenant,query,query_hash) max(range_ms) range_max \n| sort by(range_max) desc | limit $top",
+          "expr": "\"vm_slow_query_stats\" | extract 'vm_slow_query_stats <vm_slow_query_stats>' | unpack_logfmt from vm_slow_query_stats \n| tenant:in($tenant)\n| query_hash:$query_hash\n| stats by(tenant,query,query_hash) max(range_ms) range_max \n| sort by(range_max) desc | limit $top",
           "queryType": "instant",
           "refId": "A"
         }
@@ -1651,7 +1680,7 @@
           "options": {
             "delimiter": ",",
             "replace": true,
-            "source": "Line"
+            "source": "labels"
           }
         },
         {
@@ -1706,6 +1735,7 @@
               "type": "linear"
             },
             "showPoints": "auto",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -1720,7 +1750,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "red",
@@ -1753,7 +1784,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.6.0",
+      "pluginVersion": "12.4.3",
       "targets": [
         {
           "datasource": {
@@ -1761,7 +1792,7 @@
             "uid": "${ds}"
           },
           "editorMode": "code",
-          "expr": "\"\\tvm_slow_query_stats\" | extract 'vm_slow_query_stats <vm_slow_query_stats>' | unpack_logfmt from vm_slow_query_stats \n| query_hash:in($query_hash)\n| stats max(range_ms) range_max",
+          "expr": "\"vm_slow_query_stats\" | extract 'vm_slow_query_stats <vm_slow_query_stats>' | unpack_logfmt from vm_slow_query_stats \n| query_hash:$query_hash\n| stats max(range_ms) range_max",
           "queryType": "statsRange",
           "refId": "A"
         }
@@ -1770,7 +1801,7 @@
       "type": "timeseries"
     },
     {
-      "collapsed": false,
+      "collapsed": true,
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -1778,52 +1809,59 @@
         "y": 56
       },
       "id": 12,
-      "panels": [],
-      "title": "Query log",
-      "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "victoriametrics-logs-datasource",
-        "uid": "${ds}"
-      },
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 14,
-        "w": 24,
-        "x": 0,
-        "y": 57
-      },
-      "id": 6,
-      "options": {
-        "dedupStrategy": "none",
-        "enableInfiniteScrolling": false,
-        "enableLogDetails": true,
-        "prettifyLogMessage": false,
-        "showCommonLabels": false,
-        "showLabels": false,
-        "showTime": false,
-        "sortOrder": "Descending",
-        "wrapLogMessage": false
-      },
-      "pluginVersion": "11.6.0",
-      "targets": [
+      "panels": [
         {
           "datasource": {
             "type": "victoriametrics-logs-datasource",
             "uid": "${ds}"
           },
-          "editorMode": "code",
-          "expr": "\"\\tvm_slow_query_stats\" | extract 'vm_slow_query_stats <vm_slow_query_stats>' | unpack_logfmt from vm_slow_query_stats \n| query_hash:in($query_hash)\n| limit 200",
-          "queryType": "instant",
-          "refId": "A"
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 14,
+            "w": 24,
+            "x": 0,
+            "y": 57
+          },
+          "id": 6,
+          "options": {
+            "dedupStrategy": "none",
+            "detailsMode": "sidebar",
+            "enableInfiniteScrolling": false,
+            "enableLogDetails": true,
+            "fontSize": "small",
+            "prettifyLogMessage": false,
+            "showCommonLabels": false,
+            "showControls": true,
+            "showLabels": false,
+            "showTime": false,
+            "sortOrder": "Descending",
+            "syntaxHighlighting": false,
+            "unwrappedColumns": false,
+            "wrapLogMessage": true
+          },
+          "pluginVersion": "12.4.3",
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-logs-datasource",
+                "uid": "${ds}"
+              },
+              "direction": "desc",
+              "editorMode": "code",
+              "expr": "\"vm_slow_query_stats\" | extract 'vm_slow_query_stats <vm_slow_query_stats>' | unpack_logfmt from vm_slow_query_stats \n| query_hash:$query_hash\n| limit 200",
+              "queryType": "instant",
+              "refId": "A"
+            }
+          ],
+          "title": "Raw logs",
+          "type": "logs"
         }
       ],
-      "title": "Raw logs",
-      "type": "logs"
+      "title": "Query log",
+      "type": "row"
     },
     {
       "collapsed": true,
@@ -1831,7 +1869,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 71
+        "y": 57
       },
       "id": 17,
       "panels": [
@@ -1848,7 +1886,7 @@
             "h": 14,
             "w": 24,
             "x": 0,
-            "y": 70
+            "y": 58
           },
           "id": 15,
           "options": {
@@ -1857,12 +1895,14 @@
             "enableLogDetails": true,
             "prettifyLogMessage": false,
             "showCommonLabels": false,
+            "showControls": false,
             "showLabels": false,
             "showTime": false,
             "sortOrder": "Descending",
+            "unwrappedColumns": false,
             "wrapLogMessage": false
           },
-          "pluginVersion": "11.6.0",
+          "pluginVersion": "12.4.3",
           "targets": [
             {
               "datasource": {
@@ -1870,7 +1910,7 @@
                 "uid": "${ds}"
               },
               "editorMode": "code",
-              "expr": "\"\\tvm_slow_query_stats\" | extract 'vm_slow_query_stats <vm_slow_query_stats>' | unpack_logfmt from vm_slow_query_stats \n| series_fetched:=0\n| query_hash:in($query_hash)",
+              "expr": "\"vm_slow_query_stats\" | extract 'vm_slow_query_stats <vm_slow_query_stats>' | unpack_logfmt from vm_slow_query_stats \n| series_fetched:=0\n| query_hash:$query_hash",
               "queryType": "instant",
               "refId": "A"
             }
@@ -1885,7 +1925,7 @@
   ],
   "preload": false,
   "refresh": "",
-  "schemaVersion": 41,
+  "schemaVersion": 42,
   "tags": [
     "victoriametrics",
     "victorialogs"
@@ -1894,8 +1934,9 @@
     "list": [
       {
         "current": {
-          "text": "VictoriaLogs",
-          "value": "PD775F2863313E6C7"
+          "text": "",
+          "value": "${ds}",
+          "selected": true
         },
         "name": "ds",
         "options": [],
@@ -1933,21 +1974,17 @@
           }
         ],
         "query": "5,10,15,20",
-        "type": "custom"
+        "type": "custom",
+        "valuesFormat": "csv"
       },
       {
         "allValue": "*",
-        "current": {
-          "text": "All",
-          "value": [
-            "$__all"
-          ]
-        },
+        "current": {},
         "datasource": {
           "type": "victoriametrics-logs-datasource",
           "uid": "${ds}"
         },
-        "definition": "\"\\tvm_slow_query_stats\" | extract 'vm_slow_query_stats <vm_slow_query_stats>' | unpack_logfmt from vm_slow_query_stats  | fields tenant",
+        "definition": "\"vm_slow_query_stats\" | extract 'vm_slow_query_stats <vm_slow_query_stats>' | unpack_logfmt from vm_slow_query_stats  | fields tenant",
         "includeAll": true,
         "multi": true,
         "name": "tenant",
@@ -1955,12 +1992,13 @@
         "query": {
           "field": "tenant",
           "limit": 25,
-          "query": "\"\\tvm_slow_query_stats\" | extract 'vm_slow_query_stats <vm_slow_query_stats>' | unpack_logfmt from vm_slow_query_stats  | fields tenant",
+          "query": "\"vm_slow_query_stats\" | extract 'vm_slow_query_stats <vm_slow_query_stats>' | unpack_logfmt from vm_slow_query_stats  | fields tenant",
           "refId": "VictoriaLogsVariableQueryEditor-VariableQuery",
           "type": "fieldValue"
         },
-        "refresh": 1,
+        "refresh": 2,
         "regex": "",
+        "regexApplyTo": "value",
         "type": "query"
       },
       {
@@ -2000,5 +2038,6 @@
   "timezone": "browser",
   "title": "Query Stats (cluster)",
   "uid": "feg3od1zt1fy8e",
-  "version": 1
+  "version": 1,
+  "weekStart": ""
 }

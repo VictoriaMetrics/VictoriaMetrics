@@ -10,8 +10,8 @@ func TestParsePathAndHeadersSuccess(t *testing.T) {
 	f := func(path, headers, prefix, authToken, suffix string) {
 		t.Helper()
 		header := make(http.Header)
-		hs := strings.Split(headers, ";")
-		for _, h := range hs {
+		hs := strings.SplitSeq(headers, ";")
+		for h := range hs {
 			if h == "" {
 				continue
 			}

@@ -33,7 +33,7 @@ func benchmarkTableSearch(b *testing.B, itemsCount int) {
 	// Force finishing pending merges
 	tb.MustClose()
 	var isReadOnly atomic.Bool
-	tb = MustOpenTable(path, 0, nil, nil, &isReadOnly)
+	tb = MustOpenTable(path, 0, nil, 0, nil, &isReadOnly)
 	defer tb.MustClose()
 
 	keys := make([][]byte, len(items))
@@ -94,7 +94,7 @@ func benchmarkTableSearchKeysExt(b *testing.B, tb *Table, keys [][]byte, stripSu
 				}
 				ts.Seek(searchKey)
 				if !ts.NextItem() {
-					panic(fmt.Errorf("BUG: NextItem must return true for searchKeys[%d]=%q; err=%v", i, searchKey, ts.Error()))
+					panic(fmt.Errorf("BUG: NextItem must return true for searchKeys[%d]=%q; err=%w", i, searchKey, ts.Error()))
 				}
 				if !bytes.HasPrefix(ts.Item, searchKey) {
 					panic(fmt.Errorf("BUG: unexpected item found for searchKey[%d]=%q; got %q; want %q", i, searchKey, ts.Item, key))

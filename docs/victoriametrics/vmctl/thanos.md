@@ -1,5 +1,6 @@
 ---
 title: Thanos
+description: "Migrate data from Thanos snapshot blocks to VictoriaMetrics."
 weight: 5
 menu:
   docs:
@@ -260,3 +261,7 @@ Processing ranges: 8799 / 8799 [████████████████
 See [remote-read mode](https://docs.victoriametrics.com/victoriametrics/vmctl/remoteread/) for more details.
 
 See also general [vmctl migration tips](https://docs.victoriametrics.com/victoriametrics/vmctl/#migration-tips).
+
+See `./vmctl thanos --help` for details and full list of flags:
+
+{{% content "vmctl_thanos_flags.md" %}}

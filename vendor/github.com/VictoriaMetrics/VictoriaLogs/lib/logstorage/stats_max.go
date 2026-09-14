@@ -17,7 +17,7 @@ type statsMax struct {
 }
 
 func (sm *statsMax) String() string {
-	return "max(" + fieldNamesString(sm.fieldFilters) + ")"
+	return "max(" + fieldFiltersString(sm.fieldFilters) + ")"
 }
 
 func (sm *statsMax) updateNeededFields(pf *prefixfilter.Filter) {

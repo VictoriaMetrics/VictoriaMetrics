@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1600" role="img" aria-labelledby="title description">
+  <title id="title">How vmanomaly operates during a scheduled iteration</title>
+  <desc id="description">The required flow starts from config.yml and the Scheduler. The Reader queries either VictoriaMetrics through query_range or VictoriaLogs and VictoriaTraces through stats_query_range, then sends data to a Model. The Model produces anomaly scores, and the Writer stores them in VictoriaMetrics through import. Reader, Model, and Writer can optionally report self-monitoring metrics using push or pull monitoring.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 12 12" refX="10.5" refY="6" markerWidth="16" markerHeight="16" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
+      <path d="M1.5 1.5 10.5 6 1.5 10.5" fill="none" stroke="#303038" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arrow-optional" viewBox="0 0 12 12" refX="10.5" refY="6" markerWidth="16" markerHeight="16" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
+      <path d="M1.5 1.5 10.5 6 1.5 10.5" fill="none" stroke="#666a73" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <style>
+      .label { font-family: Arial, Helvetica, sans-serif; fill: #303038; }
+      .title { font-size: 54px; font-weight: 400; }
+      .service-title { font-size: 46px; font-weight: 400; }
+      .node-text { font-size: 34px; font-weight: 600; text-anchor: middle; }
+      .body { font-size: 28px; }
+      .edge-label { font-size: 25px; }
+      .endpoint-text { font-size: 23px; }
+      .source-text { font-size: 21px; }
+      .required-node { fill: #fff; stroke: #303038; stroke-width: 4; }
+      .optional-node { fill: #fff; stroke: #666a73; stroke-width: 4; stroke-dasharray: 14 12; }
+      .required-line { fill: none; stroke: #303038; stroke-width: 4; marker-end: url(#arrow); }
+      .optional-line { fill: none; stroke: #666a73; stroke-width: 4; stroke-dasharray: 14 12; marker-end: url(#arrow-optional); }
+      .boundary { fill: none; stroke: #303038; stroke-width: 4; }
+      .optional-boundary { fill: none; stroke: #666a73; stroke-width: 4; stroke-dasharray: 14 12; }
+    </style>
+  </defs>
+
+  <rect width="1920" height="1600" fill="#fff"/>
+  <text x="105" y="72" class="label title">How does vmanomaly operate (scheduled iteration example)</text>
+
+  <!-- Required / optional legend -->
+  <g aria-label="Legend" transform="translate(1425 145)">
+    <rect x="0" y="0" width="135" height="62" class="optional-node"/>
+    <rect x="205" y="0" width="135" height="62" class="required-node"/>
+    <path d="M0 100 H135" class="optional-line"/>
+    <path d="M205 100 H340" class="required-line"/>
+    <text x="67" y="162" class="label body" text-anchor="middle">Optional</text>
+    <text x="272" y="162" class="label body" text-anchor="middle">Required</text>
+  </g>
+
+  <!-- Exactly one configured read datasource is used. -->
+  <g aria-label="Configured datasource choice">
+    <rect x="25" y="315" width="300" height="550" class="optional-boundary"/>
+
+    <g transform="translate(34 326)">
+      <path d="M8 32 V184 C8 224 280 224 280 184 V32 C280 70 8 70 8 32Z" class="required-node"/>
+      <ellipse cx="144" cy="32" rx="136" ry="33" class="required-node"/>
+      <rect x="30" y="72" width="228" height="66" rx="16" class="required-node"/>
+      <text x="144" y="99" class="label endpoint-text" text-anchor="middle">/query_range</text>
+      <text x="144" y="126" class="label endpoint-text" text-anchor="middle">endpoint</text>
+      <text x="144" y="158" class="label source-text" text-anchor="middle">VictoriaMetrics</text>
+      <text x="144" y="182" class="label source-text" text-anchor="middle">TSDB</text>
+    </g>
+
+    <text x="178" y="600" class="label body" text-anchor="middle">OR</text>
+
+    <g transform="translate(34 632)">
+      <path d="M8 32 V184 C8 224 280 224 280 184 V32 C280 70 8 70 8 32Z" class="required-node"/>
+      <ellipse cx="144" cy="32" rx="136" ry="33" class="required-node"/>
+      <rect x="30" y="72" width="228" height="66" rx="16" class="required-node"/>
+      <text x="144" y="99" class="label endpoint-text" text-anchor="middle">/stats_query_range</text>
+      <text x="144" y="126" class="label endpoint-text" text-anchor="middle">endpoint</text>
+      <text x="144" y="158" class="label source-text" text-anchor="middle">VictoriaLogs /</text>
+      <text x="144" y="182" class="label source-text" text-anchor="middle">VictoriaTraces</text>
+    </g>
+  </g>
+
+  <!-- vmanomaly service boundary and components -->
+  <g aria-label="vmanomaly service">
+    <rect x="720" y="145" width="610" height="1145" class="boundary"/>
+    <rect x="1005" y="175" width="270" height="100" class="required-node"/>
+    <text x="1140" y="235" class="label node-text">config.yml</text>
+    <text x="1025" y="352" class="label service-title" text-anchor="middle">vmanomaly</text>
+    <text x="1025" y="405" class="label service-title" text-anchor="middle">service</text>
+
+    <rect x="765" y="448" width="445" height="76" rx="16" class="required-node"/>
+    <text x="987" y="500" class="label node-text">Scheduler</text>
+    <rect x="765" y="590" width="445" height="76" rx="16" class="required-node"/>
+    <text x="987" y="642" class="label node-text">Reader</text>
+    <rect x="765" y="732" width="445" height="76" rx="16" class="required-node"/>
+    <text x="987" y="784" class="label node-text">Model</text>
+    <rect x="765" y="874" width="445" height="76" rx="16" class="required-node"/>
+    <text x="987" y="926" class="label node-text">Writer</text>
+    <rect x="778" y="1180" width="420" height="82" rx="16" class="optional-node"/>
+    <text x="988" y="1235" class="label node-text">Monitoring</text>
+
+    <path d="M1005 225 H900 V448" class="required-line"/>
+    <path d="M1210 486 H1290 V628 H1210" class="required-line"/>
+    <path d="M1210 628 H1290 V770 H1210" class="required-line"/>
+    <path d="M1210 770 H1290 V912 H1210" class="required-line"/>
+
+    <path d="M875 666 V1178" class="optional-line"/>
+    <path d="M987 808 V1178" class="optional-line"/>
+    <path d="M1100 950 V1178" class="optional-line"/>
+  </g>
+
+  <!-- Required flow labels -->
+  <text x="1365" y="455" class="label body">
+    <tspan x="1365" dy="0">1. Get the metrics to</tspan>
+    <tspan x="1365" dy="37">a. fit the model, or</tspan>
+    <tspan x="1365" dy="37">b. produce anomaly scores</tspan>
+  </text>
+  <text x="1365" y="620" class="label body">
+    <tspan x="1365" dy="0">3. Model receives data</tspan>
+    <tspan x="1365" dy="37">to train or infer on</tspan>
+  </text>
+  <text x="1365" y="775" class="label body">
+    <tspan x="1365" dy="0">4. Produce anomaly</tspan>
+    <tspan x="1365" dy="37">scores (inference)</tspan>
+  </text>
+
+  <!-- Datasource request and response -->
+  <path d="M765 610 H338" class="required-line"/>
+  <path d="M338 652 H765" class="required-line"/>
+  <text x="370" y="580" class="label edge-label">2.1 Query request</text>
+  <text x="370" y="700" class="label edge-label">2.2 Metrics response</text>
+
+  <!-- Anomaly-score output -->
+  <g aria-label="VictoriaMetrics write endpoint" transform="translate(26 1145)">
+    <path d="M8 32 V184 C8 224 290 224 290 184 V32 C290 70 8 70 8 32Z" class="required-node"/>
+    <ellipse cx="149" cy="32" rx="141" ry="33" class="required-node"/>
+    <rect x="34" y="72" width="230" height="66" rx="16" class="required-node"/>
+    <text x="149" y="99" class="label endpoint-text" text-anchor="middle">/import</text>
+    <text x="149" y="126" class="label endpoint-text" text-anchor="middle">endpoint</text>
+    <text x="149" y="158" class="label source-text" text-anchor="middle">VictoriaMetrics</text>
+    <text x="149" y="182" class="label source-text" text-anchor="middle">TSDB</text>
+  </g>
+  <path d="M765 912 H650 V1095 L316 1197" class="required-line"/>
+  <rect x="338" y="1018" width="292" height="74" fill="#fff"/>
+  <text x="350" y="1048" class="label edge-label">
+    <tspan x="340" dy="0">5. Write anomaly scores</tspan>
+    <tspan x="340" dy="33">to VictoriaMetrics</tspan>
+  </text>
+
+  <!-- Optional monitoring integrations -->
+  <rect x="748" y="1083" width="490" height="48" fill="#fff"/>
+  <text x="993" y="1116" class="label edge-label" text-anchor="middle">6. Produce self-monitoring metrics</text>
+  <rect x="390" y="1460" width="300" height="118" rx="45" class="optional-node"/>
+  <text x="540" y="1515" class="label body" text-anchor="middle">Monitoring system</text>
+  <text x="540" y="1552" class="label body" text-anchor="middle">push approach</text>
+  <rect x="1490" y="1460" width="300" height="118" rx="45" class="optional-node"/>
+  <text x="1640" y="1515" class="label body" text-anchor="middle">Monitoring system</text>
+  <text x="1640" y="1552" class="label body" text-anchor="middle">pull approach</text>
+  <path d="M850 1262 L540 1460" class="optional-line"/>
+  <path d="M1198 1222 L1640 1460" class="optional-line"/>
+  <rect x="590" y="1350" width="180" height="42" fill="#fff"/>
+  <text x="680" y="1380" class="label edge-label" text-anchor="middle">Push metrics</text>
+  <rect x="1230" y="1340" width="415" height="42" fill="#fff"/>
+  <text x="1438" y="1370" class="label edge-label" text-anchor="middle">HTTP GET /metrics or /health</text>
+</svg>

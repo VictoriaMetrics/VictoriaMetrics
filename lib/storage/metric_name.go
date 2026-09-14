@@ -3,6 +3,7 @@ package storage
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"runtime"
 	"slices"
 	"sort"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
@@ -494,25 +496,6 @@ func MarshalMetricNameRaw(dst []byte, labels []prompb.Label) []byte {
 	return dst
 }
 
-// marshalRaw marshals mn to dst and returns the result.
-//
-// The results may be unmarshaled with MetricName.UnmarshalRaw.
-//
-// This function is for testing purposes. MarshalMetricNameRaw must be used
-// in prod instead.
-func (mn *MetricName) marshalRaw(dst []byte) []byte {
-	dst = marshalBytesFast(dst, nil)
-	dst = marshalBytesFast(dst, mn.MetricGroup)
-
-	mn.sortTags()
-	for i := range mn.Tags {
-		tag := &mn.Tags[i]
-		dst = marshalBytesFast(dst, tag.Key)
-		dst = marshalBytesFast(dst, tag.Value)
-	}
-	return dst
-}
-
 // UnmarshalRaw unmarshals mn encoded with MarshalMetricNameRaw.
 func (mn *MetricName) UnmarshalRaw(src []byte) error {
 	mn.Reset()
@@ -539,12 +522,18 @@ func (mn *MetricName) UnmarshalRaw(src []byte) error {
 }
 
 func marshalStringFast(dst []byte, s string) []byte {
+	if len(s) > math.MaxUint16 {
+		logger.Panicf("BUG: s len %d cannot exceed %d", len(s), math.MaxUint16)
+	}
 	dst = encoding.MarshalUint16(dst, uint16(len(s)))
 	dst = append(dst, s...)
 	return dst
 }
 
 func marshalBytesFast(dst []byte, s []byte) []byte {
+	if len(s) > math.MaxUint16 {
+		logger.Panicf("BUG: s len %d cannot exceed %d", len(s), math.MaxUint16)
+	}
 	dst = encoding.MarshalUint16(dst, uint16(len(s)))
 	dst = append(dst, s...)
 	return dst

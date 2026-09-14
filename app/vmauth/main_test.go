@@ -307,6 +307,68 @@ statusCode=200
 requested_url={BACKEND}/bar/a/b`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 
+	// correct authorization but unexisted path, hence missing route error.
+	cfgStr = `
+users:
+- username: foo
+  password: secret
+  url_map:
+  - src_paths:
+    - "/api/v1/write"
+    url_prefix: "{BACKEND}/bar"`
+	requestURL = "http://foo:secret@some-host.com/a/b"
+	backendHandler = func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "requested_url=http://%s%s", r.Host, r.URL)
+	}
+	responseExpected = `
+statusCode=400
+user foo missing route for "http://foo:secret@some-host.com/a/b"`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
+	// correct authorization but path denied via deny_paths
+	cfgStr = `
+users:
+- username: foo
+  password: secret
+  url_map:
+  - src_paths:
+    - "/select/.*"
+    deny_paths:
+    - "/select/[^/]+/prometheus/api/v1/status/active_queries"
+    url_prefix: "{BACKEND}/bar"`
+	requestURL = "http://foo:secret@some-host.com/select/0/prometheus/api/v1/status/active_queries"
+	backendHandler = func(_ http.ResponseWriter, _ *http.Request) {
+		panic(fmt.Errorf("backend handler shouldn't be called"))
+	}
+	responseExpected = "" +
+		"statusCode=403\n" +
+		"user foo is denied access to \"http://foo:secret@some-host.com/select/0/prometheus/api/v1/status/active_queries\" via `deny_paths`"
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
+	// unauthorized request to a path denied via deny_paths for unauthorized_user, while other users are configured:
+	// authorization must be requested instead of confirming that the path is denied (issue #5236).
+	cfgStr = `
+users:
+- username: someone
+  password: secret
+  url_prefix: "{BACKEND}/other"
+unauthorized_user:
+  url_map:
+  - src_paths:
+    - "/select/.*"
+    deny_paths:
+    - "/select/[^/]+/prometheus/api/v1/status/active_queries"
+    url_prefix: "{BACKEND}/bar"`
+	requestURL = "http://some-host.com/select/0/prometheus/api/v1/status/active_queries"
+	backendHandler = func(_ http.ResponseWriter, _ *http.Request) {
+		panic(fmt.Errorf("backend handler shouldn't be called"))
+	}
+	responseExpected = `
+statusCode=401
+Www-Authenticate: Basic realm="Restricted"
+missing 'Authorization' request header`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
 	// verify how path cleanup works
 	cfgStr = `
 unauthorized_user:
@@ -403,7 +465,7 @@ unauthorized_user:
 	}
 	responseExpected = `
 statusCode=400
-missing route for "http://some-host.com/abc?de=fg"`
+user unauthorized missing route for "http://some-host.com/abc?de=fg"`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 
 	// missing default_url and default url_prefix for unauthorized user with dump_request_on_errors enabled
@@ -419,7 +481,7 @@ unauthorized_user:
 	}
 	responseExpected = `
 statusCode=400
-missing route for "http://some-host.com/abc?de=fg" (host: "some-host.com"; path: "/abc"; args: "de=fg"; headers:Connection: Some-Header,Other-Header
+user unauthorized missing route for "http://some-host.com/abc?de=fg" (host: "some-host.com"; path: "/abc"; args: "de=fg"; headers:Connection: Some-Header,Other-Header
 Pass-Header: abc
 Some-Header: foobar
 X-Forwarded-For: 12.34.56.78
@@ -461,7 +523,7 @@ unauthorized_user:
 	}
 	responseExpected = `
 statusCode=502
-all the 2 backends for the user "" are unavailable for proxying the request - check previous WARN logs to see the exact error for each failed backend`
+all the 2 backends for the user "unauthorized" are unavailable for proxying the request - check previous WARN logs to see the exact error for each failed backend`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 
 	// all the backend_urls are unavailable for authorized user
@@ -501,7 +563,7 @@ unauthorized_user:
 	}
 	responseExpected = `
 statusCode=502
-all the 0 backends for the user "" are unavailable for proxying the request - check previous WARN logs to see the exact error for each failed backend`
+all the 0 backends for the user "unauthorized" are unavailable for proxying the request - check previous WARN logs to see the exact error for each failed backend`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 	netutil.Resolver = origResolver
 
@@ -518,7 +580,7 @@ unauthorized_user:
 	}
 	responseExpected = `
 statusCode=502
-all the 2 backends for the user "" are unavailable for proxying the request - check previous WARN logs to see the exact error for each failed backend`
+all the 2 backends for the user "unauthorized" are unavailable for proxying the request - check previous WARN logs to see the exact error for each failed backend`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 	if n := retries.Load(); n != 2 {
 		t.Fatalf("unexpected number of retries; got %d; want 2", n)
@@ -545,6 +607,31 @@ requested_url={BACKEND}/path2/foo/?de=fg`
 	if n := retries.Load(); n != 2 {
 		t.Fatalf("unexpected number of retries; got %d; want 2", n)
 	}
+
+	// make sure that empty config value erases client extra filters and extra labels
+	cfgStr = `
+unauthorized_user:
+  url_prefix: {BACKEND}/foo?bar=baz&extra_filters[]=&extra_label=&extra_filters=`
+	requestURL = "http://some-host.com/abc/def?some_arg=some_value&extra_filters[]=baz&extra_label=tenant=admin&extra_filters=bar"
+	backendHandler = func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("Connection", "close")
+		h.Set("Foo", "bar")
+
+		var bb bytes.Buffer
+		if err := r.Header.Write(&bb); err != nil {
+			panic(fmt.Errorf("unexpected error when marshaling headers: %w", err))
+		}
+		fmt.Fprintf(w, "requested_url=http://%s%s\n%s", r.Host, r.URL, bb.String())
+	}
+	responseExpected = `
+statusCode=200
+Foo: bar
+requested_url={BACKEND}/foo/abc/def?bar=baz&extra_filters=&extra_filters%5B%5D=&extra_label=&some_arg=some_value
+Pass-Header: abc
+User-Agent: vmauth
+X-Forwarded-For: 12.34.56.78, 42.2.3.84`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
 }
 
 func TestJWTRequestHandler(t *testing.T) {
@@ -696,6 +783,12 @@ users:
 		"vm_access": map[string]any{},
 	}, false)
 
+	// token without vm_access claim, but with a custom claim usable for routing
+	roleToken := genToken(t, map[string]any{
+		"exp":  time.Now().Add(10 * time.Minute).Unix(),
+		"role": "admin",
+	}, true)
+
 	fullToken := genToken(t, map[string]any{
 		"exp": time.Now().Add(10 * time.Minute).Unix(),
 		"vm_access": map[string]any{
@@ -735,6 +828,45 @@ missing 'Authorization' request header`
 statusCode=401
 Unauthorized`
 	f(simpleCfgStr, request, responseExpected)
+
+	// token without vm_access claim should fall through to unauthorized_user
+	request = httptest.NewRequest(`GET`, "http://some-host.com/abc", nil)
+	request.Header.Set(`Authorization`, `Bearer `+noVMAccessClaimToken)
+	responseExpected = `
+statusCode=200
+path: /bar/abc
+query:
+headers:`
+	f(fmt.Sprintf(`
+unauthorized_user:
+  url_prefix: {BACKEND}/bar
+users:
+- jwt:
+    public_keys:
+    - %q
+    match_claims:
+      role: admin
+  url_prefix: {BACKEND}/foo`, string(publicKeyPEM)), request, responseExpected)
+
+	// token without vm_access claim is accepted when default_vm_access_claim configured
+	request = httptest.NewRequest(`GET`, "http://some-host.com/abc", nil)
+	request.Header.Set(`Authorization`, `Bearer `+roleToken)
+	responseExpected = `
+statusCode=200
+path: /foo/abc
+query:
+headers:`
+	f(fmt.Sprintf(`
+users:
+- jwt:
+    public_keys:
+    - %q
+    default_vm_access_claim:
+      metrics_account_id: 10
+      metrics_project_id: 10
+    match_claims:
+      role: admin
+  url_prefix: {BACKEND}/foo`, string(publicKeyPEM)), request, responseExpected)
 
 	// expired token
 	request = httptest.NewRequest(`GET`, "http://some-host.com/abc", nil)
@@ -1596,7 +1728,7 @@ func (w *fakeResponseWriter) WriteHeader(statusCode int) {
 		"X-Content-Type-Options": true,
 	})
 	if err != nil {
-		panic(fmt.Errorf("cannot marshal headers: %s", err))
+		panic(fmt.Errorf("cannot marshal headers: %w", err))
 	}
 }
 

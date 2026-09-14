@@ -124,7 +124,7 @@ type SnoozeClient struct {
 
 // Wrapper methods routed to the internal client.
 
-// Close closes the connection to the API service. The user should invoke this when
+// Close closes the connection to the API service. **Always** call Close() when
 // the client is no longer required.
 func (c *SnoozeClient) Close() error {
 	return c.internalClient.Close()
@@ -269,7 +269,7 @@ func (c *snoozeGRPCClient) setGoogleClientInfo(keyval ...string) {
 	}
 }
 
-// Close closes the connection to the API service. The user should invoke this when
+// Close closes the connection to the API service. **Always** call Close() when
 // the client is no longer required.
 func (c *snoozeGRPCClient) Close() error {
 	return c.connPool.Close()
@@ -312,7 +312,7 @@ func (c *snoozeGRPCClient) ListSnoozes(ctx context.Context, req *monitoringpb.Li
 	}
 	opts = append((*c.CallOptions).ListSnoozes[0:len((*c.CallOptions).ListSnoozes):len((*c.CallOptions).ListSnoozes)], opts...)
 	it := &SnoozeIterator{}
-	req = proto.Clone(req).(*monitoringpb.ListSnoozesRequest)
+	req = proto.CloneOf(req)
 	it.InternalFetch = func(pageSize int, pageToken string) ([]*monitoringpb.Snooze, string, error) {
 		resp := &monitoringpb.ListSnoozesResponse{}
 		if pageToken != "" {

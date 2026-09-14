@@ -145,10 +145,10 @@ func TestRuleValidate(t *testing.T) {
 }
 
 func TestGroupValidate_Failure(t *testing.T) {
-	f := func(group *Group, validateExpressions bool, errStrExpected string) {
+	f := func(data []byte, validateExpressions bool, errStrExpected string) {
 		t.Helper()
 
-		err := group.Validate(nil, validateExpressions)
+		_, err := parse(map[string][]byte{"test.yaml": data}, nil, validateExpressions)
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -158,275 +158,238 @@ func TestGroupValidate_Failure(t *testing.T) {
 		}
 	}
 
-	f(&Group{}, false, "group name must be set")
+	f([]byte(`
+groups:
+- name: ""
+`), false, "group name must be set")
 
-	f(&Group{
-		Name: "both record and alert are not set",
-		Rules: []Rule{
-			{
-				Expr: "sum(up == 0 ) by (host)",
-				For:  promutil.NewDuration(10 * time.Millisecond),
-			},
-			{
-				Expr: "sumSeries(time('foo.bar',10))",
-			},
-		},
-	}, false, "invalid rule")
+	f([]byte(`
+groups:
+- name: both record and alert are not set
+  rules:
+  - expr: "sum(up == 0 ) by (host)"
+    for: 10ms
+  - expr: "sumSeries(time('foo.bar',10))"
+`), false, "invalid rule")
 
-	f(&Group{
-		Name:     "negative interval",
-		Interval: promutil.NewDuration(-1),
-	}, false, "interval shouldn't be lower than 0")
+	f([]byte(`
+groups:
+- name: negative interval
+  interval: -1ms
+`), false, "interval shouldn't be lower than 0")
 
-	f(&Group{
-		Name:       "too big eval_offset",
-		Interval:   promutil.NewDuration(time.Minute),
-		EvalOffset: promutil.NewDuration(2 * time.Minute),
-	}, false, "eval_offset should be smaller than interval")
+	f([]byte(`
+groups:
+- name: too big eval_offset
+  interval: 1m
+  eval_offset: 2m
+`), false, "eval_offset should be smaller than interval")
 
-	f(&Group{
-		Name:       "too big negative eval_offset",
-		Interval:   promutil.NewDuration(time.Minute),
-		EvalOffset: promutil.NewDuration(-2 * time.Minute),
-	}, false, "eval_offset should be smaller than interval")
+	f([]byte(`
+groups:
+- name: too big negative eval_offset
+  interval: 1m
+  eval_offset: -2m
+`), false, "eval_offset should be smaller than interval")
 
-	limit := -1
-	f(&Group{
-		Name:  "wrong limit",
-		Limit: &limit,
-	}, false, "invalid limit")
+	f([]byte(`
+groups:
+- name: wrong limit
+  limit: -1
+`), false, "invalid limit")
 
-	f(&Group{
-		Name:        "wrong concurrency",
-		Concurrency: -1,
-	}, false, "invalid concurrency")
+	f([]byte(`
+groups:
+- name: wrong concurrency
+  concurrency: -1
+`), false, "invalid concurrency")
 
-	f(&Group{
-		Name: "test",
-		Rules: []Rule{
-			{
-				Alert: "alert",
-				Expr:  "up == 1",
-			},
-			{
-				Alert: "alert",
-				Expr:  "up == 1",
-			},
-		},
-	}, false, "duplicate")
+	f([]byte(`
+groups:
+- name: test
+  rules:
+  - alert: alert
+    expr: up == 1
+  - alert: alert
+    expr: up == 1
+`), false, "duplicate")
 
-	f(&Group{
-		Name: "test",
-		Rules: []Rule{
-			{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
-				"summary": "{{ value|query }}",
-			}},
-			{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
-				"summary": "{{ value|query }}",
-			}},
-		},
-	}, false, "duplicate")
+	f([]byte(`
+groups:
+- name: test
+  rules:
+  - alert: alert
+    expr: up == 1
+    labels:
+      summary: "{{ value|query }}"
+  - alert: alert
+    expr: up == 1
+    labels:
+      summary: "{{ value|query }}"
+`), false, "duplicate")
 
-	f(&Group{
-		Name: "test",
-		Rules: []Rule{
-			{Record: "record", Expr: "up == 1", Labels: map[string]string{
-				"summary": "{{ value|query }}",
-			}},
-			{Record: "record", Expr: "up == 1", Labels: map[string]string{
-				"summary": "{{ value|query }}",
-			}},
-		},
-	}, false, "duplicate")
+	f([]byte(`
+groups:
+- name: test
+  rules:
+  - record: record
+    expr: up == 1
+    labels:
+      summary: "{{ value|query }}"
+  - record: record
+    expr: up == 1
+    labels:
+      summary: "{{ value|query }}"
+`), false, "duplicate")
 
-	f(&Group{
-		Name: "test",
-		Rules: []Rule{
-			{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
-				"summary": "{{ value|query }}",
-			}},
-			{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
-				"description": "{{ value|query }}",
-			}},
-		},
-	}, false, "duplicate")
-
-	f(&Group{
-		Name: "test",
-		Rules: []Rule{
-			{Record: "alert", Expr: "up == 1", Labels: map[string]string{
-				"summary": "{{ value|query }}",
-			}},
-			{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
-				"summary": "{{ value|query }}",
-			}},
-		},
-	}, false, "duplicate")
-
-	f(&Group{
-		Name: "test thanos",
-		Type: NewRawType("thanos"),
-		Rules: []Rule{
-			{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
-				"description": "{{ value|query }}",
-			}},
-		},
-	}, true, "unknown datasource type")
+	f([]byte(`
+groups:
+- name: test thanos
+  type: thanos
+  rules:
+  - alert: alert
+    expr: up == 1
+    labels:
+      description: "{{ value|query }}"
+`), true, "unknown datasource type")
 
 	// validate expressions
-	f(&Group{
-		Name: "test prometheus expr",
-		Type: NewPrometheusType(),
-		Rules: []Rule{
-			{
-				Record: "record",
-				Expr:   "up | 0",
-			},
-		},
-	}, true, "bad MetricsQL expr")
+	f([]byte(`
+groups:
+- name: test prometheus expr
+  type: prometheus
+  rules:
+  - record: record
+    expr: "up | 0"
+`), true, "bad MetricsQL expr")
 
-	f(&Group{
-		Name: "test graphite expr",
-		Type: NewGraphiteType(),
-		Rules: []Rule{
-			{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
-				"description": "some-description",
-			}},
-		},
-	}, true, "bad GraphiteQL expr")
+	f([]byte(`
+groups:
+- name: test graphite expr
+  type: graphite
+  rules:
+  - alert: alert
+    expr: up == 1
+    labels:
+      description: some-description
+`), true, "bad GraphiteQL expr")
 
-	f(&Group{
-		Name: "test vlogs expr",
-		Type: NewVLogsType(),
-		Rules: []Rule{
-			{Alert: "alert", Expr: "stats count(*) as requests"},
-		},
-	}, true, "bad LogsQL expr")
+	f([]byte(`
+groups:
+- name: test vlogs expr
+  type: vlogs
+  rules:
+  - alert: alert
+    expr: "stats count(*) as requests"
+`), true, "bad LogsQL expr")
 
-	f(&Group{
-		Name: "test vlogs expr",
-		Type: NewVLogsType(),
-		Rules: []Rule{
-			{Alert: "alert", Expr: "_time: 1m | stats by (path, _time: 1m) count(*) as requests"},
-		},
-	}, true, "bad LogsQL expr")
+	f([]byte(`
+groups:
+- name: test vlogs expr multipart
+  type: vlogs
+  rules:
+  - alert: alert
+    expr: "_time: 1m | stats by (path, _time: 1m) count(*) as requests"
+`), true, "bad LogsQL expr")
 
-	f(&Group{
-		Name: "test graphite with prometheus expr",
-		Type: NewGraphiteType(),
-		Rules: []Rule{
-			{
-				Record: "r1",
-				ID:     1,
-				Expr:   "sumSeries(time('foo.bar',10))",
-				For:    promutil.NewDuration(10 * time.Millisecond),
-			},
-			{
-				Record: "r2",
-				ID:     2,
-				Expr:   "sum(up == 0 ) by (host)",
-			},
-		},
-	}, true, "bad GraphiteQL expr")
+	f([]byte(`
+groups:
+- name: test graphite with prometheus expr
+  type: graphite
+  rules:
+  - record: r1
+    expr: "sumSeries(time('foo.bar',10))"
+    for: 10ms
+  - record: r2
+    expr: "sum(up == 0 ) by (host)"
+`), true, "bad GraphiteQL expr")
 
-	f(&Group{
-		Name: "test vlogs with prometheus exp",
-		Type: NewVLogsType(),
-		Rules: []Rule{
-			{
-				Record: "r1",
-				Expr:   "sum(up == 0 ) by (host)",
-				For:    promutil.NewDuration(10 * time.Millisecond),
-			},
-		},
-	}, true, "bad LogsQL expr")
+	f([]byte(`
+groups:
+- name: test vlogs with prometheus expr
+  type: vlogs
+  rules:
+  - record: r1
+    expr: "sum(up == 0 ) by (host)"
+    for: 10ms
+`), true, "bad LogsQL expr")
 
-	f(&Group{
-		Name: "test prometheus with vlogs exp",
-		Type: NewPrometheusType(),
-		Rules: []Rule{
-			{
-				Record: "r1",
-				Expr:   "* | stats by (path) count()",
-				For:    promutil.NewDuration(10 * time.Millisecond),
-			},
-		},
-	}, true, "bad MetricsQL expr")
+	f([]byte(`
+groups:
+- name: test prometheus with vlogs expr
+  type: prometheus
+  rules:
+  - record: r1
+    expr: "* | stats by (path) count()"
+    for: 10ms
+`), true, "bad MetricsQL expr")
 }
 
 func TestGroupValidate_Success(t *testing.T) {
-	f := func(group *Group, validateAnnotations, validateExpressions bool) {
+	f := func(data []byte, validateAnnotations, validateExpressions bool) {
 		t.Helper()
 
 		var validateTplFn ValidateTplFn
 		if validateAnnotations {
 			validateTplFn = notifier.ValidateTemplates
 		}
-		err := group.Validate(validateTplFn, validateExpressions)
+		_, err := parse(map[string][]byte{"test.yaml": data}, validateTplFn, validateExpressions)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 	}
 
-	f(&Group{
-		Name: "test",
-		Rules: []Rule{
-			{
-				Record: "record",
-				Expr:   "up | 0",
-			},
-		},
-	}, false, false)
+	f([]byte(`
+groups:
+- name: test
+  rules:
+  - record: record
+    expr: "up | 0"
+`), false, false)
 
-	f(&Group{
-		Name: "test",
-		Rules: []Rule{
-			{
-				Alert: "alert",
-				Expr:  "up == 1",
-				Labels: map[string]string{
-					"summary": "{{ value|query }}",
-				},
-			},
-		},
-	}, false, false)
+	f([]byte(`
+groups:
+- name: test
+  rules:
+  - alert: alert
+    expr: up == 1
+    labels:
+      summary: "{{ value|query }}"
+`), false, false)
 
 	// validate annotations
-	f(&Group{
-		Name: "test",
-		Rules: []Rule{
-			{
-				Alert: "alert",
-				Expr:  "up == 1",
-				Labels: map[string]string{
-					"summary": `
-{{ with printf "node_memory_MemTotal{job='node',instance='%s'}" "localhost" | query }}
-  {{ . | first | value | humanize1024 }}B
-{{ end }}`,
-				},
-			},
-		},
-	}, true, false)
+	f([]byte(`
+groups:
+- name: test
+  rules:
+  - alert: alert
+    expr: up == 1
+    labels:
+      summary: "\n{{ with printf \"node_memory_MemTotal{job='node',instance='%s'}\" \"localhost\" | query }}\n  {{ . | first | value | humanize1024 }}B\n{{ end }}"
+`), true, false)
 
 	// validate expressions
-	f(&Group{
-		Name: "test prometheus",
-		Type: NewPrometheusType(),
-		Rules: []Rule{
-			{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
-				"description": "{{ value|query }}",
-			}},
-		},
-	}, false, true)
-	f(&Group{
-		Name: "test victorialogs",
-		Type: NewVLogsType(),
-		Rules: []Rule{
-			{Alert: "alert", Expr: " _time: 1m | stats count(*) as requests", Labels: map[string]string{
-				"description": "{{ value|query }}",
-			}},
-		},
-	}, false, true)
+	f([]byte(`
+groups:
+- name: test prometheus
+  type: prometheus
+  rules:
+  - alert: alert
+    expr: up == 1
+    labels:
+      description: "{{ value|query }}"
+`), false, true)
+
+	f([]byte(`
+groups:
+- name: test victorialogs
+  type: vlogs
+  rules:
+  - alert: alert
+    expr: " _time: 1m | stats count(*) as requests"
+    labels:
+      description: "{{ value|query }}"
+`), false, true)
 }
 
 func TestHashRule_NotEqual(t *testing.T) {

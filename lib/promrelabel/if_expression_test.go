@@ -231,3 +231,44 @@ func TestIfExpressionMismatch(t *testing.T) {
 	f(`'{foo!~"bar|"}'`, `abc`)
 	f(`'{foo!~"bar|"}'`, `abc{foo="bar"}`)
 }
+
+func TestIfExpressionParseMetricName(t *testing.T) {
+	f := func(s, metricNameExpected string) {
+		t.Helper()
+
+		var ie ifExpression
+		if err := ie.Parse(s); err != nil {
+			t.Fatalf("cannot parse ifExpression %q: %s", s, err)
+		}
+		if ie.metricName != metricNameExpected {
+			t.Fatalf("unexpected metricName for %q; got %q; want %q", s, ie.metricName, metricNameExpected)
+		}
+	}
+
+	// the metric name is known
+	f(`foo`, "foo")
+	f(`foo{bar="baz"}`, "foo")
+	f(`{__name__="foo"}`, "foo")
+	f(`{__name__="foo",bar="baz"}`, "foo")
+	// the metric name filter isn't at the first position
+	f(`{bar="baz",__name__="foo"}`, "foo")
+
+	// the metric name is unknown
+	f(`{}`, "")
+	f(`{bar="baz"}`, "")
+	// metricsql prepends the common metric name to or-groups where `__name__` is missing entirely,
+	// so both groups below require `foo`, but or-groups are skipped anyway
+	f(`{__name__="foo" or bar="baz"}`, "")
+	f(`{bar="baz" or __name__="foo"}`, "")
+	// the metric name is matched via regexp
+	f(`{__name__=~"foo"}`, "")
+	// the metric name is negated
+	f(`{__name__!="foo"}`, "")
+	f(`{__name__!~"foo"}`, "")
+	// an empty metric name is indistinguishable from the unknown one
+	f(`{__name__=""}`, "")
+	// distinct or-groups require distinct metric names
+	f(`{__name__="foo" or __name__="bar"}`, "")
+	f(`{__name__="foo" or __name__=~"bar.+"}`, "")
+	f(`{__name__=~"foo" or bar="baz"}`, "")
+}

@@ -1,3 +1,11 @@
+---
+build:
+  list: never
+  publishResources: false
+  render: never
+sitemap:
+  disable: true
+---
 VictoriaMetrics offers public playgrounds where you can try the full observability stack online.
 
 Some playgrounds are based on the [OpenTelemetry Astronomy Shop demo](https://github.com/open-telemetry/opentelemetry-demo), a sample microservices application that generates realistic metrics, logs, and traces. Other playgrounds use benchmark workloads such as [prometheus-benchmark](https://github.com/VictoriaMetrics/prometheus-benchmark) to demonstrate ingestion and query performance for Prometheus-compatible systems.
@@ -150,12 +158,12 @@ You can experiment with your own data during the month‑long trial without depl
 are fast-booting Linux microVMs that run on a fleet of large bare-metal servers. You can start a playground right from your browser. 
 Once up and running, accessing a playground is no different from SSH-ing into a remote server rented from your favorite VPS or Cloud provider.
 
-Iximiuz Labs provides various [learning-by-doing resources for VictoriaMetrics](https://labs.iximiuz.com/v/victoriametrics-bb1fdaa1):
+Iximiuz Labs provides various [learning-by-doing resources for VictoriaMetrics](https://labs.iximiuz.com/v/victoriametrics):
 - Tutorial:
-  - [Getting Started with VictoriaMetrics on Kubernetes](https://labs.iximiuz.com/tutorials/victoriametrics-getting-started-kubernetes-0e9c0993)
+  - [Getting Started with VictoriaMetrics on Kubernetes](https://labs.iximiuz.com/tutorials/victoriametrics-getting-started-kubernetes)
 - Playgrounds:
-  - [VictoriaMetrics single node](https://labs.iximiuz.com/playgrounds/victoriametrics-e2f9b613)
-  - [VictoriaMetrics cluster](https://labs.iximiuz.com/playgrounds/victoriametrics-cluster-8eacb19d)
-  - [VictoriaMetrics on Kubernetes](https://labs.iximiuz.com/playgrounds/victoriametrics-kubernetes-9eebc258)
+  - [VictoriaMetrics single node](https://labs.iximiuz.com/playgrounds/victoriametrics)
+  - [VictoriaMetrics cluster](https://labs.iximiuz.com/playgrounds/victoriametrics-cluster)
+  - [VictoriaMetrics on Kubernetes](https://labs.iximiuz.com/playgrounds/victoriametrics-kubernetes)
 
 Iximiuz Labs requires a [free account](https://labs.iximiuz.com/signup) to access the materials.

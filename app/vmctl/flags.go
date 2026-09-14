@@ -69,6 +69,8 @@ const (
 	vmAddr               = "vm-addr"
 	vmUser               = "vm-user"
 	vmPassword           = "vm-password"
+	vmHeaders            = "vm-headers"
+	vmBearerToken        = "vm-bearer-token"
 	vmAccountID          = "vm-account-id"
 	vmConcurrency        = "vm-concurrency"
 	vmCompress           = "vm-compress"
@@ -113,6 +115,16 @@ var (
 			EnvVars: []string{"VM_PASSWORD"},
 		},
 		&cli.StringFlag{
+			Name: vmHeaders,
+			Usage: "Optional HTTP headers to send with each request to the corresponding destination address. \n" +
+				"For example, --vm-headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding destination address. \n" +
+				"Multiple headers must be delimited by '^^': --vm-headers='header1:value1^^header2:value2'",
+		},
+		&cli.StringFlag{
+			Name:  vmBearerToken,
+			Usage: "Optional bearer auth token to use for the corresponding --vm-addr",
+		},
+		&cli.StringFlag{
 			Name: vmAccountID,
 			Usage: "AccountID is an arbitrary 32-bit integer identifying namespace for data ingestion (aka tenant). \n" +
 				"AccountID is required when importing into the clustered version of VictoriaMetrics. \n" +
@@ -146,7 +158,8 @@ var (
 			Name:  vmRoundDigits,
 			Value: 100,
 			Usage: "Round metric values to the given number of decimal digits after the point. " +
-				"This option may be used for increasing on-disk compression level for the stored metrics",
+				"This option may be used for increasing on-disk compression level for the stored metrics. " +
+				"See also --vm-significant-figures option",
 		},
 		&cli.StringSliceFlag{
 			Name:  vmExtraLabel,
@@ -496,6 +509,96 @@ var (
 				"Each aggregate will be imported as a separate metric with the aggregate type as suffix (e.g., metric_name:5m:count). " +
 				"If not specified, all aggregate types will be imported from downsampled blocks.",
 			Value: nil,
+		},
+	}
+)
+
+const (
+	mimirPath             = "mimir-path"
+	mimirTenantID         = "mimir-tenant-id"
+	mimirConcurrency      = "mimir-concurrency"
+	mimirFilterTimeStart  = "mimir-filter-time-start"
+	mimirFilterTimeEnd    = "mimir-filter-time-end"
+	mimirFilterLabel      = "mimir-filter-label"
+	mimirFilterLabelValue = "mimir-filter-label-value"
+
+	mimirCredsFilePath           = "mimir-creds-file-path"
+	mimirConfigFilePath          = "mimir-config-file-path"
+	mimirConfigProfile           = "mimir-config-profile"
+	mimirCustomS3Endpoint        = "mimir-custom-s3-endpoint"
+	mimirS3ForcePathStyle        = "mimir-s3-force-path-style"
+	mimirS3TLSInsecureSkipVerify = "mimir-s3-tls-insecure-skip-verify"
+	mimirSSEKMSKeyID             = "mimir-s3-sse-kms-key-id"
+	mimirSSEAlgorithm            = "mimir-s3-sse-algorithm"
+)
+
+var (
+	mimirFlags = []cli.Flag{
+		&cli.StringFlag{
+			Name:     mimirPath,
+			Usage:    "Path to Mimir storage bucket or local folder.",
+			Required: true,
+		},
+		&cli.StringFlag{
+			Name:  mimirTenantID,
+			Usage: "Tenant ID for Mimir storage",
+		},
+		&cli.IntFlag{
+			Name:  mimirConcurrency,
+			Usage: "Number of concurrently running block readers",
+			Value: 1,
+		},
+		&cli.StringFlag{
+			Name:     mimirFilterTimeStart,
+			Usage:    "The time filter in RFC3339 format to select timeseries with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z'",
+			Required: true,
+		},
+		&cli.StringFlag{
+			Name:     mimirFilterTimeEnd,
+			Usage:    "The time filter in RFC3339 format to select timeseries with timestamp equal or lower than provided value. E.g. '2020-01-01T20:07:00Z'",
+			Required: true,
+		},
+		&cli.StringFlag{
+			Name:  mimirFilterLabel,
+			Usage: "Mimir label name to filter timeseries by. E.g. '__name__' will filter timeseries by name.",
+		},
+		&cli.StringFlag{
+			Name:  mimirFilterLabelValue,
+			Usage: fmt.Sprintf("Regular expression to filter label from %q flag.", mimirFilterLabel),
+			Value: ".*",
+		},
+		&cli.StringFlag{
+			Name:  mimirCredsFilePath,
+			Usage: "Path to file with GCS or S3 credentials. Credentials are loaded from default locations if not set. See https://cloud.google.com/iam/docs/creating-managing-service-account-keys and https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html",
+		},
+		&cli.StringFlag{
+			Name:  mimirConfigFilePath,
+			Usage: "Path to file with S3 configs. Configs are loaded from default location if not set. See https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html",
+		},
+		&cli.StringFlag{
+			Name:  mimirConfigProfile,
+			Usage: "Profile name for S3 configs. If no set, the value of the environment variable will be loaded (AWS_PROFILE or AWS_DEFAULT_PROFILE), or if both not set, DefaultSharedConfigProfile is used",
+		},
+		&cli.StringFlag{
+			Name:  mimirCustomS3Endpoint,
+			Usage: "Custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set",
+		},
+		&cli.BoolFlag{
+			Name:  mimirS3ForcePathStyle,
+			Usage: "Prefixing endpoint with bucket name when set false, true by default.",
+			Value: true,
+		},
+		&cli.BoolFlag{
+			Name:  mimirS3TLSInsecureSkipVerify,
+			Usage: "Whether to skip TLS verification when connecting to the S3 endpoint.",
+		},
+		&cli.StringFlag{
+			Name:  mimirSSEKMSKeyID,
+			Usage: "SSE KMS Key ID for use with S3-compatible storages.",
+		},
+		&cli.StringFlag{
+			Name:  mimirSSEAlgorithm,
+			Usage: "SSE algorithm for use with S3-compatible storages.",
 		},
 	}
 )

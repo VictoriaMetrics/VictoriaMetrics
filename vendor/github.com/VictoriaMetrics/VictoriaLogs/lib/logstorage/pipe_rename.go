@@ -135,7 +135,7 @@ func parsePipeRename(lex *lexer) (pipe, error) {
 		dstFieldFilters = append(dstFieldFilters, dstFieldFilter)
 
 		switch {
-		case lex.isKeyword("|", ")", ""):
+		case lex.isQueryPartTrailer():
 			pr := &pipeRename{
 				srcFieldFilters: srcFieldFilters,
 				dstFieldFilters: dstFieldFilters,

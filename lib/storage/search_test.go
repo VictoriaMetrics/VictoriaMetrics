@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"regexp"
 	"sort"
+	"sync"
 	"testing"
 	"testing/quick"
 	"time"
@@ -32,7 +33,12 @@ func TestSearchQueryMarshalUnmarshal(t *testing.T) {
 			// Skip nil sq1.
 			continue
 		}
-		buf = sq1.Marshal(buf[:0])
+		tt := TenantToken{
+			AccountID: sq1.AccountID,
+			ProjectID: sq1.ProjectID,
+		}
+		buf = tt.Marshal(buf[:0])
+		buf = sq1.MarshalWithoutTenant(buf)
 
 		tail, err := sq2.Unmarshal(buf)
 		if err != nil {
@@ -40,6 +46,12 @@ func TestSearchQueryMarshalUnmarshal(t *testing.T) {
 		}
 		if len(tail) > 0 {
 			t.Fatalf("unexpected tail left after SearchQuery unmarshaling; tail (len=%d): %q", len(tail), tail)
+		}
+		if sq2.AccountID != sq1.AccountID {
+			t.Fatalf("unexpected AccountID; got %d; want %d", sq2.AccountID, sq1.AccountID)
+		}
+		if sq2.ProjectID != sq1.ProjectID {
+			t.Fatalf("unexpected ProjectID; got %d; want %d", sq2.ProjectID, sq1.ProjectID)
 		}
 		if sq1.MinTimestamp != sq2.MinTimestamp {
 			t.Fatalf("unexpected MinTimestamp; got %d; want %d", sq2.MinTimestamp, sq1.MinTimestamp)
@@ -178,6 +190,67 @@ func TestSearch_VariousTimeRanges(t *testing.T) {
 	}
 
 	testStorageOpOnVariousTimeRanges(t, f)
+}
+
+// TestStorageAddFlushSearchDataConcurrently verifies that concurrent goroutines
+// can read their own writes.
+//
+// This test focuses on reading the data. For reading the index see
+// TestStorageAddFlushSearchMetricNamesConcurrently in storage_test.go.
+func TestStorageAddFlushSearchDataConcurrently(t *testing.T) {
+	defer testRemoveAll(t)
+
+	s := MustOpenStorage(t.Name(), OpenOptions{})
+	defer s.MustClose()
+
+	const numMetrics = 100
+	f := func(workerID int, tr TimeRange) error {
+		mrs := make([]MetricRow, numMetrics)
+		step := (tr.MaxTimestamp - tr.MinTimestamp) / int64(numMetrics)
+		for i := range numMetrics {
+			name := fmt.Sprintf("metric_%04d_%04d", workerID, i)
+			mn := MetricName{MetricGroup: []byte(name)}
+			mrs[i].MetricNameRaw = mn.marshalRaw(nil)
+			mrs[i].Timestamp = tr.MinTimestamp + int64(i)*step
+			mrs[i].Value = float64(i)
+		}
+
+		s.AddRows(mrs, defaultPrecisionBits)
+		s.DebugFlush()
+
+		tfs := NewTagFilters()
+		re := fmt.Sprintf(`metric_%04d.*`, workerID)
+		if err := tfs.Add(nil, []byte(re), false, true); err != nil {
+			return fmt.Errorf("tfs.Add(%q) failed unexpectedly: %w", re, err)
+		}
+		return testAssertSearchResult(s, tr, tfs, mrs)
+	}
+
+	const concurrency = 20
+	var wg sync.WaitGroup
+	errs := make([]error, concurrency)
+	for workerID := range concurrency {
+		wg.Go(func() {
+			for m := time.Month(1); m <= 12; m++ {
+				tr := TimeRange{
+					MinTimestamp: time.Date(2025, m, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+					MaxTimestamp: time.Date(2025, m+1, 0, 0, 0, 0, 0, time.UTC).UnixMilli() - 1,
+				}
+				err := f(workerID, tr)
+				if err != nil {
+					errs[workerID] = fmt.Errorf("worker %d failed on tr=%v: %w", workerID, &tr, err)
+					break
+				}
+			}
+		})
+	}
+	wg.Wait()
+
+	for _, err := range errs {
+		if err != nil {
+			t.Errorf("%s", err)
+		}
+	}
 }
 
 func testSearchInternal(s *Storage, tr TimeRange, mrs []MetricRow) error {

@@ -35,6 +35,9 @@ func InsertHandler(at *auth.Token, req *http.Request) error {
 }
 
 func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, mms []prompb.MetricMetadata, extraLabels []prompb.Label) error {
+	if len(extraLabels) == 0 && !prommetadata.IsEnabled() && at == nil {
+		return insertRowsFast(at, timeseries)
+	}
 	ctx := common.GetPushCtx()
 	defer common.PutPushCtx(ctx)
 
@@ -99,6 +102,20 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, mms []prompb.Met
 		metadataTenantInserted.Get(at).Add(metadataTotal)
 	}
 	metadataInserted.Add(metadataTotal)
+	rowsPerInsert.Update(float64(rowsTotal))
+	return nil
+}
+
+func insertRowsFast(at *auth.Token, timeseries []prompb.TimeSeries) error {
+	rowsTotal := 0
+	for i := range timeseries {
+		rowsTotal += len(timeseries[i].Samples)
+	}
+	wr := &prompb.WriteRequest{Timeseries: timeseries}
+	if !remotewrite.TryPush(at, wr) {
+		return remotewrite.ErrQueueFullHTTPRetry
+	}
+	rowsInserted.Add(rowsTotal)
 	rowsPerInsert.Update(float64(rowsTotal))
 	return nil
 }

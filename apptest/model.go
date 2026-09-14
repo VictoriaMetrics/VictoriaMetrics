@@ -27,7 +27,7 @@ type PrometheusQuerier interface {
 	PrometheusAPIV1LabelValues(t *testing.T, labelName, query string, opts QueryOpts) *PrometheusAPIV1LabelValuesResponse
 	PrometheusAPIV1ExportNative(t *testing.T, query string, opts QueryOpts) []byte
 	PrometheusAPIV1Metadata(t *testing.T, metric string, limit int, opts QueryOpts) *PrometheusAPIV1Metadata
-	PrometheusAPIV1StatusMetricNamesStats(t *testing.T, limit, le, matchPattern string, opts QueryOpts) MetricNamesStatsResponse
+	PrometheusAPIV1StatusMetricNamesStats(t *testing.T, limit, le, matchPattern string, opts QueryOpts) *MetricNamesStatsResponse
 	PrometheusAPIV1AdminTSDBDeleteSeries(t *testing.T, matchQuery string, opts QueryOpts)
 
 	// TODO(@rtm0): Prometheus does not provide this API. Either move it to a
@@ -79,24 +79,25 @@ type PrometheusWriteQuerier interface {
 
 // QueryOpts contains various params used for querying or ingesting data
 type QueryOpts struct {
-	Tenant         string
-	Timeout        string
-	Start          string
-	End            string
-	Time           string
-	Step           string
-	ExtraFilters   []string
-	ExtraLabels    []string
-	Trace          string
-	ReduceMemUsage string
-	MaxLookback    string
-	LatencyOffset  string
-	Format         string
-	NoCache        string
-	Headers        http.Header
-	From           string
-	Until          string
-	StorageStep    string
+	Tenant              string
+	Timeout             string
+	Start               string
+	End                 string
+	Time                string
+	Step                string
+	ExtraFilters        []string
+	ExtraLabels         []string
+	Trace               string
+	ReduceMemUsage      string
+	MaxLookback         string
+	LatencyOffset       string
+	Format              string
+	NoCache             string
+	Headers             http.Header
+	From                string
+	Until               string
+	StorageStep         string
+	DenyPartialResponse string
 }
 
 func (qos *QueryOpts) getHeaders() http.Header {
@@ -132,6 +133,7 @@ func (qos *QueryOpts) asURLValues() url.Values {
 	addNonEmpty("from", qos.From)
 	addNonEmpty("until", qos.Until)
 	addNonEmpty("storage_step", qos.StorageStep)
+	addNonEmpty("deny_partial_response", qos.DenyPartialResponse)
 
 	return uv
 }
@@ -144,6 +146,7 @@ type PrometheusAPIV1QueryResponse struct {
 	ErrorType string
 	Error     string
 	IsPartial bool
+	Trace     *Trace
 }
 
 // NewPrometheusAPIV1QueryResponse is a test helper function that creates a new
@@ -434,6 +437,16 @@ func (t *Trace) Contains(s string) int {
 // /api/v1/status/metric_names_stats API response
 type MetricNamesStatsResponse struct {
 	Records []MetricNamesStatsRecord
+	Trace   *Trace
+}
+
+func (r *MetricNamesStatsResponse) Sort() {
+	sort.Slice(r.Records, func(i, j int) bool {
+		if r.Records[i].MetricName != r.Records[j].MetricName {
+			return r.Records[i].MetricName < r.Records[j].MetricName
+		}
+		return r.Records[i].QueryRequestsCount < r.Records[j].QueryRequestsCount
+	})
 }
 
 // MetricNamesStatsRecord is a record item for MetricNamesStatsResponse

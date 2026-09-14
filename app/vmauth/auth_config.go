@@ -118,9 +118,10 @@ type AccessLogFilters struct {
 }
 
 func (ui *UserInfo) logRequest(r *http.Request, userName string, statusCode int, duration time.Duration) {
-	if ui.AccessLog == nil {
+	if ui == nil || ui.AccessLog == nil {
 		return
 	}
+
 	filters := ui.AccessLog.Filters
 	if filters != nil && len(filters.SkipStatusCodes) > 0 {
 		if slices.Contains(filters.SkipStatusCodes, statusCode) {
@@ -132,6 +133,17 @@ func (ui *UserInfo) logRequest(r *http.Request, userName string, statusCode int,
 	requestURI := httpserver.GetRequestURI(r)
 	logger.Infof("access_log request_host=%q request_uri=%q status_code=%d remote_addr=%s user_agent=%q referer=%q duration_ms=%d username=%q",
 		r.Host, requestURI, statusCode, remoteAddr, r.UserAgent(), r.Referer(), duration.Milliseconds(), userName)
+}
+
+// hasAnyURLs reports whether ui has at least one backend URL route configured.
+// It is used only for unauthorized_user config section, since other users
+// must always have either URLPrefix or URLMaps set.
+func (ui *UserInfo) hasAnyURLs() bool {
+	if ui == nil {
+		return false
+	}
+
+	return ui.URLPrefix != nil || len(ui.URLMaps) > 0 || ui.DefaultURL != nil
 }
 
 // HeadersConf represents config for request and response headers.
@@ -236,6 +248,11 @@ func (h *Header) MarshalYAML() (any, error) {
 type URLMap struct {
 	// SrcPaths is an optional list of regular expressions, which must match the request path.
 	SrcPaths []*Regex `yaml:"src_paths,omitempty"`
+
+	// DenyPaths is an optional list of regular expressions, which must not match the request path.
+	//
+	// This allows excluding a subset of paths matched by SrcPaths without listing every allowed path explicitly.
+	DenyPaths []*Regex `yaml:"deny_paths,omitempty"`
 
 	// SrcHosts is an optional list of regular expressions, which must match the request hostname.
 	SrcHosts []*Regex `yaml:"src_hosts,omitempty"`
@@ -843,6 +860,11 @@ func authConfigReloader(sighupCh <-chan os.Signal) {
 		select {
 		case <-stopCh:
 			return
+		default:
+		}
+		select {
+		case <-stopCh:
+			return
 		case <-refreshCh:
 			updateFn()
 		case <-sighupCh:
@@ -889,7 +911,8 @@ func reloadAuthConfig() (bool, error) {
 	}
 
 	mp := authUsers.Load()
-	logger.Infof("loaded information about %d users from -auth.config=%q", len(*mp), *authConfigPath)
+	jwtc := jwtAuthCache.Load()
+	logger.Infof("loaded information about %d users from -auth.config=%q", len(*mp)+len(jwtc.users), *authConfigPath)
 	return true, nil
 }
 
@@ -905,7 +928,8 @@ func reloadAuthConfigData(data []byte) (bool, error) {
 		return false, fmt.Errorf("failed to parse auth config: %w", err)
 	}
 
-	jui, oidcDP, err := parseJWTUsers(ac)
+	oidcDP := &oidcDiscovererPool{}
+	jui, err := parseJWTUsers(ac, oidcDP)
 	if err != nil {
 		return false, fmt.Errorf("failed to parse JWT users from auth config: %w", err)
 	}
@@ -976,8 +1000,11 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 		if err := parseJWTPlaceholdersForUserInfo(ui, false); err != nil {
 			return nil, err
 		}
-		if err := ui.initURLs(); err != nil {
-			return nil, err
+
+		if ui.hasAnyURLs() {
+			if err := ui.initURLs(); err != nil {
+				return nil, err
+			}
 		}
 
 		metricLabels, err := ui.getMetricLabels()
@@ -1139,6 +1166,9 @@ func (ui *UserInfo) initURLs() error {
 
 	for _, e := range ui.URLMaps {
 		if len(e.SrcPaths) == 0 && len(e.SrcHosts) == 0 && len(e.SrcQueryArgs) == 0 && len(e.SrcHeaders) == 0 {
+			if len(e.DenyPaths) > 0 {
+				return fmt.Errorf("`deny_paths` cannot be used without at least one of `src_paths`, `src_hosts`, `src_query_args` or `src_headers` in `url_map`")
+			}
 			return fmt.Errorf("missing `src_paths`, `src_hosts`, `src_query_args` and `src_headers` in `url_map`")
 		}
 		if e.URLPrefix == nil {

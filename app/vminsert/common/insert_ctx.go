@@ -175,16 +175,22 @@ func (ctx *InsertCtx) WriteMetadata(mmpbs []prompb.MetricMetadata) error {
 	}
 	mms := ctx.mms
 	mms = slicesutil.SetLength(mms, len(mmpbs))
-	for idx, mmpb := range mmpbs {
-		mm := &mms[idx]
+	var cnt int
+	for _, mmpb := range mmpbs {
+		if timeserieslimits.IsMetricMetadataExceeding(&mmpb) {
+			continue
+		}
+		mm := &mms[cnt]
 		mm.MetricFamilyName = bytesutil.ToUnsafeBytes(mmpb.MetricFamilyName)
 		mm.Help = bytesutil.ToUnsafeBytes(mmpb.Help)
 		mm.Type = mmpb.Type
 		mm.Unit = bytesutil.ToUnsafeBytes(mmpb.Unit)
+		cnt++
 	}
+	mms = mms[:cnt]
 	ctx.mms = mms
 
-	err := vmstorage.AddMetadataRows(mms)
+	err := vmstorage.VMInsertAPI.WriteMetadata(mms)
 	if err != nil {
 		return &httpserver.ErrorWithStatusCode{
 			Err:        fmt.Errorf("cannot store metrics metadata: %w", err),
@@ -201,15 +207,20 @@ func (ctx *InsertCtx) WritePromMetadata(mmps []prometheus.Metadata) error {
 	}
 	mms := ctx.mms
 	mms = slicesutil.SetLength(mms, len(mmps))
-	for idx, mmpb := range mmps {
-		mm := &mms[idx]
+	var cnt int
+	for _, mmpb := range mmps {
+		mm := &mms[cnt]
+		if timeserieslimits.IsPrometheusMetadataExceeding(&mmpb) {
+			continue
+		}
 		mm.MetricFamilyName = bytesutil.ToUnsafeBytes(mmpb.Metric)
 		mm.Help = bytesutil.ToUnsafeBytes(mmpb.Help)
 		mm.Type = mmpb.Type
+		cnt++
 	}
+	mms = mms[:cnt]
 	ctx.mms = mms
-
-	err := vmstorage.AddMetadataRows(mms)
+	err := vmstorage.VMInsertAPI.WriteMetadata(mms)
 	if err != nil {
 		return &httpserver.ErrorWithStatusCode{
 			Err:        fmt.Errorf("cannot store prometheus metrics metadata: %w", err),
@@ -278,7 +289,7 @@ func (ctx *InsertCtx) FlushBufs() error {
 	// since the number of concurrent FlushBufs() calls should be already limited via writeconcurrencylimiter
 	// used at every stream.Parse() call under lib/protoparser/*
 
-	err := vmstorage.AddRows(ctx.mrs)
+	err := vmstorage.VMInsertAPI.WriteRows(ctx.mrs)
 	ctx.Reset(0)
 	if err == nil {
 		return nil

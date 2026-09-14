@@ -48,6 +48,12 @@ const maxPartSize = 400e9
 // The interval for flushing buffered data to parts, so it becomes visible to search.
 const pendingItemsFlushInterval = time.Second
 
+// The default interval for calling flushCallback when there is pending data to flush.
+//
+// It is set relatively high in order to improve the effectiveness of caches reset by flushCallback.
+// It is used when the flushCallbackInterval arg at MustOpenTable is set to zero.
+const defaultFlushCallbackInterval = 10 * time.Second
+
 // maxItemsPerCachedPart is the maximum items per created part by the merge,
 // which must be cached in the OS page cache.
 //
@@ -88,6 +94,7 @@ type Table struct {
 	flushInterval time.Duration
 
 	flushCallback         func()
+	flushCallbackInterval time.Duration
 	needFlushCallbackCall atomic.Bool
 
 	prepareBlock PrepareBlockCallback
@@ -332,17 +339,24 @@ func (pw *partWrapper) decRef() {
 // Optional flushCallback is called every time new data batch is flushed
 // to the underlying storage and becomes visible to search.
 //
+// The flushCallbackInterval is how often flushCallback is invoked when there is
+// pending data to flush. If it is set to zero, then defaultFlushCallbackInterval is used.
+//
 // Optional prepareBlock is called during merge before flushing the prepared block
 // to persistent storage.
 //
 // The table is created if it doesn't exist yet.
-func MustOpenTable(path string, flushInterval time.Duration, flushCallback func(), prepareBlock PrepareBlockCallback, isReadOnly *atomic.Bool) *Table {
+func MustOpenTable(path string, flushInterval time.Duration, flushCallback func(), flushCallbackInterval time.Duration, prepareBlock PrepareBlockCallback, isReadOnly *atomic.Bool) *Table {
 	path = filepath.Clean(path)
 
 	if flushInterval < pendingItemsFlushInterval {
 		// There is no sense in setting flushInterval to values smaller than pendingItemsFlushInterval,
 		// since pending rows unconditionally remain in memory for up to pendingItemsFlushInterval.
 		flushInterval = pendingItemsFlushInterval
+	}
+
+	if flushCallbackInterval <= 0 {
+		flushCallbackInterval = defaultFlushCallbackInterval
 	}
 
 	// Create a directory at the path if it doesn't exist yet.
@@ -355,14 +369,15 @@ func MustOpenTable(path string, flushInterval time.Duration, flushCallback func(
 	fs.MustSyncPathAndParentDir(path)
 
 	tb := &Table{
-		path:                 path,
-		flushInterval:        flushInterval,
-		flushCallback:        flushCallback,
-		prepareBlock:         prepareBlock,
-		isReadOnly:           isReadOnly,
-		fileParts:            pws,
-		inmemoryPartsLimitCh: make(chan struct{}, maxInmemoryParts),
-		stopCh:               make(chan struct{}),
+		path:                  path,
+		flushInterval:         flushInterval,
+		flushCallback:         flushCallback,
+		flushCallbackInterval: flushCallbackInterval,
+		prepareBlock:          prepareBlock,
+		isReadOnly:            isReadOnly,
+		fileParts:             pws,
+		inmemoryPartsLimitCh:  make(chan struct{}, maxInmemoryParts),
+		stopCh:                make(chan struct{}),
 	}
 	tb.mergeIdx.Store(uint64(time.Now().UnixNano()))
 	tb.rawItems.init()
@@ -429,9 +444,9 @@ func (tb *Table) startFlushCallbackWorker() {
 	}
 
 	tb.wg.Go(func() {
-		// call flushCallback once per 10 seconds in order to improve the effectiveness of caches,
-		// which are reset by the flushCallback.
-		d := timeutil.AddJitterToDuration(time.Second * 10)
+		// call flushCallback at flushCallbackInterval in order to improve the effectiveness
+		// of caches, which are reset by the flushCallback.
+		d := timeutil.AddJitterToDuration(tb.flushCallbackInterval)
 		tc := time.NewTicker(d)
 		for {
 			select {
@@ -569,6 +584,8 @@ type TableMetrics struct {
 	PartsRefCount uint64
 
 	TooLongItemsDroppedTotal uint64
+
+	MetaindexSizeBytes uint64
 }
 
 // TotalItemsCount returns the total number of items in the table.
@@ -602,6 +619,7 @@ func (tb *Table) UpdateMetrics(m *TableMetrics) {
 		m.InmemoryBlocksCount += p.ph.blocksCount
 		m.InmemoryItemsCount += p.ph.itemsCount
 		m.InmemorySizeBytes += p.size
+		m.MetaindexSizeBytes += p.metaindexSizeBytes
 		m.PartsRefCount += uint64(pw.refCount.Load())
 	}
 
@@ -611,6 +629,7 @@ func (tb *Table) UpdateMetrics(m *TableMetrics) {
 		m.FileBlocksCount += p.ph.blocksCount
 		m.FileItemsCount += p.ph.itemsCount
 		m.FileSizeBytes += p.size
+		m.MetaindexSizeBytes += p.metaindexSizeBytes
 		m.PartsRefCount += uint64(pw.refCount.Load())
 	}
 	tb.partsLock.Unlock()

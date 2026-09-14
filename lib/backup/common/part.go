@@ -120,6 +120,17 @@ func (p *Part) ParseFromRemotePath(remotePath string) bool {
 	return true
 }
 
+// IsLocalPathInsideDir returns true if the part's local path resolves inside dir.
+// It resolves ../../ sequences and prevents path traversal outside dir.
+func (p *Part) IsLocalPathInsideDir(dir string) bool {
+	dir = filepath.Clean(dir)
+	if dir == `/` {
+		return true
+	}
+
+	return strings.HasPrefix(p.LocalPath(dir), dir+string(filepath.Separator))
+}
+
 // MaxPartSize is the maximum size for each part.
 //
 // The MaxPartSize reduces bandwidth usage during retires on network errors

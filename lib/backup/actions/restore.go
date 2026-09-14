@@ -91,6 +91,11 @@ func (r *Restore) Run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("cannot list src parts: %w", err)
 	}
+	for _, srcPart := range srcParts {
+		if !srcPart.IsLocalPathInsideDir(r.Dst.Dir) {
+			return fmt.Errorf("part file %s would be written outside storage directory %s", srcPart.Path, r.Dst.Dir)
+		}
+	}
 	logger.Infof("obtaining list of parts at %s", dst)
 	dstParts, err := dst.ListParts()
 	if err != nil {

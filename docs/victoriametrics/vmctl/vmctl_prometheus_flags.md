@@ -34,9 +34,13 @@ OPTIONS:
       Should be the same as --httpListenAddr value for single-node version or vminsert component. 
       When importing into the clustered version do not forget to set additionally --vm-account-id flag. 
       Please note, that vmctl performs initial readiness check for the given address by checking /health endpoint. (default: "http://localhost:8428")
-   --vm-user value        VictoriaMetrics username for basic auth [$VM_USERNAME]
-   --vm-password value    VictoriaMetrics password for basic auth [$VM_PASSWORD]
-   --vm-account-id value  AccountID is an arbitrary 32-bit integer identifying namespace for data ingestion (aka tenant). 
+   --vm-user value      VictoriaMetrics username for basic auth [$VM_USERNAME]
+   --vm-password value  VictoriaMetrics password for basic auth [$VM_PASSWORD]
+   --vm-headers value   Optional HTTP headers to send with each request to the corresponding destination address. 
+      For example, --vm-headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding destination address. 
+      Multiple headers must be delimited by '^^': --vm-headers='header1:value1^^header2:value2'
+   --vm-bearer-token value  Optional bearer auth token to use for the corresponding --vm-addr
+   --vm-account-id value    AccountID is an arbitrary 32-bit integer identifying namespace for data ingestion (aka tenant). 
       AccountID is required when importing into the clustered version of VictoriaMetrics. 
       It is possible to set it as accountID:projectID, where projectID is also arbitrary 32-bit integer. 
       If projectID isn't set, then it equals to 0
@@ -44,7 +48,7 @@ OPTIONS:
    --vm-compress                                      Whether to apply gzip compression to import requests (default: true)
    --vm-batch-size value                              How many samples importer collects before sending the import request to VM (default: 200000)
    --vm-significant-figures value                     The number of significant figures to leave in metric values before importing. See https://en.wikipedia.org/wiki/Significant_figures. Zero value saves all the significant figures. This option may be used for increasing on-disk compression level for the stored metrics. See also --vm-round-digits option (default: 0)
-   --vm-round-digits value                            Round metric values to the given number of decimal digits after the point. This option may be used for increasing on-disk compression level for the stored metrics (default: 100)
+   --vm-round-digits value                            Round metric values to the given number of decimal digits after the point. This option may be used for increasing on-disk compression level for the stored metrics. See also --vm-significant-figures option (default: 100)
    --vm-extra-label value [ --vm-extra-label value ]  Extra labels, that will be added to imported timeseries. In case of collision, label value defined by flag will have priority. Flag can be set multiple times, to add few additional labels.
    --vm-rate-limit value                              Optional data transfer rate limit in bytes per second.
       By default, the rate limit is disabled. It can be useful for limiting load on configured via '--vm-addr' destination. (default: 0)

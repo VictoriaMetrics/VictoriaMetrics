@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert"
@@ -13,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/appmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
@@ -22,30 +24,34 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
 var (
-	httpListenAddrs  = flagutil.NewArrayString("httpListenAddr", "TCP addresses to listen for incoming http requests. See also -tls and -httpListenAddr.useProxyProtocol")
+	httpListenAddrs = flagutil.NewArrayString("httpListenAddr", "Addresses to listen for incoming http requests. "+
+		"Use unix:/path/to/socket to listen on Unix domain socket. Note that -tls and -httpListenAddr.useProxyProtocol cannot be used with Unix sockets")
 	useProxyProtocol = flagutil.NewArrayBool("httpListenAddr.useProxyProtocol", "Whether to use proxy protocol for connections accepted at the corresponding -httpListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
-	minScrapeInterval = flag.Duration("dedup.minScrapeInterval", 0, "Leave only the last sample in every time series per each discrete interval "+
-		"equal to -dedup.minScrapeInterval > 0. See also -streamAggr.dedupInterval and https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication")
 	dryRun = flag.Bool("dryRun", false, "Whether to check config files without running VictoriaMetrics. The following config files are checked: "+
 		"-promscrape.config, -relabelConfig and -streamAggr.config. Unknown config entries aren't allowed in -promscrape.config by default. "+
 		"This can be changed with -promscrape.config.strictParse=false command-line flag")
-	inmemoryDataFlushInterval = flag.Duration("inmemoryDataFlushInterval", 5*time.Second, "The interval for guaranteed saving of in-memory data to disk. "+
-		"The saved data survives unclean shutdowns such as OOM crash, hardware reset, SIGKILL, etc. "+
-		"Bigger intervals may help increase the lifetime of flash storage with limited write cycles (e.g. Raspberry PI). "+
-		"Smaller intervals increase disk IO load. Minimum supported value is 1s")
 	maxIngestionRate = flag.Int("maxIngestionRate", 0, "The maximum number of samples vmsingle can receive per second. Data ingestion is paused when the limit is exceeded. "+
 		"By default there are no limits on samples ingestion rate.")
-	finalDedupScheduleInterval = flag.Duration("storage.finalDedupScheduleCheckInterval", time.Hour, "The interval for checking when final deduplication process should be started."+
-		"Storage unconditionally adds 25% jitter to the interval value on each check evaluation."+
-		" Changing the interval to the bigger values may delay downsampling, deduplication for historical data."+
-		" See also https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication")
+	vmselectMaxConcurrentRequests = flagutil.NewIntWithDynamicDefault("search.maxConcurrentRequests", getDefaultMaxConcurrentRequests(), "vmselect.getDefaultMaxConcurrentRequests()",
+		"The maximum number of concurrent search requests. "+
+			"It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. "+
+			"See also -search.maxQueueDuration and -search.maxMemoryPerQuery")
+	vmselectMaxQueueDuration = flag.Duration("search.maxQueueDuration", 10*time.Second, "The maximum time the request waits for execution when -search.maxConcurrentRequests "+
+		"limit is reached; see also -search.maxQueryDuration")
 )
+
+func getDefaultMaxConcurrentRequests() int {
+	// A single request can saturate all the CPU cores, so there is no sense
+	// in allowing higher number of concurrent requests - they will just contend
+	// for unavailable CPU time.
+	n := min(cgroup.AvailableCPUs()*2, 16)
+	return n
+}
 
 func main() {
 	// VictoriaMetrics is optimized for reduced memory allocations,
@@ -61,6 +67,7 @@ func main() {
 	flag.CommandLine.SetOutput(os.Stdout)
 	flag.Usage = usage
 	envflag.Parse()
+	initSecretFlags()
 	buildinfo.Init()
 	logger.Init()
 
@@ -87,18 +94,17 @@ func main() {
 	}
 	logger.Infof("starting VictoriaMetrics at %q...", listenAddrs)
 	startTime := time.Now()
-	storage.SetDedupInterval(*minScrapeInterval)
-	storage.SetDataFlushInterval(*inmemoryDataFlushInterval)
-	if *finalDedupScheduleInterval < time.Hour {
-		logger.Fatalf("-dedup.finalDedupScheduleCheckInterval cannot be smaller than 1 hour; got %s", *finalDedupScheduleInterval)
-	}
-	storage.SetFinalDedupScheduleInterval(*finalDedupScheduleInterval)
-	vmstorage.Init(promql.ResetRollupResultCacheIfNeeded)
-	vmselect.Init()
+
+	vmstorage.Init(*vmselectMaxConcurrentRequests, *vmselectMaxQueueDuration, promql.ResetRollupResultCacheIfNeeded)
+	appmetrics.MustCreateUncleanShutdownMarker(vmstorage.DataPath())
+	vmselect.Init(*vmselectMaxConcurrentRequests, *vmselectMaxQueueDuration)
 	vminsertcommon.StartIngestionRateLimiter(*maxIngestionRate)
 	vminsert.Init()
 
 	startSelfScraper()
+
+	// Register paths which could be protected by their own -*AuthKey flag.
+	httpserver.RegisterAuthKeyProtectedPathsFunc(isAuthKeyProtectedPath)
 
 	go httpserver.Serve(listenAddrs, requestHandler, httpserver.ServeOptions{
 		UseProxyProtocol: useProxyProtocol,
@@ -123,8 +129,37 @@ func main() {
 
 	vmstorage.Stop()
 	vmselect.Stop()
+	appmetrics.MustRemoveUncleanShutdownMarker(vmstorage.DataPath())
 
 	logger.Infof("the VictoriaMetrics has been stopped in %.3f seconds", time.Since(startTime).Seconds())
+}
+
+// isAuthKeyProtectedPath returns true for paths, which verify the corresponding -*AuthKey flag
+// on their own at requestHandler().
+func isAuthKeyProtectedPath(r *http.Request) bool {
+	path := strings.ReplaceAll(r.URL.Path, "//", "/")
+
+	switch path {
+	// for vminsert
+	case "/prometheus/config", "/config",
+		"/prometheus/api/v1/status/config", "/api/v1/status/config",
+		"/prometheus/-/reload", "/-/reload":
+		return true
+
+	// for vmselect
+	case "/internal/resetRollupResultCache",
+		"/tags/delSeries", "/graphite/tags/delSeries",
+		"/api/v1/admin/tsdb/delete_series", "/prometheus/api/v1/admin/tsdb/delete_series",
+		"/api/v1/admin/status/metric_names_stats/reset":
+		return true
+
+	// for vmstorage
+	case "/internal/force_merge", "/internal/force_flush", "/internal/log_new_series",
+		"/api/v1/admin/tsdb/snapshot",
+		"/snapshot/create", "/snapshot/list", "/snapshot/delete", "/snapshot/delete_all":
+		return true
+	}
+	return false
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
@@ -173,4 +208,10 @@ victoria-metrics is a time series database and monitoring solution.
 See the docs at https://docs.victoriametrics.com/victoriametrics/
 `
 	flagutil.Usage(s)
+}
+
+// initSecretFlags manages the secret flags for this app and must be called after flag parsing and before logger init.
+func initSecretFlags() {
+	pushmetrics.InitSecretFlags()
+	vmselect.InitSecretFlags()
 }

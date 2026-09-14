@@ -1,6 +1,7 @@
 ---
 weight: 2
 title: Kubernetes monitoring via VictoriaMetrics Single
+description: "Monitor Kubernetes with single-node VictoriaMetrics and Helm."
 menu:
   docs:
     parent: "guides"

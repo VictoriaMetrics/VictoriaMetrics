@@ -5,6 +5,7 @@ menu:
     parent: victoriametrics
     weight: 3
 title: vmagent
+description: "agent for metrics collection, supporting both push and pull models, service discovery, relabeling, sharding, replication, on-disk buffering."
 tags:
   - metrics
 aliases:
@@ -141,6 +142,7 @@ to other remote storage systems that support Prometheus `remote_write` protocol 
 If a single remote storage instance is temporarily unavailable, the collected data remains available on the other remote storage instances.
 `vmagent` buffers the collected data in files at `-remoteWrite.tmpDataPath` until the remote storage becomes available again.
 Then it sends the buffered data to the remote storage in order to prevent data gaps.
+See how `vmagent` [selects shards and places replicas](https://victoriametrics.com/blog/vmagent-how-it-works/#step-4-sharding--replication) for implementation details.
 
 [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) already supports replication,
 so there is no need to specify multiple `-remoteWrite.url` flags when writing data to the same cluster.
@@ -150,7 +152,8 @@ See [these docs](https://docs.victoriametrics.com/victoriametrics/cluster-victor
 
 `vmagent` can add, remove, or update labels on the collected data before sending it to the remote storage.
 It can filter scrape targets or remove unwanted samples via Prometheus-like relabeling.
-Please see the [Relabeling cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/) for details.
+Please see the [Relabeling cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/) for configuration examples.
+For ingestion pipeline internals, see how `vmagent` [applies global relabeling and cardinality limits](https://victoriametrics.com/blog/vmagent-how-it-works/#step-2-global-relabeling-cardinality-reduction).
 
 ### Sharding among remote storages
 
@@ -269,6 +272,47 @@ for the collected samples. Examples:
   ./vmagent -remoteWrite.url=http://remote-storage/api/v1/write -streamAggr.dropInputLabels=replica -streamAggr.dedupInterval=60s
   ```
 
+See how `vmagent` [orders global deduplication and stream aggregation](https://victoriametrics.com/blog/vmagent-how-it-works/#step-3-global-deduplication--stream-aggregation) in the ingestion pipeline.
+
+### Monitoring Data eXchange
+
+The Monitoring Data eXchange (MDX){{% available_from "v1.147.0" %}} feature allows `vmagent` to forward only VictoriaMetrics metrics to selected `-remoteWrite.url` destinations while dropping metrics from non-VictoriaMetrics services.
+
+To enable MDX, set `-remoteWrite.mdx.enable=true` for the target URL and `-remoteWrite.mdx.enable=false` for other URLs:
+
+```sh
+./vmagent \
+  -remoteWrite.url=http://service-to-keep-all-metrics:8428/api/v1/write \
+  -remoteWrite.mdx.enable=false \
+  -remoteWrite.disableMetadata=false \
+  -remoteWrite.url=http://service-to-keep-only-vm-metrics:8428/api/v1/write \
+  -remoteWrite.mdx.enable=true \
+  -remoteWrite.disableMetadata=true
+```
+
+> Recommendation: Set `-remoteWrite.disableMetadata=true` for MDX remote writes to save resource usage. Otherwise, `vmagent` sends [metrics metadata](https://docs.victoriametrics.com/victoriametrics/vmagent/#metric-metadata) from all scraped targets to the MDX destination.
+
+When MDX is enabled for a `-remoteWrite.url`, `vmagent` forwards only metrics that:
+- come from the target that exposes the `vm_app_version` metric (emitted by all VictoriaMetrics components)
+- contain the `victoriametrics_app=true` label, which will be added automatically to the metrics if the instance was deployed via [VictoriaMetrics Operator](https://docs.victoriametrics.com/operator/).
+
+`victoriametrics_app=true` label will be added to all metrics that are preserved by MDX if it's absent.
+
+- contain the label specified via `-mdx.label`.
+
+```sh
+./vmagent \
+  -remoteWrite.url=http://service-to-keep-only-vm-metrics:8428/api/v1/write \
+  -remoteWrite.mdx.enable=true \
+  -remoteWrite.disableMetadata=true \
+  -mdx.label="service=victoriametrics"
+```
+In this configuration, metrics with the label `service=victoriametrics` are preserved even if their scrape targets do not expose `vm_app_version` metric.
+
+The number of VictoriaMetrics metrics preserved by MDX is exposed as `vmagent_remotewrite_mdx_rows_preserved_total`.
+
+The scope of MDX is at the per-url level, so it works after global level mechanisms, such as stream aggregation, relabeling, complexity limiter, and cardinality limiter. See [Life of a sample](https://docs.victoriametrics.com/victoriametrics/vmagent/#life-of-a-sample).
+
 ### Life of a sample
 
 vmagent supports limiting, relabeling, deduplication, and stream aggregation for all metric samples, scraped or pushed.
@@ -285,18 +329,22 @@ flowchart TB
     F --> G[<a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#replication-and-high-availability">replicate</a> to each <b>-remoteWrite.url</b><br/>or <a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#sharding-among-remote-storages">shard</a> if <b>-remoteWrite.shardByURL</b> is set]
 
       %% Left branch
-      G --> H1[per-url <a href="https://docs.victoriametrics.com/victoriametrics/relabeling/">relabeling</a><br><b>-remoteWrite.urlRelabelConfig</b>]
-      H1 --> H2[per-url <a href="https://docs.victoriametrics.com/victoriametrics/stream-aggregation">aggregation</a><br><b>-remoteWrite.streamAggr.config</b><br><b>-remoteWrite.streamAggr.dedupInterval</b>]
-      H2 --> H3["per-url <a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#calculating-disk-space-for-persistence-queue">queue</a> (default: enabled)<br><b>-remoteWrite.disableOnDiskQueue</b>"]
-      H3 --> H4[<a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#adding-labels-to-metrics">add extra labels</a><br><b>-remoteWrite.label</b>]
-      H4 --> H5[[push to <b>-remoteWrite.url</b>]]
+      G --> H1[per-url <a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#monitoring-data-exchange/">mdx filter</a><br><b>-remoteWrite.mdx.enable</b>]
+      H1 --> H2[per-url <a href="https://docs.victoriametrics.com/victoriametrics/relabeling/">relabeling</a><br><b>-remoteWrite.urlRelabelConfig</b>]
+      H2 --> H3[per-url <a href="https://docs.victoriametrics.com/victoriametrics/stream-aggregation">aggregation</a><br><b>-remoteWrite.streamAggr.config</b><br><b>-remoteWrite.streamAggr.dedupInterval</b>]
+      H3 --> H4["per-url <a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#calculating-disk-space-for-persistence-queue">queue</a> (default: enabled)<br><b>-remoteWrite.disableOnDiskQueue</b>"]
+      H4 --> H5[<a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#adding-labels-to-metrics">add extra labels</a><br><b>-remoteWrite.label</b>]
+      H5 --> H6[<a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#obfuscating-label-values">obfuscate labels</a><br><b>-remoteWrite.obfuscateLabels</b>]
+      H6 --> H7[[push to <b>-remoteWrite.url</b>]]
 
       %% Right branch
-      G --> R1[per-url <a href="https://docs.victoriametrics.com/victoriametrics/relabeling/">relabeling</a><br><b>-remoteWrite.urlRelabelConfig</b>]
-      R1 --> R2[per-url <a href="https://docs.victoriametrics.com/victoriametrics/stream-aggregation">aggregation</a><br><b>-remoteWrite.streamAggr.config</b><br><b>-remoteWrite.streamAggr.dedupInterval</b>]
-      R2 --> R3["per-url <a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#calculating-disk-space-for-persistence-queue">queue</a> (default: enabled)<br><b>-remoteWrite.disableOnDiskQueue</b>"]
-      R3 --> R4[<a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#adding-labels-to-metrics">add extra labels</a><br><b>-remoteWrite.label</b>]
-      R4 --> R5[[push to <b>-remoteWrite.url</b>]]
+      G --> R1[per-url <a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#monitoring-data-exchange">mdx filter</a><br><b>-remoteWrite.mdx.enable</b>]
+      R1 --> R2[per-url <a href="https://docs.victoriametrics.com/victoriametrics/relabeling/">relabeling</a><br><b>-remoteWrite.urlRelabelConfig</b>]
+      R2 --> R3[per-url <a href="https://docs.victoriametrics.com/victoriametrics/stream-aggregation">aggregation</a><br><b>-remoteWrite.streamAggr.config</b><br><b>-remoteWrite.streamAggr.dedupInterval</b>]
+      R3 --> R4["per-url <a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#calculating-disk-space-for-persistence-queue">queue</a> (default: enabled)<br><b>-remoteWrite.disableOnDiskQueue</b>"]
+      R4 --> R5[<a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#adding-labels-to-metrics">add extra labels</a><br><b>-remoteWrite.label</b>]
+      R5 --> R6[<a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#obfuscating-label-values">obfuscate labels</a><br><b>-remoteWrite.obfuscateLabels</b>]
+      R6 --> R7[[push to <b>-remoteWrite.url</b>]]
 ```
 
 Scraping has additional settings that can be applied before samples are pushed to the processing pipeline above:
@@ -309,11 +357,11 @@ Scraping has additional settings that can be applied before samples are pushed t
 `vmagent` supports [the same set of push-based data ingestion protocols as VictoriaMetrics does](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data)
 in addition to the pull-based Prometheus-compatible targets' scraping:
 
-* DataDog "submit metrics" API. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/datadog/).
+* Datadog "submit metrics" API. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/datadog/).
 * InfluxDB line protocol via `http://<vmagent>:8429/write`. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb/).
 * Graphite plaintext protocol if the `-graphiteListenAddr` command-line flag is set. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting).
-* OpenTelemetry HTTP API. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/).
-* NewRelic API. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/newrelic/#sending-data-from-agent).
+* OpenTelemetry HTTP API via `http://<vmagent>:8429/opentelemetry/v1/metrics`. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/).
+* New Relic API. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/newrelic/#sending-data-from-agent).
 * OpenTSDB telnet and http protocols if `-opentsdbListenAddr` command-line flag is set. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb/).
 * Zabbix Connector streaming protocol. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/zabbixconnector/#send-data-from-zabbix-connector).
 * Prometheus remote write protocol via `http://<vmagent>:8429/api/v1/write`.
@@ -321,6 +369,8 @@ in addition to the pull-based Prometheus-compatible targets' scraping:
 * Native data import protocol via `http://<vmagent>:8429/api/v1/import/native`. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-native-format).
 * Prometheus exposition format via `http://<vmagent>:8429/api/v1/import/prometheus`. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-prometheus-exposition-format) for details.
 * Arbitrary CSV data via `http://<vmagent>:8429/api/v1/import/csv`. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-csv-data).
+
+See how `vmagent` [handles concurrency, decompression, and stream parsing](https://victoriametrics.com/blog/vmagent-how-it-works/#step-1-receiving-data-via-api-or-scrape) during ingestion.
 
 ## How to collect metrics in Prometheus format
 
@@ -431,6 +481,43 @@ and `-remoteWrite.streamAggr.config`:
 
 There is also the `-promscrape.configCheckInterval` command-line flag, which can be used to automatically reload configs from the updated `-promscrape.config` file.
 
+## DNS URLs
+
+If `vmagent` encounters URLs with the `dns+` prefix in the hostname (such as `http://dns+some-addr:8428/some/path`), it resolves `some-addr` into IP addresses
+via [DNS A records](https://datatracker.ietf.org/doc/html/rfc1035#section-3.4.1). The port from the original URL is appended to each discovered IP address.
+Each discovered IP address is used for least-loaded balancing of write requests.
+
+DNS URLs are supported in the following places:
+
+* In `-remoteWrite.url` command-line flag. For example, if `victoria-metrics` [DNS A Record](https://datatracker.ietf.org/doc/html/rfc1035#section-3.4.1) record contains
+  `192.168.1.15` IP address, then `-remoteWrite.url=http://dns+victoria-metrics:8428/api/v1/write` is automatically resolved into
+  `-remoteWrite.url=http://192.168.1.15:8428/api/v1/write`.
+
+DNS URLs are useful when client-side HTTP load balancing is needed. A good example
+is a [Kubernetes headless Service](https://kubernetes.io/docs/concepts/services-networking/service/#headless-services),
+which returns multiple IP addresses for a single hostname.
+
+### DNS URLs and HTTPS
+
+When a `dns+` URL uses the `https` scheme, `vmagent` connects to the discovered
+IP addresses directly. This affects [TLS](https://en.wikipedia.org/wiki/Transport_Layer_Security)
+in two ways:
+
+* No [SNI](https://en.wikipedia.org/wiki/Server_Name_Indication) is sent in the TLS handshake,
+  since the connection target is an IP address rather than a hostname.
+* The server certificate is verified against the IP address, so the verification fails
+  unless the certificate contains the corresponding
+  [IP SAN](https://en.wikipedia.org/wiki/Subject_Alternative_Name) entries.
+
+To use `dns+` URLs with HTTPS, pass the original hostname via the `-remoteWrite.tlsServerName`
+command-line flag. It is used both as SNI and as the name the server certificate
+is verified against:
+
+```sh
+-remoteWrite.url=https://dns+victoria-metrics:8428/api/v1/write
+-remoteWrite.tlsServerName=victoria-metrics
+```
+
 ## SRV URLs
 
 If `vmagent` encounters URLs with `srv+` prefix in hostname (such as `http://srv+some-addr/some/path`), then it resolves `some-addr` [DNS SRV](https://en.wikipedia.org/wiki/SRV_record)
@@ -441,7 +528,7 @@ SRV URLs are supported in the following places:
 * In `-remoteWrite.url` command-line flag. For example, if `victoria-metrics` [DNS SRV](https://en.wikipedia.org/wiki/SRV_record) record contains
   `victoria-metrics-host:8428` TCP address, then `-remoteWrite.url=http://srv+victoria-metrics/api/v1/write` is automatically resolved into
   `-remoteWrite.url=http://victoria-metrics-host:8428/api/v1/write`. If the DNS SRV record is resolved into multiple TCP addresses, then `vmagent`
-  uses a randomly chosen address for each connection it establishes to the remote storage.
+   performs per request least-loaded load-balancing.
 
 * In scrape target addresses aka `__address__` label. See [these docs](https://docs.victoriametrics.com/victoriametrics/relabeling/#how-to-modify-scrape-urls-in-targets) for details.
 
@@ -481,29 +568,38 @@ by specifying `-remoteWrite.forcePromProto` command-line flag for the correspond
 ## Multitenancy
 
 By default, `vmagent` collects the data without [tenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) identifiers
-and routes it to the remote storage specified via `-remoteWrite.url` command-line flag. The `-remoteWrite.url` can point to `/insert/<tenant_id>/prometheus/api/v1/write` path
-at `vminsert` according to [these docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format). 
+and routes it to the remote storage specified via `-remoteWrite.url` command-line flag. Point `-remoteWrite.url` to vminsert's `/insert/<tenant_id>/prometheus/api/v1/write` path
+according to [these docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format). 
+
+> Note: the single-node version of VictoriaMetrics doesn't support multitenancy.
+
 ```mermaid
 flowchart LR
-    A["requests_total{instance=foo}"] --> |/api/v1/write| V[vmagent]
-    B["requests_total{instance=bar}"] <--> |scrape| V
-    V --> |"/insert/#60;tenant_id#62;/#60;suffix#62;"| C[vminsert]
+    A["requests_total{instance=foo}"] --> |<a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#how-to-push-data-to-vmagent">push</a>| V[vmagent]
+    B["requests_total{instance=bar}"] <--> |<a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#how-to-collect-metrics-in-prometheus-format">pull</a>| V
+    V --> |"/insert/#60;tenant_id#62;/prometheus/api/v1/write"| C[vminsert]
 ```
 
-In this case, all the metrics written to `/insert/tenant_id/prometheus/api/v1/write` will belong to the specified `<tenant_id>` tenant.
+In this case, all the metrics written to `/insert/<tenant_id>/prometheus/api/v1/write` will belong to the specified `<tenant_id>` tenant.
 
 ### Multitenancy via labels
 
-vmagent can write data to multiple distinct tenants if `-remoteWrite.url` points to [multitenant URL at VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels)
-and tenant is specified via [multitenancy labels](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels):
+vmagent can write data to **multiple distinct tenants** if `-remoteWrite.url` points to the [multitenant URL in the VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels)
+and the tenant is specified via [multitenancy labels](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels):
 
 ```mermaid
 flowchart LR
-    A["requests_total{instance=foo, vm_account_id=0}"] --> |/api/v1/write| V[vmagent]
-    B["requests_total{instance=bar, vm_account_id=1}"] <--> |scrape| V
-    V --> |"/insert/multitenant/#60;suffix#62;"| C[vminsert]
+    A["requests_total{instance=foo, vm_account_id=0}"] --> |<a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#how-to-push-data-to-vmagent">push</a>| V[vmagent]
+    B["requests_total{instance=bar, vm_account_id=1}"] <--> |<a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#how-to-collect-metrics-in-prometheus-format">pull</a>| V
+    V --> |"/insert/multitenant/prometheus/api/v1/write"| C[vminsert]
 ```
-`<tenant_id>` is extracted from the `vm_account_id` and `vm_project_id` labels.
+
+> A single payload pulled from or pushed to vmagent may contain time series belonging to multiple tenants.
+
+When vminsert receives the data on the `/insert/multitenant` path, it extracts `<tenant_id>` from the `vm_account_id` and `vm_project_id` labels for
+each distinct time series.
+
+> If `vm_account_id` or `vm_project_id` labels are missing or invalid, then the corresponding accountID and projectID are set to 0.
 
 The `vm_account_id` and `vm_project_id` labels can be specified via [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/) before sending the metrics to `-remoteWrite.url`.
 For example, the following relabeling rule instructs sending metrics to `<account_id>:0` tenant defined in the `prometheus.io/account_id` annotation of Kubernetes pod deployment:
@@ -516,11 +612,12 @@ scrape_configs:
     target_label: vm_account_id
 ```
 
-vmagent can get tenant identifier from `__tenant_id__` label at target discovery phase.
-It implicitly converts `__tenant_id__` label into `vm_account_id` and `vm_project_id` labels and attaches
-it to the scraped metrics and metrics metadata.
+vmagent can get the tenant identifier from the `__tenant_id__` label during the target discovery phase.
+It implicitly converts the `__tenant_id__` label into `vm_account_id` and `vm_project_id` labels and attaches
+them to the scraped metrics and metrics metadata.
 
-For example, the following relabeling rule instructs sending metrics to the `10:5` tenant defined in the `prometheus.io/tenant_id: 10:5` annotation of the Kubernetes pod deployment:
+For example, the following relabeling rule instructs sending metrics to the `10:5` tenant defined in the `prometheus.io/tenant_id: 10:5`
+annotation of the Kubernetes pod deployment:
 
 ```yaml
 scrape_configs:
@@ -531,47 +628,54 @@ scrape_configs:
     target_label: __tenant_id__
 ```
 
-vmagent can [enforce adding labels](https://docs.victoriametrics.com/victoriametrics/vmagent/#adding-labels-to-metrics) to all scraped
-or forwarded metrics. 
+vmagent can also [enforce adding labels](https://docs.victoriametrics.com/victoriametrics/vmagent/#adding-labels-to-metrics)
+on all scraped or forwarded metrics. 
 
 ### Multitenancy via path
 
-vmagent can write data to multiple distinct tenants if `-remoteWrite.url` points to [multitenant URL at VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels),
-tenant is specified in the [write path](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format), and `-enableMultitenantHandlers` command-line flag is set:
+vmagent can write data to multiple distinct tenants if:
+* its `-remoteWrite.url` points to the [VictoriaMetrics cluster multitenant URL](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels)
+* its `-enableMultitenantHandlers` command-line flag is set
+* clients ingest data into vmagent with the tenant specified in the [write path](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format)
 
 ```mermaid
 flowchart LR
-    A["requests_total{instance=foo}"] --> |/insert/0/#60;suffix#62;| V[vmagent]
-    B["requests_total{instance=bar}"] --> |/insert/1/#60;suffix#62;| V
-    V --> |"/insert/multitenant/#60;suffix#62;"| C[vminsert]
+    A["requests_total{instance=foo}"] --> |<a href="https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format">/insert/0/#60;suffix#62;</a>| V[vmagent]
+    B["requests_total{instance=bar}"] --> |<a href="https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format">/insert/1/#60;suffix#62;</a>| V
+    V --> |"/insert/multitenant/prometheus/api/v1/write"| C[vminsert]
 ```
 
 In this configuration, vmagent accepts writes via the same multitenant endpoints (`/insert/<accountID>/<suffix>`) [as vminsert does](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format).
-For all received data, vmagent will automatically convert tenant identifiers from the URL to `vm_account_id` and `vm_project_id` labels and set tenant info in metadata.
+For all the received data, vmagent will automatically convert tenant identifiers in the URL path to `vm_account_id` and `vm_project_id` labels, and set tenant information in metadata.
 
-These tenant labels are added before applying [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/) specified via `-remoteWrite.relabelConfig`
-and `-remoteWrite.urlRelabelConfig` command-line flags. 
+These tenant labels are added before applying [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/)
+specified via `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig` command-line flags. 
 
 ### Multitenancy via headers
 
-vmagent can write data to multiple distinct tenants if `-remoteWrite.url` points to [multitenant URL at VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels),
-tenant is specified [via headers](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-headers) {{% available_from "v1.143.0" %}}, both `-enableMultitenantHandlers` and `-enableMultitenancyViaHeaders` command-line flags are set:
+vmagent can write data to multiple distinct tenants if:
+* its `-remoteWrite.url` points to the [VictoriaMetrics cluster multitenant URL](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels)
+* its `-enableMultitenantHandlers` and `-enableMultitenancyViaHeaders` (enabled by default {{% available_from "v1.150.0" %}}) command-line flags are both set
+* clients ingest data into vmagent with the tenants specified [via headers](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-headers) {{% available_from "v1.143.0" %}}
+
 ```mermaid
 flowchart LR
-    A["requests_total{instance=foo}"] --> |/insert/#60;suffix#62; <br>--header AccountID: 0| V[vmagent]
-    B["requests_total{instance=bar}"] --> |/insert/#60;suffix#62; <br>--header AccountID: 1| V
-    V --> |"/insert/multitenant/#60;suffix#62;"| C[vminsert]
+    A["requests_total{instance=foo}"] --> |<a href="https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-headers">/insert/#60;suffix#62;</a> <br>--header AccountID: 0| V[vmagent]
+    B["requests_total{instance=bar}"] --> |<a href="https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-headers">/insert/#60;suffix#62;</a> <br>--header AccountID: 1| V
+    V --> |"/insert/multitenant/prometheus/api/v1/write"| C[vminsert]
 ```
 
 In this configuration, vmagent accepts writes via the same simplified multitenant endpoints (`/insert/<suffix>`) [as vminsert does](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format).
-The tenant information is extracted from the `AccountID` and `ProjectID` HTTP headers, which are expected to be included in all incoming requests. If headers are missing, then the tenant is set to `0:0` as the default.
+The tenant information is extracted from the `AccountID` and `ProjectID` HTTP headers, which are expected to be included in all incoming requests.
 
-For all received data, vmagent will automatically convert tenant identifiers from the headers to `vm_account_id` and `vm_project_id` labels and set tenant info in metadata.
-These tenant labels are added before applying [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/) specified via `-remoteWrite.relabelConfig`
+> If headers are missing, then the tenant is set to `0:0` by default.
+
+For all the received data, vmagent will automatically convert tenant identifiers in the headers to `vm_account_id` and `vm_project_id` labels, and set tenant info in metadata.
+These tenant labels are added before applying [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/) specified via the `-remoteWrite.relabelConfig`
 and `-remoteWrite.urlRelabelConfig` command-line flags.
 
 vmauth can [enforce adding headers](https://docs.victoriametrics.com/victoriametrics/vmauth/#modifying-http-headers) to all
-forwarded requests via `headers` param in the config file.
+forwarded requests via the `headers` parameter in the config file.
 
 ## Adding labels to metrics
 
@@ -593,6 +697,35 @@ Extra labels can be added to metrics collected by `vmagent` via the following me
   ```sh
   /path/to/vmagent -remoteWrite.url=http://127.0.0.1:8428/api/v1/write?extra_label="env=prod"
   ```
+
+## Obfuscating label values
+
+`vmagent` can obfuscate the values of specified labels before sending metrics to `-remoteWrite.url`
+via `-remoteWrite.obfuscateLabels`{{% available_from "v1.149.0" %}}.
+
+This is useful when one or more `-remoteWrite.url` endpoints point to external monitoring services
+outside the organization, and sensitive label values such as `ip`, `host`, `instance`, or `datacenter`
+must not be exposed.
+
+Label values are replaced with their SHA-256 hex digests. No salt is applied, so values with a small
+or predictable value space can potentially be recovered by brute force.
+
+This feature pairs well with [Monitoring Data eXchange (MDX)](https://docs.victoriametrics.com/victoriametrics/vmagent/#monitoring-data-exchange):
+use `-remoteWrite.mdx.enable=true` to forward only VictoriaMetrics self-monitoring metrics to an
+external vendor while hiding sensitive label values with `-remoteWrite.obfuscateLabels`.
+
+Use `-remoteWrite.obfuscateLabels` to list label names whose values should be obfuscated for the
+corresponding `-remoteWrite.url`. Separate multiple label names with `^^`.
+
+```sh
+./vmagent \
+  -remoteWrite.url=http://<external-service1> \
+  -remoteWrite.obfuscateLabels='instance^^datacenter' \
+  -remoteWrite.url=http://<external-service2> \
+  -remoteWrite.obfuscateLabels='instance' \
+  -remoteWrite.url=http://<internal-service> \
+  -remoteWrite.obfuscateLabels='' 
+```
 
 ## Automatically generated metrics
 
@@ -797,6 +930,12 @@ For example, the following commands spread scrape targets among a cluster of two
 The `-promscrape.cluster.memberNum` can be set to a StatefulSet pod name when `vmagent` runs in Kubernetes.
 The pod name must end with a number in the range `0 ... promscrape.cluster.membersCount-1`. For example, `-promscrape.cluster.memberNum=vmagent-0`.
 
+By default, targets are sharded among `vmagent` instances by all target labels after relabeling.
+Use `-promscrape.cluster.shardByLabels` {{% available_from "v1.146.0" %}} to shard targets by specified labels instead.
+For example, with `-promscrape.cluster.shardByLabels=service`, the targets with the same `service` label value will be scraped by the same `vmagent` instance, 
+which is useful when perform stream aggregation that requires all metrics with the same `service` label value to be processed on the same `vmagent` instance. 
+If none of the specified labels are present in the target labels, then all target labels will be used for sharding.
+
 By default, each scrape target is scraped only by a single `vmagent` instance in the cluster. If there is a need for replicating scrape targets among multiple `vmagent` instances,
 then `-promscrape.cluster.replicationFactor` command-line flag must be set to the desired number of replicas. For example, the following commands
 start a cluster of three `vmagent` instances, where two `vmagent` instances scrape each target:
@@ -928,6 +1067,30 @@ vmagent will generate the following persistent queue folders:
 2_0AAFDF53E314A72A
 ```
 
+### On-disk persistence and data processing order
+
+By default, vmagent processes data in FIFO order. If data has been written to the on-disk queue,
+it must be flushed to the remote storage before newly ingested data can be forwarded there.
+During long outages, vmagent may accumulate large amounts of data in the file-based queue,
+which can introduce a significant lag between the moment data is collected by vmagent and the
+moment it becomes visible at the remote storage.
+
+This behavior can be changed with the `-remoteWrite.inmemoryQueues` {{% available_from "v1.146.0" %}} command-line flag.
+When set to a non-zero value, vmagent starts the given number of additional workers,
+which send only recently ingested data from the in-memory queue, while the workers configured via `-remoteWrite.queues` drain the file-based backlog concurrently.
+This reduces the delivery lag for fresh samples after remote storage outages or slowdowns. The flag can be set individually per each `-remoteWrite.url`.
+See how the [in-memory and file-based queues manage blocks](https://victoriametrics.com/blog/vmagent-how-it-works/#in-memory-queue) for implementation details.
+
+Note that these workers are started in addition to the workers configured via `-remoteWrite.queues`, so the total number of concurrent connections to
+the remote storage becomes the sum of both flags. Take this into account if the remote storage limits the number of concurrent requests.
+
+This flag has the following possible limitations:
+
+* Samples may arrive at the remote storage out of order, since recent data can be delivered before the older backlogged data.
+  Do not use this option if the remote storage doesn't accept out-of-order samples.
+* Recent data isn't guaranteed to take the fast path: if the in-memory queue  is full,
+  newly ingested data is still written to the file-based queue and is delivered in FIFO order by the generic workers.
+
 ### Disabling On-disk persistence
 
 There are cases when it is better to disable on-disk persistence for pending data on the `vmagent` side:
@@ -1025,7 +1188,9 @@ Both limits can be set simultaneously. If any of these limits are reached, then 
 
 These limits are approximate, so `vmagent` can underflow or overflow them by a small percentage (usually less than 1%).
 
-See also [cardinality explorer docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer).
+See also:
+- [Cardinality Explorer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer).
+- [vmestimator](https://docs.victoriametrics.com/victoriametrics/vmestimator/).
 
 ## Monitoring
 

@@ -191,7 +191,7 @@ type ServiceMonitoringClient struct {
 
 // Wrapper methods routed to the internal client.
 
-// Close closes the connection to the API service. The user should invoke this when
+// Close closes the connection to the API service. **Always** call Close() when
 // the client is no longer required.
 func (c *ServiceMonitoringClient) Close() error {
 	return c.internalClient.Close()
@@ -369,7 +369,7 @@ func (c *serviceMonitoringGRPCClient) setGoogleClientInfo(keyval ...string) {
 	}
 }
 
-// Close closes the connection to the API service. The user should invoke this when
+// Close closes the connection to the API service. **Always** call Close() when
 // the client is no longer required.
 func (c *serviceMonitoringGRPCClient) Close() error {
 	return c.connPool.Close()
@@ -436,7 +436,7 @@ func (c *serviceMonitoringGRPCClient) ListServices(ctx context.Context, req *mon
 	}
 	opts = append((*c.CallOptions).ListServices[0:len((*c.CallOptions).ListServices):len((*c.CallOptions).ListServices)], opts...)
 	it := &ServiceIterator{}
-	req = proto.Clone(req).(*monitoringpb.ListServicesRequest)
+	req = proto.CloneOf(req)
 	it.InternalFetch = func(pageSize int, pageToken string) ([]*monitoringpb.Service, string, error) {
 		resp := &monitoringpb.ListServicesResponse{}
 		if pageToken != "" {
@@ -577,7 +577,7 @@ func (c *serviceMonitoringGRPCClient) ListServiceLevelObjectives(ctx context.Con
 	}
 	opts = append((*c.CallOptions).ListServiceLevelObjectives[0:len((*c.CallOptions).ListServiceLevelObjectives):len((*c.CallOptions).ListServiceLevelObjectives)], opts...)
 	it := &ServiceLevelObjectiveIterator{}
-	req = proto.Clone(req).(*monitoringpb.ListServiceLevelObjectivesRequest)
+	req = proto.CloneOf(req)
 	it.InternalFetch = func(pageSize int, pageToken string) ([]*monitoringpb.ServiceLevelObjective, string, error) {
 		resp := &monitoringpb.ListServiceLevelObjectivesResponse{}
 		if pageToken != "" {

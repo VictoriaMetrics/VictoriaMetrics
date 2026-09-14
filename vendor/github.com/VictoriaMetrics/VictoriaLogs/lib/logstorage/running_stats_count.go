@@ -11,7 +11,7 @@ type runningStatsCount struct {
 }
 
 func (sc *runningStatsCount) String() string {
-	return "count(" + fieldNamesString(sc.fieldFilters) + ")"
+	return "count(" + fieldFiltersString(sc.fieldFilters) + ")"
 }
 
 func (sc *runningStatsCount) updateNeededFields(pf *prefixfilter.Filter) {

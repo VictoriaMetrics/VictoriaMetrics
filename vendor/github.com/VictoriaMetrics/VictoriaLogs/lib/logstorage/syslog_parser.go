@@ -655,7 +655,6 @@ func (p *SyslogParser) parseCEFExtension(s string) bool {
 		p.AddField(keyName, unescapeCEFValue(s[:n]))
 		s = s[n+1:]
 	}
-
 }
 
 func (p *SyslogParser) tryParseTimestampRFC3164(s string) bool {

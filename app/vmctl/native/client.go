@@ -47,7 +47,7 @@ func (c *Client) Explore(ctx context.Context, f Filter, tenantID string, start, 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		exploreRequestsErrorsTotal.Inc()
-		return nil, fmt.Errorf("cannot create request to %q: %s", url, err)
+		return nil, fmt.Errorf("cannot create request to %q: %w", url, err)
 	}
 
 	params := req.URL.Query()
@@ -60,14 +60,14 @@ func (c *Client) Explore(ctx context.Context, f Filter, tenantID string, start, 
 	if err != nil {
 		exploreRequestsErrorsTotal.Inc()
 		exploreDuration.UpdateDuration(startTime)
-		return nil, fmt.Errorf("series request failed: %s", err)
+		return nil, fmt.Errorf("series request failed: %w", err)
 	}
 
 	var response Response
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 		exploreRequestsErrorsTotal.Inc()
 		exploreDuration.UpdateDuration(startTime)
-		return nil, fmt.Errorf("cannot decode series response: %s", err)
+		return nil, fmt.Errorf("cannot decode series response: %w", err)
 	}
 	exploreDuration.UpdateDuration(startTime)
 	return response.MetricNames, resp.Body.Close()
@@ -80,19 +80,19 @@ func (c *Client) ImportPipe(ctx context.Context, dstURL string, pr *io.PipeReade
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, dstURL, pr)
 	if err != nil {
 		importRequestsErrorsTotal.Inc()
-		return fmt.Errorf("cannot create import request to %q: %s", c.Addr, err)
+		return fmt.Errorf("cannot create import request to %q: %w", c.Addr, err)
 	}
 
 	importResp, err := c.do(req, http.StatusNoContent)
 	if err != nil {
 		importRequestsErrorsTotal.Inc()
 		importDuration.UpdateDuration(startTime)
-		return fmt.Errorf("import request failed: %s", err)
+		return fmt.Errorf("import request failed: %w", err)
 	}
 	if err := importResp.Body.Close(); err != nil {
 		importRequestsErrorsTotal.Inc()
 		importDuration.UpdateDuration(startTime)
-		return fmt.Errorf("cannot close import response body: %s", err)
+		return fmt.Errorf("cannot close import response body: %w", err)
 	}
 	importDuration.UpdateDuration(startTime)
 	return nil
@@ -105,7 +105,7 @@ func (c *Client) ExportPipe(ctx context.Context, url string, f Filter) (io.ReadC
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		exportRequestsErrorsTotal.Inc()
-		return nil, fmt.Errorf("cannot create request to %q: %s", c.Addr, err)
+		return nil, fmt.Errorf("cannot create request to %q: %w", c.Addr, err)
 	}
 
 	params := req.URL.Query()
@@ -136,7 +136,7 @@ func (c *Client) GetSourceTenants(ctx context.Context, f Filter) ([]string, erro
 	u := fmt.Sprintf("%s/%s", c.Addr, nativeTenantsAddr)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create request to %q: %s", u, err)
+		return nil, fmt.Errorf("cannot create request to %q: %w", u, err)
 	}
 
 	params := req.URL.Query()
@@ -150,18 +150,18 @@ func (c *Client) GetSourceTenants(ctx context.Context, f Filter) ([]string, erro
 
 	resp, err := c.do(req, http.StatusOK)
 	if err != nil {
-		return nil, fmt.Errorf("tenants request failed: %s", err)
+		return nil, fmt.Errorf("tenants request failed: %w", err)
 	}
 
 	var r struct {
 		Tenants []string `json:"data"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&r); err != nil {
-		return nil, fmt.Errorf("cannot decode tenants response: %s", err)
+		return nil, fmt.Errorf("cannot decode tenants response: %w", err)
 	}
 
 	if err := resp.Body.Close(); err != nil {
-		return nil, fmt.Errorf("cannot close tenants response body: %s", err)
+		return nil, fmt.Errorf("cannot close tenants response body: %w", err)
 	}
 
 	return r.Tenants, nil
@@ -180,7 +180,7 @@ func (c *Client) do(req *http.Request, expSC int) (*http.Response, error) {
 	if resp.StatusCode != expSC {
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read response body for status code %d: %s", resp.StatusCode, err)
+			return nil, fmt.Errorf("failed to read response body for status code %d: %w", resp.StatusCode, err)
 		}
 		return nil, fmt.Errorf("unexpected response code %d: %s", resp.StatusCode, string(body))
 	}
