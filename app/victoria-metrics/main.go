@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert"
@@ -102,6 +103,9 @@ func main() {
 
 	startSelfScraper()
 
+	// Register paths which could be protected by their own -*AuthKey flag.
+	httpserver.RegisterAuthKeyProtectedPathsFunc(isAuthKeyProtectedPath)
+
 	go httpserver.Serve(listenAddrs, requestHandler, httpserver.ServeOptions{
 		UseProxyProtocol: useProxyProtocol,
 	})
@@ -128,6 +132,34 @@ func main() {
 	appmetrics.MustRemoveUncleanShutdownMarker(vmstorage.DataPath())
 
 	logger.Infof("the VictoriaMetrics has been stopped in %.3f seconds", time.Since(startTime).Seconds())
+}
+
+// isAuthKeyProtectedPath returns true for paths, which verify the corresponding -*AuthKey flag
+// on their own at requestHandler().
+func isAuthKeyProtectedPath(r *http.Request) bool {
+	path := strings.ReplaceAll(r.URL.Path, "//", "/")
+
+	switch path {
+	// for vminsert
+	case "/prometheus/config", "/config",
+		"/prometheus/api/v1/status/config", "/api/v1/status/config",
+		"/prometheus/-/reload", "/-/reload":
+		return true
+
+	// for vmselect
+	case "/internal/resetRollupResultCache",
+		"/tags/delSeries", "/graphite/tags/delSeries",
+		"/api/v1/admin/tsdb/delete_series", "/prometheus/api/v1/admin/tsdb/delete_series",
+		"/api/v1/admin/status/metric_names_stats/reset":
+		return true
+
+	// for vmstorage
+	case "/internal/force_merge", "/internal/force_flush", "/internal/log_new_series",
+		"/api/v1/admin/tsdb/snapshot",
+		"/snapshot/create", "/snapshot/list", "/snapshot/delete", "/snapshot/delete_all":
+		return true
+	}
+	return false
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {

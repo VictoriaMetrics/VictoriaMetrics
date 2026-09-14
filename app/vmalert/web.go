@@ -82,6 +82,12 @@ func marshalJson(v any, kind string) ([]byte, *httpserver.ErrorWithStatusCode) {
 	return data, nil
 }
 
+// isAuthKeyProtectedPath returns true for paths, which verify -reloadAuthKey
+// on their own at requestHandler.handler().
+func isAuthKeyProtectedPath(r *http.Request) bool {
+	return r.URL.Path == "/-/reload"
+}
+
 func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 	if strings.HasPrefix(r.URL.Path, "/vmalert/static") {
 		staticServer.ServeHTTP(w, r)
