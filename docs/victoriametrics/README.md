@@ -2220,8 +2220,10 @@ The exceeded limits can be [monitored](#monitoring) with the following metrics:
 
 These limits are approximate, so VictoriaMetrics can underflow/overflow the limit by a small percentage (usually less than 1%).
 
-See also more advanced [cardinality limiter in vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter)
-and [cardinality explorer docs](#cardinality-explorer).
+See also:
+- [vmagent - Cardinality Limiter](https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter).
+- [Cardinality Explorer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer).
+- [vmestimator](https://docs.victoriametrics.com/victoriametrics/vmestimator/).
 
 ## Troubleshooting
 

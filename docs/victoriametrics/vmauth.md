@@ -409,7 +409,7 @@ users:
       MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
       -----END PUBLIC KEY-----
     match_claims:
-      roles: "^(read|write)$"
+      roles: "read|write"
   url_prefix: "http://victoria-metrics-readonly:8428/"
 ```
 
@@ -439,7 +439,7 @@ users:
       MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
       -----END PUBLIC KEY-----
     match_claims:
-      vm_access.metrics_account_id: "(0|1|2)"
+      vm_access.metrics_account_id: "0|1|2"
   url_prefix: "http://victoria-metrics-vmselect-1:8481/select/multitenant?extra_filters={vm_account_id=~\"(0|1|2)\"}"
 - jwt:
     public_keys:
@@ -448,7 +448,7 @@ users:
       MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
       -----END PUBLIC KEY-----
     match_claims:
-      vm_access.metrics_account_id: "(3|4|5)"
+      vm_access.metrics_account_id: "3|4|5"
   url_prefix: "http://victoria-metrics-vmselect-1:8481/select/multitenant?extra_filters={vm_account_id=~\"(3|4|5)\"}"
 ```
 
@@ -809,6 +809,23 @@ unauthorized_user:
 `src_paths` accepts a list of [regular expressions](https://github.com/google/re2/wiki/Syntax). The incoming request is routed to the given `url_prefix` if **the whole** requested path matches at least one `src_paths` entry.
 
 See also [how to drop request path prefix](#dropping-request-path-prefix).
+
+### Denying paths
+
+`deny_paths` inside `url_map` rejects a subset of paths matched by `src_paths` (or the other `src_*` options) so you don't have to enumerate every allowed path:
+
+```yaml
+unauthorized_user:
+  url_map:
+  - src_paths:
+    - "/select/.*"
+    deny_paths:
+    - "/select/[^/]+/prometheus/api/v1/status/active_queries"
+    - "/select/[^/]+/prometheus/api/v1/status/active_queries/"
+    url_prefix: "http://vmselect:8481"
+```
+
+A request matching `deny_paths` is rejected with `403 Forbidden` (or `401 Unauthorized` for anonymous requests). It can't be used on its own, it needs at least one of `src_paths`, `src_hosts`, `src_query_args` or `src_headers` in the same `url_map` entry.
 
 ### Routing by host
 
