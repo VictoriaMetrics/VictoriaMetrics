@@ -1703,14 +1703,12 @@ func (db *indexDB) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, t
 	qt = qt.NewChild("search metricIDs: filters=%s, timeRange=%s, maxMetrics=%d", tfss, &tr, maxMetrics)
 	defer qt.Done()
 
-	uniqMetricIDsByDate := make(map[uint64]*uint64set.Set)
 	f := func(date uint64) (map[uint64]*uint64set.Set, error) {
 		metricIDs, err := db.searchMetricIDsByDateAndFilters(qt, date, tfss, maxMetrics, deadline)
 		if err != nil {
 			return nil, err
 		}
-		uniqMetricIDsByDate[date] = metricIDs
-		return uniqMetricIDsByDate, nil
+		return map[uint64]*uint64set.Set{date: metricIDs}, nil
 	}
 
 	if tr == globalIndexTimeRange {
@@ -1754,6 +1752,7 @@ func (db *indexDB) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, t
 	// Deduplicate metricIDs since a metricID may exist for several days.
 	qtMultiDaySearch.Printf("deduplicate metricIDs")
 	all := &uint64set.Set{}
+	uniqMetricIDsByDate := make(map[uint64]*uint64set.Set)
 	for day, metricIDs := range metricIDsByDate {
 		if metricIDs == nil {
 			continue
