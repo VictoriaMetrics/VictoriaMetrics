@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): return `missing route` error instead of `missing 'Authorization' request header` when a request authorized via [JWT](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-token-auth-proxy) or `auth_token` has a path not covered by the user's `url_map`. See [#11523](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11523).
+
 ## [v1.152.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.152.0)
 
 Released at 2026-09-14
