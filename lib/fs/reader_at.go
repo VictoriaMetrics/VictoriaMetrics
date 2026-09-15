@@ -168,7 +168,10 @@ func (r *ReaderAt) MustFadviseSequentialRead(prefetch bool) {
 	}
 }
 
-// MustOpenReaderAt opens ReaderAt for reading from the file located at path.
+// MustOpenReaderAt returns a ReaderAt for reading from the file at path.
+// The file is opened lazily on the first call to getMmapReader.
+// This reduces startup time and the number of open file descriptors during startup,
+// especially for VictoriaLogs.
 //
 // MustClose must be called on the returned ReaderAt when it is no longer needed.
 func MustOpenReaderAt(path string) *ReaderAt {
