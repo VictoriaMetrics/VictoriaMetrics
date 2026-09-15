@@ -111,7 +111,7 @@ type ssoOIDCConfig struct {
 	// Defines a redirect url that will be used if a client provided url does not pass verification,
 	// for example if client provided an absolte path
 	// By default /
-	DefaultRedirectURL string `yaml:default_redirect_url,omitempty"`
+	DefaultRedirectURL string `yaml:"default_redirect_url,omitempty"`
 
 	pm atomic.Pointer[oidcProviderMetadata]
 
