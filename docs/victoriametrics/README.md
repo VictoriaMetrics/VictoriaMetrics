@@ -1306,7 +1306,7 @@ You can achieve **high availability for reads** by choosing one of the following
 #### Load balance read requests among replicas
 
 Use [vmauth to load-balance](https://docs.victoriametrics.com/vmauth/#load-balancing) read queries among available VictoriaMetrics replicas
-and retry requests if any of the replicas failed:
+and re-route requests away from unavailable replicas:
 ```
 unauthorized_user:
   url_prefix:
