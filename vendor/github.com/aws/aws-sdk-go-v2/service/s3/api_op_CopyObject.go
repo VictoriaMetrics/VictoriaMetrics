@@ -600,12 +600,14 @@ type CopyObjectInput struct {
 	// This functionality is not supported for directory buckets.
 	ObjectLockEventHold types.ObjectLockEventHold
 
-	// The event hold duration in days to apply to the object copy.
+	// The event hold duration in days to apply to the object copy. You cannot specify
+	// a duration in both days and years.
 	//
 	// This functionality is not supported for directory buckets.
 	ObjectLockEventHoldDurationDays *int32
 
-	// The event hold duration in years to apply to the object copy.
+	// The event hold duration in years to apply to the object copy. You cannot
+	// specify a duration in both days and years.
 	//
 	// This functionality is not supported for directory buckets.
 	ObjectLockEventHoldDurationYears *int32
