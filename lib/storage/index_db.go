@@ -1895,40 +1895,32 @@ func (db *indexDB) SearchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Ti
 }
 
 func (db *indexDB) searchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]TSID, error) {
-	uniqMetricIDsByDate, err := db.searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(uniqMetricIDsByDate) == 0 {
-		return nil, nil
-	}
-
-	if len(uniqMetricIDsByDate) == 1 {
-		for date, metricIDs := range uniqMetricIDsByDate {
-			qtChild := qt.NewChild("search TSIDs: date=%s, numMetricIDs=%d", dateToString(date), metricIDs.Len())
-			defer qtChild.Done()
-			return db.searchTSIDsByMetricIDs(qtChild, metricIDs, deadline)
-		}
+	if tr == globalIndexTimeRange {
+		qtChild := qt.NewChild("search for TSIDs in global index: filters=%s", tfss)
+		defer qtChild.Done()
+		return db.searchTSIDsByDateAndFilters(qtChild, globalIndexDate, tfss, maxMetrics, deadline)
 	}
 
 	minDate, maxDate := tr.DateRange()
 	numDays := maxDate - minDate + 1
+	if numDays == 1 {
+		date := minDate
+		qtChild := qt.NewChild("search for TSIDs in per-day index: filters=%s, date=%s", tfss, dateToString(date))
+		defer qtChild.Done()
+		return db.searchTSIDsByDateAndFilters(qtChild, date, tfss, maxMetrics, deadline)
+	}
+
 	var wg sync.WaitGroup
 	tsidsByDate := make([][]TSID, numDays)
 	errsByDate := make([]error, numDays)
-	qt = qt.NewChild("search metric TSIDs by metricIDs concurrently on %d days", numDays)
+	qt = qt.NewChild("search metric TSIDs in per-day index concurrently on %d days", numDays)
 	defer qt.Done()
 	for day := range numDays {
 		date := minDate + uint64(day)
-		metricIDs := uniqMetricIDsByDate[date]
-		if metricIDs.Len() == 0 {
-			continue
-		}
-		qtChild := qt.NewChild("search TSIDs: date=%s, numMetricIDs=%d", dateToString(date), metricIDs.Len())
+		qtChild := qt.NewChild("search for TSIDs in per-day index: filters=%s, date=%s", tfss, dateToString(date))
 		wg.Go(func() {
 			defer qtChild.Done()
-			tsidsByDate[day], errsByDate[day] = db.searchTSIDsByMetricIDs(qtChild, metricIDs, deadline)
+			tsidsByDate[day], errsByDate[day] = db.searchTSIDsByDateAndFilters(qtChild, date, tfss, maxMetrics, deadline)
 		})
 	}
 	wg.Wait()
@@ -1944,6 +1936,14 @@ func (db *indexDB) searchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Ti
 	qt.Printf("merge %d TSID(s)", numTSIDs)
 	tsids := mergeSortedTSIDs(tsidsByDate)
 	return tsids, nil
+}
+
+func (db *indexDB) searchTSIDsByDateAndFilters(qt *querytracer.Tracer, date uint64, tfss []*TagFilters, maxMetrics int, deadline uint64) ([]TSID, error) {
+	metricIDs, err := db.searchMetricIDsByDateAndFilters(qt, date, tfss, maxMetrics, deadline)
+	if err != nil {
+		return nil, err
+	}
+	return db.searchTSIDsByMetricIDs(qt, metricIDs, deadline)
 }
 
 func (db *indexDB) searchTSIDsByMetricIDs(qt *querytracer.Tracer, metricIDs *uint64set.Set, deadline uint64) ([]TSID, error) {
