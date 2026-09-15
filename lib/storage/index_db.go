@@ -1905,8 +1905,10 @@ func (db *indexDB) searchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Ti
 	}
 
 	if len(uniqMetricIDsByDate) == 1 {
-		for _, metricIDs := range uniqMetricIDsByDate {
-			return db.searchTSIDsByMetricIDs(qt, metricIDs, deadline)
+		for date, metricIDs := range uniqMetricIDsByDate {
+			qtChild := qt.NewChild("search TSIDs: date=%s, numMetricIDs=%d", dateToString(date), metricIDs.Len())
+			defer qtChild.Done()
+			return db.searchTSIDsByMetricIDs(qtChild, metricIDs, deadline)
 		}
 	}
 
@@ -2048,8 +2050,10 @@ func (db *indexDB) searchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters,
 	}
 
 	if len(uniqMetricIDsByDate) == 1 {
-		for _, metricIDs := range uniqMetricIDsByDate {
-			return db.searchMetricNamesByMetricIDs(qt, metricIDs, deadline)
+		for date, metricIDs := range uniqMetricIDsByDate {
+			qtChild := qt.NewChild("search metric names: date=%s, numMetricIDs=%d", dateToString(date), metricIDs.Len())
+			defer qtChild.Done()
+			return db.searchMetricNamesByMetricIDs(qtChild, metricIDs, deadline)
 		}
 	}
 
