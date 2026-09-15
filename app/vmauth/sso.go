@@ -94,6 +94,16 @@ func (c *ssoOIDCConfig) cookieSecure() bool {
 	return c.CookieSecure == nil || *c.CookieSecure
 }
 
+// getCallbackURL returns the OIDC redirect URL for the current request.
+// The host must be already validated by sso.src_host regexp
+func (c *ssoOIDCConfig) getCallbackURL(host string) string {
+	scheme := "http"
+	if c.cookieSecure() {
+		scheme = "https"
+	}
+	return scheme + "://" + host + "/_vmauth/sso/callback"
+}
+
 // getSSOConfigForHost returns the SSO host config for the given request host, or nil.
 func getSSOConfigForHost(host string) *ssoOIDCConfig {
 	ac := authConfig.Load()
@@ -231,7 +241,7 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 	h := sha256.Sum256([]byte(nonce))
 	nonceHash := base64.RawURLEncoding.EncodeToString(h[:])
 
-	redirectURL := getSSORedirectURL(r, oidc)
+	redirectURL := oidc.getCallbackURL(r.Host)
 	scopes := oidc.Scopes
 
 	params := url.Values{}
@@ -319,7 +329,7 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idToken, err := exchangeCodeForIDToken(r.Context(), pm.TokenEndpoint, oidc, code, getSSORedirectURL(r, oidc))
+	idToken, err := exchangeCodeForIDToken(r.Context(), pm.TokenEndpoint, oidc, code, oidc.getCallbackURL(r.Host))
 	if err != nil {
 		logger.Warnf("SSO callback: token exchange failed: %s", err)
 		setSSONoCacheHeaders(w)
@@ -437,13 +447,4 @@ func getSSOAuthTokensFromRequest(r *http.Request) []string {
 		return nil
 	}
 	return []string{"http_auth:Bearer " + c.Value}
-}
-
-// getSSORedirectURL returns the OIDC redirect URL for the current request.
-func getSSORedirectURL(r *http.Request, oidc *ssoOIDCConfig) string {
-	scheme := "http"
-	if oidc.cookieSecure() {
-		scheme = "https"
-	}
-	return scheme + "://" + r.Host + "/_vmauth/sso/callback"
 }
