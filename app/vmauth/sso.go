@@ -257,7 +257,7 @@ func setSSONoCacheHeaders(w http.ResponseWriter) {
 // If the request already carries auth tokens (e.g. from an SSO cookie) but
 // no user config matched, the page shows an "Access Denied" hint above the
 // login button so the user knows their identity was recognized but not authorized.
-func processSSOLogin(w http.ResponseWriter, r *http.Request, ats []string) bool {
+func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		return false
 	}
@@ -327,7 +327,7 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request, ats []string) bool 
 	authURL := pm.AuthorizationEndpoint + "?" + params.Encode()
 
 	setSSONoCacheHeaders(w)
-	if len(ats) > 0 {
+	if len(getAuthTokensFromRequest(r)) > 0 {
 		// The user authenticated but no user config matched — authorization failure.
 		w.WriteHeader(http.StatusForbidden)
 		WriteSSOLoginPage(w, authURL, "Access Denied")

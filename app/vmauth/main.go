@@ -188,7 +188,7 @@ func requestHandlerWithInternalRoutes(w http.ResponseWriter, r *http.Request) bo
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	ats := getAuthTokensFromRequest(r)
 	if len(ats) == 0 {
-		if processSSOLogin(w, r, nil) {
+		if processSSOLogin(w, r) {
 			return true
 		}
 
@@ -221,7 +221,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 	}
 
-	if processSSOLogin(w, r, ats) {
+	if processSSOLogin(w, r) {
 		return true
 	}
 
@@ -448,6 +448,9 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tkn *j
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5236
 			if ui.BearerToken == "" && ui.Username == "" && len(*authUsers.Load()) > 0 {
 				handleMissingAuthorizationError(w)
+				return
+			}
+			if processSSOLogin(w, r) {
 				return
 			}
 			missingRouteRequests.Inc()
