@@ -405,6 +405,7 @@ scrape_configs:
   - "My-Auth: TopSecret"
 ```
 
+* `accept_encoding: "gzip, zstd"` for specifying the preferred `Accept-Encoding` header dynamically. Supported values: `gzip` (default), `zstd`, `identity`, or a comma-separated list of these.
 * `disable_compression: true` for disabling response compression on a per-job basis. By default, `vmagent` requests compressed responses
   from scrape targets to save network bandwidth.
 * `disable_keepalive: true` for disabling [HTTP keep-alive connections](https://en.wikipedia.org/wiki/HTTP_persistent_connection)

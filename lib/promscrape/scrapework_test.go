@@ -99,9 +99,9 @@ func TestScrapeWorkScrapeInternalFailure(t *testing.T) {
 	}
 
 	readDataCalls := 0
-	sw.ReadData = func(_ *chunkedbuffer.Buffer) (bool, error) {
+	sw.ReadData = func(_ *chunkedbuffer.Buffer) (string, error) {
 		readDataCalls++
-		return false, fmt.Errorf("error when reading data")
+		return "", fmt.Errorf("error when reading data")
 	}
 
 	pushDataCalls := 0
@@ -163,10 +163,10 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		sw.Config = cfg
 
 		readDataCalls := 0
-		sw.ReadData = func(dst *chunkedbuffer.Buffer) (bool, error) {
+		sw.ReadData = func(dst *chunkedbuffer.Buffer) (string, error) {
 			readDataCalls++
 			dst.MustWrite([]byte(data))
-			return false, nil
+			return "", nil
 		}
 
 		var pushDataMu sync.Mutex
@@ -616,10 +616,10 @@ func TestScrapeWorkScrapeInternalStreamConcurrency(t *testing.T) {
 		sw.Config = cfg
 
 		readDataCalls := 0
-		sw.ReadData = func(dst *chunkedbuffer.Buffer) (bool, error) {
+		sw.ReadData = func(dst *chunkedbuffer.Buffer) (string, error) {
 			readDataCalls++
 			dst.MustWrite([]byte(data))
-			return false, nil
+			return "", nil
 		}
 
 		var pushDataCalls atomic.Int64
@@ -729,9 +729,9 @@ func TestScrapeWorkScrapeInternalWithMaxScrapeSize(t *testing.T) {
 	// The MaxScrapeSize check should be applied to the origin data size rather than compressed data size. So this scrape should fail.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9481 for more details.
 	sw.Config.MaxScrapeSize = int64(len(originData) - 1)
-	sw.ReadData = func(buf *chunkedbuffer.Buffer) (bool, error) {
+	sw.ReadData = func(buf *chunkedbuffer.Buffer) (string, error) {
 		_, _ = buf.Write(compressedData.Bytes())
-		return true, nil
+		return "gzip", nil
 	}
 	err := sw.scrapeInternal(timestamp, timestamp)
 	if err == nil {
