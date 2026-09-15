@@ -33,6 +33,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): add missing `X-Influxdb-Version` HTTP header to [influxdb](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb/) API responses. See [#11570](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11570).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): disable metrics metadata sending for [MDX](https://docs.victoriametrics.com/victoriametrics/vmagent/#monitoring-data-exchange) remote write destinations. See [#11572](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11572).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): properly discover `*_sd_config` targets. Previously scrape targets were preserved until the process restart if `*_sd_config` returned an empty targets response. See [#11550](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11550) for details. Thanks to @evkuzin for contribution.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): fix a data race occurring when `remoteWrite` returns an immediate response without reading the HTTP request body completely. See [#11507](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11507).
 
 ## [v1.152.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.152.0)
 
