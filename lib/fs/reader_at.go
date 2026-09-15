@@ -17,7 +17,7 @@ var disableMmap = flag.Bool("fs.disableMmap", is32BitPtr, "Whether to use pread(
 	"By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. "+
 	"mmap() is usually faster for reading small data chunks than pread()")
 
-var disableAdviseRandomRead = flag.Bool("fs.disableAdviseRandomRead", false, "Whether to disable FADV_RANDOM and MADV_RANDOM hints for data files. "+
+var disableAdviseRandomRead = flag.Bool("fs.disableAdviseRandomRead", true, "Whether to disable FADV_RANDOM and MADV_RANDOM hints for data files. "+
 	"These hints reduce the amount of unneeded data read from disk during queries via pread() and mmap(). "+
 	"Disabling these hints may improve performance for heavy queries that read most of the data in large data files.")
 
