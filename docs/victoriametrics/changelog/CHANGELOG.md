@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): fix a data race occurring when `remoteWrite` returns an immediate response without reading the HTTP request body completely. See [#11507](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11507).
+
 ## [v1.152.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.152.0)
 
 Released at 2026-09-14
