@@ -212,6 +212,11 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			processUserRequest(w, r, ui, tkn)
 			return true
 		}
+		if *logInvalidAuthTokens {
+			logger.Infof("jwt token for user %q has no `vm_access` claim and `default_vm_access_claim` is not configured; "+
+				"add `vm_access` claim to the jwt token or set `default_vm_access_claim` in vmauth config; "+
+				"see https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-based-request-templating", ui.name())
+		}
 	}
 
 	uu := authConfig.Load().UnauthorizedUser
