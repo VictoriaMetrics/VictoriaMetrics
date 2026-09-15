@@ -12,6 +12,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -109,6 +110,7 @@ type ssoOIDCConfig struct {
 	// The cookie MaxAge is the minimum of this value and the id_token's exp claim.
 	// Defaults to 10m when not set. Parsed via time.ParseDuration, e.g. "10m", "1h".
 	SessionDuration string `yaml:"session_duration,omitempty"`
+	sessionDuration time.Duration
 
 	// DefaultRedirectURL is the URL users are sent to after SSO login when the
 	// original request URL fails open-redirect validation (e.g. absolute or
@@ -116,8 +118,6 @@ type ssoOIDCConfig struct {
 	DefaultRedirectURL string `yaml:"default_redirect_url,omitempty"`
 
 	pm atomic.Pointer[oidcProviderMetadata]
-
-	sessionDuration time.Duration
 }
 
 // cookieSecure returns true unless CookieSecure is explicitly set to false.
@@ -149,16 +149,26 @@ func (c *ssoOIDCConfig) getCallbackURL(host string) string {
 	return scheme + "://" + host + getPathWithPrefix("/_vmauth/sso/callback")
 }
 
+var (
+	// Used to check final redirects are not susceptible to open redirects.
+	// Matches //, /\ and both of these with whitespace in between (eg / / or / \).
+	// Copy-pasted from oauth2-proxy
+	// https://github.com/oauth2-proxy/oauth2-proxy/blob/6420aae79003dfb47885018856dd524342367dfc/pkg/app/redirect/validator.go#L16
+	invalidRedirectRegex = regexp.MustCompile(`[/\\](?:[\s\v]*|\.{1,2})[/\\]`)
+)
+
 // getRedirectURL sanitizes the redirect URL to prevent open redirect attacks.
 // Returns DefaultRedirectURL (or "/") if the URL is not a safe relative path.
 func (c *ssoOIDCConfig) getRedirectURL(redirectURL string) string {
-	if !strings.HasPrefix(redirectURL, "/") || strings.HasPrefix(redirectURL, "//") || strings.HasPrefix(redirectURL, "/\\") {
-		if c.DefaultRedirectURL != "" {
-			return c.DefaultRedirectURL
-		}
-		return "/"
+	// Copy-pated from oauth2-proxy
+	// https://github.com/oauth2-proxy/oauth2-proxy/blob/6420aae79003dfb47885018856dd524342367dfc/pkg/app/redirect/validator.go#L47
+	if strings.HasPrefix(redirect, "/") && !strings.HasPrefix(redirect, "//") && !invalidRedirectRegex.MatchString(redirect) {
+		return redirectURL
 	}
-	return redirectURL
+	if c.DefaultRedirectURL != "" {
+		return c.DefaultRedirectURL
+	}
+	return "/"
 }
 
 // getSSOConfigForHost returns the SSO host config for the given request host, or nil.
