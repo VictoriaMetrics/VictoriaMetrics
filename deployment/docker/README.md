@@ -93,7 +93,7 @@ To access Grafana use link [http://localhost:3000](http://localhost:3000) (_logi
 To access [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui)
 use link [http://localhost:8427/select/0/prometheus/vmui/](http://localhost:8427/select/0/prometheus/vmui/) (_login with foo:bar_).
 
-To access `vmalert` use link [http://localhost:8427/select/0/prometheus/vmalert/](http://localhost:8427/select/0/prometheus/vmalert/).
+To access `vmalert` use link [http://localhost:8427/select/0/prometheus/vmalert/](http://localhost:8427/select/0/prometheus/vmalert/) (_login with foo:bar_).
 
 To shutdown environment execute the following command:
 ```
