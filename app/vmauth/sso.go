@@ -163,7 +163,7 @@ func (c *ssoOIDCConfig) getRedirectURL(redirect string) string {
 	// Copy-pated from oauth2-proxy
 	// https://github.com/oauth2-proxy/oauth2-proxy/blob/6420aae79003dfb47885018856dd524342367dfc/pkg/app/redirect/validator.go#L47
 	if strings.HasPrefix(redirect, "/") && !strings.HasPrefix(redirect, "//") && !invalidRedirectRegex.MatchString(redirect) {
-		return redirect
+		return getPathWithPrefix(redirect)
 	}
 	if c.DefaultRedirectURL != "" {
 		return getPathWithPrefix(c.DefaultRedirectURL)
