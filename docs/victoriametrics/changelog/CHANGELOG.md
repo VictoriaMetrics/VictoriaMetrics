@@ -26,7 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
-* FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): apply [fadvise(FADV_RANDOM)](https://man7.org/linux/man-pages/man2/posix_fadvise.2.html) and [madvise(MADV_RANDOM)](https://man7.org/linux/man-pages/man2/madvise.2.html) hints to reduce the amount of data read from disk during queries, especially on systems with high [read_ahead_kb](https://docs.kernel.org/admin-guide/abi-stable.html) settings. These hints can be disabled with the `-fs.disableAdviseRandomRead` command-line flag if queries usually read most of the data in data files, e.g. for heavy queries over long time ranges without label filters. See [#11461](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11461).
+* FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): add a feature to reduce the amount of data read from disk during queries via [fadvise(FADV_RANDOM)](https://man7.org/linux/man-pages/man2/posix_fadvise.2.html) and [madvise(MADV_RANDOM)](https://man7.org/linux/man-pages/man2/madvise.2.html), especially on systems with high [read_ahead_kb](https://docs.kernel.org/admin-guide/abi-stable.html) settings. It can be enabled with `-fs.disableAdviseRandomRead=false`. See [#11461](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11461).
 
 ## [v1.152.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.152.0)
 
