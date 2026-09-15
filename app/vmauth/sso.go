@@ -17,6 +17,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/jwt"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
@@ -145,7 +146,7 @@ func (c *ssoOIDCConfig) getCallbackURL(host string) string {
 	if c.cookieSecure() {
 		scheme = "https"
 	}
-	return scheme + "://" + host + "/_vmauth/sso/callback"
+	return scheme + "://" + host + getPathWithPrefix("/_vmauth/sso/callback")
 }
 
 // getRedirectURL sanitizes the redirect URL to prevent open redirect attacks.
@@ -179,6 +180,15 @@ const (
 	ssoCsrfCookieName = "_vmauth_sso_csrf"
 	ssoCsrfCookieTTL  = 10 * time.Minute
 )
+
+var ssoLogger = logger.WithThrottler("sso", 5*time.Second)
+
+// getPathWithPrefix prepends -http.pathPrefix to the given path.
+// The browser sees the full external URL (including the prefix), so cookie
+// paths and redirect URIs must include it.
+func getPathWithPrefix(p string) string {
+	return strings.TrimSuffix(httpserver.GetPathPrefix(), "/") + p
+}
 
 // generateRandomString generates a cryptographically random base64url-encoded string of the given byte length.
 func generateRandomString(n int) (string, error) {
@@ -279,7 +289,7 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 	// https://openid.net/specs/openid-connect-core-1_0.html#NonceNotes
 	nonce, err := generateRandomString(32)
 	if err != nil {
-		logger.Errorf("generate nonce failed: %s", err)
+		ssoLogger.Errorf("generate nonce failed: %s", err)
 		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusInternalServerError)
 		WriteSSOErrorPage(w, "Internal Server Error", "", redirectURL)
@@ -291,7 +301,7 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 	// https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest
 	state, err := generateRandomString(32)
 	if err != nil {
-		logger.Errorf("generate state failed: %s", err)
+		ssoLogger.Errorf("generate state failed: %s", err)
 		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusInternalServerError)
 		WriteSSOErrorPage(w, "Internal Server Error", "", redirectURL)
@@ -304,7 +314,7 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 	http.SetCookie(w, &http.Cookie{
 		Name:     ssoCsrfCookieName,
 		Value:    signCSRFCookie(nonce, state, redirectURL, oidc.CookieSecret),
-		Path:     "/_vmauth/sso/",
+		Path:     getPathWithPrefix("/_vmauth/sso/"),
 		HttpOnly: true,
 		Secure:   oidc.cookieSecure(),
 		SameSite: http.SameSiteLaxMode,
@@ -371,7 +381,7 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 	// Clear the CSRF cookie immediately so it cannot be replayed.
 	http.SetCookie(w, &http.Cookie{
 		Name:     ssoCsrfCookieName,
-		Path:     "/_vmauth/sso/",
+		Path:     getPathWithPrefix("/_vmauth/sso/"),
 		HttpOnly: true,
 		Secure:   oidc.cookieSecure(),
 		SameSite: http.SameSiteLaxMode,
@@ -381,7 +391,7 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 	nonce, state, redirectURL, err := verifyCSRFCookie(csrfCookie.Value, oidc.CookieSecret)
 	redirectURL = oidc.getRedirectURL(redirectURL)
 	if err != nil {
-		logger.Warnf("SSO callback: invalid CSRF cookie from %s: %s", r.RemoteAddr, err)
+		ssoLogger.Warnf("SSO callback: invalid CSRF cookie from %s: %s", r.RemoteAddr, err)
 		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusBadRequest)
 		WriteSSOErrorPage(w, "Invalid CSRF Cookie", "", "/")
@@ -391,7 +401,7 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 	// Verify the state parameter matches the value we sent — this binds the
 	// callback to the specific authorization request (CSRF protection).
 	if returnedState := r.URL.Query().Get("state"); returnedState != state {
-		logger.Warnf("SSO callback: state mismatch from %s", r.RemoteAddr)
+		ssoLogger.Warnf("SSO callback: state mismatch from %s", r.RemoteAddr)
 		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusBadRequest)
 		WriteSSOErrorPage(w, "Invalid state parameter", "", redirectURL)
@@ -402,7 +412,7 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 	// https://openid.net/specs/openid-connect-core-1_0.html#AuthResponseValidation
 	if errCode := r.URL.Query().Get("error"); errCode != "" {
 		errDescription := r.URL.Query().Get("error_description")
-		logger.Warnf("SSO callback: IdP returned error %q (%s) for %s", errCode, errDescription, r.RemoteAddr)
+		ssoLogger.Warnf("SSO callback: IdP returned error %q (%s) for %s", errCode, errDescription, r.RemoteAddr)
 		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusUnauthorized)
 		WriteSSOErrorPage(w, errCode, errDescription, redirectURL)
@@ -419,7 +429,7 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 
 	idToken, err := exchangeCodeForIDToken(r.Context(), pm.TokenEndpoint, oidc, code, oidc.getCallbackURL(r.Host))
 	if err != nil {
-		logger.Warnf("SSO callback: token exchange failed: %s", err)
+		ssoLogger.Warnf("SSO callback: token exchange failed: %s", err)
 		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusBadRequest)
 		WriteSSOErrorPage(w, "Token exchange failed", "", redirectURL)
@@ -433,7 +443,7 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 
 	expiresAt, err := validateIDToken(idToken, pm, oidc.ClientID, nonceHash)
 	if err != nil {
-		logger.Warnf("SSO callback: id_token verification failed from %s: %s", r.RemoteAddr, err)
+		ssoLogger.Warnf("SSO callback: id_token verification failed from %s: %s", r.RemoteAddr, err)
 		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusUnauthorized)
 		WriteSSOErrorPage(w, "Token verification failed", "", redirectURL)
