@@ -11,6 +11,7 @@ import classNames from "classnames";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import Tooltip from "../../../components/Main/Tooltip/Tooltip";
 import SimpleBarChart from "../../../components/Chart/SimpleBarChart/SimpleBarChart";
+import SafeHtml from "../../../components/Main/SafeHtml/SafeHtml";
 
 interface MetricsProperties {
   rows: Data[];
@@ -77,10 +78,13 @@ const MetricsContent: FC<MetricsProperties> = ({
         >
           {!isMobile && tip && (
             <Tooltip
-              title={<p
-                dangerouslySetInnerHTML={{ __html: tip }}
-                className="vm-metrics-content-header__tip"
-              />}
+              title={(
+                <SafeHtml
+                  tagName="p"
+                  value={tip}
+                  className="vm-metrics-content-header__tip"
+                />
+              )}
             >
               <div className="vm-metrics-content-header__tip-icon">
                 <InfoOutlinedIcon/>
