@@ -91,7 +91,8 @@ type ssoOIDCConfig struct {
 	ClientSecret string `yaml:"client_secret"`
 
 	// CookieSecret is used to sign the short-lived CSRF cookie set during the
-	// authorization flow. Must be a random string; never shared with the IdP.
+	// authorization flow. Must be at least 16 characters; never shared with the IdP.
+	// Generate with: openssl rand -base64 32
 	CookieSecret string `yaml:"cookie_secret"`
 
 	// CookieSecure controls the Secure flag on SSO cookies. Defaults to true.
@@ -108,9 +109,9 @@ type ssoOIDCConfig struct {
 	// Defaults to 10m when not set. Parsed via time.ParseDuration, e.g. "10m", "1h".
 	SessionDuration string `yaml:"session_duration,omitempty"`
 
-	// Defines a redirect url that will be used if a client provided url does not pass verification,
-	// for example if client provided an absolte path
-	// By default /
+	// DefaultRedirectURL is the URL users are sent to after SSO login when the
+	// original request URL fails open-redirect validation (e.g. absolute or
+	// protocol-relative path). Defaults to "/".
 	DefaultRedirectURL string `yaml:"default_redirect_url,omitempty"`
 
 	pm atomic.Pointer[oidcProviderMetadata]

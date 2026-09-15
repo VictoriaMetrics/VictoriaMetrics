@@ -670,7 +670,7 @@ The following config example demonstrates SSO:
 sso:
   - src_host: 'sso\\.example\\.com'
     oidc:
-      issuer: 'http:/identity-provider.com/realms/master'
+      issuer: 'http://identity-provider.com/realms/master'
       client_id: 'sso.example.com'
       client_secret: 'theClientSecret'
       scopes: ['openid', 'profile', 'email']
@@ -680,6 +680,11 @@ sso:
 
 users:
   - jwt:
+      default_vm_access_claim: {}
+      match_claims:
+        iss: 'http://identity-provider.com/realms/master'
+        aud: 'sso.example.com'
+        email: 'kotlyar\.maksim@gmail\.com|.+@victoriametrics\.com'
       oidc:
         issuer: 'http://identity-provider.com/realms/master'
     url_map:
