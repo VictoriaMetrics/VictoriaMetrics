@@ -1146,6 +1146,49 @@ users:
 		responseExpected,
 	)
 
+	// authorized jwt user with unmatched path, hence missing route error
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11523
+	request = httptest.NewRequest(`GET`, "http://some-host.com/abc", nil)
+	request.Header.Set(`Authorization`, `Bearer `+fullToken)
+	responseExpected = `
+statusCode=400
+user jwt missing route for "http://some-host.com/abc"`
+	f(fmt.Sprintf(
+		`
+users:
+- username: foo
+  password: bar
+  url_prefix: {BACKEND}/foo
+- jwt:
+    public_keys:
+    - %q
+  url_map:
+    - src_paths: ["/api/.*"]
+      url_prefix: {BACKEND}/select`, string(publicKeyPEM)),
+		request,
+		responseExpected,
+	)
+
+	// authorized auth_token user with unmatched path, hence missing route error
+	request = httptest.NewRequest(`GET`, "http://some-host.com/abc", nil)
+	request.Header.Set(`Authorization`, `secret-token`)
+	responseExpected = `
+statusCode=400
+user tok missing route for "http://some-host.com/abc"`
+	f(`
+users:
+- username: foo
+  password: bar
+  url_prefix: {BACKEND}/foo
+- name: tok
+  auth_token: secret-token
+  url_map:
+    - src_paths: ["/api/.*"]
+      url_prefix: {BACKEND}/select`,
+		request,
+		responseExpected,
+	)
+
 	// ---- VictoriaLogs specific tests ----
 
 	// tenant headers not overwritten if set statically
