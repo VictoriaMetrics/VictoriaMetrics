@@ -57,6 +57,20 @@ func (c *ssoConfig) validate() error {
 		oidc.Scopes = append([]string{"openid"}, oidc.Scopes...)
 	}
 
+	const defaultSessionDuration = 10 * time.Minute
+	if oidc.SessionDuration == "" {
+		oidc.sessionDuration = defaultSessionDuration
+	} else {
+		d, err := time.ParseDuration(oidc.SessionDuration)
+		if err != nil {
+			res = errors.Join(res, fmt.Errorf("openid_connect.session_duration: %w", err))
+		} else if d < 0 {
+			res = errors.Join(res, fmt.Errorf("openid_connect.session_duration must not be negative"))
+		} else {
+			oidc.sessionDuration = d
+		}
+	}
+
 	return res
 }
 
@@ -75,23 +89,52 @@ type ssoOIDCConfig struct {
 	Issuer       string `yaml:"issuer"`
 	ClientID     string `yaml:"client_id"`
 	ClientSecret string `yaml:"client_secret"`
+
 	// CookieSecret is used to sign the short-lived CSRF cookie set during the
 	// authorization flow. Must be a random string; never shared with the IdP.
 	CookieSecret string `yaml:"cookie_secret"`
+
 	// CookieSecure controls the Secure flag on SSO cookies. Defaults to true.
 	// Set to false only when vmauth is accessed over plain HTTP (e.g. local dev).
 	// When vmauth runs behind an SSL-terminating proxy, keep this true — the
 	// proxy speaks HTTPS to the browser even though vmauth sees plain HTTP.
 	CookieSecure *bool `yaml:"cookie_secure,omitempty"`
+
 	// Scopes defaults to ["openid"] when not set.
 	Scopes []string `yaml:"scopes,omitempty"`
 
+	// SessionDuration caps the SSO session cookie lifetime.
+	// The cookie MaxAge is the minimum of this value and the id_token's exp claim.
+	// Defaults to 10m when not set. Parsed via time.ParseDuration, e.g. "10m", "1h".
+	SessionDuration string `yaml:"session_duration,omitempty"`
+
+	// Defines a redirect url that will be used if a client provided url does not pass verification,
+	// for example if client provided an absolte path
+	// By default /
+	DefaultRedirectURL string `yaml:default_redirect_url,omitempty"`
+
 	pm atomic.Pointer[oidcProviderMetadata]
+
+	sessionDuration time.Duration
 }
 
 // cookieSecure returns true unless CookieSecure is explicitly set to false.
 func (c *ssoOIDCConfig) cookieSecure() bool {
 	return c.CookieSecure == nil || *c.CookieSecure
+}
+
+// getSessionDuration returns the SSO session duration as the minimum of the
+// configured sessionDuration and the token's remaining lifetime.
+// If sessionDuration is 0, the token expiry is used as-is.
+func (c *ssoOIDCConfig) getSessionDuration(tokenExpiresAt time.Time) time.Duration {
+	ttl := time.Until(tokenExpiresAt)
+	if c.sessionDuration > 0 && c.sessionDuration < ttl {
+		ttl = c.sessionDuration
+	}
+	if ttl < 0 {
+		ttl = 0
+	}
+	return ttl
 }
 
 // getCallbackURL returns the OIDC redirect URL for the current request.
@@ -102,6 +145,18 @@ func (c *ssoOIDCConfig) getCallbackURL(host string) string {
 		scheme = "https"
 	}
 	return scheme + "://" + host + "/_vmauth/sso/callback"
+}
+
+// getRedirectURL sanitizes the redirect URL to prevent open redirect attacks.
+// Returns DefaultRedirectURL (or "/") if the URL is not a safe relative path.
+func (c *ssoOIDCConfig) getRedirectURL(redirectURL string) string {
+	if !strings.HasPrefix(redirectURL, "/") || strings.HasPrefix(redirectURL, "//") || strings.HasPrefix(redirectURL, "/\\") {
+		if c.DefaultRedirectURL != "" {
+			return c.DefaultRedirectURL
+		}
+		return "/"
+	}
+	return redirectURL
 }
 
 // getSSOConfigForHost returns the SSO host config for the given request host, or nil.
@@ -235,12 +290,7 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 		WriteSSOErrorPage(w, "Internal Server Error", "", "/")
 		return true
 	}
-
-	redirectURL := r.URL.RequestURI()
-	// Reject absolute and protocol-relative URLs to prevent open redirect.
-	if !strings.HasPrefix(redirectURL, "/") || strings.HasPrefix(redirectURL, "//") || strings.HasPrefix(redirectURL, "/\\") {
-		redirectURL = "/"
-	}
+	redirectURL := oidc.getRedirectURL(r.URL.RequestURI())
 
 	// Store nonce, state, and redirectURL in the CSRF cookie. The raw nonce
 	// never leaves the browser; only its SHA256 hash is sent to the IdP.
@@ -317,6 +367,7 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 	})
 
 	nonce, state, redirectURL, err := verifyCSRFCookie(csrfCookie.Value, oidc.CookieSecret)
+	redirectURL = oidc.getRedirectURL(redirectURL)
 	if err != nil {
 		logger.Warnf("SSO callback: invalid CSRF cookie from %s: %s", r.RemoteAddr, err)
 		setSSONoCacheHeaders(w)
@@ -331,7 +382,7 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 		logger.Warnf("SSO callback: state mismatch from %s", r.RemoteAddr)
 		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusBadRequest)
-		WriteSSOErrorPage(w, "Invalid state parameter", "", "/")
+		WriteSSOErrorPage(w, "Invalid state parameter", "", redirectURL)
 		return
 	}
 
@@ -342,7 +393,7 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 		logger.Warnf("SSO callback: IdP returned error %q (%s) for %s", errCode, errDescription, r.RemoteAddr)
 		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusUnauthorized)
-		WriteSSOErrorPage(w, errCode, errDescription, "/")
+		WriteSSOErrorPage(w, errCode, errDescription, redirectURL)
 		return
 	}
 
@@ -350,7 +401,7 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 	if code == "" {
 		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusBadRequest)
-		WriteSSOErrorPage(w, "Missing code parameter", "", "/")
+		WriteSSOErrorPage(w, "Missing code parameter", "", redirectURL)
 		return
 	}
 
@@ -359,7 +410,7 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 		logger.Warnf("SSO callback: token exchange failed: %s", err)
 		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusBadRequest)
-		WriteSSOErrorPage(w, "Token exchange failed", "", "/")
+		WriteSSOErrorPage(w, "Token exchange failed", "", redirectURL)
 		return
 	}
 
@@ -368,11 +419,12 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 	h := sha256.Sum256([]byte(nonce))
 	nonceHash := base64.RawURLEncoding.EncodeToString(h[:])
 
-	if err := validateIDToken(idToken, pm, nonceHash); err != nil {
+	expiresAt, err := validateIDToken(idToken, pm, oidc.ClientID, nonceHash)
+	if err != nil {
 		logger.Warnf("SSO callback: id_token verification failed from %s: %s", r.RemoteAddr, err)
 		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusUnauthorized)
-		WriteSSOErrorPage(w, "Token verification failed", "", "/")
+		WriteSSOErrorPage(w, "Token verification failed", "", redirectURL)
 		return
 	}
 
@@ -383,42 +435,52 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 		HttpOnly: true,
 		Secure:   oidc.cookieSecure(),
 		SameSite: http.SameSiteLaxMode,
+		MaxAge:   int(oidc.getSessionDuration(expiresAt).Seconds()),
 	})
 
-	if redirectURL == "" {
-		redirectURL = "/"
-	}
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
 
 // validateIDToken parses and validates the id_token JWT:
-// verifies the signature using the provider's public keys, checks expiry and issuer,
-// and confirms the nonce claim matches expectedNonce to prevent replay attacks
+// verifies the signature using the provider's public keys, checks expiry, issuer,
+// audience (client_id), and confirms the nonce claim matches expectedNonce to prevent replay attacks.
+// Returns the token expiration time on success.
 // See https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation
-func validateIDToken(idToken string, pm *oidcProviderMetadata, expectedNonce string) error {
+func validateIDToken(idToken string, pm *oidcProviderMetadata, clientID, expectedNonce string) (time.Time, error) {
 	tkn := getToken()
 	if err := tkn.Parse(idToken, false); err != nil {
-		return fmt.Errorf("cannot parse id_token: %w", err)
+		return time.Time{}, fmt.Errorf("cannot parse id_token: %w", err)
 	}
 	defer putToken(tkn)
 
 	if err := pm.vp.Verify(tkn); err != nil {
-		return fmt.Errorf("signature verification failed: %w", err)
+		return time.Time{}, fmt.Errorf("signature verification failed: %w", err)
 	}
 	if tkn.IsExpired(time.Now()) {
-		return fmt.Errorf("id_token is expired")
+		return time.Time{}, fmt.Errorf("id_token is expired")
 	}
 	if tkn.Issuer() != pm.Issuer {
-		return fmt.Errorf("issuer mismatch: got %q, want %q", tkn.Issuer(), pm.Issuer)
+		return time.Time{}, fmt.Errorf("issuer mismatch: got %q, want %q", tkn.Issuer(), pm.Issuer)
+	}
+	// The aud claim MUST contain the client_id per OIDC Core.
+	// Verifying it prevents accepting tokens issued for a different client of the same IdP.
+	// See step 3 in
+	// https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation
+	audClaim, err := jwt.NewClaim("aud", clientID)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("cannot build aud claim: %w", err)
+	}
+	if !tkn.MatchClaims([]*jwt.Claim{audClaim}) {
+		return time.Time{}, fmt.Errorf("audience mismatch: token not issued for client_id %q", clientID)
 	}
 	nonceClaim, err := jwt.NewClaim("nonce", expectedNonce)
 	if err != nil {
-		return fmt.Errorf("cannot build nonce claim: %w", err)
+		return time.Time{}, fmt.Errorf("cannot build nonce claim: %w", err)
 	}
 	if !tkn.MatchClaims([]*jwt.Claim{nonceClaim}) {
-		return fmt.Errorf("nonce mismatch")
+		return time.Time{}, fmt.Errorf("nonce mismatch")
 	}
-	return nil
+	return tkn.ExpiresAt(), nil
 }
 
 type tokenResponse struct {
