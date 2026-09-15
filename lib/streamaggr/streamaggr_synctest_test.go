@@ -807,6 +807,18 @@ foo:1m_rate_sum 0.5
   outputs: [rate_sum]
 `, "11111")
 
+	// test rate_sum and rate_avg with a partial counter reset
+	f([]string{`
+foo 100
+`, `
+foo 95
+`}, time.Minute, `foo:1m_rate_avg 0
+foo:1m_rate_sum 0
+`, `
+- interval: 1m
+  outputs: [rate_sum, rate_avg]
+`, "11")
+
 	// test rate_sum and rate_avg with different staleness intervals
 	f([]string{`
 foo{abc="123", cde="1"} 1
