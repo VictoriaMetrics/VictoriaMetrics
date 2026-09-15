@@ -62,8 +62,11 @@
 </html>
 {% endfunc %}
 
-{% func SSOLoginPage(authURL string) %}
+{% func SSOLoginPage(authURL, errMessage string) %}
 {%= ssoPageBegin("Login") %}
+    {% if errMessage != "" %}
+    <p class="error-code">{%s errMessage %}</p>
+    {% endif %}
     <a href="{%s authURL %}">Login with SSO</a>
 {%= ssoPageEnd() %}
 {% endfunc %}

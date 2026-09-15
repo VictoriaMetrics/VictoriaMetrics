@@ -146,7 +146,7 @@ func ssoPageEnd() string {
 }
 
 //line sso.qtpl:65
-func StreamSSOLoginPage(qw422016 *qt422016.Writer, authURL string) {
+func StreamSSOLoginPage(qw422016 *qt422016.Writer, authURL, errMessage string) {
 //line sso.qtpl:65
 	qw422016.N().S(`
 `)
@@ -154,111 +154,126 @@ func StreamSSOLoginPage(qw422016 *qt422016.Writer, authURL string) {
 	streamssoPageBegin(qw422016, "Login")
 //line sso.qtpl:66
 	qw422016.N().S(`
-    <a href="`)
-//line sso.qtpl:67
-	qw422016.E().S(authURL)
-//line sso.qtpl:67
-	qw422016.N().S(`">Login with SSO</a>
-`)
-//line sso.qtpl:68
-	streamssoPageEnd(qw422016)
-//line sso.qtpl:68
-	qw422016.N().S(`
-`)
-//line sso.qtpl:69
-}
-
-//line sso.qtpl:69
-func WriteSSOLoginPage(qq422016 qtio422016.Writer, authURL string) {
-//line sso.qtpl:69
-	qw422016 := qt422016.AcquireWriter(qq422016)
-//line sso.qtpl:69
-	StreamSSOLoginPage(qw422016, authURL)
-//line sso.qtpl:69
-	qt422016.ReleaseWriter(qw422016)
-//line sso.qtpl:69
-}
-
-//line sso.qtpl:69
-func SSOLoginPage(authURL string) string {
-//line sso.qtpl:69
-	qb422016 := qt422016.AcquireByteBuffer()
-//line sso.qtpl:69
-	WriteSSOLoginPage(qb422016, authURL)
-//line sso.qtpl:69
-	qs422016 := string(qb422016.B)
-//line sso.qtpl:69
-	qt422016.ReleaseByteBuffer(qb422016)
-//line sso.qtpl:69
-	return qs422016
-//line sso.qtpl:69
-}
-
-//line sso.qtpl:71
-func StreamSSOErrorPage(qw422016 *qt422016.Writer, errCode, errDescription, retryURL string) {
-//line sso.qtpl:71
-	qw422016.N().S(`
-`)
-//line sso.qtpl:72
-	streamssoPageBegin(qw422016, "Login error")
-//line sso.qtpl:72
-	qw422016.N().S(`
-    <p class="error-code">`)
-//line sso.qtpl:73
-	qw422016.E().S(errCode)
-//line sso.qtpl:73
-	qw422016.N().S(`</p>
     `)
-//line sso.qtpl:74
-	if errDescription != "" {
-//line sso.qtpl:74
+//line sso.qtpl:67
+	if errMessage != "" {
+//line sso.qtpl:67
 		qw422016.N().S(`
-    <p class="error-desc">`)
-//line sso.qtpl:75
-		qw422016.E().S(errDescription)
-//line sso.qtpl:75
+    <p class="error-code">`)
+//line sso.qtpl:68
+		qw422016.E().S(errMessage)
+//line sso.qtpl:68
 		qw422016.N().S(`</p>
     `)
-//line sso.qtpl:76
+//line sso.qtpl:69
 	}
-//line sso.qtpl:76
+//line sso.qtpl:69
 	qw422016.N().S(`
     <a href="`)
-//line sso.qtpl:77
-	qw422016.E().S(retryURL)
-//line sso.qtpl:77
-	qw422016.N().S(`">Try again</a>
+//line sso.qtpl:70
+	qw422016.E().S(authURL)
+//line sso.qtpl:70
+	qw422016.N().S(`">Login with SSO</a>
 `)
-//line sso.qtpl:78
+//line sso.qtpl:71
 	streamssoPageEnd(qw422016)
-//line sso.qtpl:78
+//line sso.qtpl:71
 	qw422016.N().S(`
 `)
-//line sso.qtpl:79
+//line sso.qtpl:72
 }
 
-//line sso.qtpl:79
-func WriteSSOErrorPage(qq422016 qtio422016.Writer, errCode, errDescription, retryURL string) {
-//line sso.qtpl:79
+//line sso.qtpl:72
+func WriteSSOLoginPage(qq422016 qtio422016.Writer, authURL, errMessage string) {
+//line sso.qtpl:72
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line sso.qtpl:79
-	StreamSSOErrorPage(qw422016, errCode, errDescription, retryURL)
-//line sso.qtpl:79
+//line sso.qtpl:72
+	StreamSSOLoginPage(qw422016, authURL, errMessage)
+//line sso.qtpl:72
 	qt422016.ReleaseWriter(qw422016)
-//line sso.qtpl:79
+//line sso.qtpl:72
 }
 
-//line sso.qtpl:79
-func SSOErrorPage(errCode, errDescription, retryURL string) string {
-//line sso.qtpl:79
+//line sso.qtpl:72
+func SSOLoginPage(authURL, errMessage string) string {
+//line sso.qtpl:72
 	qb422016 := qt422016.AcquireByteBuffer()
-//line sso.qtpl:79
-	WriteSSOErrorPage(qb422016, errCode, errDescription, retryURL)
-//line sso.qtpl:79
+//line sso.qtpl:72
+	WriteSSOLoginPage(qb422016, authURL, errMessage)
+//line sso.qtpl:72
 	qs422016 := string(qb422016.B)
-//line sso.qtpl:79
+//line sso.qtpl:72
 	qt422016.ReleaseByteBuffer(qb422016)
-//line sso.qtpl:79
+//line sso.qtpl:72
 	return qs422016
+//line sso.qtpl:72
+}
+
+//line sso.qtpl:74
+func StreamSSOErrorPage(qw422016 *qt422016.Writer, errCode, errDescription, retryURL string) {
+//line sso.qtpl:74
+	qw422016.N().S(`
+`)
+//line sso.qtpl:75
+	streamssoPageBegin(qw422016, "Login error")
+//line sso.qtpl:75
+	qw422016.N().S(`
+    <p class="error-code">`)
+//line sso.qtpl:76
+	qw422016.E().S(errCode)
+//line sso.qtpl:76
+	qw422016.N().S(`</p>
+    `)
+//line sso.qtpl:77
+	if errDescription != "" {
+//line sso.qtpl:77
+		qw422016.N().S(`
+    <p class="error-desc">`)
+//line sso.qtpl:78
+		qw422016.E().S(errDescription)
+//line sso.qtpl:78
+		qw422016.N().S(`</p>
+    `)
 //line sso.qtpl:79
+	}
+//line sso.qtpl:79
+	qw422016.N().S(`
+    <a href="`)
+//line sso.qtpl:80
+	qw422016.E().S(retryURL)
+//line sso.qtpl:80
+	qw422016.N().S(`">Try again</a>
+`)
+//line sso.qtpl:81
+	streamssoPageEnd(qw422016)
+//line sso.qtpl:81
+	qw422016.N().S(`
+`)
+//line sso.qtpl:82
+}
+
+//line sso.qtpl:82
+func WriteSSOErrorPage(qq422016 qtio422016.Writer, errCode, errDescription, retryURL string) {
+//line sso.qtpl:82
+	qw422016 := qt422016.AcquireWriter(qq422016)
+//line sso.qtpl:82
+	StreamSSOErrorPage(qw422016, errCode, errDescription, retryURL)
+//line sso.qtpl:82
+	qt422016.ReleaseWriter(qw422016)
+//line sso.qtpl:82
+}
+
+//line sso.qtpl:82
+func SSOErrorPage(errCode, errDescription, retryURL string) string {
+//line sso.qtpl:82
+	qb422016 := qt422016.AcquireByteBuffer()
+//line sso.qtpl:82
+	WriteSSOErrorPage(qb422016, errCode, errDescription, retryURL)
+//line sso.qtpl:82
+	qs422016 := string(qb422016.B)
+//line sso.qtpl:82
+	qt422016.ReleaseByteBuffer(qb422016)
+//line sso.qtpl:82
+	return qs422016
+//line sso.qtpl:82
 }

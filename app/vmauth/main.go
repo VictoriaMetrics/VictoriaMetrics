@@ -188,7 +188,7 @@ func requestHandlerWithInternalRoutes(w http.ResponseWriter, r *http.Request) bo
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	ats := getAuthTokensFromRequest(r)
 	if len(ats) == 0 {
-		if processSSOLogin(w, r) {
+		if processSSOLogin(w, r, nil) {
 			return true
 		}
 
@@ -221,7 +221,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 	}
 
-	if processSSOLogin(w, r) {
+	if processSSOLogin(w, r, ats) {
 		return true
 	}
 

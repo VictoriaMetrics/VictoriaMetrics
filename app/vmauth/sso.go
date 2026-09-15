@@ -253,7 +253,11 @@ func setSSONoCacheHeaders(w http.ResponseWriter) {
 // button pointing directly to the OIDC provider's authorization endpoint.
 // Only GET and HEAD requests are redirected to the IdP; other methods receive
 // a 401 so that the caller's request body is not silently discarded.
-func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
+//
+// If the request already carries auth tokens (e.g. from an SSO cookie) but
+// no user config matched, the page shows an "Access Denied" hint above the
+// login button so the user knows their identity was recognized but not authorized.
+func processSSOLogin(w http.ResponseWriter, r *http.Request, ats []string) bool {
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		return false
 	}
@@ -261,11 +265,13 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 	if oidc == nil {
 		return false
 	}
+	redirectURL := oidc.getRedirectURL(r.URL.RequestURI())
+
 	pm := oidc.pm.Load()
 	if pm == nil {
 		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusServiceUnavailable)
-		WriteSSOErrorPage(w, "Identity Provider is not available, try again later", "", "/")
+		WriteSSOErrorPage(w, "Identity Provider is not available, try again later", "", redirectURL)
 		return true
 	}
 
@@ -276,22 +282,21 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 		logger.Errorf("generate nonce failed: %s", err)
 		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusInternalServerError)
-		WriteSSOErrorPage(w, "Internal Server Error", "", "/")
+		WriteSSOErrorPage(w, "Internal Server Error", "", redirectURL)
 		return true
 	}
 
 	// State binds the authorization response to this request (CSRF protection).
-	// State should differ from nonce as perOIDC best practices.
+	// State should differ from nonce as per OIDC best practices.
 	// https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest
 	state, err := generateRandomString(32)
 	if err != nil {
 		logger.Errorf("generate state failed: %s", err)
 		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusInternalServerError)
-		WriteSSOErrorPage(w, "Internal Server Error", "", "/")
+		WriteSSOErrorPage(w, "Internal Server Error", "", redirectURL)
 		return true
 	}
-	redirectURL := oidc.getRedirectURL(r.URL.RequestURI())
 
 	// Store nonce, state, and redirectURL in the CSRF cookie. The raw nonce
 	// never leaves the browser; only its SHA256 hash is sent to the IdP.
@@ -321,13 +326,19 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 	params.Set("state", state)
 	authURL := pm.AuthorizationEndpoint + "?" + params.Encode()
 
-	// Return 401 so that programmatic clients (curl, Grafana, scripts) can
-	// distinguish "not authenticated" from a successful response. A 200 would
-	// cause API callers (e.g. /api/v1/query) to try parsing the HTML login
-	// page as valid data.
 	setSSONoCacheHeaders(w)
+	if len(ats) > 0 {
+		// The user authenticated but no user config matched — authorization failure.
+		w.WriteHeader(http.StatusForbidden)
+		WriteSSOLoginPage(w, authURL, "Access Denied")
+		return true
+	}
+
+	// No credentials at all — return 401 so programmatic clients (curl,
+	// Grafana, scripts) can distinguish "not authenticated" from a successful
+	// response.
 	w.WriteHeader(http.StatusUnauthorized)
-	WriteSSOLoginPage(w, authURL)
+	WriteSSOLoginPage(w, authURL, "")
 	return true
 }
 
