@@ -159,16 +159,16 @@ var (
 
 // getRedirectURL sanitizes the redirect URL to prevent open redirect attacks.
 // Returns DefaultRedirectURL (or "/") if the URL is not a safe relative path.
-func (c *ssoOIDCConfig) getRedirectURL(redirectURL string) string {
+func (c *ssoOIDCConfig) getRedirectURL(redirect string) string {
 	// Copy-pated from oauth2-proxy
 	// https://github.com/oauth2-proxy/oauth2-proxy/blob/6420aae79003dfb47885018856dd524342367dfc/pkg/app/redirect/validator.go#L47
 	if strings.HasPrefix(redirect, "/") && !strings.HasPrefix(redirect, "//") && !invalidRedirectRegex.MatchString(redirect) {
-		return redirectURL
+		return redirect
 	}
 	if c.DefaultRedirectURL != "" {
-		return c.DefaultRedirectURL
+		return getPathWithPrefix(c.DefaultRedirectURL)
 	}
-	return "/"
+	return getPathWithPrefix("/")
 }
 
 // getSSOConfigForHost returns the SSO host config for the given request host, or nil.
