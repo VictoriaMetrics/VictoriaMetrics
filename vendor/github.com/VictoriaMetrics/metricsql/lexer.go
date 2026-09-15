@@ -689,12 +689,11 @@ func scanSingleDuration(s string, canBeNegative bool) int {
 		return -1
 	}
 	if s[i] == '.' {
-		j := i
 		i++
 		for i < len(s) && isDecimalChar(s[i]) {
 			i++
 		}
-		if i == j || i == len(s) {
+		if i == len(s) {
 			return -1
 		}
 	}
