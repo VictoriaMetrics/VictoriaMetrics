@@ -17,6 +17,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 	"github.com/google/go-cmp/cmp"
@@ -2003,7 +2004,7 @@ func testIndexDBDeleteSeries(t *testing.T, disablePerDayIndex bool) {
 		t.Fatalf("unexpected metricIDs (-want, +got):\n%s", diff)
 	}
 
-	assertMetricNames(tfs, tr, nil)
+	assertMetricNames(tfs, tr, []string{})
 }
 
 func TestIndexDBGetTSDBStatus(t *testing.T) {
@@ -2401,4 +2402,66 @@ func TestIsSingleMetricNameFilter(t *testing.T) {
 	tfs2 = NewTagFilters()
 	add(tfs2, nil, []byte("metric"), false, false)
 	f([]*TagFilters{tfs1, tfs2}, false)
+}
+
+// searchMetricIDs searches metricIDs by tag filters within the given time
+// range.
+//
+// If the number of unique metricIDs exceeds maxMetrics limit, the method
+// returns an error.
+//
+// The method is used only by the storage unit tests.
+func (db *indexDB) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) (*uint64set.Set, error) {
+	qt = qt.NewChild("search metricIDs: filters=%s, timeRange=%s, maxMetrics=%d", tfss, &tr, maxMetrics)
+	defer qt.Done()
+
+	if tr == globalIndexTimeRange {
+		qtChild := qt.NewChild("search metricIDs in global index: filters=%s, maxMetrics=%d", tfss, maxMetrics)
+		defer qtChild.Done()
+		return db.searchMetricIDsByDateAndFilters(qtChild, globalIndexDate, tfss, maxMetrics, deadline)
+	}
+
+	minDate, maxDate := tr.DateRange()
+	numDays := maxDate - minDate + 1
+	if numDays == 1 {
+		date := minDate
+		qtChild := qt.NewChild("search metricIDs in per-day index on 1 day: filters=%s, date=%s, maxMetrics=%d", tfss, dateToString(date), maxMetrics)
+		defer qtChild.Done()
+		return db.searchMetricIDsByDateAndFilters(qtChild, date, tfss, maxMetrics, deadline)
+	}
+
+	qtMultiDaySearch := qt.NewChild("search metricIDs concurrently in per-day index on %d days", numDays)
+	defer qtMultiDaySearch.Done()
+
+	var wg sync.WaitGroup
+	metricIDsByDate := make([]*uint64set.Set, numDays)
+	errByDate := make([]error, numDays)
+	for day := range numDays {
+		date := minDate + uint64(day)
+		qtChild := qtMultiDaySearch.NewChild("search metricIDs: filters=%s, date=%s, maxMetrics=%d", tfss, dateToString(date), maxMetrics)
+		wg.Go(func() {
+			defer qtChild.Done()
+			metricIDsByDate[day], errByDate[day] = db.searchMetricIDsByDateAndFilters(qtChild, date, tfss, maxMetrics, deadline)
+		})
+	}
+	wg.Wait()
+	for _, err := range errByDate {
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	qtMultiDaySearch.Printf("merge metricIDs")
+	all := &uint64set.Set{}
+	for _, metricIDs := range metricIDsByDate {
+		// Do not use UnionMayOwn because the search result may be coming from
+		// the tfssCache and its contents must not be modified.
+		all.Union(metricIDs)
+		if all.Len() > maxMetrics {
+			return nil, errTooManyTimeseries(maxMetrics)
+		}
+	}
+
+	qtMultiDaySearch.Printf("found %d unique metricIDs", all.Len())
+	return all, nil
 }
