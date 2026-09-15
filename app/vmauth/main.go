@@ -450,9 +450,6 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tkn *j
 				handleMissingAuthorizationError(w)
 				return
 			}
-			if processSSOLogin(w, r) {
-				return
-			}
 			missingRouteRequests.Inc()
 			var di string
 			if ui.DumpRequestOnErrors {
