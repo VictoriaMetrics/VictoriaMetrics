@@ -124,36 +124,38 @@ const (
 	ssoCsrfCookieTTL  = 10 * time.Minute
 )
 
-// generateSSONonce generates a cryptographically random nonce for the SSO flow.
-func generateSSONonce() (string, error) {
-	raw := make([]byte, 32)
+// generateRandomString generates a cryptographically random base64url-encoded string of the given byte length.
+func generateRandomString(n int) (string, error) {
+	raw := make([]byte, n)
 	if _, err := rand.Read(raw); err != nil {
-		return "", fmt.Errorf("cannot generate nonce: %w", err)
+		return "", fmt.Errorf("cannot generate random string: %w", err)
 	}
 	return base64.RawURLEncoding.EncodeToString(raw), nil
 }
 
-// signCSRFCookie returns a value for the CSRF cookie that carries both the nonce
-// and the originalURL the user was trying to reach.
+// signCSRFCookie returns a value for the CSRF cookie that carries the nonce,
+// state, and the redirectURL the user was trying to reach.
 //
-// Format: base64url(nonce ":" originalURL) "." base64url(HMAC-SHA256(cookieSecret, payload))
+// Format: base64url(nonce ":" state ":" redirectURL) "." base64url(HMAC-SHA256(cookieSecret, payload))
 //
 // The payload is base64url-encoded so that dots in the URL do not conflict with
 // the "." separator between payload and signature.
-func signCSRFCookie(nonce, originalURL, cookieSecret string) string {
-	payload := base64.RawURLEncoding.EncodeToString([]byte(nonce + ":" + originalURL))
+// nonce and state are independent base64url strings (no colons), so the first
+// two ":" delimiters are unambiguous.
+func signCSRFCookie(nonce, state, redirectURL, cookieSecret string) string {
+	payload := base64.RawURLEncoding.EncodeToString([]byte(nonce + ":" + state + ":" + redirectURL))
 	mac := hmac.New(sha256.New, []byte(cookieSecret))
 	mac.Write([]byte(payload))
 	sig := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
 	return payload + "." + sig
 }
 
-// verifyCSRFCookie verifies the CSRF cookie signature and returns the nonce and
-// the original URL that was stored when the flow was initiated.
-func verifyCSRFCookie(cookieValue, cookieSecret string) (nonce, originalURL string, err error) {
+// verifyCSRFCookie verifies the CSRF cookie signature and returns the nonce,
+// state, and the original URL that were stored when the flow was initiated.
+func verifyCSRFCookie(cookieValue, cookieSecret string) (nonce, state, redirectURL string, err error) {
 	dot := strings.LastIndexByte(cookieValue, '.')
 	if dot < 0 {
-		return "", "", fmt.Errorf("invalid CSRF cookie: missing separator")
+		return "", "", "", fmt.Errorf("invalid CSRF cookie: missing separator")
 	}
 	payload, sig := cookieValue[:dot], cookieValue[dot+1:]
 
@@ -161,19 +163,20 @@ func verifyCSRFCookie(cookieValue, cookieSecret string) (nonce, originalURL stri
 	mac.Write([]byte(payload))
 	expectedSig := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
 	if !hmac.Equal([]byte(sig), []byte(expectedSig)) {
-		return "", "", fmt.Errorf("CSRF cookie signature mismatch")
+		return "", "", "", fmt.Errorf("CSRF cookie signature mismatch")
 	}
 
 	decoded, err := base64.RawURLEncoding.DecodeString(payload)
 	if err != nil {
-		return "", "", fmt.Errorf("cannot decode CSRF cookie payload: %w", err)
+		return "", "", "", fmt.Errorf("cannot decode CSRF cookie payload: %w", err)
 	}
-	// nonce is base64url (no colons), so the first ":" separates it from originalURL.
-	parts := strings.SplitN(string(decoded), ":", 2)
-	if len(parts) != 2 {
-		return "", "", fmt.Errorf("invalid CSRF cookie payload format")
+	// nonce and state are base64url (no colons), so the first two ":"
+	// separate them from each other and from redirectURL.
+	parts := strings.SplitN(string(decoded), ":", 3)
+	if len(parts) != 3 {
+		return "", "", "", fmt.Errorf("invalid CSRF cookie payload format")
 	}
-	return parts[0], parts[1], nil
+	return parts[0], parts[1], parts[2], nil
 }
 
 // setSSONoCacheHeaders sets Content-Type and no-cache headers on SSO responses.
@@ -210,27 +213,41 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 
-	// Nonce usage follows recommendation from:
+	// Nonce binds the id_token to this session (replay protection).
 	// https://openid.net/specs/openid-connect-core-1_0.html#NonceNotes
-	nonce, err := generateSSONonce()
+	nonce, err := generateRandomString(32)
 	if err != nil {
+		logger.Errorf("generate nonce failed: %s", err)
 		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusInternalServerError)
 		WriteSSOErrorPage(w, "Internal Server Error", "", "/")
 		return true
 	}
 
-	originalURL := r.URL.RequestURI()
-	// Reject absolute and protocol-relative URLs to prevent open redirect.
-	if !strings.HasPrefix(originalURL, "/") || strings.HasPrefix(originalURL, "//") || strings.HasPrefix(originalURL, "/\\") {
-		originalURL = "/"
+	// State binds the authorization response to this request (CSRF protection).
+	// State should differ from nonce as perOIDC best practices.
+	// https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest
+	state, err := generateRandomString(32)
+	if err != nil {
+		logger.Errorf("generate state failed: %s", err)
+		setSSONoCacheHeaders(w)
+		w.WriteHeader(http.StatusInternalServerError)
+		WriteSSOErrorPage(w, "Internal Server Error", "", "/")
+		return true
 	}
 
-	// Store nonce + originalURL in the CSRF cookie. The raw nonce never leaves
-	// the browser; only its SHA256 hash is sent to the IdP.
+	redirectURL := r.URL.RequestURI()
+	// Reject absolute and protocol-relative URLs to prevent open redirect.
+	if !strings.HasPrefix(redirectURL, "/") || strings.HasPrefix(redirectURL, "//") || strings.HasPrefix(redirectURL, "/\\") {
+		redirectURL = "/"
+	}
+
+	// Store nonce, state, and redirectURL in the CSRF cookie. The raw nonce
+	// never leaves the browser; only its SHA256 hash is sent to the IdP.
+	// The state is sent as-is to the IdP and verified on callback.
 	http.SetCookie(w, &http.Cookie{
 		Name:     ssoCsrfCookieName,
-		Value:    signCSRFCookie(nonce, originalURL, oidc.CookieSecret),
+		Value:    signCSRFCookie(nonce, state, redirectURL, oidc.CookieSecret),
 		Path:     "/_vmauth/sso/",
 		HttpOnly: true,
 		Secure:   oidc.cookieSecure(),
@@ -241,16 +258,16 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 	h := sha256.Sum256([]byte(nonce))
 	nonceHash := base64.RawURLEncoding.EncodeToString(h[:])
 
-	redirectURL := oidc.getCallbackURL(r.Host)
+	callbackURL := oidc.getCallbackURL(r.Host)
 	scopes := oidc.Scopes
 
 	params := url.Values{}
 	params.Set("response_type", "code")
 	params.Set("client_id", oidc.ClientID)
-	params.Set("redirect_uri", redirectURL)
+	params.Set("redirect_uri", callbackURL)
 	params.Set("scope", strings.Join(scopes, " "))
 	params.Set("nonce", nonceHash)
-	params.Set("state", nonceHash)
+	params.Set("state", state)
 	authURL := pm.AuthorizationEndpoint + "?" + params.Encode()
 
 	// Return 401 so that programmatic clients (curl, Grafana, scripts) can
@@ -280,7 +297,7 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify the CSRF cookie — it carries the nonce and the originalURL, and
+	// Verify the CSRF cookie — it carries the nonce and the redirectURL, and
 	// binds this callback to the browser session that initiated the flow.
 	csrfCookie, err := r.Cookie(ssoCsrfCookieName)
 	if err != nil {
@@ -289,7 +306,17 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 		WriteSSOErrorPage(w, "Missing CSRF Cookie", "", "/")
 		return
 	}
-	nonce, originalURL, err := verifyCSRFCookie(csrfCookie.Value, oidc.CookieSecret)
+	// Clear the CSRF cookie immediately so it cannot be replayed.
+	http.SetCookie(w, &http.Cookie{
+		Name:     ssoCsrfCookieName,
+		Path:     "/_vmauth/sso/",
+		HttpOnly: true,
+		Secure:   oidc.cookieSecure(),
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   -1,
+	})
+
+	nonce, state, redirectURL, err := verifyCSRFCookie(csrfCookie.Value, oidc.CookieSecret)
 	if err != nil {
 		logger.Warnf("SSO callback: invalid CSRF cookie from %s: %s", r.RemoteAddr, err)
 		setSSONoCacheHeaders(w)
@@ -298,11 +325,9 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify the state parameter matches the nonceHash we sent — this binds the
-	// callback to the specific authorization request and is auditable in IdP logs.
-	h := sha256.Sum256([]byte(nonce))
-	nonceHash := base64.RawURLEncoding.EncodeToString(h[:])
-	if state := r.URL.Query().Get("state"); state != nonceHash {
+	// Verify the state parameter matches the value we sent — this binds the
+	// callback to the specific authorization request (CSRF protection).
+	if returnedState := r.URL.Query().Get("state"); returnedState != state {
 		logger.Warnf("SSO callback: state mismatch from %s", r.RemoteAddr)
 		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusBadRequest)
@@ -338,6 +363,11 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Compute nonceHash from the raw nonce stored in the cookie.
+	// Only the hash was sent to the IdP as the nonce claim in the id_token.
+	h := sha256.Sum256([]byte(nonce))
+	nonceHash := base64.RawURLEncoding.EncodeToString(h[:])
+
 	if err := validateIDToken(idToken, pm, nonceHash); err != nil {
 		logger.Warnf("SSO callback: id_token verification failed from %s: %s", r.RemoteAddr, err)
 		setSSONoCacheHeaders(w)
@@ -355,10 +385,10 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteLaxMode,
 	})
 
-	if originalURL == "" {
-		originalURL = "/"
+	if redirectURL == "" {
+		redirectURL = "/"
 	}
-	http.Redirect(w, r, originalURL, http.StatusFound)
+	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
 
 // validateIDToken parses and validates the id_token JWT:
