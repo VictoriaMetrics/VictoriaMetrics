@@ -684,7 +684,6 @@ users:
       match_claims:
         iss: 'http://identity-provider.com/realms/master'
         aud: 'sso.example.com'
-        email: 'kotlyar\.maksim@gmail\.com|.+@victoriametrics\.com'
       oidc:
         issuer: 'http://identity-provider.com/realms/master'
     url_map:
