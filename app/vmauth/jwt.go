@@ -156,7 +156,7 @@ func parseJWTUsers(ac *AuthConfig, oidcDP *oidcDiscovererPool) ([]*UserInfo, err
 				return nil, fmt.Errorf("oidc issuer %q must have http or https scheme", jwtToken.OIDC.Issuer)
 			}
 
-			oidcDP.createOrAdd(ui.JWT.OIDC.Issuer, &ui.JWT.verifierPool)
+			oidcDP.subscribeToVerifier(ui.JWT.OIDC.Issuer, &ui.JWT.verifierPool)
 		}
 
 		if err := parseJWTPlaceholdersForUserInfo(&ui, true); err != nil {

@@ -27,6 +27,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 ## tip
 
 * FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): log informative message when a JWT token has no `vm_access` claim and `default_vm_access_claim` is not configured, if `-logInvalidAuthTokens` is enabled. See [JWT claim-based request templating](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-based-request-templating) or [#11579](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11579).
+* FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): add Single sign-on (SSO) support via OpenID Connect (OIDC). vmauth redirects unauthenticated browser requests to the configured Identity Provider (IdP), verifies the IdP response, and sets a session cookie for subsequent requests. See [Single sign-on docs](https://docs.victoriametrics.com/victoriametrics/vmauth/#single-sign-on-sso) and [#10278](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10278).
 
 ## [v1.152.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.152.0)
 
