@@ -1266,14 +1266,15 @@ See also [resource usage limits at VictoriaMetrics cluster](https://docs.victori
 
 ## High availability
 
-High availability with VictoriaMetrics single-node can be achieved by running multiple replicas of VictoriaMetrics.
+High availability with VictoriaMetrics single-nodes can be achieved by running multiple replicas of VictoriaMetrics, 
+replicating writes to each replica, and load-balancing reads between them.
 
 ### High availability for writes
 
 You can achieve **high availability for writes** via replication:
 
-* Run two or more identically configured VictoriaMetrics instances (replicas) in distinct datacenters (availability zones);
-* Replicate metrics workload simultaneously into all these instances via one or multiple [vmagents](https://docs.victoriametrics.com/victoriametrics/vmagent/) (or other agents that support replication).
+* Run two or more identically configured VictoriaMetrics instances (replicas), preferably in distinct datacenters (availability zones);
+* Replicate writes simultaneously into all these instances via one or multiple [vmagents](https://docs.victoriametrics.com/victoriametrics/vmagent/) (or other agents that support replication).
 
 For example, configure vmagent [to replicate data](https://docs.victoriametrics.com/victoriametrics/vmagent/#replication-and-high-availability)
 to multiple remote destinations by specifying multiple `-remoteWrite.url` flags:
@@ -1286,7 +1287,7 @@ to multiple remote destinations by specifying multiple `-remoteWrite.url` flags:
 Each `--remoteWrite.url` creates its own replication queue. The queue temporarily stores data on disk while the remote destination is unavailable.
 See more about [on-disk persistence in vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/#on-disk-persistence).
 
-When the remote destination becomes available again, vmagent re-reads the queue and restores data consistency across destinations.
+When the remote destination becomes available again, vmagent re-reads the queue and pushes unsent data, restoring data consistency across destinations.
 
 > The max size of the on-disk queue can be increased by [horizontally sharding vmagents](https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets).
 > To achieve high availability for vmagent itself, run multiple identically configured vmagent replicas.
@@ -1295,18 +1296,25 @@ When the remote destination becomes available again, vmagent re-reads the queue 
 
 ### High availability for reads
 
-For achieving high availability for reads, make sure that you already achieved [high availability for writes](https://docs.victoriametrics.com/victoriametrics/#high-availability-for-writes).
+For achieving high availability for reads, make sure that you already achieved [high availability for writes](https://docs.victoriametrics.com/victoriametrics/#high-availability-for-writes), so all VictoriaMetrics replicas contain the same data.
 
 You can achieve **high availability for reads** by choosing one of the following options:
 
-- [Load balance read requests among replicas](https://docs.victoriametrics.com/victoriametrics/#load-balance-read-requests-among-replicas): use a load balancer to route read requests to available VictoriaMetrics instance.
+- [Load balance read requests among replicas](https://docs.victoriametrics.com/victoriametrics/#load-balance-read-requests-among-replicas): use a load balancer to route read requests to an available VictoriaMetrics instance.
 - [Query multiple replicas via vmselect](https://docs.victoriametrics.com/victoriametrics/#query-multiple-replicas-via-vmselect): use vmselect to query all available VictoriaMetrics instances and merge their results.
 
 #### Load balance read requests among replicas
 
-Use a load balancer to route the query to the **primary** VictoriaMetrics single-node instance or fail over to the **secondary** instance if the first one becomes temporarily unavailable.
+Use [vmauth to load-balance](https://docs.victoriametrics.com/vmauth/#load-balancing) read queries among available VictoriaMetrics replicas
+and retry requests if any of the replicas failed:
+```
+unauthorized_user:
+  url_prefix:
+  - http://victoria-metrics-1:8428/
+  - http://victoria-metrics-2:8428/
+```
 
-This can be achieved via [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) configured for [high-availability mode](https://docs.victoriametrics.com/victoriametrics/vmauth/#high-availability):
+With this configuration, vmauth will uniformly share load among the replicas using the least-loaded round-robin policy. But if you run VictoriaMetrics replicas in different geographically distributed availability zones, you might want to prefer the closest replica for all requests until it fails. This can be achieved by [changing vmauth load-balancing policy to `first_available`](https://docs.victoriametrics.com/vmauth/#high-availability), so all requests will land on preferred replica and will get re-routed only if it becomes unavailable:
 
 ```mermaid
 flowchart LR
@@ -1323,10 +1331,9 @@ flowchart LR
     VMAUTH -.->|"2. Fail over if Primary<br/>is unavailable"| VM2
 ```
 
-This is **the most cost-efficient option** because it queries only one VictoriaMetrics instance at a time. If any instance fails to respond, vmauth will transparently re-route requests to the next available instance.
+Load-balancing is **the most cost-efficient option** - it queries only one VictoriaMetrics instance at a time. If any instance fails to respond, vmauth will transparently re-route requests to the next available instance.
 
-The downside of this approach is that when one instance goes down and then comes back, the load balancer may start routing
-read queries to it again. Even though this instance didn't catch up yet with vmagent's queue and may return incomplete results.
+The downside of this approach is that when one instance goes down and then comes back, the load balancer may start routing read queries to it again. Even though this instance didn't catch up yet with vmagent's queue and may return incomplete results.
 
 This shortcoming can be mitigated during sequential upgrades by removing the catching-up instance from the vmauth configuration until the vmagent queues are drained. During sequential upgrades, this mechanism is automatically applied when using the [Kubernetes VMDistributed](https://docs.victoriametrics.com/operator/resources/vmdistributed/) resource. After an outage, you must remove the recovered instance manually until its vmagent queues are drained.
 
