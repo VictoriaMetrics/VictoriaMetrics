@@ -1804,7 +1804,7 @@ users:
 
 It is allowed to set multiple `extra_label` query parameters, or even `extra_filters` with regex support - see more details [here](https://docs.victoriametrics.com/victoriametrics/#prometheus-querying-api-enhancements).
 
-The extra label can be unconditionally applied to all ingested data within request if `extra_label` param is set:
+The extra label can be unconditionally applied to all ingested data within a request if `extra_label` param is set:
 ```sh
 curl -X POST "http://victoriametrics:8428/api/v1/import?extra_label=team=developers" -T data_to_import.jsonl 
 ```

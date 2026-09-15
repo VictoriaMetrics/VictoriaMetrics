@@ -311,7 +311,7 @@ For example, the following command will start a single-node that listens for `vm
 
 > The `tenantID` configuration is not persisted in any way and is enforced only at runtime. Thus, it is safe to change the `-accountID` and `-projectID` flag values at any time.
 
-To make them `vmselect` node query data from a single-node and `vmstorage` nodes at the same time, simply list their addresses in the `-storageNode` command-line flag:
+To make the `vmselect` node query data from a single-node and `vmstorage` nodes at the same time, simply list their addresses in the `-storageNode` command-line flag:
 ```sh
 /path/to/vmselect \
  -storageNode=<single-node-host:8401> \
