@@ -690,7 +690,7 @@ users:
       - src_paths:
           - "/.*"
         src_hosts:
-          - "sso\.example\.com"
+          - 'sso\.example\.com'
         url_prefix: "http://vmsingle:8428?extra_label={{.MetricsExtraLabels}}"
 ```
 
