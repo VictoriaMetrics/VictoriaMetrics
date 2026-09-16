@@ -187,6 +187,10 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		processSSOCallback(w, r)
 		return true
 	}
+	if r.URL.Path == "/_vmauth/sso/logout" {
+		processSSOLogout(w, r)
+		return true
+	}
 
 	ats := getAuthTokensFromRequest(r)
 	if len(ats) == 0 {

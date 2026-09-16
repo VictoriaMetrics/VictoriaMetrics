@@ -567,6 +567,27 @@ func exchangeCodeForIDToken(ctx context.Context, tokenEndpoint string, oidc *sso
 	return tr.IDToken, nil
 }
 
+// processSSOLogout handles the SSO logout at /_vmauth/sso/logout.
+// It clears the SSO session cookie and returns 200 OK.
+func processSSOLogout(w http.ResponseWriter, r *http.Request) {
+	secure := true
+	if oidc := getSSOConfigForHost(r.Host); oidc != nil {
+		secure = oidc.secure()
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     ssoCookieName,
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   secure,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   -1,
+	})
+
+	w.WriteHeader(http.StatusOK)
+}
+
 // getSSOAuthTokensFromRequest extracts the SSO session cookie and returns it as
 // a Bearer auth token string compatible with the existing JWT pipeline.
 func getSSOAuthTokensFromRequest(r *http.Request) []string {
