@@ -675,8 +675,8 @@ sso:
       client_secret: 'theClientSecret'
       scopes: ['openid', 'profile', 'email']
       cookie_secret: 'theCookieSecret1234567890'
-      # set false only for testing purposes
-      #cookie_secure: false
+      # set true only for testing purposes over plain HTTP
+      #insecure: true
 
 users:
   - jwt:

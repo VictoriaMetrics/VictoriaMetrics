@@ -104,11 +104,12 @@ type ssoOIDCConfig struct {
 	// Generate with: openssl rand -base64 32
 	CookieSecret string `yaml:"cookie_secret"`
 
-	// CookieSecure controls the Secure flag on SSO cookies. Defaults to true.
-	// Set to false only when vmauth is accessed over plain HTTP (e.g. local dev).
-	// When vmauth runs behind an SSL-terminating proxy, keep this true — the
+	// Insecure disables the Secure flag on SSO cookies and uses http:// instead
+	// of https:// for redirect URIs. Defaults to false.
+	// Set to true only when vmauth is accessed over plain HTTP (e.g. local dev).
+	// When vmauth runs behind an SSL-terminating proxy, keep this false — the
 	// proxy speaks HTTPS to the browser even though vmauth sees plain HTTP.
-	CookieSecure *bool `yaml:"cookie_secure,omitempty"`
+	Insecure bool `yaml:"insecure,omitempty"`
 
 	// Scopes defaults to ["openid"] when not set.
 	Scopes []string `yaml:"scopes,omitempty"`
@@ -127,9 +128,9 @@ type ssoOIDCConfig struct {
 	pm atomic.Pointer[oidcProviderMetadata]
 }
 
-// cookieSecure returns true unless CookieSecure is explicitly set to false.
-func (c *ssoOIDCConfig) cookieSecure() bool {
-	return c.CookieSecure == nil || *c.CookieSecure
+// secure returns true unless Insecure is explicitly set to true.
+func (c *ssoOIDCConfig) secure() bool {
+	return !c.Insecure
 }
 
 // getSessionDuration returns the SSO session duration as the minimum of the
@@ -150,7 +151,7 @@ func (c *ssoOIDCConfig) getSessionDuration(tokenExpiresAt time.Time) time.Durati
 // The host must be already validated by sso.src_host regexp
 func (c *ssoOIDCConfig) getCallbackURL(host string) string {
 	scheme := "http"
-	if c.cookieSecure() {
+	if c.secure() {
 		scheme = "https"
 	}
 	return scheme + "://" + host + getPathWithPrefix("/_vmauth/sso/callback")
@@ -333,7 +334,7 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 		Value:    signCSRFCookie(nonce, state, redirectURL, oidc.CookieSecret),
 		Path:     getPathWithPrefix("/_vmauth/sso/"),
 		HttpOnly: true,
-		Secure:   oidc.cookieSecure(),
+		Secure:   oidc.secure(),
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   int(ssoCsrfCookieTTL.Seconds()),
 	})
@@ -400,7 +401,7 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 		Name:     ssoCsrfCookieName,
 		Path:     getPathWithPrefix("/_vmauth/sso/"),
 		HttpOnly: true,
-		Secure:   oidc.cookieSecure(),
+		Secure:   oidc.secure(),
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   -1,
 	})
@@ -472,7 +473,7 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 		Value:    idToken,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   oidc.cookieSecure(),
+		Secure:   oidc.secure(),
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   int(oidc.getSessionDuration(expiresAt).Seconds()),
 	})
