@@ -526,6 +526,11 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 	req.URL = targetURL
 	req.Header.Set("User-Agent", "vmauth")
 	updateHeadersByConfig(req.Header, hc.RequestHeaders)
+	if ui.JWT != nil && ui.JWT.ProxyCookieAuthorizationToken {
+		if c, err := r.Cookie(ssoCookieName); err == nil && c.Value != "" {
+			req.Header.Set("Authorization", "Bearer "+c.Value)
+		}
+	}
 	if hc.KeepOriginalHost == nil || !*hc.KeepOriginalHost {
 		if host := getHostHeader(hc.RequestHeaders); host != "" {
 			req.Host = host

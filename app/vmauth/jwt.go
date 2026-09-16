@@ -67,6 +67,10 @@ type JWTConfig struct {
 
 	DefaultVMAccessClaim *jwt.VMAccessClaim `yaml:"default_vm_access_claim,omitempty"`
 
+	// ProxyCookieAuthorizationToken controls whether the SSO cookie token
+	// is forwarded to the backend as an Authorization: Bearer header.
+	ProxyCookieAuthorizationToken bool `yaml:"proxy_cookie_authorization_token,omitempty"`
+
 	// verifierPool is used to verify JWT tokens.
 	// It is initialized from PublicKeys and/or PublicKeyFiles.
 	// In this case, it is initialized once at config reload and never updated until next reload
