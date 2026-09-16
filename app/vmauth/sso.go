@@ -490,10 +490,11 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 // See https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation
 func validateIDToken(idToken string, pm *oidcProviderMetadata, clientID, expectedNonce string) (time.Time, error) {
 	tkn := getToken()
+	defer putToken(tkn)
+
 	if err := tkn.Parse(idToken, false); err != nil {
 		return time.Time{}, fmt.Errorf("cannot parse id_token: %w", err)
 	}
-	defer putToken(tkn)
 
 	if err := pm.vp.Verify(tkn); err != nil {
 		return time.Time{}, fmt.Errorf("signature verification failed: %w", err)
