@@ -13,6 +13,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -59,11 +60,15 @@ func TestStorageSearchTSIDs_CorruptedIndex(t *testing.T) {
 		tfssAll := []*TagFilters{tfsAll}
 
 		searchMetricIDs := func() []uint64 {
-			metricIDs, err := idb.searchMetricIDs(nil, tfssAll, tr, 1e9, noDeadline)
+			metricIDsByDate, err := idb.searchMetricIDs(nil, tfssAll, tr, 1e9, noDeadline)
 			if err != nil {
 				panic(fmt.Sprintf("searchMetricIDs() failed unexpectedly: %v", err))
 			}
-			return metricIDs.AppendTo(nil)
+			all := &uint64set.Set{}
+			for _, metricIDs := range metricIDsByDate {
+				all.Union(metricIDs)
+			}
+			return all.AppendTo(nil)
 		}
 		searchTSIDs := func() []TSID {
 			tsids, err := s.SearchTSIDs(nil, tfssAll, tr, 1e9, noDeadline)
@@ -161,11 +166,15 @@ func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
 		tfssAll := []*TagFilters{tfsAll}
 
 		searchMetricIDs := func() []uint64 {
-			metricIDs, err := idb.searchMetricIDs(nil, tfssAll, tr, 1e9, noDeadline)
+			metricIDsByDate, err := idb.searchMetricIDs(nil, tfssAll, tr, 1e9, noDeadline)
 			if err != nil {
 				panic(fmt.Sprintf("searchMetricIDs() failed unexpectedly: %v", err))
 			}
-			return metricIDs.AppendTo(nil)
+			all := &uint64set.Set{}
+			for _, metricIDs := range metricIDsByDate {
+				all.Union(metricIDs)
+			}
+			return all.AppendTo(nil)
 		}
 		searchMetricNames := func() []string {
 			metricNames, err := s.SearchMetricNames(nil, tfssAll, tr, 1e9, noDeadline)
