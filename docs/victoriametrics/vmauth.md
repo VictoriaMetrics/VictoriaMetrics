@@ -1565,8 +1565,8 @@ See also [automatic issuing of TLS certificates](#automatic-issuing-of-tls-certi
     ```
 
     See also:
-     - [automatic issuing of TLS certificates](#automatic-issuing-of-tls-certificates).
-     - [mTLS protection](#mtls-protection) on how to enable [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication) protection at `vmauth`.
+     - [Automatic issuing of TLS certificates](#automatic-issuing-of-tls-certificates).
+     - [mTLS protection](https://docs.victoriametrics.com/victoriametrics/vmauth/#mtls-protection) for enabling [mutual TLS authentication](https://en.wikipedia.org/wiki/Mutual_authentication).
      - [TLS termination proxy](https://en.wikipedia.org/wiki/TLS_termination_proxy) may be put in front of `vmauth`.
 
 1. It is recommended to protect the following endpoints with authKeys:
@@ -1583,7 +1583,7 @@ To enable TLS on the public listener while keeping the internal listener non-TLS
     /path/to/vmauth -httpInternalListenAddr=,localhost:8426 -httpListenAddr=0.0.0.0:443, -tls=true,false -tlsCertFile=a-cert.crt -tlsKeyFile=a-key.key
     ```
 
-1. `vmauth` also supports restricting access by IP - see [these docs](#ip-filters). See also [concurrency limiting docs](#concurrency-limiting).
+1. If you know the source IPs upfront, you can restrict access with [IP filters](https://docs.victoriametrics.com/victoriametrics/vmauth/#ip-filters). See also [concurrency limiting docs](https://docs.victoriametrics.com/victoriametrics/vmauth/#concurrency-limiting).
 
 1. Authentication headers are proxied to backends by default. If this is undesirable, set an empty `Authorization` header in the `headers` section to strip it:
 
