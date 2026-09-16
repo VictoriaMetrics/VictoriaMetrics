@@ -145,6 +145,17 @@ func (d *oidcDiscoverer) refreshMetadata(ctx context.Context) error {
 	}
 	newPM.vp = newVP
 
+	// authorization_endpoint and token_endpoint are only required by SSO subscribers.
+	// JWT-only users only need jwks_uri, so skip this check when there are no pms subscribers.
+	if len(d.pms) > 0 {
+		if newPM.AuthorizationEndpoint == "" {
+			return fmt.Errorf("fetched metadata invalid; authorization_endpoint empty (required for SSO)")
+		}
+		if newPM.TokenEndpoint == "" {
+			return fmt.Errorf("fetched metadata invalid; token_endpoint empty (required for SSO)")
+		}
+	}
+
 	for _, pm := range d.pms {
 		pm.Store(&newPM)
 	}
@@ -228,14 +239,6 @@ func getOIDCProviderMetadata(ctx context.Context, issuer string) (oidcProviderMe
 	}
 	if pm.JWKsURI == "" {
 		return oidcProviderMetadata{}, fmt.Errorf("fetched metadata invalid; jwks_uri empty")
-	}
-
-	if pm.AuthorizationEndpoint == "" {
-		return oidcProviderMetadata{}, fmt.Errorf("fetched metadata invalid; authorization_endpoint empty")
-	}
-
-	if pm.TokenEndpoint == "" {
-		return oidcProviderMetadata{}, fmt.Errorf("fetched metadata invalid; token_endpoint empty")
 	}
 
 	return pm, nil
