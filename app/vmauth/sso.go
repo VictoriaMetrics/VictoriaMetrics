@@ -406,7 +406,6 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 	})
 
 	nonce, state, redirectURL, err := verifyCSRFCookie(csrfCookie.Value, oidc.CookieSecret)
-	redirectURL = oidc.getRedirectURL(redirectURL)
 	if err != nil {
 		ssoLogger.Warnf("SSO callback: invalid CSRF cookie from %s: %s", r.RemoteAddr, err)
 		setSSONoCacheHeaders(w)
@@ -414,6 +413,7 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 		WriteSSOErrorPage(w, "Invalid CSRF Cookie", "", getPathWithPrefix("/"))
 		return
 	}
+	redirectURL = oidc.getRedirectURL(redirectURL)
 
 	// Verify the state parameter matches the value we sent — this binds the
 	// callback to the specific authorization request (CSRF protection).
