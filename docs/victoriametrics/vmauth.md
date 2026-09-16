@@ -668,13 +668,13 @@ The following config example demonstrates SSO:
 
 ```yaml
 sso:
-  - src_host: 'sso\\.example\\.com'
+  - src_host: 'sso\.example\.com'
     oidc:
       issuer: 'http://identity-provider.com/realms/master'
       client_id: 'sso.example.com'
       client_secret: 'theClientSecret'
       scopes: ['openid', 'profile', 'email']
-      cookie_secret: 'theCookieSecret'
+      cookie_secret: 'theCookieSecret1234567890'
       # set false only for testing purposes
       #cookie_secure: false
 
@@ -690,7 +690,7 @@ users:
       - src_paths:
           - "/.*"
         src_hosts:
-          - "sso\\.example\\.com"
+          - "sso\.example\.com"
         url_prefix: "http://vmsingle:8428?extra_label={{.MetricsExtraLabels}}"
 ```
 
