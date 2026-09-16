@@ -166,12 +166,12 @@ func (c *ssoOIDCConfig) getRedirectURL(redirect string) string {
 	// Copy-pated from oauth2-proxy
 	// https://github.com/oauth2-proxy/oauth2-proxy/blob/6420aae79003dfb47885018856dd524342367dfc/pkg/app/redirect/validator.go#L47
 	if strings.HasPrefix(redirect, "/") && !strings.HasPrefix(redirect, "//") && !invalidRedirectRegex.MatchString(redirect) {
-		return getPathWithPrefix(redirect)
+		return redirect
 	}
 	if c.DefaultRedirectURL != "" {
-		return getPathWithPrefix(c.DefaultRedirectURL)
+		return c.DefaultRedirectURL
 	}
-	return getPathWithPrefix("/")
+	return "/"
 }
 
 // getSSOConfigForHost returns the SSO host config for the given request host, or nil.
@@ -294,7 +294,7 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 	if pm == nil {
 		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusServiceUnavailable)
-		WriteSSOErrorPage(w, "Identity Provider is not available, try again later", "", redirectURL)
+		WriteSSOErrorPage(w, "Identity Provider is not available, try again later", "", getPathWithPrefix(redirectURL))
 		return true
 	}
 
@@ -305,7 +305,7 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 		ssoLogger.Errorf("generate nonce failed: %s", err)
 		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusInternalServerError)
-		WriteSSOErrorPage(w, "Internal Server Error", "", redirectURL)
+		WriteSSOErrorPage(w, "Internal Server Error", "", getPathWithPrefix(redirectURL))
 		return true
 	}
 
@@ -317,7 +317,7 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 		ssoLogger.Errorf("generate state failed: %s", err)
 		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusInternalServerError)
-		WriteSSOErrorPage(w, "Internal Server Error", "", redirectURL)
+		WriteSSOErrorPage(w, "Internal Server Error", "", getPathWithPrefix(redirectURL))
 		return true
 	}
 
@@ -417,7 +417,7 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 		ssoLogger.Warnf("SSO callback: state mismatch from %s", r.RemoteAddr)
 		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusBadRequest)
-		WriteSSOErrorPage(w, "Invalid state parameter", "", redirectURL)
+		WriteSSOErrorPage(w, "Invalid state parameter", "", getPathWithPrefix(redirectURL))
 		return
 	}
 
@@ -428,7 +428,7 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 		ssoLogger.Warnf("SSO callback: IdP returned error %q (%s) for %s", errCode, errDescription, r.RemoteAddr)
 		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusUnauthorized)
-		WriteSSOErrorPage(w, errCode, errDescription, redirectURL)
+		WriteSSOErrorPage(w, errCode, errDescription, getPathWithPrefix(redirectURL))
 		return
 	}
 
@@ -436,7 +436,7 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 	if code == "" {
 		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusBadRequest)
-		WriteSSOErrorPage(w, "Missing code parameter", "", redirectURL)
+		WriteSSOErrorPage(w, "Missing code parameter", "", getPathWithPrefix(redirectURL))
 		return
 	}
 
@@ -445,7 +445,7 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 		ssoLogger.Warnf("SSO callback: token exchange failed: %s", err)
 		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusBadRequest)
-		WriteSSOErrorPage(w, "Token exchange failed", "", redirectURL)
+		WriteSSOErrorPage(w, "Token exchange failed", "", getPathWithPrefix(redirectURL))
 		return
 	}
 
@@ -459,7 +459,7 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 		ssoLogger.Warnf("SSO callback: id_token verification failed from %s: %s", r.RemoteAddr, err)
 		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusUnauthorized)
-		WriteSSOErrorPage(w, "Token verification failed", "", redirectURL)
+		WriteSSOErrorPage(w, "Token verification failed", "", getPathWithPrefix(redirectURL))
 		return
 	}
 
@@ -473,7 +473,7 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   int(oidc.getSessionDuration(expiresAt).Seconds()),
 	})
 
-	http.Redirect(w, r, redirectURL, http.StatusFound)
+	http.Redirect(w, r, getPathWithPrefix(redirectURL), http.StatusFound)
 }
 
 // validateIDToken parses and validates the id_token JWT:
