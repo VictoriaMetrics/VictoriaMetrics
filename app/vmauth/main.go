@@ -171,9 +171,6 @@ func internalRequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		procutil.SelfSIGHUP()
 		w.WriteHeader(http.StatusOK)
 		return true
-	case "/_vmauth/sso/callback":
-		processSSOCallback(w, r)
-		return true
 	}
 	return false
 }
@@ -186,6 +183,11 @@ func requestHandlerWithInternalRoutes(w http.ResponseWriter, r *http.Request) bo
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
+	if r.URL.Path == "/_vmauth/sso/callback" {
+		processSSOCallback(w, r)
+		return true
+	}
+
 	ats := getAuthTokensFromRequest(r)
 	if len(ats) == 0 {
 		if processSSOLogin(w, r) {
