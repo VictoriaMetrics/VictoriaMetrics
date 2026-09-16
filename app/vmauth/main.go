@@ -126,6 +126,9 @@ func main() {
 		rh = requestHandler
 	}
 
+	// Register paths which could be protected by their own -*AuthKey flag.
+	httpserver.RegisterAuthKeyProtectedPathsFunc(isAuthKeyProtectedPath)
+
 	go httpserver.Serve(listenAddrs, rh, httpserver.ServeOptions{
 		UseProxyProtocol: useProxyProtocol,
 		// built-in routes will be exposed at *httpInternalListenAddr
@@ -150,6 +153,12 @@ func main() {
 	logger.Infof("successfully shut down the webservice in %.3f seconds", time.Since(startTime).Seconds())
 	stopAuthConfig()
 	logger.Infof("successfully stopped vmauth in %.3f seconds", time.Since(startTime).Seconds())
+}
+
+// isAuthKeyProtectedPath returns true for paths, which verify -reloadAuthKey
+// on their own at internalRequestHandler().
+func isAuthKeyProtectedPath(r *http.Request) bool {
+	return r.URL.Path == "/-/reload"
 }
 
 func internalRequestHandler(w http.ResponseWriter, r *http.Request) bool {
@@ -202,6 +211,11 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		if tkn.HasVMAccessClaim() || ui.JWT.DefaultVMAccessClaim != nil {
 			processUserRequest(w, r, ui, tkn)
 			return true
+		}
+		if *logInvalidAuthTokens {
+			logger.Infof("jwt token for user %q has no `vm_access` claim and `default_vm_access_claim` is not configured; "+
+				"add `vm_access` claim to the jwt token or set `default_vm_access_claim` in vmauth config; "+
+				"see https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-based-request-templating", ui.name())
 		}
 	}
 

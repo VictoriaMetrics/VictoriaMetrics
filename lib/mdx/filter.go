@@ -192,9 +192,9 @@ func (ctx *Ctx) prepare(labels []prompb.Label, filterByLabelName, label string) 
 			switch l.Value {
 			case vmAppVersionMetricName:
 				ctx.hasVMAppVersionLabel = true
-			case `cardinality_estimate`:
+			case `cardinality_estimate`, `cardinality_churn_ratio`:
 				// vmestimator is part of VictoriaMetrics offering so its metrics should pass through mdx filter.
-				// But, vmestimator exposes not only its operational metric at /metrics but cardinality estimates.
+				// But, vmestimator exposes not only its operational metric at /metrics but cardinality estimates\churn.
 				// Later should be filtered out.
 				//
 				// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11501
