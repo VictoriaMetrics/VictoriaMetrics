@@ -84,8 +84,8 @@ func (c *ssoConfig) validate() error {
 }
 
 // validateSSOConfigs checks that all required fields are present in SSO configs.
-func validateSSOConfigs(sso []*ssoConfig) error {
-	for i, sso := range sso {
+func validateSSOConfigs(cfgs []*ssoConfig) error {
+	for i, sso := range cfgs {
 		if err := sso.validate(); err != nil {
 			return fmt.Errorf("sso.%d: %w", i, err)
 		}
@@ -167,7 +167,7 @@ var (
 // getRedirectURL sanitizes the redirect URL to prevent open redirect attacks.
 // Returns DefaultRedirectURL (or "/") if the URL is not a safe relative path.
 func (c *ssoOIDCConfig) getRedirectURL(redirect string) string {
-	// Copy-pated from oauth2-proxy
+	// Copy-pasted from oauth2-proxy
 	// https://github.com/oauth2-proxy/oauth2-proxy/blob/6420aae79003dfb47885018856dd524342367dfc/pkg/app/redirect/validator.go#L47
 	if strings.HasPrefix(redirect, "/") && !strings.HasPrefix(redirect, "//") && !invalidRedirectRegex.MatchString(redirect) {
 		return redirect
@@ -566,7 +566,7 @@ func exchangeCodeForIDToken(ctx context.Context, tokenEndpoint string, oidc *sso
 	return tr.IDToken, nil
 }
 
-// ssoAuthTokenFromRequest extracts the SSO session cookie and returns it as
+// getSSOAuthTokensFromRequest extracts the SSO session cookie and returns it as
 // a Bearer auth token string compatible with the existing JWT pipeline.
 func getSSOAuthTokensFromRequest(r *http.Request) []string {
 	ac := authConfig.Load()
