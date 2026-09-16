@@ -284,14 +284,9 @@ To enable MDX, set `-remoteWrite.mdx.enable=true` for the target URL and `-remot
 ./vmagent \
   -remoteWrite.url=http://service-to-keep-all-metrics:8428/api/v1/write \
   -remoteWrite.mdx.enable=false \
-  -remoteWrite.disableMetadata=false \
   -remoteWrite.url=http://service-to-keep-only-vm-metrics:8428/api/v1/write \
-  -remoteWrite.mdx.enable=true \
-  -remoteWrite.disableMetadata=true
+  -remoteWrite.mdx.enable=true
 ```
-
-> Recommendation: Set `-remoteWrite.disableMetadata=true` for MDX remote writes to save resource usage. Otherwise, `vmagent` sends [metrics metadata](https://docs.victoriametrics.com/victoriametrics/vmagent/#metric-metadata) from all scraped targets to the MDX destination.
-
 When MDX is enabled for a `-remoteWrite.url`, `vmagent` forwards only metrics that:
 - come from the target that exposes the `vm_app_version` metric (emitted by all VictoriaMetrics components)
 - contain the `victoriametrics_app=true` label, which will be added automatically to the metrics if the instance was deployed via [VictoriaMetrics Operator](https://docs.victoriametrics.com/operator/).
@@ -304,7 +299,6 @@ When MDX is enabled for a `-remoteWrite.url`, `vmagent` forwards only metrics th
 ./vmagent \
   -remoteWrite.url=http://service-to-keep-only-vm-metrics:8428/api/v1/write \
   -remoteWrite.mdx.enable=true \
-  -remoteWrite.disableMetadata=true \
   -mdx.label="service=victoriametrics"
 ```
 In this configuration, metrics with the label `service=victoriametrics` are preserved even if their scrape targets do not expose `vm_app_version` metric.
@@ -312,6 +306,9 @@ In this configuration, metrics with the label `service=victoriametrics` are pres
 The number of VictoriaMetrics metrics preserved by MDX is exposed as `vmagent_remotewrite_mdx_rows_preserved_total`.
 
 The scope of MDX is at the per-url level, so it works after global level mechanisms, such as stream aggregation, relabeling, complexity limiter, and cardinality limiter. See [Life of a sample](https://docs.victoriametrics.com/victoriametrics/vmagent/#life-of-a-sample).
+
+`vmagent` disables [metrics metadata](https://docs.victoriametrics.com/victoriametrics/vmagent/#metric-metadata) sending for MDX remote write URL,
+because VictoriaMetrics services don't expose metadata, and metadata isn't filtered by MDX and may include entries for non-VictoriaMetrics metrics.
 
 ### Life of a sample
 
@@ -869,6 +866,8 @@ However, if the `/insert/multitenant/<suffix>` endpoint is used, vmagent preserv
 
 Use `-remoteWrite.disableMetadata`{{% available_from "v1.140.0" %}} to fully disable sending metadata from vmagent.
 This reduces network traffic and resource usage when metadata is not required.
+Metadata sending is disabled by default for `-remoteWrite.url` destinations with [MDX](https://docs.victoriametrics.com/victoriametrics/vmagent/#monitoring-data-exchange) enabled,
+even when the corresponding `-remoteWrite.disableMetadata=false` value is set explicitly.
 
 ## Stream parsing mode
 

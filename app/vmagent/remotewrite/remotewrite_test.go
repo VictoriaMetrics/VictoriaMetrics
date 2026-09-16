@@ -12,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/consistenthash"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/persistentqueue"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prommetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
@@ -375,4 +376,37 @@ func TestCalculateHealthyRwctxIdx(t *testing.T) {
 	f(5, []int{4}, []int{0, 1, 2, 3})
 	f(1, []int{0}, nil)
 	f(1, []int{}, []int{0})
+}
+
+func TestIsMetadataEnabledForURL(t *testing.T) {
+	oldEnableMetadata := prommetadata.SetEnabled(true)
+	defer prommetadata.SetEnabled(oldEnableMetadata)
+
+	oldDisableMetadataPerURL := append([]bool(nil), (*disableMetadataPerURL)...)
+	oldEnableMdx := append([]bool(nil), (*enableMdx)...)
+	defer func() {
+		*disableMetadataPerURL = oldDisableMetadataPerURL
+		*enableMdx = oldEnableMdx
+	}()
+
+	f := func(name string, disableMetadataValues, enableMdxValues []bool, globalEnableMetadata bool, expected []bool) {
+		t.Helper()
+		*disableMetadataPerURL = append((*disableMetadataPerURL)[:0], disableMetadataValues...)
+		*enableMdx = append((*enableMdx)[:0], enableMdxValues...)
+		prommetadata.SetEnabled(globalEnableMetadata)
+
+		for argIdx, expectedValue := range expected {
+			if got := isMetadataEnabledForURL(argIdx); got != expectedValue {
+				t.Fatalf("%s: unexpected metadata enabled value for argIdx=%d; got %v; want %v", name, argIdx, got, expectedValue)
+			}
+		}
+	}
+
+	f("enable metadata globally", nil, nil, true, []bool{true, true})
+	f("disable metadata globally", nil, nil, false, []bool{false, false})
+	f("explicitly disable metadata for all URLs", []bool{true}, nil, true, []bool{false, false})
+	f("explicitly disable metadata for matching URL", []bool{false, true}, nil, true, []bool{true, false})
+	f("disable metadata for mdx URL", nil, []bool{true}, true, []bool{false, false})
+	f("enable metadata for all mdx URL", []bool{false}, []bool{true}, true, []bool{false, false})
+	f("enable metadata for matching mdx URL", nil, []bool{false, true}, true, []bool{true, false})
 }
