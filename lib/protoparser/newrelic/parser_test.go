@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"unsafe"
 )
 
 func TestRowsUnmarshalFailure(t *testing.T) {
@@ -60,11 +61,9 @@ func TestRowsUnmarshalWithCallback(t *testing.T) {
 
 func TestRowsUnmarshalWithCallbackCountsRowOverhead(t *testing.T) {
 	request := `[{"Events":[{"a":1},{"a":1},{"a":1},{"a":1},{"a":1}]}]`
-	rowSize := (&Row{
-		Samples: []Sample{{
-			Name: []byte("a"),
-		}},
-	}).sizeBytes()
+	// Calculate the expected row size independently of Row.sizeBytes,
+	// so the test fails if struct overhead isn't counted.
+	rowSize := int(unsafe.Sizeof(Row{})+unsafe.Sizeof(Sample{})) + len("a")
 
 	var r Rows
 	var batchSizes []int
