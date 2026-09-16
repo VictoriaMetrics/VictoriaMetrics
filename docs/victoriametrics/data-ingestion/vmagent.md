@@ -65,7 +65,7 @@ The main advantage of this mode compared to writing through `vminsert` is failur
 becomes unavailable. In this setup, `vmagent` will buffer data for the unavailable `vmstorage` node in its
 [persistent queue](https://docs.victoriametrics.com/victoriametrics/vmagent/#on-disk-persistence) instead of re-routing
 the data to other available `vmstorage` nodes. This trades some data freshness for lower risk of immediate write errors
-or additional pressure on the remaining storage nodes that is caused by re-routing. The tradeoff can be useful for heavily loaded clusters, where
+and additional pressure on the remaining storage nodes that is caused by re-routing. The tradeoff can be useful for heavily loaded clusters, where
 re-routing writes from unavailable or overloaded `vmstorage` nodes may trigger the re-routing storm and overload the
 remaining nodes.
 

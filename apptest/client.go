@@ -130,7 +130,8 @@ func getClusterPath(addr, prefix, suffix string, o QueryOpts) string {
 
 // getSingleOrMultitenantInsertPath returns URL path for writes.
 // If tenant is set in QueryOpts, it returns cluster-like path for ingestion.
-// If tenant is empty, it returns single-node path.
+// If tenant is empty but AccountID/ProjectID headers are set, it returns the multitenant path.
+// Otherwise, it returns single-node path.
 func getSingleOrMultitenantInsertPath(addr, suffix string, o QueryOpts) string {
 	if o.Tenant != "" {
 		// QueryOpts.Tenant has priority over headers.

@@ -30,7 +30,7 @@ var (
 	rowsPerInsert      = metrics.NewHistogram(`vm_rows_per_insert{type="promremotewrite"}`)
 	metadataInserted   = metrics.NewCounter(`vm_metadata_rows_inserted_total{type="promremotewrite"}`)
 
-	sortLabels = flag.Bool("sortLabels", false, `Whether to sort labels for incoming samples before writing them to storage. `+
+	sortLabels = flag.Bool("sortLabels", false, `Whether to sort labels for samples ingested via vmstorage ingestion APIs when -enableIngestionAPI is enabled. `+
 		`This may be needed for reducing memory usage at storage when the order of labels in incoming samples is random. `+
 		`For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}. `+
 		`Enabled sorting for labels can slow down ingestion performance a bit`)
