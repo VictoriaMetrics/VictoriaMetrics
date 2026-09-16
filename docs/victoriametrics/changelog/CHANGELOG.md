@@ -28,6 +28,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 * FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): log informative message when a JWT token has no `vm_access` claim and `default_vm_access_claim` is not configured, if `-logInvalidAuthTokens` is enabled. See [JWT claim-based request templating](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-based-request-templating) or [#11579](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11579).
 
+* BUGFIX: [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/): serially push samples to [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/) jobs. This helps reduce CPU overhead. [11f488d8ff](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/11f488d8ff) introduced parallel processing for this stage, which introduced extra CPU overhead while only providing negligible sample lag reduction. See [#9878](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9878#issuecomment-5692311649).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): disable metrics metadata sending for [MDX](https://docs.victoriametrics.com/victoriametrics/vmagent/#monitoring-data-exchange) remote write destinations. See [#11572](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11572).
 
 ## [v1.152.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.152.0)
