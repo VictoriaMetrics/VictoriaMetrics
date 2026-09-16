@@ -1601,10 +1601,11 @@ To enable TLS on the public listener while keeping the internal listener non-TLS
     ```yaml
     users:
     - jwt:
+        oidc:
+          issuer: "https://accounts.example.com"
         match_claims:
-          iss: 'theIssuerURL'
-          aud: 'theClientID'
-        url_prefix: "http://127.0.0.1:9999/"
+          aud: "theClientID"
+      url_prefix: "http://127.0.0.1:9999/"
     ```
 
 1. When `vmauth` routes [multitenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenant-reads) requests, you must explicitly set `extra_label`, `extra_filters`, and `extra_filters[]` in `url_prefix`. Without this, a client can supply its own `extra_filters` or `extra_filters[]` values and bypass the tenant restriction set via `extra_label`, because `vmselect` combines these filters with `OR` logic.
