@@ -27,6 +27,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 ## tip
 
 * FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): log informative message when a JWT token has no `vm_access` claim and `default_vm_access_claim` is not configured, if `-logInvalidAuthTokens` is enabled. See [JWT claim-based request templating](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-based-request-templating) or [#11579](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11579).
+* FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): add support for opt-in [fadvise(FADV_RANDOM)](https://man7.org/linux/man-pages/man2/posix_fadvise.2.html) and [madvise(MADV_RANDOM)](https://man7.org/linux/man-pages/man2/madvise.2.html) hints to reduce the amount of data read from disk during queries, especially on systems with high [read_ahead_kb](https://docs.kernel.org/admin-guide/abi-stable.html) settings. Enable these hints with the `-fs.disableAdviseRandomRead=false` command-line flag. See [#11461](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11461).
 
 ## [v1.152.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.152.0)
 
