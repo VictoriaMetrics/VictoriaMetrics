@@ -37,22 +37,29 @@ func parseData(data []byte, callback func(rows []newrelic.Row) error) error {
 	rows := getRows()
 	defer putRows(rows)
 
-	if err := rows.Unmarshal(data); err != nil {
+	currentTimestamp := int64(fasttime.UnixTimestamp()) * 1e3
+	var callbackErr error
+	err := rows.UnmarshalWithCallback(data, func(rows []newrelic.Row) error {
+		// Fill in missing timestamps.
+		for i := range rows {
+			r := &rows[i]
+			if r.Timestamp == 0 {
+				r.Timestamp = currentTimestamp
+			}
+		}
+
+		if err := callback(rows); err != nil {
+			callbackErr = fmt.Errorf("error when processing imported data: %w", err)
+			return callbackErr
+		}
+		return nil
+	})
+	if callbackErr != nil {
+		return callbackErr
+	}
+	if err != nil {
 		unmarshalErrors.Inc()
 		return fmt.Errorf("cannot unmarshal NewRelic request: %w", err)
-	}
-
-	// Fill in missing timestamps
-	currentTimestamp := int64(fasttime.UnixTimestamp())
-	for i := range rows.Rows {
-		r := &rows.Rows[i]
-		if r.Timestamp == 0 {
-			r.Timestamp = currentTimestamp * 1e3
-		}
-	}
-
-	if err := callback(rows.Rows); err != nil {
-		return fmt.Errorf("error when processing imported data: %w", err)
 	}
 	return nil
 }

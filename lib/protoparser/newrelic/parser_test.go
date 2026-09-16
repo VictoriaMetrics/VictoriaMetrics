@@ -26,6 +26,96 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 	f(`{"foo":123}`)
 }
 
+func TestRowsUnmarshalWithCallback(t *testing.T) {
+	request := `[{"Events":[
+		{"tag":"12345"},
+		{"tag":"67890"},
+		{"tag":"abcde"}
+	]}]`
+
+	var r Rows
+	var batches []string
+	callback := func(rows []Row) error {
+		batches = append(batches, rowsToString(rows))
+		return nil
+	}
+	rowSize := (&Row{
+		Tags: []Tag{{
+			Key:   []byte("tag"),
+			Value: []byte("12345"),
+		}},
+	}).sizeBytes()
+	if err := r.unmarshal([]byte(request), rowSize, callback); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	expectedBatches := []string{
+		"tags={tag=\"12345\"}, samples=, timestamp=0\ntags={tag=\"67890\"}, samples=, timestamp=0",
+		"tags={tag=\"abcde\"}, samples=, timestamp=0",
+	}
+	if !reflect.DeepEqual(batches, expectedBatches) {
+		t.Fatalf("unexpected batches\ngot\n%q\nwant\n%q", batches, expectedBatches)
+	}
+}
+
+func TestRowsUnmarshalWithCallbackCountsRowOverhead(t *testing.T) {
+	request := `[{"Events":[{"a":1},{"a":1},{"a":1},{"a":1},{"a":1}]}]`
+	rowSize := (&Row{
+		Samples: []Sample{{
+			Name: []byte("a"),
+		}},
+	}).sizeBytes()
+
+	var r Rows
+	var batchSizes []int
+	if err := r.unmarshal([]byte(request), 2*rowSize, func(rows []Row) error {
+		batchSizes = append(batchSizes, len(rows))
+		return nil
+	}); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	expectedBatchSizes := []int{3, 2}
+	if !reflect.DeepEqual(batchSizes, expectedBatchSizes) {
+		t.Fatalf("unexpected batch sizes; got %v; want %v", batchSizes, expectedBatchSizes)
+	}
+}
+
+func TestRowsUnmarshalWithCallbackEmptyRequest(t *testing.T) {
+	var r Rows
+	callbacks := 0
+	if err := r.UnmarshalWithCallback([]byte("[]"), func(rows []Row) error {
+		callbacks++
+		if len(rows) != 0 {
+			t.Fatalf("unexpected non-empty rows: %v", rows)
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	if callbacks != 1 {
+		t.Fatalf("unexpected number of callback calls; got %d; want 1", callbacks)
+	}
+}
+
+func TestRowsUnmarshalWithCallbackError(t *testing.T) {
+	errCallback := fmt.Errorf("callback error")
+	request := `[{"Events":[{"tag":"12345"},{"tag":"67890"},{"tag":"abcde"}]}]`
+
+	var r Rows
+	callbacks := 0
+	err := r.unmarshal([]byte(request), 1, func(_ []Row) error {
+		callbacks++
+		return errCallback
+	})
+	if err != errCallback {
+		t.Fatalf("unexpected error; got %v; want %v", err, errCallback)
+	}
+	if callbacks != 1 {
+		t.Fatalf("unexpected number of callback calls; got %d; want 1", callbacks)
+	}
+}
+
 func TestRowsUnmarshalSuccess(t *testing.T) {
 	f := func(data string, expectedRows []Row) {
 		t.Helper()
