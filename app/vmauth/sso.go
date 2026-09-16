@@ -371,14 +371,14 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 	if oidc == nil {
 		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusUnauthorized)
-		WriteSSOErrorPage(w, "SSO not configured for this host", ``, "/")
+		WriteSSOErrorPage(w, "SSO not configured for this host", ``, getPathWithPrefix("/"))
 		return
 	}
 	pm := oidc.pm.Load()
 	if pm == nil {
 		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusServiceUnavailable)
-		WriteSSOErrorPage(w, "Identity Provider is not available, try again later", "", "/")
+		WriteSSOErrorPage(w, "Identity Provider is not available, try again later", "", getPathWithPrefix("/"))
 		return
 	}
 
@@ -388,7 +388,7 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusBadRequest)
-		WriteSSOErrorPage(w, "Missing CSRF Cookie", "", "/")
+		WriteSSOErrorPage(w, "Missing CSRF Cookie", "", getPathWithPrefix("/"))
 		return
 	}
 	// Clear the CSRF cookie immediately so it cannot be replayed.
@@ -407,7 +407,7 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 		ssoLogger.Warnf("SSO callback: invalid CSRF cookie from %s: %s", r.RemoteAddr, err)
 		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusBadRequest)
-		WriteSSOErrorPage(w, "Invalid CSRF Cookie", "", "/")
+		WriteSSOErrorPage(w, "Invalid CSRF Cookie", "", getPathWithPrefix("/"))
 		return
 	}
 
