@@ -23,7 +23,7 @@ var SDCheckInterval = flag.Duration("promscrape.azureSDCheckInterval", 60*time.S
 type SDConfig struct {
 	Environment string `yaml:"environment,omitempty"`
 
-	// AuthenticationMethod can be either Oauth or ManagedIdentity.
+	// AuthenticationMethod can be OAuth, ManagedIdentity, WorkloadIdentity or SDK.
 	// See https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/overview
 	AuthenticationMethod string `yaml:"authentication_method,omitempty"`
 
