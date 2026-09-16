@@ -46,6 +46,13 @@ func (c *ssoConfig) validate() error {
 	if oidc.Issuer == "" {
 		res = errors.Join(res, fmt.Errorf("openid_connect.issuer is required"))
 	}
+	isserURL, err := url.Parse(oidc.Issuer)
+	if err != nil {
+		res = errors.Join(res, fmt.Errorf("openid_connect.issuer must be a valid URL"))
+	}
+	if isserURL.Scheme != "https" && isserURL.Scheme != "http" {
+		res = errors.Join(res, fmt.Errorf("openid_connect.issuer must have http or https scheme"))
+	}
 	if oidc.ClientID == "" {
 		res = errors.Join(res, fmt.Errorf("openid_connect.client_id is required"))
 	}
