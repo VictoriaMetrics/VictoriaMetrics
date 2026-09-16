@@ -391,6 +391,13 @@ func TestMdxInstanceFilter(t *testing.T) {
 				{Name: "job", Value: "vmestimator-test"},
 			},
 		},
+		{
+			Labels: []prompb.Label{
+				{Name: "__name__", Value: "cardinality_churn_ratio"},
+				{Name: "instance", Value: "vmestimator:8490"},
+				{Name: "job", Value: "vmestimator-test"},
+			},
+		},
 	},
 		[]prompb.TimeSeries{
 			{

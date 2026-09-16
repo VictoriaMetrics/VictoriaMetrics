@@ -249,6 +249,9 @@ func main() {
 	if len(listenAddrs) == 0 {
 		listenAddrs = []string{":8482"}
 	}
+	// Register paths which could be protected by their own -*AuthKey flag.
+	httpserver.RegisterAuthKeyProtectedPathsFunc(isAuthKeyProtectedPath)
+
 	go httpserver.Serve(listenAddrs, vmStorage.requestHandler, httpserver.ServeOptions{UseProxyProtocol: useProxyProtocol})
 
 	pushmetrics.Init()
@@ -282,6 +285,18 @@ func main() {
 	fs.MustStopDirRemover()
 	appmetrics.MustRemoveUncleanShutdownMarker(*storageDataPath)
 	logger.Infof("the vmstorage has been stopped")
+}
+
+// isAuthKeyProtectedPath returns true for paths, which verify -forceMergeAuthKey, -forceFlushAuthKey,
+// -logNewSeriesAuthKey or -snapshotAuthKey on their own at requestHandler().
+func isAuthKeyProtectedPath(r *http.Request) bool {
+	switch r.URL.Path {
+	case "/internal/force_merge", "/internal/force_flush", "/internal/log_new_series",
+		"/snapshot/create", "/snapshot/list", "/snapshot/delete", "/snapshot/delete_all":
+		return true
+	default:
+		return false
+	}
 }
 
 // requestHandler is a storage request handler.
@@ -598,7 +613,6 @@ func (vms *VMStorage) writeStorageMetrics(w io.Writer) {
 	metrics.WriteGaugeUint64(w, `vm_rows{type="indexdb/file"}`, idbm.FileItemsCount)
 
 	metrics.WriteCounterUint64(w, `vm_date_range_search_calls_total`, idbm.DateRangeSearchCalls)
-	metrics.WriteCounterUint64(w, `vm_date_range_hits_total`, idbm.DateRangeSearchHits)
 	metrics.WriteCounterUint64(w, `vm_global_search_calls_total`, idbm.GlobalSearchCalls)
 
 	metrics.WriteCounterUint64(w, `vm_missing_metric_names_for_metric_id_total`, idbm.MissingMetricNamesForMetricID)

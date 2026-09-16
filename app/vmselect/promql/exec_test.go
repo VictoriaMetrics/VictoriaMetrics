@@ -10648,6 +10648,9 @@ func TestExecError(t *testing.T) {
 	f(`bitmap_xor()`)
 	f(`quantiles()`)
 	f(`limit_offset()`)
+	// Negative limit/offset must return an error, not panic.
+	f(`limit_offset(-1, 1, time())`)
+	f(`limit_offset(1, -1, time())`)
 	f(`increase()`)
 	f(`increase_prometheus()`)
 	f(`changes()`)
