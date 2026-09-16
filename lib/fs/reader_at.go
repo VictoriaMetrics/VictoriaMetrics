@@ -151,6 +151,9 @@ func (r *ReaderAt) MustFadviseSequentialRead(prefetch bool) {
 	if err := fadviseSequentialRead(mr.f, prefetch); err != nil {
 		logger.Panicf("FATAL: error in fadviseSequentialRead(%q, %v): %s", r.path, prefetch, err)
 	}
+	if err := madviseSequentialRead(mr.mmapData, prefetch); err != nil {
+		logger.Panicf("FATAL: error in madviseSequentialRead(%q, %v): %s", r.path, prefetch, err)
+	}
 }
 
 // MustOpenReaderAt opens ReaderAt for reading from the file located at path.
