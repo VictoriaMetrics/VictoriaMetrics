@@ -457,8 +457,10 @@ users:
 		if r.URL.Path == "/.well-known/openid-configuration" {
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(map[string]string{
-				"issuer":   ipSrv.URL,
-				"jwks_uri": fmt.Sprintf("%s/jwks", ipSrv.URL),
+				"issuer":                 ipSrv.URL,
+				"jwks_uri":               ipSrv.URL + "/jwks",
+				"authorization_endpoint": ipSrv.URL + "/authorization",
+				"token_endpoint":         ipSrv.URL + "/token",
 			})
 			return
 		}

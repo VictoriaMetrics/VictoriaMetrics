@@ -1567,8 +1567,10 @@ func TestOIDCRequestHandler(t *testing.T) {
 		case "/.well-known/openid-configuration":
 			w.Header().Set("Content-Type", "application/json")
 			if err := json.NewEncoder(w).Encode(map[string]string{
-				"issuer":   oidcSrv.URL,
-				"jwks_uri": oidcSrv.URL + "/jwks",
+				"issuer":                 oidcSrv.URL,
+				"jwks_uri":               oidcSrv.URL + "/jwks",
+				"authorization_endpoint": oidcSrv.URL + "/authorization",
+				"token_endpoint":         oidcSrv.URL + "/token",
 			}); err != nil {
 				panic(fmt.Errorf("cannot write openid-configuration response: %w", err))
 			}

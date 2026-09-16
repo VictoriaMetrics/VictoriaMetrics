@@ -221,5 +221,22 @@ func getOIDCProviderMetadata(ctx context.Context, issuer string) (oidcProviderMe
 		return oidcProviderMetadata{}, fmt.Errorf("failed to decode openid config from %q: %w", configURL, err)
 	}
 
+	// The fields below are all required as per
+	// https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderMetadata
+	if pm.Issuer == "" {
+		return oidcProviderMetadata{}, fmt.Errorf("fetched metadata invalid; issuer empty")
+	}
+	if pm.JWKsURI == "" {
+		return oidcProviderMetadata{}, fmt.Errorf("fetched metadata invalid; jwks_uri empty")
+	}
+
+	if pm.AuthorizationEndpoint == "" {
+		return oidcProviderMetadata{}, fmt.Errorf("fetched metadata invalid; authorization_endpoint empty")
+	}
+
+	if pm.TokenEndpoint == "" {
+		return oidcProviderMetadata{}, fmt.Errorf("fetched metadata invalid; token_endpoint empty")
+	}
+
 	return pm, nil
 }
