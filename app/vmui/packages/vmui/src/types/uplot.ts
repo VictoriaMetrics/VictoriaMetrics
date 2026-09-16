@@ -4,6 +4,7 @@ export interface SeriesItemStatsFormatted {
     min: string,
     max: string,
     median: string,
+    range: string,
     last: string,
 }
 
