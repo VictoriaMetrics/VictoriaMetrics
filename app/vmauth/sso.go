@@ -7,7 +7,6 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -30,37 +29,35 @@ type ssoConfig struct {
 }
 
 func (c *ssoConfig) validate() error {
-	var res error
-	if c == nil || *c == (ssoConfig{}) {
-		res = errors.Join(res, fmt.Errorf("empty sso config provided"))
+	if c == nil {
+		return fmt.Errorf("empty sso config provided")
 	}
 	if c.SrcHost == nil {
-		res = errors.Join(res, fmt.Errorf("src_host is required"))
+		return fmt.Errorf("src_host is required")
 	}
 	if c.OIDC == nil {
-		res = errors.Join(res, fmt.Errorf("openid_connect is required"))
-		return res
+		return fmt.Errorf("oidc is required")
 	}
 
 	oidc := c.OIDC
 	if oidc.Issuer == "" {
-		res = errors.Join(res, fmt.Errorf("openid_connect.issuer is required"))
+		return fmt.Errorf("oidc.issuer is required")
 	}
-	isserURL, err := url.Parse(oidc.Issuer)
+	issuerURL, err := url.Parse(oidc.Issuer)
 	if err != nil {
-		res = errors.Join(res, fmt.Errorf("openid_connect.issuer must be a valid URL"))
+		return fmt.Errorf("oidc.issuer must be a valid URL")
 	}
-	if isserURL.Scheme != "https" && isserURL.Scheme != "http" {
-		res = errors.Join(res, fmt.Errorf("openid_connect.issuer must have http or https scheme"))
+	if issuerURL.Scheme != "https" && issuerURL.Scheme != "http" {
+		return fmt.Errorf("oidc.issuer must have http or https scheme")
 	}
 	if oidc.ClientID == "" {
-		res = errors.Join(res, fmt.Errorf("openid_connect.client_id is required"))
+		return fmt.Errorf("oidc.client_id is required")
 	}
 	if oidc.ClientSecret == "" {
-		res = errors.Join(res, fmt.Errorf("openid_connect.client_secret is required"))
+		return fmt.Errorf("oidc.client_secret is required")
 	}
 	if len(oidc.CookieSecret) < 16 {
-		res = errors.Join(res, fmt.Errorf("openid_connect.cookie_secret must be at least 16 characters long"))
+		return fmt.Errorf("oidc.cookie_secret must be at least 16 characters long")
 	}
 
 	// openid scope MUST be present per
@@ -75,15 +72,15 @@ func (c *ssoConfig) validate() error {
 	} else {
 		d, err := time.ParseDuration(oidc.SessionDuration)
 		if err != nil {
-			res = errors.Join(res, fmt.Errorf("openid_connect.session_duration: %w", err))
-		} else if d < 0 {
-			res = errors.Join(res, fmt.Errorf("openid_connect.session_duration must not be negative"))
-		} else {
-			oidc.sessionDuration = d
+			return fmt.Errorf("oidc.session_duration: %w", err)
 		}
+		if d < 0 {
+			return fmt.Errorf("oidc.session_duration must not be negative")
+		}
+		oidc.sessionDuration = d
 	}
 
-	return res
+	return nil
 }
 
 // validateSSOConfigs checks that all required fields are present in SSO configs.
