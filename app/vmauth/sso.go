@@ -31,6 +31,9 @@ type ssoConfig struct {
 
 func (c *ssoConfig) validate() error {
 	var res error
+	if c == nil || *c == (ssoConfig{}) {
+		res = errors.Join(res, fmt.Errorf("empty sso config provided"))
+	}
 	if c.SrcHost == nil {
 		res = errors.Join(res, fmt.Errorf("src_host is required"))
 	}
