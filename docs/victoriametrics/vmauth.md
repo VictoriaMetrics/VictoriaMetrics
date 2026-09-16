@@ -1551,49 +1551,80 @@ See also [automatic issuing of TLS certificates](#automatic-issuing-of-tls-certi
 
 ## Security
 
-It is expected that all the backend services protected by `vmauth` are located in an isolated private network, so they can be accessed by external users only via `vmauth`.
+1. All backend services behind `vmauth` must be in an isolated private network, accessible to external users only through `vmauth`.
 
-Do not transfer auth headers in plaintext over untrusted networks. Enable https at `-httpListenAddr`. This can be done by passing the following `-tls*` command-line flags to `vmauth`:
+1. Never send auth headers in plaintext over untrusted networks. Enable HTTPS on `-httpListenAddr` by passing the following `-tls*` command-line flags to `vmauth`:
 
-```sh
-  -tls
-     Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set
-  -tlsCertFile string
-     Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs, since RSA certs are slow
-  -tlsKeyFile string
-     Path to file with TLS key. Used only if -tls is set
-```
+    ```sh
+      -tls
+         Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set
+      -tlsCertFile string
+         Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs, since RSA certs are slow
+      -tlsKeyFile string
+         Path to file with TLS key. Used only if -tls is set
+    ```
 
-See also [automatic issuing of TLS certificates](#automatic-issuing-of-tls-certificates).
+    See also:
+     - [automatic issuing of TLS certificates](#automatic-issuing-of-tls-certificates).
+     - [mTLS protection](#mtls-protection) on how to enable [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication) protection at `vmauth`.
+     - [TLS termination proxy](https://en.wikipedia.org/wiki/TLS_termination_proxy) may be put in front of `vmauth`.
 
-See [these docs](#mtls-protection) on how to enable [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication) protection at `vmauth`.
+1. It is recommended to protect the following endpoints with authKeys:
 
-Alternatively, [TLS termination proxy](https://en.wikipedia.org/wiki/TLS_termination_proxy) may be put in front of `vmauth`.
+    * `/-/reload` with `-reloadAuthKey` command-line flag, so external users cannot trigger config reload.
+    * `/flags` with `-flagsAuthKey` command-line flag, so unauthorized users cannot read command-line flag values.
+    * `/metrics` with `-metricsAuthKey` command-line flag, so unauthorized users cannot access [vmauth metrics](https://docs.victoriametrics.com/victoriametrics/vmauth/#monitoring).
+    * `/debug/pprof` with `-pprofAuthKey` command-line flag, so unauthorized users cannot access [profiling information](#profiling).
 
-It is recommended to protect the following endpoints with authKeys:
+1. Alternatively, serve internal API routes on a separate listen address via `-httpInternalListenAddr=127.0.0.1:8426`{{% available_from "v1.111.0" %}}.
+To enable TLS on the public listener while keeping the internal listener non-TLS, configure multiple listeners as follows:
 
-* `/-/reload` with `-reloadAuthKey` command-line flag, so external users couldn't trigger config reload.
-* `/flags` with `-flagsAuthKey` command-line flag, so unauthorized users couldn't get command-line flag values.
-* `/metrics` with `-metricsAuthKey` command-line flag, so unauthorized users couldn't access [vmauth metrics](https://docs.victoriametrics.com/victoriametrics/vmauth/#monitoring).
-* `/debug/pprof` with `-pprofAuthKey` command-line flag, so unauthorized users couldn't access [profiling information](#profiling).
+    ```
+    /path/to/vmauth -httpInternalListenAddr=,localhost:8426 -httpListenAddr=0.0.0.0:443, -tls=true,false -tlsCertFile=a-cert.crt -tlsKeyFile=a-key.key
+    ```
 
-As an alternative, you can serve internal API routes on a different listen address using the command-line flag `-httpInternalListenAddr=127.0.0.1:8426`{{% available_from "v1.111.0" %}}.
-To enable TLS on the public listener while keeping the internal listener non-TLS, configure multiple listeners like this:
-```
-/path/to/vmauth -httpInternalListenAddr=,localhost:8426 -httpListenAddr=0.0.0.0:443, -tls=true,false -tlsCertFile=a-cert.crt -tlsKeyFile=a-key.key
-```
+1. `vmauth` also supports restricting access by IP - see [these docs](#ip-filters). See also [concurrency limiting docs](#concurrency-limiting).
 
-`vmauth` also supports restricting access by IP - see [these docs](#ip-filters). See also [concurrency limiting docs](#concurrency-limiting).
+1. Authentication headers are proxied to backends by default. If this is undesirable, set an empty `Authorization` header in the `headers` section to strip it:
 
+    ```yaml
+    users:
+      - username: "tester"
+        password: "testpass"
+        url_prefix: "http://127.0.0.1:9999/"
+        headers:
+          - "Authorization:"
+    ```
 
-When `vmauth` performs tenant routing for [multitenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenant-reads) requests, it is crucial to explicitly set `extra_label`, `extra_filters` and `extra_filters[]` in the url_prefix configuration:
+1. [JWT authentication](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-token-auth-proxy) performs only basic verification (signature, `vm_access` claim). For OIDC setups, follow [ID Token Validation](https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation) best practices - in particular, verify the `aud`, `iss` claims via `match_claims`:
 
-```yaml
-unauthorized_user:
-    url_prefix: http://vmselect/select/multitenant?extra_filters[]=&extra_filters=&extra_label=vm_account_id=10&extra_label=vm_project_id=100
-```
+    ```yaml
+    users:
+    - jwt:
+        match_claims:
+          iss: 'theIssuerURL'
+          aud: 'theClientID'
+        url_prefix: "http://127.0.0.1:9999/"
+    ```
 
-This is required because `vmselect` uses `OR` logic for tenant filtering. If a client sets `extra_filters[]` or `extra_filters`, it could bypass the tenant restriction configured via `extra_label`.
+1. When `vmauth` routes [multitenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenant-reads) requests, you must explicitly set `extra_label`, `extra_filters`, and `extra_filters[]` in `url_prefix`. Without this, a client can supply its own `extra_filters` or `extra_filters[]` values and bypass the tenant restriction set via `extra_label`, because `vmselect` combines these filters with `OR` logic.
+
+    ```yaml
+    unauthorized_user:
+        url_prefix: http://vmselect/select/multitenant?extra_filters[]=&extra_filters=&extra_label=vm_account_id=10&extra_label=vm_project_id=100
+    ```
+
+1. When backends use [multitenancy via headers](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-headers), clients can set `AccountID` and `ProjectID` headers to route requests to arbitrary tenants. To prevent this, explicitly override these headers in the `headers` section so the client-supplied values are ignored:
+
+    ```yaml
+    users:
+      - username: "tenant2"
+        password: "secret"
+        url_prefix: "http://vmselect:8481/"
+        headers:
+          - "AccountID: 2"
+          - "ProjectID: 0"
+    ```
 
 ## Automatic issuing of TLS certificates
 
