@@ -866,7 +866,8 @@ However, if the `/insert/multitenant/<suffix>` endpoint is used, vmagent preserv
 
 Use `-remoteWrite.disableMetadata`{{% available_from "v1.140.0" %}} to fully disable sending metadata from vmagent.
 This reduces network traffic and resource usage when metadata is not required.
-Metadata sending is disabled by default for `-remoteWrite.url` destinations with [MDX](https://docs.victoriametrics.com/victoriametrics/vmagent/#monitoring-data-exchange) enabled,
+
+Metadata sending is always disabled for `-remoteWrite.url` destinations with [MDX](https://docs.victoriametrics.com/victoriametrics/vmagent/#monitoring-data-exchange) enabled,
 even when the corresponding `-remoteWrite.disableMetadata=false` value is set explicitly.
 
 ## Stream parsing mode

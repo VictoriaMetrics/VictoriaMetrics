@@ -406,7 +406,9 @@ func TestIsMetadataEnabledForURL(t *testing.T) {
 	f("disable metadata globally", nil, nil, false, []bool{false, false})
 	f("explicitly disable metadata for all URLs", []bool{true}, nil, true, []bool{false, false})
 	f("explicitly disable metadata for matching URL", []bool{false, true}, nil, true, []bool{true, false})
-	f("disable metadata for mdx URL", nil, []bool{true}, true, []bool{false, false})
-	f("enable metadata for all mdx URL", []bool{false}, []bool{true}, true, []bool{false, false})
-	f("enable metadata for matching mdx URL", nil, []bool{false, true}, true, []bool{true, false})
+
+	// for mdx url
+	f("metadata is disabled for mdx URL", nil, []bool{true}, true, []bool{false, false})
+	f("metadata is disabled for mdx URL and -disableMetadata=false will be ignored", []bool{false, false}, []bool{false, true}, true, []bool{true, false})
+
 }
