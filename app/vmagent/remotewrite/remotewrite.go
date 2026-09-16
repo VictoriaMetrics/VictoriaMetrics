@@ -887,8 +887,8 @@ type remoteWriteCtx struct {
 	streamAggrDropInput bool
 
 	// enableMetadata indicates whether metadata should be sent to this remote storage.
-	// It is determined by -remoteWrite.enableMetadata per-URL flag if set,
-	// otherwise by the global -enableMetadata flag.
+// It is determined by -remoteWrite.disableMetadata per-URL flag if set,
+// otherwise by the global -enableMetadata flag.
 	// It is always false for the remote storage that is configured with -remoteWrite.enableMdx=true.
 	enableMetadata bool
 
