@@ -301,9 +301,10 @@ func parseUint32(s string) uint32 {
 }
 
 func errReadOnly() error {
-	// In Prometheus remote write protocol, 400 means the request is invalid and
-	// must not be retried. vmagent follows this and drops such blocks, so report
-	// read-only storage as a retryable server-side error.
+	// In Prometheus remote write protocol, 400 means the request is invalid and must not be retried.
+	// vmagent follows the protocol and drops data blocks if it gets 400,
+	// To avoid data loss, vmstorage in read-only mode should return 503 for retrying instead of 400.
+	// See https://prometheus.io/docs/specs/prw/remote_write_spec/#retries--backoff.
 	return &httpserver.ErrorWithStatusCode{
 		Err:        storage.ErrReadOnly,
 		StatusCode: http.StatusServiceUnavailable,

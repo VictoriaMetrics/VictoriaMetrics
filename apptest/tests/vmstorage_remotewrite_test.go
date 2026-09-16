@@ -47,7 +47,7 @@ func TestClusterVmstoragePrometheusRemoteWrite(t *testing.T) {
 func TestClusterVmstoragePrometheusRemoteWriteMultitenancy(t *testing.T) {
 	_, vmstorage, vmselect := startVmstorageRemoteWriteCluster(t)
 
-	// insert data for tenant 1:2 using tenant URL with tenant in header
+	// insert data for tenant 1:2 using tenant URL.
 	vmstorage.PrometheusAPIV1Write(t, prompb.WriteRequest{
 		Timeseries: []prompb.TimeSeries{
 			{
@@ -62,7 +62,7 @@ func TestClusterVmstoragePrometheusRemoteWriteMultitenancy(t *testing.T) {
 		},
 	}, apptest.QueryOpts{Tenant: "1:2"})
 
-	// insert data for tenant 7:9 using direct URL with tenant in header
+	// insert data for tenant 7:9 using multitenancy URL with tenant in label
 	vmstorage.PrometheusAPIV1Write(t, prompb.WriteRequest{
 		Timeseries: []prompb.TimeSeries{
 			{
@@ -70,7 +70,7 @@ func TestClusterVmstoragePrometheusRemoteWriteMultitenancy(t *testing.T) {
 					{Name: "__name__", Value: "vmstorage_remote_write_multitenant"},
 					{Name: "vm_account_id", Value: "7"},
 					{Name: "vm_project_id", Value: "9"},
-					{Name: "job", Value: "tenant_header"},
+					{Name: "job", Value: "tenant_label"},
 				},
 				Samples: []prompb.Sample{
 					{Value: 9, Timestamp: 1652169600000},
@@ -99,7 +99,7 @@ func TestClusterVmstoragePrometheusRemoteWriteMultitenancy(t *testing.T) {
 		Time:   "2022-05-10T08:00:00.000Z",
 	})
 	wantQuery = apptest.NewPrometheusAPIV1QueryResponse(t,
-		`{"data":{"result":[{"metric":{"__name__":"vmstorage_remote_write_multitenant","job":"tenant_header"},"value":[1652169600,"9"]}]}}`,
+		`{"data":{"result":[{"metric":{"__name__":"vmstorage_remote_write_multitenant","job":"tenant_label"},"value":[1652169600,"9"]}]}}`,
 	)
 	if diff := cmp.Diff(wantQuery, gotQuery, cmpOpt); diff != "" {
 		t.Fatalf("unexpected /api/v1/query response for multitenant labels (-want, +got):\n%s", diff)
@@ -122,7 +122,7 @@ func TestClusterVmstoragePrometheusRemoteWriteMetadata(t *testing.T) {
 	vmstorage.PrometheusAPIV1Write(t, prompb.WriteRequest{
 		Metadata: []prompb.MetricMetadata{
 			{
-				MetricFamilyName: "vmstorage_remote_write_metadata_header",
+				MetricFamilyName: "vmstorage_remote_write_metadata_label",
 				Help:             "direct remote write metadata",
 				Type:             prompb.MetricTypeGauge,
 			},
@@ -134,7 +134,7 @@ func TestClusterVmstoragePrometheusRemoteWriteMetadata(t *testing.T) {
 	wantMetadata := &apptest.PrometheusAPIV1Metadata{
 		Status: "success",
 		Data: map[string][]apptest.MetadataEntry{
-			"vmstorage_remote_write_metadata_header": {{Help: "direct remote write metadata", Type: "gauge"}},
+			"vmstorage_remote_write_metadata_label": {{Help: "direct remote write metadata", Type: "gauge"}},
 		},
 	}
 	if diff := cmp.Diff(wantMetadata, gotMetadata); diff != "" {
@@ -178,6 +178,38 @@ func TestClusterVmstoragePrometheusRemoteWriteDisabled(t *testing.T) {
 	_, statusCode := tc.Client().Post(t, fmt.Sprintf("http://%s/insert/0:0/prometheus/api/v1/write", vmstorage.HTTPAddr()), data, headers)
 	if statusCode != http.StatusBadRequest {
 		t.Fatalf("unexpected status code: got %d; want %d when -enableIngestionAPI is disabled", statusCode, http.StatusBadRequest)
+	}
+}
+
+func TestClusterVmstoragePrometheusRemoteWriteReadOnly(t *testing.T) {
+	tc := apptest.NewTestCase(t)
+	defer tc.Stop()
+
+	vmstorage := tc.MustStartVmstorage("vmstorage", []string{
+		"-storageDataPath=" + tc.Dir() + "/vmstorage",
+		"-retentionPeriod=100y",
+		"-enableIngestionAPI",
+		"-storage.minFreeDiskSpaceBytes=1000000000000000000", // set min free disk space to a very high value to make vmstorage read-only
+	})
+
+	wr := prompb.WriteRequest{
+		Timeseries: []prompb.TimeSeries{
+			{
+				Labels: []prompb.Label{
+					{Name: "__name__", Value: "vmstorage_remote_write_read_only"},
+				},
+				Samples: []prompb.Sample{
+					{Value: 1, Timestamp: 1652169600000},
+				},
+			},
+		},
+	}
+	data := snappy.Encode(nil, wr.MarshalProtobuf(nil))
+	headers := make(http.Header)
+	headers.Set("Content-Type", "application/x-protobuf")
+	_, statusCode := tc.Client().Post(t, fmt.Sprintf("http://%s/insert/0:0/prometheus/api/v1/write", vmstorage.HTTPAddr()), data, headers)
+	if statusCode != http.StatusServiceUnavailable {
+		t.Fatalf("unexpected status code: got %d; want %d when vmstorage is read-only", statusCode, http.StatusServiceUnavailable)
 	}
 }
 
