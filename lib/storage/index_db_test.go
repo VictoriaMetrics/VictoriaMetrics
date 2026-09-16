@@ -2132,7 +2132,7 @@ func testIndexDBDeleteSeries(t *testing.T, disablePerDayIndex bool) {
 		t.Fatalf("unexpected metricIDs (-want, +got):\n%s", diff)
 	}
 
-	assertMetricNames(tfs, tr, nil)
+	assertMetricNames(tfs, tr, []string{})
 }
 
 func TestIndexDBGetTSDBStatus(t *testing.T) {
@@ -2546,4 +2546,34 @@ func TestIsSingleMetricNameFilter(t *testing.T) {
 	tfs2 = NewTagFilters(accountID, projectID)
 	add(tfs2, nil, []byte("metric"), false, false)
 	f([]*TagFilters{tfs1, tfs2}, false)
+}
+
+// searchMetricIDs searches metricIDs by tag filters within the given time
+// range.
+//
+// If the number of unique metricIDs exceeds maxMetrics limit, the method
+// returns an error.
+//
+// The method must only be used in lib/storage unit tests.
+func (db *indexDB) searchMetricIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) (*uint64set.Set, error) {
+	if tr == globalIndexTimeRange {
+		return db.searchMetricIDsByDateAndFilters(nil, globalIndexDate, tfss, maxMetrics, deadline)
+	}
+
+	all := &uint64set.Set{}
+	minDate, maxDate := tr.DateRange()
+	for date := minDate; date <= maxDate; date++ {
+		metricIDs, err := db.searchMetricIDsByDateAndFilters(nil, date, tfss, maxMetrics, deadline)
+		if err != nil {
+			return nil, err
+		}
+		// Do not use UnionMayOwn because the search result may be coming from
+		// the tfssCache and its contents must not be modified.
+		all.Union(metricIDs)
+		if all.Len() > maxMetrics {
+			return nil, errTooManyTimeseries(maxMetrics)
+		}
+	}
+
+	return all, nil
 }
