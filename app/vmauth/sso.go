@@ -28,7 +28,7 @@ type ssoConfig struct {
 	OIDC    *ssoOIDCConfig `yaml:"oidc"`
 }
 
-func (c *ssoConfig) validate() error {
+func (c *ssoConfig) normalize() error {
 	if c == nil {
 		return fmt.Errorf("empty sso config provided")
 	}
@@ -83,10 +83,10 @@ func (c *ssoConfig) validate() error {
 	return nil
 }
 
-// validateSSOConfigs checks that all required fields are present in SSO configs.
-func validateSSOConfigs(cfgs []*ssoConfig) error {
+// normalizeSSOConfigs validates and initializes all SSO configs.
+func normalizeSSOConfigs(cfgs []*ssoConfig) error {
 	for i, sso := range cfgs {
-		if err := sso.validate(); err != nil {
+		if err := sso.normalize(); err != nil {
 			return fmt.Errorf("sso.%d: %w", i, err)
 		}
 	}

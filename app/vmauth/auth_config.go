@@ -929,7 +929,7 @@ func reloadAuthConfigData(data []byte) (bool, error) {
 		return false, fmt.Errorf("failed to parse auth config: %w", err)
 	}
 
-	if err := validateSSOConfigs(ac.SSO); err != nil {
+	if err := normalizeSSOConfigs(ac.SSO); err != nil {
 		return false, fmt.Errorf("invalid SSO config: %w", err)
 	}
 
