@@ -303,10 +303,10 @@ users:
 - jwt:
     oidc:
       issuer: "https://your-identity-provider.example.com"
-  match_claims:
-    # The OIDC spec requires verifying that the `aud` claim contains the client ID.
-    # See https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation
-    aud: "theClientID"
+    match_claims:
+      # The OIDC spec requires verifying that the `aud` claim contains the client ID.
+      # See https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation
+      aud: "theClientID"
   url_prefix: "http://victoria-metrics:8428/"
 ```
 
