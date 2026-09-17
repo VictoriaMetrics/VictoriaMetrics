@@ -1380,6 +1380,15 @@ users:
       skip_status_codes: [200, 202]
 ```
 
+vmauth can print HTTP headers in access logs if `headers` param is specified {{% available_from "#" %}}. Only headers listed in `headers` param will be printed:
+```yaml
+unauthorized_user:
+  access_log:
+    headers:
+      - "AccountID"
+      - "ProjectID"
+```
+
 Access logs can be enabled or disabled per-user with [hot config reload](https://docs.victoriametrics.com/victoriametrics/vmauth/#config-reload).
 
 ## Auth config
