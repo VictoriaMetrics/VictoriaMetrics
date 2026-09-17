@@ -314,10 +314,8 @@ func (vms *VMStorage) requestHandler(w http.ResponseWriter, r *http.Request) boo
 `)
 		return true
 	}
-	if *enableIngestionAPI {
-		if vms.processIngestionAPIRequest(w, r, path) {
-			return true
-		}
+	if vms.insertRequestHandler(w, r) {
+		return true
 	}
 
 	if path == "/internal/force_merge" {
@@ -438,8 +436,11 @@ func (vms *VMStorage) requestHandler(w http.ResponseWriter, r *http.Request) boo
 	}
 }
 
-func (vms *VMStorage) processIngestionAPIRequest(w http.ResponseWriter, r *http.Request, path string) bool {
-	p, err := httpserver.ParsePathAndHeaders(path, r.Header)
+func (vms *VMStorage) insertRequestHandler(w http.ResponseWriter, r *http.Request) bool {
+	if !*enableIngestionAPI {
+		return false
+	}
+	p, err := httpserver.ParsePathAndHeaders(r.URL.Path, r.Header)
 	if err != nil || p.Prefix != "insert" {
 		return false
 	}
