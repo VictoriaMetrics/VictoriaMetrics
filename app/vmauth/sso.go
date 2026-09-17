@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/jwt"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -489,49 +488,6 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 	})
 
 	http.Redirect(w, r, getPathWithPrefix(redirectURL), http.StatusFound)
-}
-
-// validateIDToken parses and validates the id_token JWT:
-// verifies the signature using the provider's public keys, checks expiry, issuer,
-// audience (client_id), and confirms the nonce claim matches expectedNonce to prevent replay attacks.
-// Returns the token expiration time on success.
-// See https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation
-func validateIDToken(idToken string, pm *oidcProviderMetadata, clientID, expectedNonce string) (time.Time, error) {
-	tkn := getToken()
-	defer putToken(tkn)
-
-	if err := tkn.Parse(idToken, false); err != nil {
-		return time.Time{}, fmt.Errorf("cannot parse id_token: %w", err)
-	}
-
-	if err := pm.vp.Verify(tkn); err != nil {
-		return time.Time{}, fmt.Errorf("signature verification failed: %w", err)
-	}
-	if tkn.IsExpired(time.Now()) {
-		return time.Time{}, fmt.Errorf("id_token is expired")
-	}
-	if tkn.Issuer() != pm.Issuer {
-		return time.Time{}, fmt.Errorf("issuer mismatch: got %q, want %q", tkn.Issuer(), pm.Issuer)
-	}
-	// The aud claim MUST contain the client_id per OIDC Core.
-	// Verifying it prevents accepting tokens issued for a different client of the same IdP.
-	// See step 3 in
-	// https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation
-	audClaim, err := jwt.NewClaim("aud", clientID)
-	if err != nil {
-		return time.Time{}, fmt.Errorf("cannot build aud claim: %w", err)
-	}
-	if !tkn.MatchClaims([]*jwt.Claim{audClaim}) {
-		return time.Time{}, fmt.Errorf("audience mismatch: token not issued for client_id %q", clientID)
-	}
-	nonceClaim, err := jwt.NewClaim("nonce", expectedNonce)
-	if err != nil {
-		return time.Time{}, fmt.Errorf("cannot build nonce claim: %w", err)
-	}
-	if !tkn.MatchClaims([]*jwt.Claim{nonceClaim}) {
-		return time.Time{}, fmt.Errorf("nonce mismatch")
-	}
-	return tkn.ExpiresAt(), nil
 }
 
 // getSSOAuthTokensFromRequest extracts the SSO session cookie and returns it as

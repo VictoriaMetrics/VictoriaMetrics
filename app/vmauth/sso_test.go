@@ -525,6 +525,7 @@ func TestSignVerifyCSRFCookie(t *testing.T) {
 	assertPanic(t, "empty cookieSecret in verify", func() { verifyCSRFCookie(signed, "") })
 }
 
+
 func assertPanic(t *testing.T, name string, fn func()) {
 	t.Helper()
 	defer func() {
