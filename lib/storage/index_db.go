@@ -817,8 +817,8 @@ func (is *indexSearch) searchTenantsOnDate(ctx context.Context, date uint64) (ma
 	ts.Seek(kb.B)
 	for ts.NextItem() {
 		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
-			if isContextDone(ctx) {
-				return nil, ctx.Err()
+			if err := ctx.Err(); err != nil {
+				return nil, err
 			}
 		}
 		loopsPaceLimiter++
@@ -1043,8 +1043,8 @@ func (db *indexDB) searchLabelValuesByDateAndFilters(ctx context.Context, qt *qu
 	ts.Seek(prefix)
 	for len(lvs) < maxLabelValues && ts.NextItem() {
 		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
-			if isContextDone(ctx) {
-				return nil, ctx.Err()
+			if err := ctx.Err(); err != nil {
+				return nil, err
 			}
 		}
 		loopsPaceLimiter++
@@ -1092,8 +1092,8 @@ func (is *indexSearch) getLabelValuesForMetricIDs(ctx context.Context, qt *query
 	loopsPaceLimiter := 0
 	for _, metricID := range metricIDs {
 		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
-			if isContextDone(ctx) {
-				return nil, ctx.Err()
+			if err := ctx.Err(); err != nil {
+				return nil, err
 			}
 		}
 		loopsPaceLimiter++
@@ -1227,8 +1227,8 @@ func (is *indexSearch) searchTagValueSuffixesForPrefix(ctx context.Context, nsPr
 	tvss := make(map[string]struct{})
 	for len(tvss) < maxTagValueSuffixes && ts.NextItem() {
 		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
-			if isContextDone(ctx) {
-				return nil, ctx.Err()
+			if err := ctx.Err(); err != nil {
+				return nil, err
 			}
 		}
 		loopsPaceLimiter++
@@ -1434,8 +1434,8 @@ func (is *indexSearch) getSeriesCount(ctx context.Context) (uint64, error) {
 	ts.Seek(kb.B)
 	for ts.NextItem() {
 		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
-			if isContextDone(ctx) {
-				return 0, ctx.Err()
+			if err := ctx.Err(); err != nil {
+				return 0, err
 			}
 		}
 		loopsPaceLimiter++
@@ -1510,8 +1510,8 @@ func (db *indexDB) getTSDBStatus(ctx context.Context, qt *querytracer.Tracer, ac
 	ts.Seek(prefix)
 	for ts.NextItem() {
 		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
-			if isContextDone(ctx) {
-				return nil, ctx.Err()
+			if err := ctx.Err(); err != nil {
+				return nil, err
 			}
 		}
 		loopsPaceLimiter++
@@ -2045,8 +2045,8 @@ func (db *indexDB) searchTSIDsByMetricIDs(ctx context.Context, qt *querytracer.T
 	metricIDs.ForEach(func(metricIDs []uint64) bool {
 		for _, metricID := range metricIDs {
 			if paceLimiter&paceLimiterSlowIterationsMask == 0 {
-				if isContextDone(ctx) {
-					err = ctx.Err()
+				if ctxErr := ctx.Err(); ctxErr != nil {
+					err = ctxErr
 					return false
 				}
 			}
@@ -2208,8 +2208,8 @@ func (db *indexDB) searchMetricNamesByMetricIDs(ctx context.Context, qt *querytr
 	metricIDs.ForEach(func(metricIDs []uint64) bool {
 		for _, metricID := range metricIDs {
 			if paceLimiter&paceLimiterSlowIterationsMask == 0 {
-				if isContextDone(ctx) {
-					err = ctx.Err()
+				if ctxErr := ctx.Err(); ctxErr != nil {
+					err = ctxErr
 					return false
 				}
 			}
@@ -2366,8 +2366,8 @@ func (is *indexSearch) updateMetricIDsByMetricNameMatch(ctx context.Context, qt 
 	defer PutMetricName(mn)
 	for loopsPaceLimiter, metricID := range sortedMetricIDs {
 		if loopsPaceLimiter&paceLimiterSlowIterationsMask == 0 {
-			if isContextDone(ctx) {
-				return ctx.Err()
+			if err := ctx.Err(); err != nil {
+				return err
 			}
 		}
 		var ok bool
@@ -2606,8 +2606,8 @@ func (is *indexSearch) getMetricIDsForTagFilterSlow(ctx context.Context, tf *tag
 	ts.Seek(prefix)
 	for ts.NextItem() {
 		if loopsPaceLimiter&paceLimiterMediumIterationsMask == 0 {
-			if isContextDone(ctx) {
-				return loopsCount, ctx.Err()
+			if err := ctx.Err(); err != nil {
+				return loopsCount, err
 			}
 		}
 		loopsPaceLimiter++
@@ -2710,8 +2710,8 @@ func (is *indexSearch) updateMetricIDsForOrSuffix(ctx context.Context, prefix []
 	ts.Seek(prefix)
 	for metricIDs.Len() < maxMetrics && ts.NextItem() {
 		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
-			if isContextDone(ctx) {
-				return loopsCount, ctx.Err()
+			if err := ctx.Err(); err != nil {
+				return loopsCount, err
 			}
 		}
 		loopsPaceLimiter++
@@ -3246,8 +3246,8 @@ func (is *indexSearch) updateMetricIDsForPrefix(ctx context.Context, prefix []by
 	ts.Seek(prefix)
 	for ts.NextItem() {
 		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
-			if isContextDone(ctx) {
-				return ctx.Err()
+			if err := ctx.Err(); err != nil {
+				return err
 			}
 		}
 		loopsPaceLimiter++

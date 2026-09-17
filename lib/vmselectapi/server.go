@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -622,7 +623,7 @@ func (s *Server) processRegisterMetricNames(ctx *vmselectRequestCtx) error {
 	}
 	defer s.endConcurrentRequest()
 
-	rCtx, cm := newRequestContextForConn(ctx.bc, ctx.deadline)
+	rCtx, cm := withRequestContext(ctx)
 
 	// Register metric names from mrs.
 	if err := s.api.RegisterMetricNames(rCtx, ctx.qt, mrs); err != nil {
@@ -650,7 +651,7 @@ func (s *Server) processDeleteSeries(ctx *vmselectRequestCtx) error {
 	}
 	defer s.endConcurrentRequest()
 
-	rCtx, cm := newRequestContextForConn(ctx.bc, ctx.deadline)
+	rCtx, cm := withRequestContext(ctx)
 
 	// Execute the request.
 	deletedCount, err := s.api.DeleteSeries(rCtx, ctx.qt, &ctx.sq)
@@ -687,7 +688,7 @@ func (s *Server) processLabelNames(ctx *vmselectRequestCtx) error {
 	}
 	defer s.endConcurrentRequest()
 
-	rCtx, cm := newRequestContextForConn(ctx.bc, ctx.deadline)
+	rCtx, cm := withRequestContext(ctx)
 
 	// Execute the request
 	labelNames, err := s.api.LabelNames(rCtx, ctx.qt, &ctx.sq, maxLabelNames)
@@ -741,7 +742,7 @@ func (s *Server) processLabelValues(ctx *vmselectRequestCtx) error {
 	}
 	defer s.endConcurrentRequest()
 
-	rCtx, cm := newRequestContextForConn(ctx.bc, ctx.deadline)
+	rCtx, cm := withRequestContext(ctx)
 
 	// Execute the request
 	labelValues, err := s.api.LabelValues(rCtx, ctx.qt, &ctx.sq, labelName, maxLabelValues)
@@ -806,7 +807,7 @@ func (s *Server) processTagValueSuffixes(ctx *vmselectRequestCtx) error {
 	}
 	defer s.endConcurrentRequest()
 
-	rCtx, cm := newRequestContextForConn(ctx.bc, ctx.deadline)
+	rCtx, cm := withRequestContext(ctx)
 
 	// Execute the request
 	suffixes, err := s.api.TagValueSuffixes(rCtx, ctx.qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes)
@@ -847,7 +848,7 @@ func (s *Server) processSeriesCount(ctx *vmselectRequestCtx) error {
 	}
 	defer s.endConcurrentRequest()
 
-	rCtx, cm := newRequestContextForConn(ctx.bc, ctx.deadline)
+	rCtx, cm := withRequestContext(ctx)
 	// Execute the request
 	n, err := s.api.SeriesCount(rCtx, ctx.qt, accountID, projectID)
 	if err != nil {
@@ -888,7 +889,7 @@ func (s *Server) processTSDBStatus(ctx *vmselectRequestCtx) error {
 	}
 	defer s.endConcurrentRequest()
 
-	rCtx, cm := newRequestContextForConn(ctx.bc, ctx.deadline)
+	rCtx, cm := withRequestContext(ctx)
 
 	// Execute the request
 	status, err := s.api.TSDBStatus(rCtx, ctx.qt, &ctx.sq, focusLabel, int(topN))
@@ -920,7 +921,7 @@ func (s *Server) processTenants(ctx *vmselectRequestCtx) error {
 	}
 	defer s.endConcurrentRequest()
 
-	rCtx, cm := newRequestContextForConn(ctx.bc, ctx.deadline)
+	rCtx, cm := withRequestContext(ctx)
 
 	// Execute the request
 	tenants, err := s.api.Tenants(rCtx, ctx.qt, tr)
@@ -1006,7 +1007,7 @@ func (s *Server) processSearchMetricNames(ctx *vmselectRequestCtx) error {
 	}
 	defer s.endConcurrentRequest()
 
-	rCtx, cm := newRequestContextForConn(ctx.bc, ctx.deadline)
+	rCtx, cm := withRequestContext(ctx)
 
 	// Execute request.
 	metricNames, err := s.api.SearchMetricNames(rCtx, ctx.qt, &ctx.sq)
@@ -1046,7 +1047,7 @@ func (s *Server) processSearch(ctx *vmselectRequestCtx) error {
 	}
 	defer s.endConcurrentRequest()
 
-	rCtx, cm := newRequestContextForConn(ctx.bc, ctx.deadline)
+	rCtx, cm := withRequestContext(ctx)
 	defer cm.stop()
 	// Initiaialize the search.
 	bi, err := s.api.InitSearch(rCtx, ctx.qt, &ctx.sq)
@@ -1126,7 +1127,7 @@ func (s *Server) processMetricNamesUsageStats(ctx *vmselectRequestCtx) error {
 	}
 	defer s.endConcurrentRequest()
 
-	rCtx, cm := newRequestContextForConn(ctx.bc, ctx.deadline)
+	rCtx, cm := withRequestContext(ctx)
 
 	result, err := s.api.GetMetricNamesUsageStats(rCtx, ctx.qt, at, limit, int(le), matchPattern)
 	if err != nil {
@@ -1184,7 +1185,7 @@ func (s *Server) processResetMetricUsageStats(ctx *vmselectRequestCtx) error {
 
 	// there is no need to monitor connection, because this operation is fast and operates
 	// with fire and forget logic
-	if err := s.api.ResetMetricNamesUsageStats(context.Background(), ctx.qt); err != nil {
+	if err := s.api.ResetMetricNamesUsageStats(context.TODO(), ctx.qt); err != nil {
 		return fmt.Errorf("cannot reset state of the metric names usage tracker: %w", err)
 	}
 	return nil
@@ -1227,7 +1228,7 @@ func (s *Server) processSearchMetadata(ctx *vmselectRequestCtx) error {
 	}
 	defer s.endConcurrentRequest()
 
-	rCtx, cm := newRequestContextForConn(ctx.bc, ctx.deadline)
+	rCtx, cm := withRequestContext(ctx)
 
 	result, err := s.api.GetMetadataRecords(rCtx, ctx.qt, at, limit, metricName)
 	if err != nil {
@@ -1263,15 +1264,15 @@ func writeMetadataRows(ctx *vmselectRequestCtx, records []*metricsmetadata.Row) 
 	return nil
 }
 
-// newRequestContextForConn creates a cancelable context
-// for given BufferedConn and deadline.
+// withRequestContext creates a cancelable context
+// for given vmselectRequestCtx.
 // I starts monitoring whether the client closes or breaks the connection.
 //
 // The caller must stop the returned connMonitor via cm.stop() once request
-// processing is complete.
-func newRequestContextForConn(bc *handshake.BufferedConn, deadline uint64) (context.Context, *connMonitor) {
-	ctx, cancel := context.WithDeadline(context.Background(), time.Unix(int64(deadline), 0))
-	cm := startMonitorConn(cancel, bc)
+// processing is complete and before writing any response to client
+func withRequestContext(rctx *vmselectRequestCtx) (context.Context, *connMonitor) {
+	ctx, cancel := context.WithDeadline(context.Background(), time.Unix(int64(rctx.deadline), 0))
+	cm := startMonitorConn(cancel, rctx.bc)
 	return ctx, cm
 }
 
@@ -1297,15 +1298,22 @@ type connMonitor struct {
 }
 
 func (cm *connMonitor) watch() {
-	cm.bc.SetReadDeadline(time.Time{}) //nolint:errcheck
+	if err := cm.bc.SetReadDeadline(time.Time{}); err != nil {
+		logger.Errorf("connMonitor: cannot set empty read deadline for the connection %q: %s", cm.bc.RemoteAddr(), err)
+	}
+
 	cm.wg.Go(func() {
 		// block on conn.Read
 		// it only closes if stop() called or client closes connection
 		var buf [1]byte
 		n, err := cm.bc.Read(buf[:])
-		_ = err
+		if err != nil {
+			if !errors.Is(err, os.ErrDeadlineExceeded) {
+				logger.Errorf("connMonitor: unexpcted Read error for the connection %q: %s", cm.bc.RemoteAddr(), err)
+			}
+		}
 		if n > 0 {
-			logger.Warnf("unexpected non empty read from remote addr: %s", cm.bc.RemoteAddr())
+			logger.Warnf("connMonitor: unexpected non empty read from remote addr: %s", cm.bc.RemoteAddr())
 		}
 		if !cm.stopped.CompareAndSwap(false, true) {
 			return
@@ -1318,11 +1326,15 @@ func (cm *connMonitor) stop() {
 	if cm.stopped.CompareAndSwap(false, true) {
 		cm.cancel()
 		// unblock watcher with read timeout error
-		cm.bc.Conn.SetReadDeadline(timeLongBefore) //nolint:errcheck
+		if err := cm.bc.Conn.SetReadDeadline(timeLongBefore); err != nil {
+			logger.Errorf("connMonitor: cannot set read deadline for the connection %q: %s", cm.bc.RemoteAddr(), err)
+		}
 	}
 	cm.wg.Wait()
 	// reset connection deadline
-	cm.bc.SetReadDeadline(time.Time{}) //nolint:errcheck
+	if err := cm.bc.SetReadDeadline(time.Time{}); err != nil {
+		logger.Errorf("connMonitor: cannot set empty read deadline for the connection %q: %s", cm.bc.RemoteAddr(), err)
+	}
 }
 
 var timeLongBefore = time.Unix(1, 0)

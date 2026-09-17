@@ -239,8 +239,8 @@ func (s *Search) NextMetricBlock(ctx context.Context) bool {
 	}
 	for s.ts.NextBlock() {
 		if s.loops&paceLimiterSlowIterationsMask == 0 {
-			if isContextDone(ctx) {
-				s.err = ctx.Err()
+			if err := ctx.Err(); err != nil {
+				s.err = err
 				return false
 			}
 		}
@@ -583,12 +583,3 @@ const (
 )
 
 var noDeadlineContext = context.Background()
-
-func isContextDone(ctx context.Context) bool {
-	select {
-	case <-ctx.Done():
-		return true
-	default:
-	}
-	return false
-}
