@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 )
@@ -465,4 +466,71 @@ sso:
   oidc:
     issuer: ftp://bad
 `, `sso.1: oidc.issuer must have http or https scheme`)
+}
+
+func TestSignVerifyCSRFCookie(t *testing.T) {
+	// round-trip sign and verify
+	signed := signCSRFCookie("nonce123", "state456", "/dashboard", "secret0123456789")
+	gotNonce, gotState, gotRedirectURL, err := verifyCSRFCookie(signed, "secret0123456789")
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	if gotNonce != "nonce123" {
+		t.Fatalf("unexpected nonce; got %q; want %q", gotNonce, "nonce123")
+	}
+	if gotState != "state456" {
+		t.Fatalf("unexpected state; got %q; want %q", gotState, "state456")
+	}
+	if gotRedirectURL != "/dashboard" {
+		t.Fatalf("unexpected redirectURL; got %q; want %q", gotRedirectURL, "/dashboard")
+	}
+
+	// redirectURL with colons
+	signed = signCSRFCookie("n", "s", "/path:with:colons", "secret0123456789")
+	_, _, gotRedirectURL, err = verifyCSRFCookie(signed, "secret0123456789")
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	if gotRedirectURL != "/path:with:colons" {
+		t.Fatalf("unexpected redirectURL; got %q; want %q", gotRedirectURL, "/path:with:colons")
+	}
+
+	// missing separator
+	_, _, _, err = verifyCSRFCookie("noseparator", "secret")
+	if err == nil || !strings.Contains(err.Error(), "missing separator") {
+		t.Fatalf("expected missing separator error; got %v", err)
+	}
+
+	// wrong secret
+	signed = signCSRFCookie("nonce", "state", "/path", "secret0123456789")
+	_, _, _, err = verifyCSRFCookie(signed, "wrongsecret12345")
+	if err == nil || !strings.Contains(err.Error(), "signature mismatch") {
+		t.Fatalf("expected signature mismatch error; got %v", err)
+	}
+
+	// tampered payload — inject a symbol into valid signed cookie
+	_, _, _, err = verifyCSRFCookie(signed[:10]+"X"+signed[11:], "secret0123456789")
+	if err == nil || !strings.Contains(err.Error(), "signature mismatch") {
+		t.Fatalf("expected signature mismatch error; got %v", err)
+	}
+
+	// empty nonce panics
+	assertPanic(t, "empty nonce", func() { signCSRFCookie("", "state", "/", "secret0123456789") })
+
+	// empty state panics
+	assertPanic(t, "empty state", func() { signCSRFCookie("nonce", "", "/", "secret0123456789") })
+
+	// empty cookieSecret panics
+	assertPanic(t, "empty cookieSecret in sign", func() { signCSRFCookie("nonce", "state", "/", "") })
+	assertPanic(t, "empty cookieSecret in verify", func() { verifyCSRFCookie(signed, "") })
+}
+
+func assertPanic(t *testing.T, name string, fn func()) {
+	t.Helper()
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatalf("%s: expected panic, got none", name)
+		}
+	}()
+	fn()
 }

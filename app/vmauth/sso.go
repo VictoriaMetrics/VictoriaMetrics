@@ -223,6 +223,15 @@ func generateRandomString(n int) (string, error) {
 // nonce and state are independent base64url strings (no colons), so the first
 // two ":" delimiters are unambiguous.
 func signCSRFCookie(nonce, state, redirectURL, cookieSecret string) string {
+	if nonce == "" {
+		panic("BUG: nonce cannot be empty")
+	}
+	if state == "" {
+		panic("BUG: state cannot be empty")
+	}
+	if cookieSecret == "" {
+		panic("BUG: cookieSecret cannot be empty")
+	}
 	payload := base64.RawURLEncoding.EncodeToString([]byte(nonce + ":" + state + ":" + redirectURL))
 	mac := hmac.New(sha256.New, []byte(cookieSecret))
 	mac.Write([]byte(payload))
@@ -233,6 +242,9 @@ func signCSRFCookie(nonce, state, redirectURL, cookieSecret string) string {
 // verifyCSRFCookie verifies the CSRF cookie signature and returns the nonce,
 // state, and the original URL that were stored when the flow was initiated.
 func verifyCSRFCookie(cookieValue, cookieSecret string) (nonce, state, redirectURL string, err error) {
+	if cookieSecret == "" {
+		panic("BUG: cookieSecret cannot be empty")
+	}
 	dot := strings.LastIndexByte(cookieValue, '.')
 	if dot < 0 {
 		return "", "", "", fmt.Errorf("invalid CSRF cookie: missing separator")
