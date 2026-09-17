@@ -137,6 +137,21 @@ func testFutureTimestamps(tc *apptest.TestCase, opts testFutureTimestampsOpts) {
 		// Ingest data and check query results.
 		sut := opts.start()
 		sut.PrometheusAPIV1ImportPrometheus(t, data.samples, apptest.QueryOpts{})
+		if cluster, ok := sut.(*apptest.Vmcluster); ok {
+			// Wait for vmstorage to finish processing so the flush includes all rows.
+			tc.Assert(&apptest.AssertOptions{
+				Msg: "vmstorage has not processed enough rows",
+				Got: func() any {
+					var rows int
+					for _, s := range cluster.Vmstorages {
+						rows += s.GetIntMetric(t, "vm_rows_received_by_storage_total")
+					}
+					return rows >= numMetrics
+				},
+				Want:    true,
+				FailNow: true,
+			})
+		}
 		sut.ForceFlush(t)
 		assertSeries(sut, prefix, start, end, data.wantSeries)
 		assertQueryResults(sut, prefix, start, end, step, data.wantQueryResults)
