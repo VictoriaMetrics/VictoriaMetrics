@@ -300,9 +300,13 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 	if oidc == nil {
 		return false
 	}
-	redirectURL := oidc.getRedirectURL(r.URL.RequestURI())
+	if err := beginConcurrencyLimit(r.Context()); err != nil {
+		w.WriteHeader(http.StatusTooManyRequests)
+		return true
+	}
+	defer endConcurrencyLimit()
 
-	slowdownUnauthorizedResponse(r)
+	redirectURL := oidc.getRedirectURL(r.URL.RequestURI())
 
 	pm := oidc.pm.Load()
 	if pm == nil {
@@ -381,6 +385,12 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 
 // processSSOCallback handles the OIDC authorization code callback at /_vmauth/sso/callback.
 func processSSOCallback(w http.ResponseWriter, r *http.Request) {
+	if err := beginConcurrencyLimit(r.Context()); err != nil {
+		w.WriteHeader(http.StatusTooManyRequests)
+		return
+	}
+	defer endConcurrencyLimit()
+
 	oidc := getSSOConfigForHost(authConfig.Load(), r.Host)
 	if oidc == nil {
 		setSSONoCacheHeaders(w)
