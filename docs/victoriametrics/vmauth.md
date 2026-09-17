@@ -224,7 +224,7 @@ See also [authorization](#authorization) and [routing](#routing) docs.
 
 See also [automatic issuing of TLS certificates](#automatic-issuing-of-tls-certificates).
 
-See also [authorization](#authorization), [routing](#routing) and [load balancing](#load-balancing) docs.
+See also [authorization](#authorization), [security](#security), [routing](#routing) and [load balancing](#load-balancing) docs.
 
 ### Basic Auth proxy
 
@@ -239,7 +239,7 @@ users:
   url_prefix: "http://victoria-metrics:8428/"
 ```
 
-See also [authorization](#authorization), [routing](#routing) and [load balancing](#load-balancing) docs.
+See also [authorization](#authorization), [security](#security), [routing](#routing) and [load balancing](#load-balancing) docs.
 
 ### Bearer Token auth proxy
 
@@ -253,7 +253,7 @@ users:
   url_prefix: "http://victoria-metrics:8428/"
 ```
 
-See also [authorization](#authorization), [routing](#routing) and [load balancing](#load-balancing) docs.
+See also [authorization](#authorization), [security](#security), [routing](#routing) and [load balancing](#load-balancing) docs.
 
 ### JWT Token auth proxy
 
@@ -660,7 +660,7 @@ users:
       - http://vlinsert:9428
 ```
 
-See also [authorization](#authorization), [routing](#routing) and [load balancing](#load-balancing) docs.
+See also [authorization](#authorization), [security](#security), [routing](#routing) and [load balancing](#load-balancing) docs.
 
 ### Per-tenant authorization
 
@@ -696,7 +696,7 @@ users:
     url_prefix: "http://vmselect-backend:8481/select/2/prometheus/"
 ```
 
-See also [authorization](#authorization), [routing](#routing) and [load balancing](#load-balancing) docs.
+See also [authorization](#authorization), [security](#security), [routing](#routing) and [load balancing](#load-balancing) docs.
 
 ### mTLS-based request routing
 
@@ -721,7 +721,7 @@ users:
 
 [mTLS protection](#mtls-protection) must be enabled for mTLS-based routing.
 
-See also [authorization](#authorization), [routing](#routing) and [load balancing](#load-balancing) docs.
+See also [authorization](#authorization), [security](#security), [routing](#routing) and [load balancing](#load-balancing) docs.
 
 ### Enforcing query args
 
@@ -733,7 +733,7 @@ unauthorized_user:
   url_prefix: "http://victoria-metrics:8428/?extra_label=foo=bar"
 ```
 
-See also [authorization](#authorization), [routing](#routing) and [load balancing](#load-balancing) docs.
+See also [authorization](#authorization), [security](#security), [routing](#routing) and [load balancing](#load-balancing) docs.
 
 ## Dropping request path prefix
 
@@ -775,7 +775,7 @@ unauthorized_user:
 * [Client TLS certificate verification aka mTLS](https://docs.victoriametrics.com/victoriametrics/vmauth/#mtls-based-request-routing)
 * [Auth tokens via Arbitrary HTTP request headers](https://docs.victoriametrics.com/victoriametrics/vmauth/#reading-auth-tokens-from-other-http-headers)
 
-See also [security docs](#security), [routing docs](#routing) and [load balancing docs](#load-balancing).
+See also [authorization](#authorization), [security](#security), [routing](#routing) and [load balancing](#load-balancing) docs.
 
 ## Routing
 
@@ -1128,7 +1128,7 @@ unauthorized_user:
   kill -HUP `pidof vmauth`
   ```
 
-* By querying `/-/reload` endpoint. It is recommended to protect it with `-reloadAuthKey`. See [security docs](#security) for details.
+* By querying `/-/reload` endpoint. It is recommended to protect it with `-reloadAuthKey`. See [security](#security) for details.
 * By passing the interval for config check to the `-configCheckInterval` command-line flag.
 
 ## Concurrency limiting
@@ -1307,7 +1307,7 @@ from both `Authorization` and `X-Amz-Firehose-Access-Key` headers:
 ./vmauth -httpAuthHeader='Authorization' -httpAuthHeader='X-Amz-Firehose-Access-Key'
 ```
 
-See also [authorization docs](#authorization) and [security docs](#security).
+See also [authorization](#authorization) and [security](#security) docs.
 
 ## Query args handling
 
@@ -1642,7 +1642,7 @@ The following command-line flags must be set in order to enable automatic issuan
 
 This functionality can be evaluated for free according to [these docs](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 
-See also [security recommendations](#security).
+See also [security](#security).
 
 ## Monitoring
 
@@ -1767,4 +1767,4 @@ Section below contains backward-compatible anchors for links that were moved or 
 
 ###### Security Considerations
 
-Merged into [Security](https://docs.victoriametrics.com/victoriametrics/vmauth/#security) section.
+Moved to [security](#security).
