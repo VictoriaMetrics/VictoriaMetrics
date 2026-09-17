@@ -1,14 +1,11 @@
 package main
 
 import (
-	"context"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -447,7 +444,7 @@ func processSSOCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idToken, err := exchangeCodeForIDToken(r.Context(), pm.TokenEndpoint, oidc, code, oidc.getCallbackURL(r.Host))
+	idToken, err := exchangeCodeForIDToken(r.Context(), pm.TokenEndpoint, oidc.ClientID, oidc.ClientSecret, code, oidc.getCallbackURL(r.Host))
 	if err != nil {
 		ssoLogger.Warnf("SSO callback: token exchange failed: %s", err)
 		setSSONoCacheHeaders(w)
@@ -524,49 +521,6 @@ func validateIDToken(idToken string, pm *oidcProviderMetadata, clientID, expecte
 		return time.Time{}, fmt.Errorf("nonce mismatch")
 	}
 	return tkn.ExpiresAt(), nil
-}
-
-type tokenResponse struct {
-	IDToken string `json:"id_token"`
-}
-
-// exchangeCodeForIDToken exchanges the OIDC authorization code for an id_token.
-func exchangeCodeForIDToken(ctx context.Context, tokenEndpoint string, oidc *ssoOIDCConfig, code, redirectURL string) (string, error) {
-	params := url.Values{}
-	params.Set("grant_type", "authorization_code")
-	params.Set("code", code)
-	params.Set("redirect_uri", redirectURL)
-	params.Set("client_id", oidc.ClientID)
-	params.Set("client_secret", oidc.ClientSecret)
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, tokenEndpoint, strings.NewReader(params.Encode()))
-	if err != nil {
-		return "", fmt.Errorf("cannot create token request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
-	resp, err := oidcHTTPClient.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("token request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	if err != nil {
-		return "", fmt.Errorf("cannot read token response: %w", err)
-	}
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("token endpoint returned status %d: %s", resp.StatusCode, body)
-	}
-
-	var tr tokenResponse
-	if err := json.Unmarshal(body, &tr); err != nil {
-		return "", fmt.Errorf("cannot unmarshal token response: %w", err)
-	}
-	if tr.IDToken == "" {
-		return "", fmt.Errorf("token response missing id_token")
-	}
-	return tr.IDToken, nil
 }
 
 // getSSOAuthTokensFromRequest extracts the SSO session cookie and returns it as

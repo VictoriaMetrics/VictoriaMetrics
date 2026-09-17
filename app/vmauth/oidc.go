@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -179,6 +180,12 @@ var oidcHTTPClient = &http.Client{
 	Timeout: time.Second * 5,
 }
 
+// oidcMaxResponseSize defines a hard limit on how big a response the Identity Provider can send.
+// As per https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderConfigurationResponse
+// a valid response is a moderate-size JSON object.
+// The limit protects from a misconfigured IdP that returns an unexpectedly large response.
+const oidcMaxResponseSize = 1 << 20
+
 func fetchAndParseJWKs(ctx context.Context, jwksURI string) (*jwt.VerifierPool, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, jwksURI, nil)
 	if err != nil {
@@ -195,7 +202,7 @@ func fetchAndParseJWKs(ctx context.Context, jwksURI string) (*jwt.VerifierPool, 
 		return nil, fmt.Errorf("unexpected status code %d when fetching jwks keys from %q", resp.StatusCode, jwksURI)
 	}
 
-	b, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	b, err := io.ReadAll(io.LimitReader(resp.Body, oidcMaxResponseSize))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body from %q: %w", jwksURI, err)
 	}
@@ -228,7 +235,7 @@ func getOIDCProviderMetadata(ctx context.Context, issuer string) (oidcProviderMe
 	}
 
 	var pm oidcProviderMetadata
-	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&pm); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, oidcMaxResponseSize)).Decode(&pm); err != nil {
 		return oidcProviderMetadata{}, fmt.Errorf("failed to decode openid config from %q: %w", configURL, err)
 	}
 
@@ -242,4 +249,47 @@ func getOIDCProviderMetadata(ctx context.Context, issuer string) (oidcProviderMe
 	}
 
 	return pm, nil
+}
+
+type tokenResponse struct {
+	IDToken string `json:"id_token"`
+}
+
+// exchangeCodeForIDToken exchanges the OIDC authorization code for an id_token.
+func exchangeCodeForIDToken(ctx context.Context, tokenEndpoint, clientID, clientSecret, code, redirectURL string) (string, error) {
+	params := url.Values{}
+	params.Set("grant_type", "authorization_code")
+	params.Set("code", code)
+	params.Set("redirect_uri", redirectURL)
+	params.Set("client_id", clientID)
+	params.Set("client_secret", clientSecret)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, tokenEndpoint, strings.NewReader(params.Encode()))
+	if err != nil {
+		return "", fmt.Errorf("cannot create token request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := oidcHTTPClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("token request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, oidcMaxResponseSize))
+	if err != nil {
+		return "", fmt.Errorf("cannot read token response: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("token endpoint returned status %d: %s", resp.StatusCode, body)
+	}
+
+	var tr tokenResponse
+	if err := json.Unmarshal(body, &tr); err != nil {
+		return "", fmt.Errorf("cannot unmarshal token response: %w", err)
+	}
+	if tr.IDToken == "" {
+		return "", fmt.Errorf("token response missing id_token")
+	}
+	return tr.IDToken, nil
 }
