@@ -37,13 +37,13 @@ sso:
 	f("", time.Now().Add(time.Hour), 10*time.Minute)
 
 	// session duration not set (default 10m), token expiry is shorter — use token expiry
-	f("", time.Now().Add(2*time.Minute + time.Second), 2*time.Minute)
+	f("", time.Now().Add(2*time.Minute+time.Second), 2*time.Minute)
 
 	// session duration is less than token expiry — use session duration
 	f("10m", time.Now().Add(time.Hour), 10*time.Minute)
 
 	// token expiry is less than session duration — use token expiry
-	f("1h", time.Now().Add(2*time.Minute + time.Second), 2*time.Minute)
+	f("1h", time.Now().Add(2*time.Minute+time.Second), 2*time.Minute)
 
 	// token already expired — returns 0
 	f("10m", time.Now().Add(-time.Minute), 0)
