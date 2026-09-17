@@ -1264,16 +1264,6 @@ By default, the client's TCP address is utilized for IP filtering. In scenarios 
 * `-httpRealIPHeader=X-Forwarded-For` {{% available_from "v1.107.0" %}}
 * `-httpListenAddr.useProxyProtocol=true`
 
-### Security Considerations
-
-**HTTP headers are inherently untrustworthy.** It is strongly recommended to implement additional security measures, such as:
-
-* Dropping `X-Forwarded-For` headers at the internet-facing reverse proxy (e.g., before traffic reaches `vmauth`).
-* Do not use `-httpRealIPHeader` at internet-facing `vmauth`.
-* Add `removeXFFHTTPHeaderValue` for the internet-facing `vmauth`. It instructs `vmauth` to replace the value of `X-Forwarded-For` HTTP header with `remoteAddr` of the client.
-
-See additional recommendations for [security and privacy concerns](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For#security_and_privacy_concerns)
-
 ### Per-User Configuration
 
 The values of `httpRealIPHeader` {{% available_from "v1.107.0" %}} can be changed on a per-user basis in the user-specific configuration.
@@ -1627,6 +1617,14 @@ To enable TLS on the public listener while keeping the internal listener non-TLS
           - "ProjectID: 0"
     ```
 
+1. HTTP headers can be spoofed by clients. When `vmauth` is internet-facing, take the following precautions:
+
+    * Drop `X-Forwarded-For` headers at the internet-facing reverse proxy before traffic reaches `vmauth`.
+    * Avoid using `-httpRealIPHeader` on internet-facing `vmauth` instances.
+    * Set `removeXFFHTTPHeaderValue` on the internet-facing `vmauth` to replace the `X-Forwarded-For` value with the client's `remoteAddr`.
+
+    See also [X-Forwarded-For security and privacy concerns](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For#security_and_privacy_concerns).
+
 ## Automatic issuing of TLS certificates
 
 `vmauth` [Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/) supports automatic issuing of TLS certificates via [Let's Encrypt service](https://letsencrypt.org/).
@@ -1758,3 +1756,11 @@ These flags are available in both VictoriaMetrics OSS and VictoriaMetrics Enterp
 ### Enterprise flags
 These flags are available only in [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 {{% content "vmauth_enterprise_flags.md" %}}
+
+---
+
+Section below contains backward-compatible anchors for links that were moved or renamed.
+
+###### Security Considerations
+
+Merged into [Security](https://docs.victoriametrics.com/victoriametrics/vmauth/#security) section.
