@@ -1,9 +1,59 @@
 package main
 
 import (
+	"fmt"
 	"slices"
 	"testing"
+	"time"
 )
+
+func TestGetSessionDuration(t *testing.T) {
+	f := func(sessionDuration string, tokenExpiresAt time.Time, expectedDuration time.Duration) {
+		t.Helper()
+		s := fmt.Sprintf(`
+sso:
+- src_host: "example.com"
+  oidc:
+    issuer: https://idp.example.com
+    client_id: my-client
+    client_secret: my-secret
+    cookie_secret: "0123456789abcdef"
+    session_duration: %s
+`, sessionDuration)
+		ac, err := parseAuthConfig([]byte(s))
+		if err != nil {
+			t.Fatalf("cannot parse auth config: %s", err)
+		}
+		if err := normalizeSSOConfigs(ac.SSO); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		got := ac.SSO[0].OIDC.getSessionDuration(tokenExpiresAt).Truncate(time.Second)
+		if got != expectedDuration {
+			t.Fatalf("unexpected session duration; got %s; want %s", got, expectedDuration)
+		}
+	}
+
+	// session duration not set (default 10m), token expiry is longer — use default
+	f("", time.Now().Add(time.Hour), 10*time.Minute)
+
+	// session duration not set (default 10m), token expiry is shorter — use token expiry
+	f("", time.Now().Add(2*time.Minute + time.Second), 2*time.Minute)
+
+	// session duration is less than token expiry — use session duration
+	f("10m", time.Now().Add(time.Hour), 10*time.Minute)
+
+	// token expiry is less than session duration — use token expiry
+	f("1h", time.Now().Add(2*time.Minute + time.Second), 2*time.Minute)
+
+	// token already expired — returns 0
+	f("10m", time.Now().Add(-time.Minute), 0)
+
+	// token already expired, no session duration set — returns 0
+	f("", time.Now().Add(-time.Minute), 0)
+
+	// session_duration explicitly null (default 10m), token expiry is longer — use default
+	f("null", time.Now().Add(time.Hour), 10*time.Minute)
+}
 
 func TestSSOConfigNormalizeSuccess(t *testing.T) {
 	f := func(s string) {
