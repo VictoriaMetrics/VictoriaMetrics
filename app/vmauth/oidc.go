@@ -158,7 +158,7 @@ func (d *oidcDiscoverer) refreshMetadata(ctx context.Context) error {
 	}
 
 	for _, pm := range d.pms {
-		pm.Store(&newPM)
+		pm.Store(newPM)
 	}
 	for _, vp := range d.vps {
 		vp.Store(newVP)
@@ -215,37 +215,37 @@ func fetchAndParseJWKs(ctx context.Context, jwksURI string) (*jwt.VerifierPool, 
 	return vp, nil
 }
 
-func getOIDCProviderMetadata(ctx context.Context, issuer string) (oidcProviderMetadata, error) {
+func getOIDCProviderMetadata(ctx context.Context, issuer string) (*oidcProviderMetadata, error) {
 	issuer, _ = strings.CutSuffix(issuer, "/")
 	configURL := fmt.Sprintf("%s/.well-known/openid-configuration", issuer)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, configURL, nil)
 	if err != nil {
-		return oidcProviderMetadata{}, fmt.Errorf("failed to create request for fetching openid config from %q: %w", configURL, err)
+		return nil, fmt.Errorf("failed to create request for fetching openid config from %q: %w", configURL, err)
 	}
 
 	resp, err := oidcHTTPClient.Do(req)
 	if err != nil {
-		return oidcProviderMetadata{}, fmt.Errorf("failed to fetch openid config from %q: %w", configURL, err)
+		return nil, fmt.Errorf("failed to fetch openid config from %q: %w", configURL, err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return oidcProviderMetadata{}, fmt.Errorf("unexpected status code %d when fetching openid config from %q", resp.StatusCode, configURL)
+		return nil, fmt.Errorf("unexpected status code %d when fetching openid config from %q", resp.StatusCode, configURL)
 	}
 
-	var pm oidcProviderMetadata
-	if err := json.NewDecoder(io.LimitReader(resp.Body, oidcMaxResponseSize)).Decode(&pm); err != nil {
-		return oidcProviderMetadata{}, fmt.Errorf("failed to decode openid config from %q: %w", configURL, err)
+	pm := &oidcProviderMetadata{}
+	if err := json.NewDecoder(io.LimitReader(resp.Body, oidcMaxResponseSize)).Decode(pm); err != nil {
+		return nil, fmt.Errorf("failed to decode openid config from %q: %w", configURL, err)
 	}
 
 	// The fields below are all required as per
 	// https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderMetadata
 	if pm.Issuer == "" {
-		return oidcProviderMetadata{}, fmt.Errorf("fetched metadata invalid; issuer empty")
+		return nil, fmt.Errorf("fetched metadata invalid; issuer empty")
 	}
 	if pm.JWKsURI == "" {
-		return oidcProviderMetadata{}, fmt.Errorf("fetched metadata invalid; jwks_uri empty")
+		return nil, fmt.Errorf("fetched metadata invalid; jwks_uri empty")
 	}
 
 	return pm, nil
