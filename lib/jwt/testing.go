@@ -11,15 +11,15 @@ import (
 	"testing"
 )
 
-// JWTTester generates RSA key pairs and signed JWT tokens for testing.
-type JWTTester struct {
+// TokenTester generates RSA key pairs and signed JWT tokens for testing.
+type TokenTester struct {
 	t            *testing.T
 	privateKey   *rsa.PrivateKey
 	PublicKeyPEM string
 }
 
-// NewJWTTester creates a JWTTester with a freshly generated 2048-bit RSA key pair.
-func NewJWTTester(t *testing.T) *JWTTester {
+// NewTokenTester creates a TokenTester with a freshly generated 2048-bit RSA key pair.
+func NewTokenTester(t *testing.T) *TokenTester {
 	t.Helper()
 
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
@@ -36,7 +36,7 @@ func NewJWTTester(t *testing.T) *JWTTester {
 		Bytes: publicKeyBytes,
 	}))
 
-	return &JWTTester{
+	return &TokenTester{
 		t:            t,
 		privateKey:   privateKey,
 		PublicKeyPEM: publicKeyPEM,
@@ -44,7 +44,7 @@ func NewJWTTester(t *testing.T) *JWTTester {
 }
 
 // NewVerifierPool creates a VerifierPool from the test RSA public key.
-func (jt *JWTTester) NewVerifierPool() *VerifierPool {
+func (jt *TokenTester) NewVerifierPool() *VerifierPool {
 	jt.t.Helper()
 	vp, err := NewVerifierPool([]any{&jt.privateKey.PublicKey})
 	if err != nil {
@@ -55,7 +55,7 @@ func (jt *JWTTester) NewVerifierPool() *VerifierPool {
 
 // GenToken generates a signed JWT with the given body claims.
 // If valid is false, the signature is invalid.
-func (jt *JWTTester) GenToken(body map[string]any, valid bool) string {
+func (jt *TokenTester) GenToken(body map[string]any, valid bool) string {
 	jt.t.Helper()
 
 	headerJSON, err := json.Marshal(map[string]any{

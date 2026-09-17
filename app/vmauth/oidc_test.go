@@ -9,7 +9,7 @@ import (
 )
 
 func TestValidateIDToken(t *testing.T) {
-	jt := jwt.NewJWTTester(t)
+	jt := jwt.NewTokenTester(t)
 
 	issuer := "https://idp.example.com"
 	clientID := "my-client"
