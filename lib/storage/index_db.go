@@ -188,8 +188,6 @@ func mustOpenIndexDB(id uint64, tr TimeRange, name, path string, s *Storage, isR
 	return db
 }
 
-const noDeadline = 1<<64 - 1
-
 // IndexDBMetrics contains essential metrics for indexDB.
 type IndexDBMetrics struct {
 	TagFiltersToMetricIDsCacheSize         uint64
