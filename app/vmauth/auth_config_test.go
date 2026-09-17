@@ -1031,6 +1031,8 @@ func TestLogRequest(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	req.Header.Set("AccountID", "2")
+	req.Header.Add("AccountID", "3") // we log the 1st value only. redundant case to guard against future code changes, which may cause the test to fail.
+	req.Header.Set("Empty-Value-Header", "")
 
 	f := func(user string, status int, duration time.Duration, expectedLog string) {
 		t.Helper()
@@ -1054,7 +1056,7 @@ func TestLogRequest(t *testing.T) {
 	f("foo", 200, 10*time.Millisecond, ``)
 	f("foo", 404, 10*time.Millisecond, `access_log request_host="localhost:8080" request_uri="" status_code=404 remote_addr="" user_agent="" referer="" duration_ms=10 username="foo"`)
 
-	ui.AccessLog.Headers = []string{"AccountID"}
+	ui.AccessLog.Headers = []string{"AccountID", "Non-Existing-Header", "Empty-Value-Header"}
 	f("foo", 404, 10*time.Millisecond, `access_log request_host="localhost:8080" request_uri="" status_code=404 remote_addr="" user_agent="" referer="" duration_ms=10 username="foo" headers.AccountID="2"`)
 }
 
