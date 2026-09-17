@@ -1128,7 +1128,7 @@ unauthorized_user:
   kill -HUP `pidof vmauth`
   ```
 
-* By querying `/-/reload` endpoint. It is recommended to protect it with `-reloadAuthKey`. See [security](#security) for details.
+* By sending an HTTP GET request to the `/-/reload` endpoint. We recommend protecting it with `-reloadAuthKey`. See [security](#security) for details.
 * By passing the interval for config check to the `-configCheckInterval` command-line flag.
 
 ## Concurrency limiting
@@ -1563,7 +1563,7 @@ See also [automatic issuing of TLS certificates](#automatic-issuing-of-tls-certi
      - [mTLS protection](https://docs.victoriametrics.com/victoriametrics/vmauth/#mtls-protection) for enabling [mutual TLS authentication](https://en.wikipedia.org/wiki/Mutual_authentication).
      - [TLS termination proxy](https://en.wikipedia.org/wiki/TLS_termination_proxy) may be put in front of `vmauth`.
 
-1. It is recommended to protect the following endpoints with authKeys:
+1. We recommend protecting the following endpoints with authKeys:
 
     * `/-/reload` with `-reloadAuthKey` command-line flag, so external users cannot trigger config reload.
     * `/flags` with `-flagsAuthKey` command-line flag, so unauthorized users cannot read command-line flag values.
@@ -1621,7 +1621,7 @@ To enable TLS on the public listener while keeping the internal listener non-TLS
           - "ProjectID: 0"
     ```
 
-1. HTTP headers can be spoofed by clients. When `vmauth` is internet-facing, take the following precautions:
+1. Clients can spoof HTTP headers, so when `vmauth` is internet-facing, take the following precautions:
 
     * Drop `X-Forwarded-For` headers at the internet-facing reverse proxy before traffic reaches `vmauth`.
     * Avoid using `-httpRealIPHeader` on internet-facing `vmauth` instances.
