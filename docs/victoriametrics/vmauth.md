@@ -224,7 +224,7 @@ See also [authorization](#authorization) and [routing](#routing) docs.
 
 See also [automatic issuing of TLS certificates](#automatic-issuing-of-tls-certificates).
 
-See also [authorization](#authorization), [security](#security), [routing](#routing) and [load balancing](#load-balancing) docs.
+See also [security](#security), [routing](#routing) and [load balancing](#load-balancing) docs.
 
 ### Basic Auth proxy
 
