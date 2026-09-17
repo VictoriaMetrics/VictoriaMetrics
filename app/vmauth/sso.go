@@ -177,8 +177,7 @@ func (c *ssoOIDCConfig) getRedirectURL(redirect string) string {
 }
 
 // getSSOConfigForHost returns the SSO host config for the given request host, or nil.
-func getSSOConfigForHost(host string) *ssoOIDCConfig {
-	ac := authConfig.Load()
+func getSSOConfigForHost(ac *AuthConfig, host string) *ssoOIDCConfig {
 	if ac == nil || ac.SSO == nil {
 		return nil
 	}
@@ -286,7 +285,7 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		return false
 	}
-	oidc := getSSOConfigForHost(r.Host)
+	oidc := getSSOConfigForHost(authConfig.Load(), r.Host)
 	if oidc == nil {
 		return false
 	}
@@ -371,7 +370,7 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 
 // processSSOCallback handles the OIDC authorization code callback at /_vmauth/sso/callback.
 func processSSOCallback(w http.ResponseWriter, r *http.Request) {
-	oidc := getSSOConfigForHost(r.Host)
+	oidc := getSSOConfigForHost(authConfig.Load(), r.Host)
 	if oidc == nil {
 		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusUnauthorized)

@@ -151,6 +151,106 @@ sso:
 	f("/home", "/dashboard", "/dashboard")
 }
 
+func TestSSOConfigGetSSOConfigForHost(t *testing.T) {
+	f := func(s string, host string, expectedFound bool) {
+		t.Helper()
+		ac, err := parseAuthConfig([]byte(s))
+		if err != nil {
+			t.Fatalf("cannot parse auth config: %s", err)
+		}
+		if err := normalizeSSOConfigs(ac.SSO); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		got := getSSOConfigForHost(ac, host)
+		if expectedFound && got == nil {
+			t.Fatalf("expected SSO config for host %q, got nil", host)
+		}
+		if !expectedFound && got != nil {
+			t.Fatalf("expected nil SSO config for host %q, got non-nil", host)
+		}
+	}
+
+	// matching host
+	f(`
+sso:
+- src_host: "example.com"
+  oidc:
+    issuer: https://idp.example.com
+    client_id: my-client
+    client_secret: my-secret
+    cookie_secret: "0123456789abcdef"
+`, "example.com", true)
+
+	// non-matching host
+	f(`
+sso:
+- src_host: "example.com"
+  oidc:
+    issuer: https://idp.example.com
+    client_id: my-client
+    client_secret: my-secret
+    cookie_secret: "0123456789abcdef"
+`, "other.com", false)
+
+	// regex pattern matching
+	f(`
+sso:
+- src_host: ".*\\.example\\.com"
+  oidc:
+    issuer: https://idp.example.com
+    client_id: my-client
+    client_secret: my-secret
+    cookie_secret: "0123456789abcdef"
+`, "app.example.com", true)
+
+	// regex pattern not matching
+	f(`
+sso:
+- src_host: ".*\\.example\\.com"
+  oidc:
+    issuer: https://idp.example.com
+    client_id: my-client
+    client_secret: my-secret
+    cookie_secret: "0123456789abcdef"
+`, "example.com", false)
+
+	// multiple sso configs, second matches
+	f(`
+sso:
+- src_host: "first.com"
+  oidc:
+    issuer: https://idp.first.com
+    client_id: my-client
+    client_secret: my-secret
+    cookie_secret: "0123456789abcdef"
+- src_host: "second.com"
+  oidc:
+    issuer: https://idp.second.com
+    client_id: my-client
+    client_secret: my-secret
+    cookie_secret: "0123456789abcdef"
+`, "second.com", true)
+
+	// partial match rejected due to anchoring
+	f(`
+sso:
+- src_host: "example"
+  oidc:
+    issuer: https://idp.example.com
+    client_id: my-client
+    client_secret: my-secret
+    cookie_secret: "0123456789abcdef"
+`, "example.com", false)
+
+	// no sso configs
+	f(`
+users:
+- username: foo
+  password: bar
+  url_prefix: http://foo.bar
+`, "example.com", false)
+}
+
 func TestSSOConfigNormalizeSuccess(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
