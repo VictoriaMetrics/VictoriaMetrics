@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -320,14 +321,14 @@ func validateIDToken(idToken string, pm *oidcProviderMetadata, clientID, expecte
 	// Verifying it prevents accepting tokens issued for a different client of the same IdP.
 	// See step 3 in
 	// https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation
-	audClaim, err := jwt.NewClaim("aud", clientID)
+	audClaim, err := jwt.NewClaim("aud", regexp.QuoteMeta(clientID))
 	if err != nil {
 		return time.Time{}, fmt.Errorf("cannot build aud claim: %w", err)
 	}
 	if !tkn.MatchClaims([]*jwt.Claim{audClaim}) {
 		return time.Time{}, fmt.Errorf("audience mismatch: token not issued for client_id %q", clientID)
 	}
-	nonceClaim, err := jwt.NewClaim("nonce", expectedNonce)
+	nonceClaim, err := jwt.NewClaim("nonce", regexp.QuoteMeta(expectedNonce))
 	if err != nil {
 		return time.Time{}, fmt.Errorf("cannot build nonce claim: %w", err)
 	}
