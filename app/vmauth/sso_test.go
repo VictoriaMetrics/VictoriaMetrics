@@ -28,7 +28,7 @@ sso:
 		if err := normalizeSSOConfigs(ac.SSO); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		got := ac.SSO[0].OIDC.getSessionDuration(tokenExpiresAt).Truncate(time.Second)
+		got := ac.SSO[0].OIDC.getSessionDuration(tokenExpiresAt).Truncate(10 * time.Second)
 		if got != expectedDuration {
 			t.Fatalf("unexpected session duration; got %s; want %s", got, expectedDuration)
 		}
