@@ -1,4 +1,4 @@
-package jwt
+package main
 
 import (
 	"crypto"
@@ -9,17 +9,19 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/jwt"
 )
 
-// TokenTester generates RSA key pairs and signed JWT tokens for testing.
-type TokenTester struct {
+// tokenTester generates RSA key pairs and signed JWT tokens for testing.
+type tokenTester struct {
 	t            *testing.T
 	privateKey   *rsa.PrivateKey
 	PublicKeyPEM string
 }
 
-// NewTokenTester creates a TokenTester with a freshly generated 2048-bit RSA key pair.
-func NewTokenTester(t *testing.T) *TokenTester {
+// newTokenTester creates a tokenTester with a freshly generated 2048-bit RSA key pair.
+func newTokenTester(t *testing.T) *tokenTester {
 	t.Helper()
 
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
@@ -36,7 +38,7 @@ func NewTokenTester(t *testing.T) *TokenTester {
 		Bytes: publicKeyBytes,
 	}))
 
-	return &TokenTester{
+	return &tokenTester{
 		t:            t,
 		privateKey:   privateKey,
 		PublicKeyPEM: publicKeyPEM,
@@ -44,9 +46,9 @@ func NewTokenTester(t *testing.T) *TokenTester {
 }
 
 // NewVerifierPool creates a VerifierPool from the test RSA public key.
-func (jt *TokenTester) NewVerifierPool() *VerifierPool {
+func (jt *tokenTester) NewVerifierPool() *jwt.VerifierPool {
 	jt.t.Helper()
-	vp, err := NewVerifierPool([]any{&jt.privateKey.PublicKey})
+	vp, err := jwt.NewVerifierPool([]any{&jt.privateKey.PublicKey})
 	if err != nil {
 		jt.t.Fatalf("cannot create verifier pool: %s", err)
 	}
@@ -55,7 +57,7 @@ func (jt *TokenTester) NewVerifierPool() *VerifierPool {
 
 // GenToken generates a signed JWT with the given body claims.
 // If valid is false, the signature is invalid.
-func (jt *TokenTester) GenToken(body map[string]any, valid bool) string {
+func (jt *tokenTester) GenToken(body map[string]any, valid bool) string {
 	jt.t.Helper()
 
 	headerJSON, err := json.Marshal(map[string]any{

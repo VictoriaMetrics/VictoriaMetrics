@@ -4,12 +4,10 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/jwt"
 )
 
 func TestValidateIDToken(t *testing.T) {
-	jt := jwt.NewTokenTester(t)
+	jt := newTokenTester(t)
 
 	issuer := "https://idp.example.com"
 	clientID := "my-client"
