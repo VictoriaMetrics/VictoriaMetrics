@@ -158,7 +158,7 @@ Specifies when to initiate the first `fit_every` call. Accepts either an ISO 860
             </td>
             <td>
 
-Defines the local timezone for the `start_from` parameter, if specified. Defaults to `UTC` if no timezone is provided.
+Defines the scheduler timezone, including `start_from` values without an explicit offset. ISO values with an explicit offset retain their instant. Defaults to `UTC`. {{% available_from "v1.30.6" anomaly %}} Periodic interval triggers explicitly use this timezone instead of the container local timezone.
             </td>
         </tr>
         <tr>
