@@ -660,7 +660,7 @@ users:
       - http://vlinsert:9428
 ```
 
-See also [authorization](#authorization), [security](#security), [routing](#routing) and [load balancing](#load-balancing) docs.
+See also [Single sign-on (SSO)](#single-sign-on-sso), [authorization](#authorization), [security](#security), [routing](#routing) and [load balancing](#load-balancing) docs.
 
 ### Single sign-on (SSO)
 
@@ -722,7 +722,7 @@ If a user authenticates but no `users` entry matches their token claims, `vmauth
 
 By default, the cookie token is not proxied to backends. To forward the ID token as an `Authorization: Bearer` header, set `proxy_cookie_authorization_token: true` in the `jwt` user config.
 
-See also: TODO
+See also [authorization](#authorization), [security](#security), [routing](#routing) and [load balancing](#load-balancing) docs.
 
 ### Per-tenant authorization
 
