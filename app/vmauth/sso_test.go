@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func TestGetSessionDuration(t *testing.T) {
+func TestSSOConfigGetSessionDuration(t *testing.T) {
 	f := func(sessionDuration string, tokenExpiresAt time.Time, expectedDuration time.Duration) {
 		t.Helper()
 		s := fmt.Sprintf(`
@@ -53,6 +53,102 @@ sso:
 
 	// session_duration explicitly null (default 10m), token expiry is longer — use default
 	f("null", time.Now().Add(time.Hour), 10*time.Minute)
+}
+
+func TestSSOConfigGetCallbackURL(t *testing.T) {
+	f := func(host string, insecure bool, expectedURL string) {
+		t.Helper()
+		s := fmt.Sprintf(`
+sso:
+- src_host: ".*"
+  oidc:
+    issuer: https://idp.example.com
+    client_id: my-client
+    client_secret: my-secret
+    cookie_secret: "0123456789abcdef"
+    insecure: %v
+`, insecure)
+		ac, err := parseAuthConfig([]byte(s))
+		if err != nil {
+			t.Fatalf("cannot parse auth config: %s", err)
+		}
+		if err := normalizeSSOConfigs(ac.SSO); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		got := ac.SSO[0].OIDC.getCallbackURL(host)
+		if got != expectedURL {
+			t.Fatalf("unexpected callback URL; got %q; want %q", got, expectedURL)
+		}
+	}
+
+	// secure (default)
+	f("example.com", false, "https://example.com/_vmauth/sso/callback")
+
+	// insecure
+	f("example.com", true, "http://example.com/_vmauth/sso/callback")
+
+	// host with port, secure
+	f("example.com:8427", false, "https://example.com:8427/_vmauth/sso/callback")
+
+	// host with port, insecure
+	f("localhost:8427", true, "http://localhost:8427/_vmauth/sso/callback")
+}
+
+func TestSSOConfigGetRedirectURL(t *testing.T) {
+	f := func(defaultRedirectURL, redirect, expectedURL string) {
+		t.Helper()
+		s := fmt.Sprintf(`
+sso:
+- src_host: "example.com"
+  oidc:
+    issuer: https://idp.example.com
+    client_id: my-client
+    client_secret: my-secret
+    cookie_secret: "0123456789abcdef"
+    default_redirect_url: %s
+`, defaultRedirectURL)
+		ac, err := parseAuthConfig([]byte(s))
+		if err != nil {
+			t.Fatalf("cannot parse auth config: %s", err)
+		}
+		if err := normalizeSSOConfigs(ac.SSO); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		got := ac.SSO[0].OIDC.getRedirectURL(redirect)
+		if got != expectedURL {
+			t.Fatalf("unexpected redirect URL; got %q; want %q", got, expectedURL)
+		}
+	}
+
+	// valid relative path
+	f("", "/dashboard", "/dashboard")
+
+	// valid relative path with query
+	f("", "/dashboard?tab=1", "/dashboard?tab=1")
+
+	// absolute URL — falls back to "/"
+	f("", "https://evil.com", "/")
+
+	// protocol-relative URL — falls back to "/"
+	f("", "//evil.com", "/")
+
+	// open redirect with backslash — falls back to "/"
+	f("", "/\\evil.com", "/")
+
+	// open redirect with dot segments — falls back to "/"
+	f("", "/../evil.com", "/")
+
+	// empty redirect — falls back to "/"
+	f("", "", "/")
+
+	// absolute URL with default_redirect_url set — uses default
+	f("/home", "https://evil.com", "/home")
+
+	// protocol-relative URL with default_redirect_url set — uses default
+	f("/home", "//evil.com", "/home")
+
+	// valid relative path with default_redirect_url set — uses the path
+	f("/home", "/dashboard", "/dashboard")
 }
 
 func TestSSOConfigNormalizeSuccess(t *testing.T) {
