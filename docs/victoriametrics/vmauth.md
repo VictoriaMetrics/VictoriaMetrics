@@ -1596,7 +1596,7 @@ To enable TLS on the public listener while keeping the internal listener non-TLS
           - "Authorization:"
     ```
 
-1. JWT authentication verifies the signature, expiration, and `vm_access` claim. For OIDC setups, vmauth also verifies `iss` against the configured issuer; follow [ID Token Validation](https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation) best practices and verify `aud` via `match_claims`:
+1. [JWT authentication](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-token-auth-proxy) verifies the signature, expiration, and `vm_access` claim. For OIDC setups, vmauth also verifies `iss` against the configured issuer; follow [ID Token Validation](https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation) best practices and verify `aud` via `match_claims`:
 
     ```yaml
     users:
