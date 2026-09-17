@@ -11,7 +11,8 @@ import (
 // http.Transport writes and closes the request body in a separate goroutine,
 // possibly after RoundTrip returned. If a server responds before reading the
 // full request body, RoundTrip may return while the body is still being written,
-// causing a data race if the buffer is reused. See the note at http.RoundTripper.
+// causing a data race if the buffer is reused. See the note at http.RoundTripper
+// and this issue https://github.com/golang/go/issues/81445
 //
 // The buffer becomes safe to reuse once the response body is closed.
 type SyncBodyTransport struct {

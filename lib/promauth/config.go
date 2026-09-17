@@ -545,8 +545,10 @@ type roundTripper struct {
 func (rt *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	tr, err := rt.getTransport()
 	if err != nil {
-		// RoundTrip must always close the request body.
-		_ = req.Body.Close()
+		if req.Body != nil {
+			// RoundTrip must always close the request body.
+			_ = req.Body.Close()
+		}
 		return nil, fmt.Errorf("cannot initialize Transport: %w", err)
 	}
 	return tr.RoundTrip(req)
