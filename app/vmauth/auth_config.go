@@ -1311,7 +1311,7 @@ func getAuthTokensFromRequest(r *http.Request) []string {
 		ats = append(ats, at)
 	}
 
-	ats = append(ats, getSSOAuthTokensFromRequest(r)...)
+	ats = append(ats, getSSOAuthTokensFromRequest(authConfig.Load(), r)...)
 	return ats
 }
 

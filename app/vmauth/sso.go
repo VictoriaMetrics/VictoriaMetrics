@@ -536,9 +536,8 @@ func validateIDToken(idToken string, pm *oidcProviderMetadata, clientID, expecte
 
 // getSSOAuthTokensFromRequest extracts the SSO session cookie and returns it as
 // a Bearer auth token string compatible with the existing JWT pipeline.
-func getSSOAuthTokensFromRequest(r *http.Request) []string {
-	ac := authConfig.Load()
-	if ac.SSO == nil {
+func getSSOAuthTokensFromRequest(ac *AuthConfig, r *http.Request) []string {
+	if ac == nil || ac.SSO == nil {
 		return nil
 	}
 
