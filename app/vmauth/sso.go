@@ -295,6 +295,8 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 	}
 	redirectURL := oidc.getRedirectURL(r.URL.RequestURI())
 
+	slowdownUnauthorizedResponse(r)
+
 	pm := oidc.pm.Load()
 	if pm == nil {
 		setSSONoCacheHeaders(w)
