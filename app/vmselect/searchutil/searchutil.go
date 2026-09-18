@@ -13,6 +13,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
@@ -86,54 +87,45 @@ func getDeadlineWithMaxDuration(r *http.Request, startTime time.Time, dMax int64
 	return NewDeadline(startTime, timeout, flagHint)
 }
 
-// Context defines search context with deadline hint
-type searchContext struct {
-	context.Context
-	deadline Deadline
-}
+type contextDeadlineKey string
+
+var deadlineKey contextDeadlineKey = "searchDeadline"
 
 // NewContext return new context for given parent context and deadline
 func NewContext(ctx context.Context, deadline Deadline) (context.Context, func()) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	ctx = context.WithValue(ctx, deadlineKey, deadline)
 	ctx, cancel := context.WithDeadline(ctx, time.Unix(int64(deadline.Deadline()), 0))
-	return &searchContext{
-		Context:  ctx,
-		deadline: deadline,
-	}, cancel
+	return ctx, cancel
 }
 
-// IsContextDone check if given context is cancelled
-func IsContextDone(ctx context.Context) bool {
-	select {
-	case <-ctx.Done():
-
-		return true
-	default:
-	}
-	return false
-}
-
-// Err return context error if there is any
-func (ctx *searchContext) Err() error {
-	err := ctx.Context.Err()
-	if err == nil {
-		return nil
-	}
-	if errors.Is(err, context.DeadlineExceeded) {
-		return fmt.Errorf("context deadline timeout: %s: %w", ctx.deadline.String(), context.DeadlineExceeded)
-	}
-	return err
-}
-
-// DeadlineTimeoutHint formats deadline from provided context and fall-back deadline time
-func DeadlineTimeoutHint(ctx context.Context, deadline time.Time) string {
-	sCtx, ok := ctx.(*searchContext)
+// FormatDeadline formats deadline from provided context or fallbacks to default value
+func FormatDeadline(ctx context.Context, defaultDeadline time.Time) string {
+	dv := ctx.Value(deadlineKey)
+	d, ok := dv.(Deadline)
 	if !ok {
-		return deadline.String()
+		return defaultDeadline.String()
 	}
-	return sCtx.deadline.String()
+	return d.String()
+}
+
+// AnnotateContextError enriches a context error with deadline details when the deadline was exceeded
+func AnnotateContextError(ctx context.Context) error {
+	err := ctx.Err()
+	if err == nil {
+		logger.Panicf("BUG: unexpected nil error")
+	}
+	if !errors.Is(err, context.DeadlineExceeded) {
+		return err
+	}
+	dv := ctx.Value(deadlineKey)
+	d, ok := dv.(Deadline)
+	if !ok {
+		return err
+	}
+	return fmt.Errorf("request timeout reached: %s: %w", d.String(), err)
 }
 
 // Deadline contains deadline with the corresponding timeout for pretty error messages.

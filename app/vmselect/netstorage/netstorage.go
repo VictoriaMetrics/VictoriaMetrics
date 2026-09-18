@@ -132,9 +132,9 @@ func (tsw *timeseriesWork) do(ctx context.Context, r *Result, workerID uint) err
 		return nil
 	}
 	rss := tsw.rss
-	if searchutil.IsContextDone(ctx) {
+	if err := ctx.Err(); err != nil {
 		tsw.mustStop.Store(true)
-		return fmt.Errorf("context is done during query execution: %w", ctx.Err())
+		return searchutil.AnnotateContextError(ctx)
 	}
 	if err := tsw.pts.Unpack(ctx, r, rss.tbfs, rss.tr); err != nil {
 		tsw.mustStop.Store(true)
@@ -424,8 +424,8 @@ func unpackWorker(ctx context.Context, workChs []chan *unpackWork, workerID uint
 	ch := workChs[workerID]
 	for upw := range ch {
 		if loopsPaceLimiter%paceLimiterIterationsMask == 0 {
-			if searchutil.IsContextDone(ctx) {
-				upw.err = ctx.Err()
+			if err := ctx.Err(); err != nil {
+				upw.err = searchutil.AnnotateContextError(ctx)
 				putTmpStorageBlock(tmpBlock)
 				return
 			}
@@ -436,7 +436,7 @@ func unpackWorker(ctx context.Context, workChs []chan *unpackWork, workerID uint
 
 	// Then help others with their work.
 	for i := uint(1); i < uint(len(workChs)); i++ {
-		if searchutil.IsContextDone(ctx) {
+		if err := ctx.Err(); err != nil {
 			break
 		}
 		idx := (i + workerID) % uint(len(workChs))
@@ -454,8 +454,8 @@ func unpackWorker(ctx context.Context, workChs []chan *unpackWork, workerID uint
 				break
 			}
 			if loopsPaceLimiter%paceLimiterIterationsMask == 0 {
-				if searchutil.IsContextDone(ctx) {
-					upw.err = ctx.Err()
+				if err := ctx.Err(); err != nil {
+					upw.err = searchutil.AnnotateContextError(ctx)
 					putTmpStorageBlock(tmpBlock)
 					return
 				}
@@ -520,8 +520,8 @@ func (pts *packedTimeseries) unpackTo(ctx context.Context, dst []*sortBlock, tbf
 		tmpBlock := getTmpStorageBlock()
 		var err error
 		for _, addr := range pts.addrs {
-			if searchutil.IsContextDone(ctx) {
-				err = ctx.Err()
+			if err := ctx.Err(); err != nil {
+				err = searchutil.AnnotateContextError(ctx)
 				break
 			}
 			initUnpackWork(upw, addr)
@@ -920,8 +920,8 @@ func DeleteSeries(ctx context.Context, qt *querytracer.Tracer, sq *storage.Searc
 func LabelNames(ctx context.Context, qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.SearchQuery, maxLabelNames int) ([]string, bool, error) {
 	qt = qt.NewChild("get labels: %s", sq)
 	defer qt.Done()
-	if searchutil.IsContextDone(ctx) {
-		return nil, false, fmt.Errorf("context is done before starting the query processing: %w", ctx.Err())
+	if err := ctx.Err(); err != nil {
+		return nil, false, fmt.Errorf("context error before starting the query processing: %w", searchutil.AnnotateContextError(ctx))
 	}
 	// Send the query to all the storage nodes in parallel.
 	type nodeResult struct {
@@ -985,8 +985,8 @@ func LabelNames(ctx context.Context, qt *querytracer.Tracer, denyPartialResponse
 func GraphiteTags(ctx context.Context, qt *querytracer.Tracer, accountID, projectID uint32, denyPartialResponse bool, filter string, limit int) ([]string, bool, error) {
 	qt = qt.NewChild("get graphite tags: filter=%s, limit=%d", filter, limit)
 	defer qt.Done()
-	if searchutil.IsContextDone(ctx) {
-		return nil, false, fmt.Errorf("context is done before starting the query processing: %w", ctx.Err())
+	if err := ctx.Err(); err != nil {
+		return nil, false, fmt.Errorf("context error before starting the query processing: %w", searchutil.AnnotateContextError(ctx))
 	}
 	sq := storage.NewSearchQuery(accountID, projectID, 0, 0, nil, 0)
 	labels, isPartial, err := LabelNames(ctx, qt, denyPartialResponse, sq, 0)
@@ -1028,8 +1028,8 @@ func hasString(a []string, s string) bool {
 func LabelValues(ctx context.Context, qt *querytracer.Tracer, denyPartialResponse bool, labelName string, sq *storage.SearchQuery, maxLabelValues int) ([]string, bool, error) {
 	qt = qt.NewChild("get values for label %s: %s", labelName, sq)
 	defer qt.Done()
-	if searchutil.IsContextDone(ctx) {
-		return nil, false, fmt.Errorf("context is done before starting the query processing: %w", ctx.Err())
+	if err := ctx.Err(); err != nil {
+		return nil, false, fmt.Errorf("context error before starting the query processing: %w", searchutil.AnnotateContextError(ctx))
 	}
 
 	err := populateSqTenantTokensIfNeeded(sq)
@@ -1110,8 +1110,8 @@ func prepareLabelValues(qt *querytracer.Tracer, labelValues []string, maxLabelVa
 func Tenants(ctx context.Context, qt *querytracer.Tracer, tr storage.TimeRange) ([]string, error) {
 	qt = qt.NewChild("get tenants on timeRange=%s", &tr)
 	defer qt.Done()
-	if searchutil.IsContextDone(ctx) {
-		return nil, fmt.Errorf("context is done before starting the query processing: %w", ctx.Err())
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("context error before starting the query processing: %w", searchutil.AnnotateContextError(ctx))
 	}
 
 	// Send the query to all the storage nodes in parallel.
@@ -1162,8 +1162,8 @@ func Tenants(ctx context.Context, qt *querytracer.Tracer, tr storage.TimeRange) 
 func GetMetricsMetadata(ctx context.Context, qt *querytracer.Tracer, tt *storage.TenantToken, denyPartialResponse bool, limit int, metricName string) ([]*metricsmetadata.Row, bool, error) {
 	qt = qt.NewChild("get metrics metadata: limit=%d, metric_name=%q", limit, metricName)
 	defer qt.Done()
-	if searchutil.IsContextDone(ctx) {
-		return nil, false, fmt.Errorf("context is done before starting the query processing: %w", ctx.Err())
+	if err := ctx.Err(); err != nil {
+		return nil, false, fmt.Errorf("context error before starting the query processing: %w", searchutil.AnnotateContextError(ctx))
 	}
 	type nodeResult struct {
 		metadata []*metricsmetadata.Row
@@ -1203,8 +1203,8 @@ func GetMetricsMetadata(ctx context.Context, qt *querytracer.Tracer, tt *storage
 func GraphiteTagValues(ctx context.Context, qt *querytracer.Tracer, accountID, projectID uint32, denyPartialResponse bool, tagName, filter string, limit int) ([]string, bool, error) {
 	qt = qt.NewChild("get graphite tag values for tagName=%s, filter=%s, limit=%d", tagName, filter, limit)
 	defer qt.Done()
-	if searchutil.IsContextDone(ctx) {
-		return nil, false, fmt.Errorf("context is done before starting the query processing: %w", ctx.Err())
+	if err := ctx.Err(); err != nil {
+		return nil, false, fmt.Errorf("context error before starting the query processing: %w", searchutil.AnnotateContextError(ctx))
 	}
 	if tagName == "name" {
 		tagName = ""
@@ -1234,8 +1234,8 @@ func TagValueSuffixes(ctx context.Context, qt *querytracer.Tracer, accountID, pr
 ) ([]string, bool, error) {
 	qt = qt.NewChild("get tag value suffixes for tagKey=%s, tagValuePrefix=%s, maxSuffixes=%d, timeRange=%s", tagKey, tagValuePrefix, maxSuffixes, &tr)
 	defer qt.Done()
-	if searchutil.IsContextDone(ctx) {
-		return nil, false, fmt.Errorf("context is done before starting the query processing: %w", ctx.Err())
+	if err := ctx.Err(); err != nil {
+		return nil, false, fmt.Errorf("context error before starting the query processing: %w", searchutil.AnnotateContextError(ctx))
 	}
 	// Send the query to all the storage nodes in parallel.
 	type nodeResult struct {
@@ -1298,8 +1298,8 @@ func deduplicateStrings(a []string) []string {
 func TSDBStatus(ctx context.Context, qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.SearchQuery, focusLabel string, topN int) (*storage.TSDBStatus, bool, error) {
 	qt = qt.NewChild("get tsdb stats: %s, focusLabel=%q, topN=%d", sq, focusLabel, topN)
 	defer qt.Done()
-	if searchutil.IsContextDone(ctx) {
-		return nil, false, fmt.Errorf("context is done before starting the query processing: %w", ctx.Err())
+	if err := ctx.Err(); err != nil {
+		return nil, false, fmt.Errorf("context error before starting the query processing: %w", searchutil.AnnotateContextError(ctx))
 	}
 	// Send the query to all the storage nodes in parallel.
 	type nodeResult struct {
@@ -1433,8 +1433,8 @@ func toTopHeapEntries(m map[string]uint64, topN int) []storage.TopHeapEntry {
 func SeriesCount(ctx context.Context, qt *querytracer.Tracer, accountID, projectID uint32, denyPartialResponse bool) (uint64, bool, error) {
 	qt = qt.NewChild("get series count")
 	defer qt.Done()
-	if searchutil.IsContextDone(ctx) {
-		return 0, false, fmt.Errorf("context is done before starting the query processing: %w", ctx.Err())
+	if err := ctx.Err(); err != nil {
+		return 0, false, fmt.Errorf("context error before starting the query processing: %w", searchutil.AnnotateContextError(ctx))
 	}
 	// Send the query to all the storage nodes in parallel.
 	type nodeResult struct {
@@ -1711,8 +1711,8 @@ func ExportBlocks(ctx context.Context, qt *querytracer.Tracer, sq *storage.Searc
 ) error {
 	qt = qt.NewChild("export blocks: %s", sq)
 	defer qt.Done()
-	if searchutil.IsContextDone(ctx) {
-		return fmt.Errorf("context is done before starting data export: %w", ctx.Err())
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("context error before starting data export: %w", searchutil.AnnotateContextError(ctx))
 	}
 	tr := storage.TimeRange{
 		MinTimestamp: sq.MinTimestamp,
@@ -1754,8 +1754,8 @@ func ExportBlocks(ctx context.Context, qt *querytracer.Tracer, sq *storage.Searc
 func SearchMetricNames(ctx context.Context, qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.SearchQuery) ([]string, bool, error) {
 	qt = qt.NewChild("fetch metric names: %s", sq)
 	defer qt.Done()
-	if searchutil.IsContextDone(ctx) {
-		return nil, false, fmt.Errorf("context is done before starting to search metric names: %w", ctx.Err())
+	if err := ctx.Err(); err != nil {
+		return nil, false, fmt.Errorf("context error before starting to search metric names: %w", searchutil.AnnotateContextError(ctx))
 	}
 
 	// Send the query to all the storage nodes in parallel.
@@ -1862,8 +1862,8 @@ func (e *tmpBlocksFileErr) Unwrap() error {
 func ProcessSearchQuery(ctx context.Context, qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.SearchQuery) (*Results, bool, error) {
 	qt = qt.NewChild("fetch matching series: %s", sq)
 	defer qt.Done()
-	if searchutil.IsContextDone(ctx) {
-		return nil, false, fmt.Errorf("context is done before starting the query processing: %w", ctx.Err())
+	if err := ctx.Err(); err != nil {
+		return nil, false, fmt.Errorf("context error before starting the query processing: %w", searchutil.AnnotateContextError(ctx))
 	}
 
 	// Setup search.
@@ -2573,7 +2573,7 @@ func (sn *storageNode) execOnConn(ctx context.Context, qt *querytracer.Tracer, f
 	currentTime := time.Unix(int64(nowSecs), 0)
 	timeout := deadline.Sub(currentTime)
 	if timeout <= 0 {
-		return fmt.Errorf("request timeout reached: %s", searchutil.DeadlineTimeoutHint(ctx, deadline))
+		return fmt.Errorf("request timeout reached: %s", searchutil.FormatDeadline(ctx, deadline))
 	}
 	var bc *handshake.BufferedConn
 	var err error
@@ -3108,8 +3108,8 @@ func (sn *storageNode) processSearchQueryOnConn(ctx context.Context, bc *handsha
 	blocksRead := 0
 	for {
 		if loopsPaceLimiter%paceLimiterIterationsMask == 0 {
-			if searchutil.IsContextDone(ctx) {
-				return ctx.Err()
+			if err := ctx.Err(); err != nil {
+				return searchutil.AnnotateContextError(ctx)
 			}
 		}
 		loopsPaceLimiter++
