@@ -714,8 +714,15 @@ The `sso` section fields:
 - `oidc.default_redirect_url` — the redirect target after login if the original URL fails validation. Defaults to `/`.
 - `oidc.insecure` — disables `Secure` cookie flag and uses HTTP callback URIs. Used for local dev only; when `vmauth` runs behind a TLS-terminating proxy, keep this `false`.
 
-The redirect URI registered for Authorized OIDC in the IdP must follow the pattern `https://<vmauth-host>/_vmauth/sso/callback` (or `http://<vmauth-host>/_vmauth/sso/callback` when `oidc.insecure: true`). The SSO logic accounts for the `-http.pathPrefix` flag, so include the prefix in the callback URI if set.
+Register the following URL in your IdP as the Authorized redirect URI:
 
+- `https://<vmauth-host>/_vmauth/sso/callback`
+
+If vmauth runs with `-http.pathPrefix`, insert the prefix before `/_vmauth`. For example, `-http.pathPrefix=/metrics` gives:
+
+- `https://<vmauth-host>/metrics/_vmauth/sso/callback`
+
+The URI must match exactly, including scheme, host, port and path. For local development over HTTP, register the `http://` form instead.
 
 After login, the ID token works as a standard JWT — all [JWT claim matching](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-matching) features apply. The `match_claims` must verify that the `aud` claim matches the SSO `client_id`. The JWT token is stored in the `_vmauth_sso` cookie in plain text.
 If a user authenticates but no `users` entry matches their token claims, `vmauth` shows the login page with an "Access Denied" error message.
