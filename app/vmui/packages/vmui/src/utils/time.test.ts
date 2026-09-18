@@ -1,6 +1,14 @@
 import { describe, it, expect } from "vitest";
 import dayjs from "dayjs";
-import { getMillisecondsFromDuration, getNanoTimestamp, parseSupportedDuration } from "./time";
+import {
+  getCustomDurationFromRelativeTimeId,
+  getCustomRelativeTimeId,
+  getMillisecondsFromDuration,
+  getNanoTimestamp,
+  getRelativeTime,
+  normalizeDuration,
+  parseSupportedDuration
+} from "./time";
 
 describe("Time utils", () => {
   describe("getNanoTimestamp", () => {
@@ -95,6 +103,45 @@ describe("Time utils", () => {
     it("should return zero when duration cannot be parsed", () => {
       expect(getMillisecondsFromDuration("garbage")).toBe(0);
       expect(getMillisecondsFromDuration("")).toBe(0);
+    });
+  });
+
+  describe("custom relative durations", () => {
+    it("normalizes valid durations", () => {
+      expect(normalizeDuration(" 1H 30m ")).toBe("1h30m");
+      expect(normalizeDuration("1,5h")).toBe("1.5h");
+      expect(normalizeDuration("500ms")).toBe("500ms");
+    });
+
+    it("rejects invalid durations", () => {
+      expect(normalizeDuration("")).toBeUndefined();
+      expect(normalizeDuration("0m")).toBeUndefined();
+      expect(normalizeDuration("-2m")).toBeUndefined();
+      expect(normalizeDuration("1m2h")).toBeUndefined();
+      expect(normalizeDuration("1h2h")).toBeUndefined();
+      expect(normalizeDuration("6y")).toBeUndefined();
+      expect(normalizeDuration("1 hour")).toBeUndefined();
+    });
+
+    it("round-trips custom relative time ids", () => {
+      const id = getCustomRelativeTimeId("4h");
+      expect(id).toBe("last_4h");
+      expect(getCustomDurationFromRelativeTimeId(id)).toBe("4h");
+      expect(getCustomDurationFromRelativeTimeId("last_5_minutes")).toBeUndefined();
+    });
+
+    it("resolves a custom relative time against now", () => {
+      const before = Date.now();
+      const result = getRelativeTime({
+        relativeTimeId: "last_4h",
+        defaultDuration: "1h",
+        defaultEndInput: new Date(0),
+      });
+
+      expect(result.relativeTimeId).toBe("last_4h");
+      expect(result.duration).toBe("4h");
+      expect(result.endInput.valueOf()).toBeGreaterThanOrEqual(before);
+      expect(result.endInput.valueOf()).toBeLessThanOrEqual(Date.now());
     });
   });
 });
