@@ -1311,6 +1311,120 @@ If you have suggestions for improvements or have found a bug, please open an iss
     source_labels: [__meta_kubernetes_pod_container_init]
     regex: true
   ```
+  
+### Saturated remote write
+
+`vmagent` may have performance issues while writing data to the destination configured via `-remoteWrite.url`
+if some of these signals appear together:
+
+* remote write connection saturation is high:
+
+  ```metricsql
+  max by (job, instance, url) (
+    rate(vmagent_remotewrite_send_duration_seconds_total[5m])
+    /
+    vmagent_remotewrite_queues
+  )
+  ```
+
+* the persistent queue for the affected destination starts growing:
+
+  ```metricsql
+  sum by (job, instance, url) (
+    vmagent_remotewrite_pending_data_bytes
+  )
+  ```
+
+* the in-memory pending blocks for the affected destination start growing:
+
+  ```metricsql
+  sum by (job, instance, url) (
+    vmagent_remotewrite_pending_inmemory_blocks
+  )
+  ```
+
+* remote write error rate starts growing:
+
+  ```metricsql
+  sum by (job, instance, url) (
+    rate(vmagent_remotewrite_errors_total[5m])
+  )
+  ```
+
+High remote write connection saturation means that the existing remote write workers spend most of their time
+sending data and have little idle capacity. If the persistent queue grows at the same time, these workers cannot drain the queue as fast as new data is added.
+The problem could be caused by an unhealthy downstream destination, network issues, inappropriate settings, an overloaded `vmagent`, or other factors. The following sections describe the common causes and the checks for each of them.
+
+#### Overloaded downstream
+
+Overloaded downstream is the most direct reason for slow remote write. First check the downstream health,
+such as CPU, memory resources, and disk I/O for storage components. Also check the network health between `vmagent`
+and the downstream destination, especially when they are located in different availability zones.
+
+Scale the overloaded downstream components as needed to reduce saturation.
+
+#### Small remote write concurrency
+
+If both `vmagent` and the remote write destination has spare resources and the remote write error rate remains 0, but the
+ingestion is still saturated, then the bottleneck is likely the number of concurrent send workers.
+In this case, more workers can send more blocks in parallel and reduce the backlog.
+
+Increase `-remoteWrite.queues` for the affected URL when:
+
+* `vmagent_remotewrite_pending_data_bytes` grows;
+* remote write connection saturation is high;
+* remote write error rate remains low;
+* `vmagent` and remote write destination has enough resources such as CPU, memory, and disk I/O capacity;
+
+Increasing `-remoteWrite.queues` adds more concurrent senders for the corresponding `-remoteWrite.url`.
+It can improve throughput when a single sender spends most of its time waiting on request latency.
+
+It should not be increased if `vmagent` or the destination is already overloaded.
+
+#### Inappropriate compression level
+
+Adjust `-remoteWrite.vmProtoCompressLevel` when network bandwidth is the bottleneck (this is common when the destination
+is in another datacenter or availability zone) and the downstream destination has enough CPU capacity.
+
+Bigger values reduce network usage at the cost of higher CPU usage on `vmagent` and the destination.
+Do not increase this value when either side is already CPU-bound.
+
+Conversely, if CPU is the bottleneck while network bandwidth has enough spare capacity, decrease `-remoteWrite.vmProtoCompressLevel` to reduce compression overhead at the cost
+of higher network usage.
+
+#### Overloaded vmagent
+
+`vmagent` can also be the bottleneck when it performs expensive local processing before sending data to
+`-remoteWrite.url`. Heavy relabeling, stream aggregation, or ingestion work may consume most of the CPU, leaving
+not enough resources for remote write workers to send data in time.
+
+Typical signs are:
+
+* high `vmagent` CPU usage;
+* remote write connection saturation is not high while pending data still grows;
+* relabeling, stream aggregation, or ingestion work consumes most of the local resources;
+
+Use [CPU profiles](#profiling) to verify where `vmagent` spends CPU time. If the CPU cost is expected for the
+current configuration, increase CPU capacity for `vmagent`, or split the workload across multiple `vmagent`
+instances.
+
+#### Other limits
+
+Check whether `vmagent` is limited by its own remote write rate limit:
+
+```metricsql
+sum by (job, instance, url) (
+  rate(vmagent_remotewrite_rate_limit_reached_total[5m])
+)
+
+max by (job, instance, url) (
+  vmagent_remotewrite_rate_limit
+)
+```
+
+If the rate limit is reached, increase `-remoteWrite.rateLimit` or remove it after confirming that the destination
+can handle the higher traffic.
+
 
 See also:
 
