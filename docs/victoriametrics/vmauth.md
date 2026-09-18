@@ -667,7 +667,7 @@ See also [Single sign-on (SSO)](#single-sign-on-sso), [authorization](#authoriza
 `vmauth` supports [Single sign-on (SSO)](https://en.wikipedia.org/wiki/Single_sign-on){{% available_from "#" %}}.
 It works with any [OIDC-compliant](https://openid.net/developers/how-connect-works/) Identity Provider (IdP) such as Keycloak, Auth0, Okta, Google, Azure AD, etc.
 It implements the [Authorization Code Flow](https://openid.net/specs/openid-connect-core-1_0.html#CodeFlowAuth):
-when an unauthenticated browser request arrives: `vmauth` shows a login page, redirects to the IdP,
+when an unauthenticated browser request arrives `vmauth` shows a login page, redirects to the IdP,
 receives an authorization code on callback, exchanges it for an ID token, and sets it as a session cookie.
 Subsequent requests carry the cookie and are authorized by [JWT Token auth proxy](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-token-auth-proxy).
 
@@ -714,7 +714,7 @@ The `sso` section fields:
 - `oidc.default_redirect_url` — the redirect target after login if the original URL fails validation. Defaults to `/`.
 - `oidc.insecure` — disables `Secure` cookie flag and uses HTTP callback URIs. Used for local dev only; when `vmauth` runs behind a TLS-terminating proxy, keep this `false`.
 
-The redirect URI registered for Authorized OIDC in the IdP must follow the pattern `https://<vmauth-host>/_vmauth/sso/callback`. The SSO logic accounts for the `-http.pathPrefix` flag, so include the prefix in the callback URI if set.
+The redirect URI registered for Authorized OIDC in the IdP must follow the pattern `https://<vmauth-host>/_vmauth/sso/callback` (or `http://<vmauth-host>/_vmauth/sso/callback` when `oidc.insecure: true`). The SSO logic accounts for the `-http.pathPrefix` flag, so include the prefix in the callback URI if set.
 
 
 After login, the ID token works as a standard JWT — all [JWT claim matching](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-matching) features apply. The `match_claims` must verify that the `aud` claim matches the SSO `client_id`. The JWT token is stored in the `_vmauth_sso` cookie in plain text.
