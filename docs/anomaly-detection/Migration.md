@@ -64,7 +64,7 @@ Read each row as **source persisted state → target runtime**. The upgrade and 
 | Source state | Target runtime | Action and compatibility boundary |
 | --- | --- | --- |
 | v1.30.5 | v1.30.6 | Reuse compatible built-in state. |
-| v1.30.4 | v1.30.5 | Reuse compatible built-in state. Its UI and named-query changes require no state-format migration. |
+| v1.30.4 | v1.30.5–v1.30.6 | Reuse compatible built-in state. Its UI and named-query changes require no state-format migration. |
 | v1.30.0–v1.30.3 | v1.30.4–v1.30.6 | Reuse compatible built-in state. v1.30.4 restores legacy multivariate Temporal Envelope checkpoints correctly and advances state provenance after compatible upgrades. |
 | v1.30.0–v1.30.2 | v1.30.3 | Multivariate Temporal Envelope checkpoints can fail during inference. Prefer upgrading directly to v1.30.6; otherwise discard and refit affected model state. |
 | v1.29.1–v1.29.7 | v1.30.0–v1.30.6 | Existing built-in state remains compatible. Temporal Envelope was introduced in v1.30.0 and has no state from earlier releases. Review custom-model topology changes separately. |
