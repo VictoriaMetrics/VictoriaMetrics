@@ -1,10 +1,12 @@
 package vmselectapi
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -247,7 +249,7 @@ func (s *Server) processConn(bc *handshake.BufferedConn) error {
 			if isExpectedError(err) {
 				return nil
 			}
-			if errors.Is(err, storage.ErrDeadlineExceeded) {
+			if errors.Is(err, context.DeadlineExceeded) {
 				return fmt.Errorf("cannot process vmselect request in %d seconds: %w", ctx.timeout, err)
 			}
 			return fmt.Errorf("cannot process vmselect request: %w", err)
@@ -263,7 +265,7 @@ func isExpectedError(err error) bool {
 		// Remote client gracefully closed the connection.
 		return true
 	}
-	if errors.Is(err, net.ErrClosed) {
+	if errors.Is(err, net.ErrClosed) || errors.Is(err, context.Canceled) {
 		return true
 	}
 	errStr := err.Error()
@@ -447,7 +449,7 @@ func (ctx *vmselectRequestCtx) writeDataBufBytes() error {
 const maxErrorMessageSize = 64 * 1024
 
 func (ctx *vmselectRequestCtx) writeErrorMessage(err error) error {
-	if errors.Is(err, storage.ErrDeadlineExceeded) {
+	if errors.Is(err, context.DeadlineExceeded) {
 		err = fmt.Errorf("cannot execute request in %d seconds: %w", ctx.timeout, err)
 	}
 	errMsg := err.Error()
@@ -621,11 +623,14 @@ func (s *Server) processRegisterMetricNames(ctx *vmselectRequestCtx) error {
 	}
 	defer s.endConcurrentRequest()
 
+	rCtx, cm := withRequestContext(ctx)
+
 	// Register metric names from mrs.
-	if err := s.api.RegisterMetricNames(ctx.qt, mrs, ctx.deadline); err != nil {
+	if err := s.api.RegisterMetricNames(rCtx, ctx.qt, mrs); err != nil {
+		cm.stop()
 		return ctx.writeErrorMessage(err)
 	}
-
+	cm.stop()
 	// Send an empty error message to vmselect.
 	if err := ctx.writeString(""); err != nil {
 		return fmt.Errorf("cannot send empty error message: %w", err)
@@ -646,12 +651,15 @@ func (s *Server) processDeleteSeries(ctx *vmselectRequestCtx) error {
 	}
 	defer s.endConcurrentRequest()
 
+	rCtx, cm := withRequestContext(ctx)
+
 	// Execute the request.
-	deletedCount, err := s.api.DeleteSeries(ctx.qt, &ctx.sq, ctx.deadline)
+	deletedCount, err := s.api.DeleteSeries(rCtx, ctx.qt, &ctx.sq)
 	if err != nil {
+		cm.stop()
 		return ctx.writeErrorMessage(err)
 	}
-
+	cm.stop()
 	// Send an empty error message to vmselect.
 	if err := ctx.writeString(""); err != nil {
 		return fmt.Errorf("cannot send empty error message: %w", err)
@@ -680,12 +688,15 @@ func (s *Server) processLabelNames(ctx *vmselectRequestCtx) error {
 	}
 	defer s.endConcurrentRequest()
 
+	rCtx, cm := withRequestContext(ctx)
+
 	// Execute the request
-	labelNames, err := s.api.LabelNames(ctx.qt, &ctx.sq, maxLabelNames, ctx.deadline)
+	labelNames, err := s.api.LabelNames(rCtx, ctx.qt, &ctx.sq, maxLabelNames)
 	if err != nil {
+		cm.stop()
 		return ctx.writeErrorMessage(err)
 	}
-
+	cm.stop()
 	// Send an empty error message to vmselect.
 	if err := ctx.writeString(""); err != nil {
 		return fmt.Errorf("cannot send empty error message: %w", err)
@@ -731,12 +742,15 @@ func (s *Server) processLabelValues(ctx *vmselectRequestCtx) error {
 	}
 	defer s.endConcurrentRequest()
 
+	rCtx, cm := withRequestContext(ctx)
+
 	// Execute the request
-	labelValues, err := s.api.LabelValues(ctx.qt, &ctx.sq, labelName, maxLabelValues, ctx.deadline)
+	labelValues, err := s.api.LabelValues(rCtx, ctx.qt, &ctx.sq, labelName, maxLabelValues)
 	if err != nil {
+		cm.stop()
 		return ctx.writeErrorMessage(err)
 	}
-
+	cm.stop()
 	// Send an empty error message to vmselect.
 	if err := ctx.writeString(""); err != nil {
 		return fmt.Errorf("cannot send empty error message: %w", err)
@@ -793,12 +807,15 @@ func (s *Server) processTagValueSuffixes(ctx *vmselectRequestCtx) error {
 	}
 	defer s.endConcurrentRequest()
 
+	rCtx, cm := withRequestContext(ctx)
+
 	// Execute the request
-	suffixes, err := s.api.TagValueSuffixes(ctx.qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes, ctx.deadline)
+	suffixes, err := s.api.TagValueSuffixes(rCtx, ctx.qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes)
 	if err != nil {
+		cm.stop()
 		return ctx.writeErrorMessage(err)
 	}
-
+	cm.stop()
 	// Send an empty error message to vmselect.
 	if err := ctx.writeString(""); err != nil {
 		return fmt.Errorf("cannot send empty error message: %w", err)
@@ -831,12 +848,14 @@ func (s *Server) processSeriesCount(ctx *vmselectRequestCtx) error {
 	}
 	defer s.endConcurrentRequest()
 
+	rCtx, cm := withRequestContext(ctx)
 	// Execute the request
-	n, err := s.api.SeriesCount(ctx.qt, accountID, projectID, ctx.deadline)
+	n, err := s.api.SeriesCount(rCtx, ctx.qt, accountID, projectID)
 	if err != nil {
+		cm.stop()
 		return ctx.writeErrorMessage(err)
 	}
-
+	cm.stop()
 	// Send an empty error message to vmselect.
 	if err := ctx.writeString(""); err != nil {
 		return fmt.Errorf("cannot send empty error message: %w", err)
@@ -870,12 +889,15 @@ func (s *Server) processTSDBStatus(ctx *vmselectRequestCtx) error {
 	}
 	defer s.endConcurrentRequest()
 
+	rCtx, cm := withRequestContext(ctx)
+
 	// Execute the request
-	status, err := s.api.TSDBStatus(ctx.qt, &ctx.sq, focusLabel, int(topN), ctx.deadline)
+	status, err := s.api.TSDBStatus(rCtx, ctx.qt, &ctx.sq, focusLabel, int(topN))
 	if err != nil {
+		cm.stop()
 		return ctx.writeErrorMessage(err)
 	}
-
+	cm.stop()
 	// Send an empty error message to vmselect.
 	if err := ctx.writeString(""); err != nil {
 		return fmt.Errorf("cannot send empty error message: %w", err)
@@ -899,12 +921,15 @@ func (s *Server) processTenants(ctx *vmselectRequestCtx) error {
 	}
 	defer s.endConcurrentRequest()
 
+	rCtx, cm := withRequestContext(ctx)
+
 	// Execute the request
-	tenants, err := s.api.Tenants(ctx.qt, tr, ctx.deadline)
+	tenants, err := s.api.Tenants(rCtx, ctx.qt, tr)
 	if err != nil {
+		cm.stop()
 		return ctx.writeErrorMessage(err)
 	}
-
+	cm.stop()
 	// Send an empty error message to vmselect.
 	if err := ctx.writeString(""); err != nil {
 		return fmt.Errorf("cannot send empty error message: %w", err)
@@ -982,12 +1007,15 @@ func (s *Server) processSearchMetricNames(ctx *vmselectRequestCtx) error {
 	}
 	defer s.endConcurrentRequest()
 
+	rCtx, cm := withRequestContext(ctx)
+
 	// Execute request.
-	metricNames, err := s.api.SearchMetricNames(ctx.qt, &ctx.sq, ctx.deadline)
+	metricNames, err := s.api.SearchMetricNames(rCtx, ctx.qt, &ctx.sq)
 	if err != nil {
+		cm.stop()
 		return ctx.writeErrorMessage(err)
 	}
-
+	cm.stop()
 	// Send empty error message to vmselect.
 	if err := ctx.writeString(""); err != nil {
 		return fmt.Errorf("cannot send empty error message: %w", err)
@@ -1019,13 +1047,14 @@ func (s *Server) processSearch(ctx *vmselectRequestCtx) error {
 	}
 	defer s.endConcurrentRequest()
 
+	rCtx, cm := withRequestContext(ctx)
+	defer cm.stop()
 	// Initiaialize the search.
-	bi, err := s.api.InitSearch(ctx.qt, &ctx.sq, ctx.deadline)
+	bi, err := s.api.InitSearch(rCtx, ctx.qt, &ctx.sq)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}
 	defer bi.MustClose()
-
 	// Send empty error message to vmselect.
 	if err := ctx.writeString(""); err != nil {
 		return fmt.Errorf("cannot send empty error message: %w", err)
@@ -1035,7 +1064,7 @@ func (s *Server) processSearch(ctx *vmselectRequestCtx) error {
 	blocksRead := 0
 	var ok bool
 	for {
-		ctx.dataBuf, ok = bi.NextBlock(ctx.dataBuf[:0])
+		ctx.dataBuf, ok = bi.NextBlock(rCtx, ctx.dataBuf[:0])
 		if !ok {
 			break
 		}
@@ -1050,6 +1079,7 @@ func (s *Server) processSearch(ctx *vmselectRequestCtx) error {
 		return fmt.Errorf("search error: %w", err)
 	}
 	ctx.qt.Printf("sent %d blocks to vmselect", blocksRead)
+	cm.stop()
 
 	// Send 'end of response' marker
 	if err := ctx.writeString(""); err != nil {
@@ -1097,11 +1127,14 @@ func (s *Server) processMetricNamesUsageStats(ctx *vmselectRequestCtx) error {
 	}
 	defer s.endConcurrentRequest()
 
-	result, err := s.api.GetMetricNamesUsageStats(ctx.qt, at, limit, int(le), matchPattern, ctx.deadline)
+	rCtx, cm := withRequestContext(ctx)
+
+	result, err := s.api.GetMetricNamesUsageStats(rCtx, ctx.qt, at, limit, int(le), matchPattern)
 	if err != nil {
+		cm.stop()
 		return ctx.writeErrorMessage(err)
 	}
-
+	cm.stop()
 	// Send an empty error message to vmselect.
 	if err := ctx.writeString(""); err != nil {
 		return fmt.Errorf("cannot send empty error message: %w", err)
@@ -1149,7 +1182,10 @@ func (s *Server) processResetMetricUsageStats(ctx *vmselectRequestCtx) error {
 		return ctx.writeErrorMessage(err)
 	}
 	defer s.endConcurrentRequest()
-	if err := s.api.ResetMetricNamesUsageStats(ctx.qt, ctx.deadline); err != nil {
+
+	// there is no need to monitor connection, because this operation is fast and operates
+	// with fire and forget logic
+	if err := s.api.ResetMetricNamesUsageStats(context.TODO(), ctx.qt); err != nil {
 		return fmt.Errorf("cannot reset state of the metric names usage tracker: %w", err)
 	}
 	return nil
@@ -1192,11 +1228,14 @@ func (s *Server) processSearchMetadata(ctx *vmselectRequestCtx) error {
 	}
 	defer s.endConcurrentRequest()
 
-	result, err := s.api.GetMetadataRecords(ctx.qt, at, limit, metricName, ctx.deadline)
+	rCtx, cm := withRequestContext(ctx)
+
+	result, err := s.api.GetMetadataRecords(rCtx, ctx.qt, at, limit, metricName)
 	if err != nil {
+		cm.stop()
 		return ctx.writeErrorMessage(err)
 	}
-
+	cm.stop()
 	// Send an empty error message to vmselect.
 	if err := ctx.writeString(""); err != nil {
 		return fmt.Errorf("cannot send empty error message: %w", err)
@@ -1224,3 +1263,78 @@ func writeMetadataRows(ctx *vmselectRequestCtx, records []*metricsmetadata.Row) 
 
 	return nil
 }
+
+// withRequestContext creates a cancelable context
+// for given vmselectRequestCtx.
+// I starts monitoring whether the client closes or breaks the connection.
+//
+// The caller must stop the returned connMonitor via cm.stop() once request
+// processing is complete and before writing any response to client
+func withRequestContext(rctx *vmselectRequestCtx) (context.Context, *connMonitor) {
+	ctx, cancel := context.WithDeadline(context.Background(), time.Unix(int64(rctx.deadline), 0))
+	cm := startMonitorConn(cancel, rctx.bc)
+	return ctx, cm
+}
+
+// startMonitorConn starts monitoring of given buffered connection for any read operations
+// it's expected that monitoring must be stoped with stop() call,
+// before caller could read anything from it
+func startMonitorConn(cancel func(), bc *handshake.BufferedConn) *connMonitor {
+	cm := &connMonitor{
+		bc:     bc,
+		cancel: cancel,
+	}
+
+	cm.watch()
+	return cm
+}
+
+type connMonitor struct {
+	bc     *handshake.BufferedConn
+	cancel func()
+
+	stopped atomic.Bool
+	wg      sync.WaitGroup
+}
+
+func (cm *connMonitor) watch() {
+	if err := cm.bc.SetReadDeadline(time.Time{}); err != nil {
+		logger.Errorf("connMonitor: cannot set empty read deadline for the connection %q: %s", cm.bc.RemoteAddr(), err)
+	}
+
+	cm.wg.Go(func() {
+		// block on conn.Read
+		// it only closes if stop() called or client closes connection
+		var buf [1]byte
+		n, err := cm.bc.Read(buf[:])
+		if err != nil {
+			if !errors.Is(err, os.ErrDeadlineExceeded) {
+				logger.Errorf("connMonitor: unexpcted Read error for the connection %q: %s", cm.bc.RemoteAddr(), err)
+			}
+		}
+		if n > 0 {
+			logger.Warnf("connMonitor: unexpected non empty read from remote addr: %s", cm.bc.RemoteAddr())
+		}
+		if !cm.stopped.CompareAndSwap(false, true) {
+			return
+		}
+		cm.cancel()
+	})
+}
+
+func (cm *connMonitor) stop() {
+	if cm.stopped.CompareAndSwap(false, true) {
+		cm.cancel()
+		// unblock watcher with read timeout error
+		if err := cm.bc.Conn.SetReadDeadline(timeLongBefore); err != nil {
+			logger.Errorf("connMonitor: cannot set read deadline for the connection %q: %s", cm.bc.RemoteAddr(), err)
+		}
+	}
+	cm.wg.Wait()
+	// reset connection deadline
+	if err := cm.bc.SetReadDeadline(time.Time{}); err != nil {
+		logger.Errorf("connMonitor: cannot set empty read deadline for the connection %q: %s", cm.bc.RemoteAddr(), err)
+	}
+}
+
+var timeLongBefore = time.Unix(1, 0)
