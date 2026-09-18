@@ -2,6 +2,7 @@ package newrelic
 
 import (
 	"fmt"
+	"unsafe"
 
 	"github.com/valyala/fastjson"
 	"github.com/valyala/fastjson/fastfloat"
@@ -15,6 +16,10 @@ import (
 type Rows struct {
 	Rows []Row
 }
+
+// maxRowsBatchSize limits the estimated memory size of rows accumulated before
+// they are passed to the callback.
+const maxRowsBatchSize = 4 * 1024 * 1024
 
 // Reset resets r, so it can be reused
 func (r *Rows) Reset() {
@@ -31,6 +36,20 @@ var jsonParserPool fastjson.ParserPool
 //
 // b can be reused after returning from r.
 func (r *Rows) Unmarshal(b []byte) error {
+	return r.unmarshal(b, 0, nil)
+}
+
+// UnmarshalWithCallback parses NewRelic Event request from b and calls callback
+// for every batch of parsed rows.
+//
+// callback shouldn't hold rows after returning.
+//
+// b can be reused after returning from r.
+func (r *Rows) UnmarshalWithCallback(b []byte, callback func(rows []Row) error) error {
+	return r.unmarshal(b, maxRowsBatchSize, callback)
+}
+
+func (r *Rows) unmarshal(b []byte, maxBatchSize int, callback func(rows []Row) error) error {
 	p := jsonParserPool.Get()
 	defer jsonParserPool.Put(p)
 
@@ -43,6 +62,9 @@ func (r *Rows) Unmarshal(b []byte) error {
 	if err != nil {
 		return fmt.Errorf("cannot find the top-level array of MetricPost objects: %w", err)
 	}
+	batchSize := 0
+	callbackCalled := false
+	var callbackErr error
 	for _, mp := range metricPosts {
 		o, err := mp.Object()
 		if err != nil {
@@ -71,17 +93,40 @@ func (r *Rows) Unmarshal(b []byte) error {
 					} else {
 						rows = append(rows, Row{})
 					}
-					r := &rows[len(rows)-1]
-					if errLocal := r.unmarshal(eventObject); errLocal != nil {
+					row := &rows[len(rows)-1]
+					if errLocal := row.unmarshal(eventObject); errLocal != nil {
 						err = fmt.Errorf("cannot unmarshal EventObject: %w", errLocal)
 						return
+					}
+					if callback != nil {
+						batchSize += row.sizeBytes()
+						if batchSize > maxBatchSize {
+							r.Rows = rows
+							if errLocal := callback(rows); errLocal != nil {
+								callbackErr = errLocal
+								err = callbackErr
+								return
+							}
+							callbackCalled = true
+							r.Reset()
+							rows = r.Rows
+							batchSize = 0
+						}
 					}
 				}
 			}
 		})
 		r.Rows = rows
+		if callbackErr != nil {
+			return callbackErr
+		}
 		if err != nil {
 			return fmt.Errorf("cannot parse MetricPost object: %w", err)
+		}
+	}
+	if callback != nil && (len(r.Rows) > 0 || !callbackCalled) {
+		if err := callback(r.Rows); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -120,6 +165,19 @@ func (r *Row) reset() {
 	r.Samples = samples[:0]
 
 	r.Timestamp = 0
+}
+
+func (r *Row) sizeBytes() int {
+	n := int(unsafe.Sizeof(*r))
+	for i := range r.Tags {
+		t := &r.Tags[i]
+		n += int(unsafe.Sizeof(*t)) + len(t.Key) + len(t.Value)
+	}
+	for i := range r.Samples {
+		s := &r.Samples[i]
+		n += int(unsafe.Sizeof(*s)) + len(s.Name)
+	}
+	return n
 }
 
 func (t *Tag) reset() {
