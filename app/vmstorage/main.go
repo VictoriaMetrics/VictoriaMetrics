@@ -13,7 +13,10 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage/promremotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/appmetrics"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
@@ -28,6 +31,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeserieslimits"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vminsertapi"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vmselectapi"
 )
@@ -134,6 +138,15 @@ var (
 
 	metadataStorageSize = flagutil.NewBytes("storage.maxMetadataStorageSize", 0, "Overrides max size for metrics metadata entries in-memory storage. "+
 		"If set to 0 or a negative value, defaults to 1% of allowed memory.")
+	enableIngestionAPI = flag.Bool("enableIngestionAPI", false, "Whether to enable ingestion APIs on vmstorage HTTP listener. "+
+		"Currently enables Prometheus remote write v1 at /insert/<accountID>/prometheus and /insert/<accountID>/prometheus/api/v1/write")
+	maxLabelsPerTimeseries = flag.Int("maxLabelsPerTimeseries", 40, "The maximum number of labels per time series to be accepted at ingestion APIs when -enableIngestionAPI is enabled. Series with superfluous labels are ignored. In this case the vm_rows_ignored_total{reason=\"too_many_labels\"} metric at /metrics page is incremented")
+	maxLabelNameLen        = flag.Int("maxLabelNameLen", 256, "The maximum length of label name in the accepted time series at ingestion APIs when -enableIngestionAPI is enabled. Series with longer label name are ignored. In this case the vm_rows_ignored_total{reason=\"too_long_label_name\"} metric at /metrics page is incremented. "+
+		"Value must be in range 1..65535.")
+	maxLabelValueLen = flag.Int("maxLabelValueLen", 4*1024, "The maximum length of label values in the accepted time series at ingestion APIs when -enableIngestionAPI is enabled. Series with longer label value are ignored. In this case the vm_rows_ignored_total{reason=\"too_long_label_value\"} metric at /metrics page is incremented. "+
+		"Value must be in range 1..65535.")
+	maxIngestionRate = flag.Int("maxIngestionRate", 0, "The maximum number of samples vmstorage can receive per second via an ingestion API, such as Prometheus Remove Write. "+
+		"Data ingestion is paused when the limit is exceeded. By default there are no limits on samples ingestion rate.")
 )
 
 func main() {
@@ -153,6 +166,7 @@ func main() {
 	initSecretFlags()
 	buildinfo.Init()
 	logger.Init()
+	timeserieslimits.MustInit(*maxLabelsPerTimeseries, *maxLabelNameLen, *maxLabelValueLen)
 
 	storage.SetDedupInterval(*minScrapeInterval)
 	storage.SetDataFlushInterval(*inmemoryDataFlushInterval)
@@ -199,6 +213,9 @@ func main() {
 	}
 	strg := storage.MustOpenStorage(*storageDataPath, opts)
 	vmStorage := newVMStorage(strg, *vmselectMaxConcurrentRequests)
+
+	common.SetVMInsertAPI(vmStorage)
+	common.StartIngestionRateLimiter(*maxIngestionRate)
 
 	var m storage.Metrics
 	strg.UpdateMetrics(&m)
@@ -301,6 +318,9 @@ func (vms *VMStorage) requestHandler(w http.ResponseWriter, r *http.Request) boo
 		fmt.Fprintf(w, `vmstorage - a component of VictoriaMetrics cluster<br/>
 			<a href="https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/">docs</a><br>
 `)
+		return true
+	}
+	if vms.insertRequestHandler(w, r) {
 		return true
 	}
 
@@ -422,8 +442,41 @@ func (vms *VMStorage) requestHandler(w http.ResponseWriter, r *http.Request) boo
 	}
 }
 
+func (vms *VMStorage) insertRequestHandler(w http.ResponseWriter, r *http.Request) bool {
+	if !*enableIngestionAPI {
+		return false
+	}
+	p, err := httpserver.ParsePathAndHeaders(r.URL.Path, r.Header)
+	if err != nil || p.Prefix != "insert" {
+		return false
+	}
+	switch p.Suffix {
+	case "prometheus/", "prometheus", "prometheus/api/v1/write", "prometheus/api/v1/push":
+		if protoparserutil.HandleVMProtoServerHandshake(w, r) {
+			return true
+		}
+		at, err := auth.NewTokenPossibleMultitenant(p.AuthToken)
+		if err != nil {
+			httpserver.Errorf(w, r, "auth error: %s", err)
+			return true
+		}
+		prometheusWriteRequests.Inc()
+		if err := promremotewrite.InsertHandler(at, r); err != nil {
+			prometheusWriteErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return true
+	}
+	return false
+}
+
 var (
 	activeForceMerges = metrics.NewCounter("vm_active_force_merges")
+
+	prometheusWriteRequests = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/prometheus/", protocol="promremotewrite"}`)
+	prometheusWriteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/insert/{}/prometheus/", protocol="promremotewrite"}`)
 
 	snapshotsCreateTotal = metrics.NewCounter(`vm_http_requests_total{path="/snapshot/create"}`)
 
