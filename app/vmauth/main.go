@@ -440,7 +440,15 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tkn *j
 			// Authorization should be requested for http requests without credentials
 			// to a route that is not in the configuration for unauthorized user.
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5236
-			if ui.BearerToken == "" && ui.Username == "" && len(*authUsers.Load()) > 0 {
+			//
+			// A JWT-configured user never carries static BearerToken/Username
+			// credentials, so reaching this branch via processRequest means
+			// the request was already authenticated by a valid JWT (see
+			// requestHandler: getJWTUserInfo matched before processRequest).
+			// Only the genuinely-credential-less user may trigger the 401
+			// prompt here; the JWT user gets the precise 400 missing-route
+			// error below instead. See issue #11523.
+			if ui.BearerToken == "" && ui.Username == "" && ui.JWT == nil && len(*authUsers.Load()) > 0 {
 				handleMissingAuthorizationError(w)
 				return
 			}

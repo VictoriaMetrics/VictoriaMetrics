@@ -920,6 +920,29 @@ users:
   username: a-user
   url_prefix: {BACKEND}/foo`, request, responseExpected)
 
+	// jwt-authenticated user hitting an unmatched path gets a 400 missing
+	// route error, not the 401 missing-Authorization prompt (issue #11523).
+	// The request carries a valid Bearer token and getJWTUserInfo already
+	// matched it before processRequest, so BearerToken/Username being empty
+	// must not be read as "no credentials were sent".
+	request = httptest.NewRequest(`GET`, "http://some-host.com/unmatched-path", nil)
+	request.Header.Set(`Authorization`, `Bearer `+minimalToken)
+	responseExpected = `
+statusCode=400
+user jwt missing route for "http://some-host.com/unmatched-path"`
+	f(fmt.Sprintf(`
+users:
+- username: some-user
+  password: secret
+  url_prefix: {BACKEND}/other
+- jwt:
+    public_keys:
+    - %q
+  url_map:
+  - src_paths:
+    - "/api/v1/query"
+    url_prefix: {BACKEND}/foo`, string(publicKeyPEM)), request, responseExpected)
+
 	// auth with key from file
 	publicKeyFile := filepath.Join(t.TempDir(), "a_public_key.pem")
 	if err := os.WriteFile(publicKeyFile, []byte(publicKeyPEM), 0o644); err != nil {
