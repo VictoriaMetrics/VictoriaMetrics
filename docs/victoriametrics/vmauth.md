@@ -667,13 +667,13 @@ See also [Single sign-on (SSO)](#single-sign-on-sso), [authorization](#authoriza
 `vmauth` supports [Single sign-on (SSO)](https://en.wikipedia.org/wiki/Single_sign-on){{% available_from "#" %}}.
 It works with any [OIDC-compliant](https://openid.net/developers/how-connect-works/) Identity Provider (IdP) such as Keycloak, Auth0, Okta, Google, Azure AD, etc.
 It implements the [Authorization Code Flow](https://openid.net/specs/openid-connect-core-1_0.html#CodeFlowAuth):
-when an unauthenticated browser request arrives, `vmauth` shows a login page, redirects to the IdP,
+when an unauthenticated browser request arrives: `vmauth` shows a login page, redirects to the IdP,
 receives an authorization code on callback, exchanges it for an ID token, and sets it as a session cookie.
 Subsequent requests carry the cookie and are authorized by [JWT Token auth proxy](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-token-auth-proxy).
 
 Only `GET`/`HEAD` requests trigger the login page; other methods receive `401`.
 
-The config has two parts: a top-level `sso` section for login flow, and `users` entries with `jwt` for authorization:
+The config has two parts: a top-level `sso` section for the login flow, and `users` entries with `jwt` for authorization:
 
 ```yaml
 sso:
@@ -704,20 +704,20 @@ users:
 
 The `sso` section fields:
 
-- `src_host` — regex matching the request hostname. SSO activates only for matching hosts. First match wins when multiple entries are defined.
-- `oidc.issuer` — OIDC provider issuer URL. `vmauth` fetches `{issuer}/.well-known/openid-configuration` for endpoint discovery. Must use `https://` in production.
-- `oidc.client_id` — OAuth2 client ID registered with the IdP.
-- `oidc.client_secret` — OAuth2 client secret.
-- `oidc.cookie_secret` — secret (≥16 chars) for HMAC-signing the CSRF cookie. Generate with `openssl rand -base64 32`.
-- `oidc.scopes` — OAuth2 scopes. The `openid` scope is always included.
-- `oidc.session_duration` — caps session cookie lifetime. Actual `MaxAge` = min(`session_duration`, token `exp`). Go duration syntax, e.g. `10m`, `1h`. Defaults to `10m`.
-- `oidc.default_redirect_url` — redirect target after login if the original URL fails validation. Defaults to `/`.
-- `oidc.insecure` — disables `Secure` cookie flag and uses `http://` callback URIs. For local dev only; when `vmauth` runs behind an SSL-terminating proxy, keep this `false`.
+- `src_host` — a regex matching the request hostname. SSO activates only for matching hosts. First match wins when multiple entries are defined.
+- `oidc.issuer` — the OIDC provider issuer URL. `vmauth` fetches `{issuer}/.well-known/openid-configuration` for endpoint discovery. Must use HTTPS in production.
+- `oidc.client_id` — the OAuth2 client ID registered with the IdP.
+- `oidc.client_secret` — the OAuth2 client secret.
+- `oidc.cookie_secret` — the secret (≥16 chars) for HMAC-signing the CSRF cookie. Generate with `openssl rand -base64 32`.
+- `oidc.scopes` — the OAuth2 scopes. The `openid` scope is always included.
+- `oidc.session_duration` — this caps session cookie lifetime. Actual `MaxAge` = min(`session_duration`, token `exp`). Go duration syntax, e.g., `10m`, `1h`. Defaults to `10m`.
+- `oidc.default_redirect_url` — the redirect target after login if the original URL fails validation. Defaults to `/`.
+- `oidc.insecure` — disables `Secure` cookie flag and uses HTTP callback URIs. Used for local dev only; when `vmauth` runs behind a TLS-terminating proxy, keep this `false`.
 
-The OIDC Authorized redirect URI registered in the IdP must be `https://<vmauth-host>/_vmauth/sso/callback`.
-SSO logic accounts for the `-http.pathPrefix` flag — include the prefix in the callback URI if set.
+The redirect URI registered for Authorized OIDC in the IdP must follow the pattern `https://<vmauth-host>/_vmauth/sso/callback`. The SSO logic accounts for the `-http.pathPrefix` flag, so include the prefix in the callback URI if set.
 
-After login, the ID token works as a standard JWT — all [JWT claim matching](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-matching) features apply. The `match_claims` must verify the `aud` claim matches the SSO `client_id`. The JWT token is stored in the `_vmauth_sso` cookie in plain text.
+
+After login, the ID token works as a standard JWT — all [JWT claim matching](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-matching) features apply. The `match_claims` must verify that the `aud` claim matches the SSO `client_id`. The JWT token is stored in the `_vmauth_sso` cookie in plain text.
 If a user authenticates but no `users` entry matches their token claims, `vmauth` shows the login page with an "Access Denied" error message.
 
 By default, the cookie token is not proxied to backends. To forward the ID token as an `Authorization: Bearer` header, set `proxy_cookie_authorization_token: true` in the `jwt` user config.
