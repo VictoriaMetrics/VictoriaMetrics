@@ -623,6 +623,11 @@ func (t *Token) IsExpired(currentTime time.Time) bool {
 	return currentTime.Unix() > t.body.Exp
 }
 
+// ExpiresAt returns the token expiration time derived from the `exp` claim.
+func (t *Token) ExpiresAt() time.Time {
+	return time.Unix(t.body.Exp, 0)
+}
+
 // CanWrite checks if token has write permissions.
 func (t *Token) CanWrite() bool {
 	// unconfigured
