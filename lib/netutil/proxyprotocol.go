@@ -28,7 +28,7 @@ func (ppc *proxyProtocolConn) init() {
 	ppc.once.Do(func() {
 		addr, err := readProxyProto(ppc.Conn)
 		if err != nil {
-			if !errors.Is(err, io.EOF) {
+			if !errors.Is(err, io.EOF) && !errors.Is(err, errEmptyProxyProtoConn) {
 				proxyProtocolReadErrorLogger.Errorf("cannot read proxy proto conn for TCP addr %q: %s", ppc.Conn.RemoteAddr(), err)
 			}
 			ppc.readErr = err
@@ -69,7 +69,13 @@ func readProxyProto(r io.Reader) (net.Addr, error) {
 	//
 	// See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
 	bb.B = bytesutil.ResizeNoCopyMayOverallocate(bb.B, 16)
-	if _, err := io.ReadFull(r, bb.B); err != nil {
+	if n, err := io.ReadFull(r, bb.B); err != nil {
+		var netErr net.Error
+		if n == 0 && errors.As(err, &netErr) && netErr.Timeout() {
+			// Load balancers may open connectivity-test connections without sending data.
+			// Keep the timeout available to callers, but avoid logging these empty connections.
+			err = fmt.Errorf("%w: %w", errEmptyProxyProtoConn, err)
+		}
 		return nil, fmt.Errorf("cannot read proxy protocol header: %w", err)
 	}
 	ident := bb.B[:12]
@@ -144,5 +150,7 @@ func readProxyProto(r io.Reader) (net.Addr, error) {
 }
 
 const v2Identifier = "\r\n\r\n\x00\r\nQUIT\n"
+
+var errEmptyProxyProtoConn = errors.New("empty proxy protocol connection")
 
 var bbPool bytesutil.ByteBufferPool
