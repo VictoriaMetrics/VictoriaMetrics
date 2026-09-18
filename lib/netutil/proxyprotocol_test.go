@@ -2,12 +2,87 @@ package netutil
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
 	"io"
 	"net"
+	"os"
 	"reflect"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
+
+var proxyProtocolTestLoggerID atomic.Uint64
+
+func TestProxyProtocolConnTimeout(t *testing.T) {
+	f := func(name string, prefix []byte, wantLog bool) {
+		t.Helper()
+		t.Run(name, func(t *testing.T) {
+			server, client := net.Pipe()
+			t.Cleanup(func() {
+				_ = server.Close()
+				_ = client.Close()
+			})
+
+			var logs bytes.Buffer
+			logger.SetOutputForTests(&logs)
+			t.Cleanup(logger.ResetOutputForTest)
+			oldLogger := proxyProtocolReadErrorLogger
+			// Each case needs a fresh throttler, including when running with -count.
+			loggerName := fmt.Sprintf("proxyProtocolTimeoutTest/%d", proxyProtocolTestLoggerID.Add(1))
+			proxyProtocolReadErrorLogger = logger.WithThrottler(loggerName, time.Hour)
+			t.Cleanup(func() { proxyProtocolReadErrorLogger = oldLogger })
+
+			writeDone := make(chan error, 1)
+			go func() {
+				if len(prefix) > 0 {
+					if _, err := client.Write(prefix); err != nil {
+						writeDone <- err
+						_ = client.Close()
+						return
+					}
+				}
+				// Expire the deadline only after the prefix has been consumed.
+				// This exercises a real timeout without waiting for a timer.
+				writeDone <- server.SetReadDeadline(time.Now().Add(-time.Second))
+			}()
+
+			conn := newProxyProtocolConn(server)
+			buf := make([]byte, 1)
+			n, err := conn.Read(buf)
+			if writeErr := <-writeDone; writeErr != nil {
+				t.Fatalf("cannot prepare timed-out connection: %s", writeErr)
+			}
+			if n != 0 || !errors.Is(err, os.ErrDeadlineExceeded) {
+				t.Fatalf("expecting no data and a deadline error; got n=%d, err=%v", n, err)
+			}
+			var netErr net.Error
+			if !errors.As(err, &netErr) || !netErr.Timeout() {
+				t.Fatalf("expecting a network timeout; got %v", err)
+			}
+			if gotLog := strings.Contains(logs.String(), "cannot read proxy proto conn"); gotLog != wantLog {
+				t.Fatalf("unexpected error logging: got %t; want %t; logs: %s", gotLog, wantLog, logs.String())
+			}
+			if got := conn.RemoteAddr(); got != server.RemoteAddr() {
+				t.Fatalf("unexpected remote address after timeout: got %v; want %v", got, server.RemoteAddr())
+			}
+			if n, nextErr := conn.Read(buf); n != 0 || nextErr != err {
+				t.Fatalf("expecting the same error on repeated reads; got n=%d, err=%v", n, nextErr)
+			}
+		})
+	}
+
+	f("empty connection", nil, false)
+	f("partial header", []byte(v2Identifier), true)
+	// A complete IPv4 header declares a 12-byte address block.
+	header := append([]byte(v2Identifier), 0x21, 0x11, 0x00, 0x0c)
+	f("missing address block", header, true)
+	f("partial address block", append(header, 127, 0, 0, 1), true)
+}
 
 func TestParseProxyProtocolSuccess(t *testing.T) {
 	f := func(body, wantTail []byte, wantAddr net.Addr) {
