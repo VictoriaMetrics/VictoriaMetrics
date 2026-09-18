@@ -108,7 +108,11 @@ type UserInfo struct {
 
 // AccessLog represents configuration for access log settings.
 type AccessLog struct {
+	// Filters is a list of filters that filter out requests from generating access log.
 	Filters *AccessLogFilters `yaml:"filters"`
+	// Headers is a list of HTTP header keys to print out in the access log.
+	// Headers that are present in request but missing in this list won't be printed
+	Headers []string `yaml:"headers"`
 }
 
 // AccessLogFilters represents list of filters for access logs printing
@@ -129,10 +133,39 @@ func (ui *UserInfo) logRequest(r *http.Request, userName string, statusCode int,
 		}
 	}
 
+	headers := getHeaders(r, ui.AccessLog.Headers)
 	remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 	requestURI := httpserver.GetRequestURI(r)
-	logger.Infof("access_log request_host=%q request_uri=%q status_code=%d remote_addr=%s user_agent=%q referer=%q duration_ms=%d username=%q",
-		r.Host, requestURI, statusCode, remoteAddr, r.UserAgent(), r.Referer(), duration.Milliseconds(), userName)
+	logger.Infof("access_log request_host=%q request_uri=%q status_code=%d remote_addr=%s user_agent=%q referer=%q duration_ms=%d username=%q%s",
+		r.Host, requestURI, statusCode, remoteAddr, r.UserAgent(), r.Referer(), duration.Milliseconds(), userName, headers)
+}
+
+// getHeaders extracts headers that match seek
+// It is assumed that HTTP header key could contain only alphanumeric chars, - and _, so they're not escaped.
+func getHeaders(r *http.Request, seek []string) string {
+	if len(seek) == 0 || r == nil {
+		return ""
+	}
+
+	headers := r.Header
+	// make deterministic order of headers
+	var keys []string
+	for _, s := range seek {
+		if headers.Get(s) != "" {
+			keys = append(keys, s)
+		}
+	}
+	sort.Strings(keys)
+
+	b := strings.Builder{}
+	for _, k := range keys {
+		for _, v := range headers.Values(k) {
+			v = strings.TrimSpace(v)
+			// no need for other escapes, as %q already does it
+			fmt.Fprintf(&b, " headers.%s=%q", k, v)
+		}
+	}
+	return b.String()
 }
 
 // hasAnyURLs reports whether ui has at least one backend URL route configured.
