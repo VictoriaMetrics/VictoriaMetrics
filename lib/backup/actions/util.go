@@ -39,6 +39,7 @@ var (
 	s3SSEKMSKeyId           = flag.String("s3SSEKMSKeyId", "", "SSE KMS Key ID for use with S3-compatible storages.")
 	s3SSEAlgorithm          = flag.String("s3SSEAlgorithm", "aws:kms", "SSE KMS Key Algorithm for use with S3-compatible storages.")
 	s3TLSInsecureSkipVerify = flag.Bool("s3TLSInsecureSkipVerify", false, "Whether to skip TLS verification when connecting to the S3 endpoint.")
+	s3SkipTaggingDirective  = flag.Bool("s3SkipTaggingDirective", false, "Skip the x-amz-tagging-directive header when copying S3 objects. Use only for S3-compatible storage that does not support this header. Copied objects may retain source tags instead of the configured tags. This can cause premature backup deletion with tag-based lifecycle rules.")
 	s3Tags                  = flag.String("s3ObjectTags", "", `S3 tags to be set for uploaded objects. Must be set in JSON format: {"param1":"value1",...,"paramN":"valueN"}.`)
 )
 
@@ -287,6 +288,7 @@ func NewRemoteFS(ctx context.Context, path string, extraTags map[string]string) 
 			Dir:                   dir,
 			Metadata:              m,
 			Tags:                  tags,
+			SkipTaggingDirective:  *s3SkipTaggingDirective,
 		}
 		if err := fs.Init(ctx); err != nil {
 			return nil, fmt.Errorf("cannot initialize connection to s3: %w", err)

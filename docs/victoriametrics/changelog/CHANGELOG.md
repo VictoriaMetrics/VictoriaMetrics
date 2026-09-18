@@ -26,6 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/): add `-s3SkipTaggingDirective` for S3-compatible storage that does not support the tagging directive on object copies. This option can affect tag-based lifecycle rules. See [#11562](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11562).
 * FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): log informative message when a JWT token has no `vm_access` claim and `default_vm_access_claim` is not configured, if `-logInvalidAuthTokens` is enabled. See [JWT claim-based request templating](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-based-request-templating) or [#11579](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11579).
 * FEATURE: [dashboards/vmauth](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/dashboards/vmauth.json): update the dashboard to upstream Grafana version, fix typos and inconsistencies, improve resource usage panels.
 

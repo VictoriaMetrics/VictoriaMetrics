@@ -488,6 +488,8 @@ Run `vmbackup -help` in order to see all the available options:
      S3 tags to be set for uploaded objects. Must be set in JSON format: {"param1":"value1",...,"paramN":"valueN"}.
   -s3SSEKMSKeyId string
      SSE KMS Key ID for use with S3-compatible storages.
+  -s3SkipTaggingDirective
+     Skip the x-amz-tagging-directive header when copying S3 objects. Use only for S3-compatible storage that does not support this header. Copied objects may retain source tags instead of the configured tags. This can cause premature backup deletion with tag-based lifecycle rules.
   -s3StorageClass string
      The Storage Class applied to objects uploaded to AWS S3. Supported values are: GLACIER, DEEP_ARCHIVE, GLACIER_IR, INTELLIGENT_TIERING, ONEZONE_IA, OUTPOSTS, REDUCED_REDUNDANCY, STANDARD, STANDARD_IA.
      See https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage-class-intro.html
