@@ -172,8 +172,8 @@ func (ctx *InsertCtx) WriteMetadata(at *auth.Token, mmpbs []prompb.MetricMetadat
 		atLocal := ctx.GetLocalAuthTokenForMetadata(at, &mmpb)
 		mm := &mms[cnt]
 		if atLocal != nil {
-			mm.AccountID = at.AccountID
-			mm.ProjectID = at.ProjectID
+			mm.AccountID = atLocal.AccountID
+			mm.ProjectID = atLocal.ProjectID
 		}
 		mm.MetricFamilyName = bytesutil.ToUnsafeBytes(mmpb.MetricFamilyName)
 		mm.Help = bytesutil.ToUnsafeBytes(mmpb.Help)

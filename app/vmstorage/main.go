@@ -145,7 +145,7 @@ var (
 		"Value must be in range 1..65535.")
 	maxLabelValueLen = flag.Int("maxLabelValueLen", 4*1024, "The maximum length of label values in the accepted time series at ingestion APIs when -enableIngestionAPI is enabled. Series with longer label value are ignored. In this case the vm_rows_ignored_total{reason=\"too_long_label_value\"} metric at /metrics page is incremented. "+
 		"Value must be in range 1..65535.")
-	maxIngestionRate = flag.Int("maxIngestionRate", 0, "The maximum number of samples vmstorage can receive per second via an ingestion API, such as Prometheus Remove Write. "+
+	maxIngestionRate = flag.Int("maxIngestionRate", 0, "The maximum number of samples vmstorage can receive per second via an ingestion API, such as Prometheus Remote Write. "+
 		"Data ingestion is paused when the limit is exceeded. By default there are no limits on samples ingestion rate.")
 )
 
@@ -274,6 +274,7 @@ func main() {
 
 	logger.Infof("gracefully shutting down the service")
 	startTime = time.Now()
+	common.StopIngestionRateLimiter()
 	// deregister storage metrics
 	metrics.UnregisterSet(storageMetrics, true)
 	storageMetrics = nil
@@ -447,7 +448,11 @@ func (vms *VMStorage) insertRequestHandler(w http.ResponseWriter, r *http.Reques
 		return false
 	}
 	p, err := httpserver.ParsePathAndHeaders(r.URL.Path, r.Header)
-	if err != nil || p.Prefix != "insert" {
+	if err != nil {
+		httpserver.Errorf(w, r, "cannot parse path %q: %s", r.URL.Path, err)
+		return true
+	}
+	if p.Prefix != "insert" {
 		return false
 	}
 	switch p.Suffix {
