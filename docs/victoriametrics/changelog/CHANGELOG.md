@@ -33,6 +33,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): disable metrics metadata sending for [MDX](https://docs.victoriametrics.com/victoriametrics/vmagent/#monitoring-data-exchange) remote write destinations. See [#11572](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11572).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): properly discover `*_sd_config` targets. Previously scrape targets were preserved until the process restart if `*_sd_config` returned an empty targets response. See [#11550](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11550) for details. Thanks to @evkuzin for contribution.
 
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): respect the `-enableTCP6` flag when discovering backend IPs via [`discover_backend_ips`](https://docs.victoriametrics.com/victoriametrics/vmauth/#discovering-backend-ips) or `-discoverBackendIPs`. Previously, discovery included IPv6 addresses even when IPv6 support was disabled. See [#11470](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11470).
+
 ## [v1.152.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.152.0)
 
 Released at 2026-09-14
