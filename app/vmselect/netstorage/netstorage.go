@@ -333,11 +333,12 @@ type packedTimeseries struct {
 }
 
 type unpackWork struct {
-	tbf *tmpBlocksFile
-	br  blockRef
-	tr  storage.TimeRange
-	sb  *sortBlock
-	err error
+	tbf         *tmpBlocksFile
+	br          blockRef
+	tr          storage.TimeRange
+	sb          *sortBlock
+	err         error
+	skippedRows int
 }
 
 func (upw *unpackWork) reset() {
@@ -346,16 +347,19 @@ func (upw *unpackWork) reset() {
 	upw.tr = storage.TimeRange{}
 	upw.sb = nil
 	upw.err = nil
+	upw.skippedRows = 0
 }
 
 func (upw *unpackWork) unpack(tmpBlock *storage.Block) {
 	sb := getSortBlock()
-	if err := sb.unpackFrom(tmpBlock, upw.tbf, upw.br, upw.tr); err != nil {
+	skippedRows, err := sb.unpackFrom(tmpBlock, upw.tbf, upw.br, upw.tr)
+	if err != nil {
 		putSortBlock(sb)
 		upw.err = fmt.Errorf("cannot unpack block: %w", err)
 		return
 	}
 	upw.sb = sb
+	upw.skippedRows = skippedRows
 }
 
 func getUnpackWork() *unpackWork {
@@ -375,11 +379,13 @@ var unpackWorkPool sync.Pool
 
 func unpackWorker(workChs []chan *unpackWork, workerID uint) {
 	tmpBlock := getTmpStorageBlock()
+	skippedRows := 0
 
 	// Deal with own work at first.
 	ch := workChs[workerID]
 	for upw := range ch {
 		upw.unpack(tmpBlock)
+		skippedRows += upw.skippedRows
 	}
 
 	// Then help others with their work.
@@ -399,9 +405,13 @@ func unpackWorker(workChs []chan *unpackWork, workerID uint) {
 				break
 			}
 			upw.unpack(tmpBlock)
+			skippedRows += upw.skippedRows
 		}
 	}
 
+	if skippedRows > 0 {
+		metricRowsSkipped.Add(skippedRows)
+	}
 	putTmpStorageBlock(tmpBlock)
 }
 
@@ -455,6 +465,7 @@ func (pts *packedTimeseries) unpackTo(dst []*sortBlock, tbf *tmpBlocksFile, tr s
 		upw := getUnpackWork()
 		samples := 0
 		tmpBlock := getTmpStorageBlock()
+		skippedRows := 0
 		var err error
 		for _, br := range pts.brs {
 			initUnpackWork(upw, br)
@@ -463,6 +474,7 @@ func (pts *packedTimeseries) unpackTo(dst []*sortBlock, tbf *tmpBlocksFile, tr s
 				err = upw.err
 				break
 			}
+			skippedRows += upw.skippedRows
 			samples += len(upw.sb.Timestamps)
 			if *maxSamplesPerSeries > 0 && samples > *maxSamplesPerSeries {
 				putSortBlock(upw.sb)
@@ -472,6 +484,9 @@ func (pts *packedTimeseries) unpackTo(dst []*sortBlock, tbf *tmpBlocksFile, tr s
 			}
 			dst = append(dst, upw.sb)
 			upw.reset()
+		}
+		if skippedRows > 0 {
+			metricRowsSkipped.Add(skippedRows)
 		}
 		putTmpStorageBlock(tmpBlock)
 		putUnpackWork(upw)
@@ -682,17 +697,16 @@ func (sb *sortBlock) reset() {
 	sb.NextIdx = 0
 }
 
-func (sb *sortBlock) unpackFrom(tmpBlock *storage.Block, tbf *tmpBlocksFile, br blockRef, tr storage.TimeRange) error {
+func (sb *sortBlock) unpackFrom(tmpBlock *storage.Block, tbf *tmpBlocksFile, br blockRef, tr storage.TimeRange) (int, error) {
 	tmpBlock.Reset()
 	brReal := tbf.MustReadBlockRefAt(br.partRef, br.addr)
 	brReal.MustReadBlock(tmpBlock)
 	if err := tmpBlock.UnmarshalData(); err != nil {
-		return fmt.Errorf("cannot unmarshal block: %w", err)
+		return 0, fmt.Errorf("cannot unmarshal block: %w", err)
 	}
 	sb.Timestamps, sb.Values = tmpBlock.AppendRowsWithTimeRangeFilter(sb.Timestamps[:0], sb.Values[:0], tr)
 	skippedRows := tmpBlock.RowsCount() - len(sb.Timestamps)
-	metricRowsSkipped.Add(skippedRows)
-	return nil
+	return skippedRows, nil
 }
 
 type sortBlocksHeap struct {
