@@ -69,7 +69,13 @@ func readProxyProto(r io.Reader) (net.Addr, error) {
 	//
 	// See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
 	bb.B = bytesutil.ResizeNoCopyMayOverallocate(bb.B, 16)
-	if _, err := io.ReadFull(r, bb.B); err != nil {
+	if n, err := io.ReadFull(r, bb.B); err != nil {
+		var ne net.Error
+		if n == 0 && errors.As(err, &ne) && ne.Timeout() {
+			// AWS NLB TLS listener connectivity tests send no data. Treat their timeout
+			// as an empty connection close, so it doesn't produce an error log.
+			return nil, io.EOF
+		}
 		return nil, fmt.Errorf("cannot read proxy protocol header: %w", err)
 	}
 	ident := bb.B[:12]

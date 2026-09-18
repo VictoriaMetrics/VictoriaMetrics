@@ -2,12 +2,73 @@ package netutil
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"net"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
+	"testing/iotest"
+	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
+
+func TestProxyProtocolConnEmptyTimeout(t *testing.T) {
+	server, client := net.Pipe()
+	defer server.Close()
+	defer client.Close()
+	if err := server.SetReadDeadline(time.Now().Add(-time.Second)); err != nil {
+		t.Fatal(err)
+	}
+
+	var logs bytes.Buffer
+	logger.SetOutputForTests(&logs)
+	defer logger.ResetOutputForTest()
+
+	conn := newProxyProtocolConn(server)
+	if got, want := conn.RemoteAddr(), server.RemoteAddr(); got != want {
+		t.Fatalf("unexpected remote address: got %v; want %v", got, want)
+	}
+	if n, err := conn.Read(make([]byte, 1)); n != 0 || !errors.Is(err, io.EOF) {
+		t.Fatalf("unexpected read result: got (%d, %v); want (0, EOF)", n, err)
+	}
+	if logs.Len() != 0 {
+		t.Fatalf("unexpected log for empty connection timeout: %s", &logs)
+	}
+}
+
+func TestParseProxyProtocolReadError(t *testing.T) {
+	header := v2Identifier + "\x21\x11\x00\x0c"
+	timeoutErr := &net.OpError{Op: "read", Net: "tcp", Err: os.ErrDeadlineExceeded}
+	readErr := errors.New("read failed")
+	for _, tc := range []struct {
+		name    string
+		data    string
+		readErr error
+		wantErr error
+	}{
+		{name: "empty EOF", readErr: io.EOF, wantErr: io.EOF},
+		{name: "empty timeout", readErr: timeoutErr, wantErr: io.EOF},
+		{name: "empty other error", readErr: readErr, wantErr: readErr},
+		{name: "partial header EOF", data: v2Identifier, readErr: io.EOF, wantErr: io.ErrUnexpectedEOF},
+		{name: "partial header timeout", data: v2Identifier, readErr: timeoutErr, wantErr: timeoutErr},
+		{name: "missing block timeout", data: header, readErr: timeoutErr, wantErr: timeoutErr},
+		{name: "partial block timeout", data: header + "\x7f", readErr: timeoutErr, wantErr: timeoutErr},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := io.MultiReader(strings.NewReader(tc.data), iotest.ErrReader(tc.readErr))
+			addr, err := readProxyProto(r)
+			if addr != nil {
+				t.Fatalf("unexpected address: %v", addr)
+			}
+			if !errors.Is(err, tc.wantErr) {
+				t.Fatalf("unexpected error: got %v; want %v", err, tc.wantErr)
+			}
+		})
+	}
+}
 
 func TestParseProxyProtocolSuccess(t *testing.T) {
 	f := func(body, wantTail []byte, wantAddr net.Addr) {
