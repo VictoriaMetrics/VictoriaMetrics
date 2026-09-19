@@ -13,7 +13,7 @@ import (
 func TestWriteEviction(t *testing.T) {
 
 	synctest.Test(t, func(t *testing.T) {
-		s := NewStorage(256 * bucketsCount)
+		s := NewStorage("", 256*bucketsCount)
 		defer s.MustClose()
 
 		rows := []Row{

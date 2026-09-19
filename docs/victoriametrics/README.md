@@ -1431,8 +1431,10 @@ Setup [monitoring](https://docs.victoriametrics.com/victoriametrics/quick-start/
 to get notified about cache capacity issues.
 
 Metadata is ingested independently from metrics, so a metric can exist without metadata, and vice versa.
-Metadata is expected to be ephemeral and constantly updated on ingestion. For this reason, metadata cache isn't 
-persisted during restarts.
+The metadata cache is saved on graceful shutdown and restored on startup {{% available_from "#" %}}.
+The one-hour expiration is measured from the last ingestion, including time spent offline; restarting does not refresh it.
+The cache may be discarded if it is damaged or exceeds a reduced `-storage.maxMetadataStorageSize` limit.
+Metadata remains ephemeral: updates since the last graceful shutdown may be lost after a crash.
 
 Metadata can be queried via the `/api/v1/metadata` endpoint, which provides a response compatible with the Prometheus [metadata API](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-metric-metadata).
 See [/api/v1/metadata](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1metadata) example.

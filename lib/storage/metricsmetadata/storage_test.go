@@ -10,7 +10,7 @@ import (
 var rowCmpOpts = cmpopts.IgnoreFields(Row{}, "lastWriteTime", "heapIdx")
 
 func TestStorageWrite(t *testing.T) {
-	s := NewStorage(4096)
+	s := NewStorage("", 4096)
 	defer s.MustClose()
 
 	f := func(toIngest []Row, expected []*Row) {
@@ -275,7 +275,7 @@ func TestStorageWrite(t *testing.T) {
 }
 
 func TestStorageRead(t *testing.T) {
-	s := NewStorage(4096)
+	s := NewStorage("", 4096)
 	defer s.MustClose()
 
 	// Add test data

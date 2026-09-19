@@ -14,7 +14,7 @@ func BenchmarkStorageWrite(b *testing.B) {
 			rows := getRows(0, 0, rowsCount)
 			b.Run(fmt.Sprintf("singletenant/parallel=%d,rows=%d,no_eviction=true", p, rowsCount), func(b *testing.B) {
 				// allocate storage without eviction
-				s := NewStorage(rowsCount * int(perItemOverhead) * bucketsCount)
+				s := NewStorage("", rowsCount*int(perItemOverhead)*bucketsCount)
 				defer s.MustClose()
 				b.SetParallelism(p)
 				b.ReportAllocs()
@@ -39,7 +39,7 @@ func BenchmarkStorageWriteMultitenant(b *testing.B) {
 		}
 		b.Run(fmt.Sprintf("multitenant/parallel=10,rows=%d,", rowsCount), func(b *testing.B) {
 			// allocate storage without eviction
-			s := NewStorage(rowsCount * len(tenants) * int(perItemOverhead) * bucketsCount)
+			s := NewStorage("", rowsCount*len(tenants)*int(perItemOverhead)*bucketsCount)
 			defer s.MustClose()
 			b.SetParallelism(10)
 			b.ReportAllocs()
@@ -55,7 +55,7 @@ func BenchmarkStorageWriteMultitenant(b *testing.B) {
 }
 
 func BenchmarkStorageRead(b *testing.B) {
-	s := NewStorage(512 * 1024)
+	s := NewStorage("", 512*1024)
 	defer s.MustClose()
 
 	rows := getRows(0, 0, 10e3)
@@ -81,7 +81,7 @@ func BenchmarkStorageReadMultitenant(b *testing.B) {
 		rows = append(rows, getRows(tenant[0], tenant[1], 10e3)...)
 	}
 
-	s := NewStorage(10e3 * int(perItemOverhead) * len(tenants))
+	s := NewStorage("", 10e3*int(perItemOverhead)*len(tenants))
 	defer s.MustClose()
 	s.Add(rows)
 

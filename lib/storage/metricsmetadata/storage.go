@@ -35,16 +35,22 @@ type Storage struct {
 	buckets [bucketsCount]*bucket
 
 	maxSizeBytes  int
+	cachePath     string
 	cleanerStopCh chan struct{}
 
 	wg sync.WaitGroup
 }
 
-// NewStorage returns new initialized Storage.
-func NewStorage(maxSizeBytes int) *Storage {
+// NewStorage returns initialized Storage, restoring its cache from cachePath.
+// An empty cachePath disables persistence.
+func NewStorage(cachePath string, maxSizeBytes int) *Storage {
+	if maxSizeBytes < 0 {
+		maxSizeBytes = 0
+	}
 	s := &Storage{
 		cleanerStopCh: make(chan struct{}),
 		maxSizeBytes:  maxSizeBytes,
+		cachePath:     cachePath,
 	}
 
 	maxShardBytes := maxSizeBytes / bucketsCount
@@ -54,14 +60,17 @@ func NewStorage(maxSizeBytes int) *Storage {
 			maxSizeBytes:     int64(maxShardBytes),
 		}
 	}
+	s.loadOrReset()
 	s.wg.Go(s.cleaner)
 	return s
 }
 
-// MustClose closes the storage and waits for all background tasks to finish.
+// MustClose stops background tasks and saves the cache.
+// The caller must stop ingestion before calling MustClose.
 func (s *Storage) MustClose() {
 	close(s.cleanerStopCh)
 	s.wg.Wait()
+	s.mustSave()
 }
 
 // Add adds rows to the Storage.
@@ -292,18 +301,43 @@ func (b *bucket) cloneMetricNameHelpLocked(metricName, help []byte) ([]byte, []b
 }
 
 func (b *bucket) add(mr *Row, lastIngestion uint64) {
+	if b.maxSizeBytes <= 0 {
+		return
+	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
-
 	tenantID := encodeTenantID(mr.AccountID, mr.ProjectID)
+	storage := b.perTenantStorage[tenantID]
+	existMR := storage[string(mr.MetricFamilyName)]
+	mergedSize := rowSize(mr)
+	if existMR != nil {
+		if len(mr.Help) == 0 {
+			mergedSize += int64(len(existMR.Help))
+		}
+		if len(mr.Unit) == 0 {
+			mergedSize += int64(len(existMR.Unit))
+		}
+	}
+	if mergedSize > b.maxSizeBytes {
+		// Reject before cloning or evicting anything. An oversized update
+		// must preserve the previous row, including its ingestion time.
+		return
+	}
 
-	storage, ok := b.perTenantStorage[tenantID]
-	if !ok {
+	// An updated row may grow, and a new row may require evicting more than
+	// one older row. This also enforces a lower budget when restoring a cache.
+	defer func() {
+		for b.itemsTotalSize.Load() > b.maxSizeBytes {
+			b.removeLeastRecentlyWrittenItemLocked()
+		}
+	}()
+
+	if storage == nil {
 		storage = make(map[string]*Row, rowsBufSize)
 		b.perTenantStorage[tenantID] = storage
 	}
 
-	if existMR, ok := storage[string(mr.MetricFamilyName)]; ok {
+	if existMR != nil {
 		if !existMR.matchesNonEmptyRow(mr) {
 			// in case of metadata update, allocate the new row instead of mutation
 			// since it could be referenced by get request
@@ -331,9 +365,6 @@ func (b *bucket) add(mr *Row, lastIngestion uint64) {
 	b.itemsTotalSize.Add(rowSize(mrDst))
 	storage[bytesutil.ToUnsafeString(mrDst.MetricFamilyName)] = mrDst
 
-	if b.itemsTotalSize.Load() > b.maxSizeBytes {
-		b.removeLeastRecentlyWrittenItemLocked()
-	}
 }
 
 func (b *bucket) cleanByTimeout() {
@@ -357,6 +388,9 @@ func (b *bucket) removeLeastRecentlyWrittenItemLocked() {
 
 	tenantID := encodeTenantID(e.AccountID, e.ProjectID)
 	delete(b.perTenantStorage[tenantID], string(e.MetricFamilyName))
+	if len(b.perTenantStorage[tenantID]) == 0 {
+		delete(b.perTenantStorage, tenantID)
+	}
 	heap.Pop(&b.lwh)
 }
 
