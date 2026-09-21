@@ -263,6 +263,7 @@ func main() {
 	sig := procutil.WaitForSigterm()
 	logger.Infof("service received signal %s", sig)
 	pushmetrics.Stop()
+	common.StopIngestionRateLimiter()
 
 	logger.Infof("gracefully shutting down http service at %q", listenAddrs)
 	startTime = time.Now()
@@ -273,7 +274,6 @@ func main() {
 
 	logger.Infof("gracefully shutting down the service")
 	startTime = time.Now()
-	common.StopIngestionRateLimiter()
 	// deregister storage metrics
 	metrics.UnregisterSet(storageMetrics, true)
 	storageMetrics = nil

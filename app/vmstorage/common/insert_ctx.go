@@ -134,6 +134,9 @@ func (ctx *InsertCtx) WriteDataPointExt(metricNameRaw []byte, at *auth.Token, la
 		metricNameRaw = ctx.marshalMetricNameRaw(nil, at, labels)
 	}
 	err := ctx.addRow(metricNameRaw, timestamp, value)
+	if len(ctx.metricNameBuf) == 0 {
+		metricNameRaw = nil
+	}
 	return metricNameRaw, err
 }
 
@@ -150,7 +153,7 @@ func (ctx *InsertCtx) addRow(metricNameRaw []byte, timestamp int64, value float6
 	mr.Timestamp = timestamp
 	mr.Value = value
 	if len(ctx.metricNameBuf) > 16*1024*1024 {
-		if err := ctx.FlushBufs(); err != nil {
+		if err := ctx.flushRows(); err != nil {
 			return err
 		}
 	}
@@ -158,9 +161,9 @@ func (ctx *InsertCtx) addRow(metricNameRaw []byte, timestamp int64, value float6
 }
 
 // WriteMetadata writes given prometheus protobuf  metadata into the storage.
-func (ctx *InsertCtx) WriteMetadata(at *auth.Token, mmpbs []prompb.MetricMetadata) error {
+func (ctx *InsertCtx) WriteMetadata(at *auth.Token, mmpbs []prompb.MetricMetadata) (int, error) {
 	if len(mmpbs) == 0 {
-		return nil
+		return 0, nil
 	}
 	mms := ctx.mms
 	mms = slicesutil.SetLength(mms, len(mmpbs))
@@ -186,12 +189,12 @@ func (ctx *InsertCtx) WriteMetadata(at *auth.Token, mmpbs []prompb.MetricMetadat
 
 	err := vmInsertAPI.WriteMetadata(mms)
 	if err != nil {
-		return &httpserver.ErrorWithStatusCode{
+		return 0, &httpserver.ErrorWithStatusCode{
 			Err:        fmt.Errorf("cannot store metrics metadata: %w", err),
 			StatusCode: http.StatusServiceUnavailable,
 		}
 	}
-	return nil
+	return len(mms), nil
 }
 
 // AddLabelBytes adds (name, value) label to ctx.Labels.
@@ -232,14 +235,32 @@ func (ctx *InsertCtx) AddLabel(name, value string) {
 
 // FlushBufs flushes buffered rows to the underlying storage.
 func (ctx *InsertCtx) FlushBufs() error {
+	defer ctx.Reset(0)
+	return ctx.flushRows()
+}
+
+func (ctx *InsertCtx) flushRows() error {
+	if len(ctx.mrs) == 0 {
+		return nil
+	}
 	ingestionRateLimiter.Register(len(ctx.mrs))
 
 	// There is no need in limiting the number of concurrent calls to vmstorage.AddRows() here,
 	// since the number of concurrent FlushBufs() calls should be already limited via writeconcurrencylimiter
 	// used at every stream.Parse() call under lib/protoparser/*
 
+	if vmInsertAPI.IsReadOnly() {
+		return &httpserver.ErrorWithStatusCode{
+			Err:        storage.ErrReadOnly,
+			StatusCode: http.StatusServiceUnavailable,
+		}
+	}
 	err := vmInsertAPI.WriteRows(ctx.mrs)
-	ctx.Reset(0)
+	for i := range ctx.mrs {
+		cleanMetricRow(&ctx.mrs[i])
+	}
+	ctx.mrs = ctx.mrs[:0]
+	ctx.metricNameBuf = ctx.metricNameBuf[:0]
 	if err == nil {
 		return nil
 	}
