@@ -174,9 +174,6 @@ by routing outgoing samples for the same time series like [counter](https://docs
 and [histogram](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#histogram) types from top-level `vmagent` instances
 to the same second-level `vmagent` instance, so they are aggregated properly.
 
-If the `-remoteWrite.shardByURL` command-line flag is set, then all the metric labels are used for even sharding
-among remote storage systems specified in `-remoteWrite.url`.
-
 > The `-remoteWrite.shardByURL` may not work as expected when [SRV URLs](https://docs.victoriametrics.com/victoriametrics/vmagent/#srv-urls) are in use.
 >
 > An SRV record might resolve to multiple addresses; one address is chosen **randomly** for all subsequent logic, including sharding.
@@ -185,7 +182,10 @@ among remote storage systems specified in `-remoteWrite.url`.
 > For example, if you set `-remoteWrite.url=srv+foo` and it's resolved to three addresses (`192.168.1.1`, `192.168.1.2`, `192.168.1.3`),
 > vmagent will only choose **one** randomly every time it (re-)creates the connection. In contrast, specifying the addresses manually (`-remoteWrite.url=192.168.1.1 -remoteWrite.url=192.168.1.2 -remoteWrite.url=192.168.1.3`) will shard samples across all three URLs.
 
-Use `-remoteWrite.shardByURL.labels` to route metrics among `-remoteWrite.url` based on their label values. 
+If the `-remoteWrite.shardByURL` command-line flag is set, `vmagent` defaults to using all the metric labels for even sharding
+among remote storage systems specified in `-remoteWrite.url`.
+
+Use `-remoteWrite.shardByURL.labels` to route metrics among `-remoteWrite.url` based on their label values.
 For example, `-remoteWrite.shardByURL.labels=instance,__name__` would shard metrics with the same name and `instance`
 label to the same `-remoteWrite.url`. This command-line flag allows specifying a comma-separated list of labels.
 
