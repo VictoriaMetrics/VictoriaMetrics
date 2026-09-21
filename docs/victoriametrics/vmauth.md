@@ -224,7 +224,7 @@ See also [authorization](#authorization) and [routing](#routing) docs.
 
 See also [automatic issuing of TLS certificates](#automatic-issuing-of-tls-certificates).
 
-See also [authorization](#authorization), [routing](#routing) and [load balancing](#load-balancing) docs.
+See also [security](#security), [routing](#routing) and [load balancing](#load-balancing) docs.
 
 ### Basic Auth proxy
 
@@ -239,7 +239,7 @@ users:
   url_prefix: "http://victoria-metrics:8428/"
 ```
 
-See also [authorization](#authorization), [routing](#routing) and [load balancing](#load-balancing) docs.
+See also [authorization](#authorization), [security](#security), [routing](#routing) and [load balancing](#load-balancing) docs.
 
 ### Bearer Token auth proxy
 
@@ -253,7 +253,7 @@ users:
   url_prefix: "http://victoria-metrics:8428/"
 ```
 
-See also [authorization](#authorization), [routing](#routing) and [load balancing](#load-balancing) docs.
+See also [authorization](#authorization), [security](#security), [routing](#routing) and [load balancing](#load-balancing) docs.
 
 ### JWT Token auth proxy
 
@@ -303,6 +303,10 @@ users:
 - jwt:
     oidc:
       issuer: "https://your-identity-provider.example.com"
+    match_claims:
+      # The OIDC spec requires verifying that the `aud` claim contains the client ID.
+      # See https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation
+      aud: "theClientID"
   url_prefix: "http://victoria-metrics:8428/"
 ```
 
@@ -656,7 +660,7 @@ users:
       - http://vlinsert:9428
 ```
 
-See also [authorization](#authorization), [routing](#routing) and [load balancing](#load-balancing) docs.
+See also [authorization](#authorization), [security](#security), [routing](#routing) and [load balancing](#load-balancing) docs.
 
 ### Per-tenant authorization
 
@@ -692,7 +696,7 @@ users:
     url_prefix: "http://vmselect-backend:8481/select/2/prometheus/"
 ```
 
-See also [authorization](#authorization), [routing](#routing) and [load balancing](#load-balancing) docs.
+See also [authorization](#authorization), [security](#security), [routing](#routing) and [load balancing](#load-balancing) docs.
 
 ### mTLS-based request routing
 
@@ -717,7 +721,7 @@ users:
 
 [mTLS protection](#mtls-protection) must be enabled for mTLS-based routing.
 
-See also [authorization](#authorization), [routing](#routing) and [load balancing](#load-balancing) docs.
+See also [authorization](#authorization), [security](#security), [routing](#routing) and [load balancing](#load-balancing) docs.
 
 ### Enforcing query args
 
@@ -729,7 +733,7 @@ unauthorized_user:
   url_prefix: "http://victoria-metrics:8428/?extra_label=foo=bar"
 ```
 
-See also [authorization](#authorization), [routing](#routing) and [load balancing](#load-balancing) docs.
+See also [authorization](#authorization), [security](#security), [routing](#routing) and [load balancing](#load-balancing) docs.
 
 ## Dropping request path prefix
 
@@ -771,7 +775,7 @@ unauthorized_user:
 * [Client TLS certificate verification aka mTLS](https://docs.victoriametrics.com/victoriametrics/vmauth/#mtls-based-request-routing)
 * [Auth tokens via Arbitrary HTTP request headers](https://docs.victoriametrics.com/victoriametrics/vmauth/#reading-auth-tokens-from-other-http-headers)
 
-See also [security docs](#security), [routing docs](#routing) and [load balancing docs](#load-balancing).
+See also [authorization](#authorization), [security](#security), [routing](#routing) and [load balancing](#load-balancing) docs.
 
 ## Routing
 
@@ -1124,7 +1128,7 @@ unauthorized_user:
   kill -HUP `pidof vmauth`
   ```
 
-* By querying `/-/reload` endpoint. It is recommended to protect it with `-reloadAuthKey`. See [security docs](#security) for details.
+* By sending an HTTP GET request to the `/-/reload` endpoint. We recommend protecting it with `-reloadAuthKey`. See [security](#security) for details.
 * By passing the interval for config check to the `-configCheckInterval` command-line flag.
 
 ## Concurrency limiting
@@ -1264,16 +1268,6 @@ By default, the client's TCP address is utilized for IP filtering. In scenarios 
 * `-httpRealIPHeader=X-Forwarded-For` {{% available_from "v1.107.0" %}}
 * `-httpListenAddr.useProxyProtocol=true`
 
-### Security Considerations
-
-**HTTP headers are inherently untrustworthy.** It is strongly recommended to implement additional security measures, such as:
-
-* Dropping `X-Forwarded-For` headers at the internet-facing reverse proxy (e.g., before traffic reaches `vmauth`).
-* Do not use `-httpRealIPHeader` at internet-facing `vmauth`.
-* Add `removeXFFHTTPHeaderValue` for the internet-facing `vmauth`. It instructs `vmauth` to replace the value of `X-Forwarded-For` HTTP header with `remoteAddr` of the client.
-
-See additional recommendations for [security and privacy concerns](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For#security_and_privacy_concerns)
-
 ### Per-User Configuration
 
 The values of `httpRealIPHeader` {{% available_from "v1.107.0" %}} can be changed on a per-user basis in the user-specific configuration.
@@ -1313,7 +1307,7 @@ from both `Authorization` and `X-Amz-Firehose-Access-Key` headers:
 ./vmauth -httpAuthHeader='Authorization' -httpAuthHeader='X-Amz-Firehose-Access-Key'
 ```
 
-See also [authorization docs](#authorization) and [security docs](#security).
+See also [authorization](#authorization) and [security](#security) docs.
 
 ## Query args handling
 
@@ -1551,49 +1545,89 @@ See also [automatic issuing of TLS certificates](#automatic-issuing-of-tls-certi
 
 ## Security
 
-It is expected that all the backend services protected by `vmauth` are located in an isolated private network, so they can be accessed by external users only via `vmauth`.
+1. All backend services behind `vmauth` must be in an isolated private network, accessible to external users only through `vmauth`.
 
-Do not transfer auth headers in plaintext over untrusted networks. Enable https at `-httpListenAddr`. This can be done by passing the following `-tls*` command-line flags to `vmauth`:
+1. Never send auth headers in plaintext over untrusted networks. Enable HTTPS on `-httpListenAddr` by passing the following `-tls*` command-line flags to `vmauth`:
 
-```sh
-  -tls
-     Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set
-  -tlsCertFile string
-     Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs, since RSA certs are slow
-  -tlsKeyFile string
-     Path to file with TLS key. Used only if -tls is set
-```
+    ```sh
+      -tls
+         Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set
+      -tlsCertFile string
+         Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs, since RSA certs are slow
+      -tlsKeyFile string
+         Path to file with TLS key. Used only if -tls is set
+    ```
 
-See also [automatic issuing of TLS certificates](#automatic-issuing-of-tls-certificates).
+    See also:
+     - [Automatic issuing of TLS certificates](#automatic-issuing-of-tls-certificates).
+     - [mTLS protection](https://docs.victoriametrics.com/victoriametrics/vmauth/#mtls-protection) for enabling [mutual TLS authentication](https://en.wikipedia.org/wiki/Mutual_authentication).
+     - [TLS termination proxy](https://en.wikipedia.org/wiki/TLS_termination_proxy) may be put in front of `vmauth`.
 
-See [these docs](#mtls-protection) on how to enable [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication) protection at `vmauth`.
+1. We recommend protecting the following endpoints with authKeys:
 
-Alternatively, [TLS termination proxy](https://en.wikipedia.org/wiki/TLS_termination_proxy) may be put in front of `vmauth`.
+    * `/-/reload` with `-reloadAuthKey` command-line flag, so external users cannot trigger config reload.
+    * `/flags` with `-flagsAuthKey` command-line flag, so unauthorized users cannot read command-line flag values.
+    * `/metrics` with `-metricsAuthKey` command-line flag, so unauthorized users cannot access [vmauth metrics](https://docs.victoriametrics.com/victoriametrics/vmauth/#monitoring).
+    * `/debug/pprof` with `-pprofAuthKey` command-line flag, so unauthorized users cannot access [profiling information](#profiling).
 
-It is recommended to protect the following endpoints with authKeys:
+1. Alternatively, serve internal API routes on a separate listen address via `-httpInternalListenAddr=127.0.0.1:8426`{{% available_from "v1.111.0" %}}.
+To enable TLS on the public listener while keeping the internal listener non-TLS, configure multiple listeners as follows:
 
-* `/-/reload` with `-reloadAuthKey` command-line flag, so external users couldn't trigger config reload.
-* `/flags` with `-flagsAuthKey` command-line flag, so unauthorized users couldn't get command-line flag values.
-* `/metrics` with `-metricsAuthKey` command-line flag, so unauthorized users couldn't access [vmauth metrics](https://docs.victoriametrics.com/victoriametrics/vmauth/#monitoring).
-* `/debug/pprof` with `-pprofAuthKey` command-line flag, so unauthorized users couldn't access [profiling information](#profiling).
+    ```
+    /path/to/vmauth -httpInternalListenAddr=,localhost:8426 -httpListenAddr=0.0.0.0:443, -tls=true,false -tlsCertFile=a-cert.crt -tlsKeyFile=a-key.key
+    ```
 
-As an alternative, you can serve internal API routes on a different listen address using the command-line flag `-httpInternalListenAddr=127.0.0.1:8426`{{% available_from "v1.111.0" %}}.
-To enable TLS on the public listener while keeping the internal listener non-TLS, configure multiple listeners like this:
-```
-/path/to/vmauth -httpInternalListenAddr=,localhost:8426 -httpListenAddr=0.0.0.0:443, -tls=true,false -tlsCertFile=a-cert.crt -tlsKeyFile=a-key.key
-```
+1. If you know the source IPs upfront, you can restrict access with [IP filters](https://docs.victoriametrics.com/victoriametrics/vmauth/#ip-filters). See also [concurrency limiting docs](https://docs.victoriametrics.com/victoriametrics/vmauth/#concurrency-limiting).
 
-`vmauth` also supports restricting access by IP - see [these docs](#ip-filters). See also [concurrency limiting docs](#concurrency-limiting).
+1. Authentication headers are proxied to backends by default. If this is undesirable, set an empty `Authorization` header in the `headers` section to strip it:
 
+    ```yaml
+    users:
+      - username: "tester"
+        password: "testpass"
+        url_prefix: "http://127.0.0.1:9999/"
+        headers:
+          - "Authorization:"
+    ```
 
-When `vmauth` performs tenant routing for [multitenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenant-reads) requests, it is crucial to explicitly set `extra_label`, `extra_filters` and `extra_filters[]` in the url_prefix configuration:
+1. [JWT authentication](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-token-auth-proxy) verifies the signature, expiration, and `vm_access` claim. For OIDC setups, vmauth also verifies `iss` against the configured issuer; follow [ID Token Validation](https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation) best practices and verify `aud` via `match_claims`:
 
-```yaml
-unauthorized_user:
-    url_prefix: http://vmselect/select/multitenant?extra_filters[]=&extra_filters=&extra_label=vm_account_id=10&extra_label=vm_project_id=100
-```
+    ```yaml
+    users:
+    - jwt:
+        oidc:
+          issuer: "https://accounts.example.com"
+        match_claims:
+          aud: "theClientID"
+      url_prefix: "http://127.0.0.1:9999/"
+    ```
 
-This is required because `vmselect` uses `OR` logic for tenant filtering. If a client sets `extra_filters[]` or `extra_filters`, it could bypass the tenant restriction configured via `extra_label`.
+1. When `vmauth` routes [multitenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenant-reads) requests, you must explicitly set `extra_label`, `extra_filters`, and `extra_filters[]` in `url_prefix`. Without this, a client can supply its own `extra_filters` or `extra_filters[]` values and bypass the tenant restriction set via `extra_label`, because `vmselect` combines these filters with `OR` logic.
+
+    ```yaml
+    unauthorized_user:
+        url_prefix: http://vmselect/select/multitenant?extra_filters[]=&extra_filters=&extra_label=vm_account_id=10&extra_label=vm_project_id=100
+    ```
+
+1. When backends use [multitenancy via headers](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-headers), clients can set `AccountID` and `ProjectID` headers to route requests to arbitrary tenants. To prevent this, explicitly override these headers in the `headers` section so the client-supplied values are ignored:
+
+    ```yaml
+    users:
+      - username: "tenant2"
+        password: "secret"
+        url_prefix: "http://vmselect:8481/"
+        headers:
+          - "AccountID: 2"
+          - "ProjectID: 0"
+    ```
+
+1. Clients can spoof HTTP headers, so when `vmauth` is internet-facing, take the following precautions:
+
+    * Drop `X-Forwarded-For` headers at the internet-facing reverse proxy before traffic reaches `vmauth`.
+    * Avoid using `-httpRealIPHeader` on internet-facing `vmauth` instances.
+    * Set `removeXFFHTTPHeaderValue` on the internet-facing `vmauth` to replace the `X-Forwarded-For` value with the client's `remoteAddr`.
+
+    See also [X-Forwarded-For security and privacy concerns](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For#security_and_privacy_concerns).
 
 ## Automatic issuing of TLS certificates
 
@@ -1608,7 +1642,7 @@ The following command-line flags must be set in order to enable automatic issuan
 
 This functionality can be evaluated for free according to [these docs](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 
-See also [security recommendations](#security).
+See also [security](#security).
 
 ## Monitoring
 
@@ -1726,3 +1760,11 @@ These flags are available in both VictoriaMetrics OSS and VictoriaMetrics Enterp
 ### Enterprise flags
 These flags are available only in [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 {{% content "vmauth_enterprise_flags.md" %}}
+
+---
+
+Section below contains backward-compatible anchors for links that were moved or renamed.
+
+###### Security Considerations
+
+Moved to [security](#security).
