@@ -20,6 +20,17 @@ Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
 {{% collapse name="2026" open=true %}}
 
+## v1.30.6
+Released: 2026-09-17
+
+- UI: Updated the bundled [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/#v191) from [v1.9.0](https://docs.victoriametrics.com/anomaly-detection/ui/#v190) to [v1.9.1](https://docs.victoriametrics.com/anomaly-detection/ui/#v191). The Server tab in the Queries sheet now provides a searchable list, model filtering, consistent row actions, and bulk actions for selected queries, including selections hidden by the active filter.
+
+- FEATURE: Added experimental [Docker Hardened Images](https://docs.victoriametrics.com/anomaly-detection/quickstart/#experimental-hardened-image) under `v1.30.6-dhi` and `v1.30.6-enterprise-dhi`. Both tags identify the same image, with fewer OS packages and no runtime shell or package manager. Docker Hub and Quay provide amd64/arm64 images. Standard tags, including `latest`, retain their existing base image.
+
+- BUGFIX: Stabilized univariate [Temporal Envelope](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope) estimates for intermittent data. Implausible current-time predictions fall back to the learned median when valid observations are available. Explicit future forecasts retain their extrapolation behavior, and existing model state remains loadable.
+
+- BUGFIX: [Periodic schedulers](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) consistently use their configured timezone (UTC by default), including interval triggers and ISO `start_from` values without an offset. ISO values with an explicit offset retain their instant.
+
 ## v1.30.5
 Released: 2026-09-10
 
