@@ -134,9 +134,6 @@ func (ctx *InsertCtx) WriteDataPointExt(metricNameRaw []byte, at *auth.Token, la
 		metricNameRaw = ctx.marshalMetricNameRaw(nil, at, labels)
 	}
 	err := ctx.addRow(metricNameRaw, timestamp, value)
-	if len(ctx.metricNameBuf) == 0 {
-		metricNameRaw = nil
-	}
 	return metricNameRaw, err
 }
 
@@ -153,7 +150,7 @@ func (ctx *InsertCtx) addRow(metricNameRaw []byte, timestamp int64, value float6
 	mr.Timestamp = timestamp
 	mr.Value = value
 	if len(ctx.metricNameBuf) > 16*1024*1024 {
-		if err := ctx.flushRows(); err != nil {
+		if err := ctx.FlushBufs(); err != nil {
 			return err
 		}
 	}
@@ -235,14 +232,6 @@ func (ctx *InsertCtx) AddLabel(name, value string) {
 
 // FlushBufs flushes buffered rows to the underlying storage.
 func (ctx *InsertCtx) FlushBufs() error {
-	defer ctx.Reset(0)
-	return ctx.flushRows()
-}
-
-func (ctx *InsertCtx) flushRows() error {
-	if len(ctx.mrs) == 0 {
-		return nil
-	}
 	ingestionRateLimiter.Register(len(ctx.mrs))
 
 	// There is no need in limiting the number of concurrent calls to vmstorage.AddRows() here,
@@ -256,11 +245,7 @@ func (ctx *InsertCtx) flushRows() error {
 		}
 	}
 	err := vmInsertAPI.WriteRows(ctx.mrs)
-	for i := range ctx.mrs {
-		cleanMetricRow(&ctx.mrs[i])
-	}
-	ctx.mrs = ctx.mrs[:0]
-	ctx.metricNameBuf = ctx.metricNameBuf[:0]
+	ctx.Reset(0)
 	if err == nil {
 		return nil
 	}
