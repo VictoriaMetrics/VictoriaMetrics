@@ -727,7 +727,7 @@ The URI must match exactly, including scheme, host, port and path. For local dev
 After login, the ID token works as a standard JWT — all [JWT claim matching](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-matching) features apply. The `match_claims` must verify that the `aud` claim matches the SSO `client_id`. The JWT token is stored in the `_vmauth_sso` cookie in plain text.
 If a user authenticates but no `users` entry matches their token claims, `vmauth` shows the login page with an "Access Denied" error message.
 
-By default, the cookie token is not proxied to backends. To forward the ID token as an `Authorization: Bearer` header, set `proxy_cookie_authorization_token: true` in the `jwt` user config.
+By default, the cookie token is not proxied to backends. To forward the ID token as an `Authorization: Bearer` header, set `proxy_cookie_authorization_token: Authorization` in the `jwt` user config.
 
 See also [authorization](#authorization), [security](#security), [routing](#routing) and [load balancing](#load-balancing) docs.
 
