@@ -159,14 +159,12 @@ func (b *backend) isBroken() bool {
 // RoundTrip implements http.RoundTripper interface
 func (lb *loadbalancerTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 	dbs := lb.getBackends()
-	closeRequestBody := func() {
+
+	if dbs == nil || len(dbs.backends) == 0 {
 		if r.Body != nil {
 			// RoundTrip must always close the request body.
 			_ = r.Body.Close()
 		}
-	}
-	if dbs == nil || len(dbs.backends) == 0 {
-		closeRequestBody()
 		return nil, fmt.Errorf("no backends found for hostname=%q", lb.host)
 	}
 
@@ -180,15 +178,11 @@ func (lb *loadbalancerTransport) RoundTrip(r *http.Request) (*http.Response, err
 			brokenDeadline := ct + uint64(brokenBackendTimeout.Seconds())
 			b.brokenDeadline.Store(brokenDeadline)
 			if !netutil.IsTrivialNetworkError(err) {
-				closeRequestBody()
-
 				return nil, err
 			}
 			// perform the same check for retry as http.Request.isReplayable does
 			canRetry := r.Body == nil || r.Body == http.NoBody || r.GetBody != nil
 			if !canRetry {
-				closeRequestBody()
-
 				return nil, err
 			}
 			lastErr = err
@@ -196,7 +190,6 @@ func (lb *loadbalancerTransport) RoundTrip(r *http.Request) (*http.Response, err
 		}
 		return resp, nil
 	}
-	closeRequestBody()
 
 	return nil, fmt.Errorf("all backends are unavailable: %w", lastErr)
 }
@@ -207,6 +200,10 @@ func (lb *loadbalancerTransport) doRequest(r *http.Request, b *backend) (*http.R
 		body, err := r.GetBody()
 		if err != nil {
 			b.put()
+			if r.Body != nil {
+				// RoundTrip must always close the request body.
+				_ = r.Body.Close()
+			}
 			return nil, err
 		}
 		r2.Body = body
