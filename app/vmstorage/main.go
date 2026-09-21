@@ -13,6 +13,7 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage/promremotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/appmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
@@ -144,6 +145,8 @@ var (
 		"Value must be in range 1..65535.")
 	maxLabelValueLen = flag.Int("maxLabelValueLen", 4*1024, "The maximum length of label values in the accepted time series at ingestion APIs when -enableIngestionAPI is enabled. Series with longer label value are ignored. In this case the vm_rows_ignored_total{reason=\"too_long_label_value\"} metric at /metrics page is incremented. "+
 		"Value must be in range 1..65535.")
+	maxIngestionRate = flag.Int("maxIngestionRate", 0, "The maximum number of samples vmstorage can receive per second via ingestion APIs when -enableIngestionAPI is enabled. "+
+		"Data ingestion is paused when the limit is exceeded. By default there are no limits on samples ingestion rate.")
 )
 
 func main() {
@@ -210,6 +213,8 @@ func main() {
 	}
 	strg := storage.MustOpenStorage(*storageDataPath, opts)
 	vmStorage := newVMStorage(strg, *vmselectMaxConcurrentRequests)
+	common.SetVMInsertAPI(vmStorage)
+	common.StartIngestionRateLimiter(*maxIngestionRate)
 
 	var m storage.Metrics
 	strg.UpdateMetrics(&m)
@@ -268,6 +273,7 @@ func main() {
 
 	logger.Infof("gracefully shutting down the service")
 	startTime = time.Now()
+	common.StopIngestionRateLimiter()
 	// deregister storage metrics
 	metrics.UnregisterSet(storageMetrics, true)
 	storageMetrics = nil
@@ -441,7 +447,11 @@ func (vms *VMStorage) insertRequestHandler(w http.ResponseWriter, r *http.Reques
 		return false
 	}
 	p, err := httpserver.ParsePathAndHeaders(r.URL.Path, r.Header)
-	if err != nil || p.Prefix != "insert" {
+	if err != nil {
+		httpserver.Errorf(w, r, "cannot parse path %q: %s", r.URL.Path, err)
+		return true
+	}
+	if p.Prefix != "insert" {
 		return false
 	}
 	switch p.Suffix {
@@ -455,7 +465,7 @@ func (vms *VMStorage) insertRequestHandler(w http.ResponseWriter, r *http.Reques
 			return true
 		}
 		prometheusWriteRequests.Inc()
-		if err := promremotewrite.InsertHandler(at, r, vms); err != nil {
+		if err := promremotewrite.InsertHandler(at, r); err != nil {
 			prometheusWriteErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
 			return true
