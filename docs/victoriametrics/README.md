@@ -1266,27 +1266,28 @@ See also [resource usage limits at VictoriaMetrics cluster](https://docs.victori
 
 ## High availability
 
-VictoriaMetrics supports high availability for both writes and reads by combining replication with multiple instances.
+High availability with VictoriaMetrics single-nodes can be achieved by running multiple replicas of VictoriaMetrics, 
+replicating writes to each replica, and load-balancing reads between them.
 
 ### High availability for writes
 
-You can achieve **high availability for writes** using replication:
+You can achieve **high availability for writes** via replication:
 
-* Run two or more identically configured VictoriaMetrics instances in distinct datacenters (availability zones);
-* Replicate collected metrics simultaneously into all these instances via one or more [vmagents](https://docs.victoriametrics.com/victoriametrics/vmagent/).
+* Run two or more identically configured VictoriaMetrics instances (replicas), preferably in distinct datacenters (availability zones);
+* Replicate writes simultaneously into all these instances via one or multiple [vmagents](https://docs.victoriametrics.com/victoriametrics/vmagent/) (or other agents that support replication).
 
-In this setup, configure vmagent [to replicate data](https://docs.victoriametrics.com/victoriametrics/vmagent/#replication-and-high-availability)
-to each remote destination:
+For example, configure vmagent [to replicate data](https://docs.victoriametrics.com/victoriametrics/vmagent/#replication-and-high-availability)
+to multiple remote destinations by specifying multiple `-remoteWrite.url` flags:
 ```sh
 /path/to/vmagent \
   -remoteWrite.url=https://victoriametrics-1:8428/api/v1/write \
   -remoteWrite.url=https://victoriametrics-2:8428/api/v1/write
 ```
 
-Each `--remoteWrite.url` creates its own replication queue. The queue temporarily stores data on disk while a remote destination is unavailable.
+Each `--remoteWrite.url` creates its own replication queue. The queue temporarily stores data on disk while the remote destination is unavailable.
 See more about [on-disk persistence in vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/#on-disk-persistence).
 
-When the remote destination becomes available, vmagent drains the queue and restores data consistency across destinations.
+When the remote destination becomes available again, vmagent re-reads the queue and pushes unsent data, restoring data consistency across destinations.
 
 > The max size of the on-disk queue can be increased by [horizontally sharding vmagents](https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets).
 > To achieve high availability for vmagent itself, run multiple identically configured vmagent replicas.
@@ -1295,16 +1296,25 @@ When the remote destination becomes available, vmagent drains the queue and rest
 
 ### High availability for reads
 
+For achieving high availability for reads, make sure that you already achieved [high availability for writes](https://docs.victoriametrics.com/victoriametrics/#high-availability-for-writes), so all VictoriaMetrics replicas contain the same data.
+
 You can achieve **high availability for reads** by choosing one of the following options:
 
-- Load balancer: Use a load balancer to ensure read operations are always routed to an available VictoriaMetrics instance.
-- Top-level vmselect: Use vmselect to query all available VictoriaMetrics instances and merge the results
+- [Load balance read requests among replicas](https://docs.victoriametrics.com/victoriametrics/#load-balance-read-requests-among-replicas): use a load balancer to route read requests to an available VictoriaMetrics instance.
+- [Query multiple replicas via vmselect](https://docs.victoriametrics.com/victoriametrics/#query-multiple-replicas-via-vmselect): use vmselect to query all available VictoriaMetrics instances and merge their results.
 
-**Load balancer for reads**
+#### Load balance read requests among replicas
 
-In this mode, we use a load balancer to query the main VictoriaMetrics instance and fail over to a secondary instance if the first one becomes temporarily unavailable.
+Use [vmauth to load-balance](https://docs.victoriametrics.com/vmauth/#load-balancing) read queries among available VictoriaMetrics replicas
+and re-route requests away from unavailable replicas:
+```
+unauthorized_user:
+  url_prefix:
+  - http://victoria-metrics-1:8428/
+  - http://victoria-metrics-2:8428/
+```
 
-This can be done using [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) configured in [high-availability mode](https://docs.victoriametrics.com/victoriametrics/vmauth/#high-availability).
+With this configuration, vmauth will uniformly share load among the replicas using the least-loaded round-robin policy. But if you run VictoriaMetrics replicas in different geographically distributed availability zones, you might want to prefer the closest replica for all requests until it fails. This can be achieved by [changing vmauth load-balancing policy to `first_available`](https://docs.victoriametrics.com/vmauth/#high-availability), so all requests will land on preferred replica and will get re-routed only if it becomes unavailable:
 
 ```mermaid
 flowchart LR
@@ -1318,25 +1328,24 @@ flowchart LR
     Client -->|"Read query"| VMAUTH
 
     VMAUTH -->|"1. Send queries"| VM1
-    VMAUTH -.->|"2. Fail over if VM1<br/>is unavailable"| VM2
+    VMAUTH -.->|"2. Fail over if Primary<br/>is unavailable"| VM2
 ```
 
-This is the most cost-efficient option because it queries only one VictoriaMetrics instance at a time.
+Load-balancing is **the most cost-efficient option** - it queries only one VictoriaMetrics instance at a time. If any instance fails to respond, vmauth will transparently re-route requests to the next available instance.
 
-The downside is that when one instance goes down and then comes back up, the load balancer may immediately start sending
-read queries to the recovering instance, even though it hasn't caught up with vmagent's queue yet and may return incomplete results.
+The downside of this approach is that when one instance goes down and then comes back, the load balancer may start routing read queries to it again. Even though this instance didn't catch up yet with vmagent's queue and may return incomplete results.
 
 This shortcoming can be mitigated during sequential upgrades by removing the catching-up instance from the vmauth configuration until the vmagent queues are drained. During sequential upgrades, this mechanism is automatically applied when using the [Kubernetes VMDistributed](https://docs.victoriametrics.com/operator/resources/vmdistributed/) resource. After an outage, you must remove the recovered instance manually until its vmagent queues are drained.
 
-Another option is to use top-level vmselect as described below.
+Another option is to use to [query all replicas at once](https://docs.victoriametrics.com/victoriametrics/#query-multiple-replicas-via-vmselect), as described below.
 
-**Top-level vmselect for reads**
+#### Query multiple replicas via vmselect
 
 In this option, we use a top-level [vmselect](https://docs.victoriametrics.com/victoriametrics/vmselect/) to query all
 remote destinations simultaneously and merge the results.
 
 This option is only possible if VictoriaMetrics single-node instances are configured with the `-vmselectAddr` flag.
-See more details in the [VictoriaMetrics multi-tenancy section](https://docs.victoriametrics.com/victoriametrics/#multi-tenancy).
+See how to configure vmselect for [reading from single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#reading-from-single-node-victoriametrics).
 
 ```mermaid
 flowchart LR
@@ -1356,13 +1365,13 @@ flowchart LR
     VMSELECT -->|"Merged and deduplicated results"| Client
 ```
 
-This option requires extra resources on vmselect because it queries all remote destinations simultaneously and merges
+This option **requires extra resources** on vmselect because it queries all remote destinations simultaneously and merges
 their responses before returning the final result.
 
 The benefit is that it can handle data gaps across destinations by merging responses from all VictoriaMetrics instances (as long as at least one instance has all the data without gaps).
-Thus, a single recovering instance can't cause incomplete results, as gaps will be filled with samples from the healthy instance.
+Thus, a single recovering instance can't cause incomplete results, as gaps will be filled with samples from the healthy replica.
 
-Since vmselect fetches replicated data from VictoriaMetrics instances, it must be deduplicated before processing.
+Since vmselect fetches replicated data from VictoriaMetrics instances, it must be [deduplicated](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#deduplication) before processing.
 Configure vmselect with `-dedup.minScrapeInterval=1ms` to remove duplicated samples during merging.
 Also set `-replicationFactor=N` on vmselect, where `N` equals the number of remote storage destinations, so that queries
 can tolerate the unavailability of up to `N-1` destinations.
@@ -1771,54 +1780,61 @@ See how to request a [free trial license](https://victoriametrics.com/products/e
 
 ## Multitenancy {#multi-tenancy}
 
-Single-node VictoriaMetrics has limited
-[multitenancy](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy)
-support {{% available_from "v1.147.0" %}}. Specifically, a single-node can serve
-multitenant queries as if it were a `vmstorage`. The write path is not supported.
+Single-node VictoriaMetrics does not support [multitenancy](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) as cluster version does.
+But it can emulate it via [labels](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#labels).
 
-The functionality is disabled by default and can be enabled by setting the
-`-vmselectAddr` flag. This will start the `vmselect RPC server` that accepts
-requests and serves responses in cluster format.
-
-Cluster data format assumes the presence of a `tenantID`. Single-node data
-format still does not support multitenancy, but it is possible to configure the
-single-node to specify which `tenantID` the single-node's data corresponds to with the
-`-accountID` and `-projectID` flags. Both are `0` by default, which means that
-`"0:0"` `tenantID` is used by default.
-
-For example, the following command will start a single-node that listens for
-vmselect RPC requests on the `8401` port. The requests must be either `multitenant`
-(i.e., want data for all tenants) or for `"12:34"` tenant. Otherwise, the
-single-node will return an empty result:
-
-```shell
-./victoria-metrics -storageDataPath=/data -vmselectAddr=:8401 -accountID=12 -projectID=34
+Multitenancy via labels requires all ingested data to have a label set that would uniquely identify the tenant. For example:
+```text
+up{job="node_exporter", team="analytics"} 1
+up{job="node_exporter", team="developers"} 1
 ```
 
-The `tenantID` configuration is not persisted in any way and is enforced only at
-runtime. Thus, it is safe to change the `-accountID` and `-projectID` flag
-values at any time.
+Here, `team` label can be treated as a tenant identifier. Assuming that all metrics have label `team` attached, we can [enforce a tenant filter for all queries](https://docs.victoriametrics.com/victoriametrics/#prometheus-querying-api-enhancements) via `extra_label` query parameter:
+```sh
+/api/v1/query?match[]=up&extra_label=team=developers
+```
 
-Note that the single-node's HTTP handlers still do not support multitenancy.
+The query above will return metrics matching the `up` name and having `team=developers` label. The `extra_label` query parameter can be enforced in Grafana datasource settings.
+Or enforced by vmauth [based on user credentials](https://docs.victoriametrics.com/victoriametrics/vmauth/#basic-auth-proxy):
+```yaml
+users:
+  - username: team-developers
+    password: "***"
+    url_map:
+      - url_prefix: "http://victoriametrics:8428/?extra_label=team=developers"
 
-The purpose of this limited multitenancy support is enabling the single-node to
-operate in VictoriaMetrics cluster setups. I.e., one or more single-nodes that
-contain data for different tenants can be a part of a cluster, and the entire
-non-homogeneous deployment can be queried with a higher-level `vmselect`.
+  - username: team-analytics
+    password: "***"
+    url_map:
+      - url_prefix: "http://victoriametrics:8428/?extra_label=team=analytics"
+```
 
-This, in turn, enables easy [migrations from single-node to cluster](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#from-single-node-to-cluster).
-Previously, the only option was the use of
-[vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/).
+It is allowed to set multiple `extra_label` query parameters, or even `extra_filters` with regex support - see more details [here](https://docs.victoriametrics.com/victoriametrics/#prometheus-querying-api-enhancements).
+
+The extra label can be unconditionally applied to all ingested data within a request if `extra_label` param is set:
+```sh
+curl -X POST "http://victoriametrics:8428/api/v1/import?extra_label=team=developers" -T data_to_import.jsonl 
+```
+
+All samples ingested in this way will have the `team=developers` label attached, making it easier to control ingestion flow.
+The `extra_label` can be enforced based on user credential by vmauth in the same way as described above.
 
 ## Scalability and cluster version
 
-Though single-node VictoriaMetrics cannot scale to multiple nodes, it is optimized for resource usage - storage size / bandwidth / IOPS, RAM, CPU.
-This means that a single-node VictoriaMetrics may scale vertically and substitute a moderately sized cluster built with competing solutions
+Single-node VictoriaMetrics is a single process responsible for ingestion, storing, and querying data.
+Its resource usage is significantly more efficient compared to distributed installations that require transferring data between multiple processes over the network.
+Single-node VictoriaMetrics has linear vertical scalability and can substitute a moderately sized cluster built with competing solutions
 such as Thanos, Uber M3, InfluxDB or TimescaleDB. See [vertical scalability benchmarks](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae).
 
-So try single-node VictoriaMetrics at first and then [switch to the cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster) if you still need
-horizontally scalable long-term remote storage for really large Prometheus deployments.
-[Contact us](mailto:info@victoriametrics.com) for enterprise support.
+For moderate workloads single-node VictoriaMetrics will be the most efficient solution. See how to [achieve high availability](https://docs.victoriametrics.com/victoriametrics/#high-availability).
+
+Try the single-node first. If you face scalability limits - try horizontal scaling with cluster version. [Cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) splits the single process into multiple processes that can be scaled horizontally. See [cluster architecture overview](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#architecture-overview) for more details.
+
+Cluster version of VictoriaMetrics allows scaling beyond hardware limits of a single physical instance. But it also introduces additional complexity and resource usage as cluster components become distributed and have to communicate with each other over the network.
+
+Due to historical reasons, data format on disk differs between single-node and cluster versions. It makes it impossible to move data from single-node to the `vmstorage` (a storage component in cluster version) without re-ingesting it. But it is possible to [query data from single-node and cluster installations at the same time](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#reading-from-single-node-victoriametrics).
+
+See also [how to migrate from single-node to cluster version](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#from-single-node-to-cluster).
 
 ## Alerting
 
@@ -2429,8 +2445,7 @@ When, for some reason, the deployment needs to be switched from single-node to
 cluster (such as the single-node can't be scaled vertically anymore, or
 multitenancy becomes a requirement, etc.) the migration can be as simple as:
 
-1. Restart the existing single-node with multitenancy support enabled as
-   described in [Multitenancy](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#multi-tenancy) section.
+1. Restart the existing single-node with [vmselect RPC server enabled](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#reading-from-single-node-victoriametrics)
 1. Deploy an empty cluster next to the existing single-node.
 1. Deploy higher-level `vmselect` and configure it to query both the existing
    single-node and the new cluster.

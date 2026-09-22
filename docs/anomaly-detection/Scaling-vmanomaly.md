@@ -130,6 +130,8 @@ flowchart TD
 
 Hot reload reevaluates assignments only under the topology supplied to the process at startup. Changing `VMANOMALY_MEMBERS_COUNT`, `VMANOMALY_MEMBER_NUM`, `VMANOMALY_REPLICATION_FACTOR`, `VMANOMALY_SPLIT_BY`, or `VMANOMALY_SHARDING_STRATEGY` requires an orchestration rollout or process restart. All members must use the same `VMANOMALY_MEMBERS_COUNT`, `VMANOMALY_REPLICATION_FACTOR`, `VMANOMALY_SPLIT_BY`, and `VMANOMALY_SHARDING_STRATEGY`, while each member receives its own unique `VMANOMALY_MEMBER_NUM`. Configuration-only changes can wake an idle shard without changing that topology.
 
+<div class="collapse-group mb-3">
+
 {{% collapse name="Rendezvous assignment: algorithm, changes, and tradeoffs" %}}
 
 Rendezvous, also known as highest-random-weight (HRW) hashing, assigns each sub-configuration independently. It requires no coordinator, hash ring, or persisted placement map. Every shard derives the same result from the global configuration and these inputs:
@@ -189,7 +191,11 @@ Rendezvous provides deterministic replica sets, minimal placement movement, and 
 
 {{% /collapse %}}
 
+</div>
+
 ### Splitting strategies
+
+<div class="collapse-group mb-3">
 
 {{% collapse name="Configuration and resulting sub-configurations" %}}
 
@@ -263,6 +269,8 @@ environment:
 To partition the timeseries returned by the same large query instead, define non-overlapping selectors in `reader.extra_filters` and use `VMANOMALY_SPLIT_BY: EXTRA_FILTERS`. Each generated sub-configuration keeps one selector, for example `{region="us-east"}` or `{region="eu-west"}`.
 
 {{% /collapse %}}
+
+</div>
 
 ---
 
