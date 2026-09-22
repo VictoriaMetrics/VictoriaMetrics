@@ -20,7 +20,7 @@ func sysTotalMemory() int {
 	}
 	memoryHostBytes = float64(totalMem)
 	mem := cgroup.GetMemoryLimit()
-	if mem <= 0 || int64(int(mem)) != mem || int(mem) > totalMem {
+	if mem <= 0 || mem > int64(totalMem) {
 		// Try reading hierarchical memory limit.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/699
 		if hmem := cgroup.GetHierarchicalMemoryLimit(); hmem > 0 {
@@ -30,7 +30,7 @@ func sysTotalMemory() int {
 	if mem > 0 {
 		memoryCgroupBytes = float64(mem)
 	}
-	if mem <= 0 || int64(int(mem)) != mem || int(mem) > totalMem {
+	if mem <= 0 || mem > int64(totalMem) {
 		return totalMem
 	}
 	return int(mem)
