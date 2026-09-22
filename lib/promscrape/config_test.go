@@ -392,6 +392,73 @@ scrape_configs:
 	checkEqualScrapeWorks(t, sws, swsExpected)
 }
 
+// testTargetLabelsGetter returns the given targets or fails with the given error.
+type testTargetLabelsGetter struct {
+	addr string
+	err  error
+}
+
+func (tlg *testTargetLabelsGetter) GetLabels(_ string) ([]*promutil.Labels, error) {
+	if tlg.err != nil {
+		return nil, tlg.err
+	}
+	return []*promutil.Labels{promutil.NewLabelsFromMap(map[string]string{
+		"__address__": tlg.addr,
+	})}, nil
+}
+
+func TestGetScrapeWorkGeneric(t *testing.T) {
+	data := `
+scrape_configs:
+- job_name: foo
+  static_configs:
+  - targets: [unused]
+`
+	var cfg Config
+	if err := cfg.parseData([]byte(data), "sss"); err != nil {
+		t.Fatalf("cannot parse data: %s", err)
+	}
+	visitConfigs := func(sdcs ...targetLabelsGetter) func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
+		return func(_ *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
+			for _, sdc := range sdcs {
+				visitor(sdc)
+			}
+		}
+	}
+	getScrapeURLs := func(sws []*ScrapeWork) []string {
+		a := make([]string, 0, len(sws))
+		for _, sw := range sws {
+			a = append(a, sw.ScrapeURL)
+		}
+		return a
+	}
+	f := func(visitConfigs func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)), prev []*ScrapeWork, scrapeURLsExpected []string) {
+		t.Helper()
+		sws := cfg.getScrapeWorkGeneric(visitConfigs, "test_sd_config", prev)
+		scrapeURLs := getScrapeURLs(sws)
+		if !reflect.DeepEqual(scrapeURLs, scrapeURLsExpected) {
+			t.Fatalf("unexpected scrape urls;\ngot\n%q\nwant\n%q", scrapeURLs, scrapeURLsExpected)
+		}
+	}
+	errFailed := fmt.Errorf("some error")
+	prev := []*ScrapeWork{{
+		ScrapeURL:       "http://prev:80/metrics",
+		jobNameOriginal: "foo",
+	}}
+
+	// Successfully discovered targets replace the previous ones.
+	f(visitConfigs(&testTargetLabelsGetter{addr: "host1:80"}), prev, []string{"http://host1:80/metrics"})
+
+	// If all the sd_configs fail, then the previous targets are preserved.
+	f(visitConfigs(&testTargetLabelsGetter{err: errFailed}, &testTargetLabelsGetter{err: errFailed}), prev, []string{"http://prev:80/metrics"})
+
+	// If at least a single sd_config succeeds, then its targets are used without the previous ones.
+	f(visitConfigs(&testTargetLabelsGetter{err: errFailed}, &testTargetLabelsGetter{addr: "host1:80"}), prev, []string{"http://host1:80/metrics"})
+
+	// If the sd_configs are removed from the job, then the previous targets must be dropped.
+	f(visitConfigs(), prev, []string{})
+}
+
 func TestGetFileSDScrapeWork(t *testing.T) {
 	data := `
 scrape_configs:
