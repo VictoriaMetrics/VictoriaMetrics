@@ -954,7 +954,7 @@ func TestDiscoverBackendIPsWithEnableTCP6(t *testing.T) {
 	setTCP6EnabledForTest(t, true)
 
 	// Discover backendURL with SRV hostnames
-	f := newBackendIPDiscoveryTest(t,
+	fr := newFakeResolver(
 		// SRV records must return hostname
 		// not an IP address
 		map[string][]*net.SRV{
@@ -983,21 +983,22 @@ func TestDiscoverBackendIPsWithEnableTCP6(t *testing.T) {
 			},
 		},
 	)
-	f("http://srv+_vmselect._tcp.selectwithport.:8080", "vmselect.local:8080")
-	f("http://srv+_vmselect._tcp.selectwithport.:", "vmselect.local:8481")
-	f("http://srv+_vmselect._tcp.selectwoport.:8080", "vmselect.local:8080")
-	f("http://srv+_vmselect._tcp.selectwoport.", "vmselect.local:")
+	f := testBackendIPDiscovery
+	f(t, "http://srv+_vmselect._tcp.selectwithport.:8080", "vmselect.local:8080", fr)
+	f(t, "http://srv+_vmselect._tcp.selectwithport.:", "vmselect.local:8481", fr)
+	f(t, "http://srv+_vmselect._tcp.selectwoport.:8080", "vmselect.local:8080", fr)
+	f(t, "http://srv+_vmselect._tcp.selectwoport.", "vmselect.local:", fr)
 
-	f("http://vminsert.local:8080", "10.0.10.13:8080")
-	f("http://vminsert.local", "10.0.10.13:")
-	f("http://ipv6.vminsert.local:8080", "[2607:f8b0:400a:80b::200e]:8080")
-	f("http://ipv6.vminsert.local", "[2607:f8b0:400a:80b::200e]:")
+	f(t, "http://vminsert.local:8080", "10.0.10.13:8080", fr)
+	f(t, "http://vminsert.local", "10.0.10.13:", fr)
+	f(t, "http://ipv6.vminsert.local:8080", "[2607:f8b0:400a:80b::200e]:8080", fr)
+	f(t, "http://ipv6.vminsert.local", "[2607:f8b0:400a:80b::200e]:", fr)
 }
 
 func TestDiscoverBackendIPsWithoutEnableTCP6(t *testing.T) {
 	setTCP6EnabledForTest(t, false)
 
-	f := newBackendIPDiscoveryTest(t, nil,
+	fr := newFakeResolver(nil,
 		map[string][]net.IPAddr{
 			"vminsert.local": {
 				{
@@ -1009,38 +1010,40 @@ func TestDiscoverBackendIPsWithoutEnableTCP6(t *testing.T) {
 			},
 		},
 	)
-	f("http://vminsert.local:8080", "10.0.10.13:8080")
-	f("http://vminsert.local", "10.0.10.13:")
+	f := testBackendIPDiscovery
+	f(t, "http://vminsert.local:8080", "10.0.10.13:8080", fr)
+	f(t, "http://vminsert.local", "10.0.10.13:", fr)
 }
 
-func newBackendIPDiscoveryTest(t *testing.T, srvResults map[string][]*net.SRV, ipResults map[string][]net.IPAddr) func(string, string) {
-	t.Helper()
-	origResolver := netutil.Resolver
-	netutil.Resolver = &fakeResolver{
+func newFakeResolver(srvResults map[string][]*net.SRV, ipResults map[string][]net.IPAddr) *fakeResolver {
+	return &fakeResolver{
 		Resolver:            &net.Resolver{},
 		lookupSRVResults:    srvResults,
 		lookupIPAddrResults: ipResults,
 	}
-	t.Cleanup(func() {
+}
+
+func testBackendIPDiscovery(t *testing.T, actualURL, expectedHost string, fr *fakeResolver) {
+	t.Helper()
+	origResolver := netutil.Resolver
+	defer func() {
 		netutil.Resolver = origResolver
-	})
+	}()
+	netutil.Resolver = fr
 
-	return func(actualURL, expectedHost string) {
-		t.Helper()
-		up := mustParseURL(actualURL)
-		up.discoverBackendIPs = true
-		up.loadBalancingPolicy = "least_loaded"
+	up := mustParseURL(actualURL)
+	up.discoverBackendIPs = true
+	up.loadBalancingPolicy = "least_loaded"
 
-		up.discoverBackendAddrsIfNeeded()
-		pbus := up.bus.Load()
-		bus := pbus.bus
+	up.discoverBackendAddrsIfNeeded()
+	pbus := up.bus.Load()
+	bus := pbus.bus
 
-		if len(bus) != 1 {
-			t.Fatalf("expected url list to be of size 1; got %d instead", len(bus))
-		}
-		if got := bus[0].url.Host; got != expectedHost {
-			t.Fatalf(`expected url to be %q; got %q instead`, expectedHost, got)
-		}
+	if len(bus) != 1 {
+		t.Fatalf("expected url list to be of size 1; got %d instead", len(bus))
+	}
+	if got := bus[0].url.Host; got != expectedHost {
+		t.Fatalf(`expected url to be %q; got %q instead`, expectedHost, got)
 	}
 }
 
