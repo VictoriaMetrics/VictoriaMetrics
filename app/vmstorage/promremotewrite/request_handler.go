@@ -81,11 +81,10 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, mms []prompb.Met
 		return fmt.Errorf("cannot flush metric bufs: %w", err)
 	}
 	if prommetadata.IsEnabled() {
-		n, err := ctx.WriteMetadata(at, mms)
-		if err != nil {
+		if err := ctx.WriteMetadata(at, mms); err != nil {
 			return err
 		}
-		metadataInserted.Add(n)
+		metadataInserted.Add(len(mms))
 	}
 	return nil
 }

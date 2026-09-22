@@ -158,9 +158,9 @@ func (ctx *InsertCtx) addRow(metricNameRaw []byte, timestamp int64, value float6
 }
 
 // WriteMetadata writes given prometheus protobuf  metadata into the storage.
-func (ctx *InsertCtx) WriteMetadata(at *auth.Token, mmpbs []prompb.MetricMetadata) (int, error) {
+func (ctx *InsertCtx) WriteMetadata(at *auth.Token, mmpbs []prompb.MetricMetadata) error {
 	if len(mmpbs) == 0 {
-		return 0, nil
+		return nil
 	}
 	mms := ctx.mms
 	mms = slicesutil.SetLength(mms, len(mmpbs))
@@ -186,12 +186,12 @@ func (ctx *InsertCtx) WriteMetadata(at *auth.Token, mmpbs []prompb.MetricMetadat
 
 	err := vmInsertAPI.WriteMetadata(mms)
 	if err != nil {
-		return 0, &httpserver.ErrorWithStatusCode{
+		return &httpserver.ErrorWithStatusCode{
 			Err:        fmt.Errorf("cannot store metrics metadata: %w", err),
 			StatusCode: http.StatusServiceUnavailable,
 		}
 	}
-	return len(mms), nil
+	return nil
 }
 
 // AddLabelBytes adds (name, value) label to ctx.Labels.
@@ -238,12 +238,6 @@ func (ctx *InsertCtx) FlushBufs() error {
 	// since the number of concurrent FlushBufs() calls should be already limited via writeconcurrencylimiter
 	// used at every stream.Parse() call under lib/protoparser/*
 
-	if vmInsertAPI.IsReadOnly() {
-		return &httpserver.ErrorWithStatusCode{
-			Err:        storage.ErrReadOnly,
-			StatusCode: http.StatusServiceUnavailable,
-		}
-	}
 	err := vmInsertAPI.WriteRows(ctx.mrs)
 	ctx.Reset(0)
 	if err == nil {
