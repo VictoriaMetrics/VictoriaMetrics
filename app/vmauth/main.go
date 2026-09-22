@@ -126,6 +126,9 @@ func main() {
 		rh = requestHandler
 	}
 
+	// Register paths which could be protected by their own -*AuthKey flag.
+	httpserver.RegisterAuthKeyProtectedPathsFunc(isAuthKeyProtectedPath)
+
 	go httpserver.Serve(listenAddrs, rh, httpserver.ServeOptions{
 		UseProxyProtocol: useProxyProtocol,
 		// built-in routes will be exposed at *httpInternalListenAddr
@@ -150,6 +153,12 @@ func main() {
 	logger.Infof("successfully shut down the webservice in %.3f seconds", time.Since(startTime).Seconds())
 	stopAuthConfig()
 	logger.Infof("successfully stopped vmauth in %.3f seconds", time.Since(startTime).Seconds())
+}
+
+// isAuthKeyProtectedPath returns true for paths, which verify -reloadAuthKey
+// on their own at internalRequestHandler().
+func isAuthKeyProtectedPath(r *http.Request) bool {
+	return r.URL.Path == "/-/reload"
 }
 
 func internalRequestHandler(w http.ResponseWriter, r *http.Request) bool {
@@ -202,6 +211,11 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		if tkn.HasVMAccessClaim() || ui.JWT.DefaultVMAccessClaim != nil {
 			processUserRequest(w, r, ui, tkn)
 			return true
+		}
+		if *logInvalidAuthTokens {
+			logger.Infof("jwt token for user %q has no `vm_access` claim and `default_vm_access_claim` is not configured; "+
+				"add `vm_access` claim to the jwt token or set `default_vm_access_claim` in vmauth config; "+
+				"see https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-based-request-templating", ui.name())
 		}
 	}
 
@@ -405,7 +419,21 @@ func bufferRequestBody(ctx context.Context, r io.ReadCloser, userName string) (i
 
 func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tkn *jwt.Token, userName string) {
 	u := normalizeURL(r.URL)
-	up, hc := ui.getURLPrefixAndHeaders(u, r.Host, r.Header)
+	up, hc, denied := ui.getURLPrefixAndHeaders(u, r.Host, r.Header)
+	if denied {
+		// Request authorization instead of confirming the path is denied.
+		if ui.name() == "" && len(*authUsers.Load()) > 0 {
+			handleMissingAuthorizationError(w)
+			return
+		}
+		deniedRequests.Inc()
+		var di string
+		if ui.DumpRequestOnErrors {
+			di = debugInfo(u, r)
+		}
+		handleDeniedPathError(w, r, fmt.Errorf("user %s is denied access to %q via `deny_paths`%s", userName, u.String(), di))
+		return
+	}
 	isDefault := false
 	if up == nil {
 		if ui.DefaultURL == nil {
@@ -708,6 +736,7 @@ var (
 	configReloadRequests     = metrics.NewCounter(`vmauth_http_requests_total{path="/-/reload"}`)
 	invalidAuthTokenRequests = metrics.NewCounter(`vmauth_http_request_errors_total{reason="invalid_auth_token"}`)
 	missingRouteRequests     = metrics.NewCounter(`vmauth_http_request_errors_total{reason="missing_route"}`)
+	deniedRequests           = metrics.NewCounter(`vmauth_http_request_errors_total{reason="denied_paths"}`)
 	clientCanceledRequests   = metrics.NewCounter(`vmauth_http_request_errors_total{reason="client_canceled"}`)
 	rejectSlowClientRequests = metrics.NewCounter(`vmauth_http_request_errors_total{reason="reject_slow_client"}`)
 
@@ -792,6 +821,14 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
 func handleMissingAuthorizationError(w http.ResponseWriter) {
 	w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
 	http.Error(w, "missing 'Authorization' request header", http.StatusUnauthorized)
+}
+
+func handleDeniedPathError(w http.ResponseWriter, r *http.Request, err error) {
+	err = &httpserver.ErrorWithStatusCode{
+		Err:        err,
+		StatusCode: http.StatusForbidden,
+	}
+	httpserver.Errorf(w, r, "%s", err)
 }
 
 func handleConcurrencyLimitError(w http.ResponseWriter, r *http.Request, err error) {

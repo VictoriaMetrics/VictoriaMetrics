@@ -800,7 +800,7 @@ func NewClaim(key, value string) (*Claim, error) {
 	} else {
 		nestedKeys = []string{key}
 	}
-	valueRe, err := regexp.Compile(value)
+	valueRe, err := regexp.Compile("^(?:" + value + ")$")
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse value match re=%q: %w", value, err)
 	}

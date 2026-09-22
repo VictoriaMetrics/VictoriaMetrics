@@ -1089,4 +1089,10 @@ func TestTokenMatchClaims(t *testing.T) {
 	// array claim combined with scalar claim
 	f(&tokenArrayFields, map[string]string{"name": "Test", "roles": "admin"}, true)
 	f(&tokenArrayFields, map[string]string{"name": "Test", "roles": "^nobody$"}, false)
+
+	// GHSA-f99m-22fh-qw96: match_claims patterns must be anchored to the full claim value,
+	// not evaluated as substring searches. The token's security.audit.user_id is 100.
+	// An unanchored pattern "(0|1|2)" matches "100" because "100" contains "0" and "1",
+	// wrongly routing account 100 to the tenant-0/1/2 backend.
+	f(&tokenWithStrFields, map[string]string{"security.audit.user_id": "0|1|2"}, false)
 }

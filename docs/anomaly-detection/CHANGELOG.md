@@ -15,7 +15,40 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+> [!TIP]
+> See the directional [compatibility matrix](https://docs.victoriametrics.com/anomaly-detection/migration/#compatibility-matrix) before upgrading or rolling back, particularly when restoring persisted model state.
+
 {{% collapse name="2026" open=true %}}
+
+## v1.30.6
+Released: 2026-09-17
+
+- UI: Updated the bundled [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/#v191) from [v1.9.0](https://docs.victoriametrics.com/anomaly-detection/ui/#v190) to [v1.9.1](https://docs.victoriametrics.com/anomaly-detection/ui/#v191). The Server tab in the Queries sheet now provides a searchable list, model filtering, consistent row actions, and bulk actions for selected queries, including selections hidden by the active filter.
+
+- FEATURE: Added experimental [Docker Hardened Images](https://docs.victoriametrics.com/anomaly-detection/quickstart/#experimental-hardened-image) under `v1.30.6-dhi` and `v1.30.6-enterprise-dhi`. Both tags identify the same image, with fewer OS packages and no runtime shell or package manager. Docker Hub and Quay provide amd64/arm64 images. Standard tags, including `latest`, retain their existing base image.
+
+- BUGFIX: Stabilized univariate [Temporal Envelope](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope) estimates for intermittent data. Implausible current-time predictions fall back to the learned median when valid observations are available. Explicit future forecasts retain their extrapolation behavior, and existing model state remains loadable.
+
+- BUGFIX: [Periodic schedulers](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) consistently use their configured timezone (UTC by default), including interval triggers and ISO `start_from` values without an offset. ISO values with an explicit offset retain their instant.
+
+## v1.30.5
+Released: 2026-09-10
+
+
+- UI: Updated the [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/#v190) to v1.9.0 with multiple named queries, per-query business policies, and an experimental [multivariate investigation workspace](https://docs.victoriametrics.com/anomaly-detection/ui/#multivariate-investigation). Explore aligned signals and a joint anomaly score separately for each model group.
+
+- FEATURE: Shared [autotune](https://docs.victoriametrics.com/anomaly-detection/components/server/#time-series-analysis-and-autotune-api) accepts named queries and evaluates aligned multivariate groups in one study, returning one shared model configuration.
+
+- IMPROVEMENT: Reduced duplicate [AI Copilot](https://docs.victoriametrics.com/anomaly-detection/ui/#ai-assistance) context, added configurable context/output budgets, and exposed bounded [AI Copilot metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#ai-copilot-metrics) for request size, reported tokens, finish reasons and local budget refusals.
+
+- BUGFIX: Applied query-level data ranges, detection directions and minimum deviations consistently in [multiprocessing mode](https://docs.victoriametrics.com/anomaly-detection/components/settings/#parallelization). Explicit query policies take precedence over model fallbacks; observations outside the configured range retain their out-of-range anomaly score.
+
+## v1.30.4
+Released: 2026-08-28
+
+- BUGFIX: Kept valid configurations with no runnable work live and observable instead of shutting down. Idle instances can accept future [hot-reload](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) assignments, restore compatible model state, and start scheduling work without being restarted. See the [idle-shard lifecycle](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#idle-shards-and-topology-changes) for the new behavior and topology-change boundaries.
+
+- BUGFIX: Restored compatibility with multivariate [Temporal Envelope](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope) checkpoints written by [v1.30.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1300)-[v1.30.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1302), preserving their fitted predictions and subsequent online updates. [Migration checks](https://docs.victoriametrics.com/anomaly-detection/migration/#compatibility-matrix) now also report when Temporal Envelope state must be discarded and refitted before downgrading to v1.30.2 or earlier.
 
 ## v1.30.3
 Released: 2026-08-27

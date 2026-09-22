@@ -227,7 +227,7 @@ type bucket struct {
 	rowsBuff       []Row
 }
 
-func (b *bucket) cloneRowLocked(src *Row) *Row {
+func (b *bucket) cloneRowLocked(src *Row, existRow *Row) *Row {
 	if len(b.rowsBuff) >= cap(b.rowsBuff) {
 		// allocate a new slice instead of reallocating existing
 		// it saves memory and reduces GC pressure
@@ -237,11 +237,27 @@ func (b *bucket) cloneRowLocked(src *Row) *Row {
 	mrDst := &b.rowsBuff[len(b.rowsBuff)-1]
 
 	// allocate metricName and help in one go
-	mrDst.MetricFamilyName, mrDst.Help = b.cloneMetricNameHelpLocked(src.MetricFamilyName, src.Help)
+	help := src.Help
+	unit := src.Unit
+	metricType := src.Type
+
+	// due to streaming nature of prometheus metadata
+	// it's possible that Help, Unit or Type will be processed in separate rows
+	// so we have to merge it at storage level
+	if len(help) == 0 && existRow != nil {
+		help = existRow.Help
+	}
+	if len(unit) == 0 && existRow != nil {
+		unit = existRow.Unit
+	}
+	if metricType == 0 && existRow != nil {
+		metricType = existRow.Type
+	}
+	mrDst.MetricFamilyName, mrDst.Help = b.cloneMetricNameHelpLocked(src.MetricFamilyName, help)
 	mrDst.ProjectID = src.ProjectID
 	mrDst.AccountID = src.AccountID
-	mrDst.Unit = internUnit(src.Unit)
-	mrDst.Type = src.Type
+	mrDst.Unit = internUnit(unit)
+	mrDst.Type = metricType
 
 	return mrDst
 }
@@ -288,11 +304,11 @@ func (b *bucket) add(mr *Row, lastIngestion uint64) {
 	}
 
 	if existMR, ok := storage[string(mr.MetricFamilyName)]; ok {
-		if !bytes.Equal(existMR.Help, mr.Help) || !bytes.Equal(existMR.Unit, mr.Unit) || existMR.Type != mr.Type {
+		if !existMR.matchesNonEmptyRow(mr) {
 			// in case of metadata update, allocate the new row instead of mutation
 			// since it could be referenced by get request
 			// and it could lead to data race
-			mrDst := b.cloneRowLocked(mr)
+			mrDst := b.cloneRowLocked(mr, existMR)
 			mrDst.heapIdx = existMR.heapIdx
 			storage[bytesutil.ToUnsafeString(mrDst.MetricFamilyName)] = mrDst
 			b.lwh[mrDst.heapIdx] = mrDst
@@ -305,7 +321,7 @@ func (b *bucket) add(mr *Row, lastIngestion uint64) {
 		return
 	}
 
-	mrDst := b.cloneRowLocked(mr)
+	mrDst := b.cloneRowLocked(mr, nil)
 	mrDst.heapIdx = len(b.lwh)
 	mrDst.lastWriteTime = lastIngestion
 

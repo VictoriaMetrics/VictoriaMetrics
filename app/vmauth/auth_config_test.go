@@ -216,6 +216,15 @@ users:
   - url_prefix: http://foobar
 `)
 
+	// deny_paths without src_paths, src_hosts, src_query_args or src_headers
+	f(`
+users:
+- username: a
+  url_map:
+  - deny_paths: ['/admin']
+    url_prefix: http://foobar
+`)
+
 	// Invalid regexp in src_paths
 	f(`
 users:
@@ -231,6 +240,16 @@ users:
 - username: a
   url_map:
   - src_hosts: ['fo[obar']
+    url_prefix: http://foobar
+`)
+
+	// Invalid regexp in deny_paths
+	f(`
+users:
+- username: a
+  url_map:
+  - src_paths: ['/foo']
+    deny_paths: ['fo[obar']
     url_prefix: http://foobar
 `)
 
@@ -454,6 +473,7 @@ users:
 		URLMaps: []URLMap{
 			{
 				SrcPaths:  getRegexs([]string{"/api/v1/query", "/api/v1/query_range", "/api/v1/label/[^./]+/.+"}),
+				DenyPaths: getRegexs([]string{"/api/v1/query_range"}),
 				URLPrefix: mustParseURL("http://vmselect/select/0/prometheus"),
 			},
 			{
@@ -484,6 +504,7 @@ users:
 - bearer_token: foo
   url_map:
   - src_paths: ["/api/v1/query","/api/v1/query_range","/api/v1/label/[^./]+/.+"]
+    deny_paths: ["/api/v1/query_range"]
     url_prefix: http://vmselect/select/0/prometheus
   - src_paths: ["/api/v1/write"]
     src_hosts: ["foo\\.bar", "baz:1234"]
@@ -694,6 +715,8 @@ users:
 - username: bar
   url_prefix: https://bar/x/
   access_log:
+    headers:
+      - "Accept-Encoding"
     filters:
       skip_status_codes: [404]
 `, map[string]*UserInfo{
@@ -705,7 +728,7 @@ users:
 		getHTTPAuthBasicToken("bar", ""): {
 			Username:  "bar",
 			URLPrefix: mustParseURL("https://bar/x/"),
-			AccessLog: &AccessLog{Filters: &AccessLogFilters{SkipStatusCodes: []int{404}}},
+			AccessLog: &AccessLog{Headers: []string{"Accept-Encoding"}, Filters: &AccessLogFilters{SkipStatusCodes: []int{404}}},
 		},
 	}, nil)
 
@@ -1007,6 +1030,9 @@ func TestLogRequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
+	req.Header.Set("AccountID", "2")
+	req.Header.Add("AccountID", "3") // we log the 1st value only. redundant case to guard against future code changes, which may cause the test to fail.
+	req.Header.Set("Empty-Value-Header", "")
 
 	f := func(user string, status int, duration time.Duration, expectedLog string) {
 		t.Helper()
@@ -1029,6 +1055,9 @@ func TestLogRequest(t *testing.T) {
 	ui.AccessLog.Filters = &AccessLogFilters{SkipStatusCodes: []int{200}}
 	f("foo", 200, 10*time.Millisecond, ``)
 	f("foo", 404, 10*time.Millisecond, `access_log request_host="localhost:8080" request_uri="" status_code=404 remote_addr="" user_agent="" referer="" duration_ms=10 username="foo"`)
+
+	ui.AccessLog.Headers = []string{"AccountID", "Non-Existing-Header", "Empty-Value-Header"}
+	f("foo", 404, 10*time.Millisecond, `access_log request_host="localhost:8080" request_uri="" status_code=404 remote_addr="" user_agent="" referer="" duration_ms=10 username="foo" headers.AccountID="2"`)
 }
 
 func TestGetFirstAvailableBackend(t *testing.T) {

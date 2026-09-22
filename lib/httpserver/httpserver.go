@@ -499,21 +499,36 @@ func builtinRoutesHandler(s *server, r *http.Request, w http.ResponseWriter, rh 
 			pprofHandler(r.URL.Path[len("/debug/pprof/"):], w, r)
 			return true
 		}
-
-		if !isProtectedByAuthFlag(r.URL.Path) && !CheckBasicAuth(w, r) {
+		// Check HTTP Basic Auth here for all the paths except of the ones verifying
+		// the corresponding -*AuthKey flag on their own at rh() below
+		//
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6329
+		if !isProtectedByAuthFlag(r) && !CheckBasicAuth(w, r) {
 			return true
 		}
 	}
 	return rh(w, r)
 }
 
-func isProtectedByAuthFlag(path string) bool {
-	// These paths must explicitly call CheckAuthFlag().
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6329
-	return strings.HasSuffix(path, "/config") || strings.HasSuffix(path, "/reload") ||
-		strings.HasSuffix(path, "/resetRollupResultCache") || strings.HasSuffix(path, "/delSeries") || strings.HasSuffix(path, "/delete_series") ||
-		strings.HasSuffix(path, "/force_merge") || strings.HasSuffix(path, "/force_flush") || strings.HasSuffix(path, "/snapshot") ||
-		strings.HasPrefix(path, "/snapshot/") || strings.HasSuffix(path, "/admin/status/metric_names_stats/reset")
+var isAuthKeyProtectedPathFunc func(r *http.Request) bool
+
+// RegisterAuthKeyProtectedPathsFunc registers f, which must return true for requests
+// served by handlers verifying the corresponding -*AuthKey flag on their own.
+// There is no need in checking HTTP Basic Auth for such requests at builtinRoutesHandler().
+//
+// Must be called before Serve().
+func RegisterAuthKeyProtectedPathsFunc(f func(r *http.Request) bool) {
+	if isAuthKeyProtectedPathFunc != nil {
+		logger.Panicf("BUG: RegisterAuthKeyProtectedPathsFunc() must be called only once before Serve()")
+	}
+	isAuthKeyProtectedPathFunc = f
+}
+
+func isProtectedByAuthFlag(r *http.Request) bool {
+	if isAuthKeyProtectedPathFunc == nil {
+		return false
+	}
+	return isAuthKeyProtectedPathFunc(r)
 }
 
 // CheckAuthFlag checks whether the given authKey is set and valid
