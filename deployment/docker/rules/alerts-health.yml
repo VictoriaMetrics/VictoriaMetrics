@@ -167,8 +167,8 @@ groups:
           summary: 'Too many snapshots for \"{{ $labels.job }}\" on \"{{ $labels.instance }}\"'
           description: |
             The number of snapshots for \"{{ $labels.job }}\" exceeds 2 for the 2 hours.
-            Old snapshots prevent background merge from freeing up disk space occupied by the parts they reference leading to excessive disk usage,
-            and degraded performance due to having to open more files to process a query.
+            Old snapshots prevent background merge from freeing up disk space occupied by the parts they reference.
+            This can lead to excessive disk usage and degraded performance because queries must open more files to process a query.
             Possible solutions:
               * Check if any automated processes such as vmbackupmanager are failing to delete snapshots
               * Consider setting or decreasing the value of snapshotsMaxAge
