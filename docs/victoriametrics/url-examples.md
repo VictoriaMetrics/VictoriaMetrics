@@ -755,7 +755,7 @@ Cluster version of VictoriaMetrics:
 curl 'http://<vmselect>:8481/select/0/prometheus/api/v1/status/active_queries'
 
 # active queries across all tenants
-curl 'http://<vmselect>:8481/select/prometheus/api/v1/status/active_queries'
+curl 'http://<vmselect>:8481/api/v1/status/active_queries'
 ```
 
 Note that every vmselect maintains an independent list of active queries, which is returned in the response.
@@ -782,11 +782,11 @@ curl 'http://<vmsingle>:8428/api/v1/status/top_queries'
 Cluster version of VictoriaMetrics:
 
 ```sh
-# top queries per tenant
+# top queries scoped per tenant
 curl 'http://<vmselect>:8481/select/0/prometheus/api/v1/status/top_queries'
 
-# top queries across all tenants
-curl 'http://<vmselect>:8481/select/prometheus/api/v1/status/top_queries'
+# top queries accross all tenants 
+curl 'http://<vmselect>:8481/api/v1/status/top_queries'
 ```
 
 Additional information:
