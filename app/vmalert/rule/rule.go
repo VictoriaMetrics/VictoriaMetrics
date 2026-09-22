@@ -10,6 +10,7 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -27,7 +28,7 @@ type Rule interface {
 	ToAPI() ApiRule
 	// exec executes the rule with given context at the given timestamp and limit.
 	// returns an err if number of resulting time series exceeds the limit.
-	exec(ctx context.Context, ts time.Time, limit int) ([]prompb.TimeSeries, error)
+	exec(ctx context.Context, ts time.Time, limit int, getRemoteReadQuerier func(enableDebug bool) datasource.Querier) ([]prompb.TimeSeries, error)
 	// execRange executes the rule on the given time range.
 	execRange(ctx context.Context, start, end time.Time) ([]prompb.TimeSeries, error)
 	// updateWith performs modification of current Rule

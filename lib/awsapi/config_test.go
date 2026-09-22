@@ -80,6 +80,10 @@ func (m *fakeRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) 
 	action := queryParams.Get("Action")
 	resp, ok := m.responses[action]
 	if !ok {
+		// RoundTrip must always close the request body.
+		if req.Body != nil {
+			_ = req.Body.Close()
+		}
 		return nil, fmt.Errorf("unexpected action: %q", action)
 	}
 	return resp, nil
