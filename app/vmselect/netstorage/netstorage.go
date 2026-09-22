@@ -585,7 +585,7 @@ func (pts *packedTimeseries) unpackTo(dst []*sortBlock, tbfs []*tmpBlocksFile, t
 			} else {
 				dst = append(dst, sb)
 			}
-		} else {
+		} else if upw.sb != nil {
 			putSortBlock(upw.sb)
 		}
 		putUnpackWork(upw)
