@@ -1,7 +1,6 @@
 package tests
 
 import (
-	"fmt"
 	"net/http"
 	"testing"
 
@@ -10,11 +9,10 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
-	"github.com/golang/snappy"
 )
 
 func TestClusterVmstoragePrometheusRemoteWrite(t *testing.T) {
-	_, vmstorage, vmselect := startVmstorageRemoteWriteCluster(t)
+	vmstorage, vmselect := startVmstorageRemoteWriteCluster(t)
 
 	vmstorage.PrometheusAPIV1Write(t, prompb.WriteRequest{
 		Timeseries: []prompb.TimeSeries{
@@ -45,7 +43,7 @@ func TestClusterVmstoragePrometheusRemoteWrite(t *testing.T) {
 }
 
 func TestClusterVmstoragePrometheusRemoteWriteMultitenancy(t *testing.T) {
-	_, vmstorage, vmselect := startVmstorageRemoteWriteCluster(t)
+	vmstorage, vmselect := startVmstorageRemoteWriteCluster(t)
 
 	// insert data for tenant 1:2 using tenant URL.
 	vmstorage.PrometheusAPIV1Write(t, prompb.WriteRequest{
@@ -117,7 +115,7 @@ func TestClusterVmstoragePrometheusRemoteWriteMultitenancy(t *testing.T) {
 }
 
 func TestClusterVmstoragePrometheusRemoteWriteMetadata(t *testing.T) {
-	_, vmstorage, vmselect := startVmstorageRemoteWriteCluster(t)
+	vmstorage, vmselect := startVmstorageRemoteWriteCluster(t)
 
 	vmstorage.PrometheusAPIV1Write(t, prompb.WriteRequest{
 		Metadata: []prompb.MetricMetadata{
@@ -160,7 +158,7 @@ func TestClusterVmstoragePrometheusRemoteWriteDisabled(t *testing.T) {
 		"-retentionPeriod=100y",
 	})
 
-	wr := prompb.WriteRequest{
+	vmstorage.PrometheusAPIV1WriteWithStatusCode(t, prompb.WriteRequest{
 		Timeseries: []prompb.TimeSeries{
 			{
 				Labels: []prompb.Label{
@@ -171,14 +169,7 @@ func TestClusterVmstoragePrometheusRemoteWriteDisabled(t *testing.T) {
 				},
 			},
 		},
-	}
-	data := snappy.Encode(nil, wr.MarshalProtobuf(nil))
-	headers := make(http.Header)
-	headers.Set("Content-Type", "application/x-protobuf")
-	_, statusCode := tc.Client().Post(t, fmt.Sprintf("http://%s/insert/0:0/prometheus/api/v1/write", vmstorage.HTTPAddr()), data, headers)
-	if statusCode != http.StatusBadRequest {
-		t.Fatalf("unexpected status code: got %d; want %d when -enableIngestionAPI is disabled", statusCode, http.StatusBadRequest)
-	}
+	}, apptest.QueryOpts{}, http.StatusBadRequest)
 }
 
 func TestClusterVmstoragePrometheusRemoteWriteReadOnly(t *testing.T) {
@@ -192,7 +183,7 @@ func TestClusterVmstoragePrometheusRemoteWriteReadOnly(t *testing.T) {
 		"-storage.minFreeDiskSpaceBytes=1000000000000000000", // set min free disk space to a very high value to make vmstorage read-only
 	})
 
-	wr := prompb.WriteRequest{
+	vmstorage.PrometheusAPIV1WriteWithStatusCode(t, prompb.WriteRequest{
 		Timeseries: []prompb.TimeSeries{
 			{
 				Labels: []prompb.Label{
@@ -203,17 +194,10 @@ func TestClusterVmstoragePrometheusRemoteWriteReadOnly(t *testing.T) {
 				},
 			},
 		},
-	}
-	data := snappy.Encode(nil, wr.MarshalProtobuf(nil))
-	headers := make(http.Header)
-	headers.Set("Content-Type", "application/x-protobuf")
-	_, statusCode := tc.Client().Post(t, fmt.Sprintf("http://%s/insert/0:0/prometheus/api/v1/write", vmstorage.HTTPAddr()), data, headers)
-	if statusCode != http.StatusServiceUnavailable {
-		t.Fatalf("unexpected status code: got %d; want %d when vmstorage is read-only", statusCode, http.StatusServiceUnavailable)
-	}
+	}, apptest.QueryOpts{}, http.StatusServiceUnavailable)
 }
 
-func startVmstorageRemoteWriteCluster(t *testing.T) (*apptest.TestCase, *apptest.Vmstorage, *apptest.Vmselect) {
+func startVmstorageRemoteWriteCluster(t *testing.T) (*apptest.Vmstorage, *apptest.Vmselect) {
 	t.Helper()
 
 	tc := apptest.NewTestCase(t)
@@ -227,5 +211,5 @@ func startVmstorageRemoteWriteCluster(t *testing.T) (*apptest.TestCase, *apptest
 	vmselect := tc.MustStartVmselect("vmselect", []string{
 		"-storageNode=" + vmstorage.VmselectAddr(),
 	})
-	return tc, vmstorage, vmselect
+	return vmstorage, vmselect
 }

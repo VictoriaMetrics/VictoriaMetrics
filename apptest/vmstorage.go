@@ -3,14 +3,10 @@ package apptest
 import (
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"regexp"
 	"testing"
 	"time"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
-	"github.com/golang/snappy"
 )
 
 // StartVmstorage starts the latest version of vmstorage.
@@ -64,6 +60,20 @@ type vmstorageRuntimeValues struct {
 }
 
 func newVmstorage(app *app, cli *Client, rt vmstorageRuntimeValues) *Vmstorage {
+	vminsertClient := &vminsertClient{
+		cli: cli,
+		url: func(op, path string, opts QueryOpts) string {
+			return getClusterPath(rt.httpListenAddr, op, path, opts)
+		},
+		openTSDBURL: func(op, path string, opts QueryOpts) string {
+			panic("OpenTSDB ingestion is not supported by vmstorage")
+		},
+		graphiteListenAddr: "graphite-ingestion-is-not-supported-by-vmstorage",
+		sendBlocking: func(t *testing.T, numRecordsToSend int, send func()) {
+			t.Helper()
+			send()
+		},
+	}
 	return &Vmstorage{
 		app:           app,
 		metricsClient: newMetricsClient(cli, rt.httpListenAddr),
@@ -71,6 +81,7 @@ func newVmstorage(app *app, cli *Client, rt vmstorageRuntimeValues) *Vmstorage {
 			cli:            cli,
 			httpListenAddr: rt.httpListenAddr,
 		},
+		vminsertClient:  vminsertClient,
 		storageDataPath: rt.storageDataPath,
 		httpListenAddr:  rt.httpListenAddr,
 		vminsertAddr:    rt.vminsertAddr,
@@ -84,6 +95,7 @@ type Vmstorage struct {
 	*app
 	*metricsClient
 	*vmstorageClient
+	*vminsertClient
 
 	storageDataPath string
 	httpListenAddr  string
@@ -113,20 +125,4 @@ func (app *Vmstorage) HTTPAddr() string {
 func (app *Vmstorage) String() string {
 	return fmt.Sprintf("{app: %s storageDataPath: %q httpListenAddr: %q vminsertAddr: %q vmselectAddr: %q}", []any{
 		app.app, app.storageDataPath, app.httpListenAddr, app.vminsertAddr, app.vmselectAddr}...)
-}
-
-// PrometheusAPIV1Write is a test helper function that inserts a collection of
-// records in Prometheus remote-write format by sending a HTTP POST request to
-// vmstorage ingestion API.
-func (app *Vmstorage) PrometheusAPIV1Write(t *testing.T, wr prompb.WriteRequest, opts QueryOpts) {
-	t.Helper()
-
-	url := getClusterPath(app.httpListenAddr, "insert", "prometheus/api/v1/write", opts)
-	data := snappy.Encode(nil, wr.MarshalProtobuf(nil))
-	headers := opts.getHeaders()
-	headers.Set("Content-Type", "application/x-protobuf")
-	_, statusCode := app.vmstorageClient.cli.Post(t, url, data, headers)
-	if statusCode != http.StatusNoContent {
-		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
-	}
 }
