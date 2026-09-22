@@ -108,15 +108,15 @@ func mustOpenFilePart(path string) *part {
 
 	var indexFile fs.MustReadAtCloser
 	var indexSize uint64
-	pro.Add(indexPath, &indexFile, &indexSize, true)
+	pro.Add(indexPath, &indexFile, &indexSize, false)
 
 	var itemsFile fs.MustReadAtCloser
 	var itemsSize uint64
-	pro.Add(itemsPath, &itemsFile, &itemsSize, true)
+	pro.Add(itemsPath, &itemsFile, &itemsSize, false)
 
 	var lensFile fs.MustReadAtCloser
 	var lensSize uint64
-	pro.Add(lensPath, &lensFile, &lensSize, true)
+	pro.Add(lensPath, &lensFile, &lensSize, false)
 
 	pro.Run()
 
