@@ -2,6 +2,7 @@ package newrelic
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -65,4 +66,29 @@ func BenchmarkRowsUnmarshal(b *testing.B) {
 			}
 		}
 	})
+}
+
+func BenchmarkRowsUnmarshalWithCallback(b *testing.B) {
+	const rowsCountExpected = 100_000
+	events := strings.Repeat(`{"a":1},`, rowsCountExpected)
+	events = events[:len(events)-1]
+	reqBody := []byte(fmt.Sprintf(`[{"Events":[%s]}]`, events))
+
+	b.SetBytes(int64(len(reqBody)))
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	var r Rows
+	for i := 0; i < b.N; i++ {
+		rowsCount := 0
+		if err := r.UnmarshalWithCallback(reqBody, func(rows []Row) error {
+			rowsCount += len(rows)
+			return nil
+		}); err != nil {
+			b.Fatalf("unmarshal error: %s", err)
+		}
+		if rowsCount != rowsCountExpected {
+			b.Fatalf("unexpected number of rows unmarshaled; got %d; want %d", rowsCount, rowsCountExpected)
+		}
+	}
 }

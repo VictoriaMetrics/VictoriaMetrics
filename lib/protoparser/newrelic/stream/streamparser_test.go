@@ -3,8 +3,10 @@ package stream
 import (
 	"bytes"
 	"compress/gzip"
+	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/newrelic"
@@ -103,4 +105,34 @@ func TestParseSuccess(t *testing.T) {
 			Timestamp: 1690286061000,
 		},
 	})
+}
+
+func TestParseBatches(t *testing.T) {
+	largeValue := strings.Repeat("x", 1024*1024)
+	event := fmt.Sprintf(`{"tag":%q}`, largeValue)
+	request := fmt.Sprintf(`[{"Events":[%s]}]`, strings.Join([]string{event, event, event, event, event}, ","))
+
+	var batchSizes []int
+	callback := func(rows []newrelic.Row) error {
+		batchSizes = append(batchSizes, len(rows))
+		return nil
+	}
+	if err := Parse(strings.NewReader(request), "", callback); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	expectedBatchSizes := []int{4, 1}
+	if !reflect.DeepEqual(batchSizes, expectedBatchSizes) {
+		t.Fatalf("unexpected batch sizes; got %v; want %v", batchSizes, expectedBatchSizes)
+	}
+}
+
+func TestParseCallbackError(t *testing.T) {
+	errCallback := errors.New("callback error")
+	err := Parse(strings.NewReader(`[{"Events":[]}]`), "", func(_ []newrelic.Row) error {
+		return errCallback
+	})
+	if !errors.Is(err, errCallback) {
+		t.Fatalf("unexpected error; got %v; want %v", err, errCallback)
+	}
 }
