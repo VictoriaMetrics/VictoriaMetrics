@@ -43,14 +43,18 @@ func TestOIDCHTTPClientRedirect(t *testing.T) {
 	}, http.StatusOK, "")
 
 	// cross-host redirect must be blocked
+	var evilRequested bool
 	evilSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		t.Fatalf("request must not reach the evil server")
+		evilRequested = true
 	}))
 	defer evilSrv.Close()
 
 	f(t, func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, evilSrv.URL+"/evil", http.StatusFound)
 	}, 0, "is not allowed")
+	if evilRequested {
+		t.Fatalf("request must not reach the evil server")
+	}
 
 	// too many same-host redirects must be stopped
 	f(t, func(w http.ResponseWriter, r *http.Request) {
