@@ -136,6 +136,16 @@ type openidConfig struct {
 
 var oidcHTTPClient = &http.Client{
 	Timeout: time.Second * 5,
+	CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		firstHost := via[0].URL.Host
+		if req.URL.Host != firstHost {
+			return fmt.Errorf("redirect to %q is not allowed; it must stay within %q", req.URL.Host, firstHost)
+		}
+		if len(via) >= 10 {
+			return errors.New("stopped after 10 redirects")
+		}
+		return nil
+	},
 }
 
 func fetchAndParseJWKs(ctx context.Context, jwksURI string) (*jwt.VerifierPool, error) {

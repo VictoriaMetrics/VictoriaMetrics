@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* SECURITY: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): restrict redirects in the [OIDC Discovery](https://docs.victoriametrics.com/victoriametrics/vmauth/#oidc-discovery) HTTP client to stay within the original request host. See [GHSA-xxqh-2hcc-9fp6](https://github.com/VictoriaMetrics/VictoriaMetrics/security/advisories/GHSA-xxqh-2hcc-9fp6).
+
 * FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): log informative message when a JWT token has no `vm_access` claim and `default_vm_access_claim` is not configured, if `-logInvalidAuthTokens` is enabled. See [JWT claim-based request templating](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-based-request-templating) or [#11579](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11579).
 * FEATURE: [dashboards/vmauth](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/dashboards/vmauth.json): update the dashboard to upstream Grafana version, fix typos and inconsistencies, improve resource usage panels.
 
