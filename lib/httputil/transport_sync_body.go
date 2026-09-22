@@ -43,7 +43,7 @@ func (t *SyncBodyTransport) RoundTrip(req *http.Request) (*http.Response, error)
 
 	resp, err := t.base.RoundTrip(req)
 	if err != nil {
-		// http.RountTripper states that implementations must always close
+		// http.RoundTripper states that implementations must always close
 		// the request body, including on errors. So wait here too.
 		if reqBody != nil {
 			reqBody.waitForClose()
@@ -69,6 +69,8 @@ type requestBody struct {
 	doneCh chan struct{}
 	once   sync.Once
 }
+
+var _ io.ReadCloser = (*requestBody)(nil)
 
 func newRequestBody(body io.Reader) *requestBody {
 	b := &requestBody{
