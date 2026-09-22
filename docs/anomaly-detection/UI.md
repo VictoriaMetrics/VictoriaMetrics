@@ -346,7 +346,7 @@ docker run -it --rm \
   -e VMANOMALY_MCP_SERVER_URL=http://mcp-vmanomaly:8081/mcp \
   -p 8080:8080 \
   -p 8490:8490 \
-  victoriametrics/vmanomaly:v1.30.5 \
+  victoriametrics/vmanomaly:v1.30.6 \
   vmanomaly_config.yaml
 ```
 
@@ -376,7 +376,9 @@ Users can:
 - Access query history and saved queries for quick access to frequently used queries.
 - Switch tenants (if data source supports multi-tenancy) and access [settings panel](#settings-panel) for global UI configuration.
 
-Open **Queries** to browse query sets in the **Session**, **History**, **Favorites** and **Server** tabs. Search for a set and expand **Show query details** to inspect its named expressions and individual business policies before reusing it.
+Open **Queries** to browse the **Session**, **History**, **Favorites** and **Server** tabs. In **Session**, **History** and **Favorites**, search for a query set and expand **Show query details** to inspect its named expressions and business policies before reusing it.
+
+{{% available_from "v1.30.6" anomaly %}} UI v1.9.1 presents **Server** queries as a flat list. Use search and the model filter together; a query may belong to several models, shown as badges. Each row supports append or replace, with or without running, plus copy and favorite actions. Selecting queries opens a bulk-action bar showing selected aliases and indicating selections hidden by the current filter. Bulk actions apply to the entire selection. See the UI's keyboard-shortcuts help for Queries-sheet shortcuts.
 
 ![Queries menu showing history entries with named queries and expanded business policies](vmanomaly-ui-queries-menu.webp)
 
@@ -708,6 +710,14 @@ If the **results** look good and the **model configuration should be deployed in
 <div class="collapse-group mb-3">
 
 {{% collapse name="Release history" %}}
+
+### v1.9.1
+Released: 2026-09-17
+
+Recommended vmanomaly version: [v1.30.6](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1306)
+
+- IMPROVEMENT: Reworked the Queries sheet's Server tab into a searchable list with model filters and badges, consistent row actions, and bulk actions that retain selections hidden by the current filter.
+- IMPROVEMENT: Documented Queries-sheet keyboard shortcuts in the UI help.
 
 ### v1.9.0
 Released: 2026-09-10
