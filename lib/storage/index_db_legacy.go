@@ -124,7 +124,7 @@ func (db *indexDB) legacyContainsTimeRange(accountID, projectID uint32, tr TimeR
 	}
 
 	// Slow path.
-	is := db.getIndexSearch(accountID, projectID, noDeadline)
+	is := db.getIndexSearch(accountID, projectID)
 	defer db.putIndexSearch(is)
 	if is.legacyContainsTimeRange(tr) {
 		return true

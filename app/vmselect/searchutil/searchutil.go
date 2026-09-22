@@ -1,6 +1,7 @@
 package searchutil
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"net/http"
@@ -104,6 +105,17 @@ func NewDeadline(startTime time.Time, timeout time.Duration, flagHint string) De
 func DeadlineFromTimestamp(timestamp uint64) Deadline {
 	startTime := time.Now()
 	timeout := time.Unix(int64(timestamp), 0).Sub(startTime)
+	return NewDeadline(startTime, timeout, "")
+}
+
+// DeadlineFromContext returns deadline from the given context.
+func DeadlineFromContext(ctx context.Context) Deadline {
+	startTime := time.Now()
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		return Deadline{}
+	}
+	timeout := deadline.Sub(startTime)
 	return NewDeadline(startTime, timeout, "")
 }
 
