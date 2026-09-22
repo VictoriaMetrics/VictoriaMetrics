@@ -107,13 +107,12 @@ func (tsw *timeseriesWork) do(r *Result, workerID uint) error {
 		tsw.mustStop.Store(true)
 		return fmt.Errorf("timeout exceeded during query execution: %s", rss.deadline.String())
 	}
-	err := tsw.pts.Unpack(r, rss.tbf, rss.tr)
-	tsw.rowsSkipped = r.rowsSkipped
-	if err != nil {
+	if err := tsw.pts.Unpack(r, rss.tbf, rss.tr); err != nil {
 		tsw.mustStop.Store(true)
 		return fmt.Errorf("error during time series unpacking: %w", err)
 	}
 	tsw.rowsProcessed = len(r.Timestamps)
+	tsw.rowsSkipped = r.rowsSkipped
 	if len(r.Timestamps) > 0 {
 		if err := tsw.f(r, workerID); err != nil {
 			tsw.mustStop.Store(true)
@@ -446,10 +445,6 @@ func (pts *packedTimeseries) Unpack(dst *Result, tbf *tmpBlocksFile, tr storage.
 	sbh.sbs, err = pts.unpackTo(sbh.sbs[:0], tbf, tr)
 	pts.brs = pts.brs[:0]
 	if err != nil {
-		for _, sb := range sbh.sbs {
-			dst.rowsSkipped += sb.rowsSkipped
-			putSortBlock(sb)
-		}
 		putSortBlocksHeap(sbh)
 		return err
 	}
@@ -485,10 +480,9 @@ func (pts *packedTimeseries) unpackTo(dst []*sortBlock, tbf *tmpBlocksFile, tr s
 			}
 			samples += len(upw.sb.Timestamps)
 			if *maxSamplesPerSeries > 0 && samples > *maxSamplesPerSeries {
+				putSortBlock(upw.sb)
 				err = fmt.Errorf("cannot process more than %d samples per series; either increase -search.maxSamplesPerSeries "+
 					"or reduce time range for the query", *maxSamplesPerSeries)
-				dst = append(dst, upw.sb)
-				upw.reset()
 				break
 			}
 			dst = append(dst, upw.sb)
@@ -496,6 +490,11 @@ func (pts *packedTimeseries) unpackTo(dst []*sortBlock, tbf *tmpBlocksFile, tr s
 		}
 		putTmpStorageBlock(tmpBlock)
 		putUnpackWork(upw)
+		if err != nil {
+			for _, sb := range dst {
+				putSortBlock(sb)
+			}
+		}
 		return dst, err
 	}
 
@@ -546,18 +545,25 @@ func (pts *packedTimeseries) unpackTo(dst []*sortBlock, tbf *tmpBlocksFile, tr s
 			// Return the first error only, since other errors are likely the same.
 			firstErr = upw.err
 		}
-		if upw.err == nil {
+		if firstErr == nil {
 			sb := upw.sb
-			if firstErr == nil {
-				samples += len(sb.Timestamps)
-				if *maxSamplesPerSeries > 0 && samples > *maxSamplesPerSeries {
-					firstErr = fmt.Errorf("cannot process more than %d samples per series; either increase -search.maxSamplesPerSeries "+
-						"or reduce time range for the query", *maxSamplesPerSeries)
-				}
+			samples += len(sb.Timestamps)
+			if *maxSamplesPerSeries > 0 && samples > *maxSamplesPerSeries {
+				putSortBlock(sb)
+				firstErr = fmt.Errorf("cannot process more than %d samples per series; either increase -search.maxSamplesPerSeries "+
+					"or reduce time range for the query", *maxSamplesPerSeries)
+			} else {
+				dst = append(dst, sb)
 			}
-			dst = append(dst, sb)
+		} else {
+			putSortBlock(upw.sb)
 		}
 		putUnpackWork(upw)
+	}
+	if firstErr != nil {
+		for _, sb := range dst {
+			putSortBlock(sb)
+		}
 	}
 
 	return dst, firstErr
