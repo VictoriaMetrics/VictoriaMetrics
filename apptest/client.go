@@ -688,7 +688,7 @@ func (c *vminsertClient) PrometheusAPIV1Write(t *testing.T, wr prompb.WriteReque
 	c.PrometheusAPIV1WriteWithStatusCode(t, wr, opts, http.StatusNoContent)
 }
 
-// PrometheusAPIV1Write is a test helper function that inserts a
+// PrometheusAPIV1WriteWithStatusCode is a test helper function that inserts a
 // collection of records in Prometheus remote-write format by sending a HTTP
 // POST request to /prometheus/api/v1/write vminsert endpoint.
 //
