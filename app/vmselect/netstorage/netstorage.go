@@ -3240,23 +3240,19 @@ func initStorageNodes(addrs []string) *storageNodesBucket {
 
 	groupsMap := initStorageNodeGroups(addrs)
 
-	var snsLock sync.Mutex
-	sns := make([]*storageNode, 0, len(addrs))
+	sns := make([]*storageNode, len(addrs))
 	var wg sync.WaitGroup
 	ms := metrics.NewSet()
 	// initialize connections to storage nodes in parallel in order speed up the initialization
 	// for big number of storage nodes.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4364
-	for _, addr := range addrs {
+	for i, addr := range addrs {
 		var groupName string
 		groupName, addr = netutil.ParseGroupAddr(addr)
 		group := groupsMap[groupName]
 
 		wg.Go(func() {
-			sn := newStorageNode(ms, group, addr)
-			snsLock.Lock()
-			sns = append(sns, sn)
-			snsLock.Unlock()
+			sns[i] = newStorageNode(ms, group, addr)
 		})
 	}
 	wg.Wait()
