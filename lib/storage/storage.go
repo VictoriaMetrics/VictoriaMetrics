@@ -1345,8 +1345,7 @@ func (s *Storage) checkTimeRange(tr TimeRange) error {
 //
 // The returned TSIDs are sorted.
 //
-// The method will fail if the number of found TSIDs exceeds maxMetrics or the
-// search has not completed within the specified deadline.
+// The method will fail if the number of found TSIDs exceeds maxMetrics.
 func (s *Storage) SearchTSIDs(ctx context.Context, qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int) ([]TSID, error) {
 	qt = qt.NewChild("search TSIDs: filters=%s, timeRange=%s, maxMetrics=%d", tfss, &tr, maxMetrics)
 	defer qt.Done()
