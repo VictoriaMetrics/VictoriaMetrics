@@ -26,6 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): skip a redundant pending state when an alert can be [restored](https://docs.victoriametrics.com/victoriametrics/vmalert/#alerts-state-on-restarts) directly to firing after restart. See [#11401](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11401).
 * FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): log informative message when a JWT token has no `vm_access` claim and `default_vm_access_claim` is not configured, if `-logInvalidAuthTokens` is enabled. See [JWT claim-based request templating](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-based-request-templating) or [#11579](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11579).
 * FEATURE: [dashboards/vmauth](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/dashboards/vmauth.json): update the dashboard to upstream Grafana version, fix typos and inconsistencies, improve resource usage panels.
 * FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): support printing HTTP headers in the [Access Logs](https://docs.victoriametrics.com/victoriametrics/vmauth/#access-log). Only headers listed in `access_log.headers` list will be printed in the logs. This feature should help troubleshooting pipelines that rely on HTTP headers.
