@@ -148,17 +148,8 @@ func getHeaders(r *http.Request, seek []string) string {
 	}
 
 	headers := r.Header
-	// make deterministic order of headers
-	var keys []string
-	for _, s := range seek {
-		if headers.Get(s) != "" {
-			keys = append(keys, s)
-		}
-	}
-	sort.Strings(keys)
-
 	b := strings.Builder{}
-	for _, k := range keys {
+	for _, k := range seek {
 		for _, v := range headers.Values(k) {
 			v = strings.TrimSpace(v)
 			// no need for other escapes, as %q already does it
