@@ -291,7 +291,7 @@ func (vms *VMStorage) LabelNames(ctx context.Context, qt *querytracer.Tracer, sq
 	return vms.s.SearchLabelNames(ctx, qt, sq.AccountID, sq.ProjectID, tfss, tr, maxLabelNames, maxMetrics)
 }
 
-func (vms *VMStorage) SeriesCount(ctx context.Context, qt *querytracer.Tracer, accountID, projectID uint32) (uint64, error) {
+func (vms *VMStorage) SeriesCount(ctx context.Context, _ *querytracer.Tracer, accountID, projectID uint32) (uint64, error) {
 	return vms.s.GetSeriesCount(ctx, accountID, projectID)
 }
 
