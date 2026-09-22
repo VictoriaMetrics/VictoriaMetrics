@@ -366,8 +366,7 @@ func (upw *unpackWork) reset() {
 
 func (upw *unpackWork) unpack(tmpBlock *storage.Block) {
 	sb := getSortBlock()
-	err := sb.unpackFrom(tmpBlock, upw.tbf, upw.br, upw.tr)
-	if err != nil {
+	if err := sb.unpackFrom(tmpBlock, upw.tbf, upw.br, upw.tr); err != nil {
 		putSortBlock(sb)
 		upw.err = fmt.Errorf("cannot unpack block: %w", err)
 		return
