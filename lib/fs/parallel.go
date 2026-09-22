@@ -18,17 +18,17 @@ type parallelReaderAtOpenerTask struct {
 	path                  string
 	rc                    *MustReadAtCloser
 	fileSize              *uint64
-	disableRandomReadHint bool
+	disableAdviseRandomRead bool
 }
 
 // Add adds a task for opening the file at the given path and storing it to *rc, while storing the file size into *fileSize.
 // Call Run() for running all the registered tasks in parallel.
-func (pro *ParallelReaderAtOpener) Add(path string, rc *MustReadAtCloser, fileSize *uint64, disableRandomReadHint bool) {
+func (pro *ParallelReaderAtOpener) Add(path string, rc *MustReadAtCloser, fileSize *uint64, disableAdviseRandomRead bool) {
 	pro.tasks = append(pro.tasks, parallelReaderAtOpenerTask{
 		path:                  path,
 		rc:                    rc,
 		fileSize:              fileSize,
-		disableRandomReadHint: disableRandomReadHint,
+		disableAdviseRandomRead: disableAdviseRandomRead,
 	})
 }
 
@@ -41,7 +41,7 @@ func (pro *ParallelReaderAtOpener) Run() {
 
 		wg.Go(func() {
 			r := MustOpenReaderAt(task.path)
-			r.disableRandomReadHint = task.disableRandomReadHint
+			r.disableRandomReadHint = task.disableAdviseRandomRead
 			*task.rc = r
 			*task.fileSize = MustFileSize(task.path)
 
