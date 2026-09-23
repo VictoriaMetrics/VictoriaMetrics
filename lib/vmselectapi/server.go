@@ -1305,7 +1305,7 @@ type connMonitor struct {
 }
 
 func (cm *connMonitor) watch() {
-	if err := cm.bc.SetReadDeadline(time.Time{}); err != nil {
+	if err := cm.bc.Conn.SetReadDeadline(time.Time{}); err != nil {
 		logger.Errorf("connMonitor: cannot set empty read deadline for the connection %q: %s", cm.bc.RemoteAddr(), err)
 	}
 
@@ -1313,7 +1313,7 @@ func (cm *connMonitor) watch() {
 		// block on conn.Read
 		// it only closes if stop() called or client closes connection.
 		var buf [1]byte
-		n, err := cm.bc.Read(buf[:])
+		n, err := cm.bc.Conn.Read(buf[:])
 		if err != nil {
 			if !errors.Is(err, os.ErrDeadlineExceeded) && !errors.Is(err, io.EOF) {
 				logger.Errorf("connMonitor: unexpcted Read error for the connection %q: %s", cm.bc.RemoteAddr(), err)
@@ -1339,7 +1339,7 @@ func (cm *connMonitor) stop() {
 	}
 	cm.wg.Wait()
 	// restore connection deadline to empty value
-	if err := cm.bc.SetReadDeadline(time.Time{}); err != nil {
+	if err := cm.bc.Conn.SetReadDeadline(time.Time{}); err != nil {
 		logger.Errorf("connMonitor: cannot set empty read deadline for the connection %q: %s", cm.bc.RemoteAddr(), err)
 	}
 }

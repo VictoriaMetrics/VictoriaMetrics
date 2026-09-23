@@ -173,7 +173,7 @@ func newBlockIterator(qt *querytracer.Tracer, denyPartialResponse bool, sq *stor
 	return bi
 }
 
-func (bi *blockIterator) NextBlock(ctx context.Context, dst []byte) ([]byte, bool) {
+func (bi *blockIterator) NextBlock(_ context.Context, dst []byte) ([]byte, bool) {
 	wi, ok := <-bi.workCh
 	if !ok {
 		return nil, false
