@@ -111,6 +111,9 @@ func (vms *VMStorage) Stop() {
 // The caller should limit the number of concurrent calls to WriteRows() in
 // order to limit memory usage.
 func (vms *VMStorage) WriteRows(rows []storage.MetricRow) error {
+	if vms.s.IsReadOnly() {
+		return storage.ErrReadOnly
+	}
 	vms.s.AddRows(rows, uint8(*precisionBits))
 	return nil
 }
@@ -120,6 +123,9 @@ func (vms *VMStorage) WriteRows(rows []storage.MetricRow) error {
 // The caller should limit the number of concurrent calls to WriteMetadata() in
 // order to limit memory usage.
 func (vms *VMStorage) WriteMetadata(rows []metricsmetadata.Row) error {
+	if vms.s.IsReadOnly() {
+		return storage.ErrReadOnly
+	}
 	vms.s.AddMetadataRows(rows)
 	return nil
 }
