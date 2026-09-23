@@ -785,7 +785,7 @@ Cluster version of VictoriaMetrics:
 # top queries for specified `0` tenant
 curl 'http://<vmselect>:8481/select/0/prometheus/api/v1/status/top_queries'
 
-# top queries accross all tenants 
+# top queries across all tenants 
 curl 'http://<vmselect>:8481/api/v1/status/top_queries'
 ```
 
