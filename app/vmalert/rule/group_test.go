@@ -521,7 +521,7 @@ func TestFaultyNotifier(t *testing.T) {
 	defer cancel()
 
 	go func() {
-		_ = e.exec(ctx, r, time.Now(), 0, 10)
+		_ = e.exec(ctx, r, time.Now(), 0, 10, nil)
 	}()
 
 	tn := time.Now()
@@ -553,7 +553,7 @@ func TestFaultyRW(t *testing.T) {
 		Rw: &remotewrite.Client{},
 	}
 
-	err := e.exec(context.Background(), r, time.Now(), 0, 10)
+	err := e.exec(context.Background(), r, time.Now(), 0, 10, nil)
 	if err == nil {
 		t.Fatalf("expected to get an error from faulty RW client, got nil instead")
 	}
