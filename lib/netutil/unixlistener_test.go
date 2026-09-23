@@ -22,7 +22,7 @@ func TestUnixListenerSuccess(t *testing.T) {
 			t.Fatalf("unexpected error stating unix address: %s", err)
 		}
 		gotPerm := fi.Mode().Perm()
-		wantPerm := os.FileMode(0600)
+		wantPerm := os.FileMode(0660)
 		if gotPerm != wantPerm {
 			t.Fatalf("unexpected socket permissions: got %o, want %o", gotPerm, wantPerm)
 		}

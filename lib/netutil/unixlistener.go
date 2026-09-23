@@ -27,9 +27,8 @@ func NewUnixListener(name, addr string) (*UnixListener, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Default permissions are 0777.
-	// Override them to restrict file permissions with current user.
-	perm := os.FileMode(0600)
+	// Allow group access, so other users can connect after being added to the socket group.
+	perm := os.FileMode(0660)
 	if err := os.Chmod(addr, perm); err != nil {
 		_ = ul.Close()
 		return nil, fmt.Errorf("cannot set permissions for socket path %q: %w", addr, err)
