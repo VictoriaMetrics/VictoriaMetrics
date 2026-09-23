@@ -602,7 +602,7 @@ func TestGetStaticScrapeWorkScrapeTimeoutVsInterval(t *testing.T) {
 		}
 	}
 
-	// A job-level scrape_timeout exceeding the job-level scrape_interval is capped,
+	// An inherited scrape_timeout exceeding the job-level scrape_interval is capped,
 	// the same as before. See case1 and case2 in the issue.
 	f(`
 global:
@@ -627,10 +627,12 @@ scrape_configs:
 
 	// A target-level __scrape_timeout__ exceeding the effective interval is capped
 	// instead of dropping the target like Prometheus does. See case3 in the issue.
+	// The inherited scrape_timeout is 10s, so an ignored __scrape_timeout__ override
+	// would yield 10s instead of the expected capped 1m.
 	f(`
 global:
   scrape_interval: 1m
-  scrape_timeout: 1m
+  scrape_timeout: 10s
 scrape_configs:
 - job_name: foo
   static_configs:
@@ -643,7 +645,7 @@ scrape_configs:
 	f(`
 global:
   scrape_interval: 1m
-  scrape_timeout: 1m
+  scrape_timeout: 10s
 scrape_configs:
 - job_name: foo
   static_configs:

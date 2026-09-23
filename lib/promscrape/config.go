@@ -1046,8 +1046,9 @@ type scrapeWorkConfig struct {
 	scrapeTimeoutString  string
 	// scrapeTimeoutCapWarnOnce rate-limits the warning logged when a target's
 	// scrape_timeout is capped by its effective scrape_interval in getScrapeWork().
-	// It fires at most once per job per config (re)load, since a new scrapeWorkConfig
-	// is built on every load.
+	// The once resets only when the job's config changes and the job is restarted,
+	// since unchanged jobs keep their previous scrapeWorkConfig across reloads.
+	// See Config.mustRestart.
 	scrapeTimeoutCapWarnOnce sync.Once
 	maxScrapeSize            int64
 	jobName                  string
@@ -1284,6 +1285,9 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		d, err := timeutil.ParseDuration(s)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse __scrape_interval__=%q: %w", s, err)
+		}
+		if d <= 0 {
+			return nil, fmt.Errorf("invalid non-positive __scrape_interval__=%q for job=%q", s, swc.jobName)
 		}
 		scrapeInterval = d
 	}
