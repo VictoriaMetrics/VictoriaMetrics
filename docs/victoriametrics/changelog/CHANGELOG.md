@@ -26,7 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
-* FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly cancel on-going indexDB requests when client disconnects and during graceful shutdown. See [#11472](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11472).
+* FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): abort incoming requesrts when a client disconnects and during graceful shutdown. See [#11472](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11472).
 
 * FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): log informative message when a JWT token has no `vm_access` claim and `default_vm_access_claim` is not configured, if `-logInvalidAuthTokens` is enabled. See [JWT claim-based request templating](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-based-request-templating) or [#11579](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11579).
 * FEATURE: [dashboards/vmauth](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/dashboards/vmauth.json): update the dashboard to upstream Grafana version, fix typos and inconsistencies, improve resource usage panels.
