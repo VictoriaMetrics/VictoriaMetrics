@@ -782,7 +782,7 @@ curl 'http://<vmsingle>:8428/api/v1/status/top_queries'
 Cluster version of VictoriaMetrics:
 
 ```sh
-# top queries scoped per tenant
+# top queries for specified `0` tenant
 curl 'http://<vmselect>:8481/select/0/prometheus/api/v1/status/top_queries'
 
 # top queries accross all tenants 
