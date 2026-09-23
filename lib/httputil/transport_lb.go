@@ -159,7 +159,12 @@ func (b *backend) isBroken() bool {
 // RoundTrip implements http.RoundTripper interface
 func (lb *loadbalancerTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 	dbs := lb.getBackends()
+
 	if dbs == nil || len(dbs.backends) == 0 {
+		if r.Body != nil {
+			// RoundTrip must always close the request body.
+			_ = r.Body.Close()
+		}
 		return nil, fmt.Errorf("no backends found for hostname=%q", lb.host)
 	}
 
@@ -185,6 +190,7 @@ func (lb *loadbalancerTransport) RoundTrip(r *http.Request) (*http.Response, err
 		}
 		return resp, nil
 	}
+
 	return nil, fmt.Errorf("all backends are unavailable: %w", lastErr)
 }
 
@@ -194,6 +200,10 @@ func (lb *loadbalancerTransport) doRequest(r *http.Request, b *backend) (*http.R
 		body, err := r.GetBody()
 		if err != nil {
 			b.put()
+			if r.Body != nil {
+				// RoundTrip must always close the request body.
+				_ = r.Body.Close()
+			}
 			return nil, err
 		}
 		r2.Body = body

@@ -44,7 +44,7 @@ func TestAlertingRule_ActiveAtPreservedInAnnotations(t *testing.T) {
 
 		// First execution - creates new alert
 		ts1 := time.Now()
-		_, err := ar.exec(context.TODO(), ts1, 0)
+		_, err := ar.exec(context.TODO(), ts1, 0, nil)
 		if err != nil {
 			t.Fatalf("unexpected error on first exec: %s", err)
 		}
@@ -71,7 +71,7 @@ func TestAlertingRule_ActiveAtPreservedInAnnotations(t *testing.T) {
 		// sleep is non-blocking thanks to synctest
 		time.Sleep(2 * time.Second)
 		ts2 := time.Now()
-		_, err = ar.exec(context.TODO(), ts2, 0)
+		_, err = ar.exec(context.TODO(), ts2, 0, nil)
 		if err != nil {
 			t.Fatalf("unexpected error on second exec: %s", err)
 		}
