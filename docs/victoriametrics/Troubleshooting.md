@@ -354,103 +354,75 @@ These are the solutions that exist for improving the performance of slow queries
 
 ## Memory shortage
 
-High memory utilization alone does not indicate a memory shortage.
-A shortage occurs when there is not enough memory for the current workload.
+High resident set size (RSS) alone does not mean a memory shortage.
+RSS shows how much RAM the process uses, as reported by the `process_resident_memory_bytes` metric.
+See [how to monitor VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/#monitoring) to collect the metrics below.
 
-VictoriaMetrics components detect the available memory at startup as the smaller of the host RAM and the cgroup memory limit,
-and expose it as `vm_available_memory_bytes` metric.
-The actual memory usage (RSS) is exposed via `process_resident_memory_bytes` metric.
-It consists mainly of application memory and the OS page cache:
+### Cache shortage
 
-![VictoriaMetrics process memory model](troubleshooting-memory-model.webp)
+A cache shortage occurs when a cache reaches its size limit and misses are rising.
 
-Application memory contains VM caches, internal buffers, and Go runtime memory.
-The OS page cache keeps recently read or written disk data in RAM to reduce disk I/O.
-The OS can reclaim it when applications need memory.
+- `vm_cache_size_bytes / vm_cache_size_max_bytes` close to 1 means that cache type is full.
 
-Before changing memory settings, follow the
-[memory best practices](https://docs.victoriametrics.com/victoriametrics/bestpractices/#memory).
+- `rate(vm_cache_misses_total[5m]) / rate(vm_cache_requests_total[5m])` shows the share of requests that miss the cache.
 
-See [how to monitor VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/#monitoring)
-to collect these metrics.
+### Application memory shortage
 
-Use the following signals to diagnose a memory shortage.
+To detect an application memory shortage, start with [pressure stall information (PSI)](https://docs.kernel.org/accounting/psi.html) metrics if available:
+`rate(process_pressure_memory_waiting_seconds_total[5m])` and
+`rate(process_pressure_memory_stalled_seconds_total[5m])`.
+They show the share of time tasks were delayed by memory pressure, which can indicate a shortage.
 
-- `process_resident_memory_file_bytes` - the amount of OS page cache currently used by `vmstorage` or `vmsingle`.
+For `vmsingle` and `vmstorage`, `process_resident_memory_bytes / vm_available_memory_bytes` compares RSS
+with the total memory available to the component.
+A value close to 1 together with rising disk reads (`rate(process_io_storage_read_bytes_total[5m])`)
+can indicate a memory shortage. These reads can slow queries and ingestion.
 
-- `process_resident_memory_anon_bytes / vm_available_memory_bytes` - a share of available memory used by the process
-  (VM caches, internal buffers, Go runtime memory). The OS cannot drop this memory like page cache. If swap is enabled,
-  it can move this memory from RAM to swap. Reading it back from swap can increase latency.
-
-- `rate(process_pressure_memory_waiting_seconds_total[5m])`, `rate(process_pressure_memory_stalled_seconds_total[5m])` -
-  [PSI](https://docs.kernel.org/accounting/psi.html): amount of time tasks waited because memory was not immediately available.
-  A value above zero means that tasks were delayed.
-  These metrics are populated only on Linux hosts with PSI support.
-
-### OS page cache shortage
-
-`vmstorage` and `vmsingle` use the OS page cache to speed up disk reads and writes.
-
-An OS page cache shortage is indicated when `process_resident_memory_file_bytes` falls while
-`rate(process_io_storage_read_bytes_total[5m])` rises. Less of the component's data fits in the OS page cache,
-so it reads more from disk.
-
-Keep swap disabled on `vmstorage` and `vmsingle` hosts because reading memory from swap can increase latency.
-See [Swap](https://docs.victoriametrics.com/victoriametrics/bestpractices/#swap).
-If you run multiple `vmstorage` instances on one physical host, make sure it has enough CPU, memory, and disk resources
-for all of them. Otherwise they compete for the OS page cache and evict each other's file pages, which increases disk reads.
-
-Use the following metrics to check whether the memory shortage affects ingestion or queries.
-
-For data ingestion, use:
-
-`rate(vm_slow_row_inserts_total[5m]) / rate(vm_rows_added_to_storage_total[5m])`
-
-This ratio shows the share of rows counted as slow inserts.
-If this ratio rises, follow
-[Slow data ingestion](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#slow-data-ingestion).
-
-For queries, use:
-
-`rate(vm_slow_queries_total[5m])`
-
-This metric counts queries that exceed `-search.logSlowQueryDuration`.
-Check it on `vmsingle` or on the `vmselect` nodes that query the affected `vmstorage`.
-If it rises during the same period, follow
-[slow query diagnostics](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#slow-queries).
+For any VictoriaMetrics component, `process_resident_memory_anon_bytes / vm_available_memory_bytes`
+shows the share of available memory the OS cannot free by dropping file-backed pages.
+A value close to 1 leaves no room for further allocations
+and raises the risk of an out-of-memory kill.
 
 ### Out of memory errors
 
-An OOM kill is a separate signal because it must be detected outside the process.
-It confirms a memory shortage but not its cause.
-High RSS alone does not show that an OOM kill is imminent because the OS can reclaim file pages.
-Check the following sources:
+An out-of-memory kill stops the process. If the component restarts,
+`changes(vm_app_start_timestamp[1h]) > 0` shows the restart.
+If `process_resident_memory_anon_bytes / vm_available_memory_bytes` was close to 1 before the restart,
+investigate an out-of-memory kill.
+For `vmsingle`, `vmagent`, and `vmstorage`, and for `vmselect` with `-cacheDataPath`,
+`vm_app_prev_shutdown_unclean == 1`{{% available_from "v1.151.0" %}} is a stronger signal:
+the previous run did not shut down gracefully.
+To verify the cause of the restart, check for `OOMKilled` with `kubectl describe pod <pod>`,
+or search the host's kernel log with
+`journalctl -k -g 'oom|killed process'` (or `dmesg`).
 
-- Kubernetes: a container terminated with reason `OOMKilled` in the pod status (`kubectl describe pod`).
-- Linux hosts: the kernel OOM killer log in `dmesg` or `journalctl`.
-
-### How to fix memory issues
+### How to fix memory usage issues
 
 - Reduce the number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series)
   or the [churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate) -
   see [Slow data ingestion](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#slow-data-ingestion),
   or drop metrics that [are not used](https://docs.victoriametrics.com/victoriametrics/#track-ingested-metrics-usage).
-- Add more memory by scaling vertically, or spread the load by scaling horizontally. See capacity planning for
+- Add memory to the affected component. For `vmstorage`, adding nodes spreads newly ingested data across more nodes.
+  See capacity planning for
   [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#capacity-planning)
   and [cluster components](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#capacity-planning).
   Keep [at least 50% of RAM free](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#capacity-planning)
-  so VictoriaMetrics has memory for workload spikes. This reduces the risk of OOM kills.
+  so VictoriaMetrics has memory for workload spikes. This reduces the risk of out-of-memory kills.
   For `vmstorage`, more memory can reduce cache misses and disk reads when memory is the bottleneck.
 - Remove command-line flags whose impact you do not clearly understand. Improper flags can raise
-  memory usage and lead to OOM crashes. In particular, do not change
+  memory usage and lead to out-of-memory kills. VictoriaMetrics is optimized to run with default flag values.
+  In particular, do not change
   [cache sizes](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning).
   Add more memory instead.
-- Protect components with
-  [resource usage limits](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#resource-usage-limits).
+- A query selecting millions of unique time series can use a lot of memory for per-series data.
+  Use [Slow queries](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#slow-queries) to investigate heavy queries and
+  [resource usage limits](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#resource-usage-limits)
+  to limit their memory use.
 - If anonymous memory keeps growing while the workload remains stable, collect a memory profile using the profiling guide for
   [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#profiling)
   or [cluster components](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#profiling),
-  and share it with the VictoriaMetrics team in Slack or a GitHub issue.
+  and share it with the VictoriaMetrics team in Slack or in a
+  [GitHub bug report](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/new).
 
 ## Cluster instability
 
