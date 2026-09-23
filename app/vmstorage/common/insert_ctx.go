@@ -84,6 +84,7 @@ func (ctx *InsertCtx) Reset(rowsLen int) {
 		cleanMetricMetadata(&mms[i])
 	}
 	ctx.mms = mms[:0]
+
 	ctx.metricNameBuf = ctx.metricNameBuf[:0]
 	ctx.at.Set(0, 0)
 }
