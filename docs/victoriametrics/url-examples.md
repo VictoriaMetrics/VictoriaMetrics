@@ -751,7 +751,7 @@ curl 'http://<vmsingle>:8428/api/v1/status/active_queries'
 Cluster version of VictoriaMetrics:
 
 ```sh
-# active queries per tenant
+# active queries for specified `0` tenant
 curl 'http://<vmselect>:8481/select/0/prometheus/api/v1/status/active_queries'
 
 # active queries across all tenants
