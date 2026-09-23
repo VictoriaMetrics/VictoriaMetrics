@@ -195,6 +195,16 @@ func TestClusterVmstoragePrometheusRemoteWriteReadOnly(t *testing.T) {
 			},
 		},
 	}, apptest.QueryOpts{}, http.StatusServiceUnavailable)
+
+	vmstorage.PrometheusAPIV1WriteWithStatusCode(t, prompb.WriteRequest{
+		Metadata: []prompb.MetricMetadata{
+			{
+				MetricFamilyName: "vmstorage_remote_write_read_only_metadata",
+				Help:             "read-only metadata",
+				Type:             prompb.MetricTypeGauge,
+			},
+		},
+	}, apptest.QueryOpts{}, http.StatusServiceUnavailable)
 }
 
 func startVmstorageRemoteWriteCluster(t *testing.T) (*apptest.Vmstorage, *apptest.Vmselect) {
