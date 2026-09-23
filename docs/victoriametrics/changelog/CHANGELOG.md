@@ -41,6 +41,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): properly reload SSL certificate for [kafka producer and consumer](https://docs.victoriametrics.com/victoriametrics/integrations/kafka/). See [#11577](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11577).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): fix a data race occurring when `remoteWrite` returns an immediate response without reading the HTTP request body completely. See [#11507](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11507).
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): respect the `-enableTCP6` flag when discovering backend IPs via [`discover_backend_ips`](https://docs.victoriametrics.com/victoriametrics/vmauth/#discovering-backend-ips) or `-discoverBackendIPs`. Previously, discovery included IPv6 addresses even when IPv6 support was disabled. See [#11470](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11470).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): fix synchronization of the custom query step with URL changes on the predefined dashboards page. See [#11137](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11137#issuecomment-5396835285).
 
 ## [v1.152.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.152.0)
 
