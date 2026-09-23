@@ -2,6 +2,7 @@ package httputil
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -124,4 +125,33 @@ func TestLoadbalancerTransport(t *testing.T) {
 	trs = testRemoteServer{}
 	f([]string{}, &trs)
 
+}
+
+func TestLoadbalancerTransportConnectionError(t *testing.T) {
+	connectionErr := errors.New("connection reset by peer")
+	trs := &testRemoteServer{firstError: connectionErr}
+	tdr := &testDNSResolver{ips: []net.IPAddr{{IP: net.ParseIP("1.2.3.4")}}}
+	originResolver := netutil.Resolver
+	defer func() { netutil.Resolver = originResolver }()
+	netutil.Resolver = tdr
+
+	requestURL, err := url.Parse("http://dns+vmsingle.example.com:8429/api/v1/write")
+	if err != nil {
+		t.Fatalf("cannot parse URL: %s", err)
+	}
+	lb, requestURL := NewLoadBalancerTransport(trs, requestURL)
+	r, err := http.NewRequest(http.MethodGet, requestURL.String(), nil)
+	if err != nil {
+		t.Fatalf("cannot create HTTP request: %s", err)
+	}
+	_, err = lb.RoundTrip(r)
+	if err == nil {
+		t.Fatal("expected connection error")
+	}
+	if got, want := err.Error(), `all backends are unavailable: backend: "1.2.3.4:8429" connection error: connection reset by peer`; got != want {
+		t.Fatalf("unexpected error; got %q; want %q", got, want)
+	}
+	if !errors.Is(err, connectionErr) {
+		t.Fatalf("expected wrapped connection error; got %v", err)
+	}
 }

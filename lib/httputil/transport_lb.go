@@ -205,7 +205,7 @@ func (lb *loadbalancerTransport) doRequest(r *http.Request, b *backend) (*http.R
 	resp, err := lb.tr.RoundTrip(r2)
 	if err != nil {
 		b.put()
-		return nil, err
+		return nil, fmt.Errorf("backend: %q connection error: %w", b.addr, err)
 	}
 	// wrap response body with readCloser that releases backend after Close call
 	// it's needed to properly account loaded backends at getLeastLoadedBackends
