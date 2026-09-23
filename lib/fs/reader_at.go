@@ -108,15 +108,8 @@ func (r *ReaderAt) getMmapReader() *mmapReader {
 	mr = r.mr.Load()
 	if mr == nil {
 		mr = newMmapReaderFromPath(r.path)
-		if r.adviseRandomRead && !*disableAdviseRandomRead {
-			if err := fadviseRandomRead(mr.f); err != nil {
-				logger.Fatalf("FATAL: cannot apply FADV_RANDOM hint to %q: %s; try disabling it with -fs.disableAdviseRandomRead=true", r.path, err)
-			}
-			if len(mr.mmapData) > 0 {
-				if err := madviseRandomRead(mr.mmapData); err != nil {
-					logger.Fatalf("FATAL: cannot apply MADV_RANDOM hint to %q: %s; try disabling it with -fs.disableAdviseRandomRead=true", r.path, err)
-				}
-			}
+		if r.adviseRandomRead {
+			mr.mustAdviseRandomRead()
 		}
 		r.mr.Store(mr)
 	}
@@ -182,7 +175,6 @@ func (r *ReaderAt) MustFadviseSequentialRead(prefetch bool) {
 func MustOpenReaderAt(path string) *ReaderAt {
 	var r ReaderAt
 	r.path = path
-	r.adviseRandomRead = true
 	return &r
 }
 
@@ -342,6 +334,20 @@ func (mr *mmapReader) canFastReadViaMmap(off int64, n int) bool {
 	}
 
 	return true
+}
+
+func (mr *mmapReader) mustAdviseRandomRead() {
+	if *disableAdviseRandomRead {
+		return
+	}
+	if err := fadviseRandomRead(mr.f); err != nil {
+		logger.Panicf("FATAL: cannot apply FADV_RANDOM hint to %q: %s; try disabling it with -fs.disableAdviseRandomRead=true", mr.f.Name(), err)
+	}
+	if len(mr.mmapData) > 0 {
+		if err := madviseRandomRead(mr.mmapData); err != nil {
+			logger.Panicf("FATAL: cannot apply MADV_RANDOM hint to %q: %s; try disabling it with -fs.disableAdviseRandomRead=true", mr.f.Name(), err)
+		}
+	}
 }
 
 var pageSizeBytes = uint64(os.Getpagesize())
