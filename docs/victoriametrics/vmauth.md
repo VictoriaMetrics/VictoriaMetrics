@@ -1618,6 +1618,8 @@ To enable TLS on the public listener while keeping the internal listener non-TLS
         url_prefix: http://vmselect/select/multitenant?extra_filters[]=&extra_filters=&extra_label=vm_account_id=10&extra_label=vm_project_id=100
     ```
 
+1. Review that `vmauth` `src_paths` are properly tenant-scoped for [multitenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenant-reads) routing. Some APIs provide access across all tenants. They should be excluded from per-tenant access. Check the [Per-tenant authorization](https://docs.victoriametrics.com/victoriametrics/vmauth/#per-tenant-authorization) documentation and the available [API examples](https://docs.victoriametrics.com/victoriametrics/url-examples/) for the supported endpoint paths.
+
 1. When backends use [multitenancy via headers](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-headers), clients can set `AccountID` and `ProjectID` headers to route requests to arbitrary tenants. To prevent this, explicitly override these headers in the `headers` section so the client-supplied values are ignored:
 
     ```yaml
