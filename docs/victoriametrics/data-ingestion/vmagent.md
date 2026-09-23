@@ -54,24 +54,15 @@ This requires starting every target `vmstorage` node with `-enableIngestionAPI` 
 /path/to/vmagent \
   -remoteWrite.url=http://<vmstorage-1>:8482/insert/<tenant_id>/prometheus/api/v1/write \
   -remoteWrite.url=http://<vmstorage-2>:8482/insert/<tenant_id>/prometheus/api/v1/write \
-  -remoteWrite.shardByURL
+  -remoteWrite.url=http://<vmstorage-3>:8482/insert/<tenant_id>/prometheus/api/v1/write \
+  -remoteWrite.shardByURL \
+  -remoteWrite.shardByURLReplicas=2
 ```
 
-The `-remoteWrite.shardByURL` flag is usually needed when multiple `vmstorage` URLs are configured as remote write destinations, 
-since `vmagent` replicates data to every `-remoteWrite.url` by default. With `-remoteWrite.shardByURL`, samples for
-the same time series are routed to the same `vmstorage` URL.
-
-The main advantage of this mode compared to writing through `vminsert` is failure behavior when a `vmstorage` node
-becomes unavailable. In this setup, `vmagent` will buffer data for the unavailable `vmstorage` node in its
-[persistent queue](https://docs.victoriametrics.com/victoriametrics/vmagent/#on-disk-persistence) instead of re-routing
-the data to other available `vmstorage` nodes. This trades some data freshness for lower risk of immediate write errors
-and additional pressure on the remaining storage nodes that is caused by re-routing. The tradeoff can be useful for heavily loaded clusters, where
-re-routing writes from unavailable or overloaded `vmstorage` nodes may trigger the re-routing storm and overload the
-remaining nodes.
-
-Bypassing `vminsert` means that samples are written only to the addressed `vmstorage` nodes. This mode doesn't
-use `vminsert` features such as replication, re-routing, or relabeling. Prefer writing to `vminsert` for regular
-cluster ingestion unless `vmagent` is intentionally used for sharding or replication in front of `vmstorage`.
+In this setup, `vmagent` behaves like `vminsert` running with `-replicationFactor=2` and `-disableReroutingOnUnavailable`.
+`vmagent` maintains a separate [persistent queue](https://docs.victoriametrics.com/victoriametrics/vmagent/#on-disk-persistence)
+for each `vmstorage` node and doesn't reroute data to other nodes. This reduces ingestion latency when some `vmstorage` nodes
+respond slowly or become unavailable.
 
 ## Remote write with basic authentication
 
