@@ -31,7 +31,7 @@ var (
 	maxSamplesPerSeries = flag.Int("search.maxSamplesPerSeries", 30e6, "The maximum number of raw samples a single query can scan per each time series. This option allows limiting memory usage")
 	maxSamplesPerQuery  = flag.Int("search.maxSamplesPerQuery", 1e9, "The maximum number of raw samples a single query can process across all time series. "+
 		"This protects from heavy queries, which select unexpectedly high number of raw samples. See also -search.maxSamplesPerSeries")
-	maxWorkersPerQuery = flagutil.NewIntWithDynamicDefault("search.maxWorkersPerQuery", defaultMaxWorkersPerQuery, "netstorage.defaultMaxWorkersPerQuery()",
+	maxWorkersPerQuery = flagutil.NewIntWithDynamicDefault("search.maxWorkersPerQuery", defaultMaxWorkersPerQuery, "CPU cores, capped at 32",
 		"The maximum number of CPU cores a single query can use. "+
 			"The default value should work good for most cases. "+
 			"The flag can be set to lower values for improving performance of big number of concurrently executed queries. "+

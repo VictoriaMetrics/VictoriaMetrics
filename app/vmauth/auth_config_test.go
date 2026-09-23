@@ -717,6 +717,8 @@ users:
 - username: bar
   url_prefix: https://bar/x/
   access_log:
+    headers:
+      - "Accept-Encoding"
     filters:
       skip_status_codes: [404]
 `, map[string]*UserInfo{
@@ -728,7 +730,7 @@ users:
 		getHTTPAuthBasicToken("bar", ""): {
 			Username:  "bar",
 			URLPrefix: mustParseURL("https://bar/x/"),
-			AccessLog: &AccessLog{Filters: &AccessLogFilters{SkipStatusCodes: []int{404}}},
+			AccessLog: &AccessLog{Headers: []string{"Accept-Encoding"}, Filters: &AccessLogFilters{SkipStatusCodes: []int{404}}},
 		},
 	}, nil)
 
@@ -1071,6 +1073,9 @@ func TestLogRequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
+	req.Header.Set("AccountID", "2")
+	req.Header.Add("AccountID", "3") // we log the 1st value only. redundant case to guard against future code changes, which may cause the test to fail.
+	req.Header.Set("Empty-Value-Header", "")
 
 	f := func(user string, status int, duration time.Duration, expectedLog string) {
 		t.Helper()
@@ -1093,6 +1098,9 @@ func TestLogRequest(t *testing.T) {
 	ui.AccessLog.Filters = &AccessLogFilters{SkipStatusCodes: []int{200}}
 	f("foo", 200, 10*time.Millisecond, ``)
 	f("foo", 404, 10*time.Millisecond, `access_log request_host="localhost:8080" request_uri="" status_code=404 remote_addr="" user_agent="" referer="" duration_ms=10 username="foo"`)
+
+	ui.AccessLog.Headers = []string{"AccountID", "Non-Existing-Header", "Empty-Value-Header"}
+	f("foo", 404, 10*time.Millisecond, `access_log request_host="localhost:8080" request_uri="" status_code=404 remote_addr="" user_agent="" referer="" duration_ms=10 username="foo" headers.AccountID="2"`)
 }
 
 func TestGetFirstAvailableBackend(t *testing.T) {
