@@ -580,6 +580,190 @@ scrape_configs:
 `)
 }
 
+func TestGetStaticScrapeWorkScrapeTimeoutVsInterval(t *testing.T) {
+	// Verify that scrape_timeout is capped by the effective per-target scrape_interval
+	// only after __scrape_interval__ / __scrape_timeout__ labels are resolved.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11597
+	f := func(data string, wantInterval, wantTimeout time.Duration) {
+		t.Helper()
+		sws, err := getStaticScrapeWork([]byte(data), "non-existing-file")
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if len(sws) != 1 {
+			t.Fatalf("unexpected number of ScrapeWork items; got %d; want 1", len(sws))
+		}
+		sw := sws[0]
+		if sw.ScrapeInterval != wantInterval {
+			t.Fatalf("unexpected ScrapeInterval; got %s; want %s", sw.ScrapeInterval, wantInterval)
+		}
+		if sw.ScrapeTimeout != wantTimeout {
+			t.Fatalf("unexpected ScrapeTimeout; got %s; want %s", sw.ScrapeTimeout, wantTimeout)
+		}
+	}
+
+	// An inherited scrape_timeout exceeding the job-level scrape_interval is capped,
+	// the same as before. See case1 and case2 in the issue.
+	f(`
+global:
+  scrape_interval: 1m
+  scrape_timeout: 1m
+scrape_configs:
+- job_name: foo
+  scrape_interval: 30s
+  static_configs:
+  - targets: ["foo.bar:1234"]
+`, 30*time.Second, 30*time.Second)
+	f(`
+global:
+  scrape_interval: 1m
+  scrape_timeout: 1m
+scrape_configs:
+- job_name: foo
+  scrape_timeout: 2m
+  static_configs:
+  - targets: ["foo.bar:1234"]
+`, time.Minute, time.Minute)
+
+	// A target-level __scrape_timeout__ exceeding the effective interval is capped
+	// instead of dropping the target like Prometheus does. See case3 in the issue.
+	// The inherited scrape_timeout is 10s, so an ignored __scrape_timeout__ override
+	// would yield 10s instead of the expected capped 1m.
+	f(`
+global:
+  scrape_interval: 1m
+  scrape_timeout: 10s
+scrape_configs:
+- job_name: foo
+  static_configs:
+  - targets: ["foo.bar:1234"]
+    labels:
+      __scrape_timeout__: "5m"
+`, time.Minute, time.Minute)
+
+	// The same when __scrape_timeout__ is set via relabeling.
+	f(`
+global:
+  scrape_interval: 1m
+  scrape_timeout: 10s
+scrape_configs:
+- job_name: foo
+  static_configs:
+  - targets: ["foo.bar:1234"]
+  relabel_configs:
+  - target_label: __scrape_timeout__
+    replacement: "5m"
+`, time.Minute, time.Minute)
+
+	// A job-level scrape_timeout must not be capped by the global scrape_interval
+	// when the target provides a longer interval via __scrape_interval__,
+	// e.g. from http_sd_configs. See the original report in the issue.
+	f(`
+global:
+  scrape_interval: 1m
+  scrape_timeout: 1m
+scrape_configs:
+- job_name: foo
+  scrape_timeout: 4m
+  static_configs:
+  - targets: ["foo.bar:1234"]
+    labels:
+      __scrape_interval__: "5m"
+`, 5*time.Minute, 4*time.Minute)
+
+	// An inherited scrape_timeout is kept as is instead of being pre-capped
+	// by the job-level interval when the target provides a longer interval.
+	// See case4 in the issue.
+	f(`
+global:
+  scrape_interval: 1m
+  scrape_timeout: 1m
+scrape_configs:
+- job_name: foo
+  scrape_interval: 40s
+  static_configs:
+  - targets: ["foo.bar:1234"]
+    labels:
+      __scrape_interval__: "5m"
+`, 5*time.Minute, time.Minute)
+
+	// The timeout is still capped when the target provides a shorter interval
+	// than the configured timeout, so overlapping scrapes cannot happen.
+	f(`
+global:
+  scrape_interval: 1m
+  scrape_timeout: 1m
+scrape_configs:
+- job_name: foo
+  scrape_timeout: 4m
+  static_configs:
+  - targets: ["foo.bar:1234"]
+    labels:
+      __scrape_interval__: "30s"
+`, 30*time.Second, 30*time.Second)
+
+	// A valid timeout smaller than the effective interval is left alone.
+	f(`
+global:
+  scrape_interval: 1m
+  scrape_timeout: 10s
+scrape_configs:
+- job_name: foo
+  static_configs:
+  - targets: ["foo.bar:1234"]
+`, time.Minute, 10*time.Second)
+}
+
+func TestGetStaticScrapeWorkNonPositiveScrapeLabels(t *testing.T) {
+	// Targets with a non-positive __scrape_interval__ or __scrape_timeout__ label
+	// must be skipped instead of running with an invalid interval or an
+	// already-expired timeout. Per-target errors are logged and the target is
+	// skipped, so a config whose only target is rejected yields no ScrapeWork.
+	f := func(data string) {
+		t.Helper()
+		sws, err := getStaticScrapeWork([]byte(data), "non-existing-file")
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if len(sws) != 0 {
+			t.Fatalf("unexpected number of ScrapeWork items; got %d; want 0", len(sws))
+		}
+	}
+
+	f(`
+scrape_configs:
+- job_name: foo
+  static_configs:
+  - targets: ["foo.bar:1234"]
+    labels:
+      __scrape_interval__: "0s"
+`)
+	f(`
+scrape_configs:
+- job_name: foo
+  static_configs:
+  - targets: ["foo.bar:1234"]
+    labels:
+      __scrape_interval__: "-30s"
+`)
+	f(`
+scrape_configs:
+- job_name: foo
+  static_configs:
+  - targets: ["foo.bar:1234"]
+    labels:
+      __scrape_timeout__: "0s"
+`)
+	f(`
+scrape_configs:
+- job_name: foo
+  static_configs:
+  - targets: ["foo.bar:1234"]
+    labels:
+      __scrape_timeout__: "-5m"
+`)
+}
+
 // String returns human-readable representation for sw.
 func (sw *ScrapeWork) String() string {
 	return stringsutil.JSONString(sw.key())

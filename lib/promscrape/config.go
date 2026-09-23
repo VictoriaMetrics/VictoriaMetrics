@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
@@ -928,12 +929,11 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 			scrapeTimeout = defaultScrapeTimeout
 		}
 	}
-	if scrapeTimeout > scrapeInterval {
-		// Limit the `scrape_timeout` with `scrape_interval` like Prometheus does.
-		// This guarantees that the scraper can miss only a single scrape if the target sometimes responds slowly.
-		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1281#issuecomment-840538907
-		scrapeTimeout = scrapeInterval
-	}
+	// Do not cap `scrape_timeout` by `scrape_interval` here. The effective per-target
+	// interval may be overridden via the `__scrape_interval__` label (e.g. provided by
+	// http_sd_configs), which isn't known until target labels are resolved.
+	// The timeout is capped by the final interval in getScrapeWork() instead.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11597
 	mss := maxScrapeSize.N
 	if sc.MaxScrapeSize != "" {
 		n, err := flagutil.ParseBytes(sc.MaxScrapeSize)
@@ -1044,29 +1044,35 @@ type scrapeWorkConfig struct {
 	scrapeIntervalString string
 	scrapeTimeout        time.Duration
 	scrapeTimeoutString  string
-	maxScrapeSize        int64
-	jobName              string
-	metricsPath          string
-	scheme               string
-	params               map[string][]string
-	proxyURL             *proxy.URL
-	proxyAuthConfig      *promauth.Config
-	authConfig           *promauth.Config
-	honorLabels          bool
-	honorTimestamps      bool
-	denyRedirects        bool
-	externalLabels       *promutil.Labels
-	relabelConfigs       *promrelabel.ParsedConfigs
-	metricRelabelConfigs *promrelabel.ParsedConfigs
-	sampleLimit          int
-	labelLimit           int
-	disableCompression   bool
-	disableKeepAlive     bool
-	streamParse          bool
-	scrapeAlignInterval  time.Duration
-	scrapeOffset         time.Duration
-	seriesLimit          int
-	noStaleMarkers       bool
+	// scrapeTimeoutCapWarnOnce rate-limits the warning logged when a target's
+	// scrape_timeout is capped by its effective scrape_interval in getScrapeWork().
+	// The once resets only when the job's config changes and the job is restarted,
+	// since unchanged jobs keep their previous scrapeWorkConfig across reloads.
+	// See Config.mustRestart.
+	scrapeTimeoutCapWarnOnce sync.Once
+	maxScrapeSize            int64
+	jobName                  string
+	metricsPath              string
+	scheme                   string
+	params                   map[string][]string
+	proxyURL                 *proxy.URL
+	proxyAuthConfig          *promauth.Config
+	authConfig               *promauth.Config
+	honorLabels              bool
+	honorTimestamps          bool
+	denyRedirects            bool
+	externalLabels           *promutil.Labels
+	relabelConfigs           *promrelabel.ParsedConfigs
+	metricRelabelConfigs     *promrelabel.ParsedConfigs
+	sampleLimit              int
+	labelLimit               int
+	disableCompression       bool
+	disableKeepAlive         bool
+	streamParse              bool
+	scrapeAlignInterval      time.Duration
+	scrapeOffset             time.Duration
+	seriesLimit              int
+	noStaleMarkers           bool
 }
 
 func appendScrapeWorkForTargetLabels(dst []*ScrapeWork, swc *scrapeWorkConfig, targetLabels []*promutil.Labels, discoveryType string) []*ScrapeWork {
@@ -1280,6 +1286,9 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse __scrape_interval__=%q: %w", s, err)
 		}
+		if d <= 0 {
+			return nil, fmt.Errorf("invalid non-positive __scrape_interval__=%q for job=%q", s, swc.jobName)
+		}
 		scrapeInterval = d
 	}
 	scrapeTimeout := swc.scrapeTimeout
@@ -1288,7 +1297,26 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse __scrape_timeout__=%q: %w", s, err)
 		}
+		if d <= 0 {
+			return nil, fmt.Errorf("invalid non-positive __scrape_timeout__=%q for job=%q", s, swc.jobName)
+		}
 		scrapeTimeout = d
+	}
+	if scrapeTimeout > scrapeInterval {
+		// Limit the `scrape_timeout` by the effective `scrape_interval` like Prometheus does.
+		// This guarantees that the scraper can miss only a single scrape if the target sometimes responds slowly.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1281#issuecomment-840538907
+		//
+		// The limit is applied only after the `__scrape_interval__` and `__scrape_timeout__` labels
+		// are resolved, so per-target intervals provided via service discovery are respected.
+		// Unlike Prometheus, which drops such targets, the timeout is capped and the target is kept.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11597
+		swc.scrapeTimeoutCapWarnOnce.Do(func() {
+			logger.Warnf("job %q: capping scrape_timeout=%s to the effective scrape_interval=%s for target %q; "+
+				"lower `scrape_timeout` in the scrape config or the __scrape_timeout__ label to suppress this warning",
+				swc.jobName, scrapeTimeout, scrapeInterval, target)
+		})
+		scrapeTimeout = scrapeInterval
 	}
 	// Read max_scrape_size option from __max_scrape_size__ label.
 	targetMaxScrapeSize := swc.maxScrapeSize
