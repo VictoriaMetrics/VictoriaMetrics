@@ -5,7 +5,6 @@ import GraphView from "../../../components/Views/GraphView/GraphView";
 import { useFetchQuery } from "../../../hooks/useFetchQuery";
 import Spinner from "../../../components/Main/Spinner/Spinner";
 import GraphSettings from "../../../components/Configurators/GraphSettings/GraphSettings";
-import { marked } from "marked";
 import { useTimeDispatch, useTimeState } from "../../../state/time/TimeStateContext";
 import { InfoIcon } from "../../../components/Main/Icons";
 import "./style.scss";
@@ -13,6 +12,7 @@ import Alert from "../../../components/Main/Alert/Alert";
 import Tooltip from "../../../components/Main/Tooltip/Tooltip";
 import { useGraphState } from "../../../state/graph/GraphStateContext";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
+import SafeHtml from "../../../components/Main/SafeHtml/SafeHtml";
 
 export interface PredefinedPanelsProps extends PanelSettings {
   filename: string;
@@ -90,7 +90,11 @@ const PredefinedPanel: FC<PredefinedPanelsProps> = ({
         <>
           <div>
             <span>Description:</span>
-            <div dangerouslySetInnerHTML={{ __html: marked(description) as string }}/>
+            <SafeHtml
+              tagName="div"
+              value={description}
+              format="markdown"
+            />
           </div>
           <hr/>
         </>
