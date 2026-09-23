@@ -61,8 +61,7 @@ This requires starting every target `vmstorage` node with `-enableIngestionAPI` 
 
 In this setup, `vmagent` behaves like `vminsert` running with `-replicationFactor=2` and `-disableReroutingOnUnavailable`.
 `vmagent` maintains a separate [persistent queue](https://docs.victoriametrics.com/victoriametrics/vmagent/#on-disk-persistence)
-for each `vmstorage` node and doesn't reroute data to other nodes. This reduces ingestion latency when some `vmstorage` nodes
-respond slowly or become unavailable.
+for each `vmstorage` node and doesn't reroute data to other nodes. This helps mitigate [re-routing](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#slowness-based-re-routing) issues when some `vmstorage` nodes respond slowly or become unavailable.
 
 ## Remote write with basic authentication
 
