@@ -1,10 +1,12 @@
 import { FC } from "preact/compat";
 import Select from "../../Main/Select/Select";
-import { SearchIcon } from "../../Main/Icons";
+import { RefreshIcon, SearchIcon } from "../../Main/Icons";
 import TextField from "../../Main/TextField/TextField";
 import "./style.scss";
 import classNames from "classnames";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
+import Button from "../../Main/Button/Button";
+import { useTimeDispatch } from "../../../state/time/TimeStateContext";
 
 interface NotifiersHeaderProps {
   kinds: string[];
@@ -22,6 +24,11 @@ const NotifiersHeader: FC<NotifiersHeaderProps> = ({
   onChangeSearch,
 }) => {
   const { isMobile } = useDeviceDetect();
+  const dispatch = useTimeDispatch();
+
+  const handleRefresh = () => {
+    dispatch({ type: "RUN_QUERY" });
+  };
 
   return (
     <>
@@ -53,6 +60,16 @@ const NotifiersHeader: FC<NotifiersHeaderProps> = ({
             startIcon={<SearchIcon />}
             onChange={onChangeSearch}
           />
+          <div>
+            <Button
+              variant="text"
+              onClick={handleRefresh}
+              startIcon={<RefreshIcon />}
+              ariaLabel="Refresh"
+            >
+              Refresh
+            </Button>
+          </div>
         </div>
       </div>
     </>

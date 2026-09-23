@@ -7,7 +7,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 )
 
-var maxConcurrency = flagutil.NewIntWithDynamicDefault("fs.maxConcurrency", getDefaultConcurrency(), "fsutil.getDefaultConcurrency()",
+var maxConcurrency = flagutil.NewIntWithDynamicDefault("fs.maxConcurrency", getDefaultConcurrency(), "16x CPU cores, capped at 256",
 	"The maximum number of concurrent goroutines to work with files; smaller values may help reducing Go scheduling latency "+
 		"on systems with small number of CPU cores; higher values may help reducing data ingestion latency on systems with high-latency storage such as NFS or Ceph")
 
