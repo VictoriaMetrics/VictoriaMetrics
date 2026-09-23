@@ -714,6 +714,56 @@ scrape_configs:
 `, time.Minute, 10*time.Second)
 }
 
+func TestGetStaticScrapeWorkNonPositiveScrapeLabels(t *testing.T) {
+	// Targets with a non-positive __scrape_interval__ or __scrape_timeout__ label
+	// must be skipped instead of running with an invalid interval or an
+	// already-expired timeout. Per-target errors are logged and the target is
+	// skipped, so a config whose only target is rejected yields no ScrapeWork.
+	f := func(data string) {
+		t.Helper()
+		sws, err := getStaticScrapeWork([]byte(data), "non-existing-file")
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if len(sws) != 0 {
+			t.Fatalf("unexpected number of ScrapeWork items; got %d; want 0", len(sws))
+		}
+	}
+
+	f(`
+scrape_configs:
+- job_name: foo
+  static_configs:
+  - targets: ["foo.bar:1234"]
+    labels:
+      __scrape_interval__: "0s"
+`)
+	f(`
+scrape_configs:
+- job_name: foo
+  static_configs:
+  - targets: ["foo.bar:1234"]
+    labels:
+      __scrape_interval__: "-30s"
+`)
+	f(`
+scrape_configs:
+- job_name: foo
+  static_configs:
+  - targets: ["foo.bar:1234"]
+    labels:
+      __scrape_timeout__: "0s"
+`)
+	f(`
+scrape_configs:
+- job_name: foo
+  static_configs:
+  - targets: ["foo.bar:1234"]
+    labels:
+      __scrape_timeout__: "-5m"
+`)
+}
+
 // String returns human-readable representation for sw.
 func (sw *ScrapeWork) String() string {
 	return stringsutil.JSONString(sw.key())

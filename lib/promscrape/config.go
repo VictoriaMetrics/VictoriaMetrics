@@ -1297,6 +1297,9 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse __scrape_timeout__=%q: %w", s, err)
 		}
+		if d <= 0 {
+			return nil, fmt.Errorf("invalid non-positive __scrape_timeout__=%q for job=%q", s, swc.jobName)
+		}
 		scrapeTimeout = d
 	}
 	if scrapeTimeout > scrapeInterval {
