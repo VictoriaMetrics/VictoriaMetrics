@@ -184,7 +184,7 @@ func (rr *RecordingRule) execRange(ctx context.Context, start, end time.Time) ([
 }
 
 // exec executes RecordingRule expression via the given Querier.
-func (rr *RecordingRule) exec(ctx context.Context, ts time.Time, limit int) ([]prompb.TimeSeries, error) {
+func (rr *RecordingRule) exec(ctx context.Context, ts time.Time, limit int, _ func(enableDebug bool) datasource.Querier) ([]prompb.TimeSeries, error) {
 	start := time.Now()
 	res, req, err := rr.q.Query(ctx, rr.Expr, ts)
 	curState := StateEntry{

@@ -3574,12 +3574,12 @@ func testStorageAddRowsWithZeroDate(t *testing.T, disablePerDayIndex bool) {
 
 // testSearchMetricIDs returns metricIDs for the given tfss and tr.
 //
-// The returned metricIDs are sorted. The function panics in in case of error.
+// The returned metricIDs are sorted. The function panics in case of error.
 // The function is not a part of Storage because it is currently used in unit
 // tests only.
 func testSearchMetricIDs(s *Storage, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) []uint64 {
-	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (*uint64set.Set, error) {
-		return idb.searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
+	search := func(_ *querytracer.Tracer, idb *indexDB, tr TimeRange) (*uint64set.Set, error) {
+		return idb.searchMetricIDs(tfss, tr, maxMetrics, deadline)
 	}
 	merge := func(data []*uint64set.Set) *uint64set.Set {
 		all := &uint64set.Set{}
