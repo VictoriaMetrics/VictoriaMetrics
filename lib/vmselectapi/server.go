@@ -1047,20 +1047,22 @@ func (s *Server) processSearch(ctx *vmselectRequestCtx) error {
 	}
 	defer s.endConcurrentRequest()
 
-	sendBlocks := func() (int, error) {
-		rCtx, cm := withRequestContext(ctx)
-		defer cm.stop()
+	rCtx, cm := withRequestContext(ctx)
+	// Initiaialize the search.
+	bi, err := s.api.InitSearch(rCtx, ctx.qt, &ctx.sq)
+	if err != nil {
+		cm.stop()
+		return ctx.writeErrorMessage(err)
+	}
+	defer bi.MustClose()
+	// Send empty error message to vmselect.
+	if err := ctx.writeString(""); err != nil {
+		cm.stop()
+		return fmt.Errorf("cannot send empty error message: %w", err)
+	}
 
-		// Initiaialize the search.
-		bi, err := s.api.InitSearch(rCtx, ctx.qt, &ctx.sq)
-		if err != nil {
-			return 0, ctx.writeErrorMessage(err)
-		}
-		defer bi.MustClose()
-		// Send empty error message to vmselect.
-		if err := ctx.writeString(""); err != nil {
-			return 0, fmt.Errorf("cannot send empty error message: %w", err)
-		}
+	sendBlocks := func() (int, error) {
+		defer cm.stop()
 
 		// Send found blocks to vmselect.
 		blocksRead := 0
