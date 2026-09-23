@@ -18,7 +18,7 @@ var disableMmap = flag.Bool("fs.disableMmap", is32BitPtr, "Whether to use pread(
 	"mmap() is usually faster for reading small data chunks than pread()")
 
 var disableAdviseRandomRead = flag.Bool("fs.disableAdviseRandomRead", true, "Whether to disable FADV_RANDOM and MADV_RANDOM hints for data part files. "+
-	"Typical queries with selectors access data part files at random offsets, so FADV_RANDOM is enforced to reduce excessive disk read of readahead."+
+	"Typical queries with selectors access data part files at random offsets, so FADV_RANDOM is enforced to reduce excessive disk readahead."+
 	"Use this flag if your query read pattern benefits from sequential read (e.g. query by metric name without selectors) to prefer FADV_NORMAL.")
 
 var disableMincore = flag.Bool("fs.disableMincore", false, "Whether to disable the mincore() syscall for checking mmap()ed files. "+
