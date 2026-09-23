@@ -59,7 +59,7 @@ var (
 		"Lower values reduce the maximum query durations when some vmstorage nodes become unavailable because of networking issues. "+
 		"Read more about TCP_USER_TIMEOUT at https://blog.cloudflare.com/when-tcp-sockets-refuse-to-die/ . "+
 		"See also -vmstorageDialTimeout")
-	maxWorkersPerQuery = flagutil.NewIntWithDynamicDefault("search.maxWorkersPerQuery", defaultMaxWorkersPerQuery, "netstorage.defaultMaxWorkersPerQuery()",
+	maxWorkersPerQuery = flagutil.NewIntWithDynamicDefault("search.maxWorkersPerQuery", defaultMaxWorkersPerQuery, "CPU cores, capped at 32",
 		"The maximum number of CPU cores a single query can use. "+
 			"The default value should work good for most cases. "+
 			"The flag can be set to lower values for improving performance of big number of concurrently executed queries. "+
