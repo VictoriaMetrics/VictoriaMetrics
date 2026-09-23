@@ -16,9 +16,9 @@ aliases:
 ---
 ## Install Recommendation
 
-It is recommended to run the latest available release of VictoriaMetrics from [this page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest), as it includes all bug fixes and enhancements.
+It is recommended to run the latest available release of VictoriaMetrics from [this page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest), since it contains all the bugfixes and enhancements.
 
-There is no need to tune VictoriaMetrics, as it uses reasonable defaults for its command-line flags. These flags are automatically adjusted for the available CPU and RAM resources. There is no need for operating system tuning because VictoriaMetrics is optimized for default OS settings. The only option is to increase the limit on the [number of open files in the OS](https://medium.com/@muhammadtriwibowo/set-permanently-ulimit-n-open-files-in-ubuntu-4d61064429a), so VictoriaMetrics could accept more incoming connections and could keep open more data files. VictoriaMetrics is tested and developed to run efficiently on these defaults, which fit the majority of workloads. Change a setting only if the documentation explains when it applies and why it is needed.
+There is no need to tune VictoriaMetrics because it uses reasonable defaults for command-line flags. These flags are automatically adjusted for the available CPU and RAM resources. There is no need in Operating System tuning because VictoriaMetrics is optimized for default OS settings. The only option is to increase the limit on the [number of open files in the OS](https://medium.com/@muhammadtriwibowo/set-permanently-ulimit-n-open-files-in-ubuntu-4d61064429a), so VictoriaMetrics could accept more incoming connections and could keep open more data files.
 
 ## Swap
 
