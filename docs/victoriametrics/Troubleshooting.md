@@ -463,6 +463,82 @@ at [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cl
   that results in excess disk space usage for both the `indexdb` and `data` folders under the `-storageDataPath` folder.
   The solution is to identify and fix the source of the high churn rate with the [cardinality explorer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer).
 
+### Acting on disk space alerts
+
+For the [cluster disk space alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-cluster.yml)
+`NodeBecomesReadonlyIn3Days`, `DiskRunsOutOfSpaceIn3Days`, and `DiskRunsOutOfSpace`, first check the time to
+[readonly mode](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#readonly-mode). Then check
+what happens to writes if nodes become readonly before choosing an action.
+
+The following query estimates the time to readonly mode in seconds:
+
+```metricsql
+clamp_min(sum(vm_free_disk_space_bytes - vm_free_disk_space_limit_bytes) without(path), 0)
+/
+((rate(vm_rows_added_to_storage_total[1d]) - sum(rate(vm_deduplicated_samples_total[1d])) without(type))
+*
+ (sum(vm_data_size_bytes{type!~"indexdb.*"}) without(type) / sum(vm_rows{type!~"indexdb.*"}) without(type))
++
+ rate(vm_new_timeseries_created_total[1d]) * (sum(vm_data_size_bytes{type="indexdb/file"}) without(type)
+/
+  sum(vm_rows{type="indexdb/file"}) without(type)))
+```
+
+Count the nodes that may become readonly before a planned fix takes effect. Divide by the number of storage nodes in
+that cluster. Use this share to choose from the actions below. To see which nodes are already readonly, use
+`vm_storage_is_read_only == 1`.
+
+If `vminsert` has [`-disableReroutingOnUnavailable=true`](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#improving-re-routing-performance-during-restart),
+check whether the sender can buffer writes. For `vmagent`,
+make sure its [on-disk queue](https://docs.victoriametrics.com/victoriametrics/vmagent/#on-disk-persistence) is enabled.
+This query gives a rough estimate of how long each `vmagent` instance can buffer writes at the recent incoming rate:
+
+```metricsql
+min by(instance) (vm_persistentqueue_free_disk_space_bytes)
+/
+sum by(instance) (rate(vmagent_remotewrite_block_size_bytes_sum[1h]))
+```
+
+The result estimates how long before `vmagent` starts dropping data if writes stop reaching storage.
+
+If `vminsert` has `-disableReroutingOnUnavailable=false`, check connection saturation. It is the percentage of time
+a connection spends sending data. The following query shows the highest saturation across connections from
+`vminsert` to `vmstorage`:
+
+```metricsql
+max(rate(vm_rpc_send_duration_seconds_total[5m])) * 100
+```
+
+Keep saturation at 60% or less.
+Free headroom should be at least twice the share of nodes that may become readonly. For example, if 3 of 10 nodes
+are affected, keep at least 60% free, so saturation stays at 40% or less. Also check that the other `vmstorage` nodes
+have enough
+[free CPU and memory](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#capacity-planning)
+for re-routed writes.
+
+Use the time to readonly mode to decide how quickly a fix must work. Choose one or more actions:
+
+- Filter unneeded data before it reaches storage. Use the
+  [cardinality explorer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer)
+  to find high-cardinality data and the
+  [metric name usage tracker](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#track-ingested-metrics-usage)
+  to find unused metric names. Apply [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/) to drop
+  unneeded data. Once applied, this slows future disk growth but does not free existing disk space immediately.
+- Lower [retention](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention). This permanently
+  deletes historical data. Complete data partitions, including their indexes, can be removed after `vmstorage` restarts.
+  Data in partially expired partitions is removed later during
+  [background merges](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#storage).
+- Add [`vmstorage` nodes](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#cluster-resizing-and-scalability)
+  to slow disk growth on existing nodes, or increase disk sizes across existing nodes to give retention more time to free
+  space before they become readonly.
+- Move new writes to a new cluster if uneven disk usage requires frequent changes to individual nodes. Rapid growth
+  increases the operational overhead from the frequency of individual alerts. Configure `vmselect` to query both
+  clusters until the old cluster's retention period expires.
+- Leave nodes in [readonly mode](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#readonly-mode)
+  without immediate changes only if re-routing is enabled and the checks above show enough headroom for the extra writes.
+  If replication is enabled, verify that enough writable nodes remain according to
+  [replication and data safety](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety).
+
 ## Monitoring
 
 Having proper [monitoring](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#monitoring)
