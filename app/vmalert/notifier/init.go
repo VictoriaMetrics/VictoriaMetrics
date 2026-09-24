@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
@@ -105,8 +106,8 @@ func InitAlertURLGeneratorFn(externalURL *url.URL, externalAlertSource string, v
 var (
 	// getActiveNotifiers returns the current list of Notifier objects.
 	getActiveNotifiers func() []Notifier
-	// globalRelabelCfg stores the parsed alert relabeling config from the config file if there is
-	globalRelabelCfg *promrelabel.ParsedConfigs
+	// globalAlertRelabelCfg stores the parsed alert relabeling config from the config file if there is
+	globalAlertRelabelCfg atomic.Pointer[promrelabel.ParsedConfigs]
 
 	// cw holds a configWatcher for configPath configuration file
 	// configWatcher provides a list of Notifier objects discovered
@@ -178,8 +179,8 @@ func Init(extLabels map[string]string, extURL string) error {
 	if err != nil {
 		return err
 	}
-	if cfg.AlertRelabelConfigs != nil {
-		globalRelabelCfg = cfg.parsedAlertRelabelConfigs
+	if cfg.parsedAlertRelabelConfigs != nil {
+		globalAlertRelabelCfg.Store(cfg.parsedAlertRelabelConfigs)
 	}
 	cw, err = newWatcher(cfg, AlertURLGeneratorFn)
 	if err != nil {
@@ -299,7 +300,8 @@ func Send(ctx context.Context, alerts []Alert, notifierHeaders map[string]string
 	lblss := make([][]prompb.Label, 0, len(alerts))
 	// apply global relabel config first without modifying original alerts in alerts
 	for _, a := range alerts {
-		lbls := a.applyRelabelingIfNeeded(globalRelabelCfg)
+		rc := globalAlertRelabelCfg.Load()
+		lbls := a.applyRelabelingIfNeeded(rc)
 		if len(lbls) == 0 {
 			continue
 		}
