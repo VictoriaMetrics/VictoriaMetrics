@@ -138,13 +138,13 @@ groups:
 {{% available_from "v1.30.6" anomaly %}} An experimental [Docker Hardened Images](https://www.docker.com/products/hardened-images/)-based variant is available on Docker Hub and Quay for `linux/amd64` and `linux/arm64`:
 
 ```text
-victoriametrics/vmanomaly:v1.30.6-dhi
-victoriametrics/vmanomaly:v1.30.6-enterprise-dhi
-quay.io/victoriametrics/vmanomaly:v1.30.6-dhi
-quay.io/victoriametrics/vmanomaly:v1.30.6-enterprise-dhi
+victoriametrics/vmanomaly:v1.30.7-dhi
+victoriametrics/vmanomaly:v1.30.7-enterprise-dhi
+quay.io/victoriametrics/vmanomaly:v1.30.7-dhi
+quay.io/victoriametrics/vmanomaly:v1.30.7-enterprise-dhi
 ```
 
-These are aliases of the same application image and have the same license requirements. The `-enterprise-dhi` ordering supports Helm's `image.variant: dhi` when enterprise mode is enabled, `image.tag` is empty, and the chart appVersion matches the desired release. With an older chart, set `image.tag: v1.30.6-enterprise-dhi` explicitly. Standard `v1.30.6`, `v1.30.6-enterprise` and `latest` tags retain their existing base image.
+These are aliases of the same application image and have the same license requirements. The `-enterprise-dhi` ordering supports Helm's `image.variant: dhi` when enterprise mode is enabled, `image.tag` is empty, and the chart appVersion matches the desired release. With an older chart, set `image.tag: v1.30.7-enterprise-dhi` explicitly. Standard `v1.30.7`, `v1.30.7-enterprise` and `latest` tags retain their existing base image.
 
 > [!WARNING]
 > The hardened image runs as a non-root user and contains no runtime shell or package manager. Ensure mounted configuration and license files are readable and state directories are writable by the container user; shell-based entrypoint overrides and `docker exec ... sh` are unavailable.
@@ -158,7 +158,7 @@ Below are the steps to get `vmanomaly` up and running inside a Docker container:
 1. Pull Docker image:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.30.6
+docker pull victoriametrics/vmanomaly:v1.30.7
 ```
 
 2. Create the license file with your license key.
@@ -178,7 +178,7 @@ docker run -it \
     -v ./license:/license \
     -v ./config.yaml:/config.yaml \
     -p 8490:8490 \
-    victoriametrics/vmanomaly:v1.30.6 \
+    victoriametrics/vmanomaly:v1.30.7 \
     /config.yaml \
     --licenseFile=/license \
     --loggerLevel=INFO \
@@ -195,7 +195,7 @@ docker run -it \
     -e VMANOMALY_DATA_DUMPS_DIR=/tmp/vmanomaly/data \
     -e VMANOMALY_MODEL_DUMPS_DIR=/tmp/vmanomaly/models \
     -p 8490:8490 \
-    victoriametrics/vmanomaly:v1.30.6 \
+    victoriametrics/vmanomaly:v1.30.7 \
     /config.yaml \
     --licenseFile=/license \
     --loggerLevel=INFO \
@@ -208,7 +208,7 @@ services:
   # ...
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.30.6
+    image: victoriametrics/vmanomaly:v1.30.7
     # ...
     restart: always
     volumes:
