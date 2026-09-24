@@ -179,6 +179,16 @@ type oidcProviderMetadata struct {
 
 var oidcHTTPClient = &http.Client{
 	Timeout: time.Second * 5,
+	CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		firstHost := via[0].URL.Host
+		if !strings.EqualFold(req.URL.Host, firstHost) {
+			return fmt.Errorf("redirect to %q is not allowed; it must stay within %q", req.URL.Host, firstHost)
+		}
+		if len(via) >= 10 {
+			return errors.New("stopped after 10 redirects")
+		}
+		return nil
+	},
 }
 
 // oidcMaxResponseSize defines a hard limit on how big a response the Identity Provider can send.
