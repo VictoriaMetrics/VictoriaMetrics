@@ -1,6 +1,7 @@
 ---
 weight: 4
 title: Self-monitoring
+description: "Track vmanomaly health and operational performance."
 menu:
   docs:
     identifier: "vmanomaly-self-monitoring"
@@ -24,6 +25,8 @@ Self-monitoring metrics are available in both the [push](https://docs.victoriame
 > For the detailed overview of self-monitoring metrics that are produced by `vmanomaly` and how to enable their tracking for push/pull models, please refer to [monitoring](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/) section docs.
 
 The self-monitoring assets of `vmanomaly` include Grafana dashboard and accompanying alerting rules.
+
+{{% available_from "v1.30.5" anomaly %}} For AI-assisted investigations, see [AI Copilot metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#ai-copilot-metrics): request representation size, reported input/output tokens, response finish reasons and local context-budget refusals. These counters use bounded labels and are exposed when Copilot budgeting initializes. Existing dashboards may need additional panels to display them.
 
 ## Grafana Dashboard
 

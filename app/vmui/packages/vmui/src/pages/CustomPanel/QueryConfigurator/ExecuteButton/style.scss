@@ -1,0 +1,16 @@
+@use "src/styles/variables" as *;
+
+.vm-execute-group {
+  display: flex;
+
+  &__execute-button {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    border-right: $border-divider;
+    border-right-color: $color-background-body;
+  }
+
+  &__refresh-interval {
+    text-transform: lowercase;
+  }
+}

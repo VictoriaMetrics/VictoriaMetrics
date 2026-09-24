@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/cespare/xxhash/v2"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/appmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
@@ -62,9 +63,10 @@ var (
 		"See also -remoteWrite.maxDiskUsagePerURL and -remoteWrite.disableOnDiskQueue")
 	keepDanglingQueues = flag.Bool("remoteWrite.keepDanglingQueues", false, "Keep persistent queues contents at -remoteWrite.tmpDataPath in case there are no matching -remoteWrite.url. "+
 		"Useful when -remoteWrite.url is changed temporarily and persistent queue files will be needed later on.")
-	queues = flagutil.NewArrayInt("remoteWrite.queues", cgroup.AvailableCPUs()*2, "The number of concurrent queues to each -remoteWrite.url. Set more queues if default number of queues "+
-		"isn't enough for sending high volume of collected data to remote storage. "+
-		"Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage")
+	queues = flagutil.NewArrayIntWithDynamicDefault("remoteWrite.queues", cgroup.AvailableCPUs()*2, "2x CPU cores",
+		"The number of concurrent queues to each -remoteWrite.url. Set more queues if default number of queues "+
+			"isn't enough for sending high volume of collected data to remote storage. "+
+			"Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage")
 	inmemoryQueues = flagutil.NewArrayInt("remoteWrite.inmemoryQueues", 0, "The number of additional workers per each -remoteWrite.url, which send only recently ingested data from the in-memory queue, "+
 		"while the file-based queue at -remoteWrite.tmpDataPath is drained by workers configured via -remoteWrite.queues. "+
 		"This reduces delivery lag for fresh samples when the file-based queue contains a backlog accumulated during remote storage outages.")
@@ -104,7 +106,7 @@ var (
 	dropSamplesOnOverload = flag.Bool("remoteWrite.dropSamplesOnOverload", false, "Whether to drop samples when -remoteWrite.disableOnDiskQueue is set and if the samples "+
 		"cannot be pushed into the configured -remoteWrite.url systems in a timely manner. See https://docs.victoriametrics.com/victoriametrics/vmagent/#disabling-on-disk-persistence")
 	disableMetadataPerURL = flagutil.NewArrayBool("remoteWrite.disableMetadata", "Whether to disable sending metadata to the corresponding -remoteWrite.url. "+
-		"By default, metadata sending is controlled by the global -enableMetadata flag")
+		"By default, metadata sending is controlled by the global -enableMetadata flag, and is always disabled for URLs with -remoteWrite.mdx.enable=true")
 
 	enableMdx = flagutil.NewArrayBool("remoteWrite.mdx.enable", "Whether to only retain metrics from VictoriaMetrics services before sending them to the corresponding -remoteWrite.url. "+
 		"Can be combined with -remoteWrite.obfuscateLabels to hide sensitive label values in the forwarded metrics. "+
@@ -233,6 +235,7 @@ func Init() {
 	initStreamAggrConfigGlobal()
 
 	initRemoteWriteCtxs(*remoteWriteURLs)
+	appmetrics.MustCreateUncleanShutdownMarker(*tmpDataPath)
 
 	disableOnDiskQueues := []bool(*disableOnDiskQueue)
 	disableOnDiskQueueAny = slices.Contains(disableOnDiskQueues, true)
@@ -391,6 +394,8 @@ func Stop() {
 	if sl := dailySeriesLimiter; sl != nil {
 		sl.MustStop()
 	}
+
+	appmetrics.MustRemoveUncleanShutdownMarker(*tmpDataPath)
 }
 
 // PushDropSamplesOnFailure pushes wr to the configured remote storage systems set via -remoteWrite.url
@@ -882,8 +887,9 @@ type remoteWriteCtx struct {
 	streamAggrDropInput bool
 
 	// enableMetadata indicates whether metadata should be sent to this remote storage.
-	// It is determined by -remoteWrite.enableMetadata per-URL flag if set,
+	// It is determined by -remoteWrite.disableMetadata per-URL flag if set,
 	// otherwise by the global -enableMetadata flag.
+	// It is always false for the remote storage that is configured with -remoteWrite.mdx.enable=true.
 	enableMetadata bool
 
 	pss        []*pendingSeries
@@ -901,9 +907,14 @@ type remoteWriteCtx struct {
 }
 
 // isMetadataEnabledForURL returns true if metadata should be sent to the remote storage at argIdx.
-// It checks the per-URL -remoteWrite.disableMetadata flag first.
+// Metadata is disabled for MDX URLs.
+// Otherwise, it checks the per-URL -remoteWrite.disableMetadata flag first.
 // If not set, it falls back to the global -enableMetadata flag.
 func isMetadataEnabledForURL(argIdx int) bool {
+	if enableMdx.GetOptionalArg(argIdx) {
+		// Metadata is always disabled for MDX URLs.
+		return false
+	}
 	if disableMetadataPerURL.GetOptionalArg(argIdx) {
 		// Metadata is explicitly disabled for this URL
 		return false

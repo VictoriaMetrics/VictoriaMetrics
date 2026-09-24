@@ -1,5 +1,6 @@
 ---
 title: Configuration
+description: "Detailed configuration reference for stream aggregation rules, match/filter patterns, and deduplication."
 weight: 1
 menu:
   docs:

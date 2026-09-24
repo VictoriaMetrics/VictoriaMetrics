@@ -1,5 +1,6 @@
 ---
 title: Models
+description: "Model types and configuration. Built-in and custom anomaly detection models."
 weight: 1
 menu:
   docs:
@@ -730,17 +731,24 @@ models:
 {{% available_from "v1.30.0" anomaly %}} Agents, the UI, and external automation can tune one shared configuration across a bounded sample of query results without adding an `auto` wrapper to the production configuration:
 
 1. Inspect the query with `GET /api/v1/timeseries/characteristics` to identify trend, calendar seasonality, changepoints, gaps, and intermittent behavior.
-2. Start a task with `POST /api/v1/autotune/tasks`. Provide the actual query, the candidate model class, the same query `step` used in production, and a bounded `limit`.
+2. Start a task with `POST /api/v1/autotune/tasks`. Provide the actual query (or named queries), the candidate model class, the same query `step` used in production, and a bounded `limit`.
 3. Poll `GET /api/v1/autotune/tasks/{task_id}` until `status` is `done`; cancel unnecessary work with `DELETE` on the same path.
 4. Validate and deploy `result_data.data.modelConfig`, which is a concrete configuration for the selected model class.
 
 > [!TIP]
-> Use [skills](https://docs.victoriametrics.com/ai-tools/#agent-skills) where abovementioned workflow is automated. Also, [AI Copilot](https://docs.victoriametrics.com/anomaly-detection/ui/#ai-assistant) can generate a tuned model configuration to interactively backtest in UI, based on the query data characteristics and user's anomaly expectations.
+> Use [skills](https://docs.victoriametrics.com/ai-tools/#agent-skills) where abovementioned workflow is automated. Also, [AI Copilot](https://docs.victoriametrics.com/anomaly-detection/ui/#ai-assistance) can generate a tuned model configuration to interactively backtest in UI, based on the query data characteristics and user's anomaly expectations.
 
-Example request for an online model:
+The examples below are JSON bodies for `POST /api/v1/autotune/tasks`. Replace the example `datasource_url` with an address reachable from vmanomaly and adjust `start` and `end` (Unix seconds) to your data. The examples select 2026-08-10 00:00 UTC through 2026-09-09 00:00 UTC. See the server’s [interactive API reference](https://docs.victoriametrics.com/anomaly-detection/components/server/#interactive-api-reference) for the running version’s request schemas.
+
+<div class="collapse-group mb-3">
+
+{{% collapse name="Univariate online-model example" %}}
 
 ```json
 {
+  "datasource_url": "http://victoriametrics:8428",
+  "start": 1786320000,
+  "end": 1788912000,
   "query": "sum(rate(http_requests_total[5m])) by (service)",
   "tuned_class_name": "temporal_envelope",
   "anomaly_percentage": 0.01,
@@ -755,10 +763,69 @@ Example request for an online model:
     "optimize_complexity": true
   },
   "frozen_params": {
-    "holidays": {"countries": ["US"], "group": true}
+    "holidays": {
+      "countries": [
+        "US"
+      ],
+      "group": true
+    }
   }
 }
 ```
+
+{{% /collapse %}}
+
+{{% collapse name="Multivariate named-query example with grouping" %}}
+
+{{% available_from "v1.30.5" anomaly %}} Tune request rate and error rate jointly, with one multivariate input group per `service`. Both expressions must return data for every service included in the study; an absent error series is not automatically treated as zero.
+
+```json
+{
+  "datasource_url": "http://victoriametrics:8428",
+  "start": 1786320000,
+  "end": 1788912000,
+  "queries": {
+    "request_rate": {
+      "expr": "sum by (service) (rate(http_requests_total{service!=\"\"}[5m]))",
+      "data_range": [
+        0,
+        "inf"
+      ]
+    },
+    "error_rate": {
+      "expr": "sum by (service) (rate(http_requests_total{service!=\"\",status=~\"5..\"}[5m]))",
+      "data_range": [
+        0,
+        "inf"
+      ],
+      "detection_direction": "above_expected"
+    }
+  },
+  "tuned_class_name": "temporal_envelope_multivariate",
+  "anomaly_percentage": 0.01,
+  "step": "5m",
+  "limit": 100,
+  "optimization_params": {
+    "exact": true,
+    "n_splits": 3,
+    "n_trials": 64,
+    "timeout": 60,
+    "optimize_complexity": true
+  },
+  "frozen_params": {
+    "groupby": [
+      "service"
+    ],
+    "score_aggregation": "l2"
+  }
+}
+```
+
+For each candidate configuration, the server fits and evaluates separate models for the aligned service groups and aggregates their validation scores in one study. The result is one shared model configuration for all groups. `frozen_params.groupby` keeps grouping fixed, while the named queries retain their individual business policies. `limit` applies separately to each expression; ensure it is large enough to retain all required channels for the intended groups.
+
+{{% /collapse %}}
+
+</div>
 
 The requested anomaly percentage is treated as an alert-volume constraint rather than a target that must be reached in every validation fold. Model-specific search ranges may be narrowed using the sampled characteristics, while `frozen_params` preserves operator-supplied context. For online models, `exact: true` usually gives the most representative choice when production inference is causal.
 
@@ -1087,6 +1154,7 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 `vmanomaly` uses the Facebook Prophet implementation for time series forecasting, with detailed usage provided in the [Prophet library documentation](https://facebook.github.io/prophet/docs/quick_start#python-api). All original Prophet parameters are supported and can be directly passed to the model via `args` argument.
 
 > `ProphetModel` is a [univariate](#univariate-models), [offline](#offline-models) model.
+
 
 > [!NOTE]
 > Prophet is planned for deprecation in a future release. For new forecasting and anomaly-detection deployments, prefer the online [Temporal Envelope](#temporal-envelope) model unless Prophet-specific decomposition output is required.
@@ -1529,7 +1597,31 @@ class CustomModel(Model):
         return deserialize_basic(model)
 ```
 
-`Model` is univariate and offline by default. A custom online model should derive from `OnlineModel` and implement causal update semantics; setting `is_online = True` alone is not sufficient. A multivariate model must follow the merged-channel input contract and return one joint `anomaly_score`; use `MultivariateModel` as its base class.
+`Model` is offline and uses the one-input-to-one-output service topology by default. A custom online model should derive from `OnlineModel` and implement causal update semantics; setting `is_online = True` alone is not sufficient.
+
+{{% available_from "v1.30.3" anomaly %}} Custom models must use `ModelTopology` to declare how service-level input identities map to output identities. The topology controls orchestration, persistence, grouping, and output-label restoration; it does **not** describe the number of columns returned by `infer`.
+
+- `ModelTopology.ONE_TO_ONE` is the default: the service maintains one model for each input series.
+- `ModelTopology.MANY_TO_ONE` merges aligned input series into one model identity and one joint `anomaly_score`. The model may also return per-channel `y`, `yhat`, `yhat_lower`, `yhat_upper`, or `forecast_at` prediction columns; those diagnostics do not change its many-to-one topology.
+- `ModelTopology.MANY_TO_MANY` is the `WideModel` extension contract for an online model that tracks a changing pool of peer series and restores an output identity for each entity.
+
+For a custom many-to-one model, derive from `MultivariateModel` and declare the contract explicitly:
+
+```python
+from model.model import MultivariateModel
+from model.topology import ModelTopology
+
+
+class CustomMultivariateModel(MultivariateModel):
+    topology = ModelTopology.MANY_TO_ONE
+
+    # fit receives timestamp plus one value column per aligned input channel.
+    # infer returns a joint anomaly_score and may include per-channel diagnostics.
+```
+
+The legacy `is_multivariate = True` class flag may still describe an algorithm internally, but it no longer selects service routing. A class that sets only that flag is orchestrated as one-to-one. Existing compatible built-in multivariate dumps continue to restore through their built-in class definitions.
+
+For a changing peer pool, derive from `WideModel`. Its `fit` and `infer` methods consume a long DataFrame with `timestamp`, `entity_id`, and `y`; returned entity-level rows must retain `entity_id` so the service can restore the original labels. `WideModel` is a semantic extension contract, not a marker used only to store `topology`.
 
 ### 2. Configuration file
 
@@ -1585,7 +1677,7 @@ See the [component configuration reference](https://docs.victoriametrics.com/ano
 Pull the `vmanomaly` image:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.30.2
+docker pull victoriametrics/vmanomaly:v1.30.6
 ```
 
 Mount the module at `/vmanomaly/src/model/custom.py`, which matches the configured import path `model.custom.CustomModel`. Validate the complete configuration with `--dryRun` before starting the long-running service.
@@ -1595,7 +1687,7 @@ docker run --rm \
   -v "$PWD/license:/license:ro" \
   -v "$PWD/custom_model.py:/vmanomaly/src/model/custom.py:ro" \
   -v "$PWD/config.yaml:/config.yaml:ro" \
-  victoriametrics/vmanomaly:v1.30.2 \
+  victoriametrics/vmanomaly:v1.30.6 \
   /config.yaml \
   --licenseFile=/license \
   --dryRun

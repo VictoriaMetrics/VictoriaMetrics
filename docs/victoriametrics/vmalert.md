@@ -5,6 +5,7 @@ menu:
     parent: victoriametrics
     weight: 4
 title: vmalert
+description: "Alerting and recording rule evaluation with Alertmanager integration and multi-tenancy support."
 tags:
   - metrics
   - logs
@@ -1025,6 +1026,9 @@ Try the following tips to avoid common issues:
     In that case, the default step will be used (`-datasource.queryStep`) and may cause unexpected results compared to
     executing this query in vmui/Grafana, where step is adjusted differently.
 
+See [practical examples for reducing alert noise](https://victoriametrics.com/blog/alerting-best-practices/#reducing-noise),
+including aggregating alerts and configuring inhibition.
+
 ### Rule state
 
 vmalert keeps the last `-rule.updateEntriesLimit` updates (or `update_entries_limit` [per-rule config](https://docs.victoriametrics.com/victoriametrics/vmalert/#alerting-rules))
@@ -1080,6 +1084,9 @@ Sometimes, it's hard to understand why a specific alert fired or not. Keep in mi
 If evaluation returns error (i.e. datasource is unavailable), alert state doesn't change.
 If at least one evaluation returns no data, then alert's `for` state resets.
 
+See [how to tune the `for` parameter](https://victoriametrics.com/blog/alerting-best-practices/#the-for-param),
+including its tradeoff with the query lookbehind window.
+
 > Note: The alert state is tracked separately for each time series returned during evaluation.
 > For example, if the 1st evaluation returns series A and B, and the 2nd evaluation returns only B – the alert will remain active **only for B**.
 
@@ -1120,13 +1127,18 @@ Or for all rules within the [group](#groups) {{% available_from "v1.117.0" %}}.
 Just set `debug: true` in configuration and vmalert will start printing additional log messages:
 
 ```sh
-2022-09-15T13:35:41.155Z  DEBUG alerting rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:35:41+02:00: query returned 0 series (elapsed: 5.896041ms, isPartial: false)
-2022-09-15T13:35:56.149Z  DEBUG datasource request: executing POST request with params "denyPartialResponse=true&query=sum%28vm_tcplistener_conns%7Binstance%3D%22localhost%3A8429%22%7D%29+by%28instance%29+%3E+0&step=15s&time=1663248945"
-2022-09-15T13:35:56.178Z  DEBUG alerting rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:35:56+02:00: query returned 1 series (elapsed: 28.368208ms, isPartial: false)
-2022-09-15T13:35:56.178Z  DEBUG datasource request: executing POST request with params "denyPartialResponse=true&query=sum%28vm_tcplistener_conns%7Binstance%3D%22localhost%3A8429%22%7D%29&step=15s&time=1663248945"
-2022-09-15T13:35:56.179Z  DEBUG alerting rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:35:56+02:00: alert 10705778000901301787 {alertgroup="TestGroup",alertname="Conns",cluster="east-1",instance="localhost:8429",replica="a"} created in state PENDING
+2026-08-20T08:21:29.464Z        info    VictoriaMetrics/app/vmalert/datasource/client.go:262    DEBUG datasource request: executing POST request with params "http://victoriametrics:8428/api/v1/query?query=up%7Bjob%3D~%22.%2A%28victoriametrics%7Cvmselect%7Cvminsert%7Cvmstorage%7Cvmagent%7Cvmalert%7Cvmsingle%7Cvmalertmanager%7Cvmauth%29.%2A%22%7D&step=300s&time=2026-08-20T08%3A20%3A00Z"
+2026-08-20T08:21:29.465Z        info    VictoriaMetrics/app/vmalert/rule/alerting.go:273        DEBUG alerting rule "/etc/alerts/alerts-health.yml", "vm-health":"ServiceDown" (1340947595484135783) at 2026-08-20T08:20:00Z: query returned 0 series (series_fetched: 0, elapsed: 1.075166ms, isPartial: false)
 ...
-2022-09-15T13:36:56.153Z  DEBUG alerting rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:36:56+02:00: alert 10705778000901301787 {alertgroup="TestGroup",alertname="Conns",cluster="east-1",instance="localhost:8429",replica="a"} PENDING => FIRING: 1m0s since becoming active at 2022-09-15 15:35:56.126006 +0200 CEST m=+39.384575417
+2026-08-20T08:22:29.466Z        info    VictoriaMetrics/app/vmalert/datasource/client.go:262    DEBUG datasource request: executing POST request with params "http://victoriametrics:8428/api/v1/query?query=up%7Bjob%3D~%22.%2A%28victoriametrics%7Cvmselect%7Cvminsert%7Cvmstorage%7Cvmagent%7Cvmalert%7Cvmsingle%7Cvmalertmanager%7Cvmauth%29.%2A%22%7D&step=300s&time=2026-08-20T08%3A21%3A00Z"
+2026-08-20T08:22:29.468Z        info    VictoriaMetrics/app/vmalert/rule/alerting.go:273        DEBUG alerting rule "/etc/alerts/alerts-health.yml", "vm-health":"ServiceDown" (1340947595484135783) at 2026-08-20T08:21:00Z: query returned 2 series (series_fetched: 2, elapsed: 2.055916ms, isPartial: false)
+2026-08-20T08:22:29.469Z        info    VictoriaMetrics/app/vmalert/rule/alerting.go:273        DEBUG alerting rule "/etc/alerts/alerts-health.yml", "vm-health":"ServiceDown" (1340947595484135783) at 2026-08-20T08:21:00Z: alert 4671711516378822929 {alertgroup="vm-health",alertname="ServiceDown",instance="victoriametrics:8428",job="victoriametrics",severity="critical"} created in state PENDING
+2026-08-20T08:22:29.469Z        info    VictoriaMetrics/app/vmalert/rule/alerting.go:273        DEBUG alerting rule "/etc/alerts/alerts-health.yml", "vm-health":"ServiceDown" (1340947595484135783) at 2026-08-20T08:21:00Z: alert 6230585559362831632 {alertgroup="vm-health",alertname="ServiceDown",instance="vmagent:8429",job="vmagent",severity="critical"} created in state PENDING
+...
+2026-08-20T08:23:29.463Z        info    VictoriaMetrics/app/vmalert/datasource/client.go:262    DEBUG datasource request: executing POST request with params "http://victoriametrics:8428/api/v1/query?query=up%7Bjob%3D~%22.%2A%28victoriametrics%7Cvmselect%7Cvminsert%7Cvmstorage%7Cvmagent%7Cvmalert%7Cvmsingle%7Cvmalertmanager%7Cvmauth%29.%2A%22%7D&step=300s&time=2026-08-20T08%3A22%3A00Z"
+2026-08-20T08:23:29.465Z        info    VictoriaMetrics/app/vmalert/rule/alerting.go:273        DEBUG alerting rule "/etc/alerts/alerts-health.yml", "vm-health":"ServiceDown" (1340947595484135783) at 2026-08-20T08:22:00Z: query returned 2 series (series_fetched: 2, elapsed: 1.391416ms, isPartial: false)
+2026-08-20T08:23:29.466Z        info    VictoriaMetrics/app/vmalert/rule/alerting.go:273        DEBUG alerting rule "/etc/alerts/alerts-health.yml", "vm-health":"ServiceDown" (1340947595484135783) at 2026-08-20T08:22:00Z: alert 4671711516378822929 {alertgroup="vm-health",alertname="ServiceDown",instance="victoriametrics:8428",job="victoriametrics",severity="critical"} PENDING => FIRING: 1m0s since becoming active at 2026-08-20 08:21:00 +0000 UTC
+2026-08-20T08:23:29.466Z        info    VictoriaMetrics/app/vmalert/rule/alerting.go:273        DEBUG alerting rule "/etc/alerts/alerts-health.yml", "vm-health":"ServiceDown" (1340947595484135783) at 2026-08-20T08:22:00Z: alert 6230585559362831632 {alertgroup="vm-health",alertname="ServiceDown",instance="vmagent:8429",job="vmagent",severity="critical"} PENDING => FIRING: 1m0s since becoming active at 2026-08-20 08:21:00 +0000 UTC
 ```
 
 Sensitive info is stripped from the `curl` examples - see [security](#security) section for more details.

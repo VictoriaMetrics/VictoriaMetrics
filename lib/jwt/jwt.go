@@ -623,6 +623,11 @@ func (t *Token) IsExpired(currentTime time.Time) bool {
 	return currentTime.Unix() > t.body.Exp
 }
 
+// ExpiresAt returns the token expiration time derived from the `exp` claim.
+func (t *Token) ExpiresAt() time.Time {
+	return time.Unix(t.body.Exp, 0)
+}
+
 // CanWrite checks if token has write permissions.
 func (t *Token) CanWrite() bool {
 	// unconfigured
@@ -800,7 +805,7 @@ func NewClaim(key, value string) (*Claim, error) {
 	} else {
 		nestedKeys = []string{key}
 	}
-	valueRe, err := regexp.Compile(value)
+	valueRe, err := regexp.Compile("^(?:" + value + ")$")
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse value match re=%q: %w", value, err)
 	}

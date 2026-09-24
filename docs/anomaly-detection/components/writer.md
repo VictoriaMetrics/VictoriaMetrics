@@ -1,5 +1,6 @@
 ---
 title: Writer
+description: "Data writer. Write anomaly scores back to VictoriaMetrics."
 weight: 4
 menu:
   docs:
@@ -269,6 +270,45 @@ Path to a file, which contains token, that is passed in the standard format with
 Number of attempts to retry the connection in case of failure {{% available_from "v1.29.2" anomaly %}}.
             </td>
         </tr>
+        <tr>
+            <td>
+
+<span style="white-space: nowrap;">`batch_max_series`</span>
+            </td>
+            <td>
+
+`1000`
+            </td>
+            <td>
+Maximum number of output time series in one VictoriaMetrics import request {{% available_from "v1.30.3" anomaly %}}. Larger inference output is split into multiple requests. Defaults to `1000`.
+            </td>
+        </tr>
+        <tr>
+            <td>
+
+<span style="white-space: nowrap;">`batch_max_bytes`</span>
+            </td>
+            <td>
+
+`4194304`
+            </td>
+            <td>
+Maximum serialized payload size in bytes for one VictoriaMetrics import request {{% available_from "v1.30.3" anomaly %}}. A single indivisible NDJSON time series may exceed this soft bound. Defaults to 4 MiB (`4194304`).
+            </td>
+        </tr>
+        <tr>
+            <td>
+
+<span style="white-space: nowrap;">`metric_prefix_cache_max_entries`</span>
+            </td>
+            <td>
+
+`10000`
+            </td>
+            <td>
+Maximum number of prepared metric-label prefixes retained across write cycles {{% available_from "v1.30.3" anomaly %}}. Set to `0` to disable cross-cycle prefix caching. Defaults to `10000`.
+            </td>
+        </tr>
     </tbody>
 </table>
 
@@ -289,6 +329,9 @@ writer:
   user: "foo"
   password: "bar"
   connection_retry_attempts: 2  # if not specified, it will be 1 by default
+  batch_max_series: 1000  # maximum series per VictoriaMetrics import request
+  batch_max_bytes: 4194304  # soft maximum serialized request size (4 MiB)
+  metric_prefix_cache_max_entries: 10000  # set to 0 to disable cross-cycle caching
 ```
 
 {{% /collapse %}}

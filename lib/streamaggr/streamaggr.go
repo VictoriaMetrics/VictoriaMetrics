@@ -365,20 +365,12 @@ func (a *Aggregators) Push(tss []prompb.TimeSeries, matchIdxs []uint32) []uint32
 		return matchIdxs
 	}
 
-	// use all available CPU cores to copy time-series into aggregators
-	// See this issue https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9878
-	var wg sync.WaitGroup
-	concurrencyChan := make(chan struct{}, cgroup.AvailableCPUs())
-
+	// Keep pushing time series to aggregators serially, since parallel calls may
+	// introduce CPU overhead while giving limited sample lag reduction.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9878#issuecomment-5692311649
 	for _, aggr := range a.as {
-		concurrencyChan <- struct{}{}
-		wg.Go(func() {
-			aggr.Push(tss, matchIdxs)
-			<-concurrencyChan
-		})
+		aggr.Push(tss, matchIdxs)
 	}
-
-	wg.Wait()
 
 	return matchIdxs
 }

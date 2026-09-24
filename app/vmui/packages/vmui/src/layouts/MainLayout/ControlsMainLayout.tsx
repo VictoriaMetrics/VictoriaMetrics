@@ -5,18 +5,19 @@ import TenantsConfiguration
 import StepConfigurator from "../../components/Configurators/StepConfigurator/StepConfigurator";
 import { TimeSelector } from "../../components/Configurators/TimeRangeSettings/TimeSelector/TimeSelector";
 import CardinalityDatePicker from "../../components/Configurators/CardinalityDatePicker/CardinalityDatePicker";
-import { ExecutionControls } from "../../components/Configurators/TimeRangeSettings/ExecutionControls/ExecutionControls";
-import GlobalSettings from "../../components/Configurators/GlobalSettings/GlobalSettings";
+import GlobalSettings, { GlobalSettingsHandle } from "../../components/Configurators/GlobalSettings/GlobalSettings";
 import ShortcutKeys from "../../components/Main/ShortcutKeys/ShortcutKeys";
 import { ControlsProps } from "../Header/HeaderControls/HeaderControls";
+import { useRef } from "react";
+import TimeZonePreview from "../../components/Configurators/GlobalSettings/TimeZonePreview/TimeZonePreview";
 
 const ControlsMainLayout: FC<ControlsProps> = ({
   displaySidebar,
   isMobile,
   headerSetup,
   accountIds,
-  closeModal,
 }) => {
+  const settingsRef = useRef<GlobalSettingsHandle>(null);
 
   return (
     <div
@@ -27,14 +28,10 @@ const ControlsMainLayout: FC<ControlsProps> = ({
     >
       {headerSetup?.tenant && <TenantsConfiguration accountIds={accountIds || []}/>}
       {headerSetup?.stepControl && <StepConfigurator/>}
-      {headerSetup?.timeSelector && <TimeSelector/>}
+      {headerSetup?.timeSelector && <TimeSelector onOpenSettings={() => settingsRef.current?.open()}/>}
       {headerSetup?.cardinalityDatePicker && <CardinalityDatePicker/>}
-      {headerSetup?.executionControls && <ExecutionControls
-        tooltip={headerSetup?.executionControls?.tooltip}
-        useAutorefresh={headerSetup?.executionControls?.useAutorefresh}
-        closeModal={closeModal}
-      />}
-      <GlobalSettings/>
+      <TimeZonePreview onOpenSettings={() => settingsRef.current?.open()}/>
+      <GlobalSettings ref={settingsRef}/>
       {!displaySidebar && <ShortcutKeys/>}
     </div>
   );

@@ -1,5 +1,6 @@
 ---
 title: Proxmox
+description: "Send Proxmox VE/PBS metrics to VictoriaMetrics."
 weight: 6
 menu:
   docs:

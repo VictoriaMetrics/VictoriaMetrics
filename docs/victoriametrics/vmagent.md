@@ -5,6 +5,7 @@ menu:
     parent: victoriametrics
     weight: 3
 title: vmagent
+description: "agent for metrics collection, supporting both push and pull models, service discovery, relabeling, sharding, replication, on-disk buffering."
 tags:
   - metrics
 aliases:
@@ -141,6 +142,7 @@ to other remote storage systems that support Prometheus `remote_write` protocol 
 If a single remote storage instance is temporarily unavailable, the collected data remains available on the other remote storage instances.
 `vmagent` buffers the collected data in files at `-remoteWrite.tmpDataPath` until the remote storage becomes available again.
 Then it sends the buffered data to the remote storage in order to prevent data gaps.
+See how `vmagent` [selects shards and places replicas](https://victoriametrics.com/blog/vmagent-how-it-works/#step-4-sharding--replication) for implementation details.
 
 [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) already supports replication,
 so there is no need to specify multiple `-remoteWrite.url` flags when writing data to the same cluster.
@@ -150,7 +152,8 @@ See [these docs](https://docs.victoriametrics.com/victoriametrics/cluster-victor
 
 `vmagent` can add, remove, or update labels on the collected data before sending it to the remote storage.
 It can filter scrape targets or remove unwanted samples via Prometheus-like relabeling.
-Please see the [Relabeling cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/) for details.
+Please see the [Relabeling cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/) for configuration examples.
+For ingestion pipeline internals, see how `vmagent` [applies global relabeling and cardinality limits](https://victoriametrics.com/blog/vmagent-how-it-works/#step-2-global-relabeling-cardinality-reduction).
 
 ### Sharding among remote storages
 
@@ -171,9 +174,6 @@ by routing outgoing samples for the same time series like [counter](https://docs
 and [histogram](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#histogram) types from top-level `vmagent` instances
 to the same second-level `vmagent` instance, so they are aggregated properly.
 
-If the `-remoteWrite.shardByURL` command-line flag is set, then all the metric labels are used for even sharding
-among remote storage systems specified in `-remoteWrite.url`.
-
 > The `-remoteWrite.shardByURL` may not work as expected when [SRV URLs](https://docs.victoriametrics.com/victoriametrics/vmagent/#srv-urls) are in use.
 >
 > An SRV record might resolve to multiple addresses; one address is chosen **randomly** for all subsequent logic, including sharding.
@@ -182,7 +182,10 @@ among remote storage systems specified in `-remoteWrite.url`.
 > For example, if you set `-remoteWrite.url=srv+foo` and it's resolved to three addresses (`192.168.1.1`, `192.168.1.2`, `192.168.1.3`),
 > vmagent will only choose **one** randomly every time it (re-)creates the connection. In contrast, specifying the addresses manually (`-remoteWrite.url=192.168.1.1 -remoteWrite.url=192.168.1.2 -remoteWrite.url=192.168.1.3`) will shard samples across all three URLs.
 
-Use `-remoteWrite.shardByURL.labels` to route metrics among `-remoteWrite.url` based on their label values. 
+If the `-remoteWrite.shardByURL` command-line flag is set, `vmagent` defaults to using all the metric labels for even sharding
+among remote storage systems specified in `-remoteWrite.url`.
+
+Use `-remoteWrite.shardByURL.labels` to route metrics among `-remoteWrite.url` based on their label values.
 For example, `-remoteWrite.shardByURL.labels=instance,__name__` would shard metrics with the same name and `instance`
 label to the same `-remoteWrite.url`. This command-line flag allows specifying a comma-separated list of labels.
 
@@ -268,7 +271,9 @@ for the collected samples. Examples:
   ```sh
   ./vmagent -remoteWrite.url=http://remote-storage/api/v1/write -streamAggr.dropInputLabels=replica -streamAggr.dedupInterval=60s
   ```
-  
+
+See how `vmagent` [orders global deduplication and stream aggregation](https://victoriametrics.com/blog/vmagent-how-it-works/#step-3-global-deduplication--stream-aggregation) in the ingestion pipeline.
+
 ### Monitoring Data eXchange
 
 The Monitoring Data eXchange (MDX){{% available_from "v1.147.0" %}} feature allows `vmagent` to forward only VictoriaMetrics metrics to selected `-remoteWrite.url` destinations while dropping metrics from non-VictoriaMetrics services.
@@ -280,7 +285,7 @@ To enable MDX, set `-remoteWrite.mdx.enable=true` for the target URL and `-remot
   -remoteWrite.url=http://service-to-keep-all-metrics:8428/api/v1/write \
   -remoteWrite.mdx.enable=false \
   -remoteWrite.url=http://service-to-keep-only-vm-metrics:8428/api/v1/write \
-  -remoteWrite.mdx.enable=true 
+  -remoteWrite.mdx.enable=true
 ```
 When MDX is enabled for a `-remoteWrite.url`, `vmagent` forwards only metrics that:
 - come from the target that exposes the `vm_app_version` metric (emitted by all VictoriaMetrics components)
@@ -301,6 +306,9 @@ In this configuration, metrics with the label `service=victoriametrics` are pres
 The number of VictoriaMetrics metrics preserved by MDX is exposed as `vmagent_remotewrite_mdx_rows_preserved_total`.
 
 The scope of MDX is at the per-url level, so it works after global level mechanisms, such as stream aggregation, relabeling, complexity limiter, and cardinality limiter. See [Life of a sample](https://docs.victoriametrics.com/victoriametrics/vmagent/#life-of-a-sample).
+
+`vmagent` disables [metrics metadata](https://docs.victoriametrics.com/victoriametrics/vmagent/#metric-metadata) sending for MDX remote write URL,
+because VictoriaMetrics services don't expose metadata, and metadata isn't filtered by MDX and may include entries for non-VictoriaMetrics metrics.
 
 ### Life of a sample
 
@@ -358,6 +366,8 @@ in addition to the pull-based Prometheus-compatible targets' scraping:
 * Native data import protocol via `http://<vmagent>:8429/api/v1/import/native`. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-native-format).
 * Prometheus exposition format via `http://<vmagent>:8429/api/v1/import/prometheus`. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-prometheus-exposition-format) for details.
 * Arbitrary CSV data via `http://<vmagent>:8429/api/v1/import/csv`. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-csv-data).
+
+See how `vmagent` [handles concurrency, decompression, and stream parsing](https://victoriametrics.com/blog/vmagent-how-it-works/#step-1-receiving-data-via-api-or-scrape) during ingestion.
 
 ## How to collect metrics in Prometheus format
 
@@ -540,7 +550,7 @@ When comparing the remote protocols between VictoriaMetrics and Prometheus, Vict
 
 `vmagent` uses VictoriaMetrics remote write protocol by default {{% available_from "v1.116.0" %}} when it sends data to VictoriaMetrics components such as other `vmagent` instances,
 [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
-or `vminsert` at [cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/). If needed, it can automatically downgrade to a Prometheus protocol at runtime.
+, `vminsert` at [cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) or `vmstorage` at [cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) (See [Remote write directly to vmstorage](https://docs.victoriametrics.com/victoriametrics/data-ingestion/vmagent/#remote-write-directly-to-vmstorage)). If needed, it can automatically downgrade to a Prometheus protocol at runtime.
 It is possible to force switch to VictoriaMetrics remote write protocol by specifying `-remoteWrite.forceVMProto`
 command-line flag for the corresponding `-remoteWrite.url`.
 It is possible to tune the compression level for VictoriaMetrics remote write protocol with the `-remoteWrite.vmProtoCompressLevel` command-line flag.
@@ -642,7 +652,7 @@ specified via `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig` c
 
 vmagent can write data to multiple distinct tenants if:
 * its `-remoteWrite.url` points to the [VictoriaMetrics cluster multitenant URL](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels)
-* its `-enableMultitenantHandlers` and `-enableMultitenancyViaHeaders` (enabled by default {{% available_from "#" %}}) command-line flags are both set
+* its `-enableMultitenantHandlers` and `-enableMultitenancyViaHeaders` (enabled by default {{% available_from "v1.150.0" %}}) command-line flags are both set
 * clients ingest data into vmagent with the tenants specified [via headers](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-headers) {{% available_from "v1.143.0" %}}
 
 ```mermaid
@@ -857,6 +867,9 @@ However, if the `/insert/multitenant/<suffix>` endpoint is used, vmagent preserv
 Use `-remoteWrite.disableMetadata`{{% available_from "v1.140.0" %}} to fully disable sending metadata from vmagent.
 This reduces network traffic and resource usage when metadata is not required.
 
+Metadata sending is always disabled for `-remoteWrite.url` destinations with [MDX](https://docs.victoriametrics.com/victoriametrics/vmagent/#monitoring-data-exchange) enabled,
+even when the corresponding `-remoteWrite.disableMetadata=false` value is set explicitly.
+
 ## Stream parsing mode
 
 By default, `vmagent` parses the full response from the scrape target, applies [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/)
@@ -1066,6 +1079,7 @@ This behavior can be changed with the `-remoteWrite.inmemoryQueues` {{% availabl
 When set to a non-zero value, vmagent starts the given number of additional workers,
 which send only recently ingested data from the in-memory queue, while the workers configured via `-remoteWrite.queues` drain the file-based backlog concurrently.
 This reduces the delivery lag for fresh samples after remote storage outages or slowdowns. The flag can be set individually per each `-remoteWrite.url`.
+See how the [in-memory and file-based queues manage blocks](https://victoriametrics.com/blog/vmagent-how-it-works/#in-memory-queue) for implementation details.
 
 Note that these workers are started in addition to the workers configured via `-remoteWrite.queues`, so the total number of concurrent connections to
 the remote storage becomes the sum of both flags. Take this into account if the remote storage limits the number of concurrent requests.
@@ -1174,7 +1188,9 @@ Both limits can be set simultaneously. If any of these limits are reached, then 
 
 These limits are approximate, so `vmagent` can underflow or overflow them by a small percentage (usually less than 1%).
 
-See also [cardinality explorer docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer).
+See also:
+- [Cardinality Explorer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer).
+- [vmestimator](https://docs.victoriametrics.com/victoriametrics/vmestimator/).
 
 ## Monitoring
 

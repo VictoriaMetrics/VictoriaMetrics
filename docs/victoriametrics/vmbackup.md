@@ -5,6 +5,7 @@ menu:
     parent: victoriametrics
     weight: 6
 title: vmbackup
+description: "Backup VictoriaMetrics data to GCS, S3, Azure Blob, or local filesystem with incremental backups."
 tags:
   - metrics
 aliases:

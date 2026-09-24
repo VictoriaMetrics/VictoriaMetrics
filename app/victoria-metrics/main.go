@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert"
@@ -13,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/appmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
@@ -25,7 +27,8 @@ import (
 )
 
 var (
-	httpListenAddrs  = flagutil.NewArrayString("httpListenAddr", "TCP addresses to listen for incoming http requests. See also -tls and -httpListenAddr.useProxyProtocol")
+	httpListenAddrs = flagutil.NewArrayString("httpListenAddr", "Addresses to listen for incoming http requests. "+
+		"Use unix:/path/to/socket to listen on Unix domain socket. Note that -tls and -httpListenAddr.useProxyProtocol cannot be used with Unix sockets")
 	useProxyProtocol = flagutil.NewArrayBool("httpListenAddr.useProxyProtocol", "Whether to use proxy protocol for connections accepted at the corresponding -httpListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
@@ -34,9 +37,10 @@ var (
 		"This can be changed with -promscrape.config.strictParse=false command-line flag")
 	maxIngestionRate = flag.Int("maxIngestionRate", 0, "The maximum number of samples vmsingle can receive per second. Data ingestion is paused when the limit is exceeded. "+
 		"By default there are no limits on samples ingestion rate.")
-	vmselectMaxConcurrentRequests = flag.Int("search.maxConcurrentRequests", getDefaultMaxConcurrentRequests(), "The maximum number of concurrent search requests. "+
-		"It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. "+
-		"See also -search.maxQueueDuration and -search.maxMemoryPerQuery")
+	vmselectMaxConcurrentRequests = flagutil.NewIntWithDynamicDefault("search.maxConcurrentRequests", getDefaultMaxConcurrentRequests(), "2x CPU cores, capped at 16",
+		"The maximum number of concurrent search requests. "+
+			"It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. "+
+			"See also -search.maxQueueDuration and -search.maxMemoryPerQuery")
 	vmselectMaxQueueDuration = flag.Duration("search.maxQueueDuration", 10*time.Second, "The maximum time the request waits for execution when -search.maxConcurrentRequests "+
 		"limit is reached; see also -search.maxQueryDuration")
 )
@@ -90,12 +94,17 @@ func main() {
 	}
 	logger.Infof("starting VictoriaMetrics at %q...", listenAddrs)
 	startTime := time.Now()
+
 	vmstorage.Init(*vmselectMaxConcurrentRequests, *vmselectMaxQueueDuration, promql.ResetRollupResultCacheIfNeeded)
+	appmetrics.MustCreateUncleanShutdownMarker(vmstorage.DataPath())
 	vmselect.Init(*vmselectMaxConcurrentRequests, *vmselectMaxQueueDuration)
 	vminsertcommon.StartIngestionRateLimiter(*maxIngestionRate)
 	vminsert.Init()
 
 	startSelfScraper()
+
+	// Register paths which could be protected by their own -*AuthKey flag.
+	httpserver.RegisterAuthKeyProtectedPathsFunc(isAuthKeyProtectedPath)
 
 	go httpserver.Serve(listenAddrs, requestHandler, httpserver.ServeOptions{
 		UseProxyProtocol: useProxyProtocol,
@@ -120,8 +129,37 @@ func main() {
 
 	vmstorage.Stop()
 	vmselect.Stop()
+	appmetrics.MustRemoveUncleanShutdownMarker(vmstorage.DataPath())
 
 	logger.Infof("the VictoriaMetrics has been stopped in %.3f seconds", time.Since(startTime).Seconds())
+}
+
+// isAuthKeyProtectedPath returns true for paths, which verify the corresponding -*AuthKey flag
+// on their own at requestHandler().
+func isAuthKeyProtectedPath(r *http.Request) bool {
+	path := strings.ReplaceAll(r.URL.Path, "//", "/")
+
+	switch path {
+	// for vminsert
+	case "/prometheus/config", "/config",
+		"/prometheus/api/v1/status/config", "/api/v1/status/config",
+		"/prometheus/-/reload", "/-/reload":
+		return true
+
+	// for vmselect
+	case "/internal/resetRollupResultCache",
+		"/tags/delSeries", "/graphite/tags/delSeries",
+		"/api/v1/admin/tsdb/delete_series", "/prometheus/api/v1/admin/tsdb/delete_series",
+		"/api/v1/admin/status/metric_names_stats/reset":
+		return true
+
+	// for vmstorage
+	case "/internal/force_merge", "/internal/force_flush", "/internal/log_new_series",
+		"/api/v1/admin/tsdb/snapshot",
+		"/snapshot/create", "/snapshot/list", "/snapshot/delete", "/snapshot/delete_all":
+		return true
+	}
+	return false
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {

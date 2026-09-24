@@ -10,6 +10,7 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"os"
 	"regexp"
@@ -56,8 +57,9 @@ var (
 
 // AuthConfig represents auth config.
 type AuthConfig struct {
-	Users            []UserInfo `yaml:"users,omitempty"`
-	UnauthorizedUser *UserInfo  `yaml:"unauthorized_user,omitempty"`
+	Users            []UserInfo   `yaml:"users,omitempty"`
+	UnauthorizedUser *UserInfo    `yaml:"unauthorized_user,omitempty"`
+	SSO              []*ssoConfig `yaml:"sso,omitempty"`
 
 	// ms holds all the metrics for the given AuthConfig
 	ms *metrics.Set
@@ -108,7 +110,11 @@ type UserInfo struct {
 
 // AccessLog represents configuration for access log settings.
 type AccessLog struct {
+	// Filters is a list of filters that filter out requests from generating access log.
 	Filters *AccessLogFilters `yaml:"filters"`
+	// Headers is a list of HTTP header keys to print out in the access log.
+	// Headers that are present in request but missing in this list won't be printed
+	Headers []string `yaml:"headers"`
 }
 
 // AccessLogFilters represents list of filters for access logs printing
@@ -129,10 +135,30 @@ func (ui *UserInfo) logRequest(r *http.Request, userName string, statusCode int,
 		}
 	}
 
+	headers := getHeaders(r, ui.AccessLog.Headers)
 	remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 	requestURI := httpserver.GetRequestURI(r)
-	logger.Infof("access_log request_host=%q request_uri=%q status_code=%d remote_addr=%s user_agent=%q referer=%q duration_ms=%d username=%q",
-		r.Host, requestURI, statusCode, remoteAddr, r.UserAgent(), r.Referer(), duration.Milliseconds(), userName)
+	logger.Infof("access_log request_host=%q request_uri=%q status_code=%d remote_addr=%s user_agent=%q referer=%q duration_ms=%d username=%q%s",
+		r.Host, requestURI, statusCode, remoteAddr, r.UserAgent(), r.Referer(), duration.Milliseconds(), userName, headers)
+}
+
+// getHeaders extracts headers that match seek
+// It is assumed that HTTP header key could contain only alphanumeric chars, - and _, so they're not escaped.
+func getHeaders(r *http.Request, seek []string) string {
+	if len(seek) == 0 || r == nil {
+		return ""
+	}
+
+	headers := r.Header
+	b := strings.Builder{}
+	for _, k := range seek {
+		for _, v := range headers.Values(k) {
+			v = strings.TrimSpace(v)
+			// no need for other escapes, as %q already does it
+			fmt.Fprintf(&b, " headers.%s=%q", k, v)
+		}
+	}
+	return b.String()
 }
 
 // hasAnyURLs reports whether ui has at least one backend URL route configured.
@@ -248,6 +274,11 @@ func (h *Header) MarshalYAML() (any, error) {
 type URLMap struct {
 	// SrcPaths is an optional list of regular expressions, which must match the request path.
 	SrcPaths []*Regex `yaml:"src_paths,omitempty"`
+
+	// DenyPaths is an optional list of regular expressions, which must not match the request path.
+	//
+	// This allows excluding a subset of paths matched by SrcPaths without listing every allowed path explicitly.
+	DenyPaths []*Regex `yaml:"deny_paths,omitempty"`
 
 	// SrcHosts is an optional list of regular expressions, which must match the request hostname.
 	SrcHosts []*Regex `yaml:"src_hosts,omitempty"`
@@ -575,9 +606,19 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 				logger.Warnf("cannot discover backend IPs for %s: %s; use it literally", bu, err)
 				resolvedAddrs = []string{host}
 			} else {
-				resolvedAddrs = make([]string, len(addrs))
-				for i, addr := range addrs {
-					resolvedAddrs[i] = net.JoinHostPort(addr.String(), port)
+				resolvedAddrs = make([]string, 0, len(addrs))
+				for _, addr := range addrs {
+					if !netutil.TCP6Enabled() {
+						ip, ok := netip.AddrFromSlice(addr.IP)
+						if !ok {
+							logger.Panicf("BUG: cannot build netip Addr from slice addr: %q", addr.IP.String())
+						}
+						if !ip.Unmap().Is4() {
+							continue
+						}
+					}
+					ip := addr.IP.String()
+					resolvedAddrs = append(resolvedAddrs, net.JoinHostPort(ip, port))
 				}
 			}
 		}
@@ -923,10 +964,17 @@ func reloadAuthConfigData(data []byte) (bool, error) {
 		return false, fmt.Errorf("failed to parse auth config: %w", err)
 	}
 
+	if err := normalizeSSOConfigs(ac.SSO); err != nil {
+		return false, fmt.Errorf("invalid SSO config: %w", err)
+	}
+
 	oidcDP := &oidcDiscovererPool{}
 	jui, err := parseJWTUsers(ac, oidcDP)
 	if err != nil {
 		return false, fmt.Errorf("failed to parse JWT users from auth config: %w", err)
+	}
+	for _, cfg := range ac.SSO {
+		oidcDP.subscribeToMetadata(cfg.OIDC.Issuer, &cfg.OIDC.pm)
 	}
 	oidcDP.startDiscovery()
 	jwtc := &jwtCache{
@@ -1161,6 +1209,9 @@ func (ui *UserInfo) initURLs() error {
 
 	for _, e := range ui.URLMaps {
 		if len(e.SrcPaths) == 0 && len(e.SrcHosts) == 0 && len(e.SrcQueryArgs) == 0 && len(e.SrcHeaders) == 0 {
+			if len(e.DenyPaths) > 0 {
+				return fmt.Errorf("`deny_paths` cannot be used without at least one of `src_paths`, `src_hosts`, `src_query_args` or `src_headers` in `url_map`")
+			}
 			return fmt.Errorf("missing `src_paths`, `src_hosts`, `src_query_args` and `src_headers` in `url_map`")
 		}
 		if e.URLPrefix == nil {
@@ -1295,6 +1346,7 @@ func getAuthTokensFromRequest(r *http.Request) []string {
 		ats = append(ats, at)
 	}
 
+	ats = append(ats, getSSOAuthTokensFromRequest(authConfig.Load(), r)...)
 	return ats
 }
 

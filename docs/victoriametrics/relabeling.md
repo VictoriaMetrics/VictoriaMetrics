@@ -1,6 +1,7 @@
 ---
 weight: 38
 title: Relabeling cookbook
+description: "Metrics relabeling cookbook. Filtering, label manipulation, and enrichment patterns."
 menu:
   docs:
     parent: "victoriametrics"

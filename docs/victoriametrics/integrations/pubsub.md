@@ -1,5 +1,6 @@
 ---
 title: Google PubSub
+description: "Enterprise vmagent Google PubSub integration."
 weight: 8
 menu:
   docs:

@@ -1,5 +1,6 @@
 ---
 title: Remote Read
+description: "Migrate data via Prometheus remote read API (Cortex, Mimir, Promscale, Thanos)"
 weight: 4
 menu:
   docs:

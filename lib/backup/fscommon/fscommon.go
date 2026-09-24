@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/appmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/backupnames"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
@@ -107,7 +108,7 @@ func appendFilesInternal(dst []string, d *os.File) ([]string, error) {
 }
 
 func isSpecialFile(name string) bool {
-	return name == "flock.lock" || name == backupnames.RestoreInProgressFilename || name == backupnames.RestoreMarkFileName || strings.HasSuffix(name, ".tmp")
+	return name == "flock.lock" || name == appmetrics.UncleanShutdownMarkerFilename || name == backupnames.RestoreInProgressFilename || name == backupnames.RestoreMarkFileName || strings.HasSuffix(name, ".tmp")
 }
 
 // RemoveEmptyDirs recursively removes empty directories under the given dir.

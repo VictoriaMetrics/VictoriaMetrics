@@ -95,9 +95,9 @@ func (rwctx *remoteWriteCtx) initObfuscateLabels() {
 	}
 	idx := rwctx.idx
 	rwObfuscateLabels := obfuscateLabels.GetOptionalArg(idx)
-	rwObfuscateLabelsList := strings.Split(rwObfuscateLabels, "^^")
+	rwObfuscateLabelsList := strings.SplitSeq(rwObfuscateLabels, "^^")
 
-	for _, label := range rwObfuscateLabelsList {
+	for label := range rwObfuscateLabelsList {
 		if label == "" {
 			continue
 		}
