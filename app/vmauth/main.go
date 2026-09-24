@@ -543,13 +543,13 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 	canRetry := !bbOK || bb.canRetry()
 
 	res, err := ui.rt.RoundTrip(req)
-	if err == nil {
-		defer func() { _ = res.Body.Close() }()
-	}
 
 	if errors.Is(r.Context().Err(), context.Canceled) {
 		// Do not retry canceled requests.
 		clientCanceledRequests.Inc()
+		if res != nil {
+			_ = res.Body.Close()
+		}
 		return true, false
 	}
 
@@ -595,6 +595,7 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 			httpserver.Errorf(w, r, "%s", err)
 			ui.backendErrors.Inc()
 			ui.requestErrors.Inc()
+			_ = res.Body.Close()
 			return true, false
 		}
 
@@ -604,6 +605,9 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 		requestURI := httpserver.GetRequestURI(r)
 		logger.Warnf("remoteAddr: %s; requestURI: %s; request to %s failed, retrying the request at another backend because response status code=%d belongs to retry_status_codes=%d",
 			remoteAddr, requestURI, targetURL, res.StatusCode, retryStatusCodes)
+		// Wait response body to be closed before accessing bb to avoid data races.
+		// See httputil.SyncBodyTransport for details.
+		_ = res.Body.Close()
 		if bbOK {
 			bb.resetReader()
 		}
@@ -615,6 +619,7 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 	w.WriteHeader(res.StatusCode)
 
 	err = copyStreamToClient(w, res.Body)
+	_ = res.Body.Close()
 
 	if errors.Is(r.Context().Err(), context.Canceled) {
 		// Do not retry canceled requests.
@@ -806,7 +811,7 @@ func newRoundTripper(caFileOpt, certFileOpt, keyFileOpt, serverNameOpt string, i
 		tr.MaxIdleConns = tr.MaxIdleConnsPerHost
 	}
 
-	rt := cfg.NewRoundTripper(tr)
+	rt := httputil.NewSyncBodyTransport(cfg.NewRoundTripper(tr))
 	return rt, nil
 }
 
