@@ -19,3 +19,7 @@ func madviseSequentialRead(data []byte, prefetch bool) error {
 	}
 	return nil
 }
+
+func madviseRandomRead(data []byte) error {
+	return unix.Madvise(data, unix.MADV_RANDOM)
+}
