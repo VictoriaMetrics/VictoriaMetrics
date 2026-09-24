@@ -23,6 +23,8 @@ import (
 var (
 	configPath                    = flag.String("notifier.config", "", "Path to configuration file for notifiers")
 	suppressDuplicateTargetErrors = flag.Bool("notifier.suppressDuplicateTargetErrors", false, "Whether to suppress 'duplicate target' errors during discovery")
+	sanitizeLabelNames            = flag.Bool("notifier.sanitizeLabelNames", true, "Whether to replace characters outside [a-zA-Z0-9_:] in alert label names with underscores before sending alerts to notifiers. "+
+		"Set it to false only if all notifiers support UTF-8 label names, e.g. Alertmanager >= v0.27.0 not running in classic-mode.")
 
 	addrs = flagutil.NewArrayString("notifier.url", "Prometheus Alertmanager URL, e.g. http://127.0.0.1:9093. "+
 		"List all Alertmanager URLs if it runs in the cluster mode to ensure high availability.")
