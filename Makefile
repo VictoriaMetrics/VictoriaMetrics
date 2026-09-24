@@ -265,8 +265,10 @@ test:
 test-race:
 	go test -tags 'synctest' -race ./lib/... ./app/...
 
+# Limit GOMAXPROCS to reduce memory usage on 32-bit builds.
+# See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11612
 test-386:
-	GOARCH=386 go test -tags 'synctest' ./lib/... ./app/...
+	GOARCH=386 GOMAXPROCS=4 go test -tags 'synctest' ./lib/... ./app/...
 
 test-pure:
 	CGO_ENABLED=0 go test -tags 'synctest' ./lib/... ./app/...
@@ -274,8 +276,10 @@ test-pure:
 test-full:
 	go test -tags 'synctest' -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
 
+# Limit GOMAXPROCS to reduce memory usage on 32-bit builds.
+# See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11612
 test-full-386:
-	GOARCH=386 go test -tags 'synctest' -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
+	GOARCH=386 GOMAXPROCS=4 go test -tags 'synctest' -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
 
 apptest:
 	$(MAKE) vminsert-race vmselect-race vmstorage-race vmagent-race vmctl-race vmbackup-race vmrestore-race
