@@ -49,12 +49,15 @@ type Result struct {
 	// Values are sorted by Timestamps.
 	Values     []float64
 	Timestamps []int64
+
+	rowsSkipped int
 }
 
 func (r *Result) reset() {
 	r.MetricName.Reset()
 	r.Values = r.Values[:0]
 	r.Timestamps = r.Timestamps[:0]
+	r.rowsSkipped = 0
 }
 
 // Results holds results returned from ProcessSearchQuery.
@@ -92,6 +95,7 @@ type timeseriesWork struct {
 	err      error
 
 	rowsProcessed int
+	rowsSkipped   int
 }
 
 func (tsw *timeseriesWork) do(r *Result, workerID uint) error {
@@ -108,6 +112,7 @@ func (tsw *timeseriesWork) do(r *Result, workerID uint) error {
 		return fmt.Errorf("error during time series unpacking: %w", err)
 	}
 	tsw.rowsProcessed = len(r.Timestamps)
+	tsw.rowsSkipped = r.rowsSkipped
 	if len(r.Timestamps) > 0 {
 		if err := tsw.f(r, workerID); err != nil {
 			tsw.mustStop.Store(true)
@@ -220,23 +225,26 @@ func (rss *Results) RunParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 	qt = qt.NewChild("parallel process of fetched data")
 	defer rss.mustClose()
 
-	rowsProcessedTotal, err := rss.runParallel(qt, f)
+	rowsProcessedTotal, skippedRowsTotal, err := rss.runParallel(qt, f)
 	seriesProcessedTotal := len(rss.packedTimeseries)
 	rss.packedTimeseries = rss.packedTimeseries[:0]
 
 	rowsReadPerQuery.Update(float64(rowsProcessedTotal))
 	seriesReadPerQuery.Update(float64(seriesProcessedTotal))
+	if skippedRowsTotal > 0 {
+		metricRowsSkipped.Add(skippedRowsTotal)
+	}
 
 	qt.Donef("series=%d, samples=%d", seriesProcessedTotal, rowsProcessedTotal)
 
 	return err
 }
 
-func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, workerID uint) error) (int, error) {
+func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, workerID uint) error) (int, int, error) {
 	tswsLen := len(rss.packedTimeseries)
 	if tswsLen == 0 {
 		// Nothing to process
-		return 0, nil
+		return 0, 0, nil
 	}
 
 	var mustStop atomic.Bool
@@ -245,6 +253,9 @@ func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 		tsw.pts = pts
 		tsw.f = f
 		tsw.mustStop = &mustStop
+		tsw.err = nil
+		tsw.rowsProcessed = 0
+		tsw.rowsSkipped = 0
 	}
 	maxWorkers := MaxWorkers()
 	if maxWorkers == 1 || tswsLen == 1 {
@@ -252,19 +263,21 @@ func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 		var tsw timeseriesWork
 		tmpResult := getTmpResult()
 		rowsProcessedTotal := 0
+		rowsSkipped := 0
 		var err error
 		for i := range rss.packedTimeseries {
 			initTimeseriesWork(&tsw, &rss.packedTimeseries[i])
 			err = tsw.do(&tmpResult.rs, 0)
 			rowsReadPerSeries.Update(float64(tsw.rowsProcessed))
 			rowsProcessedTotal += tsw.rowsProcessed
+			rowsSkipped += tsw.rowsSkipped
 			if err != nil {
 				break
 			}
 		}
 		putTmpResult(tmpResult)
 
-		return rowsProcessedTotal, err
+		return rowsProcessedTotal, rowsSkipped, err
 	}
 
 	// Slow path - spin up multiple local workers for parallel data processing.
@@ -309,6 +322,7 @@ func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 	// Collect results.
 	var firstErr error
 	rowsProcessedTotal := 0
+	rowsSkippedTotal := 0
 	for i := range tsws {
 		tsw := &tsws[i]
 		if tsw.err != nil && firstErr == nil {
@@ -317,8 +331,9 @@ func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 		}
 		rowsReadPerSeries.Update(float64(tsw.rowsProcessed))
 		rowsProcessedTotal += tsw.rowsProcessed
+		rowsSkippedTotal += tsw.rowsSkipped
 	}
-	return rowsProcessedTotal, firstErr
+	return rowsProcessedTotal, rowsSkippedTotal, firstErr
 }
 
 var (
@@ -572,9 +587,11 @@ var sbPool sync.Pool
 var metricRowsSkipped = metrics.NewCounter(`vm_metric_rows_skipped_total{name="vmselect"}`)
 
 func mergeSortBlocks(dst *Result, sbh *sortBlocksHeap, dedupInterval int64) {
+	rowsSkipped := 0
 	// Skip empty sort blocks, since they cannot be passed to heap.Init.
 	sbs := sbh.sbs[:0]
 	for _, sb := range sbh.sbs {
+		rowsSkipped += sb.rowsSkipped
 		if len(sb.Timestamps) == 0 {
 			putSortBlock(sb)
 			continue
@@ -582,6 +599,7 @@ func mergeSortBlocks(dst *Result, sbh *sortBlocksHeap, dedupInterval int64) {
 		sbs = append(sbs, sb)
 	}
 	sbh.sbs = sbs
+	dst.rowsSkipped = rowsSkipped
 	if sbh.Len() == 0 {
 		return
 	}
@@ -674,12 +692,15 @@ type sortBlock struct {
 	Timestamps []int64
 	Values     []float64
 	NextIdx    int
+
+	rowsSkipped int
 }
 
 func (sb *sortBlock) reset() {
 	sb.Timestamps = sb.Timestamps[:0]
 	sb.Values = sb.Values[:0]
 	sb.NextIdx = 0
+	sb.rowsSkipped = 0
 }
 
 func (sb *sortBlock) unpackFrom(tmpBlock *storage.Block, tbf *tmpBlocksFile, br blockRef, tr storage.TimeRange) error {
@@ -690,8 +711,7 @@ func (sb *sortBlock) unpackFrom(tmpBlock *storage.Block, tbf *tmpBlocksFile, br 
 		return fmt.Errorf("cannot unmarshal block: %w", err)
 	}
 	sb.Timestamps, sb.Values = tmpBlock.AppendRowsWithTimeRangeFilter(sb.Timestamps[:0], sb.Values[:0], tr)
-	skippedRows := tmpBlock.RowsCount() - len(sb.Timestamps)
-	metricRowsSkipped.Add(skippedRows)
+	sb.rowsSkipped = tmpBlock.RowsCount() - len(sb.Timestamps)
 	return nil
 }
 
