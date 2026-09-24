@@ -183,8 +183,17 @@ func requestHandlerWithInternalRoutes(w http.ResponseWriter, r *http.Request) bo
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
+	if r.URL.Path == "/_vmauth/sso/callback" {
+		processSSOCallback(w, r)
+		return true
+	}
+
 	ats := getAuthTokensFromRequest(r)
 	if len(ats) == 0 {
+		if processSSOLogin(w, r) {
+			return true
+		}
+
 		// Process requests for unauthorized users
 		ui := authConfig.Load().UnauthorizedUser
 		if ui.hasAnyURLs() {
@@ -217,6 +226,10 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 				"add `vm_access` claim to the jwt token or set `default_vm_access_claim` in vmauth config; "+
 				"see https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-based-request-templating", ui.name())
 		}
+	}
+
+	if processSSOLogin(w, r) {
+		return true
 	}
 
 	uu := authConfig.Load().UnauthorizedUser
@@ -513,6 +526,11 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 	req.URL = targetURL
 	req.Header.Set("User-Agent", "vmauth")
 	updateHeadersByConfig(req.Header, hc.RequestHeaders)
+	if ui.JWT != nil && ui.JWT.ProxyCookieAuthorizationToken != "" {
+		if c, err := r.Cookie(ssoCookieName); err == nil && c.Value != "" {
+			req.Header.Set(ui.JWT.ProxyCookieAuthorizationToken, "Bearer "+c.Value)
+		}
+	}
 	if hc.KeepOriginalHost == nil || !*hc.KeepOriginalHost {
 		if host := getHostHeader(hc.RequestHeaders); host != "" {
 			req.Host = host

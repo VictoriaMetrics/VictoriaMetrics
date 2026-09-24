@@ -57,8 +57,9 @@ var (
 
 // AuthConfig represents auth config.
 type AuthConfig struct {
-	Users            []UserInfo `yaml:"users,omitempty"`
-	UnauthorizedUser *UserInfo  `yaml:"unauthorized_user,omitempty"`
+	Users            []UserInfo   `yaml:"users,omitempty"`
+	UnauthorizedUser *UserInfo    `yaml:"unauthorized_user,omitempty"`
+	SSO              []*ssoConfig `yaml:"sso,omitempty"`
 
 	// ms holds all the metrics for the given AuthConfig
 	ms *metrics.Set
@@ -963,10 +964,17 @@ func reloadAuthConfigData(data []byte) (bool, error) {
 		return false, fmt.Errorf("failed to parse auth config: %w", err)
 	}
 
+	if err := normalizeSSOConfigs(ac.SSO); err != nil {
+		return false, fmt.Errorf("invalid SSO config: %w", err)
+	}
+
 	oidcDP := &oidcDiscovererPool{}
 	jui, err := parseJWTUsers(ac, oidcDP)
 	if err != nil {
 		return false, fmt.Errorf("failed to parse JWT users from auth config: %w", err)
+	}
+	for _, cfg := range ac.SSO {
+		oidcDP.subscribeToMetadata(cfg.OIDC.Issuer, &cfg.OIDC.pm)
 	}
 	oidcDP.startDiscovery()
 	jwtc := &jwtCache{
@@ -1338,6 +1346,7 @@ func getAuthTokensFromRequest(r *http.Request) []string {
 		ats = append(ats, at)
 	}
 
+	ats = append(ats, getSSOAuthTokensFromRequest(authConfig.Load(), r)...)
 	return ats
 }
 
