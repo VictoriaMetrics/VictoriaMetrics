@@ -681,7 +681,20 @@ func (c *vminsertClient) PrometheusAPIV1ImportNative(t *testing.T, data []byte, 
 // PrometheusAPIV1Write is a test helper function that inserts a
 // collection of records in Prometheus remote-write format by sending a HTTP
 // POST request to /prometheus/api/v1/write vminsert endpoint.
+//
+// The method expects the request to be processed successfully which is
+// indicated by HTTP-204 response status code.
 func (c *vminsertClient) PrometheusAPIV1Write(t *testing.T, wr prompb.WriteRequest, opts QueryOpts) {
+	t.Helper()
+	c.PrometheusAPIV1WriteWithStatusCode(t, wr, opts, http.StatusNoContent)
+}
+
+// PrometheusAPIV1WriteWithStatusCode is a test helper function that inserts a
+// collection of records in Prometheus remote-write format by sending a HTTP
+// POST request to /prometheus/api/v1/write vminsert endpoint.
+//
+// The method expects the HTTP response status code to be `wantStatusCode`.
+func (c *vminsertClient) PrometheusAPIV1WriteWithStatusCode(t *testing.T, wr prompb.WriteRequest, opts QueryOpts, wantStatusCode int) {
 	t.Helper()
 
 	url := c.url("insert", "prometheus/api/v1/write", opts)
@@ -693,9 +706,9 @@ func (c *vminsertClient) PrometheusAPIV1Write(t *testing.T, wr prompb.WriteReque
 	headers := opts.getHeaders()
 	headers.Set("Content-Type", "application/x-protobuf")
 	c.sendBlocking(t, recordsCount, func() {
-		_, statusCode := c.cli.Post(t, url, data, headers)
-		if statusCode != http.StatusNoContent {
-			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
+		_, gotStatusCode := c.cli.Post(t, url, data, headers)
+		if gotStatusCode != wantStatusCode {
+			t.Fatalf("unexpected status code: got %d, want %d", gotStatusCode, wantStatusCode)
 		}
 	})
 }
