@@ -728,6 +728,9 @@ If the **results** look good and the **model configuration should be deployed in
 {{% collapse name="Release history" %}}
 
 ### v1.9.2
+Released: 2026-09-24
+
+Recommended vmanomaly version: [v1.30.7](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1307)
 
 - Added [incident investigation links](#investigate-a-firing-alert) for persisted results.
 - Added configurable model choices through `server.ui_allowed_models`.

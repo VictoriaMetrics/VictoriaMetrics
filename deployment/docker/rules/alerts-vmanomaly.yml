@@ -59,7 +59,9 @@ groups:
             during the last 15 minutes. The service may be self-healing, but repeated restarts indicate an unstable
             scheduler, configuration, datasource, or runtime dependency. Check vmanomaly logs for the original failure.
 
-      # Set the 900-second limit above the expected scrape or push interval, allowing for jitter.
+      # Set the limit above the expected scrape or push interval, allowing for jitter.
+      # For the default 15m push_frequency, raise the 900s limit (e.g. to 1200s),
+      # or shorten push_frequency (e.g. to 10m). The 5m alert hold applies separately.
       - alert: NoSelfMonitoringMetrics
         expr: >
           lag(vmanomaly_start_time_seconds{job=~".*vmanomaly.*"}[24h]) > 900

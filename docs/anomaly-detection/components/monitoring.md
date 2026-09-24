@@ -453,7 +453,7 @@ Label names [description](#labelnames)
 
 `Counter`
             </td>
-            <td>The count of responses received from VictoriaMetrics `url` for the `query_key` query, categorized by `code`, within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
+            <td>The count of request outcomes from VictoriaMetrics `url` for the `query_key` query, categorized by `code` (HTTP status or `ssl_error`, `connection_error`, `timeout`, `io_error`), within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
             <td>
 
 `url`, `query_key`, `code`, `scheduler_alias`, `preset`

@@ -145,7 +145,7 @@ These alerting rules use MetricsQL and are intended for vmalert with a VictoriaM
 - **`ProcessNearFDLimits`**: Alerts when the number of available file descriptors falls below 100, which could lead to severe degradation if the limit is exhausted.
 - **`TooHighCPUUsage`**: Alerts when CPU usage exceeds 90% for a continuous 5-minute period, indicating possible resource exhaustion and the need to adjust resource allocation or load.
 - **`TooHighMemoryUsage`**: Alerts when the minimum RAM usage over 10 minutes exceeds 85% of available memory and this condition holds for another 5 minutes.
-- **`NoSelfMonitoringMetrics`**: Alerts after roughly 20 minutes without a self-monitoring sample (15-minute lag plus a 5-minute hold). Instances remain detectable only within the 24-hour lookback.
+- **`NoSelfMonitoringMetrics`**: Alerts after roughly 20 minutes without a self-monitoring sample (15-minute lag plus a 5-minute hold). Instances remain detectable only within the 24-hour lookback. With the default `push_frequency: 15m`, raise the lag threshold (e.g. to 1200 seconds) or shorten the push interval (e.g. to 10 minutes) to allow for jitter.
 - **`LastConfigReloadFailed`**: Alerts if the last configuration [reload](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) failed, which could indicate issues with the configuration or the service's ability to apply changes.
 
 ![firing-alerts-example-too-many-restarts](firing-alerts-example-too-many-restarts.webp)

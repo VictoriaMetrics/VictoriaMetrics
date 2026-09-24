@@ -122,7 +122,7 @@ tests:
 - name: 'Read: transport-failure-only'
   interval: 1m
   input_series:
-  - series: vmanomaly_reader_responses_total{job="prod-vmanomaly",instance="a",url="http://vm",code="0"}
+  - series: vmanomaly_reader_responses_total{job="prod-vmanomaly",instance="a",url="http://vm",code="connection_error"}
     values: 0+10x15
   metricsql_expr_test:
   - expr: count(ALERTS{alertname="HighReadErrorRate",alertstate="firing"}) or vector(0)
@@ -254,7 +254,7 @@ tests:
 - name: 'Write: transport-failure-only'
   interval: 1m
   input_series:
-  - series: vmanomaly_writer_responses_total{job="prod-vmanomaly",instance="a",url="http://vm",code="0"}
+  - series: vmanomaly_writer_responses_total{job="prod-vmanomaly",instance="a",url="http://vm",code="connection_error"}
     values: 0+10x15
   metricsql_expr_test:
   - expr: count(ALERTS{alertname="HighWriteErrorRate",alertstate="firing"}) or vector(0)
