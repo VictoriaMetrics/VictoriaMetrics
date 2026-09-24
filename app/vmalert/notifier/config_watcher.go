@@ -249,6 +249,7 @@ func (cw *configWatcher) mustStop() {
 		cw.cfg.ConsulSDConfigs[i].MustStop()
 	}
 	cw.cfg = nil
+	globalAlertRelabelCfg.Store(nil)
 }
 
 func (cw *configWatcher) setTargets(key TargetType, targets []Target) {

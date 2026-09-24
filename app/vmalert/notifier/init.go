@@ -179,9 +179,6 @@ func Init(extLabels map[string]string, extURL string) error {
 	if err != nil {
 		return err
 	}
-	if cfg.parsedAlertRelabelConfigs != nil {
-		globalAlertRelabelCfg.Store(cfg.parsedAlertRelabelConfigs)
-	}
 	cw, err = newWatcher(cfg, AlertURLGeneratorFn)
 	if err != nil {
 		return fmt.Errorf("failed to init config watcher: %w", err)
@@ -299,8 +296,8 @@ func Send(ctx context.Context, alerts []Alert, notifierHeaders map[string]string
 	alertsToSend := make([]Alert, 0, len(alerts))
 	lblss := make([][]prompb.Label, 0, len(alerts))
 	// apply global relabel config first without modifying original alerts in alerts
+	rc := globalAlertRelabelCfg.Load()
 	for _, a := range alerts {
-		rc := globalAlertRelabelCfg.Load()
 		lbls := a.applyRelabelingIfNeeded(rc)
 		if len(lbls) == 0 {
 			continue
