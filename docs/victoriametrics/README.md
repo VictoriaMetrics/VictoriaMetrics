@@ -1895,8 +1895,9 @@ The following security-related command-line flags are available for all componen
 * `-httpAuth.username` and `-httpAuth.password` for protecting all the HTTP endpoints
   with [HTTP Basic Authentication](https://en.wikipedia.org/wiki/Basic_access_authentication).
 * `-httpListenAddr=unix:/path/to/socket` for listening on a Unix domain socket instead of a TCP address.
-  The socket is created with `0660` permissions, so only the owner and the group of the socket file can access it.
-  Add other users to this group in order to grant them access.
+  The socket file permissions are determined by the [umask](https://en.wikipedia.org/wiki/Umask) of the process.
+  With the default systemd umask `0022`, only the owner of the socket file can connect to it.
+  Set `UMask=0007` in the systemd unit and add other users to the group of the socket file in order to grant them access.
   Note that `-tls` and `-httpListenAddr.useProxyProtocol` cannot be used with Unix domain sockets.
 * `-http.header.hsts`, `-http.header.csp`, and `-http.header.frameOptions` for serving `Strict-Transport-Security`, `Content-Security-Policy`
   and `X-Frame-Options` HTTP response headers.

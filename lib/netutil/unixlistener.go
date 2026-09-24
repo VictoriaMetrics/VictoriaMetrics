@@ -13,6 +13,9 @@ import (
 
 // NewUnixListener returns a new unix listener for the given addr.
 //
+// The socket file permissions are determined by the umask of the process,
+// so they can be adjusted by users.
+//
 // name is used for metrics. Each listener in the program must have a distinct name.
 func NewUnixListener(name, addr string) (*UnixListener, error) {
 	// Call unlink before socket bind to prevent possible stale socket issue.
@@ -26,12 +29,6 @@ func NewUnixListener(name, addr string) (*UnixListener, error) {
 	ul, err := net.ListenUnix("unix", &net.UnixAddr{Name: addr, Net: "unix"})
 	if err != nil {
 		return nil, err
-	}
-	// Allow group access, so other users can connect after being added to the socket group.
-	perm := os.FileMode(0660)
-	if err := os.Chmod(addr, perm); err != nil {
-		_ = ul.Close()
-		return nil, fmt.Errorf("cannot set permissions for socket path %q: %w", addr, err)
 	}
 
 	ms := metrics.GetDefaultSet()
