@@ -1,6 +1,7 @@
 package promql
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"math"
@@ -114,7 +115,10 @@ func alignStartEnd(start, end, step int64) (int64, int64) {
 
 // EvalConfig is the configuration required for query evaluation via Exec
 type EvalConfig struct {
-	AuthTokens    []*auth.Token
+	Context context.Context
+
+	AuthTokens []*auth.Token
+
 	IsMultiTenant bool
 
 	Start int64
@@ -130,8 +134,6 @@ type EvalConfig struct {
 
 	// QuotedRemoteAddr contains quoted remote address.
 	QuotedRemoteAddr string
-
-	Deadline searchutil.Deadline
 
 	// Whether the response must not be cached.
 	NoCache bool
@@ -177,6 +179,7 @@ type EvalConfig struct {
 // copyEvalConfig returns src copy.
 func copyEvalConfig(src *EvalConfig) *EvalConfig {
 	var ec EvalConfig
+	ec.Context = src.Context
 	ec.AuthTokens = src.AuthTokens
 	ec.IsMultiTenant = src.IsMultiTenant
 	ec.Start = src.Start
@@ -184,7 +187,6 @@ func copyEvalConfig(src *EvalConfig) *EvalConfig {
 	ec.Step = src.Step
 	ec.MaxSeries = src.MaxSeries
 	ec.MaxPointsPerSeries = src.MaxPointsPerSeries
-	ec.Deadline = src.Deadline
 	ec.NoCache = src.NoCache
 	ec.OptimizeRepeatedBinaryOpSubexprs = src.OptimizeRepeatedBinaryOpSubexprs
 	ec.LookbackDelta = src.LookbackDelta
@@ -1877,7 +1879,7 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 	} else {
 		sq = storage.NewSearchQuery(ec.AuthTokens[0].AccountID, ec.AuthTokens[0].ProjectID, minTimestamp, ec.End, tfss, ec.MaxSeries)
 	}
-	rss, isPartial, err := netstorage.ProcessSearchQuery(qt, ec.DenyPartialResponse, sq, ec.Deadline)
+	rss, isPartial, err := netstorage.ProcessSearchQuery(ec.Context, qt, ec.DenyPartialResponse, sq)
 	if err != nil {
 		return nil, err
 	}
@@ -1947,9 +1949,9 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 	// Evaluate rollup
 	keepMetricNames := getKeepMetricNames(expr)
 	if iafc != nil {
-		return evalRollupWithIncrementalAggregate(qt, funcName, keepMetricNames, iafc, rss, rcs, preFunc, sharedTimestamps)
+		return evalRollupWithIncrementalAggregate(ec.Context, qt, funcName, keepMetricNames, iafc, rss, rcs, preFunc, sharedTimestamps)
 	}
-	return evalRollupNoIncrementalAggregate(qt, funcName, keepMetricNames, rss, rcs, preFunc, sharedTimestamps)
+	return evalRollupNoIncrementalAggregate(ec.Context, qt, funcName, keepMetricNames, rss, rcs, preFunc, sharedTimestamps)
 }
 
 var (
@@ -1972,14 +1974,14 @@ func maxSilenceInterval() int64 {
 	return d
 }
 
-func evalRollupWithIncrementalAggregate(qt *querytracer.Tracer, funcName string, keepMetricNames bool,
+func evalRollupWithIncrementalAggregate(ctx context.Context, qt *querytracer.Tracer, funcName string, keepMetricNames bool,
 	iafc *incrementalAggrFuncContext, rss *netstorage.Results, rcs []*rollupConfig,
 	preFunc func(values []float64, timestamps []int64), sharedTimestamps []int64,
 ) ([]*timeseries, error) {
 	qt = qt.NewChild("rollup %s() with incremental aggregation %s() over %d series; rollupConfigs=%s", funcName, iafc.ae.Name, rss.Len(), rcs)
 	defer qt.Done()
 	var samplesScannedTotal atomic.Uint64
-	err := rss.RunParallel(qt, func(rs *netstorage.Result, workerID uint) error {
+	err := rss.RunParallel(ctx, qt, func(rs *netstorage.Result, workerID uint) error {
 		rs.Values, rs.Timestamps = dropStaleNaNs(funcName, rs.Values, rs.Timestamps)
 		preFunc(rs.Values, rs.Timestamps)
 		ts := getTimeseries()
@@ -2013,7 +2015,7 @@ func evalRollupWithIncrementalAggregate(qt *querytracer.Tracer, funcName string,
 	return tss, nil
 }
 
-func evalRollupNoIncrementalAggregate(qt *querytracer.Tracer, funcName string, keepMetricNames bool, rss *netstorage.Results, rcs []*rollupConfig,
+func evalRollupNoIncrementalAggregate(ctx context.Context, qt *querytracer.Tracer, funcName string, keepMetricNames bool, rss *netstorage.Results, rcs []*rollupConfig,
 	preFunc func(values []float64, timestamps []int64), sharedTimestamps []int64,
 ) ([]*timeseries, error) {
 	qt = qt.NewChild("rollup %s() over %d series; rollupConfigs=%s", funcName, rss.Len(), rcs)
@@ -2024,7 +2026,7 @@ func evalRollupNoIncrementalAggregate(qt *querytracer.Tracer, funcName string, k
 	defer putTimeseriesByWorkerID(tsw)
 	seriesByWorkerID := tsw.byWorkerID
 	seriesLen := rss.Len()
-	err := rss.RunParallel(qt, func(rs *netstorage.Result, workerID uint) error {
+	err := rss.RunParallel(ctx, qt, func(rs *netstorage.Result, workerID uint) error {
 		rs.Values, rs.Timestamps = dropStaleNaNs(funcName, rs.Values, rs.Timestamps)
 		preFunc(rs.Values, rs.Timestamps)
 		for _, rc := range rcs {
