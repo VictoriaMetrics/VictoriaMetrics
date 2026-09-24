@@ -192,6 +192,22 @@ The best applications of this mode are:
 
 > However, the UI can be **combined with existing production jobs of anomaly detection, as it is available in non-blocking mode for all running vmanomaly instances** {{% available_from "v1.26.0" anomaly %}}, regardless of the preset or configuration used, just at a cost of increased resource usage.
 
+## Investigate a firing alert
+
+{{% available_from "v1.30.7" anomaly %}} Add an `investigation_url` annotation to a vmalert rule to open the persisted results, configured model and absolute incident window in VMUI. Opening the link does not rerun detection.
+
+```yaml
+annotations:
+  investigation_url: 'https://vmanomaly.example.com/api/v1/incident/open?model={{ $labels.model_alias | queryEscape }}&scheduler={{ $labels.scheduler_alias | queryEscape }}&preset={{ $labels.preset | queryEscape }}&query_key={{ index $labels "for" | queryEscape }}&at={{ $activeAt.Unix }}&before=2m&after=30s'
+```
+
+Use the public vmanomaly URL, including any `path_prefix`, and preserve the emitted model, scheduler, preset and `for` labels in the alert expression. Optional `label.<name>` parameters select exact source-series labels; omit alert-only labels. Append `view=inputs` to open the original inputs instead. The link resolves the current configuration on the selected shard and initially supports a shared VictoriaMetrics reader/writer URL and tenant with default metric naming.
+
+> [!WARNING]
+> Protect VMUI and both `/api/v1/incident/` endpoints behind the same authenticated gateway. Labels filter results; they do not grant access. If the datasource requires reader credentials, configure [`server.use_reader_connection_settings`](https://docs.victoriametrics.com/anomaly-detection/components/server/#parameters) or supported request authentication. Authorized UI users can then query with those reader permissions.
+
+See [vmalert annotation templating](https://docs.victoriametrics.com/victoriametrics/vmalert/#templating) for template syntax. The annotation can coexist with the [vmalert Source link](https://docs.victoriametrics.com/victoriametrics/vmalert/#link-to-alert-source).
+
 ## AI Assistance
 
 {{% available_from "v1.29.0" anomaly %}} Copilot is an AI assistant built into the vmanomaly UI. It understands current anomaly detection configuration in the UI and helps iterate faster and obtain better results - without leaving the UI, searching the docs manually, or being an expert in anomaly detection.
@@ -346,7 +362,7 @@ docker run -it --rm \
   -e VMANOMALY_MCP_SERVER_URL=http://mcp-vmanomaly:8081/mcp \
   -p 8080:8080 \
   -p 8490:8490 \
-  victoriametrics/vmanomaly:v1.30.6 \
+  victoriametrics/vmanomaly:v1.30.7 \
   vmanomaly_config.yaml
 ```
 
@@ -710,6 +726,12 @@ If the **results** look good and the **model configuration should be deployed in
 <div class="collapse-group mb-3">
 
 {{% collapse name="Release history" %}}
+
+### v1.9.2
+
+- Added [incident investigation links](#investigate-a-firing-alert) for persisted results.
+- Added configurable model choices through `server.ui_allowed_models`.
+- Changed generated alert rules from `>=` to `>` for anomaly-score thresholds and fixed metric selectors to preserve preset version suffixes.
 
 ### v1.9.1
 Released: 2026-09-17
