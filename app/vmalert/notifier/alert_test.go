@@ -246,6 +246,16 @@ func TestAlert_toPromLabels(t *testing.T) {
 		nil,
 	)
 
+	origUTF8StrictMode := *utf8StrictMode
+	t.Cleanup(func() { *utf8StrictMode = origUTF8StrictMode })
+	*utf8StrictMode = true
+	fn(
+		map[string]string{"foo.bar": "baz", "service!name": "qux"},
+		[]prompb.Label{{Name: "foo.bar", Value: "baz"}, {Name: "service!name", Value: "qux"}},
+		nil,
+	)
+	*utf8StrictMode = false
+
 	pcs, err := promrelabel.ParseRelabelConfigsData([]byte(`
 - target_label: "foo"
   replacement: "aaa"
