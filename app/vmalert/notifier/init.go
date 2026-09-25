@@ -276,12 +276,7 @@ func GetTargets() map[TargetType][]Target {
 	targets := make(map[TargetType][]Target)
 	// use cached targets from configWatcher instead of getActiveNotifiers for the extra target labels
 	if cw != nil {
-		cw.targetsMu.RLock()
-		for key, ns := range cw.targets {
-			targets[key] = append(targets[key], ns...)
-		}
-		cw.targetsMu.RUnlock()
-		return targets
+		return cw.getTargets()
 	}
 
 	// static notifiers don't have labels
