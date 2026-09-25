@@ -336,6 +336,7 @@ If you need multi-AZ setup, then it is recommended running independent clusters 
 [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) in front of these clusters, so it could replicate incoming data
 into all the cluster - see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy) for details.
 Then an additional `vmselect` nodes can be configured for reading the data from multiple clusters according to [these docs](#multi-level-cluster-setup).
+If one cluster misses samples that are available in another, see [how to recover missing data](https://docs.victoriametrics.com/victoriametrics/data-recovery/).
 
 See [VMDistributed](https://docs.victoriametrics.com/operator/resources/vmdistributed/) Kubernetes operator resource for an example.
 
