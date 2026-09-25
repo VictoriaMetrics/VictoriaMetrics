@@ -158,3 +158,19 @@ groups:
           summary: "Some rows are rejected on \"{{ $labels.instance }}\" on ingestion attempt"
           description: "Ingested rows on instance \"{{ $labels.instance }}\" are rejected due to the
             following reason: \"{{ $labels.reason }}\""
+      - alert: TooManySnapshots
+        expr: max(vm_snapshots{}) by (job,instance) > 2
+        for: 2h
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Too many snapshots for \"{{ $labels.job }}\" on \"{{ $labels.instance }}\"'
+          description: |
+            The number of snapshots for \"{{ $labels.job }}\" exceeds 2 for the 2 hours.
+            Old snapshots prevent background merge from freeing up disk space occupied by the parts they reference.
+            This can lead to excessive disk usage and degraded performance because queries must open more files to process a query.
+            Possible solutions:
+              * Check if any automated processes such as vmbackupmanager are failing to delete snapshots
+              * Consider setting or decreasing the value of snapshotsMaxAge
+              * Delete manually created snapshots
+            See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#snapshot-troubleshooting for more details.
