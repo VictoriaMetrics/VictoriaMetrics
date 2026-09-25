@@ -16,6 +16,42 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
+// BenchmarkStorageAddRowsExistingMonths includes the full synchronous ingestion
+// path and normal background flush/merge work, with existing series and partitions.
+func BenchmarkStorageAddRowsExistingMonths(b *testing.B) {
+	for _, layout := range []string{"grouped", "alternating"} {
+		b.Run(layout, func(b *testing.B) {
+			s := MustOpenStorage(b.TempDir(), OpenOptions{Retention: retentionMax, MaxBackfillAge: retentionMax})
+			defer s.MustClose()
+			mrs := make([]MetricRow, 8000)
+			now := time.Now().UTC()
+			month := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+			mn := MetricName{MetricGroup: []byte("existing_months")}
+			name := mn.marshalRaw(nil)
+			for i := range mrs {
+				p := i / 4000
+				if layout == "alternating" {
+					p = i % 2
+				}
+				mrs[i] = MetricRow{MetricNameRaw: name, Timestamp: month.AddDate(0, -p, 0).UnixMilli() + int64(i), Value: float64(i)}
+			}
+			s.AddRows(mrs, defaultPrecisionBits)
+			s.DebugFlush()
+			var m Metrics
+			s.UpdateMetrics(&m)
+			if got := m.TableMetrics.TotalRowsCount(); got != uint64(len(mrs)) {
+				b.Fatalf("warmup retained %d rows; want %d", got, len(mrs))
+			}
+			b.ReportAllocs()
+			b.ResetTimer()
+			for range b.N {
+				s.AddRows(mrs, defaultPrecisionBits)
+			}
+			b.StopTimer()
+		})
+	}
+}
+
 func BenchmarkStorageAddRows(b *testing.B) {
 	defer fs.MustRemoveDir(b.Name())
 
