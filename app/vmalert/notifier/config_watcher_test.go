@@ -1,15 +1,19 @@
 package notifier
 
 import (
+	"bytes"
 	"fmt"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
@@ -63,6 +67,132 @@ static_configs:
 	expAddr := "http://127.0.0.1:9093/api/v2/alerts"
 	if ns[0].Addr() != expAddr {
 		t.Fatalf("expected to get %q; got %q instead", expAddr, ns[0].Addr())
+	}
+}
+
+func TestConfigWatcherReloadRetryAfterFailure(t *testing.T) {
+	f, err := os.CreateTemp("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer fs.MustRemovePath(f.Name())
+
+	writeToFile(f.Name(), `
+static_configs:
+  - targets:
+      - localhost:9093
+`)
+	cfg, err := parseConfig(f.Name())
+	if err != nil {
+		t.Fatalf("failed to parse config: %s", err)
+	}
+	cw, err := newWatcher(cfg, nil)
+	if err != nil {
+		t.Fatalf("failed to start config watcher: %s", err)
+	}
+	defer cw.mustStop()
+
+	// the config is parsed successfully, but fails to start
+	// because of the invalid target address after the valid one
+	writeToFile(f.Name(), `
+static_configs:
+  - targets:
+      - 127.0.0.1:19093
+      - "%zz"
+`)
+	if err := cw.reload(f.Name()); err == nil {
+		t.Fatalf("expected to get an error on reload")
+	}
+	// reload of the same config must be retried and fail again
+	if err := cw.reload(f.Name()); err == nil {
+		t.Fatalf("expected to get an error on repeated reload")
+	}
+	// notifiers of the previously applied config must keep working
+	ns := cw.notifiers()
+	if len(ns) != 1 {
+		t.Fatalf("expected to have 1 notifier; got %d", len(ns))
+	}
+	expAddr := "http://localhost:9093/api/v2/alerts"
+	if ns[0].Addr() != expAddr {
+		t.Fatalf("expected to get %q; got %q instead", expAddr, ns[0].Addr())
+	}
+	// notifier created for the valid target before the failure must be closed
+	var bb bytes.Buffer
+	metrics.WritePrometheus(&bb, false)
+	if strings.Contains(bb.String(), "127.0.0.1:19093") {
+		t.Fatalf("unexpected metrics for the notifier of the failed config:\n%s", bb.String())
+	}
+
+	writeToFile(f.Name(), `
+static_configs:
+  - targets:
+      - 127.0.0.1:9093
+`)
+	checkErr(t, cw.reload(f.Name()))
+	ns = cw.notifiers()
+	if len(ns) != 1 {
+		t.Fatalf("expected to have 1 notifier; got %d", len(ns))
+	}
+	expAddr = "http://127.0.0.1:9093/api/v2/alerts"
+	if ns[0].Addr() != expAddr {
+		t.Fatalf("expected to get %q; got %q instead", expAddr, ns[0].Addr())
+	}
+}
+
+func TestConfigWatcherReloadKeepsNotifiersOnSDFailure(t *testing.T) {
+	// consul server which fails all requests
+	consulSDServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer consulSDServer.Close()
+
+	f, err := os.CreateTemp("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer fs.MustRemovePath(f.Name())
+
+	writeToFile(f.Name(), `
+static_configs:
+  - targets:
+      - localhost:9093
+`)
+	cfg, err := parseConfig(f.Name())
+	if err != nil {
+		t.Fatalf("failed to parse config: %s", err)
+	}
+	cw, err := newWatcher(cfg, nil)
+	if err != nil {
+		t.Fatalf("failed to start config watcher: %s", err)
+	}
+	defer cw.mustStop()
+
+	writeToFile(f.Name(), fmt.Sprintf(`
+static_configs:
+  - targets:
+      - 127.0.0.1:19094
+consul_sd_configs:
+  - server: %s
+    services:
+      - alertmanager
+`, consulSDServer.URL))
+	if err := cw.reload(f.Name()); err == nil {
+		t.Fatalf("expected to get an error on reload")
+	}
+
+	ns := cw.notifiers()
+	if len(ns) != 1 {
+		t.Fatalf("expected to have 1 notifier; got %d", len(ns))
+	}
+	expAddr := "http://localhost:9093/api/v2/alerts"
+	if ns[0].Addr() != expAddr {
+		t.Fatalf("expected to get %q; got %q instead", expAddr, ns[0].Addr())
+	}
+	// static notifier of the failed config must be closed
+	var bb bytes.Buffer
+	metrics.WritePrometheus(&bb, false)
+	if strings.Contains(bb.String(), "127.0.0.1:19094") {
+		t.Fatalf("unexpected metrics for the notifier of the failed config:\n%s", bb.String())
 	}
 }
 
