@@ -153,7 +153,7 @@ func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persiste
 	}
 
 	hc := &http.Client{
-		Transport: httputil.NewSyncBodyTransport(authCfg.NewRoundTripper(tr)),
+		Transport: authCfg.NewRoundTripper(tr),
 		Timeout:   sendTimeout.GetOptionalArg(argIdx),
 	}
 	rwURL, err := url.Parse(remoteWriteURL)
