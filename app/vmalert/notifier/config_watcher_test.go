@@ -66,6 +66,55 @@ static_configs:
 	}
 }
 
+func TestConfigWatcherReloadRetryAfterFailure(t *testing.T) {
+	f, err := os.CreateTemp("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer fs.MustRemovePath(f.Name())
+
+	writeToFile(f.Name(), `
+static_configs:
+  - targets:
+      - localhost:9093
+`)
+	cfg, err := parseConfig(f.Name())
+	if err != nil {
+		t.Fatalf("failed to parse config: %s", err)
+	}
+	cw, err := newWatcher(cfg, nil)
+	if err != nil {
+		t.Fatalf("failed to start config watcher: %s", err)
+	}
+	defer cw.mustStop()
+
+	// the config is parsed successfully, but fails to start
+	// because of the invalid target address
+	writeToFile(f.Name(), `
+static_configs:
+  - targets:
+      - "%zz"
+`)
+	if err := cw.reload(f.Name()); err == nil {
+		t.Fatalf("expected to get an error on reload")
+	}
+	// reload of the same config must be retried and fail again
+	if err := cw.reload(f.Name()); err == nil {
+		t.Fatalf("expected to get an error on repeated reload")
+	}
+
+	writeToFile(f.Name(), `
+static_configs:
+  - targets:
+      - 127.0.0.1:9093
+`)
+	checkErr(t, cw.reload(f.Name()))
+	ns := cw.notifiers()
+	if len(ns) != 1 {
+		t.Fatalf("expected to have 1 notifier; got %d", len(ns))
+	}
+}
+
 func TestConfigWatcherStart(t *testing.T) {
 	oldSDCheckInterval := consul.SDCheckInterval
 	defer func() { consul.SDCheckInterval = oldSDCheckInterval }()

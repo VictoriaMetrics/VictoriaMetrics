@@ -82,7 +82,13 @@ func (cw *configWatcher) reload(path string) error {
 	// re-start cw with new config
 	cw.syncCh = make(chan struct{})
 	cw.cfg = cfg
-	return cw.start()
+	if err := cw.start(); err != nil {
+		// reset checksum, so the next reload retries applying the config
+		// instead of skipping it as unchanged.
+		cw.cfg.Checksum = ""
+		return err
+	}
+	return nil
 }
 
 func (cw *configWatcher) add(typeK TargetType, interval time.Duration, targetsFn getTargets) error {
