@@ -141,7 +141,8 @@ func (qst *queryStatsTracker) writeJSONQueryStats(w io.Writer, topN int, apiFilt
 	fmt.Fprintf(w, `],"topByAvgMemoryUsage":[`)
 	topByAvgMemoryConsumption := qst.getTopByAvgMemoryUsage(topN, apiFilter, maxLifetime)
 	for i, r := range topByAvgMemoryConsumption {
-		fmt.Fprintf(w, `{"query":%s,"timeRangeSeconds":%d,"avgMemoryBytes":%d,"count":%d}`, stringsutil.JSONString(r.query), r.timeRangeSecs, r.memoryUsage, r.count)
+		fmt.Fprintf(w, `{"accountID":%d,"projectID":%d,"query":%s,"timeRangeSeconds":%d,"avgMemoryBytes":%d,"count":%d,"multiTenant":%v}`,
+			r.accountID, r.projectID, stringsutil.JSONString(r.query), r.timeRangeSecs, r.memoryUsage, r.count, r.multiTenant)
 		if i+1 < len(topByAvgMemoryConsumption) {
 			fmt.Fprintf(w, `,`)
 		}
@@ -355,10 +356,13 @@ func (qst *queryStatsTracker) getTopBySumDuration(topN int, apFilter *accountPro
 }
 
 type queryStatByMemory struct {
+	accountID     uint32
+	projectID     uint32
 	query         string
 	timeRangeSecs int64
 	memoryUsage   int64
 	count         int
+	multiTenant   bool
 }
 
 func (qst *queryStatsTracker) getTopByAvgMemoryUsage(topN int, apFilter *accountProjectFilter, maxLifetime time.Duration) []queryStatByMemory {
@@ -383,10 +387,13 @@ func (qst *queryStatsTracker) getTopByAvgMemoryUsage(topN int, apFilter *account
 	var a []queryStatByMemory
 	for k, ks := range m {
 		a = append(a, queryStatByMemory{
+			accountID:     k.accountID,
+			projectID:     k.projectID,
 			query:         k.query,
 			timeRangeSecs: k.timeRangeSecs,
 			memoryUsage:   ks.sum / int64(ks.count),
 			count:         ks.count,
+			multiTenant:   k.multiTenant,
 		})
 	}
 	sort.Slice(a, func(i, j int) bool {
