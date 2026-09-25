@@ -16,6 +16,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
@@ -390,8 +391,8 @@ func endConcurrencyLimit() {
 }
 
 func bufferRequestBody(ctx context.Context, r io.ReadCloser, userName string) (io.ReadCloser, error) {
-	if r == nil {
-		// This is a GET request with nil reader.
+	if r == nil || r == http.NoBody {
+		// This is a GET request with nil reader or request without body
 		return nil, nil
 	}
 
@@ -528,7 +529,7 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 
 	req := sanitizeRequestHeaders(r)
 	if bbOK && bb.canRetry() {
-		// It's not safe to the same Body with multiple http requests.
+		// It's not safe to use the same Body with multiple http requests.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11508
 		req.Body = bb.newInmemoryReadCloser()
 	}
@@ -867,7 +868,7 @@ func handleConcurrencyLimitError(w http.ResponseWriter, r *http.Request, err err
 //
 //  1. It enables request retries when the request body size does not exceed maxBufSize
 //     by fully buffering the request body in memory.
-//     If bufferedBody supports retry, caller must use newInmemoryReader for each retry.
+//     If bufferedBody supports retry, caller must use newInmemoryReadCloser for each retry.
 //  2. It prevents slow clients from reducing effective server capacity
 //     by buffering the request body before acquiring a per-user concurrency slot.
 //
@@ -878,8 +879,6 @@ type bufferedBody struct {
 	// r is nil if buf contains all the data.
 	r io.ReadCloser
 
-	retryReader io.ReadCloser
-
 	// buf contains the initial buffer read from r.
 	buf []byte
 
@@ -889,7 +888,7 @@ type bufferedBody struct {
 	// cannotRetry is set to true after Close() call on non-nil r.
 	cannotRetry bool
 
-	closed bool
+	closed atomic.Bool
 }
 
 func newBufferedBody(r io.ReadCloser, buf []byte, maxBufSize int) *bufferedBody {
@@ -906,14 +905,14 @@ func newBufferedBody(r io.ReadCloser, buf []byte, maxBufSize int) *bufferedBody 
 		buf: buf,
 	}
 	maxRetrySize := maxRequestBodySizeToRetry.IntN()
-	bb.cannotRetry = bb.r != nil || maxRetrySize == 0 || len(bb.buf) >= maxRetrySize
+	bb.cannotRetry = bb.r != nil || maxRetrySize <= 0 || len(bb.buf) > maxRetrySize
 
 	return bb
 }
 
 // Read implements io.Reader interface.
 func (bb *bufferedBody) Read(p []byte) (int, error) {
-	if bb.closed {
+	if bb.closed.Load() {
 		return 0, fmt.Errorf("cannot read already closed request body")
 	}
 	if bb.bufOffset < len(bb.buf) {
@@ -937,7 +936,9 @@ func (bb *bufferedBody) newInmemoryReadCloser() io.ReadCloser {
 
 // Close implements io.Closer interface.
 func (bb *bufferedBody) Close() error {
-	bb.closed = true
+	if !bb.closed.CompareAndSwap(false, true) {
+		return nil
+	}
 	if bb.r != nil {
 		return bb.r.Close()
 	}
