@@ -664,7 +664,7 @@ See also [Single sign-on (SSO)](#single-sign-on-sso), [authorization](#authoriza
 
 ### Single sign-on (SSO)
 
-`vmauth` supports [Single sign-on (SSO)](https://en.wikipedia.org/wiki/Single_sign-on){{% available_from "#" %}}.
+`vmauth` supports [Single sign-on (SSO)](https://en.wikipedia.org/wiki/Single_sign-on){{% available_from "v1.153.0" %}}.
 It works with any [OIDC-compliant](https://openid.net/developers/how-connect-works/) Identity Provider (IdP) such as Keycloak, Auth0, Okta, Google, Azure AD, etc.
 It implements the [Authorization Code Flow](https://openid.net/specs/openid-connect-core-1_0.html#CodeFlowAuth):
 when an unauthenticated browser request arrives `vmauth` shows a login page, redirects to the IdP,
@@ -1443,7 +1443,7 @@ users:
       skip_status_codes: [200, 202]
 ```
 
-vmauth can print HTTP headers in access logs if `headers` param is specified {{% available_from "#" %}}. Only headers listed in `headers` param will be printed:
+vmauth can print HTTP headers in access logs if `headers` param is specified {{% available_from "v1.153.0" %}}. Only headers listed in `headers` param will be printed:
 ```yaml
 unauthorized_user:
   access_log:
