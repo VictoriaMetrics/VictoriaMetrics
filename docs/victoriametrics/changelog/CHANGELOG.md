@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [data recovery](https://docs.victoriametrics.com/victoriametrics/data-recovery/): document how to detect and recover missing data from another VictoriaMetrics installation with `vmctl`. See [#9854](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9854).
+
 ## [v1.153.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.153.0)
 
 Release candidate
