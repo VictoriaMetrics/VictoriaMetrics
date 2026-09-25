@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"flag"
@@ -521,7 +522,16 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tkn *j
 
 func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url.URL, hc HeadersConf, retryStatusCodes []int, ui *UserInfo, bu *backendURL) (bool, bool) {
 	ui.backendRequests.Inc()
+
+	bb, bbOK := r.Body.(*bufferedBody)
+	canRetry := !bbOK || bb.canRetry()
+
 	req := sanitizeRequestHeaders(r)
+	if bbOK && bb.canRetry() {
+		// It's not safe to the same Body with multiple http requests.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11508
+		req.Body = bb.newInmemoryReadCloser()
+	}
 
 	req.URL = targetURL
 	req.Header.Set("User-Agent", "vmauth")
@@ -538,9 +548,6 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 			req.Host = targetURL.Host
 		}
 	}
-
-	bb, bbOK := req.Body.(*bufferedBody)
-	canRetry := !bbOK || bb.canRetry()
 
 	res, err := ui.rt.RoundTrip(req)
 	if err == nil {
@@ -568,9 +575,6 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 		}
 		if netutil.IsTrivialNetworkError(err) {
 			// Retry request at the same backend on trivial network errors, such as proxy idle timeout misconfiguration or socket close by OS
-			if bbOK {
-				bb.resetReader()
-			}
 			return false, true
 		}
 
@@ -578,9 +582,6 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 		requestURI := httpserver.GetRequestURI(r)
 		logger.Warnf("remoteAddr: %s; requestURI: %s; request to %s failed: %s, retrying the request at another backend", remoteAddr, requestURI, targetURL, err)
-		if bbOK {
-			bb.resetReader()
-		}
 		return false, false
 	}
 	if slices.Contains(retryStatusCodes, res.StatusCode) {
@@ -604,9 +605,6 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 		requestURI := httpserver.GetRequestURI(r)
 		logger.Warnf("remoteAddr: %s; requestURI: %s; request to %s failed, retrying the request at another backend because response status code=%d belongs to retry_status_codes=%d",
 			remoteAddr, requestURI, targetURL, res.StatusCode, retryStatusCodes)
-		if bbOK {
-			bb.resetReader()
-		}
 		return false, false
 	}
 	removeHopHeaders(res.Header)
@@ -869,6 +867,7 @@ func handleConcurrencyLimitError(w http.ResponseWriter, r *http.Request, err err
 //
 //  1. It enables request retries when the request body size does not exceed maxBufSize
 //     by fully buffering the request body in memory.
+//     If bufferedBody supports retry, caller must use newInmemoryReader for each retry.
 //  2. It prevents slow clients from reducing effective server capacity
 //     by buffering the request body before acquiring a per-user concurrency slot.
 //
@@ -879,6 +878,8 @@ type bufferedBody struct {
 	// r is nil if buf contains all the data.
 	r io.ReadCloser
 
+	retryReader io.ReadCloser
+
 	// buf contains the initial buffer read from r.
 	buf []byte
 
@@ -887,6 +888,8 @@ type bufferedBody struct {
 
 	// cannotRetry is set to true after Close() call on non-nil r.
 	cannotRetry bool
+
+	closed bool
 }
 
 func newBufferedBody(r io.ReadCloser, buf []byte, maxBufSize int) *bufferedBody {
@@ -898,15 +901,19 @@ func newBufferedBody(r io.ReadCloser, buf []byte, maxBufSize int) *bufferedBody 
 		r = nil
 	}
 
-	return &bufferedBody{
+	bb := &bufferedBody{
 		r:   r,
 		buf: buf,
 	}
+	maxRetrySize := maxRequestBodySizeToRetry.IntN()
+	bb.cannotRetry = bb.r != nil || maxRetrySize == 0 || len(bb.buf) >= maxRetrySize
+
+	return bb
 }
 
 // Read implements io.Reader interface.
 func (bb *bufferedBody) Read(p []byte) (int, error) {
-	if bb.cannotRetry {
+	if bb.closed {
 		return 0, fmt.Errorf("cannot read already closed request body")
 	}
 	if bb.bufOffset < len(bb.buf) {
@@ -921,25 +928,20 @@ func (bb *bufferedBody) Read(p []byte) (int, error) {
 }
 
 func (bb *bufferedBody) canRetry() bool {
-	if bb.r != nil {
-		return false
-	}
-	maxRetrySize := maxRequestBodySizeToRetry.IntN()
-	return len(bb.buf) == 0 || (maxRetrySize > 0 && len(bb.buf) <= maxRetrySize)
+	return !bb.cannotRetry
+}
+
+func (bb *bufferedBody) newInmemoryReadCloser() io.ReadCloser {
+	return io.NopCloser(bytes.NewBuffer(bb.buf))
 }
 
 // Close implements io.Closer interface.
 func (bb *bufferedBody) Close() error {
-	bb.resetReader()
-	bb.cannotRetry = !bb.canRetry()
+	bb.closed = true
 	if bb.r != nil {
 		return bb.r.Close()
 	}
 	return nil
-}
-
-func (bb *bufferedBody) resetReader() {
-	bb.bufOffset = 0
 }
 
 func debugInfo(u *url.URL, r *http.Request) string {
