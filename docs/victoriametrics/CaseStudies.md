@@ -42,6 +42,7 @@ where you can chat with VictoriaMetrics users to get additional references, revi
 - [Smarkets](#smarkets)
 - [Spotify](#spotify)
 - [Synthesio](#synthesio)
+- [Voltir](#voltir)
 - [Wedos.com](#wedoscom)
 - [Wix.com](#wixcom)
 - [Xiaohongshu](#xiaohongshu)
@@ -608,6 +609,39 @@ Numbers:
 - Index size: 3 GB
 - Query duration 99th percentile: 147ms
 - Churn rate: 2400 new time series per day
+
+## Voltir
+
+[Voltir](https://voltir.tech/) is a managed monitoring platform for mid-sized companies in Russia.
+We run monitoring as a service: our customers install a lightweight agent, and we operate the whole
+observability stack for them — dashboards, alerting rules, upgrades and capacity planning.
+
+VictoriaMetrics is the core of the platform. We evaluated Prometheus with Thanos and plain Prometheus
+federation, but chose single-node VictoriaMetrics for three reasons:
+
+- Native multi-tenancy. Every customer gets an isolated tenant (accountID), and tenant isolation
+  is enforced at the storage level. We verify cross-tenant isolation with automated tests on every deployment.
+- Resource efficiency. A single small node comfortably serves all our tenants: after we cleaned up
+  orphaned alerting rules left by e2e tests (196 stale rule files producing 42 rule evaluations/s),
+  rule evaluation dropped to under 1/s and load average went from 7.6 to 1.7 on a 2-core machine.
+- Standard PromQL and the Prometheus ecosystem. Our customers keep their data portable: metrics are
+  queryable with standard PromQL and dashboards are plain Grafana, so there is no vendor lock-in on our side either.
+
+Our setup: agents on customer hosts (Linux, Windows), single-node VictoriaMetrics with per-tenant
+accounts, vmalert with per-tenant rule files and `extra_filters` for query isolation, Grafana for
+dashboards, plus logs and traces alongside metrics.
+
+A detail that may be interesting for the community: on top of standard infrastructure metrics we
+monitor 1C:Enterprise (a business platform widely used in Russia) through its native RAS service —
+APDEX scores, user sessions, licenses and worker process memory all become regular time series in
+VictoriaMetrics, and vmalert rules alert on them like on any other metric.
+
+One operational lesson worth sharing: vmalert rejects the whole rule directory reload if any single
+rule file is invalid. In a multi-tenant setup this means one tenant's typo can freeze rule updates
+for everyone, and an invalid file on disk turns into a crash-loop on the next restart. We solved it
+with transactional rule file replacement (roll back the file if reload fails), template whitelisting
+for user-supplied alert annotations, and a regression test that deliberately breaks one tenant's
+rule and asserts that other tenants' rules keep evaluating.
 
 ## Wedos.com
 
