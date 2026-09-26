@@ -1,6 +1,7 @@
 package azure
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -109,13 +110,14 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		return nil, fmt.Errorf("cannot read configs for `environment: %q`: %w", environment, err)
 	}
 
-	refreshToken, err := getRefreshTokenFunc(sdc, ac, proxyAC, env)
-	if err != nil {
-		return nil, err
-	}
 	c, err := discoveryutil.NewClient(env.ResourceManagerEndpoint, ac, sdc.ProxyURL, proxyAC, &sdc.HTTPClientConfig)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create client for %q: %w", env.ResourceManagerEndpoint, err)
+	}
+	refreshToken, err := getRefreshTokenFunc(c.Context(), sdc, ac, proxyAC, env)
+	if err != nil {
+		c.Stop()
+		return nil, err
 	}
 	// It's already verified in discoveryutil.NewClient so no need to check err.
 	u, _ := url.Parse(c.APIServer())
@@ -163,7 +165,7 @@ func readCloudEndpointsFromFile(filePath string) (*cloudEnvironmentEndpoints, er
 	return &cee, nil
 }
 
-func getRefreshTokenFunc(sdc *SDConfig, ac, proxyAC *promauth.Config, env *cloudEnvironmentEndpoints) (refreshTokenFunc, error) {
+func getRefreshTokenFunc(ctx context.Context, sdc *SDConfig, ac, proxyAC *promauth.Config, env *cloudEnvironmentEndpoints) (refreshTokenFunc, error) {
 	var tokenEndpoint, tokenAPIPath string
 	var modifyRequest func(request *http.Request)
 	authenticationMethod := sdc.AuthenticationMethod
@@ -171,6 +173,8 @@ func getRefreshTokenFunc(sdc *SDConfig, ac, proxyAC *promauth.Config, env *cloud
 		authenticationMethod = "OAuth"
 	}
 	switch strings.ToLower(authenticationMethod) {
+	case "workloadidentity", "sdk":
+		return newSDKRefreshTokenFunc(ctx, sdc, ac, proxyAC, env)
 	case "oauth":
 		if sdc.TenantID == "" {
 			return nil, fmt.Errorf("missing `tenant_id` config option for `authentication_method: Oauth`")
@@ -234,7 +238,7 @@ func getRefreshTokenFunc(sdc *SDConfig, ac, proxyAC *promauth.Config, env *cloud
 			}
 		}
 	default:
-		return nil, fmt.Errorf("unsupported `authentication_method: %q` only `OAuth` and `ManagedIdentity` are supported", authenticationMethod)
+		return nil, fmt.Errorf("unsupported `authentication_method: %q` only `OAuth`, `ManagedIdentity`, `WorkloadIdentity` and `SDK` are supported", authenticationMethod)
 	}
 
 	authClient, err := discoveryutil.NewClient(tokenEndpoint, ac, sdc.ProxyURL, proxyAC, &sdc.HTTPClientConfig)
