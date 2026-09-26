@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): support one-shot cleanup of a destination's on-disk queue at startup with a `clean_on_start` marker. See [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#dropping-a-destinations-pending-data) and [#11506](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11506).
+
 ## [v1.153.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.153.0)
 
 Release candidate
