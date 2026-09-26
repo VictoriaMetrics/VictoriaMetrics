@@ -171,6 +171,9 @@ func main() {
 
 	promscrape.Init(remotewrite.PushDropSamplesOnFailure)
 
+	// Register paths which could be protected by their own -*AuthKey flag.
+	httpserver.RegisterAuthKeyProtectedPathsFunc(isAuthKeyProtectedPath)
+
 	go httpserver.Serve(listenAddrs, requestHandler, httpserver.ServeOptions{
 		UseProxyProtocol: useProxyProtocol,
 	})
@@ -248,6 +251,23 @@ func getAuthTokenFromPath(path string, header http.Header) (*auth.Token, error) 
 		return nil, fmt.Errorf("unsupported path requested: %q; expecting 'opentsdb/api/put'", p.Suffix)
 	}
 	return auth.NewTokenPossibleMultitenant(p.AuthToken)
+}
+
+// isAuthKeyProtectedPath returns true for paths, which verify -configAuthKey or -reloadAuthKey
+// on their own at requestHandler().
+func isAuthKeyProtectedPath(r *http.Request) bool {
+	// path normalization is needed here because it exists in requestHandler() as well
+	path := strings.ReplaceAll(r.URL.Path, "//", "/")
+	switch path {
+	case "/prometheus/config", "/config",
+		"/prometheus/api/v1/status/config", "/api/v1/status/config",
+		"/remotewrite-relabel-config", "/api/v1/status/remotewrite-relabel-config",
+		"/remotewrite-url-relabel-config", "/api/v1/status/remotewrite-url-relabel-config",
+		"/prometheus/-/reload", "/-/reload":
+		return true
+	default:
+		return false
+	}
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
@@ -340,6 +360,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/influx/write", "/influx/api/v2/write", "/write", "/api/v2/write":
 		influxWriteRequests.Inc()
+		addInfluxResponseHeaders(w)
 		if err := influx.InsertHandlerForHTTP(nil, r); err != nil {
 			influxWriteErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
@@ -349,10 +370,12 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/influx/query", "/query":
 		influxQueryRequests.Inc()
+		addInfluxResponseHeaders(w)
 		influxutil.WriteDatabaseNames(w)
 		return true
 	case "/influx/health":
 		influxHealthRequests.Inc()
+		addInfluxResponseHeaders(w)
 		influxutil.WriteHealthCheckResponse(w)
 		return true
 	case "/opentelemetry/api/v1/push", "/opentelemetry/v1/metrics":
@@ -763,6 +786,12 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 		httpserver.Errorf(w, r, "unsupported multitenant path suffix: %q", p.Suffix)
 		return true
 	}
+}
+
+func addInfluxResponseHeaders(w http.ResponseWriter) {
+	// This is needed for some clients, which expect InfluxDB version header.
+	// See, for example, https://github.com/ntop/ntopng/issues/5449#issuecomment-1005347597
+	w.Header().Set("X-Influxdb-Version", "1.8.0")
 }
 
 var (

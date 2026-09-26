@@ -15,7 +15,48 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+> [!TIP]
+> See the directional [compatibility matrix](https://docs.victoriametrics.com/anomaly-detection/migration/#compatibility-matrix) before upgrading or rolling back, particularly when restoring persisted model state.
+
 {{% collapse name="2026" open=true %}}
+
+## v1.30.7
+Released: 2026-09-24
+
+- UI: Updated the bundled [UI from v1.9.1 to v1.9.2](https://docs.victoriametrics.com/anomaly-detection/ui/#v192) with incident investigation links and configurable model choices.
+
+- FEATURE: Open persisted anomaly results from [vmalert investigation links](https://docs.victoriametrics.com/anomaly-detection/ui/#investigate-a-firing-alert), with the configured model, queries and incident time range selected in VMUI.
+
+- IMPROVEMENT: Curate model choices, including Auto tuning targets, with [`server.ui_allowed_models`](https://docs.victoriametrics.com/anomaly-detection/components/server/#parameters).
+
+- IMPROVEMENT: Reduced reader overhead when parsing datapoints, preparing columns and loading single-chunk Parquet data.
+
+- IMPROVEMENT: Updated the [self-monitoring dashboard](https://docs.victoriametrics.com/anomaly-detection/self-monitoring/#grafana-dashboard) with activity counts, corrected queries, per-model views and AI Copilot usage.
+
+- BUGFIX: Generated UI alert rules use a strict anomaly-score threshold (`> 1` by default) and preserve preset version suffixes in metric selectors.
+
+## v1.30.6
+Released: 2026-09-17
+
+- UI: Updated the bundled [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/#v191) from [v1.9.0](https://docs.victoriametrics.com/anomaly-detection/ui/#v190) to [v1.9.1](https://docs.victoriametrics.com/anomaly-detection/ui/#v191). The Server tab in the Queries sheet now provides a searchable list, model filtering, consistent row actions, and bulk actions for selected queries, including selections hidden by the active filter.
+
+- FEATURE: Added experimental [Docker Hardened Images](https://docs.victoriametrics.com/anomaly-detection/quickstart/#experimental-hardened-image) under `v1.30.6-dhi` and `v1.30.6-enterprise-dhi`. Both tags identify the same image, with fewer OS packages and no runtime shell or package manager. Docker Hub and Quay provide amd64/arm64 images. Standard tags, including `latest`, retain their existing base image.
+
+- BUGFIX: Stabilized univariate [Temporal Envelope](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope) estimates for intermittent data. Implausible current-time predictions fall back to the learned median when valid observations are available. Explicit future forecasts retain their extrapolation behavior, and existing model state remains loadable.
+
+- BUGFIX: [Periodic schedulers](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) consistently use their configured timezone (UTC by default), including interval triggers and ISO `start_from` values without an offset. ISO values with an explicit offset retain their instant.
+
+## v1.30.5
+Released: 2026-09-10
+
+
+- UI: Updated the [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/#v190) to v1.9.0 with multiple named queries, per-query business policies, and an experimental [multivariate investigation workspace](https://docs.victoriametrics.com/anomaly-detection/ui/#multivariate-investigation). Explore aligned signals and a joint anomaly score separately for each model group.
+
+- FEATURE: Shared [autotune](https://docs.victoriametrics.com/anomaly-detection/components/server/#time-series-analysis-and-autotune-api) accepts named queries and evaluates aligned multivariate groups in one study, returning one shared model configuration.
+
+- IMPROVEMENT: Reduced duplicate [AI Copilot](https://docs.victoriametrics.com/anomaly-detection/ui/#ai-assistance) context, added configurable context/output budgets, and exposed bounded [AI Copilot metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#ai-copilot-metrics) for request size, reported tokens, finish reasons and local budget refusals.
+
+- BUGFIX: Applied query-level data ranges, detection directions and minimum deviations consistently in [multiprocessing mode](https://docs.victoriametrics.com/anomaly-detection/components/settings/#parallelization). Explicit query policies take precedence over model fallbacks; observations outside the configured range retain their out-of-range anomaly score.
 
 ## v1.30.4
 Released: 2026-08-28

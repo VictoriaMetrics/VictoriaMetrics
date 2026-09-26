@@ -106,6 +106,10 @@ This global panel holds resource utilization (CPU, RAM, File Descriptors) on bot
 **Healthy scenario**:
 - **Timeseries graphs**: Should appear stable over time, without significant spikes or drops. An absence of upward trends (e.g., trends in RAM usage may indicate a [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate) in your input data).
 
+### AI Copilot usage
+
+Revision 10 of [dashboard 22337](https://grafana.com/grafana/dashboards/22337) adds fleet availability and per-instance [AI Copilot metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#ai-copilot-metrics), including tokens, estimated cost and unpriced responses. Only job and instance filters apply. Missing telemetry remains **Unknown**; initialized status reflects startup, not live provider health. Estimated costs exclude unpriced responses and tool/server compute.
+
 ### Model Statistics
 
 These panels contain repeated blocks for each unique `model_alias` (a distinct entity defined in the `models` [configuration section](https://docs.victoriametrics.com/anomaly-detection/components/models/)), filtered according to the current dashboard settings. They provide information on the number of unique entities (such as queries, schedulers, and instances) that a particular `model_alias` interacts with, as well as the count of active model instances available for inferring new data.
@@ -129,7 +133,7 @@ The alerting rules are provided in a YAML file called [`alerts-vmanomaly.yml`](h
 
 ### Using the Alerting Rules
 
-These alerting rules complements the [dashboard](#grafana-dashboard) to monitor the health of `vmanomaly`. Each alert has annotations to help understand the issue and guide troubleshooting efforts. Below are the key alerts included, grouped into 2 sections:
+These alerting rules use MetricsQL and are intended for vmalert with a VictoriaMetrics datasource. Adjust the job selector and thresholds to your deployment. They complement the [dashboard](#grafana-dashboard) to monitor the health of `vmanomaly`. Each alert has annotations to help understand the issue and guide troubleshooting efforts. Below are the key alerts included, grouped into 2 sections:
 
 ![firing-alerts-groups](firing-alerts-groups.webp)
 
@@ -140,8 +144,8 @@ These alerting rules complements the [dashboard](#grafana-dashboard) to monitor 
 - **`FrequentSchedulerRestarts`**: {{% available_from "v1.30.0" anomaly %}} Warns when an individual scheduler has more than two restart attempts within 15 minutes. A single successful self-heal does not alert, while repeated attempts indicate a flapping scheduler or dependency.
 - **`ProcessNearFDLimits`**: Alerts when the number of available file descriptors falls below 100, which could lead to severe degradation if the limit is exhausted.
 - **`TooHighCPUUsage`**: Alerts when CPU usage exceeds 90% for a continuous 5-minute period, indicating possible resource exhaustion and the need to adjust resource allocation or load.
-- **`TooHighMemoryUsage`**: Alerts when RAM usage exceeds 85% for a continuous 5-minute period and the need to adjust resource allocation or load.
-- **`NoSelfMonitoringMetrics`**: Alerts when vmanomaly up time metric has not been seen in Victoriametrics for 15 minutes, indicating the service is down or unable to push metrics to Victoriametrics.
+- **`TooHighMemoryUsage`**: Alerts when the minimum RAM usage over 10 minutes exceeds 85% of available memory and this condition holds for another 5 minutes.
+- **`NoSelfMonitoringMetrics`**: Alerts after roughly 20 minutes without a self-monitoring sample (15-minute lag plus a 5-minute hold). Instances remain detectable only within the 24-hour lookback. With the default `push_frequency: 15m`, raise the lag threshold (e.g. to 1200 seconds) or shorten the push interval (e.g. to 10 minutes) to allow for jitter.
 - **`LastConfigReloadFailed`**: Alerts if the last configuration [reload](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) failed, which could indicate issues with the configuration or the service's ability to apply changes.
 
 ![firing-alerts-example-too-many-restarts](firing-alerts-example-too-many-restarts.webp)

@@ -294,6 +294,34 @@ Discovery mechanism could be also used together with [vmstorage group](#vmstorag
 Each `-storageNode` parameter assigns one or more storage nodes to a specific group (e.g., `g1`, `g2`, `g3`).
 The automatically discovered nodes retain the [vmstorage group](#vmstorage-groups-at-vmselect) prefix to maintain consistent group mapping.
 
+### Reading from single-node VictoriaMetrics
+
+For executing queries, `vmselect` node is configured with `-storageNode=<vmstorage_host1>,<vmstorage_host2>...` command-line flag, listing all `vmstorage` nodes to query. VictoriaMetrics single-node can be queried by `vmselect` too {{% available_from "v1.147.0" %}}. This makes possible the following use cases:
+1. Querying data from single-node and cluster installations at the same time.
+2. Querying data from multiple single-nodes at the same time.
+
+By default, the single-node VictoriaMetrics can't be queried by `vmselect`. Enable this functionality by configuring the `-vmselectAddr` command-line flag for single-node VictoriaMetrics. It will start the `vmselect RPC server` that accepts requests and serves responses in the cluster format.
+
+Cluster format assumes [multitenancy](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy), and single-node VictoriaMetrics [does not support multitenancy](https://docs.victoriametrics.com/victoriametrics/#multi-tenancy). But with `-vmselectAddr` enabled, single-node VictoriaMetrics assumes all the data it stores belongs to `"0:0"` tenant. This default tenant can be changed by specifying extra `-accountID` and `-projectID` command-line flags for single-node VictoriaMetrics.
+
+For example, the following command will start a single-node that listens for `vmselect` RPC requests on the `8401` port. The requests must be either `/multitenant/` (i.e., [read data from all tenants](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenant-reads)) or for `"12:34"` tenant. Otherwise, the single-node will return an empty result:
+```sh
+./victoria-metrics-single-node -storageDataPath=/data -vmselectAddr=:8401 -accountID=12 -projectID=34
+```
+
+> The `tenantID` configuration is not persisted in any way and is enforced only at runtime. Thus, it is safe to change the `-accountID` and `-projectID` flag values at any time.
+
+To make the `vmselect` node query data from a single-node and `vmstorage` nodes at the same time, simply list their addresses in the `-storageNode` command-line flag:
+```sh
+/path/to/vmselect \
+ -storageNode=<single-node-host:8401> \
+ -storageNode=<vmstorage-1:8401>  \
+ -storageNode=<vmstorage-2:8401> 
+```
+
+You can configure `vmselect` to read from as many single-nodes and `vmstorage` nodes as you want. `vmselect` will treat such single-nodes as regular `vmstorage` nodes, apply  [deduplication](https://docs.victoriametrics.com/Cluster-VictoriaMetrics/#deduplication), cache results, etc. 
+
+
 ## High availability
 
 The database is considered highly available if it continues accepting new data and processing incoming queries when some of its components are temporarily unavailable.
@@ -535,7 +563,7 @@ Also in the cluster version the `/prometheus/api/v1` endpoint ingests  `jsonl`, 
 
 > Check practical examples of [VictoriaMetrics API](https://docs.victoriametrics.com/victoriametrics/url-examples/).
 
-- URLs for data ingestion: `http://<vminsert>:8480/insert/<accountID>/<suffix>`, where:
+- URLs for data ingestion via `vminsert`: `http://<vminsert>:8480/insert/<accountID>/<suffix>`, where:
   - `<accountID>` is an arbitrary 32-bit integer identifying namespace for data ingestion (aka tenant). It is possible to set it as `accountID:projectID`,
     where `projectID` is also arbitrary 32-bit integer. If `projectID` isn't set, then it equals to `0`. See [multitenancy docs](#multitenancy) for more details
     about managing tenants, specifying tenant IDs via HTTP headers or labels.
@@ -552,6 +580,15 @@ Also in the cluster version the `/prometheus/api/v1` endpoint ingests  `jsonl`, 
     - `influx/write` and `influx/api/v2/write` - for ingesting data with [InfluxDB line protocol](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/). TCP and UDP receiver is disabled by default. It is exposed on a distinct TCP address set via `-influxListenAddr` command-line flag. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb/) for details.
     - `newrelic/infra/v2/metrics/events/bulk` - for accepting data from [NewRelic infrastructure agent](https://docs.newrelic.com/docs/infrastructure/install-infrastructure-agent). See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/newrelic/#sending-data-from-agent) for details.
     - `opentsdb/api/put` - for accepting [OpenTSDB HTTP /api/put requests](http://opentsdb.net/docs/build/html/api_http/put.html). This handler is disabled by default. It is exposed on a distinct TCP address set via `-opentsdbHTTPListenAddr` command-line flag. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb/#sending-data-via-http) for details.
+
+- URLs for data ingestion via `vmstorage`: `http://<vmstorage>:8482/insert/<accountID>/<suffix>`.
+  Direct ingestion into `vmstorage` is disabled by default. It can be enabled with the `-enableIngestionAPI`
+  command-line flag.
+  - `<accountID>` is an arbitrary 32-bit integer identifying namespace for data ingestion (aka tenant). It is possible to set it as `accountID:projectID`,
+    where `projectID` is also arbitrary 32-bit integer. If `projectID` isn't set, then it equals to `0`. See [multitenancy docs](#multitenancy) for more details
+    about managing tenants, specifying tenant IDs via HTTP headers or labels.
+  - `<suffix>` may have the following values:
+    - `prometheus`, `prometheus/api/v1/write` and `prometheus/api/v1/push` - for ingesting data with Prometheus remote write API.
 
 - URLs for [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/): `http://<vmselect>:8481/select/<accountID>/prometheus/<suffix>`, where:
   - `<accountID>` is an arbitrary number identifying data namespace for the query (aka tenant). See [multitenancy docs](#multitenancy) for more details

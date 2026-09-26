@@ -419,7 +419,7 @@ func (c *vmselectClient) PrometheusAPIV1AdminTSDBDeleteSeries(t *testing.T, matc
 // usage stats response for given params.
 //
 // See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#track-ingested-metrics-usage
-func (c *vmselectClient) PrometheusAPIV1StatusMetricNamesStats(t *testing.T, limit, le, matchPattern string, opts QueryOpts) MetricNamesStatsResponse {
+func (c *vmselectClient) PrometheusAPIV1StatusMetricNamesStats(t *testing.T, limit, le, matchPattern string, opts QueryOpts) *MetricNamesStatsResponse {
 	t.Helper()
 	url := c.url("select", "prometheus/api/v1/status/metric_names_stats", opts)
 	values := opts.asURLValues()
@@ -434,7 +434,7 @@ func (c *vmselectClient) PrometheusAPIV1StatusMetricNamesStats(t *testing.T, lim
 	if err := json.Unmarshal([]byte(res), &resp); err != nil {
 		t.Fatalf("could not unmarshal metric names stats response data:\n%s\n err: %v", res, err)
 	}
-	return resp
+	return &resp
 }
 
 // PrometheusAPIV1StatusTSDB retrieves the TSDB status for the time series that
@@ -681,7 +681,20 @@ func (c *vminsertClient) PrometheusAPIV1ImportNative(t *testing.T, data []byte, 
 // PrometheusAPIV1Write is a test helper function that inserts a
 // collection of records in Prometheus remote-write format by sending a HTTP
 // POST request to /prometheus/api/v1/write vminsert endpoint.
+//
+// The method expects the request to be processed successfully which is
+// indicated by HTTP-204 response status code.
 func (c *vminsertClient) PrometheusAPIV1Write(t *testing.T, wr prompb.WriteRequest, opts QueryOpts) {
+	t.Helper()
+	c.PrometheusAPIV1WriteWithStatusCode(t, wr, opts, http.StatusNoContent)
+}
+
+// PrometheusAPIV1WriteWithStatusCode is a test helper function that inserts a
+// collection of records in Prometheus remote-write format by sending a HTTP
+// POST request to /prometheus/api/v1/write vminsert endpoint.
+//
+// The method expects the HTTP response status code to be `wantStatusCode`.
+func (c *vminsertClient) PrometheusAPIV1WriteWithStatusCode(t *testing.T, wr prompb.WriteRequest, opts QueryOpts, wantStatusCode int) {
 	t.Helper()
 
 	url := c.url("insert", "prometheus/api/v1/write", opts)
@@ -693,9 +706,9 @@ func (c *vminsertClient) PrometheusAPIV1Write(t *testing.T, wr prompb.WriteReque
 	headers := opts.getHeaders()
 	headers.Set("Content-Type", "application/x-protobuf")
 	c.sendBlocking(t, recordsCount, func() {
-		_, statusCode := c.cli.Post(t, url, data, headers)
-		if statusCode != http.StatusNoContent {
-			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
+		_, gotStatusCode := c.cli.Post(t, url, data, headers)
+		if gotStatusCode != wantStatusCode {
+			t.Fatalf("unexpected status code: got %d, want %d", gotStatusCode, wantStatusCode)
 		}
 	})
 }
