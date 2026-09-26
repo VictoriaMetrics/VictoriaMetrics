@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"regexp"
+	"testing"
 	"time"
 )
 
@@ -59,6 +60,20 @@ type vmstorageRuntimeValues struct {
 }
 
 func newVmstorage(app *app, cli *Client, rt vmstorageRuntimeValues) *Vmstorage {
+	vminsertClient := &vminsertClient{
+		cli: cli,
+		url: func(op, path string, opts QueryOpts) string {
+			return getClusterPath(rt.httpListenAddr, op, path, opts)
+		},
+		openTSDBURL: func(op, path string, opts QueryOpts) string {
+			panic("OpenTSDB ingestion is not supported by vmstorage")
+		},
+		graphiteListenAddr: "graphite-ingestion-is-not-supported-by-vmstorage",
+		sendBlocking: func(t *testing.T, numRecordsToSend int, send func()) {
+			t.Helper()
+			send()
+		},
+	}
 	return &Vmstorage{
 		app:           app,
 		metricsClient: newMetricsClient(cli, rt.httpListenAddr),
@@ -66,6 +81,7 @@ func newVmstorage(app *app, cli *Client, rt vmstorageRuntimeValues) *Vmstorage {
 			cli:            cli,
 			httpListenAddr: rt.httpListenAddr,
 		},
+		vminsertClient:  vminsertClient,
 		storageDataPath: rt.storageDataPath,
 		httpListenAddr:  rt.httpListenAddr,
 		vminsertAddr:    rt.vminsertAddr,
@@ -79,6 +95,7 @@ type Vmstorage struct {
 	*app
 	*metricsClient
 	*vmstorageClient
+	*vminsertClient
 
 	storageDataPath string
 	httpListenAddr  string
@@ -96,6 +113,12 @@ func (app *Vmstorage) VminsertAddr() string {
 // for vmselect connections.
 func (app *Vmstorage) VmselectAddr() string {
 	return app.vmselectAddr
+}
+
+// HTTPAddr returns the address at which the vmstorage process is
+// listening for incoming HTTP requests.
+func (app *Vmstorage) HTTPAddr() string {
+	return app.httpListenAddr
 }
 
 // String returns the string representation of the vmstorage app state.

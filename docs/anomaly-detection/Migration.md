@@ -63,13 +63,14 @@ Read each row as **source persisted state → target runtime**. The upgrade and 
 
 | Source state | Target runtime | Action and compatibility boundary |
 | --- | --- | --- |
-| v1.30.5 | v1.30.6 | Reuse compatible built-in state. |
-| v1.30.4 | v1.30.5–v1.30.6 | Reuse compatible built-in state. Its UI and named-query changes require no state-format migration. |
-| v1.30.0–v1.30.3 | v1.30.4–v1.30.6 | Reuse compatible built-in state. v1.30.4 restores legacy multivariate Temporal Envelope checkpoints correctly and advances state provenance after compatible upgrades. |
-| v1.30.0–v1.30.2 | v1.30.3 | Multivariate Temporal Envelope checkpoints can fail during inference. Prefer upgrading directly to v1.30.6; otherwise discard and refit affected model state. |
-| v1.29.1–v1.29.7 | v1.30.0–v1.30.6 | Existing built-in state remains compatible. Temporal Envelope was introduced in v1.30.0 and has no state from earlier releases. Review custom-model topology changes separately. |
+| v1.30.6 | v1.30.7 | Reuse compatible built-in state. |
+| v1.30.5 | v1.30.6–v1.30.7 | Reuse compatible built-in state. |
+| v1.30.4 | v1.30.5–v1.30.7 | Reuse compatible built-in state. Its UI and named-query changes require no state-format migration. |
+| v1.30.0–v1.30.3 | v1.30.4–v1.30.7 | Reuse compatible built-in state. v1.30.4 restores legacy multivariate Temporal Envelope checkpoints correctly and advances state provenance after compatible upgrades. |
+| v1.30.0–v1.30.2 | v1.30.3 | Multivariate Temporal Envelope checkpoints can fail during inference. Prefer upgrading directly to v1.30.7; otherwise discard and refit affected model state. |
+| v1.29.1–v1.29.7 | v1.30.0–v1.30.7 | Existing built-in state remains compatible. Temporal Envelope was introduced in v1.30.0 and has no state from earlier releases. Review custom-model topology changes separately. |
 | v1.28.x | v1.29.0 | Refit Prophet and Seasonal Quantile model dumps affected by the removed `pytz` dependency. Prefer v1.29.1 or newer, which restores this upgrade path. |
-| v1.28.x | v1.29.1–v1.30.6 | The v1.29.0-only Prophet/Seasonal Quantile incompatibility does not propagate to these versions. Older component-specific restrictions still apply. |
+| v1.28.x | v1.29.1–v1.30.7 | The v1.29.0-only Prophet/Seasonal Quantile incompatibility does not propagate to these versions. Older component-specific restrictions still apply. |
 | v1.24.0–v1.27.x | v1.28.0 or newer | Refit legacy `rolling_quantile` and `std` dumps if present: their class migration is a component boundary in the compatibility matrix. Earlier rolling implementations did not persist these artifacts by default. Reuse remaining state only if the global compatibility boundaries below permit it. |
 | v1.25.3–v1.27.x | Later releases in the same global chain | Global state remains compatible; apply the model-specific boundaries above when crossing v1.28.0 or v1.29.0. |
 | v1.25.1 | v1.25.2 | Reuse state within this database-format group. |
@@ -85,6 +86,7 @@ Read each row as **source persisted state → target runtime**. The upgrade and 
 
 | Source state | Target runtime | Action and compatibility boundary |
 | --- | --- | --- |
+| v1.30.7 | v1.30.6 or earlier | The older shipped runtime does not recognize v1.30.7 provenance. Reinitialize/refit on rollback. |
 | v1.30.6 | v1.30.5 or earlier | The older shipped runtime does not recognize v1.30.6 provenance. Plan to reinitialize/refit on rollback even though v1.30.6 introduces no new state format. The standard and experimental [hardened image](https://docs.victoriametrics.com/anomaly-detection/quickstart/#experimental-hardened-image) use the same state format at the same application version. |
 | v1.30.5 | v1.30.4 or earlier | The older shipped runtime does not know v1.30.5 provenance. Plan to reinitialize/refit state even where the newer matrix says the underlying formats are compatible. Do not edit the saved version. |
 | v1.30.4 | v1.30.3 or earlier | The older shipped runtime does not recognize v1.30.4 provenance and drops persisted state. Reinitialize/refit on rollback. |

@@ -98,6 +98,31 @@ func TestGetExtraTagFilters(t *testing.T) {
 	f(t, httpReqWithBothFormAndURLParams,
 		[]string{`{tenant="dev",job="vmagent",env="dev"}`},
 		false)
+
+	// empty values are ignored
+	f(t, httpReqWithForm("extra_label=&extra_filters=&extra_filters[]="),
+		nil,
+		false,
+	)
+	f(t, httpReqWithForm(`extra_label=&extra_label=job=vmagent&extra_filters=&extra_filters[]={foo="bar"}`),
+		[]string{`{foo="bar",job="vmagent"}`},
+		false,
+	)
+	f(t, httpReqWithForm("extra_label=job=vmagent&extra_filters=&extra_filters[]="),
+		[]string{`{job="vmagent"}`},
+		false,
+	)
+
+	// empty URL query args take precedence over post form args
+	httpReqWithEmptyURLParams := &http.Request{
+		Form: formValues,
+		URL: &url.URL{
+			RawQuery: "extra_label=&extra_filters=&extra_filters[]=",
+		},
+	}
+	f(t, httpReqWithEmptyURLParams,
+		nil,
+		false)
 }
 
 func TestParseMetricSelectorSuccess(t *testing.T) {
