@@ -67,6 +67,11 @@ type JWTConfig struct {
 
 	DefaultVMAccessClaim *jwt.VMAccessClaim `yaml:"default_vm_access_claim,omitempty"`
 
+	// ProxyCookieAuthorizationToken, when set, forwards the SSO cookie token to the backend
+	// by setting it as a "Bearer <token>" value in the specified HTTP header.
+	// Any previously set value of the header will be overwritten.
+	ProxyCookieAuthorizationToken string `yaml:"proxy_cookie_authorization_token,omitempty"`
+
 	// verifierPool is used to verify JWT tokens.
 	// It is initialized from PublicKeys and/or PublicKeyFiles.
 	// In this case, it is initialized once at config reload and never updated until next reload
@@ -156,7 +161,7 @@ func parseJWTUsers(ac *AuthConfig, oidcDP *oidcDiscovererPool) ([]*UserInfo, err
 				return nil, fmt.Errorf("oidc issuer %q must have http or https scheme", jwtToken.OIDC.Issuer)
 			}
 
-			oidcDP.createOrAdd(ui.JWT.OIDC.Issuer, &ui.JWT.verifierPool)
+			oidcDP.subscribeToVerifier(ui.JWT.OIDC.Issuer, &ui.JWT.verifierPool)
 		}
 
 		if err := parseJWTPlaceholdersForUserInfo(&ui, true); err != nil {

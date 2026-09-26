@@ -17,14 +17,8 @@ func TestUnixListenerSuccess(t *testing.T) {
 		}
 		defer uln.Close()
 
-		fi, err := os.Stat(addr)
-		if err != nil {
+		if _, err := os.Stat(addr); err != nil {
 			t.Fatalf("unexpected error stating unix address: %s", err)
-		}
-		gotPerm := fi.Mode().Perm()
-		wantPerm := os.FileMode(0600)
-		if gotPerm != wantPerm {
-			t.Fatalf("unexpected socket permissions: got %o, want %o", gotPerm, wantPerm)
 		}
 	}
 

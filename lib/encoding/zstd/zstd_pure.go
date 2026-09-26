@@ -123,6 +123,7 @@ func getEncoder(compressionLevel zstd.EncoderLevel) *zstd.Encoder {
 func newEncoder(compressionLevel zstd.EncoderLevel) *zstd.Encoder {
 	e, err := zstd.NewWriter(nil,
 		zstd.WithEncoderCRC(false), // Disable CRC for performance reasons.
+		zstd.WithZeroFrames(false), // Match cgo behavior for empty input.
 		zstd.WithEncoderLevel(compressionLevel))
 	if err != nil {
 		logger.Panicf("BUG: failed to create ZSTD writer: %s", err)

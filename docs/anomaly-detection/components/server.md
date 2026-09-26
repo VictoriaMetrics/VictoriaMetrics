@@ -20,12 +20,13 @@ Server component of VictoriaMetrics Anomaly Detection (`vmanomaly`) is responsib
 
 ### Parameters
 
-`addr`, `port`, `path_prefix`, `uvicorn_config`, `ui_default_state`, and `max_concurrent_tasks` parameters can be set in the `server` section of the vmanomaly configuration file. Below is the description of each parameter:
+`addr`, `port`, `path_prefix`, `uvicorn_config`, `ui_default_state`, `ui_allowed_models`, and `max_concurrent_tasks` parameters can be set in the `server` section of the vmanomaly configuration file. Below is the description of each parameter:
 
 - `addr`: IP address of the query server to listen on. Default is `0.0.0.0`.
 - `port`: Port of the query server to listen on. Default is `8490`.
 - `path_prefix`: Optional URL path prefix for all HTTP routes. If set to `my-app` or `/my-app`, routes will be served under `<vmanomaly-host>:<port>/my-app/...`.
 - `ui_default_state`: Optional [UI](https://docs.victoriametrics.com/anomaly-detection/ui/) state fragment to open on `/vmui/`. Must be URL-encoded and start with `#/?` (e.g. `#/?param=value`). See [Default State](https://docs.victoriametrics.com/anomaly-detection/ui/#default-state) section for details on constructing the value from UI state.
+- {{% available_from "v1.30.7" anomaly %}} `ui_allowed_models`: Optional list of model aliases shown in UI selectors, including Auto tuning targets. Omit it to show all models; an empty list hides all choices. This controls presentation only: configured models, Copilot, shared links and API execution remain unrestricted.
 - `max_concurrent_tasks`: Maximum number of concurrent anomaly detection tasks processed by the backend. Positive integer. All tasks above the limit will be cancelled if the limit is exceeded. Defaults to `2`.
 - `uvicorn_config`: Uvicorn configuration dictionary. Default is `{"log_level": "warning"}`. See [Uvicorn server settings](https://www.uvicorn.org/settings/) for details.
 - {{% available_from "v1.29.2" anomaly %}} `use_reader_connection_settings`: If set to `true`, UI will use connection settings (e.g. credentials, TLS, etc.) from the [reader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#config-parameters) configuration when connecting to data sources. This allows UI to connect to data sources with the same settings without requiring having `vmauth` in front of both UI and data sources.
