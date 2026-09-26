@@ -210,6 +210,103 @@ func TestClusterMultilevelPartialResponse(t *testing.T) {
 	})
 }
 
+// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11351.
+func TestClusterMultilevelStorageNodeLabelIndex(t *testing.T) {
+	tc := apptest.NewTestCase(t)
+	defer tc.Stop()
+
+	// Set up the following multi-level cluster configuration:
+	//
+	//                  |--> vmselect-eu --> vmstorage-eu <-- vminsert-eu
+	// global-vmselect -|
+	//                  |--> unavailable vmselect-us
+	//
+	// global-vmselect must return full responses for queries, which select only EU series.
+
+	vmstorageEU := tc.MustStartVmstorage("vmstorage-eu", []string{
+		"-storageDataPath=" + tc.Dir() + "/vmstorage-eu",
+	})
+	vminsertEU := tc.MustStartVminsert("vminsert-eu", []string{
+		"-storageNode=" + vmstorageEU.VminsertAddr(),
+	})
+	vmselectEU := tc.MustStartVmselect("vmselect-eu", []string{
+		"-storageNode=" + vmstorageEU.VmselectAddr(),
+	})
+	globalVmselect := tc.MustStartVmselect("global-vmselect", []string{
+		"-storageNode=" + vmselectEU.ClusternativeListenAddr() + "," + noopTCPServerAddr(t),
+		"-storageNodeLabelIndex=region=eu-1,region=us-east^^us-west",
+	})
+
+	ts := time.Now().Add(-time.Minute).Unix() * 1000
+	qopts := apptest.QueryOpts{
+		Tenant: "0",
+		Time:   fmt.Sprintf("%d", ts/1000),
+	}
+	vminsertEU.PrometheusAPIV1ImportPrometheus(t, []string{fmt.Sprintf(`up{region="eu-1"} 1 %d`, ts)}, qopts)
+	vmstorageEU.ForceFlush(t)
+
+	assertQuery := func(query string, isPartial bool) {
+		t.Helper()
+		tc.Assert(&apptest.AssertOptions{
+			Msg: "unexpected /api/v1/query response",
+			Got: func() any {
+				return globalVmselect.PrometheusAPIV1Query(t, query, qopts)
+			},
+			Want: &apptest.PrometheusAPIV1QueryResponse{
+				Status:    "success",
+				IsPartial: isPartial,
+				Data: &apptest.QueryData{
+					ResultType: "vector",
+					Result: []*apptest.QueryResult{{
+						Metric: map[string]string{"__name__": "up", "region": "eu-1"},
+						Sample: &apptest.Sample{Timestamp: ts, Value: 1},
+					}},
+				},
+			},
+		})
+	}
+	// vmselect-us is skipped, since its label index cannot match the query.
+	assertQuery(`up{region="eu-1"}`, false)
+	assertQuery(`up{region=~"eu-.*"}`, false)
+	// vmselect-us is queried, since its label index may match the query.
+	assertQuery(`up`, true)
+	assertQuery(`up{region!="us-east"}`, true)
+
+	wantSeries := &apptest.PrometheusAPIV1SeriesResponse{
+		Status: "success",
+		Data:   []map[string]string{{"__name__": "up", "region": "eu-1"}},
+	}
+	tc.Assert(&apptest.AssertOptions{
+		Msg: "unexpected /api/v1/series response",
+		Got: func() any {
+			return globalVmselect.PrometheusAPIV1Series(t, `{region="eu-1"}`, qopts)
+		},
+		Want: wantSeries,
+	})
+
+	tc.Assert(&apptest.AssertOptions{
+		Msg: "unexpected /api/v1/labels response",
+		Got: func() any {
+			return globalVmselect.PrometheusAPIV1Labels(t, `{region="eu-1"}`, qopts)
+		},
+		Want: &apptest.PrometheusAPIV1LabelsResponse{
+			Status: "success",
+			Data:   []string{"__name__", "region"},
+		},
+	})
+
+	tc.Assert(&apptest.AssertOptions{
+		Msg: "unexpected /api/v1/label/region/values response",
+		Got: func() any {
+			return globalVmselect.PrometheusAPIV1LabelValues(t, "region", `{region="eu-1"}`, qopts)
+		},
+		Want: &apptest.PrometheusAPIV1LabelValuesResponse{
+			Status: "success",
+			Data:   []string{"eu-1"},
+		},
+	})
+}
+
 // noopTCPServerAddr start local tcp server,
 // which immediately closes any incoming connections
 // and return it's address

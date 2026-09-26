@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): add `-storageNodeLabelIndex` command-line flag for skipping `-storageNode` instances, which cannot contain series matching the query. This reduces query latency in [multi-level cluster setup](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multi-level-cluster-setup) when some lower-level `vmselect` nodes are located in distant networks, and allows returning full responses when unavailable nodes cannot contain the requested series. See [these docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#storage-node-label-index) and [#11351](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11351).
+
 ## [v1.153.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.153.0)
 
 Release candidate

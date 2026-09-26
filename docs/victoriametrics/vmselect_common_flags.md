@@ -423,6 +423,10 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/cluster-victori
      Comma-separated addresses of vmstorage nodes; usage: -storageNode=vmstorage-host1,...,vmstorage-hostN . Enterprise version of VictoriaMetrics supports automatic discovery of vmstorage addresses via DNS SRV records. For example, -storageNode=srv+vmstorage.addrs . See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#automatic-vmstorage-discovery
      Supports an array of values separated by comma or specified via multiple flags.
      Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -storageNodeLabelIndex array
+     Optional label index per each -storageNode in the form 'label=value1^^...^^valueN'. It must contain all the values of the given label for the series stored at the corresponding -storageNode. For example, -storageNodeLabelIndex='region=us-east^^us-west'. vmselect doesn't send queries to the -storageNode if the query label filters cannot match any of the values. An empty value means that the -storageNode is always queried. See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#storage-node-label-index
+     Supports an array of values separated by comma or specified via multiple flags.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -tls array
      Whether to enable TLS for incoming HTTP requests at the given -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set. See also -mtls
      Supports array of values separated by comma or specified via multiple flags.
