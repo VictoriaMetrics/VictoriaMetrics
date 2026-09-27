@@ -122,6 +122,7 @@ See also [case studies](https://docs.victoriametrics.com/victoriametrics/casestu
 * [LiteLLM: Metrics, Traces, and VictoriaMetrics Stack Integration](https://rtfm.co.ua/en/litellm-metrics-traces-and-victoriametrics-stack-integration/)
 * [llama.cpp: Metrics and Monitoring with VictoriaMetrics](https://rtfm.co.ua/en/llama-cpp-metrics-and-monitoring-with-victoriametrics/)
 * [Monitoring Short-Lived Kubernetes Jobs at Scale](https://www.doit.com/blog/monitoring-short-lived-kubernetes-jobs-at-scale)
+* [LibreDB Studio: VictoriaMetrics through the Prometheus provider](https://libredb.org/blog/victoriametrics-through-the-prometheus-provider/)
 
 ## Third-party articles and slides about VictoriaLogs
 
