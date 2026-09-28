@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): preserve raw input values for `max_over_time` in mixed `aggr_over_time` queries containing counter-reset-sensitive functions. Previously, `max_over_time` could return a value above every raw sample after a reset. The rollup-result cache version is incremented so persisted results from the previous calculation are invalidated and rebuilt on demand after upgrading, causing a one-time cold cache per node.
+
 ## [v1.153.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.153.0)
 
 Release candidate
