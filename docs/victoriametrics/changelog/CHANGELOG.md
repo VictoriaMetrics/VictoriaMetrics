@@ -28,7 +28,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## [v1.153.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.153.0)
 
-Release candidate
+Released at 2026-09-28
 
 * SECURITY: `vminsert`, [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): properly apply memory limits to the `zstd` encoded blocks ingested via [native import](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-native-format). This prevents excessive memory allocation during ingestion when handling maliciously crafted requests. See [GHSA-8g4f-32hw-vqf8](https://github.com/VictoriaMetrics/VictoriaMetrics/security/advisories/GHSA-8g4f-32hw-vqf8).
 * SECURITY: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): restrict redirects in the [OIDC Discovery](https://docs.victoriametrics.com/victoriametrics/vmauth/#oidc-discovery) HTTP client to stay within the original request host. See [GHSA-xxqh-2hcc-9fp6](https://github.com/VictoriaMetrics/VictoriaMetrics/security/advisories/GHSA-xxqh-2hcc-9fp6).
