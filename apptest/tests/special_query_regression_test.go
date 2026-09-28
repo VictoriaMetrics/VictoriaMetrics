@@ -54,6 +54,7 @@ func testSpecialQueryRegression(tc *apptest.TestCase, sut apptest.PrometheusWrit
 	testNegativeIncrease(tc, sut)
 	testInstantQueryWithOffsetUsingCache(tc, sut)
 	testQueryRangeEndAtFirstMillisecondOfDate(tc, sut)
+	testAggrOverTimeMixedCounterResets(tc, sut)
 
 	// graphite
 	testComparisonNotInfNotNan(tc, sut)
@@ -61,6 +62,45 @@ func testSpecialQueryRegression(tc *apptest.TestCase, sut apptest.PrometheusWrit
 	testMaxLookbehind(tc, sut)
 	testNonNanAsMissingData(tc, sut)
 	testSubqueryAggregation(tc, sut)
+}
+
+func testAggrOverTimeMixedCounterResets(tc *apptest.TestCase, sut apptest.PrometheusWriteQuerier) {
+	t := tc.T()
+	sut.PrometheusAPIV1ImportPrometheus(t, []string{
+		`foo{job="mixed_resets"} 1 1704067230000`,
+		`foo{job="mixed_resets"} 5 1704067260000`,
+		`foo{job="mixed_resets"} 0 1704067290000`,
+		`foo{job="mixed_resets"} 2 1704067320000`,
+	}, apptest.QueryOpts{})
+	sut.ForceFlush(t)
+
+	queryOpts := apptest.QueryOpts{
+		Start:       "2024-01-01T00:02:30.000Z",
+		End:         "2024-01-01T00:02:30.000Z",
+		Step:        "30s",
+		MaxLookback: "10s",
+		NoCache:     "1",
+	}
+	for _, funcs := range []string{`("rate","max_over_time")`, `("max_over_time","rate")`} {
+		tc.Assert(&apptest.AssertOptions{
+			Msg: "unexpected mixed aggr_over_time response",
+			Got: func() any {
+				resp := sut.PrometheusAPIV1QueryRange(t, `sum(aggr_over_time(`+funcs+`, foo{job="mixed_resets"}[5m])) by (rollup)`, queryOpts)
+				resp.Sort()
+				return resp
+			},
+			Want: &apptest.PrometheusAPIV1QueryResponse{
+				Status: "success",
+				Data: &apptest.QueryData{
+					ResultType: "matrix",
+					Result: []*apptest.QueryResult{
+						{Metric: map[string]string{"rollup": "max_over_time"}, Samples: []*apptest.Sample{{Timestamp: 1704067350000, Value: 5}}},
+						{Metric: map[string]string{"rollup": "rate"}, Samples: []*apptest.Sample{{Timestamp: 1704067350000, Value: 0.06666666666666667}}},
+					},
+				},
+			},
+		})
+	}
 }
 
 func testCaseSensitiveRegex(tc *apptest.TestCase, sut apptest.PrometheusWriteQuerier) {
