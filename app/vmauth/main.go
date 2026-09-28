@@ -183,6 +183,10 @@ func requestHandlerWithInternalRoutes(w http.ResponseWriter, r *http.Request) bo
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
+	if r.URL.Path == "/_vmauth/sso/auth" {
+		processSSOAuth(w, r)
+		return true
+	}
 	if r.URL.Path == "/_vmauth/sso/callback" {
 		processSSOCallback(w, r)
 		return true
