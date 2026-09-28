@@ -866,7 +866,11 @@ func (c *vminsertClient) ZabbixConnectorHistory(t *testing.T, records []string, 
 // See https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting
 func (c *vminsertClient) GraphiteWrite(t *testing.T, records []string, _ QueryOpts) {
 	t.Helper()
-	c.cli.Write(t, c.graphiteListenAddr, records)
+	c.sendBlocking(t, len(records), func() {
+		t.Helper()
+		c.cli.Write(t, c.graphiteListenAddr, records)
+	})
+
 }
 
 type vmstorageClient struct {
