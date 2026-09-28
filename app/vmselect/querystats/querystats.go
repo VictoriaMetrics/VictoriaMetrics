@@ -178,6 +178,7 @@ func (qst *queryStatsTracker) registerQuery(accountID, projectID uint32, query s
 	r.registerTime = registerTime
 	r.duration = duration
 	r.memoryUsage = memoryUsage
+	r.multiTenant = false
 }
 
 func (qst *queryStatsTracker) registerQueryMultiTenant(query string, timeRangeMsecs int64, startTime time.Time) {
