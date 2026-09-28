@@ -14,7 +14,6 @@ import (
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prommetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	otlppb "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 	"github.com/golang/snappy"
@@ -700,9 +699,6 @@ func (c *vminsertClient) PrometheusAPIV1WriteWithStatusCode(t *testing.T, wr pro
 	url := c.url("insert", "prometheus/api/v1/write", opts)
 	data := snappy.Encode(nil, wr.MarshalProtobuf(nil))
 	recordsCount := len(wr.Timeseries)
-	if prommetadata.IsEnabled() {
-		recordsCount += len(wr.Metadata)
-	}
 	headers := opts.getHeaders()
 	headers.Set("Content-Type", "application/x-protobuf")
 	c.sendBlocking(t, recordsCount, func() {
@@ -730,7 +726,6 @@ func (c *vminsertClient) PrometheusAPIV1ImportPrometheus(t *testing.T, records [
 	}
 	data := []byte(strings.Join(records, "\n"))
 	var recordsCount int
-	var metadataRecords int
 	uniqueMetadataMetricNames := make(map[string]struct{})
 	for _, record := range records {
 		// metric metadata has the following format:
@@ -747,13 +742,9 @@ func (c *vminsertClient) PrometheusAPIV1ImportPrometheus(t *testing.T, records [
 				continue
 			}
 			uniqueMetadataMetricNames[metricName] = struct{}{}
-			metadataRecords++
 			continue
 		}
 		recordsCount++
-	}
-	if prommetadata.IsEnabled() {
-		recordsCount += metadataRecords
 	}
 	headers := opts.getHeaders()
 	headers.Set("Content-Type", "text/plain")
@@ -801,11 +792,6 @@ func (c *vminsertClient) OpentelemetryV1Metrics(t *testing.T, md otlppb.MetricsD
 	for _, rss := range md.ResourceMetrics {
 		for _, sm := range rss.ScopeMetrics {
 			recordsCount += len(sm.Metrics)
-			for _, m := range sm.Metrics {
-				if prommetadata.IsEnabled() {
-					recordsCount += len(m.Metadata)
-				}
-			}
 		}
 	}
 	url := c.url("insert", "opentelemetry/v1/metrics", opts)
