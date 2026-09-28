@@ -38,7 +38,7 @@ func (c *Vmcluster) ForceMerge(t *testing.T) {
 // via vminsert is received and processed by all vmstorages. Callers still need
 // to call ForceFlush() to ensure that the ingested data is seacheable.
 func EnsureBlockingIngestion(t *testing.T, vminsert *Vminsert, vmstorages []*Vmstorage) {
-	vminsert.vminsertClient.sendBlocking = func(t *testing.T, numRows int, send func()) {
+	vminsert.sendBlocking = func(t *testing.T, numRows int, send func()) {
 		t.Helper()
 		sendAndRecvBlocking(t, vminsert, vmstorages, numRows, send)
 	}

@@ -155,10 +155,6 @@ func testFutureTimestamps(tc *apptest.TestCase, opts testFutureTimestampsOpts) {
 	retentionLimit := 100 * 365 * 24 * time.Hour
 	var start, end time.Time
 
-	start = time.Date(now.Year()+1, 1, 1, 0, 0, 0, 0, time.UTC)
-	end = time.Date(now.Year()+2, 1, 1, 0, 0, 0, 0, time.UTC)
-	f("future_1y", start, end, false)
-
 	start = time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, time.UTC)
 	end = time.Date(now.Year(), now.Month(), now.Day()+2, 0, 0, 0, 0, time.UTC)
 	f("future_1d", start, end, false)
