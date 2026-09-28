@@ -496,15 +496,28 @@ func getRollupConfigs(funcName string, rf rollupFunc, expr metricsql.Expr, start
 		if err != nil {
 			return nil, nil, fmt.Errorf("invalid args to %s: %w", expr.AppendString(nil), err)
 		}
+		resetPreFunc := func(values []float64, timestamps []int64) {
+			removeCounterResets(values, timestamps, stalenessInterval)
+		}
+		allFuncsRemoveCounterResets := len(aggrFuncNames) > 0
 		for _, aggrFuncName := range aggrFuncNames {
-			if rollupFuncsRemoveCounterResets[aggrFuncName] {
-				// There is no need to save the previous preFunc, since it is either empty or the same.
-				preFunc = func(values []float64, timestamps []int64) {
-					removeCounterResets(values, timestamps, stalenessInterval)
-				}
+			needsResetRemoval := rollupFuncsRemoveCounterResets[aggrFuncName]
+			if !needsResetRemoval {
+				allFuncsRemoveCounterResets = false
 			}
 			rf := rollupAggrFuncs[aggrFuncName]
-			rcs = append(rcs, newRollupConfig(rf, aggrFuncName))
+			rc := newRollupConfig(rf, aggrFuncName)
+			if needsResetRemoval {
+				rc.preFunc = resetPreFunc
+			}
+			rcs = append(rcs, rc)
+		}
+		if allFuncsRemoveCounterResets {
+			// Keep reset preprocessing shared for all-reset lists.
+			preFunc = resetPreFunc
+			for _, rc := range rcs {
+				rc.preFunc = nil
+			}
 		}
 	default:
 		rcs = append(rcs, newRollupConfig(rf, ""))
@@ -603,6 +616,9 @@ type rollupConfig struct {
 	//
 	// If zero, then it is considered that Func scans all the samples passed to it.
 	samplesScannedPerCall int
+
+	// A per-rollup preFunc to apply to a copy of values before evaluation.
+	preFunc func(values []float64, timestamps []int64)
 }
 
 func (rc *rollupConfig) getTimestamps() []int64 {
@@ -711,6 +727,15 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 	}
 	if err := ValidateMaxPointsPerSeries(rc.Start, rc.End, rc.Step, rc.MaxPointsPerSeries); err != nil {
 		logger.Panicf("BUG: %s; this must be validated before the call to rollupConfig.Do", err)
+	}
+
+	if rc.preFunc != nil {
+		// Avoid mutating samples shared with raw-valued members.
+		a := getFloat64s()
+		defer putFloat64s(a)
+		a.A = append(a.A[:0], values...)
+		values = a.A
+		rc.preFunc(values, timestamps)
 	}
 
 	// Extend dstValues in order to remove mallocs below.

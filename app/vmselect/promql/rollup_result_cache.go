@@ -548,8 +548,8 @@ func mustSaveRollupResultCacheKeyPrefix(path string) {
 
 var tooBigRollupResults = metrics.NewCounter("vm_too_big_rollup_results_total")
 
-// Increment this value every time the format of the cache changes.
-const rollupResultCacheVersion = 11
+// Increment this value whenever cached rollup results become incompatible with the current implementation.
+const rollupResultCacheVersion = 12
 
 const (
 	rollupResultCacheTypeSeries        = 0

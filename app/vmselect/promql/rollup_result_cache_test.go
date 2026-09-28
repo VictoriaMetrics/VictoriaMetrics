@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metricsql"
@@ -25,6 +26,60 @@ func TestRollupResultCacheInitStop(t *testing.T) {
 		fs.MustRemoveDir(cacheFilePath)
 		fs.MustRemovePath(cacheFilePath + ".key.prefix")
 	})
+}
+
+func TestRollupResultCacheRejectsPreviousVersion(t *testing.T) {
+	// Version 11 cache entries may contain reset-adjusted mixed-rollup maxima.
+	const previousVersion = 11
+	if rollupResultCacheVersion == previousVersion {
+		t.Fatalf("rollup result cache version wasn't incremented; still %d", previousVersion)
+	}
+
+	InitRollupResultCache("")
+	defer StopRollupResultCache()
+
+	ec := &EvalConfig{
+		Start: 1000,
+		End:   1200,
+		Step:  200,
+	}
+	expr, err := metricsql.Parse(`sum(aggr_over_time(("rate", "max_over_time"), foo[5m])) by (rollup)`)
+	if err != nil {
+		t.Fatalf("cannot parse query: %s", err)
+	}
+
+	metainfoKey := marshalRollupResultCacheKeyForSeries(nil, expr, 300, ec.Step, nil)
+	metainfoKey[0] = previousVersion
+	cacheKey := rollupResultCacheKey{
+		prefix: rollupResultCacheKeyPrefix.Load(),
+		suffix: 1,
+	}
+	seriesKey := cacheKey.Marshal(nil)
+	seriesKey[0] = previousVersion
+	tss := []*timeseries{{
+		MetricName: storage.MetricName{
+			MetricGroup: []byte("foo"),
+			Tags: []storage.Tag{{
+				Key:   []byte("rollup"),
+				Value: []byte("max_over_time"),
+			}},
+		},
+		Timestamps: []int64{ec.Start, ec.End},
+		Values:     []float64{7, 7},
+	}}
+	result := marshalTimeseriesFast(nil, tss, 1<<20, ec.Step)
+	if len(result) == 0 {
+		t.Fatal("cannot marshal test timeseries")
+	}
+	rollupResultCacheV.c.SetBig(seriesKey, encoding.CompressZSTDLevel(nil, result, 1))
+	var metainfo rollupResultCacheMetainfo
+	metainfo.AddKey(cacheKey, ec.Start, ec.End)
+	rollupResultCacheV.c.Set(metainfoKey, metainfo.Marshal(nil))
+
+	cached, newStart := rollupResultCacheV.GetSeries(nil, ec, expr, 300)
+	if len(cached) != 0 || newStart != ec.Start {
+		t.Fatalf("previous-version cache entry was used; got %d series with start %d; want no series and start %d", len(cached), newStart, ec.Start)
+	}
 }
 
 func TestRollupResultCache(t *testing.T) {
