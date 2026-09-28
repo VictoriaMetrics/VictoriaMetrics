@@ -646,6 +646,7 @@ func (c *vminsertClient) PrometheusAPIV1ImportCSV(t *testing.T, records []string
 	headers := opts.getHeaders()
 	headers.Set("Content-Type", "text/plain")
 	c.sendBlocking(t, len(records), func() {
+		t.Helper()
 		_, statusCode := c.cli.Post(t, url, data, headers)
 		if statusCode != http.StatusNoContent {
 			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
@@ -670,6 +671,7 @@ func (c *vminsertClient) PrometheusAPIV1ImportNative(t *testing.T, data []byte, 
 	headers := opts.getHeaders()
 	headers.Set("Content-Type", "text/plain")
 	c.sendBlocking(t, 1, func() {
+		t.Helper()
 		_, statusCode := c.cli.Post(t, url, data, headers)
 		if statusCode != http.StatusNoContent {
 			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
@@ -702,6 +704,7 @@ func (c *vminsertClient) PrometheusAPIV1WriteWithStatusCode(t *testing.T, wr pro
 	headers := opts.getHeaders()
 	headers.Set("Content-Type", "application/x-protobuf")
 	c.sendBlocking(t, recordsCount, func() {
+		t.Helper()
 		_, gotStatusCode := c.cli.Post(t, url, data, headers)
 		if gotStatusCode != wantStatusCode {
 			t.Fatalf("unexpected status code: got %d, want %d", gotStatusCode, wantStatusCode)
@@ -749,6 +752,7 @@ func (c *vminsertClient) PrometheusAPIV1ImportPrometheus(t *testing.T, records [
 	headers := opts.getHeaders()
 	headers.Set("Content-Type", "text/plain")
 	c.sendBlocking(t, recordsCount, func() {
+		t.Helper()
 		_, statusCode := c.cli.Post(t, url, data, headers)
 		if statusCode != http.StatusNoContent {
 			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
@@ -804,6 +808,7 @@ func (c *vminsertClient) OpentelemetryV1Metrics(t *testing.T, md otlppb.MetricsD
 	headers := opts.getHeaders()
 	headers.Set("Content-Type", "application/x-protobuf")
 	c.sendBlocking(t, recordsCount, func() {
+		t.Helper()
 		_, statusCode := c.cli.Post(t, url, data, headers)
 		if statusCode != http.StatusOK {
 			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
@@ -829,6 +834,7 @@ func (c *vminsertClient) OpenTSDBAPIPut(t *testing.T, records []string, opts Que
 	headers := opts.getHeaders()
 	headers.Set("Content-Type", "application/json")
 	c.sendBlocking(t, len(records), func() {
+		t.Helper()
 		_, statusCode := c.cli.Post(t, url, data, headers)
 		if statusCode != http.StatusNoContent {
 			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
@@ -852,6 +858,7 @@ func (c *vminsertClient) ZabbixConnectorHistory(t *testing.T, records []string, 
 	headers := opts.getHeaders()
 	headers.Set("Content-Type", "application/json")
 	c.sendBlocking(t, len(records), func() {
+		t.Helper()
 		_, statusCode := c.cli.Post(t, url, data, headers)
 		if statusCode != http.StatusOK {
 			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)

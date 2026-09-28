@@ -44,6 +44,27 @@ func EnsureBlockingIngestion(t *testing.T, vminsert *Vminsert, vmstorages []*Vms
 	}
 }
 
+// sendAndRecvBlocking sends the data to vmstorage by executing `send` function and
+// waits until the data is actually sent by vminsert and received and processed
+// by all vmstorages.
+//
+// vminsert does not send the data immediately. It first puts the data into a
+// buffer. Then a background goroutine takes the data from the buffer sends it
+// to the vmstorage. This happens every 200ms.
+//
+// Waiting for vminsert to actually send data is implemented a retrieving the
+// value of vminsert's `vm_rpc_rows_sent_total` metric and checking whether it
+// is equal or greater than the wanted value. If it is, then the data has been
+// sent to vmstorage.
+//
+// vmstorage does not process the received data right after it has been received
+// from vminsert. Instead it passes the data to a background worker and returns
+// success status to vminsert. Waiting for vmstorage to actually ingest data is
+// implemented a retrieving the value of vmstorage's
+// `vm_rows_received_by_storage_total` metric and checking whether it is equal
+// or greater than the wanted value.
+//
+// TODO(@rtm0): Address cases when the data is replicated.
 func sendAndRecvBlocking(t *testing.T, vminsert *Vminsert, vmstorages []*Vmstorage, numRows int, send func()) {
 	t.Helper()
 
