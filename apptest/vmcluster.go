@@ -50,17 +50,15 @@ func EnsureBlockingIngestion(t *testing.T, vminsert *Vminsert, vmstorages []*Vms
 //
 // vminsert does not send the data immediately. It first puts the data into a
 // buffer. Then a background goroutine takes the data from the buffer sends it
-// to the vmstorage. This happens every 200ms.
-//
-// Waiting for vminsert to actually send data is implemented a retrieving the
-// value of vminsert's `vm_rpc_rows_sent_total` metric and checking whether it
-// is equal or greater than the wanted value. If it is, then the data has been
-// sent to vmstorage.
+// to the vmstorage. This happens every 200ms. Waiting for vminsert to actually
+// send data is implemented by retrieving the value of vminsert's
+// `vm_rpc_rows_sent_total` metric and checking whether it is equal or greater
+// than the wanted value.
 //
 // vmstorage does not process the received data right after it has been received
 // from vminsert. Instead it passes the data to a background worker and returns
 // success status to vminsert. Waiting for vmstorage to actually ingest data is
-// implemented a retrieving the value of vmstorage's
+// implemented by retrieving the value of vmstorage's
 // `vm_rows_received_by_storage_total` metric and checking whether it is equal
 // or greater than the wanted value.
 //
