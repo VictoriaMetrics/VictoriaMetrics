@@ -28,6 +28,10 @@ func (trs *testRemoteServer) RoundTrip(r *http.Request) (*http.Response, error) 
 		trs.firstError = nil
 		trs.totalRequests++
 		trs.mu.Unlock()
+		// RoundTrip must always close the request body.
+		if r.Body != nil {
+			_ = r.Body.Close()
+		}
 		return nil, err
 	}
 	trs.totalRequests++

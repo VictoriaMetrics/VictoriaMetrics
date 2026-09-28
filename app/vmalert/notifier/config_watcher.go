@@ -228,6 +228,7 @@ func (cw *configWatcher) start() error {
 			return fmt.Errorf("failed to start DNSSD discovery: %w", err)
 		}
 	}
+	globalAlertRelabelCfg.Store(cw.cfg.parsedAlertRelabelConfigs)
 	return nil
 }
 

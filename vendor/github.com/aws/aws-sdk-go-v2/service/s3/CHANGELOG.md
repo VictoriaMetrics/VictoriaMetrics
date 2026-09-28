@@ -1,3 +1,7 @@
+# v1.113.1 (2026-09-11)
+
+* **Documentation**: Updated S3 Object Lock Default Retention documentation.
+
 # v1.113.0 (2026-09-09)
 
 * **Feature**: Stop registering the `retry.MetricsHeader` middleware in generated clients. The `Amz-Sdk-Request` header is now set by the retry middleware itself.

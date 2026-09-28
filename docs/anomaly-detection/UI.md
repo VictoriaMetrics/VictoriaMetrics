@@ -192,6 +192,22 @@ The best applications of this mode are:
 
 > However, the UI can be **combined with existing production jobs of anomaly detection, as it is available in non-blocking mode for all running vmanomaly instances** {{% available_from "v1.26.0" anomaly %}}, regardless of the preset or configuration used, just at a cost of increased resource usage.
 
+## Investigate a firing alert
+
+{{% available_from "v1.30.7" anomaly %}} Add an `investigation_url` annotation to a vmalert rule to open the persisted results, configured model and absolute incident window in VMUI. Opening the link does not rerun detection.
+
+```yaml
+annotations:
+  investigation_url: 'https://vmanomaly.example.com/api/v1/incident/open?model={{ $labels.model_alias | queryEscape }}&scheduler={{ $labels.scheduler_alias | queryEscape }}&preset={{ $labels.preset | queryEscape }}&query_key={{ index $labels "for" | queryEscape }}&at={{ $activeAt.Unix }}&before=2m&after=30s'
+```
+
+Use the public vmanomaly URL, including any `path_prefix`, and preserve the emitted model, scheduler, preset and `for` labels in the alert expression. Optional `label.<name>` parameters select exact source-series labels; omit alert-only labels. Append `view=inputs` to open the original inputs instead. The link resolves the current configuration on the selected shard and initially supports a shared VictoriaMetrics reader/writer URL and tenant with default metric naming.
+
+> [!WARNING]
+> Protect VMUI and both `/api/v1/incident/` endpoints behind the same authenticated gateway. Labels filter results; they do not grant access. If the datasource requires reader credentials, configure [`server.use_reader_connection_settings`](https://docs.victoriametrics.com/anomaly-detection/components/server/#parameters) or supported request authentication. Authorized UI users can then query with those reader permissions.
+
+See [vmalert annotation templating](https://docs.victoriametrics.com/victoriametrics/vmalert/#templating) for template syntax. The annotation can coexist with the [vmalert Source link](https://docs.victoriametrics.com/victoriametrics/vmalert/#link-to-alert-source).
+
 ## AI Assistance
 
 {{% available_from "v1.29.0" anomaly %}} Copilot is an AI assistant built into the vmanomaly UI. It understands current anomaly detection configuration in the UI and helps iterate faster and obtain better results - without leaving the UI, searching the docs manually, or being an expert in anomaly detection.
@@ -346,7 +362,7 @@ docker run -it --rm \
   -e VMANOMALY_MCP_SERVER_URL=http://mcp-vmanomaly:8081/mcp \
   -p 8080:8080 \
   -p 8490:8490 \
-  victoriametrics/vmanomaly:v1.30.5 \
+  victoriametrics/vmanomaly:v1.30.7 \
   vmanomaly_config.yaml
 ```
 
@@ -376,7 +392,9 @@ Users can:
 - Access query history and saved queries for quick access to frequently used queries.
 - Switch tenants (if data source supports multi-tenancy) and access [settings panel](#settings-panel) for global UI configuration.
 
-Open **Queries** to browse query sets in the **Session**, **History**, **Favorites** and **Server** tabs. Search for a set and expand **Show query details** to inspect its named expressions and individual business policies before reusing it.
+Open **Queries** to browse the **Session**, **History**, **Favorites** and **Server** tabs. In **Session**, **History** and **Favorites**, search for a query set and expand **Show query details** to inspect its named expressions and business policies before reusing it.
+
+{{% available_from "v1.30.6" anomaly %}} UI v1.9.1 presents **Server** queries as a flat list. Use search and the model filter together; a query may belong to several models, shown as badges. Each row supports append or replace, with or without running, plus copy and favorite actions. Selecting queries opens a bulk-action bar showing selected aliases and indicating selections hidden by the current filter. Bulk actions apply to the entire selection. See the UI's keyboard-shortcuts help for Queries-sheet shortcuts.
 
 ![Queries menu showing history entries with named queries and expanded business policies](vmanomaly-ui-queries-menu.webp)
 
@@ -708,6 +726,23 @@ If the **results** look good and the **model configuration should be deployed in
 <div class="collapse-group mb-3">
 
 {{% collapse name="Release history" %}}
+
+### v1.9.2
+Released: 2026-09-24
+
+Recommended vmanomaly version: [v1.30.7](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1307)
+
+- Added [incident investigation links](#investigate-a-firing-alert) for persisted results.
+- Added configurable model choices through `server.ui_allowed_models`.
+- Changed generated alert rules from `>=` to `>` for anomaly-score thresholds and fixed metric selectors to preserve preset version suffixes.
+
+### v1.9.1
+Released: 2026-09-17
+
+Recommended vmanomaly version: [v1.30.6](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1306)
+
+- IMPROVEMENT: Reworked the Queries sheet's Server tab into a searchable list with model filters and badges, consistent row actions, and bulk actions that retain selections hidden by the current filter.
+- IMPROVEMENT: Documented Queries-sheet keyboard shortcuts in the UI help.
 
 ### v1.9.0
 Released: 2026-09-10

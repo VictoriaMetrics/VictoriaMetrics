@@ -134,6 +134,8 @@ func (d *Deadline) String() string {
 //	{env=~"dev|staging",team!="devops",t1="v1",t2="v2"}
 //
 //	Query args from URL path have precedence over post form args.
+//
+// Empty values are ignored. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11618
 func GetExtraTagFilters(r *http.Request) ([][]storage.TagFilter, error) {
 	var tagFilters []storage.TagFilter
 	urlQueryValues := r.URL.Query()
@@ -146,6 +148,9 @@ func GetExtraTagFilters(r *http.Request) ([][]storage.TagFilter, error) {
 		return r.Form[key]
 	}
 	for _, match := range getRequestParam("extra_label") {
+		if match == "" {
+			continue
+		}
 		tmp := strings.SplitN(match, "=", 2)
 		if len(tmp) != 2 {
 			return nil, fmt.Errorf("`extra_label` query arg must have the format `name=value`; got %q", match)
@@ -161,14 +166,11 @@ func GetExtraTagFilters(r *http.Request) ([][]storage.TagFilter, error) {
 	}
 	extraFilters := append([]string{}, getRequestParam("extra_filters")...)
 	extraFilters = append(extraFilters, getRequestParam("extra_filters[]")...)
-	if len(extraFilters) == 0 {
-		if len(tagFilters) == 0 {
-			return nil, nil
-		}
-		return [][]storage.TagFilter{tagFilters}, nil
-	}
 	var etfs [][]storage.TagFilter
 	for _, extraFilter := range extraFilters {
+		if extraFilter == "" {
+			continue
+		}
 		tfss, err := ParseMetricSelector(extraFilter)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse extra_filters=%s: %w", extraFilter, err)
@@ -177,6 +179,12 @@ func GetExtraTagFilters(r *http.Request) ([][]storage.TagFilter, error) {
 			tfss[i] = append(tfss[i], tagFilters...)
 		}
 		etfs = append(etfs, tfss...)
+	}
+	if len(etfs) == 0 {
+		if len(tagFilters) == 0 {
+			return nil, nil
+		}
+		return [][]storage.TagFilter{tagFilters}, nil
 	}
 	return etfs, nil
 }

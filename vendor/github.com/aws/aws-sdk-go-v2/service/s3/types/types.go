@@ -3702,10 +3702,15 @@ type ObjectLockRetention struct {
 // The container element for an Object Lock rule.
 type ObjectLockRule struct {
 
-	// The default Object Lock retention mode and period that you want to apply to new
-	// objects placed in the specified bucket. Bucket settings require both a mode and
-	// a period. The period can be either Days or Years but you must select one. You
-	// cannot specify Days and Years at the same time.
+	// The default Object Lock retention settings for new objects in this bucket. You
+	// can specify:
+	//
+	//   - A default retention period, by using Days or Years .
+	//
+	//   - A default event hold duration, by using DefaultEventHold . This setting also
+	//   uses days or years.
+	//
+	// You can set one or both. You cannot use days and years in the same setting.
 	DefaultRetention *DefaultRetention
 
 	noSmithyDocumentSerde

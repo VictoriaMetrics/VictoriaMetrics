@@ -521,12 +521,14 @@ type PutObjectInput struct {
 	// This functionality is not supported for directory buckets.
 	ObjectLockEventHold types.ObjectLockEventHold
 
-	// Specifies the event hold duration in days to apply to this object.
+	// Specifies the event hold duration in days to apply to this object. You cannot
+	// specify a duration in both days and years.
 	//
 	// This functionality is not supported for directory buckets.
 	ObjectLockEventHoldDurationDays *int32
 
-	// Specifies the event hold duration in years to apply to this object.
+	// Specifies the event hold duration in years to apply to this object. You cannot
+	// specify a duration in both days and years.
 	//
 	// This functionality is not supported for directory buckets.
 	ObjectLockEventHoldDurationYears *int32

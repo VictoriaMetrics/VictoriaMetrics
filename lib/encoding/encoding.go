@@ -1,6 +1,7 @@
 package encoding
 
 import (
+	"encoding/binary"
 	"fmt"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -174,11 +175,19 @@ func unmarshalInt64Array(dst []int64, src []byte, mt MarshalType, firstValue int
 	// Extend dst capacity in order to eliminate memory allocations below.
 	dst = decimal.ExtendInt64sCapacity(dst, itemsCount)
 
+	// The compressed payload is a NearestDelta/NearestDelta2 stream — one
+	// MarshalVarInt64-encoded delta per item — so each of the itemsCount items
+	// occupies at most binary.MaxVarintLen64 bytes. A larger result means the
+	// input is corrupted or hostile (e.g. a decompression bomb)
+	maxDecompressedSize := itemsCount * binary.MaxVarintLen64
+	// ZSTD window size has minimal limit of 1024
+	maxDecompressedSize = max(maxDecompressedSize, 1024)
+
 	var err error
 	switch mt {
 	case MarshalTypeZSTDNearestDelta:
 		bb := bbPool.Get()
-		bb.B, err = DecompressZSTD(bb.B[:0], src)
+		bb.B, err = DecompressZSTDLimited(bb.B[:0], src, maxDecompressedSize)
 		if err != nil {
 			return nil, fmt.Errorf("cannot decompress zstd data: %w", err)
 		}
@@ -190,7 +199,7 @@ func unmarshalInt64Array(dst []int64, src []byte, mt MarshalType, firstValue int
 		return dst, nil
 	case MarshalTypeZSTDNearestDelta2:
 		bb := bbPool.Get()
-		bb.B, err = DecompressZSTD(bb.B[:0], src)
+		bb.B, err = DecompressZSTDLimited(bb.B[:0], src, maxDecompressedSize)
 		if err != nil {
 			return nil, fmt.Errorf("cannot decompress zstd data: %w", err)
 		}

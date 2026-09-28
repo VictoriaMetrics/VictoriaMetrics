@@ -437,7 +437,7 @@ const resolvedRetention = 15 * time.Minute
 
 // exec executes AlertingRule expression via the given Querier.
 // Based on the Querier results AlertingRule maintains notifier.Alerts
-func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]prompb.TimeSeries, error) {
+func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int, getRemoteReadQuerier func(enableDebug bool) datasource.Querier) ([]prompb.TimeSeries, error) {
 	start := time.Now()
 	res, req, err := ar.q.Query(ctx, ar.Expr, ts)
 	curState := StateEntry{
@@ -545,6 +545,15 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 		a.State = notifier.StatePending
 		ar.alerts[alertID] = a
 		ar.logDebugf(ts, a, "created in state PENDING")
+	}
+	// try to restore alerts state from remoteRead if necessary
+	if getRemoteReadQuerier != nil {
+		rr := getRemoteReadQuerier(ar.Debug)
+		err := ar.restore(ctx, rr, ts)
+		// do not break the current evaluation if restore request fails
+		if err != nil {
+			logger.Errorf("error while restoring ruleState for group %q(file %q) rule %q: %s", ar.GroupName, ar.File, ar.Name, err)
+		}
 	}
 	var numActivePending int
 	var tss []prompb.TimeSeries
@@ -799,7 +808,7 @@ func firingAlertStaleTimeSeries(ls map[string]string, timestamp int64) []prompb.
 // restore restores the value of ActiveAt field for active alerts,
 // based on previously written time series `alertForStateMetricName`.
 // Only rules with For > 0 can be restored.
-func (ar *AlertingRule) restore(ctx context.Context, q datasource.Querier, ts time.Time, lookback time.Duration) error {
+func (ar *AlertingRule) restore(ctx context.Context, q datasource.Querier, ts time.Time) error {
 	if ar.For < 1 {
 		return nil
 	}
@@ -825,11 +834,9 @@ func (ar *AlertingRule) restore(ctx context.Context, q datasource.Querier, ts ti
 	}
 	// use `default_rollup()` instead of `last_over_time()` here to accounts for possible staleness markers
 	expr := fmt.Sprintf("default_rollup(%s{%s%s}[%ds])",
-		alertForStateMetricName, nameStr, labelsFilter, int(lookback.Seconds()))
+		alertForStateMetricName, nameStr, labelsFilter, int(remoteReadLookBack.Seconds()))
 
-	// query ALERTS_FOR_STATE at `ts-1s` instead `ts` to avoid retrieving data written in the current run,
-	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10335
-	res, _, err := q.Query(ctx, expr, ts.Add(-1*time.Second))
+	res, _, err := q.Query(ctx, expr, ts)
 	if err != nil {
 		return fmt.Errorf("failed to execute restore query %q: %w ", expr, err)
 	}
@@ -838,9 +845,6 @@ func (ar *AlertingRule) restore(ctx context.Context, q datasource.Querier, ts ti
 		ar.logDebugf(ts, nil, "no response was received from restore query")
 		return nil
 	}
-
-	ar.alertsMu.Lock()
-	defer ar.alertsMu.Unlock()
 
 	for _, series := range res.Data {
 		series.DelLabel("__name__")

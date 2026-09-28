@@ -163,6 +163,9 @@ unauthorized_user:
   retry_status_codes: [503, 500]
   # log access for requests routed to this user
   access_log:
+    # only HTTP headers listed in the headers section are logged in access log
+    headers:
+      - "AccountID"
     filters:
       # except requests with Status Codes below
       skip_status_codes: [200, 202]

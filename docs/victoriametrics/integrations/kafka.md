@@ -212,3 +212,5 @@ Two types of auth are supported:
     -remoteWrite.tlsCertFile=/opt/cert.pem \
     -remoteWrite.tlsKeyFile=/opt/key.pem
 ```
+
+ kafka client periodically checks the content of the provided TLS certificates and reloads the clients if the certificate content changes.

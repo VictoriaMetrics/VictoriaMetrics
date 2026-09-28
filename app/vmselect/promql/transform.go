@@ -2299,9 +2299,15 @@ func transformLimitOffset(tfa *transformFuncArg) ([]*timeseries, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot obtain limit arg: %w", err)
 	}
+	if limit < 0 {
+		return nil, fmt.Errorf("limit must not be negative; got %d", limit)
+	}
 	offset, err := getIntNumber(args[1], 1)
 	if err != nil {
 		return nil, fmt.Errorf("cannot obtain offset arg: %w", err)
+	}
+	if offset < 0 {
+		return nil, fmt.Errorf("offset must not be negative; got %d", offset)
 	}
 	// removeEmptySeries so offset will be calculated after empty series
 	// were filtered out.

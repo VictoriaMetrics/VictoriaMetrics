@@ -224,6 +224,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/influx/health":
 		influxHealthRequests.Inc()
+		addInfluxResponseHeaders(w)
 		influxutil.WriteHealthCheckResponse(w)
 		return true
 	case "/opentelemetry/api/v1/push", "/opentelemetry/v1/metrics":

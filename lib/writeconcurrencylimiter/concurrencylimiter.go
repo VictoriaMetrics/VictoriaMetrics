@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	maxConcurrentInserts = flagutil.NewIntWithDynamicDefault("maxConcurrentInserts", 2*cgroup.AvailableCPUs(), "2*cgroup.AvailableCPUs()",
+	maxConcurrentInserts = flagutil.NewIntWithDynamicDefault("maxConcurrentInserts", 2*cgroup.AvailableCPUs(), "2x CPU cores",
 		"The maximum number of concurrent insert requests. "+
 			"Set higher value when clients send data over slow networks. "+
 			"Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage. "+
