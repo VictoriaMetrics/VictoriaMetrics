@@ -285,7 +285,7 @@ func setSSONoCacheHeaders(w http.ResponseWriter) {
 }
 
 // processSSOLogin renders a minimal HTML page with a single "Login with SSO"
-// button pointing to the internal /_vmauth/sso/auth endpoint.
+// button pointing to the internal /_vmauth/sso/start endpoint.
 // Only GET and HEAD requests show the login page; other methods receive
 // a 401 so that the caller's request body is not silently discarded.
 //
@@ -305,7 +305,7 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 
 	authParams := url.Values{}
 	authParams.Set("redirect", redirectURL)
-	authURL := getPathWithPrefix("/_vmauth/sso/auth") + "?" + authParams.Encode()
+	authURL := getPathWithPrefix("/_vmauth/sso/start") + "?" + authParams.Encode()
 
 	setSSONoCacheHeaders(w)
 	if len(getAuthTokensFromRequest(r)) > 0 {
@@ -323,9 +323,13 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 	return true
 }
 
-// processSSOAuth handles /_vmauth/sso/auth — the target of the "Login with SSO" button.
+// processSSOStart handles /_vmauth/sso/start — the target of the "Login with SSO" button.
 // It generates nonce/state, sets the CSRF cookie, and redirects to the IdP.
-func processSSOAuth(w http.ResponseWriter, r *http.Request) {
+func processSSOStart(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
 	if err := beginConcurrencyLimit(r.Context()); err != nil {
 		w.WriteHeader(http.StatusTooManyRequests)
 		return
@@ -354,7 +358,7 @@ func processSSOAuth(w http.ResponseWriter, r *http.Request) {
 	// https://openid.net/specs/openid-connect-core-1_0.html#NonceNotes
 	nonce, err := generateRandomString(32)
 	if err != nil {
-		ssoLogger.Errorf("SSO auth at host %s (IdP %s) failed to generate nonce: %s", r.Host, oidc.Issuer, err)
+		ssoLogger.Errorf("SSO start at host %s (IdP %s) failed to generate nonce: %s", r.Host, oidc.Issuer, err)
 		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusInternalServerError)
 		WriteSSOErrorPage(w, "Internal Server Error", "", getPathWithPrefix(redirectURL))
@@ -366,7 +370,7 @@ func processSSOAuth(w http.ResponseWriter, r *http.Request) {
 	// https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest
 	state, err := generateRandomString(32)
 	if err != nil {
-		ssoLogger.Errorf("SSO auth at host %s (IdP %s) failed to generate state: %s", r.Host, oidc.Issuer, err)
+		ssoLogger.Errorf("SSO start at host %s (IdP %s) failed to generate state: %s", r.Host, oidc.Issuer, err)
 		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusInternalServerError)
 		WriteSSOErrorPage(w, "Internal Server Error", "", getPathWithPrefix(redirectURL))
@@ -400,6 +404,7 @@ func processSSOAuth(w http.ResponseWriter, r *http.Request) {
 	params.Set("nonce", nonceHash)
 	params.Set("state", state)
 
+	setSSONoCacheHeaders(w)
 	http.Redirect(w, r, pm.AuthorizationEndpoint+"?"+params.Encode(), http.StatusFound)
 }
 
