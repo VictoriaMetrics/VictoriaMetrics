@@ -41,7 +41,7 @@ func TestRowsUnmarshalWithCallback(t *testing.T) {
 		batches = append(batches, rowsToString(rows))
 		return nil
 	}
-	rowSize := len("tag") + len("12345")
+	rowSize := 8 + len("tag") + len("12345")
 	if err := r.unmarshal([]byte(request), rowSize, callback); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -57,12 +57,31 @@ func TestRowsUnmarshalWithCallback(t *testing.T) {
 
 func TestRowsUnmarshalWithCallbackCountsSampleValues(t *testing.T) {
 	request := `[{"Events":[{"a":1},{"a":1},{"a":1},{"a":1},{"a":1}]}]`
-	// Every sample takes the name length plus 8 bytes for the float64 value.
-	rowSize := len("a") + 8
+	// Every row takes 8 bytes for the timestamp, and every sample takes
+	// the name length plus 8 bytes for the float64 value.
+	rowSize := 8 + len("a") + 8
 
 	var r Rows
 	var batchSizes []int
 	if err := r.unmarshal([]byte(request), 2*rowSize, func(rows []Row) error {
+		batchSizes = append(batchSizes, len(rows))
+		return nil
+	}); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	expectedBatchSizes := []int{3, 2}
+	if !reflect.DeepEqual(batchSizes, expectedBatchSizes) {
+		t.Fatalf("unexpected batch sizes; got %v; want %v", batchSizes, expectedBatchSizes)
+	}
+}
+
+func TestRowsUnmarshalWithCallbackCountsTimestamp(t *testing.T) {
+	request := `[{"Events":[{"timestamp":1},{"timestamp":1},{"timestamp":1},{"timestamp":1},{"timestamp":1}]}]`
+
+	var r Rows
+	var batchSizes []int
+	if err := r.unmarshal([]byte(request), 2*8, func(rows []Row) error {
 		batchSizes = append(batchSizes, len(rows))
 		return nil
 	}); err != nil {
@@ -145,7 +164,7 @@ func TestRowsUnmarshalWithCallbackParseErrorMidway(t *testing.T) {
 	f(`[{"Events":[{"tag":"12345"},{"tag":"67890"}]},{"Events":123}]`, 1, expectedBatches)
 
 	// invalid event while a batch is partially filled
-	rowSize := len("tag") + len("12345")
+	rowSize := 8 + len("tag") + len("12345")
 	f(`[{"Events":[{"tag":"12345"},{"tag":"67890"},{"tag":"abcde"},{"tag":"fghij"},123]}]`, 2*rowSize, []string{
 		"tags={tag=\"12345\"}, samples=, timestamp=0\ntags={tag=\"67890\"}, samples=, timestamp=0\ntags={tag=\"abcde\"}, samples=, timestamp=0",
 	})
@@ -156,15 +175,18 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 		t.Helper()
 
 		var r Rows
-		var rows []Row
-		if err := r.UnmarshalWithCallback([]byte(data), func(rs []Row) error {
-			rows = append(rows, rs...)
+		var batches []string
+		if err := r.UnmarshalWithCallback([]byte(data), func(rows []Row) error {
+			// Rows are reused after returning from the callback, so convert them to string.
+			batches = append(batches, rowsToString(rows))
 			return nil
 		}); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		if !reflect.DeepEqual(rows, expectedRows) {
-			t.Fatalf("unexpected rows parsed\ngot\n%s\nwant\n%s", rowsToString(rows), rowsToString(expectedRows))
+		result := strings.Join(batches, "\n")
+		expected := rowsToString(expectedRows)
+		if result != expected {
+			t.Fatalf("unexpected rows parsed\ngot\n%s\nwant\n%s", result, expected)
 		}
 	}
 

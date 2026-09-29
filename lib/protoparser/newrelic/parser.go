@@ -168,6 +168,8 @@ func (s *Sample) reset() {
 // unmarshal parses r from o and returns the approximate size of the parsed data in bytes.
 func (r *Row) unmarshal(o *fastjson.Object) (sizeBytes int, err error) {
 	r.reset()
+	// Count the timestamp, so rows without tags and samples are also limited by the batch size.
+	sizeBytes = 8
 	tags := r.Tags[:0]
 	samples := r.Samples[:0]
 	o.Visit(func(k []byte, v *fastjson.Value) {
