@@ -37,10 +37,10 @@ func parseData(data []byte, callback func(rows []newrelic.Row) error) error {
 	rows := getRows()
 	defer putRows(rows)
 
-	currentTimestamp := int64(fasttime.UnixTimestamp()) * 1e3
 	var callbackErr error
 	err := rows.UnmarshalWithCallback(data, func(rows []newrelic.Row) error {
 		// Fill in missing timestamps.
+		currentTimestamp := int64(fasttime.UnixTimestamp()) * 1e3
 		for i := range rows {
 			r := &rows[i]
 			if r.Timestamp == 0 {
@@ -54,6 +54,8 @@ func parseData(data []byte, callback func(rows []newrelic.Row) error) error {
 		}
 		return nil
 	})
+	// The request might be partially ingested on error, since rows are passed to callback in batches.
+	// The client should be aware of the error and retry.
 	if callbackErr != nil {
 		return callbackErr
 	}

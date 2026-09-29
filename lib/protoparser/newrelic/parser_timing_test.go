@@ -58,11 +58,15 @@ func BenchmarkRowsUnmarshal(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		var r Rows
 		for pb.Next() {
-			if err := r.Unmarshal(reqBody); err != nil {
+			rowsCount := 0
+			if err := r.UnmarshalWithCallback(reqBody, func(rows []Row) error {
+				rowsCount += len(rows)
+				return nil
+			}); err != nil {
 				panic(fmt.Errorf("unmarshal error: %w", err))
 			}
-			if len(r.Rows) != 1 {
-				panic(fmt.Errorf("unexpected number of items unmarshaled; got %d; want %d", len(r.Rows), 1))
+			if rowsCount != 1 {
+				panic(fmt.Errorf("unexpected number of items unmarshaled; got %d; want %d", rowsCount, 1))
 			}
 		}
 	})

@@ -5,7 +5,6 @@ import (
 	"reflect"
 	"strings"
 	"testing"
-	"unsafe"
 )
 
 func TestRowsUnmarshalFailure(t *testing.T) {
@@ -13,7 +12,9 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 		t.Helper()
 
 		var r Rows
-		if err := r.Unmarshal([]byte(data)); err == nil {
+		if err := r.UnmarshalWithCallback([]byte(data), func(_ []Row) error {
+			return nil
+		}); err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
 	}
@@ -40,12 +41,7 @@ func TestRowsUnmarshalWithCallback(t *testing.T) {
 		batches = append(batches, rowsToString(rows))
 		return nil
 	}
-	rowSize := (&Row{
-		Tags: []Tag{{
-			Key:   []byte("tag"),
-			Value: []byte("12345"),
-		}},
-	}).sizeBytes()
+	rowSize := len("tag") + len("12345")
 	if err := r.unmarshal([]byte(request), rowSize, callback); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -59,11 +55,10 @@ func TestRowsUnmarshalWithCallback(t *testing.T) {
 	}
 }
 
-func TestRowsUnmarshalWithCallbackCountsRowOverhead(t *testing.T) {
+func TestRowsUnmarshalWithCallbackCountsSampleValues(t *testing.T) {
 	request := `[{"Events":[{"a":1},{"a":1},{"a":1},{"a":1},{"a":1}]}]`
-	// Calculate the expected row size independently of Row.sizeBytes,
-	// so the test fails if struct overhead isn't counted.
-	rowSize := int(unsafe.Sizeof(Row{})+unsafe.Sizeof(Sample{})) + len("a")
+	// Every sample takes the name length plus 8 bytes for the float64 value.
+	rowSize := len("a") + 8
 
 	var r Rows
 	var batchSizes []int
@@ -81,20 +76,20 @@ func TestRowsUnmarshalWithCallbackCountsRowOverhead(t *testing.T) {
 }
 
 func TestRowsUnmarshalWithCallbackEmptyRequest(t *testing.T) {
-	var r Rows
-	callbacks := 0
-	if err := r.UnmarshalWithCallback([]byte("[]"), func(rows []Row) error {
-		callbacks++
-		if len(rows) != 0 {
-			t.Fatalf("unexpected non-empty rows: %v", rows)
+	f := func(data string) {
+		t.Helper()
+
+		var r Rows
+		if err := r.UnmarshalWithCallback([]byte(data), func(_ []Row) error {
+			t.Fatalf("unexpected call into callback")
+			return nil
+		}); err != nil {
+			t.Fatalf("unexpected error: %s", err)
 		}
-		return nil
-	}); err != nil {
-		t.Fatalf("unexpected error: %s", err)
 	}
-	if callbacks != 1 {
-		t.Fatalf("unexpected number of callback calls; got %d; want 1", callbacks)
-	}
+
+	f(`[]`)
+	f(`[{"Events":[]}]`)
 }
 
 func TestRowsUnmarshalWithCallbackError(t *testing.T) {
@@ -150,12 +145,7 @@ func TestRowsUnmarshalWithCallbackParseErrorMidway(t *testing.T) {
 	f(`[{"Events":[{"tag":"12345"},{"tag":"67890"}]},{"Events":123}]`, 1, expectedBatches)
 
 	// invalid event while a batch is partially filled
-	rowSize := (&Row{
-		Tags: []Tag{{
-			Key:   []byte("tag"),
-			Value: []byte("12345"),
-		}},
-	}).sizeBytes()
+	rowSize := len("tag") + len("12345")
 	f(`[{"Events":[{"tag":"12345"},{"tag":"67890"},{"tag":"abcde"},{"tag":"fghij"},123]}]`, 2*rowSize, []string{
 		"tags={tag=\"12345\"}, samples=, timestamp=0\ntags={tag=\"67890\"}, samples=, timestamp=0\ntags={tag=\"abcde\"}, samples=, timestamp=0",
 	})
@@ -166,11 +156,15 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 		t.Helper()
 
 		var r Rows
-		if err := r.Unmarshal([]byte(data)); err != nil {
+		var rows []Row
+		if err := r.UnmarshalWithCallback([]byte(data), func(rs []Row) error {
+			rows = append(rows, rs...)
+			return nil
+		}); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		if !reflect.DeepEqual(r.Rows, expectedRows) {
-			t.Fatalf("unexpected rows parsed\ngot\n%s\nwant\n%s", rowsToString(r.Rows), rowsToString(expectedRows))
+		if !reflect.DeepEqual(rows, expectedRows) {
+			t.Fatalf("unexpected rows parsed\ngot\n%s\nwant\n%s", rowsToString(rows), rowsToString(expectedRows))
 		}
 	}
 

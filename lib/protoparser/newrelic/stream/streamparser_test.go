@@ -129,7 +129,7 @@ func TestParseBatches(t *testing.T) {
 
 func TestParseCallbackError(t *testing.T) {
 	errCallback := errors.New("callback error")
-	err := Parse(strings.NewReader(`[{"Events":[]}]`), "", func(_ []newrelic.Row) error {
+	err := Parse(strings.NewReader(`[{"Events":[{"tag":"12345"}]}]`), "", func(_ []newrelic.Row) error {
 		return errCallback
 	})
 	if !errors.Is(err, errCallback) {

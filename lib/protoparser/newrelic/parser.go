@@ -2,7 +2,6 @@ package newrelic
 
 import (
 	"fmt"
-	"unsafe"
 
 	"github.com/valyala/fastjson"
 	"github.com/valyala/fastjson/fastfloat"
@@ -32,13 +31,6 @@ func (r *Rows) Reset() {
 
 var jsonParserPool fastjson.ParserPool
 
-// Unmarshal parses NewRelic Event request from b to r.
-//
-// b can be reused after returning from r.
-func (r *Rows) Unmarshal(b []byte) error {
-	return r.unmarshal(b, 0, nil)
-}
-
 // UnmarshalWithCallback parses NewRelic Event request from b and calls callback
 // for every batch of parsed rows.
 //
@@ -63,7 +55,6 @@ func (r *Rows) unmarshal(b []byte, maxBatchSize int, callback func(rows []Row) e
 		return fmt.Errorf("cannot find the top-level array of MetricPost objects: %w", err)
 	}
 	batchSize := 0
-	callbackCalled := false
 	var callbackErr error
 	for _, mp := range metricPosts {
 		o, err := mp.Object()
@@ -94,24 +85,21 @@ func (r *Rows) unmarshal(b []byte, maxBatchSize int, callback func(rows []Row) e
 						rows = append(rows, Row{})
 					}
 					row := &rows[len(rows)-1]
-					if errLocal := row.unmarshal(eventObject); errLocal != nil {
+					rowSize, errLocal := row.unmarshal(eventObject)
+					if errLocal != nil {
 						err = fmt.Errorf("cannot unmarshal EventObject: %w", errLocal)
 						return
 					}
-					if callback != nil {
-						batchSize += row.sizeBytes()
-						if batchSize > maxBatchSize {
-							r.Rows = rows
-							if errLocal := callback(rows); errLocal != nil {
-								callbackErr = errLocal
-								err = callbackErr
-								return
-							}
-							callbackCalled = true
-							r.Reset()
-							rows = r.Rows
-							batchSize = 0
+					batchSize += rowSize
+					if batchSize > maxBatchSize {
+						if errLocal := callback(rows); errLocal != nil {
+							callbackErr = errLocal
+							err = callbackErr
+							return
 						}
+						// There is no need to reset rows, since row.unmarshal resets every row before reuse.
+						rows = rows[:0]
+						batchSize = 0
 					}
 				}
 			}
@@ -124,7 +112,7 @@ func (r *Rows) unmarshal(b []byte, maxBatchSize int, callback func(rows []Row) e
 			return fmt.Errorf("cannot parse MetricPost object: %w", err)
 		}
 	}
-	if callback != nil && (len(r.Rows) > 0 || !callbackCalled) {
+	if len(r.Rows) > 0 {
 		if err := callback(r.Rows); err != nil {
 			return err
 		}
@@ -167,19 +155,6 @@ func (r *Row) reset() {
 	r.Timestamp = 0
 }
 
-func (r *Row) sizeBytes() int {
-	n := int(unsafe.Sizeof(*r))
-	for i := range r.Tags {
-		t := &r.Tags[i]
-		n += int(unsafe.Sizeof(*t)) + len(t.Key) + len(t.Value)
-	}
-	for i := range r.Samples {
-		s := &r.Samples[i]
-		n += int(unsafe.Sizeof(*s)) + len(s.Name)
-	}
-	return n
-}
-
 func (t *Tag) reset() {
 	t.Key = t.Key[:0]
 	t.Value = t.Value[:0]
@@ -190,7 +165,8 @@ func (s *Sample) reset() {
 	s.Value = 0
 }
 
-func (r *Row) unmarshal(o *fastjson.Object) (err error) {
+// unmarshal parses r from o and returns the approximate size of the parsed data in bytes.
+func (r *Row) unmarshal(o *fastjson.Object) (sizeBytes int, err error) {
 	r.reset()
 	tags := r.Tags[:0]
 	samples := r.Samples[:0]
@@ -216,6 +192,7 @@ func (r *Row) unmarshal(o *fastjson.Object) (err error) {
 			t := &tags[len(tags)-1]
 			t.Key = append(t.Key[:0], k...)
 			t.Value = append(t.Value[:0], valueBytes...)
+			sizeBytes += len(k) + len(valueBytes)
 		case fastjson.TypeNumber:
 			if string(k) == "timestamp" {
 				// Parse timestamp
@@ -240,11 +217,12 @@ func (r *Row) unmarshal(o *fastjson.Object) (err error) {
 			s := &samples[len(samples)-1]
 			s.Name = append(s.Name[:0], k...)
 			s.Value = v.GetFloat64()
+			sizeBytes += len(k) + 8
 		}
 	})
 	r.Tags = tags
 	r.Samples = samples
-	return err
+	return sizeBytes, err
 }
 
 func getFloat64(v *fastjson.Value) (float64, error) {
