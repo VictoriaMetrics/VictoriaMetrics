@@ -27,6 +27,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 ## tip
 
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): fixes rare data corruption on HTTP request retries. See [#11508](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11508).
+* BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): add missing `accountID`, `projectID` and `multiTenant` fields to `topByAvgMemoryUsage` results at `/api/v1/status/top_queries`. See [#11640](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11640).
 
 ## [v1.153.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.153.0)
 
