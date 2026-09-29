@@ -115,6 +115,40 @@ func TestRowsUnmarshalWithCallbackError(t *testing.T) {
 	}
 }
 
+func TestRowsUnmarshalWithCallbackParseErrorMidway(t *testing.T) {
+	f := func(request string, expectedBatches []string) {
+		t.Helper()
+
+		var r Rows
+		var batches []string
+		err := r.unmarshal([]byte(request), 1, func(rows []Row) error {
+			batches = append(batches, rowsToString(rows))
+			return nil
+		})
+		if err == nil {
+			t.Fatalf("expecting non-nil error")
+		}
+		// Batches parsed before the error must be already passed to the callback.
+		if !reflect.DeepEqual(batches, expectedBatches) {
+			t.Fatalf("unexpected batches before the error\ngot\n%q\nwant\n%q", batches, expectedBatches)
+		}
+	}
+
+	expectedBatches := []string{
+		"tags={tag=\"12345\"}, samples=, timestamp=0",
+		"tags={tag=\"67890\"}, samples=, timestamp=0",
+	}
+
+	// invalid event in the middle of Events array
+	f(`[{"Events":[{"tag":"12345"},{"tag":"67890"},123,{"tag":"abcde"}]}]`, expectedBatches)
+
+	// invalid MetricPost after a valid one
+	f(`[{"Events":[{"tag":"12345"},{"tag":"67890"}]},123]`, expectedBatches)
+
+	// invalid Events in a subsequent MetricPost
+	f(`[{"Events":[{"tag":"12345"},{"tag":"67890"}]},{"Events":123}]`, expectedBatches)
+}
+
 func TestRowsUnmarshalSuccess(t *testing.T) {
 	f := func(data string, expectedRows []Row) {
 		t.Helper()
