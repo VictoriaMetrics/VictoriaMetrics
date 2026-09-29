@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* SECURITY: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): prevent [cross-site scripting (XSS)](https://en.wikipedia.org/wiki/Cross-site_scripting) on Metric Relabling Debug, Query Analyzier, and Dashboards pages. See [GHSA-m2x2-9xpq-mmq5](https://github.com/VictoriaMetrics/VictoriaMetrics/security/advisories/GHSA-m2x2-9xpq-mmq5).
+
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): fixes rare data corruption on HTTP request retries. See [#11508](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11508).
 
 ## [v1.153.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.153.0)
