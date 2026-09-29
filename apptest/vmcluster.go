@@ -70,7 +70,7 @@ func sendAndRecvBlocking(t *testing.T, vminsert *Vminsert, vmstorages []*Vmstora
 		t.Helper()
 		var s int
 		for _, vmstorage := range vmstorages {
-			s += int(vmstorage.GetMetric(t, "vm_rows_received_by_storage_total"))
+			s += vmstorage.GetIntMetric(t, "vm_rows_received_by_storage_total")
 		}
 		return s
 	}
