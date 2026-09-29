@@ -285,8 +285,8 @@ func setSSONoCacheHeaders(w http.ResponseWriter) {
 }
 
 // processSSOLogin renders a minimal HTML page with a single "Login with SSO"
-// button pointing directly to the OIDC provider's authorization endpoint.
-// Only GET and HEAD requests are redirected to the IdP; other methods receive
+// button pointing to the internal /_vmauth/sso/start endpoint.
+// Only GET and HEAD requests show the login page; other methods receive
 // a 401 so that the caller's request body is not silently discarded.
 //
 // If the request already carries auth tokens (e.g. from an SSO cookie) but
@@ -300,31 +300,69 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 	if oidc == nil {
 		return false
 	}
+
+	redirectURL := oidc.getRedirectURL(r.URL.RequestURI())
+
+	authParams := url.Values{}
+	authParams.Set("redirect", redirectURL)
+	authURL := getPathWithPrefix("/_vmauth/sso/start") + "?" + authParams.Encode()
+
+	setSSONoCacheHeaders(w)
+	if len(getAuthTokensFromRequest(r)) > 0 {
+		// The user authenticated but no user config matched — authorization failure.
+		w.WriteHeader(http.StatusForbidden)
+		WriteSSOLoginPage(w, authURL, "Access Denied")
+		return true
+	}
+
+	// No credentials at all — return 401 so programmatic clients (curl,
+	// Grafana, scripts) can distinguish "not authenticated" from a successful
+	// response.
+	w.WriteHeader(http.StatusUnauthorized)
+	WriteSSOLoginPage(w, authURL, "")
+	return true
+}
+
+// processSSOStart handles /_vmauth/sso/start — the target of the "Login with SSO" button.
+// It generates nonce/state, sets the CSRF cookie, and redirects to the IdP.
+func processSSOStart(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
 	if err := beginConcurrencyLimit(r.Context()); err != nil {
 		w.WriteHeader(http.StatusTooManyRequests)
-		return true
+		return
 	}
 	defer endConcurrencyLimit()
 
-	redirectURL := oidc.getRedirectURL(r.URL.RequestURI())
+	oidc := getSSOConfigForHost(authConfig.Load(), r.Host)
+	if oidc == nil {
+		setSSONoCacheHeaders(w)
+		w.WriteHeader(http.StatusUnauthorized)
+		WriteSSOErrorPage(w, "SSO not configured for this host", "", getPathWithPrefix("/"))
+		return
+	}
+
+	redirectURL := oidc.getRedirectURL(r.URL.Query().Get("redirect"))
 
 	pm := oidc.pm.Load()
 	if pm == nil {
 		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusServiceUnavailable)
 		WriteSSOErrorPage(w, "Identity Provider is not available, try again later", "", getPathWithPrefix(redirectURL))
-		return true
+		return
 	}
 
 	// Nonce binds the id_token to this session (replay protection).
 	// https://openid.net/specs/openid-connect-core-1_0.html#NonceNotes
 	nonce, err := generateRandomString(32)
 	if err != nil {
-		ssoLogger.Errorf("SSO login at host %s (IdP %s) failed to generate nonce: %s", r.Host, oidc.Issuer, err)
+		ssoLogger.Errorf("SSO start at host %s (IdP %s) failed to generate nonce: %s", r.Host, oidc.Issuer, err)
 		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusInternalServerError)
 		WriteSSOErrorPage(w, "Internal Server Error", "", getPathWithPrefix(redirectURL))
-		return true
+		return
 	}
 
 	// State binds the authorization response to this request (CSRF protection).
@@ -332,11 +370,11 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 	// https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest
 	state, err := generateRandomString(32)
 	if err != nil {
-		ssoLogger.Errorf("SSO login at host %s (IdP %s) failed to generate state: %s", r.Host, oidc.Issuer, err)
+		ssoLogger.Errorf("SSO start at host %s (IdP %s) failed to generate state: %s", r.Host, oidc.Issuer, err)
 		setSSONoCacheHeaders(w)
 		w.WriteHeader(http.StatusInternalServerError)
 		WriteSSOErrorPage(w, "Internal Server Error", "", getPathWithPrefix(redirectURL))
-		return true
+		return
 	}
 
 	// Store nonce, state, and redirectURL in the CSRF cookie. The raw nonce
@@ -365,22 +403,9 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 	params.Set("scope", strings.Join(scopes, " "))
 	params.Set("nonce", nonceHash)
 	params.Set("state", state)
-	authURL := pm.AuthorizationEndpoint + "?" + params.Encode()
 
 	setSSONoCacheHeaders(w)
-	if len(getAuthTokensFromRequest(r)) > 0 {
-		// The user authenticated but no user config matched — authorization failure.
-		w.WriteHeader(http.StatusForbidden)
-		WriteSSOLoginPage(w, authURL, "Access Denied")
-		return true
-	}
-
-	// No credentials at all — return 401 so programmatic clients (curl,
-	// Grafana, scripts) can distinguish "not authenticated" from a successful
-	// response.
-	w.WriteHeader(http.StatusUnauthorized)
-	WriteSSOLoginPage(w, authURL, "")
-	return true
+	http.Redirect(w, r, pm.AuthorizationEndpoint+"?"+params.Encode(), http.StatusFound)
 }
 
 // processSSOCallback handles the OIDC authorization code callback at /_vmauth/sso/callback.
