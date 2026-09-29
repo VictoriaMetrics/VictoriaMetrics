@@ -128,7 +128,7 @@ const (
 	// Epoch, i.e. 1970-01-02T00:00:00.000Z.
 	//
 	// The first day of the Unix Epoch is reserved: zero date and zero time
-	// range are used for indicating that the the global index search is
+	// range are used for indicating that the global index search is
 	// required. See globalIndexDate and globalIndexTimeRange above.
 	//
 	// Negative timestamps aren't supported.

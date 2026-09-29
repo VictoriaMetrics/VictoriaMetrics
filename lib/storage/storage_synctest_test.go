@@ -295,7 +295,7 @@ func TestStorageRotateIndexDBPrefill(t *testing.T) {
 		synctest.Test(t, func(t *testing.T) {
 			// Prefill of the next partition indexDB happens during the
 			// (nextMonth-prefillStart, nextMonth] time interval.
-			// Advance current time right before the the beginning of that interval.
+			// Advance current time right before the beginning of that interval.
 			ct := time.Now().UTC()
 			nextMonth := time.Date(ct.Year(), ct.Month()+1, 1, 0, 0, 0, 0, time.UTC)
 			time.Sleep(nextMonth.Sub(ct.Add(prefillStart)))
@@ -899,7 +899,7 @@ func TestStorageLastPartitionMetrics(t *testing.T) {
 		})
 		assertLastPartitionNonEmpty(t, s)
 
-		// Advance current time to the the next month, 2000-02-01T00:30:00Z.
+		// Advance current time to the next month, 2000-02-01T00:30:00Z.
 		// last partition is now 2000-02 and it must be empty.
 		time.Sleep(2*time.Hour + time.Minute*30)
 		assertLastPartitionEmpty(t, s)

@@ -63,7 +63,7 @@ var (
 		"See also -remoteWrite.maxDiskUsagePerURL and -remoteWrite.disableOnDiskQueue")
 	keepDanglingQueues = flag.Bool("remoteWrite.keepDanglingQueues", false, "Keep persistent queues contents at -remoteWrite.tmpDataPath in case there are no matching -remoteWrite.url. "+
 		"Useful when -remoteWrite.url is changed temporarily and persistent queue files will be needed later on.")
-	queues = flagutil.NewArrayIntWithDynamicDefault("remoteWrite.queues", cgroup.AvailableCPUs()*2, "2*cgroup.AvailableCPUs()",
+	queues = flagutil.NewArrayIntWithDynamicDefault("remoteWrite.queues", cgroup.AvailableCPUs()*2, "2x CPU cores",
 		"The number of concurrent queues to each -remoteWrite.url. Set more queues if default number of queues "+
 			"isn't enough for sending high volume of collected data to remote storage. "+
 			"Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage")

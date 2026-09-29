@@ -37,6 +37,11 @@ type PushOptions struct {
 	// By default the Method is GET.
 	Method string
 
+	// LogErr is an optional function for logging errors during metrics push.
+	//
+	// By default errors are logged via log.Printf.
+	LogErr func(format string, v ...any)
+
 	// Optional WaitGroup for waiting until all the push workers created with this WaitGroup are stopped.
 	WaitGroup *sync.WaitGroup
 }
@@ -225,6 +230,14 @@ func InitPushExtWithOptions(ctx context.Context, pushURL string, interval time.D
 			wg.Add(1)
 		}
 	}
+
+	logErr := func(format string, v ...any) {
+		log.Printf("ERROR: "+format, v...)
+	}
+	if opts != nil && opts.LogErr != nil {
+		logErr = opts.LogErr
+	}
+
 	go func() {
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
@@ -236,7 +249,7 @@ func InitPushExtWithOptions(ctx context.Context, pushURL string, interval time.D
 				err := pc.pushMetrics(ctxLocal, writeMetrics)
 				cancel()
 				if err != nil {
-					log.Printf("ERROR: metrics.push: %s", err)
+					logErr("metrics: push: %s", err)
 				}
 			case <-stopCh:
 				if wg != nil {
@@ -385,7 +398,7 @@ func (pc *pushContext) pushMetrics(ctx context.Context, writeMetrics func(w io.W
 	}
 
 	req.Header.Set("Content-Type", "text/plain")
-	// Set the needed headers, and `Content-Type` allowed be overwrited.
+	// Set the needed headers, and `Content-Type` allowed be overwritten.
 	for name, values := range pc.headers {
 		for _, value := range values {
 			req.Header.Add(name, value)
@@ -435,7 +448,7 @@ func addExtraLabels(dst, src []byte, extraLabels string) []byte {
 		}
 		line = bytes.TrimSpace(line)
 		if len(line) == 0 {
-			// Skip empy lines
+			// Skip empty lines
 			continue
 		}
 		if bytes.HasPrefix(line, bashBytes) {

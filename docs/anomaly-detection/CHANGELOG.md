@@ -20,6 +20,21 @@ Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
 {{% collapse name="2026" open=true %}}
 
+## v1.30.7
+Released: 2026-09-24
+
+- UI: Updated the bundled [UI from v1.9.1 to v1.9.2](https://docs.victoriametrics.com/anomaly-detection/ui/#v192) with incident investigation links and configurable model choices.
+
+- FEATURE: Open persisted anomaly results from [vmalert investigation links](https://docs.victoriametrics.com/anomaly-detection/ui/#investigate-a-firing-alert), with the configured model, queries and incident time range selected in VMUI.
+
+- IMPROVEMENT: Curate model choices, including Auto tuning targets, with [`server.ui_allowed_models`](https://docs.victoriametrics.com/anomaly-detection/components/server/#parameters).
+
+- IMPROVEMENT: Reduced reader overhead when parsing datapoints, preparing columns and loading single-chunk Parquet data.
+
+- IMPROVEMENT: Updated the [self-monitoring dashboard](https://docs.victoriametrics.com/anomaly-detection/self-monitoring/#grafana-dashboard) with activity counts, corrected queries, per-model views and AI Copilot usage.
+
+- BUGFIX: Generated UI alert rules use a strict anomaly-score threshold (`> 1` by default) and preserve preset version suffixes in metric selectors.
+
 ## v1.30.6
 Released: 2026-09-17
 

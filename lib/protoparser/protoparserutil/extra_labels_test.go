@@ -31,6 +31,8 @@ func TestGetExtraLabelsSuccess(t *testing.T) {
 	f("/foo/bar", `{}`)
 	f("/foo?extra_label=foo=bar", `{foo="bar"}`)
 	f("/foo?extra_label=a=x&extra_label=b=y", `{a="x",b="y"}`)
+	f("/foo?extra_label=", `{}`)
+	f("/foo?extra_label=&extra_label=a=x", `{a="x"}`)
 	f("/metrics/job/foo", `{job="foo"}`)
 	f("/metrics/job/foo?extra_label=a=b", `{a="b",job="foo"}`)
 	f("/metrics/job/foo/b/bcd?extra_label=a=b&extra_label=qwe=rty", `{a="b",b="bcd",job="foo",qwe="rty"}`)

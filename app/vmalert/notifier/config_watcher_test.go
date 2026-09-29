@@ -64,6 +64,37 @@ static_configs:
 	if ns[0].Addr() != expAddr {
 		t.Fatalf("expected to get %q; got %q instead", expAddr, ns[0].Addr())
 	}
+
+	// check global alert relabel
+	originRC := globalAlertRelabelCfg.Swap(nil)
+	t.Cleanup(func() {
+		globalAlertRelabelCfg.Store(originRC)
+	})
+
+	f3, err := os.CreateTemp("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer fs.MustRemovePath(f3.Name())
+
+	writeToFile(f3.Name(), `
+alert_relabel_configs:
+  - action: uppercase
+    source_labels: ["priority"]
+    target_label: "priority"
+  - source_labels: ["alertname"]
+    regex: "Watchdog"
+    target_label: "priority"
+    replacement: "P3"
+static_configs:
+  - targets:
+      - 127.0.0.1:9093
+`)
+	checkErr(t, cw.reload(f3.Name()))
+	rc := globalAlertRelabelCfg.Swap(nil)
+	if rc.Len() == 0 {
+		t.Fatalf("expected to get %d alert relabel configs; got %d instead", 2, rc.Len())
+	}
 }
 
 func TestConfigWatcherStart(t *testing.T) {
