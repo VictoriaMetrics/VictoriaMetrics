@@ -116,19 +116,20 @@ func TestRowsUnmarshalWithCallbackError(t *testing.T) {
 }
 
 func TestRowsUnmarshalWithCallbackParseErrorMidway(t *testing.T) {
-	f := func(request string, expectedBatches []string) {
+	f := func(request string, maxBatchSize int, expectedBatches []string) {
 		t.Helper()
 
 		var r Rows
 		var batches []string
-		err := r.unmarshal([]byte(request), 1, func(rows []Row) error {
+		err := r.unmarshal([]byte(request), maxBatchSize, func(rows []Row) error {
 			batches = append(batches, rowsToString(rows))
 			return nil
 		})
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
-		// Batches parsed before the error must be already passed to the callback.
+		// Batches parsed before the error must be already passed to the callback,
+		// while the partially filled batch must be dropped.
 		if !reflect.DeepEqual(batches, expectedBatches) {
 			t.Fatalf("unexpected batches before the error\ngot\n%q\nwant\n%q", batches, expectedBatches)
 		}
@@ -140,13 +141,24 @@ func TestRowsUnmarshalWithCallbackParseErrorMidway(t *testing.T) {
 	}
 
 	// invalid event in the middle of Events array
-	f(`[{"Events":[{"tag":"12345"},{"tag":"67890"},123,{"tag":"abcde"}]}]`, expectedBatches)
+	f(`[{"Events":[{"tag":"12345"},{"tag":"67890"},123,{"tag":"abcde"}]}]`, 1, expectedBatches)
 
 	// invalid MetricPost after a valid one
-	f(`[{"Events":[{"tag":"12345"},{"tag":"67890"}]},123]`, expectedBatches)
+	f(`[{"Events":[{"tag":"12345"},{"tag":"67890"}]},123]`, 1, expectedBatches)
 
 	// invalid Events in a subsequent MetricPost
-	f(`[{"Events":[{"tag":"12345"},{"tag":"67890"}]},{"Events":123}]`, expectedBatches)
+	f(`[{"Events":[{"tag":"12345"},{"tag":"67890"}]},{"Events":123}]`, 1, expectedBatches)
+
+	// invalid event while a batch is partially filled
+	rowSize := (&Row{
+		Tags: []Tag{{
+			Key:   []byte("tag"),
+			Value: []byte("12345"),
+		}},
+	}).sizeBytes()
+	f(`[{"Events":[{"tag":"12345"},{"tag":"67890"},{"tag":"abcde"},{"tag":"fghij"},123]}]`, 2*rowSize, []string{
+		"tags={tag=\"12345\"}, samples=, timestamp=0\ntags={tag=\"67890\"}, samples=, timestamp=0\ntags={tag=\"abcde\"}, samples=, timestamp=0",
+	})
 }
 
 func TestRowsUnmarshalSuccess(t *testing.T) {
