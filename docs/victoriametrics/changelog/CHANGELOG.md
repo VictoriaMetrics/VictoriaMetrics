@@ -28,6 +28,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 * SECURITY: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): prevent [cross-site scripting (XSS)](https://en.wikipedia.org/wiki/Cross-site_scripting) on Metric Relabling Debug, Query Analyzier, and Dashboards pages. See [GHSA-m2x2-9xpq-mmq5](https://github.com/VictoriaMetrics/VictoriaMetrics/security/advisories/GHSA-m2x2-9xpq-mmq5).
 
+* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [Single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): add `/influx/ping` endpoint, which returns the `X-Influxdb-Version` HTTP header. Some [InfluxDB](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb/) clients, such as the Jenkins InfluxDB plugin, read the server version from this endpoint. See [#11663](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11663).
+
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): fixes rare data corruption on HTTP request retries. See [#11508](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11508).
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): fix [SSO](https://docs.victoriametrics.com/victoriametrics/vmauth/#single-sign-on-sso) login failure `Invalid state parameter` caused by a race condition when multiple concurrent unauthenticated requests each set their own CSRF cookie. See [#10278-comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10278#issuecomment-5862232663) and [#11656](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11656).
 

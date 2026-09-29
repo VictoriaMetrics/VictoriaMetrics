@@ -378,6 +378,10 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		addInfluxResponseHeaders(w)
 		influxutil.WriteHealthCheckResponse(w)
 		return true
+	case "/influx/ping":
+		addInfluxResponseHeaders(w)
+		w.WriteHeader(http.StatusNoContent)
+		return true
 	case "/opentelemetry/api/v1/push", "/opentelemetry/v1/metrics":
 		opentelemetryPushRequests.Inc()
 		if err := opentelemetry.InsertHandler(nil, r); err != nil {
