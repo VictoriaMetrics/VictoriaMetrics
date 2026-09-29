@@ -658,7 +658,7 @@ See also [tmin_over_time](#tmin_over_time) and [max_over_time](#max_over_time).
 
 #### mode_over_time
 
-`mode_over_time(series_selector[d])` is a [rollup function](#rollup-functions), which calculates [mode](https://en.wikipedia.org/wiki/Mode_(statistics))
+`mode_over_time(series_selector[d])` is a [rollup function](#rollup-functions), which calculates [mode](https://en.wikipedia.org/wiki/Mode_%28statistics%29)
 for [raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) on the given lookbehind window `d`. It is calculated individually per each time series returned
 from the given [series_selector](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#filtering). It is expected that [raw sample](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples)
 values are discrete.
@@ -2182,7 +2182,7 @@ This function is supported by PromQL.
 
 #### mode
 
-`mode(q) by (group_labels)` is [aggregate function](#aggregate-functions), which returns [mode](https://en.wikipedia.org/wiki/Mode_(statistics))
+`mode(q) by (group_labels)` is [aggregate function](#aggregate-functions), which returns [mode](https://en.wikipedia.org/wiki/Mode_%28statistics%29)
 per each `group_labels` for all the time series returned by `q`. The aggregate is calculated individually per each group of points with the same timestamp.
 
 #### outliers_iqr
