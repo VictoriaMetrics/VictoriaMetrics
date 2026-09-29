@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "classnames": "^2.5.1",
+    "dompurify": "^3.4.15",
     "dayjs": "^1.11.23",
     "lodash.debounce": "^4.0.8",
     "marked": "^18.0.14",

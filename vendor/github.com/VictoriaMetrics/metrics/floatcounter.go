@@ -35,7 +35,7 @@ func (fc *FloatCounter) Add(n float64) {
 	fc.mu.Unlock()
 }
 
-// Sub substracts n from fc.
+// Sub subtracts n from fc.
 func (fc *FloatCounter) Sub(n float64) {
 	fc.mu.Lock()
 	fc.n -= n

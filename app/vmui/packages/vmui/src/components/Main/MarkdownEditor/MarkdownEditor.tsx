@@ -3,7 +3,7 @@ import useBoolean from "../../../hooks/useBoolean";
 import classNames from "classnames";
 import TextField from "../TextField/TextField";
 import "./style.scss";
-import { marked } from "marked";
+import SafeHtml from "../SafeHtml/SafeHtml";
 
 interface Props {
   value: string;
@@ -44,9 +44,11 @@ const MarkdownEditor: FC<Props> = ({ value, onChange }) => {
         </span>
       </div>
       {markdownPreview ? (
-        <div
+        <SafeHtml
+          tagName="div"
           className="vm-markdown-editor-preview vm-markdown"
-          dangerouslySetInnerHTML={{ __html: marked(value) as string }}
+          value={value}
+          format="markdown"
         />
       ) : (
         <TextField

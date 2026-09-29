@@ -2362,14 +2362,22 @@ are added to all the metrics before sending them to the remote storage:
 
 ## Caches
 
+VictoriaMetrics uses various internal caches to optimize write and read load. Command-line flags `-memory.allowedPercent` and `-memory.allowedBytes` limit the amounts of memory that caches can use. To increase cache's memory limit, simply increase the amount of available memory to VictoriaMetrics, and it will automatically re-distribute it among the caches.
+
+VictoriaMetrics stores caches on disk during graceful shutdown and re-loads them on startup. This helps VictoriaMetrics to catch up faster with the workload after restart. 
+If VictoriaMetrics can't restore the cache from the disk, it will print the corresponding warning message in the logs. See [how to drop caches](https://docs.victoriametrics.com/victoriametrics/#cache-removal) if you need intentionally to remove the cache on startup.
+
+> Note: due to specifics of the cache implementation, caches can reset automatically after changing the amount of available memory or CPUs.
+
+VictoriaMetrics exposes various metrics for monitoring the cache usage. These metrics are available on [Grafana dashboards](https://docs.victoriametrics.com/victoriametrics/#monitoring) and are explained in [cache tuning docs](https://docs.victoriametrics.com/victoriametrics/#cache-tuning).
+
 ### Cache removal
 
-VictoriaMetrics uses various internal caches. These caches are stored to `<-storageDataPath>/cache` directory during graceful shutdown
-(e.g. when VictoriaMetrics is stopped by sending `SIGINT` signal). The caches are read on the next VictoriaMetrics startup.
-Sometimes it is needed to remove such caches on the next startup. This can be done in the following ways:
+Caches are stored in `<-storageDataPath>/cache` directory during graceful shutdown (e.g. when VictoriaMetrics is stopped by sending `SIGINT` signal), 
+so they can be restored back during startup. To remove such caches on the next startup, use one of the following options:
 
-* By manually removing the `<-storageDataPath>/cache` directory when VictoriaMetrics is stopped.
-* By placing `reset_cache_on_startup` file inside the `<-storageDataPath>/cache` directory before the restart of VictoriaMetrics.
+* Manually remove the `<-storageDataPath>/cache` directory when VictoriaMetrics is stopped.
+* Place `reset_cache_on_startup` file inside the `<-storageDataPath>/cache` directory before the restart of VictoriaMetrics.
   In this case VictoriaMetrics will automatically remove all the caches on the next start.
   See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1447) for details.
 
@@ -2393,7 +2401,6 @@ See also [cache removal docs](#cache-removal).
 
 ### Cache tuning
 
-VictoriaMetrics uses various in-memory caches for faster data ingestion and query performance.
 The following metrics for each type of cache are exported at [`/metrics` page](#monitoring):
 
 * `vm_cache_size_bytes` - the actual cache size
@@ -2411,11 +2418,11 @@ of reads for which no value was found in the cache. If the cache utilization is 
 cache misses, then the cache is either not accepting new entries or evicting existing ones. Its
 size may need to be increased.
 
-Please note, default cache sizes were carefully adjusted accordingly to the most
+> Please note, default cache sizes were carefully adjusted accordingly to the most
 practical scenarios and workloads. Change the defaults only if you understand the implications
 and vmstorage has enough free memory to accommodate new cache sizes.
 
-To override the default values see command-line flags with `-storage.cacheSize` prefix.
+To override the default values see command-line flag `-cacheExpireDuration` and flags with `-storage.cacheSize` prefix.
 See the full description of [command-line flags](#list-of-command-line-flags).
 
 ## Data migration
