@@ -962,13 +962,13 @@ Note that the handler accepts any HTTP method, so sending a `GET` request to `/a
 Single-node VictoriaMetrics:
 
 ```sh
-curl 'http://<vmsingle>:8428/api/v1/admin/tsdb/delete_series' -d 'match[]=vm_http_request_errors_total'
+curl -x POST 'http://<vmsingle>:8428/api/v1/admin/tsdb/delete_series' -d 'match[]=vm_http_request_errors_total'
 ```
 
 Cluster version of VictoriaMetrics:
 
 ```sh
-curl 'http://<vmselect>:8481/delete/0/prometheus/api/v1/admin/tsdb/delete_series' -d 'match[]=vm_http_request_errors_total'
+curl -X POST 'http://<vmselect>:8481/delete/0/prometheus/api/v1/admin/tsdb/delete_series' -d 'match[]=vm_http_request_errors_total'
 ```
 
 Use `-deleteAuthKey` command-line flag for protecting the delete endpoint.
