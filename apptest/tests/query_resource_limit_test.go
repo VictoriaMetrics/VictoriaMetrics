@@ -135,6 +135,7 @@ func TestClusterMaxSeries(t *testing.T) {
 	vminsert := tc.MustStartVminsert("vminsert", []string{
 		"-storageNode=" + vmstorage.VminsertAddr(),
 	})
+	apptest.EnsureBlockingIngestion(t, vminsert, []*apptest.Vmstorage{vmstorage})
 	vmselectBigLimit := tc.MustStartVmselect("vmselect2", []string{
 		"-storageNode=" + vmstorage.VmselectAddr(),
 		"-search.tenantCacheExpireDuration=0",

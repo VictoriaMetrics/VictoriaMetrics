@@ -166,35 +166,6 @@ func (tc *TestCase) MustStartDefaultRWVmagent(instance string, flags []string) *
 	return tc.MustStartVmagent(instance, defaultFlags, ``)
 }
 
-// Vmcluster represents a typical cluster setup: several vmstorage replicas, one
-// vminsert, and one vmselect.
-//
-// Both Vmsingle and Vmcluster implement the PrometheusWriteQuerier used in
-// business logic tests to abstract out the infrastructure.
-//
-// This type is not suitable for infrastructure tests where custom cluster
-// setups are often required.
-type Vmcluster struct {
-	*Vminsert
-	*Vmselect
-	Vmstorages []*Vmstorage
-}
-
-// ForceFlush forces the ingested data to become visible for searching
-// immediately.
-func (c *Vmcluster) ForceFlush(t *testing.T) {
-	for _, s := range c.Vmstorages {
-		s.ForceFlush(t)
-	}
-}
-
-// ForceMerge is a test helper function that forces the merging of parts.
-func (c *Vmcluster) ForceMerge(t *testing.T) {
-	for _, s := range c.Vmstorages {
-		s.ForceMerge(t)
-	}
-}
-
 // MustStartVmauth is a test helper function that starts an instance of
 // vmauth and fails the test if the app fails to start.
 func (tc *TestCase) MustStartVmauth(instance string, flags []string, configFileYAML string) *Vmauth {
@@ -289,6 +260,7 @@ func (tc *TestCase) MustStartCluster(opts *ClusterOptions) *Vmcluster {
 
 	vmstorage1 := tc.MustStartVmstorage(opts.Vmstorage1Instance, opts.Vmstorage1Flags)
 	vmstorage2 := tc.MustStartVmstorage(opts.Vmstorage2Instance, opts.Vmstorage2Flags)
+	vmstorages := []*Vmstorage{vmstorage1, vmstorage2}
 
 	opts.VminsertFlags = append(opts.VminsertFlags, []string{
 		"-storageNode=" + vmstorage1.VminsertAddr() + "," + vmstorage2.VminsertAddr(),
@@ -299,8 +271,9 @@ func (tc *TestCase) MustStartCluster(opts *ClusterOptions) *Vmcluster {
 		"-storageNode=" + vmstorage1.VmselectAddr() + "," + vmstorage2.VmselectAddr(),
 	}...)
 	vmselect := tc.MustStartVmselect(opts.VmselectInstance, opts.VmselectFlags)
+	EnsureBlockingIngestion(tc.T(), vminsert, vmstorages)
 
-	return &Vmcluster{vminsert, vmselect, []*Vmstorage{vmstorage1, vmstorage2}}
+	return &Vmcluster{vminsert, vmselect, vmstorages}
 }
 
 // MustStartVmctl is a test helper function that starts an instance of vmctl
