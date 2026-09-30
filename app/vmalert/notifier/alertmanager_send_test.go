@@ -18,10 +18,14 @@ import (
 // Send fans the same relabeled label slices out to every active notifier,
 // and every notifier applies its own alert_relabel_configs. That relabeling
 // must not mutate the shared slice, otherwise concurrently sending notifiers
-// observe each other's partially applied relabel chains.
+// observe each other's partially applied relabel chains. The chain is the
+// mark-then-append idiom: owner=a alerts get team-a and are marked, unmarked
+// alerts get team-b, the mark is dropped and the leading separator trimmed.
 func TestSendPerNotifierRelabelDoesNotShareLabels(t *testing.T) {
 	rc, err := promrelabel.ParseRelabelConfigsData([]byte(`
-- source_labels: [teams]
+- source_labels: [teams, owner]
+  separator: ";"
+  regex: "(.*);a"
   target_label: teams
   replacement: "${1},team-a"
 - source_labels: [teams]
@@ -55,7 +59,14 @@ func TestSendPerNotifierRelabelDoesNotShareLabels(t *testing.T) {
 			return
 		}
 		for _, a := range payload {
-			if a.Labels["teams"] != "team-a" || a.Labels["__tmp_owned"] != "" {
+			// owner=a alerts are claimed by the first rule and must skip the
+			// team-b append; owner=b alerts must take it. Either way the
+			// temporary mark is dropped and the leading separator trimmed.
+			want := "team-b"
+			if a.Labels["owner"] == "a" {
+				want = "team-a"
+			}
+			if a.Labels["teams"] != want || a.Labels["__tmp_owned"] != "" {
 				mu.Lock()
 				corrupted = append(corrupted, fmt.Sprintf("%v", a.Labels))
 				mu.Unlock()
@@ -80,9 +91,13 @@ func TestSendPerNotifierRelabelDoesNotShareLabels(t *testing.T) {
 
 	alerts := make([]Alert, 0, 300)
 	for i := 0; i < 300; i++ {
+		owner := "a"
+		if i%2 == 1 {
+			owner = "b"
+		}
 		alerts = append(alerts, Alert{
 			Name:   "test",
-			Labels: map[string]string{"alertname": "test", "id": fmt.Sprintf("%d", i)},
+			Labels: map[string]string{"alertname": "test", "id": fmt.Sprintf("%d", i), "owner": owner},
 		})
 	}
 	for round := 0; round < 20; round++ {
