@@ -675,7 +675,7 @@ VictoriaMetrics exposes the current number of available snapshots via `vm_snapsh
 
 ## How to delete time series
 
-Send a request to `http://<victoriametrics-addr>:8428/api/v1/admin/tsdb/delete_series?match[]=<timeseries_selector_for_delete>`,
+Send a POST request to `http://<victoriametrics-addr>:8428/api/v1/admin/tsdb/delete_series?match[]=<timeseries_selector_for_delete>`,
 where `<timeseries_selector_for_delete>` may contain any [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors)
 for metrics to delete. Delete API doesn't support the deletion of specific time ranges, the series can only be deleted completely.
 Storage space for the deleted time series isn't freed instantly - it is freed during subsequent
@@ -690,7 +690,7 @@ adjust `start` and `end` to a suitable range to achieve match hits. Also, if the
 rather big you will need to set `-search.maxDeleteSeries` flag (see [Resource usage limits](#resource-usage-limits)).
 
 The `/api/v1/admin/tsdb/delete_series` handler may be protected with `authKey` if `-deleteAuthKey` command-line flag is set.
-Note that handler accepts any HTTP method, so sending a `GET` request to `/api/v1/admin/tsdb/delete_series` will result in deletion of time series.
+Note that handler accepts only HTTP POST method.
 
 The delete API is intended mainly for the following cases:
 
