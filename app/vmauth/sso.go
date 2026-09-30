@@ -289,10 +289,10 @@ func setSSONoCacheHeaders(w http.ResponseWriter) {
 // Only GET and HEAD requests show the login page; other methods receive
 // a 401 so that the caller's request body is not silently discarded.
 //
-// If the request already carries auth tokens (e.g. from an SSO cookie) but
-// no user config matched, the page shows an "Access Denied" hint above the
-// login button so the user knows their identity was recognized but not authorized.
-func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
+// If denied is true (the request carries an SSO cookie, which doesn't match any user config),
+// the page shows an "Access Denied" hint above the login button so the user knows
+// their identity was recognized but not authorized.
+func processSSOLogin(w http.ResponseWriter, r *http.Request, denied bool) bool {
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		return false
 	}
@@ -308,7 +308,7 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 	authURL := getPathWithPrefix("/_vmauth/sso/start") + "?" + authParams.Encode()
 
 	setSSONoCacheHeaders(w)
-	if len(getAuthTokensFromRequest(r)) > 0 {
+	if denied {
 		// The user authenticated but no user config matched — authorization failure.
 		w.WriteHeader(http.StatusForbidden)
 		WriteSSOLoginPage(w, authURL, "Access Denied")
@@ -320,6 +320,24 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 	// response.
 	w.WriteHeader(http.StatusUnauthorized)
 	WriteSSOLoginPage(w, authURL, "")
+	return true
+}
+
+// processSSOAccessDenied processes requests carrying only an SSO cookie, which doesn't match any user config.
+//
+// It shows the SSO login page if possible; otherwise the request is routed to unauthorized_user
+// or rejected with 401 Unauthorized.
+//
+// Requests with other auth tokens aren't processed here, so they remain subject to the brute-force slowdown.
+// Otherwise an arbitrary SSO cookie could be added to the request in order to bypass the slowdown.
+func processSSOAccessDenied(w http.ResponseWriter, r *http.Request, ats, ssoAts []string) bool {
+	if len(ssoAts) == 0 || len(ats) > 0 {
+		return false
+	}
+
+	if !processSSOLogin(w, r, true) {
+		handleInvalidAuthToken(w, r, ssoAts)
+	}
 	return true
 }
 
