@@ -689,6 +689,7 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 		return true
 	case "influx/health":
 		influxHealthRequests.Inc()
+		addInfluxResponseHeaders(w)
 		influxutil.WriteHealthCheckResponse(w)
 		return true
 	case "/influx/ping":
