@@ -32,20 +32,7 @@ func TestRequestHandler(t *testing.T) {
 		cfgStr = strings.ReplaceAll(cfgStr, "{BACKEND}", ts.URL)
 		responseExpected = strings.ReplaceAll(responseExpected, "{BACKEND}", ts.URL)
 
-		cfgOrigP := authConfigData.Load()
-		if _, err := reloadAuthConfigData([]byte(cfgStr)); err != nil {
-			t.Fatalf("cannot load config data: %s", err)
-		}
-		defer func() {
-			cfgOrig := []byte("unauthorized_user:\n  url_prefix: http://foo/bar")
-			if cfgOrigP != nil {
-				cfgOrig = *cfgOrigP
-			}
-			_, err := reloadAuthConfigData(cfgOrig)
-			if err != nil {
-				t.Fatalf("cannot load the original config: %s", err)
-			}
-		}()
+		defer setAuthConfig(t, cfgStr)()
 
 		r, err := http.NewRequest(http.MethodGet, requestURL, nil)
 		if err != nil {
@@ -674,20 +661,7 @@ func TestJWTRequestHandler(t *testing.T) {
 		cfgStr = strings.ReplaceAll(cfgStr, "{BACKEND}", ts.URL)
 		responseExpected = strings.ReplaceAll(responseExpected, "{BACKEND}", ts.URL)
 
-		cfgOrigP := authConfigData.Load()
-		if _, err := reloadAuthConfigData([]byte(cfgStr)); err != nil {
-			t.Fatalf("cannot load config data: %s", err)
-		}
-		defer func() {
-			cfgOrig := []byte("unauthorized_user:\n  url_prefix: http://foo/bar")
-			if cfgOrigP != nil {
-				cfgOrig = *cfgOrigP
-			}
-			_, err := reloadAuthConfigData(cfgOrig)
-			if err != nil {
-				t.Fatalf("cannot load the original config: %s", err)
-			}
-		}()
+		defer setAuthConfig(t, cfgStr)()
 
 		w := &fakeResponseWriter{}
 		if !requestHandlerWithInternalRoutes(w, r) {
@@ -1570,19 +1544,7 @@ users:
   url_prefix: ` + backSrv.URL + `/
 `
 
-		cfgOrigP := authConfigData.Load()
-		if _, err := reloadAuthConfigData([]byte(cfgStr)); err != nil {
-			t.Fatalf("cannot load config data: %s", err)
-		}
-		defer func() {
-			cfgOrig := []byte("unauthorized_user:\n  url_prefix: http://foo/bar")
-			if cfgOrigP != nil {
-				cfgOrig = *cfgOrigP
-			}
-			if _, err := reloadAuthConfigData(cfgOrig); err != nil {
-				t.Fatalf("cannot restore original config: %s", err)
-			}
-		}()
+		defer setAuthConfig(t, cfgStr)()
 
 		r := httptest.NewRequest("GET", "http://some-host.com/api/v1/query", nil)
 		r.Header.Set("Authorization", "Bearer "+tkn)
@@ -1714,20 +1676,7 @@ func TestBufferRequestBody_Success(t *testing.T) {
 unauthorized_user:
   url_prefix: {BACKEND}/foo`, "{BACKEND}", ts.URL)
 
-		cfgOrigP := authConfigData.Load()
-		if _, err := reloadAuthConfigData([]byte(cfgStr)); err != nil {
-			t.Fatalf("cannot load config data: %s", err)
-		}
-		defer func() {
-			cfgOrig := []byte("unauthorized_user:\n  url_prefix: http://foo/bar")
-			if cfgOrigP != nil {
-				cfgOrig = *cfgOrigP
-			}
-			_, err := reloadAuthConfigData(cfgOrig)
-			if err != nil {
-				t.Fatalf("cannot load the original config: %s", err)
-			}
-		}()
+		defer setAuthConfig(t, cfgStr)()
 
 		r, err := http.NewRequest(http.MethodPost, `http://some-host.com`, body)
 		if err != nil {
@@ -1835,20 +1784,7 @@ func TestBufferRequestBody_Failure(t *testing.T) {
 unauthorized_user:
   url_prefix: {BACKEND}/foo`, "{BACKEND}", ts.URL)
 
-		cfgOrigP := authConfigData.Load()
-		if _, err := reloadAuthConfigData([]byte(cfgStr)); err != nil {
-			t.Fatalf("cannot load config data: %s", err)
-		}
-		defer func() {
-			cfgOrig := []byte("unauthorized_user:\n  url_prefix: http://foo/bar")
-			if cfgOrigP != nil {
-				cfgOrig = *cfgOrigP
-			}
-			_, err := reloadAuthConfigData(cfgOrig)
-			if err != nil {
-				t.Fatalf("cannot load the original config: %s", err)
-			}
-		}()
+		defer setAuthConfig(t, cfgStr)()
 
 		r, err := http.NewRequest(http.MethodPost, `http://some-host.com`, body)
 		if err != nil {
@@ -2230,20 +2166,7 @@ users:
   - %s
 `, backendURL, backendURL, backendURL)
 
-	cfgOrigP := authConfigData.Load()
-	if _, err := reloadAuthConfigData([]byte(cfgStr)); err != nil {
-		t.Fatalf("cannot load config data: %s", err)
-	}
-	defer func() {
-		cfgOrig := []byte("unauthorized_user:\n  url_prefix: http://foo/bar")
-		if cfgOrigP != nil {
-			cfgOrig = *cfgOrigP
-		}
-		_, err := reloadAuthConfigData(cfgOrig)
-		if err != nil {
-			t.Fatalf("cannot load original config: %s", err)
-		}
-	}()
+	defer setAuthConfig(t, cfgStr)()
 
 	// size 200: body size 5KB <= 16KB maxRequestBodySizeToRetry (canRetry = true, retries across all 3 backends)
 	// size 5000: body size 125KB > 16KB maxRequestBodySizeToRetry (canRetry = false, fails on 1st backend without retry)

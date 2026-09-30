@@ -119,3 +119,26 @@ func (jt *tokenTester) GenTokenWithHeader(extraHeader, body map[string]any, vali
 
 	return payload + "." + signatureB64
 }
+
+// setAuthConfig loads cfgStr as the current auth config and returns a function, which restores the previous config.
+//
+// Usage: defer setAuthConfig(t, cfgStr)()
+func setAuthConfig(t testing.TB, cfgStr string) func() {
+	t.Helper()
+
+	cfgOrigP := authConfigData.Load()
+	if _, err := reloadAuthConfigData([]byte(cfgStr)); err != nil {
+		t.Fatalf("cannot load config data: %s", err)
+	}
+	return func() {
+		t.Helper()
+
+		cfgOrig := []byte("unauthorized_user:\n  url_prefix: http://foo/bar")
+		if cfgOrigP != nil {
+			cfgOrig = *cfgOrigP
+		}
+		if _, err := reloadAuthConfigData(cfgOrig); err != nil {
+			t.Fatalf("cannot restore the original config: %s", err)
+		}
+	}
+}

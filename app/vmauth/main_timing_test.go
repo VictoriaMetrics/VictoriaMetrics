@@ -27,20 +27,7 @@ func BenchmarkJWTRequestHandler(b *testing.B) {
 
 		cfgStr = strings.ReplaceAll(cfgStr, "{BACKEND}", ts.URL)
 
-		cfgOrigP := authConfigData.Load()
-		if _, err := reloadAuthConfigData([]byte(cfgStr)); err != nil {
-			b.Fatalf("cannot load config data: %s", err)
-		}
-		defer func() {
-			cfgOrig := []byte("unauthorized_user:\n  url_prefix: http://foo/bar")
-			if cfgOrigP != nil {
-				cfgOrig = *cfgOrigP
-			}
-			_, err := reloadAuthConfigData(cfgOrig)
-			if err != nil {
-				b.Fatalf("cannot load the original config: %s", err)
-			}
-		}()
+		defer setAuthConfig(b, cfgStr)()
 
 		b.Run(name, func(b *testing.B) {
 			b.ResetTimer()
