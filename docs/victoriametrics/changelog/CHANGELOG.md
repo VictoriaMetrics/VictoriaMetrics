@@ -26,7 +26,10 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* SECURITY: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): prevent [cross-site scripting (XSS)](https://en.wikipedia.org/wiki/Cross-site_scripting) on Metric Relabling Debug, Query Analyzier, and Dashboards pages. See [GHSA-m2x2-9xpq-mmq5](https://github.com/VictoriaMetrics/VictoriaMetrics/security/advisories/GHSA-m2x2-9xpq-mmq5).
+
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): fixes rare data corruption on HTTP request retries. See [#11508](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11508).
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): fix [SSO](https://docs.victoriametrics.com/victoriametrics/vmauth/#single-sign-on-sso) login failure `Invalid state parameter` caused by a race condition when multiple concurrent unauthenticated requests each set their own CSRF cookie. See [#10278-comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10278#issuecomment-5862232663) and [#11656](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11656).
 
 ## [v1.153.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.153.0)
 
