@@ -8,6 +8,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"fmt"
+	"math/big"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/jwt"
@@ -15,13 +17,13 @@ import (
 
 // tokenTester generates RSA key pairs and signed JWT tokens for testing.
 type tokenTester struct {
-	t            *testing.T
+	t            testing.TB
 	privateKey   *rsa.PrivateKey
 	PublicKeyPEM string
 }
 
 // newTokenTester creates a tokenTester with a freshly generated 2048-bit RSA key pair.
-func newTokenTester(t *testing.T) *tokenTester {
+func newTokenTester(t testing.TB) *tokenTester {
 	t.Helper()
 
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
@@ -55,15 +57,37 @@ func (jt *tokenTester) NewVerifierPool() *jwt.VerifierPool {
 	return vp
 }
 
+// JWKS returns JWKS JSON containing the test RSA public key with the given kid.
+func (jt *tokenTester) JWKS(kid string) string {
+	nBytes := jt.privateKey.N.Bytes()
+	eBytes := big.NewInt(int64(jt.privateKey.E)).Bytes()
+	return fmt.Sprintf(`{"keys":[{"kty":"RSA","kid":%q,"n":%q,"e":%q}]}`,
+		kid,
+		base64.RawURLEncoding.EncodeToString(nBytes),
+		base64.RawURLEncoding.EncodeToString(eBytes),
+	)
+}
+
 // GenToken generates a signed JWT with the given body claims.
 // If valid is false, the signature is invalid.
 func (jt *tokenTester) GenToken(body map[string]any, valid bool) string {
 	jt.t.Helper()
+	return jt.GenTokenWithHeader(nil, body, valid)
+}
 
-	headerJSON, err := json.Marshal(map[string]any{
+// GenTokenWithHeader generates a signed JWT with the given extra header fields and body claims.
+// If valid is false, the signature is invalid.
+func (jt *tokenTester) GenTokenWithHeader(extraHeader, body map[string]any, valid bool) string {
+	jt.t.Helper()
+
+	header := map[string]any{
 		"alg": "RS256",
 		"typ": "JWT",
-	})
+	}
+	for k, v := range extraHeader {
+		header[k] = v
+	}
+	headerJSON, err := json.Marshal(header)
 	if err != nil {
 		jt.t.Fatalf("cannot marshal header: %s", err)
 	}
