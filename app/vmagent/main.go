@@ -691,6 +691,11 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 		influxHealthRequests.Inc()
 		influxutil.WriteHealthCheckResponse(w)
 		return true
+	case "/influx/ping":
+		influxPingRequests.Inc()
+		addInfluxResponseHeaders(w)
+		w.WriteHeader(http.StatusNoContent)
+		return true
 	case "opentelemetry/api/v1/push", "opentelemetry/v1/metrics":
 		opentelemetryPushRequests.Inc()
 		if err := opentelemetry.InsertHandler(at, r); err != nil {
