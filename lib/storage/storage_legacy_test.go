@@ -61,7 +61,7 @@ func TestLegacyStorage_SearchMetricNames(t *testing.T) {
 			t.Fatalf("unexpected error in TagFilters.Add: %v", err)
 		}
 		tfssAll := []*TagFilters{tfsAll}
-		got, err := s.SearchMetricNames(nil, tfssAll, tr, 1e9, noDeadline)
+		got, err := s.SearchMetricNames(noDeadlineContext, nil, tfssAll, tr, 1e9)
 		if err != nil {
 			t.Fatalf("SearchMetricNames() failed unexpectedly: %v", err)
 		}
@@ -131,7 +131,7 @@ func TestLegacyStorage_SearchLabelNames(t *testing.T) {
 
 	assertSearchResults := func(s *Storage, tr TimeRange, want []string) {
 		t.Helper()
-		got, err := s.SearchLabelNames(nil, accountID, projectID, nil, tr, 1e9, 1e9, noDeadline)
+		got, err := s.SearchLabelNames(noDeadlineContext, nil, accountID, projectID, nil, tr, 1e9, 1e9)
 		if err != nil {
 			t.Fatalf("SearchLabelNames() failed unexpectedly: %v", err)
 		}
@@ -201,7 +201,7 @@ func TestLegacyStorage_SearchLabelValues(t *testing.T) {
 
 	assertSearchResults := func(s *Storage, tr TimeRange, want []string) {
 		t.Helper()
-		got, err := s.SearchLabelValues(nil, accountID, projectID, "label", nil, tr, 1e9, 1e9, noDeadline)
+		got, err := s.SearchLabelValues(noDeadlineContext, nil, accountID, projectID, "label", nil, tr, 1e9, 1e9)
 		if err != nil {
 			t.Fatalf("SearchLabelValues() failed unexpectedly: %v", err)
 		}
@@ -263,7 +263,7 @@ func TestLegacyStorage_SearchTagValueSuffixes(t *testing.T) {
 
 	assertSearchResults := func(s *Storage, tr TimeRange, want []string) {
 		t.Helper()
-		got, err := s.SearchTagValueSuffixes(nil, accountID, projectID, tr, "", "prefix.", '.', 1e9, noDeadline)
+		got, err := s.SearchTagValueSuffixes(noDeadlineContext, nil, accountID, projectID, tr, "", "prefix.", '.', 1e9)
 		if err != nil {
 			t.Fatalf("SearchTagValueSuffixes() failed unexpectedly: %v", err)
 		}
@@ -326,7 +326,7 @@ func TestLegacyStorage_SearchGraphitePaths(t *testing.T) {
 
 	assertSearchResults := func(s *Storage, tr TimeRange, want []string) {
 		t.Helper()
-		got, err := s.SearchGraphitePaths(nil, accountID, projectID, tr, []byte("*.*"), 1e9, noDeadline)
+		got, err := s.SearchGraphitePaths(noDeadlineContext, nil, accountID, projectID, tr, []byte("*.*"), 1e9)
 		if err != nil {
 			t.Fatalf("SearchTagGraphitePaths() failed unexpectedly: %v", err)
 		}
@@ -423,7 +423,7 @@ func TestLegacyStorage_GetSeriesCount(t *testing.T) {
 
 	assertSearchResults := func(s *Storage, want uint64) {
 		t.Helper()
-		got, err := s.GetSeriesCount(accountID, projectID, noDeadline)
+		got, err := s.GetSeriesCount(noDeadlineContext, accountID, projectID)
 		if err != nil {
 			t.Fatalf("GetSeriesCount() failed unexpectedly: %v", err)
 		}
@@ -466,7 +466,7 @@ func TestLegacyStorage_DeleteSeries(t *testing.T) {
 
 	assertSeriesCount := func(s *Storage, want int) {
 		t.Helper()
-		got, err := s.SearchMetricNames(nil, tfssAll, tr, 1e9, noDeadline)
+		got, err := s.SearchMetricNames(noDeadlineContext, nil, tfssAll, tr, 1e9)
 		if err != nil {
 			t.Fatalf("SearchMetricNames() failed unexpectedly: %v", err)
 		}
@@ -485,7 +485,7 @@ func TestLegacyStorage_DeleteSeries(t *testing.T) {
 		want := len(legacyData) + len(newData)
 		assertSeriesCount(s, want)
 
-		got, err := s.DeleteSeries(nil, tfssAll, 1e9)
+		got, err := s.DeleteSeries(noDeadlineContext, nil, tfssAll, 1e9)
 		if err != nil {
 			t.Fatalf("DeleteSeries() failed unexpectedly: %v", err)
 		}
@@ -714,7 +714,7 @@ func TestStorageConvertToLegacy(t *testing.T) {
 		if err := tfs.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
 			t.Fatalf("unexpected error in TagFilters.Add: %v", err)
 		}
-		got, err := s.SearchMetricNames(nil, []*TagFilters{tfs}, tr, 1e9, noDeadline)
+		got, err := s.SearchMetricNames(noDeadlineContext, nil, []*TagFilters{tfs}, tr, 1e9)
 		if err != nil {
 			t.Fatalf("SearchMetricNames() failed unexpectedly: %v", err)
 		}
@@ -849,7 +849,7 @@ func mustConvertToLegacy(s *Storage, accountID, projectID uint32) *Storage {
 				MaxTimestamp: ts + msecPerDay - 1,
 			}
 			date := uint64(ts / msecPerDay)
-			tsids, err := idb.SearchTSIDs(nil, tfssAll, day, 1e9, noDeadline)
+			tsids, err := idb.SearchTSIDs(noDeadlineContext, nil, tfssAll, day, 1e9)
 			if err != nil {
 				panic(fmt.Sprintf("could not get TSIDs: %v", err))
 			}
@@ -877,7 +877,7 @@ func mustConvertToLegacy(s *Storage, accountID, projectID uint32) *Storage {
 				}
 			}
 		}
-		is := idb.getIndexSearch(accountID, projectID, noDeadline)
+		is := idb.getIndexSearch(accountID, projectID)
 		dmis, err := is.loadDeletedMetricIDs()
 		idb.putIndexSearch(is)
 		if err != nil {
@@ -1045,7 +1045,7 @@ func TestLegacyStorageRotateIndexDB_DeleteSeries(t *testing.T) {
 		t.Fatalf("unexpected error in TagFilters.Add: %v", err)
 	}
 	op := func(s *Storage) {
-		_, err := s.DeleteSeries(nil, []*TagFilters{tfs}, 1e9)
+		_, err := s.DeleteSeries(noDeadlineContext, nil, []*TagFilters{tfs}, 1e9)
 		if err != nil {
 			panic(fmt.Sprintf("DeleteSeries() failed unexpectedly: %v", err))
 		}
@@ -1087,7 +1087,7 @@ func TestLegacyStorageRotateIndexDB_SearchMetricNames(t *testing.T) {
 	}
 	tfss := []*TagFilters{tfs}
 	op := func(s *Storage) {
-		_, err := s.SearchMetricNames(nil, tfss, tr, 1e9, noDeadline)
+		_, err := s.SearchMetricNames(noDeadlineContext, nil, tfss, tr, 1e9)
 		if err != nil {
 			panic(fmt.Sprintf("SearchMetricNames() failed unexpectedly: %v", err))
 		}
@@ -1109,7 +1109,7 @@ func TestLegacyStorageRotateIndexDB_SearchLabelNames(t *testing.T) {
 	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "metric", tr)
 
 	testLegacyRotateIndexDB(t, accountID, projectID, mrs, func(s *Storage) {
-		_, err := s.SearchLabelNames(nil, accountID, projectID, []*TagFilters{}, tr, 1e6, 1e6, noDeadline)
+		_, err := s.SearchLabelNames(noDeadlineContext, nil, accountID, projectID, []*TagFilters{}, tr, 1e6, 1e6)
 		if err != nil {
 			panic(fmt.Sprintf("SearchLabelNames() failed unexpectedly: %v", err))
 		}
@@ -1129,7 +1129,7 @@ func TestLegacyStorageRotateIndexDB_SearchLabelValues(t *testing.T) {
 	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "metric", tr)
 
 	testLegacyRotateIndexDB(t, accountID, projectID, mrs, func(s *Storage) {
-		_, err := s.SearchLabelValues(nil, accountID, projectID, "__name__", []*TagFilters{}, tr, 1e6, 1e6, noDeadline)
+		_, err := s.SearchLabelValues(noDeadlineContext, nil, accountID, projectID, "__name__", []*TagFilters{}, tr, 1e6, 1e6)
 		if err != nil {
 			panic(fmt.Sprintf("SearchLabelValues() failed unexpectedly: %v", err))
 		}
@@ -1149,7 +1149,7 @@ func TestLegacyStorageRotateIndexDB_SearchTagValueSuffixes(t *testing.T) {
 	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "metric.", tr)
 
 	testLegacyRotateIndexDB(t, accountID, projectID, mrs, func(s *Storage) {
-		_, err := s.SearchTagValueSuffixes(nil, accountID, projectID, tr, "", "metric.", '.', 1e6, noDeadline)
+		_, err := s.SearchTagValueSuffixes(noDeadlineContext, nil, accountID, projectID, tr, "", "metric.", '.', 1e6)
 		if err != nil {
 			panic(fmt.Sprintf("SearchTagValueSuffixes() failed unexpectedly: %v", err))
 		}
@@ -1169,7 +1169,7 @@ func TestLegacyStorageRotateIndexDB_SearchGraphitePaths(t *testing.T) {
 	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "metric.", tr)
 
 	testLegacyRotateIndexDB(t, accountID, projectID, mrs, func(s *Storage) {
-		_, err := s.SearchGraphitePaths(nil, accountID, projectID, tr, []byte("*.*"), 1e6, noDeadline)
+		_, err := s.SearchGraphitePaths(noDeadlineContext, nil, accountID, projectID, tr, []byte("*.*"), 1e6)
 		if err != nil {
 			panic(fmt.Sprintf("SearchGraphitePaths() failed unexpectedly: %v", err))
 		}
@@ -1189,7 +1189,7 @@ func TestLegacyStorageRotateIndexDB_GetSeriesCount(t *testing.T) {
 	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "metric", tr)
 
 	testLegacyRotateIndexDB(t, accountID, projectID, mrs, func(s *Storage) {
-		_, err := s.GetSeriesCount(accountID, projectID, noDeadline)
+		_, err := s.GetSeriesCount(noDeadlineContext, accountID, projectID)
 		if err != nil {
 			panic(fmt.Sprintf("GetSeriesCount() failed unexpectedly: %v", err))
 		}
@@ -1210,7 +1210,7 @@ func TestLegacyStorageRotateIndexDB_GetTSDBStatus(t *testing.T) {
 	date := uint64(tr.MinTimestamp) / msecPerDay
 
 	testLegacyRotateIndexDB(t, accountID, projectID, mrs, func(s *Storage) {
-		_, err := s.GetTSDBStatus(nil, accountID, projectID, nil, date, "", 10, 1e6, noDeadline)
+		_, err := s.GetTSDBStatus(noDeadlineContext, nil, accountID, projectID, nil, date, "", 10, 1e6)
 		if err != nil {
 			panic(fmt.Sprintf("GetTSDBStatus failed unexpectedly: %v", err))
 		}
@@ -1263,8 +1263,8 @@ func TestLegacyStorageRotateIndexDB_Search(t *testing.T) {
 
 	testLegacyRotateIndexDB(t, accountID, projectID, mrs, func(s *Storage) {
 		var search Search
-		search.Init(nil, s, tfss, tr, 1e5, noDeadline)
-		for search.NextMetricBlock() {
+		search.Init(noDeadlineContext, nil, s, tfss, tr, 1e5)
+		for search.NextMetricBlock(noDeadlineContext) {
 			var b Block
 			search.MetricBlockRef.BlockRef.MustReadBlock(&b)
 		}
@@ -1558,7 +1558,7 @@ func TestLegacyStorageGetTSDBStatus(t *testing.T) {
 
 	assertTSDBStatus := func(date uint64, want *TSDBStatus) {
 		t.Helper()
-		got, err := s.GetTSDBStatus(nil, accountID, projectID, nil, date, "", 10, 1e9, noDeadline)
+		got, err := s.GetTSDBStatus(noDeadlineContext, nil, accountID, projectID, nil, date, "", 10, 1e9)
 		if err != nil {
 			t.Fatalf("GetTSDBStatus failed unexpectedly: %v", err)
 		}
