@@ -55,6 +55,7 @@ func TestClusterTenantIDs(t *testing.T) {
 		tc.Assert(&apptest.AssertOptions{
 			Msg: "unexpected /select/tenant_ids response",
 			Got: func() any {
+				t.Helper()
 				return vmselect.SelectTenantIDs(t, opts)
 			},
 			Want: want,
