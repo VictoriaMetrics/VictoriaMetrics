@@ -260,7 +260,20 @@ type rawRowsShardNopad struct {
 
 	mu   sync.Mutex
 	rows []rawRow
+
+	// idleFlushes is the number of consecutive flush ticks the shard stayed empty.
+	idleFlushes int
 }
+
+// maxIdleFlushes is the number of consecutive empty flush ticks after which an idle shard releases its buffer.
+//
+// Without the release every partition, which ever received samples, keeps up to
+// numRawRowsShards*maxRawRowsPerShard*sizeof(rawRow) bytes until the process restarts,
+// so backfilling many historical months grows the heap without bound.
+// The delay avoids re-allocating the buffer on every tick for partitions with bursty ingestion.
+//
+// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11672
+const maxIdleFlushes = 15
 
 type rawRowsShard struct {
 	rawRowsShardNopad
@@ -280,6 +293,7 @@ func (rrs *rawRowsShard) addRows(rows []rawRow) ([]rawRow, []rawRow) {
 	var rowsToFlush []rawRow
 
 	rrs.mu.Lock()
+	rrs.idleFlushes = 0
 	if cap(rrs.rows) == 0 {
 		rrs.rows = newRawRows()
 	}
@@ -319,8 +333,15 @@ func (rrs *rawRowsShard) appendRawRowsToFlush(dst [][]rawRow, currentTimeMs int6
 
 	// Slow path - move rrs.rows to dst.
 	rrs.mu.Lock()
-	dst = appendRawRowss(dst, rrs.rows)
-	rrs.rows = rrs.rows[:0]
+	if len(rrs.rows) == 0 && !isFinal {
+		rrs.idleFlushes++
+		if rrs.idleFlushes >= maxIdleFlushes {
+			rrs.rows = nil
+		}
+	} else {
+		dst = appendRawRowss(dst, rrs.rows)
+		rrs.rows = rrs.rows[:0]
+	}
 	rrs.mu.Unlock()
 
 	return dst
