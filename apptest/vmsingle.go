@@ -72,6 +72,9 @@ func newVmsingle(app *app, cli *Client, rt vmsingleRuntimeValues) *Vmsingle {
 			},
 			metricNamesStatsResetURL: fmt.Sprintf("http://%s/api/v1/admin/status/metric_names_stats/reset", rt.httpListenAddr),
 			tenantsURL:               "vmsingle-does-not-serve-tenants",
+			tenantIDsURL: func(_ QueryOpts) string {
+				return fmt.Sprintf("http://%s/select/tenant_ids", rt.httpListenAddr)
+			},
 		},
 		vminsertClient: &vminsertClient{
 			cli: cli,
