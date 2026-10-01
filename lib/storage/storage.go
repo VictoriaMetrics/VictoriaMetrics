@@ -2,6 +2,7 @@ package storage
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"math"
@@ -1267,9 +1268,8 @@ func (s *Storage) checkTimeRange(tr TimeRange) error {
 //
 // The returned TSIDs are sorted.
 //
-// The method will fail if the number of found TSIDs exceeds maxMetrics or the
-// search has not completed within the specified deadline.
-func (s *Storage) SearchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]TSID, error) {
+// The method will fail if the number of found TSIDs exceeds maxMetrics.
+func (s *Storage) SearchTSIDs(ctx context.Context, qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int) ([]TSID, error) {
 	qt = qt.NewChild("search TSIDs: filters=%s, timeRange=%s, maxMetrics=%d", tfss, &tr, maxMetrics)
 	defer qt.Done()
 
@@ -1278,7 +1278,7 @@ func (s *Storage) SearchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Tim
 	}
 
 	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) ([]TSID, error) {
-		return idb.SearchTSIDs(qt, tfss, tr, maxMetrics, deadline)
+		return idb.SearchTSIDs(ctx, qt, tfss, tr, maxMetrics)
 	}
 
 	merge := func(data [][]TSID) []TSID {
@@ -1310,13 +1310,13 @@ func (s *Storage) SearchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Tim
 //
 // The marshaled metric names must be unmarshaled via
 // MetricName.UnmarshalString().
-func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]string, error) {
+func (s *Storage) SearchMetricNames(ctx context.Context, qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int) ([]string, error) {
 	qt = qt.NewChild("search metric names: filters=%s, timeRange=%s, maxMetrics: %d", tfss, &tr, maxMetrics)
 	if err := s.checkTimeRange(tr); err != nil {
 		return nil, err
 	}
 	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) ([]string, error) {
-		return idb.SearchMetricNames(qt, tfss, tr, maxMetrics, deadline)
+		return idb.SearchMetricNames(ctx, qt, tfss, tr, maxMetrics)
 	}
 
 	merge := func(data [][]string) []string {
@@ -1344,9 +1344,6 @@ func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, 
 	return res, nil
 }
 
-// ErrDeadlineExceeded is returned when the request times out.
-var ErrDeadlineExceeded = fmt.Errorf("deadline exceeded")
-
 // DeleteSeries marks as deleted all series matching the given tfss and
 // resets caches where the corresponding TSIDs and MetricIDs may be stored if
 // needed.
@@ -1357,7 +1354,7 @@ var ErrDeadlineExceeded = fmt.Errorf("deadline exceeded")
 //
 // If legacy indexDBs are present, the method will also delete the metricIDs
 // from them.
-func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMetrics int) (int, error) {
+func (s *Storage) DeleteSeries(ctx context.Context, qt *querytracer.Tracer, tfss []*TagFilters, maxMetrics int) (int, error) {
 	qt = qt.NewChild("delete series: filters=%s, maxMetrics=%d", tfss, maxMetrics)
 	defer qt.Done()
 
@@ -1368,7 +1365,7 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 	// Not deleting in parallel because the deletion operation is rare.
 
 	all := &uint64set.Set{}
-	legacyDMIs, err := s.legacyDeleteSeries(qt, tfss, maxMetrics)
+	legacyDMIs, err := s.legacyDeleteSeries(ctx, qt, tfss, maxMetrics)
 	if err != nil {
 		return 0, err
 	}
@@ -1383,7 +1380,7 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 		if legacyDMIs.Len() > 0 {
 			idb.updateDeletedMetricIDs(legacyDMIs)
 		}
-		dmis, err := idb.DeleteSeries(qt, tfss, maxMetrics)
+		dmis, err := idb.DeleteSeries(ctx, qt, tfss, maxMetrics)
 		if err != nil {
 			return 0, err
 		}
@@ -1398,12 +1395,12 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 }
 
 // SearchLabelNames searches for label names matching the given tfss on tr.
-func (s *Storage) SearchLabelNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxLabelNames, maxMetrics int, deadline uint64) ([]string, error) {
+func (s *Storage) SearchLabelNames(ctx context.Context, qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxLabelNames, maxMetrics int) ([]string, error) {
 	qt = qt.NewChild("search for label names: filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", tfss, &tr, maxLabelNames, maxMetrics)
 	defer qt.Done()
 
 	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (map[string]struct{}, error) {
-		return idb.SearchLabelNames(qt, tfss, tr, maxLabelNames, maxMetrics, deadline)
+		return idb.SearchLabelNames(ctx, qt, tfss, tr, maxLabelNames, maxMetrics)
 	}
 	res, err := searchAndMergeUniq(qt, s, tr, search, maxLabelNames)
 	if err != nil {
@@ -1414,12 +1411,12 @@ func (s *Storage) SearchLabelNames(qt *querytracer.Tracer, tfss []*TagFilters, t
 }
 
 // SearchLabelValues searches for label values for the given labelName, filters and tr.
-func (s *Storage) SearchLabelValues(qt *querytracer.Tracer, labelName string, tfss []*TagFilters, tr TimeRange, maxLabelValues, maxMetrics int, deadline uint64) ([]string, error) {
+func (s *Storage) SearchLabelValues(ctx context.Context, qt *querytracer.Tracer, labelName string, tfss []*TagFilters, tr TimeRange, maxLabelValues, maxMetrics int) ([]string, error) {
 	qt = qt.NewChild("search for label values: labelName=%q, filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", labelName, tfss, &tr, maxLabelValues, maxMetrics)
 	defer qt.Done()
 
 	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (map[string]struct{}, error) {
-		return idb.SearchLabelValues(qt, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline)
+		return idb.SearchLabelValues(ctx, qt, labelName, tfss, tr, maxLabelValues, maxMetrics)
 	}
 	res, err := searchAndMergeUniq(qt, s, tr, search, maxLabelValues)
 	if err != nil {
@@ -1438,9 +1435,9 @@ func (s *Storage) SearchLabelValues(qt *querytracer.Tracer, labelName string, tf
 //
 // If more than maxTagValueSuffixes suffixes is found, then only the first
 // maxTagValueSuffixes suffixes is returned.
-func (s *Storage) SearchTagValueSuffixes(qt *querytracer.Tracer, tr TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxTagValueSuffixes int, deadline uint64) ([]string, error) {
+func (s *Storage) SearchTagValueSuffixes(ctx context.Context, qt *querytracer.Tracer, tr TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxTagValueSuffixes int) ([]string, error) {
 	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (map[string]struct{}, error) {
-		return idb.SearchTagValueSuffixes(qt, tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes, deadline)
+		return idb.SearchTagValueSuffixes(ctx, qt, tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
 	}
 	res, err := searchAndMergeUniq(qt, s, tr, search, maxTagValueSuffixes)
 	if err != nil {
@@ -1452,10 +1449,10 @@ func (s *Storage) SearchTagValueSuffixes(qt *querytracer.Tracer, tr TimeRange, t
 
 // SearchGraphitePaths returns all the matching paths for the given graphite
 // query on the given tr.
-func (s *Storage) SearchGraphitePaths(qt *querytracer.Tracer, tr TimeRange, query []byte, maxPaths int, deadline uint64) ([]string, error) {
+func (s *Storage) SearchGraphitePaths(ctx context.Context, qt *querytracer.Tracer, tr TimeRange, query []byte, maxPaths int) ([]string, error) {
 	query = replaceAlternateRegexpsWithGraphiteWildcards(query)
 	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (map[string]struct{}, error) {
-		return idb.SearchGraphitePaths(qt, tr, nil, query, maxPaths, deadline)
+		return idb.SearchGraphitePaths(ctx, qt, tr, nil, query, maxPaths)
 	}
 
 	res, err := searchAndMergeUniq(qt, s, tr, search, maxPaths)
@@ -1513,13 +1510,13 @@ func replaceAlternateRegexpsWithGraphiteWildcards(b []byte) []byte {
 // more than one indexDB.
 //
 // It also includes the deleted series.
-func (s *Storage) GetSeriesCount(deadline uint64) (uint64, error) {
+func (s *Storage) GetSeriesCount(ctx context.Context) (uint64, error) {
 	tr := TimeRange{
 		MinTimestamp: 0,
 		MaxTimestamp: time.Now().UnixMilli(),
 	}
 	search := func(_ *querytracer.Tracer, idb *indexDB, _ TimeRange) (uint64, error) {
-		return idb.GetSeriesCount(deadline)
+		return idb.GetSeriesCount(ctx)
 	}
 	merge := func(data []uint64) uint64 {
 		var total uint64
@@ -1536,7 +1533,7 @@ func (s *Storage) GetSeriesCount(deadline uint64) (uint64, error) {
 // The method does not provide status for legacy IDBs because merging partition
 // indexDB and legacy indexDB statuses is non-trivial and not many users use
 // this status for historical data.
-func (s *Storage) GetTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
+func (s *Storage) GetTSDBStatus(ctx context.Context, qt *querytracer.Tracer, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int) (*TSDBStatus, error) {
 	qt = qt.NewChild("collect TSDB status: filters=%s, date=%s, focusLabel=%q, topN=%d, maxMetrics=%d", tfss, dateToString(date), focusLabel, topN, maxMetrics)
 	defer qt.Done()
 
@@ -1563,7 +1560,7 @@ func (s *Storage) GetTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters, date
 	)
 	idbName := ptw.pt.idb.name
 	qt.Printf("collect TSDB status in indexDB %s", idbName)
-	res, err = ptw.pt.idb.GetTSDBStatus(qt, tfss, date, focusLabel, topN, maxMetrics, deadline)
+	res, err = ptw.pt.idb.GetTSDBStatus(ctx, qt, tfss, date, focusLabel, topN, maxMetrics)
 	if err != nil {
 		return nil, err
 	}
@@ -1574,7 +1571,7 @@ func (s *Storage) GetTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters, date
 		// fallback to the legacy indexDBs search
 		// since after migration monthly partition may not have stats for time range covered
 		// by partition index.
-		res, err = s.legacyGetTSDBStatus(qt, tfss, date, focusLabel, topN, maxMetrics, deadline)
+		res, err = s.legacyGetTSDBStatus(ctx, qt, tfss, date, focusLabel, topN, maxMetrics)
 		if err != nil {
 			return nil, err
 		}
@@ -1802,7 +1799,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 			}
 			ptw = s.tb.MustGetPartition(mr.Timestamp)
 			idb = ptw.pt.idb
-			is = idb.getIndexSearch(noDeadline)
+			is = idb.getIndexSearch()
 			deletedMetricIDs = idb.getDeletedMetricIDs()
 		}
 
@@ -1971,7 +1968,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			}
 			ptw = s.tb.MustGetPartition(r.Timestamp)
 			idb = ptw.pt.idb
-			is = idb.getIndexSearch(noDeadline)
+			is = idb.getIndexSearch()
 			deletedMetricIDs = idb.getDeletedMetricIDs()
 		}
 
@@ -2213,7 +2210,7 @@ func (s *Storage) prefillNextIndexDB(rows []rawRow, mrs []*MetricRow) error {
 	ptwNext := s.tb.MustGetPartition(nextMonth.UnixMilli())
 	idbNext := ptwNext.pt.idb
 	defer s.tb.PutPartition(ptwNext)
-	isNext := idbNext.getIndexSearch(noDeadline)
+	isNext := idbNext.getIndexSearch()
 	defer idbNext.putIndexSearch(isNext)
 
 	var firstError error
@@ -2436,7 +2433,7 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 			}
 			ptw = s.tb.MustGetPartition(timestamp)
 			idb = ptw.pt.idb
-			is = idb.getIndexSearch(noDeadline)
+			is = idb.getIndexSearch()
 		}
 
 		if !is.hasDateMetricID(date, metricID) {
@@ -2659,7 +2656,7 @@ func (s *Storage) wasMetricIDMissingBefore(metricID uint64) bool {
 }
 
 // GetMetricNamesStats returns metric names usage stats with given limit and le predicate
-func (s *Storage) GetMetricNamesStats(_ *querytracer.Tracer, limit, le int, matchPattern string) metricnamestats.StatsResult {
+func (s *Storage) GetMetricNamesStats(_ context.Context, _ *querytracer.Tracer, limit, le int, matchPattern string) metricnamestats.StatsResult {
 	return s.metricsTracker.GetStats(limit, le, matchPattern)
 }
 
@@ -2669,7 +2666,7 @@ func (s *Storage) ResetMetricNamesStats(_ *querytracer.Tracer) {
 }
 
 // GetMetadataRows returns time series metric names metadata for the given args
-func (s *Storage) GetMetadataRows(qt *querytracer.Tracer, limit int, metricName string) []*metricsmetadata.Row {
+func (s *Storage) GetMetadataRows(_ context.Context, qt *querytracer.Tracer, limit int, metricName string) []*metricsmetadata.Row {
 	var (
 		res []*metricsmetadata.Row
 	)

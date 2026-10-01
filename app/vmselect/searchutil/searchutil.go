@@ -1,6 +1,7 @@
 package searchutil
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"net/http"
