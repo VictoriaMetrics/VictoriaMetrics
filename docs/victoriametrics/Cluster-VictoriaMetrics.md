@@ -671,6 +671,11 @@ Also in the cluster version the `/prometheus/api/v1` endpoint ingests  `jsonl`, 
 - URL for listing [tenants](#multitenancy) with the ingested data on the given time range: `http://<vmselect>:8481/admin/tenants?start=...&end=...`.
   The `start` and `end` query args are optional. If they are missing, then all the tenants with at least one sample stored in VictoriaMetrics are returned.
 
+- URL for listing [tenants](#multitenancy) available for the request{{% available_from "#" %}}: `http://<vmselect>:8481/select/<accountID>/tenant_ids`.
+  It returns only the given `<accountID>` tenant. If the tenant is missing in the request or if `<accountID>` equals to `multitenant`,
+  then all the tenants are returned in the same way as at `/admin/tenants`. Unlike `/admin/tenants`, this URL is located under `/select/` prefix,
+  so it can be exposed to users with access to a single tenant. See [these docs](https://docs.victoriametrics.com/victoriametrics/url-examples/#selecttenant_ids).
+
 - URL for accessing [vmalerts](https://docs.victoriametrics.com/victoriametrics/vmalert/) UI: `http://<vmselect>:8481/select/<accountID>/prometheus/vmalert/`.
   This URL works only when `-vmalert.proxyURL` flag is set. See more about [vmalert](#vmalert).
 

@@ -273,6 +273,7 @@ type vmselectClient struct {
 	url                      func(op, path string, opts QueryOpts) string
 	metricNamesStatsResetURL string
 	tenantsURL               string
+	tenantIDsURL             func(opts QueryOpts) string
 }
 
 // PrometheusAPIV1Export is a test helper function that performs the export of
@@ -618,6 +619,30 @@ func (c *vmselectClient) APIV1AdminTenants(t *testing.T, opts QueryOpts) *AdminT
 	}
 
 	return tenants
+}
+
+// SelectTenantIDs retrieves the list of tenants by sending a request to
+// /select/tenant_ids endpoint.
+//
+// The tenant is put into the request path if opts.Tenant is set.
+// Otherwise it is taken from opts.Headers if they contain it.
+func (c *vmselectClient) SelectTenantIDs(t *testing.T, opts QueryOpts) []TenantID {
+	t.Helper()
+	url := c.tenantIDsURL(opts)
+	if values := opts.asURLValues(); len(values) > 0 {
+		url += "?" + values.Encode()
+	}
+	res, statusCode := c.cli.Get(t, url, opts.Headers)
+	if statusCode != http.StatusOK {
+		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusOK, res)
+	}
+
+	var tenantIDs []TenantID
+	if err := json.Unmarshal([]byte(res), &tenantIDs); err != nil {
+		t.Fatalf("could not unmarshal tenant ids response data:\n%s\n err: %v", res, err)
+	}
+
+	return tenantIDs
 }
 
 type vminsertClient struct {

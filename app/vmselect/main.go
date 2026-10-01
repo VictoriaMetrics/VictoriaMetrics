@@ -612,6 +612,15 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, "%s", `{"status":"success","data":[]}`)
 		return true
+	case "/select/tenant_ids":
+		// Single-node VictoriaMetrics has no tenants, so return an empty list
+		// for compatibility with the cluster version.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11669
+		tenantIDsRequests.Inc()
+		httpserver.EnableCORS(w, r)
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, "%s", `[]`)
+		return true
 	default:
 		return false
 	}
@@ -731,6 +740,7 @@ var (
 
 	buildInfoRequests      = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/buildinfo"}`)
 	queryExemplarsRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/query_exemplars"}`)
+	tenantIDsRequests      = metrics.NewCounter(`vm_http_requests_total{path="/select/tenant_ids"}`)
 
 	metricNamesStatsRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/status/metric_names_stats"}`)
 	metricNamesStatsErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/status/metric_names_stats"}`)
