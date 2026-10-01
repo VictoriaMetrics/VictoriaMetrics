@@ -1,11 +1,11 @@
 package netstorage
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/VictoriaMetrics/metricsql"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
@@ -13,8 +13,8 @@ import (
 )
 
 // GetTenantTokensFromFilters returns the list of tenant tokens and the list of filters without tenant filters.
-func GetTenantTokensFromFilters(qt *querytracer.Tracer, tr storage.TimeRange, tfs [][]storage.TagFilter, deadline searchutil.Deadline, mayCache bool) ([]storage.TenantToken, [][]storage.TagFilter, error) {
-	tenants, err := TenantsCached(qt, tr, deadline, mayCache)
+func GetTenantTokensFromFilters(ctx context.Context, qt *querytracer.Tracer, tr storage.TimeRange, tfs [][]storage.TagFilter, mayCache bool) ([]storage.TenantToken, [][]storage.TagFilter, error) {
+	tenants, err := TenantsCached(ctx, qt, tr, mayCache)
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot obtain tenants: %w", err)
 	}

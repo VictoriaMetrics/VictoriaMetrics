@@ -1,6 +1,8 @@
 package graphite
 
 import (
+	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"time"
@@ -10,10 +12,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 )
 
 var maxGraphiteSeries = flag.Int("search.maxGraphiteSeries", 300e3, "The maximum number of time series, which can be scanned during queries to Graphite Render API. "+
@@ -23,12 +23,12 @@ var maxGraphitePathExpressionLen = flag.Int("search.maxGraphitePathExpressionLen
 	"Longer expressions are truncated to prevent memory exhaustion on complex nested queries. Set to 0 to disable truncation.")
 
 type evalConfig struct {
+	ctx                 context.Context
 	at                  *auth.Token
 	startTime           int64
 	endTime             int64
 	storageStep         int64
 	denyPartialResponse bool
-	deadline            searchutil.Deadline
 
 	currentTime time.Time
 
@@ -181,14 +181,14 @@ func evalMetricExpr(ec *evalConfig, me *graphiteql.MetricExpr) (nextSeriesFunc, 
 }
 
 func newNextSeriesForSearchQuery(ec *evalConfig, sq *storage.SearchQuery, expr graphiteql.Expr) (nextSeriesFunc, error) {
-	rss, _, err := netstorage.ProcessSearchQuery(nil, ec.denyPartialResponse, sq, ec.deadline)
+	rss, _, err := netstorage.ProcessSearchQuery(ec.ctx, nil, ec.denyPartialResponse, sq)
 	if err != nil {
 		return nil, fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 	}
 	seriesCh := make(chan *series, cgroup.AvailableCPUs())
 	errCh := make(chan error, 1)
 	go func() {
-		err := rss.RunParallel(nil, func(rs *netstorage.Result, _ uint) error {
+		err := rss.RunParallel(ec.ctx, nil, func(rs *netstorage.Result, _ uint) error {
 			nameWithTags := getCanonicalPath(&rs.MetricName)
 			tags := unmarshalTags(nameWithTags)
 			s := &series{
@@ -201,17 +201,14 @@ func newNextSeriesForSearchQuery(ec *evalConfig, sq *storage.SearchQuery, expr g
 			}
 			s.summarize(aggrAvg, ec.startTime, ec.endTime, ec.storageStep, 0)
 
-			// A negative or zero duration will cause timer.C to return immediately
-			remainingTimeout := ec.deadline.Deadline() - fasttime.UnixTimestamp()
-			t := timerpool.Get(time.Duration(remainingTimeout) * time.Second)
-			defer timerpool.Put(t)
-
 			select {
 			case seriesCh <- s:
-			case <-t.C:
-				logger.Errorf("reached timeout when processing the %s (full query: %s), it can be due to the amount of storageNodes configured in vmselect is more than vmselect’s available CPU count "+
-					"or vmselect is heavy loaded. Consider adding resources or increasing `-search.maxQueryDuration` or `timeout` parameter in the query.",
-					expr.AppendString(nil), ec.originalQuery)
+			case <-ec.ctx.Done():
+				if errors.Is(ec.ctx.Err(), context.DeadlineExceeded) {
+					logger.Errorf("reached timeout when processing the %s (full query: %s), it can be due to the amount of storageNodes configured in vmselect is more than vmselect’s available CPU count "+
+						"or vmselect is heavy loaded. Consider adding resources or increasing `-search.maxQueryDuration` or `timeout` parameter in the query.",
+						expr.AppendString(nil), ec.originalQuery)
+				}
 			}
 			return nil
 		})
