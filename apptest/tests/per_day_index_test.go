@@ -266,12 +266,13 @@ func testClusterActiveTimeseriesMetric(t *testing.T, disablePerDayIndex bool) {
 		fmt.Sprintf("-storageDataPath=%s/vmstorage2-%t", tc.Dir(), disablePerDayIndex),
 		fmt.Sprintf("-disablePerDayIndex=%t", disablePerDayIndex),
 	})
+	vmstorages := []*apptest.Vmstorage{vmstorage1, vmstorage2}
 	vminsert := tc.MustStartVminsert("vminsert", []string{
 		"-storageNode=" + vmstorage1.VminsertAddr() + "," + vmstorage2.VminsertAddr(),
 	})
-
+	apptest.EnsureBlockingIngestion(t, vminsert, vmstorages)
 	vmcluster := &apptest.Vmcluster{
-		Vmstorages: []*apptest.Vmstorage{vmstorage1, vmstorage2},
+		Vmstorages: vmstorages,
 		Vminsert:   vminsert,
 	}
 

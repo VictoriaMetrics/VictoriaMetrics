@@ -921,6 +921,26 @@ users:
   username: a-user
   url_prefix: {BACKEND}/foo`, request, responseExpected)
 
+	// jwt-authenticated user hitting an unmatched path
+	request = httptest.NewRequest(`GET`, "http://some-host.com/unmatched-path", nil)
+	request.Header.Set(`Authorization`, `Bearer `+minimalToken)
+	responseExpected = `
+statusCode=400
+user jwt missing route for "http://some-host.com/unmatched-path"`
+	f(fmt.Sprintf(`
+users:
+# non-jwt user is important for this test case
+- username: some-user
+  password: secret
+  url_prefix: {BACKEND}/other
+- jwt:
+    public_keys:
+    - %q
+  url_map:
+  - src_paths:
+    - "/api/v1/query"
+    url_prefix: {BACKEND}/foo`, string(publicKeyPEM)), request, responseExpected)
+
 	// auth with key from file
 	publicKeyFile := filepath.Join(t.TempDir(), "a_public_key.pem")
 	if err := os.WriteFile(publicKeyFile, []byte(publicKeyPEM), 0o644); err != nil {

@@ -378,6 +378,11 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		addInfluxResponseHeaders(w)
 		influxutil.WriteHealthCheckResponse(w)
 		return true
+	case "/influx/ping":
+		influxPingRequests.Inc()
+		addInfluxResponseHeaders(w)
+		w.WriteHeader(http.StatusNoContent)
+		return true
 	case "/opentelemetry/api/v1/push", "/opentelemetry/v1/metrics":
 		opentelemetryPushRequests.Inc()
 		if err := opentelemetry.InsertHandler(nil, r); err != nil {
@@ -684,7 +689,13 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 		return true
 	case "influx/health":
 		influxHealthRequests.Inc()
+		addInfluxResponseHeaders(w)
 		influxutil.WriteHealthCheckResponse(w)
+		return true
+	case "/influx/ping":
+		influxPingRequests.Inc()
+		addInfluxResponseHeaders(w)
+		w.WriteHeader(http.StatusNoContent)
 		return true
 	case "opentelemetry/api/v1/push", "opentelemetry/v1/metrics":
 		opentelemetryPushRequests.Inc()
@@ -815,6 +826,7 @@ var (
 
 	influxQueryRequests  = metrics.NewCounter(`vmagent_http_requests_total{path="/influx/query", protocol="influx"}`)
 	influxHealthRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/influx/health", protocol="influx"}`)
+	influxPingRequests   = metrics.NewCounter(`vmagent_http_requests_total{path="/influx/ping", protocol="influx"}`)
 
 	datadogv1WriteRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/datadog/api/v1/series", protocol="datadog"}`)
 	datadogv1WriteErrors   = metrics.NewCounter(`vmagent_http_request_errors_total{path="/datadog/api/v1/series", protocol="datadog"}`)
