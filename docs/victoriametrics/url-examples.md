@@ -1008,7 +1008,7 @@ Additional information:
 Single-node VictoriaMetrics:
 
 ```sh
-curl 'http://localhost:8428/select/tenant_ids'
+curl 'http://<vmsingle>:8428/select/tenant_ids'
 ```
 
 Single-node VictoriaMetrics doesn't support multitenancy, so it always returns an empty list.
@@ -1024,8 +1024,9 @@ a [multitenant request](https://docs.victoriametrics.com/victoriametrics/cluster
 Tenant filters passed via `extra_filters` and `extra_label` query args are applied to the returned tenants.
 The optional `start` and `end` query args can be used to return only tenants with ingested data in the given time range.
 
-If the tenant is specified in the request path or in `AccountID` and `ProjectID` request headers,
-then the response contains only this tenant:
+If the tenant is specified in the request path or in `AccountID` or `ProjectID` request headers,
+then the response contains only this tenant. The request headers are taken into account only
+if `-enableMultitenancyViaHeaders` command-line flag is enabled at `vmselect` (it is enabled by default):
 
 ```sh
 curl 'http://<vmselect>:8481/select/1:2/tenant_ids'

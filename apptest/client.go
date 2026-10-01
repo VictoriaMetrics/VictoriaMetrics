@@ -626,6 +626,8 @@ func (c *vmselectClient) APIV1AdminTenants(t *testing.T, opts QueryOpts) *AdminT
 //
 // The tenant is put into the request path if opts.Tenant is set.
 // Otherwise it is taken from opts.Headers if they contain it.
+// If the tenant is missing in both places, then the request is sent
+// without the tenant, so all the tenants are returned.
 func (c *vmselectClient) SelectTenantIDs(t *testing.T, opts QueryOpts) []TenantID {
 	t.Helper()
 	url := c.tenantIDsURL(opts)

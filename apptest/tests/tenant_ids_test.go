@@ -52,10 +52,13 @@ func TestClusterTenantIDs(t *testing.T) {
 
 	f := func(opts apptest.QueryOpts, want []apptest.TenantID) {
 		t.Helper()
-		got := vmselect.SelectTenantIDs(t, opts)
-		if diff := cmp.Diff(want, got); diff != "" {
-			t.Errorf("unexpected response (-want, +got):\n%s", diff)
-		}
+		tc.Assert(&apptest.AssertOptions{
+			Msg: "unexpected /select/tenant_ids response",
+			Got: func() any {
+				return vmselect.SelectTenantIDs(t, opts)
+			},
+			Want: want,
+		})
 	}
 	newHeaders := func(accountID, projectID string) http.Header {
 		h := make(http.Header)
