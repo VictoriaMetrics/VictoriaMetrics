@@ -1174,9 +1174,17 @@ func benchmarkSearchLongTimeRanges(b *testing.B, op func(b *testing.B, s *Storag
 
 	const seriesPerDay = 1000
 	for _, seriesRepeatEveryDay := range []bool{false, true} {
+		churnRate := "highChurnRate"
+		if seriesRepeatEveryDay {
+			churnRate = "noChurnRate"
+		}
 		for _, disablePerDayIndex := range []bool{false, true} {
+			index := "perDayIndex"
+			if disablePerDayIndex {
+				index = "globalIndex"
+			}
 			for _, cfg := range []cfg{tr1d, tr2d, tr4d, tr8d, tr16d, tr32d, tr64d, tr128d} {
-				name := fmt.Sprintf("seriesPerDay=%d/seriesRepeatEveryDay=%t/disablePerDayIndex=%t/%s", seriesPerDay, seriesRepeatEveryDay, disablePerDayIndex, cfg.name)
+				name := fmt.Sprintf("%s/%s/%s", churnRate, index, cfg.name)
 				b.Run(name, func(b *testing.B) {
 					benchmarkSearchTimeRange(b, disablePerDayIndex, seriesPerDay, cfg.tr, cfg.numTRs, seriesRepeatEveryDay, op)
 				})
