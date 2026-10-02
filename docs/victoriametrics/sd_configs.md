@@ -54,6 +54,42 @@ to be supported by VictoriaMetrics and `vmagent`.
 
 Azure SD configuration discovers scrape targets from [Microsoft Azure](https://azure.microsoft.com/en-us/) VMs.
 
+Authentication methods (case-insensitive):
+
+* `OAuth` (default) requires `tenant_id`, `client_id` and `client_secret` in the configuration.
+* `ManagedIdentity` uses the managed identity endpoint. The optional `client_id` selects a user-assigned identity.
+* `WorkloadIdentity` uses the Azure SDK workload identity credential. It reads `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`
+  and `AZURE_FEDERATED_TOKEN_FILE` from the process environment. The last variable points to a readable, projected
+  Kubernetes service account token file. Configure a federated identity credential in Azure to trust the cluster's
+  issuer, subject and audience. The YAML `tenant_id`, `client_id` and `client_secret` do not override these variables.
+* `SDK` uses the Azure SDK `DefaultAzureCredential` chain: environment credentials, workload identity, managed identity,
+  Azure CLI, Azure Developer CLI and Azure PowerShell. The SDK's `AZURE_TOKEN_CREDENTIALS` variable can select a
+  specific credential or the `prod` subset (environment, workload identity and managed identity).
+  For predictable production authentication, prefer `WorkloadIdentity` when using a projected token.
+  The optional YAML `tenant_id` sets the tenant for workload identity and developer-tool credentials. It does not
+  override `AZURE_TENANT_ID` for environment credentials or restrict managed identity to a tenant.
+  YAML `client_id` and `client_secret` are not passed to the SDK chain; configure the chosen credential via its
+  [Azure SDK environment variables](https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/azidentity#DefaultAzureCredential).
+
+`WorkloadIdentity` and `SDK` {{% available_from "#" %}} do not require new YAML fields.
+The `environment` option selects the authentication authority and the Resource Manager token scope, taking precedence
+over `AZURE_AUTHORITY_HOST` for SDK HTTP credentials. For `AzureStackCloud`, the endpoints from
+`AZURE_ENVIRONMENT_FILEPATH` must be trusted: SDK authority instance discovery is disabled for this private-cloud mode.
+[HTTP API client options](#http-api-client-options), including TLS and proxy options, apply to discovery and SDK HTTP
+requests. SDK HTTP requests never follow HTTPS-to-HTTP redirects, even when `follow_redirects` is enabled.
+These options do not configure external tools used by `SDK`; those tools use their own authentication and cloud settings.
+Token acquisition is bounded by a one-minute timeout, and tokens are refreshed before expiry.
+
+For a pod with the workload identity environment variables and projected token file already configured:
+
+```yaml
+scrape_configs:
+- job_name: azure-workload-identity
+  azure_sd_configs:
+  - subscription_id: "00000000-0000-0000-0000-000000000000"
+    authentication_method: WorkloadIdentity
+```
+
 Configuration example:
 
 ```yaml
@@ -69,7 +105,7 @@ scrape_configs:
     #
     # environment: "..."
 
-    # authentication_method is an optional authentication method, either OAuth or ManagedIdentity.
+    # authentication_method is optional: OAuth, ManagedIdentity, WorkloadIdentity or SDK.
     # See https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/overview
     # By default OAuth is used.
     #
