@@ -1061,12 +1061,14 @@ func benchmarkSearchTimeRanges(b *testing.B, op func(b *testing.B, s *Storage, t
 		numTRs: 30,
 	}
 
+	const disablePerDayIndex = false
+
 	const seriesPerHour = 10_000
 	for _, seriesRepeatEveryHour := range []bool{false, true} {
 		for _, cfg := range []cfg{tr1h, tr2h, tr3h, tr6h, tr12h, tr24h} {
 			name := fmt.Sprintf("seriesPerHour=%d/seriesRepeatEveryHour=%t/%s", seriesPerHour, seriesRepeatEveryHour, cfg.name)
 			b.Run(name, func(b *testing.B) {
-				benchmarkSearchTimeRange(b, seriesPerHour, cfg.tr, cfg.numTRs, seriesRepeatEveryHour, op)
+				benchmarkSearchTimeRange(b, disablePerDayIndex, seriesPerHour, cfg.tr, cfg.numTRs, seriesRepeatEveryHour, op)
 			})
 		}
 	}
@@ -1076,13 +1078,114 @@ func benchmarkSearchTimeRanges(b *testing.B, op func(b *testing.B, s *Storage, t
 		for _, cfg := range []cfg{tr1d, tr2d, tr4d, tr8d, tr15d, tr30d} {
 			name := fmt.Sprintf("seriesPerDay=%d/seriesRepeatEveryDay=%t/%s", seriesPerDay, seriesRepeatEveryDay, cfg.name)
 			b.Run(name, func(b *testing.B) {
-				benchmarkSearchTimeRange(b, seriesPerDay, cfg.tr, cfg.numTRs, seriesRepeatEveryDay, op)
+				benchmarkSearchTimeRange(b, disablePerDayIndex, seriesPerDay, cfg.tr, cfg.numTRs, seriesRepeatEveryDay, op)
 			})
 		}
 	}
 }
 
-func benchmarkSearchTimeRange(b *testing.B, numSeries int, tr TimeRange, numTRs int64, sameSeries bool, search func(b *testing.B, s *Storage, tr TimeRange, mrs []MetricRow)) {
+func BenchmarkSearchLongTimeRanges_Data(b *testing.B) {
+	benchmarkSearchLongTimeRanges(b, benchmarkSearchData)
+}
+
+func BenchmarkSearchLongTimeRanges_MetricNames(b *testing.B) {
+	benchmarkSearchLongTimeRanges(b, benchmarkSearchMetricNames)
+}
+
+func BenchmarkSearchLongTimeRanges_LabelNames(b *testing.B) {
+	benchmarkSearchLongTimeRanges(b, benchmarkSearchLabelNames)
+}
+
+func BenchmarkSearchLongTimeRanges_LabelValues(b *testing.B) {
+	benchmarkSearchLongTimeRanges(b, benchmarkSearchLabelValues)
+}
+
+func benchmarkSearchLongTimeRanges(b *testing.B, op func(b *testing.B, s *Storage, tr TimeRange, mrs []MetricRow)) {
+	type cfg struct {
+		name   string
+		tr     TimeRange
+		numTRs int64
+	}
+
+	tr1d := cfg{
+		name: "1d",
+		tr: TimeRange{
+			MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		},
+		numTRs: 1,
+	}
+	tr2d := cfg{
+		name: "2d",
+		tr: TimeRange{
+			MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2025, 1, 3, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		},
+		numTRs: 2,
+	}
+	tr4d := cfg{
+		name: "4d",
+		tr: TimeRange{
+			MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2025, 1, 5, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		},
+		numTRs: 4,
+	}
+	tr8d := cfg{
+		name: "8d",
+		tr: TimeRange{
+			MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2025, 1, 9, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		},
+		numTRs: 8,
+	}
+	tr16d := cfg{
+		name: "16d",
+		tr: TimeRange{
+			MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2025, 1, 17, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		},
+		numTRs: 16,
+	}
+	tr32d := cfg{
+		name: "32d",
+		tr: TimeRange{
+			MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2025, 1, 33, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		},
+		numTRs: 32,
+	}
+	tr64d := cfg{
+		name: "64d",
+		tr: TimeRange{
+			MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2025, 1, 65, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		},
+		numTRs: 64,
+	}
+	tr128d := cfg{
+		name: "128d",
+		tr: TimeRange{
+			MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2025, 1, 129, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		},
+		numTRs: 128,
+	}
+
+	const seriesPerDay = 1000
+	for _, seriesRepeatEveryDay := range []bool{false, true} {
+		for _, disablePerDayIndex := range []bool{false, true} {
+			for _, cfg := range []cfg{tr1d, tr2d, tr4d, tr8d, tr16d, tr32d, tr64d, tr128d} {
+				name := fmt.Sprintf("seriesPerDay=%d/seriesRepeatEveryDay=%t/disablePerDayIndex=%t/%s", seriesPerDay, seriesRepeatEveryDay, disablePerDayIndex, cfg.name)
+				b.Run(name, func(b *testing.B) {
+					benchmarkSearchTimeRange(b, disablePerDayIndex, seriesPerDay, cfg.tr, cfg.numTRs, seriesRepeatEveryDay, op)
+				})
+			}
+		}
+	}
+}
+
+func benchmarkSearchTimeRange(b *testing.B, disablePerDayIndex bool, numSeries int, tr TimeRange, numTRs int64, sameSeries bool, search func(b *testing.B, s *Storage, tr TimeRange, mrs []MetricRow)) {
 	b.Helper()
 	genRows := func(n int, tr TimeRange, trSeqNum int64) []MetricRow {
 		mrs := make([]MetricRow, n)
@@ -1123,7 +1226,9 @@ func benchmarkSearchTimeRange(b *testing.B, numSeries int, tr TimeRange, numTRs 
 		mrs = append(mrs, genRows(numSeries, subTR, i)...)
 	}
 
-	s := MustOpenStorage(b.Name(), OpenOptions{})
+	s := MustOpenStorage(b.Name(), OpenOptions{
+		DisablePerDayIndex: disablePerDayIndex,
+	})
 	s.AddRows(mrs, 64)
 	s.DebugFlush()
 
