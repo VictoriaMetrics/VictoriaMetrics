@@ -173,13 +173,19 @@ func (c *ssoOIDCConfig) getCallbackURL(host string) string {
 // getAuthenticationURL returns the IdP authorization endpoint URL with the authentication request parameters.
 // Query parameters already present in the endpoint are retained as required by
 // https://datatracker.ietf.org/doc/html/rfc6749#section-3.1
+// Parameters set by vmauth (response_type, client_id, redirect_uri, scope, nonce, state)
+// always override the endpoint ones, so the discovery document cannot inject them.
 // See https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest
 func (c *ssoOIDCConfig) getAuthenticationURL(authorizationEndpoint, callbackURL, nonceHash, state string) (string, error) {
 	u, err := url.Parse(authorizationEndpoint)
 	if err != nil {
 		return "", fmt.Errorf("cannot parse authorization_endpoint %q: %w", authorizationEndpoint, err)
 	}
-	params := u.Query()
+	// url.URL.Query() silently drops the parameters it cannot parse, e.g. ones containing semicolons.
+	params, err := url.ParseQuery(u.RawQuery)
+	if err != nil {
+		return "", fmt.Errorf("cannot parse query of authorization_endpoint %q: %w", authorizationEndpoint, err)
+	}
 	for k, v := range c.AuthParams {
 		params.Set(k, v)
 	}

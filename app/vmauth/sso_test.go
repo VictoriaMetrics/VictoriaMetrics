@@ -160,10 +160,19 @@ func TestSSOConfigGetAuthenticationURLBuiltinParamsOverride(t *testing.T) {
 }
 
 func TestSSOConfigGetAuthenticationURLFailure(t *testing.T) {
-	c := &ssoOIDCConfig{ClientID: "my-client"}
-	if _, err := c.getAuthenticationURL("https://idp.example.com/auth\x7f", "https://example.com/_vmauth/sso/callback", "theNonce", "theState"); err == nil {
-		t.Fatalf("expecting non-nil error for invalid authorization endpoint")
+	f := func(authorizationEndpoint string) {
+		t.Helper()
+		c := &ssoOIDCConfig{ClientID: "my-client"}
+		if _, err := c.getAuthenticationURL(authorizationEndpoint, "https://example.com/_vmauth/sso/callback", "theNonce", "theState"); err == nil {
+			t.Fatalf("expecting non-nil error for authorization endpoint %q", authorizationEndpoint)
+		}
 	}
+
+	// invalid URL
+	f("https://idp.example.com/auth\x7f")
+
+	// query cannot be parsed without dropping parameters
+	f("https://idp.example.com/auth?tenant=foo;bar")
 }
 
 func TestSSOConfigGetRedirectURL(t *testing.T) {
