@@ -712,6 +712,7 @@ The `sso` section fields:
 - `oidc.scopes` — the OAuth2 scopes. The `openid` scope is always included.
 - `oidc.session_duration` — this caps session cookie lifetime. Actual `MaxAge` = min(`session_duration`, token `exp`). Go duration syntax, e.g., `10m`, `1h`. Defaults to `10m`.
 - `oidc.default_redirect_url` — the redirect target after login if the original URL fails validation. Defaults to `/`.
+- `oidc.auth_params` - additional query parameters for the [authentication request](https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest) sent to the IdP. See [SSO authentication request parameters](https://docs.victoriametrics.com/victoriametrics/vmauth/#sso-authentication-request-parameters).
 - `oidc.insecure` — disables `Secure` cookie flag and uses HTTP callback URIs. Used for local dev only; when `vmauth` runs behind a TLS-terminating proxy, keep this `false`.
 
 Register the following URL in your IdP as the Authorized redirect URI:
@@ -728,6 +729,82 @@ After login, the ID token works as a standard JWT — all [JWT claim matching](h
 If a user authenticates but no `users` entry matches their token claims, `vmauth` shows the login page with an "Access Denied" error message.
 
 By default, the cookie token is not proxied to backends. To forward the ID token as an `Authorization: Bearer` header, set `proxy_cookie_authorization_token: Authorization` in the `jwt` user config.
+
+#### SSO authentication request parameters
+
+The `oidc.auth_params` map adds provider-specific query parameters to the authentication request sent to the IdP,
+such as `prompt`, `login_hint` or the provider extensions listed below.
+Parameters set by `vmauth` (`response_type`, `client_id`, `redirect_uri`, `scope`, `nonce` and `state`) can't be overridden.
+
+These parameters are sent via the browser, so the user can modify or remove them. Use them to streamline the login page,
+not to restrict access. Restrict access with `match_claims` on claims of the signed ID token instead.
+
+[Google](https://developers.google.com/identity/openid-connect/openid-connect#authenticationuriparameters) - `hd` limits the account chooser
+to accounts of the given Google Workspace domain. The `hd` claim of the ID token contains the user's domain:
+
+```yaml
+sso:
+  - src_host: 'sso\.example\.com'
+    oidc:
+      issuer: 'https://accounts.google.com'
+      client_id: 'theClientID.apps.googleusercontent.com'
+      client_secret: 'theClientSecret'
+      scopes: ['openid', 'email']
+      cookie_secret: 'theCookieSecret1234567890'
+      auth_params:
+        hd: 'example.com'
+        prompt: 'select_account'
+
+users:
+  - jwt:
+      match_claims:
+        iss: 'https://accounts.google.com'
+        aud: 'theClientID.apps.googleusercontent.com'
+        hd: 'example.com'
+      oidc:
+        issuer: 'https://accounts.google.com'
+    url_prefix: "http://vmsingle:8428"
+```
+
+[Microsoft Entra ID](https://learn.microsoft.com/en-us/entra/identity-platform/v2-protocols-oidc#send-the-sign-in-request) - `domain_hint` skips
+the email-based discovery on the sign-in page and redirects federated users to their home realm.
+Restrict sign-in to a single tenant by using the tenant-specific issuer, since `vmauth` verifies the `iss` claim:
+
+```yaml
+sso:
+  - src_host: 'sso\.example\.com'
+    oidc:
+      issuer: 'https://login.microsoftonline.com/<tenant-id>/v2.0'
+      # ...
+      auth_params:
+        domain_hint: 'example.com'
+```
+
+[Keycloak](https://www.keycloak.org/docs/latest/server_admin/index.html) - `kc_idp_hint` skips the Keycloak login page
+and redirects the user to the identity provider with the given alias:
+
+```yaml
+sso:
+  - src_host: 'sso\.example\.com'
+    oidc:
+      issuer: 'https://keycloak.example.com/realms/master'
+      # ...
+      auth_params:
+        kc_idp_hint: 'github'
+```
+
+[Auth0](https://auth0.com/docs/api/authentication/authorization-code-flow/authorize-application) - `connection` sends the user directly
+to the given connection, and `organization` selects the organization to log in to:
+
+```yaml
+sso:
+  - src_host: 'sso\.example\.com'
+    oidc:
+      issuer: 'https://example.auth0.com/'
+      # ...
+      auth_params:
+        connection: 'google-oauth2'
+```
 
 See also [authorization](#authorization), [security](#security), [routing](#routing) and [load balancing](#load-balancing) docs.
 
