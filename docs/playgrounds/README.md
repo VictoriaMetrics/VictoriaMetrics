@@ -159,6 +159,7 @@ Once up and running, accessing a playground is no different from SSH-ing into a 
 
 Iximiuz Labs provides various [learning-by-doing resources for VictoriaMetrics](https://labs.iximiuz.com/v/victoriametrics):
 - Tutorial:
+  - [Observability 101: Metrics](https://labs.iximiuz.com/courses/observability-101) (in progress, periodically updated with new modules)
   - [Getting Started with VictoriaMetrics on Kubernetes](https://labs.iximiuz.com/tutorials/victoriametrics-getting-started-kubernetes)
 - Playgrounds:
   - [VictoriaMetrics single node](https://labs.iximiuz.com/playgrounds/victoriametrics)
