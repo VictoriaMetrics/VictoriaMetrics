@@ -194,7 +194,7 @@ func unmarshalInt64Array(dst []int64, src []byte, mt MarshalType, firstValue int
 	// MarshalVarInt64-encoded delta per item — so each of the itemsCount items
 	// occupies at most binary.MaxVarintLen64 bytes. A larger result means the
 	// input is corrupted or hostile (e.g. a decompression bomb)
-	maxDecompressedSize := itemsCount * binary.MaxVarintLen64
+	maxItemsSize := itemsCount * binary.MaxVarintLen64
 	maxDecompressedSize = getMaxDecompressedSize(maxDecompressedSize)
 
 	var err error
