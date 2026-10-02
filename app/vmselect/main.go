@@ -295,6 +295,10 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.WriteHeader(http.StatusNoContent)
 		return true
 	}
+	if path == "/select/tenant_ids" && !hasTenantInHeaders(r.Header) {
+		// The request contains no tenant information, so return all the tenants.
+		return tenantIDsHandler(qt, startTime, w, r, nil)
+	}
 	p, err := parsePath(path, r.Header)
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot parse path %q: %s", path, err)
@@ -354,6 +358,28 @@ func parsePath(path string, header http.Header) (*httpserver.Path, error) {
 		return httpserver.ParsePathAndHeaders(path, header)
 	}
 	return httpserver.ParsePath(path)
+}
+
+// hasTenantInHeaders returns true if the tenant must be obtained from the given request headers.
+func hasTenantInHeaders(header http.Header) bool {
+	if !*enableMultitenancyViaHeaders {
+		return false
+	}
+	return header.Get("AccountID") != "" || header.Get("ProjectID") != ""
+}
+
+// tenantIDsHandler processes /select/tenant_ids and /select/{tenantID}/tenant_ids requests.
+//
+// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11669
+func tenantIDsHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWriter, r *http.Request, at *auth.Token) bool {
+	tenantIDsRequests.Inc()
+	httpserver.EnableCORS(w, r)
+	if err := prometheus.TenantIDsHandler(qt, startTime, at, w, r); err != nil {
+		tenantIDsErrors.Inc()
+		httpserver.Errorf(w, r, "error getting tenant ids: %s", err)
+		return true
+	}
+	return true
 }
 
 //go:embed vmui
@@ -616,6 +642,8 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 			return true
 		}
 		return true
+	case "tenant_ids":
+		return tenantIDsHandler(qt, startTime, w, r, at)
 	default:
 		return false
 	}
@@ -1018,6 +1046,9 @@ var (
 
 	tenantsRequests = metrics.NewCounter(`vm_http_requests_total{path="/admin/tenants"}`)
 	tenantsErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/admin/tenants"}`)
+
+	tenantIDsRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/tenant_ids"}`)
+	tenantIDsErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/tenant_ids"}`)
 
 	httpRequests         = tenantmetrics.NewCounterMap(`vm_tenant_select_requests_total`)
 	httpRequestsDuration = tenantmetrics.NewCounterMap(`vm_tenant_select_requests_duration_ms_total`)
