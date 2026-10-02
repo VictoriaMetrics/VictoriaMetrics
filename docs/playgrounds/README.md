@@ -72,15 +72,13 @@ On the `Query` tab, click on the `Query examples` button to see examples of the 
 
 VictoriaTraces is a fast and scalable database for traces, built on top of VictoriaLogs.
 
-- Try it: <https://play-grafana.victoriametrics.com/explore> (choose `Jaeger` datasource)
+- Try it: <https://play-vtraces.victoriametrics.com/select/vmui> {{% available_from "v0.12.0" "traces" %}}
+- Or in Grafana: <https://play-grafana.victoriametrics.com/explore> (choose `VictoriaTraces Jaeger` or `VictoriaTraces Tempo` datasource)
 - Documentation: <https://docs.victoriametrics.com/victoriatraces/>
-
-> [!NOTE]
-> VictoriaTraces doesn't have its own web UI. Instead, it implements Jaeger API for [integrating with Jaeger UI or Grafana](https://docs.victoriametrics.com/victoriatraces/querying/).
 
 VictoriaTraces playground stores traces from [OpenTelemetry Astronomy Shop demo](https://github.com/open-telemetry/opentelemetry-demo).
 
-To view trace data, follow these steps:
+To view the trace in Grafana, follow these steps:
 1. On the [Grafana Playground](https://play-grafana.victoriametrics.com/), select **Explore** in the sidebar
 2. Select VictoriaTraces / Jaeger in the combo box near the top-left corner
 3. In **Query Type** select "Search"
@@ -88,7 +86,8 @@ To view trace data, follow these steps:
 
 ![Screenshot of Grafana](vt-grafana.webp)
 
-> VictoriaTraces is also represented as a datasource in [Grafana playground](#grafana-playground).
+The similar experience is available via [vmui](https://docs.victoriametrics.com/victoriatraces/querying/#vmui) or 
+via Tempo datasource in Grafana.
 
 ## Grafana Playground
 
