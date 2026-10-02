@@ -8196,6 +8196,165 @@
           ],
           "title": "Consumer errors",
           "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Shows the remote write connection with the highest saturation among the selected jobs. Kafka request queue and broker RTT show their shares of saturation and cannot exceed it. If the threshold of 90% is reached, then vmagent won't be able to keep up and can start buffering data. In this case, consider to increase `-remoteWrite.queues`. See [librdkafka statistics](https://github.com/confluentinc/librdkafka/blob/master/STATISTICS.md#brokers) for the measurement definitions.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "line"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "transparent",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 0.9
+                  }
+                ]
+              },
+              "unit": "percentunit"
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "B"
+                },
+                "properties": [
+                  {
+                    "id": "custom.thresholdsStyle",
+                    "value": {
+                      "mode": "off"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "C"
+                },
+                "properties": [
+                  {
+                    "id": "custom.thresholdsStyle",
+                    "value": {
+                      "mode": "off"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 60
+          },
+          "id": 172,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.2.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "exemplar": true,
+              "expr": "topk(1,\n  max(\n    rate(vmagent_remotewrite_send_duration_seconds_total{job=~\"$job\", instance=~\"$instance\", url=~\"$url\"}[$__rate_interval])\n    /\n    vmagent_remotewrite_queues{job=~\"$job\", instance=~\"$instance\", url=~\"$url\"}\n  ) by (job)\n)",
+              "interval": "",
+              "legendFormat": "saturation",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "expr": "(\n  topk(1,\n    max(\n      rate(vmagent_remotewrite_send_duration_seconds_total{job=~\"$job\", instance=~\"$instance\", url=~\"$url\"}[$__rate_interval])\n      /\n      vmagent_remotewrite_queues{job=~\"$job\", instance=~\"$instance\", url=~\"$url\"}\n    ) by (job)\n  )\n) * on(job) (\n  max(vmagent_remotewrite_kafka_outbuf_latency_seconds{job=~\"$job\", instance=~\"$instance\"}) by (job)\n  /\n  (\n    max(vmagent_remotewrite_kafka_outbuf_latency_seconds{job=~\"$job\", instance=~\"$instance\"}) by (job)\n    +\n    max(vmagent_remotewrite_kafka_rtt_seconds{job=~\"$job\", instance=~\"$instance\"}) by (job)\n  )\n)",
+              "legendFormat": "request queue",
+              "range": true,
+              "refId": "B"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "expr": "(\n  topk(1,\n    max(\n      rate(vmagent_remotewrite_send_duration_seconds_total{job=~\"$job\", instance=~\"$instance\", url=~\"$url\"}[$__rate_interval])\n      /\n      vmagent_remotewrite_queues{job=~\"$job\", instance=~\"$instance\", url=~\"$url\"}\n    ) by (job)\n  )\n) * on(job) (\n  max(vmagent_remotewrite_kafka_rtt_seconds{job=~\"$job\", instance=~\"$instance\"}) by (job)\n  /\n  (\n    max(vmagent_remotewrite_kafka_outbuf_latency_seconds{job=~\"$job\", instance=~\"$instance\"}) by (job)\n    +\n    max(vmagent_remotewrite_kafka_rtt_seconds{job=~\"$job\", instance=~\"$instance\"}) by (job)\n  )\n)",
+              "legendFormat": "broker RTT",
+              "range": true,
+              "refId": "C"
+            }
+          ],
+          "title": "Remote write saturation breakdown ($instance)",
+          "type": "timeseries"
         }
       ],
       "title": "Kafka (Enterprise)",
@@ -8207,7 +8366,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 60
+        "y": 68
       },
       "id": 113,
       "panels": [
