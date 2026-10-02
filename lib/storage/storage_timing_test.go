@@ -1107,69 +1107,37 @@ func benchmarkSearchLongTimeRanges(b *testing.B, op func(b *testing.B, s *Storag
 		numTRs int64
 	}
 
-	tr1d := cfg{
-		name: "1d",
+	tr1m := cfg{
+		name: "1m",
 		tr: TimeRange{
 			MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-			MaxTimestamp: time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2025, 2, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		},
-		numTRs: 1,
+		numTRs: 31,
 	}
-	tr2d := cfg{
-		name: "2d",
+	tr2m := cfg{
+		name: "2m",
 		tr: TimeRange{
 			MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-			MaxTimestamp: time.Date(2025, 1, 3, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2025, 3, 0, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		},
-		numTRs: 2,
+		numTRs: 31 + 28,
 	}
-	tr4d := cfg{
-		name: "4d",
+	tr3m := cfg{
+		name: "3m",
 		tr: TimeRange{
 			MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-			MaxTimestamp: time.Date(2025, 1, 5, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		},
-		numTRs: 4,
+		numTRs: 31 + 28 + 31,
 	}
-	tr8d := cfg{
-		name: "8d",
+	tr4m := cfg{
+		name: "4m",
 		tr: TimeRange{
 			MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-			MaxTimestamp: time.Date(2025, 1, 9, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		},
-		numTRs: 8,
-	}
-	tr16d := cfg{
-		name: "16d",
-		tr: TimeRange{
-			MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-			MaxTimestamp: time.Date(2025, 1, 17, 0, 0, 0, 0, time.UTC).UnixMilli(),
-		},
-		numTRs: 16,
-	}
-	tr32d := cfg{
-		name: "32d",
-		tr: TimeRange{
-			MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-			MaxTimestamp: time.Date(2025, 1, 33, 0, 0, 0, 0, time.UTC).UnixMilli(),
-		},
-		numTRs: 32,
-	}
-	tr64d := cfg{
-		name: "64d",
-		tr: TimeRange{
-			MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-			MaxTimestamp: time.Date(2025, 1, 65, 0, 0, 0, 0, time.UTC).UnixMilli(),
-		},
-		numTRs: 64,
-	}
-	tr128d := cfg{
-		name: "128d",
-		tr: TimeRange{
-			MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-			MaxTimestamp: time.Date(2025, 1, 129, 0, 0, 0, 0, time.UTC).UnixMilli(),
-		},
-		numTRs: 128,
+		numTRs: 31 + 28 + 31 + 30,
 	}
 
 	const seriesPerDay = 1000
@@ -1183,7 +1151,7 @@ func benchmarkSearchLongTimeRanges(b *testing.B, op func(b *testing.B, s *Storag
 			if disablePerDayIndex {
 				index = "globalIndex"
 			}
-			for _, cfg := range []cfg{tr1d, tr2d, tr4d, tr8d, tr16d, tr32d, tr64d, tr128d} {
+			for _, cfg := range []cfg{tr1m, tr2m, tr3m, tr4m} {
 				name := fmt.Sprintf("%s/%s/%s", churnRate, index, cfg.name)
 				b.Run(name, func(b *testing.B) {
 					benchmarkSearchTimeRange(b, disablePerDayIndex, seriesPerDay, cfg.tr, cfg.numTRs, seriesRepeatEveryDay, op)
