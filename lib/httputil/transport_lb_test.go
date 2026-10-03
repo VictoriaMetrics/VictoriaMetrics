@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
+	"reflect"
 	"sync"
 	"testing"
 
@@ -46,11 +47,15 @@ func (trs *testRemoteServer) RoundTrip(r *http.Request) (*http.Response, error) 
 }
 
 type testDNSResolver struct {
-	ips []net.IPAddr
+	ips  []net.IPAddr
+	srvs []*net.SRV
 }
 
 func (tdr *testDNSResolver) LookupSRV(_ context.Context, _, _, name string) (cname string, addrs []*net.SRV, err error) {
-	return "", nil, fmt.Errorf("unexpected LookupMX call for name=%q", name)
+	if tdr.srvs == nil {
+		return "", nil, fmt.Errorf("unexpected LookupSRV call for name=%q", name)
+	}
+	return "", tdr.srvs, nil
 }
 func (tdr *testDNSResolver) LookupIPAddr(ctx context.Context, host string) ([]net.IPAddr, error) {
 	return tdr.ips, nil
@@ -127,5 +132,81 @@ func TestLoadbalancerTransport(t *testing.T) {
 	// empty backends, expecting error
 	trs = testRemoteServer{}
 	f([]string{}, &trs)
+}
 
+type hostRecorder struct {
+	hosts map[string]string
+}
+
+func (hr *hostRecorder) RoundTrip(r *http.Request) (*http.Response, error) {
+	hr.hosts[r.URL.Host] = r.Host
+	return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody}, nil
+}
+
+func TestLoadbalancerTransportHostHeader(t *testing.T) {
+	f := func(rawURL, requestHost string, tdr *testDNSResolver, hostsExpected map[string]string) {
+		t.Helper()
+
+		originResolver := netutil.Resolver
+		defer func() { netutil.Resolver = originResolver }()
+		netutil.Resolver = tdr
+
+		requestURL, err := url.Parse(rawURL)
+		if err != nil {
+			t.Fatalf("cannot parse url: %s", err)
+		}
+		hr := &hostRecorder{hosts: make(map[string]string)}
+		lbt, requestURL := NewLoadBalancerTransport(hr, requestURL)
+		for range len(hostsExpected) {
+			r, err := http.NewRequest(http.MethodGet, requestURL.String(), nil)
+			if err != nil {
+				t.Fatalf("cannot create http request: %s", err)
+			}
+			r.Host = requestHost
+			resp, err := lbt.RoundTrip(r)
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+			resp.Body.Close()
+		}
+		if !reflect.DeepEqual(hr.hosts, hostsExpected) {
+			t.Fatalf("unexpected Host headers per backend;\ngot\n%v\nwant\n%v", hr.hosts, hostsExpected)
+		}
+	}
+
+	srvResolver := &testDNSResolver{
+		srvs: []*net.SRV{
+			{Target: "vmserver1.example.com.", Port: 8428},
+			{Target: "vmserver2.example.com.", Port: 8429},
+			{Target: "vmserver3.example.com.", Port: 80},
+		},
+	}
+
+	// SRV backends get the Host header from the SRV target
+	f("http://srv+_vmtest/api/v1/write", "", srvResolver, map[string]string{
+		"vmserver1.example.com.:8428": "vmserver1.example.com:8428",
+		"vmserver2.example.com.:8429": "vmserver2.example.com:8429",
+		"vmserver3.example.com.:80":   "vmserver3.example.com",
+	})
+
+	// port 80 is kept, since it is not the default port for https
+	f("https://srv+_vmtest/api/v1/write", "", srvResolver, map[string]string{
+		"vmserver1.example.com.:8428": "vmserver1.example.com:8428",
+		"vmserver2.example.com.:8429": "vmserver2.example.com:8429",
+		"vmserver3.example.com.:80":   "vmserver3.example.com:80",
+	})
+
+	// explicitly set Host header has priority over SRV target
+	f("http://srv+_vmtest/api/v1/write", "custom.example.com", srvResolver, map[string]string{
+		"vmserver1.example.com.:8428": "custom.example.com",
+		"vmserver2.example.com.:8429": "custom.example.com",
+		"vmserver3.example.com.:80":   "custom.example.com",
+	})
+
+	// DNS backends get the Host header from the request url
+	f("http://dns+vmsingle.example.com:8429/api/v1/write", "", &testDNSResolver{
+		ips: []net.IPAddr{{IP: net.IPv4(1, 1, 1, 1)}},
+	}, map[string]string{
+		"1.1.1.1:8429": "vmsingle.example.com:8429",
+	})
 }
