@@ -570,21 +570,22 @@ to your needs or when testing bugfixes.
 1. Run `make victoria-metrics-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `victoria-metrics-prod` binary and puts it into the `bin` folder.
 
-### ARM build
+### Linux ARM and RISC-V builds
 
-ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://blog.cloudflare.com/arm-takes-wing/).
+ARM builds may run on Raspberry Pi or on [energy-efficient ARM servers](https://blog.cloudflare.com/arm-takes-wing/).
+RISC-V 64 builds produce binaries for Linux `riscv64` systems.
 
-### Development ARM build
+### Development Linux ARM and RISC-V build
 
 1. [Install Go](https://golang.org/doc/install).
-1. Run `make victoria-metrics-linux-arm` or `make victoria-metrics-linux-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
-   It builds `victoria-metrics-linux-arm` or `victoria-metrics-linux-arm64` binary respectively and puts it into the `bin` folder.
+1. Run `make victoria-metrics-linux-arm`, `make victoria-metrics-linux-arm64`, or `make victoria-metrics-linux-riscv64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
+   It builds the corresponding `victoria-metrics-linux-arm`, `victoria-metrics-linux-arm64`, or `victoria-metrics-linux-riscv64` binary and puts it into the `bin` folder.
 
-### Production ARM build
+### Production Linux ARM and RISC-V build
 
 1. [Install docker](https://docs.docker.com/install/).
-1. Run `make victoria-metrics-linux-arm-prod` or `make victoria-metrics-linux-arm64-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
-   It builds `victoria-metrics-linux-arm-prod` or `victoria-metrics-linux-arm64-prod` binary respectively and puts it into the `bin` folder.
+1. Run `make victoria-metrics-linux-arm-prod`, `make victoria-metrics-linux-arm64-prod`, or `make victoria-metrics-linux-riscv64-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
+   It builds the corresponding `victoria-metrics-linux-arm-prod`, `victoria-metrics-linux-arm64-prod`, or `victoria-metrics-linux-riscv64-prod` binary and puts it into the `bin` folder.
 
 ### Pure Go build (CGO_ENABLED=0)
 

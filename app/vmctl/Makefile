@@ -30,6 +30,9 @@ vmctl-linux-386-prod:
 vmctl-linux-s390x-prod:
 	APP_NAME=vmctl $(MAKE) app-via-docker-linux-s390x
 
+vmctl-linux-riscv64-prod:
+	APP_NAME=vmctl $(MAKE) app-via-docker-linux-riscv64
+
 vmctl-darwin-amd64-prod:
 	APP_NAME=vmctl $(MAKE) app-via-docker-darwin-amd64
 
@@ -63,6 +66,9 @@ package-vmctl-arm64:
 package-vmctl-ppc64le:
 	APP_NAME=vmctl $(MAKE) package-via-docker-ppc64le
 
+package-vmctl-riscv64:
+	APP_NAME=vmctl $(MAKE) package-via-docker-riscv64
+
 package-vmctl-386:
 	APP_NAME=vmctl $(MAKE) package-via-docker-386
 
@@ -84,6 +90,9 @@ vmctl-linux-ppc64le:
 vmctl-linux-s390x:
 	APP_NAME=vmctl CGO_ENABLED=0 GOOS=linux GOARCH=s390x $(MAKE) app-local-goos-goarch
 
+vmctl-linux-riscv64:
+	APP_NAME=vmctl CGO_ENABLED=0 GOOS=linux GOARCH=riscv64 $(MAKE) app-local-goos-goarch
+
 vmctl-linux-loong64:
 	APP_NAME=vmctl CGO_ENABLED=0 GOOS=linux GOARCH=loong64 $(MAKE) app-local-goos-goarch
 
@@ -98,6 +107,9 @@ vmctl-darwin-arm64:
 
 vmctl-freebsd-amd64:
 	APP_NAME=vmctl CGO_ENABLED=0 GOOS=freebsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
+vmctl-netbsd-amd64:
+	APP_NAME=vmctl CGO_ENABLED=0 GOOS=netbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
 
 vmctl-openbsd-amd64:
 	APP_NAME=vmctl CGO_ENABLED=0 GOOS=openbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
