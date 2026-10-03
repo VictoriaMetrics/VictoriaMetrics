@@ -5,6 +5,10 @@
   overflow: auto;
   font-size: $font-size;
 
+  &-custom {
+    padding: 0 $padding-global $padding-small;
+  }
+
   &_mobile {
     max-height: 100%
   }
