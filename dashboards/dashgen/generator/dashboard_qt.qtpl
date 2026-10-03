@@ -1,0 +1,15 @@
+{% import "encoding/json" %}
+
+{% code
+func marshal(v Dashboard) string {
+	b, err := json.MarshalIndent(v, "", "   ")
+	if err != nil {
+		panic(err)
+	}
+	return string(b)
+}
+%}
+
+{% func RenderDashboard(d Dashboard) %}
+{%s= marshal(d) %}
+{% endfunc %}
