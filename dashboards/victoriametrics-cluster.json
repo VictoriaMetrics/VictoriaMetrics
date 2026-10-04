@@ -55,6 +55,18 @@
         "iconColor": "dark-yellow",
         "name": "restarts",
         "textFormat": "{{job}} restarted"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$ds"
+        },
+        "enable": true,
+        "expr": "sum((changes(vm_app_start_timestamp{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]) > 0) and on(job, instance) (vm_app_prev_shutdown_unclean{job=~\"$job\", instance=~\"$instance\"} == 1)) by(job)",
+        "hide": false,
+        "iconColor": "red",
+        "name": "unclean restarts",
+        "textFormat": "{{job}} restarted after unclean shutdown"
       }
     ]
   },
@@ -4883,7 +4895,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows the number of restarts per job. The chart can be useful to identify periodic process restarts and correlate them with potential issues or anomalies. Normally, processes shouldn't restart unless restart was inited by user. The reason of restarts should be figured out by checking the logs of each specific service. ",
+          "description": "Shows the number of restarts per job. The chart can be useful to identify periodic process restarts and correlate them with potential issues or anomalies. Normally, processes shouldn't restart unless restart was inited by user. The reason of restarts should be figured out by checking the logs of each specific service. The `unclean` series shows restarts after an unclean shutdown, such as OOM, SIGKILL or a host failure. It requires the `vm_app_prev_shutdown_unclean` metric from v1.151.0 or newer.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -4981,6 +4993,18 @@
               "instant": false,
               "legendFormat": "{{job}}",
               "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "sum((changes(vm_app_start_timestamp{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]) > 0) and on(job, instance) (vm_app_prev_shutdown_unclean{job=~\"$job\", instance=~\"$instance\"} == 1)) by(job)",
+              "format": "time_series",
+              "instant": false,
+              "legendFormat": "{{job}} unclean",
+              "refId": "B"
             }
           ],
           "title": "Restarts ($job)",
