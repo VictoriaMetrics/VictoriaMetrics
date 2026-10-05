@@ -408,7 +408,7 @@ func (upw *unpackWork) reset() {
 
 func (upw *unpackWork) unpack(ctx context.Context, tmpBlock *storage.Block) {
 	if err := ctx.Err(); err != nil {
-		upw.err = err
+		upw.err = searchutil.AnnotateContextError(ctx)
 		return
 	}
 	sb := getSortBlock()
@@ -3104,7 +3104,7 @@ func (sn *storageNode) processSearchQueryOnConn(ctx context.Context, bc *handsha
 	blocksRead := 0
 	for {
 		if err := ctx.Err(); err != nil {
-			return err
+			return searchutil.AnnotateContextError(ctx)
 		}
 		buf, err = readBytes(buf[:0], bc, maxMetricBlockSize)
 		if err != nil {
