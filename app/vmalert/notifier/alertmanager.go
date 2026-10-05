@@ -106,7 +106,10 @@ func (am *AlertManager) send(ctx context.Context, alerts []Alert, alertLabels []
 	for i, a := range alerts {
 		lbls := alertLabels[i]
 		if am.relabelConfigs != nil {
-			lbls = am.relabelConfigs.Apply(lbls, 0)
+			// alertLabels is shared by every notifier Send() fans out to, and
+			// promrelabel mutates the slice in place, so relabel a private copy.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11676
+			lbls = am.relabelConfigs.Apply(append(make([]prompb.Label, 0, len(lbls)), lbls...), 0)
 		}
 		if len(lbls) == 0 {
 			continue

@@ -26,6 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): fix a data race in per-notifier `alert_relabel_configs` from the [notifier configuration file](https://docs.victoriametrics.com/victoriametrics/vmalert/#notifier-configuration-file). When several notifier targets were configured, every notifier relabeled the same in-memory label set concurrently, so some Alertmanager targets intermittently received partially relabeled alerts (e.g. a leading `,` in a joined label or leftover temporary labels), which produced different fingerprints across Alertmanager replicas and broke HA deduplication. See [#11676](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11676).
 * SECURITY: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): prevent [cross-site scripting (XSS)](https://en.wikipedia.org/wiki/Cross-site_scripting) on Metric Relabling Debug, Query Analyzier, and Dashboards pages. See [GHSA-m2x2-9xpq-mmq5](https://github.com/VictoriaMetrics/VictoriaMetrics/security/advisories/GHSA-m2x2-9xpq-mmq5).
 
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): fixes rare data corruption on HTTP request retries. See [#11508](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11508).
