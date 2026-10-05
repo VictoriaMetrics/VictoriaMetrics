@@ -171,21 +171,6 @@ func marshalInt64Array(dst []byte, a []int64, precisionBits uint8) (result []byt
 	return dst, mt, firstValue
 }
 
-func getMaxDecompressedSize(maxSize int) int {
-	// use default encoder configuration as max safe value for decoder.
-	//
-	// github.com/klauspost/compress/zstd has the following params with max at 8Mi
-	// See https://github.com/klauspost/compress/blob/9b8ba6149408b157131b52e424ef97470ced32f7/zstd/encoder_options.go#L42
-	// and https://github.com/klauspost/compress/blob/9b8ba6149408b157131b52e424ef97470ced32f7/zstd/encoder_options.go#L254.
-	//
-	// valyala/gozstd uses max window size based on compress level.
-	// It's 2Mi according to default encoding.getCompressLevel ( 5 by default)
-	// See https://www.jefftk.com/p/zstd-window-size.
-	const maxWindowSize = 8 << 20
-
-	return max(maxSize, maxWindowSize)
-}
-
 func unmarshalInt64Array(dst []int64, src []byte, mt MarshalType, firstValue int64, itemsCount int) ([]int64, error) {
 	// Extend dst capacity in order to eliminate memory allocations below.
 	dst = decimal.ExtendInt64sCapacity(dst, itemsCount)
@@ -195,7 +180,19 @@ func unmarshalInt64Array(dst []int64, src []byte, mt MarshalType, firstValue int
 	// occupies at most binary.MaxVarintLen64 bytes. A larger result means the
 	// input is corrupted or hostile (e.g. a decompression bomb)
 	maxItemsSize := itemsCount * binary.MaxVarintLen64
-	maxDecompressedSize = getMaxDecompressedSize(maxDecompressedSize)
+
+	// use default encoder maxWindowSize configuration as max safe value for decoder.
+	// Decoder may check windowSize it could exceed size of decompressed data.
+	//
+	// github.com/klauspost/compress/zstd has the following params with max at 8Mi
+	// See https://github.com/klauspost/compress/blob/9b8ba6149408b157131b52e424ef97470ced32f7/zstd/encoder_options.go#L42
+	// and https://github.com/klauspost/compress/blob/9b8ba6149408b157131b52e424ef97470ced32f7/zstd/encoder_options.go#L254.
+	//
+	// valyala/gozstd uses max window size based on compress level.
+	// It's 2Mi according to default encoding.getCompressLevel ( 5 by default)
+	// See https://www.jefftk.com/p/zstd-window-size.
+	const maxWindowSize = 8 << 20
+	maxDecompressedSize := max(maxItemsSize, maxWindowSize)
 
 	var err error
 	switch mt {
