@@ -743,18 +743,17 @@ func (db *indexDB) SearchTenants(ctx context.Context, qt *querytracer.Tracer, tr
 }
 
 func (is *indexSearch) searchTenantsOnTimeRange(ctx context.Context, qt *querytracer.Tracer, tr TimeRange) (map[string]struct{}, error) {
-	minDate := uint64(tr.MinTimestamp) / msecPerDay
-	maxDate := uint64(tr.MaxTimestamp-1) / msecPerDay
-	if maxDate == 0 || minDate > maxDate || maxDate-minDate > maxDaysForPerDaySearch {
+	if tr == globalIndexTimeRange {
 		qtChild := qt.NewChild("search for tenants in global index")
 		defer qtChild.Done()
-		return is.searchTenantsOnDate(ctx, 0)
+		return is.searchTenantsOnDate(ctx, globalIndexDate)
 	}
 	var mu sync.Mutex
 	wg := getWaitGroup()
 	tenants := make(map[string]struct{})
 	var errGlobal error
 	qt = qt.NewChild("parallel search for tenants on timeRange=%s", &tr)
+	minDate, maxDate := tr.DateRange()
 	for date := minDate; date <= maxDate; date++ {
 		qtChild := qt.NewChild("search for tenants on date=%s", dateToString(date))
 		wg.Go(func() {

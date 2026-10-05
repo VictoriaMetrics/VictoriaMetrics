@@ -1098,12 +1098,14 @@ func benchmarkSearchTimeRanges(b *testing.B, op func(b *testing.B, s *Storage, t
 		numTRs: 30,
 	}
 
+	const disablePerDayIndex = false
+
 	const seriesPerHour = 10_000
 	for _, seriesRepeatEveryHour := range []bool{false, true} {
 		for _, cfg := range []cfg{tr1h, tr2h, tr3h, tr6h, tr12h, tr24h} {
 			name := fmt.Sprintf("seriesPerHour=%d/seriesRepeatEveryHour=%t/%s", seriesPerHour, seriesRepeatEveryHour, cfg.name)
 			b.Run(name, func(b *testing.B) {
-				benchmarkSearchTimeRange(b, seriesPerHour, cfg.tr, cfg.numTRs, seriesRepeatEveryHour, op)
+				benchmarkSearchTimeRange(b, disablePerDayIndex, seriesPerHour, cfg.tr, cfg.numTRs, seriesRepeatEveryHour, op)
 			})
 		}
 	}
@@ -1113,13 +1115,90 @@ func benchmarkSearchTimeRanges(b *testing.B, op func(b *testing.B, s *Storage, t
 		for _, cfg := range []cfg{tr1d, tr2d, tr4d, tr8d, tr15d, tr30d} {
 			name := fmt.Sprintf("seriesPerDay=%d/seriesRepeatEveryDay=%t/%s", seriesPerDay, seriesRepeatEveryDay, cfg.name)
 			b.Run(name, func(b *testing.B) {
-				benchmarkSearchTimeRange(b, seriesPerDay, cfg.tr, cfg.numTRs, seriesRepeatEveryDay, op)
+				benchmarkSearchTimeRange(b, disablePerDayIndex, seriesPerDay, cfg.tr, cfg.numTRs, seriesRepeatEveryDay, op)
 			})
 		}
 	}
 }
 
-func benchmarkSearchTimeRange(b *testing.B, numSeries int, tr TimeRange, numTRs int64, sameSeries bool, search func(b *testing.B, s *Storage, tr TimeRange, mrs []MetricRow)) {
+func BenchmarkSearchLongTimeRanges_Data(b *testing.B) {
+	benchmarkSearchLongTimeRanges(b, benchmarkSearchData)
+}
+
+func BenchmarkSearchLongTimeRanges_MetricNames(b *testing.B) {
+	benchmarkSearchLongTimeRanges(b, benchmarkSearchMetricNames)
+}
+
+func BenchmarkSearchLongTimeRanges_LabelNames(b *testing.B) {
+	benchmarkSearchLongTimeRanges(b, benchmarkSearchLabelNames)
+}
+
+func BenchmarkSearchLongTimeRanges_LabelValues(b *testing.B) {
+	benchmarkSearchLongTimeRanges(b, benchmarkSearchLabelValues)
+}
+
+func benchmarkSearchLongTimeRanges(b *testing.B, op func(b *testing.B, s *Storage, tr TimeRange, mrs []MetricRow)) {
+	type cfg struct {
+		name   string
+		tr     TimeRange
+		numTRs int64
+	}
+
+	tr1m := cfg{
+		name: "1m",
+		tr: TimeRange{
+			MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2025, 2, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		},
+		numTRs: 31,
+	}
+	tr2m := cfg{
+		name: "2m",
+		tr: TimeRange{
+			MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		},
+		numTRs: 31 + 28,
+	}
+	tr3m := cfg{
+		name: "3m",
+		tr: TimeRange{
+			MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		},
+		numTRs: 31 + 28 + 31,
+	}
+	tr4m := cfg{
+		name: "4m",
+		tr: TimeRange{
+			MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		},
+		numTRs: 31 + 28 + 31 + 30,
+	}
+
+	const seriesPerDay = 1000
+	for _, seriesRepeatEveryDay := range []bool{false, true} {
+		churnRate := "highChurnRate"
+		if seriesRepeatEveryDay {
+			churnRate = "noChurnRate"
+		}
+		for _, disablePerDayIndex := range []bool{false, true} {
+			index := "perDayIndex"
+			if disablePerDayIndex {
+				index = "globalIndex"
+			}
+			for _, cfg := range []cfg{tr1m, tr2m, tr3m, tr4m} {
+				name := fmt.Sprintf("%s/%s/%s", churnRate, index, cfg.name)
+				b.Run(name, func(b *testing.B) {
+					benchmarkSearchTimeRange(b, disablePerDayIndex, seriesPerDay, cfg.tr, cfg.numTRs, seriesRepeatEveryDay, op)
+				})
+			}
+		}
+	}
+}
+
+func benchmarkSearchTimeRange(b *testing.B, disablePerDayIndex bool, numSeries int, tr TimeRange, numTRs int64, sameSeries bool, search func(b *testing.B, s *Storage, tr TimeRange, mrs []MetricRow)) {
 	b.Helper()
 	const (
 		accountID = 12
@@ -1166,7 +1245,9 @@ func benchmarkSearchTimeRange(b *testing.B, numSeries int, tr TimeRange, numTRs 
 		mrs = append(mrs, genRows(numSeries, subTR, i)...)
 	}
 
-	s := MustOpenStorage(b.Name(), OpenOptions{})
+	s := MustOpenStorage(b.Name(), OpenOptions{
+		DisablePerDayIndex: disablePerDayIndex,
+	})
 	s.AddRows(mrs, 64)
 	s.DebugFlush()
 
