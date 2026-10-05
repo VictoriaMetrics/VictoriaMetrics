@@ -92,6 +92,7 @@ Contact us via [this page](https://victoriametrics.com/products/enterprise/) if 
 VictoriaLogs enterprise includes [all the features of the community edition](https://docs.victoriametrics.com/victorialogs/),
 plus the following additional features:
 
+- Stable releases with long-term support, which contains important bugfixes and security fixes. See [these docs](https://docs.victoriametrics.com/victorialogs/lts-releases/).
 - First-class consulting and technical support provided by the core VictoriaMetrics dev team.
 - [Monitoring of monitoring](https://victoriametrics.com/products/mom/) - this feature allows forecasting
   and preventing possible issues in VictoriaLogs setups.
