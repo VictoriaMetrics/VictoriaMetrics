@@ -181,15 +181,18 @@ func unmarshalInt64Array(dst []int64, src []byte, mt MarshalType, firstValue int
 	// input is corrupted or hostile (e.g. a decompression bomb)
 	maxItemsSize := itemsCount * binary.MaxVarintLen64
 
-	// use default encoder maxWindowSize configuration as max safe value for decoder.
-	// Decoder may check windowSize it could exceed size of decompressed data.
+	// Use the default encoder's maxWindowSize configuration as the maximum
+	// decompressed data size for the decoder.
+	// The decoder may check the window size, which can exceed the size of the
+	// decompressed data. The current limit provides an acceptable level of security.
+	// In the worst case, a corrupted block allocates only 8 MiB of memory.
 	//
-	// github.com/klauspost/compress/zstd has the following params with max at 8Mi
+	// github.com/klauspost/compress/zstd has the following params with max at 8MiB
 	// See https://github.com/klauspost/compress/blob/9b8ba6149408b157131b52e424ef97470ced32f7/zstd/encoder_options.go#L42
 	// and https://github.com/klauspost/compress/blob/9b8ba6149408b157131b52e424ef97470ced32f7/zstd/encoder_options.go#L254.
 	//
 	// valyala/gozstd uses max window size based on compress level.
-	// It's 2Mi according to default encoding.getCompressLevel ( 5 by default)
+	// It's 2MiB according to default encoding.getCompressLevel ( 5 by default)
 	// See https://www.jefftk.com/p/zstd-window-size.
 	const maxWindowSize = 8 << 20
 	maxDecompressedSize := max(maxItemsSize, maxWindowSize)
