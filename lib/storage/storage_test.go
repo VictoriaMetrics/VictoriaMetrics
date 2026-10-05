@@ -2851,8 +2851,8 @@ func TestStorageAdjustTimeRange(t *testing.T) {
 
 	// Search time range is the same as globalIndexTimeRange.
 	searchTimeRange = globalIndexTimeRange
-	f(false, searchTimeRange, legacyIDBTimeRange, globalIndexTimeRange)
-	f(false, searchTimeRange, partitionIDBTimeRange, globalIndexTimeRange)
+	f(false, searchTimeRange, legacyIDBTimeRange, searchTimeRange)
+	f(false, searchTimeRange, partitionIDBTimeRange, partitionIDBTimeRange)
 	f(true, searchTimeRange, legacyIDBTimeRange, globalIndexTimeRange)
 	f(true, searchTimeRange, partitionIDBTimeRange, globalIndexTimeRange)
 
@@ -2870,7 +2870,7 @@ func TestStorageAdjustTimeRange(t *testing.T) {
 	// The search time range is the same as partition idb time range.
 	searchTimeRange = partitionIDBTimeRange
 	f(false, searchTimeRange, legacyIDBTimeRange, searchTimeRange)
-	f(false, searchTimeRange, partitionIDBTimeRange, globalIndexTimeRange)
+	f(false, searchTimeRange, partitionIDBTimeRange, partitionIDBTimeRange)
 	f(true, searchTimeRange, legacyIDBTimeRange, globalIndexTimeRange)
 	f(true, searchTimeRange, partitionIDBTimeRange, globalIndexTimeRange)
 
@@ -2881,7 +2881,7 @@ func TestStorageAdjustTimeRange(t *testing.T) {
 		MaxTimestamp: partitionIDBTimeRange.MaxTimestamp + msecPerDay,
 	}
 	f(false, searchTimeRange, legacyIDBTimeRange, searchTimeRange)
-	f(false, searchTimeRange, partitionIDBTimeRange, globalIndexTimeRange)
+	f(false, searchTimeRange, partitionIDBTimeRange, partitionIDBTimeRange)
 	f(true, searchTimeRange, legacyIDBTimeRange, globalIndexTimeRange)
 	f(true, searchTimeRange, partitionIDBTimeRange, globalIndexTimeRange)
 
@@ -2891,8 +2891,8 @@ func TestStorageAdjustTimeRange(t *testing.T) {
 		MinTimestamp: partitionIDBTimeRange.MinTimestamp - msecPerDay,
 		MaxTimestamp: partitionIDBTimeRange.MinTimestamp + 41*msecPerDay,
 	}
-	f(false, searchTimeRange, legacyIDBTimeRange, globalIndexTimeRange)
-	f(false, searchTimeRange, partitionIDBTimeRange, globalIndexTimeRange)
+	f(false, searchTimeRange, legacyIDBTimeRange, searchTimeRange)
+	f(false, searchTimeRange, partitionIDBTimeRange, partitionIDBTimeRange)
 	f(true, searchTimeRange, legacyIDBTimeRange, globalIndexTimeRange)
 	f(true, searchTimeRange, partitionIDBTimeRange, globalIndexTimeRange)
 
