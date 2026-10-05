@@ -406,7 +406,11 @@ func (upw *unpackWork) reset() {
 	upw.err = nil
 }
 
-func (upw *unpackWork) unpack(tmpBlock *storage.Block) {
+func (upw *unpackWork) unpack(ctx context.Context, tmpBlock *storage.Block) {
+	if err := ctx.Err(); err != nil {
+		upw.err = searchutil.AnnotateContextError(ctx)
+		return
+	}
 	sb := getSortBlock()
 	if err := sb.unpackFrom(tmpBlock, upw.tbfs, upw.addr, upw.tr); err != nil {
 		putSortBlock(sb)
@@ -437,7 +441,7 @@ func unpackWorker(ctx context.Context, workChs []chan *unpackWork, workerID uint
 	// Deal with own work at first.
 	ch := workChs[workerID]
 	for upw := range ch {
-		upw.unpack(tmpBlock)
+		upw.unpack(ctx, tmpBlock)
 	}
 
 	// Then help others with their work.
@@ -456,7 +460,7 @@ func unpackWorker(ctx context.Context, workChs []chan *unpackWork, workerID uint
 			if !ok {
 				break
 			}
-			upw.unpack(tmpBlock)
+			upw.unpack(ctx, tmpBlock)
 		}
 	}
 
@@ -516,7 +520,7 @@ func (pts *packedTimeseries) unpackTo(ctx context.Context, dst []*sortBlock, tbf
 		var err error
 		for _, addr := range pts.addrs {
 			initUnpackWork(upw, addr)
-			upw.unpack(tmpBlock)
+			upw.unpack(ctx, tmpBlock)
 			if upw.err != nil {
 				err = upw.err
 				break
@@ -3099,6 +3103,9 @@ func (sn *storageNode) processSearchQueryOnConn(ctx context.Context, bc *handsha
 	// Read response. It may consist of multiple MetricBlocks.
 	blocksRead := 0
 	for {
+		if err := ctx.Err(); err != nil {
+			return searchutil.AnnotateContextError(ctx)
+		}
 		buf, err = readBytes(buf[:0], bc, maxMetricBlockSize)
 		if err != nil {
 			return fmt.Errorf("cannot read MetricBlock #%d: %w", blocksRead, err)
