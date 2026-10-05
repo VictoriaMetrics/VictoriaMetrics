@@ -1119,7 +1119,7 @@ func benchmarkSearchLongTimeRanges(b *testing.B, op func(b *testing.B, s *Storag
 		name: "2m",
 		tr: TimeRange{
 			MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-			MaxTimestamp: time.Date(2025, 3, 0, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		},
 		numTRs: 31 + 28,
 	}
