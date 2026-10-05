@@ -1819,9 +1819,9 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 				}
 				mn.sortTags()
 				idb.createGlobalIndexes(&lTSID.TSID, mn)
-				idb.createPerDayIndexes(date, &lTSID.TSID, mn)
 				seriesRepopulated++
-			} else if !is.hasDateMetricID(date, lTSID.TSID.MetricID) {
+			}
+			if !is.hasDateMetricID(date, lTSID.TSID.MetricID) {
 				if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
 					if firstWarn == nil {
 						firstWarn = fmt.Errorf("cannot unmarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
@@ -2004,7 +2004,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 
 		// tsidCache may contain TSIDs that were deleted from some indexDBs but
 		// are still in use in other indexDBs. Thus, also check if a given TSID
-		// was not deleted deom the current indexDB.
+		// was not deleted from the current indexDB.
 		if s.getTSIDByMetricNameFromCache(&lTSID, mr.MetricNameRaw) && !deletedMetricIDs.Has(lTSID.TSID.MetricID) {
 			// Fast path - the TSID for the given mr.MetricNameRaw has been found in cache and isn't deleted.
 
