@@ -59,8 +59,9 @@ var (
 	shardByURLIgnoreLabels = flagutil.NewArrayString("remoteWrite.shardByURL.ignoreLabels", "Optional list of labels, which must be ignored when sharding outgoing samples "+
 		"among remote storage systems if -remoteWrite.shardByURL command-line flag is set. By default all the labels are used for sharding in order to gain "+
 		"even distribution of series over the specified -remoteWrite.url systems. See also -remoteWrite.shardByURL.labels")
-	tmpDataPath = flag.String("remoteWrite.tmpDataPath", "vmagent-remotewrite-data", "Path to directory for storing pending data, which isn't sent to the configured -remoteWrite.url . "+
-		"See also -remoteWrite.maxDiskUsagePerURL and -remoteWrite.disableOnDiskQueue")
+	tmpDataPath = flag.String("remoteWrite.tmpDataPath", "vmagent-remotewrite-data", "Path to directory for storing pending data, which isn't sent to the configured -remoteWrite.url. "+
+		"Pending data is stored in a sub-folder for each -remoteWrite.url. "+
+		"See also -remoteWrite.url.queuePath, -remoteWrite.maxDiskUsagePerURL and -remoteWrite.disableOnDiskQueue")
 	keepDanglingQueues = flag.Bool("remoteWrite.keepDanglingQueues", false, "Keep persistent queues contents at -remoteWrite.tmpDataPath in case there are no matching -remoteWrite.url. "+
 		"Useful when -remoteWrite.url is changed temporarily and persistent queue files will be needed later on.")
 	queues = flagutil.NewArrayIntWithDynamicDefault("remoteWrite.queues", cgroup.AvailableCPUs()*2, "2x CPU cores",
@@ -115,6 +116,10 @@ var (
 		"Multiple label names should be separated by `^^`, e.g. \"job^^instance,ip\". "+
 		"Can be combined with -remoteWrite.mdx.enable to hide sensitive label values in VictoriaMetrics self-monitoring metrics. "+
 		"Please see https://docs.victoriametrics.com/victoriametrics/vmagent/#obfuscating-label-values")
+
+	remoteWriteURLQueuePaths = flagutil.NewArrayString("remoteWrite.url.queuePath", "Path to directory for storing pending data, which isn't sent to the corresponding -remoteWrite.url . "+
+		"It replaces the functionality of -remoteWrite.tmpDataPath. If it's set, each remoteWrite.url must have individual path configured. "+
+		"See also -remoteWrite.tmpDataPath, -remoteWrite.maxDiskUsagePerURL and -remoteWrite.disableOnDiskQueue")
 )
 
 var (
@@ -300,6 +305,9 @@ func dropDanglingQueues() {
 func initRemoteWriteCtxs(urls []string) {
 	if len(urls) == 0 {
 		logger.Panicf("BUG: urls must be non-empty")
+	}
+	if len(*remoteWriteURLQueuePaths) > 0 && len(*remoteWriteURLQueuePaths) != len(urls) {
+		logger.Fatalf("-remoteWrite.url.queuePath must be set for each -remoteWrite.url, got %d queue paths and %d urls", len(*remoteWriteURLQueuePaths), len(urls))
 	}
 	rwctxs := make([]*remoteWriteCtx, len(urls))
 	rwctxIdx := make([]int, len(urls))
@@ -928,8 +936,12 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, sanitizedURL string)
 	pqURL := *remoteWriteURL
 	pqURL.RawQuery = ""
 	pqURL.Fragment = ""
-	h := xxhash.Sum64([]byte(pqURL.String()))
-	queuePath := filepath.Join(*tmpDataPath, persistentQueueDirname, fmt.Sprintf("%d_%016X", argIdx+1, h))
+	queuePath := remoteWriteURLQueuePaths.GetOptionalArg(argIdx)
+	if queuePath == "" {
+		h := xxhash.Sum64([]byte(pqURL.String()))
+		queuePath = filepath.Join(*tmpDataPath, persistentQueueDirname, fmt.Sprintf("%d_%016X", argIdx+1, h))
+	}
+
 	maxPendingBytes := maxPendingBytesPerURL.GetOptionalArg(argIdx)
 	if maxPendingBytes != 0 && maxPendingBytes < persistentqueue.DefaultChunkFileSize {
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4195

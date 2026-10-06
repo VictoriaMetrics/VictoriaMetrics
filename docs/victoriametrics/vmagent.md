@@ -1067,6 +1067,18 @@ vmagent will generate the following persistent queue folders:
 2_0AAFDF53E314A72A
 ```
 
+Queue path can be configured independently for each `-remoteWrite.url` with `-remoteWrite.url.queuePath` flag.
+It requires the flag value to be set for each `-remoteWrite.url`.
+
+ For example:
+
+```bash
+./bin/vmagent -remoteWrite.url=http://url-0 -remoteWrite.url=http://url-1 -remoteWrite.url=http://url-2 -remoteWrite.url.QueuePath=/vmagent-data/url-0 -remoteWrite.url.QueuePath=/vmagent-data/url-1 -remoteWrite.url.QueuePath=/vmagent-data/url-2
+```
+
+ It allows to remove `-remoteWrite.url=http://url-1` from the middle of configuration and keep queue data for `--remoteWrite.url=http://url-2`.
+Because with default configuration vmagent calculates the subfolder name for the persistent queue based on it's position at arg list.
+
 ### On-disk persistence and data processing order
 
 By default, vmagent processes data in FIFO order. If data has been written to the on-disk queue,
