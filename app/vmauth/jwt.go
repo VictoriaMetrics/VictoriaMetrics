@@ -267,6 +267,14 @@ func getJWTUserInfo(ats []string, ssoAt string) (*UserInfo, *jwt.Token) {
 			putToken(tkn)
 			return nil, nil
 		}
+		if tkn.IsExpired(time.Now()) {
+			if *logInvalidAuthTokens {
+				// TODO: add more context:
+				// token claims with issuer
+				logger.Infof("cookie token is expired")
+			}
+			return nil, nil
+		}
 		if ui := getUserInfoByJWTToken(tkn, js.users); ui != nil {
 			return ui, tkn
 		}
