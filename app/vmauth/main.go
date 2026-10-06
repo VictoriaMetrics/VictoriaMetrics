@@ -184,6 +184,23 @@ func requestHandlerWithInternalRoutes(w http.ResponseWriter, r *http.Request) bo
 	return requestHandler(w, r)
 }
 
+func processEmptyAuthRequest(w http.ResponseWriter, r *http.Request, ac *AuthConfig) {
+	if processSSOLogin(w, r, ac, false) {
+		return
+	}
+
+	// Process requests for unauthorized users
+	ui := ac.UnauthorizedUser
+	if ui.hasAnyURLs() {
+		processUserRequest(w, r, ui, nil)
+		return
+	}
+
+	ui.logRequest(r, `unauthorized`, http.StatusUnauthorized, 0)
+	handleMissingAuthorizationError(w)
+	return
+}
+
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	if r.URL.Path == "/_vmauth/sso/start" {
 		processSSOStart(w, r)
@@ -193,23 +210,14 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		processSSOCallback(w, r)
 		return true
 	}
+	ac := authConfig.Load()
 
 	ats := getAuthTokensFromRequest(r)
-	ssoAts := getSSOAuthTokensFromRequest(authConfig.Load(), r)
-	if len(ats) == 0 && len(ssoAts) == 0 {
-		if processSSOLogin(w, r, false) {
-			return true
-		}
+	ssoAt := getSSOAuthTokenFromRequest(ac, r)
 
-		// Process requests for unauthorized users
-		ui := authConfig.Load().UnauthorizedUser
-		if ui.hasAnyURLs() {
-			processUserRequest(w, r, ui, nil)
-			return true
-		}
-
-		ui.logRequest(r, `unauthorized`, http.StatusUnauthorized, 0)
-		handleMissingAuthorizationError(w)
+	if len(ats) == 0 && len(ssoAt) == 0 {
+		// fast path
+		processEmptyAuthRequest(w, r, ac)
 		return true
 	}
 
@@ -219,7 +227,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 	// The SSO cookie is verified only as jwt token. Matching it against static auth tokens
 	// would allow brute-forcing them via the SSO cookie without the slowdown.
-	if ui, tkn := getJWTUserInfo(append(ats, ssoAts...)); ui != nil {
+	if ui, tkn := getJWTUserInfo(ats, ssoAt); ui != nil {
 		if tkn == nil {
 			logger.Panicf("BUG: unexpected nil jwt token for user %q", ui.name())
 		}
@@ -237,7 +245,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 	}
 
-	if processSSOAccessDenied(w, r, ats, ssoAts) {
+	if processSSOAccessDenied(w, r, ac, ats, ssoAt) {
 		return true
 	}
 

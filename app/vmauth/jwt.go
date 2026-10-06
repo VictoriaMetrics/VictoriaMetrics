@@ -224,7 +224,7 @@ func putToken(tkn *jwt.Token) {
 	tokenPool.Put(tkn)
 }
 
-func getJWTUserInfo(ats []string) (*UserInfo, *jwt.Token) {
+func getJWTUserInfo(ats []string, ssoAt string) (*UserInfo, *jwt.Token) {
 	js := *jwtAuthCache.Load()
 	if len(js.users) == 0 {
 		return nil, nil
@@ -254,6 +254,19 @@ func getJWTUserInfo(ats []string) (*UserInfo, *jwt.Token) {
 			continue
 		}
 
+		if ui := getUserInfoByJWTToken(tkn, js.users); ui != nil {
+			return ui, tkn
+		}
+	}
+	if len(ssoAt) > 0 {
+		tkn.Reset()
+		if err := tkn.Parse(ssoAt, false); err != nil {
+			if *logInvalidAuthTokens {
+				logger.Infof("cannot parse jwt token: %s", err)
+			}
+			putToken(tkn)
+			return nil, nil
+		}
 		if ui := getUserInfoByJWTToken(tkn, js.users); ui != nil {
 			return ui, tkn
 		}
