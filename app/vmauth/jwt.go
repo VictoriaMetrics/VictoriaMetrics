@@ -265,6 +265,7 @@ func getJWTUserInfo(ats []string, ssoAt string) (*UserInfo, *jwt.Token) {
 				logger.Infof("cannot parse jwt token: %s", err)
 			}
 			putToken(tkn)
+			putToken(tkn)
 			return nil, nil
 		}
 		if tkn.IsExpired(time.Now()) {
