@@ -1073,7 +1073,7 @@ It requires the flag value to be set for each `-remoteWrite.url`.
  For example:
 
 ```bash
-./bin/vmagent -remoteWrite.url=http://url-0 -remoteWrite.url=http://url-1 -remoteWrite.url=http://url-2 -remoteWrite.url.QueuePath=/vmagent-data/url-0 -remoteWrite.url.QueuePath=/vmagent-data/url-1 -remoteWrite.url.QueuePath=/vmagent-data/url-2
+./bin/vmagent -remoteWrite.url=http://url-0 -remoteWrite.url=http://url-1 -remoteWrite.url=http://url-2 -remoteWrite.url.queuePath=/vmagent-data/url-0 -remoteWrite.url.queuePath=/vmagent-data/url-1 -remoteWrite.url.queuePath=/vmagent-data/url-2
 ```
 
  It allows to remove `-remoteWrite.url=http://url-1` from the middle of configuration and keep queue data for `--remoteWrite.url=http://url-2`.
