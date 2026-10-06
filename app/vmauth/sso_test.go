@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"slices"
 	"strings"
 	"testing"
@@ -423,6 +425,18 @@ sso:
     client_secret: other-secret
     cookie_secret: "abcdef0123456789"
 `)
+
+	// skip login page
+	f(`
+sso:
+- src_host: "example.com"
+  oidc:
+    issuer: https://idp.example.com
+    client_id: my-client
+    client_secret: my-secret
+    cookie_secret: "0123456789abcdef"
+    skip_login_page: true
+`)
 }
 
 func TestSSOConfigNormalizeFailure(t *testing.T) {
@@ -641,4 +655,59 @@ func assertPanic(t *testing.T, name string, fn func()) {
 		}
 	}()
 	fn()
+}
+
+func TestProcessSSOLoginSkipLoginPage(t *testing.T) {
+	f := func(skipLoginPage bool, headers map[string]string, statusExpected int) {
+		t.Helper()
+		s := fmt.Sprintf(`
+sso:
+- src_host: "sso\\.example\\.com"
+  oidc:
+    issuer: https://idp.example.com
+    client_id: my-client
+    client_secret: my-secret
+    cookie_secret: "0123456789abcdef"
+    skip_login_page: %v
+`, skipLoginPage)
+		ac, err := parseAuthConfig([]byte(s))
+		if err != nil {
+			t.Fatalf("cannot parse auth config: %s", err)
+		}
+		if err := normalizeSSOConfigs(ac.SSO); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		acPrev := authConfig.Load()
+		authConfig.Store(ac)
+		defer authConfig.Store(acPrev)
+
+		r := httptest.NewRequest(http.MethodGet, "http://sso.example.com/select/vmui", nil)
+		for k, v := range headers {
+			r.Header.Set(k, v)
+		}
+		w := httptest.NewRecorder()
+		if !processSSOLogin(w, r) {
+			t.Fatalf("expected request to be handled")
+		}
+		if w.Code != statusExpected {
+			t.Fatalf("unexpected status code; got %d; want %d", w.Code, statusExpected)
+		}
+	}
+
+	browserHeaders := map[string]string{
+		"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+	}
+
+	// disabled - login page is shown to browsers
+	f(false, browserHeaders, http.StatusUnauthorized)
+
+	// enabled - browsers are redirected to the IdP flow
+	f(true, browserHeaders, http.StatusFound)
+
+	// enabled - non-browser clients still get 401
+	f(true, map[string]string{"Accept": "application/json"}, http.StatusUnauthorized)
+	f(true, nil, http.StatusUnauthorized)
+
+	// enabled - authenticated users without matching user config are not redirected
+	f(true, map[string]string{"Authorization": "Bearer foo", "Accept": "text/html"}, http.StatusForbidden)
 }

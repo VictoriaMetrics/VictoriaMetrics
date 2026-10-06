@@ -138,6 +138,10 @@ type ssoOIDCConfig struct {
 	// sent to the IdP authorization endpoint.
 	AuthParams map[string]string `yaml:"auth_params,omitempty"`
 
+	// SkipLoginPage redirects unauthenticated browser requests straight to the IdP
+	// instead of showing the "Login with SSO" page.
+	SkipLoginPage bool `yaml:"skip_login_page,omitempty"`
+
 	pm atomic.Pointer[oidcProviderMetadata]
 }
 
@@ -338,6 +342,10 @@ func setSSONoCacheHeaders(w http.ResponseWriter) {
 // If the request already carries auth tokens (e.g. from an SSO cookie) but
 // no user config matched, the page shows an "Access Denied" hint above the
 // login button so the user knows their identity was recognized but not authorized.
+//
+// If oidc.skip_login_page is set, unauthenticated browser requests are redirected
+// to /_vmauth/sso/start instead. Requests without text/html in the Accept header
+// still get 401, so non-browser clients are not sent to the IdP.
 func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		return false
@@ -358,6 +366,11 @@ func processSSOLogin(w http.ResponseWriter, r *http.Request) bool {
 		// The user authenticated but no user config matched — authorization failure.
 		w.WriteHeader(http.StatusForbidden)
 		WriteSSOLoginPage(w, authURL, "Access Denied")
+		return true
+	}
+
+	if oidc.SkipLoginPage && strings.Contains(r.Header.Get("Accept"), "text/html") {
+		http.Redirect(w, r, authURL, http.StatusFound)
 		return true
 	}
 

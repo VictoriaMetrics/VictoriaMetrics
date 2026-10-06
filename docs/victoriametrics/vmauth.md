@@ -714,6 +714,7 @@ The `sso` section fields:
 - `oidc.default_redirect_url` — the redirect target after login if the original URL fails validation. Defaults to `/`.
 - `oidc.auth_params` - additional query parameters for the [authentication request](https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest) sent to the IdP. See [SSO authentication request parameters](https://docs.victoriametrics.com/victoriametrics/vmauth/#sso-authentication-request-parameters).
 - `oidc.insecure` — disables `Secure` cookie flag and uses HTTP callback URIs. Used for local dev only; when `vmauth` runs behind a TLS-terminating proxy, keep this `false`.
+- `oidc.skip_login_page` - redirects unauthenticated browser requests (with `text/html` in the `Accept` header) straight to the IdP instead of showing the "Login with SSO" page. Other clients still receive `401 Unauthorized`. Defaults to `false`. {{% available_from "#" %}}
 
 Register the following URL in your IdP as the Authorized redirect URI:
 
