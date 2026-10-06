@@ -8,7 +8,6 @@ import (
 	"github.com/VictoriaMetrics/metricsql"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
@@ -64,7 +63,6 @@ func TestExecSuccess(t *testing.T) {
 			Step:               step,
 			MaxPointsPerSeries: 1e4,
 			MaxSeries:          1000,
-			Deadline:           searchutil.NewDeadline(time.Now(), time.Minute, ""),
 			RoundDigits:        100,
 		}
 		for range 5 {
@@ -10461,7 +10459,6 @@ func TestExecError(t *testing.T) {
 			Step:               100,
 			MaxPointsPerSeries: 1e4,
 			MaxSeries:          1000,
-			Deadline:           searchutil.NewDeadline(time.Now(), time.Minute, ""),
 			RoundDigits:        100,
 		}
 		for range 4 {

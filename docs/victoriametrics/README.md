@@ -1341,7 +1341,7 @@ Another option is to use to [query all replicas at once](https://docs.victoriame
 
 #### Query multiple replicas via vmselect
 
-In this option, we use a top-level [vmselect](https://docs.victoriametrics.com/victoriametrics/vmselect/) to query all
+In this option, we use a top-level [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#architecture-overview) to query all
 remote destinations simultaneously and merge the results.
 
 This option is only possible if VictoriaMetrics single-node instances are configured with the `-vmselectAddr` flag.

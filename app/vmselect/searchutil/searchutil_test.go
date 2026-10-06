@@ -1,6 +1,7 @@
 package searchutil
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -301,27 +302,35 @@ func tagFiltersToString(tfs []storage.TagFilter) string {
 	return string(b)
 }
 
-func TestGetDeadline(t *testing.T) {
-	f := func(got, exp Deadline) {
-		if got.Deadline() != exp.Deadline() {
-			t.Fatalf("expected to have %v; got %v instead", exp, got)
+func TestGetContextDeadline(t *testing.T) {
+	f := func(ctx context.Context, exp deadline) {
+		t.Helper()
+		dv := ctx.Value(deadlineKey)
+		gotDeadline, ok := dv.(deadline)
+		if !ok {
+			t.Fatalf("unexpected missing Deadline at context")
+		}
+		if gotDeadline.deadlineTimestamp() != exp.deadlineTimestamp() {
+			t.Fatalf("expected deadline %d; got %d instead", exp.deadlineTimestamp(), gotDeadline.deadlineTimestamp())
 		}
 	}
 
 	start := time.Now()
-	expDeadline := func(deadline time.Duration) Deadline {
-		return NewDeadline(start, deadline, "")
+	expDeadline := func(d time.Duration) deadline {
+		return newDeadline(start, d, "")
 	}
-
+	unwrapContext := func(ctx context.Context, _ func()) context.Context {
+		return ctx
+	}
 	r, _ := http.NewRequest("GET", "", nil)
-	f(GetDeadlineForExport(r, start), expDeadline(*maxExportDuration))
-	f(GetDeadlineForLabelsAPI(r, start), expDeadline(*maxLabelsAPIDuration))
-	f(GetDeadlineForStatusRequest(r, start), expDeadline(*maxStatusRequestDuration))
-	f(GetDeadlineForQuery(r, start), expDeadline(*maxQueryDuration))
+	f(unwrapContext(GetContextForExport(r, start)), expDeadline(*maxExportDuration))
+	f(unwrapContext(GetContextForLabelsAPI(r, start)), expDeadline(*maxLabelsAPIDuration))
+	f(unwrapContext(GetContextForStatusRequest(r, start)), expDeadline(*maxStatusRequestDuration))
+	f(unwrapContext(GetContextForQuery(r, start)), expDeadline(*maxQueryDuration))
 
 	r, _ = http.NewRequest("GET", "http://foo?timeout=1s", nil)
-	f(GetDeadlineForExport(r, start), expDeadline(time.Second))
-	f(GetDeadlineForLabelsAPI(r, start), expDeadline(time.Second))
-	f(GetDeadlineForStatusRequest(r, start), expDeadline(time.Second))
-	f(GetDeadlineForQuery(r, start), expDeadline(time.Second))
+	f(unwrapContext(GetContextForExport(r, start)), expDeadline(time.Second))
+	f(unwrapContext(GetContextForLabelsAPI(r, start)), expDeadline(time.Second))
+	f(unwrapContext(GetContextForStatusRequest(r, start)), expDeadline(time.Second))
+	f(unwrapContext(GetContextForQuery(r, start)), expDeadline(time.Second))
 }

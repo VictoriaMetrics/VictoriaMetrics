@@ -76,8 +76,21 @@ func (c *ssoConfig) normalize() error {
 		oidc.sessionDuration = d
 	}
 
+	for k := range oidc.AuthParams {
+		if k == "" {
+			return fmt.Errorf("oidc.auth_params must not contain empty keys")
+		}
+		if slices.Contains(reservedAuthParams, k) {
+			return fmt.Errorf("oidc.auth_params must not override %q; it is set by vmauth", k)
+		}
+	}
+
 	return nil
 }
+
+// reservedAuthParams are authentication request parameters controlled by vmauth.
+// Overriding them would break the code flow or its CSRF and replay protection.
+var reservedAuthParams = []string{"response_type", "client_id", "redirect_uri", "scope", "nonce", "state"}
 
 // normalizeSSOConfigs validates and initializes all SSO configs.
 func normalizeSSOConfigs(cfgs []*ssoConfig) error {
@@ -121,6 +134,10 @@ type ssoOIDCConfig struct {
 	// protocol-relative path). Defaults to "/".
 	DefaultRedirectURL string `yaml:"default_redirect_url,omitempty"`
 
+	// AuthParams are additional query parameters added to the authentication request
+	// sent to the IdP authorization endpoint.
+	AuthParams map[string]string `yaml:"auth_params,omitempty"`
+
 	pm atomic.Pointer[oidcProviderMetadata]
 }
 
@@ -151,6 +168,35 @@ func (c *ssoOIDCConfig) getCallbackURL(host string) string {
 		scheme = "https"
 	}
 	return scheme + "://" + host + getPathWithPrefix("/_vmauth/sso/callback")
+}
+
+// getAuthenticationURL returns the IdP authorization endpoint URL with the authentication request parameters.
+// Query parameters already present in the endpoint are retained as required by
+// https://datatracker.ietf.org/doc/html/rfc6749#section-3.1
+// Parameters set by vmauth (response_type, client_id, redirect_uri, scope, nonce, state)
+// always override the endpoint ones, so the discovery document cannot inject them.
+// See https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest
+func (c *ssoOIDCConfig) getAuthenticationURL(authorizationEndpoint, callbackURL, nonceHash, state string) (string, error) {
+	u, err := url.Parse(authorizationEndpoint)
+	if err != nil {
+		return "", fmt.Errorf("cannot parse authorization_endpoint %q: %w", authorizationEndpoint, err)
+	}
+	// url.URL.Query() silently drops the parameters it cannot parse, e.g. ones containing semicolons.
+	params, err := url.ParseQuery(u.RawQuery)
+	if err != nil {
+		return "", fmt.Errorf("cannot parse query of authorization_endpoint %q: %w", authorizationEndpoint, err)
+	}
+	for k, v := range c.AuthParams {
+		params.Set(k, v)
+	}
+	params.Set("response_type", "code")
+	params.Set("client_id", c.ClientID)
+	params.Set("redirect_uri", callbackURL)
+	params.Set("scope", strings.Join(c.Scopes, " "))
+	params.Set("nonce", nonceHash)
+	params.Set("state", state)
+	u.RawQuery = params.Encode()
+	return u.String(), nil
 }
 
 var (
@@ -410,19 +456,17 @@ func processSSOStart(w http.ResponseWriter, r *http.Request) {
 	h := sha256.Sum256([]byte(nonce))
 	nonceHash := base64.RawURLEncoding.EncodeToString(h[:])
 
-	callbackURL := oidc.getCallbackURL(r.Host)
-	scopes := oidc.Scopes
-
-	params := url.Values{}
-	params.Set("response_type", "code")
-	params.Set("client_id", oidc.ClientID)
-	params.Set("redirect_uri", callbackURL)
-	params.Set("scope", strings.Join(scopes, " "))
-	params.Set("nonce", nonceHash)
-	params.Set("state", state)
+	authURL, err := oidc.getAuthenticationURL(pm.AuthorizationEndpoint, oidc.getCallbackURL(r.Host), nonceHash, state)
+	if err != nil {
+		ssoLogger.Errorf("SSO start at host %s (IdP %s) failed to build authentication URL: %s", r.Host, oidc.Issuer, err)
+		setSSONoCacheHeaders(w)
+		w.WriteHeader(http.StatusInternalServerError)
+		WriteSSOErrorPage(w, "Internal Server Error", "", getPathWithPrefix(redirectURL))
+		return
+	}
 
 	setSSONoCacheHeaders(w)
-	http.Redirect(w, r, pm.AuthorizationEndpoint+"?"+params.Encode(), http.StatusFound)
+	http.Redirect(w, r, authURL, http.StatusFound)
 }
 
 // processSSOCallback handles the OIDC authorization code callback at /_vmauth/sso/callback.
