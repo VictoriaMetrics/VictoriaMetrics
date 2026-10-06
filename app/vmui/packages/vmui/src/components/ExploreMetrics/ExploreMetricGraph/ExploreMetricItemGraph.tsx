@@ -1,5 +1,5 @@
 import { useStep } from "../../../state/step/StepStateContext";
-import { FC, useMemo, useState } from "preact/compat";
+import { FC, useEffect, useMemo, useState } from "preact/compat";
 import { useFetchQuery } from "../../../hooks/useFetchQuery";
 import { useGraphDispatch, useGraphState } from "../../../state/graph/GraphStateContext";
 import GraphView from "../../Views/GraphView/GraphView";
@@ -12,6 +12,7 @@ import classNames from "classnames";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import WarningLimitSeries from "../../../pages/CustomPanel/WarningLimitSeries/WarningLimitSeries";
 import { DisplayType } from "../../../types";
+import { getDurationFromMilliseconds, getSecondsFromDuration } from "../../../utils/time";
 
 interface ExploreMetricItemGraphProps {
   name: string,
@@ -36,8 +37,11 @@ const ExploreMetricItem: FC<ExploreMetricItemGraphProps> = ({
   const graphDispatch = useGraphDispatch();
   const timeDispatch = useTimeDispatch();
 
-  const { effective: step } = useStep();
+  const { calculated, override } = useStep();
+  const [isHeatmap, setIsHeatmap] = useState(false);
   const [showAllSeries, setShowAllSeries] = useState(false);
+  const heatmapStep = getDurationFromMilliseconds(getSecondsFromDuration(calculated) * 10 * 1000);
+  const step = override ?? (isHeatmap ? heatmapStep : calculated);
 
 
   const queries = useMemo(() => {
@@ -78,6 +82,10 @@ with (q = ${queryBase}) (
   const setPeriod = ({ from, to }: {from: Date, to: Date}) => {
     timeDispatch({ type: "SET_PERIOD", payload: { from, to } });
   };
+
+  useEffect(() => {
+    setIsHeatmap(isHistogram);
+  }, [isHistogram]);
 
   return (
     <div
