@@ -1077,7 +1077,7 @@ It requires the flag value to be set for each `-remoteWrite.url`.
 ```
 
  It allows to remove `-remoteWrite.url=http://url-1` from the middle of configuration and keep queue data for `--remoteWrite.url=http://url-2`.
-Because with default configuration vmagent calculates the subfolder name for the persistent queue based on it's position at arg list.
+By default, vmagent calculates the persistent queue subfolder name based on the URL's position in the argument list.
 
 ### On-disk persistence and data processing order
 
