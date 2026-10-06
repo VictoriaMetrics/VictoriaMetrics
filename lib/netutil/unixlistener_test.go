@@ -22,7 +22,7 @@ func TestUnixListenerSuccess(t *testing.T) {
 		}
 	}
 
-	tmpDir := t.TempDir()
+	tmpDir := socketTempDir(t)
 
 	// Socket file does not exist.
 	socketPath := filepath.Join(tmpDir, "1.sock")
@@ -50,7 +50,7 @@ func TestUnixListenerFailure(t *testing.T) {
 		}
 	}
 
-	tmpDir := t.TempDir()
+	tmpDir := socketTempDir(t)
 
 	// Must fail when existing socket file returns permissions denied error.
 	if os.Geteuid() == 0 {
@@ -96,4 +96,25 @@ func createStaleSocket(t *testing.T, addr string) {
 	if err := l.Close(); err != nil {
 		t.Fatalf("cannot close unix listener: %s", err)
 	}
+}
+
+// socketTempDir returns a temporary directory for unix socket files.
+//
+// t.TempDir() is placed under TMPDIR, which can make socket paths longer than
+// the sun_path limit (104 bytes on macOS, 108 on Linux). Fall back to /tmp in this case.
+// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11705
+func socketTempDir(t *testing.T) string {
+	t.Helper()
+	tmpDir := t.TempDir()
+	if len(filepath.Join(tmpDir, "1.sock")) < 100 {
+		return tmpDir
+	}
+	tmpDir, err := os.MkdirTemp("/tmp", "vm-unixlistener-")
+	if err != nil {
+		t.Fatalf("cannot create temporary directory for unix sockets: %s", err)
+	}
+	t.Cleanup(func() {
+		_ = os.RemoveAll(tmpDir)
+	})
+	return tmpDir
 }
