@@ -33,8 +33,9 @@ const StepConfigurator: FC = () => {
 
   const handleApply = () => {
     if (!edited.current || error) return;
-    const durations = customStep.match(/[a-zA-Z]+/g) || [];
-    const value = durations.length ? customStep : `${customStep}s`;
+    const normalized = (customStep.match(/([0-9]*\.[0-9]+|[0-9]+)([a-zA-Z]+)?/g) || []).join("");
+    const durations = normalized.match(/[a-zA-Z]+/g) || [];
+    const value = durations.length ? normalized : `${normalized}s`;
     setOverride(value);
     setCustomStep(value);
     edited.current = false;
@@ -57,13 +58,14 @@ const StepConfigurator: FC = () => {
   };
 
   const handleChangeStep = (value: string) => {
-    const numbers = value.match(/[-+]?([0-9]*\.[0-9]+|[0-9]+)/g) || [];
-    const durations = value.match(/[a-zA-Z]+/g) || [];
+    const normalized = value.replace(/[^0-9.a-zA-Z]/g, "");
+    const numbers = normalized.match(/[-+]?([0-9]*\.[0-9]+|[0-9]+)/g) || [];
+    const durations = normalized.match(/[a-zA-Z]+/g) || [];
     const isValidNumbers = numbers.length && numbers.every(num => parseFloat(num) > 0);
     const isValidDuration = durations.every(d => supportedDurations.find(dur => dur.short === d));
     const isValidStep = isValidNumbers && isValidDuration;
 
-    setCustomStep(value);
+    setCustomStep(normalized);
     edited.current = true;
 
     if (isValidStep) {
