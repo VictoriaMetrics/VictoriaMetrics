@@ -334,8 +334,10 @@ func processSSOAccessDenied(w http.ResponseWriter, r *http.Request, ac *AuthConf
 	if len(ssoAt) == 0 || len(ats) > 0 {
 		return false
 	}
-
-	return processSSOLogin(w, r, ac, true)
+	if !processSSOLogin(w, r, ac, true) {
+		handleInvalidAuthToken(w, r, []string{ssoAt})
+	}
+	return true
 }
 
 // processSSOStart handles /_vmauth/sso/start — the target of the "Login with SSO" button.
