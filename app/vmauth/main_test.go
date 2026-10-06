@@ -1570,6 +1570,78 @@ Unauthorized
 `)
 }
 
+func TestSSOCookieIsNotMatchedAgainstStaticUsers(t *testing.T) {
+	oidcSrv := httptest.NewServer(http.NotFoundHandler())
+	defer oidcSrv.Close()
+
+	var backendCalls atomic.Int64
+	backSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		backendCalls.Add(1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer backSrv.Close()
+
+	cfgStr := `
+users:
+- bearer_token: secret-token
+  url_prefix: ` + backSrv.URL + `/
+sso:
+- src_host: some-host.com
+  oidc:
+    issuer: ` + oidcSrv.URL + `
+    client_id: my-client
+    client_secret: my-secret
+    cookie_secret: "0123456789abcdef"
+`
+	cfgOrigP := authConfigData.Load()
+	if _, err := reloadAuthConfigData([]byte(cfgStr)); err != nil {
+		t.Fatalf("cannot load config data: %s", err)
+	}
+	defer func() {
+		cfgOrig := []byte("unauthorized_user:\n  url_prefix: http://foo/bar")
+		if cfgOrigP != nil {
+			cfgOrig = *cfgOrigP
+		}
+		if _, err := reloadAuthConfigData(cfgOrig); err != nil {
+			t.Fatalf("cannot restore original config: %s", err)
+		}
+	}()
+
+	f := func(method string, setAuth func(r *http.Request), statusCodeExpected int, backendCallsExpected int64) {
+		t.Helper()
+
+		backendCalls.Store(0)
+		r := httptest.NewRequest(method, "http://some-host.com/api/v1/query", nil)
+		setAuth(r)
+
+		w := &fakeResponseWriter{}
+		if !requestHandlerWithInternalRoutes(w, r) {
+			t.Fatalf("unexpected false returned from requestHandler")
+		}
+		if w.statusCode != statusCodeExpected {
+			t.Fatalf("unexpected status code; got %d; want %d; response:\n%s", w.statusCode, statusCodeExpected, w.getResponse())
+		}
+		if n := backendCalls.Load(); n != backendCallsExpected {
+			t.Fatalf("unexpected number of backend calls; got %d; want %d", n, backendCallsExpected)
+		}
+	}
+
+	// the bearer token passed via Authorization header is accepted
+	f(http.MethodGet, func(r *http.Request) {
+		r.Header.Set("Authorization", "Bearer secret-token")
+	}, http.StatusOK, 1)
+
+	// the bearer token passed via SSO cookie isn't accepted, so the SSO login page with "Access Denied" is shown
+	f(http.MethodGet, func(r *http.Request) {
+		r.AddCookie(&http.Cookie{Name: ssoCookieName, Value: "secret-token"})
+	}, http.StatusForbidden, 0)
+
+	// the bearer token passed via SSO cookie isn't accepted for non-GET requests, which cannot be served with the SSO login page
+	f(http.MethodPost, func(r *http.Request) {
+		r.AddCookie(&http.Cookie{Name: ssoCookieName, Value: "secret-token"})
+	}, http.StatusUnauthorized, 0)
+}
+
 type fakeResponseWriter struct {
 	statusCode int
 	h          http.Header

@@ -184,6 +184,22 @@ func requestHandlerWithInternalRoutes(w http.ResponseWriter, r *http.Request) bo
 	return requestHandler(w, r)
 }
 
+func processEmptyAuthRequest(w http.ResponseWriter, r *http.Request, ac *AuthConfig) {
+	if processSSOLogin(w, r, ac, false) {
+		return
+	}
+
+	// Process requests for unauthorized users
+	ui := ac.UnauthorizedUser
+	if ui.hasAnyURLs() {
+		processUserRequest(w, r, ui, nil)
+		return
+	}
+
+	ui.logRequest(r, `unauthorized`, http.StatusUnauthorized, 0)
+	handleMissingAuthorizationError(w)
+}
+
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	if r.URL.Path == "/_vmauth/sso/start" {
 		processSSOStart(w, r)
@@ -193,22 +209,14 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		processSSOCallback(w, r)
 		return true
 	}
+	ac := authConfig.Load()
 
 	ats := getAuthTokensFromRequest(r)
-	if len(ats) == 0 {
-		if processSSOLogin(w, r) {
-			return true
-		}
+	ssoAt := getSSOAuthTokenFromRequest(ac, r)
 
-		// Process requests for unauthorized users
-		ui := authConfig.Load().UnauthorizedUser
-		if ui.hasAnyURLs() {
-			processUserRequest(w, r, ui, nil)
-			return true
-		}
-
-		ui.logRequest(r, `unauthorized`, http.StatusUnauthorized, 0)
-		handleMissingAuthorizationError(w)
+	if len(ats) == 0 && len(ssoAt) == 0 {
+		// fast path
+		processEmptyAuthRequest(w, r, ac)
 		return true
 	}
 
@@ -216,7 +224,9 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		processUserRequest(w, r, ui, nil)
 		return true
 	}
-	if ui, tkn := getJWTUserInfo(ats); ui != nil {
+	// The SSO cookie is verified only as jwt token. Matching it against static auth tokens
+	// would allow brute-forcing them via the SSO cookie without the slowdown.
+	if ui, tkn := getJWTUserInfo(ats, ssoAt); ui != nil {
 		if tkn == nil {
 			logger.Panicf("BUG: unexpected nil jwt token for user %q", ui.name())
 		}
@@ -234,29 +244,15 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 	}
 
-	if processSSOLogin(w, r) {
+	if processSSOAccessDenied(w, r, ac, ats, ssoAt) {
 		return true
 	}
 
-	uu := authConfig.Load().UnauthorizedUser
-	if uu.hasAnyURLs() {
-		processUserRequest(w, r, uu, nil)
-		return true
-	}
-
-	invalidAuthTokenRequests.Inc()
+	// Slow down all the requests with invalid auth tokens in order to prevent brute-forcing them.
+	// This includes requests with a valid jwt token without vm_access claim, since an attacker
+	// can combine such a token with other auth tokens, which are brute-forced against static users.
 	slowdownUnauthorizedResponse(r)
-	uu.logRequest(r, `unauthorized`, http.StatusUnauthorized, 0)
-	if *logInvalidAuthTokens {
-		err := fmt.Errorf("cannot authorize request with auth tokens %q", ats)
-		err = &httpserver.ErrorWithStatusCode{
-			Err:        err,
-			StatusCode: http.StatusUnauthorized,
-		}
-		httpserver.Errorf(w, r, "%s", err)
-	} else {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-	}
+	handleInvalidAuthToken(w, r, ats)
 	return true
 }
 
@@ -866,6 +862,28 @@ func handleConcurrencyLimitError(w http.ResponseWriter, r *http.Request, err err
 		StatusCode: http.StatusTooManyRequests,
 	}
 	httpserver.Errorf(w, r, "%s", err)
+}
+
+func handleInvalidAuthToken(w http.ResponseWriter, r *http.Request, ats []string) {
+	uu := authConfig.Load().UnauthorizedUser
+	if uu.hasAnyURLs() {
+		processUserRequest(w, r, uu, nil)
+		return
+	}
+
+	invalidAuthTokenRequests.Inc()
+	uu.logRequest(r, `unauthorized`, http.StatusUnauthorized, 0)
+
+	if *logInvalidAuthTokens {
+		err := fmt.Errorf("cannot authorize request with auth tokens %q", ats)
+		err = &httpserver.ErrorWithStatusCode{
+			Err:        err,
+			StatusCode: http.StatusUnauthorized,
+		}
+		httpserver.Errorf(w, r, "%s", err)
+	} else {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	}
 }
 
 // bufferedBody serves two purposes:
