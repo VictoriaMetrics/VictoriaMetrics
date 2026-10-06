@@ -1,3 +1,4 @@
+import { useStep } from "../../../state/step/StepStateContext";
 import { FC, useEffect, useMemo, useState } from "preact/compat";
 import { useFetchQuery } from "../../../hooks/useFetchQuery";
 import { useGraphDispatch, useGraphState } from "../../../state/graph/GraphStateContext";
@@ -9,8 +10,9 @@ import Alert from "../../Main/Alert/Alert";
 import "./style.scss";
 import classNames from "classnames";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
-import { getDurationFromMilliseconds, getSecondsFromDuration, getStepFromDuration } from "../../../utils/time";
 import WarningLimitSeries from "../../../pages/CustomPanel/WarningLimitSeries/WarningLimitSeries";
+import { DisplayType } from "../../../types";
+import { getDurationFromMilliseconds, getSecondsFromDuration } from "../../../utils/time";
 
 interface ExploreMetricItemGraphProps {
   name: string,
@@ -30,17 +32,16 @@ const ExploreMetricItem: FC<ExploreMetricItemGraphProps> = ({
   height,
 }) => {
   const { isMobile } = useDeviceDetect();
-  const { customStep, yaxis } = useGraphState();
+  const { yaxis } = useGraphState();
   const { period } = useTimeState();
   const graphDispatch = useGraphDispatch();
   const timeDispatch = useTimeDispatch();
 
-  const defaultStep = getStepFromDuration(period.end - period.start);
-  const stepSeconds = getSecondsFromDuration(customStep);
-  const heatmapStep = getDurationFromMilliseconds(stepSeconds * 10 * 1000);
+  const { calculated, override } = useStep();
   const [isHeatmap, setIsHeatmap] = useState(false);
   const [showAllSeries, setShowAllSeries] = useState(false);
-  const step = isHeatmap && customStep === defaultStep ? heatmapStep : customStep;
+  const heatmapStep = getDurationFromMilliseconds(getSecondsFromDuration(calculated) * 10 * 1000);
+  const step = override ?? (isHeatmap ? heatmapStep : calculated);
 
 
   const queries = useMemo(() => {
@@ -70,7 +71,8 @@ with (q = ${queryBase}) (
     predefinedQuery: queries,
     visible: true,
     customStep: step,
-    showAllSeries
+    showAllSeries,
+    display: DisplayType.chart
   });
 
   const setYaxisLimits = (limits: AxisRange) => {
