@@ -956,4 +956,31 @@ test_delta 4
   outputs: [sum_samples_total]
   enable_windows: true
 `, "1111")
+
+	// Reproduce issue #11707: samples from both windows in one push must not move the increase into the next window
+	f([]string{`
+foo 0
+`, `
+foo 0 -25
+`, `
+foo 1 -2
+foo 1 1
+`, `
+foo 1 -25
+`, `
+foo 2 -2
+foo 2 1
+`, `
+foo 2 -25
+`, `
+foo 3 -2
+foo 3 1
+`}, 30*time.Second, `foo:1m_increase 1
+foo:1m_increase 1
+foo:1m_increase 1
+`, `
+- interval: 1m
+  outputs: [increase]
+  enable_windows: true
+`, "1111111111")
 }

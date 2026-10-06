@@ -1035,14 +1035,18 @@ func (a *aggregator) Push(tss []prompb.TimeSeries, matchIdxs []uint32) {
 		pushSamples = a.da.pushSamples
 	}
 
-	if len(ctx.blue) > 0 {
-		a.matchedSamples.Add(len(ctx.blue))
-		pushSamples(ctx.blue, deleteDeadlineMsec, false)
+	// Push the current window first, so outputs with state shared between windows get samples in timestamp order.
+	current, next := ctx.blue, ctx.green
+	if cs.isGreen {
+		current, next = ctx.green, ctx.blue
 	}
-
-	if len(ctx.green) > 0 {
-		a.matchedSamples.Add(len(ctx.green))
-		pushSamples(ctx.green, deleteDeadlineMsec, true)
+	if len(current) > 0 {
+		a.matchedSamples.Add(len(current))
+		pushSamples(current, deleteDeadlineMsec, cs.isGreen)
+	}
+	if len(next) > 0 {
+		a.matchedSamples.Add(len(next))
+		pushSamples(next, deleteDeadlineMsec, !cs.isGreen)
 	}
 }
 
