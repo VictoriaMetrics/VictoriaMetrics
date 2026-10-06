@@ -112,6 +112,7 @@ func (tr *TimeRange) contains(timestamp int64) bool {
 }
 
 // Zero time range and zero date are used to force global index search.
+// TODO(@rtm0): Remove these, rely on disable{Global,PerDay}Index flags instead.
 var (
 	globalIndexDate      = uint64(0)
 	globalIndexTimeRange = TimeRange{}

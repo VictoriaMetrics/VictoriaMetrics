@@ -59,7 +59,7 @@ func TestStorageSearchTSIDs_CorruptedIndex(t *testing.T) {
 		tfssAll := []*TagFilters{tfsAll}
 
 		searchMetricIDs := func() []uint64 {
-			metricIDs, err := idb.searchMetricIDs(noDeadlineContext, tfssAll, tr, 1e9)
+			metricIDs, err := idb.searchMetricIDs(noDeadlineContext, nil, tfssAll, tr, 1e9)
 			if err != nil {
 				panic(fmt.Sprintf("searchMetricIDs() failed unexpectedly: %v", err))
 			}
@@ -161,7 +161,7 @@ func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
 		tfssAll := []*TagFilters{tfsAll}
 
 		searchMetricIDs := func() []uint64 {
-			metricIDs, err := idb.searchMetricIDs(noDeadlineContext, tfssAll, tr, 1e9)
+			metricIDs, err := idb.searchMetricIDs(noDeadlineContext, nil, tfssAll, tr, 1e9)
 			if err != nil {
 				panic(fmt.Sprintf("searchMetricIDs() failed unexpectedly: %v", err))
 			}
@@ -357,7 +357,7 @@ func TestStorageRotateIndexDBPrefill(t *testing.T) {
 			// metrics will be created.
 			preCreated, repopulated := s.timeseriesPreCreated.Load(), s.timeseriesRepopulated.Load()
 			if preCreated+repopulated+newCreated != numSeries {
-				t.Fatalf("unexpected number of pre-populated, repopulated, and new timeseries: got %d + %d + %d, want %d", preCreated, repopulated, newCreated, numSeries)
+				t.Fatalf("unexpected number of pre-created, repopulated, and new timeseries: got %d + %d + %d, want %d", preCreated, repopulated, newCreated, numSeries)
 			}
 		})
 	}
