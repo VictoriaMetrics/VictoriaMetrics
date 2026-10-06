@@ -938,6 +938,9 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, sanitizedURL string)
 	pqURL.Fragment = ""
 	queuePath := remoteWriteURLQueuePaths.GetOptionalArg(argIdx)
 	if queuePath == "" {
+		if len(*remoteWriteURLQueuePaths) > 0 {
+			logger.Fatalf("-remoteWrite.url.queuePath must not be empty for -remoteWrite.url at index %d", argIdx)
+		}
 		h := xxhash.Sum64([]byte(pqURL.String()))
 		queuePath = filepath.Join(*tmpDataPath, persistentQueueDirname, fmt.Sprintf("%d_%016X", argIdx+1, h))
 	}
