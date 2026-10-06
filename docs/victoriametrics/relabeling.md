@@ -1100,7 +1100,7 @@ section instead of `relabel_configs` section. They serve different purposes:
   targets and removed after relabeling:
   - Meta-labels starting with the `__meta_` prefix. The specific sets of labels
     for each supported service discovery option are listed in
-    [Prometheus Service Discovery](https://docs.victoriametrics.com/victoriametrics/sd_configs/#prometheus-service-discovery).
+    [Prometheus Service Discovery](https://docs.victoriametrics.com/victoriametrics/sd_configs/#supported-service-discovery-configs).
   - Additional labels with the `__` prefix other than `__meta_` labels, such as
     [`__scheme__` or `__address__`](#how-to-modify-scrape-urls-in-targets). It
     is common practice to store temporary labels with names starting with `__`

@@ -126,6 +126,15 @@ func TestPromRegex(t *testing.T) {
 	f(".*;|;.*", "foo;", true)
 	f(".*;|;.*", ";foo", true)
 
+	// An alternation followed by `.*literal.*` or `.+literal.+` must keep
+	// the alternation. getOrValues() used to strip the leading alternation from
+	// the parsed regexp in place, so NewPromRegex() saw only the `.*c.*` tail
+	// and took the substring fast path.
+	f("(a|b).*c.*", "ac", true)
+	f("(a|b).*c.*", "c", false)
+	f("(a|b).+c.+", "axcx", true)
+	f("(a|b).+c.+", "xcx", false)
+
 	f(".*foo(bar|baz)", "fooxfoobaz", true)
 	f(".*foo(bar|baz)", "fooxfooban", false)
 	f(".*foo(bar|baz)", "fooxfooban foobar", true)

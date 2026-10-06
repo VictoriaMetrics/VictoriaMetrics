@@ -675,7 +675,7 @@ VictoriaMetrics exposes the current number of available snapshots via `vm_snapsh
 
 ## How to delete time series
 
-Send a request to `http://<victoriametrics-addr>:8428/api/v1/admin/tsdb/delete_series?match[]=<timeseries_selector_for_delete>`,
+Send a POST request to `http://<victoriametrics-addr>:8428/api/v1/admin/tsdb/delete_series?match[]=<timeseries_selector_for_delete>`,
 where `<timeseries_selector_for_delete>` may contain any [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors)
 for metrics to delete. Delete API doesn't support the deletion of specific time ranges, the series can only be deleted completely.
 Storage space for the deleted time series isn't freed instantly - it is freed during subsequent
@@ -690,7 +690,7 @@ adjust `start` and `end` to a suitable range to achieve match hits. Also, if the
 rather big you will need to set `-search.maxDeleteSeries` flag (see [Resource usage limits](#resource-usage-limits)).
 
 The `/api/v1/admin/tsdb/delete_series` handler may be protected with `authKey` if `-deleteAuthKey` command-line flag is set.
-Note that handler accepts any HTTP method, so sending a `GET` request to `/api/v1/admin/tsdb/delete_series` will result in deletion of time series.
+Note that handler accepts only HTTP POST method.
 
 The delete API is intended mainly for the following cases:
 
@@ -1335,13 +1335,13 @@ Load-balancing is **the most cost-efficient option** - it queries only one Victo
 
 The downside of this approach is that when one instance goes down and then comes back, the load balancer may start routing read queries to it again. Even though this instance didn't catch up yet with vmagent's queue and may return incomplete results.
 
-This shortcoming can be mitigated during sequential upgrades by removing the catching-up instance from the vmauth configuration until the vmagent queues are drained. During sequential upgrades, this mechanism is automatically applied when using the [Kubernetes VMDistributed](https://docs.victoriametrics.com/operator/resources/vmdistributed/) resource. After an outage, you must remove the recovered instance manually until its vmagent queues are drained.
+This shortcoming can be mitigated by removing the catching-up instance from the vmauth configuration until the vmagent queues are drained. If using [Kubernetes VMDistributed](https://docs.victoriametrics.com/operator/resources/vmdistributed/) resource, this mechanism is automatically applied during orchestrated updates.
 
 Another option is to use to [query all replicas at once](https://docs.victoriametrics.com/victoriametrics/#query-multiple-replicas-via-vmselect), as described below.
 
 #### Query multiple replicas via vmselect
 
-In this option, we use a top-level [vmselect](https://docs.victoriametrics.com/victoriametrics/vmselect/) to query all
+In this option, we use a top-level [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#architecture-overview) to query all
 remote destinations simultaneously and merge the results.
 
 This option is only possible if VictoriaMetrics single-node instances are configured with the `-vmselectAddr` flag.
@@ -2362,14 +2362,22 @@ are added to all the metrics before sending them to the remote storage:
 
 ## Caches
 
+VictoriaMetrics uses various internal caches to optimize write and read load. Command-line flags `-memory.allowedPercent` and `-memory.allowedBytes` limit the amounts of memory that caches can use. To increase cache's memory limit, simply increase the amount of available memory to VictoriaMetrics, and it will automatically re-distribute it among the caches.
+
+VictoriaMetrics stores caches on disk during graceful shutdown and re-loads them on startup. This helps VictoriaMetrics to catch up faster with the workload after restart. 
+If VictoriaMetrics can't restore the cache from the disk, it will print the corresponding warning message in the logs. See [how to drop caches](https://docs.victoriametrics.com/victoriametrics/#cache-removal) if you need intentionally to remove the cache on startup.
+
+> Note: due to specifics of the cache implementation, caches can reset automatically after changing the amount of available memory or CPUs.
+
+VictoriaMetrics exposes various metrics for monitoring the cache usage. These metrics are available on [Grafana dashboards](https://docs.victoriametrics.com/victoriametrics/#monitoring) and are explained in [cache tuning docs](https://docs.victoriametrics.com/victoriametrics/#cache-tuning).
+
 ### Cache removal
 
-VictoriaMetrics uses various internal caches. These caches are stored to `<-storageDataPath>/cache` directory during graceful shutdown
-(e.g. when VictoriaMetrics is stopped by sending `SIGINT` signal). The caches are read on the next VictoriaMetrics startup.
-Sometimes it is needed to remove such caches on the next startup. This can be done in the following ways:
+Caches are stored in `<-storageDataPath>/cache` directory during graceful shutdown (e.g. when VictoriaMetrics is stopped by sending `SIGINT` signal), 
+so they can be restored back during startup. To remove such caches on the next startup, use one of the following options:
 
-* By manually removing the `<-storageDataPath>/cache` directory when VictoriaMetrics is stopped.
-* By placing `reset_cache_on_startup` file inside the `<-storageDataPath>/cache` directory before the restart of VictoriaMetrics.
+* Manually remove the `<-storageDataPath>/cache` directory when VictoriaMetrics is stopped.
+* Place `reset_cache_on_startup` file inside the `<-storageDataPath>/cache` directory before the restart of VictoriaMetrics.
   In this case VictoriaMetrics will automatically remove all the caches on the next start.
   See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1447) for details.
 
@@ -2393,7 +2401,6 @@ See also [cache removal docs](#cache-removal).
 
 ### Cache tuning
 
-VictoriaMetrics uses various in-memory caches for faster data ingestion and query performance.
 The following metrics for each type of cache are exported at [`/metrics` page](#monitoring):
 
 * `vm_cache_size_bytes` - the actual cache size
@@ -2411,11 +2418,11 @@ of reads for which no value was found in the cache. If the cache utilization is 
 cache misses, then the cache is either not accepting new entries or evicting existing ones. Its
 size may need to be increased.
 
-Please note, default cache sizes were carefully adjusted accordingly to the most
+> Please note, default cache sizes were carefully adjusted accordingly to the most
 practical scenarios and workloads. Change the defaults only if you understand the implications
 and vmstorage has enough free memory to accommodate new cache sizes.
 
-To override the default values see command-line flags with `-storage.cacheSize` prefix.
+To override the default values see command-line flag `-cacheExpireDuration` and flags with `-storage.cacheSize` prefix.
 See the full description of [command-line flags](#list-of-command-line-flags).
 
 ## Data migration

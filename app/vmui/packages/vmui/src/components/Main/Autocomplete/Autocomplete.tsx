@@ -6,6 +6,7 @@ import { DoneIcon, RefreshIcon } from "../Icons";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import useBoolean from "../../../hooks/useBoolean";
 import useEventListener from "../../../hooks/useEventListener";
+import SafeHtml from "../SafeHtml/SafeHtml";
 
 export interface AutocompleteOptions {
   value: string;
@@ -230,9 +231,10 @@ const Autocomplete: FC<AutocompleteProps> = ({
           <div className="vm-autocomplete-info__type">
             {foundOptions[focusOption.index].type}
           </div>
-          <div
+          <SafeHtml
+            tagName="div"
             className="vm-autocomplete-info__description"
-            dangerouslySetInnerHTML={{ __html: foundOptions[focusOption.index].description || "" }}
+            value={foundOptions[focusOption.index].description || ""}
           />
         </div>
       )}

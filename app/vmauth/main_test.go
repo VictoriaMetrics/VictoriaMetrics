@@ -4,16 +4,9 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"crypto"
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/x509"
-	"encoding/base64"
 	"encoding/json"
-	"encoding/pem"
 	"fmt"
 	"io"
-	"math/big"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -39,20 +32,7 @@ func TestRequestHandler(t *testing.T) {
 		cfgStr = strings.ReplaceAll(cfgStr, "{BACKEND}", ts.URL)
 		responseExpected = strings.ReplaceAll(responseExpected, "{BACKEND}", ts.URL)
 
-		cfgOrigP := authConfigData.Load()
-		if _, err := reloadAuthConfigData([]byte(cfgStr)); err != nil {
-			t.Fatalf("cannot load config data: %s", err)
-		}
-		defer func() {
-			cfgOrig := []byte("unauthorized_user:\n  url_prefix: http://foo/bar")
-			if cfgOrigP != nil {
-				cfgOrig = *cfgOrigP
-			}
-			_, err := reloadAuthConfigData(cfgOrig)
-			if err != nil {
-				t.Fatalf("cannot load the original config: %s", err)
-			}
-		}()
+		defer setAuthConfig(t, cfgStr)()
 
 		r, err := http.NewRequest(http.MethodGet, requestURL, nil)
 		if err != nil {
@@ -636,61 +616,7 @@ X-Forwarded-For: 12.34.56.78, 42.2.3.84`
 }
 
 func TestJWTRequestHandler(t *testing.T) {
-	// Generate RSA key pair for testing
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		t.Fatalf("cannot generate RSA key: %s", err)
-	}
-
-	// Generate public key PEM
-	publicKeyBytes, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
-	if err != nil {
-		t.Fatalf("cannot marshal public key: %s", err)
-	}
-	publicKeyPEM := pem.EncodeToMemory(&pem.Block{
-		Type:  "PUBLIC KEY",
-		Bytes: publicKeyBytes,
-	})
-
-	genToken := func(t *testing.T, body map[string]any, valid bool) string {
-		t.Helper()
-
-		headerJSON, err := json.Marshal(map[string]any{
-			"alg": "RS256",
-			"typ": "JWT",
-		})
-		if err != nil {
-			t.Fatalf("cannot marshal header: %s", err)
-		}
-		headerB64 := base64.RawURLEncoding.EncodeToString(headerJSON)
-
-		bodyJSON, err := json.Marshal(body)
-		if err != nil {
-			t.Fatalf("cannot marshal body: %s", err)
-		}
-		bodyB64 := base64.RawURLEncoding.EncodeToString(bodyJSON)
-
-		payload := headerB64 + "." + bodyB64
-
-		var signatureB64 string
-		if valid {
-			// Create real RSA signature
-			hash := crypto.SHA256
-			h := hash.New()
-			h.Write([]byte(payload))
-			digest := h.Sum(nil)
-
-			signature, err := rsa.SignPKCS1v15(rand.Reader, privateKey, hash, digest)
-			if err != nil {
-				t.Fatalf("cannot sign token: %s", err)
-			}
-			signatureB64 = base64.RawURLEncoding.EncodeToString(signature)
-		} else {
-			signatureB64 = base64.RawURLEncoding.EncodeToString([]byte("invalid_signature"))
-		}
-
-		return payload + "." + signatureB64
-	}
+	jt := newTokenTester(t)
 
 	f := func(cfgStr string, r *http.Request, responseExpected string) {
 		t.Helper()
@@ -735,20 +661,7 @@ func TestJWTRequestHandler(t *testing.T) {
 		cfgStr = strings.ReplaceAll(cfgStr, "{BACKEND}", ts.URL)
 		responseExpected = strings.ReplaceAll(responseExpected, "{BACKEND}", ts.URL)
 
-		cfgOrigP := authConfigData.Load()
-		if _, err := reloadAuthConfigData([]byte(cfgStr)); err != nil {
-			t.Fatalf("cannot load config data: %s", err)
-		}
-		defer func() {
-			cfgOrig := []byte("unauthorized_user:\n  url_prefix: http://foo/bar")
-			if cfgOrigP != nil {
-				cfgOrig = *cfgOrigP
-			}
-			_, err := reloadAuthConfigData(cfgOrig)
-			if err != nil {
-				t.Fatalf("cannot load the original config: %s", err)
-			}
-		}()
+		defer setAuthConfig(t, cfgStr)()
 
 		w := &fakeResponseWriter{}
 		if !requestHandlerWithInternalRoutes(w, r) {
@@ -769,28 +682,28 @@ users:
 - jwt:
     public_keys:
     - %q
-  url_prefix: {BACKEND}/foo`, string(publicKeyPEM))
-	noVMAccessClaimToken := genToken(t, nil, true)
-	minimalToken := genToken(t, map[string]any{
+  url_prefix: {BACKEND}/foo`, jt.PublicKeyPEM)
+	noVMAccessClaimToken := jt.GenToken(nil, true)
+	minimalToken := jt.GenToken(map[string]any{
 		"exp":       time.Now().Add(10 * time.Minute).Unix(),
 		"vm_access": map[string]any{},
 	}, true)
-	expiredToken := genToken(t, map[string]any{
+	expiredToken := jt.GenToken(map[string]any{
 		"exp":       10,
 		"vm_access": map[string]any{},
 	}, true)
-	invalidSignatureToken := genToken(t, map[string]any{
+	invalidSignatureToken := jt.GenToken(map[string]any{
 		"exp":       time.Now().Add(10 * time.Minute).Unix(),
 		"vm_access": map[string]any{},
 	}, false)
 
 	// token without vm_access claim, but with a custom claim usable for routing
-	roleToken := genToken(t, map[string]any{
+	roleToken := jt.GenToken(map[string]any{
 		"exp":  time.Now().Add(10 * time.Minute).Unix(),
 		"role": "admin",
 	}, true)
 
-	fullToken := genToken(t, map[string]any{
+	fullToken := jt.GenToken(map[string]any{
 		"exp": time.Now().Add(10 * time.Minute).Unix(),
 		"vm_access": map[string]any{
 			"metrics_account_id": 123,
@@ -847,7 +760,7 @@ users:
     - %q
     match_claims:
       role: admin
-  url_prefix: {BACKEND}/foo`, string(publicKeyPEM)), request, responseExpected)
+  url_prefix: {BACKEND}/foo`, jt.PublicKeyPEM), request, responseExpected)
 
 	// token without vm_access claim is accepted when default_vm_access_claim configured
 	request = httptest.NewRequest(`GET`, "http://some-host.com/abc", nil)
@@ -867,7 +780,7 @@ users:
       metrics_project_id: 10
     match_claims:
       role: admin
-  url_prefix: {BACKEND}/foo`, string(publicKeyPEM)), request, responseExpected)
+  url_prefix: {BACKEND}/foo`, jt.PublicKeyPEM), request, responseExpected)
 
 	// expired token
 	request = httptest.NewRequest(`GET`, "http://some-host.com/abc", nil)
@@ -921,9 +834,29 @@ users:
   username: a-user
   url_prefix: {BACKEND}/foo`, request, responseExpected)
 
+	// jwt-authenticated user hitting an unmatched path
+	request = httptest.NewRequest(`GET`, "http://some-host.com/unmatched-path", nil)
+	request.Header.Set(`Authorization`, `Bearer `+minimalToken)
+	responseExpected = `
+statusCode=400
+user jwt missing route for "http://some-host.com/unmatched-path"`
+	f(fmt.Sprintf(`
+users:
+# non-jwt user is important for this test case
+- username: some-user
+  password: secret
+  url_prefix: {BACKEND}/other
+- jwt:
+    public_keys:
+    - %q
+  url_map:
+  - src_paths:
+    - "/api/v1/query"
+    url_prefix: {BACKEND}/foo`, jt.PublicKeyPEM), request, responseExpected)
+
 	// auth with key from file
 	publicKeyFile := filepath.Join(t.TempDir(), "a_public_key.pem")
-	if err := os.WriteFile(publicKeyFile, []byte(publicKeyPEM), 0o644); err != nil {
+	if err := os.WriteFile(publicKeyFile, []byte(jt.PublicKeyPEM), 0o644); err != nil {
 		t.Fatalf("failed to write public key file: %s", err)
 	}
 	request = httptest.NewRequest(`GET`, "http://some-host.com/abc", nil)
@@ -956,7 +889,7 @@ users:
 - jwt:
     public_keys:
     - %q
-  url_prefix: {BACKEND}/select/{{.MetricsTenant}}/?extra_label={{.MetricsExtraLabels}}&extra_filters={{.MetricsExtraFilters}}`, string(publicKeyPEM)),
+  url_prefix: {BACKEND}/select/{{.MetricsTenant}}/?extra_label={{.MetricsExtraLabels}}&extra_filters={{.MetricsExtraFilters}}`, jt.PublicKeyPEM),
 		request,
 		responseExpected,
 	)
@@ -979,7 +912,7 @@ users:
 - jwt:
     public_keys:
     - %q
-  url_prefix: {BACKEND}/select/{{.MetricsTenant}}/?extra_label={{.MetricsExtraLabels}}&extra_filters={{.MetricsExtraFilters}}`, string(publicKeyPEM)),
+  url_prefix: {BACKEND}/select/{{.MetricsTenant}}/?extra_label={{.MetricsExtraLabels}}&extra_filters={{.MetricsExtraFilters}}`, jt.PublicKeyPEM),
 		request,
 		responseExpected,
 	)
@@ -1003,7 +936,7 @@ users:
   url_prefix: {BACKEND}/select/{{.MetricsAccountID}}/{{.MetricsProjectID}}
   headers:
   - "AccountID: {{.MetricsAccountID}}"
-  - "ProjectID: {{.MetricsProjectID}}"`, string(publicKeyPEM)),
+  - "ProjectID: {{.MetricsProjectID}}"`, jt.PublicKeyPEM),
 		request,
 		responseExpected,
 	)
@@ -1028,7 +961,7 @@ users:
 - jwt:
     public_keys:
     - %q
-  url_prefix: {BACKEND}/select/{{.MetricsTenant}}/?extra_label=aStaticLabel&extra_filters=aStaticFilter&extra_label={{.MetricsExtraLabels}}&extra_filters={{.MetricsExtraFilters}}`, string(publicKeyPEM)),
+  url_prefix: {BACKEND}/select/{{.MetricsTenant}}/?extra_label=aStaticLabel&extra_filters=aStaticFilter&extra_label={{.MetricsExtraLabels}}&extra_filters={{.MetricsExtraFilters}}`, jt.PublicKeyPEM),
 		request,
 		responseExpected,
 	)
@@ -1051,7 +984,7 @@ users:
 - jwt:
     public_keys:
     - %q
-  url_prefix: {BACKEND}/select/{{.MetricsTenant}}/?extra_label={{.MetricsExtraLabels}}&extra_filters={{.MetricsExtraFilters}}`, string(publicKeyPEM)),
+  url_prefix: {BACKEND}/select/{{.MetricsTenant}}/?extra_label={{.MetricsExtraLabels}}&extra_filters={{.MetricsExtraFilters}}`, jt.PublicKeyPEM),
 		request,
 		responseExpected,
 	)
@@ -1076,7 +1009,7 @@ users:
     public_keys:
     - %q
   merge_query_args: [extra_filters, extra_label]
-  url_prefix: {BACKEND}/select/{{.MetricsTenant}}/?extra_label={{.MetricsExtraLabels}}&extra_filters={{.MetricsExtraFilters}}`, string(publicKeyPEM)),
+  url_prefix: {BACKEND}/select/{{.MetricsTenant}}/?extra_label={{.MetricsExtraLabels}}&extra_filters={{.MetricsExtraFilters}}`, jt.PublicKeyPEM),
 		request,
 		responseExpected,
 	)
@@ -1097,7 +1030,7 @@ users:
     public_keys:
     - %q
   merge_query_args: [extra_filters, extra_label]
-  url_prefix: {BACKEND}/select/{{.MetricsTenant}}/`, string(publicKeyPEM)),
+  url_prefix: {BACKEND}/select/{{.MetricsTenant}}/`, jt.PublicKeyPEM),
 		request,
 		responseExpected,
 	)
@@ -1117,7 +1050,7 @@ users:
 - jwt:
     public_keys:
     - %q
-  url_prefix: {BACKEND}/select/{{.MetricsTenant}}/`, string(publicKeyPEM)),
+  url_prefix: {BACKEND}/select/{{.MetricsTenant}}/`, jt.PublicKeyPEM),
 		request,
 		responseExpected,
 	)
@@ -1142,7 +1075,7 @@ users:
     - %q
   url_map:
     - src_paths: ["/api/.*"]
-      url_prefix: {BACKEND}/select/{{.MetricsTenant}}/?extra_label={{.MetricsExtraLabels}}&extra_filters={{.MetricsExtraFilters}}`, string(publicKeyPEM)),
+      url_prefix: {BACKEND}/select/{{.MetricsTenant}}/?extra_label={{.MetricsExtraLabels}}&extra_filters={{.MetricsExtraFilters}}`, jt.PublicKeyPEM),
 		request,
 		responseExpected,
 	)
@@ -1169,7 +1102,7 @@ users:
   headers:
     - "AccountID: 555"
     - "ProjectID: 666"
-  url_prefix: {BACKEND}/select/logsql/?extra_filters={{.LogsExtraFilters}}&extra_stream_filters={{.LogsExtraStreamFilters}}`, string(publicKeyPEM)),
+  url_prefix: {BACKEND}/select/logsql/?extra_filters={{.LogsExtraFilters}}&extra_stream_filters={{.LogsExtraStreamFilters}}`, jt.PublicKeyPEM),
 		request,
 		responseExpected,
 	)
@@ -1193,7 +1126,7 @@ users:
   headers:
     - "AccountID: {{.LogsAccountID}}"
     - "ProjectID: {{.LogsProjectID}}"
-  url_prefix: {BACKEND}/select/logsql/?extra_filters={{.LogsExtraFilters}}&extra_stream_filters={{.LogsExtraStreamFilters}}`, string(publicKeyPEM)),
+  url_prefix: {BACKEND}/select/logsql/?extra_filters={{.LogsExtraFilters}}&extra_stream_filters={{.LogsExtraStreamFilters}}`, jt.PublicKeyPEM),
 		request,
 		responseExpected,
 	)
@@ -1222,7 +1155,7 @@ users:
   headers:
     - "AccountID: {{.LogsAccountID}}"
     - "ProjectID: {{.LogsProjectID}}"
-  url_prefix: {BACKEND}/select/logsql/?extra_filters=aStaticFilter&extra_stream_filters=aStaticStreamFilter&extra_filters={{.LogsExtraFilters}}&extra_stream_filters={{.LogsExtraStreamFilters}}`, string(publicKeyPEM)),
+  url_prefix: {BACKEND}/select/logsql/?extra_filters=aStaticFilter&extra_stream_filters=aStaticStreamFilter&extra_filters={{.LogsExtraFilters}}&extra_stream_filters={{.LogsExtraStreamFilters}}`, jt.PublicKeyPEM),
 		request,
 		responseExpected,
 	)
@@ -1251,7 +1184,7 @@ users:
   headers:
     - "AccountID: {{.LogsAccountID}}"
     - "ProjectID: {{.LogsProjectID}}"
-  url_prefix: {BACKEND}/select/logsql/?extra_filters=aStaticFilter&extra_stream_filters=aStaticStreamFilter&extra_filters={{.LogsExtraFilters}}&extra_stream_filters={{.LogsExtraStreamFilters}}`, string(publicKeyPEM)),
+  url_prefix: {BACKEND}/select/logsql/?extra_filters=aStaticFilter&extra_stream_filters=aStaticStreamFilter&extra_filters={{.LogsExtraFilters}}&extra_stream_filters={{.LogsExtraStreamFilters}}`, jt.PublicKeyPEM),
 		request,
 		responseExpected,
 	)
@@ -1279,7 +1212,7 @@ users:
   headers:
     - "AccountID: {{.LogsAccountID}}"
     - "ProjectID: {{.LogsProjectID}}"
-  url_prefix: {BACKEND}/select/logsql/?extra_filters={{.LogsExtraFilters}}&extra_stream_filters={{.LogsExtraStreamFilters}}`, string(publicKeyPEM)),
+  url_prefix: {BACKEND}/select/logsql/?extra_filters={{.LogsExtraFilters}}&extra_stream_filters={{.LogsExtraStreamFilters}}`, jt.PublicKeyPEM),
 		request,
 		responseExpected,
 	)
@@ -1308,7 +1241,7 @@ users:
     - "AccountID: {{.LogsAccountID}}"
     - "ProjectID: {{.LogsProjectID}}"
   merge_query_args: [extra_filters, extra_stream_filters]
-  url_prefix: {BACKEND}/select/logsql/?extra_filters={{.LogsExtraFilters}}&extra_stream_filters={{.LogsExtraStreamFilters}}`, string(publicKeyPEM)),
+  url_prefix: {BACKEND}/select/logsql/?extra_filters={{.LogsExtraFilters}}&extra_stream_filters={{.LogsExtraStreamFilters}}`, jt.PublicKeyPEM),
 		request,
 		responseExpected,
 	)
@@ -1335,7 +1268,7 @@ users:
     - "AccountID: {{.LogsAccountID}}"
     - "ProjectID: {{.LogsProjectID}}"
   merge_query_args: [extra_filters, extra_stream_filters]
-  url_prefix: {BACKEND}/select/logsql/?extra_filters={{.LogsExtraFilters}}&extra_stream_filters={{.LogsExtraStreamFilters}}`, string(publicKeyPEM)),
+  url_prefix: {BACKEND}/select/logsql/?extra_filters={{.LogsExtraFilters}}&extra_stream_filters={{.LogsExtraStreamFilters}}`, jt.PublicKeyPEM),
 		request,
 		responseExpected,
 	)
@@ -1363,7 +1296,7 @@ users:
       headers:
         - "AccountID: {{.LogsAccountID}}"
         - "ProjectID: {{.LogsProjectID}}"
-      url_prefix: {BACKEND}/select/logsql/?extra_filters={{.LogsExtraFilters}}&extra_stream_filters={{.LogsExtraStreamFilters}}`, string(publicKeyPEM)),
+      url_prefix: {BACKEND}/select/logsql/?extra_filters={{.LogsExtraFilters}}&extra_stream_filters={{.LogsExtraStreamFilters}}`, jt.PublicKeyPEM),
 		request,
 		responseExpected,
 	)
@@ -1394,7 +1327,7 @@ users:
       headers:
         - "AccountID: {{.LogsAccountID}}"
         - "ProjectID: {{.LogsProjectID}}"
-      url_prefix: {BACKEND}/select/logsql/?extra_filters={{.LogsExtraFilters}}&extra_stream_filters={{.LogsExtraStreamFilters}}&tenant_info=static=value&tenant_info={{.LogsAccountID}}&tenant_info={{.LogsProjectID}}`, string(publicKeyPEM)),
+      url_prefix: {BACKEND}/select/logsql/?extra_filters={{.LogsExtraFilters}}&extra_stream_filters={{.LogsExtraStreamFilters}}&tenant_info=static=value&tenant_info={{.LogsAccountID}}&tenant_info={{.LogsProjectID}}`, jt.PublicKeyPEM),
 		request,
 		responseExpected,
 	)
@@ -1419,11 +1352,11 @@ users:
     - %q
   url_map:
     - src_paths: ["/query"]
-      url_prefix: {BACKEND}/select/logsql/?extra_filters={{.LogsExtraFilters}}&extra_stream_filters={{.LogsExtraStreamFilters}}`, string(publicKeyPEM)),
+      url_prefix: {BACKEND}/select/logsql/?extra_filters={{.LogsExtraFilters}}&extra_stream_filters={{.LogsExtraStreamFilters}}`, jt.PublicKeyPEM),
 		request,
 		responseExpected,
 	)
-	nestedToken := genToken(t, map[string]any{
+	nestedToken := jt.GenToken(map[string]any{
 		"exp":  time.Now().Add(10 * time.Minute).Unix(),
 		"team": "dev",
 		"nested": map[string]any{
@@ -1554,10 +1487,7 @@ users:
 }
 
 func TestOIDCRequestHandler(t *testing.T) {
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		t.Fatalf("cannot generate RSA key: %s", err)
-	}
+	jt := newTokenTester(t)
 
 	var oidcSrv *httptest.Server
 	oidcRespOK := atomic.Bool{}
@@ -1579,17 +1509,8 @@ func TestOIDCRequestHandler(t *testing.T) {
 				return
 			}
 
-			// Encode the RSA public key in JWK format (base64url, no padding)
-			nBytes := privateKey.N.Bytes()
-			eBytes := big.NewInt(int64(privateKey.E)).Bytes()
-			jwksBody := fmt.Sprintf(`{"keys":[{"kty":"RSA","kid":%q,"n":%q,"e":%q}]}`,
-				`test-key-id`,
-				base64.RawURLEncoding.EncodeToString(nBytes),
-				base64.RawURLEncoding.EncodeToString(eBytes),
-			)
-
 			w.Header().Set("Content-Type", "application/json")
-			if _, err := w.Write([]byte(jwksBody)); err != nil {
+			if _, err := w.Write([]byte(jt.JWKS(`test-key-id`))); err != nil {
 				panic(fmt.Errorf("cannot write jwks response: %w", err))
 			}
 		default:
@@ -1598,42 +1519,14 @@ func TestOIDCRequestHandler(t *testing.T) {
 	}))
 	defer oidcSrv.Close()
 
-	headerJSON, err := json.Marshal(map[string]any{
-		"alg": "RS256",
-		"typ": "JWT",
+	tkn := jt.GenTokenWithHeader(map[string]any{
 		"iss": oidcSrv.URL,
 		"kid": `test-key-id`,
-	})
-	if err != nil {
-		t.Fatalf("cannot marshal JWT header: %s", err)
-	}
-	headerB64 := base64.RawURLEncoding.EncodeToString(headerJSON)
-
-	bodyJSON, err := json.Marshal(map[string]any{
+	}, map[string]any{
 		"exp":       time.Now().Add(time.Minute).Unix(),
 		"iss":       oidcSrv.URL,
 		"vm_access": map[string]any{},
-	})
-	if err != nil {
-		t.Fatalf("cannot marshal JWT body: %s", err)
-	}
-	bodyB64 := base64.RawURLEncoding.EncodeToString(bodyJSON)
-
-	payload := headerB64 + "." + bodyB64
-
-	var signatureB64 string
-	hash := crypto.SHA256
-	h := hash.New()
-	h.Write([]byte(payload))
-	digest := h.Sum(nil)
-
-	signature, err := rsa.SignPKCS1v15(rand.Reader, privateKey, hash, digest)
-	if err != nil {
-		t.Fatalf("cannot sign JWT token: %s", err)
-	}
-	signatureB64 = base64.RawURLEncoding.EncodeToString(signature)
-
-	tkn := payload + "." + signatureB64
+	}, true)
 
 	backSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -1651,19 +1544,7 @@ users:
   url_prefix: ` + backSrv.URL + `/
 `
 
-		cfgOrigP := authConfigData.Load()
-		if _, err := reloadAuthConfigData([]byte(cfgStr)); err != nil {
-			t.Fatalf("cannot load config data: %s", err)
-		}
-		defer func() {
-			cfgOrig := []byte("unauthorized_user:\n  url_prefix: http://foo/bar")
-			if cfgOrigP != nil {
-				cfgOrig = *cfgOrigP
-			}
-			if _, err := reloadAuthConfigData(cfgOrig); err != nil {
-				t.Fatalf("cannot restore original config: %s", err)
-			}
-		}()
+		defer setAuthConfig(t, cfgStr)()
 
 		r := httptest.NewRequest("GET", "http://some-host.com/api/v1/query", nil)
 		r.Header.Set("Authorization", "Bearer "+tkn)
@@ -1795,20 +1676,7 @@ func TestBufferRequestBody_Success(t *testing.T) {
 unauthorized_user:
   url_prefix: {BACKEND}/foo`, "{BACKEND}", ts.URL)
 
-		cfgOrigP := authConfigData.Load()
-		if _, err := reloadAuthConfigData([]byte(cfgStr)); err != nil {
-			t.Fatalf("cannot load config data: %s", err)
-		}
-		defer func() {
-			cfgOrig := []byte("unauthorized_user:\n  url_prefix: http://foo/bar")
-			if cfgOrigP != nil {
-				cfgOrig = *cfgOrigP
-			}
-			_, err := reloadAuthConfigData(cfgOrig)
-			if err != nil {
-				t.Fatalf("cannot load the original config: %s", err)
-			}
-		}()
+		defer setAuthConfig(t, cfgStr)()
 
 		r, err := http.NewRequest(http.MethodPost, `http://some-host.com`, body)
 		if err != nil {
@@ -1916,20 +1784,7 @@ func TestBufferRequestBody_Failure(t *testing.T) {
 unauthorized_user:
   url_prefix: {BACKEND}/foo`, "{BACKEND}", ts.URL)
 
-		cfgOrigP := authConfigData.Load()
-		if _, err := reloadAuthConfigData([]byte(cfgStr)); err != nil {
-			t.Fatalf("cannot load config data: %s", err)
-		}
-		defer func() {
-			cfgOrig := []byte("unauthorized_user:\n  url_prefix: http://foo/bar")
-			if cfgOrigP != nil {
-				cfgOrig = *cfgOrigP
-			}
-			_, err := reloadAuthConfigData(cfgOrig)
-			if err != nil {
-				t.Fatalf("cannot load the original config: %s", err)
-			}
-		}()
+		defer setAuthConfig(t, cfgStr)()
 
 		r, err := http.NewRequest(http.MethodPost, `http://some-host.com`, body)
 		if err != nil {
@@ -2311,20 +2166,7 @@ users:
   - %s
 `, backendURL, backendURL, backendURL)
 
-	cfgOrigP := authConfigData.Load()
-	if _, err := reloadAuthConfigData([]byte(cfgStr)); err != nil {
-		t.Fatalf("cannot load config data: %s", err)
-	}
-	defer func() {
-		cfgOrig := []byte("unauthorized_user:\n  url_prefix: http://foo/bar")
-		if cfgOrigP != nil {
-			cfgOrig = *cfgOrigP
-		}
-		_, err := reloadAuthConfigData(cfgOrig)
-		if err != nil {
-			t.Fatalf("cannot load original config: %s", err)
-		}
-	}()
+	defer setAuthConfig(t, cfgStr)()
 
 	// size 200: body size 5KB <= 16KB maxRequestBodySizeToRetry (canRetry = true, retries across all 3 backends)
 	// size 5000: body size 125KB > 16KB maxRequestBodySizeToRetry (canRetry = false, fails on 1st backend without retry)

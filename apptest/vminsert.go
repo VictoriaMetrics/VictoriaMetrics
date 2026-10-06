@@ -133,11 +133,10 @@ func (app *Vminsert) String() string {
 //
 // vminsert does not send the data immediately. It first puts the data into a
 // buffer. Then a background goroutine takes the data from the buffer sends it
-// to the vmstorage. This happens every 200ms.
-//
-// Waiting is implemented a retrieving the value of `vm_rpc_rows_sent_total`
-// metric and checking whether it is equal or greater than the wanted value.
-// If it is, then the data has been sent to vmstorage.
+// to the vmstorage. This happens every 200ms. Waiting for vminsert to actually
+// send data is implemented by retrieving the value of vminsert's
+// `vm_rpc_rows_sent_total` metric and checking whether it is equal or greater
+// than the wanted value.
 func sendBlocking(t *testing.T, c *metricsClient, numRecordsToSend int, send func()) {
 	t.Helper()
 

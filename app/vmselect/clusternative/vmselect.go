@@ -1,13 +1,13 @@
 package clusternative
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
@@ -48,89 +48,76 @@ func NewVMSelectServer(addr string) (*vmselectapi.Server, error) {
 // vmstorageAPI impelements vmselectapi.API
 type vmstorageAPI struct{}
 
-func (api *vmstorageAPI) InitSearch(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (vmselectapi.BlockIterator, error) {
-	dl := searchutil.DeadlineFromTimestamp(deadline)
-	bi := newBlockIterator(qt, true, sq, dl)
+func (api *vmstorageAPI) InitSearch(ctx context.Context, qt *querytracer.Tracer, sq *storage.SearchQuery) (vmselectapi.BlockIterator, error) {
+	bi := newBlockIterator(ctx, qt, true, sq)
 	return bi, nil
 }
 
-func (api *vmstorageAPI) Tenants(qt *querytracer.Tracer, tr storage.TimeRange, deadline uint64) ([]string, error) {
-	dl := searchutil.DeadlineFromTimestamp(deadline)
-	res, err := netstorage.Tenants(qt, tr, dl)
+func (api *vmstorageAPI) Tenants(ctx context.Context, qt *querytracer.Tracer, tr storage.TimeRange) ([]string, error) {
+	res, err := netstorage.Tenants(ctx, qt, tr)
 	return res, wrapClusterNativeError(err)
 }
 
-func (api *vmstorageAPI) SearchMetricNames(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) ([]string, error) {
-	dl := searchutil.DeadlineFromTimestamp(deadline)
-	metricNames, _, err := netstorage.SearchMetricNames(qt, true, sq, dl)
+func (api *vmstorageAPI) SearchMetricNames(ctx context.Context, qt *querytracer.Tracer, sq *storage.SearchQuery) ([]string, error) {
+	metricNames, _, err := netstorage.SearchMetricNames(ctx, qt, true, sq)
 	return metricNames, wrapClusterNativeError(err)
 }
 
-func (api *vmstorageAPI) LabelValues(qt *querytracer.Tracer, sq *storage.SearchQuery, labelName string, maxLabelValues int, deadline uint64) ([]string, error) {
+func (api *vmstorageAPI) LabelValues(ctx context.Context, qt *querytracer.Tracer, sq *storage.SearchQuery, labelName string, maxLabelValues int) ([]string, error) {
 	if maxLabelValues <= 0 || maxLabelValues > *maxTagValues {
 		maxLabelValues = *maxTagValues
 	}
-	dl := searchutil.DeadlineFromTimestamp(deadline)
-	labelValues, _, err := netstorage.LabelValues(qt, true, labelName, sq, maxLabelValues, dl)
+	labelValues, _, err := netstorage.LabelValues(ctx, qt, true, labelName, sq, maxLabelValues)
 	return labelValues, wrapClusterNativeError(err)
 }
 
-func (api *vmstorageAPI) TagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte,
-	maxSuffixes int, deadline uint64) ([]string, error) {
+func (api *vmstorageAPI) TagValueSuffixes(ctx context.Context, qt *querytracer.Tracer, accountID, projectID uint32, tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte,
+	maxSuffixes int) ([]string, error) {
 	if maxSuffixes <= 0 || maxSuffixes > *maxTagValueSuffixesPerSearch {
 		maxSuffixes = *maxTagValueSuffixesPerSearch
 	}
-	dl := searchutil.DeadlineFromTimestamp(deadline)
-	suffixes, _, err := netstorage.TagValueSuffixes(qt, accountID, projectID, true, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes, dl)
+	suffixes, _, err := netstorage.TagValueSuffixes(ctx, qt, accountID, projectID, true, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes)
 	return suffixes, wrapClusterNativeError(err)
 }
 
-func (api *vmstorageAPI) LabelNames(qt *querytracer.Tracer, sq *storage.SearchQuery, maxLabelNames int, deadline uint64) ([]string, error) {
+func (api *vmstorageAPI) LabelNames(ctx context.Context, qt *querytracer.Tracer, sq *storage.SearchQuery, maxLabelNames int) ([]string, error) {
 	if maxLabelNames <= 0 || maxLabelNames > *maxTagKeys {
 		maxLabelNames = *maxTagKeys
 	}
-	dl := searchutil.DeadlineFromTimestamp(deadline)
-	labelNames, _, err := netstorage.LabelNames(qt, true, sq, maxLabelNames, dl)
+	labelNames, _, err := netstorage.LabelNames(ctx, qt, true, sq, maxLabelNames)
 	return labelNames, wrapClusterNativeError(err)
 }
 
-func (api *vmstorageAPI) SeriesCount(qt *querytracer.Tracer, accountID, projectID uint32, deadline uint64) (uint64, error) {
-	dl := searchutil.DeadlineFromTimestamp(deadline)
-	seriesCount, _, err := netstorage.SeriesCount(qt, accountID, projectID, true, dl)
+func (api *vmstorageAPI) SeriesCount(ctx context.Context, qt *querytracer.Tracer, accountID, projectID uint32) (uint64, error) {
+	seriesCount, _, err := netstorage.SeriesCount(ctx, qt, accountID, projectID, true)
 	return seriesCount, wrapClusterNativeError(err)
 }
 
-func (api *vmstorageAPI) TSDBStatus(qt *querytracer.Tracer, sq *storage.SearchQuery, focusLabel string, topN int, deadline uint64) (*storage.TSDBStatus, error) {
-	dl := searchutil.DeadlineFromTimestamp(deadline)
-	tsdbStatus, _, err := netstorage.TSDBStatus(qt, true, sq, focusLabel, topN, dl)
+func (api *vmstorageAPI) TSDBStatus(ctx context.Context, qt *querytracer.Tracer, sq *storage.SearchQuery, focusLabel string, topN int) (*storage.TSDBStatus, error) {
+	tsdbStatus, _, err := netstorage.TSDBStatus(ctx, qt, true, sq, focusLabel, topN)
 	return tsdbStatus, wrapClusterNativeError(err)
 }
 
-func (api *vmstorageAPI) DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (int, error) {
-	dl := searchutil.DeadlineFromTimestamp(deadline)
-	deletedTotal, err := netstorage.DeleteSeries(qt, sq, dl)
+func (api *vmstorageAPI) DeleteSeries(ctx context.Context, qt *querytracer.Tracer, sq *storage.SearchQuery) (int, error) {
+	deletedTotal, err := netstorage.DeleteSeries(ctx, qt, sq)
 	return deletedTotal, wrapClusterNativeError(err)
 }
 
-func (api *vmstorageAPI) RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, deadline uint64) error {
-	dl := searchutil.DeadlineFromTimestamp(deadline)
-	return wrapClusterNativeError(netstorage.RegisterMetricNames(qt, mrs, dl))
+func (api *vmstorageAPI) RegisterMetricNames(ctx context.Context, qt *querytracer.Tracer, mrs []storage.MetricRow) error {
+	return wrapClusterNativeError(netstorage.RegisterMetricNames(ctx, qt, mrs))
 }
 
-func (api *vmstorageAPI) ResetMetricNamesUsageStats(qt *querytracer.Tracer, deadline uint64) error {
-	dl := searchutil.DeadlineFromTimestamp(deadline)
-	return wrapClusterNativeError(netstorage.ResetMetricNamesStats(qt, dl))
+func (api *vmstorageAPI) ResetMetricNamesUsageStats(ctx context.Context, qt *querytracer.Tracer) error {
+	return wrapClusterNativeError(netstorage.ResetMetricNamesStats(ctx, qt))
 }
 
-func (api *vmstorageAPI) GetMetricNamesUsageStats(qt *querytracer.Tracer, tt *storage.TenantToken, le, limit int, matchPattern string, deadline uint64) (metricnamestats.StatsResult, error) {
-	dl := searchutil.DeadlineFromTimestamp(deadline)
-	statResult, err := netstorage.GetMetricNamesStats(qt, tt, le, limit, matchPattern, dl)
+func (api *vmstorageAPI) GetMetricNamesUsageStats(ctx context.Context, qt *querytracer.Tracer, tt *storage.TenantToken, le, limit int, matchPattern string) (metricnamestats.StatsResult, error) {
+	statResult, err := netstorage.GetMetricNamesStats(ctx, qt, tt, le, limit, matchPattern)
 	return statResult, wrapClusterNativeError(err)
 }
 
-func (api *vmstorageAPI) GetMetadataRecords(qt *querytracer.Tracer, tt *storage.TenantToken, limit int, metricName string, deadline uint64) ([]*metricsmetadata.Row, error) {
-	dl := searchutil.DeadlineFromTimestamp(deadline)
-	meta, _, err := netstorage.GetMetricsMetadata(qt, tt, true, limit, metricName, dl)
+func (api *vmstorageAPI) GetMetadataRecords(ctx context.Context, qt *querytracer.Tracer, tt *storage.TenantToken, limit int, metricName string) ([]*metricsmetadata.Row, error) {
+	meta, _, err := netstorage.GetMetricsMetadata(ctx, qt, tt, true, limit, metricName)
 	return meta, wrapClusterNativeError(err)
 }
 
@@ -147,9 +134,9 @@ type workItem struct {
 	doneCh         chan struct{}
 }
 
-func newBlockIterator(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.SearchQuery, deadline searchutil.Deadline) *blockIterator {
+func newBlockIterator(ctx context.Context, qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.SearchQuery) *blockIterator {
 	bi := getBlockIterator()
-	workers, processBlocks := netstorage.PrepareProcessRawBlocks(qt, denyPartialResponse, sq, deadline)
+	workers, processBlocks := netstorage.PrepareProcessRawBlocks(ctx, qt, denyPartialResponse, sq)
 	bi.workCh = make(chan workItem, workers)
 	bi.wis = slicesutil.SetLength(bi.wis, workers)
 	for i := range bi.wis {
@@ -172,7 +159,7 @@ func newBlockIterator(qt *querytracer.Tracer, denyPartialResponse bool, sq *stor
 	return bi
 }
 
-func (bi *blockIterator) NextBlock(dst []byte) ([]byte, bool) {
+func (bi *blockIterator) NextBlock(_ context.Context, dst []byte) ([]byte, bool) {
 	wi, ok := <-bi.workCh
 	if !ok {
 		return nil, false
@@ -191,7 +178,8 @@ func (bi *blockIterator) MustClose() {
 	var buf []byte
 	var ok bool
 	for {
-		buf, ok = bi.NextBlock(buf[:0])
+		ctx := context.Background()
+		buf, ok = bi.NextBlock(ctx, buf[:0])
 		if !ok {
 			break
 		}

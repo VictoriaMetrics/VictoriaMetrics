@@ -185,6 +185,10 @@ func requestHandlerWithInternalRoutes(w http.ResponseWriter, r *http.Request) bo
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
+	if r.URL.Path == "/_vmauth/sso/start" {
+		processSSOStart(w, r)
+		return true
+	}
 	if r.URL.Path == "/_vmauth/sso/callback" {
 		processSSOCallback(w, r)
 		return true
@@ -455,7 +459,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tkn *j
 			// Authorization should be requested for http requests without credentials
 			// to a route that is not in the configuration for unauthorized user.
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5236
-			if ui.BearerToken == "" && ui.Username == "" && len(*authUsers.Load()) > 0 {
+			if ui.name() == "" && len(*authUsers.Load()) > 0 {
 				handleMissingAuthorizationError(w)
 				return
 			}
