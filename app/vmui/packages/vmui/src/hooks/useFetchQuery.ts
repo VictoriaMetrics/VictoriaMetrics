@@ -10,8 +10,6 @@ import { useQueryState } from "../state/query/QueryStateContext";
 import { useTimeState } from "../state/time/TimeStateContext";
 import { useCustomPanelState } from "../state/customPanel/CustomPanelStateContext";
 import { isHistogramData } from "../utils/metric";
-import { useGraphState } from "../state/graph/GraphStateContext";
-import { getStepFromDuration } from "../utils/time";
 import { getQueryStringValue } from "../utils/query-string";
 
 interface FetchQueryParams {
@@ -59,10 +57,10 @@ export const useFetchQuery = ({
   const { period } = useTimeState();
   const { displayType, nocache, isTracingEnabled, seriesLimits: stateSeriesLimits } = useCustomPanelState();
   const { serverUrl } = useAppState();
-  const { isHistogram: isHistogramState } = useGraphState();
 
   const [isLoading, setIsLoading] = useState(false);
-  const [graphData, setGraphData] = useState<MetricResult[]>();
+  const [graphResult, setGraphResult] = useState<{ data: MetricResult[], step: string }>();
+  const graphData = graphResult?.step === customStep ? graphResult.data : undefined;
   const [liveData, setLiveData] = useState<InstantMetricResult[]>();
   const [traces, setTraces] = useState<Trace[]>();
   const [error, setError] = useState<ErrorTypes | string>();
@@ -71,11 +69,6 @@ export const useFetchQuery = ({
   const [warning, setWarning] = useState<string>();
   const [fetchQueue, setFetchQueue] = useState<AbortController[]>([]);
   const [isHistogram, setIsHistogram] = useState(false);
-
-  const defaultStep = useMemo(() => {
-    const { end, start } = period;
-    return getStepFromDuration(end - start, isHistogramState, displayType);
-  }, [period, isHistogramState, displayType]);
 
   const fetchData = async ({
     fetchUrl,
@@ -162,7 +155,11 @@ export const useFetchQuery = ({
         : ""
       );
 
-      isDisplayChart ? setGraphData(tempData as MetricResult[]) : setLiveData(tempData as InstantMetricResult[]);
+      if (isDisplayChart) {
+        setGraphResult({ data: tempData as MetricResult[], step: new URL(fetchUrl[0]).searchParams.get("step") || "" });
+      } else {
+        setLiveData(tempData as InstantMetricResult[]);
+      }
       setTraces(tempTraces);
       setIsHistogram(prev => totalLength ? isHistogramResult : prev);
     } catch (e) {
@@ -200,7 +197,7 @@ export const useFetchQuery = ({
     fetchQueue.forEach(f => f.abort());
 
     setFetchQueue([]);
-    setGraphData([]);
+    setGraphResult(undefined);
     setLiveData([]);
   }, [fetchQueue]);
 
@@ -229,10 +226,6 @@ export const useFetchQuery = ({
 
     setFetchQueue(prev => prev.filter(f => !f.signal.aborted));
   }, [fetchQueue]);
-
-  useEffect(() => {
-    if (defaultStep === customStep) setGraphData([]);
-  }, [isHistogram]);
 
   useEffect(() => {
     setError("");
