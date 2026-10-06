@@ -1990,7 +1990,8 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			prevTSID = r.TSID
 			prevMetricNameRaw = mr.MetricNameRaw
 
-			if !is.hasMetricID(lTSID.TSID.MetricID) {
+			// TODO
+			if s.disablePerDayIndex && !is.hasMetricID(lTSID.TSID.MetricID) {
 				// The found TSID is from the another partition indexdb. Create it in the current partition indexdb.
 				if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
 					if firstWarn == nil {
@@ -2221,8 +2222,14 @@ func (s *Storage) prefillNextIndexDB(rows []rawRow, mrs []*MetricRow) error {
 
 		// Check whether the given metricID is already present in idbNext.
 		metricID := r.TSID.MetricID
-		if isNext.hasMetricID(metricID) {
-			continue
+		if s.disablePerDayIndex {
+			if isNext.hasMetricID(metricID) {
+				continue
+			}
+		} else {
+			if isNext.hasDateMetricID(date, metricID) {
+				continue
+			}
 		}
 
 		// Slow path: pre-fill indexes in idbNext.
@@ -2427,6 +2434,8 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 			}
 			mn.sortTags()
 			idb.createPerDayIndexes(date, dmid.tsid, mn)
+			// TODO
+			s.timeseriesRepopulated.Add(1)
 		}
 	}
 	if ptw != nil {

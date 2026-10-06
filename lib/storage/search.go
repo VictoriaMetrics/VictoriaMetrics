@@ -287,7 +287,10 @@ func (s *Search) NextMetricBlock(ctx context.Context) bool {
 				continue
 			}
 			var ok bool
-			s.MetricBlockRef.MetricName, ok = s.mns.search(s.MetricBlockRef.MetricName[:0], tsid.MetricID)
+			// Use any date within the block. If there is a sample with such
+			// date, then there must be an index records for that date.
+			date := uint64(s.ts.BlockRef.bh.MinTimestamp / msecPerDay)
+			s.MetricBlockRef.MetricName, ok = s.mns.search(s.MetricBlockRef.MetricName[:0], date, tsid.MetricID)
 			if !ok {
 				// Skip missing metricName for tsid.MetricID.
 				// It should be automatically fixed. See indexDB.searchMetricNameWithCache for details.

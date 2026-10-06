@@ -2,7 +2,6 @@ package storage
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"math/rand"
 	"path/filepath"
@@ -619,7 +618,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, dat
 
 		// Search for metric name for the given metricID.
 		var ok bool
-		metricNameCopy, ok = db.searchMetricName(metricNameCopy[:0], tsidLocal.MetricID, false)
+		metricNameCopy, ok = db.searchMetricName(metricNameCopy[:0], date, tsidLocal.MetricID, false)
 		if !ok {
 			return fmt.Errorf("cannot find metricName for metricID=%d; i=%d", tsidLocal.MetricID, i)
 		}
@@ -628,7 +627,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, dat
 		}
 
 		// Try searching metric name for non-existent MetricID.
-		buf, found := db.searchMetricName(nil, 1, false)
+		buf, found := db.searchMetricName(nil, date, 1, false)
 		if found {
 			return fmt.Errorf("unexpected metricName found for non-existing metricID; got %X", buf)
 		}
@@ -1474,9 +1473,10 @@ func testIndexDBSearchTSIDs(t *testing.T, disablePerDayIndex bool) {
 		for date := baseDate - days + 1; date <= baseDate; date++ {
 			assertMetricIDs(date, metricsPerDay, perDayMetricIDs[date])
 		}
+	} else {
+		// Check that all the metrics are found in global index
+		assertMetricIDs(globalIndexDate, metricsPerDay*days, allMetricIDs)
 	}
-	// Check that all the metrics are found in global index
-	assertMetricIDs(globalIndexDate, metricsPerDay*days, allMetricIDs)
 
 	db.putIndexSearch(is2)
 
@@ -2402,34 +2402,4 @@ func TestIsSingleMetricNameFilter(t *testing.T) {
 	tfs2 = NewTagFilters()
 	add(tfs2, nil, []byte("metric"), false, false)
 	f([]*TagFilters{tfs1, tfs2}, false)
-}
-
-// searchMetricIDs searches metricIDs by tag filters within the given time
-// range.
-//
-// If the number of unique metricIDs exceeds maxMetrics limit, the method
-// returns an error.
-//
-// The method must only be used in lib/storage unit tests.
-func (db *indexDB) searchMetricIDs(ctx context.Context, tfss []*TagFilters, tr TimeRange, maxMetrics int) (*uint64set.Set, error) {
-	if tr == globalIndexTimeRange {
-		return db.searchMetricIDsByDateAndFilters(ctx, nil, globalIndexDate, tfss, maxMetrics)
-	}
-
-	all := &uint64set.Set{}
-	minDate, maxDate := tr.DateRange()
-	for date := minDate; date <= maxDate; date++ {
-		metricIDs, err := db.searchMetricIDsByDateAndFilters(ctx, nil, date, tfss, maxMetrics)
-		if err != nil {
-			return nil, err
-		}
-		// Do not use UnionMayOwn because the search result may be coming from
-		// the tfssCache and its contents must not be modified.
-		all.Union(metricIDs)
-		if all.Len() > maxMetrics {
-			return nil, errTooManyTimeseries(maxMetrics)
-		}
-	}
-
-	return all, nil
 }

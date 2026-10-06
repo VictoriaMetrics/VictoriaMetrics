@@ -799,7 +799,7 @@ func mustConvertToLegacy(s *Storage) *Storage {
 			}
 			for _, tsid := range tsids {
 				metricID := tsid.MetricID
-				mnBytes, ok := idb.searchMetricName(nil, metricID, false)
+				mnBytes, ok := idb.searchMetricName(nil, date, metricID, false)
 				if !ok {
 					panic(fmt.Sprintf("could not get metric name for metricID %d", metricID))
 				}
