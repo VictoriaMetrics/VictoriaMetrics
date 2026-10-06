@@ -198,7 +198,6 @@ func processEmptyAuthRequest(w http.ResponseWriter, r *http.Request, ac *AuthCon
 
 	ui.logRequest(r, `unauthorized`, http.StatusUnauthorized, 0)
 	handleMissingAuthorizationError(w)
-	return
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
