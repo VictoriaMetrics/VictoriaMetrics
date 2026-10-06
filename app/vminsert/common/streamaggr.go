@@ -71,7 +71,8 @@ func CheckStreamAggrConfig() error {
 		return nil
 	}
 	pushNoop := func(_ []prompb.TimeSeries) {}
-	sas, err := streamaggr.LoadFromFile(*streamAggrConfig, pushNoop, newStreamAggrOptions(), "global")
+	opts := newStreamAggrOptions()
+	sas, err := streamaggr.LoadFromFile(*streamAggrConfig, pushNoop, opts, "global")
 	if err != nil {
 		return fmt.Errorf("error when loading -streamAggr.config=%q: %w", *streamAggrConfig, err)
 	}
@@ -98,7 +99,8 @@ func InitStreamAggr() {
 
 	sighupCh := procutil.NewSighupChan()
 
-	sas, err := streamaggr.LoadFromFile(*streamAggrConfig, pushAggregateSeries, newStreamAggrOptions(), "global")
+	opts := newStreamAggrOptions()
+	sas, err := streamaggr.LoadFromFile(*streamAggrConfig, pushAggregateSeries, opts, "global")
 	if err != nil {
 		logger.Fatalf("cannot load -streamAggr.config=%q: %s", *streamAggrConfig, err)
 	}
