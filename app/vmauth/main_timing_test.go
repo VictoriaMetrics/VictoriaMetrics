@@ -1,13 +1,6 @@
 package main
 
 import (
-	"crypto"
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/x509"
-	"encoding/base64"
-	"encoding/json"
-	"encoding/pem"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -17,61 +10,7 @@ import (
 )
 
 func BenchmarkJWTRequestHandler(b *testing.B) {
-	// Generate RSA key pair for testing
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		b.Fatalf("cannot generate RSA key: %s", err)
-	}
-
-	// Generate public key PEM
-	publicKeyBytes, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
-	if err != nil {
-		b.Fatalf("cannot marshal public key: %s", err)
-	}
-	publicKeyPEM := pem.EncodeToMemory(&pem.Block{
-		Type:  "PUBLIC KEY",
-		Bytes: publicKeyBytes,
-	})
-
-	genToken := func(t *testing.B, body map[string]any, valid bool) string {
-		t.Helper()
-
-		headerJSON, err := json.Marshal(map[string]any{
-			"alg": "RS256",
-			"typ": "JWT",
-		})
-		if err != nil {
-			t.Fatalf("cannot marshal header: %s", err)
-		}
-		headerB64 := base64.RawURLEncoding.EncodeToString(headerJSON)
-
-		bodyJSON, err := json.Marshal(body)
-		if err != nil {
-			t.Fatalf("cannot marshal body: %s", err)
-		}
-		bodyB64 := base64.RawURLEncoding.EncodeToString(bodyJSON)
-
-		payload := headerB64 + "." + bodyB64
-
-		var signatureB64 string
-		if valid {
-			// Create real RSA signature
-			hash := crypto.SHA256
-			h := hash.New()
-			h.Write([]byte(payload))
-			digest := h.Sum(nil)
-
-			signature, err := rsa.SignPKCS1v15(rand.Reader, privateKey, hash, digest)
-			if err != nil {
-				t.Fatalf("cannot sign token: %s", err)
-			}
-			signatureB64 = base64.RawURLEncoding.EncodeToString(signature)
-		} else {
-			signatureB64 = base64.RawURLEncoding.EncodeToString([]byte("invalid_signature"))
-		}
-
-		return payload + "." + signatureB64
-	}
+	jt := newTokenTester(b)
 
 	f := func(name string, cfgStr string, r *http.Request, statusCodeExpected int) {
 		b.Helper()
@@ -88,20 +27,7 @@ func BenchmarkJWTRequestHandler(b *testing.B) {
 
 		cfgStr = strings.ReplaceAll(cfgStr, "{BACKEND}", ts.URL)
 
-		cfgOrigP := authConfigData.Load()
-		if _, err := reloadAuthConfigData([]byte(cfgStr)); err != nil {
-			b.Fatalf("cannot load config data: %s", err)
-		}
-		defer func() {
-			cfgOrig := []byte("unauthorized_user:\n  url_prefix: http://foo/bar")
-			if cfgOrigP != nil {
-				cfgOrig = *cfgOrigP
-			}
-			_, err := reloadAuthConfigData(cfgOrig)
-			if err != nil {
-				b.Fatalf("cannot load the original config: %s", err)
-			}
-		}()
+		defer setAuthConfig(b, cfgStr)()
 
 		b.Run(name, func(b *testing.B) {
 			b.ResetTimer()
@@ -127,14 +53,14 @@ users:
 - jwt:
     public_keys:
     - %q
-  url_prefix: {BACKEND}/foo`, string(publicKeyPEM))
-	noVMAccessClaimToken := genToken(b, nil, true)
-	expiredToken := genToken(b, map[string]any{
+  url_prefix: {BACKEND}/foo`, jt.PublicKeyPEM)
+	noVMAccessClaimToken := jt.GenToken(nil, true)
+	expiredToken := jt.GenToken(map[string]any{
 		"exp":       10,
 		"vm_access": map[string]any{},
 	}, true)
 
-	fullToken := genToken(b, map[string]any{
+	fullToken := jt.GenToken(map[string]any{
 		"exp":   time.Now().Add(10 * time.Minute).Unix(),
 		"scope": "email id",
 		"vm_access": map[string]any{
@@ -177,7 +103,7 @@ users:
   headers:
     - "AccountID: {{.LogsAccountID}}"
     - "ProjectID: {{.LogsProjectID}}"
-  url_prefix: {BACKEND}/select/logsql/?extra_filters=aStaticFilter&extra_stream_filters=aStaticStreamFilter&extra_filters={{.LogsExtraFilters}}&extra_stream_filters={{.LogsExtraStreamFilters}}`, string(publicKeyPEM)),
+  url_prefix: {BACKEND}/select/logsql/?extra_filters=aStaticFilter&extra_stream_filters=aStaticStreamFilter&extra_filters={{.LogsExtraFilters}}&extra_stream_filters={{.LogsExtraStreamFilters}}`, jt.PublicKeyPEM),
 		request,
 		http.StatusOK,
 	)
