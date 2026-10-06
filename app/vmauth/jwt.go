@@ -265,7 +265,6 @@ func getJWTUserInfo(ats []string, ssoAt string) (*UserInfo, *jwt.Token) {
 				logger.Infof("cannot parse jwt token: %s", err)
 			}
 			putToken(tkn)
-			putToken(tkn)
 			return nil, nil
 		}
 		if tkn.IsExpired(time.Now()) {
@@ -274,6 +273,7 @@ func getJWTUserInfo(ats []string, ssoAt string) (*UserInfo, *jwt.Token) {
 				// token claims with issuer
 				logger.Infof("cookie token is expired")
 			}
+			putToken(tkn)
 			return nil, nil
 		}
 		if ui := getUserInfoByJWTToken(tkn, js.users); ui != nil {
