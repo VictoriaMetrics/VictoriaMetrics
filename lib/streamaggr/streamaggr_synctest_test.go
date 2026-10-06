@@ -978,9 +978,12 @@ foo 3 1
 `}, 30*time.Second, `foo:1m_increase 1
 foo:1m_increase 1
 foo:1m_increase 1
+foo:1m_total 1
+foo:1m_total 2
+foo:1m_total 3
 `, `
 - interval: 1m
-  outputs: [increase]
+  outputs: [increase, total]
   enable_windows: true
 `, "1111111111")
 }
