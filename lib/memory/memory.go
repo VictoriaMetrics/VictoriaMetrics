@@ -16,14 +16,17 @@ var (
 )
 
 var _ = metrics.NewGauge("process_memory_limit_bytes", func() float64 {
+	once.Do(initOnce)
 	return float64(memoryLimit)
 })
 
 var _ = metrics.NewGauge("process_memory_host_bytes", func() float64 {
+	once.Do(initOnce)
 	return memoryHostBytes
 })
 
 var _ = metrics.NewGauge("process_memory_cgroup_bytes", func() float64 {
+	once.Do(initOnce)
 	return memoryCgroupBytes
 })
 
