@@ -153,6 +153,10 @@ func (cp *ConnPool) Get(ctx context.Context) (*handshake.BufferedConn, error) {
 func (cp *ConnPool) Dial(ctx context.Context) (*handshake.BufferedConn, error) {
 	select {
 	case cp.concurrentDialsCh <- struct{}{}:
+		if err := ctx.Err(); err != nil {
+			<-cp.concurrentDialsCh
+			return nil, err
+		}
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
