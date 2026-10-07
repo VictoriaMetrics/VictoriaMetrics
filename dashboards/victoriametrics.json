@@ -5581,7 +5581,7 @@
               "refId": "B"
             }
           ],
-          "title": "Re-processing partions completion time",
+"title": "Re-processing partitions completion time",
           "type": "timeseries"
         }
       ],
