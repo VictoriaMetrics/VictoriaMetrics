@@ -872,7 +872,6 @@ func (db *indexDB) searchLabelValues(ctx context.Context, qt *querytracer.Tracer
 func filterLabelValues(lvs map[string]struct{}, tf *tagFilter, key string) {
 	var b []byte
 	for lv := range lvs {
-		// TODO
 		b = marshalCommonPrefix(b[:0], nsPrefixTagToMetricIDs)
 		b = marshalTagValue(b, bytesutil.ToUnsafeBytes(key))
 		b = marshalTagValue(b, bytesutil.ToUnsafeBytes(lv))
@@ -2526,7 +2525,6 @@ func (is *indexSearch) updateMetricIDsByMetricNameMatch(ctx context.Context, qt 
 	qt.Printf("sort %d metric ids", len(sortedMetricIDs))
 
 	kb := &is.kb
-	// TODO
 	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
 	tfs = removeCompositeTagFilters(tfs, kb.B)
 
@@ -2637,7 +2635,6 @@ func hasCompositeTagFilters(tfs []*tagFilter, prefix []byte) bool {
 }
 
 func matchTagFilters(mn *MetricName, tfs []*tagFilter, kb *bytesutil.ByteBuffer) (bool, error) {
-	// TODO
 	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
 	for i, tf := range tfs {
 		if bytes.Equal(tf.key, graphiteReverseTagKey) {
@@ -3653,7 +3650,6 @@ func (mp *tagToMetricIDsRowParser) GetMatchingSeriesCount(filter, negativeFilter
 }
 
 func mergeTagToMetricIDsRows(data []byte, items []mergeset.Item) ([]byte, []mergeset.Item) {
-	// TODO
 	data, items = mergeTagToMetricIDsRowsInternal(data, items, nsPrefixTagToMetricIDs)
 	data, items = mergeTagToMetricIDsRowsInternal(data, items, nsPrefixDateTagToMetricIDs)
 	return data, items
