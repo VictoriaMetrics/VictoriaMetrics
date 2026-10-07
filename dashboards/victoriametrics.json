@@ -5449,7 +5449,7 @@
                 "uid": "${ds}"
               },
               "editorMode": "code",
-              "expr": "sum(vm_retention_partitions_scheduled_size_bytes{job=~\"$job\", instance=~\"$instance\"}) > 0",
+"expr": "sum(vm_retention_filters_partitions_scheduled_size_bytes{job=~\"$job\", instance=~\"$instance\"}) > 0",
               "legendFormat": "retention filters",
               "range": true,
               "refId": "A"
