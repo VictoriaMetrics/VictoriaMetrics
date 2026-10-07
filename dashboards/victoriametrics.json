@@ -5358,6 +5358,231 @@
           ],
           "title": "Fsync avg duration ($instance)",
           "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds}"
+          },
+          "description": "Shows the amount of data scheduled for [downsampling](https://docs.victoriametrics.com/#downsampling) or [retention filters](https://docs.victoriametrics.com/#retention-filters).\n\nApplying downsampling or retention filters happens in background. `vmstorage` schedules this process periodically when finds data partitions that satisfy configured retention or downsampling rules.\n\nThis process could consume additional CPU and Disk IO resources.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 88
+          },
+          "id": 161,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "12.2.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "expr": "sum(vm_retention_partitions_scheduled_size_bytes{job=~\"$job\", instance=~\"$instance\"}) > 0",
+              "legendFormat": "retention filters",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "expr": "sum(vm_downsampling_partitions_scheduled_size_bytes{job=~\"$job\", instance=~\"$instance\"}) > 0",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "downsampling",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "Partitions scheduled for re-processing",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds}"
+          },
+          "description": "Shows the estimated amount of time needed for re-processing of partitions [downsampling](https://docs.victoriametrics.com/#downsampling) or [retention filters](https://docs.victoriametrics.com/#retention-filters).\n\nApplying downsampling or retention filters happens in background. `vmstorage` schedules this process periodically when finds data partitions that satisfy configured retention or downsampling rules.\n\nThis process could consume additional CPU and Disk IO resources.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 88
+          },
+          "id": 162,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "12.2.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "expr": "sum(vm_retention_filters_partitions_scheduled_rows{job=~\"$job\",instance=~\"$instance\"})\n/\nsum(rate(vm_rows_merged_total{job=~\"$job\",instance=~\"$instance\",type=\"storage/big\"})) > 0",
+              "legendFormat": "retention filters",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "expr": "sum(vm_downsampling_partitions_scheduled_rows{job=~\"$job\",instance=~\"$instance\"})\n/\nsum(rate(vm_rows_merged_total{job=~\"$job\",instance=~\"$instance\",type=\"storage/big\"})) > 0",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "downsampling",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "Re-processing partions completion time",
+          "type": "timeseries"
         }
       ],
       "title": "Troubleshooting",
