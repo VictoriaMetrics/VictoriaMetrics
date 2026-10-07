@@ -5562,7 +5562,7 @@
                 "uid": "${ds}"
               },
               "editorMode": "code",
-              "expr": "sum(vm_retention_filters_partitions_scheduled_rows{job=~\"$job\",instance=~\"$instance\"})\n/\nsum(rate(vm_rows_merged_total{job=~\"$job\",instance=~\"$instance\",type=\"storage/big\"})) > 0",
+"expr": "sum(vm_retention_filters_partitions_scheduled_rows{job=~\"$job\",instance=~\"$instance\"})\n/\nsum(rate(vm_rows_merged_total{job=~\"$job\",instance=~\"$instance\",type=\"storage/big\"}[$__rate_interval])) > 0",
               "legendFormat": "retention filters",
               "range": true,
               "refId": "A"
