@@ -4,6 +4,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -101,12 +102,13 @@ func createStaleSocket(t *testing.T, addr string) {
 // socketTempDir returns a temporary directory for unix socket files.
 //
 // t.TempDir() is placed under TMPDIR, which can make socket paths longer than
-// the sun_path limit (104 bytes on macOS, 108 on Linux). Fall back to /tmp in this case.
+// the sun_path limit (104 bytes on macOS, 108 on Linux). Fall back to /tmp in this case
+// on Unix systems, where /tmp is always available.
 // See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11705
 func socketTempDir(t *testing.T) string {
 	t.Helper()
 	tmpDir := t.TempDir()
-	if len(filepath.Join(tmpDir, "1.sock")) < 100 {
+	if runtime.GOOS == "windows" || len(filepath.Join(tmpDir, "1.sock")) < 100 {
 		return tmpDir
 	}
 	tmpDir, err := os.MkdirTemp("/tmp", "vm-unixlistener-")
