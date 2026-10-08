@@ -1,6 +1,7 @@
 package netutil
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -136,7 +137,7 @@ func (cp *ConnPool) Addr() string {
 }
 
 // Get returns free connection from the pool.
-func (cp *ConnPool) Get() (*handshake.BufferedConn, error) {
+func (cp *ConnPool) Get(ctx context.Context) (*handshake.BufferedConn, error) {
 	bc, err := cp.tryGetConn()
 	if err != nil {
 		return nil, err
@@ -145,18 +146,27 @@ func (cp *ConnPool) Get() (*handshake.BufferedConn, error) {
 		// Fast path - obtained the connection from pool.
 		return bc, nil
 	}
-	return cp.getConnSlow()
+	return cp.getConnSlow(ctx)
 }
 
 // Dial returns a newly established connection.
-func (cp *ConnPool) Dial() (*handshake.BufferedConn, error) {
-	cp.concurrentDialsCh <- struct{}{}
+func (cp *ConnPool) Dial(ctx context.Context) (*handshake.BufferedConn, error) {
+	select {
+	case cp.concurrentDialsCh <- struct{}{}:
+		if err := ctx.Err(); err != nil {
+			<-cp.concurrentDialsCh
+			return nil, err
+		}
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+
 	conn, err := cp.dialAndHandshake()
 	<-cp.concurrentDialsCh
 	return conn, err
 }
 
-func (cp *ConnPool) getConnSlow() (*handshake.BufferedConn, error) {
+func (cp *ConnPool) getConnSlow(ctx context.Context) (*handshake.BufferedConn, error) {
 	for {
 		select {
 		// Limit the number of concurrent dials.
@@ -167,6 +177,9 @@ func (cp *ConnPool) getConnSlow() (*handshake.BufferedConn, error) {
 			<-cp.concurrentDialsCh
 			return conn, err
 		default:
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
 			// Make attempt to get already established connections from the pool.
 			// It may appear there while waiting for cp.concurrentDialsCh.
 			bc, err := cp.tryGetConn()

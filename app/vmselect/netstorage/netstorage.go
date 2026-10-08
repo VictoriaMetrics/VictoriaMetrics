@@ -2575,9 +2575,9 @@ func (sn *storageNode) execOnConn(ctx context.Context, qt *querytracer.Tracer, f
 	var bc *handshake.BufferedConn
 	var err error
 	if forceNew {
-		bc, err = sn.connPool.Dial()
+		bc, err = sn.connPool.Dial(ctx)
 	} else {
-		bc, err = sn.connPool.Get()
+		bc, err = sn.connPool.Get(ctx)
 	}
 	if err != nil {
 		return fmt.Errorf("%w: %w", errCannotObtainConn, err)
