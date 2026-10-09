@@ -380,6 +380,14 @@ Cluster performance and capacity can be scaled up in two ways:
 - By adding more resources (CPU, RAM, disk IO, disk space, network bandwidth) to existing nodes in the cluster (aka vertical scalability).
 - By adding more nodes to the cluster (aka horizontal scalability).
 
+> [!NOTE] Warning
+> All VictoriaMetrics components read the available CPU and memory limits only once at startup. They use these values to size caches, buffers and concurrency limits.
+> Without a restart, a component doesn't use the added resources after a scale-up,
+> and it may be killed by the OOM killer after the memory limit is decreased.
+> Self-monitoring metrics such as `vm_available_memory_bytes` and `vm_available_cpu_cores` also keep reporting the limits read at startup.
+> So we do not recommend using in-place vertical scaling without restarts (such as Kubernetes VPA in [InPlaceOrRecreate](https://kubernetes.io/docs/concepts/workloads/autoscaling/vertical-pod-autoscale/#updateMode-InPlaceOrRecreate) mode).
+> Make sure components are restarted after their CPU or memory limits are changed.
+
 General recommendations for cluster scalability:
 
 - Adding more CPU and RAM to existing `vmselect` nodes improves the performance for heavy queries, which process big number of time series with big number of raw samples.
