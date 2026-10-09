@@ -87,6 +87,7 @@ Read each row as **source persisted state → target runtime**. The upgrade and 
 
 | Source state | Target runtime | Action and compatibility boundary |
 | --- | --- | --- |
+| v1.31.0 | v1.30.7 or earlier | The older shipped runtime does not recognize v1.31.0 provenance. Reinitialize/refit on rollback, and replace peer-model configurations unsupported by the target version. |
 | v1.30.7 | v1.30.6 or earlier | The older shipped runtime does not recognize v1.30.7 provenance. Reinitialize/refit on rollback. |
 | v1.30.6 | v1.30.5 or earlier | The older shipped runtime does not recognize v1.30.6 provenance. Plan to reinitialize/refit on rollback even though v1.30.6 introduces no new state format. The standard and experimental [hardened image](https://docs.victoriametrics.com/anomaly-detection/quickstart/#experimental-hardened-image) use the same state format at the same application version. |
 | v1.30.5 | v1.30.4 or earlier | The older shipped runtime does not know v1.30.5 provenance. Plan to reinitialize/refit state even where the newer matrix says the underlying formats are compatible. Do not edit the saved version. |

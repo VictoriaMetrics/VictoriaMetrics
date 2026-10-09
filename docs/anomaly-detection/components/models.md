@@ -681,8 +681,12 @@ models:
     epsilon_quantile: 0.75
     tolerance: 4.0
     decay: 1.0
-    data_range: [0, 100]
     clip_predictions: true
+reader:
+  queries:
+    cpu_utilization:
+      expr: '100 * (1 - avg by (service, instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])))'
+      data_range: [0, 100]
 ```
 
 The model learns historical cross-sectional spread and residual distributions. Its accepted peer range can be asymmetric; it is not a statistical confidence interval. It relies on a strict-majority normal population, so it is not intended to detect a coordinated change affecting every peer. Use a [temporal model](#temporal-envelope) alongside it when shared shifts matter.

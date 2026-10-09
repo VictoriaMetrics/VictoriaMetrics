@@ -88,7 +88,7 @@ Peer Outlier assumes a strict majority of peers behave normally. It is not inten
 
 ### Tuning the selected model
 
-You can auto-tune supported parameters of a selected model class {{% available_from "v1.12.0" anomaly %}}. The asynchronous autotune API {{% available_from "v1.30.0" anomaly %}} can first profile a bounded sample through `/api/v1/timeseries/characteristics`, then tune a shared concrete configuration through `/api/v1/autotune/tasks`. See the [autotune workflow](https://docs.victoriametrics.com/anomaly-detection/components/models/#shared-asynchronous-autotune-workflow) or use [Tune in the UI](https://docs.victoriametrics.com/anomaly-detection/ui/#tune-a-model).
+You can auto-tune supported parameters of a selected model class {{% available_from "v1.12.0" anomaly %}}. The asynchronous autotune API {{% available_from "v1.30.0" anomaly %}} can first profile a bounded sample through `/api/v1/timeseries/characteristics`, then tune a shared concrete configuration through `/api/v1/autotune/tasks`. See the [autotune workflow](https://docs.victoriametrics.com/anomaly-detection/components/models/#shared-asynchronous-autotune-workflow) or use [Tune in the UI](https://docs.victoriametrics.com/anomaly-detection/ui/#tune-a-model) {{% available_from "v1.31.0" anomaly %}}.
 
 Still not sure what to use? We are [here to help](https://docs.victoriametrics.com/anomaly-detection/#get-in-touch).
 
@@ -102,7 +102,7 @@ To visualize and interact with both [self-monitoring metrics](https://docs.victo
 
 - For guidance on using the `vmanomaly` Grafana dashboard and drilling down into anomaly score visualizations, refer to the [default preset section](https://docs.victoriametrics.com/anomaly-detection/presets/#default).
 - To monitor `vmanomaly` health, operational performance, and potential issues in real time, visit the [self-monitoring section](https://docs.victoriametrics.com/anomaly-detection/self-monitoring/).
-- {{% available_from "v1.26.0" anomaly %}} For rapid exploration of how different models, their configurations and included domain knowledge impacts the results of anomaly detection, use the built-in [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/).
+- {{% available_from "v1.26.0" anomaly %}} For rapid exploration of how different models, their configurations and included domain knowledge impact the results of anomaly detection, use the built-in [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/).
 
 ![vmanomaly-ui-overview](vmanomaly-ui-overview.webp)
 
