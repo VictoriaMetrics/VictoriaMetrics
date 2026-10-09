@@ -46,6 +46,8 @@ var (
 	suppressScrapeErrorsDelay = flag.Duration("promscrape.suppressScrapeErrorsDelay", 0, "The delay for suppressing repeated scrape errors logging per each scrape targets. "+
 		"This may be used for reducing the number of log lines related to scrape errors. See also -promscrape.suppressScrapeErrors")
 	minResponseSizeForStreamParse = flagutil.NewBytes("promscrape.minResponseSizeForStreamParse", 1e6, "The minimum target response size for automatic switching to stream parsing mode, which can reduce memory usage. See https://docs.victoriametrics.com/victoriametrics/vmagent/#stream-parsing-mode")
+	maxParseErrorsPerScrape       = flag.Int("promscrape.maxParseErrorsPerScrape", 100, "The maximum number of parse errors to log per each scrape of a target. "+
+		"The number of suppressed parse errors is logged after the scrape. Zero or negative value disables the limit. See also -promscrape.suppressScrapeErrors")
 )
 
 // ScrapeWork represents a unit of work for scraping Prometheus metrics.
@@ -250,6 +252,11 @@ type scrapeWork struct {
 
 	// lastScrapeSuccess indicates whether last scrape is success or not.
 	lastScrapeSuccess bool
+
+	// parseErrorsCount is the number of parse errors seen during the current scrape.
+	// It is reset at the beginning of every scrape and may be updated concurrently in stream parsing mode.
+	// See -promscrape.maxParseErrorsPerScrape
+	parseErrorsCount atomic.Int64
 }
 
 // loadLastScrape appends last scrape response to dst and returns the result.
@@ -351,6 +358,7 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}, globalStopCh <-chan struct{}) 
 				bbLastScrape := leveledbytebufferpool.Get(sw.lastScrapeLen)
 				bbLastScrape.B = sw.loadLastScrape(bbLastScrape.B)
 				lastScrapeStr := bytesutil.ToUnsafeString(bbLastScrape.B)
+				sw.parseErrorsCount.Store(0)
 				sw.sendStaleSeries(lastScrapeStr, "", t, true)
 				leveledbytebufferpool.Put(bbLastScrape)
 
@@ -380,10 +388,32 @@ func (sw *scrapeWork) logError(s string) {
 	}
 }
 
+// logParseError logs s unless -promscrape.maxParseErrorsPerScrape parse errors were already logged during the current scrape.
+//
+// It may be called concurrently in stream parsing mode.
+func (sw *scrapeWork) logParseError(s string) {
+	n := sw.parseErrorsCount.Add(1)
+	if *suppressScrapeErrors {
+		return
+	}
+	if *maxParseErrorsPerScrape > 0 && n > int64(*maxParseErrorsPerScrape) {
+		return
+	}
+	logger.ErrorfSkipframes(1, "error when scraping %q from job %q with labels %s: %s; "+
+		"see how to limit or disable these errors at https://docs.victoriametrics.com/victoriametrics/vmagent/#troubleshooting",
+		sw.Config.ScrapeURL, sw.Config.Job(), sw.Config.Labels.String(), s)
+}
+
 func (sw *scrapeWork) scrapeAndLogError(scrapeTimestamp, realTimestamp int64) {
 	err := sw.scrapeInternal(scrapeTimestamp, realTimestamp)
 	if *suppressScrapeErrors {
 		return
+	}
+	if *maxParseErrorsPerScrape > 0 {
+		if n := sw.parseErrorsCount.Load() - int64(*maxParseErrorsPerScrape); n > 0 {
+			logger.Warnf("suppressed %d parse errors when scraping %q from job %q with labels %s after logging -promscrape.maxParseErrorsPerScrape=%d errors",
+				n, sw.Config.ScrapeURL, sw.Config.Job(), sw.Config.Labels.String(), *maxParseErrorsPerScrape)
+		}
 	}
 	if err == nil {
 		sw.successRequestsCount++
@@ -442,6 +472,8 @@ func (sw *scrapeWork) getTargetResponse() ([]byte, error) {
 }
 
 func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error {
+	sw.parseErrorsCount.Store(0)
+
 	// Read the whole scrape response into cb.
 	// It is OK to do this for stream parsing mode, since the most of RAM
 	// is occupied during parsing of the read response body below.
@@ -543,9 +575,9 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 		scrapesFailed.Inc()
 	} else {
 		if prommetadata.IsEnabled() {
-			wc.rows, wc.metadataRows = parser.UnmarshalWithMetadata(wc.rows, wc.metadataRows, bodyString, sw.logError)
+			wc.rows, wc.metadataRows = parser.UnmarshalWithMetadata(wc.rows, wc.metadataRows, bodyString, sw.logParseError)
 		} else {
-			wc.rows.UnmarshalWithErrLogger(bodyString, sw.logError)
+			wc.rows.UnmarshalWithErrLogger(bodyString, sw.logParseError)
 		}
 	}
 	samplesPostRelabeling := 0
@@ -688,7 +720,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 
 		sw.pushData(&wc.writeRequest)
 		return nil
-	}, sw.logError)
+	}, sw.logParseError)
 
 	sw.prevLabelsLen = int(maxLabelsLen.Load())
 	scrapedSamples.Update(float64(samplesScraped.Load()))
@@ -927,7 +959,7 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 			setStaleMarkersForRows(wc.writeRequest.Timeseries)
 			sw.pushData(&wc.writeRequest)
 			return nil
-		}, sw.logError)
+		}, sw.logParseError)
 		if err != nil {
 			sw.logError(fmt.Errorf("cannot send stale markers: %w", err).Error())
 		}
