@@ -242,8 +242,8 @@ func Init() {
 
 	initRemoteWriteCtxs(*remoteWriteURLs)
 	if len(*remoteWriteQueuePaths) == 0 {
+		appmetrics.MustCreateUncleanShutdownMarker(*tmpDataPath)
 	}
-	appmetrics.MustCreateUncleanShutdownMarker(*tmpDataPath)
 
 	disableOnDiskQueues := []bool(*disableOnDiskQueue)
 	disableOnDiskQueueAny = slices.Contains(disableOnDiskQueues, true)
