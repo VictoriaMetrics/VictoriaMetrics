@@ -407,6 +407,16 @@ func indexMatchedClosingAlt(s string, allowEscaping bool) int {
 		if allowEscaping && s[i] == '\\' {
 			// skip next byte
 			i++
+		} else if s[i] == '[' {
+			// skip the character class so a '}' within it isn't mistaken for
+			// the closing brace of the alternation
+			for i++; i < l; i++ {
+				if allowEscaping && s[i] == '\\' {
+					i++
+				} else if s[i] == ']' {
+					break
+				}
+			}
 		} else if s[i] == '{' {
 			alts++
 		} else if s[i] == '}' {
