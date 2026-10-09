@@ -13,6 +13,7 @@ import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import WarningLimitSeries from "../../../pages/CustomPanel/WarningLimitSeries/WarningLimitSeries";
 import { DisplayType } from "../../../types";
 import { getDurationFromMilliseconds, getSecondsFromDuration } from "../../../utils/time";
+import { HEATMAP_STEP_MULTIPLIER } from "../../../constants/graph";
 
 interface ExploreMetricItemGraphProps {
   name: string,
@@ -40,7 +41,7 @@ const ExploreMetricItem: FC<ExploreMetricItemGraphProps> = ({
   const { calculated, override } = useStep();
   const [isHeatmap, setIsHeatmap] = useState(false);
   const [showAllSeries, setShowAllSeries] = useState(false);
-  const heatmapStep = getDurationFromMilliseconds(getSecondsFromDuration(calculated) * 10 * 1000);
+  const heatmapStep = getDurationFromMilliseconds(getSecondsFromDuration(calculated) * HEATMAP_STEP_MULTIPLIER * 1000);
   const step = override ?? (isHeatmap ? heatmapStep : calculated);
 
 
