@@ -1069,7 +1069,7 @@ vmagent will generate the following persistent queue folders:
 
 ### On-disk per url persistence
 
-As an alternative to `-remoteWrite.tmpPath`, vmagent can use queue path independently for each `-remoteWrite.url` with `-remoteWrite.queuePath` flag.
+As an alternative to `-remoteWrite.tmpDataPath`, vmagent can use queue path independently for each `-remoteWrite.url` with `-remoteWrite.queuePath` flag.
 It requires the flag value to be set for each `-remoteWrite.url`.
 
  For example:
