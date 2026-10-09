@@ -33,7 +33,6 @@ Each subsequent section of this guide presents an architecture designed to handl
 * **[Basic](https://docs.victoriametrics.com/guides/vm-architectures/#basic) (No Resilience).** This architecture is the baseline for non-critical systems. It has no fault tolerance, and its blast radius is the instance itself. Any failure leads to a complete outage.  
 * **[Single AZ Cluster](https://docs.victoriametrics.com/guides/vm-architectures/#single-availability-zone) (Node-Level Resilience).** This architecture protects against the failure of individual servers (nodes) or application instances within a single Availability Zone. However, its blast radius is the entire AZ; it will not survive a datacenter-wide outage.  
 * **[Multi-Cluster and Multi-AZ](https://docs.victoriametrics.com/guides/vm-architectures/#multi-cluster-and-multi-az) (Cluster/AZ/Datacenter-Level Resilience).** Designed as a disaster recovery solution, this architecture can withstand the complete failure of an entire availability zone or data center.  
-* **[Hyperscale](https://docs.victoriametrics.com/guides/vm-architectures/#the-hyperscale-cell-based) (Cell/AZ and Region-Level Resilience).** An advanced architecture is built to survive failures of entire Availability Zones or logical "cells" within a region, often degrading gracefully instead of failing.  
 * **[Logical Layers](https://docs.victoriametrics.com/guides/vm-architectures/#logical-layers) (Logical Resilience).** This is not a physical resilience level but an architectural layer on top of any setup. It addresses the risk of data access conflicts by providing strong logical isolation between different teams or customers.
 
 ### The decision tree
@@ -83,7 +82,7 @@ High availability implementation: [HA VictoriaMetrics Cluster](https://docs.vict
 
 **Pros**:
 
-* **Reliability.** The system can survive a failure of any component without service disruption. If a single vmstorage node dies, other replicas continue to operate. And it is the same for other components.
+* **Reliability.** Ingestion and querying can continue while at least one instance of each component is available and the remaining instances can handle the load. With application-level replication, queries remain complete if the number of unavailable `vmstorage` nodes is less than `-replicationFactor`.
 
 **Cons**:
 
@@ -100,7 +99,7 @@ High availability implementation: [HA VictoriaMetrics Cluster](https://docs.vict
 
 When building a resilient cluster, several replication options are available.
 
-**Path A: Application-Level Replication.** This approach is enabled [by setting](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety) the `-replicationFactor=N` flag, where N is an integer representing the desired number of replicas. It makes the cluster components responsible for writing N copies of the data across different vmstorage nodes.
+**Path A: Application-Level Replication.** This approach is enabled [by setting](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety) `-replicationFactor=N` on both `vminsert` and `vmselect`, where N is the desired number of copies. `vminsert` writes N copies across different `vmstorage` nodes. Set `-dedup.minScrapeInterval=1ms` on `vmselect` so queries do not count these copies twice.
 
 **Pros:**
 
@@ -109,6 +108,7 @@ When building a resilient cluster, several replication options are available.
 
 **Cons:**
 
+* **Higher resource usage.** Application-level replication increases CPU, memory, disk space and network use by up to N times.
 * **Latency sensitivity risks**. A slow or overloaded replica can increase write latency, since inserts must complete on multiple nodes. A larger number of nodes increases the risk of problems with one of them.
 
 **Path B: Storage-Level Replication (The Cloud Provider Way)** In this model, VictoriaMetrics replication factor is set to 1, and the vmstorage data is backed up with cloud-provided and replicated volumes(i.e., AWS EBS replicated within AZ, Google Zonal PD). 
@@ -120,7 +120,7 @@ When building a resilient cluster, several replication options are available.
 **Cons:**
 
 * **No read resilience.** Any vmstorage restart (including planned maintenance) or failure makes its data temporarily unavailable for querying.
-* **Failover duration.** When a node or disk fails, the PVC must be reattached to another node. For zonal volumes (single AZ), this can take seconds to minutes (e.g., 10-60 seconds for clean detach/attach; up to 5 minutes in force-detach cases), making data from that shard temporarily unavailable for querying until reschedule completes.
+* **Failover duration.** If `vmstorage` is unavailable, data from that shard remains unavailable too until `vmstorage` starts on a healthy node with its PVC attached.
 
 ### Query Consistency Partial vs. Complete Responses
 
@@ -144,13 +144,13 @@ In a large, distributed system, partial failures are a common occurrence. A crit
 
 **Cons:**
 
-* **Lower Availability.** This approach sacrifices availability to guarantee consistency. So if more than replicationFactor vmstorage nodes are unavailable, read queries will start returning errors.
+* **Lower Availability.** This approach sacrifices availability to guarantee consistency. If replicationFactor or more vmstorage nodes are unavailable, read queries return errors.
 
-### Buffering Strategy Trade-off
+### Buffering with vmagent
 
-Once you have a vmagent sending data to the storage component (vmsingle or cluster), you face your first important trade-off: what should vmagent do when the storage is temporarily unavailable? This choice defines the trade-off between higher availability (by not losing data) and lower resource consumption (by not using disk). By default, vmagent acts as a durable queue: it persists compressed unsent data to the local filesystem. The size of the queue is controlled via \`--remoteWrite.maxDiskUsagePerURL\` and can be [estimated in advance](https://docs.victoriametrics.com/victoriametrics/vmagent/#calculating-disk-space-for-persistence-queue).
+When storage is temporarily unavailable, `vmagent` buffers compressed unsent data on the local filesystem. The size of the queue is controlled via `--remoteWrite.maxDiskUsagePerURL` and can be [estimated in advance](https://docs.victoriametrics.com/victoriametrics/vmagent/#calculating-disk-space-for-persistence-queue).
 
-**Path A: Stateful Mode (Most Reliable).**  By default, [the operator uses ephemeral storage](https://docs.victoriametrics.com/operator/resources/vmagent/#statefulmode) for the vmagent queue. In production, we recommend explicitly configuring a PersistentVolumeClaim (PVC) for vmagent to ensure the buffer is stored on a persistent disk and survives pod restarts. [The documentation](https://docs.victoriametrics.com/victoriametrics/vmagent/#on-disk-persistence) about on-disk persistence.
+By default, [the operator uses ephemeral storage](https://docs.victoriametrics.com/operator/resources/vmagent/#statefulmode) for the vmagent queue. In production, we recommend explicitly configuring a PersistentVolumeClaim (PVC) for vmagent to ensure the buffer is stored on a persistent disk and survives pod restarts. See [on-disk persistence](https://docs.victoriametrics.com/victoriametrics/vmagent/#on-disk-persistence).
 
 **Pros:**
 
@@ -162,29 +162,18 @@ Once you have a vmagent sending data to the storage component (vmsingle or clust
 
 For Enterprise users, the queueing can be offloaded to an external message broker, such as **Kafka**. In that case vmagent can [read or write into Kafka](https://docs.victoriametrics.com/victoriametrics/integrations/kafka/).
 
-**Path B: Ephemeral Buffering (with tmpfs).** For maximum performance, the vmagent buffer directory can be mounted as a tmpfs volume, which is physically stored in the node's RAM. In Kubernetes, this is configured via `emptyDir: { medium: "Memory" }`.
-
-**Pros:**
-
-* **Fast I/O.** Buffering happens at RAM speed. This path safeguards against brief network outages without any loss of performance.
-
-**Cons:**
-
-* **Significant risk of data loss.** Unsent data is lost on vmagent restarts. The queue size is limited by the available memory.
-
 ### Unavailability Scenarios
 
 **Blast radius:** Cluster
 
 * **Instance/pod failure:**  
   * Path A (Application-level replication, RF ≥2): no impact; cluster continues with remaining replicas.  
-  * Path B (Storage-level replication, RF=1): temporary data unavailability (can be around 1 minute regarding PVC detach/attach, depending on the type of replication).  
-  * Path A (Buffering Strategy Trade-off, stateful): if vmagent uses a PersistentVolumeClaim, buffered data survives pod restarts and is replayed automatically.  
-  * Path A (Buffering Strategy Trade-off, Ephemeral): if vmagent uses an in-memory (tmpfs) buffer, all unsent samples are lost on restart.  
+  * Path B (Storage-level replication, RF=1): temporary data unavailability.
+  * If vmagent uses a PersistentVolumeClaim, buffered data survives pod restarts and is replayed automatically.
 * **Node/server failure:** pods rescheduled; impact depends on replication mode.  
 * **AZ/datacenter failure:** complete outage; no cross-AZ protection.  
 * **vminsert or vmstorage unavailability:**  
-  * Path A, Path B (Buffering Strategy Trade-off) data replayed after reconnecting.
+  * `vmagent` replays buffered data after reconnecting.
 
 ## Multi-Cluster and Multi-AZ
 
@@ -192,11 +181,13 @@ For Enterprise users, the queueing can be offloaded to an external message broke
 
 High availability implementation: [VictoriaMetrics Multi-Regional Setup](https://docs.victoriametrics.com/guides/multi-regional-setup-dedicated-regions/)
 
-**Key characteristics:** The core principle of this architecture is to run two or more independent, self-contained VictoriaMetrics clusters (from the [Single AZ](https://docs.victoriametrics.com/guides/vm-architectures/#single-availability-zone) section) in separate failure domains, such as different Availability Zones or geographic regions. A global, stateless layer is responsible for routing write and read traffic to these clusters. Each participating AZ must be provisioned to handle the entire workload if another AZ fails. 
+**Key characteristics:** The core principle of this architecture is to run two or more independent, self-contained VictoriaMetrics clusters (from the [Single AZ](https://docs.victoriametrics.com/guides/vm-architectures/#single-availability-zone) section) in separate failure domains, such as different Availability Zones or geographic regions. A global layer is responsible for routing write and read traffic to these clusters. Each participating AZ must be provisioned to handle the entire workload if another AZ fails.
 
-There are no differences in the VictoriaMetrics clusters' topology regarding the multi-AZ approach. It can be Active-Active or Active-Passive - the schema will be the same.  
+Each `vmagent` sends a full copy of its data to every cluster.
+List all cluster write URLs in its `-remoteWrite.url` flags.
 
-To ensure reliability, vmagent implements the bulkhead pattern: each destination URL configured via `--remoteWrite.url` is assigned a dedicated data queue and an isolated pool of workers. This isolates the data streams, ensuring that if one storage destination becomes slow or unavailable, it does not impact data delivery to the others.
+Each `vmagent` uses a separate write queue for each cluster.
+If one cluster is slow or unavailable, `vmagent` buffers its writes and keeps sending data to the other clusters.
 
 **Pros:**
 
@@ -205,150 +196,94 @@ To ensure reliability, vmagent implements the bulkhead pattern: each destination
 
 **Cons:**
 
-* **Increased Cost:** You are paying more for the infrastructure (compute, storage, and network). The capacity of vmstorage in each AZ is underutilized, since every AZ must be ready to absorb the full traffic load in case of failure. Overhead is ~100% with 2 AZs (50% utilization). For other components, it is possible to use [VPA](https://kubernetes.io/docs/concepts/workloads/autoscaling) or [HPA](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale). 
+* **Increased Cost:** You are paying more for the infrastructure (compute, storage, and network). Each cluster ingests and stores a full copy, so two clusters roughly double storage use and write traffic.
 
 **Schema:**
 
 <p align="center">
-<img src="/guides/vm-architectures/multi-az-architecture.webp" alt="Multi-AZ Architecture" width="65%">
+<img src="/guides/vm-architectures/multi-az-architecture.webp" alt="Multi-AZ with vmauth" width="48%" style="vertical-align: top">
+<img src="/guides/vm-architectures/multi-az-vmselect-architecture.webp" alt="Multi-AZ with global vmselect" width="48%" style="vertical-align: top">
 </p>
+
+### Read Paths
+
+**Path A: Read one cluster with vmauth.** Each `vmauth` uses `first_available` to query the first available cluster in its `url_prefix` list.
+Use the [high-availability configuration](https://docs.victoriametrics.com/victoriametrics/vmauth/#high-availability)
+with `deny_partial_response=1` and matching `retry_status_codes` so `vmauth` tries another cluster
+when the selected cluster cannot return a full response.
+
+**Pros:**
+
+* **Lower traffic costs and latency.** Reading one cluster reduces cross-AZ and cross-region traffic and can lower query latency.
+* **Lower query overhead.** `vmauth` does not merge results from multiple clusters.
+
+**Cons:**
+
+* **Stale reads.** `first_available` checks whether a cluster is available, not whether it has received the latest data.
+  If the queued bytes for a cluster grow in `vmagent_remotewrite_pending_data_bytes`, remove that cluster from read routing until its queue drains.
+
+**Path B: Merge all responses with vmselect.**
+
+A global `vmselect` queries local `vmselect` instances in each cluster and merges their results.
+Run each cluster's local `vmselect` with `-clusternativeListenAddr` to accept queries from other `vmselect` instances.
+Choose a TCP port and use it in the global `vmselect` configuration.
+If `vminsert` writes multiple copies, set the same `-replicationFactor` on the local `vmselect`.
+See [multi-level cluster setup](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multi-level-cluster-setup).
+
+For two clusters holding full copies of the same data, use these flags on the global `vmselect`:
+
+```text
+-storageNode=vmselect-a:8401
+-storageNode=vmselect-b:8401
+-replicationFactor=2
+-dedup.minScrapeInterval=1ms
+-search.denyPartialResponse
+```
+
+This allows it to return full responses when one cluster is unavailable.
+The remaining cluster must have all data needed for the query.
+`-search.denyPartialResponse` returns an error when the remaining clusters cannot provide a full response.
+For more clusters with full copies of the data, add one address per cluster and set `-replicationFactor` to the number of clusters.
+Use [vmstorage groups](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#vmstorage-groups-at-vmselect)
+when a full copy of the data is split across several read endpoints.
+
+Paths B and C query multiple clusters, which increases cross-AZ traffic and the work done by the global `vmselect`.
+
+**Pros:**
+
+* **Data completeness.** The global `vmselect` can fill gaps in one cluster's data with another cluster's copy.
+
+**Cons:**
+
+* **Query latency.** A slow cluster can delay the query or cause it to time out, even if another cluster has all the data.
+
+**Path C: Skip slow replicas with vmselect.** Use the setup from Path B and enable `-search.skipSlowReplicas` on the global `vmselect` to stop waiting once enough replicas respond.
+With two clusters and `-replicationFactor=2`, one full response is enough to return the query result without waiting for the other cluster.
+
+**Pros:**
+
+* **Lower query latency.** This can reduce query latency compared with waiting for all responses.
+
+**Cons:**
+
+* **Stale reads.** Recent data can be missing if the responding cluster lags behind on writes.
+
+### Alerting
+
+Choose one of two alerting setups:
+
+* **Local `vmalert`.** Run `vmalert` in each cluster and query its local `vmselect`. Rules can use stale data if writes to that cluster lag.
+* **Global `vmalert`.** Use the same read entry point as users. Rule results depend on the selected read path.
 
 ### Unavailability Scenarios
 
-**Blast radius:** Availability zone
+**Blast radius:** Availability zone or region
 
-* **Primary region failure (Active-Passive):** switchover in minutes; stale reads until DNS/load balancer/BGP reroute.
+* **Primary region failure (Active-Passive):** If read failover is configured, queries can switch to the healthy region. The switching time depends on the routing and health checks.
 
-* **Single AZ/cluster failure (Active-Active):** seamless reroute; read results may temporarily differ between clusters if cross-AZ replication lags.
+* **Single AZ/cluster failure (Active-Active):** A configured read path can use the surviving cluster. [Read results may differ](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#load-balance-read-requests-among-replicas) while `vmagent` delivery to one cluster lags.
 
-* **Cross-region link failure:**
-
-  * Writes: buffered by vmagent.  
-  * Reads: may return stale data until the link is restored.
-
-## The Hyperscale (Cell-based)
-
-**Recommended for:** Systems that require extra reliability and scalability across multiple regions and zones.
-
-**Key characteristics:** This architecture is built on two main ideas - cells and the separation of routing and storage paths
-
-First, we have logical groups of Availability Zones (AZs). Think of these as our data pods. Inside these groups, we deploy our basic clusters. The data within these groups can be distributed in two ways:
-- **Fully replicated:** An identical copy exists in each AZ.
-- **Sharded:** Each AZ holds a portion of the data. For example, with replication factor 3 across 4 cells, each cell stores approximately 75% of all metrics.
-
-Inside each Storage Cell, the VictoriaMetrics cluster is configured with a `-replicationFactor` of 1. High availability is achieved by replicating data across multiple cells by the global routing layer, not within the cell or the cluster.
-
-Next, we have a separate, stateless layer of routing cells. Their only purpose is to manage traffic. They accept all incoming data and queries and intelligently route them to the correct storage groups. This separation of routing and storage is key to the design. 
-
-For complete disaster recovery, this entire cell-based architecture is duplicated in a second geographic region.
-
-**Pros:**
-
-* **Maximum Fault Tolerance:** The system survives failures of servers, entire storage cells, and even availability zones within a region. It degrades gracefully instead of failing completely.  
-* **Horizontal Scaling:** You can add new storage cells to increase capacity or new routing cells to handle more traffic.
-
-**Cons / Trade-offs:**
-
-* **Increased Complexity:** This architecture requires significant expertise and a large amount of automation (a control plane) to manage the routing and data placement.  
-* **High Cost:** The number of components and the data redundancy make this the most expensive option.
-
-**Schema:**
-
-A global, stateless layer of routing cells (vmagent, vmauth) sits on top. It routes traffic to several logical groups of storage cells. Each storage group contains multiple AZs, and data is replicated or sharded across them. There are several approaches to implementing it.
-
-<p align="center">
-<img src="/guides/vm-architectures/hyperscale-architecture.webp" alt="Hyperscale Architecture" width="85%">
-</p>
-
-### Choosing Your Read Path Strategy
-
-When you build a system that spans multiple AZs or regions, you face a fundamental choice: how to read the data? The answer to this question will define the trade-offs in your architecture between data completeness, query speed, and cost. Your choice of how to write data directly impacts how you can read it. Let's look at two pairs of write/read strategies.
-
-### Path A: Prioritize Data Completeness (The Global vmselect model)
-
-In this model, your primary goal is to obtain as complete and consistent data as possible for every query, even if some storage cells are lagging behind.
-
-**Write Path:** vmagent [shards data](https://docs.victoriametrics.com/victoriametrics/vmagent/#sharding-among-remote-storages) across your storage cells. Fault tolerance is configured via `-remoteWrite.shardByURL` and `-remoteWrite.shardByURLReplicas` (for example, writing each time series to 3 out of 4 cells). Redundancy is achieved across cells, not within a cell. This provides resilience against cell failures while saving storage compared to full copies.
-
-**Read Path:** You use a two-level vmselect system. A global vmselect receives user queries. In turn, it queries local vmselects in each of your storage cells and merges the results. Exposing local VMSelects to a global one is necessary because there can be no possibility to connect directly to vmstorage on the local cell, especially if it is in Kubernetes, as there is no HTTP endpoint for querying vmstorage. And using NodePort may not be a good practice for production.
-
-**Schema:**
-
-Global vmselect -> Local vmselects (in each cell)
-
-**Pros:**
-
-* **High availability of complete data.** The global VMSelect can fill in any gaps from a lagging cell by retrieving data from another replica. The higher the replicationFactor, the more durable it is against storage failures.
-
-**Cons:**
-
-* **High resource overhead.** The global VMSelect performs a significant amount of redundant work, merging and aggregating data. This requires significant CPU and memory, and increases query latency.
-
-### Path B: Focus on Read Speed (The vmauth with first_available mode)
-
-In this model, your primary goal is to provide users with the fastest possible response, accepting certain risks associated with data freshness.
-
-**Write Path:** This is where you face another choice. To make the `first_available` read path work, every storage cell must contain a full copy of all data. This is achieved by configuring the global vmagent to replicate 100% of the write traffic to every storage cell. This is achieved by providing all storage cell URLs in the `-remoteWrite.url` flags. If you provide another count of storage cells in the URL section, it will affect the completeness of the data on the read path.
-
-**Read Path:** A global vmauth directs the user to the first available cell.
-
-**Schema:**
-
-Global vmauth -> Cell -> vmselect
-
-**Pros:**
-
-* **Very fast queries.** There is no overhead from merging results from multiple cells.  
-* **Low cross-cell traffic for reads.** This can significantly reduce network costs.
-
-**Cons:**
-
-* **High storage cost.** You are storing redundant, full copies of data, which is an expensive approach.  
-* **The Freshness Trap.** This is the greatest and most significant risk associated with this approach. If the write path to one storage cell slows down, vmagent will start buffering data for it. Internally, vmagent maintains a separate queue for each `-remoteWrite.url` target, so lag in a single cell can cause it to serve stale results under the `first_available` policy.  If vmauth sends a user to this cell while its queue is not empty, that user will receive stale data (data that is not 100% fresh). A certain automation could be used to disable reads from cells that are lagging behind.
-
-### Alerting Strategy Trade-offs
-
-Just like the read path, your alerting strategy in a hyperscale setup also involves critical trade-offs.
-
-**Path A: Local vmalert (Fast Evaluation, High Traffic). In this model, you deploy vmalert inside each storage cell.**
-
-**How it works:** Each vmalert queries its local vmselect for data. This is very fast and efficient. It then sends its firing alerts to a global Alertmanager cluster, which is likely located in the compute cells.
-
-**Pros:**
-
-* **Low latency for alert evaluation.** Query evaluation is always local and fast.
-
-**Cons:**
-
-* **Inconsistent alerts (if data is sharded).** This approach only works reliably if every storage cell has a full copy of the data (Read Path B from the upper tradeoff of this section). If data is sharded (Read Path A), no single vmalert has a complete picture, so global alerts cannot be evaluated correctly.   
-* **High traffic cost.** Every vmalert instance must send its alerts to **every** Alertmanager instance in the global cluster. If you have many storage cells and alertmanagers in different AZs or regions, this creates a lot of expensive cross-network traffic, if you have many cells and Alertmanagers in different regions. This consideration is especially important for those who want to minimize cross-region traffic.
-
-**Path B: Global vmalert (Consistent Alerts, Higher Latency) In this model, you move vmalert out of the storage cells and into the global compute cells.**
-
-**How it works:** The global vmalert instances query the same entry point as users (either the global vmselect or vmauth). This provides them with a comprehensive view of all data. They then send alerts to their local Alertmanager instances in the same compute cell.
-
-**Pros:**
-
-* **Consistent, global view.** Alerts are always evaluated against the complete dataset. This works perfectly with the efficient sharded write path (Read Path A).  
-* **Low alert traffic.** The communication between vmalert and Alertmanager is all local within the compute cell, which significantly reduces cross-AZ/region traffic.
-
-**Cons:**
-
-* **Slower alert evaluation.** Every evaluation now involves a cross-cell query, which has higher latency than a local query. In practice, alerting rules usually generate the majority of the read load.
-
-### Unavailability Scenarios
-
-**Blast radius:** Region / Cell
-
-* **Single node failure within a cell:** degraded performance in that cell; global system continues normally.
-
-* **Single cell failure:**
-
-  * Path A (Global vmselect): queries still complete but slower (merging from healthy cells).
-
-  * Path B (First-available vmauth): queries are routed to healthy cells; stale data is possible if a write lag exists.
-
-* **Region outage:** the duplicated architecture in the standby region takes over, resulting in temporary degradation until the reroute is completed.
+* **Cross-region link failure:** `vmagent` buffers writes for the affected cluster up to its queue limit. It keeps sending writes to the other cluster. Queries to the affected cluster may miss recent data.
 
 ## Logical layers
 
@@ -359,14 +294,14 @@ The other use case is a different retention across tenants, which is described i
 **Key characteristics:** This architecture introduces a logical layer of multitenancy on top of the physical architectures mentioned before.
 
 * The main goal is to serve multiple tenants (datasets) on the same shared infrastructure while providing strong logical isolation. This solves the problem of ensuring that Team A cannot view data from Team B.  
-* This is achieved using [URL-based multitenancy.](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format) Each tenant is assigned a unique AccountID.  
-* This AccountID is used in the URL path to create a "virtual slice" or a separate "lane" for that tenant's data, from ingestion at vmagent all the way to querying at vmselect.
+* This is achieved using [VictoriaMetrics multitenancy](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy). Each tenant is assigned a unique AccountID.
+* This AccountID identifies the tenant's data from ingestion to querying.
 
 **How it works:**
 
-1. **At the vmagent:** A vmagent receives data from all sources. It uses relabeling rules to identify which tenant the data belongs to. When vmagent sends the data to vminsert, it attaches the tenant ID as a label (see [docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy)).  
+1. **At the vmagent:** A vmagent receives data from all sources. When sending data to `vminsert`, it uses a tenant-specific URL or the [multitenant endpoint](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels) with a `vm_account_id` label.
 2. **At the vminsert and vmstorage:** These components natively separate data based on the tenant ID. The data from one tenant is logically isolated from another tenant.  
-3. **At the vmauth and vmselect:** When a query comes in, vmauth checks if the user has permission to access the tenant ID in the URL. It only allows valid requests to pass through. vmselect will then only query the data for that specific, authorized tenant.
+3. **At the vmauth and vmselect:** Configure [`vmauth`](https://docs.victoriametrics.com/victoriametrics/vmauth/#per-tenant-authorization) to route each user to their tenant's query URL. Do not expose `vmselect` to untrusted users. Its multitenant endpoints can read data across tenants.
 
 ### Architectural Models for the isolation
 
@@ -392,7 +327,7 @@ This multitenancy approach gives us another trade-off in the isolation implement
 
 **Pros:**
 
-* **Full performance isolation.** The performance of important tenants is not affected by others.
+* **Processing isolation.** Important tenants have dedicated processing components, so other tenants do not use their capacity. In this diagram, `vmstorage` remains shared.
 
 **Cons:**
 
