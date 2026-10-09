@@ -113,7 +113,10 @@ const PredefinedDashboard: FC<PredefinedDashboardProps> = ({
             </div>
           )
           : <div className="vm-predefined-dashboard-panels-panel__alert">
-            <Alert variant="error">
+            <Alert
+              variant="error"
+              title="Missing dashboard panels"
+            >
               <code>&quot;panels&quot;</code> not found. Check the configuration file <b>{filename}</b>.
             </Alert>
           </div>
