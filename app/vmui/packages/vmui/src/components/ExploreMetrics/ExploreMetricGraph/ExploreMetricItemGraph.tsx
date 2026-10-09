@@ -93,8 +93,22 @@ with (q = ${queryBase}) (
       })}
     >
       {isLoading && <Spinner />}
-      {error && <Alert variant="error">{error}</Alert>}
-      {queryErrors[0] && <Alert variant="error">{queryErrors[0]}</Alert>}
+      {error && (
+        <Alert
+          variant="error"
+          title="Unable to load query results"
+        >
+          {error}
+        </Alert>
+      )}
+      {queryErrors[0] && (
+        <Alert
+          variant="error"
+          title="Unable to load query results"
+        >
+          {queryErrors[0]}
+        </Alert>
+      )}
       {warning && (
         <WarningLimitSeries
           warning={warning}

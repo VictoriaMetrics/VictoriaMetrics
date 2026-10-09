@@ -92,7 +92,10 @@ const TracePage: FC = () => {
               className="vm-trace-page-header-errors-item"
               key={`${error}_${i}`}
             >
-              <Alert variant="error">
+              <Alert
+                variant="error"
+                title="Unable to load trace"
+              >
                 <b className="vm-trace-page-header-errors-item__filename">{error.filename}</b>
                 <span>{error.text}</span>
               </Alert>
