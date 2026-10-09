@@ -33,6 +33,10 @@ const (
 func NewLoadBalancerTransport(origin http.RoundTripper, originURL *url.URL) (http.RoundTripper, *url.URL) {
 
 	modifiedURL := *originURL
+	defaultPort := "80"
+	if modifiedURL.Scheme == "https" {
+		defaultPort = "443"
+	}
 	var discoverFunc func(context.Context, string, string) ([]*backend, error)
 	switch {
 	case strings.HasPrefix(originURL.Host, "dns+"):
@@ -40,17 +44,16 @@ func NewLoadBalancerTransport(origin http.RoundTripper, originURL *url.URL) (htt
 		discoverFunc = discoverDNSBackends
 	case strings.HasPrefix(originURL.Host, "srv+"):
 		modifiedURL.Host = modifiedURL.Host[4:]
-		discoverFunc = discoverSRVBackends
+		discoverFunc = func(ctx context.Context, host, port string) ([]*backend, error) {
+			return discoverSRVBackends(ctx, host, port, defaultPort)
+		}
 	default:
 		return origin, originURL
 	}
 	host, port, err := net.SplitHostPort(modifiedURL.Host)
 	if err != nil {
 		host = modifiedURL.Host
-		port = "80"
-		if modifiedURL.Scheme == "https" {
-			port = "443"
-		}
+		port = defaultPort
 	}
 	t := &loadbalancerTransport{
 		tr:           origin,
@@ -134,7 +137,11 @@ func (dbs *discoveredBackends) getLeastLoadedBackend() *backend {
 }
 
 type backend struct {
-	addr               string
+	addr string
+	// host is the Host header value for requests to this backend.
+	// It is empty if the Host header must be taken from the request url.
+	host string
+
 	concurrentRequests atomic.Int32
 	brokenDeadline     atomic.Uint64
 }
@@ -209,7 +216,13 @@ func (lb *loadbalancerTransport) doRequest(r *http.Request, b *backend) (*http.R
 		r2.Body = body
 	}
 	r2.URL.Host = b.addr
-	if r2.Host == "" {
+	// http.NewRequest sets Host to the url host, so Host is treated as explicitly set only if it differs from the url host.
+	switch {
+	case r.Host != "" && r.Host != r.URL.Host:
+		// Keep the explicitly set Host.
+	case b.host != "":
+		r2.Host = b.host
+	default:
 		r2.Host = r.URL.Host
 	}
 	resp, err := lb.tr.RoundTrip(r2)
@@ -287,7 +300,7 @@ func discoverDNSBackends(ctx context.Context, host, port string) ([]*backend, er
 	return backends, nil
 }
 
-func discoverSRVBackends(ctx context.Context, host, port string) ([]*backend, error) {
+func discoverSRVBackends(ctx context.Context, host, port, defaultPort string) ([]*backend, error) {
 	_, addrs, err := netutil.Resolver.LookupSRV(ctx, "", "", host)
 	if err != nil {
 		return nil, fmt.Errorf("failed to LookupSRV records for host: %q: %w", host, err)
@@ -299,7 +312,13 @@ func discoverSRVBackends(ctx context.Context, host, port string) ([]*backend, er
 			hostPort = strconv.FormatUint(uint64(addr.Port), 10)
 		}
 		hostAddr := net.JoinHostPort(addr.Target, hostPort)
-		backends = append(backends, &backend{addr: hostAddr})
+		// Proxies and TLS-terminating servers usually route by the SRV target name, not by the SRV name.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8965
+		hostHeader := strings.TrimSuffix(addr.Target, ".")
+		if hostPort != defaultPort {
+			hostHeader = net.JoinHostPort(hostHeader, hostPort)
+		}
+		backends = append(backends, &backend{addr: hostAddr, host: hostHeader})
 	}
 	return backends, nil
 }
