@@ -7,15 +7,19 @@ groups:
       - alert: NoLatestBackupWithinLastDay
         expr: |
           (
-            vm_backup_last_success_at{type="latest"} == 0
-            and on(job, instance)
-            vm_app_uptime_seconds > 24 * 3600
+            (
+              vm_backup_last_success_at{type="latest"} == 0
+              and on(job, instance)
+              vm_app_uptime_seconds > 24 * 3600
+            )
+            or
+            (
+              vm_backup_last_success_at{type="latest"} > 0
+              and time() - vm_backup_last_success_at{type="latest"} > 24 * 3600
+            )
           )
-          or
-          (
-            vm_backup_last_success_at{type="latest"} > 0
-            and time() - vm_backup_last_success_at{type="latest"} > 24 * 3600
-          )
+          and on(job, instance)
+          flag{name="disableScheduledBackups", value="false"}
         for: 1m
         labels:
           severity: critical
@@ -23,20 +27,28 @@ groups:
           summary: "latest backup hasn't completed successfully for more than 1 day on \"{{ $labels.job }}\"(\"{{ $labels.instance }}\")"
           description: >
             vmbackupmanager on "{{ $labels.job }}"("{{ $labels.instance }}") hasn't completed the latest backup for more than 1 day.
+            This alert assumes the default vmbackupmanager scheduling interval. A custom value set by
+            -backupInterval may cause false positives.
             Check error logs on vmbackupmanager for root cause.
 
       - alert: NoHourlyBackupWithinLastDay
         expr: |
           (
-            vm_backup_last_success_at{type="hourly"} == 0
-            and on(job, instance)
-            vm_app_uptime_seconds > 24 * 3600
+            (
+              vm_backup_last_success_at{type="hourly"} == 0
+              and on(job, instance)
+              vm_app_uptime_seconds > 24 * 3600
+            )
+            or
+            (
+              vm_backup_last_success_at{type="hourly"} > 0
+              and time() - vm_backup_last_success_at{type="hourly"} > 24 * 3600
+            )
           )
-          or
-          (
-            vm_backup_last_success_at{type="hourly"} > 0
-            and time() - vm_backup_last_success_at{type="hourly"} > 24 * 3600
-          )
+          and on(job, instance)
+          flag{name="disableScheduledBackups", value="false"}
+          and on(job, instance)
+          flag{name="disableHourly", value="false"}
         for: 1m
         labels:
           severity: critical
@@ -44,20 +56,28 @@ groups:
           summary: "hourly backup hasn't completed successfully for more than 1 day on \"{{ $labels.job }}\"(\"{{ $labels.instance }}\")"
           description: >
             vmbackupmanager on "{{ $labels.job }}"("{{ $labels.instance }}") hasn't completed an hourly backup for more than 1 day.
+            This alert assumes the default vmbackupmanager scheduling interval. A custom value set by
+            -backupInterval may cause false positives.
             Check error logs on vmbackupmanager for root cause.
 
       - alert: NoDailyBackupWithinLast3Days
         expr: |
           (
-            vm_backup_last_success_at{type="daily"} == 0
-            and on(job, instance)
-            vm_app_uptime_seconds > 3 * 24 * 3600
+            (
+              vm_backup_last_success_at{type="daily"} == 0
+              and on(job, instance)
+              vm_app_uptime_seconds > 3 * 24 * 3600
+            )
+            or
+            (
+              vm_backup_last_success_at{type="daily"} > 0
+              and time() - vm_backup_last_success_at{type="daily"} > 3 * 24 * 3600
+            )
           )
-          or
-          (
-            vm_backup_last_success_at{type="daily"} > 0
-            and time() - vm_backup_last_success_at{type="daily"} > 3 * 24 * 3600
-          )
+          and on(job, instance)
+          flag{name="disableScheduledBackups", value="false"}
+          and on(job, instance)
+          flag{name="disableDaily", value="false"}
         for: 1m
         labels:
           severity: critical
@@ -65,20 +85,28 @@ groups:
           summary: "daily backup hasn't completed successfully for more than 3 days on \"{{ $labels.job }}\"(\"{{ $labels.instance }}\")"
           description: >
             vmbackupmanager on "{{ $labels.job }}"("{{ $labels.instance }}") hasn't completed a daily backup for more than 3 days.
+            This alert assumes the default vmbackupmanager scheduling interval. A custom value set by
+            -backupInterval may cause false positives.
             Check error logs on vmbackupmanager for root cause.
 
       - alert: NoWeeklyBackupWithinLast14Days
         expr: |
           (
-            vm_backup_last_success_at{type="weekly"} == 0
-            and on(job, instance)
-            vm_app_uptime_seconds > 14 * 24 * 3600
+            (
+              vm_backup_last_success_at{type="weekly"} == 0
+              and on(job, instance)
+              vm_app_uptime_seconds > 14 * 24 * 3600
+            )
+            or
+            (
+              vm_backup_last_success_at{type="weekly"} > 0
+              and time() - vm_backup_last_success_at{type="weekly"} > 14 * 24 * 3600
+            )
           )
-          or
-          (
-            vm_backup_last_success_at{type="weekly"} > 0
-            and time() - vm_backup_last_success_at{type="weekly"} > 14 * 24 * 3600
-          )
+          and on(job, instance)
+          flag{name="disableScheduledBackups", value="false"}
+          and on(job, instance)
+          flag{name="disableWeekly", value="false"}
         for: 1m
         labels:
           severity: critical
@@ -86,20 +114,28 @@ groups:
           summary: "weekly backup hasn't completed successfully for more than 14 days on \"{{ $labels.job }}\"(\"{{ $labels.instance }}\")"
           description: >
             vmbackupmanager on "{{ $labels.job }}"("{{ $labels.instance }}") hasn't completed a weekly backup for more than 14 days.
+            This alert assumes the default vmbackupmanager scheduling interval. A custom value set by
+            -backupInterval may cause false positives.
             Check error logs on vmbackupmanager for root cause.
 
       - alert: NoMonthlyBackupWithinLast62Days
         expr: |
           (
-            vm_backup_last_success_at{type="monthly"} == 0
-            and on(job, instance)
-            vm_app_uptime_seconds > 62 * 24 * 3600
+            (
+              vm_backup_last_success_at{type="monthly"} == 0
+              and on(job, instance)
+              vm_app_uptime_seconds > 62 * 24 * 3600
+            )
+            or
+            (
+              vm_backup_last_success_at{type="monthly"} > 0
+              and time() - vm_backup_last_success_at{type="monthly"} > 62 * 24 * 3600
+            )
           )
-          or
-          (
-            vm_backup_last_success_at{type="monthly"} > 0
-            and time() - vm_backup_last_success_at{type="monthly"} > 62 * 24 * 3600
-          )
+          and on(job, instance)
+          flag{name="disableScheduledBackups", value="false"}
+          and on(job, instance)
+          flag{name="disableMonthly", value="false"}
         for: 1m
         labels:
           severity: critical
@@ -107,4 +143,6 @@ groups:
           summary: "monthly backup hasn't completed successfully for more than 62 days on \"{{ $labels.job }}\"(\"{{ $labels.instance }}\")"
           description: >
             vmbackupmanager on "{{ $labels.job }}"("{{ $labels.instance }}") hasn't completed a monthly backup for more than 62 days.
+            This alert assumes the default vmbackupmanager scheduling interval. A custom value set by
+            -backupInterval may cause false positives.
             Check error logs on vmbackupmanager for root cause.
