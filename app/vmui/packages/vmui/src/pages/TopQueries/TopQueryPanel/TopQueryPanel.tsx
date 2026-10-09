@@ -12,8 +12,10 @@ export interface TopQueryColumn {
   title?: string;
   tooltip?: string;
   key: keyof TopQuery;
+  sortable?: boolean;
   sortBy?: keyof TopQuery;
   format?: (row: TopQuery) => ReactNode;
+  visible?: (row: TopQuery) => boolean;
 }
 
 export interface TopQueryPanelProps {

@@ -1,3 +1,5 @@
+import { TenantInfo } from "../api/types";
+
 const TENANT_REGEXP = /(\/select\/)(\d+(?::\d+)?)(\/.*)?$/;
 
 export const replaceTenantId = (serverUrl: string, tenantId: string) => {
@@ -18,4 +20,13 @@ export const updateBrowserUrlTenant = (tenantId: string) => {
 
   const nextUrl = `${nextBase}${window.location.hash}`;
   window.history.replaceState(null, "", nextUrl);
+};
+
+export const formatTenant = (tenantInfo: TenantInfo): string | undefined => {
+  const { multiTenant, accountID, projectID } = tenantInfo;
+
+  if (multiTenant === true) return "multitenant";
+  if (accountID === undefined || projectID === undefined) return undefined;
+
+  return `${accountID}:${projectID}`;
 };

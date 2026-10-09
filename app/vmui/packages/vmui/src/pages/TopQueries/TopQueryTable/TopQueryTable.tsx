@@ -31,17 +31,25 @@ const TopQueryTable:FC<TopQueryPanelProps> = ({ rows, columns, defaultOrderBy })
     await copyToClipboard(query, "Query has been copied");
   };
 
+  const visibleColumns = columns.filter(column => {
+    return !column.visible || rows.some(row => column.visible!(row));
+  });
+
   return (
     <table className="vm-table">
       <thead className="vm-table-header">
         <tr className="vm-table__row vm-table__row_header">
-          {columns.map((col) => {
+          {visibleColumns.map((col) => {
             const sortKey = col.sortBy || col.key;
 
             return (
               <th
-                className="vm-table-cell vm-table-cell_header vm-table-cell_sort"
-                onClick={createSortHandler(sortKey)}
+                className={classNames({
+                  "vm-table-cell": true,
+                  "vm-table-cell_header": true,
+                  "vm-table-cell_sort": col.sortable !== false,
+                })}
+                onClick={col.sortable !== false ? createSortHandler(sortKey) : undefined}
                 key={col.key}
               >
                 <div className="vm-table-cell__content">
@@ -56,15 +64,17 @@ const TopQueryTable:FC<TopQueryPanelProps> = ({ rows, columns, defaultOrderBy })
                       </span>
                     </Tooltip>
                   )}
-                  <div
-                    className={classNames({
-                      "vm-table__sort-icon": true,
-                      "vm-table__sort-icon_active": orderBy === sortKey,
-                      "vm-table__sort-icon_desc": orderDir === "desc" && orderBy === sortKey
-                    })}
-                  >
-                    <ArrowDropDownIcon/>
-                  </div>
+                  {col.sortable !== false && (
+                    <div
+                      className={classNames({
+                        "vm-table__sort-icon": true,
+                        "vm-table__sort-icon_active": orderBy === sortKey,
+                        "vm-table__sort-icon_desc": orderDir === "desc" && orderBy === sortKey
+                      })}
+                    >
+                      <ArrowDropDownIcon/>
+                    </div>
+                  )}
                 </div>
               </th>
             );
@@ -78,12 +88,16 @@ const TopQueryTable:FC<TopQueryPanelProps> = ({ rows, columns, defaultOrderBy })
             className="vm-table__row"
             key={rowIndex}
           >
-            {columns.map((col) => (
+            {visibleColumns.map((col) => (
               <td
                 className="vm-table-cell"
                 key={col.key}
               >
-                {col.format?.(row) ?? row[col.key] ?? "-"}
+                {
+                  col.visible && !col.visible(row)
+                  ? "-"
+                  : col.format?.(row) ?? row[col.key] ?? "-"
+                }
               </td>
             ))}
             <td className="vm-table-cell vm-table-cell_no-padding">
