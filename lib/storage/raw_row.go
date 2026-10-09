@@ -26,6 +26,12 @@ const pendingRowsFlushInterval = 2 * time.Second
 // Limit the maximum shard size to 8Mb, since this gives the lowest CPU usage under high ingestion rate.
 const maxRawRowsPerShard = (8 << 20) / int(unsafe.Sizeof(rawRow{}))
 
+// maxRawRowsIdleFlushes is the number of consecutive empty flush ticks after which an idle shard releases its buffer.
+// It releases allocated memory after 1 minute (pendingRowsFlushInterval * maxRawRowsIdleFlushes).
+//
+// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11672
+const maxRawRowsIdleFlushes = 30
+
 // rawRow represents raw timeseries row.
 type rawRow struct {
 	// TSID is time series id.
@@ -266,6 +272,8 @@ type rawRowsShardNopad struct {
 
 	mu   sync.Mutex
 	rows []rawRow
+
+	idleFlushes int
 }
 
 type rawRowsShard struct {
@@ -286,6 +294,7 @@ func (rrs *rawRowsShard) addRows(rows []rawRow) ([]rawRow, []rawRow) {
 	var rowsToFlush []rawRow
 
 	rrs.mu.Lock()
+	rrs.idleFlushes = 0
 	if cap(rrs.rows) == 0 {
 		rrs.rows = newRawRows()
 	}
@@ -325,6 +334,16 @@ func (rrs *rawRowsShard) appendRawRowsToFlush(dst [][]rawRow, currentTimeMs int6
 
 	// Slow path - move rrs.rows to dst.
 	rrs.mu.Lock()
+	if len(rrs.rows) == 0 && !isFinal {
+		rrs.idleFlushes++
+		if rrs.idleFlushes >= maxRawRowsIdleFlushes {
+			rrs.idleFlushes = 0
+			rrs.rows = nil
+		}
+		rrs.mu.Unlock()
+		return dst
+	}
+
 	dst = appendRawRowss(dst, rrs.rows)
 	rrs.rows = rrs.rows[:0]
 	rrs.mu.Unlock()
