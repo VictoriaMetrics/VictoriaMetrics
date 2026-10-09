@@ -723,7 +723,7 @@ If the **results** look good and the **model configuration should be deployed in
 
 ## Peer-group investigation
 
-Selecting the experimental [`peer_outlier` model](https://docs.victoriametrics.com/anomaly-detection/components/models/#peer-outlier) {{% available_from "v1.31.0" anomaly %}} opens a dedicated results panel. It overlays peers and their learned accepted range, highlights qualified anomaly regions, and ranks individual peers with score histories. Select a peer to inspect its observations and range; use **Show all** to return to the population.
+Selecting the [`peer_outlier` model](https://docs.victoriametrics.com/anomaly-detection/components/models/#peer-outlier) {{% available_from "v1.31.0" anomaly %}} opens a dedicated results panel. It overlays peers and their learned accepted range, highlights qualified anomaly regions, and ranks individual peers with score histories. Select a peer to inspect its observations and range; use **Show all** to return to the population.
 
 ![Peer-group investigation with a selected peer, accepted range and anomaly tooltip](vmanomaly-ui-peer-investigation.webp)
 

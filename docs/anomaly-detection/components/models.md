@@ -594,7 +594,7 @@ Each query defines an independent population; queries are never pooled together.
 
 **Implications:** Use peer groups for comparable replicas, load balancers or hosts with similar roles. They detect unusual members relative to their population, rather than replacing temporal detection for changes shared by the whole population.
 
-**Implementation:** [Peer Outlier](#peer-outlier), an experimental online model. See its configuration, assumptions and parameters below.
+**Implementation:** [Peer Outlier](#peer-outlier), an online model. See its configuration, assumptions and parameters below.
 
 ![Peer-group model lifecycle: fit per query and group, score each peer, and reuse group state when membership changes](model-lifecycle-peer-group.svg)
 
@@ -653,7 +653,7 @@ Built-in models support 2 groups of arguments:
 
 
 **Models**:
-- [Peer Outlier](#peer-outlier) - an experimental online model for finding unusual members of comparable peer populations, with independent grouping and changing membership.
+- [Peer Outlier](#peer-outlier) - an online model for finding unusual members of comparable peer populations, with independent grouping and changing membership.
 - [AutoTuned](#autotuned) - designed to take the cognitive load off the user, allowing any of built-in models below to be re-tuned for best hyperparameters on data seen during each `fit` phase of the algorithm. Tradeoff is between increased computational time and optimized results / simpler maintenance.
 - [Temporal Envelope](#temporal-envelope) - the preferred **online model for complex operational data** with trends, changepoints, multiple calendar patterns, holidays, capable of [forecasting](https://docs.victoriametrics.com/anomaly-detection/faq/#forecasting). Its multivariate form also learns cross-series relationships.
 - [Online Z-score](#online-z-score) - useful for initial testing and for simpler data ([de-trended](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend) data without strict [seasonality](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality) and with anomalies of similar magnitude as your "normal" data)
@@ -687,6 +687,7 @@ reader:
     cpu_utilization:
       expr: '100 * (1 - avg by (service, instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])))'
       data_range: [0, 100]
+# other components like writer, schedulers, monitoring ...
 ```
 
 The model learns historical cross-sectional spread and residual distributions. Its accepted peer range can be asymmetric; it is not a statistical confidence interval. It relies on a strict-majority normal population, so it is not intended to detect a coordinated change affecting every peer. Use a [temporal model](#temporal-envelope) alongside it when shared shifts matter.
