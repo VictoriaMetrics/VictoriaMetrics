@@ -104,7 +104,7 @@ with (q = ${queryBase}) (
       {queryErrors[0] && (
         <Alert
           variant="error"
-          title="Unable to load query results"
+          title="Query execution error"
         >
           {queryErrors[0]}
         </Alert>
