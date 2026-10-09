@@ -51,8 +51,10 @@ type typeInfo struct {
 	keyNeedsHashableValueCheck bool
 }
 
-func newTypeInfo(t reflect.Type) *typeInfo {
+func newTypeInfo(t reflect.Type, newTypeInfos map[reflect.Type]*typeInfo) *typeInfo {
 	tInfo := typeInfo{typ: t, kind: t.Kind()}
+
+	newTypeInfos[t] = &tInfo
 
 	for t.Kind() == reflect.Pointer {
 		t = t.Elem()
@@ -83,11 +85,11 @@ func newTypeInfo(t reflect.Type) *typeInfo {
 
 	switch k {
 	case reflect.Array, reflect.Slice:
-		tInfo.elemTypeInfo = getTypeInfo(t.Elem())
+		tInfo.elemTypeInfo = getTypeInfoWithNewTypeInfos(t.Elem(), newTypeInfos)
 	case reflect.Map:
-		tInfo.keyTypeInfo = getTypeInfo(t.Key())
+		tInfo.keyTypeInfo = getTypeInfoWithNewTypeInfos(t.Key(), newTypeInfos)
 		tInfo.keyNeedsHashableValueCheck = needsHashableValueCheck(t.Key())
-		tInfo.elemTypeInfo = getTypeInfo(t.Elem())
+		tInfo.elemTypeInfo = getTypeInfoWithNewTypeInfos(t.Elem(), newTypeInfos)
 	}
 
 	return &tInfo
@@ -407,23 +409,110 @@ func getEncodingStructToArrayType(t reflect.Type, flds fields) (*encodingStructT
 	return structType, nil
 }
 
+type inProgressEncodeFuncs struct {
+	encodeFuncs
+	complete     bool
+	indirectUsed bool
+}
+
 func getEncodeFunc(t reflect.Type) (encodeFunc, isEmptyFunc, isZeroFunc) {
 	if v, _ := encodeFuncCache.Load(t); v != nil {
 		fs := v.(encodeFuncs)
 		return fs.ef, fs.ief, fs.izf
 	}
-	ef, ief, izf := getEncodeFuncInternal(t)
-	encodeFuncCache.Store(t, encodeFuncs{ef, ief, izf})
-	return ef, ief, izf
+	var rebuild bool
+	newEncodeFuncs := make(map[reflect.Type]*inProgressEncodeFuncs)
+	for unsupportedTypeCount := 0; ; {
+		getEncodeFuncInternal(t, newEncodeFuncs)
+		newEncodeFuncs, rebuild = needRebuild(newEncodeFuncs)
+		if !rebuild {
+			break
+		}
+		if _, unsupported := newEncodeFuncs[t]; unsupported {
+			break
+		}
+		// Every rebuild must find at least one new unsupported type.
+		// This check is to ensure termination.
+		if len(newEncodeFuncs) <= unsupportedTypeCount {
+			newEncodeFuncs[t] = &inProgressEncodeFuncs{complete: true}
+			break
+		}
+		unsupportedTypeCount = len(newEncodeFuncs)
+	}
+	for typ, fs := range newEncodeFuncs {
+		encodeFuncCache.Store(typ, fs.encodeFuncs)
+	}
+	return newEncodeFuncs[t].ef, newEncodeFuncs[t].ief, newEncodeFuncs[t].izf
+}
+
+// needRebuild returns true if a type in the inProgressEncodeFuncs has a nil encodeFunc
+// and was also indirectly used.
+// In other words, rebuild is needed if a type:
+// - was used in a closure encodeFunc during type building and
+// - was resolved to be unsupported when type building was completed.
+// If rebuild is needed, resolved unsupported types are returned as seed for the next rebuilding;
+// otherwise, the unmodified newEncodeFuncs is returned.
+// NOTE: rebuilding is not needed if all types are supported.
+func needRebuild(newEncodeFuncs map[reflect.Type]*inProgressEncodeFuncs) (map[reflect.Type]*inProgressEncodeFuncs, bool) {
+	rebuild := false
+	unsupported := make(map[reflect.Type]*inProgressEncodeFuncs)
+	for typ, fs := range newEncodeFuncs {
+		if fs.ef == nil {
+			if fs.indirectUsed {
+				rebuild = true
+			}
+			unsupported[typ] = &inProgressEncodeFuncs{encodeFuncs: fs.encodeFuncs, complete: true}
+		}
+	}
+	if !rebuild {
+		return newEncodeFuncs, false
+	}
+	return unsupported, true
+}
+
+func getEncodeFuncWithNewEncodeFuncs(t reflect.Type, newEncodeFuncs map[reflect.Type]*inProgressEncodeFuncs) encodeFunc {
+	if fs, found := newEncodeFuncs[t]; found {
+		if fs.complete {
+			return fs.ef
+		}
+		fs.indirectUsed = true
+		return func(e *bytes.Buffer, em *encMode, v reflect.Value) error {
+			if fs.ef == nil {
+				return &UnsupportedTypeError{t}
+			}
+			return fs.ef(e, em, v)
+		}
+	}
+
+	if v, _ := encodeFuncCache.Load(t); v != nil {
+		fs := v.(encodeFuncs)
+		return fs.ef
+	}
+
+	ef, _, _ := getEncodeFuncInternal(t, newEncodeFuncs)
+	return ef
 }
 
 func getTypeInfo(t reflect.Type) *typeInfo {
 	if v, _ := typeInfoCache.Load(t); v != nil {
 		return v.(*typeInfo)
 	}
-	tInfo := newTypeInfo(t)
-	typeInfoCache.Store(t, tInfo)
+	newTypeInfos := make(map[reflect.Type]*typeInfo)
+	tInfo := newTypeInfo(t, newTypeInfos)
+	for typ, ti := range newTypeInfos {
+		typeInfoCache.Store(typ, ti)
+	}
 	return tInfo
+}
+
+func getTypeInfoWithNewTypeInfos(t reflect.Type, newTypeInfos map[reflect.Type]*typeInfo) *typeInfo {
+	if tInfo, found := newTypeInfos[t]; found {
+		return tInfo
+	}
+	if v, _ := typeInfoCache.Load(t); v != nil {
+		return v.(*typeInfo)
+	}
+	return newTypeInfo(t, newTypeInfos)
 }
 
 func hasToArrayOption(tag string) bool {
