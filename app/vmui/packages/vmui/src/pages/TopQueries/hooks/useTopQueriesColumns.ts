@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { TopQueryColumn } from "../TopQueryPanel/TopQueryPanel";
 import { humanizeSeconds } from "../../../utils/time";
 import { formatBytes } from "../../../utils/bytes";
+import { formatTenant } from "../../../utils/tenants";
 
 type UseTopQueriesColumns = {
   maxLifetime: string;
@@ -25,6 +26,14 @@ export const useTopQueriesColumns = ({ maxLifetime }: UseTopQueriesColumns) => {
       tooltip: `The number of times the query was executed over the last ${maxLifetime}`,
     };
 
+    const tenantCol: TopQueryColumn = {
+      key: "accountID",
+      title: "tenant",
+      sortable: false,
+      visible: row => !!formatTenant(row),
+      format: formatTenant,
+    };
+
     const topBySumDuration: TopQueryColumn[] = [
       queryCol,
       {
@@ -35,6 +44,7 @@ export const useTopQueriesColumns = ({ maxLifetime }: UseTopQueriesColumns) => {
       },
       timeRangeCol,
       countCol,
+      tenantCol,
     ];
 
     const topByAvgDuration: TopQueryColumn[] = [
@@ -47,12 +57,14 @@ export const useTopQueriesColumns = ({ maxLifetime }: UseTopQueriesColumns) => {
       },
       timeRangeCol,
       countCol,
+      tenantCol,
     ];
 
     const topByCount: TopQueryColumn[] = [
       queryCol,
       timeRangeCol,
       countCol,
+      tenantCol,
     ];
 
     const topByAvgMemoryUsage: TopQueryColumn[] = [
@@ -65,6 +77,7 @@ export const useTopQueriesColumns = ({ maxLifetime }: UseTopQueriesColumns) => {
       },
       timeRangeCol,
       countCol,
+      tenantCol,
     ];
 
     return {
