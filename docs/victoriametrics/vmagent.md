@@ -1081,7 +1081,7 @@ It requires the flag value to be set for each `-remoteWrite.url`.
 It allows to remove `-remoteWrite.url=http://url-1` from the middle of configuration and keep queue data for `--remoteWrite.url=http://url-2`.
 By default, vmagent calculates the persistent queue subfolder name based on the URL's position in the argument list.
 
-Exist queues can be kept by pinning it from auto-generated names. For example, `<remoteWrite.tmpDataPath>.persistent-queue/1_B9EB7BE220B91E9D` can be used as a value for `-remoteWrite.queuePath` flag.
+Exist queues can be kept by pinning it from auto-generated names. For example, `<remoteWrite.tmpDataPath>/persistent-queue/1_B9EB7BE220B91E9D` can be used as a value for `-remoteWrite.queuePath` flag.
 In addition vmagent will not remove any content from `-remoteWrite.tmpDataPath` folder, if `-remoteWrite.queuePath` is set.
 
 ### On-disk persistence and data processing order
