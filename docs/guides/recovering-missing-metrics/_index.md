@@ -1,6 +1,6 @@
 ---
 weight: 152
-title: Recovering missing metrics
+title: How to recover missing metrics
 description: "Detect metric gaps and copy missing samples from another VictoriaMetrics installation."
 menu:
   docs:

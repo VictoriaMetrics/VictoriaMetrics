@@ -12,13 +12,13 @@ In a typical [Multi-Cluster and Multi-AZ topology](https://docs.victoriametrics.
 
 ## How gaps can occur
 
-By default, `vmagent` keeps a separate [persistent queue](https://docs.victoriametrics.com/victoriametrics/vmagent/#on-disk-persistence) for each remote-write destination while it cannot deliver data promptly. A destination can miss samples when:
+By default, `vmagent` buffers data in a separate [persistent queue](https://docs.victoriametrics.com/victoriametrics/vmagent/#on-disk-persistence) for each remote-write destination while it cannot deliver it promptly. A destination can miss samples when:
 
 * Its queue is deleted or lost before the pending data is delivered, for example when the queue is on ephemeral storage.
 * `-remoteWrite.url` values or their order change while queues hold pending data, and `-remoteWrite.keepDanglingQueues` isn't set; `vmagent` deletes the orphaned queues on restart.
 * The queue reaches `-remoteWrite.maxDiskUsagePerURL` and `vmagent` discards its oldest buffered data.
 * On-disk persistence is disabled and a destination cannot keep up. Depending on the input type and flags, `vmagent` may reject pushed requests with `429 Too Many Requests` or drop samples instead. Data that exists only in memory can also be lost if `vmagent` stops ungracefully. See [disabling on-disk persistence](https://docs.victoriametrics.com/victoriametrics/vmagent/#disabling-on-disk-persistence).
-* Remote storage rejects a block with `400 Bad Request` or `409 Conflict`; `vmagent` drops blocks with these responses instead of retrying them.
+* Remote storage rejects a block with `400 Bad Request`, `409 Conflict` or `415 Unsupported Media Type`; `vmagent` drops blocks with these responses instead of retrying them.
 
 Fix the cause of data loss before copying historical samples, so the destination does not continue to develop gaps.
 
@@ -27,7 +27,7 @@ Fix the cause of data loss before copying historical samples, so the destination
 First, check whether data was dropped. Inspect the affected `vmagent`'s logs and [monitoring metrics](https://docs.victoriametrics.com/victoriametrics/vmagent/#monitoring) for the affected remote-write destination:
 
 * Increases in `vm_persistentqueue_bytes_dropped_total` indicate data discarded from the persistent queue when its disk limit is reached. Match its `path` label to the queue's `path` in `vmagent_remotewrite_pending_data_bytes`.
-* Increases in `vmagent_remotewrite_samples_dropped_total` indicate samples dropped when the queue cannot accept them, and `vmagent_remotewrite_packets_dropped_total` indicates blocks rejected by remote storage.
+* Increases in `vmagent_remotewrite_samples_dropped_total` indicate samples dropped when the queue cannot accept them, and increases in `vmagent_remotewrite_packets_dropped_total` indicate blocks rejected by remote storage.
 * `vm_app_prev_shutdown_unclean` equal to `1` indicates that the previous `vmagent` run stopped ungracefully, so its in-memory buffers may have been lost.
 * Check for a lost or deleted queue separately: its contents can be lost without an increase in these counters.
 
@@ -37,9 +37,9 @@ If data was dropped, use the history of `vmagent_remotewrite_pending_data_bytes`
 
 Confirm that the source contains data throughout the selected range and that it is within the destination's retention period. Use the same tenant and representative series when querying both installations. A query such as `count_over_time(up{job="example"}[5m])` can help compare a regularly scraped target after replacing the selector with a real one, but it cannot establish the extent of data loss across all series and tenants. Use the queue history to choose the recovery range rather than narrowing it to differences in one series.
 
-## Copy metrics - Cluster installations
+## Copy data between clusters
 
-The following example copies all tenants' data for the selected range between two VictoriaMetrics clusters. Replace the addresses and UTC times with the endpoints and range identified above:
+The following example copies all tenants' data for the selected range between two VictoriaMetrics clusters. Replace the addresses with your endpoints and the UTC times with the range identified above:
 
 ```sh
 HEALTHY_READ_ADDR='http://healthy-vmselect.example.com:8481'
@@ -57,7 +57,7 @@ END='2025-01-02T00:00:00Z'
 
 `--vm-intercluster` discovers tenants through the source's `/admin/tenants` endpoint and copies each tenant to the same tenant ID at the destination. Use the base URLs of `vmselect` and `vminsert`, without tenant paths. If `vmauth` fronts either endpoint, its routes must allow tenant discovery on the source and the corresponding tenant-specific export and import paths. See [cluster-to-cluster migration](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/#cluster-to-cluster) for details.
 
-## Copy metrics - Single-node installations
+## Copy data between single-node installations
 
 For two single-node VictoriaMetrics installations, use their base URLs and omit `--vm-intercluster`:
 
@@ -86,5 +86,5 @@ After `vmctl` reports `Import finished`, query the affected installation again. 
 1. Confirm that data was actually dropped; a growing queue alone doesn't mean data was lost.
 1. Use the queue history to choose the time range to recover, and widen it slightly on both sides.
 1. Check that the healthy source holds data for the whole range.
-1. Copy the range with `vmctl vm-native`, adding `--vm-intercluster` for clusters.
-1. Enable deduplication at the destination and verify the copied data.
+1. Make sure deduplication is enabled at the destination.
+1. Copy the range with `vmctl vm-native`, adding `--vm-intercluster` for clusters, and verify the copied data.
