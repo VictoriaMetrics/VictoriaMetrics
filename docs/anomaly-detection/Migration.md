@@ -63,6 +63,7 @@ Read each row as **source persisted state → target runtime**. The upgrade and 
 
 | Source state | Target runtime | Action and compatibility boundary |
 | --- | --- | --- |
+| v1.30.7 | v1.31.0 | Reuse compatible existing built-in state; no upgrade-only refit is required. New peer models have no state from older releases. |
 | v1.30.6 | v1.30.7 | Reuse compatible built-in state. |
 | v1.30.5 | v1.30.6–v1.30.7 | Reuse compatible built-in state. |
 | v1.30.4 | v1.30.5–v1.30.7 | Reuse compatible built-in state. Its UI and named-query changes require no state-format migration. |
