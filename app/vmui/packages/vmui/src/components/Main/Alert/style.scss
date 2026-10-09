@@ -40,6 +40,13 @@
     transform: translate(-1px, -1px);
   }
 
+  &__title,
+  &__content {
+    min-width: 0;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+  }
+
   &__title {
     font-weight: 500;
   }
