@@ -280,7 +280,7 @@ models:
 
 ### Group by
 
-> The `groupby` argument works only in combination with [multivariate models](#multivariate-models).
+> The `groupby` argument applies to [multivariate models](#multivariate-models) and [peer-group models](#peer-group-models). For peer groups {{% available_from "v1.31.0" anomaly %}}, it defines independent populations within each query; keep peer identity labels out of `groupby`.
 
 The `groupby` argument{{% available_from "v1.13.0" anomaly %}} (`list[string]`) enables logical grouping within [multivariate models](#multivariate-models). When specified, **a separate multivariate model is trained for each unique combination of label values present in the `groupby` columns**.
 
@@ -520,11 +520,12 @@ models:
 
 ## Model types
 
-Models are classified along **two dimensions**, resulting in four possible combinations:
+Models are classified along **two dimensions**: input/output topology and update strategy.
 
 By input data handling:
 - [Univariate models](#univariate-models) - models fit/used per each individual time series, producing **individual** [output](#vmanomaly-output)
 - [Multivariate models](#multivariate-models) - models fit/used on a set of time series simultaneously, producing shared [output](#vmanomaly-output)
+- [Peer-group models](#peer-group-models) - models fit/used on a changing population within one query, producing individual [output](#vmanomaly-output) for each member.
 
 By update strategy:
 - [Offline models](#offline-models) - models that require **full re-fit** on a defined `fit_window` of data to update their parameters defined by `fit_every` schedule in [scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler)
@@ -578,6 +579,24 @@ models:
 
 ```
 
+
+### Peer-group Models
+
+For a peer-group model {{% available_from "v1.31.0" anomaly %}}, **one shared model instance per query and group** compares comparable entities at each timestamp and produces a **separate anomaly score for each peer**. Unlike multivariate models, the population is not a fixed set of channels. Unlike univariate models, each member does not need its own fitted model.
+
+Each query defines an independent population; queries are never pooled together. Use `groupby` to divide it by labels such as `service` or `region`. Retain identity labels such as `instance` in the query results, but leave them out of `groupby`. For example, two queries each returning three services create six group models, regardless of how many instances belong to each service.
+
+**Membership and cold starts:**
+
+- A new peer joining an existing, warmed-up group can be scored using the group's learned state without a separate per-peer fit.
+- Missing or departed peers do not invalidate the remaining population. Scoring still requires enough valid, aligned peers at that timestamp (`min_peer_count` for [Peer Outlier](#peer-outlier)).
+- A new query/group identity needs its own fitted model and warmup; it cannot reuse another group's state. Membership changes within an existing group do not reset that group's warmup.
+
+**Implications:** Use peer groups for comparable replicas, load balancers or hosts with similar roles. They detect unusual members relative to their population, rather than replacing temporal detection for changes shared by the whole population.
+
+**Implementation:** [Peer Outlier](#peer-outlier), an online model. See its configuration, assumptions and parameters below.
+
+![Peer-group model lifecycle: fit per query and group, score each peer, and reuse group state when membership changes](model-lifecycle-peer-group.svg)
 
 ### Online Models
 
@@ -634,6 +653,7 @@ Built-in models support 2 groups of arguments:
 
 
 **Models**:
+- [Peer Outlier](#peer-outlier) - an online model for finding unusual members of comparable peer populations, with independent grouping and changing membership.
 - [AutoTuned](#autotuned) - designed to take the cognitive load off the user, allowing any of built-in models below to be re-tuned for best hyperparameters on data seen during each `fit` phase of the algorithm. Tradeoff is between increased computational time and optimized results / simpler maintenance.
 - [Temporal Envelope](#temporal-envelope) - the preferred **online model for complex operational data** with trends, changepoints, multiple calendar patterns, holidays, capable of [forecasting](https://docs.victoriametrics.com/anomaly-detection/faq/#forecasting). Its multivariate form also learns cross-series relationships.
 - [Online Z-score](#online-z-score) - useful for initial testing and for simpler data ([de-trended](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend) data without strict [seasonality](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality) and with anomalies of similar magnitude as your "normal" data)
@@ -647,10 +667,50 @@ Built-in models support 2 groups of arguments:
 - [Custom model](#custom-model-guide) - benefit from your own models and expertise to better support your **unique use case**.
 
 
-### AutoTuned
-Selecting model [hyperparameters](https://en.wikipedia.org/wiki/Hyperparameter_(machine_learning)) can require detailed knowledge of both the model and the data. The `AutoTunedModel` wrapper searches supported parameters during each fit. At minimum, configure `tuned_model_class` and the expected upper bound for anomalous observations through `optimization_params.anomaly_percentage`.
+### Peer Outlier
 
-> Using autotune on `tuned_model_class` if run on a [query](#queries) that returns more than 1 timeseries, will result in **one model per each unique labelset** with **probably different [hyperparameters](https://en.wikipedia.org/wiki/Hyperparameter_(machine_learning))** found for each of them. This is useful for further context separation in contrast to using `tuned_model_class` directly, which will result in the same amount of models as there are timeseries returned by the query, but with **the same hyperparameters** for each of them. E.g.
+**Experimental.** `peer_outlier` {{% available_from "v1.31.0" anomaly %}} (`model.online.PeerOutlierModel`) is an online implementation of [peer-group detection](#peer-group-models). Use it to detect unusual resource utilization or other measurements among comparable replicas or hosts. A snapshot needs at least `min_peer_count` aligned peers to train or score.
+
+```yaml
+models:
+  cpu_peers:
+    class: peer_outlier
+    queries: [cpu_utilization]
+    groupby: [service]
+    min_peer_count: 5
+    epsilon_quantile: 0.75
+    tolerance: 4.0
+    decay: 1.0
+    clip_predictions: true
+reader:
+  queries:
+    cpu_utilization:
+      expr: '100 * (1 - avg by (service, instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])))'
+      data_range: [0, 100]
+# other components like writer, schedulers, monitoring ...
+```
+
+The model learns historical cross-sectional spread and residual distributions. Its accepted peer range can be asymmetric; it is not a statistical confidence interval. It relies on a strict-majority normal population, so it is not intended to detect a coordinated change affecting every peer. Use a [temporal model](#temporal-envelope) alongside it when shared shifts matter.
+
+| Parameter | Default | Meaning |
+| --- | --- | --- |
+| `groupby` | omitted | Labels defining independent populations within each query. |
+| `min_peer_count` | `5` | Minimum aligned peers; must be at least `3`. |
+| `epsilon_quantile` | `0.75` | Historical spread quantile, strictly between `0` and `1`. Higher values tolerate wider populations. |
+| `tolerance` | `4.0` | Positive multiplier for the learned neighborhood and accepted range; not a number of standard deviations. |
+| `decay` | `1.0` | Weight decay per valid snapshot, in `(0, 1]`. Values below `1` prioritize recent populations. |
+| `min_n_samples_seen` | derived | Minimum effective valid snapshots before scoring. When omitted, the upper tail must have at least eight observations: `ceil(8 / (1 - epsilon_quantile))`, or `32` with defaults. Scores remain zero during warmup. |
+
+The effective warmup must be reachable with the selected decay. Shared [domain-knowledge parameters](#common-args), including query-level policies, still apply. Set `data_range` and `clip_predictions: true` to keep predictions within known physical bounds; absence of negative training observations alone does not impose a zero lower bound. Configure model parameters at the top level; nonempty `args` is rejected.
+
+Use the [peer-group investigation view](https://docs.victoriametrics.com/anomaly-detection/ui/#peer-group-investigation) to inspect the accepted range, rank anomalous peers and compare group activity.
+
+### AutoTuned
+Selecting model [hyperparameters](https://en.wikipedia.org/wiki/Hyperparameter_(machine_learning)) can require detailed knowledge of both the model and the data. The `AutoTunedModel` wrapper searches supported parameters during each fit. At minimum, configure `tuned_class_name` and the expected upper bound for anomalous observations through `optimization_params.anomaly_percentage`.
+
+The wrapper follows the selected model's grouping: one model per series for univariate detection, one per aligned group for multivariate detection, and one per query-isolated population for peer-group detection. {{% available_from "v1.31.0" anomaly %}} To tune `peer_outlier`, set `tuned_class_name: peer_outlier` and put any grouping labels in `optimization_params.frozen_params.groupby`. Validation keeps population snapshots intact. Keep `optimized_business_params: []` and define stable business policies on the queries. Use [shared tuning](#shared-asynchronous-autotune-workflow) to obtain a concrete configuration without retuning on every fit; capacity estimates for that configuration exclude the tuning search.
+
+> For a univariate `tuned_class_name`, a [query](#queries) returning multiple series produces one independently tuned model per unique labelset. Using the concrete class directly instead gives those models the same configured hyperparameters. For example:
 > ```yaml
 > models:
 >   # this may result in 1 model per each unique labelset with different hyperparameters, such as z_threshold
@@ -1677,7 +1737,7 @@ See the [component configuration reference](https://docs.victoriametrics.com/ano
 Pull the `vmanomaly` image:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.30.7
+docker pull victoriametrics/vmanomaly:v1.31.0
 ```
 
 Mount the module at `/vmanomaly/src/model/custom.py`, which matches the configured import path `model.custom.CustomModel`. Validate the complete configuration with `--dryRun` before starting the long-running service.
@@ -1687,7 +1747,7 @@ docker run --rm \
   -v "$PWD/license:/license:ro" \
   -v "$PWD/custom_model.py:/vmanomaly/src/model/custom.py:ro" \
   -v "$PWD/config.yaml:/config.yaml:ro" \
-  victoriametrics/vmanomaly:v1.30.7 \
+  victoriametrics/vmanomaly:v1.31.0 \
   /config.yaml \
   --licenseFile=/license \
   --dryRun

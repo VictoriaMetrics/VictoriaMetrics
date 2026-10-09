@@ -50,7 +50,7 @@ VictoriaMetrics Anomaly Detection **continuously re-fit and apply machine learni
   
 - **Handling complex metrics** – effectively detects anomalies in **trending, seasonal, or dynamically scaling data**, where **fixed thresholds and simpler models usually fail**.
 
-- **Detecting anomalies in interconnected metrics** – supports **[multivariate anomaly detection](http://docs.victoriametrics.com/anomaly-detection/components/models#multivariate-models)**, identifying patterns across **related metrics** instead of treating them in isolation as [univariate metrics](http://docs.victoriametrics.com/anomaly-detection/components/models#univariate-models).
+- **Different ways to detect anomalies** – use [univariate models](https://docs.victoriametrics.com/anomaly-detection/components/models/#univariate-models) for each metric independently, [multivariate models](https://docs.victoriametrics.com/anomaly-detection/components/models/#multivariate-models) for relationships across related metrics, or [peer-group models](https://docs.victoriametrics.com/anomaly-detection/components/models/#peer-group-models) {{% available_from "v1.31.0" anomaly %}} to find unusual members among comparable replicas or hosts, even as membership changes.
 
 ## Practical guides and installation
 

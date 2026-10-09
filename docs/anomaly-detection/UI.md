@@ -362,7 +362,7 @@ docker run -it --rm \
   -e VMANOMALY_MCP_SERVER_URL=http://mcp-vmanomaly:8081/mcp \
   -p 8080:8080 \
   -p 8490:8490 \
-  victoriametrics/vmanomaly:v1.30.7 \
+  victoriametrics/vmanomaly:v1.31.0 \
   vmanomaly_config.yaml
 ```
 
@@ -721,20 +721,69 @@ If the **results** look good and the **model configuration should be deployed in
 
 ![vmanomaly-ui-example-alert-menu](vmanomaly-ui-example-alert-menu.webp)
 
+## Peer-group investigation
+
+Selecting the [`peer_outlier` model](https://docs.victoriametrics.com/anomaly-detection/components/models/#peer-outlier) {{% available_from "v1.31.0" anomaly %}} opens a dedicated results panel. It overlays peers and their learned accepted range, highlights qualified anomaly regions, and ranks individual peers with score histories. Select a peer to inspect its observations and range; use **Show all** to return to the population.
+
+![Peer-group investigation with a selected peer, accepted range and anomaly tooltip](vmanomaly-ui-peer-investigation.webp)
+
+The group picker searches all labels, including hidden common labels. Its **Peak affected %** order compares the peak affected proportion in the visible window, then anomalous-peer count, region count and alphabetical labels. Common labels are shown once, and full labels remain available without expanding the layout indefinitely.
+
+The **Affected peers** curve measures the percentage of reporting peers anomalous at each timestamp, not anomaly severity. Horizontal extent represents duration. All loaded groups share an adaptive vertical scale, which stays unchanged during group switches and zoom. Hover shows exact affected/reporting counts and percentages. This distinguishes a widespread event from an extreme value in only one peer, including when population size changes.
+
+Use **Peer anomaly ranking** to filter peers by label or value and compare their anomaly regions and score histories. Color swatches match the plotted series.
+
+![Peer anomaly ranking with label filtering, matching series colors and score histories](vmanomaly-ui-peer-ranking.webp)
+
+In multivariate results, **Channels outside expected range** is a diagnostic view, not the joint detection decision. Use **Joint anomaly score** to identify multivariate anomalies; individual channels may exceed their ranges without the joint score crossing its threshold.
+
+## Tune a model
+
+Open **Tune** {{% available_from "v1.31.0" anomaly %}} in the model card to try experimental shared parameter tuning. Choose **Marked anomalies** for supervised tuning using regions you mark on the query chart, or an expected anomaly rate (including **No anomalies**) for unsupervised tuning. Set the trial/time budget, run tuning, then review the suggested parameters and, for marked anomalies, the detection-quality report before **Apply and detect**.
+
+![Tune model panel with objectives, trial budget, suggested candidate and detection-quality statistics](vmanomaly-ui-tune-model.webp)
+
+For supervised tuning, use **Mark on chart** to select expected anomalous regions. Resize marks to adjust their boundaries and use the scope selector to choose which series they apply to.
+
+![Chart marking mode with selected anomaly regions and the series-scope toolbar](vmanomaly-ui-mark-anomalies.webp)
+
+Quality metrics are point-level results, not counts of visual spikes. Marked regions guide tuning, so this is not an independent test. For multivariate models, a group timestamp is marked when any channel is marked; channels do not count as separate detections. Check the report's evaluated coverage and replay settings when comparing results.
+
+For peer models, scope marks to all or selected peer groups, or individual series. Quality counts are per peer and timestamp, while multivariate quality uses the joint decision. Applying a candidate retains non-optimized model settings and explicit query policies. Changing model type preserves shared domain-knowledge settings.
+
+Prefer **Tune** to obtain a concrete configuration you can review and deploy. The `auto` wrapper appears in its own final selector group and is planned for removal from the UI selector. This does not deprecate backend `auto` configurations, which remain available for retuning during each fit.
+
 ## Changelog
 
 <div class="collapse-group mb-3">
 
 {{% collapse name="Release history" %}}
 
+### v1.10.0
+Released: 2026-10-09
+
+Recommended vmanomaly version: [v1.31.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1310)
+
+- FEATURE: Added experimental [model tuning](#tune-a-model) with supervised marked-anomaly and unsupervised expected-anomaly-rate objectives, progress, suggested parameters and point-level detection-quality statistics for marked anomalies.
+- FEATURE: Added [peer-group investigation](#peer-group-investigation), searchable group labels, accepted-range overlays, peer rankings and percentage activity with exact hover counts.
+- IMPROVEMENT: Made **Tune** the preferred UI tuning workflow. Moved `auto` to its own final model-selector group with a planned UI removal notice; backend `auto` configurations remain supported.
+- IMPROVEMENT: Distinguished multivariate channel-range diagnostics from the joint anomaly decision.
+- IMPROVEMENT: Prediction clipping defaults to enabled in the UI, while explicit opt-outs are preserved.
+- IMPROVEMENT: Expanded theme-aware series colors, matched table swatches to plotted peers and improved accepted-range contrast.
+- IMPROVEMENT: Simplified model/query controls, collapsed domain-knowledge defaults, and scrolled successful manual detection to the results header.
+- BUGFIX: Preserved shared business settings across model changes and non-optimized settings when applying tuning candidates.
+- BUGFIX: Aligned supervised replay with query policies and restored multivariate drag zoom across signal-selection modes.
+- BUGFIX: Selected fresh results using each view's active ranking policy while preserving manual selections within the current results.
+- BUGFIX: Fixed drag-selection focus changes, drawer-edge pointer actions, theme updates and asynchronous configuration highlighting.
+
 ### v1.9.2
 Released: 2026-09-24
 
 Recommended vmanomaly version: [v1.30.7](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1307)
 
-- Added [incident investigation links](#investigate-a-firing-alert) for persisted results.
-- Added configurable model choices through `server.ui_allowed_models`.
-- Changed generated alert rules from `>=` to `>` for anomaly-score thresholds and fixed metric selectors to preserve preset version suffixes.
+- FEATURE: Added [incident investigation links](#investigate-a-firing-alert) for persisted results.
+- IMPROVEMENT: Added configurable model choices through `server.ui_allowed_models`.
+- BUGFIX: Changed generated alert rules from `>=` to `>` for anomaly-score thresholds and fixed metric selectors to preserve preset version suffixes.
 
 ### v1.9.1
 Released: 2026-09-17
