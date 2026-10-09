@@ -437,7 +437,7 @@ github.com/go-logr/stdr
 ## explicit; go 1.18
 github.com/go-viper/mapstructure/v2
 github.com/go-viper/mapstructure/v2/internal/errors
-# github.com/gobwas/glob v0.2.3
+# github.com/gobwas/glob v1.0.0 => github.com/gobwas/glob v0.2.3
 ## explicit
 github.com/gobwas/glob
 github.com/gobwas/glob/compiler
@@ -1344,3 +1344,4 @@ sigs.k8s.io/structured-merge-diff/v6/value
 # sigs.k8s.io/yaml v1.6.0
 ## explicit; go 1.22
 sigs.k8s.io/yaml
+# github.com/gobwas/glob => github.com/gobwas/glob v0.2.3
