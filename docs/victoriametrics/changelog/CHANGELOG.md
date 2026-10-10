@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: [dashboards](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/dashboards): apply the instance filter to pressure and memory allocation panels in the cluster dashboard, and display zero disk I/O and syscall rates.
+
 ## [v1.154.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.154.0)
 
 Release candidate
