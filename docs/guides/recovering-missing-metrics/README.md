@@ -18,7 +18,7 @@ By default, `vmagent` buffers data in a separate [persistent queue](https://docs
 * `-remoteWrite.url` values or their order change while queues hold pending data, and `-remoteWrite.keepDanglingQueues` isn't set; `vmagent` deletes the orphaned queues on restart.
 * The queue reaches `-remoteWrite.maxDiskUsagePerURL` and `vmagent` discards its oldest buffered data.
 * On-disk persistence is disabled and a destination cannot keep up. Depending on the input type and flags, `vmagent` may reject pushed requests with `429 Too Many Requests` or drop samples instead. Data that exists only in memory can also be lost if `vmagent` stops ungracefully. See [disabling on-disk persistence](https://docs.victoriametrics.com/victoriametrics/vmagent/#disabling-on-disk-persistence).
-* Remote storage rejects a block with `400 Bad Request`, `409 Conflict` or `415 Unsupported Media Type`; `vmagent` drops blocks with these responses instead of retrying them.
+* Remote storage rejects a block with `409 Conflict`; `vmagent` drops it. For `400 Bad Request` or `415 Unsupported Media Type`, `vmagent` repacks Zstandard blocks as Snappy and retries, but drops Snappy blocks or Zstandard blocks it cannot repack.
 
 Fix the cause of data loss before copying historical samples, so the destination does not continue to develop gaps.
 
