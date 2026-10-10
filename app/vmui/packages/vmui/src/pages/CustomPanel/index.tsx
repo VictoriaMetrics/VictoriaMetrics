@@ -117,8 +117,22 @@ const CustomPanel: FC = () => {
         traces={traces}
         displayType={displayType}
       />
-      {showError && <Alert variant="error">{error}</Alert>}
-      {showInstantQueryTip && <Alert variant="info"><InstantQueryTip/></Alert>}
+      {showError && (
+        <Alert
+          variant="error"
+          title="Unable to load query results"
+        >
+          {error}
+        </Alert>
+      )}
+      {showInstantQueryTip && (
+        <Alert
+          variant="info"
+          title="Instant query results"
+        >
+          <InstantQueryTip/>
+        </Alert>
+      )}
       <WarningHeatmapToLine/>
       {warning && (
         <WarningLimitSeries

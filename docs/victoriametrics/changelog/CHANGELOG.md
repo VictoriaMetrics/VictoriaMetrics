@@ -26,6 +26,9 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): update the appearance of error, warning, info, and success messages.
+* FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): deprecate Server URL editing and show a warning when using a saved custom URL. Existing custom URLs continue to work. See [#11735](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11735).
+
 ## [v1.154.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.154.0)
 
 Release candidate

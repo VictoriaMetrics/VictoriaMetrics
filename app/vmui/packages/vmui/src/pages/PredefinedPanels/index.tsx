@@ -53,7 +53,14 @@ const DashboardsLayout: FC = () => {
       />
     </div>
     {dashboardsLoading && <Spinner />}
-    {!dashboardsSettings.length && dashboardsError && <Alert variant="error">{dashboardsError}</Alert>}
+    {!dashboardsSettings.length && dashboardsError && (
+      <Alert
+        variant="error"
+        title="Unable to load dashboards"
+      >
+        {dashboardsError}
+      </Alert>
+    )}
     {!dashboardsSettings.length && <Alert variant="info">Dashboards not found</Alert>}
     {dashboards.length > 1 && (
       <div
@@ -88,7 +95,10 @@ const DashboardsLayout: FC = () => {
           />)
       )}
       {!!dashboardsSettings.length && !validDashboardRows && (
-        <Alert variant="error">
+        <Alert
+          variant="error"
+          title="Missing dashboard rows"
+        >
           <code>&quot;rows&quot;</code> not found. Check the configuration file <b>{filename}</b>.
         </Alert>
       )}
