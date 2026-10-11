@@ -137,10 +137,9 @@ so no other components are needed.
 1. Create a `scrape.yaml` file with the following contents:
 
    ```yaml
-   global:
-     scrape_interval: 10s
    scrape_configs:
    - job_name: node-exporter
+     scrape_interval: 10s
      static_configs:
      - targets:
        - localhost:9100
