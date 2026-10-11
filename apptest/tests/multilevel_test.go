@@ -234,7 +234,7 @@ func TestClusterMultilevelStorageNodeLabelIndex(t *testing.T) {
 	})
 	globalVmselect := tc.MustStartVmselect("global-vmselect", []string{
 		"-storageNode=" + vmselectEU.ClusternativeListenAddr() + "," + noopTCPServerAddr(t),
-		"-storageNodeLabelIndex=region=eu-1,region=us-east^^us-west",
+		"-storageNodeLabelIndex=region=eu-1,region=us-east^^region=us-west",
 	})
 
 	ts := time.Now().Add(-time.Minute).Unix() * 1000
@@ -265,10 +265,10 @@ func TestClusterMultilevelStorageNodeLabelIndex(t *testing.T) {
 			},
 		})
 	}
-	// vmselect-us is skipped, since its label index cannot match the query.
+	// vmselect-us is skipped, since its index cannot match the query.
 	assertQuery(`up{region="eu-1"}`, false)
 	assertQuery(`up{region=~"eu-.*"}`, false)
-	// vmselect-us is queried, since its label index may match the query.
+	// vmselect-us is queried, since its index may match the query.
 	assertQuery(`up`, true)
 	assertQuery(`up{region!="us-east"}`, true)
 

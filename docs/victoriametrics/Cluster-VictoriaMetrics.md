@@ -200,11 +200,12 @@ By default, `vmselect` sends every query to all the nodes specified via `-storag
 This may increase query latency in [multi-level cluster setup](#multi-level-cluster-setup) when some of the lower-level `vmselect` nodes
 are located in distant networks, even if the query doesn't need the data from these networks.
 
-The optional `-storageNodeLabelIndex` command-line flag allows specifying a label index per each `-storageNode` in the form `label=value1^^...^^valueN`.
-The label index must contain all the values of the given [label](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#labels)
-for the series stored at the corresponding node. Multiple values must be delimited by `^^`.
+The optional `-storageNodeLabelIndex` command-line flag allows specifying an index per each `-storageNode` in the form `label1=value1^^...^^labelN=valueN`.
+The index must contain all the values of the indexed [labels](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#labels)
+for the series stored at the corresponding node. Multiple `label=value` pairs must be delimited by `^^`.
+The index may contain multiple values for the same label and multiple distinct labels.
 `vmselect` doesn't send the query to the node if the [label filters](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#filtering) from the query
-cannot match any of the values in the label index.
+cannot match any of the values in the index for at least one of the indexed labels.
 The `-storageNodeLabelIndex` values are applied to `-storageNode` addresses in the order they are specified.
 An empty `-storageNodeLabelIndex` value means that the corresponding node is always queried.
 
@@ -212,22 +213,24 @@ For example, the following command runs the top-level `vmselect`, which queries 
 
 ```sh
 /path/to/vmselect \
- -storageNode=vmselect-eu:8401 -storageNodeLabelIndex='region=eu-1' \
- -storageNode=vmselect-us:8401 -storageNodeLabelIndex='region=us-east^^us-west' \
+ -storageNode=vmselect-eu:8401 -storageNodeLabelIndex='region=eu-1^^region=eu-2' \
+ -storageNode=vmselect-us:8401 -storageNodeLabelIndex='region=us-east^^region=us-west' \
+ -storageNode=vmselect-us-security:8401 -storageNodeLabelIndex='region=us-east^^department=security' \
  -storageNode=vmselect-global:8401 -storageNodeLabelIndex=''
 ```
 
 With this configuration:
 
 - `up{region="eu-1"}` and `up{region=~"eu-.*"}` are sent to `vmselect-eu` and `vmselect-global` only.
-- `up{region!~"us-.*"}` isn't sent to `vmselect-us`.
-- `up{region!="us-east"}` is sent to all the nodes, since `vmselect-us` may contain series with `region="us-west"`.
-- `up` is sent to all the nodes, since it has no filters on the `region` label.
+- `up{region!~"us-.*"}` isn't sent to `vmselect-us` and `vmselect-us-security`.
+- `up{region!="us-east"}` isn't sent to `vmselect-us-security`. It is sent to `vmselect-us`, since it may contain series with `region="us-west"`.
+- `up{department="hr"}` isn't sent to `vmselect-us-security`, since all its series have `department="security"`.
+- `up` is sent to all the nodes, since it has no filters on the indexed labels.
 
-The label index supports only exact label values. This guarantees that `vmselect` skips only the nodes, which cannot contain the requested series.
+The index supports only exact label values. This guarantees that `vmselect` skips only the nodes, which cannot contain the requested series.
 It is important to keep `-storageNodeLabelIndex` in sync with the stored data,
 since `vmselect` returns incomplete results without an error if a node contains series with label values missing in its `-storageNodeLabelIndex`.
-Series without the indexed label are also treated as missing, so every series at the node must have the indexed label.
+Series without an indexed label are also treated as missing, so every series at the node must have all the indexed labels.
 
 `vmselect` applies `-storageNodeLabelIndex` to queries, which select series, such as [/api/v1/query](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1query),
 [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1query_range), [/api/v1/series](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1series),

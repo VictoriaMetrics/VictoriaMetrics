@@ -10,64 +10,83 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
-// storageNodeLabelIndex contains all the values of a label, which the series at a storage node have.
+// storageNodeLabelIndex contains all the values per each indexed label, which the series at a storage node have.
 type storageNodeLabelIndex struct {
 	s string
 
+	labels []indexedLabel
+}
+
+type indexedLabel struct {
 	// key is the label name in the form used by storage.TagFilter.Key.
 	key string
 
 	values []string
 }
 
-// parseStorageNodeLabelIndex parses s in the form `label=value1^^...^^valueN`.
+// parseStorageNodeLabelIndex parses s in the form `label1=value1^^...^^labelN=valueN`.
 func parseStorageNodeLabelIndex(s string) (*storageNodeLabelIndex, error) {
-	label, valuesStr, ok := strings.Cut(s, "=")
-	if !ok {
-		return nil, fmt.Errorf("missing `=` between label name and values")
-	}
-	if label == "" {
-		return nil, fmt.Errorf("label name cannot be empty")
-	}
-	values := strings.Split(valuesStr, "^^")
-	for i, v := range values {
-		if v == "" {
-			return nil, fmt.Errorf("label value cannot be empty")
+	var labels []indexedLabel
+	for pair := range strings.SplitSeq(s, "^^") {
+		name, value, ok := strings.Cut(pair, "=")
+		if !ok {
+			return nil, fmt.Errorf("missing `=` between label name and value in %q", pair)
 		}
-		if slices.Contains(values[:i], v) {
-			return nil, fmt.Errorf("duplicate label value %q", v)
+		if name == "" {
+			return nil, fmt.Errorf("label name cannot be empty in %q", pair)
 		}
-	}
-	key := label
-	if key == "__name__" {
-		// storage.TagFilter uses an empty key for the metric name.
-		key = ""
+		if value == "" {
+			return nil, fmt.Errorf("label value cannot be empty in %q", pair)
+		}
+		key := name
+		if key == "__name__" {
+			// storage.TagFilter uses an empty key for the metric name.
+			key = ""
+		}
+		idx := slices.IndexFunc(labels, func(l indexedLabel) bool { return l.key == key })
+		if idx < 0 {
+			labels = append(labels, indexedLabel{key: key})
+			idx = len(labels) - 1
+		}
+		l := &labels[idx]
+		if slices.Contains(l.values, value) {
+			return nil, fmt.Errorf("duplicate label pair %q", pair)
+		}
+		l.values = append(l.values, value)
 	}
 	return &storageNodeLabelIndex{
 		s:      s,
-		key:    key,
-		values: values,
+		labels: labels,
 	}, nil
 }
 
 // mayMatch returns false if the series at the storage node cannot match qfss.
 func (li *storageNodeLabelIndex) mayMatch(qfss [][]queryFilter) bool {
 	for _, qfs := range qfss {
-		for _, v := range li.values {
-			if li.matchQueryFilters(v, qfs) {
-				return true
-			}
+		if li.mayMatchQueryFilters(qfs) {
+			return true
 		}
 	}
 	return false
 }
 
+// mayMatchQueryFilters returns true if every indexed label has a value, which matches qfs.
+func (li *storageNodeLabelIndex) mayMatchQueryFilters(qfs []queryFilter) bool {
+	for i := range li.labels {
+		l := &li.labels[i]
+		if !slices.ContainsFunc(l.values, func(v string) bool { return l.matchQueryFilters(v, qfs) }) {
+			return false
+		}
+	}
+	return true
+}
+
 // matchQueryFilters returns true if the series with the label value v may match qfs.
-func (li *storageNodeLabelIndex) matchQueryFilters(v string, qfs []queryFilter) bool {
+func (l *indexedLabel) matchQueryFilters(v string, qfs []queryFilter) bool {
 	for i := range qfs {
 		qf := &qfs[i]
-		// Filters for other labels are ignored, since the series at the storage node may have any values for them.
-		if string(qf.tf.Key) == li.key && !qf.match(v) {
+		// Filters for other labels are ignored, since they are checked against other indexed labels.
+		if string(qf.tf.Key) == l.key && !qf.match(v) {
 			return false
 		}
 	}

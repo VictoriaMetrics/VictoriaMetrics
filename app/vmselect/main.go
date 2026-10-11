@@ -73,9 +73,10 @@ var (
 	storageNodes = flagutil.NewArrayString("storageNode", "Comma-separated addresses of vmstorage nodes; usage: -storageNode=vmstorage-host1,...,vmstorage-hostN . "+
 		"Enterprise version of VictoriaMetrics supports automatic discovery of vmstorage addresses via DNS SRV records. For example, -storageNode=srv+vmstorage.addrs . "+
 		"See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#automatic-vmstorage-discovery")
-	storageNodeLabelIndexes = flagutil.NewArrayString("storageNodeLabelIndex", "Optional label index per each -storageNode in the form 'label=value1^^...^^valueN'. "+
-		"It must contain all the values of the given label for the series stored at the corresponding -storageNode. "+
-		"For example, -storageNodeLabelIndex='region=us-east^^us-west'. vmselect doesn't send queries to the -storageNode if the query label filters cannot match any of the values. "+
+	storageNodeLabelIndexes = flagutil.NewArrayString("storageNodeLabelIndex", "Optional index per each -storageNode in the form 'label1=value1^^...^^labelN=valueN'. "+
+		"It must contain all the values of the given labels for the series stored at the corresponding -storageNode. "+
+		"For example, -storageNodeLabelIndex='region=us-east^^region=us-west^^department=security'. "+
+		"vmselect doesn't send queries to the -storageNode if the query label filters cannot match any of the values for some of the indexed labels. "+
 		"An empty value means that the -storageNode is always queried. "+
 		"See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#storage-node-label-index")
 

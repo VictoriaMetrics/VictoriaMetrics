@@ -424,7 +424,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/cluster-victori
      Supports an array of values separated by comma or specified via multiple flags.
      Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -storageNodeLabelIndex array
-     Optional label index per each -storageNode in the form 'label=value1^^...^^valueN'. It must contain all the values of the given label for the series stored at the corresponding -storageNode. For example, -storageNodeLabelIndex='region=us-east^^us-west'. vmselect doesn't send queries to the -storageNode if the query label filters cannot match any of the values. An empty value means that the -storageNode is always queried. See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#storage-node-label-index
+     Optional index per each -storageNode in the form 'label1=value1^^...^^labelN=valueN'. It must contain all the values of the given labels for the series stored at the corresponding -storageNode. For example, -storageNodeLabelIndex='region=us-east^^region=us-west^^department=security'. vmselect doesn't send queries to the -storageNode if the query label filters cannot match any of the values for some of the indexed labels. An empty value means that the -storageNode is always queried. See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#storage-node-label-index
      Supports an array of values separated by comma or specified via multiple flags.
      Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -tls array
