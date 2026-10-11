@@ -32,6 +32,9 @@ type SDConfig struct {
 	Port            *int            `yaml:"port,omitempty"`
 	InstanceFilters []awsapi.Filter `yaml:"filters,omitempty"`
 	AZFilters       []awsapi.Filter `yaml:"az_filters,omitempty"`
+	// AllENIs instructs to create a target per network interface of the instance
+	// instead of a single target for the primary network interface.
+	AllENIs bool `yaml:"all_enis,omitempty"`
 }
 
 // GetLabels returns ec2 labels according to sdc.

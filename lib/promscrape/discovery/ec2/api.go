@@ -12,6 +12,7 @@ type apiConfig struct {
 	instanceFilters []awsapi.Filter
 	azFilters       []awsapi.Filter
 	port            int
+	allENIs         bool
 
 	// A map from AZ name to AZ id.
 	azMap     map[string]string
@@ -46,6 +47,7 @@ func newAPIConfig(sdc *SDConfig) (*apiConfig, error) {
 		instanceFilters: sdc.InstanceFilters,
 		azFilters:       sdc.AZFilters,
 		port:            port,
+		allENIs:         sdc.AllENIs,
 	}
 	return cfg, nil
 }

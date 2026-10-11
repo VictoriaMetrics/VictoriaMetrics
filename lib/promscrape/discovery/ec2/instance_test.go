@@ -211,7 +211,8 @@ func TestParseInstancesResponse(t *testing.T) {
 								NetworkInterfaceSet: NetworkInterfaceSet{
 									Items: []NetworkInterface{
 										{
-											SubnetID: "subnet-57044c3e",
+											PrivateIPAddress: "172.31.11.152",
+											SubnetID:         "subnet-57044c3e",
 										},
 									},
 								},
@@ -240,7 +241,7 @@ func TestParseInstancesResponse(t *testing.T) {
 	inst := rs.InstanceSet.Items[0]
 	labelss := inst.appendTargetLabels(nil, ownerID, "region-a", port, map[string]string{
 		"eu-west-2c": "foobar-zone",
-	})
+	}, false)
 	expectedLabels := []*promutil.Labels{
 		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                     "172.31.11.152:423",
@@ -266,4 +267,34 @@ func TestParseInstancesResponse(t *testing.T) {
 		}),
 	}
 	discoveryutil.TestEqualLabelss(t, labelss, expectedLabels)
+}
+
+func TestAppendTargetLabelsAllENIs(t *testing.T) {
+	inst := &Instance{
+		PrivateIPAddress: "172.31.11.152",
+		ID:               "i-0e730b692d9c15460",
+		Placement:        Placement{AvailabilityZone: "eu-west-2c"},
+		SubnetID:         "subnet-57044c3e",
+		VPCID:            "vpc-f1eaad99",
+		NetworkInterfaceSet: NetworkInterfaceSet{
+			Items: []NetworkInterface{
+				{PrivateIPAddress: "172.31.11.152", SubnetID: "subnet-57044c3e"},
+				{PrivateIPAddress: "172.31.12.200", SubnetID: "subnet-57044c3e"},
+			},
+		},
+	}
+
+	labelss := inst.appendTargetLabels(nil, "793614593844", "region-a", 423, nil, true)
+	if len(labelss) != 2 {
+		t.Fatalf("expected a target per network interface, got %d targets: %v", len(labelss), labelss)
+	}
+	if got := labelss[0].Get("__address__"); got != "172.31.11.152:423" {
+		t.Fatalf("unexpected first target address: %q", got)
+	}
+	if got := labelss[1].Get("__address__"); got != "172.31.12.200:423" {
+		t.Fatalf("unexpected second target address: %q", got)
+	}
+	if got := labelss[1].Get("__meta_ec2_private_ip"); got != "172.31.12.200" {
+		t.Fatalf("unexpected __meta_ec2_private_ip on the second target: %q", got)
+	}
 }

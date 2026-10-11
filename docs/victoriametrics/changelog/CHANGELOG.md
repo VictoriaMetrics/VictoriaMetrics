@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): add `all_enis` option to [`ec2_sd_configs`](https://docs.victoriametrics.com/victoriametrics/sd_configs/#ec2_sd_configs), so a separate target is created for each network interface of the discovered EC2 instance instead of a single target for the primary network interface. See [#11721](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11721).
+
 ## [v1.154.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.154.0)
 
 Release candidate

@@ -678,11 +678,18 @@ scrape_configs:
     # az_filters:
     # - name: "..."
     #   values: ["...", "..."]
+
+    # all_enis is an optional flag, which instructs to create a separate target
+    # for each network interface of the instance with a private IP instead of a
+    # single target for the primary network interface.
+    #
+    # all_enis: true
 ```
 
 Each discovered target has an [`__address__`](https://docs.victoriametrics.com/victoriametrics/relabeling/#how-to-modify-scrape-urls-in-targets) label set
 to `<instance_ip>:<port>`, where `<instance_ip>` is the private IP of the instance, while the `<port>` is set to the `port` value
-obtain from `ec2_sd_configs`.
+obtained from `ec2_sd_configs`. If `all_enis: true` is set, a separate target is created for every network interface
+of the instance with a private IP, with `<instance_ip>` set to the private IP of the corresponding network interface.
 
 The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
 

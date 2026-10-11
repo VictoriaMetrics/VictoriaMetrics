@@ -21,7 +21,7 @@ func getInstancesLabels(cfg *apiConfig) ([]*promutil.Labels, error) {
 	var ms []*promutil.Labels
 	for _, r := range rs {
 		for _, inst := range r.InstanceSet.Items {
-			ms = inst.appendTargetLabels(ms, r.OwnerID, region, cfg.port, azMap)
+			ms = inst.appendTargetLabels(ms, r.OwnerID, region, cfg.port, azMap, cfg.allENIs)
 		}
 	}
 	return ms, nil
@@ -108,6 +108,7 @@ type NetworkInterfaceSet struct {
 
 // NetworkInterface represents NetworkInterface from https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_InstanceNetworkInterface.html
 type NetworkInterface struct {
+	PrivateIPAddress string           `xml:"privateIpAddress"`
 	SubnetID         string           `xml:"subnetId"`
 	IPv6AddressesSet Ipv6AddressesSet `xml:"ipv6AddressesSet"`
 }
@@ -136,12 +137,33 @@ func parseInstancesResponse(data []byte) (*InstancesResponse, error) {
 	return &v, nil
 }
 
-func (inst *Instance) appendTargetLabels(ms []*promutil.Labels, ownerID, region string, port int, azMap map[string]string) []*promutil.Labels {
+func (inst *Instance) appendTargetLabels(ms []*promutil.Labels, ownerID, region string, port int, azMap map[string]string, allENIs bool) []*promutil.Labels {
+	if allENIs {
+		// Return a target for every network interface with a private IP, so each
+		// interface is scraped on its own private IP, not only the primary one.
+		added := false
+		for _, ni := range inst.NetworkInterfaceSet.Items {
+			if len(ni.PrivateIPAddress) == 0 {
+				continue
+			}
+			ms = append(ms, inst.newTargetLabels(ni.PrivateIPAddress, ownerID, region, port, azMap))
+			added = true
+		}
+		if added {
+			return ms
+		}
+		// Fall back to the primary IP below if no network interface exposes a private IP.
+	}
 	if len(inst.PrivateIPAddress) == 0 {
 		// Cannot scrape instance without private IP address
 		return ms
 	}
-	addr := discoveryutil.JoinHostPort(inst.PrivateIPAddress, port)
+	ms = append(ms, inst.newTargetLabels(inst.PrivateIPAddress, ownerID, region, port, azMap))
+	return ms
+}
+
+func (inst *Instance) newTargetLabels(targetIP, ownerID, region string, port int, azMap map[string]string) *promutil.Labels {
+	addr := discoveryutil.JoinHostPort(targetIP, port)
 	m := promutil.NewLabels(24)
 	m.Add("__address__", addr)
 	m.Add("__meta_ec2_architecture", inst.Architecture)
@@ -156,7 +178,7 @@ func (inst *Instance) appendTargetLabels(ms []*promutil.Labels, ownerID, region 
 	m.Add("__meta_ec2_platform", inst.Platform)
 	m.Add("__meta_ec2_primary_subnet_id", inst.SubnetID)
 	m.Add("__meta_ec2_private_dns_name", inst.PrivateDNSName)
-	m.Add("__meta_ec2_private_ip", inst.PrivateIPAddress)
+	m.Add("__meta_ec2_private_ip", targetIP)
 	m.Add("__meta_ec2_public_dns_name", inst.PublicDNSName)
 	m.Add("__meta_ec2_public_ip", inst.PublicIPAddress)
 	m.Add("__meta_ec2_region", region)
@@ -190,6 +212,5 @@ func (inst *Instance) appendTargetLabels(ms []*promutil.Labels, ownerID, region 
 		}
 		m.Add(discoveryutil.SanitizeLabelName("__meta_ec2_tag_"+t.Key), t.Value)
 	}
-	ms = append(ms, m)
-	return ms
+	return m
 }
