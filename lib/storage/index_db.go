@@ -3,6 +3,7 @@ package storage
 import (
 	"bytes"
 	"container/heap"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -187,8 +188,6 @@ func mustOpenIndexDB(id uint64, tr TimeRange, name, path string, s *Storage, isR
 	return db
 }
 
-const noDeadline = 1<<64 - 1
-
 // IndexDBMetrics contains essential metrics for indexDB.
 type IndexDBMetrics struct {
 	TagFiltersToMetricIDsCacheSize         uint64
@@ -369,17 +368,14 @@ type indexSearch struct {
 	ts mergeset.TableSearch
 	kb bytesutil.ByteBuffer
 	mp tagToMetricIDsRowParser
-
-	// deadline in unix timestamp seconds for the given search.
-	deadline uint64
 }
 
 // getIndexSearch returns an indexSearch with default configuration
-func (db *indexDB) getIndexSearch(deadline uint64) *indexSearch {
-	return db.getIndexSearchInternal(deadline, false)
+func (db *indexDB) getIndexSearch() *indexSearch {
+	return db.getIndexSearchInternal(false)
 }
 
-func (db *indexDB) getIndexSearchInternal(deadline uint64, sparse bool) *indexSearch {
+func (db *indexDB) getIndexSearchInternal(sparse bool) *indexSearch {
 	v := db.indexSearchPool.Get()
 	if v == nil {
 		v = &indexSearch{
@@ -388,7 +384,6 @@ func (db *indexDB) getIndexSearchInternal(deadline uint64, sparse bool) *indexSe
 	}
 	is := v.(*indexSearch)
 	is.ts.Init(db.tb, sparse)
-	is.deadline = deadline
 	return is
 }
 
@@ -396,7 +391,6 @@ func (db *indexDB) putIndexSearch(is *indexSearch) {
 	is.ts.MustClose()
 	is.kb.Reset()
 	is.mp.Reset()
-	is.deadline = 0
 
 	db.indexSearchPool.Put(is)
 }
@@ -496,7 +490,7 @@ var indexItemsPool sync.Pool
 
 // SearchLabelNames returns all the label names, which match the given tfss on
 // the given tr.
-func (db *indexDB) SearchLabelNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxLabelNames, maxMetrics int, deadline uint64) (map[string]struct{}, error) {
+func (db *indexDB) SearchLabelNames(ctx context.Context, qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxLabelNames, maxMetrics int) (map[string]struct{}, error) {
 	qt = qt.NewChild("search label names: filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", tfss, &tr, maxLabelNames, maxMetrics)
 	defer qt.Done()
 
@@ -505,7 +499,7 @@ func (db *indexDB) SearchLabelNames(qt *querytracer.Tracer, tfss []*TagFilters, 
 		return nil, nil
 	}
 
-	lns, err := db.searchLabelNames(qt, tfss, tr, maxLabelNames, maxMetrics, deadline)
+	lns, err := db.searchLabelNames(ctx, qt, tfss, tr, maxLabelNames, maxMetrics)
 	if err != nil {
 		return nil, db.wrapError("search label names", err)
 	}
@@ -514,10 +508,10 @@ func (db *indexDB) SearchLabelNames(qt *querytracer.Tracer, tfss []*TagFilters, 
 	return lns, nil
 }
 
-func (db *indexDB) searchLabelNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxLabelNames, maxMetrics int, deadline uint64) (map[string]struct{}, error) {
+func (db *indexDB) searchLabelNames(ctx context.Context, qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxLabelNames, maxMetrics int) (map[string]struct{}, error) {
 	if tr == globalIndexTimeRange {
 		qtChild := qt.NewChild("search for label names in global index: filters=%s", tfss)
-		lns, err := db.searchLabelNamesByDateAndFilters(qtChild, globalIndexDate, tfss, maxLabelNames, maxMetrics, deadline)
+		lns, err := db.searchLabelNamesByDateAndFilters(ctx, qtChild, globalIndexDate, tfss, maxLabelNames, maxMetrics)
 		qtChild.Done()
 		return lns, err
 	}
@@ -532,7 +526,7 @@ func (db *indexDB) searchLabelNames(qt *querytracer.Tracer, tfss []*TagFilters, 
 		qtChild := qt.NewChild("search for label names: filters=%s, date=%s", tfss, dateToString(date))
 		wg.Go(func() {
 			defer qtChild.Done()
-			lnsLocal, err := db.searchLabelNamesByDateAndFilters(qtChild, date, tfss, maxLabelNames, maxMetrics, deadline)
+			lnsLocal, err := db.searchLabelNamesByDateAndFilters(ctx, qtChild, date, tfss, maxLabelNames, maxMetrics)
 			mu.Lock()
 			defer mu.Unlock()
 			if errGlobal != nil {
@@ -556,8 +550,8 @@ func (db *indexDB) searchLabelNames(qt *querytracer.Tracer, tfss []*TagFilters, 
 	return lns, errGlobal
 }
 
-func (db *indexDB) searchLabelNamesByDateAndFilters(qt *querytracer.Tracer, date uint64, tfss []*TagFilters, maxLabelNames, maxMetrics int, deadline uint64) (map[string]struct{}, error) {
-	is := db.getIndexSearch(deadline)
+func (db *indexDB) searchLabelNamesByDateAndFilters(ctx context.Context, qt *querytracer.Tracer, date uint64, tfss []*TagFilters, maxLabelNames, maxMetrics int) (map[string]struct{}, error) {
+	is := db.getIndexSearch()
 	defer db.putIndexSearch(is)
 
 	var filter *uint64set.Set
@@ -571,7 +565,7 @@ func (db *indexDB) searchLabelNamesByDateAndFilters(qt *querytracer.Tracer, date
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9489
 	if !isSingleMetricNameFilter(tfss) {
 		var err error
-		filter, err = db.searchMetricIDsByDateAndFilters(qt, date, tfss, maxMetrics, deadline)
+		filter, err = db.searchMetricIDsByDateAndFilters(ctx, qt, date, tfss, maxMetrics)
 		if err != nil {
 			return nil, err
 		}
@@ -581,7 +575,10 @@ func (db *indexDB) searchLabelNamesByDateAndFilters(qt *querytracer.Tracer, date
 			// This should help https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2978
 			metricIDs := filter.AppendTo(nil)
 			qt.Printf("sort %d metricIDs", len(metricIDs))
-			lns := is.getLabelNamesForMetricIDs(qt, metricIDs, maxLabelNames)
+			lns, err := is.getLabelNamesForMetricIDs(ctx, qt, metricIDs, maxLabelNames)
+			if err != nil {
+				return nil, err
+			}
 			return lns, nil
 		}
 	}
@@ -613,7 +610,7 @@ func (db *indexDB) searchLabelNamesByDateAndFilters(qt *querytracer.Tracer, date
 	lns := make(map[string]struct{})
 	for len(lns) < maxLabelNames && ts.NextItem() {
 		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
-			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
+			if err := ctx.Err(); err != nil {
 				return nil, err
 			}
 		}
@@ -667,7 +664,7 @@ func (db *indexDB) searchLabelNamesByDateAndFilters(qt *querytracer.Tracer, date
 	return lns, nil
 }
 
-func (is *indexSearch) getLabelNamesForMetricIDs(qt *querytracer.Tracer, metricIDs []uint64, maxLabelNames int) map[string]struct{} {
+func (is *indexSearch) getLabelNamesForMetricIDs(ctx context.Context, qt *querytracer.Tracer, metricIDs []uint64, maxLabelNames int) (map[string]struct{}, error) {
 	lns := make(map[string]struct{})
 	if len(metricIDs) > 0 {
 		lns["__name__"] = struct{}{}
@@ -678,7 +675,14 @@ func (is *indexSearch) getLabelNamesForMetricIDs(qt *querytracer.Tracer, metricI
 	var mn MetricName
 	foundLabelNames := 0
 	var buf []byte
+	loopsPaceLimiter := 0
 	for _, metricID := range metricIDs {
+		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
+		}
+		loopsPaceLimiter++
 		if dmis.Has(metricID) {
 			// skip deleted IDs from result
 			continue
@@ -699,18 +703,18 @@ func (is *indexSearch) getLabelNamesForMetricIDs(qt *querytracer.Tracer, metricI
 				lns[string(tag.Key)] = struct{}{}
 				if len(lns) >= maxLabelNames {
 					qt.Printf("hit the limit on the number of unique label names: %d", maxLabelNames)
-					return lns
+					return lns, nil
 				}
 			}
 		}
 	}
 	qt.Printf("get %d distinct label names from %d metricIDs", foundLabelNames, len(metricIDs))
-	return lns
+	return lns, nil
 }
 
 // SearchLabelValues returns label values for the given labelName, tfss and tr.
-func (db *indexDB) SearchLabelValues(qt *querytracer.Tracer, labelName string, tfss []*TagFilters, tr TimeRange, maxLabelValues, maxMetrics int, deadline uint64) (map[string]struct{}, error) {
-	qt = qt.NewChild("search label values: labelName=%q, filters=%s, timeRange=%s, maxLabelValues=%d, maxMetrics=%d", labelName, tfss, &tr, maxLabelValues, maxMetrics)
+func (db *indexDB) SearchLabelValues(ctx context.Context, qt *querytracer.Tracer, labelName string, tfss []*TagFilters, tr TimeRange, maxLabelValues, maxMetrics int) (map[string]struct{}, error) {
+	qt = qt.NewChild("search label values: labelName=%q, filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", labelName, tfss, &tr, maxLabelValues, maxMetrics)
 	defer qt.Done()
 
 	if !db.legacyContainsTimeRange(tr) {
@@ -727,7 +731,7 @@ func (db *indexDB) SearchLabelValues(qt *querytracer.Tracer, labelName string, t
 		// without any filters and limits and then later applying the filter and the limit to the found label values.
 		qt.Printf("search up to %d values for the label %q on the time range %s", maxMetrics, labelName, &tr)
 
-		lvs, err := db.searchLabelValues(qt, labelName, nil, tr, maxMetrics, maxMetrics, deadline)
+		lvs, err := db.searchLabelValues(ctx, qt, labelName, nil, tr, maxMetrics, maxMetrics)
 		if err != nil {
 			return nil, db.wrapError("search label values", err)
 		}
@@ -751,7 +755,7 @@ func (db *indexDB) SearchLabelValues(qt *querytracer.Tracer, labelName string, t
 		qt.Printf("fall back to slow search because only a subset of label values is found")
 	}
 
-	lvs, err := db.searchLabelValues(qt, labelName, tfss, tr, maxMetrics, maxMetrics, deadline)
+	lvs, err := db.searchLabelValues(ctx, qt, labelName, tfss, tr, maxMetrics, maxMetrics)
 	if err != nil {
 		return nil, db.wrapError("search label values", err)
 	}
@@ -776,10 +780,10 @@ func filterLabelValues(lvs map[string]struct{}, tf *tagFilter, key string) {
 	}
 }
 
-func (db *indexDB) searchLabelValues(qt *querytracer.Tracer, labelName string, tfss []*TagFilters, tr TimeRange, maxLabelValues, maxMetrics int, deadline uint64) (map[string]struct{}, error) {
+func (db *indexDB) searchLabelValues(ctx context.Context, qt *querytracer.Tracer, labelName string, tfss []*TagFilters, tr TimeRange, maxLabelValues, maxMetrics int) (map[string]struct{}, error) {
 	if tr == globalIndexTimeRange {
 		qtChild := qt.NewChild("search for label values in global index: labelName=%q, filters=%s", labelName, tfss)
-		lvs, err := db.searchLabelValuesByDateAndFilters(qtChild, globalIndexDate, labelName, tfss, maxLabelValues, maxMetrics, deadline)
+		lvs, err := db.searchLabelValuesByDateAndFilters(ctx, qtChild, globalIndexDate, labelName, tfss, maxLabelValues, maxMetrics)
 		qtChild.Done()
 
 		// Skip empty values, since they have no any meaning.
@@ -800,7 +804,7 @@ func (db *indexDB) searchLabelValues(qt *querytracer.Tracer, labelName string, t
 		wg.Go(func() {
 			defer qtChild.Done()
 
-			lvsLocal, err := db.searchLabelValuesByDateAndFilters(qtChild, date, labelName, tfss, maxLabelValues, maxMetrics, deadline)
+			lvsLocal, err := db.searchLabelValuesByDateAndFilters(ctx, qtChild, date, labelName, tfss, maxLabelValues, maxMetrics)
 			mu.Lock()
 			defer mu.Unlock()
 			if errGlobal != nil {
@@ -829,13 +833,13 @@ func (db *indexDB) searchLabelValues(qt *querytracer.Tracer, labelName string, t
 	return lvs, errGlobal
 }
 
-func (db *indexDB) searchLabelValuesByDateAndFilters(qt *querytracer.Tracer, date uint64, labelName string, tfss []*TagFilters, maxLabelValues, maxMetrics int, deadline uint64) (map[string]struct{}, error) {
+func (db *indexDB) searchLabelValuesByDateAndFilters(ctx context.Context, qt *querytracer.Tracer, date uint64, labelName string, tfss []*TagFilters, maxLabelValues, maxMetrics int) (map[string]struct{}, error) {
 	if labelName == "__name__" {
 		// __name__ label is encoded as empty string in indexdb.
 		labelName = ""
 	}
 
-	is := db.getIndexSearch(deadline)
+	is := db.getIndexSearch()
 	defer db.putIndexSearch(is)
 
 	var filter *uint64set.Set
@@ -849,7 +853,7 @@ func (db *indexDB) searchLabelValuesByDateAndFilters(qt *querytracer.Tracer, dat
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9489
 	if labelName == "" || !isSingleMetricNameFilter(tfss) {
 		var err error
-		filter, err = db.searchMetricIDsByDateAndFilters(qt, date, tfss, maxMetrics, deadline)
+		filter, err = db.searchMetricIDsByDateAndFilters(ctx, qt, date, tfss, maxMetrics)
 		if err != nil {
 			return nil, err
 		}
@@ -859,7 +863,10 @@ func (db *indexDB) searchLabelValuesByDateAndFilters(qt *querytracer.Tracer, dat
 			// This should help https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2978
 			metricIDs := filter.AppendTo(nil)
 			qt.Printf("sort %d metricIDs", len(metricIDs))
-			lvs := is.getLabelValuesForMetricIDs(qt, labelName, metricIDs, maxLabelValues)
+			lvs, err := is.getLabelValuesForMetricIDs(ctx, qt, labelName, metricIDs, maxLabelValues)
+			if err != nil {
+				return nil, err
+			}
 			return lvs, nil
 		}
 	}
@@ -886,7 +893,7 @@ func (db *indexDB) searchLabelValuesByDateAndFilters(qt *querytracer.Tracer, dat
 	ts.Seek(prefix)
 	for len(lvs) < maxLabelValues && ts.NextItem() {
 		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
-			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
+			if err := ctx.Err(); err != nil {
 				return nil, err
 			}
 		}
@@ -922,7 +929,7 @@ func (db *indexDB) searchLabelValuesByDateAndFilters(qt *querytracer.Tracer, dat
 	return lvs, nil
 }
 
-func (is *indexSearch) getLabelValuesForMetricIDs(qt *querytracer.Tracer, labelName string, metricIDs []uint64, maxLabelValues int) map[string]struct{} {
+func (is *indexSearch) getLabelValuesForMetricIDs(ctx context.Context, qt *querytracer.Tracer, labelName string, metricIDs []uint64, maxLabelValues int) (map[string]struct{}, error) {
 	if labelName == "" {
 		labelName = "__name__"
 	}
@@ -932,7 +939,14 @@ func (is *indexSearch) getLabelValuesForMetricIDs(qt *querytracer.Tracer, labelN
 	var mn MetricName
 	foundLabelValues := 0
 	var buf []byte
+	loopsPaceLimiter := 0
 	for _, metricID := range metricIDs {
+		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
+		}
+		loopsPaceLimiter++
 		if dmis.Has(metricID) {
 			// skip deleted IDs from result
 			continue
@@ -953,12 +967,12 @@ func (is *indexSearch) getLabelValuesForMetricIDs(qt *querytracer.Tracer, labelN
 			lvs[string(tagValue)] = struct{}{}
 			if len(lvs) >= maxLabelValues {
 				qt.Printf("hit the limit on the number of unique label values for label %q: %d", labelName, maxLabelValues)
-				return lvs
+				return lvs, nil
 			}
 		}
 	}
 	qt.Printf("get %d distinct values for label %q from %d metricIDs", foundLabelValues, labelName, len(metricIDs))
-	return lvs
+	return lvs, nil
 }
 
 // SearchTagValueSuffixes returns all the tag value suffixes for the given tagKey and tagValuePrefix on the given tr.
@@ -966,7 +980,7 @@ func (is *indexSearch) getLabelValuesForMetricIDs(qt *querytracer.Tracer, labelN
 // This allows implementing https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find or similar APIs.
 //
 // If it returns maxTagValueSuffixes suffixes, then it is likely more than maxTagValueSuffixes suffixes is found.
-func (db *indexDB) SearchTagValueSuffixes(qt *querytracer.Tracer, tr TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxTagValueSuffixes int, deadline uint64) (map[string]struct{}, error) {
+func (db *indexDB) SearchTagValueSuffixes(ctx context.Context, qt *querytracer.Tracer, tr TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxTagValueSuffixes int) (map[string]struct{}, error) {
 	qt = qt.NewChild("search tag value suffixes for timeRange=%s, tagKey=%q, tagValuePrefix=%q, delimiter=%c, maxTagValueSuffixes=%d", &tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
 	defer qt.Done()
 
@@ -976,9 +990,8 @@ func (db *indexDB) SearchTagValueSuffixes(qt *querytracer.Tracer, tr TimeRange, 
 	}
 
 	// TODO: cache results?
-
-	is := db.getIndexSearch(deadline)
-	tvss, err := is.searchTagValueSuffixesForTimeRange(tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
+	is := db.getIndexSearch()
+	tvss, err := is.searchTagValueSuffixesForTimeRange(ctx, tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
 	db.putIndexSearch(is)
 	if err != nil {
 		return nil, db.wrapError("search tag value suffixes", err)
@@ -990,9 +1003,9 @@ func (db *indexDB) SearchTagValueSuffixes(qt *querytracer.Tracer, tr TimeRange, 
 	return tvss, nil
 }
 
-func (is *indexSearch) searchTagValueSuffixesForTimeRange(tr TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxTagValueSuffixes int) (map[string]struct{}, error) {
+func (is *indexSearch) searchTagValueSuffixesForTimeRange(ctx context.Context, tr TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxTagValueSuffixes int) (map[string]struct{}, error) {
 	if tr == globalIndexTimeRange {
-		return is.searchTagValueSuffixesAll(tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
+		return is.searchTagValueSuffixesAll(ctx, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
 	}
 
 	minDate, maxDate := tr.DateRange()
@@ -1004,8 +1017,8 @@ func (is *indexSearch) searchTagValueSuffixesForTimeRange(tr TimeRange, tagKey, 
 	for minDate <= maxDate {
 		date := minDate
 		wg.Go(func() {
-			isLocal := is.db.getIndexSearch(is.deadline)
-			tvssLocal, err := isLocal.searchTagValueSuffixesForDate(date, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
+			isLocal := is.db.getIndexSearch()
+			tvssLocal, err := isLocal.searchTagValueSuffixesForDate(ctx, date, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
 			is.db.putIndexSearch(isLocal)
 			mu.Lock()
 			defer mu.Unlock()
@@ -1030,7 +1043,7 @@ func (is *indexSearch) searchTagValueSuffixesForTimeRange(tr TimeRange, tagKey, 
 	return tvss, errGlobal
 }
 
-func (is *indexSearch) searchTagValueSuffixesAll(tagKey, tagValuePrefix string, delimiter byte, maxTagValueSuffixes int) (map[string]struct{}, error) {
+func (is *indexSearch) searchTagValueSuffixesAll(ctx context.Context, tagKey, tagValuePrefix string, delimiter byte, maxTagValueSuffixes int) (map[string]struct{}, error) {
 	kb := &is.kb
 	nsPrefix := byte(nsPrefixTagToMetricIDs)
 	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefix)
@@ -1038,10 +1051,10 @@ func (is *indexSearch) searchTagValueSuffixesAll(tagKey, tagValuePrefix string, 
 	kb.B = marshalTagValue(kb.B, bytesutil.ToUnsafeBytes(tagValuePrefix))
 	kb.B = kb.B[:len(kb.B)-1] // remove tagSeparatorChar from the end of kb.B
 	prefix := append([]byte(nil), kb.B...)
-	return is.searchTagValueSuffixesForPrefix(nsPrefix, prefix, len(tagValuePrefix), delimiter, maxTagValueSuffixes)
+	return is.searchTagValueSuffixesForPrefix(ctx, nsPrefix, prefix, len(tagValuePrefix), delimiter, maxTagValueSuffixes)
 }
 
-func (is *indexSearch) searchTagValueSuffixesForDate(date uint64, tagKey, tagValuePrefix string, delimiter byte, maxTagValueSuffixes int) (map[string]struct{}, error) {
+func (is *indexSearch) searchTagValueSuffixesForDate(ctx context.Context, date uint64, tagKey, tagValuePrefix string, delimiter byte, maxTagValueSuffixes int) (map[string]struct{}, error) {
 	nsPrefix := byte(nsPrefixDateTagToMetricIDs)
 	kb := &is.kb
 	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefix)
@@ -1050,10 +1063,10 @@ func (is *indexSearch) searchTagValueSuffixesForDate(date uint64, tagKey, tagVal
 	kb.B = marshalTagValue(kb.B, bytesutil.ToUnsafeBytes(tagValuePrefix))
 	kb.B = kb.B[:len(kb.B)-1] // remove tagSeparatorChar from the end of kb.B
 	prefix := append([]byte(nil), kb.B...)
-	return is.searchTagValueSuffixesForPrefix(nsPrefix, prefix, len(tagValuePrefix), delimiter, maxTagValueSuffixes)
+	return is.searchTagValueSuffixesForPrefix(ctx, nsPrefix, prefix, len(tagValuePrefix), delimiter, maxTagValueSuffixes)
 }
 
-func (is *indexSearch) searchTagValueSuffixesForPrefix(nsPrefix byte, prefix []byte, tagValuePrefixLen int, delimiter byte, maxTagValueSuffixes int) (map[string]struct{}, error) {
+func (is *indexSearch) searchTagValueSuffixesForPrefix(ctx context.Context, nsPrefix byte, prefix []byte, tagValuePrefixLen int, delimiter byte, maxTagValueSuffixes int) (map[string]struct{}, error) {
 	kb := &is.kb
 	ts := &is.ts
 	mp := &is.mp
@@ -1063,7 +1076,7 @@ func (is *indexSearch) searchTagValueSuffixesForPrefix(nsPrefix byte, prefix []b
 	tvss := make(map[string]struct{})
 	for len(tvss) < maxTagValueSuffixes && ts.NextItem() {
 		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
-			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
+			if err := ctx.Err(); err != nil {
 				return nil, err
 			}
 		}
@@ -1105,7 +1118,7 @@ func (is *indexSearch) searchTagValueSuffixesForPrefix(nsPrefix byte, prefix []b
 	return tvss, nil
 }
 
-func (db *indexDB) SearchGraphitePaths(qt *querytracer.Tracer, tr TimeRange, qHead, qTail []byte, maxPaths int, deadline uint64) (map[string]struct{}, error) {
+func (db *indexDB) SearchGraphitePaths(ctx context.Context, qt *querytracer.Tracer, tr TimeRange, qHead, qTail []byte, maxPaths int) (map[string]struct{}, error) {
 	qt = qt.NewChild("search graphite paths: timeRange=%s, qHead=%q, qTail=%q, maxPaths=%d", &tr, bytesutil.ToUnsafeString(qHead), bytesutil.ToUnsafeString(qTail), maxPaths)
 	defer qt.Done()
 
@@ -1118,7 +1131,7 @@ func (db *indexDB) SearchGraphitePaths(qt *querytracer.Tracer, tr TimeRange, qHe
 	if n < 0 {
 		// Verify that qHead matches a metric name.
 		qHead = append(qHead, qTail...)
-		suffixes, err := db.SearchTagValueSuffixes(qt, tr, "", bytesutil.ToUnsafeString(qHead), '.', 1, deadline)
+		suffixes, err := db.SearchTagValueSuffixes(ctx, qt, tr, "", bytesutil.ToUnsafeString(qHead), '.', 1)
 		if err != nil {
 			return nil, db.wrapError("search graphite paths", err)
 		}
@@ -1138,7 +1151,7 @@ func (db *indexDB) SearchGraphitePaths(qt *querytracer.Tracer, tr TimeRange, qHe
 		return map[string]struct{}{string(qHead): {}}, nil
 	}
 	qHead = append(qHead, qTail[:n]...)
-	suffixes, err := db.SearchTagValueSuffixes(qt, tr, "", bytesutil.ToUnsafeString(qHead), '.', maxPaths, deadline)
+	suffixes, err := db.SearchTagValueSuffixes(ctx, qt, tr, "", bytesutil.ToUnsafeString(qHead), '.', maxPaths)
 	if err != nil {
 		return nil, db.wrapError("search graphite paths", err)
 	}
@@ -1175,7 +1188,7 @@ func (db *indexDB) SearchGraphitePaths(qt *querytracer.Tracer, tr TimeRange, qHe
 			continue
 		}
 		qHead = append(qHead[:qHeadLen], suffix...)
-		ps, err := db.SearchGraphitePaths(qt, tr, qHead, qTail, maxPaths, deadline)
+		ps, err := db.SearchGraphitePaths(ctx, qt, tr, qHead, qTail, maxPaths)
 		if err != nil {
 			return nil, db.wrapError("search graphite paths", err)
 		}
@@ -1251,17 +1264,17 @@ func getRegexpPartsForGraphiteQuery(q string) ([]string, string) {
 // GetSeriesCount returns the approximate number of unique timeseries in the db.
 //
 // It includes the deleted series.
-func (db *indexDB) GetSeriesCount(deadline uint64) (uint64, error) {
-	is := db.getIndexSearch(deadline)
+func (db *indexDB) GetSeriesCount(ctx context.Context) (uint64, error) {
+	is := db.getIndexSearch()
 	defer db.putIndexSearch(is)
-	count, err := is.getSeriesCount()
+	count, err := is.getSeriesCount(ctx)
 	if err != nil {
 		return 0, db.wrapError("get series count", err)
 	}
 	return count, nil
 }
 
-func (is *indexSearch) getSeriesCount() (uint64, error) {
+func (is *indexSearch) getSeriesCount(ctx context.Context) (uint64, error) {
 	ts := &is.ts
 	kb := &is.kb
 	loopsPaceLimiter := 0
@@ -1270,7 +1283,7 @@ func (is *indexSearch) getSeriesCount() (uint64, error) {
 	ts.Seek(kb.B)
 	for ts.NextItem() {
 		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
-			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
+			if err := ctx.Err(); err != nil {
 				return 0, err
 			}
 		}
@@ -1291,7 +1304,7 @@ func (is *indexSearch) getSeriesCount() (uint64, error) {
 }
 
 // GetTSDBStatus returns topN entries for tsdb status for the given tfss, date and focusLabel.
-func (db *indexDB) GetTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
+func (db *indexDB) GetTSDBStatus(ctx context.Context, qt *querytracer.Tracer, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int) (*TSDBStatus, error) {
 	qt = qt.NewChild("collect TSDB status: filters=%s, date=%s, focusLabel=%q, topN=%d, maxMetrics=%d", tfss, dateToString(date), focusLabel, topN, maxMetrics)
 	defer qt.Done()
 
@@ -1300,7 +1313,7 @@ func (db *indexDB) GetTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters, dat
 		return &TSDBStatus{}, nil
 	}
 
-	status, err := db.getTSDBStatus(qt, date, tfss, focusLabel, topN, maxMetrics, deadline)
+	status, err := db.getTSDBStatus(ctx, qt, date, tfss, focusLabel, topN, maxMetrics)
 	if err != nil {
 		return nil, db.wrapError("collect TSDB status", err)
 	}
@@ -1308,8 +1321,8 @@ func (db *indexDB) GetTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters, dat
 }
 
 // getTSDBStatus returns topN entries for tsdb status for the given tfss, date and focusLabel.
-func (db *indexDB) getTSDBStatus(qt *querytracer.Tracer, date uint64, tfss []*TagFilters, focusLabel string, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
-	filter, err := db.searchMetricIDsByDateAndFilters(qt, date, tfss, maxMetrics, deadline)
+func (db *indexDB) getTSDBStatus(ctx context.Context, qt *querytracer.Tracer, date uint64, tfss []*TagFilters, focusLabel string, topN, maxMetrics int) (*TSDBStatus, error) {
+	filter, err := db.searchMetricIDsByDateAndFilters(ctx, qt, date, tfss, maxMetrics)
 	if err != nil {
 		return nil, err
 	}
@@ -1318,7 +1331,7 @@ func (db *indexDB) getTSDBStatus(qt *querytracer.Tracer, date uint64, tfss []*Ta
 		return &TSDBStatus{}, nil
 	}
 
-	is := db.getIndexSearch(deadline)
+	is := db.getIndexSearch()
 	defer db.putIndexSearch(is)
 
 	ts := &is.ts
@@ -1346,7 +1359,7 @@ func (db *indexDB) getTSDBStatus(qt *querytracer.Tracer, date uint64, tfss []*Ta
 	ts.Seek(prefix)
 	for ts.NextItem() {
 		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
-			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
+			if err := ctx.Err(); err != nil {
 				return nil, err
 			}
 		}
@@ -1538,14 +1551,14 @@ func (th *topHeap) Pop() any {
 	panic(fmt.Errorf("BUG: Pop shouldn't be called"))
 }
 
-func (db *indexDB) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMetrics int) (*uint64set.Set, error) {
+func (db *indexDB) DeleteSeries(ctx context.Context, qt *querytracer.Tracer, tfss []*TagFilters, maxMetrics int) (*uint64set.Set, error) {
 	qt = qt.NewChild("delete series: filters=%s, maxMetrics=%d", tfss, maxMetrics)
 	defer qt.Done()
 
 	// Unconditionally search global index since a given day in per-day
 	// index may not contain the full set of metricIDs that correspond
 	// to the tfss.
-	metricIDs, err := db.searchMetricIDsByDateAndFilters(qt, globalIndexDate, tfss, maxMetrics, noDeadline)
+	metricIDs, err := db.searchMetricIDsByDateAndFilters(ctx, qt, globalIndexDate, tfss, maxMetrics)
 	if err != nil {
 		return nil, db.wrapError("delete series", err)
 	}
@@ -1660,7 +1673,7 @@ func (db *indexDB) updateDeletedMetricIDs(metricIDs *uint64set.Set) {
 }
 
 func (db *indexDB) mustLoadDeletedMetricIDs() {
-	is := db.getIndexSearch(noDeadline)
+	is := db.getIndexSearch()
 	dmis, err := is.loadDeletedMetricIDs()
 	db.putIndexSearch(is)
 	if err != nil {
@@ -1702,7 +1715,7 @@ func (is *indexSearch) loadDeletedMetricIDs() (*uint64set.Set, error) {
 // The returned metricIDs set must not be modified because its pointer is stored
 // in tfssCache and subsequent searches for that date and tfss will return
 // invalid set.
-func (db *indexDB) searchMetricIDsByDateAndFilters(qt *querytracer.Tracer, date uint64, tfss []*TagFilters, maxMetrics int, deadline uint64) (*uint64set.Set, error) {
+func (db *indexDB) searchMetricIDsByDateAndFilters(ctx context.Context, qt *querytracer.Tracer, date uint64, tfss []*TagFilters, maxMetrics int) (*uint64set.Set, error) {
 	qt = qt.NewChild("search metricIDs: filters=%s, date=%s, maxMetrics=%d", tfss, dateToString(date), maxMetrics)
 	defer qt.Done()
 
@@ -1722,7 +1735,7 @@ func (db *indexDB) searchMetricIDsByDateAndFilters(qt *querytracer.Tracer, date 
 	}
 
 	// Slow path - search for metricIDs in the db
-	metricIDs, err := db.searchMetricIDsByDateAndFiltersSlow(qt, date, tfss, maxMetrics, deadline)
+	metricIDs, err := db.searchMetricIDsByDateAndFiltersSlow(ctx, qt, date, tfss, maxMetrics)
 	if err != nil {
 		return nil, err
 	}
@@ -1745,13 +1758,13 @@ func (db *indexDB) searchMetricIDsByDateAndFilters(qt *querytracer.Tracer, date 
 // It is called slow because it searches the index directly without consulting
 // the cache first. Callers should use searchMetricIDsByDateAndFilters instead.
 // The only place this method is called directly is in benchmarks.
-func (db *indexDB) searchMetricIDsByDateAndFiltersSlow(qt *querytracer.Tracer, date uint64, tfss []*TagFilters, maxMetrics int, deadline uint64) (*uint64set.Set, error) {
+func (db *indexDB) searchMetricIDsByDateAndFiltersSlow(ctx context.Context, qt *querytracer.Tracer, date uint64, tfss []*TagFilters, maxMetrics int) (*uint64set.Set, error) {
 	if int64(date)*msecPerDay >= db.s.minTimestampForCompositeIndex {
 		tfss = convertToCompositeTagFilterss(tfss)
 		qt.Printf("composite filters=%s", tfss)
 	}
 	metricIDs := &uint64set.Set{}
-	is := db.getIndexSearch(deadline)
+	is := db.getIndexSearch()
 	defer db.putIndexSearch(is)
 	for _, tfs := range tfss {
 		if len(tfs.tfs) == 0 {
@@ -1761,7 +1774,7 @@ func (db *indexDB) searchMetricIDsByDateAndFiltersSlow(qt *querytracer.Tracer, d
 				logger.Panicf(`BUG: cannot add {__name__!=""} filter: %s`, err)
 			}
 		}
-		m, err := is.getMetricIDsForDateAndFilters(qt, date, tfs, maxMetrics)
+		m, err := is.getMetricIDsForDateAndFilters(ctx, qt, date, tfs, maxMetrics)
 		if err != nil {
 			return nil, err
 		}
@@ -1789,7 +1802,7 @@ func (db *indexDB) wrapError(op string, err error) error {
 //
 // The method will fail if the number of found TSIDs exceeds maxMetrics or the
 // search has not completed within the specified deadline.
-func (db *indexDB) SearchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]TSID, error) {
+func (db *indexDB) SearchTSIDs(ctx context.Context, qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int) ([]TSID, error) {
 	qt = qt.NewChild("search TSIDs: filters=%s, timeRange=%s, maxMetrics=%d", tfss, &tr, maxMetrics)
 	defer qt.Done()
 
@@ -1798,7 +1811,7 @@ func (db *indexDB) SearchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Ti
 		return nil, nil
 	}
 
-	tsids, err := db.searchTSIDs(qt, tfss, tr, maxMetrics, deadline)
+	tsids, err := db.searchTSIDs(ctx, qt, tfss, tr, maxMetrics)
 	if err != nil {
 		return nil, db.wrapError("search TSIDs", err)
 	}
@@ -1806,11 +1819,11 @@ func (db *indexDB) SearchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Ti
 	return tsids, nil
 }
 
-func (db *indexDB) searchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]TSID, error) {
+func (db *indexDB) searchTSIDs(ctx context.Context, qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int) ([]TSID, error) {
 	if tr == globalIndexTimeRange {
 		qtChild := qt.NewChild("search TSIDs in global index: filters=%s", tfss)
 		defer qtChild.Done()
-		return db.searchTSIDsByDateAndFilters(qtChild, globalIndexDate, tfss, maxMetrics, deadline)
+		return db.searchTSIDsByDateAndFilters(ctx, qtChild, globalIndexDate, tfss, maxMetrics)
 	}
 
 	minDate, maxDate := tr.DateRange()
@@ -1819,7 +1832,7 @@ func (db *indexDB) searchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Ti
 		date := minDate
 		qtChild := qt.NewChild("search TSIDs in per-day index: filters=%s, date=%s", tfss, dateToString(date))
 		defer qtChild.Done()
-		return db.searchTSIDsByDateAndFilters(qtChild, date, tfss, maxMetrics, deadline)
+		return db.searchTSIDsByDateAndFilters(ctx, qtChild, date, tfss, maxMetrics)
 	}
 
 	var wg sync.WaitGroup
@@ -1832,7 +1845,7 @@ func (db *indexDB) searchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Ti
 		qtChild := qt.NewChild("search TSIDs in per-day index: filters=%s, date=%s", tfss, dateToString(date))
 		wg.Go(func() {
 			defer qtChild.Done()
-			tsidsByDate[day], errsByDate[day] = db.searchTSIDsByDateAndFilters(qtChild, date, tfss, maxMetrics, deadline)
+			tsidsByDate[day], errsByDate[day] = db.searchTSIDsByDateAndFilters(ctx, qtChild, date, tfss, maxMetrics)
 		})
 	}
 	wg.Wait()
@@ -1853,15 +1866,15 @@ func (db *indexDB) searchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Ti
 	return tsids, nil
 }
 
-func (db *indexDB) searchTSIDsByDateAndFilters(qt *querytracer.Tracer, date uint64, tfss []*TagFilters, maxMetrics int, deadline uint64) ([]TSID, error) {
-	metricIDs, err := db.searchMetricIDsByDateAndFilters(qt, date, tfss, maxMetrics, deadline)
+func (db *indexDB) searchTSIDsByDateAndFilters(ctx context.Context, qt *querytracer.Tracer, date uint64, tfss []*TagFilters, maxMetrics int) ([]TSID, error) {
+	metricIDs, err := db.searchMetricIDsByDateAndFilters(ctx, qt, date, tfss, maxMetrics)
 	if err != nil {
 		return nil, err
 	}
-	return db.searchTSIDsByMetricIDs(qt, metricIDs, deadline)
+	return db.searchTSIDsByMetricIDs(ctx, qt, metricIDs)
 }
 
-func (db *indexDB) searchTSIDsByMetricIDs(qt *querytracer.Tracer, metricIDs *uint64set.Set, deadline uint64) ([]TSID, error) {
+func (db *indexDB) searchTSIDsByMetricIDs(ctx context.Context, qt *querytracer.Tracer, metricIDs *uint64set.Set) ([]TSID, error) {
 	qt = qt.NewChild("search TSIDs by %d metricIDs", metricIDs.Len())
 	defer qt.Done()
 
@@ -1870,12 +1883,13 @@ func (db *indexDB) searchTSIDsByMetricIDs(qt *querytracer.Tracer, metricIDs *uin
 	var err error
 	i := 0
 	paceLimiter := 0
-	is := db.getIndexSearch(deadline)
+	is := db.getIndexSearch()
 	defer db.putIndexSearch(is)
 	metricIDs.ForEach(func(metricIDs []uint64) bool {
 		for _, metricID := range metricIDs {
 			if paceLimiter&paceLimiterSlowIterationsMask == 0 {
-				if err = checkSearchDeadlineAndPace(deadline); err != nil {
+				if ctxErr := ctx.Err(); ctxErr != nil {
+					err = ctxErr
 					return false
 				}
 			}
@@ -1932,12 +1946,12 @@ func (db *indexDB) searchTSIDsByMetricIDs(qt *querytracer.Tracer, metricIDs *uin
 // searchMetricName appends metric name for the given metricID to dst
 // and returns the result.
 func (db *indexDB) searchMetricName(dst []byte, metricID uint64, noCache bool) ([]byte, bool) {
-	is := db.getIndexSearchInternal(noDeadline, noCache)
+	is := db.getIndexSearchInternal(noCache)
 	defer db.putIndexSearch(is)
 	return is.searchMetricName(dst, metricID)
 }
 
-func (db *indexDB) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]string, error) {
+func (db *indexDB) SearchMetricNames(ctx context.Context, qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int) ([]string, error) {
 	qt = qt.NewChild("search metric names: filters=%s, timeRange=%s, maxMetrics=%d", tfss, &tr, maxMetrics)
 	defer qt.Done()
 
@@ -1946,7 +1960,7 @@ func (db *indexDB) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters,
 		return nil, nil
 	}
 
-	metricNames, err := db.searchMetricNames(qt, tfss, tr, maxMetrics, deadline)
+	metricNames, err := db.searchMetricNames(ctx, qt, tfss, tr, maxMetrics)
 	if err != nil {
 		return nil, db.wrapError("search metric names", err)
 	}
@@ -1954,11 +1968,11 @@ func (db *indexDB) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters,
 	return metricNames, nil
 }
 
-func (db *indexDB) searchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]string, error) {
+func (db *indexDB) searchMetricNames(ctx context.Context, qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int) ([]string, error) {
 	if tr == globalIndexTimeRange {
 		qtChild := qt.NewChild("search metric names in global index: filters=%s", tfss)
 		defer qtChild.Done()
-		return db.searchMetricNamesByDateAndFilters(qtChild, globalIndexDate, tfss, maxMetrics, deadline)
+		return db.searchMetricNamesByDateAndFilters(ctx, qtChild, globalIndexDate, tfss, maxMetrics)
 	}
 
 	minDate, maxDate := tr.DateRange()
@@ -1967,7 +1981,7 @@ func (db *indexDB) searchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters,
 		date := minDate
 		qtChild := qt.NewChild("search metricNames in per-day index: filters=%s, date=%s", tfss, dateToString(date))
 		defer qtChild.Done()
-		return db.searchMetricNamesByDateAndFilters(qtChild, date, tfss, maxMetrics, deadline)
+		return db.searchMetricNamesByDateAndFilters(ctx, qtChild, date, tfss, maxMetrics)
 	}
 
 	var wg sync.WaitGroup
@@ -1980,7 +1994,7 @@ func (db *indexDB) searchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters,
 		qtChild := qt.NewChild("search metric names in per-day index: filters=%s, date=%s", tfss, dateToString(date))
 		wg.Go(func() {
 			defer qtChild.Done()
-			metricNamesByDate[day], errsByDate[day] = db.searchMetricNamesByDateAndFilters(qtChild, date, tfss, maxMetrics, deadline)
+			metricNamesByDate[day], errsByDate[day] = db.searchMetricNamesByDateAndFilters(ctx, qtChild, date, tfss, maxMetrics)
 		})
 	}
 	wg.Wait()
@@ -2010,15 +2024,15 @@ func (db *indexDB) searchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters,
 	return metricNames, nil
 }
 
-func (db *indexDB) searchMetricNamesByDateAndFilters(qt *querytracer.Tracer, date uint64, tfss []*TagFilters, maxMetrics int, deadline uint64) ([]string, error) {
-	metricIDs, err := db.searchMetricIDsByDateAndFilters(qt, date, tfss, maxMetrics, deadline)
+func (db *indexDB) searchMetricNamesByDateAndFilters(ctx context.Context, qt *querytracer.Tracer, date uint64, tfss []*TagFilters, maxMetrics int) ([]string, error) {
+	metricIDs, err := db.searchMetricIDsByDateAndFilters(ctx, qt, date, tfss, maxMetrics)
 	if err != nil {
 		return nil, err
 	}
-	return db.searchMetricNamesByMetricIDs(qt, metricIDs, deadline)
+	return db.searchMetricNamesByMetricIDs(ctx, qt, metricIDs)
 }
 
-func (db *indexDB) searchMetricNamesByMetricIDs(qt *querytracer.Tracer, metricIDs *uint64set.Set, deadline uint64) ([]string, error) {
+func (db *indexDB) searchMetricNamesByMetricIDs(ctx context.Context, qt *querytracer.Tracer, metricIDs *uint64set.Set) ([]string, error) {
 	qt = qt.NewChild("search metric names by %d metricIDs", metricIDs.Len())
 	defer qt.Done()
 
@@ -2028,12 +2042,13 @@ func (db *indexDB) searchMetricNamesByMetricIDs(qt *querytracer.Tracer, metricID
 	var metricName []byte
 	var ok bool
 	paceLimiter := 0
-	is := db.getIndexSearch(deadline)
+	is := db.getIndexSearch()
 	defer db.putIndexSearch(is)
 	metricIDs.ForEach(func(metricIDs []uint64) bool {
 		for _, metricID := range metricIDs {
 			if paceLimiter&paceLimiterSlowIterationsMask == 0 {
-				if err = checkSearchDeadlineAndPace(deadline); err != nil {
+				if ctxErr := ctx.Err(); ctxErr != nil {
+					err = ctxErr
 					return false
 				}
 			}
@@ -2170,7 +2185,7 @@ func (is *indexSearch) getTSIDByMetricID(dst *TSID, metricID uint64) bool {
 
 // updateMetricIDsByMetricNameMatch matches metricName values for the given srcMetricIDs against tfs
 // and adds matching metrics to metricIDs.
-func (is *indexSearch) updateMetricIDsByMetricNameMatch(qt *querytracer.Tracer, metricIDs, srcMetricIDs *uint64set.Set, tfs []*tagFilter) error {
+func (is *indexSearch) updateMetricIDsByMetricNameMatch(ctx context.Context, qt *querytracer.Tracer, metricIDs, srcMetricIDs *uint64set.Set, tfs []*tagFilter) error {
 	qt = qt.NewChild("filter out %d metric ids with filters=%s", srcMetricIDs.Len(), tfs)
 	defer qt.Done()
 
@@ -2188,7 +2203,7 @@ func (is *indexSearch) updateMetricIDsByMetricNameMatch(qt *querytracer.Tracer, 
 	defer PutMetricName(mn)
 	for loopsPaceLimiter, metricID := range sortedMetricIDs {
 		if loopsPaceLimiter&paceLimiterSlowIterationsMask == 0 {
-			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
+			if err := ctx.Err(); err != nil {
 				return err
 			}
 		}
@@ -2385,14 +2400,14 @@ func errTooManyTimeseries(maxMetrics int) error {
 		"see https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#resource-usage-limits", maxMetrics)
 }
 
-func (is *indexSearch) getMetricIDsForTagFilter(qt *querytracer.Tracer, tf *tagFilter, maxMetrics int, maxLoopsCount int64) (*uint64set.Set, int64, error) {
+func (is *indexSearch) getMetricIDsForTagFilter(ctx context.Context, qt *querytracer.Tracer, tf *tagFilter, maxMetrics int, maxLoopsCount int64) (*uint64set.Set, int64, error) {
 	if tf.isNegative {
 		logger.Panicf("BUG: isNegative must be false")
 	}
 	metricIDs := &uint64set.Set{}
 	if len(tf.orSuffixes) > 0 {
 		// Fast path for orSuffixes - seek for rows for each value from orSuffixes.
-		loopsCount, err := is.updateMetricIDsForOrSuffixes(tf, metricIDs, maxMetrics, maxLoopsCount)
+		loopsCount, err := is.updateMetricIDsForOrSuffixes(ctx, tf, metricIDs, maxMetrics, maxLoopsCount)
 		qt.Printf("found %d metric ids for filter={%s} using exact search; spent %d loops", metricIDs.Len(), tf, loopsCount)
 		if err != nil {
 			return nil, loopsCount, fmt.Errorf("error when searching for metricIDs for tagFilter in fast path: %w; tagFilter=%s", err, tf)
@@ -2401,7 +2416,7 @@ func (is *indexSearch) getMetricIDsForTagFilter(qt *querytracer.Tracer, tf *tagF
 	}
 
 	// Slow path - scan for all the rows with the given prefix.
-	loopsCount, err := is.getMetricIDsForTagFilterSlow(tf, metricIDs.Add, maxLoopsCount)
+	loopsCount, err := is.getMetricIDsForTagFilterSlow(ctx, tf, metricIDs.Add, maxLoopsCount)
 	qt.Printf("found %d metric ids for filter={%s} using prefix search; spent %d loops", metricIDs.Len(), tf, loopsCount)
 	if err != nil {
 		return nil, loopsCount, fmt.Errorf("error when searching for metricIDs for tagFilter in slow path: %w; tagFilter=%s", err, tf)
@@ -2411,7 +2426,7 @@ func (is *indexSearch) getMetricIDsForTagFilter(qt *querytracer.Tracer, tf *tagF
 
 var errTooManyLoops = fmt.Errorf("too many loops is needed for applying this filter")
 
-func (is *indexSearch) getMetricIDsForTagFilterSlow(tf *tagFilter, f func(metricID uint64), maxLoopsCount int64) (int64, error) {
+func (is *indexSearch) getMetricIDsForTagFilterSlow(ctx context.Context, tf *tagFilter, f func(metricID uint64), maxLoopsCount int64) (int64, error) {
 	if len(tf.orSuffixes) > 0 {
 		logger.Panicf("BUG: the getMetricIDsForTagFilterSlow must be called only for empty tf.orSuffixes; got %s", tf.orSuffixes)
 	}
@@ -2428,7 +2443,7 @@ func (is *indexSearch) getMetricIDsForTagFilterSlow(tf *tagFilter, f func(metric
 	ts.Seek(prefix)
 	for ts.NextItem() {
 		if loopsPaceLimiter&paceLimiterMediumIterationsMask == 0 {
-			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
+			if err := ctx.Err(); err != nil {
 				return loopsCount, err
 			}
 		}
@@ -2501,7 +2516,7 @@ func (is *indexSearch) getMetricIDsForTagFilterSlow(tf *tagFilter, f func(metric
 	return loopsCount, nil
 }
 
-func (is *indexSearch) updateMetricIDsForOrSuffixes(tf *tagFilter, metricIDs *uint64set.Set, maxMetrics int, maxLoopsCount int64) (int64, error) {
+func (is *indexSearch) updateMetricIDsForOrSuffixes(ctx context.Context, tf *tagFilter, metricIDs *uint64set.Set, maxMetrics int, maxLoopsCount int64) (int64, error) {
 	if tf.isNegative {
 		logger.Panicf("BUG: isNegative must be false")
 	}
@@ -2512,7 +2527,7 @@ func (is *indexSearch) updateMetricIDsForOrSuffixes(tf *tagFilter, metricIDs *ui
 		kb.B = append(kb.B[:0], tf.prefix...)
 		kb.B = append(kb.B, orSuffix...)
 		kb.B = append(kb.B, tagSeparatorChar)
-		lc, err := is.updateMetricIDsForOrSuffix(kb.B, metricIDs, maxMetrics, maxLoopsCount-loopsCount)
+		lc, err := is.updateMetricIDsForOrSuffix(ctx, kb.B, metricIDs, maxMetrics, maxLoopsCount-loopsCount)
 		loopsCount += lc
 		if err != nil {
 			return loopsCount, err
@@ -2524,7 +2539,7 @@ func (is *indexSearch) updateMetricIDsForOrSuffixes(tf *tagFilter, metricIDs *ui
 	return loopsCount, nil
 }
 
-func (is *indexSearch) updateMetricIDsForOrSuffix(prefix []byte, metricIDs *uint64set.Set, maxMetrics int, maxLoopsCount int64) (int64, error) {
+func (is *indexSearch) updateMetricIDsForOrSuffix(ctx context.Context, prefix []byte, metricIDs *uint64set.Set, maxMetrics int, maxLoopsCount int64) (int64, error) {
 	ts := &is.ts
 	mp := &is.mp
 	var loopsCount int64
@@ -2532,7 +2547,7 @@ func (is *indexSearch) updateMetricIDsForOrSuffix(prefix []byte, metricIDs *uint
 	ts.Seek(prefix)
 	for metricIDs.Len() < maxMetrics && ts.NextItem() {
 		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
-			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
+			if err := ctx.Err(); err != nil {
 				return loopsCount, err
 			}
 		}
@@ -2557,7 +2572,7 @@ func (is *indexSearch) updateMetricIDsForOrSuffix(prefix []byte, metricIDs *uint
 	return loopsCount, nil
 }
 
-func (is *indexSearch) getMetricIDsForDateAndFilters(qt *querytracer.Tracer, date uint64, tfs *TagFilters, maxMetrics int) (*uint64set.Set, error) {
+func (is *indexSearch) getMetricIDsForDateAndFilters(ctx context.Context, qt *querytracer.Tracer, date uint64, tfs *TagFilters, maxMetrics int) (*uint64set.Set, error) {
 	qt = qt.NewChild("search metricIDs: filters=%s, date=%s, maxMetrics=%d", tfs, dateToString(date), maxMetrics)
 	defer qt.Done()
 
@@ -2627,7 +2642,7 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(qt *querytracer.Tracer, dat
 			continue
 		}
 		maxLoopsCount := getFirstPositiveLoopsCount(tfws[i+1:])
-		m, loopsCount, err := is.getMetricIDsForDateTagFilter(qtChild, tf, date, tfs.commonPrefix, maxDateMetrics, maxLoopsCount)
+		m, loopsCount, err := is.getMetricIDsForDateTagFilter(ctx, qtChild, tf, date, tfs.commonPrefix, maxDateMetrics, maxLoopsCount)
 		if err != nil {
 			if errors.Is(err, errTooManyLoops) {
 				// The tf took too many loops compared to the next filter. Postpone applying this filter.
@@ -2661,7 +2676,7 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(qt *querytracer.Tracer, dat
 		// Populate all the metricIDs for the given (date),
 		// so later they can be filtered out with negative filters.
 		qt.Printf("all the filters are negative or match more than %d time series; fall back to searching for all the metric ids", maxDateMetrics)
-		m, err := is.getMetricIDsForDate(date, maxDateMetrics)
+		m, err := is.getMetricIDsForDate(ctx, date, maxDateMetrics)
 		if err != nil {
 			return nil, fmt.Errorf("cannot obtain all the metricIDs: %w", err)
 		}
@@ -2721,7 +2736,7 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(qt *querytracer.Tracer, dat
 		if maxLoopsCount == int64Max {
 			maxLoopsCount = int64(metricIDsLen) * loopsCountPerMetricNameMatch
 		}
-		m, filterLoopsCount, err := is.getMetricIDsForDateTagFilter(qtChild, tf, date, tfs.commonPrefix, intMax, maxLoopsCount)
+		m, filterLoopsCount, err := is.getMetricIDsForDateTagFilter(ctx, qtChild, tf, date, tfs.commonPrefix, intMax, maxLoopsCount)
 		if err != nil {
 			if errors.Is(err, errTooManyLoops) {
 				// Postpone tf, since it took more loops than the next filter may need.
@@ -2753,7 +2768,7 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(qt *querytracer.Tracer, dat
 		// Apply the postponed filters via metricName match.
 		qt.Printf("apply postponed filters=%s to %d metrics ids", tfsPostponed, metricIDs.Len())
 		var m uint64set.Set
-		if err := is.updateMetricIDsByMetricNameMatch(qt, &m, metricIDs, tfsPostponed); err != nil {
+		if err := is.updateMetricIDsByMetricNameMatch(ctx, qt, &m, metricIDs, tfsPostponed); err != nil {
 			return nil, err
 		}
 		return &m, nil
@@ -2970,7 +2985,7 @@ func (is *indexSearch) hasMetricIDSlow(metricID uint64) bool {
 	return true
 }
 
-func (is *indexSearch) getMetricIDsForDateTagFilter(qt *querytracer.Tracer, tf *tagFilter, date uint64, commonPrefix []byte, maxMetrics int, maxLoopsCount int64) (*uint64set.Set, int64, error) {
+func (is *indexSearch) getMetricIDsForDateTagFilter(ctx context.Context, qt *querytracer.Tracer, tf *tagFilter, date uint64, commonPrefix []byte, maxMetrics int, maxLoopsCount int64) (*uint64set.Set, int64, error) {
 	qt = qt.NewChild("search metricIDs: filter={%s}, date=%s, maxMetrics=%d, maxLoopsCount=%d", tf, dateToString(date), maxMetrics, maxLoopsCount)
 	defer qt.Done()
 
@@ -2985,7 +3000,7 @@ func (is *indexSearch) getMetricIDsForDateTagFilter(qt *querytracer.Tracer, tf *
 	tfNew := *tf
 	tfNew.isNegative = false // isNegative for the original tf is handled by the caller.
 	tfNew.prefix = kb.B
-	metricIDs, loopsCount, err := is.getMetricIDsForTagFilter(qt, &tfNew, maxMetrics, maxLoopsCount)
+	metricIDs, loopsCount, err := is.getMetricIDsForTagFilter(ctx, qt, &tfNew, maxMetrics, maxLoopsCount)
 	if err != nil {
 		return nil, loopsCount, err
 	}
@@ -3001,7 +3016,7 @@ func (is *indexSearch) getMetricIDsForDateTagFilter(qt *querytracer.Tracer, tf *
 	if err := tfGross.Init(prefix, tf.key, []byte(".+"), false, true); err != nil {
 		logger.Panicf(`BUG: cannot init tag filter: {%q=~".+"}: %s`, tf.key, err)
 	}
-	m, lc, err := is.getMetricIDsForTagFilter(qt, &tfGross, maxMetrics, maxLoopsCount)
+	m, lc, err := is.getMetricIDsForTagFilter(ctx, qt, &tfGross, maxMetrics, maxLoopsCount)
 	loopsCount += lc
 	if err != nil {
 		return nil, loopsCount, err
@@ -3045,27 +3060,27 @@ func appendDateTagFilterCacheKey(dst []byte, indexDBName string, date uint64, tf
 	return dst
 }
 
-func (is *indexSearch) getMetricIDsForDate(date uint64, maxMetrics int) (*uint64set.Set, error) {
+func (is *indexSearch) getMetricIDsForDate(ctx context.Context, date uint64, maxMetrics int) (*uint64set.Set, error) {
 	// Extract all the metricIDs from (date, __name__=value)->metricIDs entries.
 	kb := kbPool.Get()
 	defer kbPool.Put(kb)
 	kb.B = is.marshalCommonPrefixForDate(kb.B[:0], date)
 	kb.B = marshalTagValue(kb.B, nil)
 	var metricIDs uint64set.Set
-	if err := is.updateMetricIDsForPrefix(kb.B, &metricIDs, maxMetrics); err != nil {
+	if err := is.updateMetricIDsForPrefix(ctx, kb.B, &metricIDs, maxMetrics); err != nil {
 		return nil, err
 	}
 	return &metricIDs, nil
 }
 
-func (is *indexSearch) updateMetricIDsForPrefix(prefix []byte, metricIDs *uint64set.Set, maxMetrics int) error {
+func (is *indexSearch) updateMetricIDsForPrefix(ctx context.Context, prefix []byte, metricIDs *uint64set.Set, maxMetrics int) error {
 	ts := &is.ts
 	mp := &is.mp
 	loopsPaceLimiter := 0
 	ts.Seek(prefix)
 	for ts.NextItem() {
 		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
-			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
+			if err := ctx.Err(); err != nil {
 				return err
 			}
 		}

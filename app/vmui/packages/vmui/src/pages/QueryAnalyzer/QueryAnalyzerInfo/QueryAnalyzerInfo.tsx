@@ -12,9 +12,9 @@ import dayjs from "dayjs";
 import { DATE_TIME_FORMAT } from "../../../constants/date";
 import useBoolean from "../../../hooks/useBoolean";
 import Modal from "../../../components/Main/Modal/Modal";
-import { marked } from "marked";
 import Button from "../../../components/Main/Button/Button";
 import { getValueByPath } from "../../../utils/object";
+import SafeHtml from "../../../components/Main/SafeHtml/SafeHtml";
 
 type Props = {
   data: DataAnalyzerType[];
@@ -127,9 +127,11 @@ const QueryAnalyzerInfo: FC<Props> = ({ data, period }) => {
                   <CommentIcon/>
                   Comments
                 </div>
-                <div
+                <SafeHtml
+                  tagName="div"
                   className="vm-query-analyzer-info-comment-body vm-markdown"
-                  dangerouslySetInnerHTML={{ __html: (marked(comment) as string) || comment }}
+                  value={comment}
+                  format="markdown"
                 />
               </div>
             )}

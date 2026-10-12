@@ -13,7 +13,6 @@ import (
 	"github.com/prometheus/prometheus/tsdb"
 	"github.com/prometheus/prometheus/tsdb/chunkenc"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
@@ -95,13 +94,10 @@ func MustClose() {
 var promDB *tsdb.DB
 
 // GetLabelNamesOnTimeRange returns label names.
-func GetLabelNamesOnTimeRange(tr storage.TimeRange, deadline searchutil.Deadline) ([]string, error) {
+func GetLabelNamesOnTimeRange(ctx context.Context, tr storage.TimeRange) ([]string, error) {
 	if *prometheusDataPath == "" {
 		return nil, nil
 	}
-	d := time.Unix(int64(deadline.Deadline()), 0)
-	ctx, cancel := context.WithDeadline(context.Background(), d)
-	defer cancel()
 	q, err := promDB.Querier(tr.MinTimestamp, tr.MaxTimestamp)
 	if err != nil {
 		return nil, err
@@ -115,13 +111,10 @@ func GetLabelNamesOnTimeRange(tr storage.TimeRange, deadline searchutil.Deadline
 }
 
 // GetLabelValuesOnTimeRange returns values for the given labelName on the given tr.
-func GetLabelValuesOnTimeRange(labelName string, tr storage.TimeRange, deadline searchutil.Deadline) ([]string, error) {
+func GetLabelValuesOnTimeRange(ctx context.Context, labelName string, tr storage.TimeRange) ([]string, error) {
 	if *prometheusDataPath == "" {
 		return nil, nil
 	}
-	d := time.Unix(int64(deadline.Deadline()), 0)
-	ctx, cancel := context.WithDeadline(context.Background(), d)
-	defer cancel()
 	q, err := promDB.Querier(tr.MinTimestamp, tr.MaxTimestamp)
 	if err != nil {
 		return nil, err
@@ -148,13 +141,10 @@ func copyStringsWithMemory(a []string) []string {
 type SeriesVisitor func(metricName []byte, values []float64, timestamps []int64)
 
 // VisitSeries calls f for each series found in the pdb.
-func VisitSeries(sq *storage.SearchQuery, deadline searchutil.Deadline, f SeriesVisitor) error {
+func VisitSeries(ctx context.Context, sq *storage.SearchQuery, f SeriesVisitor) error {
 	if *prometheusDataPath == "" {
 		return nil
 	}
-	d := time.Unix(int64(deadline.Deadline()), 0)
-	ctx, cancel := context.WithDeadline(context.Background(), d)
-	defer cancel()
 	minTime, maxTime := getSearchTimeRange(sq)
 	q, err := promDB.Querier(minTime, maxTime)
 	if err != nil {

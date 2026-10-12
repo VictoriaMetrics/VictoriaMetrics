@@ -124,6 +124,7 @@ func testFutureTimestamps(tc *apptest.TestCase, opts testFutureTimestampsOpts) {
 	}
 
 	f := func(prefix string, startTime, endTime time.Time, wantEmpty bool) {
+		t.Helper()
 		const numMetrics = 1000
 		start := startTime.UnixMilli()
 		end := endTime.UnixMilli()
@@ -170,7 +171,7 @@ func testFutureTimestamps(tc *apptest.TestCase, opts testFutureTimestampsOpts) {
 	end = now.Add(retentionLimit)
 	f("future_1d_before_limit", start, end, false)
 
-	start = now.Add(retentionLimit + time.Minute)
+	start = now.Add(retentionLimit + 5*time.Minute)
 	end = now.Add(retentionLimit + 24*time.Hour)
 	f("future_1d_beyond_limit", start, end, true)
 

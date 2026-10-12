@@ -124,7 +124,7 @@ func (db *indexDB) legacyContainsTimeRange(tr TimeRange) bool {
 	}
 
 	// Slow path.
-	is := db.getIndexSearch(noDeadline)
+	is := db.getIndexSearch()
 	defer db.putIndexSearch(is)
 	if is.legacyContainsTimeRange(tr) {
 		return true

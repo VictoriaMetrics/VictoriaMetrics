@@ -1299,7 +1299,7 @@ If vmalert failed to load or parse the configuration, it will log a correspondin
 To set additional URL params for `datasource.url`, `remoteWrite.url` or `remoteRead.url`
 just add them in address: `-datasource.url=http://localhost:8428?nocache=1`.
 
-To set additional URL params for specific [group of rules](#Groups) modify
+To set additional URL params for specific [group of rules](#groups) modify
 the `params` group:
 
 ```yaml
