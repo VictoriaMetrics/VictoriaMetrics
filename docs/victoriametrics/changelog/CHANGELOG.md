@@ -26,7 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
-* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [Single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): limit the number of logged parse errors per each scrape of a target via `-promscrape.maxParseErrorsPerScrape` command-line flag (100 by default). The number of suppressed parse errors is logged after the scrape. This prevents log flooding from targets exposing many malformed lines. See [#8856](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8856).
+* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [Single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): limit the number of logged parse errors per each scrape of a target via `-promscrape.maxParseErrorsPerScrape` command-line flag (20 by default). The number of suppressed parse errors is logged after the scrape. This prevents log flooding from targets exposing many malformed lines. See [#8856](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8856).
 
 ## [v1.154.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.154.0)
 
