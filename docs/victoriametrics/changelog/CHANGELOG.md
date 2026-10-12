@@ -26,6 +26,9 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [alerts-health](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-health.yml): add `TooManySnapshots` alerting rule. It notifies about instances where more than 2 [snapshots](https://docs.victoriametrics.com/victoriametrics/#how-to-work-with-snapshots) are stored for at least 2 hours. Such snapshots are usually left behind by failed `vmbackup` / `vmbackupmanager` runs. They keep references to the already merged data parts and prevent [background merges](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#storage) from freeing the disk space, which results in excessive disk usage. See [#9344](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9344).
+
+
 ## [v1.154.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.154.0)
 
 Released at 2026-10-12

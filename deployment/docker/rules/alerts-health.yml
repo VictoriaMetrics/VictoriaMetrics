@@ -158,3 +158,32 @@ groups:
           summary: "Some rows are rejected on \"{{ $labels.instance }}\" on ingestion attempt"
           description: "Ingested rows on instance \"{{ $labels.instance }}\" are rejected due to the
             following reason: \"{{ $labels.reason }}\""
+
+      - alert: TooManySnapshots
+        expr: max_over_time(vm_snapshots[1h]) > 2
+        for: 2h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Too many snapshots on \"{{ $labels.job }}\"(\"{{ $labels.instance }}\")"
+          description: |
+            More than 2 snapshots were present on "{{ $labels.instance }}" during the last 2 hours.
+            `vmbackup` deletes the snapshot right after the backup is completed, so at most a single snapshot
+            is expected to exist at any point in time. Snapshots are removed only when they are explicitly
+            deleted or when they become older than `-snapshotsMaxAge` (`3d` by default), so the growing number
+            of snapshots means that something on "{{ $labels.instance }}" isn't working as expected.
+
+            Old snapshots keep references to the data parts they were created from. This prevents
+            background merges from deleting these parts and from freeing the occupied disk space,
+            so snapshots may end up consuming much more disk space than the actual data.
+
+            Actions:
+            - Inspect the snapshots list at `http://<vmstorage-addr>:8428/snapshot/list`.
+            - Check error logs of `vmbackup` / `vmbackupmanager`. Snapshots left behind after failed backups are never deleted automatically.
+            - Make sure that every backup completes before the next backup starts. Otherwise increase `-concurrency`
+              for `vmbackupmanager` or increase its `-backupInterval`.
+            - Make sure that `-snapshotsMaxAge` is set to a non-zero value, which is big enough for the backup to complete.
+            - Delete unneeded snapshots at `http://<vmstorage-addr>:8428/snapshot/delete?snapshot=<snapshot-name>`.
+
+            See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#snapshot-troubleshooting
+            and https://docs.victoriametrics.com/victoriametrics/vmbackup/#troubleshooting for details.
