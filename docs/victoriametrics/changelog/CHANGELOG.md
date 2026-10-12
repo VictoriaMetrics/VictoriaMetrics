@@ -28,7 +28,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## [v1.154.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.154.0)
 
-Release candidate
+Released at 2026-10-12
 
 * SECURITY: upgrade Go builder from Go1.27.1 to Go1.27.2. See [the list of issues addressed in Go1.27.2](https://github.com/golang/go/issues?q=milestone%3AGo1.27.2%20label%3ACherryPickApproved).
 * SECURITY: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): slow down requests with invalid auth tokens even if `unauthorized_user` has URLs configured. Previously, such requests were proxied to `unauthorized_user` without delay, which allowed brute-forcing auth tokens. The [Single sign-on (SSO)](https://docs.victoriametrics.com/victoriametrics/vmauth/#single-sign-on-sso) cookie is now accepted only as a JWT token and is no longer matched against `bearer_token` of static users. See [GHSA-rpfx-hrcp-f73x](https://github.com/VictoriaMetrics/VictoriaMetrics/security/advisories/GHSA-rpfx-hrcp-f73x).
