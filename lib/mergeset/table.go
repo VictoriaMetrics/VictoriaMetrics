@@ -97,8 +97,9 @@ type Table struct {
 	flushCallbackInterval time.Duration
 	needFlushCallbackCall atomic.Bool
 
-	prepareBlock PrepareBlockCallback
-	isReadOnly   *atomic.Bool
+	prepareBlock  PrepareBlockCallback
+	partFilterKey PartFilterKey
+	isReadOnly    *atomic.Bool
 
 	// rawItems contains recently added items that haven't been converted to parts yet.
 	//
@@ -346,7 +347,10 @@ func (pw *partWrapper) decRef() {
 // to persistent storage.
 //
 // The table is created if it doesn't exist yet.
-func MustOpenTable(path string, flushInterval time.Duration, flushCallback func(), flushCallbackInterval time.Duration, prepareBlock PrepareBlockCallback, isReadOnly *atomic.Bool) *Table {
+func MustOpenTable(path string, flushInterval time.Duration, flushCallback func(), flushCallbackInterval time.Duration, prepareBlock PrepareBlockCallback, isReadOnly *atomic.Bool, partFilterKey ...PartFilterKey) *Table {
+	if len(partFilterKey) > 1 {
+		logger.Panicf("BUG: MustOpenTable accepts at most one part filter key callback; got %d", len(partFilterKey))
+	}
 	path = filepath.Clean(path)
 
 	if flushInterval < pendingItemsFlushInterval {
@@ -363,7 +367,11 @@ func MustOpenTable(path string, flushInterval time.Duration, flushCallback func(
 	fs.MustMkdirIfNotExist(path)
 
 	// Open table parts.
-	pws := mustOpenParts(path)
+	var filterKey PartFilterKey
+	if len(partFilterKey) > 0 {
+		filterKey = partFilterKey[0]
+	}
+	pws := mustOpenParts(path, filterKey != nil)
 
 	// Sync the path and the parent dir, so the path becomes visible in the parent dir.
 	fs.MustSyncPathAndParentDir(path)
@@ -374,6 +382,7 @@ func MustOpenTable(path string, flushInterval time.Duration, flushCallback func(
 		flushCallback:         flushCallback,
 		flushCallbackInterval: flushCallbackInterval,
 		prepareBlock:          prepareBlock,
+		partFilterKey:         filterKey,
 		isReadOnly:            isReadOnly,
 		fileParts:             pws,
 		inmemoryPartsLimitCh:  make(chan struct{}, maxInmemoryParts),
@@ -581,6 +590,15 @@ type TableMetrics struct {
 	IndexBlocksCacheRequests     uint64
 	IndexBlocksCacheMisses       uint64
 
+	PartFilterCacheSize         uint64
+	PartFilterCacheSizeBytes    uint64
+	PartFilterCacheSizeMaxBytes uint64
+	PartFilterCacheRequests     uint64
+	PartFilterCacheMisses       uint64
+	PartFilterFileSizeBytes     uint64
+	PartFilterMemorySizeBytes   uint64
+	PartFilterSegmentsCount     uint64
+
 	PartsRefCount uint64
 
 	TooLongItemsDroppedTotal uint64
@@ -620,6 +638,8 @@ func (tb *Table) UpdateMetrics(m *TableMetrics) {
 		m.InmemoryItemsCount += p.ph.itemsCount
 		m.InmemorySizeBytes += p.size
 		m.MetaindexSizeBytes += p.metaindexSizeBytes
+		m.PartFilterMemorySizeBytes += p.ph.filter.sizeBytes()
+		m.PartFilterSegmentsCount += p.ph.filter.segmentsCount()
 		m.PartsRefCount += uint64(pw.refCount.Load())
 	}
 
@@ -630,6 +650,8 @@ func (tb *Table) UpdateMetrics(m *TableMetrics) {
 		m.FileItemsCount += p.ph.itemsCount
 		m.FileSizeBytes += p.size
 		m.MetaindexSizeBytes += p.metaindexSizeBytes
+		m.PartFilterFileSizeBytes += p.filterSizeBytes
+		m.PartFilterSegmentsCount += p.ph.filter.segmentsCount()
 		m.PartsRefCount += uint64(pw.refCount.Load())
 	}
 	tb.partsLock.Unlock()
@@ -656,6 +678,12 @@ func (tb *Table) UpdateMetrics(m *TableMetrics) {
 	m.IndexBlocksCacheSizeMaxBytes = uint64(idxbCache.SizeMaxBytes())
 	m.IndexBlocksCacheRequests = idxbCache.Requests()
 	m.IndexBlocksCacheMisses = idxbCache.Misses()
+
+	m.PartFilterCacheSize = uint64(pfbCache.Len())
+	m.PartFilterCacheSizeBytes = uint64(pfbCache.SizeBytes())
+	m.PartFilterCacheSizeMaxBytes = uint64(pfbCache.SizeMaxBytes())
+	m.PartFilterCacheRequests = pfbCache.Requests()
+	m.PartFilterCacheMisses = pfbCache.Misses()
 
 	m.TooLongItemsDroppedTotal = tooLongItemsTotal.Load()
 }
@@ -1022,7 +1050,7 @@ func (tb *Table) createInmemoryPart(ibs []*inmemoryBlock) *partWrapper {
 		// Nothing to merge. Just return a single inmemory part.
 		bsr := bsrs[0]
 		mp := &inmemoryPart{}
-		mp.Init(&bsr.Block)
+		mp.Init(&bsr.Block, tb.partFilterKey)
 		putBlockStreamReader(bsr)
 		return newPartWrapperFromInmemoryPart(mp, flushToDiskDeadline)
 	}
@@ -1311,6 +1339,9 @@ func mustOpenBlockStreamReaders(pws []*partWrapper) []*blockStreamReader {
 			bsr.MustInitFromInmemoryPart(pw.mp)
 		} else {
 			bsr.MustInitFromFilePart(pw.p.path)
+			// Reuse the filter already loaded with the source part. This avoids
+			// reading and allocating a second copy during merges.
+			bsr.ph.filter = pw.p.ph.filter
 		}
 		bsrs = append(bsrs, bsr)
 	}
@@ -1335,7 +1366,39 @@ func (tb *Table) mergePartsInternal(dstPartPath string, bsw *blockStreamWriter, 
 		logger.Panicf("BUG: unknown partType=%d", dstPartType)
 	}
 	activeMerges.Add(1)
-	err := mergeBlockStreams(&ph, bsw, bsrs, tb.prepareBlock, stopCh, itemsMerged)
+	prepareBlock := tb.prepareBlock
+	if tb.partFilterKey != nil {
+		var maxItems uint64
+		for _, bsr := range bsrs {
+			if bsr.isInmemoryBlock {
+				for _, item := range bsr.Block.items {
+					if tb.partFilterKey(item.Bytes(bsr.Block.data)) != nil {
+						maxItems++
+					}
+				}
+			} else if bsr.ph.filter != nil {
+				maxItems += bsr.ph.filter.itemsCount
+			} else {
+				// An old or incomplete part may not have a filter. Reserve
+				// enough space for all its items and keep the conservative
+				// fallback behavior for lookups.
+				maxItems += bsr.ph.itemsCount
+			}
+		}
+		// Build the filter from the items which are actually written to the
+		// destination part, so the filter always covers all the stored items.
+		ph.filter = newPartFilter(maxItems)
+		prepareBlock = func(data []byte, items []Item) ([]byte, []Item) {
+			if tb.prepareBlock != nil {
+				data, items = tb.prepareBlock(data, items)
+			}
+			for _, item := range items {
+				ph.filter.addItem(item.Bytes(data), tb.partFilterKey)
+			}
+			return data, items
+		}
+	}
+	err := mergeBlockStreams(&ph, bsw, bsrs, prepareBlock, stopCh, itemsMerged)
 	activeMerges.Add(-1)
 	mergesCount.Add(1)
 	if err != nil {
@@ -1343,6 +1406,7 @@ func (tb *Table) mergePartsInternal(dstPartPath string, bsw *blockStreamWriter, 
 	}
 	if dstPartPath != "" {
 		ph.MustWriteMetadata(dstPartPath)
+		ph.filter.mustWriteFile(dstPartPath)
 	}
 	return &ph, nil
 }
@@ -1356,7 +1420,7 @@ func (tb *Table) openCreatedPart(pws []*partWrapper, mpNew *inmemoryPart, dstPar
 		return pwNew
 	}
 	// Open the created part from disk.
-	pNew := mustOpenFilePart(dstPartPath)
+	pNew := mustOpenFilePart(dstPartPath, tb.partFilterKey != nil)
 	pwNew := &partWrapper{
 		p: pNew,
 	}
@@ -1483,7 +1547,7 @@ func (tb *Table) nextMergeIdx() uint64 {
 	return tb.mergeIdx.Add(1)
 }
 
-func mustOpenParts(path string) []*partWrapper {
+func mustOpenParts(path string, loadFilter bool) []*partWrapper {
 	// Remove txn and tmp directories, which may be left after the upgrade
 	// to v1.90.0 and newer versions.
 	fs.MustRemoveDir(filepath.Join(path, "txn"))
@@ -1527,7 +1591,7 @@ func mustOpenParts(path string) []*partWrapper {
 	var pws []*partWrapper
 	for _, partName := range partNames {
 		partPath := filepath.Join(path, partName)
-		p := mustOpenFilePart(partPath)
+		p := mustOpenFilePart(partPath, loadFilter)
 		pw := &partWrapper{
 			p: p,
 		}

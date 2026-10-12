@@ -88,6 +88,14 @@ type indexDB struct {
 	// The db must be automatically recovered after that.
 	missingMetricNamesForMetricID atomic.Uint64
 
+	tsidLookupFilterSkipped            atomic.Uint64
+	tsidLookupFilterPossible           atomic.Uint64
+	tsidLookupFilterFalsePositives     atomic.Uint64
+	tsidLookupFilterFallbackUnfiltered atomic.Uint64
+	tsidLookupFilterFallbackBudget     atomic.Uint64
+	tsidLookupFilterFallbackRead       atomic.Uint64
+	tsidLookupFilterFallbackVerify     atomic.Uint64
+
 	// legacyMinMissingTimestampByKey holds the minimum timestamps by index search key,
 	// which is missing in the given indexDB.
 	// Key must be formed with marshalCommonPrefix function.
@@ -169,7 +177,11 @@ func mustOpenIndexDB(id uint64, tr TimeRange, name, path string, s *Storage, isR
 	}
 
 	tfssCache := lrucache.NewCache(getTagFiltersCacheSize)
-	tb := mergeset.MustOpenTable(path, dataFlushInterval, tfssCache.Reset, 0, mergeTagToMetricIDsRows, isReadOnly)
+	var filterKey mergeset.PartFilterKey
+	if !s.disableTSIDLookupBloomFilter {
+		filterKey = metricNameTSIDFilterKey
+	}
+	tb := mergeset.MustOpenTable(path, dataFlushInterval, tfssCache.Reset, 0, mergeTagToMetricIDsRows, isReadOnly, filterKey)
 	db := &indexDB{
 		legacyMinMissingTimestampByKey: make(map[TenantToken]int64),
 		id:                             id,
@@ -226,6 +238,14 @@ type IndexDBMetrics struct {
 
 	MissingTSIDsForMetricID       uint64
 	MissingMetricNamesForMetricID uint64
+
+	TSIDLookupFilterSkipped            uint64
+	TSIDLookupFilterPossible           uint64
+	TSIDLookupFilterFalsePositives     uint64
+	TSIDLookupFilterFallbackUnfiltered uint64
+	TSIDLookupFilterFallbackBudget     uint64
+	TSIDLookupFilterFallbackRead       uint64
+	TSIDLookupFilterFallbackVerify     uint64
 
 	IndexBlocksWithMetricIDsProcessed      uint64
 	IndexBlocksWithMetricIDsIncorrectOrder uint64
@@ -299,6 +319,13 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 
 	m.MissingTSIDsForMetricID += db.missingTSIDsForMetricID.Load()
 	m.MissingMetricNamesForMetricID += db.missingMetricNamesForMetricID.Load()
+	m.TSIDLookupFilterSkipped += db.tsidLookupFilterSkipped.Load()
+	m.TSIDLookupFilterPossible += db.tsidLookupFilterPossible.Load()
+	m.TSIDLookupFilterFalsePositives += db.tsidLookupFilterFalsePositives.Load()
+	m.TSIDLookupFilterFallbackUnfiltered += db.tsidLookupFilterFallbackUnfiltered.Load()
+	m.TSIDLookupFilterFallbackBudget += db.tsidLookupFilterFallbackBudget.Load()
+	m.TSIDLookupFilterFallbackRead += db.tsidLookupFilterFallbackRead.Load()
+	m.TSIDLookupFilterFallbackVerify += db.tsidLookupFilterFallbackVerify.Load()
 
 	db.tb.UpdateMetrics(&m.TableMetrics)
 }
@@ -2070,6 +2097,30 @@ func (db *indexDB) searchMetricNamesByMetricIDs(qt *querytracer.Tracer, metricID
 
 var tagFiltersKeyBufPool bytesutil.ByteBufferPool
 
+func metricNameTSIDFilterKey(item []byte) []byte {
+	if len(item) < 2 {
+		return nil
+	}
+	keyStart := 1
+	switch item[0] {
+	case nsPrefixMetricNameToTSID:
+		// Global MetricName -> TSID index.
+	case nsPrefixDateMetricNameToTSID:
+		// Per-day MetricName -> TSID index.
+		keyStart += 8
+	default:
+		return nil
+	}
+	if len(item) <= keyStart {
+		return nil
+	}
+	n := bytes.IndexByte(item[keyStart:], kvSeparatorChar)
+	if n < 0 {
+		return nil
+	}
+	return item[:keyStart+n+1]
+}
+
 func (is *indexSearch) getTSIDByMetricName(dst *TSID, metricName []byte, date uint64) bool {
 	dmis := is.db.getDeletedMetricIDs()
 
@@ -2084,12 +2135,41 @@ func (is *indexSearch) getTSIDByMetricName(dst *TSID, metricName []byte, date ui
 	}
 	kb.B = append(kb.B, metricName...)
 	kb.B = append(kb.B, kvSeparatorChar)
-	ts.Seek(kb.B)
+	var filterStats mergeset.PartFilterSearchStats
+	if is.db.s.disableTSIDLookupBloomFilter {
+		ts.Seek(kb.B)
+	} else {
+		filterStats = ts.SeekWithPartFilter(kb.B)
+		if filterStats.PossibleParts > 0 {
+			is.db.tsidLookupFilterPossible.Add(1)
+		}
+		// Each fallback counter counts lookups which included at least one part
+		// with the corresponding condition, so a single lookup may increment
+		// more than one of them.
+		if filterStats.UnfilteredParts > 0 {
+			is.db.tsidLookupFilterFallbackUnfiltered.Add(1)
+		}
+		if filterStats.BudgetFallbackParts > 0 {
+			is.db.tsidLookupFilterFallbackBudget.Add(1)
+		}
+		if filterStats.ReadFallbackParts > 0 {
+			is.db.tsidLookupFilterFallbackRead.Add(1)
+		}
+		if filterStats.VerifyFallbackParts > 0 {
+			is.db.tsidLookupFilterFallbackVerify.Add(1)
+		}
+		if filterStats.PossibleParts == 0 && !filterStats.HasFallbacks() {
+			is.db.tsidLookupFilterSkipped.Add(1)
+			return false
+		}
+	}
+	foundIndexEntry := false
 	for ts.NextItem() {
 		if !bytes.HasPrefix(ts.Item, kb.B) {
 			// Nothing found.
-			return false
+			break
 		}
+		foundIndexEntry = true
 		v := ts.Item[len(kb.B):]
 		tail, err := dst.Unmarshal(v)
 		if err != nil {
@@ -2107,6 +2187,9 @@ func (is *indexSearch) getTSIDByMetricName(dst *TSID, metricName []byte, date ui
 	}
 	if err := ts.Error(); err != nil {
 		logger.Panicf("FATAL: error when searching TSID by metricName; searchPrefix %q: %s", kb.B, err)
+	}
+	if filterStats.PossibleParts > 0 && !foundIndexEntry {
+		is.db.tsidLookupFilterFalsePositives.Add(1)
 	}
 	// Nothing found
 	return false

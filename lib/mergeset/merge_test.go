@@ -195,7 +195,7 @@ func newTestInmemoryBlockStreamReaders(r *rand.Rand, blocksCount, maxItemsPerBlo
 			items = append(items, string(item))
 		}
 		var ip inmemoryPart
-		ip.Init(&ib)
+		ip.Init(&ib, nil)
 		bsr := newTestBlockStreamReader(&ip)
 		bsrs = append(bsrs, bsr)
 	}

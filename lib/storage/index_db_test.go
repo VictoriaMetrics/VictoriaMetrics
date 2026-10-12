@@ -483,6 +483,231 @@ func TestIndexDBOpenClose(t *testing.T) {
 	}
 }
 
+func TestMetricNameTSIDFilterKey(t *testing.T) {
+	var mn MetricName
+	mn.MetricGroup = []byte("metric\x02name")
+	mn.AddTag("tag\x02key", "tag\x02value")
+	mn.sortTags()
+	metricName := mn.Marshal(nil)
+
+	var tsid TSID
+	generateTSID(&tsid, &mn)
+	globalItem := append([]byte{nsPrefixMetricNameToTSID}, metricName...)
+	globalItem = append(globalItem, kvSeparatorChar)
+	globalItem = tsid.Marshal(globalItem)
+	globalKey := metricNameTSIDFilterKey(globalItem)
+	if want := append([]byte{nsPrefixMetricNameToTSID}, metricName...); !bytes.Equal(globalKey, append(want, kvSeparatorChar)) {
+		t.Fatalf("unexpected global filter key; got %X", globalKey)
+	}
+
+	date := uint64(12345)
+	dayItem := []byte{nsPrefixDateMetricNameToTSID}
+	dayItem = encoding.MarshalUint64(dayItem, date)
+	dayItem = append(dayItem, metricName...)
+	dayItem = append(dayItem, kvSeparatorChar)
+	dayItem = tsid.Marshal(dayItem)
+	dayKey := metricNameTSIDFilterKey(dayItem)
+	wantDayKey := []byte{nsPrefixDateMetricNameToTSID}
+	wantDayKey = encoding.MarshalUint64(wantDayKey, date)
+	wantDayKey = append(wantDayKey, metricName...)
+	wantDayKey = append(wantDayKey, kvSeparatorChar)
+	if !bytes.Equal(dayKey, wantDayKey) {
+		t.Fatalf("unexpected per-day filter key; got %X; want %X", dayKey, wantDayKey)
+	}
+	if bytes.Equal(dayKey, globalKey) {
+		t.Fatalf("per-day and global keys must use different namespaces")
+	}
+
+	otherDateItem := []byte{nsPrefixDateMetricNameToTSID}
+	otherDateItem = encoding.MarshalUint64(otherDateItem, date+1)
+	otherDateItem = append(otherDateItem, metricName...)
+	otherDateItem = append(otherDateItem, kvSeparatorChar)
+	if bytes.Equal(dayKey, metricNameTSIDFilterKey(otherDateItem)) {
+		t.Fatalf("different dates must use different filter keys")
+	}
+}
+
+func TestIndexDBTSIDLookupBloomFilterDisabled(t *testing.T) {
+	defer testRemoveAll(t)
+
+	s := MustOpenStorage(t.Name(), OpenOptions{DisableTSIDLookupBloomFilter: true})
+	timestamp := time.Now().UnixMilli()
+	ptw := s.tb.MustGetPartition(timestamp)
+	db := ptw.pt.idb
+	var mn MetricName
+	mn.MetricGroup = []byte("existing-series")
+	mn.sortTags()
+	var want TSID
+	generateTSID(&want, &mn)
+	date := uint64(timestamp) / msecPerDay
+	createAllIndexesForMetricName(db, &mn, &want, date)
+	db.tb.DebugFlush()
+
+	is := db.getIndexSearch(noDeadline)
+	var got TSID
+	if !is.getTSIDByMetricName(&got, mn.Marshal(nil), date) || got.MetricID != want.MetricID {
+		t.Fatalf("expected existing TSID lookup to succeed when filter is disabled; got %+v", got)
+	}
+	missingMN := MetricName{MetricGroup: []byte("missing-series")}
+	if is.getTSIDByMetricName(&got, missingMN.Marshal(nil), date) {
+		t.Fatalf("unexpected TSID found for missing metric name")
+	}
+	db.putIndexSearch(is)
+	if db.tsidLookupFilterSkipped.Load() != 0 || db.tsidLookupFilterPossible.Load() != 0 ||
+		db.tsidLookupFilterFalsePositives.Load() != 0 || db.tsidLookupFilterFallbackUnfiltered.Load()+db.tsidLookupFilterFallbackBudget.Load()+db.tsidLookupFilterFallbackRead.Load()+db.tsidLookupFilterFallbackVerify.Load() != 0 {
+		t.Fatalf("unexpected filter metrics while filter is disabled")
+	}
+	s.tb.PutPartition(ptw)
+	s.MustClose()
+}
+
+func TestIndexDBTSIDLookupBloomFilterActiveAndDeleted(t *testing.T) {
+	for _, disablePerDayIndex := range []bool{false, true} {
+		name := fmt.Sprintf("disablePerDayIndex=%t", disablePerDayIndex)
+		t.Run(name, func(t *testing.T) {
+			testIndexDBTSIDLookupBloomFilterActiveAndDeleted(t, disablePerDayIndex)
+		})
+	}
+}
+
+func testIndexDBTSIDLookupBloomFilterActiveAndDeleted(t *testing.T, disablePerDayIndex bool) {
+	defer testRemoveAll(t)
+	fs.MustRemoveDir(t.Name())
+
+	s := MustOpenStorage(t.Name(), OpenOptions{DisablePerDayIndex: disablePerDayIndex})
+	timestamp := time.Now().UnixMilli()
+	ptw := s.tb.MustGetPartition(timestamp)
+	db := ptw.pt.idb
+	date := uint64(timestamp) / msecPerDay
+
+	var mn MetricName
+	mn.MetricGroup = []byte("active-series")
+	mn.AddTag("role", "api")
+	mn.sortTags()
+	metricName := mn.Marshal(nil)
+	row := MetricRow{
+		MetricNameRaw: mn.marshalRaw(nil),
+		Timestamp:     timestamp,
+		Value:         1,
+	}
+	s.AddRows([]MetricRow{row}, defaultPrecisionBits)
+	s.DebugFlush()
+
+	// The in-memory part is searchable before it is persisted.
+	is := db.getIndexSearch(noDeadline)
+	var got TSID
+	found := is.getTSIDByMetricName(&got, metricName, date)
+	if !found {
+		t.Fatalf("expected active-part lookup to return the existing TSID")
+	}
+	originalMetricID := got.MetricID
+	db.putIndexSearch(is)
+
+	// Find an absent key within the part's key range that produces a Bloom
+	// positive, then verify the completed index miss is counted.
+	var ts mergeset.TableSearch
+	ts.Init(db.tb, false)
+	falsePositiveFound := false
+	for i := range 100000 {
+		candidate := MetricName{MetricGroup: []byte(fmt.Sprintf("active-serie-%d", i))}
+		var key []byte
+		if disablePerDayIndex {
+			key = marshalCommonPrefix(key, nsPrefixMetricNameToTSID)
+		} else {
+			key = marshalCommonPrefix(key, nsPrefixDateMetricNameToTSID)
+			key = encoding.MarshalUint64(key, date)
+		}
+		key = candidate.Marshal(key)
+		key = append(key, kvSeparatorChar)
+		stats := ts.SeekWithPartFilter(key)
+		if stats.PossibleParts == 0 {
+			continue
+		}
+		is = db.getIndexSearch(noDeadline)
+		if is.getTSIDByMetricName(&got, candidate.Marshal(nil), date) {
+			t.Fatalf("unexpected TSID found for absent candidate metric name")
+		}
+		db.putIndexSearch(is)
+		if db.tsidLookupFilterFalsePositives.Load() == 0 {
+			t.Fatalf("expected Bloom positive miss to increment false-positive metric")
+		}
+		falsePositiveFound = true
+		break
+	}
+	ts.MustClose()
+	if !falsePositiveFound {
+		t.Fatalf("failed to find a Bloom positive among absent metric names")
+	}
+
+	tfs := NewTagFilters()
+	if err := tfs.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
+		t.Fatalf("cannot create delete filter: %s", err)
+	}
+	deleted, err := db.DeleteSeries(nil, []*TagFilters{tfs}, 100)
+	if err != nil || deleted.Len() != 1 {
+		t.Fatalf("expected one deleted metric ID; got %d, err=%v", deleted.Len(), err)
+	}
+	is = db.getIndexSearch(noDeadline)
+	if is.getTSIDByMetricName(&got, metricName, date) {
+		t.Fatalf("deleted TSID must not be returned by metric-name lookup")
+	}
+	db.putIndexSearch(is)
+
+	// Re-register through ingestion. The cached TSID is deleted, so the write
+	// path must consult the index and create a new one.
+	s.AddRows([]MetricRow{row}, defaultPrecisionBits)
+	s.DebugFlush()
+	var replacement legacyTSID
+	if !s.getTSIDByMetricNameFromCache(&replacement, row.MetricNameRaw) {
+		t.Fatalf("expected re-registered TSID to be cached")
+	}
+	if replacement.TSID.MetricID == originalMetricID {
+		t.Fatalf("re-registration reused deleted metric ID %d", originalMetricID)
+	}
+	is = db.getIndexSearch(noDeadline)
+	if !is.getTSIDByMetricName(&got, metricName, date) || got.MetricID != replacement.TSID.MetricID {
+		t.Fatalf("expected re-registered TSID; got %+v", got)
+	}
+	db.putIndexSearch(is)
+	s.tb.PutPartition(ptw)
+	s.MustClose()
+}
+
+func TestIndexDBTSIDLookupBloomFilterAcrossPartitions(t *testing.T) {
+	defer testRemoveAll(t)
+	s := MustOpenStorage(t.Name(), OpenOptions{})
+	defer s.MustClose()
+
+	newMetric := func(name string, timestamp int64) []byte {
+		mn := MetricName{MetricGroup: []byte(name)}
+		mn.sortTags()
+		return MetricRow{MetricNameRaw: mn.marshalRaw(nil), Timestamp: timestamp, Value: 1}.MetricNameRaw
+	}
+	now := time.Now()
+	oldTimestamp := now.AddDate(0, -1, 0).UnixMilli()
+	currentTimestamp := now.UnixMilli()
+	oldRow := MetricRow{MetricNameRaw: newMetric("rotated-old-series", oldTimestamp), Timestamp: oldTimestamp, Value: 1}
+	currentRow := MetricRow{MetricNameRaw: newMetric("rotated-current-series", currentTimestamp), Timestamp: currentTimestamp, Value: 1}
+	s.AddRows([]MetricRow{oldRow, currentRow}, defaultPrecisionBits)
+	s.DebugFlush()
+
+	for _, row := range []MetricRow{oldRow, currentRow} {
+		var mn MetricName
+		if err := mn.UnmarshalRaw(row.MetricNameRaw); err != nil {
+			t.Fatalf("cannot decode metric name: %s", err)
+		}
+		ptw := s.tb.MustGetPartition(row.Timestamp)
+		db := ptw.pt.idb
+		is := db.getIndexSearch(noDeadline)
+		var got TSID
+		if !is.getTSIDByMetricName(&got, mn.Marshal(nil), uint64(row.Timestamp)/msecPerDay) {
+			t.Fatalf("failed to find metric in rotated partition for %q", mn.String())
+		}
+		db.putIndexSearch(is)
+		s.tb.PutPartition(ptw)
+	}
+}
+
 func TestIndexDB(t *testing.T) {
 	defer testRemoveAll(t)
 
@@ -527,6 +752,20 @@ func TestIndexDB(t *testing.T) {
 			if err != nil {
 				t.Errorf("[worker %d] %s", i, err)
 			}
+		}
+
+		// Missing names must be rejected by the part filters, while the
+		// existing-name checks above prove that positives still reach the index.
+		var missingMN MetricName
+		missingMN.MetricGroup = []byte("missing-metric-group")
+		missingMN.sortTags()
+		is := db.getIndexSearch(noDeadline)
+		if is.getTSIDByMetricName(new(TSID), missingMN.Marshal(nil), date) {
+			t.Fatalf("unexpected TSID found for missing metric name")
+		}
+		db.putIndexSearch(is)
+		if got := db.tsidLookupFilterSkipped.Load(); got == 0 {
+			t.Fatalf("expected missing metric lookup to be skipped by part filters")
 		}
 	}
 
@@ -2431,4 +2670,56 @@ func (db *indexDB) searchMetricIDs(tfss []*TagFilters, tr TimeRange, maxMetrics 
 	}
 
 	return all, nil
+}
+
+func TestIndexDBTSIDLookupBloomFilterBudgetFallback(t *testing.T) {
+	defer testRemoveAll(t)
+
+	// The part filters must not change the TSID resolution when the filter cache
+	// budget is insufficient for a single filter segment, so the parts have to be
+	// searched with the regular index logic.
+	mergeset.SetPartFilterCacheSize(1)
+	defer mergeset.SetPartFilterCacheSize(0)
+
+	s := MustOpenStorage(t.Name(), OpenOptions{})
+	timestamp := time.Now().UnixMilli()
+	ptw := s.tb.MustGetPartition(timestamp)
+	db := ptw.pt.idb
+	date := uint64(timestamp) / msecPerDay
+
+	var mn MetricName
+	mn.MetricGroup = []byte("budget-fallback-series")
+	mn.AddTag("role", "api")
+	mn.sortTags()
+	var want TSID
+	generateTSID(&want, &mn)
+	createAllIndexesForMetricName(db, &mn, &want, date)
+
+	// Persist the part, so the filter is read from disk instead of being kept in memory.
+	s.tb.PutPartition(ptw)
+	db.tb.DebugFlush()
+	s.MustClose()
+	s = MustOpenStorage(t.Name(), OpenOptions{})
+	defer s.MustClose()
+	ptw = s.tb.MustGetPartition(timestamp)
+	db = ptw.pt.idb
+
+	is := db.getIndexSearch(noDeadline)
+	var got TSID
+	if !is.getTSIDByMetricName(&got, mn.Marshal(nil), date) || got.MetricID != want.MetricID {
+		t.Fatalf("the existing TSID must be found when the filter cache budget is insufficient; got %+v; want %+v", got, want)
+	}
+	missingMN := MetricName{MetricGroup: []byte("budget-fallback-missing-series")}
+	missingMN.sortTags()
+	if is.getTSIDByMetricName(&got, missingMN.Marshal(nil), date) {
+		t.Fatalf("unexpected TSID found for the missing metric name")
+	}
+	db.putIndexSearch(is)
+	if db.tsidLookupFilterFallbackBudget.Load() == 0 {
+		t.Fatalf("expected the insufficient cache budget to be reported as a fallback")
+	}
+	if db.tsidLookupFilterSkipped.Load() != 0 {
+		t.Fatalf("unexpected filter skips with the insufficient cache budget: %d", db.tsidLookupFilterSkipped.Load())
+	}
+	s.tb.PutPartition(ptw)
 }

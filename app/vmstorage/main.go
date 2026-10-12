@@ -91,6 +91,10 @@ var (
 		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning")
 	cacheSizeIndexDBDataBlocksSparse = flagutil.NewBytes("storage.cacheSizeIndexDBDataBlocksSparse", 0, "Overrides max size for indexdb/dataBlocksSparse cache. "+
 		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning")
+	cacheSizeIndexDBPartFilterSegments = flagutil.NewBytes("storage.cacheSizeIndexDBPartFilterSegments", 0, "Overrides max size for indexdb/partFilterSegments cache, "+
+		"which holds index part filter segments used for skipping TSID lookups for absent metric names. "+
+		"When this cache cannot hold the needed segment, the index part is searched instead of being filtered. "+
+		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning")
 	cacheSizeIndexDBTagFilters = flagutil.NewBytes("storage.cacheSizeIndexDBTagFilters", 0, "Overrides max size for indexdb/tagFiltersToMetricIDs cache. "+
 		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning")
 
@@ -98,7 +102,8 @@ var (
 		"This may improve performance and decrease disk space usage for the use cases with fixed set of timeseries scattered across a "+
 		"big time range (for example, when loading years of historical data). "+
 		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#index-tuning")
-	trackMetricNamesStats = flag.Bool("storage.trackMetricNamesStats", true, "Whether to track ingest and query requests for timeseries metric names. "+
+	disableTSIDLookupBloomFilter = flag.Bool("storage.disableTSIDLookupBloomFilter", false, "Disable per-part segmented Bloom filters used to skip absent metric name index lookups. The filters are split into segments, which are loaded from disk on demand under the max size of the indexdb/partFilterSegments cache.")
+	trackMetricNamesStats        = flag.Bool("storage.trackMetricNamesStats", true, "Whether to track ingest and query requests for timeseries metric names. "+
 		"This feature allows to track metric names unused at query requests. "+
 		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#track-ingested-metrics-usage")
 	cacheSizeMetricNamesStats = flagutil.NewBytes("storage.cacheSizeMetricNamesStats", 0, "Overrides max size for storage/metricNamesStatsTracker cache. "+
@@ -136,6 +141,7 @@ func Init(vmselectMaxConcurrentRequests int, vmselectMaxQueueDuration time.Durat
 	mergeset.SetIndexBlocksCacheSize(cacheSizeIndexDBIndexBlocks.IntN())
 	mergeset.SetDataBlocksCacheSize(cacheSizeIndexDBDataBlocks.IntN())
 	mergeset.SetDataBlocksSparseCacheSize(cacheSizeIndexDBDataBlocksSparse.IntN())
+	mergeset.SetPartFilterCacheSize(cacheSizeIndexDBPartFilterSegments.IntN())
 
 	if retentionPeriod.Duration() < 24*time.Hour {
 		logger.Fatalf("-retentionPeriod cannot be smaller than a day; got %s. "+
@@ -152,16 +158,17 @@ func Init(vmselectMaxConcurrentRequests int, vmselectMaxQueueDuration time.Durat
 	logger.Infof("opening storage at %q with -retentionPeriod=%s", *storageDataPath, retentionPeriod)
 	startTime := time.Now()
 	opts := storage.OpenOptions{
-		Retention:                   retentionPeriod.Duration(),
-		FutureRetention:             futureRetention.Duration(),
-		MaxBackfillAge:              maxBackfillAge.Duration(),
-		DenyQueriesOutsideRetention: *denyQueriesOutsideRetention,
-		MaxHourlySeries:             getMaxHourlySeries(),
-		MaxDailySeries:              getMaxDailySeries(),
-		DisablePerDayIndex:          *disablePerDayIndex,
-		TrackMetricNamesStats:       *trackMetricNamesStats,
-		IDBPrefillStart:             *idbPrefillStart,
-		LogNewSeries:                *logNewSeries,
+		Retention:                    retentionPeriod.Duration(),
+		FutureRetention:              futureRetention.Duration(),
+		MaxBackfillAge:               maxBackfillAge.Duration(),
+		DenyQueriesOutsideRetention:  *denyQueriesOutsideRetention,
+		MaxHourlySeries:              getMaxHourlySeries(),
+		MaxDailySeries:               getMaxDailySeries(),
+		DisablePerDayIndex:           *disablePerDayIndex,
+		DisableTSIDLookupBloomFilter: *disableTSIDLookupBloomFilter,
+		TrackMetricNamesStats:        *trackMetricNamesStats,
+		IDBPrefillStart:              *idbPrefillStart,
+		LogNewSeries:                 *logNewSeries,
 	}
 	strg := storage.MustOpenStorage(*storageDataPath, opts)
 	vmStorage = newVMStorage(strg, vmselectMaxConcurrentRequests, resetCacheIfNeeded)
@@ -480,6 +487,8 @@ func (vms *VMStorage) writeStorageMetrics(w io.Writer) {
 	metrics.WriteGaugeUint64(w, `vm_data_size_bytes{type="indexdb/inmemory"}`, idbm.InmemorySizeBytes)
 	metrics.WriteGaugeUint64(w, `vm_data_size_bytes{type="indexdb/file"}`, idbm.FileSizeBytes)
 	metrics.WriteGaugeUint64(w, `vm_data_size_bytes{type="indexdb/metaindex"}`, idbm.MetaindexSizeBytes)
+	metrics.WriteGaugeUint64(w, `vm_data_size_bytes{type="indexdb/partFilterFile"}`, idbm.PartFilterFileSizeBytes)
+	metrics.WriteGaugeUint64(w, `vm_data_size_bytes{type="indexdb/partFilterMemory"}`, idbm.PartFilterMemorySizeBytes)
 
 	metrics.WriteCounterUint64(w, `vm_rows_received_by_storage_total`, m.RowsReceivedTotal)
 	metrics.WriteCounterUint64(w, `vm_rows_added_to_storage_total`, m.RowsAddedTotal)
@@ -527,6 +536,14 @@ func (vms *VMStorage) writeStorageMetrics(w io.Writer) {
 	metrics.WriteCounterUint64(w, `vm_global_search_calls_total`, idbm.GlobalSearchCalls)
 
 	metrics.WriteCounterUint64(w, `vm_missing_metric_names_for_metric_id_total`, idbm.MissingMetricNamesForMetricID)
+	metrics.WriteCounterUint64(w, `vm_tsid_lookup_filter_skipped_total`, idbm.TSIDLookupFilterSkipped)
+	metrics.WriteCounterUint64(w, `vm_tsid_lookup_filter_possible_total`, idbm.TSIDLookupFilterPossible)
+	metrics.WriteCounterUint64(w, `vm_tsid_lookup_filter_false_positives_total`, idbm.TSIDLookupFilterFalsePositives)
+	metrics.WriteCounterUint64(w, `vm_tsid_lookup_filter_fallbacks_total{reason="unfiltered"}`, idbm.TSIDLookupFilterFallbackUnfiltered)
+	metrics.WriteCounterUint64(w, `vm_tsid_lookup_filter_fallbacks_total{reason="budget"}`, idbm.TSIDLookupFilterFallbackBudget)
+	metrics.WriteCounterUint64(w, `vm_tsid_lookup_filter_fallbacks_total{reason="read"}`, idbm.TSIDLookupFilterFallbackRead)
+	metrics.WriteCounterUint64(w, `vm_tsid_lookup_filter_fallbacks_total{reason="checksum"}`, idbm.TSIDLookupFilterFallbackVerify)
+	metrics.WriteGaugeUint64(w, `vm_indexdb_part_filter_segments`, idbm.PartFilterSegmentsCount)
 
 	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="storage/indexBlocks"}`, tm.IndexBlocksCacheSize)
 	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="storage/tsid"}`, m.TSIDCacheSize)
@@ -539,6 +556,7 @@ func (vms *VMStorage) writeStorageMetrics(w io.Writer) {
 	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="indexdb/dataBlocks"}`, idbm.DataBlocksCacheSize)
 	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="indexdb/dataBlocksSparse"}`, idbm.DataBlocksSparseCacheSize)
 	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="indexdb/indexBlocks"}`, idbm.IndexBlocksCacheSize)
+	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="indexdb/partFilterSegments"}`, idbm.PartFilterCacheSize)
 	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="indexdb/metricID"}`, idbm.MetricIDCacheSize)
 	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="indexdb/date_metricID"}`, idbm.DateMetricIDCacheSize)
 	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="indexdb/tagFiltersToMetricIDs"}`, idbm.TagFiltersToMetricIDsCacheSize)
@@ -557,6 +575,7 @@ func (vms *VMStorage) writeStorageMetrics(w io.Writer) {
 	metrics.WriteGaugeUint64(w, `vm_cache_size_bytes{type="indexdb/dataBlocks"}`, idbm.DataBlocksCacheSizeBytes)
 	metrics.WriteGaugeUint64(w, `vm_cache_size_bytes{type="indexdb/dataBlocksSparse"}`, idbm.DataBlocksSparseCacheSizeBytes)
 	metrics.WriteGaugeUint64(w, `vm_cache_size_bytes{type="indexdb/indexBlocks"}`, idbm.IndexBlocksCacheSizeBytes)
+	metrics.WriteGaugeUint64(w, `vm_cache_size_bytes{type="indexdb/partFilterSegments"}`, idbm.PartFilterCacheSizeBytes)
 	metrics.WriteGaugeUint64(w, `vm_cache_size_bytes{type="indexdb/tagFiltersToMetricIDs"}`, idbm.TagFiltersToMetricIDsCacheSizeBytes)
 	metrics.WriteGaugeUint64(w, `vm_cache_size_bytes{type="indexdb/tagFiltersLoops"}`, idbm.LoopsPerDateTagFilterCacheSizeBytes)
 
@@ -569,6 +588,7 @@ func (vms *VMStorage) writeStorageMetrics(w io.Writer) {
 	metrics.WriteGaugeUint64(w, `vm_cache_size_max_bytes{type="indexdb/dataBlocks"}`, idbm.DataBlocksCacheSizeMaxBytes)
 	metrics.WriteGaugeUint64(w, `vm_cache_size_max_bytes{type="indexdb/dataBlocksSparse"}`, idbm.DataBlocksSparseCacheSizeMaxBytes)
 	metrics.WriteGaugeUint64(w, `vm_cache_size_max_bytes{type="indexdb/indexBlocks"}`, idbm.IndexBlocksCacheSizeMaxBytes)
+	metrics.WriteGaugeUint64(w, `vm_cache_size_max_bytes{type="indexdb/partFilterSegments"}`, idbm.PartFilterCacheSizeMaxBytes)
 	metrics.WriteGaugeUint64(w, `vm_cache_size_max_bytes{type="indexdb/tagFiltersToMetricIDs"}`, idbm.TagFiltersToMetricIDsCacheSizeMaxBytes)
 	metrics.WriteGaugeUint64(w, `vm_cache_size_max_bytes{type="indexdb/tagFiltersLoops"}`, idbm.LoopsPerDateTagFilterCacheSizeMaxBytes)
 
@@ -581,6 +601,7 @@ func (vms *VMStorage) writeStorageMetrics(w io.Writer) {
 	metrics.WriteCounterUint64(w, `vm_cache_requests_total{type="indexdb/dataBlocks"}`, idbm.DataBlocksCacheRequests)
 	metrics.WriteCounterUint64(w, `vm_cache_requests_total{type="indexdb/dataBlocksSparse"}`, idbm.DataBlocksSparseCacheRequests)
 	metrics.WriteCounterUint64(w, `vm_cache_requests_total{type="indexdb/indexBlocks"}`, idbm.IndexBlocksCacheRequests)
+	metrics.WriteCounterUint64(w, `vm_cache_requests_total{type="indexdb/partFilterSegments"}`, idbm.PartFilterCacheRequests)
 	metrics.WriteCounterUint64(w, `vm_cache_requests_total{type="indexdb/tagFiltersToMetricIDs"}`, idbm.TagFiltersToMetricIDsCacheRequests)
 	metrics.WriteCounterUint64(w, `vm_cache_requests_total{type="indexdb/tagFiltersLoops"}`, idbm.LoopsPerDateTagFilterCacheRequests)
 
@@ -593,6 +614,7 @@ func (vms *VMStorage) writeStorageMetrics(w io.Writer) {
 	metrics.WriteCounterUint64(w, `vm_cache_misses_total{type="indexdb/dataBlocks"}`, idbm.DataBlocksCacheMisses)
 	metrics.WriteCounterUint64(w, `vm_cache_misses_total{type="indexdb/dataBlocksSparse"}`, idbm.DataBlocksSparseCacheMisses)
 	metrics.WriteCounterUint64(w, `vm_cache_misses_total{type="indexdb/indexBlocks"}`, idbm.IndexBlocksCacheMisses)
+	metrics.WriteCounterUint64(w, `vm_cache_misses_total{type="indexdb/partFilterSegments"}`, idbm.PartFilterCacheMisses)
 	metrics.WriteCounterUint64(w, `vm_cache_misses_total{type="indexdb/tagFiltersToMetricIDs"}`, idbm.TagFiltersToMetricIDsCacheMisses)
 	metrics.WriteCounterUint64(w, `vm_cache_misses_total{type="indexdb/tagFiltersLoops"}`, idbm.LoopsPerDateTagFilterCacheMisses)
 

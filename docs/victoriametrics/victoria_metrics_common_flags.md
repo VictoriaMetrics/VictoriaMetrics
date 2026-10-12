@@ -567,6 +567,9 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/
   -storage.cacheSizeIndexDBIndexBlocks size
      Overrides max size for indexdb/indexBlocks cache. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
+  -storage.cacheSizeIndexDBPartFilterSegments size
+     Overrides max size for indexdb/partFilterSegments cache, which holds index part filter segments used for skipping TSID lookups for absent metric names. When this cache cannot hold the needed segment, the index part is searched instead of being filtered. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -storage.cacheSizeIndexDBTagFilters size
      Overrides max size for indexdb/tagFiltersToMetricIDs cache. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
@@ -579,6 +582,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/
   -storage.cacheSizeStorageTSID size
      Overrides max size for storage/tsid cache. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
+  -storage.disableTSIDLookupBloomFilter
+     Disable per-part segmented Bloom filters used to skip absent metric name index lookups. The filters are split into segments, which are loaded from disk on demand under the max size of the indexdb/partFilterSegments cache.
   -storage.finalDedupScheduleCheckInterval duration
      The interval for checking when final deduplication process should be started.Storage unconditionally adds 25% jitter to the interval value on each check evaluation. Changing the interval to the bigger values may delay downsampling, deduplication for historical data. See also https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication (default 1h0m0s)
   -storage.idbPrefillStart duration

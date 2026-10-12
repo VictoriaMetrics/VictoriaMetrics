@@ -80,7 +80,8 @@ type Storage struct {
 	// compatibility with partition index.
 	legacyIndexDBs atomic.Pointer[legacyIndexDBs]
 
-	disablePerDayIndex bool
+	disablePerDayIndex           bool
+	disableTSIDLookupBloomFilter bool
 
 	tb *table
 
@@ -163,16 +164,17 @@ type Storage struct {
 
 // OpenOptions optional args for MustOpenStorage
 type OpenOptions struct {
-	Retention                   time.Duration
-	FutureRetention             time.Duration
-	MaxBackfillAge              time.Duration
-	DenyQueriesOutsideRetention bool
-	MaxHourlySeries             int
-	MaxDailySeries              int
-	DisablePerDayIndex          bool
-	TrackMetricNamesStats       bool
-	IDBPrefillStart             time.Duration
-	LogNewSeries                bool
+	Retention                    time.Duration
+	FutureRetention              time.Duration
+	MaxBackfillAge               time.Duration
+	DenyQueriesOutsideRetention  bool
+	MaxHourlySeries              int
+	MaxDailySeries               int
+	DisablePerDayIndex           bool
+	DisableTSIDLookupBloomFilter bool
+	TrackMetricNamesStats        bool
+	IDBPrefillStart              time.Duration
+	LogNewSeries                 bool
 }
 
 // MustOpenStorage opens storage on the given path with the given retentionMsecs.
@@ -270,6 +272,7 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	s.minTimestampForCompositeIndex = mustGetMinTimestampForCompositeIndex(metadataDir, isEmptyDB)
 
 	s.disablePerDayIndex = opts.DisablePerDayIndex
+	s.disableTSIDLookupBloomFilter = opts.DisableTSIDLookupBloomFilter
 
 	// Load legacy indexDBs.
 	legacyIDBPath := filepath.Join(path, indexdbDirname)

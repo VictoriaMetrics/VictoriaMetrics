@@ -50,12 +50,13 @@ func (mp *inmemoryPart) MustStoreToDisk(path string) {
 	psw.Run()
 
 	mp.ph.MustWriteMetadata(path)
+	mp.ph.filter.mustWriteFile(path)
 
 	fs.MustSyncPathAndParentDir(path)
 }
 
 // Init initializes mp from ib.
-func (mp *inmemoryPart) Init(ib *inmemoryBlock) {
+func (mp *inmemoryPart) Init(ib *inmemoryBlock, filterKey PartFilterKey) {
 	mp.Reset()
 
 	sb := &storageBlock{}
@@ -70,7 +71,21 @@ func (mp *inmemoryPart) Init(ib *inmemoryBlock) {
 	mp.ph.blocksCount = 1
 	mp.ph.firstItem = append(mp.ph.firstItem[:0], ib.items[0].String(ib.data)...)
 	mp.ph.lastItem = append(mp.ph.lastItem[:0], ib.items[len(ib.items)-1].String(ib.data)...)
-
+	if filterKey != nil {
+		filterItemsCount := uint64(0)
+		for _, item := range ib.items {
+			if filterKey(item.Bytes(ib.data)) != nil {
+				filterItemsCount++
+			}
+		}
+		// Build the filter in memory. It is stored to disk next to the part files
+		// when the part is flushed from memory.
+		pf := newPartFilter(filterItemsCount)
+		for _, item := range ib.items {
+			pf.addItem(item.Bytes(ib.data), filterKey)
+		}
+		mp.ph.filter = pf
+	}
 	mp.itemsData.MustWrite(sb.itemsData)
 	mp.bh.itemsBlockOffset = 0
 	mp.bh.itemsBlockSize = uint32(len(sb.itemsData))
