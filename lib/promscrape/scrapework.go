@@ -46,7 +46,7 @@ var (
 	suppressScrapeErrorsDelay = flag.Duration("promscrape.suppressScrapeErrorsDelay", 0, "The delay for suppressing repeated scrape errors logging per each scrape targets. "+
 		"This may be used for reducing the number of log lines related to scrape errors. See also -promscrape.suppressScrapeErrors")
 	minResponseSizeForStreamParse = flagutil.NewBytes("promscrape.minResponseSizeForStreamParse", 1e6, "The minimum target response size for automatic switching to stream parsing mode, which can reduce memory usage. See https://docs.victoriametrics.com/victoriametrics/vmagent/#stream-parsing-mode")
-	maxParseErrorsPerScrape       = flag.Int("promscrape.maxParseErrorsPerScrape", 100, "The maximum number of parse errors to log per each scrape of a target. "+
+	maxParseErrorsPerScrape       = flag.Int("promscrape.maxParseErrorsPerScrape", 20, "The maximum number of parse errors to log per each scrape of a target. "+
 		"The number of suppressed parse errors is logged after the scrape. Zero or negative value disables the limit. See also -promscrape.suppressScrapeErrors")
 )
 
@@ -392,10 +392,11 @@ func (sw *scrapeWork) logError(s string) {
 //
 // It may be called concurrently in stream parsing mode.
 func (sw *scrapeWork) logParseError(s string) {
-	n := sw.parseErrorsCount.Add(1)
 	if *suppressScrapeErrors {
 		return
 	}
+
+	n := sw.parseErrorsCount.Add(1)
 	if *maxParseErrorsPerScrape > 0 && n > int64(*maxParseErrorsPerScrape) {
 		return
 	}
