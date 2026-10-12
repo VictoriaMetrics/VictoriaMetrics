@@ -358,7 +358,6 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}, globalStopCh <-chan struct{}) 
 				bbLastScrape := leveledbytebufferpool.Get(sw.lastScrapeLen)
 				bbLastScrape.B = sw.loadLastScrape(bbLastScrape.B)
 				lastScrapeStr := bytesutil.ToUnsafeString(bbLastScrape.B)
-				sw.parseErrorsCount.Store(0)
 				sw.sendStaleSeries(lastScrapeStr, "", t, true)
 				leveledbytebufferpool.Put(bbLastScrape)
 
@@ -960,7 +959,7 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 			setStaleMarkersForRows(wc.writeRequest.Timeseries)
 			sw.pushData(&wc.writeRequest)
 			return nil
-		}, sw.logParseError)
+		}, sw.logError)
 		if err != nil {
 			sw.logError(fmt.Errorf("cannot send stale markers: %w", err).Error())
 		}
