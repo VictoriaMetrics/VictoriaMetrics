@@ -160,7 +160,7 @@ groups:
             following reason: \"{{ $labels.reason }}\""
 
       - alert: TooManySnapshots
-        expr: max_over_time(vm_snapshots[1h]) > 2
+        expr: vm_snapshots > 2
         for: 2h
         labels:
           severity: warning
