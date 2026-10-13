@@ -881,7 +881,6 @@ func (tb *Table) flushBlocksToInmemoryParts(ibs []*inmemoryBlock, isFinal bool) 
 	maxPartSize := getMaxInmemoryPartSize()
 	for len(pws) > 1 {
 		pws = tb.mustMergeInmemoryParts(pws)
-
 		pwsRemaining := pws[:0]
 		for _, pw := range pws {
 			if pw.p.size >= maxPartSize {
@@ -952,11 +951,11 @@ func (tb *Table) mustMergeInmemoryParts(pws []*partWrapper) []*partWrapper {
 		inmemoryPartsConcurrencyCh <- struct{}{}
 
 		wg.Go(func() {
-			pw := tb.mustMergeInmemoryPartsFinal(pwsToMerge)
-
-			pwsResultLock.Lock()
-			pwsResult = append(pwsResult, pw)
-			pwsResultLock.Unlock()
+			if pw := tb.mustMergeInmemoryPartsFinal(pwsToMerge); pw != nil {
+				pwsResultLock.Lock()
+				pwsResult = append(pwsResult, pw)
+				pwsResultLock.Unlock()
+			}
 
 			<-inmemoryPartsConcurrencyCh
 		})
@@ -975,6 +974,8 @@ func (tb *Table) mustMergeInmemoryParts(pws []*partWrapper) []*partWrapper {
 // this). If the pws contains only one element, it is returned as is. Finally,
 // when len(pws) > 1, the source pws are merged, and their ref count is
 // decremented.
+//
+// nil is returned if all the items are dropped by tb.prepareBlock during the merge.
 func (tb *Table) mustMergeInmemoryPartsFinal(pws []*partWrapper) *partWrapper {
 	if len(pws) == 0 {
 		logger.Panicf("BUG: pws must contain at least a single item")
@@ -1030,6 +1031,9 @@ func (tb *Table) createInmemoryPart(ibs []*inmemoryBlock) *partWrapper {
 	return tb.mustMergeIntoInmemoryPart(bsrs, flushToDiskDeadline)
 }
 
+// mustMergeIntoInmemoryPart merges bsrs into a new in-memory part.
+//
+// nil is returned if all the items are dropped by tb.prepareBlock during the merge.
 func (tb *Table) mustMergeIntoInmemoryPart(bsrs []*blockStreamReader, flushToDiskDeadline time.Time) *partWrapper {
 	// Prepare blockStreamWriter for destination part.
 	outItemsCount := uint64(0)
@@ -1050,6 +1054,9 @@ func (tb *Table) mustMergeIntoInmemoryPart(bsrs []*blockStreamReader, flushToDis
 	}
 	if err != nil {
 		logger.Panicf("FATAL: cannot merge inmemoryBlocks: %s", err)
+	}
+	if ph.itemsCount == 0 {
+		return nil
 	}
 	mpDst.ph = *ph
 
@@ -1242,6 +1249,25 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFinal 
 	if err != nil {
 		return err
 	}
+	if ph.itemsCount == 0 {
+		// all items could be removed from part (because of retention for example)
+		tb.swapSrcWithDstParts(pws, nil, partEmpty)
+		if len(dstPartPath) > 0 {
+			fs.MustRemoveDir(dstPartPath)
+		}
+
+		d := time.Since(startTime)
+		if d <= 30*time.Second {
+			return nil
+		}
+		// Log stats for long merges.
+		durationSecs := d.Seconds()
+		itemsPerSec := int(float64(srcItemsCount) / durationSecs)
+		logger.Infof("merge deleted all items from (%d parts, %d items, %d blocks, %d bytes) in %.3f seconds at %d items/sec",
+			len(pws), srcItemsCount, srcBlocksCount, srcSize, durationSecs, itemsPerSec)
+
+		return nil
+	}
 	if mpNew != nil {
 		// Update partHeader for destination inmemory part after the merge.
 		mpNew.ph = *ph
@@ -1288,6 +1314,7 @@ type partType int
 var (
 	partInmemory = partType(0)
 	partFile     = partType(1)
+	partEmpty    = partType(2)
 )
 
 func getDstPartType(pws []*partWrapper, isFinal bool) partType {
@@ -1394,6 +1421,8 @@ func (tb *Table) swapSrcWithDstParts(pws []*partWrapper, pwNew *partWrapper, dst
 		case partFile:
 			tb.fileParts = append(tb.fileParts, pwNew)
 			tb.startFilePartsMergerLocked()
+		case partEmpty:
+			// merge resulted into empty part
 		default:
 			logger.Panicf("BUG: unknown partType=%d", dstPartType)
 		}

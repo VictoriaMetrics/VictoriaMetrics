@@ -199,7 +199,10 @@ func (bsm *blockStreamMerger) flushIB(bsw *blockStreamWriter, ph *partHeader, it
 		bsm.ib.data = data
 		bsm.ib.items = items
 		if len(items) == 0 {
-			// Nothing to flush
+			// All the items were dropped by prepareBlock.
+			// Reset bsm.ib, since otherwise bsm.ib.Add() keeps failing on the full bsm.ib.data
+			// and the merge loops forever.
+			bsm.ib.Reset()
 			return
 		}
 		// Consistency checks after prepareBlock call.

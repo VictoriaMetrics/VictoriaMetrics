@@ -453,6 +453,106 @@ func TestMergeTagToMetricIDsRows(t *testing.T) {
 	})
 }
 
+func TestKeepItemsInsideRetention(t *testing.T) {
+	const minDate = 20000
+
+	f := func(inputItems []string, expectedItems []string) {
+		t.Helper()
+		var data []byte
+		var itemsB []mergeset.Item
+		for _, item := range inputItems {
+			data = append(data, item...)
+			itemsB = append(itemsB, mergeset.Item{
+				Start: uint32(len(data) - len(item)),
+				End:   uint32(len(data)),
+			})
+		}
+		if !checkItemsSorted(data, itemsB) {
+			t.Fatalf("source items aren't sorted: %q", data)
+		}
+
+		droppedPrev := indexItemsDroppedByRetention.Load()
+		resultData, resultItemsB := keepItemsInsideRetention(data, itemsB, minDate)
+		var resultItems []string
+		for _, it := range resultItemsB {
+			resultItems = append(resultItems, string(it.Bytes(resultData)))
+		}
+		if diff := cmp.Diff(expectedItems, resultItems); len(diff) > 0 {
+			t.Fatalf("unexpected items (-want, +got):\n%s", diff)
+		}
+		dropped := indexItemsDroppedByRetention.Load() - droppedPrev
+		if want := uint64(len(inputItems) - len(expectedItems)); dropped != want {
+			t.Fatalf("unexpected number of dropped items; got %d; want %d", dropped, want)
+		}
+	}
+	item := func(nsPrefix byte, tail string) string {
+		dst := marshalCommonPrefix(nil, nsPrefix)
+		return string(append(dst, tail...))
+	}
+	dateItem := func(nsPrefix byte, date uint64, tail string) string {
+		dst := marshalCommonPrefix(nil, nsPrefix)
+		dst = encoding.MarshalUint64(dst, date)
+		return string(append(dst, tail...))
+	}
+
+	// block without per-day items
+	f([]string{
+		item(nsPrefixMetricNameToTSID, "foo"),
+		item(nsPrefixTagToMetricIDs, "bar"),
+		item(nsPrefixDeletedMetricID, "baz"),
+	}, []string{
+		item(nsPrefixMetricNameToTSID, "foo"),
+		item(nsPrefixTagToMetricIDs, "bar"),
+		item(nsPrefixDeletedMetricID, "baz"),
+	})
+
+	// all the per-day items are inside retention
+	f([]string{
+		dateItem(nsPrefixDateToMetricID, minDate, "foo"),
+		dateItem(nsPrefixDateTagToMetricIDs, minDate+1, "bar"),
+		dateItem(nsPrefixDateMetricNameToTSID, minDate+2, "baz"),
+	}, []string{
+		dateItem(nsPrefixDateToMetricID, minDate, "foo"),
+		dateItem(nsPrefixDateTagToMetricIDs, minDate+1, "bar"),
+		dateItem(nsPrefixDateMetricNameToTSID, minDate+2, "baz"),
+	})
+
+	// all the per-day items are outside retention
+	f([]string{
+		dateItem(nsPrefixDateToMetricID, 0, "foo"),
+		dateItem(nsPrefixDateToMetricID, minDate-1, "foo"),
+		dateItem(nsPrefixDateTagToMetricIDs, minDate-1, "bar"),
+		dateItem(nsPrefixDateMetricNameToTSID, minDate-1, "baz"),
+	}, nil)
+
+	// mixed items; items at minDate must be kept, since minDate is partially inside retention
+	f([]string{
+		item(nsPrefixMetricNameToTSID, "foo"),
+		item(nsPrefixTagToMetricIDs, "bar"),
+		dateItem(nsPrefixDateToMetricID, minDate-1, "foo"),
+		dateItem(nsPrefixDateToMetricID, minDate, "foo"),
+		dateItem(nsPrefixDateTagToMetricIDs, minDate-2, "bar"),
+		dateItem(nsPrefixDateTagToMetricIDs, minDate+1, "bar"),
+		dateItem(nsPrefixDateMetricNameToTSID, minDate-1, "baz"),
+		dateItem(nsPrefixDateMetricNameToTSID, minDate, "baz"),
+	}, []string{
+		item(nsPrefixMetricNameToTSID, "foo"),
+		item(nsPrefixTagToMetricIDs, "bar"),
+		dateItem(nsPrefixDateToMetricID, minDate, "foo"),
+		dateItem(nsPrefixDateTagToMetricIDs, minDate+1, "bar"),
+		dateItem(nsPrefixDateMetricNameToTSID, minDate, "baz"),
+	})
+
+	// per-day items too short for holding a date must be kept
+	f([]string{
+		item(nsPrefixDateToMetricID, ""),
+		item(nsPrefixDateToMetricID, "abc"),
+	}, []string{
+		item(nsPrefixDateToMetricID, ""),
+		item(nsPrefixDateToMetricID, "abc"),
+	})
+}
+
 func TestRemoveDuplicateMetricIDs(t *testing.T) {
 	f := func(metricIDs, expectedMetricIDs []uint64) {
 		t.Helper()
