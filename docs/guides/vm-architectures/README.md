@@ -146,7 +146,7 @@ In a large, distributed system, partial failures are a common occurrence. A crit
 
 * **Lower Availability.** This approach sacrifices availability to guarantee consistency. If replicationFactor or more vmstorage nodes are unavailable, read queries return errors.
 
-### Buffering with vmagent
+### Buffering with vmagent {#buffering-strategy-trade-off}
 
 When storage is temporarily unavailable, `vmagent` buffers compressed unsent data on the local filesystem. The size of the queue is controlled via `--remoteWrite.maxDiskUsagePerURL` and can be [estimated in advance](https://docs.victoriametrics.com/victoriametrics/vmagent/#calculating-disk-space-for-persistence-queue).
 
@@ -205,7 +205,7 @@ If one cluster is slow or unavailable, `vmagent` buffers its writes and keeps se
 <img src="/guides/vm-architectures/multi-az-vmselect-architecture.webp" alt="Multi-AZ with global vmselect" width="48%" style="vertical-align: top">
 </p>
 
-### Read Paths
+### Reading from multiple sources
 
 **Path A: Read one cluster with vmauth.** Each `vmauth` uses `first_available` to query the first available cluster in its `url_prefix` list.
 Use the [high-availability configuration](https://docs.victoriametrics.com/victoriametrics/vmauth/#high-availability)
@@ -268,9 +268,7 @@ With two clusters and `-replicationFactor=2`, one full response is enough to ret
 
 * **Stale reads.** Recent data can be missing if the responding cluster lags behind on writes.
 
-### Alerting
-
-Choose one of two alerting setups:
+For **Alerting** choose one of two alerting setups:
 
 * **Local `vmalert`.** Run `vmalert` in each cluster and query its local `vmselect`. Rules can use stale data if writes to that cluster lag.
 * **Global `vmalert`.** Use the same read entry point as users. Rule results depend on the selected read path.
@@ -332,3 +330,31 @@ This multitenancy approach gives us another trade-off in the isolation implement
 **Cons:**
 
 * **More expensive and complex** to manage multiple service pools.
+
+
+
+---
+
+<br><br>
+Section below contains backward-compatible anchors for links that were moved or renamed.
+
+###### The Hyperscale (Cell-based)
+
+This topology was removed as too complex for understanding and supporting. Its use case was limited to a rare combination of requirements that are typically not needed for most of the deployments.
+
+###### Alerting Strategy Trade-offs
+
+This chapter was removed together with "Hyperscale" section. See above.
+
+###### Path B: Focus on Read Speed (The vmauth with first_available mode)
+
+This chapter was removed together with "Hyperscale" section. See above.
+
+###### Path A: Prioritize Data Completeness (The Global vmselect model)
+
+This chapter was removed together with "Hyperscale" section. See above.
+
+###### Choosing Your Read Path Strategy
+
+This chapter was removed together with "Hyperscale" section. See above.
+
