@@ -73,6 +73,9 @@ var (
 	storageNodes = flagutil.NewArrayString("storageNode", "Comma-separated addresses of vmstorage nodes; usage: -storageNode=vmstorage-host1,...,vmstorage-hostN . "+
 		"Enterprise version of VictoriaMetrics supports automatic discovery of vmstorage addresses via DNS SRV records. For example, -storageNode=srv+vmstorage.addrs . "+
 		"See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#automatic-vmstorage-discovery")
+	storageNodeLabelIndexes = flagutil.NewArrayString("storageNodeLabelIndex", "Optional index per each -storageNode in the form 'label1=value1^^...^^labelN=valueN'. "+
+		"vmselect doesn't send queries to the -storageNode if the query label filters cannot match the index. "+
+		"See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#storage-node-label-index")
 
 	clusternativeListenAddr = flag.String("clusternativeListenAddr", "", "TCP address to listen for requests from other vmselect nodes in multi-level cluster setup. "+
 		"See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multi-level-cluster-setup . Usually :8401 should be set to match default vmstorage port for vmselect. Disabled work if empty")
@@ -124,7 +127,7 @@ func main() {
 	}
 
 	netutil.InitConcurrentDialLimit(*maxConcurrentRequests)
-	netstorage.Init(*storageNodes)
+	netstorage.Init(*storageNodes, *storageNodeLabelIndexes)
 	logger.Infof("started netstorage in %.3f seconds", time.Since(startTime).Seconds())
 
 	if len(*cacheDataPath) > 0 {
