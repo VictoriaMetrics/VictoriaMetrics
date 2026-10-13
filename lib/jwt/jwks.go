@@ -170,7 +170,8 @@ func ParseJWKs(rawResp []byte) (*VerifierPool, error) {
 				curve = elliptic.P521()
 				alg = ES512
 			default:
-				return nil, fmt.Errorf("jwk %s crv %q unsupported", key.Kty, key.Crv)
+				logger.Warnf("skipping JWKS EC key kid=%s with unsupported crv=%s", key.Kid, key.Crv)
+				continue
 			}
 
 			if key.Alg != "" && key.Alg != string(alg) {
@@ -205,7 +206,8 @@ func ParseJWKs(rawResp []byte) (*VerifierPool, error) {
 				kid: key.Kid,
 			})
 		default:
-			return nil, fmt.Errorf("unsupported jwk.KTY: %s; want RSA or EC", key.Kty)
+			// Unsupported key types should be ignored, see https://www.rfc-editor.org/rfc/rfc7517#section-5
+			logger.Warnf("skipping JWKS key kid=%s with unsupported kty=%s; supported: RSA, EC", key.Kid, key.Kty)
 		}
 	}
 

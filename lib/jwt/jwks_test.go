@@ -178,6 +178,52 @@ func TestParseJWKs_SigWithUnsupportedAlg(t *testing.T) {
 	}
 }
 
+func TestParseJWKs_SkipUnsupportedKeys(t *testing.T) {
+	// Keys with unsupported kty or crv must be ignored, see https://www.rfc-editor.org/rfc/rfc7517#section-5
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11748
+	raw := []byte(`
+{
+    "keys": [
+        {
+            "kid": "rsa1",
+            "kty": "RSA",
+            "alg": "RS256",
+            "use": "sig",
+            "n": "0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx4cbbfAAtVT86zwu1RK7aPFFxuhDR1L6tSoc_BJECPebWKRXjBZCiFV4n3oknjhMstn64tZ_2W-5JsGY4Hc5n9yBXArwl93lqt7_RN5w6Cf0h4QyQ5v-65YGjQR0_FDW2QvzqY368QQMicAtaSqzs8KJZgnYb9c7d0zgdAZHzu6qMQvRL5hajrn1n91CbOpbISD08qNLyrdkt-bFTWhAI4vMQFh6WeZu0fM4lFd2NcRwr3XPksINHaQ-G_xBniIqbw0Ls1jF44-csFCur-kEgU8awapJzKnqDKgw",
+            "e": "AQAB"
+        },
+        {
+            "kid": "ed1",
+            "kty": "OKP",
+            "crv": "Ed25519",
+            "alg": "EdDSA",
+            "use": "sig",
+            "x": "11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo"
+        },
+        {
+            "kid": "k1",
+            "kty": "EC",
+            "crv": "secp256k1",
+            "alg": "ES256K",
+            "use": "sig",
+            "x": "MKBCTNIcKUSDii11ySs3526iDZ8AiTo7Tu6KPAqv7D4",
+            "y": "4Etl6SRW2YiLUrN5vfvVHuhp7x8PxltmWWlbbM4IFyM"
+        }
+    ]
+}`)
+
+	vp, err := ParseJWKs(raw)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(vp.vs) != 1 {
+		t.Fatalf("expected 1 verifier (unsupported keys should be skipped), got %d", len(vp.vs))
+	}
+	if vp.vs[0].kid != "rsa1" {
+		t.Fatalf("expected kid=rsa1, got %s", vp.vs[0].kid)
+	}
+}
+
 func TestParseMultipleKeys(t *testing.T) {
 	// Microsoft JWKS keys
 	// https://login.microsoftonline.com/common/discovery/v2.0/keys

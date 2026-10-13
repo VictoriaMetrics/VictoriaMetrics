@@ -294,6 +294,7 @@ This is useful when integrating with identity providers such as Keycloak, Auth0,
 Set `oidc.issuer` to the base URL of the OIDC provider. `vmauth` will:
 1. Fetch `{issuer}/.well-known/openid-configuration` to discover the `jwks_uri`.
 2. Download the JSON Web Key Set (JWKS) from the `jwks_uri` to obtain the public keys used to verify JWT signatures.
+   Only `RSA` and `EC` (`P-256`, `P-384`, `P-521`) keys are supported. Keys of other types, such as `OKP` (Ed25519), are skipped.
 3. Automatically refresh the keys every 5 minutes to handle key rotation.
 
 JWT tokens must contain an `iss` claim that matches the configured `issuer` value exactly.
