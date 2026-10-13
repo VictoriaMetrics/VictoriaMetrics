@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"net"
 	"reflect"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 )
@@ -184,7 +186,28 @@ func TestWriteMetrics(t *testing.T) {
 	}
 }
 
+// Init is called once per lifecycle, but Stop may run before the discovery worker starts.
+func TestInitStopImmediately(t *testing.T) {
+	origGOMAXPROCS := runtime.GOMAXPROCS(1)
+	defer runtime.GOMAXPROCS(origGOMAXPROCS)
+
+	for range 100 {
+		Init([]string{"http://127.0.0.1:8480/api/v1/write"}, []string{"1:secret-url"})
+		stopped := make(chan struct{})
+		go func() {
+			Stop()
+			close(stopped)
+		}()
+		select {
+		case <-stopped:
+		case <-time.After(5 * time.Second):
+			t.Fatal("topology shutdown timed out")
+		}
+	}
+}
+
 type fakeResolver struct {
+	lookupIPAddrFunc    func(context.Context, string) ([]net.IPAddr, error)
 	lookupSRVResults    map[string][]*net.SRV
 	lookupIPAddrResults map[string][]net.IPAddr
 }
@@ -196,7 +219,10 @@ func (r *fakeResolver) LookupSRV(_ context.Context, _, _, name string) (string, 
 	return name, nil, fmt.Errorf("no SRV results found for host: %s", name)
 }
 
-func (r *fakeResolver) LookupIPAddr(_ context.Context, host string) ([]net.IPAddr, error) {
+func (r *fakeResolver) LookupIPAddr(ctx context.Context, host string) ([]net.IPAddr, error) {
+	if r.lookupIPAddrFunc != nil {
+		return r.lookupIPAddrFunc(ctx, host)
+	}
 	if results, ok := r.lookupIPAddrResults[host]; ok {
 		return results, nil
 	}

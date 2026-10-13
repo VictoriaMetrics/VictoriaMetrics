@@ -25,12 +25,11 @@ const (
 var global state
 
 type state struct {
-	mu        sync.RWMutex
-	ms        *metrics.Set
-	refreshCh chan struct{}
-	stopCh    chan struct{}
-	wg        sync.WaitGroup
-	targets   map[string]*target
+	mu      sync.RWMutex
+	ms      *metrics.Set
+	stopCh  chan struct{}
+	wg      sync.WaitGroup
+	targets map[string]*target
 }
 
 type target struct {
@@ -54,6 +53,7 @@ type targetSample struct {
 
 // Init registers remote write targets for background topology discovery.
 // rawURLs are used for DNS resolution, while sanitizedURLs are used as metric labels.
+// Init must be called only once before Stop.
 func Init(rawURLs, sanitizedURLs []string) {
 	if len(rawURLs) != len(sanitizedURLs) {
 		logger.Panicf("BUG: len(rawURLs) must match len(sanitizedURLs); got %d vs %d", len(rawURLs), len(sanitizedURLs))
@@ -96,24 +96,17 @@ func (s *state) initTargets(targets []*target) {
 	for _, t := range targets {
 		s.targets[t.urlLabel] = t
 	}
-	if s.stopCh != nil {
-		s.notifyRefreshLocked()
-		return
-	}
-
-	s.refreshCh = make(chan struct{}, 1)
-	s.stopCh = make(chan struct{})
+	stopCh := make(chan struct{})
+	s.stopCh = stopCh
 	s.wg.Go(func() {
-		s.run(s.stopCh, s.refreshCh)
+		s.run(stopCh)
 	})
-	s.notifyRefreshLocked()
 }
 
 func (s *state) stop() {
 	s.mu.Lock()
 	stopCh := s.stopCh
 	ms := s.ms
-	s.refreshCh = nil
 	s.stopCh = nil
 	s.mu.Unlock()
 
@@ -131,27 +124,18 @@ func (s *state) stop() {
 	s.mu.Unlock()
 }
 
-func (s *state) run(stopCh, refreshCh chan struct{}) {
-	defer s.wg.Done()
+func (s *state) run(stopCh chan struct{}) {
+	s.refresh()
 
 	ticker := time.NewTicker(discoveryInterval)
 	defer ticker.Stop()
 	for {
 		select {
-		case <-refreshCh:
-			s.refresh()
 		case <-ticker.C:
 			s.refresh()
 		case <-stopCh:
 			return
 		}
-	}
-}
-
-func (s *state) notifyRefreshLocked() {
-	select {
-	case s.refreshCh <- struct{}{}:
-	default:
 	}
 }
 
