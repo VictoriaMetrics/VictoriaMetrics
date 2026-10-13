@@ -444,7 +444,7 @@ func (vms *VMStorage) writeStorageMetrics(w io.Writer) {
 	metrics.WriteCounterUint64(w, `vm_missing_tsids_for_metric_id_total`, idbm.MissingTSIDsForMetricID)
 	metrics.WriteCounterUint64(w, `vm_index_blocks_with_metric_ids_processed_total`, idbm.IndexBlocksWithMetricIDsProcessed)
 	metrics.WriteCounterUint64(w, `vm_index_blocks_with_metric_ids_incorrect_order_total`, idbm.IndexBlocksWithMetricIDsIncorrectOrder)
-	metrics.WriteCounterUint64(w, `vm_index_items_dropped_by_retetion_total`, idbm.IndexItemsDroppedByRetention)
+	metrics.WriteCounterUint64(w, `vm_index_items_dropped_by_retention_total`, idbm.IndexItemsDroppedByRetention)
 	metrics.WriteGaugeUint64(w, `vm_composite_index_min_timestamp`, idbm.MinTimestampForCompositeIndex/1e3)
 	metrics.WriteCounterUint64(w, `vm_composite_filter_success_conversions_total`, idbm.CompositeFilterSuccessConversions)
 	metrics.WriteCounterUint64(w, `vm_composite_filter_missing_conversions_total`, idbm.CompositeFilterMissingConversions)
