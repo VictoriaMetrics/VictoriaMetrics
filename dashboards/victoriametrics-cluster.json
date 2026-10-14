@@ -6439,7 +6439,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows the number of ongoing Cluster Native insert API operations sent to `vmstorage`, where:\n* `max` - the maximum number of calls that can be processed in parallel;\n* `current` - Shows the number of ongoing insert operations being processed by the storage.\n\nEach successful API call results in a flush to disk. The `max` value is controlled by the `-maxConcurrentInserts` flag set on the storage (2 * cgroup.AvailableCPUs() by default). \n\nIf `current` consistently reaches `max`, it indicates that the storage is overloaded and likely requires more CPU (see CPU usage) or disks with higher IOPS (see disk read/write panels in the Resource Usage row)",
+          "description": "Shows the number of Cluster Native insert API calls from `vminsert` that are being processed by `vmstorage` at the same time, where:\n* `max` - the maximum number of calls that can be processed in parallel;\n* `current` - the number of calls currently reading a data block or waiting to pass it to the unmarshal workers.\n\nThe `max` value is controlled by the `-maxConcurrentInserts` flag set on the storage (2 * available CPUs by default). Time spent waiting on the network is not counted. Received data is buffered in memory and flushed to disk periodically (see `-inmemoryDataFlushInterval`).\n\nIf `current` consistently reaches `max`, the storage can't keep up with the ingestion rate. It likely requires more CPU (see CPU usage) or is slowed down by background merges on slow disks (see disk read/write panels in the Resource Usage row).",
           "fieldConfig": {
             "defaults": {
               "color": {
