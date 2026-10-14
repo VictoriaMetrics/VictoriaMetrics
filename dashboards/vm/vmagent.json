@@ -8294,7 +8294,7 @@
               "exemplar": true,
               "expr": "max(\n  vmagent_remotewrite_kafka_outbuf_latency_seconds{job=~\"$job\", instance=~\"$instance\"}\n) by (job, instance, url_id, topic, broker)",
               "interval": "",
-              "legendFormat": "request queue: {{instance}} ({{job}}), topic={{topic}}, url_id={{url_id}}",
+              "legendFormat": "{{instance}} => {{url_id}}:{{broker}}/{{topic}} (queue)",
               "range": true,
               "refId": "A"
             },
@@ -8305,7 +8305,7 @@
               },
               "editorMode": "code",
               "expr": "max(\n  vmagent_remotewrite_kafka_rtt_seconds{job=~\"$job\", instance=~\"$instance\"}\n) by (job, instance, url_id, topic, broker)",
-              "legendFormat": "broker RTT: {{instance}} ({{job}}), topic={{topic}}, url_id={{url_id}}",
+              "legendFormat": "{{instance}} => {{url_id}}:{{broker}}/{{topic}} (RTT)",
               "range": true,
               "refId": "B"
             }
