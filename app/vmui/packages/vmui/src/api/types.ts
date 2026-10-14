@@ -41,3 +41,9 @@ export interface ReportMetaData {
   comment: string;
   params: Record<string, string>;
 }
+
+export interface TenantInfo {
+  multiTenant?: boolean;
+  accountID?: number;
+  projectID?: number;
+}
