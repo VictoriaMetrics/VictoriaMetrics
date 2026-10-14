@@ -23,6 +23,14 @@ func (ml *memoryLimiter) Get(n uint64) bool {
 	return ok
 }
 
+// Free returns the amount of memory, which can be obtained via Get at the moment.
+func (ml *memoryLimiter) Free() uint64 {
+	ml.mu.Lock()
+	n := ml.MaxSize - ml.usage
+	ml.mu.Unlock()
+	return n
+}
+
 func (ml *memoryLimiter) Put(n uint64) {
 	ml.mu.Lock()
 	if n > ml.usage {

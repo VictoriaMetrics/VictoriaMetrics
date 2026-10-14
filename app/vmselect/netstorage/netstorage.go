@@ -5,6 +5,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"iter"
 	"math"
 	"slices"
 	"sort"
@@ -72,6 +73,17 @@ type Results struct {
 // Len returns the number of results in rss.
 func (rss *Results) Len() int {
 	return len(rss.packedTimeseries)
+}
+
+// MetricNames returns an iterator over marshaled metric names of rss.
+func (rss *Results) MetricNames() iter.Seq[string] {
+	return func(yield func(string) bool) {
+		for i := range rss.packedTimeseries {
+			if !yield(rss.packedTimeseries[i].metricName) {
+				return
+			}
+		}
+	}
 }
 
 // Cancel cancels rss work.

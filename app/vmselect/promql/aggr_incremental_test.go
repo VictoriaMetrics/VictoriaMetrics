@@ -5,11 +5,14 @@ import (
 	"math"
 	"reflect"
 	"runtime"
+	"slices"
 	"sync"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/metricsql"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
 func TestIncrementalAggr(t *testing.T) {
@@ -186,4 +189,60 @@ func compareValues(vs1, vs2 []float64) error {
 		}
 	}
 	return nil
+}
+
+func TestIncrementalAggrMaxSeriesInMemory(t *testing.T) {
+	const workers = 4
+	const seriesLen = 100
+	var metricNames []string
+	for i := range seriesLen {
+		var mn storage.MetricName
+		mn.MetricGroup = []byte("foo")
+		mn.AddTag("job", fmt.Sprintf("job_%d", i%2))
+		mn.AddTag("pod", fmt.Sprintf("pod_%d", i))
+		metricNames = append(metricNames, string(mn.Marshal(nil)))
+	}
+
+	f := func(q string, resultExpected int) {
+		t.Helper()
+		expr, err := metricsql.Parse(q)
+		if err != nil {
+			t.Fatalf("cannot parse %q: %s", q, err)
+		}
+		iafc := &incrementalAggrFuncContext{
+			ae:         expr.(*metricsql.AggrFuncExpr),
+			byWorkerID: make([]incrementalAggrContextMap, workers),
+		}
+		result, err := iafc.maxSeriesInMemory(slices.Values(metricNames), seriesLen)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if result != resultExpected {
+			t.Fatalf("unexpected result for %q; got %d; want %d", q, result, resultExpected)
+		}
+	}
+
+	// a single group
+	f(`sum(foo)`, workers)
+
+	// low-cardinality groups
+	f(`sum(foo) by (job)`, 2*workers)
+	f(`sum(foo) without (pod)`, 2*workers)
+
+	// high-cardinality groups are limited by the number of series
+	f(`max(foo) by (pod)`, seriesLen)
+	f(`max(foo) without (job)`, seriesLen)
+
+	// limit on the number of output series
+	f(`max(foo) by (pod) limit 3`, 3*workers)
+}
+
+func TestIncrementalAggrMaxSeriesInMemoryInvalidMetricName(t *testing.T) {
+	iafc := &incrementalAggrFuncContext{
+		ae:         &metricsql.AggrFuncExpr{Name: "sum"},
+		byWorkerID: make([]incrementalAggrContextMap, 4),
+	}
+	if _, err := iafc.maxSeriesInMemory(slices.Values([]string{"\xff"}), 1); err == nil {
+		t.Fatalf("expecting non-nil error")
+	}
 }

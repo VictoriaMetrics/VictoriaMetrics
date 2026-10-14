@@ -1862,9 +1862,22 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 		if timeseriesLen > rssLen {
 			timeseriesLen = rssLen
 		}
+		// The estimate above can be too small for groups with high cardinality.
+		// Calculate the upper bound from metric names only if the query may not fit the memory limits,
+		// since this requires an additional pass over all the selected time series.
+		if timeseriesLen < rssLen {
+			_, worstMemorySize := getRollupMemorySize(rssLen, len(rcs), pointsPerSeries)
+			if worstMemorySize > getRollupMemoryThreshold() {
+				timeseriesLen, err = iafc.maxSeriesInMemory(rss.MetricNames(), rssLen)
+				if err != nil {
+					rss.Cancel()
+					return nil, err
+				}
+				qt.Printf("calculate the upper bound of %d series in memory for incremental aggregation", timeseriesLen)
+			}
+		}
 	}
-	rollupPoints := mulNoOverflow(pointsPerSeries, int64(timeseriesLen*len(rcs)))
-	rollupMemorySize := sumNoOverflow(mulNoOverflow(int64(timeseriesLen), 1000), mulNoOverflow(rollupPoints, 16))
+	rollupPoints, rollupMemorySize := getRollupMemorySize(timeseriesLen, len(rcs), pointsPerSeries)
 	if maxMemory := int64(logQueryMemoryUsage.N); maxMemory > 0 && rollupMemorySize > maxMemory {
 		memoryIntensiveQueries.Inc()
 		requestURI := ec.GetRequestURI()
@@ -1915,6 +1928,24 @@ func getRollupMemoryLimiter() *memoryLimiter {
 		rollupMemoryLimiter.MaxSize = uint64(memory.Allowed()) / 4
 	})
 	return &rollupMemoryLimiter
+}
+
+func getRollupMemorySize(timeseriesLen, rcsLen int, pointsPerSeries int64) (int64, int64) {
+	rollupPoints := mulNoOverflow(pointsPerSeries, int64(timeseriesLen*rcsLen))
+	rollupMemorySize := sumNoOverflow(mulNoOverflow(int64(timeseriesLen), 1000), mulNoOverflow(rollupPoints, 16))
+	return rollupPoints, rollupMemorySize
+}
+
+// getRollupMemoryThreshold returns the minimum memory size, which may lead to logging or rejecting the query.
+func getRollupMemoryThreshold() int64 {
+	n := int64(getRollupMemoryLimiter().Free())
+	if maxMemory := int64(logQueryMemoryUsage.N); maxMemory > 0 {
+		n = min(n, maxMemory)
+	}
+	if maxMemory := int64(maxMemoryPerQuery.N); maxMemory > 0 {
+		n = min(n, maxMemory)
+	}
+	return n
 }
 
 func maxSilenceInterval() int64 {

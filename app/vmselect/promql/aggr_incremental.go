@@ -1,6 +1,8 @@
 package promql
 
 import (
+	"fmt"
+	"iter"
 	"math"
 	"strings"
 	"unsafe"
@@ -9,6 +11,8 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
 // callbacks for optimized incremental calculations for aggregate functions
@@ -136,6 +140,36 @@ func (iafc *incrementalAggrFuncContext) updateTimeseries(tsOrig *timeseries, wor
 	}
 	bbPool.Put(bb)
 	iafc.callbacks.updateAggrFunc(iac, ts.Values)
+}
+
+// maxSeriesInMemory returns the upper bound for the number of aggregate time series,
+// which iafc holds in memory while processing seriesLen time series with the given metricNames.
+//
+// Every worker can hold its own aggregate time series for every group,
+// while the total number of aggregate time series cannot exceed seriesLen.
+// The returned bound may be bigger than the real number, since groups are counted
+// before rollup functions remove metric names from time series.
+func (iafc *incrementalAggrFuncContext) maxSeriesInMemory(metricNames iter.Seq[string], seriesLen int) (int, error) {
+	workers := len(iafc.byWorkerID)
+	limit := iafc.ae.Limit
+	groups := make(map[string]struct{})
+	var mn storage.MetricName
+	var buf []byte
+	for metricName := range metricNames {
+		if err := mn.Unmarshal(bytesutil.ToUnsafeBytes(metricName)); err != nil {
+			return 0, fmt.Errorf("cannot unmarshal metricName %q: %w", metricName, err)
+		}
+		removeGroupTags(&mn, &iafc.ae.Modifier)
+		buf = marshalMetricNameSorted(buf[:0], &mn)
+		if _, ok := groups[string(buf)]; ok {
+			continue
+		}
+		groups[string(buf)] = struct{}{}
+		if workers*len(groups) >= seriesLen || len(groups) == limit {
+			break
+		}
+	}
+	return min(seriesLen, workers*len(groups)), nil
 }
 
 func (iafc *incrementalAggrFuncContext) finalizeTimeseries() []*timeseries {
