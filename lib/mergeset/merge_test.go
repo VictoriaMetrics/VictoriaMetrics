@@ -208,3 +208,60 @@ func newTestBlockStreamReader(ip *inmemoryPart) *blockStreamReader {
 	bsr.MustInitFromInmemoryPart(ip)
 	return &bsr
 }
+
+func TestEmptyResultMergeBlockStreams(t *testing.T) {
+	t.Helper()
+	blocksToMerge, maxItemsPerBlock := 10, 1000
+	r := rand.New(rand.NewSource(1))
+	if err := testEmptyResultMergeBlockStreamsSerial(r, blocksToMerge, maxItemsPerBlock); err != nil {
+		t.Fatalf("unexpected error in serial test: %s", err)
+	}
+
+	const concurrency = 3
+	ch := make(chan error, concurrency)
+	for i := range concurrency {
+		go func(n int) {
+			rLocal := rand.New(rand.NewSource(int64(n)))
+			ch <- testEmptyResultMergeBlockStreamsSerial(rLocal, blocksToMerge, maxItemsPerBlock)
+		}(i)
+	}
+
+	for range concurrency {
+		select {
+		case err := <-ch:
+			if err != nil {
+				t.Fatalf("unexpected error in concurrent test: %s", err)
+			}
+		case <-time.After(10 * time.Second):
+			t.Fatalf("timeout in concurrent test")
+		}
+	}
+}
+
+func testEmptyResultMergeBlockStreamsSerial(r *rand.Rand, blocksToMerge, maxItemsPerBlock int) error {
+	// Prepare blocks to merge.
+	bsrs, items := newTestInmemoryBlockStreamReaders(r, blocksToMerge, maxItemsPerBlock)
+
+	// Merge blocks.
+	var itemsMerged atomic.Uint64
+	var dstIP inmemoryPart
+	var bsw blockStreamWriter
+	bsw.MustInitFromInmemoryPart(&dstIP, -4)
+	prepareBlock := func(data []byte, items []Item) ([]byte, []Item) {
+		return data, nil
+	}
+	if err := mergeBlockStreams(&dstIP.ph, &bsw, bsrs, prepareBlock, nil, &itemsMerged); err != nil {
+		return fmt.Errorf("cannot merge block streams: %w", err)
+	}
+	if n := itemsMerged.Load(); n != uint64(len(items)) {
+		return fmt.Errorf("unexpected itemsMerged; got %d; want %d", n, len(items))
+	}
+
+	if dstIP.ph.itemsCount != 0 {
+		return fmt.Errorf("unexpected non zero itemsCount after merge: %d", dstIP.ph.itemsCount)
+	}
+	if dstIP.ph.blocksCount != 0 {
+		return fmt.Errorf("unexpected non zero blockCounts after merge: %d", dstIP.ph.blocksCount)
+	}
+	return nil
+}

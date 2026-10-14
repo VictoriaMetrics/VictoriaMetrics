@@ -170,7 +170,8 @@ func mustOpenIndexDB(id uint64, tr TimeRange, name, path string, s *Storage, isR
 	}
 
 	tfssCache := lrucache.NewCache(getTagFiltersCacheSize)
-	tb := mergeset.MustOpenTable(path, dataFlushInterval, tfssCache.Reset, 0, mergeTagToMetricIDsRows, isReadOnly)
+	prepareBlockCallBack := newIndexDBPrepareBlockCallback(uint64(s.retentionMsecs), s.disablePerDayIndex)
+	tb := mergeset.MustOpenTable(path, dataFlushInterval, tfssCache.Reset, 0, prepareBlockCallBack, isReadOnly)
 	db := &indexDB{
 		legacyMinMissingTimestampByKey: make(map[TenantToken]int64),
 		id:                             id,
@@ -228,6 +229,7 @@ type IndexDBMetrics struct {
 
 	IndexBlocksWithMetricIDsProcessed      uint64
 	IndexBlocksWithMetricIDsIncorrectOrder uint64
+	IndexItemsDroppedByRetention           uint64
 
 	MinTimestampForCompositeIndex     uint64
 	CompositeFilterSuccessConversions uint64
@@ -241,6 +243,7 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	// global index metrics
 	m.IndexBlocksWithMetricIDsProcessed = indexBlocksWithMetricIDsProcessed.Load()
 	m.IndexBlocksWithMetricIDsIncorrectOrder = indexBlocksWithMetricIDsIncorrectOrder.Load()
+	m.IndexItemsDroppedByRetention = indexItemsDroppedByRetention.Load()
 
 	m.MinTimestampForCompositeIndex = uint64(db.s.minTimestampForCompositeIndex)
 	m.CompositeFilterSuccessConversions = compositeFilterSuccessConversions.Load()
@@ -3304,6 +3307,77 @@ func (mp *tagToMetricIDsRowParser) GetMatchingSeriesCount(filter, negativeFilter
 	return n
 }
 
+func newIndexDBPrepareBlockCallback(retentionMsec uint64, disablePerDayIndex bool) mergeset.PrepareBlockCallback {
+	if disablePerDayIndex {
+		// retention can only be applied to daily records.
+		return mergeTagToMetricIDsRows
+	}
+	return func(data []byte, items []mergeset.Item) ([]byte, []mergeset.Item) {
+		currentTimestamp := fasttime.UnixTimestamp() * 1000
+		if retentionMsec >= currentTimestamp {
+			// retention is outside unix date range ( 100y for example).
+			return mergeTagToMetricIDsRows(data, items)
+		}
+		minDate := (currentTimestamp - retentionMsec) / msecPerDay
+		data, items = keepItemsInsideRetention(data, items, minDate)
+		if len(items) == 0 {
+			return data, nil
+		}
+		return mergeTagToMetricIDsRows(data, items)
+	}
+}
+
+func keepItemsInsideRetention(data []byte, items []mergeset.Item, minDate uint64) ([]byte, []mergeset.Item) {
+	// perform quick check if block inside given index items
+	firstItem := items[0].Bytes(data)
+	if len(firstItem) > 0 && firstItem[0] > nsPrefixDateMetricNameToTSID {
+		return data, items
+	}
+	lastItem := items[len(items)-1].Bytes(data)
+	if len(lastItem) > 0 && lastItem[0] < nsPrefixDateToMetricID {
+		return data, items
+	}
+	keepItem := func(item []byte) bool {
+		if len(item) == 0 {
+			return true
+		}
+		ns := item[0]
+		var itemTail []byte
+		switch ns {
+		case nsPrefixDateTagToMetricIDs, nsPrefixDateToMetricID:
+			if len(item) < commonPrefixLen {
+				return true
+			}
+			itemTail = item[commonPrefixLen:]
+		case nsPrefixDateMetricNameToTSID:
+			// MetricName encoded without common prefix for both single and cluster versions
+			itemTail = item[1:]
+		default:
+			return true
+		}
+		// unmarshal date
+		if len(itemTail) < 8 {
+			return true
+		}
+		itemDate := encoding.UnmarshalUint64(itemTail)
+		return itemDate >= minDate
+	}
+
+	tmp := items[:0]
+	for _, it := range items {
+		item := it.Bytes(data)
+		if keepItem(item) {
+			tmp = append(tmp, it)
+		}
+	}
+	n := len(items) - len(tmp)
+	items = tmp
+	if n > 0 {
+		indexItemsDroppedByRetention.Add(uint64(n))
+	}
+	return data, items
+}
+
 func mergeTagToMetricIDsRows(data []byte, items []mergeset.Item) ([]byte, []mergeset.Item) {
 	data, items = mergeTagToMetricIDsRowsInternal(data, items, nsPrefixTagToMetricIDs)
 	data, items = mergeTagToMetricIDsRowsInternal(data, items, nsPrefixDateTagToMetricIDs)
@@ -3404,6 +3478,7 @@ func mergeTagToMetricIDsRowsInternal(data []byte, items []mergeset.Item, nsPrefi
 var (
 	indexBlocksWithMetricIDsIncorrectOrder atomicutil.Uint64
 	indexBlocksWithMetricIDsProcessed      atomicutil.Uint64
+	indexItemsDroppedByRetention           atomicutil.Uint64
 )
 
 func checkItemsSorted(data []byte, items []mergeset.Item) bool {
