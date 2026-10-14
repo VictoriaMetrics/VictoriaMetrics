@@ -1027,7 +1027,7 @@ scrape_configs:
   - "Proxy-Auth: top-secret"
 ```
 
-## How to scrape targets via Unix sockets
+## Scraping targets via unix sockets
 
 `vmagent` can scrape targets listening on a Unix domain socket. The socket path must be set in the `__unix_socket__` label:
 
