@@ -488,18 +488,66 @@ func putIndexItems(ii *indexItems) {
 
 var indexItemsPool sync.Pool
 
+// containsTimeRange checks whether indexDB might have entries within the given
+// time range. If so, the function will return true and the part of the original
+// time range it might have entries for. Otherwise, it will return false and the
+// unchanged original time range.
+func (db *indexDB) containsTimeRange(tr TimeRange) (bool, TimeRange) {
+	if !db.tr.overlapsWith(tr) {
+		return false, tr
+	}
+
+	if db.s.disablePerDayIndex {
+		return true, globalIndexTimeRange
+	}
+
+	if !db.legacyContainsTimeRange(tr) {
+		return false, tr
+	}
+
+	if tr.MinTimestamp < db.tr.MinTimestamp {
+		tr.MinTimestamp = db.tr.MinTimestamp
+	}
+	if tr.MaxTimestamp > db.tr.MaxTimestamp {
+		tr.MaxTimestamp = db.tr.MaxTimestamp
+	}
+
+	return true, tr
+}
+
+// containsDate checks whether indexDB might have entries for the given date.
+// If so, the function will return true along with the date adjusted based on
+// whether per-day index is disabled. Otherwise, it will return false and the
+// unchanged original date.
+func (db *indexDB) containsDate(date uint64) (bool, uint64) {
+	tr := TimeRange{
+		MinTimestamp: int64(date) * msecPerDay,
+		MaxTimestamp: int64(date+1)*msecPerDay - 1,
+	}
+	ok, tr := db.containsTimeRange(tr)
+	if !ok {
+		return false, date
+	}
+
+	if tr == globalIndexTimeRange {
+		date = globalIndexDate
+	}
+	return true, date
+}
+
 // SearchLabelNames returns all the label names, which match the given tfss on
 // the given tr.
 func (db *indexDB) SearchLabelNames(ctx context.Context, qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxLabelNames, maxMetrics int) (map[string]struct{}, error) {
 	qt = qt.NewChild("search label names: filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", tfss, &tr, maxLabelNames, maxMetrics)
 	defer qt.Done()
 
-	if !db.legacyContainsTimeRange(tr) {
+	ok, trAdjusted := db.containsTimeRange(tr)
+	if !ok {
 		qt.Printf("indexDB doesn't contain data for the given time range: %s", &tr)
 		return nil, nil
 	}
 
-	lns, err := db.searchLabelNames(ctx, qt, tfss, tr, maxLabelNames, maxMetrics)
+	lns, err := db.searchLabelNames(ctx, qt, tfss, trAdjusted, maxLabelNames, maxMetrics)
 	if err != nil {
 		return nil, db.wrapError("search label names", err)
 	}
@@ -717,12 +765,13 @@ func (db *indexDB) SearchLabelValues(ctx context.Context, qt *querytracer.Tracer
 	qt = qt.NewChild("search label values: labelName=%q, filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", labelName, tfss, &tr, maxLabelValues, maxMetrics)
 	defer qt.Done()
 
-	if !db.legacyContainsTimeRange(tr) {
+	ok, trAdjusted := db.containsTimeRange(tr)
+	if !ok {
 		qt.Printf("indexDB doesn't contain data for the given time range: %s", &tr)
 		return nil, nil
 	}
 
-	lvs, err := db.searchLabelValues(ctx, qt, labelName, tfss, tr, maxLabelValues, maxMetrics)
+	lvs, err := db.searchLabelValues(ctx, qt, labelName, tfss, trAdjusted, maxLabelValues, maxMetrics)
 	if err != nil {
 		return nil, db.wrapError("search label values", err)
 	}
@@ -986,12 +1035,13 @@ func (db *indexDB) SearchTagValueSuffixes(ctx context.Context, qt *querytracer.T
 	qt = qt.NewChild("search tag value suffixes for timeRange=%s, tagKey=%q, tagValuePrefix=%q, delimiter=%c, maxTagValueSuffixes=%d", &tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
 	defer qt.Done()
 
-	if !db.legacyContainsTimeRange(tr) {
+	ok, trAdjusted := db.containsTimeRange(tr)
+	if !ok {
 		qt.Printf("indexDB doesn't contain data for the given time range: %s", &tr)
 		return nil, nil
 	}
 
-	tvss, err := db.searchTagValueSuffixes(ctx, tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
+	tvss, err := db.searchTagValueSuffixes(ctx, trAdjusted, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
 	if err != nil {
 		return nil, db.wrapError("search tag value suffixes", err)
 	}
@@ -1127,12 +1177,13 @@ func (db *indexDB) SearchGraphitePaths(ctx context.Context, qt *querytracer.Trac
 	qt = qt.NewChild("search graphite paths: timeRange=%s, qHead=%q, qTail=%q, maxPaths=%d", &tr, bytesutil.ToUnsafeString(qHead), bytesutil.ToUnsafeString(qTail), maxPaths)
 	defer qt.Done()
 
-	if !db.legacyContainsTimeRange(tr) {
+	ok, trAdjusted := db.containsTimeRange(tr)
+	if !ok {
 		qt.Printf("indexDB doesn't contain data for the given time range: %s", &tr)
 		return nil, nil
 	}
 
-	paths, err := db.searchGraphitePaths(ctx, qt, tr, qHead, qTail, maxPaths)
+	paths, err := db.searchGraphitePaths(ctx, qt, trAdjusted, qHead, qTail, maxPaths)
 	if err != nil {
 		return nil, db.wrapError("search graphite paths", err)
 	}
@@ -1328,12 +1379,13 @@ func (db *indexDB) GetTSDBStatus(ctx context.Context, qt *querytracer.Tracer, tf
 	qt = qt.NewChild("collect TSDB status: filters=%s, date=%s, focusLabel=%q, topN=%d, maxMetrics=%d", tfss, dateToString(date), focusLabel, topN, maxMetrics)
 	defer qt.Done()
 
-	if !db.legacyContainsDate(date) {
+	ok, dateAdjusted := db.containsDate(date)
+	if !ok {
 		qt.Printf("indexDB doesn't contain data for the given date: %s", dateToString(date))
 		return &TSDBStatus{}, nil
 	}
 
-	status, err := db.getTSDBStatus(ctx, qt, date, tfss, focusLabel, topN, maxMetrics)
+	status, err := db.getTSDBStatus(ctx, qt, dateAdjusted, tfss, focusLabel, topN, maxMetrics)
 	if err != nil {
 		return nil, db.wrapError("collect TSDB status", err)
 	}
@@ -1826,12 +1878,13 @@ func (db *indexDB) SearchTSIDs(ctx context.Context, qt *querytracer.Tracer, tfss
 	qt = qt.NewChild("search TSIDs: filters=%s, timeRange=%s, maxMetrics=%d", tfss, &tr, maxMetrics)
 	defer qt.Done()
 
-	if !db.legacyContainsTimeRange(tr) {
+	ok, trAdjusted := db.containsTimeRange(tr)
+	if !ok {
 		qt.Printf("indexDB doesn't contain data for the given time range: %s", &tr)
 		return nil, nil
 	}
 
-	tsids, err := db.searchTSIDs(ctx, qt, tfss, tr, maxMetrics)
+	tsids, err := db.searchTSIDs(ctx, qt, tfss, trAdjusted, maxMetrics)
 	if err != nil {
 		return nil, db.wrapError("search TSIDs", err)
 	}
@@ -1975,12 +2028,13 @@ func (db *indexDB) SearchMetricNames(ctx context.Context, qt *querytracer.Tracer
 	qt = qt.NewChild("search metric names: filters=%s, timeRange=%s, maxMetrics=%d", tfss, &tr, maxMetrics)
 	defer qt.Done()
 
-	if !db.legacyContainsTimeRange(tr) {
+	ok, trAdjusted := db.containsTimeRange(tr)
+	if !ok {
 		qt.Printf("indexDB doesn't contain data for the given time range: %s", &tr)
 		return nil, nil
 	}
 
-	metricNames, err := db.searchMetricNames(ctx, qt, tfss, tr, maxMetrics)
+	metricNames, err := db.searchMetricNames(ctx, qt, tfss, trAdjusted, maxMetrics)
 	if err != nil {
 		return nil, db.wrapError("search metric names", err)
 	}
