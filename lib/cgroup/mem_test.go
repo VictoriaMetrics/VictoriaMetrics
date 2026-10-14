@@ -52,21 +52,20 @@ func TestGetHierarchicalMemoryLimitFailure(t *testing.T) {
 }
 
 func TestNormalizeMemoryLimitV1(t *testing.T) {
-	for _, tc := range []struct {
-		name  string
-		limit int64
-		want  int64
-	}{
-		{name: "finite", limit: 1073741824, want: 1073741824},
-		{name: "zero", limit: 0, want: 0},
-		{name: "negative", limit: -1, want: 0},
-		{name: "unlimited", limit: math.MaxInt64 &^ (int64(os.Getpagesize()) - 1), want: 0},
-		{name: "max", limit: math.MaxInt64, want: 0},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			if got := normalizeMemoryLimitV1(tc.limit); got != tc.want {
-				t.Fatalf("unexpected result for %d; got %d; want %d", tc.limit, got, tc.want)
-			}
-		})
+	f := func(limit, want int64) {
+		t.Helper()
+		if got := normalizeMemoryLimitV1(limit); got != want {
+			t.Fatalf("unexpected result for %d; got %d; want %d", limit, got, want)
+		}
 	}
+	// finite
+	f(1073741824, 1073741824)
+	// zero
+	f(0, 0)
+	// negative
+	f(-1, 0)
+	// unlimited
+	f(math.MaxInt64&^(int64(os.Getpagesize())-1), 0)
+	// max
+	f(math.MaxInt64, 0)
 }
