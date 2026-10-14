@@ -5,13 +5,15 @@ import (
 	"net/http"
 	"regexp"
 	"strconv"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 )
 
 // MetricNamesStatsHandler returns timeseries metric names usage statistics
-func MetricNamesStatsHandler(qt *querytracer.Tracer, w http.ResponseWriter, r *http.Request) error {
+func MetricNamesStatsHandler(startTime time.Time, qt *querytracer.Tracer, w http.ResponseWriter, r *http.Request) error {
 	limit := 1000
 	limitStr := r.FormValue("limit")
 	if len(limitStr) > 0 {
@@ -40,7 +42,10 @@ func MetricNamesStatsHandler(qt *querytracer.Tracer, w http.ResponseWriter, r *h
 			return fmt.Errorf("match_pattern=%q must be valid regex: %w", matchPattern, err)
 		}
 	}
-	stats, err := netstorage.GetMetricNamesStats(qt, limit, le, matchPattern)
+	ctx, cancel := searchutil.GetContextForStatusRequest(r, startTime)
+	defer cancel()
+
+	stats, err := netstorage.GetMetricNamesStats(ctx, qt, limit, le, matchPattern)
 	if err != nil {
 		return err
 	}
@@ -49,8 +54,11 @@ func MetricNamesStatsHandler(qt *querytracer.Tracer, w http.ResponseWriter, r *h
 }
 
 // ResetMetricNamesStatsHandler resets metric names usage state
-func ResetMetricNamesStatsHandler(qt *querytracer.Tracer) error {
-	if err := netstorage.ResetMetricNamesStats(qt); err != nil {
+func ResetMetricNamesStatsHandler(startTime time.Time, qt *querytracer.Tracer, r *http.Request) error {
+	ctx, cancel := searchutil.GetContextForStatusRequest(r, startTime)
+	defer cancel()
+
+	if err := netstorage.ResetMetricNamesStats(ctx, qt); err != nil {
 		return err
 	}
 	return nil

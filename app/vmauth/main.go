@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"flag"
@@ -15,6 +16,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
@@ -182,27 +184,39 @@ func requestHandlerWithInternalRoutes(w http.ResponseWriter, r *http.Request) bo
 	return requestHandler(w, r)
 }
 
+func processEmptyAuthRequest(w http.ResponseWriter, r *http.Request, ac *AuthConfig) {
+	if processSSOLogin(w, r, ac, false) {
+		return
+	}
+
+	// Process requests for unauthorized users
+	ui := ac.UnauthorizedUser
+	if ui.hasAnyURLs() {
+		processUserRequest(w, r, ui, nil)
+		return
+	}
+
+	ui.logRequest(r, `unauthorized`, http.StatusUnauthorized, 0)
+	handleMissingAuthorizationError(w)
+}
+
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
+	if r.URL.Path == "/_vmauth/sso/start" {
+		processSSOStart(w, r)
+		return true
+	}
 	if r.URL.Path == "/_vmauth/sso/callback" {
 		processSSOCallback(w, r)
 		return true
 	}
+	ac := authConfig.Load()
 
 	ats := getAuthTokensFromRequest(r)
-	if len(ats) == 0 {
-		if processSSOLogin(w, r) {
-			return true
-		}
+	ssoAt := getSSOAuthTokenFromRequest(ac, r)
 
-		// Process requests for unauthorized users
-		ui := authConfig.Load().UnauthorizedUser
-		if ui.hasAnyURLs() {
-			processUserRequest(w, r, ui, nil)
-			return true
-		}
-
-		ui.logRequest(r, `unauthorized`, http.StatusUnauthorized, 0)
-		handleMissingAuthorizationError(w)
+	if len(ats) == 0 && len(ssoAt) == 0 {
+		// fast path
+		processEmptyAuthRequest(w, r, ac)
 		return true
 	}
 
@@ -210,7 +224,9 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		processUserRequest(w, r, ui, nil)
 		return true
 	}
-	if ui, tkn := getJWTUserInfo(ats); ui != nil {
+	// The SSO cookie is verified only as jwt token. Matching it against static auth tokens
+	// would allow brute-forcing them via the SSO cookie without the slowdown.
+	if ui, tkn := getJWTUserInfo(ats, ssoAt); ui != nil {
 		if tkn == nil {
 			logger.Panicf("BUG: unexpected nil jwt token for user %q", ui.name())
 		}
@@ -228,29 +244,15 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 	}
 
-	if processSSOLogin(w, r) {
+	if processSSOAccessDenied(w, r, ac, ats, ssoAt) {
 		return true
 	}
 
-	uu := authConfig.Load().UnauthorizedUser
-	if uu.hasAnyURLs() {
-		processUserRequest(w, r, uu, nil)
-		return true
-	}
-
-	invalidAuthTokenRequests.Inc()
+	// Slow down all the requests with invalid auth tokens in order to prevent brute-forcing them.
+	// This includes requests with a valid jwt token without vm_access claim, since an attacker
+	// can combine such a token with other auth tokens, which are brute-forced against static users.
 	slowdownUnauthorizedResponse(r)
-	uu.logRequest(r, `unauthorized`, http.StatusUnauthorized, 0)
-	if *logInvalidAuthTokens {
-		err := fmt.Errorf("cannot authorize request with auth tokens %q", ats)
-		err = &httpserver.ErrorWithStatusCode{
-			Err:        err,
-			StatusCode: http.StatusUnauthorized,
-		}
-		httpserver.Errorf(w, r, "%s", err)
-	} else {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-	}
+	handleInvalidAuthToken(w, r, ats)
 	return true
 }
 
@@ -389,8 +391,8 @@ func endConcurrencyLimit() {
 }
 
 func bufferRequestBody(ctx context.Context, r io.ReadCloser, userName string) (io.ReadCloser, error) {
-	if r == nil {
-		// This is a GET request with nil reader.
+	if r == nil || r == http.NoBody {
+		// This is a GET request with nil reader or request without body
 		return nil, nil
 	}
 
@@ -453,7 +455,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tkn *j
 			// Authorization should be requested for http requests without credentials
 			// to a route that is not in the configuration for unauthorized user.
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5236
-			if ui.BearerToken == "" && ui.Username == "" && len(*authUsers.Load()) > 0 {
+			if ui.name() == "" && len(*authUsers.Load()) > 0 {
 				handleMissingAuthorizationError(w)
 				return
 			}
@@ -521,7 +523,16 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tkn *j
 
 func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url.URL, hc HeadersConf, retryStatusCodes []int, ui *UserInfo, bu *backendURL) (bool, bool) {
 	ui.backendRequests.Inc()
+
+	bb, bbOK := r.Body.(*bufferedBody)
+	canRetry := !bbOK || bb.canRetry()
+
 	req := sanitizeRequestHeaders(r)
+	if bbOK && bb.canRetry() {
+		// It's not safe to use the same Body with multiple http requests.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11508
+		req.Body = bb.newInmemoryReadCloser()
+	}
 
 	req.URL = targetURL
 	req.Header.Set("User-Agent", "vmauth")
@@ -538,9 +549,6 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 			req.Host = targetURL.Host
 		}
 	}
-
-	bb, bbOK := req.Body.(*bufferedBody)
-	canRetry := !bbOK || bb.canRetry()
 
 	res, err := ui.rt.RoundTrip(req)
 	if err == nil {
@@ -568,9 +576,6 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 		}
 		if netutil.IsTrivialNetworkError(err) {
 			// Retry request at the same backend on trivial network errors, such as proxy idle timeout misconfiguration or socket close by OS
-			if bbOK {
-				bb.resetReader()
-			}
 			return false, true
 		}
 
@@ -578,9 +583,6 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 		requestURI := httpserver.GetRequestURI(r)
 		logger.Warnf("remoteAddr: %s; requestURI: %s; request to %s failed: %s, retrying the request at another backend", remoteAddr, requestURI, targetURL, err)
-		if bbOK {
-			bb.resetReader()
-		}
 		return false, false
 	}
 	if slices.Contains(retryStatusCodes, res.StatusCode) {
@@ -604,9 +606,6 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 		requestURI := httpserver.GetRequestURI(r)
 		logger.Warnf("remoteAddr: %s; requestURI: %s; request to %s failed, retrying the request at another backend because response status code=%d belongs to retry_status_codes=%d",
 			remoteAddr, requestURI, targetURL, res.StatusCode, retryStatusCodes)
-		if bbOK {
-			bb.resetReader()
-		}
 		return false, false
 	}
 	removeHopHeaders(res.Header)
@@ -865,10 +864,33 @@ func handleConcurrencyLimitError(w http.ResponseWriter, r *http.Request, err err
 	httpserver.Errorf(w, r, "%s", err)
 }
 
+func handleInvalidAuthToken(w http.ResponseWriter, r *http.Request, ats []string) {
+	uu := authConfig.Load().UnauthorizedUser
+	if uu.hasAnyURLs() {
+		processUserRequest(w, r, uu, nil)
+		return
+	}
+
+	invalidAuthTokenRequests.Inc()
+	uu.logRequest(r, `unauthorized`, http.StatusUnauthorized, 0)
+
+	if *logInvalidAuthTokens {
+		err := fmt.Errorf("cannot authorize request with auth tokens %q", ats)
+		err = &httpserver.ErrorWithStatusCode{
+			Err:        err,
+			StatusCode: http.StatusUnauthorized,
+		}
+		httpserver.Errorf(w, r, "%s", err)
+	} else {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	}
+}
+
 // bufferedBody serves two purposes:
 //
 //  1. It enables request retries when the request body size does not exceed maxBufSize
 //     by fully buffering the request body in memory.
+//     If bufferedBody supports retry, caller must use newInmemoryReadCloser for each retry.
 //  2. It prevents slow clients from reducing effective server capacity
 //     by buffering the request body before acquiring a per-user concurrency slot.
 //
@@ -887,6 +909,8 @@ type bufferedBody struct {
 
 	// cannotRetry is set to true after Close() call on non-nil r.
 	cannotRetry bool
+
+	closed atomic.Bool
 }
 
 func newBufferedBody(r io.ReadCloser, buf []byte, maxBufSize int) *bufferedBody {
@@ -898,15 +922,19 @@ func newBufferedBody(r io.ReadCloser, buf []byte, maxBufSize int) *bufferedBody 
 		r = nil
 	}
 
-	return &bufferedBody{
+	bb := &bufferedBody{
 		r:   r,
 		buf: buf,
 	}
+	maxRetrySize := maxRequestBodySizeToRetry.IntN()
+	bb.cannotRetry = bb.r != nil || maxRetrySize <= 0 || len(bb.buf) > maxRetrySize
+
+	return bb
 }
 
 // Read implements io.Reader interface.
 func (bb *bufferedBody) Read(p []byte) (int, error) {
-	if bb.cannotRetry {
+	if bb.closed.Load() {
 		return 0, fmt.Errorf("cannot read already closed request body")
 	}
 	if bb.bufOffset < len(bb.buf) {
@@ -921,25 +949,22 @@ func (bb *bufferedBody) Read(p []byte) (int, error) {
 }
 
 func (bb *bufferedBody) canRetry() bool {
-	if bb.r != nil {
-		return false
-	}
-	maxRetrySize := maxRequestBodySizeToRetry.IntN()
-	return len(bb.buf) == 0 || (maxRetrySize > 0 && len(bb.buf) <= maxRetrySize)
+	return !bb.cannotRetry
+}
+
+func (bb *bufferedBody) newInmemoryReadCloser() io.ReadCloser {
+	return io.NopCloser(bytes.NewBuffer(bb.buf))
 }
 
 // Close implements io.Closer interface.
 func (bb *bufferedBody) Close() error {
-	bb.resetReader()
-	bb.cannotRetry = !bb.canRetry()
+	if !bb.closed.CompareAndSwap(false, true) {
+		return nil
+	}
 	if bb.r != nil {
 		return bb.r.Close()
 	}
 	return nil
-}
-
-func (bb *bufferedBody) resetReader() {
-	bb.bufOffset = 0
 }
 
 func debugInfo(u *url.URL, r *http.Request) string {
