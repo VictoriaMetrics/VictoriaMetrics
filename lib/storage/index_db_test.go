@@ -1413,7 +1413,7 @@ func testIndexDBContainsTimeRange(t *testing.T, disablePerDayIndex bool) {
 	defer s.MustClose()
 	ptw := s.tb.MustGetPartition(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli())
 	defer s.tb.PutPartition(ptw)
-	// indexDB time range is [2026-01-01T00:00:00.000Z, 2026-01-31T23:23:59.999Z].
+	// indexDB time range is [2026-01-01T00:00:00.000Z, 2026-01-31T23:59:59.999Z].
 	db := ptw.pt.idb
 
 	f := func(tr TimeRange, wantContains bool, wantTR TimeRange) {
