@@ -26,6 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: all VictoriaMetrics components: expose `process_cpu_cores_host`, `process_cpu_cores_cgroup_quota`, `process_memory_host_bytes` and `process_memory_cgroup_bytes` metrics. Cgroup metrics are `-1` if no cgroup limit is set or the limit cannot be read. See [#11460](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11460).
 * FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): deprecate Server URL editing and show a warning when using a saved custom URL. Existing custom URLs continue to work. See [#11735](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11735).
 * FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): update the appearance of error, warning, info, and success messages. See [11736](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11736).
 * FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): add a tenant column to Top Queries and Active Queries when tenant information is available. See [#6346](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6346).
