@@ -1132,14 +1132,20 @@ func (db *indexDB) SearchGraphitePaths(ctx context.Context, qt *querytracer.Trac
 		return nil, nil
 	}
 
-	paths, err := db.searchGraphitePaths(ctx, tr, qHead, qTail, maxPaths)
+	paths, err := db.searchGraphitePaths(ctx, qt, tr, qHead, qTail, maxPaths)
 	if err != nil {
 		return nil, db.wrapError("search graphite paths", err)
 	}
+
+	qt.Printf("found %d graphite paths", len(paths))
 	return paths, nil
 }
 
-func (db *indexDB) searchGraphitePaths(ctx context.Context, tr TimeRange, qHead, qTail []byte, maxPaths int) (map[string]struct{}, error) {
+func (db *indexDB) searchGraphitePaths(ctx context.Context, qt *querytracer.Tracer, tr TimeRange, qHead, qTail []byte, maxPaths int) (map[string]struct{}, error) {
+	// Also create a child tracer here to be able to track recursive calls.
+	qt = qt.NewChild("search graphite paths: timeRange=%s, qHead=%q, qTail=%q, maxPaths=%d", &tr, bytesutil.ToUnsafeString(qHead), bytesutil.ToUnsafeString(qTail), maxPaths)
+	defer qt.Done()
+
 	n := bytes.IndexAny(qTail, "*[{")
 	if n < 0 {
 		// Verify that qHead matches a metric name.
@@ -1201,7 +1207,8 @@ func (db *indexDB) searchGraphitePaths(ctx context.Context, tr TimeRange, qHead,
 			continue
 		}
 		qHead = append(qHead[:qHeadLen], suffix...)
-		ps, err := db.searchGraphitePaths(ctx, tr, qHead, qTail, maxPaths)
+		ps, err := db.searchGraphitePaths(ctx, qt, tr, qHead, qTail, maxPaths)
+		qt.Done()
 		if err != nil {
 			return nil, err
 		}
@@ -1209,6 +1216,7 @@ func (db *indexDB) searchGraphitePaths(ctx context.Context, tr TimeRange, qHead,
 			paths[p] = struct{}{}
 		}
 	}
+	qt.Printf("found %d graphite paths", len(paths))
 	return paths, nil
 }
 
