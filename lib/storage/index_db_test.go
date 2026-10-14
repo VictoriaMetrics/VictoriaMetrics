@@ -1420,17 +1420,22 @@ func testIndexDBContainsTimeRange(t *testing.T, disablePerDayIndex bool) {
 		t.Helper()
 		gotContains, gotTR := db.containsTimeRange(tr)
 		if gotContains != wantContains {
-			t.Fatalf("unexpected containsTimeRange() result: got %t, want %t", gotContains, wantContains)
+			t.Fatalf("unexpected containsTimeRange(%s) result: got %t, want %t", &tr, gotContains, wantContains)
 		}
 		if wantContains && disablePerDayIndex {
 			wantTR = globalIndexTimeRange
 		}
 		if gotTR != wantTR {
-			t.Fatalf("unexpected containsTimeRange() adjusted time range: got %s, want %s", &gotTR, &wantTR)
+			t.Fatalf("unexpected containsTimeRange(%s) adjusted time range: got %s, want %s", &tr, &gotTR, &wantTR)
 		}
 	}
 
 	var tr TimeRange
+
+	// Invalid time range: max ts is before min ts
+	tr.MinTimestamp = time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC).UnixMilli()
+	tr.MaxTimestamp = time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
+	f(tr, false, tr)
 
 	// Time range before indexDB time range.
 	tr.MinTimestamp = time.Date(2025, 12, 31, 0, 0, 0, 0, time.UTC).UnixMilli()
@@ -1461,6 +1466,12 @@ func testIndexDBContainsTimeRange(t *testing.T, disablePerDayIndex bool) {
 	// Time range is fully included into indexDB time range.
 	tr.MinTimestamp = time.Date(2026, 1, 10, 0, 0, 0, 0, time.UTC).UnixMilli()
 	tr.MaxTimestamp = time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC).UnixMilli()
+	f(tr, true, tr)
+
+	// Time range with the same min and max timestamp that is included into
+	// indexDB time range.
+	tr.MinTimestamp = time.Date(2026, 1, 10, 0, 0, 0, 0, time.UTC).UnixMilli()
+	tr.MaxTimestamp = tr.MinTimestamp
 	f(tr, true, tr)
 
 	// Time range is the last few days of the indexDB time range.

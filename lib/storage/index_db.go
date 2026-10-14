@@ -493,6 +493,10 @@ var indexItemsPool sync.Pool
 // time range it might have entries for. Otherwise, it will return false and the
 // unchanged original time range.
 func (db *indexDB) containsTimeRange(tr TimeRange) (bool, TimeRange) {
+	if tr.MinTimestamp > tr.MaxTimestamp {
+		return false, tr
+	}
+
 	if !db.tr.overlapsWith(tr) {
 		return false, tr
 	}
