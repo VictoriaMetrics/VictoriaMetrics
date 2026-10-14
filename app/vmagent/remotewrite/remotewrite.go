@@ -241,9 +241,7 @@ func Init() {
 	initStreamAggrConfigGlobal()
 
 	initRemoteWriteCtxs(*remoteWriteURLs)
-	if len(*remoteWriteQueuePaths) == 0 {
-		appmetrics.MustCreateUncleanShutdownMarker(*tmpDataPath)
-	}
+	appmetrics.MustCreateUncleanShutdownMarker(*tmpDataPath)
 
 	disableOnDiskQueues := []bool(*disableOnDiskQueue)
 	disableOnDiskQueueAny = slices.Contains(disableOnDiskQueues, true)
@@ -329,8 +327,10 @@ func initRemoteWriteCtxs(urls []string) {
 		rwctxs[i] = newRemoteWriteCtx(i, remoteWriteURL, sanitizedURL)
 		rwctxIdx[i] = i
 	}
-	if len(*remoteWriteQueuePaths) == 0 {
-		fs.RegisterPathFsMetrics(*tmpDataPath)
+	fs.MustMkdirIfNotExist(*tmpDataPath)
+	fs.RegisterPathFsMetrics(*tmpDataPath)
+	for _, queuePath := range *remoteWriteQueuePaths {
+		fs.RegisterPathFsMetrics(queuePath)
 	}
 
 	if slices.Contains(*enableMdx, true) && *shardByURL {
@@ -407,9 +407,7 @@ func Stop() {
 	if sl := dailySeriesLimiter; sl != nil {
 		sl.MustStop()
 	}
-	if len(*remoteWriteQueuePaths) == 0 {
-		appmetrics.MustRemoveUncleanShutdownMarker(*tmpDataPath)
-	}
+	appmetrics.MustRemoveUncleanShutdownMarker(*tmpDataPath)
 }
 
 // PushDropSamplesOnFailure pushes wr to the configured remote storage systems set via -remoteWrite.url
