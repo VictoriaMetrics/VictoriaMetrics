@@ -5606,7 +5606,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "Shows how many ongoing insertions (not API /write calls) on disk are taking place, where:\n* `max` - equal to number of CPUs;\n* `current` - current number of goroutines busy with inserting rows into underlying storage.\n\nEvery successful API /write call results into flush on disk. The `max` is an internal limit and can't be changed. It is always equal to the number of CPUs. \n\nWhen `current` hits `max` constantly, it means storage is overloaded and requires more CPU (see CPU usage) or disks with more IOPS (see disk writes and reads panels in Resource Usage row).",
+          "description": "Shows the number of insert requests (remote write, InfluxDB, `/api/v1/import`, etc.) that are being processed at the same time, where:\n* `max` - the maximum number of requests that can be processed in parallel;\n* `current` - the number of requests currently reading data or waiting to pass it to the unmarshal workers.\n\nThe `max` value is controlled by the `-maxConcurrentInserts` flag (2 * available CPUs by default). Time spent waiting on the network is not counted. Received data is buffered in memory and flushed to disk periodically (see `-inmemoryDataFlushInterval`), not on every request.\n\nIf `current` consistently reaches `max`, the storage can't keep up with the ingestion rate. It likely requires more CPU (see CPU usage) or is slowed down by background merges on slow disks (see disk read/write panels in the Resource Usage row).",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -5742,7 +5742,7 @@
               "refId": "B"
             }
           ],
-          "title": "Concurrent flushes on disk ($instance)",
+          "title": "Concurrent inserts ($instance)",
           "type": "timeseries"
         },
         {
@@ -7138,7 +7138,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "Shows how many ongoing insertions (not API /write calls) on disk are taking place, where:\n* `max` - equal to number of CPUs;\n* `current` - current number of goroutines busy with inserting rows into underlying storage.\n\nEvery successful API /write call results into flush on disk. However, these two actions are separated and controlled via different concurrency limiters. The `max` on this panel can't be changed and always equal to number of CPUs. \n\nWhen `current` hits `max` constantly, it means storage is overloaded and requires more CPU.\n\n",
+          "description": "Shows the number of insert requests (remote write, InfluxDB, `/api/v1/import`, etc.) that are being processed at the same time, where:\n* `max` - the maximum number of requests that can be processed in parallel;\n* `current` - the number of requests currently reading data or waiting to pass it to the unmarshal workers.\n\nThe `max` value is controlled by the `-maxConcurrentInserts` flag (2 * available CPUs by default). Time spent waiting on the network is not counted. Received data is buffered in memory and flushed to disk periodically (see `-inmemoryDataFlushInterval`), not on every request.\n\nIf `current` consistently reaches `max`, the storage can't keep up with the ingestion rate. It likely requires more CPU (see CPU usage) or is slowed down by background merges on slow disks (see disk read/write panels in the Resource Usage row).",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -7268,7 +7268,7 @@
               "refId": "B"
             }
           ],
-          "title": "Concurrent flushes on disk {$instance}",
+          "title": "Concurrent inserts ($instance)",
           "type": "timeseries"
         },
         {
