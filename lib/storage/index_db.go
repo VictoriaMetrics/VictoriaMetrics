@@ -1208,7 +1208,6 @@ func (db *indexDB) searchGraphitePaths(ctx context.Context, qt *querytracer.Trac
 		}
 		qHead = append(qHead[:qHeadLen], suffix...)
 		ps, err := db.searchGraphitePaths(ctx, qt, tr, qHead, qTail, maxPaths)
-		qt.Done()
 		if err != nil {
 			return nil, err
 		}
