@@ -68,13 +68,16 @@ func (b *Backup) Run() error {
 		origin = &fsnil.FS{}
 	}
 
+	if err := checkNotSharedRepo(dst); err != nil {
+		return err
+	}
 	if err := dst.DeleteFile(backupnames.BackupCompleteFilename); err != nil {
 		return fmt.Errorf("cannot delete `backup complete` file at %s: %w", dst, err)
 	}
 	if err := runBackup(src, dst, origin, concurrency); err != nil {
 		return err
 	}
-	if err := storeMetadata(src, dst); err != nil {
+	if _, err := storeMetadata(src, dst); err != nil {
 		return fmt.Errorf("cannot store backup metadata: %w", err)
 	}
 	if err := dst.CreateFile(backupnames.BackupCompleteFilename, nil); err != nil {
@@ -84,11 +87,11 @@ func (b *Backup) Run() error {
 	return nil
 }
 
-func storeMetadata(src *fslocal.FS, dst common.RemoteFS) error {
+func storeMetadata(src *fslocal.FS, dst common.RemoteFS) (*BackupMetadata, error) {
 	snapshotName := filepath.Base(src.Dir)
 	snapshotTime, err := snapshotutil.Time(snapshotName)
 	if err != nil {
-		return fmt.Errorf("cannot decode snapshot name %q: %w", snapshotName, err)
+		return nil, fmt.Errorf("cannot decode snapshot name %q: %w", snapshotName, err)
 	}
 
 	d := BackupMetadata{
@@ -98,14 +101,14 @@ func storeMetadata(src *fslocal.FS, dst common.RemoteFS) error {
 
 	metadata, err := json.Marshal(d)
 	if err != nil {
-		return fmt.Errorf("cannot marshal metadata: %w", err)
+		return nil, fmt.Errorf("cannot marshal metadata: %w", err)
 	}
 
 	if err := dst.CreateFile(backupnames.BackupMetadataFilename, metadata); err != nil {
-		return fmt.Errorf("cannot create `backup complete` file at %s: %w", dst, err)
+		return nil, fmt.Errorf("cannot create `backup complete` file at %s: %w", dst, err)
 	}
 
-	return nil
+	return &d, nil
 }
 
 func runBackup(src *fslocal.FS, dst common.RemoteFS, origin common.OriginFS, concurrency int) error {
@@ -147,44 +150,8 @@ func runBackup(src *fslocal.FS, dst common.RemoteFS, origin common.OriginFS, con
 
 	srcCopyParts := common.PartsDifference(partsToCopy, originParts)
 	uploadSize := getPartsSize(srcCopyParts)
-	uploadSizeHuman := formatutil.HumanizeBytes(float64(uploadSize))
-	if len(srcCopyParts) > 0 {
-		logger.Infof("uploading %d parts from %s to %s", len(srcCopyParts), src, dst)
-		var bytesUploaded atomic.Uint64
-		err = runParallel(concurrency, srcCopyParts, func(p common.Part) error {
-			logger.Infof("uploading %s from %s to %s", &p, src, dst)
-			rc, err := src.NewReadCloser(p)
-			if err != nil {
-				return fmt.Errorf("cannot create reader for %s from %s: %w", &p, src, err)
-			}
-			sr := &statReader{
-				r:         rc,
-				bytesRead: &bytesUploaded,
-			}
-			if err := dst.UploadPart(p, sr); err != nil {
-				return fmt.Errorf("cannot upload %s to %s: %w", &p, dst, err)
-			}
-			if err = rc.Close(); err != nil {
-				return fmt.Errorf("cannot close reader for %s from %s: %w", &p, src, err)
-			}
-			return nil
-		}, func(elapsed time.Duration) {
-			if elapsed.Seconds() <= 0 {
-				// The only way for this to happen is when the operation is immediately canceled.
-				// There is no need to log progress in this case, and this prevents division by zero below.
-				return
-			}
-			n := bytesUploaded.Load()
-			uploadedHuman := formatutil.HumanizeBytes(float64(n))
-			prc := 100 * float64(n) / float64(uploadSize)
-			speed := float64(n) / elapsed.Seconds()
-			estimatedTotal := time.Duration(float64(uploadSize)/speed) * time.Second
-			eta := max(estimatedTotal-elapsed, 0)
-			logger.Infof("uploaded %s out of %s bytes (%.2f%%) from %s to %s in %s; estimated time to completion: %s", uploadedHuman, uploadSizeHuman, prc, src, dst, elapsed, eta)
-		})
-		if err != nil {
-			return err
-		}
+	if err := uploadParts(src, dst, srcCopyParts, concurrency); err != nil {
+		return err
 	}
 
 	logger.Infof("backup from %s to %s with origin %s is complete; backed up %d bytes in %.3f seconds; server-side deleted %d bytes; "+
@@ -192,6 +159,47 @@ func runBackup(src *fslocal.FS, dst common.RemoteFS, origin common.OriginFS, con
 		src, dst, origin, backupSize, time.Since(startTime).Seconds(), deleteSize, copySize, uploadSize)
 
 	return nil
+}
+
+func uploadParts(src *fslocal.FS, dst common.RemoteFS, parts []common.Part, concurrency int) error {
+	if len(parts) == 0 {
+		return nil
+	}
+	uploadSize := getPartsSize(parts)
+	uploadSizeHuman := formatutil.HumanizeBytes(float64(uploadSize))
+	logger.Infof("uploading %d parts from %s to %s", len(parts), src, dst)
+	var bytesUploaded atomic.Uint64
+	return runParallel(concurrency, parts, func(p common.Part) error {
+		logger.Infof("uploading %s from %s to %s", &p, src, dst)
+		rc, err := src.NewReadCloser(p)
+		if err != nil {
+			return fmt.Errorf("cannot create reader for %s from %s: %w", &p, src, err)
+		}
+		sr := &statReader{
+			r:         rc,
+			bytesRead: &bytesUploaded,
+		}
+		if err := dst.UploadPart(p, sr); err != nil {
+			return fmt.Errorf("cannot upload %s to %s: %w", &p, dst, err)
+		}
+		if err = rc.Close(); err != nil {
+			return fmt.Errorf("cannot close reader for %s from %s: %w", &p, src, err)
+		}
+		return nil
+	}, func(elapsed time.Duration) {
+		if elapsed.Seconds() <= 0 {
+			// The only way for this to happen is when the operation is immediately canceled.
+			// There is no need to log progress in this case, and this prevents division by zero below.
+			return
+		}
+		n := bytesUploaded.Load()
+		uploadedHuman := formatutil.HumanizeBytes(float64(n))
+		prc := 100 * float64(n) / float64(uploadSize)
+		speed := float64(n) / elapsed.Seconds()
+		estimatedTotal := time.Duration(float64(uploadSize)/speed) * time.Second
+		eta := max(estimatedTotal-elapsed, 0)
+		logger.Infof("uploaded %s out of %s bytes (%.2f%%) from %s to %s in %s; estimated time to completion: %s", uploadedHuman, uploadSizeHuman, prc, src, dst, elapsed, eta)
+	})
 }
 
 type statReader struct {

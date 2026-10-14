@@ -21,4 +21,10 @@ const (
 
 	// BackupMetadataFilename is a filename, which contains metadata for the backup.
 	BackupMetadataFilename = "backup_metadata.ignore"
+
+	// BackupManifestFilename is a filename, which contains the list of parts for the backup in the shared layout.
+	BackupManifestFilename = "backup_manifest.ignore"
+
+	// SharedIndexFilename is a filename at the root of the shared layout, which contains the list of committed backups.
+	SharedIndexFilename = "backups_index.ignore"
 )

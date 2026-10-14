@@ -40,6 +40,9 @@ Run the following command to restore backup from the given `-src` into the given
     See [these docs](#advanced-usage) for details.
   * Local filesystem. Example: `-src=fs://</absolute/path/to/backup>`. Note that `vmbackup` prevents from storing the backup
     into the directory pointed by `-storageDataPath` command-line flag, since this directory should be managed solely by VictoriaMetrics or `vmstorage`.
+  For backups with the [shared layout](https://docs.victoriametrics.com/victoriametrics/vmbackup/#shared-layout),
+  `-src` may point to the root of the shared layout in order to restore the newest backup,
+  or to `<root>/backups/<snapshotName>` in order to restore the given backup.
 * `<local/path/to/restore>` is the path to folder where data will be restored. This folder must be passed
   to VictoriaMetrics in `-storageDataPath` command-line flag after the restore process is complete.
 

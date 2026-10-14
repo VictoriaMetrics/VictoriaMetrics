@@ -42,6 +42,13 @@ var (
 	origin            = flag.String("origin", "", "Optional origin directory on the remote storage with old backup for server-side copying when performing full backup. This speeds up full backups")
 	concurrency       = flag.Int("concurrency", 10, "The number of concurrent workers. Higher concurrency may reduce backup duration")
 	maxBytesPerSecond = flagutil.NewBytes("maxBytesPerSecond", 0, "The maximum upload speed. There is no limit if it is set to 0")
+
+	backupLayout = flag.String("backupLayout", "classic", "Layout for the backup at -dst. Supported values: classic, shared. "+
+		"The shared layout stores every data part only once and references it from many backups. It is experimental. "+
+		"See https://docs.victoriametrics.com/victoriametrics/vmbackup/#shared-layout")
+	keepLastBackups = flag.Int("keepLastBackups", 0, "The number of the newest backups to keep at -dst with -backupLayout=shared. "+
+		"Older backups and the data parts, which aren't referenced by the kept backups, are deleted after every backup. All the backups are kept if it is set to 0")
+	gcDryRun = flag.Bool("gc.dryRun", false, "Whether to only log the backups and data parts, which would be deleted at -dst with -backupLayout=shared")
 )
 
 func main() {
@@ -127,6 +134,13 @@ func main() {
 }
 
 func makeBackup(ctx context.Context) error {
+	switch *backupLayout {
+	case "classic":
+	case "shared":
+		return makeSharedBackup(ctx)
+	default:
+		return fmt.Errorf("unsupported -backupLayout=%q; supported values: classic, shared", *backupLayout)
+	}
 	dstFS, err := newDstFS(ctx)
 	if err != nil {
 		return err
@@ -170,6 +184,40 @@ func makeBackup(ctx context.Context) error {
 	}
 	dstFS.MustStop()
 	return nil
+}
+
+func makeSharedBackup(ctx context.Context) error {
+	if *snapshotName == "" {
+		return fmt.Errorf("-snapshotName or -snapshot.createURL must be set with -backupLayout=shared")
+	}
+	if *origin != "" {
+		return fmt.Errorf("-origin cannot be used with -backupLayout=shared")
+	}
+	if *keepLastBackups < 0 {
+		return fmt.Errorf("-keepLastBackups cannot be negative; got %d", *keepLastBackups)
+	}
+	if hasFilepathPrefix(*dst, *storageDataPath) {
+		return fmt.Errorf("-dst=%q can not point to the directory with VictoriaMetrics data (aka -storageDataPath=%q)", *dst, *storageDataPath)
+	}
+	srcFS, err := newSrcFS()
+	if err != nil {
+		return err
+	}
+	defer srcFS.MustStop()
+	repo, err := actions.NewSharedRepo(ctx, *dst)
+	if err != nil {
+		return fmt.Errorf("cannot parse `-dst`=%q: %w", *dst, err)
+	}
+	defer repo.MustStop()
+	a := &actions.SharedBackup{
+		Concurrency:     *concurrency,
+		Src:             srcFS,
+		Repo:            repo,
+		Name:            *snapshotName,
+		KeepLastBackups: *keepLastBackups,
+		GCDryRun:        *gcDryRun,
+	}
+	return a.Run()
 }
 
 func usage() {

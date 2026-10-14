@@ -164,6 +164,51 @@ perform a full object copy during server-side copying, which be slow and expensi
 
 If the `-dst` already contains some data, then its' contents is synced with the `-origin` data. This allows making incremental server-side copies of backups.
 
+### Shared layout
+
+The shared layout is experimental. Enable it with `-backupLayout=shared`.
+
+With the [classic layout](#incremental-backups), every backup at `-dst` is a full copy of the data.
+If you keep many backups, then the same data is stored many times.
+With the shared layout, `-dst` contains many backups, and every data part is stored only once:
+
+```
+<dst>/backups_index.ignore       - the list of complete backups
+<dst>/store/...                  - data parts, which are shared by the backups
+<dst>/backups/<snapshotName>/... - parts.json files, metadata and the list of parts for every backup
+```
+
+VictoriaMetrics never changes data parts after it creates them. Thus, a new backup uploads only the data parts, which are not in `<dst>/store` yet.
+Old backups do not need copies of the data. The shared layout saves storage costs, and it also saves replication costs
+for object storage with cross-region replication.
+
+The following command adds a backup to `gs://<bucket>/repo`. Run it, for example, every hour:
+
+```sh
+./vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshot.createURL=http://localhost:8428/snapshot/create \
+  -dst=gs://<bucket>/repo -backupLayout=shared -keepLastBackups=48
+```
+
+Every backup gets the name of its snapshot. After every backup, `vmbackup` deletes the oldest backups above `-keepLastBackups`.
+Then it deletes the data parts, which are not referenced by the remaining backups.
+Set `-gc.dryRun` to log what would be deleted without deletion.
+
+Use [vmrestore](https://docs.victoriametrics.com/victoriametrics/vmrestore/) to restore the backup. `vmrestore` detects the shared layout automatically:
+
+* `-src=gs://<bucket>/repo` restores the newest backup. `vmrestore` logs the names of all the available backups.
+* `-src=gs://<bucket>/repo/backups/<snapshotName>` restores the backup with the given name.
+
+Limitations:
+
+* Only one `vmbackup` or `vmrestore` process may use the same `-dst` at a time. Otherwise, the backup may become broken.
+  Make sure that the next scheduled backup does not start before the previous backup is complete.
+* Every `vmstorage` node in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) must use its own `-dst`.
+* `-origin` is not supported.
+* You cannot restore the backup with `rsync` or another file copy tool. Use `vmrestore`.
+* Do not change or delete files at `-dst` manually.
+* If object versioning is enabled in the storage, then the deleted objects continue to use the storage space.
+  See [these docs](#permanent-deletion-of-objects-in-s3-compatible-storages).
+
 ## How does it work?
 
 The backup algorithm is the following:
@@ -336,6 +381,8 @@ Refer to the respective documentation for your object storage provider for more 
 Run `vmbackup -help` in order to see all the available options:
 
 ```shellhelp
+  -backupLayout string
+     Layout for the backup at -dst. Supported values: classic, shared. The shared layout stores every data part only once and references it from many backups. It is experimental. See https://docs.victoriametrics.com/victoriametrics/vmbackup/#shared-layout (default "classic")
   -concurrency int
      The number of concurrent workers. Higher concurrency may reduce backup duration (default 10)
   -configFilePath string
@@ -373,6 +420,8 @@ Run `vmbackup -help` in order to see all the available options:
      Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -fs.maxConcurrency int
      The maximum number of concurrent goroutines to work with files; smaller values may help reducing Go scheduling latency on systems with small number of CPU cores; higher values may help reducing data ingestion latency on systems with high-latency storage such as NFS or Ceph (default 64)
+  -gc.dryRun
+     Whether to only log the backups and data parts, which would be deleted at -dst with -backupLayout=shared
   -http.connTimeout duration
      Incoming connections to -httpListenAddr are closed after the configured timeout. This may help evenly spreading load among a cluster of services behind TCP-level load balancer. Zero value disables closing of incoming connections (default 2m0s)
   -http.disableCORS
@@ -410,6 +459,8 @@ Run `vmbackup -help` in order to see all the available options:
      Whether to disable caches for interned strings. This may reduce memory usage at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringCacheExpireDuration and -internStringMaxLen
   -internStringMaxLen int
      The maximum length for strings to intern. A lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringDisableCache and -internStringCacheExpireDuration (default 500)
+  -keepLastBackups int
+     The number of the newest backups to keep at -dst with -backupLayout=shared. Older backups and the data parts, which aren't referenced by the kept backups, are deleted after every backup. All the backups are kept if it is set to 0
   -license string
      License key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/ . Trial Enterprise license can be obtained from https://victoriametrics.com/products/enterprise/trial/ . This flag is available only in Enterprise binaries. The license key can be also passed via file specified by -licenseFile command-line flag
   -license.forceOffline

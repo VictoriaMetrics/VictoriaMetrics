@@ -32,6 +32,9 @@ func (b *RemoteBackupCopy) Run() error {
 	src := b.Src
 	dst := b.Dst
 
+	if err := checkNotSharedRepo(dst); err != nil {
+		return err
+	}
 	if err := dst.DeleteFile(backupnames.BackupCompleteFilename); err != nil {
 		return fmt.Errorf("cannot delete `backup complete` file at %s: %w", dst, err)
 	}

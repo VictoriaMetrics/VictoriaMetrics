@@ -184,10 +184,10 @@ func (tc *TestCase) MustStartVmauth(instance string, flags []string, configFileY
 // MustStartVmbackup is a test helper that starts an instance of vmbackup
 // and waits until the app exits. It fails the test if the app fails to start or
 // exits with non zero code.
-func (tc *TestCase) MustStartVmbackup(instance, storageDataPath, snapshotCreateURL, dst string) {
+func (tc *TestCase) MustStartVmbackup(instance, storageDataPath, snapshotCreateURL, dst string, extraFlags ...string) {
 	tc.t.Helper()
 
-	if err := StartVmbackup(instance, storageDataPath, snapshotCreateURL, dst, tc.output); err != nil {
+	if err := StartVmbackup(instance, storageDataPath, snapshotCreateURL, dst, tc.output, extraFlags...); err != nil {
 		tc.t.Fatalf("vmbackup %q failed to start or exited with non-zero code: %v", instance, err)
 	}
 
@@ -199,10 +199,10 @@ func (tc *TestCase) MustStartVmbackup(instance, storageDataPath, snapshotCreateU
 // MustStartVmrestore is a test helper that starts an instance of vmrestore
 // and waits until the app exits. It fails the test if the app fails to start or
 // exits with non zero code.
-func (tc *TestCase) MustStartVmrestore(instance, src, storageDataPath string) {
+func (tc *TestCase) MustStartVmrestore(instance, src, storageDataPath string, extraFlags ...string) {
 	tc.t.Helper()
 
-	if err := StartVmrestore(instance, src, storageDataPath, tc.output); err != nil {
+	if err := StartVmrestore(instance, src, storageDataPath, tc.output, extraFlags...); err != nil {
 		tc.t.Fatalf("vmrestore %q failed to start or exited with non-zero code: %v", instance, err)
 	}
 

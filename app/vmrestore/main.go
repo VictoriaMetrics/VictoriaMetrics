@@ -108,9 +108,9 @@ func newDstFS() (*fslocal.FS, error) {
 }
 
 func newSrcFS(ctx context.Context) (common.RemoteFS, error) {
-	fs, err := actions.NewRemoteFS(ctx, *src, nil)
+	fs, err := actions.NewRestoreSrcFS(ctx, *src)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse `-src`=%q: %w", *src, err)
+		return nil, fmt.Errorf("cannot open backup at `-src`=%q: %w", *src, err)
 	}
 	return fs, nil
 }

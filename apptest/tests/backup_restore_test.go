@@ -1,7 +1,9 @@
 package tests
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"slices"
 	"testing"
@@ -15,9 +17,18 @@ type testBackupRestoreOpts struct {
 	stopSUT            func()
 	storageDataPaths   []string
 	snapshotCreateURLs func(apptest.PrometheusWriteQuerier) []string
+	sharedLayout       bool
 }
 
 func TestSingleBackupRestore(t *testing.T) {
+	testSingleBackupRestore(t, false)
+}
+
+func TestSingleBackupRestoreSharedLayout(t *testing.T) {
+	testSingleBackupRestore(t, true)
+}
+
+func testSingleBackupRestore(t *testing.T, sharedLayout bool) {
 	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 
@@ -42,12 +53,21 @@ func TestSingleBackupRestore(t *testing.T) {
 				sut.(*apptest.Vmsingle).SnapshotCreateURL(),
 			}
 		},
+		sharedLayout: sharedLayout,
 	}
 
 	testBackupRestore(tc, opts)
 }
 
 func TestClusterBackupRestore(t *testing.T) {
+	testClusterBackupRestore(t, false)
+}
+
+func TestClusterBackupRestoreSharedLayout(t *testing.T) {
+	testClusterBackupRestore(t, true)
+}
+
+func testClusterBackupRestore(t *testing.T, sharedLayout bool) {
 	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 
@@ -92,6 +112,7 @@ func TestClusterBackupRestore(t *testing.T) {
 				c.Vmstorages[1].SnapshotCreateURL(),
 			}
 		},
+		sharedLayout: sharedLayout,
 	}
 
 	testBackupRestore(tc, opts)
@@ -185,13 +206,23 @@ func testBackupRestore(tc *apptest.TestCase, opts testBackupRestoreOpts) {
 		})
 	}
 
+	// sharedBackupNames maps the test backup name and the replica to the backup name in the shared layout.
+	sharedBackupNames := make(map[string]string)
+
 	createBackup := func(sut apptest.PrometheusWriteQuerier, name string) {
 		for i, storageDataPath := range opts.storageDataPaths {
 			replica := fmt.Sprintf("replica-%d", i)
 			instance := fmt.Sprintf("vmbackup-%s-%s", name, replica)
 			snapshotCreateURL := opts.snapshotCreateURLs(sut)[i]
-			backupPath := "fs://" + filepath.Join(backupBaseDir, name, replica)
-			tc.MustStartVmbackup(instance, storageDataPath, snapshotCreateURL, backupPath)
+			if !opts.sharedLayout {
+				backupPath := "fs://" + filepath.Join(backupBaseDir, name, replica)
+				tc.MustStartVmbackup(instance, storageDataPath, snapshotCreateURL, backupPath)
+				continue
+			}
+			// All the backups for a replica share the same repo.
+			repoDir := filepath.Join(backupBaseDir, replica)
+			tc.MustStartVmbackup(instance, storageDataPath, snapshotCreateURL, "fs://"+repoDir, "-backupLayout=shared")
+			sharedBackupNames[name+"/"+replica] = mustReadNewestSharedBackupName(t, repoDir)
 		}
 	}
 
@@ -200,6 +231,9 @@ func testBackupRestore(tc *apptest.TestCase, opts testBackupRestoreOpts) {
 			replica := fmt.Sprintf("replica-%d", i)
 			instance := fmt.Sprintf("vmrestore-%s-%s", name, replica)
 			backupPath := "fs://" + filepath.Join(backupBaseDir, name, replica)
+			if opts.sharedLayout {
+				backupPath = "fs://" + filepath.Join(backupBaseDir, replica, "backups", sharedBackupNames[name+"/"+replica])
+			}
 			tc.MustStartVmrestore(instance, backupPath, storageDataPath)
 		}
 	}
@@ -265,4 +299,24 @@ func testBackupRestore(tc *apptest.TestCase, opts testBackupRestoreOpts) {
 	assertSeries(sut, `{__name__=~"batch(1|2).*"}`, startFuture, endFuture, batch1Future.wantSeries)
 	assertQueryResults(sut, `{__name__=~"batch(1|2).*"}`, start, end, step, batch1.wantQueryResults)
 	assertQueryResults(sut, `{__name__=~"batch(1|2).*"}`, startFuture, endFuture, stepFuture, batch1Future.wantQueryResults)
+}
+
+func mustReadNewestSharedBackupName(t *testing.T, repoDir string) string {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(repoDir, "backups_index.ignore"))
+	if err != nil {
+		t.Fatalf("cannot read backups index: %s", err)
+	}
+	var idx struct {
+		Backups []struct {
+			Name string `json:"name"`
+		} `json:"backups"`
+	}
+	if err := json.Unmarshal(data, &idx); err != nil {
+		t.Fatalf("cannot parse backups index: %s", err)
+	}
+	if len(idx.Backups) == 0 {
+		t.Fatalf("backups index at %q is empty", repoDir)
+	}
+	return idx.Backups[len(idx.Backups)-1].Name
 }
