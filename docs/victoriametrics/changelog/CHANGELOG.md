@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): prevent metric metadata drops after transient RPC handshake timeouts when connecting to `vmstorage`. See [#11762](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11762).
+
 ## [v1.154.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.154.0)
 
 Released at 2026-10-12
