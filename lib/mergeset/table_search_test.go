@@ -39,11 +39,10 @@ func TestTableSearchWithPartFilter(t *testing.T) {
 		tb.AddItems([][]byte{item})
 	}
 	tb.DebugFlush()
-	var tm TableMetrics
-	tb.UpdateMetrics(&tm)
-	if tm.InmemoryPartsCount < 2 {
-		t.Fatalf("expected multiple parts before merge; got %d", tm.InmemoryPartsCount)
-	}
+	// The part count is not asserted here: DebugFlush does not wait for the
+	// asynchronous in-memory merger, so the flushed parts may already be merged
+	// into one. The filter behavior below does not depend on how many parts the
+	// search covers, as long as every part carries a filter.
 	assertFilterSearch := func(tb *Table) {
 		t.Helper()
 		var ts TableSearch

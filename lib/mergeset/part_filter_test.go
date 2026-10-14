@@ -119,7 +119,7 @@ func TestInmemoryPartFilterSizesFromFilterableItems(t *testing.T) {
 	if got >= uint64(100*partFilterBitsPerItem/8) {
 		t.Fatalf("the filter was not sized from filterable items; got %d bytes", got)
 	}
-	if want < got {
+	if got < want {
 		t.Fatalf("the filter is smaller than the minimum segment size; got %d bytes; want at least %d", got, want)
 	}
 	if got := mp.ph.filter.segmentsCount(); got != 1 {

@@ -953,9 +953,10 @@ Some workloads may need fine-grained resource usage limits. In these cases the f
 This can reduce write-path CPU and disk reads when a workload creates many new series. The filter is enabled by default and only skips
 lookups for definite negatives; existing-series resolution and deleted metric ID handling continue through the regular index logic.
 
-Each part filter is split into fixed-size segments. Only the small filter directory is kept in memory, while the segments are read from
-disk on demand and are shared between all parts under the `indexdb/partFilterSegments` cache budget, so the memory occupied by the filters
-does not grow with the number of parts or with the retention period. When the budget is exhausted, a segment cannot be read, or a segment
+For file-backed parts each part filter is split into fixed-size segments. Only the small filter directory is kept in memory, while the
+segments are read from disk on demand and are shared between all parts under the `indexdb/partFilterSegments` cache budget, so the memory
+occupied by these filters does not grow with the number of parts or with the retention period. Filters of in-memory parts keep their
+segments in memory, since the part data itself resides in memory at that point. When the budget is exhausted, a segment cannot be read, or a segment
 checksum doesn't match, the part is searched with the regular index logic instead of being filtered, so such cases only reduce the
 optimization, they cannot change the returned result.
 

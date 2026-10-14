@@ -685,7 +685,10 @@ func TestIndexDBTSIDLookupBloomFilterAcrossPartitions(t *testing.T) {
 		return MetricRow{MetricNameRaw: mn.marshalRaw(nil), Timestamp: timestamp, Value: 1}.MetricNameRaw
 	}
 	now := time.Now()
-	oldTimestamp := now.AddDate(0, -1, 0).UnixMilli()
+	// Anchor to the first day of the previous month: AddDate normalizes
+	// out-of-range days, so March 31 minus one month becomes March 3 and both
+	// rows would land in the same partition.
+	oldTimestamp := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC).AddDate(0, -1, 0).UnixMilli()
 	currentTimestamp := now.UnixMilli()
 	oldRow := MetricRow{MetricNameRaw: newMetric("rotated-old-series", oldTimestamp), Timestamp: oldTimestamp, Value: 1}
 	currentRow := MetricRow{MetricNameRaw: newMetric("rotated-current-series", currentTimestamp), Timestamp: currentTimestamp, Value: 1}
@@ -761,11 +764,12 @@ func TestIndexDB(t *testing.T) {
 		missingMN.MetricGroup = []byte("missing-metric-group")
 		missingMN.sortTags()
 		is := db.getIndexSearch()
+		skippedBefore := db.tsidLookupFilterSkipped.Load()
 		if is.getTSIDByMetricName(new(TSID), missingMN.Marshal(nil), date) {
 			t.Fatalf("unexpected TSID found for missing metric name")
 		}
 		db.putIndexSearch(is)
-		if got := db.tsidLookupFilterSkipped.Load(); got == 0 {
+		if db.tsidLookupFilterSkipped.Load() == skippedBefore {
 			t.Fatalf("expected missing metric lookup to be skipped by part filters")
 		}
 	}

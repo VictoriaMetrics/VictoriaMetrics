@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -570,6 +571,9 @@ func benchmarkTSIDMissLookups(b *testing.B, db *indexDB, date uint64, metricGrou
 	b.Helper()
 	db.s.disableTSIDLookupBloomFilter = !useFilter
 	b.ReportAllocs()
+	// Setup and the metric snapshots below walk all the parts, so keep them out
+	// of the measured lookup time.
+	b.StopTimer()
 	b.ReportMetric(float64(tableMetrics.FilePartsCount), "parts")
 	b.ReportMetric(float64(coldPercent), "cold-percent")
 	b.ReportMetric(float64(tableMetrics.PartFilterFileSizeBytes), "filter-disk-bytes")
@@ -579,6 +583,10 @@ func benchmarkTSIDMissLookups(b *testing.B, db *indexDB, date uint64, metricGrou
 	filterFallbackBefore := db.tsidLookupFilterFallbackUnfiltered.Load() + db.tsidLookupFilterFallbackBudget.Load() + db.tsidLookupFilterFallbackRead.Load() + db.tsidLookupFilterFallbackVerify.Load()
 	var tableMetricsBefore mergeset.TableMetrics
 	db.tb.UpdateMetrics(&tableMetricsBefore)
+	b.StartTimer()
+	// Give every worker a distinct sequence: sharing one would make the workers
+	// repeat the same cold metric names and warm the shared caches for each other.
+	var workerSeq atomic.Uint64
 	b.RunParallel(func(pb *testing.PB) {
 		is := db.getIndexSearch()
 		defer db.putIndexSearch(is)
@@ -588,7 +596,7 @@ func benchmarkTSIDMissLookups(b *testing.B, db *indexDB, date uint64, metricGrou
 		mnLocal.sortTags()
 		var metricName []byte
 		var tsidLocal TSID
-		sequence := uint64(1)
+		sequence := workerSeq.Add(1) * 0x9E3779B97F4A7C15
 		iteration := 0
 		for pb.Next() {
 			iteration++
@@ -606,6 +614,7 @@ func benchmarkTSIDMissLookups(b *testing.B, db *indexDB, date uint64, metricGrou
 			}
 		}
 	})
+	b.StopTimer()
 	if useFilter && b.N > 0 {
 		skipped := db.tsidLookupFilterSkipped.Load() - filterSkippedBefore
 		b.ReportMetric(float64(skipped)/float64(b.N), "filter-skips/op")

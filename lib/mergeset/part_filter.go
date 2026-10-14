@@ -65,9 +65,8 @@ var (
 	//
 	// It is derived from partFilterMaxSegments instead of being maintained separately,
 	// so the two cannot drift apart: a filter of the maximum size always consists of
-	// segments no bigger than partFilterTargetSegmentBytes. A bigger segment would be
-	// read from disk on every filter cache miss, while isPartFilterCacheUsable checks
-	// the cache budget against partFilterTargetSegmentBytes.
+	// segments no bigger than partFilterTargetSegmentBytes. A bigger segment would not
+	// fit into a single cache shard, so it would be read from disk on every lookup.
 	//
 	// It is a variable instead of a constant only to let tests and benchmarks
 	// compare different limits. Production code must not change it.
@@ -79,11 +78,10 @@ var (
 //
 // It is used by tests and benchmarks which compare different limits.
 //
-// maxBytes must not exceed maxSegments*partFilterTargetSegmentBytes. A bigger ratio
-// makes a filter segment bigger than partFilterTargetSegmentBytes, which is the segment
-// size isPartFilterCacheUsable checks the cache budget against, so every lookup would
-// read the segment from disk again without reporting any fallback. The function panics
-// on such a limit instead of silently producing a slower filter.
+// maxBytes must not exceed maxSegments*partFilterTargetSegmentBytes, otherwise a filter
+// segment grows beyond the size a single cache shard can hold, so every lookup would read
+// it from disk again without reporting any fallback. The function panics on such a limit
+// instead of silently producing a slower filter.
 func SetPartFilterSizeLimit(maxBytes uint64, maxSegments int) func() {
 	mustValidatePartFilterLimits(maxBytes, maxSegments)
 	prevMaxBytes, prevMaxSegments := partFilterMaxBytes, partFilterMaxSegments
@@ -99,11 +97,15 @@ func mustValidatePartFilterLimits(maxBytes uint64, maxSegments int) {
 	if maxSegments < 1 {
 		logger.Panicf("BUG: a part filter must have at least one segment; got maxSegments=%d", maxSegments)
 	}
+	if maxBytes < uint64(partFilterMinSegmentBytes) {
+		logger.Panicf("BUG: maxBytes=%d is smaller than the minimum segment size %d, so the filter would exceed the requested limit; "+
+			"increase maxBytes or use partFilterMinSegmentBytes", maxBytes, partFilterMinSegmentBytes)
+	}
 	if maxBytes <= uint64(maxSegments)*uint64(partFilterTargetSegmentBytes) {
 		return
 	}
 	logger.Panicf("BUG: partFilterMaxBytes=%d exceeds partFilterMaxSegments=%d multiplied by partFilterTargetSegmentBytes=%d, "+
-		"so a filter segment would grow above the segment size the part filter cache budget is checked against in isPartFilterCacheUsable; "+
+		"so a filter segment would not fit into a single part filter cache shard and would be re-read from disk on every lookup; "+
 		"either increase partFilterMaxSegments to at least %d or reduce partFilterMaxBytes",
 		maxBytes, maxSegments, partFilterTargetSegmentBytes,
 		(maxBytes+uint64(partFilterTargetSegmentBytes)-1)/uint64(partFilterTargetSegmentBytes))
@@ -145,27 +147,6 @@ var (
 
 	partFilterBudgetWarned atomic.Bool
 )
-
-// isPartFilterCacheUsable reports whether the part filter cache can hold a filter segment.
-//
-// The cache splits its budget between shards, so a segment is cached only when it fits
-// into a single shard. Otherwise it would be evicted right after being stored, and every
-// lookup would re-read it from disk. In this case the parts are searched instead of being
-// filtered.
-//
-// The check is performed on every call, so it reflects the current cache budget.
-func isPartFilterCacheUsable() bool {
-	if pfbCache.CanStoreBlock(partFilterTargetSegmentBytes) {
-		return true
-	}
-	if partFilterBudgetWarned.CompareAndSwap(false, true) {
-		logger.Warnf("part filters are disabled, since the total indexdb/partFilterSegments cache budget %d bytes "+
-			"doesn't allow a single cache shard to hold a %d byte filter segment; "+
-			"searched parts may contain series which do not exist there",
-			getMaxPartFilterCacheSize(), partFilterTargetSegmentBytes)
-	}
-	return false
-}
 
 // partFilterDecision describes the outcome of a part filter check.
 type partFilterDecision uint8
@@ -354,11 +335,21 @@ func (pf *partFilter) mayContainHashes(p *part, h, h1, h2 uint64) partFilterDeci
 		}
 		return partFilterNegative
 	}
-	if !isPartFilterCacheUsable() {
+	idx := h % uint64(len(pf.segments))
+	si := &pf.segments[idx]
+	// Check the actual segment size against the shard budget before touching the
+	// cache. Segments of small parts are smaller than partFilterTargetSegmentBytes,
+	// so checking the target size instead would reject segments which do fit and
+	// fall back to the index search for parts which could be filtered.
+	if !pfbCache.CanStoreBlock(int(si.sizeBytes)) {
+		if partFilterBudgetWarned.CompareAndSwap(false, true) {
+			logger.Warnf("part filters are disabled, since a single indexdb/partFilterSegments cache shard "+
+				"cannot hold a %d byte filter segment; searched parts may contain series which do not exist there",
+				si.sizeBytes)
+		}
 		return partFilterFallbackBudget
 	}
 
-	idx := h % uint64(len(pf.segments))
 	key := blockcache.Key{
 		Part:   p,
 		Offset: idx,
@@ -370,7 +361,6 @@ func (pf *partFilter) mayContainHashes(p *part, h, h1, h2 uint64) partFilterDeci
 		return partFilterNegative
 	}
 
-	si := &pf.segments[idx]
 	segment, err := pf.readSegment(si)
 	if err != nil {
 		pf.disable(partFilterFallbackRead, "cannot read part filter segment", err)

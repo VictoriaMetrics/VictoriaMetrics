@@ -71,6 +71,9 @@ func BenchmarkPartFilterSegmentCacheHitCost(b *testing.B) {
 
 	var tmpPart part
 	tmpPart.ph.filter = pfRead
+	// Drop the temporary part's segments from the shared cache, so the following
+	// benchmarks are not measured against a budget occupied by this one.
+	defer pfbCache.RemoveBlocksForPart(&tmpPart)
 	keys := make([][]byte, pfRead.segmentsCount())
 	for i := range keys {
 		keys[i] = fmt.Appendf(nil, "absent-%012d:value", i)
