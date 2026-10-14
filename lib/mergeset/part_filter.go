@@ -343,8 +343,8 @@ func (pf *partFilter) mayContainHashes(p *part, h, h1, h2 uint64) partFilterDeci
 	// fall back to the index search for parts which could be filtered.
 	if !pfbCache.CanStoreBlock(int(si.sizeBytes)) {
 		if partFilterBudgetWarned.CompareAndSwap(false, true) {
-			logger.Warnf("part filters are disabled, since a single indexdb/partFilterSegments cache shard "+
-				"cannot hold a %d byte filter segment; searched parts may contain series which do not exist there",
+			logger.Warnf("parts with a %d byte filter segment are not filtered, since a single indexdb/partFilterSegments "+
+				"cache shard cannot hold such a segment; those parts are searched and may contain series which do not exist there",
 				si.sizeBytes)
 		}
 		return partFilterFallbackBudget
