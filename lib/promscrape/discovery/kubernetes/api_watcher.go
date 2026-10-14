@@ -394,15 +394,7 @@ type swosByKeyWithLock struct {
 	swosByKey map[string][]any
 }
 
-type emptyScrapeWorkPolicy uint8
-
-// Incremental updates need empty results to delete old targets; full replacements do not.
-const (
-	retainEmptyScrapeWorks emptyScrapeWorkPolicy = iota
-	skipEmptyScrapeWorks
-)
-
-func (gw *groupWatcher) getScrapeWorkObjectsByAPIWatcherLocked(objectsByKey map[string]object, awsMap map[*apiWatcher]struct{}, emptyPolicy emptyScrapeWorkPolicy) map[*apiWatcher]*swosByKeyWithLock {
+func (gw *groupWatcher) getScrapeWorkObjectsByAPIWatcherLocked(objectsByKey map[string]object, awsMap map[*apiWatcher]struct{}, skipEmptySwos bool) map[*apiWatcher]*swosByKeyWithLock {
 	if len(awsMap) == 0 {
 		return nil
 	}
@@ -424,7 +416,10 @@ func (gw *groupWatcher) getScrapeWorkObjectsByAPIWatcherLocked(objectsByKey map[
 		wg.Go(func() {
 			for aw, e := range swosByAPIWatcher {
 				swos := getScrapeWorkObjectsForLabels(aw.swcFunc, labelss)
-				if len(swos) == 0 && emptyPolicy == skipEmptyScrapeWorks {
+				if len(swos) == 0 && skipEmptySwos {
+					// skip empty swos allows reduce memory usage by map below,
+					// recreateScrapeWorksLocked only needs non-empty swos.
+					// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11751.
 					continue
 				}
 				e.mu.Lock()
@@ -673,7 +668,7 @@ func (uw *urlWatcher) registerPendingAPIWatchersLocked() {
 }
 
 func (uw *urlWatcher) recreateScrapeWorksLocked(objectsByKey map[string]object, awsMap map[*apiWatcher]struct{}) {
-	es := uw.gw.getScrapeWorkObjectsByAPIWatcherLocked(objectsByKey, awsMap, skipEmptyScrapeWorks)
+	es := uw.gw.getScrapeWorkObjectsByAPIWatcherLocked(objectsByKey, awsMap, true)
 	for aw, e := range es {
 		aw.replaceScrapeWorks(uw, e.swosByKey)
 	}
@@ -681,7 +676,7 @@ func (uw *urlWatcher) recreateScrapeWorksLocked(objectsByKey map[string]object, 
 
 func (uw *urlWatcher) updateScrapeWorksLocked(objectsByKey map[string]object, awsMap map[*apiWatcher]struct{}) {
 	// Empty results must reach updateScrapeWorks as deletion signals for changed objects.
-	es := uw.gw.getScrapeWorkObjectsByAPIWatcherLocked(objectsByKey, awsMap, retainEmptyScrapeWorks)
+	es := uw.gw.getScrapeWorkObjectsByAPIWatcherLocked(objectsByKey, awsMap, false)
 	for aw, e := range es {
 		aw.updateScrapeWorks(uw, e.swosByKey)
 	}
