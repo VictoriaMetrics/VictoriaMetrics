@@ -802,6 +802,7 @@ func mustConvertToLegacy(s *Storage, accountID, projectID uint32) *Storage {
 	// Stop storage, move legacy idbs to tmp dir, delete all caches,
 	// re-open storage with pt index only.
 	storageDataPath := s.path
+	disablePerDayIndex := s.disablePerDayIndex
 	s.MustClose()
 	legacyIDBsPathOrig := filepath.Join(s.path, indexdbDirname)
 	fs.MustMkdirIfNotExist(legacyIDBsPathOrig)
@@ -810,7 +811,9 @@ func mustConvertToLegacy(s *Storage, accountID, projectID uint32) *Storage {
 		panic(fmt.Sprintf("could not rename %q to %q: %v", legacyIDBsPathOrig, legacyIDBsPathTmp, err))
 	}
 	fs.MustRemoveDir(filepath.Join(storageDataPath, cacheDirname))
-	s = MustOpenStorage(storageDataPath, OpenOptions{})
+	s = MustOpenStorage(storageDataPath, OpenOptions{
+		DisablePerDayIndex: disablePerDayIndex,
+	})
 
 	legacyIDBID := uint64(time.Now().UnixNano())
 	legacyIDBName := fmt.Sprintf("%016X", legacyIDBID)
@@ -910,7 +913,9 @@ func mustConvertToLegacy(s *Storage, accountID, projectID uint32) *Storage {
 		}
 	}
 
-	return MustOpenStorage(s.path, OpenOptions{})
+	return MustOpenStorage(s.path, OpenOptions{
+		DisablePerDayIndex: s.disablePerDayIndex,
+	})
 }
 
 func TestLegacyNextRetentionDeadlineSeconds(t *testing.T) {
