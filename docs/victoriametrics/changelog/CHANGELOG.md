@@ -26,6 +26,13 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: all VictoriaMetrics components: expose `process_cpu_cores_host`, `process_cpu_cores_cgroup_quota`, `process_memory_host_bytes` and `process_memory_cgroup_bytes` metrics. Cgroup metrics are `-1` if no cgroup limit is set or the limit cannot be read. See [#11460](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11460).
+* FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): deprecate Server URL editing and show a warning when using a saved custom URL. Existing custom URLs continue to work. See [#11735](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11735).
+* FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): update the appearance of error, warning, info, and success messages. See [11736](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11736).
+* FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): add a tenant column to Top Queries and Active Queries when tenant information is available. See [#6346](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6346).
+
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/), [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly validate time series ingested via [`/api/v1/import/native`](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-native-format). See [#11745](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11745). Thanks to @meshchellomishel for contribution.
+
 ## [v1.154.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.154.0)
 
 Released at 2026-10-12

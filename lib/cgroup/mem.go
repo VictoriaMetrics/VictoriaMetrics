@@ -2,6 +2,7 @@ package cgroup
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"path"
 	"runtime/debug"
@@ -86,7 +87,11 @@ func getMemLimitV2(sysfsPrefix, cgroupPath, statName string) (int64, error) {
 }
 
 func getMemStat(statName string) (int64, error) {
-	return getStatGeneric(statName, "/sys/fs/cgroup/memory", "/proc/self/cgroup", "memory")
+	n, err := getStatGeneric(statName, "/sys/fs/cgroup/memory", "/proc/self/cgroup", "memory")
+	if err != nil {
+		return 0, err
+	}
+	return normalizeMemoryLimitV1(n), nil
 }
 
 // GetHierarchicalMemoryLimit returns hierarchical memory limit
@@ -109,5 +114,19 @@ func getHierarchicalMemoryLimit(sysfsPrefix, cgroupPath string) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	return strconv.ParseInt(memStat, 10, 64)
+	n, err := strconv.ParseInt(memStat, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	return normalizeMemoryLimitV1(n), nil
+}
+
+func normalizeMemoryLimitV1(n int64) int64 {
+	// Cgroup v1 uses math.MaxInt64 rounded down to the page size for an unlimited value.
+	pageSize := int64(os.Getpagesize())
+	noLimit := math.MaxInt64 / pageSize * pageSize
+	if n <= 0 || n >= noLimit {
+		return 0
+	}
+	return n
 }
