@@ -144,7 +144,7 @@ quay.io/victoriametrics/vmanomaly:v1.31.1-dhi
 quay.io/victoriametrics/vmanomaly:v1.31.1-enterprise-dhi
 ```
 
-These are aliases of the same application image and have the same license requirements. The `-enterprise-dhi` ordering supports Helm's `image.variant: dhi` when enterprise mode is enabled, `image.tag` is empty, and the chart appVersion matches the desired release. With an older chart, set `image.tag: v1.31.0-enterprise-dhi` explicitly. Standard `v1.31.0`, `v1.31.0-enterprise` and `latest` tags retain their existing base image.
+These are aliases of the same application image and have the same license requirements. The `-enterprise-dhi` ordering supports Helm's `image.variant: dhi` when enterprise mode is enabled, `image.tag` is empty, and the chart appVersion matches the desired release. With an older chart, set `image.tag: v1.31.1-enterprise-dhi` explicitly. Standard `v1.31.1`, `v1.31.1-enterprise` and `latest` tags retain their existing base image.
 
 > [!WARNING]
 > The hardened image runs as a non-root user and contains no runtime shell or package manager. Ensure mounted configuration and license files are readable and state directories are writable by the container user; shell-based entrypoint overrides and `docker exec ... sh` are unavailable.
