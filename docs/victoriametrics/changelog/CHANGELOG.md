@@ -32,6 +32,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): add a tenant column to Top Queries and Active Queries when tenant information is available. See [#6346](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6346).
 
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/), [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly validate time series ingested via [`/api/v1/import/native`](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-native-format). See [#11745](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11745). Thanks to @meshchellomishel for contribution.
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): reduce memory usage during for Kubernetes service discovery, when scrape configuration has many entries that matches small subset of targets. See [#11751](#https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11751). Thanks to @CamberLoid for contribution.
 
 ## [v1.154.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.154.0)
 
