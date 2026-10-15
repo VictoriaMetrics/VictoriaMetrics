@@ -362,7 +362,7 @@ docker run -it --rm \
   -e VMANOMALY_MCP_SERVER_URL=http://mcp-vmanomaly:8081/mcp \
   -p 8080:8080 \
   -p 8490:8490 \
-  victoriametrics/vmanomaly:v1.31.0 \
+  victoriametrics/vmanomaly:v1.31.1 \
   vmanomaly_config.yaml
 ```
 
@@ -762,7 +762,7 @@ Prefer **Tune** to obtain a concrete configuration you can review and deploy. Th
 ### v1.10.0
 Released: 2026-10-09
 
-Recommended vmanomaly version: [v1.31.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1310)
+Recommended vmanomaly version: [v1.31.1](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1311) or newer, which fixes data fetching for peer-group models in periodic deployments.
 
 - FEATURE: Added experimental [model tuning](#tune-a-model) with supervised marked-anomaly and unsupervised expected-anomaly-rate objectives, progress, suggested parameters and point-level detection-quality statistics for marked anomalies.
 - FEATURE: Added [peer-group investigation](#peer-group-investigation), searchable group labels, accepted-range overlays, peer rankings and percentage activity with exact hover counts.
