@@ -1,4 +1,4 @@
-import { FC } from "preact/compat";
+import { createPortal, FC, useEffect } from "preact/compat";
 import classNames from "classnames";
 import TenantsConfiguration
   from "../../components/Configurators/GlobalSettings/TenantsConfiguration/TenantsConfiguration";
@@ -8,8 +8,10 @@ import CardinalityDatePicker from "../../components/Configurators/CardinalityDat
 import GlobalSettings, { GlobalSettingsHandle } from "../../components/Configurators/GlobalSettings/GlobalSettings";
 import ShortcutKeys from "../../components/Main/ShortcutKeys/ShortcutKeys";
 import { ControlsProps } from "../Header/HeaderControls/HeaderControls";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import TimeZonePreview from "../../components/Configurators/GlobalSettings/TimeZonePreview/TimeZonePreview";
+import ServerUrlDeprecationWarning
+  from "../../components/Configurators/GlobalSettings/ServerConfigurator/ServerUrlDeprecationWarning";
 
 const ControlsMainLayout: FC<ControlsProps> = ({
   displaySidebar,
@@ -18,6 +20,19 @@ const ControlsMainLayout: FC<ControlsProps> = ({
   accountIds,
 }) => {
   const settingsRef = useRef<GlobalSettingsHandle>(null);
+
+  const [warningContainer, setWarningContainer] = useState<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const header = document.querySelector(".vm-header");
+    if (!header) return;
+
+    const container = document.createElement("div");
+    header.after(container);
+    setWarningContainer(container);
+
+    return () => container.remove();
+  }, []);
 
   return (
     <div
@@ -33,6 +48,15 @@ const ControlsMainLayout: FC<ControlsProps> = ({
       <TimeZonePreview onOpenSettings={() => settingsRef.current?.open()}/>
       <GlobalSettings ref={settingsRef}/>
       {!displaySidebar && <ShortcutKeys/>}
+
+      {/* TODO: Remove this warning when Server URL editing is removed.
+          See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11735 */}
+      {warningContainer && createPortal(
+        <ServerUrlDeprecationWarning
+          onOpenSettings={() => settingsRef.current?.open()}
+        />,
+        warningContainer
+      )}
     </div>
   );
 };
