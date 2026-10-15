@@ -186,7 +186,7 @@ func UnmarshalVarInt64s(dst []int64, src []byte) ([]byte, error) {
 	for i := range dst {
 		c := src[i]
 		if c >= 0x80 {
-			return unmarshalVarInt64sSlow(dst, src)
+			return unmarshalVarInt64sSlow(dst[i:], src[i:])
 		}
 		dst[i] = int64(int8(c>>1) ^ (int8(c<<7) >> 7))
 	}
@@ -393,7 +393,7 @@ func UnmarshalVarUint64s(dst []uint64, src []byte) ([]byte, error) {
 	for i := range dst {
 		c := src[i]
 		if c >= 0x80 {
-			return unmarshalVarUint64sSlow(dst, src)
+			return unmarshalVarUint64sSlow(dst[i:], src[i:])
 		}
 		dst[i] = uint64(c)
 	}

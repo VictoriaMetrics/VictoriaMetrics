@@ -8,6 +8,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fastnum"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 // minCompressibleBlockSize is the minimum block size in bytes for trying compression.
@@ -247,9 +248,14 @@ func unmarshalInt64Array(dst []int64, src []byte, mt MarshalType, firstValue int
 			dst = fastnum.AppendInt64Ones(dst, itemsCount)
 			return dst, nil
 		}
-		for itemsCount > 0 {
-			dst = append(dst, firstValue)
-			itemsCount--
+		dstLen := len(dst)
+		dst = slicesutil.SetLength(dst, dstLen+itemsCount)
+		out := dst[dstLen:]
+		if len(out) > 0 {
+			out[0] = firstValue
+			for i := 1; i < len(out); i *= 2 {
+				copy(out[i:], out[:i])
+			}
 		}
 		return dst, nil
 	case MarshalTypeDeltaConst:
@@ -261,9 +267,11 @@ func unmarshalInt64Array(dst []int64, src []byte, mt MarshalType, firstValue int
 		if nLen < len(src) {
 			return nil, fmt.Errorf("unexpected trailing data after delta const (d=%d): %d bytes", d, len(src)-nLen)
 		}
-		for itemsCount > 0 {
-			dst = append(dst, v)
-			itemsCount--
+		dstLen := len(dst)
+		dst = slicesutil.SetLength(dst, dstLen+itemsCount)
+		out := dst[dstLen:]
+		for i := range out {
+			out[i] = v
 			v += d
 		}
 		return dst, nil
