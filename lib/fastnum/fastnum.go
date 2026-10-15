@@ -11,6 +11,9 @@ import (
 //
 // It is faster than the corresponding loop.
 func AppendInt64Zeros(dst []int64, items int) []int64 {
+	if items <= 0 {
+		return dst
+	}
 	dstLen := len(dst)
 	dst = slicesutil.SetLength(dst, dstLen+items)
 	clear(dst[dstLen:])
@@ -28,6 +31,9 @@ func AppendInt64Ones(dst []int64, items int) []int64 {
 //
 // It is faster than the corresponding loop.
 func AppendFloat64Zeros(dst []float64, items int) []float64 {
+	if items <= 0 {
+		return dst
+	}
 	dstLen := len(dst)
 	dst = slicesutil.SetLength(dst, dstLen+items)
 	clear(dst[dstLen:])
@@ -62,6 +68,9 @@ func IsFloat64Ones(a []float64) bool {
 }
 
 func appendInt64Data(dst []int64, items int, src []int64) []int64 {
+	if items <= 0 {
+		return dst
+	}
 	dstLen := len(dst)
 	dst = slicesutil.SetLength(dst, dstLen+items)
 	a := dst[dstLen:]
@@ -73,6 +82,9 @@ func appendInt64Data(dst []int64, items int, src []int64) []int64 {
 }
 
 func appendFloat64Data(dst []float64, items int, src []float64) []float64 {
+	if items <= 0 {
+		return dst
+	}
 	dstLen := len(dst)
 	dst = slicesutil.SetLength(dst, dstLen+items)
 	a := dst[dstLen:]

@@ -240,6 +240,9 @@ func unmarshalInt64Array(dst []int64, src []byte, mt MarshalType, firstValue int
 		if len(src) > 0 {
 			return nil, fmt.Errorf("unexpected data left in const encoding: %d bytes", len(src))
 		}
+		if itemsCount <= 0 {
+			return dst, nil
+		}
 		if firstValue == 0 {
 			dst = fastnum.AppendInt64Zeros(dst, itemsCount)
 			return dst, nil
@@ -259,6 +262,9 @@ func unmarshalInt64Array(dst []int64, src []byte, mt MarshalType, firstValue int
 		}
 		return dst, nil
 	case MarshalTypeDeltaConst:
+		if itemsCount <= 0 {
+			return dst, nil
+		}
 		v := firstValue
 		d, nLen := UnmarshalVarInt64(src)
 		if nLen <= 0 {
