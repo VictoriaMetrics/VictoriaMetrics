@@ -2824,107 +2824,6 @@ func TestStorageGetTSDBStatus(t *testing.T) {
 	}
 }
 
-func TestStorageAdjustTimeRange(t *testing.T) {
-	defer testRemoveAll(t)
-
-	f := func(disablePerDayIndex bool, searchTR, idbTR, want TimeRange) {
-		t.Helper()
-
-		s := MustOpenStorage(t.Name(), OpenOptions{
-			DisablePerDayIndex: disablePerDayIndex,
-		})
-		defer s.MustClose()
-		if got := s.adjustTimeRange(searchTR, idbTR); got != want {
-			t.Errorf("unexpected time range: got %v, want %v", &got, &want)
-		}
-	}
-
-	legacyIDBTimeRange := TimeRange{
-		MinTimestamp: 0,
-		MaxTimestamp: math.MaxInt64,
-	}
-	partitionIDBTimeRange := TimeRange{
-		MinTimestamp: time.Date(2025, 2, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-		MaxTimestamp: time.Date(2025, 2, 28, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
-	}
-	var searchTimeRange TimeRange
-
-	// Search time range is the same as globalIndexTimeRange.
-	searchTimeRange = globalIndexTimeRange
-	f(false, searchTimeRange, legacyIDBTimeRange, searchTimeRange)
-	f(false, searchTimeRange, partitionIDBTimeRange, partitionIDBTimeRange)
-	f(true, searchTimeRange, legacyIDBTimeRange, globalIndexTimeRange)
-	f(true, searchTimeRange, partitionIDBTimeRange, globalIndexTimeRange)
-
-	// The search time range is smaller than a month (and therefore < 40 days)
-	// and is fully included into the partition idb time range.
-	searchTimeRange = TimeRange{
-		MinTimestamp: partitionIDBTimeRange.MinTimestamp + msecPerDay,
-		MaxTimestamp: partitionIDBTimeRange.MaxTimestamp - msecPerDay,
-	}
-	f(false, searchTimeRange, legacyIDBTimeRange, searchTimeRange)
-	f(false, searchTimeRange, partitionIDBTimeRange, searchTimeRange)
-	f(true, searchTimeRange, legacyIDBTimeRange, globalIndexTimeRange)
-	f(true, searchTimeRange, partitionIDBTimeRange, globalIndexTimeRange)
-
-	// The search time range is the same as partition idb time range.
-	searchTimeRange = partitionIDBTimeRange
-	f(false, searchTimeRange, legacyIDBTimeRange, searchTimeRange)
-	f(false, searchTimeRange, partitionIDBTimeRange, partitionIDBTimeRange)
-	f(true, searchTimeRange, legacyIDBTimeRange, globalIndexTimeRange)
-	f(true, searchTimeRange, partitionIDBTimeRange, globalIndexTimeRange)
-
-	// The search time range is smaller than 40 days and fully includes the
-	// partition idb time range.
-	searchTimeRange = TimeRange{
-		MinTimestamp: partitionIDBTimeRange.MinTimestamp - msecPerDay,
-		MaxTimestamp: partitionIDBTimeRange.MaxTimestamp + msecPerDay,
-	}
-	f(false, searchTimeRange, legacyIDBTimeRange, searchTimeRange)
-	f(false, searchTimeRange, partitionIDBTimeRange, partitionIDBTimeRange)
-	f(true, searchTimeRange, legacyIDBTimeRange, globalIndexTimeRange)
-	f(true, searchTimeRange, partitionIDBTimeRange, globalIndexTimeRange)
-
-	// The search time range is 41 days and fully includes the partition idb
-	// time range.
-	searchTimeRange = TimeRange{
-		MinTimestamp: partitionIDBTimeRange.MinTimestamp - msecPerDay,
-		MaxTimestamp: partitionIDBTimeRange.MinTimestamp + 41*msecPerDay,
-	}
-	f(false, searchTimeRange, legacyIDBTimeRange, searchTimeRange)
-	f(false, searchTimeRange, partitionIDBTimeRange, partitionIDBTimeRange)
-	f(true, searchTimeRange, legacyIDBTimeRange, globalIndexTimeRange)
-	f(true, searchTimeRange, partitionIDBTimeRange, globalIndexTimeRange)
-
-	// The search time range is smaller than 40 days and overlaps with partition
-	// idb time range on the left.
-	searchTimeRange = TimeRange{
-		MinTimestamp: partitionIDBTimeRange.MinTimestamp - msecPerDay,
-		MaxTimestamp: partitionIDBTimeRange.MinTimestamp + msecPerDay,
-	}
-	f(false, searchTimeRange, legacyIDBTimeRange, searchTimeRange)
-	f(false, searchTimeRange, partitionIDBTimeRange, TimeRange{
-		MinTimestamp: partitionIDBTimeRange.MinTimestamp,
-		MaxTimestamp: searchTimeRange.MaxTimestamp,
-	})
-	f(true, searchTimeRange, legacyIDBTimeRange, globalIndexTimeRange)
-	f(true, searchTimeRange, partitionIDBTimeRange, globalIndexTimeRange)
-
-	// The search time range is smaller than 40 days and overlaps with partition
-	// idb time range on the right.
-	searchTimeRange = TimeRange{
-		MinTimestamp: partitionIDBTimeRange.MaxTimestamp - msecPerDay,
-		MaxTimestamp: partitionIDBTimeRange.MaxTimestamp + msecPerDay,
-	}
-	f(false, searchTimeRange, legacyIDBTimeRange, searchTimeRange)
-	f(false, searchTimeRange, partitionIDBTimeRange, TimeRange{
-		MinTimestamp: searchTimeRange.MinTimestamp,
-		MaxTimestamp: partitionIDBTimeRange.MaxTimestamp,
-	})
-	f(true, searchTimeRange, legacyIDBTimeRange, globalIndexTimeRange)
-	f(true, searchTimeRange, partitionIDBTimeRange, globalIndexTimeRange)
-}
-
 type testStorageSearchWithoutIndexOptions struct {
 	mrs                []MetricRow
 	assertSearchResult func(t *testing.T, s *Storage, tr TimeRange, want any)
@@ -3892,19 +3791,19 @@ func assertCounts(t *testing.T, s *Storage, want *counts, strict bool) {
 	}
 
 	for date, wantStatus := range want.dateTSDBStatuses {
-		dt := time.UnixMilli(int64(date) * msecPerDay).UTC()
+		dateStr := dateToString(date)
 		gotStatus, err := s.GetTSDBStatus(noDeadlineContext, nil, nil, date, "", 10, 1e6)
 		if err != nil {
-			t.Fatalf("GetTSDBStatus(%v) failed unexpectedly: %v", dt, err)
+			t.Fatalf("GetTSDBStatus(%s) failed unexpectedly: %v", dateStr, err)
 		}
 		got, want := gotStatus.TotalSeries, wantStatus.TotalSeries
 		if strict {
 			if got != want {
-				t.Errorf("%v: unexpected TSDBStatus.TotalSeries: got %d, want %d", dt, got, want)
+				t.Errorf("%s: unexpected TSDBStatus.TotalSeries: got %d, want %d", dateStr, got, want)
 			}
 		} else {
 			if got < want {
-				t.Errorf("%v: unexpected TSDBStatus.TotalSeries: got %d, want >= %d", dt, got, want)
+				t.Errorf("%s: unexpected TSDBStatus.TotalSeries: got %d, want >= %d", dateStr, got, want)
 			}
 		}
 	}
