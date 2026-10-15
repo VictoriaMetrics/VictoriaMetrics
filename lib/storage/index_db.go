@@ -870,6 +870,15 @@ func (db *indexDB) SearchLabelValues(ctx context.Context, qt *querytracer.Tracer
 		return nil, nil
 	}
 
+	lvs, err := db.searchLabelValues(ctx, qt, accountID, projectID, labelName, tfss, tr, maxLabelValues, maxMetrics)
+	if err != nil {
+		return nil, db.wrapError("search label values", err)
+	}
+	qt.Printf("found %d label values", len(lvs))
+	return lvs, nil
+}
+
+func (db *indexDB) searchLabelValues(ctx context.Context, qt *querytracer.Tracer, accountID, projectID uint32, labelName string, tfss []*TagFilters, tr TimeRange, maxLabelValues, maxMetrics int) (map[string]struct{}, error) {
 	key := labelName
 	if key == "__name__" {
 		key = ""
@@ -879,9 +888,9 @@ func (db *indexDB) SearchLabelValues(ctx context.Context, qt *querytracer.Tracer
 		// without any filters and limits and then later applying the filter and the limit to the found label values.
 		qt.Printf("search up to %d values for the label %q on the time range %s", maxMetrics, labelName, &tr)
 
-		lvs, err := db.searchLabelValues(ctx, qt, accountID, projectID, labelName, nil, tr, maxMetrics, maxMetrics)
+		lvs, err := db.searchLabelValuesForTimeRange(ctx, qt, accountID, projectID, labelName, nil, tr, maxMetrics, maxMetrics)
 		if err != nil {
-			return nil, db.wrapError("search label values", err)
+			return nil, err
 		}
 
 		needSlowSearch := len(lvs) == maxMetrics
@@ -897,19 +906,12 @@ func (db *indexDB) SearchLabelValues(ctx context.Context, qt *querytracer.Tracer
 			needSlowSearch = false
 		}
 		if !needSlowSearch {
-			qt.Printf("found %d label values", len(lvs))
 			return lvs, nil
 		}
 		qt.Printf("fall back to slow search because only a subset of label values is found")
 	}
 
-	lvs, err := db.searchLabelValues(ctx, qt, accountID, projectID, labelName, tfss, tr, maxMetrics, maxMetrics)
-	if err != nil {
-		return nil, db.wrapError("search label values", err)
-	}
-
-	qt.Printf("found %d label values", len(lvs))
-	return lvs, nil
+	return db.searchLabelValuesForTimeRange(ctx, qt, accountID, projectID, labelName, tfss, tr, maxMetrics, maxMetrics)
 }
 
 func filterLabelValues(accountID, projectID uint32, lvs map[string]struct{}, tf *tagFilter, key string) {
@@ -928,7 +930,7 @@ func filterLabelValues(accountID, projectID uint32, lvs map[string]struct{}, tf 
 	}
 }
 
-func (db *indexDB) searchLabelValues(ctx context.Context, qt *querytracer.Tracer, accountID, projectID uint32, labelName string, tfss []*TagFilters, tr TimeRange, maxLabelValues, maxMetrics int) (map[string]struct{}, error) {
+func (db *indexDB) searchLabelValuesForTimeRange(ctx context.Context, qt *querytracer.Tracer, accountID, projectID uint32, labelName string, tfss []*TagFilters, tr TimeRange, maxLabelValues, maxMetrics int) (map[string]struct{}, error) {
 	if tr == globalIndexTimeRange {
 		qtChild := qt.NewChild("search for label values in global index: labelName=%q, filters=%s", labelName, tfss)
 		lvs, err := db.searchLabelValuesByDateAndFilters(ctx, qtChild, accountID, projectID, globalIndexDate, labelName, tfss, maxLabelValues, maxMetrics)
@@ -1136,19 +1138,21 @@ func (db *indexDB) SearchTagValueSuffixes(ctx context.Context, qt *querytracer.T
 		return nil, nil
 	}
 
-	// TODO: cache results?
-
-	is := db.getIndexSearch(accountID, projectID)
-	tvss, err := is.searchTagValueSuffixesForTimeRange(ctx, tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
-	db.putIndexSearch(is)
+	tvss, err := db.searchTagValueSuffixes(ctx, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
 	if err != nil {
 		return nil, db.wrapError("search tag value suffixes", err)
 	}
 
-	// Do not skip empty suffixes, since they may represent leaf tag values.
-
 	qt.Printf("found %d tag value suffixes", len(tvss))
 	return tvss, nil
+}
+
+func (db *indexDB) searchTagValueSuffixes(ctx context.Context, accountID, projectID uint32, tr TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxTagValueSuffixes int) (map[string]struct{}, error) {
+	// TODO: cache results?
+	is := db.getIndexSearch(accountID, projectID)
+	defer db.putIndexSearch(is)
+	// Do not skip empty suffixes, since they may represent leaf tag values.
+	return is.searchTagValueSuffixesForTimeRange(ctx, tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
 }
 
 func (is *indexSearch) searchTagValueSuffixesForTimeRange(ctx context.Context, tr TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxTagValueSuffixes int) (map[string]struct{}, error) {
@@ -1275,13 +1279,27 @@ func (db *indexDB) SearchGraphitePaths(ctx context.Context, qt *querytracer.Trac
 		return nil, nil
 	}
 
+	paths, err := db.searchGraphitePaths(ctx, qt, accountID, projectID, tr, qHead, qTail, maxPaths)
+	if err != nil {
+		return nil, db.wrapError("search graphite paths", err)
+	}
+
+	qt.Printf("found %d graphite paths", len(paths))
+	return paths, nil
+}
+
+func (db *indexDB) searchGraphitePaths(ctx context.Context, qt *querytracer.Tracer, accountID, projectID uint32, tr TimeRange, qHead, qTail []byte, maxPaths int) (map[string]struct{}, error) {
+	// Also create a child tracer here to be able to track recursive calls.
+	qt = qt.NewChild("search graphite paths: timeRange=%s, qHead=%q, qTail=%q, maxPaths=%d", &tr, bytesutil.ToUnsafeString(qHead), bytesutil.ToUnsafeString(qTail), maxPaths)
+	defer qt.Done()
+
 	n := bytes.IndexAny(qTail, "*[{")
 	if n < 0 {
 		// Verify that qHead matches a metric name.
 		qHead = append(qHead, qTail...)
-		suffixes, err := db.SearchTagValueSuffixes(ctx, qt, accountID, projectID, tr, "", bytesutil.ToUnsafeString(qHead), '.', 1)
+		suffixes, err := db.searchTagValueSuffixes(ctx, accountID, projectID, tr, "", bytesutil.ToUnsafeString(qHead), '.', 1)
 		if err != nil {
-			return nil, db.wrapError("search graphite paths", err)
+			return nil, err
 		}
 		if len(suffixes) == 0 {
 			// The query doesn't match anything.
@@ -1299,15 +1317,15 @@ func (db *indexDB) SearchGraphitePaths(ctx context.Context, qt *querytracer.Trac
 		return map[string]struct{}{string(qHead): {}}, nil
 	}
 	qHead = append(qHead, qTail[:n]...)
-	suffixes, err := db.SearchTagValueSuffixes(ctx, qt, accountID, projectID, tr, "", bytesutil.ToUnsafeString(qHead), '.', maxPaths)
+	suffixes, err := db.searchTagValueSuffixes(ctx, accountID, projectID, tr, "", bytesutil.ToUnsafeString(qHead), '.', maxPaths)
 	if err != nil {
-		return nil, db.wrapError("search graphite paths", err)
+		return nil, err
 	}
 	if len(suffixes) == 0 {
 		return nil, nil
 	}
 	if len(suffixes) >= maxPaths {
-		return nil, db.wrapError("search graphite paths", fmt.Errorf("more than maxPaths=%d suffixes found", maxPaths))
+		return nil, fmt.Errorf("more than maxPaths=%d suffixes found", maxPaths)
 	}
 	qNode := qTail[n:]
 	qTail = nil
@@ -1325,7 +1343,7 @@ func (db *indexDB) SearchGraphitePaths(ctx context.Context, qt *querytracer.Trac
 	paths := make(map[string]struct{})
 	for suffix := range suffixes {
 		if len(paths) > maxPaths {
-			return nil, db.wrapError("search graphite paths", fmt.Errorf("more than maxPaths=%d paths found", maxPaths))
+			return nil, fmt.Errorf("more than maxPaths=%d paths found", maxPaths)
 		}
 		if !re.MatchString(suffix) {
 			continue
@@ -1336,14 +1354,15 @@ func (db *indexDB) SearchGraphitePaths(ctx context.Context, qt *querytracer.Trac
 			continue
 		}
 		qHead = append(qHead[:qHeadLen], suffix...)
-		ps, err := db.SearchGraphitePaths(ctx, qt, accountID, projectID, tr, qHead, qTail, maxPaths)
+		ps, err := db.searchGraphitePaths(ctx, qt, accountID, projectID, tr, qHead, qTail, maxPaths)
 		if err != nil {
-			return nil, db.wrapError("search graphite paths", err)
+			return nil, err
 		}
 		for p := range ps {
 			paths[p] = struct{}{}
 		}
 	}
+	qt.Printf("found %d graphite paths", len(paths))
 	return paths, nil
 }
 
