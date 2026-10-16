@@ -15,6 +15,7 @@ export const ALL_STORAGE_KEYS = [
   "METRICS_QUERY_HISTORY",
   "SERVER_URL",
   "POINTS_SHOW_ALL",
+  "CUSTOM_TIME_RANGES",
 ] as const;
 
 export type FaviconStorageKey = `FAVICON_COLOR:${string}`;
