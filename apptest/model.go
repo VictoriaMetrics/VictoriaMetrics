@@ -509,6 +509,13 @@ type AdminTenantsResponse struct {
 	Data   []string
 }
 
+// TenantID is an in-memory representation of a single item of the json
+// response returned by the /select/tenant_ids endpoint.
+type TenantID struct {
+	AccountID uint32 `json:"account_id"`
+	ProjectID uint32 `json:"project_id"`
+}
+
 // Sort performs sorting of stats entries
 func (tsr *TSDBStatusResponse) Sort() {
 	sortTSDBStatusResponseEntries(tsr.Data.SeriesCountByLabelName)

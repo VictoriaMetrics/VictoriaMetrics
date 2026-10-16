@@ -691,6 +691,61 @@ func Tenants(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWriter,
 	return nil
 }
 
+// TenantIDsHandler processes /select/tenant_ids request.
+//
+// If at is set, then only the corresponding tenant is returned.
+// Otherwise all the tenants matching the optional extra_filters and extra_label args are returned.
+func TenantIDsHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
+	var tts []storage.TenantToken
+	if at != nil {
+		tts = []storage.TenantToken{{
+			AccountID: at.AccountID,
+			ProjectID: at.ProjectID,
+		}}
+	} else {
+		deadline := searchutil.GetDeadlineForStatusRequest(r, startTime)
+		start, err := httputil.GetTime(r, "start", 0)
+		if err != nil {
+			return err
+		}
+		ct := startTime.UnixNano() / 1e6
+		end, err := httputil.GetTime(r, "end", ct)
+		if err != nil {
+			return err
+		}
+		tr := storage.TimeRange{
+			MinTimestamp: start,
+			MaxTimestamp: end,
+		}
+		// Apply tenant filters from extra_filters and extra_label args,
+		// since they may be used for restricting the set of tenants visible to the client.
+		etfs, err := searchutil.GetExtraTagFilters(r)
+		if err != nil {
+			return err
+		}
+		tts, _, err = netstorage.GetTenantTokensFromFilters(qt, tr, etfs, deadline, false)
+		if err != nil {
+			return err
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	bw := bufferedwriter.Get(w)
+	defer bufferedwriter.Put(bw)
+	fmt.Fprintf(bw, "[")
+	for i, tt := range tts {
+		if i > 0 {
+			fmt.Fprintf(bw, ",")
+		}
+		fmt.Fprintf(bw, `{"account_id":%d,"project_id":%d}`, tt.AccountID, tt.ProjectID)
+	}
+	fmt.Fprintf(bw, "]")
+	if err := bw.Flush(); err != nil {
+		return fmt.Errorf("cannot flush tenant ids to remote client: %w", err)
+	}
+	return nil
+}
+
 // LabelValuesHandler processes /api/v1/label/<labelName>/values request.
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values

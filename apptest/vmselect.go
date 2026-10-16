@@ -54,6 +54,12 @@ func newVmselect(app *app, cli *Client, rt vmselectRuntimeValues) *Vmselect {
 			},
 			metricNamesStatsResetURL: fmt.Sprintf("http://%s/admin/api/v1/admin/status/metric_names_stats/reset", rt.httpListenAddr),
 			tenantsURL:               fmt.Sprintf("http://%s/admin/tenants", rt.httpListenAddr),
+			tenantIDsURL: func(opts QueryOpts) string {
+				if opts.Tenant != "" {
+					return tenantViaURL(rt.httpListenAddr, "select", opts.Tenant, "tenant_ids")
+				}
+				return tenantViaHeaders(rt.httpListenAddr, "select", "tenant_ids")
+			},
 		},
 		httpListenAddr:          rt.httpListenAddr,
 		clusternativeListenAddr: rt.clusternativeListenAddr,
