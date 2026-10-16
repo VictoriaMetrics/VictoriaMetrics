@@ -1,9 +1,12 @@
 package mergeset
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"sort"
 	"sync/atomic"
 	"testing"
@@ -11,6 +14,236 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
+
+func TestTableSearchWithPartFilter(t *testing.T) {
+	const path = "TestTableSearchWithPartFilter"
+	fs.MustRemoveDir(path)
+	defer fs.MustRemoveDir(path)
+
+	filterKey := func(item []byte) []byte {
+		n := bytes.IndexByte(item, ':')
+		if n < 0 {
+			return nil
+		}
+		return item[:n+1]
+	}
+	var isReadOnly atomic.Bool
+	tb := MustOpenTable(path, 0, nil, 0, nil, &isReadOnly, filterKey)
+	for i := range 500 {
+		item := fmt.Appendf(nil, "series-%04d:value", i)
+		tb.AddItems([][]byte{item})
+	}
+	tb.DebugFlush()
+	for i := 500; i < 1000; i++ {
+		item := fmt.Appendf(nil, "series-%04d:value", i)
+		tb.AddItems([][]byte{item})
+	}
+	tb.DebugFlush()
+	// The part count is not asserted here: DebugFlush does not wait for the
+	// asynchronous in-memory merger, so the flushed parts may already be merged
+	// into one. The filter behavior below does not depend on how many parts the
+	// search covers, as long as every part carries a filter.
+	assertFilterSearch := func(tb *Table) {
+		t.Helper()
+		var ts TableSearch
+		ts.Init(tb, false)
+		stats := ts.SeekWithPartFilter([]byte("series-0500:"))
+		if stats.PossibleParts == 0 {
+			t.Fatalf("expected a part filter match; got %+v", stats)
+		}
+		if !ts.NextItem() || !bytes.HasPrefix(ts.Item, []byte("series-0500:")) {
+			t.Fatalf("expected to find filtered item; got %q", ts.Item)
+		}
+		stats = ts.SeekWithPartFilter([]byte("missing:"))
+		if stats.SkippedParts == 0 || stats.UnfilteredParts != 0 || ts.NextItem() {
+			t.Fatalf("expected all parts to reject missing key; stats=%+v item=%q", stats, ts.Item)
+		}
+		ts.MustClose()
+	}
+	assertFilterSearch(tb)
+	tb.MustClose()
+
+	// The persisted filter must remain usable after reopening the table.
+	tb = MustOpenTable(path, 0, nil, 0, nil, &isReadOnly, filterKey)
+	defer tb.MustClose()
+	assertFilterSearch(tb)
+}
+
+func TestMustOpenTableRejectsMultiplePartFilterKeys(t *testing.T) {
+	var isReadOnly atomic.Bool
+	filterKey := func(item []byte) []byte { return item }
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatalf("expected MustOpenTable to reject multiple part filter callbacks")
+		}
+	}()
+	MustOpenTable(t.Name(), 0, nil, 0, nil, &isReadOnly, filterKey, filterKey)
+}
+
+func TestTableSearchWithMissingPartFilterFallsBack(t *testing.T) {
+	const path = "TestTableSearchWithMissingPartFilterFallsBack"
+	fs.MustRemoveDir(path)
+	defer fs.MustRemoveDir(path)
+
+	var isReadOnly atomic.Bool
+	tb := MustOpenTable(path, 0, nil, 0, nil, &isReadOnly)
+	tb.AddItems([][]byte{[]byte("series:value")})
+	tb.MustClose()
+
+	filterKey := func(item []byte) []byte { return item }
+	tb = MustOpenTable(path, 0, nil, 0, nil, &isReadOnly, filterKey)
+	defer tb.MustClose()
+	var ts TableSearch
+	ts.Init(tb, false)
+	stats := ts.SeekWithPartFilter([]byte("missing"))
+	if stats.UnfilteredParts == 0 || stats.SkippedParts != 0 {
+		t.Fatalf("expected missing filter to force fallback; got %+v", stats)
+	}
+	if !ts.NextItem() || string(ts.Item) != "series:value" {
+		t.Fatalf("expected fallback to find the existing item; got %q", ts.Item)
+	}
+	ts.MustClose()
+}
+
+func TestTableSearchWithCorruptPartFilterFallsBack(t *testing.T) {
+	const path = "TestTableSearchWithCorruptPartFilterFallsBack"
+	fs.MustRemoveDir(path)
+	defer fs.MustRemoveDir(path)
+
+	filterKey := func(item []byte) []byte { return item }
+	var isReadOnly atomic.Bool
+	tb := MustOpenTable(path, 0, nil, 0, nil, &isReadOnly, filterKey)
+	tb.AddItems([][]byte{[]byte("series:value")})
+	tb.MustClose()
+
+	partNames := mustReadPartNames(filepath.Join(path, partsFilename), path)
+	filterPath := filepath.Join(path, partNames[0], filterFilename)
+	filterData, err := os.ReadFile(filterPath)
+	if err != nil {
+		t.Fatalf("cannot read part filter: %s", err)
+	}
+	// Corrupt the filter directory while keeping the file readable, so the filter is ignored on open.
+	filterData[partFilterHeaderSize] ^= 1
+	if err := os.WriteFile(filterPath, filterData, 0o600); err != nil {
+		t.Fatalf("cannot corrupt part filter: %s", err)
+	}
+
+	tb = MustOpenTable(path, 0, nil, 0, nil, &isReadOnly, filterKey)
+	defer tb.MustClose()
+	var ts TableSearch
+	ts.Init(tb, false)
+	stats := ts.SeekWithPartFilter([]byte("missing"))
+	if stats.UnfilteredParts == 0 || stats.SkippedParts != 0 || stats.HasFallbacks() != true {
+		t.Fatalf("expected corrupt filter to force fallback; got %+v", stats)
+	}
+	if !ts.NextItem() || string(ts.Item) != "series:value" {
+		t.Fatalf("expected fallback to find existing item; got %q", ts.Item)
+	}
+	ts.MustClose()
+}
+
+func TestTableSearchWithCorruptPartFilterSegmentFallsBack(t *testing.T) {
+	const path = "TestTableSearchWithCorruptPartFilterSegmentFallsBack"
+	fs.MustRemoveDir(path)
+	defer fs.MustRemoveDir(path)
+
+	filterKey := func(item []byte) []byte { return item }
+	var isReadOnly atomic.Bool
+	tb := MustOpenTable(path, 0, nil, 0, nil, &isReadOnly, filterKey)
+	tb.AddItems([][]byte{[]byte("series:value")})
+	tb.MustClose()
+
+	partNames := mustReadPartNames(filepath.Join(path, partsFilename), path)
+	filterPath := filepath.Join(path, partNames[0], filterFilename)
+	filterData, err := os.ReadFile(filterPath)
+	if err != nil {
+		t.Fatalf("cannot read part filter: %s", err)
+	}
+	// Corrupt the first filter segment, so its checksum stops matching.
+	segmentsCount := int(binary.LittleEndian.Uint32(filterData[len(partFilterMagic):]))
+	if segmentsCount != 1 {
+		t.Fatalf("expected a single segment for a single item; got %d", segmentsCount)
+	}
+	segmentOffset := binary.LittleEndian.Uint64(filterData[partFilterHeaderSize:])
+	segmentSize := binary.LittleEndian.Uint32(filterData[partFilterHeaderSize+8:])
+	filterData[segmentOffset+uint64(segmentSize)-1] ^= 1
+	if err := os.WriteFile(filterPath, filterData, 0o600); err != nil {
+		t.Fatalf("cannot corrupt part filter: %s", err)
+	}
+
+	tb = MustOpenTable(path, 0, nil, 0, nil, &isReadOnly, filterKey)
+	defer tb.MustClose()
+	var ts TableSearch
+	ts.Init(tb, false)
+	stats := ts.SeekWithPartFilter([]byte("missing"))
+	if stats.VerifyFallbackParts == 0 || stats.SkippedParts != 0 {
+		t.Fatalf("expected the corrupted filter segment to force fallback; got %+v", stats)
+	}
+	if !ts.NextItem() || string(ts.Item) != "series:value" {
+		t.Fatalf("expected fallback to find existing item; got %q", ts.Item)
+	}
+	ts.MustClose()
+}
+
+func TestTableSearchWithoutPartFilterCacheFallsBack(t *testing.T) {
+	const path = "TestTableSearchWithoutPartFilterCacheFallsBack"
+	fs.MustRemoveDir(path)
+	defer fs.MustRemoveDir(path)
+
+	filterKey := func(item []byte) []byte { return item }
+	var isReadOnly atomic.Bool
+	tb := MustOpenTable(path, 0, nil, 0, nil, &isReadOnly, filterKey)
+	tb.AddItems([][]byte{[]byte("series:value")})
+	tb.MustClose()
+
+	cacheSizeBefore := getMaxPartFilterCacheSize()
+	SetPartFilterCacheSize(1)
+	defer SetPartFilterCacheSize(cacheSizeBefore)
+
+	tb = MustOpenTable(path, 0, nil, 0, nil, &isReadOnly, filterKey)
+	defer tb.MustClose()
+	var ts TableSearch
+	ts.Init(tb, false)
+	stats := ts.SeekWithPartFilter([]byte("missing"))
+	if stats.BudgetFallbackParts == 0 || stats.SkippedParts != 0 {
+		t.Fatalf("expected the missing cache budget to force fallback; got %+v", stats)
+	}
+	if !ts.NextItem() || string(ts.Item) != "series:value" {
+		t.Fatalf("expected fallback to find existing item; got %q", ts.Item)
+	}
+	ts.MustClose()
+}
+
+func TestTableSearchWithOversizedPartFilterFallsBack(t *testing.T) {
+	const path = "TestTableSearchWithOversizedPartFilterFallsBack"
+	fs.MustRemoveDir(path)
+	defer fs.MustRemoveDir(path)
+
+	filterKey := func(item []byte) []byte { return item }
+	var isReadOnly atomic.Bool
+	tb := MustOpenTable(path, 0, nil, 0, nil, &isReadOnly, filterKey)
+	tb.AddItems([][]byte{[]byte("series:value")})
+	tb.MustClose()
+
+	partNames := mustReadPartNames(filepath.Join(path, partsFilename), path)
+	filterPath := filepath.Join(path, partNames[0], filterFilename)
+	if err := os.WriteFile(filterPath, make([]byte, partFilterMaxBytes*10), 0o600); err != nil {
+		t.Fatalf("cannot write oversized part filter: %s", err)
+	}
+
+	tb = MustOpenTable(path, 0, nil, 0, nil, &isReadOnly, filterKey)
+	defer tb.MustClose()
+	var ts TableSearch
+	ts.Init(tb, false)
+	stats := ts.SeekWithPartFilter([]byte("missing"))
+	if stats.UnfilteredParts == 0 || stats.SkippedParts != 0 {
+		t.Fatalf("expected oversized filter to force fallback; got %+v", stats)
+	}
+	if !ts.NextItem() || string(ts.Item) != "series:value" {
+		t.Fatalf("expected fallback to find existing item; got %q", ts.Item)
+	}
+	ts.MustClose()
+}
 
 func TestMain(m *testing.M) {
 	n := m.Run()

@@ -164,3 +164,70 @@ type testBlock struct{}
 func (tb *testBlock) SizeBytes() int {
 	return 42
 }
+
+func TestCacheCanStoreBlock(t *testing.T) {
+	maxSizeBytes := 64 * 1024
+	getMaxSize := func() int {
+		return maxSizeBytes
+	}
+
+	f := func(shardsCount, sizeBytes int, want bool) {
+		t.Helper()
+		c := NewCacheWithShardsCount(getMaxSize, shardsCount)
+		defer c.MustStop()
+		if got := c.CanStoreBlock(sizeBytes); got != want {
+			t.Fatalf("unexpected CanStoreBlock(%d) for the cache with %d shards and %d bytes budget; got %v; want %v",
+				sizeBytes, shardsCount, maxSizeBytes, got, want)
+		}
+	}
+
+	// A single shard must be able to hold the block.
+	f(1, maxSizeBytes, true)
+	f(1, maxSizeBytes+1, false)
+	f(4, maxSizeBytes/4, true)
+	f(4, maxSizeBytes/4+1, false)
+
+	// The block fits into the total budget, but not into a single shard.
+	f(2, maxSizeBytes/2, true)
+	f(2, maxSizeBytes/2+1, false)
+	f(4, maxSizeBytes, false)
+	f(64, maxSizeBytes, false)
+
+	// Blocks with a non-positive size are never reported as storable.
+	f(4, 0, false)
+	f(4, -1, false)
+
+	// An empty budget cannot hold anything.
+	maxSizeBytes = 0
+	f(1, 1, false)
+	f(4, 1, false)
+	maxSizeBytes = 64 * 1024
+
+	// The check must use the current budget instead of a cached value.
+	c := NewCacheWithShardsCount(getMaxSize, 4)
+	defer c.MustStop()
+	if !c.CanStoreBlock(16 << 10) {
+		t.Fatalf("the block must be storable with the %d bytes budget", maxSizeBytes)
+	}
+	maxSizeBytes = 4 << 10
+	if c.CanStoreBlock(16 << 10) {
+		t.Fatalf("the block must not be storable after the budget is reduced to %d bytes", maxSizeBytes)
+	}
+	if !c.CanStoreBlock(1 << 10) {
+		t.Fatalf("the smaller block must be storable with the %d bytes budget", maxSizeBytes)
+	}
+	maxSizeBytes = 64 * 1024
+	if !c.CanStoreBlock(16 << 10) {
+		t.Fatalf("the block must be storable again after the budget is restored to %d bytes", maxSizeBytes)
+	}
+
+	// The number of shards must be at least 1.
+	func() {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Fatalf("expected panic when creating the cache with zero shards")
+			}
+		}()
+		NewCacheWithShardsCount(getMaxSize, 0)
+	}()
+}
