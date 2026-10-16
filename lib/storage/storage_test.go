@@ -3478,9 +3478,6 @@ func testStorageAddRowsWithZeroDate(t *testing.T, disablePerDayIndex bool) {
 // tests only.
 func testSearchMetricIDs(ctx context.Context, s *Storage, tfss []*TagFilters, tr TimeRange, maxMetrics int) []uint64 {
 	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (*uint64set.Set, error) {
-		if s.disablePerDayIndex {
-			tr = globalIndexTimeRange
-		}
 		return idb.searchMetricIDs(ctx, qt, tfss, tr, maxMetrics)
 	}
 	merge := func(data []*uint64set.Set) *uint64set.Set {

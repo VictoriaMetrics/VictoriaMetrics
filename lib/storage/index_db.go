@@ -33,21 +33,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 )
 
+// Global index types.
 const (
 	// Prefix for MetricName->TSID entries.
-	//
-	// This index is used only when -disablePerDayIndex flag is set.
-	//
-	// Otherwise, this index is substituted with nsPrefixDateMetricNameToTSID,
-	// since the MetricName->TSID index may require big amounts of memory for
-	// indexdb/dataBlocks cache when it grows big on the configured retention
-	// under high churn rate (e.g. when new time series are constantly
-	// registered).
-	//
-	// It is much more efficient from memory usage PoV to query per-day MetricName->TSID index
-	// (aka nsPrefixDateMetricNameToTSID) when the TSID must be obtained for the given MetricName
-	// during data ingestion under high churn rate and big retention.
-	//
 	nsPrefixMetricNameToTSID = 0
 
 	// Prefix for Tag->MetricID entries.
@@ -62,6 +50,13 @@ const (
 	// Prefix for deleted MetricID entries.
 	nsPrefixDeletedMetricID = 4
 
+	// TODO(@rtm0): Add nsPrefixMetricID and use it in is.HasMetricID instead
+	// of nsPrefixMetricIDToTSID. This can potentially improve the ingestion
+	// and block cache utilization when the per-day index is disabled.
+)
+
+// Per-day index types.
+const (
 	// Prefix for Date->MetricID entries.
 	nsPrefixDateToMetricID = 5
 
@@ -1345,13 +1340,21 @@ func getRegexpPartsForGraphiteQuery(q string) ([]string, string) {
 //
 // It includes the deleted series.
 func (db *indexDB) GetSeriesCount(ctx context.Context) (uint64, error) {
+	count, err := db.getSeriesCount(ctx)
+	if err != nil {
+		return 0, db.wrapError("get series count", err)
+	}
+	return count, nil
+}
+
+func (db *indexDB) getSeriesCount(ctx context.Context) (uint64, error) {
 	is := db.getIndexSearch()
 	defer db.putIndexSearch(is)
 
 	if db.s.disablePerDayIndex {
-		count, err := is.getSeriesCountAll(ctx)
+		count, err := is.getSeriesCount(ctx)
 		if err != nil {
-			return 0, db.wrapError("get series count", err)
+			return 0, err
 		}
 		return count, nil
 	}
@@ -1361,22 +1364,22 @@ func (db *indexDB) GetSeriesCount(ctx context.Context) (uint64, error) {
 	for date := minDate; date <= maxDate; date++ {
 		count, err := is.getSeriesCountByDate(ctx, date)
 		if err != nil {
-			return 0, db.wrapError("get series count", err)
+			return 0, err
 		}
 		total += count
 	}
 
 	// Also read global index for backward compatibility.
-	count, err := is.getSeriesCountAll(ctx)
+	count, err := is.getSeriesCount(ctx)
 	if err != nil {
-		return 0, db.wrapError("get series count", err)
+		return 0, err
 	}
 	total += count
 
 	return total, nil
 }
 
-func (is *indexSearch) getSeriesCountAll(ctx context.Context) (uint64, error) {
+func (is *indexSearch) getSeriesCount(ctx context.Context) (uint64, error) {
 	kb := &is.kb
 	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixMetricIDToTSID)
 	return is.getSeriesCountByPrefix(ctx, kb.B)
@@ -1412,7 +1415,7 @@ func (is *indexSearch) getSeriesCountByPrefix(ctx context.Context, prefix []byte
 		metricIDsLen++
 	}
 	if err := ts.Error(); err != nil {
-		return 0, fmt.Errorf("error when counting unique timeseries: %w", err)
+		return 0, err
 	}
 	return metricIDsLen, nil
 }
@@ -1670,11 +1673,7 @@ func (db *indexDB) DeleteSeries(ctx context.Context, qt *querytracer.Tracer, tfs
 	qt = qt.NewChild("delete series: filters=%s, maxMetrics=%d", tfss, maxMetrics)
 	defer qt.Done()
 
-	tr := db.tr
-	if db.s.disablePerDayIndex {
-		tr = globalIndexTimeRange
-	}
-	metricIDs, err := db.searchMetricIDs(ctx, qt, tfss, tr, maxMetrics)
+	metricIDs, err := db.searchMetricIDs(ctx, qt, tfss, db.tr, maxMetrics)
 	if err != nil {
 		return nil, db.wrapError("delete series", err)
 	}
@@ -1832,7 +1831,7 @@ func (db *indexDB) searchMetricIDs(ctx context.Context, qt *querytracer.Tracer, 
 	qt = qt.NewChild("search metricIDs: filters=%s, timeRange=%s, maxMetrics=%d", tfss, &tr, maxMetrics)
 	defer qt.Done()
 
-	if tr == globalIndexTimeRange {
+	if db.s.disablePerDayIndex {
 		qtChild := qt.NewChild("search metricIDs in global index: filters=%s, maxMetrics=%d", tfss, maxMetrics)
 		defer qtChild.Done()
 		db.globalSearchCalls.Add(1)
@@ -2087,7 +2086,7 @@ func (db *indexDB) searchTSIDsByMetricIDs(ctx context.Context, qt *querytracer.T
 				return false
 			}
 			err = nil
-			if !is.getTSIDByMetricID(tsid, date, metricID) {
+			if !is.searchTSID(tsid, date, metricID) {
 				// Cannot find TSID for the given metricID.
 				// This may be the case on incomplete indexDB
 				// due to snapshot or due to un-flushed entries.
@@ -2271,11 +2270,11 @@ func (is *indexSearch) getTSIDByMetricName(dst *TSID, metricName []byte, date ui
 	ts := &is.ts
 	kb := &is.kb
 
-	if !is.db.s.disablePerDayIndex {
+	if is.db.s.disablePerDayIndex {
+		kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixMetricNameToTSID)
+	} else {
 		kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateMetricNameToTSID)
 		kb.B = encoding.MarshalUint64(kb.B, date)
-	} else {
-		kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixMetricNameToTSID)
 	}
 	kb.B = append(kb.B, metricName...)
 	kb.B = append(kb.B, kvSeparatorChar)
@@ -2363,26 +2362,26 @@ func (is *indexSearch) getMetricNameByPrefix(dst []byte, prefix []byte) ([]byte,
 	return dst, true
 }
 
-func (is *indexSearch) getTSIDByMetricID(dst *TSID, date, metricID uint64) bool {
+func (is *indexSearch) searchTSID(dst *TSID, date, metricID uint64) bool {
 	if is.db.s.disablePerDayIndex {
-		return is.getTSIDByMetricIDGlobal(dst, metricID)
+		return is.getTSIDByMetricID(dst, metricID)
 	}
 
-	if is.getTSIDByMetricIDPerDay(dst, date, metricID) {
+	if is.getTSIDByDateAndMetricID(dst, date, metricID) {
 		return true
 	}
 	// Also search global index for backward compatibility.
-	return is.getTSIDByMetricIDGlobal(dst, metricID)
+	return is.getTSIDByMetricID(dst, metricID)
 }
 
-func (is *indexSearch) getTSIDByMetricIDGlobal(dst *TSID, metricID uint64) bool {
+func (is *indexSearch) getTSIDByMetricID(dst *TSID, metricID uint64) bool {
 	kb := &is.kb
 	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixMetricIDToTSID)
 	kb.B = encoding.MarshalUint64(kb.B, metricID)
 	return is.getTSIDByPrefix(dst, kb.B)
 }
 
-func (is *indexSearch) getTSIDByMetricIDPerDay(dst *TSID, date, metricID uint64) bool {
+func (is *indexSearch) getTSIDByDateAndMetricID(dst *TSID, date, metricID uint64) bool {
 	kb := &is.kb
 	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateMetricIDToTSID)
 	kb.B = encoding.MarshalUint64(kb.B, date)
