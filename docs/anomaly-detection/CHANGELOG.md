@@ -20,6 +20,11 @@ Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
 {{% collapse name="2026" open=true %}}
 
+## v1.31.1
+Released: 2026-10-15
+
+- BUGFIX: Schedule data reads for [peer-group models](https://docs.victoriametrics.com/anomaly-detection/components/models/#peer-group-models) using the [periodic scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler), preventing the first fit from waiting indefinitely for data.
+
 ## v1.31.0
 Released: 2026-10-09
 
