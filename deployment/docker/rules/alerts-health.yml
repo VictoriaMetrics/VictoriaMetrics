@@ -171,7 +171,7 @@ groups:
             `vmbackup` and `vmbackupmanager` delete the snapshot right after the backup is completed, 
             so at most a single snapshot is expected to exist at any point in time. 
             Manually created snapshots will be removed automatically when they become older than `-snapshotsMaxAge` (`3d` by default)
-             he growing number of snapshots means that something on "{{ $labels.instance }}" isn't working as expected.
+            The growing number of snapshots means that something on "{{ $labels.instance }}" isn't working as expected.
 
             Old snapshots keep references to the data parts they were created from. This prevents
             background merges from deleting these parts and from freeing the occupied disk space,
