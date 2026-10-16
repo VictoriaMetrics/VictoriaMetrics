@@ -1,132 +1,121 @@
 package storage
 
 import (
+	"fmt"
 	"math/rand"
 	"testing"
 	"time"
 )
 
-func TestLegacyContainsTimeRange(t *testing.T) {
+func TestLegacyIndexDBContainsTimeRange(t *testing.T) {
+	defer testRemoveAll(t)
+	for _, disablePerDayIndex := range []bool{false, true} {
+		name := fmt.Sprintf("disablePerDayIndex=%t", disablePerDayIndex)
+		t.Run(name, func(t *testing.T) {
+			testLegacyIndexDBContainsTimeRange(t, disablePerDayIndex)
+		})
+	}
+}
+
+func testLegacyIndexDBContainsTimeRange(t *testing.T, disablePerDayIndex bool) {
 	defer testRemoveAll(t)
 
 	rng := rand.New(rand.NewSource(1))
 	const numMetrics = 10000
-	trPrev := TimeRange{
-		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-		MaxTimestamp: time.Date(2025, 1, 15, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	dataTR := TimeRange{
+		MinTimestamp: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2026, 1, 15, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
-	trCurr := TimeRange{
-		MinTimestamp: time.Date(2025, 1, 16, 0, 0, 0, 0, time.UTC).UnixMilli(),
-		MaxTimestamp: time.Date(2025, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
-	}
-	trPt := TimeRange{
-		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-		MaxTimestamp: time.Date(2025, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
-	}
-	mrsPrev := testGenerateMetricRowsWithPrefix(rng, numMetrics, "legacy_prev", trPrev)
-	mrsCurr := testGenerateMetricRowsWithPrefix(rng, numMetrics, "legacy_curr", trCurr)
-	mrsPt := testGenerateMetricRowsWithPrefix(rng, numMetrics, "pt", trPt)
-
-	f := func(idb *indexDB, tr TimeRange, want bool) {
-		t.Helper()
-		got := idb.legacyContainsTimeRange(tr)
-		if got != want {
-			t.Fatalf("legacyContainsTimeRange(%s) for index db %s returns unexpected result: got %t, want %t", tr.String(), idb.name, got, want)
-		}
-	}
+	mrs := testGenerateMetricRowsWithPrefix(rng, numMetrics, "metric", dataTR)
 
 	// fill legacy index with data
-	s := MustOpenStorage(t.Name(), OpenOptions{})
-	s.AddRows(mrsPrev, defaultPrecisionBits)
+	s := MustOpenStorage(t.Name(), OpenOptions{
+		DisablePerDayIndex: disablePerDayIndex,
+	})
+	s.AddRows(mrs, defaultPrecisionBits)
 	s.DebugFlush()
 	s = mustConvertToLegacy(s)
-	s.AddRows(mrsCurr, defaultPrecisionBits)
-	s.DebugFlush()
-	s = mustConvertToLegacy(s)
-	// fill partitioned index with data
-	s.AddRows(mrsPt, defaultPrecisionBits)
-	s.DebugFlush()
 	defer s.MustClose()
 
 	legacyIDBs := s.getLegacyIndexDBs()
 	defer s.putLegacyIndexDBs(legacyIDBs)
+	// Legacy indexDB time range is [0, MaxInt64], while its dataTR is
+	// [2026-01-01T00:00:00.000Z, 2026-01-15T23:59:59.999Z].
+	db := legacyIDBs.getIDBPrev()
 
-	ptws := s.tb.GetPartitions(trPt)
-	defer s.tb.PutPartitions(ptws)
-	if len(ptws) != 1 {
-		t.Fatalf("unexpected number of partitions for one month time range %v: got %d, want 1", &trPt, len(ptws))
+	f := func(tr TimeRange, wantContains bool, wantTR TimeRange) {
+		t.Helper()
+		gotContains, gotTR := db.containsTimeRange(tr)
+		if gotContains != wantContains {
+			t.Fatalf("unexpected containsTimeRange() result: got %t, want %t", gotContains, wantContains)
+		}
+		if wantContains && disablePerDayIndex {
+			wantTR = globalIndexTimeRange
+		}
+		if gotTR != wantTR {
+			t.Fatalf("unexpected containsTimeRange() adjusted time range: got %s, want %s", &gotTR, &wantTR)
+		}
 	}
-	idb := ptws[0].pt.idb
 
 	var tr TimeRange
 
-	// Global index time range.
-	tr = globalIndexTimeRange
-	f(legacyIDBs.getIDBPrev(), tr, true)
-	f(legacyIDBs.getIDBCurr(), tr, true)
-	f(idb, tr, true)
+	// Time range is fully included into indexDB tr but before indexDB dataTR.
+	//
+	// Still expect indexDB to contain the time range because
+	// lecacyContainsTimeRange() only checks whether tr.MinTimestamp is greater
+	// than dataTR.MaxTimestamp.
+	tr.MinTimestamp = time.Date(2025, 12, 31, 0, 0, 0, 0, time.UTC).UnixMilli()
+	tr.MaxTimestamp = time.Date(2025, 12, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli()
+	f(tr, true, tr)
 
-	// Fully before trPrev, trCurr, and trPt.
-	tr = TimeRange{
-		MinTimestamp: time.Date(2024, 12, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-		MaxTimestamp: time.Date(2024, 12, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
-	}
-	f(legacyIDBs.getIDBPrev(), tr, true)
-	f(legacyIDBs.getIDBCurr(), tr, true)
-	f(idb, tr, true)
+	// Time range is fully included into indexDB tr and overlaps with indexDB
+	// dataTR on first millisecond.
+	tr.MinTimestamp = time.Date(2025, 12, 31, 0, 0, 0, 0, time.UTC).UnixMilli()
+	tr.MaxTimestamp = time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
+	f(tr, true, tr)
 
-	// Overlaps with trPrev and trPt on the left side, fully before trCurr.
-	tr = TimeRange{
-		MinTimestamp: time.Date(2024, 12, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-		MaxTimestamp: time.Date(2025, 1, 7, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
-	}
-	f(legacyIDBs.getIDBPrev(), tr, true)
-	f(legacyIDBs.getIDBCurr(), tr, true)
-	f(idb, tr, true)
+	// Time range is fully included into indexDB tr and overlaps with indexDB
+	// dataTR on the left.
+	tr.MinTimestamp = time.Date(2025, 12, 31, 0, 0, 0, 0, time.UTC).UnixMilli()
+	tr.MaxTimestamp = time.Date(2026, 1, 5, 0, 0, 0, 0, time.UTC).UnixMilli()
+	f(tr, true, tr)
 
-	// Fully inside trPrev and trPt, fully before trCurr.
-	tr = TimeRange{
-		MinTimestamp: time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC).UnixMilli(),
-		MaxTimestamp: time.Date(2025, 1, 7, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
-	}
-	f(legacyIDBs.getIDBPrev(), tr, true)
-	f(legacyIDBs.getIDBCurr(), tr, true)
-	f(idb, tr, true)
+	// Time range is fully included into indexDB tr and fully included into
+	// dataTR on the left.
+	tr.MinTimestamp = time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
+	tr.MaxTimestamp = time.Date(2026, 1, 5, 0, 0, 0, 0, time.UTC).UnixMilli()
+	f(tr, true, tr)
 
-	// Fully inside trPt, overlaps with trPrev on the right side and with trCurr
-	// on the left side.
-	tr = TimeRange{
-		MinTimestamp: time.Date(2025, 1, 7, 0, 0, 0, 0, time.UTC).UnixMilli(),
-		MaxTimestamp: time.Date(2025, 1, 21, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
-	}
-	f(legacyIDBs.getIDBPrev(), tr, true)
-	f(legacyIDBs.getIDBCurr(), tr, true)
-	f(idb, tr, true)
+	// Time range is fully included into indexDB tr and fully included into
+	// dataTR.
+	tr.MinTimestamp = time.Date(2026, 1, 5, 0, 0, 0, 0, time.UTC).UnixMilli()
+	tr.MaxTimestamp = time.Date(2026, 1, 10, 0, 0, 0, 0, time.UTC).UnixMilli()
+	f(tr, true, tr)
 
-	// Fully inside trPt and trCurr, fully after trPrev.
-	tr = TimeRange{
-		MinTimestamp: time.Date(2025, 1, 18, 0, 0, 0, 0, time.UTC).UnixMilli(),
-		MaxTimestamp: time.Date(2025, 1, 21, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
-	}
-	f(legacyIDBs.getIDBPrev(), tr, false)
-	f(legacyIDBs.getIDBCurr(), tr, true)
-	f(idb, tr, true)
+	// Time range is fully included into indexDB tr and fully included into
+	// dataTR on the right.
+	tr.MinTimestamp = time.Date(2026, 1, 10, 0, 0, 0, 0, time.UTC).UnixMilli()
+	tr.MaxTimestamp = time.Date(2026, 1, 15, 23, 59, 59, 999_000_000, time.UTC).UnixMilli()
+	f(tr, true, tr)
 
-	// Overlaps with trPt and trCurr on the right side, fully after trPrev.
-	tr = TimeRange{
-		MinTimestamp: time.Date(2025, 1, 21, 0, 0, 0, 0, time.UTC).UnixMilli(),
-		MaxTimestamp: time.Date(2025, 2, 21, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
-	}
-	f(legacyIDBs.getIDBPrev(), tr, false)
-	f(legacyIDBs.getIDBCurr(), tr, true)
-	f(idb, tr, true)
+	// Time range is fully included into indexDB tr and overlaps with dataTR on
+	// the right
+	tr.MinTimestamp = time.Date(2026, 1, 10, 0, 0, 0, 0, time.UTC).UnixMilli()
+	tr.MaxTimestamp = time.Date(2026, 1, 20, 0, 0, 0, 0, time.UTC).UnixMilli()
+	f(tr, true, tr)
 
-	// fully after trPrev, trCurr, and trPt.
-	tr = TimeRange{
-		MinTimestamp: time.Date(2025, 2, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-		MaxTimestamp: time.Date(2025, 3, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	// Time range is fully included into indexDB tr and overlaps with dataTR on
+	// the right on the last millisecond
+	tr.MinTimestamp = time.Date(2026, 1, 15, 23, 59, 59, 999_000_000, time.UTC).UnixMilli()
+	tr.MaxTimestamp = time.Date(2026, 1, 20, 0, 0, 0, 0, time.UTC).UnixMilli()
+	f(tr, true, tr)
+
+	// Time range is fully included into indexDB tr but it is after dataTR.
+	tr.MinTimestamp = time.Date(2026, 1, 16, 0, 0, 0, 0, time.UTC).UnixMilli()
+	tr.MaxTimestamp = time.Date(2026, 1, 20, 0, 0, 0, 0, time.UTC).UnixMilli()
+	if disablePerDayIndex {
+		f(tr, true, tr)
+	} else {
+		f(tr, false, tr)
 	}
-	f(legacyIDBs.getIDBPrev(), tr, false)
-	f(legacyIDBs.getIDBCurr(), tr, false)
-	f(idb, tr, true)
 }

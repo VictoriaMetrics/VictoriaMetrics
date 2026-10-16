@@ -1,4 +1,4 @@
-import { MetricBase } from "../api/types";
+import { MetricBase, TenantInfo } from "../api/types";
 export * from "./uplot";
 
 declare global {
@@ -84,11 +84,9 @@ export interface RelativeTimeOption {
   isDefault?: boolean;
 }
 
-export interface TopQuery {
-  accountID: number;
+export interface TopQuery extends TenantInfo {
   avgDurationSeconds: number;
   count: number;
-  projectID: number;
   query: string;
   timeRangeSeconds: number;
   sumDurationSeconds: number;
@@ -161,7 +159,7 @@ export interface RelabelData {
   steps: RelabelStep[];
 }
 
-export interface ActiveQueriesType {
+export interface ActiveQueriesType extends TenantInfo {
   duration: string;
   end: number;
   start: number;
@@ -171,6 +169,9 @@ export interface ActiveQueriesType {
   step: number;
   args?: string;
   data?: string;
+  account_id?: string;
+  project_id?: string;
+  is_multitenant?: boolean;
 }
 
 export enum QueryContextType {

@@ -263,14 +263,24 @@ const DownloadReport: FC<Props> = ({ fetchUrl, reportType = ReportType.QUERY_DAT
                       label={"Include query trace"}
                     />
                   </div>
-                  <Alert variant="info">
-                    If confused with the query results,
-                    try viewing the raw samples for selected series in <RawQueryLink/> tab.
+                  <Alert
+                    variant="info"
+                    title="Inspect raw samples"
+                  >
+                    To better understand the query results, view the raw samples
+                    for selected series in the <RawQueryLink/> tab.
                   </Alert>
                 </>
               )}
             </div>
-            {error && <Alert variant="error">{error}</Alert>}
+            {error && (
+              <Alert
+                variant="error"
+                title="Unable to generate report"
+              >
+                {error}
+              </Alert>
+            )}
             <div className="vm-download-report__buttons">
               <Button
                 variant="text"
