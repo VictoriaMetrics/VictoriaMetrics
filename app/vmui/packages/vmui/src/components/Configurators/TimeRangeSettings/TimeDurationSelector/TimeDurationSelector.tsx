@@ -19,8 +19,8 @@ const TimeDurationSelector: FC<TimeDurationSelector> = ({ relativeTime, setDurat
   const [recentDurations, setRecentDurations] = useState(getRecentDurations);
   const [error, setError] = useState("");
 
-  const createHandlerClick = (value: { duration: string, until: Date, id: string }) => () => {
-    setDuration(value);
+  const createHandlerClick = (value: { duration: string, until: () => Date, id: string }) => () => {
+    setDuration({ ...value, until: value.until() });
   };
 
   const handleCustomDurationChange = (value: string) => {
@@ -82,7 +82,7 @@ const TimeDurationSelector: FC<TimeDurationSelector> = ({ relativeTime, setDurat
               "vm-list-item_active": id === relativeTime
             })}
             key={id}
-            onClick={createHandlerClick({ duration, until: new Date(), id })}
+            onClick={createHandlerClick({ duration, until: () => new Date(), id })}
           >
             Last {duration}
           </div>
@@ -96,7 +96,7 @@ const TimeDurationSelector: FC<TimeDurationSelector> = ({ relativeTime, setDurat
             "vm-list-item_active": id === relativeTime
           })}
           key={id}
-          onClick={createHandlerClick({ duration, until: until(), id })}
+          onClick={createHandlerClick({ duration, until, id })}
         >
           {title || duration}
         </div>

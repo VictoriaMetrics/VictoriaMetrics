@@ -77,10 +77,10 @@ export const parseSupportedDuration = (str: string): Partial<Record<UnitTypeShor
   return Object.keys(result).length ? result : undefined;
 };
 
+const durationTokenRegexp = /(?:\d+(?:\.\d+)?|\.\d+)(?:ms|[ywdhms])(?![a-zA-Z])/g;
+
 export const getSecondsFromDuration = (dur: string) => {
-  const shortSupportedDur = supportedDurations.map(d => d.short).join("|");
-  const regexp = new RegExp(`\\d+(\\.\\d+)?[${shortSupportedDur}]+`, "g");
-  const durItems = dur.match(regexp) || [];
+  const durItems = dur.replace(/,/g, ".").match(durationTokenRegexp) || [];
 
   const durObject = durItems.reduce((prev, curr) => {
 
@@ -103,8 +103,6 @@ export const getSecondsFromDuration = (dur: string) => {
 export const getMillisecondsFromDuration = (dur: string): number => {
   return getSecondsFromDuration(dur) * 1000;
 };
-
-const durationTokenRegexp = /(?:\d+(?:\.\d+)?|\.\d+)(?:ms|[ywdhms])/g;
 
 export const normalizeDuration = (value: string): string | undefined => {
   const duration = value.trim().toLowerCase().replace(/\s+/g, "").replace(/,/g, ".");
@@ -130,8 +128,8 @@ export const getCustomRelativeTimeId = (duration: string): string => {
   return `${customRelativeTimePrefix}${duration}`;
 };
 
-export const getCustomDurationFromRelativeTimeId = (id: string): string | undefined => {
-  if (!id.startsWith(customRelativeTimePrefix)) return;
+export const getCustomDurationFromRelativeTimeId = (id: unknown): string | undefined => {
+  if (typeof id !== "string" || !id.startsWith(customRelativeTimePrefix)) return;
   return normalizeDuration(id.slice(customRelativeTimePrefix.length));
 };
 
@@ -218,10 +216,11 @@ export const relativeTimeOptions: RelativeTimeOption[] = [
   ...o
 }));
 
-interface getRelativeTimeArguments { relativeTimeId?: string, defaultDuration: string, defaultEndInput: Date }
+interface getRelativeTimeArguments { relativeTimeId?: unknown, defaultDuration: string, defaultEndInput: Date }
 export const getRelativeTime = ({ relativeTimeId, defaultDuration, defaultEndInput }: getRelativeTimeArguments) => {
   const defaultId = relativeTimeOptions.find(t => t.isDefault)?.id;
-  const id = relativeTimeId || getQueryStringValue("g0.relative_time", defaultId) as string;
+  const rawId = relativeTimeId || getQueryStringValue("g0.relative_time", defaultId);
+  const id = typeof rawId === "string" ? rawId : "none";
   const target = relativeTimeOptions.find(d => d.id === id);
   const customDuration = getCustomDurationFromRelativeTimeId(id);
   return {
