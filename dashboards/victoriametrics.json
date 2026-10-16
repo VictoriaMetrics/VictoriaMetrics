@@ -5605,7 +5605,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows the number of insert requests (remote write, OpenTelemetry, InfluxDB, `/api/v1/import`, etc.) that are being processed at the same time, where:\n* `max` - the maximum number of requests that can be processed in parallel;\n* `current` - the number of requests currently being read, parsed or added to the storage.\n\nThe `max` value is controlled by the `-maxConcurrentInserts` flag (2 * available CPUs by default). Requests above the limit wait in a queue for up to `-insert.maxQueueDuration`. Added data is buffered in memory and flushed to disk periodically (see `-inmemoryDataFlushInterval`).\n\nIf `current` consistently reaches `max`, VictoriaMetrics can't keep up with the ingestion rate. It likely requires more CPU (see CPU usage) or is slowed down by background merges on slow disks (see disk read/write panels in the Resource Usage row). Slow clients sending large remote write requests can also hold slots for longer.",
+          "description": "Shows the number of data ingestion requests that are being processed at the same time, where:\n* `max` - the maximum number of requests that can be processed in parallel;\n* `current` - the number of requests currently being processed.\n\nIf `current` frequently reaches `max`, VictoriaMetrics likely doesn't have enough resources to keep up with the ingestion rate. Add more CPU (see CPU usage) or faster disks (see disk read/write panels in the Resource Usage row).\n\nThe limit can be adjusted with the `-maxConcurrentInserts` command-line flag, but this isn't recommended in general, since it may increase memory usage.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -7137,7 +7137,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows the number of insert requests (remote write, OpenTelemetry, InfluxDB, `/api/v1/import`, etc.) that are being processed at the same time, where:\n* `max` - the maximum number of requests that can be processed in parallel;\n* `current` - the number of requests currently being read, parsed or added to the storage.\n\nThe `max` value is controlled by the `-maxConcurrentInserts` flag (2 * available CPUs by default). Requests above the limit wait in a queue for up to `-insert.maxQueueDuration`. Added data is buffered in memory and flushed to disk periodically (see `-inmemoryDataFlushInterval`).\n\nIf `current` consistently reaches `max`, VictoriaMetrics can't keep up with the ingestion rate. It likely requires more CPU (see CPU usage) or is slowed down by background merges on slow disks (see disk read/write panels in the Resource Usage row). Slow clients sending large remote write requests can also hold slots for longer.",
+          "description": "Shows the number of data ingestion requests that are being processed at the same time, where:\n* `max` - the maximum number of requests that can be processed in parallel;\n* `current` - the number of requests currently being processed.\n\nIf `current` frequently reaches `max`, VictoriaMetrics likely doesn't have enough resources to keep up with the ingestion rate. Add more CPU (see CPU usage) or faster disks (see disk read/write panels in the Resource Usage row).\n\nThe limit can be adjusted with the `-maxConcurrentInserts` command-line flag, but this isn't recommended in general, since it may increase memory usage.",
           "fieldConfig": {
             "defaults": {
               "color": {
