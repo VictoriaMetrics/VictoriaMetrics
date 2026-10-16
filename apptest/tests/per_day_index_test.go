@@ -121,8 +121,8 @@ func testSearchWithDisabledPerDayIndex(tc *apptest.TestCase, start startSUTFunc)
 		},
 	})
 
-	// Restart SUT with disabled per-day index, insert sample2, and confirm that
-	// both sample1 and sample2 is searchable.
+	// Restart SUT with disabled per-day index. This will activate global index.
+	// Insert sample2, and confirm thatsample2 is searchable but sample1 is not.
 	tc.StopPrometheusWriteQuerier(sut)
 	sut = start("without-per-day-index", true)
 	sample2 := []string{"metric2 222 1704067200000"} // 2024-01-01T00:00:00Z
@@ -132,14 +132,9 @@ func testSearchWithDisabledPerDayIndex(tc *apptest.TestCase, start startSUTFunc)
 		start: "2024-01-01T00:00:00Z",
 		end:   "2024-01-01T23:59:59Z",
 		wantSeries: []map[string]string{
-			{"__name__": "metric1"},
 			{"__name__": "metric2"},
 		},
 		wantQueryResults: []*apptest.QueryResult{
-			{
-				Metric:  map[string]string{"__name__": "metric1"},
-				Samples: []*apptest.Sample{{Timestamp: 1704067200000, Value: float64(111)}},
-			},
 			{
 				Metric:  map[string]string{"__name__": "metric2"},
 				Samples: []*apptest.Sample{{Timestamp: 1704067200000, Value: float64(222)}},
@@ -147,21 +142,20 @@ func testSearchWithDisabledPerDayIndex(tc *apptest.TestCase, start startSUTFunc)
 		},
 	})
 
-	// Insert sample1 but for a different date, restart SUT with enabled per-day
-	// index and confirm that:
+	// Global index is still in use. Insert sample1 but for a different date.
+	// Restart SUT with enabled per-day index and confirm that:
 	// - sample1 is searchable within the time range of Jan 1st
 	// - sample1 is not searchable within the time range of Jan 20th
 	// - sample1 is searchable within the time range of Jan 1st-20th (because
 	//   the metric1 metricID will be found in the per-day index for Jan 1st).
-	// - sample2 is not searchable when the time range is <= 40 days
-	// - sample2 is not searchable when the time range is > 40 days
+	// - sample2 is not searchable.
 	sample3 := []string{"metric1 333 1705708800000"} // 2024-01-20T00:00:00Z
 	sut.PrometheusAPIV1ImportPrometheus(t, sample3, apptest.QueryOpts{})
 	sut.ForceFlush(t)
 	tc.StopPrometheusWriteQuerier(sut)
 	sut = start("with-per-day-index2", false)
 
-	// Time range is 1 day (Jan 1st) <= 40 days
+	// Time range is 1 day (Jan 1st).
 	assertSearchResults(sut, &opts{
 		start: "2024-01-01T00:00:00Z",
 		end:   "2024-01-01T23:59:59Z",
@@ -176,7 +170,7 @@ func testSearchWithDisabledPerDayIndex(tc *apptest.TestCase, start startSUTFunc)
 		},
 	})
 
-	// Time range is 1 day (Jan 20th) <= 40 days
+	// Time range is 1 day (Jan 20th).
 	assertSearchResults(sut, &opts{
 		start:            "2024-01-20T00:00:00Z",
 		end:              "2024-01-20T23:59:59Z",
@@ -184,7 +178,7 @@ func testSearchWithDisabledPerDayIndex(tc *apptest.TestCase, start startSUTFunc)
 		wantQueryResults: []*apptest.QueryResult{},
 	})
 
-	// Time range is 20 days (Jan 1st-20th) <= 40 days
+	// Time range is 20 days (Jan 1st-20th).
 	assertSearchResults(sut, &opts{
 		start: "2024-01-01T00:00:00Z",
 		end:   "2024-01-20T23:59:59Z",

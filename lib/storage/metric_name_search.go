@@ -35,7 +35,7 @@ type metricNameSearch struct {
 }
 
 // search searches the metricName of a metricID.
-func (s *metricNameSearch) search(dst []byte, metricID uint64) ([]byte, bool) {
+func (s *metricNameSearch) search(dst []byte, date, metricID uint64) ([]byte, bool) {
 	if !s.useSparseCache {
 		n := len(dst)
 		dst = s.storage.getMetricNameByMetricIDFromCache(dst, metricID)
@@ -49,7 +49,7 @@ func (s *metricNameSearch) search(dst []byte, metricID uint64) ([]byte, bool) {
 	// This will be just one idb most of the time since a typical time range
 	// fits within a single month.
 	for _, idb := range s.idbs {
-		dst, found = idb.searchMetricName(dst, metricID, s.useSparseCache)
+		dst, found = idb.searchMetricName(dst, date, metricID, s.useSparseCache)
 		if found {
 			if !s.useSparseCache {
 				s.storage.putMetricNameByMetricIDToCache(metricID, dst)
@@ -60,7 +60,7 @@ func (s *metricNameSearch) search(dst []byte, metricID uint64) ([]byte, bool) {
 
 	// Fallback to current legacy indexDB.
 	if idb := s.legacyIDBs.getIDBCurr(); idb != nil {
-		dst, found = idb.searchMetricName(dst, metricID, s.useSparseCache)
+		dst, found = idb.searchMetricName(dst, date, metricID, s.useSparseCache)
 		if found {
 			if !s.useSparseCache {
 				s.storage.putMetricNameByMetricIDToCache(metricID, dst)
@@ -71,7 +71,7 @@ func (s *metricNameSearch) search(dst []byte, metricID uint64) ([]byte, bool) {
 
 	// Fallback to previous legacy indexDB.
 	if idb := s.legacyIDBs.getIDBPrev(); idb != nil {
-		dst, found = idb.searchMetricName(dst, metricID, s.useSparseCache)
+		dst, found = idb.searchMetricName(dst, date, metricID, s.useSparseCache)
 		if found {
 			if !s.useSparseCache {
 				s.storage.putMetricNameByMetricIDToCache(metricID, dst)
