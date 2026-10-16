@@ -77,6 +77,10 @@ func (d *RetentionDuration) Set(value string) error {
 		return nil
 	}
 
+	if strings.EqualFold(strings.TrimSuffix(value, "M"), "NaN") {
+		return fmt.Errorf("duration months cannot be NaN; got %q", value)
+	}
+
 	// An attempt to parse value as months with unit M(onth).
 	if cutValue, found := strings.CutSuffix(value, "M"); found {
 		months, err := strconv.ParseFloat(cutValue, 64)
