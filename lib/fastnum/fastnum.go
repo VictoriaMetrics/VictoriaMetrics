@@ -3,13 +3,21 @@ package fastnum
 import (
 	"bytes"
 	"unsafe"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 // AppendInt64Zeros appends items zeros to dst and returns the result.
 //
 // It is faster than the corresponding loop.
 func AppendInt64Zeros(dst []int64, items int) []int64 {
-	return appendInt64Data(dst, items, int64Zeros[:])
+	if items <= 0 {
+		return dst
+	}
+	dstLen := len(dst)
+	dst = slicesutil.SetLength(dst, dstLen+items)
+	clear(dst[dstLen:])
+	return dst
 }
 
 // AppendInt64Ones appends items ones to dst and returns the result.
@@ -23,7 +31,13 @@ func AppendInt64Ones(dst []int64, items int) []int64 {
 //
 // It is faster than the corresponding loop.
 func AppendFloat64Zeros(dst []float64, items int) []float64 {
-	return appendFloat64Data(dst, items, float64Zeros[:])
+	if items <= 0 {
+		return dst
+	}
+	dstLen := len(dst)
+	dst = slicesutil.SetLength(dst, dstLen+items)
+	clear(dst[dstLen:])
+	return dst
 }
 
 // AppendFloat64Ones appends items ones to dst and returns the result.
@@ -54,19 +68,29 @@ func IsFloat64Ones(a []float64) bool {
 }
 
 func appendInt64Data(dst []int64, items int, src []int64) []int64 {
-	for items > 0 {
-		n := min(len(src), items)
-		dst = append(dst, src[:n]...)
-		items -= n
+	if items <= 0 {
+		return dst
+	}
+	dstLen := len(dst)
+	dst = slicesutil.SetLength(dst, dstLen+items)
+	a := dst[dstLen:]
+	for len(a) > 0 {
+		n := copy(a, src)
+		a = a[n:]
 	}
 	return dst
 }
 
 func appendFloat64Data(dst []float64, items int, src []float64) []float64 {
-	for items > 0 {
-		n := min(len(src), items)
-		dst = append(dst, src[:n]...)
-		items -= n
+	if items <= 0 {
+		return dst
+	}
+	dstLen := len(dst)
+	dst = slicesutil.SetLength(dst, dstLen+items)
+	a := dst[dstLen:]
+	for len(a) > 0 {
+		n := copy(a, src)
+		a = a[n:]
 	}
 	return dst
 }

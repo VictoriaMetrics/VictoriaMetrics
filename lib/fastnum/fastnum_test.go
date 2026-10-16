@@ -190,3 +190,30 @@ func TestAppendFloat64Ones(t *testing.T) {
 		})
 	}
 }
+
+func TestAppendNonPositiveItems(t *testing.T) {
+	for _, n := range []int{-100, -1, 0} {
+		t.Run(fmt.Sprintf("%d_items", n), func(t *testing.T) {
+			prefixInt64 := []int64{1, 2, 3}
+			aInt64 := AppendInt64Zeros(prefixInt64, n)
+			if len(aInt64) != len(prefixInt64) {
+				t.Fatalf("unexpected len(aInt64); got %d; want %d", len(aInt64), len(prefixInt64))
+			}
+			aInt64 = AppendInt64Ones(prefixInt64, n)
+			if len(aInt64) != len(prefixInt64) {
+				t.Fatalf("unexpected len(aInt64); got %d; want %d", len(aInt64), len(prefixInt64))
+			}
+
+			prefixFloat64 := []float64{1, 2, 3}
+			aFloat64 := AppendFloat64Zeros(prefixFloat64, n)
+			if len(aFloat64) != len(prefixFloat64) {
+				t.Fatalf("unexpected len(aFloat64); got %d; want %d", len(aFloat64), len(prefixFloat64))
+			}
+			aFloat64 = AppendFloat64Ones(prefixFloat64, n)
+			if len(aFloat64) != len(prefixFloat64) {
+				t.Fatalf("unexpected len(aFloat64); got %d; want %d", len(aFloat64), len(prefixFloat64))
+			}
+		})
+	}
+}
+
