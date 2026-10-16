@@ -78,8 +78,9 @@ func mustOpenLegacyIndexDB(path string, s *Storage) *legacyIndexDB {
 
 	tr := TimeRange{
 		MinTimestamp: 0,
-		// Legacy indexDBs can store entries up to now+2d at most since they
-		// don't support entries with future timestamps.
+		// Legacy indexDBs can store entries up to now+2d at most, since
+		// pre-v1.133.0 versions accepted timestamps up to 2d in the future
+		// (timezone shifts) while -futureRetention is not supported by them.
 		MaxTimestamp: time.Now().Add(2 * 24 * time.Hour).UnixMilli(),
 	}
 	idb := mustOpenIndexDB(id, tr, name, path, s, &s.isReadOnly, true)
