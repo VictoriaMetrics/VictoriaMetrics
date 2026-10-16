@@ -49,6 +49,75 @@ The use of Enterprise components is permitted in the following cases:
 
 See [these docs](#running-victoriametrics-enterprise) for details on how to run Enterprise components of VictoriaMetrics and VictoriaLogs.
 
+## License sizing
+
+Enterprise license size is based on the amount of data handled by the setup:
+
+- VictoriaMetrics is sized by the number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series).
+- VictoriaLogs is sized by the volume of log data ingested per 24 hours.
+- VictoriaTraces is sized by the volume of trace data ingested per 24 hours.
+
+In all cases, license size is based on the **75th percentile** of the observed values. This reduces the effect of short-lived spikes, such as a rolling update or a burst of debug logs during an incident.
+
+Only a single logical copy of the data is counted for the license size, regardless of how the data is distributed or how many copies the setup stores. Sharding data across components does not create additional copies. Additional full copies created through [in-cluster replication](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety) (`-replicationFactor`), replication within a [multi-level cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multi-level-cluster-setup), or writing the same data into multiple independent setups for high availability do not increase the license size.
+
+When a query includes multiple copies of the same logical data, normalize its result to a single copy. Aggregate all the shards that make up a complete dataset, then exclude duplicate groups or divide by the applicable replication factor. Do not select a single storage instance from a sharded cluster, because it contains only part of the dataset. The VictoriaLogs and VictoriaTraces queries below measure data at the insert layer, before in-cluster storage replication, so their results do not need to be divided by the storage replication factor. They need adjustment only if the same input data is included through multiple matched insert paths or independent setups.
+
+The queries below return these numbers for the running setup. They must be executed at the VictoriaMetrics instance, which stores self-monitoring metrics of the setup - see monitoring docs for [VictoriaMetrics single-node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#monitoring), [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#monitoring), [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/#monitoring) and [VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/#monitoring).
+The `job` filters must be adjusted to the labels used in the particular setup. The examples use a 30-day observation period. Active series are sampled hourly, while 24-hour ingestion volumes are sampled daily. Change `30d` only when measuring a different observation period; changing `1h` or `24h` also changes the sampling cadence.
+
+### Active time series
+
+Single-node VictoriaMetrics:
+
+```metricsql
+quantile_over_time(0.75, sum(vm_cache_entries{job="victoriametrics", type="storage/hour_metric_ids"})[30d:1h])
+```
+
+[VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/):
+
+```metricsql
+quantile_over_time(0.75, sum(vm_cache_entries{job="vmstorage", type="storage/hour_metric_ids"})[30d:1h])
+```
+
+### Ingested logs
+
+The `job` filter must match only the components which accept the ingested logs - `vlinsert` in cluster setups. `vlstorage` and [vlagent](https://docs.victoriametrics.com/victorialogs/vlagent/) expose `vl_bytes_ingested_total` as well, so including them into the query counts the same logs multiple times.
+
+Single-node [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/):
+
+```metricsql
+quantile_over_time(0.75, sum(increase(vl_bytes_ingested_total{job="victorialogs"}[24h]))[30d:24h])
+```
+
+[VictoriaLogs cluster](https://docs.victoriametrics.com/victorialogs/cluster/):
+
+```metricsql
+quantile_over_time(0.75, sum(increase(vl_bytes_ingested_total{job="vlinsert"}[24h]))[30d:24h])
+```
+
+The result is the estimated JSON size of the ingested log entries, in bytes per 24 hours. It does not represent compressed network traffic or on-disk storage size.
+
+### Ingested traces
+
+The `job` filter must match only the components which accept the ingested spans - `vtinsert` in cluster setups. `vtstorage` and [vtagent](https://docs.victoriametrics.com/victoriatraces/vtagent/) expose `vt_bytes_ingested_total` as well, so including them into the query counts the same spans multiple times.
+
+Single-node [VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/):
+
+```metricsql
+quantile_over_time(0.75, sum(increase(vt_bytes_ingested_total{job="victoriatraces"}[24h]))[30d:24h])
+```
+
+[VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/):
+
+```metricsql
+quantile_over_time(0.75, sum(increase(vt_bytes_ingested_total{job="vtinsert"}[24h]))[30d:24h])
+```
+
+The result is the estimated JSON size of the ingested trace spans, in bytes per 24 hours. It does not represent compressed network traffic or on-disk storage size.
+
+Contact us via [this page](https://victoriametrics.com/products/enterprise/) in order to get a license for your setup.
+
 ## VictoriaMetrics Enterprise features
 
 VictoriaMetrics Enterprise includes [all the features of the community edition](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prominent-features),
