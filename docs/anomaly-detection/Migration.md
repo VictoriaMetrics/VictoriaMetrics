@@ -63,6 +63,7 @@ Read each row as **source persisted state → target runtime**. The upgrade and 
 
 | Source state | Target runtime | Action and compatibility boundary |
 | --- | --- | --- |
+| v1.31.0 | v1.31.1 | Existing saved built-in model state remains compatible. No manual state migration or upgrade-only refit is required. |
 | v1.30.7 | v1.31.0 | Reuse compatible existing built-in state; no upgrade-only refit is required. New peer models have no state from older releases. |
 | v1.30.6 | v1.30.7 | Reuse compatible built-in state. |
 | v1.30.5 | v1.30.6–v1.30.7 | Reuse compatible built-in state. |
@@ -87,6 +88,7 @@ Read each row as **source persisted state → target runtime**. The upgrade and 
 
 | Source state | Target runtime | Action and compatibility boundary |
 | --- | --- | --- |
+| v1.31.1 | v1.31.0 or earlier | The older shipped runtime does not recognize v1.31.1 provenance. Reinitialize/refit on rollback. |
 | v1.31.0 | v1.30.7 or earlier | The older shipped runtime does not recognize v1.31.0 provenance. Reinitialize/refit on rollback, and replace peer-model configurations unsupported by the target version. |
 | v1.30.7 | v1.30.6 or earlier | The older shipped runtime does not recognize v1.30.7 provenance. Reinitialize/refit on rollback. |
 | v1.30.6 | v1.30.5 or earlier | The older shipped runtime does not recognize v1.30.6 provenance. Plan to reinitialize/refit on rollback even though v1.30.6 introduces no new state format. The standard and experimental [hardened image](https://docs.victoriametrics.com/anomaly-detection/quickstart/#experimental-hardened-image) use the same state format at the same application version. |

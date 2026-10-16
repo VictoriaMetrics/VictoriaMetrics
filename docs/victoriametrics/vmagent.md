@@ -1027,6 +1027,22 @@ scrape_configs:
   - "Proxy-Auth: top-secret"
 ```
 
+## Scraping targets via unix sockets
+
+`vmagent` can scrape targets listening on a Unix domain socket. The socket path must be set in the `__unix_socket__` label:
+
+```yaml
+scrape_configs:
+- job_name: node_exporter
+  static_configs:
+  - targets: ["node_exporter:9100"]
+    labels:
+      __unix_socket__: /var/run/node_exporter.sock
+```
+
+The connection goes through the socket, while `__address__` is still used for the scrape URL and the `instance` label.
+`proxy_url` cannot be used for such targets.
+
 ## On-disk persistence
 
 `vmagent` stores pending data that cannot be sent to the configured remote storage systems in a timely manner.

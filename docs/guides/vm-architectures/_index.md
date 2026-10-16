@@ -11,8 +11,7 @@ tags:
   - guide
   - scalability
   - kubernetes
-  - high-availability
-  - cell-based infrasructure
+  - high availability
   - reliability
 aliases:
 - /guides/vm-architectures.html

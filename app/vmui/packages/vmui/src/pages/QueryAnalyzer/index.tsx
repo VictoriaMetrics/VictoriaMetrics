@@ -168,7 +168,12 @@ const QueryAnalyzer: FC = () => {
 
       {error && (
         <div className="vm-query-analyzer-error">
-          <Alert variant="error">{error}</Alert>
+          <Alert
+            variant="error"
+            title="Unable to load query response"
+          >
+            {error}
+          </Alert>
           <Button
             className="vm-query-analyzer-error__close"
             startIcon={<CloseIcon/>}

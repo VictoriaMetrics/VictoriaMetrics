@@ -3,25 +3,27 @@ import { ErrorTypes } from "../../../../types";
 import TextField from "../../../Main/TextField/TextField";
 import { isValidHttpUrl } from "../../../../utils/url";
 import Button from "../../../Main/Button/Button";
-import { StorageIcon } from "../../../Main/Icons";
-import Tooltip from "../../../Main/Tooltip/Tooltip";
+import { UnlockIcon } from "../../../Main/Icons";
 import { getFromStorage, removeFromStorage, saveToStorage } from "../../../../utils/storage";
 import useBoolean from "../../../../hooks/useBoolean";
 import { ChildComponentHandle } from "../GlobalSettings";
 import { useAppDispatch, useAppState } from "../../../../state/common/StateContext";
+import Checkbox from "../../../Main/Checkbox/Checkbox";
+import Hyperlink from "../../../Main/Hyperlink/Hyperlink";
+import Alert from "../../../Main/Alert/Alert";
 
 interface ServerConfiguratorProps {
   onClose: () => void;
 }
 
-const tooltipSave = {
-  enable: "Enable to save the modified server URL to local storage, preventing reset upon page refresh.",
-  disable: "Disable to stop saving the server URL to local storage, reverting to the default URL on page refresh."
-};
-
 const ServerConfigurator = forwardRef<ChildComponentHandle, ServerConfiguratorProps>(({ onClose }, ref) => {
   const { serverUrl: stateServerUrl } = useAppState();
   const dispatch = useAppDispatch();
+
+  const {
+    value: editable,
+    setTrue: setEditable,
+  } = useBoolean(false);
 
   const {
     value: enabledStorage,
@@ -76,16 +78,39 @@ const ServerConfigurator = forwardRef<ChildComponentHandle, ServerConfiguratorPr
           onChange={handleChange}
           onEnter={handleApply}
           inputmode="url"
+          disabled={!editable}
         />
-        <Tooltip title={enabledStorage ? tooltipSave.disable : tooltipSave.enable}>
+        {!editable && (
           <Button
             className="vm-server-configurator-url__button"
             variant="text"
-            color={enabledStorage ? "primary" : "gray"}
-            onClick={handleToggleStorage}
-            startIcon={<StorageIcon/>}
-          />
-        </Tooltip>
+            color="primary"
+            onClick={setEditable}
+            startIcon={<UnlockIcon/>}
+          >
+            Enable editing
+          </Button>
+        )}
+      </div>
+      <Checkbox
+        label="Keep this URL after page refresh"
+        color="primary"
+        checked={enabledStorage}
+        onChange={handleToggleStorage}
+      />
+
+      <div className="vm-server-configurator-url__warning">
+        <Alert
+          variant="warning"
+          title="Server URL editing will be removed in a future release."
+        >
+          <p>
+            Need a custom URL? <Hyperlink
+              href="https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11735"
+              text="Share your use case in #11735."
+            />
+          </p>
+        </Alert>
       </div>
     </div>
   );
