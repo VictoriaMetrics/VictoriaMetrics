@@ -168,7 +168,7 @@ groups:
           summary: "Too many snapshots on \"{{ $labels.job }}\"(\"{{ $labels.instance }}\")"
           description: |
             More than 2 snapshots were present on "{{ $labels.instance }}" during the last 2 hours.
-            `vmbackup` and `vmbackupmanager` delete the snapshot right after the backup is completed, 
+            `vmbackup` and `vmbackupmanager` delete the snapshot right after the backup is completed,
             so at most a single snapshot is expected to exist at any point in time. 
             Manually created snapshots will be removed automatically when they become older than `-snapshotsMaxAge` (`3d` by default)
             The growing number of snapshots means that something on "{{ $labels.instance }}" isn't working as expected.
