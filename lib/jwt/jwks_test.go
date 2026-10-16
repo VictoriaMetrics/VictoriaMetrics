@@ -224,6 +224,66 @@ func TestParseJWKs_SkipUnsupportedKeys(t *testing.T) {
 	}
 }
 
+func TestParseJWKs_SkipInvalidKeys(t *testing.T) {
+	// Keys with missing required members or invalid values must be ignored, see https://www.rfc-editor.org/rfc/rfc7517#section-5
+	f := func(invalidKey string) {
+		t.Helper()
+
+		raw := []byte(`
+{
+    "keys": [
+        {
+            "kid": "rsa1",
+            "kty": "RSA",
+            "alg": "RS256",
+            "use": "sig",
+            "n": "0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx4cbbfAAtVT86zwu1RK7aPFFxuhDR1L6tSoc_BJECPebWKRXjBZCiFV4n3oknjhMstn64tZ_2W-5JsGY4Hc5n9yBXArwl93lqt7_RN5w6Cf0h4QyQ5v-65YGjQR0_FDW2QvzqY368QQMicAtaSqzs8KJZgnYb9c7d0zgdAZHzu6qMQvRL5hajrn1n91CbOpbISD08qNLyrdkt-bFTWhAI4vMQFh6WeZu0fM4lFd2NcRwr3XPksINHaQ-G_xBniIqbw0Ls1jF44-csFCur-kEgU8awapJzKnqDKgw",
+            "e": "AQAB"
+        },
+        ` + invalidKey + `
+    ]
+}`)
+
+		vp, err := ParseJWKs(raw)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(vp.vs) != 1 {
+			t.Fatalf("expected 1 verifier (invalid key should be skipped), got %d", len(vp.vs))
+		}
+		if vp.vs[0].kid != "rsa1" {
+			t.Fatalf("expected kid=rsa1, got %s", vp.vs[0].kid)
+		}
+	}
+
+	// RSA key without n
+	f(`{"kid": "bad", "kty": "RSA", "alg": "RS256", "use": "sig", "e": "AQAB"}`)
+
+	// RSA key with malformed e
+	f(`{"kid": "bad", "kty": "RSA", "alg": "RS256", "use": "sig", "e": "!!!", "n": "0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx4cbbfAAtVT86zwu1RK7aPFFxuhDR1L6tSoc_BJECPebWKRXjBZCiFV4n3oknjhMstn64tZ_2W-5JsGY4Hc5n9yBXArwl93lqt7_RN5w6Cf0h4QyQ5v-65YGjQR0_FDW2QvzqY368QQMicAtaSqzs8KJZgnYb9c7d0zgdAZHzu6qMQvRL5hajrn1n91CbOpbISD08qNLyrdkt-bFTWhAI4vMQFh6WeZu0fM4lFd2NcRwr3XPksINHaQ-G_xBniIqbw0Ls1jF44-csFCur-kEgU8awapJzKnqDKgw"}`)
+
+	// RSA key with zero exponent
+	f(`{"kid": "bad", "kty": "RSA", "alg": "RS256", "use": "sig", "e": "AA", "n": "0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx4cbbfAAtVT86zwu1RK7aPFFxuhDR1L6tSoc_BJECPebWKRXjBZCiFV4n3oknjhMstn64tZ_2W-5JsGY4Hc5n9yBXArwl93lqt7_RN5w6Cf0h4QyQ5v-65YGjQR0_FDW2QvzqY368QQMicAtaSqzs8KJZgnYb9c7d0zgdAZHzu6qMQvRL5hajrn1n91CbOpbISD08qNLyrdkt-bFTWhAI4vMQFh6WeZu0fM4lFd2NcRwr3XPksINHaQ-G_xBniIqbw0Ls1jF44-csFCur-kEgU8awapJzKnqDKgw"}`)
+
+	// EC key without crv
+	f(`{"kid": "bad", "kty": "EC", "use": "sig", "x": "MKBCTNIcKUSDii11ySs3526iDZ8AiTo7Tu6KPAqv7D4", "y": "4Etl6SRW2YiLUrN5vfvVHuhp7x8PxltmWWlbbM4IFyM"}`)
+
+	// EC key with unsupported crv and without x, y
+	f(`{"kid": "bad", "kty": "EC", "crv": "secp256k1", "use": "sig"}`)
+
+	// EC key with unsupported crv and malformed x
+	f(`{"kid": "bad", "kty": "EC", "crv": "secp256k1", "use": "sig", "x": "!!!", "y": "4Etl6SRW2YiLUrN5vfvVHuhp7x8PxltmWWlbbM4IFyM"}`)
+
+	// EC key without y
+	f(`{"kid": "bad", "kty": "EC", "crv": "P-256", "use": "sig", "x": "MKBCTNIcKUSDii11ySs3526iDZ8AiTo7Tu6KPAqv7D4"}`)
+
+	// EC key with malformed y
+	f(`{"kid": "bad", "kty": "EC", "crv": "P-256", "use": "sig", "x": "MKBCTNIcKUSDii11ySs3526iDZ8AiTo7Tu6KPAqv7D4", "y": "!!!"}`)
+
+	// EC key with x, y not on the curve
+	f(`{"kid": "bad", "kty": "EC", "crv": "P-256", "use": "sig", "x": "MKBCTNIcKUSDii11ySs3526iDZ8AiTo7Tu6KPAqv7D4", "y": "4Etl6SRW2YiLUrN5vfvVHuhp7x8PxltmWWlbbM4IFyA"}`)
+}
+
 func TestParseMultipleKeys(t *testing.T) {
 	// Microsoft JWKS keys
 	// https://login.microsoftonline.com/common/discovery/v2.0/keys
