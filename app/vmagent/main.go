@@ -360,6 +360,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/influx/write", "/influx/api/v2/write", "/write", "/api/v2/write":
 		influxWriteRequests.Inc()
+		addInfluxResponseHeaders(w)
 		if err := influx.InsertHandlerForHTTP(nil, r); err != nil {
 			influxWriteErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
@@ -369,11 +370,18 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/influx/query", "/query":
 		influxQueryRequests.Inc()
+		addInfluxResponseHeaders(w)
 		influxutil.WriteDatabaseNames(w)
 		return true
 	case "/influx/health":
 		influxHealthRequests.Inc()
+		addInfluxResponseHeaders(w)
 		influxutil.WriteHealthCheckResponse(w)
+		return true
+	case "/influx/ping":
+		influxPingRequests.Inc()
+		addInfluxResponseHeaders(w)
+		w.WriteHeader(http.StatusNoContent)
 		return true
 	case "/opentelemetry/api/v1/push", "/opentelemetry/v1/metrics":
 		opentelemetryPushRequests.Inc()
@@ -681,7 +689,13 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 		return true
 	case "influx/health":
 		influxHealthRequests.Inc()
+		addInfluxResponseHeaders(w)
 		influxutil.WriteHealthCheckResponse(w)
+		return true
+	case "/influx/ping":
+		influxPingRequests.Inc()
+		addInfluxResponseHeaders(w)
+		w.WriteHeader(http.StatusNoContent)
 		return true
 	case "opentelemetry/api/v1/push", "opentelemetry/v1/metrics":
 		opentelemetryPushRequests.Inc()
@@ -785,6 +799,12 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 	}
 }
 
+func addInfluxResponseHeaders(w http.ResponseWriter) {
+	// This is needed for some clients, which expect InfluxDB version header.
+	// See, for example, https://github.com/ntop/ntopng/issues/5449#issuecomment-1005347597
+	w.Header().Set("X-Influxdb-Version", "1.8.0")
+}
+
 var (
 	prometheusWriteRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/api/v1/write", protocol="promremotewrite"}`)
 	prometheusWriteErrors   = metrics.NewCounter(`vmagent_http_request_errors_total{path="/api/v1/write", protocol="promremotewrite"}`)
@@ -806,6 +826,7 @@ var (
 
 	influxQueryRequests  = metrics.NewCounter(`vmagent_http_requests_total{path="/influx/query", protocol="influx"}`)
 	influxHealthRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/influx/health", protocol="influx"}`)
+	influxPingRequests   = metrics.NewCounter(`vmagent_http_requests_total{path="/influx/ping", protocol="influx"}`)
 
 	datadogv1WriteRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/datadog/api/v1/series", protocol="datadog"}`)
 	datadogv1WriteErrors   = metrics.NewCounter(`vmagent_http_request_errors_total{path="/datadog/api/v1/series", protocol="datadog"}`)

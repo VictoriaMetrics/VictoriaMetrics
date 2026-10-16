@@ -52,7 +52,7 @@ func TestRecordingRule_Exec(t *testing.T) {
 			rule.state = &ruleState{
 				entries: make([]StateEntry, 10),
 			}
-			tss, err := rule.exec(context.TODO(), ts, 0)
+			tss, err := rule.exec(context.TODO(), ts, 0, nil)
 			if err != nil {
 				t.Fatalf("fail to test rule %s: unexpected error: %s", rule.Name, err)
 			}
@@ -358,7 +358,7 @@ func TestRecordingRuleLimit_Failure(t *testing.T) {
 		}
 		rule.q = fq
 
-		_, err := rule.exec(context.TODO(), time.Now(), limit)
+		_, err := rule.exec(context.TODO(), time.Now(), limit, nil)
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -394,7 +394,7 @@ func TestRecordingRuleLimit_Success(t *testing.T) {
 		}
 		rule.q = fq
 
-		_, err := rule.exec(context.TODO(), time.Now(), limit)
+		_, err := rule.exec(context.TODO(), time.Now(), limit, nil)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -422,7 +422,7 @@ func TestRecordingRuleExec_Negative(t *testing.T) {
 	expErr := "connection reset by peer"
 	fq.SetErr(errors.New(expErr))
 	rr.q = fq
-	_, err := rr.exec(context.TODO(), time.Now(), 0)
+	_, err := rr.exec(context.TODO(), time.Now(), 0, nil)
 	if err == nil {
 		t.Fatalf("expected to get err; got nil")
 	}
@@ -437,7 +437,7 @@ func TestRecordingRuleExec_Negative(t *testing.T) {
 	fq.Add(metricWithValueAndLabels(t, 1, "__name__", "foo", "job", "foo"))
 	fq.Add(metricWithValueAndLabels(t, 2, "__name__", "foo", "job", "bar"))
 
-	_, err = rr.exec(context.TODO(), time.Now(), 0)
+	_, err = rr.exec(context.TODO(), time.Now(), 0, nil)
 	if err != nil {
 		t.Fatalf("cannot execute recording rule: %s", err)
 	}
@@ -479,7 +479,7 @@ func TestRecordingRuleExec_Partial(t *testing.T) {
 	}
 	rule.Debug = true
 	rule.q = fq
-	got, err := rule.exec(context.TODO(), ts, 0)
+	got, err := rule.exec(context.TODO(), ts, 0, nil)
 	want := []prompb.TimeSeries{
 		newTimeSeries([]float64{10}, []int64{ts.UnixNano()}, []prompb.Label{
 			{

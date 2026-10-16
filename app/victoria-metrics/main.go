@@ -37,7 +37,7 @@ var (
 		"This can be changed with -promscrape.config.strictParse=false command-line flag")
 	maxIngestionRate = flag.Int("maxIngestionRate", 0, "The maximum number of samples vmsingle can receive per second. Data ingestion is paused when the limit is exceeded. "+
 		"By default there are no limits on samples ingestion rate.")
-	vmselectMaxConcurrentRequests = flagutil.NewIntWithDynamicDefault("search.maxConcurrentRequests", getDefaultMaxConcurrentRequests(), "vmselect.getDefaultMaxConcurrentRequests()",
+	vmselectMaxConcurrentRequests = flagutil.NewIntWithDynamicDefault("search.maxConcurrentRequests", getDefaultMaxConcurrentRequests(), "2x CPU cores, capped at 16",
 		"The maximum number of concurrent search requests. "+
 			"It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. "+
 			"See also -search.maxQueueDuration and -search.maxMemoryPerQuery")

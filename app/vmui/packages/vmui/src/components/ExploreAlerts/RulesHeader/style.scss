@@ -22,7 +22,11 @@
   }
 
   &-search {
+    display: flex;
+    align-items: center;
     flex-grow: 1;
+    gap: $padding-global;
+
     .vm-text-field__input {
       padding: 11px 28px;
     }

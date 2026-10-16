@@ -751,7 +751,11 @@ curl 'http://<vmsingle>:8428/api/v1/status/active_queries'
 Cluster version of VictoriaMetrics:
 
 ```sh
+# active queries for specified `0` tenant
 curl 'http://<vmselect>:8481/select/0/prometheus/api/v1/status/active_queries'
+
+# active queries across all tenants
+curl 'http://<vmselect>:8481/api/v1/status/active_queries'
 ```
 
 Note that every vmselect maintains an independent list of active queries, which is returned in the response.
@@ -778,7 +782,11 @@ curl 'http://<vmsingle>:8428/api/v1/status/top_queries'
 Cluster version of VictoriaMetrics:
 
 ```sh
+# top queries for specified `0` tenant
 curl 'http://<vmselect>:8481/select/0/prometheus/api/v1/status/top_queries'
+
+# top queries across all tenants 
+curl 'http://<vmselect>:8481/api/v1/status/top_queries'
 ```
 
 Additional information:
@@ -954,13 +962,13 @@ Note that the handler accepts any HTTP method, so sending a `GET` request to `/a
 Single-node VictoriaMetrics:
 
 ```sh
-curl 'http://<vmsingle>:8428/api/v1/admin/tsdb/delete_series' -d 'match[]=vm_http_request_errors_total'
+curl -x POST 'http://<vmsingle>:8428/api/v1/admin/tsdb/delete_series' -d 'match[]=vm_http_request_errors_total'
 ```
 
 Cluster version of VictoriaMetrics:
 
 ```sh
-curl 'http://<vmselect>:8481/delete/0/prometheus/api/v1/admin/tsdb/delete_series' -d 'match[]=vm_http_request_errors_total'
+curl -X POST 'http://<vmselect>:8481/delete/0/prometheus/api/v1/admin/tsdb/delete_series' -d 'match[]=vm_http_request_errors_total'
 ```
 
 Use `-deleteAuthKey` command-line flag for protecting the delete endpoint.

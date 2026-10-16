@@ -116,6 +116,16 @@ func fadviseSequentialRead(_ *os.File, _ bool) error {
 	return nil
 }
 
+// stub
+func fadviseRandomRead(_ *os.File) error {
+	return nil
+}
+
+// stub
+func madviseRandomRead(_ []byte) error {
+	return nil
+}
+
 // https://docs.microsoft.com/en-us/windows/win32/api/minwinbase/ns-minwinbase-overlapped
 func newOverlapped() (*windows.Overlapped, error) {
 	event, err := windows.CreateEvent(nil, 1, 1, nil)

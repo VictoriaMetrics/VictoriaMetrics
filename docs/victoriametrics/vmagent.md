@@ -174,9 +174,6 @@ by routing outgoing samples for the same time series like [counter](https://docs
 and [histogram](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#histogram) types from top-level `vmagent` instances
 to the same second-level `vmagent` instance, so they are aggregated properly.
 
-If the `-remoteWrite.shardByURL` command-line flag is set, then all the metric labels are used for even sharding
-among remote storage systems specified in `-remoteWrite.url`.
-
 > The `-remoteWrite.shardByURL` may not work as expected when [SRV URLs](https://docs.victoriametrics.com/victoriametrics/vmagent/#srv-urls) are in use.
 >
 > An SRV record might resolve to multiple addresses; one address is chosen **randomly** for all subsequent logic, including sharding.
@@ -185,7 +182,10 @@ among remote storage systems specified in `-remoteWrite.url`.
 > For example, if you set `-remoteWrite.url=srv+foo` and it's resolved to three addresses (`192.168.1.1`, `192.168.1.2`, `192.168.1.3`),
 > vmagent will only choose **one** randomly every time it (re-)creates the connection. In contrast, specifying the addresses manually (`-remoteWrite.url=192.168.1.1 -remoteWrite.url=192.168.1.2 -remoteWrite.url=192.168.1.3`) will shard samples across all three URLs.
 
-Use `-remoteWrite.shardByURL.labels` to route metrics among `-remoteWrite.url` based on their label values. 
+If the `-remoteWrite.shardByURL` command-line flag is set, `vmagent` defaults to using all the metric labels for even sharding
+among remote storage systems specified in `-remoteWrite.url`.
+
+Use `-remoteWrite.shardByURL.labels` to route metrics among `-remoteWrite.url` based on their label values.
 For example, `-remoteWrite.shardByURL.labels=instance,__name__` would shard metrics with the same name and `instance`
 label to the same `-remoteWrite.url`. This command-line flag allows specifying a comma-separated list of labels.
 
@@ -550,7 +550,7 @@ When comparing the remote protocols between VictoriaMetrics and Prometheus, Vict
 
 `vmagent` uses VictoriaMetrics remote write protocol by default {{% available_from "v1.116.0" %}} when it sends data to VictoriaMetrics components such as other `vmagent` instances,
 [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
-or `vminsert` at [cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/). If needed, it can automatically downgrade to a Prometheus protocol at runtime.
+, `vminsert` at [cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) or `vmstorage` at [cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) (See [Remote write directly to vmstorage](https://docs.victoriametrics.com/victoriametrics/data-ingestion/vmagent/#remote-write-directly-to-vmstorage)). If needed, it can automatically downgrade to a Prometheus protocol at runtime.
 It is possible to force switch to VictoriaMetrics remote write protocol by specifying `-remoteWrite.forceVMProto`
 command-line flag for the corresponding `-remoteWrite.url`.
 It is possible to tune the compression level for VictoriaMetrics remote write protocol with the `-remoteWrite.vmProtoCompressLevel` command-line flag.
@@ -1027,6 +1027,22 @@ scrape_configs:
   - "Proxy-Auth: top-secret"
 ```
 
+## Scraping targets via unix sockets
+
+`vmagent` can scrape targets listening on a Unix domain socket. The socket path must be set in the `__unix_socket__` label:
+
+```yaml
+scrape_configs:
+- job_name: node_exporter
+  static_configs:
+  - targets: ["node_exporter:9100"]
+    labels:
+      __unix_socket__: /var/run/node_exporter.sock
+```
+
+The connection goes through the socket, while `__address__` is still used for the scrape URL and the `instance` label.
+`proxy_url` cannot be used for such targets.
+
 ## On-disk persistence
 
 `vmagent` stores pending data that cannot be sent to the configured remote storage systems in a timely manner.
@@ -1229,7 +1245,11 @@ If you have suggestions for improvements or have found a bug, please open an iss
 * If `vmagent` uses too much RAM or CPU, then follow [these recommendations](#performance-optimizations).
 
 * When `vmagent` scrapes many unreliable targets, it can flood the error log with scrape errors. It is recommended to investigate and fix these errors.
-  If it is unfeasible to fix all the reported errors, then they can be suppressed by passing the `-promscrape.suppressScrapeErrors` command-line flag to `vmagent`.
+  If it is unfeasible to fix all the reported errors, then scrape errors logging can be disabled completely by passing the `-promscrape.suppressScrapeErrors` command-line flag to `vmagent`.
+  Repeated errors for failed scrapes (such as network errors or timeouts) per each target can be logged less frequently with the `-promscrape.suppressScrapeErrorsDelay` command-line flag.
+  This flag doesn't apply to errors when parsing the scraped response.
+  The number of logged parse errors per each scrape of a target is limited by the `-promscrape.maxParseErrorsPerScrape` command-line flag {{% available_from "#" %}};
+  the number of suppressed parse errors is logged after the scrape.
   The most recent scrape error for each target can be observed at `http://vmagent-host:8429/targets` and `http://vmagent-host:8429/api/v1/targets`.
 
 * The `http://vmagent-host:8429/config` page shows the current active `-promscrape.config` configuration.

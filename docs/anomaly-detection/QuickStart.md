@@ -133,12 +133,32 @@ groups:
 > On affected hosts, add `-e OPENSSL_armcap=0` to `docker run`, or add `- OPENSSL_armcap=0` under the service's Docker Compose `environment`, matching the list syntax used below. This disables ARM cryptographic acceleration, so apply it only as a temporary workaround on affected hosts.
 
 
+### Experimental hardened image
+
+{{% available_from "v1.30.6" anomaly %}} An experimental [Docker Hardened Images](https://www.docker.com/products/hardened-images/)-based variant is available on Docker Hub and Quay for `linux/amd64` and `linux/arm64`:
+
+```text
+victoriametrics/vmanomaly:v1.31.1-dhi
+victoriametrics/vmanomaly:v1.31.1-enterprise-dhi
+quay.io/victoriametrics/vmanomaly:v1.31.1-dhi
+quay.io/victoriametrics/vmanomaly:v1.31.1-enterprise-dhi
+```
+
+These are aliases of the same application image and have the same license requirements. The `-enterprise-dhi` ordering supports Helm's `image.variant: dhi` when enterprise mode is enabled, `image.tag` is empty, and the chart appVersion matches the desired release. With an older chart, set `image.tag: v1.31.1-enterprise-dhi` explicitly. Standard `v1.31.1`, `v1.31.1-enterprise` and `latest` tags retain their existing base image.
+
+> [!WARNING]
+> The hardened image runs as a non-root user and contains no runtime shell or package manager. Ensure mounted configuration and license files are readable and state directories are writable by the container user; shell-based entrypoint overrides and `docker exec ... sh` are unavailable.
+
+The hardened image defaults process-local time to UTC. Configure `schedulers.<alias>.tz` for scheduling and reader/query `tz` for model calendar features; both default to UTC.
+
+### Run with Docker
+
 Below are the steps to get `vmanomaly` up and running inside a Docker container:
 
 1. Pull Docker image:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.30.5
+docker pull victoriametrics/vmanomaly:v1.31.1
 ```
 
 2. Create the license file with your license key.
@@ -158,7 +178,7 @@ docker run -it \
     -v ./license:/license \
     -v ./config.yaml:/config.yaml \
     -p 8490:8490 \
-    victoriametrics/vmanomaly:v1.30.5 \
+    victoriametrics/vmanomaly:v1.31.1 \
     /config.yaml \
     --licenseFile=/license \
     --loggerLevel=INFO \
@@ -175,7 +195,7 @@ docker run -it \
     -e VMANOMALY_DATA_DUMPS_DIR=/tmp/vmanomaly/data \
     -e VMANOMALY_MODEL_DUMPS_DIR=/tmp/vmanomaly/models \
     -p 8490:8490 \
-    victoriametrics/vmanomaly:v1.30.5 \
+    victoriametrics/vmanomaly:v1.31.1 \
     /config.yaml \
     --licenseFile=/license \
     --loggerLevel=INFO \
@@ -188,7 +208,7 @@ services:
   # ...
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.30.5
+    image: victoriametrics/vmanomaly:v1.31.1
     # ...
     restart: always
     volumes:
@@ -318,6 +338,8 @@ writer:
 ```
 
 ### UI
+
+{{% available_from "v1.31.0" anomaly %}} For comparable hosts or replicas, try the [peer-group model](https://docs.victoriametrics.com/anomaly-detection/components/models/#peer-outlier): retain entity labels in the query and use `groupby` for the population, such as `service`. The UI provides a dedicated peer investigation panel. You can also [tune a model](https://docs.victoriametrics.com/anomaly-detection/ui/#tune-a-model) using marked anomalies or an expected anomaly rate. For deployment planning, start with the [sizing APIs](https://docs.victoriametrics.com/anomaly-detection/components/server/#deployment-sizing), then validate their estimates under representative load.
 
 {{% available_from "v1.26.0" anomaly %}} `vmanomaly`'s built-in web UI supports prototyping and interactive generation of `vmanomaly` and `vmalert` configuration files. See the [UI documentation](https://docs.victoriametrics.com/anomaly-detection/ui/) for instructions and examples. For optional AI-assisted workflows, use the [UI Copilot](https://docs.victoriametrics.com/anomaly-detection/ui/#ai-assistance), connect the [vmanomaly MCP server](https://docs.victoriametrics.com/ai-tools/#vmanomaly-mcp-server), or follow the published [agent skills](https://docs.victoriametrics.com/ai-tools/#agent-skills).
 

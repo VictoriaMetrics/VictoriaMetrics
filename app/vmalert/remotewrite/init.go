@@ -38,7 +38,7 @@ var (
 
 	maxQueueSize = flag.Int("remoteWrite.maxQueueSize", defaultMaxQueueSize, "Defines the max number of pending datapoints to remote write endpoint")
 	maxBatchSize = flag.Int("remoteWrite.maxBatchSize", defaultMaxBatchSize, "Defines max number of timeseries to be flushed at once")
-	concurrency  = flagutil.NewIntWithDynamicDefault("remoteWrite.concurrency", defaultConcurrency, "2*cgroup.AvailableCPUs()",
+	concurrency  = flagutil.NewIntWithDynamicDefault("remoteWrite.concurrency", defaultConcurrency, "2x CPU cores",
 		"Defines number of writers for concurrent writing into remote write endpoint. Default value depends on the number of available CPU cores.")
 	flushInterval = flag.Duration("remoteWrite.flushInterval", defaultFlushInterval, "Defines interval of flushes to remote write endpoint")
 

@@ -11,7 +11,7 @@ import (
 //
 // Use it instead of flag.Int when defaultValue is calculated at runtime, for example
 // from the number of CPU cores. Such a value differs per machine, so -help shows both
-// the value and defaultValueHint, for example "16 = 2 * availableCPUs".
+// the value and defaultValueHint, for example "16 = 2x CPU cores".
 //
 // Only -help output changes. The flag value stays defaultValue.
 func NewIntWithDynamicDefault(name string, defaultValue int, defaultValueHint, description string) *int {

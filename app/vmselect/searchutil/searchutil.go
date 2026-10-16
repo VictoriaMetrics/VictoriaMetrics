@@ -1,6 +1,8 @@
 package searchutil
 
 import (
+	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"net/http"
@@ -9,9 +11,9 @@ import (
 
 	"github.com/VictoriaMetrics/metricsql"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
@@ -38,37 +40,42 @@ func GetMaxQueryDuration(r *http.Request) time.Duration {
 	return d
 }
 
-// GetDeadlineForQuery returns deadline for the given query r.
-func GetDeadlineForQuery(r *http.Request, startTime time.Time) Deadline {
+// GetDeadlineForQuery returns context for the given query r.
+func GetContextForQuery(r *http.Request, startTime time.Time) (context.Context, func()) {
 	dMax := maxQueryDuration.Milliseconds()
-	return getDeadlineWithMaxDuration(r, startTime, dMax, "-search.maxQueryDuration")
+	deadline := getDeadlineWithMaxDuration(r, startTime, dMax, "-search.maxQueryDuration")
+	return newContext(r.Context(), deadline)
 }
 
-// GetDeadlineForStatusRequest returns deadline for the given request to /api/v1/status/*.
-func GetDeadlineForStatusRequest(r *http.Request, startTime time.Time) Deadline {
+// GetContextForStatusRequest returns context for the given request to /api/v1/status/*.
+func GetContextForStatusRequest(r *http.Request, startTime time.Time) (context.Context, func()) {
 	dMax := maxStatusRequestDuration.Milliseconds()
-	return getDeadlineWithMaxDuration(r, startTime, dMax, "-search.maxStatusRequestDuration")
+	deadline := getDeadlineWithMaxDuration(r, startTime, dMax, "-search.maxStatusRequestDuration")
+	return newContext(r.Context(), deadline)
 }
 
-// GetDeadlineForExport returns deadline for the given request to /api/v1/export.
-func GetDeadlineForExport(r *http.Request, startTime time.Time) Deadline {
+// GetContextForExport returns context for the given request to /api/v1/export.
+func GetContextForExport(r *http.Request, startTime time.Time) (context.Context, func()) {
 	dMax := maxExportDuration.Milliseconds()
-	return getDeadlineWithMaxDuration(r, startTime, dMax, "-search.maxExportDuration")
+	deadline := getDeadlineWithMaxDuration(r, startTime, dMax, "-search.maxExportDuration")
+	return newContext(r.Context(), deadline)
 }
 
-// GetDeadlineForLabelsAPI returns deadline for the given request to /api/v1/labels, /api/v1/label/.../values or /api/v1/series
-func GetDeadlineForLabelsAPI(r *http.Request, startTime time.Time) Deadline {
+// GetContextForLabelsAPI returns context for the given request to /api/v1/labels, /api/v1/label/.../values or /api/v1/series
+func GetContextForLabelsAPI(r *http.Request, startTime time.Time) (context.Context, func()) {
 	dMax := maxLabelsAPIDuration.Milliseconds()
-	return getDeadlineWithMaxDuration(r, startTime, dMax, "-search.maxLabelsAPIDuration")
+	deadline := getDeadlineWithMaxDuration(r, startTime, dMax, "-search.maxLabelsAPIDuration")
+	return newContext(r.Context(), deadline)
 }
 
-// GetDeadlineForDelete returns deadline for the given request to /api/v1/admin/tsdb/delete_series.
-func GetDeadlineForDelete(r *http.Request, startTime time.Time) Deadline {
+// GetDeadlineForDelete returns context for the given request to /api/v1/admin/tsdb/delete_series.
+func GetContextForDelete(r *http.Request, startTime time.Time) (context.Context, func()) {
 	dMax := maxDeleteDuration.Milliseconds()
-	return getDeadlineWithMaxDuration(r, startTime, dMax, "-search.maxDeleteDuration")
+	deadline := getDeadlineWithMaxDuration(r, startTime, dMax, "-search.maxDeleteDuration")
+	return newContext(r.Context(), deadline)
 }
 
-func getDeadlineWithMaxDuration(r *http.Request, startTime time.Time, dMax int64, flagHint string) Deadline {
+func getDeadlineWithMaxDuration(r *http.Request, startTime time.Time, dMax int64, flagHint string) deadline {
 	d, err := httputil.GetDuration(r, "timeout", 0)
 	if err != nil {
 		d = 0
@@ -77,41 +84,67 @@ func getDeadlineWithMaxDuration(r *http.Request, startTime time.Time, dMax int64
 		d = dMax
 	}
 	timeout := time.Duration(d) * time.Millisecond
-	return NewDeadline(startTime, timeout, flagHint)
+	return newDeadline(startTime, timeout, flagHint)
 }
 
-// Deadline contains deadline with the corresponding timeout for pretty error messages.
-type Deadline struct {
+type contextDeadlineKey string
+
+var deadlineKey contextDeadlineKey = "searchDeadline"
+
+// newContext return new context for given parent context and deadline
+func newContext(ctx context.Context, deadline deadline) (context.Context, func()) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ctx = context.WithValue(ctx, deadlineKey, deadline)
+	ctx, cancel := context.WithDeadline(ctx, time.Unix(int64(deadline.deadlineTimestamp()), 0))
+	return ctx, cancel
+}
+
+// AnnotateContextError enriches a context error with deadline details when the deadline was exceeded
+func AnnotateContextError(ctx context.Context) error {
+	err := ctx.Err()
+	if err == nil {
+		logger.Panicf("BUG: unexpected nil error")
+	}
+	if !errors.Is(err, context.DeadlineExceeded) {
+		return err
+	}
+	dv := ctx.Value(deadlineKey)
+	d, ok := dv.(deadline)
+	if !ok {
+		return err
+	}
+	return fmt.Errorf("request timeout reached: %s: %w", d.String(), err)
+}
+
+// deadline contains deadline with the corresponding timeout for pretty error messages.
+type deadline struct {
 	deadline uint64
 
 	timeout  time.Duration
 	flagHint string
 }
 
-// NewDeadline returns deadline for the given timeout.
+// newDeadline returns deadline for the given timeout.
 //
 // flagHint must contain a hit for command-line flag, which could be used
 // in order to increase timeout.
-func NewDeadline(startTime time.Time, timeout time.Duration, flagHint string) Deadline {
-	return Deadline{
+func newDeadline(startTime time.Time, timeout time.Duration, flagHint string) deadline {
+	return deadline{
 		deadline: uint64(startTime.Add(timeout).Unix()),
 		timeout:  timeout,
 		flagHint: flagHint,
 	}
 }
 
-// Exceeded returns true if deadline is exceeded.
-func (d *Deadline) Exceeded() bool {
-	return fasttime.UnixTimestamp() > d.deadline
-}
-
-// Deadline returns deadline in unix timestamp seconds.
-func (d *Deadline) Deadline() uint64 {
+// deadlineTimestamp returns deadline in unix timestamp seconds.
+func (d *deadline) deadlineTimestamp() uint64 {
 	return d.deadline
 }
 
 // String returns human-readable string representation for d.
-func (d *Deadline) String() string {
+func (d *deadline) String() string {
 	startTime := time.Unix(int64(d.deadline), 0).Add(-d.timeout)
 	elapsed := time.Since(startTime)
 	msg := fmt.Sprintf("%.3f seconds (elapsed %.3f seconds)", d.timeout.Seconds(), elapsed.Seconds())
@@ -134,6 +167,8 @@ func (d *Deadline) String() string {
 //	{env=~"dev|staging",team!="devops",t1="v1",t2="v2"}
 //
 //	Query args from URL path have precedence over post form args.
+//
+// Empty values are ignored. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11618
 func GetExtraTagFilters(r *http.Request) ([][]storage.TagFilter, error) {
 	var tagFilters []storage.TagFilter
 	urlQueryValues := r.URL.Query()
@@ -146,6 +181,9 @@ func GetExtraTagFilters(r *http.Request) ([][]storage.TagFilter, error) {
 		return r.Form[key]
 	}
 	for _, match := range getRequestParam("extra_label") {
+		if match == "" {
+			continue
+		}
 		tmp := strings.SplitN(match, "=", 2)
 		if len(tmp) != 2 {
 			return nil, fmt.Errorf("`extra_label` query arg must have the format `name=value`; got %q", match)
@@ -161,14 +199,11 @@ func GetExtraTagFilters(r *http.Request) ([][]storage.TagFilter, error) {
 	}
 	extraFilters := append([]string{}, getRequestParam("extra_filters")...)
 	extraFilters = append(extraFilters, getRequestParam("extra_filters[]")...)
-	if len(extraFilters) == 0 {
-		if len(tagFilters) == 0 {
-			return nil, nil
-		}
-		return [][]storage.TagFilter{tagFilters}, nil
-	}
 	var etfs [][]storage.TagFilter
 	for _, extraFilter := range extraFilters {
+		if extraFilter == "" {
+			continue
+		}
 		tfss, err := ParseMetricSelector(extraFilter)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse extra_filters=%s: %w", extraFilter, err)
@@ -177,6 +212,12 @@ func GetExtraTagFilters(r *http.Request) ([][]storage.TagFilter, error) {
 			tfss[i] = append(tfss[i], tagFilters...)
 		}
 		etfs = append(etfs, tfss...)
+	}
+	if len(etfs) == 0 {
+		if len(tagFilters) == 0 {
+			return nil, nil
+		}
+		return [][]storage.TagFilter{tagFilters}, nil
 	}
 	return etfs, nil
 }

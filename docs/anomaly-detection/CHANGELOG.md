@@ -20,6 +20,51 @@ Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
 {{% collapse name="2026" open=true %}}
 
+## v1.31.1
+Released: 2026-10-15
+
+- BUGFIX: Schedule data reads for [peer-group models](https://docs.victoriametrics.com/anomaly-detection/components/models/#peer-group-models) using the [periodic scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler), preventing the first fit from waiting indefinitely for data.
+
+## v1.31.0
+Released: 2026-10-09
+
+- UI: Updated from v1.9.2 to [v1.10.0](https://docs.victoriametrics.com/anomaly-detection/ui/#v1100). Added a [Tune workflow](https://docs.victoriametrics.com/anomaly-detection/ui/#tune-a-model) for supervised tuning with marked anomalies or unsupervised tuning with an expected anomaly rate. Review suggested parameters and apply them directly; this is the preferred UI workflow over the `auto` model option, which is planned for removal from the selector. Also added peer-group investigation with searchable groups, affected-peer activity and theme-aware charts. See the full UI changelog for details.
+- FEATURE: Added [peer-group outlier detection](https://docs.victoriametrics.com/anomaly-detection/components/models/#peer-outlier). The online `peer_outlier` model learns an asymmetric accepted range for comparable entities, supports changing membership and missing peers, and scores each peer separately. It supports [AutoTuned models and shared tuning](https://docs.victoriametrics.com/anomaly-detection/components/models/#autotuned), including supervised per-peer labels, while keeping query populations isolated. It is also supported in [deployment sizing](https://docs.victoriametrics.com/anomaly-detection/components/server/#deployment-sizing) for fixed, equal-size peer groups; these estimates are experimental, so allow extra headroom and validate with your workload.
+- FEATURE: Added [deployment sizing](https://docs.victoriametrics.com/anomaly-detection/components/server/#deployment-sizing) APIs for CPU, peak RAM, disk and output estimates, plus inference-only capacity estimates for a resource budget. Results include assumptions and extrapolation warnings; validate estimates with representative workloads.
+- IMPROVEMENT: Increased inference throughput by up to 25% in tested workloads, depending on the models and workload configuration.
+- IMPROVEMENT: Updated the [anomaly-score dashboard](https://docs.victoriametrics.com/anomaly-detection/presets/#grafana-dashboard) with sample-weighted statistics, consistent filters and univariate/multivariate forecast-disagreement trends.
+- BUGFIX: Prevented duplicate-label inference failures in [`std`](https://docs.victoriametrics.com/anomaly-detection/components/models/#seasonal-trend-decomposition) when buffered history overlaps new observations, including after restoring state. Preserved alignment for repeated, reordered and gapped inference timestamps.
+- BUGFIX: Kept [backtesting](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#backtesting-scheduler) inference intervals contiguous when query sampling is finer than inference cadence, including ranges not aligned with fit cadence.
+- BUGFIX: Preserved client certificates when datasource proxies use a custom TLS CA bundle.
+- BUGFIX: Preserved non-optimized model settings during [tuning and replay](https://docs.victoriametrics.com/anomaly-detection/components/models/#shared-asynchronous-autotune-workflow), with explicit per-query business policies taking precedence.
+- SECURITY: Removed SUID/SGID permission bits from the standard runtime image to reduce attack surface. Removed the unused PyCryptodome dependency from both image variants, eliminating bundled private-key test fixtures that could trigger false-positive scanner alerts.
+
+## v1.30.7
+Released: 2026-09-24
+
+- UI: Updated the bundled [UI from v1.9.1 to v1.9.2](https://docs.victoriametrics.com/anomaly-detection/ui/#v192) with incident investigation links and configurable model choices.
+
+- FEATURE: Open persisted anomaly results from [vmalert investigation links](https://docs.victoriametrics.com/anomaly-detection/ui/#investigate-a-firing-alert), with the configured model, queries and incident time range selected in VMUI.
+
+- IMPROVEMENT: Curate model choices, including Auto tuning targets, with [`server.ui_allowed_models`](https://docs.victoriametrics.com/anomaly-detection/components/server/#parameters).
+
+- IMPROVEMENT: Reduced reader overhead when parsing datapoints, preparing columns and loading single-chunk Parquet data.
+
+- IMPROVEMENT: Updated the [self-monitoring dashboard](https://docs.victoriametrics.com/anomaly-detection/self-monitoring/#grafana-dashboard) with activity counts, corrected queries, per-model views and AI Copilot usage.
+
+- BUGFIX: Generated UI alert rules use a strict anomaly-score threshold (`> 1` by default) and preserve preset version suffixes in metric selectors.
+
+## v1.30.6
+Released: 2026-09-17
+
+- UI: Updated the bundled [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/#v191) from [v1.9.0](https://docs.victoriametrics.com/anomaly-detection/ui/#v190) to [v1.9.1](https://docs.victoriametrics.com/anomaly-detection/ui/#v191). The Server tab in the Queries sheet now provides a searchable list, model filtering, consistent row actions, and bulk actions for selected queries, including selections hidden by the active filter.
+
+- FEATURE: Added experimental [Docker Hardened Images](https://docs.victoriametrics.com/anomaly-detection/quickstart/#experimental-hardened-image) under `v1.30.6-dhi` and `v1.30.6-enterprise-dhi`. Both tags identify the same image, with fewer OS packages and no runtime shell or package manager. Docker Hub and Quay provide amd64/arm64 images. Standard tags, including `latest`, retain their existing base image.
+
+- BUGFIX: Stabilized univariate [Temporal Envelope](https://docs.victoriametrics.com/anomaly-detection/components/models/#temporal-envelope) estimates for intermittent data. Implausible current-time predictions fall back to the learned median when valid observations are available. Explicit future forecasts retain their extrapolation behavior, and existing model state remains loadable.
+
+- BUGFIX: [Periodic schedulers](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) consistently use their configured timezone (UTC by default), including interval triggers and ISO `start_from` values without an offset. ISO values with an explicit offset retain their instant.
+
 ## v1.30.5
 Released: 2026-09-10
 

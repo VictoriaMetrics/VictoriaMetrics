@@ -17,7 +17,7 @@ EXTRA_GO_BUILD_TAGS ?=
 GO_BUILDINFO = -X '$(PKG_PREFIX)/lib/buildinfo.Version=$(APP_NAME)-$(DATEINFO_TAG)-$(BUILDINFO_TAG)'
 TAR_OWNERSHIP ?= --owner=1000 --group=1000
 
-GOLANGCI_LINT_VERSION := 2.13.2
+GOLANGCI_LINT_VERSION := 2.14.0
 
 .PHONY: $(MAKECMDGOALS)
 
@@ -457,8 +457,10 @@ test:
 test-race:
 	go test -tags 'synctest' -race ./lib/... ./app/...
 
+# Limit GOMAXPROCS to reduce memory usage on 32-bit builds.
+# See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11612
 test-386:
-	GOARCH=386 go test -tags 'synctest' ./lib/... ./app/...
+	GOARCH=386 GOMAXPROCS=4 go test -tags 'synctest' ./lib/... ./app/...
 
 test-pure:
 	CGO_ENABLED=0 go test -tags 'synctest' ./lib/... ./app/...
@@ -466,8 +468,10 @@ test-pure:
 test-full:
 	go test -tags 'synctest' -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
 
+# Limit GOMAXPROCS to reduce memory usage on 32-bit builds.
+# See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11612
 test-full-386:
-	GOARCH=386 go test -tags 'synctest' -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
+	GOARCH=386 GOMAXPROCS=4 go test -tags 'synctest' -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
 
 apptest:
 	$(MAKE) victoria-metrics-race vmagent-race vmalert-race vmauth-race vmctl-race vmbackup-race vmrestore-race
