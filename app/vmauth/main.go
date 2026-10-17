@@ -251,7 +251,10 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	// Slow down all the requests with invalid auth tokens in order to prevent brute-forcing them.
 	// This includes requests with a valid jwt token without vm_access claim, since an attacker
 	// can combine such a token with other auth tokens, which are brute-forced against static users.
-	slowdownUnauthorizedResponse(r)
+	// There is no need in the slowdown if there are no users to brute-force.
+	if len(ac.Users) > 0 {
+		slowdownUnauthorizedResponse(r)
+	}
 	handleInvalidAuthToken(w, r, ats)
 	return true
 }
