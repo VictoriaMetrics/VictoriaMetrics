@@ -156,6 +156,7 @@ func FederateHandler(startTime time.Time, w http.ResponseWriter, r *http.Request
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 	sw := newScalableWriter(bw)
+	defer sw.release()
 	err = rss.RunParallel(ctx, nil, func(rs *netstorage.Result, workerID uint) error {
 		if err := bw.Error(); err != nil {
 			return err
@@ -199,6 +200,7 @@ func ExportCSVHandler(startTime time.Time, w http.ResponseWriter, r *http.Reques
 	defer bufferedwriter.Put(bw)
 	WriteExportCSVHeader(bw, fieldNames)
 	sw := newScalableWriter(bw)
+	defer sw.release()
 	writeCSVLine := func(xb *exportBlock, workerID uint) error {
 		if len(xb.timestamps) == 0 {
 			return nil
@@ -281,6 +283,7 @@ func ExportNativeHandler(startTime time.Time, w http.ResponseWriter, r *http.Req
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 	sw := newScalableWriter(bw)
+	defer sw.release()
 
 	// Marshal tr
 	trBuf := make([]byte, 0, 16)
@@ -353,6 +356,7 @@ func exportHandler(ctx context.Context, qt *querytracer.Tracer, w http.ResponseW
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 	sw := newScalableWriter(bw)
+	defer sw.release()
 	writeLineFunc := func(xb *exportBlock, workerID uint) error {
 		bb := sw.getBuffer(workerID)
 		WriteExportJSONLine(bb, xb)
@@ -1324,10 +1328,29 @@ func newScalableWriter(bw *bufferedwriter.Writer) *scalableWriter {
 func (sw *scalableWriter) getBuffer(workerID uint) *bytesutil.ByteBuffer {
 	v, ok := sw.m.Load(workerID)
 	if !ok {
-		v = &bytesutil.ByteBuffer{}
+		v = bbPool.Get()
 		sw.m.Store(workerID, v)
 	}
 	return v.(*bytesutil.ByteBuffer)
+}
+
+// maxPooledBufCap is the max capacity of a worker buffer returned to bbPool.
+//
+// Buffers are flushed at 1MiB, so regular ones stay below this limit.
+// Larger ones were grown by a single huge line and must not stay in the pool.
+const maxPooledBufCap = 2 * 1024 * 1024
+
+// release returns worker buffers to bbPool.
+//
+// It must be called after all the workers are stopped. sw mustn't be used after the call.
+func (sw *scalableWriter) release() {
+	sw.m.Range(func(_, v any) bool {
+		bb := v.(*bytesutil.ByteBuffer)
+		if cap(bb.B) <= maxPooledBufCap {
+			bbPool.Put(bb)
+		}
+		return true
+	})
 }
 
 func (sw *scalableWriter) maybeFlushBuffer(bb *bytesutil.ByteBuffer) error {
