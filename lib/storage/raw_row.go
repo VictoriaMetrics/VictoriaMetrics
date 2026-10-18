@@ -254,8 +254,13 @@ func (rrss *rawRowsShards) flush(flush func(rrs [][]rawRow), isFinal bool) {
 		rrss.rowssToFlushLock.Unlock()
 	}
 
+	// Size flush buffers by the total pending rows, so rows from multiple shards share them.
+	totalRows := 0
 	for i := range rrss.shards {
-		dst = rrss.shards[i].appendRawRowsToFlush(dst, currentTimeMs, isFinal)
+		totalRows += rrss.shards[i].Len()
+	}
+	for i := range rrss.shards {
+		dst = rrss.shards[i].appendRawRowsToFlush(dst, totalRows, currentTimeMs, isFinal)
 	}
 
 	flush(dst)
@@ -319,7 +324,7 @@ func (rrs *rawRowsShard) updateFlushDeadline() {
 	rrs.flushDeadlineMs.Store(time.Now().Add(pendingRowsFlushInterval).UnixMilli())
 }
 
-func (rrs *rawRowsShard) appendRawRowsToFlush(dst [][]rawRow, currentTimeMs int64, isFinal bool) [][]rawRow {
+func (rrs *rawRowsShard) appendRawRowsToFlush(dst [][]rawRow, totalRows int, currentTimeMs int64, isFinal bool) [][]rawRow {
 	flushDeadlineMs := rrs.flushDeadlineMs.Load()
 	if !isFinal && currentTimeMs < flushDeadlineMs {
 		// Fast path - nothing to flush
@@ -338,26 +343,26 @@ func (rrs *rawRowsShard) appendRawRowsToFlush(dst [][]rawRow, currentTimeMs int6
 		return dst
 	}
 
-	dst = appendRawRowss(dst, rrs.rows)
+	dst = appendRawRowss(dst, rrs.rows, totalRows)
 	rrs.rows = rrs.rows[:0]
 	rrs.mu.Unlock()
 
 	return dst
 }
 
-func appendRawRowss(dst [][]rawRow, src []rawRow) [][]rawRow {
+func appendRawRowss(dst [][]rawRow, src []rawRow, totalRows int) [][]rawRow {
 	if len(src) == 0 {
 		return dst
 	}
 	if len(dst) == 0 {
-		dst = append(dst, newRawRows())
+		dst = append(dst, make([]rawRow, 0, min(max(len(src), totalRows), maxRawRowsPerShard)))
 	}
 	prows := &dst[len(dst)-1]
 	n := copy((*prows)[len(*prows):cap(*prows)], src)
 	*prows = (*prows)[:len(*prows)+n]
 	src = src[n:]
 	for len(src) > 0 {
-		rows := newRawRows()
+		rows := make([]rawRow, 0, min(max(len(src), totalRows), maxRawRowsPerShard))
 		n := copy(rows[:cap(rows)], src)
 		rows = rows[:len(rows)+n]
 		src = src[n:]
