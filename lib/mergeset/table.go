@@ -98,7 +98,9 @@ type Table struct {
 	needFlushCallbackCall atomic.Bool
 
 	prepareBlock PrepareBlockCallback
-	isReadOnly   *atomic.Bool
+	filterItem   FilterItemCallback
+
+	isReadOnly *atomic.Bool
 
 	// rawItems contains recently added items that haven't been converted to parts yet.
 	//
@@ -332,6 +334,34 @@ func (pw *partWrapper) decRef() {
 	}
 }
 
+type OpenTableOptions struct {
+	FlushInterval         time.Duration
+	FlushCallback         func()
+	FlushCallbackInterval time.Duration
+	PrepareBlock          PrepareBlockCallback
+	IsReadOnly            *atomic.Bool
+	FilterItem            FilterItemCallback
+}
+
+// MustOpenTable opens a table on the given path with given options
+//
+// The flushInterval is the interval for flushing pending in-memory data to disk.
+//
+// Optional flushCallback is called every time new data batch is flushed
+// to the underlying storage and becomes visible to search.
+//
+// The flushCallbackInterval is how often flushCallback is invoked when there is
+// pending data to flush. If it is set to zero, then defaultFlushCallbackInterval is used.
+//
+// Optional prepareBlock is called during merge before flushing the prepared block
+// to persistent storage.
+//
+// The table is created if it doesn't exist yet.
+func MustOpenTableOptions(path string, opts OpenTableOptions) *Table {
+	opts.setDefault()
+	return mustOpenTable(path, opts)
+}
+
 // MustOpenTable opens a table on the given path.
 //
 // The flushInterval is the interval for flushing pending in-memory data to disk.
@@ -347,17 +377,32 @@ func (pw *partWrapper) decRef() {
 //
 // The table is created if it doesn't exist yet.
 func MustOpenTable(path string, flushInterval time.Duration, flushCallback func(), flushCallbackInterval time.Duration, prepareBlock PrepareBlockCallback, isReadOnly *atomic.Bool) *Table {
-	path = filepath.Clean(path)
+	opts := OpenTableOptions{
+		FlushInterval:         flushInterval,
+		FlushCallback:         flushCallback,
+		FlushCallbackInterval: flushCallbackInterval,
+		PrepareBlock:          prepareBlock,
+		IsReadOnly:            isReadOnly,
+	}
+	opts.setDefault()
+	return mustOpenTable(path, opts)
+}
 
-	if flushInterval < pendingItemsFlushInterval {
+func (o *OpenTableOptions) setDefault() {
+	if o.FlushInterval < pendingItemsFlushInterval {
 		// There is no sense in setting flushInterval to values smaller than pendingItemsFlushInterval,
 		// since pending rows unconditionally remain in memory for up to pendingItemsFlushInterval.
-		flushInterval = pendingItemsFlushInterval
+		o.FlushInterval = pendingItemsFlushInterval
 	}
 
-	if flushCallbackInterval <= 0 {
-		flushCallbackInterval = defaultFlushCallbackInterval
+	if o.FlushCallbackInterval <= 0 {
+		o.FlushCallbackInterval = defaultFlushCallbackInterval
 	}
+}
+
+func mustOpenTable(path string, opts OpenTableOptions) *Table {
+
+	path = filepath.Clean(path)
 
 	// Create a directory at the path if it doesn't exist yet.
 	fs.MustMkdirIfNotExist(path)
@@ -370,11 +415,12 @@ func MustOpenTable(path string, flushInterval time.Duration, flushCallback func(
 
 	tb := &Table{
 		path:                  path,
-		flushInterval:         flushInterval,
-		flushCallback:         flushCallback,
-		flushCallbackInterval: flushCallbackInterval,
-		prepareBlock:          prepareBlock,
-		isReadOnly:            isReadOnly,
+		flushInterval:         opts.FlushInterval,
+		flushCallback:         opts.FlushCallback,
+		flushCallbackInterval: opts.FlushCallbackInterval,
+		prepareBlock:          opts.PrepareBlock,
+		isReadOnly:            opts.IsReadOnly,
+		filterItem:            opts.FilterItem,
 		fileParts:             pws,
 		inmemoryPartsLimitCh:  make(chan struct{}, maxInmemoryParts),
 		stopCh:                make(chan struct{}),

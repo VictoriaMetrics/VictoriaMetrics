@@ -19,6 +19,13 @@ import (
 // The callback can reuse data and items for storing the result.
 type PrepareBlockCallback func(data []byte, items []Item) ([]byte, []Item)
 
+// FilterItemCallback checks if given item should be added to the items blocks.
+//
+// The callback is called during merge before add item to the items block.
+//
+// Caller cannot hold reference to the item after return.
+type FilterItemCallback func(item []byte) bool
+
 // mergeBlockStreams merges bsrs and writes result to bsw.
 //
 // It also fills ph.
@@ -51,6 +58,7 @@ var bsmPool = &sync.Pool{
 }
 
 type blockStreamMerger struct {
+	filterItem   FilterItemCallback
 	prepareBlock PrepareBlockCallback
 
 	bsrHeap bsrHeap
@@ -67,6 +75,7 @@ type blockStreamMerger struct {
 }
 
 func (bsm *blockStreamMerger) reset() {
+	bsm.filterItem = nil
 	bsm.prepareBlock = nil
 
 	for i := range bsm.bsrHeap {
@@ -101,6 +110,12 @@ func (bsm *blockStreamMerger) Init(bsrs []*blockStreamReader, prepareBlock Prepa
 
 var errForciblyStopped = fmt.Errorf("forcibly stopped")
 
+func (bsm *blockStreamMerger) addItem(x []byte) bool {
+	if bsm.filterItem != nil && !bsm.filterItem(x) {
+		return true
+	}
+	return bsm.ib.Add(x)
+}
 func (bsm *blockStreamMerger) Merge(bsw *blockStreamWriter, ph *partHeader, stopCh <-chan struct{}, itemsMerged *atomic.Uint64) error {
 	// Use local variables for tracking the number of merged items
 	// and periodically propagate the collected stats to the caller, so it could be reflected in the exposed metrics.
@@ -158,7 +173,7 @@ again:
 		if compareEveryItem && string(item) > nextItem {
 			break
 		}
-		if !bsm.ib.Add(item) {
+		if !bsm.addItem(item) {
 			// The bsm.ib is full. Flush it to bsw and continue.
 			bsm.flushIB(bsw, ph, &localItemsMerged)
 			continue
