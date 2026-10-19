@@ -44,6 +44,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): skip keys with unsupported `kty` or `crv`, missing required members or invalid values in the JWKS fetched via [OIDC discovery](https://docs.victoriametrics.com/victoriametrics/vmauth/#oidc-discovery) instead of rejecting the whole key set, as required by [RFC 7517](https://www.rfc-editor.org/rfc/rfc7517#section-5). Previously, a single unsupported or malformed key in the JWKS caused vmauth to reject all JWTs from that issuer, including tokens signed with supported keys. See [#11748](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11748).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): stop saving the automatically calculated query step in shared URLs, so opening a link recalculates the step for the selected time range and screen width. Explicitly configured steps remain fixed. See [#11638](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11638).
 
+* DOCS: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/#disabling-on-disk-persistence): clarify that `-remoteWrite.tmpDataPath` must be writable on startup even with `-remoteWrite.disableOnDiskQueue`, including when running with a read-only root filesystem. See [#7827](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7827).
+
 ## [v1.154.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.154.1)
 
 Released at 2026-10-20

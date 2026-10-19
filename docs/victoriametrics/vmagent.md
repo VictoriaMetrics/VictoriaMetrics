@@ -1139,9 +1139,16 @@ The number of unsuccessful attempts to send data to overloaded remote storage ca
 Running `vmagent` on hosts with more RAM or increasing the value for `-memory.allowedPercent` may reduce the number of unsuccessful attempts or dropped samples
 on spiky workloads, since `vmagent` may buffer more data in memory before returning the error or dropping data.
 
-`vmagent` still may write pending in-memory data to `-remoteWrite.tmpDataPath` on graceful shutdown
-if `-remoteWrite.disableOnDiskQueue` command-line flag is specified. It may also read buffered data from `-remoteWrite.tmpDataPath`
-on startup.
+`-remoteWrite.tmpDataPath` must remain writable even when `-remoteWrite.disableOnDiskQueue` is set.
+On startup, `vmagent` creates queue directories and files, including lock and metadata files,
+before it receives any samples. It may also read buffered data on startup and write pending in-memory
+data to this directory on graceful shutdown. The flag disables on-disk buffering when the remote storage
+cannot keep up with ingestion; it does not disable all filesystem writes.
+
+When running with `readOnlyRootFilesystem: true` in Kubernetes, mount a writable volume at the path
+specified by `-remoteWrite.tmpDataPath`. Use a persistent volume to preserve buffered data across Pod replacement.
+An [`emptyDir` volume](https://kubernetes.io/docs/concepts/storage/volumes/#emptydir) allows startup with a read-only root filesystem, but any data buffered there is lost
+when the Pod is removed.
 
 When the `-remoteWrite.disableOnDiskQueue` command-line flag is set, `vmagent` may send the same samples multiple times to the configured remote storage
 if it cannot keep up with the data ingestion rate. In this case [deduplication](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication)
