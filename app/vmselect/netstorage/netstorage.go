@@ -2616,11 +2616,16 @@ func (sn *storageNode) execOnConn(ctx context.Context, qt *querytracer.Tracer, f
 	if err := f(bc); err != nil {
 		remoteAddr := bc.RemoteAddr()
 		var er *errRemote
-		if errors.As(err, &er) {
+		switch {
+		case errors.As(err, &er):
 			// Remote error. The connection may be re-used. Return it to the pool.
 			_ = readTrace(qt, bc)
 			sn.connPool.Put(bc)
-		} else {
+		case errors.Is(err, context.Canceled):
+			// Context was canceled by client. The connection may be re-used. Return it to the pool.
+			_ = readTrace(qt, bc)
+			sn.connPool.Put(bc)
+		default:
 			// Local error.
 			// Close the connection instead of returning it to the pool,
 			// since it may be broken.
@@ -3102,9 +3107,20 @@ func (sn *storageNode) processSearchQueryOnConn(ctx context.Context, bc *handsha
 	}
 	// Read response. It may consist of multiple MetricBlocks.
 	blocksRead := 0
+	var wasCancelRequestMarkerSent bool
 	for {
 		if err := ctx.Err(); err != nil {
-			return searchutil.AnnotateContextError(ctx)
+			if !errors.Is(err, context.Canceled) {
+				return searchutil.AnnotateContextError(ctx)
+			}
+			if !wasCancelRequestMarkerSent {
+				// write and flush the cancel request marker, so the server can abort the request
+				// and the connection can be re-used.
+				if err := writeCancelRequestMarker(buf, bc); err != nil {
+					return err
+				}
+				wasCancelRequestMarkerSent = true
+			}
 		}
 		buf, err = readBytes(buf[:0], bc, maxMetricBlockSize)
 		if err != nil {
@@ -3112,7 +3128,7 @@ func (sn *storageNode) processSearchQueryOnConn(ctx context.Context, bc *handsha
 		}
 		if len(buf) == 0 {
 			// Reached the end of the response
-			return nil
+			break
 		}
 		blocksRead++
 		sn.metricBlocksRead.Inc()
@@ -3120,6 +3136,21 @@ func (sn *storageNode) processSearchQueryOnConn(ctx context.Context, bc *handsha
 			return fmt.Errorf("cannot process Raw MetricBlock #%d: %w", blocksRead, err)
 		}
 	}
+	if err := ctx.Err(); err != nil {
+		return searchutil.AnnotateContextError(ctx)
+	}
+	return nil
+}
+
+func writeCancelRequestMarker(buf []byte, bc *handshake.BufferedConn) error {
+	buf = append(buf[:0], handshake.CancelRequestMarker)
+	if err := writeBytes(bc, buf); err != nil {
+		return fmt.Errorf("cannot write request cancel marker: %w", err)
+	}
+	if err := bc.Flush(); err != nil {
+		return fmt.Errorf("cannot flush request cancel marker: %w", err)
+	}
+	return nil
 }
 
 func writeTimeRange(bc *handshake.BufferedConn, tr storage.TimeRange) error {

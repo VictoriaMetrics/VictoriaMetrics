@@ -317,3 +317,7 @@ func readData(c net.Conn, dataLen int) ([]byte, error) {
 	}
 	return data, nil
 }
+
+// CancelRequestMarker defines byte for terminating query request execution.
+// 0x18 is the well-known CAN (cancel) ASCII control character.
+const CancelRequestMarker = 0x18
