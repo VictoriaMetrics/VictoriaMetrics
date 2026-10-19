@@ -26,6 +26,10 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+## [v1.154.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.154.1)
+
+Release candidate
+
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): do not slow down requests with auth tokens if no `users` are configured. Previously, such requests were delayed by 2-3 seconds before being proxied to `unauthorized_user`, though there were no users to brute-force. This affected setups where one `vmauth` authenticates requests and proxies them to another `vmauth` with only `unauthorized_user` configured. The bug has been introduced in [v1.154.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.154.0). See [#11774](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11774).
 
 ## [v1.154.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.154.0)
