@@ -317,6 +317,11 @@ func newPartition(name, smallPartsPath, bigPartsPath, indexDBPartsPath string, t
 type partitionMetrics struct {
 	PendingRows uint64
 
+	PendingRowsFullFlushes        uint64
+	PendingRowsFullFlushedRows    uint64
+	PendingRowsPartialFlushes     uint64
+	PendingRowsPartialFlushedRows uint64
+
 	IndexBlocksCacheSize         uint64
 	IndexBlocksCacheSizeBytes    uint64
 	IndexBlocksCacheSizeMaxBytes uint64
@@ -374,6 +379,10 @@ func (pm *partitionMetrics) TotalRowsCount() uint64 {
 // UpdateMetrics updates m with metrics from pt.
 func (pt *partition) UpdateMetrics(m *partitionMetrics) {
 	m.PendingRows += uint64(pt.rawRows.Len())
+	m.PendingRowsFullFlushes += pt.rawRows.fullFlushes.Load()
+	m.PendingRowsFullFlushedRows += pt.rawRows.fullFlushedRows.Load()
+	m.PendingRowsPartialFlushes += pt.rawRows.partialFlushes.Load()
+	m.PendingRowsPartialFlushedRows += pt.rawRows.partialFlushedRows.Load()
 
 	pt.partsLock.Lock()
 
