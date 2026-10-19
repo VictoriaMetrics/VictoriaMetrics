@@ -26,9 +26,13 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): do not slow down requests with auth tokens if no `users` are configured. Previously, such requests were delayed by 2-3 seconds before being proxied to `unauthorized_user`, though there were no users to brute-force. This affected setups where one `vmauth` authenticates requests and proxies them to another `vmauth` with only `unauthorized_user` configured. The bug has been introduced in [v1.154.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.154.0). See [#11774](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11774).
+
 ## [v1.154.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.154.0)
 
 Release candidate
+
+**Update Note 1:** [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): setups with two chained `vmauth` instances, where the first one authenticates requests via `users` and the second one proxies them via `unauthorized_user` (for example, `VMDistributed` or `VMCluster` managed by [VictoriaMetrics operator](https://docs.victoriametrics.com/operator/)), get an extra 2-3 seconds delay for every request. This is because the second `vmauth` receives the `Authorization` header forwarded by the first one and treats it as an invalid auth token. Upgrade to the next release, where requests aren't delayed if no `users` are configured, or remove the `Authorization` header at the first `vmauth` with `headers: ["Authorization:"]`. See [#11774](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11774).
 
 * SECURITY: upgrade Go builder from Go1.27.1 to Go1.27.2. See [the list of issues addressed in Go1.27.2](https://github.com/golang/go/issues?q=milestone%3AGo1.27.2%20label%3ACherryPickApproved).
 * SECURITY: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): slow down requests with invalid auth tokens even if `unauthorized_user` has URLs configured. Previously, such requests were proxied to `unauthorized_user` without delay, which allowed brute-forcing auth tokens. The [Single sign-on (SSO)](https://docs.victoriametrics.com/victoriametrics/vmauth/#single-sign-on-sso) cookie is now accepted only as a JWT token and is no longer matched against `bearer_token` of static users. See [GHSA-rpfx-hrcp-f73x](https://github.com/VictoriaMetrics/VictoriaMetrics/security/advisories/GHSA-rpfx-hrcp-f73x).
