@@ -509,6 +509,11 @@ func (pt *partition) flushRowssToInmemoryParts(rowss [][]rawRow) {
 	wg.Wait()
 	putWaitGroup(wg)
 
+	// Rows have been copied into in-memory parts, so their buffers can be reused.
+	for _, rows := range rowss {
+		putRawRows(rows)
+	}
+
 	// Merge pws into a single in-memory part.
 	maxPartSize := getMaxInmemoryPartSize()
 	for len(pws) > 1 {
