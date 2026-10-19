@@ -123,4 +123,17 @@ func testLegacyIndexDBContainsTimeRange(t *testing.T, disablePerDayIndex bool) {
 	} else {
 		f(tr, false, tr)
 	}
+
+	// Time range is after indexDB tr.
+	tr.MinTimestamp = db.tr.MaxTimestamp + 1
+	tr.MaxTimestamp = db.tr.MaxTimestamp + 2
+	f(tr, false, tr)
+
+	// Time range overlaps with indexDB tr and dataTR on the right.
+	tr.MinTimestamp = dataTR.MaxTimestamp - 1000
+	tr.MaxTimestamp = db.tr.MaxTimestamp + 1000
+	f(tr, true, TimeRange{
+		MinTimestamp: tr.MinTimestamp,
+		MaxTimestamp: db.tr.MaxTimestamp,
+	})
 }
