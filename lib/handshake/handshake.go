@@ -317,3 +317,6 @@ func readData(c net.Conn, dataLen int) ([]byte, error) {
 	}
 	return data, nil
 }
+
+// CancelRequestMarker defines byte for terminating query request execution.
+const CancelRequestMarker = 0x1

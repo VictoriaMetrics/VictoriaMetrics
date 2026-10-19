@@ -2616,11 +2616,17 @@ func (sn *storageNode) execOnConn(ctx context.Context, qt *querytracer.Tracer, f
 	if err := f(bc); err != nil {
 		remoteAddr := bc.RemoteAddr()
 		var er *errRemote
-		if errors.As(err, &er) {
+		var ec *errCancel
+		switch {
+		case errors.As(err, &er):
 			// Remote error. The connection may be re-used. Return it to the pool.
 			_ = readTrace(qt, bc)
 			sn.connPool.Put(bc)
-		} else {
+		case errors.As(err, &ec):
+			_ = readTrace(qt, bc)
+			err = ec.Unwrap()
+			sn.connPool.Put(bc)
+		default:
 			// Local error.
 			// Close the connection instead of returning it to the pool,
 			// since it may be broken.
@@ -3104,6 +3110,9 @@ func (sn *storageNode) processSearchQueryOnConn(ctx context.Context, bc *handsha
 	blocksRead := 0
 	for {
 		if err := ctx.Err(); err != nil {
+			if errors.Is(err, context.Canceled) {
+				return drainMetricBlocks(ctx, buf, bc)
+			}
 			return searchutil.AnnotateContextError(ctx)
 		}
 		buf, err = readBytes(buf[:0], bc, maxMetricBlockSize)
@@ -3121,6 +3130,45 @@ func (sn *storageNode) processSearchQueryOnConn(ctx context.Context, bc *handsha
 		}
 	}
 }
+
+func drainMetricBlocks(ctx context.Context, buf []byte, bc *handshake.BufferedConn) error {
+	// write cancel request marker, so server can abort request.
+	buf = append(buf[:0], handshake.CancelRequestMarker)
+	if err := writeBytes(bc, buf[:1]); err != nil {
+		return fmt.Errorf("cannot write request cancel marker: %w", err)
+	}
+	if err := bc.Flush(); err != nil {
+		return fmt.Errorf("cannot flush request cancel marker: %w", err)
+	}
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		logger.Panicf("BUG: context must have deadline defined")
+	}
+	// make sure that drain loop below cannot exceed exist deadline.
+	if err := bc.SetReadDeadline(deadline); err != nil {
+		return fmt.Errorf("cannot set bc read deadline: %w", err)
+	}
+	var err error
+	for {
+		buf, err = readBytes(buf[:0], bc, maxMetricBlockSize)
+		if err != nil {
+			return fmt.Errorf("cannot drain MetricBlocks: %w", err)
+		}
+		if len(buf) == 0 {
+			// mark connection as safe to re-use
+			// data was fully drained from it
+			return &errCancel{origin: ctx.Err()}
+		}
+	}
+}
+
+type errCancel struct {
+	origin error
+}
+
+func (ec *errCancel) Error() string { return ec.origin.Error() }
+
+func (ec *errCancel) Unwrap() error { return ec.origin }
 
 func writeTimeRange(bc *handshake.BufferedConn, tr storage.TimeRange) error {
 	if err := writeUint64(bc, uint64(tr.MinTimestamp)); err != nil {
