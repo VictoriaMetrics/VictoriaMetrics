@@ -184,6 +184,12 @@ type rawRowsShards struct {
 
 	rowssToFlushLock sync.Mutex
 	rowssToFlush     [][]rawRow
+
+	// Full flushes happen when a shard overflows; partial flushes happen on pendingRowsFlushInterval ticks.
+	fullFlushes        atomic.Uint64
+	fullFlushedRows    atomic.Uint64
+	partialFlushes     atomic.Uint64
+	partialFlushedRows atomic.Uint64
 }
 
 func (rrss *rawRowsShards) init() {
@@ -221,6 +227,8 @@ func (rrss *rawRowsShards) addRowsToFlush(flush func([][]rawRow), rowsToFlush []
 	if len(rowsToFlush) == 0 {
 		return
 	}
+	rrss.fullFlushes.Add(1)
+	rrss.fullFlushedRows.Add(uint64(len(rowsToFlush)))
 
 	var rowssToMerge [][]rawRow
 
@@ -254,11 +262,25 @@ func (rrss *rawRowsShards) flush(flush func(rrs [][]rawRow), isFinal bool) {
 		rrss.rowssToFlushLock.Unlock()
 	}
 
+	// Rows already in dst come from full flushes; count only the rows moved from shards.
+	fullRows := rawRowssLen(dst)
 	for i := range rrss.shards {
 		dst = rrss.shards[i].appendRawRowsToFlush(dst, currentTimeMs, isFinal)
 	}
+	if partialRows := rawRowssLen(dst) - fullRows; partialRows > 0 {
+		rrss.partialFlushes.Add(1)
+		rrss.partialFlushedRows.Add(uint64(partialRows))
+	}
 
 	flush(dst)
+}
+
+func rawRowssLen(rowss [][]rawRow) int {
+	n := 0
+	for _, rows := range rowss {
+		n += len(rows)
+	}
+	return n
 }
 
 type rawRowsShardNopad struct {

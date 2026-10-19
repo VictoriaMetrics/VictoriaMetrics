@@ -66,3 +66,35 @@ func TestRawRowsShardReleasesIdleBuffer(t *testing.T) {
 		t.Fatalf("final flushes must not release the buffer")
 	}
 }
+
+func TestRawRowsShardsFlushCounters(t *testing.T) {
+	var rrss rawRowsShards
+	rrss.init()
+	nopFlush := func([][]rawRow) {}
+
+	// Overflow a shard to trigger a full flush.
+	rows := make([]rawRow, maxRawRowsPerShard+1)
+	rrss.addRows(nopFlush, rows)
+	if n := rrss.fullFlushes.Load(); n == 0 {
+		t.Fatalf("expecting at least one full flush")
+	}
+	if n := rrss.partialFlushes.Load(); n != 0 {
+		t.Fatalf("unexpected partial flushes after addRows: %d", n)
+	}
+
+	// The final flush moves the remaining shard rows as a single partial flush.
+	rrss.flush(nopFlush, true)
+	if n := rrss.partialFlushes.Load(); n != 1 {
+		t.Fatalf("unexpected partial flushes; got %d; want 1", n)
+	}
+	flushed := rrss.fullFlushedRows.Load() + rrss.partialFlushedRows.Load()
+	if flushed != uint64(len(rows)) {
+		t.Fatalf("unexpected flushed rows; got %d; want %d", flushed, len(rows))
+	}
+
+	// An empty flush must not be counted.
+	rrss.flush(nopFlush, true)
+	if n := rrss.partialFlushes.Load(); n != 1 {
+		t.Fatalf("empty flush must not be counted; got %d partial flushes", n)
+	}
+}
