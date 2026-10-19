@@ -1328,26 +1328,31 @@ func newScalableWriter(bw *bufferedwriter.Writer) *scalableWriter {
 func (sw *scalableWriter) getBuffer(workerID uint) *bytesutil.ByteBuffer {
 	v, ok := sw.m.Load(workerID)
 	if !ok {
-		v = bbPool.Get()
+		v = swBufPool.Get()
 		sw.m.Store(workerID, v)
 	}
 	return v.(*bytesutil.ByteBuffer)
 }
 
-// maxPooledBufCap is the max capacity of a worker buffer returned to bbPool.
+// swBufPool holds worker buffers of scalableWriter.
+//
+// It is separate from bbPool, which has no capacity limit.
+var swBufPool bytesutil.ByteBufferPool
+
+// maxPooledBufCap is the max capacity of a worker buffer returned to swBufPool.
 //
 // Buffers are flushed at 1MiB, so regular ones stay below this limit.
 // Larger ones were grown by a single huge line and must not stay in the pool.
 const maxPooledBufCap = 2 * 1024 * 1024
 
-// release returns worker buffers to bbPool.
+// release returns worker buffers to swBufPool.
 //
 // It must be called after all the workers are stopped. sw mustn't be used after the call.
 func (sw *scalableWriter) release() {
 	sw.m.Range(func(_, v any) bool {
 		bb := v.(*bytesutil.ByteBuffer)
 		if cap(bb.B) <= maxPooledBufCap {
-			bbPool.Put(bb)
+			swBufPool.Put(bb)
 		}
 		return true
 	})
