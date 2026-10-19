@@ -20,6 +20,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -539,6 +540,21 @@ func (db *indexDB) containsDate(date uint64) (bool, uint64) {
 	return true, date
 }
 
+var perDaySearchConcurrencyLimitCh = make(chan struct{}, 2*cgroup.AvailableCPUs())
+
+func beginConcurrentPerDaySearch(ctx context.Context) error {
+	select {
+	case perDaySearchConcurrencyLimitCh <- struct{}{}:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func endConcurrentPerDaySearch() {
+	<-perDaySearchConcurrencyLimitCh
+}
+
 // SearchLabelNames returns all the label names, which match the given tfss on
 // the given tr.
 func (db *indexDB) SearchLabelNames(ctx context.Context, qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxLabelNames, maxMetrics int) (map[string]struct{}, error) {
@@ -576,8 +592,13 @@ func (db *indexDB) searchLabelNames(ctx context.Context, qt *querytracer.Tracer,
 	qt = qt.NewChild("parallel search for label names: filters=%s, timeRange=%s", tfss, &tr)
 	for date := minDate; date <= maxDate; date++ {
 		qtChild := qt.NewChild("search for label names: filters=%s, date=%s", tfss, dateToString(date))
+		if err := beginConcurrentPerDaySearch(ctx); err != nil {
+			return nil, err
+		}
 		wg.Go(func() {
 			defer qtChild.Done()
+			defer endConcurrentPerDaySearch()
+
 			lnsLocal, err := db.searchLabelNamesByDateAndFilters(ctx, qtChild, date, tfss, maxLabelNames, maxMetrics)
 			mu.Lock()
 			defer mu.Unlock()
@@ -861,8 +882,12 @@ func (db *indexDB) searchLabelValuesForTimeRange(ctx context.Context, qt *queryt
 	qt = qt.NewChild("parallel search for label values: labelName=%q, filters=%s, timeRange=%s", labelName, tfss, &tr)
 	for date := minDate; date <= maxDate; date++ {
 		qtChild := qt.NewChild("search for label values: filters=%s, date=%s", tfss, dateToString(date))
+		if err := beginConcurrentPerDaySearch(ctx); err != nil {
+			return nil, err
+		}
 		wg.Go(func() {
 			defer qtChild.Done()
+			defer endConcurrentPerDaySearch()
 
 			lvsLocal, err := db.searchLabelValuesByDateAndFilters(ctx, qtChild, date, labelName, tfss, maxLabelValues, maxMetrics)
 			mu.Lock()
@@ -1085,7 +1110,12 @@ func (is *indexSearch) searchTagValueSuffixesForTimeRange(ctx context.Context, t
 	tvss := make(map[string]struct{})
 	for minDate <= maxDate {
 		date := minDate
+		if err := beginConcurrentPerDaySearch(ctx); err != nil {
+			return nil, err
+		}
 		wg.Go(func() {
+			defer endConcurrentPerDaySearch()
+
 			isLocal := is.db.getIndexSearch()
 			tvssLocal, err := isLocal.searchTagValueSuffixesForDate(ctx, date, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
 			is.db.putIndexSearch(isLocal)
@@ -1930,8 +1960,13 @@ func (db *indexDB) searchTSIDs(ctx context.Context, qt *querytracer.Tracer, tfss
 	for day := range numDays {
 		date := minDate + uint64(day)
 		qtChild := qt.NewChild("search TSIDs in per-day index: filters=%s, date=%s", tfss, dateToString(date))
+		if err := beginConcurrentPerDaySearch(ctx); err != nil {
+			return nil, err
+		}
 		wg.Go(func() {
 			defer qtChild.Done()
+			defer endConcurrentPerDaySearch()
+
 			tsidsByDate[day], errsByDate[day] = db.searchTSIDsByDateAndFilters(ctx, qtChild, date, tfss, maxMetrics)
 		})
 	}
@@ -2080,8 +2115,13 @@ func (db *indexDB) searchMetricNames(ctx context.Context, qt *querytracer.Tracer
 	for day := range numDays {
 		date := minDate + uint64(day)
 		qtChild := qt.NewChild("search metric names in per-day index: filters=%s, date=%s", tfss, dateToString(date))
+		if err := beginConcurrentPerDaySearch(ctx); err != nil {
+			return nil, err
+		}
 		wg.Go(func() {
 			defer qtChild.Done()
+			defer endConcurrentPerDaySearch()
+
 			metricNamesByDate[day], errsByDate[day] = db.searchMetricNamesByDateAndFilters(ctx, qtChild, date, tfss, maxMetrics)
 		})
 	}
