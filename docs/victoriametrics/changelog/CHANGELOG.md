@@ -677,6 +677,18 @@ It enables back `Discovered targets` debug UI by default.
 * BUGFIX: `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly apply `extra_filters[]` filter when querying `vm_account_id` or `vm_project_id` labels via [multitenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) request for `/api/v1/label/…/values` API. Before, `extra_filters` was ignored. See [#10503](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10503).
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): revert the use of rollup result cache for [instant queries](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query) that contain [`rate`](https://docs.victoriametrics.com/victoriametrics/metricsql/#rate) function with a lookbehind window larger than `-search.minWindowForInstantRollupOptimization`. The cache usage was removed since [v1.132.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.132.0). See [#10098](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10098#issuecomment-3895011084) for more details.
 
+## [v1.136.21](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.136.21)
+
+Released at 2026-10-19
+
+**v1.136.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.136.x line will be supported for at least 12 months since [v1.136.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11360) release**
+
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): prevent [Kafka remote write](https://docs.victoriametrics.com/victoriametrics/integrations/kafka/) getting stuck after TLS certificates are reloaded. Previously, when vmagent detected changed certificates and restarted the Kafka producer, pending sends to the old producer could hang forever and the remote write queue stopped draining until vmagent was restarted. Now such sends are retried with the new producer. See [#11737](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11737).
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/), [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly validate time series ingested via [`/api/v1/import/native`](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-native-format). See [#11745](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11745). Thanks to @meshchellomishel for contribution.
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): reduce memory usage during for Kubernetes service discovery, when scrape configuration has many entries that matches small subset of targets. See [#11751](#https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11751). Thanks to @CamberLoid for contribution.
+
 ## [v1.136.20](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.136.20)
 
 Released at 2026-10-09
