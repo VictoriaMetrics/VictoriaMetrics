@@ -115,7 +115,7 @@ func TestRawRowsShardsFlushCounters(t *testing.T) {
 	nopFlush := func([][]rawRow) {}
 
 	// Overflow a shard to trigger a full flush.
-	rows := make([]rawRow, maxRawRowsPerShard*len(rrss.shards)+1)
+	rows := make([]rawRow, maxRawRowsPerShard+1)
 	rrss.addRows(nopFlush, rows)
 	if n := rrss.fullFlushes.Load(); n == 0 {
 		t.Fatalf("expecting at least one full flush")
