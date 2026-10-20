@@ -11,6 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/querystats"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
@@ -46,15 +47,15 @@ func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly boo
 
 	e, err := parsePromQLWithCache(q)
 	if err != nil {
-		return nil, err
+		return nil, httpserver.InvalidParamError(err)
 	}
 
 	if *disableImplicitConversion || *logImplicitConversion {
 		isInvalid := metricsql.IsLikelyInvalid(e)
 		if isInvalid && *disableImplicitConversion {
 			// we don't add query=%q to err message as it will be added by the caller
-			return nil, fmt.Errorf("query requires implicit conversion and is rejected according to -search.disableImplicitConversion command-line flag. " +
-				"See https://docs.victoriametrics.com/victoriametrics/metricsql/#implicit-query-conversions for details")
+			return nil, httpserver.InvalidParamError(fmt.Errorf("query requires implicit conversion and is rejected according to -search.disableImplicitConversion command-line flag. " +
+				"See https://docs.victoriametrics.com/victoriametrics/metricsql/#implicit-query-conversions for details"))
 		}
 		if isInvalid && *logImplicitConversion {
 			logger.Warnf("query=%q requires implicit conversion, see https://docs.victoriametrics.com/victoriametrics/metricsql/#implicit-query-conversions for details", e.AppendString(nil))

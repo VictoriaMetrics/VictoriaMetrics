@@ -64,7 +64,7 @@ func dropPrefixParts(path string, parts int) string {
 	return path
 }
 
-func (ui *UserInfo) getURLPrefixAndHeaders(u *url.URL, host string, h http.Header) (*URLPrefix, HeadersConf) {
+func (ui *UserInfo) getURLPrefixAndHeaders(u *url.URL, host string, h http.Header) (*URLPrefix, HeadersConf, bool) {
 	for _, e := range ui.URLMaps {
 		if !matchAnyRegex(e.SrcHosts, host) {
 			continue
@@ -78,18 +78,33 @@ func (ui *UserInfo) getURLPrefixAndHeaders(u *url.URL, host string, h http.Heade
 		if !matchAnyHeader(e.SrcHeaders, h) {
 			continue
 		}
+		if matchAnyDenyPath(e.DenyPaths, u.Path) {
+			return nil, HeadersConf{}, true
+		}
 
-		return e.URLPrefix, e.HeadersConf
+		return e.URLPrefix, e.HeadersConf, false
 	}
 	if ui.URLPrefix != nil {
-		return ui.URLPrefix, ui.HeadersConf
+		return ui.URLPrefix, ui.HeadersConf, false
 	}
-	return nil, HeadersConf{}
+	return nil, HeadersConf{}, false
 }
 
 func matchAnyRegex(rs []*Regex, s string) bool {
 	if len(rs) == 0 {
 		return true
+	}
+	for _, r := range rs {
+		if r.match(s) {
+			return true
+		}
+	}
+	return false
+}
+
+func matchAnyDenyPath(rs []*Regex, s string) bool {
+	if len(rs) == 0 {
+		return false
 	}
 	for _, r := range rs {
 		if r.match(s) {

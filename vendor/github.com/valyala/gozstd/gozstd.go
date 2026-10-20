@@ -358,10 +358,13 @@ func ensureNoError(funcName string, result C.size_t) {
 }
 
 func streamDecompress(dst, src []byte, dd *DDict, limit int) ([]byte, error) {
-	sd := getStreamDecompressor(dd, limit)
+	sd, err := getStreamDecompressor(dd, limit)
+	if err != nil {
+		return nil, err
+	}
 	sd.dst = dst
 	sd.src = src
-	_, err := sd.zr.WriteTo(sd)
+	_, err = sd.zr.WriteTo(sd)
 	dst = sd.dst
 	putStreamDecompressor(sd)
 	return dst, err
@@ -392,7 +395,7 @@ func (sd *streamDecompressor) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func getStreamDecompressor(dd *DDict, limit int) *streamDecompressor {
+func getStreamDecompressor(dd *DDict, limit int) (*streamDecompressor, error) {
 	v := streamDecompressorPool.Get()
 	if v == nil {
 		sd := &streamDecompressor{
@@ -404,10 +407,12 @@ func getStreamDecompressor(dd *DDict, limit int) *streamDecompressor {
 	sd.zr.Reset((*srcReader)(sd), dd)
 	if limit > 0 {
 		result := C.ZSTD_DCtx_setMaxWindowSize_wrapper(C.uintptr_t(uintptr(unsafe.Pointer(sd.zr.ds))), C.size_t(limit))
-		ensureNoError("ZSTD_DCtx_setMaxWindowSize", result)
+		if C.ZSTD_getErrorCode(result) != 0 {
+			return nil, fmt.Errorf("cannot set window size limit=%d: %s", limit, errStr(result))
+		}
 		sd.zr.limit = limit
 	}
-	return sd
+	return sd, nil
 }
 
 func putStreamDecompressor(sd *streamDecompressor) {

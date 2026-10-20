@@ -1,6 +1,7 @@
 ---
 weight: 501
 title: Release process guidance
+description: "Guidance for preparing, testing, and publishing VictoriaMetrics releases."
 menu:
   docs:
     parent: 'victoriametrics'

@@ -1,23 +1,21 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from "preact/compat";
+import { forwardRef, useCallback, useImperativeHandle, useState } from "preact/compat";
 import { DisplayType, ErrorTypes } from "../../../../types";
 import TextField from "../../../Main/TextField/TextField";
 import Tooltip from "../../../Main/Tooltip/Tooltip";
 import { InfoIcon, RestartIcon } from "../../../Main/Icons";
 import Button from "../../../Main/Button/Button";
-import { DEFAULT_MAX_SERIES, LEGEND_COLLAPSE_SERIES_LIMIT } from "../../../../constants/graph";
+import { DEFAULT_MAX_SERIES } from "../../../../constants/graph";
 import "./style.scss";
 import classNames from "classnames";
 import useDeviceDetect from "../../../../hooks/useDeviceDetect";
 import { ChildComponentHandle } from "../GlobalSettings";
 import { useCustomPanelDispatch, useCustomPanelState } from "../../../../state/customPanel/CustomPanelStateContext";
-import Switch from "../../../Main/Switch/Switch";
-import { getFromStorage, saveToStorage } from "../../../../utils/storage";
 
 interface ServerConfiguratorProps {
-  onClose: () => void
+  onClose: () => void;
 }
 
-const fields: {label: string, type: DisplayType}[] = [
+const fields: { label: string, type: DisplayType }[] = [
   { label: "Graph", type: DisplayType.chart },
   { label: "JSON", type: DisplayType.code },
   { label: "Table", type: DisplayType.table }
@@ -29,8 +27,7 @@ const LimitsConfigurator = forwardRef<ChildComponentHandle, ServerConfiguratorPr
   const { seriesLimits } = useCustomPanelState();
   const customPanelDispatch = useCustomPanelDispatch();
 
-  const storageCollapse = getFromStorage("LEGEND_AUTO_COLLAPSE");
-  const [legendCollapse, setLegendCollapse] = useState(storageCollapse ? storageCollapse === "true" : true);
+
 
   const [limits, setLimits] = useState(seriesLimits);
   const [error, setError] = useState({
@@ -43,7 +40,7 @@ const LimitsConfigurator = forwardRef<ChildComponentHandle, ServerConfiguratorPr
     setLimits(DEFAULT_MAX_SERIES);
   };
 
-  const createChangeHandler = (type: DisplayType) =>  (val: string) => {
+  const createChangeHandler = (type: DisplayType) => (val: string) => {
     const value = val || "";
     setError(prev => ({ ...prev, [type]: +value < 0 ? ErrorTypes.positiveNumber : "" }));
     setLimits({
@@ -56,10 +53,6 @@ const LimitsConfigurator = forwardRef<ChildComponentHandle, ServerConfiguratorPr
     customPanelDispatch({ type: "SET_SERIES_LIMITS", payload: limits });
     onClose();
   }, [limits]);
-
-  useEffect(() => {
-    saveToStorage("LEGEND_AUTO_COLLAPSE", `${legendCollapse}`);
-  }, [legendCollapse]);
 
   useImperativeHandle(ref, () => ({ handleApply }), [handleApply]);
 
@@ -105,19 +98,6 @@ const LimitsConfigurator = forwardRef<ChildComponentHandle, ServerConfiguratorPr
             />
           </div>
         ))}
-      </div>
-
-      <div className="vm-graph-settings-row">
-        <span className="vm-graph-settings-row__label">Auto-collapse legend</span>
-        <Switch
-          value={legendCollapse}
-          onChange={setLegendCollapse}
-          label={legendCollapse ? "Enabled" : "Disabled"}
-          fullWidth={isMobile}
-        />
-        <span className="vm-legend-configs-item__info">
-          Collapses the legend when series count exceeds {LEGEND_COLLAPSE_SERIES_LIMIT} to reduce UI load.
-        </span>
       </div>
     </div>
   );

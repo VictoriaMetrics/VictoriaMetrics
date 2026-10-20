@@ -4,9 +4,9 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: $padding-large;
+  gap: calc($padding-global * 2);
   width: 600px;
-  padding-bottom: $padding-medium;
+  padding-inline: $padding-large;
 
   &_mobile {
     grid-auto-rows: min-content;
@@ -54,6 +54,15 @@
     &__button {
       margin-top: $padding-small;
     }
+
+    &__warning {
+      margin-top: $padding-global;
+    }
+
+    & + .vm-checkbox {
+      margin-top: $padding-tiny;
+      font-size: $font-size-small;
+    }
   }
 
   &-footer {
@@ -62,10 +71,15 @@
     justify-content: flex-end;
     gap: $padding-small;
     width: 100%;
+    padding-block: $padding-global;
   }
 
   &_mobile &-footer {
     display: grid;
     grid-template-columns: 1fr 1fr;
   }
+}
+
+.vm-server-url-deprecation-warning {
+  padding: $padding-small $padding-small 0;
 }

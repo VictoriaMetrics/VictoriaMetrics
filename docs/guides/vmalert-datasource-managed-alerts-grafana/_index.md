@@ -1,6 +1,7 @@
 ---
 weight: 16
 title: Datasource-Managed Alerts with vmalert and Grafana
+description: "Scalable alerting topology with vmalert and Grafana."
 menu:
   docs:
     parent: "guides"

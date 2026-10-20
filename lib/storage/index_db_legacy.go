@@ -2,12 +2,11 @@ package storage
 
 import (
 	"bytes"
-	"math"
 	"path/filepath"
 	"strconv"
 	"sync/atomic"
+	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -79,7 +78,10 @@ func mustOpenLegacyIndexDB(path string, s *Storage) *legacyIndexDB {
 
 	tr := TimeRange{
 		MinTimestamp: 0,
-		MaxTimestamp: math.MaxInt64,
+		// Legacy indexDBs can store entries up to now+2d at most, since
+		// pre-v1.133.0 versions accepted timestamps up to 2d in the future
+		// (timezone shifts) while -futureRetention is not supported by them.
+		MaxTimestamp: time.Now().Add(2 * 24 * time.Hour).UnixMilli(),
 	}
 	idb := mustOpenIndexDB(id, tr, name, path, s, &s.isReadOnly, true)
 	legacyIDB := &legacyIndexDB{idb: idb}
@@ -87,48 +89,51 @@ func mustOpenLegacyIndexDB(path string, s *Storage) *legacyIndexDB {
 	return legacyIDB
 }
 
-func (is *indexSearch) legacyContainsTimeRange(tr TimeRange) bool {
-	if tr == globalIndexTimeRange {
-		return true
-	}
-
-	db := is.db
+func (db *indexDB) legacyContainsTimeRange(tr TimeRange) bool {
 	if !db.noRegisterNewSeries.Load() {
 		// indexDB could register new time series - it is not safe to cache minMissingTimestamp
+		//
+		// In practice, db.noRegisterNewSeries is always true for legacy
+		// indexDBs and always false for partition indexDBs.
 		return true
 	}
 
-	// use common prefix as a key for minMissingTimestamp
-	// it's needed to properly track timestamps for cluster version
-	// which uses tenant labels for the index search
-	kb := &is.kb
-	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateToMetricID)
-	key := kb.B
+	// At this point, we know it is a legacy indexDB.
 
+	// vmsingle does not have tenants and therefore has just one key.
+	// While vmstorage can potentially have many tenants and the actual
+	// accountID and projectID will be set from the request.
+	key := TenantToken{
+		AccountID: 0,
+		ProjectID: 0,
+	}
 	db.legacyMinMissingTimestampByKeyLock.Lock()
-	minMissingTimestamp, ok := db.legacyMinMissingTimestampByKey[string(key)]
+	minMissingTimestamp, ok := db.legacyMinMissingTimestampByKey[key]
 	db.legacyMinMissingTimestampByKeyLock.Unlock()
 
 	if ok && tr.MinTimestamp >= minMissingTimestamp {
+		// Fast path.
 		return false
 	}
-	if is.legacyContainsTimeRangeSlow(kb, tr) {
+
+	// Slow path.
+	is := db.getIndexSearch()
+	defer db.putIndexSearch(is)
+	if is.legacyContainsTimeRange(tr) {
 		return true
 	}
 
 	db.legacyMinMissingTimestampByKeyLock.Lock()
-	minMissingTimestamp, ok = db.legacyMinMissingTimestampByKey[string(key)]
+	minMissingTimestamp, ok = db.legacyMinMissingTimestampByKey[key]
 	if !ok || tr.MinTimestamp < minMissingTimestamp {
-		db.legacyMinMissingTimestampByKey[string(key)] = tr.MinTimestamp
+		db.legacyMinMissingTimestampByKey[key] = tr.MinTimestamp
 	}
 	db.legacyMinMissingTimestampByKeyLock.Unlock()
 
 	return false
 }
 
-func (is *indexSearch) legacyContainsTimeRangeSlow(prefixBuf *bytesutil.ByteBuffer, tr TimeRange) bool {
-	ts := &is.ts
-
+func (is *indexSearch) legacyContainsTimeRange(tr TimeRange) bool {
 	// Verify whether the tr.MinTimestamp is included into `ts` or is smaller than the minimum date stored in `ts`.
 	// Do not check whether tr.MaxTimestamp is included into `ts` or is bigger than the max date stored in `ts` for performance reasons.
 	// This means that this func can return true if `tr` is located below the min date stored in `ts`.
@@ -136,12 +141,17 @@ func (is *indexSearch) legacyContainsTimeRangeSlow(prefixBuf *bytesutil.ByteBuff
 	// The main practical case allows skipping searching in prev indexdb (`ts`) when `tr`
 	// is located above the max date stored there.
 	minDate := uint64(tr.MinTimestamp) / msecPerDay
-	prefix := prefixBuf.B
-	prefixBuf.B = encoding.MarshalUint64(prefixBuf.B, minDate)
-	ts.Seek(prefixBuf.B)
+
+	kb := &is.kb
+	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateToMetricID)
+	prefix := kb.B
+	kb.B = encoding.MarshalUint64(kb.B, minDate)
+
+	ts := &is.ts
+	ts.Seek(kb.B)
 	if !ts.NextItem() {
 		if err := ts.Error(); err != nil {
-			logger.Panicf("FATAL: error when searching for minDate=%d, prefix %q: %s", minDate, prefixBuf.B, err)
+			logger.Panicf("FATAL: error when searching for minDate=%d, prefix %q: %s", minDate, kb.B, err)
 		}
 		return false
 	}

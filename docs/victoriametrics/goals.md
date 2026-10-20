@@ -1,6 +1,7 @@
 ---
 weight: 500
 title: Development Goals
+description: "Development goals and priorities for the VictoriaMetrics project."
 menu:
   docs:
     weight: 500

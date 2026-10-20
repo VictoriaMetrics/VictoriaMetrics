@@ -37,7 +37,7 @@
           "uid": "$ds"
         },
         "enable": true,
-        "expr": "sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"}) by(version) unless (sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"} offset $__interval) by(version))",
+        "expr": "sum by(version) (\n    label_replace(vm_app_version{job=~\"$job\", instance=~\"$instance\", short_version!=\"\"}, \"version\", \"$1\", \"short_version\", \"(.*)\")\n    OR\n    vm_app_version{job=~\"$job\", instance=~\"$instance\", short_version=\"\"}\n) \nunless \n(\n    sum by(version) (\n        label_replace(vm_app_version{job=~\"$job\", instance=~\"$instance\", short_version!=\"\"}, \"version\", \"$1\", \"short_version\", \"(.*)\")\n        OR\n        vm_app_version{job=~\"$job\", instance=~\"$instance\", short_version=\"\"}\n    ) offset $__interval\n)",
         "hide": true,
         "iconColor": "dark-blue",
         "name": "version change",
@@ -62,7 +62,6 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
-  "id": 0,
   "links": [
     {
       "icon": "doc",
@@ -4065,7 +4064,7 @@
           "gridPos": {
             "h": 9,
             "w": 12,
-            "x": 0,
+            "x": 12,
             "y": 256
           },
           "id": 144,
@@ -4110,7 +4109,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows cache miss ratio.\n\n**Lower is better.**",
+          "description": "Shows the percentage of missed cache requests by cache type\n\nThe lower the better.\n\nRed color means that cache's memory usage is at least 95% of its limit. Green means it is below 95%. Gray means usage is unavailable.\n\nIf misses remain high for long time period and the cache is near its limit (colored red), then it is likely more memory is required for this level of workload. Cache's memory limit depends on memory available to VictoriaMetrics component, so increasing the memory limit will automatically increase cache capacity. \n\nIf misses remain high for long time period and cache hasn't reached its limit (colored green), then it could be that workload is changing too frequently (high churn rate, unique read queries) or is inconsistent enough for caches to expire.\n\nSee more about [caches in VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning).",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -4160,21 +4159,63 @@
                   {
                     "color": "green",
                     "value": 0
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
                   }
                 ]
               },
               "unit": "percentunit"
             },
-            "overrides": []
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "A"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "red"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "B"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "green"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "C"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "gray"
+                    }
+                  }
+                ]
+              }
+            ]
           },
           "gridPos": {
             "h": 9,
             "w": 12,
-            "x": 12,
+            "x": 0,
             "y": 256
           },
           "id": 58,
@@ -4206,14 +4247,46 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "max(\n    rate(vm_cache_misses_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    rate(vm_cache_requests_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n) by(type)",
+              "expr": "max(\n    (\n        rate(vm_cache_misses_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n        /\n        rate(vm_cache_requests_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    )\n    and\n    (\n        vm_cache_size_bytes{job=~\"$job\", instance=~\"$instance\"}\n        /\n        (vm_cache_size_max_bytes{job=~\"$job\", instance=~\"$instance\"} > 0)\n        >= 0.95\n    )\n) by(type)",
               "format": "time_series",
               "hide": false,
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "__auto",
+              "legendFormat": "{{type}}",
               "range": true,
               "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "exemplar": true,
+              "expr": "max(\n    (\n        rate(vm_cache_misses_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n        /\n        rate(vm_cache_requests_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    )\n    and\n    (\n        vm_cache_size_bytes{job=~\"$job\", instance=~\"$instance\"}\n        /\n        (vm_cache_size_max_bytes{job=~\"$job\", instance=~\"$instance\"} > 0)\n        < 0.95\n    )\n) by(type)",
+              "format": "time_series",
+              "hide": false,
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "{{type}}",
+              "range": true,
+              "refId": "B"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "exemplar": true,
+              "expr": "max(\n    (\n        rate(vm_cache_misses_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n        /\n        rate(vm_cache_requests_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    )\n    unless\n    (\n        vm_cache_size_bytes{job=~\"$job\", instance=~\"$instance\"}\n        /\n        (vm_cache_size_max_bytes{job=~\"$job\", instance=~\"$instance\"} > 0)\n    )\n) by(type)",
+              "format": "time_series",
+              "hide": false,
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "{{type}} (capacity unknown)",
+              "range": true,
+              "refId": "C"
             }
           ],
           "title": "Cache miss ratio ($instance)",
@@ -6366,7 +6439,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows the number of ongoing Cluster Native insert API operations sent to `vmstorage`, where:\n* `max` - the maximum number of calls that can be processed in parallel;\n* `current` - Shows the number of ongoing insert operations being processed by the storage.\n\nEach successful API call results in a flush to disk. The `max` value is controlled by the `-maxConcurrentInserts` flag set on the storage (2 * cgroup.AvailableCPUs() by default). \n\nIf `current` consistently reaches `max`, it indicates that the storage is overloaded and likely requires more CPU (see CPU usage) or disks with higher IOPS (see disk read/write panels in the Resource Usage row)",
+          "description": "Shows the number of data ingestion requests from `vminsert` nodes that are being processed by `vmstorage` at the same time, where:\n* `max` - the maximum number of requests that can be processed in parallel;\n* `current` - the number of requests currently being processed.\n\nIf `current` frequently reaches `max`, the `vmstorage` node likely doesn't have enough resources to keep up with the ingestion rate. Add more `vmstorage` nodes to the cluster, or add more CPU (see CPU usage) or faster disks (see disk read/write panels in the Resource Usage row) to the `vmstorage` node.\n\nThe limit can be adjusted with the `-maxConcurrentInserts` command-line flag at `vmstorage`, but this isn't recommended in general, since it may increase memory usage.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -9222,7 +9295,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows the max number of ongoing insertions.\n* `max` - equal to number of CPU * 2 by default. May be configured with `maxConcurrentInserts` flag;\n* `current` - current number of goroutines busy with processing requests.\n\n`-maxConcurrentInserts` limits the number of insert requests which may be actively processed at any given point in time. All the other insert requests are queued for up to `-insert.maxQueueDuration` in the hope they will get a chance to be processed. This queue is used mostly for absorbing spikes for incoming insert request rate.\n\nWhen `current` hits `max` constantly, it means vminsert node is overloaded and requires more CPU or higher limits.",
+          "description": "Shows the number of data ingestion requests that are being processed by `vminsert` at the same time, where:\n* `max` - the maximum number of requests that can be processed in parallel;\n* `current` - the number of requests currently being processed.\n\nIf `current` frequently reaches `max`, the `vminsert` node likely doesn't have enough resources to keep up with the ingestion rate. Add more `vminsert` nodes to the cluster, or add more CPU (see CPU usage) to the `vminsert` node.\n\nThe limit can be adjusted with the `-maxConcurrentInserts` command-line flag at `vminsert`, but this isn't recommended in general, since it may increase memory usage.",
           "fieldConfig": {
             "defaults": {
               "color": {

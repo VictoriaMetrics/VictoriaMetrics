@@ -59,6 +59,12 @@ func Init(vmselectMaxConcurrentRequests int, vmselectMaxQueueDuration time.Durat
 	initVMUIConfig()
 
 	vmalertproxy.Init(*vmalertProxyURL)
+
+}
+
+// InitSecretFlags manages the secret flags for this pkg and must be called by app-level initSecretFlags.
+// It should run before logger initialization and package Init() (if exists).
+func InitSecretFlags() {
 	flagutil.RegisterSecretFlag("vmalert.proxyURL")
 }
 
@@ -410,7 +416,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "/api/v1/status/metric_names_stats":
 		metricNamesStatsRequests.Inc()
 		httpserver.EnableCORS(w, r)
-		if err := stats.MetricNamesStatsHandler(qt, w, r); err != nil {
+		if err := stats.MetricNamesStatsHandler(startTime, qt, w, r); err != nil {
 			metricNamesStatsErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
 			return true
@@ -421,7 +427,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		if !httpserver.CheckAuthFlag(w, r, metricNamesStatsResetAuthKey) {
 			return true
 		}
-		if err := stats.ResetMetricNamesStatsHandler(qt); err != nil {
+		if err := stats.ResetMetricNamesStatsHandler(startTime, qt, r); err != nil {
 			metricNamesStatsResetErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
 			return true

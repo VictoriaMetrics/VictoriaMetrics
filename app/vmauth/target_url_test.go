@@ -95,7 +95,10 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 			t.Fatalf("cannot parse %q: %s", requestURI, err)
 		}
 		u = normalizeURL(u)
-		up, hc := ui.getURLPrefixAndHeaders(u, u.Host, nil)
+		up, hc, denied := ui.getURLPrefixAndHeaders(u, u.Host, nil)
+		if denied {
+			t.Fatalf("unexpected denied request for %q", requestURI)
+		}
 		if up == nil {
 			t.Fatalf("cannot match available backend: %s", err)
 			return
@@ -280,6 +283,19 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 	f(ui, "https://foo-host/api/v1/write", "http://vminsert/0/prometheus/api/v1/write", "", "", []int{}, "least_loaded", 0)
 	f(ui, "https://foo-host/metrics/a/b", "http://metrics-server/b", "", "", []int{502}, "least_loaded", 2)
 
+	// `deny_paths` excludes a subset of paths matched by `src_paths`
+	ui = &UserInfo{
+		URLMaps: []URLMap{
+			{
+				SrcPaths:  getRegexs([]string{"/select/.*"}),
+				DenyPaths: getRegexs([]string{"/select/[^/]+/prometheus/api/v1/status/active_queries"}),
+				URLPrefix: mustParseURL("http://vmselect:8481"),
+			},
+		},
+	}
+	f(ui, "/select/0/prometheus/api/v1/query?query=up", "http://vmselect:8481/select/0/prometheus/api/v1/query?query=up",
+		"", "", nil, "least_loaded", 0)
+
 	// Complex routing regexp paths in `url_map`
 	ui = &UserInfo{
 		URLMaps: []URLMap{
@@ -346,7 +362,7 @@ func TestUserInfoGetBackendURL_SRV(t *testing.T) {
 			t.Fatalf("cannot parse %q: %s", requestURI, err)
 		}
 		u = normalizeURL(u)
-		up, _ := ui.getURLPrefixAndHeaders(u, u.Host, nil)
+		up, _, _ := ui.getURLPrefixAndHeaders(u, u.Host, nil)
 		if up == nil {
 			t.Fatalf("cannot match available backend: %s", err)
 			return
@@ -425,7 +441,7 @@ func TestUserInfoGetBackendURL_SRVZeroBackends(t *testing.T) {
 			t.Fatalf("cannot parse %q: %s", requestURI, err)
 		}
 		u = normalizeURL(u)
-		up, _ := ui.getURLPrefixAndHeaders(u, u.Host, nil)
+		up, _, _ := ui.getURLPrefixAndHeaders(u, u.Host, nil)
 		if up == nil {
 			t.Fatalf("cannot match available backend: %s", err)
 		}
@@ -466,16 +482,19 @@ func TestUserInfoGetBackendURL_SRVZeroBackends(t *testing.T) {
 }
 
 func TestCreateTargetURLFailure(t *testing.T) {
-	f := func(ui *UserInfo, requestURI string) {
+	f := func(ui *UserInfo, requestURI string, expectedDenied bool) {
 		t.Helper()
 		u, err := url.Parse(requestURI)
 		if err != nil {
 			t.Fatalf("cannot parse %q: %s", requestURI, err)
 		}
 		u = normalizeURL(u)
-		up, hc := ui.getURLPrefixAndHeaders(u, u.Host, nil)
+		up, hc, denied := ui.getURLPrefixAndHeaders(u, u.Host, nil)
 		if up != nil {
 			t.Fatalf("unexpected non-empty up=%#v", up)
+		}
+		if denied != expectedDenied {
+			t.Fatalf("unexpected denied; got %v; want %v", denied, expectedDenied)
 		}
 		if hc.RequestHeaders != nil {
 			t.Fatalf("unexpected non-empty request headers: %s", headersToString(hc.RequestHeaders))
@@ -484,7 +503,7 @@ func TestCreateTargetURLFailure(t *testing.T) {
 			t.Fatalf("unexpected non-empty response headers: %s", headersToString(hc.ResponseHeaders))
 		}
 	}
-	f(&UserInfo{}, "/foo/bar")
+	f(&UserInfo{}, "/foo/bar", false)
 	f(&UserInfo{
 		URLMaps: []URLMap{
 			{
@@ -492,7 +511,18 @@ func TestCreateTargetURLFailure(t *testing.T) {
 				URLPrefix: mustParseURL("http://foobar/baz"),
 			},
 		},
-	}, "/api/v1/write")
+	}, "/api/v1/write", false)
+
+	// deny_paths excludes a subset of paths matched by src_paths
+	f(&UserInfo{
+		URLMaps: []URLMap{
+			{
+				SrcPaths:  getRegexs([]string{"/select/.*"}),
+				DenyPaths: getRegexs([]string{"/select/[^/]+/prometheus/api/v1/status/active_queries"}),
+				URLPrefix: mustParseURL("http://vmselect:8481"),
+			},
+		},
+	}, "/select/0/prometheus/api/v1/status/active_queries", true)
 }
 
 func headersToString(hs []*Header) string {

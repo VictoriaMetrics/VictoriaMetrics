@@ -1,5 +1,6 @@
 ---
 title: Grafana Alloy
+description: "Configure Grafana Alloy to send metrics to VictoriaMetrics."
 weight: 3
 menu:
   docs:

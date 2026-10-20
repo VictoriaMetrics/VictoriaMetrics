@@ -293,26 +293,30 @@ func (w *GzipResponseWriter) startCompression(remain []byte) error {
 		if len(w.randomJitter) > 0 {
 			var jitRNG uint32
 			if w.jitterBuffer > 0 {
+				// Use only up to "w.jitterBuffer", otherwise the output depends on write sizes.
+				// w.buf can grow to wantBuf (max(minSize, 512[, jitterBuffer])), which may exceed jitterBuffer.
+				hashBuf := w.buf
+				if len(hashBuf) > w.jitterBuffer {
+					hashBuf = hashBuf[:w.jitterBuffer]
+				}
 				if w.sha256Jitter {
 					h := sha256.New()
-					h.Write(w.buf)
-					// Use only up to "w.jitterBuffer", otherwise the output depends on write sizes.
-					if len(remain) > 0 && len(w.buf) < w.jitterBuffer {
+					h.Write(hashBuf)
+					if len(remain) > 0 && len(hashBuf) < w.jitterBuffer {
 						remain := remain
-						if len(remain)+len(w.buf) > w.jitterBuffer {
-							remain = remain[:w.jitterBuffer-len(w.buf)]
+						if len(remain)+len(hashBuf) > w.jitterBuffer {
+							remain = remain[:w.jitterBuffer-len(hashBuf)]
 						}
 						h.Write(remain)
 					}
 					var tmp [sha256.Size]byte
 					jitRNG = binary.LittleEndian.Uint32(h.Sum(tmp[:0]))
 				} else {
-					h := crc32.Update(0, castagnoliTable, w.buf)
-					// Use only up to "w.jitterBuffer", otherwise the output depends on write sizes.
-					if len(remain) > 0 && len(w.buf) < w.jitterBuffer {
+					h := crc32.Update(0, castagnoliTable, hashBuf)
+					if len(remain) > 0 && len(hashBuf) < w.jitterBuffer {
 						remain := remain
-						if len(remain)+len(w.buf) > w.jitterBuffer {
-							remain = remain[:w.jitterBuffer-len(w.buf)]
+						if len(remain)+len(hashBuf) > w.jitterBuffer {
+							remain = remain[:w.jitterBuffer-len(hashBuf)]
 						}
 						h = crc32.Update(h, castagnoliTable, remain)
 					}
@@ -611,7 +615,11 @@ func NewWrapper(opts ...option) (func(http.Handler) http.HandlerFunc, error) {
 		return func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Add(vary, acceptEncoding)
 			if c.allowCompressedRequests && contentGzip(r) {
-				r.Header.Del(contentEncoding)
+				if rest, _ := splitOuterCoding(joinContentEncoding(r)); rest != "" {
+					r.Header.Set(contentEncoding, rest)
+				} else {
+					r.Header.Del(contentEncoding)
+				}
 				r.Body = &gzipReader{body: r.Body}
 			}
 
@@ -984,10 +992,35 @@ func RandomJitter(n, buffer int, paranoid bool) option {
 	}
 }
 
-// contentGzip returns true if the given HTTP request indicates that it gzipped.
+// contentGzip returns true if the outermost content coding of the request body is gzip.
 func contentGzip(r *http.Request) bool {
-	// See more detail in `acceptsGzip`
-	return r.Method != http.MethodHead && r.Body != nil && parseEncodingGzip(r.Header.Get(contentEncoding)) > 0
+	if r.Method == http.MethodHead || r.Body == nil {
+		return false
+	}
+	// Content-Encoding lists codings in the order they were applied, so only the
+	// last one is removable here.
+	_, outer := splitOuterCoding(joinContentEncoding(r))
+	coding, _, err := parseCoding(outer)
+	return err == nil && coding == "gzip"
+}
+
+// joinContentEncoding returns the Content-Encoding field lines as the single
+// comma list they are equivalent to. A sender may split the list across lines.
+func joinContentEncoding(r *http.Request) string {
+	v := r.Header.Values(contentEncoding)
+	if len(v) == 1 {
+		return v[0]
+	}
+	return strings.Join(v, ", ")
+}
+
+// splitOuterCoding splits a Content-Encoding value into the codings that stay
+// applied and the outermost one.
+func splitOuterCoding(s string) (rest, outer string) {
+	if i := strings.LastIndexByte(s, ','); i >= 0 {
+		return strings.TrimSpace(s[:i]), s[i+1:]
+	}
+	return "", s
 }
 
 // acceptsGzip returns true if the given HTTP request indicates that it will

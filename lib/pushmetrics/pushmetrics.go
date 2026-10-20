@@ -24,9 +24,12 @@ var (
 	disableCompression = flag.Bool("pushmetrics.disableCompression", false, "Whether to disable request body compression when pushing metrics to every -pushmetrics.url")
 )
 
-func init() {
+// InitSecretFlags manages the secret flags for this pkg and must be called by app-level initSecretFlags.
+// It should run before logger initialization and package Init() (if exists).
+func InitSecretFlags() {
 	// The -pushmetrics.url flag can contain basic auth creds, so it mustn't be visible when exposing the flags.
 	flagutil.RegisterSecretFlag("pushmetrics.url")
+	flagutil.RegisterSecretFlag("pushmetrics.header")
 }
 
 var (
@@ -109,6 +112,7 @@ func StopAndPush() {
 				ExtraLabels:        extraLabels,
 				Headers:            *pushHeader,
 				DisableCompression: *disableCompression,
+				LogErr:             logger.Errorf,
 			}
 			if err := metrics.PushMetricsExt(ctxLocal, pu, appmetrics.WritePrometheusMetrics, opts); err != nil {
 				logger.Errorf("failed to push metrics to %q: %s", pu, err)

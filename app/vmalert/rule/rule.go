@@ -10,6 +10,7 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -27,7 +28,7 @@ type Rule interface {
 	ToAPI() ApiRule
 	// exec executes the rule with given context at the given timestamp and limit.
 	// returns an err if number of resulting time series exceeds the limit.
-	exec(ctx context.Context, ts time.Time, limit int) ([]prompb.TimeSeries, error)
+	exec(ctx context.Context, ts time.Time, limit int, getRemoteReadQuerier func(enableDebug bool) datasource.Querier) ([]prompb.TimeSeries, error)
 	// execRange executes the rule on the given time range.
 	execRange(ctx context.Context, start, end time.Time) ([]prompb.TimeSeries, error)
 	// updateWith performs modification of current Rule
@@ -132,9 +133,10 @@ func replayRule(r Rule, start, end time.Time, rw remotewrite.RWClient, replayRul
 		var esc *httpserver.ErrorWithStatusCode
 		if errors.As(err, &esc) {
 			statusCode := esc.StatusCode
-			// if the status code is 422, it means that the query was executed but failed due to an expression syntax error or a the resource limit being hit,
-			// continue replaying but skip the problematic execution if continueWithExecutionErr is true, otherwise, return the error without retry.
-			if statusCode == http.StatusUnprocessableEntity {
+			// if the status code is 400 or 422, the query failed due to reasons such as an expression syntax error or a resource limit being hit,
+			// rather than datasource unavailability.
+			// Continue replaying but skip the problematic execution if continueWithExecutionErr is true, otherwise, return the error without retry.
+			if statusCode == http.StatusUnprocessableEntity || statusCode == http.StatusBadRequest {
 				if continueWithExecutionErr {
 					logger.Errorf("rule %q: %s", r, err)
 					return 0, nil

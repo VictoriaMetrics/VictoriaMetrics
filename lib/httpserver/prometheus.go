@@ -5,9 +5,18 @@ import (
 	"net/http"
 )
 
-// SendPrometheusError sends err to w in Prometheus querying API response format.
-//
-// See https://prometheus.io/docs/prometheus/latest/querying/api/#format-overview for more details
+// InvalidParamError sets HTTP status code to 400 Bad Request for Prometheus querying APIs when parameters are missing or incorrect,
+// see https://prometheus.io/docs/prometheus/latest/querying/api/#format-overview.
+func InvalidParamError(err error) *ErrorWithStatusCode {
+	return &ErrorWithStatusCode{
+		Err:        err,
+		StatusCode: http.StatusBadRequest,
+	}
+}
+
+// SendPrometheusError sends err to w in Prometheus querying API response format,
+// and sets HTTP status code to 422 Unprocessable Entity when code is not set,
+// see https://prometheus.io/docs/prometheus/latest/querying/api/#format-overview for more details.
 func SendPrometheusError(w http.ResponseWriter, r *http.Request, err error) {
 	errStr := err.Error()
 	logHTTPError(r, errStr)

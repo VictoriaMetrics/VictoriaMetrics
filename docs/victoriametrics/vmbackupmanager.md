@@ -5,6 +5,7 @@ menu:
     parent: victoriametrics
     weight: 10
 title: vmbackupmanager
+description: "Automated backup scheduling, retention policies, and restoration management for VictoriaMetrics data. Requires an Enterprise license."
 tags:
   - metrics
   - enterprise
@@ -480,7 +481,7 @@ Clusters here are referred to as `source` and `destination`.
 
 To verify that `vmbackupmanager` is executing backup tasks normally, the following metrics can help:
 
-* `vm_backup_last_success_at{type="<backup_type>"}` - unix timestamp of the last successful backup{{% available_from "#" %}}. Remains `0` if no backup has completed successfully since startup. Check error logs and verify remote storage accessibility if this persists.
+* `vm_backup_last_success_at{type="<backup_type>"}` - unix timestamp of the last successful backup{{% available_from "v1.149.0" %}}. Remains `0` if no backup has completed successfully since startup. Check error logs and verify remote storage accessibility if this persists.
 * `vm_backup_last_run_failed{type="<backup_type>"}` - whether the last backup task for the given backup type failed. The value `1` means the last task failed. Check the error logs of `vmbackupmanager` for the root cause
 * `vm_backup_errors_total{type="<backup_type>"}` - total number of backup errors for the given backup type.
 
@@ -681,6 +682,8 @@ command-line flags:
      S3 tags to be set for uploaded objects. Must be set in JSON format: {"param1":"value1",...,"paramN":"valueN"}.
   -s3SSEKMSKeyId string
      SSE KMS Key ID for use with S3-compatible storages.
+  -s3SkipTaggingDirective
+     Whether to skip the x-amz-tagging-directive and x-amz-tagging headers when copying objects. Enable it only for S3-compatible storage that rejects these headers.
   -s3StorageClass string
      The Storage Class applied to objects uploaded to AWS S3. Supported values are: GLACIER, DEEP_ARCHIVE, GLACIER_IR, INTELLIGENT_TIERING, ONEZONE_IA, OUTPOSTS, REDUCED_REDUNDANCY, STANDARD, STANDARD_IA.
      See https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage-class-intro.html

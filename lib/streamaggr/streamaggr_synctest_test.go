@@ -935,4 +935,55 @@ foo:1m_sum_samples{baz="qwe"} 10
   dedup_interval: 30s
   outputs: [sum_samples]
 `, "11111111")
+
+	// Reproduce issue #11261: sum_samples_total must be monotonic with enable_windows: true
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11262
+	f([]string{`
+test_delta 1
+`, `
+test_delta 1
+`, `
+test_delta 1
+`, `
+test_delta 1
+`}, time.Minute, `test_delta 1
+test_delta 2
+test_delta 3
+test_delta 4
+`, `
+- interval: 1m
+  keep_metric_names: true
+  outputs: [sum_samples_total]
+  enable_windows: true
+`, "1111")
+
+	// Reproduce issue #11707: samples from both windows in one push must not move the increase into the next window
+	f([]string{`
+foo 0
+`, `
+foo 0 -25
+`, `
+foo 1 -2
+foo 1 1
+`, `
+foo 1 -25
+`, `
+foo 2 -2
+foo 2 1
+`, `
+foo 2 -25
+`, `
+foo 3 -2
+foo 3 1
+`}, 30*time.Second, `foo:1m_increase 1
+foo:1m_increase 1
+foo:1m_increase 1
+foo:1m_total 1
+foo:1m_total 2
+foo:1m_total 3
+`, `
+- interval: 1m
+  outputs: [increase, total]
+  enable_windows: true
+`, "1111111111")
 }

@@ -37,8 +37,9 @@ type containerNetworkSettings struct {
 }
 
 type containerNetwork struct {
-	IPAddress string
-	NetworkID string
+	GlobalIPv6Address string
+	IPAddress         string
+	NetworkID         string
 }
 
 func getContainersLabels(cfg *apiConfig) ([]*promutil.Labels, error) {
@@ -118,14 +119,18 @@ func addContainersLabels(containers []container, networkLabels map[string]*promu
 			networks = map[string]containerNetwork{firstNetworkMode: firstNetwork}
 		}
 		for _, n := range networks {
+			ipAddress := n.IPAddress
+			if len(ipAddress) == 0 {
+				ipAddress = n.GlobalIPv6Address
+			}
 			var added bool
 			for _, p := range c.Ports {
 				if p.Type != "tcp" {
 					continue
 				}
 				m := promutil.NewLabels(16)
-				m.Add("__address__", discoveryutil.JoinHostPort(n.IPAddress, p.PrivatePort))
-				m.Add("__meta_docker_network_ip", n.IPAddress)
+				m.Add("__address__", discoveryutil.JoinHostPort(ipAddress, p.PrivatePort))
+				m.Add("__meta_docker_network_ip", ipAddress)
 				m.Add("__meta_docker_port_private", strconv.Itoa(p.PrivatePort))
 				if p.PublicPort > 0 {
 					m.Add("__meta_docker_port_public", strconv.Itoa(p.PublicPort))
@@ -141,11 +146,11 @@ func addContainersLabels(containers []container, networkLabels map[string]*promu
 				// Use fallback port when no exposed ports are available or if all are non-TCP
 				addr := hostNetworkingHost
 				if c.HostConfig.NetworkMode != "host" {
-					addr = discoveryutil.JoinHostPort(n.IPAddress, defaultPort)
+					addr = discoveryutil.JoinHostPort(ipAddress, defaultPort)
 				}
 				m := promutil.NewLabels(16)
 				m.Add("__address__", addr)
-				m.Add("__meta_docker_network_ip", n.IPAddress)
+				m.Add("__meta_docker_network_ip", ipAddress)
 				addCommonLabels(m, c, networkLabels[n.NetworkID])
 				// Remove possible duplicate labels, which can appear after addCommonLabels() call
 				m.RemoveDuplicates()

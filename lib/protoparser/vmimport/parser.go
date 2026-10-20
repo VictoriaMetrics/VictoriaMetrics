@@ -197,6 +197,11 @@ func (tu *tagsUnmarshaler) addBytes(b []byte) []byte {
 func (tu *tagsUnmarshaler) unmarshalTags(o *fastjson.Object) error {
 	tu.err = nil
 	o.Visit(func(key []byte, v *fastjson.Value) {
+		if len(key) == 0 {
+			// Skip tags with empty name, since they override the metric name.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4962
+			return
+		}
 		tag := tu.addTag()
 		tag.Key = tu.addBytes(key)
 		sb, err := v.StringBytes()

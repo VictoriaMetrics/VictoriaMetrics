@@ -829,9 +829,16 @@ func testLegacyDowngrade(tc *at.TestCase, opts testLegacyDowngradeOpts) {
 		})
 	}
 
-	wantEmpty := want{
+	wantEmptyLegacy := want{
 		series:            []map[string]string{},
 		labels:            []string{"__name__"},
+		labelValues:       []string{},
+		queryResults:      []*at.QueryResult{},
+		queryRangeResults: []*at.QueryResult{},
+	}
+	wantEmpty := want{
+		series:            []map[string]string{},
+		labels:            []string{},
 		labelValues:       []string{},
 		queryResults:      []*at.QueryResult{},
 		queryRangeResults: []*at.QueryResult{},
@@ -866,7 +873,7 @@ func testLegacyDowngrade(tc *at.TestCase, opts testLegacyDowngradeOpts) {
 	legacySUT = opts.startLegacySUT()
 	assertQueries(legacySUT, `{__name__=~".*"}`, wantLegacy1, numMetrics)
 	legacySUT.PrometheusAPIV1AdminTSDBDeleteSeries(t, `{__name__=~".*"}`, at.QueryOpts{})
-	assertQueries(legacySUT, `{__name__=~".*"}`, wantEmpty, numMetrics)
+	assertQueries(legacySUT, `{__name__=~".*"}`, wantEmptyLegacy, numMetrics)
 	legacySUT.PrometheusAPIV1ImportPrometheus(t, legacy2Data, at.QueryOpts{})
 	legacySUT.ForceFlush(t)
 	// series count includes deleted metrics

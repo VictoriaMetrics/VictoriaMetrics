@@ -1,6 +1,7 @@
 ---
 weight: 9
 title: HA monitoring setup in Kubernetes via VictoriaMetrics Cluster
+description: "High-availability Kubernetes monitoring with replication."
 menu:
   docs:
     parent: "guides"

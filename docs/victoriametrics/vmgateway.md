@@ -5,6 +5,7 @@ menu:
     parent: victoriametrics
     weight: 9
 title: vmgateway
+description: "Proxy for the VictoriaMetrics TSDB providing per-tenant rate limiting and token-based access control."
 tags:
   - metrics
   - enterprise

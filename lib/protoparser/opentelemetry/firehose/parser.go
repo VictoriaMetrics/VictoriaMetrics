@@ -37,12 +37,12 @@ func ProcessRequestBody(b []byte) ([]byte, error) {
 	for _, r := range req.Records {
 		for len(r.Data) > 0 {
 			messageLength, varIntLength := binary.Uvarint(r.Data)
-			if varIntLength > binary.MaxVarintLen32 {
-				return nil, fmt.Errorf("failed to parse OpenTelemetry message: invalid variant")
+			if varIntLength <= 0 || varIntLength > binary.MaxVarintLen32 {
+				return nil, fmt.Errorf("failed to parse OpenTelemetry message: invalid varint (n=%d)", varIntLength)
 			}
 			totalLength := varIntLength + int(messageLength)
-			if totalLength > len(r.Data) {
-				return nil, fmt.Errorf("failed to parse OpenTelemetry message: insufficient length of buffer")
+			if totalLength <= 0 || totalLength > len(r.Data) {
+				return nil, fmt.Errorf("failed to parse OpenTelemetry message: invalid message length")
 			}
 			dst = append(dst, r.Data[varIntLength:totalLength]...)
 			r.Data = r.Data[totalLength:]

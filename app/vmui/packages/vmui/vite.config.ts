@@ -50,6 +50,13 @@ export default defineConfig(() => {
               return "vendor";
             }
           },
+          assetFileNames: (assetInfo) => {
+            if (assetInfo.names.includes("favicon.svg")) {
+              return "assets/favicon.svg";
+            }
+
+            return "assets/[name]-[hash][extname]";
+          },
         },
       },
     },

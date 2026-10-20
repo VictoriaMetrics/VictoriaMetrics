@@ -125,10 +125,6 @@ func Serve(addrs []string, rh RequestHandler, opts ServeOptions) {
 }
 
 func serve(addr string, rh RequestHandler, idx int, opts ServeOptions) {
-	scheme := "http"
-	if tlsEnable.GetOptionalArg(idx) {
-		scheme = "https"
-	}
 	useProxyProto := false
 	if opts.UseProxyProtocol != nil {
 		useProxyProto = opts.UseProxyProtocol.GetOptionalArg(idx)
@@ -145,16 +141,45 @@ func serve(addr string, rh RequestHandler, idx int, opts ServeOptions) {
 		}
 		tlsConfig = tc
 	}
-	ln, err := netutil.NewTCPListener(scheme, addr, useProxyProto, tlsConfig)
-	if err != nil {
-		logger.Fatalf("cannot start http server at %s: %s", addr, err)
-	}
-	logger.Infof("started server at %s://%s/", scheme, ln.Addr())
-	if !opts.DisableBuiltinRoutes {
-		logger.Infof("pprof handlers are exposed at %s://%s/debug/pprof/", scheme, ln.Addr())
+
+	var listener net.Listener
+	if unixAddr, ok := strings.CutPrefix(addr, "unix:"); ok {
+		if tlsEnable.GetOptionalArg(idx) {
+			logger.Fatalf("cannot use TLS with Unix domain sockets for addr %q", unixAddr)
+		}
+		if useProxyProto {
+			logger.Fatalf("cannot use proxy protocol with Unix domain sockets for addr %q", unixAddr)
+		}
+
+		ul, err := netutil.NewUnixListener("httpserver", unixAddr)
+		if err != nil {
+			logger.Fatalf("cannot start http server on Unix domain socket %q: %s", unixAddr, err)
+		}
+		listener = ul
+
+		logger.Infof("started server on Unix domain socket %q", ul.Addr())
+		if !opts.DisableBuiltinRoutes {
+			logger.Infof("pprof handlers are exposed on Unix domain socket %q under /debug/pprof/", ul.Addr())
+		}
+	} else {
+		scheme := "http"
+		if tlsEnable.GetOptionalArg(idx) {
+			scheme = "https"
+		}
+
+		tl, err := netutil.NewTCPListener(scheme, addr, useProxyProto, tlsConfig)
+		if err != nil {
+			logger.Fatalf("cannot start http server at %s: %s", addr, err)
+		}
+		listener = tl
+
+		logger.Infof("started server at %s://%s/", scheme, tl.Addr())
+		if !opts.DisableBuiltinRoutes {
+			logger.Infof("pprof handlers are exposed at %s://%s/debug/pprof/", scheme, tl.Addr())
+		}
 	}
 
-	serveWithListener(addr, ln, rh, opts.DisableBuiltinRoutes)
+	serveWithListener(addr, listener, rh, opts.DisableBuiltinRoutes)
 }
 
 func serveWithListener(addr string, ln net.Listener, rh RequestHandler, disableBuiltinRoutes bool) {
@@ -474,21 +499,36 @@ func builtinRoutesHandler(s *server, r *http.Request, w http.ResponseWriter, rh 
 			pprofHandler(r.URL.Path[len("/debug/pprof/"):], w, r)
 			return true
 		}
-
-		if !isProtectedByAuthFlag(r.URL.Path) && !CheckBasicAuth(w, r) {
+		// Check HTTP Basic Auth here for all the paths except of the ones verifying
+		// the corresponding -*AuthKey flag on their own at rh() below
+		//
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6329
+		if !isProtectedByAuthFlag(r) && !CheckBasicAuth(w, r) {
 			return true
 		}
 	}
 	return rh(w, r)
 }
 
-func isProtectedByAuthFlag(path string) bool {
-	// These paths must explicitly call CheckAuthFlag().
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6329
-	return strings.HasSuffix(path, "/config") || strings.HasSuffix(path, "/reload") ||
-		strings.HasSuffix(path, "/resetRollupResultCache") || strings.HasSuffix(path, "/delSeries") || strings.HasSuffix(path, "/delete_series") ||
-		strings.HasSuffix(path, "/force_merge") || strings.HasSuffix(path, "/force_flush") || strings.HasSuffix(path, "/snapshot") ||
-		strings.HasPrefix(path, "/snapshot/") || strings.HasSuffix(path, "/admin/status/metric_names_stats/reset")
+var isAuthKeyProtectedPathFunc func(r *http.Request) bool
+
+// RegisterAuthKeyProtectedPathsFunc registers f, which must return true for requests
+// served by handlers verifying the corresponding -*AuthKey flag on their own.
+// There is no need in checking HTTP Basic Auth for such requests at builtinRoutesHandler().
+//
+// Must be called before Serve().
+func RegisterAuthKeyProtectedPathsFunc(f func(r *http.Request) bool) {
+	if isAuthKeyProtectedPathFunc != nil {
+		logger.Panicf("BUG: RegisterAuthKeyProtectedPathsFunc() must be called only once before Serve()")
+	}
+	isAuthKeyProtectedPathFunc = f
+}
+
+func isProtectedByAuthFlag(r *http.Request) bool {
+	if isAuthKeyProtectedPathFunc == nil {
+		return false
+	}
+	return isAuthKeyProtectedPathFunc(r)
 }
 
 // CheckAuthFlag checks whether the given authKey is set and valid

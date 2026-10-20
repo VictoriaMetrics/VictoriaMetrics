@@ -1,5 +1,6 @@
 ---
 title: Playgrounds
+description: "Public demo environments for VictoriaMetrics, VictoriaLogs, and VictoriaTraces."
 weight: 63
 menu:
   docs:

@@ -1,0 +1,357 @@
+# Run with vmalert-tool unittest -files=deployment/docker/rules/tests/vmanomaly.yml
+rule_files:
+- ../alerts-vmanomaly.yml
+evaluation_interval: 1m
+tests:
+- name: 'Read: failure-only'
+  interval: 1m
+  input_series:
+  - series: vmanomaly_reader_responses_total{job="prod-vmanomaly",instance="a",url="http://vm",code="500"}
+    values: 0+10x15
+  metricsql_expr_test:
+  - expr: count(ALERTS{alertname="HighReadErrorRate",alertstate="firing"}) or vector(0)
+    eval_time: 4m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+  - expr: count(ALERTS{alertname="HighReadErrorRate",alertstate="firing"}) or vector(0)
+    eval_time: 10m
+    exp_samples:
+    - labels: '{}'
+      value: 1
+- name: 'Read: healthy'
+  interval: 1m
+  input_series:
+  - series: vmanomaly_reader_responses_total{job="prod-vmanomaly",instance="a",url="http://vm",code="200"}
+    values: 0+10x15
+  metricsql_expr_test:
+  - expr: count(ALERTS{alertname="HighReadErrorRate",alertstate="firing"}) or vector(0)
+    eval_time: 4m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+  - expr: count(ALERTS{alertname="HighReadErrorRate",alertstate="firing"}) or vector(0)
+    eval_time: 10m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+- name: 'Read: idle'
+  interval: 1m
+  input_series:
+  - series: vmanomaly_reader_responses_total{job="prod-vmanomaly",instance="a",url="http://vm",code="200"}
+    values: '0x15'
+  - series: vmanomaly_reader_responses_total{job="prod-vmanomaly",instance="a",url="http://vm",code="500"}
+    values: '0x15'
+  metricsql_expr_test:
+  - expr: count(ALERTS{alertname="HighReadErrorRate",alertstate="firing"}) or vector(0)
+    eval_time: 4m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+  - expr: count(ALERTS{alertname="HighReadErrorRate",alertstate="firing"}) or vector(0)
+    eval_time: 10m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+- name: 'Read: missing'
+  interval: 1m
+  input_series: []
+  metricsql_expr_test:
+  - expr: count(ALERTS{alertname="HighReadErrorRate",alertstate="firing"}) or vector(0)
+    eval_time: 4m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+  - expr: count(ALERTS{alertname="HighReadErrorRate",alertstate="firing"}) or vector(0)
+    eval_time: 10m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+- name: 'Read: below-threshold'
+  interval: 1m
+  input_series:
+  - series: vmanomaly_reader_responses_total{job="prod-vmanomaly",instance="a",url="http://vm",code="200"}
+    values: 0+96x15
+  - series: vmanomaly_reader_responses_total{job="prod-vmanomaly",instance="a",url="http://vm",code="500"}
+    values: 0+4x15
+  metricsql_expr_test:
+  - expr: count(ALERTS{alertname="HighReadErrorRate",alertstate="firing"}) or vector(0)
+    eval_time: 4m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+  - expr: count(ALERTS{alertname="HighReadErrorRate",alertstate="firing"}) or vector(0)
+    eval_time: 10m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+- name: 'Read: above-threshold'
+  interval: 1m
+  input_series:
+  - series: vmanomaly_reader_responses_total{job="prod-vmanomaly",instance="a",url="http://vm",code="200"}
+    values: 0+94x15
+  - series: vmanomaly_reader_responses_total{job="prod-vmanomaly",instance="a",url="http://vm",code="500"}
+    values: 0+6x15
+  metricsql_expr_test:
+  - expr: count(ALERTS{alertname="HighReadErrorRate",alertstate="firing"}) or vector(0)
+    eval_time: 4m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+  - expr: count(ALERTS{alertname="HighReadErrorRate",alertstate="firing"}) or vector(0)
+    eval_time: 10m
+    exp_samples:
+    - labels: '{}'
+      value: 1
+- name: 'Read: counter-reset'
+  interval: 1m
+  input_series:
+  - series: vmanomaly_reader_responses_total{job="prod-vmanomaly",instance="a",url="http://vm",code="500"}
+    values: 0+10x7 0+10x7
+  metricsql_expr_test:
+  - expr: count(ALERTS{alertname="HighReadErrorRate",alertstate="firing"}) or vector(0)
+    eval_time: 4m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+  - expr: count(ALERTS{alertname="HighReadErrorRate",alertstate="firing"}) or vector(0)
+    eval_time: 10m
+    exp_samples:
+    - labels: '{}'
+      value: 1
+- name: 'Read: transport-failure-only'
+  interval: 1m
+  input_series:
+  - series: vmanomaly_reader_responses_total{job="prod-vmanomaly",instance="a",url="http://vm",code="connection_error"}
+    values: 0+10x15
+  metricsql_expr_test:
+  - expr: count(ALERTS{alertname="HighReadErrorRate",alertstate="firing"}) or vector(0)
+    eval_time: 4m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+  - expr: count(ALERTS{alertname="HighReadErrorRate",alertstate="firing"}) or vector(0)
+    eval_time: 10m
+    exp_samples:
+    - labels: '{}'
+      value: 1
+- name: 'Write: failure-only'
+  interval: 1m
+  input_series:
+  - series: vmanomaly_writer_responses_total{job="prod-vmanomaly",instance="a",url="http://vm",code="500"}
+    values: 0+10x15
+  metricsql_expr_test:
+  - expr: count(ALERTS{alertname="HighWriteErrorRate",alertstate="firing"}) or vector(0)
+    eval_time: 4m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+  - expr: count(ALERTS{alertname="HighWriteErrorRate",alertstate="firing"}) or vector(0)
+    eval_time: 10m
+    exp_samples:
+    - labels: '{}'
+      value: 1
+- name: 'Write: healthy'
+  interval: 1m
+  input_series:
+  - series: vmanomaly_writer_responses_total{job="prod-vmanomaly",instance="a",url="http://vm",code="200"}
+    values: 0+10x15
+  metricsql_expr_test:
+  - expr: count(ALERTS{alertname="HighWriteErrorRate",alertstate="firing"}) or vector(0)
+    eval_time: 4m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+  - expr: count(ALERTS{alertname="HighWriteErrorRate",alertstate="firing"}) or vector(0)
+    eval_time: 10m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+- name: 'Write: idle'
+  interval: 1m
+  input_series:
+  - series: vmanomaly_writer_responses_total{job="prod-vmanomaly",instance="a",url="http://vm",code="200"}
+    values: '0x15'
+  - series: vmanomaly_writer_responses_total{job="prod-vmanomaly",instance="a",url="http://vm",code="500"}
+    values: '0x15'
+  metricsql_expr_test:
+  - expr: count(ALERTS{alertname="HighWriteErrorRate",alertstate="firing"}) or vector(0)
+    eval_time: 4m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+  - expr: count(ALERTS{alertname="HighWriteErrorRate",alertstate="firing"}) or vector(0)
+    eval_time: 10m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+- name: 'Write: missing'
+  interval: 1m
+  input_series: []
+  metricsql_expr_test:
+  - expr: count(ALERTS{alertname="HighWriteErrorRate",alertstate="firing"}) or vector(0)
+    eval_time: 4m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+  - expr: count(ALERTS{alertname="HighWriteErrorRate",alertstate="firing"}) or vector(0)
+    eval_time: 10m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+- name: 'Write: below-threshold'
+  interval: 1m
+  input_series:
+  - series: vmanomaly_writer_responses_total{job="prod-vmanomaly",instance="a",url="http://vm",code="200"}
+    values: 0+96x15
+  - series: vmanomaly_writer_responses_total{job="prod-vmanomaly",instance="a",url="http://vm",code="500"}
+    values: 0+4x15
+  metricsql_expr_test:
+  - expr: count(ALERTS{alertname="HighWriteErrorRate",alertstate="firing"}) or vector(0)
+    eval_time: 4m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+  - expr: count(ALERTS{alertname="HighWriteErrorRate",alertstate="firing"}) or vector(0)
+    eval_time: 10m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+- name: 'Write: above-threshold'
+  interval: 1m
+  input_series:
+  - series: vmanomaly_writer_responses_total{job="prod-vmanomaly",instance="a",url="http://vm",code="200"}
+    values: 0+94x15
+  - series: vmanomaly_writer_responses_total{job="prod-vmanomaly",instance="a",url="http://vm",code="500"}
+    values: 0+6x15
+  metricsql_expr_test:
+  - expr: count(ALERTS{alertname="HighWriteErrorRate",alertstate="firing"}) or vector(0)
+    eval_time: 4m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+  - expr: count(ALERTS{alertname="HighWriteErrorRate",alertstate="firing"}) or vector(0)
+    eval_time: 10m
+    exp_samples:
+    - labels: '{}'
+      value: 1
+- name: 'Write: counter-reset'
+  interval: 1m
+  input_series:
+  - series: vmanomaly_writer_responses_total{job="prod-vmanomaly",instance="a",url="http://vm",code="500"}
+    values: 0+10x7 0+10x7
+  metricsql_expr_test:
+  - expr: count(ALERTS{alertname="HighWriteErrorRate",alertstate="firing"}) or vector(0)
+    eval_time: 4m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+  - expr: count(ALERTS{alertname="HighWriteErrorRate",alertstate="firing"}) or vector(0)
+    eval_time: 10m
+    exp_samples:
+    - labels: '{}'
+      value: 1
+- name: 'Write: transport-failure-only'
+  interval: 1m
+  input_series:
+  - series: vmanomaly_writer_responses_total{job="prod-vmanomaly",instance="a",url="http://vm",code="connection_error"}
+    values: 0+10x15
+  metricsql_expr_test:
+  - expr: count(ALERTS{alertname="HighWriteErrorRate",alertstate="firing"}) or vector(0)
+    eval_time: 4m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+  - expr: count(ALERTS{alertname="HighWriteErrorRate",alertstate="firing"}) or vector(0)
+    eval_time: 10m
+    exp_samples:
+    - labels: '{}'
+      value: 1
+- name: self-monitoring lag and hold, non-default job
+  interval: 1m
+  input_series:
+  - series: vmanomaly_start_time_seconds{job="prod-vmanomaly",instance="a"}
+    values: 1 _x1450
+  metricsql_expr_test:
+  - expr: count(ALERTS{alertname="NoSelfMonitoringMetrics",alertstate="firing"}) or
+      vector(0)
+    eval_time: 19m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+  - expr: count(ALERTS{alertname="NoSelfMonitoringMetrics",alertstate="firing"}) or
+      vector(0)
+    eval_time: 22m
+    exp_samples:
+    - labels: '{}'
+      value: 1
+  - expr: count(ALERTS{alertname="NoSelfMonitoringMetrics",alertstate="firing"}) or
+      vector(0)
+    eval_time: 1441m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+- name: 'resource and reload job scope: prod-vmanomaly'
+  interval: 1m
+  input_series:
+  - series: process_resident_memory_bytes{job="prod-vmanomaly",instance="a"}
+    values: 50x5 90x20
+  - series: vmanomaly_available_memory_bytes{job="prod-vmanomaly",instance="a"}
+    values: 100x26
+  - series: vmanomaly_config_last_reload_successful{job="prod-vmanomaly",instance="a"}
+    values: '0x26'
+  metricsql_expr_test:
+  - expr: count(ALERTS{alertname="TooHighMemoryUsage",alertstate="firing"}) or vector(0)
+    eval_time: 12m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+  - expr: count(ALERTS{alertname="TooHighMemoryUsage",alertstate="firing"}) or vector(0)
+    eval_time: 23m
+    exp_samples:
+    - labels: '{}'
+      value: 1
+  - expr: count(ALERTS{alertname="LastConfigReloadFailed",alertstate="firing"}) or
+      vector(0)
+    eval_time: 9m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+  - expr: count(ALERTS{alertname="LastConfigReloadFailed",alertstate="firing"}) or
+      vector(0)
+    eval_time: 11m
+    exp_samples:
+    - labels: '{}'
+      value: 1
+- name: 'resource and reload job scope: unrelated'
+  interval: 1m
+  input_series:
+  - series: process_resident_memory_bytes{job="unrelated",instance="a"}
+    values: 50x5 90x20
+  - series: vmanomaly_available_memory_bytes{job="unrelated",instance="a"}
+    values: 100x26
+  - series: vmanomaly_config_last_reload_successful{job="unrelated",instance="a"}
+    values: '0x26'
+  metricsql_expr_test:
+  - expr: count(ALERTS{alertname="TooHighMemoryUsage",alertstate="firing"}) or vector(0)
+    eval_time: 12m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+  - expr: count(ALERTS{alertname="TooHighMemoryUsage",alertstate="firing"}) or vector(0)
+    eval_time: 23m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+  - expr: count(ALERTS{alertname="LastConfigReloadFailed",alertstate="firing"}) or
+      vector(0)
+    eval_time: 9m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+  - expr: count(ALERTS{alertname="LastConfigReloadFailed",alertstate="firing"}) or
+      vector(0)
+    eval_time: 11m
+    exp_samples:
+    - labels: '{}'
+      value: 0

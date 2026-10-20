@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"strings"
@@ -180,9 +181,6 @@ type Search struct {
 	// tfss contains tag filters used in the search.
 	tfss []*TagFilters
 
-	// deadline in unix timestamp seconds for the current search.
-	deadline uint64
-
 	err error
 
 	needClosing bool
@@ -207,7 +205,6 @@ func (s *Search) reset() {
 	s.ts.reset()
 	s.tr = TimeRange{}
 	s.tfss = nil
-	s.deadline = 0
 	s.err = nil
 	s.needClosing = false
 	s.loops = 0
@@ -221,7 +218,7 @@ func (s *Search) reset() {
 // MustClose must be called when the search is done.
 //
 // Init returns the upper bound on the number of found time series.
-func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) int {
+func (s *Search) Init(ctx context.Context, qt *querytracer.Tracer, storage *Storage, tfss []*TagFilters, tr TimeRange, maxMetrics int) int {
 	qt = qt.NewChild("init series search: filters=%s, timeRange=%s, maxMetrics=%d", tfss, &tr, maxMetrics)
 	defer qt.Done()
 
@@ -236,10 +233,9 @@ func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilte
 	s.metricsTracker = storage.metricsTracker
 	s.tr = tr
 	s.tfss = tfss
-	s.deadline = deadline
 	s.needClosing = true
 
-	tsids, err := storage.SearchTSIDs(qt, tfss, tr, maxMetrics, deadline)
+	tsids, err := storage.SearchTSIDs(ctx, qt, tfss, tr, maxMetrics)
 
 	// It is ok to call Init on non-nil err.
 	// Init must be called before returning because it will fail
@@ -272,13 +268,13 @@ func (s *Search) Error() error {
 }
 
 // NextMetricBlock proceeds to the next MetricBlockRef.
-func (s *Search) NextMetricBlock() bool {
+func (s *Search) NextMetricBlock(ctx context.Context) bool {
 	if s.err != nil {
 		return false
 	}
 	for s.ts.NextBlock() {
 		if s.loops&paceLimiterSlowIterationsMask == 0 {
-			if err := checkSearchDeadlineAndPace(s.deadline); err != nil {
+			if err := ctx.Err(); err != nil {
 				s.err = err
 				return false
 			}
@@ -591,13 +587,6 @@ func (sq *SearchQuery) Unmarshal(src []byte) ([]byte, error) {
 	src = src[4:]
 
 	return src, nil
-}
-
-func checkSearchDeadlineAndPace(deadline uint64) error {
-	if fasttime.UnixTimestamp() > deadline {
-		return ErrDeadlineExceeded
-	}
-	return nil
 }
 
 const (

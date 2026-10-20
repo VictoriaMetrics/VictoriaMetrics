@@ -1,5 +1,6 @@
 ---
 title: OpenTelemetry Collector
+description: "Configure OTel Collector with OTLP HTTP exporter."
 weight: 7
 menu:
   docs:

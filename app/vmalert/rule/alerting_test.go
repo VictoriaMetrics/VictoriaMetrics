@@ -229,7 +229,7 @@ func TestAlertingRule_Exec(t *testing.T) {
 		for i, step := range steps {
 			fq.Reset()
 			fq.Add(step...)
-			tss, err := rule.exec(context.TODO(), ts, 0)
+			tss, err := rule.exec(context.TODO(), ts, 0, nil)
 			if err != nil {
 				t.Fatalf("unexpected error: %s", err)
 			}
@@ -824,10 +824,11 @@ func TestAlertingRuleExecRange(t *testing.T) {
 func TestGroup_Restore(t *testing.T) {
 	defaultTS := time.Now()
 	fqr := &datasource.FakeQuerierWithRegistry{}
-	fn := func(rules []config.Rule, expAlerts map[uint64]*notifier.Alert) {
+	f := func(rules []config.Rule, expAlerts map[uint64]*notifier.Alert, expNotificationNum int) {
 		t.Helper()
 		defer fqr.Reset()
-
+		fn, cleanup := notifier.InitFakeNotifier()
+		defer cleanup()
 		fg := NewGroup(config.Group{Name: "TestRestore", Rules: rules}, fqr, time.Second, nil)
 		fg.Init()
 		wg := sync.WaitGroup{}
@@ -857,8 +858,8 @@ func TestGroup_Restore(t *testing.T) {
 			if !ok {
 				t.Fatalf("expected to have key %d", key)
 			}
-			if got.State != notifier.StatePending {
-				t.Fatalf("expected state %d; got %d", notifier.StatePending, got.State)
+			if got.State != exp.State {
+				t.Fatalf("expected state %d; got %d", exp.State, got.State)
 			}
 			if got.ActiveAt != exp.ActiveAt {
 				t.Fatalf("expected ActiveAt %v; got %v", exp.ActiveAt, got.ActiveAt)
@@ -866,6 +867,9 @@ func TestGroup_Restore(t *testing.T) {
 			if got.Name != exp.Name {
 				t.Fatalf("expected alertname %q; got %q", exp.Name, got.Name)
 			}
+		}
+		if fn.GetCounter() != expNotificationNum {
+			t.Fatalf("expected %d notifications; got %d", expNotificationNum, fn.GetCounter())
 		}
 	}
 
@@ -878,28 +882,30 @@ func TestGroup_Restore(t *testing.T) {
 
 	// one active alert, no previous state
 	fqr.Set("foo", metricWithValueAndLabels(t, 0, "__name__", "foo"))
-	fn(
+	f(
 		[]config.Rule{{Alert: "foo", Expr: "foo", For: promutil.NewDuration(time.Second)}},
 		map[uint64]*notifier.Alert{
 			hash(map[string]string{alertNameLabel: "foo", alertGroupNameLabel: "TestRestore"}): {
 				Name:     "foo",
 				ActiveAt: defaultTS,
+				State:    notifier.StatePending,
 			},
-		})
+		}, 0)
 
 	// one active alert with state restore
 	ts := time.Now().Truncate(time.Hour)
 	fqr.Set("foo", metricWithValueAndLabels(t, 0, "__name__", "foo"))
 	fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo"}[3600s])`,
 		stateMetric("foo", ts))
-	fn(
+	f(
 		[]config.Rule{{Alert: "foo", Expr: "foo", For: promutil.NewDuration(time.Second)}},
 		map[uint64]*notifier.Alert{
 			hash(map[string]string{alertNameLabel: "foo", alertGroupNameLabel: "TestRestore"}): {
 				Name:     "foo",
 				ActiveAt: ts,
+				State:    notifier.StateFiring,
 			},
-		})
+		}, 1)
 
 	// one rule, two active alerts, one with state restored
 	ts = time.Now().Truncate(time.Hour)
@@ -909,7 +915,7 @@ func TestGroup_Restore(t *testing.T) {
 	fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo"}[3600s])`,
 		// only env=prod has state metric, so only it will have state restore
 		stateMetric("foo", ts, "env", "prod"))
-	fn(
+	f(
 		[]config.Rule{
 			{Alert: "foo", Expr: "foo", For: promutil.NewDuration(time.Second)},
 		},
@@ -917,12 +923,14 @@ func TestGroup_Restore(t *testing.T) {
 			hash(map[string]string{alertNameLabel: "foo", alertGroupNameLabel: "TestRestore", "env": "dev"}): {
 				Name:     "foo",
 				ActiveAt: defaultTS,
+				State:    notifier.StatePending,
 			},
 			hash(map[string]string{alertNameLabel: "foo", alertGroupNameLabel: "TestRestore", "env": "prod"}): {
 				Name:     "foo",
 				ActiveAt: ts,
+				State:    notifier.StateFiring,
 			},
-		})
+		}, 1)
 
 	// two rules, two active alerts, one with state restored
 	ts = time.Now().Truncate(time.Hour)
@@ -930,7 +938,7 @@ func TestGroup_Restore(t *testing.T) {
 	fqr.Set("bar", metricWithValueAndLabels(t, 0, "__name__", "bar"))
 	fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="bar"}[3600s])`,
 		stateMetric("bar", ts))
-	fn(
+	f(
 		[]config.Rule{
 			{Alert: "foo", Expr: "foo", For: promutil.NewDuration(time.Second)},
 			{Alert: "bar", Expr: "bar", For: promutil.NewDuration(time.Second)},
@@ -939,12 +947,14 @@ func TestGroup_Restore(t *testing.T) {
 			hash(map[string]string{alertNameLabel: "foo", alertGroupNameLabel: "TestRestore"}): {
 				Name:     "foo",
 				ActiveAt: defaultTS,
+				State:    notifier.StatePending,
 			},
 			hash(map[string]string{alertNameLabel: "bar", alertGroupNameLabel: "TestRestore"}): {
 				Name:     "bar",
 				ActiveAt: ts,
+				State:    notifier.StateFiring,
 			},
-		})
+		}, 1)
 
 	// two rules, two active alerts, two with state restored
 	ts = time.Now().Truncate(time.Hour)
@@ -954,63 +964,68 @@ func TestGroup_Restore(t *testing.T) {
 		stateMetric("foo", ts))
 	fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="bar"}[3600s])`,
 		stateMetric("bar", ts))
-	fn(
+	f(
 		[]config.Rule{
 			{Alert: "foo", Expr: "foo", For: promutil.NewDuration(time.Second)},
-			{Alert: "bar", Expr: "bar", For: promutil.NewDuration(time.Second)},
+			{Alert: "bar", Expr: "bar", For: promutil.NewDuration(time.Hour)},
 		},
 		map[uint64]*notifier.Alert{
 			hash(map[string]string{alertNameLabel: "foo", alertGroupNameLabel: "TestRestore"}): {
 				Name:     "foo",
 				ActiveAt: ts,
+				State:    notifier.StateFiring,
 			},
 			hash(map[string]string{alertNameLabel: "bar", alertGroupNameLabel: "TestRestore"}): {
 				Name:     "bar",
 				ActiveAt: ts,
+				State:    notifier.StatePending,
 			},
-		})
+		}, 1)
 
 	// one active alert but wrong state restore
 	ts = time.Now().Truncate(time.Hour)
 	fqr.Set("foo", metricWithValueAndLabels(t, 0, "__name__", "foo"))
 	fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertname="bar",alertgroup="TestRestore"}[3600s])`,
 		stateMetric("wrong alert", ts))
-	fn(
+	f(
 		[]config.Rule{{Alert: "foo", Expr: "foo", For: promutil.NewDuration(time.Second)}},
 		map[uint64]*notifier.Alert{
 			hash(map[string]string{alertNameLabel: "foo", alertGroupNameLabel: "TestRestore"}): {
 				Name:     "foo",
 				ActiveAt: defaultTS,
+				State:    notifier.StatePending,
 			},
-		})
+		}, 0)
 
 	// one active alert with labels
 	ts = time.Now().Truncate(time.Hour)
 	fqr.Set("foo", metricWithValueAndLabels(t, 0, "__name__", "foo"))
 	fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo",env="dev"}[3600s])`,
 		stateMetric("foo", ts, "env", "dev"))
-	fn(
+	f(
 		[]config.Rule{{Alert: "foo", Expr: "foo", Labels: map[string]string{"env": "dev"}, For: promutil.NewDuration(time.Second)}},
 		map[uint64]*notifier.Alert{
 			hash(map[string]string{alertNameLabel: "foo", alertGroupNameLabel: "TestRestore", "env": "dev"}): {
 				Name:     "foo",
 				ActiveAt: ts,
+				State:    notifier.StateFiring,
 			},
-		})
+		}, 1)
 
 	// one active alert with restore labels mismatch
 	ts = time.Now().Truncate(time.Hour)
 	fqr.Set("foo", metricWithValueAndLabels(t, 0, "__name__", "foo"))
 	fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo",env="dev"}[3600s])`,
 		stateMetric("foo", ts, "env", "dev", "team", "foo"))
-	fn(
+	f(
 		[]config.Rule{{Alert: "foo", Expr: "foo", Labels: map[string]string{"env": "dev"}, For: promutil.NewDuration(time.Second)}},
 		map[uint64]*notifier.Alert{
 			hash(map[string]string{alertNameLabel: "foo", alertGroupNameLabel: "TestRestore", "env": "dev"}): {
 				Name:     "foo",
 				ActiveAt: defaultTS,
+				State:    notifier.StatePending,
 			},
-		})
+		}, 0)
 
 	// two active alerts with dynamic labels and restore
 	ts = time.Now().Truncate(time.Hour)
@@ -1020,18 +1035,20 @@ func TestGroup_Restore(t *testing.T) {
 	fqr.Set("foo",
 		metricWithValueAndLabels(t, 0, "__name__", "foo", "env", "dev"),
 		metricWithValueAndLabels(t, 0, "__name__", "foo", "env", "prod"))
-	fn(
+	f(
 		[]config.Rule{{Alert: "foo", Expr: "foo", Labels: map[string]string{"env": "{{$labels.env}}"}, For: promutil.NewDuration(time.Second)}},
 		map[uint64]*notifier.Alert{
 			hash(map[string]string{alertNameLabel: "foo", alertGroupNameLabel: "TestRestore", "env": "dev"}): {
 				Name:     "foo",
 				ActiveAt: ts,
+				State:    notifier.StateFiring,
 			},
 			hash(map[string]string{alertNameLabel: "foo", alertGroupNameLabel: "TestRestore", "env": "prod"}): {
 				Name:     "foo",
 				ActiveAt: ts.Add(time.Second),
+				State:    notifier.StateFiring,
 			},
-		})
+		}, 2)
 }
 
 func TestAlertingRule_Exec_Negative(t *testing.T) {
@@ -1044,14 +1061,14 @@ func TestAlertingRule_Exec_Negative(t *testing.T) {
 	// label `job` will be overridden by rule extra label, the original value will be reserved by "exported_job"
 	fq.Add(metricWithValueAndLabels(t, 1, "__name__", "foo", "job", "bar"))
 	fq.Add(metricWithValueAndLabels(t, 1, "__name__", "foo", "job", "baz"))
-	_, err := ar.exec(context.TODO(), time.Now(), 0)
+	_, err := ar.exec(context.TODO(), time.Now(), 0, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// label `__name__` will be omitted and get duplicated results here
 	fq.Add(metricWithValueAndLabels(t, 1, "__name__", "foo_1", "job", "bar"))
-	_, err = ar.exec(context.TODO(), time.Now(), 0)
+	_, err = ar.exec(context.TODO(), time.Now(), 0, nil)
 	if !errors.Is(err, errDuplicate) {
 		t.Fatalf("expected to have %s error; got %s", errDuplicate, err)
 	}
@@ -1060,7 +1077,7 @@ func TestAlertingRule_Exec_Negative(t *testing.T) {
 
 	expErr := "connection reset by peer"
 	fq.SetErr(errors.New(expErr))
-	_, err = ar.exec(context.TODO(), time.Now(), 0)
+	_, err = ar.exec(context.TODO(), time.Now(), 0, nil)
 	if err == nil {
 		t.Fatalf("expected to get err; got nil")
 	}
@@ -1083,7 +1100,7 @@ func TestAlertingRuleLimit_Failure(t *testing.T) {
 		fq.Add(metricWithValueAndLabels(t, 1, "__name__", "foo", "bar", "job"))
 
 		timestamp := time.Now()
-		_, err := ar.exec(context.TODO(), timestamp, limit)
+		_, err := ar.exec(context.TODO(), timestamp, limit, nil)
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -1111,7 +1128,7 @@ func TestAlertingRuleLimit_Success(t *testing.T) {
 		fq.Add(metricWithValueAndLabels(t, 1, "__name__", "foo", "bar", "job"))
 
 		timestamp := time.Now()
-		_, err := ar.exec(context.TODO(), timestamp, limit)
+		_, err := ar.exec(context.TODO(), timestamp, limit, nil)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -1140,7 +1157,7 @@ func TestAlertingRule_Template(t *testing.T) {
 		fq.SetPartialResponse(isResponsePartial)
 
 		ts := time.Unix(3600, 0)
-		if _, err := rule.exec(context.TODO(), ts, 0); err != nil {
+		if _, err := rule.exec(context.TODO(), ts, 0, nil); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 		for hash, expAlert := range alertsExpected {
@@ -1439,7 +1456,7 @@ func TestAlertingRuleExec_Partial(t *testing.T) {
 	fq.Add(metricWithValueAndLabels(t, 1, "__name__", "foo", "job", "bar"))
 
 	ts := time.Now()
-	_, err := ar.exec(context.TODO(), ts, 0)
+	_, err := ar.exec(context.TODO(), ts, 0, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -1471,7 +1488,7 @@ func TestAlertingRule_QueryTemplateInLabels(t *testing.T) {
 	fq.Add(metricWithValueAndLabels(t, 1, "device", "sda1"))
 
 	ts := time.Now()
-	_, err := ar.exec(context.TODO(), ts, 0)
+	_, err := ar.exec(context.TODO(), ts, 0, nil)
 	if err != nil {
 		t.Fatalf("unexpected error with query template in labels: %s", err)
 	}

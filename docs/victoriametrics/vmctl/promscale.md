@@ -1,5 +1,6 @@
 ---
 title: Promscale
+description: "Migrate historical metrics from Promscale to VictoriaMetrics with vmctl."
 weight: 7
 menu:
   docs:

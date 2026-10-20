@@ -189,6 +189,89 @@ func TestStorageWrite(t *testing.T) {
 	}
 
 	f(rowToAdd, expected)
+
+	// merge rows
+	rowToUpdate = []Row{
+		{
+			MetricFamilyName: []byte("metric5"),
+			Type:             1,
+			Help:             []byte("UseLessHelp2"),
+			AccountID:        1,
+			ProjectID:        1,
+		},
+		{
+			MetricFamilyName: []byte("metric5"),
+			Type:             1,
+			Unit:             []byte("seconds"),
+			AccountID:        1,
+			ProjectID:        1,
+		},
+		{
+			MetricFamilyName: []byte("metric6"),
+			Type:             1,
+			Unit:             []byte("seconds"),
+			AccountID:        1,
+			ProjectID:        1,
+		},
+		{
+			MetricFamilyName: []byte("metric6"),
+			Help:             []byte("UseLessHelp2"),
+			Type:             1,
+			AccountID:        1,
+			ProjectID:        1,
+		},
+	}
+	expected = []*Row{
+		{
+			MetricFamilyName: []byte("metric1"),
+			Type:             1,
+			Unit:             []byte("seconds"),
+			Help:             []byte("UseLessHelp2"),
+			AccountID:        1,
+			ProjectID:        1,
+		},
+		{
+			MetricFamilyName: []byte("metric1"),
+			Type:             1,
+			Unit:             []byte("seconds"),
+			Help:             []byte("UseLessHelp2"),
+			AccountID:        0,
+			ProjectID:        0,
+		},
+		{
+			MetricFamilyName: []byte("metric2"),
+			Type:             5,
+			Unit:             []byte("meters"),
+			Help:             []byte("help2"),
+			AccountID:        1,
+			ProjectID:        1,
+		},
+		{
+			MetricFamilyName: []byte("metric2"),
+			Type:             5,
+			Unit:             []byte("meters"),
+			Help:             []byte("help2"),
+			AccountID:        15,
+			ProjectID:        0,
+		},
+		{
+			MetricFamilyName: []byte("metric5"),
+			Type:             1,
+			Unit:             []byte("seconds"),
+			Help:             []byte("UseLessHelp2"),
+			AccountID:        1,
+			ProjectID:        1,
+		},
+		{
+			MetricFamilyName: []byte("metric6"),
+			Type:             1,
+			Unit:             []byte("seconds"),
+			Help:             []byte("UseLessHelp2"),
+			AccountID:        1,
+			ProjectID:        1,
+		},
+	}
+	f(rowToUpdate, expected)
 }
 
 func TestStorageRead(t *testing.T) {

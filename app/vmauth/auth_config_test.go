@@ -2,10 +2,12 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -216,6 +218,15 @@ users:
   - url_prefix: http://foobar
 `)
 
+	// deny_paths without src_paths, src_hosts, src_query_args or src_headers
+	f(`
+users:
+- username: a
+  url_map:
+  - deny_paths: ['/admin']
+    url_prefix: http://foobar
+`)
+
 	// Invalid regexp in src_paths
 	f(`
 users:
@@ -231,6 +242,16 @@ users:
 - username: a
   url_map:
   - src_hosts: ['fo[obar']
+    url_prefix: http://foobar
+`)
+
+	// Invalid regexp in deny_paths
+	f(`
+users:
+- username: a
+  url_map:
+  - src_paths: ['/foo']
+    deny_paths: ['fo[obar']
     url_prefix: http://foobar
 `)
 
@@ -454,6 +475,7 @@ users:
 		URLMaps: []URLMap{
 			{
 				SrcPaths:  getRegexs([]string{"/api/v1/query", "/api/v1/query_range", "/api/v1/label/[^./]+/.+"}),
+				DenyPaths: getRegexs([]string{"/api/v1/query_range"}),
 				URLPrefix: mustParseURL("http://vmselect/select/0/prometheus"),
 			},
 			{
@@ -484,6 +506,7 @@ users:
 - bearer_token: foo
   url_map:
   - src_paths: ["/api/v1/query","/api/v1/query_range","/api/v1/label/[^./]+/.+"]
+    deny_paths: ["/api/v1/query_range"]
     url_prefix: http://vmselect/select/0/prometheus
   - src_paths: ["/api/v1/write"]
     src_hosts: ["foo\\.bar", "baz:1234"]
@@ -694,6 +717,8 @@ users:
 - username: bar
   url_prefix: https://bar/x/
   access_log:
+    headers:
+      - "Accept-Encoding"
     filters:
       skip_status_codes: [404]
 `, map[string]*UserInfo{
@@ -705,7 +730,7 @@ users:
 		getHTTPAuthBasicToken("bar", ""): {
 			Username:  "bar",
 			URLPrefix: mustParseURL("https://bar/x/"),
-			AccessLog: &AccessLog{Filters: &AccessLogFilters{SkipStatusCodes: []int{404}}},
+			AccessLog: &AccessLog{Headers: []string{"Accept-Encoding"}, Filters: &AccessLogFilters{SkipStatusCodes: []int{404}}},
 		},
 	}, nil)
 
@@ -927,33 +952,14 @@ func TestBrokenBackend(t *testing.T) {
 	}
 }
 
-func TestDiscoverBackendIPsWithIPV6(t *testing.T) {
-	f := func(actualUrl, expectedUrl string) {
-		t.Helper()
-		up := mustParseURL(actualUrl)
-		up.discoverBackendIPs = true
-		up.loadBalancingPolicy = "least_loaded"
-
-		up.discoverBackendAddrsIfNeeded()
-		pbus := up.bus.Load()
-		bus := pbus.bus
-
-		if len(bus) != 1 {
-			t.Fatalf("expected url list to be of size 1; got %d instead", len(bus))
-		}
-
-		got := bus[0].url.Host
-		if got != expectedUrl {
-			t.Fatalf(`expected url to be %q; got %q instead`, expectedUrl, bus[0].url.Host)
-		}
-	}
+func TestDiscoverBackendIPsWithEnableTCP6(t *testing.T) {
+	setTCP6EnabledForTest(t, true)
 
 	// Discover backendURL with SRV hostnames
-	customResolver := &fakeResolver{
-		Resolver: &net.Resolver{},
+	fr := newFakeResolver(
 		// SRV records must return hostname
 		// not an IP address
-		lookupSRVResults: map[string][]*net.SRV{
+		map[string][]*net.SRV{
 			"_vmselect._tcp.selectwithport.": {
 				{
 					Target: "vmselect.local",
@@ -966,7 +972,7 @@ func TestDiscoverBackendIPsWithIPV6(t *testing.T) {
 				},
 			},
 		},
-		lookupIPAddrResults: map[string][]net.IPAddr{
+		map[string][]net.IPAddr{
 			"vminsert.local": {
 				{
 					IP: net.ParseIP("10.0.10.13"),
@@ -978,22 +984,82 @@ func TestDiscoverBackendIPsWithIPV6(t *testing.T) {
 				},
 			},
 		},
+	)
+	f := testBackendIPDiscovery
+	f(t, "http://srv+_vmselect._tcp.selectwithport.:8080", "vmselect.local:8080", fr)
+	f(t, "http://srv+_vmselect._tcp.selectwithport.:", "vmselect.local:8481", fr)
+	f(t, "http://srv+_vmselect._tcp.selectwoport.:8080", "vmselect.local:8080", fr)
+	f(t, "http://srv+_vmselect._tcp.selectwoport.", "vmselect.local:", fr)
+
+	f(t, "http://vminsert.local:8080", "10.0.10.13:8080", fr)
+	f(t, "http://vminsert.local", "10.0.10.13:", fr)
+	f(t, "http://ipv6.vminsert.local:8080", "[2607:f8b0:400a:80b::200e]:8080", fr)
+	f(t, "http://ipv6.vminsert.local", "[2607:f8b0:400a:80b::200e]:", fr)
+}
+
+func TestDiscoverBackendIPsWithoutEnableTCP6(t *testing.T) {
+	setTCP6EnabledForTest(t, false)
+
+	fr := newFakeResolver(nil,
+		map[string][]net.IPAddr{
+			"vminsert.local": {
+				{
+					IP: net.ParseIP("10.0.10.13"),
+				},
+				{
+					IP: net.ParseIP("2607:f8b0:400a:80b::200e"),
+				},
+			},
+		},
+	)
+	f := testBackendIPDiscovery
+	f(t, "http://vminsert.local:8080", "10.0.10.13:8080", fr)
+	f(t, "http://vminsert.local", "10.0.10.13:", fr)
+}
+
+func newFakeResolver(srvResults map[string][]*net.SRV, ipResults map[string][]net.IPAddr) *fakeResolver {
+	return &fakeResolver{
+		Resolver:            &net.Resolver{},
+		lookupSRVResults:    srvResults,
+		lookupIPAddrResults: ipResults,
 	}
+}
+
+func testBackendIPDiscovery(t *testing.T, actualURL, expectedHost string, fr *fakeResolver) {
+	t.Helper()
 	origResolver := netutil.Resolver
-	netutil.Resolver = customResolver
 	defer func() {
 		netutil.Resolver = origResolver
 	}()
-	f("http://srv+_vmselect._tcp.selectwithport.:8080", "vmselect.local:8080")
-	f("http://srv+_vmselect._tcp.selectwithport.:", "vmselect.local:8481")
-	f("http://srv+_vmselect._tcp.selectwoport.:8080", "vmselect.local:8080")
-	f("http://srv+_vmselect._tcp.selectwoport.", "vmselect.local:")
+	netutil.Resolver = fr
 
-	f("http://vminsert.local:8080", "10.0.10.13:8080")
-	f("http://vminsert.local", "10.0.10.13:")
-	f("http://ipv6.vminsert.local:8080", "[2607:f8b0:400a:80b::200e]:8080")
-	f("http://ipv6.vminsert.local", "[2607:f8b0:400a:80b::200e]:")
+	up := mustParseURL(actualURL)
+	up.discoverBackendIPs = true
+	up.loadBalancingPolicy = "least_loaded"
 
+	up.discoverBackendAddrsIfNeeded()
+	pbus := up.bus.Load()
+	bus := pbus.bus
+
+	if len(bus) != 1 {
+		t.Fatalf("expected url list to be of size 1; got %d instead", len(bus))
+	}
+	if got := bus[0].url.Host; got != expectedHost {
+		t.Fatalf(`expected url to be %q; got %q instead`, expectedHost, got)
+	}
+}
+
+func setTCP6EnabledForTest(t *testing.T, enabled bool) {
+	t.Helper()
+	originalValue := netutil.TCP6Enabled()
+	if err := flag.Set("enableTCP6", strconv.FormatBool(enabled)); err != nil {
+		t.Fatalf("cannot set -enableTCP6=%t: %s", enabled, err)
+	}
+	t.Cleanup(func() {
+		if err := flag.Set("enableTCP6", strconv.FormatBool(originalValue)); err != nil {
+			t.Fatalf("cannot restore -enableTCP6=%t: %s", originalValue, err)
+		}
+	})
 }
 
 func TestLogRequest(t *testing.T) {
@@ -1007,6 +1073,9 @@ func TestLogRequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
+	req.Header.Set("AccountID", "2")
+	req.Header.Add("AccountID", "3") // we log the 1st value only. redundant case to guard against future code changes, which may cause the test to fail.
+	req.Header.Set("Empty-Value-Header", "")
 
 	f := func(user string, status int, duration time.Duration, expectedLog string) {
 		t.Helper()
@@ -1029,6 +1098,9 @@ func TestLogRequest(t *testing.T) {
 	ui.AccessLog.Filters = &AccessLogFilters{SkipStatusCodes: []int{200}}
 	f("foo", 200, 10*time.Millisecond, ``)
 	f("foo", 404, 10*time.Millisecond, `access_log request_host="localhost:8080" request_uri="" status_code=404 remote_addr="" user_agent="" referer="" duration_ms=10 username="foo"`)
+
+	ui.AccessLog.Headers = []string{"AccountID", "Non-Existing-Header", "Empty-Value-Header"}
+	f("foo", 404, 10*time.Millisecond, `access_log request_host="localhost:8080" request_uri="" status_code=404 remote_addr="" user_agent="" referer="" duration_ms=10 username="foo" headers.AccountID="2"`)
 }
 
 func TestGetFirstAvailableBackend(t *testing.T) {

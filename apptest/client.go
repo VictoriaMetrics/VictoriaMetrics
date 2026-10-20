@@ -14,7 +14,6 @@ import (
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prommetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	otlppb "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 	"github.com/golang/snappy"
@@ -135,7 +134,7 @@ func tenantViaURL(addr, prefix, tenant, suffix string) string {
 }
 
 // tenantViaHeaders returns path in cluster's URL format where tenant is omitted in URL
-// Only supported if -enableMultitenancyViaHeaders is specified
+// Only supported if -enableMultitenancyViaHeaders is enabled
 func tenantViaHeaders(addr, prefix, suffix string) string {
 	return fmt.Sprintf("http://%s/%s/%s", addr, prefix, suffix)
 }
@@ -183,7 +182,7 @@ func (c *metricsClient) GetMetric(t *testing.T, metricName string) float64 {
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
 	}
-	for _, metric := range strings.Split(metrics, "\n") {
+	for metric := range strings.SplitSeq(metrics, "\n") {
 		value, found := strings.CutPrefix(metric, metricName)
 		if found {
 			value = strings.Trim(value, " ")
@@ -209,7 +208,7 @@ func (c *metricsClient) GetMetricsByPrefix(t *testing.T, prefix string) []float6
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
 	}
-	for _, metric := range strings.Split(metrics, "\n") {
+	for metric := range strings.SplitSeq(metrics, "\n") {
 		if !strings.HasPrefix(metric, prefix) {
 			continue
 		}
@@ -238,7 +237,7 @@ func (c *metricsClient) GetMetricsByRegexp(t *testing.T, re *regexp.Regexp) []fl
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
 	}
-	for _, metric := range strings.Split(metrics, "\n") {
+	for metric := range strings.SplitSeq(metrics, "\n") {
 		if !re.MatchString(metric) {
 			continue
 		}
@@ -419,7 +418,7 @@ func (c *vmselectClient) PrometheusAPIV1AdminTSDBDeleteSeries(t *testing.T, matc
 // usage stats response for given params.
 //
 // See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#track-ingested-metrics-usage
-func (c *vmselectClient) PrometheusAPIV1StatusMetricNamesStats(t *testing.T, limit, le, matchPattern string, opts QueryOpts) MetricNamesStatsResponse {
+func (c *vmselectClient) PrometheusAPIV1StatusMetricNamesStats(t *testing.T, limit, le, matchPattern string, opts QueryOpts) *MetricNamesStatsResponse {
 	t.Helper()
 	url := c.url("select", "prometheus/api/v1/status/metric_names_stats", opts)
 	values := opts.asURLValues()
@@ -434,7 +433,7 @@ func (c *vmselectClient) PrometheusAPIV1StatusMetricNamesStats(t *testing.T, lim
 	if err := json.Unmarshal([]byte(res), &resp); err != nil {
 		t.Fatalf("could not unmarshal metric names stats response data:\n%s\n err: %v", res, err)
 	}
-	return resp
+	return &resp
 }
 
 // PrometheusAPIV1StatusTSDB retrieves the TSDB status for the time series that
@@ -647,6 +646,7 @@ func (c *vminsertClient) PrometheusAPIV1ImportCSV(t *testing.T, records []string
 	headers := opts.getHeaders()
 	headers.Set("Content-Type", "text/plain")
 	c.sendBlocking(t, len(records), func() {
+		t.Helper()
 		_, statusCode := c.cli.Post(t, url, data, headers)
 		if statusCode != http.StatusNoContent {
 			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
@@ -671,6 +671,7 @@ func (c *vminsertClient) PrometheusAPIV1ImportNative(t *testing.T, data []byte, 
 	headers := opts.getHeaders()
 	headers.Set("Content-Type", "text/plain")
 	c.sendBlocking(t, 1, func() {
+		t.Helper()
 		_, statusCode := c.cli.Post(t, url, data, headers)
 		if statusCode != http.StatusNoContent {
 			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
@@ -681,21 +682,32 @@ func (c *vminsertClient) PrometheusAPIV1ImportNative(t *testing.T, data []byte, 
 // PrometheusAPIV1Write is a test helper function that inserts a
 // collection of records in Prometheus remote-write format by sending a HTTP
 // POST request to /prometheus/api/v1/write vminsert endpoint.
+//
+// The method expects the request to be processed successfully which is
+// indicated by HTTP-204 response status code.
 func (c *vminsertClient) PrometheusAPIV1Write(t *testing.T, wr prompb.WriteRequest, opts QueryOpts) {
+	t.Helper()
+	c.PrometheusAPIV1WriteWithStatusCode(t, wr, opts, http.StatusNoContent)
+}
+
+// PrometheusAPIV1WriteWithStatusCode is a test helper function that inserts a
+// collection of records in Prometheus remote-write format by sending a HTTP
+// POST request to /prometheus/api/v1/write vminsert endpoint.
+//
+// The method expects the HTTP response status code to be `wantStatusCode`.
+func (c *vminsertClient) PrometheusAPIV1WriteWithStatusCode(t *testing.T, wr prompb.WriteRequest, opts QueryOpts, wantStatusCode int) {
 	t.Helper()
 
 	url := c.url("insert", "prometheus/api/v1/write", opts)
 	data := snappy.Encode(nil, wr.MarshalProtobuf(nil))
 	recordsCount := len(wr.Timeseries)
-	if prommetadata.IsEnabled() {
-		recordsCount += len(wr.Metadata)
-	}
 	headers := opts.getHeaders()
 	headers.Set("Content-Type", "application/x-protobuf")
 	c.sendBlocking(t, recordsCount, func() {
-		_, statusCode := c.cli.Post(t, url, data, headers)
-		if statusCode != http.StatusNoContent {
-			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
+		t.Helper()
+		_, gotStatusCode := c.cli.Post(t, url, data, headers)
+		if gotStatusCode != wantStatusCode {
+			t.Fatalf("unexpected status code: got %d, want %d", gotStatusCode, wantStatusCode)
 		}
 	})
 }
@@ -717,7 +729,6 @@ func (c *vminsertClient) PrometheusAPIV1ImportPrometheus(t *testing.T, records [
 	}
 	data := []byte(strings.Join(records, "\n"))
 	var recordsCount int
-	var metadataRecords int
 	uniqueMetadataMetricNames := make(map[string]struct{})
 	for _, record := range records {
 		// metric metadata has the following format:
@@ -734,17 +745,14 @@ func (c *vminsertClient) PrometheusAPIV1ImportPrometheus(t *testing.T, records [
 				continue
 			}
 			uniqueMetadataMetricNames[metricName] = struct{}{}
-			metadataRecords++
 			continue
 		}
 		recordsCount++
 	}
-	if prommetadata.IsEnabled() {
-		recordsCount += metadataRecords
-	}
 	headers := opts.getHeaders()
 	headers.Set("Content-Type", "text/plain")
 	c.sendBlocking(t, recordsCount, func() {
+		t.Helper()
 		_, statusCode := c.cli.Post(t, url, data, headers)
 		if statusCode != http.StatusNoContent {
 			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
@@ -788,11 +796,6 @@ func (c *vminsertClient) OpentelemetryV1Metrics(t *testing.T, md otlppb.MetricsD
 	for _, rss := range md.ResourceMetrics {
 		for _, sm := range rss.ScopeMetrics {
 			recordsCount += len(sm.Metrics)
-			for _, m := range sm.Metrics {
-				if prommetadata.IsEnabled() {
-					recordsCount += len(m.Metadata)
-				}
-			}
 		}
 	}
 	url := c.url("insert", "opentelemetry/v1/metrics", opts)
@@ -805,6 +808,7 @@ func (c *vminsertClient) OpentelemetryV1Metrics(t *testing.T, md otlppb.MetricsD
 	headers := opts.getHeaders()
 	headers.Set("Content-Type", "application/x-protobuf")
 	c.sendBlocking(t, recordsCount, func() {
+		t.Helper()
 		_, statusCode := c.cli.Post(t, url, data, headers)
 		if statusCode != http.StatusOK {
 			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
@@ -830,6 +834,7 @@ func (c *vminsertClient) OpenTSDBAPIPut(t *testing.T, records []string, opts Que
 	headers := opts.getHeaders()
 	headers.Set("Content-Type", "application/json")
 	c.sendBlocking(t, len(records), func() {
+		t.Helper()
 		_, statusCode := c.cli.Post(t, url, data, headers)
 		if statusCode != http.StatusNoContent {
 			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
@@ -853,6 +858,7 @@ func (c *vminsertClient) ZabbixConnectorHistory(t *testing.T, records []string, 
 	headers := opts.getHeaders()
 	headers.Set("Content-Type", "application/json")
 	c.sendBlocking(t, len(records), func() {
+		t.Helper()
 		_, statusCode := c.cli.Post(t, url, data, headers)
 		if statusCode != http.StatusOK {
 			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
@@ -867,7 +873,11 @@ func (c *vminsertClient) ZabbixConnectorHistory(t *testing.T, records []string, 
 // See https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting
 func (c *vminsertClient) GraphiteWrite(t *testing.T, records []string, _ QueryOpts) {
 	t.Helper()
-	c.cli.Write(t, c.graphiteListenAddr, records)
+	c.sendBlocking(t, len(records), func() {
+		t.Helper()
+		c.cli.Write(t, c.graphiteListenAddr, records)
+	})
+
 }
 
 type vmstorageClient struct {

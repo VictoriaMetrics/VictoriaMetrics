@@ -1,6 +1,7 @@
 ---
 weight: 82
 title: Query execution stats
+description: "Enterprise query execution statistics logging."
 menu:
   docs:
     parent: 'victoriametrics'

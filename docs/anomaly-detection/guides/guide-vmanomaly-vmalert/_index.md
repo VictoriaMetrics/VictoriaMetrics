@@ -1,6 +1,7 @@
 ---
 weight: 1
 title: Anomaly Detection and Alerting Setup
+description: "Tutorial integrating vmanomaly with vmalert, Alertmanager, and Grafana."
 menu:
   docs:
     parent: "anomaly-detection-guides"

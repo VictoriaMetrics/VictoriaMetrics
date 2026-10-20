@@ -14,8 +14,8 @@ func setLoggerJSONFields() {
 	if *loggerJSONFields == "" {
 		return
 	}
-	fields := strings.Split(*loggerJSONFields, ",")
-	for _, f := range fields {
+	fields := strings.SplitSeq(*loggerJSONFields, ",")
+	for f := range fields {
 		f = strings.TrimSpace(f)
 		v := strings.Split(f, ":")
 		if len(v) != 2 {

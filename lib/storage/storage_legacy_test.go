@@ -33,23 +33,29 @@ func TestLegacyStorage_SearchMetricNames(t *testing.T) {
 		return mrs, want
 	}
 	const numMetrics = 1000
-	tr := TimeRange{
+	tr1 := TimeRange{
 		MinTimestamp: time.Date(2023, 6, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		MaxTimestamp: time.Date(2024, 5, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
-	legacyData, wantLegacy := genData(numMetrics, "legacy", tr)
-	newData, wantNew := genData(numMetrics, "new", tr)
-	wantNew = append(wantNew, wantLegacy...)
-	slices.Sort(wantNew)
+	tr2 := TimeRange{
+		MinTimestamp: time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 6, 30, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	legacyData, wantLegacy := genData(numMetrics, "legacy", tr1)
+	new1Data, wantNew1 := genData(numMetrics, "new1", tr1)
+	new2Data, wantNew2 := genData(numMetrics, "new2", tr2)
+	newData := slices.Concat(new1Data, new2Data)
+	wantLegacyAndNew1 := slices.Concat(wantLegacy, wantNew1)
+	slices.Sort(wantLegacyAndNew1)
 
-	assertSearchResults := func(s *Storage, want []string) {
+	assertSearchResults := func(s *Storage, tr TimeRange, want []string) {
 		t.Helper()
 		tfsAll := NewTagFilters()
 		if err := tfsAll.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
 			t.Fatalf("unexpected error in TagFilters.Add: %v", err)
 		}
 		tfssAll := []*TagFilters{tfsAll}
-		got, err := s.SearchMetricNames(nil, tfssAll, tr, 1e9, noDeadline)
+		got, err := s.SearchMetricNames(noDeadlineContext, nil, tfssAll, tr, 1e9)
 		if err != nil {
 			t.Fatalf("SearchMetricNames() failed unexpectedly: %v", err)
 		}
@@ -67,10 +73,11 @@ func TestLegacyStorage_SearchMetricNames(t *testing.T) {
 	}
 
 	assertLegacyData := func(s *Storage) {
-		assertSearchResults(s, wantLegacy)
+		assertSearchResults(s, tr1, wantLegacy)
 	}
 	assertNewData := func(s *Storage) {
-		assertSearchResults(s, wantNew)
+		assertSearchResults(s, tr1, wantLegacyAndNew1)
+		assertSearchResults(s, tr2, wantNew2)
 	}
 	testSearchOpWithLegacyIndexDBs(t, legacyData, newData, assertLegacyData, assertNewData)
 }
@@ -95,17 +102,24 @@ func TestLegacyStorage_SearchLabelNames(t *testing.T) {
 		return mrs, want
 	}
 	const numMetrics = 1000
-	tr := TimeRange{
+	tr1 := TimeRange{
 		MinTimestamp: time.Date(2023, 6, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		MaxTimestamp: time.Date(2024, 5, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
-	legacyData, wantLegacy := genData(numMetrics, "legacy", tr)
-	newData, wantNew := genData(numMetrics, "new", tr)
-	wantNew = append(wantNew, wantLegacy...)
+	tr2 := TimeRange{
+		MinTimestamp: time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 6, 30, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	legacyData, wantLegacy := genData(numMetrics, "legacy", tr1)
+	new1Data, wantNew1 := genData(numMetrics, "new1", tr1)
+	new2Data, wantNew2 := genData(numMetrics, "new2", tr2)
+	newData := slices.Concat(new1Data, new2Data)
+	wantLegacyAndNew1 := slices.Concat(wantLegacy, wantNew1)
+	slices.Sort(wantLegacyAndNew1)
 
-	assertSearchResults := func(s *Storage, want []string) {
+	assertSearchResults := func(s *Storage, tr TimeRange, want []string) {
 		t.Helper()
-		got, err := s.SearchLabelNames(nil, nil, tr, 1e9, 1e9, noDeadline)
+		got, err := s.SearchLabelNames(noDeadlineContext, nil, nil, tr, 1e9, 1e9)
 		if err != nil {
 			t.Fatalf("SearchLabelNames() failed unexpectedly: %v", err)
 		}
@@ -118,12 +132,16 @@ func TestLegacyStorage_SearchLabelNames(t *testing.T) {
 	assertLegacyData := func(s *Storage) {
 		want := append(wantLegacy, "__name__")
 		slices.Sort(want)
-		assertSearchResults(s, want)
+		assertSearchResults(s, tr1, want)
 	}
 	assertNewData := func(s *Storage) {
-		want := append(wantNew, "__name__")
+		want := append(wantLegacyAndNew1, "__name__")
 		slices.Sort(want)
-		assertSearchResults(s, want)
+		assertSearchResults(s, tr1, want)
+
+		want = append(wantNew2, "__name__")
+		slices.Sort(want)
+		assertSearchResults(s, tr2, want)
 	}
 	testSearchOpWithLegacyIndexDBs(t, legacyData, newData, assertLegacyData, assertNewData)
 }
@@ -148,18 +166,24 @@ func TestLegacyStorage_SearchLabelValues(t *testing.T) {
 		return mrs, want
 	}
 	const numMetrics = 1000
-	tr := TimeRange{
+	tr1 := TimeRange{
 		MinTimestamp: time.Date(2023, 6, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		MaxTimestamp: time.Date(2024, 5, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
-	legacyData, wantLegacy := genData(numMetrics, "legacy", tr)
-	newData, wantNew := genData(numMetrics, "new", tr)
-	wantNew = append(wantNew, wantLegacy...)
-	slices.Sort(wantNew)
+	tr2 := TimeRange{
+		MinTimestamp: time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 6, 30, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	legacyData, wantLegacy := genData(numMetrics, "legacy", tr1)
+	new1Data, wantNew1 := genData(numMetrics, "new1", tr1)
+	new2Data, wantNew2 := genData(numMetrics, "new2", tr2)
+	newData := slices.Concat(new1Data, new2Data)
+	wantLegacyAndNew1 := slices.Concat(wantLegacy, wantNew1)
+	slices.Sort(wantLegacyAndNew1)
 
-	assertSearchResults := func(s *Storage, want []string) {
+	assertSearchResults := func(s *Storage, tr TimeRange, want []string) {
 		t.Helper()
-		got, err := s.SearchLabelValues(nil, "label", nil, tr, 1e9, 1e9, noDeadline)
+		got, err := s.SearchLabelValues(noDeadlineContext, nil, "label", nil, tr, 1e9, 1e9)
 		if err != nil {
 			t.Fatalf("SearchLabelValues() failed unexpectedly: %v", err)
 		}
@@ -171,11 +195,12 @@ func TestLegacyStorage_SearchLabelValues(t *testing.T) {
 
 	assertLegacyData := func(s *Storage) {
 		t.Helper()
-		assertSearchResults(s, wantLegacy)
+		assertSearchResults(s, tr1, wantLegacy)
 	}
 	assertNewData := func(s *Storage) {
 		t.Helper()
-		assertSearchResults(s, wantNew)
+		assertSearchResults(s, tr1, wantLegacyAndNew1)
+		assertSearchResults(s, tr2, wantNew2)
 	}
 	testSearchOpWithLegacyIndexDBs(t, legacyData, newData, assertLegacyData, assertNewData)
 }
@@ -197,18 +222,24 @@ func TestLegacyStorage_SearchTagValueSuffixes(t *testing.T) {
 		return mrs, want
 	}
 	const numMetrics = 1000
-	tr := TimeRange{
+	tr1 := TimeRange{
 		MinTimestamp: time.Date(2023, 6, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		MaxTimestamp: time.Date(2024, 5, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
-	legacyData, wantLegacy := genData(numMetrics, "legacy", tr)
-	newData, wantNew := genData(numMetrics, "new", tr)
-	wantNew = append(wantNew, wantLegacy...)
-	slices.Sort(wantNew)
+	tr2 := TimeRange{
+		MinTimestamp: time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 6, 30, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	legacyData, wantLegacy := genData(numMetrics, "legacy", tr1)
+	new1Data, wantNew1 := genData(numMetrics, "new1", tr1)
+	new2Data, wantNew2 := genData(numMetrics, "new2", tr2)
+	newData := slices.Concat(new1Data, new2Data)
+	wantLegacyAndNew1 := slices.Concat(wantLegacy, wantNew1)
+	slices.Sort(wantLegacyAndNew1)
 
-	assertSearchResults := func(s *Storage, want []string) {
+	assertSearchResults := func(s *Storage, tr TimeRange, want []string) {
 		t.Helper()
-		got, err := s.SearchTagValueSuffixes(nil, tr, "", "prefix.", '.', 1e9, noDeadline)
+		got, err := s.SearchTagValueSuffixes(noDeadlineContext, nil, tr, "", "prefix.", '.', 1e9)
 		if err != nil {
 			t.Fatalf("SearchTagValueSuffixes() failed unexpectedly: %v", err)
 		}
@@ -221,11 +252,12 @@ func TestLegacyStorage_SearchTagValueSuffixes(t *testing.T) {
 
 	assertLegacyData := func(s *Storage) {
 		t.Helper()
-		assertSearchResults(s, wantLegacy)
+		assertSearchResults(s, tr1, wantLegacy)
 	}
 	assertNewData := func(s *Storage) {
 		t.Helper()
-		assertSearchResults(s, wantNew)
+		assertSearchResults(s, tr1, wantLegacyAndNew1)
+		assertSearchResults(s, tr2, wantNew2)
 	}
 	testSearchOpWithLegacyIndexDBs(t, legacyData, newData, assertLegacyData, assertNewData)
 }
@@ -247,18 +279,24 @@ func TestLegacyStorage_SearchGraphitePaths(t *testing.T) {
 		return mrs, want
 	}
 	const numMetrics = 1000
-	tr := TimeRange{
+	tr1 := TimeRange{
 		MinTimestamp: time.Date(2023, 6, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		MaxTimestamp: time.Date(2024, 5, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
-	legacyData, wantLegacy := genData(numMetrics, "legacy", tr)
-	newData, wantNew := genData(numMetrics, "new", tr)
-	wantNew = append(wantNew, wantLegacy...)
-	slices.Sort(wantNew)
+	tr2 := TimeRange{
+		MinTimestamp: time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 6, 30, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	legacyData, wantLegacy := genData(numMetrics, "legacy", tr1)
+	new1Data, wantNew1 := genData(numMetrics, "new1", tr1)
+	new2Data, wantNew2 := genData(numMetrics, "new2", tr2)
+	newData := slices.Concat(new1Data, new2Data)
+	wantLegacyAndNew1 := slices.Concat(wantLegacy, wantNew1)
+	slices.Sort(wantLegacyAndNew1)
 
-	assertSearchResults := func(s *Storage, want []string) {
+	assertSearchResults := func(s *Storage, tr TimeRange, want []string) {
 		t.Helper()
-		got, err := s.SearchGraphitePaths(nil, tr, []byte("*.*"), 1e9, noDeadline)
+		got, err := s.SearchGraphitePaths(noDeadlineContext, nil, tr, []byte("*.*"), 1e9)
 		if err != nil {
 			t.Fatalf("SearchTagGraphitePaths() failed unexpectedly: %v", err)
 		}
@@ -271,16 +309,17 @@ func TestLegacyStorage_SearchGraphitePaths(t *testing.T) {
 
 	assertLegacyData := func(s *Storage) {
 		t.Helper()
-		assertSearchResults(s, wantLegacy)
+		assertSearchResults(s, tr1, wantLegacy)
 	}
 	assertNewData := func(s *Storage) {
 		t.Helper()
-		assertSearchResults(s, wantNew)
+		assertSearchResults(s, tr1, wantLegacyAndNew1)
+		assertSearchResults(s, tr2, wantNew2)
 	}
 	testSearchOpWithLegacyIndexDBs(t, legacyData, newData, assertLegacyData, assertNewData)
 }
 
-func TestLegacyStorage_Search(t *testing.T) {
+func TestLegacyStorage_SearchData(t *testing.T) {
 	genData := func(numMetrics int, prefix string, tr TimeRange) []MetricRow {
 		mrs := make([]MetricRow, numMetrics)
 		for i := range numMetrics {
@@ -295,14 +334,20 @@ func TestLegacyStorage_Search(t *testing.T) {
 		return mrs
 	}
 	const numMetrics = 1000
-	tr := TimeRange{
+	tr1 := TimeRange{
 		MinTimestamp: time.Date(2023, 6, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		MaxTimestamp: time.Date(2024, 5, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
-	legacyData := genData(numMetrics, "legacy", tr)
-	newData := genData(numMetrics, "new", tr)
+	tr2 := TimeRange{
+		MinTimestamp: time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 6, 30, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	legacyData := genData(numMetrics, "legacy", tr1)
+	new1Data := genData(numMetrics, "new1", tr1)
+	new2Data := genData(numMetrics, "new2", tr2)
+	newData := slices.Concat(new1Data, new2Data)
 
-	assertSearchResults := func(s *Storage, want []MetricRow) {
+	assertSearchResults := func(s *Storage, tr TimeRange, want []MetricRow) {
 		tfsAll := NewTagFilters()
 		if err := tfsAll.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
 			t.Fatalf("unexpected error in TagFilters.Add: %v", err)
@@ -314,13 +359,13 @@ func TestLegacyStorage_Search(t *testing.T) {
 
 	assertLegacyData := func(s *Storage) {
 		t.Helper()
-		want := legacyData
-		assertSearchResults(s, want)
+		assertSearchResults(s, tr1, legacyData)
 	}
 	assertNewData := func(s *Storage) {
 		t.Helper()
-		want := slices.Concat(legacyData, newData)
-		assertSearchResults(s, want)
+		want := slices.Concat(legacyData, new1Data)
+		assertSearchResults(s, tr1, want)
+		assertSearchResults(s, tr2, new2Data)
 	}
 	testSearchOpWithLegacyIndexDBs(t, legacyData, newData, assertLegacyData, assertNewData)
 }
@@ -337,7 +382,7 @@ func TestLegacyStorage_GetSeriesCount(t *testing.T) {
 
 	assertSearchResults := func(s *Storage, want uint64) {
 		t.Helper()
-		got, err := s.GetSeriesCount(noDeadline)
+		got, err := s.GetSeriesCount(noDeadlineContext)
 		if err != nil {
 			t.Fatalf("GetSeriesCount() failed unexpectedly: %v", err)
 		}
@@ -376,7 +421,7 @@ func TestLegacyStorage_DeleteSeries(t *testing.T) {
 
 	assertSeriesCount := func(s *Storage, want int) {
 		t.Helper()
-		got, err := s.SearchMetricNames(nil, tfssAll, tr, 1e9, noDeadline)
+		got, err := s.SearchMetricNames(noDeadlineContext, nil, tfssAll, tr, 1e9)
 		if err != nil {
 			t.Fatalf("SearchMetricNames() failed unexpectedly: %v", err)
 		}
@@ -395,7 +440,7 @@ func TestLegacyStorage_DeleteSeries(t *testing.T) {
 		want := len(legacyData) + len(newData)
 		assertSeriesCount(s, want)
 
-		got, err := s.DeleteSeries(nil, tfssAll, 1e9)
+		got, err := s.DeleteSeries(noDeadlineContext, nil, tfssAll, 1e9)
 		if err != nil {
 			t.Fatalf("DeleteSeries() failed unexpectedly: %v", err)
 		}
@@ -613,7 +658,7 @@ func TestStorageConvertToLegacy(t *testing.T) {
 		if err := tfs.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
 			t.Fatalf("unexpected error in TagFilters.Add: %v", err)
 		}
-		got, err := s.SearchMetricNames(nil, []*TagFilters{tfs}, tr, 1e9, noDeadline)
+		got, err := s.SearchMetricNames(noDeadlineContext, nil, []*TagFilters{tfs}, tr, 1e9)
 		if err != nil {
 			t.Fatalf("SearchMetricNames() failed unexpectedly: %v", err)
 		}
@@ -701,6 +746,7 @@ func mustConvertToLegacy(s *Storage) *Storage {
 	// Stop storage, move legacy idbs to tmp dir, delete all caches,
 	// re-open storage with pt index only.
 	storageDataPath := s.path
+	disablePerDayIndex := s.disablePerDayIndex
 	s.MustClose()
 	legacyIDBsPathOrig := filepath.Join(s.path, indexdbDirname)
 	fs.MustMkdirIfNotExist(legacyIDBsPathOrig)
@@ -709,7 +755,9 @@ func mustConvertToLegacy(s *Storage) *Storage {
 		panic(fmt.Sprintf("could not rename %q to %q: %v", legacyIDBsPathOrig, legacyIDBsPathTmp, err))
 	}
 	fs.MustRemoveDir(filepath.Join(storageDataPath, cacheDirname))
-	s = MustOpenStorage(storageDataPath, OpenOptions{})
+	s = MustOpenStorage(storageDataPath, OpenOptions{
+		DisablePerDayIndex: disablePerDayIndex,
+	})
 
 	legacyIDBID := uint64(time.Now().UnixNano())
 	legacyIDBName := fmt.Sprintf("%016X", legacyIDBID)
@@ -748,7 +796,7 @@ func mustConvertToLegacy(s *Storage) *Storage {
 				MaxTimestamp: ts + msecPerDay - 1,
 			}
 			date := uint64(ts / msecPerDay)
-			tsids, err := idb.SearchTSIDs(nil, tfssAll, day, 1e9, noDeadline)
+			tsids, err := idb.SearchTSIDs(noDeadlineContext, nil, tfssAll, day, 1e9)
 			if err != nil {
 				panic(fmt.Sprintf("could not get TSIDs: %v", err))
 			}
@@ -776,7 +824,7 @@ func mustConvertToLegacy(s *Storage) *Storage {
 				}
 			}
 		}
-		is := idb.getIndexSearch(noDeadline)
+		is := idb.getIndexSearch()
 		dmis, err := is.loadDeletedMetricIDs()
 		idb.putIndexSearch(is)
 		if err != nil {
@@ -809,7 +857,9 @@ func mustConvertToLegacy(s *Storage) *Storage {
 		}
 	}
 
-	return MustOpenStorage(s.path, OpenOptions{})
+	return MustOpenStorage(s.path, OpenOptions{
+		DisablePerDayIndex: s.disablePerDayIndex,
+	})
 }
 
 func TestLegacyNextRetentionDeadlineSeconds(t *testing.T) {
@@ -932,7 +982,7 @@ func TestLegacyStorageRotateIndexDB_DeleteSeries(t *testing.T) {
 		t.Fatalf("unexpected error in TagFilters.Add: %v", err)
 	}
 	op := func(s *Storage) {
-		_, err := s.DeleteSeries(nil, []*TagFilters{tfs}, 1e9)
+		_, err := s.DeleteSeries(noDeadlineContext, nil, []*TagFilters{tfs}, 1e9)
 		if err != nil {
 			panic(fmt.Sprintf("DeleteSeries() failed unexpectedly: %v", err))
 		}
@@ -966,7 +1016,7 @@ func TestLegacyStorageRotateIndexDB_SearchMetricNames(t *testing.T) {
 	}
 	tfss := []*TagFilters{tfs}
 	op := func(s *Storage) {
-		_, err := s.SearchMetricNames(nil, tfss, tr, 1e9, noDeadline)
+		_, err := s.SearchMetricNames(noDeadlineContext, nil, tfss, tr, 1e9)
 		if err != nil {
 			panic(fmt.Sprintf("SearchMetricNames() failed unexpectedly: %v", err))
 		}
@@ -984,7 +1034,7 @@ func TestLegacyStorageRotateIndexDB_SearchLabelNames(t *testing.T) {
 	mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "metric", tr)
 
 	testLegacyRotateIndexDB(t, mrs, func(s *Storage) {
-		_, err := s.SearchLabelNames(nil, []*TagFilters{}, tr, 1e6, 1e6, noDeadline)
+		_, err := s.SearchLabelNames(noDeadlineContext, nil, []*TagFilters{}, tr, 1e6, 1e6)
 		if err != nil {
 			panic(fmt.Sprintf("SearchLabelNames() failed unexpectedly: %v", err))
 		}
@@ -1000,7 +1050,7 @@ func TestLegacyStorageRotateIndexDB_SearchLabelValues(t *testing.T) {
 	mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "metric", tr)
 
 	testLegacyRotateIndexDB(t, mrs, func(s *Storage) {
-		_, err := s.SearchLabelValues(nil, "__name__", []*TagFilters{}, tr, 1e6, 1e6, noDeadline)
+		_, err := s.SearchLabelValues(noDeadlineContext, nil, "__name__", []*TagFilters{}, tr, 1e6, 1e6)
 		if err != nil {
 			panic(fmt.Sprintf("SearchLabelValues() failed unexpectedly: %v", err))
 		}
@@ -1016,7 +1066,7 @@ func TestLegacyStorageRotateIndexDB_SearchTagValueSuffixes(t *testing.T) {
 	mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "metric.", tr)
 
 	testLegacyRotateIndexDB(t, mrs, func(s *Storage) {
-		_, err := s.SearchTagValueSuffixes(nil, tr, "", "metric.", '.', 1e6, noDeadline)
+		_, err := s.SearchTagValueSuffixes(noDeadlineContext, nil, tr, "", "metric.", '.', 1e6)
 		if err != nil {
 			panic(fmt.Sprintf("SearchTagValueSuffixes() failed unexpectedly: %v", err))
 		}
@@ -1032,7 +1082,7 @@ func TestLegacyStorageRotateIndexDB_SearchGraphitePaths(t *testing.T) {
 	mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "metric.", tr)
 
 	testLegacyRotateIndexDB(t, mrs, func(s *Storage) {
-		_, err := s.SearchGraphitePaths(nil, tr, []byte("*.*"), 1e6, noDeadline)
+		_, err := s.SearchGraphitePaths(noDeadlineContext, nil, tr, []byte("*.*"), 1e6)
 		if err != nil {
 			panic(fmt.Sprintf("SearchGraphitePaths() failed unexpectedly: %v", err))
 		}
@@ -1048,7 +1098,7 @@ func TestLegacyStorageRotateIndexDB_GetSeriesCount(t *testing.T) {
 	mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "metric", tr)
 
 	testLegacyRotateIndexDB(t, mrs, func(s *Storage) {
-		_, err := s.GetSeriesCount(noDeadline)
+		_, err := s.GetSeriesCount(noDeadlineContext)
 		if err != nil {
 			panic(fmt.Sprintf("GetSeriesCount() failed unexpectedly: %v", err))
 		}
@@ -1065,7 +1115,7 @@ func TestLegacyStorageRotateIndexDB_GetTSDBStatus(t *testing.T) {
 	date := uint64(tr.MinTimestamp) / msecPerDay
 
 	testLegacyRotateIndexDB(t, mrs, func(s *Storage) {
-		_, err := s.GetTSDBStatus(nil, nil, date, "", 10, 1e6, noDeadline)
+		_, err := s.GetTSDBStatus(noDeadlineContext, nil, nil, date, "", 10, 1e6)
 		if err != nil {
 			panic(fmt.Sprintf("GetTSDBStatus failed unexpectedly: %v", err))
 		}
@@ -1106,8 +1156,8 @@ func TestLegacyStorageRotateIndexDB_Search(t *testing.T) {
 
 	testLegacyRotateIndexDB(t, mrs, func(s *Storage) {
 		var search Search
-		search.Init(nil, s, tfss, tr, 1e5, noDeadline)
-		for search.NextMetricBlock() {
+		search.Init(noDeadlineContext, nil, s, tfss, tr, 1e5)
+		for search.NextMetricBlock(noDeadlineContext) {
 			var b Block
 			search.MetricBlockRef.BlockRef.MustReadBlock(&b)
 		}
@@ -1398,7 +1448,7 @@ func TestLegacyStorageGetTSDBStatus(t *testing.T) {
 
 	assertTSDBStatus := func(date uint64, want *TSDBStatus) {
 		t.Helper()
-		got, err := s.GetTSDBStatus(nil, nil, date, "", 10, 1e9, noDeadline)
+		got, err := s.GetTSDBStatus(noDeadlineContext, nil, nil, date, "", 10, 1e9)
 		if err != nil {
 			t.Fatalf("GetTSDBStatus failed unexpectedly: %v", err)
 		}

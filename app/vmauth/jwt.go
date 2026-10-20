@@ -67,6 +67,11 @@ type JWTConfig struct {
 
 	DefaultVMAccessClaim *jwt.VMAccessClaim `yaml:"default_vm_access_claim,omitempty"`
 
+	// ProxyCookieAuthorizationToken, when set, forwards the SSO cookie token to the backend
+	// by setting it as a "Bearer <token>" value in the specified HTTP header.
+	// Any previously set value of the header will be overwritten.
+	ProxyCookieAuthorizationToken string `yaml:"proxy_cookie_authorization_token,omitempty"`
+
 	// verifierPool is used to verify JWT tokens.
 	// It is initialized from PublicKeys and/or PublicKeyFiles.
 	// In this case, it is initialized once at config reload and never updated until next reload
@@ -156,7 +161,7 @@ func parseJWTUsers(ac *AuthConfig, oidcDP *oidcDiscovererPool) ([]*UserInfo, err
 				return nil, fmt.Errorf("oidc issuer %q must have http or https scheme", jwtToken.OIDC.Issuer)
 			}
 
-			oidcDP.createOrAdd(ui.JWT.OIDC.Issuer, &ui.JWT.verifierPool)
+			oidcDP.subscribeToVerifier(ui.JWT.OIDC.Issuer, &ui.JWT.verifierPool)
 		}
 
 		if err := parseJWTPlaceholdersForUserInfo(&ui, true); err != nil {
@@ -219,7 +224,7 @@ func putToken(tkn *jwt.Token) {
 	tokenPool.Put(tkn)
 }
 
-func getJWTUserInfo(ats []string) (*UserInfo, *jwt.Token) {
+func getJWTUserInfo(ats []string, ssoAt string) (*UserInfo, *jwt.Token) {
 	js := *jwtAuthCache.Load()
 	if len(js.users) == 0 {
 		return nil, nil
@@ -249,6 +254,28 @@ func getJWTUserInfo(ats []string) (*UserInfo, *jwt.Token) {
 			continue
 		}
 
+		if ui := getUserInfoByJWTToken(tkn, js.users); ui != nil {
+			return ui, tkn
+		}
+	}
+	if len(ssoAt) > 0 {
+		tkn.Reset()
+		if err := tkn.Parse(ssoAt, false); err != nil {
+			if *logInvalidAuthTokens {
+				logger.Infof("cannot parse jwt token: %s", err)
+			}
+			putToken(tkn)
+			return nil, nil
+		}
+		if tkn.IsExpired(time.Now()) {
+			if *logInvalidAuthTokens {
+				// TODO: add more context:
+				// token claims with issuer
+				logger.Infof("cookie token is expired")
+			}
+			putToken(tkn)
+			return nil, nil
+		}
 		if ui := getUserInfoByJWTToken(tkn, js.users); ui != nil {
 			return ui, tkn
 		}

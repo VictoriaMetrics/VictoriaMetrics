@@ -1,0 +1,601 @@
+package main
+
+import (
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
+	"fmt"
+	"net/http"
+	"net/url"
+	"regexp"
+	"slices"
+	"strings"
+	"sync/atomic"
+	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+)
+
+// ssoConfig holds the SSO configuration for a single host.
+type ssoConfig struct {
+	SrcHost *Regex         `yaml:"src_host"`
+	OIDC    *ssoOIDCConfig `yaml:"oidc"`
+}
+
+func (c *ssoConfig) normalize() error {
+	if c == nil {
+		return fmt.Errorf("empty sso config provided")
+	}
+	if c.SrcHost == nil {
+		return fmt.Errorf("src_host is required")
+	}
+	if c.OIDC == nil {
+		return fmt.Errorf("oidc is required")
+	}
+
+	oidc := c.OIDC
+	if oidc.Issuer == "" {
+		return fmt.Errorf("oidc.issuer is required")
+	}
+	issuerURL, err := url.Parse(oidc.Issuer)
+	if err != nil {
+		return fmt.Errorf("oidc.issuer must be a valid URL")
+	}
+	if issuerURL.Scheme != "https" && issuerURL.Scheme != "http" {
+		return fmt.Errorf("oidc.issuer must have http or https scheme")
+	}
+	if oidc.ClientID == "" {
+		return fmt.Errorf("oidc.client_id is required")
+	}
+	if oidc.ClientSecret == "" {
+		return fmt.Errorf("oidc.client_secret is required")
+	}
+	if len(oidc.CookieSecret) < 16 {
+		return fmt.Errorf("oidc.cookie_secret must be at least 16 characters long")
+	}
+
+	// openid scope MUST be present per
+	// https://openid.net/specs/openid-connect-core-1_0.html#AuthRequestValidation
+	if !slices.Contains(oidc.Scopes, "openid") {
+		oidc.Scopes = append([]string{"openid"}, oidc.Scopes...)
+	}
+
+	const defaultSessionDuration = 10 * time.Minute
+	if oidc.SessionDuration == "" {
+		oidc.sessionDuration = defaultSessionDuration
+	} else {
+		d, err := time.ParseDuration(oidc.SessionDuration)
+		if err != nil {
+			return fmt.Errorf("oidc.session_duration: %w", err)
+		}
+		if d < 0 {
+			return fmt.Errorf("oidc.session_duration must not be negative")
+		}
+		oidc.sessionDuration = d
+	}
+
+	for k := range oidc.AuthParams {
+		if k == "" {
+			return fmt.Errorf("oidc.auth_params must not contain empty keys")
+		}
+		if slices.Contains(reservedAuthParams, k) {
+			return fmt.Errorf("oidc.auth_params must not override %q; it is set by vmauth", k)
+		}
+	}
+
+	return nil
+}
+
+// reservedAuthParams are authentication request parameters controlled by vmauth.
+// Overriding them would break the code flow or its CSRF and replay protection.
+var reservedAuthParams = []string{"response_type", "client_id", "redirect_uri", "scope", "nonce", "state"}
+
+// normalizeSSOConfigs validates and initializes all SSO configs.
+func normalizeSSOConfigs(cfgs []*ssoConfig) error {
+	for i, sso := range cfgs {
+		if err := sso.normalize(); err != nil {
+			return fmt.Errorf("sso.%d: %w", i, err)
+		}
+	}
+	return nil
+}
+
+// ssoOIDCConfig is the OpenID Connect configuration for SSO.
+type ssoOIDCConfig struct {
+	Issuer       string `yaml:"issuer"`
+	ClientID     string `yaml:"client_id"`
+	ClientSecret string `yaml:"client_secret"`
+
+	// CookieSecret is used to sign the short-lived CSRF cookie set during the
+	// authorization flow. Must be at least 16 characters; never shared with the IdP.
+	// Generate with: openssl rand -base64 32
+	CookieSecret string `yaml:"cookie_secret"`
+
+	// Insecure disables the Secure flag on SSO cookies and uses http:// instead
+	// of https:// for redirect URIs. Defaults to false.
+	// Set to true only when vmauth is accessed over plain HTTP (e.g. local dev).
+	// When vmauth runs behind an SSL-terminating proxy, keep this false — the
+	// proxy speaks HTTPS to the browser even though vmauth sees plain HTTP.
+	Insecure bool `yaml:"insecure,omitempty"`
+
+	// Scopes defaults to ["openid"] when not set.
+	Scopes []string `yaml:"scopes,omitempty"`
+
+	// SessionDuration caps the SSO session cookie lifetime.
+	// The cookie MaxAge is the minimum of this value and the id_token's exp claim.
+	// Defaults to 10m when not set. Parsed via time.ParseDuration, e.g. "10m", "1h".
+	SessionDuration string `yaml:"session_duration,omitempty"`
+	sessionDuration time.Duration
+
+	// DefaultRedirectURL is the URL users are sent to after SSO login when the
+	// original request URL fails open-redirect validation (e.g. absolute or
+	// protocol-relative path). Defaults to "/".
+	DefaultRedirectURL string `yaml:"default_redirect_url,omitempty"`
+
+	// AuthParams are additional query parameters added to the authentication request
+	// sent to the IdP authorization endpoint.
+	AuthParams map[string]string `yaml:"auth_params,omitempty"`
+
+	pm atomic.Pointer[oidcProviderMetadata]
+}
+
+// secure returns true unless Insecure is explicitly set to true.
+func (c *ssoOIDCConfig) secure() bool {
+	return !c.Insecure
+}
+
+// getSessionDuration returns the SSO session duration as the minimum of the
+// configured sessionDuration and the token's remaining lifetime.
+// If sessionDuration is 0, the token expiry is used as-is.
+func (c *ssoOIDCConfig) getSessionDuration(tokenExpiresAt time.Time) time.Duration {
+	ttl := time.Until(tokenExpiresAt)
+	if c.sessionDuration > 0 && c.sessionDuration < ttl {
+		ttl = c.sessionDuration
+	}
+	if ttl < 0 {
+		ttl = 0
+	}
+	return ttl
+}
+
+// getCallbackURL returns the OIDC redirect URL for the current request.
+// The host must be already validated by sso.src_host regexp
+func (c *ssoOIDCConfig) getCallbackURL(host string) string {
+	scheme := "http"
+	if c.secure() {
+		scheme = "https"
+	}
+	return scheme + "://" + host + getPathWithPrefix("/_vmauth/sso/callback")
+}
+
+// getAuthenticationURL returns the IdP authorization endpoint URL with the authentication request parameters.
+// Query parameters already present in the endpoint are retained as required by
+// https://datatracker.ietf.org/doc/html/rfc6749#section-3.1
+// Parameters set by vmauth (response_type, client_id, redirect_uri, scope, nonce, state)
+// always override the endpoint ones, so the discovery document cannot inject them.
+// See https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest
+func (c *ssoOIDCConfig) getAuthenticationURL(authorizationEndpoint, callbackURL, nonceHash, state string) (string, error) {
+	u, err := url.Parse(authorizationEndpoint)
+	if err != nil {
+		return "", fmt.Errorf("cannot parse authorization_endpoint %q: %w", authorizationEndpoint, err)
+	}
+	// url.URL.Query() silently drops the parameters it cannot parse, e.g. ones containing semicolons.
+	params, err := url.ParseQuery(u.RawQuery)
+	if err != nil {
+		return "", fmt.Errorf("cannot parse query of authorization_endpoint %q: %w", authorizationEndpoint, err)
+	}
+	for k, v := range c.AuthParams {
+		params.Set(k, v)
+	}
+	params.Set("response_type", "code")
+	params.Set("client_id", c.ClientID)
+	params.Set("redirect_uri", callbackURL)
+	params.Set("scope", strings.Join(c.Scopes, " "))
+	params.Set("nonce", nonceHash)
+	params.Set("state", state)
+	u.RawQuery = params.Encode()
+	return u.String(), nil
+}
+
+var (
+	// Used to check final redirects are not susceptible to open redirects.
+	// Matches //, /\ and both of these with whitespace in between (eg / / or / \).
+	// Copy-pasted from oauth2-proxy
+	// https://github.com/oauth2-proxy/oauth2-proxy/blob/6420aae79003dfb47885018856dd524342367dfc/pkg/app/redirect/validator.go#L16
+	invalidRedirectRegex = regexp.MustCompile(`[/\\](?:[\s\v]*|\.{1,2})[/\\]`)
+)
+
+// getRedirectURL sanitizes the redirect URL to prevent open redirect attacks.
+// Returns DefaultRedirectURL (or "/") if the URL is not a safe relative path.
+func (c *ssoOIDCConfig) getRedirectURL(redirect string) string {
+	// Copy-pasted from oauth2-proxy
+	// https://github.com/oauth2-proxy/oauth2-proxy/blob/6420aae79003dfb47885018856dd524342367dfc/pkg/app/redirect/validator.go#L47
+	if strings.HasPrefix(redirect, "/") && !strings.HasPrefix(redirect, "//") && !invalidRedirectRegex.MatchString(redirect) {
+		return redirect
+	}
+	if c.DefaultRedirectURL != "" {
+		return c.DefaultRedirectURL
+	}
+	return "/"
+}
+
+// getSSOConfigForHost returns the SSO host config for the given request host, or nil.
+func getSSOConfigForHost(ac *AuthConfig, host string) *ssoOIDCConfig {
+	if ac == nil || ac.SSO == nil {
+		return nil
+	}
+	for _, sso := range ac.SSO {
+		if sso.SrcHost.match(host) {
+			return sso.OIDC
+		}
+	}
+	return nil
+}
+
+const (
+	ssoCookieName     = "_vmauth_sso"
+	ssoCsrfCookieName = "_vmauth_sso_csrf"
+	ssoCsrfCookieTTL  = 10 * time.Minute
+)
+
+var ssoLogger = logger.WithThrottler("sso", 5*time.Second)
+
+// getPathWithPrefix prepends -http.pathPrefix to the given path.
+// The browser sees the full external URL (including the prefix), so cookie
+// paths and redirect URIs must include it.
+func getPathWithPrefix(p string) string {
+	return strings.TrimSuffix(httpserver.GetPathPrefix(), "/") + p
+}
+
+// generateRandomString generates a cryptographically random base64url-encoded string of the given byte length.
+func generateRandomString(n int) (string, error) {
+	raw := make([]byte, n)
+	if _, err := rand.Read(raw); err != nil {
+		return "", fmt.Errorf("cannot generate random string: %w", err)
+	}
+	return base64.RawURLEncoding.EncodeToString(raw), nil
+}
+
+// signCSRFCookie returns a value for the CSRF cookie that carries the nonce,
+// state, and the redirectURL the user was trying to reach.
+//
+// Format: base64url(nonce ":" state ":" redirectURL) "." base64url(HMAC-SHA256(cookieSecret, payload))
+//
+// The payload is base64url-encoded so that dots in the URL do not conflict with
+// the "." separator between payload and signature.
+// nonce and state are independent base64url strings (no colons), so the first
+// two ":" delimiters are unambiguous.
+func signCSRFCookie(nonce, state, redirectURL, cookieSecret string) string {
+	if nonce == "" {
+		panic("BUG: nonce cannot be empty")
+	}
+	if state == "" {
+		panic("BUG: state cannot be empty")
+	}
+	if cookieSecret == "" {
+		panic("BUG: cookieSecret cannot be empty")
+	}
+	payload := base64.RawURLEncoding.EncodeToString([]byte(nonce + ":" + state + ":" + redirectURL))
+	mac := hmac.New(sha256.New, []byte(cookieSecret))
+	mac.Write([]byte(payload))
+	sig := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+	return payload + "." + sig
+}
+
+// verifyCSRFCookie verifies the CSRF cookie signature and returns the nonce,
+// state, and the original URL that were stored when the flow was initiated.
+func verifyCSRFCookie(cookieValue, cookieSecret string) (nonce, state, redirectURL string, err error) {
+	if cookieSecret == "" {
+		panic("BUG: cookieSecret cannot be empty")
+	}
+	dot := strings.LastIndexByte(cookieValue, '.')
+	if dot < 0 {
+		return "", "", "", fmt.Errorf("invalid CSRF cookie: missing separator")
+	}
+	payload, sig := cookieValue[:dot], cookieValue[dot+1:]
+
+	mac := hmac.New(sha256.New, []byte(cookieSecret))
+	mac.Write([]byte(payload))
+	expectedSig := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+	if !hmac.Equal([]byte(sig), []byte(expectedSig)) {
+		return "", "", "", fmt.Errorf("CSRF cookie signature mismatch")
+	}
+
+	decoded, err := base64.RawURLEncoding.DecodeString(payload)
+	if err != nil {
+		return "", "", "", fmt.Errorf("cannot decode CSRF cookie payload: %w", err)
+	}
+	// nonce and state are base64url (no colons), so the first two ":"
+	// separate them from each other and from redirectURL.
+	parts := strings.SplitN(string(decoded), ":", 3)
+	if len(parts) != 3 {
+		return "", "", "", fmt.Errorf("invalid CSRF cookie payload format")
+	}
+	return parts[0], parts[1], parts[2], nil
+}
+
+// setSSONoCacheHeaders sets Content-Type and no-cache headers on SSO responses.
+// Login and callback pages must not be cached because they contain CSRF tokens
+// and auth state that are valid for a single flow.
+//
+// No-cache headers follow oauth2-proxy convention:
+// https://github.com/oauth2-proxy/oauth2-proxy/blob/33c2eb92dea78204f7a18bc2dfdbccc220f39257/oauthproxy.go#L1089
+func setSSONoCacheHeaders(w http.ResponseWriter) {
+	h := w.Header()
+	h.Set("Content-Type", "text/html; charset=utf-8")
+	h.Set("Cache-Control", "no-cache, no-store, must-revalidate, max-age=0")
+	h.Set("Expires", "Thu, 01 Jan 1970 00:00:00 GMT")
+	h.Set("X-Accel-Expires", "0")
+}
+
+// processSSOLogin renders a minimal HTML page with a single "Login with SSO"
+// button pointing to the internal /_vmauth/sso/start endpoint.
+// Only GET and HEAD requests show the login page; other methods receive
+// a 401 so that the caller's request body is not silently discarded.
+//
+// If denied is true (the request carries an SSO cookie, which doesn't match any user config),
+// the page shows an "Access Denied" hint above the login button so the user knows
+// their identity was recognized but not authorized.
+func processSSOLogin(w http.ResponseWriter, r *http.Request, ac *AuthConfig, denied bool) bool {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		return false
+	}
+	oidc := getSSOConfigForHost(ac, r.Host)
+	if oidc == nil {
+		return false
+	}
+
+	redirectURL := oidc.getRedirectURL(r.URL.RequestURI())
+
+	authParams := url.Values{}
+	authParams.Set("redirect", redirectURL)
+	authURL := getPathWithPrefix("/_vmauth/sso/start") + "?" + authParams.Encode()
+
+	setSSONoCacheHeaders(w)
+	if denied {
+		// The user authenticated but no user config matched — authorization failure.
+		w.WriteHeader(http.StatusForbidden)
+		WriteSSOLoginPage(w, authURL, "Access Denied")
+		return true
+	}
+
+	// No credentials at all — return 401 so programmatic clients (curl,
+	// Grafana, scripts) can distinguish "not authenticated" from a successful
+	// response.
+	w.WriteHeader(http.StatusUnauthorized)
+	WriteSSOLoginPage(w, authURL, "")
+	return true
+}
+
+// processSSOAccessDenied processes requests carrying only an SSO cookie, which doesn't match any user config.
+//
+// It shows the SSO login page if possible; otherwise the request is routed to unauthorized_user
+// or rejected with 401 Unauthorized.
+//
+// Requests with other auth tokens aren't processed here, so they remain subject to the brute-force slowdown.
+// Otherwise an arbitrary SSO cookie could be added to the request in order to bypass the slowdown.
+func processSSOAccessDenied(w http.ResponseWriter, r *http.Request, ac *AuthConfig, ats []string, ssoAt string) bool {
+	if len(ssoAt) == 0 || len(ats) > 0 {
+		return false
+	}
+	if !processSSOLogin(w, r, ac, true) {
+		handleInvalidAuthToken(w, r, []string{ssoAt})
+	}
+	return true
+}
+
+// processSSOStart handles /_vmauth/sso/start — the target of the "Login with SSO" button.
+// It generates nonce/state, sets the CSRF cookie, and redirects to the IdP.
+func processSSOStart(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	if err := beginConcurrencyLimit(r.Context()); err != nil {
+		w.WriteHeader(http.StatusTooManyRequests)
+		return
+	}
+	defer endConcurrencyLimit()
+
+	oidc := getSSOConfigForHost(authConfig.Load(), r.Host)
+	if oidc == nil {
+		setSSONoCacheHeaders(w)
+		w.WriteHeader(http.StatusUnauthorized)
+		WriteSSOErrorPage(w, "SSO not configured for this host", "", getPathWithPrefix("/"))
+		return
+	}
+
+	redirectURL := oidc.getRedirectURL(r.URL.Query().Get("redirect"))
+
+	pm := oidc.pm.Load()
+	if pm == nil {
+		setSSONoCacheHeaders(w)
+		w.WriteHeader(http.StatusServiceUnavailable)
+		WriteSSOErrorPage(w, "Identity Provider is not available, try again later", "", getPathWithPrefix(redirectURL))
+		return
+	}
+
+	// Nonce binds the id_token to this session (replay protection).
+	// https://openid.net/specs/openid-connect-core-1_0.html#NonceNotes
+	nonce, err := generateRandomString(32)
+	if err != nil {
+		ssoLogger.Errorf("SSO start at host %s (IdP %s) failed to generate nonce: %s", r.Host, oidc.Issuer, err)
+		setSSONoCacheHeaders(w)
+		w.WriteHeader(http.StatusInternalServerError)
+		WriteSSOErrorPage(w, "Internal Server Error", "", getPathWithPrefix(redirectURL))
+		return
+	}
+
+	// State binds the authorization response to this request (CSRF protection).
+	// State should differ from nonce as per OIDC best practices.
+	// https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest
+	state, err := generateRandomString(32)
+	if err != nil {
+		ssoLogger.Errorf("SSO start at host %s (IdP %s) failed to generate state: %s", r.Host, oidc.Issuer, err)
+		setSSONoCacheHeaders(w)
+		w.WriteHeader(http.StatusInternalServerError)
+		WriteSSOErrorPage(w, "Internal Server Error", "", getPathWithPrefix(redirectURL))
+		return
+	}
+
+	// Store nonce, state, and redirectURL in the CSRF cookie. The raw nonce
+	// never leaves the browser; only its SHA256 hash is sent to the IdP.
+	// The state is sent as-is to the IdP and verified on callback.
+	http.SetCookie(w, &http.Cookie{
+		Name:     ssoCsrfCookieName,
+		Value:    signCSRFCookie(nonce, state, redirectURL, oidc.CookieSecret),
+		Path:     getPathWithPrefix("/_vmauth/sso/"),
+		HttpOnly: true,
+		Secure:   oidc.secure(),
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   int(ssoCsrfCookieTTL.Seconds()),
+	})
+
+	h := sha256.Sum256([]byte(nonce))
+	nonceHash := base64.RawURLEncoding.EncodeToString(h[:])
+
+	authURL, err := oidc.getAuthenticationURL(pm.AuthorizationEndpoint, oidc.getCallbackURL(r.Host), nonceHash, state)
+	if err != nil {
+		ssoLogger.Errorf("SSO start at host %s (IdP %s) failed to build authentication URL: %s", r.Host, oidc.Issuer, err)
+		setSSONoCacheHeaders(w)
+		w.WriteHeader(http.StatusInternalServerError)
+		WriteSSOErrorPage(w, "Internal Server Error", "", getPathWithPrefix(redirectURL))
+		return
+	}
+
+	setSSONoCacheHeaders(w)
+	http.Redirect(w, r, authURL, http.StatusFound)
+}
+
+// processSSOCallback handles the OIDC authorization code callback at /_vmauth/sso/callback.
+func processSSOCallback(w http.ResponseWriter, r *http.Request) {
+	if err := beginConcurrencyLimit(r.Context()); err != nil {
+		w.WriteHeader(http.StatusTooManyRequests)
+		return
+	}
+	defer endConcurrencyLimit()
+
+	oidc := getSSOConfigForHost(authConfig.Load(), r.Host)
+	if oidc == nil {
+		setSSONoCacheHeaders(w)
+		w.WriteHeader(http.StatusUnauthorized)
+		WriteSSOErrorPage(w, "SSO not configured for this host", ``, getPathWithPrefix("/"))
+		return
+	}
+	pm := oidc.pm.Load()
+	if pm == nil {
+		setSSONoCacheHeaders(w)
+		w.WriteHeader(http.StatusServiceUnavailable)
+		WriteSSOErrorPage(w, "Identity Provider is not available, try again later", "", getPathWithPrefix("/"))
+		return
+	}
+
+	// Verify the CSRF cookie — it carries the nonce and the redirectURL, and
+	// binds this callback to the browser session that initiated the flow.
+	csrfCookie, err := r.Cookie(ssoCsrfCookieName)
+	if err != nil {
+		setSSONoCacheHeaders(w)
+		w.WriteHeader(http.StatusBadRequest)
+		WriteSSOErrorPage(w, "Missing CSRF Cookie", "", getPathWithPrefix("/"))
+		return
+	}
+	// Clear the CSRF cookie immediately so it cannot be replayed.
+	http.SetCookie(w, &http.Cookie{
+		Name:     ssoCsrfCookieName,
+		Path:     getPathWithPrefix("/_vmauth/sso/"),
+		HttpOnly: true,
+		Secure:   oidc.secure(),
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   -1,
+	})
+
+	nonce, state, redirectURL, err := verifyCSRFCookie(csrfCookie.Value, oidc.CookieSecret)
+	if err != nil {
+		ssoLogger.Warnf("SSO callback at host %s (IdP %s) failed: invalid CSRF cookie: %s", r.Host, oidc.Issuer, err)
+		setSSONoCacheHeaders(w)
+		w.WriteHeader(http.StatusBadRequest)
+		WriteSSOErrorPage(w, "Invalid CSRF Cookie", "", getPathWithPrefix("/"))
+		return
+	}
+	redirectURL = oidc.getRedirectURL(redirectURL)
+
+	// Verify the state parameter matches the value we sent — this binds the
+	// callback to the specific authorization request (CSRF protection).
+	if returnedState := r.URL.Query().Get("state"); returnedState != state {
+		ssoLogger.Warnf("SSO callback at host %s (IdP %s) failed: state mismatch", r.Host, oidc.Issuer)
+		setSSONoCacheHeaders(w)
+		w.WriteHeader(http.StatusBadRequest)
+		WriteSSOErrorPage(w, "Invalid state parameter", "", getPathWithPrefix(redirectURL))
+		return
+	}
+
+	// Handle Authentication Error Response per
+	// https://openid.net/specs/openid-connect-core-1_0.html#AuthResponseValidation
+	if errCode := r.URL.Query().Get("error"); errCode != "" {
+		errDescription := r.URL.Query().Get("error_description")
+		ssoLogger.Warnf("SSO callback at host %s (IdP %s) failed: IdP returned error %q (%s)", r.Host, oidc.Issuer, errCode, errDescription)
+		setSSONoCacheHeaders(w)
+		w.WriteHeader(http.StatusUnauthorized)
+		WriteSSOErrorPage(w, errCode, errDescription, getPathWithPrefix(redirectURL))
+		return
+	}
+
+	code := r.URL.Query().Get("code")
+	if code == "" {
+		ssoLogger.Warnf("SSO callback at host %s (IdP %s) failed: IdP returned no code", r.Host, oidc.Issuer)
+		setSSONoCacheHeaders(w)
+		w.WriteHeader(http.StatusBadRequest)
+		WriteSSOErrorPage(w, "Missing code parameter", "", getPathWithPrefix(redirectURL))
+		return
+	}
+
+	idToken, err := exchangeCodeForIDToken(r.Context(), pm.TokenEndpoint, oidc.ClientID, oidc.ClientSecret, code, oidc.getCallbackURL(r.Host))
+	if err != nil {
+		ssoLogger.Warnf("SSO callback at host %s (IdP %s) failed to exchange code to id_token: %s", r.Host, oidc.Issuer, err)
+		setSSONoCacheHeaders(w)
+		w.WriteHeader(http.StatusBadRequest)
+		WriteSSOErrorPage(w, "Token exchange failed", "", getPathWithPrefix(redirectURL))
+		return
+	}
+
+	// Compute nonceHash from the raw nonce stored in the cookie.
+	// Only the hash was sent to the IdP as the nonce claim in the id_token.
+	h := sha256.Sum256([]byte(nonce))
+	nonceHash := base64.RawURLEncoding.EncodeToString(h[:])
+
+	expiresAt, err := validateIDToken(idToken, pm, oidc.ClientID, nonceHash)
+	if err != nil {
+		ssoLogger.Warnf("SSO callback at host %s (IdP %s) failed to validate id_token: %s", r.Host, oidc.Issuer, err)
+		setSSONoCacheHeaders(w)
+		w.WriteHeader(http.StatusUnauthorized)
+		WriteSSOErrorPage(w, "Token verification failed", "", getPathWithPrefix(redirectURL))
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     ssoCookieName,
+		Value:    idToken,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   oidc.secure(),
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   int(oidc.getSessionDuration(expiresAt).Seconds()),
+	})
+
+	http.Redirect(w, r, getPathWithPrefix(redirectURL), http.StatusFound)
+}
+
+// getSSOAuthTokenFromRequest extracts the SSO session cookie
+func getSSOAuthTokenFromRequest(ac *AuthConfig, r *http.Request) string {
+	if ac == nil || ac.SSO == nil {
+		return ""
+	}
+
+	c, err := r.Cookie(ssoCookieName)
+	if err != nil {
+		return ""
+	}
+	return c.Value
+}

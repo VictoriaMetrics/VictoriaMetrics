@@ -2,6 +2,7 @@ package promql
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"math"
 	"math/rand"
@@ -2298,9 +2299,15 @@ func transformLimitOffset(tfa *transformFuncArg) ([]*timeseries, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot obtain limit arg: %w", err)
 	}
+	if limit < 0 {
+		return nil, fmt.Errorf("limit must not be negative; got %d", limit)
+	}
 	offset, err := getIntNumber(args[1], 1)
 	if err != nil {
 		return nil, fmt.Errorf("cannot obtain offset arg: %w", err)
+	}
+	if offset < 0 {
+		return nil, fmt.Errorf("offset must not be negative; got %d", offset)
 	}
 	// removeEmptySeries so offset will be calculated after empty series
 	// were filtered out.
@@ -2566,6 +2573,11 @@ func isDecimalChar(ch byte) bool {
 func mustParseNum(s string) float64 {
 	f, err := strconv.ParseFloat(s, 64)
 	if err != nil {
+		if errors.Is(err, strconv.ErrRange) {
+			// The number is too large to fit into float64; ParseFloat returns ±Inf in this case.
+			// Use ±Inf for sorting purposes — it is semantically correct.
+			return f
+		}
 		logger.Panicf("BUG: unexpected error when parsing the number %q: %s", s, err)
 	}
 	return f

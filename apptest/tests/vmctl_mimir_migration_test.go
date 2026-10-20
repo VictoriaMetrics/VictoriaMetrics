@@ -75,6 +75,7 @@ func TestClusterVmctlMimirProtocol(t *testing.T) {
 		`--disable-progress-bar=true`,
 		`--vm-concurrency=6`,
 		`--mimir-concurrency=6`,
+		`--vm-account-id=0`,
 	}
 
 	testMimirProtocol(tc, cluster, vmctlFlags)

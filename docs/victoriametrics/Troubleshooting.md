@@ -1,6 +1,7 @@
 ---
 weight: 35
 title: Troubleshooting
+description: "Common issues. High memory usage, slow queries, cardinality problems, ingestion failures."
 menu:
   docs:
     parent: 'victoriametrics'

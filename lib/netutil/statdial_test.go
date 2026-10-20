@@ -1,8 +1,37 @@
 package netutil
 
 import (
+	"errors"
+	"fmt"
+	"net"
 	"testing"
 )
+
+func TestIsUnixSocketDialError(t *testing.T) {
+	f := func(err error, want bool) {
+		t.Helper()
+
+		got := isUnixSocketDialError(err)
+		if got != want {
+			t.Fatalf("unexpected result; got %v; want %v", got, want)
+		}
+	}
+
+	errDial := errors.New("dial error")
+	f(nil, false)
+	f(errDial, false)
+	f(&net.OpError{Op: "dial", Net: "unix", Err: errDial}, false)
+	f(&net.OpError{Op: "dial", Net: "tcp", Addr: &net.TCPAddr{}, Err: errDial}, false)
+
+	errUnix := &net.OpError{
+		Op:   "dial",
+		Net:  "unix",
+		Addr: &net.UnixAddr{Name: "exporter.sock", Net: "unix"},
+		Err:  errDial,
+	}
+	f(errUnix, true)
+	f(fmt.Errorf("wrapped error: %w", errUnix), true)
+}
 
 func TestIsTCPv4Addr(t *testing.T) {
 	f := func(addr string, resultExpected bool) {
