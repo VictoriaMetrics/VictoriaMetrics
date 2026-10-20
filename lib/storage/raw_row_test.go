@@ -2,6 +2,7 @@ package storage
 
 import (
 	"testing"
+	"unsafe"
 )
 
 func TestRawRowsShardReleasesIdleBuffer(t *testing.T) {
@@ -96,5 +97,20 @@ func TestRawRowsShardsFlushCounters(t *testing.T) {
 	rrss.flush(nopFlush, true)
 	if n := rrss.partialFlushes.Load(); n != 1 {
 		t.Fatalf("empty flush must not be counted; got %d partial flushes", n)
+	}
+}
+
+func TestRawRowsShardsCapBytes(t *testing.T) {
+	var rrss rawRowsShards
+	rrss.init()
+	if n := rrss.CapBytes(); n != 0 {
+		t.Fatalf("unexpected capacity of empty shards: %d", n)
+	}
+
+	// A single row allocates the whole shard buffer.
+	rrss.addRows(func([][]rawRow) {}, []rawRow{{Timestamp: 1}})
+	want := maxRawRowsPerShard * int(unsafe.Sizeof(rawRow{}))
+	if n := rrss.CapBytes(); n != want {
+		t.Fatalf("unexpected capacity; got %d; want %d", n, want)
 	}
 }

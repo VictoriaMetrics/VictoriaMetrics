@@ -211,6 +211,27 @@ func (rrss *rawRowsShards) Len() int {
 	return n
 }
 
+// CapBytes returns the size of buffers allocated for pending rows.
+//
+// The difference with Len() * sizeof(rawRow) is the memory reserved, but not used yet.
+func (rrss *rawRowsShards) CapBytes() int {
+	n := 0
+	for i := range rrss.shards {
+		rrs := &rrss.shards[i]
+		rrs.mu.Lock()
+		n += cap(rrs.rows)
+		rrs.mu.Unlock()
+	}
+
+	rrss.rowssToFlushLock.Lock()
+	for _, rows := range rrss.rowssToFlush {
+		n += cap(rows)
+	}
+	rrss.rowssToFlushLock.Unlock()
+
+	return n * int(unsafe.Sizeof(rawRow{}))
+}
+
 func (rrss *rawRowsShards) addRows(flush func([][]rawRow), rows []rawRow) {
 	shards := rrss.shards
 	shardsLen := uint32(len(shards))
