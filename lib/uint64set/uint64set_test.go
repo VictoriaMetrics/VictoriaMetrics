@@ -380,26 +380,6 @@ func testSetBasicOps(t *testing.T, itemsCount int) {
 		}
 	}
 
-	// Verify Items
-	{
-		a := s.Items()
-		if len(a) != itemsCount {
-			t.Fatalf("unexpected len of exported array; got %d; want %d; array:\n%d", len(a), itemsCount, a)
-		}
-		if !sort.SliceIsSorted(a, func(i, j int) bool { return a[i] < a[j] }) {
-			t.Fatalf("unsorted result returned from AppendTo: %d", a)
-		}
-		m := make(map[uint64]bool)
-		for _, x := range a {
-			m[x] = true
-		}
-		for i := range itemsCount {
-			if !m[uint64(i)+offset] {
-				t.Fatalf("missing bit %d in the exported bits; array:\n%d", uint64(i)+offset, a)
-			}
-		}
-	}
-
 	// Verify ForEach
 	{
 		var s Set

@@ -267,26 +267,6 @@ func (s *Set) Del(x uint64) {
 	}
 }
 
-// Items returns all the items from the set.
-//
-// The returned items are sorted.
-func (s *Set) Items() []uint64 {
-	if s == nil {
-		return nil
-	}
-
-	// pre-allocate memory for dst
-	sLen := s.Len()
-	dst := make([]uint64, 0, sLen)
-	// Make shallow copy of `s`, since it can be modified by s.sort().
-	s = s.cloneShallow()
-	s.sort()
-	for i := range s.buckets {
-		dst = s.buckets[i].appendTo(dst)
-	}
-	return dst
-}
-
 // AppendTo appends all the items from the set to dst and returns the result.
 //
 // The returned items are sorted.
