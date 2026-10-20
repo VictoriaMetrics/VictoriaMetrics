@@ -78,6 +78,9 @@ type part struct {
 
 	size uint64
 
+	// filterSizeBytes is the size of the part filter file on disk.
+	filterSizeBytes uint64
+
 	mrs                []metaindexRow
 	metaindexSizeBytes uint64
 
@@ -86,9 +89,21 @@ type part struct {
 	lensFile  fs.MustReadAtCloser
 }
 
-func mustOpenFilePart(path string) *part {
+func mustOpenFilePart(path string, loadFilter bool) *part {
 	var ph partHeader
 	ph.MustReadMetadata(path)
+	if loadFilter {
+		// Read and validate only the filter directory here. Filter segments are
+		// loaded on demand and are cached in pfbCache.
+		//
+		// Missing, unreadable and invalid filters are ignored, so the part is
+		// searched instead of being filtered.
+		filter, err := mustOpenPartFilter(path)
+		if err != nil {
+			logger.Warnf("cannot open the part filter at %q, so the part is searched instead of being filtered: %s", path, err)
+		}
+		ph.filter = filter
+	}
 
 	metaindexPath := filepath.Join(path, metaindexFilename)
 	metaindexFile := filestream.MustOpen(metaindexPath, true)
@@ -121,7 +136,9 @@ func mustOpenFilePart(path string) *part {
 	pro.Run()
 
 	size := metaindexSize + indexSize + itemsSize + lensSize
-	return newPart(&ph, path, size, metaindexFile, indexFile, itemsFile, lensFile)
+	p := newPart(&ph, path, size, metaindexFile, indexFile, itemsFile, lensFile)
+	p.filterSizeBytes = ph.filter.sizeBytes()
+	return p
 }
 
 func newPart(ph *partHeader, path string, size uint64, metaindexReader filestream.ReadCloser, indexFile, itemsFile, lensFile fs.MustReadAtCloser) *part {
@@ -155,9 +172,12 @@ func (p *part) MustClose() {
 	}
 	fs.MustCloseParallel(cs)
 
+	p.ph.filter.mustClose()
+
 	idxbCache.RemoveBlocksForPart(p)
 	ibCache.RemoveBlocksForPart(p)
 	ibSparseCache.RemoveBlocksForPart(p)
+	pfbCache.RemoveBlocksForPart(p)
 }
 
 func metaindexSizeBytes(mrs []metaindexRow) uint64 {

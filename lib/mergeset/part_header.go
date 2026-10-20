@@ -23,6 +23,11 @@ type partHeader struct {
 
 	// The last item in the part.
 	lastItem []byte
+
+	// filter is an optional negative lookup filter for the part.
+	//
+	// It is nil when the filter is disabled or when it cannot be used.
+	filter *partFilter
 }
 
 type partHeaderJSON struct {
@@ -64,6 +69,7 @@ func (ph *partHeader) Reset() {
 	ph.blocksCount = 0
 	ph.firstItem = ph.firstItem[:0]
 	ph.lastItem = ph.lastItem[:0]
+	ph.filter = nil
 }
 
 func (ph *partHeader) String() string {
@@ -76,6 +82,7 @@ func (ph *partHeader) CopyFrom(src *partHeader) {
 	ph.blocksCount = src.blocksCount
 	ph.firstItem = append(ph.firstItem[:0], src.firstItem...)
 	ph.lastItem = append(ph.lastItem[:0], src.lastItem...)
+	ph.filter = src.filter
 }
 
 func (ph *partHeader) MustReadMetadata(partPath string) {
