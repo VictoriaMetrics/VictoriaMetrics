@@ -129,7 +129,7 @@ The provided [ZIP file](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/
 
 Thank you for your cooperation!
 
-### Join the team
+## Join the team
 
 We're hiring engineers who share the same [development goals](https://docs.victoriametrics.com/victoriametrics/goals/) as we do: practical improvements, simple solutions, and happy users.
 
