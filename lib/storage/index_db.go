@@ -594,10 +594,10 @@ func (db *indexDB) searchLabelNames(ctx context.Context, qt *querytracer.Tracer,
 	lns := make(map[string]struct{})
 	qt = qt.NewChild("parallel search for label names: filters=%s, timeRange=%s", tfss, &tr)
 	for date := minDate; date <= maxDate; date++ {
-		qtChild := qt.NewChild("search for label names: filters=%s, date=%s", tfss, dateToString(date))
 		if errCtx = beginConcurrentPerDaySearch(ctx); errCtx != nil {
 			break
 		}
+		qtChild := qt.NewChild("search for label names: filters=%s, date=%s", tfss, dateToString(date))
 		wg.Go(func() {
 			defer qtChild.Done()
 			defer endConcurrentPerDaySearch()
@@ -890,10 +890,10 @@ func (db *indexDB) searchLabelValuesForTimeRange(ctx context.Context, qt *queryt
 	lvs := make(map[string]struct{})
 	qt = qt.NewChild("parallel search for label values: labelName=%q, filters=%s, timeRange=%s", labelName, tfss, &tr)
 	for date := minDate; date <= maxDate; date++ {
-		qtChild := qt.NewChild("search for label values: filters=%s, date=%s", tfss, dateToString(date))
 		if errCtx = beginConcurrentPerDaySearch(ctx); errCtx != nil {
 			break
 		}
+		qtChild := qt.NewChild("search for label values: filters=%s, date=%s", tfss, dateToString(date))
 		wg.Go(func() {
 			defer qtChild.Done()
 			defer endConcurrentPerDaySearch()
@@ -1124,10 +1124,10 @@ func (is *indexSearch) searchTagValueSuffixesForTimeRange(ctx context.Context, t
 	var mu sync.Mutex // protects tvss + errGlobal from concurrent access below.
 	tvss := make(map[string]struct{})
 	for minDate <= maxDate {
-		date := minDate
 		if errCtx = beginConcurrentPerDaySearch(ctx); errCtx != nil {
 			break
 		}
+		date := minDate
 		wg.Go(func() {
 			defer endConcurrentPerDaySearch()
 
@@ -1980,11 +1980,11 @@ func (db *indexDB) searchTSIDs(ctx context.Context, qt *querytracer.Tracer, tfss
 	qt = qt.NewChild("search TSIDs in per-day index concurrently on %d days", numDays)
 	defer qt.Done()
 	for day := range numDays {
-		date := minDate + uint64(day)
-		qtChild := qt.NewChild("search TSIDs in per-day index: filters=%s, date=%s", tfss, dateToString(date))
 		if errCtx = beginConcurrentPerDaySearch(ctx); errCtx != nil {
 			break
 		}
+		date := minDate + uint64(day)
+		qtChild := qt.NewChild("search TSIDs in per-day index: filters=%s, date=%s", tfss, dateToString(date))
 		wg.Go(func() {
 			defer qtChild.Done()
 			defer endConcurrentPerDaySearch()
@@ -2141,11 +2141,11 @@ func (db *indexDB) searchMetricNames(ctx context.Context, qt *querytracer.Tracer
 	qt = qt.NewChild("search metric names in per-day index concurrently on %d days", numDays)
 	defer qt.Done()
 	for day := range numDays {
-		date := minDate + uint64(day)
-		qtChild := qt.NewChild("search metric names in per-day index: filters=%s, date=%s", tfss, dateToString(date))
 		if errCtx = beginConcurrentPerDaySearch(ctx); errCtx != nil {
 			break
 		}
+		date := minDate + uint64(day)
+		qtChild := qt.NewChild("search metric names in per-day index: filters=%s, date=%s", tfss, dateToString(date))
 		wg.Go(func() {
 			defer qtChild.Done()
 			defer endConcurrentPerDaySearch()
