@@ -17,7 +17,6 @@ const ControlsMainLayout: FC<ControlsProps> = ({
   displaySidebar,
   isMobile,
   headerSetup,
-  accountIds,
 }) => {
   const settingsRef = useRef<GlobalSettingsHandle>(null);
 
@@ -41,7 +40,7 @@ const ControlsMainLayout: FC<ControlsProps> = ({
         "vm-header-controls_mobile": isMobile,
       })}
     >
-      {headerSetup?.tenant && <TenantsConfiguration accountIds={accountIds || []}/>}
+      {headerSetup?.tenant && <TenantsConfiguration />}
       {headerSetup?.stepControl && <StepConfigurator/>}
       {headerSetup?.timeSelector && <TimeSelector onOpenSettings={() => settingsRef.current?.open()}/>}
       {headerSetup?.cardinalityDatePicker && <CardinalityDatePicker/>}

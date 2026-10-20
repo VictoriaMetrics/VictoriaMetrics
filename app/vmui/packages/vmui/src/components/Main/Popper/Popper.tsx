@@ -7,7 +7,8 @@ import {
   useRef,
   useState,
   useCallback,
-  createPortal
+  createPortal,
+  useLayoutEffect
 } from "react";
 import classNames from "classnames";
 import "./style.scss";
@@ -71,14 +72,6 @@ const Popper: FC<PopperProps> = ({
     };
   }, [open]);
 
-  useEffect(() => {
-    setPopperSize({
-      width: popperRef?.current?.clientWidth || 0,
-      height: popperRef?.current?.clientHeight || 0
-    });
-    setIsOpen(false);
-  }, [popperRef]);
-
   const popperStyle = useMemo(() => {
     if (!buttonRef) return {};
     const buttonEl = buttonRef.current;
@@ -100,7 +93,7 @@ const Popper: FC<PopperProps> = ({
     const offsetTop = offset?.top || 0;
     const offsetLeft = offset?.left || 0;
 
-    position.left = position.left = buttonPos.left + offsetLeft;
+    position.left = buttonPos.left + offsetLeft;
     position.top = buttonPos.height + buttonPos.top + offsetTop;
 
     if (needAlignRight) position.left = buttonPos.right - popperSize.width;
@@ -130,7 +123,18 @@ const Popper: FC<PopperProps> = ({
     if (position.left < 0) position.left = 0;
 
     return position;
-  }, [buttonRef, placement, isOpen, children, fullWidth]);
+  }, [
+    buttonRef,
+    placement,
+    isOpen,
+    popperSize.width,
+    popperSize.height,
+    fullWidth,
+    offset.top,
+    offset.left,
+    placementPosition?.top,
+    placementPosition?.left,
+  ]);
 
   const handleClickClose = (e: ReactMouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
@@ -147,14 +151,34 @@ const Popper: FC<PopperProps> = ({
     handleClose();
   };
 
-  useEffect(() => {
-    if (!popperRef.current || !isOpen || (isMobile && !disabledFullScreen)) return;
-    const { right, width } = popperRef.current.getBoundingClientRect();
-    if (right > window.innerWidth) {
-      const left = window.innerWidth - width;
-      popperRef.current.style.left = `${left}px`;
-    }
-  }, [isOpen, popperRef, placementPosition]);
+  useLayoutEffect(() => {
+    const element = popperRef.current;
+
+    if (!element || !isOpen) return;
+
+    const updateSize = () => {
+      const width = element.offsetWidth;
+      const height = element.offsetHeight;
+
+      setPopperSize(prev => {
+        if (
+          prev.width === width &&
+          prev.height === height
+        ) {
+          return prev;
+        }
+
+        return { width, height };
+      });
+    };
+
+    const observer = new ResizeObserver(updateSize);
+
+    observer.observe(element);
+    updateSize();
+
+    return () => observer.disconnect();
+  }, [isOpen]);
 
   const handlePopstate = useCallback(() => {
     if (isOpen && isMobile && !disabledFullScreen) {
@@ -173,7 +197,7 @@ const Popper: FC<PopperProps> = ({
 
   return (
     <>
-      {(isOpen || !popperSize.width) && createPortal((
+      {isOpen && createPortal((
         <div
           className={classNames({
             "vm-popper": true,
