@@ -26,7 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
-**Update Note 1:** `vmstorage` and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): introduce a minor change to the vmselect protocol. During the upgrade, `vmstorage` may emit warning and error log messages matching the following patterns: `cannot process vmselect conn...: broken pipe`, `unsupported rpcName: "\x01"` and `unsupported rpcName: "\x18"`. This change is not breaking and only results in excessive log messages.
+**Update Note 1:** `vmstorage` and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): introduce a minor change to the vmselect protocol. During the upgrade, `vmstorage` may emit warning and error log messages matching the following patterns: `cannot process vmselect conn...: broken pipe` and `unsupported rpcName: "\x18"`. This change is not breaking and only results in excessive log messages.
 
 * FEATURE: all VictoriaMetrics components: expose `process_cpu_cores_host`, `process_cpu_cores_cgroup_quota`, `process_memory_host_bytes` and `process_memory_cgroup_bytes` metrics. Cgroup metrics are `-1` if no cgroup limit is set or the limit cannot be read. See [#11460](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11460).
 * FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): deprecate Server URL editing and show a warning when using a saved custom URL. Existing custom URLs continue to work. See [#11735](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11735).
