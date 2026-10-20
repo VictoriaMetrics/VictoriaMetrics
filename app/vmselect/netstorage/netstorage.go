@@ -3110,6 +3110,7 @@ func (sn *storageNode) processSearchQueryOnConn(ctx context.Context, bc *handsha
 	blocksRead := 0
 	for {
 		if err := ctx.Err(); err != nil {
+			// request was canceled, drain the remaining data from the connection.
 			if errors.Is(err, context.Canceled) {
 				return drainMetricBlocks(ctx, buf, bc)
 			}
@@ -3132,19 +3133,22 @@ func (sn *storageNode) processSearchQueryOnConn(ctx context.Context, bc *handsha
 }
 
 func drainMetricBlocks(ctx context.Context, buf []byte, bc *handshake.BufferedConn) error {
-	// write cancel request marker, so server can abort request.
-	buf = append(buf[:0], handshake.CancelRequestMarker)
-	if err := writeBytes(bc, buf[:1]); err != nil {
-		return fmt.Errorf("cannot write request cancel marker: %w", err)
-	}
-	if err := bc.Flush(); err != nil {
-		return fmt.Errorf("cannot flush request cancel marker: %w", err)
+	// write and flush the cancel request marker, so the server can abort the request
+	// and the connection can be re-used.
+	if err := writeCancelRequestMarker(buf, bc); err != nil {
+		return err
 	}
 	deadline, ok := ctx.Deadline()
 	if !ok {
 		logger.Panicf("BUG: context must have deadline defined")
 	}
-	// make sure that drain loop below cannot exceed exist deadline.
+	// limit the max drain time: it's faster to establish a new connection
+	// if vmstorage doesn't stop sending blocks within maxDrainDuration.
+	const maxDrainDuration = 5 * time.Second
+	maxDrainDeadline := time.Now().Add(maxDrainDuration)
+	if deadline.After(maxDrainDeadline) {
+		deadline = maxDrainDeadline
+	}
 	if err := bc.SetReadDeadline(deadline); err != nil {
 		return fmt.Errorf("cannot set bc read deadline: %w", err)
 	}
@@ -3155,11 +3159,21 @@ func drainMetricBlocks(ctx context.Context, buf []byte, bc *handshake.BufferedCo
 			return fmt.Errorf("cannot drain MetricBlocks: %w", err)
 		}
 		if len(buf) == 0 {
-			// mark connection as safe to re-use
-			// data was fully drained from it
+			// data was fully drained, so the connection is safe to re-use.
 			return &errCancel{origin: ctx.Err()}
 		}
 	}
+}
+
+func writeCancelRequestMarker(buf []byte, bc *handshake.BufferedConn) error {
+	buf = append(buf[:0], handshake.CancelRequestMarker)
+	if err := writeBytes(bc, buf[:1]); err != nil {
+		return fmt.Errorf("cannot write request cancel marker: %w", err)
+	}
+	if err := bc.Flush(); err != nil {
+		return fmt.Errorf("cannot flush request cancel marker: %w", err)
+	}
+	return nil
 }
 
 type errCancel struct {

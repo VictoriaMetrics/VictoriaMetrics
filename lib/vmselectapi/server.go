@@ -1325,6 +1325,7 @@ type connMonitor struct {
 }
 
 func (cm *connMonitor) watch() {
+	// reset the read deadline on bufferedConn, since it may already have buffered data from the connection.
 	if err := cm.bc.SetReadDeadline(time.Time{}); err != nil {
 		logger.Errorf("connMonitor: cannot set empty read deadline for the connection %q: %s", cm.bc.RemoteAddr(), err)
 	}
@@ -1334,7 +1335,7 @@ func (cm *connMonitor) watch() {
 		// because client could write request cancel marker into buffer.
 		// It covers multiple cases - if stop() called, client closes connection or client sends cancel marker.
 		//
-		// buf holds space for the marker written with vmselect/netstorage/writeBytes
+		// buf holds space for the marker written with app/vmselect/netstorage/writeBytes.
 		var buf [9]byte
 		n, err := io.ReadFull(cm.bc, buf[:])
 		if err != nil {
@@ -1345,7 +1346,7 @@ func (cm *connMonitor) watch() {
 		if n == 9 && buf[8] == handshake.CancelRequestMarker {
 			cm.canceledByClientMarker.Store(true)
 		} else if n > 0 {
-			logger.Warnf("connMonitor: unexpected non empty read from remote addr: %s", cm.bc.RemoteAddr())
+			logger.Warnf("connMonitor: unexpected non-empty read=%q from remote addr: %s", buf[:n], cm.bc.RemoteAddr())
 		}
 		if !cm.stopped.CompareAndSwap(false, true) {
 			return
@@ -1357,13 +1358,13 @@ func (cm *connMonitor) watch() {
 func (cm *connMonitor) stop() {
 	if cm.stopped.CompareAndSwap(false, true) {
 		cm.cancel()
-		// unblock watcher Conn with read timeout error
+		// unblock the watcher's read with a timeout error.
 		if err := cm.bc.Conn.SetReadDeadline(timeLongBefore); err != nil {
 			logger.Errorf("connMonitor: cannot set read deadline for the connection %q: %s", cm.bc.RemoteAddr(), err)
 		}
 	}
 	cm.wg.Wait()
-	// restore buffered connection deadline to empty value
+	// restore bufferedConn deadline changed by cm.watch().
 	if err := cm.bc.SetReadDeadline(time.Time{}); err != nil {
 		logger.Errorf("connMonitor: cannot set empty read deadline for the connection %q: %s", cm.bc.RemoteAddr(), err)
 	}
