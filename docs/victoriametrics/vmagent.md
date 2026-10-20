@@ -1145,8 +1145,9 @@ before it receives any samples. It may also read buffered data on startup and wr
 data to this directory on graceful shutdown. The flag disables on-disk buffering when the remote storage
 cannot keep up with ingestion; it does not disable all filesystem writes.
 
-When running with `readOnlyRootFilesystem: true` in Kubernetes, mount a writable volume at the path
-specified by `-remoteWrite.tmpDataPath`. Use a persistent volume to preserve buffered data across Pod replacement.
+When running with `readOnlyRootFilesystem: true` in Kubernetes, set
+`-remoteWrite.tmpDataPath=/vmagent-remotewrite-data` and mount a writable volume with
+`volumeMounts.mountPath: /vmagent-remotewrite-data`. Use a persistent volume to preserve buffered data across Pod replacement.
 An [`emptyDir` volume](https://kubernetes.io/docs/concepts/storage/volumes/#emptydir) allows startup with a read-only root filesystem, but any data buffered there is lost
 when the Pod is removed.
 
