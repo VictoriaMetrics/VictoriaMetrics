@@ -41,12 +41,12 @@ Other errors, such as an unsupported URL path, can return a plain-text body.
 
 | Status code | Meaning and examples |
 | --- | --- |
-| `200 OK` | The request succeeded. For example, query APIs return query results with this code. |
-| `204 No Content` | The endpoint completed without a response body. For example, remote write and import endpoints use this code. |
+| `200 OK` | The request succeeded. For example, query APIs return query results with this code. The `vmagent` Pushgateway-style `/api/v1/import/prometheus/metrics/job/...` endpoint also returns this code. |
+| `204 No Content` | The endpoint completed without a response body. For example, remote write and most import endpoints use this code. |
 | `400 Bad Request` | The request has missing or invalid parameters, such as a missing `query`, invalid query syntax, or an invalid timestamp. Unsupported URL paths also return this code. Check the endpoint, parameters, and response body before retrying. |
 | `401 Unauthorized` | Authentication is missing or incorrect. For example, an endpoint protected by an `authKey` returns this code if the key is missing or does not match. |
 | `405 Method Not Allowed` | The endpoint does not support the HTTP method. For example, `/api/v1/admin/tsdb/delete_series` requires `POST`. |
-| `422 Unprocessable Entity` | A query cannot be executed. For example, a range query can exceed `-search.maxPointsPerTimeseries`. Check the error message and [resource usage limits](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#resource-usage-limits). |
+| `422 Unprocessable Entity` | A query cannot be executed. For example, a range query can exceed `-search.maxPointsPerTimeseries`. Check the error message and the [single-node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#resource-usage-limits) or [cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#resource-usage-limits) resource usage limits. |
 | `429 Too Many Requests` | A query could not start before `-search.maxQueueDuration` or its query timeout elapsed because `-search.maxConcurrentRequests` queries were already running. Reduce the query load or review these limits. `vmagent` can also return this code when its remote write queue is full with [on-disk persistence disabled](https://docs.victoriametrics.com/victoriametrics/vmagent/#disabling-on-disk-persistence). |
 | `501 Not Implemented` | The requested operation is disabled. For example, Graphite tag registration endpoints `/tags/tagSeries` and `/tags/tagMultiSeries` return this code. |
 | `503 Service Unavailable` | A request cannot currently be served. For example, ingestion can return this code when data cannot be written to storage, and `/health` returns it during the `-http.shutdownDelay` period. Check the response body and component logs. |
