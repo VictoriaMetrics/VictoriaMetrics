@@ -607,7 +607,8 @@ func (c *vmselectClient) PrometheusAPIV1AdminStatusMetricNamesStatsReset(t *test
 // /admin/tenants endpoint.
 func (c *vmselectClient) APIV1AdminTenants(t *testing.T, opts QueryOpts) *AdminTenantsResponse {
 	t.Helper()
-	res, statusCode := c.cli.Get(t, c.tenantsURL, opts.Headers)
+	values := opts.asURLValues()
+	res, statusCode := c.cli.PostForm(t, c.tenantsURL, values, opts.Headers)
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusOK, res)
 	}
