@@ -11,6 +11,27 @@ import (
 	influx "github.com/influxdata/influxdb/client/v2"
 )
 
+const (
+	// VersionV1 is InfluxDB 1.x, queried via its native /query endpoint.
+	VersionV1 = 1
+
+	// VersionV2 is InfluxDB 2.x, queried via its InfluxDB 1.x compatibility
+	// API. It authenticates with an API token instead of a password.
+	//
+	// See https://docs.influxdata.com/influxdb/v2/api-guide/influxdb-1x/
+	VersionV2 = 2
+
+	// defaultV1CompatUser is sent as the username when migrating from InfluxDB 2.x
+	// with an API token.
+	//
+	// The InfluxDB 1.x compatibility API requires a username whenever an API token
+	// is used as the password, but the value itself is ignored.
+	// See https://docs.influxdata.com/influxdb/v2/api-guide/influxdb-1x/
+	defaultV1CompatUser = "vmctl"
+
+	defaultRetentionV1 = "autogen"
+)
+
 // Client represents a wrapper over
 // influx HTTP client
 type Client struct {
@@ -27,7 +48,9 @@ type Client struct {
 // Config contains fields required
 // for Client configuration
 type Config struct {
+	Version   int
 	Addr      string
+	Token     string
 	Username  string
 	Password  string
 	Database  string
@@ -88,10 +111,18 @@ type LabelPair struct {
 // NewClient creates and returns influx client
 // configured with passed Config
 func NewClient(cfg Config) (*Client, error) {
+	if err := cfg.validate(); err != nil {
+		return nil, err
+	}
+
+	// InfluxDB 2.x authenticates with an API token passed as the password
+	// of its InfluxDB 1.x compatibility API.
+	username, password := resolveAuth(cfg.Username, cfg.Password, cfg.Token)
+
 	c := influx.HTTPConfig{
 		Addr:      cfg.Addr,
-		Username:  cfg.Username,
-		Password:  cfg.Password,
+		Username:  username,
+		Password:  password,
 		TLSConfig: cfg.TLSConfig,
 	}
 	hc, err := influx.NewHTTPClient(c)
@@ -99,6 +130,7 @@ func NewClient(cfg Config) (*Client, error) {
 		return nil, fmt.Errorf("failed to establish conn: %w", err)
 	}
 	if _, _, err := hc.Ping(time.Second); err != nil {
+		_ = hc.Close()
 		return nil, fmt.Errorf("ping failed: %w", err)
 	}
 
@@ -110,7 +142,7 @@ func NewClient(cfg Config) (*Client, error) {
 	client := &Client{
 		Client:       hc,
 		database:     cfg.Database,
-		retention:    cfg.Retention,
+		retention:    resolveRetention(cfg.Version, cfg.Retention),
 		chunkSize:    chunkSize,
 		filterTime:   timeFilter(cfg.Filter.TimeStart, cfg.Filter.TimeEnd),
 		filterSeries: cfg.Filter.Series,
@@ -463,4 +495,53 @@ func (c *Client) do(q influx.Query) ([]queryValues, error) {
 		return nil, fmt.Errorf("query returned 0 results")
 	}
 	return parseResult(res.Results[0])
+}
+
+// resolveAuth returns the credentials to authenticate with.
+//
+// InfluxDB 2.x is queried via its InfluxDB 1.x compatibility API, which accepts
+// an API token in place of the password. Therefore a non-empty token replaces
+// the password, and a placeholder username is substituted when none is given.
+func resolveAuth(username, password, token string) (string, string) {
+	if token == "" {
+		return username, password
+	}
+	if username == "" {
+		username = defaultV1CompatUser
+	}
+	return username, token
+}
+
+// resolveRetention returns the retention policy to query.
+//
+// In InfluxDB 1.x `autogen` is the retention policy created together with a
+// database, so it is a meaningful default. In InfluxDB 2.x the retention policy
+// is one half of a DBRP mapping and its name is arbitrary, so no default can be
+// assumed: an empty value makes InfluxDB use the default mapping of the
+// database instead of failing on a non-existent one.
+func resolveRetention(version int, retention string) string {
+	if retention == "" && version == VersionV1 {
+		return defaultRetentionV1
+	}
+	return retention
+}
+
+// validate checks that the configuration is self-consistent.
+func (cfg *Config) validate() error {
+	if cfg.Version != VersionV1 && cfg.Version != VersionV2 {
+		return fmt.Errorf("unsupported InfluxDB version %d; supported versions are %d and %d",
+			cfg.Version, VersionV1, VersionV2)
+	}
+	if cfg.Version == VersionV2 && cfg.Token == "" {
+		return fmt.Errorf("-influx-token is required for InfluxDB v2")
+	}
+	if cfg.Version == VersionV1 && cfg.Token != "" {
+		return fmt.Errorf("-influx-token is only supported for InfluxDB v2; pass -influx-version=2 to use it")
+	}
+	// The database is the `db` parameter of the query API. For InfluxDB 2.x
+	// it is the database name of a DBRP mapping, which points at a bucket.
+	if cfg.Database == "" {
+		return fmt.Errorf("-influx-database cannot be empty")
+	}
+	return nil
 }

@@ -142,7 +142,9 @@ func main() {
 					}
 
 					iCfg := influx.Config{
+						Version:   c.Int(influxVersion),
 						Addr:      c.String(influxAddr),
+						Token:     c.String(influxToken),
 						Username:  c.String(influxUser),
 						Password:  c.String(influxPassword),
 						Database:  c.String(influxDB),

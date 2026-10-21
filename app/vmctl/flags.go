@@ -311,6 +311,8 @@ var (
 
 const (
 	influxAddr                      = "influx-addr"
+	influxVersion                   = "influx-version"
+	influxToken                     = "influx-token"
 	influxUser                      = "influx-user"
 	influxPassword                  = "influx-password"
 	influxDB                        = "influx-database"
@@ -337,6 +339,19 @@ var (
 			Value: "http://localhost:8086",
 			Usage: "InfluxDB server addr",
 		},
+		&cli.IntFlag{
+			Name: influxVersion,
+			Usage: "Major version of the source InfluxDB: 1 or 2.\n" +
+				"InfluxDB 2.x is migrated via its InfluxDB 1.x compatibility API, which requires -influx-token " +
+				"and a database/retention policy mapping (DBRP) pointing at the bucket to migrate.\n" +
+				"See https://docs.influxdata.com/influxdb/v2/api-guide/influxdb-1x/",
+			Value: 1,
+		},
+		&cli.StringFlag{
+			Name:    influxToken,
+			Usage:   "InfluxDB v2 API token. Requires -influx-version=2",
+			EnvVars: []string{"INFLUX_TOKEN"},
+		},
 		&cli.StringFlag{
 			Name:    influxUser,
 			Usage:   "InfluxDB user",
@@ -353,9 +368,11 @@ var (
 			Required: true,
 		},
 		&cli.StringFlag{
-			Name:  influxRetention,
-			Usage: "InfluxDB retention policy",
-			Value: "autogen",
+			Name: influxRetention,
+			Usage: "InfluxDB retention policy.\n" +
+				"Defaults to 'autogen' for -influx-version=1.\n" +
+				"For -influx-version=2 it is the retention policy of a DBRP mapping; if empty, " +
+				"the default mapping of -influx-database is used",
 		},
 		&cli.IntFlag{
 			Name:  influxChunkSize,
