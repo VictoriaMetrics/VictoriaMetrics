@@ -608,11 +608,11 @@ func (c *vmselectClient) PrometheusAPIV1AdminStatusMetricNamesStatsReset(t *test
 func (c *vmselectClient) APIV1AdminTenants(t *testing.T, opts QueryOpts) *AdminTenantsResponse {
 	t.Helper()
 	values := opts.asURLValues()
-url := c.tenantsURL
-if query := values.Encode(); query != "" {
-	url += "?" + query
-}
-res, statusCode := c.cli.Get(t, url, opts.Headers)
+	url := c.tenantsURL
+	if query := values.Encode(); query != "" {
+		url += "?" + query
+	}
+	res, statusCode := c.cli.Get(t, url, opts.Headers)
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusOK, res)
 	}
