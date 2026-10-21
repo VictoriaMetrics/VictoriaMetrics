@@ -56,26 +56,10 @@ func ParseJWKs(rawResp []byte) (*VerifierPool, error) {
 		}
 		switch key.Kty {
 		case "RSA":
-			if key.E == "" || key.N == "" {
-				return nil, fmt.Errorf("jwks key without e or n found")
-			}
-			e, err := base64.RawURLEncoding.DecodeString(key.E)
+			k, err := parseRSAPublicKey(&key)
 			if err != nil {
-				return nil, fmt.Errorf("failed to decode jwks key e: %w", err)
-			}
-			exp := big.NewInt(0).SetBytes(e)
-			if !exp.IsInt64() || exp.Int64() < 1 {
-				return nil, fmt.Errorf("invalid RSA exponent")
-			}
-
-			n, err := base64.RawURLEncoding.DecodeString(key.N)
-			if err != nil {
-				return nil, fmt.Errorf("failed to decode jwks key n: %w", err)
-			}
-
-			k := &rsa.PublicKey{
-				E: int(exp.Int64()),
-				N: big.NewInt(0).SetBytes(n),
+				logger.Warnf("skipping JWKS RSA key kid=%s: %s", key.Kid, err)
+				continue
 			}
 
 			if slices.Contains(rsaAlgs, key.Alg) {
@@ -146,31 +130,10 @@ func ParseJWKs(rawResp []byte) (*VerifierPool, error) {
 				})
 			}
 		case "EC":
-			if key.Crv == "" || key.X == "" || key.Y == "" {
-				return nil, fmt.Errorf("jwks key without crv or x or y found")
-			}
-			decX, err := base64.RawURLEncoding.DecodeString(key.X)
+			k, alg, err := parseECPublicKey(&key)
 			if err != nil {
-				return nil, fmt.Errorf("failed to decode jwks key x: %w", err)
-			}
-			decY, err := base64.RawURLEncoding.DecodeString(key.Y)
-			if err != nil {
-				return nil, fmt.Errorf("failed to decode jwks key y: %w", err)
-			}
-			var curve elliptic.Curve
-			var alg Algorithm
-			switch key.Crv {
-			case "P-256":
-				curve = elliptic.P256()
-				alg = ES256
-			case "P-384":
-				curve = elliptic.P384()
-				alg = ES384
-			case "P-521":
-				curve = elliptic.P521()
-				alg = ES512
-			default:
-				return nil, fmt.Errorf("jwk %s crv %q unsupported", key.Kty, key.Crv)
+				logger.Warnf("skipping JWKS EC key kid=%s: %s", key.Kid, err)
+				continue
 			}
 
 			if key.Alg != "" && key.Alg != string(alg) {
@@ -179,18 +142,6 @@ func ParseJWKs(rawResp []byte) (*VerifierPool, error) {
 				}
 				logger.Warnf("skipping JWKS EC key kid=%s: alg=%s does not match curve=%s", key.Kid, key.Alg, key.Crv)
 				continue
-			}
-
-			x := big.NewInt(0).SetBytes(decX)
-			y := big.NewInt(0).SetBytes(decY)
-			if !curve.IsOnCurve(x, y) {
-				return nil, fmt.Errorf("jwk %s key invalid; x,y are not on curve %s", key.Kty, key.Crv)
-			}
-
-			k := &ecdsa.PublicKey{
-				Curve: curve,
-				X:     x,
-				Y:     y,
 			}
 
 			v, err := newVerifierES(alg, k)
@@ -205,7 +156,8 @@ func ParseJWKs(rawResp []byte) (*VerifierPool, error) {
 				kid: key.Kid,
 			})
 		default:
-			return nil, fmt.Errorf("unsupported jwk.KTY: %s; want RSA or EC", key.Kty)
+			// Unsupported key types should be ignored, see https://www.rfc-editor.org/rfc/rfc7517#section-5
+			logger.Warnf("skipping JWKS key kid=%s with unsupported kty=%s; supported: RSA, EC", key.Kid, key.Kty)
 		}
 	}
 
@@ -213,4 +165,68 @@ func ParseJWKs(rawResp []byte) (*VerifierPool, error) {
 		matchKid: true,
 		vs:       vs,
 	}, nil
+}
+
+// parseRSAPublicKey and parseECPublicKey return an error for keys that must be skipped:
+// keys with unsupported parameters, missing required members or invalid values.
+// See https://www.rfc-editor.org/rfc/rfc7517#section-5
+func parseRSAPublicKey(key *jwk) (*rsa.PublicKey, error) {
+	if key.E == "" || key.N == "" {
+		return nil, fmt.Errorf("missing e or n")
+	}
+	e, err := base64.RawURLEncoding.DecodeString(key.E)
+	if err != nil {
+		return nil, fmt.Errorf("cannot decode e: %w", err)
+	}
+	exp := big.NewInt(0).SetBytes(e)
+	if !exp.IsInt64() || exp.Int64() < 1 {
+		return nil, fmt.Errorf("invalid exponent")
+	}
+	n, err := base64.RawURLEncoding.DecodeString(key.N)
+	if err != nil {
+		return nil, fmt.Errorf("cannot decode n: %w", err)
+	}
+	return &rsa.PublicKey{
+		E: int(exp.Int64()),
+		N: big.NewInt(0).SetBytes(n),
+	}, nil
+}
+
+func parseECPublicKey(key *jwk) (*ecdsa.PublicKey, Algorithm, error) {
+	var curve elliptic.Curve
+	var alg Algorithm
+	switch key.Crv {
+	case "P-256":
+		curve = elliptic.P256()
+		alg = ES256
+	case "P-384":
+		curve = elliptic.P384()
+		alg = ES384
+	case "P-521":
+		curve = elliptic.P521()
+		alg = ES512
+	default:
+		return nil, "", fmt.Errorf("unsupported crv=%q; supported: P-256, P-384, P-521", key.Crv)
+	}
+	if key.X == "" || key.Y == "" {
+		return nil, "", fmt.Errorf("missing x or y")
+	}
+	decX, err := base64.RawURLEncoding.DecodeString(key.X)
+	if err != nil {
+		return nil, "", fmt.Errorf("cannot decode x: %w", err)
+	}
+	decY, err := base64.RawURLEncoding.DecodeString(key.Y)
+	if err != nil {
+		return nil, "", fmt.Errorf("cannot decode y: %w", err)
+	}
+	x := big.NewInt(0).SetBytes(decX)
+	y := big.NewInt(0).SetBytes(decY)
+	if !curve.IsOnCurve(x, y) {
+		return nil, "", fmt.Errorf("x,y are not on curve %s", key.Crv)
+	}
+	return &ecdsa.PublicKey{
+		Curve: curve,
+		X:     x,
+		Y:     y,
+	}, alg, nil
 }
