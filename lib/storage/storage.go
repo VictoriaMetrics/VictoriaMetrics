@@ -69,6 +69,13 @@ type Storage struct {
 	maxBackfillAgeMsecs         int64
 	denyQueriesOutsideRetention bool
 
+	// mergeTrim clips samples during merge to [mergeTrimMinTimestamp, mergeTrimMaxTimestamp).
+	// Used only by windowed backup on a snapshot copy. Atomic: backup goroutine
+	// writes these while merge workers may read them.
+	mergeTrimEnabled      atomic.Bool
+	mergeTrimMinTimestamp atomic.Int64
+	mergeTrimMaxTimestamp atomic.Int64
+
 	// lock file for exclusive access to the storage on the given path.
 	flockF *os.File
 
@@ -82,6 +89,12 @@ type Storage struct {
 	legacyIndexDBs atomic.Pointer[legacyIndexDBs]
 
 	disablePerDayIndex bool
+
+	// disableBackgroundMerges skips ordinary part-merger goroutines.
+	disableBackgroundMerges bool
+
+	// backgroundMergesStarted counts ordinary part-merger goroutines launched.
+	backgroundMergesStarted atomic.Uint64
 
 	tb *table
 
@@ -174,6 +187,11 @@ type OpenOptions struct {
 	TrackMetricNamesStats       bool
 	IDBPrefillStart             time.Duration
 	LogNewSeries                bool
+	// DisableBackgroundMerges skips ordinary part-merger goroutines.
+	// False keeps live storage behavior. Windowed backup sets it when
+	// opening a snapshot copy so drop, trim, and force-merge do not race
+	// those mergers.
+	DisableBackgroundMerges bool
 }
 
 // MustOpenStorage opens storage on the given path with the given retentionMsecs.
@@ -271,6 +289,7 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	s.minTimestampForCompositeIndex = mustGetMinTimestampForCompositeIndex(metadataDir, isEmptyDB)
 
 	s.disablePerDayIndex = opts.DisablePerDayIndex
+	s.disableBackgroundMerges = opts.DisableBackgroundMerges
 
 	// Load legacy indexDBs.
 	legacyIDBPath := filepath.Join(path, indexdbDirname)

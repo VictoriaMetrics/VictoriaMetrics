@@ -189,6 +189,14 @@ func (r *Restore) Run(ctx context.Context) error {
 				if err := dst.PreallocateFile(parts[0]); err != nil {
 					return fmt.Errorf("cannot preallocate %s: %w", parts[0].Path, err)
 				}
+				// PartsDifference downloads only the missing tail. Copy the
+				// completed prefix into the temporary file so FinalizeFile
+				// does not replace it with a zero-filled preallocation.
+				if parts[0].Offset > 0 {
+					if err := dst.CopyDestPrefixIntoTmp(ctx, parts[0]); err != nil {
+						return fmt.Errorf("cannot preserve existing prefix for %s: %w", parts[0].Path, err)
+					}
+				}
 			}
 			for _, p := range parts {
 				logger.Infof("downloading %s from %s to %s", &p, src, dst)

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"sort"
@@ -899,11 +900,15 @@ func (pt *partition) startInmemoryPartsMergers() {
 }
 
 func (pt *partition) startInmemoryPartsMergerLocked() {
+	if pt.s.disableBackgroundMerges {
+		return
+	}
 	select {
 	case <-pt.stopCh:
 		return
 	default:
 	}
+	pt.s.backgroundMergesStarted.Add(1)
 	pt.wg.Go(pt.inmemoryPartsMerger)
 }
 
@@ -916,11 +921,15 @@ func (pt *partition) startSmallPartsMergers() {
 }
 
 func (pt *partition) startSmallPartsMergerLocked() {
+	if pt.s.disableBackgroundMerges {
+		return
+	}
 	select {
 	case <-pt.stopCh:
 		return
 	default:
 	}
+	pt.s.backgroundMergesStarted.Add(1)
 	pt.wg.Go(pt.smallPartsMerger)
 }
 
@@ -933,11 +942,15 @@ func (pt *partition) startBigPartsMergers() {
 }
 
 func (pt *partition) startBigPartsMergerLocked() {
+	if pt.s.disableBackgroundMerges {
+		return
+	}
 	select {
 	case <-pt.stopCh:
 		return
 	default:
 	}
+	pt.s.backgroundMergesStarted.Add(1)
 	pt.wg.Go(pt.bigPartsMerger)
 }
 
@@ -1080,8 +1093,35 @@ func (pt *partition) mergePartsToFiles(pws []*partWrapper, stopCh <-chan struct{
 
 // ForceMergeAllParts runs merge for all the parts in pt.
 func (pt *partition) ForceMergeAllParts(stopCh <-chan struct{}) error {
+	return pt.forceMergeAllParts(stopCh, false)
+}
+
+func (pt *partition) forceMergeAllParts(stopCh <-chan struct{}, failOnNoSpace bool) error {
 	pws := pt.getAllPartsForMerge()
+	if len(pws) == 0 && failOnNoSpace && pt.hasAnyParts() {
+		deadline := time.Now().Add(snapshotMergeWaitTimeout)
+		logged := false
+		for {
+			if !logged {
+				logger.Infof("windowed backup: waiting to claim parts for force merge in partition %q", pt.name)
+				logged = true
+			}
+			if time.Now().After(deadline) {
+				return fmt.Errorf("cannot claim parts for force merge in partition %q after waiting for in-flight merges", pt.name)
+			}
+			if err := sleepOrStop(stopCh, snapshotMergeWaitInterval); err != nil {
+				return fmt.Errorf("cannot claim parts for force merge in partition %q: %w", pt.name, err)
+			}
+			pws = pt.getAllPartsForMerge()
+			if len(pws) > 0 || !pt.hasAnyParts() {
+				break
+			}
+		}
+	}
 	if len(pws) == 0 {
+		if failOnNoSpace && pt.hasAnyParts() {
+			return fmt.Errorf("cannot claim parts for force merge in partition %q after waiting for in-flight merges", pt.name)
+		}
 		// Nothing to merge.
 		return nil
 	}
@@ -1093,6 +1133,9 @@ func (pt *partition) ForceMergeAllParts(stopCh <-chan struct{}) error {
 		freeSpaceNeededBytes := newPartSize - maxOutBytes
 		forceMergeLogger.Warnf("cannot initiate force merge for the partition %s; additional space needed: %d bytes", pt.name, freeSpaceNeededBytes)
 		pt.releasePartsToMerge(pws)
+		if failOnNoSpace {
+			return fmt.Errorf("not enough disk space for force merge of partition %q; additional space needed: %d bytes", pt.name, freeSpaceNeededBytes)
+		}
 		return nil
 	}
 
@@ -1101,6 +1144,13 @@ func (pt *partition) ForceMergeAllParts(stopCh <-chan struct{}) error {
 	// and performing de-duplication if needed.
 	if err := pt.mergePartsToFiles(pws, stopCh, bigPartsConcurrencyCh, true); err != nil {
 		return fmt.Errorf("cannot force merge %d parts from partition %q: %w", len(pws), pt.name, err)
+	}
+	if failOnNoSpace {
+		select {
+		case <-stopCh:
+			return fmt.Errorf("cannot complete force merge for partition %q: %w", pt.name, errForciblyStopped)
+		default:
+		}
 	}
 
 	return nil
@@ -1425,10 +1475,18 @@ func (pt *partition) mergePartsInternal(dstPartPath string, bsw *blockStreamWrit
 		logger.Panicf("BUG: unknown partType=%d", dstPartType)
 	}
 	retentionDeadline := currentTimestamp - pt.s.retentionMsecs
+	maxKeepTimestamp := int64(math.MaxInt64)
+	if pt.s.mergeTrimEnabled.Load() {
+		// Windowed backup on a snapshot copy: the requested window is the
+		// trim range. Do not keep the live retention floor, so -end without
+		// -start can keep snapshot data from the beginning up to -end.
+		retentionDeadline = pt.s.mergeTrimMinTimestamp.Load()
+		maxKeepTimestamp = pt.s.mergeTrimMaxTimestamp.Load()
+	}
 	activeMerges.Add(1)
 	_ = useSparseCache // unused in OSS version.
 	dmis := pt.idb.getDeletedMetricIDs()
-	err := mergeBlockStreams(&ph, bsw, bsrs, stopCh, dmis, retentionDeadline, rowsMerged, rowsDeleted)
+	err := mergeBlockStreams(&ph, bsw, bsrs, stopCh, dmis, retentionDeadline, maxKeepTimestamp, rowsMerged, rowsDeleted)
 	activeMerges.Add(-1)
 	mergesCount.Add(1)
 	if err != nil {
