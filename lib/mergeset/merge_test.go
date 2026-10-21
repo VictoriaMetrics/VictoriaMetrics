@@ -34,14 +34,14 @@ func TestMultilevelMerge(t *testing.T) {
 	var dstIP1 inmemoryPart
 	var bsw1 blockStreamWriter
 	bsw1.MustInitFromInmemoryPart(&dstIP1, -5)
-	if err := mergeBlockStreams(&dstIP1.ph, &bsw1, bsrs[:5], nil, nil, &itemsMerged); err != nil {
+	if err := mergeBlockStreams(&dstIP1.ph, &bsw1, bsrs[:5], nil, nil, nil, &itemsMerged); err != nil {
 		t.Fatalf("cannot merge first level part 1: %s", err)
 	}
 
 	var dstIP2 inmemoryPart
 	var bsw2 blockStreamWriter
 	bsw2.MustInitFromInmemoryPart(&dstIP2, -5)
-	if err := mergeBlockStreams(&dstIP2.ph, &bsw2, bsrs[5:], nil, nil, &itemsMerged); err != nil {
+	if err := mergeBlockStreams(&dstIP2.ph, &bsw2, bsrs[5:], nil, nil, nil, &itemsMerged); err != nil {
 		t.Fatalf("cannot merge first level part 2: %s", err)
 	}
 
@@ -58,7 +58,7 @@ func TestMultilevelMerge(t *testing.T) {
 		newTestBlockStreamReader(&dstIP2),
 	}
 	bsw.MustInitFromInmemoryPart(&dstIP, 1)
-	if err := mergeBlockStreams(&dstIP.ph, &bsw, bsrsTop, nil, nil, &itemsMerged); err != nil {
+	if err := mergeBlockStreams(&dstIP.ph, &bsw, bsrsTop, nil, nil, nil, &itemsMerged); err != nil {
 		t.Fatalf("cannot merge second level: %s", err)
 	}
 	if n := itemsMerged.Load(); n != uint64(len(items)) {
@@ -81,7 +81,7 @@ func TestMergeForciblyStop(t *testing.T) {
 	ch := make(chan struct{})
 	var itemsMerged atomic.Uint64
 	close(ch)
-	if err := mergeBlockStreams(&dstIP.ph, &bsw, bsrs, nil, ch, &itemsMerged); !errors.Is(err, errForciblyStopped) {
+	if err := mergeBlockStreams(&dstIP.ph, &bsw, bsrs, nil, nil, ch, &itemsMerged); !errors.Is(err, errForciblyStopped) {
 		t.Fatalf("unexpected error during merge: got %v; want %v", err, errForciblyStopped)
 	}
 	if n := itemsMerged.Load(); n != 0 {
@@ -127,7 +127,7 @@ func testMergeBlockStreamsSerial(r *rand.Rand, blocksToMerge, maxItemsPerBlock i
 	var dstIP inmemoryPart
 	var bsw blockStreamWriter
 	bsw.MustInitFromInmemoryPart(&dstIP, -4)
-	if err := mergeBlockStreams(&dstIP.ph, &bsw, bsrs, nil, nil, &itemsMerged); err != nil {
+	if err := mergeBlockStreams(&dstIP.ph, &bsw, bsrs, nil, nil, nil, &itemsMerged); err != nil {
 		return fmt.Errorf("cannot merge block streams: %w", err)
 	}
 	if n := itemsMerged.Load(); n != uint64(len(items)) {
@@ -247,10 +247,10 @@ func testEmptyResultMergeBlockStreamsSerial(r *rand.Rand, blocksToMerge, maxItem
 	var dstIP inmemoryPart
 	var bsw blockStreamWriter
 	bsw.MustInitFromInmemoryPart(&dstIP, -4)
-	prepareBlock := func(data []byte, items []Item) ([]byte, []Item) {
-		return data, nil
+	filterItem := func(_ []byte) bool {
+		return false
 	}
-	if err := mergeBlockStreams(&dstIP.ph, &bsw, bsrs, prepareBlock, nil, &itemsMerged); err != nil {
+	if err := mergeBlockStreams(&dstIP.ph, &bsw, bsrs, filterItem, nil, nil, &itemsMerged); err != nil {
 		return fmt.Errorf("cannot merge block streams: %w", err)
 	}
 	if n := itemsMerged.Load(); n != uint64(len(items)) {

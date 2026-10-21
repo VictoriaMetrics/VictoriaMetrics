@@ -334,32 +334,30 @@ func (pw *partWrapper) decRef() {
 	}
 }
 
+// OpenTableOptions contains optional args for MustOpenTableWithOptions.
 type OpenTableOptions struct {
-	FlushInterval         time.Duration
-	FlushCallback         func()
+	// FlushInterval is the interval for flushing pending in-memory data to disk.
+	// It cannot be smaller than pendingItemsFlushInterval.
+	FlushInterval time.Duration
+	// FlushCallback is called every time new data batch is flushed.
+	FlushCallback func()
+	// FlushCallbackInterval is how often FlushCallback is invoked when there is
+	// pending data to flush.
+	// If it is set to zero, then defaultFlushCallbackInterval is used.
 	FlushCallbackInterval time.Duration
-	PrepareBlock          PrepareBlockCallback
-	IsReadOnly            *atomic.Bool
-	FilterItem            FilterItemCallback
+	// PrepareBlock is called during merge before flushing the prepared block
+	// to persistent storage.
+	PrepareBlock PrepareBlockCallback
+	// FilterItem is called during merge before adding item into inmemoryBlock.
+	FilterItem FilterItemCallback
 }
 
-// MustOpenTable opens a table on the given path with given options
-//
-// The flushInterval is the interval for flushing pending in-memory data to disk.
-//
-// Optional flushCallback is called every time new data batch is flushed
-// to the underlying storage and becomes visible to search.
-//
-// The flushCallbackInterval is how often flushCallback is invoked when there is
-// pending data to flush. If it is set to zero, then defaultFlushCallbackInterval is used.
-//
-// Optional prepareBlock is called during merge before flushing the prepared block
-// to persistent storage.
+// MustOpenTableWithOptions opens a table on the given path with given options.
 //
 // The table is created if it doesn't exist yet.
-func MustOpenTableOptions(path string, opts OpenTableOptions) *Table {
+func MustOpenTableWithOptions(path string, isReadOnly *atomic.Bool, opts OpenTableOptions) *Table {
 	opts.setDefault()
-	return mustOpenTable(path, opts)
+	return mustOpenTable(path, isReadOnly, opts)
 }
 
 // MustOpenTable opens a table on the given path.
@@ -382,10 +380,9 @@ func MustOpenTable(path string, flushInterval time.Duration, flushCallback func(
 		FlushCallback:         flushCallback,
 		FlushCallbackInterval: flushCallbackInterval,
 		PrepareBlock:          prepareBlock,
-		IsReadOnly:            isReadOnly,
 	}
 	opts.setDefault()
-	return mustOpenTable(path, opts)
+	return mustOpenTable(path, isReadOnly, opts)
 }
 
 func (o *OpenTableOptions) setDefault() {
@@ -400,7 +397,7 @@ func (o *OpenTableOptions) setDefault() {
 	}
 }
 
-func mustOpenTable(path string, opts OpenTableOptions) *Table {
+func mustOpenTable(path string, isReadOnly *atomic.Bool, opts OpenTableOptions) *Table {
 
 	path = filepath.Clean(path)
 
@@ -419,7 +416,7 @@ func mustOpenTable(path string, opts OpenTableOptions) *Table {
 		flushCallback:         opts.FlushCallback,
 		flushCallbackInterval: opts.FlushCallbackInterval,
 		prepareBlock:          opts.PrepareBlock,
-		isReadOnly:            opts.IsReadOnly,
+		isReadOnly:            isReadOnly,
 		filterItem:            opts.FilterItem,
 		fileParts:             pws,
 		inmemoryPartsLimitCh:  make(chan struct{}, maxInmemoryParts),
@@ -1021,7 +1018,7 @@ func (tb *Table) mustMergeInmemoryParts(pws []*partWrapper) []*partWrapper {
 // when len(pws) > 1, the source pws are merged, and their ref count is
 // decremented.
 //
-// nil is returned if all the items are dropped by tb.prepareBlock during the merge.
+// nil is returned if all the items are dropped by tb.filterItem or tb.prepareBlock during the merge.
 func (tb *Table) mustMergeInmemoryPartsFinal(pws []*partWrapper) *partWrapper {
 	if len(pws) == 0 {
 		logger.Panicf("BUG: pws must contain at least a single item")
@@ -1079,7 +1076,7 @@ func (tb *Table) createInmemoryPart(ibs []*inmemoryBlock) *partWrapper {
 
 // mustMergeIntoInmemoryPart merges bsrs into a new in-memory part.
 //
-// nil is returned if all the items are dropped by tb.prepareBlock during the merge.
+// nil is returned if all the items are dropped by tb.filterItem or tb.prepareBlock during the merge.
 func (tb *Table) mustMergeIntoInmemoryPart(bsrs []*blockStreamReader, flushToDiskDeadline time.Time) *partWrapper {
 	// Prepare blockStreamWriter for destination part.
 	outItemsCount := uint64(0)
@@ -1408,7 +1405,7 @@ func (tb *Table) mergePartsInternal(dstPartPath string, bsw *blockStreamWriter, 
 		logger.Panicf("BUG: unknown partType=%d", dstPartType)
 	}
 	activeMerges.Add(1)
-	err := mergeBlockStreams(&ph, bsw, bsrs, tb.prepareBlock, stopCh, itemsMerged)
+	err := mergeBlockStreams(&ph, bsw, bsrs, tb.filterItem, tb.prepareBlock, stopCh, itemsMerged)
 	activeMerges.Add(-1)
 	mergesCount.Add(1)
 	if err != nil {

@@ -453,7 +453,7 @@ func TestMergeTagToMetricIDsRows(t *testing.T) {
 	})
 }
 
-func TestKeepItemsInsideRetention(t *testing.T) {
+func TestIsIndexItemInsideRetention(t *testing.T) {
 	const minDate = 20000
 
 	f := func(inputItems []string, expectedItems []string) {
@@ -472,10 +472,12 @@ func TestKeepItemsInsideRetention(t *testing.T) {
 		}
 
 		droppedPrev := indexItemsDroppedByRetention.Load()
-		resultData, resultItemsB := keepItemsInsideRetention(data, itemsB, minDate)
 		var resultItems []string
-		for _, it := range resultItemsB {
-			resultItems = append(resultItems, string(it.Bytes(resultData)))
+		for _, it := range itemsB {
+			item := it.Bytes(data)
+			if isIndexItemInsideRetention(item, minDate) {
+				resultItems = append(resultItems, string(item))
+			}
 		}
 		if diff := cmp.Diff(expectedItems, resultItems); len(diff) > 0 {
 			t.Fatalf("unexpected items (-want, +got):\n%s", diff)

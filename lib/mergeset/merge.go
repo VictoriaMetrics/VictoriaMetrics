@@ -30,15 +30,15 @@ type FilterItemCallback func(item []byte) bool
 //
 // It also fills ph.
 //
-// prepareBlock is optional.
+// filterItem and prepareBlock are optional.
 //
 // The function immediately returns when stopCh is closed.
 //
 // It also atomically adds the number of items merged to itemsMerged.
-func mergeBlockStreams(ph *partHeader, bsw *blockStreamWriter, bsrs []*blockStreamReader, prepareBlock PrepareBlockCallback, stopCh <-chan struct{},
+func mergeBlockStreams(ph *partHeader, bsw *blockStreamWriter, bsrs []*blockStreamReader, filterItem FilterItemCallback, prepareBlock PrepareBlockCallback, stopCh <-chan struct{},
 	itemsMerged *atomic.Uint64) error {
 	bsm := bsmPool.Get().(*blockStreamMerger)
-	if err := bsm.Init(bsrs, prepareBlock); err != nil {
+	if err := bsm.Init(bsrs, filterItem, prepareBlock); err != nil {
 		return fmt.Errorf("cannot initialize blockStreamMerger: %w", err)
 	}
 	err := bsm.Merge(bsw, ph, stopCh, itemsMerged)
@@ -87,8 +87,9 @@ func (bsm *blockStreamMerger) reset() {
 	bsm.phFirstItemCaught = false
 }
 
-func (bsm *blockStreamMerger) Init(bsrs []*blockStreamReader, prepareBlock PrepareBlockCallback) error {
+func (bsm *blockStreamMerger) Init(bsrs []*blockStreamReader, filterItem FilterItemCallback, prepareBlock PrepareBlockCallback) error {
 	bsm.reset()
+	bsm.filterItem = filterItem
 	bsm.prepareBlock = prepareBlock
 	for _, bsr := range bsrs {
 		if bsr.Next() {
@@ -110,12 +111,14 @@ func (bsm *blockStreamMerger) Init(bsrs []*blockStreamReader, prepareBlock Prepa
 
 var errForciblyStopped = fmt.Errorf("forcibly stopped")
 
-func (bsm *blockStreamMerger) addItem(x []byte) bool {
+func (bsm *blockStreamMerger) addItem(x []byte, itemsMerged *uint64) bool {
 	if bsm.filterItem != nil && !bsm.filterItem(x) {
+		*itemsMerged++
 		return true
 	}
 	return bsm.ib.Add(x)
 }
+
 func (bsm *blockStreamMerger) Merge(bsw *blockStreamWriter, ph *partHeader, stopCh <-chan struct{}, itemsMerged *atomic.Uint64) error {
 	// Use local variables for tracking the number of merged items
 	// and periodically propagate the collected stats to the caller, so it could be reflected in the exposed metrics.
@@ -173,7 +176,7 @@ again:
 		if compareEveryItem && string(item) > nextItem {
 			break
 		}
-		if !bsm.addItem(item) {
+		if !bsm.addItem(item, &localItemsMerged) {
 			// The bsm.ib is full. Flush it to bsw and continue.
 			bsm.flushIB(bsw, ph, &localItemsMerged)
 			continue

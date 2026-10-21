@@ -170,8 +170,13 @@ func mustOpenIndexDB(id uint64, tr TimeRange, name, path string, s *Storage, isR
 	}
 
 	tfssCache := lrucache.NewCache(getTagFiltersCacheSize)
-	prepareBlockCallBack := newIndexDBPrepareBlockCallback(uint64(s.retentionMsecs), s.disablePerDayIndex)
-	tb := mergeset.MustOpenTable(path, dataFlushInterval, tfssCache.Reset, 0, prepareBlockCallBack, isReadOnly)
+	opts := mergeset.OpenTableOptions{
+		FlushInterval: dataFlushInterval,
+		FlushCallback: tfssCache.Reset,
+		PrepareBlock:  mergeTagToMetricIDsRows,
+		FilterItem:    newIndexDBFilterItemCallback(uint64(s.retentionMsecs), s.disablePerDayIndex),
+	}
+	tb := mergeset.MustOpenTableWithOptions(path, isReadOnly, opts)
 	db := &indexDB{
 		legacyMinMissingTimestampByKey: make(map[TenantToken]int64),
 		id:                             id,
@@ -3307,75 +3312,51 @@ func (mp *tagToMetricIDsRowParser) GetMatchingSeriesCount(filter, negativeFilter
 	return n
 }
 
-func newIndexDBPrepareBlockCallback(retentionMsec uint64, disablePerDayIndex bool) mergeset.PrepareBlockCallback {
+func newIndexDBFilterItemCallback(retentionMsec uint64, disablePerDayIndex bool) mergeset.FilterItemCallback {
 	if disablePerDayIndex {
 		// retention can only be applied to daily records.
-		return mergeTagToMetricIDsRows
+		return nil
 	}
-	return func(data []byte, items []mergeset.Item) ([]byte, []mergeset.Item) {
+	return func(item []byte) bool {
 		currentTimestamp := fasttime.UnixTimestamp() * 1000
 		if retentionMsec >= currentTimestamp {
-			// retention is outside unix date range ( 100y for example).
-			return mergeTagToMetricIDsRows(data, items)
+			// retention is outside unix date range (100y for example).
+			return true
 		}
 		minDate := (currentTimestamp - retentionMsec) / msecPerDay
-		data, items = keepItemsInsideRetention(data, items, minDate)
-		if len(items) == 0 {
-			return data, nil
-		}
-		return mergeTagToMetricIDsRows(data, items)
+		return isIndexItemInsideRetention(item, minDate)
 	}
 }
 
-func keepItemsInsideRetention(data []byte, items []mergeset.Item, minDate uint64) ([]byte, []mergeset.Item) {
-	// perform quick check if block inside given index items
-	firstItem := items[0].Bytes(data)
-	if len(firstItem) > 0 && firstItem[0] > nsPrefixDateMetricNameToTSID {
-		return data, items
+func isIndexItemInsideRetention(item []byte, minDate uint64) bool {
+	// skip items outside of per-day namespaces.
+	if len(item) == 0 || item[0] > nsPrefixDateMetricNameToTSID || item[0] < nsPrefixDateToMetricID {
+		return true
 	}
-	lastItem := items[len(items)-1].Bytes(data)
-	if len(lastItem) > 0 && lastItem[0] < nsPrefixDateToMetricID {
-		return data, items
-	}
-	keepItem := func(item []byte) bool {
-		if len(item) == 0 {
+	ns := item[0]
+	var itemTail []byte
+	switch ns {
+	case nsPrefixDateTagToMetricIDs, nsPrefixDateToMetricID:
+		if len(item) < commonPrefixLen {
 			return true
 		}
-		ns := item[0]
-		var itemTail []byte
-		switch ns {
-		case nsPrefixDateTagToMetricIDs, nsPrefixDateToMetricID:
-			if len(item) < commonPrefixLen {
-				return true
-			}
-			itemTail = item[commonPrefixLen:]
-		case nsPrefixDateMetricNameToTSID:
-			// MetricName encoded without common prefix for both single and cluster versions
-			itemTail = item[1:]
-		default:
-			return true
-		}
-		// unmarshal date
-		if len(itemTail) < 8 {
-			return true
-		}
-		itemDate := encoding.UnmarshalUint64(itemTail)
-		return itemDate >= minDate
+		itemTail = item[commonPrefixLen:]
+	case nsPrefixDateMetricNameToTSID:
+		// MetricName encoded without common prefix for both single and cluster versions.
+		itemTail = item[1:]
+	default:
+		return true
 	}
-
-	tmp := items[:0]
-	for _, it := range items {
-		item := it.Bytes(data)
-		if keepItem(item) {
-			tmp = append(tmp, it)
-		}
+	// unmarshal date.
+	if len(itemTail) < 8 {
+		return true
 	}
-	n := len(items) - len(tmp)
-	items = tmp
-	if n > 0 {
-		indexItemsDroppedByRetention.Add(uint64(n))
+	itemDate := encoding.UnmarshalUint64(itemTail)
+	if itemDate >= minDate {
+		return true
 	}
-	return data, items
+	indexItemsDroppedByRetention.Add(1)
+	return false
 }
 
 func mergeTagToMetricIDsRows(data []byte, items []mergeset.Item) ([]byte, []mergeset.Item) {
