@@ -54,6 +54,7 @@ type QuerierParams struct {
 	ApplyIntervalAsTimeFilter bool
 	EvaluationInterval        time.Duration
 	// QueryStep overrides `step` param for instant queries if set.
+	// It's only valid for prometheus datasource.
 	QueryStep   time.Duration
 	QueryParams url.Values
 	Headers     map[string]string
