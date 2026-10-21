@@ -12,6 +12,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
+var maxPartSizeTestOverride atomic.Uint64
+
 // Part is an atomic unit for transfer during backup / restore.
 //
 // Each source file can be split into parts with up to MaxPartSize sizes.
@@ -136,6 +138,15 @@ func (p *Part) IsLocalPathInsideDir(dir string) bool {
 // The MaxPartSize reduces bandwidth usage during retires on network errors
 // when transferring multi-TB files.
 const MaxPartSize = 1024 * 1024 * 1024
+
+// MaxPartSizeForTransfer returns MaxPartSize, or a smaller override installed by
+// SetMaxPartSizeForTest for integration tests.
+func MaxPartSizeForTransfer() uint64 {
+	if v := maxPartSizeTestOverride.Load(); v != 0 {
+		return v
+	}
+	return MaxPartSize
+}
 
 // SortParts sorts parts by (Path, Offset)
 func SortParts(parts []Part) {

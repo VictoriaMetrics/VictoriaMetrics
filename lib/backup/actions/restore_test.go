@@ -18,30 +18,35 @@ func TestRestoreKeepsCompletedPrefix(t *testing.T) {
 		prefixStart = "PREFIX_A"
 		prefixEnd   = "PREFIX_B"
 		tail        = "TAILDATA"
+		// Small part size keeps the restore integration test fast while
+		// exercising the same multi-part + prefix-copy path as production.
+		testPartSize = 256 * 1024
 	)
-	fileSize := common.MaxPartSize + uint64(len(tail))
+	common.SetMaxPartSizeForTest(t, testPartSize)
+
+	fileSize := testPartSize + uint64(len(tail))
 	part0 := common.Part{
 		Path:     "data.bin",
 		FileSize: fileSize,
 		Offset:   0,
-		Size:     common.MaxPartSize,
+		Size:     testPartSize,
 	}
 	part1 := common.Part{
 		Path:     "data.bin",
 		FileSize: fileSize,
-		Offset:   common.MaxPartSize,
+		Offset:   testPartSize,
 		Size:     uint64(len(tail)),
 	}
 
 	srcDir := t.TempDir()
 	dstDir := t.TempDir()
 	markers := map[int64]string{
-		0:                             prefixStart,
-		int64(common.MaxPartSize) - 8: prefixEnd,
+		0:                       prefixStart,
+		int64(testPartSize) - 8: prefixEnd,
 	}
 	writeSizedFile(t, remotePartPath(srcDir, part0), int64(part0.Size), markers)
 	writeSizedFile(t, remotePartPath(srcDir, part1), int64(part1.Size), map[int64]string{0: tail})
-	writeSizedFile(t, filepath.Join(dstDir, part0.Path), int64(common.MaxPartSize), markers)
+	writeSizedFile(t, filepath.Join(dstDir, part0.Path), int64(testPartSize), markers)
 	if err := os.WriteFile(filepath.Join(srcDir, backupnames.BackupCompleteFilename), nil, 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -72,10 +77,10 @@ func TestRestoreKeepsCompletedPrefix(t *testing.T) {
 	if got := readAt(t, dstPath, 0, len(prefixStart)); got != prefixStart {
 		t.Fatalf("prefix start = %q, want %q (a zero-filled prefix means the completed part was discarded)", got, prefixStart)
 	}
-	if got := readAt(t, dstPath, int64(common.MaxPartSize)-8, len(prefixEnd)); got != prefixEnd {
+	if got := readAt(t, dstPath, int64(testPartSize)-8, len(prefixEnd)); got != prefixEnd {
 		t.Fatalf("prefix end = %q, want %q (a zero-filled prefix means the completed part was discarded)", got, prefixEnd)
 	}
-	if got := readAt(t, dstPath, int64(common.MaxPartSize), len(tail)); got != tail {
+	if got := readAt(t, dstPath, int64(testPartSize), len(tail)); got != tail {
 		t.Fatalf("restored tail = %q, want %q", got, tail)
 	}
 }

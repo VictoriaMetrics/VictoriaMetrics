@@ -47,8 +47,16 @@ func TestCopyDestPrefixIntoTmp(t *testing.T) {
 	defer fs.MustStop()
 
 	missing := common.Part{Path: "absent", Offset: 3, FileSize: 6, Size: 3}
-	if err := fs.CopyDestPrefixIntoTmp(context.Background(), missing); err != nil {
-		t.Fatalf("missing dest: %s", err)
+	err := fs.CopyDestPrefixIntoTmp(context.Background(), missing)
+	if canPreallocate {
+		if err == nil {
+			t.Fatal("missing dest with offset > 0: expected error")
+		}
+		if !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("missing dest: %v; want os.ErrNotExist in chain", err)
+		}
+	} else if err != nil {
+		t.Fatalf("missing dest without preallocation: %s", err)
 	}
 
 	p := common.Part{

@@ -58,7 +58,7 @@ func applyWindowToSnapshot(ctx context.Context) error {
 func parseBackupWindow(startStr, endStr string) (startMsec, endMsec int64, err error) {
 	if len(startStr) == 0 && len(endStr) == 0 {
 		// forceMerge-only: keep every part, then compact.
-		return 0, (1<<63 - 1), nil
+		return storage.ForceMergeOnlyWindowStartMsec, storage.ForceMergeOnlyWindowEndMsec, nil
 	}
 	if len(startStr) > 0 {
 		startMsec, err = timeutil.ParseTimeMsec(startStr)
@@ -82,7 +82,8 @@ func parseBackupWindow(startStr, endStr string) (startMsec, endMsec int64, err e
 		}
 	}
 	if startMsec >= endMsec {
-		return 0, 0, fmt.Errorf("-start=%q must be less than -end=%q for a half-open window [start, end)", startStr, endStr)
+		return 0, 0, fmt.Errorf("-start=%s must be less than -end=%s for a half-open window [start, end)",
+			formatWindowBound(startStr, startMsec), formatWindowBound(endStr, endMsec))
 	}
 	return startMsec, endMsec, nil
 }

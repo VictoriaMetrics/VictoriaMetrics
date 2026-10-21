@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,6 +16,12 @@ import (
 const (
 	snapshotMergeWaitTimeout  = 2 * time.Minute
 	snapshotMergeWaitInterval = 50 * time.Millisecond
+
+	// ForceMergeOnlyWindowStartMsec and ForceMergeOnlyWindowEndMsec are the
+	// half-open [start, end) window for forceMerge-only snapshot processing.
+	// app/vmbackup must pass the same bounds to ApplyTimeRangeToSnapshot.
+	ForceMergeOnlyWindowStartMsec int64 = 0
+	ForceMergeOnlyWindowEndMsec   int64 = 1<<63 - 1
 )
 
 var errPartsInMerge = errors.New("parts are already in merge")
@@ -24,7 +29,7 @@ var errPartsInMerge = errors.New("parts are already in merge")
 // ApplyTimeRangeToSnapshot drops parts whose [minTimestamp, maxTimestamp] does
 // not overlap [startMsec, endMsec], then rewrites remaining parts so dest data
 // contains samples in [startMsec, endMsec). The forceMerge-only window
-// [0, math.MaxInt64] skips that drop, so parts entirely before the Unix epoch
+// ForceMergeOnlyWindowStartMsec..ForceMergeOnlyWindowEndMsec skips that drop, so parts entirely before the Unix epoch
 // stay and are only compacted. ctx cancel (SIGTERM) stops wait and force-merge loops.
 //
 // The caller must open s on a snapshot copy, not on the live -storageDataPath,
@@ -42,10 +47,10 @@ func (s *Storage) ApplyTimeRangeToSnapshot(ctx context.Context, startMsec, endMs
 	if err := s.waitUntilNoPartsInMerge(ctx); err != nil {
 		return err
 	}
-	// [0, MaxInt64] is the forceMerge-only window: keep every part, including
+	// ForceMerge-only window: keep every part, including
 	// those entirely before the Unix epoch, then compact. A real window still
 	// drops parts that do not overlap [start, end).
-	needTrim := startMsec != 0 || endMsec != math.MaxInt64
+	needTrim := startMsec != ForceMergeOnlyWindowStartMsec || endMsec != ForceMergeOnlyWindowEndMsec
 	if needTrim {
 		kept, dropped, err := s.dropPartsOutsideTimeRange(ctx, tr)
 		if err != nil {

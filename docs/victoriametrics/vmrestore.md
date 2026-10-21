@@ -15,9 +15,13 @@ aliases:
 ---
 `vmrestore` restores data from backups created by [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/).
 
-Restore process can be interrupted at any time. Restart `vmrestore` with the same args to resume: parts already present under `-storageDataPath` are kept, and only missing parts are downloaded.
+Restore process can be interrupted at any time. Restart `vmrestore` with the same args to resume incrementally: backup objects are split into **parts** of up to 1 GiB each, and parts already present under `-storageDataPath` are kept while only missing parts are downloaded. If a multi-part file is only partly restored, the next run continues with the next missing part; it does not resume at an arbitrary byte offset inside a part unless noted below.
 
-On Linux, when file preallocation is enabled{{% available_from "v1.139.0" %}}, each restored file is written to a temporary file and renamed into place when that file is complete. `fallocate` preallocates the temporary file when the filesystem supports it. If the destination already holds a completed prefix, those bytes are copied into the temporary file before the missing tail is downloaded, so a restart does not replace that prefix with zeros. If `fallocate` returns `EOPNOTSUPP`, `ENOSYS`, or `EINVAL`, restore continues without preallocation. Interrupted `fallocate` calls (`EINTR`) are retried. On any other `fallocate` error, pass `-skipFilePreallocation` to write directly into the destination file. With `-skipFilePreallocation`, restore resumes from the interruption point mid file.
+On Linux, when file preallocation is enabled{{% available_from "v1.139.0" %}}, each restored file is written to a temporary file and renamed into place when that file is complete. `fallocate` preallocates the temporary file when the filesystem supports it. If `fallocate` returns `EOPNOTSUPP`, `ENOSYS`, or `EINVAL`, restore continues without preallocation. Interrupted `fallocate` calls (`EINTR`) are retried. On any other `fallocate` error, pass `-skipFilePreallocation` to write directly into the destination file.
+
+When preallocation uses a temporary file and the destination already holds one or more **complete earlier parts** for the same file (up to 1 GiB per part), those bytes are copied into the temporary file before the missing tail is downloaded, so a restart does not replace that completed prefix with zeros.
+
+With `-skipFilePreallocation`, each part is written in place. A restart skips parts that are already complete at the destination and continues with the next missing part (up to 1 GiB per part); it does not resume at an arbitrary byte offset inside a part.
 
 > If you'd prefer not to manage backups/restores at all, [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_vmbackup_intro)
 > handles backups and restores automatically without the need of extra configurations.
@@ -52,8 +56,8 @@ i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/q
 
 * See [Connecting VM components to cloud storage](https://docs.victoriametrics.com/guides/connecting-vm-components-to-cloud-storage/) for instructions on configuring credentials.
 * If `vmrestore` consumes all the network bandwidth, then set `-maxBytesPerSecond` to the desired value.
-* If `vmrestore` has been interrupted due to temporary error, then just restart it with the same args. It resumes from parts already stored at the destination.
-* If restore fails while preallocating a file, retry with `-skipFilePreallocation`. That skips `fallocate` and writes in place, which also resumes a partially written file. Filesystems that do not support `fallocate` do not need this flag; restore continues there without preallocation.
+* If `vmrestore` has been interrupted due to temporary error, then just restart it with the same args. It resumes from parts already stored at the destination; only missing parts (up to 1 GiB each) are downloaded.
+* If restore fails while preallocating a file, retry with `-skipFilePreallocation`. That skips `fallocate` and writes each part in place; resume granularity is still one part (up to 1 GiB), not a byte offset inside a part. Filesystems that do not support `fallocate` do not need this flag; restore continues there without preallocation.
 
 ## Advanced usage
 
@@ -213,7 +217,7 @@ Run `vmrestore -help` in order to see all the available options:
   -skipBackupCompleteCheck
      Whether to skip checking for 'backup complete' file in -src. This may be useful for restoring from old backups, which were created without 'backup complete' file
   -skipFilePreallocation
-     Whether to skip pre-allocated files. This will likely be slower in most cases, but allows restores to resume mid file on failure
+     Whether to skip pre-allocated files. This will likely be slower in most cases, but allows a restart to continue the part that was being written (parts are up to 1 GiB each)
   -src string
      Source path with backup on the remote storage. Example: gs://bucket/path/to/backup, s3://bucket/path/to/backup, azblob://container/path/to/backup or fs:///path/to/local/backup
      Note: If custom S3 endpoint is used, URL should contain only name of the bucket, while hostname of S3 server must be specified via the -customS3Endpoint command-line flag.

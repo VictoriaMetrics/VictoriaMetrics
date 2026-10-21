@@ -93,7 +93,7 @@ func (fs *FS) ListParts() ([]common.Part, error) {
 		}
 		offset := uint64(0)
 		for offset < size {
-			n := min(size-offset, common.MaxPartSize)
+			n := min(size-offset, common.MaxPartSizeForTransfer())
 			parts = append(parts, common.Part{
 				Path:       path,
 				FileSize:   size,
@@ -161,8 +161,8 @@ func (fs *FS) NewDirectWriteCloser(p common.Part) (io.WriteCloser, error) {
 // CopyDestPrefixIntoTmp copies bytes [0, p.Offset) from the destination file
 // into the temporary file used for preallocated restores.
 //
-// It is a no-op when temporary files are not used, when p.Offset is 0, or
-// when the destination file does not exist yet. ctx cancellation stops the
+// It is a no-op when temporary files are not used or when p.Offset is 0.
+// ctx cancellation stops the
 // copy between chunks. When fs was initialized with MaxBytesPerSecond, the
 // same local-write limiter used by NewDirectWriteCloser applies.
 func (fs *FS) CopyDestPrefixIntoTmp(ctx context.Context, p common.Part) error {
@@ -179,9 +179,6 @@ func (fs *FS) CopyDestPrefixIntoTmp(ctx context.Context, p common.Part) error {
 	tmpPath := fs.tmpPath(p)
 	srcFile, err := os.Open(finalPath)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
 		return fmt.Errorf("cannot open %q to preserve restored prefix: %w", finalPath, err)
 	}
 	dstFile, err := os.OpenFile(tmpPath, os.O_WRONLY, 0600)

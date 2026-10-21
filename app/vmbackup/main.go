@@ -66,8 +66,9 @@ func main() {
 
 	// logger.Fatalf uses os.Exit and skips deferred functions
 	// (https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2055).
-	// Default-format logger.Panicf panics, so defer still runs; JSON Panicf
-	// and Fatalf still skip defers — those paths keep the explicit call below.
+	// The explicit deleteSnapshot call after makeBackup covers only the path
+	// where makeBackup returns an error and main calls logger.Fatalf; any
+	// os.Exit inside makeBackup (logger.Fatalf or JSON logger.Panicf) skips it.
 	deleteSnapshot := func() {}
 	defer func() {
 		deleteSnapshot()
@@ -94,6 +95,12 @@ func main() {
 			logger.Fatalf("cannot parse snapshotDeleteURL: %s", err)
 		}
 		logger.Infof("Snapshot delete url %s", deleteURL.Redacted())
+
+		if windowedBackupRequested() {
+			if _, _, err := parseBackupWindow(*start, *end); err != nil {
+				logger.Fatalf("invalid backup window: %s", err)
+			}
+		}
 
 		name, err := snapshot.Create(ctx, createURL.String())
 		if err != nil {

@@ -2,7 +2,6 @@ package storage
 
 import (
 	"context"
-	"math"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -293,7 +292,7 @@ func setPartsInMerge(pt *partition, inMerge bool) {
 	}
 }
 
-func TestApplyTimeRangeForceMergeOnlyKeepsPreEpochParts(t *testing.T) {
+func TestApplyTimeRangeForceMergeOnlyWindowSkipsDropKeepsPreEpochParts(t *testing.T) {
 	defer testRemoveAll(t)
 
 	path := t.Name()
@@ -336,7 +335,7 @@ func TestApplyTimeRangeForceMergeOnlyKeepsPreEpochParts(t *testing.T) {
 
 	// forceMerge is false so the fake part is not compacted. The drop skip
 	// depends only on the [0, MaxInt64] window.
-	if err := s.ApplyTimeRangeToSnapshot(context.Background(), 0, math.MaxInt64, false); err != nil {
+	if err := s.ApplyTimeRangeToSnapshot(context.Background(), ForceMergeOnlyWindowStartMsec, ForceMergeOnlyWindowEndMsec, false); err != nil {
 		t.Fatalf("full-range window failed: %s", err)
 	}
 

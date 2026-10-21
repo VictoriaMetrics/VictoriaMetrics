@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
 func TestParseBackupWindow(t *testing.T) {
@@ -74,7 +76,7 @@ func TestParseBackupWindow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("forceMerge-only window failed: %s", err)
 	}
-	if startMsec != 0 || endMsec != (1<<63-1) {
+	if startMsec != storage.ForceMergeOnlyWindowStartMsec || endMsec != storage.ForceMergeOnlyWindowEndMsec {
 		t.Fatalf("forceMerge-only window got [%d, %d]", startMsec, endMsec)
 	}
 }
