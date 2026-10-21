@@ -18,6 +18,7 @@ import Button from "../Button/Button";
 import { CloseIcon } from "../Icons";
 import { useLocation, useNavigate } from "react-router-dom";
 import useEventListener from "../../../hooks/useEventListener";
+import useWindowSize from "../../../hooks/useWindowSize";
 
 interface PopperProps {
   children: ReactNode
@@ -52,6 +53,7 @@ const Popper: FC<PopperProps> = ({
   variant
 }) => {
   const { isMobile } = useDeviceDetect();
+  const { width: windowWidth, height: windowHeight } = useWindowSize();
   const navigate = useNavigate();
   const location = useLocation();
   const [popperSize, setPopperSize] = useState({ width: 0, height: 0 });
@@ -129,6 +131,8 @@ const Popper: FC<PopperProps> = ({
     isOpen,
     popperSize.width,
     popperSize.height,
+    windowWidth,
+    windowHeight,
     fullWidth,
     offset.top,
     offset.left,
@@ -171,6 +175,11 @@ const Popper: FC<PopperProps> = ({
         return { width, height };
       });
     };
+
+    if (typeof ResizeObserver === "undefined") {
+      updateSize();
+      return;
+    }
 
     const observer = new ResizeObserver(updateSize);
 

@@ -39,10 +39,12 @@ const getSeriesSelector = (label: string | null, value: string): string => {
 export const getCardinalityTenantPeriod = ({ searchParams }: TenantPeriodContext): TimeParams => {
   const raw = searchParams.get("date") || dayjs().tz().format(DATE_FORMAT);
   const date = dayjs.utc(raw).startOf("day");
+  const endOfDay = date.endOf("day").valueOf();
+  const now = Date.now();
 
   return {
     date: date.format(DATE_FORMAT),
     start: date.unix(),
-    end: Math.min(date.endOf("day").valueOf(), Date.now()) / 1000,
+    end: (date.valueOf() > now ? endOfDay : Math.min(endOfDay, now)) / 1000,
   };
 };

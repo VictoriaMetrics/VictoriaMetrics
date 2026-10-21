@@ -12,6 +12,7 @@
     max-width: 320px;
 
     &_mobile {
+      max-width: none;
       max-height: calc(($vh * 100) - 70px);
     }
 
