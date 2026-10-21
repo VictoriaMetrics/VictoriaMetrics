@@ -1155,27 +1155,25 @@ func searchAndMerge[T any](qt *querytracer.Tracer, s *Storage, tr TimeRange, sea
 	if len(idbts) == 1 {
 		// It is faster to process one indexDB without spawning goroutines.
 		idbt := idbts[0]
-		searchTR := s.adjustTimeRange(tr, idbt.idb.tr)
-		qtChild := qt.NewChild("search indexDB %s: timeRange=%v", idbt, &searchTR)
-		data[0], errs[0] = search(qtChild, idbt.idb, searchTR)
+		qtChild := qt.NewChild("search indexDB %s: timeRange=%v", idbt, &tr)
+		data[0], errs[0] = search(qtChild, idbt.idb, tr)
 		qtChild.Done()
 	} else {
 		qtSearch := qt.NewChild("search %d indexDBs in parallel", len(idbts))
 		var wg sync.WaitGroup
 		for i, idbt := range idbts {
-			searchTR := s.adjustTimeRange(tr, idbt.idb.tr)
-			qtChild := qtSearch.NewChild("search indexDB %s: timeRange=%v", idbt, &searchTR)
+			qtChild := qtSearch.NewChild("search indexDB %s: timeRange=%v", idbt, &tr)
 			wg.Go(func() {
 				// Intentionally repeat the same search code for each indexDB
 				// type so that profiles (cpu, mem, etc) could show how many
 				// resources have been consumed by each indexDB type.
 				switch idbt.t {
 				case indexDBTypePt:
-					data[i], errs[i] = search(qtChild, idbt.idb, searchTR)
+					data[i], errs[i] = search(qtChild, idbt.idb, tr)
 				case indexDBTypeLegacyPrev:
-					data[i], errs[i] = search(qtChild, idbt.idb, searchTR)
+					data[i], errs[i] = search(qtChild, idbt.idb, tr)
 				case indexDBTypeLegacyCurr:
-					data[i], errs[i] = search(qtChild, idbt.idb, searchTR)
+					data[i], errs[i] = search(qtChild, idbt.idb, tr)
 				}
 				qtChild.Done()
 			})
@@ -1548,12 +1546,6 @@ func (s *Storage) GetTSDBStatus(ctx context.Context, qt *querytracer.Tracer, tfs
 	}
 	defer s.tb.PutPartition(ptw)
 
-	if s.disablePerDayIndex {
-		// Use special date to instruct indexDB to search global index since
-		// per-day index is disabled.
-		date = globalIndexDate
-	}
-
 	var (
 		res *TSDBStatus
 		err error
@@ -1719,47 +1711,6 @@ var metricRowsInsertCtxPool sync.Pool
 
 const maxMetricRowsPerBlock = 8000
 
-// It has been found empirically, that once the time range is bigger than 40
-// days searching using per-day index becomes slower than using global index.
-//
-// TODO(rtm0): Extract into a flag?
-const maxDaysForPerDaySearch = 40
-
-// adjustTimeRange decides whether to use the time range as is or use
-// globalIndexTimeRange based on the time range length and -disablePerDayIndex
-// flag.
-func (s *Storage) adjustTimeRange(searchTR, idbTR TimeRange) TimeRange {
-	// If the per day index is disabled, unconditionally search global index.
-	if s.disablePerDayIndex {
-		return globalIndexTimeRange
-	}
-
-	tr := idbTR
-	if idbTR.contains(searchTR.MinTimestamp) {
-		tr.MinTimestamp = searchTR.MinTimestamp
-	}
-	if idbTR.contains(searchTR.MaxTimestamp) {
-		tr.MaxTimestamp = searchTR.MaxTimestamp
-	}
-
-	// For legacy IndexDBs only, partition indexDBs can't span more than a
-	// month.
-	minDate, maxDate := tr.DateRange()
-	if maxDate-minDate > maxDaysForPerDaySearch {
-		return globalIndexTimeRange
-	}
-
-	// For partition IndexDBs only. If the final time range is still the same as
-	// the idb time range, then return globalIndexTimeRange to indicate that we
-	// want to search the global index since the entire index db needs to be
-	// searched anyway.
-	if tr == idbTR {
-		return globalIndexTimeRange
-	}
-
-	return tr
-}
-
 // RegisterMetricNames registers all the metric names from mrs in the indexdb, so they can be queried later.
 //
 // The the MetricRow.Timestamp is used for registering the metric name at the given day according to the timestamp.
@@ -1819,9 +1770,9 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 				}
 				mn.sortTags()
 				idb.createGlobalIndexes(&lTSID.TSID, mn)
-				idb.createPerDayIndexes(date, &lTSID.TSID, mn)
 				seriesRepopulated++
-			} else if !is.hasDateMetricID(date, lTSID.TSID.MetricID) {
+			}
+			if !is.hasDateMetricID(date, lTSID.TSID.MetricID) {
 				if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
 					if firstWarn == nil {
 						firstWarn = fmt.Errorf("cannot unmarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
@@ -2004,7 +1955,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 
 		// tsidCache may contain TSIDs that were deleted from some indexDBs but
 		// are still in use in other indexDBs. Thus, also check if a given TSID
-		// was not deleted deom the current indexDB.
+		// was not deleted from the current indexDB.
 		if s.getTSIDByMetricNameFromCache(&lTSID, mr.MetricNameRaw) && !deletedMetricIDs.Has(lTSID.TSID.MetricID) {
 			// Fast path - the TSID for the given mr.MetricNameRaw has been found in cache and isn't deleted.
 

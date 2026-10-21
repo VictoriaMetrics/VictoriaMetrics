@@ -129,6 +129,52 @@ func getValuesForPrecisionBits(values []int64, precisionBits uint8) []int64 {
 	return valuesAdjusted
 }
 
+func TestBlockUnmarshalPortableTimestampRange(t *testing.T) {
+	f := func(minTimestamp, maxTimestamp int64, precisionBits uint8, wantError bool) {
+		t.Helper()
+		bh := blockHeader{
+			MinTimestamp:          minTimestamp,
+			MaxTimestamp:          maxTimestamp,
+			FirstValue:            42,
+			RowsCount:             1,
+			TimestampsMarshalType: encoding.MarshalTypeConst,
+			ValuesMarshalType:     encoding.MarshalTypeConst,
+			PrecisionBits:         precisionBits,
+		}
+		data := bh.marshalPortable(nil)
+		data = encoding.MarshalBytes(data, nil)
+		data = encoding.MarshalBytes(data, nil)
+
+		var b Block
+		tail, err := b.UnmarshalPortable(data)
+		if wantError {
+			if err == nil || !strings.Contains(err.Error(), "MaxTimestamp cannot be smaller than MinTimestamp") {
+				t.Fatalf("unexpected error for timestamp range [%d, %d], precisionBits=%d: %v", minTimestamp, maxTimestamp, precisionBits, err)
+			}
+			return
+		}
+		if err != nil {
+			t.Fatalf("cannot unmarshal timestamp range [%d, %d], precisionBits=%d: %s", minTimestamp, maxTimestamp, precisionBits, err)
+		}
+		if len(tail) != 0 {
+			t.Fatalf("unexpected tail: %x", tail)
+		}
+		if !reflect.DeepEqual(b.timestamps, []int64{minTimestamp}) || !reflect.DeepEqual(b.values, []int64{42}) {
+			t.Fatalf("unexpected block data; got timestamps=%d, values=%d; want timestamps=[%d], values=[42]", b.timestamps, b.values, minTimestamp)
+		}
+	}
+	// Lossy timestamp decoding used to panic when restoring this reversed range.
+	f(2000, 1000, 63, true)
+	f(2000, 1000, 64, true)
+	f(-1000, -2000, 63, true)
+
+	// Equal bounds are valid, including zero and pre-epoch timestamps.
+	f(1000, 1000, 63, false)
+	f(1000, 1000, 64, false)
+	f(0, 0, 63, false)
+	f(-1000, -1000, 63, false)
+}
+
 // TestBlockUnmarshalPortableDoS is a regression test for GHSA-7277-c249-gccp.
 // RowsCount=1 with NearestDelta2 or ZSTDNearestDelta2 must return an error, not panic.
 func TestBlockUnmarshalPortableDoS(t *testing.T) {

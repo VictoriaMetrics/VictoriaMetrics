@@ -54,8 +54,8 @@ and unpack it. It contains a single `victoria-metrics-prod` binary.
 For example, on Linux with `amd64` architecture:
 
 ```sh
-wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.153.0/victoria-metrics-linux-amd64-v1.153.0.tar.gz
-tar xzf victoria-metrics-linux-amd64-v1.153.0.tar.gz
+wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.154.1/victoria-metrics-linux-amd64-v1.154.1.tar.gz
+tar xzf victoria-metrics-linux-amd64-v1.154.1.tar.gz
 ```
 
 The binary is self-contained and requires no installation - it is ready to run as is.
@@ -139,12 +139,13 @@ so no other components are needed.
    ```yaml
    scrape_configs:
    - job_name: node-exporter
+     scrape_interval: 10s
      static_configs:
      - targets:
        - localhost:9100
    ```
 
-1. Restart VictoriaMetrics with the `-promscrape.config` command-line flag pointing to this file:
+1. Stop VictoriaMetrics with `Ctrl+C` and start it again with the `-promscrape.config` command-line flag pointing to this file:
 
    ```sh
    ./victoria-metrics-prod -selfScrapeInterval=10s -promscrape.config=scrape.yaml
@@ -230,9 +231,9 @@ Download the newest available [VictoriaMetrics release](https://docs.victoriamet
 from [DockerHub](https://hub.docker.com/r/victoriametrics/victoria-metrics) or [Quay](https://quay.io/repository/victoriametrics/victoria-metrics?tab=tags):
 
 ```sh
-docker pull victoriametrics/victoria-metrics:v1.153.0
+docker pull victoriametrics/victoria-metrics:v1.154.1
 docker run -it --rm -v `pwd`/victoria-metrics-data:/victoria-metrics-data -p 8428:8428 \
- victoriametrics/victoria-metrics:v1.153.0 --selfScrapeInterval=5s -storageDataPath=victoria-metrics-data
+ victoriametrics/victoria-metrics:v1.154.1 --selfScrapeInterval=5s -storageDataPath=victoria-metrics-data
 ```
 
 _For Enterprise images, see [this link](https://docs.victoriametrics.com/victoriametrics/enterprise/#docker-images)._
@@ -266,16 +267,23 @@ make docker-vm-cluster-up
 You should see:
 
 ```sh
- ✔ Container vmstorage-1        Started                                                                                                                                                0.4s
- ✔ Container vmselect-1         Started                                                                                                                                                0.4s
- ✔ Container vminsert           Started                                                                                                                                                0.4s
- ✔ Container vmagent            Started
+ ✔ Container docker-vmstorage-1-1   Started
+ ✔ Container docker-vmstorage-2-1   Started
+ ✔ Container docker-alertmanager-1  Started
+ ✔ Container docker-vminsert-1-1    Started
+ ✔ Container docker-vminsert-2-1    Started
+ ✔ Container docker-vmselect-1-1    Started
+ ✔ Container docker-vmselect-2-1    Started
+ ✔ Container docker-vmauth-1        Started
+ ✔ Container docker-vmalert-1       Started
+ ✔ Container docker-grafana-1       Started
+ ✔ Container docker-vmagent-1       Started
 ```
 
 The command starts a set of VictoriaMetrics components for metrics collection, storing, alerting and Grafana for user
 interface. See the [description of deployed topology](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#victoriametrics-cluster).
 
-Visit Grafana `http://localhost:3000/` (admin:admin) or vmui `http://localhost:8427/select/0/vmui` to start exploring metrics.
+Visit Grafana `http://localhost:3000/` (admin:admin) or vmui `http://localhost:8427/select/0/vmui` (foo:bar) to start exploring metrics.
 
 _Further customization is possible by editing the [compose-vm-cluster.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/compose-vm-cluster.yml)
 file._
@@ -592,7 +600,7 @@ When moving to production with VictoriaMetrics, we recommend following these bes
 Each VictoriaMetrics component emits its own metrics with various details regarding performance
 and health state. Docs for the components also contain a `Monitoring` section with an explanation
 of what and how should be monitored. For example,
-[Single-server-VictoriaMetrics Monitoring](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#monitoring).
+[Single-server-VictoriaMetrics Monitoring](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#monitoring).
 
 VictoriaMetrics has a list of [Grafana dashboards](https://grafana.com/orgs/victoriametrics/dashboards).
 Each dashboard contains a lot of useful information and tips. It is recommended to have these dashboards installed and up to date.
