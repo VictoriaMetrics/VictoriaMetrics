@@ -671,21 +671,34 @@ func fillLeftNaNsWithRightValuesOrMerge(tssLeft, tssRight []*timeseries) {
 		return
 	}
 
-	nameLeft, nameRight := bbPool.Get(), bbPool.Get()
+	// Marshal right-hand-side names only once.
+	// Marshaling them for each left series and point is slow.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10374
+	nameLeft, namesRight := bbPool.Get(), bbPool.Get()
+	rightNameEnds := make([]int, len(tssRight))
+	for j, tsRight := range tssRight {
+		namesRight.B = marshalMetricNameSorted(namesRight.B, &tsRight.MetricName)
+		rightNameEnds[j] = len(namesRight.B)
+	}
+	canBeMerged := make([]bool, len(tssRight))
 	for _, tsLeft := range tssLeft {
-		valuesLeft := tsLeft.Values
 		nameLeft.B = marshalMetricNameSorted(nameLeft.B[:0], &tsLeft.MetricName)
+		start := 0
+		for j, end := range rightNameEnds {
+			canBeMerged[j] = bytes.Equal(nameLeft.B, namesRight.B[start:end])
+			start = end
+		}
+
+		valuesLeft := tsLeft.Values
 		for i, v := range valuesLeft {
 			leftIsNaN := math.IsNaN(v)
-			for _, tsRight := range tssRight {
-				nameRight.B = marshalMetricNameSorted(nameRight.B[:0], &tsRight.MetricName)
-				canBeMerged := bytes.Equal(nameLeft.B, nameRight.B)
+			for j, tsRight := range tssRight {
 				valueRight := tsRight.Values[i]
-				if leftIsNaN && canBeMerged {
+				if leftIsNaN && canBeMerged[j] {
 					// fill NaNs with valueRight if labels match
 					valuesLeft[i] = valueRight
 				}
-				if !leftIsNaN || canBeMerged {
+				if !leftIsNaN || canBeMerged[j] {
 					// set NaN to valueRight if valueLeft is not NaN
 					// or if left and right can be merged
 					tsRight.Values[i] = nan
@@ -694,7 +707,7 @@ func fillLeftNaNsWithRightValuesOrMerge(tssLeft, tssRight []*timeseries) {
 		}
 	}
 	bbPool.Put(nameLeft)
-	bbPool.Put(nameRight)
+	bbPool.Put(namesRight)
 }
 
 func binaryOpIfnot(bfa *binaryOpFuncArg) ([]*timeseries, error) {
