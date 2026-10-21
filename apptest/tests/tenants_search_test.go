@@ -14,6 +14,8 @@ func TestClusterTenantsSearch(t *testing.T) {
 	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 
+	sut := tc.MustStartDefaultCluster()
+
 	const numDays = 100
 	now := time.Now().UTC()
 	samples := make([]string, numDays)
@@ -29,7 +31,6 @@ func TestClusterTenantsSearch(t *testing.T) {
 		tenantIDs[i] = fmt.Sprintf("%s:%s", accountID, projectID)
 	}
 
-	sut := tc.MustStartDefaultCluster()
 	sut.PrometheusAPIV1ImportPrometheus(t, samples, apptest.QueryOpts{Tenant: "multitenant"})
 	sut.ForceFlush(t)
 
