@@ -661,6 +661,8 @@ var httpClient = &http.Client{
 
 // Tenants processes /admin/tenants request.
 func Tenants(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWriter, r *http.Request) error {
+	defer tenantsDuration.UpdateDuration(startTime)
+
 	ctx, cancel := searchutil.GetContextForStatusRequest(r, startTime)
 	defer cancel()
 
@@ -690,6 +692,8 @@ func Tenants(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWriter,
 	}
 	return nil
 }
+
+var tenantsDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/admin/tenants"}`)
 
 // LabelValuesHandler processes /api/v1/label/<labelName>/values request.
 //
