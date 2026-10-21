@@ -678,7 +678,7 @@ Also in the cluster version the `/prometheus/api/v1` endpoint ingests  `jsonl`, 
   be used on a regular basis, since it carries non-zero overhead.
 
 - URL for listing [tenants](#multitenancy) with the ingested data on the given time range: `http://<vmselect>:8481/admin/tenants?start=...&end=...`.
-  The `start` and `end` query args are optional. Both are zero by default. If both are zero, then only the tenants for the current day are returned.
+  The `start` and `end` query args must be specified together. If both are missing, then only the tenants for the current day are returned.
   In order to get all tenants, specify both `start` and `end` so that the resulting time range includes the entire `-retentionPeriod`.
 
 - URL for accessing [vmalerts](https://docs.victoriametrics.com/victoriametrics/vmalert/) UI: `http://<vmselect>:8481/select/<accountID>/prometheus/vmalert/`.
