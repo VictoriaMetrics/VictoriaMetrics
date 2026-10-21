@@ -542,7 +542,8 @@ func (db *indexDB) containsDate(date uint64) (bool, uint64) {
 
 // perDaySearchConcurrencyLimitCh is used to limit the number of concurrent
 // searches in per-day index. The limit is shared across all indexDB methods
-// as well as across all indexDB instances.
+// as well as across all indexDB instances. This should reduce cpu and memory
+// utilization for queries with long time ranges.
 var perDaySearchConcurrencyLimitCh = make(chan struct{}, 2*cgroup.AvailableCPUs())
 
 func beginConcurrentPerDaySearch(ctx context.Context) error {
