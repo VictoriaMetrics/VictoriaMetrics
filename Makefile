@@ -161,6 +161,15 @@ vmutils-freebsd-amd64: \
 	vmrestore-freebsd-amd64 \
 	vmctl-freebsd-amd64
 
+vmutils-freebsd-arm64: \
+	vmagent-freebsd-arm64 \
+	vmalert-freebsd-arm64 \
+	vmalert-tool-freebsd-arm64 \
+	vmauth-freebsd-arm64 \
+	vmbackup-freebsd-arm64 \
+	vmrestore-freebsd-arm64 \
+	vmctl-freebsd-arm64
+
 vmutils-openbsd-amd64: \
 	vmagent-openbsd-amd64 \
 	vmalert-openbsd-amd64 \
@@ -193,6 +202,7 @@ victoria-metrics-crossbuild: \
 	victoria-metrics-darwin-amd64 \
 	victoria-metrics-darwin-arm64 \
 	victoria-metrics-freebsd-amd64 \
+	victoria-metrics-freebsd-arm64 \
 	victoria-metrics-openbsd-amd64 \
 	victoria-metrics-windows-amd64
 
@@ -206,6 +216,7 @@ vmutils-crossbuild: \
 	vmutils-darwin-amd64 \
 	vmutils-darwin-arm64 \
 	vmutils-freebsd-amd64 \
+	vmutils-freebsd-arm64 \
 	vmutils-openbsd-amd64 \
 	vmutils-windows-amd64
 
@@ -270,6 +281,7 @@ release-victoria-metrics: \
 	release-victoria-metrics-darwin-amd64 \
 	release-victoria-metrics-darwin-arm64 \
 	release-victoria-metrics-freebsd-amd64 \
+	release-victoria-metrics-freebsd-arm64 \
 	release-victoria-metrics-openbsd-amd64 \
 	release-victoria-metrics-windows-amd64
 
@@ -296,6 +308,9 @@ release-victoria-metrics-darwin-arm64:
 
 release-victoria-metrics-freebsd-amd64:
 	GOOS=freebsd GOARCH=amd64 $(MAKE) release-victoria-metrics-goos-goarch
+
+release-victoria-metrics-freebsd-arm64:
+	GOOS=freebsd GOARCH=arm64 $(MAKE) release-victoria-metrics-goos-goarch
 
 release-victoria-metrics-openbsd-amd64:
 	GOOS=openbsd GOARCH=amd64 $(MAKE) release-victoria-metrics-goos-goarch
@@ -331,6 +346,7 @@ release-vmutils: \
 	release-vmutils-darwin-amd64 \
 	release-vmutils-darwin-arm64 \
 	release-vmutils-freebsd-amd64 \
+	release-vmutils-freebsd-arm64 \
 	release-vmutils-openbsd-amd64 \
 	release-vmutils-windows-amd64
 
@@ -357,6 +373,9 @@ release-vmutils-darwin-arm64:
 
 release-vmutils-freebsd-amd64:
 	GOOS=freebsd GOARCH=amd64 $(MAKE) release-vmutils-goos-goarch
+
+release-vmutils-freebsd-arm64:
+	GOOS=freebsd GOARCH=arm64 $(MAKE) release-vmutils-goos-goarch
 
 release-vmutils-openbsd-amd64:
 	GOOS=openbsd GOARCH=amd64 $(MAKE) release-vmutils-goos-goarch

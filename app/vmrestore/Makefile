@@ -43,6 +43,9 @@ vmrestore-darwin-arm64-prod:
 vmrestore-freebsd-amd64-prod:
 	APP_NAME=vmrestore EXTRA_GO_BUILD_TAGS=$(VMRESTORE_GO_BUILD_TAGS) $(MAKE) app-via-docker-freebsd-amd64
 
+vmrestore-freebsd-arm64-prod:
+	APP_NAME=vmrestore EXTRA_GO_BUILD_TAGS=$(VMRESTORE_GO_BUILD_TAGS) $(MAKE) app-via-docker-freebsd-arm64
+
 vmrestore-openbsd-amd64-prod:
 	APP_NAME=vmrestore EXTRA_GO_BUILD_TAGS=$(VMRESTORE_GO_BUILD_TAGS) $(MAKE) app-via-docker-openbsd-amd64
 
@@ -102,6 +105,9 @@ vmrestore-darwin-arm64:
 
 vmrestore-freebsd-amd64:
 	APP_NAME=vmrestore EXTRA_GO_BUILD_TAGS=$(VMRESTORE_GO_BUILD_TAGS) CGO_ENABLED=0 GOOS=freebsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
+vmrestore-freebsd-arm64:
+	APP_NAME=vmrestore EXTRA_GO_BUILD_TAGS=$(VMRESTORE_GO_BUILD_TAGS) CGO_ENABLED=0 GOOS=freebsd GOARCH=arm64 $(MAKE) app-local-goos-goarch
 
 vmrestore-openbsd-amd64:
 	APP_NAME=vmrestore EXTRA_GO_BUILD_TAGS=$(VMRESTORE_GO_BUILD_TAGS) CGO_ENABLED=0 GOOS=openbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch

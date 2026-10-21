@@ -43,6 +43,9 @@ vmbackup-darwin-arm64-prod:
 vmbackup-freebsd-amd64-prod:
 	APP_NAME=vmbackup EXTRA_GO_BUILD_TAGS=$(VMBACKUP_GO_BUILD_TAGS) $(MAKE) app-via-docker-freebsd-amd64
 
+vmbackup-freebsd-arm64-prod:
+	APP_NAME=vmbackup EXTRA_GO_BUILD_TAGS=$(VMBACKUP_GO_BUILD_TAGS) $(MAKE) app-via-docker-freebsd-arm64
+
 vmbackup-openbsd-amd64-prod:
 	APP_NAME=vmbackup EXTRA_GO_BUILD_TAGS=$(VMBACKUP_GO_BUILD_TAGS) $(MAKE) app-via-docker-openbsd-amd64
 
@@ -102,6 +105,9 @@ vmbackup-darwin-arm64:
 
 vmbackup-freebsd-amd64:
 	APP_NAME=vmbackup EXTRA_GO_BUILD_TAGS=$(VMBACKUP_GO_BUILD_TAGS) CGO_ENABLED=0 GOOS=freebsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
+vmbackup-freebsd-arm64:
+	APP_NAME=vmbackup EXTRA_GO_BUILD_TAGS=$(VMBACKUP_GO_BUILD_TAGS) CGO_ENABLED=0 GOOS=freebsd GOARCH=arm64 $(MAKE) app-local-goos-goarch
 
 vmbackup-openbsd-amd64:
 	APP_NAME=vmbackup EXTRA_GO_BUILD_TAGS=$(VMBACKUP_GO_BUILD_TAGS) CGO_ENABLED=0 GOOS=openbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch

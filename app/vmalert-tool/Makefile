@@ -39,6 +39,9 @@ vmalert-tool-darwin-arm64-prod:
 vmalert-tool-freebsd-amd64-prod:
 	APP_NAME=vmalert-tool $(MAKE) app-via-docker-freebsd-amd64
 
+vmalert-tool-freebsd-arm64-prod:
+	APP_NAME=vmalert-tool $(MAKE) app-via-docker-freebsd-arm64
+
 vmalert-tool-openbsd-amd64-prod:
 	APP_NAME=vmalert-tool $(MAKE) app-via-docker-openbsd-amd64
 
@@ -98,6 +101,9 @@ vmalert-tool-darwin-arm64:
 
 vmalert-tool-freebsd-amd64:
 	APP_NAME=vmalert-tool CGO_ENABLED=0 GOOS=freebsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
+vmalert-tool-freebsd-arm64:
+	APP_NAME=vmalert-tool CGO_ENABLED=0 GOOS=freebsd GOARCH=arm64 $(MAKE) app-local-goos-goarch
 
 vmalert-tool-openbsd-amd64:
 	APP_NAME=vmalert-tool CGO_ENABLED=0 GOOS=openbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch

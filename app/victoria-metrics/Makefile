@@ -39,6 +39,9 @@ victoria-metrics-darwin-arm64-prod:
 victoria-metrics-freebsd-amd64-prod:
 	APP_NAME=victoria-metrics $(MAKE) app-via-docker-freebsd-amd64
 
+victoria-metrics-freebsd-arm64-prod:
+	APP_NAME=victoria-metrics $(MAKE) app-via-docker-freebsd-arm64
+
 victoria-metrics-openbsd-amd64-prod:
 	APP_NAME=victoria-metrics $(MAKE) app-via-docker-openbsd-amd64
 
@@ -105,6 +108,9 @@ victoria-metrics-darwin-arm64:
 
 victoria-metrics-freebsd-amd64:
 	APP_NAME=victoria-metrics CGO_ENABLED=0 GOOS=freebsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
+victoria-metrics-freebsd-arm64:
+	APP_NAME=victoria-metrics CGO_ENABLED=0 GOOS=freebsd GOARCH=arm64 $(MAKE) app-local-goos-goarch
 
 victoria-metrics-openbsd-amd64:
 	APP_NAME=victoria-metrics CGO_ENABLED=0 GOOS=openbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch

@@ -195,6 +195,9 @@ app-via-docker-darwin-arm64:
 app-via-docker-freebsd-amd64:
 	CGO_ENABLED=0 GOOS=freebsd GOARCH=amd64 $(MAKE) app-via-docker-goos-goarch
 
+app-via-docker-freebsd-arm64:
+	CGO_ENABLED=0 GOOS=freebsd GOARCH=arm64 $(MAKE) app-via-docker-goos-goarch
+
 app-via-docker-openbsd-amd64:
 	CGO_ENABLED=0 GOOS=openbsd GOARCH=amd64 $(MAKE) app-via-docker-goos-goarch
 

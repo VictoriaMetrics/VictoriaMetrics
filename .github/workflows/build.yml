@@ -57,6 +57,8 @@ jobs:
             arch: arm64
           - os: freebsd
             arch: amd64
+          - os: freebsd
+            arch: arm64
           - os: openbsd
             arch: amd64
           - os: netbsd
