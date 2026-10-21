@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fscore"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
@@ -233,8 +234,35 @@ func getRefreshTokenFunc(sdc *SDConfig, ac, proxyAC *promauth.Config, env *cloud
 				request.Header.Set("Metadata", "true")
 			}
 		}
+	case "workloadidentity":
+		// See https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-client-creds-grant-flow#third-case-access-token-request-with-a-federated-credential
+		tenantID := os.Getenv("AZURE_TENANT_ID")
+		clientID := os.Getenv("AZURE_CLIENT_ID")
+		tokenFile := os.Getenv("AZURE_FEDERATED_TOKEN_FILE")
+		if tenantID == "" || clientID == "" || tokenFile == "" {
+			return nil, fmt.Errorf("missing AZURE_TENANT_ID, AZURE_CLIENT_ID or AZURE_FEDERATED_TOKEN_FILE env var for `authentication_method: WorkloadIdentity`")
+		}
+		tokenAPIPath = "/" + tenantID + "/oauth2/v2.0/token"
+		tokenEndpoint = env.ActiveDirectoryEndpoint
+		modifyRequest = func(request *http.Request) {
+			// The token file is rotated by Kubernetes, so it must be read before every token request.
+			assertion, err := fscore.ReadPasswordFromFileOrHTTP(tokenFile)
+			if err != nil {
+				logger.Errorf("cannot read federated token from AZURE_FEDERATED_TOKEN_FILE: %s", err)
+			}
+			q := url.Values{
+				"grant_type":            []string{"client_credentials"},
+				"client_id":             []string{clientID},
+				"client_assertion_type": []string{"urn:ietf:params:oauth:client-assertion-type:jwt-bearer"},
+				"client_assertion":      []string{assertion},
+				"scope":                 []string{env.ResourceManagerEndpoint + "/.default"},
+			}
+			request.Body = io.NopCloser(strings.NewReader(q.Encode()))
+			request.Method = http.MethodPost
+			request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		}
 	default:
-		return nil, fmt.Errorf("unsupported `authentication_method: %q` only `OAuth` and `ManagedIdentity` are supported", authenticationMethod)
+		return nil, fmt.Errorf("unsupported `authentication_method: %q` only `OAuth`, `ManagedIdentity` and `WorkloadIdentity` are supported", authenticationMethod)
 	}
 
 	authClient, err := discoveryutil.NewClient(tokenEndpoint, ac, sdc.ProxyURL, proxyAC, &sdc.HTTPClientConfig)
@@ -273,7 +301,7 @@ func parseTokenExpiry(tr tokenResponse) (int64, error) {
 		}
 		expiresInSeconds = expiresOnSeconds - time.Now().Unix()
 	} else {
-		expiresInSeconds, err = strconv.ParseInt(tr.ExpiresIn, 10, 64)
+		expiresInSeconds, err = tr.ExpiresIn.Int64()
 		if err != nil {
 			return 0, fmt.Errorf("cannot parse expiresIn=%q auth token response: %w", tr.ExpiresIn, err)
 		}
@@ -307,6 +335,7 @@ func (ac *apiConfig) mustGetAuthToken() string {
 // https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token#get-a-token-using-go
 type tokenResponse struct {
 	AccessToken string `json:"access_token"`
-	ExpiresIn   string `json:"expires_in"`
-	ExpiresOn   string `json:"expires_on"`
+	// ExpiresIn is a string in v1 token responses and a number in v2.0 token responses.
+	ExpiresIn json.Number `json:"expires_in"`
+	ExpiresOn string      `json:"expires_on"`
 }
