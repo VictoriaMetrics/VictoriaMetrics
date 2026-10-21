@@ -1067,22 +1067,44 @@ vmagent will generate the following persistent queue folders:
 2_0AAFDF53E314A72A
 ```
 
-### On-disk per url persistence
+### Manual on-disk persistence paths
 
-As an alternative to `-remoteWrite.tmpDataPath`, vmagent can use queue path independently for each `-remoteWrite.url` with `-remoteWrite.queuePath` flag.
-It requires the flag value to be set for each `-remoteWrite.url`.
+By default, `vmagent` [generates persistent queue directory names](https://docs.victoriametrics.com/victoriametrics/vmagent/#on-disk-persistence)
+from the position and the value of every `-remoteWrite.url`. So adding, removing, reordering or editing `-remoteWrite.url` flags
+changes the directory names, and pending data in the old directories is no longer sent: it is dropped as a dangling queue on the next start,
+unless `-remoteWrite.keepDanglingQueues` is set.
+If you plan to modify `-remoteWrite.url` flags often, consider setting the persistent queue directory
+for each `-remoteWrite.url` manually via `-remoteWrite.queuePath`{{% available_from "#" %}} command-line flag.
 
- For example:
+`-remoteWrite.queuePath` must be set once per `-remoteWrite.url`; the n-th `-remoteWrite.queuePath` is used by the n-th `-remoteWrite.url`.
+For example:
 
 ```bash
-./bin/vmagent -remoteWrite.url=http://url-0 -remoteWrite.url=http://url-1 -remoteWrite.url=http://url-2 -remoteWrite.queuePath=/vmagent-data/url-0 -remoteWrite.queuePath=/vmagent-data/url-1 -remoteWrite.queuePath=/vmagent-data/url-2
+./bin/vmagent \
+  -remoteWrite.url=http://url-0 \
+  -remoteWrite.url=http://url-1 \
+  -remoteWrite.url=http://url-2 \
+  -remoteWrite.queuePath=/vmagent-data/url-0 \
+  -remoteWrite.queuePath=/vmagent-data/url-1 \
+  -remoteWrite.queuePath=/vmagent-data/url-2
 ```
 
-It allows to remove `-remoteWrite.url=http://url-1` from the middle of configuration and keep queue data for `--remoteWrite.url=http://url-2`.
-By default, vmagent calculates the persistent queue subfolder name based on the URL's position in the argument list.
+Now `-remoteWrite.url=http://url-1` can be removed together with `-remoteWrite.queuePath=/vmagent-data/url-1`,
+and `http://url-2` keeps its pending data in `/vmagent-data/url-2`.
 
-Exist queues can be kept by pinning it from auto-generated names. For example, `<remoteWrite.tmpDataPath>/persistent-queue/1_B9EB7BE220B91E9D` can be used as a value for `-remoteWrite.queuePath` flag.
-In addition vmagent will not remove any content from `-remoteWrite.tmpDataPath` folder, if `-remoteWrite.queuePath` is set.
+Keep in mind the following when using `-remoteWrite.queuePath`:
+
+* Every `-remoteWrite.queuePath` must point to a dedicated directory used only by a single `-remoteWrite.url`.
+  `vmagent` deletes all the contents of a directory that doesn't contain a valid persistent queue.
+* `vmagent` doesn't track which `-remoteWrite.url` a directory belongs to. If a directory is assigned to another `-remoteWrite.url`,
+  pending data from it is sent to that new `-remoteWrite.url`.
+* `vmagent` doesn't remove directories that are no longer referenced by any `-remoteWrite.queuePath`. Delete them manually when they aren't needed.
+* `-remoteWrite.tmpDataPath` is still created and used for internal files, but `vmagent` doesn't remove
+  [dangling queues](https://docs.victoriametrics.com/victoriametrics/vmagent/#on-disk-persistence) from it.
+
+To keep pending data when switching from auto-generated directories to `-remoteWrite.queuePath`, pass the existing directory as the flag value,
+for example `-remoteWrite.queuePath=<remoteWrite.tmpDataPath>/persistent-queue/1_B9EB7BE220B91E9D`.
+Auto-generated directories not listed in `-remoteWrite.queuePath` stay on disk and are no longer sent, so remove them manually when they aren't needed.
 
 ### On-disk persistence and data processing order
 
