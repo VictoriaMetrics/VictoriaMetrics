@@ -1367,7 +1367,7 @@ func (s *Storage) DeleteSeries(ctx context.Context, qt *querytracer.Tracer, tfss
 	if err != nil {
 		return 0, err
 	}
-	all.UnionMayOwn(legacyDMIs)
+	all.Union(legacyDMIs)
 
 	ptws := s.tb.GetAllPartitions(nil)
 	defer s.tb.PutPartitions(ptws)
@@ -1383,7 +1383,7 @@ func (s *Storage) DeleteSeries(ctx context.Context, qt *querytracer.Tracer, tfss
 			return 0, err
 		}
 		n := dmis.Len()
-		all.UnionMayOwn(dmis)
+		all.Union(dmis)
 		qt.Printf("deleted %d metricIDs from %s partition indexDB", n, idb.name)
 	}
 
