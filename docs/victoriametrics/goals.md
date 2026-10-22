@@ -63,3 +63,11 @@ aliases:
   Happy users are eager to become happy [customers](https://docs.victoriametrics.com/victoriametrics/enterprise/)
   over time. This increases long-term profit.
   Upset users may be forced to become customers, but they will constantily search for the opportunity to switch to competing solutions.
+
+## Join the team
+
+If these goals resonate with you, consider joining the VictoriaMetrics team. We're hiring engineers motivated to improve our products and help users get the most out of them.
+
+Already contributing to VictoriaMetrics? We'd be especially happy to hear from you.
+
+[Explore open roles.](https://careers.victoriametrics.com/)
