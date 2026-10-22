@@ -546,12 +546,12 @@ func (db *indexDB) containsDate(date uint64) (bool, uint64) {
 // utilization for queries with long time ranges.
 var perDaySearchConcurrencyLimitCh = make(chan struct{}, 2*cgroup.AvailableCPUs())
 
-func beginConcurrentPerDaySearch(ctx context.Context) error {
+func beginConcurrentPerDaySearch(ctx context.Context) bool {
 	select {
 	case perDaySearchConcurrencyLimitCh <- struct{}{}:
-		return nil
+		return true
 	case <-ctx.Done():
-		return ctx.Err()
+		return false
 	}
 }
 
@@ -591,11 +591,11 @@ func (db *indexDB) searchLabelNames(ctx context.Context, qt *querytracer.Tracer,
 	minDate, maxDate := tr.DateRange()
 	var mu sync.Mutex
 	wg := getWaitGroup()
-	var errCtx, errGlobal error
+	var errGlobal error
 	lns := make(map[string]struct{})
 	qt = qt.NewChild("parallel search for label names: filters=%s, timeRange=%s", tfss, &tr)
 	for date := minDate; date <= maxDate; date++ {
-		if errCtx = beginConcurrentPerDaySearch(ctx); errCtx != nil {
+		if !beginConcurrentPerDaySearch(ctx) {
 			break
 		}
 		qtChild := qt.NewChild("search for label names: filters=%s, date=%s", tfss, dateToString(date))
@@ -625,12 +625,11 @@ func (db *indexDB) searchLabelNames(ctx context.Context, qt *querytracer.Tracer,
 	putWaitGroup(wg)
 	qt.Done()
 
-	if errCtx != nil {
-		return nil, errCtx
-	} else if errGlobal != nil {
-		return nil, errGlobal
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
-	return lns, nil
+
+	return lns, errGlobal
 }
 
 func (db *indexDB) searchLabelNamesByDateAndFilters(ctx context.Context, qt *querytracer.Tracer, date uint64, tfss []*TagFilters, maxLabelNames, maxMetrics int) (map[string]struct{}, error) {
@@ -887,11 +886,11 @@ func (db *indexDB) searchLabelValuesForTimeRange(ctx context.Context, qt *queryt
 	minDate, maxDate := tr.DateRange()
 	var mu sync.Mutex
 	wg := getWaitGroup()
-	var errCtx, errGlobal error
+	var errGlobal error
 	lvs := make(map[string]struct{})
 	qt = qt.NewChild("parallel search for label values: labelName=%q, filters=%s, timeRange=%s", labelName, tfss, &tr)
 	for date := minDate; date <= maxDate; date++ {
-		if errCtx = beginConcurrentPerDaySearch(ctx); errCtx != nil {
+		if !beginConcurrentPerDaySearch(ctx) {
 			break
 		}
 		qtChild := qt.NewChild("search for label values: filters=%s, date=%s", tfss, dateToString(date))
@@ -921,17 +920,15 @@ func (db *indexDB) searchLabelValuesForTimeRange(ctx context.Context, qt *queryt
 	putWaitGroup(wg)
 	qt.Done()
 
-	if errCtx != nil {
-		return nil, errCtx
-	} else if errGlobal != nil {
-		return nil, errGlobal
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
 
 	// Skip empty values, since they have no any meaning.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/600
 	delete(lvs, "")
 
-	return lvs, nil
+	return lvs, errGlobal
 }
 
 func (db *indexDB) searchLabelValuesByDateAndFilters(ctx context.Context, qt *querytracer.Tracer, date uint64, labelName string, tfss []*TagFilters, maxLabelValues, maxMetrics int) (map[string]struct{}, error) {
@@ -1121,11 +1118,11 @@ func (is *indexSearch) searchTagValueSuffixesForTimeRange(ctx context.Context, t
 	minDate, maxDate := tr.DateRange()
 	// Query over multiple days in parallel.
 	wg := getWaitGroup()
-	var errCtx, errGlobal error
+	var errGlobal error
 	var mu sync.Mutex // protects tvss + errGlobal from concurrent access below.
 	tvss := make(map[string]struct{})
 	for minDate <= maxDate {
-		if errCtx = beginConcurrentPerDaySearch(ctx); errCtx != nil {
+		if !beginConcurrentPerDaySearch(ctx) {
 			break
 		}
 		date := minDate
@@ -1156,12 +1153,11 @@ func (is *indexSearch) searchTagValueSuffixesForTimeRange(ctx context.Context, t
 	wg.Wait()
 	putWaitGroup(wg)
 
-	if errCtx != nil {
-		return nil, errCtx
-	} else if errGlobal != nil {
-		return nil, errGlobal
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
-	return tvss, nil
+
+	return tvss, errGlobal
 }
 
 func (is *indexSearch) searchTagValueSuffixesAll(ctx context.Context, tagKey, tagValuePrefix string, delimiter byte, maxTagValueSuffixes int) (map[string]struct{}, error) {
@@ -1974,14 +1970,13 @@ func (db *indexDB) searchTSIDs(ctx context.Context, qt *querytracer.Tracer, tfss
 		return db.searchTSIDsByDateAndFilters(ctx, qtChild, date, tfss, maxMetrics)
 	}
 
-	var errCtx error
 	var wg sync.WaitGroup
 	tsidsByDate := make([][]TSID, numDays)
 	errsByDate := make([]error, numDays)
 	qt = qt.NewChild("search TSIDs in per-day index concurrently on %d days", numDays)
 	defer qt.Done()
 	for day := range numDays {
-		if errCtx = beginConcurrentPerDaySearch(ctx); errCtx != nil {
+		if !beginConcurrentPerDaySearch(ctx) {
 			break
 		}
 		date := minDate + uint64(day)
@@ -1995,8 +1990,8 @@ func (db *indexDB) searchTSIDs(ctx context.Context, qt *querytracer.Tracer, tfss
 	}
 	wg.Wait()
 
-	if errCtx != nil {
-		return nil, errCtx
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
 
 	var numTSIDs int
@@ -2135,14 +2130,13 @@ func (db *indexDB) searchMetricNames(ctx context.Context, qt *querytracer.Tracer
 		return db.searchMetricNamesByDateAndFilters(ctx, qtChild, date, tfss, maxMetrics)
 	}
 
-	var errCtx error
 	var wg sync.WaitGroup
 	metricNamesByDate := make([][]string, numDays)
 	errsByDate := make([]error, numDays)
 	qt = qt.NewChild("search metric names in per-day index concurrently on %d days", numDays)
 	defer qt.Done()
 	for day := range numDays {
-		if errCtx = beginConcurrentPerDaySearch(ctx); errCtx != nil {
+		if !beginConcurrentPerDaySearch(ctx) {
 			break
 		}
 		date := minDate + uint64(day)
@@ -2156,8 +2150,8 @@ func (db *indexDB) searchMetricNames(ctx context.Context, qt *querytracer.Tracer
 	}
 	wg.Wait()
 
-	if errCtx != nil {
-		return nil, errCtx
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
 
 	var numMetricNames int
