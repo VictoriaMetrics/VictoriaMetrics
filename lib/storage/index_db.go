@@ -1122,7 +1122,7 @@ func (is *indexSearch) searchTagValueSuffixesForTimeRange(ctx context.Context, t
 	var mu sync.Mutex // protects tvss + errGlobal from concurrent access below.
 	tvss := make(map[string]struct{})
 	for minDate <= maxDate {
-		// TODO(@rtm0): Not using concurrentPerDaySearchLimitCh for Graphite
+		// TODO(@rtm0): Not using perDaySearchConcurrencyLimitCh for Graphite
 		// queries because SearchGraphitePaths() is recursive and may result
 		// in a deadlock. Figure out how to limit concurrency in this case.
 
