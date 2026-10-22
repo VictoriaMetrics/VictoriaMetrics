@@ -24,7 +24,7 @@ func TestClusterTenantsSearch(t *testing.T) {
 		d := now.Add(-time.Duration(i) * 24 * time.Hour)
 		metricName := fmt.Sprintf("metric_%04d_%02d_%02d", d.Year(), d.Month(), d.Day())
 		accountID := fmt.Sprintf("%d", d.Year())
-		projectID := fmt.Sprintf("%d%d", d.Month(), d.Day())
+		projectID := fmt.Sprintf("%d", 10000+100*int(d.Month())+d.Day())
 		value := i
 		timestamp := d.UnixMilli()
 		samples[i] = fmt.Sprintf(`%s{vm_account_id="%s", vm_project_id="%s"} %d %d`, metricName, accountID, projectID, value, timestamp)
