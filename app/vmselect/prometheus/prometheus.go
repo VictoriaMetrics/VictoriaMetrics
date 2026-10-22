@@ -670,11 +670,15 @@ func Tenants(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWriter,
 	if err != nil {
 		return err
 	}
-	ct := startTime.UnixNano() / 1e6
-	end, err := httputil.GetTime(r, "end", ct)
+	end, err := httputil.GetTime(r, "end", 0)
 	if err != nil {
 		return err
 	}
+	if start == 0 && end == 0 {
+		start = startTime.UnixMilli()
+		end = startTime.UnixMilli()
+	}
+
 	tr := storage.TimeRange{
 		MinTimestamp: start,
 		MaxTimestamp: end,
