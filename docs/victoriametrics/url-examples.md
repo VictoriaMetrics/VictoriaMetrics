@@ -873,6 +873,24 @@ curl 'http://<vm>:<http-port>/health'
 
 Where `<vm>` is any of VictoriaMetrics services. And `<http-port>` is `-httpListenAddr` value.
 
+The `/health` page can be checked without `curl` by running the same binary with `-healthcheck` command-line flag.
+It exits with non-zero code if the check fails, so it can be used in Docker Compose `healthcheck`:
+
+```yaml
+healthcheck:
+  test: ["CMD", "/victoria-metrics-prod", "-healthcheck"]
+```
+
+Pass the same command-line flags as the checked process has, such as `-httpListenAddr`.
+If multiple `-httpListenAddr` values are set, then the check passes if the `/health` page returns OK at least at one of them.
+If the process is configured via [environment variables](https://docs.victoriametrics.com/victoriametrics/#environment-variables), then add `-envflag.enable` to the healthcheck command,
+so it reads the same environment variables. For example:
+
+```yaml
+healthcheck:
+  test: ["CMD", "/victoria-metrics-prod", "-healthcheck", "-envflag.enable"]
+```
+
 ### /-/healthy
 
 **Returns `VictoriaMetrics is Healthy.` if the HTTP server is healthy.**

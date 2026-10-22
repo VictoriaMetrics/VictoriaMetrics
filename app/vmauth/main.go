@@ -118,6 +118,11 @@ func main() {
 	if len(listenAddrs) == 0 {
 		listenAddrs = []string{":8427"}
 	}
+	if len(*httpInternalListenAddr) > 0 {
+		httpserver.CheckHealth(*httpInternalListenAddr, httpserver.ServeOptions{})
+	} else {
+		httpserver.CheckHealth(listenAddrs, httpserver.ServeOptions{UseProxyProtocol: useProxyProtocol})
+	}
 	logger.Infof("starting vmauth at %q...", listenAddrs)
 	startTime := time.Now()
 	initAuthConfig()

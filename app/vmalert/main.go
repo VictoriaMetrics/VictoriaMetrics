@@ -93,6 +93,12 @@ func main() {
 	buildinfo.Init()
 	logger.Init()
 
+	listenAddrs := *httpListenAddrs
+	if len(listenAddrs) == 0 {
+		listenAddrs = []string{":8880"}
+	}
+	httpserver.CheckHealth(listenAddrs, httpserver.ServeOptions{UseProxyProtocol: useProxyProtocol})
+
 	var err error
 	extURL, err = getExternalURL(*externalURL)
 	if err != nil {
@@ -175,11 +181,6 @@ func main() {
 	}
 
 	go configReload(ctx, manager, groupsCfg, sighupCh)
-
-	listenAddrs := *httpListenAddrs
-	if len(listenAddrs) == 0 {
-		listenAddrs = []string{":8880"}
-	}
 
 	// Register paths which could be protected by their own -*AuthKey flag.
 	httpserver.RegisterAuthKeyProtectedPathsFunc(isAuthKeyProtectedPath)

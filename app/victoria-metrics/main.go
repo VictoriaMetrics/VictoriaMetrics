@@ -92,6 +92,7 @@ func main() {
 	if len(listenAddrs) == 0 {
 		listenAddrs = []string{":8428"}
 	}
+	httpserver.CheckHealth(listenAddrs, httpserver.ServeOptions{UseProxyProtocol: useProxyProtocol})
 	logger.Infof("starting VictoriaMetrics at %q...", listenAddrs)
 	startTime := time.Now()
 

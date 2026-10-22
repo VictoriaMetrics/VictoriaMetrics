@@ -53,6 +53,9 @@ func main() {
 	buildinfo.Init()
 	logger.Init()
 
+	listenAddrs := []string{*httpListenAddr}
+	httpserver.CheckHealth(listenAddrs, httpserver.ServeOptions{})
+
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
 		procutil.WaitForSigterm()
@@ -107,7 +110,6 @@ func main() {
 		}
 	}
 
-	listenAddrs := []string{*httpListenAddr}
 	go httpserver.Serve(listenAddrs, nil, httpserver.ServeOptions{})
 
 	pushmetrics.Init()
