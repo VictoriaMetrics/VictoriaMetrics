@@ -118,6 +118,7 @@ func main() {
 	if len(listenAddrs) == 0 {
 		listenAddrs = []string{":8427"}
 	}
+	httpserver.CheckHealth(listenAddrs)
 	logger.Infof("starting vmauth at %q...", listenAddrs)
 	startTime := time.Now()
 	initAuthConfig()

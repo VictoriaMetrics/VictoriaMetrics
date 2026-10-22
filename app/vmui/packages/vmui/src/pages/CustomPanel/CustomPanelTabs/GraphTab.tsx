@@ -1,3 +1,4 @@
+import { useStep } from "../../../state/step/StepStateContext";
 import { FC, createPortal, useCallback, RefObject } from "preact/compat";
 import GraphView from "../../../components/Views/GraphView/GraphView";
 import GraphTips from "../../../components/Chart/GraphTips/GraphTips";
@@ -18,7 +19,8 @@ type Props = {
 const GraphTab: FC<Props> = ({ isHistogram, graphData, controlsRef }) => {
   const { isMobile } = useDeviceDetect();
 
-  const { customStep, yaxis, spanGaps, showAllPoints } = useGraphState();
+  const { effective: customStep } = useStep();
+  const { yaxis, spanGaps, showAllPoints } = useGraphState();
   const { period } = useTimeState();
   const { query } = useQueryState();
 
