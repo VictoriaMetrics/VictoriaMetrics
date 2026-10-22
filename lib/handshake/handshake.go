@@ -43,13 +43,8 @@ func VMInsertClientWithDialer(dial func() (net.Conn, error), compressionLevel in
 		return bc, nil
 	}
 	_ = c.Close()
-	// A timeout doesn't indicate an unsupported protocol. Let the caller retry
-	// instead of establishing a legacy connection, which cannot send metadata.
-	if IsTimeoutNetworkError(err) {
-		return nil, err
-	}
 	// fallback only if vmstorage closed connection at read success response
-	if !errors.Is(err, io.EOF) && !strings.Contains(err.Error(), "cannot read success response after sending hello") {
+	if !errors.Is(err, io.EOF) || !strings.Contains(err.Error(), "cannot read success response after sending hello") {
 		return nil, err
 	}
 	// try to fallback to the prev non-RPC API version

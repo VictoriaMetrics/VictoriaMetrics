@@ -12,33 +12,30 @@ import (
 )
 
 func TestVMInsertClientWithDialer(t *testing.T) {
-	for _, tc := range []struct {
-		name       string
-		serverFunc Func
-		isLegacy   bool
-	}{
-		{name: "current protocol", serverFunc: VMInsertServer},
-		{name: "legacy server", serverFunc: VMInsertServerWithLegacyHello, isLegacy: true},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			synctest.Test(t, func(t *testing.T) {
-				dial, serverErrors := newVMInsertTestDialer(t, tc.serverFunc, tc.serverFunc)
-				bc, err := VMInsertClientWithDialer(dial, 0)
-				if err != nil {
-					t.Fatalf("error on client handshake: %s", err)
-				}
-				if bc.IsLegacy != tc.isLegacy {
-					t.Fatalf("unexpected legacy mode; got %v; want %v", bc.IsLegacy, tc.isLegacy)
-				}
-				if tc.isLegacy && <-serverErrors == nil {
-					t.Fatalf("expected legacy server to reject the new protocol")
-				}
-				if err := <-serverErrors; err != nil {
-					t.Fatalf("error on server handshake: %s", err)
-				}
-			})
+
+	f := func(serverFunc Func, wantLegacyBC bool) {
+		t.Helper()
+		synctest.Test(t, func(t *testing.T) {
+			dial, serverErrors := newVMInsertTestDialer(t, serverFunc, serverFunc)
+			bc, err := VMInsertClientWithDialer(dial, 0)
+			if err != nil {
+				t.Fatalf("error on client handshake: %s", err)
+			}
+			if bc.IsLegacy != wantLegacyBC {
+				t.Fatalf("unexpected legacy mode; got %v; want %v", bc.IsLegacy, wantLegacyBC)
+			}
+			if wantLegacyBC && <-serverErrors == nil {
+				t.Fatalf("expected legacy server to reject the new protocol")
+			}
+			if err := <-serverErrors; err != nil {
+				t.Fatalf("error on server handshake: %s", err)
+			}
 		})
 	}
+	// server with only current protocol
+	f(VMInsertServer, false)
+	// server with only legacy protocol
+	f(VMInsertServerWithLegacyHello, true)
 }
 
 func TestVMInsertClientWithDialerTimeout(t *testing.T) {
