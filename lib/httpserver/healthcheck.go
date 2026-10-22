@@ -66,6 +66,7 @@ func checkHealth(addr string, idx int, opts ServeOptions) error {
 			}
 			return c, nil
 		},
+		// The certificate isn't verified, since it is usually issued for the public hostname instead of localhost.
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 	hc := &http.Client{
