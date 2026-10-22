@@ -168,6 +168,12 @@ func main() {
 	logger.Init()
 	timeserieslimits.MustInit(*maxLabelsPerTimeseries, *maxLabelNameLen, *maxLabelValueLen)
 
+	listenAddrs := *httpListenAddrs
+	if len(listenAddrs) == 0 {
+		listenAddrs = []string{":8482"}
+	}
+	httpserver.CheckHealth(listenAddrs)
+
 	storage.SetDedupInterval(*minScrapeInterval)
 	storage.SetDataFlushInterval(*inmemoryDataFlushInterval)
 	storage.LegacySetRetentionTimezoneOffset(*retentionTimezoneOffset)
@@ -250,10 +256,6 @@ func main() {
 		logger.Fatalf("cannot create a server with -vmselectAddr=%s: %s", *vmselectAddr, err)
 	}
 
-	listenAddrs := *httpListenAddrs
-	if len(listenAddrs) == 0 {
-		listenAddrs = []string{":8482"}
-	}
 	// Register paths which could be protected by their own -*AuthKey flag.
 	httpserver.RegisterAuthKeyProtectedPathsFunc(isAuthKeyProtectedPath)
 

@@ -107,6 +107,12 @@ func main() {
 	buildinfo.Init()
 	logger.Init()
 
+	listenAddrs := *httpListenAddrs
+	if len(listenAddrs) == 0 {
+		listenAddrs = []string{":8480"}
+	}
+	httpserver.CheckHealth(listenAddrs)
+
 	logger.Infof("initializing netstorage for storageNodes %s...", *storageNodes)
 	startTime := time.Now()
 	if len(*storageNodes) == 0 {
@@ -158,10 +164,6 @@ func main() {
 		opentsdbhttpServer = opentsdbhttpserver.MustStart(*opentsdbHTTPListenAddr, *opentsdbHTTPUseProxyProtocol, opentsdbhttp.InsertHandler)
 	}
 
-	listenAddrs := *httpListenAddrs
-	if len(listenAddrs) == 0 {
-		listenAddrs = []string{":8480"}
-	}
 	go httpserver.Serve(listenAddrs, requestHandler, httpserver.ServeOptions{
 		UseProxyProtocol: useProxyProtocol,
 	})

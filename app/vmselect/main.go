@@ -104,6 +104,12 @@ func main() {
 	buildinfo.Init()
 	logger.Init()
 
+	listenAddrs := *httpListenAddrs
+	if len(listenAddrs) == 0 {
+		listenAddrs = []string{":8481"}
+	}
+	httpserver.CheckHealth(listenAddrs)
+
 	logger.Infof("starting netstorage at storageNodes %s", *storageNodes)
 	startTime := time.Now()
 	storage.SetDedupInterval(*minScrapeInterval)
@@ -147,10 +153,6 @@ func main() {
 		logger.Infof("started vmselectapi server at %q", *clusternativeListenAddr)
 	}
 
-	listenAddrs := *httpListenAddrs
-	if len(listenAddrs) == 0 {
-		listenAddrs = []string{":8481"}
-	}
 	// Register paths which could be protected by their own -*AuthKey flag.
 	httpserver.RegisterAuthKeyProtectedPathsFunc(isAuthKeyProtectedPath)
 

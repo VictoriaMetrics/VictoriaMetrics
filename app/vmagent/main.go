@@ -147,6 +147,7 @@ func main() {
 	if len(listenAddrs) == 0 {
 		listenAddrs = []string{":8429"}
 	}
+	httpserver.CheckHealth(listenAddrs)
 	logger.Infof("starting vmagent at %q...", listenAddrs)
 	startTime := time.Now()
 	remotewrite.StartIngestionRateLimiter()
