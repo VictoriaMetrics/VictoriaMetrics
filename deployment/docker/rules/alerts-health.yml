@@ -158,3 +158,31 @@ groups:
           summary: "Some rows are rejected on \"{{ $labels.instance }}\" on ingestion attempt"
           description: "Ingested rows on instance \"{{ $labels.instance }}\" are rejected due to the
             following reason: \"{{ $labels.reason }}\""
+
+      - alert: TooManySnapshots
+        expr: vm_snapshots > 2
+        for: 2h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Too many snapshots on \"{{ $labels.job }}\"(\"{{ $labels.instance }}\")"
+          description: |
+            More than 2 snapshots were present on "{{ $labels.instance }}" during the last 2 hours.
+            `vmbackup` and `vmbackupmanager` delete the snapshot right after the backup is completed,
+            so at most a single snapshot is expected to exist at any point in time. 
+            Manually created snapshots will be removed automatically when they become older than `-snapshotsMaxAge` (`3d` by default)
+            The growing number of snapshots means that something on "{{ $labels.instance }}" isn't working as expected.
+
+            Old snapshots keep references to the data parts they were created from. This prevents
+            background merges from deleting these parts and from freeing the occupied disk space,
+            so snapshots may end up consuming more and more disk space with time.
+
+            Actions:
+            - Inspect the snapshots list via `/snapshot/list` API. See https://docs.victoriametrics.com/victoriametrics/#how-to-work-with-snapshots.
+            - Delete unneeded snapshots via `/snapshot/delete?snapshot=<snapshot-name>` API.
+            - Check error logs of `vmbackup` / `vmbackupmanager` to find out what caused the backup failure.
+            - Make sure that every backup completes before the next backup starts.
+            - Make sure that `-snapshotsMaxAge` is set to a non-zero value, which is big enough for the backup to complete.
+        
+            See https://docs.victoriametrics.com/victoriametrics/#snapshot-troubleshooting
+            and https://docs.victoriametrics.com/victoriametrics/vmbackup/#troubleshooting for details.
