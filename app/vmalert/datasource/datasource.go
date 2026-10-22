@@ -53,9 +53,11 @@ type QuerierParams struct {
 	// and we will add evaluation interval as an additional timeFilter when querying.
 	ApplyIntervalAsTimeFilter bool
 	EvaluationInterval        time.Duration
-	QueryParams               url.Values
-	Headers                   map[string]string
-	Debug                     bool
+	// QueryStep overrides `step` param for instant queries if set.
+	QueryStep   time.Duration
+	QueryParams url.Values
+	Headers     map[string]string
+	Debug       bool
 }
 
 // Metric is the basic entity which should be return by datasource
