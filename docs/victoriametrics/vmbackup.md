@@ -203,6 +203,7 @@ Optional flags select a subset of snapshot **parts** before upload. Unset flags 
 
 * For [cluster](#backups-for-victoriametrics-cluster) deployments, run windowed `vmbackup` on each `vmstorage` node. Point `-snapshot.createURL` at that node's snapshot endpoint.
 * `-start` / `-end` accept the same timestamp syntax as the export/query API (RFC3339, Unix seconds/ms, relative `now-…`). If `-start` is set and `-end` is empty, `-end` defaults to `now`. If `-end` is set and `-start` is empty, the window starts at the beginning of the snapshot, including parts entirely before the Unix epoch, and ends at `-end` (first windowed / catch-up backup).
+* Relative bounds (`now`, `now-1d`, and other `now…` values) are resolved when the process starts and are **one-shot**. Do not restart `vmbackup` with the same relative `-start` / `-end` against a snapshot copy that was already rewritten: the next resolution can select a different interval and trim data that belonged to the original window. After a rewrite has finished, retry the upload with the same **absolute** timestamps (RFC3339 or Unix seconds/ms). Absolute bounds are stable across restarts.
 * Selection first drops parts that do not overlap `[start, end)`, then rewrites remaining parts so dest **samples** are in `[start, end)`. Daily dests should use `-end` as the next day's midnight.
 * Selection and rewrite run on the **snapshot copy** only. Live `-storageDataPath` is not modified except for snapshot create/delete.
 * `-forceMerge` compacts remaining parts in-process when no time window is set (same contract as `/internal/force_merge`). When `-start` or `-end` is set, rewrite always runs so samples outside the window are trimmed. The snapshot directory needs free space up to the sum of merged part sizes. The force-merge-only window keeps every part, including parts entirely before the Unix epoch.
@@ -219,7 +220,7 @@ Optional flags select a subset of snapshot **parts** before upload. Unset flags 
 * If a **full-snapshot** backup (no `-start`, `-end`, or `-forceMerge`) has been interrupted due to a temporary error, restart `vmbackup` with the same args. It will resume the upload. After backup process has finished successfully, please [remove old snapshot](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#delete-snapshot) that was created during failed attempt.
 * If a backup with **`-start` or `-end`** is interrupted **during** snapshot rewrite (part drop or merge trim on the copy), do not resume with the same `-snapshotName`. Create a new snapshot (`-snapshot.createURL`) or restore the snapshot copy from a known good backup first — the directory is mutated in place.
 * If **`-forceMerge` alone** is interrupted **while** parts are being compacted on the snapshot copy, treat it the same way: do not assume the copy is unchanged; create a new snapshot or restore the copy before retrying.
-* If rewrite or force-merge on the snapshot copy **has finished** and only the **upload** to `-dst` failed, restarting `vmbackup` with the same args is safe (including windowed and `-forceMerge` runs).
+* If rewrite or force-merge on the snapshot copy **has finished** and only the **upload** to `-dst` failed, restarting `vmbackup` is safe when `-start` and `-end` are absolute timestamps (or unset). Relative values are one-shot: resolve them once, and pass those absolute bounds on the retry instead of `now` / `now-…`.
 * Backups created from [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) cannot be restored
   at [cluster VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) and vice versa.
 * Please find description how snapshots use disk space and recommendations in [snapshot troubleshooting](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#snapshot-troubleshooting)
@@ -519,11 +520,11 @@ Run `vmbackup -help` in order to see all the available options:
   -s3TLSInsecureSkipVerify
      Whether to skip TLS verification when connecting to the S3 endpoint.
   -end string
-     Optional exclusive upper bound of the backup window. Same syntax as -start. When -start is empty, samples from the beginning of the snapshot up to -end are kept (first windowed / catch-up backup). Defaults to now when -start is set and -end is empty
+     Optional exclusive upper bound of the backup window. Same syntax as -start, including the one-shot rule for relative values. When -start is empty, samples from the beginning of the snapshot up to -end are kept (first windowed / catch-up backup). Defaults to now when -start is set and -end is empty
   -forceMerge
      Force-merge remaining parts on the snapshot copy before upload. When -start or -end is set, overlapping parts are always rewritten to trim samples outside [start, end). Default false
   -start string
-     Optional lower bound of the backup window. Samples in [start, end) are kept; overlapping parts are rewritten on the snapshot copy. Time syntax matches the export/query API: RFC3339, Unix seconds/ms, or relative values such as now-1d. Unset with -end keeps samples from the beginning of the snapshot up to -end. Unset without -end keeps the current full-snapshot upload
+     Optional lower bound of the backup window. Samples in [start, end) are kept; overlapping parts are rewritten on the snapshot copy. Time syntax matches the export/query API: RFC3339, Unix seconds/ms, or relative values such as now-1d. Relative values are resolved at process start and are one-shot: do not restart vmbackup with the same relative bounds after the snapshot copy has been rewritten; use absolute timestamps to retry an upload. Unset with -end keeps samples from the beginning of the snapshot up to -end. Unset without -end keeps the current full-snapshot upload
   -snapshot.createURL string
      VictoriaMetrics create snapshot url. When this is given a snapshot will automatically be created during backup. Example: http://victoriametrics:8428/snapshot/create . There is no need in setting -snapshotName if -snapshot.createURL is set
   -snapshot.deleteURL string

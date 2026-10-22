@@ -43,8 +43,8 @@ var (
 	concurrency       = flag.Int("concurrency", 10, "The number of concurrent workers. Higher concurrency may reduce backup duration")
 	maxBytesPerSecond = flagutil.NewBytes("maxBytesPerSecond", 0, "The maximum upload speed. There is no limit if it is set to 0")
 	start             = flag.String("start", "", "Optional lower bound of the backup window. Samples in [start, end) are kept; overlapping parts are rewritten on the snapshot copy. "+
-		"Time syntax matches the export/query API: RFC3339, Unix seconds/ms, or relative values such as now-1d. Unset with -end keeps samples from the beginning of the snapshot up to -end. Unset without -end keeps the current full-snapshot upload")
-	end        = flag.String("end", "", "Optional exclusive upper bound of the backup window. Same syntax as -start. When -start is empty, samples from the beginning of the snapshot up to -end are kept (first windowed / catch-up backup). Defaults to now when -start is set and -end is empty")
+		"Time syntax matches the export/query API: RFC3339, Unix seconds/ms, or relative values such as now-1d. Relative values are resolved at process start and are one-shot: do not restart vmbackup with the same relative bounds after the snapshot copy has been rewritten; use absolute timestamps to retry an upload. Unset with -end keeps samples from the beginning of the snapshot up to -end. Unset without -end keeps the current full-snapshot upload")
+	end        = flag.String("end", "", "Optional exclusive upper bound of the backup window. Same syntax as -start, including the one-shot rule for relative values. When -start is empty, samples from the beginning of the snapshot up to -end are kept (first windowed / catch-up backup). Defaults to now when -start is set and -end is empty")
 	forceMerge = flag.Bool("forceMerge", false, "Force-merge remaining parts on the snapshot copy before upload. When -start or -end is set, overlapping parts are always rewritten to trim samples outside [start, end). Default false")
 )
 

@@ -93,7 +93,11 @@ func mergeBlockStreamsInternal(ph *partHeader, bsw *blockStreamWriter, bsm *bloc
 			localRowsDeleted += uint64(b.bh.RowsCount)
 			continue
 		}
-		if b.bh.MinTimestamp < retentionDeadline || b.bh.MaxTimestamp >= maxKeepTimestamp {
+		// Ordinary retention (no upper bound) copies a straddling block through.
+		// Sample trimming here is only for an explicit window, where
+		// maxKeepTimestamp is not math.MaxInt64. Merging two blocks still
+		// applies retention via mergeBlocks.
+		if maxKeepTimestamp != math.MaxInt64 && (b.bh.MinTimestamp < retentionDeadline || b.bh.MaxTimestamp >= maxKeepTimestamp) {
 			if err := b.UnmarshalData(); err != nil {
 				return fmt.Errorf("cannot unmarshal block for window trim: %w", err)
 			}

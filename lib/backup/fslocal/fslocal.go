@@ -25,6 +25,11 @@ type FS struct {
 	// MaxBytesPerSecond is the maximum bandwidth usage during backups or restores.
 	MaxBytesPerSecond int
 
+	// MaxPartSize is the maximum part size used by ListParts.
+	// Zero uses common.MaxPartSize. Tests set a smaller value on this FS so
+	// multi-part layout does not depend on a process-global override.
+	MaxPartSize uint64
+
 	bl *bandwidthLimiter
 
 	UseTmpFiles bool
@@ -92,8 +97,9 @@ func (fs *FS) ListParts() ([]common.Part, error) {
 			continue
 		}
 		offset := uint64(0)
+		partSize := fs.partSizeLimit()
 		for offset < size {
-			n := min(size-offset, common.MaxPartSizeForTransfer())
+			n := min(size-offset, partSize)
 			parts = append(parts, common.Part{
 				Path:       path,
 				FileSize:   size,
@@ -105,6 +111,13 @@ func (fs *FS) ListParts() ([]common.Part, error) {
 		}
 	}
 	return parts, nil
+}
+
+func (fs *FS) partSizeLimit() uint64 {
+	if fs.MaxPartSize > 0 && fs.MaxPartSize <= common.MaxPartSize {
+		return fs.MaxPartSize
+	}
+	return common.MaxPartSize
 }
 
 // NewReadCloser returns io.ReadCloser for the given part p located in fs.
@@ -162,9 +175,11 @@ func (fs *FS) NewDirectWriteCloser(p common.Part) (io.WriteCloser, error) {
 // into the temporary file used for preallocated restores.
 //
 // It is a no-op when temporary files are not used or when p.Offset is 0.
-// ctx cancellation stops the
-// copy between chunks. When fs was initialized with MaxBytesPerSecond, the
-// same local-write limiter used by NewDirectWriteCloser applies.
+// If p.Offset is greater than 0 and the destination file does not exist, it
+// returns an error so a restart does not replace a completed prefix with zeros.
+// Context cancellation stops the copy between chunks. When fs was initialized
+// with MaxBytesPerSecond, the same local-write limiter used by
+// NewDirectWriteCloser applies.
 func (fs *FS) CopyDestPrefixIntoTmp(ctx context.Context, p common.Part) error {
 	if !p.IsLocalPathInsideDir(fs.Dir) {
 		logger.Fatalf("BUG: part file %s would be written outside storage directory %s", p.Path, fs.Dir)

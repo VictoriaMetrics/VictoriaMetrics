@@ -292,7 +292,7 @@ func setPartsInMerge(pt *partition, inMerge bool) {
 	}
 }
 
-func TestApplyTimeRangeForceMergeOnlyWindowSkipsDropKeepsPreEpochParts(t *testing.T) {
+func TestApplyTimeRangeFullWindowSkipsDropKeepsPreEpochParts(t *testing.T) {
 	defer testRemoveAll(t)
 
 	path := t.Name()
@@ -333,8 +333,8 @@ func TestApplyTimeRangeForceMergeOnlyWindowSkipsDropKeepsPreEpochParts(t *testin
 	pt.partsLock.Unlock()
 	s.tb.PutPartitions(ptws)
 
-	// forceMerge is false so the fake part is not compacted. The drop skip
-	// depends only on the [0, MaxInt64] window.
+	// forceMerge is false: this fake part has no files, so it cannot be compacted.
+	// The assertion is that the full-range window returns before the drop pass.
 	if err := s.ApplyTimeRangeToSnapshot(context.Background(), ForceMergeOnlyWindowStartMsec, ForceMergeOnlyWindowEndMsec, false); err != nil {
 		t.Fatalf("full-range window failed: %s", err)
 	}
@@ -446,5 +446,56 @@ func TestDropExcludesPartThatOnlyTouchesExclusiveEnd(t *testing.T) {
 	err := snap.ApplyTimeRangeToSnapshot(context.Background(), start, end, false)
 	if err == nil || !strings.Contains(err.Error(), "no parts overlap") {
 		t.Fatalf("ApplyTimeRangeToSnapshot() error = %v; want no parts overlap", err)
+	}
+	if rows := snap.snapshotDataRows(); rows == 0 {
+		t.Fatal("no-overlap window removed snapshot parts before refusing the backup")
+	}
+}
+
+func TestApplyTimeRangeForceMergeOnlyKeepsSamplesOutsideRetention(t *testing.T) {
+	defer testRemoveAll(t)
+
+	path := t.Name()
+	_ = os.RemoveAll(path)
+	longRetention := 180 * 24 * time.Hour
+	s := MustOpenStorage(path, OpenOptions{Retention: longRetention})
+	defer s.MustClose()
+
+	now := time.Now().UTC()
+	oldTR := TimeRange{
+		MinTimestamp: now.Add(-100 * 24 * time.Hour).UnixMilli(),
+		MaxTimestamp: now.Add(-100*24*time.Hour + time.Hour).UnixMilli(),
+	}
+	newTR := TimeRange{
+		MinTimestamp: now.Add(-30 * time.Minute).UnixMilli(),
+		MaxTimestamp: now.Add(-time.Minute).UnixMilli(),
+	}
+	rng := rand.New(rand.NewSource(1))
+	oldRows := testGenerateMetricRowsWithPrefix(rng, 20, "old", oldTR)
+	newRows := testGenerateMetricRowsWithPrefix(rng, 20, "new", newTR)
+	s.AddRows(append(oldRows, newRows...), defaultPrecisionBits)
+	s.DebugFlush()
+	if err := s.ForceMergePartitions(""); err != nil {
+		t.Fatalf("force merge live storage: %s", err)
+	}
+
+	snapshotName := s.MustCreateSnapshot()
+	snapshotPath := filepath.Join(s.path, snapshotsDirname, snapshotName)
+	// Short retention would delete the 100-day samples during compaction
+	// unless force-merge-only installs a keep-all trim range.
+	snap := MustOpenStorage(snapshotPath, OpenOptions{
+		Retention:               time.Hour,
+		DisableBackgroundMerges: true,
+	})
+	defer func() {
+		snap.MustClose()
+		RemoveStorageRuntimeFiles(snapshotPath)
+	}()
+
+	if err := snap.ApplyTimeRangeToSnapshot(context.Background(), ForceMergeOnlyWindowStartMsec, ForceMergeOnlyWindowEndMsec, true); err != nil {
+		t.Fatalf("force-merge-only failed: %s", err)
+	}
+	if rows := snap.snapshotDataRows(); rows != 40 {
+		t.Fatalf("rows after force-merge-only = %d; want 40 (samples older than retention must stay)", rows)
 	}
 }

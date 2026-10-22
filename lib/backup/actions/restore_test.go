@@ -22,8 +22,6 @@ func TestRestoreKeepsCompletedPrefix(t *testing.T) {
 		// exercising the same multi-part + prefix-copy path as production.
 		testPartSize = 256 * 1024
 	)
-	common.SetMaxPartSizeForTest(t, testPartSize)
-
 	fileSize := testPartSize + uint64(len(tail))
 	part0 := common.Part{
 		Path:     "data.bin",
@@ -51,7 +49,7 @@ func TestRestoreKeepsCompletedPrefix(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	dstFS := &fslocal.FS{Dir: dstDir}
+	dstFS := &fslocal.FS{Dir: dstDir, MaxPartSize: testPartSize}
 	if err := dstFS.Init(); err != nil {
 		t.Fatalf("Init error: %s", err)
 	}

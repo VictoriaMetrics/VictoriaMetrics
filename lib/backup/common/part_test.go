@@ -4,17 +4,6 @@ import (
 	"testing"
 )
 
-func TestMaxPartSizeForTransfer(t *testing.T) {
-	if got := MaxPartSizeForTransfer(); got != MaxPartSize {
-		t.Fatalf("default MaxPartSizeForTransfer = %d; want %d", got, MaxPartSize)
-	}
-	const small = 4096
-	SetMaxPartSizeForTest(t, small)
-	if got := MaxPartSizeForTransfer(); got != small {
-		t.Fatalf("override MaxPartSizeForTransfer = %d; want %d", got, small)
-	}
-}
-
 func TestIsLocalPathInsideDir(t *testing.T) {
 	f := func(dir, path string, expected bool) {
 		t.Helper()

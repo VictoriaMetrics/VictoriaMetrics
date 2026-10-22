@@ -420,6 +420,27 @@ func TestMergeBlockStreamsTrimsToWindow(t *testing.T) {
 	}
 }
 
+func TestMergeBlockStreamsLeavesStraddlingRetentionBlockIntact(t *testing.T) {
+	rows := []rawRow{
+		{Timestamp: -10, Value: 1, PrecisionBits: defaultPrecisionBits},
+		{Timestamp: 10, Value: 2, PrecisionBits: defaultPrecisionBits},
+	}
+	bsr := newTestBlockStreamReader(rows)
+	bsrs := []*blockStreamReader{bsr}
+
+	var mp inmemoryPart
+	var bsw blockStreamWriter
+	bsw.MustInitFromInmemoryPart(&mp, -5)
+	dmis := &uint64set.Set{}
+	var rowsMerged, rowsDeleted atomic.Uint64
+	if err := mergeBlockStreams(&mp.ph, &bsw, bsrs, nil, dmis, 0, math.MaxInt64, &rowsMerged, &rowsDeleted); err != nil {
+		t.Fatalf("unexpected error in mergeBlockStreams: %s", err)
+	}
+	if mp.ph.RowsCount != 2 || mp.ph.MinTimestamp != -10 || mp.ph.MaxTimestamp != 10 {
+		t.Fatalf("ordinary retention trimmed a straddling block to rows=%d range=[%d, %d]; want both samples", mp.ph.RowsCount, mp.ph.MinTimestamp, mp.ph.MaxTimestamp)
+	}
+}
+
 func TestMergeBlockStreamsExclusiveEndAtEpoch(t *testing.T) {
 	rows := []rawRow{
 		{Timestamp: -1, Value: 1, PrecisionBits: defaultPrecisionBits},

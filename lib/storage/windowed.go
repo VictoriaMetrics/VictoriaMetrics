@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
@@ -52,6 +54,15 @@ func (s *Storage) ApplyTimeRangeToSnapshot(ctx context.Context, startMsec, endMs
 	// drops parts that do not overlap [start, end).
 	needTrim := startMsec != ForceMergeOnlyWindowStartMsec || endMsec != ForceMergeOnlyWindowEndMsec
 	if needTrim {
+		// Refuse before any part is removed. dropPartsOutsideTimeRange deletes
+		// non-overlapping parts, so a window that matches nothing must not run it.
+		overlapping, err := s.countPartsOverlapping(tr)
+		if err != nil {
+			return err
+		}
+		if overlapping == 0 {
+			return fmt.Errorf("no parts overlap the requested window [%d, %d); refusing empty backup", startMsec, endMsec)
+		}
 		kept, dropped, err := s.dropPartsOutsideTimeRange(ctx, tr)
 		if err != nil {
 			return err
@@ -64,16 +75,26 @@ func (s *Storage) ApplyTimeRangeToSnapshot(ctx context.Context, startMsec, endMs
 	if !needTrim && !forceMerge {
 		return nil
 	}
+	// Force-merge-only still runs compaction. Without an explicit keep-all
+	// range, merge uses currentTimestamp-retention and can delete snapshot
+	// samples that are older than retention.
+	trimMin, trimMax := startMsec, endMsec
+	if !needTrim {
+		trimMin = math.MinInt64
+		trimMax = math.MaxInt64
+	}
+	s.mergeTrimMinTimestamp.Store(trimMin)
+	s.mergeTrimMaxTimestamp.Store(trimMax)
+	s.mergeTrimEnabled.Store(true)
+	defer func() {
+		s.mergeTrimEnabled.Store(false)
+		s.mergeTrimMinTimestamp.Store(0)
+		s.mergeTrimMaxTimestamp.Store(0)
+	}()
 	if needTrim {
-		s.mergeTrimMinTimestamp.Store(startMsec)
-		s.mergeTrimMaxTimestamp.Store(endMsec)
-		s.mergeTrimEnabled.Store(true)
-		defer func() {
-			s.mergeTrimEnabled.Store(false)
-			s.mergeTrimMinTimestamp.Store(0)
-			s.mergeTrimMaxTimestamp.Store(0)
-		}()
 		logger.Infof("windowed backup: rewriting overlapping parts to samples in [%d, %d)", startMsec, endMsec)
+	} else {
+		logger.Infof("windowed backup: force-merge keeps every sample; retention bounds are disabled for this compaction")
 	}
 	if err := s.forceMergePartitionsStrict(ctx, ""); err != nil {
 		return err
@@ -222,8 +243,7 @@ func (pt *partition) tryDropPartsOutsideTimeRange(tr TimeRange) (kept, dropped i
 			}
 			// Window is half-open [tr.Min, tr.Max). A part that only touches
 			// MinTimestamp == end does not overlap.
-			partOverlapsWindow := pw.p.ph.MinTimestamp < tr.MaxTimestamp && pw.p.ph.MaxTimestamp >= tr.MinTimestamp
-			if partOverlapsWindow {
+			if partOverlapsWindow(pw.p.ph.MinTimestamp, pw.p.ph.MaxTimestamp, tr) {
 				kept++
 				continue
 			}
@@ -262,6 +282,78 @@ func (pt *partition) releasePartsToMergeLocked(pws []*partWrapper) {
 	}
 }
 
+func partOverlapsWindow(minTimestamp, maxTimestamp int64, tr TimeRange) bool {
+	return minTimestamp < tr.MaxTimestamp && maxTimestamp >= tr.MinTimestamp
+}
+
+func (s *Storage) countPartsOverlapping(tr TimeRange) (int, error) {
+	ptws := s.tb.GetAllPartitions(nil)
+	defer s.tb.PutPartitions(ptws)
+	kept := 0
+	for _, ptw := range ptws {
+		n, err := ptw.pt.countPartsOverlapping(tr)
+		if err != nil {
+			return 0, err
+		}
+		kept += n
+	}
+	return kept, nil
+}
+
+func (pt *partition) countPartsOverlapping(tr TimeRange) (int, error) {
+	pt.partsLock.Lock()
+	defer pt.partsLock.Unlock()
+	kept := 0
+	count := func(pws []*partWrapper) error {
+		for _, pw := range pws {
+			if pw.isInMerge {
+				return errPartsInMerge
+			}
+			if partOverlapsWindow(pw.p.ph.MinTimestamp, pw.p.ph.MaxTimestamp, tr) {
+				kept++
+			}
+		}
+		return nil
+	}
+	for _, pws := range [][]*partWrapper{pt.inmemoryParts, pt.smallParts, pt.bigParts} {
+		if err := count(pws); err != nil {
+			return 0, err
+		}
+	}
+	return kept, nil
+}
+
+// mergeCancelSignals returns a channel that closes when ctx is canceled or
+// storageStop is closed. The returned stop func releases the helper goroutine.
+// A nil ctx.Done() uses storageStop alone.
+func mergeCancelSignals(ctx context.Context, storageStop <-chan struct{}) (<-chan struct{}, func()) {
+	var ctxDone <-chan struct{}
+	if ctx != nil {
+		ctxDone = ctx.Done()
+	}
+	if ctxDone == nil {
+		return storageStop, func() {}
+	}
+	if storageStop == nil {
+		return ctxDone, func() {}
+	}
+	merged := make(chan struct{})
+	var once sync.Once
+	stop := func() {
+		once.Do(func() { close(merged) })
+	}
+	go func() {
+		select {
+		case <-ctxDone:
+			stop()
+		case <-storageStop:
+			stop()
+		case <-merged:
+		}
+	}()
+	return merged, stop
+}
+
 func (s *Storage) forceMergePartitionsStrict(ctx context.Context, partitionNamePrefix string) error {
 	ptws := s.tb.GetAllPartitions(nil)
 	defer s.tb.PutPartitions(ptws)
@@ -269,10 +361,8 @@ func (s *Storage) forceMergePartitionsStrict(ctx context.Context, partitionNameP
 	s.tb.forceMergeWG.Add(1)
 	defer s.tb.forceMergeWG.Done()
 
-	stopCh := ctx.Done()
-	if stopCh == nil {
-		stopCh = s.tb.stopCh
-	}
+	stopCh, stopMerge := mergeCancelSignals(ctx, s.tb.stopCh)
+	defer stopMerge()
 
 	for _, ptw := range ptws {
 		if !strings.HasPrefix(ptw.pt.name, partitionNamePrefix) {

@@ -45,7 +45,8 @@ type Restore struct {
 
 	// SkipPreallocation may be set in order to skip preallocation of files during restore.
 	//
-	// This will likely be slower in most cases, but allows restores to resume mid file
+	// This will likely be slower in most cases. A restart still resumes at part
+	// granularity (up to common.MaxPartSize) with or without preallocation.
 	SkipPreallocation bool
 }
 
