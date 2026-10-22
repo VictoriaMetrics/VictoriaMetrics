@@ -415,9 +415,21 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 	var getRemoteReadQuerier func(enableDebug bool) datasource.Querier
 	if rr != nil {
 		getRemoteReadQuerier = func(enableDebug bool) datasource.Querier {
+			// restore query must look back for -remoteRead.lookback for both VictoriaMetrics and Prometheus.
+			// VictoriaMetrics uses `step` as the lookbehind window for instant queries, capped by `max_lookback`,
+			// while Prometheus uses `lookback_delta`.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11574
+			lookback := fmt.Sprintf("%ds", int(remoteReadLookBack.Seconds()))
+			params := url.Values{
+				"max_lookback":   {lookback},
+				"lookback_delta": {lookback},
+			}
+			// custom group params are prior to default ones
+			maps.Copy(params, g.Params)
 			return rr.BuildWithParams(datasource.QuerierParams{
 				EvaluationInterval: g.Interval,
-				QueryParams:        g.Params,
+				QueryStep:          *remoteReadLookBack,
+				QueryParams:        params,
 				Headers:            g.Headers,
 				Debug:              enableDebug,
 			})
