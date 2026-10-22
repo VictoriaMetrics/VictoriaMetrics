@@ -19,6 +19,17 @@ var tmpBufSize = flagutil.NewBytes("search.inmemoryBufSizeBytes", 0, "Size for i
 	"By default, the size is automatically calculated based on available memory. "+
 	"Adjust this flag value if you observe that vm_tmp_blocks_max_inmemory_file_size_bytes metric constantly shows much higher values than vm_tmp_blocks_inmemory_file_size_bytes. See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6851")
 
+var tsCacheSize = flagutil.NewBytes("search.timestampsCacheSize", 0, "Memory limit for decoded block timestamps shared by series of the same query, summed across all concurrent queries. "+
+	"By default, the size is 1/64 of the allowed memory. Set to 1 to effectively disable the cache. "+
+	"Adjust this flag value if vm_ts_decode_cache_misses_total grows faster than vm_ts_decode_cache_hits_total while vm_ts_decode_cache_size_bytes stays at the limit")
+
+func maxTimestampsCacheSize() int {
+	if tsCacheSize.N != 0 {
+		return int(tsCacheSize.N)
+	}
+	return memory.Allowed() / 64
+}
+
 // InitTmpBlocksDir initializes directory to store temporary search results.
 //
 // It stores data in system-defined temporary directory if tmpDirPath is empty.
@@ -66,6 +77,9 @@ type tmpBlocksFile struct {
 
 	// err stores the first error occurred while writing the temporary blocks file.
 	err error
+
+	// tsc is shared by all the goroutines unpacking blocks of the query.
+	tsc storage.TimestampsCache
 }
 
 func getTmpBlocksFile() *tmpBlocksFile {
@@ -87,6 +101,7 @@ func putTmpBlocksFile(tbf *tmpBlocksFile) {
 	tbf.r = nil
 	tbf.offset = 0
 	tbf.err = nil
+	tbf.tsc.Reset()
 	tmpBlocksFilePool.Put(tbf)
 }
 

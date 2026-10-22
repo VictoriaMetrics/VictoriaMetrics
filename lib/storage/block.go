@@ -1,8 +1,14 @@
 package storage
 
 import (
+	"bytes"
 	"fmt"
+	"slices"
 	"sync"
+	"sync/atomic"
+
+	"github.com/VictoriaMetrics/metrics"
+	"github.com/cespare/xxhash/v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
@@ -248,6 +254,13 @@ func (b *Block) MarshalData(timestampsBlockOffset, valuesBlockOffset uint64) ([]
 
 // UnmarshalData unmarshals block data.
 func (b *Block) UnmarshalData() error {
+	return b.UnmarshalDataCached(nil)
+}
+
+// UnmarshalDataCached unmarshals block data like UnmarshalData, but reuses the timestamps decoded by c.
+//
+// c may be nil.
+func (b *Block) UnmarshalDataCached(c *TimestampsCache) error {
 	// blockHeader (b.bh) must be already unmarshaled.
 
 	if len(b.values) > 0 {
@@ -267,18 +280,9 @@ func (b *Block) UnmarshalData() error {
 
 	var err error
 
-	b.timestamps, err = encoding.UnmarshalTimestamps(b.timestamps[:0], b.timestampsData, b.bh.TimestampsMarshalType, b.bh.MinTimestamp, int(b.bh.RowsCount))
+	b.timestamps, err = c.unmarshal(b.timestamps[:0], &b.bh, b.timestampsData)
 	if err != nil {
 		return err
-	}
-	if b.bh.PrecisionBits < 64 {
-		// Recover timestamps order after lossy compression.
-		encoding.EnsureNonDecreasingSequence(b.timestamps, b.bh.MinTimestamp, b.bh.MaxTimestamp)
-	} else if b.bh.TimestampsMarshalType.NeedsValidation() {
-		// Ensure timestamps are in the range [MinTimestamp ... MaxTimestamps] and are ordered.
-		if err := checkTimestampsBounds(b.timestamps, b.bh.MinTimestamp, b.bh.MaxTimestamp); err != nil {
-			return err
-		}
 	}
 	b.timestampsData = b.timestampsData[:0]
 
@@ -295,6 +299,142 @@ func (b *Block) UnmarshalData() error {
 	b.nextIdx = 0
 
 	return nil
+}
+
+// Skip cache lookup for small blocks; hashing may cost more than decoding.
+// This threshold is a heuristic, not a measured break-even point.
+const tsCacheMinRows = 128
+
+// Disable cache after this many eligible lookups without a hit.
+// A repeated list needs three sightings: mark, store, then hit.
+// This threshold is a heuristic, not a measured workload cutoff.
+const tsCacheProbe = 128
+
+var (
+	tsCacheHits   = metrics.NewCounter(`vm_ts_decode_cache_hits_total`)
+	tsCacheMisses = metrics.NewCounter(`vm_ts_decode_cache_misses_total`)
+	_             = metrics.NewGauge(`vm_ts_decode_cache_size_bytes`, func() float64 {
+		return float64(tsCacheBytes.Load())
+	})
+
+	tsCacheBytes    atomic.Int64
+	tsCacheMaxBytes atomic.Int64
+)
+
+// SetTimestampsCacheMaxBytes limits the total size of entries across all the TimestampsCache instances.
+//
+// The cache is disabled for n <= 0.
+func SetTimestampsCacheMaxBytes(n int) {
+	tsCacheMaxBytes.Store(int64(n))
+}
+
+// TimestampsCache caches decoded timestamps by their marshaled representation.
+//
+// Series scraped from the same target share timestamps.
+// It is safe for concurrent use and is intended to live as long as a single search request.
+type TimestampsCache struct {
+	m     sync.Map // tsCacheKey -> *tsCacheEntry; tsCacheSeen until the key is seen twice
+	bytes atomic.Int64
+
+	lookups, hits atomic.Int64
+	off           atomic.Bool
+}
+
+type tsCacheKey struct {
+	mt           encoding.MarshalType
+	precisionBit uint8
+	rows         uint32
+	minTs, maxTs int64
+	hash         uint64
+}
+
+// tsCacheSeen marks keys seen once.
+var tsCacheSeen = &tsCacheEntry{}
+
+const tsCacheSeenBytes = 64
+
+type tsCacheEntry struct {
+	data       []byte // marshaled timestamps; verified on hit, since the hash may collide
+	timestamps []int64
+}
+
+// Reset drops all the cached entries and switches the cache on.
+func (c *TimestampsCache) Reset() {
+	c.m.Clear()
+	c.lookups.Store(0)
+	c.hits.Store(0)
+	c.off.Store(false)
+	tsCacheBytes.Add(-c.bytes.Swap(0))
+}
+
+// unmarshal appends decoded timestamps for bh and data to dst. The cached slice is copied, so dst stays private.
+func (c *TimestampsCache) unmarshal(dst []int64, bh *blockHeader, data []byte) ([]int64, error) {
+	mt := bh.TimestampsMarshalType
+	if c == nil || bh.RowsCount < tsCacheMinRows || mt == encoding.MarshalTypeConst || mt == encoding.MarshalTypeDeltaConst {
+		return decodeTimestamps(dst, bh, data)
+	}
+
+	if c.off.Load() {
+		return decodeTimestamps(dst, bh, data)
+	}
+	if c.lookups.Add(1) == tsCacheProbe && c.hits.Load() == 0 {
+		// Nothing repeats, so hashing only costs CPU.
+		c.off.Store(true)
+	}
+
+	k := tsCacheKey{mt, bh.PrecisionBits, bh.RowsCount, bh.MinTimestamp, bh.MaxTimestamp, xxhash.Sum64(data)}
+	v, seen := c.m.Load(k)
+	if seen {
+		if e := v.(*tsCacheEntry); e != tsCacheSeen && bytes.Equal(e.data, data) {
+			tsCacheHits.Inc()
+			c.hits.Add(1)
+			return append(dst, e.timestamps...), nil
+		}
+	}
+	tsCacheMisses.Inc()
+
+	dst, err := decodeTimestamps(dst, bh, data)
+	if err != nil || tsCacheBytes.Load() >= tsCacheMaxBytes.Load() {
+		return dst, err
+	}
+	if !seen {
+		// Skip copying on the first sighting: most lists never repeat.
+		if _, loaded := c.m.LoadOrStore(k, tsCacheSeen); !loaded {
+			c.addBytes(tsCacheSeenBytes)
+		}
+		return dst, nil
+	}
+	if v.(*tsCacheEntry) != tsCacheSeen {
+		return dst, nil
+	}
+	e := &tsCacheEntry{data: bytes.Clone(data), timestamps: slices.Clone(dst)}
+	if c.m.CompareAndSwap(k, tsCacheSeen, e) {
+		c.addBytes(int64(len(e.data) + 8*len(e.timestamps)))
+	}
+	return dst, nil
+}
+
+func (c *TimestampsCache) addBytes(n int64) {
+	c.bytes.Add(n)
+	tsCacheBytes.Add(n)
+}
+
+// decodeTimestamps appends timestamps unmarshaled from data to dst and validates them.
+func decodeTimestamps(dst []int64, bh *blockHeader, data []byte) ([]int64, error) {
+	dst, err := encoding.UnmarshalTimestamps(dst, data, bh.TimestampsMarshalType, bh.MinTimestamp, int(bh.RowsCount))
+	if err != nil {
+		return nil, err
+	}
+	if bh.PrecisionBits < 64 {
+		// Recover timestamps order after lossy compression.
+		encoding.EnsureNonDecreasingSequence(dst, bh.MinTimestamp, bh.MaxTimestamp)
+	} else if bh.TimestampsMarshalType.NeedsValidation() {
+		// Ensure timestamps are in the range [MinTimestamp ... MaxTimestamps] and are ordered.
+		if err := checkTimestampsBounds(dst, bh.MinTimestamp, bh.MaxTimestamp); err != nil {
+			return nil, err
+		}
+	}
+	return dst, nil
 }
 
 func checkTimestampsBounds(timestamps []int64, minTimestamp, maxTimestamp int64) error {
