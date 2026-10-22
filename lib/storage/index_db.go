@@ -641,9 +641,7 @@ func (db *indexDB) searchLabelNamesByDateAndFilters(ctx context.Context, qt *que
 			// It is faster to obtain label names by metricIDs from the filter
 			// instead of scanning the inverted index for the matching filters.
 			// This should help https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2978
-			metricIDs := filter.AppendTo(nil)
-			qt.Printf("sort %d metricIDs", len(metricIDs))
-			lns, err := is.getLabelNamesForMetricIDs(ctx, qt, metricIDs, maxLabelNames)
+			lns, err := is.getLabelNamesForMetricIDs(ctx, qt, filter, maxLabelNames)
 			if err != nil {
 				return nil, err
 			}
@@ -732,9 +730,9 @@ func (db *indexDB) searchLabelNamesByDateAndFilters(ctx context.Context, qt *que
 	return lns, nil
 }
 
-func (is *indexSearch) getLabelNamesForMetricIDs(ctx context.Context, qt *querytracer.Tracer, metricIDs []uint64, maxLabelNames int) (map[string]struct{}, error) {
+func (is *indexSearch) getLabelNamesForMetricIDs(ctx context.Context, qt *querytracer.Tracer, metricIDs *uint64set.Set, maxLabelNames int) (map[string]struct{}, error) {
 	lns := make(map[string]struct{})
-	if len(metricIDs) > 0 {
+	if metricIDs.Len() > 0 {
 		lns["__name__"] = struct{}{}
 	}
 
@@ -744,39 +742,46 @@ func (is *indexSearch) getLabelNamesForMetricIDs(ctx context.Context, qt *queryt
 	foundLabelNames := 0
 	var buf []byte
 	loopsPaceLimiter := 0
-	for _, metricID := range metricIDs {
-		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
-			if err := ctx.Err(); err != nil {
-				return nil, err
+	var err error
+	metricIDs.ForEach(func(ids []uint64) bool {
+		for _, metricID := range ids {
+			if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
+				if err = ctx.Err(); err != nil {
+					return false
+				}
 			}
-		}
-		loopsPaceLimiter++
-		if dmis.Has(metricID) {
-			// skip deleted IDs from result
-			continue
-		}
-		var ok bool
-		buf, ok = is.searchMetricNameWithCache(buf[:0], metricID)
-		if !ok {
-			// It is likely the metricID->metricName entry didn't propagate to inverted index yet.
-			// Skip this metricID for now.
-			continue
-		}
-		if err := mn.Unmarshal(buf); err != nil {
-			logger.Panicf("FATAL: cannot unmarshal metricName %q: %s", buf, err)
-		}
-		for _, tag := range mn.Tags {
-			if _, ok := lns[string(tag.Key)]; !ok {
-				foundLabelNames++
-				lns[string(tag.Key)] = struct{}{}
-				if len(lns) >= maxLabelNames {
-					qt.Printf("hit the limit on the number of unique label names: %d", maxLabelNames)
-					return lns, nil
+			loopsPaceLimiter++
+			if dmis.Has(metricID) {
+				// skip deleted IDs from result
+				continue
+			}
+			var ok bool
+			buf, ok = is.searchMetricNameWithCache(buf[:0], metricID)
+			if !ok {
+				// It is likely the metricID->metricName entry didn't propagate to inverted index yet.
+				// Skip this metricID for now.
+				continue
+			}
+			if err := mn.Unmarshal(buf); err != nil {
+				logger.Panicf("FATAL: cannot unmarshal metricName %q: %s", buf, err)
+			}
+			for _, tag := range mn.Tags {
+				if _, ok := lns[string(tag.Key)]; !ok {
+					foundLabelNames++
+					lns[string(tag.Key)] = struct{}{}
+					if len(lns) >= maxLabelNames {
+						qt.Printf("hit the limit on the number of unique label names: %d", maxLabelNames)
+						return false
+					}
 				}
 			}
 		}
+		return true
+	})
+	if err != nil {
+		return nil, err
 	}
-	qt.Printf("get %d distinct label names from %d metricIDs", foundLabelNames, len(metricIDs))
+	qt.Printf("get %d distinct label names from %d metricIDs", foundLabelNames, metricIDs.Len())
 	return lns, nil
 }
 
@@ -1077,9 +1082,7 @@ func (db *indexDB) searchLabelValuesByDateAndFilters(ctx context.Context, qt *qu
 			// It is faster to obtain label values by metricIDs from the filter
 			// instead of scanning the inverted index for the matching filters.
 			// This should help https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2978
-			metricIDs := filter.AppendTo(nil)
-			qt.Printf("sort %d metricIDs", len(metricIDs))
-			lvs, err := is.getLabelValuesForMetricIDs(ctx, qt, labelName, metricIDs, maxLabelValues)
+			lvs, err := is.getLabelValuesForMetricIDs(ctx, qt, labelName, filter, maxLabelValues)
 			if err != nil {
 				return nil, err
 			}
@@ -1145,7 +1148,7 @@ func (db *indexDB) searchLabelValuesByDateAndFilters(ctx context.Context, qt *qu
 	return lvs, nil
 }
 
-func (is *indexSearch) getLabelValuesForMetricIDs(ctx context.Context, qt *querytracer.Tracer, labelName string, metricIDs []uint64, maxLabelValues int) (map[string]struct{}, error) {
+func (is *indexSearch) getLabelValuesForMetricIDs(ctx context.Context, qt *querytracer.Tracer, labelName string, metricIDs *uint64set.Set, maxLabelValues int) (map[string]struct{}, error) {
 	if labelName == "" {
 		labelName = "__name__"
 	}
@@ -1156,38 +1159,45 @@ func (is *indexSearch) getLabelValuesForMetricIDs(ctx context.Context, qt *query
 	foundLabelValues := 0
 	var buf []byte
 	loopsPaceLimiter := 0
-	for _, metricID := range metricIDs {
-		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
-			if err := ctx.Err(); err != nil {
-				return nil, err
+	var err error
+	metricIDs.ForEach(func(ids []uint64) bool {
+		for _, metricID := range ids {
+			if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
+				if err = ctx.Err(); err != nil {
+					return false
+				}
+			}
+			loopsPaceLimiter++
+			if dmis.Has(metricID) {
+				// skip deleted IDs from result
+				continue
+			}
+			var ok bool
+			buf, ok = is.searchMetricNameWithCache(buf[:0], metricID)
+			if !ok {
+				// It is likely the metricID->metricName entry didn't propagate to inverted index yet.
+				// Skip this metricID for now.
+				continue
+			}
+			if err := mn.Unmarshal(buf); err != nil {
+				logger.Panicf("FATAL: cannot unmarshal metricName %q: %s", buf, err)
+			}
+			tagValue := mn.GetTagValue(labelName)
+			if _, ok := lvs[string(tagValue)]; !ok {
+				foundLabelValues++
+				lvs[string(tagValue)] = struct{}{}
+				if len(lvs) >= maxLabelValues {
+					qt.Printf("hit the limit on the number of unique label values for label %q: %d", labelName, maxLabelValues)
+					return false
+				}
 			}
 		}
-		loopsPaceLimiter++
-		if dmis.Has(metricID) {
-			// skip deleted IDs from result
-			continue
-		}
-		var ok bool
-		buf, ok = is.searchMetricNameWithCache(buf[:0], metricID)
-		if !ok {
-			// It is likely the metricID->metricName entry didn't propagate to inverted index yet.
-			// Skip this metricID for now.
-			continue
-		}
-		if err := mn.Unmarshal(buf); err != nil {
-			logger.Panicf("FATAL: cannot unmarshal metricName %q: %s", buf, err)
-		}
-		tagValue := mn.GetTagValue(labelName)
-		if _, ok := lvs[string(tagValue)]; !ok {
-			foundLabelValues++
-			lvs[string(tagValue)] = struct{}{}
-			if len(lvs) >= maxLabelValues {
-				qt.Printf("hit the limit on the number of unique label values for label %q: %d", labelName, maxLabelValues)
-				return lvs, nil
-			}
-		}
+		return true
+	})
+	if err != nil {
+		return nil, err
 	}
-	qt.Printf("get %d distinct values for label %q from %d metricIDs", foundLabelValues, labelName, len(metricIDs))
+	qt.Printf("get %d distinct values for label %q from %d metricIDs", foundLabelValues, labelName, metricIDs.Len())
 	return lvs, nil
 }
 
