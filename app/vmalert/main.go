@@ -97,7 +97,7 @@ func main() {
 	if len(listenAddrs) == 0 {
 		listenAddrs = []string{":8880"}
 	}
-	httpserver.CheckHealth(listenAddrs, httpserver.ServeOptions{UseProxyProtocol: useProxyProtocol})
+	httpserver.CheckHealth(listenAddrs)
 
 	var err error
 	extURL, err = getExternalURL(*externalURL)

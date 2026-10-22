@@ -54,7 +54,7 @@ func main() {
 	logger.Init()
 
 	listenAddrs := []string{*httpListenAddr}
-	httpserver.CheckHealth(listenAddrs, httpserver.ServeOptions{})
+	httpserver.CheckHealth(listenAddrs)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
