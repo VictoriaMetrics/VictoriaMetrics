@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+**Update Note 1:** `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): `/admin/tenants` requests without `start` and `end` query args now return tenants for the current day. This is a breaking change because previously it was expected to return all tenants. If you still need to retrieve all tenants, set the `start` and `end` params so that the resulting time range fully includes the `-retentionPeriod`. See the updated [URL format](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format) and [11791](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11791) for details.
+
 * SECURITY: upgrade Go builder from Go1.27.2 to Go1.27.3. See [the list of issues addressed in Go1.27.3](https://github.com/golang/go/issues?q=milestone%3AGo1.27.3%20label%3ACherryPickApproved).
 
 * FEATURE: all VictoriaMetrics components: add `-healthcheck` command-line flag, which checks that the running process accepts connections at `-httpListenAddr` and exits with non-zero code if the check fails. This allows setting up Docker `HEALTHCHECK` in images without `curl` or `wget`. See [these docs](https://docs.victoriametrics.com/victoriametrics/url-examples/#health) and [VictoriaLogs#1565](https://github.com/VictoriaMetrics/VictoriaLogs/issues/1565).
