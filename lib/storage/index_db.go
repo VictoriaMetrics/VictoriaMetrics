@@ -625,7 +625,6 @@ func (db *indexDB) searchLabelNamesByDateAndFilters(ctx context.Context, qt *que
 			// It is faster to obtain label names by metricIDs from the filter
 			// instead of scanning the inverted index for the matching filters.
 			// This should help https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2978
-			qt.Printf("sort %d metricIDs", filter.Len())
 			lns, err := is.getLabelNamesForMetricIDs(ctx, qt, filter, maxLabelNames)
 			if err != nil {
 				return nil, err
@@ -922,7 +921,6 @@ func (db *indexDB) searchLabelValuesByDateAndFilters(ctx context.Context, qt *qu
 			// It is faster to obtain label values by metricIDs from the filter
 			// instead of scanning the inverted index for the matching filters.
 			// This should help https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2978
-			qt.Printf("sort %d metricIDs", filter.Len())
 			lvs, err := is.getLabelValuesForMetricIDs(ctx, qt, labelName, filter, maxLabelValues)
 			if err != nil {
 				return nil, err
