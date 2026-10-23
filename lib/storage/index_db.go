@@ -867,7 +867,13 @@ func (db *indexDB) searchLabelValuesForTimeRange(ctx context.Context, qt *queryt
 		date := minDate
 		qtChild := qt.NewChild("search for label values: labelName=%q, filters=%s, date=%s", labelName, tfss, dateToString(date))
 		defer qtChild.Done()
-		return db.searchLabelValuesByDateAndFilters(ctx, qtChild, date, labelName, tfss, maxLabelValues, maxMetrics)
+		lvs, err := db.searchLabelValuesByDateAndFilters(ctx, qtChild, date, labelName, tfss, maxLabelValues, maxMetrics)
+
+		// Skip empty values, since they have no any meaning.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/600
+		delete(lvs, "")
+
+		return lvs, err
 	}
 
 	var mu sync.Mutex
@@ -1097,9 +1103,7 @@ func (is *indexSearch) searchTagValueSuffixesForTimeRange(ctx context.Context, t
 	numDays := maxDate - minDate + 1
 	if numDays == 1 {
 		date := minDate
-		isLocal := is.db.getIndexSearch()
-		defer is.db.putIndexSearch(isLocal)
-		return isLocal.searchTagValueSuffixesForDate(ctx, date, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
+		return is.searchTagValueSuffixesForDate(ctx, date, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
 	}
 
 	// Query over multiple days in parallel.
