@@ -76,6 +76,8 @@ users:
 `)
 
 	// Invalid headers
+	f(`response_headers: foobar`)
+	f(`response_headers: [missing-colon]`)
 	f(`
 users:
 - username: foo
