@@ -205,8 +205,11 @@ func templateAnnotation(dst io.Writer, text string, data tplData, tpl *textTpl.T
 func (a Alert) applyRelabelingIfNeeded(relabelCfg *promrelabel.ParsedConfigs) []prompb.Label {
 	var labels []prompb.Label
 	for k, v := range a.Labels {
+		if !*utf8StrictMode {
+			k = promrelabel.SanitizeMetricName(k)
+		}
 		labels = append(labels, prompb.Label{
-			Name:  promrelabel.SanitizeMetricName(k),
+			Name:  k,
 			Value: v,
 		})
 	}
