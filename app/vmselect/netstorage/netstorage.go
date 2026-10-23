@@ -932,7 +932,7 @@ func LabelNames(ctx context.Context, qt *querytracer.Tracer, denyPartialResponse
 	if err != nil {
 		return nil, false, err
 	}
-	sns := getStorageNodes()
+	sns := getStorageNodesForTagFilterss(qt, sq.TagFilterss)
 	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
 		return execSearchQuery(qt, sq, func(qt *querytracer.Tracer, requestData []byte, _ storage.TenantToken) any {
 			sn.labelNamesRequests.Inc()
@@ -1056,7 +1056,7 @@ func LabelValues(ctx context.Context, qt *querytracer.Tracer, denyPartialRespons
 		labelValues []string
 		err         error
 	}
-	sns := getStorageNodes()
+	sns := getStorageNodesForTagFilterss(qt, sq.TagFilterss)
 	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
 		return execSearchQuery(qt, sq, func(qt *querytracer.Tracer, requestData []byte, _ storage.TenantToken) any {
 			sn.labelValuesRequests.Inc()
@@ -1310,7 +1310,7 @@ func TSDBStatus(ctx context.Context, qt *querytracer.Tracer, denyPartialResponse
 	if err != nil {
 		return nil, false, err
 	}
-	sns := getStorageNodes()
+	sns := getStorageNodesForTagFilterss(qt, sq.TagFilterss)
 	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
 		return execSearchQuery(qt, sq, func(qt *querytracer.Tracer, requestData []byte, _ storage.TenantToken) any {
 			sn.tsdbStatusRequests.Inc()
@@ -1718,7 +1718,7 @@ func ExportBlocks(ctx context.Context, qt *querytracer.Tracer, sq *storage.Searc
 		MinTimestamp: sq.MinTimestamp,
 		MaxTimestamp: sq.MaxTimestamp,
 	}
-	sns := getStorageNodes()
+	sns := getStorageNodesForTagFilterss(qt, sq.TagFilterss)
 	blocksRead := newPerNodeCounter(sns)
 	samples := newPerNodeCounter(sns)
 	processBlock := func(mb *storage.MetricBlock, workerID uint) error {
@@ -1767,7 +1767,7 @@ func SearchMetricNames(ctx context.Context, qt *querytracer.Tracer, denyPartialR
 	if err != nil {
 		return nil, false, err
 	}
-	sns := getStorageNodes()
+	sns := getStorageNodesForTagFilterss(qt, sq.TagFilterss)
 	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
 		return execSearchQuery(qt, sq, func(qt *querytracer.Tracer, requestData []byte, t storage.TenantToken) any {
 			sn.searchMetricNamesRequests.Inc()
@@ -1871,7 +1871,10 @@ func ProcessSearchQuery(ctx context.Context, qt *querytracer.Tracer, denyPartial
 		MinTimestamp: sq.MinTimestamp,
 		MaxTimestamp: sq.MaxTimestamp,
 	}
-	sns := getStorageNodes()
+	sns := getStorageNodesForTagFilterss(qt, sq.TagFilterss)
+	if len(sns) == 0 {
+		return &Results{tr: tr}, false, nil
+	}
 	tbfw := newTmpBlocksFileWrapper(sns)
 	blocksRead := newPerNodeCounter(sns)
 	samples := newPerNodeCounter(sns)
@@ -1930,7 +1933,7 @@ func ProcessSearchQuery(ctx context.Context, qt *querytracer.Tracer, denyPartial
 // Returns workers count and processBlocks function
 func PrepareProcessRawBlocks(ctx context.Context, qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.SearchQuery,
 ) (int, func(processBlock func(mb []byte, workerID uint) error) (bool, error)) {
-	sns := getStorageNodes()
+	sns := getStorageNodesForTagFilterss(qt, sq.TagFilterss)
 	return len(sns), func(processBlock func(mb []byte, workerID uint) error) (bool, error) {
 		return processBlocksInternal(ctx, qt, sns, denyPartialResponse, sq, processBlock)
 	}
@@ -3230,6 +3233,9 @@ func readUint64(bc *handshake.BufferedConn) (uint64, error) {
 type storageNodesBucket struct {
 	ms  *metrics.Set
 	sns []*storageNode
+
+	// labelIndexes contains an optional -storageNodeLabelIndex per each sns item.
+	labelIndexes []storageNodeLabelIndex
 }
 
 var storageNodes atomic.Pointer[storageNodesBucket]
@@ -3249,9 +3255,12 @@ func getStorageNodes() []*storageNode {
 
 // Init initializes storage nodes' connections to the given addrs.
 //
+// labelIndexes must be empty or contain an optional -storageNodeLabelIndex per each addr.
+//
 // MustStop must be called when the initialized connections are no longer needed.
-func Init(addrs []string) {
-	snb := initStorageNodes(addrs)
+func Init(addrs, labelIndexes []string) {
+	snlis := mustParseStorageNodeLabelIndexes(addrs, labelIndexes)
+	snb := initStorageNodes(addrs, snlis)
 	setStorageNodesBucket(snb)
 }
 
@@ -3261,7 +3270,12 @@ func MustStop() {
 	mustStopStorageNodes(snb)
 }
 
-func initStorageNodes(addrs []string) *storageNodesBucket {
+// initStorageNodes initializes storage nodes for the given addrs.
+//
+// snlis contains optional -storageNodeLabelIndex values keyed by addrs items.
+// It is a map instead of a slice aligned with addrs, since the enterprise version passes discovered addrs here,
+// which may differ from -storageNode in order and in number.
+func initStorageNodes(addrs []string, snlis map[string]storageNodeLabelIndex) *storageNodesBucket {
 	if len(addrs) == 0 {
 		logger.Panicf("BUG: addrs must be non-empty")
 	}
@@ -3286,8 +3300,9 @@ func initStorageNodes(addrs []string) *storageNodesBucket {
 	wg.Wait()
 	metrics.RegisterSet(ms)
 	return &storageNodesBucket{
-		sns: sns,
-		ms:  ms,
+		sns:          sns,
+		ms:           ms,
+		labelIndexes: getStorageNodeLabelIndexes(addrs, snlis),
 	}
 }
 

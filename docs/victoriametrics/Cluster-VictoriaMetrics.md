@@ -192,6 +192,47 @@ its data on-disk (see `--remoteWrite.maxDiskUsagePerURL`) without affecting othe
 
 See the [cluster instability troubleshooting guide](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#cluster-instability) for details on diagnosing and mitigating networking problems.
 
+### Storage node label index
+
+By default, `vmselect` sends every query to all the nodes from the `-storageNode` command-line flag.
+In a [multi-level cluster setup](#multi-level-cluster-setup), this increases query latency when some lower-level `vmselect` nodes
+are in distant networks, even if the query doesn't need the data from these networks.
+
+The optional `-storageNodeLabelIndex` command-line flag sets an index for each `-storageNode` in the form `label1=value1^^...^^labelN=valueN`.
+The index must contain all the values of the indexed [labels](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#labels)
+for the series stored at the node. It may contain multiple values for the same label and multiple distinct labels.
+`vmselect` doesn't send the query to the node if some [label filter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#filtering) from the query
+cannot match any of the index values for its label.
+The first `-storageNodeLabelIndex` value applies to the first `-storageNode` address, the second value applies to the second address, and so on.
+`vmselect` always queries the node with an empty `-storageNodeLabelIndex` value.
+
+For example, the following command runs a top-level `vmselect`, which queries lower-level `vmselect` nodes in different regions:
+
+```sh
+/path/to/vmselect \
+ -storageNode=vmselect-eu:8401 -storageNodeLabelIndex='region=eu-1^^region=eu-2' \
+ -storageNode=vmselect-us:8401 -storageNodeLabelIndex='region=us-east^^region=us-west' \
+ -storageNode=vmselect-us-security:8401 -storageNodeLabelIndex='region=us-east^^department=security' \
+ -storageNode=vmselect-global:8401 -storageNodeLabelIndex=''
+```
+
+With this configuration:
+
+- `up{region="eu-1"}` and `up{region=~"eu-.*"}` go only to `vmselect-eu` and `vmselect-global`.
+- `up{region!~"us-.*"}` doesn't go to `vmselect-us` and `vmselect-us-security`.
+- `up{region!="us-east"}` doesn't go to `vmselect-us-security`. It goes to `vmselect-us`, since that node may contain series with `region="us-west"`.
+- `up{department="hr"}` doesn't go to `vmselect-us-security`, since all the series at that node have `department="security"`.
+- `up` goes to all the nodes, since it has no filters on the indexed labels.
+
+Every series at the node must have all the indexed labels, with values from the index.
+Otherwise `vmselect` may skip the node and return incomplete results without an error.
+
+Nodes skipped by the index don't make the response partial, even if they are unavailable.
+`vmselect` always sends series deletion requests to all the nodes.
+The [query trace](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#query-tracing) shows the skipped nodes.
+
+`-storageNodeLabelIndex` works at any `vmselect` level, including `vmselect` nodes that query `vmstorage` nodes directly.
+
 ### vmstorage groups at vmselect
 
 `vmselect` can be configured to query multiple distinct groups of `vmstorage` nodes with individual `-replicationFactor` per each group.
