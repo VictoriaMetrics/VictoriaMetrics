@@ -1,0 +1,17 @@
+rule_files:
+  - rules.yaml
+
+tests:
+  - name: "start_timestamp with unsupported format"
+    start_timestamp: "yesterday"
+    interval: 1m
+    input_series:
+      - series: test
+        values: "1"
+
+    metricsql_expr_test:
+      - expr: test
+        eval_time: 0
+        exp_samples:
+          - labels: test
+            value: 1
