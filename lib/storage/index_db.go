@@ -569,6 +569,14 @@ func (db *indexDB) searchLabelNames(ctx context.Context, qt *querytracer.Tracer,
 	}
 
 	minDate, maxDate := tr.DateRange()
+	numDays := maxDate - minDate + 1
+	if numDays == 1 {
+		date := minDate
+		qtChild := qt.NewChild("search for label names: filters=%s, date=%s", tfss, dateToString(date))
+		defer qtChild.Done()
+		return db.searchLabelNamesByDateAndFilters(ctx, qtChild, date, tfss, maxLabelNames, maxMetrics)
+	}
+
 	var mu sync.Mutex
 	wg := getWaitGroup()
 	var errGlobal error
@@ -854,6 +862,14 @@ func (db *indexDB) searchLabelValuesForTimeRange(ctx context.Context, qt *queryt
 	}
 
 	minDate, maxDate := tr.DateRange()
+	numDays := maxDate - minDate + 1
+	if numDays == 1 {
+		date := minDate
+		qtChild := qt.NewChild("search for label values: labelName=%q, filters=%s, date=%s", labelName, tfss, dateToString(date))
+		defer qtChild.Done()
+		return db.searchLabelValuesByDateAndFilters(ctx, qtChild, date, labelName, tfss, maxLabelValues, maxMetrics)
+	}
+
 	var mu sync.Mutex
 	wg := getWaitGroup()
 	var errGlobal error
@@ -1078,6 +1094,14 @@ func (is *indexSearch) searchTagValueSuffixesForTimeRange(ctx context.Context, t
 	}
 
 	minDate, maxDate := tr.DateRange()
+	numDays := maxDate - minDate + 1
+	if numDays == 1 {
+		date := minDate
+		isLocal := is.db.getIndexSearch()
+		defer is.db.putIndexSearch(isLocal)
+		return isLocal.searchTagValueSuffixesForDate(ctx, date, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
+	}
+
 	// Query over multiple days in parallel.
 	wg := getWaitGroup()
 	var errGlobal error
