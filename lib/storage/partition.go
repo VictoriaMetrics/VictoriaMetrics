@@ -315,7 +315,13 @@ func newPartition(name, smallPartsPath, bigPartsPath, indexDBPartsPath string, t
 
 // partitionMetrics contains essential metrics for the partition.
 type partitionMetrics struct {
-	PendingRows uint64
+	PendingRows         uint64
+	PendingRowsCapBytes uint64
+
+	PendingRowsFullFlushes        uint64
+	PendingRowsFullFlushedRows    uint64
+	PendingRowsPartialFlushes     uint64
+	PendingRowsPartialFlushedRows uint64
 
 	IndexBlocksCacheSize         uint64
 	IndexBlocksCacheSizeBytes    uint64
@@ -374,6 +380,11 @@ func (pm *partitionMetrics) TotalRowsCount() uint64 {
 // UpdateMetrics updates m with metrics from pt.
 func (pt *partition) UpdateMetrics(m *partitionMetrics) {
 	m.PendingRows += uint64(pt.rawRows.Len())
+	m.PendingRowsCapBytes += uint64(pt.rawRows.CapBytes())
+	m.PendingRowsFullFlushes += pt.rawRows.fullFlushes.Load()
+	m.PendingRowsFullFlushedRows += pt.rawRows.fullFlushedRows.Load()
+	m.PendingRowsPartialFlushes += pt.rawRows.partialFlushes.Load()
+	m.PendingRowsPartialFlushedRows += pt.rawRows.partialFlushedRows.Load()
 
 	pt.partsLock.Lock()
 
@@ -497,6 +508,11 @@ func (pt *partition) flushRowssToInmemoryParts(rowss [][]rawRow) {
 	}
 	wg.Wait()
 	putWaitGroup(wg)
+
+	// Rows have been copied into in-memory parts, so their buffers can be reused.
+	for _, rows := range rowss {
+		putRawRows(rows)
+	}
 
 	// Merge pws into a single in-memory part.
 	maxPartSize := getMaxInmemoryPartSize()

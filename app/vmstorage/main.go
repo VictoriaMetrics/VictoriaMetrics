@@ -457,6 +457,12 @@ func (vms *VMStorage) writeStorageMetrics(w io.Writer) {
 
 	metrics.WriteGaugeUint64(w, `vm_pending_rows{type="storage"}`, tm.PendingRows)
 	metrics.WriteGaugeUint64(w, `vm_pending_rows{type="indexdb"}`, idbm.PendingItems)
+	metrics.WriteGaugeUint64(w, `vm_pending_rows_buffer_bytes{type="storage"}`, tm.PendingRowsCapBytes)
+
+	metrics.WriteCounterUint64(w, `vm_flushes_total{type="storage/full"}`, tm.PendingRowsFullFlushes)
+	metrics.WriteCounterUint64(w, `vm_flushes_total{type="storage/partial"}`, tm.PendingRowsPartialFlushes)
+	metrics.WriteCounterUint64(w, `vm_rows_flushed_total{type="storage/full"}`, tm.PendingRowsFullFlushedRows)
+	metrics.WriteCounterUint64(w, `vm_rows_flushed_total{type="storage/partial"}`, tm.PendingRowsPartialFlushedRows)
 
 	metrics.WriteGaugeUint64(w, `vm_parts{type="storage/inmemory"}`, tm.InmemoryPartsCount)
 	metrics.WriteGaugeUint64(w, `vm_parts{type="storage/small"}`, tm.SmallPartsCount)
