@@ -544,7 +544,7 @@ func (db *indexDB) containsDate(date uint64) (bool, uint64) {
 // searches in per-day index. The limit is shared across all indexDB methods
 // as well as across all indexDB instances. This should reduce cpu and memory
 // utilization for queries with long time ranges.
-var perDaySearchConcurrencyLimitCh = make(chan struct{}, 2*cgroup.AvailableCPUs())
+var perDaySearchConcurrencyLimitCh = make(chan struct{}, 10*cgroup.AvailableCPUs())
 
 func beginConcurrentPerDaySearch(ctx context.Context) bool {
 	select {
