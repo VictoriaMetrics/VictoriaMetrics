@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/): prevent skipping aggregation and deduplication flushes when [aggregation windows](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#aggregation-windows) are enabled and incoming samples are delayed by one interval or more, e.g. when the ingestion pipeline is overloaded. Previously, the flush delay could grow with the sample lag, causing skipped flushes and gaps in the results. Now the flush delay is capped at 90% of the aggregation or deduplication interval. See [#11811](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11811).
+
 ## [v1.155.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.155.0)
 
 Release candidate
