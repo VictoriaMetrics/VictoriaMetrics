@@ -36,8 +36,9 @@ func (av *totalAggrValue) pushSample(c aggrConfig, sample *pushSample, key strin
 		ok = false
 	}
 	if ok {
-		if sample.timestamp < lv.timestamp {
-			// Skip out of order sample
+		if sample.timestamp < lv.timestamp || (sample.timestamp == lv.timestamp && sample.value < lv.value) {
+			// Skip out of order sample or a duplicate with lower value
+			ac.counterOutOfOrderSamples.Inc()
 			return
 		}
 		if sample.value >= lv.value {
@@ -86,6 +87,7 @@ func newTotalAggrConfig(ms *metrics.Set, metricLabels string, ignoreFirstSampleI
 		ignoreFirstSampleDeadline: ignoreFirstSampleDeadline,
 	}
 	cfg.counterResetsTotal = ms.NewCounter(fmt.Sprintf(`vm_streamaggr_counter_resets_total{%s}`, metricLabels))
+	cfg.counterOutOfOrderSamples = ms.NewCounter(fmt.Sprintf(`vm_streamaggr_counter_dropped_samples_total{reason="out_of_order",%s}`, metricLabels))
 	return cfg
 }
 
@@ -98,6 +100,7 @@ type totalAggrConfig struct {
 	// cannot be distinguished from already existing series. This is tracked with ignoreFirstSampleDeadline.
 	ignoreFirstSampleDeadline uint64
 	counterResetsTotal        *metrics.Counter
+	counterOutOfOrderSamples  *metrics.Counter
 }
 
 func (*totalAggrConfig) getValue(s any) aggrValue {
