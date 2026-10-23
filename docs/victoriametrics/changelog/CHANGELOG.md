@@ -26,6 +26,10 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+## [v1.155.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.155.0)
+
+Release candidate
+
 **Update Note 1:** `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): `/admin/tenants` requests without `start` and `end` query args now return tenants for the current day. This is a breaking change because previously it was expected to return all tenants. If you still need to retrieve all tenants, set the `start` and `end` params so that the resulting time range fully includes the `-retentionPeriod`. Also note that [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/) is known to send requests to `/admin/tenants` under the hood when migrating data between VictoriaMetrics deployments. Therefore, make sure that you run `vmctl` with both `*-filter-time-start` and `*-filter-time-end` params. See the updated [URL format](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format) and [#11791](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11791) for details.
 
 * SECURITY: upgrade Go builder from Go1.27.2 to Go1.27.3. See [the list of issues addressed in Go1.27.3](https://github.com/golang/go/issues?q=milestone%3AGo1.27.3%20label%3ACherryPickApproved).
