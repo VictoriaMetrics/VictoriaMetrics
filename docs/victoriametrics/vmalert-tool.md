@@ -98,6 +98,11 @@ input_series:
 # Name of the test group, optional
 [ name: <string> ]
 
+# Start time of the test group, as a Unix timestamp in seconds or an RFC3339 string.
+# Samples of input_series start at this time, and eval_time is relative to it.
+# Can't be earlier than 1970-01-02T00:00:00Z.
+[ start_timestamp: <int> | <rfc3339_string> | default = 2000-01-01T00:00:00Z ]
+
 # Unit tests for alerting rules
 alert_rule_test:
   [ - <alert_test_case> ]
@@ -287,6 +292,8 @@ groups:
 In all tests, functions that depend on the current time, such as `time()` and `day_of_*()`, return consistent values.
 
 By default, at the start of test evaluation, `time()` returns `946684800` (Unix timestamp: January 1, 2000, at 00:00:00 UTC). The `eval_time` field specifies a duration relative to this test start time. Therefore, by default, `time()` returns `946684800 + eval_time`.
+
+The test start time can be changed per test group with `start_timestamp` {{% available_from "#" %}}. For example, with `start_timestamp: 1700000000`, input series start at `1700000000` and `time()` returns `1700000000 + eval_time`. `start_timestamp` can't be earlier than `1970-01-02T00:00:00Z`, see [#11219](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11219).
 
 ### Debug mode
 

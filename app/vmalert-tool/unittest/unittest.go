@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"maps"
+	"math"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -15,6 +16,7 @@ import (
 	"reflect"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -44,17 +46,20 @@ import (
 var (
 	storagePath    string
 	httpListenAddr string
-	// Insert series from 2000-01-01T00:00:00.
-	testStartTime          = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	// defaultTestStartTime is used when start_timestamp isn't set in the test group.
+	// 1970-01-01 can't be used, see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/11219
+	defaultTestStartTime = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	// minTestStartTime is the earliest allowed start_timestamp.
+	minTestStartTime       = time.Date(1970, 1, 2, 0, 0, 0, 0, time.UTC)
 	testLogLevel           = "ERROR"
 	disableAlertgroupLabel bool
 )
 
-func durationToTime(pd *promutil.Duration) time.Time {
+func durationToTime(startTime time.Time, pd *promutil.Duration) time.Time {
 	if pd == nil {
-		return testStartTime
+		return startTime
 	}
-	return testStartTime.Add(pd.Duration())
+	return startTime.Add(pd.Duration())
 }
 
 const (
@@ -258,6 +263,10 @@ func verifyTestGroup(group testGroup) error {
 			return fmt.Errorf("\n%s    missing required field \"eval_time\"", testGroupName)
 		}
 	}
+	if st := group.startTime(); st.Before(minTestStartTime) {
+		return fmt.Errorf("\n%s    \"start_timestamp\" must not be earlier than %s; got %s", testGroupName,
+			minTestStartTime.Format(time.RFC3339), st.Format(time.RFC3339))
+	}
 	if group.ExternalLabels != nil {
 		fmt.Printf("\n%s    warning: filed `external_labels` will be deprecated soon, please use `-external.label` cmd-line flag instead. "+
 			"Check https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6735 for details.\n", testGroupName)
@@ -330,6 +339,7 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 	if tg.Interval == nil {
 		tg.Interval = promutil.NewDuration(evalInterval)
 	}
+	testStartTime := tg.startTime()
 	err := writeInputSeries(tg.InputSeries, tg.Interval, testStartTime, fmt.Sprintf("http://127.0.0.1:%s/api/v1/write", httpListenAddr))
 	if err != nil {
 		return []error{err}
@@ -477,7 +487,7 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 
 	}
 
-	checkErrs = append(checkErrs, checkMetricsqlCase(tg.MetricsqlExprTests, q)...)
+	checkErrs = append(checkErrs, checkMetricsqlCase(tg.MetricsqlExprTests, q, testStartTime)...)
 	return checkErrs
 }
 
@@ -497,6 +507,47 @@ type testGroup struct {
 	MetricsqlExprTests []metricsqlTestCase `yaml:"metricsql_expr_test"`
 	ExternalLabels     map[string]string   `yaml:"external_labels"`
 	TestGroupName      string              `yaml:"name"`
+	StartTimestamp     *testStartTimestamp `yaml:"start_timestamp"`
+}
+
+// startTime returns the time the input series and evaluations of the test group start from.
+func (tg *testGroup) startTime() time.Time {
+	if tg.StartTimestamp == nil {
+		return defaultTestStartTime
+	}
+	return tg.StartTimestamp.Time
+}
+
+// testStartTimestamp holds start_timestamp of a test group.
+// It accepts a Unix timestamp in seconds or an RFC3339 string, the same as promtool.
+type testStartTimestamp struct {
+	time.Time
+}
+
+// UnmarshalYAML implements yaml.Unmarshaler interface.
+func (ts *testStartTimestamp) UnmarshalYAML(unmarshal func(any) error) error {
+	var s string
+	if err := unmarshal(&s); err != nil {
+		return err
+	}
+	t, err := parseStartTimestamp(s)
+	if err != nil {
+		return err
+	}
+	ts.Time = t
+	return nil
+}
+
+func parseStartTimestamp(s string) (time.Time, error) {
+	if f, err := strconv.ParseFloat(s, 64); err == nil {
+		sec, frac := math.Modf(f)
+		return time.Unix(int64(sec), int64(math.Round(frac*1e9))).UTC(), nil
+	}
+	t, err := time.Parse(time.RFC3339Nano, s)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("cannot parse start_timestamp %q: must be a Unix timestamp in seconds or RFC3339 time", s)
+	}
+	return t.UTC(), nil
 }
 
 // maxEvalTime returns the max eval time among all alert_rule_test and metricsql_expr_test
