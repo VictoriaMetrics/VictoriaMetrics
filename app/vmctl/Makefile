@@ -39,6 +39,9 @@ vmctl-darwin-arm64-prod:
 vmctl-freebsd-amd64-prod:
 	APP_NAME=vmctl $(MAKE) app-via-docker-freebsd-amd64
 
+vmctl-freebsd-arm64-prod:
+	APP_NAME=vmctl $(MAKE) app-via-docker-freebsd-arm64
+
 vmctl-openbsd-amd64-prod:
 	APP_NAME=vmctl $(MAKE) app-via-docker-openbsd-amd64
 
@@ -98,6 +101,9 @@ vmctl-darwin-arm64:
 
 vmctl-freebsd-amd64:
 	APP_NAME=vmctl CGO_ENABLED=0 GOOS=freebsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
+vmctl-freebsd-arm64:
+	APP_NAME=vmctl CGO_ENABLED=0 GOOS=freebsd GOARCH=arm64 $(MAKE) app-local-goos-goarch
 
 vmctl-openbsd-amd64:
 	APP_NAME=vmctl CGO_ENABLED=0 GOOS=openbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch

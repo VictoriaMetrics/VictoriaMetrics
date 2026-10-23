@@ -39,6 +39,9 @@ vmagent-darwin-arm64-prod:
 vmagent-freebsd-amd64-prod:
 	APP_NAME=vmagent $(MAKE) app-via-docker-freebsd-amd64
 
+vmagent-freebsd-arm64-prod:
+	APP_NAME=vmagent $(MAKE) app-via-docker-freebsd-arm64
+
 vmagent-openbsd-amd64-prod:
 	APP_NAME=vmagent $(MAKE) app-via-docker-openbsd-amd64
 
@@ -105,6 +108,9 @@ vmagent-darwin-arm64:
 
 vmagent-freebsd-amd64:
 	APP_NAME=vmagent CGO_ENABLED=0 GOOS=freebsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
+vmagent-freebsd-arm64:
+	APP_NAME=vmagent CGO_ENABLED=0 GOOS=freebsd GOARCH=arm64 $(MAKE) app-local-goos-goarch
 
 vmagent-openbsd-amd64:
 	APP_NAME=vmagent CGO_ENABLED=0 GOOS=openbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch

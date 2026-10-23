@@ -39,6 +39,9 @@ vmauth-darwin-arm64-prod:
 vmauth-freebsd-amd64-prod:
 	APP_NAME=vmauth $(MAKE) app-via-docker-freebsd-amd64
 
+vmauth-freebsd-arm64-prod:
+	APP_NAME=vmauth $(MAKE) app-via-docker-freebsd-arm64
+
 vmauth-openbsd-amd64-prod:
 	APP_NAME=vmauth $(MAKE) app-via-docker-openbsd-amd64
 
@@ -104,6 +107,9 @@ vmauth-darwin-arm64:
 
 vmauth-freebsd-amd64:
 	APP_NAME=vmauth CGO_ENABLED=0 GOOS=freebsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
+vmauth-freebsd-arm64:
+	APP_NAME=vmauth CGO_ENABLED=0 GOOS=freebsd GOARCH=arm64 $(MAKE) app-local-goos-goarch
 
 vmauth-openbsd-amd64:
 	APP_NAME=vmauth CGO_ENABLED=0 GOOS=openbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
