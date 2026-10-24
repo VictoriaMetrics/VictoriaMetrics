@@ -80,4 +80,8 @@ func TestParseStartTimestamp_Failure(t *testing.T) {
 	f("yesterday")
 	f("2024-06-01")
 	f("2024-06-01 12:00:00")
+	f("NaN")
+	f("Inf")
+	f("-Inf")
+	f("1e30")
 }

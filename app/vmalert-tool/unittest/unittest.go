@@ -540,6 +540,10 @@ func (ts *testStartTimestamp) UnmarshalYAML(unmarshal func(any) error) error {
 
 func parseStartTimestamp(s string) (time.Time, error) {
 	if f, err := strconv.ParseFloat(s, 64); err == nil {
+		// reject NaN, infinities and values that overflow int64 seconds
+		if math.IsNaN(f) || f < math.MinInt64 || f >= math.MaxInt64 {
+			return time.Time{}, fmt.Errorf("cannot parse start_timestamp %q: Unix timestamp is out of range", s)
+		}
 		sec, frac := math.Modf(f)
 		return time.Unix(int64(sec), int64(math.Round(frac*1e9))).UTC(), nil
 	}
