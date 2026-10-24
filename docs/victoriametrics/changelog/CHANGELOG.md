@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmalert-tool](https://docs.victoriametrics.com/victoriametrics/vmalert-tool/): support `start_timestamp` in test groups to change the time input series and evaluations start from, similar to [promtool](https://prometheus.io/docs/prometheus/latest/configuration/unit_testing_rules/#test_group). The default stays `2000-01-01T00:00:00Z`. See [#11807](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/11807).
+
 ## [v1.155.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.155.0)
 
 Release candidate
