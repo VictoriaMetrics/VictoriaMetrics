@@ -3,9 +3,9 @@
 DOCKER_REGISTRIES ?= docker.io quay.io
 DOCKER_NAMESPACE ?= victoriametrics
 
-ROOT_IMAGE ?= alpine:3.24.2
+ROOT_IMAGE ?= alpine:3.24.3
 ROOT_IMAGE_SCRATCH ?= scratch
-CERTS_IMAGE := alpine:3.24.2
+CERTS_IMAGE := alpine:3.24.3
 
 GO_BUILDER_IMAGE := golang:1.27.3
 
