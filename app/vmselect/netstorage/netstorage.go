@@ -1,6 +1,7 @@
 package netstorage
 
 import (
+	"cmp"
 	"container/heap"
 	"context"
 	"errors"
@@ -652,6 +653,9 @@ func mergeSortBlocks(dst *Result, sbh *sortBlocksHeap, dedupInterval int64) {
 	if sbh.Len() == 0 {
 		return
 	}
+	if mergeFast(dst, sbh, dedupInterval) {
+		return
+	}
 	heap.Init(sbh)
 	var dedupSamples int
 	for {
@@ -683,11 +687,143 @@ func mergeSortBlocks(dst *Result, sbh *sortBlocksHeap, dedupInterval int64) {
 			putSortBlock(top)
 		}
 	}
+	finishMerge(dst, dedupSamples, dedupInterval)
+}
+
+func finishMerge(dst *Result, dedupSamples int, dedupInterval int64) {
 	timestamps, values := storage.DeduplicateSamples(dst.Timestamps, dst.Values, dedupInterval)
 	dedupSamples += len(dst.Timestamps) - len(timestamps)
 	dedupsDuringSelect.Add(dedupSamples)
 	dst.Timestamps = timestamps
 	dst.Values = values
+}
+
+// mergeFast merges sbh.sbs into empty dst without the heap if the blocks do not interleave or differ only by identical samples.
+func mergeFast(dst *Result, sbh *sortBlocksHeap, dedupInterval int64) bool {
+	// non-empty dst -> use heap
+	if len(dst.Timestamps) > 0 {
+		return false
+	}
+	sbs := sbh.sbs
+	total := 0
+	for _, sb := range sbs {
+		total += len(sb.Timestamps)
+	}
+	// single block -> take the buffers instead of copying them
+	if len(sbs) == 1 {
+		sb := sbs[0]
+		dst.Timestamps, sb.Timestamps = sb.Timestamps, dst.Timestamps
+		dst.Values, sb.Values = sb.Values, dst.Values
+	} else {
+		// multiple blocks -> sort and merge
+		sorted := append(sbh.sorted[:0], sbs...)
+		slices.SortFunc(sorted, func(a, b *sortBlock) int {
+			return cmp.Compare(a.Timestamps[0], b.Timestamps[0])
+		})
+		ok := mergeSorted(dst, sorted, total, dedupInterval, sbh)
+		clear(sorted)
+		sbh.sorted = sorted[:0]
+		if !ok {
+			return false
+		}
+	}
+	// clear the sort blocks and return the buffers to the pool
+	for i, sb := range sbs {
+		putSortBlock(sb)
+		sbs[i] = nil
+	}
+	sbh.sbs = sbs[:0]
+	finishMerge(dst, total-len(dst.Timestamps), dedupInterval)
+	return true
+}
+
+// mergeSorted appends the total samples of sbs, which are sorted by the first timestamp, to dst.
+//
+// Samples with equal timestamps in different blocks must be identical singletons and are merged only if dedupInterval > 0,
+// since DeduplicateSamples drops them anyway. Otherwise the result of the heap merge depends on the heap order.
+// It returns false and empties dst if sbs cannot be merged this way or the merge becomes too expensive.
+func mergeSorted(dst *Result, sbs []*sortBlock, total int, dedupInterval int64, sbh *sortBlocksHeap) bool {
+	tss := slices.Grow(dst.Timestamps, total)
+	vs := slices.Grow(dst.Values, total)
+	defer func() {
+		dst.Timestamps, dst.Values = tss, vs
+	}()
+
+	// moved limits the work spent on the blocks overlapping the already merged samples.
+	moved := 0
+	for _, sb := range sbs {
+		bts, bvs := sb.Timestamps, sb.Values
+		n := len(tss)
+		if n == 0 || bts[0] > tss[n-1] {
+			tss = append(tss, bts...)
+			vs = append(vs, bvs...)
+			continue
+		}
+
+		// Skip the samples replicated from the already merged ones.
+		i, _ := slices.BinarySearch(tss, bts[0])
+		k := 0
+		for ; i+k < n && k < len(bts) && tss[i+k] == bts[k]; k++ {
+			if dedupInterval <= 0 || math.Float64bits(vs[i+k]) != math.Float64bits(bvs[k]) ||
+				i+k+1 < n && tss[i+k+1] == tss[i+k] || k+1 < len(bts) && bts[k+1] == bts[k] {
+				tss, vs = tss[:0], vs[:0]
+				return false
+			}
+		}
+		i += k
+		bts, bvs = bts[k:], bvs[k:]
+		if len(bts) == 0 {
+			continue
+		}
+		if i == n {
+			tss = append(tss, bts...)
+			vs = append(vs, bvs...)
+			continue
+		}
+
+		// Merge the rest of the block with the tail of the merged samples.
+		moved += n - i
+		if moved > total {
+			tss, vs = tss[:0], vs[:0]
+			return false
+		}
+		sbh.tailTs = append(sbh.tailTs[:0], tss[i:]...)
+		sbh.tailVs = append(sbh.tailVs[:0], vs[i:]...)
+		tss, vs = tss[:i], vs[:i]
+		var ok bool
+		tss, vs, ok = mergeTail(tss, vs, sbh.tailTs, sbh.tailVs, bts, bvs, dedupInterval > 0)
+		if !ok {
+			tss, vs = tss[:0], vs[:0]
+			return false
+		}
+	}
+	return true
+}
+
+// mergeTail appends sorted (ats, avs) and (bts, bvs) to (dstTs, dstVs). Identical samples are appended once.
+//
+// It returns false if samples have equal timestamps but different values or dedup is disabled.
+func mergeTail(dstTs []int64, dstVs []float64, ats []int64, avs []float64, bts []int64, bvs []float64, dedup bool) ([]int64, []float64, bool) {
+	for len(ats) > 0 && len(bts) > 0 {
+		switch {
+		case ats[0] < bts[0]:
+			dstTs, dstVs = append(dstTs, ats[0]), append(dstVs, avs[0])
+			ats, avs = ats[1:], avs[1:]
+		case ats[0] > bts[0]:
+			dstTs, dstVs = append(dstTs, bts[0]), append(dstVs, bvs[0])
+			bts, bvs = bts[1:], bvs[1:]
+		default:
+			if !dedup || math.Float64bits(avs[0]) != math.Float64bits(bvs[0]) ||
+				len(ats) > 1 && ats[1] == ats[0] || len(bts) > 1 && bts[1] == bts[0] {
+				return dstTs, dstVs, false
+			}
+			dstTs, dstVs = append(dstTs, ats[0]), append(dstVs, avs[0])
+			ats, avs = ats[1:], avs[1:]
+			bts, bvs = bts[1:], bvs[1:]
+		}
+	}
+	dstTs, dstVs = append(append(dstTs, ats...), bts...), append(append(dstVs, avs...), bvs...)
+	return dstTs, dstVs, true
 }
 
 var dedupsDuringSelect = metrics.NewCounter(`vm_deduplicated_samples_total{type="select"}`)
@@ -765,6 +901,11 @@ func (sb *sortBlock) unpackFrom(tmpBlock *storage.Block, tbfs []*tmpBlocksFile, 
 
 type sortBlocksHeap struct {
 	sbs []*sortBlock
+
+	// buffers for mergeFast
+	sorted []*sortBlock
+	tailTs []int64
+	tailVs []float64
 }
 
 func (sbh *sortBlocksHeap) getNextBlock() *sortBlock {
