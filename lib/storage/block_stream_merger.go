@@ -16,6 +16,10 @@ type blockStreamMerger struct {
 	// Blocks with smaller timestamps are removed because of retention.
 	retentionDeadline int64
 
+	// Samples with timestamps >= maxKeepTimestamp are dropped during merge.
+	// math.MaxInt64 means no upper bound.
+	maxKeepTimestamp int64
+
 	// Whether the call to NextBlock must be no-op.
 	nextBlockNoop bool
 
@@ -32,14 +36,16 @@ func (bsm *blockStreamMerger) reset() {
 	bsm.bsrHeap = bsm.bsrHeap[:0]
 
 	bsm.retentionDeadline = 0
+	bsm.maxKeepTimestamp = 0
 	bsm.nextBlockNoop = false
 	bsm.err = nil
 }
 
 // Init initializes bsm with the given bsrs.
-func (bsm *blockStreamMerger) Init(bsrs []*blockStreamReader, retentionDeadline int64) {
+func (bsm *blockStreamMerger) Init(bsrs []*blockStreamReader, retentionDeadline, maxKeepTimestamp int64) {
 	bsm.reset()
 	bsm.retentionDeadline = retentionDeadline
+	bsm.maxKeepTimestamp = maxKeepTimestamp
 	for _, bsr := range bsrs {
 		if bsr.NextBlock() {
 			bsm.bsrHeap = append(bsm.bsrHeap, bsr)

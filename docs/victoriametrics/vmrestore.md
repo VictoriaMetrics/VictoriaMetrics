@@ -15,7 +15,13 @@ aliases:
 ---
 `vmrestore` restores data from backups created by [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/).
 
-Restore process can be interrupted at any time. It is automatically resumed when restarting `vmrestore` with the same args. If file preallocation is enabled{{% available_from "v1.139.0" %}}, it resumes from the last complete file, if file preallocation is disabled via `-skipFilePreallocation` then it resumes from the interruption point mid file.
+Restore process can be interrupted at any time. Restart `vmrestore` with the same args to resume. Backup objects are split into **parts** of up to 1 GiB each. Resume is per complete part, not at an arbitrary byte offset inside a part.
+
+On Linux, file preallocation{{% available_from "v1.139.0" %}} writes each restored file to a temporary file and renames it into place when that file is complete. `fallocate` preallocates the temporary file when the filesystem supports it. If `fallocate` returns `EOPNOTSUPP`, `ENOSYS`, or `EINVAL`, restore continues without preallocation. Interrupted `fallocate` calls (`EINTR`) are retried. On any other `fallocate` error, pass `-skipFilePreallocation` to write directly into the destination file.
+
+With preallocation, an interrupted download lives only in a `.tmp` file. That `.tmp` file is removed at startup, so a file that was never finalized is downloaded again. Only files already renamed into place are kept. If the destination already holds one or more **complete earlier parts** of that file, those bytes are copied into the new temporary file and only the missing tail is downloaded{{% available_from "v1.155.0" %}}. A restart does not replace that completed prefix with zeros, and it does not continue at a byte offset inside a part.
+
+With `-skipFilePreallocation`, each part is written in place. A restart skips parts that are already complete at the destination and continues with the next missing part (up to 1 GiB per part). A partially written part is downloaded again.
 
 > If you'd prefer not to manage backups/restores at all, [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_vmbackup_intro)
 > handles backups and restores automatically without the need of extra configurations.
@@ -50,7 +56,8 @@ i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/q
 
 * See [Connecting VM components to cloud storage](https://docs.victoriametrics.com/guides/connecting-vm-components-to-cloud-storage/) for instructions on configuring credentials.
 * If `vmrestore` consumes all the network bandwidth, then set `-maxBytesPerSecond` to the desired value.
-* If `vmrestore` has been interrupted due to temporary error, then just restart it with the same args. It will resume the restore process.
+* If `vmrestore` has been interrupted due to temporary error, then just restart it with the same args. It resumes from parts already stored at the destination; only missing parts (up to 1 GiB each) are downloaded.
+* If restore fails while preallocating a file, retry with `-skipFilePreallocation`. That skips `fallocate` and writes each part in place; resume granularity is still one part (up to 1 GiB), not a byte offset inside a part. Filesystems that do not support `fallocate` do not need this flag; restore continues there without preallocation.
 
 ## Advanced usage
 
@@ -209,6 +216,8 @@ Run `vmrestore -help` in order to see all the available options:
      Whether to skip TLS verification when connecting to the S3 endpoint.
   -skipBackupCompleteCheck
      Whether to skip checking for 'backup complete' file in -src. This may be useful for restoring from old backups, which were created without 'backup complete' file
+  -skipFilePreallocation
+     Whether to skip pre-allocated files. This will likely be slower in most cases. Restarts resume at part granularity (parts are up to 1 GiB each) with or without this flag
   -src string
      Source path with backup on the remote storage. Example: gs://bucket/path/to/backup, s3://bucket/path/to/backup, azblob://container/path/to/backup or fs:///path/to/local/backup
      Note: If custom S3 endpoint is used, URL should contain only name of the bucket, while hostname of S3 server must be specified via the -customS3Endpoint command-line flag.

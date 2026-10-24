@@ -1,6 +1,7 @@
 package fslocal
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -23,6 +24,11 @@ type FS struct {
 
 	// MaxBytesPerSecond is the maximum bandwidth usage during backups or restores.
 	MaxBytesPerSecond int
+
+	// MaxPartSize is the maximum part size used by ListParts.
+	// Zero uses common.MaxPartSize. Tests set a smaller value on this FS so
+	// multi-part layout does not depend on a process-global override.
+	MaxPartSize uint64
 
 	bl *bandwidthLimiter
 
@@ -91,8 +97,9 @@ func (fs *FS) ListParts() ([]common.Part, error) {
 			continue
 		}
 		offset := uint64(0)
+		partSize := fs.partSizeLimit()
 		for offset < size {
-			n := min(size-offset, common.MaxPartSize)
+			n := min(size-offset, partSize)
 			parts = append(parts, common.Part{
 				Path:       path,
 				FileSize:   size,
@@ -104,6 +111,13 @@ func (fs *FS) ListParts() ([]common.Part, error) {
 		}
 	}
 	return parts, nil
+}
+
+func (fs *FS) partSizeLimit() uint64 {
+	if fs.MaxPartSize > 0 && fs.MaxPartSize <= common.MaxPartSize {
+		return fs.MaxPartSize
+	}
+	return common.MaxPartSize
 }
 
 // NewReadCloser returns io.ReadCloser for the given part p located in fs.
@@ -155,6 +169,90 @@ func (fs *FS) NewDirectWriteCloser(p common.Part) (io.WriteCloser, error) {
 	// with a bandwidth limiter max throughput is not a concern
 	// so we fallback to the filestream backed limited writerCloser
 	return fs.bl.NewWriteCloser(dwc), nil
+}
+
+// CopyDestPrefixIntoTmp copies bytes [0, p.Offset) from the destination file
+// into the temporary file used for preallocated restores.
+//
+// It is a no-op when temporary files are not used or when p.Offset is 0.
+// If p.Offset is greater than 0 and the destination file does not exist, it
+// returns an error so a restart does not replace a completed prefix with zeros.
+// Context cancellation stops the copy between chunks. When fs was initialized
+// with MaxBytesPerSecond, the same local-write limiter used by
+// NewDirectWriteCloser applies.
+func (fs *FS) CopyDestPrefixIntoTmp(ctx context.Context, p common.Part) error {
+	if !p.IsLocalPathInsideDir(fs.Dir) {
+		logger.Fatalf("BUG: part file %s would be written outside storage directory %s", p.Path, fs.Dir)
+	}
+	if !canPreallocate || !fs.UseTmpFiles || p.Offset == 0 {
+		return nil
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	finalPath := fs.path(p)
+	tmpPath := fs.tmpPath(p)
+	srcFile, err := os.Open(finalPath)
+	if err != nil {
+		return fmt.Errorf("cannot open %q to preserve restored prefix: %w", finalPath, err)
+	}
+	dstFile, err := os.OpenFile(tmpPath, os.O_WRONLY, 0600)
+	if err != nil {
+		_ = srcFile.Close()
+		return fmt.Errorf("cannot open %q to preserve restored prefix: %w", tmpPath, err)
+	}
+	err = copyPrefix(ctx, dstFile, srcFile, int64(p.Offset), fs.bl)
+	if err1 := dstFile.Close(); err1 != nil && err == nil {
+		err = err1
+	}
+	if err1 := srcFile.Close(); err1 != nil && err == nil {
+		err = err1
+	}
+	if err != nil {
+		return fmt.Errorf("cannot copy %d prefix bytes from %q to %q: %w", p.Offset, finalPath, tmpPath, err)
+	}
+	return nil
+}
+
+// prefixCopyChunk bounds each read so cancellation is observed during a large
+// disk-to-disk prefix copy.
+const prefixCopyChunk = 256 * 1024
+
+func copyPrefix(ctx context.Context, dst io.Writer, src io.Reader, n int64, bl *bandwidthLimiter) error {
+	buf := make([]byte, prefixCopyChunk)
+	for n > 0 {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		chunk := int(min(int64(len(buf)), n))
+		if bl != nil {
+			chunk = bl.GetQuota(chunk)
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+		}
+		nr, rerr := src.Read(buf[:chunk])
+		if nr > 0 {
+			nw, werr := dst.Write(buf[:nr])
+			n -= int64(nw)
+			if werr != nil {
+				return werr
+			}
+			if nw != nr {
+				return io.ErrShortWrite
+			}
+		}
+		if rerr != nil {
+			if rerr == io.EOF {
+				if n > 0 {
+					return io.ErrUnexpectedEOF
+				}
+				return nil
+			}
+			return rerr
+		}
+	}
+	return nil
 }
 
 // PreallocateFile pre-allocates disk space for the file being written.

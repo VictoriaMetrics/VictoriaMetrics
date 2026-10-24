@@ -45,7 +45,8 @@ type Restore struct {
 
 	// SkipPreallocation may be set in order to skip preallocation of files during restore.
 	//
-	// This will likely be slower in most cases, but allows restores to resume mid file
+	// This will likely be slower in most cases. A restart still resumes at part
+	// granularity (up to common.MaxPartSize) with or without preallocation.
 	SkipPreallocation bool
 }
 
@@ -188,6 +189,14 @@ func (r *Restore) Run(ctx context.Context) error {
 			if !r.SkipPreallocation {
 				if err := dst.PreallocateFile(parts[0]); err != nil {
 					return fmt.Errorf("cannot preallocate %s: %w", parts[0].Path, err)
+				}
+				// PartsDifference downloads only the missing tail. Copy the
+				// completed prefix into the temporary file so FinalizeFile
+				// does not replace it with a zero-filled preallocation.
+				if parts[0].Offset > 0 {
+					if err := dst.CopyDestPrefixIntoTmp(ctx, parts[0]); err != nil {
+						return fmt.Errorf("cannot preserve existing prefix for %s: %w", parts[0].Path, err)
+					}
 				}
 			}
 			for _, p := range parts {

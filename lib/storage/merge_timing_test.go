@@ -2,6 +2,7 @@ package storage
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
 	"sync/atomic"
 	"testing"
@@ -46,7 +47,7 @@ func benchmarkMergeBlockStreams(b *testing.B, mps []*inmemoryPart, rowsPerLoop i
 			}
 			mpOut.Reset()
 			bsw.MustInitFromInmemoryPart(&mpOut, -5)
-			if err := mergeBlockStreams(&mpOut.ph, &bsw, bsrs, nil, dmis, retentionDeadline, &rowsMerged, &rowsDeleted); err != nil {
+			if err := mergeBlockStreams(&mpOut.ph, &bsw, bsrs, nil, dmis, retentionDeadline, math.MaxInt64, &rowsMerged, &rowsDeleted); err != nil {
 				panic(fmt.Errorf("cannot merge block streams: %w", err))
 			}
 		}

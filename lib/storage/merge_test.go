@@ -2,6 +2,7 @@ package storage
 
 import (
 	"errors"
+	"math"
 	"math/rand"
 	"sync/atomic"
 	"testing"
@@ -379,7 +380,7 @@ func TestMergeForciblyStop(t *testing.T) {
 	var rowsMerged, rowsDeleted atomic.Uint64
 
 	close(ch) // forcibly close the stop channel
-	if err := mergeBlockStreams(&mp.ph, &bsw, bsrs, ch, dmis, retentionDeadline, &rowsMerged, &rowsDeleted); !errors.Is(err, errForciblyStopped) {
+	if err := mergeBlockStreams(&mp.ph, &bsw, bsrs, ch, dmis, retentionDeadline, math.MaxInt64, &rowsMerged, &rowsDeleted); !errors.Is(err, errForciblyStopped) {
 		t.Fatalf("unexpected error in mergeBlockStreams: got %v; want %v", err, errForciblyStopped)
 	}
 	if n := rowsMerged.Load(); n != 0 {
@@ -387,6 +388,79 @@ func TestMergeForciblyStop(t *testing.T) {
 	}
 	if n := rowsDeleted.Load(); n != 0 {
 		t.Fatalf("unexpected rowsDeleted; got %d; want %d", n, 0)
+	}
+}
+
+func TestMergeBlockStreamsTrimsToWindow(t *testing.T) {
+	rows := []rawRow{
+		{Timestamp: 100, Value: 1, PrecisionBits: defaultPrecisionBits},
+		{Timestamp: 200, Value: 2, PrecisionBits: defaultPrecisionBits},
+		{Timestamp: 250, Value: 2.5, PrecisionBits: defaultPrecisionBits},
+		{Timestamp: 300, Value: 3, PrecisionBits: defaultPrecisionBits},
+	}
+	bsr := newTestBlockStreamReader(rows)
+	bsrs := []*blockStreamReader{bsr}
+
+	var mp inmemoryPart
+	var bsw blockStreamWriter
+	bsw.MustInitFromInmemoryPart(&mp, -5)
+	dmis := &uint64set.Set{}
+	var rowsMerged, rowsDeleted atomic.Uint64
+	if err := mergeBlockStreams(&mp.ph, &bsw, bsrs, nil, dmis, 150, 250, &rowsMerged, &rowsDeleted); err != nil {
+		t.Fatalf("unexpected error in mergeBlockStreams: %s", err)
+	}
+	if mp.ph.RowsCount != 1 {
+		t.Fatalf("unexpected rows after trim; got %d; want 1", mp.ph.RowsCount)
+	}
+	if mp.ph.MinTimestamp != 200 || mp.ph.MaxTimestamp != 200 {
+		t.Fatalf("unexpected timestamps after trim; got [%d, %d]; want [200, 200]", mp.ph.MinTimestamp, mp.ph.MaxTimestamp)
+	}
+	if n := rowsDeleted.Load(); n != 3 {
+		t.Fatalf("unexpected rowsDeleted; got %d; want 3", n)
+	}
+}
+
+func TestMergeBlockStreamsLeavesStraddlingRetentionBlockIntact(t *testing.T) {
+	rows := []rawRow{
+		{Timestamp: -10, Value: 1, PrecisionBits: defaultPrecisionBits},
+		{Timestamp: 10, Value: 2, PrecisionBits: defaultPrecisionBits},
+	}
+	bsr := newTestBlockStreamReader(rows)
+	bsrs := []*blockStreamReader{bsr}
+
+	var mp inmemoryPart
+	var bsw blockStreamWriter
+	bsw.MustInitFromInmemoryPart(&mp, -5)
+	dmis := &uint64set.Set{}
+	var rowsMerged, rowsDeleted atomic.Uint64
+	if err := mergeBlockStreams(&mp.ph, &bsw, bsrs, nil, dmis, 0, math.MaxInt64, &rowsMerged, &rowsDeleted); err != nil {
+		t.Fatalf("unexpected error in mergeBlockStreams: %s", err)
+	}
+	if mp.ph.RowsCount != 2 || mp.ph.MinTimestamp != -10 || mp.ph.MaxTimestamp != 10 {
+		t.Fatalf("ordinary retention trimmed a straddling block to rows=%d range=[%d, %d]; want both samples", mp.ph.RowsCount, mp.ph.MinTimestamp, mp.ph.MaxTimestamp)
+	}
+}
+
+func TestMergeBlockStreamsExclusiveEndAtEpoch(t *testing.T) {
+	rows := []rawRow{
+		{Timestamp: -1, Value: 1, PrecisionBits: defaultPrecisionBits},
+		{Timestamp: 0, Value: 2, PrecisionBits: defaultPrecisionBits},
+		{Timestamp: 1, Value: 3, PrecisionBits: defaultPrecisionBits},
+	}
+	bsr := newTestBlockStreamReader(rows)
+	bsrs := []*blockStreamReader{bsr}
+
+	var mp inmemoryPart
+	var bsw blockStreamWriter
+	bsw.MustInitFromInmemoryPart(&mp, -5)
+	dmis := &uint64set.Set{}
+	var rowsMerged, rowsDeleted atomic.Uint64
+	// Retention is below every sample so only the exclusive end at 0 drops rows.
+	if err := mergeBlockStreams(&mp.ph, &bsw, bsrs, nil, dmis, -1000, 0, &rowsMerged, &rowsDeleted); err != nil {
+		t.Fatalf("unexpected error in mergeBlockStreams: %s", err)
+	}
+	if mp.ph.RowsCount != 1 || mp.ph.MinTimestamp != -1 || mp.ph.MaxTimestamp != -1 {
+		t.Fatalf("exclusive end at 0 kept rows=%d range=[%d, %d]; want 1 row at -1", mp.ph.RowsCount, mp.ph.MinTimestamp, mp.ph.MaxTimestamp)
 	}
 }
 
@@ -399,7 +473,7 @@ func testMergeBlockStreams(t *testing.T, bsrs []*blockStreamReader, expectedBloc
 	dmis := &uint64set.Set{}
 	const retentionDeadline = 0
 	var rowsMerged, rowsDeleted atomic.Uint64
-	if err := mergeBlockStreams(&mp.ph, &bsw, bsrs, nil, dmis, retentionDeadline, &rowsMerged, &rowsDeleted); err != nil {
+	if err := mergeBlockStreams(&mp.ph, &bsw, bsrs, nil, dmis, retentionDeadline, math.MaxInt64, &rowsMerged, &rowsDeleted); err != nil {
 		t.Fatalf("unexpected error in mergeBlockStreams: %s", err)
 	}
 

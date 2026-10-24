@@ -2,6 +2,7 @@ package storage
 
 import (
 	"fmt"
+	"math"
 	"sync"
 	"sync/atomic"
 
@@ -16,11 +17,14 @@ import (
 // mergeBlockStreams returns immediately if stopCh is closed.
 //
 // rowsMerged is atomically updated with the number of merged rows during the merge.
-func mergeBlockStreams(ph *partHeader, bsw *blockStreamWriter, bsrs []*blockStreamReader, stopCh <-chan struct{}, dmis *uint64set.Set, retentionDeadline int64, rowsMerged, rowsDeleted *atomic.Uint64) error {
+//
+// maxKeepTimestamp is an exclusive upper bound. Pass math.MaxInt64 when there is no ceiling.
+// Zero is a real bound (the Unix epoch), not a sentinel.
+func mergeBlockStreams(ph *partHeader, bsw *blockStreamWriter, bsrs []*blockStreamReader, stopCh <-chan struct{}, dmis *uint64set.Set, retentionDeadline, maxKeepTimestamp int64, rowsMerged, rowsDeleted *atomic.Uint64) error {
 	ph.Reset()
 
 	bsm := bsmPool.Get().(*blockStreamMerger)
-	bsm.Init(bsrs, retentionDeadline)
+	bsm.Init(bsrs, retentionDeadline, maxKeepTimestamp)
 	err := mergeBlockStreamsInternal(ph, bsw, bsm, stopCh, dmis, rowsMerged, rowsDeleted)
 	bsm.reset()
 	bsmPool.Put(bsm)
@@ -83,10 +87,25 @@ func mergeBlockStreamsInternal(ph *partHeader, bsw *blockStreamWriter, bsm *bloc
 			continue
 		}
 		retentionDeadline := bsm.getRetentionDeadline(&b.bh)
-		if b.bh.MaxTimestamp < retentionDeadline {
-			// Skip blocks out of the given retention.
+		maxKeepTimestamp := bsm.maxKeepTimestamp
+		if b.bh.MaxTimestamp < retentionDeadline || b.bh.MinTimestamp >= maxKeepTimestamp {
+			// Skip blocks entirely outside the keep window.
 			localRowsDeleted += uint64(b.bh.RowsCount)
 			continue
+		}
+		// Ordinary retention (no upper bound) copies a straddling block through.
+		// Sample trimming here is only for an explicit window, where
+		// maxKeepTimestamp is not math.MaxInt64. Merging two blocks still
+		// applies retention via mergeBlocks.
+		if maxKeepTimestamp != math.MaxInt64 && (b.bh.MinTimestamp < retentionDeadline || b.bh.MaxTimestamp >= maxKeepTimestamp) {
+			if err := b.UnmarshalData(); err != nil {
+				return fmt.Errorf("cannot unmarshal block for window trim: %w", err)
+			}
+			skipSamplesOutsideWindow(b, retentionDeadline, maxKeepTimestamp, &localRowsDeleted)
+			if b.nextIdx >= len(b.timestamps) {
+				continue
+			}
+			b.fixupTimestamps()
 		}
 		if pendingBlockIsEmpty {
 			// Load the next block if pendingBlock is empty.
@@ -123,7 +142,7 @@ func mergeBlockStreamsInternal(ph *partHeader, bsw *blockStreamWriter, bsm *bloc
 		tmpBlock.bh.TSID = b.bh.TSID
 		tmpBlock.bh.Scale = b.bh.Scale
 		tmpBlock.bh.PrecisionBits = min(pendingBlock.bh.PrecisionBits, b.bh.PrecisionBits)
-		mergeBlocks(tmpBlock, pendingBlock, b, retentionDeadline, &localRowsDeleted)
+		mergeBlocks(tmpBlock, pendingBlock, b, retentionDeadline, maxKeepTimestamp, &localRowsDeleted)
 		if len(tmpBlock.timestamps) <= maxRowsPerBlock {
 			// More entries may be added to tmpBlock. Swap it with pendingBlock,
 			// so more entries may be added to pendingBlock on the next iteration.
@@ -157,13 +176,13 @@ func mergeBlockStreamsInternal(ph *partHeader, bsw *blockStreamWriter, bsm *bloc
 }
 
 // mergeBlocks merges ib1 and ib2 to ob.
-func mergeBlocks(ob, ib1, ib2 *Block, retentionDeadline int64, rowsDeleted *uint64) {
+func mergeBlocks(ob, ib1, ib2 *Block, retentionDeadline, maxKeepTimestamp int64, rowsDeleted *uint64) {
 	ib1.assertMergeable(ib2)
 	ib1.assertUnmarshaled()
 	ib2.assertUnmarshaled()
 
-	skipSamplesOutsideRetention(ib1, retentionDeadline, rowsDeleted)
-	skipSamplesOutsideRetention(ib2, retentionDeadline, rowsDeleted)
+	skipSamplesOutsideWindow(ib1, retentionDeadline, maxKeepTimestamp, rowsDeleted)
+	skipSamplesOutsideWindow(ib2, retentionDeadline, maxKeepTimestamp, rowsDeleted)
 
 	if ib1.bh.MaxTimestamp < ib2.bh.MinTimestamp {
 		// Fast path - ib1 values have smaller timestamps than ib2 values.
@@ -216,6 +235,29 @@ func skipSamplesOutsideRetention(b *Block, retentionDeadline int64, rowsDeleted 
 	if n := nextIdx - nextIdxOrig; n > 0 {
 		*rowsDeleted += uint64(n)
 		b.nextIdx = nextIdx
+	}
+}
+
+func skipSamplesOutsideWindow(b *Block, minKeepTimestamp, maxKeepTimestamp int64, rowsDeleted *uint64) {
+	skipSamplesOutsideRetention(b, minKeepTimestamp, rowsDeleted)
+	if maxKeepTimestamp == math.MaxInt64 {
+		return
+	}
+	if b.nextIdx >= len(b.timestamps) {
+		return
+	}
+	if b.bh.MaxTimestamp < maxKeepTimestamp {
+		return
+	}
+	timestamps := b.timestamps
+	end := len(timestamps)
+	for end > b.nextIdx && timestamps[end-1] >= maxKeepTimestamp {
+		end--
+	}
+	if n := len(timestamps) - end; n > 0 {
+		*rowsDeleted += uint64(n)
+		b.timestamps = timestamps[:end]
+		b.values = b.values[:end]
 	}
 }
 
