@@ -101,7 +101,7 @@ input_series:
 # Start time of the test group, as a Unix timestamp in seconds or an RFC3339 string.
 # Samples of input_series start at this time, and eval_time is relative to it.
 # Can't be earlier than 1970-01-02T00:00:00Z.
-[ start_timestamp: <int> | <rfc3339_string> | default = 2000-01-01T00:00:00Z ]
+[ start_timestamp: <number> | <rfc3339_string> | default = 2000-01-01T00:00:00Z ]
 
 # Unit tests for alerting rules
 alert_rule_test:
