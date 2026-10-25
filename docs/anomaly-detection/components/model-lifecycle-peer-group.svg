@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 850" role="img" aria-labelledby="title description">
+  <title id="title">Peer-group models lifecycle</title>
+  <desc id="description">Queries retrieve peers from VictoriaMetrics. Each query and group owns one fitted model. At inference, existing and new peers use the same warmed-up group state and receive individual scores when enough valid peers are present. Missing peers do not reset the group. New groups require their own fit and warmup. Writer stores per-peer output in VictoriaMetrics.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="12" markerHeight="12" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M2 2 10 6 2 10" fill="none" stroke="#303038" stroke-width="2"/></marker>
+    <style>
+      text { font-family: Arial, Helvetica, sans-serif; fill: #303038; }
+      .title { font-size: 32px; }
+      .heading { font-size: 23px; }
+      .label { font-size: 19px; }
+      .box { fill: #fff; stroke: #303038; stroke-width: 2; }
+      .group { fill: #fff; stroke: #303038; stroke-width: 2; stroke-dasharray: 10 8; }
+      .line { fill: none; stroke: #303038; stroke-width: 2; marker-end: url(#arrow); }
+      .blue { fill: #1478c9; }
+    </style>
+  </defs>
+  <rect width="1200" height="850" fill="#fff"/>
+  <text x="30" y="48" class="title">Peer-group Models Lifecycle</text>
+  <rect x="30" y="90" width="300" height="100" rx="8" class="box"/>
+  <text x="180" y="129" text-anchor="middle" class="heading">VictoriaMetrics TSDB</text>
+  <text x="180" y="161" text-anchor="middle" class="label">Queries retain peer identities</text>
+  <path d="M330 140 H400" class="line"/>
+  <rect x="400" y="90" width="350" height="100" rx="8" class="box"/>
+  <text x="575" y="129" text-anchor="middle" class="heading">Reader: aligned snapshots</text>
+  <text x="575" y="161" text-anchor="middle" class="label">Separate by query + groupby</text>
+  <path d="M750 140 H820" class="line"/>
+  <rect x="820" y="90" width="350" height="100" rx="8" class="group"/>
+  <text x="995" y="129" text-anchor="middle" class="heading">Fit and warm up each group</text>
+  <text x="995" y="161" text-anchor="middle" class="label">One model per query / group</text>
+  <path d="M995 190 V240 H600 V282" class="line"/>
+  <rect x="340" y="282" width="520" height="95" rx="8" class="group"/>
+  <text x="600" y="320" text-anchor="middle" class="heading">Existing, warmed-up group at inference</text>
+  <text x="600" y="351" text-anchor="middle" class="label">Reuse learned state, not a fixed member list</text>
+  <path d="M450 377 V407 H210 V437" class="line"/>
+  <path d="M600 377 V437" class="line"/>
+  <path d="M750 377 V407 H990 V437" class="line"/>
+  <rect x="40" y="437" width="340" height="100" rx="8" class="box"/>
+  <text x="210" y="476" text-anchor="middle" class="heading">Existing peers</text>
+  <text x="210" y="507" text-anchor="middle" class="label">Continue scoring</text>
+  <rect x="430" y="437" width="340" height="100" rx="8" class="box"/>
+  <text x="600" y="476" text-anchor="middle" class="heading blue">New peer, same group</text>
+  <text x="600" y="507" text-anchor="middle" class="label blue">No separate per-peer fit</text>
+  <rect x="820" y="437" width="340" height="100" rx="8" class="box"/>
+  <text x="990" y="476" text-anchor="middle" class="heading">Missing / departed peers</text>
+  <text x="990" y="507" text-anchor="middle" class="label">Do not reset the group</text>
+  <path d="M210 537 V570 H600 V600" class="line"/>
+  <path d="M600 537 V600" class="line"/>
+  <path d="M990 537 V570 H600" fill="none" stroke="#303038" stroke-width="2"/>
+  <rect x="230" y="600" width="740" height="85" rx="8" class="box"/>
+  <text x="600" y="635" text-anchor="middle" class="heading">Enough valid, aligned peers at this timestamp?</text>
+  <text x="600" y="665" text-anchor="middle" class="label">If yes: score each reporting peer using the group model</text>
+  <path d="M600 685 V718" class="line"/>
+  <text x="600" y="750" text-anchor="middle" class="heading">Writer → VictoriaMetrics: individual per-peer output</text>
+  <text x="600" y="809" text-anchor="middle" class="label blue">New group identity? It needs its own fit and warmup before scoring.</text>
+</svg>

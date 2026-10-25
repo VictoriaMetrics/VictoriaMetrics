@@ -1,3 +1,4 @@
+import { useStep } from "../../../state/step/StepStateContext";
 import { FC, useEffect, useMemo, useRef, useState } from "preact/compat";
 import { DisplayType, PanelSettings } from "../../../types";
 import { AxisRange, YaxisState } from "../../../state/graph/reducer";
@@ -10,7 +11,6 @@ import { InfoIcon } from "../../../components/Main/Icons";
 import "./style.scss";
 import Alert from "../../../components/Main/Alert/Alert";
 import Tooltip from "../../../components/Main/Tooltip/Tooltip";
-import { useGraphState } from "../../../state/graph/GraphStateContext";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import SafeHtml from "../../../components/Main/SafeHtml/SafeHtml";
 
@@ -29,7 +29,7 @@ const PredefinedPanel: FC<PredefinedPanelsProps> = ({
 }) => {
   const { isMobile } = useDeviceDetect();
   const { period } = useTimeState();
-  const { customStep } = useGraphState();
+  const { effective: customStep } = useStep();
   const dispatch = useTimeDispatch();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -79,7 +79,10 @@ const PredefinedPanel: FC<PredefinedPanelsProps> = ({
   }, [containerRef]);
 
   if (!validExpr) return (
-    <Alert variant="error">
+    <Alert
+      variant="error"
+      title="Missing panel query"
+    >
       <code>&quot;expr&quot;</code> not found. Check the configuration file <b>{filename}</b>.
     </Alert>
   );
@@ -134,8 +137,22 @@ const PredefinedPanel: FC<PredefinedPanelsProps> = ({
     </div>
     <div className="vm-predefined-panel-body">
       {isLoading && <Spinner/>}
-      {error && <Alert variant="error">{error}</Alert>}
-      {warning && <Alert variant="warning">{warning}</Alert>}
+      {error && (
+        <Alert
+          variant="error"
+          title="Unable to load query results"
+        >
+          {error}
+        </Alert>
+      )}
+      {warning && (
+        <Alert
+          variant="warning"
+          title="Series limit reached"
+        >
+          {warning}
+        </Alert>
+      )}
       {graphData && <GraphView
         isPredefinedPanel
         data={graphData}

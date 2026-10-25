@@ -336,6 +336,7 @@ If you need multi-AZ setup, then it is recommended running independent clusters 
 [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) in front of these clusters, so it could replicate incoming data
 into all the cluster - see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy) for details.
 Then an additional `vmselect` nodes can be configured for reading the data from multiple clusters according to [these docs](#multi-level-cluster-setup).
+If one cluster misses samples that are available in another, see [how to recover missing metrics](https://docs.victoriametrics.com/guides/recovering-missing-metrics/).
 
 See [VMDistributed](https://docs.victoriametrics.com/operator/resources/vmdistributed/) Kubernetes operator resource for an example.
 
@@ -677,7 +678,8 @@ Also in the cluster version the `/prometheus/api/v1` endpoint ingests  `jsonl`, 
   be used on a regular basis, since it carries non-zero overhead.
 
 - URL for listing [tenants](#multitenancy) with the ingested data on the given time range: `http://<vmselect>:8481/admin/tenants?start=...&end=...`.
-  The `start` and `end` query args are optional. If they are missing, then all the tenants with at least one sample stored in VictoriaMetrics are returned.
+  The `start` and `end` query args must be specified together. If both are missing, then only the tenants for the current day are returned.
+  In order to get all tenants, specify both `start` and `end` so that the resulting time range includes the entire `-retentionPeriod`.
 
 - URL for accessing [vmalerts](https://docs.victoriametrics.com/victoriametrics/vmalert/) UI: `http://<vmselect>:8481/select/<accountID>/prometheus/vmalert/`.
   This URL works only when `-vmalert.proxyURL` flag is set. See more about [vmalert](#vmalert).
