@@ -22,7 +22,7 @@ export const getNameForMetric = (result: MetricBase, alias?: string, showQueryNu
 };
 
 export const getLabelAlias = (fields: { [p: string]: string }, alias: string) => {
-  return alias.replace(/\{\{(\w+)}}/g, (_, key) => fields[key] || "");
+  return alias.replace(/\{\{([\w.]+)}}/g, (_, key) => fields[key] || "");
 };
 
 export const promValueToNumber = (s: string): number => {
