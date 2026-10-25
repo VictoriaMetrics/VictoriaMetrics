@@ -1248,7 +1248,7 @@ If you have suggestions for improvements or have found a bug, please open an iss
   If it is unfeasible to fix all the reported errors, then scrape errors logging can be disabled completely by passing the `-promscrape.suppressScrapeErrors` command-line flag to `vmagent`.
   Repeated errors for failed scrapes (such as network errors or timeouts) per each target can be logged less frequently with the `-promscrape.suppressScrapeErrorsDelay` command-line flag.
   This flag doesn't apply to errors when parsing the scraped response.
-  The number of logged parse errors per each scrape of a target is limited by the `-promscrape.maxParseErrorsPerScrape` command-line flag {{% available_from "#" %}};
+  The number of logged parse errors per each scrape of a target is limited by the `-promscrape.maxParseErrorsPerScrape` command-line flag {{% available_from "v1.155.0" %}};
   the number of suppressed parse errors is logged after the scrape.
   The most recent scrape error for each target can be observed at `http://vmagent-host:8429/targets` and `http://vmagent-host:8429/api/v1/targets`.
 

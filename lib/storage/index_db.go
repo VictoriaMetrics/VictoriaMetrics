@@ -20,6 +20,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -539,6 +540,25 @@ func (db *indexDB) containsDate(date uint64) (bool, uint64) {
 	return true, date
 }
 
+// perDaySearchConcurrencyLimitCh is used to limit the number of concurrent
+// searches in per-day index. The limit is shared across all indexDB methods
+// as well as across all indexDB instances. This should reduce cpu and memory
+// utilization for queries with long time ranges.
+var perDaySearchConcurrencyLimitCh = make(chan struct{}, 10*cgroup.AvailableCPUs())
+
+func beginConcurrentPerDaySearch(ctx context.Context) bool {
+	select {
+	case perDaySearchConcurrencyLimitCh <- struct{}{}:
+		return true
+	case <-ctx.Done():
+		return false
+	}
+}
+
+func endConcurrentPerDaySearch() {
+	<-perDaySearchConcurrencyLimitCh
+}
+
 // SearchLabelNames returns all the label names, which match the given tfss on
 // the given tr.
 func (db *indexDB) SearchLabelNames(ctx context.Context, qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxLabelNames, maxMetrics int) (map[string]struct{}, error) {
@@ -575,9 +595,14 @@ func (db *indexDB) searchLabelNames(ctx context.Context, qt *querytracer.Tracer,
 	lns := make(map[string]struct{})
 	qt = qt.NewChild("parallel search for label names: filters=%s, timeRange=%s", tfss, &tr)
 	for date := minDate; date <= maxDate; date++ {
+		if !beginConcurrentPerDaySearch(ctx) {
+			break
+		}
 		qtChild := qt.NewChild("search for label names: filters=%s, date=%s", tfss, dateToString(date))
 		wg.Go(func() {
 			defer qtChild.Done()
+			defer endConcurrentPerDaySearch()
+
 			lnsLocal, err := db.searchLabelNamesByDateAndFilters(ctx, qtChild, date, tfss, maxLabelNames, maxMetrics)
 			mu.Lock()
 			defer mu.Unlock()
@@ -599,6 +624,11 @@ func (db *indexDB) searchLabelNames(ctx context.Context, qt *querytracer.Tracer,
 	wg.Wait()
 	putWaitGroup(wg)
 	qt.Done()
+
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	return lns, errGlobal
 }
 
@@ -625,9 +655,7 @@ func (db *indexDB) searchLabelNamesByDateAndFilters(ctx context.Context, qt *que
 			// It is faster to obtain label names by metricIDs from the filter
 			// instead of scanning the inverted index for the matching filters.
 			// This should help https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2978
-			metricIDs := filter.AppendTo(nil)
-			qt.Printf("sort %d metricIDs", len(metricIDs))
-			lns, err := is.getLabelNamesForMetricIDs(ctx, qt, metricIDs, maxLabelNames)
+			lns, err := is.getLabelNamesForMetricIDs(ctx, qt, filter, maxLabelNames)
 			if err != nil {
 				return nil, err
 			}
@@ -716,9 +744,9 @@ func (db *indexDB) searchLabelNamesByDateAndFilters(ctx context.Context, qt *que
 	return lns, nil
 }
 
-func (is *indexSearch) getLabelNamesForMetricIDs(ctx context.Context, qt *querytracer.Tracer, metricIDs []uint64, maxLabelNames int) (map[string]struct{}, error) {
+func (is *indexSearch) getLabelNamesForMetricIDs(ctx context.Context, qt *querytracer.Tracer, metricIDs *uint64set.Set, maxLabelNames int) (map[string]struct{}, error) {
 	lns := make(map[string]struct{})
-	if len(metricIDs) > 0 {
+	if metricIDs.Len() > 0 {
 		lns["__name__"] = struct{}{}
 	}
 
@@ -728,39 +756,46 @@ func (is *indexSearch) getLabelNamesForMetricIDs(ctx context.Context, qt *queryt
 	foundLabelNames := 0
 	var buf []byte
 	loopsPaceLimiter := 0
-	for _, metricID := range metricIDs {
-		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
-			if err := ctx.Err(); err != nil {
-				return nil, err
+	var err error
+	metricIDs.ForEach(func(ids []uint64) bool {
+		for _, metricID := range ids {
+			if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
+				if err = ctx.Err(); err != nil {
+					return false
+				}
 			}
-		}
-		loopsPaceLimiter++
-		if dmis.Has(metricID) {
-			// skip deleted IDs from result
-			continue
-		}
-		var ok bool
-		buf, ok = is.searchMetricNameWithCache(buf[:0], metricID)
-		if !ok {
-			// It is likely the metricID->metricName entry didn't propagate to inverted index yet.
-			// Skip this metricID for now.
-			continue
-		}
-		if err := mn.Unmarshal(buf); err != nil {
-			logger.Panicf("FATAL: cannot unmarshal metricName %q: %s", buf, err)
-		}
-		for _, tag := range mn.Tags {
-			if _, ok := lns[string(tag.Key)]; !ok {
-				foundLabelNames++
-				lns[string(tag.Key)] = struct{}{}
-				if len(lns) >= maxLabelNames {
-					qt.Printf("hit the limit on the number of unique label names: %d", maxLabelNames)
-					return lns, nil
+			loopsPaceLimiter++
+			if dmis.Has(metricID) {
+				// skip deleted IDs from result
+				continue
+			}
+			var ok bool
+			buf, ok = is.searchMetricNameWithCache(buf[:0], metricID)
+			if !ok {
+				// It is likely the metricID->metricName entry didn't propagate to inverted index yet.
+				// Skip this metricID for now.
+				continue
+			}
+			if err := mn.Unmarshal(buf); err != nil {
+				logger.Panicf("FATAL: cannot unmarshal metricName %q: %s", buf, err)
+			}
+			for _, tag := range mn.Tags {
+				if _, ok := lns[string(tag.Key)]; !ok {
+					foundLabelNames++
+					lns[string(tag.Key)] = struct{}{}
+					if len(lns) >= maxLabelNames {
+						qt.Printf("hit the limit on the number of unique label names: %d", maxLabelNames)
+						return false
+					}
 				}
 			}
 		}
+		return true
+	})
+	if err != nil {
+		return nil, err
 	}
-	qt.Printf("get %d distinct label names from %d metricIDs", foundLabelNames, len(metricIDs))
+	qt.Printf("get %d distinct label names from %d metricIDs", foundLabelNames, metricIDs.Len())
 	return lns, nil
 }
 
@@ -855,9 +890,13 @@ func (db *indexDB) searchLabelValuesForTimeRange(ctx context.Context, qt *queryt
 	lvs := make(map[string]struct{})
 	qt = qt.NewChild("parallel search for label values: labelName=%q, filters=%s, timeRange=%s", labelName, tfss, &tr)
 	for date := minDate; date <= maxDate; date++ {
+		if !beginConcurrentPerDaySearch(ctx) {
+			break
+		}
 		qtChild := qt.NewChild("search for label values: filters=%s, date=%s", tfss, dateToString(date))
 		wg.Go(func() {
 			defer qtChild.Done()
+			defer endConcurrentPerDaySearch()
 
 			lvsLocal, err := db.searchLabelValuesByDateAndFilters(ctx, qtChild, date, labelName, tfss, maxLabelValues, maxMetrics)
 			mu.Lock()
@@ -880,6 +919,10 @@ func (db *indexDB) searchLabelValuesForTimeRange(ctx context.Context, qt *queryt
 	wg.Wait()
 	putWaitGroup(wg)
 	qt.Done()
+
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 
 	// Skip empty values, since they have no any meaning.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/600
@@ -916,9 +959,7 @@ func (db *indexDB) searchLabelValuesByDateAndFilters(ctx context.Context, qt *qu
 			// It is faster to obtain label values by metricIDs from the filter
 			// instead of scanning the inverted index for the matching filters.
 			// This should help https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2978
-			metricIDs := filter.AppendTo(nil)
-			qt.Printf("sort %d metricIDs", len(metricIDs))
-			lvs, err := is.getLabelValuesForMetricIDs(ctx, qt, labelName, metricIDs, maxLabelValues)
+			lvs, err := is.getLabelValuesForMetricIDs(ctx, qt, labelName, filter, maxLabelValues)
 			if err != nil {
 				return nil, err
 			}
@@ -984,7 +1025,7 @@ func (db *indexDB) searchLabelValuesByDateAndFilters(ctx context.Context, qt *qu
 	return lvs, nil
 }
 
-func (is *indexSearch) getLabelValuesForMetricIDs(ctx context.Context, qt *querytracer.Tracer, labelName string, metricIDs []uint64, maxLabelValues int) (map[string]struct{}, error) {
+func (is *indexSearch) getLabelValuesForMetricIDs(ctx context.Context, qt *querytracer.Tracer, labelName string, metricIDs *uint64set.Set, maxLabelValues int) (map[string]struct{}, error) {
 	if labelName == "" {
 		labelName = "__name__"
 	}
@@ -995,38 +1036,45 @@ func (is *indexSearch) getLabelValuesForMetricIDs(ctx context.Context, qt *query
 	foundLabelValues := 0
 	var buf []byte
 	loopsPaceLimiter := 0
-	for _, metricID := range metricIDs {
-		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
-			if err := ctx.Err(); err != nil {
-				return nil, err
+	var err error
+	metricIDs.ForEach(func(ids []uint64) bool {
+		for _, metricID := range ids {
+			if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
+				if err = ctx.Err(); err != nil {
+					return false
+				}
+			}
+			loopsPaceLimiter++
+			if dmis.Has(metricID) {
+				// skip deleted IDs from result
+				continue
+			}
+			var ok bool
+			buf, ok = is.searchMetricNameWithCache(buf[:0], metricID)
+			if !ok {
+				// It is likely the metricID->metricName entry didn't propagate to inverted index yet.
+				// Skip this metricID for now.
+				continue
+			}
+			if err := mn.Unmarshal(buf); err != nil {
+				logger.Panicf("FATAL: cannot unmarshal metricName %q: %s", buf, err)
+			}
+			tagValue := mn.GetTagValue(labelName)
+			if _, ok := lvs[string(tagValue)]; !ok {
+				foundLabelValues++
+				lvs[string(tagValue)] = struct{}{}
+				if len(lvs) >= maxLabelValues {
+					qt.Printf("hit the limit on the number of unique label values for label %q: %d", labelName, maxLabelValues)
+					return false
+				}
 			}
 		}
-		loopsPaceLimiter++
-		if dmis.Has(metricID) {
-			// skip deleted IDs from result
-			continue
-		}
-		var ok bool
-		buf, ok = is.searchMetricNameWithCache(buf[:0], metricID)
-		if !ok {
-			// It is likely the metricID->metricName entry didn't propagate to inverted index yet.
-			// Skip this metricID for now.
-			continue
-		}
-		if err := mn.Unmarshal(buf); err != nil {
-			logger.Panicf("FATAL: cannot unmarshal metricName %q: %s", buf, err)
-		}
-		tagValue := mn.GetTagValue(labelName)
-		if _, ok := lvs[string(tagValue)]; !ok {
-			foundLabelValues++
-			lvs[string(tagValue)] = struct{}{}
-			if len(lvs) >= maxLabelValues {
-				qt.Printf("hit the limit on the number of unique label values for label %q: %d", labelName, maxLabelValues)
-				return lvs, nil
-			}
-		}
+		return true
+	})
+	if err != nil {
+		return nil, err
 	}
-	qt.Printf("get %d distinct values for label %q from %d metricIDs", foundLabelValues, labelName, len(metricIDs))
+	qt.Printf("get %d distinct values for label %q from %d metricIDs", foundLabelValues, labelName, metricIDs.Len())
 	return lvs, nil
 }
 
@@ -1074,6 +1122,10 @@ func (is *indexSearch) searchTagValueSuffixesForTimeRange(ctx context.Context, t
 	var mu sync.Mutex // protects tvss + errGlobal from concurrent access below.
 	tvss := make(map[string]struct{})
 	for minDate <= maxDate {
+		// TODO(@rtm0): Not using perDaySearchConcurrencyLimitCh for Graphite
+		// queries because SearchGraphitePaths() is recursive and may result
+		// in a deadlock. Figure out how to limit concurrency in this case.
+
 		date := minDate
 		wg.Go(func() {
 			isLocal := is.db.getIndexSearch()
@@ -1099,6 +1151,7 @@ func (is *indexSearch) searchTagValueSuffixesForTimeRange(ctx context.Context, t
 	}
 	wg.Wait()
 	putWaitGroup(wg)
+
 	return tvss, errGlobal
 }
 
@@ -1918,14 +1971,24 @@ func (db *indexDB) searchTSIDs(ctx context.Context, qt *querytracer.Tracer, tfss
 	qt = qt.NewChild("search TSIDs in per-day index concurrently on %d days", numDays)
 	defer qt.Done()
 	for day := range numDays {
+		if !beginConcurrentPerDaySearch(ctx) {
+			break
+		}
 		date := minDate + uint64(day)
 		qtChild := qt.NewChild("search TSIDs in per-day index: filters=%s, date=%s", tfss, dateToString(date))
 		wg.Go(func() {
 			defer qtChild.Done()
+			defer endConcurrentPerDaySearch()
+
 			tsidsByDate[day], errsByDate[day] = db.searchTSIDsByDateAndFilters(ctx, qtChild, date, tfss, maxMetrics)
 		})
 	}
 	wg.Wait()
+
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	var numTSIDs int
 	for day := range numDays {
 		err := errsByDate[day]
@@ -2068,14 +2131,24 @@ func (db *indexDB) searchMetricNames(ctx context.Context, qt *querytracer.Tracer
 	qt = qt.NewChild("search metric names in per-day index concurrently on %d days", numDays)
 	defer qt.Done()
 	for day := range numDays {
+		if !beginConcurrentPerDaySearch(ctx) {
+			break
+		}
 		date := minDate + uint64(day)
 		qtChild := qt.NewChild("search metric names in per-day index: filters=%s, date=%s", tfss, dateToString(date))
 		wg.Go(func() {
 			defer qtChild.Done()
+			defer endConcurrentPerDaySearch()
+
 			metricNamesByDate[day], errsByDate[day] = db.searchMetricNamesByDateAndFilters(ctx, qtChild, date, tfss, maxMetrics)
 		})
 	}
 	wg.Wait()
+
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	var numMetricNames int
 	for day := range numDays {
 		err := errsByDate[day]

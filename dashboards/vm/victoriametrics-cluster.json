@@ -2051,7 +2051,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "max(rate(process_pressure_cpu_waiting_seconds_total{job=~\"$job\"}[$__rate_interval])) by (job)",
+              "expr": "max(rate(process_pressure_cpu_waiting_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 2,
@@ -2065,7 +2065,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "max(rate(process_pressure_cpu_stalled_seconds_total{job=~\"$job\"}[$__rate_interval])) by (job)",
+              "expr": "max(rate(process_pressure_cpu_stalled_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job)",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -2174,7 +2174,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "max(rate(process_pressure_memory_waiting_seconds_total{job=~\"$job\"}[$__rate_interval])) by (job)",
+              "expr": "max(rate(process_pressure_memory_waiting_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 2,
@@ -2188,7 +2188,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "max(rate(process_pressure_memory_stalled_seconds_total{job=~\"$job\"}[$__rate_interval])) by (job)",
+              "expr": "max(rate(process_pressure_memory_stalled_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job)",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -2313,7 +2313,7 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "sum(rate(process_io_storage_read_bytes_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job) > 0",
+              "expr": "sum(rate(process_io_storage_read_bytes_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job)",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -2328,7 +2328,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(rate(process_io_storage_written_bytes_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job) > 0",
+              "expr": "sum(rate(process_io_storage_written_bytes_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job)",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -2582,7 +2582,7 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "sum(rate(process_io_read_syscalls_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job) > 0",
+              "expr": "sum(rate(process_io_read_syscalls_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job)",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -2597,7 +2597,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(rate(process_io_write_syscalls_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job) > 0",
+              "expr": "sum(rate(process_io_write_syscalls_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job)",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -2818,7 +2818,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "max(rate(process_pressure_io_waiting_seconds_total{job=~\"$job\"}[$__rate_interval])) by (job)",
+              "expr": "max(rate(process_pressure_io_waiting_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 2,
@@ -2832,7 +2832,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "max(rate(process_pressure_io_stalled_seconds_total{job=~\"$job\"}[$__rate_interval])) by (job)",
+              "expr": "max(rate(process_pressure_io_stalled_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job)",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -3374,7 +3374,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "max(rate(go_memstats_alloc_bytes_total{job=~\"$job\"}[$__rate_interval])) by (job)",
+              "expr": "max(rate(go_memstats_alloc_bytes_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 2,
