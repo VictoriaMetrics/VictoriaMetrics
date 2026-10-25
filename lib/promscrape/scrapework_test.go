@@ -13,6 +13,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/chunkedbuffer"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prommetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
@@ -131,6 +132,128 @@ func TestScrapeWorkScrapeInternalFailure(t *testing.T) {
 	if pushDataCalls != 1 {
 		t.Fatalf("unexpected number of pushData calls; got %d; want %d", pushDataCalls, 1)
 	}
+}
+
+func TestScrapeWorkScrapeInternalFailureStaleMarkersTimestamp(t *testing.T) {
+	f := func(cfg *ScrapeWork, timestampExpected int64) {
+		t.Helper()
+
+		protoparserutil.StartUnmarshalWorkers()
+		defer protoparserutil.StopUnmarshalWorkers()
+
+		var sw scrapeWork
+		sw.Config = cfg
+		sw.lastScrapeSuccess = true
+		sw.storeLastScrape("foo 1\n")
+		sw.ReadData = func(_ *chunkedbuffer.Buffer) (bool, error) {
+			return false, fmt.Errorf("error when reading data")
+		}
+		var timestamps []int64
+		sw.PushData = func(_ *auth.Token, wr *prompb.WriteRequest) {
+			for _, ts := range wr.Timeseries {
+				for _, s := range ts.Samples {
+					if decimal.IsStaleNaN(s.Value) {
+						timestamps = append(timestamps, s.Timestamp)
+					}
+				}
+			}
+		}
+
+		tsmGlobal.Register(&sw)
+		if err := sw.scrapeInternal(123000, 123004); err == nil {
+			t.Fatalf("expecting non-nil error")
+		}
+		tsmGlobal.Unregister(&sw)
+		if len(timestamps) != 1 || timestamps[0] != timestampExpected {
+			t.Fatalf("unexpected staleness marker timestamps; got %v; want [%d]", timestamps, timestampExpected)
+		}
+	}
+
+	// staleness markers have the real scrape time
+	f(&ScrapeWork{
+		ScrapeTimeout: time.Second,
+	}, 123004)
+
+	// staleness markers of aligned scrapes have the scrape timestamp, like the samples of other vmagent instances scraping the same target
+	f(&ScrapeWork{
+		ScrapeTimeout:       time.Second,
+		ScrapeAlignInterval: time.Second,
+	}, 123000)
+	f(&ScrapeWork{
+		ScrapeTimeout: time.Second,
+		ScrapeOffset:  time.Second,
+	}, 123000)
+}
+
+func TestFirstAlignedScrape(t *testing.T) {
+	f := func(now int64, alignInterval, offset, scrapeInterval time.Duration, timestampExpected int64) {
+		t.Helper()
+
+		timestamp, _ := firstAlignedScrape(now, alignInterval, offset, scrapeInterval)
+		if timestamp != timestampExpected {
+			t.Fatalf("unexpected timestamp; got %d; want %d", timestamp, timestampExpected)
+		}
+	}
+
+	// 10.000s and 10.004s are before the same grid point, 10.300s (offset 300ms). Both get it.
+	f(int64(10*time.Second), time.Second, 300*time.Millisecond, time.Second, 10_300)
+	f(int64(10*time.Second+4*time.Millisecond), time.Second, 300*time.Millisecond, time.Second, 10_300)
+
+	// The loop starts at 10.300s, a grid point. Its first scrape is now.
+	f(int64(10*time.Second+300*time.Millisecond), time.Second, 300*time.Millisecond, time.Second, 10_300)
+
+	// The loop starts at 10.301s, after the 10.300s grid point. Its first scrape is the next one, 11.300s.
+	f(int64(10*time.Second+301*time.Millisecond), time.Second, 300*time.Millisecond, time.Second, 11_300)
+
+	// No offset. 10.004s aligns to the next second, 11.000s.
+	f(int64(10*time.Second+4*time.Millisecond), time.Second, 0, time.Second, 11_000)
+}
+
+func TestScrapeTimestampAt(t *testing.T) {
+	f := func(now, planned, interval int64, aligned bool, tsExpected, nextExpected int64) {
+		t.Helper()
+
+		ts, next := scrapeTimestampAt(now, planned, interval, aligned)
+		if ts != tsExpected || next != nextExpected {
+			t.Fatalf("unexpected result; got %d, %d; want %d, %d", ts, next, tsExpected, nextExpected)
+		}
+	}
+
+	// 50ms late on a 1s interval. The gap is under 10%. The planned time stays.
+	f(10_350, 10_300, 1_000, true, 10_300, 0)
+
+	// Exactly 10% late and aligned. The planned time stays.
+	f(10_400, 10_300, 1_000, true, 10_300, 0)
+
+	// 400ms late and aligned. The scrape gets the clock time, and the ticker moves to the next grid point, 11.300s.
+	f(10_700, 10_300, 1_000, true, 10_700, 11_300)
+
+	// 2.4s late and aligned. The ticker moves to 13.300s.
+	f(12_700, 10_300, 1_000, true, 12_700, 13_300)
+
+	// 4m59s late on a 5m interval and aligned. The next grid point is one second away.
+	f(899_000, 600_000, 300_000, true, 899_000, 900_000)
+
+	// Exactly one interval late and aligned. now is a grid point, so the scrape gets it.
+	f(11_300, 10_300, 1_000, true, 11_300, 0)
+
+	// One interval and 1ms late and aligned. The last grid point is 1ms before now, so the scrape gets it.
+	f(11_301, 10_300, 1_000, true, 11_300, 0)
+
+	// One interval and 101ms late and aligned. The last grid point is more than 10% before now. The ticker moves to 12.300s.
+	f(11_401, 10_300, 1_000, true, 11_401, 12_300)
+
+	// The clock went back by 0.98 intervals and aligned. The last grid point, 9.300s, is 20ms before now, so the scrape gets it.
+	f(9_320, 10_300, 1_000, true, 9_300, 0)
+
+	// The clock went back by 1.33 intervals and aligned. The ticker moves to 9.300s.
+	f(8_970, 10_300, 1_000, true, 8_970, 9_300)
+
+	// 50ms late and not aligned. The gap is under 10%. The planned time stays.
+	f(10_350, 10_300, 1_000, false, 10_300, 0)
+
+	// 400ms late and not aligned. The scrape time is the clock time.
+	f(10_700, 10_300, 1_000, false, 10_700, 0)
 }
 
 func TestScrapeWorkParseErrorsCount(t *testing.T) {
