@@ -24,6 +24,15 @@ func TestGetRowsDiff(t *testing.T) {
 	f("foo 123", "bar 3\nfoo 344", "")
 	f("foo{x=\"y\", z=\"a a a\"} 123", "bar 3\nfoo{x=\"y\", z=\"b b b\"} 344", "foo{x=\"y\",z=\"a a a\"} 0\n")
 	f("foo{bar=\"baz\"} 123\nx 3.4 5\ny 5 6", "x 34 342", "foo{bar=\"baz\"} 0\ny 0\n")
+	// Series with re-ordered label pairs must not be treated as missing.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1857
+	f(`foo{x="y",z="a a a"} 123`, `foo{z="a a a",x="y"} 344`, "")
+	f(`foo{c="3",a="1",b="2"} 123`, `foo{b="2",c="3",a="1"} 344`, "")
+	f(`foo{x="y",z="a"} 123`, `foo{z="b",x="y"} 344`, "foo{x=\"y\",z=\"a\"} 0\n")
+	f(`foo{x="y",z="a"} 123`+"\n"+`bar{a="1",b="2"} 3`, `bar{b="2",a="1"} 4`+"\n"+`foo{z="a",x="y"} 5`, "")
+	f(`foo{z="a",x="y"} 123`, `foo{x="y",z="a"} 344`, "")
+	// A genuinely missing series is still reported when other series change label pairs order.
+	f(`gone{a="1",b="2"} 1`+"\n"+`foo{x="y",z="a"} 123`, `foo{z="a",x="y"} 344`, "gone{a=\"1\",b=\"2\"} 0\n")
 }
 
 func TestAreIdenticalSeriesFast(t *testing.T) {

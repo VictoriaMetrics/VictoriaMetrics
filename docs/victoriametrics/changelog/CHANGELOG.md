@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): stop emitting bogus [staleness markers](https://docs.victoriametrics.com/victoriametrics/vmagent/#prometheus-staleness-markers) for series whose label pairs arrive in a different order between scrapes. Previously, such series were treated as missing on every scrape and marked stale, which produced gaps in query results when scraping exporters that do not sort label pairs. See [#1857](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1857).
+
 ## [v1.155.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.155.0)
 
 Release candidate

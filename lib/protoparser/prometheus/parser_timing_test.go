@@ -2,6 +2,7 @@ package prometheus
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -140,6 +141,29 @@ container_ulimits_soft{container="kube-scheduler",id="/kubelet/kubepods/burstabl
 			diff := GetRowsDiff(s2, s1)
 			if diff != "foo 0\n" {
 				panic(fmt.Errorf("unexpected diff; got %q; want %q", diff, "foo 0\n"))
+			}
+		}
+	})
+}
+
+func BenchmarkRowsDiffLabelOrderChurn(b *testing.B) {
+	// s1 and s2 contain the same series with the same values,
+	// but label pairs in s2 are written in the reverse order.
+	// The diff must be empty. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1857
+	var w1, w2 strings.Builder
+	for i := 0; i < 1000; i++ {
+		fmt.Fprintf(&w1, `metric_%d{a="a%d",b="b%d",c="c%d",d="d%d",e="e%d"} %d`+"\n", i, i, i, i, i, i, i)
+		fmt.Fprintf(&w2, `metric_%d{e="e%d",d="d%d",c="c%d",b="b%d",a="a%d"} %d`+"\n", i, i, i, i, i, i, i)
+	}
+	s1 := w1.String()
+	s2 := w2.String()
+	b.SetBytes(int64(len(s1)))
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			diff := GetRowsDiff(s1, s2)
+			if diff != "" {
+				panic(fmt.Errorf("unexpected non-empty diff; got %q", diff))
 			}
 		}
 	})

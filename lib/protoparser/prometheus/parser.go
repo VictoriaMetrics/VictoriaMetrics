@@ -571,8 +571,34 @@ func (li *linesIterator) NextKey() bool {
 		li.rows, li.tagsPool = unmarshalRow(li.rows[:0], li.a[0], li.tagsPool[:0], false, nil)
 		li.a = li.a[1:]
 		if len(li.rows) > 0 {
+			// Label pairs may arrive in arbitrary order for the same series across scrapes.
+			// Sort them before building the key, so the key identifies the series
+			// regardless of the label pairs order. Otherwise a series with re-ordered
+			// label pairs is treated as missing, and a bogus stale marker is emitted for it.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1857
+			tags := li.rows[0].Tags
+			if len(tags) > 1 {
+				sortTagsForDiffKey(tags)
+			}
 			li.Key = marshalMetricNameWithTags(li.Key[:0], &li.rows[0])
 			return true
+		}
+	}
+}
+
+// sortTagsForDiffKey sorts tags by (key, value) using insertion sort.
+//
+// Insertion sort is used instead of sort.Slice, since the number of tags per series
+// is small in practice, while sort.Slice allocates on every call via reflection.
+func sortTagsForDiffKey(tags []Tag) {
+	for i := 1; i < len(tags); i++ {
+		for j := i; j > 0; j-- {
+			a := &tags[j-1]
+			b := &tags[j]
+			if a.Key < b.Key || a.Key == b.Key && a.Value <= b.Value {
+				break
+			}
+			*a, *b = *b, *a
 		}
 	}
 }

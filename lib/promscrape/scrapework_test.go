@@ -1070,6 +1070,13 @@ func TestSendStaleSeries(t *testing.T) {
 	f(generateScrape(10), generateScrape(3), 7)
 	f(generateScrape(3), generateScrape(10), 0)
 	f(generateScrape(20000), generateScrape(10), 19990)
+
+	// Re-ordered label pairs across scrapes of the same series must not produce stale markers.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1857
+	f(`foo{a="1",b="2"} 1`, `foo{b="2",a="1"} 2`, 0)
+	f(`foo{a="1",b="2"} 1`+"\n"+`bar{c="3"} 2`, `bar{c="3"} 3`+"\n"+`foo{b="2",a="1"} 4`, 0)
+	// A genuinely missing series still gets a stale marker when other series change label pairs order.
+	f(`gone{a="1",b="2"} 1`+"\n"+`foo{x="y"} 2`, `foo{x="y"} 3`, 1)
 }
 
 func parsePromRow(data string) *prometheus.Row {
